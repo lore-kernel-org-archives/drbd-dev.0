@@ -1,20 +1,15 @@
-Return-Path: <lars@linbit.com>
-Date: Wed, 8 Sep 2004 17:22:42 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+Return-Path: <lmb@suse.de>
+Date: Thu, 9 Sep 2004 12:05:52 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Another drbd race
-Message-ID: <20040908152242.GA23749@nudl>
-References: <20040819110202.GO9601@marowsky-bree.de>
-	<200409071419.55799.philipp.reisner@linbit.com>
-	<20040907122840.GA15272@marowsky-bree.de>
-	<200409071447.45785.philipp.reisner@linbit.com>
-	<20040908112001.GD20844@marowsky-bree.de>
-	<20040908113110.GA10017@nudl>
-	<20040908151130.GK20844@marowsky-bree.de>
+Subject: Re: [Drbd-dev] roadmap draft
+Message-ID: <20040909100552.GQ20844@marowsky-bree.de>
+References: <200409071549.16078.philipp.reisner@linbit.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20040908151130.GK20844@marowsky-bree.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <200409071549.16078.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,55 +19,80 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Sep 08, 2004 at 05:11:30PM +0200, Lars Marowsky-Bree wrote:
-> On 2004-09-08T13:31:10,
->    Lars Ellenberg <lars.ellenberg@linbit.com> said:
-> 
-> > > So, why an explicit drbdadm fence operation? I'm missing what that would
-> > > catch.
-> > 
-> > we probably can cope without, but it is more "polite" if we have it.
-> > if we _can_ handle it explicit, why not?
-> 
-> We _need_ to handle it implicitly in case we lose the connection in that
-> scenario.
-> 
-> _Explicitly_ setting the outdated flag in some more scenarios may also
-> be appropriate, yes.
+On 2004-09-07T15:49:15,
+   Philipp Reisner <philipp.reisner@linbit.com> said:
 
-that is what I said. :)
-
+> DRBD 0.8 Roadmap
+> ----------------
 > 
-> > implicit things are more easy to overlook...
-> > 
-> > and:
-> >   P --- S  
-> >   P xxx S        link breaks
-> > 
-> >   [ you can insert here even a complete cluster crash ]
+> 1 Drop support for linux-2.4.x. 
+>   Do all size calculations on the base of sectors (512 Byte) as it 
+>   is common in Linux-2.6.x.
+>   (Currently they are done on a 1k base, for 2.4.x compatibility)
+
+For all I care, 2.4 can die die die any second... ;-)
+
+> 4 Two new config options, to allow more fine grained definition of
+>   DRDBs behaviour after a split-brain situation:
 > 
-> That's a triple fault already!
+>   after-sb-2pri = 
+>    disconnect     No automatic resynchronisation gets performed. One
+>                   node should drop its net-conf (preferable the
+>                   node that would become sync-target)
+>                   DEFAULT.
+>    asf-older      Auto sync from is the oder primary (curr.behaviour i.t.s.)
+>    asf-younger    Auto sync from is the younger primary
+>    asf-furthest   Auto sync from is the node that did more modifications
+>    asf-NODENAME   Auto sync from is the named node 
+
+With the 'preferrably the node which would become sync-target'
+constraint, you would need to allow to specify one of the other methods
+too (how else would you determine which node would become sync-target?).
+
+>   pri-sees-sec-with-higher-gc =
+>    disconnect     (current behaviour)
+>    asf-primary    Auto sync from is the current primary
+>    panic          The current primary panics. The node with the
+>                   higher gc should take over.
+>   
+>   
+>   Notes:
+>   1) The disconnect actions cause the sync-target or the secondary
+>      node to go into StandAlone state.
+
+>   2) If two nodes in primary state try to connect one of them goes
+>      into StandAlone state (=curr. behaviour)
+
+1+2 - I'd rather prefer a symmetric scenario where both nodes go to
+StandAlone.
+
+>   3) As soon as the decision is takes the sync-target adopts the
+>      GC of the sync source. 
+>      [ The whole algorithm would also work if both would reset their 
+>        GCs to <0,0,0...> after the decision, but since we also
+>        use the GC to tag the bitmap it is better the current way ]
 > 
-> >   X xxx S        N2 receives "Peer dead", but still is outdated.
+> 5 It is possible that a secondary node crashes a primary by 
+>   returning invalid block_ids in ACK packets. [This might be 
+>   either caused by faulty hardware, or by a hostile modification
+>   of DRBD on the secondary node]
 > 
-> That is a quad-fault!!! (Link lost, two nodes down, one node not coming
-> up)
+>   Proposed solution:
 
-...
+I'd just keep a map of outstanding ACKs and compare any ACK received
+against that list. Wouldn't that solve this?
 
-> But, we are already pretty far in lala land.
+> 6 Support IO fencing; introduce the "Dead" peer state (o_state)
 
-right :)
+Dead peer state + Outdated flag seems good, but regarding the 'fence', I
+defer this to the other thread ;-)
 
-> 
-> >   the point is: just receiving a "peer definetely dead" in S/?
-> >   is not enough to know that we are not outdated.
-> 
-> Right. But the fence doesn't help much either, for we need to set that
-> flag in that scenario even if the 'fence' event just isn't delivered.
 
-what I want to hav in is just a cover-my-ass thingy to require explicit
-confirmation before possibly losing (application-wise) confirmed data
-transactions.
+Sincerely,
+    Lars Marowsky-Brée <lmb@suse.de>
 
-	Lars
+-- 
+High Availability & Clustering	   \\\  /// 
+SUSE Labs, Research and Development \honk/ 
+SUSE LINUX AG - A Novell company     \\// 
+
