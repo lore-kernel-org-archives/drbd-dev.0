@@ -1,13 +1,17 @@
-Return-Path: <lmb@suse.de>
-Date: Wed, 4 Aug 2004 13:27:39 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from minna.local (1Cust198.tnt1.ber2.deu.da.uu.net [149.225.52.198])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 054AF142FB
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Aug 2004 14:47:25 +0200 (CEST)
+Date: Wed, 4 Aug 2004 14:36:14 +0200
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20040804112739.GA4411@marowsky-bree.de>
+Subject: Re: [Drbd-dev] drbd-latest introduces new build dependency on subversion
+Message-ID: <XAeNNKkfuKjjJkgs/KaQR70=lge@web.de>
+References: <20040804112739.GA4411@marowsky-bree.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-Subject: [Drbd-dev] drbd-latest introduces new build dependency on subversion
+In-Reply-To: <20040804112739.GA4411@marowsky-bree.de>
 Sender: drbd-dev-admin@lists.linbit.com
 Errors-To: drbd-dev-admin@lists.linbit.com
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
@@ -19,14 +23,17 @@ List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
 List-Archive: <http://lists.linbit.com/pipermail/drbd-dev/>
 
-Is that really necessary just for calling svnversion?
+/ 2004-08-04 13:27:39 +0200
+\ Lars Marowsky-Bree:
+> Is that really necessary just for calling svnversion?
 
+not exactly. if you get the tgz,
+svnversion should never be called,
+I checked that.
+(well, as long as you don't rm drbd_buildtag.c)
 
-Sincerely,
-    Lars Marowsky-Brée <lmb@suse.de>
+if you don't get the tgz, you obviously have svn.
 
--- 
-High Availability & Clustering	    \ ever tried. ever failed. no matter.
-SUSE Labs, Research and Development | try again. fail again. fail better.
-SUSE LINUX AG - A Novell company    \ 	-- Samuel Beckett
+ok?
 
+	lge
