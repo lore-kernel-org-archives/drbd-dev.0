@@ -1,20 +1,20 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id B87AD142F8
-	for <drbd-dev@lists.linbit.com>; Wed,  8 Sep 2004 13:21:55 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Any updates on drbd-0.7.x on Linux-2.4.x ??
-Date: Wed, 8 Sep 2004 13:21:55 +0200
-References: <200409081155.48942.philipp.reisner@linbit.com>
-	<20040908105829.GA7506@nudl>
-In-Reply-To: <20040908105829.GA7506@nudl>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
+Return-Path: <lmb@suse.de>
+Date: Wed, 8 Sep 2004 13:20:01 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] Another drbd race
+Message-ID: <20040908112001.GD20844@marowsky-bree.de>
+References: <20040819110202.GO9601@marowsky-bree.de>
+	<200409071419.55799.philipp.reisner@linbit.com>
+	<20040907122840.GA15272@marowsky-bree.de>
+	<200409071447.45785.philipp.reisner@linbit.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Message-Id: <200409081321.55125.philipp.reisner@linbit.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <200409071447.45785.philipp.reisner@linbit.com>
+Cc: 
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,31 +24,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wednesday 08 September 2004 12:58, Lars Ellenberg wrote:
-> On Wed, Sep 08, 2004 at 11:55:48AM +0200, Philipp Reisner wrote:
-> > Otherwhise I will make the 0.7.4 release
-> > (and reenable the use of sendpage() generally)
->
-> we could not get a test run on 2.4 done yet.
-> in fact, we did not do _any_ testruns yet. should be able to get this
-> going today hopefully, but seemingly one of the test clusters here has
-> hardware problems, and the other one does not like us either :(
->
-> but I had a look at the code, and I have problems with the way
-> page_count works in 2.4.  so I'd say reenable it with 2.6, keep it
-> disabled by default for 2.4...
->
-> you really want to do 0.7.4. this week?
-> then there probably will be a 0.7.5 within the next two weeks.
-> does realeasing that fast make so much sense?
+On 2004-09-07T14:47:45,
+   Philipp Reisner <philipp.reisner@linbit.com> said:
 
-* 0.7.4 fixes the >2TB issue.
-* 0.7.3 has a annoying bug in the debian/rules file.
+> No. It would be better to have a "drbdadm fence r0" operation on N2!
+> The "drbdadm fence r0" command would only set the "Outdated" flag.
 
-What do you think will be on the 0.7.5 release ?
+Well, it's automatically supposed to assume it's outdated when it
+crashes in S-P mode.
 
--Philipp
+When the secondary loses connection to the primary, a mark-peer-dead
+would prevent that flag from being set.
+
+So, why an explicit drbdadm fence operation? I'm missing what that would
+catch.
+
+Sincerely,
+    Lars Marowsky-Brée <lmb@suse.de>
+
 -- 
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Schönbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+High Availability & Clustering	   \\\  /// 
+SUSE Labs, Research and Development \honk/ 
+SUSE LINUX AG - A Novell company     \\// 
+
