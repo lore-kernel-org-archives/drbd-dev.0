@@ -1,20 +1,15 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from [10.9.9.50] (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id B7F3314310
-	for <drbd-dev@lists.linbit.com>; Fri, 11 Mar 2005 13:51:51 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Wishlist: warning message in case of different disk
-	size
-Date: Fri, 11 Mar 2005 13:51:55 +0100
-References: <422EE27B.5040209@wollmersdorfer.at>
-In-Reply-To: <422EE27B.5040209@wollmersdorfer.at>
+To: Jens Axboe <axboe@suse.de>
+Date: Tue, 15 Mar 2005 21:15:58 +0100
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200503111351.55964.philipp.reisner@linbit.com>
+Message-Id: <200503152115.58219.philipp.reisner@linbit.com>
+Cc: drbd-dev@linbit.com
+Subject: [Drbd-dev] bio_split()...
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,18 +19,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Mittwoch, 9. M=C3=A4rz 2005 12:48 schrieb Helmut Wollmersdorfer:
-> Something like
->
->    drbdx: WARNING disk sizes more than 10% different
->
-> would be nice at (initial) full sync.
->
+Hi Jens,
 
-Good idea, I have put it on drbd-0.8's ROADMAP file.
+bio_split only works for bios with a single page...
 
-=2DPhilipp
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=C3=B6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+[ from bio.c: ]
+/*
+ * split a bio - only worry about a bio with a single page
+ * in it's iovec
+ */
+struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
+{
+ struct bio_pair *bp = mempool_alloc(pool, GFP_NOIO);
+
+ if (!bp)
+  return bp;
+
+ BUG_ON(bi->bi_vcnt != 1);
+[...]
+
+In DRBD-0.8 I want to split BIO's that cross a 16 MB boundary. 
+In DRBD-0.8 I accept BIOs with more than one page (currently up to
+32 kB in a single BIO), I thought that bio_split is here
+to handle such situations....
+
+Is there an other way to go ?
+Would you accept a patch that would make bio_split to work with bigger
+BIOs ?
+
+Currently my code hits that BUG_ON statement....
+
+-Philipp
+
