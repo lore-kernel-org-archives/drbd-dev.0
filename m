@@ -1,20 +1,22 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from minna.local (dialin-145-254-059-179.arcor-ip.net
-	[145.254.59.179])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id B563A1430A
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Oct 2004 01:58:42 +0200 (CEST)
-Date: Thu, 21 Oct 2004 01:58:29 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+Return-Path: <helmut@wollmersdorfer.at>
+Received: from viefep15-int.chello.at (viefep15-int.chello.at [213.46.255.19])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id ABB2A14314
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Oct 2004 14:36:16 +0200 (CEST)
+Received: from wollmersdorfer.at ([212.186.65.148]) by viefep15-int.chello.at
+	(InterMail vM.6.01.03.04 201-2131-111-106-20040729) with ESMTP
+	id <20041021123616.KKPN6911.viefep15-int.chello.at@wollmersdorfer.at>
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Oct 2004 14:36:16 +0200
+Message-ID: <4177AD40.9070209@wollmersdorfer.at>
+Date: Thu, 21 Oct 2004 14:36:16 +0200
+From: Helmut Wollmersdorfer <helmut@wollmersdorfer.at>
+MIME-Version: 1.0
 To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] user interface test of drbd.conf
-Message-ID: <WisKeXa4Zk9f7OFi56xHQ04=lge@web.de>
-References: <20041020235059.650D53BE6F@garcon.linbit.com>
-	<41768F97.60206@wollmersdorfer.at>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041020235059.650D53BE6F@garcon.linbit.com>
-	<41768F97.60206@wollmersdorfer.at>
+References: <41768F97.60206@wollmersdorfer.at>
+	<PYb2hAVM47FNy9iVUnme8JY=lge@web.de>
+In-Reply-To: <PYb2hAVM47FNy9iVUnme8JY=lge@web.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,51 +26,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2004-10-20 18:17:27 +0200
-\ Helmut Wollmersdorfer:
+Lars Ellenberg wrote:
+> / 2004-10-20 18:17:27 +0200
+> \ Helmut Wollmersdorfer:
 
-> Problem description: senseless values are accepted.
+>>wfc-timeout
+[...]
+>>100000 valid passed
 
-[ complains about missing range checks in the drbd.conf parser ]
+>>Problem description: Very high, maybe senseless values are accepted.
 
+> should we limit it to three days?
 
-/ 2004-10-21 01:50:59 +0200
-\ svn@svn.drbd.org:
-> Author: lars
-> Date: 2004-10-21 01:50:56 +0200 (Thu, 21 Oct 2004)
-> New Revision: 1609
-> 
-> Modified:
->    branches/drbd-0.7/documentation/drbd.conf.sgml
->    branches/drbd-0.7/scripts/drbd.conf
->    branches/drbd-0.7/user/drbdadm_parser.y
-> Log:
-> added range_check to drbdadm_parser.y,
->  now helmut can add rangechecks where neccessary
+Seems very high for a HA-System. On the other hand maybe someone wants 
+the system to wait for a whole weekend.
 
-now, if you come up with more range checks you think should be in there,
-just go to drbdadm_parser.y, and insert a
-  range_check(value, name, min, max)
-line at the appropriate location, like this:
+3 days = 259200 seconds. I would like an easier to remember plain value 
+like 100000, 200000 or 300000.
 
-> Modified: branches/drbd-0.7/user/drbdadm_parser.y
-> ===================================================================
-> --- branches/drbd-0.7/user/drbdadm_parser.y	2004-10-20 13:28:36 UTC (rev 1608)
-> +++ branches/drbd-0.7/user/drbdadm_parser.y	2004-10-20 23:50:56 UTC (rev 1609)
-> @@ -149,9 +159,15 @@
->  glob_stmt:	  TK_DISABLE_IO_HINTS
->  			{ global_options.disable_io_hints=1;   }
->  		| TK_MINOR_COUNT TK_INTEGER
-> -			{ global_options.minor_count=atoi($2); }
-> -		| TK_DIALOG_REFRESH TK_INTEGER   
-> -                        { global_options.dialog_refresh=atoi($2); }
-> +		{
-> +			global_options.minor_count=atoi($2);
-> +			range_check(global_options.minor_count,"minor_count",1,255);
-> +		}
-> +		| TK_DIALOG_REFRESH TK_INTEGER
-> +		{
-> +			global_options.dialog_refresh=atoi($2);
-> +			range_check(global_options.dialog_refresh,"dialog_refresh",0,600);
-> +		}
->  		;
+> I don't get the next sentence:
+
+>>From my experience as tester I will not expect, that _any_ values will 
+>>work correctly without "dry-run".
+
+> hm?
+
+Very easy explanation:
+As we all know, usally numbers represented in text are converted to an 
+easier to handle representation inside a program. This can be hex, 
+decimal packed, floating etc. and mostly will be of fixed length. Even 
+bignums will have an upper limit (e.g. 64Kdigits). If there is no check 
+for a maximum value at input, funny things can happen in program logik 
+afterwards: overruns, skip to negative values, truncated values, which 
+possible could cause crazy program behaviour.
+
+I do not aspect many of these errors, as the bug rate of drbd is very 
+low (congratulations!) and at minor level.
+
+> well, we have had a bugzilla, but we did not use it.
+> and it would be very fast very heavily out of date.
+> do you want to keep it up-to-date,
+> and kick Phillip or me every now and then?
+
+Yeah. But it needs a minimum of cooperation from developers. E.g. such 
+messages like "solved, ready for retest", "won't solve", priorities etc.
+
+Helmut Wollmersdorfer
+
