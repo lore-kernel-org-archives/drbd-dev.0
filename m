@@ -1,19 +1,21 @@
 Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from minna.local (1Cust191.tnt1.ber2.deu.da.uu.net [149.225.52.191])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id D823B1433F
-	for <drbd-dev@lists.linbit.com>; Wed, 22 Sep 2004 16:55:47 +0200 (CEST)
-Date: Wed, 22 Sep 2004 16:53:57 +0200
+Received: from minna.local (c-134-73-115.b.dial.de.ignite.net [62.134.73.115])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id A6E271430A
+	for <drbd-dev@lists.linbit.com>; Wed, 22 Sep 2004 17:22:08 +0200 (CEST)
+Date: Wed, 22 Sep 2004 17:22:08 +0200
 From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] GFS support in DRBD-0.8
-Message-ID: <YkV400xn7A/9fpEKf0bWsA0=lge@web.de>
-References: <200409211616.59305.philipp.reisner@linbit.com>
-	<3+B6NrvPixc+6shooEioqTc=lge@web.de>
-	<200409221518.45324.philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] docs reworking (was: Does DRDB do 'intelligent'
+	mirroring?)
+Message-ID: <MtSfqwFkpbB3yQoja2m/Ih0=lge@web.de>
+References: <97851D36-08AC-11D9-9842-000A95E071BA@multimap.com>
+	<200409211627.19567.philipp.reisner@linbit.com>
+	<41505858.5080909@wollmersdorfer.at>
+	<200409221040.43220.philipp.reisner@linbit.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200409221518.45324.philipp.reisner@linbit.com>
+In-Reply-To: <200409221040.43220.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,21 +25,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2004-09-22 15:18:45 +0200
+/ 2004-09-22 10:40:43 +0200
 \ Philipp Reisner:
-> > I'd like to keep Primary, but introduce "active" as well, so we can have
-> > active Secondaries. a Primary is by definition always active.
+> [...]
+> > Personally I do not like CMS' or wikis, but I can live with it. Content
+> > should be brought to an actual state, but I will not touch the structure.
 > >
 > 
-> So it would be Primary/Active ?? What is the difference between
-> an Active and an Primary node ?
+> I will remove the "Implementation" pages completely. 
+> And as Alan pointed out, we should mention the "intelligent mirroring"
+> think already on the "Start" page.
 
-Primary and Active => is the writable Coordinator
-just Active is a writable Secondary.
-
-its just a suggestion anyways.
-
-
-I'll think about your other questions...
+well, I did that yesterday...
+maybe not too prominent, but it is even bold ...
 
 	lge
