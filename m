@@ -1,8 +1,8 @@
 Return-Path: <lmb@suse.de>
-Date: Mon, 24 Jan 2005 10:28:22 +0100
+Date: Mon, 24 Jan 2005 10:58:54 +0100
 From: Lars Marowsky-Bree <lmb@suse.de>
 To: Jens Axboe <axboe@suse.de>
-Message-ID: <20050124092822.GB5451@marowsky-bree.de>
+Message-ID: <20050124095854.GB5638@marowsky-bree.de>
 References: <20050123161633.GH24350@marowsky-bree.de>
 	<20050124091006.GA2716@suse.de>
 Mime-Version: 1.0
@@ -32,29 +32,15 @@ On 2005-01-24T10:10:07, Jens Axboe <axboe@suse.de> wrote:
 > sets vec length but doesn't assign the page or offset. Again, it should
 > use the proper api (bio_add_page()). If it had used bio_init(), it would
 > not have to set BIO_UPTODATE manually either.
-> 
-> bio->bi_next is a pointer, not an integer. Use NULL.
-> 
-> drbd_blk_run_queue() doesn't look legal, unless it's only ever run on
-> drbd's own queue. Even if so, it should remove the plug. I'd suggest
-> just using generic_unplug_device().
-> 
-> drdb should just use bio_iovec(bio) when it uses bio->bi_idx as the
-> index anyways.
 
-Ok, I'll go through the code and clean this up now. Thanks!
+I may be missing something here, but the interaction between
+drbd_ee_init() and drbd_ee_bio_prepare() doesn't map neatly to the
+bio_init() + bio_add_page() API. Part of the setup happens in
+_ee_init(), but the other half in _prepare(), so that neither one has
+all information readily available to use the correct bio_*() API.
 
-I'll hassle you with more questions as my changes oops ;-)
-
-> The bio embedding may not be the best idea or the prettiest, but as long
-> as it sets ->bi_max_vecs it should be ok. In general the code could
-> really do with someone cleaning it up in preperation for submitting to
-> mainline...
-
-Yeah, that's happening with 0.8, but this is a 'maintenance' branch,
-with all what that entails :-( drbd 0.7 on 2.4 is (unfortunately ;-)
-still making money for Linbit, or else I'd guess everyone would be just
-too happy to rip it out.
+Philipp, is it guaranteed that the drbd_dev for which drbd_ee_init()
+is invoked is the same one drbd_ee_bio_prepare will be called later?
 
 
 Sincerely,
