@@ -1,17 +1,29 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: "Tristan Tjerks" <t.tjerks@compri.nl>
-Date: Tue, 23 Nov 2004 08:13:28 +0100
-References: <OFENLNCLHDHNDAONGIOECEPGCAAA.t.tjerks@compri.nl>
-In-Reply-To: <OFENLNCLHDHNDAONGIOECEPGCAAA.t.tjerks@compri.nl>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200411230813.28869.philipp.reisner@linbit.com>
-Cc: drbd-dev@linbit.com
-Subject: [Drbd-dev] Re: make disk ready for drbd
+Return-Path: <gld-drbd-dev@m.gmane.org>
+Received: from main.gmane.org (main.gmane.org [80.91.229.2])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id CA965142FB
+	for <drbd-dev@lists.linbit.com>; Mon, 22 Nov 2004 08:59:36 +0100 (CET)
+Received: from list by main.gmane.org with local (Exim 3.35 #1 (Debian))
+	id 1CW96b-0001pY-00
+	for <drbd-dev@lists.linbit.com>; Mon, 22 Nov 2004 08:59:25 +0100
+Received: from serveur.moneytech.mg ([62.173.234.190])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <drbd-dev@lists.linbit.com>; Mon, 22 Nov 2004 08:59:25 +0100
+Received: from cyril by serveur.moneytech.mg with local (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <drbd-dev@lists.linbit.com>; Mon, 22 Nov 2004 08:59:25 +0100
+To: drbd-dev@lists.linbit.com
+From: Cyril Bouthors <cyril@bouthors.org>
+Date: Mon, 22 Nov 2004 10:59:15 +0300
+Message-ID: <873bz2tiuk.fsf@wide.bouthors.org>
+References: <200411152259.28960.philipp.reisner@linbit.com>
+	<87llcy0zn8.fsf@wide.bouthors.org>
+	<200411191512.50171.philipp.reisner@linbit.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+Sender: news <news@sea.gmane.org>
+Subject: [Drbd-dev] Re: 0.7.6 release tomorrow...
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,33 +33,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Montag, 22. November 2004 17:38 schrieb Tristan Tjerks:
-> Thank you,
->
-> Now Idea what went wrong. It was formatted okay as ext3. Now it works okay,
-> I just formatted it again and saved the partition again with fdisk.
->
-> Is it normal that when you restart drbd on one server the whole system
-> crashes? I can not even kill anything, the whole Linux system hangs and I
-> have to press the reset button (it is a brand new Dell 2800 Dual Xeon
-> server)...
->
+--=-=-=
 
-No, of course not! It should not hang or crash!
+On 19 Nov 2004,
+> It was told me before. But I will continue to maintain it for my own
+> (possibly other's) convenience. [With 'maintain' I mean to take the
+> official debian/ directory and to put it intdo DRBD's SVN.]
 
-Please, retry it and do it in this order:
+Sure, I understand that the debian/ directory is useful for SVN users,
+it has to be kept in for them but is it necessary to distribute it in
+the tarballs?
+-- 
+Cyril Bouthors
 
-1. Freshly boot the machine.
-2. Start DRBD, (i.e. attach the /dev/drbd0 onto /dev/sda2
-3. [optional] Start the peer node and start DRBD there,
-   wait until the two are connected.
-4. drbdadm primary r0
-4. mkfs -t ext3 /dev/drbd0
-5. mount /dev/drbd0 /mnt/something
+--=-=-=
+Content-Type: application/pgp-signature
 
-What I want to say here, do not access the backing storage directly:
-no mkfs -t ext3 on /dev/sda2, do not mount /dev/sda2 !
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.5 (GNU/Linux)
 
--philipp
-
+iD8DBQBBoZxTZ1SJHeqsYt8RAlYNAKCflk11/o8i1Sp6TT/FP627XoD/TACeOeTj
+edAineNQiVba9PyWxCsWAww=
+=w14s
+-----END PGP SIGNATURE-----
+--=-=-=--
 
