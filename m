@@ -1,22 +1,16 @@
 Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from minna.local (dialin-145-254-055-235.arcor-ip.net
-	[145.254.55.235])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 7B2061436B
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Oct 2004 19:22:25 +0200 (CEST)
-Date: Thu, 21 Oct 2004 19:03:33 +0200
+Received: from minna.local (dialin-145-254-052-187.arcor-ip.net
+	[145.254.52.187])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 6610914347
+	for <drbd-dev@lists.linbit.com>; Mon, 25 Oct 2004 23:01:46 +0200 (CEST)
+Date: Mon, 25 Oct 2004 22:59:04 +0200
 From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] user interface test of drbd.conf
-Message-ID: <x/QbWvt8wEANp1z3TadTCK0=lge@web.de>
-References: <41768F97.60206@wollmersdorfer.at>
-	<PYb2hAVM47FNy9iVUnme8JY=lge@web.de>
-	<4177AD40.9070209@wollmersdorfer.at>
-	<WhHybcWnp6n8hv8yqruBrJk=lge@web.de>
-	<4177DC1E.70600@wollmersdorfer.at>
+Message-ID: <oQ8h+tLc53xtaV2FSuXHvMc=lge@web.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4177DC1E.70600@wollmersdorfer.at>
+Subject: [Drbd-dev] range checks in drbdadm and drbdsetup
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,45 +20,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2004-10-21 17:56:14 +0200
-\ Helmut Wollmersdorfer:
-> >>>>From my experience as tester I will not expect, that _any_ values will 
-> >>>>work correctly without "dry-run".
-> 
-> >>>hm?
 
-> If I only test with dry-run, I only test the parser. This cannot uncover 
-> errors in afterwards logic.
-> 
-> >and to improve the scanner, maybe limiting to 9 digits will do?
-> [...]
-> >+OUT_OF_RANGE_NUM	  [0-9]{10,}[kmgKMG]? 
-> >+NUM			  [0-9]{1,9}
-> >+NUM_U			  [0-9]{1,9}[kmgKMG]?
-> Let's try
-> 999999999k ~ 1 T
-> 999999999M ~ 1000 T
-> 999999999G ~ 1000000 T
+have a look at my most recent svn checkin.
 
-well, of course there should be additional range_checks
-in drbdadm_parser.y
+added
+  user/drbd_limits.h
+to be able to give better diagnostics for nonsensical configuration.
 
-but 9 digits do fit very well into a 32bit integer.
-(the default return type of strtol on a 32bit arch).
-then the overflow conditions need to be checked before
-using the unit multiplier, as mentioned previously.
+please review my choice of ranges.
 
-> [...]
-> > <NUM>{
-> >   {NUM}			yy_pop_state(); CP; return TK_INTEGER;
-> >+  {OUT_OF_RANGE_NUM}	{
-> >+			  PRINTF("%s: number too big\n", yytext);
-> Better:
-> +	PRINTF("%s: number exceeds limit of 9 digits\n", yytext);
+Helmut, please "stress"
+  drbdadm -c some.conf dump 
+a little :)
 
-yeah, whatever :)
-
-I'm going to make up a decent patch somewhen this weekend, I guess.
-though I'll be distracted by some major family meeting ...
+this patch makes drbdadm and drbdsetup a little bit noisy on stderr,
+until this is settled; then we
+  #define DEBUG_RANGE_CHECK 0
+and are happy again.
 
 	lge
