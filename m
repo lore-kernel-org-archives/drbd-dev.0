@@ -1,18 +1,17 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@linbit.com
-Subject: Re: [Drbd-dev] [RFC] (CRM and) DRBD (0.8) states and transistions,
-	recovery strategies
-Date: Mon, 27 Sep 2004 16:52:10 +0200
+Return-Path: <lists@beekhof.net>
+In-Reply-To: <20040924211133.GC3927@marowsky-bree.de>
 References: <yZEXPsg2gvkm1jq9tjYKNcg=lge@web.de>
-In-Reply-To: <yZEXPsg2gvkm1jq9tjYKNcg=lge@web.de>
-MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
+	<20040924211133.GC3927@marowsky-bree.de>
+Mime-Version: 1.0 (Apple Message framework v619)
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Message-Id: <8E6E7736-0FEB-11D9-88B9-000A95B71D78@beekhof.net>
 Content-Transfer-Encoding: 7bit
-Message-Id: <200409271652.10284.philipp.reisner@linbit.com>
-Cc: 
+From: Andrew Beekhof <lists@beekhof.net>
+Date: Sun, 26 Sep 2004 20:40:36 +0200
+To: High-Availability Linux Development List <linux-ha-dev@lists.linux-ha.org>
+Cc: drbd-dev@linbit.com
+Subject: [Drbd-dev] Re: [Linux-ha-dev] [RFC] (CRM and) DRBD (0.8) states and
+	transistions, recovery strategies
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,94 +21,84 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Freitag, 24. September 2004 16:29 schrieb Lars Ellenberg:
 
-[...]
+On Sep 24, 2004, at 11:11 PM, Lars Marowsky-Bree wrote:
 
->     Currently this covers only the states, and outlines the transitions. It
->     should help to define the actions to be taken on every possible "input"
->     to the DRBD internal "state machine".
+> On 2004-09-24T16:29:25,
+>    Lars Ellenberg <Lars.Ellenberg@linbit.com> said:
 >
+>> some of this applies to replicated resources in general,
+>> so Andrew may have some ideas to generalize it...
+>
+> I think the modelling we have so far (with the recent addendum) 
+> captures
+> this quite nicely for the time being. But of course, it'll help us to
+> verify this.
 
-While reading through this giant e-mail I lost my confidence that it 
-could be a good idea to have a "central" state switching function in 
-DRBD, but of course I will see what this discussions gives...
+right.  i also be thinking more about this in the coming days when I 
+start on the incarnations.
 
-We have a huge space of possible cominations of these attributes, but
-a lot of those are impossible/invalid... etc. Currently these constraints
-are expressed by the code ...
+>
+>>     Some of the attributes depend on others, and the information 
+>> about the
+>>     node status could be easily encoded in one single letter.
+>>
+>>     But since HA is all about redundancy, we will encode the node 
+>> status
+>>     redundantly in *four* letters, to make it more obvious to human 
+>> readers.
+>>
+>>      _        down,
+>>      S        up, standby (non-active, but ready to become active)
+>>      s        up, not-active, but target of sync
+>>      i        up, not-active, unconnected, inconsistent
+>>      o        up, not-active, unconnected, outdated
+>>      d        up, not-active, diskless
+>>      A        up, active
+>>      a        up, active, but target of sync
+>>      b        up, blocking, because unconnected active and 
+>> inconsistent
+>>                             (no valid data available)
+>>      B        up, blocking, because unconnected active and diskless
+>>                             (no valid data available)
+>>      D        up, active, but diskless (implies connection to good 
+>> data)
+>>       M       meta-data storage available
+>>       _       meta-data storage unavailable
+>>        *      backing storage available
+>>        o      backing storage consistent but outdated
+>>               (refuses to become active)
+>>        i      backing storage inconsistent (unfinished sync)
+>>        _      diskless
+>>         :     unconnected, stand alone
+>>         ?     unconnected, looking for peer
+>>         -     connected
+>>>     connected, sync source
+>>         <     connected, sync target
+>
+> I'd structure this somewhat differently into the node states (Up, 
+> Down),
+> our assumption about the other node (up, down, fenced), Backing Store
+> states (available, outdated, inconsistent, unavailable), the connection
+> (up or down) and the relationship between the GCs (higher, lower,
+> equal).
+>
+> (Whether we are syncing and in what direction seems to be a function of
+> that, same whether or not we are blocking or not.)
+>
+> It's essentially the same as your list, but it seems to be more
+> accessible to me. But, it's late ;-)
 
-The question is, what is easier to read/understand/code/get right.
+I agree here... restricting the attributes to true inputs (rather than 
+derived values) helps stop my brain going into meltdown trying to 
+absorb the matrix :)  I could also imagine that it makes your life 
+easier if you decide to change how you decide something like syncing 
+direction later on.
 
-[...]
->
->     Allowed node state transition "inputs" or "reactions" are
->
->     *   up or down the node
->
->     *   add/remove the disk (by administrative request or in response to io
->         error)
->
->         if it was the last accessible good data, should this result in
->         suicide, or block all further io, or just fail all further io?
->
->         if this lost the meta-data storage at the same time (meta-data
->         internal), do we handle this differently?
 
-I guess this is a question we can not answer here for all of our users,
-some one might want this, the others that... etc.. If it is a question 
-you can not answer, it probabely needs to be configurable.
 
->     *   fail meta-data storage
->
->         should result in suicide.
->
->     *   establish or lose the connection; quit/start retrying to establish
-> a connection.
->
->     *   promote to active / demote to non-active
->
->         To promote an unconnected inconsistent non-active node you need
->         brute force. Similar if it thinks it is outdated.
->
->         Promoting an unconnected diskless node is not possible. But those
->         should have been mapped to a "down" node, anyways.
->
+-- 
+Andrew Beekhof
 
-Hmmm ? 
+"Ooo Ahhh, Glenn McRath" - TISM
 
-Just had a look at what we are currently doing. Probabely we should 
-drop the DISKLESS bit and replace this by an enum
-
-dstate: inconsistent, 
-        outdated  (known to be outdated -- happens via drbdadm outdate and 
-                   in data was consistent negotiation's outcome was this this
-                   is old data and sync is Paused),
-        consistent (this reflects the meta-data meaning of consistent i.e.
-                    might be outdated),
-        na (=diskless), 
-        uptodate
-
-and display this in /proc/drbd "ld:"
-
->     *   start/finish synchronization
->
->         One must not request a running and up-to-date active node to become
->         target of synchronization.
->
->     *   block/unblock all io requests
->
->         This is in response to drbdadm suspend/resume, or a result of an
->         "execption handler".
->
->     *   commit suicide
->
->         This is our last resort emergency handler. It should not be
->         implemented as "panic", though currently it is.
->
->     Again, this is important, please double check: Did I miss something?
->
-
-I think everything is there... (and reading it is quite inspiring)
-
--Philipp
