@@ -1,15 +1,17 @@
-Return-Path: <lmb@suse.de>
-Date: Wed, 25 Aug 2004 15:09:34 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from minna.local (1Cust64.tnt12.ber2.deu.da.uu.net [149.225.238.64])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 571B014311
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Aug 2004 15:12:17 +0200 (CEST)
+Date: Wed, 25 Aug 2004 14:54:02 +0200
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Summary (2nd try)
-Message-ID: <20040825130934.GZ3125@marowsky-bree.de>
-References: <200408251501.59314.philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] Summary (=Idems for 0.8 Roadmap)
+Message-ID: <FcbaFJHhBNyUmurvwLCdHbA=lge@web.de>
+References: <200408251207.20479.philipp.reisner@linbit.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <200408251501.59314.philipp.reisner@linbit.com>
+In-Reply-To: <200408251207.20479.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,58 +21,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2004-08-25T15:01:59,
-   Philipp Reisner <philipp.reisner@linbit.com> said:
-
+/ 2004-08-25 12:07:20 +0200
+\ Philipp Reisner:
 > Hi,
 > 
-> After I realized that we no longer make any node primary automatically :)
-> Here the suggestion of the new configure option:
+> New configuration options:
 > 
-> after-primary-primary = 
+>   primary-after-sb  (SB = splitbrain) = 
+>    older	The node that was primary before split brain (current behaviour)
+>    younger	The node that became primary during split brain 
+>    most-mod	The node that modified more of it's data during the SB.
+>    wait		None, wait for operator's decission. 
 
-This is in case where after the reconnect there is no primary (s/s),
-right?
+would this block current activity on the Primary/both nodes?
+what if _both_ are still Primary?
 
->  disconnect	No automatic resynchronisation gets performed. One
-> 		node should drop its net-conf (preferable the
-> 		node that would become sync-target)
-> 		I think this should be default.
->  ass-older	Auto sync source is the oder primary (current default i.t.s.)
->  ass-younger	Auto sync source is the younger primary
->  ass-furthest   Auto sync source is the node that did more modifications
->  ass-NODENAME   Auto sync source is the named node 
-> 
-> Falls es schon einen pirmary gibt (also dieses:
-> 
-[snip]
+>    node-"nodename"	The node prefered by the user.[suggested by Helmut]
 
-> ) Dann:
-> 
->  disconnect   (current behaviour in the situation.)
->  ass-*        Auto sync, but the current primary gets sync-source.
-> 
-> What do you think ?
+>   wrong-gencnt (secondary-with-higher-genctn) =
+>    refuse	(Current behaviour)
+>          	I think the secondary should drop its net-conf.
 
-Sounds good, one scenario is missing.
+currently the Primary goes StandAlone.
+you suggest the Secondary goes StandAlone, too,
+                       or goes StandAlone instead?
 
-P-P scenario:
+>    update-data	Make the joining node sync-target.
 
-disconnect	(same same)
-ass-*		the node which would be SyncTarget needs to crash
-		itself to 'clear' the higher levels, and then would
-		(after the reboot) go through the first scenario.
+so, in a peer to peer scenario, who joins whom?
+this of course means make the Secondary with the higher gencounts
+sync-target in the presence of a running Primary.
 
-This may be useful for unattended embedded scenarios, but as it is
-pretty severe recovery for a grave error, may even value an additional
-flag.
+this is a delicate decision... do we really want this to be automated?
+maybe that could become at least an undocumented feature?
+
+additional questions:
+who would adopt the gencounts of the other?
+do we want to preserve strict non-decreasing monotonicity?
 
 
-Sincerely,
-    Lars Marowsky-Brée <lmb@suse.de>
 
--- 
-High Availability & Clustering	   \\\  /// 
-SUSE Labs, Research and Development \honk/ 
-SUSE LINUX AG - A Novell company     \\// 
+>   secondary-after-sb = 
+>    keep-data		The secondray drops its net-config.
+>    update-data	Make the looser sync-target (Current behaviour)
 
+um. I don't see this at all?
+what scenario is this?
+
+	lge
