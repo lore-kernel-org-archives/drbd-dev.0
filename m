@@ -1,20 +1,21 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from minna.local (c-134-76-134.b.dial.de.ignite.net [62.134.76.134])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id EAEEC14328
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2004 12:43:11 +0200 (CEST)
-Date: Tue, 19 Oct 2004 12:43:17 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 4329A14328
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2004 12:51:22 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] Re: [DRBD-cvs] r1598 - trunk/user
-Message-ID: <2ZxDBCtFYpvIE7ZPNcUCb8Q=lge@web.de>
+Date: Tue, 19 Oct 2004 12:52:35 +0200
 References: <20041019073224.518E93BE6D@garcon.linbit.com>
-	<20041019091307.GD9603@marowsky-bree.de>
 	<IHnGc0lqeCeXwtfkV1Xslp4=lge@web.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+	<2ZxDBCtFYpvIE7ZPNcUCb8Q=lge@web.de>
+In-Reply-To: <2ZxDBCtFYpvIE7ZPNcUCb8Q=lge@web.de>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <IHnGc0lqeCeXwtfkV1Xslp4=lge@web.de>
+Content-Disposition: inline
+Message-Id: <200410191252.36044.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,39 +25,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2004-10-19 12:19:18 +0200
-\ Lars Ellenberg:
-> > In particular these headers
-> > 
-> > > +#include <asm/byteorder.h>	/* for the __cpu_to_le64 etc. functions  */
-> > > +#include <linux/bitops.h>	/* for the hweight functions  */
-> > > +#include <linux/types.h>	/* for the __u32/64 type defs */
-> > 
-> > _are known to break_ on ia64/ppc64/s390x. I'd be very grateful if you
-> > could avoid this.
-> 
-> hm.
-> 
-> I just don't want to depend on glib-devel just for some endianness issues.
-> rather copy waht is neccessary into our own headers.
-> which is not too much, anyways.
-> 
-> #  linux/bitops.h
-> we only care for the hweight functions, which are plain c.
-> I don't see where they could break on any arch.
-> 
-> # linux/types.h
-> we only care for the __u32 __u64 type defines.
-> ok, we can drop that and just use sys/types.h,
-> %s/__u\(.*\)/uint\1_t/
-> 
-> # asm/byteorder.h
-> ok, we can drop that, and use utils.h instead.
+> nonsense.
+> that is a nonstandard header, too.
+> well, then I'd just copy_n_paste together our own endian header?
+>
 
-nonsense.
-that is a nonstandard header, too.
-well, then I'd just copy_n_paste together our own endian header?
+good idea!
 
-> konsensfähig?
-
-	lge
+-Philipp
+-- 
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Schönbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
