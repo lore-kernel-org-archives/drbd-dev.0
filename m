@@ -1,19 +1,16 @@
-Return-Path: <lmb@suse.de>
-Date: Mon, 4 Oct 2004 22:24:43 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
+Return-Path: <dkrovich@csee.wvu.edu>
+Received: from localhost (krovich.dsl2.d-mgtn.labyrinth.net [65.242.77.190])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 053A614301
+	for <drbd-dev@lists.linbit.com>; Mon,  4 Oct 2004 16:30:58 +0200 (CEST)
+Message-ID: <41615E9A.5070203@csee.wvu.edu>
+Date: Mon, 04 Oct 2004 10:30:50 -0400
+From: David Krovich <dkrovich@csee.wvu.edu>
+MIME-Version: 1.0
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] How Locking in GFS works...
-Message-ID: <20041004202443.GH1542@marowsky-bree.de>
-References: <200410041456.21841.philipp.reisner@linbit.com>
-	<20041004134912.GY1542@marowsky-bree.de>
-	<200410041609.23272.philipp.reisner@linbit.com>
-	<200410041617.21258.philipp.reisner@linbit.com>
-	<2AuBE4UNaPcGXlPlToSVgHc=lge@web.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2AuBE4UNaPcGXlPlToSVgHc=lge@web.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Cc: 244291@bugs.debian.org
+Subject: [Drbd-dev] 0.7.5 debian stuff
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,39 +20,13 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2004-10-04T17:12:24, Lars Ellenberg <Lars.Ellenberg@linbit.com> wrote:
+I started looking at the debian directory released with the 0.7.5 
+tarball.  Since we're changing some things around, how about the following?
 
-> but yes, I think a consistent arbitration would do the trick much
-> cheaper.
+Have the drbd source package create 2 binary packages, one named 
+drbd-utils and one named drbd-modules-source.  I think those would be 
+much cleaner names for the binary packages.
 
-For two nodes yes. I think it's the optimal scheme assuming that write
-contention is not the regular case; if a large percentage (>40% or so)
-of writes would overlap I assume a coordination algorithm would be
-better. But, I assume such workloads have a much more fundamental
-problem. ;-)
-
-> though for the (N>2)-node case I'd like to see your paper first ;)
-
-I don't think this scheme will work well for >2 node active scenarios if
-all more than two try to write and receive all writes in different
-ordering.
-
-But >2 nodes would likely wish to have an efficient multicast protocol
-anyway. Three you could do in a triangle, but 4 already would suck for
-such a full mesh anyway.
-
-Actually, the 2-node active:active seems so straightforward it may make
-sense for 0.8 already. A passive replication to more than 1 standby may
-also be doable. >2 node active/active is 0.9 material...
-
-I need to add that to our funding plans ;-)
-
-
-Sincerely,
-    Lars Marowsky-Brée <lmb@suse.de>
-
--- 
-High Availability & Clustering
-SUSE Labs, Research and Development
-SUSE LINUX AG - A Novell company
-
+I like the fact that drbd0.7 conflicts drbd << 0.7, but do we think 
+0.6.x is no longer being used?  If we upload this package into debian, 
+how would we ever be able to upload a newer version of the 0.6.x series?
