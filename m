@@ -1,15 +1,19 @@
-Return-Path: <lmb@suse.de>
-Date: Tue, 19 Oct 2004 11:13:07 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 04F4114328
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2004 11:29:11 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20041019091307.GD9603@marowsky-bree.de>
-References: <20041019073224.518E93BE6D@garcon.linbit.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Date: Tue, 19 Oct 2004 11:30:24 +0200
+References: <20041019091152.50E053BE6D@garcon.linbit.com>
+In-Reply-To: <20041019091152.50E053BE6D@garcon.linbit.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20041019073224.518E93BE6D@garcon.linbit.com>
-Subject: [Drbd-dev] Re: [DRBD-cvs] r1598 - trunk/user
+Content-Disposition: inline
+Message-Id: <200410191130.24197.philipp.reisner@linbit.com>
+Subject: [Drbd-dev] Re: [DRBD-cvs] r1600 - branches/drbd-0.7/drbd
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,42 +23,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2004-10-19T09:32:24, svn@svn.drbd.org wrote:
-
-> Author: phil
-> Date: 2004-10-19 09:32:21 +0200 (Tue, 19 Oct 2004)
-> New Revision: 1598
-> 
+On Tuesday 19 October 2004 11:11, svn@svn.drbd.org wrote:
+> Author: lars
+> Date: 2004-10-19 11:11:49 +0200 (Tue, 19 Oct 2004)
+> New Revision: 1600
+>
 > Modified:
->    trunk/user/Makefile
->    trunk/user/drbdmeta.c
+>    branches/drbd-0.7/drbd/drbd_int.h
+>    branches/drbd-0.7/drbd/drbd_main.c
+>    branches/drbd-0.7/drbd/drbd_receiver.c
+>    branches/drbd-0.7/drbd/drbd_req.c
+>    branches/drbd-0.7/drbd/drbd_worker.c
 > Log:
-> [patch by LGE] 
->  * removed the dependency on glib, and use the kernel's
->    includes instead. 
+> get rid of the HERE macro
+> provide (experimental) code for decreasing latency on 2.6 kernels by
+> pushing the tcp stack
+>
 
-Do not do that. Please. Including kernel-headers from user-space is an
-absolute nightmare, it keeps breaking sporadically and in particular on
-non-i386 archs. The kernel headers just aren't meant to be used in
-user-space (and are documented to not be supported for this), and all
-the build issues I've had with OCFS, Lustre, ... have been caused by
-this.
+Hi Lars,
 
-In particular these headers
+Do you really think it is an good idea to put that tcp-stack pushing
+into drbd-0.7 ??
 
-> +#include <asm/byteorder.h>	/* for the __cpu_to_le64 etc. functions  */
-> +#include <linux/bitops.h>	/* for the hweight functions  */
-> +#include <linux/types.h>	/* for the __u32/64 type defs */
+- Do you know that it improves performance ? 
+  Or is it just an assumption.
 
-_are known to break_ on ia64/ppc64/s390x. I'd be very grateful if you
-could avoid this.
+- Do we really want to do this with the stable code 
+  I think we should have a least one or two reports from the list,
+  that 
+    a) it does not break anything
+    b) it improves performance.
 
-
-Sincerely,
-    Lars Marowsky-Brée <lmb@suse.de>
-
+-philipp
 -- 
-High Availability & Clustering
-SUSE Labs, Research and Development
-SUSE LINUX AG - A Novell company
-
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: SchÃ¶nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
