@@ -1,19 +1,17 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Date: Mon, 27 Sep 2004 14:19:54 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: High-Availability Linux Development List <linux-ha-dev@lists.linux-ha.org>,
-	drbd-dev@linbit.com
-Message-ID: <DDsOMcDtq6/VuKnbFKAsiFY=lge@web.de>
-References: <yZEXPsg2gvkm1jq9tjYKNcg=lge@web.de>
-	<20040924211133.GC3927@marowsky-bree.de>
-	<8E6E7736-0FEB-11D9-88B9-000A95B71D78@beekhof.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@linbit.com
+Subject: Re: [Drbd-dev] inter-arch PAGE_SIZE problem
+Date: Mon, 27 Sep 2004 16:04:18 +0200
+References: <P3J8pVXQZJMx4eU9q8DUNEQ=lge@web.de>
+In-Reply-To: <P3J8pVXQZJMx4eU9q8DUNEQ=lge@web.de>
+MIME-Version: 1.0
 Content-Disposition: inline
-In-Reply-To: <8E6E7736-0FEB-11D9-88B9-000A95B71D78@beekhof.net>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200409271604.18224.philipp.reisner@linbit.com>
 Cc: 
-Subject: [Drbd-dev] Re: [Linux-ha-dev] [RFC] (CRM and) DRBD (0.8) states and
-	transistions, recovery strategies
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,91 +21,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2004-09-26 20:40:36 +0200
-\ Andrew Beekhof:
-> 
-> On Sep 24, 2004, at 11:11 PM, Lars Marowsky-Bree wrote:
-> 
-> >On 2004-09-24T16:29:25,
-> >   Lars Ellenberg <Lars.Ellenberg@linbit.com> said:
-> >
-> >>some of this applies to replicated resources in general,
-> >>so Andrew may have some ideas to generalize it...
-> >
-> >I think the modelling we have so far (with the recent addendum) 
-> >captures
-> >this quite nicely for the time being. But of course, it'll help us to
-> >verify this.
-> 
-> right.  i also be thinking more about this in the coming days when I 
-> start on the incarnations.
-> 
-> >
-> >>    Some of the attributes depend on others, and the information 
-> >>about the
-> >>    node status could be easily encoded in one single letter.
-> >>
-> >>    But since HA is all about redundancy, we will encode the node 
-> >>status
-> >>    redundantly in *four* letters, to make it more obvious to human 
-> >>readers.
-> >>
-> >>     _        down,
-> >>     S        up, standby (non-active, but ready to become active)
-> >>     s        up, not-active, but target of sync
-> >>     i        up, not-active, unconnected, inconsistent
-> >>     o        up, not-active, unconnected, outdated
-> >>     d        up, not-active, diskless
-> >>     A        up, active
-> >>     a        up, active, but target of sync
-> >>     b        up, blocking, because unconnected active and 
-> >>inconsistent
-> >>                            (no valid data available)
-> >>     B        up, blocking, because unconnected active and diskless
-> >>                            (no valid data available)
-> >>     D        up, active, but diskless (implies connection to good 
-> >>data)
-> >>      M       meta-data storage available
-> >>      _       meta-data storage unavailable
-> >>       *      backing storage available
-> >>       o      backing storage consistent but outdated
-> >>              (refuses to become active)
-> >>       i      backing storage inconsistent (unfinished sync)
-> >>       _      diskless
-> >>        :     unconnected, stand alone
-> >>        ?     unconnected, looking for peer
-> >>        -     connected
-> >>>    connected, sync source
-> >>        <     connected, sync target
-> >
-> >I'd structure this somewhat differently into the node states (Up, 
-> >Down),
-> >our assumption about the other node (up, down, fenced), Backing Store
-> >states (available, outdated, inconsistent, unavailable), the connection
-> >(up or down) and the relationship between the GCs (higher, lower,
-> >equal).
-> >
-> >(Whether we are syncing and in what direction seems to be a function of
-> >that, same whether or not we are blocking or not.)
-> >
-> >It's essentially the same as your list, but it seems to be more
-> >accessible to me. But, it's late ;-)
-> 
-> I agree here... restricting the attributes to true inputs (rather than 
-> derived values) helps stop my brain going into meltdown trying to 
-> absorb the matrix :)  I could also imagine that it makes your life 
-> easier if you decide to change how you decide something like syncing 
-> direction later on.
+Am Freitag, 24. September 2004 14:37 schrieb Lars Ellenberg:
+> int drbd_make_request_26(request_queue_t *q, struct bio *bio)
+> {
+> ...
+>   /*
+>    * what we "blindly" assume:
+>    */
+>   D_ASSERT(bio->bi_size > 0);
+>   D_ASSERT( (bio->bi_size & 0x1ff) == 0);
+>   D_ASSERT(bio->bi_size <= PAGE_SIZE);
+>   D_ASSERT(bio->bi_vcnt == 1);
+>   D_ASSERT(bio->bi_idx == 0);
+>
+> oopsie.
+> we are going to send PAGE_SIZE requests over the wire,
+> but the other side may have a different PAGE_SIZE...
+>
+> // mirrored write
+> int receive_Data(drbd_dev *mdev,Drbd_Header* h)
+> {
+> ...
+>         /* I expect a block to be a multiple of 512 byte, and
+>          * no more than 4K (PAGE_SIZE). is this too restrictive?
+>          */
+>         ERR_IF(data_size == 0) return FALSE;
+>         ERR_IF(data_size &  0x1ff) return FALSE;
+>         ERR_IF(data_size >  PAGE_SIZE) return FALSE;
+>
+>
+> we need to agree to use fixed 4K, I guess.  optionally negotiate a
+> higher "drbd_page_size" during the initial connection handshake.
 
-ok.
-I'll try again, and maybe create a dot file while I'm at it :)
+Right. we should consider this. But I think a general high performace
+solution is not neccesary, since cluster of machines with
+different PAGE_SIZE are of academic interest only. (IMHO)
 
-even though my "states" are not actually "derived".
-but maybe only "obvious" to the "insider" (me).
+I think for drbd-0.8 it is sufficient to inform the user about the fact...
 
-so, for the time being, could you please have a look at
- http://wiki.trick.ca/linux-ha/DRBD/StateMachine
+[...]
 
-and maybe comment it.
+>
+> does that all make sense?
 
-	lge
+Yes, right!
+
+-philipp
