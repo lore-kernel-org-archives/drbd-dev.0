@@ -1,31 +1,17 @@
-Return-Path: <gld-drbd-dev@m.gmane.org>
-Received: from main.gmane.org (main.gmane.org [80.91.229.2])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 0DB7B14303
-	for <drbd-dev@lists.linbit.com>; Thu, 25 Nov 2004 08:49:04 +0100 (CET)
-Received: from list by main.gmane.org with local (Exim 3.35 #1 (Debian))
-	id 1CXENE-0007ei-00
-	for <drbd-dev@lists.linbit.com>; Thu, 25 Nov 2004 08:49:04 +0100
-Received: from 196.192.39.166 ([196.192.39.166])
-	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-	id 1AlnuQ-0007hv-00
-	for <drbd-dev@lists.linbit.com>; Thu, 25 Nov 2004 08:49:04 +0100
-Received: from cyril by 196.192.39.166 with local (Gmexim 0.1 (Debian))
-	id 1AlnuQ-0007hv-00
-	for <drbd-dev@lists.linbit.com>; Thu, 25 Nov 2004 08:49:04 +0100
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 551E614304
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Nov 2004 09:56:43 +0100 (CET)
+From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-From: Cyril Bouthors <cyril@bouthors.org>
-Date: Thu, 25 Nov 2004 10:46:59 +0300
-Message-ID: <87pt22fk0c.fsf@wide.bouthors.org>
-References: <200411152259.28960.philipp.reisner@linbit.com>
-	<41A48BB0.4080707@wollmersdorfer.at> <41A4909F.4070806@hug.cx>
-	<200411241518.55023.philipp.reisner@linbit.com>
-	<41A4A309.9030705@hug.cx> <Z+CHtpDcVPhqXMZ3GOO8Jts=lge@web.de>
-	<41A51BF0.10109@hug.cx> <rIe9JTBXuI5VKlizdCtH1u8=lge@web.de>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-Sender: news <news@sea.gmane.org>
-Subject: [Drbd-dev] Re: 0.7.6 release tomorrow...
+Date: Mon, 29 Nov 2004 09:56:50 +0100
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
+Message-Id: <200411290956.51049.philipp.reisner@linbit.com>
+Subject: [Drbd-dev] drbd-0.7.6
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -35,28 +21,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-<#secure method=pgpmime mode=sign>
---=-=-=
+Hi,
 
-On 25 Nov 2004, Lars Ellenberg wrote:
-> -	@find $$(svn st -v | sed '/^?/d;s/^.\{8\} \+[0-9]\+ \+[0-9]\+ [a-z]\+ *//;') \
-> +	@find $$(svn st -v | sed '/^?/d;s/^.\{8\} \+[0-9]\+ \+[0-9]\+ [a-z]\+ *//;/^debian/d' ) \
+I just stated a new effort to release 0.7.6 today. I can reproduce
+the issue of Eugene Crosser by now, and have fixed it in the mean time,
+so it seems that we have no known bugs, therefore we should get 0.7.6
+out of the door....
 
-This will really make the debian maintainers life easier.
+Expect it today, really! :)
 
-Thanks.
+-Philipp
 -- 
-Cyril Bouthors
-
---=-=-=
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.5 (GNU/Linux)
-
-iD8DBQBBpY3zZ1SJHeqsYt8RAhQMAJ41sAvZ40a1URFR5f3LUw0zlKE7YACbBcg/
-M4O36FD++gG/dfOw+0vZ2OY=
-=5n2t
------END PGP SIGNATURE-----
---=-=-=--
-
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Schönbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
