@@ -1,22 +1,21 @@
-Return-Path: <helmut@wollmersdorfer.at>
-Received: from viefep12-int.chello.at (viefep12-int.chello.at [213.46.255.25])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 52C8C1431A
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Oct 2004 01:28:24 +0200 (CEST)
-Received: from wollmersdorfer.at ([212.186.65.148]) by viefep12-int.chello.at
-	(InterMail vM.6.01.03.04 201-2131-111-106-20040729) with ESMTP
-	id <20041005232823.SZUM18525.viefep12-int.chello.at@wollmersdorfer.at>
-	for <drbd-dev@lists.linbit.com>; Wed, 6 Oct 2004 01:28:23 +0200
-Message-ID: <41632E17.8040808@wollmersdorfer.at>
-Date: Wed, 06 Oct 2004 01:28:23 +0200
-From: Helmut Wollmersdorfer <helmut@wollmersdorfer.at>
-MIME-Version: 1.0
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] 0.7.5 release tomorrow...
-References: <200409291054.13765.philipp.reisner@linbit.com>	<200409301410.21550.philipp.reisner@linbit.com>	<022301c4a704$b2dca950$532210ac@morpheus>
+Return-Path: <philipp@hug.cx>
+Received: from postman.abacus.ch (postman.abacus.ch [193.246.101.142])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 8508214322
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Oct 2004 09:24:31 +0200 (CEST)
+Message-ID: <060901c4ab75$7752e0a0$532210ac@morpheus>
+From: "Philipp Hug" <philipp@hug.cx>
+To: "Helmut Wollmersdorfer" <helmut@wollmersdorfer.at>,
+	<drbd-dev@lists.linbit.com>
+References: <200409291054.13765.philipp.reisner@linbit.com>	<200409301410.21550.philipp.reisner@linbit.com>
+	<022301c4a704$b2dca950$532210ac@morpheus>
 	<416315AF.80004@wollmersdorfer.at>
-In-Reply-To: <416315AF.80004@wollmersdorfer.at>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [Drbd-dev] 0.7.5 release tomorrow...
+Date: Wed, 6 Oct 2004 09:24:07 +0200
+MIME-Version: 1.0
+Content-Type: text/plain; format=flowed; charset="iso-8859-1";
+	reply-type=response
 Content-Transfer-Encoding: 7bit
+Cc: 
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,19 +25,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Helmut Wollmersdorfer wrote:
+> [...]
+> cd user && /usr/bin/make
+> make[1]: Entering directory `/home/helmut/drbd-0.7.5/user'
+> gcc -c -Wall -I../drbd   -c -o drbdsetup.o drbdsetup.c
+> make[1]: *** No rule to make target `../drbd/drbd_buildtag.o', needed by 
+> `drbdsetup'.  Stop.
+> make[1]: Leaving directory `/home/helmut/drbd-0.7.5/user'
+> make: *** [build-arch-stamp] Error 2
+> 
+> After
+>    make install-tools
+> as workaround it builds .debs and works the usual debian way.
+Shouldn't drbd_buildtag.c be included in the release tarball?
+If not, I'll add the workaround to the debian packaging...
 
 > Next item:
 > Whatever the reason is, the following is necessary with current packaging
 > 
 > xp2400:/home/helmut# mv /lib/modules/2.4.26/kernel/drivers/block/drbd.o 
 > /lib/modules/2.4.26-1-386/kernel/drivers/block/drbd.o
-[...]
-> Now I will try in Sarge + 2.6.8-1, coming soon ...
 
-It needs the same:
+How did you build the kernel module? module-assistant? make-kpkg?
+anyway: looks like a bug... I'll fix it..
 
-via1:/usr/src# mv /lib/modules/2.6.8/kernel/drivers/block/drbd.ko 
-/lib/modules/2.6.8-1-386/kernel/drivers/block/drbd.ko
-
-Helmut Wollmersdorfer
+philipp
