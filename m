@@ -1,14 +1,17 @@
 Return-Path: <lmb@suse.de>
-Date: Sun, 23 Jan 2005 17:16:33 +0100
+Date: Mon, 24 Jan 2005 10:28:22 +0100
 From: Lars Marowsky-Bree <lmb@suse.de>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20050123161633.GH24350@marowsky-bree.de>
+To: Jens Axboe <axboe@suse.de>
+Message-ID: <20050124092822.GB5451@marowsky-bree.de>
+References: <20050123161633.GH24350@marowsky-bree.de>
+	<20050124091006.GA2716@suse.de>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="Fba/0zbH8Xs+Fj9o"
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Cc: axboe@suse.de
-Subject: [Drbd-dev] drbd uses wrong API for struct bio
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20050124091006.GA2716@suse.de>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] Re: drbd uses wrong API for struct bio
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,117 +21,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+On 2005-01-24T10:10:07, Jens Axboe <axboe@suse.de> wrote:
 
---Fba/0zbH8Xs+Fj9o
-Content-Type: multipart/mixed; boundary="wac7ysb48OaltWcw"
-Content-Disposition: inline
+> drbd_ee_init() doesn't look good. First of all, it makes assumptions
+> about what bio_init() would do - it doesn't clear the entire bio to 0.
+> This is the type of thing that exposes bugs when we add or change parts
+> of the bio stuff, please uncomment that bio_init() call. It does set
+> bio->bi_max_vecs, however it needs changing to passing the bdev in so we
+> can use bio_add_page() instead. drbd_ee_bio_prepare() looks strange, it
+> sets vec length but doesn't assign the page or offset. Again, it should
+> use the proper api (bio_add_page()). If it had used bio_init(), it would
+> not have to set BIO_UPTODATE manually either.
+> 
+> bio->bi_next is a pointer, not an integer. Use NULL.
+> 
+> drbd_blk_run_queue() doesn't look legal, unless it's only ever run on
+> drbd's own queue. Even if so, it should remove the plug. I'd suggest
+> just using generic_unplug_device().
+> 
+> drdb should just use bio_iovec(bio) when it uses bio->bi_idx as the
+> index anyways.
 
+Ok, I'll go through the code and clean this up now. Thanks!
 
---wac7ysb48OaltWcw
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+I'll hassle you with more questions as my changes oops ;-)
 
-Hi all,
+> The bio embedding may not be the best idea or the prettiest, but as long
+> as it sets ->bi_max_vecs it should be ok. In general the code could
+> really do with someone cleaning it up in preperation for submitting to
+> mainline...
 
-drbd is a quite bad offender for using bio's on stack or embedded in
-other internal structs instead of the pointer interface.
-
-The attached patch shows the 'right' way as an example, which was pretty ea=
-sy
-because I could use Jens' patch for md with minimal modifications ;-) Howev=
-er,
-the other offending code lines are within the transfer log and other places,
-and I'm not sure Philipp wants me to mess around with that.
-
-Jens, on chip.suse.de:/local/lmb/drbd-07/drbd/ you can find the most recent
-drbd kernel code. Could you look over drbd_compat_wrappers.h line 326ff in
-particular and give me a rough rundown of what's broken? We need to fix thi=
-s by
-Tuesday latest :-(
+Yeah, that's happening with 0.8, but this is a 'maintenance' branch,
+with all what that entails :-( drbd 0.7 on 2.4 is (unfortunately ;-)
+still making money for Linbit, or else I'd guess everyone would be just
+too happy to rip it out.
 
 
 Sincerely,
-    Lars Marowsky-Br=E9e <lmb@suse.de>
+    Lars Marowsky-Brée <lmb@suse.de>
 
---=20
+-- 
 High Availability & Clustering
 SUSE Labs, Research and Development
 SUSE LINUX Products GmbH - A Novell Business
 
-
---wac7ysb48OaltWcw
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename=drbd-bio-on-stack
-Content-Transfer-Encoding: quoted-printable
-
-Index: drbd/drbd_actlog.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- drbd/drbd_actlog.c	(revision 1730)
-+++ drbd/drbd_actlog.c	(working copy)
-@@ -64,35 +64,29 @@
- STATIC int _drbd_md_sync_page_io(drbd_dev *mdev, struct page *page,=20
- 				 sector_t sector, int rw, int size)
- {
--	struct bio bio;
--	struct bio_vec vec;
-+	struct bio *bio =3D bio_alloc(GFP_KERNEL, 1);
- 	struct completion event;
- 	int ok;
-=20
--	bio_init(&bio);
--	bio.bi_io_vec =3D &vec;
--	vec.bv_page =3D page;
--	vec.bv_offset =3D 0;
--	vec.bv_len =3D
--	bio.bi_size =3D size;
--	bio.bi_vcnt =3D 1;
--	bio.bi_idx =3D 0;
--	bio.bi_bdev =3D mdev->md_bdev;
--	bio.bi_sector =3D sector;
-+	bio_get(bio);
-+
-+	bio->bi_bdev =3D mdev->md_bdev;
-+	bio->bi_sector =3D sector;
-+	bio_add_page(bio, page, size, 0);
- 	init_completion(&event);
--	bio.bi_private =3D &event;
--	bio.bi_end_io =3D drbd_md_io_complete;
-+	bio->bi_private =3D &event;
-+	bio->bi_end_io =3D drbd_md_io_complete;
-=20
- #ifdef BIO_RW_SYNC
--	submit_bio(rw | (1 << BIO_RW_SYNC), &bio);
-+	submit_bio(rw | (1 << BIO_RW_SYNC), bio);
- #else
--	submit_bio(rw, &bio);
-+	submit_bio(rw, bio);
- 	drbd_blk_run_queue(bdev_get_queue(mdev->md_bdev));
- #endif
- 	wait_for_completion(&event);
-=20
--	ok =3D test_bit(BIO_UPTODATE, &bio.bi_flags);
--
-+	ok =3D test_bit(BIO_UPTODATE, &bio->bi_flags);
-+	bio_put(bio);
- 	return ok;
- }
- #endif
-
---wac7ysb48OaltWcw--
-
---Fba/0zbH8Xs+Fj9o
-Content-Type: application/pgp-signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (GNU/Linux)
-
-iD8DBQFB883hudf3XQV4S2cRApN2AJ9SdT7zl5tuWahh2cZIiYSnFF+8MQCfaLAh
-Bw2IcfnQ64ENwNpUM0PeVx8=
-=tBP+
------END PGP SIGNATURE-----
-
---Fba/0zbH8Xs+Fj9o--
