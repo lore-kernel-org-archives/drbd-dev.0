@@ -1,20 +1,17 @@
-Return-Path: <lmb@suse.de>
-Date: Mon, 24 Jan 2005 13:52:17 +0100
-From: Lars Marowsky-Bree <lmb@suse.de>
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Re: drbd uses wrong API for struct bio
-Message-ID: <20050124125217.GJ5638@marowsky-bree.de>
+Subject: Re: [Drbd-dev] drbd uses wrong API for struct bio
+Date: Mon, 24 Jan 2005 15:27:03 +0100
 References: <20050123161633.GH24350@marowsky-bree.de>
-	<20050124091006.GA2716@suse.de>
-	<20050124095854.GB5638@marowsky-bree.de>
-	<20050124102310.GB2716@suse.de>
-	<20050124102852.GC5638@marowsky-bree.de>
-	<20050124122446.GF5638@marowsky-bree.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+In-Reply-To: <20050123161633.GH24350@marowsky-bree.de>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20050124122446.GF5638@marowsky-bree.de>
+Message-Id: <200501241527.03616.philipp.reisner@linbit.com>
+Cc: Lars Marowsky-Bree <lmb@suse.de>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,30 +21,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2005-01-24T13:24:46, Lars Marowsky-Bree <lmb@suse.de> wrote:
+Am Sonntag, 23. Januar 2005 17:16 schrieb Lars Marowsky-Bree:
+> Hi all,
+>
+> drbd is a quite bad offender for using bio's on stack or embedded in
+> other internal structs instead of the pointer interface.
+>
+> The attached patch shows the 'right' way as an example, which was pretty
+> easy because I could use Jens' patch for md with minimal modifications ;-)
+> However, the other offending code lines are within the transfer log and
+> other places, and I'm not sure Philipp wants me to mess around with that.
+>
+> Jens, on chip.suse.de:/local/lmb/drbd-07/drbd/ you can find the most rece=
+nt
+> drbd kernel code. Could you look over drbd_compat_wrappers.h line 326ff in
+> particular and give me a rough rundown of what's broken? We need to fix
+> this by Tuesday latest :-(
+>
 
-> So I converted that to use bio_alloc() and bio_put() etc correctly, but
-> this wonderful beautiful code in drbd_worker.c assumes that every bio it
-> gets is embedded in a epoch_entry struct and uses the container_of()
-> macro to convert from the bio to the enclosing struct.
-> 
-> Which of course no longer works if the private_bio is indeed a pointer.
-> Wonderful.
+Hi Lars,
 
-We could point bi_private at the epoch entry and have the epoch entry
-reference the mdev in the Tl_epoch_entry and make this work again.
+Did you tested this patch ?
 
-Would that be ok?
+If yes -> I will commit it to SVN right now...
 
-Except of course of not being useful for drbd_req_prepare_write/read(),
-where there is no Tl_epoch_entry available. Sigh.
-
-
-Sincerely,
-    Lars Marowsky-Brée <lmb@suse.de>
-
--- 
-High Availability & Clustering
-SUSE Labs, Research and Development
-SUSE LINUX Products GmbH - A Novell Business
-
+=2DPhilipp
+=2D-=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
