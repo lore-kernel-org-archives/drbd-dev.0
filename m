@@ -1,21 +1,20 @@
 Return-Path: <lmb@suse.de>
-Date: Tue, 24 Aug 2004 00:01:47 +0200
+Date: Mon, 23 Aug 2004 23:56:56 +0200
 From: Lars Marowsky-Bree <lmb@suse.de>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <Lars.Ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] Re: drbd Frage zu secondary vs primary;
 	drbddisk status problem
-Message-ID: <20040823220147.GE17118@marowsky-bree.de>
+Message-ID: <20040823215656.GC17118@marowsky-bree.de>
 References: <20040819110202.GO9601@marowsky-bree.de>
 	<20040819113205.GP9601@marowsky-bree.de>
 	<R+ahoCHARbsLOMKIahWH0/Q=lge@web.de>
 	<200408201452.52512.philipp.reisner@linbit.com>
+	</+7SE+vRTb9mi3m45Lh2qDY=lge@web.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <200408201452.52512.philipp.reisner@linbit.com>
-Cc: 
+In-Reply-To: </+7SE+vRTb9mi3m45Lh2qDY=lge@web.de>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,69 +24,53 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2004-08-20T14:52:52,
-   Philipp Reisner <philipp.reisner@linbit.com> said:
+On 2004-08-20T15:32:15,
+   Lars Ellenberg <Lars.Ellenberg@linbit.com> said:
 
-> The situation:
+>   N1    N2
+>   P --- S   Everything ok.
+>   P - - S   N1 is failing, but for the moment being just can no
+>             longer answer the network; but it is still able to update
+>             drbds generation counts
+>   ?   - S   Now N1 may be dead, or maybe not
+>   X   - S   A sane Cluster-mgr makes N2 primary, but stonith N1 first ...
+
+As you pointed out, the sane cluster manager (or admin) ought to be
+setting a Kain flag when it knows for sure it has slain it's brother...
+
+Now, that would even help catch the case where the crm had a malfunction
+and made both sides primary, in which case it really really shouldn't
+automatically connect, but will require higher level help (to make one
+side secondary first).
+
+>   X   - P   N1 now is really dead.
+>   S --- P   N1 comes back
+>   S - : P   oops, N1 has "better" generation counts than N2
+>             N2 shall become sync target, but since it is
+>             currently Primary, it will refuse this.
+>             It goes standalone.
 > 
->  N1    N2
->  P --- S   Everything ok.
->  P - - S   Link breaks.
->  P - - P   A (also split-brained) Cluster-mgr makes N2 primary too.
+> Now, I think in that case, N1 needs special handling of the situation,
+> too, which it currently has not.
 
-Big fat bug in the setup and in the cluster manager. ;-) Thus, while it
-must be resolveable, it doesn't need to be resolved efficiently.
-
->  X     X   Both nodes down.
->  P --- S   The current behaviour. 
+> Yet an other deficiency:
+> we still do not handle the gencounts correctly in this situation:
 > 
-> What should be done after Split brain ? 
-
-Both sides should detect this and by default refuse to connect until a
-human (or higher up being such as the cluster manager) interferes and
-explicitly and force-fully demotes one side to secondary again.
-
-> The question are:
-> Should this policy be configurable ? (IMO: yes)
-> Which policies do we want to offer ?
+>   S --- S
+>   P --- S  drbdsetup primary --human
+>    now, N1 increments its human cnt, N2 only its connection count after
+>    failure of N1, N2 will take over, maybe be primary for a whole week.
+>    then N1 comes back, has the higher human count, and will
+>    either [see above] (if N2 still is Primary)
+>    or wipe out a week worth of changes (if N2 was demoted to Secondary
+>    meanwhile).
 > 
->  * The node that was primary before split brain (current behaviour)
->  * The node that becaume primary during split brain 
->  * The node that modified more of it's data during the split-brain
->    situation  [ Do not think about implementation yet, just about
->                 the policy ]
->  * others ?...
+>    Oops :-(
 
-See above. None of your three choices seems the safe answer, because it
-will need an admin to sort out which side really has the 'better' data,
-or even worse, may require an image to be taken of both sides and the
-changes merged.
-
-> The second question to answer is:
-> What should we do if the connecting network heals ? I.e.
-> 
->  N1    N2
->  P --- S   Everything ok.
->  P - - S   Link breaks.
->  P - - P   A (also split-brained) Cluster-mgr makes N2 primary too.
-
-(Comment about broken setup applies again.)
-
->  ? --- ?   What now ?
-> 
-> Current policy: The two nodes will refuse to connect. The administrator
->                 has to resove this.
-> 
-> Are there any other policies that would make sense ?
-
-This is the best solution I can think of for the above reasons. As there
-may be higher level services running on both nodes, you can't
-(internally to drbd) resolve this. The higher level services need to be
-stopped, and one side explicitly demoted. Or both demoted and one
-explicitly promoted, which should come out the same.
+Ouchie. Probably should send that across the wire...
 
 
-Mit freundlichen Grüßen,
+Sincerely,
     Lars Marowsky-Brée <lmb@suse.de>
 
 -- 
