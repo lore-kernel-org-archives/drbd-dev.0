@@ -1,17 +1,21 @@
 Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from minna.local (1Cust64.tnt12.ber2.deu.da.uu.net [149.225.238.64])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 571B014311
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Aug 2004 15:12:17 +0200 (CEST)
-Date: Wed, 25 Aug 2004 14:54:02 +0200
+Received: from minna.local (1Cust31.tnt10.ber2.deu.da.uu.net [149.225.214.31])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 455F2142F3
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Aug 2004 15:38:57 +0200 (CEST)
+Date: Wed, 25 Aug 2004 15:38:51 +0200
 From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Summary (=Idems for 0.8 Roadmap)
-Message-ID: <FcbaFJHhBNyUmurvwLCdHbA=lge@web.de>
-References: <200408251207.20479.philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] Re: drbd Frage zu secondary vs primary;
+	drbddisk status problem
+Message-ID: <IQ57r/NAiFPkpPV48gdA/oo=lge@web.de>
+References: <20040819110202.GO9601@marowsky-bree.de>
+	<200408201452.52512.philipp.reisner@linbit.com>
+	</+7SE+vRTb9mi3m45Lh2qDY=lge@web.de>
+	<200408251142.18807.philipp.reisner@linbit.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200408251207.20479.philipp.reisner@linbit.com>
+In-Reply-To: <200408251142.18807.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,51 +25,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2004-08-25 12:07:20 +0200
-\ Philipp Reisner:
-> Hi,
+> > Yet an other deficiency:
+> > we still do not handle the gencounts correctly in this situation:
+> >
+> >   S --- S
+> >   P --- S  drbdsetup primary --human
+> >    now, N1 increments its human cnt, N2 only its connection count after
+> >    failure of N1, N2 will take over, maybe be primary for a whole week.
+> >    then N1 comes back, has the higher human count, and will
+> >    either [see above] (if N2 still is Primary)
+> >    or wipe out a week worth of changes (if N2 was demoted to Secondary
+> >    meanwhile).
 > 
-> New configuration options:
+> The real bug here is that we allow the counters to become different,
+> while the two nodes are connected. [I have to blame myself for, allowing
+> patches in, I blame Lars for writing them :)]
 > 
->   primary-after-sb  (SB = splitbrain) = 
->    older	The node that was primary before split brain (current behaviour)
->    younger	The node that became primary during split brain 
->    most-mod	The node that modified more of it's data during the SB.
->    wait		None, wait for operator's decission. 
+> Here is an excerpt from the
+> http://www.drbd.org/fileadmin/drbd/publications/drbd_lk9.pdf
+> Paper. [middle of Page 7]
+> 
+> With the exception of the consistency  flag, connection indicator and the 
+> primary indicator, all parts of the meta-data are synchronized while 
+> communication is working. After system start the secondary node inherits the 
+> counter values from the newly selected primary node.
+> 
+> PS: I really like it to have documents describing the ideas the algorithms
+>     first, and writing the code to conform to these documents.
+> 
+> PS2: Sorry for the late answers lately...
 
-would this block current activity on the Primary/both nodes?
-what if _both_ are still Primary?
+to defend myself, and to suggest it as solution:
 
->    node-"nodename"	The node prefered by the user.[suggested by Helmut]
-
->   wrong-gencnt (secondary-with-higher-genctn) =
->    refuse	(Current behaviour)
->          	I think the secondary should drop its net-conf.
-
-currently the Primary goes StandAlone.
-you suggest the Secondary goes StandAlone, too,
-                       or goes StandAlone instead?
-
->    update-data	Make the joining node sync-target.
-
-so, in a peer to peer scenario, who joins whom?
-this of course means make the Secondary with the higher gencounts
-sync-target in the presence of a running Primary.
-
-this is a delicate decision... do we really want this to be automated?
-maybe that could become at least an undocumented feature?
-
-additional questions:
-who would adopt the gencounts of the other?
-do we want to preserve strict non-decreasing monotonicity?
-
-
-
->   secondary-after-sb = 
->    keep-data		The secondray drops its net-config.
->    update-data	Make the looser sync-target (Current behaviour)
-
-um. I don't see this at all?
-what scenario is this?
-
-	lge
+ Author: phil
+ Date: 2004-07-27 18:58:09 +0200 (Tue, 27 Jul 2004)
+ New Revision: 1459
+ 
+ Modified:
+    trunk/drbd/drbd_fs.c
+    trunk/drbd/drbd_int.h
+    trunk/drbd/linux/drbd.h
+    trunk/drbd/linux/drbd_config.h
+    trunk/user/drbdadm_main.c
+    trunk/user/drbdsetup.c
+ Log:
+ * Increment the human-count if someone types in "yes" at the
+   user's dialog.
+ * Make sure the timeout-count is increased if the timeout
+   expires at the user's dialog.
+ 
+ 
+ Modified: trunk/drbd/drbd_fs.c
+ ===================================================================
+ --- trunk/drbd/drbd_fs.c        2004-07-27 09:01:05 UTC (rev 1458)
+ +++ trunk/drbd/drbd_fs.c        2004-07-27 16:58:09 UTC (rev 1459)
+ @@ -714,15 +714,6 @@
+                                 return -EIO;
+                         }
+                 }
+ -#if 0
+ -               else if (mdev->cstate >= Connected) {
+ -                       /* do NOT increase the Human count if we are connected,
+ -                        * and there is no reason for it.  I'm not yet sure
+ -                        * wether this is what I mean, though...
+ -                        */
+ -                       newstate &= ~(Human|DontBlameDrbd);
+ -               }
+ -#endif
+         }
+ 
+...
