@@ -1,17 +1,16 @@
-Return-Path: <lmb@suse.de>
-Date: Mon, 24 Jan 2005 11:28:52 +0100
-From: Lars Marowsky-Bree <lmb@suse.de>
-To: Jens Axboe <axboe@suse.de>
-Message-ID: <20050124102852.GC5638@marowsky-bree.de>
+Return-Path: <axboe@suse.de>
+Received: from virtualhost.dk (ns.virtualhost.dk [195.184.98.160])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id E67781431F
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jan 2005 09:24:45 +0100 (CET)
+Date: Mon, 24 Jan 2005 09:24:34 +0100
+From: Jens Axboe <axboe@suse.de>
+To: Lars Marowsky-Bree <lmb@suse.de>
+Message-ID: <20050124082433.GB2820@suse.de>
 References: <20050123161633.GH24350@marowsky-bree.de>
-	<20050124091006.GA2716@suse.de>
-	<20050124095854.GB5638@marowsky-bree.de>
-	<20050124102310.GB2716@suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20050124102310.GB2716@suse.de>
+In-Reply-To: <20050123161633.GH24350@marowsky-bree.de>
 Cc: drbd-dev@lists.linbit.com
 Subject: [Drbd-dev] Re: drbd uses wrong API for struct bio
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
@@ -23,27 +22,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2005-01-24T11:23:10, Jens Axboe <axboe@suse.de> wrote:
-
-> Yes, that is what would be nice to fix :-)
+On Sun, Jan 23 2005, Lars Marowsky-Bree wrote:
+> Hi all,
 > 
-> Make drbd_ee_init() just init the bastard, and add the page in
-> prepare().
+> drbd is a quite bad offender for using bio's on stack or embedded in
+> other internal structs instead of the pointer interface.
+> 
+> The attached patch shows the 'right' way as an example, which was
+> pretty easy because I could use Jens' patch for md with minimal
+> modifications ;-) However, the other offending code lines are within
+> the transfer log and other places, and I'm not sure Philipp wants me
+> to mess around with that.
 
-In theory you're right, but drbd seems to use this as a cache and
-allocate the page just once, but fills it with different data of
-different sizes over time, or at least that's what it looks like.
+Patch looks fine, I'm sad to say that if drdb was just in the kernel
+source this would have been found in time...
 
-I'm not sure that's easily fixed.
+> Jens, on chip.suse.de:/local/lmb/drbd-07/drbd/ you can find the most
+> recent drbd kernel code. Could you look over drbd_compat_wrappers.h
+> line 326ff in particular and give me a rough rundown of what's broken?
+> We need to fix this by Tuesday latest :-(
 
-I wish lge wasn't hiding in New Zealand ;-)
-
-
-Sincerely,
-    Lars Marowsky-Brée <lmb@suse.de>
+Sure, will do so this morning.
 
 -- 
-High Availability & Clustering
-SUSE Labs, Research and Development
-SUSE LINUX Products GmbH - A Novell Business
+Jens Axboe
 
