@@ -1,17 +1,21 @@
-Return-Path: <lars@linbit.com>
-Date: Tue, 7 Sep 2004 14:05:02 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Another drbd race
-Message-ID: <20040907120502.GA12518@nudl>
-References: <20040819110202.GO9601@marowsky-bree.de>
-	<200409071139.29609.philipp.reisner@linbit.com>
-	<20040907101343.GA5638@nudl>
-	<200409071332.02477.philipp.reisner@linbit.com>
+Return-Path: <lmb@suse.de>
+Date: Tue, 7 Sep 2004 14:03:30 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
+To: Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] Re: drbd in linux-ha cvs
+Message-ID: <20040907120330.GH10035@marowsky-bree.de>
+References: <20040906135609.GT11820@marowsky-bree.de>
+	<200409070957.57371.philipp.reisner@linbit.com>
+	<20040907091507.GA3257@nudl>
+	<200409071143.01189.philipp.reisner@linbit.com>
+	<20040907104926.GA7387@nudl>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <200409071332.02477.philipp.reisner@linbit.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20040907104926.GA7387@nudl>
+Cc: 
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,78 +25,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Sep 07, 2004 at 01:32:02PM +0200, Philipp Reisner wrote:
-> > I would like to introduce an additional Node state for the o_state:
-> > Dead. it is never "recognized" internally, but can be set by the
-> > operator or cluster manager. basically, if we go to WhatEver/Unknown,
-> > we don't accept anything (since we don't want to risk split brain).
-> > some higher authority can and needs to resolve this, telling us the peer
-> > is dead (after a successfull stonith, when we are Secondary and shall be
-> > promoted).
-> >
-> >
-> > now we have this:
-> >   P/S --- S/P
-> >   P/? -:- S/?
-> >
-> >  A)
-> >   if this is in fact (from the pov of heartbeat)
-> >   P/? -.. XXX
-> >     we stonith it (just to be sure) and tell it "peer dead"
-> >   P/D -..
-> >     (and there it resumes).
-> >
-> >  B)
-> >   if this is in fact (from the pov of heartbeat)
-> >   P/? XXX S/?
-> >     - we do nothing
-> >       (blocks until network is fixed again)
-> >     - we tell S that it is outdated,
-> >       then tell P to resume
-> >     - or we make it (by STONITH) into either A or C
-> >
-> >  C)
-> >   if this is in fact (from the pov of heartbeat)
-> >   XXX ..- S/?
-> >     we stonith it (just to be sure) and tell it "peer dead"
-> >   XXX ..- S/D
-> >     (and there it accepts to be promoted again).
-> >
-> >
-> > similar after bootup:
-> >   we refuse to be promoted to Primary from Secondary/Unknown,
-> >   unless we got an explicit "peer dead" confirmation by someone.
-> >
-> > does that make any sense?
-> >
-> 
-> I like it a lot!
-> 
-> Thus we will not call it "drbdadm resume-io r0" but 
-> "drbdadm peer-dead r0"
-> 
-> I think the assertion that the peer is dead 
-> (short "peer-dead")  is a lot easier to understand than
-> a "resume-io" command.
-> 
-> 
-> Also the question at the startup-user-dialog: 
-> 
-> Is the peer dead ? 
-> 
-> Is easier to get right....
+On 2004-09-07T12:49:26,
+   Lars Ellenberg <lars.ellenberg@linbit.com> said:
+
+> it is more clean to have one ioctl, get the full info, and output that.
+> I feel uneasy about introducing additional races by using several ioctls
+> in a row (even if they all finish within one second). of course, once we
+> have that info it could be stale already, but at least we have the
+> guarantee that at some point in time it was correct.
+
+Well, even if not correct, so at least it was consistent ;-)
+
+It's also much easier to maintain in the external script, and less
+likely to be gotten wrong in the script.
+
+> as soon as we have a sane interface, I don't expect the internals to
+> change so often, so the "maintenance trouble" is very low, either way.
+
+Well, even if eventually change and export more data, that's more
+maintainable.
+
+I don't need writes to the generation counters, but getting at all that
+information to know where to move things would be quite helpful.
 
 
-maybe we still need to have this a two-stage process:
-after reboot, and we remain in Secondary/Unknown,
-we need to be told "peer dead", but we also need to get the confirmation
-"up-to-date" (just to cover our ass).
+Sincerely,
+    Lars Marowsky-Brée <lmb@suse.de>
 
-when it was just a connection loss, we *are* up-to-date, and just need the
-confirmation "peer dead"; or we get the confirmation "link dead, peer
-alive", which basically is "you are outdated!".
+-- 
+High Availability & Clustering	   \\\  /// 
+SUSE Labs, Research and Development \honk/ 
+SUSE LINUX AG - A Novell company     \\// 
 
-just so we cannot be blamed for "automatically losing transactions",
-even in a multiple failure scenario.
-
-	lge
