@@ -1,26 +1,13 @@
-Return-Path: <philipp@hug.cx>
-Received: from dandelion.nextdomain.net (62-2-150-10.business.cablecom.ch
-	[62.2.150.10])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 146BE142FF
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2005 20:50:58 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by dandelion.nextdomain.net (Postfix) with ESMTP id 425316F6A
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2005 20:50:57 +0100 (CET)
-Received: from dandelion.nextdomain.net ([127.0.0.1])
-	by localhost (devnull [127.0.0.1]) (amavisd-new, port 10024)
-	with LMTP id 09150-05 for <drbd-dev@lists.linbit.com>;
-	Thu, 10 Feb 2005 20:50:53 +0100 (CET)
-Received: from [172.18.8.254] (unknown [172.18.8.254])
-	by dandelion.nextdomain.net (Postfix) with ESMTP id 36CF7143
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2005 20:50:53 +0100 (CET)
-Message-ID: <420BBB44.4030007@hug.cx>
-Date: Thu, 10 Feb 2005 20:51:32 +0100
-From: Philipp Hug <philipp@hug.cx>
-MIME-Version: 1.0
-To: "drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] Documentation for DRBD under Debian
+Return-Path: <lmb@suse.de>
+Date: Mon, 21 Feb 2005 17:01:46 +0100
+From: Lars Marowsky-Bree <lmb@suse.de>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20050221160146.GH7016@marowsky-bree.de>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="3Pql8miugIZX0722"
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+Subject: [Drbd-dev] Compile fix for 0.8
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -30,16 +17,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-I think it would make sense to update the wiki for installation on debian:
 
-default installation (compilation and installation is just one step):
-m-a a-i drbd0.7-module-source
+--3Pql8miugIZX0722
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 
-this builds drbd against the current running kernel (if it doesn't find 
-an already built module on debian.org) and installs it automatically. ;-)
+The attached patch fixes a minor problem when compiling drbd-0.8:
 
-in case you want to build against a custom kernel have a look at the m-a 
-man page. (e.g. --kernel-dir might be of interest or --kvers-list if you 
-want to build against another "official" debian kernel)
+linux/fs.h pulls in linux/wait.h via some nested includes, in which
+P_ALL etc are #defines. Later, we try to include sys/wait.h, in which
+P_ALL etc are enum names, and gcc doesn't like numeric enums.
 
-philipp
+Fix: simply include correct header.
+
+
+Sincerely,
+    Lars Marowsky-Brée <lmb@suse.de>
+
+-- 
+High Availability & Clustering
+SUSE Labs, Research and Development
+SUSE LINUX Products GmbH - A Novell Business
+
+
+--3Pql8miugIZX0722
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename=drbd-08
+
+Index: user/drbdmeta.c
+===================================================================
+--- user/drbdmeta.c	(revision 1763)
++++ user/drbdmeta.c	(working copy)
+@@ -40,7 +40,7 @@
+ #include <unistd.h>
+ #include <fcntl.h>
+ 
+-#include <linux/fs.h>		/* for BLKGETSIZE64 */
++#include <sys/mount.h>		/* for BLKGETSIZE64 */
+ #include <linux/drbd.h>		/* only use DRBD_MAGIC from here! */
+ 
+ #include "drbdtool_common.h"
+
+--3Pql8miugIZX0722--
