@@ -1,21 +1,17 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id AE9DE1433E
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2004 14:45:32 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Re: [PATCH] drbdmeta und glib ...
-Date: Tue, 19 Oct 2004 14:46:46 +0200
-References: <20041018221350.449853BE6D@garcon.linbit.com>
-	<200410191135.04249.philipp.reisner@linbit.com>
-	<89zVeflIzpji7xC+ripnD2w=lge@web.de>
-In-Reply-To: <89zVeflIzpji7xC+ripnD2w=lge@web.de>
+Return-Path: <philipp@hug.cx>
+Received: from postman.abacus.ch (postman.abacus.ch [193.246.101.142])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 839C814331
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2004 16:36:18 +0200 (CEST)
+Message-ID: <026001c4b5e8$f47e6220$532210ac@morpheus>
+From: "Philipp Hug" <philipp@hug.cx>
+To: <drbd-dev@lists.linbit.com>
+Date: Tue, 19 Oct 2004 16:36:00 +0200
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
-Content-Disposition: inline
-Message-Id: <200410191446.46648.philipp.reisner@linbit.com>
+Content-Type: text/plain; format=flowed; charset="iso-8859-1";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
+Cc: Cyril Bouthors <cyril@bouthors.org>, David Krovich <dkrovich@csee.wvu.edu>
+Subject: [Drbd-dev] drbd kernel module makefile
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,19 +21,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-[...]
-> ok. so what exactly do you want to protect with that lock?
-> I thought of locking the physical device.
->
-> anycase, we probably should be able to identify which meta data block
-> belongs to which data storage area, independently of device nodes and
-> numbers.
->
+Is there a reason, why the drbd module Makefile calls "make module" from the 
+kernel-source instead of just compiling itself with the header files from 
+$(KDIR)/include?
 
-The initail idea was to prevent drbdsetup to run while drbdmeta runs...
+this makes it quiet inconvient to use it with module-assistant (debian tool, to 
+build kernel-modules from their source packages) because you need to have the 
+complete source with correct config installed instead of just using the 
+kernel-header modules...
 
--philipp
--- 
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Schönbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+in debian you can just do the following:
+m-a install cloop
+
+philipp 
+
