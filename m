@@ -1,22 +1,21 @@
-Return-Path: <helmut@wollmersdorfer.at>
-Received: from viefep14-int.chello.at (viefep14-int.chello.at [213.46.255.13])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id D607314324
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Oct 2004 11:32:47 +0200 (CEST)
-Received: from wollmersdorfer.at ([212.186.65.148]) by viefep14-int.chello.at
-	(InterMail vM.6.01.03.04 201-2131-111-106-20040729) with ESMTP
-	id <20041006093242.OYHG15384.viefep14-int.chello.at@wollmersdorfer.at>
-	for <drbd-dev@lists.linbit.com>; Wed, 6 Oct 2004 11:32:42 +0200
-Message-ID: <4163BBBA.5050304@wollmersdorfer.at>
-Date: Wed, 06 Oct 2004 11:32:42 +0200
-From: Helmut Wollmersdorfer <helmut@wollmersdorfer.at>
-MIME-Version: 1.0
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from minna.local (c-134-76-143.b.dial.de.ignite.net [62.134.76.143])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id A3CCC14327
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Oct 2004 11:43:56 +0200 (CEST)
+Date: Wed, 6 Oct 2004 11:38:09 +0200
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] 0.7.5 release tomorrow...
-References: <200409291054.13765.philipp.reisner@linbit.com>	<200409301410.21550.philipp.reisner@linbit.com>	<022301c4a704$b2dca950$532210ac@morpheus>	<416315AF.80004@wollmersdorfer.at>
+Message-ID: <q98FJxwJDKO3+3Oay6d0FPQ=lge@web.de>
+References: <200409291054.13765.philipp.reisner@linbit.com>
+	<200409301410.21550.philipp.reisner@linbit.com>
+	<022301c4a704$b2dca950$532210ac@morpheus>
+	<416315AF.80004@wollmersdorfer.at>
 	<060901c4ab75$7752e0a0$532210ac@morpheus>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <060901c4ab75$7752e0a0$532210ac@morpheus>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,29 +25,56 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Philipp Hug wrote:
-
+/ 2004-10-06 09:24:07 +0200
+\ Philipp Hug:
+> >[...]
+> >cd user && /usr/bin/make
+> >make[1]: Entering directory `/home/helmut/drbd-0.7.5/user'
+> >gcc -c -Wall -I../drbd   -c -o drbdsetup.o drbdsetup.c
+> >make[1]: *** No rule to make target `../drbd/drbd_buildtag.o', needed by 
+> >`drbdsetup'.  Stop.
+> >make[1]: Leaving directory `/home/helmut/drbd-0.7.5/user'
+> >make: *** [build-arch-stamp] Error 2
+> >
+> >After
+> >   make install-tools
+> >as workaround it builds .debs and works the usual debian way.
 > Shouldn't drbd_buildtag.c be included in the release tarball?
-
-I used svn checkout.
-
 > If not, I'll add the workaround to the debian packaging...
 
-Thx in advance. Maybe the easier way to support debian packaging from 
-svn would be, to provide something like "make buildtag".
+now, if I do
 
->> xp2400:/home/helmut# mv 
->> /lib/modules/2.4.26/kernel/drivers/block/drbd.o 
->> /lib/modules/2.4.26-1-386/kernel/drivers/block/drbd.o
+svn co http://svn.drbd.org/drbd/branches/drbd-0.7
+cd drbd-0.7
+make tarball
+tar tvzf drbd-0.7.5.tar.gz | grep buildtag
+drbd/drbd_buildtag.c
 
+# aha. is it missing from the debian thing only?
+
+mkdir tmp
+cd tmp
+tar xvzf ../drbd-0.7.5.tar.gz
+cd drbd-0.7.5
+cd user && make
+
+# does work, too.
+
+BTW, you are not supposed to do "cd user && make",
+you are supposed to do "make tools" instead,
+which does a little bit more than that.
+
+> >Next item:
+> >Whatever the reason is, the following is necessary with current packaging
+> >
+> >xp2400:/home/helmut# mv /lib/modules/2.4.26/kernel/drivers/block/drbd.o 
+> >/lib/modules/2.4.26-1-386/kernel/drivers/block/drbd.o
+> 
 > How did you build the kernel module? module-assistant? make-kpkg?
-
-make-kpkg
-I never used module-assistant.
-
 > anyway: looks like a bug... I'll fix it..
 
-Seems so. Take a look into pcmcia-modules, how this problem is solved there.
+drbd gets its kernel release (where to install) from the kernel
+makefile itself (which should know...). debian knows better?
 
-Helmut Wollmersdorfer
+	lge
 
