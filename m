@@ -1,17 +1,17 @@
 Return-Path: <lars@linbit.com>
-Date: Tue, 7 Sep 2004 17:45:57 +0200
+Date: Tue, 7 Sep 2004 17:55:59 +0200
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Re: drbd in linux-ha cvs
-Message-ID: <20040907154557.GA12927@nudl>
-References: <20040906135609.GT11820@marowsky-bree.de>
-	<20040907104926.GA7387@nudl>
-	<20040907120330.GH10035@marowsky-bree.de>
-	<200409071456.19233.philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] Another drbd race
+Message-ID: <20040907155559.GB12927@nudl>
+References: <20040819110202.GO9601@marowsky-bree.de>
+	<200409071139.29609.philipp.reisner@linbit.com>
+	<20040907101343.GA5638@nudl>
+	<200409071419.55799.philipp.reisner@linbit.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200409071456.19233.philipp.reisner@linbit.com>
+In-Reply-To: <200409071419.55799.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,40 +21,67 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Sep 07, 2004 at 02:56:19PM +0200, Philipp Reisner wrote:
-> On Tuesday 07 September 2004 14:03, Lars Marowsky-Bree wrote:
-> > On 2004-09-07T12:49:26,
+On Tue, Sep 07, 2004 at 02:19:55PM +0200, Philipp Reisner wrote:
+> 
+> > > I do not want to "misuse" the Consistent Bit for this.
+> > >
+> > > !Consistent  .... means that we are in the middle of a sync.
+> > >                    = data is not usable at all.
+> > >  Fenced      .... our data is 100% okay, but not the latest copy.
 > >
-> >    Lars Ellenberg <lars.ellenberg@linbit.com> said:
-> > > it is more clean to have one ioctl, get the full info, and output that.
-> > > I feel uneasy about introducing additional races by using several ioctls
-> > > in a row (even if they all finish within one second). of course, once we
-> > > have that info it could be stale already, but at least we have the
-> > > guarantee that at some point in time it was correct.
+> > lets call it "Outdated"
 > >
-> > Well, even if not correct, so at least it was consistent ;-)
+> > my idea is that a crashed Secondary will come up as !Primary|Connected, so
+> > it can assume it is outdated. (similar to the choice about wfc-degr...)
 > >
-> > It's also much easier to maintain in the external script, and less
-> > likely to be gotten wrong in the script.
+> > we can only possibly lose write transaction in the very moment we
+> > promote a Secondary to Primary. until we do that, and the harddisk where
+> > the transactions have been written to is still physically intact, the
+> > data is still there, though maybe not available.
 > >
-> > > as soon as we have a sane interface, I don't expect the internals to
-> > > change so often, so the "maintenance trouble" is very low, either way.
+> > we can try to make sure that we never promote a Secondary that possibly
+> > (or knowingly) is outdated.
 > >
-> > Well, even if eventually change and export more data, that's more
-> > maintainable.
-> >
-> > I don't need writes to the generation counters, but getting at all that
-> > information to know where to move things would be quite helpful.
+> > see below.
 > >
 > 
-> My initial understanding was that this read-generation counters
-> operation would read it off the disk (== run while the DRBD 
-> module is not loaded). Do you mean that ? Or do you want to have
-> an ioctl to ask the module for the current value of the countes ?
+> Let us assume that we have two boxes (N1 and N2) and that tese
+> two boxes are connected by two networks (net and cnet [ clinets'-net ]).
+> 
+> Net is used by DRBD, while heartbeat uses both, net and cnet
+> 
+> I know that you are talking about fencing by STONITH, but DRBD is
+> not limited to that. Here comes my understanding of how fencing
+> (other tan STONITH) could work with DRBD-0.8 :
+> 
+>  N1  net   N2
+>  P/S ---  S/P     everything up and running.
+>  P/? - -  S/?     network breaks ; N1 freezes IO
+>  P/? - -  S/?     N1 fences N2:
+>                   In the Stonith case: turn off N2.
+>                   In the "smart" case: 
 
-I think both ways make sense.
-yes, I already added __u32 gen_cnt[5] to get_config here, but
-I won't commit that too soon, I have some more suggestions in the ioctl
-area, so we should wait for end of September first...
+>                   N1 asks N2 to fence itself from the storage via cnet.
+>                   HB calls "drbdadm fence r0" on N2.
+>                   N2 replies to N1 that fencins is done via cnet.
+>                   N1 calls "drbdadm peer-dead r0".
+
+the above lines are basically what happens in the recovery path of the
+cluster resource manager. yes.
+
+>  P/D - -  S/?     N1 thaws IO
+> 
+> N2 got the the "Outdated" flag set in its meta-data, by the "fence" 
+> command. I am not sure if it should be called "fence", other ideas:
+> "considered-dead","die","fence","outdate". What do you think ?
+> 
+> My question is:
+>  Is it planed that heartbeat will be able to perform this kind of fencing ?
+
+that is more or less what we are going to do.
+
+the "fence" in the above "smart" case I'd call "drbdadm mark-outdated r0".
+yes, heartbeat 2.x will do resource level fencing when possible.
+
 
 	lge
