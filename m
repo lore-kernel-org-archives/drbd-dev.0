@@ -1,19 +1,18 @@
-Return-Path: <helmut@wollmersdorfer.at>
-Received: from viefep15-int.chello.at (viefep15-int.chello.at [213.46.255.19])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 7DA20142FF
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jan 2005 13:32:27 +0100 (CET)
-Message-ID: <41F4EADA.6080902@wollmersdorfer.at>
-Date: Mon, 24 Jan 2005 13:32:26 +0100
-From: Helmut Wollmersdorfer <helmut@wollmersdorfer.at>
-MIME-Version: 1.0
-To: Jens Axboe <axboe@suse.de>
+Return-Path: <lmb@suse.de>
+Date: Mon, 24 Jan 2005 13:35:32 +0100
+From: Lars Marowsky-Bree <lmb@suse.de>
+To: Helmut Wollmersdorfer <helmut@wollmersdorfer.at>
 Subject: Re: [Drbd-dev] Re: drbd uses wrong API for struct bio
+Message-ID: <20050124123532.GH5638@marowsky-bree.de>
 References: <20050123161633.GH24350@marowsky-bree.de>
 	<20050124082433.GB2820@suse.de>
-In-Reply-To: <20050124082433.GB2820@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Cc: Lars Marowsky-Bree <lmb@suse.de>, drbd-dev@lists.linbit.com
+	<41F4EADA.6080902@wollmersdorfer.at>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <41F4EADA.6080902@wollmersdorfer.at>
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,12 +22,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Jens Axboe wrote:
+On 2005-01-24T13:32:26, Helmut Wollmersdorfer <helmut@wollmersdorfer.at> wrote:
 
-> Patch looks fine, I'm sad to say that if drdb was just in the kernel
-> source this would have been found in time...
+> Is there any technical, organizational or sozial reason against an 
+> integration into kernel.org?
 
-Is there any technical, organizational or sozial reason against an 
-integration into kernel.org?
+Technical + political. The 0.7 branch is in no shape for integration
+right now, and won't be because of the 2.4 compatibility cruft.
 
-Helmut Wollmersdorfer
+drbd-latest in SVN (0.8) is being cleaned up with that goal, but that
+doesn't help the current code base much in this respect.
+
+
+Sincerely,
+    Lars Marowsky-Brée <lmb@suse.de>
+
+-- 
+High Availability & Clustering
+SUSE Labs, Research and Development
+SUSE LINUX Products GmbH - A Novell Business
+
