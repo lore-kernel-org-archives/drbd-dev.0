@@ -1,16 +1,19 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from minna.local (dialin-145-254-052-187.arcor-ip.net
-	[145.254.52.187])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 6610914347
-	for <drbd-dev@lists.linbit.com>; Mon, 25 Oct 2004 23:01:46 +0200 (CEST)
-Date: Mon, 25 Oct 2004 22:59:04 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+Return-Path: <rodrigo@corporacionlinux.cl>
+Received: from corporacionlinux.cl (clinux.manquehue.net [200.74.167.169])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 11E9A142F8
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Oct 2004 14:21:20 +0200 (CEST)
+Received: from hiroshi.corporacionlinux.cl (unknown [10.1.0.246])
+	by corporacionlinux.cl (Postfix) with ESMTP id 814FE4175
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Oct 2004 09:11:03 -0300 (CLST)
+From: "Rodrigo Henriquez M. - Corporacion Linux S.A."
+	<rodrigo@corporacionlinux.cl>
 To: drbd-dev@lists.linbit.com
-Message-ID: <oQ8h+tLc53xtaV2FSuXHvMc=lge@web.de>
+Content-Type: text/plain
+Message-Id: <1098966061.27399.39.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Subject: [Drbd-dev] range checks in drbdadm and drbdsetup
+Date: Thu, 28 Oct 2004 09:21:01 -0300
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] Regards.
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,22 +23,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hi.
 
-have a look at my most recent svn checkin.
+My name is Rodrigo. A chilean developer and a clustering fan.
 
-added
-  user/drbd_limits.h
-to be able to give better diagnostics for nonsensical configuration.
+I was talking with Philipp about to start to help on this 
+project in some development tasks.
 
-please review my choice of ranges.
+I already see the ROADMAP in http://svn.drbd.org/drbd/trunk/ROADMAP
+and I would like to start with the most simple item:
 
-Helmut, please "stress"
-  drbdadm -c some.conf dump 
-a little :)
+----
+3 Authenticate the peer upon connect by using a shared secret. 
+  Configuration file syntax:  net { auth-secret "secret-word" }
+  Using a challenge-response authentication within the new
+  handshake.
+----
 
-this patch makes drbdadm and drbdsetup a little bit noisy on stderr,
-until this is settled; then we
-  #define DEBUG_RANGE_CHECK 0
-and are happy again.
+It sounds fine for me as an initial task (tell me if I'm wrong).
 
-	lge
+I'm watching the code and I was wondering if exists documentation
+about the DRBD internals to start to read.
+ 
+Well, I hope to be a good contribution to this project and sorry
+if from here I do too many questions :-)
+
+Regards.
+
+-- 
+Rodrigo Henriquez M.		http://www.corporacionlinux.cl
+Corporacion Linux S.A. 		Fonos: 02 2442988 - 02 2444250
+
+
