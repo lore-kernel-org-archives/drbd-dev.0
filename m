@@ -1,19 +1,22 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 7775E142F8
-	for <drbd-dev@lists.linbit.com>; Wed,  8 Sep 2004 14:06:08 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Any updates on drbd-0.7.x on Linux-2.4.x ??
-Date: Wed, 8 Sep 2004 14:06:07 +0200
-References: <200409081155.48942.philipp.reisner@linbit.com>
-	<200409081321.55125.philipp.reisner@linbit.com>
-	<20040908114209.GB10017@nudl>
-In-Reply-To: <20040908114209.GB10017@nudl>
-MIME-Version: 1.0
-Content-Type: Multipart/Mixed;
-  boundary="Boundary-00=_vWvPBNd98xMED9Z"
-Message-Id: <200409081406.07659.philipp.reisner@linbit.com>
+Return-Path: <lmb@suse.de>
+Date: Wed, 8 Sep 2004 17:11:30 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
+To: Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] Another drbd race
+Message-ID: <20040908151130.GK20844@marowsky-bree.de>
+References: <20040819110202.GO9601@marowsky-bree.de>
+	<200409071419.55799.philipp.reisner@linbit.com>
+	<20040907122840.GA15272@marowsky-bree.de>
+	<200409071447.45785.philipp.reisner@linbit.com>
+	<20040908112001.GD20844@marowsky-bree.de>
+	<20040908113110.GA10017@nudl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20040908113110.GA10017@nudl>
+Cc: 
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,212 +26,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---Boundary-00=_vWvPBNd98xMED9Z
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
-Content-Disposition: inline
+On 2004-09-08T13:31:10,
+   Lars Ellenberg <lars.ellenberg@linbit.com> said:
 
-On Wednesday 08 September 2004 13:42, Lars Ellenberg wrote:
-> On Wed, Sep 08, 2004 at 01:21:55PM +0200, Philipp Reisner wrote:
-> > On Wednesday 08 September 2004 12:58, Lars Ellenberg wrote:
-> > > On Wed, Sep 08, 2004 at 11:55:48AM +0200, Philipp Reisner wrote:
-> > > > Otherwhise I will make the 0.7.4 release
-> > > > (and reenable the use of sendpage() generally)
->
->   BTW: please only enable it again after you at least did some
->        successfull full test runs on bloody&mary,
->        in particular T-007.sh
->
+> > So, why an explicit drbdadm fence operation? I'm missing what that would
+> > catch.
+> 
+> we probably can cope without, but it is more "polite" if we have it.
+> if we _can_ handle it explicit, why not?
 
-I will do...
+We _need_ to handle it implicitly in case we lose the connection in that
+scenario.
 
-> > What do you think will be on the 0.7.5 release ?
->
-> currently pending: some modified ioctls for better heartbeat integration
-> its a minor code change, but it will break API again.
+_Explicitly_ setting the outdated flag in some more scenarios may also
+be appropriate, yes.
 
-I do not know what it is, but: yes, why not. ( on the other hand,  
-see my perceptions about the progress with 0.8 )
+> implicit things are more easy to overlook...
+> 
+> and:
+>   P --- S  
+>   P xxx S        link breaks
+> 
+>   [ you can insert here even a complete cluster crash ]
 
-> and we should do global cleanup over {user,drbd}/*.[ch] ...
->
+That's a triple fault already!
 
-Why should me do more with the code than necessary now. I do 
-not like the idea to do any cleanup now. 
+>   X xxx S        N2 receives "Peer dead", but still is outdated.
 
-> so ok, lets do a test run on blodymary,
-> release 0.7.4, go sailing, give me some five days of hacking, and
-> release 0.7.5 then.
+That is a quad-fault!!! (Link lost, two nodes down, one node not coming
+up)
 
-> if that is ok, then I'd say we fork the 0.7 branch, and continue with
-> 0.8 cleanup and features in the trunk.
->
+Yes, and it knows that because of the implicit "lost connection to
+primary or died while being connected" already, even if the crash then
+happened even before the CRM could invoke the 'mark_outdated'
+operation.
 
-Right, I think we should create the 0.7 branch rather soon, and 
-trunk becomes 0.8. I want to postpone any cleanup [ read: any not
-really necessary changes! ] to the new branch.
+The mark_peer_dead in this case should not reset the the 'Outdated'
+flag. It should only do so in case it's received after a connection loss
+to the primary; the 'unclean reboot' should be taken into consideration
+(and I think there's a flag for that already.)
 
-Regarding the timeline:
+A S-P should always consider itself outdated unless it receives the
+mark_peer_dead under the right circumstances. 
 
-Read what we have on the roadmap for 0.8 by now. There are no
-really big things by now. I believe the we will be able to do
-the 0.8 release aber 6 weeks after we started the branch already!
+But, we are already pretty far in lala land.
 
--> Lets do the really demanding changes in 0.9
+>   the point is: just receiving a "peer definetely dead" in S/?
+>   is not enough to know that we are not outdated.
 
--> Lets do all those little improvements in 0.8 (see roadmap.txt)
+Right. But the fence doesn't help much either, for we need to set that
+flag in that scenario even if the 'fence' event just isn't delivered.
 
--> Do not press anything into 0.7, it should become stable like the
-   ice of the antarctica.
 
--Philipp
+Sincerely,
+    Lars Marowsky-Brée <lmb@suse.de>
+
 -- 
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Schönbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+High Availability & Clustering	   \\\  /// 
+SUSE Labs, Research and Development \honk/ 
+SUSE LINUX AG - A Novell company     \\// 
 
---Boundary-00=_vWvPBNd98xMED9Z
-Content-Type: text/plain;
-  charset="iso-8859-1";
-  name="roadmap.txt"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename="roadmap.txt"
-
-DRBD 0.8 Roadmap
-----------------
-
-1 Drop support for linux-2.4.x. 
-  Do all size calculations on the base of sectors (512 Byte) as it 
-  is common in Linux-2.6.x.
-  (Currently they are done on a 1k base, for 2.4.x compatibility)
-
-2 Drop the Drbd_Parameter_Packet.
-  Replace the Drbd_Parameter_Packet by a more general and 
-  extensible mechanism.
-
-3 Changes of state and cstate synchronized by mutex and only done by
-  the worker thread.
-
-4 Two new config options, to allow more fine grained definition of
-  DRDBs behaviour after a split-brain situation:
-
-  after-sb-2pri = 
-   disconnect     No automatic resynchronisation gets performed. One
-                  node should drop its net-conf (preferable the
-                  node that would become sync-target)
-                  DEFAULT.
-   asf-older      Auto sync from is the oder primary (curr.behaviour i.t.s.)
-   asf-younger    Auto sync from is the younger primary
-   asf-furthest   Auto sync from is the node that did more modifications
-   asf-NODENAME   Auto sync from is the named node 
-  
-  
-  pri-sees-sec-with-higher-gc =
-   disconnect     (current behaviour)
-   asf-primary    Auto sync from is the current primary
-   panic          The current primary panics. The node with the
-                  higher gc should take over.
-  
-  
-  Notes:
-  1) The disconnect actions cause the sync-target or the secondary
-     node to go into StandAlone state.
-  2) If two nodes in primary state try to connect one of them goes
-     into StandAlone state (=curr. behaviour)
-  3) As soon as the decision is takes the sync-target adopts the
-     GC of the sync source. 
-     [ The whole algorithm would also work if both would reset their 
-       GCs to <0,0,0...> after the decision, but since we also
-       use the GC to tag the bitmap it is better the current way ]
-
-5 It is possible that a secondary node crashes a primary by 
-  returning invalid block_ids in ACK packets. [This might be 
-  either caused by faulty hardware, or by a hostile modification
-  of DRBD on the secondary node]
-
-  Proposed solution:
-  
-  Extend the block_id field. (currently 64 bit) by at least
-  32 bits (64?) . (=block_id_chk field). The primary node 
-  stores an encrypted (random key, changes every 15 minutes...) 
-  checksum (=signature) in the second field. 
-
-  The secondary node can not fake (either intentionally or 
-  unintentionally) these signature. 
-
-  The primary node will only dereference the block_id pointers
-  if the signature is right.
-
-6 Support IO fencing; introduce the "Dead" peer state (o_state)
-
-  New commands:
-    drbdadm peer-dead r0
-    drbdadm [ considered-dead | die | fence | outdate ] r0 
-      ( What do you like best ? Suggestions ? )
-
-  remove option value: on-disconnect=freeze_io
-
-  introduce: 
-    peer-state-unknown=freeze_io
-    peer-state-unknown=continue_io
-
-  New meta-data flag: "Outdated"
-
-  Let us assume that we have two boxes (N1 and N2) and that these
-  two boxes are connected by two networks (net and cnet [ clinets'-net ]).
-
-  Net is used by DRBD, while heartbeat uses both, net and cnet
-
-  I know that you are talking about fencing by STONITH, but DRBD is
-  not limited to that. Here comes my understanding of how fencing
-  (other than STONITH) should work with DRBD-0.8 :
-
-   N1  net   N2
-   P/S ---  S/P     everything up and running.
-   P/? - -  S/?     network breaks ; N1 freezes IO
-   P/? - -  S/?     N1 fences N2:
-                    In the STONITH case: turn off N2.
-                    In the "smart" case: 
-                    N1 asks N2 to fence itself from the storage via cnet.
-                    HB calls "drbdadm fence r0" on N2.
-                    N2 replies to N1 that fencing is done via cnet.
-                    N1 calls "drbdadm peer-dead r0".
-   P/D - -  S/?     N1 thaws IO
-
-  N2 got the the "Outdated" flag set in its meta-data, by the "fence" 
-  command. I am not sure if it should be called "fence", other ideas:
-  "considered-dead","die","fence","outdate". What do you think ?
-
-7 New command drbdmeta
-
-  We move the read_gc.pl/write_gc.pl to the user directory. 
-  Make them to one C program: drbdmeta
-   -> in the future the module never creates the meta data
-      block. One can use drbdmeta to create, read and 
-      modify the drbdmeta block. drbdmeta refuses to write
-      to it as long as the module is loaded (configured).
-
-  drbdsetup gets the ability to read the gc values while DRBD
-  is set up via an ioctl() call. -- drbdmeta refuses to run
-  if DRBD is configured. 
-
-  drbdadm is the nice frontend. It alsways uses the right 
-  backend (drbdmeta or drbdsetup)...
-
-  drbdadm md-set-gc 1:2:3:4:5:6 r0
-  drbdadm md-get-gc r0
-  drbdadm md-get/set-{la-size|consistent|etc...} resources....
-  drbdadm md-create r0
-
-plus-banches:
-----------------------
-
-* Implement the checksum based resync. 
-
-* 3 node support. Do and test a 3 node setup (2nd DRBD stacked over
-  a DRBD pair). Enhance the user level tools to support the 3 node
-  setup.
-
---Boundary-00=_vWvPBNd98xMED9Z--
