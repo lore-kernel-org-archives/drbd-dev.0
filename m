@@ -1,19 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Re: drbd uses wrong API for struct bio
-Date: Mon, 24 Jan 2005 15:29:24 +0100
+Subject: Re: [Drbd-dev] drbd uses wrong API for struct bio
+Date: Mon, 24 Jan 2005 15:38:33 +0100
 References: <20050123161633.GH24350@marowsky-bree.de>
-	<20050124102310.GB2716@suse.de>
-	<20050124102852.GC5638@marowsky-bree.de>
-In-Reply-To: <20050124102852.GC5638@marowsky-bree.de>
+In-Reply-To: <20050123161633.GH24350@marowsky-bree.de>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="iso-8859-15"
 Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-Message-Id: <200501241529.24813.philipp.reisner@linbit.com>
-Cc: Lars Marowsky-Bree <lmb@suse.de>, Jens Axboe <axboe@suse.de>
+Message-Id: <200501241538.33555.philipp.reisner@linbit.com>
+Cc: Lars Marowsky-Bree <lmb@suse.de>, axboe@suse.de
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,24 +21,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Montag, 24. Januar 2005 11:28 schrieb Lars Marowsky-Bree:
-> On 2005-01-24T11:23:10, Jens Axboe <axboe@suse.de> wrote:
-> > Yes, that is what would be nice to fix :-)
-> >
-> > Make drbd_ee_init() just init the bastard, and add the page in
-> > prepare().
+Am Sonntag, 23. Januar 2005 17:16 schrieb Lars Marowsky-Bree:
+> Hi all,
 >
-> In theory you're right, but drbd seems to use this as a cache and
-> allocate the page just once, but fills it with different data of
-> different sizes over time, or at least that's what it looks like.
+> drbd is a quite bad offender for using bio's on stack or embedded in
+> other internal structs instead of the pointer interface.
+>
+> The attached patch shows the 'right' way as an example, which was pretty
+> easy because I could use Jens' patch for md with minimal modifications ;-)
+> However, the other offending code lines are within the transfer log and
+> other places, and I'm not sure Philipp wants me to mess around with that.
+>
+> Jens, on chip.suse.de:/local/lmb/drbd-07/drbd/ you can find the most rece=
+nt
+> drbd kernel code. Could you look over drbd_compat_wrappers.h line 326ff in
+> particular and give me a rough rundown of what's broken? We need to fix
+> this by Tuesday latest :-(
 >
 
-This is true.
+Hi Guys,
 
-> I'm not sure that's easily fixed.
->
-
-What ?
+I just see some hectic discussion going on here, it runs as it is on=20
+Linux-2.6.10 as from kernel.org . Could someone tell me what the=20
+actual problem is ?
 
 =2DPhilipp
 =2D-=20
