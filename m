@@ -1,17 +1,15 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id E0F19142F3
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Aug 2004 15:06:23 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
+Return-Path: <lmb@suse.de>
+Date: Wed, 25 Aug 2004 15:09:34 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
 To: drbd-dev@lists.linbit.com
-Date: Wed, 25 Aug 2004 15:06:23 +0200
-MIME-Version: 1.0
+Subject: Re: [Drbd-dev] Summary (2nd try)
+Message-ID: <20040825130934.GZ3125@marowsky-bree.de>
+References: <200408251501.59314.philipp.reisner@linbit.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
 Content-Transfer-Encoding: 8bit
-Message-Id: <200408251506.23288.philipp.reisner@linbit.com>
-Subject: [Drbd-dev] TODOs 0.7
+In-Reply-To: <200408251501.59314.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,15 +19,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+On 2004-08-25T15:01:59,
+   Philipp Reisner <philipp.reisner@linbit.com> said:
 
-* ignore --human primary if connected
-* Allow invalidate if cstate<Connected and Secondary
-* Review manpages for /dev/nbX -> /dev/drbdX
-* Maybe: Add an option "block-boot-of-SyncTarget"
+> Hi,
+> 
+> After I realized that we no longer make any node primary automatically :)
+> Here the suggestion of the new configure option:
+> 
+> after-primary-primary = 
 
--Philipp
+This is in case where after the reconnect there is no primary (s/s),
+right?
+
+>  disconnect	No automatic resynchronisation gets performed. One
+> 		node should drop its net-conf (preferable the
+> 		node that would become sync-target)
+> 		I think this should be default.
+>  ass-older	Auto sync source is the oder primary (current default i.t.s.)
+>  ass-younger	Auto sync source is the younger primary
+>  ass-furthest   Auto sync source is the node that did more modifications
+>  ass-NODENAME   Auto sync source is the named node 
+> 
+> Falls es schon einen pirmary gibt (also dieses:
+> 
+[snip]
+
+> ) Dann:
+> 
+>  disconnect   (current behaviour in the situation.)
+>  ass-*        Auto sync, but the current primary gets sync-source.
+> 
+> What do you think ?
+
+Sounds good, one scenario is missing.
+
+P-P scenario:
+
+disconnect	(same same)
+ass-*		the node which would be SyncTarget needs to crash
+		itself to 'clear' the higher levels, and then would
+		(after the reboot) go through the first scenario.
+
+This may be useful for unattended embedded scenarios, but as it is
+pretty severe recovery for a grave error, may even value an additional
+flag.
+
+
+Sincerely,
+    Lars Marowsky-Brée <lmb@suse.de>
+
 -- 
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Schönbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+High Availability & Clustering	   \\\  /// 
+SUSE Labs, Research and Development \honk/ 
+SUSE LINUX AG - A Novell company     \\// 
+
