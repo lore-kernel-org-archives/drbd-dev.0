@@ -1,17 +1,14 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from minna.local (1Cust198.tnt1.ber2.deu.da.uu.net [149.225.52.198])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 054AF142FB
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Aug 2004 14:47:25 +0200 (CEST)
-Date: Wed, 4 Aug 2004 14:36:14 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+Return-Path: <helmut@wollmersdorfer.at>
+Message-ID: <4110DCED.3080601@wollmersdorfer.at>
+Date: Wed, 04 Aug 2004 14:56:13 +0200
+From: Helmut Wollmersdorfer <helmut@wollmersdorfer.at>
+MIME-Version: 1.0
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] drbd-latest introduces new build dependency on subversion
-Message-ID: <XAeNNKkfuKjjJkgs/KaQR70=lge@web.de>
-References: <20040804112739.GA4411@marowsky-bree.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040804112739.GA4411@marowsky-bree.de>
+References: <200408030953.38946.philipp.reisner@linbit.com> <aSGM8xSzsGxSKckTkCa1RS8=lge@web.de>
+In-Reply-To: <aSGM8xSzsGxSKckTkCa1RS8=lge@web.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] Debian packages (was: Release Date for 0.7.2   2004-08-06 ?)
 Sender: drbd-dev-admin@lists.linbit.com
 Errors-To: drbd-dev-admin@lists.linbit.com
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
@@ -23,17 +20,36 @@ List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
 List-Archive: <http://lists.linbit.com/pipermail/drbd-dev/>
 
-/ 2004-08-04 13:27:39 +0200
-\ Lars Marowsky-Bree:
-> Is that really necessary just for calling svnversion?
+Lars Ellenberg schrieb:
+> / 2004-08-03 09:53:38 +0200
+> \ Philipp Reisner:
 
-not exactly. if you get the tgz,
-svnversion should never be called,
-I checked that.
-(well, as long as you don't rm drbd_buildtag.c)
+>>Friday... ?
 
-if you don't get the tgz, you obviously have svn.
+> me don't have a thing.
 
-ok?
+It would be nice, to have 0.7.x officially uploaded to Debian.
 
-	lge
+David Krovich, the Debian maintainer of DRBD, seems to be on vacation. 
+His last activity - upload drbd 0.6.12-6 - dates back to 2004-06-09.
+See http://packages.qa.debian.org/d/drbd.html
+
+I think, I should write a friendly mail to David.
+
+But if he does not answer, how long should we wait?
+
+And which actions should we suggest to the Debian-devel community:
+
+- a NMU (Non Maintainer Upload) of the latest 0.7.x
+
+- an upload to experimental? (see 
+http://www.mail-archive.com/debian-mentors@lists.debian.org/msg13227.html, 
+but this was written on 2004-05-16, and drbd 0.7.x is nearly stable now 
+- isn't it?)
+
+- motivating Bernd Schubert to become Co-Maintainer of drbd
+
+- asking debian-mentors@lists.debian.org for a solution
+
+Helmut Wollmersdorfer
+
