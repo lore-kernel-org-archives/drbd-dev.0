@@ -1,21 +1,21 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 643AF142F3
-	for <drbd-dev@lists.linbit.com>; Tue,  7 Sep 2004 11:39:30 +0200 (CEST)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id AA429142F3
+	for <drbd-dev@lists.linbit.com>; Tue,  7 Sep 2004 11:43:01 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Another drbd race
-Date: Tue, 7 Sep 2004 11:39:29 +0200
-References: <20040819110202.GO9601@marowsky-bree.de>
-	<20040904094814.GE11820@marowsky-bree.de>
-	<20040904100008.GA14645@nudl>
-In-Reply-To: <20040904100008.GA14645@nudl>
+Subject: Re: [Drbd-dev] Re: drbd in linux-ha cvs
+Date: Tue, 7 Sep 2004 11:43:01 +0200
+References: <20040906135609.GT11820@marowsky-bree.de>
+	<200409070957.57371.philipp.reisner@linbit.com>
+	<20040907091507.GA3257@nudl>
+In-Reply-To: <20040907091507.GA3257@nudl>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 8bit
 Content-Disposition: inline
-Message-Id: <200409071139.29609.philipp.reisner@linbit.com>
+Message-Id: <200409071143.01189.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,108 +25,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Saturday 04 September 2004 12:00, Lars Ellenberg wrote:
-> On Sat, Sep 04, 2004 at 11:48:14AM +0200, Lars Marowsky-Bree wrote:
-> > Hi,
-> >
-> > lge and I have yesterday discussed a 'new' drbd race condition and also
-> > touched on its resolution.
-> >
-> > Scope: in a split-brain, drbd might confirm write to the clients and
-> > might on a subsequent failover lose the transactions which _have been
-> > confirmed_. This is not acceptable.
-> >
-> > Sequence:
-> >
-> > Step N1 Link N2
-> > 1 P ok S
-> > 2 P breaks S node1 notices, goes into stand alone,
-> >     stops waiting for N2 to confirm.
-> > 3 P broken S S notices, initiates fencing
-> > 4 x broken P N2 becomes primary
-> >
-> > Writes which have been done in between step 2-4 will have been confirmed
-> > to the higher layers, but are not actually available on N2. This is data
-> > loss; N2 is still consistent, but lost confirmed transaction.
-> >
-> > Partially, this is solved by the Oracle-requested "only ever confirm if
-> > committed to both nodes", but of course then if it's not a broken link,
-> > but N2 really went down, we'd be blocking on N1 forever, which we don't
-> > want to do for HA.
-> >
-> > So, here's the new sequence to solve this:
-> >
-> > Step N1 Link N2
-> > 1 P ok S
-> > 2 P(blk) ok X P blocks waiting for acks; heartbeat
-> >     notices that it has lost N2, and initiates
-> >     fencing.
-> > 3 P(blk) ok fenced heartbeat tells drbd on N1 that yes, we
-> >     know it's dead, we fenced it, no point
-> >     waiting.
-> > 4 P ok fenced Cluster proceeds to run.
-> >
-> > Now, in this super-safe mode, if now N1 also fails after step 3 but
-> > before N2 comes back up and is resynced, we need to make sure that N2
-> > does refuse to become primary itself. This will probably require
-> > additional magic in the cluster manager to handle correctly, but N2
-> > needs an additional flag to prevent this from happening by accident.
-> >
-> > Lars?
 >
-> I think we can do this detection already with the combination of the
-> Consistent and Connected as well as HaveBeenPrimary flag. Only the logic
-> needs to be built in.
+> the point was to have an easy way to _read_ all available information in
+> a well defined way in one chunk. and having it in k=v form makes it
+> direktly useable by bash, and easily useable by perl:
 >
 
-I do not want to "misuse" the Consistent Bit for this.
+Is it worth the trouble to maintain two interfaces in drbdadm ?
 
-!Consistent  .... means that we are in the middle of a sync.
-                   = data is not usable at all.
- Fenced      .... our data is 100% okay, but not the latest copy.
+Is it less rouble to maintain the 
 
+CSTATE=$(drbdadm cstate r0)
+LOCAL_STATE=$( $DRBDADM state $RES 2> /dev/null )
+LOCAL_STATE=${LOCAL_STATE%/*}
+LOCAL_STORAGE= $(drbdadm sh-ll-dev r0)
+...
 
-> Most likely right after connection loss the Primary should blocks for a
-> configurable (default: infinity?) amount of time before giving end_io
-> events back to the upper layer.
-> We then need to be able to tell it to resume operation (we can do this,
-> as soon as we took precautions to prevent the Secondary to become
-> Primary without being forced or resynced before).
->
-> Or, if the cluster decides to do so, the Secondary has time to STONITH
-> the Primary (while that is still blocking) and take over.
->
-> I want to include a timeout, so the cluster manager don't need to
-> know about "peer is dead" notification, it only needs to know about
-> STONITH.
+lines in the bash script you do ?
 
-I see. Makes sense, but on the other hand STONITH (more genral:
-FENCING)  might fail, as LMB points out in one of the other mails.
-
--> We should probabely _not_ offer a timeout here, as soon as
-   "on-disconnect freeze_io;" is set, it is freezed forever.
-   Or it gets a "drbdadm resume-io r0" from the cluster manager.
-
-> Maybe we want to introduce this functionality as a new wire protocoll,
-> or only in proto C.
->
-
-I see it controled by the 
-
-"on-disconnect freeze_io;" option.
-
-For N2 we need a "drbdadm fence-off r0" command and for N1 we need 
-a "drbdadm resume-io r0".
-
-* The fenced bit gets cleard when the resync is finished.
-* A node refuses to become primary when the fenced bit is set.
-* "drbdadm -- --do-what-I-say primary r0" overrules (and cleares?) 
-  the fenced bit
-
-To be defined: What should we do at node startup with the fenced bit.
-               (At least display it at the user-dialog)
-
--philipp
+-Philipp
 -- 
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
