@@ -1,19 +1,17 @@
-Return-Path: <lists@beekhof.net>
-In-Reply-To: <DDsOMcDtq6/VuKnbFKAsiFY=lge@web.de>
-References: <yZEXPsg2gvkm1jq9tjYKNcg=lge@web.de>
-	<20040924211133.GC3927@marowsky-bree.de>
-	<8E6E7736-0FEB-11D9-88B9-000A95B71D78@beekhof.net>
-	<DDsOMcDtq6/VuKnbFKAsiFY=lge@web.de>
-Mime-Version: 1.0 (Apple Message framework v619)
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-Message-Id: <23668F81-1082-11D9-89C2-000A95B71D78@beekhof.net>
-Content-Transfer-Encoding: 7bit
-From: Andrew Beekhof <lists@beekhof.net>
-Date: Mon, 27 Sep 2004 14:38:30 +0200
-To: High-Availability Linux Development List <linux-ha-dev@lists.linux-ha.org>
-Cc: drbd-dev@linbit.com
-Subject: [Drbd-dev] Re: [Linux-ha-dev] [RFC] (CRM and) DRBD (0.8) states and
-	transistions, recovery strategies
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 06EB1142FB
+	for <drbd-dev@lists.linbit.com>; Wed, 29 Sep 2004 10:53:38 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Date: Wed, 29 Sep 2004 10:54:13 +0200
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
+Message-Id: <200409291054.13765.philipp.reisner@linbit.com>
+Subject: [Drbd-dev] 0.7.5 release tomorrow...
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,121 +21,12 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hi,
 
-On Sep 27, 2004, at 2:19 PM, Lars Ellenberg wrote:
+I will create the 0.7.5 tarball tomorrow (as long as nobody objects)
 
-> / 2004-09-26 20:40:36 +0200
-> \ Andrew Beekhof:
->>
->> On Sep 24, 2004, at 11:11 PM, Lars Marowsky-Bree wrote:
->>
->>> On 2004-09-24T16:29:25,
->>>   Lars Ellenberg <Lars.Ellenberg@linbit.com> said:
->>>
->>>> some of this applies to replicated resources in general,
->>>> so Andrew may have some ideas to generalize it...
->>>
->>> I think the modelling we have so far (with the recent addendum)
->>> captures
->>> this quite nicely for the time being. But of course, it'll help us to
->>> verify this.
->>
->> right.  i also be thinking more about this in the coming days when I
->> start on the incarnations.
->>
->>>
->>>>    Some of the attributes depend on others, and the information
->>>> about the
->>>>    node status could be easily encoded in one single letter.
->>>>
->>>>    But since HA is all about redundancy, we will encode the node
->>>> status
->>>>    redundantly in *four* letters, to make it more obvious to human
->>>> readers.
->>>>
->>>>     _        down,
->>>>     S        up, standby (non-active, but ready to become active)
->>>>     s        up, not-active, but target of sync
->>>>     i        up, not-active, unconnected, inconsistent
->>>>     o        up, not-active, unconnected, outdated
->>>>     d        up, not-active, diskless
->>>>     A        up, active
->>>>     a        up, active, but target of sync
->>>>     b        up, blocking, because unconnected active and
->>>> inconsistent
->>>>                            (no valid data available)
->>>>     B        up, blocking, because unconnected active and diskless
->>>>                            (no valid data available)
->>>>     D        up, active, but diskless (implies connection to good
->>>> data)
->>>>      M       meta-data storage available
->>>>      _       meta-data storage unavailable
->>>>       *      backing storage available
->>>>       o      backing storage consistent but outdated
->>>>              (refuses to become active)
->>>>       i      backing storage inconsistent (unfinished sync)
->>>>       _      diskless
->>>>        :     unconnected, stand alone
->>>>        ?     unconnected, looking for peer
->>>>        -     connected
->>>>>    connected, sync source
->>>>        <     connected, sync target
->>>
->>> I'd structure this somewhat differently into the node states (Up,
->>> Down),
->>> our assumption about the other node (up, down, fenced), Backing Store
->>> states (available, outdated, inconsistent, unavailable), the 
->>> connection
->>> (up or down) and the relationship between the GCs (higher, lower,
->>> equal).
->>>
->>> (Whether we are syncing and in what direction seems to be a function 
->>> of
->>> that, same whether or not we are blocking or not.)
->>>
->>> It's essentially the same as your list, but it seems to be more
->>> accessible to me. But, it's late ;-)
->>
->> I agree here... restricting the attributes to true inputs (rather than
->> derived values) helps stop my brain going into meltdown trying to
->> absorb the matrix :)  I could also imagine that it makes your life
->> easier if you decide to change how you decide something like syncing
->> direction later on.
->
-> ok.
-> I'll try again, and maybe create a dot file while I'm at it :)
-
-I think you'll find that a helps a lot (I know it helped me with the 
-CRM's)
-
->
-> even though my "states" are not actually "derived".
-> but maybe only "obvious" to the "insider" (me).
-
-I think it depends on the POV you take and how you break it up...
-I would say "syncing" is a state, but the direction is derived and who 
-we and the other side are (master/slave/...) are also inputs.
-Otherwise you need states for every combination and (at least in the 
-CRM) I didn't find that gave me much (except for a really huge .dot 
-file :)
-
->
-> so, for the time being, could you please have a look at
->  http://wiki.trick.ca/linux-ha/DRBD/StateMachine
->
-> and maybe comment it.
-
-sure thing
-
->
-> 	lge
-> _______________________________________________________
-> Linux-HA-Dev: Linux-HA-Dev@lists.linux-ha.org
-> http://lists.linux-ha.org/mailman/listinfo/linux-ha-dev
-> Home Page: http://linux-ha.org/
->
+-philipp
 -- 
-Andrew Beekhof
-
-"Ooo Ahhh, Glenn McRath" - TISM
-
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Schönbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
