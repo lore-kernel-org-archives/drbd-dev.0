@@ -1,13 +1,13 @@
 Return-Path: <Lars.Ellenberg@linbit.com>
 Received: from minna.local (dialin-145-254-062-241.arcor-ip.net
 	[145.254.62.241])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id C641E14397
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Oct 2004 12:24:12 +0200 (CEST)
-Date: Mon, 11 Oct 2004 12:09:49 +0200
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 5CC24143AB
+	for <drbd-dev@lists.linbit.com>; Mon, 11 Oct 2004 12:24:14 +0200 (CEST)
+Date: Mon, 11 Oct 2004 12:11:37 +0200
 From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] How Locking in GFS works...
-Message-ID: <nR3HrlDfc92/rpp6fm5csSw=lge@web.de>
+Message-ID: <b3ps7nO6Oe58Cm5jpp38mxU=lge@web.de>
 References: <200410041456.21841.philipp.reisner@linbit.com>
 	<200410081432.09710.philipp.reisner@linbit.com>
 	<dDaDQgQP8BPHVcecFLAhen0=lge@web.de>
@@ -37,4 +37,9 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 > arbitration logic ? -- If we do not find any loose ends
 > I vote goes for it.
 
-not sure yet...
+not sure yet ...
+
+especially what exactly should happen in failure cases.
+need to think about it some more.
+
+	lge
