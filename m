@@ -1,20 +1,21 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from minna.local (dialin-145-254-065-089.arcor-ip.net
-	[145.254.65.89])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 2C39B14360
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2004 12:29:02 +0200 (CEST)
-Date: Tue, 19 Oct 2004 12:19:18 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 0779414328
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2004 12:38:57 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Re: [DRBD-cvs] r1598 - trunk/user
-Message-ID: <IHnGc0lqeCeXwtfkV1Xslp4=lge@web.de>
-References: <20041019073224.518E93BE6D@garcon.linbit.com>
-	<20041019091307.GD9603@marowsky-bree.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Subject: Re: [Drbd-dev] Re: [DRBD-cvs] r1600 - branches/drbd-0.7/drbd
+Date: Tue, 19 Oct 2004 12:40:10 +0200
+References: <20041019091152.50E053BE6D@garcon.linbit.com>
+	<200410191130.24197.philipp.reisner@linbit.com>
+	<HcoFP6pnb8MI006txV+wpU0=lge@web.de>
+In-Reply-To: <HcoFP6pnb8MI006txV+wpU0=lge@web.de>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20041019091307.GD9603@marowsky-bree.de>
+Content-Disposition: inline
+Message-Id: <200410191240.10467.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,57 +25,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2004-10-19 11:13:07 +0200
-\ Lars Marowsky-Bree:
-> On 2004-10-19T09:32:24, svn@svn.drbd.org wrote:
-> 
-> > Author: phil
-> > Date: 2004-10-19 09:32:21 +0200 (Tue, 19 Oct 2004)
-> > New Revision: 1598
-> > 
-> > Modified:
-> >    trunk/user/Makefile
-> >    trunk/user/drbdmeta.c
-> > Log:
-> > [patch by LGE] 
-> >  * removed the dependency on glib, and use the kernel's
-> >    includes instead. 
-> 
-> Do not do that. Please. Including kernel-headers from user-space is an
-> absolute nightmare, it keeps breaking sporadically and in particular on
-> non-i386 archs. The kernel headers just aren't meant to be used in
-> user-space (and are documented to not be supported for this), and all
-> the build issues I've had with OCFS, Lustre, ... have been caused by
-> this.
-> 
-> In particular these headers
-> 
-> > +#include <asm/byteorder.h>	/* for the __cpu_to_le64 etc. functions  */
-> > +#include <linux/bitops.h>	/* for the hweight functions  */
-> > +#include <linux/types.h>	/* for the __u32/64 type defs */
-> 
-> _are known to break_ on ia64/ppc64/s390x. I'd be very grateful if you
-> could avoid this.
+[...]
+> > Do you really think it is an good idea to put that tcp-stack pushing
+> > into drbd-0.7 ??
+[...]
+> it is #if 0'ed in drbd 0.7
+> I think we should #if 1 it in trunk,
+> benchmark it, and drop it if it does not do any good.
+>
 
-hm.
+Ok, I did not saw the #if 0 in drbd0.7
 
-I just don't want to depend on glib-devel just for some endianness issues.
-rather copy waht is neccessary into our own headers.
-which is not too much, anyways.
+What's about posting it to the user list, maybe there is 
+someone out there who wants to benchmark it...
 
-#  linux/bitops.h
-we only care for the hweight functions, which are plain c.
-I don't see where they could break on any arch.
-
-# linux/types.h
-we only care for the __u32 __u64 type defines.
-ok, we can drop that and just use sys/types.h,
-%s/__u\(.*\)/uint\1_t/
-
-# asm/byteorder.h
-ok, we can drop that, and use utils.h instead.
-we'd need to define *64 variants of swap and *_to_* functions, though.
-
-konsensfähig?
-
-	lge
+-Phil
+-- 
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Schönbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
