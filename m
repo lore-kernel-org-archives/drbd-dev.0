@@ -1,18 +1,14 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] 0.7.11 soon
-Date: Mon, 9 May 2005 11:37:01 +0200
-References: <200505091030.00455.philipp.reisner@linbit.com>
-	<200505091058.42759.hug@abanet.ch>
-In-Reply-To: <200505091058.42759.hug@abanet.ch>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Return-Path: <Lars.Ellenberg@linbit.com>
+Date: Mon, 9 May 2005 15:24:32 +0200
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com, drbd-user@lists.linbit.com
+Subject: Re: [Drbd-dev] Re: BUG: DRBD on Power PC 64-bit with RedHat EL 3
+	(2.4.21 kernel) does not work [PATCH]
+Message-ID: <Ucki2Rp3N9W7xR6Fb5ySj7U=lge@web.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200505091137.01385.philipp.reisner@linbit.com>
-Cc: Philipp Hug <hug@abanet.ch>
+In-Reply-To: <427B993F.3080907@steeleye.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,63 +18,59 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Montag, 9. Mai 2005 10:58 schrieb Philipp Hug:
-> philipp,
->
-> if you release a new version it won't make it into sarge...
-> 0.7.10 will be in sarge and has to be supported for about 2 years ;-)
->
-> philipp
->
-> On Monday 09 May 2005 10.30, Philipp Reisner wrote:
-> > Hi,
-> >
-> > The last DRBD release happened on the 31st Jan of 2005, this
-> > is more than 3 month by now. I guess we need to give our
-> > users the feeling that DRBD is still alive :)
-> >
-> > 0.7.11 (api:77/proto:74)
-> > -----
-> >  * The upper limit of the runtime tuning parameter max_buffers
-> >    was ways too low for today's IBM storage controllers.
-> >    Was 32 - 10000 ; Now it is 32 - 131072 ( Now one could
-> >    allow DRBD to allocate up to half a gigabyte of memory as
-> >    receive buffers)
-> >  * A fix to the Makefiles to make building of RPMs work on RAHS4.
-> >  * A workaround to have DBRD running on PPC64 with Linux-2.4.x kernels,
-> >    on Linux-2.6.x everything was fine already.
-> >  * Removal of dead code (busy_blocks).
-> >
-> > I will tag, create the tar-ball and announce it on wednesday,
-> > as long as nobody objects.
+/ 2005-05-06 12:20:15 -0400
+\ Paul Clements:
+> OK, here's a patch that fixes this problem. With this, you can now
+> 'make' at the top level and everything just works.
 
-Yes, I expected this.=20
+> diff -purN --exclude user --exclude-from /tmp/dontdiff drbd-0.7.10-PRISTINE/drbd/drbd_bitmap.c drbd-0.7.10/drbd/drbd_bitmap.c
+> --- drbd-0.7.10-PRISTINE/drbd/drbd_bitmap.c	2005-01-12 10:23:45.000000000 -0500
+> +++ drbd-0.7.10/drbd/drbd_bitmap.c	2005-05-06 11:58:05.000000000 -0400
+> @@ -33,6 +33,49 @@
+>  #include <linux/drbd.h>
+>  #include "drbd_int.h"
+>  
+> +/* special handling for ppc64 on 2.4 kernel -- find_next_bit is not exported
+> + * so we include it here (verbatim, from linux 2.4.21 sources) */
+> +#if defined(__powerpc64__) && LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+> +
+> +unsigned long find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
+> +{
+   ...
+> +}
+> +#endif /* NEED_PPC64_WORKAROUND */
 
-The only relevant patch for Debian is the first item of the changelog:
+which is exactly the same as the "generic" version, used when
+"USE_GENERIC_FIND_NEXT_BIT" is on...
 
-=2D-- user/drbd_limits.h  (.../https://svn.drbd.org/drbd/tags/drbd-0.7.10) =
-       (Revision 1789)
-+++ user/drbd_limits.h  (.../http://svn.drbd.org/drbd/branches/drbd-0.7)   =
-     (Revision 1789)
-@@ -49,8 +49,8 @@
-   /* I don't think that a tcp send buffer of more than 10M is usefull */
-   RANGE(SNDBUF_SIZE, 1, 10000000);
+> diff -purN --exclude user --exclude-from /tmp/dontdiff drbd-0.7.10-PRISTINE/scripts/adjust_drbd_config_h.sh drbd-0.7.10/scripts/adjust_drbd_config_h.sh
+> --- drbd-0.7.10-PRISTINE/scripts/adjust_drbd_config_h.sh	2004-09-21 03:28:35.000000000 -0400
+> +++ drbd-0.7.10/scripts/adjust_drbd_config_h.sh	2005-05-06 11:33:37.000000000 -0400
+> @@ -59,7 +59,13 @@ if grep_q "^PATCHLEVEL *= *4" $KDIR/Make
+>      cat 2>/dev/null $KDIR/include/asm{,/arch}/bitops.h |
+>      grep_q 'find_next_bit'
+>    then
+> -    have_find_next_bit=1
+> +    # on ppc64, it's declared but not exported, so we use our own copy
+> +    if grep_q '^CONFIG_PPC64=y' $KDIR/.config
+> +    then
+> +      have_find_next_bit=0
+> +    else
+> +      have_find_next_bit=1
+> +    fi
+>    else
+>      have_find_next_bit=0
+>    fi
 
-=2D  /* arbitrary. */
-=2D  RANGE(MAX_BUFFERS, 32, 10000);
-+  /* @4k PageSize -> 128kB - 512MB */
-+  RANGE(MAX_BUFFERS, 32, 131072);
+therefore I'd rather grep for "external .* find_next_bit",
+and then swithc on USE_GENERIC_FIND_NEXT_BIT.
+maybe one could even overload the HAVE_FIND_NEXT_BIT
+with inline vs. external information.
 
-   /* 0 is disabled.
-    * 200 should be more than enough even for very short timeouts */
+I'll have a look tomorrow.
 
 
-Maybe you can slip it in by creating a "drbd-0.7.10-4" or something.
-But it is nothing critical at all ... as we know drbd-0.7.10 is really
-fine for most people.
+	Lars Ellenberg
 
-=2DPhil
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+-- 
+please use the "List-Reply" function of your email client.
