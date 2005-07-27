@@ -1,18 +1,19 @@
-Return-Path: <lmb@suse.de>
-Date: Wed, 29 Jun 2005 12:19:06 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] drbd crashes the SyncSource if a read error is
-	encountered during sync
-Message-ID: <20050629101906.GB8522@marowsky-bree.de>
-References: <20050623193709.GK29587@marowsky-bree.de>
-	<200506241338.09028.philipp.reisner@linbit.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <200506241338.09028.philipp.reisner@linbit.com>
+Return-Path: <lumiere2002@free.fr>
+Received: from postfix3-2.free.fr (postfix3-2.free.fr [213.228.0.169])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 8B1CD14DF3
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Jul 2005 21:12:27 +0200 (CEST)
+Received: from [192.168.1.50] (ras75-1-81-57-234-114.fbx.proxad.net
+	[81.57.234.114])
+	by postfix3-2.free.fr (Postfix) with ESMTP id B48B8C121
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Jul 2005 21:12:26 +0200 (CEST)
+Message-ID: <42E7DC38.2020009@free.fr>
+Date: Wed, 27 Jul 2005 21:10:48 +0200
+From: lumiere2002 <lumiere2002@free.fr>
+MIME-Version: 1.0
+To: drbd-dev@lists.linbit.com
+Subject: [drbd-dev] Trunk version incompatible with SATA
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,28 +23,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2005-06-24T13:38:08, Philipp Reisner <philipp.reisner@linbit.com> wrote:
-
-> > But the secondary here might be hosting other services in a cross-over
-> > configuration and shouldn't do that.
-> >
-> > Comments?
-> >
-> I guess it that the syncSource fails during resync case needs to be 
-> tested. -> Will do that as time permits.
-
-OK. I was just checking whether you knew of any issues here off-hand.
-I'll prepare to look into it "as time permits" too, but given that the
-backup tapes need to be dug out anyway, it's not that critical, and in
-the mean time we'll recommend local RAID beneath drbd ;-)
+Hello,
 
 
-Sincerely,
-    Lars Marowsky-Brée <lmb@suse.de>
+I have tested the Trunk version of the CVS on 2 machines (one AMD and 
+one Intel) with differents disks (sata and ide)
 
--- 
-High Availability & Clustering
-SUSE Labs, Research and Development
-SUSE LINUX Products GmbH - A Novell Business	 -- Charles Darwin
-"Ignorance more frequently begets confidence than does knowledge"
+drbd refuse to create meta data on SATA device
+
+error is
+
+[root@amd ~]# /sbin/drbdmeta /dev/drbd0 v08 /dev/sda4 -1 create-md
+ioctl(,BLKFLSBUF,) failed: Operation not supported
+
+The same command on an IDE disk works.
+
+My 2 configurations are:
+
+[root@amd ~]# uname -a
+Linux amd 2.6.9-1.667 #1 Tue Nov 2 14:41:25 EST 2004 i686 athlon i386 
+GNU/Linux
+
+This is Fedora Core 3
+
+[root@intel ~]# uname -a
+Linux intel 2.6.9-1.667 #1 Tue Nov 2 14:41:25 EST 2004 i686 i686 i386 
+GNU/Linux
+
+This is fedora core 3
+
+
+drbd version is :
+drbd: initialised. Version: 0.8-pre1 (api:80/proto:80)
+drbd: SVN Revision: 1904M build by antoine@intel, 2005-07-27 19:31:43
+drbd: registered as block device major 147
+
+Thanks
+              Patrick
+
+
+
+
 
