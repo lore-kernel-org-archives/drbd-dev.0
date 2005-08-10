@@ -1,19 +1,34 @@
-Return-Path: <acalando@free.fr>
-Received: from postfix4-1.free.fr (postfix4-1.free.fr [213.228.0.62])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 0B93D14E73
-	for <drbd-dev@lists.linbit.com>; Wed,  3 Aug 2005 14:05:29 +0200 (CEST)
-Received: from computone.varlin (nor75-14-81-57-126-177.fbx.proxad.net
-	[81.57.126.177])
-	by postfix4-1.free.fr (Postfix) with ESMTP id A4964319E78
-	for <drbd-dev@lists.linbit.com>; Wed,  3 Aug 2005 14:05:24 +0200 (CEST)
-Date: Wed, 3 Aug 2005 14:15:30 +0200
-From: Antoine Calando <acalando@free.fr>
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from barkeeper1 (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 363C71435D
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Aug 2005 23:06:27 +0200 (CEST)
+Resent-Message-ID: <20050810210627.GB6226@barkeeper1.linbit>
+Received: from bitheads.ch (smtp1.bitheads.ch [213.239.194.16])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 3BFB41435D
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Aug 2005 18:08:55 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by bitheads.ch (Postfix) with ESMTP id 4DF074BF53
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Aug 2005 18:08:49 +0200 (CEST)
+Received: from bitheads.ch ([127.0.0.1])
+	by localhost (bitheads.ch [127.0.0.1]) (amavisd-new,
+	port 10024) with ESMTP id 15100-01 for <drbd-dev@lists.linbit.com>;
+	Wed, 10 Aug 2005 18:08:34 +0200 (CEST)
+Received: from [192.168.100.99] (84-72-82-138.dclient.hispeed.ch
+	[84.72.82.138])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by bitheads.ch (Postfix) with ESMTP id 36C404BEF0
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Aug 2005 18:08:29 +0200 (CEST)
+Message-ID: <42FA271D.1040803@delouw.ch>
+Date: Wed, 10 Aug 2005 18:11:09 +0200
+From: Luc de Louw <luc@delouw.ch>
+MIME-Version: 1.0
 To: drbd-dev@lists.linbit.com
-Message-ID: <20050803141530.52037016@computone.varlin>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] GFS over DRBD: It looks promising!
+Subject: [Drbd-dev] drbd 0.8.0
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,79 +38,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hi all,
 
-Hello,
+I have read somewhere that the SuSE packages of drbd 0.8 should not be 
+used and I agree.
 
-I've done some test with the last version of DRBD (rev 1912, 0.8-pre1)
-and Red Hat GFS, and I got some interesting results.
+How about the SVN trunk? Are there a lot of features/API-Changes to be 
+expected?
 
-I set up a primary/primary DRBD link on two nodes. I created a GFS
-partition with gulm lock on /dev/drbd0, I mounted it on both nodes
-and I tried some basic tests: it worked! I can copy and create files
-(I tried with a few megas), and they appear on the other node without
-any problem.
+Accoring the roadmap there will be a lot changes between 0.7.x and 0.8.
 
-I tried then to run a bonnie++ bench on one node, but I had a kernel
-freeze :v( (without any interesting log on the crashed node)
+Means: When I setup a System with a future what should I do? Install the 
+SVN Trunk code or the stable 0.7.11?
 
-I do some other tests with bonnie++, GFS and DRBD, to find where the 
-problem is:
+Thanks for hints
 
-- GFS in local/single mode with bonnie++: it works
-- GFS in local/gulm lock mode (2 mounts) with bonnie++: it works (by
-the way, it is quite fast)
+rgds
 
-- ext3 on DRBD (rev 1912) in primary/secondary with bonnie++: it works.
-
-- GFS with gulm lock on DRBD (1912) primary/secondary, with bd_claim 
-disabled. GFS is mounted r/w on primary node, and ro on secondary node.
-It freezes when I launch bonnie++.
-
-- GFS with no lock on DRBD (1912) primary/secondary (GFS only mounted
-on primary): it reboots after a few seconds with bonnie++.
-
-- Same test with DRBD 0.7.11: same result, with a delay of a few minutes.
-
-
-It seems that DRBD can not manage heavy I/O with GFS, but I don't know why.
-
-
-Here are some detailed instructions if somebody else want to try without
-spending hours and hours with poor documentation ;):
-
-I get GFS from here http://sourceware.org/cluster/
-I had much problems with packages, so the best is to use cvs code. I used
-STABLE branch.
-# cvs -d :pserver:cvs@sources.redhat.com:/cvs/cluster checkout -r STABLE cluster
-
-There was some errors during the make. I had to do some make/"make install"
-several times in order to install completely GFS.
-
-(following instructions may be inacurate, I don't have gfs on the machine
-I'm using now, it's just what I remember since yesterday)
-
-To create a gfs partition in nolock mode (pointless, just for tests):
-# gfs_mkfs -p lock_nolock -t cluster_name:fs_name -j 1 /dev/disk_device
-
-To mount it:
-# mount -t gfs /dev/disk_device /mnt/gfs0
-
-
-To create a gfs partiton for 2 nodes with gulm lock on primary DRBD device: 
-# gfs_mkfs -p lock_gulm -t cluster_name:fs_name -j 2 /dev/drbd_device
-
-Gulm lock server must be started before mounting partition on both nodes:
-node1# lock_gulm -n cluster_name -s node1 -v All  (node1 is gulm server)
-node2# lock_gulm -n cluster_name -s node1 -v All
-
-GFS over DRBD can then be mounted on each node.
-
-
-Happy testing and thanks to the DRBD team for this great piece of software!
-
-Antoine
-
-
-
+Luc
 
 
