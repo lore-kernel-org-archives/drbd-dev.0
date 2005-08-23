@@ -1,14 +1,19 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Date: Wed, 10 Aug 2005 23:20:34 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-user@lists.linbit.com
-Message-ID: <20050810212034.GD6226@barkeeper1.linbit>
-References: <42FA271D.1040803@delouw.ch>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
+	(using TLSv1 with cipher RC4-MD5 (128/128 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 5E9301435D
+	for <drbd-dev@lists.linbit.com>; Tue, 23 Aug 2005 09:49:13 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Date: Tue, 23 Aug 2005 09:49:19 +0200
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <42FA271D.1040803@delouw.ch>
-Subject: [Drbd-dev] Re: [DRBD-user] drbd 0.8.0
+Message-Id: <200508230949.20160.philipp.reisner@linbit.com>
+Subject: [Drbd-dev] drbd 0.7.12 soon
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,34 +23,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2005-08-10 18:11:09 +0200
-\ Luc de Louw:
-asked on drbd-dev, but maybe more a drbd-user question:
-> Hi all,
-> 
-> I have read somewhere that the SuSE packages of drbd 0.8 should not be used and I agree.
-> 
-> How about the SVN trunk? Are there a lot of features/API-Changes to be expected?
+Hi fellows,
 
-yes.
+I just started the patch review process for drbd 0.7.12.=20
+As it is really a lot it will take until tomorrow I think...
 
-> Accoring the roadmap there will be a lot changes between 0.7.x and 0.8.
+any last minute requests ?
 
-yes.
-
-> Means: When I setup a System with a future what should I do? Install the SVN Trunk code or the stable 0.7.11?
-
-drbd 0.7.11 (soonish 12...),
-or branches/drbd-0.7, which is the current "stable" branch.
-
-as long as svn trunk reads 0.8, it is "experimental developement".
-you can use it, crash your boxes, send us bug reports and thus help
-developement. if you intend to _use_ drbd, don't use svn trunk.
-at least not now.
-
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-0  :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
-__
-please use the "List-Reply" function of your email client.
+=2DPhilipp
+=2D-=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
