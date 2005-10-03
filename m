@@ -1,20 +1,22 @@
-Return-Path: <lmb@suse.de>
-Date: Mon, 26 Sep 2005 12:22:43 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Subject: Re: [Drbd-dev] Re: [DRBD-user] Retrieving the inconsistent + local
-	disk state
-Message-ID: <20050926102243.GA25748@marowsky-bree.de>
-References: <20050922132016.GE5593@marowsky-bree.de>
-	<200509221524.22929.philipp.reisner@linbit.com>
-	<20050923131614.GD25085@marowsky-bree.de>
-	<200509261139.55473.philipp.reisner@linbit.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <200509261139.55473.philipp.reisner@linbit.com>
-Cc: drbd-user@linbit.com, drbd-dev@lists.linbit.com
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from barkeeper1 (213-229-1-138.sdsl-line.inode.at [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 54E1114FEE
+	for <drbd-dev@lists.linbit.com>; Tue,  4 Oct 2005 11:04:34 +0200 (CEST)
+Resent-Message-ID: <20051004090434.GB8623@barkeeper1.linbit>
+Received: from mxip13a.cluster1.charter.net (mxip13a.cluster1.charter.net
+	[209.225.28.143])
+	by mxsf36.cluster1.charter.net (8.12.11/8.12.11) with ESMTP id
+	j93NhV7Q015925
+	for <drbd-dev@lists.linbit.com>; Mon, 3 Oct 2005 19:43:31 -0400
+Message-Id: <4enh25$1gctd83@mxip13a.cluster1.charter.net>
+From: "Joshua Mouch" <joshua@emailscout.net>
+To: <drbd-dev@linbit.com>
+Date: Mon, 3 Oct 2005 19:43:19 -0400
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] 0.8 & GFS
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,37 +26,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2005-09-26T11:39:54, Philipp Reisner <philipp.reisner@linbit.com> wrote:
+I'd like to test the newest version of 0.8 that is in SVN with GFS 6.1 with
+the following storage failover setup:
 
-> > BTW, an almost complete draft looks something like
-> > http://cvs.linux-ha.org/viewcvs/viewcvs.cgi/linux-ha/resources/OCF/drbd.in?
-> >rev=HEAD&view=markup
-> >
-> Hmm, ok I think I have a vague idea, what this is about. I will implement
-> a kind of "dstate" command... It will be ready at the time of Linux-Kongress.
-> 
-> DRBD v8 only of course.
+_________        _________
+|   A   |        |   B   |
+|       |        |       |
+| DiskA |<-DRBD->| DiskB |
+---------        ---------
 
-Sounds good, I'm fine with 0.8 - however in that case I'll also need to
-extend the script for handling several masters/primaries. Maybe I should
-write it so that it'll work with both 0.7 as well as 0.8 (with slightly
-better features, of course).
+1) DiskA+DiskB should act as a networked stripped raid, which will be
+accomplished by DRBD syncing the data between DiskA and DiskB.
 
-drbd 0.8 also has the "mark-as-outdated" command for the secondary,
-right?
+2) Nodes A & B both provide an IMAP service (using Cyrus) with storage on
+DiskA+DiskB.
 
-> Will you be at the Kongress in Hamburg ? 
+3) GFS will ensure that locking occurs on DiskA+DiskB such that NodeA and
+NodeB cannot write to the same spot on disk simultaneously.
 
-Yes, I will, and I hope I can get Xen going on my laptop until then so I
-can test drbd on the spot ;-)
+However, I can't quite figure out how to accomplish part 3 so that I can
+begin testing.  My first thought is export DiskA using GNBD and import it
+into Node B and do the same for DiskB to node A so that Node A & B can "see"
+both disks and therefore be able to perform locking.
 
+_________        _________
+|   A   |        |   B   |
+|       |        |       |
+| DiskA |<-DRBD->| DiskB |
+|       |\      /|       |
+|       | \    / |       |
+| GnbdB |--\--/  |       |
+|       |   \    |       |
+|       |    \---| GnbdA |
+---------        ---------
 
-Sincerely,
-    Lars Marowsky-Brée <lmb@suse.de>
+But that's where I get stuck.  Is this the correct approach?
 
--- 
-High Availability & Clustering
-SUSE Labs, Research and Development
-SUSE LINUX Products GmbH - A Novell Business	 -- Charles Darwin
-"Ignorance more frequently begets confidence than does knowledge"
-
+Joshua Mouch
