@@ -1,14 +1,17 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Date: Wed, 5 Oct 2005 10:56:05 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@linbit.com
-Subject: Re: [Drbd-dev] 0.8 & GFS
-Message-ID: <20051005085605.GA2581@barkeeper1.linbit>
-References: <4enh25$1gctd83@mxip13a.cluster1.charter.net>
+Return-Path: <lmb@suse.de>
+Date: Mon, 17 Oct 2005 15:43:49 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20051017134349.GT8354@marowsky-bree.de>
+References: <20051017134012.CB1741431D@mail.linbit.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <4enh25$1gctd83@mxip13a.cluster1.charter.net>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20051017134012.CB1741431D@mail.linbit.com>
+Subject: [Drbd-dev] Re: [DRBD-cvs] svn commit by phil - r1985 -
+	branches/drbd-0.7/drbd - Fixed a self made SMP lockup;
+	showing up in drbd_al_com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,63 +21,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-for those on the list: I let this post pass for "originality"
+On 2005-10-17T15:40:12, drbd-cvs@lists.linbit.com wrote:
 
-/ 2005-10-03 19:43:19 -0400
-\ Joshua Mouch:
-> I'd like to test the newest version of 0.8 that is in SVN with GFS 6.1 with
-> the following storage failover setup:
+> Author: phil
+> Date: 2005-10-17 15:40:11 +0200 (Mon, 17 Oct 2005)
+> New Revision: 1985
 > 
-> _________        _________
-> |   A   |        |   B   |
-> |       |        |       |
-> | DiskA |<-DRBD->| DiskB |
-> ---------        ---------
+> Modified:
+>    branches/drbd-0.7/drbd/drbd_bitmap.c
+> Log:
+> Fixed a self made SMP lockup; showing up in drbd_al_complete_io()
 > 
-> 1) DiskA+DiskB should act as a networked stripped raid, which will be
-> accomplished by DRBD syncing the data between DiskA and DiskB.
+>   With drbd-0.7.12 we moved the al_lock before the bm_clear_bit()
+>   in  __drbd_set_in_sync(). That by itself is okay, but 
+>   in bm_clear_bit() we used the spin_[un]lock_irq() functions,
+>   therefore reenabling interrupts...
+>   This is fixed now.
 
-drbd does mirror. no striping.
+Hi Philipp, how critical is this bug, and how likely is it that it will
+be hit in practice?
 
-> 2) Nodes A & B both provide an IMAP service (using Cyrus) with storage on
-> DiskA+DiskB.
 
-cyrus is evil.
-
-> 3) GFS will ensure that locking occurs on DiskA+DiskB such that NodeA and
-> NodeB cannot write to the same spot on disk simultaneously.
-> 
-> However, I can't quite figure out how to accomplish part 3 so that I can
-> begin testing.  My first thought is export DiskA using GNBD and import it
-> into Node B and do the same for DiskB to node A so that Node A & B can "see"
-> both disks and therefore be able to perform locking.
-> 
-> _________        _________
-> |   A   |        |   B   |
-> |       |        |       |
-> | DiskA |<-DRBD->| DiskB |
-> |       |\      /|       |
-> |       | \    / |       |
-> | GnbdB |--\--/  |       |
-> |       |   \    |       |
-> |       |    \---| GnbdA |
-> ---------        ---------
-> 
-> But that's where I get stuck.
-> Is this the correct approach?
-
-not at all.
-nbd has nothing to do with it.
-if you know how to setup gfs with shared disk, then you just substitute
-the shared disk device nodes with the drbd device nodes.
-both nodes "see" /dev/drbd0, and once initialized, it in fact has the
-same data on both nodes, as if it where a shared disk.
-how drbd does this? it's a mircale...
-
-whether current svn in fact already works successfully in this way
-is an other question.
+Sincerely,
+    Lars Marowsky-Brée <lmb@suse.de>
 
 -- 
-: Lars Ellenberg                                  Tel +43-1-8178292-0  :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+High Availability & Clustering
+SUSE Labs, Research and Development
+SUSE LINUX Products GmbH - A Novell Business	 -- Charles Darwin
+"Ignorance more frequently begets confidence than does knowledge"
+
