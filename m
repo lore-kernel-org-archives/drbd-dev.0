@@ -1,17 +1,21 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from soda (office.linbit [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 02580163F3
-	for <drbd-dev@lists.linbit.com>; Sat, 11 Mar 2006 17:35:03 +0100 (CET)
-Date: Sat, 11 Mar 2006 17:35:05 +0100
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+Return-Path: <ldenel@gmail.com>
+Received: from xproxy.gmail.com (xproxy.gmail.com [66.249.82.196])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 62B7316AE1
+	for <drbd-dev@lists.linbit.com>; Wed, 22 Mar 2006 19:46:16 +0100 (CET)
+Received: by xproxy.gmail.com with SMTP id t13so196494wxc
+	for <drbd-dev@lists.linbit.com>; Wed, 22 Mar 2006 10:46:15 -0800 (PST)
+Message-ID: <6ed4c8790603221046w6fedd871p8786bc427eafd8b@mail.gmail.com>
+Date: Wed, 22 Mar 2006 19:46:13 +0100
+From: "Laurent Denel" <ldenel@gmail.com>
 To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] freeze under postmark io bench
-Message-ID: <20060311163505.GC3816@soda.linbit>
-References: <6ed4c8790602101017l48d1b24s9fd684c82998e34f@mail.gmail.com>
+In-Reply-To: <20060311163505.GC3816@soda.linbit>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <6ed4c8790602101017l48d1b24s9fd684c82998e34f@mail.gmail.com>
+References: <6ed4c8790602101017l48d1b24s9fd684c82998e34f@mail.gmail.com>
+	<20060311163505.GC3816@soda.linbit>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,43 +25,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-02-10 19:17:17 +0100
-\ Laurent Denel:
+> please try with latest svn
+>  svn co http://svn.drbd.org/drbd/branches/drbd-0.7
+>
+> I just checked in a one line change where we used GFP_KERNEL where we
+> should have used GFP_NOIO...
 
+Thanks a lot for the answer, I wondered if my bug report wasn't too
+stupid to reach the mass audiences ;).
 
-Sorry for answering so late, and for letting this post lingering on hold
-for over a month now. Seemingly 'someone' [guess who that might have
-been *gee*] did not take his duty being moderator for drbd-dev too
-seriously...
+I've just tried today with kernel 2.6.16 (sorry for that kernel are
+evolving fast here ;), if needed I can test with the 2.6.15.4 we had)
+and Monday's latest svn.
 
+Postmark 200k files creation completed successfully but the
+transaction part crashed again the host. Could there be the same bug
+elsewhere in the code ?
 
-> I'm currently experiencing freezes with drbd each time I run PostMark,
-> an io benchmark from NetApp. It was working all right on a 2.6.12
-> kernel and version 0.7.11 but I'm currently switching to 2.6.15 with
-> version 0.7.15.
-> 
-> Freezes occur on the primary node while creating thousands of files.
-> Secondary node is not impacted.
-> 
-> I've tried latest svn commit (2064) and kernel 2.6.15.4. Same problem.
-> My kernel is configured with high memory support (64GB), PREEMPT, ...
-> The filesystem drbd is on is xfs. Hardware is a pair of DL380 from HP.
-> Network for drbd is a private Gb link on bcm5700 interfaces.
-> 
-> You can find the postmark benchmark here :
-> http://www.eecs.harvard.edu/~syrah/filesystems/code/postmark-1_13.c
-> (The one we really use is 1_5 but I cannot find it anymore on the
-> Netapp website, I can post it if needed)
-
-please try with latest svn
- svn co http://svn.drbd.org/drbd/branches/drbd-0.7
-
-I just checked in a one line change where we used GFP_KERNEL where we
-should have used GFP_NOIO...
-
-cheers,
-
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+Cheers,
+LD
