@@ -1,15 +1,14 @@
-Return-Path: <extmaillist@linuxbox.cz>
-Received: from [10.76.66.80] ([10.76.66.80])
-	by linuxbox.linuxbox.cz (Sendmail) with ESMTP id k5MBqRFa023724
-	for <drbd-dev@lists.linbit.com>; Thu, 22 Jun 2006 13:52:32 +0200
-From: Nikola Ciprich <extmaillist@linuxbox.cz>
-To: drbd-dev@linbit.com
-Content-Type: text/plain
-Date: Thu, 22 Jun 2006 14:52:27 +0300
-Message-Id: <1150977147.2819.12.camel@nik-nb>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] inclusion of DRBD ro mainline kernel?
+Return-Path: <Lars.Ellenberg@linbit.com>
+Date: Thu, 22 Jun 2006 14:35:40 +0200
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com, drbd-dev@linbit.com
+Subject: Re: [Drbd-dev] inclusion of DRBD ro mainline kernel?
+Message-ID: <20060622123540.GI4237@soda.linbit>
+References: <1150977147.2819.12.camel@nik-nb>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1150977147.2819.12.camel@nik-nb>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,31 +18,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello,
-I'd like to ask, whether any efforts have been made to have drbd
-included in mainline kernel? Or -mm at beginning? Or is something needed
-to be done before that? It seems to be working quite well (although I've
-noticed some problems on 2.6.17 on amd64, so I just decided to stay with
-2.6.16, but anyways).
-So is there some time estimate? Or list of things that need to be done
-before?
-I'd like to help, if there is something I could do...
-Thanks in advance!
-Nikola
+/ 2006-06-22 14:52:27 +0300
+\ Nikola Ciprich:
+> Hello,
+> I'd like to ask, whether any efforts have been made to have drbd
+> included in mainline kernel? Or -mm at beginning?
+yes, if you call "is on our todo list" effort :)
+
+> Or is something needed to be done before that?
+
+we won't attempt this for 0.7 for various reasons,
+so we'll wait until drbd8 has stabilized.
+
+> So is there some time estimate?
+time estimate for drbd8?
+wellll.  should be release canditate by september,
+released by october. maybe sooner, maybe later.
+
+time estimate for mainline inclusion?
+no.
+
+> I'd like to help, if there is something I could do...
+
+we might come back to you,
+thanks.
+
 -- 
--------------------------------------
-Nikola CIPRICH
-LinuxBox.cz, s.r.o.
-28. rijna 168, 709 01 Ostrava
-
-tel.:   +420 596 603 142
-fax:    +420 596 621 273
-mobil1:  +358 449 307 780 (finsko)
-mobil2:  +420 608 747 894 (pouze SMS)
-
-www.linuxbox.cz
-
-mobil servis: +420 737 238 656
-email servis: servis@linuxbox.cz
--------------------------------------
-
+: Lars Ellenberg                                  Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
+: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
