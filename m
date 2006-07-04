@@ -5,10 +5,11 @@ Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 Subject: RE: [Drbd-dev] Re: drbd_panic() in drbd_receiver.c
-Date: Tue, 4 Jul 2006 17:35:03 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B37671031FB37E@EXNA.corp.stratus.com>
+Date: Tue, 4 Jul 2006 18:06:21 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671031FB37F@EXNA.corp.stratus.com>
 From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
+To: "Graham, Simon" <Simon.Graham@stratus.com>,
+	<drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,6 +18,22 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
+
+Forgot one vital piece -- update drbd_resync_finished to _not_ set the
+consistent flag if the bitmap weight is <> 0! (actually, once that's
+done, I _think_ all the places that abort resync processing can now
+simply call this routine instead of munging the state directly... that
+way, all the end-resync processing will always be done (such as
+resetting rs_total etc).
+
+/simgr
+
+-----Original Message-----
+From: Graham, Simon=20
+Sent: Tuesday, July 04, 2006 5:35 PM
+To: drbd-dev@linbit.com
+Cc: Graham, Simon
+Subject: RE: [Drbd-dev] Re: drbd_panic() in drbd_receiver.c
 
 I'm now trying to work through the "internal dependencies and state
 changes that need to be adjusted" and it's proving tricky!
