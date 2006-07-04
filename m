@@ -1,14 +1,14 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <Lars.Ellenberg@linbit.com>
+Date: Tue, 4 Jul 2006 17:23:10 +0200
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com, drbd-dev@linbit.com
+Subject: Re: [Drbd-dev] Re: [DRBD-user] drbd_panic() in drbd_receiver.c
+Message-ID: <20060704152310.GH4114@soda.linbit>
+References: <342BAC0A5467384983B586A6B0B37671031FB378@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] Re: [DRBD-user] drbd_panic() in drbd_receiver.c
-Date: Tue, 4 Jul 2006 11:01:32 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B37671031FB378@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@linbit.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <342BAC0A5467384983B586A6B0B37671031FB378@EXNA.corp.stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,41 +18,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Thanks -- I'm actually starting with drbd 7 just because it's _much_
-easier for me to test (we have a complete build/install/test
-infrastructure currently based on using 0.7) however I will push the
-changes into the head of the trunk as soon as I can.
+/ 2006-07-04 11:01:32 -0400
+\ Graham, Simon:
+> Thanks -- I'm actually starting with drbd 7 just because it's _much_
+> easier for me to test (we have a complete build/install/test
+> infrastructure currently based on using 0.7) however I will push the
+> changes into the head of the trunk as soon as I can.
+> 
+> FWIW, I have the set-state, NegDReply and NegDSReply stuff coded and
+> running; I'm using a known bad disk and no panics so far!
 
-FWIW, I have the set-state, NegDReply and NegDSReply stuff coded and
-running; I'm using a known bad disk and no panics so far! -- the only
-issue I have now is that I think I need to kick the resync processing
-when a NegDSReply is received -- /proc/drbd always shows the resync as
-100% and stalled;
+great, send over a svn diff...
 
-BTW: do you have any suggestions for handling the bitmap and meta-data
-write failures?
+> -- the only
+> issue I have now is that I think I need to kick the resync processing
+> when a NegDSReply is received -- /proc/drbd always shows the resync as
+> 100% and stalled;
 
-Also - let me know if you think you would incorporate these changes into
-the 0.7 branch - if so, I'll send patches (oh and let me know what the
-'approved' mechanism for sending patches is please).
+there are several internal dependencies and state changes that need to
+be adjusted...
 
-Simon
+> BTW: do you have any suggestions for handling the bitmap and meta-data
+> write failures?
 
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Philipp Reisner
-Sent: Tuesday, July 04, 2006 6:08 AM
-To: drbd-dev@linbit.com
-Cc: drbd-user@linbit.com
-Subject: [Drbd-dev] Re: [DRBD-user] drbd_panic() in drbd_receiver.c
+difficult. we probably need to have several "drbd super blocks" in
+drbd8, so we at least have a much higher chance to get important flags
+on stable storage _somewhere_. I guess we don't want to have several
+bitmaps, but some means to store the "meta data is not reliable anymore"
+flag in several places. updates to these blocks have to be
+transactional. this is not yet done, but it is on the todo list...
 
-Am Montag, 3. Juli 2006 19:03 schrieb Graham, Simon:
-> ...
 
-Excellent ideas. In case you really start to work on this, please
-base your work on the drbd-8.0 code, preferably the trunk.
+> Also - let me know if you think you would incorporate these changes into
+> the 0.7 branch
 
-PS: Moving this thread over to drbd-dev, is a good idea.
+unlikely. not impossible, though.
 
--Philipp
---=20
+> - if so, I'll send patches (oh and let me know what the
+> 'approved' mechanism for sending patches is please).
+
+svn diff
+
+cheers,
+
+-- 
+: Lars Ellenberg                                  Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
+: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
