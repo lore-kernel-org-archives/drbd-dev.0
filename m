@@ -1,15 +1,16 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] Re: drbd_panic() in drbd_receiver.c
+Date: Wed, 5 Jul 2006 10:25:42 +0200
+References: <342BAC0A5467384983B586A6B0B37671031FB37E@EXNA.corp.stratus.com>
+In-Reply-To: <342BAC0A5467384983B586A6B0B37671031FB37E@EXNA.corp.stratus.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] Re: drbd_panic() in drbd_receiver.c
-Date: Tue, 4 Jul 2006 18:06:21 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B37671031FB37F@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Graham, Simon" <Simon.Graham@stratus.com>,
-	<drbd-dev@lists.linbit.com>
+Content-Disposition: inline
+Message-Id: <200607051025.43122.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,125 +20,68 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Forgot one vital piece -- update drbd_resync_finished to _not_ set the
-consistent flag if the bitmap weight is <> 0! (actually, once that's
-done, I _think_ all the places that abort resync processing can now
-simply call this routine instead of munging the state directly... that
-way, all the end-resync processing will always be done (such as
-resetting rs_total etc).
+Am Dienstag, 4. Juli 2006 23:35 schrieb Graham, Simon:
+> I'm now trying to work through the "internal dependencies and state
+> changes that need to be adjusted" and it's proving tricky!
+>
 
-/simgr
+Hi Simon,
 
------Original Message-----
-From: Graham, Simon=20
-Sent: Tuesday, July 04, 2006 5:35 PM
-To: drbd-dev@linbit.com
-Cc: Graham, Simon
-Subject: RE: [Drbd-dev] Re: drbd_panic() in drbd_receiver.c
+Pleas note that the way we do state changes has dramatically changed
+from 0.7 to 8. In 8 we do it finally in a sane way.
 
-I'm now trying to work through the "internal dependencies and state
-changes that need to be adjusted" and it's proving tricky!
+> First things first though -- I'm assuming that in the case of a failed
+> resync like this, we really want to end up back in Connected state (but
+> still inconsistent) rather than simply staying in SyncTarget and
+> continually trying to resync the affected block; do you agree with this
+> as a goal?
+>
 
-First things first though -- I'm assuming that in the case of a failed
-resync like this, we really want to end up back in Connected state (but
-still inconsistent) rather than simply staying in SyncTarget and
-continually trying to resync the affected block; do you agree with this
-as a goal?
+Look out for pre_state_checks() in drbd-8. Currently it probably=20
+does not allow that state.
 
-Assuming that is the case, here's my problem (remember this is based on
-0.7 at the moment) -- right now, the check for end-of-resync is done in
-w_update_odbm based on the current weight of the bitmap; what's more,
-this worker routine is only scheduled from drbd_try_to_clean_on_disk_bm
-IF a complete extent is zeroed (and, of course, this routine is only
-called from drbd_set_in_sync) -- so simply modifying w_update_odbm to
-check if the weight is <=3D the number of failed blocks will miss a =
-couple
-of important cases:
-1. If the failure is in the very last block and
-2. If the failure is somewhere in the last extent of the on-disk bitmap
+I have to add that there is a gracefull way of changing state
+[ reuqest_state() ] , and a forcefull way [ force_state() ] .
 
-Apologies for the detail below, but I want to make sure I'm going about
-this the right way - Here's what I'm thinking as a way to fix this --
-please comment; you know this code so much better than I do!
+request_state() is usually used by actions that are initiated by=20
+on operator, while force_state() is used if something fails...
 
-1. Add a new field in the mdev - rs_failed - that counts the number of
-NegDSReply's received, init to zero=20
-   at start of resync
-2. Move the code that checks for end of resync into a new routine -
-drbd_check_for_end_resync() and change it
-   to check if the bitmap weight is <=3D rs_failed.
-3. Change drbd_try_to_clean_on_disk_bm to schedule w_update_odbm if
-_any_ bits are cleared on disk (perhaps it should
-   be some-bit-cleared AND (rs_failed!=3D0 || =
-extent-now-completely-clear)
-- that wont change the current behavior if
-   no failures occur -- I'm just a bit worried about doing this too
-often...
-4. Add a call to drbd_check_for_end_resync() in got_NegDSReply() to
-handle the case where the last block failed.
-5. Find all the places where rs_total, rs_mark_left and the bitmap
-weight are referenced and include rs_failed as
-   necessary (e.g. BM_PARANOIA_CHECK in drbd_bitmap.c).
+So, if the disk fails during resync you could use force_state()
+to go into Connected/Inconsistent, although this is not a valid
+state as expressed by the constraints of pre_state_checks().
 
-Thanks,
-Simon
+We need to check that there are no local requests issued to
+the not-yet-synced areas. As far as I recall from the back of
+my head, drbd-8 drbd_req.c already checks the local disk status
+instead of the connection status, but we need to check this.
 
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Lars Ellenberg
-Sent: Tuesday, July 04, 2006 11:23 AM
-To: drbd-dev@linbit.com; drbd-dev@linbit.com
-Subject: Re: [Drbd-dev] Re: [DRBD-user] drbd_panic() in drbd_receiver.c
+> Assuming that is the case, here's my problem (remember this is based on
+> 0.7 at the moment) --
 
-/ 2006-07-04 11:01:32 -0400
-\ Graham, Simon:
-> Thanks -- I'm actually starting with drbd 7 just because it's _much_
-> easier for me to test (we have a complete build/install/test
-> infrastructure currently based on using 0.7) however I will push the
-> changes into the head of the trunk as soon as I can.
->=20
-> FWIW, I have the set-state, NegDReply and NegDSReply stuff coded and
-> running; I'm using a known bad disk and no panics so far!
+Hmm, oops, ok.
 
-great, send over a svn diff...
+> right now, the check for end-of-resync is done in=20
+> w_update_odbm based on the current weight of the bitmap; what's more,
+> this worker routine is only scheduled from drbd_try_to_clean_on_disk_bm
+> IF a complete extent is zeroed (and, of course, this routine is only
+> called from drbd_set_in_sync) -- so simply modifying w_update_odbm to
+> check if the weight is <=3D the number of failed blocks will miss a couple
+> of important cases:
+> 1. If the failure is in the very last block and
+> 2. If the failure is somewhere in the last extent of the on-disk bitmap
 
-> -- the only
-> issue I have now is that I think I need to kick the resync processing
-> when a NegDSReply is received -- /proc/drbd always shows the resync as
-> 100% and stalled;
+I see the issue here. Have to think about it.
 
-there are several internal dependencies and state changes that need to
-be adjusted...
+> Apologies for the detail below, but I want to make sure I'm going about
+> this the right way - Here's what I'm thinking as a way to fix this --
+> please comment; you know this code so much better than I do!
+>
 
-> BTW: do you have any suggestions for handling the bitmap and meta-data
-> write failures?
+I will try to answer that part of the mail later today, currently
+I am running out of time
 
-difficult. we probably need to have several "drbd super blocks" in
-drbd8, so we at least have a much higher chance to get important flags
-on stable storage _somewhere_. I guess we don't want to have several
-bitmaps, but some means to store the "meta data is not reliable anymore"
-flag in several places. updates to these blocks have to be
-transactional. this is not yet done, but it is on the todo list...
-
-
-> Also - let me know if you think you would incorporate these changes
-into
-> the 0.7 branch
-
-unlikely. not impossible, though.
-
-> - if so, I'll send patches (oh and let me know what the
-> 'approved' mechanism for sending patches is please).
-
-svn diff
-
-cheers,
-
---=20
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
-_______________________________________________
-drbd-dev mailing list
-drbd-dev@lists.linbit.com
-http://lists.linbit.com/mailman/listinfo/drbd-dev
+=2DPhilipp
+=2D-=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
