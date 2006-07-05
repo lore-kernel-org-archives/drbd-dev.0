@@ -2,20 +2,20 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from mescal.linbit (office.linbit [213.229.1.138])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id A1FB72CDC348
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Jul 2006 17:53:37 +0200 (CEST)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 0FB632CDC2FD
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Jul 2006 18:01:44 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] Re: drbd_panic() in drbd_receiver.c
-Date: Wed, 5 Jul 2006 18:06:51 +0200
-References: <342BAC0A5467384983B586A6B0B37671031FB441@EXNA.corp.stratus.com>
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671031FB441@EXNA.corp.stratus.com>
+Date: Wed, 5 Jul 2006 18:15:01 +0200
+References: <342BAC0A5467384983B586A6B0B37671031FB37E@EXNA.corp.stratus.com>
+In-Reply-To: <342BAC0A5467384983B586A6B0B37671031FB37E@EXNA.corp.stratus.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-Message-Id: <200607051806.51407.philipp.reisner@linbit.com>
+Message-Id: <200607051815.01384.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,65 +25,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Mittwoch, 5. Juli 2006 16:27 schrieb Graham, Simon:
-> Thanks Philip,
+> Apologies for the detail below, but I want to make sure I'm going about
+> this the right way - Here's what I'm thinking as a way to fix this --
+> please comment; you know this code so much better than I do!
 >
-> I realize I will have to rework this for DRBD 8 - oh well!
->
-> One thing I think is important here is that when an error occurs in the
-> middle of resyncing, I was thinking we should make sure we finish up as
-> much as possible of the resync; this allows the disk to become sane again
-> if the bad block in question is fixed up -- for example, if a subsequent
-> write to the block is done to a bad block and it also allows most accesses
-> to be local if we end up failing over primaryness -- so I was thinking we
-> should not simply abandon the resync as soon as an error is detected...
->
-> On the other hand, perhaps this would be an easier way to handle the issue
-> -- simply abandon the current resync as soon as an error is detected and
-> live with the fact that there are potentially many following blocks that
-> could be synchronized but which will not be -- I suspect this would be mu=
-ch
-> easier to implement in both 7 and 8... I think the only remaining question
-> would then be what the strategy for restarting the resync in this case --
-> it would be nice if the disk could eventually become consistent again...
->
-> I appreciate your guidance and time,
-> Simon
->
+> 1. Add a new field in the mdev - rs_failed - that counts the number of
+> NegDSReply's received, init to zero
+>    at start of resync
 
-Hi Simon,
+ack.
 
-Although I am today busy with other things that DRBD and I did not found
-a lot of time to think about the problem you want to solve, my gut feeling
-is that we should try to finish the resync run, even if there are some
-IO errors in the course.
+> 2. Move the code that checks for end of resync into a new routine -
+> drbd_check_for_end_resync() and change it
+>    to check if the bitmap weight is <=3D rs_failed.
 
-I did not had a look at the code to find out what's easiert to implement
-by now.
+ok.
 
-Currently we simply disconnect from a disk as soon as we see a singe IO
-error on it. ( =3D State transition disk[ UpToDate -> Failed ] )
+> 3. Change drbd_try_to_clean_on_disk_bm to schedule w_update_odbm if
+> _any_ bits are cleared on disk (perhaps it should
+>    be some-bit-cleared AND (rs_failed!=3D0 || extent-now-completely-clear)
+> - that wont change the current behavior if
+>    no failures occur -- I'm just a bit worried about doing this too
+> often...
 
-The question I want to answer first are:
- Should we have a new disk state. ?  PartiallyFailed ?
- No state change at all ?
- Is "PartiallyFailed" the same thing as "Inconsistent" ?
-=20
-Simon, please focus on implementing this for drbd-8. Our current plan
-is to have drbd-8 ready by September 2006. (And this might get more
-strict that the open-source attitude, it is finished when it is ready ;)
+I see the problem here... And I have am advice for you.
+The bm_extent holds the number of dirty bit for the extent (rs_left).
+Add a member there that holds the number of IO errors for that
+sync extent (rs_failed).
+=2E.. Do you know by now what I mean ?
 
-Ok, while thinking about it, I begin to understand how that would feel.
-E.g. it would be also allowed to force an degraded cluster (=3Dsingle
-node) with in inconsistent disk to be accessible (=3Dprimary) but=20
-return for all blocks that are out of sync an IO-Error.
+> 4. Add a call to drbd_check_for_end_resync() in got_NegDSReply() to
+> handle the case where the last block failed.
 
-Ok, I see, that might be for some cases much more help than the panic,
-that DRBD does currently.
+right.
 
-I guess that these changes are in the end rather big, and I guess it
-is better to not de-stabilize drbd-0.7's code base with such fundamental
-changes. This should happen in the development code.
+> 5. Find all the places where rs_total, rs_mark_left and the bitmap
+> weight are referenced and include rs_failed as
+>    necessary (e.g. BM_PARANOIA_CHECK in drbd_bitmap.c).
 
 =2DPhilipp
 =2D-=20
