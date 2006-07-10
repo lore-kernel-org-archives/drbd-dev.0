@@ -1,21 +1,18 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (office.linbit [213.229.1.138])
-	(using TLSv1 with cipher EXP1024-RC4-SHA (56/128 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 60E552CDC4E2
-	for <drbd-dev@lists.linbit.com>; Fri,  7 Jul 2006 11:33:53 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from soda (office.linbit [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id E80992CDC28E
+	for <drbd-dev@lists.linbit.com>; Mon, 10 Jul 2006 17:30:33 +0200 (CEST)
+Date: Mon, 10 Jul 2006 17:30:35 +0200
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] Minor fix to DRBD install target...
-Date: Fri, 7 Jul 2006 11:33:53 +0200
+Message-ID: <20060710153035.GA5354@soda.linbit>
 References: <342BAC0A5467384983B586A6B0B37671031FB6F7@EXNA.corp.stratus.com>
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671031FB6F7@EXNA.corp.stratus.com>
+	<200607071133.53277.philipp.reisner@linbit.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200607071133.53277.philipp.reisner@linbit.com>
+In-Reply-To: <200607071133.53277.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,10 +22,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Lars is the Makefile guru here, I leave these patches for him ...
-[ He is on Monday in the office again. ]
-=2DPhilipp
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+/ 2006-07-07 11:33:53 +0200
+\ Philipp Reisner:
+> Lars is the Makefile guru here, I leave these patches for him ...
+> [ He is on Monday in the office again. ]
+
+since we only target 2.6. with drbd 8, we can "hardcode" modsub dir.
+no one seems to use lib/<ver>/block anymore anywhere.
+
+-- 
+: Lars Ellenberg                                  Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
+: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
