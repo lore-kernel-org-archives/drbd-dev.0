@@ -1,14 +1,21 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (office.linbit [213.229.1.138])
+	(using TLSv1 with cipher EXP1024-RC4-SHA (56/128 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 85B992DF6279
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jul 2006 10:26:16 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] Running drbdmeta non-interactively
+Date: Mon, 17 Jul 2006 10:27:06 +0200
+References: <342BAC0A5467384983B586A6B0B376710333A704@EXNA.corp.stratus.com>
+In-Reply-To: <342BAC0A5467384983B586A6B0B376710333A704@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----_=_NextPart_001_01C6A821.8897F852"
-Date: Sat, 15 Jul 2006 11:15:39 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B376710333A722@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] Why is invalidate command rejected if current node is
-	primary?
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+Message-Id: <200607171027.06855.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,113 +25,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+Am Freitag, 14. Juli 2006 23:02 schrieb Graham, Simon:
+> Currently, drbdmeta always prompts for confirmation before updating
+> meta-data - this is fine for interactive use but if you want to
+> initialize meta-data programmatically (as part of provisioning a box for
+> example) it causes problems. I would propose adding a "-force" option to
+> drbdmeta that overrides this and assumes a 'yes' answer to all
+> questions.
+>
+> I have coded this and a patch for trunk is attached.
+>
+> Simon
+>
+>  <<drbdmeta-bug665.patch>>
 
-------_=_NextPart_001_01C6A821.8897F852
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Applied...
 
-Currently, any attempt to invalidate the local disk is rejected if the
-local node is Primary (and similarly, invalidate-remote is rejected if
-we think the partner is Primary) - given the fact that DRBD is quite
-able to handle the case where the Primary does not have good data, why
-is this test there? This actually makes it hard, for example, to write
-automated tests that invalidate the disk since you have to set the node
-secondary which can cause running programs to fail because they can no
-longer access the disk.
+=2Dphil
 
-It's even worse running with dual-primaries in DRBD-8 - I plan on
-running with both sides Primary all the time so I shouldn't have to
-worry about Secondary at all, but if I want to do a test that
-invalidates the disk, I have to set a node secondary first.
-
-So - is there any really good reason for rejecting invalidate in this
-way?
-
-Simon
-
-PS: Another [albeit minor] problem with the current code is that the
-error is reported incorrectly - the error message is 'Only in cstate
-'Connected' possible' which is confusing when the invalidate is rejected
-due to being primary!
-
-------_=_NextPart_001_01C6A821.8897F852
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
-<HTML>
-<HEAD>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
-charset=3Dus-ascii">
-<META NAME=3D"Generator" CONTENT=3D"MS Exchange Server version =
-6.5.7226.0">
-<TITLE>Why is invalidate command rejected if current node is =
-primary?</TITLE>
-</HEAD>
-<BODY>
-<!-- Converted from text/rtf format -->
-
-<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">Currently, any attempt to invalidate the local disk is =
-rejected if the local node is Primary (and similarly, invalidate-remote =
-is rejected if we think the partner is Primary)</FONT></SPAN><SPAN =
-LANG=3D"en-us"> <FONT SIZE=3D2 =
-FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma"> given the fact that DRBD is quite able to handle the =
-case where the Primary does not have good data, why =
-is</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma"> =
-this test there? This actually makes it hard, for example, to write =
-automated tests that invalidate the disk since you have to set the node =
-secondar</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">y which can cause running programs to fail because they =
-can no</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT SIZE=3D2 =
-FACE=3D"Tahoma">lon</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">ger access the disk.</FONT></SPAN></P>
-
-<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">It</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">s even worse running with dual-primaries in =
-DRBD-8</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT SIZE=3D2 =
-FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma"> I plan on running with both sides Primary all the time =
-so I shouldn</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">t have to worry about Secondary at all, but if I want to =
-do a test that invalidates the disk, I have to set a node secondary =
-first.</FONT></SPAN></P>
-
-<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">So</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT SIZE=3D2 =
-FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma"> is there any really good reason for rejecting =
-invalidate in this way?</FONT></SPAN></P>
-
-<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">Simon</FONT></SPAN></P>
-
-<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">PS: =
-Another [albeit minor] problem with the current code is that the error =
-is reported incorrectly</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT =
-SIZE=3D2 FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT =
-SIZE=3D2 FACE=3D"Tahoma"> the</FONT></SPAN><SPAN LANG=3D"en-us"><FONT =
-SIZE=3D2 FACE=3D"Tahoma"> error message is</FONT></SPAN><SPAN =
-LANG=3D"en-us"> <FONT SIZE=3D2 =
-FACE=3D"Tahoma">&#8216;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">Only in cstate</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT =
-SIZE=3D2 FACE=3D"Tahoma">&#8216;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT =
-SIZE=3D2 FACE=3D"Tahoma">Connected</FONT></SPAN><SPAN =
-LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN =
-LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma"> =
-possible</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma"> which i</FONT></SPAN><SPAN LANG=3D"en-us"><FONT =
-SIZE=3D2 FACE=3D"Tahoma">s confusing when the invalidate is rejected due =
-to being primary!</FONT></SPAN><SPAN LANG=3D"en-us"></SPAN></P>
-
-</BODY>
-</HTML>
-------_=_NextPart_001_01C6A821.8897F852--
+=2D-=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
