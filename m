@@ -1,17 +1,17 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from soda (office.linbit [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id B2E932DF6270
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2006 16:33:23 +0200 (CEST)
-Date: Tue, 18 Jul 2006 16:33:25 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Large data requests
-Message-ID: <20060718143325.GF3989@soda.linbit>
-References: <342BAC0A5467384983B586A6B0B376710333A9A3@EXNA.corp.stratus.com>
+Return-Path: <milind.dumbare@gmail.com>
+Received: from wr-out-0506.google.com (wr-out-0506.google.com [64.233.184.229])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id B9C5C2DF627B
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jul 2006 17:05:45 +0200 (CEST)
+Received: by wr-out-0506.google.com with SMTP id i30so694762wra
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jul 2006 08:05:44 -0700 (PDT)
+Message-ID: <44C4E271.3080607@gmail.com>
+Date: Mon, 24 Jul 2006 20:38:33 +0530
+From: Milind Dumbare <milind.dumbare@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <342BAC0A5467384983B586A6B0B376710333A9A3@EXNA.corp.stratus.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] Bug?
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,32 +21,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-07-18 09:59:21 -0400
-\ Graham, Simon:
-> This seems too easy to be a bug, but I've been getting occasional errors
-> with DRBD-8 (latest trunk as of yesterday) like this:
-> 
-> Jul 17 16:25:03 jake kernel: drbd2: receive_DataReply: (data_size >
-> PAGE_SIZE) in /sandbox/sgraham/sn/trunk/drbd-8/drbd/drbd_receiver.c:1035
-> 
-> The line in question being:
-> 
-> 	ERR_IF(data_size >  PAGE_SIZE) return FALSE;
-> 
-> in receive_DataReply. Now, one of the changes in DRBD-8 was to allow
-> requests up to 32K to be passed down and it looks to me like these are
-> just passed on to the remote side (if the local side does not have good
-> data) so it would be perfectly OK to receive a DataReply > 4KB in size -
-> is this just a left over assert that needs to be removed? Or did I miss
-> something?
+Hi,
+First of all to tell I am working on x86_64 machine.
 
-thanks.
-committed as:
--       ERR_IF(data_size >  PAGE_SIZE) return FALSE;
-+       ERR_IF(data_size >  DRBD_MAX_SEGMENT_SIZE) return FALSE;
+The structure ioctl_get_config has size 576(bytes) and its padded with
+int (4byte) so it makes 580 (bytes). And compiler will align it to 584
+(bytes), as 580 is not completely divisible by 8 while 584 is.
 
+So don't you think drbd_sizeof_sanity_check.c:21 should be
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+        SZO(struct ioctl_get_config,    576)
+rather than
+        SZO(struct ioctl_get_config,    580)
+
+after removing padding. It will also be alligned on 32 bit compilers.
+
+-Thanks
+-Milind
+
