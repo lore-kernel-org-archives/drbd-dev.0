@@ -1,15 +1,20 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <milind.dumbare@gmail.com>
+Received: from py-out-1112.google.com (py-out-1112.google.com [64.233.166.176])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 35E752D99836
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Jul 2006 11:08:53 +0200 (CEST)
+Received: by py-out-1112.google.com with SMTP id i75so408116pye
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Jul 2006 02:08:47 -0700 (PDT)
+Message-ID: <44C5E049.1030606@gmail.com>
+Date: Tue, 25 Jul 2006 14:41:37 +0530
+From: Milind Dumbare <milind.dumbare@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue, 25 Jul 2006 14:56:07 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B376710333B373@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] Transaction log related assert messages running DRBD 8
-	trunk
+To: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+Subject: Re: [Drbd-dev] Bug?
+References: <44C4E271.3080607@gmail.com> <20060725015703.GG4596@soda.linbit>
+In-Reply-To: <20060725015703.GG4596@soda.linbit>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,42 +24,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Running some failover stress testing with the latest DRBD 8, I have
-started to notice assert failures like this:
+Lars Ellenberg wrote:
 
-Jul 24 17:36:22 peer kernel: drbd1: ASSERT( b->br_number =3D=3D =
-barrier_nr )
-in drbd/drbd_main.c:280=20
-Jul 24 17:36:22 peer kernel: drbd1: ASSERT( b->n_req =3D=3D set_size ) =
-in
-drbd/drbd_main.c:281=20
-
-I'm not quite sure what these mean, but I do note that the code releases
-the spin lock before the assert and it occurs to me that perhaps the
-D_ASSERTs should also be done with the lock held (see below)?
-
-Simon
-
---- code from drbd_main.c ---
-
-void tl_release(drbd_dev *mdev,unsigned int barrier_nr,
-		       unsigned int set_size)
-{
-	struct drbd_barrier *b;
-
-	spin_lock_irq(&mdev->tl_lock);
-
-	b =3D mdev->oldest_barrier;
-	mdev->oldest_barrier =3D b->next;
-
-	list_del(&b->requests);
-	/* There could be requests on the list waiting for completion
-	   of the write to the local disk, to avoid corruptions of
-	   slab's data structures we have to remove the lists head */
-
-	spin_unlock_irq(&mdev->tl_lock);
-
-	D_ASSERT(b->br_number =3D=3D barrier_nr);
-	D_ASSERT(b->n_req =3D=3D set_size);
-...
-
+>/ 2006-07-24 20:38:33 +0530
+>\ Milind Dumbare:
+>  
+>
+>>Hi,
+>>First of all to tell I am working on x86_64 machine.
+>>
+>>The structure ioctl_get_config has size 576(bytes) and its padded with
+>>int (4byte) so it makes 580 (bytes). And compiler will align it to 584
+>>(bytes), as 580 is not completely divisible by 8 while 584 is.
+>>
+>>So don't you think drbd_sizeof_sanity_check.c:21 should be
+>>
+>>       SZO(struct ioctl_get_config,    576)
+>>rather than
+>>       SZO(struct ioctl_get_config,    580)
+>>    
+>>
+>
+>when filing bugs, please state against which version you complain.
+>(in this case, I guess 8-pre something tarball).
+>when it is not the latest version, check whether it has already been
+>fixed, as I think for this issue recent versions (svn) are fixed, and
+>we now have compile time asserts instead of runtime asserts in place.
+>
+>yes, we probably should upload some new 8pre-something tarballs.
+>
+>thanks,
+>
+>  
+>
+Where can we access SVN from? Do everybody has access to it? What do I 
+have to do if I want to have access if its resticted?
+-Milind
