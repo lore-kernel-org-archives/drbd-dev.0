@@ -1,16 +1,22 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Date: Tue, 25 Jul 2006 23:49:24 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: Milind Dumbare <milind.dumbare@gmail.com>
-Subject: Re: [Drbd-dev] Bug?
-Message-ID: <20060725214924.GC4633@soda.linbit>
-References: <44C4E271.3080607@gmail.com> <20060725015703.GG4596@soda.linbit>
-	<44C5E049.1030606@gmail.com>
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (office.linbit [213.229.1.138])
+	(using TLSv1 with cipher EXP1024-RC4-SHA (56/128 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 4B7932CDC49A
+	for <drbd-dev@lists.linbit.com>; Wed, 26 Jul 2006 10:11:23 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] Transaction log related assert messages running DRBD 8
+	trunk
+Date: Wed, 26 Jul 2006 10:11:22 +0200
+References: <342BAC0A5467384983B586A6B0B376710333B373@EXNA.corp.stratus.com>
+In-Reply-To: <342BAC0A5467384983B586A6B0B376710333B373@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <44C5E049.1030606@gmail.com>
-Cc: drbd-dev@lists.linbit.com
+Message-Id: <200607261011.22627.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,21 +26,99 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-07-25 14:41:37 +0530
-\ Milind Dumbare:
-> Where can we access SVN from? Do everybody has access to it? What do I
-> have to do if I want to have access if its resticted?
+Am Dienstag, 25. Juli 2006 20:56 schrieb Graham, Simon:
+> Running some failover stress testing with the latest DRBD 8, I have
+> started to notice assert failures like this:
+>
+> Jul 24 17:36:22 peer kernel: drbd1: ASSERT( b->br_number =3D=3D barrier_n=
+r )
+> in drbd/drbd_main.c:280
+> Jul 24 17:36:22 peer kernel: drbd1: ASSERT( b->n_req =3D=3D set_size ) in
+> drbd/drbd_main.c:281
+>
+> I'm not quite sure what these mean, but I do note that the code releases
+> the spin lock before the assert and it occurs to me that perhaps the
+> D_ASSERTs should also be done with the lock held (see below)?
+>
+> Simon
+>
+> --- code from drbd_main.c ---
+>
+> void tl_release(drbd_dev *mdev,unsigned int barrier_nr,
+> 		       unsigned int set_size)
+> {
+> 	struct drbd_barrier *b;
+>
+> 	spin_lock_irq(&mdev->tl_lock);
+>
+> 	b =3D mdev->oldest_barrier;
+> 	mdev->oldest_barrier =3D b->next;
+>
+> 	list_del(&b->requests);
+> 	/* There could be requests on the list waiting for completion
+> 	   of the write to the local disk, to avoid corruptions of
+> 	   slab's data structures we have to remove the lists head */
+>
+> 	spin_unlock_irq(&mdev->tl_lock);
+>
+> 	D_ASSERT(b->br_number =3D=3D barrier_nr);
+> 	D_ASSERT(b->n_req =3D=3D set_size);
+> ...
+>
 
-the first hit in google "drbd svn access" is
-http://www.drbd.org/latest.html and explains it.
+Hi Simon,
 
-svn co http://svn.drbd.org/drbd/trunk/ drbd-latest
-(which may well be in a state that does not even work at all.
- though we try to avoid non-working commits)
+Currently the code looks like this:
 
-thanks,
+void tl_release(drbd_dev *mdev,unsigned int barrier_nr,
+		       unsigned int set_size)
+{
+	struct drbd_barrier *b;
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+	spin_lock_irq(&mdev->tl_lock);
+
+	b =3D mdev->oldest_barrier;
+	mdev->oldest_barrier =3D b->next;
+
+	list_del(&b->requests);
+	/* There could be requests on the list waiting for completion
+	   of the write to the local disk, to avoid corruptions of
+	   slab's data structures we have to remove the lists head */
+
+	spin_unlock_irq(&mdev->tl_lock);
+
+	D_ASSERT(b->br_number =3D=3D barrier_nr);
+	D_ASSERT(b->n_req =3D=3D set_size);
+
+#ifdef DBG_ASSERTS
+	if(b->br_number !=3D barrier_nr) {
+		DUMPI(b->br_number);
+		DUMPI(barrier_nr);
+	}
+	if(b->n_req !=3D set_size) {
+		DUMPI(b->n_req);
+		DUMPI(set_size);
+	}
+#endif
+
+	kfree(b);
+}
+
+
+In case they are different you should also see the nubers.=20
+BTW, the spinlock only protects the linked lists. Looking at
+the content of the barrier object is ok.
+
+PS: Recently I was quite active in this parts of the code, with
+    the current SVN head, these ASSERTS should not trigger.
+
+BTW: The meaning is, we sent a number of write requests between
+     two barriers. When the barrier ACK of the peer comes in
+     we verify that the peer wrote the same number of writes
+     between those two barriers.
+
+=2DPhil
+=2D-=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
