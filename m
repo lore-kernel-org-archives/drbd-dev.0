@@ -1,19 +1,15 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from soda (office.linbit [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id E15382CE6E4E
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Aug 2006 12:33:12 +0200 (CEST)
-Date: Thu, 3 Aug 2006 12:33:14 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Re: reboot notifier
-Message-ID: <20060803103314.GG4643@soda.linbit>
-References: <mailman.93.1154590245.4693.drbd-dev@lists.linbit.com>
-	<20060803082033.GF4643@soda.linbit>
-	<1154593867.2335.20.camel@shadowfox.linsyssoft.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1154593867.2335.20.camel@shadowfox.linsyssoft.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Sat, 5 Aug 2006 22:29:11 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B3767103471178@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD-8 trunk crashes if NegDReply received in reply to
+	RSDataRequest
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,27 +19,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-08-03 14:01:07 +0530
-\ Milind Dumbare:
-> 	My point was code structuring. As this is the way reboot notifiers are
-> written. But for doing interesting things in notify functions, it will
-> be nice to have switch cases structured, rather than writing function
-> which is doing nothing.
+When an RSDataRequest is sent, the block_id field in the request is set
+to SYNCER_ID (-1) - if the receiver is unable to process the request
+(e.g. if the receiver doesn't have good data) then it sends back a
+NegDReply with the same block_id - on the origin side, got_NegDReply
+attempts to validate the block_id value using drbd_pr_verify which
+promptly crashes attempting to reference the master_bio field to get the
+sector (drbd_req_get_sector()).
 
-great. having switch statements which do the wrong thing is good,
-because the code is more nicely structured. wow.
-don't get me wrong. I put that function there, so once we know something
-"interessting" that we want/need to do on reboot, I don't need to
-remember how to implement those notifiers.
+I found this testing my fixes for removing panic() calls on meta data
+read/write failures but I thought it was worth bugging separately;
+clearly this routine needs to validate the request pointer before
+attempting to access it at all, but also we should have got a
+NedRSDreply in this case - so there are at least two bugs here:
 
-but before we put some functional code in there, maybe we should first
-figure out what those "interesting things" are, that we want/need to do
-on notification.
+1. The target side should have send a NegRSDreply in this case;
+receive_DataRequest should switch on h->command=20
+   to decide what response to send when it bails early
+2. drbd_pr_verify should NOT call drbd_req_get_sector() before
+validating the pointer - is there any reason why=20
+   it shouldn't use the sector value passed in as a parameter?
 
-I'm open for suggestions.
-however, just calling drbd_cleanup there unconditionally is not useful.
+I can make patches for these when we agree on the right solution...
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+Simon
+
