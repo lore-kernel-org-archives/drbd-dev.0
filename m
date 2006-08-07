@@ -1,16 +1,13 @@
 Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD-8 trunk crashes if NegDReply received in reply
-	toRSDataRequest
-Date: Sun, 6 Aug 2006 12:18:13 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B3767103471180@EXNA.corp.stratus.com>
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01C6BA23.165A6D91"
+Date: Mon, 7 Aug 2006 09:12:06 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671034711CD@EXNA.corp.stratus.com>
 From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Graham, Simon" <Simon.Graham@stratus.com>,
-	<drbd-dev@lists.linbit.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD 8 rejects some state changes that it shouldn't
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,76 +17,88 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Oh wait... that wont work -- the call to send the negative ack takes the
-epoch_entry* as a parameter...
+This is a multi-part message in MIME format.
 
-How about having a new routine that can send a negative ack based on a
-Data packet pointer? I don't like the idea of making drbd_aloc_ee able
-to handle this case as you will get a partially initialized epoch_entry*
-back in that case...
+------_=_NextPart_001_01C6BA23.165A6D91
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-/simgr
+In general, the state change code does the right thing in refusing
+invalid state changes, however there are some cases where it rejects a
+change that cannot really be rejected - for example, if the peer tells
+you that it has gone diskless, it's really not possible to refuse the
+state change - here's an example:
 
-> -----Original Message-----
-> From: Graham, Simon
-> Sent: Sunday, August 06, 2006 12:14 PM
-> To: Graham, Simon; drbd-dev@linbit.com
-> Subject: RE: [Drbd-dev] DRBD-8 trunk crashes if NegDReply received in
-> reply toRSDataRequest
->=20
-> And another one -- receive_DataRequest calls drbd_alloc_ee _before_
-> testing if it has a local disk; this craps out in bio_add_page because
-> bi_bdev is NULL (I think -- it's a bit hard to read the optimized
-> disassembly) -- certainly, when we go diskless because of an error,
-> after_state_ch frees the drbd_backing_dev and sets the bc pointer in
-> mdev to NULL -- a data request received after that will call
-> drbd_alloc_ee which will do the wrong thing.
->=20
-> I think the fix is to move the test for having good data to before the
-> call to drbd_alloc_ee; does that seem reasonable?
->=20
-> /simgr
->=20
->=20
-> > -----Original Message-----
-> > From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-
-> bounces@linbit.com]
-> > On Behalf Of Graham, Simon
-> > Sent: Saturday, August 05, 2006 10:29 PM
-> > To: drbd-dev@linbit.com
-> > Subject: [Drbd-dev] DRBD-8 trunk crashes if NegDReply received in
-> reply
-> > toRSDataRequest
-> >
-> > When an RSDataRequest is sent, the block_id field in the request is
-> set
-> > to SYNCER_ID (-1) - if the receiver is unable to process the request
-> > (e.g. if the receiver doesn't have good data) then it sends back a
-> > NegDReply with the same block_id - on the origin side, got_NegDReply
-> > attempts to validate the block_id value using drbd_pr_verify which
-> > promptly crashes attempting to reference the master_bio field to get
-> > the
-> > sector (drbd_req_get_sector()).
-> >
-> > I found this testing my fixes for removing panic() calls on meta
-data
-> > read/write failures but I thought it was worth bugging separately;
-> > clearly this routine needs to validate the request pointer before
-> > attempting to access it at all, but also we should have got a
-> > NedRSDreply in this case - so there are at least two bugs here:
-> >
-> > 1. The target side should have send a NegRSDreply in this case;
-> > receive_DataRequest should switch on h->command
-> >    to decide what response to send when it bails early
-> > 2. drbd_pr_verify should NOT call drbd_req_get_sector() before
-> > validating the pointer - is there any reason why
-> >    it shouldn't use the sector value passed in as a parameter?
-> >
-> > I can make patches for these when we agree on the right solution...
-> >
-> > Simon
-> >
-> > _______________________________________________
-> > drbd-dev mailing list
-> > drbd-dev@lists.linbit.com
-> > http://lists.linbit.com/mailman/listinfo/drbd-dev
+drbd15: State change failed: Refusing to be inconsistent on both
+nodesdrbd15:   state =3D { cs:SyncTarget st:Secondary/Primary
+ds:Inconsistent/UpToDate r--- }drbd15:  wanted =3D { cs:SyncTarget
+st:Secondary/Primary ds:Inconsistent/Diskless r--- }
+I'm not sure how important this is but it definitely results in the
+local state being incorrect. I'm not totally sure but I suspect you
+should always let the peer state change by setting the ChgStateHard flag
+in the call to drbd_change_state in receive_req_state?
+
+Simon
+
+------_=_NextPart_001_01C6BA23.165A6D91
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
+charset=3Dus-ascii">
+<META NAME=3D"Generator" CONTENT=3D"MS Exchange Server version =
+6.5.7226.0">
+<TITLE>DRBD 8 rejects some state changes that it shouldn't</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/rtf format -->
+
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">In =
+g</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">eneral, the state change code does the right thing in =
+refusing invalid state changes, however there are some cases where it =
+rejects a change that cannot really be rejected</FONT></SPAN><SPAN =
+LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma"> for example, if the peer tells you that it has gone =
+diskless, it</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">s really not possible to refuse the state =
+change</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma"> here</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">s an example:</FONT></SPAN></P>
+
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">drbd15: =
+State change failed: Refusing to be inconsistent on both =
+nodesdrbd15:&nbsp;&nbsp; state =3D { cs:SyncTarget st:Secondary/Primary =
+ds:Inconsistent/UpToDate r--- }drbd15:&nbsp; wanted =3D { cs:SyncTarget =
+st:Secondary/Primary ds:Inconsistent/Diskless r--- }</FONT></SPAN><SPAN =
+LANG=3D"en-us"></SPAN></P>
+
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">I</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">m not sure how important this is but it definitely =
+results in the local state being incorrect. I</FONT></SPAN><SPAN =
+LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN =
+LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">m not totally sure but I =
+suspect you should always let the peer state change</FONT></SPAN><SPAN =
+LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma"> by setting the =
+ChgStateHard flag in the call to drbd_change_state in =
+receive_req_state?</FONT></SPAN></P>
+
+<P DIR=3DLTR><SPAN LANG=3D"en-us"></SPAN></P>
+
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">Simon</FONT></SPAN><SPAN LANG=3D"en-us"></SPAN></P>
+
+</BODY>
+</HTML>
+------_=_NextPart_001_01C6BA23.165A6D91--
