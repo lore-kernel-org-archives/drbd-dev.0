@@ -1,12 +1,14 @@
 Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C6BCB4.EABA20E4"
-Subject: RE: [Drbd-dev] Proposed update to packet dumping code
-Date: Thu, 10 Aug 2006 15:41:01 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B3767103624E6D@EXNA.corp.stratus.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 10 Aug 2006 22:31:43 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B3767103624EB8@EXNA.corp.stratus.com>
 From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD-8: recent regression causing corruption and crashes
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -16,118 +18,123 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+It seems that there has been a recent regression (somewhere in the past
+couple of weeks) that is causing me a couple of nasty and very
+reproducible problems as follows:
 
-------_=_NextPart_001_01C6BCB4.EABA20E4
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+1. I get errors during initial synchronization of a volume like this
+that cause the resync to be aborted:
 
-I found in debugging my problem that I was still getting too much =
-output, so I've enhanced the trace a little to enable one to specify =
-which devices have their packets traced - I did this by adding a 2nd =
-sysfs variable dump_packet_devs which is a bitmap of devices to trace =
-(which means you can only trace the first 32 devices -- is that a =
-problem for anyone?).
+drbd15: tl_verify: failed to find req e51a4da0, sector 0 in list
+drbd15: Got a corrupt block_id/sector pair(2).
+drbd15: short read expecting header on sock: r=3D-512
+drbd15: tl_clear()
 
-I also fixed up some formatting errors (including fields that are =
-meaningless, adding the socket name to the summary trace, tracing =
-packets sent with drbd_send_cmd2()).
+	and
 
-One other thing in this patch is a bit more tracing in tl_verify() when =
-a failure is detected -- you can remove this if you like, but I think =
-it's actually useful (more on this in a separate email later!)
+drbd15: ASSERT( drbd_req_get_sector(i) =3D=3D sector ) in
+/sandbox/sgraham/sn/trunk/platform/drbd/8.0/drbd/drbd_main.c:308
+drbd15: tl_verify: found req eaffff28 but it has wrong sector (ac030
+versus 0)
 
+	(Note that this trace is the enhanced trace I posted a few hours
+ago). When I turn on the packet tracing I get some very
+	odd messages, including lots of WriteAck's with 0 for the sector
+(but everything else correct - SYNCER_ID for the block id and an=20
+      incrementing sequence number 0 like this:
+
+Aug 10 10:58:24 ellwood kernel: drbd15: <<< WriteAck (sector 0, size
+8000, id ffffffffffffffff, seq 1671)
+Aug 10 10:58:24 ellwood kernel: drbd15: <<< WriteAck (sector 0, size
+8000, id ffffffffffffffff, seq 1672)
+Aug 10 10:58:24 ellwood kernel: drbd15: <<< WriteAck (sector 0, size
+8000, id ffffffffffffffff, seq 1673)
+
+	but I don't see the Ack's with non-SYNCER_ID block id that cause
+the previous trace (I'm guessing this is just
+	printk not writing all trace messages due to the rate). At first
+I thought this was just a bug in the printing
+	code but I'm damned if I can spot it!
+
+2. I get panics with the following signature:- these look like they are
+happening when a local write
+    on the primary (which this node is) completes.
+
+drbd15: tl_verify: failed to find req eab1ce48, sector 0 in list
+drbd15: Got a corrupt block_id/sector pair(2).
+drbd15: drbd_pp_alloc interrupted!
+drbd15: error receiving RSDataRequest, l: 24!
+drbd15: tl_clear()
+general protection fault: 6fa0 [#1]
+Modules linked in: drbd ipmi_devintf ipmi_si ipmi_msghandler video
+thermal processor fan button battery ac
+CPU:    0
+EIP:    0061:[<eafabf4f>]    Not tainted VLI
+EFLAGS: 00010096   (2.6.16.13-xen0 #2)=20
+EIP is at 0xeafabf4f
+eax: eafabf3f   ebx: 00000001   ecx: 00000001   edx: 00000003
+esi: eafabf48   edi: bf48eafa   ebp: c0557cbc   esp: c0557c9c
+ds: 007b   es: 007b   ss: 0069
+Process swapper (pid: 0, threadinfo=3Dc0556000 task=3Dc04c6860)
+Stack: <0>c0115a98 eafabf40 00000003 00000000 00000000 00000000 00000001
+00000020=20
+       c0557ce0 c0115b03 eaf97634 00000003 00000001 00000000 00000000
+00000001=20
+       eaf975e8 c0557cec c021c27f 00000000 c0557d20 c044ca27 eaf97624
+eaf97624=20
+Call Trace:
+ [<c010513a>] show_stack_log_lvl+0xaa/0xe0
+ [<c010534e>] show_registers+0x18e/0x210
+ [<c0105549>] die+0xd9/0x180
+ [<c0105eb4>] do_general_protection+0xc4/0x100
+ [<c0104d5f>] error_code+0x2b/0x30
+ [<c0115b03>] __wake_up+0x33/0x60
+ [<c021c27f>] __up+0x1f/0x30
+ [<c044ca27>] __up_wakeup+0x7/0x10
+ [<f127f107>] drbd_endio_write_pri+0xa7/0x230 [drbd]
+ [<c015efaf>] bio_endio+0x4f/0x80
+ [<c03cf569>] dec_pending+0x49/0x80
+ [<c03cf64b>] clone_endio+0xab/0xd0
+ [<c015efaf>] bio_endio+0x4f/0x80
+ [<c020e260>] __end_that_request_first+0xc0/0x340
+ [<c020e52f>] end_that_request_chunk+0x1f/0x30
+ [<c0310b57>] scsi_end_request+0x37/0x110
+ [<c0310ea4>] scsi_io_completion+0x104/0x530
+ [<c037c4fa>] sd_rw_intr+0xca/0x290
+ [<c030bdd5>] scsi_finish_command+0x85/0xa0
+ [<c03118cb>] scsi_softirq_done+0xcb/0xf0
+ [<c020e5cb>] blk_done_softirq+0x8b/0xb0
+ [<c011e4c2>] __do_softirq+0x62/0xd0
+ [<c011e578>] do_softirq+0x48/0x60
+ [<c011e645>] irq_exit+0x35/0x40
+ [<c01067a2>] do_IRQ+0x22/0x30
+ [<c02dfb74>] evtchn_do_upcall+0x54/0xa0
+ [<c0104d90>] hypervisor_callback+0x2c/0x34
+ [<c0102b36>] cpu_idle+0x66/0x70
+ [<c010202b>] _stext+0x2b/0x40
+ [<c055886a>] start_kernel+0x1aa/0x1f0
+ [<c010006f>] 0xc010006f
+Code: 00 a0 fa ea 6c bf fa ea 25 e4 44 c0 34 76 f9 ea 00 a0 fa ea 30 20
+1d eb 00 00 00 00 01 00 00 00 30 20 1d eb 48 bf fa ea 48 bf fa <ea> 34
+76 f9 ea a0 6f ad ea e8 75 f9 ea 24 76 f9 ea a0 6f ad ea=20
+ <0>Kernel panic - not syncing: Fatal exception in interrupt
+
+At the moment I'm somewhat stumped by this and would welcome any
+thoughts on where to look...
+
+Thanks
 Simon
 
+PS: Should have explained what we did before hand - the sequence is:
 
-> -----Original Message-----
-> From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-> On Behalf Of Philipp Reisner
-> Sent: Thursday, August 10, 2006 5:40 AM
-> To: drbd-dev@linbit.com
-> Subject: Re: [Drbd-dev] Proposed update to packet dumping code
->=20
-> > Let me know what you think and if anything else should be done.
-> > Simon
->=20
-> Ok, I have applied the patch to trunk...
->=20
-> -Phil
-> --
-> : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-> : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-> : Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com =
-:
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
+1. Both nodes issue drbdmeta commands to initialize the disk area - this
+is done independently - that is, the systems
+   are not connected at this point.
 
-------_=_NextPart_001_01C6BCB4.EABA20E4
-Content-Type: application/octet-stream;
-	name="drbd-trace-update.patch"
-Content-Transfer-Encoding: base64
-Content-Description: drbd-trace-update.patch
-Content-Disposition: attachment;
-	filename="drbd-trace-update.patch"
+2. One node mounts the drbd disk and untars a blob of data, still not
+connected to the other node
 
-SW5kZXg6IGRyYmRfbWFpbi5jCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIGRyYmRfbWFpbi5jCShyZXZpc2lvbiAz
-NTA0KQorKysgZHJiZF9tYWluLmMJKHdvcmtpbmcgY29weSkKQEAgLTEzMSw3ICsxMzEsMTIgQEAK
-IAkJCS8vIDAgPSBub25lCiAJCQkvLyAxID0gc3VtbWFyeSAodHJhY2UgJ2ludGVyZXN0aW5nJyBw
-YWNrZXRzIGluIHN1bW1hcnkgZm10KQogCQkJLy8gMiA9IHZlcmJvc2UgKHRyYWNlIGFsbCBwYWNr
-ZXRzIGluIGZ1bGwgZm9ybWF0KQoraW50IGR1bXBfcGFja2V0X2RldnMgPSAwOy8vIGJpdG1hcCBv
-ZiBkcmJkIGRldmljZXMgdG8gaGF2ZSB0cmFjaW5nCisJCQkvLyBlbmFibGVkCisKIG1vZHVsZV9w
-YXJhbShkdW1wX3BhY2tldHMsaW50LDA2NDQpOworbW9kdWxlX3BhcmFtKGR1bXBfcGFja2V0X2Rl
-dnMsaW50LDA2NDQpOworCiAjZW5kaWYKIAogLy8gZGV2ZnMgbmFtZQpAQCAtMzA2LDExICszMTEs
-MjEgQEAKIAlobGlzdF9mb3JfZWFjaF9lbnRyeShpLCBuLCBzbG90LCBjb2xpc2lvbikgewogCQlp
-ZiAoaT09cmVxKSB7CiAJCQlEX0FTU0VSVChkcmJkX3JlcV9nZXRfc2VjdG9yKGkpID09IHNlY3Rv
-cik7CisJCQlpZiAoZHJiZF9yZXFfZ2V0X3NlY3RvcihpKSAhPSBzZWN0b3IpIHsKKwkJCQlFUlIo
-InRsX3ZlcmlmeTogZm91bmQgcmVxICVwIGJ1dCBpdCBoYXMgd3Jvbmcgc2VjdG9yICglbGx4IHZl
-cnN1cyAlbGx4KVxuIiwKKwkJCQkgICAgcmVxLCAobG9uZyBsb25nKWRyYmRfcmVxX2dldF9zZWN0
-b3IoaSksIChsb25nIGxvbmcpc2VjdG9yKTsKKwkJCX0KIAkJCXJ2PTE7CiAJCQlicmVhazsKIAkJ
-fQogCX0KIAorCS8vIFJlYWxseSBiZXR0ZXIgZmluZCBpdCEKKwlpZiAoIXJ2KSB7CisJCUVSUigi
-dGxfdmVyaWZ5OiBmYWlsZWQgdG8gZmluZCByZXEgJXAsIHNlY3RvciAlbGx4IGluIGxpc3RcbiIs
-IAorCQkgICAgcmVxLCAobG9uZyBsb25nKXNlY3Rvcik7CisJfQorCiAJc3Bpbl91bmxvY2tfaXJx
-KCZtZGV2LT50bF9sb2NrKTsKIAogCXJldHVybiBydjsKQEAgLTEyOTUsNiArMTMxMCw4IEBACiAK
-IAlkb3duKCZtZGV2LT5kYXRhLm11dGV4KTsKIAorCWR1bXBfcGFja2V0KG1kZXYsbWRldi0+ZGF0
-YS5zb2NrZXQsMCwodm9pZCopJmgsIF9fRklMRV9fLCBfX0xJTkVfXyk7CisKIAlvayA9ICggc2l6
-ZW9mKGgpID09IGRyYmRfc2VuZChtZGV2LG1kZXYtPmRhdGEuc29ja2V0LCZoLHNpemVvZihoKSww
-KSApOwogCW9rID0gb2sgJiYgKCBzaXplID09IGRyYmRfc2VuZChtZGV2LG1kZXYtPmRhdGEuc29j
-a2V0LGRhdGEsc2l6ZSwwKSApOwogCkBAIC0xNzEzLDcgKzE3MzAsNiBAQAogCXVuc2lnbmVkIGlu
-dCBkcF9mbGFncz0wOwogCiAJZG93bigmbWRldi0+ZGF0YS5tdXRleCk7Ci0KIAlwLmhlYWQubWFn
-aWMgICA9IEJFX0RSQkRfTUFHSUM7CiAJcC5oZWFkLmNvbW1hbmQgPSBjcHVfdG9fYmUxNihEYXRh
-KTsKIAlwLmhlYWQubGVuZ3RoICA9IGNwdV90b19iZTE2KCBzaXplb2YocCktc2l6ZW9mKERyYmRf
-SGVhZGVyKQpAQCAtMjkwMywxMSArMjkxOSwxMyBAQAogCWlmIChkdW1wX3BhY2tldHMgPiBEVU1Q
-X1NVTU1BUlkpIHsgXAogCQlJTkZPKCIlczolZDogJXMgWyVkXSAlcyAlcyAiIGZtdCAsIFwKIAkJ
-ICAgICBmaWxlLCBsaW5lLCBjdXJyZW50LT5jb21tLCBjdXJyZW50LT5waWQsIFwKLQkJICAgICBz
-b2NrbmFtZSwgcmVjdj8iPDw8IjoiPj4+IiBcCi0JCSAgICAgLCAjIyBhcmdzICk7IFwKKwkJICAg
-ICBzb2NrbmFtZSwgcmVjdj8iPDw8IjoiPj4+IiwgXAorCQkgICAgICMjIGFyZ3MgKTsgXAogCX0g
-XAogCWVsc2UgeyBcCi0JCUlORk8oIiVzICIgZm10LCByZWN2PyI8PDwiOiI+Pj4iLCAjIyBhcmdz
-ICk7IFwKKwkJSU5GTygiJXMgJXMgIiBmbXQsIHNvY2tuYW1lLCBcCisJCSAgICAgcmVjdj8iPDw8
-IjoiPj4+IiwgXAorCQkgICAgICMjIGFyZ3MgKTsgXAogCX0gXAogfSB3aGlsZSAoMCkKIApAQCAt
-MjkyOSw4ICsyOTQ3LDYgQEAKIAkJYnJlYWs7CiAKIAljYXNlIERhdGE6Ci0JY2FzZSBEYXRhUmVw
-bHk6Ci0JY2FzZSBSU0RhdGFSZXBseToKIAkJSU5GT1AoIiVzIChzZWN0b3IgJWxseCwgaWQgJWxs
-eCwgc2VxICV4LCBmICV4KVxuIiwgY21kbmFtZShjbWQpLAogCQkgICAgIChsb25nIGxvbmcpYmU2
-NF90b19jcHUocC0+RGF0YS5zZWN0b3IpLCAKIAkJICAgICAobG9uZyBsb25nKWJlNjRfdG9fY3B1
-KHAtPkRhdGEuYmxvY2tfaWQpLApAQCAtMjkzOSw2ICsyOTU1LDE0IEBACiAJCSk7CiAJCWJyZWFr
-OwogCisJY2FzZSBEYXRhUmVwbHk6CisJY2FzZSBSU0RhdGFSZXBseToKKwkJSU5GT1AoIiVzIChz
-ZWN0b3IgJWxseCwgaWQgJWxseClcbiIsIGNtZG5hbWUoY21kKSwKKwkJICAgICAobG9uZyBsb25n
-KWJlNjRfdG9fY3B1KHAtPkRhdGEuc2VjdG9yKSwgCisJCSAgICAgKGxvbmcgbG9uZyliZTY0X3Rv
-X2NwdShwLT5EYXRhLmJsb2NrX2lkKQorCQkpOworCQlicmVhazsKKwogCWNhc2UgUmVjdkFjazoK
-IAljYXNlIFdyaXRlQWNrOgogCWNhc2UgTmVnQWNrOgpJbmRleDogZHJiZF9pbnQuaAo9PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09Ci0tLSBkcmJkX2ludC5oCShyZXZpc2lvbiAzNTA0KQorKysgZHJiZF9pbnQuaAkod29ya2lu
-ZyBjb3B5KQpAQCAtMTYxOSw5ICsxNjE5LDEwIEBACiAjaWZkZWYgRFVNUF9FQUNIX1BBQ0tFVAog
-CiAvKgotICogdmFyaWFibGUgdGhhdCBjb250cm9scyBkdW1waW5nCisgKiB2YXJpYWJsZXMgdGhh
-dCBjb250cm9scyBkdW1waW5nCiAgKi8KIGV4dGVybiBpbnQgZHVtcF9wYWNrZXRzOworZXh0ZXJu
-IGludCBkdW1wX3BhY2tldF9kZXZzOyAKIAogI2RlZmluZSBEVU1QX05PTkUgMAogI2RlZmluZSBE
-VU1QX1NVTU1BUlkgMQpAQCAtMTYzOCw3ICsxNjM5LDggQEAKIGR1bXBfcGFja2V0KGRyYmRfZGV2
-ICptZGV2LCBzdHJ1Y3Qgc29ja2V0ICpzb2NrLAogCSAgICBpbnQgcmVjdiwgRHJiZF9Qb2x5bW9y
-cGhfUGFja2V0ICpwLCBjaGFyKiBmaWxlLCBpbnQgbGluZSkKIHsKLQlpZiAoZHVtcF9wYWNrZXRz
-ID4gRFVNUF9OT05FKQorCWlmIChkdW1wX3BhY2tldHMgPiBEVU1QX05PTkUgJiYKKwkgICAgKCAo
-IDEgPDwgKGludCkobWRldi1kcmJkX2NvbmYpKSAmIGR1bXBfcGFja2V0X2RldnMpICkKIAkJX2R1
-bXBfcGFja2V0KG1kZXYsc29jayxyZWN2LHAsZmlsZSxsaW5lKTsKIH0KICNlbHNlCg==
-
-------_=_NextPart_001_01C6BCB4.EABA20E4--
+3, The systems are connected and rebooted and start resyncing
+automatically, leading to the above problems.
+   Note that we are also writing the volume on the SyncSource during the
+resync.
