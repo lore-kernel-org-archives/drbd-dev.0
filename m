@@ -1,17 +1,14 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from soda (office.linbit [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 1DEB22CE7575
-	for <drbd-dev@lists.linbit.com>; Mon, 14 Aug 2006 18:35:34 +0200 (CEST)
-Date: Mon, 14 Aug 2006 18:35:36 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] drbd 0.7 with recent kernels?
-Message-ID: <20060814163536.GF7226@soda.linbit>
-References: <20060814131554.GC15779@marowsky-bree.de>
+Return-Path: <Simon.Graham@stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20060814131554.GC15779@marowsky-bree.de>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Content-class: urn:content-classes:message
+Date: Mon, 14 Aug 2006 13:28:11 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671036250EC@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD-8: ap_pending_cnt maintenance
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,24 +18,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-08-14 15:15:54 +0200
-\ Lars Marowsky-Bree:
-> Hi,
-> 
-> did anyone already rip out the devfs support from drbd 0.7 to make it
-> compile with the latest kernels from upstream again, so I can avoid
-> doing it myself? ;-)
+In looking for the cause of hitting asserts that ap_pending_cnt is not
+-ve, I think I've found one place where an extra decrement is done (not,
+unfortunately the cause of my problem, but still wrong); in
+make_request_common, when handling WRITE requests, if two-primaries are
+allowed, the code checks for concurrent writes and fails the new one if
+an existing remote write is in progress. Now, the increment for the
+write being handled by this function isn't done until w_send_dblock runs
+in the worker thread, so I don't think a decrement should be done when
+the request is completed here...
 
-"latest kernels" ...
-well, we still compile against 2.6.17 as is.
+Code:
 
-I'm happy to rip it out in trunk completely.
+			if (mdev->net_conf->two_primaries) {
+				if(_ee_have_write(mdev,req)) { //
+tl_add() here
+					spin_unlock_irq(&mdev->tl_lock);
 
-but since we support even 2.4 kernels in drbd 0.7,
-there you probably have to do it yourself, in case it is neccessary.
-maybe you could just ifdef some empty defines in drbd_compat*.h ?
+					WARN("Concurrent write! [DISCARD
+L] sec=3D%lu\n",
+					     (unsigned long)sector);
+					dec_local(mdev);
+					dec_ap_pending(mdev);	<<<<=3D=3D=3D=3D
+I think this is incorrect!
+					local=3D0;
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+					drbd_end_req(req, RQ_DRBD_DONE,
+1, sector);
+					if(b) kfree(b);
+					return 0;
+				}
+			} else {
+				_tl_add(mdev,req);
+			}
+			req->w.cb =3D  w_send_dblock;
+			drbd_queue_work(&mdev->data.work, &req->w);
+
+What do you think?
+Simon
+
