@@ -1,13 +1,21 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (office.linbit [213.229.1.138])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BDEF2CE82A2
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Aug 2006 08:53:34 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD-8: recent regression causing corruption andcrashes
+Date: Mon, 14 Aug 2006 08:53:38 +0200
+References: <342BAC0A5467384983B586A6B0B3767103624FB2@EXNA.corp.stratus.com>
+In-Reply-To: <342BAC0A5467384983B586A6B0B3767103624FB2@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C6BD95.D5246A21"
-Subject: RE: [Drbd-dev] DRBD-8: recent regression causing corruption andcrashes
-Date: Fri, 11 Aug 2006 18:31:01 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B3767103624FB2@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Graham, Simon" <Simon.Graham@stratus.com>,
-	"Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+Message-Id: <200608140853.39195.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,79 +25,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+Am Samstag, 12. August 2006 00:31 schrieb Graham, Simon:
+> That was it -- things are going MUCH better now - trivial patch
+> attached.
+>
 
-------_=_NextPart_001_01C6BD95.D5246A21
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+I guess, I owe you a beer now :)
+Lars has put it into SVN alrady...
+Thanks!
 
-That was it -- things are going MUCH better now - trivial patch
-attached.
-
-Simon
-
-
-> -----Original Message-----
-> From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-> On Behalf Of Graham, Simon
-> Sent: Friday, August 11, 2006 5:56 PM
-> To: Lars Ellenberg; drbd-dev@linbit.com
-> Subject: RE: [Drbd-dev] DRBD-8: recent regression causing corruption
-> andcrashes
->=20
-> After a lot of looking at the disassembly of the send-ack routines, I
-> think I've found it -- the new routines Philipp added do this:
->=20
-> static int _drbd_send_ack(drbd_dev *mdev, Drbd_Packet_Cmd cmd,
-> 			  sector_t sector,
-> 			  unsigned int blksize,
-> 			  u64 block_id)
-> {...}
->=20
-> int drbd_send_ack(drbd_dev *mdev, Drbd_Packet_Cmd cmd, struct
-> Tl_epoch_entry *e)
-> {
-> 	return _drbd_send_ack(mdev,cmd,
-> 			      cpu_to_be64(drbd_ee_get_sector(e)),
-> 			      cpu_to_be32(drbd_ee_get_size(e)),
-> 			      e->block_id);
-> }
->=20
-> Now, if you build on a system that does NOT have CONFIG_LBD defined,
-> then the definition of sector_t is 'unsigned long' - i.e. 32-bits, to
-> the code above byte swaps the sector number as a u64, then truncates
-it
-> to 32-bits leaving JUST the byte-swapped upper portion, i.e. zero
-> _ALWAYS_.
->=20
-> I just checked my config and CONFIG_LBD is off -- I'm guessing it's
-> probably on for the tests you run?
->=20
-> I also think the fix is simply a matter of changing the definition of
-> _drbd_send_ack to be 'u64 sector' - I'm going to try this right now!
->=20
-> Simon
->=20
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
-
-------_=_NextPart_001_01C6BD95.D5246A21
-Content-Type: application/octet-stream;
-	name="drbd-sector.patch"
-Content-Transfer-Encoding: base64
-Content-Description: drbd-sector.patch
-Content-Disposition: attachment;
-	filename="drbd-sector.patch"
-
-SW5kZXg6IGRyYmRfbWFpbi5jCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIGRyYmRfbWFpbi5jCShyZXZpc2lvbiAz
-NTA0KQorKysgZHJiZF9tYWluLmMJKHdvcmtpbmcgY29weSkKQEAgLTE1MDYsNyArMTUwNiw3IEBA
-CiAgKiBpbiBiaWcgZW5kaWFuIQogICovIAogc3RhdGljIGludCBfZHJiZF9zZW5kX2FjayhkcmJk
-X2RldiAqbWRldiwgRHJiZF9QYWNrZXRfQ21kIGNtZCwgCi0JCQkgIHNlY3Rvcl90IHNlY3RvciwK
-KwkJCSAgdTY0IHNlY3RvciwKIAkJCSAgdW5zaWduZWQgaW50IGJsa3NpemUsCiAJCQkgIHU2NCBi
-bG9ja19pZCkKIHsK
-
-------_=_NextPart_001_01C6BD95.D5246A21--
+=2DPhilipp
+=2D-=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
