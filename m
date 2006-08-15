@@ -1,16 +1,14 @@
-Return-Path: <lmb@suse.de>
-Date: Mon, 14 Aug 2006 21:47:08 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] drbd 0.7 with recent kernels?
-Message-ID: <20060814194708.GJ15779@marowsky-bree.de>
-References: <20060814131554.GC15779@marowsky-bree.de>
-	<20060814163536.GF7226@soda.linbit>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="9amGYk9869ThD9tj"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20060814163536.GF7226@soda.linbit>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 15 Aug 2006 14:55:52 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671036252C5@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD-8 - crash due to NULL page* in drbd_send_page
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,127 +18,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+I've been seeing a fairly reproducible crash in _drbd_send_page due to a
+NULL page pointer; my working theory is that somehow the bio is being
+freed whilst it is still in use and I think I have some evidence of this
+now -- I modified drbd_send_page to print out info on the request in
+progress when the error occurs and have the following trace:
 
---9amGYk9869ThD9tj
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+drbd1: data >>> Data (sector 1560250, id e7f15e10, seq b75, f 0)
+drbd1: meta <<< WriteAck (sector 1560250, size 1000, id e7f15e10, seq
+b75)
+drbd1: in got_BlockAck:2796: ap_pending_cnt =3D -1 < 0 !
+drbd1: Sector 1560250, id e7f15e10, seq b75
 
-On 2006-08-14T18:35:36, Lars Ellenberg <Lars.Ellenberg@linbit.com> wrote:
+drbd1: drbd_send_zc_bio - NULL Page; bio eb49d380, bvec c07678fc
+drbd1:     sector: 1560250, block_id: e7f15e10, seq b75
+ [<c0105081>] show_trace+0x21/0x30
+ [<c01051be>] dump_stack+0x1e/0x20
+ [<f1291400>] _drbd_send_zc_bio+0x100/0x140 [drbd]
+ [<f1291582>] drbd_send_dblock+0x142/0x230 [drbd]
+ [<f127f8a6>] w_send_dblock+0x36/0x260 [drbd]
+ [<f1280b16>] drbd_worker+0x186/0x4f7 [drbd]
+ [<f128ffdd>] drbd_thread_setup+0x7d/0xe0 [drbd]
+ [<c0102d85>] kernel_thread_helper+0x5/0x10
+Unable to handle kernel NULL pointer dereference at virtual address
+00000000
 
-> / 2006-08-14 15:15:54 +0200
-> \ Lars Marowsky-Bree:
-> > Hi,
-> > 
-> > did anyone already rip out the devfs support from drbd 0.7 to make it
-> > compile with the latest kernels from upstream again, so I can avoid
-> > doing it myself? ;-)
-> 
-> "latest kernels" ...
-> well, we still compile against 2.6.17 as is.
+The trace of send data happens before the data is actually sent, so it
+would seem here that we received the Ack before we finished sending the
+data!!!!!
 
-I was referring to the upcoming 2.6.18.
+I searched back, and the specific block_id was recently used for a
+request on a different device (not surprising) and the previous data
+message on the drbd1 device had sequence number b74 as expected.
 
-I've attached the patch needed to compile it with that. Simple enough
-indeed ;-)
+You will also note that we hit the assert failure re ap_pending_cnt when
+processing the ack -- I think this is because w_send_dblock doesn't
+increment ap_pending_cnt until drbd_send_dblock returns successfully, so
+it's probably at zero at the moment the Ack is received...
 
-
-Sincerely,
-    Lars Marowsky-Brée
-
--- 
-High Availability & Clustering
-SUSE Labs, Research and Development
-SUSE LINUX Products GmbH - A Novell Business	 -- Charles Darwin
-"Ignorance more frequently begets confidence than does knowledge"
+I'm still debugging but I thought it would be useful to post what I've
+found in case anyone has any bright ideas...
+/simgr
 
 
---9amGYk9869ThD9tj
-Content-Type: text/x-patch; charset=us-ascii
-Content-Disposition: attachment; filename="drbd-2.6.18.diff"
-
-Index: drbd/drbd_main.c
-===================================================================
---- drbd/drbd_main.c	(revision 2372)
-+++ drbd/drbd_main.c	(working copy)
-@@ -49,7 +49,9 @@
- #include <linux/mm_inline.h>
- #endif
- #include <linux/slab.h>
-+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
- #include <linux/devfs_fs_kernel.h>
-+#endif
- 
- #define __KERNEL_SYSCALLS__
- #include <linux/unistd.h>
-@@ -144,10 +146,11 @@
- #endif
- int disable_bd_claim = 0;
- 
-+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
- // devfs name
- char* drbd_devfs_name = "drbd";
-+#endif
- 
--
- // global panic flag
- volatile int drbd_did_panic = 0;
- 
-@@ -1695,8 +1698,10 @@
- #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
- 	devfs_unregister(devfs_handle);
- #else
-+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
- 	devfs_remove(drbd_devfs_name);
- #endif
-+#endif
- 
- 	if (unregister_blkdev(MAJOR_NR, DEVICE_NAME) != 0)
- 		printk(KERN_ERR DEVICE_NAME": unregister of device failed\n");
-@@ -1769,7 +1774,9 @@
- 		return err;
- 	}
- 
-+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
- 	drbd_devfs_name = (major_nr == NBD_MAJOR) ? "nbd" : "drbd";
-+#endif
- 
- 	/*
- 	 * allocate all necessary structs
-@@ -1791,7 +1798,9 @@
- 	if (unlikely(!drbd_blocksizes)) goto Enomem;
- #else
- 
-+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
- 	devfs_mk_dir(drbd_devfs_name);
-+#endif
- 
- 	for (i = 0; i < minor_count; i++) {
- 		drbd_dev    *mdev = drbd_conf + i;
-@@ -1814,7 +1823,9 @@
- 		disk->first_minor = i;
- 		disk->fops = &drbd_ops;
- 		sprintf(disk->disk_name, DEVICE_NAME "%d", i);
-+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
- 		sprintf(disk->devfs_name, "%s/%d", drbd_devfs_name, i);
-+#endif
- 		disk->private_data = mdev;
- 		add_disk(disk);
- 
-Index: drbd/drbd_int.h
-===================================================================
---- drbd/drbd_int.h	(revision 2372)
-+++ drbd/drbd_int.h	(working copy)
-@@ -73,8 +73,10 @@
- extern int major_nr;
- extern int use_nbd_major;
- 
-+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
- // use_nbd_major ? "nbd" : "drbd";
- extern char* drbd_devfs_name;
-+#endif
- 
- #include <linux/major.h>
- #ifdef DRBD_MAJOR
-
---9amGYk9869ThD9tj--
