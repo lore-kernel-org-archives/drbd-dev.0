@@ -1,14 +1,19 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (office.linbit [213.229.1.138])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 16B552CE82C8
+	for <drbd-dev@lists.linbit.com>; Wed, 16 Aug 2006 10:44:23 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD-8 - crash due to NULL page* in drbd_send_page
+Date: Wed, 16 Aug 2006 10:44:31 +0200
+References: <342BAC0A5467384983B586A6B0B37671036252EC@EXNA.corp.stratus.com>
+In-Reply-To: <342BAC0A5467384983B586A6B0B37671036252EC@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD-8 - crash due to NULL page* in drbd_send_page
-Date: Tue, 15 Aug 2006 23:32:25 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B3767103625363@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_vrt4EfQsBv+tPRo"
+Message-Id: <200608161044.31669.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,95 +23,97 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Thanks for the update (and for responding when you are supposed to be on
-holiday!)
+--Boundary-00=_vrt4EfQsBv+tPRo
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-> But I don't really think that is the problem for that NULL pointer.
-> There is something else going on here, see below.
-> Just for debugging: could you try switching that zero copy off,
-> and use the copy-on-send?
->=20
+Am Dienstag, 15. August 2006 21:46 schrieb Graham, Simon:
+> Have now traced the network and I am very confused -- I'm still
+> convinced that the problem is that we are still in drbd_send_zc_bio when
+> the Ack for the write is received BUT the data is correctly and
+> completely sent on the wire to the peer who turns around and sends a
+> WriteAck to it.
+>
+> I suppose it's theoretically possible that sending the final portion of
+> the data from drbd_send_zc_bio might end up being pended; maybe the pipe
+> is full when we go to send it which causes the worker thread to get
+> suspended. That being the case, it's possible that this thread doesn't
+> get rescheduled until waaaaay later - specifically, AFTER the Ack has
+> been received and the bio completed and freed -- now we return to the
+> worker thread and attempt to continue to loop through the (now free) bio
+> with __bio_for_each_segment -- does this seem feasible?
+>
+> Assuming for the minute that this IS the cause, what would a suitable
+> solution be? We really need to delay processing the Ack until the
+> send-dblock/send-block has finished -- i.e. we should wait until the
+> RQ_DRBD_ON_WIRE flag is set in the request -- is there something
+> suitable we could issue a wait_event_interruptible() on in
+> got_BlockAck() to wait for this?
+>
 
-I'll give that a go tomorrow.
+Simon,=20
 
->=20
-> but I don't get it.
-> the WriteAck is sent by the peer after it successfully received the
-> data, read it into some pages attached to some bio, submitted this
-bio,
-> and got a completion event from disk...
-> this WriteAck simply _cannot_ be received before the data is
-> successfully transmitted, so the _drbd_send_zc_bio has long finished.
->=20
+I think a suitable solution would be to complete the request after
+1) it was written locally.
+2) the ack was received.
+3) and we finished sending it [new]
 
-Well, I would have thought so to BUT I can see a way it could happen if
-the system is very busy (which it is) -- I think that drbd_send_zc_bio
-gets to the point of sending the very last bvec and passes the data to
-TCP which pends because of some resource issue (such as the send window
-being full) -- the data is then sent (I'm guessing) from the context of
-whatever interrupt that makes the resource available and the worker
-thread is made ready to run but never actually gets to run before the
-Ack arrives from the other box (which is NOT particularly busy).
+I attached the patch. I guess you will rerun your tests with this
+patch. [ it is completely untested ]
 
-The only real evidence I have is the trace and the fact that I hit the
-assert that the on-wire flag should be set. If we look closely at the
-first trace, we see:
+I take from Lars' mail yesterday that he could not reproduce this
+problem here on our main test cluster here, so it is up to you
+to verify it.
 
-> > drbd1: data >>> Data (sector 1560250, id e7f15e10, seq b75, f 0)
+=2Dphilipp
+=2D-=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
 
-(this is just before w_send_dblock sends the data)
+--Boundary-00=_vrt4EfQsBv+tPRo
+Content-Type: text/x-diff;
+  charset="iso-8859-1";
+  name="for_simon.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename="for_simon.diff"
 
-> > drbd1: meta <<< WriteAck (sector 1560250, size 1000, id e7f15e10,
-seq
-> > b75)
+Index: drbd_worker.c
+===================================================================
+--- drbd_worker.c	(revision 2373)
++++ drbd_worker.c	(working copy)
+@@ -564,12 +564,10 @@
+ 
+ 	ok = drbd_send_dblock(mdev,req);
+ 	if (ok) {
+-		spin_lock_irq(&mdev->req_lock);
+-		req->rq_status |= RQ_DRBD_ON_WIRE;
+-		spin_unlock_irq(&mdev->req_lock);
+-
+ 		inc_ap_pending(mdev);
+ 
++		drbd_end_req(req,RQ_DRBD_ON_WIRE,1,drbd_req_get_sector(req));
++
+ 		if(mdev->net_conf->wire_protocol == DRBD_PROT_A) {
+ 			dec_ap_pending(mdev);
+ 			drbd_end_req(req, RQ_DRBD_SENT, 1, 
+Index: drbd_int.h
+===================================================================
+--- drbd_int.h	(revision 2373)
++++ drbd_int.h	(working copy)
+@@ -233,9 +233,9 @@
+ #define RQ_DRBD_NOTHING	  0x0001
+ #define RQ_DRBD_SENT      0x0010   // We got an ack
+ #define RQ_DRBD_LOCAL     0x0020   // We wrote it to the local disk
+-#define RQ_DRBD_DONE      0x0030   // We are done ;)
+ #define RQ_DRBD_IN_TL     0x0040   // Set when it is in the TL
+ #define RQ_DRBD_ON_WIRE   0x0080   // Set as soon as it is on the socket...
++#define RQ_DRBD_DONE      ( RQ_DRBD_SENT + RQ_DRBD_LOCAL + RQ_DRBD_ON_WIRE )
+ 
+ /* drbd_meta-data.c (still in drbd_main.c) */
+ #define DRBD_MD_MAGIC (DRBD_MAGIC+4) // 4th incarnation of the disk layout.
 
-(here's the ack for that sector)
-
-> > drbd1: in got_BlockAck:2796: ap_pending_cnt =3D -1 < 0 !
-> > drbd1: Sector 1560250, id e7f15e10, seq b75
-> >
-
-and we assert that the pending count went -ve
-
-> > drbd1: drbd_send_zc_bio - NULL Page; bio eb49d380, bvec c07678fc
-> > drbd1:     sector: 1560250, block_id: e7f15e10, seq b75
-
-And here we are in drbd_send_zc_bio for the same sector, same block id,
-same sequence number, so I think we're still in the call that started
-where the original Data trace was output.
-
-If you add to that the fact that this explains the assert failure on
-ap_pending_cnt _and_ my new assert on the on-wire flag, it seems to me
-to be fairly convincing that somehow we get the Ack before the send_zc
-call has finished looping through the bvec's in the bio...
-
-All I can do is quote the old adage - 'where there's a window there's a
-bug' ;-)
-
-> so if you see NULL pages there, we have an invalid bio.
-
-BTW - sometimes, I don't hit the test for NULL, I just crash on a
-completely bogus pointer value -- this smacks of the bio being freed
-while we are still referencing it.
-
->=20
-> how is your test setup this time?
->=20
-
-So, I'm running four DRBD volumes, three of them in use by apps running
-stress (which use large amounts of CPU) and one lightly used for logging
-info. There is no resync in progress, just the test stress. The systems
-are DP Dell boxes with a dedicated gbit link used by DRBD traffic.
-
->=20
-> the problems I see are broken cleanup during connection loss,
-> some lately (re)introduced (probably harmless but annoying) races
-> during resync with concurrent application writes, and unpleasant
-> suprises when we try to handle disk failures.
->=20
-
-Yah -- I'm trying to get back to my work on handling the disk failures
-(removing panics in particular) but I need a stable base for this.
-
-Simon
-
+--Boundary-00=_vrt4EfQsBv+tPRo--
