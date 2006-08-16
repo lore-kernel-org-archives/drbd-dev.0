@@ -1,12 +1,14 @@
 Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C6C142.0B06ACE5"
-Date: Wed, 16 Aug 2006 10:41:18 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B3767103625406@EXNA.corp.stratus.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 16 Aug 2006 16:41:01 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B376710362551D@EXNA.corp.stratus.com>
 From: "Graham, Simon" <Simon.Graham@stratus.com>
 To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] DRBD-8: Small update to packet tracing code...
+Subject: [Drbd-dev] DRBD-8: handling of concurrent writes with two primaries
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -16,83 +18,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+Now I'm past my problems with crashing due to completing requests too
+soon, I'm on to the next issue where I'm getting concurrent writes from
+both sides (with allow-two-primaries set); to explain a little first -
+in my case, even though I have two primaries set, I use them
+sequentially and only one node is issuing writes at any given time -
+however, at certain times I actually want to switch over to the other
+node and at this time there is a small window when some requests can be
+issued on both sides (if you care, I'm actually running Xen virtual
+machines on one node using DRBD disks as the virtual block devices for
+the VMs and live migrating the VMs to the other node).
 
-------_=_NextPart_001_01C6C142.0B06ACE5
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Now, I realize it's my problem to ensure consistency in this case,
+however, in looking at the code in receive_Data I think there are
+perhaps some issues as follows:
 
- <<drbd-trace-update.patch>> Fixes a couple of things (including the
-fact that it tried to trace received packets before they've been fully
-received!) - it's unfortunate that tracing of received packets on the
-data socket cant happen until after the handler is called which means
-the traced order of received/sent packets will be wrong but the only
-alternative I see is to put calls to dump_packet in each handler after
-receiving the full packet header and I didn't like that...
+If I understand things correctly, the code when a conflict is detected
+is written as:
+
+	if (already-received-ack)
+		wait for existing req to complete then carry on
+	else
+		if (UNIQE flag set)
+			throw request away (no Ack sent)
+		else
+			send Discard msg and mark original request as
+acknowledged the carry on
+
+I think there are a couple of issues here:
+
+1. I think you are assuming that when a node sends an Ack followed by a
+Data request for the same block, the Ack will arrive first. Since it's
+sent on the meta data socket and the data is sent on the data socket,
+this may not be true.
+
+2. If the UNIQE flag is set, then I don't see how the partner node will
+make any progress - you never send an Ack and do not disconnect - if the
+partner also sees the conflict then he will do the Discard msg
+processing, but I don't think this is guaranteed - I'm probably missing
+something, but if the partner gets the request and _then_ issues a write
+to the same location, I don't think it will do the right thing... the
+partner will simply discard and you are left hanging...
+
+I'm wondering if it mightn't be better to adopt a simpler policy of
+always waiting for outstanding requests to finish - it doesn't matter
+what order they finish in (since there are no guarantees in this
+case)... Of course, there is a definite deadlock potential here that
+needs to be thought about...
 
 Simon
-
-
-
-------_=_NextPart_001_01C6C142.0B06ACE5
-Content-Type: application/octet-stream;
-	name="drbd-trace-update.patch"
-Content-Transfer-Encoding: base64
-Content-Description: drbd-trace-update.patch
-Content-Disposition: attachment;
-	filename="drbd-trace-update.patch"
-
-SW5kZXg6IGRyYmRfcmVjZWl2ZXIuYwo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSBkcmJkX3JlY2VpdmVyLmMJKHJl
-dmlzaW9uIDM1NTIpCisrKyBkcmJkX3JlY2VpdmVyLmMJKHdvcmtpbmcgY29weSkKQEAgLTIzNzMs
-OCArMjM3Myw2IEBACiAJCWVsc2UKIAkJCWhhbmRsZXIgPSBOVUxMOwogCi0JCWR1bXBfcGFja2V0
-KG1kZXYsbWRldi0+ZGF0YS5zb2NrZXQsMiwmbWRldi0+ZGF0YS5yYnVmLCBfX0ZJTEVfXywgX19M
-SU5FX18pOwotCiAJCWlmICh1bmxpa2VseSghaGFuZGxlcikpIHsKIAkJCUVSUigidW5rbm93biBw
-YWNrZXQgdHlwZSAlZCwgbDogJWQhXG4iLAogCQkJICAgIGhlYWRlci0+Y29tbWFuZCwgaGVhZGVy
-LT5sZW5ndGgpOwpAQCAtMjM4NSw2ICsyMzgzLDggQEAKIAkJCSAgICBjbWRuYW1lKGhlYWRlci0+
-Y29tbWFuZCksIGhlYWRlci0+bGVuZ3RoKTsKIAkJCWJyZWFrOwogCQl9CisKKwkJZHVtcF9wYWNr
-ZXQobWRldixtZGV2LT5kYXRhLnNvY2tldCwyLCZtZGV2LT5kYXRhLnJidWYsIF9fRklMRV9fLCBf
-X0xJTkVfXyk7CiAJfQogfQogCkluZGV4OiBkcmJkX21haW4uYwo9PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSBkcmJk
-X21haW4uYwkocmV2aXNpb24gMzU1MikKKysrIGRyYmRfbWFpbi5jCSh3b3JraW5nIGNvcHkpCkBA
-IC0yOTM1LDYgKzI5MzUsNyBAQAogewogCWNoYXIgKnNvY2tuYW1lID0gc29jayA9PSBtZGV2LT5t
-ZXRhLnNvY2tldCA/ICJtZXRhIiA6ICJkYXRhIjsKIAlpbnQgY21kID0gKHJlY3YgPT0gMikgPyBw
-LT5oZWFkLmNvbW1hbmQgOiBiZTE2X3RvX2NwdShwLT5oZWFkLmNvbW1hbmQpOworCXUxNiBwbGVu
-ID0gKHJlY3YgPT0gMikgPyBwLT5oZWFkLmxlbmd0aCA6IGJlMTZfdG9fY3B1KHAtPmhlYWQubGVu
-Z3RoKTsKIAljaGFyIHRtcFszMDBdOwogCWRyYmRfc3RhdGVfdCBtLHY7CiAKQEAgLTI5NDcsMTkg
-KzI5NDgsMjEgQEAKIAkJYnJlYWs7CiAKIAljYXNlIERhdGE6Ci0JCUlORk9QKCIlcyAoc2VjdG9y
-ICVsbHgsIGlkICVsbHgsIHNlcSAleCwgZiAleClcbiIsIGNtZG5hbWUoY21kKSwKLQkJICAgICAo
-bG9uZyBsb25nKWJlNjRfdG9fY3B1KHAtPkRhdGEuc2VjdG9yKSwgCi0JCSAgICAgKGxvbmcgbG9u
-ZyliZTY0X3RvX2NwdShwLT5EYXRhLmJsb2NrX2lkKSwKLQkJICAgICBiZTMyX3RvX2NwdShwLT5E
-YXRhLnNlcV9udW0pLAotCQkgICAgIGJlMzJfdG9fY3B1KHAtPkRhdGEuZHBfZmxhZ3MpCisJCUlO
-Rk9QKCIlcyAoc2VjdG9yICUwbGx4LCBzaXplICV4LCBpZCAlbGx4LCBzZXEgJXgsIGYgJXgpXG4i
-LCBjbWRuYW1lKGNtZCksCisJCSAgICAgIChsb25nIGxvbmcpYmU2NF90b19jcHUocC0+RGF0YS5z
-ZWN0b3IpLAorCQkgICAgICBwbGVuIC0gKHNpemVvZihEcmJkX0RhdGFfUGFja2V0KS1zaXplb2Yo
-RHJiZF9IZWFkZXIpKSwKKwkJICAgICAgcC0+RGF0YS5ibG9ja19pZCwKKwkJICAgICAgYmUzMl90
-b19jcHUocC0+RGF0YS5zZXFfbnVtKSwKKwkJICAgICAgYmUzMl90b19jcHUocC0+RGF0YS5kcF9m
-bGFncykKIAkJKTsKIAkJYnJlYWs7CiAKIAljYXNlIERhdGFSZXBseToKIAljYXNlIFJTRGF0YVJl
-cGx5OgotCQlJTkZPUCgiJXMgKHNlY3RvciAlbGx4LCBpZCAlbGx4KVxuIiwgY21kbmFtZShjbWQp
-LAotCQkgICAgIChsb25nIGxvbmcpYmU2NF90b19jcHUocC0+RGF0YS5zZWN0b3IpLCAKLQkJICAg
-ICAobG9uZyBsb25nKWJlNjRfdG9fY3B1KHAtPkRhdGEuYmxvY2tfaWQpCisJCUlORk9QKCIlcyAo
-c2VjdG9yICVsbHgsIHNpemUgJXgsIGlkICVsbHgpXG4iLCBjbWRuYW1lKGNtZCksCisJCSAgICAg
-KGxvbmcgbG9uZyliZTY0X3RvX2NwdShwLT5EYXRhLnNlY3RvciksCisJCSAgICAgIHBsZW4gLSAo
-c2l6ZW9mKERyYmRfRGF0YV9QYWNrZXQpLXNpemVvZihEcmJkX0hlYWRlcikpLAorCQkgICAgIHAt
-PkRhdGEuYmxvY2tfaWQKIAkJKTsKIAkJYnJlYWs7CiAKQEAgLTI5NjksNyArMjk3Miw3IEBACiAJ
-CUlORk9QKCIlcyAoc2VjdG9yICVsbHgsIHNpemUgJXgsIGlkICVsbHgsIHNlcSAleClcbiIsIGNt
-ZG5hbWUoY21kKSwKIAkJICAgICAobG9uZyBsb25nKWJlNjRfdG9fY3B1KHAtPkJsb2NrQWNrLnNl
-Y3RvciksIAogCQkgICAgIGJlMzJfdG9fY3B1KHAtPkJsb2NrQWNrLmJsa3NpemUpLAotCQkgICAg
-IChsb25nIGxvbmcpYmU2NF90b19jcHUocC0+QmxvY2tBY2suYmxvY2tfaWQpLAorCQkgICAgIHAt
-PkJsb2NrQWNrLmJsb2NrX2lkLAogCQkgICAgIGJlMzJfdG9fY3B1KHAtPkJsb2NrQWNrLnNlcV9u
-dW0pCiAJCSk7CiAJCWJyZWFrOwpAQCAtMjk3OSw3ICsyOTgyLDcgQEAKIAkJSU5GT1AoIiVzIChz
-ZWN0b3IgJWxseCwgc2l6ZSAleCwgaWQgJWxseClcbiIsIGNtZG5hbWUoY21kKSwKIAkJICAgICAo
-bG9uZyBsb25nKWJlNjRfdG9fY3B1KHAtPkJsb2NrUmVxdWVzdC5zZWN0b3IpLCAKIAkJICAgICBi
-ZTMyX3RvX2NwdShwLT5CbG9ja1JlcXVlc3QuYmxrc2l6ZSksCi0JCSAgICAgKGxvbmcgbG9uZyli
-ZTY0X3RvX2NwdShwLT5CbG9ja1JlcXVlc3QuYmxvY2tfaWQpCisJCSAgICAgcC0+QmxvY2tSZXF1
-ZXN0LmJsb2NrX2lkCiAJCSk7CiAJCWJyZWFrOwogCkBAIC0zMDE4LDcgKzMwMjEsNyBAQAogCiAJ
-Y2FzZSBEaXNjYXJkTm90ZToKIAkJSU5GT1AoIiVzIChpZCAlbGx4LCBzZXEgJXgpXG4iLCBjbWRu
-YW1lKGNtZCksCi0JCSAgICAgKGxvbmcgbG9uZyliZTY0X3RvX2NwdShwLT5EaXNjYXJkLmJsb2Nr
-X2lkKSwKKwkJICAgICBwLT5EaXNjYXJkLmJsb2NrX2lkLAogCQkgICAgIGJlMzJfdG9fY3B1KHAt
-PkRpc2NhcmQuc2VxX251bSkpOwogCQlicmVhazsK
-
-------_=_NextPart_001_01C6C142.0B06ACE5--
