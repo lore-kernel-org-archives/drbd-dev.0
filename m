@@ -1,18 +1,23 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from soda (office.linbit [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 27A722CE9331
-	for <drbd-dev@lists.linbit.com>; Fri, 18 Aug 2006 15:20:05 +0200 (CEST)
-Date: Fri, 18 Aug 2006 15:20:05 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+Return-Path: <cyril@bouthors.org>
+Received: from mail1.lan.jexiste.org (lb1.jexiste.org [84.207.24.12])
+	(using TLSv1 with cipher AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id BDC282CE93AA
+	for <drbd-dev@lists.linbit.com>; Sun, 20 Aug 2006 21:33:54 +0200 (CEST)
+Received: from [82.206.237.115] (helo=wide.bouthors.org)
+	by mail1.lan.jexiste.org with esmtpa (Exim 4.50) id 1GEt3L-00017y-D0
+	for drbd-dev@lists.linbit.com; Sun, 20 Aug 2006 21:33:53 +0200
+Received: from cyb by wide.bouthors.org with local (Exim 4.62)
+	(envelope-from <cyril@bouthors.org>) id 1GEt35-00071f-AQ
+	for drbd-dev@lists.linbit.com; Sun, 20 Aug 2006 22:33:31 +0300
+From: Cyril Bouthors <cyb@debian.org>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20060818132005.GI7595@soda.linbit>
-References: <546701173.20060818170326@yandex.ru>
+Date: Sun, 20 Aug 2006 22:33:31 +0300
+Message-ID: <87sljrdwxg.fsf@wide.bouthors.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <546701173.20060818170326@yandex.ru>
-Subject: [Drbd-dev] Re: BUG? incorrect percent calculate
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+Subject: [Drbd-dev] Debian and DRBD cooperation
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,39 +27,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-08-18 17:03:26 +0400
-\ Alexey Pushkin:
-> Здравствуйте, .
-> 
-> cat </proc/drbd
-> show 100% done, but it still syncing
-> (build 2316)
-> 
-> "Screen-Shot":
-> 
-> version: 8.0pre4 (api:83/proto:82)
-> SVN Revision: 2316 build by root@ajax-cluster-2.eab.ru, 2006-08-17 12:58:52
->  0: cs:SyncTarget st:Secondary/Primary ds:Inconsistent/UpToDate r---
->     ns:0 nr:1154172 dw:1154172 dr:0 al:0 bm:22 lo:0 pe:25 ua:0 ap:0
->         [===================>] sync'ed:100.0% (1136/254488)K
->         finish: 0:00:03 speed: 296 (188) K/sec
->         resync: used:1/7 hits:18795 misses:21 starving:0 dirty:0 changed:21
->         act_log: used:0/257 hits:0 misses:0 starving:0 dirty:0 changed:0
+--=-=-=
+Content-Transfer-Encoding: quoted-printable
 
-are you just complaining about 
-(254488-1136)/254488 == 0.99553,
-and that conventional rounding to one
-decimal makes it 100.0 percent?
+Hi,
 
-then: sorry, won't fix.
-though, maybe, we could round down always.
-but, what's the point?
+As the Debian maintainer of the DRBD packages, I have forwarded 4 bugs
+to you in the last few months and I still haven't received any news so
+far.
 
-or had you other issues, like
-syncer not finishing properly
-or something?
+Could you please have a look at those bugs:
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+http://bugs.debian.org/cgi-bin/pkgreport.cgi?source=3Ddrbd0.7#_1_4_5
+http://bugs.debian.org/cgi-bin/pkgreport.cgi?source=3Ddrbd0.7#_1_6_5
+
+and tell me what's still in progress and what's already fixed?
+
+I would really like the Debian and DRBD teams to work together.
+
+Regards.
+=2D-=20
+Cyril Bouthors
+
+--=-=-=
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.5 (GNU/Linux)
+
+iD8DBQFE6LkLZ1SJHeqsYt8RAp30AJ4jdaPfhaaEtEastp9xitwSWNrGAQCglofr
+iJ9pFFy4lkxpdtsGAGLoJQQ=
+=1hVh
+-----END PGP SIGNATURE-----
+--=-=-=--
