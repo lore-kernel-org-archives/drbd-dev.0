@@ -1,28 +1,17 @@
-Return-Path: <cyril@bouthors.org>
-Received: from mail1.lan.jexiste.org (lb1.jexiste.org [84.207.24.12])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id B834C2CF09FE
-	for <drbd-dev@lists.linbit.com>; Wed, 23 Aug 2006 13:59:51 +0200 (CEST)
-Received: from [82.206.237.115] (helo=wide.bouthors.org)
-	by mail1.lan.jexiste.org with esmtpa (Exim 4.50) id 1GFrOZ-0005T2-SH
-	for drbd-dev@lists.linbit.com; Wed, 23 Aug 2006 13:59:50 +0200
-Received: from cyb by wide.bouthors.org with local (Exim 4.62)
-	(envelope-from <cyril@bouthors.org>) id 1GFrOV-0003jp-HU
-	for drbd-dev@lists.linbit.com; Wed, 23 Aug 2006 14:59:39 +0300
-From: Cyril Bouthors <cyril@bouthors.org>
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from soda (office.linbit [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 7F0D62CF555E
+	for <drbd-dev@lists.linbit.com>; Fri, 25 Aug 2006 07:57:21 +0200 (CEST)
+Date: Fri, 25 Aug 2006 07:57:22 +0200
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Debian and DRBD cooperation
-References: <87sljrdwxg.fsf@wide.bouthors.org>
-	<20060821103235.GD7214@soda.linbit> <877j12pe64.fsf@wide.bouthors.org>
-	<20060821105426.GE7214@soda.linbit>
-Date: Wed, 23 Aug 2006 14:59:39 +0300
-In-Reply-To: <20060821105426.GE7214@soda.linbit> (Lars Ellenberg's message of
-	"Mon, 21 Aug 2006 12:54:26 +0200")
-Message-ID: <87bqqbvf10.fsf@wide.bouthors.org>
+Message-ID: <20060825055722.GC8443@soda.linbit>
+References: <1156443913.44edef0904c2c@mail.cs.umass.edu>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1156443913.44edef0904c2c@mail.cs.umass.edu>
+Subject: [Drbd-dev] Re: DRBD-filesystem interaction
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -32,60 +21,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---=-=-=
-Content-Transfer-Encoding: quoted-printable
+/ 2006-08-24 14:25:13 -0400
+\ gniv@cs.umass.edu:
+> Hi,
+> 
+> I am a student who is looking to understand how DRBD interacts with
+> the file system for a project.
 
-On 21 Aug 2006, Lars Ellenberg wrote:
+it does not. the file system interacts with us...
+we are a block device, we don't know nothing about file systems.
+"something" submits a block request (generic_make_request, submit_bio
+and the like in the generic kernel code), which ends up in
+drbd_make_request_*, where we do the housekeeping and send the data to
+our peer, and submit it locally to the layers below us and so on.
 
->> http://bugs.debian.org/cgi-bin/pkgreport.cgi?src=3Ddrbd0.7#_1_4_5
->
-> #308640: /sbin/drbdsetup: doesn't work with x86_64 kernel
-> fixed; was broken because of a minor glitch between versions.
-> 	 we now have compile time asserts in place so this is
-> unlikely to ever happen again.
->
-> #337210: drbd0.7-utils: man page of drbdsetup is wrong
-> fixed;
-> example section has been removed/replaced with a url pointer to
-> examples on the web -- which may or may not be correct ;)
->
-> #337242: drbd0.7-utils: Wrong argument supplied to drbdsetup
-> bogus; the "you must not give an index with internal" is correct
-> 	 for the drbd.conf syntax. because it _implies_ the -1 on the drbdsetup
-> 	 commandline. whatever the problem of the reporter was, this is not it.
->
->> http://bugs.debian.org/cgi-bin/pkgreport.cgi?src=3Ddrbd0.7#_1_6_5
->
-> #357298: drbd: fix building for x86_64 on i386
-> 	has to be fixed debian internally, I think, in case it still
-> 	applies.
+but we don't care at all about what is being written,
+and whether it is a file system or anything else that is writing to us.
 
-Thanks.
+> I have looked through the code, but could use some help (maybe a basic
+> overview) figuring out the flow of operations from the time the
+> operating system opens a file and writes to it, to DRBD performing
+> replication; i.e. how DRBD listens to/intercepts system calls.
 
-I've processed all the bugs we got from Debian users. There's only one
-left and it's a Debian-internal stuff, we are working on it, should be
-fixed later this week.
+it does not.
+we are a block device driver, we register as such (register_blkdev).
+any block device has a request queue, and we register our custom
+make_request_fn on it: blk_queue_make_request(q, drbd_make_request_26);
 
-> all of these have been dealt with very quickly
-> on drbd-user when first reported there.
+that is all there is to it to get requests delivered to us.
 
-Maybe I missed something but I got no answer to those bug reports :
-
-http://lists.linbit.com/pipermail/drbd-user/2005-December/004194.html
-http://lists.linbit.com/pipermail/drbd-user/2005-December/004193.html
-http://lists.linbit.com/pipermail/drbd-user/2006-April/004872.html
-http://lists.linbit.com/pipermail/drbd-user/2006-April/004871.html
-=2D-=20
-Cyril Bouthors
-
---=-=-=
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.5 (GNU/Linux)
-
-iD8DBQFE7EMrZ1SJHeqsYt8RAjUJAJ4gYbJBbiqSteg3T7u1sZVMh/veQACfV0Rq
-X5JMGaK6sviFbPkJJNgqaZQ=
-=+G+g
------END PGP SIGNATURE-----
---=-=-=--
+-- 
+: Lars Ellenberg                                  Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
+: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
