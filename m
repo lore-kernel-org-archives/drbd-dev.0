@@ -1,15 +1,15 @@
-Return-Path: <gniv@cs.umass.edu>
-Received: (from apache@localhost)
-	by loki.cs.umass.edu (8.13.7/8.13.1/Submit) id k7OIPDWp017063
-	for drbd-dev@lists.linbit.com; Thu, 24 Aug 2006 14:25:13 -0400
-Message-ID: <1156443913.44edef0904c2c@mail.cs.umass.edu>
-Date: Thu, 24 Aug 2006 14:25:13 -0400
-From: gniv@cs.umass.edu
-To: drbd-dev@lists.linbit.com
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
-Subject: [Drbd-dev] DRBD-filesystem interaction
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 1 Sep 2006 13:52:13 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B376710377B6EA@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Confused by drbd_cmd structure definition in
+	drbdsetup.c...
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,18 +19,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+I've been noticing some crashes in drbdsetup when it is printing out the
+list of commands and I find myself confused by the new drbd_cmd struct -
+embedded in this, you have a union of a cp and a gp struct BUT the code
+that prints command usage always just uses the cp element of the union -
+I think this leads to segfaults because of this in
+print_command_usage():
 
-I am a student who is looking to understand how DRBD interacts with the file
-system for a project. I have looked through the code, but could use some help
-(maybe a basic overview) figuring out the flow of operations from the time the
-operating system opens a file and writes to it, to DRBD performing replication;
-i.e. how DRBD listens to/intercepts system calls.
-I understand what happens after DRBD gets the request, just looking for the
-parts before that time.
+	if ((args =3D commands[i].cp.args)) {
+		while (args->name) {
+			col +=3D snprintf(line+col, maxcol-col, " %s",
+args->name);
+			args++;
+		}
+				=09
+	}
 
-Thanks,
-Gal
+Some elements (such as the "state" command entry) use the gp element of
+the command to hold a function pointer which means that cp.args.name is
+non-NULL and we try to dereference the function pointer as an argument
+definition (and also attempt to move on to further argument definitions
+which don't exist).
 
--------------------------------------------------
-This mail sent through IMP: http://horde.org/imp/
+I'm a bit confused as to why this is defined as a union - is the fix to
+remove the union wrapper?
+Simon
