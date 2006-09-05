@@ -1,15 +1,13 @@
 Return-Path: <Simon.Graham@stratus.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
 Content-class: urn:content-classes:message
-Date: Tue, 5 Sep 2006 14:38:59 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B37671038AF995@EXNA.corp.stratus.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01C6D126.854370BE"
+Date: Tue, 5 Sep 2006 16:04:30 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671038AF9DF@EXNA.corp.stratus.com>
 From: "Graham, Simon" <Simon.Graham@stratus.com>
 To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] DRBD-8 -- can access null mdev->bc pointer if local disk
-	is not attached
+Subject: [Drbd-dev] DRBD-8 - system hangs when NegDReply received
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,70 +17,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-I've seen crashes where the code attempts to dereference a NULL mdev->bc
-when there is no local disk attached - my reading of the code is that
-the bc field should only be referenced after a successful call to
-inc_local(mdev) (or equivalent such as inc_md_only()) - this is done in
-most cases, but I've found several places where it is not (see
-attached).
+This is a multi-part message in MIME format.
 
-I can go ahead and submit patches based on calling inc_local() for most
-of these but I wanted to check that this is indeed the correct solution.
+------_=_NextPart_001_01C6D126.854370BE
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
+If the local (primary) is diskless and the remote system rejects a read
+request with a NegDReply, it seems that the system hangs; inspecting the
+code, I see that it does appear to complete the original request with a
+failure BUT there are a couple of other calls made in the normal case
+that are not being done in the case of a NegDReply; dec_ap_bio(mdev) and
+dec_ap_pending(mdev) - I note that both of these can signal events so
+perhaps the problem here is that other threads are blocked waiting for
+this event which never gets signaled???
+
+If this is the problem then the fix is trivial - add the two missing
+lines following the drbd_end_bio() call in got_NegDReply().
 Simon
 
-=3D=3D=3D Locations I have found =3D=3D=3D
+------_=_NextPart_001_01C6D126.854370BE
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-1. drbd_set_role, line 965:
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
+charset=3Dus-ascii">
+<META NAME=3D"Generator" CONTENT=3D"MS Exchange Server version =
+6.5.7226.0">
+<TITLE>DRBD-8 - system hangs when NegDReply received</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/rtf format -->
 
-		if ( ( ( mdev->state.conn < Connected ||
-			 mdev->state.pdsk <=3D Attaching ) &&
-		       mdev->bc->md.uuid[Bitmap] =3D=3D 0) || forced ) {
-<<<=3D=3D=3D
-			drbd_uuid_new_current(mdev);
-		}
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">If the =
+local (primary) is diskless and the remote system rejects a read request =
+with a NegDReply, it seems that the system hangs</FONT></SPAN><SPAN =
+LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">; inspecting the code, I =
+see that it does appear to complete the original request with a failure =
+BUT there are a couple of other calls made in the</FONT></SPAN><SPAN =
+LANG=3D"en-us"> <FONT SIZE=3D2 FACE=3D"Tahoma">normal</FONT></SPAN><SPAN =
+LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma"> case that are not being =
+done in the case of a NegDReply;</FONT></SPAN><SPAN LANG=3D"en-us"> =
+<FONT SIZE=3D2 FACE=3D"Tahoma">dec_ap_bio(mdev) and =
+dec_ap_pending(mdev)</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma"> I note that both of these can signal events so perhaps =
+the problem here is that other threads are blocked =
+wai</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">ting for this event which never gets</FONT></SPAN><SPAN =
+LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">signaled</FONT></SPAN><SPAN LANG=3D"en-us"><FONT =
+SIZE=3D2 FACE=3D"Tahoma">???</FONT></SPAN></P>
 
-2. drbd_ioctl, case DRBD_IOCTL_SET_DISK_SIZE seems dodgy to me -- just
-sets the size in mdev->bc; presumably
-   an inc_local(mdev) should be done?
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">If this =
+is the problem then the fix is trivial</FONT></SPAN><SPAN =
+LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma"> add the two missing lines following the drbd_end_bio() =
+call in got_NegDReply().</FONT></SPAN></P>
 
-3. after_state_ch - several ones here, mostly probably OK (for example,
-if ns.disk >=3DInconsistent
-   which shouldn't happen unless you have local backing store). However,
-there is one that is not -- line 988
-   when we lose contact with the peer's copy of the data:
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">Simon</FONT></SPAN><SPAN LANG=3D"en-us"></SPAN></P>
 
-	/*  Lost contact to peer's copy of the data  */
-	if ( os.pdsk > DUnknown && ns.pdsk <=3D DUnknown ) {
-		if ( mdev->p_uuid ) {
-			kfree(mdev->p_uuid);
-			mdev->p_uuid =3D NULL;
-		}
-		if (ns.role =3D=3D Primary && mdev->bc->md.uuid[Bitmap] =3D=3D 0
-) {
-=09
-^^^^^^^^^^^^^^^^^=3D=3D=3D=3D>>this has caused crashes
-			/* Only do it if we have not yet done it... */
-			INFO("Creating new current UUID\n");
-			drbd_uuid_new_current(mdev);
-		}
-
-4. drbd_send_uuids is currently called from some places where
-inc_local() has not been done -- I propose
-   ensuring it is only called when it is safe.
-
-5. receive_sync_uuid() -- there's no apparent check here and it calls
-_drbd_uuid_set which dereferences mdev->bc.
-   Not sure what is appropriate here???
-
-6. drbd_end_req() line 109 -- tests mdev->bc->dc.on_io_error without
-checking - maybe we cant get here, but
-   it seems to me that if you are diskless locally and do a write _and_
-the remote write fails you would end
-   up here...
-
-7. drbd_kick_lo() -- not clear that this cant be called sometimes when
-we are diskless locally but perhaps
-   I missed something.
-
-
+</BODY>
+</HTML>
+------_=_NextPart_001_01C6D126.854370BE--
