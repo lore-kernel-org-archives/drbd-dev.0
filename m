@@ -1,13 +1,15 @@
 Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----_=_NextPart_001_01C6D126.854370BE"
-Date: Tue, 5 Sep 2006 16:04:30 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B37671038AF9DF@EXNA.corp.stratus.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] DRBD-8 - system hangs when NegDReply received
+Date: Tue, 5 Sep 2006 16:47:13 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671038AF9EA@EXNA.corp.stratus.com>
 From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] DRBD-8 - system hangs when NegDReply received
+To: "Graham, Simon" <Simon.Graham@stratus.com>,
+	<drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,73 +19,64 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+In addition, a while after the system hung, it paniced with an invalid
+address in drbd_fail_pending_reads called from w_disconnect - panic msg
+is attached (I assume this happened because things were stuck so
+PingAcks were not being sent so the partner system disconnected).=20
 
-------_=_NextPart_001_01C6D126.854370BE
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+This looks to me like the temporary list of requests to complete setup
+in this routine is corrupted somehow.=20
 
-If the local (primary) is diskless and the remote system rejects a read
-request with a NegDReply, it seems that the system hangs; inspecting the
-code, I see that it does appear to complete the original request with a
-failure BUT there are a couple of other calls made in the normal case
-that are not being done in the case of a NegDReply; dec_ap_bio(mdev) and
-dec_ap_pending(mdev) - I note that both of these can signal events so
-perhaps the problem here is that other threads are blocked waiting for
-this event which never gets signaled???
-
-If this is the problem then the fix is trivial - add the two missing
-lines following the drbd_end_bio() call in got_NegDReply().
+Any suggestions?
 Simon
 
-------_=_NextPart_001_01C6D126.854370BE
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+drbd0: State change from bad state. Error would be: 'Refusing to be
+Primary without at least one UpToDate disk'
+drbd0:  old =3D { cs:BrokenPipe st:Primary/Unknown ds:Diskless/DUnknown
+r--- }
+drbd0:  new =3D { cs:Unconnected st:Primary/Unknown ds:Diskless/DUnknown
+r--- }
+ [<c01050a1>] show_trace+0x21/0x30
+ [<c01051de>] dump_stack+0x1e/0x20
+ [<f1285e38>] _drbd_set_state+0xa08/0xa20 [drbd]
+ [<f127e393>] drbd_disconnect+0x223/0x310 [drbd]
+ [<f127ed18>] drbdd_init+0x78/0x120 [drbd]
+ [<f128681b>] drbd_thread_setup+0x6b/0xc0 [drbd]
+ [<c0102d9d>] kernel_thread_helper+0x5/0x18
+drbd0: No access to good data anymore.
+Unable to handle kernel paging request at virtual address 00100104
+ printing eip:
+f1277408
+*pde =3D ma 00000000 pa fffff000
+Oops: 0002 [#1]
+Modules linked in: drbd ipmi_devintf ipmi_si ipmi_msghandler video
+thermal processor fan button battery ac
+CPU:    0
+EIP:    0061:[<f1277408>]    Not tainted VLI
+EFLAGS: 00010297   (2.6.16.13-xen0 #1)=20
+EIP is at drbd_fail_pending_reads+0x78/0x240 [drbd]
+eax: 00100100   ebx: ec5eff60   ecx: ec883f48   edx: ec883f48
+esi: ef85fc00   edi: 00000002   ebp: ec883f5c   esp: ec883f34
+ds: 007b   es: 007b   ss: 0069
+Process drbd0_worker (pid: 4118, threadinfo=3Dec882000 task=3Defcdeab0)
+Stack: <0>e9dfae10 ee9f9520 fffffffb eca596a4 ef85fc00 ec5eff60 e9dfae10
+ef85fc00=20
+       ee9f9740 ef85fc38 ec883f7c f127760b ef85fc00 ef85fc38 ec883f7c
+c045bd8a=20
+       ee9f9740 ef85fc00 ec883fc0 f1278176 ef85fc00 ee9f9740 00000001
+00000000=20
+Call Trace:
+ [<c010515a>] show_stack_log_lvl+0xaa/0xe0
+ [<c010536e>] show_registers+0x18e/0x210
+ [<c0105569>] die+0xd9/0x180
+ [<c0112ccc>] do_page_fault+0x3cc/0x68e
+ [<c0104d7f>] error_code+0x2b/0x30
+ [<f127760b>] w_disconnect+0x3b/0x2d0 [drbd]
+ [<f1278176>] drbd_worker+0x156/0x487 [drbd]
+ [<f128681b>] drbd_thread_setup+0x6b/0xc0 [drbd]
+ [<c0102d9d>] kernel_thread_helper+0x5/0x18
+Code: d2 75 e0 8b be 38 03 00 00 43 83 fb 0e 7e c4 31 c0 b9 0f 00 00 00
+f3 ab 8b 5d ec 8d 45 ec 39 c3 0f 84 ad 00 00 00 8b 53 04 8b 03 <89> 50
+04 89 02 8b 53 18 b8 fb ff ff ff c7 03 00 01 10 00 c7 43=20
+ <0>Fatal exception: panic in 5 seconds
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
-<HTML>
-<HEAD>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
-charset=3Dus-ascii">
-<META NAME=3D"Generator" CONTENT=3D"MS Exchange Server version =
-6.5.7226.0">
-<TITLE>DRBD-8 - system hangs when NegDReply received</TITLE>
-</HEAD>
-<BODY>
-<!-- Converted from text/rtf format -->
-
-<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">If the =
-local (primary) is diskless and the remote system rejects a read request =
-with a NegDReply, it seems that the system hangs</FONT></SPAN><SPAN =
-LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">; inspecting the code, I =
-see that it does appear to complete the original request with a failure =
-BUT there are a couple of other calls made in the</FONT></SPAN><SPAN =
-LANG=3D"en-us"> <FONT SIZE=3D2 FACE=3D"Tahoma">normal</FONT></SPAN><SPAN =
-LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma"> case that are not being =
-done in the case of a NegDReply;</FONT></SPAN><SPAN LANG=3D"en-us"> =
-<FONT SIZE=3D2 FACE=3D"Tahoma">dec_ap_bio(mdev) and =
-dec_ap_pending(mdev)</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT SIZE=3D2 =
-FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma"> I note that both of these can signal events so perhaps =
-the problem here is that other threads are blocked =
-wai</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">ting for this event which never gets</FONT></SPAN><SPAN =
-LANG=3D"en-us"> <FONT SIZE=3D2 =
-FACE=3D"Tahoma">signaled</FONT></SPAN><SPAN LANG=3D"en-us"><FONT =
-SIZE=3D2 FACE=3D"Tahoma">???</FONT></SPAN></P>
-
-<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">If this =
-is the problem then the fix is trivial</FONT></SPAN><SPAN =
-LANG=3D"en-us"> <FONT SIZE=3D2 =
-FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma"> add the two missing lines following the drbd_end_bio() =
-call in got_NegDReply().</FONT></SPAN></P>
-
-<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
-FACE=3D"Tahoma">Simon</FONT></SPAN><SPAN LANG=3D"en-us"></SPAN></P>
-
-</BODY>
-</HTML>
-------_=_NextPart_001_01C6D126.854370BE--
