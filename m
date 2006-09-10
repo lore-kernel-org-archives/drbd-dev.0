@@ -1,15 +1,15 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Date: Thu, 7 Sep 2006 18:40:41 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: "Graham, Simon" <Simon.Graham@stratus.com>
-Subject: Re: [Drbd-dev] DRBD-8 - system hangs when NegDReply received
-Message-ID: <20060907164041.GH13664@barkeeper1.linbit>
-References: <342BAC0A5467384983B586A6B0B37671038AFC6A@EXNA.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671038AFC6A@EXNA.corp.stratus.com>
-Cc: drbd-dev@lists.linbit.com
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Sun, 10 Sep 2006 18:58:32 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671038AFF9F@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD-8 (My) first problem with new requests handling
+	code...
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,35 +19,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-09-07 10:21:22 -0400
-\ Graham, Simon:
-> 
-> > I am still working on a monster patch to consolidate all the
-> > request functionality in one place, so it is more obvious what should
-> > and should not happen.
-> > I may be wrong here, but you cannot simply end the master request and
-> > free the req because you get a NegDReply. the local part (submit_bio)
-> > may still be on the fly.
-> > you have to use drbd_end_req with appropriate flags...
-> 
-> I had the same thought when I started looking at this - however,
-> currently reads do NOT use this approach since a read is only issued on
-> one side - receive_DataReply does just complete the master bio for
-> example; in fact, I mostly copied the code from this routine.
+Got a pretty quick death running the latest trunk - I think it's this
+code in the completed_ok case of _req_done:
 
-well, see my other post in this thread...
+		bio_put(req->private_bio);
+		req->private_bio =3D NULL;	<<=3D=3D=3D Whoops!
+		dec_local(mdev);
 
-> Do you have any idea when your monster patch will be ready?
+		if (bio_data_dir(req->private_bio) =3D=3D WRITE)  <<=3D=3D=3D
+BANG!
+			mdev->writ_cnt +=3D req->size>>9;
+		else
+			mdev->read_cnt +=3D req->size>>9;
 
-should have been done today...
-unfortunately, while in the middle of implementing stuff,
-I managed to lock me out of the flat I currently work in...
- :-/
+Presumably the bio_put and clear of req->private_bio should be after
+testing the direction ;-)
 
-anyways, thats that...
-maybe I still get it done today, latest tomorrow.
+BTW: It took me quite a while to find this from the panic -- it actually
+crashed in drbd_endio_pri and the code generated for this is humungous
+and unbelievably complicated (it's about 12KB!) -- I wonder if you are
+trying to inline too much and it mightn't be better to have req_mod be a
+non-inline function and also have each case be a separate real
+function... I'd even suggest having _req_may_be_done() as a separate
+function.
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+Simon
