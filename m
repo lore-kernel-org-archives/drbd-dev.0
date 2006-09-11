@@ -1,18 +1,15 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from barkeeper1 (office.linbit [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 8D5EC2CF754D
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Sep 2006 12:13:49 +0200 (CEST)
-Date: Mon, 11 Sep 2006 12:13:49 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD-8 (My) first problem with new requests handling
-	code...
-Message-ID: <20060911101349.GB22563@barkeeper1.linbit>
-References: <342BAC0A5467384983B586A6B0B37671038AFF9F@EXNA.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671038AFF9F@EXNA.corp.stratus.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] DRBD-8 (My) first problem with new requests
+	handlingcode...
+Date: Mon, 11 Sep 2006 11:32:45 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671038B00A0@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,47 +19,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-09-10 18:58:32 -0400
-\ Graham, Simon:
-> Got a pretty quick death running the latest trunk - I think it's this
-> code in the completed_ok case of _req_done:
-> 
-> 		bio_put(req->private_bio);
-> 		req->private_bio = NULL;	<<=== Whoops!
-> 		dec_local(mdev);
-> 
-> 		if (bio_data_dir(req->private_bio) == WRITE)  <<===
-> BANG!
-> 			mdev->writ_cnt += req->size>>9;
-> 		else
-> 			mdev->read_cnt += req->size>>9;
-> 
-> Presumably the bio_put and clear of req->private_bio should be after
-> testing the direction ;-)
+> and, as the comment at the head of _req_mod says: we probably should
+> split the case branches out into "STATIC" functions, and only have the
+> _req_mod dispatch, or even remove the _req_mod switch statement again,
+> and only have the branch functions...
+>=20
+> otherwise, what do you thin/have found out about that monster patch?
+>=20
 
-as I said untested...
-and "obvious" :)
-thanks.
+Well, since I haven't been able to boot my system yet I don't have any
+real experience yet but I really like the idea of centralizing the
+request handling -- if the code for the various cases could be moved
+into separate routines in drbd_req.c, I think you COULD revert to an
+inline top-level function containing just the case statement and the
+calls to the various non-inline functions -- the compiler ought to be
+able to nicely optimize this and only include the specific case(s) for
+the type argument which would translate to direct calls to the per-case
+routines...
 
-> BTW: It took me quite a while to find this from the panic -- it actually
-> crashed in drbd_endio_pri and the code generated for this is humungous
-> and unbelievably complicated (it's about 12KB!) -- I wonder if you are
-> trying to inline too much and it mightn't be better to have req_mod be a
-> non-inline function and also have each case be a separate real
-> function... I'd even suggest having _req_may_be_done() as a separate
-> function.
+I see you committed a change to the problem I reported and also to
+remove the inline of the function for which I thank you!
 
-probably the way to go.  let _req_may_be_done() be a non-inline
-function, so the compiler can decide itself.
+BTW - there is another case of accessing a NULL bio pointer in the
+read_completed_with_error case:
 
-and, as the comment at the head of _req_mod says: we probably should
-split the case branches out into "STATIC" functions, and only have the
-_req_mod dispatch, or even remove the _req_mod switch statement again,
-and only have the branch functions...
++	case read_completed_with_error:
++		drbd_set_out_of_sync(mdev,req->sector,req->size);
++		req->rq_state |=3D RQ_LOCAL_COMPLETED;
++		req->rq_state &=3D ~RQ_LOCAL_PENDING;
++
++		bio_put(req->private_bio);
++		req->private_bio =3D NULL;
++		dec_local(mdev);
++		if (bio_rw(req->master_bio) =3D=3D READA)	<<<=3D=3D=3D Bang!
++			/* it is legal to fail READA */
++			break;
 
-otherwise, what do you thin/have found out about that monster patch?
+That's the only other one I found so far (by inspection).
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+Also - one other question -- do you have an update on how much more you
+plan to do before stabilizing and releasing the first official 8.0
+version? I'd like to get 8.0 into my development community so it can get
+wider testing but it's a bit hard at the moment...
+
+Thanks for all the hard work,
+Simon
+
