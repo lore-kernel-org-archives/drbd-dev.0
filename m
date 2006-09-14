@@ -1,17 +1,13 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from barkeeper1 (office.linbit [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id C00502CF77D1
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Sep 2006 23:51:12 +0200 (CEST)
-Date: Wed, 13 Sep 2006 23:51:12 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD-8 - next crash in bio_split()
-Message-ID: <20060913215112.GC31250@barkeeper1.linbit>
-References: <342BAC0A5467384983B586A6B0B37671038B05D1@EXNA.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671038B05D1@EXNA.corp.stratus.com>
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01C6D811.E5E349EC"
+Date: Thu, 14 Sep 2006 11:24:36 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671038B06E2@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD-8: attach seems to be broken
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,45 +17,92 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-09-13 16:41:25 -0400
-\ Graham, Simon:
-> > Index: drbd_req.c
-> > ===================================================================
-> > --- drbd_req.c	(revision 2415)
-> > +++ drbd_req.c	(working copy)
-> > @@ -1068,7 +1068,11 @@
-> >  	unsigned int bio_size = bio->bi_size;
-> >  	int max;
-> > 
-> > +#if 1
-> > +	max = DRBD_MAX_SEGMENT_SIZE - ((bio_offset &
-> > (DRBD_MAX_SEGMENT_SIZE-1)) + bio_size);
-> > +#else
-> >  	max = AL_EXTENT_SIZE - ((bio_offset & (AL_EXTENT_SIZE-1)) +
-> > bio_size);
-> > +#endif
-> >  	if (max < 0) max = 0;
-> >  	if (max <= bvec->bv_len && bio_size == 0)
-> >  		return bvec->bv_len;
-> 
-> I'm not sure to be honest - I take it the intent here is to ensure there
-> can only ever be one bio_vec in a bio that needs to be split? And the
-> way to do that is to ensure that the only way a request that is too
-> large can be passed to DRBD is if it is the first entry that is too
-> large?
+This is a multi-part message in MIME format.
 
-basically, yes.  but the "first_sectors" calculation for the bio_split
-was terribly wrong, too.
-I just committed the correct fix (I think).
-its just been my own "stupidity" (again).
+------_=_NextPart_001_01C6D811.E5E349EC
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-please verify. at least for me, it just copied the complete linux-2.6.17
-source tree several times without even triggering an assert.
-before that fix, it would just blow up in the very first seconds...
+I'm not running the absolute latest but some change in the past day
+seems to have broken attach after detach - the state goes to Attaching
+and never transitions to UpToDate. I haven't been able to figure out how
+the side doing the attach is actually supposed to transition - it's
+somewhere in receive_state() I think but it eludes me for the moment. I
+can see that on the other side, receipt of ReportState when the peer
+says it's disk state is Attaching causes it to send ReportState in reply
+which the comments says causes the peer to promote from
+Attaching->UpToDate but I cant see how that actually happens...
 
-cheers, and good night
+At the moment, I'm using revision 2423 which is just one back from the
+tip and looking at the diffs for that, I don't see anything that would
+fix this issue.
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+Any suggestions?
+/simgr
+
+------_=_NextPart_001_01C6D811.E5E349EC
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
+charset=3Dus-ascii">
+<META NAME=3D"Generator" CONTENT=3D"MS Exchange Server version =
+6.5.7226.0">
+<TITLE>DRBD-8: attach seems to be broken</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/rtf format -->
+
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">I</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">m not running the absolute latest but some change in the =
+past day seems to have broken attach after detach</FONT></SPAN><SPAN =
+LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma"> the state goes to Attaching and never transitions to =
+UpToDate. I haven</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">t been able to figure out how the side doing the =
+attach</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">is actually supposed to transition</FONT></SPAN><SPAN =
+LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8211;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma"> it</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">s somewhere in receive_state() I think but it eludes me =
+for the moment.</FONT></SPAN><SPAN LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">I can see that on the other side, receipt of ReportState =
+when the peer says it</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">s disk state is Attaching causes it to send ReportState =
+in reply which the comments says causes the peer to promote from =
+Attaching-&gt;U</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">pToDate but I cant see how that actually =
+happens</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8230;</FONT></SPAN><SPAN LANG=3D"en-us"></SPAN></P>
+
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">At the =
+moment, I</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">&#8217;</FONT></SPAN><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">m using revision 2423 which is just one back from the =
+tip and looking at the diffs for that, I</FONT></SPAN><SPAN =
+LANG=3D"en-us"> <FONT SIZE=3D2 =
+FACE=3D"Tahoma">don&#8217;t</FONT></SPAN><SPAN LANG=3D"en-us"><FONT =
+SIZE=3D2 FACE=3D"Tahoma"> see anything that would fix this =
+issue.</FONT></SPAN></P>
+
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 FACE=3D"Tahoma">Any =
+suggestions?</FONT></SPAN></P>
+
+<P DIR=3DLTR><SPAN LANG=3D"en-us"><FONT SIZE=3D2 =
+FACE=3D"Tahoma">/simgr</FONT></SPAN><SPAN LANG=3D"en-us"></SPAN></P>
+
+</BODY>
+</HTML>
+------_=_NextPart_001_01C6D811.E5E349EC--
