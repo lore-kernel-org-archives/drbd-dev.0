@@ -1,17 +1,15 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from barkeeper1 (office.linbit [213.229.1.138])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 3A1BB2CFAE50
-	for <drbd-dev@lists.linbit.com>; Sat, 23 Sep 2006 13:43:43 +0200 (CEST)
-Date: Sat, 23 Sep 2006 13:43:43 +0200
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD-8 causes a panic in kernel proper.
-Message-ID: <20060923114343.GC31468@barkeeper1.linbit>
-References: <BD7042533C2F8943A6A4257A9E31C45439C7D5@EXNA.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C7D5@EXNA.corp.stratus.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Content-class: urn:content-classes:message
+Date: Sun, 24 Sep 2006 08:35:42 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671039D46DB@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD-8: failure to complete resync when connection lost
+	and resyncing to primary
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,21 +19,93 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-09-22 17:15:59 -0400
-\ Montrose, Ernest:
-> Hi all,
-> As of the changes from Wednesday Sep 20, 2006, I see a panic in kernel
-> proper with the drbd driver loaded and io attempted. 
-> I am investigating but I am hoping that some lights might go on and a
-> quick fix provided.   Thanks.  Below is the stack trace.
+In testing the panic removal code, I have come across a failure to
+complete a resync process when the primary side is the target of the
+resync; right now, if the disk state is not Negotiating then the code
+will reject any attempt to perform a resync with the primary side disk
+as the target even if the primary's disk is inconsistent. I came across
+this with the following test case:
 
-sorry, I did not notice this post...
-just cleared your "moderated flag", though.
+1. Set one side primary
+2. do detach/attach on the primary side - this starts a full resync with
+the secondary side as the source
+3. Forcibly disconnect the network (you can actually do 'drbdadm
+disconnect' on the secondary side!)
+4. Reconnect the network - at this point, the resync is rejected.
 
-this got introduced by a broken "optimization" in r2433.
-was fixed (I think) with r2451.
+Attached is some sample trace output showing the failure on the primary
+side.
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+I'm thinking that this should be allowed IF the primary side disk is
+inconsistent or diskless or otherwise bad; this means that the test in
+drbd_sync_handshake:
+
+	if (hg < 0 &&=20
+	    mdev->state.role =3D=3D Primary && mdev->state.disk !=3D
+Negotiating ) {
+		ERR("I shall become SyncTarget, but I am primary!\n");
+		drbd_force_state(mdev,NS(conn,StandAlone));
+		drbd_thread_stop_nowait(&mdev->receiver);
+		return conn_mask;
+	}
+
+should instead be:
+
+	if (hg < 0 &&=20
+	    mdev->state.role =3D=3D Primary && mdev->state.disk >=3D
+Consistent ) {
+		ERR("I shall become SyncTarget, but I am primary!\n");
+		drbd_force_state(mdev,NS(conn,StandAlone));
+		drbd_thread_stop_nowait(&mdev->receiver);
+		return conn_mask;
+	}
+
+Does that make sense?
+Simon
+
+---extract of messages from Primary---
+
+Sep 24 08:17:03 snoopy kernel: drbd0: Forcing state change from bad
+state. Error would be: 'Refusing to be Primary without at least one
+UpToDate disk'
+Sep 24 08:17:03 snoopy kernel: drbd0:  old =3D { cs:WFConnection
+st:Primary/Unknown ds:Inconsistent/DUnknown r--- }
+Sep 24 08:17:03 snoopy kernel: drbd0:  new =3D { cs:WFReportParams
+st:Primary/Unknown ds:Inconsistent/DUnknown r--- }
+Sep 24 08:17:03 snoopy kernel: drbd0: conn( WFConnection ->
+WFReportParams )=20
+Sep 24 08:17:03 snoopy kernel: drbd0: data >>> HandShake (protocol 82)
+Sep 24 08:17:03 snoopy kernel: drbd0: data <<< HandShake (protocol 82)
+Sep 24 08:17:03 snoopy kernel: drbd0: Handshake successful: DRBD Network
+Protocol version 82
+Sep 24 08:17:03 snoopy kernel: drbd0: data >>> ReportProtocol (11)
+Sep 24 08:17:03 snoopy kernel: drbd0: data >>> SyncParam (10)
+Sep 24 08:17:03 snoopy kernel: drbd0: data >>> ReportSizes (d 15007MiB,
+u 0MiB, c 15007MiB, max bio 1000, q order 0)
+Sep 24 08:17:03 snoopy kernel: drbd0: data >>> ReportUUIDs
+Curr:ABFA2C5E8469C059, Bitmap:0000000000000001, HisSt:980DF0A708466D72,
+HisEnd:882E2BDEC183E244
+Sep 24 08:17:03 snoopy kernel: drbd0: data >>> ReportState (s c861 {
+role( Primary ) peer( Unknown ) conn( WFReportParams ) disk(
+Inconsistent ) pdsk( DUnknown )})
+Sep 24 08:17:03 snoopy kernel: drbd0: data <<< ReportProtocol (11)
+Sep 24 08:17:03 snoopy kernel: drbd0: data <<< SyncParam (10)
+Sep 24 08:17:03 snoopy kernel: drbd0: data <<< ReportSizes (d 15007MiB,
+u 0MiB, c 15007MiB, max bio 1000, q order 0)
+Sep 24 08:17:03 snoopy kernel: drbd0: data <<< ReportUUIDs
+Curr:DC3A3BB9EB892584, Bitmap:ABFA2C5E8469C058, HisSt:980DF0A708466D72,
+HisEnd:882E2BDEC183E244
+Sep 24 08:17:03 snoopy kernel: drbd0: drbd_sync_handshake:
+Sep 24 08:17:03 snoopy kernel: drbd0: self
+ABFA2C5E8469C059:0000000000000001:980DF0A708466D72:882E2BDEC183E244
+Sep 24 08:17:03 snoopy kernel: drbd0: peer
+DC3A3BB9EB892584:ABFA2C5E8469C058:980DF0A708466D72:882E2BDEC183E244
+Sep 24 08:17:03 snoopy kernel: drbd0: uuid_compare()=3D-1
+Sep 24 08:17:03 snoopy kernel: drbd0: I shall become SyncTarget, but I
+am primary!
+Sep 24 08:17:03 snoopy kernel: drbd0: conn( WFReportParams -> StandAlone
+)=20
+Sep 24 08:17:03 snoopy kernel: drbd0: error receiving ReportState, l: 4!
+Sep 24 08:17:03 snoopy kernel: drbd0: asender starting cleanup
+
+
