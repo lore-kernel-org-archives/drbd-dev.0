@@ -1,22 +1,16 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (office.linbit [213.229.1.138])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 307432D99862
-	for <drbd-dev@lists.linbit.com>; Mon, 25 Sep 2006 15:48:26 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD-8: crashes if role is changed to Secondary whilst
-	disk state is Negotiating...
-Date: Mon, 25 Sep 2006 15:48:26 +0200
-References: <342BAC0A5467384983B586A6B0B37671039D46E3@EXNA.corp.stratus.com>
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671039D46E3@EXNA.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200609251548.26220.philipp.reisner@linbit.com>
+	charset="utf-8"
+Content-Transfer-Encoding: base64
+Date: Mon, 25 Sep 2006 15:44:09 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671039D4967@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] FW: [DRBD-cvs] svn commit by phil - r2453 - in trunk:
+	drbd drbd/linuxuser - * Removed some explicit calls to
+	drbd_thread_ ... funct
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,33 +20,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Sonntag, 24. September 2006 17:35 schrieb Graham, Simon:
-> The specific crash I saw was due to this code in drbd_set_role;
-> drbd_set_role calls drbd_al_to_on_disk_bm() if the new role is secondary
-> and the disk state is not diskless -- there are transitory states between
-> diskless and attached where this is not valid.
->
-> The specific lines of code are:
->
-> =A0=A0=A0=A0if(mdev->state.disk > Diskless && (new_role & Secondary)) {
-> =A0=A0=A0=A0=A0=A0=A0=A0drbd_al_to_on_disk_bm(mdev);
-> =A0=A0=A0=A0}
->
-> and the test should presumably be 'mdev->state.disk > Negotiating' -
-> however, this routine presumably needs to use inc_local() to do this so I
-> would propose the following:
->
-> 	if ((new_role & Secondary) && inc_local(mdev)) {
-> 		drbd_al_to_on_disk_bm(mdev);
->
-> 		dec_local(mdev);
-> 	}
->
-
-Right.
-
-=2DPhil
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+SSB0aGluayB0aGVyZSBtYXkgYmUgYSBwcm9ibGVtIHdpdGggdGhpcyBjaGVja2luIChvciBJIG1p
+c3VuZGVyc3RhbmQpIC0tIHRoaXMgY2hlY2tpbiBpbmNsdWRlcyB0aGUgZm9sbG93aW5nIGNoYW5n
+ZSB0byBkcmJkX25sX25ldF9jb25mOg0KDQoNCk1vZGlmaWVkOiB0cnVuay9kcmJkL2RyYmRfbmwu
+Yw0KPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PQ0KLS0tIHRydW5rL2RyYmQvZHJiZF9ubC5jCTIwMDYtMDktMjUgMDc6MjQ6
+MzIgVVRDIChyZXYgMjQ1MikNCisrKyB0cnVuay9kcmJkL2RyYmRfbmwuYwkyMDA2LTA5LTI1IDEx
+OjMyOjQ0IFVUQyAocmV2IDI0NTMpDQpAQCAtOTM0LDggKzkzNCwxMyBAQA0KIAlzdHJ1Y3QgY3J5
+cHRvX3RmbSogdGZtID0gTlVMTDsNCiAJc3RydWN0IGhsaXN0X2hlYWQgKm5ld190bF9oYXNoID0g
+TlVMTDsNCiAJc3RydWN0IGhsaXN0X2hlYWQgKm5ld19lZV9oYXNoID0gTlVMTDsNCi0Jc3RydWN0
+IERyYmRfQ29uZiAqb2RldjsNCisJZHJiZF9kZXYgKm9kZXY7DQogDQorCWlmIChtZGV2LT5zdGF0
+ZS5jb25uID4gU3RhbmRBbG9uZSkgew0KKwkJcmV0Y29kZT1IYXZlTmV0Q29uZmlnOw0KKwkJZ290
+byBmYWlsOw0KKwl9DQorDQoNClRoaXMgaGFzIHRoZSB1bmZvcnR1bmF0ZSBzaWRlIGVmZmVjdCBv
+ZiBibG9ja2luZyAnZHJiZGFkbSBjb25uZWN0JyByZXF1ZXN0cyBpbiBhbnkgc3RhdGUgb3RoZXIg
+dGhhbiBTdGFuZGFsb25lIC0gc28gSSBjYW50IG1hbnVhbGx5IGNhdXNlIHRoZSBuZXR3b3JrIHRv
+IGJlIHJlY29ubmVjdGVkIGFueW1vcmUgLS0gaXMgdGhpcyBzdXBwb3NlZCB0byBiZSBzb21ldGhp
+bmcgSSBuZXZlciBoYXZlIHRvIGRvPyBCZWNhdXNlIHJpZ2h0IG5vdyBteSBzeXN0ZW0gaXMgV0ZD
+b25uZWN0aW9uIG9uIG9uZSBzaWRlIGFuZCBVbmNvbm5lY3RlZCBvbiB0aGUgb3RoZXIuLi4NCg0K
+U2ltb24NCg==
