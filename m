@@ -1,21 +1,14 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (office.linbit [213.229.1.138])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 0672C2CF820E
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Sep 2006 18:23:55 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD-8: <FOR REVIEW> dynamic tracing facility
-Date: Tue, 26 Sep 2006 18:23:54 +0200
-References: <342BAC0A5467384983B586A6B0B37671039D46DF@EXNA.corp.stratus.com>
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671039D46DF@EXNA.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-15"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200609261823.54543.philipp.reisner@linbit.com>
+Subject: RE: [Drbd-dev] DRBD-8: <FOR REVIEW> dynamic tracing facility
+Date: Tue, 26 Sep 2006 17:42:32 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B37671039D4C4D@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,53 +18,90 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Sonntag, 24. September 2006 15:47 schrieb Graham, Simon:
-> As we discussed a few weeks ago, I propose adding a more general purpose
-> trace facility that can be controlled at run time - attached is a patch
-> that implements the following:
->
-> . New macros TRACE/MTRACE that can be used to add trace statements
-> (using existing macros/routines) that
->   are controlled at run time.
-> . Controls are module parameters:
->   . trace_type - bitmap of enabled types; currently defined are
-> packet-dump, bio-dump, uuid-dump
->   . trace_level - the higher the level, the more detail
->   . trace_devs - bitmap of devices for which trace is enabled
-> . I've converted the packet dumping code to use this
-> . I've added two new types using it:
->   . bio-dump - this dumps info on bio's coming from above drbd. This is
-> controlled by a new config
->     parameter DUMP_EACH_BIO that is off by default (although I think it
-> could be on by default and
->     will be in our version).
->   . uuid-dump - dumps info on updates to uuid's, comparisons, etc
->
-> I actually went back and forth on how much of this to implement inline
-> versus via a routine call and it turned out to be pretty much the same
-> amount of code at each trace site no matter what so I made it all
-> inline.
->
-> Comments?
+Hi Philipp,
 
-Hi Simon,
+Just want to make sure I understand fully...
 
-I have two opinions about this:
- * Good stuff, it is nice to have all this in place, although I would=20
-   also like to disable the whole tracing/dumping at compile time.
+> I have two opinions about this:
+>  * Good stuff, it is nice to have all this in place, although I would
+>    also like to disable the whole tracing/dumping at compile time.
+>=20
+>  * On the other hand I am not sure if it could become obsolete by
+>    the current rumours about a DTrace replacement on Linux
+(SystemTrap)
 
- * On the other hand I am not sure if it could become obsolete by
-   the current rumours about a DTrace replacement on Linux (SystemTrap)
+I was not aware of DTrace but I have looked at SystemTap and decided it
+doesn't really work -- we need some level of trace that is always turned
+on (so we can diagnose field problems after the fact) combined with the
+ability to enable more extensive tracing at will and I don't think
+SystemTap will do both of these. To be honest I don't really like the
+fact that the tracing definition is separate from the driver code
+(probably the exact reason why other people like it=20
+;-)
 
-So, over all, I will accept a patch:
- * That converts our current stuff over to such a tracing framework
- * Probably add event more tracing. (As you have done for UUIDs)
- * The tracing facility allowes to enable/disable different classes
-   of tracing information at run-time.
- * But I would also like to disable it at completely at compile time.
+Also -- whilst there may be work afoot to add this to the kernel, we
+need this now with the current kernel versions we are going to ship
+product with - I know that printk's are perhaps not the best (especially
+if you aren't careful about where to insert them) but they do provide
+what is needed now.
 
-=2DPhil
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+>=20
+> So, over all, I will accept a patch:
+>  * That converts our current stuff over to such a tracing framework
+
+Do you mean you want all the existing INFO/WARN/etc tracing to use this?
+
+I did consider this but decided not to for a couple of reasons:
+1. Lots of this trace should continue to always be printed -- I could
+add
+   an option to the framework that lets the caller specify 'always print
+   this' but I'm not sure it adds value. However, I can see that there
+is
+   benefit in having ALL trace code wrapped in the new framework macros
+  =20
+2. I didn't want to include the overhead of testing trace types/levels
+etc
+   in every single place where a trace message is output - however, I
+can=20
+   certainly arrange for these to generate no code in the cases
+   where the output should always be produced.
+
+3. It would be a huge patch to change every single trace call in one go.
+
+So, to be honest, I decided not to do this initially but just get a
+framework
+in place and then let you and Lars convert what you think needs it ;-)
+
+Now - I can certainly change all of the existing trace calls to use the
+new
+TRACE/MTRACE macros if that's really what you want (btw, the existing
+INFO/WARN/etc
+macros wont go away, they will just be wrapped by the new trace call).
+
+>  * Probably add event more tracing. (As you have done for UUIDs)
+
+Can we leave adding this until later? It's rather difficult for me to
+decide
+all the possible extra tracing that is needed ;-)
+
+>  * The tracing facility allowes to enable/disable different classes
+>    of tracing information at run-time.
+
+Something more than I have already done? The intent of the trace_types
+parameter
+is exactly this - to define the class(es) of output required.
+
+if I convert the existing trace statements, I'll probably add one (maybe
+two)
+more trace types that cover the existing stuff and have it enabled by
+default.
+
+>  * But I would also like to disable it at completely at compile time.
+
+Including the existing trace statements?
+I'm OK with this, just checking that's what you want - the ability to
+generate a driver with no tracing in it at all.
+
+Thanks for your review,
+Simon=20
+
