@@ -1,12 +1,18 @@
-Return-Path: <Simon.Graham@stratus.com>
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] FW: [DRBD-cvs] svn commit by phil - r2453 - in trunk:
+	drbd drbd/linuxuser - * Removed some explicit calls to
+	drbd_thread_ ... funct
+Date: Tue, 26 Sep 2006 16:37:32 +0200
+References: <342BAC0A5467384983B586A6B0B37671039D4967@EXNA.corp.stratus.com>
+In-Reply-To: <342BAC0A5467384983B586A6B0B37671039D4967@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C6E10E.04542217"
-Content-class: urn:content-classes:message
-Date: Mon, 25 Sep 2006 21:49:25 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B37671039D49F6@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] DRBD-8: update to fault insertion testing
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+Message-Id: <200609261637.32462.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -16,177 +22,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+Am Montag, 25. September 2006 21:44 schrieb Graham, Simon:
+> I think there may be a problem with this checkin (or I misunderstand) --
+> this checkin includes the following change to drbd_nl_net_conf:
+>
+>
+> Modified: trunk/drbd/drbd_nl.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- trunk/drbd/drbd_nl.c	2006-09-25 07:24:32 UTC (rev 2452)
+> +++ trunk/drbd/drbd_nl.c	2006-09-25 11:32:44 UTC (rev 2453)
+> @@ -934,8 +934,13 @@
+>  	struct crypto_tfm* tfm =3D NULL;
+>  	struct hlist_head *new_tl_hash =3D NULL;
+>  	struct hlist_head *new_ee_hash =3D NULL;
+> -	struct Drbd_Conf *odev;
+> +	drbd_dev *odev;
+>
+> +	if (mdev->state.conn > StandAlone) {
+> +		retcode=3DHaveNetConfig;
+> +		goto fail;
+> +	}
+> +
+>
+> This has the unfortunate side effect of blocking 'drbdadm connect' reques=
+ts
+> in any state other than Standalone - so I cant manually cause the network
+> to be reconnected anymore -- is this supposed to be something I never have
+> to do? Because right now my system is WFConnection on one side and
+> Unconnected on the other...
+>
 
-------_=_NextPart_001_01C6E10E.04542217
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Hi Simon,
 
- <<drbd-testing.patch>> Made a few improvements to the fault insertion
-test suite - still needs more work but it should test a wider range of
-things now. Right now, the trunk version does not pass these tests - it
-gets through inserting meta-data faults on read and write on the local
-node as 'drbdadm attach' is done but then fails pretty quickly if
-meta-data write faults on the remote node are inserted as attach is done
-- this results in the connection being torn down and I cant directly
-reconnect because of the issue with 'drbdadm connect' I reported
-earlier. If I do 'drbdadm disconnect' and then 'drbdadm connect', it
-works on the primary side (where I was doing the attach), but the other
-side gets into a Disconnecting state from which it doesn't recover (the
-connection was actually taken down when the fault occurred earlier on).
+This was a bug somwhere else, I fixed today. That particular
+code means that it is no longer possible to simply do
 
-I'm still investigating the cause of this, but I suspect there is a hole
-in the new Disconnecting state handling.
+drbdadm connect r0
+drbdadm connect r0
+=2E..
 
-I also fixed a problem with the test agent code -- when it was spinning
-waiting for the state to change to an expected value, it would run as
-fast as possible reading the current state and comparing - I added a .5s
-usleep.
+to cause it to reconnect. Instead you have to do now:
 
-Anyway - patch attached; will enhance again to automatically reconnect
-as needed once we sort out the problem with connect failing.
+drbdadm disconnect r0 ; drbdadm connect r0
+drbdadm disconnect r0 ; drbdadm connect r0
+=2E..
 
-Simon
-
-
-
-------_=_NextPart_001_01C6E10E.04542217
-Content-Type: application/octet-stream;
-	name="drbd-testing.patch"
-Content-Transfer-Encoding: base64
-Content-Description: drbd-testing.patch
-Content-Disposition: attachment;
-	filename="drbd-testing.patch"
-
-SW5kZXg6IHRlc3RpbmcvdGVzdHN1aXRlL3Rlc3RmYXVsdHMuY29uZgo9PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSB0
-ZXN0aW5nL3Rlc3RzdWl0ZS90ZXN0ZmF1bHRzLmNvbmYJKC4uLi90cnVuaykJKHJldmlzaW9uIDQ0
-NDApCisrKyB0ZXN0aW5nL3Rlc3RzdWl0ZS90ZXN0ZmF1bHRzLmNvbmYJKC4uLi9icmFuY2hlcy9w
-YW5pYy0yKQkocmV2aXNpb24gNDQ0MCkKQEAgLTk4LDIzICs5OCwyNyBAQAogICBjbWQgc2V0X2Zy
-LCBvbiBub2RlMTsKICAgY21kIHNldF9tZF9yZCwgb24gbm9kZTE7CiAKLSAgIyBhdHRhY2gvZGV0
-YWNoIGEgZmV3IHRpbWVzICh3YW50IGF0IGxlYXN0IG9uZSBmYWlsdXJlIQotICBmb3IgKG15ICRp
-ID0gMDsgJGkgPCA1OyArKyRpKSB7CisgICMgYXR0YWNoL2RldGFjaCBhIGZldyB0aW1lcyAod2Fu
-dCBhdCBsZWFzdCAxMCBmYWlsdXJlcyEKKyAgZm9yIChteSAkaSA9IDAsJGVycmNvdW50PTA7ICRl
-cnJjb3VudCA8IDEwOyArKyRpKSB7CisgICAgSU5GTyAiICAgJGkuIGF0dGFjaCI7CiAgICAgY21k
-ICcvc2Jpbi9kcmJkYWRtIGF0dGFjaCB7cmVzb3VyY2V9Jywgb24gbm9kZTE7CiAKICAgICBzbGVl
-cCAyOwogCiAgICAgaWYgKChnZXQgc3RhdGVfZHMsIG9uIG5vZGUxKSA9fiAvRGlza2xlc3MvKSB7
-Ci0JVkVSQk9TRSAoImdvb2RuZXNzOiBtZXRhIGRhdGEgcmVhZCBmYXVsdCBmaXJlZCIpOworICAg
-ICAgICAkZXJyY291bnQgPSAkZXJyY291bnQgKyAxOworCUlORk8gKCIgICAgICBnb29kbmVzczog
-bWV0YSBkYXRhIHJlYWQgZmF1bHQgZmlyZWQgKCRlcnJjb3VudCkiKTsKICAgICB9CiAgICAgZWxz
-ZSB7CiAJIyBtaWdodCBuZWVkIHRvIHdhaXQgZm9yIHJlc3luYyBoZXJlLi4uIGRpc2FibGUKIAkj
-IGZhdWx0cyB3aGlsc3Qgd2Ugd2FpdAogCWNtZCBjbHJfZnIsIG9uIG5vZGUxOwogCisgICAgICAg
-IElORk8gIiAgICAgIGRldmljZSBhdHRhY2hlZCAtIHdhaXQgZm9yIGRhdGEgdG8gYmUgc3luY2hy
-b25pemVkLi4uIjsKIAlleHBlY3RlZCAnY3MnLCBzdGF0ZSAnQ29ubmVjdGVkJywgdGltZW91dCA1
-MDA7CiAJZXhwZWN0ZWQgJ2RzJywgc3RhdGUgJ1VwVG9EYXRlJywgdGltZW91dCA1MDA7CiAKKyAg
-ICAgICAgSU5GTyAiICAgICAgLi4uIGFuZCBkZXRhY2ggZGV2aWNlIjsKIAljbWQgJy9zYmluL2Ry
-YmRhZG0gZGV0YWNoIHtyZXNvdXJjZX0nLCBvbiBub2RlMTsKIAogCWNtZCBzZXRfZnIsIG9uIG5v
-ZGUxOwpAQCAtMTMzLDIyICsxMzcsMjYgQEAKICAgY21kIHNldF9tZF93ciwgb24gbm9kZTE7CiAK
-ICAgIyBhdHRhY2gvZGV0YWNoIGEgZmV3IHRpbWVzICh3YW50IGF0IGxlYXN0IG9uZSBmYWlsdXJl
-IQotICBmb3IgKG15ICRpID0gMDsgJGkgPCA1OyArKyRpKSB7CisgIGZvciAobXkgJGkgPSAwLCRl
-cnJjb3VudD0wOyAkZXJyY291bnQgPCAxMDsgKyskaSkgeworICAgIElORk8gIiAgICRpLiBhdHRh
-Y2giOwogICAgIGNtZCAnL3NiaW4vZHJiZGFkbSBhdHRhY2gge3Jlc291cmNlfScsIG9uIG5vZGUx
-OwogCiAgICAgc2xlZXAgMjsKIAogICAgIGlmICgoZ2V0IHN0YXRlX2RzLCBvbiBub2RlMSkgPX4g
-L0Rpc2tsZXNzLykgewotCVZFUkJPU0UgKCJnb29kbmVzczogbWV0YSBkYXRhIHdyaXRlIGZhdWx0
-IGZpcmVkIik7CisJJGVycmNvdW50ID0gJGVycmNvdW50KzE7CisJSU5GTygiICAgICAgZ29vZG5l
-c3M6IG1ldGEgZGF0YSB3cml0ZSBmYXVsdCBmaXJlZCAoJGVycmNvdW50KSIpOwogICAgIH0KICAg
-ICBlbHNlIHsKIAkjIG1pZ2h0IG5lZWQgdG8gd2FpdCBmb3IgcmVzeW5jIGhlcmUuLi4gZGlzYWJs
-ZQogCSMgZmF1bHRzIHdoaWxzdCB3ZSB3YWl0CiAJY21kIGNscl9mciwgb24gbm9kZTE7CiAKKyAg
-ICAgICAgSU5GTyAiICAgICAgZGV2aWNlIGF0dGFjaGVkIC0gd2FpdCBmb3IgZGF0YSB0byBiZSBz
-eW5jaHJvbml6ZWQuLi4iOwogCWV4cGVjdGVkICdjcycsIHN0YXRlICdDb25uZWN0ZWQnLCB0aW1l
-b3V0IDUwMDsKIAlleHBlY3RlZCAnZHMnLCBzdGF0ZSAnVXBUb0RhdGUnLCB0aW1lb3V0IDUwMDsK
-IAorICAgICAgICBJTkZPICIgICAgICAuLi4gYW5kIGRldGFjaCBkZXZpY2UiOwogCWNtZCAnL3Ni
-aW4vZHJiZGFkbSBkZXRhY2gge3Jlc291cmNlfScsIG9uIG5vZGUxOwogCiAJY21kIHNldF9mciwg
-b24gbm9kZTE7CkBAIC0xNjQsMzYgKzE3Miw2MSBAQAogICBleHBlY3RlZCAnY3MnLCBzdGF0ZSAn
-Q29ubmVjdGVkJywgdGltZW91dCAxNTsKICAgZXhwZWN0ZWQgJ2RzJywgc3RhdGUgJ1VwVG9EYXRl
-JywgdGltZW91dCAxNTsKIAorICAjIHNpbXVsYXRlIG1ldGEgZGF0YSB3cml0ZSBmYWlsdXJlcyBv
-biBwYXJ0bmVyIG5vZGUKKyAgSU5GTyAiMy4gU2ltdWxhdGUgcmVtb3RlIG1ldGEgZGF0YSB3cml0
-ZSBmYWlsdXJlcyBkdXJpbmcgYXR0YWNoIjsKKwogICAjIHN3aXRjaCB0byBwcmltYXJ5CisgIElO
-Rk8gIiAgIEZpcnN0LCBzd2l0Y2ggbG9jYWwgdG8gcHJpbWFyeSAtLSB0aGlzIHdpbGwgY2F1c2Ug
-bWQgd3JpdGUgb24gcmVtb3RlIjsKICAgY21kICcvc2Jpbi9kcmJkYWRtIHByaW1hcnkge3Jlc291
-cmNlfScsIG9uIG5vZGUxOwogCiAgICMgQ2hlY2sgbm9kZTEgd2VudCBwcmltYXJ5Li4uCiAgIGV4
-cGVjdGVkICdzdCcsIHN0YXRlICdQcmltYXJ5JywgdGltZW91dCAxNSwgb24gbm9kZTE7CiAKLSAg
-IyBzaW11bGF0ZSBtZXRhIGRhdGEgd3JpdGUgZmFpbHVyZXMgb24gcGFydG5lciBub2RlCi0gIElO
-Rk8gIjMuIFNpbXVsYXRlIHJlbW90ZSBtZXRhIGRhdGEgd3JpdGUgZmFpbHVyZXMgZHVyaW5nIGF0
-dGFjaCI7CisgIGNtZCAnL3NiaW4vZHJiZGFkbSBkZXRhY2gge3Jlc291cmNlfScsIG9uIG5vZGUx
-OworCiAgIGNtZCBzZXRfZnIsIG9uIG5vZGUyOwotICBjbWQgc2V0X21kX3JkLCBvbiBub2RlMjsK
-KyAgY21kIHNldF9tZF93ciwgb24gbm9kZTI7CiAKLSAgY21kICcvc2Jpbi9kcmJkYWRtIGRldGFj
-aCB7cmVzb3VyY2V9Jywgb24gbm9kZTE7Ci0KICAgIyBhdHRhY2gvZGV0YWNoIGEgZmV3IHRpbWVz
-ICh3YW50IHRvIHNlZSBhdCBsZWFzdCBvbmUgZmFpbHVyZSEKLSAgZm9yIChteSAkaSA9IDA7ICRp
-IDwgNTsgKyskaSkgeworICBmb3IgKG15ICRpID0gMCwkZXJyY291bnQ9MDsgJGVycmNvdW50IDwg
-NTsgKyskaSkgeworICAgIElORk8gIiAgICRpLiBhdHRhY2giOwogICAgIGNtZCAnL3NiaW4vZHJi
-ZGFkbSBhdHRhY2gge3Jlc291cmNlfScsIG9uIG5vZGUxOwogCiAgICAgc2xlZXAgMjsKIAotICAg
-IGlmICgoZ2V0IHN0YXRlX2RzLCBvbiBub2RlMSkgPX4gL0Rpc2tsZXNzLykgewotCVZFUkJPU0Ug
-KCJnb29kbmVzczogbWV0YSBkYXRhIHdyaXRlIGZhdWx0IGZpcmVkIik7CisgICAgaWYgKChnZXQg
-c3RhdGVfZHMsIG9uIG5vZGUyKSA9fiAvRGlza2xlc3MvKSB7CisJJGVycmNvdW50ID0gJGVycmNv
-dW50ICsgMTsKKwlJTkZPKCIgICAgICBnb29kbmVzczogbWV0YSBkYXRhIHdyaXRlIGZhdWx0IGZp
-cmVkICgkZXJyY291bnQpIik7CisKKwkjIHJlY292ZXIgZXZlcnl0aGluZy4uLgorCWNtZCBjbHJf
-ZnIsIG9uIG5vZGUyOworCWlmICgoZ2V0IHN0YXRlX2RzLCBvbiBub2RlMSkgPX4gL0Rpc2tsZXNz
-LykgeworCSAgICBJTkZPKCIgICAgICBSZWF0dGFjaCBvbiBub2RlMSIpOworCSAgICBjbWQgJy9z
-YmluL2RyYmRhZG0gYXR0YWNoIHtyZXNvdXJjZX0nLCBvbiBub2RlMTsKKyAgICAgICAgfQorICAg
-ICAgICBJTkZPICgiICAgICAgcmVhdHRhY2ggb24gbm9kZTIiKTsKKyAgICAgICAgY21kICcvc2Jp
-bi9kcmJkYWRtIGF0dGFjaCB7cmVzb3VyY2V9Jywgb24gbm9kZTI7CisgICAgICAgIElORk8gIiAg
-ICAgIGRldmljZSBhdHRhY2hlZCAtIHdhaXQgZm9yIGRhdGEgdG8gYmUgc3luY2hyb25pemVkLi4u
-IjsKKwlleHBlY3RlZCAnY3MnLCBzdGF0ZSAnQ29ubmVjdGVkJywgdGltZW91dCA1MDA7CisJZXhw
-ZWN0ZWQgJ2RzJywgc3RhdGUgJ1VwVG9EYXRlJywgdGltZW91dCA1MDA7CisKKyAgICAgICAgSU5G
-TyAiICAgICAgLi4uIGFuZCBkZXRhY2ggZGV2aWNlIjsKKwljbWQgJy9zYmluL2RyYmRhZG0gZGV0
-YWNoIHtyZXNvdXJjZX0nLCBvbiBub2RlMTsKKworCWNtZCBzZXRfZnIsIG9uIG5vZGUyOworCWNt
-ZCBzZXRfbWRfcmQsIG9uIG5vZGUyOworCiAgICAgfQogICAgIGVsc2UgewogCSMgbWlnaHQgbmVl
-ZCB0byB3YWl0IGZvciByZXN5bmMgaGVyZS4uLiBkaXNhYmxlCiAJIyBmYXVsdHMgd2hpbHN0IHdl
-IHdhaXQKIAljbWQgY2xyX2ZyLCBvbiBub2RlMjsKIAorICAgICAgICBJTkZPICIgICAgICBkZXZp
-Y2UgYXR0YWNoZWQgLSB3YWl0IGZvciBkYXRhIHRvIGJlIHN5bmNocm9uaXplZC4uLiI7CiAJZXhw
-ZWN0ZWQgJ2NzJywgc3RhdGUgJ0Nvbm5lY3RlZCcsIHRpbWVvdXQgNTAwOwogCWV4cGVjdGVkICdk
-cycsIHN0YXRlICdVcFRvRGF0ZScsIHRpbWVvdXQgNTAwOwogCisgICAgICAgIElORk8gIiAgICAg
-IC4uLiBhbmQgZGV0YWNoIGRldmljZSI7CiAJY21kICcvc2Jpbi9kcmJkYWRtIGRldGFjaCB7cmVz
-b3VyY2V9Jywgb24gbm9kZTE7CiAKIAljbWQgc2V0X2ZyLCBvbiBub2RlMjsKQEAgLTIwMyw4ICsy
-MzYsOSBAQAogCiAgIGNtZCBjbHJfZnIsIG9uIG5vZGUyOwogCi0gICMgbWFrZSBzdXJlIHBhcnRu
-ZXIgaXMgYXR0YWNoZWQuLi4KLSAgY21kICcvc2Jpbi9kcmJkYWRtIGF0dGFjaCB7cmVzb3VyY2V9
-Jywgb24gbm9kZTI7CisgICMgbWFrZSBzdXJlIGRpc2sgaXMgYXR0YWNoZWQuLi4KKyAgSU5GTyAi
-ICAgRmluYWxseSwgZW5zdXJlIGFsbCBkaXNrcyBhdHRhY2hlZCI7CisgIGNtZCAnL3NiaW4vZHJi
-ZGFkbSBhdHRhY2gge3Jlc291cmNlfScsIG9uIG5vZGUxOwogCiAgICMgZXZlcnlvbmUgc2hvdWxk
-IGJlIGluIGNvbm5lY3RlZCBjc3RhdGUsIHVwdG9kYXRlIGRzdGF0ZQogICBleHBlY3RlZCAnY3Mn
-LCBzdGF0ZSAnQ29ubmVjdGVkJywgdGltZW91dCA1MDA7CkBAIC0yMTYsOCArMjUwLDEwIEBACiAg
-IGNtZCBzZXRfZHRfcmQsIG9uIG5vZGUxOwogCiAgICMgbW91bnQgZmlsZSBzeXN0ZW0gYSBmZXcg
-dGltZXMuCi0gIGZvciAobXkgJGkgPSAwOyAkaSA8IDU7ICsrJGkpIHsKKyAgZm9yIChteSAkaSA9
-IDA7ICRpIDwgMjA7ICsrJGkpIHsKKyAgICAgIElORk8gIiAgICRpLiBtb3VudCBkZXZpY2UiOwog
-ICAgICAgY21kICdtb3VudCAvZGV2L3tkZXZpY2V9IHttb3VudHBvaW50fScsIG9uIG5vZGUxOwor
-ICAgICAgSU5GTyAiICAgICAgdW5tb3VudCBkZXZpY2UiOwogICAgICAgY21kICd1bW91bnQgL2Rl
-di97ZGV2aWNlfScsIG9uIG5vZGUxOwogCiAgICAgICBzbGVlcCAyOwpAQCAtMjM1LDEyICsyNzEs
-MTQgQEAKICAgY21kIHNldF9kdF93ciwgb24gbm9kZTE7CiAKICAgIyBtb3VudCBmaWxlIHN5c3Rl
-bSBhbmQgbW9kaWZ5IC0gY2hlY2sgZm9yIGVycm9ycyEKLSAgZm9yIChteSAkaSA9IDA7ICRpIDwg
-NTsgKyskaSkgeworICBmb3IgKG15ICRpID0gMDsgJGkgPCAyMDsgKyskaSkgeworICAgICAgSU5G
-TyAiICAgJGkuIG1vdW50IGRldmljZSI7CiAgICAgICBjbWQgJ21vdW50IC9kZXYve2RldmljZX0g
-e21vdW50cG9pbnR9Jywgb24gbm9kZTE7CiAKICAgICAgICMgY3JlYXRlIHNvbWUgZmlsZXMgLSBz
-aG91bGQgZ2V0IHNvbWUgZXJyb3JzLi4uCiAgICAgICBjbWQgJ2NwIC1mIC9ib290Lyoge21vdW50
-cG9pbnR9Jywgb24gbm9kZTE7CiAgIAorICAgICAgSU5GTyAiICAgICAgdW5tb3VudCBkZXZpY2Ui
-OwogICAgICAgY21kICd1bW91bnQgL2Rldi97ZGV2aWNlfScsIG9uIG5vZGUxOwogCiAgICAgICBz
-bGVlcCAyOwpAQCAtMjU5LDggKzI5NywxMCBAQAogICBjbWQgc2V0X2R0X3JkLCBvbiBub2RlMjsK
-IAogICAjIG1vdW50IGZpbGUgc3lzdGVtIC0gY2hlY2sgZm9yIGVycm9ycyEKLSAgZm9yIChteSAk
-aSA9IDA7ICRpIDwgNTsgKyskaSkgeworICBmb3IgKG15ICRpID0gMDsgJGkgPCAyMDsgKyskaSkg
-eworICAgICAgSU5GTyAiICAgJGkuIG1vdW50IGRldmljZSI7CiAgICAgICBjbWQgJ21vdW50IC9k
-ZXYve2RldmljZX0ge21vdW50cG9pbnR9Jywgb24gbm9kZTE7CisgICAgICBJTkZPICIgICAgICB1
-bm1vdW50IGRldmljZSI7CiAgICAgICBjbWQgJ3Vtb3VudCAvZGV2L3tkZXZpY2V9Jywgb24gbm9k
-ZTE7CiAKICAgICAgIHNsZWVwIDI7CkBAIC0yNzgsMTcgKzMxOCwxOSBAQAogICBleHBlY3RlZCAn
-ZHMnLCBzdGF0ZSAnVXBUb0RhdGUnLCB0aW1lb3V0IDE1OwogCiAgICMgc2ltdWxhdGUgd3JpdGUg
-ZXJyb3JzIHJlbW90ZWx5Ci0gIElORk8gIjYuIFNpbXVsYXRlIHJlbW90ZSB1c2VyIGRhdGEgd3Jp
-dGUgZmFpbHVyZXMiOworICBJTkZPICI3LiBTaW11bGF0ZSByZW1vdGUgdXNlciBkYXRhIHdyaXRl
-IGZhaWx1cmVzIjsKICAgY21kIHNldF9mciwgb24gbm9kZTI7CiAgIGNtZCBzZXRfZHRfd3IsIG9u
-IG5vZGUyOwogCi0gIGZvciAobXkgJGkgPSAwOyAkaSA8IDU7ICsrJGkpIHsKKyAgZm9yIChteSAk
-aSA9IDA7ICRpIDwgMjA7ICsrJGkpIHsKICAgICAgICMgbW91bnQgZmlsZSBzeXN0ZW0gLSBjaGVj
-ayBmb3IgZXJyb3JzIQorICAgICAgSU5GTyAiICAgJGkuIG1vdW50IGRldmljZSI7CiAgICAgICBj
-bWQgJ21vdW50IC9kZXYve2RldmljZX0ge21vdW50cG9pbnR9Jywgb24gbm9kZTE7CiAKICAgICAg
-ICMgY3JlYXRlIHNvbWUgZmlsZXMgLSBzaG91bGQgZ2V0IHNvbWUgZXJyb3JzLi4uCiAgICAgICBj
-bWQgJ2NwIC1mIC9ib290Lyoge21vdW50cG9pbnR9Jywgb24gbm9kZTE7CiAgIAorICAgICAgSU5G
-TyAiICAgICAgdW5tb3VudCBkZXZpY2UiOwogICAgICAgY21kICd1bW91bnQgL2Rldi97ZGV2aWNl
-fScsIG9uIG5vZGUxOwogCiAgICAgICBzbGVlcCAyOwpJbmRleDogdGVzdGluZy90ZXN0c3VpdGUv
-YWdlbnQucGwKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PQotLS0gdGVzdGluZy90ZXN0c3VpdGUvYWdlbnQucGwJKC4uLi90
-cnVuaykJKHJldmlzaW9uIDQ0NDApCisrKyB0ZXN0aW5nL3Rlc3RzdWl0ZS9hZ2VudC5wbAkoLi4u
-L2JyYW5jaGVzL3BhbmljLTIpCShyZXZpc2lvbiA0NDQwKQpAQCAtMjE1LDcgKzIxNSw3IEBACiAg
-ICAgZG8gewogICAgICAgJG91dHB1dCA9IGAkY29tbWFuZCAyPiYxYDsKICAgICAgIGNob21wKCRv
-dXRwdXQpOwotICAgIH0gd2hpbGUgKGRlZmluZWQoJGV4cGVjdGVkKSAmJiAhKCRvdXRwdXQgZXEg
-JGV4cGVjdGVkKSk7CisgICAgfSB3aGlsZSAoZGVmaW5lZCgkZXhwZWN0ZWQpICYmICEoJG91dHB1
-dCBlcSAkZXhwZWN0ZWQpICYmIHVzbGVlcCgxMDAwMDApKTsKICAgICBhbGFybSAwOwogICB9Owog
-ICBpZiAoJEApIHsK
-
-------_=_NextPart_001_01C6E10E.04542217--
+=2Dphil
+=2D-=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
