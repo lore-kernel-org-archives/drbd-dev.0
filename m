@@ -1,18 +1,21 @@
 Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (office.linbit [213.229.1.138])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 0672C2CF820E
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Sep 2006 18:23:55 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] FW: [DRBD-cvs] svn commit by phil - r2453 - in trunk:
-	drbd drbd/linuxuser - * Removed some explicit calls to
-	drbd_thread_ ... funct
-Date: Tue, 26 Sep 2006 16:37:32 +0200
-References: <342BAC0A5467384983B586A6B0B37671039D4967@EXNA.corp.stratus.com>
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671039D4967@EXNA.corp.stratus.com>
+Subject: Re: [Drbd-dev] DRBD-8: <FOR REVIEW> dynamic tracing facility
+Date: Tue, 26 Sep 2006 18:23:54 +0200
+References: <342BAC0A5467384983B586A6B0B37671039D46DF@EXNA.corp.stratus.com>
+In-Reply-To: <342BAC0A5467384983B586A6B0B37671039D46DF@EXNA.corp.stratus.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-15"
 Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-Message-Id: <200609261637.32462.philipp.reisner@linbit.com>
+Message-Id: <200609261823.54543.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,54 +25,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Montag, 25. September 2006 21:44 schrieb Graham, Simon:
-> I think there may be a problem with this checkin (or I misunderstand) --
-> this checkin includes the following change to drbd_nl_net_conf:
+Am Sonntag, 24. September 2006 15:47 schrieb Graham, Simon:
+> As we discussed a few weeks ago, I propose adding a more general purpose
+> trace facility that can be controlled at run time - attached is a patch
+> that implements the following:
 >
+> . New macros TRACE/MTRACE that can be used to add trace statements
+> (using existing macros/routines) that
+>   are controlled at run time.
+> . Controls are module parameters:
+>   . trace_type - bitmap of enabled types; currently defined are
+> packet-dump, bio-dump, uuid-dump
+>   . trace_level - the higher the level, the more detail
+>   . trace_devs - bitmap of devices for which trace is enabled
+> . I've converted the packet dumping code to use this
+> . I've added two new types using it:
+>   . bio-dump - this dumps info on bio's coming from above drbd. This is
+> controlled by a new config
+>     parameter DUMP_EACH_BIO that is off by default (although I think it
+> could be on by default and
+>     will be in our version).
+>   . uuid-dump - dumps info on updates to uuid's, comparisons, etc
 >
-> Modified: trunk/drbd/drbd_nl.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- trunk/drbd/drbd_nl.c	2006-09-25 07:24:32 UTC (rev 2452)
-> +++ trunk/drbd/drbd_nl.c	2006-09-25 11:32:44 UTC (rev 2453)
-> @@ -934,8 +934,13 @@
->  	struct crypto_tfm* tfm =3D NULL;
->  	struct hlist_head *new_tl_hash =3D NULL;
->  	struct hlist_head *new_ee_hash =3D NULL;
-> -	struct Drbd_Conf *odev;
-> +	drbd_dev *odev;
+> I actually went back and forth on how much of this to implement inline
+> versus via a routine call and it turned out to be pretty much the same
+> amount of code at each trace site no matter what so I made it all
+> inline.
 >
-> +	if (mdev->state.conn > StandAlone) {
-> +		retcode=3DHaveNetConfig;
-> +		goto fail;
-> +	}
-> +
->
-> This has the unfortunate side effect of blocking 'drbdadm connect' reques=
-ts
-> in any state other than Standalone - so I cant manually cause the network
-> to be reconnected anymore -- is this supposed to be something I never have
-> to do? Because right now my system is WFConnection on one side and
-> Unconnected on the other...
->
+> Comments?
 
 Hi Simon,
 
-This was a bug somwhere else, I fixed today. That particular
-code means that it is no longer possible to simply do
+I have two opinions about this:
+ * Good stuff, it is nice to have all this in place, although I would=20
+   also like to disable the whole tracing/dumping at compile time.
 
-drbdadm connect r0
-drbdadm connect r0
-=2E..
+ * On the other hand I am not sure if it could become obsolete by
+   the current rumours about a DTrace replacement on Linux (SystemTrap)
 
-to cause it to reconnect. Instead you have to do now:
+So, over all, I will accept a patch:
+ * That converts our current stuff over to such a tracing framework
+ * Probably add event more tracing. (As you have done for UUIDs)
+ * The tracing facility allowes to enable/disable different classes
+   of tracing information at run-time.
+ * But I would also like to disable it at completely at compile time.
 
-drbdadm disconnect r0 ; drbdadm connect r0
-drbdadm disconnect r0 ; drbdadm connect r0
-=2E..
-
-=2Dphil
+=2DPhil
 =2D-=20
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
