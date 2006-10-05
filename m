@@ -1,17 +1,13 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-Subject: Re: [Drbd-dev] local-io-error parse error in drbd.conf
-Date: Thu, 5 Oct 2006 15:23:59 +0200
-References: <BD7042533C2F8943A6A4257A9E31C45439C7F5@EXNA.corp.stratus.com>
-In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C7F5@EXNA.corp.stratus.com>
+Return-Path: <Ernest.Montrose@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200610051524.00444.philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C6E8C6.6EBB2A09"
+Date: Thu, 5 Oct 2006 17:37:18 -0400
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C7F6@EXNA.corp.stratus.com>
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Cstate stays in "Disconnecting" after Heartbeat link
+	down and up
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,38 +17,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Donnerstag, 5. Oktober 2006 15:03 schrieb Montrose, Ernest:
-> Hi Phil,
-> OK I was not very clear.  It was a little late in the day so forgive me.
-> Here are the details:
->
-> In /etc/drbd.conf I set:
-> handlers{
-> local-io-error "echo 0> /proc/sysrq-trigger; halt -f";
-> }
->
-> In disk I just have:
-> Disk{
-> on-io-error detach;
-> }
->
-> If I now do a "drbdadm -d state all" for example I get:
-> /etc/drbd.conf:31: Parse eror: 'an option keyword' expected,
->  but got 'local-io-error'.
->
-> It seems like the implementation is in the driver but not in drbdsetup(1).
->
-> Thanks.
+This is a multi-part message in MIME format.
 
-Oh, yes right. You are right, I forgot to add this to drbdadm, and
-to drbdadm's scanner/parser. I will do this on Friday, please comment=20
-the handler out of your config file in the mean time.
+------_=_NextPart_001_01C6E8C6.6EBB2A09
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-You should be able to see the event in the output of=20
-'drbdsetup /dev/drbd0 events -a'.
+Hi all,
+If I do an ifdown and an ifup on the heartbeat link drbd goes into
+CS:Disconnecting .  I cannot manually recover until a reboot. Should the
+state be "StandAlone" instead? I include a patch that seems to work for
+me.
 
-=2DPhil
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+A side question:
+Should drbd notice when the link comes up?  He does not seem to.
+
+Thanks.
+
+EM--
+
+
+------_=_NextPart_001_01C6E8C6.6EBB2A09
+Content-Type: application/octet-stream;
+	name="drbd_receiver_CS.patch"
+Content-Transfer-Encoding: base64
+Content-Description: drbd_receiver_CS.patch
+Content-Disposition: attachment;
+	filename="drbd_receiver_CS.patch"
+
+SW5kZXg6IHRydW5rL2RyYmQvZHJiZF9yZWNlaXZlci5jCj09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHRydW5rL2Ry
+YmQvZHJiZF9yZWNlaXZlci5jCShyZXZpc2lvbiA0ODk0KQorKysgdHJ1bmsvZHJiZC9kcmJkX3Jl
+Y2VpdmVyLmMJKHdvcmtpbmcgY29weSkKQEAgLTYyNSw3ICs2MjUsNyBAQAogCWlmIChlcnIpIHsK
+IAkJRVJSKCJVbmFibGUgdG8gYmluZCBzb2NrMiAoJWQpXG4iLCBlcnIpOwogCQlzb2NrX3JlbGVh
+c2Uoc29jazIpOwotCQlkcmJkX2ZvcmNlX3N0YXRlKG1kZXYsTlMoY29ubixEaXNjb25uZWN0aW5n
+KSk7CisJCWRyYmRfZm9yY2Vfc3RhdGUobWRldixOUyhjb25uLFN0YW5kQWxvbmUpKTsKIAkJcmV0
+dXJuIE5VTEw7CiAJfQogCkBAIC0yODIxLDcgKzI4MjEsNyBAQAogCQl9CiAJCWlmKCBoIDwgMCAp
+IHsKIAkJCVdBUk4oIkRpc2NhcmRpbmcgbmV0d29yayBjb25maWd1cmF0aW9uLlxuIik7Ci0JCQlk
+cmJkX2ZvcmNlX3N0YXRlKG1kZXYsTlMoY29ubixEaXNjb25uZWN0aW5nKSk7CisJCQlkcmJkX2Zv
+cmNlX3N0YXRlKG1kZXYsTlMoY29ubixTdGFuZEFsb25lKSk7CiAJCX0KIAl9IHdoaWxlICggaCA9
+PSAwICk7CiAK
+
+------_=_NextPart_001_01C6E8C6.6EBB2A09--
