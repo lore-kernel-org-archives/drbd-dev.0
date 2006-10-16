@@ -1,15 +1,15 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: "Graham, Simon" <Simon.Graham@stratus.com>
-Date: Mon, 16 Oct 2006 13:53:29 +0200
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200610161353.29732.philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] Regarding rs_failed...
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
+Date: Mon, 16 Oct 2006 09:16:34 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B3767103C3BAA6@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] FW: [DRBD-cvs] svn commit by phil - r2534 - trunk/drbd -
+	Added missinginitialisations of rs_failed.
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,22 +19,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Simon,
-
-When you introduced the rs_failed memers of the resync requests, there
-happened some minor glitches I think:
-
- *) Missed to initialize it in drbd_rs_begin_io() actually _bme_get()
- *) Missed to initialize it in case we overwrite an element in the=20
-    resynch LRU cache in drbd_try_clear_on_disk_bm().
-
-Additionally I renamed the "cleared" variable to "count" with the=20
-2534 commit.
-
-Did I missed something ?
-
-=2DPhilipp
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=C3=B6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+VGhhbmtzIGZvciBmaW5kaW5nL2ZpeGluZyBteSBidWdzISBJIGRvIGhhdmUgb25lIHF1ZXN0aW9u
+IG9uIHRoaXMgY2hhbmdlIHRob3VnaDoNCg0KCQlsY19wdXQobWRldi0+cmVzeW5jLCZleHQtPmxj
+ZSk7DQogCQkvLyBubyByYWNlLCB3ZSBhcmUgd2l0aGluIHRoZSBhbF9sb2NrIQ0KIA0KLQkJaWYg
+KGV4dC0+cnNfbGVmdCA8PSBleHQtPnJzX2ZhaWxlZCkgew0KLQkJCWV4dC0+cnNfbGVmdCA9IGV4
+dC0+cnNfZmFpbGVkID0gMDsNCisJCWlmIChleHQtPnJzX2xlZnQgPT0gZXh0LT5yc19mYWlsZWQp
+IHsNCisJCQlleHQtPnJzX2ZhaWxlZCA9IDA7DQoNCldpdGggdGhpcyBjaGFuZ2UsIHdoZW4gcnNf
+bGVmdD09cnNfZmFpbGVkLCB5b3UgZG8gbm90IGNsZWFyIHJzX2xlZnQgYnV0IG9ubHkgcnNfZmFp
+bGVkIC0tIEkgY2xlYXJlZCBib3RoIHNvIHRoYXQgbmV4dCB0aW1lIHdlIHVzZWQgdGhlIGV4dGVu
+dCB3ZSdkIHN0YXJ0IGZyb20gc2NyYXRjaCBhZ2FpbiAtIHdhcyBteSB1bmRlcnN0YW5kaW5nIGlu
+Y29ycmVjdD8NCg0KU2ltb24NCg0KUFM6IEZXSVcsIEkgY2hvc2UgdG8gdXNlIDw9IHJhdGhlciB0
+aGFuID09IGRlbGliZXJhdGVseSBhcyBJIGZlbHQgdGhpcyBpcyBtb3JlIHRvbGVyYW50IG9mIHBy
+b2JsZW1zIGVsc2V3aGVyZSBpbiB0aGUgY29kZSAtLSB5ZXMgaW4gdGhlb3J5IHJzX2xlZnQgc2hv
+dWxkIG5ldmVyIGJlIGxlc3MgdGhhbiByc19mYWlsZWQgYnV0IDw9IHdvcmtzIGFzIHdlbGwgYW5k
+IGFjdHVhbGx5IGJldHRlciBpZiB0aGVyZSBpcyBhIGJ1ZyBlbHNld2hlcmUgdGhhdCBkZWNyZW1l
+bnRzIHJzX2xlZnQgd2hlbiBpdCBzaG91bGRuJ3QuLi4NCg==
