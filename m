@@ -1,15 +1,22 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (office.linbit [213.229.1.138])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 6FD4D2DF653F
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Oct 2006 15:59:15 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] FW: [DRBD-cvs] svn commit by phil - r2534 - trunk/drbd
+	- Added missinginitialisations of rs_failed.
+Date: Mon, 16 Oct 2006 15:59:15 +0200
+References: <342BAC0A5467384983B586A6B0B3767103C3BAA6@EXNA.corp.stratus.com>
+In-Reply-To: <342BAC0A5467384983B586A6B0B3767103C3BAA6@EXNA.corp.stratus.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="utf-8"
-Content-Transfer-Encoding: base64
-Date: Mon, 16 Oct 2006 09:16:34 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B3767103C3BAA6@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] FW: [DRBD-cvs] svn commit by phil - r2534 - trunk/drbd -
-	Added missinginitialisations of rs_failed.
+  charset="iso-8859-15"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+Message-Id: <200610161559.15412.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,18 +26,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-VGhhbmtzIGZvciBmaW5kaW5nL2ZpeGluZyBteSBidWdzISBJIGRvIGhhdmUgb25lIHF1ZXN0aW9u
-IG9uIHRoaXMgY2hhbmdlIHRob3VnaDoNCg0KCQlsY19wdXQobWRldi0+cmVzeW5jLCZleHQtPmxj
-ZSk7DQogCQkvLyBubyByYWNlLCB3ZSBhcmUgd2l0aGluIHRoZSBhbF9sb2NrIQ0KIA0KLQkJaWYg
-KGV4dC0+cnNfbGVmdCA8PSBleHQtPnJzX2ZhaWxlZCkgew0KLQkJCWV4dC0+cnNfbGVmdCA9IGV4
-dC0+cnNfZmFpbGVkID0gMDsNCisJCWlmIChleHQtPnJzX2xlZnQgPT0gZXh0LT5yc19mYWlsZWQp
-IHsNCisJCQlleHQtPnJzX2ZhaWxlZCA9IDA7DQoNCldpdGggdGhpcyBjaGFuZ2UsIHdoZW4gcnNf
-bGVmdD09cnNfZmFpbGVkLCB5b3UgZG8gbm90IGNsZWFyIHJzX2xlZnQgYnV0IG9ubHkgcnNfZmFp
-bGVkIC0tIEkgY2xlYXJlZCBib3RoIHNvIHRoYXQgbmV4dCB0aW1lIHdlIHVzZWQgdGhlIGV4dGVu
-dCB3ZSdkIHN0YXJ0IGZyb20gc2NyYXRjaCBhZ2FpbiAtIHdhcyBteSB1bmRlcnN0YW5kaW5nIGlu
-Y29ycmVjdD8NCg0KU2ltb24NCg0KUFM6IEZXSVcsIEkgY2hvc2UgdG8gdXNlIDw9IHJhdGhlciB0
-aGFuID09IGRlbGliZXJhdGVseSBhcyBJIGZlbHQgdGhpcyBpcyBtb3JlIHRvbGVyYW50IG9mIHBy
-b2JsZW1zIGVsc2V3aGVyZSBpbiB0aGUgY29kZSAtLSB5ZXMgaW4gdGhlb3J5IHJzX2xlZnQgc2hv
-dWxkIG5ldmVyIGJlIGxlc3MgdGhhbiByc19mYWlsZWQgYnV0IDw9IHdvcmtzIGFzIHdlbGwgYW5k
-IGFjdHVhbGx5IGJldHRlciBpZiB0aGVyZSBpcyBhIGJ1ZyBlbHNld2hlcmUgdGhhdCBkZWNyZW1l
-bnRzIHJzX2xlZnQgd2hlbiBpdCBzaG91bGRuJ3QuLi4NCg==
+Am Montag, 16. Oktober 2006 15:16 schrieb Graham, Simon:
+> Thanks for finding/fixing my bugs! I do have one question on this change
+> though:
+>
+> 		lc_put(mdev->resync,&ext->lce);
+>  		// no race, we are within the al_lock!
+>
+> -		if (ext->rs_left <=3D ext->rs_failed) {
+> -			ext->rs_left =3D ext->rs_failed =3D 0;
+> +		if (ext->rs_left =3D=3D ext->rs_failed) {
+> +			ext->rs_failed =3D 0;
+>
+> With this change, when rs_left=3D=3Drs_failed, you do not clear rs_left b=
+ut
+> only rs_failed -- I cleared both so that next time we used the extent we'd
+> start from scratch again - was my understanding incorrect?
+
+Yes, I just changed it from "cleanup after use" to "initialize before use" =
+;)
+The "cleanup after use" semantics is for all cases correct, but not for
+the first use.
+
+>
+> Simon
+>
+> PS: FWIW, I chose to use <=3D rather than =3D=3D deliberately as I felt t=
+his is
+> more tolerant of problems elsewhere in the code -- yes in theory rs_left
+> should never be less than rs_failed but <=3D works as well and actually
+> better if there is a bug elsewhere that decrements rs_left when it
+> shouldn't...
+
+I can really follow that, and would have done it the same probably. But
+with the bug that hit me today, that "<=3D" caused more trouble than a
+"=3D=3D" does ;)
+
+The "<" case is explicitly caught with the ERR("BAD!...) statement...
+
+=2DPhilipp
+=2D-=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
