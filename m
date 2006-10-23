@@ -1,13 +1,21 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (office.linbit [213.229.1.138])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BFDC2D9E069
+	for <drbd-dev@lists.linbit.com>; Mon, 23 Oct 2006 10:22:41 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD8: drbd.conf after-sb-2pri panic ??
+Date: Mon, 23 Oct 2006 10:22:37 +0200
+References: <BD7042533C2F8943A6A4257A9E31C45439C80E@EXNA.corp.stratus.com>
+In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C80E@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----_=_NextPart_001_01C6F3B7.AA1ACB91"
-Date: Thu, 19 Oct 2006 15:49:18 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C80E@EXNA.corp.stratus.com>
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] DRBD8: drbd.conf after-sb-2pri panic ??
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200610231022.37814.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,179 +25,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+Am Donnerstag, 19. Oktober 2006 21:49 schrieb Montrose, Ernest:
+> Hi all,
+> In /etc/drbd.conf I am setting the NET parameter after-sb-2-pri to
+> "panic".  But this is not implemented by drbdsetup(1).
+> Drbdsetup returns "Handler not known".  Is this superceded by
+> "call-pri-lost-after-sb"?
+>
 
-------_=_NextPart_001_01C6F3B7.AA1ACB91
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Yes, right. In the example config I have set that handler to 
+halt the machine:
 
-Hi all,
-In /etc/drbd.conf I am setting the NET parameter after-sb-2-pri to
-"panic".  But this is not implemented by drbdsetup(1).
-Drbdsetup returns "Handler not known".  Is this superceded by
-"call-pri-lost-after-sb"?
-=20
-Thanks,
-EM--
+pri-lost-after-sb "echo O > /proc/sysrq-trigger ; halt -f";
 
-------_=_NextPart_001_01C6F3B7.AA1ACB91
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
 
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
-xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
-charset=3Dus-ascii">
-<meta name=3DProgId content=3DWord.Document>
-<meta name=3DGenerator content=3D"Microsoft Word 11">
-<meta name=3DOriginator content=3D"Microsoft Word 11">
-<link rel=3DFile-List href=3D"cid:filelist.xml@01C6F396.22FF52C0">
-<!--[if gte mso 9]><xml>
- <o:OfficeDocumentSettings>
-  <o:DoNotRelyOnCSS/>
- </o:OfficeDocumentSettings>
-</xml><![endif]--><!--[if gte mso 9]><xml>
- <w:WordDocument>
-  <w:SpellingState>Clean</w:SpellingState>
-  <w:GrammarState>Clean</w:GrammarState>
-  <w:DocumentKind>DocumentEmail</w:DocumentKind>
-  <w:EnvelopeVis/>
-  <w:ValidateAgainstSchemas/>
-  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
-  <w:IgnoreMixedContent>false</w:IgnoreMixedContent>
-  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
-  <w:Compatibility>
-   <w:BreakWrappedTables/>
-   <w:SnapToGridInCell/>
-   <w:WrapTextWithPunct/>
-   <w:UseAsianBreakRules/>
-   <w:UseWord2002TableStyleRules/>
-  </w:Compatibility>
-  <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
- </w:WordDocument>
-</xml><![endif]--><!--[if gte mso 9]><xml>
- <w:LatentStyles DefLockedState=3D"false" LatentStyleCount=3D"156">
- </w:LatentStyles>
-</xml><![endif]-->
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0in;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-a:link, span.MsoHyperlink
-	{color:blue;
-	text-decoration:underline;
-	text-underline:single;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-span.EmailStyle17
-	{mso-style-type:personal-compose;
-	mso-style-noshow:yes;
-	mso-ansi-font-size:10.0pt;
-	mso-bidi-font-size:10.0pt;
-	font-family:Arial;
-	mso-ascii-font-family:Arial;
-	mso-hansi-font-family:Arial;
-	mso-bidi-font-family:Arial;
-	color:windowtext;}
-span.SpellE
-	{mso-style-name:"";
-	mso-spl-e:yes;}
-span.GramE
-	{mso-style-name:"";
-	mso-gram-e:yes;}
-@page Section1
-	{size:8.5in 11.0in;
-	margin:1.0in 1.25in 1.0in 1.25in;
-	mso-header-margin:.5in;
-	mso-footer-margin:.5in;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-<!--[if gte mso 10]>
-<style>
- /* Style Definitions */=20
- table.MsoNormalTable
-	{mso-style-name:"Table Normal";
-	mso-tstyle-rowband-size:0;
-	mso-tstyle-colband-size:0;
-	mso-style-noshow:yes;
-	mso-style-parent:"";
-	mso-padding-alt:0in 5.4pt 0in 5.4pt;
-	mso-para-margin:0in;
-	mso-para-margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:10.0pt;
-	font-family:"Times New Roman";
-	mso-ansi-language:#0400;
-	mso-fareast-language:#0400;
-	mso-bidi-language:#0400;}
-</style>
-<![endif]-->
-</head>
-
-<body lang=3DEN-US link=3Dblue vlink=3Dpurple =
-style=3D'tab-interval:.5in'>
-
-<div class=3DSection1>
-
-<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
-style=3D'font-size:10.0pt;
-font-family:Arial'>Hi all,<o:p></o:p></span></font></p>
-
-<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
-style=3D'font-size:10.0pt;
-font-family:Arial'>In /etc/<span class=3DSpellE>drbd.conf</span> I am =
-setting the
-NET parameter after-sb-2-pri to &#8220;panic&#8221;. <span
-style=3D'mso-spacerun:yes'>&nbsp;</span>But this is not implemented by =
-<span
-class=3DSpellE><span class=3DGramE>drbdsetup</span></span><span =
-class=3DGramE>(</span>1).<o:p></o:p></span></font></p>
-
-<p class=3DMsoNormal><span class=3DSpellE><font size=3D2 =
-face=3DArial><span
-style=3D'font-size:10.0pt;font-family:Arial'>Drbdsetup</span></font></spa=
-n><font
-size=3D2 face=3DArial><span =
-style=3D'font-size:10.0pt;font-family:Arial'> returns &#8220;Handler
-not known&#8221;.<span style=3D'mso-spacerun:yes'>&nbsp; </span>Is this =
-<span
-class=3DSpellE>superceded</span> by &#8220;call-<span =
-class=3DSpellE>pri-lost-after-sb</span>&#8221;?<o:p></o:p></span></font><=
-/p>
-
-<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
-style=3D'font-size:10.0pt;
-font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
-
-<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
-style=3D'font-size:10.0pt;
-font-family:Arial'>Thanks,<o:p></o:p></span></font></p>
-
-<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
-style=3D'font-size:10.0pt;
-font-family:Arial'>EM--<o:p></o:p></span></font></p>
-
-</div>
-
-</body>
-
-</html>
-
-------_=_NextPart_001_01C6F3B7.AA1ACB91--
+-Phil
