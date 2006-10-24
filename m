@@ -1,21 +1,16 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (office.linbit [213.229.1.138])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 4AC232DF6539
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Oct 2006 14:42:11 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
+Return-Path: <lmb@suse.de>
+Date: Tue, 24 Oct 2006 16:48:35 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] drbdsetup SEGV on command secondary --bogus_option
-Date: Tue, 24 Oct 2006 14:42:11 +0200
-References: <BD7042533C2F8943A6A4257A9E31C45439C810@EXNA.corp.stratus.com>
-In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C810@EXNA.corp.stratus.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <20061024144835.GH20631@marowsky-bree.de>
+References: <20061019145600.78C0B2DF6539@mail.linbit.com>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="+pHx0qQiF2pBVqBT"
 Content-Disposition: inline
-Message-Id: <200610241442.11922.philipp.reisner@linbit.com>
+In-Reply-To: <20061019145600.78C0B2DF6539@mail.linbit.com>
+Subject: [Drbd-dev] Re: [DRBD-cvs] svn commit by lars - r2551 - in
+	branches/drbd-0.7: . drbd drbd/linux scripts - fix some
+	odities in the paranoia checks of our build sy
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,18 +20,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Dienstag, 24. Oktober 2006 00:22 schrieb Montrose, Ernest:
-> Hi all,
-> A minor annoyance.  If you do
-> # drbdsetup /dev/somedevice secondary -bogus_option
-> one get a SEGV. I include a possible patch to fix this.
->
-> EM--
 
-Thanks!
+--+pHx0qQiF2pBVqBT
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-=2DPhil
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+On 2006-10-19T16:56:00, drbd-cvs@lists.linbit.com wrote:
+
+> Author: lars
+> Date: 2006-10-19 16:55:58 +0200 (Thu, 19 Oct 2006)
+> New Revision: 2551
+> 
+> Added:
+>    branches/drbd-0.7/scripts/get_uts_release.sh
+> Modified:
+>    branches/drbd-0.7/Makefile
+>    branches/drbd-0.7/drbd.spec.in
+>    branches/drbd-0.7/drbd/Makefile
+>    branches/drbd-0.7/drbd/drbd_worker.c
+>    branches/drbd-0.7/drbd/linux/drbd_config.h
+>    branches/drbd-0.7/scripts/adjust_drbd_config_h.sh
+> Log:
+> fix some odities in the paranoia checks of our build system,
+> should build agains 2.6.18 now out of the box.
+
+That actually introduced a bug: building the tgz now requires the
+kernel source to be installed, which is in fact only required when the
+kernel modules are built (and which could happen on another system).
+
+How about the rather simple patch attached instead?
+
+
+
+-- 
+High Availability & Clustering
+SUSE Labs, Research and Development
+SUSE LINUX Products GmbH - A Novell Business	 -- Charles Darwin
+"Ignorance more frequently begets confidence than does knowledge"
+
+
+--+pHx0qQiF2pBVqBT
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="drbd.diff"
+
+Index: Makefile
+===================================================================
+--- Makefile	(revision 2564)
++++ Makefile	(working copy)
+@@ -160,9 +160,6 @@
+ 
+ KDIR := $(shell echo /lib/modules/`uname -r`/build)
+ KVER := $(shell KDIR=$(KDIR) O=$(O) scripts/get_uts_release.sh)
+-ifeq ($(KVER),)
+-$(error "could not determine uts_release")
+-endif
+ 
+ kernel-patch: drbd/drbd_buildtag.c
+ 	set -o errexit; \
+@@ -173,6 +170,10 @@
+ 
+ # maybe even dist/RPMS/$(ARCH) ?
+ rpm: tgz
++	@if [ -z "$(KVER)" ]; then \
++		echo "Could not determine uts_release" ; \
++		false ; \
++	fi
+ 	mkdir -p dist/BUILD \
+ 	         dist/RPMS  \
+ 	         dist/SPECS \
+
+--+pHx0qQiF2pBVqBT--
