@@ -1,28 +1,20 @@
-Return-Path: <cyril@bouthors.org>
-Received: from mail.jexiste.org (lb2.jexiste.org [84.207.24.13])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 55D6D2DF6539
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Oct 2006 19:12:33 +0200 (CEST)
-Received: from [62.56.243.68] (helo=wide.bouthors.org)
-	by mail.jexiste.org with esmtpa (Exim 4.50) id 1GcPoA-0003b8-Nn
-	for drbd-dev@lists.linbit.com; Tue, 24 Oct 2006 19:12:33 +0200
-Received: from cyb by wide.bouthors.org with local (Exim 4.63)
-	(envelope-from <cyril@bouthors.org>) id 1GcPny-0004xb-2w
-	for drbd-dev@lists.linbit.com; Tue, 24 Oct 2006 20:11:10 +0300
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from barkeeper1 (office.linbit [213.229.1.138])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id C10C92D99A05
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Oct 2006 20:45:43 +0200 (CEST)
+Date: Tue, 24 Oct 2006 20:45:43 +0200
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] Re: [DRBD-announce] drbd-8.0pre5.tar.gz
+Message-ID: <20061024184543.GG9525@barkeeper1.linbit>
 References: <200610021114.55092.philipp.reisner@linbit.com>
 	<87u02nj8ua.fsf@wide.bouthors.org>
 	<200610021459.06658.philipp.reisner@linbit.com>
-From: Cyril Bouthors <cyril@bouthors.org>
-Date: Tue, 24 Oct 2006 20:11:09 +0300
-In-Reply-To: <200610021459.06658.philipp.reisner@linbit.com> (Philipp
-	Reisner's message of "Mon, 2 Oct 2006 14:59:06 +0200")
-Message-ID: <87u01tabbm.fsf@wide.bouthors.org>
+	<87u01tabbm.fsf@wide.bouthors.org>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87u01tabbm.fsf@wide.bouthors.org>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -32,34 +24,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---=-=-=
-Content-Transfer-Encoding: quoted-printable
+/ 2006-10-24 20:11:09 +0300
+\ Cyril Bouthors:
+> On  2 Oct 2006, philipp.reisner@linbit.com wrote:
+> 
+> > Applied both paches.
+> 
+> Still the same with 0.7.22:
+> 
+> Now running lintian...
+> W: drbd0.7-utils: init.d-script-missing-lsb-keyword /etc/init.d/drbd short-description
+> W: drbd0.7-utils: init.d-script-missing-lsb-keyword /etc/init.d/drbd required-stop
+> Finished running lintian.
+> 
+> Are you sure you've applied my patches?
 
-On  2 Oct 2006, philipp.reisner@linbit.com wrote:
+probably not in 0.7.
+so what.
 
-> Applied both paches.
 
-Still the same with 0.7.22:
-
-Now running lintian...
-W: drbd0.7-utils: init.d-script-missing-lsb-keyword /etc/init.d/drbd short-=
-description
-W: drbd0.7-utils: init.d-script-missing-lsb-keyword /etc/init.d/drbd requir=
-ed-stop
-Finished running lintian.
-
-Are you sure you've applied my patches?
-=2D-=20
-Cyril Bouthors
-
---=-=-=
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.5 (GNU/Linux)
-
-iD8DBQFFPkktZ1SJHeqsYt8RAjcNAKC1e8m2+A20BOLdVi8RSa/NT9un+QCgofrl
-UUCEqLQfgz9ATn3XMh2c3oY=
-=Eb39
------END PGP SIGNATURE-----
---=-=-=--
+-- 
+: Lars Ellenberg                                  Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
+: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
