@@ -1,14 +1,12 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <Simon.Graham@stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 27 Oct 2006 08:14:54 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C81A@EXNA.corp.stratus.com>
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] DRBD8: outdate-peer trigger scrip getting called twice??
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C6FAD5.4B49FB92"
+Content-class: urn:content-classes:message
+Date: Sat, 28 Oct 2006 17:08:57 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B3767103EB9ABC@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD-8: add (basic) tracing to netlink commands
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,13 +16,91 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+This is a multi-part message in MIME format.
 
-Hi all,
-In drbd.conf I set outdate-peer to "echo /dev/drbd0: hello world
->>/tmp/drbd.log"
-I then do an ifdown on the Interface for the heartbeat for drbd.
-On one node I get two "hello world" lines for drbd0
-On the other I get one line.  I don't suspect that's normal, is it?
+------_=_NextPart_001_01C6FAD5.4B49FB92
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-Thanks,
-EM--
+The attached patch adds some basic tracing to the netlink interface
+using the new TRACE() mechanism and a new trace type. I'd like to add
+more detailed tracing of the packets over time (probably based on
+generating code from drbd_nl.h).
+
+Simon
+
+
+
+------_=_NextPart_001_01C6FAD5.4B49FB92
+Content-Type: application/octet-stream;
+	name="nl-trace.patch"
+Content-Transfer-Encoding: base64
+Content-Description: nl-trace.patch
+Content-Disposition: attachment;
+	filename="nl-trace.patch"
+
+SW5kZXg6IGRyYmQvZHJiZF9ubC5jCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIGRyYmQvZHJiZF9ubC5jCSguLi4v
+dHJ1bmspCShyZXZpc2lvbiA1OTg5KQorKysgZHJiZC9kcmJkX25sLmMJKC4uLi9icmFuY2hlcy9w
+YW5pYy0yKQkocmV2aXNpb24gNTk4OSkKQEAgLTExNSwxMiArMTE1LDUyIEBACiAJdGFncyA9ICh1
+bnNpZ25lZCBzaG9ydCopKChjaGFyKil0YWdzICsgYXJnLT5tZW1iZXIgIyMgX2xlbik7CiAjaW5j
+bHVkZSAibGludXgvZHJiZF9ubC5oIgogCi0KIGV4dGVybiB2b2lkIGRyYmRfaW5pdF9zZXRfZGVm
+YXVsdHMoZHJiZF9kZXYgKm1kZXYpOwogdm9pZCBkcmJkX2JjYXN0X2V2X2hlbHBlcihkcmJkX2Rl
+diAqbWRldiwgY2hhciogaGVscGVyX25hbWUpOwogdm9pZCBkcmJkX25sX3NlbmRfcmVwbHkoc3Ry
+dWN0IGNuX21zZyAqLCBpbnQpOwogCitjaGFyICpubF9wYWNrZXRfbmFtZShpbnQgcGFja2V0X3R5
+cGUpIHsKKy8vIEdlbmVyYXRlIHBhY2tldCB0eXBlIHN0cmluZ3MKKyNkZWZpbmUgUEFDS0VUKG5h
+bWUsIG51bWJlciwgZmllbGRzKSBcCisJWyBQXyAjIyBuYW1lIF0gPSAjIG5hbWUsCisjZGVmaW5l
+IElOVEVHRVIgQXJnaCEKKyNkZWZpbmUgQklUIEFyZ2ghCisjZGVmaW5lIElOVDY0IEFyZ2ghCisj
+ZGVmaW5lIFNUUklORyBBcmdoIQogCisJc3RhdGljIGNoYXIgKm5sX3RhZ19uYW1lW1BfbmxfYWZ0
+ZXJfbGFzdF9wYWNrZXRdID0geworI2luY2x1ZGUgImxpbnV4L2RyYmRfbmwuaCIKKwl9OworCisJ
+cmV0dXJuIChwYWNrZXRfdHlwZSA8IHNpemVvZihubF90YWdfbmFtZSkvc2l6ZW9mKG5sX3RhZ19u
+YW1lWzBdKSkgPworCSAgICBubF90YWdfbmFtZVtwYWNrZXRfdHlwZV0gOiAiKlVua25vd24qIjsK
+K30KKwordm9pZCBubF90cmFjZV9wYWNrZXQodm9pZCAqZGF0YSkgeworCXN0cnVjdCBjbl9tc2cg
+KnJlcSA9IGRhdGE7CisJc3RydWN0IGRyYmRfbmxfY2ZnX3JlcSAqbmxwID0gKHN0cnVjdCBkcmJk
+X25sX2NmZ19yZXEqKXJlcS0+ZGF0YTsKKworCXByaW50ayhLRVJOX0lORk8gREVWSUNFX05BTUUg
+IiVkOiAiIAorCSAgICAgICAiTmV0bGluazogPDwgJXMgKCVkKSAtIHNlcTogJXgsIGFjazogJXgs
+IGxlbjogJXhcbiIsCisJICAgICAgIG5scC0+ZHJiZF9taW5vciwKKwkgICAgICAgbmxfcGFja2V0
+X25hbWUobmxwLT5wYWNrZXRfdHlwZSksCisJICAgICAgIG5scC0+cGFja2V0X3R5cGUsCisJICAg
+ICAgIHJlcS0+c2VxLCByZXEtPmFjaywgcmVxLT5sZW4pOworfQorCit2b2lkIG5sX3RyYWNlX3Jl
+cGx5KHZvaWQgKmRhdGEpIHsKKwlzdHJ1Y3QgY25fbXNnICpyZXEgPSBkYXRhOworCXN0cnVjdCBk
+cmJkX25sX2NmZ19yZXBseSAqbmxwID0gKHN0cnVjdCBkcmJkX25sX2NmZ19yZXBseSopcmVxLT5k
+YXRhOworCisJcHJpbnRrKEtFUk5fSU5GTyBERVZJQ0VfTkFNRSAiJWQ6ICIgCisJICAgICAgICJO
+ZXRsaW5rOiA+PiAlcyAoJWQpIC0gc2VxOiAleCwgYWNrOiAleCwgbGVuOiAleFxuIiwKKwkgICAg
+ICAgbmxwLT5taW5vciwKKwkgICAgICAgbmxwLT5wYWNrZXRfdHlwZT09UF9ubF9hZnRlcl9sYXN0
+X3BhY2tldD8gCisJICAgICAgICAgICAiRW1wdHktUmVwbHkiIDogbmxfcGFja2V0X25hbWUobmxw
+LT5wYWNrZXRfdHlwZSksCisJICAgICAgIG5scC0+cGFja2V0X3R5cGUsCisJICAgICAgIHJlcS0+
+c2VxLCByZXEtPmFjaywgcmVxLT5sZW4pOworfQorCiBpbnQgZHJiZF9raGVscGVyKGRyYmRfZGV2
+ICptZGV2LCBjaGFyKiBjbWQpCiB7CiAJY2hhciBtYlsxMl07CkBAIC0xNTA4LDYgKzE1NDgsOCBA
+QAogCQlnb3RvIGZhaWw7CiAJfQogCisJVFJBQ0UoVHJhY2VUeXBlTmwsIFRyYWNlTHZsU3VtbWFy
+eSwgbmxfdHJhY2VfcGFja2V0KGRhdGEpOyk7CisKIAlpZiggbmxwLT5wYWNrZXRfdHlwZSA+PSBQ
+X25sX2FmdGVyX2xhc3RfcGFja2V0ICkgewogCQlyZXRjb2RlPVVua25vd25OZXRMaW5rUGFja2V0
+OwogCQlnb3RvIGZhaWw7CkBAIC0xNTM1LDYgKzE1NzcsOCBAQAogCWNuX3JlcGx5LT5sZW4gPSBz
+aXplb2Yoc3RydWN0IGRyYmRfbmxfY2ZnX3JlcGx5KSArIHJyOwogCWNuX3JlcGx5LT5mbGFncyA9
+IDA7CiAKKwlUUkFDRShUcmFjZVR5cGVObCwgVHJhY2VMdmxTdW1tYXJ5LCBubF90cmFjZV9yZXBs
+eShjbl9yZXBseSk7KTsKKwogCXJyID0gY25fbmV0bGlua19zZW5kKGNuX3JlcGx5LCBDTl9JRFhf
+RFJCRCwgR0ZQX0tFUk5FTCk7CiAJaWYocnIgJiYgcnIgIT0gLUVTUkNIKSB7CiAJCXByaW50ayhL
+RVJOX0lORk8gREVWSUNFX05BTUUgIiBjbl9uZXRsaW5rX3NlbmQoKT0lZFxuIixycik7CkBAIC0x
+NTc3LDYgKzE2MjEsOCBAQAogCXJlcGx5LT5taW5vciA9IG1kZXZfdG9fbWlub3IobWRldik7CiAJ
+cmVwbHktPnJldF9jb2RlID0gTm9FcnJvcjsKIAorCVRSQUNFKFRyYWNlVHlwZU5sLCBUcmFjZUx2
+bFN1bW1hcnksIG5sX3RyYWNlX3JlcGx5KGNuX3JlcGx5KTspOworCiAJY25fbmV0bGlua19zZW5k
+KGNuX3JlcGx5LCBDTl9JRFhfRFJCRCwgR0ZQX0tFUk5FTCk7CiB9CiAKQEAgLTE2MTMsNiArMTY1
+OSw4IEBACiAJcmVwbHktPm1pbm9yID0gbWRldl90b19taW5vcihtZGV2KTsKIAlyZXBseS0+cmV0
+X2NvZGUgPSBOb0Vycm9yOwogCisJVFJBQ0UoVHJhY2VUeXBlTmwsIFRyYWNlTHZsU3VtbWFyeSwg
+bmxfdHJhY2VfcmVwbHkoY25fcmVwbHkpOyk7CisKIAljbl9uZXRsaW5rX3NlbmQoY25fcmVwbHks
+IENOX0lEWF9EUkJELCBHRlBfS0VSTkVMKTsKIH0KIApAQCAtMTY3MCw2ICsxNzE4LDggQEAKIAly
+ZXBseS0+bWlub3IgPSAoKHN0cnVjdCBkcmJkX25sX2NmZ19yZXEgKilyZXEtPmRhdGEpLT5kcmJk
+X21pbm9yOwogCXJlcGx5LT5yZXRfY29kZSA9IHJldF9jb2RlOwogCisJVFJBQ0UoVHJhY2VUeXBl
+TmwsIFRyYWNlTHZsU3VtbWFyeSwgbmxfdHJhY2VfcmVwbHkoY25fcmVwbHkpOyk7CisKIAlyciA9
+IGNuX25ldGxpbmtfc2VuZChjbl9yZXBseSwgQ05fSURYX0RSQkQsIEdGUF9LRVJORUwpOwogCWlm
+KHJyICYmIHJyICE9IC1FU1JDSCkgewogCQlwcmludGsoS0VSTl9JTkZPIERFVklDRV9OQU1FICIg
+Y25fbmV0bGlua19zZW5kKCk9JWRcbiIscnIpOwpJbmRleDogZHJiZC9kcmJkX2ludC5oCj09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT0KLS0tIGRyYmQvZHJiZF9pbnQuaAkoLi4uL3RydW5rKQkocmV2aXNpb24gNTk4OSkKKysr
+IGRyYmQvZHJiZF9pbnQuaAkoLi4uL2JyYW5jaGVzL3BhbmljLTIpCShyZXZpc2lvbiA1OTg5KQpA
+QCAtMTE3NSw2ICsxMTc1LDcgQEAKIAlUcmFjZVR5cGVSZXN5bmMgPSAweDAwMDAwMDA4LAogCVRy
+YWNlVHlwZUVFICAgICA9IDB4MDAwMDAwMTAsCiAJVHJhY2VUeXBlVW5wbHVnID0gMHgwMDAwMDAy
+MCwKKwlUcmFjZVR5cGVObCAgICAgPSAweDAwMDAwMDQwLAogfTsKIAogc3RhdGljIGlubGluZSBp
+bnQK
+
+------_=_NextPart_001_01C6FAD5.4B49FB92--
