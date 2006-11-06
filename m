@@ -1,18 +1,15 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: "Jacobson" <mengxx@ict.ac.cn>
-Date: Thu, 2 Nov 2006 09:57:05 +0100
-References: <200610241508.49069.philipp.reisner@linbit.com>
-	<004101c6fca1$1593f4b0$04710a0a@jacobson>
-In-Reply-To: <004101c6fca1$1593f4b0$04710a0a@jacobson>
+Return-Path: <Ernest.Montrose@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+	charset="US-ASCII"
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200611020957.06404.philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] Re: question about drbd
+Date: Mon, 6 Nov 2006 18:16:51 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C825@EXNA.corp.stratus.com>
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD8: Fencing and outdate-peer handler getting called
+	multiple times
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,29 +19,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Dienstag, 31. Oktober 2006 05:00 schrieb Jacobson:
-> Dear philipp:
->     I am now studying drbd code. I can not get why, in function
-> _drbd_send_page(),  the page send method can not be used in case of
-> PageSlab(page) =3D=3D 1? I am looking forword to your response:). Many th=
-anks.
-> one of drbd fan
+Hi all,
+I have submitted this issue before, sorry for resubmit.  Essentially, on
+the primary node if I do an ifdown on the heartbeat interface and I have
+fencing enable to say "resource-only" then on the primary node the
+outdate-peer script gets called twice.  Once for state Disconnecting,
+and the other for state Networkfailure.
 
-If I remeber correctly, pages that are controlled by slab have only a
-use count of one (Slab holds that single reference) [maybe it was zero,
-because slab does not use the reference counting on pages].
-When zero copy send is done, the network code simply decreases the
-reference count to that page by one.=20
+I also notice that if on a node that is primary, I issue a "drbdadm
+secondary r0" the outdate-peer script gets called again from
+drbd_set_role() this time.=20
 
-I think it was the slab code that does not like it if someone=20
-modifies the reference counts of the pages with are owned by=20
-slab.
+What is the exact policy for the outdate-peer script?
 
-PS: As noted in the code, the only FS at that time, was XFS, which=20
-    was using such pages...
-
-=2DPhil
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+Thanks,
+EM--
