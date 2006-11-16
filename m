@@ -1,18 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD8: Split-brain false positive on Primary/primary
-	potential patch
-Date: Thu, 16 Nov 2006 10:10:25 +0100
-References: <BD7042533C2F8943A6A4257A9E31C45439C826@EXNA.corp.stratus.com>
-In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C826@EXNA.corp.stratus.com>
+To: "Sylvain Coutant" <sco@adviseo.fr>
+Subject: Re: [Drbd-dev] larger than 4tb volume status
+Date: Thu, 16 Nov 2006 10:46:49 +0100
+References: <002a01c7095e$8fa6d640$f1141351@SonyVAIO>
+In-Reply-To: <002a01c7095e$8fa6d640$f1141351@SonyVAIO>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-15"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-Message-Id: <200611161010.25785.philipp.reisner@linbit.com>
-Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+Message-Id: <200611161046.49357.philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,40 +21,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Dienstag, 7. November 2006 00:47 schrieb Montrose, Ernest:
-> When running Primary/Primary if the Heartbeat connection goes down when
-> we recover we always split brain.  Simon had an idea which I have
-> implemented. He is on vacation  so this may not reflect his exact idea.
+Am Donnerstag, 16. November 2006 10:06 schrieben Sie:
+> >  * Selling DRBD+ licenses
 >
-> Essentially with this change, we do not create a new current UUID on the
-> node unless I/O is seen. This prevent Split-Brain mitigation when both
-> nodes are primary but only one node is originating I/O and never the
-> other.  He is only stand-by in that case.
+> The web site doesn't make clear what is DRBD's current limitation, it
+> states
 >
-> Take a look and let me know.
+>
+> - "single device is limited to 4 TB"
+> - "DRBD+ uses HIGHMEM[...]necessary in order to mirror over 4 TB in total
+> over all devices"
+>
+>
+> So, is it 4 TB total storage per node or 4 TB per drbd volume ? Is this
+> different for 32 bits and 64 bits systems ?
+>
+>
 
-Hi Ernest,
+I hope you do not use a proportional font to read your email:
 
-I understand your reasoning, I see the patch, which I guess does=20
-what you expect of it.
+              |         DRBD        |          DRBD+
+=2D-------------+---------------------+------------------------
+per Device    |    4TiB             |    16iBT on 32bit  (2)
+total         | ~4TiB on 32 bit (1) |    unlimited       (3)
 
-I do not want to do it that way for the following reasons:
 
- * It is only applicable in case you are using a 1-node filesystem
-   on a primary-primary DRBD cluster.
+(2) on 64 bit it is 2^72 Byte or 4 ZiByte or 4294967296 TiB
 
-   * I do not want users to do this. Because with this setup it is
-     easily possible to mount the FS on both nodes concurrently.
-     I want to protect the from themselfs ;)
+(1) You can do tricks with the kernel parameter vmalloc=3D=20
+    I do not know the exact limit by heart, but I guess you
+    will not be able to reach 6 TB on a 32 bit system.
+    On a 64 bit system it might be more (with vmalloc=3D tricks),
+    but I do not know.
 
-   * Users using a 1-node filesystem should use DRBD withe=20
-     primary and secondary role.
+(3) Unlimited. But limited by available system RAM. DRBD=20
+    allocates 32KiByte BitMap (in RAM) for 1GiByte of Storage.
 
- * I rather want to fix DRBD's split brain recovery methods to deal
-   with a cluster crash of a primary-primary cluster (actually this
-   is item 41 in the ROADMAP file)
+    Storage size   |  DRBD's RAM usage
+    ---------------+------------------
+       1 TiB       |       32 MiB
+       32 TiB      |       1 GiB
+       ...                 ...
 
-I have a few hours time today, I will work on this today...=20
+PS: The largest Volume I know of running in production is 20TB!
 
 =2DPhil
 =2D-=20
