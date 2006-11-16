@@ -1,15 +1,16 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="US-ASCII"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: Split-brain false positive on
-	Primary/primarypotential patch
-Date: Fri, 17 Nov 2006 09:28:50 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B3767104034A6B@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+Return-Path: <grauf@rfa.org>
+Date: Thu, 16 Nov 2006 10:55:00 -0500
+From: Federico Grau <grauf@rfa.org>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] larger than 4tb volume status
+Message-ID: <20061116155500.GA32511@rfa.org>
+References: <20061106234415.GB17405@rfa.org>
+	<200611160947.06338.philipp.reisner@linbit.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200611160947.06338.philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,46 +20,53 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> I agree here.
-> But see below why I still think Philipp is "right", too :)
->=20
->   But I think the provided patch (doing it only in al_begin_io) is
-> wrong.
->   actually it needs to be done as soon as the bitmap is touched,
->   so it needs be done in "set_out_of_sync", which may be called in the
->   cleanup code after connection loss, too, and will be, typically, on
-> the
->   actually active node.
->=20
+On Thu, Nov 16, 2006 at 09:47:06AM +0100, Philipp Reisner wrote:
+> Am Dienstag, 7. November 2006 00:44 schrieb Federico Grau:
+> > Hello,
+> >
+> > What is the plan for supporting volumes larger than 4terabytes, I don't see
+> > any mention to that in the svn ROADMAP file.
+> >
+> 
+> Our current business model has two tree steams of revenue in the DRBD area
+> 
+>  * Support contracts
+>  * Doing projects, workshops and consulting in the DRBD area
+>  * Selling DRBD+ licenses
+> 
+> Wile keeping the basis technology open source...
+> 
+> In case you have two times 4TB of storage you spent already quite some
+> money on hard disks. In that case we expect you to support DRBD with
+> buying a DRBD+ license. See http://www.linbit.com/en/drbd/drbd-plus/2/
+> 
 
-Yes, you are, of course, quite right -- any modification should result
-in the UUID update and not just updates by the file system above DRBD.
+Thank you for the response Phil,
 
-> one alternative would be to update the uuids where it is done now,
->   but only if we have been opened RW (we have that information anyways
->   somewhere), and do it again (unless already done) as soon as we are
->   opened rw. that would be correct, I think, and easy.
+While I respect your business model, part of our organizations IT plan is not
+to get trapped into subscription based technologies.  This is why we choose
+(and support financially and time-wise) Free Software based solutions.  
 
-I agree - that's actually a much better solution that is more in line
-with Phil's desire to protect against mounting a 1-node fs on both
-nodes; this decouples primaryness from the reality of which nodes are
-_actually_ using the volume.
+A couple years ago 4TB was quite large, but with terabyte hard drives soon to
+hit the market that is no longer the case.  Is there a roadmap or a list
+changes on what needs to be upgraded on DRBD so that it can support more that
+4TB or does someone from the community need to compile this?
 
-We can rework the patch to do it this way if this is acceptable.
+regards,
+donfede
 
->=20
-> Why we could leave the code as is, anyways:
->=20
->   we can leave it like it is right now, because the "after split brain
->   recovery" strategy "discard least changes" would do the same thing:
->   your assumtion was that the "inactive" node does no changes.
->   zero is less than anything else...
->=20
 
-Yes - if this is actually possible in a 2p case then it would work - I
-see that the current behavior of this setting is based on bit-0 of the
-current UUID which is set based on primaryness; since in a 2p case both
-will have the bit set I don't think this works. I'm not sure how you
-would track updates to be able to calculate 'least changes'...
-
-Simon
+-- 
+Federico Grau
+Free Software Developer and Sysadmin
+Radio Free Asia
+2025 M Street, NW
+Suite 300
+Washington, DC  20036
+202-587-2046  Telephone
+202-721-7468  Facsimile
+CONFIDENTIAL COMMUNICATION
+This e-mail message is intended only for the use of the addressee and may
+contain information that is privileged and confidential.  Any unauthorized
+dissemination, distribution, or copying is strictly prohibited.  If you
+receive this transmission in error, please contact network@rfa.org.
