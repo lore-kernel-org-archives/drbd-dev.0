@@ -1,17 +1,16 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: "Sylvain Coutant" <sco@adviseo.fr>
-Subject: Re: [Drbd-dev] larger than 4tb volume status
-Date: Thu, 16 Nov 2006 13:13:25 +0100
-References: <008401c70970$eb305970$f1141351@SonyVAIO>
-In-Reply-To: <008401c70970$eb305970$f1141351@SonyVAIO>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+	charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200611161313.25448.philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
+Subject: RE: [Drbd-dev] DRBD8: Split-brain false positive on Primary/primary
+	potential patch
+Date: Thu, 16 Nov 2006 07:52:14 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B37671040347F7@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,21 +20,75 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Donnerstag, 16. November 2006 12:18 schrieb Sylvain Coutant:
-> > I hope you do not use a proportional font to read your email:
+Not sure I agree that the current behavior is protecting users from =
+themselves -- it only causes the split-brain if you lose the n/w and =
+during 'normal' operation and there is nothing that protects against =
+mounting a 1-node fs on both nodes of a primary-primary DRBD cluster.
+
+Running primary-secondary doesn't work if you are in a situation where =
+it is not possible to switch primaryness when failing over; a good =
+example of that is if you want to run a Xen virtual machine on top of a =
+DRBD partition and support live migration of the VM (the problem is that =
+Xen doesn't provide the means to execute a script to change primaryness =
+at the required point in the migration). Of course you could argue that =
+this is a Xen bug _but_ pragmatically, the proposed patch to delay =
+updating the UUID until an actual write occurs preserves (I believe) =
+correctness in DRBD and works without introducing new features into Xen.
+
+Recovering from split-brain automatically is of course something that is =
+incredibly valuable but I think it can be treated orthogonally to the =
+proposed fix.
+
+Simon
+
+-----Original Message-----
+From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
+Sent: Thursday, November 16, 2006 4:10 AM
+To: drbd-dev@linbit.com
+Cc: Montrose, Ernest; Graham, Simon
+Subject: Re: [Drbd-dev] DRBD8: Split-brain false positive on =
+Primary/primary potential patch
+
+Am Dienstag, 7. November 2006 00:47 schrieb Montrose, Ernest:
+> When running Primary/Primary if the Heartbeat connection goes down =
+when
+> we recover we always split brain.  Simon had an idea which I have
+> implemented. He is on vacation  so this may not reflect his exact =
+idea.
 >
-> Nice. Thanks.
+> Essentially with this change, we do not create a new current UUID on =
+the
+> node unless I/O is seen. This prevent Split-Brain mitigation when both
+> nodes are primary but only one node is originating I/O and never the
+> other.  He is only stand-by in that case.
 >
+> Take a look and let me know.
 
-I took this as cause to write a real DRBD-Fact sheet.
+Hi Ernest,
 
-http://www.linbit.com/fileadmin/linbit/DRBD-Faktblatt.pdf
-http://www.linbit.com/fileadmin/linbit/DRBD-Factsheet.pdf
+I understand your reasoning, I see the patch, which I guess does=20
+what you expect of it.
 
-linked in from the DRBD+ feature page.
+I do not want to do it that way for the following reasons:
 
-=2DPhil
-=2D-=20
+ * It is only applicable in case you are using a 1-node filesystem
+   on a primary-primary DRBD cluster.
+
+   * I do not want users to do this. Because with this setup it is
+     easily possible to mount the FS on both nodes concurrently.
+     I want to protect the from themselfs ;)
+
+   * Users using a 1-node filesystem should use DRBD withe=20
+     primary and secondary role.
+
+ * I rather want to fix DRBD's split brain recovery methods to deal
+   with a cluster crash of a primary-primary cluster (actually this
+   is item 41 in the ROADMAP file)
+
+I have a few hours time today, I will work on this today...=20
+
+-Phil
+--=20
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
 : Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
