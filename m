@@ -1,14 +1,14 @@
-Return-Path: <Ernest.Montrose@stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="US-ASCII"
 Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: Fencing and outdate-peer handler getting
-	calledmultiple times
-Date: Fri, 17 Nov 2006 09:18:17 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C838@EXNA.corp.stratus.com>
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+Subject: RE: [Drbd-dev] DRBD8: Split-brain false positive on
+	Primary/primarypotential patch
+Date: Fri, 17 Nov 2006 09:28:50 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B3767104034A6B@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
 To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
@@ -19,55 +19,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Lars,
-Aha! Thanks for the clarification. I will try again.
-
-EM--
-
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Lars Ellenberg
-Sent: Friday, November 17, 2006 9:13 AM
-To: drbd-dev@linbit.com
-Subject: Re: [Drbd-dev] DRBD8: Fencing and outdate-peer handler getting
-calledmultiple times
-
-/ 2006-11-16 08:10:56 -0500
-\ Montrose, Ernest:
-> Phil,
-> My outdate-peer handler simply says "echo /deve/drbd0: Running handler
-for outdate-peer >>/tmp/drbdio.log"
-> And that log file is populated and created so I can only assume that
-did indicate success.
-> In this case success being an exit status of 0.
-
-and exactly that assumption is wrong.
-
-in your kernel log you should find messages like
-"outdate-peer helper broken, returned 0"=20
-
->   If the disk state of the peer is unknown, drbd calls this=20
->   handler (yes a call to userspace from kernel space). The handler's
->   returncodes are:
+> I agree here.
+> But see below why I still think Philipp is "right", too :)
 >=20
->   3 -> peer is inconsistent=20
->   4 -> peer is outdated (this handler outdated it) [ resource fencing
-]
->   5 -> peer was down / unreachable
->   6 -> peer is primary
->   7 -> peer got stonithed [ node fencing ]
+>   But I think the provided patch (doing it only in al_begin_io) is
+> wrong.
+>   actually it needs to be done as soon as the bitmap is touched,
+>   so it needs be done in "set_out_of_sync", which may be called in the
+>   cleanup code after connection loss, too, and will be, typically, on
+> the
+>   actually active node.
+>=20
 
-these are the only valid return codes.
+Yes, you are, of course, quite right -- any modification should result
+in the UUID update and not just updates by the file system above DRBD.
 
-"success" being defined as=20
-  "was able to outdate the peer" respective
-  "peer need not to be outdated"
+> one alternative would be to update the uuids where it is done now,
+>   but only if we have been opened RW (we have that information anyways
+>   somewhere), and do it again (unless already done) as soon as we are
+>   opened rw. that would be correct, I think, and easy.
 
---=20
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
-_______________________________________________
-drbd-dev mailing list
-drbd-dev@lists.linbit.com
-http://lists.linbit.com/mailman/listinfo/drbd-dev
+I agree - that's actually a much better solution that is more in line
+with Phil's desire to protect against mounting a 1-node fs on both
+nodes; this decouples primaryness from the reality of which nodes are
+_actually_ using the volume.
+
+We can rework the patch to do it this way if this is acceptable.
+
+>=20
+> Why we could leave the code as is, anyways:
+>=20
+>   we can leave it like it is right now, because the "after split brain
+>   recovery" strategy "discard least changes" would do the same thing:
+>   your assumtion was that the "inactive" node does no changes.
+>   zero is less than anything else...
+>=20
+
+Yes - if this is actually possible in a 2p case then it would work - I
+see that the current behavior of this setting is based on bit-0 of the
+current UUID which is set based on primaryness; since in a 2p case both
+will have the bit set I don't think this works. I'm not sure how you
+would track updates to be able to calculate 'least changes'...
+
+Simon
