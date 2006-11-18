@@ -1,16 +1,18 @@
-Return-Path: <grauf@rfa.org>
-Date: Thu, 16 Nov 2006 10:55:00 -0500
-From: Federico Grau <grauf@rfa.org>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Subject: Re: [Drbd-dev] larger than 4tb volume status
-Message-ID: <20061116155500.GA32511@rfa.org>
-References: <20061106234415.GB17405@rfa.org>
-	<200611160947.06338.philipp.reisner@linbit.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD8: Split-brain false positive on Primary/primary
+	potential patch
+Date: Sat, 18 Nov 2006 12:00:40 +0100
+References: <BD7042533C2F8943A6A4257A9E31C45439C826@EXNA.corp.stratus.com>
+In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C826@EXNA.corp.stratus.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200611160947.06338.philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
+Message-Id: <200611181200.41393.philipp.reisner@linbit.com>
+Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,53 +22,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Nov 16, 2006 at 09:47:06AM +0100, Philipp Reisner wrote:
-> Am Dienstag, 7. November 2006 00:44 schrieb Federico Grau:
-> > Hello,
-> >
-> > What is the plan for supporting volumes larger than 4terabytes, I don't see
-> > any mention to that in the svn ROADMAP file.
-> >
-> 
-> Our current business model has two tree steams of revenue in the DRBD area
-> 
->  * Support contracts
->  * Doing projects, workshops and consulting in the DRBD area
->  * Selling DRBD+ licenses
-> 
-> Wile keeping the basis technology open source...
-> 
-> In case you have two times 4TB of storage you spent already quite some
-> money on hard disks. In that case we expect you to support DRBD with
-> buying a DRBD+ license. See http://www.linbit.com/en/drbd/drbd-plus/2/
-> 
+Am Dienstag, 7. November 2006 00:47 schrieb Montrose, Ernest:
+> When running Primary/Primary if the Heartbeat connection goes down when
+> we recover we always split brain.  Simon had an idea which I have
+> implemented. He is on vacation  so this may not reflect his exact idea.
+>
+> Essentially with this change, we do not create a new current UUID on the
+> node unless I/O is seen. This prevent Split-Brain mitigation when both
+> nodes are primary but only one node is originating I/O and never the
+> other.  He is only stand-by in that case.
+>
+> Take a look and let me know.
+>
 
-Thank you for the response Phil,
+Hi Ernset and Simon,
 
-While I respect your business model, part of our organizations IT plan is not
-to get trapped into subscription based technologies.  This is why we choose
-(and support financially and time-wise) Free Software based solutions.  
+I found an good examply why I do not like this approach:
 
-A couple years ago 4TB was quite large, but with terabyte hard drives soon to
-hit the market that is no longer the case.  Is there a roadmap or a list
-changes on what needs to be upgraded on DRBD so that it can support more that
-4TB or does someone from the community need to compile this?
+  N1/P   ---    N2/P/M both primary, FS mounted on N2 and is completely idle.
+  N1/P   - -    N2/P/M network breaks (still unchanged UUIDs on both sides)
+  N1/P/M - -    N2/P/M users mounts FS on N1 (and modifies data, new UUID N1)
+  N1/P   - -    N2/P/M users umounts FS on N1.
+  N1/P   ->-    N2/P/M Network gets repaired. Sync from N1 to N2.
 
-regards,
-donfede
+  With the patch you sent, we would get a resync from N1 to N2, instantly 
+  corrupting all the cached information that the FS on N2 might have from 
+  the data!
 
 
--- 
-Federico Grau
-Free Software Developer and Sysadmin
-Radio Free Asia
-2025 M Street, NW
-Suite 300
-Washington, DC  20036
-202-587-2046  Telephone
-202-721-7468  Facsimile
-CONFIDENTIAL COMMUNICATION
-This e-mail message is intended only for the use of the addressee and may
-contain information that is privileged and confidential.  Any unauthorized
-dissemination, distribution, or copying is strictly prohibited.  If you
-receive this transmission in error, please contact network@rfa.org.
+I understand you test scenario therefore I introduced this solution to your
+problem:
+
+Implemented a new after-slit-brain-0pri policy:
+       "discard-zero-changes"
+                      Auto sync from the node that modified
+                      blocks during the split brain situation, but only
+                      if the target not did not touched a single block.
+                      If both nodes touched their data, this policy
+                      falls back to disconnect.
+
+And a new after-sb-1pri & 2pri policy
+     "violently-as0p" Alsways take the decission of the "after-sb-0pri"
+                      algorithm. Even if that causes case an erratic change
+                      of the primarie's view of the data.
+                      This is only usefull if you use an 1node FS (i.e.
+                      not OCFS2 or GFS) with the allow-two-primaries
+                      flag, _AND_ you really know what you are doing.
+                      This is DANGEROUS and MAY CRASH YOUR MACHINE if you
+                      have a FS mounted on the primary node.
+
+
+Now you need to configure it like this:
+
+after-sb-0pri discard-zero-changes;
+after-sb-1pri violently-as0p;
+after-sb-2pri violently-as0p;
+
+And you can do the tests with the behaviour you expect, but other
+users are free to select an other behaviour.
+
+-Phil
