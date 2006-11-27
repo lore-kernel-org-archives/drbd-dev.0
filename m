@@ -1,18 +1,13 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD8: Split-brain false positive on Primary/primary
-	potential patch
-Date: Mon, 20 Nov 2006 14:53:29 +0100
-References: <BD7042533C2F8943A6A4257A9E31C45439C83C@EXNA.corp.stratus.com>
-In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C83C@EXNA.corp.stratus.com>
+Return-Path: <Ernest.Montrose@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200611201453.29831.philipp.reisner@linbit.com>
-Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01C71273.4F1B99EE"
+Date: Mon, 27 Nov 2006 17:28:06 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C843@EXNA.corp.stratus.com>
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD8: Stuck in WFBitMapS state even across reboot.
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,23 +17,238 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Montag, 20. November 2006 14:38 schrieb Montrose, Ernest:
-> Phil,
-> Thanks!  I will retest our scenario with this new configuration.
-> Hopefully this will yield the desired results for our specific
-> configuration.  Thanks a lot.
->
+This is a multi-part message in MIME format.
 
-While I got on the toppic I realized that there are more cases
-where the user assigned roles are might be in conflict with the=20
-sync redirection that gets negotiated during connect.
+------_=_NextPart_001_01C71273.4F1B99EE
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-Therefore I introduced the "rr-conflict" setting.
+Hi all,
+I am seeing a problem where both nodes get stuck in the WFBitMaps state
+even across a reboot.
+Dmesg also reveals this on both nodes:
+Drbd0: [drbd0_receiver/4800] sock_sendmsg time expired, ko =3D =
+4294967256
+.......
+Drbd0: Split-brain detected, manuall solved. Sync from this node
+Both nodes reports this split brain message.  My configuration for
+device 0 has the following new
+Settings NET:
+rr-conflict violently;
+after-sb-1pri violently-as0p;
+after-sb-2pri violently-as0p;
+=20
+Thanks for any help.
+=20
+EM--
 
-=46or your setup you should use "rr-conflict violently;"
+------_=_NextPart_001_01C71273.4F1B99EE
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-=2DPhil
-=2D-=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Sch=F6nbrunnerstr 244, 1120 Vienna, Austria    http://www.linbit.com :
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Dus-ascii">
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 11">
+<meta name=3DOriginator content=3D"Microsoft Word 11">
+<link rel=3DFile-List href=3D"cid:filelist.xml@01C71249.66276980">
+<!--[if gte mso 9]><xml>
+ <o:OfficeDocumentSettings>
+  <o:DoNotRelyOnCSS/>
+ </o:OfficeDocumentSettings>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:SpellingState>Clean</w:SpellingState>
+  <w:GrammarState>Clean</w:GrammarState>
+  <w:DocumentKind>DocumentEmail</w:DocumentKind>
+  <w:EnvelopeVis/>
+  <w:ValidateAgainstSchemas/>
+  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+  <w:IgnoreMixedContent>false</w:IgnoreMixedContent>
+  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+  <w:Compatibility>
+   <w:BreakWrappedTables/>
+   <w:SnapToGridInCell/>
+   <w:WrapTextWithPunct/>
+   <w:UseAsianBreakRules/>
+   <w:UseWord2002TableStyleRules/>
+  </w:Compatibility>
+  <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
+ </w:WordDocument>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:LatentStyles DefLockedState=3D"false" LatentStyleCount=3D"156">
+ </w:LatentStyles>
+</xml><![endif]-->
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	mso-style-noshow:yes;
+	mso-ansi-font-size:10.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-ascii-font-family:Arial;
+	mso-hansi-font-family:Arial;
+	mso-bidi-font-family:Arial;
+	color:windowtext;}
+span.SpellE
+	{mso-style-name:"";
+	mso-spl-e:yes;}
+span.GramE
+	{mso-style-name:"";
+	mso-gram-e:yes;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+<!--[if gte mso 10]>
+<style>
+ /* Style Definitions */=20
+ table.MsoNormalTable
+	{mso-style-name:"Table Normal";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0in 5.4pt 0in 5.4pt;
+	mso-para-margin:0in;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+</style>
+<![endif]-->
+</head>
+
+<body lang=3DEN-US link=3Dblue vlink=3Dpurple =
+style=3D'tab-interval:.5in'>
+
+<div class=3DSection1>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Hi all,<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>I am seeing a problem where both nodes get stuck in =
+the <span
+class=3DSpellE>WFBitMaps</span> state even across a =
+reboot.<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><span class=3DSpellE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>Dmesg</span></font></span><f=
+ont
+size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'> also
+reveals this on both nodes:<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Drbd0: [drbd0_receiver/4800] <span =
+class=3DSpellE>sock_sendmsg</span>
+time expired, <span class=3DSpellE><span class=3DGramE>ko</span></span> =
+=3D 4294967256
+&#8230;&#8230;.<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Drbd0: Split-brain detected, <span =
+class=3DSpellE>manuall</span>
+solved. Sync from this node<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Both nodes reports this split brain message. <span
+style=3D'mso-spacerun:yes'>&nbsp;</span>My configuration for device 0 =
+has the
+following new<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Settings NET:<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><span class=3DSpellE><span class=3DGramE><font =
+size=3D2
+face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'>rr</span></font></span></spa=
+n><span
+class=3DGramE><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:
+Arial'>-conflict</span></font></span><font size=3D2 face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'> =
+violently;<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><span class=3DGramE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>after-sb-1pri</span></font><=
+/span><font
+size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'>
+violently-as0p;<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><span class=3DGramE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>after-sb-2pri</span></font><=
+/span><font
+size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'> =
+violently-as0p;<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Thanks for any help.<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>EM--<o:p></o:p></span></font></p>
+
+</div>
+
+</body>
+
+</html>
+
+------_=_NextPart_001_01C71273.4F1B99EE--
