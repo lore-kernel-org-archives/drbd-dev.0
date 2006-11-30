@@ -1,14 +1,19 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from soda.linbit (unknown [86.59.100.100])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 3BC352CFEFC0
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Nov 2006 20:59:52 +0100 (CET)
+Date: Thu, 30 Nov 2006 20:59:53 +0100
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD8: Stuck in WFBitMapS state even across reboot.
+Message-ID: <20061130195953.GC7746@soda.linbit>
+References: <BD7042533C2F8943A6A4257A9E31C45439C84F@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: Stuck in WFBitMapS state even across reboot.
-Date: Thu, 30 Nov 2006 10:38:33 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C84F@EXNA.corp.stratus.com>
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C84F@EXNA.corp.stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,56 +23,54 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-This involves Xen Vm's.  I would create one vm, I would then put an i/o
-load on there (Something that keeps reading and writing).  I would then
-go to the host and do an ifdown on the heartbeat interface in an attempt
-to force a split brain situation. I would then do an ifup. And every now
-and then this
-would happen (not all the time).  When it happens, it survives a reboot.
-I actually have not figured out how to get out of it.
+/ 2006-11-30 10:38:33 -0500
+\ Montrose, Ernest:
+> Phil,
+> This involves Xen Vm's.  I would create one vm, I would then put an i/o
+> load on there (Something that keeps reading and writing).  I would then
+> go to the host and do an ifdown on the heartbeat interface in an attempt
+> to force a split brain situation. I would then do an ifup. And every now
+> and then this
+> would happen (not all the time).  When it happens, it survives a reboot.
+> I actually have not figured out how to get out of it.
+> 
+> I will try to find a more automatic way to reproduce it.
 
-I will try to find a more automatic way to reproduce it.
+drbd_receiver.c, drbd_asb_recover_0p
 
-Thanks,
+| 	ch_peer = mdev->p_uuid[UUID_SIZE];
+|       ch_self = drbd_bm_total_weight(mdev); ### <==
 
-EM--
+this ch_self may be different
+from the one we communicated before, right?
 
------Original Message-----
-From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
-Sent: Thursday, November 30, 2006 10:12 AM
-To: drbd-dev@linbit.com
-Cc: Montrose, Ernest
-Subject: Re: [Drbd-dev] DRBD8: Stuck in WFBitMapS state even across
-reboot.
+|       switch ( mdev->net_conf->after_sb_0p ) {
+|       ...
+|
+|       case DiscardZeroChg:
 
-Am Montag, 27. November 2006 23:28 schrieb Montrose, Ernest:
-> Hi all,
-> I am seeing a problem where both nodes get stuck in the WFBitMaps
-state
-> even across a reboot.
-> Dmesg also reveals this on both nodes:
-> Drbd0: [drbd0_receiver/4800] sock_sendmsg time expired, ko =3D
-4294967256
-> .......
-> Drbd0: Split-brain detected, manuall solved. Sync from this node
-> Both nodes reports this split brain message.  My configuration for
-> device 0 has the following new
-> Settings NET:
-> rr-conflict violently;
-> after-sb-1pri violently-as0p;
-> after-sb-2pri violently-as0p;
->
-> Thanks for any help.
->
+so, if we communicated ch_self == 0, but now ch_self is > 0,
+and ch_peer is 0 (inactive peer sees this reversed), then
 
-Hi Ernest,
+|                if( ch_peer == 0 && ch_self == 0) {
 
-Could you please give us a better description, how we can reproduce this
-here ?
+inactive peer does this, and may decide he is the source;
 
--Phil
---=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+|                        rv=test_bit(DISCARD_CONCURRENT,&mdev->flags) ? -1 : 1;
+|                        break;
+|                } else {
+
+active peer does this branch,
+and decides he is the source.
+
+|                        if ( ch_peer == 0 ) { rv =  1; break; }
+|                        if ( ch_self == 0 ) { rv = -1; break; }
+|                }
+|                if( mdev->net_conf->after_sb_0p == DiscardZeroChg ) break;
+
+doh. have to think about that...
+
+-- 
+: Lars Ellenberg                                  Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
+: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
