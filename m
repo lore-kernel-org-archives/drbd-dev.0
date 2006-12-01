@@ -1,14 +1,20 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (unknown [86.59.100.100])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 92C672D9E1E5
+	for <drbd-dev@lists.linbit.com>; Fri,  1 Dec 2006 10:43:34 +0100 (CET)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD8: Stuck in WFBitMapS state even across reboot.
+Date: Fri, 1 Dec 2006 10:43:36 +0100
+References: <BD7042533C2F8943A6A4257A9E31C45439C84F@EXNA.corp.stratus.com>
+	<20061130195953.GC7746@soda.linbit>
+In-Reply-To: <20061130195953.GC7746@soda.linbit>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: Stuck in WFBitMapS state even across reboot.
-Date: Thu, 30 Nov 2006 15:12:13 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C850@EXNA.corp.stratus.com>
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_Il/bFJbvcgkG/su"
+Message-Id: <200612011043.36208.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,94 +24,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Lars,
-Interesting...Actually I am currently investigating a situation where
-from an initial creation state, two out of my 4 devices will sync the
-other two
-Will get stuck in Inconsistent/Inconsistent Dstate and would never sync,
-of course.
-Your analysis might hold for that case too.  Only happens when my net =20
-configuration is:
-rr-conflict violently;
-after-sb-0pri discard-zero-changes
-after-sb-1pri violently-as0p
-after-sb-2pri violently-as0p
+--Boundary-00=_Il/bFJbvcgkG/su
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-This situation is automatic after we first install and enabling of drbd
-anew.
-The configuration above works great if you install without them, sync
-and
-Then add them later and reboot.
+[...]
 
-EM--
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Lars Ellenberg
-Sent: Thursday, November 30, 2006 3:00 PM
-To: drbd-dev@linbit.com
-Subject: Re: [Drbd-dev] DRBD8: Stuck in WFBitMapS state even across
-reboot.
+Lars, that's right, this is the reason for the race condition. 
+I think this patch fixes this. With this patch it should no longer
+be possible to get both nodes into the WFBitMaps state.
 
-/ 2006-11-30 10:38:33 -0500
-\ Montrose, Ernest:
-> Phil,
-> This involves Xen Vm's.  I would create one vm, I would then put an
-i/o
-> load on there (Something that keeps reading and writing).  I would
-then
-> go to the host and do an ifdown on the heartbeat interface in an
-attempt
-> to force a split brain situation. I would then do an ifup. And every
-now
-> and then this
-> would happen (not all the time).  When it happens, it survives a
-reboot.
-> I actually have not figured out how to get out of it.
->=20
-> I will try to find a more automatic way to reproduce it.
+It is in SVN with revision 2607.
 
-drbd_receiver.c, drbd_asb_recover_0p
+Ernest, could you repeat your tests with this revision? Thanks!
 
-| 	ch_peer =3D mdev->p_uuid[UUID_SIZE];
-|       ch_self =3D drbd_bm_total_weight(mdev); ### <=3D=3D
+-Phil
+-- 
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
 
-this ch_self may be different
-from the one we communicated before, right?
+--Boundary-00=_Il/bFJbvcgkG/su
+Content-Type: text/x-diff; charset="iso-8859-1";
+	name="both_in_WFBitMaps_fix.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename="both_in_WFBitMaps_fix.diff"
 
-|       switch ( mdev->net_conf->after_sb_0p ) {
-|       ...
-|
-|       case DiscardZeroChg:
+Index: drbd_receiver.c
+===================================================================
+--- drbd_receiver.c	(revision 2603)
++++ drbd_receiver.c	(working copy)
+@@ -1668,7 +1668,7 @@
+ 	peer = mdev->p_uuid[Bitmap] & 1;
+ 
+ 	ch_peer = mdev->p_uuid[UUID_SIZE];
+-	ch_self = drbd_bm_total_weight(mdev);
++	ch_self = mdev->comm_bm_set;
+ 
+ 	switch ( mdev->net_conf->after_sb_0p ) {
+ 	case Consensus:
+Index: drbd_main.c
+===================================================================
+--- drbd_main.c	(revision 2603)
++++ drbd_main.c	(working copy)
+@@ -1288,7 +1288,8 @@
+ 			: 0;
+ 	}
+ 
+-	p.uuid[UUID_SIZE] = cpu_to_be64(drbd_bm_total_weight(mdev));
++	mdev->comm_bm_set = drbd_bm_total_weight(mdev);
++	p.uuid[UUID_SIZE] = cpu_to_be64(mdev->comm_bm_set);
+ 	uuid_flags |= mdev->net_conf->want_lose ? 1 : 0;
+ 	uuid_flags |= test_bit(CRASHED_PRIMARY, &mdev->flags) ? 2 : 0;
+ 	p.uuid[UUID_FLAGS] = cpu_to_be64(uuid_flags);
+Index: drbd_int.h
+===================================================================
+--- drbd_int.h	(revision 2603)
++++ drbd_int.h	(working copy)
+@@ -853,6 +853,7 @@
+ 	unsigned int peer_seq;
+ 	spinlock_t peer_seq_lock;
+ 	int minor;
++	unsigned long comm_bm_set; // communicated number of set bits.
+ };
+ 
+ static inline drbd_dev *minor_to_mdev(int minor)
 
-so, if we communicated ch_self =3D=3D 0, but now ch_self is > 0,
-and ch_peer is 0 (inactive peer sees this reversed), then
-
-|                if( ch_peer =3D=3D 0 && ch_self =3D=3D 0) {
-
-inactive peer does this, and may decide he is the source;
-
-|                        rv=3Dtest_bit(DISCARD_CONCURRENT,&mdev->flags) =
-?
--1 : 1;
-|                        break;
-|                } else {
-
-active peer does this branch,
-and decides he is the source.
-
-|                        if ( ch_peer =3D=3D 0 ) { rv =3D  1; break; }
-|                        if ( ch_self =3D=3D 0 ) { rv =3D -1; break; }
-|                }
-|                if( mdev->net_conf->after_sb_0p =3D=3D DiscardZeroChg )
-break;
-
-doh. have to think about that...
-
---=20
-: Lars Ellenberg                                  Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
-_______________________________________________
-drbd-dev mailing list
-drbd-dev@lists.linbit.com
-http://lists.linbit.com/mailman/listinfo/drbd-dev
+--Boundary-00=_Il/bFJbvcgkG/su--
