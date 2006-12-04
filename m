@@ -5,10 +5,11 @@ Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 Subject: RE: [Drbd-dev] DRBD8: rr-conflict violently breaks sync states.
-Date: Mon, 4 Dec 2006 08:52:36 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C855@EXNA.corp.stratus.com>
+Date: Mon, 4 Dec 2006 10:08:10 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C856@EXNA.corp.stratus.com>
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+To: "Montrose, Ernest" <Ernest.Montrose@stratus.com>,
+	"Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,6 +18,22 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
+
+Phil,
+I see some errors in our install log for the nodes. Let me investigate
+those before you dig deep into this.  It might be our fault here..:)
+Stay tuned.
+
+Thanks,
+
+EM--
+
+-----Original Message-----
+From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
+On Behalf Of Montrose, Ernest
+Sent: Monday, December 04, 2006 8:53 AM
+To: Philipp Reisner; drbd-dev@linbit.com
+Subject: RE: [Drbd-dev] DRBD8: rr-conflict violently breaks sync states.
 
 Phil,
 Thanks for looking at this.  I am still investigating as well.  But here
@@ -115,6 +132,10 @@ Thanks!
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
 : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+_______________________________________________
+drbd-dev mailing list
+drbd-dev@lists.linbit.com
+http://lists.linbit.com/mailman/listinfo/drbd-dev
 _______________________________________________
 drbd-dev mailing list
 drbd-dev@lists.linbit.com
