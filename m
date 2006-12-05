@@ -5,11 +5,10 @@ Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 Subject: RE: [Drbd-dev] DRBD8: rr-conflict violently breaks sync states.
-Date: Mon, 4 Dec 2006 10:08:10 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C856@EXNA.corp.stratus.com>
+Date: Tue, 5 Dec 2006 08:53:13 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C85C@EXNA.corp.stratus.com>
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Montrose, Ernest" <Ernest.Montrose@stratus.com>,
-	"Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,89 +19,11 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 Phil,
-I see some errors in our install log for the nodes. Let me investigate
-those before you dig deep into this.  It might be our fault here..:)
-Stay tuned.
-
-Thanks,
+This issue is resolved!!!It was a problem in the way we install and the
+fact
+That the drbd user tools have changed. Sorry about the false alarm :)
 
 EM--
-
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Montrose, Ernest
-Sent: Monday, December 04, 2006 8:53 AM
-To: Philipp Reisner; drbd-dev@linbit.com
-Subject: RE: [Drbd-dev] DRBD8: rr-conflict violently breaks sync states.
-
-Phil,
-Thanks for looking at this.  I am still investigating as well.  But here
-is what's in the kernel log on both nodes.
-
-Kernel message buffer log for a device that won't sync:
-Node1:
-drbd2: disk( Diskless -> Attaching )
-drbd2: No usable activity log found.
-drbd2: max_segment_size ( =3D BIO size ) =3D 32768
-drbd2: drbd_bm_resize called with capacity =3D=3D 30735368
-drbd2: resync bitmap: bits=3D3841921 words=3D120062
-drbd2: size =3D 14 GB (15367684 KB)
-drbd2: writing of bitmap took 19 jiffies
-drbd2: 14 GB marked out-of-sync by on disk bit-map.
-drbd2: 15367684 KB now marked out-of-sync by on disk bit-map.
-drbd2: reading of bitmap took 16 jiffies
-drbd2: recounting of set bits took additional 1 jiffies
-drbd2: 14 GB marked out-of-sync by on disk bit-map.
-drbd2: disk( Attaching -> Inconsistent )
-drbd2: Writing meta data super block now.
-drbd2: conn( StandAlone -> Unconnected )
-drbd2: receiver (re)started
-drbd2: conn( Unconnected -> WFConnection )
-drbd2: conn( WFConnection -> WFReportParams )
-drbd2: Handshake successful: DRBD Network Protocol version 85
-drbd2: No resync, but bits in bitmap!
-drbd2: peer( Unknown -> Secondary ) conn( WFReportParams -> Connected )
-pdsk( DUnknown -> Inconsistent )
-drbd2: Writing meta data super block now.
-drbd2: aftr_isp( 0 -> 1 )
-drbd2: No resync, but bits in bitmap!
-drbd2: peer_isp( 0 -> 1 )
-drbd2: aftr_isp( 1 -> 0 )
-drbd2: No resync, but bits in bitmap!
-drbd2: peer_isp( 1 -> 0 )
-
-
-On node2:
-drbd2: disk( Diskless -> Attaching )
-drbd2: No usable activity log found.
-drbd2: max_segment_size ( =3D BIO size ) =3D 32768
-drbd2: drbd_bm_resize called with capacity =3D=3D 30735368
-drbd2: resync bitmap: bits=3D3841921 words=3D120062
-drbd2: size =3D 14 GB (15367684 KB)
-drbd2: writing of bitmap took 19 jiffies
-drbd2: 14 GB marked out-of-sync by on disk bit-map.
-drbd2: 15367684 KB now marked out-of-sync by on disk bit-map.
-drbd2: reading of bitmap took 12 jiffies
-drbd2: recounting of set bits took additional 1 jiffies
-drbd2: 14 GB marked out-of-sync by on disk bit-map.
-drbd2: disk( Attaching -> Inconsistent )
-drbd2: Writing meta data super block now.
-drbd2: conn( StandAlone -> Unconnected )
-drbd2: receiver (re)started
-drbd2: conn( Unconnected -> WFConnection )
-drbd2: conn( WFConnection -> WFReportParams )
-drbd2: Handshake successful: DRBD Network Protocol version 85
-drbd2: No resync, but bits in bitmap!
-drbd2: peer( Unknown -> Secondary ) conn( WFReportParams -> Connected )
-pdsk( DUnknown -> Inconsistent )
-drbd2: Writing meta data super block now.
-drbd2: aftr_isp( 0 -> 1 )
-drbd2: No resync, but bits in bitmap!
-drbd2: peer_isp( 0 -> 1 )
-drbd2: No resync, but bits in bitmap!
-drbd2: peer_isp( 1 -> 0 )
-drbd2: aftr_isp( 1 -> 0 )
-
 -----Original Message-----
 From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
 On Behalf Of Philipp Reisner
@@ -132,10 +53,6 @@ Thanks!
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
 : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
-_______________________________________________
-drbd-dev mailing list
-drbd-dev@lists.linbit.com
-http://lists.linbit.com/mailman/listinfo/drbd-dev
 _______________________________________________
 drbd-dev mailing list
 drbd-dev@lists.linbit.com
