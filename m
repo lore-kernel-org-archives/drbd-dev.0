@@ -1,24 +1,14 @@
-Return-Path: <zamf@dcs.gla.ac.uk>
-Received: from mr1.dcs.gla.ac.uk (mr1.dcs.gla.ac.uk [130.209.249.184])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id D11C52D9EAB3
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Dec 2006 21:25:27 +0100 (CET)
-Received: from paraoa.dcs.gla.ac.uk ([130.209.253.109]:42917)
-	by mr1.dcs.gla.ac.uk with esmtpa (Exim 4.42) id 1GsPo6-000321-HJ
-	for drbd-dev@lists.linbit.com; Thu, 07 Dec 2006 20:25:26 +0000
-Message-ID: <457878BE.6040305@dcs.gla.ac.uk>
-Date: Thu, 07 Dec 2006 20:25:34 +0000
-From: Cristian Zamfir <zamf@dcs.gla.ac.uk>
+Return-Path: <Ernest.Montrose@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] lock for reading device state
-References: <4576FC63.704@dcs.gla.ac.uk>
-	<20061207130920.GD7521@soda.linbit>	<45781C8F.1080400@dcs.gla.ac.uk>
-	<20061207155648.GF7521@soda.linbit>
-In-Reply-To: <20061207155648.GF7521@soda.linbit>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01C71D72.0E46A287"
+Date: Mon, 11 Dec 2006 17:16:50 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C877@EXNA.corp.stratus.com>
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD8: failed to complete sync due to receiving bitmap
+	in unexpected state
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -28,129 +18,263 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Lars Ellenberg wrote:
-> / 2006-12-07 13:52:15 +0000
-> \ Cristian Zamfir:
->>
->> Lars Ellenberg wrote:
->>> / 2006-12-06 17:22:43 +0000
->>> \ Cristian Zamfir:
->>>> Hi,
->>>>
->>>> I am using drbd to implement xen block device migration.  Right now I
->>>> am parsing /proc/drbd to find out if the drives are synchronized and I
->>>> can migrate them.
->>> you talk about drbd state "Connected, Consistent",
->>> or what exactly are you parsing?
->> Yes, indeed, I am parsing these values: "cs:Connected st:Secondary/Primary ld:Consistent"
->>
->>
->>>> Is there a way to obtain a lock while reading and processing this
->>>> information and prevent other writes to the primary device?
->>> no. why?
->> I wrote a script that parses /proc/drbd on the primary node. While I am running this script, writes to the primary 
->> device are still allowed. If I find that the ld state is "Consistent" then I will make this node secondary and the 
->> peer will become primary.
->> The problem is when writes happen while my script is making the peer node primary.
->>
->> A race situation would be the following:
->> At moment X, I read /proc/drbd and see the ld state is consistent.
->> At moment X+1 a write arrives at /dev/drbd1 and the devices are not
->> consistent any more. They start syncing but this may last longer, for
->> instance until moment X+5.
->> Now, at moment X+2, I wrongly believe that the state is still
->> consistentand I decide to make the peer node primary and thus loose
->> the write at moment X+1.
->>
->> Are my assumptions correct so far?
-> 
-> no. you don't "become Inconsistent" because "some write".
+This is a multi-part message in MIME format.
 
-Thank you very much for your answer. I guess what I assumed incorrectly 
-was that writes would make the device inconsistent.
+------_=_NextPart_001_01C71D72.0E46A287
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+Hi all,
+Were are seeing a case where a Sync happened, data is marked consistent
+on both sides, target went to Connected
+  state, source DID NOT CHANGE FROM WFBitMapS state. The clock on the
+two systems seem to be not quite synchronized, but it seems that:
+
+1. The two nodes connected, realised they needed to resync and worked
+out that one node had the
+  good data.
+2. Because other syncing was going on, the sync process was paused
+3. Later on, sync resumed, good side connection went to WFBitmapS, bad
+side WFBitmapT
+4. Sync happened, data was marked consistent on both sides, target went
+to Connected
+  state, source DID NOT CHANGE FROM WFBitMapS.
+
+Now, the only oddity I see is on the target side where we see:
+
+Dec 10 04:52:52 george kernel: drbd1: unexpected cstate (PausedSyncT) in
+receive_bitmap
+
+This did NOT stop the resync, but I would suspect it meant that a
+critical message was never sent which left the source side in WFBitmapS.
+
+Presumably there is a window where one side is out of the paused state
+before the other.
+=20
+Simon Grham actually did a bit of analysis of this and think that the
+problem might be a race condition in drbd_receive.c:receive_bitmap().
+Any ideas, because I cannot reproduce this at reliably at this time.
+=20
+EM--
+
+------_=_NextPart_001_01C71D72.0E46A287
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Dus-ascii">
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 11">
+<meta name=3DOriginator content=3D"Microsoft Word 11">
+<link rel=3DFile-List href=3D"cid:filelist.xml@01C71D48.254E0770">
+<!--[if gte mso 9]><xml>
+ <o:OfficeDocumentSettings>
+  <o:DoNotRelyOnCSS/>
+ </o:OfficeDocumentSettings>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:SpellingState>Clean</w:SpellingState>
+  <w:GrammarState>Clean</w:GrammarState>
+  <w:DocumentKind>DocumentEmail</w:DocumentKind>
+  <w:EnvelopeVis/>
+  <w:ValidateAgainstSchemas/>
+  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+  <w:IgnoreMixedContent>false</w:IgnoreMixedContent>
+  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+  <w:Compatibility>
+   <w:BreakWrappedTables/>
+   <w:SnapToGridInCell/>
+   <w:WrapTextWithPunct/>
+   <w:UseAsianBreakRules/>
+   <w:UseWord2002TableStyleRules/>
+  </w:Compatibility>
+  <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
+ </w:WordDocument>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:LatentStyles DefLockedState=3D"false" LatentStyleCount=3D"156">
+ </w:LatentStyles>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:Tahoma;
+	panose-1:2 11 6 4 3 5 4 4 2 4;
+	mso-font-alt:"?l?r ?????????????????????????";
+	mso-font-charset:0;
+	mso-generic-font-family:swiss;
+	mso-font-pitch:variable;
+	mso-font-signature:1627421319 -2147483648 8 0 66047 0;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	mso-style-noshow:yes;
+	mso-ansi-font-size:10.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-ascii-font-family:Arial;
+	mso-hansi-font-family:Arial;
+	mso-bidi-font-family:Arial;
+	color:windowtext;}
+span.SpellE
+	{mso-style-name:"";
+	mso-spl-e:yes;}
+span.GramE
+	{mso-style-name:"";
+	mso-gram-e:yes;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+<!--[if gte mso 10]>
+<style>
+ /* Style Definitions */=20
+ table.MsoNormalTable
+	{mso-style-name:"Table Normal";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0in 5.4pt 0in 5.4pt;
+	mso-para-margin:0in;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+</style>
+<![endif]-->
+</head>
+
+<body lang=3DEN-US link=3Dblue vlink=3Dpurple =
+style=3D'tab-interval:.5in'>
+
+<div class=3DSection1>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Hi all,<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Were are seeing a case where a </span></font><font =
+size=3D1
+color=3Dblack face=3DTahoma><span =
+style=3D'font-size:9.0pt;font-family:Tahoma;
+color:black'>Sync happened, data is marked consistent on both sides, =
+target
+went to Connected<br>
+&nbsp; <span class=3DGramE>state</span>, source DID NOT CHANGE FROM =
+<span
+class=3DSpellE>WFBitMapS</span> state. The <span class=3DGramE>clock on =
+the two
+systems seem</span> to be not quite synchronized, but it seems that:<br>
+<br>
+1. The two nodes connected, <span class=3DSpellE>realised</span> they =
+needed to <span
+class=3DSpellE>resync</span> and worked out that one node had the<br>
+&nbsp; <span class=3DGramE>good</span> data.<br>
+2. Because other syncing was going on, the sync process was paused<br>
+3. Later on, sync resumed, good side connection went to <span =
+class=3DSpellE>WFBitmapS</span>,
+bad side <span class=3DSpellE>WFBitmapT</span><br>
+4. Sync happened, data was marked consistent on both sides, <span =
+class=3DGramE>target</span>
+went to Connected<br>
+&nbsp; <span class=3DGramE>state</span>, source DID NOT CHANGE FROM =
+<span
+class=3DSpellE>WFBitMapS</span>.<br>
+<br>
+Now, the only oddity I see is on the target side where we see:<br>
+<br>
+Dec 10 04:52:52 <span class=3DSpellE><span =
+class=3DGramE>george</span></span>
+kernel: drbd1: unexpected <span class=3DSpellE>cstate</span> (<span =
+class=3DSpellE>PausedSyncT</span>)
+in <span class=3DSpellE>receive_bitmap</span><br>
+<br>
+This did NOT stop the <span class=3DSpellE>resync</span>, but I would =
+suspect it
+meant that a critical message was never sent which left the source side =
+in <span
+class=3DSpellE>WFBitmapS</span>. <o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'>Presumably there is a window where =
+one
+side is out of the paused state before the =
+other.<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'><o:p>&nbsp;</o:p></span></font></p>=
 
 
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'>Simon <span =
+class=3DSpellE>Grham</span>
+actually did a bit of analysis of this and think that the problem might =
+be a
+race condition in <span class=3DSpellE>drbd_receive.c:receive_<span =
+class=3DGramE>bitmap</span></span><span
+class=3DGramE>(</span>).<o:p></o:p></span></font></p>
 
-> 
-> "Consistent" in drbd speak is "not Inconsistent".
-> oh well.
-> so what is Inconsistent.
-> drbd starts as beeing "inconsistent" when the meta data is first
-> initialized. then you force one side to think it is Consistent,
-> to be able to make it Primary, and the initial full sync starts.
-> 
-> Once the sync is finished, the sync target becomes Connected Consistent.
-> If the nodes now disconnect, they still are "Consistent" in the sense of
-> "whatever data is on that disk, it is transactional consistent, though
-> maybe it is not 'clean', i.e. you may have to replay some journal to get
-> into 'clean' state."
-> 
-> You get into "Inconsistent" only by becoming SyncTarget after
-> (re)establishing the connection to the Peer and the handshake determins
-> that your data is different from the Peers, and the Peers is "better"
-> (which typically means "newer").
-> 
-> Because the Resync copies changed blocks linearly over the device,
-> while new writes get mirrored already, the data on the SyncTarget is
-> "not Consistent" anymore during sync. Even if we had data journalling
-> during degraded mode, and would replay that during Sync, the SyncTarget
-> would stay Consistent but "outdated" until the Resync was completely
-> done.
-> 
->> I'm thinking that there are two solutions: One would be to prevent any writes from Xen's domUs by modifying Xen.
->> The other would be to be able to hold a lock that prevents writes from reaching /dev/drbdX and release it after the 
->> processing within the script finishes (that is while I switch the peer device from secondary to primary).
->>
->> I haven't looked at drbd's source yet ( I am using 0.7.22 now) but I am considering implementing this lock within 
->> drbd if there is no other solution available.
-> 
-> That "lock" does not make sense to me,
-> and even if you could do it, it won't solve that "race",
-> it would only move it to some other point in time.
-> 
-> Note that a device in Secondary state denies access.
-> Also note that you cannot make a device Primary if it sees its Peer as
-> being Primary (unless you use drbd8, and explicitly allow
-> "two-primaries").
+<p class=3DMsoNormal><span class=3DGramE><font size=3D1 color=3Dblack =
+face=3DTahoma><span
+style=3D'font-size:9.0pt;font-family:Tahoma;color:black'>Any ideas, =
+because I
+cannot reproduce this at reliably at this =
+time.</span></font></span><font
+size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:9.0pt;font-family:Tahoma;
+color:black'><o:p></o:p></span></font></p>
 
-I assume that using drbd8 would make xen bloc device migration easier 
-because both devices are primary. Am I right?
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'><o:p>&nbsp;</o:p></span></font></p>=
 
 
-> And a device that knows it is "Inconsistent" cannot be made Primary,
-> unless it is Connected, in which case it would be SyncTarget and get the
-> good data from the SyncSource Peer.
-> 
-> So what you need to do for xen migration with drbd 0.7 is:
-> Start the migration, once you think you want to switch over, i.e.
->  ** once you are done writing on nodeA **
->  ** you switch nodeA to Secondary.     **
-> now, both nodes are Secondary, and neither can write.
-> now you can check wether the target nodeB is still Connected, Consistent.
-> if so, you make it Primary.
-> if not, you abort the migration.
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'>EM--<o:p></o:p></span></font></p>
 
-This is exactly what my code is doing now. I was worried that writes 
-would make the drive inconsistent so that is why I needed the lock. Now 
-it is clear that making the transition from primary to secondary is enough.
+</div>
 
+</body>
 
-> 
-> "locking" the state of drbd or freezing io while it is Primary on
-> migration source nodeA won't help you in any way.
-> 
->> As a future project, I am also interested if there is anyone working
->> on implementing multiple secondary devices. I am interested in having
->> multiple replicas of the primary node.
-> 
-> here at LINBIT we have some very nice concepts about how we'd implement
-> multiple (> 2) nodes and other nice features. But don't ask about timelines.
-> 
-It is great that you are considering this because I will also start 
-working on something similar in the near future.
+</html>
 
-Thanks,
-
-Cristian
-
-
+------_=_NextPart_001_01C71D72.0E46A287--
