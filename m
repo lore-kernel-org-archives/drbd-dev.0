@@ -1,15 +1,20 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <zamf@dcs.gla.ac.uk>
+Received: from mr1.dcs.gla.ac.uk (mr1.dcs.gla.ac.uk [130.209.249.184])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id B28952D9D69F
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Dec 2006 19:56:10 +0100 (CET)
+Received: from paraoa.dcs.gla.ac.uk ([130.209.253.109]:34586)
+	by mr1.dcs.gla.ac.uk with esmtpa (Exim 4.42) id 1GuCnR-0006Jk-Cv
+	for drbd-dev@lists.linbit.com; Tue, 12 Dec 2006 18:56:09 +0000
+Message-ID: <457EFB5D.2080500@dcs.gla.ac.uk>
+Date: Tue, 12 Dec 2006 18:56:29 +0000
+From: Cristian Zamfir <zamf@dcs.gla.ac.uk>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: failed to complete sync due to receiving
-	bitmapin unexpected state
-Date: Tue, 12 Dec 2006 07:46:59 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B3767104316DC5@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] modprobe error
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,145 +24,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> > Presumably there is a window where one side is out of the paused
-> state
-> > before the other.
-> >
-> > Simon Grham actually did a bit of analysis of this and think that
-the
-> > problem might be a race condition in
-drbd_receive.c:receive_bitmap().
-> > Any ideas, because I cannot reproduce this at reliably at this time.
->=20
-> Not yet...
-> is any state change Secondary->Primary involved,
-> or are the only (re)connecting?
->=20
 
-There is no primary/secondary change at this time - what I think I saw
-looking at the logs for the one case we have is something like this:
+I just tried drbd8.0pre6 with the 2.6.16.29 xen kernel.
+Compilation goes without errors: make clean all, make tools, make 
+install ...
+However, I am getting this oops when doing "modprobe drbd":
+Can you please tell help me find out why is this happening?
 
-1. drbd volume starts resyncing after target side system is restarted.
-2. A 2nd volume which is ahead of the volume in question starts
-resyncing, so syncing is paused,
-   we enter SyncPauseT/SyncPauseS
-3. When the 2nd volume completes, the source side goes back to WFBitmapS
-and sends its bitmap
-4. The target side is still in SyncPauseT when the bitmap arrives so we
-get the message
-   about being in an unexpected cstate _and_ we don't send the targets
-bitmap.
+Thank you.
 
-Once we are here, the target goes ahead and resyncs the volume and
-eventually moves itself to the Connected state but the source side never
-leaves WFBitmapS since it didn't get the targets bitmap.
 
-I've included the messages logged for the specific volume on both sides
-below (as Ernest mentioned, the clock on the two systems were not
-synchronized but I'm reasonably sure these are the matching logs)
+[  188.728070] Unable to handle kernel NULL pointer dereference at 
+virtual address 00000000
+[  188.728253]  printing eip:
+[  188.728323] d126a47b
+[  188.728394] *pde = ma 00000000 pa fffff000
+[  188.728467] Oops: 0002 [#1]
+[  188.728537] Modules linked in: drbd intel_agp agpgart
+[  188.728842] CPU:    0
+[  188.728843] EIP:    0061:[<d126a47b>]    Not tainted VLI
+[  188.728844] EFLAGS: 00010286   (2.6.16.29-xen0 #5)
+[  188.729072] EIP is at cn_queue_add_callback+0x3b/0xf0 [drbd]
+[  188.729146] eax: fffffff4   ebx: d127b524   ecx: d1274c03   edx: 00000000
+[  188.729222] esi: 0806f9d0   edi: ced77200   ebp: c869bf2c   esp: c869bf10
+[  188.729296] ds: 007b   es: 007b   ss: 0069
+[  188.729368] Process modprobe (pid: 3882, threadinfo=c869a000 
+task=c9a8a070)
+[  188.729434] Stack: <0>d1274a82 d127b524 d12695d0 00000000 d127b524 
+0806f9d0 4014d340 c869bf48
+[  188.730160]        d1269ffb 00000000 d1274a82 d127b524 d12695d0 
+d127b600 c869bf60 d127d207
+[  188.730820]        d127b524 d1274a82 d12695d0 d127b600 c869bf98 
+d127d028 00000000 00000000
+[  188.731480] Call Trace:
+[  188.731607]  [<c010526a>] show_stack_log_lvl+0xaa/0xe0
+[  188.731857]  [<c010548e>] show_registers+0x18e/0x1f0
+[  188.732103]  [<c0105679>] die+0xd9/0x180
+[  188.732347]  [<c0112dd1>] do_page_fault+0x301/0x6cb
+[  188.732595]  [<c0104e6b>] error_code+0x2b/0x30
+[  188.732840]  [<d1269ffb>] cn_add_callback+0x2b/0x50 [drbd]
+[  188.733094]  [<d127d207>] drbd_nl_init+0x27/0x50 [drbd]
+[  188.733346]  [<d127d028>] init_module+0x28/0x1e0 [drbd]
+[  188.733598]  [<c01346d5>] sys_init_module+0x135/0x1b0
+[  188.733845]  [<c0104cf5>] syscall_call+0x7/0xb
+[  188.734090] Code: 00 00 00 89 44 24 08 8b 45 10 89 44 24 04 8b 45 0c 
+89 04 24 e8 b7 fe ff ff 89 c7 85 ff b8 f4 ff ff ff 0f 84 88 00 00 00 8b 
+55 08 <ff> 02 89 57 3c b8 00 e0 ff ff 21 e0 81 40 14 00 01 00 00 8b 5a
+[  188.737941]
 
-My theory was that there is a timing window relative to moving from the
-PauseSync{T|S} state such that one side can get there first and restart
-syncing before the other side.
 
-Simon
+Thank you
 
-=3D=3D=3D=3D Source Side Messages =3D=3D=3D=3D
-
-   4733:Dec 10 04:52:22 jane kernel: drbd1: conn( WFConnection ->
-WFReportParams )=20
-   4737:Dec 10 04:52:22 jane kernel: drbd1: Handshake successful: DRBD
-Network Protocol version 85
-   4742:Dec 10 04:52:22 jane kernel: drbd1: peer( Unknown -> Secondary )
-conn( WFReportParams -> WFBitMapS ) pdsk( DUnknown -> UpToDate )=20
-   4748:Dec 10 04:52:23 jane kernel: drbd1: Writing meta data super
-block now.
-   4750:Dec 10 04:52:23 jane kernel: drbd1: conn( WFBitMapS ->
-SyncSource ) pdsk( UpToDate -> Inconsistent )=20
-   4752:Dec 10 04:52:23 jane kernel: drbd1: Began resync as SyncSource
-(will sync 1136 KB [284 bits set]).
-   4753:Dec 10 04:52:23 jane kernel: drbd1: Writing meta data super
-block now.
-   4755:Dec 10 04:52:23 jane kernel: drbd1: conn( SyncSource ->
-PausedSyncS ) aftr_isp( 0 -> 1 )=20
-   4756:Dec 10 04:52:23 jane kernel: drbd1: Resync suspended
-   4764:Dec 10 04:52:23 jane kernel: drbd1: peer_isp( 0 -> 1 )=20
-   4765:Dec 10 04:52:24 jane kernel: drbd1: Resync done (total 1 sec;
-paused 0 sec; 1136 K/sec)
-   4766:Dec 10 04:52:24 jane kernel: drbd1: conn( PausedSyncS ->
-Connected ) pdsk( Inconsistent -> UpToDate )=20
-   4767:Dec 10 04:52:24 jane kernel: drbd1: Writing meta data super
-block now.
-   4770:Dec 10 04:52:24 jane kernel: drbd1: aftr_isp( 1 -> 0 )=20
-   4772:Dec 10 04:52:24 jane kernel: drbd1: conn( Connected -> WFBitMapS
-) pdsk( UpToDate -> Inconsistent )=20
-   4773:Dec 10 04:52:24 jane kernel: drbd1: Writing meta data super
-block now.
-   4779:Dec 10 04:52:25 jane kernel: drbd1: pdsk( Inconsistent ->
-UpToDate ) peer_isp( 1 -> 0 )=20
-   4782:Dec 10 04:52:25 jane kernel: drbd1: Writing meta data super
-block now.
-
-=3D=3D=3D=3D Target Side Messages =3D=3D=3D=3D
-
-   6421:Dec 10 04:52:51 george kernel: drbd1: disk( Diskless ->
-Attaching )=20
-   6423:Dec 10 04:52:51 george kernel: drbd1: Found 6 transactions (324
-active extents) in activity log.
-   6425:Dec 10 04:52:51 george kernel: drbd1: max_segment_size ( =3D BIO
-size ) =3D 32768
-   6427:Dec 10 04:52:51 george kernel: drbd1: drbd_bm_resize called with
-capacity =3D=3D 30735368
-   6429:Dec 10 04:52:51 george kernel: drbd1: resync bitmap:
-bits=3D3841921 words=3D120062
-   6431:Dec 10 04:52:51 george kernel: drbd1: size =3D 14 GB (15367684 =
-KB)
-   6433:Dec 10 04:52:51 george kernel: drbd1: reading of bitmap took 58
-jiffies
-   6435:Dec 10 04:52:51 george kernel: drbd1: recounting of set bits
-took additional 0 jiffies
-   6437:Dec 10 04:52:51 george kernel: drbd1: 0 KB marked out-of-sync by
-on disk bit-map.
-   6439:Dec 10 04:52:51 george kernel: drbd1: disk( Attaching ->
-UpToDate )=20
-   6441:Dec 10 04:52:51 george kernel: drbd1: Writing meta data super
-block now.
-   6477:Dec 10 04:52:51 george kernel: drbd1: conn( StandAlone ->
-Unconnected )=20
-   6479:Dec 10 04:52:51 george kernel: drbd1: receiver (re)started
-   6481:Dec 10 04:52:51 george kernel: drbd1: conn( Unconnected ->
-WFConnection )=20
-   6497:Dec 10 04:52:51 george kernel: drbd1: conn( WFConnection ->
-WFReportParams )=20
-   6499:Dec 10 04:52:51 george kernel: drbd1: Handshake successful: DRBD
-Network Protocol version 85
-   6513:Dec 10 04:52:51 george kernel: drbd1: peer( Unknown -> Primary )
-conn( WFReportParams -> WFBitMapT ) pdsk( DUnknown -> UpToDate )=20
-   6515:Dec 10 04:52:51 george kernel: drbd1: Writing meta data super
-block now.
-   6529:Dec 10 04:52:51 george kernel: drbd1: conn( WFBitMapT ->
-WFSyncUUID )=20
-   6530:Dec 10 04:52:51 george kernel: drbd1: conn( WFSyncUUID ->
-SyncTarget ) disk( UpToDate -> Inconsistent )=20
-   6532:Dec 10 04:52:51 george kernel: drbd1: Began resync as SyncTarget
-(will sync 1136 KB [284 bits set]).
-   6533:Dec 10 04:52:51 george kernel: drbd1: Writing meta data super
-block now.
-   6536:Dec 10 04:52:51 george kernel: drbd1: conn( SyncTarget ->
-PausedSyncT ) aftr_isp( 0 -> 1 )=20
-   6537:Dec 10 04:52:51 george kernel: drbd1: Resync suspended
-   6552:Dec 10 04:52:52 george kernel: drbd1: peer_isp( 0 -> 1 )=20
-   6553:Dec 10 04:52:52 george kernel: drbd1: peer_isp( 1 -> 0 )=20
-   6554:Dec 10 04:52:52 george kernel: drbd1: unexpected cstate
-(PausedSyncT) in receive_bitmap
-   6558:Dec 10 04:52:53 george kernel: drbd1: Resync done (total 1 sec;
-paused 0 sec; 1136 K/sec)
-   6562:Dec 10 04:52:53 george kernel: drbd1: conn( PausedSyncT ->
-Connected ) disk( Inconsistent -> UpToDate )=20
-   6564:Dec 10 04:52:53 george kernel: drbd1: Writing meta data super
-block now.
-   6570:Dec 10 04:52:53 george kernel: drbd1: aftr_isp( 1 -> 0 )=20
-   6592:Dec 10 04:52:54 george kernel: drbd1: Writing meta data super
-block now.
-   6612:Dec 10 04:52:54 george kernel: drbd1: writing of bitmap took 4
-jiffies
+Cristian
