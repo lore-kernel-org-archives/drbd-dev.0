@@ -1,17 +1,16 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from soda (unknown [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 105FC2CFFBB0
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Dec 2006 17:13:48 +0100 (CET)
-Date: Tue, 19 Dec 2006 17:13:48 +0100
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD-8: Patch to fix incorrect split-brain occurrence.
-Message-ID: <20061219161348.GA8069@soda.linbit>
-References: <342BAC0A5467384983B586A6B0B3767104464575@EXNA.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <342BAC0A5467384983B586A6B0B3767104464575@EXNA.corp.stratus.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] DRBD8: failed to complete sync due to receiving bitmap
+	in unexpected cstate
+Date: Tue, 19 Dec 2006 14:36:40 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B376710446462E@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: "Graham, Simon" <Simon.Graham@stratus.com>,
+	"Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,34 +20,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2006-12-19 10:45:04 -0500
-\ Graham, Simon:
-> In testing, we have run into a case where we unexpectedly get a
-> split-brain situation - after some investigation I think I have found
-> the reason - at the end of syncing, the SyncTarget side finishes up by
-> setting it's UUID info to the same as the Source (in
-> drbd_resync_finished) - the code that does this checks for connection
-> state SyncTarget before doing this. 
-> 
-> Now, I have seen that sometimes the resync completes when in PausedSyncT
-> state - for example, if the last set of blocks is already under way when
-> we decide to go into the PausedSyncT state 
+>=20
+> My theory was that there is a timing window relative to moving from
+the
+> PauseSync{T|S} state such that one side can get there first and
+restart
+> syncing before the other side.
+>=20
 
-right, or "resync" "just happens" by application writes.
+Not sure if you've had any thoughts on this, but I have a theory about
+this that was sparked by the problem I found today where we can still be
+in the PausedSyncX state when sync finishes...
 
-> - thus it's entirely possible
-> to enter drbd_resync_finished with connection state PausedSyncT in which
-> case we do finish up the resync but do not copy the UUID info - this
-> means that the next time we need to resync, the code determines that we
-> have a split-brain situation.
-> 
-> In other places in the code, checks are made for either SyncTarget or
-> PausedSyncT so I propose fixing this (patch attached) the same way -
-> have drbd_resync_finished check for either SyncTarget OR PausedSyncT.
+If you recall, the problem was what the sync source side would get into
+WFBitMapS and never exit and the target side would output:
 
-right.
+unexpected cstate (PausedSyncT) in receive_bitmap
 
--- 
-: Lars Ellenberg                            Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
+Here's my theory in a time sequence...
+
+          Source                 Target
+             |                      |
+         <PausedSyncS>          <PausedSyncT>
+             |                      |
+       resync completes             |
+             |                      |
+          <Connected>               |
+             |                      |
+       high priority group          |
+           finishes sync            |
+         <aftr_isp->0>              |
+             |                      |
+     drbd_send_state                |
+             |       ReportState    |
+             +--------------------->|
+             |     UUIDs            | ***Note UUIDs haven't been updated
+here yet, so still look
+             +<---------------------|    out of date
+             |     ReportState      |
+             +<---------------------|
+             |                      |
+        drbd_sync_handshake         |
+          hg>1                      |
+      <WFBitMapS>                   |
+             |    Bitmap            |
+             +--------------------->| *** get unexpected cstate message
+plus never return bitmap
+             |                      |
+             |               Now we notice resync complete
+             |                 <Connected>
+
+Obviously this requires a lot of things to happen all together and
+somewhat out of sequence, but I think it's feasible. As I see it, there
+are actually several problems here:
+
+1. When aftr_isp went to 0 we still initiated the resumption of resync
+even though we are in Connected state
+2. We ended up deciding to restart the resync because we got stale UUID
+info from the target
+3. The target side did not reply to the Bitmap leaving the source stuck
+in WFBitmapS
+
+I somehow don't think that putting a test for PausedSyncX in the
+receive_bitmap() is the correct solution here but I'm not sure what
+would be better... Any ideas?
+
+Simon
