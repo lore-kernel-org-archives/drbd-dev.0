@@ -1,16 +1,15 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <home_king@163.com>
+Received: from m12-11.163.com (m12-11.163.com [220.181.12.11])
+	by mail.linbit.com (LINBIT Mail Daemon) with SMTP id A7A6E2DEACCF
+	for <drbd-dev@lists.linbit.com>; Wed, 20 Dec 2006 08:27:04 +0100 (CET)
+Message-ID: <4588E111.8090102@163.com>
+Date: Wed, 20 Dec 2006 15:06:57 +0800
+From: home_king <home_king@163.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: failed to complete sync due to receiving bitmap
-	in unexpected cstate
-Date: Tue, 19 Dec 2006 14:36:40 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B376710446462E@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Graham, Simon" <Simon.Graham@stratus.com>,
-	"Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] About the UUID
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,69 +19,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
->=20
-> My theory was that there is a timing window relative to moving from
-the
-> PauseSync{T|S} state such that one side can get there first and
-restart
-> syncing before the other side.
->=20
+hi, Philipp.
 
-Not sure if you've had any thoughts on this, but I have a theory about
-this that was sparked by the problem I found today where we can still be
-in the PausedSyncX state when sync finishes...
+Now drbd-0.8.x uses UUID instead of GC as the data-relationship-detection
+-tool, right? Its logic seems clearer than GC. However, I am confused
+about the UUID in the two-primaries-healedpartition scenario.
 
-If you recall, the problem was what the sync source side would get into
-WFBitMapS and never exit and the target side would output:
+Given the original uuids below (both nodes are connected):
+P <5,0,0,0>      S <5,0,0,0>
+then, I plug out the wire of the primary node (disconnected):
+P <6,5,0,0>      S <5,0,0,0>
+I let the downgraded secondary become new primary, UUID should become:
+P <6,5,0,0>      S <6,5,0,0>
+Finally, I recover the wire of primary. And Now, there comes my problem.
+Accordding to the UUID algorithm, when Cs == Cp, no resynchronisation
+necessary. However it is obviously split-brain, and drbd ignores it.
 
-unexpected cstate (PausedSyncT) in receive_bitmap
+Why?
 
-Here's my theory in a time sequence...
+BTW, I did not test such scenario, because I can't compile drbd-0.8.x
+in my RedHat AS4 distro. I just browsed the doc & code. :-)
 
-          Source                 Target
-             |                      |
-         <PausedSyncS>          <PausedSyncT>
-             |                      |
-       resync completes             |
-             |                      |
-          <Connected>               |
-             |                      |
-       high priority group          |
-           finishes sync            |
-         <aftr_isp->0>              |
-             |                      |
-     drbd_send_state                |
-             |       ReportState    |
-             +--------------------->|
-             |     UUIDs            | ***Note UUIDs haven't been updated
-here yet, so still look
-             +<---------------------|    out of date
-             |     ReportState      |
-             +<---------------------|
-             |                      |
-        drbd_sync_handshake         |
-          hg>1                      |
-      <WFBitMapS>                   |
-             |    Bitmap            |
-             +--------------------->| *** get unexpected cstate message
-plus never return bitmap
-             |                      |
-             |               Now we notice resync complete
-             |                 <Connected>
+Regards,
+luo.jinhua
 
-Obviously this requires a lot of things to happen all together and
-somewhat out of sequence, but I think it's feasible. As I see it, there
-are actually several problems here:
 
-1. When aftr_isp went to 0 we still initiated the resumption of resync
-even though we are in Connected state
-2. We ended up deciding to restart the resync because we got stale UUID
-info from the target
-3. The target side did not reply to the Bitmap leaving the source stuck
-in WFBitmapS
-
-I somehow don't think that putting a test for PausedSyncX in the
-receive_bitmap() is the correct solution here but I'm not sure what
-would be better... Any ideas?
-
-Simon
