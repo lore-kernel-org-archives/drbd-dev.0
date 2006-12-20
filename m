@@ -1,15 +1,17 @@
-Return-Path: <home_king@163.com>
-Received: from m12-11.163.com (m12-11.163.com [220.181.12.11])
-	by mail.linbit.com (LINBIT Mail Daemon) with SMTP id A7A6E2DEACCF
-	for <drbd-dev@lists.linbit.com>; Wed, 20 Dec 2006 08:27:04 +0100 (CET)
-Message-ID: <4588E111.8090102@163.com>
-Date: Wed, 20 Dec 2006 15:06:57 +0800
-From: home_king <home_king@163.com>
-MIME-Version: 1.0
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from soda (unknown [86.59.100.100])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id A43532D9D522
+	for <drbd-dev@lists.linbit.com>; Wed, 20 Dec 2006 09:40:21 +0100 (CET)
+Date: Wed, 20 Dec 2006 09:40:22 +0100
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] About the UUID
+Subject: Re: [Drbd-dev] About the UUID
+Message-ID: <20061220084022.GA8110@soda.linbit>
+References: <4588E111.8090102@163.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4588E111.8090102@163.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,28 +21,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-hi, Philipp.
+/ 2006-12-20 15:06:57 +0800
+\ home_king:
+> hi, Philipp.
+> 
+> Now drbd-0.8.x uses UUID instead of GC as the data-relationship-detection
+> -tool, right? Its logic seems clearer than GC. However, I am confused
+> about the UUID in the two-primaries-healedpartition scenario.
+> 
+> Given the original uuids below (both nodes are connected):
+> P <5,0,0,0>      S <5,0,0,0>
+> then, I plug out the wire of the primary node (disconnected):
+> P <6,5,0,0>      S <5,0,0,0>
+> I let the downgraded secondary become new primary, UUID should become:
+> P <6,5,0,0>      S <6,5,0,0>
 
-Now drbd-0.8.x uses UUID instead of GC as the data-relationship-detection
--tool, right? Its logic seems clearer than GC. However, I am confused
-about the UUID in the two-primaries-healedpartition scenario.
+no. these small digits are only more readable examples.
+our UUIDs are 63bit random numbers.
+they may clash, and we have to fix that somewhen.
+but that is not very likely.
 
-Given the original uuids below (both nodes are connected):
-P <5,0,0,0>      S <5,0,0,0>
-then, I plug out the wire of the primary node (disconnected):
-P <6,5,0,0>      S <5,0,0,0>
-I let the downgraded secondary become new primary, UUID should become:
-P <6,5,0,0>      S <6,5,0,0>
-Finally, I recover the wire of primary. And Now, there comes my problem.
-Accordding to the UUID algorithm, when Cs == Cp, no resynchronisation
-necessary. However it is obviously split-brain, and drbd ignores it.
+we probably should change the example to read more like
+head -c8 /dev/urandom | hd
+<3cecd7aed66ff5ad,0,0,0>		<3cecd7aed66ff5ad,0,0,0>
+<dc855810336641b6,3cecd7aed66ff5ad,0,0>	<3cecd7aed66ff5ad,0,0,0>
+<dc855810336641b6,3cecd7aed66ff5ad,0,0>	<44dc24617bd63967,3cecd7aed66ff5ad,0,0>
 
-Why?
+to make this more obvious.
 
-BTW, I did not test such scenario, because I can't compile drbd-0.8.x
-in my RedHat AS4 distro. I just browsed the doc & code. :-)
+> BTW, I did not test such scenario, because I can't compile drbd-0.8.x
+> in my RedHat AS4 distro.
 
-Regards,
-luo.jinhua
+works for me.
 
-
+-- 
+: Lars Ellenberg                            Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
+: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
