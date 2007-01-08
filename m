@@ -1,21 +1,16 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (unknown [86.59.100.100])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id A68FA2CFF8BB
-	for <drbd-dev@lists.linbit.com>; Mon,  8 Jan 2007 14:58:18 +0100 (CET)
-From: Philipp Reisner <philipp.reisner@linbit.com>
+Return-Path: <iustin@google.com>
+Received: from localhost (artichoke.zrh.corp.google.com [172.30.13.34])
+	by mail2.zrh.corp.google.com with ESMTP id l08GQ5cZ024998
+	for <drbd-dev@lists.linbit.com>; Mon, 8 Jan 2007 08:26:05 -0800
+Date: Mon, 8 Jan 2007 17:26:05 +0100
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD8: Node state stuck in :WFBitMapT on both node.
-Date: Mon, 8 Jan 2007 14:58:18 +0100
-References: <BD7042533C2F8943A6A4257A9E31C45439C8B3@EXNA.corp.stratus.com>
-In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C8B3@EXNA.corp.stratus.com>
+Message-ID: <20070108162605.GA14463@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="M9NhX3UHpAaciwkO"
 Content-Disposition: inline
-Message-Id: <200701081458.18513.philipp.reisner@linbit.com>
+From: iustin@google.com (Iustin Pop)
+Subject: [Drbd-dev] wrong check of strncpy return value,
+	drbdsetup.c:guess_dev_name (0.7)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,26 +20,85 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Freitag, 5. Januar 2007 21:33 schrieb Montrose, Ernest:
-> Under a xen migration test with moderate I/O we easily get into this
-> state where both nodes enters: WFBitMapT.
-> We can recover from this by rebooting one node.  This is broken by som
-> recent changes.  I can say that it worked
-> Before  these changes:
 
-Hi Ernest,
+--M9NhX3UHpAaciwkO
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-I very carefully reproduced your test here in my UML setup,
-and fixed one remaining bug.
+Hello,
 
-http://lists.linbit.com/pipermail/drbd-cvs/2007-January/001423.html
+In the 0.7 branch, guess_dev_name in drbdsetup.c can go into an infinite
+loop while scanning for block devices.
 
-Last week I did some changes in that area (mdev->p_uuid is now
-longer available). I guess that all the problems are now solved 
-in this area of the code.
+This can happen because when looking for subdirectories the return value
+from snprintf is not checked, and we can (due to truncation) actually
+recurse in the same directory, if the total path length of the current
+directory is exactly 49 chars (line 1247 in drbdsetup.c). This means
+that snprintf will truncate the new component and leave us with the
+current directory in the buffer.
 
--Phil
--- 
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+I saw this when using udev which has in /dev/.udev/failed links to the
+/sys filesystem which contains long paths.
+
+This causes the drbdsetup command to hang forever (if file descriptors
+are exhausted, it will go up the stack closing a few descriptors and
+then recursing again). Maybe at some point it finishes iterating, but
+for practical means it hangs.
+
+Attached patch does three things:
+  - fixes this problem
+  - fixes another wrong use of sntrcpy return value (check should be >=
+    50, not == 49, per sntrpcy man page values greater or equal to size
+    show that truncation has happened)
+  - changes another verify of this value to skip the current entry if
+    too deep, not abort the entire search
+
+Please include this in the 0.7 branch.
+
+Regards,
+Iustin Pop
+
+--M9NhX3UHpAaciwkO
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="snprintf.patch"
+
+Index: user/drbdsetup.c
+===================================================================
+--- user/drbdsetup.c	(revision 2659)
++++ user/drbdsetup.c	(working copy)
+@@ -1226,7 +1226,8 @@
+ 
+   while((dde=readdir(device_dir)))
+     {
+-      snprintf(dev_name,50,"%s/%s",dir,dde->d_name);
++      if(snprintf(dev_name,50,"%s/%s",dir,dde->d_name)>=50)
++	continue;
+       if(stat(dev_name,&sb)) continue;
+ 
+       if(S_ISBLK(sb.st_mode))
+@@ -1244,7 +1245,8 @@
+ 
+   while((dde=readdir(device_dir)))
+     {
+-      snprintf(dev_name,50,"%s/%s",dir,dde->d_name);
++      if(snprintf(dev_name,50,"%s/%s",dir,dde->d_name)>=50)
++	continue;
+       if(stat(dev_name,&sb)) continue;
+ 
+       if(!strcmp(dde->d_name,".")) continue;
+@@ -1257,11 +1259,8 @@
+ 	{
+ 	  char subdir[50];
+ 
+-	  if(snprintf(subdir,50,"%s/%s",dir,dde->d_name)==49)
+-	    { /* recursion is too deep */
+-	      strcpy(dev_name,"can not guess name");
+-	      return dev_name;
+-	    }
++	  if(snprintf(subdir,50,"%s/%s",dir,dde->d_name)>=50)
++	    continue;
+ 
+ 	  if(guess_dev_name(subdir,major,minor)) return dev_name;
+ 	}
+
+--M9NhX3UHpAaciwkO--
