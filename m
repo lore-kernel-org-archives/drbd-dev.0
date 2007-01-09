@@ -1,16 +1,16 @@
 Return-Path: <iustin@google.com>
 Received: from localhost (artichoke.zrh.corp.google.com [172.30.13.34])
-	by mail2.zrh.corp.google.com with ESMTP id l08GQ5cZ024998
-	for <drbd-dev@lists.linbit.com>; Mon, 8 Jan 2007 08:26:05 -0800
-Date: Mon, 8 Jan 2007 17:26:05 +0100
+	by mail2.zrh.corp.google.com with ESMTP id l099blBQ017282
+	for <drbd-dev@lists.linbit.com>; Tue, 9 Jan 2007 01:37:47 -0800
+Date: Tue, 9 Jan 2007 10:37:47 +0100
 To: drbd-dev@lists.linbit.com
-Message-ID: <20070108162605.GA14463@google.com>
+Message-ID: <20070109093747.GC1756@google.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="M9NhX3UHpAaciwkO"
+Content-Type: multipart/mixed; boundary="Y7xTucakfITjPcLV"
 Content-Disposition: inline
 From: iustin@google.com (Iustin Pop)
-Subject: [Drbd-dev] wrong check of strncpy return value,
-	drbdsetup.c:guess_dev_name (0.7)
+Subject: [Drbd-dev] Another small patch for guess_dev_name in
+	user/drbdsetup.c (0.7 branch)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,84 +21,38 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 
---M9NhX3UHpAaciwkO
+--Y7xTucakfITjPcLV
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
-Hello,
+Hi,
 
-In the 0.7 branch, guess_dev_name in drbdsetup.c can go into an infinite
-loop while scanning for block devices.
+guess_dev_name can exit early if the major/minor pair passed in is 0,0
+as this is not a real device so we won't find it in /dev. This skips
+recursing over /dev and stat-ing every file.
 
-This can happen because when looking for subdirectories the return value
-from snprintf is not checked, and we can (due to truncation) actually
-recurse in the same directory, if the total path length of the current
-directory is exactly 49 chars (line 1247 in drbdsetup.c). This means
-that snprintf will truncate the new component and leave us with the
-current directory in the buffer.
-
-I saw this when using udev which has in /dev/.udev/failed links to the
-/sys filesystem which contains long paths.
-
-This causes the drbdsetup command to hang forever (if file descriptors
-are exhausted, it will go up the stack closing a few descriptors and
-then recursing again). Maybe at some point it finishes iterating, but
-for practical means it hangs.
-
-Attached patch does three things:
-  - fixes this problem
-  - fixes another wrong use of sntrcpy return value (check should be >=
-    50, not == 49, per sntrpcy man page values greater or equal to size
-    show that truncation has happened)
-  - changes another verify of this value to skip the current entry if
-    too deep, not abort the entire search
-
-Please include this in the 0.7 branch.
+Attached patch fixes this.
 
 Regards,
 Iustin Pop
 
---M9NhX3UHpAaciwkO
+--Y7xTucakfITjPcLV
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="snprintf.patch"
+Content-Disposition: attachment; filename="null-device.patch"
 
 Index: user/drbdsetup.c
 ===================================================================
 --- user/drbdsetup.c	(revision 2659)
 +++ user/drbdsetup.c	(working copy)
-@@ -1226,7 +1226,8 @@
+@@ -1220,6 +1220,9 @@
+   struct stat sb;
+   static char dev_name[50];
  
-   while((dde=readdir(device_dir)))
-     {
--      snprintf(dev_name,50,"%s/%s",dir,dde->d_name);
-+      if(snprintf(dev_name,50,"%s/%s",dir,dde->d_name)>=50)
-+	continue;
-       if(stat(dev_name,&sb)) continue;
++  if(major==0 && minor==0)
++    return NULL;
++
+   device_dir=opendir(dir);
  
-       if(S_ISBLK(sb.st_mode))
-@@ -1244,7 +1245,8 @@
- 
-   while((dde=readdir(device_dir)))
-     {
--      snprintf(dev_name,50,"%s/%s",dir,dde->d_name);
-+      if(snprintf(dev_name,50,"%s/%s",dir,dde->d_name)>=50)
-+	continue;
-       if(stat(dev_name,&sb)) continue;
- 
-       if(!strcmp(dde->d_name,".")) continue;
-@@ -1257,11 +1259,8 @@
- 	{
- 	  char subdir[50];
- 
--	  if(snprintf(subdir,50,"%s/%s",dir,dde->d_name)==49)
--	    { /* recursion is too deep */
--	      strcpy(dev_name,"can not guess name");
--	      return dev_name;
--	    }
-+	  if(snprintf(subdir,50,"%s/%s",dir,dde->d_name)>=50)
-+	    continue;
- 
- 	  if(guess_dev_name(subdir,major,minor)) return dev_name;
- 	}
+   if(!device_dir) goto err_out;
 
---M9NhX3UHpAaciwkO--
+--Y7xTucakfITjPcLV--
