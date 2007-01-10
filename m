@@ -1,21 +1,19 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from soda (unknown [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D3652D9DECC
-	for <drbd-dev@lists.linbit.com>; Wed, 10 Jan 2007 14:39:22 +0100 (CET)
-Resent-Message-ID: <20070110133922.GF8061@soda.linbit>
-Date: Tue, 9 Jan 2007 14:28:04 -0800
-From: Mark Fasheh <mark.fasheh@oracle.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Message-ID: <20070109222804.GY6831@ca-server1.us.oracle.com>
-References: <200701051506.52840.philipp.reisner@linbit.com>
-MIME-Version: 1.0
+Return-Path: <ard@kwaak.net>
+Received: from mail.kwaak.net (gw-cistron.kwaak.net [62.216.22.210])
+	(using TLSv1 with cipher AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 6D2352D9E0D8
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Jan 2007 13:31:29 +0100 (CET)
+Received: from ard by mail.kwaak.net with local (Exim 4.50) id 1H4cbs-0006rd-Gg
+	for drbd-dev@lists.linbit.com; Wed, 10 Jan 2007 13:31:16 +0100
+Date: Wed, 10 Jan 2007 13:31:16 +0100
+To: drbd-dev@lists.linbit.com
+Message-ID: <20070110123116.GX15730@kwaak.net>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200701051506.52840.philipp.reisner@linbit.com>
-Cc: ocfs2-devel@oss.oracle.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] Re: [Ocfs2-devel] Fixing cluster/heartbeat.c's use of
-	bio_add_page()
-Reply-To: Mark Fasheh <mark.fasheh@oracle.com>
+From: Ard van Breemen <ard@kwaak.net>
+Subject: [Drbd-dev] drbd 2.6.19 crypto changes
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,118 +23,184 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Philipp,
+This is a preliminary patch as in: as far as I can see it
+*should* work.
+Biggest change in the crypto api is that calls are more
+encapsulated.
+Instead of a hmac, we talk about hash only. We allocate and free
+hash structures, independent what kind of hash.
+To calculate the digest there are now 2 calls necessary: a call
+to setkey (if you want to use a key), and a call to generate the
+digest itself.
+This patch tries to keep the changes contained at a single point.
+This means we set the hash_key 2 times instead of being clever
+and setting it once in a more central point, and use that later
+on a few times.
+Anyway: it compiles without warning, it loads, what more do we
+want.
 
-On Fri, Jan 05, 2007 at 03:06:52PM +0100, Philipp Reisner wrote:
-> Hi There,
-> 
-> As was already pointed out Mathieu Avila on Thu, 07 Sep 2006 03:15:25 -0700
-> that OCFS2 is expecting bio_add_page() to add pages to BIOs in an easily
-> predictable manner.
-> 
-> That is not true, especially for devices with own merge_bvec_fn().
-> 
-> Therefore OCFS2's heartbeat code is very likely to fail on such devices.
-> 
-> The attached patch corrects this, and reduces the file cluster/heartbeat.c
-> by 90 lines.
-
-Thanks for taking this on - fixing up that code has been on my todo list for
-a while.
-
-
->   The whole patch builds around the change that the bio_put() call is
->   moved to the bio's bi_end_io() function.
->   This makes the whole idea of trying to predict the behaviour of 
->   bio_add_page() unnecessary, therefore we can remove compute_max_sectors()
->   and o2hb_compute_request_limits().
-> 
-> -Phil
-> 
-> PS1: With that applied I can happily run OCFS2 on a DRBD-8.0 device which
->      sits on top of software raid (both have interesting merge_bvec_fn()
->      functions.
-> 
-> PS2: I created the ocfs2-fix-bio_add_page.diff on 2.6.17 .
->      And later refitted the patch to 2.6.20-rc2.
-
-Ok, great. I only looked at the 2.6.20-rc2 patch as that's what I'm running
-here.
-
-
->  static int o2hb_read_slots(struct o2hb_region *reg,
->  			   unsigned int max_slots)
->  {
-> -	unsigned int num_bios, slots_per_bio, start_slot, num_slots;
-> -	int i, status;
-> +	unsigned int current_slot=0;
-> +	int status;
->  	struct o2hb_bio_wait_ctxt wc;
-> -	struct bio **bios;
->  	struct bio *bio;
->  
-> -	o2hb_compute_request_limits(reg, max_slots, &num_bios, &slots_per_bio);
-> -
-> -	bios = kcalloc(num_bios, sizeof(struct bio *), GFP_KERNEL);
-> -	if (!bios) {
-> -		status = -ENOMEM;
-> -		mlog_errno(status);
-> -		return status;
-> -	}
-> -
-> -	o2hb_bio_wait_init(&wc, num_bios);
-> -
-> -	num_slots = slots_per_bio;
-> -	for(i = 0; i < num_bios; i++) {
-> -		start_slot = i * slots_per_bio;
-> +	o2hb_bio_wait_init(&wc);
->  
-> -		/* adjust num_slots at last bio */
-> -		if (max_slots < (start_slot + num_slots))
-> -			num_slots = max_slots - start_slot;
-> -
-> -		bio = o2hb_setup_one_bio(reg, &wc, start_slot, num_slots);
-> +	while(current_slot < max_slots) {
-> +		bio = o2hb_setup_one_bio(reg, &wc, &current_slot, max_slots);
->  		if (IS_ERR(bio)) {
-> -			o2hb_bio_wait_dec(&wc, num_bios - i);
-> -
->  			status = PTR_ERR(bio);
->  			mlog_errno(status);
->  			goto bail_and_wait;
->  		}
-> -		bios[i] = bio;
->  
-> +		atomic_inc(&wc.wc_num_reqs);
->  		submit_bio(READ, bio);
->  	}
-
-You changed o2hb_bio_wait_init() to initialize wc_num_reqs to zero, and
-instead you increment the value before each submit_bio(). This makes sense
-because we now don't know how many requests will ultimately be submitted.
-
-However, A race now exists here between the piecemeal increment of
-wc_num_reqs and the completion code in o2hb_bio_wait_dec():
-
-		if (atomic_dec_and_test(&wc->wc_num_reqs)) {
-			BUG_ON(num > 0);
-			complete(&wc->wc_io_complete);
-		}
-
-So, if enough bios complete before you're done submitting all your read
-requests, you could trigger the completion, wc_io_complete early.
-
-This would certainly be hard to hit, but that's never stopped a race from
-occuring before :)
-
-So, NACK until we fix that race. Otherwise the patch seems to look fine. I
-can test a future version here at Oracle.
-
-Thanks,
-	--Mark
-
---
-Mark Fasheh
-Senior Software Developer, Oracle
-mark.fasheh@oracle.com
-
+Index: drbd-latest/drbd/drbd_receiver.c
+===================================================================
+--- drbd-latest/drbd/drbd_receiver.c	(revision 2678)
++++ drbd-latest/drbd/drbd_receiver.c	(working copy)
+@@ -2754,7 +2754,11 @@ STATIC void drbd_disconnect(drbd_dev *md
+ 			mdev->tl_hash_s = 0;
+ 		}
+ 		if(mdev->cram_hmac_tfm) {
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 			crypto_free_tfm(mdev->cram_hmac_tfm);
++#else
++			crypto_free_hash(mdev->cram_hmac_tfm);
++#endif
+ 			mdev->cram_hmac_tfm = NULL;
+ 		}
+ 		kfree(mdev->net_conf);
+@@ -2951,7 +2955,11 @@ STATIC int drbd_do_auth(drbd_dev *mdev)
+ 		goto fail;
+ 	}
+ 
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 	resp_size = crypto_tfm_alg_digestsize(mdev->cram_hmac_tfm);
++#else
++	resp_size = crypto_hash_digestsize(mdev->cram_hmac_tfm);
++#endif
+ 	response = kmalloc(resp_size,GFP_KERNEL);
+ 	if(response == NULL) {
+ 		ERR("kmalloc of response failed\n");
+@@ -2962,8 +2970,22 @@ STATIC int drbd_do_auth(drbd_dev *mdev)
+ 	sg.page   = virt_to_page(peers_ch);
+ 	sg.offset = offset_in_page(peers_ch);
+ 	sg.length = p.length;
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 	crypto_hmac(mdev->cram_hmac_tfm, (u8*)mdev->net_conf->shared_secret,
+ 		    &key_len, &sg, 1, response);
++#else
++	{
++		struct hash_desc desc;
++		int ret;
++		desc.tfm=mdev->cram_hmac_tfm;
++		desc.flags=0;
++		ret=crypto_hash_setkey(mdev->cram_hmac_tfm,
++			(u8*)mdev->net_conf->shared_secret, key_len);
++		if(ret) printk("crypto_has_setkey()@" __FILE__":%d failed ret=%d\n",__LINE__,ret);
++		ret=crypto_hash_digest(&desc, &sg, sg.length, response);
++		if(ret) printk("crypto_has_digest()@" __FILE__":%d failed ret=%d\n",__LINE__,ret);
++	}
++#endif
+ 
+ 	rv = drbd_send_cmd2(mdev,AuthResponse,response,resp_size);
+ 	if (!rv) goto fail;
+@@ -3002,8 +3024,22 @@ STATIC int drbd_do_auth(drbd_dev *mdev)
+ 	sg.page   = virt_to_page(my_challenge);
+ 	sg.offset = offset_in_page(my_challenge);
+ 	sg.length = CHALLENGE_LEN;
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 	crypto_hmac(mdev->cram_hmac_tfm, (u8*)mdev->net_conf->shared_secret,
+ 		    &key_len, &sg, 1, right_response);
++#else
++	{
++		struct hash_desc desc;
++		int ret;
++		desc.tfm=mdev->cram_hmac_tfm;
++		desc.flags=0;
++		ret=crypto_hash_setkey(mdev->cram_hmac_tfm,
++			(u8*)mdev->net_conf->shared_secret, key_len);
++		if(ret) printk("crypto_has_setkey()@" __FILE__":%d failed ret=%d\n",__LINE__,ret);
++		ret=crypto_hash_digest(&desc, &sg, sg.length, right_response);
++		if(ret) printk("crypto_has_digest()@" __FILE__":%d failed ret=%d\n",__LINE__,ret);
++	}
++#endif
+ 
+ 	rv = ! memcmp(response,right_response,resp_size);
+ 
+Index: drbd-latest/drbd/drbd_nl.c
+===================================================================
+--- drbd-latest/drbd/drbd_nl.c	(revision 2678)
++++ drbd-latest/drbd/drbd_nl.c	(working copy)
+@@ -966,7 +966,11 @@ STATIC int drbd_nl_net_conf(drbd_dev *md
+ 	int i,ns;
+ 	enum ret_codes retcode;
+ 	struct net_conf *new_conf = NULL;
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 	struct crypto_tfm* tfm = NULL;
++#else
++	struct crypto_hash *tfm = NULL;
++#endif
+ 	struct hlist_head *new_tl_hash = NULL;
+ 	struct hlist_head *new_ee_hash = NULL;
+ 	drbd_dev *odev;
+@@ -1047,13 +1051,17 @@ STATIC int drbd_nl_net_conf(drbd_dev *md
+ #undef O_PORT
+ 
+ 	if( new_conf->cram_hmac_alg[0] != 0) {
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 		tfm = crypto_alloc_tfm(new_conf->cram_hmac_alg, 0);
++#else
++		tfm = crypto_alloc_hash(new_conf->cram_hmac_alg, 0, CRYPTO_ALG_ASYNC);
++#endif
+ 		if (tfm == NULL) {
+ 			retcode=CRAMAlgNotAvail;
+ 			goto fail;
+ 		}
+ 
+-		if (crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST) {
++		if (crypto_tfm_alg_type(crypto_hash_tfm(tfm)) != CRYPTO_ALG_TYPE_DIGEST) {
+ 			retcode=CRAMAlgNotDigest;
+ 			goto fail;
+ 		}
+@@ -1126,7 +1134,11 @@ FIXME LGE
+ 	}
+ 
+ 	if ( mdev->cram_hmac_tfm ) {
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 		crypto_free_tfm(mdev->cram_hmac_tfm);
++#else
++		crypto_free_hash(mdev->cram_hmac_tfm);
++#endif
+ 	}
+ 	mdev->cram_hmac_tfm = tfm;
+ 
+@@ -1136,7 +1148,11 @@ FIXME LGE
+ 	return 0;
+ 
+   fail:
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 	if (tfm) crypto_free_tfm(tfm);
++#else
++	if (tfm) crypto_free_hash(tfm);
++#endif
+ 	if (new_tl_hash) kfree(new_tl_hash);
+ 	if (new_ee_hash) kfree(new_ee_hash);
+ 	if (new_conf) kfree(new_conf);
+Index: drbd-latest/drbd/drbd_main.c
+===================================================================
+--- drbd-latest/drbd/drbd_main.c	(revision 2678)
++++ drbd-latest/drbd/drbd_main.c	(working copy)
+@@ -2490,7 +2490,11 @@ void drbd_free_sock(drbd_dev *mdev)
+ void drbd_free_resources(drbd_dev *mdev)
+ {
+ 	if ( mdev->cram_hmac_tfm ) {
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 		crypto_free_tfm(mdev->cram_hmac_tfm);
++#else
++		crypto_free_hash(mdev->cram_hmac_tfm);
++#endif
+ 		mdev->cram_hmac_tfm = NULL;
+ 	}
+ 	drbd_free_sock(mdev);
+Index: drbd-latest/drbd/drbd_int.h
+===================================================================
+--- drbd-latest/drbd/drbd_int.h	(revision 2678)
++++ drbd-latest/drbd/drbd_int.h	(working copy)
+@@ -851,7 +851,11 @@ struct Drbd_Conf {
+ 	unsigned int al_tr_number;
+ 	int al_tr_cycle;
+ 	int al_tr_pos;     // position of the next transaction in the journal
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+ 	struct crypto_tfm* cram_hmac_tfm;
++#else
++	struct crypto_hash* cram_hmac_tfm;
++#endif
+ 	wait_queue_head_t seq_wait;
+ 	atomic_t packet_seq;
+ 	unsigned int peer_seq;
