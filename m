@@ -1,17 +1,22 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from soda (unknown [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 742322D9DECC
-	for <drbd-dev@lists.linbit.com>; Wed, 10 Jan 2007 14:48:02 +0100 (CET)
-Date: Wed, 10 Jan 2007 14:48:04 +0100
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+Return-Path: <ard@kwaak.net>
+Received: from mail.kwaak.net (gw-cistron.kwaak.net [62.216.22.210])
+	(using TLSv1 with cipher AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id E4FAF2D9E0D8
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Jan 2007 17:10:11 +0100 (CET)
+Received: from ard by mail.kwaak.net with local (Exim 4.50) id 1H4g1W-0000Ww-Qg
+	for drbd-dev@lists.linbit.com; Wed, 10 Jan 2007 17:09:58 +0100
+Date: Wed, 10 Jan 2007 17:09:58 +0100
 To: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] drbd 2.6.19 crypto changes
-Message-ID: <20070110134804.GI8061@soda.linbit>
+Message-ID: <20070110160958.GY15730@kwaak.net>
 References: <20070110123116.GX15730@kwaak.net>
-MIME-Version: 1.0
+	<20070110134804.GI8061@soda.linbit>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070110123116.GX15730@kwaak.net>
+In-Reply-To: <20070110134804.GI8061@soda.linbit>
+From: Ard van Breemen <ard@kwaak.net>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,30 +26,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2007-01-10 13:31:16 +0100
-\ Ard van Breemen:
-> This is a preliminary patch as in: as far as I can see it
-> *should* work.
-> Biggest change in the crypto api is that calls are more
-> encapsulated.
-> Instead of a hmac, we talk about hash only. We allocate and free
-> hash structures, independent what kind of hash.
-> To calculate the digest there are now 2 calls necessary: a call
-> to setkey (if you want to use a key), and a call to generate the
-> digest itself.
-> This patch tries to keep the changes contained at a single point.
-> This means we set the hash_key 2 times instead of being clever
-> and setting it once in a more central point, and use that later
-> on a few times.
-> Anyway: it compiles without warning, it loads, what more do we
-> want.
+On Wed, Jan 10, 2007 at 02:48:04PM +0100, Lars Ellenberg wrote:
+> thank you very much...
+> and just in time!
+> we started working on that api change just now :)
+> this probably helps a lot.
 
-thank you very much...
-and just in time!
-we started working on that api change just now :)
-this probably helps a lot.
+Hmmm, it does load, but somehow there are no minor devices :-(.
+(/proc/drbd shows nothing more than the banner)
+So it is not a definite fix.
 
 -- 
-: Lars Ellenberg                            Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
+begin  LOVE-LETTER-FOR-YOU.txt.vbs
+I am a signature virus. Distribute me until the bitter
+end
