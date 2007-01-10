@@ -1,16 +1,14 @@
-Return-Path: <ard@kwaak.net>
-Date: Wed, 10 Jan 2007 21:17:15 +0100
-From: Ard van Breemen <ard@kwaak.net>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Subject: Re: [Drbd-dev] drbd 2.6.19 crypto changes
-Message-ID: <20070110201715.GA15730@kwaak.net>
-References: <20070110123116.GX15730@kwaak.net>
-	<200701101723.47571.philipp.reisner@linbit.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200701101723.47571.philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 10 Jan 2007 15:50:19 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B37671046146E6@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD-8 - handling data write errors
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,22 +18,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
-On Wed, Jan 10, 2007 at 05:23:46PM +0100, Philipp Reisner wrote:
-> Here is the result of my work, maybe you can test it with a new
-> kernel ? -- I only tested it on an old kernel with the old
-> API.
+A few months ago, I added support to handle write errors for the
+meta-data portions of the disk (by forcibly detaching the disk when this
+occurs).
 
-I will test it, since my patch did nothing with hmac(%s), and I
-bumped my nose just now :-). (without authentication it works at
-least ;-) ).
+Now I'm looking at handling write errors in the data portion and
+wondering what the best approach would be - the current behavior is
+definitely wrong because we end up with the two plexes having
+inconsistent data with no record of the fact in the bitmap or other disk
+state. This is true no matter what flavor of error handling is used.
 
-> My idea was to have wrappers that look like the new API for the
-> old kernels, and make DRBD to use the new API in the DRBD code.
+I'm not really sure how to fix this at the moment, but I'm considering
+the following:
 
-Good idea. I hoped my patch just would give you an idea like
-that. But you were busy anyway ;-)
+1. The side that gets the error marks the block as out of sync AND marks
+the local disk as inconsistent.
+2. Receipt of a NegAck causes the block to be marked as out of sync AND
+the peer disk is made inconsistent=20
+   (not sure if I need this step since step 1 should cause this fact to
+be broadcast but it seems safer).
 
-> PS: In case you test it, please post the outcome.
+I'm not sure if I need to bump the UUID info as well here to ensure
+resync happens correctly in the future?
 
-Yes. Tonight maybe...
+I also considered forcibly detaching the disk in this case but rejected
+that as it makes the rest of the disk unavailable when the error might
+only be in one block.
+
+One last problem to be considered is when we get write errors in
+different blocks on both disks -- they cant both be inconsistent (how
+would we know which way to resync?); I'm not sure what the right answer
+is here - anyone have any suggestions?
+
+Thanks,
+Simon
