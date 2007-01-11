@@ -1,16 +1,14 @@
-Return-Path: <ard@kwaak.net>
-Date: Thu, 11 Jan 2007 15:38:45 +0100
-From: Ard van Breemen <ard@kwaak.net>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Subject: Re: [Drbd-dev] drbd 2.6.19 crypto changes
-Message-ID: <20070111143845.GB15730@kwaak.net>
-References: <20070110123116.GX15730@kwaak.net>
-	<200701101723.47571.philipp.reisner@linbit.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200701101723.47571.philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] DRBD-8 - handling data write errors
+Date: Thu, 11 Jan 2007 10:50:27 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B3767104614838@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,34 +18,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Jan 10, 2007 at 05:23:46PM +0100, Philipp Reisner wrote:
-> Here is the result of my work, maybe you can test it with a new
-> kernel ? -- I only tested it on an old kernel with the old
-> API.
-> 
-> My idea was to have wrappers that look like the new API for the
-> old kernels, and make DRBD to use the new API in the DRBD code.
-> 
-> PS: In case you test it, please post the outcome.
-drbd0: Writing meta data super block now.
+> this is not a short-term project, but
+> how about this:
+>  introduce an additional "badblocks" bitmap -- actually, I think
+> probably
+>  a "range-list" type of storage would be appropriate here.
+>=20
+>  local read error:
+>     mark dirty, read full blocks remotely (which may be more than the
+>     application requested), write -- written ok: mark clean again.
+>  local write error:
+>     mark block (range) as bad,
+>     mark system "degraded"
+>  both blocks bad, or remote not reachable:
+>     pass to upper layers.
+>=20
 
-crypto type=3
-drbd0: conn( StandAlone -> Unconnected ) 
+You are right - it's not short term! Also;
+. I think it'd be necessary to write this new badblocks structure to the
+on-disk=20
+  meta-data so we'd need to allocate space for it
+. We'd then need to deal with the case of having no more space to record
+badblocks (the
+  disk is pretty toasty in this case - maybe just detach).
 
-I got the message "not a digest", which is correct.
-We are using CRYPTO_TYPE_HASH, which in turn uses
-CRYPTO_TYPE_DIGEST.
+You know, the underlying disks already include a lot of this
+functionality and the more I think about it, the more convinced I am
+that detaching on any error is the right thing to do --=20
+. DRBD already (I think) correctly handles things if you re-attach
+following this (it'll try=20
+  to resync the failed blocks and if that fails it would detach again).
+. Although this seems like you end up doing a lot of work, these errors
+are unlikely so I
+  think it's OK to use a large hammer.
 
-Eh, never mind my babling, just this:
-
-> -		if (crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST) {
-> +		if (crypto_tfm_alg_type(crypto_hash_tfm(tfm)) != CRYPTO_ALG_TYPE_DIGEST) {
->  			retcode=CRAMAlgNotDigest;
->  			goto fail;
->  		}
-
-s/CRYPTO_ALG_TYPE_DIGEST/CRYPTO_ALG_TYPE_HASH/g
-
-then it probably works (I've removed the goto fail and just
-printed the type, which was a HASH :-) ).
+I'm going to do some experiments with the error handler set to Detach -
+will report back on results.
+Simon
 
