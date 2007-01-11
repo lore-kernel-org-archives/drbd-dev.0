@@ -1,14 +1,17 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD-8 - handling data write errors
-Date: Thu, 11 Jan 2007 10:50:27 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B3767104614838@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+Return-Path: <ard@kwaak.net>
+Date: Thu, 11 Jan 2007 18:12:05 +0100
+From: Ard van Breemen <ard@kwaak.net>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] drbd 2.6.19 crypto changes
+Message-ID: <20070111171205.GC15730@kwaak.net>
+References: <20070110123116.GX15730@kwaak.net>
+	<200701101723.47571.philipp.reisner@linbit.com>
+	<20070111143845.GB15730@kwaak.net>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="VS++wcV0S1rZb1Fb"
+Content-Disposition: inline
+In-Reply-To: <20070111143845.GB15730@kwaak.net>
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,41 +21,274 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> this is not a short-term project, but
-> how about this:
->  introduce an additional "badblocks" bitmap -- actually, I think
-> probably
->  a "range-list" type of storage would be appropriate here.
->=20
->  local read error:
->     mark dirty, read full blocks remotely (which may be more than the
->     application requested), write -- written ok: mark clean again.
->  local write error:
->     mark block (range) as bad,
->     mark system "degraded"
->  both blocks bad, or remote not reachable:
->     pass to upper layers.
->=20
 
-You are right - it's not short term! Also;
-. I think it'd be necessary to write this new badblocks structure to the
-on-disk=20
-  meta-data so we'd need to allocate space for it
-. We'd then need to deal with the case of having no more space to record
-badblocks (the
-  disk is pretty toasty in this case - maybe just detach).
+--VS++wcV0S1rZb1Fb
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-You know, the underlying disks already include a lot of this
-functionality and the more I think about it, the more convinced I am
-that detaching on any error is the right thing to do --=20
-. DRBD already (I think) correctly handles things if you re-attach
-following this (it'll try=20
-  to resync the failed blocks and if that fails it would detach again).
-. Although this seems like you end up doing a lot of work, these errors
-are unlikely so I
-  think it's OK to use a large hammer.
+On Thu, Jan 11, 2007 at 03:38:45PM +0100, Ard van Breemen wrote:
+> s/CRYPTO_ALG_TYPE_DIGEST/CRYPTO_ALG_TYPE_HASH/g
 
-I'm going to do some experiments with the error handler set to Detach -
-will report back on results.
-Simon
+Your patch, but fixed with ^^^^ and working. (I do have unrelated
+oopses).
 
+
+--VS++wcV0S1rZb1Fb
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="new_crypto_api-fixed.diff"
+
+Index: drbd/drbd_receiver.c
+===================================================================
+--- drbd/drbd_receiver.c	(revision 2679)
++++ drbd/drbd_receiver.c	(working copy)
+@@ -2754,7 +2754,7 @@
+ 			mdev->tl_hash_s = 0;
+ 		}
+ 		if(mdev->cram_hmac_tfm) {
+-			crypto_free_tfm(mdev->cram_hmac_tfm);
++			crypto_free_hash(mdev->cram_hmac_tfm);
+ 			mdev->cram_hmac_tfm = NULL;
+ 		}
+ 		kfree(mdev->net_conf);
+@@ -2913,8 +2913,20 @@
+ 	Drbd_Header p;
+ 	unsigned int key_len = strlen(mdev->net_conf->shared_secret);
+ 	unsigned int resp_size;
++	struct hash_desc desc;
+ 	int rv;
+ 
++	desc.tfm=mdev->cram_hmac_tfm;
++	desc.flags=0;
++
++	rv = crypto_hash_setkey(mdev->cram_hmac_tfm,
++				(u8*)mdev->net_conf->shared_secret, key_len);
++	if(rv) {
++		ERR("crypto_hash_setkey() failed with %d\n",rv);
++		rv = 0;
++		goto fail;
++	}
++
+ 	get_random_bytes(my_challenge, CHALLENGE_LEN);
+ 
+ 	rv = drbd_send_cmd2(mdev,AuthChallenge,my_challenge,CHALLENGE_LEN);
+@@ -2951,7 +2963,7 @@
+ 		goto fail;
+ 	}
+ 
+-	resp_size = crypto_tfm_alg_digestsize(mdev->cram_hmac_tfm);
++	resp_size = crypto_hash_digestsize(mdev->cram_hmac_tfm);
+ 	response = kmalloc(resp_size,GFP_KERNEL);
+ 	if(response == NULL) {
+ 		ERR("kmalloc of response failed\n");
+@@ -2962,9 +2974,14 @@
+ 	sg.page   = virt_to_page(peers_ch);
+ 	sg.offset = offset_in_page(peers_ch);
+ 	sg.length = p.length;
+-	crypto_hmac(mdev->cram_hmac_tfm, (u8*)mdev->net_conf->shared_secret,
+-		    &key_len, &sg, 1, response);
+ 
++	rv = crypto_hash_digest(&desc, &sg, sg.length, response);
++	if(rv) {
++		ERR( "crypto_hash_digest() failed with %d\n",rv);
++		rv = 0;
++		goto fail;		
++	}
++
+ 	rv = drbd_send_cmd2(mdev,AuthResponse,response,resp_size);
+ 	if (!rv) goto fail;
+ 
+@@ -3002,8 +3019,13 @@
+ 	sg.page   = virt_to_page(my_challenge);
+ 	sg.offset = offset_in_page(my_challenge);
+ 	sg.length = CHALLENGE_LEN;
+-	crypto_hmac(mdev->cram_hmac_tfm, (u8*)mdev->net_conf->shared_secret,
+-		    &key_len, &sg, 1, right_response);
++	
++	rv = crypto_hash_digest(&desc, &sg, sg.length, right_response);
++	if(rv) {
++		ERR( "crypto_hash_digest() failed with %d\n",rv);
++		rv = 0;
++		goto fail;		
++	}
+ 
+ 	rv = ! memcmp(response,right_response,resp_size);
+ 
+Index: drbd/drbd_nl.c
+===================================================================
+--- drbd/drbd_nl.c	(revision 2679)
++++ drbd/drbd_nl.c	(working copy)
+@@ -960,16 +960,19 @@
+ 	return 0;
+ }
+ 
++#define HMAC_NAME_L 20
++
+ STATIC int drbd_nl_net_conf(drbd_dev *mdev, struct drbd_nl_cfg_req *nlp,
+ 			    struct drbd_nl_cfg_reply *reply)
+ {
+ 	int i,ns;
+ 	enum ret_codes retcode;
+ 	struct net_conf *new_conf = NULL;
+-	struct crypto_tfm* tfm = NULL;
++	struct crypto_hash *tfm = NULL;
+ 	struct hlist_head *new_tl_hash = NULL;
+ 	struct hlist_head *new_ee_hash = NULL;
+ 	drbd_dev *odev;
++	char hmac_name[HMAC_NAME_L];
+ 
+ 	if (mdev->state.conn > StandAlone) {
+ 		retcode=HaveNetConfig;
+@@ -1047,13 +1050,14 @@
+ #undef O_PORT
+ 
+ 	if( new_conf->cram_hmac_alg[0] != 0) {
+-		tfm = crypto_alloc_tfm(new_conf->cram_hmac_alg, 0);
++		snprintf(hmac_name,HMAC_NAME_L,"hmac(%s)",new_conf->cram_hmac_alg);
++		tfm = crypto_alloc_hash(hmac_name, 0, CRYPTO_ALG_ASYNC);
+ 		if (tfm == NULL) {
+ 			retcode=CRAMAlgNotAvail;
+ 			goto fail;
+ 		}
+ 
+-		if (crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST) {
++		if (crypto_tfm_alg_type(crypto_hash_tfm(tfm)) != CRYPTO_ALG_TYPE_HASH) {
+ 			retcode=CRAMAlgNotDigest;
+ 			goto fail;
+ 		}
+@@ -1126,7 +1130,7 @@
+ 	}
+ 
+ 	if ( mdev->cram_hmac_tfm ) {
+-		crypto_free_tfm(mdev->cram_hmac_tfm);
++		crypto_free_hash(mdev->cram_hmac_tfm);
+ 	}
+ 	mdev->cram_hmac_tfm = tfm;
+ 
+@@ -1136,7 +1140,7 @@
+ 	return 0;
+ 
+   fail:
+-	if (tfm) crypto_free_tfm(tfm);
++	if (tfm) crypto_free_hash(tfm);
+ 	if (new_tl_hash) kfree(new_tl_hash);
+ 	if (new_ee_hash) kfree(new_ee_hash);
+ 	if (new_conf) kfree(new_conf);
+Index: drbd/drbd_compat_wrappers.h
+===================================================================
+--- drbd/drbd_compat_wrappers.h	(revision 2679)
++++ drbd/drbd_compat_wrappers.h	(working copy)
+@@ -242,3 +242,86 @@
+ #endif
+ 
+ #endif
++
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
++/* With Linux-2.6.19 the crypto API changed! */
++/* This is not a generic backport of the new api, it just implements
++   the corner case of "hmac(xxx)".  */
++
++#define CRYPTO_ALG_ASYNC 4711
++
++struct crypto_hash {
++        struct crypto_tfm *base;
++	const u8 *key;
++	int keylen;
++};
++
++struct hash_desc {
++        struct crypto_hash *tfm;
++        u32 flags;
++};
++
++static inline struct crypto_hash *
++crypto_alloc_hash(char *alg_name, u32 type, u32 mask)
++{
++	struct crypto_hash *ch;
++	char *closing_bracket;
++
++	// "hmac(xxx)" is in alg_name we need that xxx. 
++	closing_bracket = strchr(alg_name,')');
++	if(!closing_bracket) return NULL;
++	if(closing_bracket-alg_name < 6) return NULL;
++
++	ch = kmalloc(sizeof(struct crypto_hash),GFP_KERNEL);
++	if(!ch) return NULL;
++
++	*closing_bracket = 0;
++	ch->base = crypto_alloc_tfm(alg_name + 5, 0);
++	*closing_bracket = ')';
++
++	if (ch->base == NULL) {
++		kfree(ch);
++		return NULL;
++	}
++
++	return ch;
++}
++
++static inline int 
++crypto_hash_setkey(struct crypto_hash *hash,const u8 *key,unsigned int keylen)
++{
++	hash->key = key;
++	hash->keylen = keylen;
++
++	return 0;
++}
++
++static inline int 
++crypto_hash_digest(struct hash_desc *desc, struct scatterlist *sg,
++		   unsigned int nbytes, u8 *out)
++{
++	
++	crypto_hmac(desc->tfm->base, (u8*)desc->tfm->key,
++		    &desc->tfm->keylen, sg, 1 /* ! */ , out);
++	/* ! this is not generic. Would need to convert nbytes -> nsg */
++
++	return 0;
++}
++
++static inline void crypto_free_hash(struct crypto_hash *tfm)
++{
++	crypto_free_tfm(tfm->base);
++	kfree(tfm);
++}
++
++static inline unsigned int crypto_hash_digestsize(struct crypto_hash *tfm)
++{
++	return crypto_tfm_alg_digestsize(tfm->base);
++}
++
++static inline struct crypto_tfm *crypto_hash_tfm(struct crypto_hash *tfm)
++{
++        return tfm->base;
++}
++
++#endif
+Index: drbd/drbd_main.c
+===================================================================
+--- drbd/drbd_main.c	(revision 2679)
++++ drbd/drbd_main.c	(working copy)
+@@ -2490,7 +2490,7 @@
+ void drbd_free_resources(drbd_dev *mdev)
+ {
+ 	if ( mdev->cram_hmac_tfm ) {
+-		crypto_free_tfm(mdev->cram_hmac_tfm);
++		crypto_free_hash(mdev->cram_hmac_tfm);
+ 		mdev->cram_hmac_tfm = NULL;
+ 	}
+ 	drbd_free_sock(mdev);
+Index: drbd/drbd_int.h
+===================================================================
+--- drbd/drbd_int.h	(revision 2679)
++++ drbd/drbd_int.h	(working copy)
+@@ -851,7 +851,7 @@
+ 	unsigned int al_tr_number;
+ 	int al_tr_cycle;
+ 	int al_tr_pos;     // position of the next transaction in the journal
+-	struct crypto_tfm* cram_hmac_tfm;
++	struct crypto_hash* cram_hmac_tfm;
+ 	wait_queue_head_t seq_wait;
+ 	atomic_t packet_seq;
+ 	unsigned int peer_seq;
+
+--VS++wcV0S1rZb1Fb--
