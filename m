@@ -1,14 +1,18 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] drbd 2.6.19 crypto changes
+Date: Fri, 12 Jan 2007 14:50:45 +0100
+References: <20070110123116.GX15730@kwaak.net>
+	<20070111143845.GB15730@kwaak.net>
+	<20070111171205.GC15730@kwaak.net>
+In-Reply-To: <20070111171205.GC15730@kwaak.net>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD-8: BUG when disk write errors occur duringheavyI/O
-Date: Thu, 11 Jan 2007 20:45:00 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B3767104614969@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200701121450.46273.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,30 +22,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
->=20
-> hm. but that would make the "local" reference count be a network
-> reference count, too, it may even keep the reference for a long time
-> if you configure it to freeze io on connection loss...
->=20
-> not good.
+Am Donnerstag, 11. Januar 2007 18:12 schrieb Ard van Breemen:
+> On Thu, Jan 11, 2007 at 03:38:45PM +0100, Ard van Breemen wrote:
+> > s/CRYPTO_ALG_TYPE_DIGEST/CRYPTO_ALG_TYPE_HASH/g
+>
+> Your patch, but fixed with ^^^^ and working. (I do have unrelated
+> oopses).
 
-Good point...
+Hi Ard,
 
->=20
-> so maybe we rather want to brace drbd_al_complete_io
-> with inc_local dec_local ?
->=20
-> currently we only call it in three places,
-> early bail out on conflicting writes in drbd_make_request
-> [which holds local ref], drbd_endio_write_sec when the
-> EE_CALL_AL_COMPLETE_IO flag is set [also holds a local ref]
-> and this code in question.
->=20
-> so how about this (sorry for the long lines):
+This has gone to SVN Yesterday.
+http://lists.linbit.com/pipermail/drbd-cvs/2007-January/001426.html
 
-Looks good to me -- with Phil's previous change we have an extra
-reference sometimes (since in some cases we still have the ref for the
-local request) but that's not a problem.
+Today I finally convinced myself that it really works. It computes
+the same values, using the new and the old API. It seems to work.
 
-I'll try this out and get back to you.
-Simon
+-Phil
+-- 
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
