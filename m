@@ -1,18 +1,26 @@
 Return-Path: <Lars.Ellenberg@linbit.com>
 Received: from soda (unknown [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 436622D9D9E5
-	for <drbd-dev@lists.linbit.com>; Mon, 15 Jan 2007 08:45:11 +0100 (CET)
-Date: Mon, 15 Jan 2007 08:45:12 +0100
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] drbd-svn can't handle modular hmac,
-	and crashes if hash can't be found
-Message-ID: <20070115074512.GD8577@soda.linbit>
-References: <45AA65F4.90709@glines.org>
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 6C9402D9D6C9
+	for <drbd-dev@lists.linbit.com>; Mon, 15 Jan 2007 09:01:55 +0100 (CET)
+Resent-Message-ID: <20070115080152.GE8577@soda.linbit>
+Received: from squawk.glines.org (squawk.glines.org [72.36.206.66])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 896FF2D9E0D8
+	for <drbd-dev@lists.linbit.com>; Mon, 15 Jan 2007 08:52:06 +0100 (CET)
+Received: from [10.1.0.9] (adsl-75-28-77-94.dsl.scrm01.sbcglobal.net
+	[75.28.77.94])
+	by squawk.glines.org (Postfix) with ESMTP id C09EE10371F
+	for <drbd-dev@lists.linbit.com>; Sun, 14 Jan 2007 23:52:04 -0800 (PST)
+Message-ID: <45AB32A1.5080804@glines.org>
+Date: Sun, 14 Jan 2007 23:52:01 -0800
+From: Mark Glines <mark@glines.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <45AA65F4.90709@glines.org>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] drbd-svn can't handle modular hmac,	and crashes if
+	hash can't be found
+References: <45AA65F4.90709@glines.org> <20070115074512.GD8577@soda.linbit>
+In-Reply-To: <20070115074512.GD8577@soda.linbit>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,39 +30,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2007-01-14 09:18:44 -0800
-\ Mark Glines:
-> Hi,
+Lars Ellenberg wrote:
+>> 2.  If the hash algorithm itself isn't available (like sha1.ko wasn't loaded yet), crypto_alloc_hash() returns 
+>> -ENOENT.  It does not return NULL, which is what the drbd code currently checks for.  This leads to crashes later.
 > 
-> A few minor issues.
+> right... we know 't was unfinished code,
+> but checked in anyways, to get it going.
+
+FYI, it's working here on 2.6.20-rc4 (PPC) with CONFIG_CRYPTO_HMAC and 
+CONFIG_CRYPTO_SHA1 both configured as modules.  So now I'm watching my 
+new cluster sync up for the first time:
+
+drbd0: Writing meta data super block now.
+drbd0: conn( WFConnection -> WFReportParams )
+drbd0: Handshake successful: DRBD Network Protocol version 85
+drbd0: Peer authenticated usind 20 bytes of 'sha1' HMAC
+drbd0: peer( Unknown -> Secondary ) conn( WFReportParams -> WFBitMapS ) 
+pdsk( DUnknown -> Inconsistent )
+drbd0: Writing meta data super block now.
+drbd0: conn( WFBitMapS -> SyncSource )
+drbd0: Began resync as SyncSource (will sync 9775216 KB [2443804 bits set]).
+
+
+>> P.S.  Since drbd no longer requires any exported symbols from the hmac/hash module, is there any reason to check 
+>> CONFIG_CRYPTO_HMAC at all?  A simpler check on CONFIG_CRYPTO to make sure the basic API exists should be all you 
+>> need...
 > 
-> 1.  CONFIG_CRYPTO_HMAC can be defined as a module; the drbd code currently requires it to be built into the kernel, 
-> apparently for no good reason.
-> 
-> 2.  If the hash algorithm itself isn't available (like sha1.ko wasn't loaded yet), crypto_alloc_hash() returns 
-> -ENOENT.  It does not return NULL, which is what the drbd code currently checks for.  This leads to crashes later.
+> we build against older kernels as well,
+> and as long as debian, suse, redhat & co have their
+> vendor kernels the way they are, this probably needs to stay this way.
+> we should be able to relax it for builds against newer kernels, though.
 
-right... we know 't was unfinished code,
-but checked in anyways, to get it going.
+Makes sense.  Thanks again!
 
-> 3.  Once #2 is fixed, the user tools try to report the error, and the error message contains a typo, an extra ")".  
-> "Failure: (120) The 'cram-hmac-alg' you specified is not known in )the kernel."  It also doesn't tell the user what 
-> to do to fix it.
-> 
-> The attached patch fixes the above issues, and applies cleanly to your current svn.  Please review and apply.
+Mark
 
-thanks, will do.
-
-> P.S.  Since drbd no longer requires any exported symbols from the hmac/hash module, is there any reason to check 
-> CONFIG_CRYPTO_HMAC at all?  A simpler check on CONFIG_CRYPTO to make sure the basic API exists should be all you 
-> need...
-
-we build against older kernels as well,
-and as long as debian, suse, redhat & co have their
-vendor kernels the way they are, this probably needs to stay this way.
-we should be able to relax it for builds against newer kernels, though.
-
--- 
-: Lars Ellenberg                            Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
