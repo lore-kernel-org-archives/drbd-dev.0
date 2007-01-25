@@ -1,12 +1,22 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <Lars.Ellenberg@linbit.com>
+Received: from soda (unknown [86.59.100.100])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id AE8822D9EA8A
+	for <drbd-dev@lists.linbit.com>; Thu, 25 Jan 2007 23:26:28 +0100 (CET)
+Date: Thu, 25 Jan 2007 23:26:30 +0100
+From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] oopses in 2.6.19.1
+Message-ID: <20070125222630.GC8857@soda.linbit>
+References: <20070110123116.GX15730@kwaak.net>
+	<20070111171205.GC15730@kwaak.net>
+	<20070111180322.GD15730@kwaak.net>
+	<200701151806.20526.philipp.reisner@linbit.com>
+	<20070116103749.GD9639@kwaak.net> <20070125174523.GD9639@kwaak.net>
+	<20070125213210.GK7738@soda.linbit>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C740C9.544C9081"
-Date: Thu, 25 Jan 2007 16:39:44 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B37671048F859F@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] DRBD-8: another crash following disk write failures
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20070125213210.GK7738@soda.linbit>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -16,73 +26,85 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+/ 2007-01-25 22:32:10 +0100
+\ Lars Ellenberg:
+> 
+> first, there is 2.6.19.2 already.
+> second, there is drbd 8.0.0 already.
+> though, there have not been any interesting changes in this area since revision 2695,
+> which you apparently use.
 
-------_=_NextPart_001_01C740C9.544C9081
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+> > drbd0: conn( WFSyncUUID -> SyncTarget ) 
+> > drbd0: Began resync as SyncTarget (will sync 1158770664 KB [289692666 bits set]).
+> > drbd0: Writing meta data super block now.
+> > eth1: no IPv6 routers present
+> > eth0: no IPv6 routers present
+> > ----------- [cut here ] --------- [please bite here ] ---------
+> > Kernel BUG at ...ed/kernel/tyan-s2891/modules/drbd/drbd/lru_cache.c:312
+> > invalid opcode: 0000 [1] SMP 
+> > Call Trace:
+> >  [<ffffffff88077ecf>] :drbd:drbd_rs_complete_io+0xcf/0x130
+> >  [<ffffffff8806b94d>] :drbd:drbd_endio_write_sec+0x1bd/0x2d0
+> 
+> > RIP  [<ffffffff8807997f>] :drbd:lc_put+0x4f/0xc0
+> >  NMI Watchdog detected LOCKUP on CPU 0
+> > RIP: 0010:[<ffffffff8026b4ba>]  [<ffffffff8026b4ba>] _spin_lock_irqsave+0xa/0x20
+> > Call Trace:
+> >  [<ffffffff8807772b>] :drbd:__drbd_set_in_sync+0x1bb/0x2e0
+> >  [<ffffffff88071048>] :drbd:e_end_resync_block+0x68/0x100
+> >  [<ffffffff8806f50b>] :drbd:drbd_process_done_ee+0xdb/0x140
+> >  [<ffffffff88071688>] :drbd:drbd_asender+0xe8/0x580
 
-Just run into another crash when we get disk write failures - this is =
-related to the other recent problems where we could try to use the =
-activity log after the disk is detached - in this case it's an actual =
-crash rather than a BUG() call:
+I'd love it if it were not a logic bug but rather drbd being not robust
+and paranoid enough...
 
-Unable to handle kernel NULL pointer dereference at virtual address =
-000000ac
-EIP is at w_io_error+0x18/0xa0 [drbd]
-Call Trace:
-=A0[<c0105431>] show_stack_log_lvl+0xa1/0xe0
-=A0[<c0105621>] show_registers+0x181/0x200
-=A0[<c0105840>] die+0x100/0x1a0
-=A0[<c0115746>] do_page_fault+0x3c6/0x8b1
-=A0[<c0105097>] error_code+0x2b/0x30
-=A0[<ee3b4b0e>] drbd_worker+0x2de/0x4b5 [drbd]
-=A0[<ee3c6eec>] drbd_thread_setup+0x8c/0x100 [drbd]
-=A0[<c0102ec5>] kernel_thread_helper+0x5/0x10
+one posibility for this to happen would be:
 
-And the code in question is this:
+being SyncTarget
+requesting some resync blocks. this also does the drbd_rs_begin_io.
+the SyncSource sends us some RSDataReply (with an ID of -1ULL, and
+some sector offset).
 
-int w_io_error(drbd_dev* mdev, struct drbd_work* w,int cancel)
-{
-=A0=A0=A0=A0drbd_request_t *req =3D (drbd_request_t*)w;
-=A0=A0=A0=A0int ok;
+we currently do not verify whether we expected this sector offset.
+we just read in the data and submit them. [there is a FIXME paranoia
+comment in place in receive_RSDataReply, though]
 
-=A0=A0=A0=A0/* FIXME send a "set_out_of_sync" packet to the peer
-=A0=A0=A0=A0 * in the PassOn case...
-=A0=A0=A0=A0 * in the Detach (or Panic) case, we (try to) send
-=A0=A0=A0=A0 * a "we are diskless" param packet anyways, and the peer
-=A0=A0=A0=A0 * will then set the FullSync bit in the meta data ...
-=A0=A0=A0=A0 */
-=A0=A0=A0=A0D_ASSERT(mdev->bc->dc.on_io_error !=3D PassOn);
+later, the drbd_endio_write_sec callback does the drbd_rs_complete_io
+for the corresponding resync extent.
 
-Oops - mdev->bc can be NULL by the time we get here...
+now, if that extent was in the resync lru because we used it before,
+but the RSDataReply would be for a sector we had not requested [*],
+the refcnt is likely to be imbalanced, and we might BUG_ON it being zero,
+in lc_put...
 
-I propose simply commenting out the assert for now (patch attached - I =
-left the code there because of the 'FIX ME' line above -- didn't want to =
-lose that!)
+[*] how that could happen, I don't know yet...
 
-Simon
+in any case, regardless of this being a logic bug, (smp) race condition
+or anything else, we need to become more robust there:
 
+Index: drbd_actlog.c
+===================================================================
+--- drbd_actlog.c	(revision 2715)
++++ drbd_actlog.c	(working copy)
+@@ -1098,6 +1098,13 @@
+ 		return;
+ 	}
+ 
++	if(bm_ext->lce.refcnt == 0) {
++		spin_unlock_irqrestore(&mdev->al_lock,flags);
++		ERR("drbd_rs_complete_io(,%llu [=%u]) called, but refcnt is 0!?\n",
++				(unsigned long long)sector, enr);
++		return;
++	}
++
+ 	if( lc_put(mdev->resync,(struct lc_element *)bm_ext) == 0 ) {
+ 		clear_bit(BME_LOCKED,&bm_ext->flags);
+ 		clear_bit(BME_NO_WRITES,&bm_ext->flags);
 
-------_=_NextPart_001_01C740C9.544C9081
-Content-Type: application/octet-stream;
-	name="ava-1617.patch"
-Content-Transfer-Encoding: base64
-Content-Description: ava-1617.patch
-Content-Disposition: attachment;
-	filename="ava-1617.patch"
+(not dared to commit this, in case this all was nonsense...
+I feel too tired now)
 
-SW5kZXg6IHNyYy9kcmJkL2RyYmRfd29ya2VyLmMKPT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gc3JjL2RyYmQvZHJi
-ZF93b3JrZXIuYwkocmV2aXNpb24gODkyMykKKysrIHNyYy9kcmJkL2RyYmRfd29ya2VyLmMJKHdv
-cmtpbmcgY29weSkKQEAgLTE4OCw3ICsxODgsOCBAQAogCSAqIGEgIndlIGFyZSBkaXNrbGVzcyIg
-cGFyYW0gcGFja2V0IGFueXdheXMsIGFuZCB0aGUgcGVlcgogCSAqIHdpbGwgdGhlbiBzZXQgdGhl
-IEZ1bGxTeW5jIGJpdCBpbiB0aGUgbWV0YSBkYXRhIC4uLgogCSAqLwotCURfQVNTRVJUKG1kZXYt
-PmJjLT5kYy5vbl9pb19lcnJvciAhPSBQYXNzT24pOworCS8vIE5PVEU6IG1kZXYtPmJjIGNhbiBi
-ZSBOVUxMIGJ5IHRoZSB0aW1lIHdlIGdldCBoZXJlIQorCS8vRF9BU1NFUlQobWRldi0+YmMtPmRj
-Lm9uX2lvX2Vycm9yICE9IFBhc3NPbik7CiAKIAkvKiB0aGUgb25seSB3YXkgdGhpcyBjYWxsYmFj
-ayBpcyBzY2hlZHVsZWQgaXMgZnJvbSBfcmVxX21heV9iZV9kb25lLAogCSAqIHdoZW4gaXQgaXMg
-ZG9uZSBhbmQgaGFkIGEgbG9jYWwgd3JpdGUgZXJyb3IsIHNlZSBjb21tZW50cyB0aGVyZSAqLwo=
-
-------_=_NextPart_001_01C740C9.544C9081--
+-- 
+: Lars Ellenberg                            Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
+: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
