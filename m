@@ -1,25 +1,12 @@
-Return-Path: <ard@kwaak.net>
-Received: from mail.kwaak.net (gw-cistron.kwaak.net [62.216.22.210])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D7762D9EA8A
-	for <drbd-dev@lists.linbit.com>; Fri, 26 Jan 2007 15:42:52 +0100 (CET)
-Received: from ard by mail.kwaak.net with local (Exim 4.50) id 1HAS9X-0008CZ-0m
-	for drbd-dev@lists.linbit.com; Fri, 26 Jan 2007 15:34:07 +0100
-Date: Fri, 26 Jan 2007 15:34:07 +0100
+Return-Path: <lmb@suse.de>
+Date: Fri, 26 Jan 2007 16:24:08 +0100
+From: Lars Marowsky-Bree <lmb@suse.de>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] oopses in 2.6.19.1
-Message-ID: <20070126143407.GF9639@kwaak.net>
-References: <20070110123116.GX15730@kwaak.net>
-	<20070111171205.GC15730@kwaak.net>
-	<20070111180322.GD15730@kwaak.net>
-	<200701151806.20526.philipp.reisner@linbit.com>
-	<20070116103749.GD9639@kwaak.net> <20070125174523.GD9639@kwaak.net>
-	<20070125213210.GK7738@soda.linbit>
-	<20070126142857.GE9639@kwaak.net>
+Message-ID: <20070126152408.GT4268@marowsky-bree.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20070126142857.GE9639@kwaak.net>
-From: Ard van Breemen <ard@kwaak.net>
+Subject: [Drbd-dev] Minor drbd 0.7 bugs
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -29,15 +16,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Jan 26, 2007 at 03:28:57PM +0100,  wrote:
-> > second, there is drbd 8.0.0 already.
-> > though, there have not been any interesting changes in this area since revision 2695,
-> > which you apparently use.
-> Allright, I will try it again :-)
-> now At revision 2715.
-Just to make sure: Although the banner says 2695, it really is
-2715 according to svn.
-I always forget to make drbd/drbd_buildtag.c
-(Which currently insist on being 2713 )
+Hi,
 
-Anyway: on to the next test ;-)
+I played around with drbd0.7 and heartbeat on a lonely train ride
+yesterday ;-)
+
+- drbdadm disconnect seems to also demote a primary; I'd expect it to
+  just disconnect it from the secondary?
+
+- freeze_io doesn't seem to work. It freezes the Xen guest completely,
+  not just the IO. My expectation would have been for it to freeze io,
+  until either reconnected or explicitly told to disconnect and go to
+  standalone mode?
+
+- drbdadm primary does not bubble up errors from drbdsetup.
+
+  ioctl(,SET_STATE,) failed: Permission denied
+  Partner is already primary 
+  Command '/sbin/drbd setup /dev/drbd0 primary' terminated with exit code 20
+  drbdadm aborting
+
+  Still, drbdadm returned with exit code 0.
+
+
+Sincerely,
+    Lars
+
+-- 
+SUSE Labs, Research and Development
+SUSE LINUX Products GmbH - A Novell Business	 -- Charles Darwin
+"Ignorance more frequently begets confidence than does knowledge."
+
