@@ -1,28 +1,14 @@
-Return-Path: <ard@kwaak.net>
-Received: from mail.kwaak.net (gw-cistron.kwaak.net [62.216.22.210])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 175582D9DFA1
-	for <drbd-dev@lists.linbit.com>; Sun, 28 Jan 2007 12:39:00 +0100 (CET)
-Received: from ard by mail.kwaak.net with local (Exim 4.50) id 1HB8N5-0005F6-9N
-	for drbd-dev@lists.linbit.com; Sun, 28 Jan 2007 12:38:55 +0100
-Date: Sun, 28 Jan 2007 12:38:55 +0100
-From: Ard van Breemen <ard@kwaak.net>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] oopses in 2.6.19.1
-Message-ID: <20070128113855.GI9639@kwaak.net>
-References: <20070110123116.GX15730@kwaak.net>
-	<20070111171205.GC15730@kwaak.net>
-	<20070111180322.GD15730@kwaak.net>
-	<200701151806.20526.philipp.reisner@linbit.com>
-	<20070116103749.GD9639@kwaak.net> <20070125174523.GD9639@kwaak.net>
-	<20070125213210.GK7738@soda.linbit>
-	<20070125222630.GC8857@soda.linbit>
-	<20070128105938.GH9639@kwaak.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070128105938.GH9639@kwaak.net>
+Return-Path: <Ernest.Montrose@stratus.com>
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01C74480.D77C2893"
+Date: Tue, 30 Jan 2007 10:10:56 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C8D3@EXNA.corp.stratus.com>
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Make doc complains about
+	/usr/share/xml/schema/dtd/3/docbookx.dtd
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -32,68 +18,155 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
-On Sun, Jan 28, 2007 at 11:59:38AM +0100, Ard van Breemen wrote:
-From that point on that message is repeated over and over...
-What makes it even more interesting:
-siep:~# drbdadm down all
-Child process does not terminate!
-Exiting.
-siep:~# No response from the DRBD driver! Is the module loaded?
-No response from the DRBD driver! Is the module loaded?
-State change failed: (0)unknown error.
-cat /proc/drbd 
-version: 8.0.0 (api:86/proto:86)
-SVN Revision: 2713 build by ard@siddev, 2007-01-26 15:41:35
- 0: cs:SyncTarget st:Secondary/Primary ds:Inconsistent/UpToDate C r---
-    ns:0 nr:1297904392 dw:1297901288 dr:0 al:0 bm:79217 lo:97 pe:3444 ua:97 ap:0
-        [==>.................] sync'ed: 12.0% (996766/1132123)M
-        finish: 3:34:10 speed: 79,384 (71,408) K/sec
-        resync: used:11/31 hits:81043148 misses:79225 starving:0 dirty:0 changed:79225
-        act_log: used:0/127 hits:0 misses:0 starving:0 dirty:0 changed:0
+This is a multi-part message in MIME format.
 
-(siep in this case is the slave)
+------_=_NextPart_001_01C74480.D77C2893
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-So: on drbdadm down all, the system starts to sync again...
+Hi all,
+I do not have that file on my build machine so I canno make "doc" now.
+Should I install something?
+=20
+EM--
 
-We've got a dmesg for that:
-Jan 28 06:47:02 localhost kernel: drbd0: Retrying drbd_rs_del_all() later. refcnt=1
-Jan 28 06:47:33 localhost last message repeated 295 times
-<snip>
-Jan 28 11:59:54 localhost last message repeated 501 times
-Jan 28 11:59:54 localhost kernel: drbd0: peer( Primary -> Unknown ) conn( SyncTarget -> Disconnecting ) pdsk( 
-Jan 28 11:59:54 localhost kernel: drbd0: short read expecting header on sock: r=-512
-Jan 28 11:59:54 localhost kernel: drbd0: asender terminated
-Jan 28 11:59:54 localhost kernel: drbd0: Retrying drbd_rs_del_all() later. refcnt=1
-Jan 28 11:59:54 localhost kernel: drbd0: Resync done (total 60002 sec; paused 0 sec; 0 K/sec)
-Jan 28 11:59:54 localhost kernel: drbd0: conn( Disconnecting -> Connected ) disk( Inconsistent -> UpToDate ) p
-Jan 28 11:59:54 localhost kernel: drbd0: Writing meta data super block now.
-Jan 28 11:59:54 localhost kernel: drbd0: tl_clear()
-Jan 28 11:59:54 localhost kernel: drbd0: Connection closed
-Jan 28 11:59:54 localhost kernel: drbd0: conn( Connected -> Unconnected ) pdsk( UpToDate -> DUnknown ) 
-Jan 28 11:59:54 localhost kernel: drbd0: drbdd_init: (mdev->receiver.t_state != Restarting) in /usr/src/shared
-Jan 28 11:59:54 localhost kernel: drbd0: receiver terminated
-Jan 28 11:59:54 localhost kernel: drbd0: receiver (re)started
-Jan 28 11:59:54 localhost kernel: drbd0: conn( Unconnected -> WFConnection ) 
-Jan 28 11:59:54 localhost kernel: drbd0: conn( WFConnection -> WFReportParams ) 
-Jan 28 11:59:54 localhost kernel: drbd0: Handshake successful: DRBD Network Protocol version 86
-Jan 28 11:59:54 localhost kernel: drbd0: Peer authenticated using 20 bytes of 'sha1' HMAC
-Jan 28 11:59:54 localhost kernel: drbd0: Writing meta data super block now.
-Jan 28 11:59:55 localhost kernel: drbd0: writing of bitmap took 93 jiffies
-Jan 28 11:59:55 localhost kernel: drbd0: 1105 GB marked out-of-sync by on disk bit-map.
-Jan 28 11:59:55 localhost kernel: drbd0: 1159294952 KB now marked out-of-sync by on disk bit-map.
-Jan 28 11:59:55 localhost kernel: drbd0: Writing meta data super block now.
-Jan 28 11:59:55 localhost kernel: drbd0: peer( Unknown -> Primary ) conn( WFReportParams -> WFBitMapT ) pdsk( 
-Jan 28 11:59:55 localhost kernel: drbd0: Writing meta data super block now.
-Jan 28 11:59:56 localhost kernel: drbd0: conn( WFBitMapT -> WFSyncUUID ) 
-Jan 28 11:59:56 localhost kernel: drbd0: conn( WFSyncUUID -> SyncTarget ) disk( UpToDate -> Inconsistent ) 
-Jan 28 11:59:56 localhost kernel: drbd0: Began resync as SyncTarget (will sync 1159294952 KB [289823738 bits s
-Jan 28 11:59:56 localhost kernel: drbd0: Writing meta data super block now.
-Jan 28 12:07:46 localhost kernel: drbd0: drbd_rs_complete_io(,67857280 [=2070]) called, but refcnt is 0!?
-Jan 28 12:12:24 localhost kernel: drbd0: drbd_rs_complete_io(,107445120 [=3278]) called, but refcnt is 0!?
+------_=_NextPart_001_01C74480.D77C2893
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-So the patch of Lars makes the system not crash :-).
-If anyone can hint where I have to infest the code with some printk's and
-hopefully some explanation of what to look for, I might be able to track it
-down. Unfortunately I only have about 10% resources left in my head to look at
-it :-(.
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
+charset=3Dus-ascii">
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 11">
+<meta name=3DOriginator content=3D"Microsoft Word 11">
+<link rel=3DFile-List href=3D"cid:filelist.xml@01C74456.EE6CEA60">
+<!--[if gte mso 9]><xml>
+ <o:OfficeDocumentSettings>
+  <o:DoNotRelyOnCSS/>
+ </o:OfficeDocumentSettings>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:SpellingState>Clean</w:SpellingState>
+  <w:GrammarState>Clean</w:GrammarState>
+  <w:DocumentKind>DocumentEmail</w:DocumentKind>
+  <w:EnvelopeVis/>
+  <w:ValidateAgainstSchemas/>
+  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+  <w:IgnoreMixedContent>false</w:IgnoreMixedContent>
+  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+  <w:Compatibility>
+   <w:BreakWrappedTables/>
+   <w:SnapToGridInCell/>
+   <w:WrapTextWithPunct/>
+   <w:UseAsianBreakRules/>
+   <w:UseWord2002TableStyleRules/>
+  </w:Compatibility>
+  <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
+ </w:WordDocument>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:LatentStyles DefLockedState=3D"false" LatentStyleCount=3D"156">
+ </w:LatentStyles>
+</xml><![endif]-->
+<style>
+<!--
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	mso-style-noshow:yes;
+	mso-ansi-font-size:10.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-ascii-font-family:Arial;
+	mso-hansi-font-family:Arial;
+	mso-bidi-font-family:Arial;
+	color:windowtext;}
+span.SpellE
+	{mso-style-name:"";
+	mso-spl-e:yes;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+<!--[if gte mso 10]>
+<style>
+ /* Style Definitions */=20
+ table.MsoNormalTable
+	{mso-style-name:"Table Normal";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0in 5.4pt 0in 5.4pt;
+	mso-para-margin:0in;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+</style>
+<![endif]-->
+</head>
+
+<body lang=3DEN-US link=3Dblue vlink=3Dpurple =
+style=3D'tab-interval:.5in'>
+
+<div class=3DSection1>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Hi all,<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>I do not have that file on my build machine so I =
+<span
+class=3DSpellE>canno</span> make &#8220;doc&#8221; now. <span
+style=3D'mso-spacerun:yes'>&nbsp;</span>Should I install =
+something?<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>EM--<o:p></o:p></span></font></p>
+
+</div>
+
+</body>
+
+</html>
+
+------_=_NextPart_001_01C74480.D77C2893--
