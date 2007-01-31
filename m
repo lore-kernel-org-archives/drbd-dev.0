@@ -1,18 +1,21 @@
 Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (unknown [86.59.100.100])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 3E4112DADC31
+	for <drbd-dev@lists.linbit.com>; Wed, 31 Jan 2007 18:27:11 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD8:Panics in lc_find due to null lc after Scsi
-	MEDIUM_ERROR I.O error.
-Date: Wed, 31 Jan 2007 18:25:59 +0100
-References: <BD7042533C2F8943A6A4257A9E31C45439C8D9@EXNA.corp.stratus.com>
-In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C8D9@EXNA.corp.stratus.com>
+Subject: Re: [Drbd-dev] any chance for a drbdmeta backport to 0.7?
+Date: Wed, 31 Jan 2007 18:27:49 +0100
+References: <200701311435.17357.philipp@hug.cx>
+In-Reply-To: <200701311435.17357.philipp@hug.cx>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-15"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200701311826.00005.philipp.reisner@linbit.com>
-Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+Message-Id: <200701311827.49896.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,10 +25,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Mittwoch, 31. Januar 2007 14:58 schrieb Montrose, Ernest:
+Am Mittwoch, 31. Januar 2007 14:35 schrieb Philipp Hug:
+> Hello everyone,
+>
+> I got a bug report/feature request to implement a feature to delete
+> existing metadata on a disk.
+> This feature seems to be implemented in 0.8. Any chance this will be
+> backported?
+>
+> See here: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=409161
+>
 
-Just for the records, this triggered this commit:
-http://lists.linbit.com/pipermail/drbd-cvs/2007-January/001458.html
+Actually the drbdmeta, that is included in drbd-8.0.0 can deal
+with drbd-0.7's metadata as well. It can also delete (actually
+re-initialize) it.
+
+I do not feel like including it into the 0.7 tarball...
+This is left as exercise for someone else.
 
 -Phil
 -- 
