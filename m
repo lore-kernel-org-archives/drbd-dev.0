@@ -1,16 +1,13 @@
 Return-Path: <Ernest.Montrose@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8:Panics in lc_find due to null lc
-	afterScsiMEDIUM_ERROR I.O error.
-Date: Fri, 2 Feb 2007 09:19:38 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C8E0@EXNA.corp.stratus.com>
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C74721.A687C736"
+Subject: RE: [Drbd-dev] DRBD8:Panics in lc_find due to null
+	lcafterScsiMEDIUM_ERROR I.O error.
+Date: Fri, 2 Feb 2007 18:27:05 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C8E1@EXNA.corp.stratus.com>
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Montrose, Ernest" <Ernest.Montrose@stratus.com>,
-	"Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+To: <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,12 +17,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+This is a multi-part message in MIME format.
+
+------_=_NextPart_001_01C74721.A687C736
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+ Phil,
+The one spot that was missed is in this patch.  I looked around for
+other places but I am
+Still not that everything is covered.
+
+EM--
+
+-----Original Message-----
+From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
+On Behalf Of Montrose, Ernest
+Sent: Friday, February 02, 2007 9:20 AM
+To: Montrose, Ernest; Philipp Reisner; drbd-dev@linbit.com
+Subject: RE: [Drbd-dev] DRBD8:Panics in lc_find due to null
+lcafterScsiMEDIUM_ERROR I.O error.
+
 Phil,
 I finally got to testing the fix this morning.  Unfortunately, the panic
-just moved
-To another code path but still a lru_cache.c..Null lc. So some more code
-paths
-Need fixing. Here is the trace:
+just moved To another code path but still a lru_cache.c..Null lc. So
+some more code paths Need fixing. Here is the trace:
 ------------[ cut here ]------------
 kernel BUG at
 /sandbox/emontros/devel/trunk/platform/drbd/src/drbd/lru_cache.c:214!
@@ -51,22 +68,18 @@ ed785c00
       002c0000 00000000 eb547c00 00000008 00058007 eb547fb0 eab91f28
 ee2321a5
 Call Trace:
- [<c0105431>] show_stack_log_lvl+0xa1/0xe0
- [<c0105621>] show_registers+0x181/0x200
- [<c0105840>] die+0x100/0x1a0
- [<c0105961>] do_trap+0x81/0xc0
- [<c0105c45>] do_invalid_op+0xa5/0xb0
- [<c0105097>] error_code+0x2b/0x30
- [<ee231d78>] drbd_try_clear_on_disk_bm+0x28/0x280 [drbd]
- [<ee2321a5>] __drbd_set_in_sync+0x1d5/0x330 [drbd]
- [<ee22bb7b>] got_BlockAck+0x9b/0x430 [drbd]
- [<ee22ca04>] drbd_asender+0x3a4/0x5b1 [drbd]
- [<ee236cac>] drbd_thread_setup+0x8c/0x100 [drbd]
- [<c0102ec5>] kernel_thread_helper+0x5/0x10
+ [<c0105431>] show_stack_log_lvl+0xa1/0xe0  [<c0105621>]
+show_registers+0x181/0x200  [<c0105840>] die+0x100/0x1a0  [<c0105961>]
+do_trap+0x81/0xc0  [<c0105c45>] do_invalid_op+0xa5/0xb0  [<c0105097>]
+error_code+0x2b/0x30  [<ee231d78>] drbd_try_clear_on_disk_bm+0x28/0x280
+[drbd]  [<ee2321a5>] __drbd_set_in_sync+0x1d5/0x330 [drbd]  [<ee22bb7b>]
+got_BlockAck+0x9b/0x430 [drbd]  [<ee22ca04>] drbd_asender+0x3a4/0x5b1
+[drbd]  [<ee236cac>] drbd_thread_setup+0x8c/0x100 [drbd]  [<c0102ec5>]
+kernel_thread_helper+0x5/0x10
 Code: 83 ff 46 38 f0 0f ba 76 28 00 31 c0 eb 92 0f ba 6e 28 02 f0 0f ba
 76 28 00 e9 68 ff ff ff 0f 0b d7 00 44 5e 24 ee e9 01 ff ff ff <0f> 0b
-d6 00 44 5e 24 ee e9 e9 fe ff ff 0f 0b d9 00 44 5e 24 ee
- <0>Fatal exception: panic in 5 seconds
+d6 00 44 5e 24 ee e9 e9 fe ff ff 0f 0b d9 00 44 5e 24 ee  <0>Fatal
+exception: panic in 5 seconds
 =20
 
 -----Original Message-----
@@ -111,3 +124,28 @@ _______________________________________________
 drbd-dev mailing list
 drbd-dev@lists.linbit.com
 http://lists.linbit.com/mailman/listinfo/drbd-dev
+_______________________________________________
+drbd-dev mailing list
+drbd-dev@lists.linbit.com
+http://lists.linbit.com/mailman/listinfo/drbd-dev
+
+------_=_NextPart_001_01C74721.A687C736
+Content-Type: application/octet-stream;
+	name="drbd_receiver.c.panic.patch"
+Content-Transfer-Encoding: base64
+Content-Description: drbd_receiver.c.panic.patch
+Content-Disposition: attachment;
+	filename="drbd_receiver.c.panic.patch"
+
+SW5kZXg6IHRydW5rL2RyYmQvZHJiZF9yZWNlaXZlci5jCj09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHRydW5rL2Ry
+YmQvZHJiZF9yZWNlaXZlci5jCShyZXZpc2lvbiA5OTIzKQorKysgdHJ1bmsvZHJiZC9kcmJkX3Jl
+Y2VpdmVyLmMJKHdvcmtpbmcgY29weSkKQEAgLTMxMzksNyArMzEzOSwxMSBAQAogCXVwZGF0ZV9w
+ZWVyX3NlcShtZGV2LGJlMzJfdG9fY3B1KHAtPnNlcV9udW0pKTsKIAogCWlmKCBpc19zeW5jZXJf
+YmxvY2tfaWQocC0+YmxvY2tfaWQpKSB7Ci0JCWRyYmRfc2V0X2luX3N5bmMobWRldixzZWN0b3Is
+Ymxrc2l6ZSk7CisgICAgICBpZihpbmNfbG9jYWxfaWZfc3RhdGUobWRldixGYWlsZWQpKQorICAg
+ICAgeworICAgICAgICAgZHJiZF9zZXRfaW5fc3luYyhtZGV2LHNlY3RvcixibGtzaXplKTsKKyAg
+ICAgICAgIGRlY19sb2NhbChtZGV2KTsKKyAgICAgIH0KIAkJZGVjX3JzX3BlbmRpbmcobWRldik7
+CiAJfSBlbHNlIHsKIAkJc3Bpbl9sb2NrX2lycSgmbWRldi0+cmVxX2xvY2spOwo=
+
+------_=_NextPart_001_01C74721.A687C736--
