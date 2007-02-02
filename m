@@ -4,12 +4,13 @@ MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8:Panics in lc_find due to null lc after
-	ScsiMEDIUM_ERROR I.O error.
-Date: Wed, 31 Jan 2007 12:32:37 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C8DA@EXNA.corp.stratus.com>
+Subject: RE: [Drbd-dev] DRBD8:Panics in lc_find due to null lc
+	afterScsiMEDIUM_ERROR I.O error.
+Date: Fri, 2 Feb 2007 09:19:38 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C8E0@EXNA.corp.stratus.com>
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+To: "Montrose, Ernest" <Ernest.Montrose@stratus.com>,
+	"Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,6 +19,63 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
+
+Phil,
+I finally got to testing the fix this morning.  Unfortunately, the panic
+just moved
+To another code path but still a lru_cache.c..Null lc. So some more code
+paths
+Need fixing. Here is the trace:
+------------[ cut here ]------------
+kernel BUG at
+/sandbox/emontros/devel/trunk/platform/drbd/src/drbd/lru_cache.c:214!
+invalid opcode: 0000 [#1]
+SMP
+Modules linked in: drbd cn bridge ipv6 ipmi_devintf ipmi_si
+ipmi_msghandler binfmt_misc dm_mirror video thermal processor fan
+container button battery ac hw_random i2c_i801 i2c_core shpchp
+pci_hotplug e1000 piix ide_cd cdrom raid1 dm_mod ide_disk ata_piix
+libata sd_mod scsi_mod
+CPU:    0
+EIP:    0061:[<ee233fe7>]    Tainted: GF    VLI
+EFLAGS: 00010046  (2.6.16.29-xen #1)
+EIP is at lc_get+0x127/0x160 [drbd]
+eax: 00000000  ebx: 00000058  ecx: 00000000  edx: 00000058
+esi: 00000000  edi: eb547fb0  ebp: eab91e84  esp: eab91e78
+ds: 007b  es: 007b  ss: 0069
+Process drbd1_asender (pid: 6356, threadinfo=3Deab90000 task=3Ded55f570)
+Stack: <0>00000058 00058007 eb547fb0 eab91ed0 ee231d78 ee2209be c072dd80
+ed785c00
+      eaf43280 eab91ea4 c014c33e eab91ebc 00000000 eab91ed0 ee21ea49
+00000058
+      002c0000 00000000 eb547c00 00000008 00058007 eb547fb0 eab91f28
+ee2321a5
+Call Trace:
+ [<c0105431>] show_stack_log_lvl+0xa1/0xe0
+ [<c0105621>] show_registers+0x181/0x200
+ [<c0105840>] die+0x100/0x1a0
+ [<c0105961>] do_trap+0x81/0xc0
+ [<c0105c45>] do_invalid_op+0xa5/0xb0
+ [<c0105097>] error_code+0x2b/0x30
+ [<ee231d78>] drbd_try_clear_on_disk_bm+0x28/0x280 [drbd]
+ [<ee2321a5>] __drbd_set_in_sync+0x1d5/0x330 [drbd]
+ [<ee22bb7b>] got_BlockAck+0x9b/0x430 [drbd]
+ [<ee22ca04>] drbd_asender+0x3a4/0x5b1 [drbd]
+ [<ee236cac>] drbd_thread_setup+0x8c/0x100 [drbd]
+ [<c0102ec5>] kernel_thread_helper+0x5/0x10
+Code: 83 ff 46 38 f0 0f ba 76 28 00 31 c0 eb 92 0f ba 6e 28 02 f0 0f ba
+76 28 00 e9 68 ff ff ff 0f 0b d7 00 44 5e 24 ee e9 01 ff ff ff <0f> 0b
+d6 00 44 5e 24 ee e9 e9 fe ff ff 0f 0b d9 00 44 5e 24 ee
+ <0>Fatal exception: panic in 5 seconds
+=20
+
+-----Original Message-----
+From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
+On Behalf Of Montrose, Ernest
+Sent: Wednesday, January 31, 2007 12:33 PM
+To: Philipp Reisner; drbd-dev@linbit.com
+Subject: RE: [Drbd-dev] DRBD8:Panics in lc_find due to null lc
+afterScsiMEDIUM_ERROR I.O error.
 
 Phil,
 Thank you very much.That was fast!!..This should be quick to verify!!
@@ -45,6 +103,10 @@ http://lists.linbit.com/pipermail/drbd-cvs/2007-January/001458.html
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
 : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+_______________________________________________
+drbd-dev mailing list
+drbd-dev@lists.linbit.com
+http://lists.linbit.com/mailman/listinfo/drbd-dev
 _______________________________________________
 drbd-dev mailing list
 drbd-dev@lists.linbit.com
