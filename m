@@ -1,30 +1,22 @@
-Return-Path: <brederlo@informatik.uni-tuebingen.de>
-Received: from mx1.informatik.uni-tuebingen.de
-	(mx1.Informatik.Uni-Tuebingen.De [134.2.12.5])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id B08012E05E88
-	for <drbd-dev@lists.linbit.com>; Thu, 15 Feb 2007 11:13:04 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by mx1.informatik.uni-tuebingen.de (Postfix) with ESMTP id 25D563499
-	for <drbd-dev@lists.linbit.com>; Thu, 15 Feb 2007 11:13:04 +0100 (MET)
-Received: from mx1.informatik.uni-tuebingen.de ([127.0.0.1])
-	by localhost (mx1.informatik.uni-tuebingen.de [127.0.0.1]) (amavisd-new,
-	port 10024)
-	with ESMTP id oJG3yd4otgg5 for <drbd-dev@lists.linbit.com>;
-	Thu, 15 Feb 2007 11:13:04 +0100 (MET)
-Received: from localhost.localdomain (ssh1 [134.2.13.191])
-	by mx1.informatik.uni-tuebingen.de (Postfix) with ESMTP id B98F63470
-	for <drbd-dev@lists.linbit.com>; Thu, 15 Feb 2007 11:13:02 +0100 (MET)
-Received: from mrvn by localhost.localdomain with local (Exim 4.63)
-	(envelope-from <brederlo@informatik.uni-tuebingen.de>)
-	id 1HHdbR-0007WM-0w
-	for drbd-dev@lists.linbit.com; Thu, 15 Feb 2007 11:12:37 +0100
-From: Goswin von Brederlow <brederlo@informatik.uni-tuebingen.de>
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mescal.linbit (unknown [86.59.100.100])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 3875D2E06985
+	for <drbd-dev@lists.linbit.com>; Thu, 15 Feb 2007 16:28:23 +0100 (CET)
+From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Date: Thu, 15 Feb 2007 11:12:36 +0100
-Message-ID: <874ppnhgq3.fsf@informatik.uni-tuebingen.de>
+Subject: Re: [Drbd-dev] DRBD8: Panic in drbd_bm_write_sect() after an io error
+	during resync.
+Date: Thu, 15 Feb 2007 16:28:18 +0100
+References: <BD7042533C2F8943A6A4257A9E31C45439C8F9@EXNA.corp.stratus.com>
+In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C8F9@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: [Drbd-dev] drbd 8.0.0 over IP over infiniband crashes
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200702151628.18909.philipp.reisner@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -34,37 +26,44 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+Am Mittwoch, 14. Februar 2007 19:03 schrieb Montrose, Ernest:
+> Hi all,
+> We are overwelmed with panic's after io errors. Seem mdev->bc is null
+> due to some race condition.  Here is one instance:
+>
+> Two node cluster, node A and Node B. Syncsource is node A. While syncing
+> Reads are issued on Node B.  I/O errosrs start to occur
+> on node A,  Node A panics :
+>
+[...OOPS... ]
 
-I have problems running drbd over IP over infiniband where I don't
-quite know what is to blame for the problem. I am wondering
-if anyone has a similar setup that works.
+Hi Ernest,
 
-Hardware too nearly identical systems:
+I was not able to understand the cause of the oops on the first
+glance.
 
-4 Intel(R) Xeon(TM) CPU 3.73GHz cores
-4 GB ram
-Infiniband cross link
-2x SATA disks in software raid1 for the system
-6x 300G SAS/SATA disks for 6x drbd
+Could you provide the output of ksymoops when you feed this
+OOPS to it ? ( I am interested in the disassebled code)
 
-Software:
+AND 
 
-2.6.19.2 xen kernel
-drbd 8.0.0
+I do this debugging by comparing it to the assembler output
+of the compiler.
+Please provide the .s files from the machine where you build
+your drbd (with your compiler, kernel config and kernel source).
 
-Configuration:
+Remke DRBD with "make V=1"
 
-IP-over-infiniband setup as 10.0.0.{1,2}
-6 drbd devices, one for each of the 6 disks in each host
-active-active setup
+The create the .s file:
+Replaceing the "-c" option with "-gstabs+ -S" and the -o "foo.o" to
+-o "foo.s" in the call of the compiler
 
+Something like this:
+(cd $KDIR ; gcc ... /some/path/foo.c )
 
-The drbd comes up and starts to sync the 6 devices and then after a
-short while I get a kernel oops.
-
-Does anyone have anything similar running, e.g. drbd under xen or drbd
-over ip over infiniband?
-
-MfG
-        Goswin
+Thanks,
+Philipp
+-- 
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
