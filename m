@@ -1,16 +1,20 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <brederlo@informatik.uni-tuebingen.de>
+Received: from mx1.informatik.uni-tuebingen.de
+	(mx1.Informatik.Uni-Tuebingen.De [134.2.12.5])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id D176E2E05EA2
+	for <drbd-dev@lists.linbit.com>; Thu, 15 Feb 2007 17:02:15 +0100 (CET)
+From: Goswin von Brederlow <brederlo@informatik.uni-tuebingen.de>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] drbd 8.0.0 over IP over infiniband crashes
+References: <874ppnhgq3.fsf@informatik.uni-tuebingen.de>
+	<200702151631.08429.philipp.reisner@linbit.com>
+Date: Thu, 15 Feb 2007 17:02:09 +0100
+In-Reply-To: <200702151631.08429.philipp.reisner@linbit.com> (Philipp
+	Reisner's message of "Thu, 15 Feb 2007 16:31:08 +0100")
+Message-ID: <87d54bflz2.fsf@informatik.uni-tuebingen.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: Panic in drbd_bm_write_sect() after an
-	ioerrorduring resync.
-Date: Thu, 15 Feb 2007 11:07:58 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C8FD@EXNA.corp.stratus.com>
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Montrose, Ernest" <Ernest.Montrose@stratus.com>,
-	"Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Content-Type: text/plain; charset=us-ascii
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,151 +24,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-Ooops!=20
-OK...Actually that one was a different panic...But there are some common
-threads here..
-Mdev->bc is NULL, happens after an I/O error.  I do not want to confuse
-the issue though
-I will try to collect the data you ask for, though I am not sure that
-this case is as reproduceable
-as the one I explained below. We have lots of these panics on I/O
-errors..sorry...
+Philipp Reisner <philipp.reisner@linbit.com> writes:
 
-Thanks.
-
-EM--
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Montrose, Ernest
-Sent: Thursday, February 15, 2007 10:45 AM
-To: Philipp Reisner; drbd-dev@linbit.com
-Subject: RE: [Drbd-dev] DRBD8: Panic in drbd_bm_write_sect() after an
-ioerrorduring resync.
-
-Phil,
-I will try all these but I think I have some clues for you that may lead
-you to a fix.
-I instrumented the driver and caused the crash. Essentially what I
-understand to be happening Is that after_state_ch() is setting mdev->bc
-to NULL and then
-drbd_io_error() is using it
-after in: drbd_io_error(){.......
-  If(inc_local_if_state(mdev,Failed )){
-	eh =3D mdev->bc->dc.on_io_error; <-----we die here I
-think.mdev->bc is NULL ...
-}
-Mdev->bc was set to Null earlier in after_state_ch(){.....
-If(os.disk >Diskless && ns.disk =3D=3D Diskless){ ....mdev->bc =3D NULL; =
-..
-}
-
-This is some sort of a race condition as this does not happen all the
-times.  Below Is the result of my instrumentation.  You can see that we
-behaved nicely at first after An I/O error..but latter when the same I/O
-error occurs...we die.:
-Some more very telling data:
-
-=3D=3D=3D=3D=3D=3D=3DStart debug messages=3D=3D=3D=3D=3D=3D=3D
-Feb 15 08:50:16 captain kernel: sd 1:0:28:0: SCSI error: return code =3D
-0x8000002
-Feb 15 08:50:16 captain kernel: sda: Current: sense key: Medium Error
-Feb 15 08:50:16 captain kernel:    Additional sense: Recovered data with
-retries and/or circ applied
-Feb 15 08:50:16 captain kernel: end_request: I/O error, dev sda, sector
-19071159
-Feb 15 08:50:16 captain kernel: drbd0: disk( Diskless -> Failed ) Feb 15
-08:50:16 captain kernel: drbd0: Local IO failed. Detaching...
-Feb 15 08:50:16 captain kernel: drbd_io_error: EM--****** Handling an IO
-error****************************************
-Feb 15 08:50:16 captain kernel: drbd_io_error: EM--****** Handling an IO
-error***mdev is valid*********************** Feb 15 08:50:16 captain
-kernel: drbd_io_error: EM--****** Handling an IO error***mdev->bc is
-valid*********************** Feb 15 08:50:16 captain kernel: drbd0:
-disk( Failed -> Diskless ) Feb 15 08:50:16 captain kernel: drbd0:
-Notified peer that my disk is broken.
-Feb 15 08:50:16 captain kernel: sd 1:0:28:0: SCSI error: return code =3D
-0x8000002
-Feb 15 08:50:16 captain kernel: sda: Current: sense key: Medium Error
-Feb 15 08:50:16 captain kernel:    Additional sense: Recovered data with
-retries and/or circ applied
-Feb 15 08:50:16 captain kernel: end_request: I/O error, dev sda, sector
-19071167
-Feb 15 08:50:16 captain kernel: drbd0: disk( Diskless -> Failed ) Feb 15
-08:50:16 captain kernel: drbd0: Local IO failed. Detaching...
-Feb 15 08:50:16 captain kernel: after_state_ch: EM-- *******Setting
-mdev->bc to NULL after freeing it ******
-Feb 15 08:50:16 captain last message repeated 2 times Feb 15 08:50:16
-captain kernel: drbd_io_error: EM--****** Handling an IO
-error****************************************
-Feb 15 08:50:16 captain kernel: drbd_io_error: EM--****** Handling an IO
-error***mdev is valid*********************** Feb 15 08:50:16 captain
-kernel: drbd_io_error: EM--****** Handling an IO error***mdev->bc is NOT
-valid*********************** Feb 15 08:50:16 captain kernel: Unable to
-handle kernel NULL pointer dereference at virtual address 000000ac
-
-=3D=3D=3D=3D=3D=3DEnd debug messages=3D=3D=3D=3D=3D=3D=3D
-
-
-I will prepare the other stuff and send them to later....Thanks!!!
-EM--
-
-
-
-
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Philipp Reisner
-Sent: Thursday, February 15, 2007 10:28 AM
-To: drbd-dev@linbit.com
-Subject: Re: [Drbd-dev] DRBD8: Panic in drbd_bm_write_sect() after an io
-errorduring resync.
-
-Am Mittwoch, 14. Februar 2007 19:03 schrieb Montrose, Ernest:
-> Hi all,
-> We are overwelmed with panic's after io errors. Seem mdev->bc is null=20
-> due to some race condition.  Here is one instance:
+>> The drbd comes up and starts to sync the 6 devices and then after a
+>> short while I get a kernel oops.
 >
-> Two node cluster, node A and Node B. Syncsource is node A. While=20
-> syncing Reads are issued on Node B.  I/O errosrs start to occur on=20
-> node A,  Node A panics :
+> It would be really helpfull if you would include the OOPS in
+> such a post...
 >
-[...OOPS... ]
+> -Phil
 
-Hi Ernest,
+Sorry for that. I didn't capture it at that time and then the system
+was running a stress test on the disk locally to see if the disk
+driver is flaky. So I couldn't quite crash the system.
 
-I was not able to understand the cause of the oops on the first glance.
+I restarted the resync now with both nodes logging the serial console
+output. I should have a crash dump in the morning.
 
-Could you provide the output of ksymoops when you feed this OOPS to it ?
-( I am interested in the disassebled code)
+As a side note it seems to work fine with drbd over ethernet
+(1GBit). I managed to sync the two nodes completly without crash. So
+it looks like something infiniband related.
 
-AND=20
-
-I do this debugging by comparing it to the assembler output of the
-compiler.
-Please provide the .s files from the machine where you build your drbd
-(with your compiler, kernel config and kernel source).
-
-Remke DRBD with "make V=3D1"
-
-The create the .s file:
-Replaceing the "-c" option with "-gstabs+ -S" and the -o "foo.o" to -o
-"foo.s" in the call of the compiler
-
-Something like this:
-(cd $KDIR ; gcc ... /some/path/foo.c )
-
-Thanks,
-Philipp
---=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
-_______________________________________________
-drbd-dev mailing list
-drbd-dev@lists.linbit.com
-http://lists.linbit.com/mailman/listinfo/drbd-dev
-_______________________________________________
-drbd-dev mailing list
-drbd-dev@lists.linbit.com
-http://lists.linbit.com/mailman/listinfo/drbd-dev
+MfG
+        Goswin
