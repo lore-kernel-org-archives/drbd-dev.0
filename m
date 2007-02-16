@@ -6,8 +6,8 @@ Content-Type: text/plain;
 Content-Transfer-Encoding: quoted-printable
 Subject: RE: [Drbd-dev] DRBD8: Panic in drbd_bm_write_sect() after an
 	ioerrorduring resync.
-Date: Fri, 16 Feb 2007 12:42:56 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C901@EXNA.corp.stratus.com>
+Date: Fri, 16 Feb 2007 15:52:43 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C903@EXNA.corp.stratus.com>
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 To: "Lars Ellenberg" <Lars.Ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
@@ -20,12 +20,10 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 Lars,
-I will patch and see what happens..
-As for your last comment...The IO handler definitely keeps ticking it
-seems
-Regardless of the reference count.
+It appears that this patch will work around the panic.
 
 Thanks!
+
 EM--=20
 
 -----Original Message-----
