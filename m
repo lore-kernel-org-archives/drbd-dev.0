@@ -1,19 +1,17 @@
-Return-Path: <brederlo@informatik.uni-tuebingen.de>
-Received: from mx1.informatik.uni-tuebingen.de
-	(mx1.Informatik.Uni-Tuebingen.De [134.2.12.5])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id D176E2E05EA2
-	for <drbd-dev@lists.linbit.com>; Thu, 15 Feb 2007 17:02:15 +0100 (CET)
-From: Goswin von Brederlow <brederlo@informatik.uni-tuebingen.de>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Subject: Re: [Drbd-dev] drbd 8.0.0 over IP over infiniband crashes
-References: <874ppnhgq3.fsf@informatik.uni-tuebingen.de>
-	<200702151631.08429.philipp.reisner@linbit.com>
-Date: Thu, 15 Feb 2007 17:02:09 +0100
-In-Reply-To: <200702151631.08429.philipp.reisner@linbit.com> (Philipp
-	Reisner's message of "Thu, 15 Feb 2007 16:31:08 +0100")
-Message-ID: <87d54bflz2.fsf@informatik.uni-tuebingen.de>
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Iustin Pop <iustin@google.com>
+Subject: Re: [Drbd-dev] Another small patch for guess_dev_name in
+	user/drbdsetup.c (0.7 branch)
+Date: Fri, 16 Feb 2007 12:28:23 +0100
+References: <20070109093747.GC1756@google.com>
+In-Reply-To: <20070109093747.GC1756@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200702161228.23769.philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
@@ -24,26 +22,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Philipp Reisner <philipp.reisner@linbit.com> writes:
-
->> The drbd comes up and starts to sync the 6 devices and then after a
->> short while I get a kernel oops.
+Am Dienstag, 9. Januar 2007 10:37 schrieb Iustin Pop:
+> Hi,
 >
-> It would be really helpfull if you would include the OOPS in
-> such a post...
+> guess_dev_name can exit early if the major/minor pair passed in is 0,0
+> as this is not a real device so we won't find it in /dev. This skips
+> recursing over /dev and stat-ing every file.
 >
-> -Phil
 
-Sorry for that. I didn't capture it at that time and then the system
-was running a stress test on the disk locally to see if the disk
-driver is flaky. So I couldn't quite crash the system.
+Hi Iustin,
 
-I restarted the resync now with both nodes logging the serial console
-output. I should have a crash dump in the morning.
+Finally your patches found their way to SVN ;)
 
-As a side note it seems to work fine with drbd over ethernet
-(1GBit). I managed to sync the two nodes completly without crash. So
-it looks like something infiniband related.
+http://lists.linbit.com/pipermail/drbd-cvs/2007-February/001466.html
 
-MfG
-        Goswin
+-Phil
+-- 
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
