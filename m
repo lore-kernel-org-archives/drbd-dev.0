@@ -1,15 +1,35 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <brederlo@informatik.uni-tuebingen.de>
+Received: from mx1.informatik.uni-tuebingen.de
+	(mx1.Informatik.Uni-Tuebingen.De [134.2.12.5])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 370D62E05E9A
+	for <drbd-dev@lists.linbit.com>; Wed, 21 Feb 2007 08:06:16 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by mx1.informatik.uni-tuebingen.de (Postfix) with ESMTP id 70870349B
+	for <drbd-dev@lists.linbit.com>; Wed, 21 Feb 2007 08:06:16 +0100 (MET)
+Received: from mx1.informatik.uni-tuebingen.de ([127.0.0.1])
+	by localhost (mx1.informatik.uni-tuebingen.de [127.0.0.1]) (amavisd-new,
+	port 10024)
+	with ESMTP id FlZAkPxdYqXK for <drbd-dev@lists.linbit.com>;
+	Wed, 21 Feb 2007 08:06:16 +0100 (MET)
+Received: from localhost.localdomain (ssh1 [134.2.13.191])
+	by mx1.informatik.uni-tuebingen.de (Postfix) with ESMTP id 7DAA73485
+	for <drbd-dev@lists.linbit.com>; Wed, 21 Feb 2007 08:06:15 +0100 (MET)
+Received: from mrvn by localhost.localdomain with local (Exim 4.63)
+	(envelope-from <brederlo@informatik.uni-tuebingen.de>)
+	id 1HJlYI-0003KR-Je
+	for drbd-dev@lists.linbit.com; Wed, 21 Feb 2007 08:06:10 +0100
+From: Goswin von Brederlow <brederlo@informatik.uni-tuebingen.de>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] drbd 8.0.0 over IP over infiniband crashes
+References: <874ppnhgq3.fsf@informatik.uni-tuebingen.de>
+	<87hctj1fy5.fsf@informatik.uni-tuebingen.de>
+	<20070220115542.GC7742@soda.linbit>
+Date: Wed, 21 Feb 2007 08:06:10 +0100
+In-Reply-To: <20070220115542.GC7742@soda.linbit> (Lars Ellenberg's message of
+	"Tue, 20 Feb 2007 12:55:42 +0100")
+Message-ID: <87fy90vvkt.fsf@informatik.uni-tuebingen.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: Panic in drbd_bm_write_sect() after an
-	ioerrorduring resync.
-Date: Tue, 20 Feb 2007 07:49:31 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C906@EXNA.corp.stratus.com>
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Content-Type: text/plain; charset=us-ascii
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,34 +39,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-Thanks...I will test this and see if we got these nasty oops this
-time..:)
+Lars Ellenberg <Lars.Ellenberg@linbit.com> writes:
 
-EM--=20
+> / 2007-02-18 19:25:06 +0100
+> \ Goswin von Brederlow:
+>> Ok,
+>> 
+>> here we go. I got it to crash again after 3 days of running bonnie
+>> (mostly on ext3). This time the crash was while testing reiserfs on
+>> the drbd devices and it is only an oops. Before it crashed when
+>> syncing the drbd itself and I had to reset.
+>> 
+>> Does this look drbd related at all or just reiserfs screwing up?
+>
+> reiser seems to think it runs on "dm-3";
+> do you use drbd as PV?
 
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Philipp Reisner
-Sent: Monday, February 19, 2007 9:13 AM
-To: drbd-dev@linbit.com
-Subject: Re: [Drbd-dev] DRBD8: Panic in drbd_bm_write_sect() after an
-ioerrorduring resync.
+Yes. 6 drbd as PVs with a LV with 6 stripes on it.
 
+> anyways, I don't see anything drbd related in that kernel log.
+> more something about reiserfs not behaving during memory pressure
+> (within xen; this may or may not be relevant).
 
-Hi,
+The system has 4G and nothing running on it so that shouldn't
+happen. Unless there is a leak in the kernel.
 
-Just to document the end of this thread here.
-This
-http://lists.linbit.com/pipermail/drbd-cvs/2007-February/001468.html
-is the link to the patch that made it into SVN.
+> I read it like: reiser tries to delete something, which for some reason
+> is not where it is expected (may be in memory data corruption, may be
+> some bad timing and race in reiserfs, may be a logic bug somewhere),
+> then tries to allocate an error buffer, which it does not get for some
+> reason; but it then dereferences that buffer pointer anyways. boom.
 
--Phil
---=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
-_______________________________________________
-drbd-dev mailing list
-drbd-dev@lists.linbit.com
-http://lists.linbit.com/mailman/listinfo/drbd-dev
+I would have expected some bluesmoke messages on bad memory.
+
+> it may still be drbd related in the sense that drbd may add to the
+> memory pressure... but nothing we can fix in drbd.
+
+MfG
+        Goswin
