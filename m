@@ -6,8 +6,8 @@ Content-Type: text/plain;
 Content-Transfer-Encoding: quoted-printable
 Subject: RE: [Drbd-dev] DRBD8: Resync of device PauseSync state does not
 	resume after an I/O error.
-Date: Fri, 2 Mar 2007 08:35:21 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C90C@EXNA.corp.stratus.com>
+Date: Fri, 2 Mar 2007 10:26:42 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C90D@EXNA.corp.stratus.com>
 In-reply-to: 200703021433.05214.philipp.reisner@linbit.com
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
@@ -21,7 +21,7 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 Phil,
-No problem...I will test it and let you know.
+I just tested it! The patch works just fine. Please check it in.
 
 EM--
 
