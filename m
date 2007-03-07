@@ -1,25 +1,16 @@
-Return-Path: <komal@linsyssoft.com>
-Received: from svr68.ehostpros.com (svr68.ehostpros.com [67.15.48.48])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 8DA892E233B0
-	for <drbd-dev@lists.linbit.com>; Wed,  7 Mar 2007 11:10:16 +0100 (CET)
-Received: from [59.95.8.85] (helo=titan.linsyssoft.com)
-	by svr68.ehostpros.com with esmtpsa (TLSv1:AES256-SHA:256)
-	(Exim 4.63) (envelope-from <komal@linsyssoft.com>)
-	id 1HOt61-0003j2-QA
-	for drbd-dev@lists.linbit.com; Wed, 07 Mar 2007 02:10:11 -0800
-Received: from [192.168.1.22] (xenon [192.168.1.22] (may be forged))
-	by titan.linsyssoft.com (8.13.1/8.13.1) with ESMTP id l279kqxD001546
-	for <drbd-dev@lists.linbit.com>; Wed, 7 Mar 2007 15:16:52 +0530
-From: komal <komal@linsyssoft.com>
-To: drbd-dev@lists.linbit.com
-Content-Type: text/plain
-Date: Wed, 07 Mar 2007 15:46:39 +0530
-Message-Id: <1173262599.2536.25.camel@xenon>
-Mime-Version: 1.0
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>,
+	linux-kernel@vger.kernel.org
+Date: Wed, 7 Mar 2007 12:26:12 +0100
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] Compression in DRBD
+Content-Disposition: inline
+Message-Id: <200703071226.13088.philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] connector: Bugfix for cn_call_callback()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -29,19 +20,68 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi all,
-          Bandwidth is an important issue in DRBD during replication of
-data. If bandwidth is properly utilized then replication will be faster
-and speed is what everyone needs.
-        When bandwidth utilization comes into picture, compressing data
-is what
-is needed. Earlier discussions were going on to use vtun with a tcp
-tunnel with zlib compression factor 9 or so to achieve compression.
-        What about implementing compression in DRBD itself. Like using
-zlib to
-compress each packet and decompress it on receiver side in DRBD code
-itself rather than using vtun and all. Wont it solve the purpose? 
+Hi Evgeniy,
 
-Thanks and Regards,
-Komal Nawandar.
+When one stresses the connector code, with sending many messages
+from userspace to kernel, one could get in the "unlikely()"
+part in cn_call_callback().
 
+There a new __cbq gets allocated, and a NULL pointer got assigned
+to the callback by dereferencing __cbq. This is the bug. The right
+thing is the dereference the original __cbq. Therefore the bugfix
+is to use a new variable for the newly allocated __cbq. 
+
+This is tested, and it fixes the issue.
+
+Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+
+--- /usr/src/linux-2.6.20/drivers/connector/connector.c 2007-03-07 11:45:38.000000000 +0100
++++ /usr/src/linux-2.6.20-modified/drivers/connector/connector.c        2007-03-07 11:39:11.000000000 +0100
+@@ -128,7 +128,7 @@
+  */
+ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), void *data)
+ {
+-       struct cn_callback_entry *__cbq;
++       struct cn_callback_entry *__cbq, *__new_cbq;
+        struct cn_dev *dev = &cdev;
+        int err = -ENODEV;
+
+@@ -148,23 +148,23 @@
+                        } else {
+                                struct cn_callback_data *d;
+
+-                               __cbq = kzalloc(sizeof(*__cbq), GFP_ATOMIC);
+-                               if (__cbq) {
+-                                       d = &__cbq->data;
++                               __new_cbq = kzalloc(sizeof(*__new_cbq), GFP_ATOMIC);
++                               if (__new_cbq) {
++                                       d = &__new_cbq->data;
+                                        d->callback_priv = msg;
+                                        d->callback = __cbq->data.callback;
+                                        d->ddata = data;
+                                        d->destruct_data = destruct_data;
+-                                       d->free = __cbq;
++                                       d->free = __new_cbq;
+
+-                                       INIT_WORK(&__cbq->work,
+-                                                       &cn_queue_wrapper);
++                                       INIT_WORK(&__new_cbq->work,
++                                                 &cn_queue_wrapper);
+
+                                        if (queue_work(dev->cbdev->cn_queue,
+-                                                   &__cbq->work))
++                                                   &__new_cbq->work))
+                                                err = 0;
+                                        else {
+-                                               kfree(__cbq);
++                                               kfree(__new_cbq);
+                                                err = -EINVAL;
+                                        }
+                                } else
+
+
+-- 
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
