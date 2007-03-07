@@ -1,19 +1,21 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from soda (unknown [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 4D84A2E23449
-	for <drbd-dev@lists.linbit.com>; Wed,  7 Mar 2007 13:33:42 +0100 (CET)
-Resent-Message-ID: <20070307123343.GB8356@soda.linbit>
-Date: Wed, 7 Mar 2007 14:59:14 +0300
-From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Return-Path: <komal@linsyssoft.com>
+Received: from svr68.ehostpros.com (svr68.ehostpros.com [67.15.48.48])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 9769D2E23452
+	for <drbd-dev@lists.linbit.com>; Wed,  7 Mar 2007 13:41:54 +0100 (CET)
+Subject: Re: [Drbd-dev] Compression in DRBD
+From: komal <komal@linsyssoft.com>
 To: Philipp Reisner <philipp.reisner@linbit.com>
-Message-ID: <20070307115914.GA1287@2ka.mipt.ru>
-References: <200703071226.13088.philipp.reisner@linbit.com>
+In-Reply-To: <200703071255.40086.philipp.reisner@linbit.com>
+References: <1173262599.2536.25.camel@xenon>
+	<200703071255.40086.philipp.reisner@linbit.com>
+Content-Type: text/plain; charset=utf-8
+Date: Wed, 07 Mar 2007 18:18:08 +0530
+Message-Id: <1173271688.2536.37.camel@xenon>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
-Content-Disposition: inline
-In-Reply-To: <200703071226.13088.philipp.reisner@linbit.com>
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] Re: connector: Bugfix for cn_call_callback()
+Content-Transfer-Encoding: 8bit
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,29 +25,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 07, 2007 at 12:26:12PM +0100, Philipp Reisner (philipp.reisner@linbit.com) wrote:
-> Hi Evgeniy,
-
-Hi Philipp.
-
-> When one stresses the connector code, with sending many messages
-> from userspace to kernel, one could get in the "unlikely()"
-> part in cn_call_callback().
+On Wed, 2007-03-07 at 12:55 +0100, Philipp Reisner wrote:
+> Am Mittwoch, 7. März 2007 11:16 schrieb komal:
+> > Hi all,
+> >           Bandwidth is an important issue in DRBD during replication of
+> > data. If bandwidth is properly utilized then replication will be faster
+> > and speed is what everyone needs.
+> >         When bandwidth utilization comes into picture, compressing data
+> > is what
+> > is needed. Earlier discussions were going on to use vtun with a tcp
+> > tunnel with zlib compression factor 9 or so to achieve compression.
+> >         What about implementing compression in DRBD itself. Like using
+> > zlib to
+> > compress each packet and decompress it on receiver side in DRBD code
+> > itself rather than using vtun and all. Wont it solve the purpose?
+> >
 > 
-> There a new __cbq gets allocated, and a NULL pointer got assigned
-> to the callback by dereferencing __cbq. This is the bug. The right
-> thing is the dereference the original __cbq. Therefore the bugfix
-> is to use a new variable for the newly allocated __cbq. 
+> Hi,
 > 
-> This is tested, and it fixes the issue.
+> DRBD is a really complex piece of software, and I really do not want to
+> duplicate anything that can get achieved on other levels.
+> 
+> Compression on the network can for sure be achieved by other means 
+> (outside of DRBD).
+> 
+> -phil
 
-Yes, your patch is correct.
+Hi,
 
-> Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-> Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
-
-I will push it, thanks a lot.
-
--- 
-	Evgeniy Polyakov
+	But if we implement compression in DRBD itself we can have selective
+compression. 
+	By selective compression I mean is that we will compress only data
+packets and not configuration packets (which reports status and
+configuration) which cannot be achieved with other compression
+techniques. 
+	
+Thanks and Regards,
+Komal
 
