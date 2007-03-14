@@ -1,18 +1,12 @@
-Return-Path: <Lars.Ellenberg@linbit.com>
-Received: from barkeeper1 (unknown [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 394CD2E051AF
-	for <drbd-dev@lists.linbit.com>; Tue, 13 Mar 2007 23:59:56 +0100 (CET)
-Date: Tue, 13 Mar 2007 23:59:56 +0100
-From: Lars Ellenberg <Lars.Ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] make KDIR=... kernel-patch fails
-Message-ID: <20070313225956.GB29914@barkeeper1.linbit>
-References: <45F1DCB7.3020303@aj.net-lab.net>
-	<20070310114246.GA26492@barkeeper1.linbit>
+Return-Path: <Simon.Graham@stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20070310114246.GA26492@barkeeper1.linbit>
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C765DB.634B28B8"
+Content-class: urn:content-classes:message
+Date: Tue, 13 Mar 2007 21:52:04 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B3767104F9765A@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] [DRBD-8] Patch to enhance fault insertion
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,25 +16,281 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-/ 2007-03-10 12:42:46 +0100
-\ Lars Ellenberg:
-> / 2007-03-09 23:16:23 +0100
-> \ Andreas John:
+This is a multi-part message in MIME format.
 
-> > buildbox-etch:/usr/src/linux-vserver/linux-2.6.20.1/drbd-8.0.1# make
-> > KDIR=/usr/src/linux-vserver/linux-2.6.20.1 kernel-patch
+------_=_NextPart_001_01C765DB.634B28B8
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_002_01C765DB.634B28B8"
 
-> > scripts/patch-kernel
 
-> thanks for the report.
-> sorry, but I "officially don't care" right now.
-> though, we will do some effort later this year
-> to try and get drbd into the kernel.org kernel.
-> so when I have time, I'll have a look.
+------_=_NextPart_002_01C765DB.634B28B8
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-please try again with current svn.
+We've been using the fault insertion code in DRBD-8 to simulate failures
+and have found that it's a little too keen to insert faults - the
+attached patch adds a new sysfs attribute, fault_devs, that can be used
+to specify which devices are to have faults inserted (similar to
+trace_devs). If this attribute is zero, then the behavior is as before -
+faults will be inserted in all devices.
 
--- 
-: Lars Ellenberg                            Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
+=20
+
+Simon
+
+=20
+
+
+------_=_NextPart_002_01C765DB.634B28B8
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" =
+xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns:x=3D"urn:schemas-microsoft-com:office:excel" =
+xmlns:p=3D"urn:schemas-microsoft-com:office:powerpoint" =
+xmlns:a=3D"urn:schemas-microsoft-com:office:access" =
+xmlns:dt=3D"uuid:C2F41010-65B3-11d1-A29F-00AA00C14882" =
+xmlns:s=3D"uuid:BDC6E3F0-6DA3-11d1-A2A3-00AA00C14882" =
+xmlns:rs=3D"urn:schemas-microsoft-com:rowset" xmlns:z=3D"#RowsetSchema" =
+xmlns:b=3D"urn:schemas-microsoft-com:office:publisher" =
+xmlns:ss=3D"urn:schemas-microsoft-com:office:spreadsheet" =
+xmlns:oa=3D"urn:schemas-microsoft-com:office:activation" =
+xmlns:html=3D"http://www.w3.org/TR/REC-html40" =
+xmlns:q=3D"http://schemas.xmlsoap.org/soap/envelope/" xmlns:D=3D"DAV:" =
+xmlns:x2=3D"http://schemas.microsoft.com/office/excel/2003/xml" =
+xmlns:ois=3D"http://schemas.microsoft.com/sharepoint/soap/ois/" =
+xmlns:dir=3D"http://schemas.microsoft.com/sharepoint/soap/directory/" =
+xmlns:ds=3D"http://www.w3.org/2000/09/xmldsig#" =
+xmlns:dsp=3D"http://schemas.microsoft.com/sharepoint/dsp" =
+xmlns:udc=3D"http://schemas.microsoft.com/data/udc" =
+xmlns:xsd=3D"http://www.w3.org/2001/XMLSchema" =
+xmlns:sps=3D"http://schemas.microsoft.com/sharepoint/soap/" =
+xmlns:xsi=3D"http://www.w3.org/2001/XMLSchema-instance" =
+xmlns:udcxf=3D"http://schemas.microsoft.com/data/udc/xmlfile" =
+xmlns:wf=3D"http://schemas.microsoft.com/sharepoint/soap/workflow/" =
+xmlns:mver=3D"http://schemas.openxmlformats.org/markup-compatibility/2006=
+" xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" =
+xmlns:ex12t=3D"http://schemas.microsoft.com/exchange/services/2006/types"=
+ xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Dus-ascii">
+<meta name=3DGenerator content=3D"Microsoft Word 12 (filtered medium)">
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0in;
+	margin-bottom:.0001pt;
+	font-size:11.0pt;
+	font-family:"Calibri","sans-serif";}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	font-family:"Calibri","sans-serif";
+	color:windowtext;}
+.MsoChpDefault
+	{mso-style-type:export-only;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.0in 1.0in 1.0in;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+<!--[if gte mso 9]><xml>
+ <o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <o:shapelayout v:ext=3D"edit">
+  <o:idmap v:ext=3D"edit" data=3D"1" />
+ </o:shapelayout></xml><![endif]-->
+</head>
+
+<body lang=3DEN-US link=3Dblue vlink=3Dpurple>
+
+<div class=3DSection1>
+
+<p class=3DMsoNormal>We&#8217;ve been using the fault insertion code in =
+DRBD-8 to
+simulate failures and have found that it&#8217;s a little too keen to =
+insert
+faults &#8211; the attached patch adds a new sysfs attribute, =
+fault_devs, that
+can be used to specify which devices are to have faults inserted =
+(similar to
+trace_devs). If this attribute is zero, then the behavior is as before =
+&#8211;
+faults will be inserted in all devices.<o:p></o:p></p>
+
+<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=3DMsoNormal>Simon<o:p></o:p></p>
+
+<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
+
+</div>
+
+</body>
+
+</html>
+
+------_=_NextPart_002_01C765DB.634B28B8--
+
+------_=_NextPart_001_01C765DB.634B28B8
+Content-Type: application/octet-stream;
+	name="drbd-per-dev-faults.patch"
+Content-Transfer-Encoding: base64
+Content-Description: drbd-per-dev-faults.patch
+Content-Disposition: attachment;
+	filename="drbd-per-dev-faults.patch"
+
+SW5kZXg6IHNuL2RyYmQvZHJiZF9yZWNlaXZlci5jCj09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHNuL2RyYmQvZHJi
+ZF9yZWNlaXZlci5jCShyZXZpc2lvbiAxMTk4MykKKysrIHNuL2RyYmQvZHJiZF9yZWNlaXZlci5j
+CShyZXZpc2lvbiAxMTk4NCkKQEAgLTEwNjUsNyArMTA2NSw3IEBACiAJcmV0dXJuIG9rOwogfQog
+Ci1TVEFUSUMgaW50IHJlY3ZfcmVzeW5jX3JlYWQoZHJiZF9kZXYgKm1kZXYsc2VjdG9yX3Qgc2Vj
+dG9yLCBpbnQgZGF0YV9zaXplKQorU1RBVElDIGludCByZWN2X3Jlc3luY19yZWFkKGRyYmRfZGV2
+ICptZGV2LHNlY3Rvcl90IHNlY3RvcixpbnQgZGF0YV9zaXplKQogewogCXN0cnVjdCBUbF9lcG9j
+aF9lbnRyeSAqZTsKIApAQCAtMTA4OSw3ICsxMDg5LDcgQEAKIAkgICAgICAgSU5GTygic3VibWl0
+IEVFIChSUylXUklURSBzZWM9JWxsdXMgc2l6ZT0ldSBlZT0lcFxuIiwKIAkJICAgICh1bnNpZ25l
+ZCBsb25nIGxvbmcpZS0+c2VjdG9yLGUtPnNpemUsZSk7CiAJICAgICAgICk7Ci0JZHJiZF9nZW5l
+cmljX21ha2VfcmVxdWVzdChXUklURSxEUkJEX0ZBVUxUX1JTX1dSLGUtPnByaXZhdGVfYmlvKTsK
+KwlkcmJkX2dlbmVyaWNfbWFrZV9yZXF1ZXN0KG1kZXYsV1JJVEUsRFJCRF9GQVVMVF9SU19XUixl
+LT5wcml2YXRlX2Jpbyk7CiAJLyogYWNjb3VudGluZyBkb25lIGluIGVuZGlvICovCiAKIAltYXli
+ZV9raWNrX2xvKG1kZXYpOwpAQCAtMTU4Nyw3ICsxNTg3LDcgQEAKIAkJICAgICh1bnNpZ25lZCBs
+b25nIGxvbmcpZS0+c2VjdG9yLGUtPnNpemUsZSk7CiAJICAgICAgICk7CiAJLyogRklYTUUgZHJi
+ZF9hbF9iZWdpbl9pbyBpbiBjYXNlIHdlIGhhdmUgdHdvIHByaW1hcmllcy4uLiAqLwotCWRyYmRf
+Z2VuZXJpY19tYWtlX3JlcXVlc3QoV1JJVEUsRFJCRF9GQVVMVF9EVF9XUixlLT5wcml2YXRlX2Jp
+byk7CisJZHJiZF9nZW5lcmljX21ha2VfcmVxdWVzdChtZGV2LFdSSVRFLERSQkRfRkFVTFRfRFRf
+V1IsZS0+cHJpdmF0ZV9iaW8pOwogCS8qIGFjY291bnRpbmcgZG9uZSBpbiBlbmRpbyAqLwogCiAJ
+bWF5YmVfa2lja19sbyhtZGV2KTsKQEAgLTE2ODMsNyArMTY4Myw3IEBACiAJCSAgICAodW5zaWdu
+ZWQgbG9uZyBsb25nKWUtPnNlY3RvcixlLT5zaXplLGUpOwogCSAgICAgICApOwogCS8qIEZJWE1F
+IGFjdHVhbGx5LCBpdCBjb3VsZCBiZSBhIFJFQURBIG9yaWdpbmF0aW5nIGZyb20gdGhlIHBlZXIg
+Li4uICovCi0JZHJiZF9nZW5lcmljX21ha2VfcmVxdWVzdChSRUFELGZhdWx0X3R5cGUsZS0+cHJp
+dmF0ZV9iaW8pOworCWRyYmRfZ2VuZXJpY19tYWtlX3JlcXVlc3QobWRldixSRUFELGZhdWx0X3R5
+cGUsZS0+cHJpdmF0ZV9iaW8pOwogCW1heWJlX2tpY2tfbG8obWRldik7CiAKIAlyZXR1cm4gVFJV
+RTsKSW5kZXg6IHNuL2RyYmQvZHJiZF9hY3Rsb2cuYwo9PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSBzbi9kcmJkL2Ry
+YmRfYWN0bG9nLmMJKHJldmlzaW9uIDExOTgzKQorKysgc24vZHJiZC9kcmJkX2FjdGxvZy5jCShy
+ZXZpc2lvbiAxMTk4NCkKQEAgLTM0LDcgKzM0LDggQEAKICAqIDspCiAgKiB0aGlzIGlzIG1vc3Rs
+eSBmcm9tIGRyaXZlcnMvbWQvbWQuYwogICovCi1TVEFUSUMgaW50IF9kcmJkX21kX3N5bmNfcGFn
+ZV9pbyhzdHJ1Y3QgZHJiZF9iYWNraW5nX2RldiAqYmRldiwKK1NUQVRJQyBpbnQgX2RyYmRfbWRf
+c3luY19wYWdlX2lvKGRyYmRfZGV2ICptZGV2LAorCQkJCSBzdHJ1Y3QgZHJiZF9iYWNraW5nX2Rl
+diAqYmRldiwKIAkJCQkgc3RydWN0IHBhZ2UgKnBhZ2UsIHNlY3Rvcl90IHNlY3RvciwKIAkJCQkg
+aW50IHJ3LCBpbnQgc2l6ZSkKIHsKQEAgLTUwLDcgKzUxLDcgQEAKIAliaW8tPmJpX3ByaXZhdGUg
+PSAmZXZlbnQ7CiAJYmlvLT5iaV9lbmRfaW8gPSBkcmJkX21kX2lvX2NvbXBsZXRlOwogCi0JaWYg
+KEZBVUxUX0FDVElWRSgocncgJiBXUklURSk/IERSQkRfRkFVTFRfTURfV1I6RFJCRF9GQVVMVF9N
+RF9SRCkpIHsKKwlpZiAoRkFVTFRfQUNUSVZFKG1kZXYsIChydyAmIFdSSVRFKT8gRFJCRF9GQVVM
+VF9NRF9XUjpEUkJEX0ZBVUxUX01EX1JEKSkgewogCQliaW8tPmJpX3J3IHw9IHJ3OwogCQliaW9f
+ZW5kaW8oYmlvLGJpby0+Ymlfc2l6ZSwtRUlPKTsKIAl9CkBAIC0xMTIsNyArMTEzLDcgQEAKIAkJ
+CXZvaWQgKnAgPSBwYWdlX2FkZHJlc3MobWRldi0+bWRfaW9fcGFnZSk7CiAJCQl2b2lkICpocCA9
+IHBhZ2VfYWRkcmVzcyhtZGV2LT5tZF9pb190bXBwKTsKIAotCQkJb2sgPSBfZHJiZF9tZF9zeW5j
+X3BhZ2VfaW8oYmRldixpb3AsCisJCQlvayA9IF9kcmJkX21kX3N5bmNfcGFnZV9pbyhtZGV2LCBi
+ZGV2LGlvcCwKIAkJCQkJCSAgIHNlY3RvcixSRUFELGhhcmRzZWN0KTsKIAogCQkJaWYgKHVubGlr
+ZWx5KCFvaykpIHsKQEAgLTEzNyw3ICsxMzgsNyBAQAogCQkgICAgICh1bnNpZ25lZCBsb25nIGxv
+bmcpc2VjdG9yLCBydyA/ICJXUklURSIgOiAiUkVBRCIpOwogCX0KIAotCW9rID0gX2RyYmRfbWRf
+c3luY19wYWdlX2lvKGJkZXYsaW9wLHNlY3RvcixydyxoYXJkc2VjdCk7CisJb2sgPSBfZHJiZF9t
+ZF9zeW5jX3BhZ2VfaW8obWRldiwgYmRldixpb3Asc2VjdG9yLHJ3LGhhcmRzZWN0KTsKIAlpZiAo
+dW5saWtlbHkoIW9rKSkgewogCQlFUlIoImRyYmRfbWRfc3luY19wYWdlX2lvKCwlbGx1cywlcykg
+ZmFpbGVkIVxuIiwKIAkJICAgICh1bnNpZ25lZCBsb25nIGxvbmcpc2VjdG9yLHJ3ID8gIldSSVRF
+IiA6ICJSRUFEIik7CkBAIC02ODMsNyArNjg0LDcgQEAKIAogCQkvKiBhbGwgcHJlcGFyZWQsIHN1
+Ym1pdCB0aGVtICovCiAJCWZvcihpPTA7IGJpb3NbaV07IGkrKykgewotCQkJaWYgKEZBVUxUX0FD
+VElWRSggRFJCRF9GQVVMVF9NRF9XUiApKSB7CisJCQlpZiAoRkFVTFRfQUNUSVZFKCBtZGV2LCBE
+UkJEX0ZBVUxUX01EX1dSICkpIHsKIAkJCQliaW9zW2ldLT5iaV9ydyA9IFdSSVRFOwogCQkJCWJp
+b19lbmRpbyhiaW9zW2ldLGJpb3NbaV0tPmJpX3NpemUsLUVJTyk7CiAJCQl9IGVsc2UgewpJbmRl
+eDogc24vZHJiZC9kcmJkX2NvbXBhdF93cmFwcGVycy5oCj09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHNuL2RyYmQv
+ZHJiZF9jb21wYXRfd3JhcHBlcnMuaAkocmV2aXNpb24gMTE5ODMpCisrKyBzbi9kcmJkL2RyYmRf
+Y29tcGF0X3dyYXBwZXJzLmgJKHJldmlzaW9uIDExOTg0KQpAQCAtMTIwLDE4ICsxMjAsMTkgQEAK
+IC8qCiAgKiB1c2VkIHRvIHN1Ym1pdCBvdXIgcHJpdmF0ZSBiaW8KICAqLwotc3RhdGljIGlubGlu
+ZSB2b2lkIGRyYmRfZ2VuZXJpY19tYWtlX3JlcXVlc3QoaW50IHJ3LCBpbnQgZmF1bHRfdHlwZSwg
+c3RydWN0IGJpbyAqYmlvKQorc3RhdGljIGlubGluZSB2b2lkIGRyYmRfZ2VuZXJpY19tYWtlX3Jl
+cXVlc3QoZHJiZF9kZXYgKm1kZXYsIGludCBydywgaW50IGZhdWx0X3R5cGUsIHN0cnVjdCBiaW8g
+KmJpbykKIHsKIAliaW8tPmJpX3J3ID0gcnc7IC8vIG9uIHRoZSByZWNlaXZlciBzaWRlLCBlLT4u
+LnJ3IHdhcyBub3QgeWV0IGRlZmluZWQuCiAKIAlpZiAoIWJpby0+YmlfYmRldikgewotCQlwcmlu
+dGsoS0VSTl9FUlIgImRyYmRfZ2VuZXJpY19tYWtlX3JlcXVlc3Q6IGJpby0+YmlfYmRldiA9PSBO
+VUxMXG4iKTsKKwkJcHJpbnRrKEtFUk5fRVJSIERFVklDRV9OQU1FICIlZDogZHJiZF9nZW5lcmlj
+X21ha2VfcmVxdWVzdDogYmlvLT5iaV9iZGV2ID09IE5VTExcbiIsCisJCSAgICAgICBtZGV2X3Rv
+X21pbm9yKG1kZXYpKTsKIAkJZHVtcF9zdGFjaygpOwogCQliaW9fZW5kaW8oYmlvLCBiaW8tPmJp
+X3NpemUsIC1FTk9ERVYpOwogCQlyZXR1cm47CiAJfQogCi0JaWYgKEZBVUxUX0FDVElWRShmYXVs
+dF90eXBlKSkKKwlpZiAoRkFVTFRfQUNUSVZFKG1kZXYsIGZhdWx0X3R5cGUpKQogCQliaW9fZW5k
+aW8oYmlvLGJpby0+Ymlfc2l6ZSwtRUlPKTsKIAllbHNlCiAJCWdlbmVyaWNfbWFrZV9yZXF1ZXN0
+KGJpbyk7CkluZGV4OiBzbi9kcmJkL2RyYmRfYml0bWFwLmMKPT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gc24vZHJi
+ZC9kcmJkX2JpdG1hcC5jCShyZXZpc2lvbiAxMTk4MykKKysrIHNuL2RyYmQvZHJiZF9iaXRtYXAu
+YwkocmV2aXNpb24gMTE5ODQpCkBAIC02NTQsNyArNjU0LDcgQEAKIAliaW8tPmJpX3ByaXZhdGUg
+PSBiOwogCWJpby0+YmlfZW5kX2lvID0gZHJiZF9ibV9hc3luY19pb19jb21wbGV0ZTsKIAotCWlm
+IChGQVVMVF9BQ1RJVkUoKHJ3JldSSVRFKT9EUkJEX0ZBVUxUX01EX1dSOkRSQkRfRkFVTFRfTURf
+UkQpKSB7CisJaWYgKEZBVUxUX0FDVElWRShtZGV2LCAocncmV1JJVEUpP0RSQkRfRkFVTFRfTURf
+V1I6RFJCRF9GQVVMVF9NRF9SRCkpIHsKIAkJYmlvLT5iaV9ydyB8PSBydzsKIAkJYmlvX2VuZGlv
+KGJpbyxiaW8tPmJpX3NpemUsLUVJTyk7CiAJfQpJbmRleDogc24vZHJiZC9kcmJkX21haW4uYwo9
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09Ci0tLSBzbi9kcmJkL2RyYmRfbWFpbi5jCShyZXZpc2lvbiAxMTk4MykKKysrIHNu
+L2RyYmQvZHJiZF9tYWluLmMJKHJldmlzaW9uIDExOTg0KQpAQCAtOTYsOSArOTYsMTEgQEAKIGlu
+dCBlbmFibGVfZmF1bHRzID0gMDsKIGludCBmYXVsdF9yYXRlOwogaW50IGZhdWx0X2NvdW50Owor
+aW50IGZhdWx0X2RldnM7CiBtb2R1bGVfcGFyYW0oZW5hYmxlX2ZhdWx0cyxpbnQsMDY2NCk7CS8v
+IGJpdG1hcCBvZiBlbmFibGVkIGZhdWx0cwogbW9kdWxlX3BhcmFtKGZhdWx0X3JhdGUsaW50LDA2
+NjQpOwkvLyBmYXVsdCByYXRlICUgdmFsdWUgLSBhcHBsaWVzIHRvIGFsbCBlbmFibGVkIGZhdWx0
+cwogbW9kdWxlX3BhcmFtKGZhdWx0X2NvdW50LGludCwwNjY0KTsJLy8gY291bnQgb2YgZmF1bHRz
+IGluc2VydGVkCittb2R1bGVfcGFyYW0oZmF1bHRfZGV2cyxpbnQsMDY0NCk7ICAgICAgLy8gYml0
+bWFwIG9mIGRldmljZXMgdG8gaW5zZXJ0IGZhdWx0cyBvbgogI2VuZGlmCiAKIC8vIG1vZHVsZSBw
+YXJhbWV0ZXIsIGRlZmluZWQKQEAgLTI4ODAsMTggKzI4ODIsMTkgQEAKIH0KIAogdW5zaWduZWQg
+aW50Ci1fZHJiZF9pbnNlcnRfZmF1bHQodW5zaWduZWQgaW50IHR5cGUpCitfZHJiZF9pbnNlcnRf
+ZmF1bHQoZHJiZF9kZXYgKm1kZXYsIHVuc2lnbmVkIGludCB0eXBlKQogewogCXN0YXRpYyBzdHJ1
+Y3QgZmF1bHRfcmFuZG9tX3N0YXRlIHJycyA9IHswLDB9OwogCi0JdW5zaWduZWQgaW50IHJuZCA9
+ICgoX2RyYmRfZmF1bHRfcmFuZG9tKCZycnMpICUgMTAwKSArIDEpOwotCXVuc2lnbmVkIGludCBy
+ZXQgPSAocm5kIDw9IGZhdWx0X3JhdGUpOworCXVuc2lnbmVkIGludCByZXQgPSAoCisJCShmYXVs
+dF9kZXZzID09IDAgfHwgKCgxIDw8IG1kZXZfdG9fbWlub3IobWRldikpICYgZmF1bHRfZGV2cykg
+IT0gMCkgJiYKKwkJKCgoX2RyYmRfZmF1bHRfcmFuZG9tKCZycnMpICUgMTAwKSArIDEpIDw9IGZh
+dWx0X3JhdGUpKTsKIAogCWlmIChyZXQpIHsKIAkJZmF1bHRfY291bnQrKzsKIAogCQlpZiAocHJp
+bnRrX3JhdGVsaW1pdCgpKQotCQkJcHJpbnRrKEtFUk5fQUxFUlQgIlNpbXVsYXRpbmcgJXMgZmFp
+bHVyZVxuIiwgX2RyYmRfZmF1bHRfc3RyKHR5cGUpKTsKKwkJCVdBUk4oIioqKlNpbXVsYXRpbmcg
+JXMgZmFpbHVyZVxuIiwgX2RyYmRfZmF1bHRfc3RyKHR5cGUpKTsKIAl9CiAKIAlyZXR1cm4gcmV0
+OwpJbmRleDogc24vZHJiZC9kcmJkX3JlcS5jCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHNuL2RyYmQvZHJiZF9y
+ZXEuYwkocmV2aXNpb24gMTE5ODMpCisrKyBzbi9kcmJkL2RyYmRfcmVxLmMJKHJldmlzaW9uIDEx
+OTg0KQpAQCAtMTAxMSw5ICsxMDExLDkgQEAKIAkJICogd2FzIG5vdCBkZXRhY2hlZCBiZWxvdyB1
+cz8gKi8KIAkJcmVxLT5wcml2YXRlX2Jpby0+YmlfYmRldiA9IG1kZXYtPmJjLT5iYWNraW5nX2Jk
+ZXY7CiAKLQkJaWYgKEZBVUxUX0FDVElWRShydz09V1JJVEUgPyBEUkJEX0ZBVUxUX0RUX1dSIDoK
+LQkJCQkgKCBydz09UkVBRCA/IERSQkRfRkFVTFRfRFRfUkQgOgotCQkJCSAgIERSQkRfRkFVTFRf
+RFRfUkEgKSApKQorCQlpZiAoRkFVTFRfQUNUSVZFKG1kZXYsIHJ3PT1XUklURSA/IERSQkRfRkFV
+TFRfRFRfV1IgOgorCQkJCSAgICAgICAoIHJ3PT1SRUFEID8gRFJCRF9GQVVMVF9EVF9SRCA6Cisg
+IAkJCQkgICAgICAgICAgICAgICAgICAgRFJCRF9GQVVMVF9EVF9SQSApICkpCiAJCQliaW9fZW5k
+aW8ocmVxLT5wcml2YXRlX2JpbywgcmVxLT5wcml2YXRlX2Jpby0+Ymlfc2l6ZSwgLUVJTyk7CiAJ
+CWVsc2UKIAkJCWdlbmVyaWNfbWFrZV9yZXF1ZXN0KHJlcS0+cHJpdmF0ZV9iaW8pOwpJbmRleDog
+c24vZHJiZC9kcmJkX2ludC5oCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHNuL2RyYmQvZHJiZF9pbnQuaAkocmV2
+aXNpb24gMTE5ODMpCisrKyBzbi9kcmJkL2RyYmRfaW50LmgJKHJldmlzaW9uIDExOTg0KQpAQCAt
+NDgsNiArNDgsNyBAQAogI2lmZGVmIERSQkRfRU5BQkxFX0ZBVUxUUwogZXh0ZXJuIGludCBlbmFi
+bGVfZmF1bHRzOwogZXh0ZXJuIGludCBmYXVsdF9yYXRlOworZXh0ZXJuIGludCBmYXVsdF9kZXZz
+OwogI2VuZGlmCiAKICNpbmNsdWRlIDxsaW51eC9tYWpvci5oPgpAQCAtMjA4LDEyICsyMDksMTcg
+QEAKIH07CiAKICNpZmRlZiBEUkJEX0VOQUJMRV9GQVVMVFMKLSNkZWZpbmUgRkFVTFRfQUNUSVZF
+KF90KSBcCi0gICAgKGZhdWx0X3JhdGUgJiYgKGVuYWJsZV9mYXVsdHMgJiAoMTw8KF90KSkpICYm
+IF9kcmJkX2luc2VydF9mYXVsdChfdCkpCitleHRlcm4gdW5zaWduZWQgaW50IF9kcmJkX2luc2Vy
+dF9mYXVsdChkcmJkX2RldiAqbWRldiwgdW5zaWduZWQgaW50IHR5cGUpOworc3RhdGljIGlubGlu
+ZSBpbnQKK2RyYmRfaW5zZXJ0X2ZhdWx0KGRyYmRfZGV2ICptZGV2LCB1bnNpZ25lZCBpbnQgdHlw
+ZSkgeworICAgIHJldHVybiAoZmF1bHRfcmF0ZSAmJiAKKwkgICAgKGVuYWJsZV9mYXVsdHMgJiAo
+MTw8dHlwZSkpICYmIAorCSAgICBfZHJiZF9pbnNlcnRfZmF1bHQobWRldix0eXBlKSk7Cit9Cisj
+ZGVmaW5lIEZBVUxUX0FDVElWRShfbSwgX3QpIChkcmJkX2luc2VydF9mYXVsdCgoX20pLChfdCkp
+KQogCi1leHRlcm4gdW5zaWduZWQgaW50IF9kcmJkX2luc2VydF9mYXVsdCh1bnNpZ25lZCBpbnQg
+dHlwZSk7CiAjZWxzZQotI2RlZmluZSBGQVVMVF9BQ1RJVkUoX3QpICgwKQorI2RlZmluZSBGQVVM
+VF9BQ1RJVkUoX20sIF90KSAoMCkKICNlbmRpZgogCiAjaW5jbHVkZSA8bGludXgvc3RyaW5naWZ5
+Lmg+Cg==
+
+------_=_NextPart_001_01C765DB.634B28B8--
