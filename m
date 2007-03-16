@@ -1,12 +1,13 @@
-Return-Path: <Simon.Graham@stratus.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C765DB.634B28B8"
+Return-Path: <Ernest.Montrose@stratus.com>
 Content-class: urn:content-classes:message
-Date: Tue, 13 Mar 2007 21:52:04 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B3767104F9765A@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01C76800.AA2039B5"
+Date: Fri, 16 Mar 2007 15:24:06 -0400
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C92B@EXNA.corp.stratus.com>
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [DRBD-8] Patch to enhance fault insertion
+Subject: [Drbd-dev] DRBD8: Resync speed reporting not accurate
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,131 +19,387 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 This is a multi-part message in MIME format.
 
-------_=_NextPart_001_01C765DB.634B28B8
-Content-Type: multipart/alternative;
-	boundary="----_=_NextPart_002_01C765DB.634B28B8"
-
-
-------_=_NextPart_002_01C765DB.634B28B8
+------_=_NextPart_001_01C76800.AA2039B5
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-We've been using the fault insertion code in DRBD-8 to simulate failures
-and have found that it's a little too keen to insert faults - the
-attached patch adds a new sysfs attribute, fault_devs, that can be used
-to specify which devices are to have faults inserted (similar to
-trace_devs). If this attribute is zero, then the behavior is as before -
-faults will be inserted in all devices.
-
+Hi all,
+We are seeing a problem where  resyncing multiple drbd volumes
+say r0,r1,r2 reports the wrong sync speed stats.  It seems to get worst
+and worst.  So r0 would report 30meg/S, r1 19Meg/sec and r2 9Meg/sec.
+These rates are not the true rates except for the first one. In reality,
+all the volumes took the same time to resync and they have the same
+size.
+=20
+The problem I think is that while one volume is Syncing the next volume
+in=20
+PauseSyncX get some activity and ends up calling __drbd_set_in_sync()=20
+from the asender thread.  When this happens rs_mark_time gets reset as
+well
+as rs_mark_left.  To illustrate this the change below would force the
+problem
+to go away.  I am not sure this is the correct patch though:
+=20
+Index: drbd/drbd_actlog.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- drbd/drbd_actlog.c  (revision 11975)
++++ drbd/drbd_actlog.c  (working copy)
+@@ -960,10 +960,12 @@
+                // we need the lock for drbd_try_clear_on_disk_bm
+                if(jiffies - mdev->rs_mark_time > HZ*10) {
+                        /* should be roling marks, but we estimate only
+anyways. */
+-                      if( mdev->rs_mark_left !=3D
+drbd_bm_total_weight(mdev)) {
+-                              mdev->rs_mark_time =3Djiffies;
+-                              mdev->rs_mark_left
+=3Ddrbd_bm_total_weight(mdev);
+-                      }
++                      if( (mdev->rs_mark_left !=3D
+drbd_bm_total_weight(mdev)) &&
++            mdev->state.conn !=3D PausedSyncT &&
++            mdev->state.conn !=3D PausedSyncS ) {
++            mdev->rs_mark_time =3Djiffies;
++            mdev->rs_mark_left =3Ddrbd_bm_total_weight(mdev);
++        }
+                }
+                if( inc_local_if_state(mdev,Attaching) ) {
+=20
+drbd_try_clear_on_disk_bm(mdev,sector,count,TRUE);
+=20
+=20
 =20
 
-Simon
-
-=20
-
-
-------_=_NextPart_002_01C765DB.634B28B8
+------_=_NextPart_001_01C76800.AA2039B5
 Content-Type: text/html;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" =
-xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
 xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns:x=3D"urn:schemas-microsoft-com:office:excel" =
-xmlns:p=3D"urn:schemas-microsoft-com:office:powerpoint" =
-xmlns:a=3D"urn:schemas-microsoft-com:office:access" =
-xmlns:dt=3D"uuid:C2F41010-65B3-11d1-A29F-00AA00C14882" =
-xmlns:s=3D"uuid:BDC6E3F0-6DA3-11d1-A2A3-00AA00C14882" =
-xmlns:rs=3D"urn:schemas-microsoft-com:rowset" xmlns:z=3D"#RowsetSchema" =
-xmlns:b=3D"urn:schemas-microsoft-com:office:publisher" =
-xmlns:ss=3D"urn:schemas-microsoft-com:office:spreadsheet" =
-xmlns:oa=3D"urn:schemas-microsoft-com:office:activation" =
-xmlns:html=3D"http://www.w3.org/TR/REC-html40" =
-xmlns:q=3D"http://schemas.xmlsoap.org/soap/envelope/" xmlns:D=3D"DAV:" =
-xmlns:x2=3D"http://schemas.microsoft.com/office/excel/2003/xml" =
-xmlns:ois=3D"http://schemas.microsoft.com/sharepoint/soap/ois/" =
-xmlns:dir=3D"http://schemas.microsoft.com/sharepoint/soap/directory/" =
-xmlns:ds=3D"http://www.w3.org/2000/09/xmldsig#" =
-xmlns:dsp=3D"http://schemas.microsoft.com/sharepoint/dsp" =
-xmlns:udc=3D"http://schemas.microsoft.com/data/udc" =
-xmlns:xsd=3D"http://www.w3.org/2001/XMLSchema" =
-xmlns:sps=3D"http://schemas.microsoft.com/sharepoint/soap/" =
-xmlns:xsi=3D"http://www.w3.org/2001/XMLSchema-instance" =
-xmlns:udcxf=3D"http://schemas.microsoft.com/data/udc/xmlfile" =
-xmlns:wf=3D"http://schemas.microsoft.com/sharepoint/soap/workflow/" =
-xmlns:mver=3D"http://schemas.openxmlformats.org/markup-compatibility/2006=
-" xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" =
-xmlns:ex12t=3D"http://schemas.microsoft.com/exchange/services/2006/types"=
- xmlns=3D"http://www.w3.org/TR/REC-html40">
+xmlns=3D"http://www.w3.org/TR/REC-html40">
 
 <head>
 <meta http-equiv=3DContent-Type content=3D"text/html; =
 charset=3Dus-ascii">
-<meta name=3DGenerator content=3D"Microsoft Word 12 (filtered medium)">
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 11">
+<meta name=3DOriginator content=3D"Microsoft Word 11">
+<link rel=3DFile-List href=3D"cid:filelist.xml@01C767DF.22E96EC0">
+<!--[if gte mso 9]><xml>
+ <o:OfficeDocumentSettings>
+  <o:DoNotRelyOnCSS/>
+ </o:OfficeDocumentSettings>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:SpellingState>Clean</w:SpellingState>
+  <w:GrammarState>Clean</w:GrammarState>
+  <w:DocumentKind>DocumentEmail</w:DocumentKind>
+  <w:EnvelopeVis/>
+  <w:ValidateAgainstSchemas/>
+  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+  <w:IgnoreMixedContent>false</w:IgnoreMixedContent>
+  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+  <w:Compatibility>
+   <w:BreakWrappedTables/>
+   <w:SnapToGridInCell/>
+   <w:WrapTextWithPunct/>
+   <w:UseAsianBreakRules/>
+   <w:UseWord2002TableStyleRules/>
+  </w:Compatibility>
+  <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
+ </w:WordDocument>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:LatentStyles DefLockedState=3D"false" LatentStyleCount=3D"156">
+ </w:LatentStyles>
+</xml><![endif]-->
 <style>
 <!--
  /* Font Definitions */
  @font-face
-	{font-family:Calibri;
-	panose-1:2 15 5 2 2 2 4 3 2 4;}
+	{font-family:Tahoma;
+	panose-1:2 11 6 4 3 5 4 4 2 4;
+	mso-font-charset:0;
+	mso-generic-font-family:swiss;
+	mso-font-pitch:variable;
+	mso-font-signature:1627421319 -2147483648 8 0 66047 0;}
  /* Style Definitions */
  p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{margin:0in;
+	{mso-style-parent:"";
+	margin:0in;
 	margin-bottom:.0001pt;
-	font-size:11.0pt;
-	font-family:"Calibri","sans-serif";}
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
 a:link, span.MsoHyperlink
-	{mso-style-priority:99;
-	color:blue;
-	text-decoration:underline;}
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
 a:visited, span.MsoHyperlinkFollowed
-	{mso-style-priority:99;
-	color:purple;
-	text-decoration:underline;}
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
 span.EmailStyle17
 	{mso-style-type:personal-compose;
-	font-family:"Calibri","sans-serif";
+	mso-style-noshow:yes;
+	mso-ansi-font-size:10.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-ascii-font-family:Arial;
+	mso-hansi-font-family:Arial;
+	mso-bidi-font-family:Arial;
 	color:windowtext;}
-.MsoChpDefault
-	{mso-style-type:export-only;}
+span.SpellE
+	{mso-style-name:"";
+	mso-spl-e:yes;}
+span.GramE
+	{mso-style-name:"";
+	mso-gram-e:yes;}
 @page Section1
 	{size:8.5in 11.0in;
-	margin:1.0in 1.0in 1.0in 1.0in;}
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
 div.Section1
 	{page:Section1;}
 -->
 </style>
-<!--[if gte mso 9]><xml>
- <o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
-</xml><![endif]--><!--[if gte mso 9]><xml>
- <o:shapelayout v:ext=3D"edit">
-  <o:idmap v:ext=3D"edit" data=3D"1" />
- </o:shapelayout></xml><![endif]-->
+<!--[if gte mso 10]>
+<style>
+ /* Style Definitions */=20
+ table.MsoNormalTable
+	{mso-style-name:"Table Normal";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0in 5.4pt 0in 5.4pt;
+	mso-para-margin:0in;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+</style>
+<![endif]-->
 </head>
 
-<body lang=3DEN-US link=3Dblue vlink=3Dpurple>
+<body lang=3DEN-US link=3Dblue vlink=3Dpurple =
+style=3D'tab-interval:.5in'>
 
 <div class=3DSection1>
 
-<p class=3DMsoNormal>We&#8217;ve been using the fault insertion code in =
-DRBD-8 to
-simulate failures and have found that it&#8217;s a little too keen to =
-insert
-faults &#8211; the attached patch adds a new sysfs attribute, =
-fault_devs, that
-can be used to specify which devices are to have faults inserted =
-(similar to
-trace_devs). If this attribute is zero, then the behavior is as before =
-&#8211;
-faults will be inserted in all devices.<o:p></o:p></p>
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Hi all,<o:p></o:p></span></font></p>
 
-<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>We are seeing a problem <span class=3DGramE>where =
+<span
+style=3D'mso-spacerun:yes'>&nbsp;</span><span =
+class=3DSpellE>resyncing</span></span>
+multiple <span class=3DSpellE>drbd</span> =
+volumes<o:p></o:p></span></font></p>
 
-<p class=3DMsoNormal>Simon<o:p></o:p></p>
+<p class=3DMsoNormal><span class=3DGramE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>say</span></font></span><fon=
+t
+size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'> r0,r1,r2 reports
+the wrong sync speed stats.<span style=3D'mso-spacerun:yes'>&nbsp; =
+</span>It
+seems to get worst<o:p></o:p></span></font></p>
 
-<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
+<p class=3DMsoNormal><span class=3DGramE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>and</span></font></span><fon=
+t
+size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'> worst.<span
+style=3D'mso-spacerun:yes'>&nbsp; </span>So r0 would report 30meg/S, r1 =
+19Meg/sec
+and r2 9Meg/sec.<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>These rates are not the true rates except for the =
+first one.
+In reality,<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><span class=3DGramE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>all</span></font></span><fon=
+t
+size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'> the volumes
+took the same time to <span class=3DSpellE>resync</span> and they have =
+the same
+size.<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>The problem I think is that while one volume is =
+Syncing the
+next volume in <o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><span class=3DSpellE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>PauseSyncX</span></font></sp=
+an><font
+size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'> get some
+activity and ends up calling __<span class=3DSpellE>drbd_set_in_<span
+class=3DGramE>sync</span></span><span class=3DGramE>()</span> =
+<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><span class=3DGramE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>from</span></font></span><fo=
+nt
+size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'> the <span
+class=3DSpellE>asender</span> thread.<span =
+style=3D'mso-spacerun:yes'>&nbsp;
+</span>When this happens <span class=3DSpellE>rs_mark_time</span> gets =
+reset as
+well<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><span class=3DGramE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>as</span></font></span><font=
+ size=3D2
+face=3DArial><span style=3D'font-size:10.0pt;font-family:Arial'> <span
+class=3DSpellE>rs_mark_left</span>. <span
+style=3D'mso-spacerun:yes'>&nbsp;</span>To illustrate <span =
+class=3DGramE>this the</span>
+change below would force the problem<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><span class=3DGramE><font size=3D2 =
+face=3DArial><span
+style=3D'font-size:10.0pt;font-family:Arial'>to</span></font></span><font=
+ size=3D2
+face=3DArial><span style=3D'font-size:10.0pt;font-family:Arial'> go =
+away.<span
+style=3D'mso-spacerun:yes'>&nbsp; </span>I am not sure this is the =
+correct patch
+though:<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'>Index: <span =
+class=3DSpellE>drbd/drbd_actlog.c</span><br>
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D<br>
+--- <span class=3DSpellE>drbd/drbd_actlog.c</span><span =
+class=3DGramE>&nbsp; (</span>revision
+11975)<br>
++++ <span class=3DSpellE>drbd/drbd_actlog.c</span><span =
+class=3DGramE>&nbsp; (</span>working
+copy)<br>
+@@ -960<span class=3DGramE>,10</span> +960,12 @@<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; // we need the =
+lock for
+<span class=3DSpellE>drbd_try_clear_on_disk_bm</span><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span =
+class=3DGramE>if(</span>jiffies
+- <span class=3DSpellE>mdev</span>-&gt;<span =
+class=3DSpellE>rs_mark_time</span>
+&gt; HZ*10) {<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; =
+&nbsp;
+&nbsp; /* should be <span class=3DSpellE>roling</span> marks, but we =
+estimate
+only anyways. */<br>
+-&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; =
+&nbsp; <span
+class=3DGramE>if(</span> <span class=3DSpellE>mdev</span>-&gt;<span =
+class=3DSpellE>rs_mark_left</span>
+!=3D <span class=3DSpellE>drbd_bm_total_weight</span>(<span =
+class=3DSpellE>mdev</span>))
+{<br>
+-&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; =
+&nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp; <span class=3DSpellE><span =
+class=3DGramE>mdev</span></span>-&gt;<span
+class=3DSpellE>rs_mark_time</span> =3Djiffies;<br>
+-&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; =
+&nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp; <span class=3DSpellE><span =
+class=3DGramE>mdev</span></span>-&gt;<span
+class=3DSpellE>rs_mark_left</span> =3D<span =
+class=3DSpellE>drbd_bm_total_weight</span>(<span
+class=3DSpellE>mdev</span>);<br>
+-&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; =
+&nbsp; }<br>
++&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; =
+&nbsp; <span
+class=3DGramE>if(</span> (<span class=3DSpellE>mdev</span>-&gt;<span =
+class=3DSpellE>rs_mark_left</span>
+!=3D <span class=3DSpellE>drbd_bm_total_weight</span>(<span =
+class=3DSpellE>mdev</span>))
+&amp;&amp;<br>
++&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span class=3DSpellE><span
+class=3DGramE>mdev</span></span>-&gt;<span =
+class=3DSpellE>state.conn</span> !=3D <span
+class=3DSpellE>PausedSyncT</span> &amp;&amp;<br>
++&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span =
+class=3DSpellE>mdev</span>-&gt;<span
+class=3DSpellE><span class=3DGramE>state.conn</span></span><span =
+class=3DGramE> !</span>=3D
+<span class=3DSpellE>PausedSyncS</span> ) {<br>
++&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span class=3DSpellE><span
+class=3DGramE>mdev</span></span>-&gt;<span =
+class=3DSpellE>rs_mark_time</span>
+=3Djiffies;<br>
++&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span class=3DSpellE><span
+class=3DGramE>mdev</span></span>-&gt;<span =
+class=3DSpellE>rs_mark_left</span> =3D<span
+class=3DSpellE>drbd_bm_total_weight</span>(<span =
+class=3DSpellE>mdev</span>);<br>
++&nbsp; &nbsp; &nbsp; &nbsp; }<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span =
+class=3DGramE>if(</span>
+<span class=3DSpellE>inc_local_if_state</span>(<span =
+class=3DSpellE>mdev,Attaching</span>)
+) {<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; =
+&nbsp;
+&nbsp; <span class=3DSpellE>drbd_try_clear_on_disk_<span =
+class=3DGramE>bm</span></span><span
+class=3DGramE>(</span><span =
+class=3DSpellE>mdev,sector,count,TRUE</span>);<o:p></o:p></span></font></=
+p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
 
 </div>
 
@@ -150,147 +407,4 @@ faults will be inserted in all devices.<o:p></o:p></p>
 
 </html>
 
-------_=_NextPart_002_01C765DB.634B28B8--
-
-------_=_NextPart_001_01C765DB.634B28B8
-Content-Type: application/octet-stream;
-	name="drbd-per-dev-faults.patch"
-Content-Transfer-Encoding: base64
-Content-Description: drbd-per-dev-faults.patch
-Content-Disposition: attachment;
-	filename="drbd-per-dev-faults.patch"
-
-SW5kZXg6IHNuL2RyYmQvZHJiZF9yZWNlaXZlci5jCj09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHNuL2RyYmQvZHJi
-ZF9yZWNlaXZlci5jCShyZXZpc2lvbiAxMTk4MykKKysrIHNuL2RyYmQvZHJiZF9yZWNlaXZlci5j
-CShyZXZpc2lvbiAxMTk4NCkKQEAgLTEwNjUsNyArMTA2NSw3IEBACiAJcmV0dXJuIG9rOwogfQog
-Ci1TVEFUSUMgaW50IHJlY3ZfcmVzeW5jX3JlYWQoZHJiZF9kZXYgKm1kZXYsc2VjdG9yX3Qgc2Vj
-dG9yLCBpbnQgZGF0YV9zaXplKQorU1RBVElDIGludCByZWN2X3Jlc3luY19yZWFkKGRyYmRfZGV2
-ICptZGV2LHNlY3Rvcl90IHNlY3RvcixpbnQgZGF0YV9zaXplKQogewogCXN0cnVjdCBUbF9lcG9j
-aF9lbnRyeSAqZTsKIApAQCAtMTA4OSw3ICsxMDg5LDcgQEAKIAkgICAgICAgSU5GTygic3VibWl0
-IEVFIChSUylXUklURSBzZWM9JWxsdXMgc2l6ZT0ldSBlZT0lcFxuIiwKIAkJICAgICh1bnNpZ25l
-ZCBsb25nIGxvbmcpZS0+c2VjdG9yLGUtPnNpemUsZSk7CiAJICAgICAgICk7Ci0JZHJiZF9nZW5l
-cmljX21ha2VfcmVxdWVzdChXUklURSxEUkJEX0ZBVUxUX1JTX1dSLGUtPnByaXZhdGVfYmlvKTsK
-KwlkcmJkX2dlbmVyaWNfbWFrZV9yZXF1ZXN0KG1kZXYsV1JJVEUsRFJCRF9GQVVMVF9SU19XUixl
-LT5wcml2YXRlX2Jpbyk7CiAJLyogYWNjb3VudGluZyBkb25lIGluIGVuZGlvICovCiAKIAltYXli
-ZV9raWNrX2xvKG1kZXYpOwpAQCAtMTU4Nyw3ICsxNTg3LDcgQEAKIAkJICAgICh1bnNpZ25lZCBs
-b25nIGxvbmcpZS0+c2VjdG9yLGUtPnNpemUsZSk7CiAJICAgICAgICk7CiAJLyogRklYTUUgZHJi
-ZF9hbF9iZWdpbl9pbyBpbiBjYXNlIHdlIGhhdmUgdHdvIHByaW1hcmllcy4uLiAqLwotCWRyYmRf
-Z2VuZXJpY19tYWtlX3JlcXVlc3QoV1JJVEUsRFJCRF9GQVVMVF9EVF9XUixlLT5wcml2YXRlX2Jp
-byk7CisJZHJiZF9nZW5lcmljX21ha2VfcmVxdWVzdChtZGV2LFdSSVRFLERSQkRfRkFVTFRfRFRf
-V1IsZS0+cHJpdmF0ZV9iaW8pOwogCS8qIGFjY291bnRpbmcgZG9uZSBpbiBlbmRpbyAqLwogCiAJ
-bWF5YmVfa2lja19sbyhtZGV2KTsKQEAgLTE2ODMsNyArMTY4Myw3IEBACiAJCSAgICAodW5zaWdu
-ZWQgbG9uZyBsb25nKWUtPnNlY3RvcixlLT5zaXplLGUpOwogCSAgICAgICApOwogCS8qIEZJWE1F
-IGFjdHVhbGx5LCBpdCBjb3VsZCBiZSBhIFJFQURBIG9yaWdpbmF0aW5nIGZyb20gdGhlIHBlZXIg
-Li4uICovCi0JZHJiZF9nZW5lcmljX21ha2VfcmVxdWVzdChSRUFELGZhdWx0X3R5cGUsZS0+cHJp
-dmF0ZV9iaW8pOworCWRyYmRfZ2VuZXJpY19tYWtlX3JlcXVlc3QobWRldixSRUFELGZhdWx0X3R5
-cGUsZS0+cHJpdmF0ZV9iaW8pOwogCW1heWJlX2tpY2tfbG8obWRldik7CiAKIAlyZXR1cm4gVFJV
-RTsKSW5kZXg6IHNuL2RyYmQvZHJiZF9hY3Rsb2cuYwo9PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSBzbi9kcmJkL2Ry
-YmRfYWN0bG9nLmMJKHJldmlzaW9uIDExOTgzKQorKysgc24vZHJiZC9kcmJkX2FjdGxvZy5jCShy
-ZXZpc2lvbiAxMTk4NCkKQEAgLTM0LDcgKzM0LDggQEAKICAqIDspCiAgKiB0aGlzIGlzIG1vc3Rs
-eSBmcm9tIGRyaXZlcnMvbWQvbWQuYwogICovCi1TVEFUSUMgaW50IF9kcmJkX21kX3N5bmNfcGFn
-ZV9pbyhzdHJ1Y3QgZHJiZF9iYWNraW5nX2RldiAqYmRldiwKK1NUQVRJQyBpbnQgX2RyYmRfbWRf
-c3luY19wYWdlX2lvKGRyYmRfZGV2ICptZGV2LAorCQkJCSBzdHJ1Y3QgZHJiZF9iYWNraW5nX2Rl
-diAqYmRldiwKIAkJCQkgc3RydWN0IHBhZ2UgKnBhZ2UsIHNlY3Rvcl90IHNlY3RvciwKIAkJCQkg
-aW50IHJ3LCBpbnQgc2l6ZSkKIHsKQEAgLTUwLDcgKzUxLDcgQEAKIAliaW8tPmJpX3ByaXZhdGUg
-PSAmZXZlbnQ7CiAJYmlvLT5iaV9lbmRfaW8gPSBkcmJkX21kX2lvX2NvbXBsZXRlOwogCi0JaWYg
-KEZBVUxUX0FDVElWRSgocncgJiBXUklURSk/IERSQkRfRkFVTFRfTURfV1I6RFJCRF9GQVVMVF9N
-RF9SRCkpIHsKKwlpZiAoRkFVTFRfQUNUSVZFKG1kZXYsIChydyAmIFdSSVRFKT8gRFJCRF9GQVVM
-VF9NRF9XUjpEUkJEX0ZBVUxUX01EX1JEKSkgewogCQliaW8tPmJpX3J3IHw9IHJ3OwogCQliaW9f
-ZW5kaW8oYmlvLGJpby0+Ymlfc2l6ZSwtRUlPKTsKIAl9CkBAIC0xMTIsNyArMTEzLDcgQEAKIAkJ
-CXZvaWQgKnAgPSBwYWdlX2FkZHJlc3MobWRldi0+bWRfaW9fcGFnZSk7CiAJCQl2b2lkICpocCA9
-IHBhZ2VfYWRkcmVzcyhtZGV2LT5tZF9pb190bXBwKTsKIAotCQkJb2sgPSBfZHJiZF9tZF9zeW5j
-X3BhZ2VfaW8oYmRldixpb3AsCisJCQlvayA9IF9kcmJkX21kX3N5bmNfcGFnZV9pbyhtZGV2LCBi
-ZGV2LGlvcCwKIAkJCQkJCSAgIHNlY3RvcixSRUFELGhhcmRzZWN0KTsKIAogCQkJaWYgKHVubGlr
-ZWx5KCFvaykpIHsKQEAgLTEzNyw3ICsxMzgsNyBAQAogCQkgICAgICh1bnNpZ25lZCBsb25nIGxv
-bmcpc2VjdG9yLCBydyA/ICJXUklURSIgOiAiUkVBRCIpOwogCX0KIAotCW9rID0gX2RyYmRfbWRf
-c3luY19wYWdlX2lvKGJkZXYsaW9wLHNlY3RvcixydyxoYXJkc2VjdCk7CisJb2sgPSBfZHJiZF9t
-ZF9zeW5jX3BhZ2VfaW8obWRldiwgYmRldixpb3Asc2VjdG9yLHJ3LGhhcmRzZWN0KTsKIAlpZiAo
-dW5saWtlbHkoIW9rKSkgewogCQlFUlIoImRyYmRfbWRfc3luY19wYWdlX2lvKCwlbGx1cywlcykg
-ZmFpbGVkIVxuIiwKIAkJICAgICh1bnNpZ25lZCBsb25nIGxvbmcpc2VjdG9yLHJ3ID8gIldSSVRF
-IiA6ICJSRUFEIik7CkBAIC02ODMsNyArNjg0LDcgQEAKIAogCQkvKiBhbGwgcHJlcGFyZWQsIHN1
-Ym1pdCB0aGVtICovCiAJCWZvcihpPTA7IGJpb3NbaV07IGkrKykgewotCQkJaWYgKEZBVUxUX0FD
-VElWRSggRFJCRF9GQVVMVF9NRF9XUiApKSB7CisJCQlpZiAoRkFVTFRfQUNUSVZFKCBtZGV2LCBE
-UkJEX0ZBVUxUX01EX1dSICkpIHsKIAkJCQliaW9zW2ldLT5iaV9ydyA9IFdSSVRFOwogCQkJCWJp
-b19lbmRpbyhiaW9zW2ldLGJpb3NbaV0tPmJpX3NpemUsLUVJTyk7CiAJCQl9IGVsc2UgewpJbmRl
-eDogc24vZHJiZC9kcmJkX2NvbXBhdF93cmFwcGVycy5oCj09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHNuL2RyYmQv
-ZHJiZF9jb21wYXRfd3JhcHBlcnMuaAkocmV2aXNpb24gMTE5ODMpCisrKyBzbi9kcmJkL2RyYmRf
-Y29tcGF0X3dyYXBwZXJzLmgJKHJldmlzaW9uIDExOTg0KQpAQCAtMTIwLDE4ICsxMjAsMTkgQEAK
-IC8qCiAgKiB1c2VkIHRvIHN1Ym1pdCBvdXIgcHJpdmF0ZSBiaW8KICAqLwotc3RhdGljIGlubGlu
-ZSB2b2lkIGRyYmRfZ2VuZXJpY19tYWtlX3JlcXVlc3QoaW50IHJ3LCBpbnQgZmF1bHRfdHlwZSwg
-c3RydWN0IGJpbyAqYmlvKQorc3RhdGljIGlubGluZSB2b2lkIGRyYmRfZ2VuZXJpY19tYWtlX3Jl
-cXVlc3QoZHJiZF9kZXYgKm1kZXYsIGludCBydywgaW50IGZhdWx0X3R5cGUsIHN0cnVjdCBiaW8g
-KmJpbykKIHsKIAliaW8tPmJpX3J3ID0gcnc7IC8vIG9uIHRoZSByZWNlaXZlciBzaWRlLCBlLT4u
-LnJ3IHdhcyBub3QgeWV0IGRlZmluZWQuCiAKIAlpZiAoIWJpby0+YmlfYmRldikgewotCQlwcmlu
-dGsoS0VSTl9FUlIgImRyYmRfZ2VuZXJpY19tYWtlX3JlcXVlc3Q6IGJpby0+YmlfYmRldiA9PSBO
-VUxMXG4iKTsKKwkJcHJpbnRrKEtFUk5fRVJSIERFVklDRV9OQU1FICIlZDogZHJiZF9nZW5lcmlj
-X21ha2VfcmVxdWVzdDogYmlvLT5iaV9iZGV2ID09IE5VTExcbiIsCisJCSAgICAgICBtZGV2X3Rv
-X21pbm9yKG1kZXYpKTsKIAkJZHVtcF9zdGFjaygpOwogCQliaW9fZW5kaW8oYmlvLCBiaW8tPmJp
-X3NpemUsIC1FTk9ERVYpOwogCQlyZXR1cm47CiAJfQogCi0JaWYgKEZBVUxUX0FDVElWRShmYXVs
-dF90eXBlKSkKKwlpZiAoRkFVTFRfQUNUSVZFKG1kZXYsIGZhdWx0X3R5cGUpKQogCQliaW9fZW5k
-aW8oYmlvLGJpby0+Ymlfc2l6ZSwtRUlPKTsKIAllbHNlCiAJCWdlbmVyaWNfbWFrZV9yZXF1ZXN0
-KGJpbyk7CkluZGV4OiBzbi9kcmJkL2RyYmRfYml0bWFwLmMKPT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gc24vZHJi
-ZC9kcmJkX2JpdG1hcC5jCShyZXZpc2lvbiAxMTk4MykKKysrIHNuL2RyYmQvZHJiZF9iaXRtYXAu
-YwkocmV2aXNpb24gMTE5ODQpCkBAIC02NTQsNyArNjU0LDcgQEAKIAliaW8tPmJpX3ByaXZhdGUg
-PSBiOwogCWJpby0+YmlfZW5kX2lvID0gZHJiZF9ibV9hc3luY19pb19jb21wbGV0ZTsKIAotCWlm
-IChGQVVMVF9BQ1RJVkUoKHJ3JldSSVRFKT9EUkJEX0ZBVUxUX01EX1dSOkRSQkRfRkFVTFRfTURf
-UkQpKSB7CisJaWYgKEZBVUxUX0FDVElWRShtZGV2LCAocncmV1JJVEUpP0RSQkRfRkFVTFRfTURf
-V1I6RFJCRF9GQVVMVF9NRF9SRCkpIHsKIAkJYmlvLT5iaV9ydyB8PSBydzsKIAkJYmlvX2VuZGlv
-KGJpbyxiaW8tPmJpX3NpemUsLUVJTyk7CiAJfQpJbmRleDogc24vZHJiZC9kcmJkX21haW4uYwo9
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09Ci0tLSBzbi9kcmJkL2RyYmRfbWFpbi5jCShyZXZpc2lvbiAxMTk4MykKKysrIHNu
-L2RyYmQvZHJiZF9tYWluLmMJKHJldmlzaW9uIDExOTg0KQpAQCAtOTYsOSArOTYsMTEgQEAKIGlu
-dCBlbmFibGVfZmF1bHRzID0gMDsKIGludCBmYXVsdF9yYXRlOwogaW50IGZhdWx0X2NvdW50Owor
-aW50IGZhdWx0X2RldnM7CiBtb2R1bGVfcGFyYW0oZW5hYmxlX2ZhdWx0cyxpbnQsMDY2NCk7CS8v
-IGJpdG1hcCBvZiBlbmFibGVkIGZhdWx0cwogbW9kdWxlX3BhcmFtKGZhdWx0X3JhdGUsaW50LDA2
-NjQpOwkvLyBmYXVsdCByYXRlICUgdmFsdWUgLSBhcHBsaWVzIHRvIGFsbCBlbmFibGVkIGZhdWx0
-cwogbW9kdWxlX3BhcmFtKGZhdWx0X2NvdW50LGludCwwNjY0KTsJLy8gY291bnQgb2YgZmF1bHRz
-IGluc2VydGVkCittb2R1bGVfcGFyYW0oZmF1bHRfZGV2cyxpbnQsMDY0NCk7ICAgICAgLy8gYml0
-bWFwIG9mIGRldmljZXMgdG8gaW5zZXJ0IGZhdWx0cyBvbgogI2VuZGlmCiAKIC8vIG1vZHVsZSBw
-YXJhbWV0ZXIsIGRlZmluZWQKQEAgLTI4ODAsMTggKzI4ODIsMTkgQEAKIH0KIAogdW5zaWduZWQg
-aW50Ci1fZHJiZF9pbnNlcnRfZmF1bHQodW5zaWduZWQgaW50IHR5cGUpCitfZHJiZF9pbnNlcnRf
-ZmF1bHQoZHJiZF9kZXYgKm1kZXYsIHVuc2lnbmVkIGludCB0eXBlKQogewogCXN0YXRpYyBzdHJ1
-Y3QgZmF1bHRfcmFuZG9tX3N0YXRlIHJycyA9IHswLDB9OwogCi0JdW5zaWduZWQgaW50IHJuZCA9
-ICgoX2RyYmRfZmF1bHRfcmFuZG9tKCZycnMpICUgMTAwKSArIDEpOwotCXVuc2lnbmVkIGludCBy
-ZXQgPSAocm5kIDw9IGZhdWx0X3JhdGUpOworCXVuc2lnbmVkIGludCByZXQgPSAoCisJCShmYXVs
-dF9kZXZzID09IDAgfHwgKCgxIDw8IG1kZXZfdG9fbWlub3IobWRldikpICYgZmF1bHRfZGV2cykg
-IT0gMCkgJiYKKwkJKCgoX2RyYmRfZmF1bHRfcmFuZG9tKCZycnMpICUgMTAwKSArIDEpIDw9IGZh
-dWx0X3JhdGUpKTsKIAogCWlmIChyZXQpIHsKIAkJZmF1bHRfY291bnQrKzsKIAogCQlpZiAocHJp
-bnRrX3JhdGVsaW1pdCgpKQotCQkJcHJpbnRrKEtFUk5fQUxFUlQgIlNpbXVsYXRpbmcgJXMgZmFp
-bHVyZVxuIiwgX2RyYmRfZmF1bHRfc3RyKHR5cGUpKTsKKwkJCVdBUk4oIioqKlNpbXVsYXRpbmcg
-JXMgZmFpbHVyZVxuIiwgX2RyYmRfZmF1bHRfc3RyKHR5cGUpKTsKIAl9CiAKIAlyZXR1cm4gcmV0
-OwpJbmRleDogc24vZHJiZC9kcmJkX3JlcS5jCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHNuL2RyYmQvZHJiZF9y
-ZXEuYwkocmV2aXNpb24gMTE5ODMpCisrKyBzbi9kcmJkL2RyYmRfcmVxLmMJKHJldmlzaW9uIDEx
-OTg0KQpAQCAtMTAxMSw5ICsxMDExLDkgQEAKIAkJICogd2FzIG5vdCBkZXRhY2hlZCBiZWxvdyB1
-cz8gKi8KIAkJcmVxLT5wcml2YXRlX2Jpby0+YmlfYmRldiA9IG1kZXYtPmJjLT5iYWNraW5nX2Jk
-ZXY7CiAKLQkJaWYgKEZBVUxUX0FDVElWRShydz09V1JJVEUgPyBEUkJEX0ZBVUxUX0RUX1dSIDoK
-LQkJCQkgKCBydz09UkVBRCA/IERSQkRfRkFVTFRfRFRfUkQgOgotCQkJCSAgIERSQkRfRkFVTFRf
-RFRfUkEgKSApKQorCQlpZiAoRkFVTFRfQUNUSVZFKG1kZXYsIHJ3PT1XUklURSA/IERSQkRfRkFV
-TFRfRFRfV1IgOgorCQkJCSAgICAgICAoIHJ3PT1SRUFEID8gRFJCRF9GQVVMVF9EVF9SRCA6Cisg
-IAkJCQkgICAgICAgICAgICAgICAgICAgRFJCRF9GQVVMVF9EVF9SQSApICkpCiAJCQliaW9fZW5k
-aW8ocmVxLT5wcml2YXRlX2JpbywgcmVxLT5wcml2YXRlX2Jpby0+Ymlfc2l6ZSwgLUVJTyk7CiAJ
-CWVsc2UKIAkJCWdlbmVyaWNfbWFrZV9yZXF1ZXN0KHJlcS0+cHJpdmF0ZV9iaW8pOwpJbmRleDog
-c24vZHJiZC9kcmJkX2ludC5oCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIHNuL2RyYmQvZHJiZF9pbnQuaAkocmV2
-aXNpb24gMTE5ODMpCisrKyBzbi9kcmJkL2RyYmRfaW50LmgJKHJldmlzaW9uIDExOTg0KQpAQCAt
-NDgsNiArNDgsNyBAQAogI2lmZGVmIERSQkRfRU5BQkxFX0ZBVUxUUwogZXh0ZXJuIGludCBlbmFi
-bGVfZmF1bHRzOwogZXh0ZXJuIGludCBmYXVsdF9yYXRlOworZXh0ZXJuIGludCBmYXVsdF9kZXZz
-OwogI2VuZGlmCiAKICNpbmNsdWRlIDxsaW51eC9tYWpvci5oPgpAQCAtMjA4LDEyICsyMDksMTcg
-QEAKIH07CiAKICNpZmRlZiBEUkJEX0VOQUJMRV9GQVVMVFMKLSNkZWZpbmUgRkFVTFRfQUNUSVZF
-KF90KSBcCi0gICAgKGZhdWx0X3JhdGUgJiYgKGVuYWJsZV9mYXVsdHMgJiAoMTw8KF90KSkpICYm
-IF9kcmJkX2luc2VydF9mYXVsdChfdCkpCitleHRlcm4gdW5zaWduZWQgaW50IF9kcmJkX2luc2Vy
-dF9mYXVsdChkcmJkX2RldiAqbWRldiwgdW5zaWduZWQgaW50IHR5cGUpOworc3RhdGljIGlubGlu
-ZSBpbnQKK2RyYmRfaW5zZXJ0X2ZhdWx0KGRyYmRfZGV2ICptZGV2LCB1bnNpZ25lZCBpbnQgdHlw
-ZSkgeworICAgIHJldHVybiAoZmF1bHRfcmF0ZSAmJiAKKwkgICAgKGVuYWJsZV9mYXVsdHMgJiAo
-MTw8dHlwZSkpICYmIAorCSAgICBfZHJiZF9pbnNlcnRfZmF1bHQobWRldix0eXBlKSk7Cit9Cisj
-ZGVmaW5lIEZBVUxUX0FDVElWRShfbSwgX3QpIChkcmJkX2luc2VydF9mYXVsdCgoX20pLChfdCkp
-KQogCi1leHRlcm4gdW5zaWduZWQgaW50IF9kcmJkX2luc2VydF9mYXVsdCh1bnNpZ25lZCBpbnQg
-dHlwZSk7CiAjZWxzZQotI2RlZmluZSBGQVVMVF9BQ1RJVkUoX3QpICgwKQorI2RlZmluZSBGQVVM
-VF9BQ1RJVkUoX20sIF90KSAoMCkKICNlbmRpZgogCiAjaW5jbHVkZSA8bGludXgvc3RyaW5naWZ5
-Lmg+Cg==
-
-------_=_NextPart_001_01C765DB.634B28B8--
+------_=_NextPart_001_01C76800.AA2039B5--
