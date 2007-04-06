@@ -5,8 +5,8 @@ Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 Subject: RE: [Drbd-dev] DRBD8: drbd nodes deadlock in WFBitMapT
-Date: Thu, 5 Apr 2007 16:45:41 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C954@EXNA.corp.stratus.com>
+Date: Fri, 6 Apr 2007 15:00:03 -0400
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C95A@EXNA.corp.stratus.com>
 In-reply-to: 200704052241.22962.philipp.reisner@linbit.com
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
@@ -20,7 +20,8 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 Phil,
-Thanks for the patch! I will try this and let you know.
+I tested the new patch and the indications are clear that the deadlock
+is fixed.  Thanks!
 
 EM--
 
