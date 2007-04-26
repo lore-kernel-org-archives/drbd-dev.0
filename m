@@ -1,31 +1,13 @@
-Return-Path: <brederlo@informatik.uni-tuebingen.de>
-Received: from mx1.informatik.uni-tuebingen.de
-	(mx1.Informatik.Uni-Tuebingen.De [134.2.12.5])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 4FD262E03746
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2007 11:53:59 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by mx1.informatik.uni-tuebingen.de (Postfix) with ESMTP id BAAFD3478
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2007 11:53:58 +0200 (MEST)
-Received: from mx1.informatik.uni-tuebingen.de ([127.0.0.1])
-	by localhost (mx1.informatik.uni-tuebingen.de [127.0.0.1]) (amavisd-new,
-	port 10024)
-	with ESMTP id we7R9fq5rQzK for <drbd-dev@lists.linbit.com>;
-	Wed, 25 Apr 2007 11:53:58 +0200 (MEST)
-Received: from localhost.localdomain (ssh1 [134.2.13.191])
-	by mx1.informatik.uni-tuebingen.de (Postfix) with ESMTP id 7761E345B
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2007 11:53:58 +0200 (MEST)
-Received: from mrvn by localhost.localdomain with local (Exim 4.63)
-	(envelope-from <brederlo@informatik.uni-tuebingen.de>)
-	id 1HgeCT-00039w-RK
-	for drbd-dev@lists.linbit.com; Wed, 25 Apr 2007 11:54:13 +0200
-From: Goswin von Brederlow <brederlo@informatik.uni-tuebingen.de>
-To: drbd-dev@lists.linbit.com
-Date: Wed, 25 Apr 2007 11:54:13 +0200
-Message-ID: <87hcr4rd8a.fsf@informatik.uni-tuebingen.de>
+Return-Path: <Ernest.Montrose@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: [Drbd-dev] Kernel panic - not syncing: drbd5: Sorry,
-	I have no access to good data anymore.
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01C7884E.0EEE70F2"
+Date: Thu, 26 Apr 2007 17:58:44 -0400
+Message-ID: <BD7042533C2F8943A6A4257A9E31C45439C994@EXNA.corp.stratus.com>
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Panic in _drbd_send_page() again.
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -35,71 +17,335 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+This is a multi-part message in MIME format.
 
-I just tested a disk failure by pulling a disk and it worked fine. But
-my (clumsy) attempt to add the disk back caused a kernel panic:
+------_=_NextPart_001_01C7884E.0EEE70F2
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-Removing disk:
+Hi all,
+I think we have seen this panic before.  I am not sure if there was a
+fix then a regression of sort.
+I am looking for a clue to help narrow this down. It seems a
+bvec->bv_page is freed and is being used later.  Here is the panic
+message:
+=20
+Apr 21 05:05:53 chogs kernel: CPU:    0
+Apr 21 05:05:53 chogs kernel: EIP:    0061:[<ee2853c1>]    Tainted: GF
+VLI
+Apr 21 05:05:53 chogs kernel: EFLAGS: 00010296  (2.6.16.38-xen #1)
+Apr 21 05:05:53 chogs kernel: EIP is at _drbd_send_page+0x21/0x120
+[drbd]
+Apr 21 05:05:53 chogs kernel: eax: ffffffff  ebx: c05958fc  ecx:
+eb024000  edx: 6b6b6b6b
+Apr 21 05:05:53 chogs kernel: esi: 6b6b6b6b  edi: a56b6b6b  ebp:
+eb025eec  esp: eb025ebc
+Apr 21 05:05:53 chogs kernel: ds: 007b  es: 007b  ss: 0069
+Apr 21 05:05:53 chogs kernel: Process drbd3_worker (pid: 5739,
+threadinfo=3Deb024000 task=3Ded440570)
+Apr 21 05:05:53 chogs kernel: Stack: <0>00001000 00004000 00000000
+eb024000 00000020 ec64b26c ffffffff 6b6b6b6b
+Apr 21 05:05:53 chogs kernel:        ec64b26c c05958fc 00000003 c7a5c6d0
+eb025f08 ee2854f3 6b6b6b6b ec64b26c
+Apr 21 05:05:54 chogs kernel:        eb025f30 00000000 ec64b26c eb025f5c
+ee285643 00000020 00008000 00000000
+Apr 21 05:05:54 chogs kernel: Call Trace:
+Apr 21 05:05:54 chogs kernel:  [<c0105a01>] show_stack_log_lvl+0xa1/0xe0
+Apr 21 05:05:54 chogs kernel:  [<c0105bf1>] show_registers+0x181/0x200
+Apr 21 05:05:54 chogs kernel:  [<c0105e10>] die+0x100/0x1b0
+Apr 21 05:05:54 chogs kernel:  [<c01168f6>] do_page_fault+0x3c6/0x8c1
+Apr 21 05:05:54 chogs kernel:  [<c010565f>] error_code+0x2b/0x30
+Apr 21 05:05:54 chogs kernel:  [<ee2854f3>] _drbd_send_zc_bio+0x33/0x50
+[drbd]
+Apr 21 05:05:55 chogs kernel:  [<ee285643>] drbd_send_dblock+0x133/0x1f0
+[drbd]
+Apr 21 05:05:55 chogs kernel:  [<ee2703da>] w_send_dblock+0x1a/0xe0
+[drbd]
+Apr 21 05:05:55 chogs kernel:  [<ee270e5e>] drbd_worker+0x2de/0x4b5
+[drbd]
+Apr 21 05:05:55 chogs kernel:  [<ee283f8c>] drbd_thread_setup+0x8c/0x100
+[drbd]
+Apr 21 05:05:55 chogs kernel:  [<c0103485>]
+kernel_thread_helper+0x5/0x10
+Apr 21 05:05:55 chogs kernel: Code: 5d f4 8b 7d fc 89 ec 5d c3 90 55 89
+e5 57 89 cf b9 00 e0 ff ff 56 53 83 ec 24 8b 75 08 89 45 f0 89 55 ec 21
+e1 8b 41 18 89 45 e8 <8b> 02 f6 c4 40 74 03 8b 52 0c 8b 42 04 40 85 c0
+7e 09 8b 55 ec
+Apr 21 05:05:55 chogs kernel:  <0>Fatal exception: panic in 5 seconds
+=20
+Thanks,
+=20
+EM--
 
-[414277.088580] mptbase: ioc0: LogInfo(0x31140000): Originator={PL}, Code={IO Executed}, SubCode(0x0000)
-[414277.088663] sd 6:0:5:0: SCSI error: return code = 0x00010000
-[414277.088693] end_request: I/O error, dev sdh, sector 575196672
-[414277.088730] drbd5: Local IO failed. Detaching...
-[414277.088757] drbd5: local read failed, retrying remotely
-[414277.088813] drbd5: Notified peer that my disk is broken.
-[414277.092110] sd 6:0:5:0: SCSI error: return code = 0x00010000
-[414277.092152] end_request: I/O error, dev sdh, sector 624880304
-[414277.092198] drbd5: drbd_md_sync_page_io(,624880304,WRITE) failed!
-[414277.092242] drbd5: meta data update failed!
-[414277.092278] drbd5: Releasing backing storage device.
-[414277.236025] mptsas: ioc0: removing sata device, channel 0, id 29, phy 7
-[414277.236282] Synchronizing SCSI cache for disk sdh: 
-[414277.236742] FAILED
+------_=_NextPart_001_01C7884E.0EEE70F2
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-Reinserting disk:
+<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
 
-[414277.236743]   status = 0, message = 00, host = 1, driver = 00
-[414277.236744]   <6>mptsas: ioc0: attaching sata device, channel 0,
-id 29, phy 7
-[414406.916387] scsi 6:0:8:0: Direct-Access     ATA      ST3320820AS   C    PQ: 0 ANSI: 5
-[414406.917398] SCSI device sdh: 625142448 512-byte hdwr sectors (320073 MB)
-[414406.918542] sdh: Write Protect is off
-[414406.920814] SCSI device sdh: drive cache: write back
-[414406.921450] SCSI device sdh: 625142448 512-byte hdwr sectors (320073 MB)
-[414406.922620] sdh: Write Protect is off
-[414406.924953] SCSI device sdh: drive cache: write back
-[414406.924989]  sdh: unknown partition table
-[414406.938553] sd 6:0:8:0: Attached scsi disk sdh
+<head>
+<meta http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Dus-ascii">
+<meta name=3DProgId content=3DWord.Document>
+<meta name=3DGenerator content=3D"Microsoft Word 11">
+<meta name=3DOriginator content=3D"Microsoft Word 11">
+<link rel=3DFile-List href=3D"cid:filelist.xml@01C7882C.87721E10">
+<!--[if gte mso 9]><xml>
+ <o:OfficeDocumentSettings>
+  <o:DoNotRelyOnCSS/>
+ </o:OfficeDocumentSettings>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:SpellingState>Clean</w:SpellingState>
+  <w:GrammarState>Clean</w:GrammarState>
+  <w:DocumentKind>DocumentEmail</w:DocumentKind>
+  <w:EnvelopeVis/>
+  <w:ValidateAgainstSchemas/>
+  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+  <w:IgnoreMixedContent>false</w:IgnoreMixedContent>
+  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+  <w:Compatibility>
+   <w:BreakWrappedTables/>
+   <w:SnapToGridInCell/>
+   <w:WrapTextWithPunct/>
+   <w:UseAsianBreakRules/>
+   <w:UseWord2002TableStyleRules/>
+  </w:Compatibility>
+  <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
+ </w:WordDocument>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:LatentStyles DefLockedState=3D"false" LatentStyleCount=3D"156">
+ </w:LatentStyles>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:Tahoma;
+	panose-1:2 11 6 4 3 5 4 4 2 4;
+	mso-font-charset:0;
+	mso-generic-font-family:swiss;
+	mso-font-pitch:variable;
+	mso-font-signature:1627421319 -2147483648 8 0 66047 0;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	mso-style-noshow:yes;
+	mso-ansi-font-size:10.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-ascii-font-family:Arial;
+	mso-hansi-font-family:Arial;
+	mso-bidi-font-family:Arial;
+	color:windowtext;}
+span.SpellE
+	{mso-style-name:"";
+	mso-spl-e:yes;}
+span.GramE
+	{mso-style-name:"";
+	mso-gram-e:yes;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+<!--[if gte mso 10]>
+<style>
+ /* Style Definitions */=20
+ table.MsoNormalTable
+	{mso-style-name:"Table Normal";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0in 5.4pt 0in 5.4pt;
+	mso-para-margin:0in;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+</style>
+<![endif]-->
+</head>
 
-# drbdadm attach drbd5
-ioctl(,SET_DISK_CONFIG,) failed: Device or resource busy
-Command 'drbdsetup /dev/drbd5 disk /dev/sdh internal -1
---on-io-error=detach' terminated with exit code 20
-drbdadm aborting
+<body lang=3DEN-US link=3Dblue vlink=3Dpurple =
+style=3D'tab-interval:.5in'>
 
-# drbdadm connect drbd5
-Read from remote host 192.168.53.210: Connection reset by peer
+<div class=3DSection1>
 
-[414440.162091] drbd5: drbd_ioctl_set_disk: (mdev->state != Secondary) in /usr/src/modules/drbd/drbd/drbd_fs.c:285
-[414471.661751] drbd5: drbd_ioctl_set_disk: (mdev->state != Secondary) in /usr/src/modules/drbd/drbd/drbd_fs.c:285
-[414521.697263] drbd5: drbd5_receiver [4916]: cstate Connected --> BrokenPipe
-[414521.697314] drbd5: short read expecting header on sock: r=-512
-[414521.697366] drbd5: worker terminated
-[414521.697376] drbd5: asender terminated
-[414521.697538] drbd5: Sorry, I have no access to good data anymore.
-[414521.697579] Kernel panic - not syncing: drbd5: Sorry, I have no access to good data anymore.
-[414521.697581] 
-[414521.698734]  (XEN) Domain 0 crashed: rebooting machine in 5 seconds.
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Hi all,<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>I think we have seen this panic before. <span
+style=3D'mso-spacerun:yes'>&nbsp;</span>I am not sure if there was a fix =
+then a
+regression of sort.<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>I am looking for a clue to help narrow this down. It =
+seems a
+<span class=3DSpellE>bvec</span>-&gt;<span class=3DSpellE>bv_page</span> =
+is freed
+and is being used later. <span =
+style=3D'mso-spacerun:yes'>&nbsp;</span>Here is the
+panic message:<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'>Apr 21 05:05:53 <span =
+class=3DSpellE>chogs</span>
+kernel: CPU:&nbsp; &nbsp; 0<br>
+Apr 21 05:05:53 <span class=3DSpellE>chogs</span> kernel: EIP:&nbsp; =
+&nbsp; <span
+class=3DGramE>0061:</span>[&lt;ee2853c1&gt;]&nbsp; &nbsp; Tainted: =
+GF&nbsp;
+&nbsp; VLI<br>
+Apr 21 05:05:53 <span class=3DSpellE>chogs</span> kernel: EFLAGS: =
+00010296<span
+class=3DGramE>&nbsp; (</span>2.6.16.38-xen #1)<br>
+Apr 21 05:05:53 <span class=3DSpellE>chogs</span> kernel: EIP is at
+_drbd_send_page+0x21/0x120 [<span class=3DSpellE>drbd</span>]<br>
+Apr 21 05:05:53 <span class=3DSpellE>chogs</span> kernel: <span =
+class=3DSpellE>eax</span>:
+<span class=3DSpellE>ffffffff</span><span class=3DGramE>&nbsp; <span =
+class=3DSpellE>ebx</span></span>:
+c05958fc&nbsp; <span class=3DSpellE>ecx</span>: eb024000&nbsp; <span
+class=3DSpellE>edx</span>: 6b6b6b6b<br>
+Apr 21 05:05:53 <span class=3DSpellE>chogs</span> kernel: <span =
+class=3DSpellE>esi</span>:
+6b6b6b6b<span class=3DGramE>&nbsp; <span =
+class=3DSpellE>edi</span></span>:
+a56b6b6b&nbsp; <span class=3DSpellE>ebp</span>: eb025eec&nbsp; <span
+class=3DSpellE>esp</span>: eb025ebc<br>
+Apr 21 05:05:53 <span class=3DSpellE>chogs</span> kernel: <span =
+class=3DSpellE>ds</span>:
+007b<span class=3DGramE>&nbsp; <span class=3DSpellE>es</span></span>: =
+007b&nbsp; <span
+class=3DSpellE>ss</span>: 0069<br>
+Apr 21 05:05:53 <span class=3DSpellE>chogs</span> kernel: Process =
+drbd3_worker (<span
+class=3DSpellE><span class=3DGramE>pid</span></span>: 5739, <span =
+class=3DSpellE>threadinfo</span>=3Deb024000
+task=3Ded440570)<br>
+Apr 21 05:05:53 <span class=3DSpellE>chogs</span> kernel: Stack:
+&lt;0&gt;00001000 00004000 00000000 eb024000 00000020 ec64b26c <span
+class=3DSpellE>ffffffff</span> 6b6b6b6b<br>
+Apr 21 05:05:53 <span class=3DSpellE>chogs</span> kernel:&nbsp; &nbsp; =
+&nbsp;
+&nbsp; ec64b26c c05958fc 00000003 c7a5c6d0 eb025f08 ee2854f3 6b6b6b6b =
+ec64b26c<br>
+Apr 21 05:05:54 <span class=3DSpellE>chogs</span> kernel:&nbsp; &nbsp; =
+&nbsp;
+&nbsp; eb025f30 00000000 ec64b26c eb025f5c ee285643 00000020 00008000 =
+00000000<br>
+Apr 21 05:05:54 <span class=3DSpellE>chogs</span> kernel: Call =
+Trace:<br>
+Apr 21 05:05:54 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;c0105a01&gt;] show_stack_log_lvl+0xa1/0xe0<br>
+Apr 21 05:05:54 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;c0105bf1&gt;] show_registers+0x181/0x200<br>
+Apr 21 05:05:54 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;c0105e10&gt;] die+0x100/0x1b0<br>
+Apr 21 05:05:54 <span class=3DSpellE>chogs</span> kernel:&nbsp; =
+[&lt;c01168f6&gt;]
+do_page_fault+0x3c6/0x8c1<br>
+Apr 21 05:05:54 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;c010565f&gt;] error_code+0x2b/0x30<br>
+Apr 21 05:05:54 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;ee2854f3&gt;] _drbd_send_zc_bio+0x33/0x50 [<span =
+class=3DSpellE>drbd</span>]<br>
+Apr 21 05:05:55 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;ee285643&gt;] drbd_send_dblock+0x133/0x1f0 [<span =
+class=3DSpellE>drbd</span>]<br>
+Apr 21 05:05:55 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;ee2703da&gt;] w_send_dblock+0x1a/0xe0 [<span =
+class=3DSpellE>drbd</span>]<br>
+Apr 21 05:05:55 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;ee270e5e&gt;] drbd_worker+0x2de/0x4b5 [<span =
+class=3DSpellE>drbd</span>]<br>
+Apr 21 05:05:55 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;ee283f8c&gt;] drbd_thread_setup+0x8c/0x100 [<span =
+class=3DSpellE>drbd</span>]<br>
+Apr 21 05:05:55 <span class=3DSpellE>chogs</span> kernel:&nbsp;
+[&lt;c0103485&gt;] kernel_thread_helper+0x5/0x10<br>
+Apr 21 05:05:55 <span class=3DSpellE>chogs</span> kernel: Code: 5d f4 8b =
+7d <span
+class=3DSpellE>fc</span> 89 <span class=3DSpellE>ec</span> 5d c3 90 55 =
+89 e5 57 89 <span
+class=3DSpellE>cf</span> b9 00 e0 ff <span class=3DSpellE>ff</span> 56 =
+53 83 <span
+class=3DSpellE>ec</span> 24 8b 75 08 89 45 f0 89 55 <span =
+class=3DSpellE>ec</span>
+21 e1 8b 41 18 89 45 e8 &lt;8b&gt; 02 f6 c4 40 74 03 8b 52 0c 8b 42 04 =
+40 85 c0
+7e 09 8b 55 <span class=3DSpellE>ec</span><br>
+Apr 21 05:05:55 <span class=3DSpellE>chogs</span> kernel:&nbsp; =
+&lt;0&gt;<span
+class=3DGramE>Fatal</span> exception: panic in 5 =
+seconds<o:p></o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'><o:p>&nbsp;</o:p></span></font></p>=
 
 
-This is a 2.6.19 xen kernel with drbd0.7 0.7.21-4 from Debian.
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'>Thanks,<o:p></o:p></span></font></p=
+>
+
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'><o:p>&nbsp;</o:p></span></font></p>=
 
 
-Now I have 2 questions:
+<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:
+9.0pt;font-family:Tahoma;color:black'>EM--</span></font><font size=3D2
+face=3DArial><span =
+style=3D'font-size:10.0pt;font-family:Arial'><o:p></o:p></span></font></p=
+>
 
-1) is this fixed in 0.8?
-2) how do I replace a disk correctly?
+</div>
 
-MfG
-        Goswin
+</body>
+
+</html>
+
+------_=_NextPart_001_01C7884E.0EEE70F2--
