@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Kernel panic - not syncing: drbd5: Sorry,
-	I have no access to good data anymore.
-Date: Wed, 2 May 2007 10:45:22 +0200
-References: <87hcr4rd8a.fsf@informatik.uni-tuebingen.de>
-In-Reply-To: <87hcr4rd8a.fsf@informatik.uni-tuebingen.de>
+Subject: Re: [Drbd-dev] Panic in _drbd_send_page() again.
+Date: Wed, 2 May 2007 11:22:56 +0200
+References: <BD7042533C2F8943A6A4257A9E31C45439C994@EXNA.corp.stratus.com>
+In-Reply-To: <BD7042533C2F8943A6A4257A9E31C45439C994@EXNA.corp.stratus.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200705021045.22954.philipp.reisner@linbit.com>
+Message-Id: <200705021122.56681.philipp.reisner@linbit.com>
+Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,84 +21,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Mittwoch, 25. April 2007 11:54 schrieb Goswin von Brederlow:
-> Hi,
->
-> I just tested a disk failure by pulling a disk and it worked fine. But
-> my (clumsy) attempt to add the disk back caused a kernel panic:
->
-> Removing disk:
->
-> [414277.088580] mptbase: ioc0: LogInfo(0x31140000): Originator={PL},
-> Code={IO Executed}, SubCode(0x0000) [414277.088663] sd 6:0:5:0: SCSI error:
-> return code = 0x00010000
-> [414277.088693] end_request: I/O error, dev sdh, sector 575196672
-> [414277.088730] drbd5: Local IO failed. Detaching...
-> [414277.088757] drbd5: local read failed, retrying remotely
-> [414277.088813] drbd5: Notified peer that my disk is broken.
-> [414277.092110] sd 6:0:5:0: SCSI error: return code = 0x00010000
-> [414277.092152] end_request: I/O error, dev sdh, sector 624880304
-> [414277.092198] drbd5: drbd_md_sync_page_io(,624880304,WRITE) failed!
-> [414277.092242] drbd5: meta data update failed!
-> [414277.092278] drbd5: Releasing backing storage device.
-> [414277.236025] mptsas: ioc0: removing sata device, channel 0, id 29, phy 7
-> [414277.236282] Synchronizing SCSI cache for disk sdh:
-> [414277.236742] FAILED
->
-> Reinserting disk:
->
-> [414277.236743]   status = 0, message = 00, host = 1, driver = 00
-> [414277.236744]   <6>mptsas: ioc0: attaching sata device, channel 0,
-> id 29, phy 7
-> [414406.916387] scsi 6:0:8:0: Direct-Access     ATA      ST3320820AS   C   
-> PQ: 0 ANSI: 5 [414406.917398] SCSI device sdh: 625142448 512-byte hdwr
-> sectors (320073 MB) [414406.918542] sdh: Write Protect is off
-> [414406.920814] SCSI device sdh: drive cache: write back
-> [414406.921450] SCSI device sdh: 625142448 512-byte hdwr sectors (320073
-> MB) [414406.922620] sdh: Write Protect is off
-> [414406.924953] SCSI device sdh: drive cache: write back
-> [414406.924989]  sdh: unknown partition table
-> [414406.938553] sd 6:0:8:0: Attached scsi disk sdh
->
-> # drbdadm attach drbd5
-> ioctl(,SET_DISK_CONFIG,) failed: Device or resource busy
-> Command 'drbdsetup /dev/drbd5 disk /dev/sdh internal -1
-> --on-io-error=detach' terminated with exit code 20
-> drbdadm aborting
->
-> # drbdadm connect drbd5
-> Read from remote host 192.168.53.210: Connection reset by peer
->
-> [414440.162091] drbd5: drbd_ioctl_set_disk: (mdev->state != Secondary) in
-> /usr/src/modules/drbd/drbd/drbd_fs.c:285 [414471.661751] drbd5:
-> drbd_ioctl_set_disk: (mdev->state != Secondary) in
-> /usr/src/modules/drbd/drbd/drbd_fs.c:285 [414521.697263] drbd5:
-> drbd5_receiver [4916]: cstate Connected --> BrokenPipe [414521.697314]
-> drbd5: short read expecting header on sock: r=-512 [414521.697366] drbd5:
-> worker terminated
-> [414521.697376] drbd5: asender terminated
-> [414521.697538] drbd5: Sorry, I have no access to good data anymore.
-> [414521.697579] Kernel panic - not syncing: drbd5: Sorry, I have no access
-> to good data anymore. [414521.697581]
-> [414521.698734]  (XEN) Domain 0 crashed: rebooting machine in 5 seconds.
->
->
-> This is a 2.6.19 xen kernel with drbd0.7 0.7.21-4 from Debian.
->
->
-> Now I have 2 questions:
->
-> 1) is this fixed in 0.8?
-
-8.0 does not have any calls to panic() left... 
-
-> 2) how do I replace a disk correctly?
+Am Donnerstag, 26. April 2007 23:58 schrieb Montrose, Ernest:
+> Hi all,
+> I think we have seen this panic before.  I am not sure if there was a
+> fix then a regression of sort.
+> I am looking for a clue to help narrow this down. It seems a
+> bvec->bv_page is freed and is being used later.  Here is the panic
+> message:
 >
 
-Your plan was basically okay. Altough calling connect after a failed
-attach does not make a lot of sense...
+Hi Ernest,
+
+Could you run this through ksymoops, to get the code line
+disassembled ? -- This does not look like a well-known distri kernel,
+or is it ?
 
 -Phil
+
+05:05:53 chogs kernel: CPU:    0
+05:05:53 chogs kernel: EIP:    0061:[<ee2853c1>]    Tainted: GF VLI
+05:05:53 chogs kernel: EFLAGS: 00010296  (2.6.16.38-xen #1)
+05:05:53 chogs kernel: EIP is at _drbd_send_page+0x21/0x120 [drbd]
+05:05:53 chogs kernel: eax: ffffffff  ebx: c05958fc  ecx: eb024000  edx: 6b6b6b6b
+05:05:53 chogs kernel: esi: 6b6b6b6b  edi: a56b6b6b  ebp: eb025eec  esp: eb025ebc
+05:05:53 chogs kernel: ds: 007b  es: 007b  ss: 0069
+05:05:53 chogs kernel: Process drbd3_worker (pid: 5739, threadinfo=eb024000 task=ed440570)
+05:05:53 chogs kernel: Stack: <0>00001000 00004000 00000000 eb024000 00000020 ec64b26c ffffffff 6b6b6b6b
+05:05:53 chogs kernel:        ec64b26c c05958fc 00000003 c7a5c6d0 eb025f08 ee2854f3 6b6b6b6b ec64b26c
+05:05:54 chogs kernel:        eb025f30 00000000 ec64b26c eb025f5c ee285643 00000020 00008000 00000000
+05:05:54 chogs kernel: Call Trace:
+05:05:54 chogs kernel:  [<c0105a01>] show_stack_log_lvl+0xa1/0xe0
+05:05:54 chogs kernel:  [<c0105bf1>] show_registers+0x181/0x200
+05:05:54 chogs kernel:  [<c0105e10>] die+0x100/0x1b0
+05:05:54 chogs kernel:  [<c01168f6>] do_page_fault+0x3c6/0x8c1
+05:05:54 chogs kernel:  [<c010565f>] error_code+0x2b/0x30
+05:05:54 chogs kernel:  [<ee2854f3>] _drbd_send_zc_bio+0x33/0x50 [drbd]
+05:05:55 chogs kernel:  [<ee285643>] drbd_send_dblock+0x133/0x1f0 [drbd]
+05:05:55 chogs kernel:  [<ee2703da>] w_send_dblock+0x1a/0xe0 [drbd]
+05:05:55 chogs kernel:  [<ee270e5e>] drbd_worker+0x2de/0x4b5 [drbd]
+05:05:55 chogs kernel:  [<ee283f8c>] drbd_thread_setup+0x8c/0x100 [drbd]
+05:05:55 chogs kernel:  [<c0103485>] kernel_thread_helper+0x5/0x10
+05:05:55 chogs kernel: Code: 5d f4 8b 7d fc 89 ec 5d c3 90 55 89 e5 57 89 cf b9 00 e0 ff ff 56 53 83 ec 24 8b 75 08 89 45 f0 89 55 ec 21 e1 8b 41 18 89 45 e8 <8b> 02 f6 c4 40 74 03 8b 52 0c 8b 42 04 40 85 c0 7e 09 8b 55 ec
+05:05:55 chogs kernel:  <0>Fatal exception: panic in 5 seconds
+
 -- 
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
