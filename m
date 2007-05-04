@@ -1,15 +1,17 @@
-Return-Path: <lars@linbit.com>
-Date: Fri, 4 May 2007 15:34:11 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Panic in _drbd_send_page() again.
-Message-ID: <20070504133411.GA14895@barkeeper1.linbit>
-References: <BD7042533C2F8943A6A4257A9E31C45439C994@EXNA.corp.stratus.com>
-	<342BAC0A5467384983B586A6B0B37671056365AC@EXNA.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671056365AC@EXNA.corp.stratus.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] Panic in _drbd_send_page() again.
+Date: Fri, 4 May 2007 10:37:32 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B376710563693E@EXNA.corp.stratus.com>
+In-Reply-To: 20070504133411.GA14895@barkeeper1.linbit
+References: <BD7042533C2F8943A6A4257A9E31C45439C994@EXNA.corp.stratus.com><342BAC0A5467384983B586A6B0B37671056365AC@EXNA.corp.str
+	atus.com> 20070504133411.GA14895@barkeeper1.linbit
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: "Lars Ellenberg" <lars.ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,70 +21,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, May 02, 2007 at 10:06:44AM -0400, Graham, Simon wrote:
-> > Hi Ernest,
-> > 
-> > Could you run this through ksymoops, to get the code line
-> > disassembled ? -- This does not look like a well-known distri kernel,
-> > or is it ?
-> > 
-> > -Phil
-> 
-> This is running 2.6.16.38 with Xen 3.0.4 patches -- it's way too late to
-> run ksymoops on this specific case (the system has long since moved on!)
-> However, looking at the disassembly for
-> _debd_send_page:
+>=20
+> all pieces of information we have about this seem to indicate that the
+> xen block device code builds up its own bios, tries to be smart
+> there...
+>=20
+> and possibly outsmarts itself.
+>=20
 
+It's of course possible and we're looking at it but it's actually a
+pretty standard piece of code that builds the bio and I don't see any
+trickiness in it.
 
-> send_page+0x21 is 3e11 - loading from %edx which is 2nd param, page; 
-> this is attempting to read the flags field as part of the page_count()
-> macro call:
-> 
-> int _drbd_send_page(drbd_dev *mdev, struct page *page,
-> 		    int offset, size_t size)
-> {
-> 	mm_segment_t oldfs = get_fs();
-> 	int sent,ok;
-> 	int len   = size;
-> 
-> #ifdef SHOW_SENDPAGE_USAGE
-> ...
-> #endif
-> 
-> 	/* PARANOIA. if this ever triggers,
-> 	 * something in the layers above us is really kaputt.
-> 	 *one roundtrip later:
-> 	 * doh. it triggered. so XFS _IS_ really kaputt ...
-> 	 * oh well...
-> 	 */
-> 	if ( (page_count(page) < 1) || PageSlab(page) ) {
-> 		/* e.g. XFS meta- & log-data is in slab pages, which
-> have a
-> 
-> The Oops message shows that edx is 0x6b6b6b6b which is the poison
-> value for free memory when using CONFIG_SLAB_DEBUG -- as Ernest
-> pointed out, this means that we're using a bio that has already been
-> freed...
-> 
-> This is very similar to a bunch of problems found previously where the
-> bio was freed too early -- the big difference with this one is that we
-> turned on CONFIG_SLAB_DEBUG which enabled poisoning of freed memory...
+I also have a theory on the cause of this -- it's another tiny timing
+window I think similar to ones we fixed earlier where the ack for a
+packet would be received whilst we were still processing inside
+drbd_send_zc_bio -- here's my hypothesis:
 
-all pieces of information we have about this seem to indicate that the
-xen block device code builds up its own bios, tries to be smart there...
+1. We're in drbd_send_zc_bio, we've sent the last segment but have not
+yet looped back to
+   the top of the loop to __bio_for_each_segment.
+2. Ack arrives for last segment - clears RQ_NET_PENDING
+3. Local IO completes, clears RQ_LOCAL_PENDING and calls req_may_be_done
+=3D=3D> completes bio
+   because both RQ_NET_PENDING and RQ_LOCAL_PENDING are clear.
 
-and possibly outsmarts itself.
+NOW we come back to the thread running drbd_send_zc_bio and the bio has
+been freed... KABLOOIE!
 
-not that I'm too much into pointing fingers,
-but I suggest to not only look at drbd, also look closely at the part of
-xen that builds up the bios that then are submitted to drbd.
-maybe they are not sufficiently initialized, or drbd has otherwise wrong
-expectations about bios that do no longer hold true for the bios
-submitted by xen.
+I realize this is a very small window but, as the saying goes, where
+there's a window there's a bug...
 
--- 
-: Lars Ellenberg                            Tel +43-1-8178292-0  :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
-__
-please use the "List-Reply" function of your email client.
+Seems to me that req_may_be_done should not complete the master bio
+unless RQ_NET_SENT is set... maybe the completed_ok: case in req_mod
+should test this similar to what is done in recv_acked_by_peer:...
+although it seems to me that this test should actually be buried in
+req_may_be_done since if this flag is not set, the request is not done!
+
+Simon
