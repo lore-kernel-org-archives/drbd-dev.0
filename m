@@ -1,15 +1,15 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C78E7E.CD2E7118"
-Subject: RE: [Drbd-dev] Panic in _drbd_send_page() again.
-Date: Fri, 4 May 2007 15:02:45 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B37671056369DA@EXNA.corp.stratus.com>
-In-Reply-To: 20070504160024.GA31637@nudl
+Return-Path: <lars@linbit.com>
+Date: Sat, 5 May 2007 02:14:16 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] Panic in _drbd_send_page() again.
+Message-ID: <20070505001416.GA11793@nudl>
 References: <342BAC0A5467384983B586A6B0B376710563693E@EXNA.corp.stratus.com>
-	20070504160024.GA31637@nudl
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Lars Ellenberg" <lars.ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+	<342BAC0A5467384983B586A6B0B37671056369DA@EXNA.corp.stratus.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <342BAC0A5467384983B586A6B0B37671056369DA@EXNA.corp.stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,133 +19,74 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+On Fri, May 04, 2007 at 03:02:45PM -0400, Graham, Simon wrote:
+> > so what you suggest is:
+> > 
+> > Index: drbd_req.c
+> > ===================================================================
+> > --- drbd_req.c	(revision 2864)
+> > +++ drbd_req.c	(working copy)
+> > @@ -255,6 +255,16 @@
+> >  	print_rq_state(req, "_req_may_be_done");
+> >  	MUST_HOLD(&mdev->req_lock)
+> > 
+> > +	/* we must not complete the master bio, while it is
+> > +	 *	still being processed by _drbd_send_zc_bio
+> > (drbd_send_dblock)
+> > +	 *	not yet acknowledged by the peer
+> > +	 *	not yet completed by the local io subsystem
+> > +	 * these flags may get cleared in any order by
+> > +	 *	the worker,
+> > +	 *	the receiver,
+> > +	 *	the bio_endio completion callbacks.
+> > +	 */
+> > +	if (s & RQ_NET_QUEUED) return;
+> >  	if (s & RQ_NET_PENDING) return;
+> >  	if (s & RQ_LOCAL_PENDING) return;
+> > 
+> 
+> I think this is correct -- in fact, I _think_ you could probably do away
+> with the RQ_NET_SENT flag (since this is, I think, the same as
+> !RQ_NET_QUEUED) which would be good (always good to remove extra
+> flags!).
+> 
+> In addition, there is code in req_mod right now that checks RQ_NET_SENT
+> before calling req_may_be_done -- this is no lomger needed since
+> req_may_be_done does the check. I've attached a completely untested
+> proposed patch that does this in addition to the change above... let me
+> know what you think...
 
-------_=_NextPart_001_01C78E7E.CD2E7118
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+For protocol C [and thats all that really matters, I know ;)]
+this would be correct. I think.
+But then, for protocol C only, we could get rid of a lot more there.
 
-> so what you suggest is:
->=20
-> Index: drbd_req.c
-> =
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- drbd_req.c	(revision 2864)
-> +++ drbd_req.c	(working copy)
-> @@ -255,6 +255,16 @@
->  	print_rq_state(req, "_req_may_be_done");
->  	MUST_HOLD(&mdev->req_lock)
->=20
-> +	/* we must not complete the master bio, while it is
-> +	 *	still being processed by _drbd_send_zc_bio
-> (drbd_send_dblock)
-> +	 *	not yet acknowledged by the peer
-> +	 *	not yet completed by the local io subsystem
-> +	 * these flags may get cleared in any order by
-> +	 *	the worker,
-> +	 *	the receiver,
-> +	 *	the bio_endio completion callbacks.
-> +	 */
-> +	if (s & RQ_NET_QUEUED) return;
->  	if (s & RQ_NET_PENDING) return;
->  	if (s & RQ_LOCAL_PENDING) return;
->=20
+One might think the NET_SENT was always only a redundant flag,
+and just the negation of the NET_QUEUED. but it is not.
 
-I think this is correct -- in fact, I _think_ you could probably do away
-with the RQ_NET_SENT flag (since this is, I think, the same as
-!RQ_NET_QUEUED) which would be good (always good to remove extra
-flags!).
+I needed it to distinguish a local only request from one that was sent
+over the network, but is not yet done, even though all other
+NET_somthing flags might be clear for some reason.
 
-In addition, there is code in req_mod right now that checks RQ_NET_SENT
-before calling req_may_be_done -- this is no lomger needed since
-req_may_be_done does the check. I've attached a completely untested
-proposed patch that does this in addition to the change above... let me
-know what you think...
+there must be no time window where I cannot tell
+whether a request had a network part or not,
+from looking at the state flags.
 
-Simon
+At least for protocol A and B this would open up an other window,
+where (state & NET_MASK) == 0 [*], even though it is still on the lists,
+and the corresponding barrier ack is still pending.
 
+[*] e.g. when receiving a neg_acked before handed_over_to_network.
+    maybe that is even the only corner case, given that otherwise
+    either NET_OK or NET_DONE should be set...
 
-------_=_NextPart_001_01C78E7E.CD2E7118
-Content-Type: application/octet-stream;
-	name="net-queued.patch"
-Content-Transfer-Encoding: base64
-Content-Description: net-queued.patch
-Content-Disposition: attachment;
-	filename="net-queued.patch"
+there is obviously redundant information in there,
+using five bits for way below 32 states...
+we can probably reorganize these flags, and their lifetime.
+say, introduce a "RQ_NET_PART" and "RQ_LOCAL_PART".
 
-SW5kZXg6IGRyYmRfcmVxLmMKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gZHJiZF9yZXEuYwkocmV2aXNpb24gMTM1
-NjMpCisrKyBkcmJkX3JlcS5jCSh3b3JraW5nIGNvcHkpCkBAIC03NCwxNCArNzQsMTMgQEAKIAkJ
-CWJpb19kYXRhX2RpcihyZXEtPm1hc3Rlcl9iaW8pID09IFdSSVRFKSA/CiAJCSdXJyA6ICdSJzsK
-IAotCUlORk8oIiVzICVwICVjIEwlYyVjJWNOJWMlYyVjJWMlYyAldSAoJWxsdXMgKyV1KSAlc1xu
-IiwKKwlJTkZPKCIlcyAlcCAlYyBMJWMlYyVjTiVjJWMlYyVjICV1ICglbGx1cyArJXUpICVzXG4i
-LAogCSAgICAgdHh0LCByZXEsIHJ3LAogCSAgICAgcyAmIFJRX0xPQ0FMX1BFTkRJTkcgPyAncCcg
-OiAnLScsCiAJICAgICBzICYgUlFfTE9DQUxfQ09NUExFVEVEID8gJ2MnIDogJy0nLAogCSAgICAg
-cyAmIFJRX0xPQ0FMX09LID8gJ28nIDogJy0nLAogCSAgICAgcyAmIFJRX05FVF9QRU5ESU5HID8g
-J3AnIDogJy0nLAogCSAgICAgcyAmIFJRX05FVF9RVUVVRUQgPyAncScgOiAnLScsCi0JICAgICBz
-ICYgUlFfTkVUX1NFTlQgPyAncycgOiAnLScsCiAJICAgICBzICYgUlFfTkVUX0RPTkUgPyAnZCcg
-OiAnLScsCiAJICAgICBzICYgUlFfTkVUX09LID8gJ28nIDogJy0nLAogCSAgICAgcmVxLT5lcG9j
-aCwKQEAgLTI1NSw2ICsyNTQsNyBAQAogCXByaW50X3JxX3N0YXRlKHJlcSwgIl9yZXFfbWF5X2Jl
-X2RvbmUiKTsKIAlNVVNUX0hPTEQoJm1kZXYtPnJlcV9sb2NrKQogCisJaWYgKHMgJiBSUV9ORVRf
-UVVFVUVEKSByZXR1cm47CiAJaWYgKHMgJiBSUV9ORVRfUEVORElORykgcmV0dXJuOwogCWlmIChz
-ICYgUlFfTE9DQUxfUEVORElORykgcmV0dXJuOwogCkBAIC02MjMsNyArNjIzLDYgQEAKIAkJCSAq
-IHNvIHdlIGtub3cgd2hhdCB0byBkaXJ0eSBvbiBjb25uZWN0aW9uIGxvc3MgKi8KIAkJfQogCQly
-ZXEtPnJxX3N0YXRlICY9IH5SUV9ORVRfUVVFVUVEOwotCQlyZXEtPnJxX3N0YXRlIHw9IFJRX05F
-VF9TRU5UOwogCQkvKiBiZWNhdXNlIF9kcmJkX3NlbmRfemNfYmlvIGNvdWxkIHNsZWVwLCBhbmQg
-bWF5IHdhbnQgdG8KIAkJICogZGVyZWZlcmVuY2UgdGhlIGJpbyBldmVuIGFmdGVyIHRoZSAid3Jp
-dGVfYWNrZWRfYnlfcGVlciIgYW5kCiAJCSAqICJjb21wbGV0ZWRfb2siIGV2ZW50cyBjYW1lIGlu
-LCBvbmNlIHdlIHJldHVybiBmcm9tCkBAIC02NjIsOCArNjYxLDcgQEAKIAkJRF9BU1NFUlQocmVx
-LT5ycV9zdGF0ZSAmIFJRX05FVF9QRU5ESU5HKTsKIAkJZGVjX2FwX3BlbmRpbmcobWRldik7CiAJ
-CXJlcS0+cnFfc3RhdGUgJj0gflJRX05FVF9QRU5ESU5HOwotCQlpZiAocmVxLT5ycV9zdGF0ZSAm
-IFJRX05FVF9TRU5UKQotCQkJX3JlcV9tYXlfYmVfZG9uZShyZXEsZXJyb3IpOworCQlfcmVxX21h
-eV9iZV9kb25lKHJlcSxlcnJvcik7CiAJCS8qIGVsc2U6IGRvbmUgYnkgaGFuZGVkX292ZXJfdG9f
-bmV0d29yayAqLwogCQlicmVhazsKIApAQCAtNjczLDggKzY3MSw3IEBACiAJCXJlcS0+cnFfc3Rh
-dGUgJj0gfihSUV9ORVRfT0t8UlFfTkVUX1BFTkRJTkcpOwogCQkvKiBGSVhNRSBUSElOSyEgaXMg
-aXQgRE9ORSBub3csIG9yIGlzIGl0IG5vdD8gKi8KIAkJcmVxLT5ycV9zdGF0ZSB8PSBSUV9ORVRf
-RE9ORTsKLQkJaWYgKHJlcS0+cnFfc3RhdGUgJiBSUV9ORVRfU0VOVCkKLQkJCV9yZXFfbWF5X2Jl
-X2RvbmUocmVxLGVycm9yKTsKKwkJX3JlcV9tYXlfYmVfZG9uZShyZXEsZXJyb3IpOwogCQkvKiBl
-bHNlOiBkb25lIGJ5IGhhbmRlZF9vdmVyX3RvX25ldHdvcmsgKi8KIAkJYnJlYWs7CiAKQEAgLTY4
-Nyw3ICs2ODQsNyBAQAogCQkJICogdGhpcyBpcyBiYWQsIGJlY2F1c2UgaWYgdGhlIGNvbm5lY3Rp
-b24gaXMgbG9zdCBub3csCiAJCQkgKiB3ZSB3b24ndCBiZSBhYmxlIHRvIGNsZWFuIHRoZW0gdXAu
-Li4gKi8KIAkJCWNvbnN0IHVuc2lnbmVkIGxvbmcgcyA9IHJlcS0+cnFfc3RhdGU7Ci0JCQlJTkZP
-KCIlcyAlcCAlYyBMJWMlYyVjTiVjJWMlYyVjJWMgJXUgKCVsbHVzICsldSkgJXNcbiIsCisJCQlJ
-TkZPKCIlcyAlcCAlYyBMJWMlYyVjTiVjJWMlYyVjICV1ICglbGx1cyArJXUpICVzXG4iLAogCQkJ
-ICAgICAiRklYTUUiLCByZXEsCiAJCQkgICAgIC8qIGluIGZhY3QsIGl0IGNhbiBvbmx5IGJlIGEg
-V1JJVEUsIGJ1dCBhbnl3YXlzICovCiAJCQkgICAgIGJpb19kYXRhX2RpcihyZXEtPm1hc3Rlcl9i
-aW8pID09IFdSSVRFID8gJ1cnIDogJ1InLApAQCAtNjk2LDcgKzY5Myw2IEBACiAJCQkgICAgIHMg
-JiBSUV9MT0NBTF9PSyA/ICdvJyA6ICctJywKIAkJCSAgICAgcyAmIFJRX05FVF9QRU5ESU5HID8g
-J3AnIDogJy0nLAogCQkJICAgICBzICYgUlFfTkVUX1FVRVVFRCA/ICdxJyA6ICctJywKLQkJCSAg
-ICAgcyAmIFJRX05FVF9TRU5UID8gJ3MnIDogJy0nLAogCQkJICAgICBzICYgUlFfTkVUX0RPTkUg
-PyAnZCcgOiAnLScsCiAJCQkgICAgIHMgJiBSUV9ORVRfT0sgPyAnbycgOiAnLScsCiAJCQkgICAg
-IHJlcS0+ZXBvY2gsCkBAIC03MDQsNyArNzAwLDcgQEAKIAkJCSAgICAgcmVxLT5zaXplLAogCQkJ
-ICAgICBjb25uc190b19uYW1lKG1kZXYtPnN0YXRlLmNvbm4pKTsKIAkJfQotCQlEX0FTU0VSVChy
-ZXEtPnJxX3N0YXRlICYgUlFfTkVUX1NFTlQpOworCQlEX0FTU0VSVCghKHJlcS0+cnFfc3RhdGUg
-JiBSUV9ORVRfUVVFVUVEKTsKIAkJcmVxLT5ycV9zdGF0ZSB8PSBSUV9ORVRfRE9ORTsKIAkJX3Jl
-cV9tYXlfYmVfZG9uZShyZXEsZXJyb3IpOwogCQlicmVhazsKQEAgLTcxNCwxMSArNzEwLDcgQEAK
-IAkJZGVjX2FwX3BlbmRpbmcobWRldik7CiAJCXJlcS0+cnFfc3RhdGUgJj0gflJRX05FVF9QRU5E
-SU5HOwogCQlyZXEtPnJxX3N0YXRlIHw9IChSUV9ORVRfT0t8UlFfTkVUX0RPTkUpOwotCQkvKiBj
-YW4gaXQgaGFwcGVuIHRoYXQgd2UgcmVjZWl2ZSB0aGUgRGF0YVJlcGx5Ci0JCSAqIGJlZm9yZSB0
-aGUgc2VuZCBEYXRhUmVxdWVzdCBmdW5jdGlvbiByZXR1cm5zPyAqLwotCQlpZiAocmVxLT5ycV9z
-dGF0ZSAmIFJRX05FVF9TRU5UKQotCQkJX3JlcV9tYXlfYmVfZG9uZShyZXEsZXJyb3IpOwotCQkv
-KiBlbHNlOiBkb25lIGJ5IGhhbmRlZF9vdmVyX3RvX25ldHdvcmsgKi8KKwkJX3JlcV9tYXlfYmVf
-ZG9uZShyZXEsZXJyb3IpOwogCQlicmVhazsKIAl9OwogfQpJbmRleDogZHJiZF9yZXEuaAo9PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09Ci0tLSBkcmJkX3JlcS5oCShyZXZpc2lvbiAxMzU2MykKKysrIGRyYmRfcmVxLmgJKHdv
-cmtpbmcgY29weSkKQEAgLTE2NSwxMCArMTY1LDcgQEAKIAkgKiBubyBsb25nZXIgb2NjdXIuICov
-CiAJX19SUV9ORVRfUVVFVUVELAogCi0JLyogd2VsbCwgYWN0dWFsbHkgb25seSAiaGFuZGVkIG92
-ZXIgdG8gdGhlIG5ldHdvcmsgc3RhY2siICovCi0JX19SUV9ORVRfU0VOVCwKLQotCS8qIHdoZW4g
-c2V0LCB0aGUgcmVxdWVzdCBtYXkgYmUgZnJlZWQuCisJLyogd2hlbiBzZXQsIHRoZSByZXF1ZXN0
-IG1heSBiZSBmcmVlZCAoSUYgUlFfTkVUX1FVRVVFRCBpcyBjbGVhcikKIAkgKiBpbiAoQykgdGhp
-cyBoYXBwZW5zIHdoZW4gV3JpdGVBY2sgaXMgcmVjZWl2ZWQsCiAJICogaW4gKEIsQSkgd2hlbiB0
-aGUgY29ycmVzcG9uZGluZyBCYXJyaWVyQWNrIGlzIHJlY2VpdmVkICovCiAJX19SUV9ORVRfRE9O
-RSwKQEAgLTE5MCw3ICsxODcsNiBAQAogCiAjZGVmaW5lIFJRX05FVF9QRU5ESU5HICAgICAoMVVM
-IDw8IF9fUlFfTkVUX1BFTkRJTkcpCiAjZGVmaW5lIFJRX05FVF9RVUVVRUQgICAgICAoMVVMIDw8
-IF9fUlFfTkVUX1FVRVVFRCkKLSNkZWZpbmUgUlFfTkVUX1NFTlQgICAgICAgICgxVUwgPDwgX19S
-UV9ORVRfU0VOVCkKICNkZWZpbmUgUlFfTkVUX0RPTkUgICAgICAgICgxVUwgPDwgX19SUV9ORVRf
-RE9ORSkKICNkZWZpbmUgUlFfTkVUX09LICAgICAgICAgICgxVUwgPDwgX19SUV9ORVRfT0spCiAj
-ZGVmaW5lIFJRX05FVF9TSVMgICAgICAgICAoMVVMIDw8IF9fUlFfTkVUX1NJUykK
+but I don't think we can get rid of RQ_NET_SENT _that_ easy.
 
-------_=_NextPart_001_01C78E7E.CD2E7118--
+-- 
+: Lars Ellenberg                                  Tel +43-1-8178292-0  :
+: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
+: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
