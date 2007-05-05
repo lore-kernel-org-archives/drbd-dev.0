@@ -1,15 +1,15 @@
-Return-Path: <lars@linbit.com>
-Date: Sat, 5 May 2007 02:14:16 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Panic in _drbd_send_page() again.
-Message-ID: <20070505001416.GA11793@nudl>
-References: <342BAC0A5467384983B586A6B0B376710563693E@EXNA.corp.stratus.com>
-	<342BAC0A5467384983B586A6B0B37671056369DA@EXNA.corp.stratus.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671056369DA@EXNA.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C78EAC.AC302028"
+Subject: RE: [Drbd-dev] Panic in _drbd_send_page() again.
+Date: Fri, 4 May 2007 20:31:07 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B3767105636A25@EXNA.corp.stratus.com>
+In-Reply-To: 20070505001416.GA11793@nudl
+References: <342BAC0A5467384983B586A6B0B376710563693E@EXNA.corp.stratus.com><342BAC0A5467384983B586A6B0B37671056369DA@EXNA.corp.s
+	tratus.com> 20070505001416.GA11793@nudl
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: "Lars Ellenberg" <lars.ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,74 +19,65 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, May 04, 2007 at 03:02:45PM -0400, Graham, Simon wrote:
-> > so what you suggest is:
-> > 
-> > Index: drbd_req.c
-> > ===================================================================
-> > --- drbd_req.c	(revision 2864)
-> > +++ drbd_req.c	(working copy)
-> > @@ -255,6 +255,16 @@
-> >  	print_rq_state(req, "_req_may_be_done");
-> >  	MUST_HOLD(&mdev->req_lock)
-> > 
-> > +	/* we must not complete the master bio, while it is
-> > +	 *	still being processed by _drbd_send_zc_bio
-> > (drbd_send_dblock)
-> > +	 *	not yet acknowledged by the peer
-> > +	 *	not yet completed by the local io subsystem
-> > +	 * these flags may get cleared in any order by
-> > +	 *	the worker,
-> > +	 *	the receiver,
-> > +	 *	the bio_endio completion callbacks.
-> > +	 */
-> > +	if (s & RQ_NET_QUEUED) return;
-> >  	if (s & RQ_NET_PENDING) return;
-> >  	if (s & RQ_LOCAL_PENDING) return;
-> > 
-> 
-> I think this is correct -- in fact, I _think_ you could probably do away
-> with the RQ_NET_SENT flag (since this is, I think, the same as
-> !RQ_NET_QUEUED) which would be good (always good to remove extra
-> flags!).
-> 
-> In addition, there is code in req_mod right now that checks RQ_NET_SENT
-> before calling req_may_be_done -- this is no lomger needed since
-> req_may_be_done does the check. I've attached a completely untested
-> proposed patch that does this in addition to the change above... let me
-> know what you think...
+This is a multi-part message in MIME format.
 
-For protocol C [and thats all that really matters, I know ;)]
-this would be correct. I think.
-But then, for protocol C only, we could get rid of a lot more there.
+------_=_NextPart_001_01C78EAC.AC302028
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-One might think the NET_SENT was always only a redundant flag,
-and just the negation of the NET_QUEUED. but it is not.
+> but I don't think we can get rid of RQ_NET_SENT _that_ easy.
 
-I needed it to distinguish a local only request from one that was sent
-over the network, but is not yet done, even though all other
-NET_somthing flags might be clear for some reason.
+OK - you obviously know this stuff better than me!
 
-there must be no time window where I cannot tell
-whether a request had a network part or not,
-from looking at the state flags.
+I do still think that with this change we can remove the checks for
+RQ_NET_SENT before calling req_may_be_done which I like because it moves
+all the 'may be done' processing inside that function...
 
-At least for protocol A and B this would open up an other window,
-where (state & NET_MASK) == 0 [*], even though it is still on the lists,
-and the corresponding barrier ack is still pending.
+So - how about the attached...
+/simgr
 
-[*] e.g. when receiving a neg_acked before handed_over_to_network.
-    maybe that is even the only corner case, given that otherwise
-    either NET_OK or NET_DONE should be set...
 
-there is obviously redundant information in there,
-using five bits for way below 32 states...
-we can probably reorganize these flags, and their lifetime.
-say, introduce a "RQ_NET_PART" and "RQ_LOCAL_PART".
+------_=_NextPart_001_01C78EAC.AC302028
+Content-Type: application/octet-stream;
+	name="net-queued.patch"
+Content-Transfer-Encoding: base64
+Content-Description: net-queued.patch
+Content-Disposition: attachment;
+	filename="net-queued.patch"
 
-but I don't think we can get rid of RQ_NET_SENT _that_ easy.
+SW5kZXg6IGRyYmRfcmVxLmMKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gZHJiZF9yZXEuYwkocmV2aXNpb24gMTM1
+NjMpCisrKyBkcmJkX3JlcS5jCSh3b3JraW5nIGNvcHkpCkBAIC0yNTUsNiArMjU1LDcgQEAKIAlw
+cmludF9ycV9zdGF0ZShyZXEsICJfcmVxX21heV9iZV9kb25lIik7CiAJTVVTVF9IT0xEKCZtZGV2
+LT5yZXFfbG9jaykKIAorCWlmIChzICYgUlFfTkVUX1FVRVVFRCkgcmV0dXJuOwogCWlmIChzICYg
+UlFfTkVUX1BFTkRJTkcpIHJldHVybjsKIAlpZiAocyAmIFJRX0xPQ0FMX1BFTkRJTkcpIHJldHVy
+bjsKIApAQCAtNjM4LDExICs2MzksNyBAQAogCQlpZiAocmVxLT5ycV9zdGF0ZSAmIFJRX05FVF9Q
+RU5ESU5HKSBkZWNfYXBfcGVuZGluZyhtZGV2KTsKIAkJcmVxLT5ycV9zdGF0ZSAmPSB+KFJRX05F
+VF9PS3xSUV9ORVRfUEVORElORyk7CiAJCXJlcS0+cnFfc3RhdGUgfD0gUlFfTkVUX0RPTkU7Ci0J
+CS8qIGlmIGl0IGlzIHN0aWxsIHF1ZXVlZCwgd2UgbWF5IG5vdCBjb21wbGV0ZSBpdCBoZXJlLgot
+CQkgKiBpdCB3aWxsIGJlIGNhbmNlbGVkIHNvb24uCi0JCSAqIEZJWE1FIHdlIHNob3VsZCBjaGFu
+Z2UgdGhlIGNvZGUgc28gdGhpcyBjYW4gbm90IGhhcHBlbi4gKi8KLQkJaWYgKCEocmVxLT5ycV9z
+dGF0ZSAmIFJRX05FVF9RVUVVRUQpKQotCQkJX3JlcV9tYXlfYmVfZG9uZShyZXEsZXJyb3IpOwor
+CQlfcmVxX21heV9iZV9kb25lKHJlcSxlcnJvcik7CiAJCWJyZWFrOwogCiAJY2FzZSB3cml0ZV9h
+Y2tlZF9ieV9wZWVyX2FuZF9zaXM6CkBAIC02NjIsOSArNjU5LDcgQEAKIAkJRF9BU1NFUlQocmVx
+LT5ycV9zdGF0ZSAmIFJRX05FVF9QRU5ESU5HKTsKIAkJZGVjX2FwX3BlbmRpbmcobWRldik7CiAJ
+CXJlcS0+cnFfc3RhdGUgJj0gflJRX05FVF9QRU5ESU5HOwotCQlpZiAocmVxLT5ycV9zdGF0ZSAm
+IFJRX05FVF9TRU5UKQotCQkJX3JlcV9tYXlfYmVfZG9uZShyZXEsZXJyb3IpOwotCQkvKiBlbHNl
+OiBkb25lIGJ5IGhhbmRlZF9vdmVyX3RvX25ldHdvcmsgKi8KKwkJX3JlcV9tYXlfYmVfZG9uZShy
+ZXEsZXJyb3IpOwogCQlicmVhazsKIAogCWNhc2UgbmVnX2Fja2VkOgpAQCAtNjczLDkgKzY2OCw3
+IEBACiAJCXJlcS0+cnFfc3RhdGUgJj0gfihSUV9ORVRfT0t8UlFfTkVUX1BFTkRJTkcpOwogCQkv
+KiBGSVhNRSBUSElOSyEgaXMgaXQgRE9ORSBub3csIG9yIGlzIGl0IG5vdD8gKi8KIAkJcmVxLT5y
+cV9zdGF0ZSB8PSBSUV9ORVRfRE9ORTsKLQkJaWYgKHJlcS0+cnFfc3RhdGUgJiBSUV9ORVRfU0VO
+VCkKLQkJCV9yZXFfbWF5X2JlX2RvbmUocmVxLGVycm9yKTsKLQkJLyogZWxzZTogZG9uZSBieSBo
+YW5kZWRfb3Zlcl90b19uZXR3b3JrICovCisJCV9yZXFfbWF5X2JlX2RvbmUocmVxLGVycm9yKTsK
+IAkJYnJlYWs7CiAKIAljYXNlIGJhcnJpZXJfYWNrZWQ6CkBAIC03MTQsMTEgKzcwNyw3IEBACiAJ
+CWRlY19hcF9wZW5kaW5nKG1kZXYpOwogCQlyZXEtPnJxX3N0YXRlICY9IH5SUV9ORVRfUEVORElO
+RzsKIAkJcmVxLT5ycV9zdGF0ZSB8PSAoUlFfTkVUX09LfFJRX05FVF9ET05FKTsKLQkJLyogY2Fu
+IGl0IGhhcHBlbiB0aGF0IHdlIHJlY2VpdmUgdGhlIERhdGFSZXBseQotCQkgKiBiZWZvcmUgdGhl
+IHNlbmQgRGF0YVJlcXVlc3QgZnVuY3Rpb24gcmV0dXJucz8gKi8KLQkJaWYgKHJlcS0+cnFfc3Rh
+dGUgJiBSUV9ORVRfU0VOVCkKLQkJCV9yZXFfbWF5X2JlX2RvbmUocmVxLGVycm9yKTsKLQkJLyog
+ZWxzZTogZG9uZSBieSBoYW5kZWRfb3Zlcl90b19uZXR3b3JrICovCisJCV9yZXFfbWF5X2JlX2Rv
+bmUocmVxLGVycm9yKTsKIAkJYnJlYWs7CiAJfTsKIH0K
 
--- 
-: Lars Ellenberg                                  Tel +43-1-8178292-0  :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+------_=_NextPart_001_01C78EAC.AC302028--
