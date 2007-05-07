@@ -1,14 +1,19 @@
-Return-Path: <lars@linbit.com>
-Date: Sat, 5 May 2007 11:31:12 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Panic in _drbd_send_page() again.
-Message-ID: <20070505093112.GA21486@nudl>
-References: <342BAC0A5467384983B586A6B0B3767105636A25@EXNA.corp.stratus.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Return-Path: <stf_xl@wp.pl>
+From: Stanislaw Gruszka <stf_xl@wp.pl>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] [PATCH] dynamic creation/removal more then 256 drbd
+	devices
+Date: Mon, 7 May 2007 09:20:49 +0200
+References: <200704271121.44336.stf_xl@wp.pl> <200705041336.33032.stf_xl@wp.pl>
+	<200705041444.35189.philipp.reisner@linbit.com>
+In-Reply-To: <200705041444.35189.philipp.reisner@linbit.com>
+MIME-Version: 1.0
 Content-Disposition: inline
-In-Reply-To: <342BAC0A5467384983B586A6B0B3767105636A25@EXNA.corp.stratus.com>
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200705070920.49401.stf_xl@wp.pl>
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,20 +23,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, May 04, 2007 at 08:31:07PM -0400, Graham, Simon wrote:
-> > but I don't think we can get rid of RQ_NET_SENT _that_ easy.
-> 
-> OK - you obviously know this stuff better than me!
-> 
-> I do still think that with this change we can remove the checks for
-> RQ_NET_SENT before calling req_may_be_done which I like because it moves
-> all the 'may be done' processing inside that function...
+On Friday 04 May 2007 14:44, Philipp Reisner wrote:
+> But in case I had an application that is in the need for
+> many block devices (e.g. a farm of kvm or xen instances...)
+> I would put a LVM VG on top of a singe DRBD device.
+IMHO creating drbd on top lv's is more flexible then creating vg on top
+of drbd, however this depend on overall system design and needs.  
 
-that's correct.
- :)
-
+> My question is more like: What was your motivation for doing
+> this patch ?
+Well, my boss want me to do it. My company provide linux based software to 
+storage servers and some client wont it. 
 
 -- 
-: Lars Ellenberg                                  Tel +43-1-8178292-0  :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Schoenbrunner Str. 244, A-1120 Vienna/Europe   http://www.linbit.com :
+Cheers
+Stanislaw Gruszka
