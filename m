@@ -1,15 +1,14 @@
 Return-Path: <Ernest.Montrose@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] Resync Stalls at 100% patch problem
-Date: Fri, 8 Jun 2007 07:45:26 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47926@EXNA.corp.stratus.com>
-In-Reply-To: 200706081151.04454.philipp.reisner@linbit.com
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01C7ABC9.6509933D"
+Date: Sun, 10 Jun 2007 21:39:47 -0400
+Message-ID: <BD7042533C2F8943A6A4257A9E31C4543D15A9@EXNA.corp.stratus.com>
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] drbd0: [drbd0_receiver/5740] sock_sendmsg time expired,
+	ko = 4294967294
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,56 +18,82 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-Ah! Vacation.. I will test it out and let you know if I find any issues.
+This is a multi-part message in MIME format.
 
-Thanks!
+------_=_NextPart_001_01C7ABC9.6509933D
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-EM--
+Hi all,
+It seems that the mdev->ko_count counter is going negative as evidenced =
+by the following message:
+drbd0: [drbd0_receiver/5740] sock_sendmsg time expired, ko =3D =
+4294967294
+=20
+Note the rather large ko value.
+ STATIC we_should_drop_the_connection(drbd_dev *mdev, struct socket =
+*sock) is the place we decrement this unconditionnaly. Should at least =
+be this:
+Index: drbd/drbd_main.c
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- drbd/drbd_main.c    (revision 14981)
++++ drbd/drbd_main.c    (working copy)
+@@ -1549,7 +1549,7 @@
+        if (drop_it)
+                return TRUE;
+-       drop_it =3D !--mdev->ko_count;
++       drop_it =3D !mdev->ko_count || !--mdev->ko_count;
+        if ( !drop_it ) {
+                ERR("[%s/%d] sock_sendmsg time expired, ko =3D %u\n",
+                       current->comm, current->pid, mdev->ko_count);
 
------Original Message-----
-From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
-Sent: Friday, June 08, 2007 5:51 AM
-To: drbd-dev@linbit.com
-Cc: Montrose, Ernest
-Subject: Re: [Drbd-dev] Resync Stalls at 100% patch problem
 
-On Thursday 07 June 2007 00:14:13 Montrose, Ernest wrote:
-> Phil,
-> I looked into the patch issue a bit more.
-> This problem happens if we acquire the req_lock early.  What I think
-is
-> going on is this:
->
-> Primary host ---->attach---> send_state()
-> Peer -----> receive_state()-->after_state_ch()-->send_bitmap()
-> Primary Host ---->receive_bitmap()***Unexpected cstate "Connected"
-> Peer ----> send_state()
-> Primary Host --->receive_state() and we are deadlock.
->
-> The primary host is receiving the bitmap too early.  Essentially the
-> peer should call send_state() before calling after_state_ch()
->
-> I noticed the patch had moved that logic after calling
-after_state_ch()
-> so moving it back before after_state_ch() should be OK.  Any reason
-why
-> it was moved down?
->
-> I tested the included patch that moved just before we call
-> after_state_ch().
-> Let me know.
->
+------_=_NextPart_001_01C7ABC9.6509933D
+Content-Type: text/html;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Hi Ernest,
-
-Sorry for the slow responses recently. We had a public holiday here,
-and I was out in the mountains...
-
-I have now committed a patch very similar to your suggestion.
-
--phil
---=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"><HTML =
+DIR=3Dltr><HEAD><META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
+charset=3Diso-8859-1"></HEAD><BODY><DIV><FONT face=3D'Arial' =
+color=3D#000000 size=3D2>Hi all,</FONT></DIV>=0A=
+<DIV><FONT face=3DArial size=3D2>It seems that the mdev-&gt;ko_count =
+counter is =0A=
+going negative as evidenced by the following message:</FONT></DIV>=0A=
+<DIV>drbd0: [drbd0_receiver/5740] sock_sendmsg time expired, ko =3D =0A=
+4294967294</DIV>=0A=
+<DIV>&nbsp;</DIV>=0A=
+<DIV>Note the rather large ko value.</DIV>=0A=
+<DIV>&nbsp;STATIC we_should_drop_the_connection(drbd_dev *mdev, struct =
+socket =0A=
+*sock) is the place we decrement this unconditionnaly. Should at least =
+be =0A=
+this:</DIV>=0A=
+<DIV>Index: =0A=
+drbd/drbd_main.c<BR>=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D<=
+BR>--- =0A=
+drbd/drbd_main.c&nbsp;&nbsp;&nbsp; (revision 14981)<BR>+++ =0A=
+drbd/drbd_main.c&nbsp;&nbsp;&nbsp; (working copy)<BR>@@ -1549,7 +1549,7 =0A=
+@@<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if =0A=
+(drop_it)<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =0A=
+return TRUE;</DIV>=0A=
+<DIV>-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; drop_it =3D =0A=
+!--mdev-&gt;ko_count;<BR>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; drop_it =
+=3D =0A=
+!mdev-&gt;ko_count || =0A=
+!--mdev-&gt;ko_count;<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if ( =0A=
+!drop_it ) =0A=
+{<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
+bsp;&nbsp;&nbsp;&nbsp; =0A=
+ERR("[%s/%d] sock_sendmsg time expired, ko =3D =0A=
+%u\n",<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb=
+sp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =0A=
+current-&gt;comm, current-&gt;pid, =
+mdev-&gt;ko_count);<BR></DIV></BODY></HTML>
+------_=_NextPart_001_01C7ABC9.6509933D--
