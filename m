@@ -1,16 +1,18 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD8: Panic in drbd_uuid_compare due to mdev->bc
+	being null
+Date: Tue, 12 Jun 2007 16:39:54 +0200
+References: <BD7042533C2F8943A6A4257A9E31C454F4792B@EXNA.corp.stratus.com>
+In-Reply-To: <BD7042533C2F8943A6A4257A9E31C454F4792B@EXNA.corp.stratus.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] drbd0: [drbd0_receiver/5740] sock_sendmsg time expired,
-	ko = 4294967294
-Date: Tue, 12 Jun 2007 10:23:41 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F4792F@EXNA.corp.stratus.com>
-In-Reply-To: 200706121614.42579.philipp.reisner@linbit.com
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200706121639.54538.philipp.reisner@linbit.com>
+Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,37 +22,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-OK..So it's a feature..Not a bug..:)  Thanks for the clarification..
-
-EM--
-
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Philipp Reisner
-Sent: Tuesday, June 12, 2007 10:15 AM
-To: drbd-dev@linbit.com
-Subject: Re: [Drbd-dev] drbd0: [drbd0_receiver/5740] sock_sendmsg time
-expired,ko =3D 4294967294
-
-On Monday 11 June 2007 03:39:47 Montrose, Ernest wrote:
+On Monday 11 June 2007 22:17:25 Montrose, Ernest wrote:
 > Hi all,
-> It seems that the mdev->ko_count counter is going negative as
-evidenced by
-> the following message: drbd0: [drbd0_receiver/5740] sock_sendmsg time
-> expired, ko =3D 4294967294
 >
+> We are seeing a panic that occurs while syncing.  Essentially if you are
+> primary and you are syncing and get an io error then on the next attach
+> you can panic.  Especially if that attach happens quickly after the
+> detach.
+>
+> I think what's happening is this:
+> * The local disk dies and we transiton to "Diskless"
+> * After_state_ch() suppose to call drbd_free_bc() to free mdev->bc.
+> * But before we can free mdev->bc, mdev->local_cnt would have to be 0,
+> in this case it was not.  Not too sure why. So we wait for
+> mdev->local_cnt to become 0.
+> * While waiting an "Attach" request comes in. We ASSERT that mdev->bc is
+> not NULL but we brush it off, set a new bc and leak the old.
+> * The wait in after_state_ch is now over. we free the new mdev->bc that
+> the "attach" had set.
+> * we call drbd_sync_handshake(), access a NULL mdev->bc and we die.
+>
+> A quick thing to do is to just fail the attach request if mdev->bc is
+> not null. Patch included
+>
+> EM--
 
-This is intended this way. If you configure ko_count to zero it becomes
-that very large integer with the first expiration of the timeout. I.e.
-no drop of connection.
+Hi Ernest,
 
--Phil
---=20
+Thanks! I just changed it to Linux coding style, and shortened it a 
+bit. It is commited.
+
+-phil
+-- 
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
 : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
-_______________________________________________
-drbd-dev mailing list
-drbd-dev@lists.linbit.com
-http://lists.linbit.com/mailman/listinfo/drbd-dev
