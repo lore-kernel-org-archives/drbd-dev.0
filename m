@@ -1,16 +1,14 @@
 Return-Path: <Ernest.Montrose@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: Receive_state() won't dec_local after a disk
-	failure on peer.
-Date: Mon, 2 Jul 2007 08:18:51 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F4796C@EXNA.corp.stratus.com>
-In-Reply-To: 200707021158.29072.philipp.reisner@linbit.com
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C7C23D.55883FA4"
+Date: Mon, 9 Jul 2007 11:25:08 -0400
+Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47973@EXNA.corp.stratus.com>
+In-Reply-To: BD7042533C2F8943A6A4257A9E31C454F4796C@EXNA.corp.stratus.com
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] DRBD8: An attach after a disk fault on the sync target
+	causes a deadlock in WFBitMapT
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,69 +18,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-Though this approach is really cute, it is error prone though.
-Actually, the next guy that adds to the conditional might break us
-again.  Maybe add a comment to say that the inc_local() must be last.
-Hopefully the next guy will read it :)
+This is a multi-part message in MIME format.
 
-Thanks!
+------_=_NextPart_001_01C7C23D.55883FA4
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+
+Hi all,
+We are seeing a problem where while syncing if the sync target detaches
+then attempts to attach, both nodes end up in cs:WABitMapT state.  This
+happens if both nodes where in Secondary/Secondary state and the dettach
+happened on the SyncTarget.
+
+I think what's happening is that the syncsource is losing the fact that
+the synctarget is out of date.  After_state_ch() clears that fact out. I
+am not  sure that the included patch is the proper fix for this but it
+will illustrates the issue.=20
+
+Thanks,
+
 EM--
------Original Message-----
-From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
-Sent: Monday, July 02, 2007 5:58 AM
-To: drbd-dev@linbit.com
-Cc: Montrose, Ernest
-Subject: Re: [Drbd-dev] DRBD8: Receive_state() won't dec_local after a
-disk failure on peer.
 
-On Friday 29 June 2007 23:40:45 Montrose, Ernest wrote:
-> Hi all,
-> We have been seeing a problem where a cluster of two systems, X and Y.
-> X is Primary and gets a disk fault.  X goes Diskless.
-> Y now is forced to be Primary.
-> X recovers from the fault.
-> But now Y gets a disk fault and goes Diskless but Stay Primary.
-> At this point I/O from r0 hangs on Y!
->
-> A check on /proc/<ip>/wchan for the worker thread reveals that we are
-> waiting forever for local_cnt to become 0 in after_state_ch(). So the
-> worker thread will process the Net_read.  What happened is that after
-> the first failure on X, receive_state() on Y failed to call
-dec_local().
-> The pdisk received state is Diskless therefore we won't dec_local().
-The
-> included patch illustrates the problem and attempts to fix it.
->
-> Thanks.
-> EM--
+------_=_NextPart_001_01C7C23D.55883FA4
+Content-Type: application/octet-stream;
+	name="wbitmat.patch"
+Content-Transfer-Encoding: base64
+Content-Description: wbitmat.patch
+Content-Disposition: attachment;
+	filename="wbitmat.patch"
 
+SW5kZXg6IGRyYmQvZHJiZF9yZWNlaXZlci5jCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIGRyYmQvZHJiZF9yZWNl
+aXZlci5jCShyZXZpc2lvbiAxNTk5NSkKKysrIGRyYmQvZHJiZF9yZWNlaXZlci5jCSh3b3JraW5n
+IGNvcHkpCkBAIC0xOTU2LDcgKzE5NTYsOCBAQAogCX0KIAogCWlmKCAobXlkaXNrPT1JbmNvbnNp
+c3RlbnQgJiYgcGVlcl9kaXNrPkluY29uc2lzdGVudCkgfHwKLQkgICAgKHBlZXJfZGlzaz09SW5j
+b25zaXN0ZW50ICYmIG15ZGlzaz5JbmNvbnNpc3RlbnQpICkgIHsKKwkgICAgKHBlZXJfZGlzaz09
+SW5jb25zaXN0ZW50ICYmIG15ZGlzaz5JbmNvbnNpc3RlbnQpIHx8CisgICAgICAgICAgIChkcmJk
+X21kX3Rlc3RfZmxhZyhtZGV2LT5iYyxNREZfUGVlck91dERhdGVkKSAmJiBteWRpc2s+SW5jb25z
+aXN0ZW50KSkgIHsKIAkJaW50IGYgPSAoaGcgPT0gLTEwMCkgfHwgYWJzKGhnKSA9PSAyOwogCQlo
+ZyA9IG15ZGlzayA+IEluY29uc2lzdGVudCA/IDEgOiAtMTsKIAkJaWYoZikgaGc9aGcqMjsKSW5k
+ZXg6IGRyYmQvZHJiZF9tYWluLmMKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gZHJiZC9kcmJkX21haW4uYwkocmV2
+aXNpb24gMTU5OTUpCisrKyBkcmJkL2RyYmRfbWFpbi5jCSh3b3JraW5nIGNvcHkpCkBAIC04NjMs
+NyArODYzLDggQEAKIAkJaWYgKG1kZXYtPnN0YXRlLmRpc2sgPiBJbmNvbnNpc3RlbnQpICAgbWRm
+IHw9IE1ERl9Db25zaXN0ZW50OwogCQlpZiAobWRldi0+c3RhdGUuZGlzayA+IE91dGRhdGVkKSAg
+ICAgICBtZGYgfD0gTURGX1dhc1VwVG9EYXRlOwogCQlpZiAobWRldi0+c3RhdGUucGRzayA8PSBP
+dXRkYXRlZCAmJgotCQkgICAgbWRldi0+c3RhdGUucGRzayA+PSBJbmNvbnNpc3RlbnQpICBtZGYg
+fD0gTURGX1BlZXJPdXREYXRlZDsKKwkJICAgIChtZGV2LT5zdGF0ZS5wZHNrID49IEluY29uc2lz
+dGVudCB8fAorICAgICAgICAgICAgICAgICAgIG1kZXYtPnN0YXRlLnBkc2sgPT0gRGlza2xlc3Mp
+KSAgbWRmIHw9IE1ERl9QZWVyT3V0RGF0ZWQ7CiAJCWlmKCBtZGYgIT0gbWRldi0+YmMtPm1kLmZs
+YWdzKSB7CiAJCQltZGV2LT5iYy0+bWQuZmxhZ3MgPSBtZGY7CiAJCQlkcmJkX21kX21hcmtfZGly
+dHkobWRldik7Cg==
 
-Right.
-
-I changed the patch to:
-
---- branches/drbd-8.0/drbd/drbd_receiver.c      2007-07-02 08:44:22 UTC
-(rev 2962)
-+++ branches/drbd-8.0/drbd/drbd_receiver.c      2007-07-02 09:54:58 UTC
-(rev 2963)
-@@ -2408,8 +2408,8 @@
-        if (nconn =3D=3D WFReportParams ) nconn =3D Connected;
-=20
-        if (mdev->p_uuid && oconn <=3D Connected &&
--           inc_local_if_state(mdev,Negotiating) &&
--           peer_state.disk >=3D Negotiating) {
-+           peer_state.disk >=3D Negotiating &&
-+           inc_local_if_state(mdev,Negotiating) ) {
-=20
-nconn=3Ddrbd_sync_handshake(mdev,peer_state.role,peer_state.disk);
-                dec_local(mdev);
-=20
-since C guarantees us the evaluate the right argument of && only if
-the left argument is true.
-
--Phil
---=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+------_=_NextPart_001_01C7C23D.55883FA4--
