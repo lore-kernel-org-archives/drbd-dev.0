@@ -1,16 +1,18 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD8: An attach after a disk fault on the sync target
+	causes a deadlock in WFBitMapT
+Date: Tue, 10 Jul 2007 15:48:16 +0200
+References: <BD7042533C2F8943A6A4257A9E31C454F47973@EXNA.corp.stratus.com>
+In-Reply-To: <BD7042533C2F8943A6A4257A9E31C454F47973@EXNA.corp.stratus.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: An attach after a disk fault on the sync
-	targetcauses a deadlock in WFBitMapT
-Date: Mon, 9 Jul 2007 13:04:18 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47974@EXNA.corp.stratus.com>
-In-Reply-To: BD7042533C2F8943A6A4257A9E31C454F47973@EXNA.corp.stratus.com
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200707101548.16674.philipp.reisner@linbit.com>
+Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,31 +22,61 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Actually I uncover a problem with the patch I attached.  I am getting an
-"unexpected Cstate" if I simply detach and attach.
+On Monday 09 July 2007 17:25:08 Montrose, Ernest wrote:
+> Hi all,
+> We are seeing a problem where while syncing if the sync target detaches
+> then attempts to attach, both nodes end up in cs:WABitMapT state.  This
+> happens if both nodes where in Secondary/Secondary state and the dettach
+> happened on the SyncTarget.
+>
 
-EM--
+Hi Ernest,
 
------Original Message-----
-From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-On Behalf Of Montrose, Ernest
-Sent: Monday, July 09, 2007 11:25 AM
-To: Philipp Reisner; drbd-dev@linbit.com
-Subject: [Drbd-dev] DRBD8: An attach after a disk fault on the sync
-targetcauses a deadlock in WFBitMapT
+Thanks for pointing this out.
+
+The cause for this was that the UUIDs...
+
+Node1:       C:0:H:H
+Node2:       C:0:H:H
+
+upon start of resync an "S" gets created.
+
+sync target: S:0:C:H
+sync source: C:S:H:H
+
+but it should be
+
+sync target: S:0:H:H
+sync source: C:S:H:H
+
+On the sync target side we got S left of C while on the sync 
+source side we had C left of S. This was bad. The should not
+appear in different order!
+
+C should be left of S on sync source, and nowhere on the sync
+target. (= even further left = in the future )
+
+Ok, I guess the explanation is sufficient incomprehensible ;)
 
 
-Hi all,
-We are seeing a problem where while syncing if the sync target detaches
-then attempts to attach, both nodes end up in cs:WABitMapT state.  This
-happens if both nodes where in Secondary/Secondary state and the dettach
-happened on the SyncTarget.
+Index: drbd_receiver.c
+===================================================================
+--- drbd_receiver.c     (revision 2965)
++++ drbd_receiver.c     (revision 2966)
+@@ -2474,7 +2474,9 @@
+        if (drbd_recv(mdev, h->payload, h->length) != h->length)
+                return FALSE;
 
-I think what's happening is that the syncsource is losing the fact that
-the synctarget is out of date.  After_state_ch() clears that fact out. I
-am not  sure that the included patch is the proper fix for this but it
-will illustrates the issue.=20
+-       drbd_uuid_set(mdev,Current,be64_to_cpu(p->uuid));
++       /* Here the _drbd_uuid_ functions are right, current should
++          _not_ be rotated into the history */
++       _drbd_uuid_set(mdev,Current,be64_to_cpu(p->uuid));
+        _drbd_uuid_set(mdev,Bitmap,0UL);
 
-Thanks,
+        drbd_start_resync(mdev,SyncTarget);
 
-EM--
+-Phil
+-- 
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
