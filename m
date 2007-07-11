@@ -1,16 +1,14 @@
-Return-Path: <Ernest.Montrose@stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: An attach after a disk fault on the sync target
-	causes a deadlock in WFBitMapT
-Date: Tue, 10 Jul 2007 10:05:39 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47977@EXNA.corp.stratus.com>
-In-Reply-To: 200707101548.16674.philipp.reisner@linbit.com
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Date: Wed, 11 Jul 2007 11:03:07 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B3767105FCED4F@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Skipping initial sync of DRBD devices...
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,82 +18,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-OK..Interesting..I'll have to fully understand the explanation later :)
-Let me test the fix first. I'll let you know if anything bad happens. =20
+I've been following the advice documented at
+http://drbd-plus.linbit.com/examples:skip-initial-sync to skip the
+initial sync of devices when you know that the first thing you will do
+is create a filesystem on the device and have run into a problem;
+although the initial sync is indeed skipped, I see this warning in the
+messages file:
 
-Thanks!
+	No resync, but XXX bits in bitmap!
 
-EM--
+where XXX is the size of the volume. If you then reboot one of the nodes
+(or suffer a connection failure), when the connection comes back, you
+end up syncing the entire volume unnecessarily - because the
+reboot/connectionloss causes the remaining node to update it's meta-data
+so when the node comes back, it looks like a sync is needed and since
+all it's on-disk bitmap bits are set, we have to sync the whole disk.
 
------Original Message-----
-From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
-Sent: Tuesday, July 10, 2007 9:48 AM
-To: drbd-dev@linbit.com
-Cc: Montrose, Ernest
-Subject: Re: [Drbd-dev] DRBD8: An attach after a disk fault on the sync
-target causes a deadlock in WFBitMapT
+Now, I notices this output from drbdmeta when creating the meta-data:
 
-On Monday 09 July 2007 17:25:08 Montrose, Ernest wrote:
-> Hi all,
-> We are seeing a problem where while syncing if the sync target
-detaches
-> then attempts to attach, both nodes end up in cs:WABitMapT state.
-This
-> happens if both nodes where in Secondary/Secondary state and the
-dettach
-> happened on the SyncTarget.
->
+	NOT initialized bitmap (%u KB)
 
-Hi Ernest,
+And I also see that drbdmeta.c has a define called
+"DON'T_INITIALIZE_BITMAP" which indeed stops it from initializing the
+bitmap area, so presumably we end up with whatever was on the disk area
+as the bitmap for the new volume (and in my case, I'm recreating volumes
+on a disk that previously had DRBD volumes on it, so I get whatever
+bitmap was there previously).
 
-Thanks for pointing this out.
+I also note that even if you clear this define, the code actually SETS
+all the bits in the bitmap, which would have the same (or even worse)
+effect...
 
-The cause for this was that the UUIDs...
+So - I think that to reliably skip the initial sync, we need to ensure
+the bitmap is clear, I'm just not sure what the right way to do this is
+- I see three alternatives:
 
-Node1:       C:0:H:H
-Node2:       C:0:H:H
+1. Modify drbdmeta create-md to clear the bitmap -- presumably there was
+a reason for setting the bitmap though?
+2. Add a new drbdmeta command to clear the bitmap explicitely
+3. Modify the driver to clear the bitmap when it sees bits unexpectedly
+set -- I don't like this because it might
+   result in data corruption if we hit some other bug...
 
-upon start of resync an "S" gets created.
-
-sync target: S:0:C:H
-sync source: C:S:H:H
-
-but it should be
-
-sync target: S:0:H:H
-sync source: C:S:H:H
-
-On the sync target side we got S left of C while on the sync=20
-source side we had C left of S. This was bad. The should not
-appear in different order!
-
-C should be left of S on sync source, and nowhere on the sync
-target. (=3D even further left =3D in the future )
-
-Ok, I guess the explanation is sufficient incomprehensible ;)
-
-
-Index: drbd_receiver.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- drbd_receiver.c     (revision 2965)
-+++ drbd_receiver.c     (revision 2966)
-@@ -2474,7 +2474,9 @@
-        if (drbd_recv(mdev, h->payload, h->length) !=3D h->length)
-                return FALSE;
-
--       drbd_uuid_set(mdev,Current,be64_to_cpu(p->uuid));
-+       /* Here the _drbd_uuid_ functions are right, current should
-+          _not_ be rotated into the history */
-+       _drbd_uuid_set(mdev,Current,be64_to_cpu(p->uuid));
-        _drbd_uuid_set(mdev,Bitmap,0UL);
-
-        drbd_start_resync(mdev,SyncTarget);
-
--Phil
---=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+Suggestions?
+Simon
