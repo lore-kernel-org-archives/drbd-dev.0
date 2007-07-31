@@ -1,12 +1,13 @@
 Return-Path: <Ernest.Montrose@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C7D2F9.59CCCE1A"
-Date: Mon, 30 Jul 2007 18:31:19 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F4799A@EXNA.corp.stratus.com>
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C7D3B8.490767F6"
+Date: Tue, 31 Jul 2007 17:18:05 -0400
+Message-ID: <BD7042533C2F8943A6A4257A9E31C454F4799D@EXNA.corp.stratus.com>
 From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] DRBD8: Deadlock in PausedSyncS 
+Subject: [Drbd-dev] DRBD8: ASSERT( mdev->bc->md.uuid[Bitmap] == 0 ) in
+	drbd_main.c:drbd_uuid_new_current()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,53 +19,45 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 This is a multi-part message in MIME format.
 
-------_=_NextPart_001_01C7D2F9.59CCCE1A
+------_=_NextPart_001_01C7D3B8.490767F6
 Content-Type: multipart/alternative;
-	boundary="----_=_NextPart_002_01C7D2F9.59CCCE1A"
+	boundary="----_=_NextPart_002_01C7D3B8.490767F6"
 
 
-------_=_NextPart_002_01C7D2F9.59CCCE1A
+------_=_NextPart_002_01C7D3B8.490767F6
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
 Hi all,
-We are seeing a problem where we deadlock if a pause sync request
-happens while attaching.  Below is an explaination of what I think is
-occurring:
-
-Consider two nodes X primary and Y Secondary.
-1. X becomes Secondary/Diskless
-2. Y becomes Primary
-3. X tries to Attach and sends its states/uuids to Y
-4. While Y is in receive_state() doing a drbd_sync_handshake(), it
-receives a Paused Sync request.
-  This is where the trouble starts.
-5. aftr_isp is changed from 0->1 on Y and after_state_ch() called.  This
-triggers
-  a drbd_send_state() from Y.=20
-6.  X receives States from Y but no uuids and runs a
-drbd_sync_handshake() with the old uuids and
-    we deadlocked with PausedSyncS on both sides.
-
-I am not sure how to best fix this.  Perhaps we should not call
-drbd_send_state()=20
-in after_state_ch() for a sync request from the peer if the peer's disk
-is diskless. =20
-Or we do send states, sends the uuids as well.  The attached patch will
-at least serve as an illustration of the issue if not the correct fix.
+We are seeing another problem that occurs with the following sequence of
+events:
+drbdadm secondary vm2.root.fs
+drbdadm detach vm2.root.fs
+drbdadm primary vm2.root.fs
+drbdadm secondary vm2.root.fs
+drbdadm primary vm2.root.fs <----- This causes the assert
+drbdadm attach vm2.root.fs  <------ This causes an instant Split brain
+but only because of the assert above.
 =20
-Thank you!
+I think what's happening is that we are generating a new bitmap UUID
+every time the diskless peer goes Primary.
+I see no reason why we have to do this more then once.  I include a tiny
+patch to do it just one time.=20
+=20
+Thanks,
 =20
 EM--
 
-------_=_NextPart_002_01C7D2F9.59CCCE1A
+------_=_NextPart_002_01C7D3B8.490767F6
 Content-Type: text/html;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-<html xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" =
+xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
 xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns:st1=3D"urn:schemas-microsoft-com:office:smarttags" =
 xmlns=3D"http://www.w3.org/TR/REC-html40">
 
 <head>
@@ -73,7 +66,13 @@ charset=3Dus-ascii">
 <meta name=3DProgId content=3DWord.Document>
 <meta name=3DGenerator content=3D"Microsoft Word 11">
 <meta name=3DOriginator content=3D"Microsoft Word 11">
-<link rel=3DFile-List href=3D"cid:filelist.xml@01C7D2D7.D271E670">
+<link rel=3DFile-List href=3D"cid:filelist.xml@01C7D396.C16008C0">
+<o:SmartTagType =
+namespaceuri=3D"urn:schemas-microsoft-com:office:smarttags"
+ name=3D"City"/>
+<o:SmartTagType =
+namespaceuri=3D"urn:schemas-microsoft-com:office:smarttags"
+ name=3D"place"/>
 <!--[if gte mso 9]><xml>
  <o:OfficeDocumentSettings>
   <o:DoNotRelyOnCSS/>
@@ -100,11 +99,22 @@ charset=3Dus-ascii">
 </xml><![endif]--><!--[if gte mso 9]><xml>
  <w:LatentStyles DefLockedState=3D"false" LatentStyleCount=3D"156">
  </w:LatentStyles>
-</xml><![endif]-->
+</xml><![endif]--><!--[if !mso]>
+<style>
+st1\:*{behavior:url(#default#ieooui) }
+</style>
+<![endif]-->
 <style>
 <!--
  /* Font Definitions */
  @font-face
+	{font-family:Wingdings;
+	panose-1:5 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:2;
+	mso-generic-font-family:auto;
+	mso-font-pitch:variable;
+	mso-font-signature:0 268435456 0 0 -2147483648 0;}
+@font-face
 	{font-family:Tahoma;
 	panose-1:2 11 6 4 3 5 4 4 2 4;
 	mso-font-charset:0;
@@ -187,81 +197,90 @@ font-family:Arial'>Hi all,<o:p></o:p></span></font></p>
 
 <p class=3DMsoNormal><font size=3D2 face=3DArial><span =
 style=3D'font-size:10.0pt;
-font-family:Arial'>We are seeing a problem where we deadlock if a pause =
-sync
-request happens while attaching. <span =
-style=3D'mso-spacerun:yes'>&nbsp;</span>Below
-is an <span class=3DSpellE>explaination</span> of what I think is =
-occurring:<o:p></o:p></span></font></p>
+font-family:Arial'>We are seeing another problem that occurs with the =
+following
+sequence of events:<o:p></o:p></span></font></p>
 
-<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
-style=3D'font-size:
-9.0pt;font-family:Tahoma;color:black'><br>
-Consider two nodes X primary and Y Secondary.<br>
-1. X becomes Secondary/Diskless<br>
-2. Y becomes Primary<br>
-3. X tries to Attach and sends its states/<span =
-class=3DSpellE>uuids</span> to Y<br>
-4. While Y is in <span class=3DSpellE>receive_<span =
-class=3DGramE>state</span></span><span
-class=3DGramE>(</span>) doing a <span =
-class=3DSpellE>drbd_sync_handshake</span>(),
-it receives a Paused Sync request.<br>
-&nbsp; This is where the trouble starts.<br>
-5. <span class=3DSpellE><span class=3DGramE>aftr_isp</span></span> is =
-changed from
-0-&gt;1 on Y and <span class=3DSpellE>after_state_ch</span>() =
-called.&nbsp; <span
-class=3DGramE>This triggers</span><br>
-&nbsp; <span class=3DGramE>a</span> <span =
-class=3DSpellE>drbd_send_state</span>()
-from Y. <br>
-6.&nbsp; X receives States from Y but no <span =
-class=3DSpellE>uuids</span> and
-runs a <span class=3DSpellE>drbd_sync_<span =
-class=3DGramE>handshake</span></span><span
-class=3DGramE>(</span>) with the old <span class=3DSpellE>uuids</span> =
-and<br>
-&nbsp; &nbsp; <span class=3DGramE>we</span> deadlocked with <span =
-class=3DSpellE>PausedSyncS</span>
-on both sides.<br>
-<br>
-I am not sure how to best fix this.&nbsp; Perhaps we should not call =
-<span
-class=3DSpellE>drbd_send_<span class=3DGramE>state</span></span><span =
-class=3DGramE>(</span>)
-<br>
-in <span class=3DSpellE>after_state_ch</span>() for a sync request from =
-the peer
-if the peer's disk is diskless.&nbsp; <br>
-Or we do send states, sends the <span class=3DSpellE>uuids</span> as =
-well.<span
-style=3D'mso-spacerun:yes'>&nbsp; </span>The attached patch will at =
-least serve
-as an illustration of the issue if not the correct =
-fix.<o:p></o:p></span></font></p>
+<p class=3DMsoNormal><span class=3DSpellE><span class=3DGramE><font =
+size=3D1
+color=3Dblack face=3DTahoma><span =
+style=3D'font-size:9.0pt;font-family:Tahoma;
+color:black'>drbdadm</span></font></span></span><font size=3D1 =
+color=3Dblack
+face=3DTahoma><span =
+style=3D'font-size:9.0pt;font-family:Tahoma;color:black'>
+secondary vm2.root.fs<br>
+<span class=3DSpellE><span class=3DGramE>drbdadm</span></span> detach =
+vm2.root.fs<br>
+<span class=3DSpellE><span class=3DGramE>drbdadm</span></span> primary =
+vm2.root.fs<br>
+<span class=3DSpellE><span class=3DGramE>drbdadm</span></span> secondary
+vm2.root.fs<br>
+<span class=3DSpellE><span class=3DGramE>drbdadm</span></span> primary =
+vm2.root.fs </span></font><font
+size=3D1 color=3Dblack face=3DWingdings><span =
+style=3D'font-size:9.0pt;font-family:
+Wingdings;mso-ascii-font-family:Tahoma;mso-hansi-font-family:Tahoma;mso-b=
+idi-font-family:
+Tahoma;color:black;mso-char-type:symbol;mso-symbol-font-family:Wingdings'=
+><span
+style=3D'mso-char-type:symbol;mso-symbol-font-family:Wingdings'>&szlig;</=
+span></span></font><font
+size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:9.0pt;font-family:Tahoma;
+color:black'>--- This causes the assert<br>
+<span class=3DSpellE><span class=3DGramE>drbdadm</span></span> attach =
+vm2.root.fs<span
+style=3D'mso-spacerun:yes'>&nbsp; </span></span></font><font size=3D1 =
+color=3Dblack
+face=3DWingdings><span =
+style=3D'font-size:9.0pt;font-family:Wingdings;mso-ascii-font-family:
+Tahoma;mso-hansi-font-family:Tahoma;mso-bidi-font-family:Tahoma;color:bla=
+ck;
+mso-char-type:symbol;mso-symbol-font-family:Wingdings'><span =
+style=3D'mso-char-type:
+symbol;mso-symbol-font-family:Wingdings'>&szlig;</span></span></font><fon=
+t
+size=3D1 color=3Dblack face=3DTahoma><span =
+style=3D'font-size:9.0pt;font-family:Tahoma;
+color:black'>---- This causes an instant <st1:City =
+w:st=3D"on"><st1:place w:st=3D"on">Split</st1:place></st1:City>
+brain but only because of the assert above.<o:p></o:p></span></font></p>
 
-<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
-style=3D'font-size:
-9.0pt;font-family:Tahoma;color:black'><o:p>&nbsp;</o:p></span></font></p>=
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
 
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>I think what&#8217;s happening is that we are =
+generating a
+new bitmap UUID every time the diskless peer goes =
+Primary.<o:p></o:p></span></font></p>
 
-<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
-style=3D'font-size:
-9.0pt;font-family:Tahoma;color:black'>Thank =
-you!<o:p></o:p></span></font></p>
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>I see no reason why we have to do this more then =
+once.<span
+style=3D'mso-spacerun:yes'>&nbsp; </span>I include a tiny patch to do it =
+just one
+time. <o:p></o:p></span></font></p>
 
-<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
-style=3D'font-size:
-9.0pt;font-family:Tahoma;color:black'><o:p>&nbsp;</o:p></span></font></p>=
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
 
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>Thanks,<o:p></o:p></span></font></p>
 
-<p class=3DMsoNormal><font size=3D1 color=3Dblack face=3DTahoma><span =
-style=3D'font-size:
-9.0pt;font-family:Tahoma;color:black'>EM--</span></font><font size=3D2
-face=3DArial><span =
-style=3D'font-size:10.0pt;font-family:Arial'><o:p></o:p></span></font></p=
->
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'><o:p>&nbsp;</o:p></span></font></p>
+
+<p class=3DMsoNormal><font size=3D2 face=3DArial><span =
+style=3D'font-size:10.0pt;
+font-family:Arial'>EM--<o:p></o:p></span></font></p>
 
 </div>
 
@@ -269,24 +288,24 @@ style=3D'font-size:10.0pt;font-family:Arial'><o:p></o:p></span></font></p=
 
 </html>
 
-------_=_NextPart_002_01C7D2F9.59CCCE1A--
+------_=_NextPart_002_01C7D3B8.490767F6--
 
-------_=_NextPart_001_01C7D2F9.59CCCE1A
+------_=_NextPart_001_01C7D3B8.490767F6
 Content-Type: application/octet-stream;
-	name="pausedsync.patch"
+	name="bitmapassert.patch"
 Content-Transfer-Encoding: base64
-Content-Description: pausedsync.patch
+Content-Description: bitmapassert.patch
 Content-Disposition: attachment;
-	filename="pausedsync.patch"
+	filename="bitmapassert.patch"
 
 SW5kZXg6IGRyYmQvZHJiZF9tYWluLmMKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
 PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gZHJiZC9kcmJkX21haW4uYwko
 cmV2aXNpb24gMTY4NTMpCisrKyBkcmJkL2RyYmRfbWFpbi5jCSh3b3JraW5nIGNvcHkpCkBAIC05
-NTMsNyArOTUzLDggQEAKIAkvKiBXZSB3YW50IHRvIHBhdXNlL2NvbnRpbnVlIHJlc3luYywgdGVs
-bCBwZWVyLiAqLwogCWlmICggbnMuY29ubiA+PSBDb25uZWN0ZWQgJiYgCiAJICAgICAoKCBvcy5h
-ZnRyX2lzcCAhPSBucy5hZnRyX2lzcCApIHx8Ci0JICAgICAgKCBvcy51c2VyX2lzcCAhPSBucy51
-c2VyX2lzcCApKSApIHsKKwkgICAgICAoIG9zLnVzZXJfaXNwICE9IG5zLnVzZXJfaXNwICkpICYm
-CisgICAgICAgICAgICBtZGV2LT5zdGF0ZS5wZHNrICE9IERpc2tsZXNzICkgewogCQlkcmJkX3Nl
-bmRfc3RhdGUobWRldik7CiAJfQogCg==
+MzMsNyArOTMzLDggQEAKIAogCWlmKCBucy5wZHNrIDwgSW5jb25zaXN0ZW50ICkgewogCQkvKiBE
+aXNrbGVzcyBQZWVyIGJlY29tZXMgcHJpbWFyeSAqLwotCQlpZiAob3MucGVlciA9PSBTZWNvbmRh
+cnkgJiYgbnMucGVlciA9PSBQcmltYXJ5ICkgeworCQlpZiAob3MucGVlciA9PSBTZWNvbmRhcnkg
+JiYgbnMucGVlciA9PSBQcmltYXJ5ICYmCisgICAgICAgICAgICAgICAgICBtZGV2LT5iYy0+bWQu
+dXVpZFtCaXRtYXBdID09IDAgKSB7CiAJCQlkcmJkX3V1aWRfbmV3X2N1cnJlbnQobWRldik7CiAJ
+CX0KIAkJLyogRGlza2xlc3MgUGVlciBiZWNvbWVzIHNlY29uZGFyeSAqLwo=
 
-------_=_NextPart_001_01C7D2F9.59CCCE1A--
+------_=_NextPart_001_01C7D3B8.490767F6--
