@@ -1,17 +1,15 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD8: Deadlock in PausedSyncS
-Date: Thu, 2 Aug 2007 11:44:49 +0200
-References: <BD7042533C2F8943A6A4257A9E31C454F4799A@EXNA.corp.stratus.com>
-In-Reply-To: <BD7042533C2F8943A6A4257A9E31C454F4799A@EXNA.corp.stratus.com>
+Return-Path: <Ernest.Montrose@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200708021144.49764.philipp.reisner@linbit.com>
-Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] DRBD8: Deadlock in PausedSyncS
+Date: Thu, 2 Aug 2007 07:58:47 -0400
+Message-ID: <BD7042533C2F8943A6A4257A9E31C454F479A0@EXNA.corp.stratus.com>
+In-Reply-To: 200708021144.49764.philipp.reisner@linbit.com
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,6 +18,19 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
+
+Phil,
+Yeah, I agree.  There are a few more situations other then this one.
+I will try to actually test a few of those with this patch and let you
+know if I find anything weird.  Thanks!
+
+EM--
+-----Original Message-----
+From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
+Sent: Thursday, August 02, 2007 5:45 AM
+To: drbd-dev@linbit.com
+Cc: Montrose, Ernest
+Subject: Re: [Drbd-dev] DRBD8: Deadlock in PausedSyncS
 
 On Tuesday 31 July 2007 00:31:19 Montrose, Ernest wrote:
 > Hi all,
@@ -34,7 +45,8 @@ On Tuesday 31 July 2007 00:31:19 Montrose, Ernest wrote:
 > 4. While Y is in receive_state() doing a drbd_sync_handshake(), it
 > receives a Paused Sync request.
 >   This is where the trouble starts.
-> 5. aftr_isp is changed from 0->1 on Y and after_state_ch() called.  This
+> 5. aftr_isp is changed from 0->1 on Y and after_state_ch() called.
+This
 > triggers
 >   a drbd_send_state() from Y.
 > 6.  X receives States from Y but no uuids and runs a
@@ -43,9 +55,11 @@ On Tuesday 31 July 2007 00:31:19 Montrose, Ernest wrote:
 >
 > I am not sure how to best fix this.  Perhaps we should not call
 > drbd_send_state()
-> in after_state_ch() for a sync request from the peer if the peer's disk
+> in after_state_ch() for a sync request from the peer if the peer's
+disk
 > is diskless.
-> Or we do send states, sends the uuids as well.  The attached patch will
+> Or we do send states, sends the uuids as well.  The attached patch
+will
 > at least serve as an illustration of the issue if not the correct fix.
 >
 
@@ -53,9 +67,9 @@ On Tuesday 31 July 2007 00:31:19 Montrose, Ernest wrote:
 Hi Ernest,
 
 Your patch was correct I think. But in reality we have not only this
-one case of the problem it is a whole class of such problems. 
+one case of the problem it is a whole class of such problems.=20
 
-While the node that gets the new disk is in disk=Negotiating, it 
+While the node that gets the new disk is in disk=3DNegotiating, it=20
 will run drbd_sync_handshake() on each state packet that comes in.
 
 We need to avoid this. Calling pause-sync is just one possible way
@@ -69,7 +83,7 @@ side.
 http://lists.linbit.com/pipermail/drbd-cvs/2007-August/001613.html
 
 -Phil
--- 
+--=20
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
 : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
