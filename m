@@ -1,22 +1,17 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mescal.linbit (unknown [81.16.158.130])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 592D42DF6259
-	for <drbd-dev@lists.linbit.com>; Thu, 25 Oct 2007 12:16:22 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD8: unconfigured devices and scheduling
-	after_state_ch problem
-Date: Thu, 25 Oct 2007 12:16:21 +0200
-References: <BD7042533C2F8943A6A4257A9E31C454F47A11@EXNA.corp.stratus.com>
-In-Reply-To: <BD7042533C2F8943A6A4257A9E31C454F47A11@EXNA.corp.stratus.com>
+Return-Path: <Ernest.Montrose@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200710251216.21633.philipp.reisner@linbit.com>
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] drbdsetup  events patch to announce Split-brain
+Date: Thu, 25 Oct 2007 08:24:55 -0400
+Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47A1B@EXNA.corp.stratus.com>
+In-Reply-To: 200710251215.47192.philipp.reisner@linbit.com
+References: <BD7042533C2F8943A6A4257A9E31C454F479FA@EXNA.corp.stratus.com>
+	200710251215.47192.philipp.reisner@linbit.com
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,23 +21,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tuesday 16 October 2007 23:55:49 Montrose, Ernest wrote:
-> Hi all,
-> We have been seeing a problem where "unconfigured" devices e.g devices
-> that are Standalone and Diskless with sequential sync order schedule
-> after_state_ch().  The problem is that there isn't a worker thread in
-> this case.  So we observed two side effects. One all these queued work
-> make shutting down the node take a long time as unloading the driver
-> takes time to clean up. Two we can potentially have a memory exhaustion
-> issue.
+Phil,
+Currently we do not use the payload for anything.  I was just being
+paranoid thinking that we might need it in the future.  But you can drop
+it if you wish.  If we have a pressing need for it in the future, we'll
+deal with it then.
+
+Thanks.
+EM--
+
+-----Original Message-----
+From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
+Sent: Thursday, October 25, 2007 6:16 AM
+To: drbd-dev@linbit.com
+Cc: Montrose, Ernest
+Subject: Re: [Drbd-dev] drbdsetup events patch to announce Split-brain
+
+On Monday 01 October 2007 23:24:02 Montrose, Ernest wrote:
+> Hi,
 >
-> Included here is a patch to help fix the problem.
+> Included here is a small patch that I find useful when monitoring with
+> drbdsetup().  It adds the ability to generate an netlink event to user
+> space when drbd Split-brain and disconnect.  Based on that event we
+can
+> then take action. I could not find a more
+> convenient way to know that a split-brain occurred other then looking
+in
+> /var/log/messages.
 >
 
-Right, I applied this...
+Hi Ernest,
 
--Phil
--- 
+I have nearly overlooked this patch...=20
+You are right, it is definitely a good idea to have that.=20
+
+I just need to change the tag number for the split_brain flag,
+since that number is already allocated in drbd-8.2.0.=20
+
+The question I have, what is the flag good for ? Do you envision
+an future use of it ?  otherwise I would drop it, it is possible
+to have such an cn packet, that does not carry any futher data...
+
+-phil
+--=20
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
 : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
