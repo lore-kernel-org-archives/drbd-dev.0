@@ -1,17 +1,12 @@
-Return-Path: <Ernest.Montrose@stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: nodes deadlock in PausedSync{ST]
-Date: Thu, 1 Nov 2007 08:03:19 -0400
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47A28@EXNA.corp.stratus.com>
-In-Reply-To: 200710311446.42512.philipp.reisner@linbit.com
-References: <BD7042533C2F8943A6A4257A9E31C454F47A25@EXNA.corp.stratus.com>
-	200710311446.42512.philipp.reisner@linbit.com
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C81F2C.34A1F20F"
+Date: Sun, 4 Nov 2007 16:46:47 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B376710707453A@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] PATCH: Missing state change netlink events
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,54 +16,70 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-Thanks! I will test it all and let you know of any issues.
+This is a multi-part message in MIME format.
 
-EM--
+------_=_NextPart_001_01C81F2C.34A1F20F
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
------Original Message-----
-From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
-Sent: Wednesday, October 31, 2007 9:47 AM
-To: drbd-dev@linbit.com
-Cc: Montrose, Ernest
-Subject: Re: [Drbd-dev] DRBD8: nodes deadlock in PausedSync{ST]
+ <<ava-3834.patch>> We have noticed that not all state changes are being
+reported via netlink (as seen with the 'drbdsetup /dev/drbd0 events -a
+-u' command) - the reason for this is that the state broadcast is done
+in after_state_ch using the _current_ mdev state when it runs - it's
+entirely possible for two state changes to occur in quick succession
+before the after_state_ch worker runs which results in the same state
+being broadcast twice - this is especially a problem if you are looking
+to see disk Failed state changes as the state tends to change to Failed
+and then to Diskless very quickly, which can result in the Diskless
+state being reported twice.
 
-On Monday 29 October 2007 23:33:29 Montrose, Ernest wrote:
-> Hi all,
-> I have been struggling with a problem here where the nodes enter
-> PausedSync[T|S] and stay there.
-> This happens when one node come up from a fresh attach, connect
-> sequence.  I think the issue happens this way. Say we have two volumes
-> drbd5 and drbd16 and we attempt to connect both of them at roughly the
-> same time.  Futhermore, drbd5 and 16 will require syncing say as sync
-> target. What I observe is this:
-> *	drbd16 is connecting and drbd5 is syncing. So 16 is paused isp=3D1
-> *	drbd16 enters receive_state() but before acquiring the req_lock
-> that thread loses the CPU to drbd5 that is finishing syncing.
-After_isp
-> is cleared on 16 giving drbd16 the green light to continue syncing. So
-> far so good.
-> *	Now drbd16 resumes with the old peer_isp=3D1
-> *	So now we are paused forever.
->
-> So I think receive_state() is just racy but I could be wrong. I am
-> really not sure how to fix this but I include a patch here that may
-help
-> to at least illustrate the problem. It seems close window for this
-> particular race somewhat.
->
+I think the fix is simple - modify the code so that after_state_ch
+broadcasts the new state rather than the current state (patch attached)
+- I would have removed the passing of mdev completely from
+drbd_bcast_state() if it weren't for the fact it is required by the
+generated to_tags function. I'm testing this at the moment but it's a
+little hard to be sure it's right since this requires fairly tight
+timing.
 
-Hi Ernest,
+Simon
 
-You patch fixes the issue.
 
-I spent an hour or so to understanding the exact timing, and drew=20
-diagrams of it... it is fixed with that change. No race left, I think.
+------_=_NextPart_001_01C81F2C.34A1F20F
+Content-Type: application/octet-stream;
+	name="ava-3834.patch"
+Content-Transfer-Encoding: base64
+Content-Description: ava-3834.patch
+Content-Disposition: attachment;
+	filename="ava-3834.patch"
 
-I committed it to my git tree.
+SW5kZXg6IHNyYy9kcmJkL2RyYmRfbmwuYwo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSBzcmMvZHJiZC9kcmJkX25s
+LmMJKHJldmlzaW9uIDIwNjEwKQorKysgc3JjL2RyYmQvZHJiZF9ubC5jCSh3b3JraW5nIGNvcHkp
+CkBAIC0xNjg4LDcgKzE2ODgsNyBAQAogCiBhdG9taWNfdCBkcmJkX25sX3NlcSA9IEFUT01JQ19J
+TklUKDIpOyAvLyB0d28uCiAKLXZvaWQgZHJiZF9iY2FzdF9zdGF0ZShkcmJkX2RldiAqbWRldikK
+K3ZvaWQgZHJiZF9iY2FzdF9zdGF0ZShkcmJkX2RldiAqbWRldiwgZHJiZF9zdGF0ZV90IHN0YXRl
+KQogewogCWNoYXIgYnVmZmVyW3NpemVvZihzdHJ1Y3QgY25fbXNnKSsKIAkJICAgIHNpemVvZihz
+dHJ1Y3QgZHJiZF9ubF9jZmdfcmVwbHkpKwpAQCAtMTcwMCw3ICsxNzAwLDcgQEAKIAogCS8vIFdB
+Uk4oImRyYmRfYmNhc3Rfc3RhdGUoKSBnb3QgY2FsbGVkXG4iKTsKIAotCXRsID0gZ2V0X3N0YXRl
+X3RvX3RhZ3MobWRldiwoc3RydWN0IGdldF9zdGF0ZSopJm1kZXYtPnN0YXRlLHRsKTsKKwl0bCA9
+IGdldF9zdGF0ZV90b190YWdzKG1kZXYsKHN0cnVjdCBnZXRfc3RhdGUqKSZzdGF0ZSx0bCk7CiAJ
+KnRsKysgPSBUVF9FTkQ7IC8qIENsb3NlIHRoZSB0YWcgbGlzdCAqLwogCiAJY25fcmVwbHktPmlk
+LmlkeCA9IENOX0lEWF9EUkJEOwpJbmRleDogc3JjL2RyYmQvZHJiZF9tYWluLmMKPT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PQotLS0gc3JjL2RyYmQvZHJiZF9tYWluLmMJKHJldmlzaW9uIDIwNjEwKQorKysgc3JjL2RyYmQv
+ZHJiZF9tYWluLmMJKHdvcmtpbmcgY29weSkKQEAgLTg3Miw3ICs4NzIsNyBAQAogCX0KIAogCS8q
+IEluZm9ybSB1c2Vyc3BhY2UgYWJvdXQgdGhlIGNoYW5nZS4uLiAqLwotCWRyYmRfYmNhc3Rfc3Rh
+dGUobWRldik7CisJZHJiZF9iY2FzdF9zdGF0ZShtZGV2LCBucyk7CiAKIAkvKiBIZXJlIHdlIGhh
+dmUgdGhlIGFjdGlvbnMgdGhhdCBhcmUgcGVyZm9ybWVkIGFmdGVyIGEKIAkgICBzdGF0ZSBjaGFu
+Z2UuIFRoaXMgZnVuY3Rpb24gbWlnaHQgc2xlZXAgKi8KSW5kZXg6IHNyYy9kcmJkL2RyYmRfaW50
+LmgKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PQotLS0gc3JjL2RyYmQvZHJiZF9pbnQuaAkocmV2aXNpb24gMjA2MTApCisr
+KyBzcmMvZHJiZC9kcmJkX2ludC5oCSh3b3JraW5nIGNvcHkpCkBAIC0xNDE1LDcgKzE0MTUsNyBA
+QAogCiB2b2lkIGRyYmRfbmxfY2xlYW51cCh2b2lkKTsKIGludCBfX2luaXQgZHJiZF9ubF9pbml0
+KHZvaWQpOwotdm9pZCBkcmJkX2JjYXN0X3N0YXRlKGRyYmRfZGV2ICptZGV2KTsKK3ZvaWQgZHJi
+ZF9iY2FzdF9zdGF0ZShkcmJkX2RldiAqbWRldiwgZHJiZF9zdGF0ZV90IHN0YXRlKTsKIHZvaWQg
+ZHJiZF9iY2FzdF9zeW5jX3Byb2dyZXNzKGRyYmRfZGV2ICptZGV2KTsKIHZvaWQgZHJiZF9iY2Fz
+dF9zcGxpdF9icmFpbihkcmJkX2RldiAqbWRldixpbnQgZmxhZyk7CiAK
 
--Phil
---=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+------_=_NextPart_001_01C81F2C.34A1F20F--
