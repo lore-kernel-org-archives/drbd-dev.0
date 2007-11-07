@@ -1,13 +1,14 @@
 Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C820F0.159A8C0E"
-Date: Tue, 6 Nov 2007 22:41:29 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B3767107074967@EXNA.corp.stratus.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 6 Nov 2007 22:54:02 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B376710707496D@EXNA.corp.stratus.com>
 From: "Graham, Simon" <Simon.Graham@stratus.com>
 To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] More cases where drbd touches mdev after releasing
-	reference
+Subject: [Drbd-dev] Handling on-disk caches
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,148 +18,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+A few months ago, we had a discussion about how to handle systems with
+on-disk caches enabled in the face of failures which can cause the cache
+to be lost after disk writes are completed back to DRBD. At the time,
+the suggestion was to rely on the Linux barrier implementation which is
+used by the file systems to ensure correct behavior in the face of disk
+caches.
 
-------_=_NextPart_001_01C820F0.159A8C0E
-Content-Type: multipart/alternative;
-	boundary="----_=_NextPart_002_01C820F0.159A8C0E"
+I've now had time to get back to this and review the Linux barrier
+implementation and it's become clear to me that the barrier
+implementation is insufficient -- imagine the case where a write is
+being done, it completes on the secondary (but is still in disk cache
+there), then we power off this node -- NO errors are reported to Linux
+on the primary (because the other half of the raid set is still there,
+the original IO completes successfully BUT we have a difference side to
+side...
 
+So a failure of the secondary is NOT reflected back to linux and
+therefore we can get out of sync in a way that does not track the blocks
+that need to be resynced independent of the use of barriers.
 
-------_=_NextPart_002_01C820F0.159A8C0E
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Consider the following sequence of writes:
 
-Had a crash today caused by another place where the code touches the
-mdev structure without first taking a local reference (actually after
-releasing the reference in _req_mod) - in this case, when handling a
-read error.=20
+[1] [2] [3] [barrier] [4] [5]
 
-=20
+If we've processed [1] through [3] and the writes have completed on both
+primary and secondary but the data is sitting in the disk cache and then
+the secondary is powered off, the following occurs:
 
-I think it's just a matter of moving the dec_local() calls to after
-anything that might touch the mdev similar to what we did a while back
-to other cases in this function - see attached patch. I'm testing now,
-but I think this is pretty clearly wrong.
+1. The primary doesn't return any error to Linux
+2. The primary goes ahead and processes the [barrier] (which flushes
+[1]-[3] to disk then
+   performs [4] and [5] and includes the blocks covered by these in the
+DRBD bitmap.
+3. Now the Secondary comes back -- we ONLY resync [4] and [5] even
+though [1]-[3] never made it
+   to disk (because we didn't execute the [barrier] on the secondary)
 
-=20
+I think the solution to this consists of a number of changes:
 
+1. As suggested previously, DRBD should respect barriers on the
+secondary (by passing the appropriate=20
+   flags to the secondary) -- this will handle unexpected failure of the
+primary.
+2. Meta-data updates (certainly the AL but possibly all meta-data
+updates) should be
+   issued as barrier requests (so that we know these are on disk before
+issuing the
+   associated writes) (I don't think they are currently)
+3. DRBD should include the area addressed by the AL when recovering from
+an unexpected
+   secondary failure. There are two approaches for this:
+   a) Maintain the AL on both sides - when the secondary restarts, add
+the AL to the
+      set of blocks needing to be resynced as is done on the primary
+today
+   b) Add the current AL to the bitmap on the primary when it loses
+contact with the
+      secondary.
+  The second is probably easier and is, I think, just as effective --
+even if the primary
+  fails as well (so we lose the in memory bitmap), when it comes back it
+WILL add the on-disk
+  AL to the bitmap and we wont resync until it comes back...
+
+What do you think?
 Simon
-
-
-------_=_NextPart_002_01C820F0.159A8C0E
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" =
-xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
-xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns:x=3D"urn:schemas-microsoft-com:office:excel" =
-xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" =
-xmlns=3D"http://www.w3.org/TR/REC-html40">
-
-<head>
-<meta http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Dus-ascii">
-<meta name=3DGenerator content=3D"Microsoft Word 12 (filtered medium)">
-<style>
-<!--
- /* Font Definitions */
- @font-face
-	{font-family:"Cambria Math";
-	panose-1:2 4 5 3 5 4 6 3 2 4;}
-@font-face
-	{font-family:Calibri;
-	panose-1:2 15 5 2 2 2 4 3 2 4;}
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{margin:0in;
-	margin-bottom:.0001pt;
-	font-size:11.0pt;
-	font-family:"Calibri","sans-serif";}
-a:link, span.MsoHyperlink
-	{mso-style-priority:99;
-	color:blue;
-	text-decoration:underline;}
-a:visited, span.MsoHyperlinkFollowed
-	{mso-style-priority:99;
-	color:purple;
-	text-decoration:underline;}
-span.EmailStyle17
-	{mso-style-type:personal-compose;
-	font-family:"Calibri","sans-serif";
-	color:windowtext;}
-.MsoChpDefault
-	{mso-style-type:export-only;}
-@page Section1
-	{size:8.5in 11.0in;
-	margin:1.0in 1.0in 1.0in 1.0in;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-<!--[if gte mso 9]><xml>
- <o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
-</xml><![endif]--><!--[if gte mso 9]><xml>
- <o:shapelayout v:ext=3D"edit">
-  <o:idmap v:ext=3D"edit" data=3D"1" />
- </o:shapelayout></xml><![endif]-->
-</head>
-
-<body lang=3DEN-US link=3Dblue vlink=3Dpurple>
-
-<div class=3DSection1>
-
-<p class=3DMsoNormal>Had a crash today caused by another place where the =
-code
-touches the mdev structure without first taking a local reference =
-(actually
-after releasing the reference in _<i>req</i>_mod) &#8211; in this case, =
-when
-handling a read error. <o:p></o:p></p>
-
-<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=3DMsoNormal>I think it&#8217;s just a matter of moving the =
-dec_local()
-calls to after anything that might touch the mdev similar to what we did =
-a
-while back to other cases in this function &#8211; see attached patch. =
-I&#8217;m
-testing now, but I think this is pretty clearly wrong.<o:p></o:p></p>
-
-<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=3DMsoNormal>Simon<o:p></o:p></p>
-
-</div>
-
-</body>
-
-</html>
-
-------_=_NextPart_002_01C820F0.159A8C0E--
-
-------_=_NextPart_001_01C820F0.159A8C0E
-Content-Type: application/octet-stream;
-	name="ava-3851.patch"
-Content-Transfer-Encoding: base64
-Content-Description: ava-3851.patch
-Content-Disposition: attachment;
-	filename="ava-3851.patch"
-
-SW5kZXg6IHNyYy9kcmJkL2RyYmRfcmVxLmMKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gc3JjL2RyYmQvZHJiZF9y
-ZXEuYwkocmV2aXNpb24gMjA2NzkpCisrKyBzcmMvZHJiZC9kcmJkX3JlcS5jCSh3b3JraW5nIGNv
-cHkpCkBAIC01MTIsMTAgKzUxMiwxMCBAQAogCiAJCWJpb19wdXQocmVxLT5wcml2YXRlX2Jpbyk7
-CiAJCXJlcS0+cHJpdmF0ZV9iaW8gPSBOVUxMOwotCQlkZWNfbG9jYWwobWRldik7CiAJCWlmIChi
-aW9fcncocmVxLT5tYXN0ZXJfYmlvKSA9PSBSRUFEQSkgewogCQkJLyogaXQgaXMgbGVnYWwgdG8g
-ZmFpbCBSRUFEQSAqLwogCQkJX3JlcV9tYXlfYmVfZG9uZShyZXEsZXJyb3IpOworCQkJZGVjX2xv
-Y2FsKG1kZXYpOwogCQkJYnJlYWs7CiAJCX0KIAkJLyogZWxzZSAqLwpAQCAtNTM2LDYgKzUzNiw3
-IEBACiAJCSAqIHdlIGdldCBiYWNrIGVub3VnaCBkYXRhIHRvIGJlIGFibGUgdG8gY2xlYXIgdGhl
-IGJpdHMgYWdhaW4uCiAJCSAqLwogCQlfX2RyYmRfY2hrX2lvX2Vycm9yKG1kZXYsRkFMU0UpOwor
-CQlkZWNfbG9jYWwobWRldik7CiAJCS8qIGZhbGwgdGhyb3VnaDogX3JlcV9tb2QocmVxLHF1ZXVl
-X2Zvcl9uZXRfcmVhZCk7ICovCiAKIAljYXNlIHF1ZXVlX2Zvcl9uZXRfcmVhZDoK
-
-------_=_NextPart_001_01C820F0.159A8C0E--
