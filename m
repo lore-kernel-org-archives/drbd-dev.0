@@ -6,8 +6,8 @@ Content-Type: text/plain;
 Content-Transfer-Encoding: quoted-printable
 Subject: RE: [Drbd-dev] DRBD8: disconnecting while already disconnecting can
 	hang the receiver
-Date: Tue, 27 Nov 2007 10:06:25 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47A40@EXNA.corp.stratus.com>
+Date: Tue, 27 Nov 2007 16:51:21 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47A42@EXNA.corp.stratus.com>
 In-Reply-To: 200711271552.33461.philipp.reisner@linbit.com
 References: <BD7042533C2F8943A6A4257A9E31C4543D15E5@EXNA.corp.stratus.com>
 	<BD7042533C2F8943A6A4257A9E31C454F47A3F@EXNA.corp.stratus.com>
@@ -24,29 +24,103 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 Phil,
-Interesting...With a delay at the end of drbd_disconnect() it happens
-every time for me.  What I did is that I delay for 30 seconds and
-quickly issue the disconnect in that window.
-I added this at the very end of drbd_disconnect:
- if(os.conn =3D=3D TearDown && ns.conn =3D=3D Unconnected && mdev->minor =
-=3D=3D11)
-{
- INFO("drbd_disconnect: ##5# EM-- Done but waiting 30 seconds######\n");
- set_current_state(TASK_INTERRUPTIBLE);
- schedule_timeout(HZ * 30);
- INFO("drbd_disconnect: ##5# EM-- Done ##### waiting 30
-seconds######\n");
-}
+Phil,
+Your modification to the original patch will break it actually.  The
+reason is that we can get into "disconnecting" anywhere.  Below I have
+some logs with the problem happening.
 
-Notice mdev->minor =3D=3D 11..you can change the 11 to some other device
-that you are doing the disconnect on.  Once you see the message "done
-waiting" then you'd issue the local disconnect.  Put the instrumented
-driver on one side (The side that will do the last disconnect)
+On Node0:
+# drbdsetup /dev/drbd16 disconnect
 
-BTW, I agree that your spin on the patch is less intrusive.  I will test
-that and let you know.
+Nov 27 16:38:20 node1 kernel: drbd16: peer( Secondary -> Unknown ) conn(
+Connected -> Disconnecting ) pdsk( UpToDate -> DUnknown )
+Nov 27 16:38:20 node1 kernel: drbd16: Creating new current UUID
+Nov 27 16:38:20 node1 kernel: drbd16: short read expecting header on
+sock: r=3D-512
+Nov 27 16:38:20 node1 kernel: drbd16: asender terminated
+Nov 27 16:38:20 node1 kernel: drbd16: tl_clear()
+Nov 27 16:38:20 node1 kernel: drbd16: Connection closed
+Nov 27 16:38:20 node1 kernel: drbd16: Writing meta data super block now.
+Nov 27 16:38:20 node1 kernel: drbd16: conn( Disconnecting -> StandAlone
+)
+Nov 27 16:38:20 node1 kernel: drbd16: receiver terminated
+Nov 27 16:38:23 node1 kernel: drbd16: conn( StandAlone -> Unconnected )
+Nov 27 16:38:23 node1 kernel: drbd16: receiver (re)started
+Nov 27 16:38:23 node1 kernel: drbd16: conn( Unconnected -> WFConnection
+)
+Nov 27 16:38:26 node1 kernel: drbd16: conn( WFConnection ->
+WFReportParams )
+Nov 27 16:38:26 node1 kernel: drbd16: Handshake successful: DRBD Network
+Protocol version 86
+Nov 27 16:38:26 node1 kernel: drbd16: peer( Unknown -> Secondary ) conn(
+WFReportParams -> WFBitMapS ) pdsk( DUnknown -> UpToDate )
+Nov 27 16:38:26 node1 kernel: drbd16: Writing meta data super block now.
+Nov 27 16:38:26 node1 kernel: drbd16: conn( WFBitMapS -> SyncSource )
+pdsk( UpToDate -> Inconsistent )
+Nov 27 16:38:26 node1 kernel: drbd16: Began resync as SyncSource (will
+sync 4 KB [1 bits set]).
+Nov 27 16:38:26 node1 kernel: drbd16: Writing meta data super block now.
+Nov 27 16:38:26 node1 kernel: drbd16: Resync done (total 1 sec; paused 0
+sec; 4 K/sec)
+Nov 27 16:38:26 node1 kernel: drbd16: conn( SyncSource -> Connected )
+pdsk( Inconsistent -> UpToDate )
+Nov 27 16:38:27 node1 kernel: drbd16: Writing meta data super block now.
 
-EM--
+=3D=3D=3D=3D=3D=3DOn Node1=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+Nov 27 16:38:20 node0 kernel: drbd16: peer( Primary -> Unknown ) conn(
+Connected -> TearDown ) pdsk( UpToDate -> DUnknown )
+Nov 27 16:38:20 node0 kernel: drbd16: Writing meta data super block now.
+Nov 27 16:38:20 node0 kernel: drbd16: meta connection shut down by peer.
+Nov 27 16:38:20 node0 kernel: drbd16: asender terminated
+Nov 27 16:38:20 node0 kernel: drbd16: tl_clear()
+Nov 27 16:38:20 node0 kernel: drbd16: Connection closed
+Nov 27 16:38:20 node0 kernel: drbd16: conn( TearDown -> Unconnected )
+Nov 27 16:38:20 node0 kernel: drbd16: drbd_disconnect: ##5# EM-- Done
+but waiting 30 seconds######
+
+=3D=3D=3D=3DIssue disconnect here=3D=3D=3D=3D=3D
+# drbdsetup /dev/drbd16 disconnect
+No response from the DRBD driver! Is the module loaded?
+Nov 27 16:38:26 node0 kernel: drbd16: conn( Unconnected -> Disconnecting
+)
+Nov 27 16:38:26 node0 kernel: drbd16: drbd_nl_disconnect: EM-- Start
+wait_event_interruptible for  mdev->state.conn=3D=3DStandAlone ****
+Nov 27 16:38:26 node0 kernel: drbd16: drbd_disconnect: ##5# EM-- Done
+##### waiting 30 seconds######
+Nov 27 16:38:26 node0 kernel: drbd16: receiver terminated
+Nov 27 16:38:26 node0 kernel: drbd16: receiver (re)started
+Nov 27 16:38:26 node0 kernel: drbd16: ASSERT( mdev->state.conn >=3D
+Unconnected ) in
+/sandbox/emontros/devel/trunk/platform/drbd/src/drbd/drbd_receiver.c:715
+Nov 27 16:38:26 node0 kernel: drbd16: conn( Disconnecting ->
+WFConnection )
+Nov 27 16:38:26 node0 kernel: drbd16: conn( WFConnection ->
+WFReportParams )
+Nov 27 16:38:26 node0 kernel: drbd16: Handshake successful: DRBD Network
+Protocol version 86
+Nov 27 16:38:26 node0 kernel: drbd16: receive_state: EM-- ....
+Nov 27 16:38:26 node0 kernel: drbd16: receive_state: EM-- ....calling
+sync_handshake
+Nov 27 16:38:26 node0 kernel: drbd16: peer( Unknown -> Primary ) conn(
+WFReportParams -> WFBitMapT ) pdsk( DUnknown -> UpToDate )
+Nov 27 16:38:26 node0 kernel: drbd16: Writing meta data super block now.
+Nov 27 16:38:26 node0 kernel: drbd16: conn( WFBitMapT -> WFSyncUUID )
+Nov 27 16:38:26 node0 kernel: drbd16: conn( WFSyncUUID -> SyncTarget )
+disk( UpToDate -> Inconsistent )
+Nov 27 16:38:26 node0 kernel: drbd16: Began resync as SyncTarget (will
+sync 4 KB [1 bits set]).
+Nov 27 16:38:26 node0 kernel: drbd16: Writing meta data super block now.
+Nov 27 16:38:27 node0 kernel: drbd16: Resync done (total 1 sec; paused 0
+sec; 4 K/sec)
+Nov 27 16:38:27 node0 kernel: drbd16: conn( SyncTarget -> Connected )
+disk( Inconsistent -> UpToDate )
+Nov 27 16:38:27 node0 kernel: drbd16: Writing meta data super block now.
+
+
+=3D=3D=3DDone logging=3D=3D=3D=3D
+
+Notice that on node1 we never transition to Standalone after the
+disconnect.  It is because of that that we wait forever.
 
 -----Original Message-----
 From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
