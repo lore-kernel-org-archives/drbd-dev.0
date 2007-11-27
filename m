@@ -1,18 +1,19 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD8: disconnecting while already disconnecting can
+	hang the receiver
+Date: Tue, 27 Nov 2007 15:52:33 +0100
+References: <BD7042533C2F8943A6A4257A9E31C4543D15E5@EXNA.corp.stratus.com>
+	<BD7042533C2F8943A6A4257A9E31C454F47A3F@EXNA.corp.stratus.com>
+In-Reply-To: <BD7042533C2F8943A6A4257A9E31C454F47A3F@EXNA.corp.stratus.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: disconnecting while already disconnecting can
-	hang the receiver
-Date: Tue, 27 Nov 2007 08:06:46 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47A3F@EXNA.corp.stratus.com>
-In-Reply-To: 200711271136.12545.philipp.reisner@linbit.com
-References: <BD7042533C2F8943A6A4257A9E31C4543D15E5@EXNA.corp.stratus.com>
-	200711271136.12545.philipp.reisner@linbit.com
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200711271552.33461.philipp.reisner@linbit.com>
+Cc: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,99 +23,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-I looked at my notes...To reproduce this you can fake the condition this
-way:
-* Issue a disconnect on node0 for r5.
-* Locally on node1 we will get into drbd_receiver.c:drbd_disconnect()
-and while there in drbd_disconnect() (Put a small delay there or
-something); issue a "drbdsetup /dev/drbd5 disconnect".
-
-This last drbdsetup will time out with " No response from the DRBD
-driver! Is the module loaded?"
-But the driver will be waiting forever in
-drbd_nl.c:drbd_nl_disconnect().
-
-Hope that helps. If not I'll back out my fix and sent you the exact
-instrumentation to reproduce it.
-
-EM--
-
------Original Message-----
-From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
-Sent: Tuesday, November 27, 2007 5:36 AM
-To: drbd-dev@linbit.com
-Cc: Montrose, Ernest
-Subject: Re: [Drbd-dev] DRBD8: disconnecting while already disconnecting
-can hang the receiver
-
-On Monday 19 November 2007 00:11:36 Montrose, Ernest wrote:
-> Hi all,
-> There is problem that manifest itself this way:
+On Tuesday 27 November 2007 14:06:46 Montrose, Ernest wrote:
+> Phil,
+> I looked at my notes...To reproduce this you can fake the condition this
+> way:
+> * Issue a disconnect on node0 for r5.
+> * Locally on node1 we will get into drbd_receiver.c:drbd_disconnect()
+> and while there in drbd_disconnect() (Put a small delay there or
+> something); issue a "drbdsetup /dev/drbd5 disconnect".
 >
-> Consider 2 nodes A and B,  "A" issues a disconnect to r2, B gets into
-> drbd_receiver.c: drbd_disconnect().  While B is disconnecting, it gets
-a
-> "disconnect" request for r2.  This hangs the receiver.
->
-> I am thinking that we should just not allow the state transition to
-> "disconnecting" if we are already doing so. We could redefine
-"Standalone"
-> to mean less then or equal to "TearDown" in some cases.  I include a
-patch
-> to show this.
+> This last drbdsetup will time out with " No response from the DRBD
+> driver! Is the module loaded?"
+> But the driver will be waiting forever in
+> drbd_nl.c:drbd_nl_disconnect().
 >
 
-Hi Ernest,
+Yes. This is what I tested. I had a delay in drbd_disconenct(). 
+I did not managed to get it into troubles.
 
-I tried hard to reproduce/understand this. I tried with various=20
-instrumentations but I can not reproduce this.=20
+BTW, while looking at the patch, I would have done it like this:
 
-I assumed that it "hangs" in the drbd_state_lock() function, but
-I could not find it by experiment nor by drawing timing diagrams.
+@@ -589,7 +589,8 @@ STATIC int is_valid_state_transition(drbd_dev* 
+mdev,drbd_state_t ns,drbd_state_t
+        if( (ns.conn == StartingSyncT || ns.conn == StartingSyncS ) &&
+            os.conn > Connected) rv=SS_ResyncRunning;
 
-Could you provide some LOGs of this event ?
+-       if( ns.conn == Disconnecting && os.conn == StandAlone)
++       if ( ns.conn == Disconnecting &&
++            ( os.conn == StandAlone || os.conn == TearDown ) )
+                rv=SS_AlreadyStandAlone;
 
-Thanks!
+        if( ns.disk > Attaching && os.disk == Diskless)
 
-The best I get:
-
-Node1:
-[42951592.560000] drbd0: state_locked
-[42951592.560000] drbd0: state_unlocked
-[42951592.560000] drbd0: peer( Secondary -> Unknown ) conn( Connected ->
-Disconnecting ) pdsk( UpToDate -> DUnknown )
-[42951592.560000] drbd0: state_locked
-[42951592.560000] drbd0: state_unlocked
-[42951592.560000] drbd0: Writing meta data super block now.
-[42951592.560000] drbd0: sock was shut down by peer
-[42951592.560000] drbd0: short read expecting header on sock: r=3D0
-[42951592.560000] drbd0: sock_recvmsg returned -104
-[42951592.560000] drbd0: asender terminated
-[42951592.560000] drbd0: tl_clear()
-[42951592.560000] drbd0: Connection closed
-[42951592.560000] drbd0: conn( Disconnecting -> StandAlone )
-[42951592.560000] drbd0: receiver terminated
-
-Node2:
-[42951603.570000] drbd0: state_locked
-[42951603.570000] drbd0: peer( Secondary -> Unknown ) conn( Connected ->
-TearDown ) pdsk( UpToDate -> DUnknown )
-[42951603.570000] drbd0: Writing meta data super block now.
-[42951603.570000] drbd0: state_unlocked
-[42951603.570000] drbd0: conn( TearDown -> Disconnecting )
-[42951603.570000] drbd0: asender terminated
-[42951603.570000] drbd0: tl_clear()
-[42951603.570000] drbd0: Connection closed
-[42951603.570000] drbd0: conn( Disconnecting -> StandAlone )
-[42951603.570000] drbd0: receiver terminated
-
-Of course the state transition TearDown -> Disconnecting is not
-right/fine, but
-I can not reproduce a hang of the receiver...
-
--phil
---=20
+-Phil
+-- 
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
 : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
