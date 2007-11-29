@@ -1,20 +1,12 @@
-Return-Path: <Ernest.Montrose@stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: disconnecting while already disconnecting can
-	hang the receiver
-Date: Wed, 28 Nov 2007 09:08:21 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47A44@EXNA.corp.stratus.com>
-In-Reply-To: 200711281409.50679.philipp.reisner@linbit.com
-References: <BD7042533C2F8943A6A4257A9E31C4543D15E5@EXNA.corp.stratus.com>
-	<BD7042533C2F8943A6A4257A9E31C454F47A3F@EXNA.corp.stratus.com>
-	<BD7042533C2F8943A6A4257A9E31C454F47A42@EXNA.corp.stratus.com>
-	200711281409.50679.philipp.reisner@linbit.com
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C83235.F08F16AE"
+Date: Wed, 28 Nov 2007 22:14:21 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B3767107283694@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] [PATCH] Supporting on-disk cache in DRBD, part 2
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,177 +16,191 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-Aha!! OK I apologize for this.  We are using ancient code indeed.  I
-will update and retest.  We were so busy chasing the other issues that
-we kept putting the merge on the back burner.  Sorry..
+This is a multi-part message in MIME format.
 
-EM--
------Original Message-----
-From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
-Sent: Wednesday, November 28, 2007 8:10 AM
-To: drbd-dev@linbit.com
-Cc: Montrose, Ernest
-Subject: Re: [Drbd-dev] DRBD8: disconnecting while already disconnecting
-can hang the receiver
+------_=_NextPart_001_01C83235.F08F16AE
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_002_01C83235.F08F16AE"
 
-On Tuesday 27 November 2007 22:51:21 Montrose, Ernest wrote:
-> Phil,
-> Phil,
-> Your modification to the original patch will break it actually.  The
-> reason is that we can get into "disconnecting" anywhere.  Below I have
-> some logs with the problem happening.
 
-Hi Ernest.
+------_=_NextPart_002_01C83235.F08F16AE
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-You are using some ancient code!
+Attached is a proposed patch (against 8.0.6) for the second part of the
+work to support on-disk caches in DRBD - I took Phil's excellent advice
+and used the existing transaction log - the change was simply to
+maintain this for Protocol C as well as A and B, everything else was
+already in place so that whenever we lose contact with the secondary,
+the existing TL log is added to the bitmap (covering everything sent
+since the last time a barrier was executed on the secondary).
 
-I removed the line breaks from your logs:
+=20
 
-On Node0:
-# drbdsetup /dev/drbd16 disconnect
+I was a tad concerned about the perf impact of this, so I ran some
+simple non-scientific benchmarks to see - what I actually did was run 9
+copies of bonnie (doing synchronous writes) against 9 different DRBD
+devices that were spread between two physical disks per system and
+averaged out the results for all the bonnie runs to get an idea of what
+one copy can expect to achieve (possibly not the best calculation, but
+it was the easiest to do). The results were actually encouraging -
+98-100% of the throughput with no change in CPU usage (although I'm not
+entirely convinced bonnie is really a good test).
 
-Nov 27 16:38:20 node1 kernel: drbd16: peer( Secondary -> Unknown ) conn(
-Connected -> Disconnecting ) pdsk( UpToDate -> DUnknown )
-Nov 27 16:38:20 node1 kernel: drbd16: Creating new current UUID Nov 27
-16:38:20 node1 kernel: drbd16: short read expecting header on sock:
-r=3D-512
-Nov 27 16:38:20 node1 kernel: drbd16: asender terminated
-Nov 27 16:38:20 node1 kernel: drbd16: tl_clear()
-Nov 27 16:38:20 node1 kernel: drbd16: Connection closed
-Nov 27 16:38:20 node1 kernel: drbd16: Writing meta data super block now.
-Nov 27 16:38:20 node1 kernel: drbd16: conn( Disconnecting -> StandAlone
-)
-Nov 27 16:38:20 node1 kernel: drbd16: receiver terminated
+=20
 
-[
-Nov 27 16:38:23 node1 kernel: drbd16: conn( StandAlone -> Unconnected )
-Nov 27 16:38:23 node1 kernel: drbd16: receiver (re)started
-Nov 27 16:38:23 node1 kernel: drbd16: conn( Unconnected -> WFConnection
-)
-Nov 27 16:38:26 node1 kernel: drbd16: conn( WFConnection ->
-WFReportParams )
-Nov 27 16:38:26 node1 kernel: drbd16: Handshake successful: DRBD Network
-Protocol version 86
-Nov 27 16:38:26 node1 kernel: drbd16: peer( Unknown -> Secondary ) conn(
-WFReportParams -> WFBitMapS ) pdsk( DUnknown -> UpToDate )
-Nov 27 16:38:26 node1 kernel: drbd16: Writing meta data super block now.
-Nov 27 16:38:26 node1 kernel: drbd16: conn( WFBitMapS -> SyncSource )
-pdsk( UpToDate -> Inconsistent )
-Nov 27 16:38:26 node1 kernel: drbd16: Began resync as SyncSource (will
-sync 4 KB [1 bits set]).
-Nov 27 16:38:26 node1 kernel: drbd16: Writing meta data super block now.
-Nov 27 16:38:26 node1 kernel: drbd16: Resync done (total 1 sec; paused 0
-sec; 4 K/sec)
-Nov 27 16:38:26 node1 kernel: drbd16: conn( SyncSource -> Connected )
-pdsk( Inconsistent -> UpToDate )
-Nov 27 16:38:27 node1 kernel: drbd16: Writing meta data super block now.
-]
+Simon
 
-=3D=3D=3D=3D=3D=3DOn Node1=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-Nov 27 16:38:20 node0 kernel: drbd16: peer( Primary -> Unknown ) conn(
-Connected -> TearDown ) pdsk( UpToDate -> DUnknown )
-Nov 27 16:38:20 node0 kernel: drbd16: Writing meta data super block now.
-Nov 27 16:38:20 node0 kernel: drbd16: meta connection shut down by peer.
-Nov 27 16:38:20 node0 kernel: drbd16: asender terminated
-Nov 27 16:38:20 node0 kernel: drbd16: tl_clear()
-Nov 27 16:38:20 node0 kernel: drbd16: Connection closed
-Nov 27 16:38:20 node0 kernel: drbd16: conn( TearDown -> Unconnected )
-Nov 27 16:38:20 node0 kernel: drbd16: drbd_disconnect: ##5# EM-- Done
-but waiting 30 seconds######
 
-=3D=3D=3D=3DIssue disconnect here=3D=3D=3D=3D=3D
-# drbdsetup /dev/drbd16 disconnect
-No response from the DRBD driver! Is the module loaded?
-Nov 27 16:38:26 node0 kernel: drbd16: conn( Unconnected -> Disconnecting
-)
-Nov 27 16:38:26 node0 kernel: drbd16: drbd_nl_disconnect: EM-- Start
-wait_event_interruptible for  mdev->state.conn=3D=3DStandAlone ****
-Nov 27 16:38:26 node0 kernel: drbd16: drbd_disconnect: ##5# EM-- Done
-##### waiting 30 seconds######
-Nov 27 16:38:26 node0 kernel: drbd16: receiver terminated
-Nov 27 16:38:26 node0 kernel: drbd16: receiver (re)started
-Nov 27 16:38:26 node0 kernel: drbd16: ASSERT( mdev->state.conn >=3D
-Unconnected ) in
-/sandbox/emontros/devel/trunk/platform/drbd/src/drbd/drbd_receiver.c:715
-Nov 27 16:38:26 node0 kernel: drbd16: conn( Disconnecting ->
-WFConnection )  =
-<=3D<<=3D=3D<<<=3D=3D=3D<<<<=3D=3D=3D=3D<<<<<=3D=3D=3D=3D=3D<<<<<<=3D=3D=3D=
-=3D=3D=3D<<<<<<<=3D=3D=3D=3D=3D=3D=3D
-Nov 27 16:38:26 node0 kernel: drbd16: conn( WFConnection ->
-WFReportParams )
-Nov 27 16:38:26 node0 kernel: drbd16: Handshake successful: DRBD Network
-Protocol version 86
-Nov 27 16:38:26 node0 kernel: drbd16: receive_state: EM-- ....
-Nov 27 16:38:26 node0 kernel: drbd16: receive_state: EM-- ....calling
-sync_handshake
-Nov 27 16:38:26 node0 kernel: drbd16: peer( Unknown -> Primary ) conn(
-WFReportParams -> WFBitMapT ) pdsk( DUnknown -> UpToDate )
-Nov 27 16:38:26 node0 kernel: drbd16: Writing meta data super block now.
-Nov 27 16:38:26 node0 kernel: drbd16: conn( WFBitMapT -> WFSyncUUID )
-Nov 27 16:38:26 node0 kernel: drbd16: conn( WFSyncUUID -> SyncTarget )
-disk( UpToDate -> Inconsistent )
-Nov 27 16:38:26 node0 kernel: drbd16: Began resync as SyncTarget (will
-sync 4 KB [1 bits set]).
-Nov 27 16:38:26 node0 kernel: drbd16: Writing meta data super block now.
-Nov 27 16:38:27 node0 kernel: drbd16: Resync done (total 1 sec; paused 0
-sec; 4 K/sec)
-Nov 27 16:38:27 node0 kernel: drbd16: conn( SyncTarget -> Connected )
-disk( Inconsistent -> UpToDate )
-Nov 27 16:38:27 node0 kernel: drbd16: Writing meta data super block now.
+------_=_NextPart_002_01C83235.F08F16AE
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-Look for the line marked with
-"<=3D<<=3D=3D<<<=3D=3D=3D<<<<=3D=3D=3D=3D<<<<<=3D=3D=3D=3D=3D<<<<<<=3D=3D=
-=3D=3D=3D=3D<<<<<<<=3D=3D=3D=3D=3D=3D=3D".
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" =
+xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
+xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" =
+xmlns=3D"http://www.w3.org/TR/REC-html40">
 
-This state transition fails (silently) in the current code. See the
-attached commit
-from Aug 31. In the mean time we did two releases (8.0.6 and 8.0.7) why
-is this
-patch not in your code-base ?
+<head>
+<meta http-equiv=3DContent-Type content=3D"text/html; =
+charset=3Dus-ascii">
+<meta name=3DGenerator content=3D"Microsoft Word 12 (filtered medium)">
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0in;
+	margin-bottom:.0001pt;
+	font-size:11.0pt;
+	font-family:"Calibri","sans-serif";}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	font-family:"Calibri","sans-serif";
+	color:windowtext;}
+.MsoChpDefault
+	{mso-style-type:export-only;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.0in 1.0in 1.0in;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+<!--[if gte mso 9]><xml>
+ <o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <o:shapelayout v:ext=3D"edit">
+  <o:idmap v:ext=3D"edit" data=3D"1" />
+ </o:shapelayout></xml><![endif]-->
+</head>
 
-In the current code the problem you describe is simply not existing.
-Here are the logs from my machines:
+<body lang=3DEN-US link=3Dblue vlink=3Dpurple>
 
-node0:
-[42951113.120000] drbd0: peer( Secondary -> Unknown ) conn( Connected ->
-Disconnecting ) pdsk( UpToDate -> DUnknown )
-[42951113.120000] drbd0: sock was shut down by peer
-[42951113.120000] drbd0: short read expecting header on sock: r=3D0
-[42951113.120000] drbd0: meta connection shut down by peer.
-[42951113.120000] drbd0: asender terminated
-[42951113.120000] drbd0: tl_clear()
-[42951113.120000] drbd0: Connection closed
-[42951113.120000] drbd0: Writing meta data super block now.
-[42951113.120000] drbd0: conn( Disconnecting -> StandAlone )
-[42951113.120000] drbd0: receiver terminated
-[42951113.960000] drbd0: conn( StandAlone -> Unconnected )
-[42951113.960000] drbd0: receiver (re)started
-[42951113.960000] drbd0: conn( Unconnected -> WFConnection )
+<div class=3DSection1>
 
-node1:
-[42951105.980000] drbd0: peer( Secondary -> Unknown ) conn( Connected ->
-TearDown ) pdsk( UpToDate -> DUnknown )
-[42951105.980000] drbd0: Writing meta data super block now.
-[42951105.980000] drbd0: asender terminated
-[42951105.980000] drbd0: tl_clear()
-[42951105.980000] drbd0: Connection closed
-[42951105.980000] drbd0: conn( TearDown -> Unconnected )
-[42951105.980000] drbd0: Entering sleep!
-[42951107.160000] drbd0: conn( Unconnected -> Disconnecting )
-[42951115.990000] drbd0: Leaving sleep!
-[42951115.990000] drbd0: receiver terminated
-[42951115.990000] drbd0: receiver (re)started
-! ** !! Notice here. No state transition to WFConnection !! ** !
-[42951115.990000] drbd0: tl_clear()
-[42951115.990000] drbd0: Connection closed
-[42951115.990000] drbd0: conn( Disconnecting -> StandAlone )
-[42951115.990000] drbd0: Entering sleep!
-[42951126.000000] drbd0: Leaving sleep!
-[42951126.000000] drbd0: receiver terminated
+<p class=3DMsoNormal>Attached is a proposed patch (against 8.0.6) for =
+the second
+part of the work to support on-disk caches in DRBD &#8211; I took =
+Phil&#8217;s
+excellent advice and used the existing transaction log &#8211; the =
+change was
+simply to maintain this for Protocol C as well as A and B, everything =
+else was
+already in place so that whenever we lose contact with the secondary, =
+the
+existing TL log is added to the bitmap (covering everything sent since =
+the last
+time a barrier was executed on the secondary).<o:p></o:p></p>
 
--Phil
---=20
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=3DMsoNormal>I was a tad concerned about the perf impact of =
+this, so I
+ran some simple non-scientific benchmarks to see &#8211; what I actually =
+did
+was run 9 copies of bonnie (doing synchronous writes) against 9 =
+different DRBD
+devices that were spread between two physical disks per system and =
+averaged out
+the results for all the bonnie runs to get an idea of what one copy can =
+expect
+to achieve (possibly not the best calculation, but it was the easiest to =
+do).
+The results were actually encouraging &#8211; 98-100% of the throughput =
+with no
+change in CPU usage (although I&#8217;m not entirely convinced bonnie is =
+really
+a good test).<o:p></o:p></p>
+
+<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
+
+<p class=3DMsoNormal>Simon<o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>
+
+------_=_NextPart_002_01C83235.F08F16AE--
+
+------_=_NextPart_001_01C83235.F08F16AE
+Content-Type: application/octet-stream;
+	name="drbd-tl.patch"
+Content-Transfer-Encoding: base64
+Content-Description: drbd-tl.patch
+Content-Disposition: attachment;
+	filename="drbd-tl.patch"
+
+SW5kZXg6IGRyYmQtOC4wLjYvZHJiZC9kcmJkX21haW4uYwo9PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSBkcmJkLTgu
+MC42L2RyYmQvZHJiZF9tYWluLmMJKHJldmlzaW9uIDIxMzM1KQorKysgZHJiZC04LjAuNi9kcmJk
+L2RyYmRfbWFpbi5jCSh3b3JraW5nIGNvcHkpCkBAIC0yMjgsMTAgKzIyOCw3IEBACiAJYiA9IG1k
+ZXYtPm9sZGVzdF9iYXJyaWVyOwogCW1kZXYtPm9sZGVzdF9iYXJyaWVyID0gYi0+bmV4dDsKIAot
+CS8qIGluIHByb3RvY29sIEMgdGhpcyBsaXN0IHNob3VsZCBiZSBlbXB0eSwKLQkgKiB1bmxlc3Mg
+dGhlcmUgaXMgbG9jYWwgaW8gcGVuZGluZy4KLQkgKiBpbiBwcm90b2NvbCBBIGFuZCBCLCB0aGlz
+IHNob3VsZCBub3QgYmUgZW1wdHksIGV2ZW4gdGhvdWdoIHRoZQotCSAqIG1hc3Rlcl9iaW8ncyBj
+b3VsZCBhbHJlYWR5IGJlZW4gY29tcGxldGVkLiAgKi8KKwkvKiBDbGVhbiB1cCBsaXN0IG9mIHJl
+cXVlc3RzIHByb2Nlc3NlZCBkdXJpbmcgY3VycmVudCBlcG9jaCAqLwogCWxpc3RfZm9yX2VhY2hf
+c2FmZShsZSwgdGxlLCAmYi0+cmVxdWVzdHMpIHsKIAkJciA9IGxpc3RfZW50cnkobGUsIHN0cnVj
+dCBkcmJkX3JlcXVlc3QsdGxfcmVxdWVzdHMpOwogCQlfcmVxX21vZChyLCBiYXJyaWVyX2Fja2Vk
+LCAwKTsKSW5kZXg6IGRyYmQtOC4wLjYvZHJiZC9kcmJkX3JlcS5jCj09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KLS0tIGRy
+YmQtOC4wLjYvZHJiZC9kcmJkX3JlcS5jCShyZXZpc2lvbiAyMTMzNSkKKysrIGRyYmQtOC4wLjYv
+ZHJiZC9kcmJkX3JlcS5jCSh3b3JraW5nIGNvcHkpCkBAIC02NjEsMTAgKzY2MSwxNCBAQAogCQly
+ZXEtPnJxX3N0YXRlIHw9IFJRX05FVF9TSVM7CiAJY2FzZSBjb25mbGljdF9kaXNjYXJkZWRfYnlf
+cGVlcjoKIAkJLyogaW50ZXJlc3N0aW5nbHksIHRoaXMgaXMgdGhlIHNhbWUgdGhpbmchICovCisJ
+CXJlcS0+cnFfc3RhdGUgfD0gUlFfTkVUX0RPTkU7CisJCS8qIGZhbGwgdGhyb3VnaCAqLwogCWNh
+c2Ugd3JpdGVfYWNrZWRfYnlfcGVlcjoKIAkJLyogYXNzZXJ0IHNvbWV0aGluZz8gKi8KIAkJLyog
+cHJvdG9jb2wgQzsgc3VjY2Vzc2Z1bGx5IHdyaXR0ZW4gb24gcGVlciAqLwotCQlyZXEtPnJxX3N0
+YXRlIHw9IFJRX05FVF9ET05FOworCQkvKiBOb3RoaW5nIHRvIGRvIGhlcmUgLSB1c2VkIHRvIHNl
+dCBORVRfRE9ORSBidXQgbm8gbW9yZSAqLyAKKwkJLyogYXMgd2Ugd2FudCB0byBrZWVwIHRoZSB0
+bCBpbiBwbGFjZSBmb3IgYWxsIHByb3RvY29scyAqLworCiAJCS8qIHJlc3QgaXMgdGhlIHNhbWUg
+YXMgZm9yOiAqLwogCWNhc2UgcmVjdl9hY2tlZF9ieV9wZWVyOgogCQkvKiBwcm90b2NvbCBCOyBw
+cmV0ZW5kcyB0byBiZSBzdWNlc3NmdWxseSB3cml0dGVuIG9uIHBlZXIuCkBAIC02ODgsOSArNjky
+LDYgQEAKIAkJYnJlYWs7CiAKIAljYXNlIGJhcnJpZXJfYWNrZWQ6Ci0JCS8qIGNhbiBldmVuIGhh
+cHBlbiBmb3IgcHJvdG9jb2wgQywKLQkJICogd2hlbiBsb2NhbCBpbyBpcyBzdGlsbCBwZW5kaW5n
+LgotCQkgKiBpbiB3aGljaCBjYXNlIGl0IGRvZXMgbm90aGluZy4gKi8KIAkJaWYgKHJlcS0+cnFf
+c3RhdGUgJiBSUV9ORVRfUEVORElORykgewogCQkJLyogYmFycmllciBjYW1lIGluIGJlZm9yZSBh
+bGwgcmVxdWVzdHMgaGF2ZSBiZWVuIGFja2VkLgogCQkJICogdGhpcyBpcyBiYWQsIGJlY2F1c2Ug
+aWYgdGhlIGNvbm5lY3Rpb24gaXMgbG9zdCBub3csCg==
+
+------_=_NextPart_001_01C83235.F08F16AE--
