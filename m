@@ -1,16 +1,18 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Date: Thu, 29 Nov 2007 12:35:50 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: "Graham, Simon" <Simon.Graham@stratus.com>
-Subject: Re: [Drbd-dev] [PATCH] Supporting on-disk cache in DRBD, part 2
-Message-ID: <20071129113550.GC5684@barkeeper1.linbit>
-References: <342BAC0A5467384983B586A6B0B3767107283694@EXNA.corp.stratus.com>
+Return-Path: <Ernest.Montrose@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <342BAC0A5467384983B586A6B0B3767107283694@EXNA.corp.stratus.com>
-Cc: drbd-dev@lists.linbit.com
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] DRBD8: incorrect state transition Connected
+	->WFBitMapS and UpToDate->Inconsistent
+Date: Thu, 29 Nov 2007 19:01:49 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47A4D@EXNA.corp.stratus.com>
+In-Reply-To: 200711261531.53793.philipp.reisner@linbit.com
+References: <793061.80135.qm@web30507.mail.mud.yahoo.com>
+	200711261531.53793.philipp.reisner@linbit.com
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,35 +22,110 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Nov 28, 2007 at 10:14:21PM -0500, Graham, Simon wrote:
-> Attached is a proposed patch (against 8.0.6) for the second part of the work to
-> support on-disk caches in DRBD – I took Phil’s excellent advice and used the
-> existing transaction log – the change was simply to maintain this for Protocol
-> C as well as A and B, everything else was already in place so that whenever we
-> lose contact with the secondary, the existing TL log is added to the bitmap
-> (covering everything sent since the last time a barrier was executed on the
-> secondary).
-> 
->  
-> 
-> I was a tad concerned about the perf impact of this, so I ran some simple
-> non-scientific benchmarks to see – what I actually did was run 9 copies of
-> bonnie (doing synchronous writes) against 9 different DRBD devices that were
-> spread between two physical disks per system and averaged out the results for
-> all the bonnie runs to get an idea of what one copy can expect to achieve
-> (possibly not the best calculation, but it was the easiest to do). The results
-> were actually encouraging – 98-100% of the throughput with no change in CPU
-> usage (although I’m not entirely convinced bonnie is really a good test).
-> 
+Phil,
+Sorry it took me a while to get to this but I am still able to reproduce
+the problem.  It's either:
+1) I am using older code as we are unable to get latest code base for
+now. OR
+2) Your testing is a tad different then mine.  I use your two patches.
+But I wonder if you actually do the "drbdsetup dev0 pause-sync and
+resume-sync" exactly between the time you get the first and last sleep
+message. Also be aware that you have to have "syncer" set with
+--after=3D[-1,0,1,2..} for drbd0,1,2 and 3...etc. You would then do an
+"invalidate" say on drbd10 then a "pause" "resume" on drbd0.
 
-thanks, looks basically like I'd have done it.
-this is also the reason we I consolidated all those request state
-handling into the one central function.
+In my case, I do a :
+Drbdsetup /dev/drbd27 invalidate
+Then I wait for the message from drbd_resync_finished()
+I quickly do :
+drbdsetup /dev/drbd0 pause-sync
+usleep 1000
+drbdsetup /dev/drbd0 resume-sync
+usleep 1000
+drbdsetup /dev/drbd0 pause-sync
+usleep 1000
+drbdsetup /dev/drbd0 resume-sync
 
-and this part is probably harmless and potentially beneficial to do
-anyways, regardless of whether barriers are supported or not.
+I actually have a script that does this.=20
 
--- 
-: Lars Ellenberg                            Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
+EM--
+
+
+-----Original Message-----
+From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
+Sent: Monday, November 26, 2007 9:32 AM
+To: drbd-dev@linbit.com
+Cc: Ernest Montrose; Montrose, Ernest
+Subject: Re: [Drbd-dev] DRBD8: incorrect state transition Connected
+->WFBitMapS and UpToDate->Inconsistent
+
+On Friday 16 November 2007 03:36:19 Ernest Montrose wrote:
+> Phil,
+> I tested the patch and unfortunately it does not fix the race
+condition
+> though I believe it fixes the ASSERT issues.
+> Essentially, when the resync is done and we are in
+drbd_resync_finished()
+> if we pause the device then we send the state to the peer.  The peer
+is
+> done syncing at that point.  He does a sync_hanshake() that sends its
+state
+> to WBItMapS and Pdsk=3DInconsistent (since the target has not changed
+its
+> state to connected and UptoDate yet. When resync_finished is done we
+go
+> Uptodate and connected and we're stuck.
+>
+> I tested yet another idea which seems to close the racy window.  I
+turned
+> drbd_resync_finished into two parts.  A cleanup part that the worker
+can
+> schedule to do the clean up and a done part that
+> changes the state right away when the resync is done.  I include an
+> untested patch to illustrate that idea.
+>
+
+Hi Ernest,
+
+Finally the attached patch made it into the GIT repository
+(see 3a57119417c46c51dd4bc720ab7dbf14228f05bb.git.txt)
+It is slightly different from the patch I suggested at first
+
+As you could not confirm that the bugs is closed for you I tried
+to reproduce it here now (with the attached patch) and some
+instrumentation code to make the call to drbd_resync_finished()
+to last 10 seconds.
+
+I tested pausing and continuing on the SyncTarget and on the
+Sync Source side. I could not find any issues:
+
+[42949590.920000] drbd0: conn( StartingSyncT -> WFSyncUUID )
+[42949590.920000] drbd0: conn( WFSyncUUID -> SyncTarget )
+[42949590.920000] drbd0: Began resync as SyncTarget (will sync 262244 KB
+[65561 bits set]).
+[42949590.920000] drbd0: Writing meta data super block now.
+[42949669.270000] drbd0: Warn long sleep start
+[42949672.120000] drbd0: conn( SyncTarget -> PausedSyncT ) user_isp( 0
+-> 1 )
+[42949672.120000] drbd0: Resync suspended
+[42949678.610000] drbd0: conn( PausedSyncT -> SyncTarget ) user_isp( 1
+-> 0 )
+[42949678.610000] drbd0: Syncer continues.
+[42949679.280000] drbd0: Warn long sleep stop
+[42949679.280000] drbd0: Resync done (total 87 sec; paused 6 sec; 3236
+K/sec)
+[42949679.280000] drbd0: conn( SyncTarget -> Connected ) disk(
+Inconsistent -> UpToDate )
+[42949679.280000] drbd0: Writing meta data super block now.
+
+Ernest, can you please confirm that this issue is solved for you with
+that
+patch, or provide logfile output of an failing test ?
+
+Thanks!
+
+-phil
+--=20
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
