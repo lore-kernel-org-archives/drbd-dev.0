@@ -1,18 +1,19 @@
-Return-Path: <Ernest.Montrose@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [DRBD][PATCH] drbd_bitfild_endian.patch
+Date: Mon, 3 Dec 2007 17:52:03 +0100
+References: <474AF52C.6090409@ru.mvista.com> <474C12E0.6020306@ru.mvista.com>
+	<20071127105512.GA28512@racke.local>
+In-Reply-To: <20071127105512.GA28512@racke.local>
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] DRBD8: incorrect state transition Connected
-	->WFBitMapS and UpToDate->Inconsistent
-Date: Thu, 29 Nov 2007 19:01:49 -0500
-Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47A4D@EXNA.corp.stratus.com>
-In-Reply-To: 200711261531.53793.philipp.reisner@linbit.com
-References: <793061.80135.qm@web30507.mail.mud.yahoo.com>
-	200711261531.53793.philipp.reisner@linbit.com
-From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200712031752.03934.philipp.reisner@linbit.com>
+Cc: Maxim Uvarov <muvarov@ru.mvista.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,110 +23,44 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil,
-Sorry it took me a while to get to this but I am still able to reproduce
-the problem.  It's either:
-1) I am using older code as we are unable to get latest code base for
-now. OR
-2) Your testing is a tad different then mine.  I use your two patches.
-But I wonder if you actually do the "drbdsetup dev0 pause-sync and
-resume-sync" exactly between the time you get the first and last sleep
-message. Also be aware that you have to have "syncer" set with
---after=3D[-1,0,1,2..} for drbd0,1,2 and 3...etc. You would then do an
-"invalidate" say on drbd10 then a "pause" "resume" on drbd0.
-
-In my case, I do a :
-Drbdsetup /dev/drbd27 invalidate
-Then I wait for the message from drbd_resync_finished()
-I quickly do :
-drbdsetup /dev/drbd0 pause-sync
-usleep 1000
-drbdsetup /dev/drbd0 resume-sync
-usleep 1000
-drbdsetup /dev/drbd0 pause-sync
-usleep 1000
-drbdsetup /dev/drbd0 resume-sync
-
-I actually have a script that does this.=20
-
-EM--
-
-
------Original Message-----
-From: Philipp Reisner [mailto:philipp.reisner@linbit.com]=20
-Sent: Monday, November 26, 2007 9:32 AM
-To: drbd-dev@linbit.com
-Cc: Ernest Montrose; Montrose, Ernest
-Subject: Re: [Drbd-dev] DRBD8: incorrect state transition Connected
-->WFBitMapS and UpToDate->Inconsistent
-
-On Friday 16 November 2007 03:36:19 Ernest Montrose wrote:
-> Phil,
-> I tested the patch and unfortunately it does not fix the race
-condition
-> though I believe it fixes the ASSERT issues.
-> Essentially, when the resync is done and we are in
-drbd_resync_finished()
-> if we pause the device then we send the state to the peer.  The peer
-is
-> done syncing at that point.  He does a sync_hanshake() that sends its
-state
-> to WBItMapS and Pdsk=3DInconsistent (since the target has not changed
-its
-> state to connected and UptoDate yet. When resync_finished is done we
-go
-> Uptodate and connected and we're stuck.
+On Tuesday 27 November 2007 11:55:12 Lars Ellenberg wrote:
+> On Tue, Nov 27, 2007 at 12:51:44PM +0000, Maxim Uvarov wrote:
+> > By the way, Lars,  don't  use if defined(__LITTLE_ENDIAN) condition
+> > because  __LITTLE_ENDIAN and __BIG_ENDIAN are always defined :)
 >
-> I tested yet another idea which seems to close the racy window.  I
-turned
-> drbd_resync_finished into two parts.  A cleanup part that the worker
-can
-> schedule to do the clean up and a done part that
-> changes the state right away when the resync is done.  I include an
-> untested patch to illustrate that idea.
+> in userland, yes.
+> in kernel, no.
 >
+> in kernel there is no "if BYTE_ORDER == __LITTLE_ENDIAN",
+> there is only "ifdef __LITTLE_ENDIAN".
+>
+> unless you prove me wrong.
 
-Hi Ernest,
+Hi,
 
-Finally the attached patch made it into the GIT repository
-(see 3a57119417c46c51dd4bc720ab7dbf14228f05bb.git.txt)
-It is slightly different from the patch I suggested at first
+I have decided to go with Maxim's initial approach == Lars' approach.
 
-As you could not confirm that the bugs is closed for you I tried
-to reproduce it here now (with the attached patch) and some
-instrumentation code to make the call to drbd_resync_finished()
-to last 10 seconds.
+I decided for that because according to GCC's documentation the
+layout of bit-fields is part of the platform's ABI. It is not
+compiler version dependant...
 
-I tested pausing and continuing on the SyncTarget and on the
-Sync Source side. I could not find any issues:
-
-[42949590.920000] drbd0: conn( StartingSyncT -> WFSyncUUID )
-[42949590.920000] drbd0: conn( WFSyncUUID -> SyncTarget )
-[42949590.920000] drbd0: Began resync as SyncTarget (will sync 262244 KB
-[65561 bits set]).
-[42949590.920000] drbd0: Writing meta data super block now.
-[42949669.270000] drbd0: Warn long sleep start
-[42949672.120000] drbd0: conn( SyncTarget -> PausedSyncT ) user_isp( 0
--> 1 )
-[42949672.120000] drbd0: Resync suspended
-[42949678.610000] drbd0: conn( PausedSyncT -> SyncTarget ) user_isp( 1
--> 0 )
-[42949678.610000] drbd0: Syncer continues.
-[42949679.280000] drbd0: Warn long sleep stop
-[42949679.280000] drbd0: Resync done (total 87 sec; paused 6 sec; 3236
-K/sec)
-[42949679.280000] drbd0: conn( SyncTarget -> Connected ) disk(
-Inconsistent -> UpToDate )
-[42949679.280000] drbd0: Writing meta data super block now.
-
-Ernest, can you please confirm that this issue is solved for you with
-that
-patch, or provide logfile output of an failing test ?
+Please review commit 
+d43cf82288b7cbd703aa0b587c4ab32605fb97c5
 
 Thanks!
 
+Changing the protocol is not an option for drbd-8.0. The protocol
+is frozen (for little endian).
+
+That breaks of course rolling upgrades for users of existing
+clusters on bit-endian machines.... if there are any.
+
+BTW: If we really want we could even fix this, since we know
+     that _pad is always 0 .... but it is not worth the effort
+     when there are no users out there.
+
 -phil
---=20
+-- 
 : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
 : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
 : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
