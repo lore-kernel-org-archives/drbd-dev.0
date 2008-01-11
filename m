@@ -1,12 +1,13 @@
 Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C85464.63AE9C7D"
-Date: Fri, 11 Jan 2008 10:12:31 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B3767107C5AF52@EXNA.corp.stratus.com>
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C85464.B686C67A"
+Date: Fri, 11 Jan 2008 10:14:50 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B3767107C5AF55@EXNA.corp.stratus.com>
 From: "Graham, Simon" <Simon.Graham@stratus.com>
 To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [DRBD8.0 PATCH] Make minor_count visible through sysfs
+Subject: [Drbd-dev] [DRBD-8.0 PATCH] Make heartbeat script conform to LSB
+	spec
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,25 +19,26 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 This is a multi-part message in MIME format.
 
-------_=_NextPart_001_01C85464.63AE9C7D
+------_=_NextPart_001_01C85464.B686C67A
 Content-Type: multipart/alternative;
-	boundary="----_=_NextPart_002_01C85464.63AE9C7D"
+	boundary="----_=_NextPart_002_01C85464.B686C67A"
 
 
-------_=_NextPart_002_01C85464.63AE9C7D
+------_=_NextPart_002_01C85464.B686C67A
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-This patch makes the minor_count module parameter visible in sysfs which
-is useful for other tools
+The drbddisk script has a few places where it returns exit codes that
+don't conform to the LSB spec when it could - this patch corrects the
+ones I've seen.
 
 =20
 
 Simon
 
 
-------_=_NextPart_002_01C85464.63AE9C7D
+------_=_NextPart_002_01C85464.B686C67A
 Content-Type: text/html;
 	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -128,9 +130,11 @@ div.Section1
 
 <div class=3DSection1>
 
-<p class=3DMsoNormal>This patch makes the minor_count module parameter =
-visible in
-sysfs which is useful for other tools<o:p></o:p></p>
+<p class=3DMsoNormal>The drbddisk script has a few places where it =
+returns exit
+codes that don&#8217;t conform to the LSB spec when it could &#8211; =
+this patch
+corrects the ones I&#8217;ve seen.<o:p></o:p></p>
 
 <p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
 
@@ -142,30 +146,34 @@ sysfs which is useful for other tools<o:p></o:p></p>
 
 </html>
 
-------_=_NextPart_002_01C85464.63AE9C7D--
+------_=_NextPart_002_01C85464.B686C67A--
 
-------_=_NextPart_001_01C85464.63AE9C7D
+------_=_NextPart_001_01C85464.B686C67A
 Content-Type: application/octet-stream;
-	name="0001-Make-minor_count-visible-through-sysfs.patch"
+	name="0002-Make-heartbeat-script-conform-to-LSB-spec.patch"
 Content-Transfer-Encoding: base64
-Content-Description: 0001-Make-minor_count-visible-through-sysfs.patch
+Content-Description: 0002-Make-heartbeat-script-conform-to-LSB-spec.patch
 Content-Disposition: attachment;
-	filename="0001-Make-minor_count-visible-through-sysfs.patch"
+	filename="0002-Make-heartbeat-script-conform-to-LSB-spec.patch"
 
-RnJvbSBmMzc2NTljZmNkZTRkOGYyNzA1OWZlNWJjNGQ5M2M4ZDc4ODIzZTRhIE1vbiBTZXAgMTcg
+RnJvbSBiNTYzNzE3ODVhYmM1ZjIyNjk4ZGNmZmU2OTllMDQzNGE4OGJlYWI3IE1vbiBTZXAgMTcg
 MDA6MDA6MDAgMjAwMQpGcm9tOiBTaW1vbiBHcmFoYW0gPHNncmFoYW1AYW5uYS5zbi5zdHJhdHVz
-LmNvbT4KRGF0ZTogRnJpLCAyMSBEZWMgMjAwNyAyMToxMDozNSAtMDUwMApTdWJqZWN0OiBbUEFU
-Q0hdIE1ha2UgbWlub3JfY291bnQgdmlzaWJsZSB0aHJvdWdoIHN5c2ZzCgotLS0KIGRyYmQvZHJi
-ZF9tYWluLmMgfCAgICAyICstCiAxIGZpbGVzIGNoYW5nZWQsIDEgaW5zZXJ0aW9ucygrKSwgMSBk
-ZWxldGlvbnMoLSkKCmRpZmYgLS1naXQgYS9kcmJkL2RyYmRfbWFpbi5jIGIvZHJiZC9kcmJkX21h
-aW4uYwppbmRleCBkMzY1ZjFiLi45ODRkMDBmIDEwMDY0NAotLS0gYS9kcmJkL2RyYmRfbWFpbi5j
-CisrKyBiL2RyYmQvZHJiZF9tYWluLmMKQEAgLTg5LDcgKzg5LDcgQEAgTU9EVUxFX0FMSUFTX0JM
-T0NLREVWX01BSk9SKExBTkFOQV9EUkJEX01BSk9SKTsKIE1PRFVMRV9QQVJNX0RFU0MoYWxsb3df
-b29zLCAiRE9OVCBVU0UhIik7CiAvKiB0aGFua3MgdG8gdGhlc2UgbWFjcm9zLCBpZiBjb21waWxl
-ZCBpbnRvIHRoZSBrZXJuZWwgKG5vdC1tb2R1bGUpLAogICogdGhpcyBiZWNvbWVzIHRoZSBib290
-IHBhcmFtZXRlciBkcmJkLm1pbm9yX2NvdW50ICovCi1tb2R1bGVfcGFyYW0obWlub3JfY291bnQs
-IGludCwwKTsKK21vZHVsZV9wYXJhbShtaW5vcl9jb3VudCwgaW50LDA0MDApOwogbW9kdWxlX3Bh
-cmFtKGFsbG93X29vcywgYm9vbCwwKTsKIAogI2lmZGVmIERSQkRfRU5BQkxFX0ZBVUxUUwotLSAK
-MS41LjQucmMxCgo=
+LmNvbT4KRGF0ZTogRnJpLCAyMSBEZWMgMjAwNyAyMToxMjoyNyAtMDUwMApTdWJqZWN0OiBbUEFU
+Q0hdIE1ha2UgaGVhcnRiZWF0IHNjcmlwdCBjb25mb3JtIHRvIExTQiBzcGVjCgotLS0KIHNjcmlw
+dHMvZHJiZGRpc2sgfCAgIDEyICsrKysrKy0tLS0tLQogMSBmaWxlcyBjaGFuZ2VkLCA2IGluc2Vy
+dGlvbnMoKyksIDYgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEvc2NyaXB0cy9kcmJkZGlzayBi
+L3NjcmlwdHMvZHJiZGRpc2sKaW5kZXggN2QwMDFmNS4uNTNlMDJhMCAxMDA3NTUKLS0tIGEvc2Ny
+aXB0cy9kcmJkZGlzaworKysgYi9zY3JpcHRzL2RyYmRkaXNrCkBAIC0yOSwxMyArMjksMTUgQEAg
+Y2FzZSAiJENNRCIgaW4KIAl0cnk9NgogCXdoaWxlIHRydWU7IGRvCiAJCSREUkJEQURNIHByaW1h
+cnkgJFJFUyAmJiBicmVhawotCQlsZXQgIi0tdHJ5IiB8fCBleGl0IDIwCisJCWxldCAiLS10cnki
+IHx8IGV4aXQgMQogCQlzbGVlcCAxCiAJZG9uZQogCTs7CiAgICAgc3RvcCkKLQkjIGV4ZWMsIHNv
+IHRoZSBleGl0IGNvZGUgb2YgZHJiZGFkbSBwcm9wYWdhdGVzCi0JZXhlYyAkRFJCREFETSBzZWNv
+bmRhcnkgJFJFUworCSREUkJEQURNIHNlY29uZGFyeSAkUkVTCisJaWYgWyAkPyAtZXEgMTEgXTsg
+dGhlbgorCSAgICBleGl0IDEKKwlmaQogCTs7CiAgICAgc3RhdHVzKQogCWlmIFsgIiRSRVMiID0g
+ImFsbCIgXTsgdGhlbgpAQCAtNDYsMTAgKzQ4LDggQEAgY2FzZSAiJENNRCIgaW4KIAlTVEFURT0k
+e1NUJS8qfQogCWlmIFsgIiRTVEFURSIgPSAiUHJpbWFyeSIgXTsgdGhlbgogCSAgICBlY2hvICJy
+dW5uaW5nIgotCWVsaWYgWyAiJFNUQVRFIiA9ICJTZWNvbmRhcnkiIF07IHRoZW4KLQkgICAgZWNo
+byAic3RvcHBlZCIKIAllbHNlCi0JICAgIGVjaG8gIiRTVCIKKwkgICAgZWNobyAic3RvcHBlZCIK
+IAlmaQogCTs7CiAgICAgKikKLS0gCjEuNS40LnJjMQoK
 
-------_=_NextPart_001_01C85464.63AE9C7D--
+------_=_NextPart_001_01C85464.B686C67A--
