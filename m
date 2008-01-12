@@ -1,13 +1,21 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from johann.somewhere (chello080108047253.34.11.vie.surfer.at
+	[80.108.47.253])
+	(using TLSv1 with cipher DHE-RSA-AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D65E2E10D06
+	for <drbd-dev@lists.linbit.com>; Sat, 12 Jan 2008 14:51:37 +0100 (CET)
+Date: Sat, 12 Jan 2008 14:51:36 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] Crash in lru_cache.c
+Message-ID: <20080112135136.GA23622@debian-etc-mailname>
+References: <342BAC0A5467384983B586A6B0B3767107C5AE45@EXNA.corp.stratus.com>
+	<342BAC0A5467384983B586A6B0B3767107C5AE95@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C85492.4BA9F92E"
-Date: Fri, 11 Jan 2008 15:41:07 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B3767107C5B058@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [DRBD-8.0 PATCH] Ensure that state updates cannot be
-	done out of order whilst running receive_state
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <342BAC0A5467384983B586A6B0B3767107C5AE95@EXNA.corp.stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,128 +25,100 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+On Thu, Jan 10, 2008 at 03:31:02PM -0500, Graham, Simon wrote:
+> > > Dec  5 05:57:09 ------------[ cut here ]------------
+> > > Dec  5 05:57:09 kernel BUG at
+> > > /test_logs/builds/SuperNova/trunk/20071205-
+> > r21536/src/platform/drbd/src/
+> > > drbd/lru_cache.c:312!
+> > 
+> > in what exact codebase do you see this?
+> > up to which point have you merged upstream drbd-8.0.git?
+> > what local patches are applied?
+> > 
+> 
+> Yes - sorry... this is 8.0.4 plus a bunch of the fixes that are in 8.0.8
+> (but not all) plus a few more than T haven't submitted yet (but I will
+> once I wrestle git into submission); the specific change that exposes
+> this that I have pulled is the one to use the TL for Protocol C as well
+> as A and B -- however, I think this bug exists IF you are using A or B
+> without this fix.
+> 
+> > that would be in this code path:
+> > if (s & RQ_LOCAL_MASK) {
+> >         if (inc_local_if_state(mdev,Failed)) {
+> >                 drbd_al_complete_io(mdev, req->sector);
+> >                 dec_local(mdev);
+> >         } else {
+> >                 WARN("Should have called drbd_al_complete_io(, %llu), "
+> >                      "but my Disk seems to have failed:(\n",
+> >                      (unsigned long long) req->sector);
+> >         }
+> > }
+> > 
+> 
+> Exactly.
+> 
+> > I don't see why there could possibly be requests in the tl
+> > that have (s & RQ_LOCAL_MASK) when there is no disk.
+> 
+> Because there WAS a disk when the request was issued - in fact, the
+> local write to disk completed successfully, but the request is still
+> sitting in the TL waiting for the next barrier to complete. Subsequent
+> to that but while the request is still in the TL, the local disk is
+> detached.
 
-------_=_NextPart_001_01C85492.4BA9F92E
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+AND it is re-attached so fast,
+that we have a new (uhm; well, probably the same?) disk again,
+while still the very same request is sitting there
+waiting for that very barrier ack?
 
-There have been a number of issues uncovered with race conditions during
-receive_state plus the patch I submitted earlier that moves all
-after_state_processing introduced one new one (since previously the
-after_state_ch call was done inline in receive_state in the right place
-and now it happens asynchronously). The attached patch addresses races
-during receive_state by acquiring the data.mutex whilst receive_state is
-running - this ensures that messages are sent to the peer in the right
-order.
+now, how unlikely is THAT to happen in real life.
 
-Simon
+but I think I understand your scenario.
 
-------_=_NextPart_001_01C85492.4BA9F92E
-Content-Type: application/octet-stream;
-	name="0010-Ensure-that-state-updates-cannot-be-done-out-of-orde.patch"
-Content-Transfer-Encoding: base64
-Content-Description: 0010-Ensure-that-state-updates-cannot-be-done-out-of-orde.patch
-Content-Disposition: attachment;
-	filename="0010-Ensure-that-state-updates-cannot-be-done-out-of-orde.patch"
+but how do you test this, actually?
+inject io failures, and trigger a re-attach
+as soon as you see the detach event?
 
-RnJvbSA5MTQ0MzVjNzRhYTkyZjJiNTI3ZTJmNzQzMmY4YWZkZjY4NzFkNzFlIE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiBTaW1vbiBQLiBHcmFoYW0gPFNpbW9uLkdyYWhhbUBzdHJhdHVz
-LmNvbT4KRGF0ZTogU3VuLCA2IEphbiAyMDA4IDIzOjE3OjE1IC0wNTAwClN1YmplY3Q6IFtQQVRD
-SF0gRW5zdXJlIHRoYXQgc3RhdGUgdXBkYXRlcyBjYW5ub3QgYmUgZG9uZSBvdXQgb2Ygb3JkZXIg
-d2hpbHN0IHJ1bm5pbmcgcmVjZWl2ZV9zdGF0ZS4KClRoaXMgZml4ZXMgYSByYWNlIGNvbmRpdGlv
-biBpbnRyb2R1Y2VkIGluIHRoZSBjaGFuZ2UgdG8gYWx3YXlzIHNjaGVkdWxlCmFmdGVyLXN0YXRl
-IHByb2Nlc3NpbmcgdG8gd29ya2VyIHRocmVhZCBzaW5jZSB0aGlzIGNhbiBydW4gYmVmb3JlIG9y
-IGFmdGVyCnRoZSByZWNlaXZlX3N0YXRlIGNvZGUgaXRzZWxmIGxlYWRpbmcgdG8gb3V0IG9mIG9y
-ZGVyIG1lc3NhZ2VzLgotLS0KIGRyYmQvZHJiZF9pbnQuaCAgICAgIHwgICAgMiArCiBkcmJkL2Ry
-YmRfbWFpbi5jICAgICB8ICAgNTUgKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKyst
-LS0tLS0tLS0tLS0tLQogZHJiZC9kcmJkX3JlY2VpdmVyLmMgfCAgIDIzICsrKysrKysrKysrKysr
-LS0tLS0tCiAzIGZpbGVzIGNoYW5nZWQsIDU3IGluc2VydGlvbnMoKyksIDIzIGRlbGV0aW9ucygt
-KQoKZGlmZiAtLWdpdCBhL2RyYmQvZHJiZF9pbnQuaCBiL2RyYmQvZHJiZF9pbnQuaAppbmRleCBk
-MmRiODVkLi40MDIyM2U5IDEwMDY0NAotLS0gYS9kcmJkL2RyYmRfaW50LmgKKysrIGIvZHJiZC9k
-cmJkX2ludC5oCkBAIC05NDcsOSArOTQ3LDExIEBAIGV4dGVybiB2b2lkIGRyYmRfZnJlZV9zb2Nr
-KGRyYmRfZGV2ICptZGV2KTsKIGV4dGVybiBpbnQgZHJiZF9zZW5kKGRyYmRfZGV2ICptZGV2LCBz
-dHJ1Y3Qgc29ja2V0ICpzb2NrLAogCQkgICAgIHZvaWQqIGJ1Ziwgc2l6ZV90IHNpemUsIHVuc2ln
-bmVkIG1zZ19mbGFncyk7CiBleHRlcm4gaW50IGRyYmRfc2VuZF9wcm90b2NvbChkcmJkX2RldiAq
-bWRldik7CitleHRlcm4gaW50IF9kcmJkX3NlbmRfdXVpZHMoZHJiZF9kZXYgKm1kZXYpOwogZXh0
-ZXJuIGludCBkcmJkX3NlbmRfdXVpZHMoZHJiZF9kZXYgKm1kZXYpOwogZXh0ZXJuIGludCBkcmJk
-X3NlbmRfc3luY191dWlkKGRyYmRfZGV2ICptZGV2LCB1NjQgdmFsKTsKIGV4dGVybiBpbnQgZHJi
-ZF9zZW5kX3NpemVzKGRyYmRfZGV2ICptZGV2KTsKK2V4dGVybiBpbnQgX2RyYmRfc2VuZF9zdGF0
-ZShkcmJkX2RldiAqbWRldik7CiBleHRlcm4gaW50IGRyYmRfc2VuZF9zdGF0ZShkcmJkX2RldiAq
-bWRldik7CiBleHRlcm4gaW50IF9kcmJkX3NlbmRfY21kKGRyYmRfZGV2ICptZGV2LCBzdHJ1Y3Qg
-c29ja2V0ICpzb2NrLAogCQkJICBEcmJkX1BhY2tldF9DbWQgY21kLCBEcmJkX0hlYWRlciAqaCwK
-ZGlmZiAtLWdpdCBhL2RyYmQvZHJiZF9tYWluLmMgYi9kcmJkL2RyYmRfbWFpbi5jCmluZGV4IDRm
-ZjU2ZjcuLjhlNGViODAgMTAwNjQ0Ci0tLSBhL2RyYmQvZHJiZF9tYWluLmMKKysrIGIvZHJiZC9k
-cmJkX21haW4uYwpAQCAtMTM0NywxMSArMTM0NywxMyBAQCBpbnQgZHJiZF9zZW5kX3Byb3RvY29s
-KGRyYmRfZGV2ICptZGV2KQogCQkJICAgICAoRHJiZF9IZWFkZXIqKSZwLHNpemVvZihwKSk7CiB9
-CiAKLWludCBkcmJkX3NlbmRfdXVpZHMoZHJiZF9kZXYgKm1kZXYpCisvKiBIb2xkIHNvY2sgbXV0
-ZXggYmVmb3JlIGNhbGxpbmcgdGhpcyAqLworaW50IF9kcmJkX3NlbmRfdXVpZHMoZHJiZF9kZXYg
-Km1kZXYpCiB7CiAJRHJiZF9HZW5DbnRfUGFja2V0IHA7Ci0JaW50IGk7CisJaW50IGksIG9rPTA7
-CiAJdTY0IHV1aWRfZmxhZ3MgPSAwOworCXN0cnVjdCBzb2NrZXQgKnNvY2sgPSBtZGV2LT5kYXRh
-LnNvY2tldDsKIAogCWlmKCFpbmNfbG9jYWxfaWZfc3RhdGUobWRldixOZWdvdGlhdGluZykpIHJl
-dHVybiAxOyAvLyBvay4KIApAQCAtMTM2OSw5ICsxMzcxLDIzIEBAIGludCBkcmJkX3NlbmRfdXVp
-ZHMoZHJiZF9kZXYgKm1kZXYpCiAJcC51dWlkW1VVSURfRkxBR1NdID0gY3B1X3RvX2JlNjQodXVp
-ZF9mbGFncyk7CiAKIAlkZWNfbG9jYWwobWRldik7CisgICAgICAgCisJaWYobGlrZWx5KHNvY2sg
-IT0gTlVMTCkpIHsKKwkgICAgb2sgPV9kcmJkX3NlbmRfY21kKG1kZXYsc29jayxSZXBvcnRVVUlE
-cywKKwkJCSAgICAgICAoRHJiZF9IZWFkZXIqKSZwLHNpemVvZihwKSwwKTsKKwl9CisgICAgICAg
-CisJcmV0dXJuIG9rOworfQogCi0JcmV0dXJuIGRyYmRfc2VuZF9jbWQobWRldixVU0VfREFUQV9T
-T0NLRVQsUmVwb3J0VVVJRHMsCi0JCQkgICAgIChEcmJkX0hlYWRlciopJnAsc2l6ZW9mKHApKTsK
-K2ludCBkcmJkX3NlbmRfdXVpZHMoZHJiZF9kZXYgKm1kZXYpCit7CisJaW50IG9rOworCWRvd24o
-Jm1kZXYtPmRhdGEubXV0ZXgpOworCW9rID0gX2RyYmRfc2VuZF91dWlkcyhtZGV2KTsKKwl1cCgm
-bWRldi0+ZGF0YS5tdXRleCk7CisKKwlyZXR1cm4gb2s7CiB9CiAKIGludCBkcmJkX3NlbmRfc3lu
-Y191dWlkKGRyYmRfZGV2ICptZGV2LCB1NjQgdmFsKQpAQCAtMTQxNSw2ICsxNDMxLDIzIEBAIGlu
-dCBkcmJkX3NlbmRfc2l6ZXMoZHJiZF9kZXYgKm1kZXYpCiAJcmV0dXJuIG9rOwogfQogCisvKiBI
-b2xkIHNvY2tldCBtdXRleCBiZWZvcmUgY2FsbGluZyB0aGlzICovCitpbnQgX2RyYmRfc2VuZF9z
-dGF0ZShkcmJkX2RldiAqbWRldikKK3sKKwlzdHJ1Y3Qgc29ja2V0ICpzb2NrID0gbWRldi0+ZGF0
-YS5zb2NrZXQ7CisJRHJiZF9TdGF0ZV9QYWNrZXQgcDsKKwlpbnQgb2sgPSAwOworCisJcC5zdGF0
-ZSAgICA9IGNwdV90b19iZTMyKG1kZXYtPnN0YXRlLmkpOworCisJaWYobGlrZWx5KHNvY2sgIT0g
-TlVMTCkpIHsKKwkJb2sgPV9kcmJkX3NlbmRfY21kKG1kZXYsc29jayxSZXBvcnRTdGF0ZSwKKwkJ
-CQkgICAoRHJiZF9IZWFkZXIqKSZwLHNpemVvZihwKSwwKTsKKwl9CisKKwlyZXR1cm4gb2s7Cit9
-CisKIC8qKgogICogZHJiZF9zZW5kX3N0YXRlOgogICogSW5mb3JtcyB0aGUgcGVlciBhYm91dCBv
-dXIgc3RhdGUuIE9ubHkgY2FsbCBpdCB3aGVuCkBAIC0xNDI0LDIwICsxNDU3LDEwIEBAIGludCBk
-cmJkX3NlbmRfc2l6ZXMoZHJiZF9kZXYgKm1kZXYpCiAgKi8KIGludCBkcmJkX3NlbmRfc3RhdGUo
-ZHJiZF9kZXYgKm1kZXYpCiB7Ci0Jc3RydWN0IHNvY2tldCAqc29jazsKLQlEcmJkX1N0YXRlX1Bh
-Y2tldCBwOwotCWludCBvayA9IDA7CisJaW50IG9rOwogCiAJZG93bigmbWRldi0+ZGF0YS5tdXRl
-eCk7Ci0KLQlwLnN0YXRlID0gY3B1X3RvX2JlMzIobWRldi0+c3RhdGUuaSk7IC8qIFdpdGhpbiB0
-aGUgc2VuZCBtdXRleCAqLwotCXNvY2sgPSBtZGV2LT5kYXRhLnNvY2tldDsKLQotCWlmIChsaWtl
-bHkoc29jayAhPSBOVUxMKSkgewotCQlvayA9IF9kcmJkX3NlbmRfY21kKG1kZXYsIHNvY2ssIFJl
-cG9ydFN0YXRlLAotCQkJCSAgICAoRHJiZF9IZWFkZXIqKSZwLCBzaXplb2YocCksIDApOwotCX0K
-LQorCW9rID0gX2RyYmRfc2VuZF9zdGF0ZShtZGV2KTsKIAl1cCgmbWRldi0+ZGF0YS5tdXRleCk7
-CiAKIAlyZXR1cm4gb2s7CmRpZmYgLS1naXQgYS9kcmJkL2RyYmRfcmVjZWl2ZXIuYyBiL2RyYmQv
-ZHJiZF9yZWNlaXZlci5jCmluZGV4IDk4MDc2ZGQuLmQ0ZDYzMTIgMTAwNjQ0Ci0tLSBhL2RyYmQv
-ZHJiZF9yZWNlaXZlci5jCisrKyBiL2RyYmQvZHJiZF9yZWNlaXZlci5jCkBAIC0yNDMxLDEwICsy
-NDMxLDE1IEBAIFNUQVRJQyBpbnQgcmVjZWl2ZV9zdGF0ZShkcmJkX2RldiAqbWRldiwgRHJiZF9I
-ZWFkZXIgKmgpCiAJZHJiZF9jb25uc190IG5jb25uLG9jb25uOwogCWRyYmRfc3RhdGVfdCBucyxw
-ZWVyX3N0YXRlOwogCWludCBydjsKKyAgICAgICAKKwkvKioKKwkgKiBFbnN1cmUgbm8gb3RoZXIg
-dGhyZWFkIHNlbmRzIHN0YXRlIHdoaWxzdCB3ZSBhcmUgcnVubmluZworCSAqKi8KKwlkb3duKCZt
-ZGV2LT5kYXRhLm11dGV4KTsKIAotCUVSUl9JRihoLT5sZW5ndGggIT0gKHNpemVvZigqcCktc2l6
-ZW9mKCpoKSkpIHJldHVybiBGQUxTRTsKKwlFUlJfSUYoaC0+bGVuZ3RoICE9IChzaXplb2YoKnAp
-LXNpemVvZigqaCkpKSBnb3RvIGZhaWw7CiAJaWYgKGRyYmRfcmVjdihtZGV2LCBoLT5wYXlsb2Fk
-LCBoLT5sZW5ndGgpICE9IGgtPmxlbmd0aCkKLQkJcmV0dXJuIEZBTFNFOworCQlnb3RvIGZhaWw7
-CiAKIAlwZWVyX3N0YXRlLmkgPSBiZTMyX3RvX2NwdShwLT5zdGF0ZSk7CiAKQEAgLTI0NTksNyAr
-MjQ2NCw3IEBAIFNUQVRJQyBpbnQgcmVjZWl2ZV9zdGF0ZShkcmJkX2RldiAqbWRldiwgRHJiZF9I
-ZWFkZXIgKmgpCiAJCWlmIChjcikgbmNvbm49ZHJiZF9zeW5jX2hhbmRzaGFrZShtZGV2LCBwZWVy
-X3N0YXRlLnJvbGUsIHBlZXJfc3RhdGUuZGlzayk7CiAKIAkJZGVjX2xvY2FsKG1kZXYpOwotCQlp
-ZihuY29ubiA9PSBjb25uX21hc2spIHJldHVybiBGQUxTRTsKKwkJaWYobmNvbm4gPT0gY29ubl9t
-YXNrKSBnb3RvIGZhaWw7CiAJfQogCiAJc3Bpbl9sb2NrX2lycSgmbWRldi0+cmVxX2xvY2spOwpA
-QCAtMjQ4MCwxOCArMjQ4NSwxOCBAQCBTVEFUSUMgaW50IHJlY2VpdmVfc3RhdGUoZHJiZF9kZXYg
-Km1kZXYsIERyYmRfSGVhZGVyICpoKQogCiAJaWYocnYgPCBTU19TdWNjZXNzKSB7CiAJCWRyYmRf
-Zm9yY2Vfc3RhdGUobWRldixOUyhjb25uLERpc2Nvbm5lY3RpbmcpKTsKLQkJcmV0dXJuIEZBTFNF
-OworCQlnb3RvIGZhaWw7CiAJfQogCiAJaWYgKG9jb25uID4gV0ZSZXBvcnRQYXJhbXMgKSB7CiAJ
-CWlmKCBuY29ubiA+IENvbm5lY3RlZCAmJiBwZWVyX3N0YXRlLmNvbm4gPD0gQ29ubmVjdGVkKSB7
-CiAJCQkvLyB3ZSB3YW50IHJlc3luYywgcGVlciBoYXMgbm90IHlldCBkZWNpZGVkIHRvIHN5bmMu
-Li4KLQkJCWRyYmRfc2VuZF91dWlkcyhtZGV2KTsKLQkJCWRyYmRfc2VuZF9zdGF0ZShtZGV2KTsK
-KwkJCV9kcmJkX3NlbmRfdXVpZHMobWRldik7CisJCQlfZHJiZF9zZW5kX3N0YXRlKG1kZXYpOwog
-CQl9CiAJCWVsc2UgaWYgKG5jb25uID09IENvbm5lY3RlZCAmJiBwZWVyX3N0YXRlLmRpc2sgPT0g
-TmVnb3RpYXRpbmcpIHsKIAkJCS8vIHBlZXIgaXMgd2FpdGluZyBmb3IgdXMgdG8gcmVzcG9uZC4u
-LgotCQkJZHJiZF9zZW5kX3N0YXRlKG1kZXYpOworCQkJX2RyYmRfc2VuZF9zdGF0ZShtZGV2KTsK
-IAkJfQogCX0KIApAQCAtMjUwMCw3ICsyNTA1LDExIEBAIFNUQVRJQyBpbnQgcmVjZWl2ZV9zdGF0
-ZShkcmJkX2RldiAqbWRldiwgRHJiZF9IZWFkZXIgKmgpCiAJLyogRklYTUUgYXNzZXJ0aW9uIGZv
-ciAoZ2VuY291bnRzIGRvIG5vdCBkaXZlcmdlKSAqLwogCWRyYmRfbWRfc3luYyhtZGV2KTsgLy8g
-dXBkYXRlIGNvbm5lY3RlZCBpbmRpY2F0b3IsIGxhX3NpemUsIC4uLgogCisJdXAoJm1kZXYtPmRh
-dGEubXV0ZXgpOwogCXJldHVybiBUUlVFOworIGZhaWw6CisJdXAoJm1kZXYtPmRhdGEubXV0ZXgp
-OworCXJldHVybiBGQUxTRTsKIH0KIAogU1RBVElDIGludCByZWNlaXZlX3N5bmNfdXVpZChkcmJk
-X2RldiAqbWRldiwgRHJiZF9IZWFkZXIgKmgpCi0tIAoxLjUuNC5yYzEKCg==
+is that to implement a "hot-spare" feature?
 
-------_=_NextPart_001_01C85492.4BA9F92E--
+> > other than that, what about
+> > 
+> > 3. when attaching a disk,
+> >    suspend incoming requests and wait for the tl to become empty.
+> >    then attach, and resume.
+> > 
+> 
+> I think this might work but only as a side effect -- if you look back to
+> the sequence I documented, you will see that there has to be a write
+> request to the same AL area after the disk is reattached - this is
+> because drbd_al_complete_io quietly ignores the case where no active AL
+> extent is found for the request being completed.
+
+huh?
+I simply disallow re-attaching while there are still requests pending
+from before the detach.
+no more (s & RQ_LOCAL_MASK), no more un-accounted for references.
+
+if I understand correctly,
+you can reproduce this easily.
+to underline my point,
+does it still trigger when you do
+ "dd if=/dev/drbdX of=/dev/null bs=1b count=1 iflag=direct ; sleep 5"
+before the re-attach?
+(the dd, even if it only reads, due to using directio,
+ and drbd being diskless,
+ will trigger any pending barrier to be sent)
+
+> You would also need to trigger a barrier op in this case to force the
+> TL to be flushed.
+
+for other reasons, I think we need to rewrite the barrier code anyways
+to send out the barrier as soon as possible, and not wait until the next
+io request comes in.
+
+-- 
+: Lars Ellenberg                            Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
+: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
