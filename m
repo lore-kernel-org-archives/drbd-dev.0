@@ -1,20 +1,13 @@
 Return-Path: <Simon.Graham@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] Barrier assert failures with latest 8.0 sources
-Date: Wed, 23 Jan 2008 09:03:27 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B3767107E89F55@EXNA.corp.stratus.com>
-In-Reply-To: <342BAC0A5467384983B586A6B0B3767107E89F4D@EXNA.corp.stratus.com>
-References: <342BAC0A5467384983B586A6B0B3767107E89B46@EXNA.corp.stratus.com><342BAC0A5467384983B586A6B0B3767107E89D34@EXNA.corp.s
-	tratus.com> 20080122162007.GD7594@barkeeper1.linbit
-	342BAC0A5467384983B586A6B0B3767107E89E95@EXNA.corp.stratus.com
-	<342BAC0A5467384983B586A6B0B3767107E89F4D@EXNA.corp.stratus.com>
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C8608F.EB56DB0C"
+Date: Sat, 26 Jan 2008 21:54:21 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B3767107E8A3E3@EXNA.corp.stratus.com>
 From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Graham, Simon" <Simon.Graham@stratus.com>,
-	"Lars Ellenberg" <lars.ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] [PATCH] DRBD8.0: Fix to ensure we dont send barrier when
+	connecting
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,15 +17,85 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> I think the fixes are:
->=20
-> a. Don't do queue_barrier if the connection state is <Connected
-> b. Make sure the flag is clear in drbd_connect
-> c. Modify w_send_barrier to decrement the ap count if it decides to
-not
->    send a barrier (e.g. if the connection is lost between the time the
->    work item is queued and the time it runs).
->=20
+This is a multi-part message in MIME format.
 
-Scratch item c) -- tl_clear already does this...
-/simgr
+------_=_NextPart_001_01C8608F.EB56DB0C
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+The new "send-barrier-as-soon-as-possible" functionality has a small
+problem in that the CREATE_BARRIER flag can get set in the mdev when it
+is not connected - this causes a barrier request to be sent incorrectly
+when the first write is done after reconnecting which in turn leads to
+the two sides getting out of sync with respect to expected barrier
+numbers.
+
+The attached patch addresses this in a couple of ways:
+
+1. Don't call queue_barrier in about_to_complete_local_write if the
+connection is not up
+2. Ensure the flag is clear at the end of _tl_clear
+3. Make sure the flag is cleared if set when connecting
+
+Some of this is belt-and-braces - 1 and 2 should be enough, but just in
+case, I thought it was worth adding 3.
+
+Simon
+
+------_=_NextPart_001_01C8608F.EB56DB0C
+Content-Type: application/octet-stream;
+	name="0002-Make-sure-we-dont-set-CREATE_BARRIER-flag-when-conne.patch"
+Content-Transfer-Encoding: base64
+Content-Description: 0002-Make-sure-we-dont-set-CREATE_BARRIER-flag-when-conne.patch
+Content-Disposition: attachment;
+	filename="0002-Make-sure-we-dont-set-CREATE_BARRIER-flag-when-conne.patch"
+
+RnJvbSA1OTYzOGExNjRhYmU1ZmM5YmI2ODQ1MGVhNzFkZDllMTc1MzRmMGI0IE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBTaW1vbiBQLiBHcmFoYW0gPFNpbW9uLkdyYWhhbUBzdHJhdHVz
+LmNvbT4KRGF0ZTogVGh1LCAyNCBKYW4gMjAwOCAxODowOToxOSAtMDUwMApTdWJqZWN0OiBbUEFU
+Q0hdIE1ha2Ugc3VyZSB3ZSBkb250IHNldCBDUkVBVEVfQkFSUklFUiBmbGFnIHdoZW4gY29ubmVj
+dGlvbiBpcyBub3QgYWN0aXZlLCBvdGhlcndpc2Ugd2UgY2FuIHNlbmQgdXAgc2VuZGluZyBhIGJh
+cnJpZXIgd2hlbiB3ZSBzaG91bGRuJ3Qgd2hlbiByZWNvbm5lY3RlZC4KCi0tLQogZHJiZC9kcmJk
+X21haW4uYyAgICAgfCAgICA1ICsrKysrCiBkcmJkL2RyYmRfbmwuYyAgICAgICB8ICAgIDIgKy0K
+IGRyYmQvZHJiZF9yZWNlaXZlci5jIHwgICAgNCArKysrCiBkcmJkL2RyYmRfcmVxLmMgICAgICB8
+ICAgIDMgKystCiA0IGZpbGVzIGNoYW5nZWQsIDEyIGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25z
+KC0pCgpkaWZmIC0tZ2l0IGEvZHJiZC9kcmJkX21haW4uYyBiL2RyYmQvZHJiZF9tYWluLmMKaW5k
+ZXggYzc0ZTQ0Mi4uNmU0YzVmOCAxMDA2NDQKLS0tIGEvZHJiZC9kcmJkX21haW4uYworKysgYi9k
+cmJkL2RyYmRfbWFpbi5jCkBAIC0yNzcsNiArMjc3LDcgQEAgdm9pZCB0bF9jbGVhcihkcmJkX2Rl
+diAqbWRldikKIAlXQVJOKCJ0bF9jbGVhcigpXG4iKTsKIAogCXNwaW5fbG9ja19pcnEoJm1kZXYt
+PnJlcV9sb2NrKTsKKwogCWIgPSBtZGV2LT5vbGRlc3RfYmFycmllcjsKIAl3aGlsZSAoIGIgKSB7
+CiAJCXN0cnVjdCBsaXN0X2hlYWQgKmxlLCAqdGxlOwpAQCAtMzEwLDYgKzMxMSwxMCBAQCB2b2lk
+IHRsX2NsZWFyKGRyYmRfZGV2ICptZGV2KQogCX0KIAlEX0FTU0VSVChtZGV2LT5uZXdlc3RfYmFy
+cmllciA9PSBtZGV2LT5vbGRlc3RfYmFycmllcik7CiAJRF9BU1NFUlQobWRldi0+bmV3ZXN0X2Jh
+cnJpZXItPmJyX251bWJlciA9PSA0NzExKTsKKworCS8vIGVuc3VyZSBiaXQgaW5kaWNhdGluZyBi
+YXJyaWVyIGlzIHJlcXVpcmVkIGlzIGNsZWFyCisJY2xlYXJfYml0KENSRUFURV9CQVJSSUVSLCAm
+bWRldi0+ZmxhZ3MpOworCiAJc3Bpbl91bmxvY2tfaXJxKCZtZGV2LT5yZXFfbG9jayk7CiB9CiAK
+ZGlmZiAtLWdpdCBhL2RyYmQvZHJiZF9ubC5jIGIvZHJiZC9kcmJkX25sLmMKaW5kZXggMDFhMmY2
+ZC4uNWMwMzhmMyAxMDA2NDQKLS0tIGEvZHJiZC9kcmJkX25sLmMKKysrIGIvZHJiZC9kcmJkX25s
+LmMKQEAgLTE3ODcsNyArMTc4Nyw3IEBAIHZvaWQgZHJiZF9iY2FzdF9zcGxpdF9icmFpbihkcmJk
+X2RldiAqbWRldixpbnQgZmxhZykKICAgICAgICAKIAkqdGwrKyA9IFRfc3BsaXRfYnJhaW47CiAJ
+KnRsKysgPSBzaXplb2YoaW50KTsKLSAgICAgICBtZW1jcHkodGwsICZ2YWwsIHNpemVvZihpbnQp
+KTsKKwltZW1jcHkodGwsICZ2YWwsIHNpemVvZihpbnQpKTsKIAl0bD0odW5zaWduZWQgc2hvcnQq
+KSgoY2hhciopdGwgKyBzaXplb2YoaW50KSk7CiAJKnRsKysgPSBUVF9FTkQ7IC8qIENsb3NlIHRo
+ZSB0YWcgbGlzdCAqLwogCmRpZmYgLS1naXQgYS9kcmJkL2RyYmRfcmVjZWl2ZXIuYyBiL2RyYmQv
+ZHJiZF9yZWNlaXZlci5jCmluZGV4IDE3Y2I5OWQuLjQ0N2I1MmYgMTAwNjQ0Ci0tLSBhL2RyYmQv
+ZHJiZF9yZWNlaXZlci5jCisrKyBiL2RyYmQvZHJiZF9yZWNlaXZlci5jCkBAIC03MTgsNiArNzE4
+LDEwIEBAIGludCBkcmJkX2Nvbm5lY3QoZHJiZF9kZXYgKm1kZXYpCiAKIAlEX0FTU0VSVCghbWRl
+di0+ZGF0YS5zb2NrZXQpOwogCisJaWYgKHRlc3RfYW5kX2NsZWFyX2JpdChDUkVBVEVfQkFSUklF
+UiwmbWRldi0+ZmxhZ3MpKSB7CisJCUVSUigiQ1JFQVRFX0JBUlJJRVIgZmxhZyB3YXMgc2V0IGlu
+IGRyYmRfY29ubmVjdCAtIG5vdyBjbGVhcmVkIVxuIik7CisJfQorCiAJaWYgKGRyYmRfcmVxdWVz
+dF9zdGF0ZShtZGV2LE5TKGNvbm4sV0ZDb25uZWN0aW9uKSkgPCBTU19TdWNjZXNzICkKIAkJcmV0
+dXJuIC0yOwogCmRpZmYgLS1naXQgYS9kcmJkL2RyYmRfcmVxLmMgYi9kcmJkL2RyYmRfcmVxLmMK
+aW5kZXggM2ZmN2MzMi4uYjQ5ODFhYiAxMDA2NDQKLS0tIGEvZHJiZC9kcmJkX3JlcS5jCisrKyBi
+L2RyYmQvZHJiZF9yZXEuYwpAQCAtMjEwLDcgKzIxMCw4IEBAIHN0YXRpYyB2b2lkIF9hYm91dF90
+b19jb21wbGV0ZV9sb2NhbF93cml0ZShkcmJkX2RldiAqbWRldiwgZHJiZF9yZXF1ZXN0X3QgKnJl
+cSkKIAogCS8qIGJlZm9yZSB3ZSBjYW4gc2lnbmFsIGNvbXBsZXRpb24gdG8gdGhlIHVwcGVyIGxh
+eWVycywKIAkgKiB3ZSBtYXkgbmVlZCB0byBjbG9zZSB0aGUgY3VycmVudCBlcG9jaCAqLwotCWlm
+IChyZXEtPmVwb2NoID09IG1kZXYtPm5ld2VzdF9iYXJyaWVyLT5icl9udW1iZXIpCisJaWYgKG1k
+ZXYtPnN0YXRlLmNvbm4gPj0gQ29ubmVjdGVkICYmCisJICAgIHJlcS0+ZXBvY2ggPT0gbWRldi0+
+bmV3ZXN0X2JhcnJpZXItPmJyX251bWJlcikKIAkJcXVldWVfYmFycmllcihtZGV2KTsKIAogCS8q
+IHdlIG5lZWQgdG8gZG8gdGhlIGNvbmZsaWN0IGRldGVjdGlvbiBzdHVmZiwKLS0gCjEuNS40LnJj
+MQoK
+
+------_=_NextPart_001_01C8608F.EB56DB0C--
