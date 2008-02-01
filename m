@@ -1,19 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (office.linbit [86.59.100.100])
-	(using TLSv1 with cipher DHE-RSA-AES128-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id C99E92DF6261
-	for <drbd-dev@lists.linbit.com>; Wed, 30 Jan 2008 09:42:47 +0100 (CET)
-Date: Wed, 30 Jan 2008 09:42:47 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+Return-Path: <stf_xl@wp.pl>
+Received: from ip-83-238-22-2.netia.com.pl (HELO lapsg1.open-e.pl)
+	(stf_xl@wp.pl@[83.238.22.2]) (envelope-sender <stf_xl@wp.pl>)
+	by smtp.wp.pl (WP-SMTPD) with AES128-SHA encrypted SMTP
+	for <drbd-dev@lists.linbit.com>; 1 Feb 2008 15:39:53 +0100
+From: Stanislaw Gruszka <stf_xl@wp.pl>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] One more issue with the latest 8.0 tree in git
-Message-ID: <20080130084247.GB5727@barkeeper1.linbit>
-References: <342BAC0A5467384983B586A6B0B37671080C8EFC@EXNA.corp.stratus.com>
+Date: Fri, 1 Feb 2008 15:49:50 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <342BAC0A5467384983B586A6B0B37671080C8EFC@EXNA.corp.stratus.com>
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_OGzoHG3i5XprxST"
+Message-Id: <200802011549.50898.stf_xl@wp.pl>
+Subject: [Drbd-dev] [PATCH] DRBD 8.0 return error when vmalloc fail
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,46 +21,135 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jan 29, 2008 at 11:35:47PM -0500, Graham, Simon wrote:
-> Continuing to test the latest 8.0 code from git, I am running into the
-> following assert a lot:
-> 
-> Jan 29 17:43:50 drbd11: Got NegAck packet. Peer is in troubles?
-> Jan 29 17:43:50 drbd11: drbd_bm_test_bit: (({ unsigned long flags; do {
-> (flags) = ((HYPERVISOR_shared_info->vcpu_info +
-> ((current_thread_info()->cpu)))->evtchn_upcall_mask); } while (0);
-> raw_irqs_disabled_flags(flags); })) in
-> /sandbox/sgraham/sn/drbd-git/platform/drbd/src/dist/BUILD/drbd-8.0.8/drb
-> d/drbd_bitmap.c:964
-> Jan 29 17:43:50  [<c010640a>] show_trace_log_lvl+0x1a/0x30
-> Jan 29 17:43:50  [<c0106b42>] show_trace+0x12/0x20
-> Jan 29 17:43:50  [<c0106ba9>] dump_stack+0x19/0x20
-> Jan 29 17:43:50  [<f152ef34>] drbd_bm_test_bit+0x254/0x260 [drbd]
-> Jan 29 17:43:50  [<f153e509>] drbd_rs_failed_io+0x1b9/0x3a0 [drbd]
-> Jan 29 17:43:50  [<f15379c1>] got_NegAck+0x281/0x3a0 [drbd]
-> Jan 29 17:43:50  [<f15382c8>] drbd_asender+0x2f8/0x5b0 [drbd]
-> Jan 29 17:43:50  [<f1549a90>] drbd_thread_setup+0xb0/0x170 [drbd]
-> Jan 29 17:43:50  [<c0103005>] kernel_thread_helper+0x5/0x10
-> Jan 29 17:43:50  =======================
-> 
-> This is hitting the following test in drbd_bm_test_bit:
-> 
-> 	D_BUG_ON(irqs_disabled());
-> 	spin_lock_irq(&b->bm_lock);
-> 
-> I think because this routine is called from places that call
-> spin_lock_irq() before calling it... Should we just change the
-> spin_lock_irq() here to spin_lock_irqsave() and remove the D_BUG_ON?
+--Boundary-00=_OGzoHG3i5XprxST
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-thanks. see git.drbd.org:
+Bitmap allocation failure is not visible for users. First reason is drbradm
+not return status of executed commands  Second determin_dev_size() function
+return enum value which badly become non negative at function output from
+negative error code (at least for gcc3) . Attached patch is fix for these issues.
 
-4ad7ed376fbd1b713127237909737f9ae6bb7d77
-	fix potential spin_unlock without corresponding spin_lock
-0b1c24c299b21322f7074cb01dc14def8722f12c
-	spin_lock_irqsave in drbd_bm_test_bit;
-	new drbd_bm_count_bits to avoid looping over the bm spinlock.
+Stanislaw Gruszka
 
--- 
-: Lars Ellenberg                            Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
+--Boundary-00=_OGzoHG3i5XprxST
+Content-Type: text/x-diff; charset="us-ascii";
+	name="return-error-when-vmalloc-fail.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename="return-error-when-vmalloc-fail.patch"
+
+diff --git a/drbd/drbd_int.h b/drbd/drbd_int.h
+index 72796f2..1847844 100644
+--- a/drbd/drbd_int.h
++++ b/drbd/drbd_int.h
+@@ -1300,7 +1300,7 @@ extern int is_valid_ar_handle(drbd_request_t *, sector_t);
+ // drbd_nl.c
+ extern char* ppsize(char* buf, unsigned long long size);
+ extern sector_t drbd_new_dev_size(struct Drbd_Conf*, struct drbd_backing_dev*);
+-enum determin_dev_size_enum { unchanged = 0, shrunk = 1, grew = 2 };
++enum determin_dev_size_enum { dev_size_error = -1, unchanged = 0, shrunk = 1, grew = 2 };
+ extern enum determin_dev_size_enum drbd_determin_dev_size(drbd_dev*);
+ extern void resync_after_online_grow(drbd_dev *mdev);
+ extern void drbd_setup_queue_param(drbd_dev *mdev, unsigned int);
+diff --git a/drbd/drbd_nl.c b/drbd/drbd_nl.c
+index 1dd1aed..683d1f3 100644
+--- a/drbd/drbd_nl.c
++++ b/drbd/drbd_nl.c
+@@ -461,7 +461,7 @@ enum determin_dev_size_enum drbd_determin_dev_size(drbd_dev* mdev)
+ 	char ppb[10];
+ 
+ 	int md_moved, la_size_changed;
+-	int rv=unchanged;
++	enum determin_dev_size_enum rv=unchanged;
+ 
+ 	wait_event(mdev->al_wait, lc_try_lock(mdev->act_log));
+ 
+@@ -490,7 +490,7 @@ enum determin_dev_size_enum drbd_determin_dev_size(drbd_dev* mdev)
+ 				    "Leaving size unchanged at size = %lu KB\n",
+ 				    (unsigned long)size);
+ 			}
+-			rv = err;
++			rv = dev_size_error;
+ 		}
+ 		// racy, see comments above.
+ 		drbd_set_my_capacity(mdev,size);
+@@ -498,7 +498,7 @@ enum determin_dev_size_enum drbd_determin_dev_size(drbd_dev* mdev)
+ 		INFO("size = %s (%llu KB)\n",ppsize(ppb,size>>1),
+ 		     (unsigned long long)size>>1);
+ 	}
+-	if (rv < 0) goto out;
++	if (rv == dev_size_error) goto out;
+ 
+ 	la_size_changed = (la_size != mdev->bc->md.la_size_sect);
+ 
+@@ -931,7 +931,7 @@ STATIC int drbd_nl_disk_conf(drbd_dev *mdev, struct drbd_nl_cfg_req *nlp,
+ 	}
+ 
+ 	drbd_bm_lock(mdev); // racy...
+-	if (drbd_determin_dev_size(mdev) < 0) {
++	if (drbd_determin_dev_size(mdev) == dev_size_error) {
+ 		retcode = VMallocFailed;
+ 		goto unlock_bm;
+ 	}
+@@ -1309,7 +1309,7 @@ STATIC int drbd_nl_resize(drbd_dev *mdev, struct drbd_nl_cfg_req *nlp,
+ 	struct resize rs;
+ 	int retcode=NoError;
+ 	int ldsc = 0; /* local disk size changed */
+-	int dd;
++	enum determin_dev_size_enum dd;
+ 
+ 	memset(&rs, 0, sizeof(struct resize));
+ 	if (!resize_from_tags(mdev,nlp->tag_list,&rs)) {
+@@ -1344,7 +1344,7 @@ STATIC int drbd_nl_resize(drbd_dev *mdev, struct drbd_nl_cfg_req *nlp,
+ 	drbd_md_sync(mdev);
+ 	drbd_bm_unlock(mdev);
+ 	dec_local(mdev);
+-	if (dd < 0) {
++	if (dd == dev_size_error) {
+ 		retcode = VMallocFailed;
+ 		goto fail;
+ 	}
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+index 50197b0..6642927 100644
+--- a/drbd/drbd_receiver.c
++++ b/drbd/drbd_receiver.c
+@@ -2238,7 +2238,6 @@ STATIC int receive_sizes(drbd_dev *mdev, Drbd_Header *h)
+ 	sector_t p_size, p_usize, my_usize;
+ 	int ldsc = 0; /* local disk size changed */
+ 	drbd_conns_t nconn;
+-	int dd;
+ 
+ 	ERR_IF(h->length != (sizeof(*p)-sizeof(*h))) return FALSE;
+ 	if (drbd_recv(mdev, h->payload, h->length) != h->length)
+@@ -2293,11 +2292,12 @@ STATIC int receive_sizes(drbd_dev *mdev, Drbd_Header *h)
+ 
+ 	mdev->p_size=p_size;
+ 	if(inc_local(mdev)) {
++		enum determin_dev_size_enum dd;
+ 		drbd_bm_lock(mdev); // {
+ 		dd = drbd_determin_dev_size(mdev);
+ 		drbd_bm_unlock(mdev); // }
+ 		dec_local(mdev);
+-		if (dd < 0) return FALSE;
++		if (dd == dev_size_error) return FALSE;
+ 		if (dd == grew && mdev->state.conn == Connected &&
+ 		    mdev->state.pdsk >= Inconsistent &&
+ 		    mdev->state.disk >= Inconsistent) {
+diff --git a/user/drbdadm_main.c b/user/drbdadm_main.c
+index b3445a2..6ed17ec 100644
+--- a/user/drbdadm_main.c
++++ b/user/drbdadm_main.c
+@@ -1938,7 +1938,7 @@ int main(int argc, char** argv)
+       }
+     }
+ 
+-  run_dcmds();
++  rv = run_dcmds();
+ 
+   free_config(config);
+ 
+
+--Boundary-00=_OGzoHG3i5XprxST--
