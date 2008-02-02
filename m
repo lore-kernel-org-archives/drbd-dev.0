@@ -1,17 +1,13 @@
-Return-Path: <stf_xl@wp.pl>
-Received: from ip-83-238-22-2.netia.com.pl (HELO lapsg1.open-e.pl)
-	(stf_xl@wp.pl@[83.238.22.2]) (envelope-sender <stf_xl@wp.pl>)
-	by smtp.wp.pl (WP-SMTPD) with AES128-SHA encrypted SMTP
-	for <drbd-dev@lists.linbit.com>; 1 Feb 2008 15:39:53 +0100
-From: Stanislaw Gruszka <stf_xl@wp.pl>
-To: drbd-dev@lists.linbit.com
-Date: Fri, 1 Feb 2008 15:49:50 +0100
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: Multipart/Mixed;
-  boundary="Boundary-00=_OGzoHG3i5XprxST"
-Message-Id: <200802011549.50898.stf_xl@wp.pl>
-Subject: [Drbd-dev] [PATCH] DRBD 8.0 return error when vmalloc fail
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C8654A.C60D5684"
+Date: Fri, 1 Feb 2008 22:21:59 -0500
+Message-ID: <342BAC0A5467384983B586A6B0B37671080C9554@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] ordering problem between StateChangeRequest and
+	send_state
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,135 +17,79 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---Boundary-00=_OGzoHG3i5XprxST
+This is a multi-part message in MIME format.
+
+------_=_NextPart_001_01C8654A.C60D5684
 Content-Type: text/plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Bitmap allocation failure is not visible for users. First reason is drbradm
-not return status of executed commands  Second determin_dev_size() function
-return enum value which badly become non negative at function output from
-negative error code (at least for gcc3) . Attached patch is fix for these issues.
+I have seen a problem where if resync is paused and resumed and then =
+completed quickly, the sync target node correctly transitions to =
+UptoDate but the other ends up Inconsistent. I believe this is a =
+reordering issue caused by an interaction between drbd_send_state_req =
+and drbd_send_state as follows (with the resync starting off in the =
+paused state):
 
-Stanislaw Gruszka
+1. We resumed syncing and set aftr_isp->0 -- this schedules a work item =
+to report the change
+=A0  to the peer.
 
---Boundary-00=_OGzoHG3i5XprxST
-Content-Type: text/x-diff; charset="us-ascii";
-	name="return-error-when-vmalloc-fail.patch"
-Content-Transfer-Encoding: 7bit
+2. Syncing completes on an other thread, drbd_send_state_req is called =
+inline to send the
+ =A0 new state to the peer with a StateChgRequest, BUT the mdev state is =
+not updated yet.=20
+=A0  This code then waits for a response from the peer... when the peer =
+gets this, it updates
+   it's state immediately (to Consistent) and sends the response.
+
+3. Now the after state change starts running and does a send-state call =
+which grabs
+ =A0 the current state from the device (which is still inconsistent) and =
+sends this. When
+=A0  the peer gets this, it will change from UpToDate->Inconsistent.
+
+4. Finally, we get the response to the StateChgRequest and change the =
+state to UpToDate on
+ =A0 the sync target - no further state change is sent because =
+transition to UpToDate doesn't
+=A0  generate one.
+
+My suggested fix is to use the existing drbd_state_lock - this is =
+already used in drbd_send_state_req, my suggestion is to also grab it in =
+drbd_send_state so that we don't attempt to send ReportState if a state =
+change rq is already in progress.
+
+I've attached a proposed patch that implements this suggestion BUT this =
+is based on an earlier patch of ours that splits drbd_send_state into =
+two routines and acquires the send mutex - the one titled "Ensure that =
+state updated cannot be done out of order whilst running receive_state =
+(914435c)".
+
+Simon
+
+------_=_NextPart_001_01C8654A.C60D5684
+Content-Type: application/octet-stream;
+	name="0001-Make-sure-we-dont-send-state-if-a-cluster-wide-state.patch"
+Content-Transfer-Encoding: base64
+Content-Description: 0001-Make-sure-we-dont-send-state-if-a-cluster-wide-state.patch
 Content-Disposition: attachment;
-	filename="return-error-when-vmalloc-fail.patch"
+	filename="0001-Make-sure-we-dont-send-state-if-a-cluster-wide-state.patch"
 
-diff --git a/drbd/drbd_int.h b/drbd/drbd_int.h
-index 72796f2..1847844 100644
---- a/drbd/drbd_int.h
-+++ b/drbd/drbd_int.h
-@@ -1300,7 +1300,7 @@ extern int is_valid_ar_handle(drbd_request_t *, sector_t);
- // drbd_nl.c
- extern char* ppsize(char* buf, unsigned long long size);
- extern sector_t drbd_new_dev_size(struct Drbd_Conf*, struct drbd_backing_dev*);
--enum determin_dev_size_enum { unchanged = 0, shrunk = 1, grew = 2 };
-+enum determin_dev_size_enum { dev_size_error = -1, unchanged = 0, shrunk = 1, grew = 2 };
- extern enum determin_dev_size_enum drbd_determin_dev_size(drbd_dev*);
- extern void resync_after_online_grow(drbd_dev *mdev);
- extern void drbd_setup_queue_param(drbd_dev *mdev, unsigned int);
-diff --git a/drbd/drbd_nl.c b/drbd/drbd_nl.c
-index 1dd1aed..683d1f3 100644
---- a/drbd/drbd_nl.c
-+++ b/drbd/drbd_nl.c
-@@ -461,7 +461,7 @@ enum determin_dev_size_enum drbd_determin_dev_size(drbd_dev* mdev)
- 	char ppb[10];
- 
- 	int md_moved, la_size_changed;
--	int rv=unchanged;
-+	enum determin_dev_size_enum rv=unchanged;
- 
- 	wait_event(mdev->al_wait, lc_try_lock(mdev->act_log));
- 
-@@ -490,7 +490,7 @@ enum determin_dev_size_enum drbd_determin_dev_size(drbd_dev* mdev)
- 				    "Leaving size unchanged at size = %lu KB\n",
- 				    (unsigned long)size);
- 			}
--			rv = err;
-+			rv = dev_size_error;
- 		}
- 		// racy, see comments above.
- 		drbd_set_my_capacity(mdev,size);
-@@ -498,7 +498,7 @@ enum determin_dev_size_enum drbd_determin_dev_size(drbd_dev* mdev)
- 		INFO("size = %s (%llu KB)\n",ppsize(ppb,size>>1),
- 		     (unsigned long long)size>>1);
- 	}
--	if (rv < 0) goto out;
-+	if (rv == dev_size_error) goto out;
- 
- 	la_size_changed = (la_size != mdev->bc->md.la_size_sect);
- 
-@@ -931,7 +931,7 @@ STATIC int drbd_nl_disk_conf(drbd_dev *mdev, struct drbd_nl_cfg_req *nlp,
- 	}
- 
- 	drbd_bm_lock(mdev); // racy...
--	if (drbd_determin_dev_size(mdev) < 0) {
-+	if (drbd_determin_dev_size(mdev) == dev_size_error) {
- 		retcode = VMallocFailed;
- 		goto unlock_bm;
- 	}
-@@ -1309,7 +1309,7 @@ STATIC int drbd_nl_resize(drbd_dev *mdev, struct drbd_nl_cfg_req *nlp,
- 	struct resize rs;
- 	int retcode=NoError;
- 	int ldsc = 0; /* local disk size changed */
--	int dd;
-+	enum determin_dev_size_enum dd;
- 
- 	memset(&rs, 0, sizeof(struct resize));
- 	if (!resize_from_tags(mdev,nlp->tag_list,&rs)) {
-@@ -1344,7 +1344,7 @@ STATIC int drbd_nl_resize(drbd_dev *mdev, struct drbd_nl_cfg_req *nlp,
- 	drbd_md_sync(mdev);
- 	drbd_bm_unlock(mdev);
- 	dec_local(mdev);
--	if (dd < 0) {
-+	if (dd == dev_size_error) {
- 		retcode = VMallocFailed;
- 		goto fail;
- 	}
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index 50197b0..6642927 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -2238,7 +2238,6 @@ STATIC int receive_sizes(drbd_dev *mdev, Drbd_Header *h)
- 	sector_t p_size, p_usize, my_usize;
- 	int ldsc = 0; /* local disk size changed */
- 	drbd_conns_t nconn;
--	int dd;
- 
- 	ERR_IF(h->length != (sizeof(*p)-sizeof(*h))) return FALSE;
- 	if (drbd_recv(mdev, h->payload, h->length) != h->length)
-@@ -2293,11 +2292,12 @@ STATIC int receive_sizes(drbd_dev *mdev, Drbd_Header *h)
- 
- 	mdev->p_size=p_size;
- 	if(inc_local(mdev)) {
-+		enum determin_dev_size_enum dd;
- 		drbd_bm_lock(mdev); // {
- 		dd = drbd_determin_dev_size(mdev);
- 		drbd_bm_unlock(mdev); // }
- 		dec_local(mdev);
--		if (dd < 0) return FALSE;
-+		if (dd == dev_size_error) return FALSE;
- 		if (dd == grew && mdev->state.conn == Connected &&
- 		    mdev->state.pdsk >= Inconsistent &&
- 		    mdev->state.disk >= Inconsistent) {
-diff --git a/user/drbdadm_main.c b/user/drbdadm_main.c
-index b3445a2..6ed17ec 100644
---- a/user/drbdadm_main.c
-+++ b/user/drbdadm_main.c
-@@ -1938,7 +1938,7 @@ int main(int argc, char** argv)
-       }
-     }
- 
--  run_dcmds();
-+  rv = run_dcmds();
- 
-   free_config(config);
- 
+RnJvbSBmMzgwYmM0MzVkMjQwZDAxZmYzNjBjOWJlNjZjMzdhODZmNTRiN2QwIE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBTaW1vbiBQLiBHcmFoYW0gPFNpbW9uLkdyYWhhbUBzdHJhdHVz
+LmNvbT4KRGF0ZTogV2VkLCAzMCBKYW4gMjAwOCAyMzozNjo0MyAtMDUwMApTdWJqZWN0OiBbUEFU
+Q0hdIE1ha2Ugc3VyZSB3ZSBkb250IHNlbmQgc3RhdGUgaWYgYSBjbHVzdGVyIHdpZGUgc3RhdGUg
+Y2hhbmdlIGlzIGluIHByb2dyZXNzCgotLS0KIGRyYmQvZHJiZF9tYWluLmMgfCAgICA1ICsrKysr
+CiAxIGZpbGVzIGNoYW5nZWQsIDUgaW5zZXJ0aW9ucygrKSwgMCBkZWxldGlvbnMoLSkKCmRpZmYg
+LS1naXQgYS9kcmJkL2RyYmRfbWFpbi5jIGIvZHJiZC9kcmJkX21haW4uYwppbmRleCBkNTg5YmZm
+Li41NTQxYjA1IDEwMDY0NAotLS0gYS9kcmJkL2RyYmRfbWFpbi5jCisrKyBiL2RyYmQvZHJiZF9t
+YWluLmMKQEAgLTE0NDAsMTAgKzE0NDAsMTUgQEAgaW50IGRyYmRfc2VuZF9zdGF0ZShkcmJkX2Rl
+diAqbWRldikKIHsKIAlpbnQgb2s7CiAKKwkvKiBHcmFiIHN0YXRlIGxvY2sgc28gd2Ugd29udCBz
+ZW5kIHN0YXRlIGlmIHdlJ3JlIGluIHRoZSBtaWRkbGUKKwkgKiBvZiBhIGNsdXN0ZXIgd2lkZSBz
+dGF0ZSBjaGFuZ2Ugb24gYW5vdGhlciB0aHJlYWQgKi8KKwlkcmJkX3N0YXRlX2xvY2sobWRldik7
+CisKIAlkb3duKCZtZGV2LT5kYXRhLm11dGV4KTsKIAlvayA9IF9kcmJkX3NlbmRfc3RhdGUobWRl
+dik7CiAJdXAoJm1kZXYtPmRhdGEubXV0ZXgpOwogCisJZHJiZF9zdGF0ZV91bmxvY2sobWRldik7
+CiAJcmV0dXJuIG9rOwogfQogCi0tIAoxLjUuNC5yYzEKCg==
 
---Boundary-00=_OGzoHG3i5XprxST--
+------_=_NextPart_001_01C8654A.C60D5684--
