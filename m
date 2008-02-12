@@ -1,13 +1,15 @@
-Return-Path: <Simon.Graham@stratus.com>
+Return-Path: <Ernest.Montrose@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C8654A.C60D5684"
-Date: Fri, 1 Feb 2008 22:21:59 -0500
-Message-ID: <342BAC0A5467384983B586A6B0B37671080C9554@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] ordering problem between StateChangeRequest and
-	send_state
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C86DD2.CC0AEE27"
+Date: Tue, 12 Feb 2008 18:55:51 -0500
+Message-ID: <BD7042533C2F8943A6A4257A9E31C454F47AC0@EXNA.corp.stratus.com>
+In-Reply-To: 200801291437.06285.philipp.reisner@linbit.com
+References: <342BAC0A5467384983B586A6B0B3767107E8A3F8@EXNA.corp.stratus.com>
+	200801291437.06285.philipp.reisner@linbit.com
+From: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Stuck in WFBitMapS again
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,77 +21,59 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 This is a multi-part message in MIME format.
 
-------_=_NextPart_001_01C8654A.C60D5684
+------_=_NextPart_001_01C86DD2.CC0AEE27
 Content-Type: text/plain;
-	charset="iso-8859-1"
+	charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 
-I have seen a problem where if resync is paused and resumed and then =
-completed quickly, the sync target node correctly transitions to =
-UptoDate but the other ends up Inconsistent. I believe this is a =
-reordering issue caused by an interaction between drbd_send_state_req =
-and drbd_send_state as follows (with the resync starting off in the =
-paused state):
 
-1. We resumed syncing and set aftr_isp->0 -- this schedules a work item =
-to report the change
-=A0  to the peer.
+It looks like we still have a race condition while finishing syncing and
+pausing/resuming syncing at the same time.=20
 
-2. Syncing completes on an other thread, drbd_send_state_req is called =
-inline to send the
- =A0 new state to the peer with a StateChgRequest, BUT the mdev state is =
-not updated yet.=20
-=A0  This code then waits for a response from the peer... when the peer =
-gets this, it updates
-   it's state immediately (to Consistent) and sends the response.
+What's happening is that we finish syncing.
+The secondary side goes to Connected at the end of
+drbd_resync_finished()
 
-3. Now the after state change starts running and does a send-state call =
-which grabs
- =A0 the current state from the device (which is still inconsistent) and =
-sends this. When
-=A0  the peer gets this, it will change from UpToDate->Inconsistent.
+The Primary side is still in drbd_resync_finished().  While still there,
 
-4. Finally, we get the response to the StateChgRequest and change the =
-state to UpToDate on
- =A0 the sync target - no further state change is sent because =
-transition to UpToDate doesn't
-=A0  generate one.
+the syncer isp flag gets set and unset due to a higher priority device
+syncer getting paused/resumed.
 
-My suggested fix is to use the existing drbd_state_lock - this is =
-already used in drbd_send_state_req, my suggestion is to also grab it in =
-drbd_send_state so that we don't attempt to send ReportState if a state =
-change rq is already in progress.
+Now the Primary side sends "Inconsistent" state to the Secondary since
+we are still in drbd_resync_finished()
+and have not gone Connected and UptoDate yet. But the other side is
+connected and UpToDate though.
 
-I've attached a proposed patch that implements this suggestion BUT this =
-is based on an earlier patch of ours that splits drbd_send_state into =
-two routines and acquires the send mutex - the one titled "Ensure that =
-state updated cannot be done out of order whilst running receive_state =
-(914435c)".
+The secondary goes WFBitMapS via drbd_sync_handshake()
 
-Simon
+In the mean time the Primary finally goes Connected and UptoDate.
 
-------_=_NextPart_001_01C8654A.C60D5684
+The Secondary is stuck in WFBitMapS.
+
+I include a patch that may be the fix for this.  Any other ideas?
+
+Thanks.
+EM--
+
+
+------_=_NextPart_001_01C86DD2.CC0AEE27
 Content-Type: application/octet-stream;
-	name="0001-Make-sure-we-dont-send-state-if-a-cluster-wide-state.patch"
+	name="4595.patch"
 Content-Transfer-Encoding: base64
-Content-Description: 0001-Make-sure-we-dont-send-state-if-a-cluster-wide-state.patch
+Content-Description: 4595.patch
 Content-Disposition: attachment;
-	filename="0001-Make-sure-we-dont-send-state-if-a-cluster-wide-state.patch"
+	filename="4595.patch"
 
-RnJvbSBmMzgwYmM0MzVkMjQwZDAxZmYzNjBjOWJlNjZjMzdhODZmNTRiN2QwIE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiBTaW1vbiBQLiBHcmFoYW0gPFNpbW9uLkdyYWhhbUBzdHJhdHVz
-LmNvbT4KRGF0ZTogV2VkLCAzMCBKYW4gMjAwOCAyMzozNjo0MyAtMDUwMApTdWJqZWN0OiBbUEFU
-Q0hdIE1ha2Ugc3VyZSB3ZSBkb250IHNlbmQgc3RhdGUgaWYgYSBjbHVzdGVyIHdpZGUgc3RhdGUg
-Y2hhbmdlIGlzIGluIHByb2dyZXNzCgotLS0KIGRyYmQvZHJiZF9tYWluLmMgfCAgICA1ICsrKysr
-CiAxIGZpbGVzIGNoYW5nZWQsIDUgaW5zZXJ0aW9ucygrKSwgMCBkZWxldGlvbnMoLSkKCmRpZmYg
-LS1naXQgYS9kcmJkL2RyYmRfbWFpbi5jIGIvZHJiZC9kcmJkX21haW4uYwppbmRleCBkNTg5YmZm
-Li41NTQxYjA1IDEwMDY0NAotLS0gYS9kcmJkL2RyYmRfbWFpbi5jCisrKyBiL2RyYmQvZHJiZF9t
-YWluLmMKQEAgLTE0NDAsMTAgKzE0NDAsMTUgQEAgaW50IGRyYmRfc2VuZF9zdGF0ZShkcmJkX2Rl
-diAqbWRldikKIHsKIAlpbnQgb2s7CiAKKwkvKiBHcmFiIHN0YXRlIGxvY2sgc28gd2Ugd29udCBz
-ZW5kIHN0YXRlIGlmIHdlJ3JlIGluIHRoZSBtaWRkbGUKKwkgKiBvZiBhIGNsdXN0ZXIgd2lkZSBz
-dGF0ZSBjaGFuZ2Ugb24gYW5vdGhlciB0aHJlYWQgKi8KKwlkcmJkX3N0YXRlX2xvY2sobWRldik7
-CisKIAlkb3duKCZtZGV2LT5kYXRhLm11dGV4KTsKIAlvayA9IF9kcmJkX3NlbmRfc3RhdGUobWRl
-dik7CiAJdXAoJm1kZXYtPmRhdGEubXV0ZXgpOwogCisJZHJiZF9zdGF0ZV91bmxvY2sobWRldik7
-CiAJcmV0dXJuIG9rOwogfQogCi0tIAoxLjUuNC5yYzEKCg==
+ZGlmZiAtLWdpdCBhL2RyYmQvZHJiZF9yZWNlaXZlci5jIGIvZHJiZC9kcmJkX3JlY2VpdmVyLmMK
+aW5kZXggMDQ4YTc1OS4uMTg0ZjZkZiAxMDA2NDQKLS0tIGEvZHJiZC9kcmJkX3JlY2VpdmVyLmMK
+KysrIGIvZHJiZC9kcmJkX3JlY2VpdmVyLmMKQEAgLTI0NjcsNiArMjQ2Nyw4IEBAIFNUQVRJQyBp
+bnQgcmVjZWl2ZV9zdGF0ZShkcmJkX2RldiAqbWRldiwgRHJiZF9IZWFkZXIgKmgpCiAJCQltZGV2
+LT5zdGF0ZS5kaXNrID09IE5lZ290aWF0aW5nKSk7CiAJCWNyIHw9IHRlc3RfYml0KENPTlNJREVS
+X1JFU1lOQywmbWRldi0+ZmxhZ3MpOyAvKiBwZWVyIGZvcmNlZCAqLwogCQljciB8PSAob2Nvbm4g
+PT0gQ29ubmVjdGVkICYmIHBlZXJfc3RhdGUuY29ubiA+IENvbm5lY3RlZCk7CisgICAgICAgICAg
+ICAgICBjciB8PSAoKG9jb25uID09IFdGQml0TWFwUyB8fCBvY29ubiA9PSBXRkJpdE1hcFQpICYm
+IAorICAgICAgICAgICAgICAgICAgICAgcGVlcl9zdGF0ZS5kaXNrID09IFVwVG9EYXRlICYmICBt
+ZGV2LT5zdGF0ZS5kaXNrID09IFVwVG9EYXRlKTsKIAogCQlpZiAoY3IpIG5jb25uPWRyYmRfc3lu
+Y19oYW5kc2hha2UobWRldiwgcGVlcl9zdGF0ZS5yb2xlLCBwZWVyX3N0YXRlLmRpc2spOwogCg==
 
-------_=_NextPart_001_01C8654A.C60D5684--
+------_=_NextPart_001_01C86DD2.CC0AEE27--
