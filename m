@@ -1,13 +1,19 @@
-Return-Path: <azeez.ahamed@rediffmail.com>
-Date: 25 Mar 2008 07:25:56 -0000
-Message-ID: <20080325072556.17142.qmail@f5mail-237-219.rediffmail.com>
-MIME-Version: 1.0
-From: "Azeez Ahamed" <azeez.ahamed@rediffmail.com>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (office.linbit [86.59.100.100])
+	(using TLSv1 with cipher DHE-RSA-AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 78E192DF6252
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Mar 2008 14:48:54 +0100 (CET)
+Date: Thu, 27 Mar 2008 14:48:53 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Content-type: multipart/alternative;
-	boundary="Next_1206429956---0-202.137.237.219-17138"
-Subject: [Drbd-dev] DRBD bugs repository?
-Reply-To: Azeez Ahamed <azeez.ahamed@rediffmail.com>
+Subject: Re: [Drbd-dev] DRBD bugs repository?
+Message-ID: <20080327134853.GB5419@barkeeper1.linbit>
+References: <20080325072556.17142.qmail@f5mail-237-219.rediffmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080325072556.17142.qmail@f5mail-237-219.rediffmail.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,40 +23,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
- This is a multipart mime message
+On Tue, Mar 25, 2008 at 07:25:56AM -0000, Azeez Ahamed wrote:
+>  
+> I have been working on DRBD from quite sometime. I am interested in
+> contributing to the DRBD opensource development by fixing bugs or
+> developing the new features. I explored the DRBD website and the users's
+> mailing list, nothing much information i got on the bugs repository or on
+> the details on the new features development.
+> 
+>   Please let me know how can i access the DRBD bugs list.
 
+since the main developers of DRBD (me and phil) sit next to each other
+for hours every day, most roadmap coordination, feature requests and bug
+reports happen right here, in the linbit office.
 
---Next_1206429956---0-202.137.237.219-17138
-Content-type: text/plain;
-	charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+we do have a bugzilla, though we only slowly start to actually use it,
+some things live still as a piece of paper on the real desktop.
+the bugzilla is currently linbit internal, and partially in german.
 
-  =0A I have been working on DRBD from quite sometime. I am interested in=
-=0Acontributing to the DRBD opensource development by fixing bugs or=0Adeve=
-loping the new features. I explored the DRBD website and the users's=0Amail=
-ing list, nothing much information i got on the bugs repository or on=0Athe=
- details on the new features development.=0A=0A  Please let me know how can=
- i access the DRBD bugs list.=0A=0AThanks,=0AAzeez=0A=20
---Next_1206429956---0-202.137.237.219-17138
-Content-type: text/html;
-	charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+we may eventually make that bugzilla publically accessible (readonly),
+for reference purposes.
 
-<P>=0A&nbsp; <BR>=0A I have been working on DRBD from quite sometime. I am =
-interested in<BR>=0Acontributing to the DRBD opensource development by fixi=
-ng bugs or<BR>=0Adeveloping the new features. I explored the DRBD website a=
-nd the users's<BR>=0Amailing list, nothing much information i got on the bu=
-gs repository or on<BR>=0Athe details on the new features development.<BR>=
-=0A<BR>=0A&nbsp; Please let me know how can i access the DRBD bugs list.<BR=
->=0A<BR>=0AThanks,<BR>=0AAzeez<BR>=0A =0A</P>=0A<br><br>=0A<Table border=3D=
-0 Width=3D644 Height=3D57 cellspacing=3D0 cellpadding=3D0 style=3D'font-fam=
-ily:Verdana;font-size:11px;line-height:15px;'><TR><td><a href=3D'http://adw=
-orks.rediff.com/cgi-bin/AdWorks/click.cgi/www.rediff.com/signature-home.htm=
-/1050715198@Middle5/2070949_2063564/2076342/1?PARTNER=3D3&OAS_QUERY=3Dnull'=
- target=3Dnew ><img src =3D'http://imadworks.rediff.com/cgi-bin/AdWorks/adi=
-mage.cgi/2070949_2063564/creative_2076342.gif'  alt=3D'Amity'  border=3D0><=
-/a></td></TR></Table>
---Next_1206429956---0-202.137.237.219-17138--
+but right now, public bug reporting happens via the lists, or via
+input from direct customers of LINBIT.
 
+I'm happy that there is interest in helping us getting the stuff done,
+only I'm right now not sure what I can suggest to you to takle first.
+the bugs we are currently working on are very much right in the deep
+internals of drbd. No offense, but I don't think anyone new to the
+project could be of much help there.
+
+I'll try to find a way to make that DRBD bug/feature list accessible
+for you, so you could try and pick some suitable issues yourself.
+
+Also, maybe you can fill me in on your background, what did you do, what
+is it you think you can do best, what amount of time do you think you
+could invest, etc.
+
+cheers,
+
+-- 
+: Lars Ellenberg                            Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
+: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
