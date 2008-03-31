@@ -1,19 +1,18 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (office.linbit [86.59.100.100])
-	(using TLSv1 with cipher DHE-RSA-AES128-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 78E192DF6252
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Mar 2008 14:48:54 +0100 (CET)
-Date: Thu, 27 Mar 2008 14:48:53 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] DRBD bugs repository?
-Message-ID: <20080327134853.GB5419@barkeeper1.linbit>
-References: <20080325072556.17142.qmail@f5mail-237-219.rediffmail.com>
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: "Montrose, Ernest" <Ernest.Montrose@stratus.com>
+Subject: Re: [Drbd-dev] Stuck in WFBitMapS again
+Date: Mon, 31 Mar 2008 16:43:51 +0200
+References: <342BAC0A5467384983B586A6B0B3767107E8A3F8@EXNA.corp.stratus.com>
+	<BD7042533C2F8943A6A4257A9E31C454F47AC0@EXNA.corp.stratus.com>
+In-Reply-To: <BD7042533C2F8943A6A4257A9E31C454F47AC0@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20080325072556.17142.qmail@f5mail-237-219.rediffmail.com>
+Message-Id: <200803311643.51501.philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,46 +22,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Mar 25, 2008 at 07:25:56AM -0000, Azeez Ahamed wrote:
->  
-> I have been working on DRBD from quite sometime. I am interested in
-> contributing to the DRBD opensource development by fixing bugs or
-> developing the new features. I explored the DRBD website and the users's
-> mailing list, nothing much information i got on the bugs repository or on
-> the details on the new features development.
-> 
->   Please let me know how can i access the DRBD bugs list.
+Am Mittwoch, 13. Februar 2008 00:55:51 schrieb Montrose, Ernest:
+> It looks like we still have a race condition while finishing syncing and
+> pausing/resuming syncing at the same time.
+>
+> What's happening is that we finish syncing.
+> The secondary side goes to Connected at the end of
+> drbd_resync_finished()
+>
+> The Primary side is still in drbd_resync_finished().  While still there,
+>
+> the syncer isp flag gets set and unset due to a higher priority device
+> syncer getting paused/resumed.
+>
+> Now the Primary side sends "Inconsistent" state to the Secondary since
+> we are still in drbd_resync_finished()
+> and have not gone Connected and UptoDate yet. But the other side is
+> connected and UpToDate though.
+>
+> The secondary goes WFBitMapS via drbd_sync_handshake()
+>
+> In the mean time the Primary finally goes Connected and UptoDate.
+>
+> The Secondary is stuck in WFBitMapS.
+>
+> I include a patch that may be the fix for this.  Any other ideas?
+>
+> Thanks.
+> EM--
 
-since the main developers of DRBD (me and phil) sit next to each other
-for hours every day, most roadmap coordination, feature requests and bug
-reports happen right here, in the linbit office.
 
-we do have a bugzilla, though we only slowly start to actually use it,
-some things live still as a piece of paper on the real desktop.
-the bugzilla is currently linbit internal, and partially in german.
+Hi Ernest,
 
-we may eventually make that bugzilla publically accessible (readonly),
-for reference purposes.
+I know it is quite some time now, but I had to remove this patch.
+It breaks manual split brain resolution.
+Commit ab7facf4e17d98558d2569ccf954f2c64eb7b650
 
-but right now, public bug reporting happens via the lists, or via
-input from direct customers of LINBIT.
+That was the wrong way of fixing this.
 
-I'm happy that there is interest in helping us getting the stuff done,
-only I'm right now not sure what I can suggest to you to takle first.
-the bugs we are currently working on are very much right in the deep
-internals of drbd. No offense, but I don't think anyone new to the
-project could be of much help there.
+Do you have something with logfiles of that event
 
-I'll try to find a way to make that DRBD bug/feature list accessible
-for you, so you could try and pick some suitable issues yourself.
-
-Also, maybe you can fill me in on your background, what did you do, what
-is it you think you can do best, what amount of time do you think you
-could invest, etc.
-
-cheers,
-
+-Phil
 -- 
-: Lars Ellenberg                            Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
+: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
