@@ -1,17 +1,14 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Date: Fri, 4 Apr 2008 12:09:04 +0200
-References: <20080403125233.2330.qmail@f5mail-237-205.rediffmail.com>
-In-Reply-To: <20080403125233.2330.qmail@f5mail-237-205.rediffmail.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200804041209.04704.philipp.reisner@linbit.com>
-Cc: Azeez Ahamed <azeez.ahamed@rediffmail.com>
-Subject: [Drbd-dev] Re: DRBD bugs repository?
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 10 Apr 2008 14:39:11 -0400
+Message-ID: <342BAC0A5467384983B586A6B0B3767108F02DDB@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Problems with DRBD merge-bvec function
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,46 +18,57 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Azeez,
+I've been doing some performance comparisons using the iometer benchmark
+between a system without DRBD and one with and with a specific setup
+that simulates a database workload I am seeing a significant performance
+drop with DRBD (I see around 60% of the 'native' perf level when running
+with DRBD).=20
 
-> About my background details, i have 4+ years of experience in the field
-> of Storage Networking (NAS and SAN). I have been working as software
-> developer on platforms like Linux with C language.
->
-> I am very much interested in contributing to this project. I can spend
-> around 10hrs per week for this project. Please help me in providing
-> access to the bugs list.
+After several days staring at the perf counter data, I've come to the
+conclusion that the only difference between the two cases is the size of
+requests passed down to the logical volume below DRBD. The iometer
+workload is doing a mixture of synchronous reads and writes but all are
+exactly 16KB in size and I see that:
 
-It is in our own intrest to make our bugzilla publically available,
-at least for read access. -- But I do not have the resources right
-now for that.
+1. When running without DRBD, the logical volume is seeing a constant
+request size of 32 sectors (16KB)
+2. When running with DRBD, the request size is variable but is <=3D 16
+sectors with the vast majority of requests at the 16 sector size.
 
-And I think that will not be of much use for you, since to work on the
-issues that are currently open in bugzilla you need to have years
-of experience with kernel development, and need quite some time to
-get familiarize yourself with the DRBD module code base.
+Enabling the DRBD trace, I can see that we are indeed getting a lot of
+8K and smaller requests AND that we never see requests that cross a 32KB
+boundary in disk offsets. I think this is causing my problem because
+requests are being split above DRBD and then re-merged (sometimes)
+between LVM and the physical disk.
 
-But I suggest that you select one of these tasks for you debut
-as DRBD contributor:
+Looking at the drbd_merge_bvec function I see that this is indeed
+deliberate with the current code being as follows:
 
-  1 Implement an include statement for the config file in drbdadm.
-    So that one can have a /etc/drbd.d/res1.conf .... and a
-    /etc/drbd.conf that only says "include /etc/drbd.d/*;"
-    [for DRBD-8.2]
+#if 1
+	limit =3D DRBD_MAX_SEGMENT_SIZE - ((bio_offset &
+(DRBD_MAX_SEGMENT_SIZE-1)) + bio_size);
+#else
+	limit =3D AL_EXTENT_SIZE - ((bio_offset & (AL_EXTENT_SIZE-1)) +
+bio_size);
+#endif
 
-  2 Work on the spec file. The RPMs that get currently build 
-    lack a dependency on the kernel they are built for. Add that
-    dependency. PS: You have to take care that it works for RHEL 
-    and for SLES
-    [for DRBD-8.0 and will get propagated to 8.2 from there]
+Since DRBD_MAX_SEGMENT_SIZE is 32KB that means DRBD will never allow a
+single BIO to cross the 32KB boundary. The original purpose of this
+routine according to the comments was to ensure requests did not cross
+the 4MB AL segment size boundary but it seems this was changed.
 
-  3 Change drbdadm so that it allows multiple "on" sections per
-    resource. -- One has to specify the peer he means on the
-    commandline when use drbdadm connect.
-    [for DRBD-8.2]
+This seems to be a big problem to me -- even though DRBD advertizes a
+max rq size of 32KB, it rarely is able to actually achieve this when
+synchronous I/O is done. It's certainly causing me grief at the moment!
 
--Phil
--- 
-: Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-: LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+I see that I cant simply change this code back to the 4MB boundary check
+as we then run into code in drbd_make_request26 that will decide to try
+and bio_split the request if it crosses s 32KB boundary... although I
+see that the previous code before Lars checkin cbc66a14 actually did the
+check based on the AL segment size.
+
+I didn't quite understand the comments re this being necessary to
+support two primaries either.
+
+Any suggestions for relaxing this limitation?
+Simon
