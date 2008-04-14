@@ -1,17 +1,20 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from racke.linbit (office.linbit [86.59.100.100])
+	(using TLSv1 with cipher DHE-RSA-AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 99F6A2E089A8
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Apr 2008 23:43:47 +0200 (CEST)
+Date: Mon, 14 Apr 2008 23:44:18 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] - DRBD 8.0: Add standard disk counters to
+	DRBD devices
+Message-ID: <20080414214418.GB11768@racke.local>
+References: <342BAC0A5467384983B586A6B0B3767108F031F6@EXNA.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Date: Mon, 14 Apr 2008 15:21:14 -0400
-Message-ID: <342BAC0A5467384983B586A6B0B3767108F03209@EXNA.corp.stratus.com>
-In-Reply-To: 20080414085519.GA32260@soda.linbit
-References: <342BAC0A5467384983B586A6B0B3767108F030CD@EXNA.corp.stratus.com>
-	20080414085519.GA32260@soda.linbit
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Lars Ellenberg" <lars.ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] Perf issues with DRBD when doing a lot of random I/O
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <342BAC0A5467384983B586A6B0B3767108F031F6@EXNA.corp.stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,119 +24,156 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a follow on to the earlier conversation on the issues with the
-drbd_merge_bvec function  - having modified this, I am still seeing
-performance  with DRBD of about 66% of what I see with no DRBD.=20
+On Mon, Apr 14, 2008 at 02:58:26PM -0400, Graham, Simon wrote:
+> The attached patch adds support for the standard disk stats (as reported
+> in /proc/diskstats et al) at the DRBD device level - this is nice
+> because it can be used to show the actual response times etc at that
+> level, after both local and remote (and meta data) I/O is done. These
+> numbers also show up in the standard sar data for disk I/O.
 
-The specific workload is quite vicious and does a lot of random I/O
-across the entire disk, so I experimented with bumping the AL cache size
-up to the max; this got my performance up to 72% of 'native' - better
-but still no great.
+wonderful :)
+had been somewhere on my todo list for month, 
+never got around even to look at it, though.
+thanks!
 
-Then I started thinking about the change I submitted a while back to
-make meta data updates be barrier requests - given that this random
-workload causes a lot of AL cache turns, it's also causing a lot of
-meta-data activity, so a barrier request is likely to cause a lot of
-stalls.
+> It was a little trickier than I thought because getting the right values
+> for the various time fields is not obvious but in the end I copied what
+> md and ll_rw_blk.c do and the numbers certainly look correct now. There
+> are also a few error paths at the top of make_request that do not count
+> bio's that are failed early - since I need to hold the mdev request lock
+> when manipulating the counters, I put the code in after the lock was
+> already acquired which leaves a few error paths that are not counted.
+> However, the normal paths are there, so I think it's OK.
 
-Now, thinking more about this, I'm not so sure that a barrier is
-appropriate here -- when we update the on-disk AL, we are actually
-throwing away information that a given block is modified, so we need to
-be sure THAT block has been committed to the disk, however, it has
-nothing to do with the current set of outstanding I/O to the disk (at
-least, it seems so to me).
+that sounds perfectly reasonable.
 
-I then tried a little test of simply commenting out the barrier in the
-meta data update path and voila I was up to 88% of native perf - finally
-within striking range of acceptable!
+Content-Description: 0003-Add-support-for-standard-disk-stats-to-DRBD-devices.patch
+> From 0b35a81ccda06c6711cdf3cbae1a0cff033ca25e Mon Sep 17 00:00:00 2001
+> From: Simon P. Graham <Simon.Graham@stratus.com>
+> Date: Mon, 14 Apr 2008 10:35:33 -0400
+> Subject: [PATCH] Add support for standard disk stats to DRBD devices
+> 
+> ---
+>  drbd/drbd_int.h |    1 +
+>  drbd/drbd_req.c |   38 ++++++++++++++++++++++++++++++++++++++
+>  drbd/drbd_req.h |    1 +
+>  3 files changed, 40 insertions(+), 0 deletions(-)
+> 
+> diff --git a/drbd/drbd_int.h b/drbd/drbd_int.h
+> index 8f693f3..05edc55 100644
+> --- a/drbd/drbd_int.h
+> +++ b/drbd/drbd_int.h
+> @@ -629,6 +629,7 @@ struct drbd_request {
+>  	struct bio *master_bio;       /* master bio pointer */
+>  	unsigned long rq_state; /* see comments above _req_mod() */
+>  	int seq_num;
+> +	unsigned long start_time;
+>  };
 
-So... the big question is whether or not having a barrier set on
-meta-data updates to the on disk AL is required for correctness
+yes, structures keep growing ...
+somewhen we need to clean it all up again.
 
-Simon
+>  struct drbd_barrier {
+> diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
+> index f06a0e4..d75b674 100644
+> --- a/drbd/drbd_req.c
+> +++ b/drbd/drbd_req.c
+> @@ -105,6 +105,37 @@ void _print_req_mod(drbd_request_t *req,drbd_req_event_t what)
+>  #define print_req_mod(T,W)
+>  #endif
+>  
+> +/* Update disk stats at start of I/O request */
+> +static inline void _drbd_start_io_acct(drbd_dev *mdev, drbd_request_t *req, struct bio *bio)
+> +{
+> +	int rw = bio_data_dir(bio);
+> +
+> +	MUST_HOLD(&mdev->req_lock)
+> +
+> +	disk_stat_inc(mdev->vdisk, ios[rw]);
+> +	disk_stat_add(mdev->vdisk, sectors[rw], bio_sectors(bio));
+> +	preempt_disable();
 
-> On Sun, Apr 13, 2008 at 05:38:10PM -0400, Graham, Simon wrote:
-> > > > That's what I'm testing at the moment -- I reverted the checks
-in
-> > > both
-> > > > drbd_merge_bvec and drbd_make_request_26.
-> > >
-> > > let us know what the impact on performance is.
-> > >
-> >
-> > It makes things a little better but not much -- after staring at
-this
-> > for a while, I realized that I've been looking at the disk stats for
-> the
-> > LVM device underneath DRBD (because DRBD currently doesn't implement
-> the
-> > counters exposed in /proc/diskstats) -- at this level, the average
-> size
-> > of a transfer is reduced because of the meta data updates that are
-> going
-> > on; with the specific workload I am testing, I see about 50 AL cache
-> > misses per second - obviously not good (and yes I am experimenting
-> with
-> > increasing the size, but this test is vicious and does random writes
-> all
-> > over the disk).
-> >
-> > I've actually been working on adding support for the standard disk
-> > counters - will probably submit a patch for that shortly on the
-> > assumption that it's generally interesting.
->=20
-> great.
->=20
-> > > but maybe this had not been your problem at all?
-> > > if any of the lower level devices has a merge_bvec function
-itself,
-> > > drbd falls back to "PAGE_SIZE" max-segments, unless you have
-> > "use-bmbv"
-> > > enabled, because we currently cannot cope with bios that need not
-> be
-> > > split on the Primary, but would suddenly be split on the Secondary
-> due
-> > > to different lower level constraints.
-> >
-> > They don't. However, I don't think the code actually behaves the way
-> you
-> > describe, unless I'm missing something -- in the merge-bvec routine
-> (in
-> > 8.0) it has:
-> >
-> > 	limit =3D DRBD_MAX_SEGMENT_SIZE - ((bio_offset &
-> > (DRBD_MAX_SEGMENT_SIZE-1)) + bio_size);
-> >
-> > 	if (limit < 0) limit =3D 0;
-> > 	if (bio_size =3D=3D 0) {
-> > 		if (limit <=3D bvec->bv_len) limit =3D bvec->bv_len;
-> > 	} else if (limit && inc_local(mdev)) {
-> > 		struct request_queue * const b =3D
-> > mdev->bc->backing_bdev->bd_disk->queue;
-> > 		if(b->merge_bvec_fn && mdev->bc->dc.use_bmbv) {
-> > 			backing_limit =3D b->merge_bvec_fn(b,bio,bvec);
-> > 			limit =3D min(limit,backing_limit);
-> > 		}
-> > 		dec_local(mdev);
-> > 	}
-> >
-> > To me, this says it will use the normal 32KB boundary unless
-use_bmbv
-> is
-> > set in which case it uses the minimum of ours and the lower devices
-> > value... I don't see anything here that would limit the size to 4K.
->=20
-> right. only, that code will not be used.
-> if the lover level device has a bio merge bvec fn,
-> drbd announces a fixed maximum segment size of PAGE_SIZE, since that
-> is the common denominator and all block devices are required to handle
-> that. there just will not be any merge_bvec fn announced then.
->=20
-> --
-> : Lars Ellenberg                            Tel +43-1-8178292-55 :
-> : LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-> : Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
+we are inside a spin_lock, no need to manipulate preempt,
+there is no preemptible spin_lock yet.
+
+> +	disk_round_stats(mdev->vdisk);
+> +	preempt_enable();
+> +	mdev->vdisk->in_flight++;
+> +}
+> +
+> +/* Update disk stats when completing request upwards */
+> +static inline void _drbd_end_io_acct(drbd_dev *mdev, drbd_request_t *req)
+> +{
+> +	int rw = bio_data_dir(req->master_bio);
+> +	unsigned long duration = jiffies - req->start_time;
+> +
+> +	MUST_HOLD(&mdev->req_lock)
+> +
+> +	preempt_disable();
+
+same here.
+
+> +	disk_round_stats(mdev->vdisk);
+> +	preempt_enable();
+> +	mdev->vdisk->in_flight--;
+> +
+> +	disk_stat_add(mdev->vdisk, ticks[rw], duration);
+> +}
+> +
+>  static void _req_is_done(drbd_dev *mdev, drbd_request_t *req, const int rw)
+>  {
+>  	const unsigned long s = req->rq_state;
+> @@ -335,6 +366,9 @@ void _req_may_be_done(drbd_request_t *req, int error)
+>  		 * then again, if it is a READ, it is not in the TL at all.
+>  		 * is it still leagal to complete a READ during freeze? */
+>  
+> +		/* Update disk stats */
+> +		_drbd_end_io_acct(mdev, req);
+> +
+>  		_complete_master_bio(mdev,req,
+>  			  ok ? 0 : ( error ? error : -EIO ) );
+>  	} else {
+> @@ -956,6 +990,9 @@ drbd_make_request_common(drbd_dev *mdev, struct bio *bio)
+>  	}
+>  
+>  
+> +	/* Update disk stats */
+> +	_drbd_start_io_acct(mdev, req, bio);
+> +
+>  	/* _maybe_start_new_epoch(mdev);
+>  	 * If we need to generate a write barrier packet, we have to add the
+>  	 * new epoch (barrier) object, and queue the barrier packet for sending,
+> @@ -1012,6 +1049,7 @@ drbd_make_request_common(drbd_dev *mdev, struct bio *bio)
+>  			local = 0;
+>  		}
+>  		if (remote) dec_ap_pending(mdev);
+> +		_drbd_end_io_acct(mdev, req);
+>  		/* THINK: do we want to fail it (-EIO), or pretend success? */
+>  		bio_endio(req->master_bio, 0);
+>  		req->master_bio = NULL;
+> diff --git a/drbd/drbd_req.h b/drbd/drbd_req.h
+> index 1d981b2..74d8dc1 100644
+> --- a/drbd/drbd_req.h
+> +++ b/drbd/drbd_req.h
+> @@ -284,6 +284,7 @@ static inline drbd_request_t* drbd_req_new(drbd_dev *mdev, struct bio *bio_src)
+>  		req->epoch       = 0;
+>  		req->sector      = bio->bi_sector;
+>  		req->size        = bio->bi_size;
+> +		req->start_time  = jiffies;
+>  		INIT_HLIST_NODE(&req->colision);
+>  		INIT_LIST_HEAD(&req->tl_requests);
+>  
+> -- 
+> 1.5.4-rc1.GIT
+> 
+
 > _______________________________________________
 > drbd-dev mailing list
 > drbd-dev@lists.linbit.com
 > http://lists.linbit.com/mailman/listinfo/drbd-dev
+
+
+-- 
+: Lars Ellenberg                            Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
+: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
