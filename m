@@ -1,13 +1,17 @@
-Return-Path: <ciprich@linuxbox.cz>
-Date: Tue, 1 Jul 2008 10:34:40 +0200
-From: Nikola Ciprich <extmaillist@linuxbox.cz>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (office.linbit [86.59.100.100])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id A57AB2DD0580
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Jul 2008 11:58:21 +0200 (CEST)
+Date: Tue, 1 Jul 2008 11:58:21 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20080701083440.GA4432@develbox.linuxbox.cz>
+Subject: Re: [Drbd-dev] [PATCH] Remove proc_root usage (fixes 2.6.26 build)
+Message-ID: <20080701095821.GE20245@soda.linbit>
+References: <20080701083440.GA4432@develbox.linuxbox.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Cc: nikola.ciprich@linuxbox.cz
-Subject: [Drbd-dev] [PATCH] Remove proc_root usage (fixes 2.6.26 build)
+In-Reply-To: <20080701083440.GA4432@develbox.linuxbox.cz>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,46 +21,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
-following patch removes usage of obsolete proc_root by usind NULL instead.
-Please apply
-BR
-nik
+On Tue, Jul 01, 2008 at 10:34:40AM +0200, Nikola Ciprich wrote:
+> Hi,
+> following patch removes usage of obsolete proc_root by usind NULL instead.
+> Please apply
 
-diff -Naur drbd-8.0.git/drbd/drbd_main.c drbd-8.0.git-remove-proc-root/drbd/drbd_main.c
---- drbd-8.0.git/drbd/drbd_main.c       2008-06-10 08:02:55.000000000 -0400
-+++ drbd-8.0.git-remove-proc-root/drbd/drbd_main.c      2008-07-01 03:27:16.000000000 -0400
-@@ -2342,7 +2342,7 @@
+will have to check against "backwards compatibility"
+in the old SLES 9 and RHEL 4 kernels first.
 
-        if (minor_table) {
-                if (drbd_proc)
--                       remove_proc_entry("drbd",&proc_root);
-+                       remove_proc_entry("drbd",NULL);
-                i=minor_count;
-                while (i--) {
-                        drbd_dev        *mdev  = minor_to_mdev(i);
-@@ -2579,7 +2579,7 @@
-        /*
-         * register with procfs
-         */
--       drbd_proc = create_proc_entry("drbd",  S_IFREG | S_IRUGO , &proc_root);
-+       drbd_proc = create_proc_entry("drbd",  S_IFREG | S_IRUGO , NULL);
-
-        if (!drbd_proc) {
-                printk(KERN_ERR DEVICE_NAME": unable to register proc file\n");
-
+but thanks,
+will do.
 
 -- 
--------------------------------------
-Nikola CIPRICH
-LinuxBox.cz, s.r.o.
-28. rijna 168, 709 01 Ostrava
-
-tel.:   +420 596 603 142
-fax:    +420 596 621 273
-mobil:  +420 777 093 799
-www.linuxbox.cz
-
-mobil servis: +420 737 238 656
-email servis: servis@linuxbox.cz
--------------------------------------
+: Lars Ellenberg                            Tel +43-1-8178292-55 :
+: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
+: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
