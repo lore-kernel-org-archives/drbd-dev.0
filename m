@@ -1,17 +1,24 @@
-Return-Path: <Robert@saq.co.uk>
-Received: from alternatereality.thematrix.local (ADSL135-89.saqnet.co.uk
-	[195.2.135.89])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 03E0B2DF6545
-	for <drbd-dev@lists.linbit.com>; Fri, 11 Jul 2008 15:58:56 +0200 (CEST)
+Return-Path: <syrius.ml@no-log.org>
+Received: from postfix1-g20.free.fr (postfix1-g20.free.fr [212.27.60.42])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 320552CC092B
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Jul 2008 19:46:15 +0200 (CEST)
+Received: from smtp3-g19.free.fr (smtp3-g19.free.fr [212.27.42.29])
+	by postfix1-g20.free.fr (Postfix) with ESMTP id 547832845E46
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Jul 2008 19:24:44 +0200 (CEST)
+Received: from smtp3-g19.free.fr (localhost.localdomain [127.0.0.1])
+	by smtp3-g19.free.fr (Postfix) with ESMTP id 2E4DA17B59D
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Jul 2008 19:24:31 +0200 (CEST)
+Received: from f.smtp.localhost (amm80-1-82-246-72-218.fbx.proxad.net
+	[82.246.72.218])
+	by smtp3-g19.free.fr (Postfix) with ESMTP id 1BE5317B59B
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Jul 2008 19:24:31 +0200 (CEST)
+To: drbd-dev@lists.linbit.com
+From: syrius.ml@no-log.org
+Message-ID: <87hcastmig.87fxqctmig@87ej5wtmig.message.id>
+Date: Mon, 14 Jul 2008 19:24:30 +0200
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----_=_NextPart_001_01C8E35A.488D9333"
-Content-class: urn:content-classes:message
-Date: Fri, 11 Jul 2008 14:30:27 +0100
-Message-ID: <C1EAC9C5E752D24C968FF091D446D823240B51@ALTERNATEREALIT>
-From: "Robert Dunkley" <Robert@saq.co.uk>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] RDMA and DRBD
+Content-Type: text/plain; charset=us-ascii
+Subject: [Drbd-dev] too small timeout in drbdsetup
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,105 +28,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
 
-------_=_NextPart_001_01C8E35A.488D9333
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Hi,
 
-=20
+as previously reported here
+http://thread.gmane.org/gmane.linux.kernel.drbd.devel/330 I also get
+the error message.
 
-I'm planning to use DRBD with a "Crossover" Infinband connection. I'm
-pretty sure that I will get reasonable performance with IPOIB-CM but I
-was wondering if an RDMA version of DRBD was available (It seems pretty
-well suited to RDMA).=20
+looking at
+http://git.drbd.org/?p=drbd-8.0.git;a=blob;f=user/drbdsetup.c;h=0bca7c1c773bcbd1c2ed6781062396ed15e77e9c;hb=HEAD#l1919
+and
+http://git.drbd.org/?p=drbd-8.2.git;a=blob;f=user/drbdsetup.c;h=3868f1a18f4cda80cad5b0b05aa6f2348755dedd;hb=HEAD
 
-=20
+it seems the timeout is still too low (at least for me)
 
-Rob
+I've fixed my problem by increasing the timeout to 5s.
 
+to reproduce the bug i was doing several drbdsetup disk one after the other
+in a script.
 
-------_=_NextPart_001_01C8E35A.488D9333
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+(in fact the bug was first triggered by heartbeat drbd ocf script)
 
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" =
-xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
-xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" =
-xmlns=3D"http://www.w3.org/TR/REC-html40">
+Was do you thing would be the best change to make ?
+increase the timeout ?
+why not using NL_TIME (12000) as other drbd_calls ?
 
-<head>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
-charset=3Dus-ascii">
-<meta name=3DGenerator content=3D"Microsoft Word 12 (filtered medium)">
-<style>
-<!--
- /* Font Definitions */
- @font-face
-	{font-family:"Cambria Math";
-	panose-1:2 4 5 3 5 4 6 3 2 4;}
-@font-face
-	{font-family:Calibri;
-	panose-1:2 15 5 2 2 2 4 3 2 4;}
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{margin:0cm;
-	margin-bottom:.0001pt;
-	font-size:11.0pt;
-	font-family:"Calibri","sans-serif";}
-a:link, span.MsoHyperlink
-	{mso-style-priority:99;
-	color:blue;
-	text-decoration:underline;}
-a:visited, span.MsoHyperlinkFollowed
-	{mso-style-priority:99;
-	color:purple;
-	text-decoration:underline;}
-span.EmailStyle17
-	{mso-style-type:personal-compose;
-	font-family:"Calibri","sans-serif";
-	color:windowtext;}
-.MsoChpDefault
-	{mso-style-type:export-only;}
-@page Section1
-	{size:612.0pt 792.0pt;
-	margin:72.0pt 72.0pt 72.0pt 72.0pt;}
-div.Section1
-	{page:Section1;}
--->
-</style>
-<!--[if gte mso 9]><xml>
- <o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
-</xml><![endif]--><!--[if gte mso 9]><xml>
- <o:shapelayout v:ext=3D"edit">
-  <o:idmap v:ext=3D"edit" data=3D"1" />
- </o:shapelayout></xml><![endif]-->
-</head>
+Thanks
 
-<body lang=3DEN-US link=3Dblue vlink=3Dpurple>
-
-<div class=3DSection1>
-
-<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=3DMsoNormal>I&#8217;m planning to use DRBD with a =
-&#8220;Crossover&#8221;
-Infinband connection. I&#8217;m pretty sure that I will get reasonable
-performance with IPOIB-CM but I was wondering if an RDMA version of DRBD =
-was
-available (It seems pretty well suited to RDMA). <o:p></o:p></p>
-
-<p class=3DMsoNormal><o:p>&nbsp;</o:p></p>
-
-<p class=3DMsoNormal>Rob<o:p></o:p></p>
-
-</div>
-
-</body>
-
-</html>
-
-------_=_NextPart_001_01C8E35A.488D9333--
+-- 
