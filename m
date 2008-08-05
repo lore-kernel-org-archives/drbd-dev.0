@@ -1,17 +1,20 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <syrius.ml@no-log.org>
+Received: from smtp3-g19.free.fr (smtp3-g19.free.fr [212.27.42.29])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id C9DD92E20AC9
+	for <drbd-dev@lists.linbit.com>; Tue,  5 Aug 2008 19:15:23 +0200 (CEST)
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] too small timeout in drbdsetup
+References: <87hcastmig.87fxqctmig@87ej5wtmig.message.id>
+	<87y73cochw.87wsiwochw@87vdygochw.message.id>
+	<200808051335.15444.philipp.reisner@linbit.com>
+From: syrius.ml@no-log.org
+Message-ID: <873aljpey0.871w13pey0@87zlnro0dk.message.id>
+Date: Tue, 05 Aug 2008 19:15:20 +0200
+In-Reply-To: <200808051335.15444.philipp.reisner@linbit.com> (Philipp
+	Reisner's message of "Tue\, 5 Aug 2008 13\:35\:15 +0200")
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [Drbd-dev] too small timeout in drbdsetup
-Date: Tue, 5 Aug 2008 08:54:08 -0400
-Message-ID: <DA0E7D869C862D4095C265233CD1D41EC3080A@EXNA.corp.stratus.com>
-In-Reply-To: 200808051335.15444.philipp.reisner@linbit.com
-References: <87hcastmig.87fxqctmig@87ej5wtmig.message.id><87y73cochw.87wsiwochw@87vdygochw.message.id>
-	200808051335.15444.philipp.reisner@linbit.com
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Content-Type: text/plain; charset=us-ascii
+Cc: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,38 +24,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
->=20
-> You have an issue with that 500ms in that function, right ?
->=20
-> void ensure_drbd_driver_is_present(void)
->...
-> We do not experience any issue with the 500ms in our setups, as are
-> reports
-> about such an issue rather rare. Could you give a more details
-> description
+Philipp Reisner <philipp.reisner@linbit.com> writes:
+
+> We do not experience any issue with the 500ms in our setups, as are reports
+> about such an issue rather rare. Could you give a more details description
 > about the conditions you trigger can trigger this ?
->=20
 
-FWIW, we see this occasionally in our environment too - usually when the
-system is very busy; we're running DRBD in Dom0 of a Xen environment and
-when the system is busy, the hypervisor can 'steal' time from Dom0 -
-this translates to wall time moving forward with no chance to actually
-execute code which can cause the 500ms timer to expire even when the
-DRBD module is present.
+I have several drbd devices (4 atm).
+Most of the time it is triggered by heartbeat RA scripts when the
+device are setup one after the other.
+could also happen if i do "echo r1 r2 r3 r4 | xargs -n 1 drbdadm
+primary" for example.
 
-We see this timeout once or twice a day (in about 2500hrs of total run
-time) so it's not terribly prevalent but it's enough to cause issues.=20
+> I guess we will add an option to drbdsetup then, and have it is setting
+> in the globals section of drbd.conf. 
 
-I must admit (-blush-) that I simply commented out the call to
-ensure_drbd_driver_is_present() in our version since I _know_ that the
-module is always loaded. I think having a command line option to
-drbdsetup that lengthens the timeout or disables the check altogether
-would be good.
+sounds good.
 
-BTW: There is one other slightly annoying side effect of the check --
-every time drbdsetup is run, you get an unexpected event reported if you
-are running 'drbdsetup monitor' -- not terribly bad but it confuses
-folks debugging issues...
+> I do not want to inrecase it for all users, since is seems to affect only
+> a very small part of our user base.
 
-Simon
+ok.
 
+-- 
