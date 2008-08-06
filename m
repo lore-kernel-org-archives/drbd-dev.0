@@ -1,20 +1,18 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (office.linbit [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 976F82E3849D
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Aug 2008 10:53:08 +0200 (CEST)
-Date: Wed, 6 Aug 2008 10:53:08 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] too small timeout in drbdsetup
-Message-ID: <20080806085308.GB32114@soda.linbit>
-References: <87hcastmig.87fxqctmig@87ej5wtmig.message.id>
-	<87y73cochw.87wsiwochw@87vdygochw.message.id>
-	<200808051335.15444.philipp.reisner@linbit.com>
-	<873aljpey0.871w13pey0@87zlnro0dk.message.id>
+Return-Path: <gregor@hostgis.com>
+Received: from mail.hostgis.com (unknown [69.59.158.28])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 227242E39902
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Aug 2008 17:05:50 +0200 (CEST)
+Received: from [192.168.1.2] (71-218-185-142.hlrn.qwest.net [71.218.185.142])
+	by mail.hostgis.com (Postfix) with ESMTP id BD70174A20A8
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Aug 2008 07:56:36 -0700 (PDT)
+Message-ID: <4899BB99.60904@hostgis.com>
+Date: Wed, 06 Aug 2008 08:56:25 -0600
+From: Gregor Mosheh <gregor@hostgis.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <873aljpey0.871w13pey0@87zlnro0dk.message.id>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] Troubleshooting digest failures?
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,51 +22,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Aug 05, 2008 at 07:15:20PM +0200, syrius.ml@no-log.org wrote:
-> Philipp Reisner <philipp.reisner@linbit.com> writes:
-> 
-> > We do not experience any issue with the 500ms in our setups, as are reports
-> > about such an issue rather rare. Could you give a more details description
-> > about the conditions you trigger can trigger this ?
-> 
-> I have several drbd devices (4 atm).
-> Most of the time it is triggered by heartbeat RA scripts when the
-> device are setup one after the other.
-> could also happen if i do "echo r1 r2 r3 r4 | xargs -n 1 drbdadm
-> primary" for example.
-> 
-> > I guess we will add an option to drbdsetup then, and have it is setting
-> > in the globals section of drbd.conf. 
-> 
-> sounds good.
-> 
-> > I do not want to inrecase it for all users, since is seems to affect only
-> > a very small part of our user base.
+Hey guys. I've gotten no response from the user list, so maybe it's time 
+for a different tack debugging DRBD's innards...
 
-it may well affect all.
-sometimes we do something that involves IO from the context of the
-cqueue thread. we probably should not.
+I've been having a problem which I describe here. The last posting is 
+probably the most relevant.
+http://www.gossamer-threads.com/lists/drbd/users/15119
 
-if I have too few of them (typically depends on number of cores), and
-all are busy (for a second or so), any communication attempt with a
-500ms timeout will time out while they are still processing the previous
-command.
-
-I'd suggest to replace that check function by a simple stat on
-/proc/drbd. The netlink path will be exercised by the next command
-anyways, with a much larger timeout. The extra call with short timeout
-in the beginning was just a convenience to not run into the full timeout
-and only then realize that the module is missing.
-
-The only drawback I can see to this aproach is, that if now someone loads
-a pre-DRBD-8 module (0.7, 0.6), but uses DRBD-8 userland, the driver
-would appear to be loaded, and drbdsetup will then still run into the
-full timeout of the respective commands.
-
-yes, stupid things do happen.
-but, how much do we care?
+How would I go about debugging this? Is there extra logging or debugging 
+which I can enable? Have any of you seen this before?
 
 -- 
-: Lars Ellenberg                            Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
+Gregor Mosheh / Greg Allensworth, BS, A+
+System Administrator
+HostGIS cartographic development & hosting services
+http://www.HostGIS.com/
+
+"Remember that no one cares if you can back up,
+  only if you can restore." - AMANDA
