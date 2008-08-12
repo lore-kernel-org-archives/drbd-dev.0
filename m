@@ -1,17 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (office.linbit [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 4D3242E083C4
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Aug 2008 10:49:46 +0200 (CEST)
-Date: Tue, 12 Aug 2008 10:49:46 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] 8.2.6 Peer disk state handling issue when attaching
-Message-ID: <20080812084946.GC19857@soda.linbit>
-References: <DA0E7D869C862D4095C265233CD1D41EC30F85@EXNA.corp.stratus.com>
+Return-Path: <ciprich@linuxbox.cz>
+Date: Tue, 12 Aug 2008 11:58:17 +0200
+From: Nikola Ciprich <extmaillist@linuxbox.cz>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] too small timeout in drbdsetup
+Message-ID: <20080812095817.GA31031@develbox.linuxbox.cz>
+References: <87hcastmig.87fxqctmig@87ej5wtmig.message.id>
+	<87y73cochw.87wsiwochw@87vdygochw.message.id>
+	<200808051335.15444.philipp.reisner@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <DA0E7D869C862D4095C265233CD1D41EC30F85@EXNA.corp.stratus.com>
+In-Reply-To: <200808051335.15444.philipp.reisner@linbit.com>
+Cc: nikola.ciprich@linuxbox.cz, drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,61 +21,109 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Aug 11, 2008 at 11:52:30PM -0400, Graham, Simon wrote:
-> I have noticed that with 8.2.6, if the role of a device is
-> Secondary/Secondary and you detach and then re-attach a device, the peer
-> disk state on the other node ends up as Consistent instead of UpToDate -
-> it seems that in this case the code does not check if a resync is
-> required and goes directly from DiskLess->Consistent on the side that is
-> not doing the detach/attach.
-> 
-> Here is a sample extract from the messages file on the two systems:
-> 
-> First, on the system where you do the detach followed by attach
-> (connection state is Connected when this starts, roles are
-> Secondary/Secondary, disk UpToDate/UpToDate:
-> 
-> Aug  9 04:53:11 node0 kernel: drbd16: disk( UpToDate -> Diskless ) 
-> 
-> Aug  9 04:53:32 node0 kernel: drbd16: disk( Diskless -> Attaching ) 
-> Aug  9 04:53:32 node0 kernel: drbd16: No usable activity log found.
-> Aug  9 04:53:32 node0 kernel: drbd16: max_segment_size ( = BIO size ) =
-> 32768
-> Aug  9 04:53:32 node0 kernel: drbd16: reading of bitmap took 1 jiffies
-> Aug  9 04:53:32 node0 kernel: drbd16: recounting of set bits took
-> additional 0 jiffies
-> Aug  9 04:53:32 node0 kernel: drbd16: 0 KB (0 bits) marked out-of-sync
-> by on disk bit-map.
-> Aug  9 04:53:32 node0 kernel: drbd16: disk( Attaching -> Negotiating ) 
-> Aug  9 04:53:32 node0 kernel: drbd16: Writing meta data super block now.
-> Aug  9 04:53:32 node0 kernel: drbd16: disk( Negotiating -> UpToDate )
-> 
-> On the other node (same starting state):
-> 
-> Aug  9 04:53:11 node1 kernel: drbd16: pdsk( UpToDate -> Diskless ) 
-> 
-> Aug  9 04:53:32 node1 kernel: drbd16: real peer disk state = Consistent
-> Aug  9 04:53:32 node1 kernel: drbd16: pdsk( Diskless -> Consistent )
-> 
-> I can see why the second node does not go to the UpToDate state - there
-> is a check in _drbd_set_state such that it only overwrites Consistent
-> with UpToDate if the connection state is also changing which it does not
-> in this case. HOWEVER, I'm not sure this is the right place to fix it -
-> it seems to me that we should check for a resync even in this case since
-> one or both of the disks could have been Primary and modified the disk
-> at some point and then been downgraded to Secondary - so we really need
-> to call drbd_sync_handshake even in this case, but we don't seem to...
-> 
-> I don't see any fixes post 8.2.6 that obviously address this but perhaps
-> I missed something?
+Hi Phillip,
+we are experiencing this problem as well (also multiple DRBD devices operated
+by heartbeat), so I also vote for either increasing timeout value, or making it optional :-)
+thanks a lot!
+nik
 
-confirmed in current 8.2 git.
-
-> If not, any thoughts on the right way to fix this?
-
-I leave that question open for now.
+On Tue, Aug 05, 2008 at 01:35:15PM +0200, Philipp Reisner wrote:
+> Am Montag, 4. August 2008 20:37:00 schrieb syrius.ml@no-log.org:
+> > syrius.ml@no-log.org writes:
+> > > Hi,
+> > >
+> > > as previously reported here
+> > > http://thread.gmane.org/gmane.linux.kernel.drbd.devel/330 I also get
+> > > the error message.
+> > >
+> > > looking at
+> > > http://git.drbd.org/?p=drbd-8.0.git;a=blob;f=user/drbdsetup.c;h=0bca7c1c7
+> > >73bcbd1c2ed6781062396ed15e77e9c;hb=HEAD#l1919 and
+> > > http://git.drbd.org/?p=drbd-8.2.git;a=blob;f=user/drbdsetup.c;h=3868f1a18
+> > >f4cda80cad5b0b05aa6f2348755dedd;hb=HEAD
+> > >
+> > > it seems the timeout is still too low (at least for me)
+> > >
+> > > I've fixed my problem by increasing the timeout to 5s.
+> > >
+> > > to reproduce the bug i was doing several drbdsetup disk one after the
+> > > other in a script.
+> > >
+> > > (in fact the bug was first triggered by heartbeat drbd ocf script)
+> > >
+> > > Was do you thing would be the best change to make ?
+> > > increase the timeout ?
+> > > why not using NL_TIME (12000) as other drbd_calls ?
+> >
+> > Sorry to insist, 8.0.13 is on its way and you haven't answered about
+> > this subject.
+> > A lot of people have to make the change by hand and recompile,
+> > distributions might add their own patch before releasing. Anyway what
+> > do you think about this ?
+> >
+> 
+> Hi,
+> 
+> You have an issue with that 500ms in that function, right ?
+> 
+> void ensure_drbd_driver_is_present(void)
+> {
+> 	struct drbd_tag_list *tl;
+> 	char buffer[4096];
+> 	int sk_nl, rr;
+> 
+> 	sk_nl = open_cn();
+> 	/* Might print:
+> 	   Missing privileges? You should run this as root.
+> 	   Connector module not loaded? try 'modprobe cn'. */
+> 	if (sk_nl < 0) exit(20);
+> 
+> 	tl = create_tag_list(2);
+> 	add_tag(tl, TT_END, NULL, 0); // close the tag list
+> 
+> 	tl->drbd_p_header->packet_type = P_get_state;
+> 	tl->drbd_p_header->drbd_minor = 0;
+> 	tl->drbd_p_header->flags = 0;
+> 
+> 	rr = call_drbd(sk_nl, tl, (struct nlmsghdr*)buffer, 4096, 500);
+> 	/* Might print: (after 500ms)
+> 	   No response from the DRBD driver! Is the module loaded? */
+> 	close_cn(sk_nl);
+> 	if (rr == -2) exit(20);
+> }
+> 
+> We do not experience any issue with the 500ms in our setups, as are reports
+> about such an issue rather rare. Could you give a more details description
+> about the conditions you trigger can trigger this ?
+> 
+> I guess we will add an option to drbdsetup then, and have it is setting
+> in the globals section of drbd.conf. 
+> 
+> I do not want to inrecase it for all users, since is seems to affect only
+> a very small part of our user base.
+> 
+> -Phil
+> -- 
+> : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
+> : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
+> : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
+> _______________________________________________
+> drbd-dev mailing list
+> drbd-dev@lists.linbit.com
+> http://lists.linbit.com/mailman/listinfo/drbd-dev
+> 
 
 -- 
-: Lars Ellenberg                            Tel +43-1-8178292-55 :
-: LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
-: Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
+-------------------------------------
+Nikola CIPRICH
+LinuxBox.cz, s.r.o.
+28. rijna 168, 709 01 Ostrava
+
+tel.:   +420 596 603 142
+fax:    +420 596 621 273
+mobil:  +420 777 093 799
+www.linuxbox.cz
+
+mobil servis: +420 737 238 656
+email servis: servis@linuxbox.cz
+-------------------------------------
