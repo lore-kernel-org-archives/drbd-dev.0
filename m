@@ -1,17 +1,12 @@
-Return-Path: <ciprich@linuxbox.cz>
-Date: Tue, 12 Aug 2008 11:58:17 +0200
-From: Nikola Ciprich <extmaillist@linuxbox.cz>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Subject: Re: [Drbd-dev] too small timeout in drbdsetup
-Message-ID: <20080812095817.GA31031@develbox.linuxbox.cz>
-References: <87hcastmig.87fxqctmig@87ej5wtmig.message.id>
-	<87y73cochw.87wsiwochw@87vdygochw.message.id>
-	<200808051335.15444.philipp.reisner@linbit.com>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200808051335.15444.philipp.reisner@linbit.com>
-Cc: nikola.ciprich@linuxbox.cz, drbd-dev@lists.linbit.com
+Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C8FC98.E816CAE7"
+Date: Tue, 12 Aug 2008 12:31:42 -0400
+Message-ID: <DA0E7D869C862D4095C265233CD1D41EC3105F@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Huge latency issue with 8.2.6
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,109 +16,116 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Phillip,
-we are experiencing this problem as well (also multiple DRBD devices operated
-by heartbeat), so I also vote for either increasing timeout value, or making it optional :-)
-thanks a lot!
-nik
+This is a multi-part message in MIME format.
 
-On Tue, Aug 05, 2008 at 01:35:15PM +0200, Philipp Reisner wrote:
-> Am Montag, 4. August 2008 20:37:00 schrieb syrius.ml@no-log.org:
-> > syrius.ml@no-log.org writes:
-> > > Hi,
-> > >
-> > > as previously reported here
-> > > http://thread.gmane.org/gmane.linux.kernel.drbd.devel/330 I also get
-> > > the error message.
-> > >
-> > > looking at
-> > > http://git.drbd.org/?p=drbd-8.0.git;a=blob;f=user/drbdsetup.c;h=0bca7c1c7
-> > >73bcbd1c2ed6781062396ed15e77e9c;hb=HEAD#l1919 and
-> > > http://git.drbd.org/?p=drbd-8.2.git;a=blob;f=user/drbdsetup.c;h=3868f1a18
-> > >f4cda80cad5b0b05aa6f2348755dedd;hb=HEAD
-> > >
-> > > it seems the timeout is still too low (at least for me)
-> > >
-> > > I've fixed my problem by increasing the timeout to 5s.
-> > >
-> > > to reproduce the bug i was doing several drbdsetup disk one after the
-> > > other in a script.
-> > >
-> > > (in fact the bug was first triggered by heartbeat drbd ocf script)
-> > >
-> > > Was do you thing would be the best change to make ?
-> > > increase the timeout ?
-> > > why not using NL_TIME (12000) as other drbd_calls ?
-> >
-> > Sorry to insist, 8.0.13 is on its way and you haven't answered about
-> > this subject.
-> > A lot of people have to make the change by hand and recompile,
-> > distributions might add their own patch before releasing. Anyway what
-> > do you think about this ?
-> >
-> 
-> Hi,
-> 
-> You have an issue with that 500ms in that function, right ?
-> 
-> void ensure_drbd_driver_is_present(void)
-> {
-> 	struct drbd_tag_list *tl;
-> 	char buffer[4096];
-> 	int sk_nl, rr;
-> 
-> 	sk_nl = open_cn();
-> 	/* Might print:
-> 	   Missing privileges? You should run this as root.
-> 	   Connector module not loaded? try 'modprobe cn'. */
-> 	if (sk_nl < 0) exit(20);
-> 
-> 	tl = create_tag_list(2);
-> 	add_tag(tl, TT_END, NULL, 0); // close the tag list
-> 
-> 	tl->drbd_p_header->packet_type = P_get_state;
-> 	tl->drbd_p_header->drbd_minor = 0;
-> 	tl->drbd_p_header->flags = 0;
-> 
-> 	rr = call_drbd(sk_nl, tl, (struct nlmsghdr*)buffer, 4096, 500);
-> 	/* Might print: (after 500ms)
-> 	   No response from the DRBD driver! Is the module loaded? */
-> 	close_cn(sk_nl);
-> 	if (rr == -2) exit(20);
-> }
-> 
-> We do not experience any issue with the 500ms in our setups, as are reports
-> about such an issue rather rare. Could you give a more details description
-> about the conditions you trigger can trigger this ?
-> 
-> I guess we will add an option to drbdsetup then, and have it is setting
-> in the globals section of drbd.conf. 
-> 
-> I do not want to inrecase it for all users, since is seems to affect only
-> a very small part of our user base.
-> 
-> -Phil
-> -- 
-> : Dipl-Ing Philipp Reisner                      Tel +43-1-8178292-50 :
-> : LINBIT Information Technologies GmbH          Fax +43-1-8178292-82 :
-> : Vivenotgasse 48, 1120 Vienna, Austria        http://www.linbit.com :
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
-> 
+------_=_NextPart_001_01C8FC98.E816CAE7
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
--- 
--------------------------------------
-Nikola CIPRICH
-LinuxBox.cz, s.r.o.
-28. rijna 168, 709 01 Ostrava
+We've been benchmarking DRBD 8.2.6 and have found that some specific =
+benchmarks (SQL) have absolutely terrible performance (a factor of 100 =
+worse than the non DRBD case - 30 transactions per second versus 3000). =
+These issues go away when we power off the secondary system, so it seems =
+likely that it's somehow related to the network component. After some =
+analysis of network traces, we found the following:
 
-tel.:   +420 596 603 142
-fax:    +420 596 621 273
-mobil:  +420 777 093 799
-www.linuxbox.cz
+1. When we are doing 30TPS, we're also doing about 30 1K writes/s - the =
+conclusion here is
+=A0  that one transaction needs 1 1K (2 block) write. This means we are =
+seeing a write-to-write
+=A0  time of around 33ms. To hit the 3000TPS mark, we'd need to be =
+handling 3000 1K writes/s
+=A0  which means a total write-to-write time of 333us
 
-mobil servis: +420 737 238 656
-email servis: servis@linuxbox.cz
--------------------------------------
+2. When we do a tcpdump on the node running the benchmark, we see the =
+following DRBD protocol=20
+ =A0 consistently:
+=A0  . Node issues barrier + 1K write + unplug remote in a single packet
+=A0  . Receives barrier ack on meta-data connection 30-130us later
+=A0  . Receives Data ack on meta-data connection ~250us later (after =
+original rq issued)
+   . Receives TCP level ack on data connection 35-40ms later
+=A0  . The next write is not sent on the wire for 35-40ms
+
+3. tcpdump on the other node shows the time between sending the =
+barrierack and sending the
+ =A0 data ack is around 120us -- this is basically the disk write time.
+
+Conclusion 1 -- network latency has nothing to do with the horrendous =
+perf we are seeing. What's more, we are adding (250 - write_time)us to =
+the overall time to write the block - it seems that the disk write time =
+is of the order of 120us, so we are adding around 130us to the total =
+write time -- this should lead us to a max possible TPS value around =
+4000...
+
+Conclusion 2 -- the problem here has to do with the time is takes the =
+secondary to send the TCP ACK.
+
+I should also note that we are running this system with GSO disabled -- =
+this in turn means that the zero-copy writes done by DRBD actually turn =
+into non-zc writes inside TCP (if you look at tcp_sendpage in tcp.c, you =
+will see that zero-copy is disabled unless scatter gather is enabled and =
+scatter gather is disabled if you don't have checksum offload enabled).
+
+So, my theory is that the first write completes very quickly (around =
+300us), then the app issues the second write which is passed to TCP BUT =
+TCP does not send it because it is waiting for buffers to be free which =
+doesn't happen until the TCP level ACK is received on the data =
+connection. In addition, the data connection is basically unidirectional =
+-- all the other DRBD protocol messages flow on the meta-data =
+connection.
+
+So, what we are running into here is the TCP ACK-Delay timer on the =
+secondary node - since we never send any data from the secondary to the =
+primary on this connection, we have to wait for the timer to expire =
+before acknowledging the data.
+
+I have prototyped a change that uses the TCP_QUICKACK socket option to =
+force acks to be sent when the UnplugRemote message is received and this =
+has made a huge difference - in our original tests (which, in the =
+interests of full disclosure, were run against DRBD8.0) we saw the =
+performance go from 30TPS to 1600+TPS.=20
+
+Forcing the Ack to be sent when the UnplugRemote is received seems the =
+right fix to me, but please comment... candidate git patch against the =
+HEAD of 8.2 is attached.
+
+Simon
+
+
+------_=_NextPart_001_01C8FC98.E816CAE7
+Content-Type: application/octet-stream;
+	name="0001-Ensure-data-is-ACK-d-at-TCP-level-in-a-timely-fashio.patch"
+Content-Transfer-Encoding: base64
+Content-Description: 0001-Ensure-data-is-ACK-d-at-TCP-level-in-a-timely-fashio.patch
+Content-Disposition: attachment;
+	filename="0001-Ensure-data-is-ACK-d-at-TCP-level-in-a-timely-fashio.patch"
+
+RnJvbSBmZjY3NmI0NjlmYmExNzIyN2RmN2NiNmE4OGQzNjUyZjZjNGZjMDYxIE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBTaW1vbiBQLiBHcmFoYW0gPFNpbW9uLkdyYWhhbUBzdHJhdHVz
+LmNvbT4KRGF0ZTogTW9uLCAxMSBBdWcgMjAwOCAxMDoyNzowOCAtMDQwMApTdWJqZWN0OiBbUEFU
+Q0hdIEVuc3VyZSBkYXRhIGlzIEFDSydkIGF0IFRDUCBsZXZlbCBpbiBhIHRpbWVseSBmYXNoaW9u
+LgoKLS0tCiBkcmJkL2RyYmRfaW50LmggICAgICB8ICAgIDYgKysrKysrCiBkcmJkL2RyYmRfcmVj
+ZWl2ZXIuYyB8ICAgIDMgKysrCiAyIGZpbGVzIGNoYW5nZWQsIDkgaW5zZXJ0aW9ucygrKSwgMCBk
+ZWxldGlvbnMoLSkKCmRpZmYgLS1naXQgYS9kcmJkL2RyYmRfaW50LmggYi9kcmJkL2RyYmRfaW50
+LmgKaW5kZXggNTc2YzcyYy4uNjhjNTQyNyAxMDA2NDQKLS0tIGEvZHJiZC9kcmJkX2ludC5oCisr
+KyBiL2RyYmQvZHJiZF9pbnQuaApAQCAtMTUyMiw2ICsxNTIyLDEyIEBAIHN0YXRpYyBpbmxpbmUg
+dm9pZCBkcmJkX3RjcF9mbHVzaChzdHJ1Y3Qgc29ja2V0ICpzb2NrKQogCXRjcF9zZXRzb2Nrb3B0
+KHNvY2stPnNrLCBTT0xfVENQLCBUQ1BfQ09SSywgKGNoYXIgX191c2VyICopJnZhbCwgc2l6ZW9m
+KHZhbCkgKTsKIH0KIAorc3RhdGljIGlubGluZSB2b2lkIGRyYmRfdGNwX3F1aWNrYWNrKHN0cnVj
+dCBzb2NrZXQgKnNvY2spCit7CisJaW50IHZhbCA9IDE7CisJdGNwX3NldHNvY2tvcHQoc29jay0+
+c2ssIFNPTF9UQ1AsIFRDUF9RVUlDS0FDSywgKGNoYXIqKSZ2YWwsIHNpemVvZih2YWwpICk7Cit9
+CisKIC8qIGRyYmRfcHJvYy5jICovCiBleHRlcm4gc3RydWN0IHByb2NfZGlyX2VudHJ5ICpkcmJk
+X3Byb2M7CiBleHRlcm4gc3RydWN0IGZpbGVfb3BlcmF0aW9ucyBkcmJkX3Byb2NfZm9wczsKZGlm
+ZiAtLWdpdCBhL2RyYmQvZHJiZF9yZWNlaXZlci5jIGIvZHJiZC9kcmJkX3JlY2VpdmVyLmMKaW5k
+ZXggNzFlNzYwMS4uYzYxOWM3YSAxMDA2NDQKLS0tIGEvZHJiZC9kcmJkX3JlY2VpdmVyLmMKKysr
+IGIvZHJiZC9kcmJkX3JlY2VpdmVyLmMKQEAgLTI3MzgsNiArMjczOCw5IEBAIFNUQVRJQyBpbnQg
+cmVjZWl2ZV9VbnBsdWdSZW1vdGUoc3RydWN0IGRyYmRfY29uZiAqbWRldiwgc3RydWN0IERyYmRf
+SGVhZGVyICpoKQogewogCWlmIChtZGV2LT5zdGF0ZS5kaXNrID49IEluY29uc2lzdGVudCkKIAkJ
+ZHJiZF9raWNrX2xvKG1kZXYpOworCS8qIE1ha2Ugc3VyZSB3ZSd2ZSBhY2tlZCBhbGwgdGhlIFRD
+UCBkYXRhIGFzc29jaWF0ZWQKKwkgICB3aXRoIHRoZSBkYXRhIHJlcXVlc3RzIGJlaW5nIHVucGx1
+Z2dlZCAqLworCWRyYmRfdGNwX3F1aWNrYWNrKG1kZXYtPmRhdGEuc29ja2V0KTsKIAlyZXR1cm4g
+VFJVRTsgLyogY2Fubm90IGZhaWwuICovCiB9CiAKLS0gCjEuNS40LnJjMQoK
+
+------_=_NextPart_001_01C8FC98.E816CAE7--
