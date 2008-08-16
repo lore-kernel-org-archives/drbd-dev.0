@@ -1,21 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from racke.linbit (dslb-088-075-197-174.pools.arcor-ip.net
-	[88.75.197.174])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 6CB332E05451
-	for <drbd-dev@lists.linbit.com>; Sat, 16 Aug 2008 17:27:10 +0200 (CEST)
-Date: Sat, 16 Aug 2008 17:27:09 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] too small timeout in drbdsetup
-Message-ID: <20080816152709.GB11083@racke>
-References: <1218700653.5281.26.camel@jaguar.home.zzz>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1218700653.5281.26.camel@jaguar.home.zzz>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] Huge latency issue with 8.2.6
+Date: Sat, 16 Aug 2008 12:44:33 -0400
+Message-ID: <DA0E7D869C862D4095C265233CD1D41EEE9B7D@EXNA.corp.stratus.com>
+In-Reply-To: 20080816152246.GA11083@racke
+References: <DA0E7D869C862D4095C265233CD1D41EC3105F@EXNA.corp.stratus.com>
+	20080816152246.GA11083@racke
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,26 +21,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Aug 14, 2008 at 09:57:33AM +0200, Jerome Martin wrote:
-> Philip, Lars, please consider this request seriously and give it some
-> thinking. I really think this is an issue that needs to be addressed
-> because :
+> > Conclusion 2 -- the problem here has to do with the time is takes
+the
+> secondary to send the TCP ACK.
+>=20
+> in git on the way to 8.2.7, we added the TCP_NODELAY socket option,
+>=20
 
-[a few valid points]
+I saw that and it's goodness BUT this controls the Nagle algorithm and
+NOT the Ack Delay timer - you need (I believe) TCP_QUICKACK as well (or
+a global change on the connection to lower the ack delay but I think
+that would be bad - the nice thing about TCP_QUICKACK is that it's a one
+time setting that causes pending acks to be sent right now but does not
+change the normal ack delay).
 
-> I know you might feel I am over-emphasing this tiny little detail, but
-
-absolutely not.
-
-I had always just used a "stat" on /proc/drbd there,
-and that is what we will do from now on.
-
--- 
-: Lars Ellenberg                
-: LINBIT HA-Solutions GmbH
-: DRBD®/HA support and consulting    http://www.linbit.com
-
-DRBD® and LINBIT® are registered trademarks
-of LINBIT Information Technologies GmbH
-__
-please don't Cc me, but send to list   --   I'm subscribed
+Simon
