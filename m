@@ -1,18 +1,21 @@
-Return-Path: <jmartin@longphone.fr>
-Received: from hermes.longphone.fr (hermes.longphone.fr [193.41.238.17])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 9B8D82E4CA79
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Aug 2008 10:27:02 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by hermes.longphone.fr (Postfix) with ESMTP id 4F94421C00A
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Aug 2008 09:55:09 +0200 (CEST)
-Subject: [Drbd-dev] too small timeout in drbdsetup
-From: Jerome Martin <jmartin@longphone.fr>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from racke.linbit (dslb-088-075-197-174.pools.arcor-ip.net
+	[88.75.197.174])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id E1C4D2E05451
+	for <drbd-dev@lists.linbit.com>; Sat, 16 Aug 2008 17:22:46 +0200 (CEST)
+Date: Sat, 16 Aug 2008 17:22:46 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Content-Type: text/plain; charset=UTF-8
-Date: Thu, 14 Aug 2008 09:57:33 +0200
-Message-Id: <1218700653.5281.26.camel@jaguar.home.zzz>
-Mime-Version: 1.0
+Subject: Re: [Drbd-dev] Huge latency issue with 8.2.6
+Message-ID: <20080816152246.GA11083@racke>
+References: <DA0E7D869C862D4095C265233CD1D41EC3105F@EXNA.corp.stratus.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <DA0E7D869C862D4095C265233CD1D41EC3105F@EXNA.corp.stratus.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,86 +25,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello,
+On Tue, Aug 12, 2008 at 12:31:42PM -0400, Graham, Simon wrote:
+> We've been benchmarking DRBD 8.2.6 and have found that some specific benchmarks (SQL) have absolutely terrible performance (a factor of 100 worse than the non DRBD case - 30 transactions per second versus 3000). These issues go away when we power off the secondary system, so it seems likely that it's somehow related to the network component. After some analysis of network traces, we found the following:
+> 
+> 1. When we are doing 30TPS, we're also doing about 30 1K writes/s - the conclusion here is
+> †  that one transaction needs 1 1K (2 block) write. This means we are seeing a write-to-write
+> †  time of around 33ms. To hit the 3000TPS mark, we'd need to be handling 3000 1K writes/s
+> †  which means a total write-to-write time of 333us
+> 
+> 2. When we do a tcpdump on the node running the benchmark, we see the following DRBD protocol 
+>  † consistently:
+> †  . Node issues barrier + 1K write + unplug remote in a single packet
+> †  . Receives barrier ack on meta-data connection 30-130us later
+> †  . Receives Data ack on meta-data connection ~250us later (after original rq issued)
+>    . Receives TCP level ack on data connection 35-40ms later
+> †  . The next write is not sent on the wire for 35-40ms
+> 
+> 3. tcpdump on the other node shows the time between sending the barrierack and sending the
+>  † data ack is around 120us -- this is basically the disk write time.
+> 
+> Conclusion 1 -- network latency has nothing to do with the horrendous
+> perf we are seeing. What's more, we are adding (250 - write_time)us to
+> the overall time to write the block - it seems that the disk write
+> time is of the order of 120us, so we are adding around 130us to the
+> total write time -- this should lead us to a max possible TPS value
+> around 4000...
+> 
+> Conclusion 2 -- the problem here has to do with the time is takes the secondary to send the TCP ACK.
 
-I use drbd in a HA cluster environement, with at times several
-drbdadm/drbdsetup commands running in parallel (notably for monitoring
-drbd resources status, but also during cluster startup, nodes reboots,
-etc..).
+in git on the way to 8.2.7, we added the TCP_NODELAY socket option,
 
-I have a drbd minor counts on each node that ranges from 2 to 10, and on
-all nodes with more than 3 drbd ressources, I am experiencing very
-annoying issues with that timeout.
+we also added the possibility to set "sndbuf-size" to 0,
+to leverage tcp stack autotuning of tcp-buffer size.
 
-Please note that it took me some time to realize that the fault was not
-coming from my resource agents or some other faults, and I expect it to
-be the same for many other users after me if this does not get changed
-and/or documented on the drbd upstream packages. I of course now have to
-maintain a custom drbd package in my local repository only to get the
-trivial patch below in.
+both have been released with 8.0.13, and will be released with 8.2.7.
 
-Philip, Lars, please consider this request seriously and give it some
-thinking. I really think this is an issue that needs to be addressed
-because :
+it should help here as well.
 
-1/ I concerns a usecase that is really on your target users base (HA /
-clustering)
-2/ It is an issue that can stay dormant for a very long time until a
-user decides to add more drbds to his setup,and then bite him really
-bad, even though it is now reported and trivial to fix (even though I
-believe one should always perform tests before production with a bigger
-scale than one's actual initial need)
-3/ when being addressed by a learning cluster-admin who at the same time
-needs to deal with many other different issues, even though it seems
-trivial, it can be very hard to debug what's wrong when it gets
-triggered
-4/ It adds robustness to drbd in many usage scenarios, and I believe
-this is what drbd is about: being robust. I'd be disapointed not to see
-drbd go for the "safer and most robust" choices, as I guess a large
-member of the users community would be.
-
-I know you might feel I am over-emphasing this tiny little detail, but
-after many talks around this on linux-ha IRC channels, plus several
-support sessions given to users/developers of my own clustering OSS
-project, not to mention reports I had from different people in different
-usage scenarios unrelated to the above, I really feel this might have a
-larger impact than one could initially imagine when looking at it
-coldly. And I also fear some of the impacted people are not reporting
-their experience because they lack understanding of what actually
-happens, and might turn their back on a drbd-based solution for the
-wrong reasons ("never got it to run stable, so dumped it" type of
-story).
-
-Note: the actual timeout value that I feel is required to solve 99.9% of
-the occurences of the issue at hand is 1s, but I feel that for coherency
-reasons it should be set to NL_TIME and be made configurable. But YMMV
-and I see no reasons to stay on the safe side with this one.
-
-Thanks for your most valuable time,
-Jerome
-
-diff -Naurd drbd8-8.0.12~/user/drbdsetup.c drbd8-8.0.12/user/drbdsetup.c
---- drbd8-8.0.12~/user/drbdsetup.c	2008-04-08 21:05:56.000000000 +0200
-+++ drbd8-8.0.12/user/drbdsetup.c	2008-08-04 16:11:11.000000000 +0200
-@@ -1839,8 +1839,8 @@
- 	tl->drbd_p_header->drbd_minor = 0;
- 	tl->drbd_p_header->flags = 0;
- 
--	rr = call_drbd(sk_nl, tl, (struct nlmsghdr*)buffer, 4096, 500);
--	/* Might print: (after 500ms)
-+	rr = call_drbd(sk_nl, tl, (struct nlmsghdr*)buffer, 4096, NL_TIME);
-+	/* Might print: (after NL_TIME)
- 	   No response from the DRBD driver! Is the module loaded? */
- 	close_cn(sk_nl);
- 	if (rr == -2) exit(20);
-
-Best Regards,
 -- 
-J√©r√¥me Martin | LongPhone
-Responsable Architecture R√©seau
-122, rue la Boetie | 75008 Paris
-Tel :  +33 (0)1 56 26 28 44
-Fax : +33 (0)1 56 26 28 45
-Mail : jmartin@longphone.fr
-Web : www.longphone.com <http://www.longphone.com>
+: Lars Ellenberg                
+: LINBIT HA-Solutions GmbH
+: DRBDÆ/HA support and consulting    http://www.linbit.com
 
+DRBDÆ and LINBITÆ are registered trademarks
+of LINBIT Information Technologies GmbH
+__
+please don't Cc me, but send to list   --   I'm subscribed
