@@ -1,20 +1,15 @@
-Return-Path: <Thomas.Schoebel-Theuer@1und1.de>
-Received: from msxmx04.webde.de (msxmx04.webde.de [217.72.192.159])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id D63A82DF6247
-	for <drbd-dev@lists.linbit.com>; Tue,  9 Sep 2008 16:29:47 +0200 (CEST)
-Received: from WEBEXCHANGE02.webde.local (webexc02.webde.local [10.2.3.31])
-	by msxmx04.webde.de (Postfix) with ESMTP id 3FB6518350
-	for <drbd-dev@lists.linbit.com>; Tue,  9 Sep 2008 16:02:48 +0200 (CEST)
-From: schoebel <thomas.schoebel-theuer@1und1.de>
-To: drbd-dev@lists.linbit.com
-Date: Tue, 9 Sep 2008 16:02:30 +0200
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: Multipart/Mixed;
-  boundary="Boundary-00=_3HoxIxjarWcANn5"
-Message-Id: <200809091602.31104.thomas.schoebel-theuer@1und1.de>
-Subject: [Drbd-dev] Behaviour of verify: false positives -> true positives
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 10 Sep 2008 16:13:43 -0400
+Message-ID: <DA0E7D869C862D4095C265233CD1D41E011929A3@EXNA.corp.stratus.com>
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Problems with code to disallow connection when peer has
+	mismatched UUID
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,220 +19,225 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---Boundary-00=_3HoxIxjarWcANn5
-Content-Type: text/plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+A change made to DRBD 8.2 on 3/25/08 (commit e817888f) to forcibly
+disconnect in receive_uuids in some cases seems to be causing us
+problems in some scenarios - the specific sequence is this (see detailed
+trace extracts at the end of this)
 
-Hi,
+. We start with node1 secondary and node0 primary and then disconnect
+and reconnect
+. This causes us to enter PausedSyncT on node1 and PausedSyncS on node0
+(because higher priority devices
+  are syncing)
+. Now we swap primaryness so node1 is Primary/PausedSyncT/Inconsistent
+and node0 is Secondary/PausedSyncS/UpToDate
+. Lose connection again - because Node1 is primary, we create a new
+current UUID.
+. Now we connect again - the code in receive_uuids on Node1 refuses to
+connect because it's Primary/Inconsistent and
+  the other node is using a different UUID.
+. We are now stuck in a loop trying to connect and dropping the
+connection continually - no way to fix automatically either
+  since no event is generated that a user mode program could use to
+trigger recovery.
 
-my company is considering drbd for building up failover clusters in shared 
-hosting.
+I'm not sure what the right answer is here, but I have a couple of
+observations:
+1. When we lose connection and are Primary/Inconsistent, should we
+really create a new current UUID? The local data is bad.
+2. When trying to connect and we are Primary/Inconsistent, shouldn't we
+accept the connection even if the UUIDs are different?
+   Surely the uuid handshake will calculate the correct way to
+synchronize in this case? It certainly would in the above
+   case (and you can see this in the trace from node1)
 
-During our preliminary tests, we noticed that a "drbdadm verify /dev/drbdx" 
-detects differences on a heavily loaded test server (several thousand 
-customers).
+Here's the code in question:
 
-We noticed two kind of verify differences: one is surely temporary (not 
-repeatable), but the other is persistent, even after umounting the 
-filesystem.
-
-According to the manpage on drbd.conf (section "notes on data integrity"), 
-these should be "false positives".  Indeed, we found no real corruptions (all 
-different blocks were associated with deleted files).
-
-However, this means that verify is (in _our_ point of view) no _reliable_ 
-check for data integrity. Since data integrity of our valuable customer data 
-is of great concern for us, we look for possibilities to change the behavior 
-such that no false positives are reported any more, i.e. any difference 
-reported by verify should be _guaranteed_ to be a "true positive". In my 
-humble opinion, so-called "mission critical" applications demand for that in 
-general.
-
-In my understanding of kernel architecture, I believe the block differences 
-are caused by an _intended_ race in the kernel at buffer cache level. 
-Whenever a block gets dirty, there is (deliberately) no lock for any consumer 
-of the buffer cache (such as ext3) which would prevent it from 
-(re-)modification while the block is being written to an ordinary disk (even 
-not necessarily a drbd device). IMHO, this deliberate race is _crucial_ for 
-kernel performance (and thus I don't want to dispute on it).
-
-Normally, this race should be no problem at all, even if an inconsistent block 
-(half of the 512-byte block old, other half new version) is written to disk: 
-the dirty-bit is just set again by the buffer cache level again, leading to 
-another writeout which eventually fixes the problem.
-
-I believe (but not 100% sure; please comment) that this model can explain the 
-temporary differences seen by a drbd verify: when the data _content_ is 
-mirrored across the network, the local disk version might have 
-another "timestamp" (in _real_ time) than the version transmitted to 
-ethernet. Thus, _any_ IO of dirty blocks might be inconsistent due to the 
-deliberate kernel race on data block _content_ (dereferencing of 
-buffer_head->b_data in parallel to disk IO). With ordinary load patterns, 
-the "chance" to see _temporary_ false positives caused by that race is 
-probably extremely low (perhaps one to some billion). But on a heavily loaded 
-system we have observed it from time to time. Attached below are some tiny 
-perl scripts which can reproduce temporary false positives with a fairly good 
-chance at least on our test systems (I'd be glad to receive reproductions and 
-experience from other users too). Just start io_rewrite_sector2.pl on an 
-(preferably empty) ext3 filesystem on top of drbd, _in parallel_ to a "drbd 
-verify /dev/corresponding_device" (other filesystems not yet tested). My test 
-filesystem for this test was about 2GB size. Possibly you might have to 
-adjust some constants to reproduce the test.
-
-Up to now, I was reasoning on the _temporary_ false positives. Persistent 
-false positives could be explained by the following theory:
-
-When a file is eventually deleted or truncated, bforget() is called at the 
-buffer cache interface. After that, dirty blocks are no longer transferred to 
-disk, in order to save IO load (IMHO this is _crucial_ for typical access 
-patterns on /tmp/ where typical lifetimes are often less than 1 second). As a 
-consequence, the above-mentioned "fixing" of inconsistent blocks is no longer 
-carried out and long-term differences can remain on the mirrored device, but 
-belonging to deleted files only. Again, the chance to observe that is very 
-low, but I have written another tiny perl script to reproduce that. Just 
-start test_orphan.pl on an _empty_ drbd-mounted filesystem, and _afterwards_ 
-check it with verify. Since the filesystem is empty again after the test, you 
-can be sure that the differences belong to empty or orphan files (if it would 
-belong to filesystem metadata, you would notice that by inspection of the 
-contents with dd). By investigating the different counter values with dd on 
-the underlying devices (primary vs secondary), you can even tell which 
-version was written first. Interestingly, I found that most of the time the 
-local version was the older one, but sometimes it was vice versa.
-
-As a side note: test_orphan.pl also produces orphan files. Sometimes the 
-counter values observed in different blocks are lower than the point of 
-unlink() [currently set to 500], but most of the time the counter value is 
-greater. It seems to me that applications producing orphan files raise the 
-chance to observe false positives, but I am not sure. I have not yet a theory 
-for that; please comment. It might be influenced by the timings of the block 
-IO demon and/or by the load patterns.
-
--------
-
-Now I am reasoning on different solutions. Please comment.
-
-Here are just some brainstorming ideas, without judging on their quality (this 
-will come later):
-
-1) Try to avoid the kernel race on buffer content, specifically for drbd 
-devices as an _option_ (which is _off_ by default). There are at least two 
-sub-variants of that:
-1a) use locking
-1b) use an idea published by Herlihy for conflict-free resolution of different 
-_versions_ of blocks, either on the fly or optionally residing in the buffer 
-cache _in parallel_ [nb probably the latter could result in a major rewrite 
-of large portions of the kernel, not to be disputed here on this list]
-
-2) Whenever drbd-verify sees a difference, retry the comparison a few times 
-after a short delay (possibly with exponential backoff), until _temporary_ 
-differences have been filtered out. Persistent differences will not be 
-tackled by that.
-
-3) As an addition to 2), add an _option_ (which is _off_ by default) to the 
-buffer cache code  to submit bforgotten() blocks specifically to drbd 
-devices.
-
-4) Add an option to drbd (as usual _off_ by default), which calculates a 
-checksum on _every_ arriving IO request _first_ (before starting any 
-sub-request). After finishing both the local and remote sub-IO, calculate the 
-checksum again and compare. If a difference is found, restart both 
-sub-transmissions again, until no mismatches are found any more.
-
-5) As a refinement of 4), first filter out the temporary false positives by 
-means of 2). Additionally try to identify bforgotten() blocks at the buffer 
-cache level and submit them only _once_ after a bforget(), and only to drbd 
-devices where the corresponding option is set. Then drbd uses method 4) 
-_only_ on those blocks, thereby minimizing the performance impact of 4) to a 
-rare special case.
-
-6) Try to establish a complete solution in presence of races solely at the 
-buffer cache level, without affecting drbd in any way. I am not sure whether 
-this is possible. The raw idea is to _identify_ all races _reliably_(!) when 
-they _actually_ occur (as in contrast to _possible_ occurrence). 
-Theoretically b_count, b_state and/or other/similar means should be available 
-to detect actually occurring races during IO, but I am extremely unsure 
-whether this is possible _reliably_ without additional means such as 
-checksumming. Probably this is the wrong list for discussing this topic, but 
-I would be thankful for hints and ideas before going elsewhere with an 
-uncomplete idea.
-
-Now what I personally think of it: 1a) has too strong performance impact, 1b) 
-would probably complicate the kernel by magnitudes, 2) is easy but does not 
-solve all problems, 3) is feasible for non-general applications (outside 
-of /tmp/ etc) but probably could lead to fundamental discussions with kernel 
-developer (forcing us into an inhouse patch), 4) solves it all very easy but 
-hurts performance, 5) is very complicated, and 6) is no mature idea yet.
-
-Currently, I would prefer 4) as an option for testing and for gaining 
-experience at the first try, but depending on performance results other 
-mechanisms should be evaluated.
-
-Of course, other people have other ideas and opinions, so please feel free to 
-comment.
-
-Thanks for your patience,
-
-Thomas
-
---Boundary-00=_3HoxIxjarWcANn5
-Content-Type: application/x-perl;
-  name="io_rewrite_sector2.pl"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment;
-	filename="io_rewrite_sector2.pl"
-
-#!/usr/bin/perl
-#
-
-my $counter;
-
-# absichtlich relativen Pfad verwenden, damit das File an allen
-# m=C3glichen Stellen erzeugt werden kann
-#
-open out0 , ">testfile_0";
-
-for ($counter =3D 1 ; $counter < 5000000 ; $counter++) {
-    seek( out0, 0, 0);
-    print out0 "Counter: $counter\n";
-}
-
-
-
---Boundary-00=_3HoxIxjarWcANn5
-Content-Type: application/x-perl;
-  name="test_orphan.pl"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename="test_orphan.pl"
-
-#!/usr/bin/perl -w
-
-use strict;
-
-my $total_repeat = 4000000;
-my $counter_max = 1000;
-my $orphan_point = 500;
-
-my $limit = $total_repeat/$counter_max;
-for(my $repeat = 0; $repeat < $limit; $repeat++) {
-
-  my $filename = "testfile_$repeat";
-  open out0, ">$filename";
-
-  for(my $counter = 1; $counter < $counter_max; $counter++) {
-
-    seek( out0, 0, 0);
-    print out0 "File: $repeat / $limit. Counter: $counter\n";
-
-    if($counter == $orphan_point) {
-      unlink($filename);
+    if (mdev->state.conn < Connected &&
+        mdev->state.disk < Outdated &&
+        mdev->state.role =3D=3D Primary &&
+        (mdev->ed_uuid & ~((u64)1)) !=3D (p_uuid[Current] & ~((u64)1))) =
+{
+        ERR("Can only connect to data with current UUID=3D%016llX\n",
+            (unsigned long long)mdev->ed_uuid);
+        drbd_force_state(mdev,NS(conn,Disconnecting));
+        return FALSE;
     }
 
-  }
-}
+Any thoughts?
+Simon
 
+Trace from node1:
 
+   6719:Aug 18 22:45:05 node1 kernel: drbd38: conn( WFConnection ->
+WFReportParams )=20
+   6722:Aug 18 22:45:05 node1 kernel: drbd38: drbd_sync_handshake:
+   6723:Aug 18 22:45:05 node1 kernel: drbd38: self
+CADAA290A29A95F0:0000000000000000:4CC7FE9AE8243C78:0000000000000006
+   6724:Aug 18 22:45:05 node1 kernel: drbd38: peer
+678FDAD7A9A6D636:CADAA290A29A95F0:8ACAF333A2BE196A:4CC7FE9AE8243C78
+   6725:Aug 18 22:45:05 node1 kernel: drbd38: uuid_compare()=3D-1 by =
+rule
+5
+   6726:Aug 18 22:45:05 node1 kernel: drbd38: Becoming sync target due
+to disk states.
+   6727:Aug 18 22:45:05 node1 kernel: drbd38: peer( Unknown -> Secondary
+) conn( WFReportParams -> WFBitMapT ) pdsk( DUnknown -> UpToDate )
+peer_isp( 0 -> 1 )=20
+   6729:Aug 18 22:45:05 node1 kernel: drbd38: conn( WFBitMapT ->
+WFSyncUUID )=20
+   6730:Aug 18 22:45:05 node1 kernel: drbd38:  exposed data uuid now
+3633090B73366ED2
+   6731:Aug 18 22:45:05 node1 kernel: drbd38:  uuid[Current] now
+3633090B73366ED2
+   6732:Aug 18 22:45:05 node1 kernel: drbd38:  uuid[Bitmap] now
+0000000000000000
+   6734:Aug 18 22:45:05 node1 kernel: drbd38: conn( WFSyncUUID ->
+PausedSyncT )=20
+   6735:Aug 18 22:45:05 node1 kernel: drbd38: Began resync as
+PausedSyncT (will sync 118668 KB [29667 bits set]).
+   7027:Aug 18 22:46:07 node1 kernel: drbd38: role( Secondary -> Primary
+)=20
+   7437:Aug 18 22:46:39 node1 kernel: drbd38: meta connection shut down
+by peer.
+   7438:Aug 18 22:46:39 node1 kernel: drbd38: peer( Secondary -> Unknown
+) conn( PausedSyncT -> NetworkFailure ) pdsk( UpToDate -> DUnknown )
+peer_isp( 1 -> 0 )=20
+   7456:Aug 18 22:46:39 node1 kernel: drbd38: sock was shut down by peer
+   7460:Aug 18 22:46:39 node1 kernel: drbd38: Creating new current UUID
+   7461:Aug 18 22:46:39 node1 kernel: drbd38:  uuid[Bitmap] now
+3633090B73366ED3
+   7462:Aug 18 22:46:39 node1 kernel: drbd38:  exposed data uuid now
+A398D35216141B4D
+   7463:Aug 18 22:46:39 node1 kernel: drbd38:  uuid[Current] now
+A398D35216141B4D
+   7464:Aug 18 22:46:39 node1 kernel: drbd38: Writing meta data super
+block now.
+   7486:Aug 18 22:46:39 node1 kernel: drbd38: Connection closed
+   7487:Aug 18 22:46:39 node1 kernel: drbd38: Considering state change
+from bad state. Error would be: 'Refusing to be Primary without at least
+one UpToDate disk'
+   7488:Aug 18 22:46:39 node1 kernel: drbd38:  old =3D { =
+cs:NetworkFailure
+st:Primary/Unknown ds:Inconsistent/DUnknown ra-- }
+   7489:Aug 18 22:46:39 node1 kernel: drbd38:  new =3D { cs:Unconnected
+st:Primary/Unknown ds:Inconsistent/DUnknown ra-- }
+   7490:Aug 18 22:46:39 node1 kernel: drbd38: conn( NetworkFailure ->
+Unconnected )=20
+   7491:Aug 18 22:46:39 node1 kernel: drbd38: receiver terminated
+   7492:Aug 18 22:46:39 node1 kernel: drbd38: receiver (re)started
+   7493:Aug 18 22:46:39 node1 kernel: drbd38: Considering state change
+from bad state. Error would be: 'Refusing to be Primary without at least
+one UpToDate disk'
+   7494:Aug 18 22:46:39 node1 kernel: drbd38:  old =3D { cs:Unconnected
+st:Primary/Unknown ds:Inconsistent/DUnknown ra-- }
+   7495:Aug 18 22:46:39 node1 kernel: drbd38:  new =3D { cs:WFConnection
+st:Primary/Unknown ds:Inconsistent/DUnknown ra-- }
+   7496:Aug 18 22:46:39 node1 kernel: drbd38: conn( Unconnected ->
+WFConnection )=20
+   7560:Aug 18 22:46:40 node1 kernel: drbd38: Handshake successful:
+Agreed network protocol version 88
+   7561:Aug 18 22:46:40 node1 kernel: drbd38: Considering state change
+from bad state. Error would be: 'Refusing to be Primary without at least
+one UpToDate disk'
+   7562:Aug 18 22:46:40 node1 kernel: drbd38:  old =3D { cs:WFConnection
+st:Primary/Unknown ds:Inconsistent/DUnknown ra-- }
+   7563:Aug 18 22:46:40 node1 kernel: drbd38:  new =3D { =
+cs:WFReportParams
+st:Primary/Unknown ds:Inconsistent/DUnknown ra-- }
+   7564:Aug 18 22:46:40 node1 kernel: drbd38: conn( WFConnection ->
+WFReportParams )=20
+   7580:Aug 18 22:46:40 node1 kernel: drbd38: Can only connect to data
+with current UUID=3DA398D35216141B4D
+   7581:Aug 18 22:46:40 node1 kernel: drbd38: conn( WFReportParams ->
+Disconnecting )=20
+   7586:Aug 18 22:46:40 node1 kernel: drbd38: Connection closed
 
---Boundary-00=_3HoxIxjarWcANn5--
+Trace from Node0:
+
+   5185:Aug 18 22:45:06 node0 kernel: drbd38: conn( StandAlone ->
+Unconnected )=20
+   5188:Aug 18 22:45:06 node0 kernel: drbd38: conn( Unconnected ->
+WFConnection )=20
+   5197:Aug 18 22:45:06 node0 kernel: drbd38: aftr_isp( 0 -> 1 )=20
+   5248:Aug 18 22:45:06 node0 kernel: drbd38: Handshake successful:
+Agreed network protocol version 88
+   5249:Aug 18 22:45:06 node0 kernel: drbd38: conn( WFConnection ->
+WFReportParams )=20
+   5250:Aug 18 22:45:06 node0 kernel: drbd38: Starting asender thread
+(from drbd38_receiver [16796])
+   5251:Aug 18 22:45:06 node0 kernel: drbd38: data-integrity-alg:
+<not-used>
+   5252:Aug 18 22:45:06 node0 kernel: drbd38: drbd_sync_handshake:
+   5253:Aug 18 22:45:06 node0 kernel: drbd38: self
+678FDAD7A9A6D636:CADAA290A29A95F0:8ACAF333A2BE196A:4CC7FE9AE8243C78
+   5254:Aug 18 22:45:06 node0 kernel: drbd38: peer
+CADAA290A29A95F0:0000000000000000:4CC7FE9AE8243C78:0000000000000006
+   5255:Aug 18 22:45:06 node0 kernel: drbd38: uuid_compare()=3D1 by rule =
+7
+   5256:Aug 18 22:45:06 node0 kernel: drbd38: Becoming sync source due
+to disk states.
+   5257:Aug 18 22:45:06 node0 kernel: drbd38: peer( Unknown -> Secondary
+) conn( WFReportParams -> WFBitMapS ) pdsk( Outdated -> Inconsistent )
+peer_isp( 0 -> 1 )=20
+   5258:Aug 18 22:45:06 node0 kernel: drbd38: Writing meta data super
+block now.
+   5263:Aug 18 22:45:06 node0 kernel: drbd38:  uuid[History_start] now
+CADAA290A29A95F0
+   5264:Aug 18 22:45:06 node0 kernel: drbd38:  uuid[Bitmap] now
+3633090B73366ED2
+   5265:Aug 18 22:45:06 node0 kernel: drbd38: conn( WFBitMapS ->
+PausedSyncS )=20
+   5266:Aug 18 22:45:06 node0 kernel: drbd38: Began resync as
+PausedSyncS (will sync 118668 KB [29667 bits set]).
+   5267:Aug 18 22:45:06 node0 kernel: drbd38: Writing meta data super
+block now.
+   5410:Aug 18 22:46:07 node0 kernel: drbd38: peer( Secondary -> Primary
+)=20
+   5427:Aug 18 22:46:39 node0 kernel: drbd38: PingAck did not arrive in
+time.
+   5428:Aug 18 22:46:39 node0 kernel: drbd38: peer( Primary -> Unknown )
+conn( PausedSyncS -> NetworkFailure ) peer_isp( 1 -> 0 )=20
+   5434:Aug 18 22:46:39 node0 kernel: drbd38: Connection closed
+   5435:Aug 18 22:46:39 node0 kernel: drbd38: conn( NetworkFailure ->
+Unconnected )=20
+   5438:Aug 18 22:46:39 node0 kernel: drbd38: conn( Unconnected ->
+WFConnection )=20
+   5546:Aug 18 22:46:40 node0 kernel: drbd38: Handshake successful:
+Agreed network protocol version 88
+   5547:Aug 18 22:46:40 node0 kernel: drbd38: conn( WFConnection ->
+WFReportParams )=20
+   5561:Aug 18 22:46:40 node0 kernel: drbd38: meta connection shut down
+by peer.
+   5562:Aug 18 22:46:40 node0 kernel: drbd38: conn( WFReportParams ->
+NetworkFailure )=20
+   5573:Aug 18 22:46:40 node0 kernel: drbd38: Connection closed
+   5574:Aug 18 22:46:40 node0 kernel: drbd38: conn( NetworkFailure ->
+Unconnected )=20
+   5577:Aug 18 22:46:40 node0 kernel: drbd38: conn( Unconnected ->
+WFConnection )=20
+   5598:Aug 18 22:46:43 node0 kernel: drbd38: Handshake successful:
+Agreed network protocol version 88
+   5599:Aug 18 22:46:43 node0 kernel: drbd38: conn( WFConnection ->
+WFReportParams )=20
+   5600:Aug 18 22:46:43 node0 kernel: drbd38: Starting asender thread
+(from drbd38_receiver [16796])
+   5602:Aug 18 22:46:43 node0 kernel: drbd38: drbd_sync_handshake:
+   5603:Aug 18 22:46:43 node0 kernel: drbd38: self
+678FDAD7A9A6D636:3633090B73366ED2:CADAA290A29A95F0:8ACAF333A2BE196A
+   5604:Aug 18 22:46:43 node0 kernel: drbd38: peer
+A398D35216141B4D:3633090B73366ED3:4CC7FE9AE8243C78:0000000000000006
+   5605:Aug 18 22:46:43 node0 kernel: drbd38: uuid_compare()=3D100 by =
+rule
+9
+   5606:Aug 18 22:46:43 node0 kernel: drbd38: Becoming sync source due
+to disk states.
+   5607:Aug 18 22:46:43 node0 kernel: drbd38: peer( Unknown -> Primary )
+conn( WFReportParams -> WFBitMapS ) peer_isp( 0 -> 1 )=20
+   5609:Aug 18 22:46:43 node0 kernel: drbd38: meta connection shut down
+by peer.
+   5610:Aug 18 22:46:43 node0 kernel: drbd38: peer( Primary -> Unknown )
+conn( WFBitMapS -> NetworkFailure ) peer_isp( 1 -> 0 )=20
+   5611:Aug 18 22:46:43 node0 kernel: drbd38: asender terminated
+   5612:Aug 18 22:46:43 node0 kernel: drbd38: Terminating asender thread
+
