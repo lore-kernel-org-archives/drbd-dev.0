@@ -1,19 +1,18 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (office.linbit [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id C3C072DF624E
-	for <drbd-dev@lists.linbit.com>; Thu, 11 Sep 2008 11:37:12 +0200 (CEST)
-Date: Thu, 11 Sep 2008 11:37:12 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Behaviour of verify: false positives -> true positives
-Message-ID: <20080911093712.GD9756@soda.linbit>
-References: <200809091602.31104.thomas.schoebel-theuer@1und1.de>
-	<20080911092512.GC9756@soda.linbit>
+Return-Path: <Simon.Graham@stratus.com>
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20080911092512.GC9756@soda.linbit>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] Problems with code to disallow connection when peerhas
+	mismatched UUID
+Date: Thu, 11 Sep 2008 06:33:01 -0400
+Message-ID: <DA0E7D869C862D4095C265233CD1D41E011929C8@EXNA.corp.stratus.com>
+In-Reply-To: 20080911092451.GB9756@soda.linbit
+References: <DA0E7D869C862D4095C265233CD1D41E011929A3@EXNA.corp.stratus.com>
+	20080911092451.GB9756@soda.linbit
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,64 +22,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Sep 11, 2008 at 11:25:12AM +0200, Lars Ellenberg wrote:
-> On Tue, Sep 09, 2008 at 04:02:30PM +0200, schoebel wrote:
-> > Hi,
-> > 
-> > my company is considering drbd for building up failover clusters in
-> > shared hosting.
-> > 
-> > During our preliminary tests, we noticed that a "drbdadm verify
-> > /dev/drbdx" detects differences on a heavily loaded test server
-> > (several thousand customers).
-> > 
-> > We noticed two kind of verify differences: one is surely temporary
-> > (not repeatable), but the other is persistent, even after umounting
-> > the filesystem.
-> > 
-> > According to the manpage on drbd.conf (section "notes on data integrity"), 
-> > these should be "false positives".  Indeed, we found no real corruptions (all 
-> > different blocks were associated with deleted files).
-> > 
-> > However, this means that verify is (in _our_ point of view) no _reliable_ 
-> > check for data integrity. Since data integrity of our valuable customer data 
-> > is of great concern for us, we look for possibilities to change the behavior 
-> > such that no false positives are reported any more, i.e. any difference 
-> > reported by verify should be _guaranteed_ to be a "true positive". In my 
-> > humble opinion, so-called "mission critical" applications demand for that in 
-> > general.
+Thanks Lars,
 
-now.
-an other thought here.
+> > I'm not sure what the right answer is here, but I have a couple of
+> > observations:
+> > 1. When we lose connection and are Primary/Inconsistent, should we
+> > really create a new current UUID? The local data is bad.
+>=20
+> I don't think we should.
 
-any application doing what your test perl scripts do
-is risking its data, and is not crash safe.
+OK - I'll look at implementing this.
 
-aparently there are many of those.
+> that piece of code is to avoid "time warps" of content.
+> the specific scenario this should protect against is:
+>=20
+> Primary, Connected
+>  connection breaks.
+> Primary  ---?
+>  primary generates new "current uuid",
+>  and continues to write
+>  local disk breaks
+> Primary, Diskless, ---?
+>  connection heals
+>=20
+> now, if we allow this connection and accept the data of the secondary,
+> we just jumped back in time.
 
-if an application starts to rewrite a portion of a file it has written
-to before, it should fsync() at some point, before it starts the
-overwrite, so the buffers will be on disk
-(ok "on device", no necessarily on rotating rust yet,
- but, while related, that is an other topic).
+Ah OK -- would it perhaps then be OK to check for local disk state <=3D
+Negotiating instead of < Outdated:
 
-so as long as you run a postfix mailq
-or a database tablespace on DRBD,
-or similar applications that know how to behave,
-I'd not expect any such "modify of in-flight buffers" to happen.
+	if (mdev->state.conn < Connected &&
+	    mdev->state.disk <=3D Negotiating &&
+	    mdev->state.role =3D=3D Primary &&
+	    (mdev->ed_uuid & ~((u64)1)) !=3D (p_uuid[Current] &
+~((u64)1))) {
+		ERR("Can only connect to data with current
+UUID=3D%016llX\n",
+		    (unsigned long long)mdev->ed_uuid);
+		drbd_force_state(mdev,NS(conn,Disconnecting));
+		return FALSE;
+	}
 
-any application that does "not behave" is risking data integrity
-(in event of [application, file system, device or node]crash/
- ower outage/failover).
+This would handle the case we see where we KNOW the local disk does not
+have good data... (and we knew before the connection was lost, so we
+would NOT have actually been able to change the local copy of the data
+on disk).
 
-For any "behaving" application, the "drbd verify integrity check" is
-expected to be your "_reliable_" from above.
-
-Am I missing something?
-
--- 
-: Lars Ellenberg                
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
-
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
+Simon
