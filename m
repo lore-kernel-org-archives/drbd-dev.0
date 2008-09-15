@@ -1,17 +1,17 @@
-Return-Path: <Simon.Graham@stratus.com>
+Return-Path: <Peter.Petrakis@stratus.com>
 Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01C91741.0370CD6C"
-Subject: RE: [Drbd-dev] Problems with code to disallow connection when peer
-	has mismatched UUID
-Date: Mon, 15 Sep 2008 10:40:34 -0400
-Message-ID: <DA0E7D869C862D4095C265233CD1D41E01192D4A@EXNA.corp.stratus.com>
-In-Reply-To: <DA0E7D869C862D4095C265233CD1D41E011929C8@EXNA.corp.stratus.com>
-References: <DA0E7D869C862D4095C265233CD1D41E011929A3@EXNA.corp.stratus.com>20080911092451.GB9756@soda.linbit
-	<DA0E7D869C862D4095C265233CD1D41E011929C8@EXNA.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Graham, Simon" <Simon.Graham@stratus.com>,
-	<drbd-dev@lists.linbit.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Subject: RE: [Drbd-dev] 8.2.6 Peer disk state handling issue when attaching
+Date: Mon, 15 Sep 2008 14:26:15 -0400
+Message-ID: <DA0E7D869C862D4095C265233CD1D41E0E3F55@EXNA.corp.stratus.com>
+In-Reply-To: 20080812084946.GC19857@soda.linbit
+References: <DA0E7D869C862D4095C265233CD1D41EC30F85@EXNA.corp.stratus.com>
+	20080812084946.GC19857@soda.linbit
+From: "Petrakis, Peter" <Peter.Petrakis@stratus.com>
+To: <drbd-dev@lists.linbit.com>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,137 +21,125 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+Hi All,
 
-------_=_NextPart_001_01C91741.0370CD6C
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+We've evolved the original patch to the following, which seems to solve
+our problem. Can you see anything wrong with it? Thanks.
 
-Attached is a proposed patch to address this problem that does the
-following:
+diff -r f9aa469f7044 drbd_main.c
+--- a/drbd_main.c       Fri Sep 12 13:51:40 2008 -0400
++++ b/drbd_main.c       Mon Sep 15 10:04:48 2008 -0400
+@@ -765,7 +765,7 @@
+                ns.conn =3D Connected;
+        }
 
-1. When connection is lost, a new UUID is not created on the primary if
-the local disk is inconsistent
-2. Allow connection to be established if local disk is inconsistent even
-if the remote is using
-   a different UUID - our data is useless and cannot have been changed
-anyway. The following handshake
-   will cause the appropriate resync.
+-       if (ns.conn !=3D os.conn && ns.conn >=3D Connected &&
++       if (ns.conn >=3D Connected &&
+            (ns.disk =3D=3D Consistent || ns.disk =3D=3D Outdated)) {
+                switch(ns.conn) {
+                case WFBitMapT:
+@@ -787,7 +787,7 @@
+                        WARN("Implicit set disk from Outdate to
+UpToDate\n");
+        }
 
-Although only one of these is actually required to fix my problem, I
-thought it was better to be consistent
-and change both.
+-       if (ns.conn !=3D os.conn && ns.conn >=3D Connected &&
++       if (ns.conn >=3D Connected &&
+            (ns.pdsk =3D=3D Consistent || ns.pdsk =3D=3D Outdated)) {
+                switch(ns.conn) {
+                case Connected:
 
-Simon
+
+Peter
 
 > -----Original Message-----
 > From: drbd-dev-bounces@linbit.com [mailto:drbd-dev-bounces@linbit.com]
-> On Behalf Of Graham, Simon
-> Sent: Thursday, September 11, 2008 6:33 AM
+On
+> Behalf Of Lars Ellenberg
+> Sent: Tuesday, August 12, 2008 4:50 AM
 > To: drbd-dev@linbit.com
-> Subject: RE: [Drbd-dev] Problems with code to disallow connection when
-> peerhasmismatched UUID
+> Subject: Re: [Drbd-dev] 8.2.6 Peer disk state handling issue when
+> attaching
 >=20
-> Thanks Lars,
->=20
-> > > I'm not sure what the right answer is here, but I have a couple of
-> > > observations:
-> > > 1. When we lose connection and are Primary/Inconsistent, should we
-> > > really create a new current UUID? The local data is bad.
+> On Mon, Aug 11, 2008 at 11:52:30PM -0400, Graham, Simon wrote:
+> > I have noticed that with 8.2.6, if the role of a device is
+> > Secondary/Secondary and you detach and then re-attach a device, the
+peer
+> > disk state on the other node ends up as Consistent instead of
+UpToDate -
+> > it seems that in this case the code does not check if a resync is
+> > required and goes directly from DiskLess->Consistent on the side
+that is
+> > not doing the detach/attach.
 > >
-> > I don't think we should.
->=20
-> OK - I'll look at implementing this.
->=20
-> > that piece of code is to avoid "time warps" of content.
-> > the specific scenario this should protect against is:
+> > Here is a sample extract from the messages file on the two systems:
 > >
-> > Primary, Connected
-> >  connection breaks.
-> > Primary  ---?
-> >  primary generates new "current uuid",
-> >  and continues to write
-> >  local disk breaks
-> > Primary, Diskless, ---?
-> >  connection heals
+> > First, on the system where you do the detach followed by attach
+> > (connection state is Connected when this starts, roles are
+> > Secondary/Secondary, disk UpToDate/UpToDate:
 > >
-> > now, if we allow this connection and accept the data of the
-> secondary,
-> > we just jumped back in time.
->=20
-> Ah OK -- would it perhaps then be OK to check for local disk state =
-<=3D
-> Negotiating instead of < Outdated:
->=20
-> 	if (mdev->state.conn < Connected &&
-> 	    mdev->state.disk <=3D Negotiating &&
-> 	    mdev->state.role =3D=3D Primary &&
-> 	    (mdev->ed_uuid & ~((u64)1)) !=3D (p_uuid[Current] &
-> ~((u64)1))) {
-> 		ERR("Can only connect to data with current
-> UUID=3D%016llX\n",
-> 		    (unsigned long long)mdev->ed_uuid);
-> 		drbd_force_state(mdev,NS(conn,Disconnecting));
-> 		return FALSE;
-> 	}
->=20
-> This would handle the case we see where we KNOW the local disk does
+> > Aug  9 04:53:11 node0 kernel: drbd16: disk( UpToDate -> Diskless )
+> >
+> > Aug  9 04:53:32 node0 kernel: drbd16: disk( Diskless -> Attaching )
+> > Aug  9 04:53:32 node0 kernel: drbd16: No usable activity log found.
+> > Aug  9 04:53:32 node0 kernel: drbd16: max_segment_size ( =3D BIO =
+size
+) =3D
+> > 32768
+> > Aug  9 04:53:32 node0 kernel: drbd16: reading of bitmap took 1
+jiffies
+> > Aug  9 04:53:32 node0 kernel: drbd16: recounting of set bits took
+> > additional 0 jiffies
+> > Aug  9 04:53:32 node0 kernel: drbd16: 0 KB (0 bits) marked
+out-of-sync
+> > by on disk bit-map.
+> > Aug  9 04:53:32 node0 kernel: drbd16: disk( Attaching -> Negotiating
+)
+> > Aug  9 04:53:32 node0 kernel: drbd16: Writing meta data super block
+now.
+> > Aug  9 04:53:32 node0 kernel: drbd16: disk( Negotiating -> UpToDate
+)
+> >
+> > On the other node (same starting state):
+> >
+> > Aug  9 04:53:11 node1 kernel: drbd16: pdsk( UpToDate -> Diskless )
+> >
+> > Aug  9 04:53:32 node1 kernel: drbd16: real peer disk state =3D
+Consistent
+> > Aug  9 04:53:32 node1 kernel: drbd16: pdsk( Diskless -> Consistent )
+> >
+> > I can see why the second node does not go to the UpToDate state -
+there
+> > is a check in _drbd_set_state such that it only overwrites
+Consistent
+> > with UpToDate if the connection state is also changing which it does
 not
-> have good data... (and we knew before the connection was lost, so we
-> would NOT have actually been able to change the local copy of the data
-> on disk).
+> > in this case. HOWEVER, I'm not sure this is the right place to fix
+it -
+> > it seems to me that we should check for a resync even in this case
+since
+> > one or both of the disks could have been Primary and modified the
+disk
+> > at some point and then been downgraded to Secondary - so we really
+need
+> > to call drbd_sync_handshake even in this case, but we don't seem
+to...
+> >
+> > I don't see any fixes post 8.2.6 that obviously address this but
+perhaps
+> > I missed something?
 >=20
-> Simon
+> confirmed in current 8.2 git.
+>=20
+> > If not, any thoughts on the right way to fix this?
+>=20
+> I leave that question open for now.
+>=20
+> --
+> : Lars Ellenberg                            Tel +43-1-8178292-55 :
+> : LINBIT Information Technologies GmbH      Fax +43-1-8178292-82 :
+> : Vivenotgasse 48, A-1120 Vienna/Europe    http://www.linbit.com :
 > _______________________________________________
 > drbd-dev mailing list
 > drbd-dev@lists.linbit.com
 > http://lists.linbit.com/mailman/listinfo/drbd-dev
-
-------_=_NextPart_001_01C91741.0370CD6C
-Content-Type: application/octet-stream;
-	name="0001-Better-handling-of-losing-connection-in-primary-inco.patch"
-Content-Transfer-Encoding: base64
-Content-Description: 0001-Better-handling-of-losing-connection-in-primary-inco.patch
-Content-Disposition: attachment;
-	filename="0001-Better-handling-of-losing-connection-in-primary-inco.patch"
-
-RnJvbSA0MThjZDQ2ZTAzM2RhODM2OTViODczYTg0MmY0NGFiZTdkYjA1NzFmIE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiBTaW1vbiBQLiBHcmFoYW0gPFNpbW9uLkdyYWhhbUBzdHJhdHVz
-LmNvbT4KRGF0ZTogRnJpLCAxMiBTZXAgMjAwOCAxMDo0MTo0OSAtMDQwMApTdWJqZWN0OiBbUEFU
-Q0hdIEJldHRlciBoYW5kbGluZyBvZiBsb3NpbmcgY29ubmVjdGlvbiBpbiBwcmltYXJ5L2luY29u
-c2lzdGVudCBzdGF0ZQoKMS4gRG9udCBjcmVhdGUgYSBuZXcgVVVJRCBpZiBwcmltYXJ5L2luc29u
-c2lzdGVudCB3aGVuIGNvbm5lY3Rpb24gZHJvcHBlZAoyLiBBbGxvdyBjb25uZWN0aW9uIHRvIGJl
-IGVzdGFibGlzaGVkIGV2ZW4gaWYgcmVtb3RlIHNpZGUgaGFzIGEgZGlmZmVyZW50CiAgIFVVSUQg
-LSBvdXIgZGF0YSBpcyB1c2VsZXNzIGFueXdheS4KLS0tCiBkcmJkL2RyYmRfbWFpbi5jICAgICB8
-ICAgIDEgKwogZHJiZC9kcmJkX25sLmMgICAgICAgfCAgICAxICsKIGRyYmQvZHJiZF9yZWNlaXZl
-ci5jIHwgICAgMiArLQogMyBmaWxlcyBjaGFuZ2VkLCAzIGluc2VydGlvbnMoKyksIDEgZGVsZXRp
-b25zKC0pCgpkaWZmIC0tZ2l0IGEvZHJiZC9kcmJkX21haW4uYyBiL2RyYmQvZHJiZF9tYWluLmMK
-aW5kZXggM2Q0NTkwNy4uNGMzOTZmMiAxMDA2NDQKLS0tIGEvZHJiZC9kcmJkX21haW4uYworKysg
-Yi9kcmJkL2RyYmRfbWFpbi5jCkBAIC0xMDc4LDYgKzEwNzgsNyBAQCBzdGF0aWMgdm9pZCBhZnRl
-cl9zdGF0ZV9jaChzdHJ1Y3QgZHJiZF9jb25mICptZGV2LCB1bmlvbiBkcmJkX3N0YXRlX3Qgb3Ms
-CiAJCWlmIChpbmNfbG9jYWwobWRldikpIHsKIAkJCS8qIGdlbmVyYXRlIG5ldyB1dWlkLCB1bmxl
-c3Mgd2UgZGlkIGFscmVhZHkgKi8KIAkJCWlmIChucy5yb2xlID09IFByaW1hcnkgJiYKKwkJCSAg
-ICBucy5kaXNrID49IENvbnNpc3RlbnQgJiYKIAkJCSAgICBtZGV2LT5iYy0+bWQudXVpZFtCaXRt
-YXBdID09IDApCiAJCQkJZHJiZF91dWlkX25ld19jdXJyZW50KG1kZXYpOwogCQkJaWYgKG5zLnBl
-ZXIgPT0gUHJpbWFyeSkgewpkaWZmIC0tZ2l0IGEvZHJiZC9kcmJkX25sLmMgYi9kcmJkL2RyYmRf
-bmwuYwppbmRleCAzYzc2ZWRjLi5kZGIzM2YyIDEwMDY0NAotLS0gYS9kcmJkL2RyYmRfbmwuYwor
-KysgYi9kcmJkL2RyYmRfbmwuYwpAQCAtMzYwLDYgKzM2MCw3IEBAIGludCBkcmJkX3NldF9yb2xl
-KHN0cnVjdCBkcmJkX2NvbmYgKm1kZXYsIGVudW0gZHJiZF9yb2xlIG5ld19yb2xlLCBpbnQgZm9y
-Y2UpCiAJCWlmIChpbmNfbG9jYWwobWRldikpIHsKIAkJCWlmICggKChtZGV2LT5zdGF0ZS5jb25u
-IDwgQ29ubmVjdGVkIHx8CiAJCQkgICAgICAgbWRldi0+c3RhdGUucGRzayA8PSBGYWlsZWQpCisJ
-CQkgICAgICAmJiBtZGV2LT5zdGF0ZS5kaXNrID49IENvbnNpc3RlbnQKIAkJCSAgICAgICYmIG1k
-ZXYtPmJjLT5tZC51dWlkW0JpdG1hcF0gPT0gMCkgfHwgZm9yY2VkKQogCQkJCWRyYmRfdXVpZF9u
-ZXdfY3VycmVudChtZGV2KTsKIApkaWZmIC0tZ2l0IGEvZHJiZC9kcmJkX3JlY2VpdmVyLmMgYi9k
-cmJkL2RyYmRfcmVjZWl2ZXIuYwppbmRleCBjNjE5YzdhLi41ZDM4NTUyIDEwMDY0NAotLS0gYS9k
-cmJkL2RyYmRfcmVjZWl2ZXIuYworKysgYi9kcmJkL2RyYmRfcmVjZWl2ZXIuYwpAQCAtMjQ1NCw3
-ICsyNDU0LDcgQEAgU1RBVElDIGludCByZWNlaXZlX3V1aWRzKHN0cnVjdCBkcmJkX2NvbmYgKm1k
-ZXYsIHN0cnVjdCBEcmJkX0hlYWRlciAqaCkKIAltZGV2LT5wX3V1aWQgPSBwX3V1aWQ7CiAKIAlp
-ZiAobWRldi0+c3RhdGUuY29ubiA8IENvbm5lY3RlZCAmJgotCSAgICBtZGV2LT5zdGF0ZS5kaXNr
-IDwgT3V0ZGF0ZWQgJiYKKwkgICAgbWRldi0+c3RhdGUuZGlzayA8PSBOZWdvdGlhdGluZyAmJgog
-CSAgICBtZGV2LT5zdGF0ZS5yb2xlID09IFByaW1hcnkgJiYKIAkgICAgKG1kZXYtPmVkX3V1aWQg
-JiB+KCh1NjQpMSkpICE9IChwX3V1aWRbQ3VycmVudF0gJiB+KCh1NjQpMSkpKSB7CiAJCUVSUigi
-Q2FuIG9ubHkgY29ubmVjdCB0byBkYXRhIHdpdGggY3VycmVudCBVVUlEPSUwMTZsbFhcbiIsCi0t
-IAoxLjUuNC1yYzEuR0lUCgo=
-
-------_=_NextPart_001_01C91741.0370CD6C--
