@@ -1,25 +1,16 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from racke.linbit (chello080108047253.34.11.vie.surfer.at
-	[80.108.47.253])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 3AA2A2DDC153
-	for <drbd-dev@lists.linbit.com>; Sun, 21 Sep 2008 01:19:39 +0200 (CEST)
-Date: Sun, 21 Sep 2008 01:19:38 +0200
+Date: Mon, 22 Sep 2008 16:37:09 +0200
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] New Features: write-back cache mode
-Message-ID: <20080920231938.GA16320@racke>
-References: <48D3378E.3020201@gmail.com> <20080919155343.GD9779@soda.linbit>
-	<91a37e890809190919g5a746367g54e76d36e1a825f6@mail.gmail.com>
-	<20080919221339.GB15916@soda.linbit>
-	<48D42783.1050403@gmail.com> <20080920131821.GB16149@racke>
-	<20080920134827.GD16149@racke> <48D5818C.1030703@gmail.com>
+Message-ID: <20080922143709.GB9784@soda.linbit>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <48D5818C.1030703@gmail.com>
+Cc: drbd-user@lists.linbit.com
+Subject: [Drbd-dev] whitespace, linebreak,
+	typedef and comment patch coming up, I'm going to fold 8.1 into 8.0
+Reply-To: drbd-dev@lists.linbit.com
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -29,39 +20,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, Sep 20, 2008 at 05:04:44PM -0600, Morey Roof wrote:
-> This is pretty much what I was thinking.  For the btree, generations,  
-> and ref-count a good example to look at is how btrfs (This is the other  
-> project I have started to mess with) works.  The design is very  
-> efficient and I think we could use a very close match for our setup.  I  
-> haven't read the paper you sent yet but will get to that today.
->
-> Let me know how you would like to start and I can start working a proof  
-> of concept and we can see how to go from there.
+due to the divergence in whitespace, linebreaks, typedefs and comment
+style, it is currently difficult to merge bugfixes from 8.0 up to 8.2,
+or cherry-pick them from 8.2 down to 8.0 again.
 
-I still think that should be implemented as a
-generic device-mapper write-back target,
-not as part of drbd.
+the drbd branches 8.0 and 8.1 differ only in these aspects,
+and I'm going to basically fold 8.1 cleanups into 8.0.
+(no functional change at all).
+I'm sorry for the noise, but I think it is useful to do that now.
 
-there is already some caching target out there somewhere,
-using small local low-latency disks as cache
-for higher latency "remote" iSCSI or GNBD disks.
-At least I read something like that
-on one of the linux thin clients projects a while ago.
-I did not look at the code, and never used it, though.
-a 10 second google suggests that
-http://www.acis.ufl.edu/~ming/dmcache/
-is what I mean.
+this will probably happen this week.
 
-maybe you can use that as a starting point,
-and point it to a ram disk as cache?
+so if anyone out there has some in-house patches
+for the **drbd 8.0** module
+(hi Simon and the other Stratus people)
+this would be a good time to post them to drbd-dev@lists.linbit.com.
+and let me do the work to get them to apply again.
 
+if you wait too long, you have to merge all
+resulting "conflicts" yourself.
 
 -- 
-: Lars Ellenberg                
+: Lars Ellenberg
 : LINBIT | Your Way to High Availability
 : DRBD/HA support and consulting http://www.linbit.com
 
 DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
-__
-please don't Cc me, but send to list   --   I'm subscribed
