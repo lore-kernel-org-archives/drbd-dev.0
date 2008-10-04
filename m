@@ -1,19 +1,28 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Date: Wed, 1 Oct 2008 16:59:10 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Thomas Schoebel-Theuer <thomas.schoebel-theuer@1und1.de>
-Subject: Re: [Drbd-dev] Behaviour of verify: false positives -> true positives
-Message-ID: <20081001145910.GG19381@soda.linbit>
-References: <200809091602.31104.thomas.schoebel-theuer@1und1.de>
-	<200810011328.02278.thomas.schoebel-theuer@1und1.de>
-	<20081001114619.GF19381@soda.linbit>
-	<200810011449.23052.thomas.schoebel-theuer@1und1.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <200810011449.23052.thomas.schoebel-theuer@1und1.de>
-Cc: drbd-dev@lists.linbit.com
+Return-Path: <ivoks@ubuntu.com>
+Received: from master.grad.hr (master.grad.hr [161.53.50.3])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 9372E2DF626E
+	for <drbd-dev@lists.linbit.com>; Sat,  4 Oct 2008 20:55:13 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by master.grad.hr (Postfix) with ESMTP id AF849494181
+	for <drbd-dev@lists.linbit.com>; Sat,  4 Oct 2008 20:45:44 +0200 (CEST)
+Received: from master.grad.hr ([127.0.0.1])
+	by localhost (master.grad.hr [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id c30VQW+uOmTz for <drbd-dev@lists.linbit.com>;
+	Sat,  4 Oct 2008 20:45:44 +0200 (CEST)
+Received: from titanium (4-165.dsl.iskon.hr [89.164.4.165])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by master.grad.hr (Postfix) with ESMTPSA id 3815A49417B
+	for <drbd-dev@lists.linbit.com>; Sat,  4 Oct 2008 20:45:44 +0200 (CEST)
+Date: Sat, 4 Oct 2008 20:45:42 +0200
+From: Ante Karamatic <ivoks@ubuntu.com>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20081004204542.75781d17@titanium>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="MP_/Nui=ch7+/H8v2Axid+bSxy1"
+Subject: [Drbd-dev] Compatibility with 2.6.27
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,69 +32,57 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 01, 2008 at 02:49:22PM +0200, Thomas Schoebel-Theuer wrote:
-> > > Well, one problem is that the length of bvec could be nearly arbitrary
-> > > (in theory),
-> >
-> > BIO_MAX_PAGES
-> > DRBD_MAX_SEGMENT_SIZE
-> 
-> Ok.
-> 
-> > > But what about simply generating a completely new bio and copying over
-> > > all the stuff by hand? This would mean to implement some sort of
-> > > bio_copy() in the local code which could then later be lifted upstreams
-> > > if other people liked it too. What do you think is better?
-> >
-> > no, I think it would be enough to just set (pseudo code)
-> > copy_page->private = orig_page;
-> 
-> Hmm. what if the caller used orig_page->private already and is now accessing 
-> the page _in parallel_ to us? IMHO in combination with the next step it 
-> _could_ lead to an observable difference:
-> 
-> > bvec->bv_page = copy_page;
-> 
-> IMHO this could cause a side effect for any observer accessing "his" page 
-> via "his" orig_bio and finally arriving at our copy_page->private. I am not 
-> sure whether this really happens in the kernel anywhere, but even if 
-> currently not it probably could happen sometime in future. The idea behind 
-> bio_copy() was to _never_ touch the original and all its transitively 
-> reachable descendants in any way, just to be sure nothing can ever go wrong 
-> with it (similar to a COW style). Well, the performance might be slightly 
-> worse, but we are reasoning on correctness at a rather tricky high level.
->
-> I am not sure whether it really does any harm, I'm just curious and cautious.
+--MP_/Nui=ch7+/H8v2Axid+bSxy1
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-I think that is a reasonable attitude ;)
+Hi
 
-so we just don't bio_clone in drbd_req_new then,
-but bio_alloc a fresh bio with our own bvec and own pages attached,
-which will be submitted, _and_ be used to sendpage it over.
-it has to do properly initialized, obviously.
+In 2.6.27, CN_IDX 0x4 is taken by v86d. Since this ID is used by drbd
+also, in some cases (when vesafb is loaded) drbd can't be loaded into
+kernel and vice versa.
 
-we have to make sure to get an extra reference (bio_get) on that private
-bio then, so it cannot vanish while being handed over to tcp, it has to
-stay around until master bio completion (where an extra bio_put will
-free it).
+This patch changes CN_IDX_DRBD to 0x6, which is free atm. This, of
+course, could change in future, and should be watched for. Other option
+would be to contact upstream and request an ID for drbd.
 
-_maybe_ we could add full struct bio private_bio + reasonably sized bvec
-array member to struct drbd_request, so we can skip the extra bio_alloc,
-_get and _put (unless there is some paranoia code in the generic block
-layer, which may be unhappy with that).
+Take care
 
-> Well, before implementing it I will reason on it for some time just to be sure 
-> and convinced. Maybe I should implement both alternatives
+--=20
+Ante Karamati=C4=87, ivoks@ubuntu.com
+Ubuntu Server Team
 
-implement the "most correct" alternative.
+--MP_/Nui=ch7+/H8v2Axid+bSxy1
+Content-Type: text/x-patch; name=cn_idx_drbd.patch
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename=cn_idx_drbd.patch
 
-> and do some stress-testing on a debug kernel?
+From c18caf1c9596251c12c3de5e03a71c5ea804228a Mon Sep 17 00:00:00 2001
+From: Ante Karamatic <ivoks@ubuntu.com>
+Date: Sat, 4 Oct 2008 20:22:46 +0200
+Subject: [PATCH] Changed CN_IDX_DRBD to 0x6, since 0x4 is already occupied by v86d in
+ Linux kernel.
 
-absolutely.
+---
+ drbd/linux/drbd.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
+diff --git a/drbd/linux/drbd.h b/drbd/linux/drbd.h
+index d43df52..56fe673 100644
+--- a/drbd/linux/drbd.h
++++ b/drbd/linux/drbd.h
+@@ -343,7 +343,7 @@ enum UuidIndex {
+ 
+ /* The following line should be moved over to linux/connector.h
+  * when the time comes */
+-#define CN_IDX_DRBD			0x4
++#define CN_IDX_DRBD			0x6
+ #define CN_VAL_DRBD			0x1
+ 
+ struct drbd_nl_cfg_req {
 -- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+1.5.6.3
 
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
+
+--MP_/Nui=ch7+/H8v2Axid+bSxy1--
