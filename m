@@ -1,19 +1,29 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (office.linbit [86.59.100.100])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 1A8352DE3CC0
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Nov 2008 22:13:54 +0100 (CET)
+Resent-Message-ID: <20081106211354.GB21501@soda.linbit>
+Received: from lvk.cs.msu.su (gate.lvk.cs.msu.su [158.250.17.1])
+	(using TLSv1 with cipher AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 9018C2E115C3
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Nov 2008 11:00:33 +0100 (CET)
+Received: from Debian-exim by zigzag.lvk.cs.msu.su with spam-scanned (Exim
+	4.63) (envelope-from <nyoushchenko@ru.mvista.com>)
+	id 1Ky1PV-0002gq-Em
+	for drbd-dev@lists.linbit.com; Thu, 06 Nov 2008 12:44:20 +0300
+From: "Nikita V. Youshchenko" <nyoushchenko@ru.mvista.com>
 To: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Problems with code to disallow connection when peer
-	has mismatched UUID
-Date: Fri, 31 Oct 2008 13:43:45 +0100
-References: <DA0E7D869C862D4095C265233CD1D41E011929A3@EXNA.corp.stratus.com>
-	<DA0E7D869C862D4095C265233CD1D41E011929C8@EXNA.corp.stratus.com>
-	<DA0E7D869C862D4095C265233CD1D41E01192D4A@EXNA.corp.stratus.com>
-In-Reply-To: <DA0E7D869C862D4095C265233CD1D41E01192D4A@EXNA.corp.stratus.com>
+Date: Thu, 6 Nov 2008 12:44:14 +0300
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
+  charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-Message-Id: <200810311343.46320.philipp.reisner@linbit.com>
+Message-Id: <200811061244.14732@blacky.localdomain>
+Cc: hakan.engblom@ericsson.com, Alexander Kaliadin <akaliadin@mvista.com>
+Subject: [Drbd-dev] [PATCH] Fix stale receiver thread state when
+	drbd_connect() returns zero
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,44 +33,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Montag 15 September 2008 16:40:34 schrieb Graham, Simon:
-> Attached is a proposed patch to address this problem that does the
-> following:
->
-> 1. When connection is lost, a new UUID is not created on the primary if
-> the local disk is inconsistent
-> 2. Allow connection to be established if local disk is inconsistent even
-> if the remote is using
->    a different UUID - our data is useless and cannot have been changed
-> anyway. The following handshake
->    will cause the appropriate resync.
->
-> Although only one of these is actually required to fix my problem, I
-> thought it was better to be consistent
-> and change both.
->
+Hello.
 
-Hi Simon,
+Although I know that drbd 0.7 is old and not supported anymore, I still feel
+that this information may be usable for people.
 
-You patch is correct, and quite similar to that commit. The second
-hunk is missing since a node in such an state can not get promoted
-to primary anyways.
+I have spent a while trying to find out why sometimes failover on drbd 0.7.=
+24
+fails on out customer's system.
+At last, I was able to track what was hapenning.
 
-commit a20ecb2e221a3a0e565ecdbb9ac5239b54dca395
-Author: Philipp Reisner <philipp.reisner@linbit.com>
-Date:   Thu Jul 24 14:06:41 2008 +0200
+I did not check, but the same issue may be present in later versions of drb=
+d=20
+as well.
 
-    Fixed the "exposed data" logic in case a sync target primary lost the 
-network connection
+The patch below is against drbd 0.7.24 release.
 
-    closes #98
 
--Phil
--- 
-: Dipl-Ing Philipp Reisner
-: LINBIT | Your Way to High Availability
-: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
-: http://www.linbit.com
+=46rom cf7541852c39bb507b4a3ccc42a9d8fa365cbbd3 Mon Sep 17 00:00:00 2001
+=46rom: Nikita V. Youshchenko <nyoushchenko@ru.mvista.com>
+Date: Thu, 6 Nov 2008 00:42:47 +0300
+Subject: [PATCH] Fix stale receiver thread state when drbd_connect() return=
+s zero.
 
-DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
+The following call stack may happen:
+
+drbd_init() ->
+  drbd_connect() ->
+    drbd_do_handshake() ->
+      drbd_recv_header() ->
+        drbd_recv()
+
+At this level socket receive is called, that may return 0 (in case of peer
+connection reset). Then drbd_thread_restart_nowait(&mdev->receiver) will
+be called, and receiver state will be set to Restarting.
+
+Later control returns to drbd_init(), goes to error path, and then to a new
+iteration of connection loop, leaving receiver state set to Restarting.
+
+Much later, this causes breakages. For example, drbd device does not handle
+failover correctly.
+
+This patch fixes stale receiver state on the described error path.
+
+Signed-off-by: Nikita V. Youshchenko <nyoushchenko@ru.mvista.com>
+=2D--
+ drbd/drbd_receiver.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
+
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+index e769739..3a66b28 100644
+=2D-- a/drbd/drbd_receiver.c
++++ b/drbd/drbd_receiver.c
+@@ -2105,6 +2105,10 @@ int drbdd_init(struct Drbd_thread *thi)
+ 			drbd_disconnect(mdev);
+ 			if (h =3D=3D 0) {
+ 				schedule_timeout(HZ);
++				spin_lock(&thi->t_lock);
++				if (thi->t_state =3D=3D Restarting)
++					thi->t_state =3D Running;
++				spin_unlock(&thi->t_lock);
+ 				continue;
+ 			}
+=20
+=2D-=20
+1.5.6.5
 
