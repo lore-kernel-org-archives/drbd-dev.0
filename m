@@ -1,29 +1,18 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (office.linbit [86.59.100.100])
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 1A8352DE3CC0
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Nov 2008 22:13:54 +0100 (CET)
-Resent-Message-ID: <20081106211354.GB21501@soda.linbit>
-Received: from lvk.cs.msu.su (gate.lvk.cs.msu.su [158.250.17.1])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 9018C2E115C3
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Nov 2008 11:00:33 +0100 (CET)
-Received: from Debian-exim by zigzag.lvk.cs.msu.su with spam-scanned (Exim
-	4.63) (envelope-from <nyoushchenko@ru.mvista.com>)
-	id 1Ky1PV-0002gq-Em
-	for drbd-dev@lists.linbit.com; Thu, 06 Nov 2008 12:44:20 +0300
-From: "Nikita V. Youshchenko" <nyoushchenko@ru.mvista.com>
+Return-Path: <roger.tsang@gmail.com>
+Received: from rv-out-0506.google.com (rv-out-0506.google.com [209.85.198.239])
+	by mail.linbit.com (LINBIT Mail Daemon) with ESMTP id 5BEBC2E078FD
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Nov 2008 12:49:55 +0100 (CET)
+Received: by rv-out-0506.google.com with SMTP id f6so912631rvb.3
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Nov 2008 03:49:54 -0800 (PST)
+Message-ID: <498263350811130341i2053e36agf20b2e24b694d929@mail.gmail.com>
+Date: Thu, 13 Nov 2008 11:41:44 +0000
+From: "Roger Tsang" <roger.tsang@gmail.com>
 To: drbd-dev@lists.linbit.com
-Date: Thu, 6 Nov 2008 12:44:14 +0300
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200811061244.14732@blacky.localdomain>
-Cc: hakan.engblom@ericsson.com, Alexander Kaliadin <akaliadin@mvista.com>
-Subject: [Drbd-dev] [PATCH] Fix stale receiver thread state when
-	drbd_connect() returns zero
+Content-Type: multipart/mixed;
+	boundary="----=_Part_3227_14172498.1226576504540"
+Subject: [Drbd-dev] [PATCH] 8.2.7 drbdsetup disk size error for flexible
+	internal meta data
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -33,69 +22,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello.
+------=_Part_3227_14172498.1226576504540
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Although I know that drbd 0.7 is old and not supported anymore, I still feel
-that this information may be usable for people.
+Hi,
 
-I have spent a while trying to find out why sometimes failover on drbd 0.7.=
-24
-fails on out customer's system.
-At last, I was able to track what was hapenning.
+The attached patch fixes a bug in drbd-8.2.7 which fails to set disk
+size for drbd devices using flexible internal meta data.
 
-I did not check, but the same issue may be present in later versions of drb=
-d=20
-as well.
+`drbdsetup disk --size` for flexible internal meta data fails
+unexpectedly with error LDDeviceTooSmall because in
+drbd_nl_disk_conf() the drbd_get_max_capacity() call to check "disk
+size" returns bogus values due to uninitialized values in drbd_md
+structure.
 
-The patch below is against drbd 0.7.24 release.
+Roger
 
+------=_Part_3227_14172498.1226576504540
+Content-Type: application/octet-stream; name=drbd-827-disk_size_issue
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_fnhbrl7h0
+Content-Disposition: attachment; filename=drbd-827-disk_size_issue
 
-=46rom cf7541852c39bb507b4a3ccc42a9d8fa365cbbd3 Mon Sep 17 00:00:00 2001
-=46rom: Nikita V. Youshchenko <nyoushchenko@ru.mvista.com>
-Date: Thu, 6 Nov 2008 00:42:47 +0300
-Subject: [PATCH] Fix stale receiver thread state when drbd_connect() return=
-s zero.
-
-The following call stack may happen:
-
-drbd_init() ->
-  drbd_connect() ->
-    drbd_do_handshake() ->
-      drbd_recv_header() ->
-        drbd_recv()
-
-At this level socket receive is called, that may return 0 (in case of peer
-connection reset). Then drbd_thread_restart_nowait(&mdev->receiver) will
-be called, and receiver state will be set to Restarting.
-
-Later control returns to drbd_init(), goes to error path, and then to a new
-iteration of connection loop, leaving receiver state set to Restarting.
-
-Much later, this causes breakages. For example, drbd device does not handle
-failover correctly.
-
-This patch fixes stale receiver state on the described error path.
-
-Signed-off-by: Nikita V. Youshchenko <nyoushchenko@ru.mvista.com>
-=2D--
- drbd/drbd_receiver.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
-
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index e769739..3a66b28 100644
-=2D-- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -2105,6 +2105,10 @@ int drbdd_init(struct Drbd_thread *thi)
- 			drbd_disconnect(mdev);
- 			if (h =3D=3D 0) {
- 				schedule_timeout(HZ);
-+				spin_lock(&thi->t_lock);
-+				if (thi->t_state =3D=3D Restarting)
-+					thi->t_state =3D Running;
-+				spin_unlock(&thi->t_lock);
- 				continue;
- 			}
-=20
-=2D-=20
-1.5.6.5
-
+SW5kZXg6IGRyYmQtOC4yLjcvZHJiZC9kcmJkX25sLmMKPT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQotLS0gZHJiZC04LjIu
+Ny5vcmlnL2RyYmQvZHJiZF9ubC5jCisrKyBkcmJkLTguMi43L2RyYmQvZHJiZF9ubC5jCkBAIC04
+MjAsNiArODIwLDggQEAgU1RBVElDIGludCBkcmJkX25sX2Rpc2tfY29uZihzdHJ1Y3QgZHJiZAog
+CQlnb3RvIGZhaWw7CiAJfQogCisJbWVtc2V0KCZuYmMtPm1kLCAwLCBzaXplb2Yoc3RydWN0IGRy
+YmRfbWQpKTsKKwogCWlmICghKG5scC0+ZmxhZ3MgJiBEUkJEX05MX1NFVF9ERUZBVUxUUykgJiYg
+aW5jX2xvY2FsKG1kZXYpKSB7CiAJCW1lbWNweSgmbmJjLT5kYywgJm1kZXYtPmJjLT5kYywgc2l6
+ZW9mKHN0cnVjdCBkaXNrX2NvbmYpKTsKIAkJZGVjX2xvY2FsKG1kZXYpOwpAQCAtOTE2LDcgKzkx
+OCwxMyBAQCBTVEFUSUMgaW50IGRyYmRfbmxfZGlza19jb25mKHN0cnVjdCBkcmJkCiAJCWdvdG8g
+cmVsZWFzZV9iZGV2Ml9mYWlsOwogCX0KIAorCS8qIFJUIC0gZm9yIGRyYmRfZ2V0X21heF9jYXBh
+Y2l0eSgpIERSQkRfTURfSU5ERVhfRkxFWF9JTlQgKi8KKwlkcmJkX21kX3NldF9zZWN0b3Jfb2Zm
+c2V0cyhtZGV2LCBuYmMpOworCiAJaWYgKGRyYmRfZ2V0X21heF9jYXBhY2l0eShuYmMpIDwgbmJj
+LT5kYy5kaXNrX3NpemUpIHsKKwkJRVJSKCJtYXggY2FwYWNpdHkgJWxsdSBzbWFsbGVyIHRoYW4g
+ZGlzayBzaXplICVsbHVcbiIsCisJCQkodW5zaWduZWQgbG9uZyBsb25nKSBkcmJkX2dldF9tYXhf
+Y2FwYWNpdHkobmJjKSwKKwkJCSh1bnNpZ25lZCBsb25nIGxvbmcpIG5iYy0+ZGMuZGlza19zaXpl
+KTsKIAkJcmV0Y29kZSA9IExERGV2aWNlVG9vU21hbGw7CiAJCWdvdG8gcmVsZWFzZV9iZGV2Ml9m
+YWlsOwogCX0K
+------=_Part_3227_14172498.1226576504540--
