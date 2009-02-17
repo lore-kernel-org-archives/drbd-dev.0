@@ -1,19 +1,22 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [86.59.100.100])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2949611E029E
-	for <drbd-dev@lists.linbit.com>; Thu, 12 Feb 2009 11:29:29 +0100 (CET)
-Date: Thu, 12 Feb 2009 11:29:28 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20090212102928.GA9642@barkeeper1-xen.linbit>
-References: <9bb5e33f0901160411m5cb5efd7j1ee68e8f8b522308@mail.gmail.com>
-	<9bb5e33f0902102307qa1a41c3hbbd2346bd64edf94@mail.gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 86FCF10126A0
+	for <drbd-dev@lists.linbit.com>; Tue, 17 Feb 2009 10:45:31 +0100 (CET)
+Resent-Message-ID: <20090217094531.GC9673@barkeeper1-xen.linbit>
+Received: from mail-fx0-f10.google.com (mail-fx0-f10.google.com
+	[209.85.220.10])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0DC4A1011BA6
+	for <drbd-dev@lists.linbit.com>; Tue, 17 Feb 2009 10:06:25 +0100 (CET)
+Received: by fxm3 with SMTP id 3so4825288fxm.3
+	for <drbd-dev@lists.linbit.com>; Tue, 17 Feb 2009 01:06:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <9bb5e33f0902102307qa1a41c3hbbd2346bd64edf94@mail.gmail.com>
-Subject: [Drbd-dev] Re: Get dump even with no valid resource
+Date: Tue, 17 Feb 2009 09:58:40 +0100
+Message-ID: <9bb5e33f0902170058l41474beeydc0970bcdcc67d3e@mail.gmail.com>
+From: Mario Wolff <wolfshoehle@googlemail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] DRBD MC help-progs/drbd-gui-helper
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,22 +26,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Feb 11, 2009 at 08:07:48AM +0100, Mario Wolff wrote:
-> 2009/1/16 Mario Wolff <wolfshoehle@googlemail.com>:
-> > I need it to get all used hosts to auto-distribute the configuration
-> > from a management system with no running drbd!
-> > Now you can force a dump(-xml) with -f
-> 
-> Found it in the git repository. A litle note/feedback like
-> merged!
-> would be great next time!
-
-Thought I did.
-Sorry for that.
-
--- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
-
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
+Hi all,
+you should set $ENV{'LANG'} to 'c' or '' to get a usable output from
+commands like ifconfig.
+Regards,
+Mario Wolff
