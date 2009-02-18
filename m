@@ -1,25 +1,29 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [86.59.100.100])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C4EF912F0D2C
-	for <drbd-dev@lists.linbit.com>; Tue, 17 Feb 2009 11:17:08 +0100 (CET)
-Resent-Message-ID: <20090217101708.GD9673@barkeeper1-xen.linbit>
-Received: from pivo.localnet (unknown [86.59.100.100])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3450B10D147B
-	for <drbd-dev@lists.linbit.com>; Tue, 17 Feb 2009 10:51:03 +0100 (CET)
-From: Rasto Levrinc <rasto.levrinc@linbit.com>
-To: drbd-dev@lists.linbit.com
-Date: Tue, 17 Feb 2009 10:51:01 +0100
-References: <9bb5e33f0902170058l41474beeydc0970bcdcc67d3e@mail.gmail.com>
-In-Reply-To: <9bb5e33f0902170058l41474beeydc0970bcdcc67d3e@mail.gmail.com>
+Return-Path: <dk@in-telegence.net>
+Received: from mail.in-telegence.net (mail.in-telegence.net [83.125.45.125])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EF3831011BB5
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Feb 2009 14:44:18 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by mail.in-telegence.net (Postfix) with ESMTP id 8625F69C031
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Feb 2009 14:44:18 +0100 (CET)
+Received: from 127.0.0.1/32:46030 (from=<dk@in-telegence.net>;
+	helo=mail.in-telegence.net)
+	by eXpurgate V1.3.53.1, id=150498::090218144418-04340400-415D42B6
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Feb 2009 14:44:18 +0100
+Received: from [10.2.20.85] (DK.in-telegence.net [10.2.20.85])
+	(using TLSv1 with cipher RC4-MD5 (128/128 bits))
+	(Client did not present a certificate)
+	by mail.in-telegence.net (Postfix) with ESMTP id D3CE266FAA5
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Feb 2009 14:44:17 +0100 (CET)
+Message-ID: <499C10E3.60302@in-telegence.net>
+Date: Wed, 18 Feb 2009 14:45:07 +0100
+From: Dominik Klein <dk@in-telegence.net>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+To: drbd-dev@lists.linbit.com
+References: <499C0F88.3050303@in-telegence.net>
+In-Reply-To: <499C0F88.3050303@in-telegence.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200902171051.02282.rasto.levrinc@linbit.com>
-Subject: Re: [Drbd-dev] DRBD MC help-progs/drbd-gui-helper
+Subject: Re: [Drbd-dev] Patch: drbdadm.sh
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -29,25 +33,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Tuesday 17 February 2009 schrieb Mario Wolff:
-> Hi all,
-> you should set $ENV{'LANG'} to 'c' or '' to get a usable output from
-> commands like ifconfig.
+Dominik Klein wrote:
+> When using the bash completion feature on machines with currently
+> unconfigured drbd resources, it kept throwing error messages rendering
+> the cmdline unreadable.
+> 
+> Typing "drbdadm pr<tab> <tab>" would give s.th. like
+> 
+> dktest3:~ # drbdadm primary /dev/drbd0: Failure: (127) Device minor not
+> allocated
+> Command 'drbdsetup /dev/drbd0 state' terminated with exit code 10
+> kvm2
+> 
+> Consider the attached patch.
+> 
+> Regards
+> Dominik
+> 
 
-Thanks, you are right. It will be fixed in the next release.
+Well, this happens when you use diff with "new old" instead of "old
+new". Guess you got the idea anyway.
 
-Rasto
-
-> Regards,
-> Mario Wolff
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
-
-
--- 
-
-: Rasto Levrinc                                   Tel +43-1-8178292-58 :
-: LINBIT Information Technologies GmbH            Fax +43-1-8178292-82 :
-: Vivenotgasse 48, 1120 Vienna, Austria           http://www.linbit.com :
+Regards
+Dominik
