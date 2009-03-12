@@ -1,17 +1,16 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Date: Wed, 11 Mar 2009 20:44:16 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: "ILLES, Marton" <illes.marton@balabit.hu>
-Message-ID: <20090311194416.GI8646@soda.linbit>
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com
+Date: Thu, 12 Mar 2009 11:32:25 +0100
 References: <1236792621.7981.25.camel@octane>
-	<20090311183504.GH8646@soda.linbit>
-	<1236797912.7981.30.camel@octane>
+In-Reply-To: <1236792621.7981.25.camel@octane>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1236797912.7981.30.camel@octane>
-Cc: drbd-dev@lists.linbit.com
+Message-Id: <200903121132.26169.philipp.reisner@linbit.com>
+Cc: "ILLES, Marton" <illes.marton@balabit.hu>
 Subject: Re: [Drbd-dev] invalidate broken in 8.3.0 regression from 8.2.6
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
@@ -22,54 +21,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 11, 2009 at 07:58:32PM +0100, ILLES, Marton wrote:
-> On Wed, 2009-03-11 at 19:35 +0100, Lars Ellenberg wrote:
-> > On Wed, Mar 11, 2009 at 06:30:21PM +0100, ILLES, Marton wrote:
-> > > Hi,
-> > > 
-> > > First of all thanks for drbd, it is such a nice piece of code, we love
-> > > to use it.
-> > > 
-> > > In my current setup I use drbd 8.3.0 with linux 2.6.27 and some ubuntu
-> > > patches (but it does not really matter), while I discovered that
-> > > "drbdsetup /dev/drbd0 invalidate" does not do anything. No error code,
-> > > nothing. In 8.2.6 it worked well, so some regression is here.
-> > 
-> > was drbd0 configured while you did "drbdsetup /dev/drbd0 invalidate"?
-> > 
-> > if not, that is a known bug, which we unfortunately not have fixed yet.
-> > drbdadm should try drbdsetup, and if that fails because the device is
-> > unconfigured, it should use drbdmeta to mark it as invalid in the meta
-> > data itself.
-> > 
-> > unfortunately drbdsetup invalidate exits with 0 for unconfigured
-> > devices.
-> > 
-> > if drbdsetup invalidate does nothing even while it is configured,
-> > that would be new to me.
-> > 
-> 
+On Wednesday 11 March 2009 18:30:21 ILLES, Marton wrote:
 > Hi,
-> 
-> It was configured in StandAlone Secondary/DUnknown state. I do not use
-> drbdadm only drbdsetup. Though I still believe that the cause was the
-> missed patch.
+>
+> First of all thanks for drbd, it is such a nice piece of code, we love
+> to use it.
+>
+> In my current setup I use drbd 8.3.0 with linux 2.6.27 and some ubuntu
+> patches (but it does not really matter), while I discovered that
+> "drbdsetup /dev/drbd0 invalidate" does not do anything. No error code,
+> nothing. In 8.2.6 it worked well, so some regression is here.
+>
+> After some debugging and git digging I realized that invalidate logic
+> was changed in this patch:
+>
 
-ok.
+Thanks a lot for pointing this out!
 
-drbdadm invalidate
- - works as intended when connected
-	(also for you?)
- - is broken when standalone in drbd 8.3
-	(regression as per this report)
- - is broken when unconfigured (possibly for a long time already).
-	(I found out a while back)
+See...
+http://git.drbd.org/?p=drbd-8.3.git;a=commitdiff;h=a8403ade52180175a0e657770d8698abe394a707
 
-we'll fix that.
-
+best,
+ Philipp
 -- 
-: Lars Ellenberg
+: Dipl-Ing Philipp Reisner
 : LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
+: http://www.linbit.com
 
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
+DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
+
