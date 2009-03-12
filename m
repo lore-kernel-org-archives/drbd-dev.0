@@ -1,17 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Date: Thu, 12 Mar 2009 11:32:25 +0100
-References: <1236792621.7981.25.camel@octane>
-In-Reply-To: <1236792621.7981.25.camel@octane>
+Date: Thu, 12 Mar 2009 11:41:23 +0100
+References: <EAF41105EEA8E14BA54927856CEDEB3D01084707@300813ANEX2.global.avaya.com>
+In-Reply-To: <EAF41105EEA8E14BA54927856CEDEB3D01084707@300813ANEX2.global.avaya.com>
 MIME-Version: 1.0
+Content-Disposition: inline
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200903121132.26169.philipp.reisner@linbit.com>
-Cc: "ILLES, Marton" <illes.marton@balabit.hu>
-Subject: Re: [Drbd-dev] invalidate broken in 8.3.0 regression from 8.2.6
+Message-Id: <200903121141.24095.philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] How to use dynamic tracing
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,28 +20,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wednesday 11 March 2009 18:30:21 ILLES, Marton wrote:
-> Hi,
+On Wednesday 04 March 2009 20:08:51 Guo, Weiping (Jim) wrote:
+> Hi All,
 >
-> First of all thanks for drbd, it is such a nice piece of code, we love
-> to use it.
+> I am new to drbd development. Just want to get my foot wet.
 >
-> In my current setup I use drbd 8.3.0 with linux 2.6.27 and some ubuntu
-> patches (but it does not really matter), while I discovered that
-> "drbdsetup /dev/drbd0 invalidate" does not do anything. No error code,
-> nothing. In 8.2.6 it worked well, so some regression is here.
+> One thing I would to do is turn on the tracing so that I may have a
+> quicker way to understand drbd. I defined "ENABLE_DYNAMIC_TRACE" in the
+> configuration file, but not sure how to use it.
 >
-> After some debugging and git digging I realized that invalidate logic
-> was changed in this patch:
+> Any documents or suggestions are appreciated!
 >
 
-Thanks a lot for pointing this out!
+enum {
+	TraceLvlAlways = 0,
+	TraceLvlSummary,
+	TraceLvlMetrics,
+	TraceLvlAll,
+	TraceLvlMax
+};
 
-See...
-http://git.drbd.org/?p=drbd-8.3.git;a=commitdiff;h=a8403ade52180175a0e657770d8698abe394a707
+enum {
+	TraceTypePacket = 0x00000001,
+	TraceTypeRq	= 0x00000002,
+	TraceTypeUuid	= 0x00000004,
+	TraceTypeResync = 0x00000008,
+	TraceTypeEE	= 0x00000010,
+	TraceTypeUnplug = 0x00000020,
+	TraceTypeNl	= 0x00000040,
+	TraceTypeALExts = 0x00000080,
+	TraceTypeIntRq  = 0x00000100,
+	TraceTypeMDIO   = 0x00000200,
+	TraceTypeEpochs = 0x00000400,
+};
 
-best,
- Philipp
+echo 1 > /sys/module/drbd/parameters/trace_devs # Bitmask
+echo 3 > /sys/module/drbd/parameters/trace_level
+echo 4 > /sys/module/drbd/parameters/trace_type
+
+Enables UUID traceing with full verbosity for /dev/drbd0.
+
+
+-Phil
 -- 
 : Dipl-Ing Philipp Reisner
 : LINBIT | Your Way to High Availability
@@ -50,4 +69,5 @@ best,
 : http://www.linbit.com
 
 DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
+
 
