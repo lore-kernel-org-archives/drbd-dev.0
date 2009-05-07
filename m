@@ -1,20 +1,19 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from johann (chello212017090083.12.15.vie.surfer.at [212.17.90.83])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPSA id 5A88310476FB
-	for <drbd-dev@lists.linbit.com>; Wed,  6 May 2009 17:07:31 +0200 (CEST)
-Date: Wed, 6 May 2009 17:07:31 +0200
+Received: from soda.linbit (unknown [86.59.100.100])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A60D2104B1B0
+	for <drbd-dev@lists.linbit.com>; Thu,  7 May 2009 13:14:14 +0200 (CEST)
+Date: Thu, 7 May 2009 13:14:14 +0200
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20090506150731.GC8830@johann>
-References: <902001984.20090506163355@galatai.de>
+Message-ID: <20090507111414.GB8753@soda.linbit>
+References: <1241687771-28759-1-git-send-email-mika@grml.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <902001984.20090506163355@galatai.de>
-Subject: Re: [Drbd-dev] DRDB abd Xen
+In-Reply-To: <1241687771-28759-1-git-send-email-mika@grml.org>
+Subject: Re: [Drbd-dev] [PATCH] Support use of HAVE_LINUX_BYTEORDER_SWABB_H
+	for kernel	versions older than 2.6.29
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,33 +23,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, May 06, 2009 at 04:33:55PM +0200, Firi wrote:
-> Hi at All,
+On Thu, May 07, 2009 at 11:16:11AM +0200, Michael Prokop wrote:
 > 
-> i installed a xen cluster as the following how to explain:
+> Signed-off-by: Michael Prokop <mika@grml.org>
 > 
-> http://asplund.nu/xencluster/xen-cluster-howto.html
-> 
-> That works realy realy realy fine.
-> 
-> Now, in updated the from 3.2 to 3.3 and now he isnt able to
-> unterstand the disk port at the vps config.
-> The Error is: Block device must have pyh file or tap.....
-> 
-> What i mean is that part:
-> 
->     disk = [
->     'drbd:test-swap,xvda1,w',
->     'drbd:test-disk,xvda2,w',
->     ]
-> 
-> Is there any needed patch or something like this?
-> The xen version is installed from a Ubuntu Backport reposity.
-> 
-> Maybe anyone here is able to tell me more about that.
+> diff --git a/drbd/linux/drbd_config.h b/drbd/linux/drbd_config.h
+> index 4d323f7..ac14997 100644
+> --- a/drbd/linux/drbd_config.h
+> +++ b/drbd/linux/drbd_config.h
+> @@ -74,7 +74,10 @@ extern const char *drbd_buildtag(void);
+>  #define HAVE_LINUX_SCATTERLIST_H
+>  
+>  /* 2.6.29 and up no longer have swabb.h */
+> -//#define HAVE_LINUX_BYTEORDER_SWABB_H
+> +#include <linux/version.h>
+> +#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+> +#define HAVE_LINUX_BYTEORDER_SWABB_H
+> +#endif
+>  
+>  /* Some vendor kernels < 2.6.7 might define msleep in one or
+>   * another way .. */
 
-please repost on drbd-user.
-thanks.
+Thanks. But unneccessary.
+For the other settings, scripts/adjust_drbd_config_h.sh has to be run
+anyways, which also takes care of this setting.
 
 -- 
 : Lars Ellenberg
