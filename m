@@ -1,25 +1,16 @@
-Return-Path: <extmaillist@linuxbox.cz>
-Received: from gwu.lbox.cz (gwu.lbox.cz [62.245.111.132])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 763B61005438
-	for <drbd-dev@lists.linbit.com>; Mon, 11 May 2009 17:18:43 +0200 (CEST)
-Received: from linuxbox.linuxbox.cz (server.linuxbox.cz [10.76.66.10])
-	by gwu.lbox.cz (Sendmail) with ESMTP id n4BFIfKU015498
-	for <drbd-dev@lists.linbit.com>; Mon, 11 May 2009 17:18:41 +0200
-Date: Mon, 11 May 2009 17:19:59 +0200
-From: Nikola Ciprich <extmaillist@linuxbox.cz>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20090511151959.GB8972@nik-comp.linuxbox.cz>
-References: <20090511144347.GA8972@nik-comp.linuxbox.cz>
-	<20090511150944.GB8835@soda.linbit>
+Return-Path: <lars.ellenberg@linbit.com>
+Date: Tue, 19 May 2009 12:27:52 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Mickael Marchand <mikmak@freenux.org>
+Message-ID: <20090519102752.GF8725@soda.linbit>
+References: <20090519093313.GV17360@nya.freenux.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20090511150944.GB8835@soda.linbit>
-Cc: nikola.ciprich@linuxbox.cz
-Subject: Re: [Drbd-dev] [PATCH] 2.6.30 related fixes
+In-Reply-To: <20090519093313.GV17360@nya.freenux.org>
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [DRBD-user] drbd 8.3.1 OOPS
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -29,97 +20,95 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-well, my fault for not checking the latest git first :(
-but releasing more often will surely be appreciated ;)
-regards
-nik
+On Tue, May 19, 2009 at 11:33:13AM +0200, Mickael Marchand wrote:
+> Hi,
+> 
+> I have a dual node Xen/drbd cluster that got a problem last week-end,
+> running 2.6.24-23-xen from ubuntu with self-compiled drbd 8.3.1.
+> 
+> for some reason a SAS disk got kicked by its controller,
+> drbd properly detected it :
+> May 17 07:44:20 ifvm1 kernel: [9678143.435599] scsi 0:0:3:0: [sdd] Result: hostbyte=DID_NO_CONNECT driverbyte=DRIVER_OK,SUGGEST_OK
+> May 17 07:44:20 ifvm1 kernel: [9678143.435604] end_request: I/O error, dev sdd, sector 255302231
+> May 17 07:44:20 ifvm1 kernel: [9678143.435609] drbd1: Method to ensure write ordering: flush
+> May 17 07:44:20 ifvm1 kernel: [9678143.435622] drbd1: disk( UpToDate -> Failed )
+> May 17 07:44:20 ifvm1 kernel: [9678143.435625] drbd1: Local IO failed.  Detaching...
+> May 17 07:44:20 ifvm1 kernel: [9692200.309651] drbd1: disk( Failed -> Diskless )
+> May 17 07:44:20 ifvm1 kernel: [9692200.309675] drbd1: Notified peer that my disk is broken.
+> 
+> that drbd was secondary on that host, the primary was still running fine on
+> the other node so I left it untouched till monday when I removed the
+> failing drive from the server.
+> Adding a working drive in the server, I wanted to attach this drive to
+> drbd but this failed.
+> 
+> I am not sure which exact command I used at this time, probably "drbdadm
+> attach r1" which gave :
+> May 18 10:59:00 ifvm1 kernel: [9791064.037185] drbd1: drbd_nl_disk_conf: mdev->bc not NULL.
+> 
+> so I tried to down this drbd and it OOPs-ed :
+> 
+> May 18 10:59:37 ifvm1 kernel: [9791101.108093] drbd1: drbd_nl_disk_conf: mdev->bc not NULL.
+> May 18 10:59:37 ifvm1 kernel: [9791101.108127] Unable to handle kernel paging request at 000000010000002c RIP:
+> May 18 10:59:37 ifvm1 kernel: [9791101.108138]  [<ffffffff8029f130>] fput+0x0/0x20
+> May 18 10:59:37 ifvm1 kernel: [9791101.108150] PGD 9b30067 PUD 0
+> May 18 10:59:37 ifvm1 kernel: [9791101.108154] Oops: 0002 [1] SMP
+> May 18 10:59:37 ifvm1 kernel: [9791101.108157] CPU 1
+> May 18 10:59:37 ifvm1 kernel: [9791101.108159] Modules linked in: drbd af_packet xt_physdev ipt_LOG xt_state xt_tcpudp iptable_nat nf_nat nf_conntrack_ipv4 nf_conntrack bridge 8021q sbs dock sbshc ac battery container video output iptable_filter ip_tables x_tables cn coretemp ipmi_devintf ipmi_si ipmi_watchdog ipmi_poweroff ipmi_msghandler parport_pc lp parport loop ipv6 megaraid_sas psmouse serio_raw iTCO_wdt evdev dcdbas iTCO_vendor_support 8250_pnp button pcspkr i5000_edac edac_core shpchp pci_hotplug 8250 serial_core ext3 jbd mbcache sr_mod cdrom pata_acpi ata_piix sg sd_mod ata_generic libata bnx2 ehci_hcd uhci_hcdusbcore mptsas mptscsih mptbase scsi_transport_sas scsi_mod raid10 raid456 async_xor async_memcpy async_tx xor raid1 raid0 multipath linear md_mod dm_mirrordm_snapshot dm_mod thermal processor fan fuse
+> May 18 10:59:37 ifvm1 kernel: [9791101.108249] Pid: 6693, comm: cqueue/1 Not tainted 2.6.24-23-xen #1
+> May 18 10:59:37 ifvm1 kernel: [9791101.108253] RIP: e030:[<ffffffff8029f130>]  [<ffffffff8029f130>] fput+0x0/0x20
+> May 18 10:59:37 ifvm1 kernel: [9791101.108258] RSP: e02b:ffff88001d7c9dc8  EFLAGS: 00010202
+> May 18 10:59:37 ifvm1 kernel: [9791101.108261] RAX: 0000000000000041 RBX: 0000000000000005 RCX: 0000000000000001
+> May 18 10:59:37 ifvm1 kernel: [9791101.108264] RDX: 0000000000000000 RSI: 0000000000000001 RDI: 0000000100000004
+> May 18 10:59:37 ifvm1 kernel: [9791101.108268] RBP: ffff88001f672800 R08: 000015d2cd1350db R09: 0000000000000000
+> May 18 10:59:37 ifvm1 kernel: [9791101.108271] R10: ffff880001ce6fe0 R11: ffffffff80217eb0 R12: ffff880011a93000
+> May 18 10:59:37 ifvm1 kernel: [9791101.108274] R13: 000000000000007c R14: ffff880011a93000 R15: ffff88000aefb354
+> May 18 10:59:37 ifvm1 kernel: [9791101.108280] FS: 00007fc3f762c6e0(0000) GS:ffffffff805c7080(0000) knlGS:0000000000000000
+> May 18 10:59:37 ifvm1 kernel: [9791101.108283] CS:  e033 DS: 0000 ES: 0000
+> May 18 10:59:37 ifvm1 kernel: [9791101.108287] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> May 18 10:59:37 ifvm1 kernel: [9791101.108290] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> May 18 10:59:38 ifvm1 kernel: [9791101.108293] Process cqueue/1 (pid: 6693, threadinfo ffff88001d7c8000, task ffff8800016cc800)
+> May 18 10:59:38 ifvm1 kernel: [9791101.108297] Stack:  ffffffff88419168 ffff88001d7c9e60 0000000000000000 ffffffff8061cf80
+> May 18 10:59:38 ifvm1 kernel: [9791101.108303]  ffffffff8061cf80 ffffffff8061c0c0 ffffffff8061cf80 0000000000000000
+> May 18 10:59:38 ifvm1 kernel: [9791101.108309]  000000011f672800 00000000000000d0 0000000000000030 ffff88001c213410
+> May 18 10:59:38 ifvm1 kernel: [9791101.108313] Call Trace:
+> May 18 10:59:38 ifvm1 kernel: [9791101.108327]  [<ffffffff88419168>] :drbd:drbd_nl_disk_conf+0xb8/0xf30
+> May 18 10:59:38 ifvm1 kernel: [9791101.108346]  [<ffffffff88418bcc>] :drbd:drbd_connector_callback+0x11c/0x210
+> May 18 10:59:38 ifvm1 kernel: [9791101.108354] [cn:cn_queue_wrapper+0x0/0x30] :cn:cn_queue_wrapper+0x0/0x30
+> May 18 10:59:38 ifvm1 kernel: [9791101.108360] [cn:cn_queue_wrapper+0xf/0x30] :cn:cn_queue_wrapper+0xf/0x30
+> May 18 10:59:38 ifvm1 kernel: [9791101.108367] [run_workqueue+0xb2/0x190] run_workqueue+0xb2/0x190
+> May 18 10:59:38 ifvm1 kernel: [9791101.108373] [worker_thread+0x0/0x110] worker_thread+0x0/0x110
+> May 18 10:59:38 ifvm1 kernel: [9791101.108378] [worker_thread+0xa3/0x110] worker_thread+0xa3/0x110
+> May 18 10:59:38 ifvm1 kernel: [9791101.108384]  [<ffffffff8024cc80>] autoremove_wake_function+0x0/0x30
+> May 18 10:59:38 ifvm1 kernel: [9791101.108390] [worker_thread+0x0/0x110] worker_thread+0x0/0x110
+> May 18 10:59:38 ifvm1 kernel: [9791101.108395] [worker_thread+0x0/0x110] worker_thread+0x0/0x110
+> May 18 10:59:38 ifvm1 kernel: [9791101.108399]  [kthread+0x4b/0x80] kthread+0x4b/0x80
+> May 18 10:59:38 ifvm1 kernel: [9791101.108405]  [child_rip+0xa/0x12] child_rip+0xa/0x12
+> May 18 10:59:38 ifvm1 kernel: [9791101.108413] [xen_send_IPI_mask+0x0/0x110] xen_send_IPI_mask+0x0/0x110
+> May 18 10:59:38 ifvm1 kernel: [9791101.108420]  [kthread+0x0/0x80] kthread+0x0/0x80
+> May 18 10:59:38 ifvm1 kernel: [9791101.108424]  [child_rip+0x0/0x12] child_rip+0x0/0x12
+> May 18 10:59:38 ifvm1 kernel: [9791101.108429]
+> May 18 10:59:38 ifvm1 kernel: [9791101.108430]
+> May 18 10:59:38 ifvm1 kernel: [9791101.108431] Code: f0 ff 4f 28 0f 94 c0 84 c0 75 05 f3 c3 0f 1f 00 e9 cb fb ff
+> May 18 10:59:38 ifvm1 kernel: [9791101.108445] RIP  [<ffffffff8029f130>] fput+0x0/0x20
+> May 18 10:59:38 ifvm1 kernel: [9791101.108449]  RSP <ffff88001d7c9dc8>
+> May 18 10:59:38 ifvm1 kernel: [9791101.108451] CR2: 000000010000002c
+> May 18 10:59:38 ifvm1 kernel: [9791101.109019] ---[ end trace e8e64f3da06e3ef3 ]---
+> 
+> then drbd was dead, the other running drbds were still running (the
+> kernels threads were running ok) but I could not change any
+> configuration with drbdadm, I had to forcibly reboot this node to get it
+> back in right order.
 
-On Mon, May 11, 2009 at 05:09:44PM +0200, Lars Ellenberg wrote:
-> On Mon, May 11, 2009 at 04:43:47PM +0200, Nikola Ciprich wrote:
-> > Hi,
-> > linux 1faa16d22877f4839bd433547d770c676d1d964c changes congestion logic to sync/async
-> > based. attached patch causes use of BDI_async_congested instead of old BDI_write_congested
-> > for new kernels
-> > 
-> > in addition, 99b76233803beab302123d243eea9e41149804f3 removes proc::owner attribute.
-> > according to commit comment, its use should just be removed, so second patch does just that.
-> > everything seems to work then.
-> > please apply.
-> > regards
-> > nik
-> > 
-> 
-> thanks, but too late.
-> I guess we have to push to public more frequently.
-> 
-> > -- 
-> > -------------------------------------
-> > Nikola CIPRICH
-> > LinuxBox.cz, s.r.o.
-> > 28. rijna 168, 709 01 Ostrava
-> > 
-> > tel.:   +420 596 603 142
-> > fax:    +420 596 621 273
-> > mobil:  +420 777 093 799
-> > 
-> > www.linuxbox.cz
-> > 
-> > mobil servis: +420 737 238 656
-> > email servis: servis@linuxbox.cz
-> > -------------------------------------
-> 
-> > diff -Naur drbd-8.3.1/drbd/drbd_wrappers.h drbd-8.3.1-fix-BDI_write_congested/drbd/drbd_wrappers.h
-> > --- drbd-8.3.1/drbd/drbd_wrappers.h	2009-03-26 15:58:33.000000000 +0100
-> > +++ drbd-8.3.1-fix-BDI_write_congested/drbd/drbd_wrappers.h	2009-05-11 16:10:21.836674009 +0200
-> > @@ -55,6 +55,10 @@
-> >  	return 0;
-> >  }
-> >  
-> > +#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,29)
-> > +#define BDI_write_congested BDI_async_congested
-> > +#endif
-> > +
-> >  #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-> >  /* Before Linux-2.6.24 bie_endio() had the size of the bio as second argument.
-> >     See 6712ecf8f648118c3363c142196418f89a510b90 */
-> 
-> > diff -Naur drbd-8.3.1/drbd/drbd_main.c drbd-8.3.1-remove-proc-owner/drbd/drbd_main.c
-> > --- drbd-8.3.1/drbd/drbd_main.c	2009-03-26 15:58:33.000000000 +0100
-> > +++ drbd-8.3.1-remove-proc-owner/drbd/drbd_main.c	2009-05-11 16:13:33.936999632 +0200
-> > @@ -3116,7 +3116,6 @@
-> >  	}
-> >  
-> >  	drbd_proc->proc_fops = &drbd_proc_fops;
-> > -	drbd_proc->owner = THIS_MODULE;
-> >  #else
-> >  # error "Currently drbd depends on the proc file system (CONFIG_PROC_FS)"
-> >  #endif
-> 
-> 
-> -- 
-> : Lars Ellenberg
-> : LINBIT | Your Way to High Availability
-> : DRBD/HA support and consulting http://www.linbit.com
-> 
-> DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
-> 
+Thanks for the report.
+I think this has been fixed in current git already,
+though I'm not sure it is the exact same thing.
+we now do more failure injection tests,
+to catch more of these things.
 
 -- 
--------------------------------------
-Nikola CIPRICH
-LinuxBox.cz, s.r.o.
-28. rijna 168, 709 01 Ostrava
+: Lars Ellenberg
+: LINBIT | Your Way to High Availability
+: DRBD/HA support and consulting http://www.linbit.com
 
-tel.:   +420 596 603 142
-fax:    +420 596 621 273
-mobil:  +420 777 093 799
-
-www.linuxbox.cz
-
-mobil servis: +420 737 238 656
-email servis: servis@linuxbox.cz
--------------------------------------
+DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
