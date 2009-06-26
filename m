@@ -1,12 +1,13 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org
-Date: Fri, 26 Jun 2009 14:01:43 +0200
-Message-Id: <1246017715-9821-4-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1246017715-9821-3-git-send-email-philipp.reisner@linbit.com>
+Date: Fri, 26 Jun 2009 14:01:44 +0200
+Message-Id: <1246017715-9821-5-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1246017715-9821-4-git-send-email-philipp.reisner@linbit.com>
 References: <1246017715-9821-1-git-send-email-philipp.reisner@linbit.com>
 	<1246017715-9821-2-git-send-email-philipp.reisner@linbit.com>
 	<1246017715-9821-3-git-send-email-philipp.reisner@linbit.com>
+	<1246017715-9821-4-git-send-email-philipp.reisner@linbit.com>
 Cc: Bart Van Assche <bart.vanassche@gmail.com>,
 	Kyle Moffett <kyle@moffetthome.net>, Neil Brown <neilb@suse.de>,
 	Nikanth Karthikesan <knikanth@suse.de>, Greg KH <gregkh@suse.de>,
@@ -16,7 +17,7 @@ Cc: Bart Van Assche <bart.vanassche@gmail.com>,
 	Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>,
 	Sam Ravnborg <sam@ravnborg.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/15] drbd: dirty bitmap
+Subject: [Drbd-dev] [PATCH 04/15] drbd: request state processing
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,29 +27,335 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-DRBD maintains a dirty bitmap in case it has to run without peer node or
-without local disk. Writes to the on disk dirty bitmap are minimized by the
-activity log (=AL). Each time an extent is evicted from the AL the part of
-the bitmap no longer covered by the AL is written to disk.
+Describes the states an IO request issued to DRBD can be in. As well as
+all the state transitions that a request can go through.
+
+In here is also the make_request() function, we register in the block
+layer of the kernel to pass IO requests to DRBD.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 
 ---
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
 new file mode 100644
-index 0000000..417da6e
+index 0000000..81393ff
 --- /dev/null
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -0,0 +1,1273 @@
++++ b/drivers/block/drbd/drbd_req.h
+@@ -0,0 +1,299 @@
 +/*
-+   drbd_bitmap.c
++   drbd_req.h
 +
 +   This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 +
-+   Copyright (C) 2004-2008, LINBIT Information Technologies GmbH.
-+   Copyright (C) 2004-2008, Philipp Reisner <philipp.reisner@linbit.com>.
-+   Copyright (C) 2004-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
++   Copyright (C) 2006-2008, LINBIT Information Technologies GmbH.
++   Copyright (C) 2006-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
++   Copyright (C) 2006-2008, Philipp Reisner <philipp.reisner@linbit.com>.
++
++   DRBD is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 2, or (at your option)
++   any later version.
++
++   DRBD is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with drbd; see the file COPYING.  If not, write to
++   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
++ */
++
++#ifndef _DRBD_REQ_H
++#define _DRBD_REQ_H
++
++#include <linux/autoconf.h>
++#include <linux/module.h>
++
++#include <linux/slab.h>
++#include <linux/drbd.h>
++#include "drbd_int.h"
++#include "drbd_wrappers.h"
++
++/* The request callbacks will be called in irq context by the IDE drivers,
++   and in Softirqs/Tasklets/BH context by the SCSI drivers,
++   and by the receiver and worker in kernel-thread context.
++   Try to get the locking right :) */
++
++/*
++ * Objects of type struct drbd_request do only exist on a R_PRIMARY node, and are
++ * associated with IO requests originating from the block layer above us.
++ *
++ * There are quite a few things that may happen to a drbd request
++ * during its lifetime.
++ *
++ *  It will be created.
++ *  It will be marked with the intention to be
++ *    submitted to local disk and/or
++ *    send via the network.
++ *
++ *  It has to be placed on the transfer log and other housekeeping lists,
++ *  In case we have a network connection.
++ *
++ *  It may be identified as a concurrent (write) request
++ *    and be handled accordingly.
++ *
++ *  It may me handed over to the local disk subsystem.
++ *  It may be completed by the local disk subsystem,
++ *    either sucessfully or with io-error.
++ *  In case it is a READ request, and it failed locally,
++ *    it may be retried remotely.
++ *
++ *  It may be queued for sending.
++ *  It may be handed over to the network stack,
++ *    which may fail.
++ *  It may be acknowledged by the "peer" according to the wire_protocol in use.
++ *    this may be a negative ack.
++ *  It may receive a faked ack when the network connection is lost and the
++ *  transfer log is cleaned up.
++ *  Sending may be canceled due to network connection loss.
++ *  When it finally has outlived its time,
++ *    corresponding dirty bits in the resync-bitmap may be cleared or set,
++ *    it will be destroyed,
++ *    and completion will be signalled to the originator,
++ *      with or without "success".
++ */
++
++enum drbd_req_event {
++	created,
++	to_be_send,
++	to_be_submitted,
++
++	/* XXX yes, now I am inconsistent...
++	 * these two are not "events" but "actions"
++	 * oh, well... */
++	queue_for_net_write,
++	queue_for_net_read,
++
++	send_canceled,
++	send_failed,
++	handed_over_to_network,
++	connection_lost_while_pending,
++	recv_acked_by_peer,
++	write_acked_by_peer,
++	write_acked_by_peer_and_sis, /* and set_in_sync */
++	conflict_discarded_by_peer,
++	neg_acked,
++	barrier_acked, /* in protocol A and B */
++	data_received, /* (remote read) */
++
++	read_completed_with_error,
++	write_completed_with_error,
++	completed_ok,
++	nothing, /* for tracing only */
++};
++
++/* encoding of request states for now.  we don't actually need that many bits.
++ * we don't need to do atomic bit operations either, since most of the time we
++ * need to look at the connection state and/or manipulate some lists at the
++ * same time, so we should hold the request lock anyways.
++ */
++enum drbd_req_state_bits {
++	/* 210
++	 * 000: no local possible
++	 * 001: to be submitted
++	 *    UNUSED, we could map: 011: submitted, completion still pending
++	 * 110: completed ok
++	 * 010: completed with error
++	 */
++	__RQ_LOCAL_PENDING,
++	__RQ_LOCAL_COMPLETED,
++	__RQ_LOCAL_OK,
++
++	/* 76543
++	 * 00000: no network possible
++	 * 00001: to be send
++	 * 00011: to be send, on worker queue
++	 * 00101: sent, expecting recv_ack (B) or write_ack (C)
++	 * 11101: sent,
++	 *        recv_ack (B) or implicit "ack" (A),
++	 *        still waiting for the barrier ack.
++	 *        master_bio may already be completed and invalidated.
++	 * 11100: write_acked (C),
++	 *        data_received (for remote read, any protocol)
++	 *        or finally the barrier ack has arrived (B,A)...
++	 *        request can be freed
++	 * 01100: neg-acked (write, protocol C)
++	 *        or neg-d-acked (read, any protocol)
++	 *        or killed from the transfer log
++	 *        during cleanup after connection loss
++	 *        request can be freed
++	 * 01000: canceled or send failed...
++	 *        request can be freed
++	 */
++
++	/* if "SENT" is not set, yet, this can still fail or be canceled.
++	 * if "SENT" is set already, we still wait for an Ack packet.
++	 * when cleared, the master_bio may be completed.
++	 * in (B,A) the request object may still linger on the transaction log
++	 * until the corresponding barrier ack comes in */
++	__RQ_NET_PENDING,
++
++	/* If it is QUEUED, and it is a WRITE, it is also registered in the
++	 * transfer log. Currently we need this flag to avoid conflicts between
++	 * worker canceling the request and tl_clear_barrier killing it from
++	 * transfer log.  We should restructure the code so this conflict does
++	 * no longer occur. */
++	__RQ_NET_QUEUED,
++
++	/* well, actually only "handed over to the network stack".
++	 *
++	 * TODO can potentially be dropped because of the similar meaning
++	 * of RQ_NET_SENT and ~RQ_NET_QUEUED.
++	 * however it is not exactly the same. before we drop it
++	 * we must ensure that we can tell a request with network part
++	 * from a request without, regardless of what happens to it. */
++	__RQ_NET_SENT,
++
++	/* when set, the request may be freed (if RQ_NET_QUEUED is clear).
++	 * basically this means the corresponding P_BARRIER_ACK was received */
++	__RQ_NET_DONE,
++
++	/* whether or not we know (C) or pretend (B,A) that the write
++	 * was successfully written on the peer.
++	 */
++	__RQ_NET_OK,
++
++	/* peer called drbd_set_in_sync() for this write */
++	__RQ_NET_SIS,
++
++	/* keep this last, its for the RQ_NET_MASK */
++	__RQ_NET_MAX,
++};
++
++#define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
++#define RQ_LOCAL_COMPLETED (1UL << __RQ_LOCAL_COMPLETED)
++#define RQ_LOCAL_OK        (1UL << __RQ_LOCAL_OK)
++
++#define RQ_LOCAL_MASK      ((RQ_LOCAL_OK << 1)-1) /* 0x07 */
++
++#define RQ_NET_PENDING     (1UL << __RQ_NET_PENDING)
++#define RQ_NET_QUEUED      (1UL << __RQ_NET_QUEUED)
++#define RQ_NET_SENT        (1UL << __RQ_NET_SENT)
++#define RQ_NET_DONE        (1UL << __RQ_NET_DONE)
++#define RQ_NET_OK          (1UL << __RQ_NET_OK)
++#define RQ_NET_SIS         (1UL << __RQ_NET_SIS)
++
++/* 0x1f8 */
++#define RQ_NET_MASK        (((1UL << __RQ_NET_MAX)-1) & ~RQ_LOCAL_MASK)
++
++/* epoch entries */
++static inline
++struct hlist_head *ee_hash_slot(struct drbd_conf *mdev, sector_t sector)
++{
++	BUG_ON(mdev->ee_hash_s == 0);
++	return mdev->ee_hash +
++		((unsigned int)(sector>>HT_SHIFT) % mdev->ee_hash_s);
++}
++
++/* transfer log (drbd_request objects) */
++static inline
++struct hlist_head *tl_hash_slot(struct drbd_conf *mdev, sector_t sector)
++{
++	BUG_ON(mdev->tl_hash_s == 0);
++	return mdev->tl_hash +
++		((unsigned int)(sector>>HT_SHIFT) % mdev->tl_hash_s);
++}
++
++/* application reads (drbd_request objects) */
++static struct hlist_head *ar_hash_slot(struct drbd_conf *mdev, sector_t sector)
++{
++	return mdev->app_reads_hash
++		+ ((unsigned int)(sector) % APP_R_HSIZE);
++}
++
++/* when we receive the answer for a read request,
++ * verify that we actually know about it */
++static inline struct drbd_request *_ar_id_to_req(struct drbd_conf *mdev,
++	u64 id, sector_t sector)
++{
++	struct hlist_head *slot = ar_hash_slot(mdev, sector);
++	struct hlist_node *n;
++	struct drbd_request *req;
++
++	hlist_for_each_entry(req, n, slot, colision) {
++		if ((unsigned long)req == (unsigned long)id) {
++			D_ASSERT(req->sector == sector);
++			return req;
++		}
++	}
++	return NULL;
++}
++
++static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
++	struct bio *bio_src)
++{
++	struct bio *bio;
++	struct drbd_request *req =
++		mempool_alloc(drbd_request_mempool, GFP_NOIO);
++	if (likely(req)) {
++		bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
++
++		req->rq_state    = 0;
++		req->mdev        = mdev;
++		req->master_bio  = bio_src;
++		req->private_bio = bio;
++		req->epoch       = 0;
++		req->sector      = bio->bi_sector;
++		req->size        = bio->bi_size;
++		req->start_time  = jiffies;
++		INIT_HLIST_NODE(&req->colision);
++		INIT_LIST_HEAD(&req->tl_requests);
++		INIT_LIST_HEAD(&req->w.list);
++
++		bio->bi_private  = req;
++		bio->bi_end_io   = drbd_endio_pri;
++		bio->bi_next     = NULL;
++	}
++	return req;
++}
++
++static inline void drbd_req_free(struct drbd_request *req)
++{
++	mempool_free(req, drbd_request_mempool);
++}
++
++static inline int overlaps(sector_t s1, int l1, sector_t s2, int l2)
++{
++	return !((s1 + (l1>>9) <= s2) || (s1 >= s2 + (l2>>9)));
++}
++
++/* aparently too large to be inlined...
++ * moved to drbd_req.c */
++extern void _req_may_be_done(struct drbd_request *req, int error);
++extern void _req_mod(struct drbd_request *req,
++		enum drbd_req_event what, int error);
++
++/* If you need it irqsave, do it your self! */
++static inline void req_mod(struct drbd_request *req,
++		enum drbd_req_event what, int error)
++{
++	struct drbd_conf *mdev = req->mdev;
++	spin_lock_irq(&mdev->req_lock);
++	_req_mod(req, what, error);
++	spin_unlock_irq(&mdev->req_lock);
++}
++#endif
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+new file mode 100644
+index 0000000..d2b941c
+--- /dev/null
++++ b/drivers/block/drbd/drbd_req.c
+@@ -0,0 +1,1130 @@
++/*
++   drbd_req.c
++
++   This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
++
++   Copyright (C) 2001-2008, LINBIT Information Technologies GmbH.
++   Copyright (C) 1999-2008, Philipp Reisner <philipp.reisner@linbit.com>.
++   Copyright (C) 2002-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 +
 +   drbd is free software; you can redistribute it and/or modify
 +   it under the terms of the GNU General Public License as published by
@@ -63,1254 +370,1111 @@ index 0000000..417da6e
 +   You should have received a copy of the GNU General Public License
 +   along with drbd; see the file COPYING.  If not, write to
 +   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
++
 + */
 +
-+#include <linux/bitops.h>
-+#include <linux/vmalloc.h>
-+#include <linux/string.h>
++#include <linux/autoconf.h>
++#include <linux/module.h>
++
++#include <linux/slab.h>
 +#include <linux/drbd.h>
-+#include <asm/kmap_types.h>
 +#include "drbd_int.h"
++#include "drbd_tracing.h"
++#include "drbd_req.h"
 +
-+/* OPAQUE outside this file!
-+ * interface defined in drbd_int.h
 +
-+ * convetion:
-+ * function name drbd_bm_... => used elsewhere, "public".
-+ * function name      bm_... => internal to implementation, "private".
-+
-+ * Note that since find_first_bit returns int, at the current granularity of
-+ * the bitmap (4KB per byte), this implementation "only" supports up to
-+ * 1<<(32+12) == 16 TB...
-+ */
-+
-+/*
-+ * NOTE
-+ *  Access to the *bm_pages is protected by bm_lock.
-+ *  It is safe to read the other members within the lock.
-+ *
-+ *  drbd_bm_set_bits is called from bio_endio callbacks,
-+ *  We may be called with irq already disabled,
-+ *  so we need spin_lock_irqsave().
-+ *  And we need the kmap_atomic.
-+ */
-+struct drbd_bitmap {
-+	struct page **bm_pages;
-+	spinlock_t bm_lock;
-+	/* WARNING unsigned long bm_*:
-+	 * 32bit number of bit offset is just enough for 512 MB bitmap.
-+	 * it will blow up if we make the bitmap bigger...
-+	 * not that it makes much sense to have a bitmap that large,
-+	 * rather change the granularity to 16k or 64k or something.
-+	 * (that implies other problems, however...)
-+	 */
-+	unsigned long bm_set;       /* nr of set bits; THINK maybe atomic_t? */
-+	unsigned long bm_bits;
-+	size_t   bm_words;
-+	size_t   bm_number_of_pages;
-+	sector_t bm_dev_capacity;
-+	struct semaphore bm_change; /* serializes resize operations */
-+
-+	atomic_t bm_async_io;
-+	wait_queue_head_t bm_io_wait;
-+
-+	unsigned long  bm_flags;
-+
-+	/* debugging aid, in case we are still racy somewhere */
-+	char          *bm_why;
-+	struct task_struct *bm_task;
-+};
-+
-+/* definition of bits in bm_flags */
-+#define BM_LOCKED       0
-+#define BM_MD_IO_ERROR  1
-+#define BM_P_VMALLOCED  2
-+
-+static int bm_is_locked(struct drbd_bitmap *b)
++/* Update disk stats at start of I/O request */
++static void _drbd_start_io_acct(struct drbd_conf *mdev, struct drbd_request *req, struct bio *bio)
 +{
-+	return test_bit(BM_LOCKED, &b->bm_flags);
++	const int rw = bio_data_dir(bio);
++	int cpu;
++	cpu = part_stat_lock();
++	part_stat_inc(cpu, &mdev->vdisk->part0, ios[rw]);
++	part_stat_add(cpu, &mdev->vdisk->part0, sectors[rw], bio_sectors(bio));
++	part_stat_unlock();
++	mdev->vdisk->part0.in_flight++;
 +}
 +
-+#define bm_print_lock_info(m) __bm_print_lock_info(m, __func__)
-+static void __bm_print_lock_info(struct drbd_conf *mdev, const char *func)
++/* Update disk stats when completing request upwards */
++static void _drbd_end_io_acct(struct drbd_conf *mdev, struct drbd_request *req)
 +{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	if (!__ratelimit(&drbd_ratelimit_state))
-+		return;
-+	dev_err(DEV, "FIXME %s in %s, bitmap locked for '%s' by %s\n",
-+	    current == mdev->receiver.task ? "receiver" :
-+	    current == mdev->asender.task  ? "asender"  :
-+	    current == mdev->worker.task   ? "worker"   : current->comm,
-+	    func, b->bm_why ?: "?",
-+	    b->bm_task == mdev->receiver.task ? "receiver" :
-+	    b->bm_task == mdev->asender.task  ? "asender"  :
-+	    b->bm_task == mdev->worker.task   ? "worker"   : "?");
++	int rw = bio_data_dir(req->master_bio);
++	unsigned long duration = jiffies - req->start_time;
++	int cpu;
++	cpu = part_stat_lock();
++	part_stat_add(cpu, &mdev->vdisk->part0, ticks[rw], duration);
++	part_round_stats(cpu, &mdev->vdisk->part0);
++	part_stat_unlock();
++	mdev->vdisk->part0.in_flight--;
 +}
 +
-+void drbd_bm_lock(struct drbd_conf *mdev, char *why)
++static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const int rw)
 +{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	int trylock_failed;
++	const unsigned long s = req->rq_state;
++	/* if it was a write, we may have to set the corresponding
++	 * bit(s) out-of-sync first. If it had a local part, we need to
++	 * release the reference to the activity log. */
++	if (rw == WRITE) {
++		/* remove it from the transfer log.
++		 * well, only if it had been there in the first
++		 * place... if it had not (local only or conflicting
++		 * and never sent), it should still be "empty" as
++		 * initialised in drbd_req_new(), so we can list_del() it
++		 * here unconditionally */
++		list_del(&req->tl_requests);
++		/* Set out-of-sync unless both OK flags are set
++		 * (local only or remote failed).
++		 * Other places where we set out-of-sync:
++		 * READ with local io-error */
++		if (!(s & RQ_NET_OK) || !(s & RQ_LOCAL_OK))
++			drbd_set_out_of_sync(mdev, req->sector, req->size);
 +
-+	if (!b) {
-+		dev_err(DEV, "FIXME no bitmap in drbd_bm_lock!?\n");
-+		return;
-+	}
++		if ((s & RQ_NET_OK) && (s & RQ_LOCAL_OK) && (s & RQ_NET_SIS))
++			drbd_set_in_sync(mdev, req->sector, req->size);
 +
-+	trylock_failed = down_trylock(&b->bm_change);
-+
-+	if (trylock_failed) {
-+		dev_warn(DEV, "%s going to '%s' but bitmap already locked for '%s' by %s\n",
-+		    current == mdev->receiver.task ? "receiver" :
-+		    current == mdev->asender.task  ? "asender"  :
-+		    current == mdev->worker.task   ? "worker"   : current->comm,
-+		    why, b->bm_why ?: "?",
-+		    b->bm_task == mdev->receiver.task ? "receiver" :
-+		    b->bm_task == mdev->asender.task  ? "asender"  :
-+		    b->bm_task == mdev->worker.task   ? "worker"   : "?");
-+		down(&b->bm_change);
-+	}
-+	if (__test_and_set_bit(BM_LOCKED, &b->bm_flags))
-+		dev_err(DEV, "FIXME bitmap already locked in bm_lock\n");
-+
-+	b->bm_why  = why;
-+	b->bm_task = current;
-+}
-+
-+void drbd_bm_unlock(struct drbd_conf *mdev)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	if (!b) {
-+		dev_err(DEV, "FIXME no bitmap in drbd_bm_unlock!?\n");
-+		return;
-+	}
-+
-+	if (!__test_and_clear_bit(BM_LOCKED, &mdev->bitmap->bm_flags))
-+		dev_err(DEV, "FIXME bitmap not locked in bm_unlock\n");
-+
-+	b->bm_why  = NULL;
-+	b->bm_task = NULL;
-+	up(&b->bm_change);
-+}
-+
-+/* word offset to long pointer */
-+static unsigned long *__bm_map_paddr(struct drbd_bitmap *b, unsigned long offset, const enum km_type km)
-+{
-+	struct page *page;
-+	unsigned long page_nr;
-+
-+	/* page_nr = (word*sizeof(long)) >> PAGE_SHIFT; */
-+	page_nr = offset >> (PAGE_SHIFT - LN2_BPL + 3);
-+	BUG_ON(page_nr >= b->bm_number_of_pages);
-+	page = b->bm_pages[page_nr];
-+
-+	return (unsigned long *) kmap_atomic(page, km);
-+}
-+
-+unsigned long * bm_map_paddr(struct drbd_bitmap *b, unsigned long offset)
-+{
-+	return __bm_map_paddr(b, offset, KM_IRQ1);
-+}
-+
-+void __bm_unmap(unsigned long *p_addr, const enum km_type km)
-+{
-+	kunmap_atomic(p_addr, km);
-+};
-+
-+void bm_unmap(unsigned long *p_addr)
-+{
-+	return __bm_unmap(p_addr, KM_IRQ1);
-+}
-+
-+/* long word offset of _bitmap_ sector */
-+#define S2W(s)	((s)<<(BM_EXT_SHIFT-BM_BLOCK_SHIFT-LN2_BPL))
-+/* word offset from start of bitmap to word number _in_page_
-+ * modulo longs per page
-+#define MLPP(X) ((X) % (PAGE_SIZE/sizeof(long))
-+ hm, well, Philipp thinks gcc might not optimze the % into & (... - 1)
-+ so do it explicitly:
-+ */
-+#define MLPP(X) ((X) & ((PAGE_SIZE/sizeof(long))-1))
-+
-+/* Long words per page */
-+#define LWPP (PAGE_SIZE/sizeof(long))
-+
-+/*
-+ * actually most functions herein should take a struct drbd_bitmap*, not a
-+ * struct drbd_conf*, but for the debug macros I like to have the mdev around
-+ * to be able to report device specific.
-+ */
-+
-+static void bm_free_pages(struct page **pages, unsigned long number)
-+{
-+	unsigned long i;
-+	if (!pages)
-+		return;
-+
-+	for (i = 0; i < number; i++) {
-+		if (!pages[i]) {
-+			printk(KERN_ALERT "drbd: bm_free_pages tried to free "
-+					  "a NULL pointer; i=%lu n=%lu\n",
-+					  i, number);
-+			continue;
-+		}
-+		__free_page(pages[i]);
-+		pages[i] = NULL;
-+	}
-+}
-+
-+static void bm_vk_free(void *ptr, int v)
-+{
-+	if (v)
-+		vfree(ptr);
-+	else
-+		kfree(ptr);
-+}
-+
-+/*
-+ * "have" and "want" are NUMBER OF PAGES.
-+ */
-+static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
-+{
-+	struct page **old_pages = b->bm_pages;
-+	struct page **new_pages, *page;
-+	unsigned int i, bytes, vmalloced = 0;
-+	unsigned long have = b->bm_number_of_pages;
-+
-+	BUG_ON(have == 0 && old_pages != NULL);
-+	BUG_ON(have != 0 && old_pages == NULL);
-+
-+	if (have == want)
-+		return old_pages;
-+
-+	/* Trying kmalloc first, falling back to vmalloc.
-+	 * GFP_KERNEL is ok, as this is done when a lower level disk is
-+	 * "attached" to the drbd.  Context is receiver thread or cqueue
-+	 * thread.  As we have no disk yet, we are not in the IO path,
-+	 * not even the IO path of the peer. */
-+	bytes = sizeof(struct page *)*want;
-+	new_pages = kmalloc(bytes, GFP_KERNEL);
-+	if (!new_pages) {
-+		new_pages = vmalloc(bytes);
-+		if (!new_pages)
-+			return NULL;
-+		vmalloced = 1;
-+	}
-+
-+	memset(new_pages, 0, bytes);
-+	if (want >= have) {
-+		for (i = 0; i < have; i++)
-+			new_pages[i] = old_pages[i];
-+		for (; i < want; i++) {
-+			page = alloc_page(GFP_HIGHUSER);
-+			if (!page) {
-+				bm_free_pages(new_pages + have, i - have);
-+				bm_vk_free(new_pages, vmalloced);
-+				return NULL;
++		/* one might be tempted to move the drbd_al_complete_io
++		 * to the local io completion callback drbd_endio_pri.
++		 * but, if this was a mirror write, we may only
++		 * drbd_al_complete_io after this is RQ_NET_DONE,
++		 * otherwise the extent could be dropped from the al
++		 * before it has actually been written on the peer.
++		 * if we crash before our peer knows about the request,
++		 * but after the extent has been dropped from the al,
++		 * we would forget to resync the corresponding extent.
++		 */
++		if (s & RQ_LOCAL_MASK) {
++			if (get_ldev_if_state(mdev, D_FAILED)) {
++				drbd_al_complete_io(mdev, req->sector);
++				put_ldev(mdev);
++			} else if (__ratelimit(&drbd_ratelimit_state)) {
++				dev_warn(DEV, "Should have called drbd_al_complete_io(, %llu), "
++				     "but my Disk seems to have failed :(\n",
++				     (unsigned long long) req->sector);
 +			}
-+			new_pages[i] = page;
 +		}
-+	} else {
-+		for (i = 0; i < want; i++)
-+			new_pages[i] = old_pages[i];
-+		/* NOT HERE, we are outside the spinlock!
-+		bm_free_pages(old_pages + want, have - want);
-+		*/
 +	}
 +
-+	if (vmalloced)
-+		set_bit(BM_P_VMALLOCED, &b->bm_flags);
-+	else
-+		clear_bit(BM_P_VMALLOCED, &b->bm_flags);
++	/* if it was a local io error, we want to notify our
++	 * peer about that, and see if we need to
++	 * detach the disk and stuff.
++	 * to avoid allocating some special work
++	 * struct, reuse the request. */
 +
-+	return new_pages;
++	/* THINK
++	 * why do we do this not when we detect the error,
++	 * but delay it until it is "done", i.e. possibly
++	 * until the next barrier ack? */
++
++	if (rw == WRITE &&
++	    ((s & RQ_LOCAL_MASK) && !(s & RQ_LOCAL_OK))) {
++		if (!(req->w.list.next == LIST_POISON1 ||
++		      list_empty(&req->w.list))) {
++			/* DEBUG ASSERT only; if this triggers, we
++			 * probably corrupt the worker list here */
++			dev_err(DEV, "req->w.list.next = %p\n", req->w.list.next);
++			dev_err(DEV, "req->w.list.prev = %p\n", req->w.list.prev);
++		}
++		req->w.cb = w_io_error;
++		drbd_queue_work(&mdev->data.work, &req->w);
++		/* drbd_req_free() is done in w_io_error */
++	} else {
++		drbd_req_free(req);
++	}
++}
++
++static void queue_barrier(struct drbd_conf *mdev)
++{
++	struct drbd_tl_epoch *b;
++
++	/* We are within the req_lock. Once we queued the barrier for sending,
++	 * we set the CREATE_BARRIER bit. It is cleared as soon as a new
++	 * barrier/epoch object is added. This is the only place this bit is
++	 * set. It indicates that the barrier for this epoch is already queued,
++	 * and no new epoch has been created yet. */
++	if (test_bit(CREATE_BARRIER, &mdev->flags))
++		return;
++
++	b = mdev->newest_tle;
++	b->w.cb = w_send_barrier;
++	/* inc_ap_pending done here, so we won't
++	 * get imbalanced on connection loss.
++	 * dec_ap_pending will be done in got_BarrierAck
++	 * or (on connection loss) in tl_clear.  */
++	inc_ap_pending(mdev);
++	drbd_queue_work(&mdev->data.work, &b->w);
++	set_bit(CREATE_BARRIER, &mdev->flags);
++}
++
++static void _about_to_complete_local_write(struct drbd_conf *mdev,
++	struct drbd_request *req)
++{
++	const unsigned long s = req->rq_state;
++	struct drbd_request *i;
++	struct drbd_epoch_entry *e;
++	struct hlist_node *n;
++	struct hlist_head *slot;
++
++	/* before we can signal completion to the upper layers,
++	 * we may need to close the current epoch */
++	if (mdev->state.conn >= C_CONNECTED &&
++	    req->epoch == mdev->newest_tle->br_number)
++		queue_barrier(mdev);
++
++	/* we need to do the conflict detection stuff,
++	 * if we have the ee_hash (two_primaries) and
++	 * this has been on the network */
++	if ((s & RQ_NET_DONE) && mdev->ee_hash != NULL) {
++		const sector_t sector = req->sector;
++		const int size = req->size;
++
++		/* ASSERT:
++		 * there must be no conflicting requests, since
++		 * they must have been failed on the spot */
++#define OVERLAPS overlaps(sector, size, i->sector, i->size)
++		slot = tl_hash_slot(mdev, sector);
++		hlist_for_each_entry(i, n, slot, colision) {
++			if (OVERLAPS) {
++				dev_alert(DEV, "LOGIC BUG: completed: %p %llus +%u; "
++				      "other: %p %llus +%u\n",
++				      req, (unsigned long long)sector, size,
++				      i, (unsigned long long)i->sector, i->size);
++			}
++		}
++
++		/* maybe "wake" those conflicting epoch entries
++		 * that wait for this request to finish.
++		 *
++		 * currently, there can be only _one_ such ee
++		 * (well, or some more, which would be pending
++		 * P_DISCARD_ACK not yet sent by the asender...),
++		 * since we block the receiver thread upon the
++		 * first conflict detection, which will wait on
++		 * misc_wait.  maybe we want to assert that?
++		 *
++		 * anyways, if we found one,
++		 * we just have to do a wake_up.  */
++#undef OVERLAPS
++#define OVERLAPS overlaps(sector, size, e->sector, e->size)
++		slot = ee_hash_slot(mdev, req->sector);
++		hlist_for_each_entry(e, n, slot, colision) {
++			if (OVERLAPS) {
++				wake_up(&mdev->misc_wait);
++				break;
++			}
++		}
++	}
++#undef OVERLAPS
++}
++
++static void _complete_master_bio(struct drbd_conf *mdev,
++	struct drbd_request *req, int error)
++{
++	trace_drbd_bio(mdev, "Rq", req->master_bio, 1, req);
++	bio_endio(req->master_bio, error);
++	req->master_bio = NULL;
++	dec_ap_bio(mdev);
++}
++
++void _req_may_be_done(struct drbd_request *req, int error)
++{
++	const unsigned long s = req->rq_state;
++	struct drbd_conf *mdev = req->mdev;
++	int rw;
++
++	trace_drbd_req(req, nothing, "_req_may_be_done");
++
++	/* we must not complete the master bio, while it is
++	 *	still being processed by _drbd_send_zc_bio (drbd_send_dblock)
++	 *	not yet acknowledged by the peer
++	 *	not yet completed by the local io subsystem
++	 * these flags may get cleared in any order by
++	 *	the worker,
++	 *	the receiver,
++	 *	the bio_endio completion callbacks.
++	 */
++	if (s & RQ_NET_QUEUED)
++		return;
++	if (s & RQ_NET_PENDING)
++		return;
++	if (s & RQ_LOCAL_PENDING)
++		return;
++
++	if (req->master_bio) {
++		/* this is data_received (remote read)
++		 * or protocol C P_WRITE_ACK
++		 * or protocol B P_RECV_ACK
++		 * or protocol A "handed_over_to_network" (SendAck)
++		 * or canceled or failed,
++		 * or killed from the transfer log due to connection loss.
++		 */
++
++		/*
++		 * figure out whether to report success or failure.
++		 *
++		 * report success when at least one of the operations suceeded.
++		 * or, to put the other way,
++		 * only report failure, when both operations failed.
++		 *
++		 * what to do about the failures is handled elsewhere.
++		 * what we need to do here is just: complete the master_bio.
++		 */
++		int ok = (s & RQ_LOCAL_OK) || (s & RQ_NET_OK);
++		rw = bio_data_dir(req->master_bio);
++
++		/* remove the request from the conflict detection
++		 * respective block_id verification hash */
++		if (!hlist_unhashed(&req->colision))
++			hlist_del(&req->colision);
++		else
++			D_ASSERT((s & RQ_NET_MASK) == 0);
++
++		/* for writes we need to do some extra housekeeping */
++		if (rw == WRITE)
++			_about_to_complete_local_write(mdev, req);
++
++		/* Update disk stats */
++		_drbd_end_io_acct(mdev, req);
++
++		_complete_master_bio(mdev, req,
++				     ok ? 0 : (error ? error : -EIO));
++	} else {
++		/* only WRITE requests can end up here without a master_bio */
++		rw = WRITE;
++	}
++
++	if ((s & RQ_NET_MASK) == 0 || (s & RQ_NET_DONE)) {
++		/* this is disconnected (local only) operation,
++		 * or protocol C P_WRITE_ACK,
++		 * or protocol A or B P_BARRIER_ACK,
++		 * or killed from the transfer log due to connection loss. */
++		_req_is_done(mdev, req, rw);
++	}
++	/* else: network part and not DONE yet. that is
++	 * protocol A or B, barrier ack still pending... */
 +}
 +
 +/*
-+ * called on driver init only. TODO call when a device is created.
-+ * allocates the drbd_bitmap, and stores it in mdev->bitmap.
++ * checks whether there was an overlapping request
++ * or ee already registered.
++ *
++ * if so, return 1, in which case this request is completed on the spot,
++ * without ever being submitted or send.
++ *
++ * return 0 if it is ok to submit this request.
++ *
++ * NOTE:
++ * paranoia: assume something above us is broken, and issues different write
++ * requests for the same block simultaneously...
++ *
++ * To ensure these won't be reordered differently on both nodes, resulting in
++ * diverging data sets, we discard the later one(s). Not that this is supposed
++ * to happen, but this is the rationale why we also have to check for
++ * conflicting requests with local origin, and why we have to do so regardless
++ * of whether we allowed multiple primaries.
++ *
++ * BTW, in case we only have one primary, the ee_hash is empty anyways, and the
++ * second hlist_for_each_entry becomes a noop. This is even simpler than to
++ * grab a reference on the net_conf, and check for the two_primaries flag...
 + */
-+int drbd_bm_init(struct drbd_conf *mdev)
++static int _req_conflicts(struct drbd_request *req)
 +{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	WARN_ON(b != NULL);
-+	b = kzalloc(sizeof(struct drbd_bitmap), GFP_KERNEL);
-+	if (!b)
-+		return -ENOMEM;
-+	spin_lock_init(&b->bm_lock);
-+	init_MUTEX(&b->bm_change);
-+	init_waitqueue_head(&b->bm_io_wait);
++	struct drbd_conf *mdev = req->mdev;
++	const sector_t sector = req->sector;
++	const int size = req->size;
++	struct drbd_request *i;
++	struct drbd_epoch_entry *e;
++	struct hlist_node *n;
++	struct hlist_head *slot;
 +
-+	mdev->bitmap = b;
++	D_ASSERT(hlist_unhashed(&req->colision));
++
++	if (!get_net_conf(mdev))
++		return 0;
++
++	/* BUG_ON */
++	ERR_IF (mdev->tl_hash_s == 0)
++		goto out_no_conflict;
++	BUG_ON(mdev->tl_hash == NULL);
++
++#define OVERLAPS overlaps(i->sector, i->size, sector, size)
++	slot = tl_hash_slot(mdev, sector);
++	hlist_for_each_entry(i, n, slot, colision) {
++		if (OVERLAPS) {
++			dev_alert(DEV, "%s[%u] Concurrent local write detected! "
++			      "[DISCARD L] new: %llus +%u; "
++			      "pending: %llus +%u\n",
++			      current->comm, current->pid,
++			      (unsigned long long)sector, size,
++			      (unsigned long long)i->sector, i->size);
++			goto out_conflict;
++		}
++	}
++
++	if (mdev->ee_hash_s) {
++		/* now, check for overlapping requests with remote origin */
++		BUG_ON(mdev->ee_hash == NULL);
++#undef OVERLAPS
++#define OVERLAPS overlaps(e->sector, e->size, sector, size)
++		slot = ee_hash_slot(mdev, sector);
++		hlist_for_each_entry(e, n, slot, colision) {
++			if (OVERLAPS) {
++				dev_alert(DEV, "%s[%u] Concurrent remote write detected!"
++				      " [DISCARD L] new: %llus +%u; "
++				      "pending: %llus +%u\n",
++				      current->comm, current->pid,
++				      (unsigned long long)sector, size,
++				      (unsigned long long)e->sector, e->size);
++				goto out_conflict;
++			}
++		}
++	}
++#undef OVERLAPS
++
++out_no_conflict:
++	/* this is like it should be, and what we expected.
++	 * our users do behave after all... */
++	put_net_conf(mdev);
++	return 0;
++
++out_conflict:
++	put_net_conf(mdev);
++	return 1;
++}
++
++/* obviously this could be coded as many single functions
++ * instead of one huge switch,
++ * or by putting the code directly in the respective locations
++ * (as it has been before).
++ *
++ * but having it this way
++ *  enforces that it is all in this one place, where it is easier to audit,
++ *  it makes it obvious that whatever "event" "happens" to a request should
++ *  happen "atomically" within the req_lock,
++ *  and it enforces that we have to think in a very structured manner
++ *  about the "events" that may happen to a request during its life time ...
++ */
++void _req_mod(struct drbd_request *req, enum drbd_req_event what, int error)
++{
++	struct drbd_conf *mdev = req->mdev;
++
++	if (error && (bio_rw(req->master_bio) != READA))
++		dev_err(DEV, "got an _req_mod() errno of %d\n", error);
++
++	trace_drbd_req(req, what, NULL);
++
++	switch (what) {
++	default:
++		dev_err(DEV, "LOGIC BUG in %s:%u\n", __FILE__ , __LINE__);
++		return;
++
++	/* does not happen...
++	 * initialization done in drbd_req_new
++	case created:
++		break;
++		*/
++
++	case to_be_send: /* via network */
++		/* reached via drbd_make_request_common
++		 * and from w_read_retry_remote */
++		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
++		req->rq_state |= RQ_NET_PENDING;
++		inc_ap_pending(mdev);
++		break;
++
++	case to_be_submitted: /* locally */
++		/* reached via drbd_make_request_common */
++		D_ASSERT(!(req->rq_state & RQ_LOCAL_MASK));
++		req->rq_state |= RQ_LOCAL_PENDING;
++		break;
++
++	case completed_ok:
++		if (bio_data_dir(req->private_bio) == WRITE)
++			mdev->writ_cnt += req->size>>9;
++		else
++			mdev->read_cnt += req->size>>9;
++
++		bio_put(req->private_bio);
++		req->private_bio = NULL;
++
++		req->rq_state |= (RQ_LOCAL_COMPLETED|RQ_LOCAL_OK);
++		req->rq_state &= ~RQ_LOCAL_PENDING;
++
++		_req_may_be_done(req, error);
++		put_ldev(mdev);
++		break;
++
++	case write_completed_with_error:
++		req->rq_state |= RQ_LOCAL_COMPLETED;
++		req->rq_state &= ~RQ_LOCAL_PENDING;
++
++		bio_put(req->private_bio);
++		req->private_bio = NULL;
++		dev_alert(DEV, "Local WRITE failed sec=%llus size=%u\n",
++		      (unsigned long long)req->sector, req->size);
++		/* and now: check how to handle local io error. */
++		__drbd_chk_io_error(mdev, FALSE);
++		_req_may_be_done(req, error);
++		put_ldev(mdev);
++		break;
++
++	case read_completed_with_error:
++		if (bio_rw(req->master_bio) != READA)
++			drbd_set_out_of_sync(mdev, req->sector, req->size);
++
++		req->rq_state |= RQ_LOCAL_COMPLETED;
++		req->rq_state &= ~RQ_LOCAL_PENDING;
++
++		bio_put(req->private_bio);
++		req->private_bio = NULL;
++		if (bio_rw(req->master_bio) == READA) {
++			/* it is legal to fail READA */
++			_req_may_be_done(req, error);
++			put_ldev(mdev);
++			break;
++		}
++		/* else */
++		dev_alert(DEV, "Local READ failed sec=%llus size=%u\n",
++		      (unsigned long long)req->sector, req->size);
++		/* _req_mod(req,to_be_send); oops, recursion... */
++		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
++		req->rq_state |= RQ_NET_PENDING;
++		inc_ap_pending(mdev);
++
++		__drbd_chk_io_error(mdev, FALSE);
++		put_ldev(mdev);
++		/* NOTE: if we have no connection,
++		 * or know the peer has no good data either,
++		 * then we don't actually need to "queue_for_net_read",
++		 * but we do so anyways, since the drbd_io_error()
++		 * and the potential state change to "Diskless"
++		 * needs to be done from process context */
++
++		/* fall through: _req_mod(req,queue_for_net_read); */
++
++	case queue_for_net_read:
++		/* READ or READA, and
++		 * no local disk,
++		 * or target area marked as invalid,
++		 * or just got an io-error. */
++		/* from drbd_make_request_common
++		 * or from bio_endio during read io-error recovery */
++
++		/* so we can verify the handle in the answer packet
++		 * corresponding hlist_del is in _req_may_be_done() */
++		hlist_add_head(&req->colision, ar_hash_slot(mdev, req->sector));
++
++		set_bit(UNPLUG_REMOTE, &mdev->flags); /* why? */
++
++		D_ASSERT(req->rq_state & RQ_NET_PENDING);
++		req->rq_state |= RQ_NET_QUEUED;
++		req->w.cb = (req->rq_state & RQ_LOCAL_MASK)
++			? w_read_retry_remote
++			: w_send_read_req;
++		drbd_queue_work(&mdev->data.work, &req->w);
++		break;
++
++	case queue_for_net_write:
++		/* assert something? */
++		/* from drbd_make_request_common only */
++
++		hlist_add_head(&req->colision, tl_hash_slot(mdev, req->sector));
++		/* corresponding hlist_del is in _req_may_be_done() */
++
++		/* NOTE
++		 * In case the req ended up on the transfer log before being
++		 * queued on the worker, it could lead to this request being
++		 * missed during cleanup after connection loss.
++		 * So we have to do both operations here,
++		 * within the same lock that protects the transfer log.
++		 *
++		 * _req_add_to_epoch(req); this has to be after the
++		 * _maybe_start_new_epoch(req); which happened in
++		 * drbd_make_request_common, because we now may set the bit
++		 * again ourselves to close the current epoch.
++		 *
++		 * Add req to the (now) current epoch (barrier). */
++
++		/* see drbd_make_request_common,
++		 * just after it grabs the req_lock */
++		D_ASSERT(test_bit(CREATE_BARRIER, &mdev->flags) == 0);
++
++		req->epoch = mdev->newest_tle->br_number;
++		list_add_tail(&req->tl_requests,
++				&mdev->newest_tle->requests);
++
++		/* increment size of current epoch */
++		mdev->newest_tle->n_req++;
++
++		/* queue work item to send data */
++		D_ASSERT(req->rq_state & RQ_NET_PENDING);
++		req->rq_state |= RQ_NET_QUEUED;
++		req->w.cb =  w_send_dblock;
++		drbd_queue_work(&mdev->data.work, &req->w);
++
++		/* close the epoch, in case it outgrew the limit */
++		if (mdev->newest_tle->n_req >= mdev->net_conf->max_epoch_size)
++			queue_barrier(mdev);
++
++		break;
++
++	case send_canceled:
++		/* treat it the same */
++	case send_failed:
++		/* real cleanup will be done from tl_clear.  just update flags
++		 * so it is no longer marked as on the worker queue */
++		req->rq_state &= ~RQ_NET_QUEUED;
++		/* if we did it right, tl_clear should be scheduled only after
++		 * this, so this should not be necessary! */
++		_req_may_be_done(req, error);
++		break;
++
++	case handed_over_to_network:
++		/* assert something? */
++		if (bio_data_dir(req->master_bio) == WRITE &&
++		    mdev->net_conf->wire_protocol == DRBD_PROT_A) {
++			/* this is what is dangerous about protocol A:
++			 * pretend it was sucessfully written on the peer. */
++			if (req->rq_state & RQ_NET_PENDING) {
++				dec_ap_pending(mdev);
++				req->rq_state &= ~RQ_NET_PENDING;
++				req->rq_state |= RQ_NET_OK;
++			} /* else: neg-ack was faster... */
++			/* it is still not yet RQ_NET_DONE until the
++			 * corresponding epoch barrier got acked as well,
++			 * so we know what to dirty on connection loss */
++		}
++		req->rq_state &= ~RQ_NET_QUEUED;
++		req->rq_state |= RQ_NET_SENT;
++		/* because _drbd_send_zc_bio could sleep, and may want to
++		 * dereference the bio even after the "write_acked_by_peer" and
++		 * "completed_ok" events came in, once we return from
++		 * _drbd_send_zc_bio (drbd_send_dblock), we have to check
++		 * whether it is done already, and end it.  */
++		_req_may_be_done(req, error);
++		break;
++
++	case connection_lost_while_pending:
++		/* transfer log cleanup after connection loss */
++		/* assert something? */
++		if (req->rq_state & RQ_NET_PENDING)
++			dec_ap_pending(mdev);
++		req->rq_state &= ~(RQ_NET_OK|RQ_NET_PENDING);
++		req->rq_state |= RQ_NET_DONE;
++		/* if it is still queued, we may not complete it here.
++		 * it will be canceled soon. */
++		if (!(req->rq_state & RQ_NET_QUEUED))
++			_req_may_be_done(req, error);
++		break;
++
++	case write_acked_by_peer_and_sis:
++		req->rq_state |= RQ_NET_SIS;
++	case conflict_discarded_by_peer:
++		/* for discarded conflicting writes of multiple primarys,
++		 * there is no need to keep anything in the tl, potential
++		 * node crashes are covered by the activity log. */
++		req->rq_state |= RQ_NET_DONE;
++		/* fall through */
++	case write_acked_by_peer:
++		/* protocol C; successfully written on peer.
++		 * Nothing to do here.
++		 * We want to keep the tl in place for all protocols, to cater
++		 * for volatile write-back caches on lower level devices.
++		 *
++		 * A barrier request is expected to have forced all prior
++		 * requests onto stable storage, so completion of a barrier
++		 * request could set NET_DONE right here, and not wait for the
++		 * P_BARRIER_ACK, but that is an unecessary optimisation. */
++
++		/* this makes it effectively the same as for: */
++	case recv_acked_by_peer:
++		/* protocol B; pretends to be sucessfully written on peer.
++		 * see also notes above in handed_over_to_network about
++		 * protocol != C */
++		req->rq_state |= RQ_NET_OK;
++		D_ASSERT(req->rq_state & RQ_NET_PENDING);
++		dec_ap_pending(mdev);
++		req->rq_state &= ~RQ_NET_PENDING;
++		_req_may_be_done(req, error);
++		break;
++
++	case neg_acked:
++		/* assert something? */
++		if (req->rq_state & RQ_NET_PENDING)
++			dec_ap_pending(mdev);
++		req->rq_state &= ~(RQ_NET_OK|RQ_NET_PENDING);
++
++		req->rq_state |= RQ_NET_DONE;
++		_req_may_be_done(req, error);
++		/* else: done by handed_over_to_network */
++		break;
++
++	case barrier_acked:
++		if (req->rq_state & RQ_NET_PENDING) {
++			/* barrier came in before all requests have been acked.
++			 * this is bad, because if the connection is lost now,
++			 * we won't be able to clean them up... */
++			dev_err(DEV, "FIXME (barrier_acked but pending)\n");
++			trace_drbd_req(req, nothing, "FIXME (barrier_acked but pending)");
++			list_move(&req->tl_requests, &mdev->out_of_sequence_requests);
++		}
++		D_ASSERT(req->rq_state & RQ_NET_SENT);
++		req->rq_state |= RQ_NET_DONE;
++		_req_may_be_done(req, error);
++		break;
++
++	case data_received:
++		D_ASSERT(req->rq_state & RQ_NET_PENDING);
++		dec_ap_pending(mdev);
++		req->rq_state &= ~RQ_NET_PENDING;
++		req->rq_state |= (RQ_NET_OK|RQ_NET_DONE);
++		_req_may_be_done(req, error);
++		break;
++	};
++}
++
++/* we may do a local read if:
++ * - we are consistent (of course),
++ * - or we are generally inconsistent,
++ *   BUT we are still/already IN SYNC for this area.
++ *   since size may be bigger than BM_BLOCK_SIZE,
++ *   we may need to check several bits.
++ */
++static int drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int size)
++{
++	unsigned long sbnr, ebnr;
++	sector_t esector, nr_sectors;
++
++	if (mdev->state.disk == D_UP_TO_DATE)
++		return 1;
++	if (mdev->state.disk >= D_OUTDATED)
++		return 0;
++	if (mdev->state.disk <  D_INCONSISTENT)
++		return 0;
++	/* state.disk == D_INCONSISTENT   We will have a look at the BitMap */
++	nr_sectors = drbd_get_capacity(mdev->this_bdev);
++	esector = sector + (size >> 9) - 1;
++
++	D_ASSERT(sector  < nr_sectors);
++	D_ASSERT(esector < nr_sectors);
++
++	sbnr = BM_SECT_TO_BIT(sector);
++	ebnr = BM_SECT_TO_BIT(esector);
++
++	return 0 == drbd_bm_count_bits(mdev, sbnr, ebnr);
++}
++
++static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
++{
++	const int rw = bio_rw(bio);
++	const int size = bio->bi_size;
++	const sector_t sector = bio->bi_sector;
++	struct drbd_tl_epoch *b = NULL;
++	struct drbd_request *req;
++	int local, remote;
++	int err = -EIO;
++
++	/* allocate outside of all locks; */
++	req = drbd_req_new(mdev, bio);
++	if (!req) {
++		dec_ap_bio(mdev);
++		/* only pass the error to the upper layers.
++		 * if user cannot handle io errors, thats not our business. */
++		dev_err(DEV, "could not kmalloc() req\n");
++		bio_endio(bio, -ENOMEM);
++		return 0;
++	}
++
++	trace_drbd_bio(mdev, "Rq", bio, 0, req);
++
++	local = get_ldev(mdev);
++	if (!local) {
++		bio_put(req->private_bio); /* or we get a bio leak */
++		req->private_bio = NULL;
++	}
++	if (rw == WRITE) {
++		remote = 1;
++	} else {
++		/* READ || READA */
++		if (local) {
++			if (!drbd_may_do_local_read(mdev, sector, size)) {
++				/* we could kick the syncer to
++				 * sync this extent asap, wait for
++				 * it, then continue locally.
++				 * Or just issue the request remotely.
++				 */
++				local = 0;
++				bio_put(req->private_bio);
++				req->private_bio = NULL;
++				put_ldev(mdev);
++			}
++		}
++		remote = !local && mdev->state.pdsk >= D_UP_TO_DATE;
++	}
++
++	/* If we have a disk, but a READA request is mapped to remote,
++	 * we are R_PRIMARY, D_INCONSISTENT, SyncTarget.
++	 * Just fail that READA request right here.
++	 *
++	 * THINK: maybe fail all READA when not local?
++	 *        or make this configurable...
++	 *        if network is slow, READA won't do any good.
++	 */
++	if (rw == READA && mdev->state.disk >= D_INCONSISTENT && !local) {
++		err = -EWOULDBLOCK;
++		goto fail_and_free_req;
++	}
++
++	/* For WRITES going to the local disk, grab a reference on the target
++	 * extent.  This waits for any resync activity in the corresponding
++	 * resync extent to finish, and, if necessary, pulls in the target
++	 * extent into the activity log, which involves further disk io because
++	 * of transactional on-disk meta data updates. */
++	if (rw == WRITE && local)
++		drbd_al_begin_io(mdev, sector);
++
++	remote = remote && (mdev->state.pdsk == D_UP_TO_DATE ||
++			    (mdev->state.pdsk == D_INCONSISTENT &&
++			     mdev->state.conn >= C_CONNECTED));
++
++	if (!(local || remote)) {
++		dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
++		goto fail_free_complete;
++	}
++
++	/* For WRITE request, we have to make sure that we have an
++	 * unused_spare_tle, in case we need to start a new epoch.
++	 * I try to be smart and avoid to pre-allocate always "just in case",
++	 * but there is a race between testing the bit and pointer outside the
++	 * spinlock, and grabbing the spinlock.
++	 * if we lost that race, we retry.  */
++	if (rw == WRITE && remote &&
++	    mdev->unused_spare_tle == NULL &&
++	    test_bit(CREATE_BARRIER, &mdev->flags)) {
++allocate_barrier:
++		b = kmalloc(sizeof(struct drbd_tl_epoch), GFP_NOIO);
++		if (!b) {
++			dev_err(DEV, "Failed to alloc barrier.\n");
++			err = -ENOMEM;
++			goto fail_free_complete;
++		}
++	}
++
++	/* GOOD, everything prepared, grab the spin_lock */
++	spin_lock_irq(&mdev->req_lock);
++
++	if (remote) {
++		remote = (mdev->state.pdsk == D_UP_TO_DATE ||
++			    (mdev->state.pdsk == D_INCONSISTENT &&
++			     mdev->state.conn >= C_CONNECTED));
++		if (!remote)
++			dev_warn(DEV, "lost connection while grabbing the req_lock!\n");
++		if (!(local || remote)) {
++			dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
++			spin_unlock_irq(&mdev->req_lock);
++			goto fail_free_complete;
++		}
++	}
++
++	if (b && mdev->unused_spare_tle == NULL) {
++		mdev->unused_spare_tle = b;
++		b = NULL;
++	}
++	if (rw == WRITE && remote &&
++	    mdev->unused_spare_tle == NULL &&
++	    test_bit(CREATE_BARRIER, &mdev->flags)) {
++		/* someone closed the current epoch
++		 * while we were grabbing the spinlock */
++		spin_unlock_irq(&mdev->req_lock);
++		goto allocate_barrier;
++	}
++
++
++	/* Update disk stats */
++	_drbd_start_io_acct(mdev, req, bio);
++
++	/* _maybe_start_new_epoch(mdev);
++	 * If we need to generate a write barrier packet, we have to add the
++	 * new epoch (barrier) object, and queue the barrier packet for sending,
++	 * and queue the req's data after it _within the same lock_, otherwise
++	 * we have race conditions were the reorder domains could be mixed up.
++	 *
++	 * Even read requests may start a new epoch and queue the corresponding
++	 * barrier packet.  To get the write ordering right, we only have to
++	 * make sure that, if this is a write request and it triggered a
++	 * barrier packet, this request is queued within the same spinlock. */
++	if (remote && mdev->unused_spare_tle &&
++	    test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
++		_tl_add_barrier(mdev, mdev->unused_spare_tle);
++		mdev->unused_spare_tle = NULL;
++	} else {
++		D_ASSERT(!(remote && rw == WRITE &&
++			   test_bit(CREATE_BARRIER, &mdev->flags)));
++	}
++
++	/* NOTE
++	 * Actually, 'local' may be wrong here already, since we may have failed
++	 * to write to the meta data, and may become wrong anytime because of
++	 * local io-error for some other request, which would lead to us
++	 * "detaching" the local disk.
++	 *
++	 * 'remote' may become wrong any time because the network could fail.
++	 *
++	 * This is a harmless race condition, though, since it is handled
++	 * correctly at the appropriate places; so it just deferres the failure
++	 * of the respective operation.
++	 */
++
++	/* mark them early for readability.
++	 * this just sets some state flags. */
++	if (remote)
++		_req_mod(req, to_be_send, 0);
++	if (local)
++		_req_mod(req, to_be_submitted, 0);
++
++	/* check this request on the colison detection hash tables.
++	 * if we have a conflict, just complete it here.
++	 * THINK do we want to check reads, too? (I don't think so...) */
++	if (rw == WRITE && _req_conflicts(req)) {
++		/* this is a conflicting request.
++		 * even though it may have been only _partially_
++		 * overlapping with one of the currently pending requests,
++		 * without even submitting or sending it, we will
++		 * pretend that it was successfully served right now.
++		 */
++		if (local) {
++			bio_put(req->private_bio);
++			req->private_bio = NULL;
++			drbd_al_complete_io(mdev, req->sector);
++			put_ldev(mdev);
++			local = 0;
++		}
++		if (remote)
++			dec_ap_pending(mdev);
++		_drbd_end_io_acct(mdev, req);
++		/* THINK: do we want to fail it (-EIO), or pretend success? */
++		bio_endio(req->master_bio, 0);
++		req->master_bio = NULL;
++		dec_ap_bio(mdev);
++		drbd_req_free(req);
++		remote = 0;
++	}
++
++	/* NOTE remote first: to get the concurrent write detection right,
++	 * we must register the request before start of local IO.  */
++	if (remote) {
++		/* either WRITE and C_CONNECTED,
++		 * or READ, and no local disk,
++		 * or READ, but not in sync.
++		 */
++		if (rw == WRITE)
++			_req_mod(req, queue_for_net_write, 0);
++		else
++			_req_mod(req, queue_for_net_read, 0);
++	}
++	spin_unlock_irq(&mdev->req_lock);
++	kfree(b); /* if someone else has beaten us to it... */
++
++	if (local) {
++		req->private_bio->bi_bdev = mdev->ldev->backing_bdev;
++
++		trace_drbd_bio(mdev, "Pri", req->private_bio, 0, NULL);
++
++		if (FAULT_ACTIVE(mdev, rw == WRITE ? DRBD_FAULT_DT_WR
++				     : rw == READ  ? DRBD_FAULT_DT_RD
++				     :               DRBD_FAULT_DT_RA))
++			bio_endio(req->private_bio, -EIO);
++		else
++			generic_make_request(req->private_bio);
++	}
++
++	/* we need to plug ALWAYS since we possibly need to kick lo_dev.
++	 * we plug after submit, so we won't miss an unplug event */
++	drbd_plug_device(mdev);
++
++	return 0;
++
++fail_free_complete:
++	if (rw == WRITE && local)
++		drbd_al_complete_io(mdev, sector);
++fail_and_free_req:
++	if (local) {
++		bio_put(req->private_bio);
++		req->private_bio = NULL;
++		put_ldev(mdev);
++	}
++	bio_endio(bio, err);
++	drbd_req_free(req);
++	dec_ap_bio(mdev);
++	kfree(b);
 +
 +	return 0;
 +}
 +
-+sector_t drbd_bm_capacity(struct drbd_conf *mdev)
-+{
-+	ERR_IF(!mdev->bitmap) return 0;
-+	return mdev->bitmap->bm_dev_capacity;
-+}
-+
-+/* called on driver unload. TODO: call when a device is destroyed.
++/* helper function for drbd_make_request
++ * if we can determine just by the mdev (state) that this request will fail,
++ * return 1
++ * otherwise return 0
 + */
-+void drbd_bm_cleanup(struct drbd_conf *mdev)
++static int drbd_fail_request_early(struct drbd_conf *mdev, int is_write)
 +{
-+	ERR_IF (!mdev->bitmap) return;
-+	bm_free_pages(mdev->bitmap->bm_pages, mdev->bitmap->bm_number_of_pages);
-+	bm_vk_free(mdev->bitmap->bm_pages, test_bit(BM_P_VMALLOCED, &mdev->bitmap->bm_flags));
-+	kfree(mdev->bitmap);
-+	mdev->bitmap = NULL;
-+}
++	/* Unconfigured */
++	if (mdev->state.conn == C_DISCONNECTING &&
++	    mdev->state.disk == D_DISKLESS)
++		return 1;
 +
-+/*
-+ * since (b->bm_bits % BITS_PER_LONG) != 0,
-+ * this masks out the remaining bits.
-+ * Rerturns the number of bits cleared.
-+ */
-+static int bm_clear_surplus(struct drbd_bitmap *b)
-+{
-+	const unsigned long mask = (1UL << (b->bm_bits & (BITS_PER_LONG-1))) - 1;
-+	size_t w = b->bm_bits >> LN2_BPL;
-+	int cleared = 0;
-+	unsigned long *p_addr, *bm;
-+
-+	p_addr = bm_map_paddr(b, w);
-+	bm = p_addr + MLPP(w);
-+	if (w < b->bm_words) {
-+		cleared = hweight_long(*bm & ~mask);
-+		*bm &= mask;
-+		w++; bm++;
-+	}
-+
-+	if (w < b->bm_words) {
-+		cleared += hweight_long(*bm);
-+		*bm = 0;
-+	}
-+	bm_unmap(p_addr);
-+	return cleared;
-+}
-+
-+static void bm_set_surplus(struct drbd_bitmap *b)
-+{
-+	const unsigned long mask = (1UL << (b->bm_bits & (BITS_PER_LONG-1))) - 1;
-+	size_t w = b->bm_bits >> LN2_BPL;
-+	unsigned long *p_addr, *bm;
-+
-+	p_addr = bm_map_paddr(b, w);
-+	bm = p_addr + MLPP(w);
-+	if (w < b->bm_words) {
-+		*bm |= ~mask;
-+		bm++; w++;
-+	}
-+
-+	if (w < b->bm_words) {
-+		*bm = ~(0UL);
-+	}
-+	bm_unmap(p_addr);
-+}
-+
-+static unsigned long __bm_count_bits(struct drbd_bitmap *b, const int swap_endian)
-+{
-+	unsigned long *p_addr, *bm, offset = 0;
-+	unsigned long bits = 0;
-+	unsigned long i, do_now;
-+
-+	while (offset < b->bm_words) {
-+		i = do_now = min_t(size_t, b->bm_words-offset, LWPP);
-+		p_addr = bm_map_paddr(b, offset);
-+		bm = p_addr + MLPP(offset);
-+		while (i--) {
-+#ifndef __LITTLE_ENDIAN
-+			if (swap_endian)
-+				*bm = lel_to_cpu(*bm);
-+#endif
-+			bits += hweight_long(*bm++);
++	if (mdev->state.role != R_PRIMARY &&
++		(!allow_oos || is_write)) {
++		if (__ratelimit(&drbd_ratelimit_state)) {
++			dev_err(DEV, "Process %s[%u] tried to %s; "
++			    "since we are not in Primary state, "
++			    "we cannot allow this\n",
++			    current->comm, current->pid,
++			    is_write ? "WRITE" : "READ");
 +		}
-+		bm_unmap(p_addr);
-+		offset += do_now;
++		return 1;
 +	}
 +
-+	return bits;
-+}
-+
-+static unsigned long bm_count_bits(struct drbd_bitmap *b)
-+{
-+	return __bm_count_bits(b, 0);
-+}
-+
-+static unsigned long bm_count_bits_swap_endian(struct drbd_bitmap *b)
-+{
-+	return __bm_count_bits(b, 1);
-+}
-+
-+void _drbd_bm_recount_bits(struct drbd_conf *mdev, char *file, int line)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long flags, bits;
-+
-+	ERR_IF(!b) return;
-+
-+	/* IMO this should be inside drbd_bm_lock/unlock.
-+	 * Unfortunately it is used outside of the locks.
-+	 * And I'm not yet sure where we need to place the
-+	 * lock/unlock correctly.
++	/*
++	 * Paranoia: we might have been primary, but sync target, or
++	 * even diskless, then lost the connection.
++	 * This should have been handled (panic? suspend?) somehwere
++	 * else. But maybe it was not, so check again here.
++	 * Caution: as long as we do not have a read/write lock on mdev,
++	 * to serialize state changes, this is racy, since we may lose
++	 * the connection *after* we test for the cstate.
 +	 */
-+
-+	spin_lock_irqsave(&b->bm_lock, flags);
-+	bits = bm_count_bits(b);
-+	if (bits != b->bm_set) {
-+		dev_err(DEV, "bm_set was %lu, corrected to %lu. %s:%d\n",
-+		    b->bm_set, bits, file, line);
-+		b->bm_set = bits;
++	if (mdev->state.disk < D_UP_TO_DATE && mdev->state.pdsk < D_UP_TO_DATE) {
++		if (__ratelimit(&drbd_ratelimit_state))
++			dev_err(DEV, "Sorry, I have no access to good data anymore.\n");
++		return 1;
 +	}
-+	spin_unlock_irqrestore(&b->bm_lock, flags);
++
++	return 0;
 +}
 +
-+/* offset and len in long words.*/
-+static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
++int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 +{
-+	unsigned long *p_addr, *bm;
-+	size_t do_now, end;
++	unsigned int s_enr, e_enr;
++	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
 +
-+#define BM_SECTORS_PER_BIT (BM_BLOCK_SIZE/512)
-+
-+	end = offset + len;
-+
-+	if (end > b->bm_words) {
-+		printk(KERN_ALERT "drbd: bm_memset end > bm_words\n");
-+		return;
++	if (drbd_fail_request_early(mdev, bio_data_dir(bio) & WRITE)) {
++		bio_endio(bio, -EPERM);
++		return 0;
 +	}
 +
-+	while (offset < end) {
-+		do_now = min_t(size_t, ALIGN(offset + 1, LWPP), end) - offset;
-+		p_addr = bm_map_paddr(b, offset);
-+		bm = p_addr + MLPP(offset);
-+		if (bm+do_now > p_addr + LWPP) {
-+			printk(KERN_ALERT "drbd: BUG BUG BUG! p_addr:%p bm:%p do_now:%d\n",
-+			       p_addr, bm, (int)do_now);
-+			break; /* breaks to after catch_oob_access_end() only! */
-+		}
-+		memset(bm, c, do_now * sizeof(long));
-+		bm_unmap(p_addr);
-+		offset += do_now;
++	/* Reject barrier requests if we know the underlying device does
++	 * not support them.
++	 * XXX: Need to get this info from peer as well some how so we
++	 * XXX: reject if EITHER side/data/metadata area does not support them.
++	 *
++	 * because of those XXX, this is not yet enabled,
++	 * i.e. in drbd_init_set_defaults we set the NO_BARRIER_SUPP bit.
++	 */
++	if (unlikely(bio_barrier(bio) && test_bit(NO_BARRIER_SUPP, &mdev->flags))) {
++		/* dev_warn(DEV, "Rejecting barrier request as underlying device does not support\n"); */
++		bio_endio(bio, -EOPNOTSUPP);
++		return 0;
 +	}
++
++	/*
++	 * what we "blindly" assume:
++	 */
++	D_ASSERT(bio->bi_size > 0);
++	D_ASSERT((bio->bi_size & 0x1ff) == 0);
++	D_ASSERT(bio->bi_idx == 0);
++
++	/* to make some things easier, force allignment of requests within the
++	 * granularity of our hash tables */
++	s_enr = bio->bi_sector >> HT_SHIFT;
++	e_enr = (bio->bi_sector+(bio->bi_size>>9)-1) >> HT_SHIFT;
++
++	if (likely(s_enr == e_enr)) {
++		inc_ap_bio(mdev, 1);
++		return drbd_make_request_common(mdev, bio);
++	}
++
++	/* can this bio be split generically?
++	 * Maybe add our own split-arbitrary-bios function. */
++	if (bio->bi_vcnt != 1 || bio->bi_idx != 0 || bio->bi_size > DRBD_MAX_SEGMENT_SIZE) {
++		/* rather error out here than BUG in bio_split */
++		dev_err(DEV, "bio would need to, but cannot, be split: "
++		    "(vcnt=%u,idx=%u,size=%u,sector=%llu)\n",
++		    bio->bi_vcnt, bio->bi_idx, bio->bi_size,
++		    (unsigned long long)bio->bi_sector);
++		bio_endio(bio, -EINVAL);
++	} else {
++		/* This bio crosses some boundary, so we have to split it. */
++		struct bio_pair *bp;
++		/* works for the "do not cross hash slot boundaries" case
++		 * e.g. sector 262269, size 4096
++		 * s_enr = 262269 >> 6 = 4097
++		 * e_enr = (262269+8-1) >> 6 = 4098
++		 * HT_SHIFT = 6
++		 * sps = 64, mask = 63
++		 * first_sectors = 64 - (262269 & 63) = 3
++		 */
++		const sector_t sect = bio->bi_sector;
++		const int sps = 1 << HT_SHIFT; /* sectors per slot */
++		const int mask = sps - 1;
++		const sector_t first_sectors = sps - (sect & mask);
++		bp = bio_split(bio,
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
++				bio_split_pool,
++#endif
++				first_sectors);
++
++		/* we need to get a "reference count" (ap_bio_cnt)
++		 * to avoid races with the disconnect/reconnect/suspend code.
++		 * In case we need to split the bio here, we need to get two references
++		 * atomically, otherwise we might deadlock when trying to submit the
++		 * second one! */
++		inc_ap_bio(mdev, 2);
++
++		D_ASSERT(e_enr == s_enr + 1);
++
++		drbd_make_request_common(mdev, &bp->bio1);
++		drbd_make_request_common(mdev, &bp->bio2);
++		bio_pair_release(bp);
++	}
++	return 0;
 +}
 +
-+/*
-+ * make sure the bitmap has enough room for the attached storage,
-+ * if neccessary, resize.
-+ * called whenever we may have changed the device size.
-+ * returns -ENOMEM if we could not allocate enough memory, 0 on success.
-+ * In case this is actually a resize, we copy the old bitmap into the new one.
-+ * Otherwise, the bitmap is initiallized to all bits set.
++/* This is called by bio_add_page().  With this function we reduce
++ * the number of BIOs that span over multiple DRBD_MAX_SEGMENT_SIZEs
++ * units (was AL_EXTENTs).
++ *
++ * we do the calculation within the lower 32bit of the byte offsets,
++ * since we don't care for actual offset, but only check whether it
++ * would cross "activity log extent" boundaries.
++ *
++ * As long as the BIO is emtpy we have to allow at least one bvec,
++ * regardless of size and offset.  so the resulting bio may still
++ * cross extent boundaries.  those are dealt with (bio_split) in
++ * drbd_make_request_26.
 + */
-+int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity)
++int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct bio_vec *bvec)
 +{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long bits, words, owords, obits, *p_addr, *bm;
-+	unsigned long want, have, onpages; /* number of pages */
-+	struct page **npages, **opages = NULL;
-+	int err = 0, growing;
-+	int opages_vmalloced;
++	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
++	unsigned int bio_offset =
++		(unsigned int)bvm->bi_sector << 9; /* 32 bit */
++	unsigned int bio_size = bvm->bi_size;
++	int limit, backing_limit;
 +
-+	ERR_IF(!b) return -ENOMEM;
-+
-+	drbd_bm_lock(mdev, "resize");
-+
-+	dev_info(DEV, "drbd_bm_resize called with capacity == %llu\n",
-+			(unsigned long long)capacity);
-+
-+	if (capacity == b->bm_dev_capacity)
-+		goto out;
-+
-+	opages_vmalloced = test_bit(BM_P_VMALLOCED, &b->bm_flags);
-+
-+	if (capacity == 0) {
-+		spin_lock_irq(&b->bm_lock);
-+		opages = b->bm_pages;
-+		onpages = b->bm_number_of_pages;
-+		owords = b->bm_words;
-+		b->bm_pages = NULL;
-+		b->bm_number_of_pages =
-+		b->bm_set   =
-+		b->bm_bits  =
-+		b->bm_words =
-+		b->bm_dev_capacity = 0;
-+		spin_unlock_irq(&b->bm_lock);
-+		bm_free_pages(opages, onpages);
-+		bm_vk_free(opages, opages_vmalloced);
-+		goto out;
-+	}
-+	bits  = BM_SECT_TO_BIT(ALIGN(capacity, BM_SECT_PER_BIT));
-+
-+	/* if we would use
-+	   words = ALIGN(bits,BITS_PER_LONG) >> LN2_BPL;
-+	   a 32bit host could present the wrong number of words
-+	   to a 64bit host.
-+	*/
-+	words = ALIGN(bits, 64) >> LN2_BPL;
-+
-+	if (get_ldev(mdev)) {
-+		D_ASSERT((u64)bits <= (((u64)mdev->ldev->md.md_size_sect-MD_BM_OFFSET) << 12));
++	limit = DRBD_MAX_SEGMENT_SIZE
++	      - ((bio_offset & (DRBD_MAX_SEGMENT_SIZE-1)) + bio_size);
++	if (limit < 0)
++		limit = 0;
++	if (bio_size == 0) {
++		if (limit <= bvec->bv_len)
++			limit = bvec->bv_len;
++	} else if (limit && get_ldev(mdev)) {
++		struct request_queue * const b =
++			mdev->ldev->backing_bdev->bd_disk->queue;
++		if (b->merge_bvec_fn && mdev->ldev->dc.use_bmbv) {
++			backing_limit = b->merge_bvec_fn(b, bvm, bvec);
++			limit = min(limit, backing_limit);
++		}
 +		put_ldev(mdev);
 +	}
-+
-+	/* one extra long to catch off by one errors */
-+	want = ALIGN((words+1)*sizeof(long), PAGE_SIZE) >> PAGE_SHIFT;
-+	have = b->bm_number_of_pages;
-+	if (want == have) {
-+		D_ASSERT(b->bm_pages != NULL);
-+		npages = b->bm_pages;
-+	} else {
-+		if (FAULT_ACTIVE(mdev, DRBD_FAULT_BM_ALLOC))
-+			npages = NULL;
-+		else
-+			npages = bm_realloc_pages(b, want);
-+	}
-+
-+	if (!npages) {
-+		err = -ENOMEM;
-+		goto out;
-+	}
-+
-+	spin_lock_irq(&b->bm_lock);
-+	opages = b->bm_pages;
-+	owords = b->bm_words;
-+	obits  = b->bm_bits;
-+
-+	growing = bits > obits;
-+	if (opages)
-+		bm_set_surplus(b);
-+
-+	b->bm_pages = npages;
-+	b->bm_number_of_pages = want;
-+	b->bm_bits  = bits;
-+	b->bm_words = words;
-+	b->bm_dev_capacity = capacity;
-+
-+	if (growing) {
-+		bm_memset(b, owords, 0xff, words-owords);
-+		b->bm_set += bits - obits;
-+	}
-+
-+	if (want < have) {
-+		/* implicit: (opages != NULL) && (opages != npages) */
-+		bm_free_pages(opages + want, have - want);
-+	}
-+
-+	p_addr = bm_map_paddr(b, words);
-+	bm = p_addr + MLPP(words);
-+	*bm = DRBD_MAGIC;
-+	bm_unmap(p_addr);
-+
-+	(void)bm_clear_surplus(b);
-+	if (!growing)
-+		b->bm_set = bm_count_bits(b);
-+
-+	spin_unlock_irq(&b->bm_lock);
-+	if (opages != npages)
-+		bm_vk_free(opages, opages_vmalloced);
-+	dev_info(DEV, "resync bitmap: bits=%lu words=%lu\n", bits, words);
-+
-+ out:
-+	drbd_bm_unlock(mdev);
-+	return err;
-+}
-+
-+/* inherently racy:
-+ * if not protected by other means, return value may be out of date when
-+ * leaving this function...
-+ * we still need to lock it, since it is important that this returns
-+ * bm_set == 0 precisely.
-+ *
-+ * maybe bm_set should be atomic_t ?
-+ */
-+unsigned long drbd_bm_total_weight(struct drbd_conf *mdev)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long s;
-+	unsigned long flags;
-+
-+	/* if I don't have a disk, I don't know about out-of-sync status */
-+	if (!get_ldev_if_state(mdev, D_NEGOTIATING))
-+		return 0;
-+
-+	ERR_IF(!b) return 0;
-+	ERR_IF(!b->bm_pages) return 0;
-+
-+	spin_lock_irqsave(&b->bm_lock, flags);
-+	s = b->bm_set;
-+	spin_unlock_irqrestore(&b->bm_lock, flags);
-+
-+	put_ldev(mdev);
-+
-+	return s;
-+}
-+
-+size_t drbd_bm_words(struct drbd_conf *mdev)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	ERR_IF(!b) return 0;
-+	ERR_IF(!b->bm_pages) return 0;
-+
-+	return b->bm_words;
-+}
-+
-+unsigned long drbd_bm_bits(struct drbd_conf *mdev)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	ERR_IF(!b) return 0;
-+
-+	return b->bm_bits;
-+}
-+
-+/* merge number words from buffer into the bitmap starting at offset.
-+ * buffer[i] is expected to be little endian unsigned long.
-+ * bitmap must be locked by drbd_bm_lock.
-+ * currently only used from receive_bitmap.
-+ */
-+void drbd_bm_merge_lel(struct drbd_conf *mdev, size_t offset, size_t number,
-+			unsigned long *buffer)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long *p_addr, *bm;
-+	unsigned long word, bits;
-+	size_t end, do_now;
-+
-+	end = offset + number;
-+
-+	ERR_IF(!b) return;
-+	ERR_IF(!b->bm_pages) return;
-+	if (number == 0)
-+		return;
-+	WARN_ON(offset >= b->bm_words);
-+	WARN_ON(end    >  b->bm_words);
-+
-+	spin_lock_irq(&b->bm_lock);
-+	while (offset < end) {
-+		do_now = min_t(size_t, ALIGN(offset+1, LWPP), end) - offset;
-+		p_addr = bm_map_paddr(b, offset);
-+		bm = p_addr + MLPP(offset);
-+		offset += do_now;
-+		while (do_now--) {
-+			bits = hweight_long(*bm);
-+			word = *bm | lel_to_cpu(*buffer++);
-+			*bm++ = word;
-+			b->bm_set += hweight_long(word) - bits;
-+		}
-+		bm_unmap(p_addr);
-+	}
-+	/* with 32bit <-> 64bit cross-platform connect
-+	 * this is only correct for current usage,
-+	 * where we _know_ that we are 64 bit aligned,
-+	 * and know that this function is used in this way, too...
-+	 */
-+	if (end == b->bm_words)
-+		b->bm_set -= bm_clear_surplus(b);
-+
-+	spin_unlock_irq(&b->bm_lock);
-+}
-+
-+/* copy number words from the bitmap starting at offset into the buffer.
-+ * buffer[i] will be little endian unsigned long.
-+ */
-+void drbd_bm_get_lel(struct drbd_conf *mdev, size_t offset, size_t number,
-+		     unsigned long *buffer)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long *p_addr, *bm;
-+	size_t end, do_now;
-+
-+	end = offset + number;
-+
-+	ERR_IF(!b) return;
-+	ERR_IF(!b->bm_pages) return;
-+
-+	spin_lock_irq(&b->bm_lock);
-+	if ((offset >= b->bm_words) ||
-+	    (end    >  b->bm_words) ||
-+	    (number <= 0))
-+		dev_err(DEV, "offset=%lu number=%lu bm_words=%lu\n",
-+			(unsigned long)	offset,
-+			(unsigned long)	number,
-+			(unsigned long) b->bm_words);
-+	else {
-+		while (offset < end) {
-+			do_now = min_t(size_t, ALIGN(offset+1, LWPP), end) - offset;
-+			p_addr = bm_map_paddr(b, offset);
-+			bm = p_addr + MLPP(offset);
-+			offset += do_now;
-+			while (do_now--)
-+				*buffer++ = cpu_to_lel(*bm++);
-+			bm_unmap(p_addr);
-+		}
-+	}
-+	spin_unlock_irq(&b->bm_lock);
-+}
-+
-+/* set all bits in the bitmap */
-+void drbd_bm_set_all(struct drbd_conf *mdev)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	ERR_IF(!b) return;
-+	ERR_IF(!b->bm_pages) return;
-+
-+	spin_lock_irq(&b->bm_lock);
-+	bm_memset(b, 0, 0xff, b->bm_words);
-+	(void)bm_clear_surplus(b);
-+	b->bm_set = b->bm_bits;
-+	spin_unlock_irq(&b->bm_lock);
-+}
-+
-+/* clear all bits in the bitmap */
-+void drbd_bm_clear_all(struct drbd_conf *mdev)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	ERR_IF(!b) return;
-+	ERR_IF(!b->bm_pages) return;
-+
-+	spin_lock_irq(&b->bm_lock);
-+	bm_memset(b, 0, 0, b->bm_words);
-+	b->bm_set = 0;
-+	spin_unlock_irq(&b->bm_lock);
-+}
-+
-+static void bm_async_io_complete(struct bio *bio, int error)
-+{
-+	struct drbd_bitmap *b = bio->bi_private;
-+	int uptodate = bio_flagged(bio, BIO_UPTODATE);
-+
-+
-+	/* strange behaviour of some lower level drivers...
-+	 * fail the request by clearing the uptodate flag,
-+	 * but do not return any error?!
-+	 * do we want to WARN() on this? */
-+	if (!error && !uptodate)
-+		error = -EIO;
-+
-+	if (error) {
-+		/* doh. what now?
-+		 * for now, set all bits, and flag MD_IO_ERROR */
-+		__set_bit(BM_MD_IO_ERROR, &b->bm_flags);
-+	}
-+	if (atomic_dec_and_test(&b->bm_async_io))
-+		wake_up(&b->bm_io_wait);
-+
-+	bio_put(bio);
-+}
-+
-+static void bm_page_io_async(struct drbd_conf *mdev, struct drbd_bitmap *b, int page_nr, int rw) __must_hold(local)
-+{
-+	/* we are process context. we always get a bio */
-+	struct bio *bio = bio_alloc(GFP_KERNEL, 1);
-+	unsigned int len;
-+	sector_t on_disk_sector =
-+		mdev->ldev->md.md_offset + mdev->ldev->md.bm_offset;
-+	on_disk_sector += ((sector_t)page_nr) << (PAGE_SHIFT-9);
-+
-+	/* this might happen with very small
-+	 * flexible external meta data device */
-+	len = min_t(unsigned int, PAGE_SIZE,
-+		(drbd_md_last_sector(mdev->ldev) - on_disk_sector + 1)<<9);
-+
-+	bio->bi_bdev = mdev->ldev->md_bdev;
-+	bio->bi_sector = on_disk_sector;
-+	bio_add_page(bio, b->bm_pages[page_nr], len, 0);
-+	bio->bi_private = b;
-+	bio->bi_end_io = bm_async_io_complete;
-+
-+	if (FAULT_ACTIVE(mdev, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
-+		bio->bi_rw |= rw;
-+		bio_endio(bio, -EIO);
-+	} else {
-+		submit_bio(rw, bio);
-+	}
-+}
-+
-+# if defined(__LITTLE_ENDIAN)
-+	/* nothing to do, on disk == in memory */
-+# define bm_cpu_to_lel(x) ((void)0)
-+# else
-+void bm_cpu_to_lel(struct drbd_bitmap *b)
-+{
-+	/* need to cpu_to_lel all the pages ...
-+	 * this may be optimized by using
-+	 * cpu_to_lel(-1) == -1 and cpu_to_lel(0) == 0;
-+	 * the following is still not optimal, but better than nothing */
-+	unsigned int i;
-+	unsigned long *p_addr, *bm;
-+	if (b->bm_set == 0) {
-+		/* no page at all; avoid swap if all is 0 */
-+		i = b->bm_number_of_pages;
-+	} else if (b->bm_set == b->bm_bits) {
-+		/* only the last page */
-+		i = b->bm_number_of_pages - 1;
-+	} else {
-+		/* all pages */
-+		i = 0;
-+	}
-+	for (; i < b->bm_number_of_pages; i++) {
-+		p_addr = kmap_atomic(b->bm_pages[i], KM_USER0);
-+		for (bm = p_addr; bm < p_addr + PAGE_SIZE/sizeof(long); bm++)
-+			*bm = cpu_to_lel(*bm);
-+		kunmap_atomic(p_addr, KM_USER0);
-+	}
-+}
-+# endif
-+/* lel_to_cpu == cpu_to_lel */
-+# define bm_lel_to_cpu(x) bm_cpu_to_lel(x)
-+
-+/*
-+ * bm_rw: read/write the whole bitmap from/to its on disk location.
-+ */
-+static int bm_rw(struct drbd_conf *mdev, int rw) __must_hold(local)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	/* sector_t sector; */
-+	int bm_words, num_pages, i;
-+	unsigned long now;
-+	char ppb[10];
-+	int err = 0;
-+
-+	WARN_ON(!bm_is_locked(b));
-+
-+	/* no spinlock here, the drbd_bm_lock should be enough! */
-+
-+	bm_words  = drbd_bm_words(mdev);
-+	num_pages = (bm_words*sizeof(long) + PAGE_SIZE-1) >> PAGE_SHIFT;
-+
-+	/* on disk bitmap is little endian */
-+	if (rw == WRITE)
-+		bm_cpu_to_lel(b);
-+
-+	now = jiffies;
-+	atomic_set(&b->bm_async_io, num_pages);
-+	__clear_bit(BM_MD_IO_ERROR, &b->bm_flags);
-+
-+	/* let the layers below us try to merge these bios... */
-+	for (i = 0; i < num_pages; i++)
-+		bm_page_io_async(mdev, b, i, rw);
-+
-+	drbd_blk_run_queue(bdev_get_queue(mdev->ldev->md_bdev));
-+	wait_event(b->bm_io_wait, atomic_read(&b->bm_async_io) == 0);
-+
-+	if (test_bit(BM_MD_IO_ERROR, &b->bm_flags)) {
-+		dev_alert(DEV, "we had at least one MD IO ERROR during bitmap IO\n");
-+		drbd_chk_io_error(mdev, 1, TRUE);
-+		drbd_io_error(mdev, TRUE);
-+		err = -EIO;
-+	}
-+
-+	now = jiffies;
-+	if (rw == WRITE) {
-+		/* swap back endianness */
-+		bm_lel_to_cpu(b);
-+		/* flush bitmap to stable storage */
-+		drbd_md_flush(mdev);
-+	} else /* rw == READ */ {
-+		/* just read, if neccessary adjust endianness */
-+		b->bm_set = bm_count_bits_swap_endian(b);
-+		dev_info(DEV, "recounting of set bits took additional %lu jiffies\n",
-+		     jiffies - now);
-+	}
-+	now = b->bm_set;
-+
-+	dev_info(DEV, "%s (%lu bits) marked out-of-sync by on disk bit-map.\n",
-+	     ppsize(ppb, now << (BM_BLOCK_SHIFT-10)), now);
-+
-+	return err;
-+}
-+
-+/**
-+ * drbd_bm_read() - Read the whole bitmap from its on disk location.
-+ * @mdev:	DRBD device.
-+ */
-+int drbd_bm_read(struct drbd_conf *mdev) __must_hold(local)
-+{
-+	return bm_rw(mdev, READ);
-+}
-+
-+/**
-+ * drbd_bm_write() - Write the whole bitmap to its on disk location.
-+ * @mdev:	DRBD device.
-+ */
-+int drbd_bm_write(struct drbd_conf *mdev) __must_hold(local)
-+{
-+	return bm_rw(mdev, WRITE);
-+}
-+
-+/**
-+ * drbd_bm_write_sect: Writes a 512 (MD_SECTOR_SIZE) byte piece of the bitmap
-+ * @mdev:	DRBD device.
-+ * @enr:	Extent number in the resync lru (happens to be sector offset)
-+ *
-+ * The BM_EXT_SIZE is on purpose exactle the amount of the bitmap covered
-+ * by a single sector write. Therefore enr == sector offset from the
-+ * start of the bitmap.
-+ */
-+int drbd_bm_write_sect(struct drbd_conf *mdev, unsigned long enr) __must_hold(local)
-+{
-+	sector_t on_disk_sector = enr + mdev->ldev->md.md_offset
-+				      + mdev->ldev->md.bm_offset;
-+	int bm_words, num_words, offset;
-+	int err = 0;
-+
-+	mutex_lock(&mdev->md_io_mutex);
-+	bm_words  = drbd_bm_words(mdev);
-+	offset    = S2W(enr);	/* word offset into bitmap */
-+	num_words = min(S2W(1), bm_words - offset);
-+	if (num_words < S2W(1))
-+		memset(page_address(mdev->md_io_page), 0, MD_SECTOR_SIZE);
-+	drbd_bm_get_lel(mdev, offset, num_words,
-+			page_address(mdev->md_io_page));
-+	if (!drbd_md_sync_page_io(mdev, mdev->ldev, on_disk_sector, WRITE)) {
-+		int i;
-+		err = -EIO;
-+		dev_err(DEV, "IO ERROR writing bitmap sector %lu "
-+		    "(meta-disk sector %llus)\n",
-+		    enr, (unsigned long long)on_disk_sector);
-+		drbd_chk_io_error(mdev, 1, TRUE);
-+		drbd_io_error(mdev, TRUE);
-+		for (i = 0; i < AL_EXT_PER_BM_SECT; i++)
-+			drbd_bm_ALe_set_all(mdev, enr*AL_EXT_PER_BM_SECT+i);
-+	}
-+	mdev->bm_writ_cnt++;
-+	mutex_unlock(&mdev->md_io_mutex);
-+	return err;
-+}
-+
-+/* NOTE
-+ * find_first_bit returns int, we return unsigned long.
-+ * should not make much difference anyways, but ...
-+ *
-+ * this returns a bit number, NOT a sector!
-+ */
-+#define BPP_MASK ((1UL << (PAGE_SHIFT+3)) - 1)
-+static unsigned long __bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo,
-+	const int find_zero_bit, const enum km_type km)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long i = -1UL;
-+	unsigned long *p_addr;
-+	unsigned long bit_offset; /* bit offset of the mapped page. */
-+
-+	if (bm_fo > b->bm_bits) {
-+		dev_err(DEV, "bm_fo=%lu bm_bits=%lu\n", bm_fo, b->bm_bits);
-+	} else {
-+		while (bm_fo < b->bm_bits) {
-+			unsigned long offset;
-+			bit_offset = bm_fo & ~BPP_MASK; /* bit offset of the page */
-+			offset = bit_offset >> LN2_BPL;    /* word offset of the page */
-+			p_addr = __bm_map_paddr(b, offset, km);
-+
-+			if (find_zero_bit)
-+				i = find_next_zero_bit(p_addr, PAGE_SIZE*8, bm_fo & BPP_MASK);
-+			else
-+				i = find_next_bit(p_addr, PAGE_SIZE*8, bm_fo & BPP_MASK);
-+
-+			__bm_unmap(p_addr, km);
-+			if (i < PAGE_SIZE*8) {
-+				i = bit_offset + i;
-+				if (i >= b->bm_bits)
-+					break;
-+				goto found;
-+			}
-+			bm_fo = bit_offset + PAGE_SIZE*8;
-+		}
-+		i = -1UL;
-+	}
-+ found:
-+	return i;
-+}
-+
-+static unsigned long bm_find_next(struct drbd_conf *mdev,
-+	unsigned long bm_fo, const int find_zero_bit)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long i = -1UL;
-+
-+	ERR_IF(!b) return i;
-+	ERR_IF(!b->bm_pages) return i;
-+
-+	spin_lock_irq(&b->bm_lock);
-+	if (bm_is_locked(b))
-+		bm_print_lock_info(mdev);
-+
-+	i = __bm_find_next(mdev, bm_fo, find_zero_bit, KM_IRQ1);
-+
-+	spin_unlock_irq(&b->bm_lock);
-+	return i;
-+}
-+
-+unsigned long drbd_bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo)
-+{
-+	return bm_find_next(mdev, bm_fo, 0);
-+}
-+
-+#if 0
-+/* not yet needed for anything. */
-+unsigned long drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_fo)
-+{
-+	return bm_find_next(mdev, bm_fo, 1);
-+}
-+#endif
-+
-+/* does not spin_lock_irqsave.
-+ * you must take drbd_bm_lock() first */
-+unsigned long _drbd_bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo)
-+{
-+	/* WARN_ON(!bm_is_locked(mdev)); */
-+	return __bm_find_next(mdev, bm_fo, 0, KM_USER1);
-+}
-+
-+unsigned long _drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_fo)
-+{
-+	/* WARN_ON(!bm_is_locked(mdev)); */
-+	return __bm_find_next(mdev, bm_fo, 1, KM_USER1);
-+}
-+
-+/* returns number of bits actually changed.
-+ * for val != 0, we change 0 -> 1, return code positiv
-+ * for val == 0, we change 1 -> 0, return code negative
-+ * wants bitnr, not sector.
-+ * Must hold bitmap lock already. */
-+
-+int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
-+	const unsigned long e, int val, const enum km_type km)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long *p_addr = NULL;
-+	unsigned long bitnr;
-+	unsigned long last_page_nr = -1UL;
-+	int c = 0;
-+
-+	for (bitnr = s; bitnr <= e; bitnr++) {
-+		ERR_IF (bitnr >= b->bm_bits) {
-+			dev_err(DEV, "bitnr=%lu bm_bits=%lu\n", bitnr, b->bm_bits);
-+		} else {
-+			unsigned long offset = bitnr>>LN2_BPL;
-+			unsigned long page_nr = offset >> (PAGE_SHIFT - LN2_BPL + 3);
-+			if (page_nr != last_page_nr) {
-+				if (p_addr)
-+					__bm_unmap(p_addr, km);
-+				p_addr = __bm_map_paddr(b, offset, km);
-+				last_page_nr = page_nr;
-+			}
-+			if (val)
-+				c += (0 == __test_and_set_bit(bitnr & BPP_MASK, p_addr));
-+			else
-+				c -= (0 != __test_and_clear_bit(bitnr & BPP_MASK, p_addr));
-+		}
-+	}
-+	if (p_addr)
-+		__bm_unmap(p_addr, km);
-+	b->bm_set += c;
-+	return c;
-+}
-+
-+/* returns number of bits actually changed.
-+ * for val != 0, we change 0 -> 1, return code positiv
-+ * for val == 0, we change 1 -> 0, return code negative
-+ * wants bitnr, not sector */
-+int bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
-+	const unsigned long e, int val)
-+{
-+	unsigned long flags;
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	int c = 0;
-+
-+	ERR_IF(!b) return 1;
-+	ERR_IF(!b->bm_pages) return 0;
-+
-+	spin_lock_irqsave(&b->bm_lock, flags);
-+	if (bm_is_locked(b))
-+		bm_print_lock_info(mdev);
-+
-+	c = __bm_change_bits_to(mdev, s, e, val, KM_IRQ1);
-+
-+	spin_unlock_irqrestore(&b->bm_lock, flags);
-+	return c;
-+}
-+
-+/* returns number of bits changed 0 -> 1 */
-+int drbd_bm_set_bits(struct drbd_conf *mdev, const unsigned long s, const unsigned long e)
-+{
-+	return bm_change_bits_to(mdev, s, e, 1);
-+}
-+
-+/* returns number of bits changed 1 -> 0 */
-+int drbd_bm_clear_bits(struct drbd_conf *mdev, const unsigned long s, const unsigned long e)
-+{
-+	return -bm_change_bits_to(mdev, s, e, 0);
-+}
-+
-+/* the same thing, but without taking the spin_lock_irqsave.
-+ * you must first drbd_bm_lock(). */
-+int _drbd_bm_set_bits(struct drbd_conf *mdev, const unsigned long s, const unsigned long e)
-+{
-+       /* WARN_ON(!bm_is_locked(b)); */
-+       return __bm_change_bits_to(mdev, s, e, 1, KM_USER0);
-+}
-+
-+/* returns bit state
-+ * wants bitnr, NOT sector.
-+ * inherently racy... area needs to be locked by means of {al,rs}_lru
-+ *  1 ... bit set
-+ *  0 ... bit not set
-+ * -1 ... first out of bounds access, stop testing for bits!
-+ */
-+int drbd_bm_test_bit(struct drbd_conf *mdev, const unsigned long bitnr)
-+{
-+	unsigned long flags;
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long *p_addr;
-+	int i;
-+
-+	ERR_IF(!b) return 0;
-+	ERR_IF(!b->bm_pages) return 0;
-+
-+	spin_lock_irqsave(&b->bm_lock, flags);
-+	if (bm_is_locked(b))
-+		bm_print_lock_info(mdev);
-+	if (bitnr < b->bm_bits) {
-+		unsigned long offset = bitnr>>LN2_BPL;
-+		p_addr = bm_map_paddr(b, offset);
-+		i = test_bit(bitnr & BPP_MASK, p_addr) ? 1 : 0;
-+		bm_unmap(p_addr);
-+	} else if (bitnr == b->bm_bits) {
-+		i = -1;
-+	} else { /* (bitnr > b->bm_bits) */
-+		dev_err(DEV, "bitnr=%lu > bm_bits=%lu\n", bitnr, b->bm_bits);
-+		i = 0;
-+	}
-+
-+	spin_unlock_irqrestore(&b->bm_lock, flags);
-+	return i;
-+}
-+
-+/* returns number of bits set */
-+int drbd_bm_count_bits(struct drbd_conf *mdev, const unsigned long s, const unsigned long e)
-+{
-+	unsigned long flags;
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long *p_addr = NULL, page_nr = -1;
-+	unsigned long bitnr;
-+	int c = 0;
-+	size_t w;
-+
-+	/* If this is called without a bitmap, that is a bug.  But just to be
-+	 * robust in case we screwed up elsewhere, in that case pretend there
-+	 * was one dirty bit in the requested area, so we won't try to do a
-+	 * local read there (no bitmap probably implies no disk) */
-+	ERR_IF(!b) return 1;
-+	ERR_IF(!b->bm_pages) return 1;
-+
-+	spin_lock_irqsave(&b->bm_lock, flags);
-+	for (bitnr = s; bitnr <= e; bitnr++) {
-+		w = bitnr >> LN2_BPL;
-+		if (page_nr != w >> (PAGE_SHIFT - LN2_BPL + 3)) {
-+			page_nr = w >> (PAGE_SHIFT - LN2_BPL + 3);
-+			if (p_addr)
-+				bm_unmap(p_addr);
-+			p_addr = bm_map_paddr(b, w);
-+		}
-+		ERR_IF (bitnr >= b->bm_bits) {
-+			dev_err(DEV, "bitnr=%lu bm_bits=%lu\n", bitnr, b->bm_bits);
-+		} else {
-+			c += (0 != test_bit(bitnr - (page_nr << (PAGE_SHIFT+3)), p_addr));
-+		}
-+	}
-+	if (p_addr)
-+		bm_unmap(p_addr);
-+	spin_unlock_irqrestore(&b->bm_lock, flags);
-+	return c;
-+}
-+
-+
-+/* inherently racy...
-+ * return value may be already out-of-date when this function returns.
-+ * but the general usage is that this is only use during a cstate when bits are
-+ * only cleared, not set, and typically only care for the case when the return
-+ * value is zero, or we already "locked" this "bitmap extent" by other means.
-+ *
-+ * enr is bm-extent number, since we chose to name one sector (512 bytes)
-+ * worth of the bitmap a "bitmap extent".
-+ *
-+ * TODO
-+ * I think since we use it like a reference count, we should use the real
-+ * reference count of some bitmap extent element from some lru instead...
-+ *
-+ */
-+int drbd_bm_e_weight(struct drbd_conf *mdev, unsigned long enr)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	int count, s, e;
-+	unsigned long flags;
-+	unsigned long *p_addr, *bm;
-+
-+	ERR_IF(!b) return 0;
-+	ERR_IF(!b->bm_pages) return 0;
-+
-+	spin_lock_irqsave(&b->bm_lock, flags);
-+	if (bm_is_locked(b))
-+		bm_print_lock_info(mdev);
-+
-+	s = S2W(enr);
-+	e = min((size_t)S2W(enr+1), b->bm_words);
-+	count = 0;
-+	if (s < b->bm_words) {
-+		int n = e-s;
-+		p_addr = bm_map_paddr(b, s);
-+		bm = p_addr + MLPP(s);
-+		while (n--)
-+			count += hweight_long(*bm++);
-+		bm_unmap(p_addr);
-+	} else {
-+		dev_err(DEV, "start offset (%d) too large in drbd_bm_e_weight\n", s);
-+	}
-+	spin_unlock_irqrestore(&b->bm_lock, flags);
-+	return count;
-+}
-+
-+/* set all bits covered by the AL-extent al_enr */
-+unsigned long drbd_bm_ALe_set_all(struct drbd_conf *mdev, unsigned long al_enr)
-+{
-+	struct drbd_bitmap *b = mdev->bitmap;
-+	unsigned long *p_addr, *bm;
-+	unsigned long weight;
-+	int count, s, e, i, do_now;
-+	ERR_IF(!b) return 0;
-+	ERR_IF(!b->bm_pages) return 0;
-+
-+	spin_lock_irq(&b->bm_lock);
-+	if (bm_is_locked(b))
-+		bm_print_lock_info(mdev);
-+	weight = b->bm_set;
-+
-+	s = al_enr * BM_WORDS_PER_AL_EXT;
-+	e = min_t(size_t, s + BM_WORDS_PER_AL_EXT, b->bm_words);
-+	/* assert that s and e are on the same page */
-+	D_ASSERT((e-1) >> (PAGE_SHIFT - LN2_BPL + 3)
-+	      ==  s    >> (PAGE_SHIFT - LN2_BPL + 3));
-+	count = 0;
-+	if (s < b->bm_words) {
-+		i = do_now = e-s;
-+		p_addr = bm_map_paddr(b, s);
-+		bm = p_addr + MLPP(s);
-+		while (i--) {
-+			count += hweight_long(*bm);
-+			*bm = -1UL;
-+			bm++;
-+		}
-+		bm_unmap(p_addr);
-+		b->bm_set += do_now*BITS_PER_LONG - count;
-+		if (e == b->bm_words)
-+			b->bm_set -= bm_clear_surplus(b);
-+	} else {
-+		dev_err(DEV, "start offset (%d) too large in drbd_bm_ALe_set_all\n", s);
-+	}
-+	weight = b->bm_set - weight;
-+	spin_unlock_irq(&b->bm_lock);
-+	return weight;
++	return limit;
 +}
