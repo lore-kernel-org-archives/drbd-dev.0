@@ -1,28 +1,18 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 662EF101380B
-	for <drbd-dev@lists.linbit.com>; Tue, 23 Jun 2009 11:35:19 +0200 (CEST)
-Resent-Message-ID: <20090623093519.GA9124@soda.linbit>
-Received: from mail.carnet.hr (mail.CARNet.hr [161.53.123.6])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 83CB4101380B
-	for <drbd-dev@lists.linbit.com>; Tue, 23 Jun 2009 10:01:14 +0200 (CEST)
-Date: Tue, 23 Jun 2009 10:01:09 +0200
-From: Valentin Vidic <Valentin.Vidic@CARNet.hr>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20090623080109.GF24077@gavran.carpriv.carnet.hr>
-References: <200906121138.55945.philipp.reisner@linbit.com>
-	<20090614035828.GA20436@soda.linbit>
-	<20090615115856.GV15441@gavran.carpriv.carnet.hr>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090615115856.GV15441@gavran.carpriv.carnet.hr>
-Cc: Tom Brown <wc-linbit.com@vmail.baremetal.com>,
-	Ivars =?utf-8?B?U3RyYXpkacWGxaE=?= <ivars.strazdins@gmail.com>
-Subject: Re: [Drbd-dev] possible FIX [Xen - DRBD issue / panic in
- skb_copy_bits]
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: linux-kernel@vger.kernel.org
+Date: Fri, 26 Jun 2009 14:01:40 +0200
+Message-Id: <1246017715-9821-1-git-send-email-philipp.reisner@linbit.com>
+Cc: Bart Van Assche <bart.vanassche@gmail.com>,
+	Kyle Moffett <kyle@moffetthome.net>, Neil Brown <neilb@suse.de>,
+	Nikanth Karthikesan <knikanth@suse.de>, Greg KH <gregkh@suse.de>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	James Bottomley <James.Bottomley@HansenPartnership.com>,
+	Lars Marowsky-Bree <lmb@suse.de>, Jens Axboe <jens.axboe@oracle.com>,
+	Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>,
+	Sam Ravnborg <sam@ravnborg.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 00/15] drbd: a block device for HA clusters
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -32,79 +22,87 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jun 15, 2009 at 01:58:57PM +0200, Valentin Vidic wrote:
-> I've reproduced the problem with Debian lenny versions of kernel (2.6.26)
-> and DRBD (8.0.14). Unfortunately it seems the patches don't help. I've
-> tried both and the ooops still happens: 
+Hi,
 
-And here is the setup I used to reproduce the problem: two machines
-(node1, node2) running Debian lenny with DRBD v8.0.14, Xen v3.2.1,
-Heartbeat v2.1.4 and kernel v2.6.26-2-xen-amd64. On these nodes I have
-two domU machines (child1, child2) running and managed by Hearbeat:
+As the first bit of the DBRD patch already got upstream (see commit
+10fc89d01a) it is time to get more of DRBD towards mainline.
 
-* node1: child1
-* node2: child2
+Please consider the lru_cache as next building block of DRBD for inclusion.
 
-The problem is reproduced as follows:
+Patch set attached. Git tree available:
+git pull git://git.drbd.org/linux-2.6-drbd.git drbd
 
-* Turn on scatter-gather on dom0 machines: ethtool -K xenbr0 sg on
-* Disconnect all DRBD devices on both nodes: drbdadm disconnect drbdX
-* Connect all DRBD devices on both nodes: drbdadm connect drbdX
-* Start some heavy disk IO in child1: dd if=/dev/zero of=/tmp/zero
-* Force reboot the node2: reboot -f -n
-* After some time Heartbeat starts child2 on node1
-* Some seconds later kernel on node1 ooopses
+We are looking for reviews!
 
-It is not clear which of the DRBD devices causes the ooops but I couldn't
-reproduce it with only child1 or child2. Also here is a DRBD config used
-on these nodes:
+Note for reviewers:
 
-resource drbd0 {
-  protocol C;
+  Only the first patch (lru_cache) is self contained. The other patches are
+  just split at file boundaries. Sorry, DRBD was developed as out-of-tree
+  modules just for too long.
 
-  startup {
-    wfc-timeout 60;
-    degr-wfc-timeout 30;
-  }
+Short Description
 
-  disk {
-    on-io-error detach;
-    fencing resource-and-stonith;
-  }
+  DRBD is a shared-nothing, synchronously replicated block device. It is
+  designed to serve as a building block for high availability clusters and
 
-  net {
-    allow-two-primaries;
-    cram-hmac-alg sha1;
-    shared-secret "somethinglong";
-    after-sb-0pri discard-older-primary;
-    after-sb-1pri consensus;
-    after-sb-2pri disconnect;
-  }
+  in this context, is a "drop-in" replacement for shared storage.
+  Simplistically, you could see it as a network RAID 1.
 
-  handlers {
-    outdate-peer /usr/local/sbin/hb2drbd;
-  }
+  More information can be found at http://www.drbd.org
 
-  on node1 {
-    device     /dev/drbd0;
-    disk       /dev/vg0/child1;
-    address    1.2.3.4:7788;
-    meta-disk  internal;
-  }
+Changes since 2009-05-15
 
-  on node2 {
-    device     /dev/drbd0;
-    disk       /dev/vg0/child1;
-    address    1.2.3.5:7788;
-    meta-disk  internal;
-  }
-}
+  * Cleanup: Moved lru_cache.c to /lib
+  * Cleanup: all STATIC -> static
+  * Cleanup: Removed drbd_config.h ; New Kconfig option: CONFIG_DRBD_FAULT_INJECTION
+  * Cleanup: Removed drbd_buildtag.c
+  * DRBD:    Following DRBD-upstream, now at 8.3.2-rc2. Relevant changes:
+  * DRBD:    lru_cache: use pointer arrays and kmem_cache
+  * DRBD:    Fixed for building on big endian architectures
+  * DRBD:    Fixed nl stuff to work on architectures that does not do unaligned memory accesses
+  * DRBD:    Deal with hash functions already ported to SHASH
+  * DRBD:    GFP_KERNEL -> GFP_NOIO in various places
 
--- 
-Valentin Vidic
-Computer systems engineer
-Computer and IT Systems and Services Department
-Croatian Academic and Research Network - CARNet
-Josipa Marohnica 5, HR-10000 Zagreb, Croatia
-tel: +385 1 6661 714, fax. +385 1 6661 766
-www.CARNet.hr
+Changes since 2009-04-30
+
+  * Cleanup: Removed typecasts, more documentation in lru_cache. Moved to /lib
+  * Cleanup: replaced __attribute__((packed)) with __packed
+  * Cleanup: remove quite a few 'inline's from .c files
+  * Cleanup: renaming a few constants: _SECT -> _SECTOR_SIZE, _SIZE_B -> _SHIFT ...
+  * Cleanup: rename inc_local -> get_ldev; inc_net -> get_net_conf; and corresponding dec_* -> put_*
+  * Cleanup: rename mdev->bc to mdev->ldev (to match the recent change to get_ldev/put_ldev)
+  * Cleanup: Made function comments kernel-doc compliant
+  * Cleanup: vmalloc() only as a fall back for kmalloc()
+  * DRBD:    Allow detach of a SyncTarget node. (Bugz 221)
+  * DRBD:    Call drbd_rs_cancel_all() and reset rs_pending when aborting resync due to detach. (Bugz 223)
+  * DRBD:    make drbd thread t_lock irqsave - lockdep complained, and lockdep is right (theoretically)
+
+Changes since 2009-04-10
+
+  * Cleanup: Removed all CamelCase
+  * Cleanup: Replaced DRBD's own tracing stuff with regular tracepoints
+  * Cleanup: Removed ERR/INFO/ALERT ... macros, using dev_err/dev_info/... now
+  * Cleanup: Minor stuff, as suggested in feedback on LKML
+  * DRBD:    Bitmap compression feature was finalised
+  * DRBD:    new disable_sendpage parameter
+
+Changes since the post on 2009-03-30, all triggered by reviews
+
+  * Improvements to Makefile and Kconfig
+  * Simplified definitions of bm_flags' bitnumbers
+  * Removed debugging aid
+
+Changes since the post on 2009-03-23, from drbd-mainline
+
+  * Updated to the final drbd-8.3.1 code
+  * Optionally run-length encode bitmap transfers
+
+Changes since the post on 2009-03-23, triggered by reviews
+
+  * Using the latest proc_create() now
+  * Moved the allocation of md_io_tmpp to attach/detach out of drbd_md_sync_page_io()
+  * Removing the mode selection comments for emacs
+  * Removed DRBD_ratelimit()
+
+cheers,
+  Phil
