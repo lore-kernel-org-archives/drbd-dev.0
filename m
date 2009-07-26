@@ -1,24 +1,18 @@
-Return-Path: <sfr@canb.auug.org.au>
-Received: from smtps.tip.net.au (chilli.pcug.org.au [203.10.76.44])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 32A2E101AC7F
-	for <drbd-dev@lists.linbit.com>; Mon, 27 Jul 2009 01:24:51 +0200 (CEST)
-Date: Mon, 27 Jul 2009 09:24:45 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Message-Id: <20090727092445.87a5a093.sfr@canb.auug.org.au>
-In-Reply-To: <200907241720.22771.philipp.reisner@linbit.com>
-References: <1246894775-10855-1-git-send-email-philipp.reisner@linbit.com>
-	<20090721185156.GA10126@johann>
-	<20090722145917.055eddc1.sfr@canb.auug.org.au>
-	<200907241720.22771.philipp.reisner@linbit.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
-	micalg="PGP-SHA1";
-	boundary="Signature=_Mon__27_Jul_2009_09_24_45_+1000_M/J4rs/JVfQn+Sli"
-Cc: linux-kernel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	linux-next@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/16] drbd: a block device for HA clusters
+Return-Path: <iustin@google.com>
+Received: from smtp-out.google.com (smtp-out.google.com [216.239.45.13])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DAEC5101E043
+	for <drbd-dev@lists.linbit.com>; Sun, 26 Jul 2009 16:46:49 +0200 (CEST)
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id n6QEaFxK030627
+	for <drbd-dev@lists.linbit.com>; Sun, 26 Jul 2009 07:36:16 -0700
+From: Iustin Pop <iustin@google.com>
+To: drbd-dev@lists.linbit.com
+Date: Sun, 26 Jul 2009 16:36:00 +0200
+Message-Id: <1248618960-3269-1-git-send-email-iustin@google.com>
+Cc: Iustin Pop <iustin@google.com>
+Subject: [Drbd-dev] [PATCH] drbdmeta: also show negotiated size in sectors
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -28,36 +22,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---Signature=_Mon__27_Jul_2009_09_24_45_+1000_M/J4rs/JVfQn+Sli
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Currently drbdmeta shows the last agreed size in "nice" units, e.g.
+100GB. But this is imprecise, as the shifting of cfg->md.la_sect loses
+the low-order bits.
 
-Hi Philipp,
+This small patch adds a new line to the output of drbdmeta that shows
+the exact negotiated size in sectors (for both new and initialized
+devices), such that the output of drbdmeta can be parsed.
+---
+ This is against drbd 8.3 but should apply (and I would be grateful if this is
+ applied) to 8.0 too.
 
-On Fri, 24 Jul 2009 17:20:21 +0200 Philipp Reisner <philipp.reisner@linbit.=
-com> wrote:
->
-> Please add git://git.drbd.org/linux-2.6-drbd.git to linux-next.
+ thanks,
+ iustin
 
-I have added that tree from today.  Currently you are listed as the
-contact (I can add others if you like).  I used the drbd branch of that
-tree as the master branch appears to be Linus' tree.
+ user/drbdmeta.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
+diff --git a/user/drbdmeta.c b/user/drbdmeta.c
+index 00b269d..ca72c96 100644
+--- a/user/drbdmeta.c
++++ b/user/drbdmeta.c
+@@ -1481,6 +1481,8 @@ int meta_show_gi(struct format *cfg, char **argv __attribute((unused)), int argc
+ 	} else {
+ 		printf("zero size device -- never seen peer yet?\n");
+ 	}
++	printf("last agreed size in sectors: %zd\n",
++               cfg->md.la_sect);
+ 
+ 	return cfg->ops->close(cfg);
+ }
+-- 
+1.6.3.3
 
---Signature=_Mon__27_Jul_2009_09_24_45_+1000_M/J4rs/JVfQn+Sli
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-iEYEARECAAYFAkps5b0ACgkQjjKRsyhoI8zLjACfYjU5JKk6+JWDKuSRJwPRAqrN
-GSwAoIdxECqtlDTG1TWbbFx9u7zvpQ8R
-=al4e
------END PGP SIGNATURE-----
-
---Signature=_Mon__27_Jul_2009_09_24_45_+1000_M/J4rs/JVfQn+Sli--
