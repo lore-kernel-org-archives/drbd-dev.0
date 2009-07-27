@@ -1,19 +1,25 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EE3C21019A5D
-	for <drbd-dev@lists.linbit.com>; Mon, 27 Jul 2009 13:19:58 +0200 (CEST)
-Date: Mon, 27 Jul 2009 13:19:58 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20090727111958.GB8046@barkeeper1-xen.linbit>
-References: <1248618960-3269-1-git-send-email-iustin@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1248618960-3269-1-git-send-email-iustin@google.com>
-Subject: Re: [Drbd-dev] [PATCH] drbdmeta: also show negotiated size
-	in	sectors
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 939261018D52
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Jul 2009 17:01:05 +0200 (CEST)
+Resent-Message-ID: <20090727150105.GE8046@barkeeper1-xen.linbit>
+Received: from acsinet11.oracle.com (acsinet11.oracle.com [141.146.126.233])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 14D811018D52
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Jul 2009 16:56:46 +0200 (CEST)
+Date: Mon, 27 Jul 2009 07:55:36 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+To: Stephen Rothwell <sfr@canb.auug.org.au>, drbd-dev@lists.linbit.com
+Message-Id: <20090727075536.533d1801.randy.dunlap@oracle.com>
+In-Reply-To: <20090727180552.eb32515b.sfr@canb.auug.org.au>
+References: <20090727180552.eb32515b.sfr@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Cc: akpm <akpm@linux-foundation.org>, linux-next@vger.kernel.org,
+	LKML <linux-kernel@vger.kernel.org>
+Subject: [Drbd-dev] [PATCH] drbd: fix build when CONFIG_MODULES=n
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,23 +29,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Jul 26, 2009 at 04:36:00PM +0200, Iustin Pop wrote:
-> Currently drbdmeta shows the last agreed size in "nice" units, e.g.
-> 100GB. But this is imprecise, as the shifting of cfg->md.la_sect loses
-> the low-order bits.
+On Mon, 27 Jul 2009 18:05:52 +1000 Stephen Rothwell wrote:
+
+> Hi all,
 > 
-> This small patch adds a new line to the output of drbdmeta that shows
-> the exact negotiated size in sectors (for both new and initialized
-> devices), such that the output of drbdmeta can be parsed.
-> ---
->  This is against drbd 8.3 but should apply (and I would be grateful if this is
->  applied) to 8.0 too.
+> Changes since 20090724:
+> 
+> New trees:
+> 	drbd
+> 
+> The drbd tree gained two build failures for which I reverted a commit from
+> the rr tree and applied a patch.
+> ----------------------------------------------------------------------------
 
-May I ask what the use case is?
 
--- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+(already fixed?)
 
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
+---
+From: Randy Dunlap <randy.dunlap@oracle.com>
+
+Fix drbd build when CONFIG_MODULES=n:
+drivers/block/drbd/drbd_main.c:3738: error: dereferencing pointer to incomplete type
+
+Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: drbd-dev@lists.linbit.com
+---
+ drivers/block/drbd/drbd_main.c |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+--- linux-next-20090727.orig/drivers/block/drbd/drbd_main.c
++++ linux-next-20090727/drivers/block/drbd/drbd_main.c
+@@ -3733,12 +3733,16 @@ const char *drbd_buildtag(void)
+ 
+ 	static char buildtag[38] = "\0uilt-in";
+ 
++#ifdef CONFIG_MODULES
+ 	if (buildtag[0] == 0) {
+ 		if (THIS_MODULE != NULL)
+ 			sprintf(buildtag, "srcversion: %-24s", THIS_MODULE->srcversion);
+ 		else
+ 			buildtag[0] = 'b';
+ 	}
++#else
++	buildtag[0] = 'b';
++#endif
+ 
+ 	return buildtag;
+ }
