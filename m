@@ -1,19 +1,16 @@
 Return-Path: <sfr@canb.auug.org.au>
-Resent-Message-ID: <200907290956.45616.sfr@canb.auug.org.au>
-Date: Wed, 29 Jul 2009 16:17:50 +1000
+Resent-Message-ID: <200907290956.57216.sfr@canb.auug.org.au>
+Date: Wed, 29 Jul 2009 15:29:33 +1000
 From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-Id: <20090729161750.148374e2.sfr@canb.auug.org.au>
-In-Reply-To: <yq1prbk59bv.fsf@sermon.lab.mkp.net>
-References: <20090729152938.791a81c3.sfr@canb.auug.org.au>
-	<yq1prbk59bv.fsf@sermon.lab.mkp.net>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Message-Id: <20090729152933.47664b18.sfr@canb.auug.org.au>
 Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
-	micalg="PGP-SHA1";
-	boundary="Signature=_Wed__29_Jul_2009_16_17_50_+1000_xvCd_y+sks3xo53H"
-Cc: Jens Axboe <jens.axboe@oracle.com>, linux-next@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org
-Subject: Re: [Drbd-dev] linux-next: drbd tree build failure
+Content-Type: text/plain;
+  charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org,
+	Jens Axboe <jens.axboe@oracle.com>
+Subject: [Drbd-dev] linux-next: drbd tree build failure
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,43 +20,82 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---Signature=_Wed__29_Jul_2009_16_17_50_+1000_xvCd_y+sks3xo53H
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Hi Philipp,
 
-Hi Martin,
+Today's linux-next build (x86_64 allmodconfig) failed like this:
 
-On Wed, 29 Jul 2009 01:47:48 -0400 "Martin K. Petersen" <martin.petersen@or=
-acle.com> wrote:
->
-> >>>>> "Stephen" =3D=3D Stephen Rothwell <sfr@canb.auug.org.au> writes:
->=20
-> Stephen> drivers/block/drbd/drbd_nl.c: In function
-> Stephen> 'drbd_setup_queue_param': drivers/block/drbd/drbd_nl.c:707:
-> Stephen> error: implicit declaration of function
-> Stephen> 'blk_queue_stack_limits'
->=20
-> We've decided to keep blk_queue_stack_limits as a wrapper to ease the
-> transition.  I sent Jens a patch earlier today that does this.
+drivers/block/drbd/drbd_req.c: In function 'drbd_make_request_26':
+drivers/block/drbd/drbd_req.c:1023: error: implicit declaration of function 'bio_barrier'
+drivers/block/drbd/drbd_actlog.c: In function '_drbd_md_sync_page_io':
+drivers/block/drbd/drbd_actlog.c:120: error: implicit declaration of function 'bio_barrier'
+drivers/block/drbd/drbd_main.c: In function 'drbd_send_dblock':
+drivers/block/drbd/drbd_main.c:2373: error: implicit declaration of function 'bio_barrier'
+drivers/block/drbd/drbd_main.c:2375: error: implicit declaration of function 'bio_sync'
 
-OK, thanks.
+Caused by commit d206aaff0c5ee065f382c626ea21c5166a3047a7 ("bio: first
+step in sanitizing the bio->bi_rw flag testing") from the block tree.
 
---=20
+I applied the following patch for today.
+
+-- 
 Cheers,
 Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
 
---Signature=_Wed__29_Jul_2009_16_17_50_+1000_xvCd_y+sks3xo53H
-Content-Type: application/pgp-signature
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Date: Wed, 29 Jul 2009 15:13:31 +1000
+Subject: [PATCH] drbd: fixups for block api changes
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
+bio_barrier() and bio_sync() are going away.
 
-iEYEARECAAYFAkpv6Y4ACgkQjjKRsyhoI8yVwwCbBkCYQj7fuUGy5KSTNOP1+ui7
-AnkAn3aV4bzsP9fTuA/KZ+xmF8DqhlLr
-=mDdM
------END PGP SIGNATURE-----
+Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+---
+ drivers/block/drbd/drbd_actlog.c |    2 +-
+ drivers/block/drbd/drbd_main.c   |    4 ++--
+ drivers/block/drbd/drbd_req.c    |    2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
---Signature=_Wed__29_Jul_2009_16_17_50_+1000_xvCd_y+sks3xo53H--
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index 1e53d16..3851869 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -117,7 +117,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
+ 	/* check for unsupported barrier op.
+ 	 * would rather check on EOPNOTSUPP, but that is not reliable.
+ 	 * don't try again for ANY return value != 0 */
+-	if (unlikely(bio_barrier(bio) && !ok)) {
++	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER) && !ok)) {
+ 		/* Try again with no barrier */
+ 		dev_warn(DEV, "Barriers not supported on meta data device - disabling\n");
+ 		set_bit(MD_NO_BARRIER, &mdev->flags);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 20f4d40..9e051a8 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2370,9 +2370,9 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
+ 	/* NOTE: no need to check if barriers supported here as we would
+ 	 *       not pass the test in make_request_common in that case
+ 	 */
+-	if (bio_barrier(req->master_bio))
++	if (bio_rw_flagged(req->master_bio, BIO_RW_BARRIER))
+ 		dp_flags |= DP_HARDBARRIER;
+-	if (bio_sync(req->master_bio))
++	if (bio_rw_flagged(req->master_bio, BIO_RW_SYNCIO))
+ 		dp_flags |= DP_RW_SYNC;
+ 	if (mdev->state.conn >= C_SYNC_SOURCE &&
+ 	    mdev->state.conn <= C_PAUSED_SYNC_T)
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index d2b941c..fc8d835 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1020,7 +1020,7 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
+ 	 * because of those XXX, this is not yet enabled,
+ 	 * i.e. in drbd_init_set_defaults we set the NO_BARRIER_SUPP bit.
+ 	 */
+-	if (unlikely(bio_barrier(bio) && test_bit(NO_BARRIER_SUPP, &mdev->flags))) {
++	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER) && test_bit(NO_BARRIER_SUPP, &mdev->flags))) {
+ 		/* dev_warn(DEV, "Rejecting barrier request as underlying device does not support\n"); */
+ 		bio_endio(bio, -EOPNOTSUPP);
+ 		return 0;
+-- 
+1.6.3.3
 
