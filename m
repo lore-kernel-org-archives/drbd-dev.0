@@ -1,16 +1,28 @@
-Return-Path: <sfr@canb.auug.org.au>
-Resent-Message-ID: <200907290956.57216.sfr@canb.auug.org.au>
-Date: Wed, 29 Jul 2009 15:29:33 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Message-Id: <20090729152933.47664b18.sfr@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: text/plain;
-  charset=US-ASCII
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A0793101AC7F
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Aug 2009 10:36:18 +0200 (CEST)
+Resent-Message-ID: <20090806083617.GB8018@barkeeper1-xen.linbit>
+Received: from hapkido.dreamhost.com (hapkido.dreamhost.com [66.33.216.122])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id ED8D7101AC56
+	for <drbd-dev@lists.linbit.com>; Fri, 31 Jul 2009 23:05:07 +0200 (CEST)
+Received: from swarthymail-a1.g.dreamhost.com (caibbdcaaaaf.dreamhost.com
+	[208.113.200.5])
+	by hapkido.dreamhost.com (Postfix) with ESMTP id A792517AAC8
+	for <drbd-dev@lists.linbit.com>; Fri, 31 Jul 2009 13:33:38 -0700 (PDT)
+Received: from [192.168.1.3] (pool-71-185-254-146.phlapa.fios.verizon.net
+	[71.185.254.146]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	by swarthymail-a1.g.dreamhost.com (Postfix) with ESMTP id 2DC308F2F4
+	for <drbd-dev@lists.linbit.com>; Fri, 31 Jul 2009 13:33:35 -0700 (PDT)
+Message-Id: <FF5EE638-446A-46F9-A920-7FBFD3B22959@computer.org>
+From: Anthony D'Ambrosio <anthony_d@computer.org>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=US-ASCII; format=flowed; delsp=yes
 Content-Transfer-Encoding: 7bit
-Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Jens Axboe <jens.axboe@oracle.com>
-Subject: [Drbd-dev] linux-next: drbd tree build failure
+Mime-Version: 1.0 (Apple Message framework v935.3)
+Date: Fri, 31 Jul 2009 16:33:33 -0400
+Subject: [Drbd-dev] Fix for patch-kernl in scripts directory
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,82 +32,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Philipp,
+Hi,
 
-Today's linux-next build (x86_64 allmodconfig) failed like this:
+I have been using DRBD for about 5 years now and think you folks have  
+done some great work.  We recently have been working an a new base  
+distribution of our OS and I ran into a problem while trying to build  
+DRBD into a kernel.
 
-drivers/block/drbd/drbd_req.c: In function 'drbd_make_request_26':
-drivers/block/drbd/drbd_req.c:1023: error: implicit declaration of function 'bio_barrier'
-drivers/block/drbd/drbd_actlog.c: In function '_drbd_md_sync_page_io':
-drivers/block/drbd/drbd_actlog.c:120: error: implicit declaration of function 'bio_barrier'
-drivers/block/drbd/drbd_main.c: In function 'drbd_send_dblock':
-drivers/block/drbd/drbd_main.c:2373: error: implicit declaration of function 'bio_barrier'
-drivers/block/drbd/drbd_main.c:2375: error: implicit declaration of function 'bio_sync'
+We patch our kernel and I wanted to run some tests with the latest  
+DRDB and the Linux 2.6.30 kernel.  We found an error trying to  
+generate the patch file for the kernel:
 
-Caused by commit d206aaff0c5ee065f382c626ea21c5166a3047a7 ("bio: first
-step in sanitizing the bio->bi_rw flag testing") from the block tree.
+root@appbuild2:/root/drbd-8.3.2 >make KDIR=/root/linux-2.6.30 kernel- 
+patch
+make -C drbd drbd_buildtag.c
+make[1]: Entering directory `/root/drbd-8.3.2/drbd'
+make[1]: Leaving directory `/root/drbd-8.3.2/drbd'
+set -o errexit; \
+         kbase=$(basename /root/linux-2.6.30); \
+         d=patch-$kbase-drbd-8.3.2; \
+         test -e $d && cp -fav --backup=numbered $d $d; \
+         bash scripts/patch-kernel /root/linux-2.6.30 . > $d
+cp: cannot stat `/root/drbd-8.3.2/drbd/lru_cache.h': No such file or  
+directory
+make: *** [kernel-patch] Error 1
 
-I applied the following patch for today.
+After looking at the error, and an older version of DRBD it appears  
+that the lru_cache.h file has moved.  I have created a patch for our  
+build process:
 
--- 
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Date: Wed, 29 Jul 2009 15:13:31 +1000
-Subject: [PATCH] drbd: fixups for block api changes
-
-bio_barrier() and bio_sync() are going away.
-
-Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+root@appbuild2:/root/drbd-8.3.2 >cat ../patch-kernel_8.3.2.patch
+97c97
+<       lru_cache.c"
 ---
- drivers/block/drbd/drbd_actlog.c |    2 +-
- drivers/block/drbd/drbd_main.c   |    4 ++--
- drivers/block/drbd/drbd_req.c    |    2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ >       lru_cache.c lru_cache.h"
+113,114d112
+< cp -a $DRBD/drbd/linux/lru_cache.h    $DRBD_SUB
+<
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 1e53d16..3851869 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -117,7 +117,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
- 	/* check for unsupported barrier op.
- 	 * would rather check on EOPNOTSUPP, but that is not reliable.
- 	 * don't try again for ANY return value != 0 */
--	if (unlikely(bio_barrier(bio) && !ok)) {
-+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER) && !ok)) {
- 		/* Try again with no barrier */
- 		dev_warn(DEV, "Barriers not supported on meta data device - disabling\n");
- 		set_bit(MD_NO_BARRIER, &mdev->flags);
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 20f4d40..9e051a8 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2370,9 +2370,9 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
- 	/* NOTE: no need to check if barriers supported here as we would
- 	 *       not pass the test in make_request_common in that case
- 	 */
--	if (bio_barrier(req->master_bio))
-+	if (bio_rw_flagged(req->master_bio, BIO_RW_BARRIER))
- 		dp_flags |= DP_HARDBARRIER;
--	if (bio_sync(req->master_bio))
-+	if (bio_rw_flagged(req->master_bio, BIO_RW_SYNCIO))
- 		dp_flags |= DP_RW_SYNC;
- 	if (mdev->state.conn >= C_SYNC_SOURCE &&
- 	    mdev->state.conn <= C_PAUSED_SYNC_T)
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index d2b941c..fc8d835 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1020,7 +1020,7 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
- 	 * because of those XXX, this is not yet enabled,
- 	 * i.e. in drbd_init_set_defaults we set the NO_BARRIER_SUPP bit.
- 	 */
--	if (unlikely(bio_barrier(bio) && test_bit(NO_BARRIER_SUPP, &mdev->flags))) {
-+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER) && test_bit(NO_BARRIER_SUPP, &mdev->flags))) {
- 		/* dev_warn(DEV, "Rejecting barrier request as underlying device does not support\n"); */
- 		bio_endio(bio, -EOPNOTSUPP);
- 		return 0;
--- 
-1.6.3.3
+Please tell me if you need more, or if I should supply this type of  
+information in the future in some other manner.
 
+Thanks for the excellent software - it works like a champ for us!
+
+A. D'Ambrosio
+BT Diamond IP
