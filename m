@@ -1,28 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A0793101AC7F
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Aug 2009 10:36:18 +0200 (CEST)
-Resent-Message-ID: <20090806083617.GB8018@barkeeper1-xen.linbit>
-Received: from hapkido.dreamhost.com (hapkido.dreamhost.com [66.33.216.122])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id ED8D7101AC56
-	for <drbd-dev@lists.linbit.com>; Fri, 31 Jul 2009 23:05:07 +0200 (CEST)
-Received: from swarthymail-a1.g.dreamhost.com (caibbdcaaaaf.dreamhost.com
-	[208.113.200.5])
-	by hapkido.dreamhost.com (Postfix) with ESMTP id A792517AAC8
-	for <drbd-dev@lists.linbit.com>; Fri, 31 Jul 2009 13:33:38 -0700 (PDT)
-Received: from [192.168.1.3] (pool-71-185-254-146.phlapa.fios.verizon.net
-	[71.185.254.146]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
-	(No client certificate requested)
-	by swarthymail-a1.g.dreamhost.com (Postfix) with ESMTP id 2DC308F2F4
-	for <drbd-dev@lists.linbit.com>; Fri, 31 Jul 2009 13:33:35 -0700 (PDT)
-Message-Id: <FF5EE638-446A-46F9-A920-7FBFD3B22959@computer.org>
-From: Anthony D'Ambrosio <anthony_d@computer.org>
+Return-Path: <gui@moolfreet.com>
+Received: from mail-yw0-f187.google.com (mail-yw0-f187.google.com
+	[209.85.211.187])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 77D291012848
+	for <drbd-dev@lists.linbit.com>; Sun, 16 Aug 2009 18:08:05 +0200 (CEST)
+Received: by ywh17 with SMTP id 17so3378991ywh.3
+	for <drbd-dev@lists.linbit.com>; Sun, 16 Aug 2009 09:08:05 -0700 (PDT)
+MIME-Version: 1.0
+From: Guillaume Plessis <gui@moolfreet.com>
+Date: Sun, 16 Aug 2009 18:00:21 +0200
+Message-ID: <479b87b70908160900ue855e71l8212d7f6936064c4@mail.gmail.com>
 To: drbd-dev@lists.linbit.com
-Content-Type: text/plain; charset=US-ASCII; format=flowed; delsp=yes
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0 (Apple Message framework v935.3)
-Date: Fri, 31 Jul 2009 16:33:33 -0400
-Subject: [Drbd-dev] Fix for patch-kernl in scripts directory
+Content-Type: multipart/mixed; boundary=0016e644ce6e190ff10471446371
+Subject: [Drbd-dev] Patch for an up-to-date script/patch-kernel
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -32,48 +21,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+--0016e644ce6e190ff10471446371
+Content-Type: multipart/alternative; boundary=0016e644ce6e190fe6047144636f
 
-I have been using DRBD for about 5 years now and think you folks have  
-done some great work.  We recently have been working an a new base  
-distribution of our OS and I ran into a problem while trying to build  
-DRBD into a kernel.
+--0016e644ce6e190fe6047144636f
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-We patch our kernel and I wanted to run some tests with the latest  
-DRDB and the Linux 2.6.30 kernel.  We found an error trying to  
-generate the patch file for the kernel:
+Hello DRBD-devs,
+I encountered problems building a DRBD 8.3.2 patch with a 2.6.30.4 kernel
+(missing lru_cache.h, drbd_vli.h, drbd_tracing.c and drbd_tracing.h).
 
-root@appbuild2:/root/drbd-8.3.2 >make KDIR=/root/linux-2.6.30 kernel- 
-patch
-make -C drbd drbd_buildtag.c
-make[1]: Entering directory `/root/drbd-8.3.2/drbd'
-make[1]: Leaving directory `/root/drbd-8.3.2/drbd'
-set -o errexit; \
-         kbase=$(basename /root/linux-2.6.30); \
-         d=patch-$kbase-drbd-8.3.2; \
-         test -e $d && cp -fav --backup=numbered $d $d; \
-         bash scripts/patch-kernel /root/linux-2.6.30 . > $d
-cp: cannot stat `/root/drbd-8.3.2/drbd/lru_cache.h': No such file or  
-directory
-make: *** [kernel-patch] Error 1
+You'll find as attachement a patch that fixes the patch-building process by
+filling "include_linux" and "drbd_source" with the good values.
 
-After looking at the error, and an older version of DRBD it appears  
-that the lru_cache.h file has moved.  I have created a patch for our  
-build process:
+I hope it will be useful.
 
-root@appbuild2:/root/drbd-8.3.2 >cat ../patch-kernel_8.3.2.patch
-97c97
-<       lru_cache.c"
----
- >       lru_cache.c lru_cache.h"
-113,114d112
-< cp -a $DRBD/drbd/linux/lru_cache.h    $DRBD_SUB
-<
+Keep up the good work.
 
-Please tell me if you need more, or if I should supply this type of  
-information in the future in some other manner.
+--
+Guillaume Plessis
 
-Thanks for the excellent software - it works like a champ for us!
+--0016e644ce6e190fe6047144636f
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-A. D'Ambrosio
-BT Diamond IP
+Hello DRBD-devs,<div><br></div><div>I encountered problems building a DRBD =
+8.3.2 patch with a 2.6.30.4 kernel (missing=C2=A0lru_cache.h,=C2=A0drbd_vli=
+.h, drbd_tracing.c and drbd_tracing.h).</div><div><br></div><div>You&#39;ll=
+ find as attachement a patch that fixes the patch-building process by filli=
+ng &quot;include_linux&quot; and &quot;drbd_source&quot; with the good valu=
+es.</div>
+
+<div><br></div><div>I hope it will be useful.</div><div><br></div><div>Keep=
+ up the good work.</div><div><br clear=3D"all">--<br>Guillaume Plessis<br><=
+br>
+</div>
+
+--0016e644ce6e190fe6047144636f--
+
+--0016e644ce6e190ff10471446371
+Content-Type: application/octet-stream; name="83-patch-kernel_fix.patch"
+Content-Disposition: attachment; filename="83-patch-kernel_fix.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_fyfyqeqh0
+
+ZGlmZiAtdXJOIGRyYmQtOC4zLjIub3JpZy9zY3JpcHRzL3BhdGNoLWtlcm5lbCBkcmJkLTguMy4y
+L3NjcmlwdHMvcGF0Y2gta2VybmVsCi0tLSBkcmJkLTguMy4yLm9yaWcvc2NyaXB0cy9wYXRjaC1r
+ZXJuZWwJMjAwOS0wNi0wOSAxMTozMzowMy4wMDAwMDAwMDAgKzAwMDAKKysrIGRyYmQtOC4zLjIv
+c2NyaXB0cy9wYXRjaC1rZXJuZWwJMjAwOS0wOC0xNiAxNDoyMjoyNS4wMDAwMDAwMDAgKzAwMDAK
+QEAgLTkwLDExICs5MCwxMSBAQAogIwogIyBQdWxsIGluIHRoZSBiYXNlIGRyYmQgc291cmNlCiAj
+Ci1pbmNsdWRlX2xpbnV4PSJkcmJkLmggZHJiZF9saW1pdHMuaCBkcmJkX25sLmggZHJiZF90YWdf
+bWFnaWMuaCIKK2luY2x1ZGVfbGludXg9ImRyYmQuaCBkcmJkX2xpbWl0cy5oIGRyYmRfbmwuaCBk
+cmJkX3RhZ19tYWdpYy5oIGxydV9jYWNoZS5oIgogZHJiZF9zb3VyY2U9ImRyYmRfYWN0bG9nLmMg
+ZHJiZF9iaXRtYXAuYyBkcmJkX2J1aWxkdGFnLmMKIAlkcmJkX3dyYXBwZXJzLmggZHJiZF9pbnQu
+aCBkcmJkX21haW4uYyBkcmJkX25sLmMgZHJiZF9wcm9jLmMKIAlkcmJkX3JlY2VpdmVyLmMgZHJi
+ZF9yZXEuYyBkcmJkX3JlcS5oIGRyYmRfc3RyaW5ncy5jIGRyYmRfd29ya2VyLmMKLQlscnVfY2Fj
+aGUuYyBscnVfY2FjaGUuaCIKKwlscnVfY2FjaGUuYyBkcmJkX3ZsaS5oIGRyYmRfdHJhY2luZy5j
+IGRyYmRfdHJhY2luZy5oIgogCiAjIGNsZWFuIGl0IGZpcnN0CiBtYWtlIC1zIC1DICREUkJEL2Ry
+YmQgY2xlYW4K
+--0016e644ce6e190ff10471446371--
