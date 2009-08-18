@@ -1,17 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Date: Tue, 18 Aug 2009 22:50:26 +0200
-References: <FF5EE638-446A-46F9-A920-7FBFD3B22959@computer.org>
-In-Reply-To: <FF5EE638-446A-46F9-A920-7FBFD3B22959@computer.org>
+Date: Tue, 18 Aug 2009 22:59:10 +0200
+References: <479b87b70908160900ue855e71l8212d7f6936064c4@mail.gmail.com>
+In-Reply-To: <479b87b70908160900ue855e71l8212d7f6936064c4@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200908182250.26776.philipp.reisner@linbit.com>
-Cc: Anthony D'Ambrosio <anthony_d@computer.org>
-Subject: Re: [Drbd-dev] Fix for patch-kernl in scripts directory
+Message-Id: <200908182259.10699.philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] Patch for an up-to-date script/patch-kernel
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,29 +20,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Freitag, 31. Juli 2009 22:33:33 schrieb Anthony D'Ambrosio:
-> Hi,
+Am Sonntag, 16. August 2009 18:00:21 schrieb Guillaume Plessis:
+> Hello DRBD-devs,
+> I encountered problems building a DRBD 8.3.2 patch with a 2.6.30.4 kernel
+> (missing lru_cache.h, drbd_vli.h, drbd_tracing.c and drbd_tracing.h).
 >
-> I have been using DRBD for about 5 years now and think you folks have
-> done some great work.  We recently have been working an a new base
-> distribution of our OS and I ran into a problem while trying to build
-> DRBD into a kernel.
-[...]
-> Please tell me if you need more, or if I should supply this type of
-> information in the future in some other manner.
+> You'll find as attachement a patch that fixes the patch-building process by
+> filling "include_linux" and "drbd_source" with the good values.
 >
-> Thanks for the excellent software - it works like a champ for us!
+> I hope it will be useful.
+>
+> Keep up the good work.
 >
 
-Hi Anthony,
+Whow the second patch of this kind within a few days. I never expected
+that people actually patch DRBD into their kernels...
 
-Sorry about the unresponsiveness on drbd-dev. There is such so
-low traffic on the list...
+I have applied it.
 
-That patch-kernel method came out of focus. We aim to get
-DRBD merged to Linux upstream with the 2.6.32 release.
-You can track out integration work from here:
+Other than that we aim to get DRBD merged to Linux upstream with the 
+2.6.32 release. You can track out integration work from here:
 
 git://git.drbd.org/linux-2.6-drbd.git
 
 -Phil
+
