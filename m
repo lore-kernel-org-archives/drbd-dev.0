@@ -1,52 +1,18 @@
-Return-Path: <lists@wolfram.schlich.org>
-Received: from mail.laber.fasel.org (mail.laber.fasel.org [212.7.178.68])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DA81A1012A98
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 15:58:16 +0200 (CEST)
-Received: from mail.laber.fasel.org (localhost [127.0.0.1])
-	by mail.laber.fasel.org (Postfix/wolfram.schlich.biz) with ESMTP id
-	543FC601A47
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 15:52:08 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by mail.laber.fasel.org (Postfix/wolfram.schlich.biz) with ESMTP id
-	49105601878
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 15:52:08 +0200 (CEST)
-Received: from mail.laber.fasel.org ([127.0.0.1])
-	by localhost (mail.laber.fasel.org [127.0.0.1]) (amavisd-new,
-	port 10026)
-	with ESMTP id OYSOE9tlNyDp for <drbd-dev@lists.linbit.com>;
-	Fri,  4 Sep 2009 15:52:07 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by mail.laber.fasel.org (Postfix/wolfram.schlich.biz) with SMTP id
-	8F448629C54
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 15:52:07 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by mail.laber.fasel.org (Postfix/wolfram.schlich.biz) with ESMTP id
-	7250960F5AA
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 15:52:07 +0200 (CEST)
-Received: from mail.bla.fasel.org (mail.bla.fasel.org
-	[IPv6:2001:4b88:1066:32::35])
-	(using TLSv1 with cipher DHE-RSA-CAMELLIA256-SHA (256/256 bits))
-	(Client CN "mail.bla.fasel.org",
-	Issuer "ca.bla.fasel.org" (verified OK))
-	by mail.laber.fasel.org (Postfix/wolfram.schlich.biz) with ESMTPS id
-	1272660F5AA
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 15:52:07 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by mail.bla.fasel.org (Postfix) with ESMTP id 04A46405FDA
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 15:52:06 +0200 (CEST)
-Received: from mail.bla.fasel.org (localhost [127.0.0.1])
-	by mail.bla.fasel.org (Postfix) with ESMTP id 79C3A40BDE6
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 15:52:05 +0200 (CEST)
-Date: Fri, 4 Sep 2009 15:52:05 +0200
-From: Wolfram Schlich <lists@wolfram.schlich.org>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 565871012A98
+	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 16:19:34 +0200 (CEST)
+Date: Fri, 4 Sep 2009 16:19:34 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20090904135205.GT12157@bla.fasel.org>
+Message-ID: <20090904141934.GC8060@barkeeper1-xen.linbit>
+References: <20090904135205.GT12157@bla.fasel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Subject: [Drbd-dev] Public Bugzilla
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20090904135205.GT12157@bla.fasel.org>
+Subject: Re: [Drbd-dev] Public Bugzilla
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -56,17 +22,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Dear Linbit folks,
+On Fri, Sep 04, 2009 at 03:52:05PM +0200, Wolfram Schlich wrote:
+> Dear Linbit folks,
+> 
+> as you are nowadays referencing bug numbers inside the DRBD
+> changelogs, what about a publicly accessible Bugzilla?
 
-as you are nowadays referencing bug numbers inside the DRBD
-changelogs, what about a publicly accessible Bugzilla?
+Maybe.
+Maybe not.
 
-According to...
-http://lists.linbit.com/pipermail/drbd-dev/2008-March/000915.html
-...this has already been thought about.
+ ;)
 
-Is there any other incarnation of a publicly available list
-of bugs and the corresponding descriptions?
+If you ask me, I'd rather have (supposed to be) bugs reported on the
+mailing list (drbd-user) or via the LINBIT support channels (Customers
+only, obviously), than have a public bugzilla.
 
-Thanks,
-Wolfram
+I fear that a public bugzilla would just depleat our limited time pool
+yet again, by endless reports of "does not feed my cat, either".
+
+> Is there any other incarnation of a publicly available list
+> of bugs and the corresponding descriptions?
+
+Nope.
+
+-- 
+: Lars Ellenberg
+: LINBIT | Your Way to High Availability
+: DRBD/HA support and consulting http://www.linbit.com
+
+DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
