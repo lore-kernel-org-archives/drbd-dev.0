@@ -1,20 +1,19 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 546101018D65
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Sep 2009 17:14:44 +0200 (CEST)
-Date: Fri, 4 Sep 2009 17:14:44 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20090904151444.GD8060@barkeeper1-xen.linbit>
-References: <20090904135205.GT12157@bla.fasel.org>
-	<20090904141934.GC8060@barkeeper1-xen.linbit>
-	<20090904142503.GU12157@bla.fasel.org>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 29ED91011C09
+	for <drbd-dev@lists.linbit.com>; Tue,  8 Sep 2009 11:14:28 +0200 (CEST)
+Resent-Message-ID: <20090908091428.GC8037@barkeeper1-xen.linbit>
+Date: Tue, 8 Sep 2009 11:02:49 +0200
+From: Lars Ellenberg <lars@linbit.com>
+To: Pawel Jakub Dawidek <pjd@FreeBSD.org>
+Message-ID: <20090908090249.GB8037@barkeeper1-xen.linbit>
+References: <20090904142717.GD1610@garage.freebsd.pl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20090904142503.GU12157@bla.fasel.org>
-Subject: Re: [Drbd-dev] Public Bugzilla
+In-Reply-To: <20090904142717.GD1610@garage.freebsd.pl>
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD and FreeBSD.
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,42 +23,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Sep 04, 2009 at 04:25:03PM +0200, Wolfram Schlich wrote:
-> * Lars Ellenberg <lars.ellenberg@linbit.com> [2009-09-04 16:19]:
-> > On Fri, Sep 04, 2009 at 03:52:05PM +0200, Wolfram Schlich wrote:
-> > > Dear Linbit folks,
-> > > 
-> > > as you are nowadays referencing bug numbers inside the DRBD
-> > > changelogs, what about a publicly accessible Bugzilla?
-> > 
-> > Maybe.
-> > Maybe not.
-> > 
-> >  ;)
-> > 
-> > If you ask me, I'd rather have (supposed to be) bugs reported on the
-> > mailing list (drbd-user) or via the LINBIT support channels (Customers
-> > only, obviously), than have a public bugzilla.
-> > 
-> > I fear that a public bugzilla would just depleat our limited time pool
-> > yet again, by endless reports of "does not feed my cat, either".
+On Fri, Sep 04, 2009 at 04:27:17PM +0200, Pawel Jakub Dawidek wrote:
+> Hi.
 > 
-> Oh -- I did not want to report bugs via Bugzilla, I just would like
-> to be able to read about the bugs fixed that are mentioned in the
-> changelogs, so I could perhaps conclude whether those bugs would
-> affect my setup at all.
+> I'm going to work on similar functionality to DRBD, although I plan to
+> start with something simple (only master-slave mode, only
+> quasi-synchronous replication).
+> 
+> I was looking at DRBD source code, but I'm afraid the code is too
+> Linux-specific, so I won't be able to port it.
 
-All bugs affect all setups always ;-)
+Sorry about that.
+So GPL'ed kernel modules would be compatible with BSD?
 
-Appart from that, the Changelog (file) updated for releases is more
-likely to answer that question than some git commit message or bugzilla
-description.
+> I'd still be happy to exchange ideas, etc. I just subscribed to
+> drbd-dev@, but I was wondering if DRBD developers hang on IRC maybe,
+> so there is more direct contact?
 
-But we'll see.
+Sometimes we join various channels on freenode,
+but usually we don't really hang out there,
+as we typically can shout accross the room ;)
+But feel free to post any ideas or suggestions to drbd-dev.
 
--- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
-
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
+	Lars
