@@ -1,13 +1,15 @@
-Return-Path: <axboe@kernel.dk>
-Date: Tue, 15 Sep 2009 08:23:06 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Message-ID: <20090915062306.GP14984@kernel.dk>
+Return-Path: <sfr@canb.auug.org.au>
+Date: Tue, 15 Sep 2009 16:53:09 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Jens Axboe <jens.axboe@oracle.com>
+Message-Id: <20090915165309.f07381ec.sfr@canb.auug.org.au>
+In-Reply-To: <20090915062306.GP14984@kernel.dk>
 References: <20090915160739.86e85ab3.sfr@canb.auug.org.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090915160739.86e85ab3.sfr@canb.auug.org.au>
+	<20090915062306.GP14984@kernel.dk>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+	micalg="PGP-SHA1";
+	boundary="Signature=_Tue__15_Sep_2009_16_53_09_+1000_9zeGCNmYicgvW.+V"
 Cc: Nikanth Karthikesan <knikanth@suse.de>, linux-kernel@vger.kernel.org,
 	linux-next@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	drbd-dev@lists.linbit.com
@@ -21,26 +23,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Sep 15 2009, Stephen Rothwell wrote:
-> Hi Philipp,
-> 
-> Today's linux-next build (x86_64 allmodconfig) failed like this:
-> 
-> drivers/block/drbd/drbd_req.c: In function '_drbd_start_io_acct':
-> drivers/block/drbd/drbd_req.c:45: error: lvalue required as increment operand
-> drivers/block/drbd/drbd_req.c: In function '_drbd_end_io_acct':
-> drivers/block/drbd/drbd_req.c:58: error: lvalue required as decrement operand
-> 
-> Caused by commit 954749162c98ca45c42cbc00c9ed6d5d6c0b8bb7 ("DRBD:
-> request") from the drbd tree interacting with commit
-> a9327cac440be4d8333bba975cbbf76045096275 ("Seperate read and write
-> statistics of in_flight requests") from the block tree.
-> 
-> I have applied the following merge fix for today, but there may be a
-> better fix.
+--Signature=_Tue__15_Sep_2009_16_53_09_+1000_9zeGCNmYicgvW.+V
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Fix looks correct.
+Hi Jens,
 
--- 
-Jens Axboe
+On Tue, 15 Sep 2009 08:23:06 +0200 Jens Axboe <jens.axboe@oracle.com> wrote:
+>
+> Fix looks correct.
 
+Thanks for the confirmation.  So hopefully one of these trees will be
+merged by Linus soon an this can be fixed up in the other.
+
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+--Signature=_Tue__15_Sep_2009_16_53_09_+1000_9zeGCNmYicgvW.+V
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iEYEARECAAYFAkqvOdUACgkQjjKRsyhoI8ypQwCghZr31qeK003FazBbXcWbQvU9
+YrgAnAxRBQJR+IkKOnuXqoR30eNbE3da
+=S44f
+-----END PGP SIGNATURE-----
+
+--Signature=_Tue__15_Sep_2009_16_53_09_+1000_9zeGCNmYicgvW.+V--
