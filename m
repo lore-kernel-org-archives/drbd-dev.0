@@ -1,21 +1,24 @@
-Return-Path: <BATV+82a027cf1159705faf65+2216+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [18.85.46.34])
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D9EFE1013803
+	for <drbd-dev@lists.linbit.com>; Fri, 18 Sep 2009 10:20:56 +0200 (CEST)
+Resent-Message-ID: <20090918082056.GC8039@barkeeper1-xen.linbit>
+Received: from mx1.suse.de (cantor.suse.de [195.135.220.2])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B23C510623BA
-	for <drbd-dev@lists.linbit.com>; Thu, 17 Sep 2009 18:11:17 +0200 (CEST)
-Date: Thu, 17 Sep 2009 12:11:09 -0400
-From: Christoph Hellwig <hch@infradead.org>
-To: James Bottomley <James.Bottomley@suse.de>
-Message-ID: <20090917161108.GA3361@infradead.org>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8D9E010623B9
+	for <drbd-dev@lists.linbit.com>; Thu, 17 Sep 2009 18:03:00 +0200 (CEST)
+From: James Bottomley <James.Bottomley@suse.de>
+To: Lars Ellenberg <lars.ellenberg@linbit.com>
+In-Reply-To: <20090917081251.GC8045@barkeeper1-xen.linbit>
 References: <200909151645.14256.philipp.reisner@linbit.com>
 	<20090915231931.GB7636@infradead.org>
 	<20090917081251.GC8045@barkeeper1-xen.linbit>
-	<1253203365.7845.14.camel@mulgrave.site>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1253203365.7845.14.camel@mulgrave.site>
+Content-Type: text/plain
+Date: Thu, 17 Sep 2009 10:02:45 -0600
+Message-Id: <1253203365.7845.14.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Cc: Bart Van Assche <bart.vanassche@gmail.com>,
 	Kyle Moffett <kyle@moffetthome.net>,
 	Sam Ravnborg <sam@ravnborg.org>, Neil Brown <neilb@suse.de>,
@@ -24,9 +27,8 @@ Cc: Bart Van Assche <bart.vanassche@gmail.com>,
 	Christoph Hellwig <hch@infradead.org>, Lars Marowsky-Bree <lmb@suse.de>,
 	KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>,
 	Jens Axboe <jens.axboe@oracle.com>, Dave Jones <davej@redhat.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>, drbd-dev@lists.linbit.com
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [GIT PULL] DRBD for 2.6.32
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -37,26 +39,100 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Sep 17, 2009 at 10:02:45AM -0600, James Bottomley wrote:
-> So I think Christoph's NAK is rooted in the fact that we have a
-> proliferation of in-kernel RAID implementations and he's trying to
-> reunify them all again.
+On Thu, 2009-09-17 at 10:12 +0200, Lars Ellenberg wrote:
+> I took the liberty to extend the CC list again a little bit.
 > 
-> As part of the review, reusing the kernel RAID (and actually logging)
-> logic did come up and you added it to your todo list.  Perhaps expanding
-> on the status of that would help, since what's being looked for is that
-> you're not adding more work to the RAID reunification effort and that
-> you do have a plan and preferably a time frame for coming into sync with
-> it.
+> On Tue, Sep 15, 2009 at 07:19:31PM -0400, Christoph Hellwig wrote:
+> > On Tue, Sep 15, 2009 at 04:45:13PM +0200, Philipp Reisner wrote:
+> > > Hi Linus,
+> > > 
+> > > Please pull
+> > > git://git.drbd.org/linux-2.6-drbd.git drbd
+> > > 
+> > > DRBD is a shared-nothing, replicated block device. It is designed to
+> > > serve as a building block for high availability clusters and
+> > > in this context, is a "drop-in" replacement for shared storage.
+> > > 
+> > > It has been discussed and reviewed on the list since March,
+> > > and Andrew has asked us to send a pull request for 2.6.32-rc1.
+> 
+> 
+> This has been discussed before on LKML.
+> 
+> To contrast your NACK by a few previous posts
+> I perceived effectively as ACKS:
+> e.g.
+> 
+> Andrew Morton:
+> http://lkml.org/lkml/2009/5/1/307
+> 
+> 	"Oh.  Thanks.  Well we should all get cracking on it then."
+> 
+> Lars Marowsky-Bree:
+> http://lkml.org/lkml/2009/5/5/224
+> 
+> 	"I would suggest at this time, we may want to refocus on the remaining
+> 	objections to merging drbd as a driver in the short-term."
+> 
+> In reply to that,
+> 
+> 	James Bottomley:
+> 	http://lkml.org/lkml/2009/5/5/226
+> 
+> 		"I'd agree with that.  drbd essentially qualifies as a
+> 		driver under our new merge rules, so we should be
+> 		thinking about blockers to getting it into the tree
+> 		first (serious issues) and working out kinks
+> 		(like raid unification) after it gets in."
+> 
+> 	Neil Brown:
+> 	http://lkml.org/lkml/2009/5/5/332
+> 
+> 		"I cannot imagine that there would be any. Given its
+> 		history, its popularity, and its modularity, there can
+> 		be no question about merging it"
+> 
+> hch:
+> > 
+> > The last thing we need is another bloody raid-reimplementation,
+> 
+> It is not RAID, it is replication, see also that blog post below.
+> 
+> > coupled with a propritary on the wire protocol.
+> 
+> http://www.openformats.org/en1
+> proprietary:
+> "the mode of presentation of its data is opaque
+>  and its specification is not publicly available"
+> 
+> Which does not apply to DRBD.
+> 
+> So lets settle for "homegrown".
+> 
+> Besides, what was the non-proprietary, generally accepted,
+> link layer agnostic block-level replication protocol again?
+> 
+> And in case you're referring to MD/NBD or MD/iSCSI or some such,
+> http://fghaas.wordpress.com/2009/09/16/alternatives-to-drbd/ may be a
+> worthy read. Certainly not deeply technical, but sufficient to
+> illustrate the most important points.
+> 
+> > NACK as far as I am concerned.
+> 
+> Too bad :(
+> What can we do to have that revised?
 
-Yes.  RDBD has spend tons of time out of tree, and if they want to put
-it in now I think requiring them to do their homework is a good idea.
+So I think Christoph's NAK is rooted in the fact that we have a
+proliferation of in-kernel RAID implementations and he's trying to
+reunify them all again.
 
-Note that the in-kernel raid implementation is just a rather small part
-of this, what's much more important is the user interface.  A big part
-of raid unification is that we can support on proper interface to deal
-with raid vs volume management, and DRBD adds another totally
-incompatible one to that.  We'd be much better off adding the drbd in
-the write protocol (at least the most recent version) to DM instead of
-adding another big chunk of framework.
+As part of the review, reusing the kernel RAID (and actually logging)
+logic did come up and you added it to your todo list.  Perhaps expanding
+on the status of that would help, since what's being looked for is that
+you're not adding more work to the RAID reunification effort and that
+you do have a plan and preferably a time frame for coming into sync with
+it.
+
+James
+
 
