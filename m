@@ -1,8 +1,12 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Date: Thu, 17 Sep 2009 10:12:51 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Christoph Hellwig <hch@infradead.org>
-Message-ID: <20090917081251.GC8045@barkeeper1-xen.linbit>
+Return-Path: <lmb@suse.de>
+Received: from mx.in-addr.de (gate.in-addr.de [212.8.193.158])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D7A1E10623A3
+	for <drbd-dev@lists.linbit.com>; Thu, 17 Sep 2009 10:50:32 +0200 (CEST)
+Date: Thu, 17 Sep 2009 10:50:03 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
+To: Christoph Hellwig <hch@infradead.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>
+Message-ID: <20090917085003.GR13069@suse.de>
 References: <200909151645.14256.philipp.reisner@linbit.com>
 	<20090915231931.GB7636@infradead.org>
 MIME-Version: 1.0
@@ -10,17 +14,10 @@ Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
 In-Reply-To: <20090915231931.GB7636@infradead.org>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>,
-	Kyle Moffett <kyle@moffetthome.net>,
-	Sam Ravnborg <sam@ravnborg.org>, Neil Brown <neilb@suse.de>,
-	Nikanth Karthikesan <knikanth@suse.de>, Greg KH <gregkh@suse.de>,
-	linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
-	Bart Van Assche <bart.vanassche@gmail.com>,
-	Lars Marowsky-Bree <lmb@suse.de>,
-	KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>,
-	Jens Axboe <jens.axboe@oracle.com>, Dave Jones <davej@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>, drbd-dev@lists.linbit.com
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	linux-kernel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [GIT PULL] DRBD for 2.6.32
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -31,93 +28,54 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+On 2009-09-15T19:19:31, Christoph Hellwig <hch@infradead.org> wrote:
 
-I took the liberty to extend the CC list again a little bit.
+Hi Christoph,
 
-On Tue, Sep 15, 2009 at 07:19:31PM -0400, Christoph Hellwig wrote:
-> On Tue, Sep 15, 2009 at 04:45:13PM +0200, Philipp Reisner wrote:
-> > Hi Linus,
-> > 
-> > Please pull
-> > git://git.drbd.org/linux-2.6-drbd.git drbd
-> > 
-> > DRBD is a shared-nothing, replicated block device. It is designed to
-> > serve as a building block for high availability clusters and
-> > in this context, is a "drop-in" replacement for shared storage.
-> > 
 > > It has been discussed and reviewed on the list since March,
 > > and Andrew has asked us to send a pull request for 2.6.32-rc1.
-
-
-This has been discussed before on LKML.
-
-To contrast your NACK by a few previous posts
-I perceived effectively as ACKS:
-e.g.
-
-Andrew Morton:
-http://lkml.org/lkml/2009/5/1/307
-
-	"Oh.  Thanks.  Well we should all get cracking on it then."
-
-Lars Marowsky-Bree:
-http://lkml.org/lkml/2009/5/5/224
-
-	"I would suggest at this time, we may want to refocus on the remaining
-	objections to merging drbd as a driver in the short-term."
-
-In reply to that,
-
-	James Bottomley:
-	http://lkml.org/lkml/2009/5/5/226
-
-		"I'd agree with that.  drbd essentially qualifies as a
-		driver under our new merge rules, so we should be
-		thinking about blockers to getting it into the tree
-		first (serious issues) and working out kinks
-		(like raid unification) after it gets in."
-
-	Neil Brown:
-	http://lkml.org/lkml/2009/5/5/332
-
-		"I cannot imagine that there would be any. Given its
-		history, its popularity, and its modularity, there can
-		be no question about merging it"
-
-hch:
 > 
-> The last thing we need is another bloody raid-reimplementation,
+> The last thing we need is another bloody raid-reimplementation, coupled
+> with a propritary on the wire protocol.  NACK as far as I am concerned.
 
-It is not RAID, it is replication, see also that blog post below.
+You know that several RAID implementations are my primary pet peeve, and
+I would just love to agree with you here. However, reality isn't that
+black-xor-white.
 
-> coupled with a propritary on the wire protocol.
+In reality, a significant number of deployments using this
+implementation exist already. There is no alternative for them yet, much
+less one which would allow them an online migration.  There might be one
+day, if dm-replicator takes off, and the RAID engines between
+md/dm/btrfs/drbd/dm-replicator etc get unified, but as it stands today,
+this doesn't exist.
 
-http://www.openformats.org/en1
-proprietary:
-"the mode of presentation of its data is opaque
- and its specification is not publicly available"
+drbd is stable, the code has been significantly cleaned up during the
+LKML dialogue so far. It is very well maintained and supported.
 
-Which does not apply to DRBD.
+As a mid- to long-term goal, the unification should be pursued, and I
+know that Lars Ellenberg _is_ talking with Heinz about dm-replicator and
+that Neil/Heinz/Alasdair are also occasionally talking with each other.
 
-So lets settle for "homegrown".
+Until this has happened though, the plurality of solutions exist.
 
-Besides, what was the non-proprietary, generally accepted,
-link layer agnostic block-level replication protocol again?
+drbd meets the technical/code quality requirements for merging; the
+argument that we should only have one RAID implementation is valid, but
+"should" is overruled by the normative power of facts.
 
-And in case you're referring to MD/NBD or MD/iSCSI or some such,
-http://fghaas.wordpress.com/2009/09/16/alternatives-to-drbd/ may be a
-worthy read. Certainly not deeply technical, but sufficient to
-illustrate the most important points.
+Putting the burden of converging our RAID implementations on drbd is a bit
+too much; this argument would have made sense when dm-raid* was merged,
+but today, we're already carrying several.
 
-> NACK as far as I am concerned.
+Similarly, we support FCoE, AoE, iSCSI, nbd, and if someone proposed
+iSCSI-over-USB, I'm sure we would merge even that abdomination. (I hope
+I didn't give anyone ideas!) We also have several file systems.
 
-Too bad :(
-What can we do to have that revised?
 
+Regards,
+    Lars
 
 -- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+Architect Storage/HA, OPS Engineering, Novell, Inc.
+SUSE LINUX Products GmbH, GF: Markus Rex, HRB 16746 (AG Nürnberg)
+"Experience is the name everyone gives to their mistakes." -- Oscar Wilde
 
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
