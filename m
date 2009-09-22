@@ -1,29 +1,28 @@
-Return-Path: <fujita.tomonori@lab.ntt.co.jp>
-Received: from sh.osrg.net (sh.osrg.net [192.16.179.4])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id EAE3F101284B
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Sep 2009 00:27:58 +0200 (CEST)
-Date: Tue, 22 Sep 2009 07:27:21 +0900
-To: lars.ellenberg@linbit.com
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20090921165321.GJ8072@barkeeper1-xen.linbit>
+Return-Path: <lmb@suse.de>
+Received: from mx.in-addr.de (gate.in-addr.de [212.8.193.158])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 254F410622A9
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Sep 2009 08:21:10 +0200 (CEST)
+Date: Tue, 22 Sep 2009 08:20:34 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
+To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, lars.ellenberg@linbit.com
+Message-ID: <20090922062034.GE22732@suse.de>
 References: <20090921144308.GG8072@barkeeper1-xen.linbit>
 	<20090921165252.04e335b1@infradead.org>
 	<20090921165321.GJ8072@barkeeper1-xen.linbit>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20090922072617U.fujita.tomonori@lab.ntt.co.jp>
-Cc: hch@infradead.org, kyle@moffetthome.net, sam@ravnborg.org,
-	bart.vanassche@gmail.com, neilb@suse.de, knikanth@suse.de,
-	gregkh@suse.de, linux-kernel@vger.kernel.org,
-	philipp.reisner@linbit.com, fujita.tomonori@lab.ntt.co.jp,
-	Mauelshagen@redhat.com, James.Bottomley@suse.de, lmb@suse.de,
-	kosaki.motohiro@jp.fujitsu.com, jens.axboe@oracle.com,
-	davej@redhat.com, akpm@linux-foundation.org,
-	drbd-dev@lists.linbit.com, torvalds@linux-foundation.org,
-	arjan@infradead.org
+	<20090922072617U.fujita.tomonori@lab.ntt.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20090922072617U.fujita.tomonori@lab.ntt.co.jp>
+Cc: bart.vanassche@gmail.com, kyle@moffetthome.net, sam@ravnborg.org,
+	neilb@suse.de, knikanth@suse.de, gregkh@suse.de,
+	linux-kernel@vger.kernel.org, philipp.reisner@linbit.com,
+	hch@infradead.org, Mauelshagen@redhat.com,
+	James.Bottomley@suse.de, kosaki.motohiro@jp.fujitsu.com,
+	jens.axboe@oracle.com, davej@redhat.com,
+	akpm@linux-foundation.org, drbd-dev@lists.linbit.com,
+	torvalds@linux-foundation.org, arjan@infradead.org
 Subject: Re: [Drbd-dev] [GIT PULL] DRBD for 2.6.32
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -34,43 +33,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, 21 Sep 2009 18:53:21 +0200
-Lars Ellenberg <lars.ellenberg@linbit.com> wrote:
+On 2009-09-22T07:27:21, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp> wrote:
 
-> On Mon, Sep 21, 2009 at 04:52:52PM +0200, Arjan van de Ven wrote:
-> > On Mon, 21 Sep 2009 16:43:08 +0200
-> > Lars Ellenberg <lars.ellenberg@linbit.com> wrote:
-> > > We can choose whatever user-kernel interface you like,
-> > > and change it with every dot release --
-> > > we'd just need to add additional compat code into
-> > > the drbdsetup userland binary.
-> > 
-> > uh no.
-> > 
-> > the kernel<->userspace ABI is stable.
-> > we don't go about randomly changing it
-> > (extending it is fine obviously)
+> > If it happens, once that happens, that _will_ be an ABI break.
 > 
-> That's not what I meant, of course that is and needs to be stable.
-> Sorry, I exagerated to make a point.
+> You misunderstand the raid unification.
 > 
-> Point was:
-> mdadm configured md.
-> dmsetup configured dm.
-> drbdsetup configure drbd.
+> We will not unify the kernel<->userspace configuration interface
+> because we can't break the kernel<->userspace ABI.
+
+I disagree here. Who says we can't over time, and with due notice?
+
+For sure, the new ABI needs to co-exist with the old ones for a while,
+until it is proven and fully complete, but then, why can't the old one
+be marked as depreciated and phased out over 1-2 years time?
+
+Users won't notice. Modern distros will switch, and in cases of legacy
+distros ("enterprise"), the vendors will backport appropriately.
+
+This happens. There's precedence with the network filtering rules etc.
+
+> We plan to unify the multiple device frameworks, but the unified
+> framework must support the all existing ABIs.
 > 
-> If and when "something" is done to "unify" things on the implementation
-> level, it is likely to also unify the "kernel<->userspace" configuration
-> interface.
-> 
-> If it happens, once that happens, that _will_ be an ABI break.
+> So adding another 'drbd' ABI hurts us.
 
-You misunderstand the raid unification.
+Even that doesn't really apply, I think. If the new framework is
+powerful enough and a super-set of everything that came before, the shim
+layer will be somewhat annoying, but harmless code.
 
-We will not unify the kernel<->userspace configuration interface
-because we can't break the kernel<->userspace ABI.
 
-We plan to unify the multiple device frameworks, but the unified
-framework must support the all existing ABIs.
+Regards,
+    Lars
 
-So adding another 'drbd' ABI hurts us.
+-- 
+Architect Storage/HA, OPS Engineering, Novell, Inc.
+SUSE LINUX Products GmbH, GF: Markus Rex, HRB 16746 (AG Nürnberg)
+"Experience is the name everyone gives to their mistakes." -- Oscar Wilde
+
