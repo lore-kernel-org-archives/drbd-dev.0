@@ -1,18 +1,30 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Date: Wed, 23 Sep 2009 13:12:25 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Stephen Rothwell <sfr@canb.auug.org.au>,
-	Jens Axboe <jens.axboe@oracle.com>, linux-next@vger.kernel.org,
-	linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
-	drbd-dev@lists.linbit.com, Christoph Hellwig <hch@lst.de>
-Message-ID: <20090923111225.GC8000@barkeeper1-xen.linbit>
-References: <20090923145100.1917fdd8.sfr@canb.auug.org.au>
-	<20090923071152.GA8000@barkeeper1-xen.linbit>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090923071152.GA8000@barkeeper1-xen.linbit>
-Subject: Re: [Drbd-dev] linux-next: block tree build failure
+Return-Path: <fujita.tomonori@lab.ntt.co.jp>
+Received: from sh.osrg.net (sh.osrg.net [192.16.179.4])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 86B9910622BA
+	for <drbd-dev@lists.linbit.com>; Wed, 23 Sep 2009 13:29:03 +0200 (CEST)
+Date: Wed, 23 Sep 2009 20:27:51 +0900
+To: kyle@moffetthome.net
+From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <f73f7ab80909211751p4d797556lcce5e47c3241b5ef@mail.gmail.com>
+References: <20090921165321.GJ8072@barkeeper1-xen.linbit>
+	<20090922072617U.fujita.tomonori@lab.ntt.co.jp>
+	<f73f7ab80909211751p4d797556lcce5e47c3241b5ef@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <20090923202646F.fujita.tomonori@lab.ntt.co.jp>
+Cc: hch@infradead.org, sam@ravnborg.org, bart.vanassche@gmail.com,
+	neilb@suse.de, knikanth@suse.de, gregkh@suse.de,
+	linux-kernel@vger.kernel.org, philipp.reisner@linbit.com,
+	fujita.tomonori@lab.ntt.co.jp, Mauelshagen@redhat.com,
+	James.Bottomley@suse.de, lmb@suse.de,
+	kosaki.motohiro@jp.fujitsu.com, jens.axboe@oracle.com,
+	davej@redhat.com, lars.ellenberg@linbit.com,
+	drbd-dev@lists.linbit.com, torvalds@linux-foundation.org,
+	akpm@linux-foundation.org, arjan@infradead.org
+Subject: Re: [Drbd-dev] [GIT PULL] DRBD for 2.6.32
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,44 +34,59 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Sep 23, 2009 at 09:11:52AM +0200, Lars Ellenberg wrote:
-> On Wed, Sep 23, 2009 at 02:51:00PM +1000, Stephen Rothwell wrote:
-> > Hi Jens,
-> > 
-> > Today's linux-next build (x86_64 allmodconfig) failed like this:
-> > 
-> > drivers/block/drbd/drbd_tracing.c:29:26: error: linux/marker.h: No such file or directory
-> > 
-> > Caused by commit 95eaef1cbc63f73df4ff8559dd66b1d29b462535 ("Replaced our
-> > own tracing stuff with Linux's tracepoints") from the block/drbd trees
-> > interacting with commit fc5377668c3d808e1d53c4aee152c836f55c3490
-> > ("tracing: Remove markers") from Linus' tree.
-> > 
-> > I have no idea what the correct thing to do is here, so I have reverted
-> > the merge of the drbd tree into the block tree and will have to drop the
-> > drbd tree for today.
+On Mon, 21 Sep 2009 20:51:32 -0400
+Kyle Moffett <kyle@moffetthome.net> wrote:
+
+> On Mon, Sep 21, 2009 at 18:27, FUJITA Tomonori
+> <fujita.tomonori@lab.ntt.co.jp> wrote:
+> > On Mon, 21 Sep 2009 18:53:21 +0200 Lars Ellenberg <lars.ellenberg@linbit.com> wrote:
+> >> That's not what I meant, of course that is and needs to be stable.
+> >> Sorry, I exagerated to make a point.
+> >>
+> >> Point was:
+> >> mdadm configured md.
+> >> dmsetup configured dm.
+> >> drbdsetup configure drbd.
+> >>
+> >> If and when "something" is done to "unify" things on the implementation
+> >> level, it is likely to also unify the "kernel<->userspace" configuration
+> >> interface.
+> >>
+> >> If it happens, once that happens, that _will_ be an ABI break.
+> >
+> > You misunderstand the raid unification.
+> >
+> > We will not unify the kernel<->userspace configuration interface
+> > because we can't break the kernel<->userspace ABI.
+> >
+> > We plan to unify the multiple device frameworks, but the unified
+> > framework must support the all existing ABIs.
+> >
+> > So adding another 'drbd' ABI hurts us.
 > 
-> We'll have a look.
+> One major issue for me personally (and I don't think its been mentioned enough):
+> 
+> There is a *VAST* existing user-base for DRBD.  Basically every vendor
+> builds the modules for their kernels, ships the userspace tools, etc.
+> *Regardless* of when or how it gets merged, the existing user-base
+> will need kernel support for the existing tools.
 
-Sorry that it took me so long to have that look.
-We can simply drop that include, we don't even use it.
+I don't think that the user base can be a reason for mainline
+inclusion.
 
-diff --git a/drivers/block/drbd/drbd_tracing.c
-b/drivers/block/drbd/drbd_tracing.c
-index aefe986..d18d4f7 100644
---- a/drivers/block/drbd/drbd_tracing.c
-+++ b/drivers/block/drbd/drbd_tracing.c
-@@ -26,7 +26,6 @@
- #include <linux/module.h>
- #include <linux/drbd.h>
- #include <linux/ctype.h>
--#include <linux/marker.h>
- #include "drbd_int.h"
- #include "drbd_tracing.h"
- #include <linux/drbd_tag_magic.h>
+IMHO, vendors should use their resource to push an out-of-tree thing
+into mainline instead of taking care of it with their own
+kernels. Finally, device-mapper people are trying to push the similar
+feature. I think that the history taught us that people who have used
+out-of-tree stuff eventually move in the mainline alternative.
 
 
-Will be visible in our tree shortly.
-Thanks,
+> To put it another way:  Would you really keep a stable SCSI raid
+> driver for existing hardware out of mainline by claiming they need to
+> write a new raid-management abstraction first?  If not, then why the
+> pushback on DRBD?
 
-	Lars
+Yeah, we should have done that. It's too late though.
+
+Anyway, I don't think that your example is fair; we need a driver
+for scsi hardware but we have an alternative to drbd. 
