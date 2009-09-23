@@ -1,30 +1,23 @@
-Return-Path: <fujita.tomonori@lab.ntt.co.jp>
-Received: from sh.osrg.net (sh.osrg.net [192.16.179.4])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C601C10622BA
-	for <drbd-dev@lists.linbit.com>; Wed, 23 Sep 2009 13:36:59 +0200 (CEST)
-Date: Wed, 23 Sep 2009 20:36:32 +0900
-To: lmb@suse.de
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20090922062034.GE22732@suse.de>
-References: <20090921165321.GJ8072@barkeeper1-xen.linbit>
-	<20090922072617U.fujita.tomonori@lab.ntt.co.jp>
-	<20090922062034.GE22732@suse.de>
+Return-Path: <sfr@canb.auug.org.au>
+Received: from smtps.tip.net.au (chilli.pcug.org.au [203.10.76.44])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2BFAA10622BA
+	for <drbd-dev@lists.linbit.com>; Wed, 23 Sep 2009 13:57:10 +0200 (CEST)
+Date: Wed, 23 Sep 2009 21:56:59 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Lars Ellenberg <lars.ellenberg@linbit.com>
+Message-Id: <20090923215659.2869830d.sfr@canb.auug.org.au>
+In-Reply-To: <20090923111225.GC8000@barkeeper1-xen.linbit>
+References: <20090923145100.1917fdd8.sfr@canb.auug.org.au>
+	<20090923071152.GA8000@barkeeper1-xen.linbit>
+	<20090923111225.GC8000@barkeeper1-xen.linbit>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20090923203531C.fujita.tomonori@lab.ntt.co.jp>
-Cc: hch@infradead.org, kyle@moffetthome.net, sam@ravnborg.org,
-	bart.vanassche@gmail.com, neilb@suse.de, knikanth@suse.de,
-	gregkh@suse.de, linux-kernel@vger.kernel.org,
-	philipp.reisner@linbit.com, fujita.tomonori@lab.ntt.co.jp,
-	Mauelshagen@redhat.com, James.Bottomley@suse.de,
-	kosaki.motohiro@jp.fujitsu.com, jens.axboe@oracle.com,
-	davej@redhat.com, lars.ellenberg@linbit.com,
-	drbd-dev@lists.linbit.com, torvalds@linux-foundation.org,
-	akpm@linux-foundation.org, arjan@infradead.org
-Subject: Re: [Drbd-dev] [GIT PULL] DRBD for 2.6.32
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+	micalg="PGP-SHA1";
+	boundary="Signature=_Wed__23_Sep_2009_21_56_59_+1000_w7R_=bQd.7aXcUls"
+Cc: linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-next@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>,
+	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] linux-next: block tree build failure
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -34,38 +27,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, 22 Sep 2009 08:20:34 +0200
-Lars Marowsky-Bree <lmb@suse.de> wrote:
+--Signature=_Wed__23_Sep_2009_21_56_59_+1000_w7R_=bQd.7aXcUls
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On 2009-09-22T07:27:21, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp> wrote:
-> 
-> > > If it happens, once that happens, that _will_ be an ABI break.
-> > 
-> > You misunderstand the raid unification.
-> > 
-> > We will not unify the kernel<->userspace configuration interface
-> > because we can't break the kernel<->userspace ABI.
-> 
-> I disagree here. Who says we can't over time, and with due notice?
-> 
-> For sure, the new ABI needs to co-exist with the old ones for a while,
-> until it is proven and fully complete, but then, why can't the old one
-> be marked as depreciated and phased out over 1-2 years time?
+Hi Lars,
 
-Let me know If you find a Linux storage developer who say, "Yeah, we
-can remove the md ABI over 1-2 years time after the raid unification".
+On Wed, 23 Sep 2009 13:12:25 +0200 Lars Ellenberg <lars.ellenberg@linbit.co=
+m> wrote:
+>
+> Sorry that it took me so long to have that look.
+> We can simply drop that include, we don't even use it.
 
-Seems that you have a very different idea from other kernel developers
-about the stable ABI.
+OK, great.  I guess Jens needs to remerge your tree.
 
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
-> > We plan to unify the multiple device frameworks, but the unified
-> > framework must support the all existing ABIs.
-> > 
-> > So adding another 'drbd' ABI hurts us.
-> 
-> Even that doesn't really apply, I think. If the new framework is
-> powerful enough and a super-set of everything that came before, the shim
-> layer will be somewhat annoying, but harmless code.
+--Signature=_Wed__23_Sep_2009_21_56_59_+1000_w7R_=bQd.7aXcUls
+Content-Type: application/pgp-signature
 
-Improving the existing framework is a proper approach.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iEYEARECAAYFAkq6DQsACgkQjjKRsyhoI8zzbQCgpilFr7Gbdiv59BTo3arCrv+0
+ynIAn3aNSg5+vQiMsV5lt7dr88Bz2cnW
+=e9Gn
+-----END PGP SIGNATURE-----
+
+--Signature=_Wed__23_Sep_2009_21_56_59_+1000_w7R_=bQd.7aXcUls--
