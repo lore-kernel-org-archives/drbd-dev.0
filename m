@@ -2,24 +2,24 @@ Return-Path: <fujita.tomonori@lab.ntt.co.jp>
 Received: from sh.osrg.net (sh.osrg.net [192.16.179.4])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 86B9910622BA
-	for <drbd-dev@lists.linbit.com>; Wed, 23 Sep 2009 13:29:03 +0200 (CEST)
-Date: Wed, 23 Sep 2009 20:27:51 +0900
-To: kyle@moffetthome.net
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C601C10622BA
+	for <drbd-dev@lists.linbit.com>; Wed, 23 Sep 2009 13:36:59 +0200 (CEST)
+Date: Wed, 23 Sep 2009 20:36:32 +0900
+To: lmb@suse.de
 From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <f73f7ab80909211751p4d797556lcce5e47c3241b5ef@mail.gmail.com>
+In-Reply-To: <20090922062034.GE22732@suse.de>
 References: <20090921165321.GJ8072@barkeeper1-xen.linbit>
 	<20090922072617U.fujita.tomonori@lab.ntt.co.jp>
-	<f73f7ab80909211751p4d797556lcce5e47c3241b5ef@mail.gmail.com>
+	<20090922062034.GE22732@suse.de>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <20090923202646F.fujita.tomonori@lab.ntt.co.jp>
-Cc: hch@infradead.org, sam@ravnborg.org, bart.vanassche@gmail.com,
-	neilb@suse.de, knikanth@suse.de, gregkh@suse.de,
-	linux-kernel@vger.kernel.org, philipp.reisner@linbit.com,
-	fujita.tomonori@lab.ntt.co.jp, Mauelshagen@redhat.com,
-	James.Bottomley@suse.de, lmb@suse.de,
+Message-Id: <20090923203531C.fujita.tomonori@lab.ntt.co.jp>
+Cc: hch@infradead.org, kyle@moffetthome.net, sam@ravnborg.org,
+	bart.vanassche@gmail.com, neilb@suse.de, knikanth@suse.de,
+	gregkh@suse.de, linux-kernel@vger.kernel.org,
+	philipp.reisner@linbit.com, fujita.tomonori@lab.ntt.co.jp,
+	Mauelshagen@redhat.com, James.Bottomley@suse.de,
 	kosaki.motohiro@jp.fujitsu.com, jens.axboe@oracle.com,
 	davej@redhat.com, lars.ellenberg@linbit.com,
 	drbd-dev@lists.linbit.com, torvalds@linux-foundation.org,
@@ -34,59 +34,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, 21 Sep 2009 20:51:32 -0400
-Kyle Moffett <kyle@moffetthome.net> wrote:
+On Tue, 22 Sep 2009 08:20:34 +0200
+Lars Marowsky-Bree <lmb@suse.de> wrote:
 
-> On Mon, Sep 21, 2009 at 18:27, FUJITA Tomonori
-> <fujita.tomonori@lab.ntt.co.jp> wrote:
-> > On Mon, 21 Sep 2009 18:53:21 +0200 Lars Ellenberg <lars.ellenberg@linbit.com> wrote:
-> >> That's not what I meant, of course that is and needs to be stable.
-> >> Sorry, I exagerated to make a point.
-> >>
-> >> Point was:
-> >> mdadm configured md.
-> >> dmsetup configured dm.
-> >> drbdsetup configure drbd.
-> >>
-> >> If and when "something" is done to "unify" things on the implementation
-> >> level, it is likely to also unify the "kernel<->userspace" configuration
-> >> interface.
-> >>
-> >> If it happens, once that happens, that _will_ be an ABI break.
-> >
+> On 2009-09-22T07:27:21, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp> wrote:
+> 
+> > > If it happens, once that happens, that _will_ be an ABI break.
+> > 
 > > You misunderstand the raid unification.
-> >
+> > 
 > > We will not unify the kernel<->userspace configuration interface
 > > because we can't break the kernel<->userspace ABI.
-> >
+> 
+> I disagree here. Who says we can't over time, and with due notice?
+> 
+> For sure, the new ABI needs to co-exist with the old ones for a while,
+> until it is proven and fully complete, but then, why can't the old one
+> be marked as depreciated and phased out over 1-2 years time?
+
+Let me know If you find a Linux storage developer who say, "Yeah, we
+can remove the md ABI over 1-2 years time after the raid unification".
+
+Seems that you have a very different idea from other kernel developers
+about the stable ABI.
+
+
 > > We plan to unify the multiple device frameworks, but the unified
 > > framework must support the all existing ABIs.
-> >
+> > 
 > > So adding another 'drbd' ABI hurts us.
 > 
-> One major issue for me personally (and I don't think its been mentioned enough):
-> 
-> There is a *VAST* existing user-base for DRBD.  Basically every vendor
-> builds the modules for their kernels, ships the userspace tools, etc.
-> *Regardless* of when or how it gets merged, the existing user-base
-> will need kernel support for the existing tools.
+> Even that doesn't really apply, I think. If the new framework is
+> powerful enough and a super-set of everything that came before, the shim
+> layer will be somewhat annoying, but harmless code.
 
-I don't think that the user base can be a reason for mainline
-inclusion.
-
-IMHO, vendors should use their resource to push an out-of-tree thing
-into mainline instead of taking care of it with their own
-kernels. Finally, device-mapper people are trying to push the similar
-feature. I think that the history taught us that people who have used
-out-of-tree stuff eventually move in the mainline alternative.
-
-
-> To put it another way:  Would you really keep a stable SCSI raid
-> driver for existing hardware out of mainline by claiming they need to
-> write a new raid-management abstraction first?  If not, then why the
-> pushback on DRBD?
-
-Yeah, we should have done that. It's too late though.
-
-Anyway, I don't think that your example is fair; we need a driver
-for scsi hardware but we have an alternative to drbd. 
+Improving the existing framework is a proper approach.
