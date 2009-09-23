@@ -1,23 +1,32 @@
-Return-Path: <sfr@canb.auug.org.au>
-Received: from smtps.tip.net.au (chilli.pcug.org.au [203.10.76.44])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2BFAA10622BA
-	for <drbd-dev@lists.linbit.com>; Wed, 23 Sep 2009 13:57:10 +0200 (CEST)
-Date: Wed, 23 Sep 2009 21:56:59 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Lars Ellenberg <lars.ellenberg@linbit.com>
-Message-Id: <20090923215659.2869830d.sfr@canb.auug.org.au>
-In-Reply-To: <20090923111225.GC8000@barkeeper1-xen.linbit>
-References: <20090923145100.1917fdd8.sfr@canb.auug.org.au>
-	<20090923071152.GA8000@barkeeper1-xen.linbit>
-	<20090923111225.GC8000@barkeeper1-xen.linbit>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
-	micalg="PGP-SHA1";
-	boundary="Signature=_Wed__23_Sep_2009_21_56_59_+1000_w7R_=bQd.7aXcUls"
-Cc: linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-next@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>,
-	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] linux-next: block tree build failure
+Return-Path: <BATV+7a27817b7907a3189f11+2222+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org [18.85.46.34])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DA53910622A1
+	for <drbd-dev@lists.linbit.com>; Wed, 23 Sep 2009 13:58:04 +0200 (CEST)
+Date: Wed, 23 Sep 2009 07:57:51 -0400
+From: Christoph Hellwig <hch@infradead.org>
+To: Kyle Moffett <kyle@moffetthome.net>
+Message-ID: <20090923115751.GA11820@infradead.org>
+References: <20090921144308.GG8072@barkeeper1-xen.linbit>
+	<20090921165252.04e335b1@infradead.org>
+	<20090921165321.GJ8072@barkeeper1-xen.linbit>
+	<20090922072617U.fujita.tomonori@lab.ntt.co.jp>
+	<f73f7ab80909211751p4d797556lcce5e47c3241b5ef@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f73f7ab80909211751p4d797556lcce5e47c3241b5ef@mail.gmail.com>
+Cc: hch@infradead.org, sam@ravnborg.org, bart.vanassche@gmail.com,
+	neilb@suse.de, knikanth@suse.de, gregkh@suse.de,
+	linux-kernel@vger.kernel.org, philipp.reisner@linbit.com,
+	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>,
+	Mauelshagen@redhat.com, James.Bottomley@suse.de, lmb@suse.de,
+	kosaki.motohiro@jp.fujitsu.com, jens.axboe@oracle.com,
+	davej@redhat.com, lars.ellenberg@linbit.com,
+	drbd-dev@lists.linbit.com, torvalds@linux-foundation.org,
+	akpm@linux-foundation.org, arjan@infradead.org
+Subject: Re: [Drbd-dev] [GIT PULL] DRBD for 2.6.32
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -27,35 +36,13 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---Signature=_Wed__23_Sep_2009_21_56_59_+1000_w7R_=bQd.7aXcUls
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Mon, Sep 21, 2009 at 08:51:32PM -0400, Kyle Moffett wrote:
+> You have to realize that this project is NOT a new one, it's been
+> around quite a decent number of years (since kernel 2.2-ish).  Yes,
+> the ABI is unique and has its warts, but there are a lot of things
+> that depend on it.
 
-Hi Lars,
+So?  That's never been an argument.  Quite contrary, we ignored upstream
+for years and fucked up out of tree but please merge anyway is almost
+a counter-argument.
 
-On Wed, 23 Sep 2009 13:12:25 +0200 Lars Ellenberg <lars.ellenberg@linbit.co=
-m> wrote:
->
-> Sorry that it took me so long to have that look.
-> We can simply drop that include, we don't even use it.
-
-OK, great.  I guess Jens needs to remerge your tree.
-
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
-
---Signature=_Wed__23_Sep_2009_21_56_59_+1000_w7R_=bQd.7aXcUls
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iEYEARECAAYFAkq6DQsACgkQjjKRsyhoI8zzbQCgpilFr7Gbdiv59BTo3arCrv+0
-ynIAn3aNSg5+vQiMsV5lt7dr88Bz2cnW
-=e9Gn
------END PGP SIGNATURE-----
-
---Signature=_Wed__23_Sep_2009_21_56_59_+1000_w7R_=bQd.7aXcUls--
