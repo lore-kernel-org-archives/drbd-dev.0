@@ -1,30 +1,21 @@
-Return-Path: <lmb@suse.de>
-Received: from mx.in-addr.de (gate.in-addr.de [212.8.193.158])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id AA36510622AF
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Sep 2009 12:01:46 +0200 (CEST)
-Date: Fri, 25 Sep 2009 11:59:08 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
-To: Neil Brown <neilb@suse.de>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Message-ID: <20090925095908.GC28951@suse.de>
-References: <20090922062034.GE22732@suse.de>
-	<20090923203531C.fujita.tomonori@lab.ntt.co.jp>
-	<19130.43495.807916.962040@notabene.brown>
-	<20090924083617J.fujita.tomonori@lab.ntt.co.jp>
-	<19132.21708.867658.970822@notabene.brown>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <19132.21708.867658.970822@notabene.brown>
-Cc: bart.vanassche@gmail.com, kyle@moffetthome.net, sam@ravnborg.org,
-	knikanth@suse.de, gregkh@suse.de, linux-kernel@vger.kernel.org,
-	philipp.reisner@linbit.com, hch@infradead.org,
-	Mauelshagen@redhat.com, James.Bottomley@suse.de,
-	kosaki.motohiro@jp.fujitsu.com, jens.axboe@oracle.com,
-	davej@redhat.com, lars.ellenberg@linbit.com,
-	drbd-dev@lists.linbit.com, torvalds@linux-foundation.org,
-	akpm@linux-foundation.org, arjan@infradead.org
-Subject: Re: [Drbd-dev] [GIT PULL] DRBD for 2.6.32
+Return-Path: <sfr@canb.auug.org.au>
+Date: Sun, 27 Sep 2009 12:53:31 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Greg KH <greg@kroah.com>, Philipp Reisner <philipp.reisner@linbit.com>
+Message-Id: <20090927125331.5367db08.sfr@canb.auug.org.au>
+In-Reply-To: <20090926200839.GA5220@merkur.ravnborg.org>
+References: <20090926152800.a6568e53.sfr@canb.auug.org.au>
+	<20090926173143.GA5041@linux.vnet.ibm.com>
+	<20090926200839.GA5220@merkur.ravnborg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Cc: linux-kbuild@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
+	Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>,
+	linux-next@vger.kernel.org, Sam Ravnborg <sam@ravnborg.org>,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] linux-next: 20090926 - drop autoconf.h from
+	DRBD driver
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -34,38 +25,203 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2009-09-25T15:27:40, Neil Brown <neilb@suse.de> wrote:
+Hi Greg, Philipp,
 
-> > Enterprise vendors don't pick up the latest kernel. So I think that we
-> > need more.
+On Sat, 26 Sep 2009 22:08:39 +0200 Sam Ravnborg <sam@ravnborg.org> wrote:
+>
+> On Sat, Sep 26, 2009 at 11:01:43PM +0530, Kamalesh Babulal wrote:
+> > 
+> > 	next-20090926 allyesconfig build breaks on powerpc,
+> > 
+> > drivers/block/drbd/drbd_proc.c:26:28: error: linux/autoconf.h: No such file or directory
+> > make[3]: *** [drivers/block/drbd/drbd_proc.o] Error 1
+> > 
+> > dropping autoconf.h from drbd_proc.c helps. The cleanup patch drops the
+> > unneeded include autoconf.h.
+> > 
+> > Signed-off-by: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+> 
+> I only checked upstream - so this is no big suprise.
+> As there is no need to explicitly include autoconf.h this
+> change should be included by the drdb folks even if the
+> stuff I have does not hit upstream.
 
-Enterprise kernel providers tend to accept the burden of supporting
-their enterprise releases. While I appreciate the thought from the
-community, I think the enterprise kernels already including drbd would
-be extremely happy to see it officially included.
+Maybe we should let them know (cc'd).
 
-> I don't really follow your logic, but that isn't important.  I think
-> that we need to be open to deprecating old ABIs, particularly when the
-> ABI is largely used by just one or two programs or libraries.  This is
-> the case for md/dm/drbd and similar devices.
+> Can I ask you to audit the rest of -next for similar issues.
+> A 'git grep "autoconf\.h"' should be a qucik way to find other
+> spots to fix up.
 
-It is even one step beyond this here. The additional ABI effort is
-raised as an objection to merging drbd, and the drbd developers and user
-community is offering to depreciate it within a reasonable timeframe of
-a better ABI existing (since this will be hidden in the user-space
-tools), if this means that it can be merged earlier.
+$ git grep -l -w autoconf.h next-20090926
+next-20090926:Documentation/dontdiff
+next-20090926:Documentation/kbuild/kconfig.txt
+next-20090926:Makefile
+next-20090926:arch/m68k/kernel/head.S
+next-20090926:drivers/block/drbd/drbd_main.c
+next-20090926:drivers/block/drbd/drbd_nl.c
+next-20090926:drivers/block/drbd/drbd_proc.c
+next-20090926:drivers/block/drbd/drbd_receiver.c
+next-20090926:drivers/block/drbd/drbd_req.c
+next-20090926:drivers/block/drbd/drbd_req.h
+next-20090926:drivers/block/drbd/drbd_worker.c
+next-20090926:drivers/staging/cowloop/cowloop.c
+next-20090926:drivers/staging/iio/ring_sw.h
+next-20090926:scripts/basic/fixdep.c
+next-20090926:scripts/kconfig/confdata.c
+next-20090926:scripts/mkcompile_h
 
-This is quite different from an ABI which is expected to be stable and
-remain forever (even if it was just an implicit user assumption); the
-expectations are set accordingly from day 0, and thus should not be a
-hurdle to acceptance.
+Of these, only the dives/block/drbd and drivers/staging ones are actual
+includes.
 
-
-Regards,
-    Lars
+So for Greg and Philipp, Sam has added a patch that moves autoconf.h.
+There is no need to include it anywhere anyway, so the above files need
+cleaning up.  I have appended Kamalesh's patch below.  Greg, you may have
+to write your own :-)
 
 -- 
-Architect Storage/HA, OPS Engineering, Novell, Inc.
-SUSE LINUX Products GmbH, GF: Markus Rex, HRB 16746 (AG Nürnberg)
-"Experience is the name everyone gives to their mistakes." -- Oscar Wilde
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
+Date:	Sat, 26 Sep 2009 23:01:43 +0530
+From:	Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+To:	sam@ravnborg.org
+Cc:	linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
+	linux-kbuild@vger.kernel.org, sfr@canb.auug.org.au
+Subject: [PATCH] linux-next: 20090926 - drop autoconf.h from DRBD driver
+
+Hi Sam,
+
+	next-20090926 allyesconfig build breaks on powerpc,
+
+drivers/block/drbd/drbd_proc.c:26:28: error: linux/autoconf.h: No such file or directory
+make[3]: *** [drivers/block/drbd/drbd_proc.o] Error 1
+
+dropping autoconf.h from drbd_proc.c helps. The cleanup patch drops the
+unneeded include autoconf.h.
+
+Signed-off-by: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+Acked-by: Sam Ravnborg <sam@ravnborg.org>
+--
+ drivers/block/drbd/drbd_main.c     |    1 -
+ drivers/block/drbd/drbd_nl.c       |    1 -
+ drivers/block/drbd/drbd_proc.c     |    1 -
+ drivers/block/drbd/drbd_receiver.c |    1 -
+ drivers/block/drbd/drbd_req.c      |    1 -
+ drivers/block/drbd/drbd_req.h      |    1 -
+ drivers/block/drbd/drbd_worker.c   |    1 -
+ drivers/staging/cowloop/cowloop.c  |    4 ----
+ drivers/staging/iio/ring_sw.h      |    1 -
+ 9 files changed, 0 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index edf0b80..80273f2 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -26,7 +26,6 @@
+ 
+  */
+ 
+-#include <linux/autoconf.h>
+ #include <linux/module.h>
+ #include <linux/version.h>
+ #include <linux/drbd.h>
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 1927ace..cfde310 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -23,7 +23,6 @@
+ 
+  */
+ 
+-#include <linux/autoconf.h>
+ #include <linux/module.h>
+ #include <linux/drbd.h>
+ #include <linux/in.h>
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index 98fcb74..bdd0b49 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -23,7 +23,6 @@
+ 
+  */
+ 
+-#include <linux/autoconf.h>
+ #include <linux/module.h>
+ 
+ #include <asm/uaccess.h>
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 63686c4..2f81821 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -23,7 +23,6 @@
+  */
+ 
+ 
+-#include <linux/autoconf.h>
+ #include <linux/module.h>
+ 
+ #include <asm/uaccess.h>
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 0656cf1..1aaa397 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -23,7 +23,6 @@
+ 
+  */
+ 
+-#include <linux/autoconf.h>
+ #include <linux/module.h>
+ 
+ #include <linux/slab.h>
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
+index d37ab57..f22c1bc 100644
+--- a/drivers/block/drbd/drbd_req.h
++++ b/drivers/block/drbd/drbd_req.h
+@@ -25,7 +25,6 @@
+ #ifndef _DRBD_REQ_H
+ #define _DRBD_REQ_H
+ 
+-#include <linux/autoconf.h>
+ #include <linux/module.h>
+ 
+ #include <linux/slab.h>
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 212e954..34a4b3e 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -23,7 +23,6 @@
+ 
+  */
+ 
+-#include <linux/autoconf.h>
+ #include <linux/module.h>
+ #include <linux/version.h>
+ #include <linux/drbd.h>
+diff --git a/drivers/staging/cowloop/cowloop.c b/drivers/staging/cowloop/cowloop.c
+index a71c743..a21b9b4 100644
+--- a/drivers/staging/cowloop/cowloop.c
++++ b/drivers/staging/cowloop/cowloop.c
+@@ -237,10 +237,6 @@ char revision[] = "$Revision: 3.1 $"; /* cowlo_init_module() has
+ #endif
+ 
+ #include <linux/types.h>
+-#include <linux/autoconf.h>
+-#ifndef AUTOCONF_INCLUDED
+-#include <linux/config.h>
+-#endif
+ #include <linux/module.h>
+ #include <linux/version.h>
+ #include <linux/moduleparam.h>
+diff --git a/drivers/staging/iio/ring_sw.h b/drivers/staging/iio/ring_sw.h
+index ae70ee0..4b0de7c 100644
+--- a/drivers/staging/iio/ring_sw.h
++++ b/drivers/staging/iio/ring_sw.h
+@@ -29,7 +29,6 @@
+  * driver requests - some may support multiple options */
+ 
+ 
+-#include <linux/autoconf.h>
+ #include "iio.h"
+ #include "ring_generic.h"
+ 
