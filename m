@@ -1,15 +1,16 @@
-Return-Path: <sfr@canb.auug.org.au>
-Date: Mon, 5 Oct 2009 14:35:52 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Jens Axboe <jens.axboe@oracle.com>
-Message-Id: <20091005143552.977a2d4d.sfr@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
-	micalg="PGP-SHA1";
-	boundary="Signature=_Mon__5_Oct_2009_14_35_52_+1100_2ZCHj9cMIv.fPR.Z"
+Return-Path: <axboe@kernel.dk>
+Date: Mon, 5 Oct 2009 08:31:38 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Message-ID: <20091005063138.GO26573@kernel.dk>
+References: <20091005143552.977a2d4d.sfr@canb.auug.org.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091005143552.977a2d4d.sfr@canb.auug.org.au>
 Cc: linux-next@vger.kernel.org, drbd-dev@lists.linbit.com,
 	linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>
-Subject: [Drbd-dev] linux-next: block/drbd tree build failure
+Subject: Re: [Drbd-dev] linux-next: block/drbd tree build failure
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,42 +20,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---Signature=_Mon__5_Oct_2009_14_35_52_+1100_2ZCHj9cMIv.fPR.Z
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Mon, Oct 05 2009, Stephen Rothwell wrote:
+> Hi Jens,
+> 
+> Today's linux-next build (x86_64 allmodconfig) failed like this:
+> 
+> drivers/block/drbd/drbd_req.c: In function '_drbd_start_io_acct':
+> drivers/block/drbd/drbd_req.c:43: error: subscripted value is neither array nor pointer
+> drivers/block/drbd/drbd_req.c: In function '_drbd_end_io_acct':
+> drivers/block/drbd/drbd_req.c:56: error: subscripted value is neither array nor pointer
+> 
+> I reported a similar error against the dbd tree, which was fixed, but now
+> the commit that caused that error has been reverted and thus we get
+> this :-(
+> 
+> I have reverted the drbd commits from the block tree for today.
 
-Hi Jens,
+That's probably my fault, not drbd. I moved it to a new branch since it
+isn't going into 2.6.32, and perhaps dropped that fix along the way.
+I'll look into it.
 
-Today's linux-next build (x86_64 allmodconfig) failed like this:
+-- 
+Jens Axboe
 
-drivers/block/drbd/drbd_req.c: In function '_drbd_start_io_acct':
-drivers/block/drbd/drbd_req.c:43: error: subscripted value is neither array=
- nor pointer
-drivers/block/drbd/drbd_req.c: In function '_drbd_end_io_acct':
-drivers/block/drbd/drbd_req.c:56: error: subscripted value is neither array=
- nor pointer
-
-I reported a similar error against the dbd tree, which was fixed, but now
-the commit that caused that error has been reverted and thus we get
-this :-(
-
-I have reverted the drbd commits from the block tree for today.
-
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
-
---Signature=_Mon__5_Oct_2009_14_35_52_+1100_2ZCHj9cMIv.fPR.Z
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iEYEARECAAYFAkrJaZgACgkQjjKRsyhoI8wJVACgqTXbwMTIz4i4e7dAsoonH1Rk
-gLUAn12cxosRRzbpeEeDygaWaFQVcSiq
-=xTzB
------END PGP SIGNATURE-----
-
---Signature=_Mon__5_Oct_2009_14_35_52_+1100_2ZCHj9cMIv.fPR.Z--
