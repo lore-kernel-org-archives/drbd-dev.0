@@ -1,21 +1,15 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 840F01063E4D
-	for <drbd-dev@lists.linbit.com>; Mon,  5 Oct 2009 11:50:57 +0200 (CEST)
-Resent-Message-ID: <20091005095057.GC8038@barkeeper1-xen.linbit>
-Date: Mon, 5 Oct 2009 01:45:36 -0700 (PDT)
-From: david@lang.hm
+Return-Path: <sfr@canb.auug.org.au>
+Date: Tue, 6 Oct 2009 14:01:54 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
 To: Jens Axboe <jens.axboe@oracle.com>
-In-Reply-To: <20091005063138.GO26573@kernel.dk>
-Message-ID: <alpine.DEB.2.00.0910050138351.9391@asgard.lang.hm>
-References: <20091005143552.977a2d4d.sfr@canb.auug.org.au>
-	<20091005063138.GO26573@kernel.dk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org,
-	drbd-dev@lists.linbit.com, linux-kernel@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>
-Subject: Re: [Drbd-dev] linux-next: block/drbd tree build failure
+Message-Id: <20091006140154.8d94d95c.sfr@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+	micalg="PGP-SHA1";
+	boundary="Signature=_Tue__6_Oct_2009_14_01_54_+1100_Ai_VUbGcy5ILQKYg"
+Cc: linux-next@vger.kernel.org, drbd-dev@lists.linbit.com,
+	linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>
+Subject: [Drbd-dev] linux-next: block/drbd tree build warning
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,34 +19,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, 5 Oct 2009, Jens Axboe wrote:
+--Signature=_Tue__6_Oct_2009_14_01_54_+1100_Ai_VUbGcy5ILQKYg
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On Mon, Oct 05 2009, Stephen Rothwell wrote:
->> Hi Jens,
->>
->> Today's linux-next build (x86_64 allmodconfig) failed like this:
->>
->> drivers/block/drbd/drbd_req.c: In function '_drbd_start_io_acct':
->> drivers/block/drbd/drbd_req.c:43: error: subscripted value is neither array nor pointer
->> drivers/block/drbd/drbd_req.c: In function '_drbd_end_io_acct':
->> drivers/block/drbd/drbd_req.c:56: error: subscripted value is neither array nor pointer
->>
->> I reported a similar error against the dbd tree, which was fixed, but now
->> the commit that caused that error has been reverted and thus we get
->> this :-(
->>
->> I have reverted the drbd commits from the block tree for today.
->
-> That's probably my fault, not drbd. I moved it to a new branch since it
-> isn't going into 2.6.32, and perhaps dropped that fix along the way.
-> I'll look into it.
+Hi Jens, Philipp,
 
+Today's linux-next build (x86_64 allmodconfig) produced this warning:
 
-what needs to happen to get drbd accepted at this point? It sounded like 
-they had the tree in good shape to be merged, except for the desire that 
-was expressed to have them re-work all existing raid implementations 
-before adding their code (and it sounded like that was not going to be 
-allowed to hold it up)
+drivers/block/drbd/drbd_nl.c: In function 'drbd_nl_init':
+drivers/block/drbd/drbd_nl.c:2309: warning: passing argument 3 of 'cn_add_c=
+allback' from incompatible pointer type
+include/linux/connector.h:167: note: expected 'void (*)(struct cn_msg *, st=
+ruct netlink_skb_parms *)' but argument is of type 'void (*)(struct cn_msg =
+*)'
 
-David Lang
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
+--Signature=_Tue__6_Oct_2009_14_01_54_+1100_Ai_VUbGcy5ILQKYg
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iEYEARECAAYFAkrKsyIACgkQjjKRsyhoI8y6UACfUuJLy6uEuHLILte0KEaJz3y/
+pvMAn30N9UidNRzWm5uwOBJnI+4tOuK+
+=0HZ9
+-----END PGP SIGNATURE-----
+
+--Signature=_Tue__6_Oct_2009_14_01_54_+1100_Ai_VUbGcy5ILQKYg--
