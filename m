@@ -1,18 +1,24 @@
-Return-Path: <lmb@suse.de>
-Received: from mx.in-addr.de (gate.in-addr.de [212.8.193.158])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0A52410620AB
-	for <drbd-dev@lists.linbit.com>; Fri, 16 Oct 2009 13:43:16 +0200 (CEST)
-Date: Fri, 16 Oct 2009 13:43:02 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20091016114302.GC26808@suse.de>
-References: <20091016103845.GA15975@suse.de>
-	<20091016112001.GB8041@barkeeper1-xen.linbit>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9EA0F1011BAE
+	for <drbd-dev@lists.linbit.com>; Fri, 16 Oct 2009 15:32:59 +0200 (CEST)
+Resent-Message-ID: <20091016133259.GE8041@barkeeper1-xen.linbit>
+Received: from [10.102.193.59] (unknown [194.24.158.74])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPSA id 73D2A10620B3
+	for <drbd-dev@lists.linbit.com>; Fri, 16 Oct 2009 14:01:46 +0200 (CEST)
+Message-ID: <4AD860A7.80301@linbit.com>
+Date: Fri, 16 Oct 2009 14:01:43 +0200
+From: Florian Haas <florian.haas@linbit.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20091016112001.GB8041@barkeeper1-xen.linbit>
+To: drbd-dev@lists.linbit.com
+References: <20091016103845.GA15975@suse.de>	<20091016112001.GB8041@barkeeper1-xen.linbit>
+	<20091016114302.GC26808@suse.de>
+In-Reply-To: <20091016114302.GC26808@suse.de>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature";
+	boundary="------------enig7025A630A7169A0D91BBDB78"
 Subject: Re: [Drbd-dev] SCTP support for drbd
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -23,47 +29,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2009-10-16T13:20:01, Lars Ellenberg <lars.ellenberg@linbit.com> wrote:
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enig7025A630A7169A0D91BBDB78
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-> > The other service is drbd, which also uses TCP-only right now. It'd be
-> > nice if it also supported SCTP; it can't be that hard, since the
-> > in-kernel dlm also supports TCP and SCTP.
-> Is somewhere on our todo list,
-> but may have to wait for DRBD 9.
-> Feature sponsoring accepted ;)
+On 10/16/2009 01:43 PM, Lars Marowsky-Bree wrote:
+> On 2009-10-16T13:20:01, Lars Ellenberg <lars.ellenberg@linbit.com> wrot=
+e:
+>=20
+>>> The other service is drbd, which also uses TCP-only right now. It'd b=
+e
+>>> nice if it also supported SCTP; it can't be that hard, since the
+>>> in-kernel dlm also supports TCP and SCTP.
+>> Is somewhere on our todo list,
+>> but may have to wait for DRBD 9.
+>> Feature sponsoring accepted ;)
+>=20
+> How much sponsoring do you need? Florian said it looked trivial enough.=
 
-How much sponsoring do you need? Florian said it looked trivial enough.
-;-)
+> ;-)
 
-> > As a further consideration, I'd like to point out how cool it'd be if
-> > drbd could also, like the DLM, default to gathering its network
-> > information from the OpenAIS/corosync layer (perhaps via a
-> > drbd_controld); the peers could auto-detect each other based on the
-> > UUID/label of the drbd instance being activated.  It'd reduce the need
-> > to duplicate information between configuration files for the most common
-> > scenarios.
-> >
-> > (This would also be an extremely convenient and even neater way for
-> > floating peers.)
-> -EPONIES
+Talk about a quote yanked out of context. I dug up one code snippet and
+said "looks good". No word about trivial, as far as I remember.
 
-It may be something you could put on said todo list as well. It'd be
-beneficial for drbd users, would it not?
-
-> proof of concept implementations may be reviewed, though ;)
-
-Well, before heading down that path it may be worthwhile to get feedback
-as to whether you think this is a useful feature or not. Even if we
-don't implement it, maybe one day there'll be a student looking for a
-thesis topic ;-)
+Florian
 
 
+--------------enig7025A630A7169A0D91BBDB78
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
 
-Regards,
-    Lars
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.9 (GNU/Linux)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
 
--- 
-Architect Storage/HA, OPS Engineering, Novell, Inc.
-SUSE LINUX Products GmbH, GF: Markus Rex, HRB 16746 (AG Nürnberg)
-"Experience is the name everyone gives to their mistakes." -- Oscar Wilde
+iEYEARECAAYFAkrYYKcACgkQc0m4l7x1nPFWowCfaRFvpQApACtQow+qX9DFBhVz
+iAMAn3LfEYkdFGwPkSK8rBt12R3GLjvQ
+=PzA1
+-----END PGP SIGNATURE-----
 
+--------------enig7025A630A7169A0D91BBDB78--
