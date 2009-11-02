@@ -1,12 +1,18 @@
-Return-Path: <Simon.Graham@stratus.com>
-Content-class: urn:content-classes:message
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id ECAA310745E8
+	for <drbd-dev@lists.linbit.com>; Mon,  2 Nov 2009 23:42:23 +0100 (CET)
+Date: Mon, 2 Nov 2009 23:42:23 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20091102224223.GE14841@barkeeper1-xen.linbit>
+References: <BC2F8964429F14468EA0E6D6CF00E8C9390D66@EXHQ.corp.stratus.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----_=_NextPart_001_01CA5B42.410C1EFA"
-Date: Sun, 1 Nov 2009 17:25:44 -0500
-Message-ID: <BC2F8964429F14468EA0E6D6CF00E8C9390D66@EXHQ.corp.stratus.com>
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] Primary/Diskless node cannot reconnect
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BC2F8964429F14468EA0E6D6CF00E8C9390D66@EXHQ.corp.stratus.com>
+Subject: Re: [Drbd-dev] Primary/Diskless node cannot reconnect
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -16,50 +22,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
+On Sun, Nov 01, 2009 at 05:25:44PM -0500, Graham, Simon wrote:
+> If you are in a situation where one node is Primary/Diskless and the
+> other Secondary/UpToDate, DRDB works just fine, redirecting the I/O to
+> the secondary node. However, if you then lose the network connection for
+> any reasons (say some sort of transient issue), DRBD will not allow the
+> connection to be re-established even though nothing has actually
+> changed.
+> 
+> When the connect request comes in, you see this trace message:
+> 
+>        Can only connect to data with current UUID=XXXXX
+> 
+> Which is output by receive_uuids in drbd_receiver.c. I understand why
+> this check should be made _if_ you actually have a local disk on the
+> Primary, but if you are Diskless I think it is not necessary and results
+> in unnecessary problems. My proposed fix is to add an explicit test for
+> Diskless in the if statement so that it only does the check for current
+> UUID if the disk state is > Diskless.
+> 
+> Proposed patch attached against 8.2.
 
-------_=_NextPart_001_01CA5B42.410C1EFA
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+8.2 is dead.
+has been fixed differently in 8.3 already,
+where the corresponding code looks like
 
-If you are in a situation where one node is Primary/Diskless and the
-other Secondary/UpToDate, DRDB works just fine, redirecting the I/O to
-the secondary node. However, if you then lose the network connection for
-any reasons (say some sort of transient issue), DRBD will not allow the
-connection to be re-established even though nothing has actually
-changed.
+ if (mdev->state.conn < C_CONNECTED &&
+            mdev->state.disk < D_INCONSISTENT &&
+            mdev->state.role == R_PRIMARY &&
+            (mdev->ed_uuid & ~((u64)1)) != (p_uuid[UI_CURRENT] & ~((u64)1))) {
 
-When the connect request comes in, you see this trace message:
 
-       Can only connect to data with current UUID=3DXXXXX
+-- 
+: Lars Ellenberg
+: LINBIT | Your Way to High Availability
+: DRBD/HA support and consulting http://www.linbit.com
 
-Which is output by receive_uuids in drbd_receiver.c. I understand why
-this check should be made _if_ you actually have a local disk on the
-Primary, but if you are Diskless I think it is not necessary and results
-in unnecessary problems. My proposed fix is to add an explicit test for
-Diskless in the if statement so that it only does the check for current
-UUID if the disk state is > Diskless.
-
-Proposed patch attached against 8.2.
-Simon
-
-------_=_NextPart_001_01CA5B42.410C1EFA
-Content-Type: application/octet-stream;
-	name="primary-diskless-connect.patch"
-Content-Transfer-Encoding: base64
-Content-Description: primary-diskless-connect.patch
-Content-Disposition: attachment;
-	filename="primary-diskless-connect.patch"
-
-ZGlmZiAtLWdpdCBhL2RyYmQvZHJiZF9yZWNlaXZlci5jIGIvZHJiZC9kcmJkX3JlY2VpdmVyLmMK
-aW5kZXggZTVlNDc2OS4uNWZkZWI4NyAxMDA2NDQKLS0tIGEvZHJiZC9kcmJkX3JlY2VpdmVyLmMK
-KysrIGIvZHJiZC9kcmJkX3JlY2VpdmVyLmMKQEAgLTI0NTksNiArMjQ1OSw3IEBAIFNUQVRJQyBp
-bnQgcmVjZWl2ZV91dWlkcyhzdHJ1Y3QgZHJiZF9jb25mICptZGV2LCBzdHJ1Y3QgRHJiZF9IZWFk
-ZXIgKmgpCiAJbWRldi0+cF91dWlkID0gcF91dWlkOwogCiAJaWYgKG1kZXYtPnN0YXRlLmNvbm4g
-PCBDb25uZWN0ZWQgJiYKKwkgICAgbWRldi0+c3RhdGUuZGlzayA+IERpc2tsZXNzICYmCiAJICAg
-IG1kZXYtPnN0YXRlLmRpc2sgPD0gTmVnb3RpYXRpbmcgJiYKIAkgICAgbWRldi0+c3RhdGUucm9s
-ZSA9PSBQcmltYXJ5ICYmCiAJICAgIChtZGV2LT5lZF91dWlkICYgfigodTY0KTEpKSAhPSAocF91
-dWlkW0N1cnJlbnRdICYgfigodTY0KTEpKSkgewo=
-
-------_=_NextPart_001_01CA5B42.410C1EFA--
+DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
