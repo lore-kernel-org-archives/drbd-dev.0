@@ -1,18 +1,20 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8E77610745E8
-	for <drbd-dev@lists.linbit.com>; Mon,  2 Nov 2009 23:48:57 +0100 (CET)
-Date: Mon, 2 Nov 2009 23:48:57 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20091102224857.GG14841@barkeeper1-xen.linbit>
-References: <BC2F8964429F14468EA0E6D6CF00E8C9390D64@EXHQ.corp.stratus.com>
+Return-Path: <Simon.Graham@stratus.com>
+Received: from mailhub5.stratus.com (mailhub5.stratus.com [134.111.1.18])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5DDC714221E4
+	for <drbd-dev@lists.linbit.com>; Tue,  3 Nov 2009 04:48:03 +0100 (CET)
+Content-class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BC2F8964429F14468EA0E6D6CF00E8C9390D64@EXHQ.corp.stratus.com>
-Subject: Re: [Drbd-dev] Supporting blktrace in DRBD
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 2 Nov 2009 22:47:54 -0500
+Message-ID: <BC2F8964429F14468EA0E6D6CF00E8C9390DA7@EXHQ.corp.stratus.com>
+In-Reply-To: 20091102224223.GE14841@barkeeper1-xen.linbit
+References: <BC2F8964429F14468EA0E6D6CF00E8C9390D66@EXHQ.corp.stratus.com>
+	20091102224223.GE14841@barkeeper1-xen.linbit
+From: "Graham, Simon" <Simon.Graham@stratus.com>
+To: "Lars Ellenberg" <lars.ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] Primary/Diskless node cannot reconnect
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,33 +24,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Nov 01, 2009 at 05:10:24PM -0500, Graham, Simon wrote:
-> I've been using blktrace to investigate performance of DRBD and have
-> found a few places where DRBD needs to issue blktrace API calls that it
-> does not - usually, the library routines in ll_rw_blk.c make these calls
-> on behalf of block devices but those like DRBD that write their own
-> routines need to also make some trace calls. Specifically, DRBD needs to
-> trace request completion and calls to lower level unplug routines (it's
-> hard to be sure but it looks to me like the caller of the unplug routine
-> is supposed to make the trace call).
-> 
->  
-> 
-> Patch against 8.2 (and tested with kernel 2.6.18) attached for your
-> review
+> 8.2 is dead.
 
-Will do...
-though only for current git and the next kernel submission iteration.
-BTW, our "homegrown" tracing framework has been ripped out upstream,
-so we will probably replace it by trace_events "soonish".
-Unless you beat us to it ;)
-
-Thanks,
+Hmmm... it hasn't stopped moving yet... are you saying you won't make
+any more fixes to it?=20
 
 
--- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+> has been fixed differently in 8.3 already,
+> where the corresponding code looks like
+>=20
+>  if (mdev->state.conn < C_CONNECTED &&
+>             mdev->state.disk < D_INCONSISTENT &&
+>             mdev->state.role =3D=3D R_PRIMARY &&
+>             (mdev->ed_uuid & ~((u64)1)) !=3D (p_uuid[UI_CURRENT] &
+> ~((u64)1))) {
+>=20
 
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
+I must admit I haven't looked at 8.3 in any detail yet but that code you
+quote looks suspiciously like the 8.2 code to me -- D_DISKLESS is still
+a value less than D_INCONSISTENT...
+
+Shouldn't this be:
+
+  if (mdev->state.conn < C_CONNECTED &&
+             mdev->state.disk > D_DISKLESS &&
+             mdev->state.disk < D_INCONSISTENT &&
+             mdev->state.role =3D=3D R_PRIMARY &&
+             (mdev->ed_uuid & ~((u64)1)) !=3D (p_uuid[UI_CURRENT] &
+~((u64)1))) {
+
+To fix this same issue???
+Simon
