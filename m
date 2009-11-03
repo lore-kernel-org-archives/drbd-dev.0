@@ -1,18 +1,19 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E0F2F1432B56
-	for <drbd-dev@lists.linbit.com>; Tue,  3 Nov 2009 12:32:28 +0100 (CET)
-Date: Tue, 3 Nov 2009 12:32:28 +0100
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3C6661432B56
+	for <drbd-dev@lists.linbit.com>; Tue,  3 Nov 2009 12:36:52 +0100 (CET)
+Date: Tue, 3 Nov 2009 12:36:52 +0100
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20091103113228.GB12242@barkeeper1-xen.linbit>
-References: <80321e0e0911022057h6f1bcbccy379b93a4fdd97853@mail.gmail.com>
+Message-ID: <20091103113652.GC12242@barkeeper1-xen.linbit>
+References: <6ebabfd80911012210j144a25c9tdac8a88a26f4afd6@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <80321e0e0911022057h6f1bcbccy379b93a4fdd97853@mail.gmail.com>
-Subject: Re: [Drbd-dev] open source ha san
+In-Reply-To: <6ebabfd80911012210j144a25c9tdac8a88a26f4afd6@mail.gmail.com>
+Subject: Re: [Drbd-dev] Integrating iSCSI service to DRBD for iSCSI	failover
+	- Heartbeat
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,24 +23,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Nov 03, 2009 at 10:27:34AM +0530, er krishna wrote:
-> Dear All,
+On Mon, Nov 02, 2009 at 11:40:53AM +0530, sajan agr wrote:
+> Hi
 > 
-> I have written a article with complete how to which describes following
-> things :
-> 
-> Making of open source HA SAN :
-> 
-> An article which describes and making of HA SAN with AoE, heartbeat and
-> DRBD. I mean it contains a complete how to of integration of DRBD, heartbeat
-> and AoE targets and initiators.
-> 
-> I want to keep it on the DRBD website. Can anybody help me to review it and
-> putting it on DRBD site.
+> I am a naive user of pacemaker and have been trying to achieve iSCSI
+> failover on Pacemaker.
 
-Will do.
-Best handled on the drbd-user list.
-Thanks.
+Which is why this would be more appropriate for the pacemaker list.
+Make sure you in clude the logs of the failed "takeover" attempt.
+
+You should probably first grep yourself in those logs,
+grep ERROR on the pacemaker logs do a good job usually.
+
+Thanks,
+
 
 -- 
 : Lars Ellenberg
@@ -47,5 +44,3 @@ Thanks.
 : DRBD/HA support and consulting http://www.linbit.com
 
 DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
-__
-please don't Cc me, but send to list   --   I'm subscribed
