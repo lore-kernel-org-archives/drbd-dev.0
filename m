@@ -1,17 +1,20 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from racke.rauchzart (p548CC653.dip.t-dialin.net [84.140.198.83])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <wguo@avaya.com>
+Received: from p-us1-iereast-outbound-tmp.us1.avaya.com
+	(nj300815-nj-outbound.net.avaya.com [135.11.29.16])
+	(using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPSA id 3AF4E1086412
-	for <drbd-dev@lists.linbit.com>; Sun, 13 Dec 2009 22:23:34 +0100 (CET)
-Resent-Message-ID: <20091213212332.GA3768@racke>
-From: Huang Weiyi <weiyi.huang@gmail.com>
-To: drbd-dev@lists.linbit.com
-Date: Sun, 13 Dec 2009 22:05:03 +0800
-Message-Id: <1260713103-5908-1-git-send-email-weiyi.huang@gmail.com>
-Cc: Huang Weiyi <weiyi.huang@gmail.com>, drbd-user@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/6] drbd: remove unused #include
-	<linux/version.h>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 06E9310003AF
+	for <drbd-dev@lists.linbit.com>; Tue, 15 Dec 2009 01:40:04 +0100 (CET)
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 14 Dec 2009 19:29:11 -0500
+Message-ID: <EAF41105EEA8E14BA54927856CEDEB3D01788A1C@300813ANEX2.global.avaya.com>
+From: "Guo, Weiping (Jim)" <wguo@avaya.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] Why sending and receiving dblock is so slow
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,54 +24,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Remove unused #include <linux/version.h>('s) in
-  drivers/block/drbd/drbd_main.c
-  drivers/block/drbd/drbd_receiver.c
-  drivers/block/drbd/drbd_worker.c
+Hi DRBD experts,
 
-Signed-off-by: Huang Weiyi <weiyi.huang@gmail.com>
----
- drivers/block/drbd/drbd_main.c     |    1 -
- drivers/block/drbd/drbd_receiver.c |    1 -
- drivers/block/drbd/drbd_worker.c   |    1 -
- 3 files changed, 0 insertions(+), 3 deletions(-)
+I did some very basic profiling on drbd. I am really surprised that
+sending/receiving could take long time.=20
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 157d1e4..c4e56ae 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -27,7 +27,6 @@
-  */
- 
- #include <linux/module.h>
--#include <linux/version.h>
- #include <linux/drbd.h>
- #include <asm/uaccess.h>
- #include <asm/types.h>
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index c548f24..259c135 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -28,7 +28,6 @@
- #include <asm/uaccess.h>
- #include <net/sock.h>
- 
--#include <linux/version.h>
- #include <linux/drbd.h>
- #include <linux/fs.h>
- #include <linux/file.h>
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index ed8796f..523b88b 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -24,7 +24,6 @@
-  */
- 
- #include <linux/module.h>
--#include <linux/version.h>
- #include <linux/drbd.h>
- #include <linux/sched.h>
- #include <linux/smp_lock.h>
--- 
-1.6.1.3
+1. sending: I measured the time from a dblock was inserted to the work
+queue to when it is actually processed by the worker. Usually it only
+takes less than 1ms, but I saw some instances of over 100ms.=20
+
+2. receiving: I measured the time to execute read_in_block. I saw some
+instances of 80ms and 40ms. Tracking down, it appears that
+sock_recvmsg()could take long.=20
+
+I just could not understand where those calls are blocked. Is there a
+way to speed up the sending/receiving? Any comments and suggestions are
+appreciated!
+
+Thank you very much.
+
+Jim=20
 
