@@ -1,22 +1,16 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DD11A1072EEB
-	for <drbd-dev@lists.linbit.com>; Thu, 17 Dec 2009 16:53:29 +0100 (CET)
-Resent-Message-ID: <20091217155329.GE26616@barkeeper1-xen.linbit>
-Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
-	[140.211.169.13])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B4809107302A
-	for <drbd-dev@lists.linbit.com>; Wed, 16 Dec 2009 23:58:27 +0100 (CET)
-Message-Id: <200912162258.nBGMwH0o020265@imap1.linux-foundation.org>
-To: mm-commits@vger.kernel.org
-From: akpm@linux-foundation.org
-Date: Wed, 16 Dec 2009 14:58:17 -0800
-Cc: jens.axboe@oracle.com, roel.kluin@gmail.com, philipp.reisner@linbit.com,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] + drbd-fix-test-of-unsigned-in-_drbd_fault_random.patch
-	added to -mm tree
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 015B81072F03
+	for <drbd-dev@lists.linbit.com>; Fri, 18 Dec 2009 15:34:07 +0100 (CET)
+Resent-Message-ID: <20091218143407.GI26616@barkeeper1-xen.linbit>
+From: "Kaloyan Kovachev" <kkovachev@varna.net>
+To: drbd-user@lists.linbit.com
+Date: Fri, 18 Dec 2009 14:04:17 +0200
+Message-Id: <20091218104232.M76499@varna.net>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset=windows-1251
+Subject: [Drbd-dev] Concurrent writes
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,81 +20,75 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hello list,
+ i have found an old tread about our problem back from April and the last
+message from October (at the end of the email, so sorry for top posting) with
+a hint to our setup.
 
-The patch titled
-     drbd: fix test of unsigned in _drbd_fault_random()
-has been added to the -mm tree.  Its filename is
-     drbd-fix-test-of-unsigned-in-_drbd_fault_random.patch
+ The setup:
+ cluster with 2 nodes and 2 storages - Stor1 and Stor2 (part of the cluster =
+4 nodes total)
+ several LVM volumes replicated via DRBD (8.3.2) in active/active and exported
+via IET as blockio then imported from all cluster members (including the
+storages) from both storages at the same time and multipath used in multibus
+mode from all.
 
-Before you just go and hit "reply", please:
-   a) Consider who else should be cc'ed
-   b) Prefer to cc a suitable mailing list as well
-   c) Ideally: find the original patch on the mailing list and do a
-      reply-to-all to that, adding suitable additional cc's
+ The problem:
+ Not tested with other DRBD versions, but at least with different kernels the
+results are the same.
+ When cman is stopped on one/any of the storages i get in the logs for both of
+them:
+"block drbd0: istiod1[2739] Concurrent local write detected! [DISCARD L] new:
+0s +1024; pending: 0s +1024"
+ it is always for drbd0 (actively used from all active nodes) and always for
+0s +1024
 
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+ My guess is that this is caused from multipath checking for the disk being
+alive, but if so it should also happen when cman is running or for other
+volumes too not?
 
-See http://userweb.kernel.org/~akpm/stuff/added-to-mm.txt to find
-out what to do about this
+P.S. please CC me as i am not subscribed to the list
 
-The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
+------------ the last message in the tread --------------------------
+Gennadiy,
 
-------------------------------------------------------
-Subject: drbd: fix test of unsigned in _drbd_fault_random()
-From: Roel Kluin <roel.kluin@gmail.com>
+I realize it's been a while since this issue was discussed last, but
+we're still trying to hunt this down. I realize this is asking a lot,
+but do you happen to still have the drbd.conf available from back in
+April? It was unfortunately never posted in the thread.
 
-rsp->count is unsigned so the test does not work.
+Specifically, I'm curious as to whether you were using dual-Primary mode
+at the time (allow-two-primaries).
 
-Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+Thanks!
 
- drivers/block/drbd/drbd_main.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Cheers,
+Florian
 
-diff -puN drivers/block/drbd/drbd_main.c~drbd-fix-test-of-unsigned-in-_drbd_fault_random drivers/block/drbd/drbd_main.c
---- a/drivers/block/drbd/drbd_main.c~drbd-fix-test-of-unsigned-in-_drbd_fault_random
-+++ a/drivers/block/drbd/drbd_main.c
-@@ -3623,7 +3623,7 @@ _drbd_fault_random(struct fault_random_s
- {
- 	long refresh;
- 
--	if (--rsp->count < 0) {
-+	if (!rsp->count--) {
- 		get_random_bytes(&refresh, sizeof(refresh));
- 		rsp->state += refresh;
- 		rsp->count = FAULT_RANDOM_REFRESH;
-_
-
-Patches currently in -mm which might be from roel.kluin@gmail.com are
-
-origin.patch
-linux-next.patch
-fujitsu-laptop-fix-tests-of-acpi_evaluate_integer-return.patch
-powerpc-sky-cpu-redundant-or-incorrect-tests-on-unsigned.patch
-powerpc-85xx-wrong-variable-returned-on-error.patch
-hidp-ptr_err-return-of-wrong-pointer-in-hidp_setup_hid.patch
-imx-bit-confusion.patch
-drivers-scsi-fnic-fnic_scsic-clean-up.patch
-ibmmca-buffer-overflow.patch
-scsi-eata-fix-buffer-overflow.patch
-drivers-scsi-gdthc-fix-buffer-overflow.patch
-drivers-scsi-u14-34fc-fix-uffer-overflow.patch
-drivers-scsi-lpfc-lpfc_vportc-fix-read-buffer-overflow.patch
-osst-fix-read-buffer-overflow.patch
-gdth-unmap-ccb_phys-when-scsi_add_host-fails-in-gdth_eisa_probe_one.patch
-zfcp-test-kmalloc-failure-in-scsi_get_vpd_page.patch
-ncr5380-bit-mr_dma_mode-set-twice-in-ncr5380_transfer_dma.patch
-scsi-pmcraid-redundant-check-in-pmcraid_check_ioctl_buffer.patch
-drbd-fix-test-of-unsigned-in-_drbd_fault_random.patch
-r8192u_core-test-for-negative-error-in-rtl8192_rx_isr.patch
-keys-ptr_err-return-of-wrong-pointer-in-keyctl_get_security.patch
-frv-duplicate-output_buffer-of-e03.patch
-frv-duplicate-output_buffer-of-e03-checkpatch-fixes.patch
-cryptocop-fix-assertion-in-create_output_descriptors.patch
-hvc_console-fix-test-on-unsigned-in-hvc_console_print.patch
-zlib-optimize-inffast-when-copying-direct-from-output.patch
-
+On 2009-04-22 00:09, Gennadiy Nerubayev wrote:
+> On Tue, Apr 21, 2009 at 5:39 PM, Roof, Morey R. <MRoof at admin.nmt.edu
+> <mailto:MRoof at admin.nmt.edu>> wrote:
+> 
+>     The Initiators I use are: VMWare ESX 3.0.x, VMWare ESX 3.5.x, Micrsoft
+>     iSCSI Initiator 2.08, and Linux (RHEL 5, SUSE 10).
+> 
+>     I gave SQLIO a run with your params and I'm not getting the concurrent
+>     write issue.
+> 
+> 
+> The bizarreness continues; downgrading DRBD is of no help either :( 
+> Although, it is encouraging in a way suggesting that this might be
+> finally isolated. I assume you're checking the logs of the primary node?
+> 
+>     The hardware I run DRBD is a pair of HP Proliant DL380 G4 servers with
+>     12GB of RAM and P600 SAS controllers.  The machines are currently
+>     replicating 1.8TB of data.  I run DRBD under SuSE 10SP2 and use IET
+>     stock from SuSE but the DRBD is 8.0.16.
+> 
+> 
+>  What is the kernel version on the target? Version of Windows on the
+> initiator? Could you share the relevant portions of ietd.conf and drbd.conf?
+> 
+> Thanks,
+> 
+> -Gennadiy
