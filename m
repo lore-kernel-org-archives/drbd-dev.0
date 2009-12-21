@@ -1,16 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Date: Mon, 21 Dec 2009 17:09:57 +0100
-References: <1260364152-5000-1-git-send-email-weiyi.huang@gmail.com>
-In-Reply-To: <1260364152-5000-1-git-send-email-weiyi.huang@gmail.com>
+Date: Mon, 21 Dec 2009 17:10:41 +0100
+References: <1260713103-5908-1-git-send-email-weiyi.huang@gmail.com>
+In-Reply-To: <1260713103-5908-1-git-send-email-weiyi.huang@gmail.com>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200912211709.57405.philipp.reisner@linbit.com>
+Message-Id: <200912211710.41775.philipp.reisner@linbit.com>
 Cc: Huang Weiyi <weiyi.huang@gmail.com>
-Subject: Re: [Drbd-dev] [PATCH 3/3] drbd: remove duplicated #include
+Subject: Re: [Drbd-dev] [PATCH 1/6] drbd: remove unused #include
+	<linux/version.h>
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,14 +21,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Mittwoch, 9. Dezember 2009 14:09:12 schrieb Huang Weiyi:
-> Remove duplicated #include('s) in
+Am Sonntag, 13. Dezember 2009 15:05:03 schrieb Huang Weiyi:
+> Remove unused #include <linux/version.h>('s) in
+>   drivers/block/drbd/drbd_main.c
+>   drivers/block/drbd/drbd_receiver.c
 >   drivers/block/drbd/drbd_worker.c
 [...]
 
-Accepted. Thanks!
--phil
+Applied.
 
+Thanks, 
+ Phil
 -- 
 : Dipl-Ing Philipp Reisner
 : LINBIT | Your Way to High Availability
