@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
-Date: Mon, 21 Dec 2009 17:10:41 +0100
-References: <1260713103-5908-1-git-send-email-weiyi.huang@gmail.com>
-In-Reply-To: <1260713103-5908-1-git-send-email-weiyi.huang@gmail.com>
+Date: Mon, 21 Dec 2009 17:12:33 +0100
+References: <4B2805E0.2080304@gmail.com>
+In-Reply-To: <4B2805E0.2080304@gmail.com>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200912211710.41775.philipp.reisner@linbit.com>
-Cc: Huang Weiyi <weiyi.huang@gmail.com>
-Subject: Re: [Drbd-dev] [PATCH 1/6] drbd: remove unused #include
-	<linux/version.h>
+Message-Id: <200912211712.33667.philipp.reisner@linbit.com>
+Cc: Roel Kluin <roel.kluin@gmail.com>
+Subject: Re: [Drbd-dev] [PATCH] drbd: Fix test of unsigned in
+	_drbd_fault_random()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,17 +21,13 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Sonntag, 13. Dezember 2009 15:05:03 schrieb Huang Weiyi:
-> Remove unused #include <linux/version.h>('s) in
->   drivers/block/drbd/drbd_main.c
->   drivers/block/drbd/drbd_receiver.c
->   drivers/block/drbd/drbd_worker.c
-[...]
+Am Dienstag, 15. Dezember 2009 22:55:44 schrieb Roel Kluin:
+> rsp->count is unsigned so the test does not work.
+> 
 
-Applied.
+Thanks. On its way upstream.
 
-Thanks, 
- Phil
+-Phil
 -- 
 : Dipl-Ing Philipp Reisner
 : LINBIT | Your Way to High Availability
