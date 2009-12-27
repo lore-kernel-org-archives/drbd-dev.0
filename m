@@ -1,25 +1,18 @@
-Return-Path: <axboe@kernel.dk>
-Received: from kernel.dk (0122700014.0.fullrate.dk [95.166.99.235])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from racke.rauchzart (p548C8E20.dip0.t-ipconnect.de [84.140.142.32])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 317961072E9B
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Dec 2009 22:41:14 +0100 (CET)
-Date: Tue, 22 Dec 2009 22:41:12 +0100
-From: Jens Axboe <jens.axboe@oracle.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Message-ID: <20091222214112.GV4489@kernel.dk>
-References: <200912220027.nBM0Rrsj005415@imap1.linux-foundation.org>
-	<200912221007.50695.philipp.reisner@linbit.com>
-	<20091222091307.GJ4489@kernel.dk>
-	<20091222092223.8e44a621.akpm@linux-foundation.org>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPSA id 38DDE10620D6
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Dec 2009 13:51:16 +0100 (CET)
+Resent-Message-ID: <20091228125114.GA11365@racke>
+Date: Sun, 27 Dec 2009 22:27:11 +0100 (CET)
+From: Julia Lawall <julia@diku.dk>
+To: drbd-dev@lists.linbit.com, drbd-user@lists.linbit.com,
+	linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
+Message-ID: <Pine.LNX.4.64.0912272226550.20548@ask.diku.dk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091222092223.8e44a621.akpm@linux-foundation.org>
-Cc: roel.kluin@gmail.com, Philipp Reisner <philipp.reisner@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [patch 5/5] drbd: fix test of unsigned in
-	_drbd_fault_random()
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [Drbd-dev] [PATCH 2/5] drivers/block: Correct NULL test
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -29,40 +22,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Dec 22 2009, Andrew Morton wrote:
-> On Tue, 22 Dec 2009 10:13:07 +0100 Jens Axboe <jens.axboe@oracle.com> wrote:
-> 
-> > On Tue, Dec 22 2009, Philipp Reisner wrote:
-> > > Am Dienstag, 22. Dezember 2009 01:27:52 schrieb akpm@linux-foundation.org:
-> > > > From: Roel Kluin <roel.kluin@gmail.com>
-> > > > 
-> > > > rsp->count is unsigned so the test does not work.
-> > > > 
-> > > > Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
-> > > [...]
-> > > 
-> > > This patch is on its way upstream
-> > > See http://git.kernel.dk/?p=linux-2.6-block.git;a=commit;h=49829ea74f790d3be2e803a617e714f5b9a5ed50
-> > > 
-> > > and in the DRBD tree for old kernels...
-> > > http://git.drbd.org/?p=drbd-8.3.git;a=commit;h=f1cb8ce303a26e4763bbfb32660643322f4e228d
-> > 
-> > Indeed, it's been in my for-linus/next for a while, I'm guessing Andrew
-> > just hasn't updated his sources for some days.
-> > 
-> 
-> I pull linux-next every day.
-> 
-> The above patch wasn't in the Dec 19 linux-next, and Stephen won't be
-> doing another -next until Dec 29.
+From: Julia Lawall <julia@diku.dk>
 
-Oh, so that's why. We/I used to have for-akpm, but with -next that has
-become more tricky (since you base on that).
+Test the just-allocated value for NULL rather than some other value.
 
-Anyway, not an issue for me, the only change is having to notify about
-merged patches for the odd ball periods like now were Stephen isn't
-doing daily releases.
+The semantic patch that makes this change is as follows:
+(http://coccinelle.lip6.fr/)
 
--- 
-Jens Axboe
+// <smpl>
+@@
+expression x,y;
+statement S;
+@@
 
+x = \(kmalloc\|kcalloc\|kzalloc\)(...);
+(
+if ((x) == NULL) S
+|
+if (
+-   y
++   x
+       == NULL)
+ S
+)
+// </smpl>
+
+Signed-off-by: Julia Lawall <julia@diku.dk>
+
+---
+ drivers/block/drbd/drbd_receiver.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -u -p a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -3944,7 +3944,7 @@ static int drbd_do_auth(struct drbd_conf
+ 	}
+ 
+ 	right_response = kmalloc(resp_size, GFP_NOIO);
+-	if (response == NULL) {
++	if (right_response == NULL) {
+ 		dev_err(DEV, "kmalloc of right_response failed\n");
+ 		rv = 0;
+ 		goto fail;
