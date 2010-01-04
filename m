@@ -1,22 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5C83B1011BAB
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Dec 2009 23:39:05 +0100 (CET)
-Resent-Message-ID: <20091229223905.GB23877@barkeeper1-xen.linbit>
-Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
-	[140.211.169.13])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5EC101072E88
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Dec 2009 22:33:29 +0100 (CET)
-Message-Id: <200912292133.nBTLXGXU008697@imap1.linux-foundation.org>
-To: roel.kluin@gmail.com, drbd-dev@lists.linbit.com, jens.axboe@oracle.com,
-	philipp.reisner@linbit.com, mm-commits@vger.kernel.org
-From: akpm@linux-foundation.org
-Date: Tue, 29 Dec 2009 13:33:16 -0800
-Subject: [Drbd-dev] [merged]
-	drbd-fix-test-of-unsigned-in-_drbd_fault_random.patch removed
-	from -mm tree
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: drbd-dev@lists.linbit.com,
+ linux-kernel@vger.kernel.org
+Date: Mon, 4 Jan 2010 12:09:35 +0100
+References: <Pine.LNX.4.64.0912272226550.20548@ask.diku.dk>
+In-Reply-To: <Pine.LNX.4.64.0912272226550.20548@ask.diku.dk>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201001041209.35550.philipp.reisner@linbit.com>
+Cc: kernel-janitors@vger.kernel.org, Julia Lawall <julia@diku.dk>
+Subject: Re: [Drbd-dev] [PATCH 2/5] drivers/block: Correct NULL test
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,65 +21,56 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hi,
 
-The patch titled
-     drbd: fix test of unsigned in _drbd_fault_random()
-has been removed from the -mm tree.  Its filename was
-     drbd-fix-test-of-unsigned-in-_drbd_fault_random.patch
+The patch titeled "drivers/block: Correct NULL test" is in the
+git://git.drbd.org/linux-2.6-drbd.git for-jens tree and will
+flow upstream from there.
 
-This patch was dropped because it was merged into mainline or a subsystem tree
+-Phil
 
-The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
-
-------------------------------------------------------
-Subject: drbd: fix test of unsigned in _drbd_fault_random()
-From: Roel Kluin <roel.kluin@gmail.com>
-
-rsp->count is unsigned so the test does not work.
-
-Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- drivers/block/drbd/drbd_main.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff -puN drivers/block/drbd/drbd_main.c~drbd-fix-test-of-unsigned-in-_drbd_fault_random drivers/block/drbd/drbd_main.c
---- a/drivers/block/drbd/drbd_main.c~drbd-fix-test-of-unsigned-in-_drbd_fault_random
-+++ a/drivers/block/drbd/drbd_main.c
-@@ -3623,7 +3623,7 @@ _drbd_fault_random(struct fault_random_s
- {
- 	long refresh;
- 
--	if (--rsp->count < 0) {
-+	if (!rsp->count--) {
- 		get_random_bytes(&refresh, sizeof(refresh));
- 		rsp->state += refresh;
- 		rsp->count = FAULT_RANDOM_REFRESH;
-_
-
-Patches currently in -mm which might be from roel.kluin@gmail.com are
-
-zlib-optimize-inffast-when-copying-direct-from-output.patch
-linux-next.patch
-omap-confusion-in-iommu_put.patch
-powerpc-sky-cpu-redundant-or-incorrect-tests-on-unsigned.patch
-drivers-scsi-fnic-fnic_scsic-clean-up.patch
-ibmmca-buffer-overflow.patch
-scsi-eata-fix-buffer-overflow.patch
-drivers-scsi-gdthc-fix-buffer-overflow.patch
-drivers-scsi-u14-34fc-fix-uffer-overflow.patch
-drivers-scsi-lpfc-lpfc_vportc-fix-read-buffer-overflow.patch
-osst-fix-read-buffer-overflow.patch
-gdth-unmap-ccb_phys-when-scsi_add_host-fails-in-gdth_eisa_probe_one.patch
-zfcp-test-kmalloc-failure-in-scsi_get_vpd_page.patch
-ncr5380-bit-mr_dma_mode-set-twice-in-ncr5380_transfer_dma.patch
-scsi-pmcraid-redundant-check-in-pmcraid_check_ioctl_buffer.patch
-frv-duplicate-output_buffer-of-e03.patch
-frv-duplicate-output_buffer-of-e03-checkpatch-fixes.patch
-cryptocop-fix-assertion-in-create_output_descriptors.patch
-asiliantfb-fix-test-of-unsigned-in-asiliant_calc_dclk2.patch
-
+Full quote:
+> From: Julia Lawall <julia@diku.dk>
+> 
+> Test the just-allocated value for NULL rather than some other value.
+> 
+> The semantic patch that makes this change is as follows:
+> (http://coccinelle.lip6.fr/)
+> 
+> // <smpl>
+> @@
+> expression x,y;
+> statement S;
+> @@
+> 
+> x = \(kmalloc\|kcalloc\|kzalloc\)(...);
+> (
+> if ((x) == NULL) S
+> 
+> if (
+> -   y
+> +   x
+>        == NULL)
+>  S
+> )
+> // </smpl>
+> 
+> Signed-off-by: Julia Lawall <julia@diku.dk>
+> 
+> ---
+>  drivers/block/drbd/drbd_receiver.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff -u -p a/drivers/block/drbd/drbd_receiver.c
+>  b/drivers/block/drbd/drbd_receiver.c ---
+>  a/drivers/block/drbd/drbd_receiver.c
+> +++ b/drivers/block/drbd/drbd_receiver.c
+> @@ -3944,7 +3944,7 @@ static int drbd_do_auth(struct drbd_conf
+>  	}
+> 
+>  	right_response = kmalloc(resp_size, GFP_NOIO);
+> -	if (response == NULL) {
+> +	if (right_response == NULL) {
+>  		dev_err(DEV, "kmalloc of right_response failed\n");
+>  		rv = 0;
+>  		goto fail;
