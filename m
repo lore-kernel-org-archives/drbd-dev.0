@@ -1,22 +1,22 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DAA291072DD8
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Jan 2010 12:37:46 +0100 (CET)
-Resent-Message-ID: <20100106113746.GB23877@barkeeper1-xen.linbit>
-Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
-	[140.211.169.13])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0B5341072DE0
-	for <drbd-dev@lists.linbit.com>; Tue,  5 Jan 2010 22:13:00 +0100 (CET)
-Message-Id: <201001052112.o05LClvd019894@imap1.linux-foundation.org>
-To: julia@diku.dk, drbd-dev@lists.linbit.com, jens.axboe@oracle.com,
-	philipp.reisner@linbit.com, mm-commits@vger.kernel.org
-From: akpm@linux-foundation.org
-Date: Tue, 05 Jan 2010 13:12:47 -0800
-Subject: [Drbd-dev] [merged]
-	drivers-block-drbd-drbd_receiverc-correct-null-test.patch
-	removed from -mm tree
+Return-Path: <Peter.Petrakis@stratus.com>
+Received: from mailhub5.stratus.com (mailhub5.stratus.com [134.111.1.18])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E2E041069125
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Jan 2010 15:51:36 +0100 (CET)
+Received: from EXHQ.corp.stratus.com (exhq.corp.stratus.com [134.111.201.100])
+	by mailhub5.stratus.com (8.12.11/8.12.11) with ESMTP id
+	o06EpDxV024903
+	for <drbd-dev@lists.linbit.com>; Wed, 6 Jan 2010 09:51:13 -0500
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 6 Jan 2010 09:51:23 -0500
+Message-ID: <BC2F8964429F14468EA0E6D6CF00E8C969FBF3@EXHQ.corp.stratus.com>
+In-Reply-To: 20100106113556.GZ23877@barkeeper1-xen.linbit
+From: "Petrakis, Peter" <Peter.Petrakis@stratus.com>
+To: <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] syncsource -> sync completed ack lost
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,80 +26,113 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hi,
 
-The patch titled
-     drivers/block/drbd/drbd_receiver.c: correct NULL test
-has been removed from the -mm tree.  Its filename was
-     drivers-block-drbd-drbd_receiverc-correct-null-test.patch
+> 8.2 is obsolete.
+> it has been superseeded by 8.3
 
-This patch was dropped because it was merged into mainline or a subsystem tree
+I know we're behind, such is the life of a vendor branch :)
+=20
+> if you can reproduce with 8.3,
+> we will certainly look into this.
 
-The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
+I can re-run the tests but in general we have a difficult time
+reproducing these bugs. Do you know of a way I could "stage" the
+state transitions so to make it more reproducable?
+=20
+> but I think we fix a few things that would match your symptoms in 8.3.
+>=20
+> we are currently (well, tomorrow) at 8.3.7 rc2
 
-------------------------------------------------------
-Subject: drivers/block/drbd/drbd_receiver.c: correct NULL test
-From: Julia Lawall <julia@diku.dk>
+That's promising.
+=20
+> > Jan  5 14:36:18 node1 kernel: drbd5: helper command:
+> > /usr/lib/spine/bin/avance_drbd_helper after-resync-target minor-5
+>=20
+> I'd be interessted in this /usr/lib/spine/bin/avance_drbd_helper.
+> what does it do, compared with drbdadm?
 
-Test the just-allocated value for NULL rather than some other value.
+Sure, we wrote our own drbd management daemon which is part of our
+cluster manager. The DRBD resources are constructed as a consequence=20
+of VM provisioning, using drbdsetup. So we already have a config to=20
+reference, however to make use of the fencing handler we would also
+have maintain the drbd.conf file, which after much consideration it was
+determined as being too fragile for our environment: Should one part of
+the config file become inconsistent then all resources are affected.
 
-The semantic patch that makes this change is as follows:
-(http://coccinelle.lip6.fr/)
+avance_drbd_helper will dispatch only the events we care to handle to
+our other custom handlers which will communicate to our management
+daemon
+directly using XML-RPC. So I have access to not only what would
+be found normally in the drbd.conf to make decisions, but the entire
+state
+of the cluster.
 
-// <smpl>
-@@
-expression x,y;
-statement S;
-@@
+$cat avance_drbd_helper
 
-x = \(kmalloc\|kcalloc\|kzalloc\)(...);
-(
-if ((x) == NULL) S
-|
-if (
--   y
-+   x
-       == NULL)
- S
-)
-// </smpl>
+#!/usr/lib/spine/bin/ruby
 
-Signed-off-by: Julia Lawall <julia@diku.dk>
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
 
- drivers/block/drbd/drbd_receiver.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+$:.unshift('/usr/lib/spine')
+$0 =3D 'avance_drbd_helper'
 
-diff -puN drivers/block/drbd/drbd_receiver.c~drivers-block-drbd-drbd_receiverc-correct-null-test drivers/block/drbd/drbd_receiver.c
---- a/drivers/block/drbd/drbd_receiver.c~drivers-block-drbd-drbd_receiverc-correct-null-test
-+++ a/drivers/block/drbd/drbd_receiver.c
-@@ -3945,7 +3945,7 @@ static int drbd_do_auth(struct drbd_conf
- 	}
- 
- 	right_response = kmalloc(resp_size, GFP_NOIO);
--	if (response == NULL) {
-+	if (right_response == NULL) {
- 		dev_err(DEV, "kmalloc of right_response failed\n");
- 		rv = 0;
- 		goto fail;
-_
+require 'base/extensions'
+require 'syslog'
 
-Patches currently in -mm which might be from julia@diku.dk are
+$syslog =3D Syslog.open($0, Syslog::LOG_NDELAY, Syslog::LOG_DAEMON)
+$syslog.notice "invoking #{$0}"
 
-origin.patch
-linux-next.patch
-drivers-scsi-sesc-eliminate-double-free.patch
-kernel-credc-use-kmem_cache_free.patch
-arch-arm-plat-pxa-dmac-correct-null-test.patch
-drivers-gpu-drm-nouveau-nouveau_grctxc-correct-null-test.patch
-drivers-media-video-move-dereference-after-null-test.patch
-arch-mips-alchemy-correct-code-taking-the-size-of-a-pointer.patch
-drivers-scsi-libsas-use-sam_good.patch
-drivers-scsi-remove-unnecessary-null-test.patch
-drivers-message-move-dereference-after-null-test.patch
-drivers-staging-tm6000-tm6000-videoc-correct-null-test.patch
-drivers-edac-introduce-missing-kfree.patch
+usage =3D <<-EOF
+    Description:
+        This is a pass-thru helper for drbd. We execute processes on
+it's
+        behalf and return the exit status back to the khelper.
+    Usage:
+        avance_drbd_helper  <action> <arguments>
+    EOF
 
+puts usage unless ARGV.length > 0
+
+# see drbd_khelper for argument list passed to userspace
+khelper  =3D ARGV[0] # 'outdate-peer'
+resource =3D ARGV[1] # 'minor-5'
+
+# the config file is no longer necessary, add all calls to
+# khelpers here instead.
+if khelper =3D=3D 'outdate-peer' || khelper =3D=3D 'fence-peer'
+    resource.match(/minor-(\d+)/)
+    %x{/usr/lib/spine/bin/drbd_outdate_peer drbd#{$1}}
+    exit $?.exitstatus
+end
+
+if $DEBUG
+    ARGV.each_with_index do |arg, idx|
+        $syslog.notice "arg[#{idx}]=3D'#{arg}'"
+    end
+end
+
+# safe default value for the rest of the handlers e.g.
+before-resync-target
+exit 0
+##
+# vim: ts=3D4:sw=3D4:ai:expandtab
+
+Should anyone else want to use this, just remove any references to
+"spine"
+and "require 'base/extensions'". We override the default implementation
+of
+%x.
+
+Peter
+
+> --
+> : Lars Ellenberg
+> : LINBIT | Your Way to High Availability
+> : DRBD/HA support and consulting http://www.linbit.com
+>=20
+> DRBD(r) and LINBIT(r) are registered trademarks of LINBIT, Austria.
+> _______________________________________________
+> drbd-dev mailing list
+> drbd-dev@lists.linbit.com
+> http://lists.linbit.com/mailman/listinfo/drbd-dev
+>=20
