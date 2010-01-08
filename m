@@ -1,20 +1,14 @@
-Return-Path: <Simon.Graham@stratus.com>
-Received: from mailhub4.stratus.com (mailhub4.stratus.com [134.111.1.17])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5A2FF1072EB9
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Jan 2010 16:03:21 +0100 (CET)
-Content-class: urn:content-classes:message
+Return-Path: <ivoks@ubuntu.com>
+Message-ID: <4B47B824.4040701@ubuntu.com>
+Date: Fri, 08 Jan 2010 23:56:36 +0100
+From: =?UTF-8?B?QW50ZSBLYXJhbWF0acSH?= <ivoks@ubuntu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-Date: Thu, 7 Jan 2010 10:02:43 -0500
-Message-ID: <BC2F8964429F14468EA0E6D6CF00E8C93915A6@EXHQ.corp.stratus.com>
-In-Reply-To: 20100106113556.GZ23877@barkeeper1-xen.linbit
-References: <BC2F8964429F14468EA0E6D6CF00E8C969FBEF@EXHQ.corp.stratus.com>
-	20100106113556.GZ23877@barkeeper1-xen.linbit
-From: "Graham, Simon" <Simon.Graham@stratus.com>
-To: "Lars Ellenberg" <lars.ellenberg@linbit.com>, <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] syncsource -> sync completed ack lost
+To: drbd-user@lists.linbit.com, drbd-dev@lists.linbit.com
+References: <201001071350.25981.philipp.reisner@linbit.com>
+In-Reply-To: <201001071350.25981.philipp.reisner@linbit.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Subject: Re: [Drbd-dev] [DRBD-user] drbd-8.3.7rc2.tar.gz
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,42 +18,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> bounces@lists.linbit.com] On Behalf Of Lars Ellenberg
-> > This is on drbd 8.2.7. The sync target was recently outdarted and
-> > resynced
->=20
-> please go to 8.3 branch.
-> 8.2 is obsolete.
->=20
-> if you can reproduce with 8.3,
-> we will certainly look into this.
->
+On 07.01.2010 13:50, Philipp Reisner wrote:
 
-Whilst I understand your desire to move on and only support 8.3, you
-must understand that products using DRBD internally cannot move
-instantly to a new release - not only do we have to integrate and
-thoroughly test the new release before shipping it to customers, we also
-have an installed base that we need to support and fix bugs for.
+> The second release candidate of 8.3.7 is intended to be the least RC.
 
-Obviously it's our problem to do this but some help locating the issues
-would be appreciated.
+Am I missing something in the build process? By default, when 
+configured, prefix is /usr/local. Yet, files get installed even in 
+/sbin/. Example:
 
-> but I think we fix a few things that would match your symptoms in 8.3.
+./configure --prefix=/tmp/DRBD
+make
+make install
 
-If you could give some hints as to what was fixed that would be helpful.
+and the problem:
 
-BTW: it's not even very easy to move to 8.3 internally to see if the
-problem has been fixed for a couple of reasons:
+make[1]: Entering directory `/tmp/drbd-8.3.7rc2/user'
+install -d //sbin/
 
-1. Changes in the build in 8.3 have made it hard to build from git - I
-don't know all the
-   details but there are issues with the autoconf stuff when building
-from git that cause
-   the RPM build to fail.
+in user/Makefile.in, there's:
 
-2. These problems are very hard to reproduce - we need to work hard to
-debug from available
-   data when they occur because we don't have the luxury of reproducing
-easily.
+install -d $(DESTDIR)/sbin/
 
-Simon
+while DESTDIR is defined as:
+
+DESTDIR ?= /
+
+So, prefix is ignored and DESTDIR can be overridden by:
+
+DESTDIR=/tmp/DRBD make install
+
+that creates /tmp/DRBD with arch dependent files and /tmp/DRBD/tmp/DRBD 
+with arch independent files.
+
+Take care
