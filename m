@@ -1,30 +1,20 @@
-Return-Path: <nhorman@tuxdriver.com>
-Received: from smtp.tuxdriver.com (charlotte.tuxdriver.com [70.61.120.58])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 186641011BEC
-	for <drbd-dev@lists.linbit.com>; Sun, 31 Jan 2010 18:42:09 +0100 (CET)
-Date: Sun, 31 Jan 2010 12:41:48 -0500
-From: Neil Horman <nhorman@tuxdriver.com>
-To: Oleg Nesterov <oleg@redhat.com>
-Message-ID: <20100131160030.GB1950@localhost.localdomain>
-References: <20100121200806.GA29801@shamino.rdu.redhat.com>
-	<20100129151024.GA19249@hmsreliant.think-freely.org>
-	<20100129151458.GC19249@hmsreliant.think-freely.org>
-	<20100131155000.GB13402@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100131155000.GB13402@redhat.com>
-Cc: jmoskovc@redhat.com, neilb@suse.de, benh@kernel.crashing.org,
-	gregkh@suse.de, takedakn@nttdata.co.jp,
-	linux-kernel@vger.kernel.org, spock@gentoo.org, mingo@redhat.com,
-	viro@zeniv.linux.org.uk, mfasheh@suse.com,
-	akpm@linux-foundation.org, t.sailer@alumni.ethz.ch,
-	shemminger@linux-foundation.org, menage@google.com,
-	abelay@mit.edu, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 2/2] exec: allow core_pipe recursion check to
- look for a value of 1 rather than 0 (v2)
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 839E7106DFEC
+	for <drbd-dev@lists.linbit.com>; Mon,  1 Feb 2010 11:00:52 +0100 (CET)
+Resent-Message-ID: <20100201100052.GA13031@soda.linbit>
+Message-Id: <20100129203613.703416262@linutronix.de>
+Date: Fri, 29 Jan 2010 20:39:07 -0000
+From: Thomas Gleixner <tglx@linutronix.de>
+To: LKML <linux-kernel@vger.kernel.org>
+References: <20100129203549.526478432@linutronix.de>
+Content-Disposition: inline; filename=drivers-block-drbd-use-mutex.patch
+Cc: Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <peterz@infradead.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Ingo Molnar <mingo@elte.hu>, drbd-user@lists.linbit.com,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] [patch 09/10] block: drbd: Convert semaphore to mutex
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -34,57 +24,67 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Jan 31, 2010 at 04:50:01PM +0100, Oleg Nesterov wrote:
-> On 01/29, Neil Horman wrote:
-> >
-> >  void do_coredump(long signr, int exit_code, struct pt_regs *regs)
-> >  {
-> > ...
-> > -		if (call_usermodehelper_pipe(helper_argv[0], helper_argv, NULL,
-> > -				&cprm.file)) {
-> > +		cprm.file = NULL;
-> 
-> it is already NULL,
-> 
-Are we sure, it was declared on the stack.  I think its safer to ensure that its
-NULL.
+The bm_change semaphore is semantically a mutex. Convert it to a real
+mutex.
+
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: drbd-user@lists.linbit.com
+
+---
+ drivers/block/drbd/drbd_bitmap.c |   10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+Index: linux-2.6-tip/drivers/block/drbd/drbd_bitmap.c
+===================================================================
+--- linux-2.6-tip.orig/drivers/block/drbd/drbd_bitmap.c
++++ linux-2.6-tip/drivers/block/drbd/drbd_bitmap.c
+@@ -66,7 +66,7 @@ struct drbd_bitmap {
+ 	size_t   bm_words;
+ 	size_t   bm_number_of_pages;
+ 	sector_t bm_dev_capacity;
+-	struct semaphore bm_change; /* serializes resize operations */
++	struct mutex bm_change; /* serializes resize operations */
  
-> > +		if (call_usermodehelper_fns(helper_argv[0], helper_argv, NULL,
-> > +					    UMH_WAIT_EXEC, umh_pipe_setup,
-> > +					    NULL, &cprm)) {
-> > +			if (cprm.file)
-> > +				filp_close(cprm.file, NULL);
-> 
-> Hmm. Looks like this change fixes the bug by accident.
-> 
-> Before this patch, I think we leak info->stdin if kernel_thread() fails
-> in __call_usermodehelper() pathes.
-> 
-I think we did that in call_usermodehelper_pipe.
+ 	atomic_t bm_async_io;
+ 	wait_queue_head_t bm_io_wait;
+@@ -114,7 +114,7 @@ void drbd_bm_lock(struct drbd_conf *mdev
+ 		return;
+ 	}
+ 
+-	trylock_failed = down_trylock(&b->bm_change);
++	trylock_failed = !mutex_trylock(&b->bm_change);
+ 
+ 	if (trylock_failed) {
+ 		dev_warn(DEV, "%s going to '%s' but bitmap already locked for '%s' by %s\n",
+@@ -125,7 +125,7 @@ void drbd_bm_lock(struct drbd_conf *mdev
+ 		    b->bm_task == mdev->receiver.task ? "receiver" :
+ 		    b->bm_task == mdev->asender.task  ? "asender"  :
+ 		    b->bm_task == mdev->worker.task   ? "worker"   : "?");
+-		down(&b->bm_change);
++		mutex_lock(&b->bm_change);
+ 	}
+ 	if (__test_and_set_bit(BM_LOCKED, &b->bm_flags))
+ 		dev_err(DEV, "FIXME bitmap already locked in bm_lock\n");
+@@ -147,7 +147,7 @@ void drbd_bm_unlock(struct drbd_conf *md
+ 
+ 	b->bm_why  = NULL;
+ 	b->bm_task = NULL;
+-	up(&b->bm_change);
++	mutex_unlock(&b->bm_change);
+ }
+ 
+ /* word offset to long pointer */
+@@ -295,7 +295,7 @@ int drbd_bm_init(struct drbd_conf *mdev)
+ 	if (!b)
+ 		return -ENOMEM;
+ 	spin_lock_init(&b->bm_lock);
+-	init_MUTEX(&b->bm_change);
++	mutex_init(&b->bm_change);
+ 	init_waitqueue_head(&b->bm_io_wait);
+ 
+ 	mdev->bitmap = b;
 
-> 
-> 
-> Completely off-topic, but I think __call_usermodehelper(UMH_NO_WAIT) is
-> buggy. if kernel_thread() failes it should do call_usermodehelper_freeinfo().
-> Also, UMH_WAIT_EXEC should set ->retval in this case.
-> 
-I went down that path last time I changed this code, Andrew and I decided that
-yes it was buggy, but someone (can't recall how) smacked me around a bit and
-explained how it worked (some odd artifact behavior of the scheduler).  Its in
-the lkml archives if you want to get the whole story.
 
-> Cough. And why call_usermodehelper_exec() has this strange ->path[0] == '\0'
-> check?
-> 
-That I can't explain.  I figured I'd let that sleeping dog lie until this got
-striaghtened out and fix it separately if it needed it
-Neil
-
-> Oleg.
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
