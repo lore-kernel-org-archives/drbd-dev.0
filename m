@@ -1,31 +1,26 @@
-Return-Path: <akpm@linux-foundation.org>
-Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
-	[140.211.169.13])
+Return-Path: <nhorman@tuxdriver.com>
+Received: from smtp.tuxdriver.com (charlotte.tuxdriver.com [70.61.120.58])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1DF0D10724E5
-	for <drbd-dev@lists.linbit.com>; Wed, 27 Jan 2010 22:34:20 +0100 (CET)
-Date: Wed, 27 Jan 2010 13:34:08 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Neil Horman <nhorman@tuxdriver.com>
-Message-Id: <20100127133408.9d8f72fe.akpm@linux-foundation.org>
-In-Reply-To: <20100127212239.GA15052@hmsreliant.think-freely.org>
-References: <201001262354.o0QNsBiM029772@imap1.linux-foundation.org>
-	<20100127174706.GA6333@redhat.com>
-	<20100127175852.GA7511@redhat.com>
-	<20100127212239.GA15052@hmsreliant.think-freely.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4FF491011BEC
+	for <drbd-dev@lists.linbit.com>; Fri, 29 Jan 2010 16:10:41 +0100 (CET)
+Date: Fri, 29 Jan 2010 10:10:24 -0500
+From: Neil Horman <nhorman@tuxdriver.com>
+To: linux-kernel@vger.kernel.org
+Message-ID: <20100129151024.GA19249@hmsreliant.think-freely.org>
+References: <20100121200806.GA29801@shamino.rdu.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100121200806.GA29801@shamino.rdu.redhat.com>
 Cc: jmoskovc@redhat.com, neilb@suse.de, benh@kernel.crashing.org,
-	gregkh@suse.de, takedakn@nttdata.co.jp,
-	Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org,
+	gregkh@suse.de, takedakn@nttdata.co.jp, oleg@redhat.com,
 	spock@gentoo.org, mingo@redhat.com, viro@zeniv.linux.org.uk,
-	mfasheh@suse.com, menage@google.com, t.sailer@alumni.ethz.ch,
-	shemminger@linux-foundation.org, abelay@mit.edu, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] +
- exec-allow-core_pipe-recursion-check-to-look-for-a-value-of-1-rather
- -than-0.patch added to -mm tree
+	mfasheh@suse.com, akpm@linux-foundation.org,
+	drbd-dev@lists.linbit.com, shemminger@linux-foundation.org,
+	menage@google.com, abelay@mit.edu, t.sailer@alumni.ethz.ch
+Subject: Re: [Drbd-dev] [PATCH 0/2] exec: allow core_pipe recursion check to
+ look for a value of 1 rather than 0 (v2)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -35,31 +30,72 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, 27 Jan 2010 16:22:39 -0500
-Neil Horman <nhorman@tuxdriver.com> wrote:
+Ok, version two of this patch.  I've cleaned up the comments, checkpatched,
+rediffed to the latest -mm, etc.  More interestingly, I've taken Olegs changes
+into account in this version of the patch.  By modifying Andi's work slightly,
+I've introduced a new init fptr to the usermodehelper api, which lets a caller
+customize the process that will be doing the helping.  In the case of the
+do_coredump path its now used to create the read/write pipes.  This allows us to
+remove the stdin specifics from the usermodehelper internals and factor our
+call_usermodehelper_pipe entirely.  I've tested this myself using abrt on
+Fedora, with good results
 
-> On Wed, Jan 27, 2010 at 06:58:52PM +0100, Oleg Nesterov wrote:
-> > On 01/27, Oleg Nesterov wrote:
-> > >
-> > > Currently only d_coredump() needs this new feature, but please note
-> > > that ____call_usermodehelper() was already "uglified" for the coredumping
-> > > over the pipe.
-> > >
-> > > If we add sub_info->finit(), then probably we should move the code
-> > > under "if (sub_info->stdin)" from ____call_usermodehelper() to
-> > > core_pipe_setup() ?
-> > 
-> > And, perhaps, we should not change call_usermodehelper() and all its
-> > callers? If the caller needs ->finit() it can customize subprocess_info
-> > like call_usermodehelper_pipe() already does?
-> > 
-> > To clarify, I don't have a "strong" opinion, I am just asking.
-> > 
-> I'm not opposed to that, Since Andew has already taken these patches, I'll
-> tinkier to see how such an implementation change looks, and post some follow on
-> patches if it seems good.  I'll clean up the comments while I'm at it.
-> 
+Summary:
+	So, about 6 months ago, I made a set of changes to how the
+core-dump-to-a-pipe feature in the kernel works.  We had reports of several
+races, including some reports of apps bypassing our recursion check so that a
+process that was forked as part of a core_pattern setup could infinitely crash
+and refork until the system crashed.
 
-The patch conflicts a bit with Andi's
-sysctl-add-call_usermodehelper_cleanup.patch so I dropped v1 of
-exec-allow-core_pipe-recursion-check-to-look-for-a-value-of-1-rather-than-0.patch
+	We fixes those by improving our recursion checks.  The new check
+basically refuses to fork a process if its core limit is zero, which works well.
+
+	Unfortunately, I've been getting grief from maintainer of user space
+programs that are inserted as the forked process of core_pattern.  They contend
+that in order for their programs (such as abrt and apport) to work, all the
+running processes in a system must have their core limits set to a non-zero
+value, to which I say 'yes'.  I did this by design, and think thats the right
+way to do things.
+
+	But I've been asked to ease this burden on user space enough times that
+I thought I would take a look at it.  The first suggestion was to make the
+recursion check fail on a non-zero 'special' number, like one.  That way the
+core collector process could set its core size ulimit to 1, and enable the
+kernel's recursion detection.  This isn't a bad idea on the surface, but I don't
+like it since its opt-in, in that if a program like abrt or apport has a bug and
+fails to set such a core limit, we're left with a recursively crashing system
+again.
+
+	So I've come up with this.  What I've done is modify the
+call_usermodehelper api such that an extra parameter is added, a function
+pointer which will be called by the user helper task, after it forks, but before
+it exec's the required process.  This will give the caller the opportunity to
+get a call back in the processes context, allowing it to do whatever it needs to
+to the process in the kernel prior to exec-ing the user space code.  In the case
+of do_coredump, this callback is ues to set the core ulimit of the helper
+process to 1.  This elimnates the opt-in problem that I had above, as it allows
+the ulimit for core sizes to be set to the value of 1, which is what the
+recursion check looks for in do_coredump.
+
+	This patch has been tested successfully by some of the Abrt maintainers
+in fedora, with good results.  Patch applies to the latest -mm tree as of this
+AM.
+
+Neil
+
+Signed-off-by: Neil Horman <nhorman@tuxdriver.com>
+Tested-by: Neil Horman <nhorman@redhat.com>
+CC: Ingo Molnar <mingo@redhat.com>
+CC: drbd-dev@lists.linbit.com
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Thomas Sailer <t.sailer@alumni.ethz.ch>
+CC: Adam Belay <abelay@mit.edu>
+CC: Greg Kroah-Hartman <gregkh@suse.de>
+CC: Michal Januszewski <spock@gentoo.org>
+CC: Al Viro <viro@zeniv.linux.org.uk>
+CC: Neil Brown <neilb@suse.de>
+CC: Mark Fasheh <mfasheh@suse.com>
+CC: Paul Menage <menage@google.com>
+CC: Stephen Hemminger <shemminger@linux-foundation.org>
+CC: Kentaro Takeda <takedakn@nttdata.co.jp>
+CC: Oleg Nesterov <oleg@redhat.com
