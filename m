@@ -2,20 +2,20 @@ Return-Path: <nhorman@tuxdriver.com>
 Received: from smtp.tuxdriver.com (charlotte.tuxdriver.com [70.61.120.58])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6F5B0106DFE9
-	for <drbd-dev@lists.linbit.com>; Sun, 31 Jan 2010 16:41:57 +0100 (CET)
-Date: Sun, 31 Jan 2010 10:41:35 -0500
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 186641011BEC
+	for <drbd-dev@lists.linbit.com>; Sun, 31 Jan 2010 18:42:09 +0100 (CET)
+Date: Sun, 31 Jan 2010 12:41:48 -0500
 From: Neil Horman <nhorman@tuxdriver.com>
 To: Oleg Nesterov <oleg@redhat.com>
-Message-ID: <20100131154135.GA1950@localhost.localdomain>
+Message-ID: <20100131160030.GB1950@localhost.localdomain>
 References: <20100121200806.GA29801@shamino.rdu.redhat.com>
 	<20100129151024.GA19249@hmsreliant.think-freely.org>
-	<20100129151351.GB19249@hmsreliant.think-freely.org>
-	<20100131144606.GA13402@redhat.com>
+	<20100129151458.GC19249@hmsreliant.think-freely.org>
+	<20100131155000.GB13402@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100131144606.GA13402@redhat.com>
+In-Reply-To: <20100131155000.GB13402@redhat.com>
 Cc: jmoskovc@redhat.com, neilb@suse.de, benh@kernel.crashing.org,
 	gregkh@suse.de, takedakn@nttdata.co.jp,
 	linux-kernel@vger.kernel.org, spock@gentoo.org, mingo@redhat.com,
@@ -23,7 +23,7 @@ Cc: jmoskovc@redhat.com, neilb@suse.de, benh@kernel.crashing.org,
 	akpm@linux-foundation.org, t.sailer@alumni.ethz.ch,
 	shemminger@linux-foundation.org, menage@google.com,
 	abelay@mit.edu, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 1/2] exec: allow core_pipe recursion check to
+Subject: Re: [Drbd-dev] [PATCH 2/2] exec: allow core_pipe recursion check to
  look for a value of 1 rather than 0 (v2)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -34,60 +34,57 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Jan 31, 2010 at 03:46:06PM +0100, Oleg Nesterov wrote:
+On Sun, Jan 31, 2010 at 04:50:01PM +0100, Oleg Nesterov wrote:
 > On 01/29, Neil Horman wrote:
 > >
-> > Add init function to usermodehelper
-> >
-> > Convert call_usermodehelper_cleanup to usermodehelper_fns and allow it to assign
-> > both an init function and a cleanup function.
+> >  void do_coredump(long signr, int exit_code, struct pt_regs *regs)
+> >  {
+> > ...
+> > -		if (call_usermodehelper_pipe(helper_argv[0], helper_argv, NULL,
+> > -				&cprm.file)) {
+> > +		cprm.file = NULL;
 > 
-> Can't apply this patch, I guess -mm tree has other changes which
-> this patch depends on. However afaics this series is fine, just
-> a couple of nits.
+> it is already NULL,
 > 
-Yeah, this will only apply to latest -mm
-
-> > @@ -154,7 +155,9 @@ struct subprocess_info {
-> >  	enum umh_wait wait;
-> >  	int retval;
-> >  	struct file *stdin;
-> > -	void (*cleanup)(char **argv, char **envp);
-> > +	int (*init)(void *data);
-> > +	void (*cleanup)(char **argv, char **envp, void *data);
-> > +	void *data;
-> 
-> OK, we add *data. But why this patch changes the prototype of ->cleanup() ?
-> OTOH, I completely agree, it should be changed, and it should lose the
-> ugly argv/envp arguments.
-> 
-> Since we add subprocess_info->data ptr, I think both ->init and ->cleanup
-> funcs should have the single arg, "subprocess_info *info". argv, envp, data
-> they all can be accessed via *info.
-> 
-Yeah, I can do that.
-
-> Also. It is not clear why this patch changes call_usermodehelper_setup()
-> to set info->data. Unless the caller uses call_usermodehelper_setinit()
-> or call_usermodehelper_setcleanup() info->data is not used. Perhaps
-> it is better to have a single helper which takes (init, cleanup, data)
-> args.
-> 
-> What do you think?
-> 
-Yeah, that seems reasonable, Honestly, I'm a bit confused as to why there are
-set* helpers in the first place, we could just eliminate them entirely, since
-callers can set all three independently with call_usermodehelper_fns.  Anywho,
-I'll clean that up some more.
+Are we sure, it was declared on the stack.  I think its safer to ensure that its
+NULL.
  
-> In any case, I believe you should fix the subjects ;)
+> > +		if (call_usermodehelper_fns(helper_argv[0], helper_argv, NULL,
+> > +					    UMH_WAIT_EXEC, umh_pipe_setup,
+> > +					    NULL, &cprm)) {
+> > +			if (cprm.file)
+> > +				filp_close(cprm.file, NULL);
 > 
-Not sure whats wrong with the subjects, although I guess I am doing a good bit
-more than just fixing that at this point :).  I'll expand them.
+> Hmm. Looks like this change fixes the bug by accident.
+> 
+> Before this patch, I think we leak info->stdin if kernel_thread() fails
+> in __call_usermodehelper() pathes.
+> 
+I think we did that in call_usermodehelper_pipe.
 
-Give me a few days, and I'll repost.
+> 
+> 
+> Completely off-topic, but I think __call_usermodehelper(UMH_NO_WAIT) is
+> buggy. if kernel_thread() failes it should do call_usermodehelper_freeinfo().
+> Also, UMH_WAIT_EXEC should set ->retval in this case.
+> 
+I went down that path last time I changed this code, Andrew and I decided that
+yes it was buggy, but someone (can't recall how) smacked me around a bit and
+explained how it worked (some odd artifact behavior of the scheduler).  Its in
+the lkml archives if you want to get the whole story.
+
+> Cough. And why call_usermodehelper_exec() has this strange ->path[0] == '\0'
+> check?
+> 
+That I can't explain.  I figured I'd let that sleeping dog lie until this got
+striaghtened out and fix it separately if it needed it
 Neil
 
 > Oleg.
 > 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 > 
