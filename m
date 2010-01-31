@@ -1,22 +1,22 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 27FA8106DFFC
-	for <drbd-dev@lists.linbit.com>; Mon,  1 Feb 2010 11:01:20 +0100 (CET)
-Resent-Message-ID: <20100201100119.GB13031@soda.linbit>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 23909106E007
+	for <drbd-dev@lists.linbit.com>; Mon,  1 Feb 2010 11:01:34 +0100 (CET)
+Resent-Message-ID: <20100201100133.GC13031@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5D2B71011BE1
-	for <drbd-dev@lists.linbit.com>; Sun, 31 Jan 2010 15:47:46 +0100 (CET)
-Date: Sun, 31 Jan 2010 15:46:06 +0100
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 16EBB106DFE9
+	for <drbd-dev@lists.linbit.com>; Sun, 31 Jan 2010 16:51:13 +0100 (CET)
+Date: Sun, 31 Jan 2010 16:50:01 +0100
 From: Oleg Nesterov <oleg@redhat.com>
 To: Neil Horman <nhorman@tuxdriver.com>
-Message-ID: <20100131144606.GA13402@redhat.com>
+Message-ID: <20100131155000.GB13402@redhat.com>
 References: <20100121200806.GA29801@shamino.rdu.redhat.com>
 	<20100129151024.GA19249@hmsreliant.think-freely.org>
-	<20100129151351.GB19249@hmsreliant.think-freely.org>
+	<20100129151458.GC19249@hmsreliant.think-freely.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100129151351.GB19249@hmsreliant.think-freely.org>
+In-Reply-To: <20100129151458.GC19249@hmsreliant.think-freely.org>
 Cc: jmoskovc@redhat.com, neilb@suse.de, benh@kernel.crashing.org,
 	gregkh@suse.de, takedakn@nttdata.co.jp,
 	linux-kernel@vger.kernel.org, spock@gentoo.org, mingo@redhat.com,
@@ -24,7 +24,7 @@ Cc: jmoskovc@redhat.com, neilb@suse.de, benh@kernel.crashing.org,
 	akpm@linux-foundation.org, t.sailer@alumni.ethz.ch,
 	shemminger@linux-foundation.org, menage@google.com,
 	abelay@mit.edu, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 1/2] exec: allow core_pipe recursion check to
+Subject: Re: [Drbd-dev] [PATCH 2/2] exec: allow core_pipe recursion check to
 	look for	a value of 1 rather than 0 (v2)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -37,41 +37,34 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 On 01/29, Neil Horman wrote:
 >
-> Add init function to usermodehelper
->
-> Convert call_usermodehelper_cleanup to usermodehelper_fns and allow it to assign
-> both an init function and a cleanup function.
+>  void do_coredump(long signr, int exit_code, struct pt_regs *regs)
+>  {
+> ...
+> -		if (call_usermodehelper_pipe(helper_argv[0], helper_argv, NULL,
+> -				&cprm.file)) {
+> +		cprm.file = NULL;
 
-Can't apply this patch, I guess -mm tree has other changes which
-this patch depends on. However afaics this series is fine, just
-a couple of nits.
+it is already NULL,
 
-> @@ -154,7 +155,9 @@ struct subprocess_info {
->  	enum umh_wait wait;
->  	int retval;
->  	struct file *stdin;
-> -	void (*cleanup)(char **argv, char **envp);
-> +	int (*init)(void *data);
-> +	void (*cleanup)(char **argv, char **envp, void *data);
-> +	void *data;
+> +		if (call_usermodehelper_fns(helper_argv[0], helper_argv, NULL,
+> +					    UMH_WAIT_EXEC, umh_pipe_setup,
+> +					    NULL, &cprm)) {
+> +			if (cprm.file)
+> +				filp_close(cprm.file, NULL);
 
-OK, we add *data. But why this patch changes the prototype of ->cleanup() ?
-OTOH, I completely agree, it should be changed, and it should lose the
-ugly argv/envp arguments.
+Hmm. Looks like this change fixes the bug by accident.
 
-Since we add subprocess_info->data ptr, I think both ->init and ->cleanup
-funcs should have the single arg, "subprocess_info *info". argv, envp, data
-they all can be accessed via *info.
+Before this patch, I think we leak info->stdin if kernel_thread() fails
+in __call_usermodehelper() pathes.
 
-Also. It is not clear why this patch changes call_usermodehelper_setup()
-to set info->data. Unless the caller uses call_usermodehelper_setinit()
-or call_usermodehelper_setcleanup() info->data is not used. Perhaps
-it is better to have a single helper which takes (init, cleanup, data)
-args.
 
-What do you think?
 
-In any case, I believe you should fix the subjects ;)
+Completely off-topic, but I think __call_usermodehelper(UMH_NO_WAIT) is
+buggy. if kernel_thread() failes it should do call_usermodehelper_freeinfo().
+Also, UMH_WAIT_EXEC should set ->retval in this case.
+
+Cough. And why call_usermodehelper_exec() has this strange ->path[0] == '\0'
+check?
 
 Oleg.
 
