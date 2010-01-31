@@ -1,20 +1,31 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 839E7106DFEC
-	for <drbd-dev@lists.linbit.com>; Mon,  1 Feb 2010 11:00:52 +0100 (CET)
-Resent-Message-ID: <20100201100052.GA13031@soda.linbit>
-Message-Id: <20100129203613.703416262@linutronix.de>
-Date: Fri, 29 Jan 2010 20:39:07 -0000
-From: Thomas Gleixner <tglx@linutronix.de>
-To: LKML <linux-kernel@vger.kernel.org>
-References: <20100129203549.526478432@linutronix.de>
-Content-Disposition: inline; filename=drivers-block-drbd-use-mutex.patch
-Cc: Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <peterz@infradead.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Ingo Molnar <mingo@elte.hu>, drbd-user@lists.linbit.com,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [patch 09/10] block: drbd: Convert semaphore to mutex
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 27FA8106DFFC
+	for <drbd-dev@lists.linbit.com>; Mon,  1 Feb 2010 11:01:20 +0100 (CET)
+Resent-Message-ID: <20100201100119.GB13031@soda.linbit>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5D2B71011BE1
+	for <drbd-dev@lists.linbit.com>; Sun, 31 Jan 2010 15:47:46 +0100 (CET)
+Date: Sun, 31 Jan 2010 15:46:06 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+To: Neil Horman <nhorman@tuxdriver.com>
+Message-ID: <20100131144606.GA13402@redhat.com>
+References: <20100121200806.GA29801@shamino.rdu.redhat.com>
+	<20100129151024.GA19249@hmsreliant.think-freely.org>
+	<20100129151351.GB19249@hmsreliant.think-freely.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100129151351.GB19249@hmsreliant.think-freely.org>
+Cc: jmoskovc@redhat.com, neilb@suse.de, benh@kernel.crashing.org,
+	gregkh@suse.de, takedakn@nttdata.co.jp,
+	linux-kernel@vger.kernel.org, spock@gentoo.org, mingo@redhat.com,
+	viro@zeniv.linux.org.uk, mfasheh@suse.com,
+	akpm@linux-foundation.org, t.sailer@alumni.ethz.ch,
+	shemminger@linux-foundation.org, menage@google.com,
+	abelay@mit.edu, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 1/2] exec: allow core_pipe recursion check to
+	look for	a value of 1 rather than 0 (v2)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,67 +35,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The bm_change semaphore is semantically a mutex. Convert it to a real
-mutex.
+On 01/29, Neil Horman wrote:
+>
+> Add init function to usermodehelper
+>
+> Convert call_usermodehelper_cleanup to usermodehelper_fns and allow it to assign
+> both an init function and a cleanup function.
 
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: drbd-user@lists.linbit.com
+Can't apply this patch, I guess -mm tree has other changes which
+this patch depends on. However afaics this series is fine, just
+a couple of nits.
 
----
- drivers/block/drbd/drbd_bitmap.c |   10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+> @@ -154,7 +155,9 @@ struct subprocess_info {
+>  	enum umh_wait wait;
+>  	int retval;
+>  	struct file *stdin;
+> -	void (*cleanup)(char **argv, char **envp);
+> +	int (*init)(void *data);
+> +	void (*cleanup)(char **argv, char **envp, void *data);
+> +	void *data;
 
-Index: linux-2.6-tip/drivers/block/drbd/drbd_bitmap.c
-===================================================================
---- linux-2.6-tip.orig/drivers/block/drbd/drbd_bitmap.c
-+++ linux-2.6-tip/drivers/block/drbd/drbd_bitmap.c
-@@ -66,7 +66,7 @@ struct drbd_bitmap {
- 	size_t   bm_words;
- 	size_t   bm_number_of_pages;
- 	sector_t bm_dev_capacity;
--	struct semaphore bm_change; /* serializes resize operations */
-+	struct mutex bm_change; /* serializes resize operations */
- 
- 	atomic_t bm_async_io;
- 	wait_queue_head_t bm_io_wait;
-@@ -114,7 +114,7 @@ void drbd_bm_lock(struct drbd_conf *mdev
- 		return;
- 	}
- 
--	trylock_failed = down_trylock(&b->bm_change);
-+	trylock_failed = !mutex_trylock(&b->bm_change);
- 
- 	if (trylock_failed) {
- 		dev_warn(DEV, "%s going to '%s' but bitmap already locked for '%s' by %s\n",
-@@ -125,7 +125,7 @@ void drbd_bm_lock(struct drbd_conf *mdev
- 		    b->bm_task == mdev->receiver.task ? "receiver" :
- 		    b->bm_task == mdev->asender.task  ? "asender"  :
- 		    b->bm_task == mdev->worker.task   ? "worker"   : "?");
--		down(&b->bm_change);
-+		mutex_lock(&b->bm_change);
- 	}
- 	if (__test_and_set_bit(BM_LOCKED, &b->bm_flags))
- 		dev_err(DEV, "FIXME bitmap already locked in bm_lock\n");
-@@ -147,7 +147,7 @@ void drbd_bm_unlock(struct drbd_conf *md
- 
- 	b->bm_why  = NULL;
- 	b->bm_task = NULL;
--	up(&b->bm_change);
-+	mutex_unlock(&b->bm_change);
- }
- 
- /* word offset to long pointer */
-@@ -295,7 +295,7 @@ int drbd_bm_init(struct drbd_conf *mdev)
- 	if (!b)
- 		return -ENOMEM;
- 	spin_lock_init(&b->bm_lock);
--	init_MUTEX(&b->bm_change);
-+	mutex_init(&b->bm_change);
- 	init_waitqueue_head(&b->bm_io_wait);
- 
- 	mdev->bitmap = b;
+OK, we add *data. But why this patch changes the prototype of ->cleanup() ?
+OTOH, I completely agree, it should be changed, and it should lose the
+ugly argv/envp arguments.
 
+Since we add subprocess_info->data ptr, I think both ->init and ->cleanup
+funcs should have the single arg, "subprocess_info *info". argv, envp, data
+they all can be accessed via *info.
+
+Also. It is not clear why this patch changes call_usermodehelper_setup()
+to set info->data. Unless the caller uses call_usermodehelper_setinit()
+or call_usermodehelper_setcleanup() info->data is not used. Perhaps
+it is better to have a single helper which takes (init, cleanup, data)
+args.
+
+What do you think?
+
+In any case, I believe you should fix the subjects ;)
+
+Oleg.
 
