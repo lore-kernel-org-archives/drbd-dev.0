@@ -2,25 +2,28 @@ Return-Path: <nhorman@tuxdriver.com>
 Received: from smtp.tuxdriver.com (charlotte.tuxdriver.com [70.61.120.58])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 97989106DFE2
-	for <drbd-dev@lists.linbit.com>; Fri, 29 Jan 2010 16:15:20 +0100 (CET)
-Date: Fri, 29 Jan 2010 10:14:58 -0500
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6F5B0106DFE9
+	for <drbd-dev@lists.linbit.com>; Sun, 31 Jan 2010 16:41:57 +0100 (CET)
+Date: Sun, 31 Jan 2010 10:41:35 -0500
 From: Neil Horman <nhorman@tuxdriver.com>
-To: linux-kernel@vger.kernel.org
-Message-ID: <20100129151458.GC19249@hmsreliant.think-freely.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Message-ID: <20100131154135.GA1950@localhost.localdomain>
 References: <20100121200806.GA29801@shamino.rdu.redhat.com>
 	<20100129151024.GA19249@hmsreliant.think-freely.org>
+	<20100129151351.GB19249@hmsreliant.think-freely.org>
+	<20100131144606.GA13402@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100129151024.GA19249@hmsreliant.think-freely.org>
+In-Reply-To: <20100131144606.GA13402@redhat.com>
 Cc: jmoskovc@redhat.com, neilb@suse.de, benh@kernel.crashing.org,
-	gregkh@suse.de, takedakn@nttdata.co.jp, oleg@redhat.com,
-	spock@gentoo.org, mingo@redhat.com, viro@zeniv.linux.org.uk,
-	mfasheh@suse.com, akpm@linux-foundation.org,
-	drbd-dev@lists.linbit.com, shemminger@linux-foundation.org,
-	menage@google.com, abelay@mit.edu, t.sailer@alumni.ethz.ch
-Subject: Re: [Drbd-dev] [PATCH 2/2] exec: allow core_pipe recursion check to
+	gregkh@suse.de, takedakn@nttdata.co.jp,
+	linux-kernel@vger.kernel.org, spock@gentoo.org, mingo@redhat.com,
+	viro@zeniv.linux.org.uk, mfasheh@suse.com,
+	akpm@linux-foundation.org, t.sailer@alumni.ethz.ch,
+	shemminger@linux-foundation.org, menage@google.com,
+	abelay@mit.edu, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 1/2] exec: allow core_pipe recursion check to
  look for a value of 1 rather than 0 (v2)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -31,250 +34,60 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Replace call_usermodehelper_pipe with use of umh init function and resolve limit
+On Sun, Jan 31, 2010 at 03:46:06PM +0100, Oleg Nesterov wrote:
+> On 01/29, Neil Horman wrote:
+> >
+> > Add init function to usermodehelper
+> >
+> > Convert call_usermodehelper_cleanup to usermodehelper_fns and allow it to assign
+> > both an init function and a cleanup function.
+> 
+> Can't apply this patch, I guess -mm tree has other changes which
+> this patch depends on. However afaics this series is fine, just
+> a couple of nits.
+> 
+Yeah, this will only apply to latest -mm
 
-The first patch in this series introduced an init function to the
-call_usermodehelper api so that processes could be customized by caller.  This
-patch takes advantage of that fact, by customizing the helper in do_coredump to
-create the pipe and set its core limit to one (for our recusrsion check).  This
-lets us clean up the previous uglyness in the usermodehelper internals and
-factor call_usermodehelper out entirely.
+> > @@ -154,7 +155,9 @@ struct subprocess_info {
+> >  	enum umh_wait wait;
+> >  	int retval;
+> >  	struct file *stdin;
+> > -	void (*cleanup)(char **argv, char **envp);
+> > +	int (*init)(void *data);
+> > +	void (*cleanup)(char **argv, char **envp, void *data);
+> > +	void *data;
+> 
+> OK, we add *data. But why this patch changes the prototype of ->cleanup() ?
+> OTOH, I completely agree, it should be changed, and it should lose the
+> ugly argv/envp arguments.
+> 
+> Since we add subprocess_info->data ptr, I think both ->init and ->cleanup
+> funcs should have the single arg, "subprocess_info *info". argv, envp, data
+> they all can be accessed via *info.
+> 
+Yeah, I can do that.
 
-Signed-off-by: Neil Horman <nhorman@tuxdriver.com>
+> Also. It is not clear why this patch changes call_usermodehelper_setup()
+> to set info->data. Unless the caller uses call_usermodehelper_setinit()
+> or call_usermodehelper_setcleanup() info->data is not used. Perhaps
+> it is better to have a single helper which takes (init, cleanup, data)
+> args.
+> 
+> What do you think?
+> 
+Yeah, that seems reasonable, Honestly, I'm a bit confused as to why there are
+set* helpers in the first place, we could just eliminate them entirely, since
+callers can set all three independently with call_usermodehelper_fns.  Anywho,
+I'll clean that up some more.
+ 
+> In any case, I believe you should fix the subjects ;)
+> 
+Not sure whats wrong with the subjects, although I guess I am doing a good bit
+more than just fixing that at this point :).  I'll expand them.
 
+Give me a few days, and I'll repost.
+Neil
 
- fs/exec.c            |   63 ++++++++++++++++++++++++++++++++++----
- include/linux/kmod.h |    4 --
- kernel/kmod.c        |   83 ---------------------------------------------------
- 3 files changed, 56 insertions(+), 94 deletions(-)
-
-diff --git a/fs/exec.c b/fs/exec.c
-index 1a0b921..428ea6f 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -1762,6 +1762,50 @@ static void wait_for_dump_helpers(struct file *file)
- }
- 
- 
-+/*
-+ * uhm_pipe_setup
-+ * helper function to customize the process used
-+ * to collect the core in userspace.  Specifically
-+ * it sets up a pipe and installs it as fd 0 (stdin)
-+ * for the process.  Returns 0 on success, or
-+ * PTR_ERR on failure.
-+ * Note that it also sets the core limit to 1.  This
-+ * is a special value that we use to trap recursive
-+ * core dumps
-+ */
-+static int umh_pipe_setup(void *data)
-+{
-+	struct file *rp, *wp;
-+	struct fdtable *fdt;
-+	struct coredump_params *cp = (struct coredump_params *)data;
-+	struct files_struct *cf = current->files;
-+
-+	wp = create_write_pipe(0);
-+	if (IS_ERR(wp))
-+		return PTR_ERR(wp);
-+
-+	rp = create_read_pipe(wp, 0);
-+	if (IS_ERR(rp)) {
-+		free_write_pipe(wp);
-+		return PTR_ERR(rp);
-+	}
-+
-+	cp->file = wp;
-+
-+	sys_close(0);
-+	fd_install(0, rp);
-+	spin_lock(&cf->file_lock);
-+	fdt = files_fdtable(cf);
-+	FD_SET(0, fdt->open_fds);
-+	FD_CLR(0, fdt->close_on_exec);
-+	spin_unlock(&cf->file_lock);
-+
-+	/* and disallow core files too */
-+	current->signal->rlim[RLIMIT_CORE] = (struct rlimit){1, 1};
-+
-+	return 0;
-+}
-+
- void do_coredump(long signr, int exit_code, struct pt_regs *regs)
- {
- 	struct core_state core_state;
-@@ -1848,15 +1892,15 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
- 		goto fail_unlock;
- 
-  	if (ispipe) {
--		if (cprm.limit == 0) {
-+		if (cprm.limit == 1) {
- 			/*
- 			 * Normally core limits are irrelevant to pipes, since
- 			 * we're not writing to the file system, but we use
--			 * cprm.limit of 0 here as a speacial value. Any
--			 * non-zero limit gets set to RLIM_INFINITY below, but
-+			 * cprm.limit of 1 here as a speacial value. Any
-+			 * non-1 limit gets set to RLIM_INFINITY below, but
- 			 * a limit of 0 skips the dump.  This is a consistent
- 			 * way to catch recursive crashes.  We can still crash
--			 * if the core_pattern binary sets RLIM_CORE =  !0
-+			 * if the core_pattern binary sets RLIM_CORE =  !1
- 			 * but it runs as root, and can do lots of stupid things
- 			 * Note that we use task_tgid_vnr here to grab the pid
- 			 * of the process group leader.  That way we get the
-@@ -1864,7 +1908,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
- 			 * core_pattern process dies.
- 			 */
- 			printk(KERN_WARNING
--				"Process %d(%s) has RLIMIT_CORE set to 0\n",
-+				"Process %d(%s) has RLIMIT_CORE set to 1\n",
- 				task_tgid_vnr(current), current->comm);
- 			printk(KERN_WARNING "Aborting core\n");
- 			goto fail_unlock;
-@@ -1888,8 +1932,13 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
- 		cprm.limit = RLIM_INFINITY;
- 
- 		/* SIGPIPE can happen, but it's just never processed */
--		if (call_usermodehelper_pipe(helper_argv[0], helper_argv, NULL,
--				&cprm.file)) {
-+		cprm.file = NULL;
-+		if (call_usermodehelper_fns(helper_argv[0], helper_argv, NULL,
-+					    UMH_WAIT_EXEC, umh_pipe_setup,
-+					    NULL, &cprm)) {
-+			if (cprm.file)
-+				filp_close(cprm.file, NULL);
-+
-  			printk(KERN_INFO "Core dump to %s pipe failed\n",
- 			       corename);
- 			goto fail_dropcount;
-diff --git a/include/linux/kmod.h b/include/linux/kmod.h
-index 54db3ff..4a2957d 100644
---- a/include/linux/kmod.h
-+++ b/include/linux/kmod.h
-@@ -116,10 +116,6 @@ call_usermodehelper_keys(char *path, char **argv, char **envp,
- 
- extern void usermodehelper_init(void);
- 
--struct file;
--extern int call_usermodehelper_pipe(char *path, char *argv[], char *envp[],
--				    struct file **filp);
--
- extern int usermodehelper_disable(void);
- extern void usermodehelper_enable(void);
- 
-diff --git a/kernel/kmod.c b/kernel/kmod.c
-index cab23a8..85e2cc6 100644
---- a/kernel/kmod.c
-+++ b/kernel/kmod.c
-@@ -154,7 +154,6 @@ struct subprocess_info {
- 	char **envp;
- 	enum umh_wait wait;
- 	int retval;
--	struct file *stdin;
- 	int (*init)(void *data);
- 	void (*cleanup)(char **argv, char **envp, void *data);
- 	void *data;
-@@ -181,23 +180,6 @@ static int ____call_usermodehelper(void *data)
- 	commit_creds(sub_info->cred);
- 	sub_info->cred = NULL;
- 
--	/* Install input pipe when needed */
--	if (sub_info->stdin) {
--		struct files_struct *f = current->files;
--		struct fdtable *fdt;
--		/* no races because files should be private here */
--		sys_close(0);
--		fd_install(0, sub_info->stdin);
--		spin_lock(&f->file_lock);
--		fdt = files_fdtable(f);
--		FD_SET(0, fdt->open_fds);
--		FD_CLR(0, fdt->close_on_exec);
--		spin_unlock(&f->file_lock);
--
--		/* and disallow core files too */
--		current->signal->rlim[RLIMIT_CORE] = (struct rlimit){0, 0};
--	}
--
- 	/* We can run anywhere, unlike our parent keventd(). */
- 	set_cpus_allowed_ptr(current, cpu_all_mask);
- 
-@@ -477,35 +459,6 @@ void call_usermodehelper_setinit(struct subprocess_info *info,
- EXPORT_SYMBOL(call_usermodehelper_setinit);
- 
- /**
-- * call_usermodehelper_stdinpipe - set up a pipe to be used for stdin
-- * @sub_info: a subprocess_info returned by call_usermodehelper_setup
-- * @filp: set to the write-end of a pipe
-- *
-- * This constructs a pipe, and sets the read end to be the stdin of the
-- * subprocess, and returns the write-end in *@filp.
-- */
--int call_usermodehelper_stdinpipe(struct subprocess_info *sub_info,
--				  struct file **filp)
--{
--	struct file *f;
--
--	f = create_write_pipe(0);
--	if (IS_ERR(f))
--		return PTR_ERR(f);
--	*filp = f;
--
--	f = create_read_pipe(f, 0);
--	if (IS_ERR(f)) {
--		free_write_pipe(*filp);
--		return PTR_ERR(f);
--	}
--	sub_info->stdin = f;
--
--	return 0;
--}
--EXPORT_SYMBOL(call_usermodehelper_stdinpipe);
--
--/**
-  * call_usermodehelper_exec - start a usermode application
-  * @sub_info: information about the subprocessa
-  * @wait: wait for the application to finish and return status.
-@@ -552,42 +505,6 @@ unlock:
- }
- EXPORT_SYMBOL(call_usermodehelper_exec);
- 
--/**
-- * call_usermodehelper_pipe - call a usermode helper process with a pipe stdin
-- * @path: path to usermode executable
-- * @argv: arg vector for process
-- * @envp: environment for process
-- * @filp: set to the write-end of a pipe
-- *
-- * This is a simple wrapper which executes a usermode-helper function
-- * with a pipe as stdin.  It is implemented entirely in terms of
-- * lower-level call_usermodehelper_* functions.
-- */
--int call_usermodehelper_pipe(char *path, char **argv, char **envp,
--			     struct file **filp)
--{
--	struct subprocess_info *sub_info;
--	int ret;
--
--	sub_info = call_usermodehelper_setup(path, argv, envp,
--					     NULL, GFP_KERNEL);
--	if (sub_info == NULL)
--		return -ENOMEM;
--
--	ret = call_usermodehelper_stdinpipe(sub_info, filp);
--	if (ret < 0) {
--		call_usermodehelper_freeinfo(sub_info);
--		return ret;
--	}
--
--	ret = call_usermodehelper_exec(sub_info, UMH_WAIT_EXEC);
--	if (ret < 0)	/* Failed to execute helper, close pipe */
--		filp_close(*filp, NULL);
--
--	return ret;
--}
--EXPORT_SYMBOL(call_usermodehelper_pipe);
--
- void __init usermodehelper_init(void)
- {
- 	khelper_wq = create_singlethread_workqueue("khelper");
+> Oleg.
+> 
+> 
