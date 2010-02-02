@@ -1,31 +1,27 @@
-Return-Path: <onestero@redhat.com>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5AEA31005416
-	for <drbd-dev@lists.linbit.com>; Mon,  1 Feb 2010 15:20:50 +0100 (CET)
-Date: Mon, 1 Feb 2010 15:18:56 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-To: Neil Horman <nhorman@tuxdriver.com>
-Message-ID: <20100201141856.GA9453@redhat.com>
+Return-Path: <nhorman@tuxdriver.com>
+Received: from smtp.tuxdriver.com (charlotte.tuxdriver.com [70.61.120.58])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A0F861011BE1
+	for <drbd-dev@lists.linbit.com>; Tue,  2 Feb 2010 20:19:56 +0100 (CET)
+Date: Tue, 2 Feb 2010 14:19:40 -0500
+From: Neil Horman <nhorman@tuxdriver.com>
+To: linux-kernel@vger.kernel.org
+Message-ID: <20100202191940.GB12697@hmsreliant.think-freely.org>
 References: <20100121200806.GA29801@shamino.rdu.redhat.com>
-	<20100129151024.GA19249@hmsreliant.think-freely.org>
-	<20100129151458.GC19249@hmsreliant.think-freely.org>
-	<20100131155000.GB13402@redhat.com>
-	<20100131160030.GB1950@localhost.localdomain>
-	<20100201102936.GA31611@redhat.com>
-	<20100201131627.GE25094@hmsreliant.think-freely.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100201131627.GE25094@hmsreliant.think-freely.org>
-Cc: jmoskovc@redhat.com, neilb@suse.de, benh@kernel.crashing.org,
-	gregkh@suse.de, takedakn@nttdata.co.jp,
-	linux-kernel@vger.kernel.org, spock@gentoo.org, mingo@redhat.com,
+In-Reply-To: <20100121200806.GA29801@shamino.rdu.redhat.com>
+Cc: jmoskovc@redhat.com, nhorman@tuxdriver.com, neilb@suse.de,
+	benh@kernel.crashing.org, gregkh@suse.de, takedakn@nttdata.co.jp,
+	oleg@redhat.com, spock@gentoo.org, mingo@redhat.com,
 	viro@zeniv.linux.org.uk, mfasheh@suse.com,
-	akpm@linux-foundation.org, t.sailer@alumni.ethz.ch,
+	akpm@linux-foundation.org, drbd-dev@lists.linbit.com,
 	shemminger@linux-foundation.org, menage@google.com,
-	abelay@mit.edu, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 2/2] exec: allow core_pipe recursion check to
-	look for	a value of 1 rather than 0 (v2)
+	abelay@mit.edu, t.sailer@alumni.ethz.ch
+Subject: Re: [Drbd-dev] [PATCH 0/2] exec: refactor how call_usermodehelper
+ works, and update the sense of the core_pipe recursion check (v3)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -35,74 +31,67 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 02/01, Neil Horman wrote:
->
-> On Mon, Feb 01, 2010 at 11:29:36AM +0100, Oleg Nesterov wrote:
-> >
-> > > > Completely off-topic, but I think __call_usermodehelper(UMH_NO_WAIT) is
-> > > > buggy. if kernel_thread() failes it should do call_usermodehelper_freeinfo().
-> > > > Also, UMH_WAIT_EXEC should set ->retval in this case.
-> > > >
-> > > I went down that path last time I changed this code, Andrew and I decided that
-> > > yes it was buggy, but someone (can't recall how) smacked me around a bit and
-> > > explained how it worked (some odd artifact behavior of the scheduler).  Its in
-> > > the lkml archives if you want to get the whole story.
-> >
-> > Hmm. I strongly believe this is buggy, and the scheduler can't help in any
-> > way. Fortunately, kernel_thread() must "never" fail...
->
-> Commit 95e0d86badc410d525ea7218fd32df7bfbf9c837 has the discussion from the
-> previous time that I messed with this code.  Not sure how closely it relates,
-> but...
+Ok, version 3, taking olegs next set of notes into account.  Really just made
+the subprocess_info struct visible from the header file (not opaque), and
+modified the cleanup and init routines such that they accept a subprocess_info
+parameter.
 
-The changelog correctly explains why it is OK to do complete() from
-__call_usermodehelper() in UMH_WAIT_EXEC case: CLONE_VFORK guarantees
-kernel_thread(CLONE_VFORK) won't return (see do_fork()) until
-____call_usermodehelper() thread does exec or exits.
 
-I meant a much more simple problem, I think we need something like this
-patch:
+Hey all-
+	So, about 6 months ago, I made a set of changes to how the
+core-dump-to-a-pipe feature in the kernel works.  We had reports of several
+races, including some reports of apps bypassing our recursion check so that a
+process that was forked as part of a core_pattern setup could infinitely crash
+and refork until the system crashed.
 
-	--- kernel/kmod.c
-	+++ kernel/kmod.c
-	@@ -266,15 +266,18 @@ static void __call_usermodehelper(struct
-	 
-		switch (wait) {
-		case UMH_NO_WAIT:
-	+		if (pid < 0)
-	+			call_usermodehelper_freeinfo(sub_info);
-			break;
-	 
-		case UMH_WAIT_PROC:
-			if (pid > 0)
-				break;
-	-		sub_info->retval = pid;
-			/* FALLTHROUGH */
-	 
-		case UMH_WAIT_EXEC:
-	+		if (pid < 0)
-	+			sub_info->retval = pid;
-			complete(sub_info->complete);
-		}
-	 }
+	We fixes those by improving our recursion checks.  The new check
+basically refuses to fork a process if its core limit is zero, which works well.
 
-to fix 2 problems if kernel_thread() fails in __call_usermodehelper()
+	Unfortunately, I've been getting grief from maintainer of user space
+programs that are inserted as the forked process of core_pattern.  They contend
+that in order for their programs (such as abrt and apport) to work, all the
+running processes in a system must have their core limits set to a non-zero
+value, to which I say 'yes'.  I did this by design, and think thats the right
+way to do things.
 
-	- UMH_NO_WAIT should do call_usermodehelper_freeinfo()
+	But I've been asked to ease this burden on user space enough times that
+I thought I would take a look at it.  The first suggestion was to make the
+recursion check fail on a non-zero 'special' number, like one.  That way the
+core collector process could set its core size ulimit to 1, and enable the
+kernel's recursion detection.  This isn't a bad idea on the surface, but I don't
+like it since its opt-in, in that if a program like abrt or apport has a bug and
+fails to set such a core limit, we're left with a recursively crashing system
+again.
 
-	- UMH_WAIT_EXEC should set sub_info->retval to indicate
-	  the error
+	So I've come up with this.  What I've done is modify the
+call_usermodehelper api such that an extra parameter is added, a function
+pointer which will be called by the user helper task, after it forks, but before
+it exec's the required process.  This will give the caller the opportunity to
+get a call back in the processes context, allowing it to do whatever it needs to
+to the process in the kernel prior to exec-ing the user space code.  In the case
+of do_coredump, this callback is ues to set the core ulimit of the helper
+process to 1.  This elimnates the opt-in problem that I had above, as it allows
+the ulimit for core sizes to be set to the value of 1, which is what the
+recursion check looks for in do_coredump.
 
-> > Oh. And in theory, it is better to change wait_for_helper(). It should
-> > do allow_signal(SIGCHLD) after kernel_thread().
+	This patch has been tested successfully by some of the Abrt maintainers
+in fedora, with good results.  Patch applies to the latest -mm tree as of this
+AM.
 
-I was wrong, of course we can't do this, the child can exit and reap
-itself before we do sys_wait4().
+Neil
 
-> Otherwise, kernel_thread()
-> > can fail if user-space sends SIGCHLD to the forking thread.
-
-but this is still true. Fortunately this is very minor problem.
-
-Oleg.
-
+Signed-off-by: Neil Horman <nhorman@tuxdriver.com>
+Tested-by: Jiri Moskovcak <jmoskovc@redhat.com>
+CC: Ingo Molnar <mingo@redhat.com>
+CC: drbd-dev@lists.linbit.com
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Thomas Sailer <t.sailer@alumni.ethz.ch>
+CC: Adam Belay <abelay@mit.edu>
+CC: Greg Kroah-Hartman <gregkh@suse.de>
+CC: Michal Januszewski <spock@gentoo.org>
+CC: Al Viro <viro@zeniv.linux.org.uk>
+CC: Neil Brown <neilb@suse.de>
+CC: Mark Fasheh <mfasheh@suse.com>
+CC: Paul Menage <menage@google.com>
+CC: Stephen Hemminger <shemminger@linux-foundation.org>
+CC: Kentaro Takeda <takedakn@nttdata.co.jp>
