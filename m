@@ -1,17 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1876B105E553
-	for <drbd-dev@lists.linbit.com>; Tue,  9 Feb 2010 10:41:49 +0100 (CET)
-Resent-Message-ID: <20100209094148.GE20163@soda.linbit>
-Date: Sat, 6 Feb 2010 09:43:21 +0100 (CET)
-From: Julia Lawall <julia@diku.dk>
-To: Lars Ellenberg <drbd-dev@lists.linbit.com>,
-	drbd-user@lists.linbit.com, linux-kernel@vger.kernel.org,
-	kernel-janitors@vger.kernel.org
-Message-ID: <Pine.LNX.4.64.1002060943040.8092@ask.diku.dk>
+Return-Path: <nathanfaber@gmail.com>
+Received: from mail-bw0-f224.google.com (mail-bw0-f224.google.com
+	[209.85.218.224])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0180B1011BE1
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Feb 2010 23:53:46 +0100 (CET)
+Received: by bwz24 with SMTP id 24so268599bwz.9
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Feb 2010 14:53:46 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Subject: [Drbd-dev] [PATCH 5/11] drivers/block/drbd: Correct NULL test
+Date: Thu, 11 Feb 2010 17:46:30 -0500
+Message-ID: <785112911002111446i1010e429kf36ae7dcecacaeb3@mail.gmail.com>
+From: Nathan Faber <nathanfaber@gmail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative; boundary=00032555a71a0a9c05047f5aecc2
+Subject: [Drbd-dev] missing shift in snapshot-resync-target-lvm.sh
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,45 +21,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Julia Lawall <julia@diku.dk>
+--00032555a71a0a9c05047f5aecc2
+Content-Type: text/plain; charset=ISO-8859-1
 
-Test the value that was just allocated rather than the previously tested one.
+Hi,
 
-A simplified version of the semantic match that finds this problem is as
-follows: (http://coccinelle.lip6.fr/)
+In 8.3.7 and in 8.3 git the shift on the percent arg is off by one and
+causes an infinite loop on before-resync-target execution.
 
-// <smpl>
-@r@
-expression *x;
-expression e;
-identifier l;
-@@
+--- snapshot-resync-target-lvm-orig.sh 2010-02-03 18:54:27.000000000 -0500
++++ snapshot-resync-target-lvm.sh 2010-02-11 17:34:46.000000000 -0500
+@@ -44,7 +44,7 @@
+  case $1 in
+  -p|--percent)
+  SNAP_PERC="$2"
+- shift
++ shift 2
+  ;;
+  -a|--additional)
+  SNAP_ADDITIONAL="$2"
 
-if (x == NULL || ...) {
-    ... when forall
-    return ...; }
-... when != goto l;
-    when != x = e
-    when != &x
-*x == NULL
-// </smpl>
+--00032555a71a0a9c05047f5aecc2
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Julia Lawall <julia@diku.dk>
+<div>Hi,</div><div><br></div><div>In 8.3.7 and in 8.3 git the shift on the =
+percent arg is off by one and causes an infinite loop on=A0before-resync-ta=
+rget execution.</div><div><br></div><div>--- snapshot-resync-target-lvm-ori=
+g.sh<span class=3D"Apple-tab-span" style=3D"white-space:pre">	</span>2010-0=
+2-03 18:54:27.000000000 -0500</div>
+<div>+++ snapshot-resync-target-lvm.sh<span class=3D"Apple-tab-span" style=
+=3D"white-space:pre">	</span>2010-02-11 17:34:46.000000000 -0500</div><div>=
+@@ -44,7 +44,7 @@</div><div>=A0<span class=3D"Apple-tab-span" style=3D"whit=
+e-space:pre">	</span>case $1 in</div>
+<div>=A0<span class=3D"Apple-tab-span" style=3D"white-space:pre">		</span>-=
+p|--percent)</div><div>=A0<span class=3D"Apple-tab-span" style=3D"white-spa=
+ce:pre">			</span>SNAP_PERC=3D&quot;$2&quot;</div><div>-<span class=3D"Appl=
+e-tab-span" style=3D"white-space:pre">			</span>shift</div>
+<div>+<span class=3D"Apple-tab-span" style=3D"white-space:pre">			</span>sh=
+ift 2</div><div>=A0<span class=3D"Apple-tab-span" style=3D"white-space:pre"=
+>			</span>;;</div><div>=A0<span class=3D"Apple-tab-span" style=3D"white-sp=
+ace:pre">		</span>-a|--additional)</div>
+<div>=A0<span class=3D"Apple-tab-span" style=3D"white-space:pre">			</span>=
+SNAP_ADDITIONAL=3D&quot;$2&quot;</div><div><br></div>
 
----
- drivers/block/drbd/drbd_main.c      |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index ab871e0..d0c38a6 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2770,7 +2770,7 @@ static int drbd_create_mempools(void)
- 
- 	drbd_ee_mempool = mempool_create(number,
- 		mempool_alloc_slab, mempool_free_slab, drbd_ee_cache);
--	if (drbd_request_mempool == NULL)
-+	if (drbd_ee_mempool == NULL)
- 		goto Enomem;
- 
- 	/* drbd's page pool */
+--00032555a71a0a9c05047f5aecc2--
