@@ -1,18 +1,26 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E362B106500E
-	for <drbd-dev@lists.linbit.com>; Tue,  9 Mar 2010 15:50:13 +0100 (CET)
-Date: Tue, 9 Mar 2010 15:50:13 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20100309145013.GJ4199@soda.linbit>
-References: <alpine.LFD.2.00.1003090743100.22662@localhost>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 19079108B5E1
+	for <drbd-dev@lists.linbit.com>; Fri, 12 Mar 2010 10:30:19 +0100 (CET)
+Resent-Message-ID: <20100312093018.GH22282@soda.linbit>
+Received: from g1t0027.austin.hp.com (g1t0027.austin.hp.com [15.216.28.34])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B5208107230A
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Mar 2010 23:25:09 +0100 (CET)
+Date: Thu, 11 Mar 2010 15:18:08 -0700
+From: dann frazier <dannf@dannf.org>
+To: "Steven M. Christey" <coley@linus.mitre.org>
+Message-ID: <20100311221808.GB14859@ldl.fc.hp.com>
+References: <4AEEA8FD.2050601@kernel.sg>
+ <0911021136010.7514@mjc.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.LFD.2.00.1003090743100.22662@localhost>
-Subject: Re: [Drbd-dev] [PATCH] DRBD: Delete superfluous defn of "ARRY_SIZE".
+In-Reply-To: <0911021136010.7514@mjc.redhat.com>
+Cc: oss-security@lists.openwall.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [oss-security] CVE request: kernel: connector
+	security bypass
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,37 +30,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Mar 09, 2010 at 07:44:36AM -0500, Robert P. J. Day wrote:
+On Mon, Nov 02, 2009 at 11:37:21AM +0000, Mark J Cox wrote:
+> On Mon, 2 Nov 2009, Eugene Teo wrote:
 > 
-> Signed-off-by: Robert P. J. Day <rpjday@crashcourse.ca>
+> >1/ uvesafb/connector: Disallow unprivileged users to send netlink packets
+> >upstream commit: cc44578b5a508889beb8ae3ccd4d2bbdf17bc86c
+> >introduced in v2.6.24-rc1; fixed in v2.6.32-rc3
+> >
+> >2/ pohmelfs/connector: Disallow unprivileged users to configure pohmelfs
+> >upstream commit: 98a5783af02f4c9b87b676d7bbda6258045cfc76
+> >(staging/experimental)
+> >
+> >3/ dst/connector: Disallow unprivileged users to configure dst
+> >upstream commit: 5788c56891cfb310e419c4f9ae20427851797431
+> >(staging/experimental)
+> >
+> >4/ dm/connector: Only process connector packages from privileged processes
+> >upstream commit: 24836479a126e02be691e073c2b6cad7e7ab836a
+> >introduced in v2.6.31-rc1; fixed in v2.6.32-rc3
 > 
-> ---
-> 
->   given that the macro is misspelled, no one appears to use it, and
-> there already is an ARRAY_SIZE() macro defined in kernel.h for general
-> use, there's really no reason for this to be here.
-> 
-> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-> index ab871e0..36508ea 100644
-> --- a/drivers/block/drbd/drbd_main.c
-> +++ b/drivers/block/drbd/drbd_main.c
-> @@ -156,8 +156,6 @@ static const struct block_device_operations drbd_ops = {
->  	.release = drbd_release,
->  };
-> 
-> -#define ARRY_SIZE(A) (sizeof(A)/sizeof(A[0]))
+> >References:
+> >http://secunia.com/advisories/37113/
+> >http://xorl.wordpress.com/2009/10/31/linux-kernel-multiple-capabilities-missing-checks/
 
+Debian provides an out-of-tree drbd module (drbd8), and it appears to
+be affected by this issue as well. I assume we need to allocate an
+additional CVE ID for it?
 
-Wow.
-Thats a leftover from 2001 ... linux-2.4.4 days.
-And even then it was unused, and the ARRAY_SIZE macro
-was already in linux/kernel.h 
+Here's a link to the upstream fix:
+http://git.drbd.org/?p=drbd-8.3.git;a=commitdiff;h=71915b0d267392c77fe0ae2309535333026cef66
 
- ;-)
+The in-tree version that got merged for 2.6.33 looks fine.
 
 -- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+dann frazier
 
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
