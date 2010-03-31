@@ -1,19 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from racke (bk1.linbit [10.9.9.6])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 05FEB105B393
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Mar 2010 14:28:05 +0200 (CEST)
-Resent-Message-ID: <20100329122805.GB3486@racke>
-Date: Sat, 27 Mar 2010 17:59:50 +0300
-From: Dan Carpenter <error27@gmail.com>
-To: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Message-ID: <20100327145950.GG5069@bicker>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Cc: linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	drbd-user@lists.linbit.com, Jens Axboe <jens.axboe@oracle.com>
-Subject: [Drbd-dev] [patch] drbd: potential null dereference
+Return-Path: <akpm@linux-foundation.org>
+Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
+	[140.211.169.13])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 217EA105B0BB
+	for <drbd-dev@lists.linbit.com>; Thu,  1 Apr 2010 00:51:06 +0200 (CEST)
+Message-Id: <201003312250.o2VMoweK013539@imap1.linux-foundation.org>
+To: mm-commits@vger.kernel.org
+From: akpm@linux-foundation.org
+Date: Wed, 31 Mar 2010 15:50:58 -0700
+Cc: jens.axboe@oracle.com, error27@gmail.com, philipp.reisner@linbit.com,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] + drbd-potential-null-dereference.patch added to -mm tree
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,17 +21,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+
+The patch titled
+     drbd: fix potential null dereference
+has been added to the -mm tree.  Its filename is
+     drbd-potential-null-dereference.patch
+
+Before you just go and hit "reply", please:
+   a) Consider who else should be cc'ed
+   b) Prefer to cc a suitable mailing list as well
+   c) Ideally: find the original patch on the mailing list and do a
+      reply-to-all to that, adding suitable additional cc's
+
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
+
+See http://userweb.kernel.org/~akpm/stuff/added-to-mm.txt to find
+out what to do about this
+
+The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
+
+------------------------------------------------------
+Subject: drbd: fix potential null dereference
+From: Dan Carpenter <error27@gmail.com>
+
 If "e" is NULL then "bm_ext" would be NULL too.
 
 Signed-off-by: Dan Carpenter <error27@gmail.com>
+Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
+Cc: Jens Axboe <jens.axboe@oracle.com>
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
-Found by static analysis and compile tested only.  Sorry.  :/
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 17956ff..b68b778 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -1328,7 +1328,7 @@ int drbd_rs_del_all(struct drbd_conf *mdev)
+ drivers/block/drbd/drbd_actlog.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN drivers/block/drbd/drbd_actlog.c~drbd-potential-null-dereference drivers/block/drbd/drbd_actlog.c
+--- a/drivers/block/drbd/drbd_actlog.c~drbd-potential-null-dereference
++++ a/drivers/block/drbd/drbd_actlog.c
+@@ -1337,7 +1337,7 @@ int drbd_rs_del_all(struct drbd_conf *md
  		for (i = 0; i < mdev->resync->nr_elements; i++) {
  			e = lc_element_by_index(mdev->resync, i);
  			bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
@@ -42,3 +68,21 @@ index 17956ff..b68b778 100644
  				continue;
  			if (bm_ext->lce.lc_number == mdev->resync_wenr) {
  				dev_info(DEV, "dropping %u in drbd_rs_del_all, apparently"
+_
+
+Patches currently in -mm which might be from error27@gmail.com are
+
+linux-next.patch
+power_meter-acpi_device_class-power_meter_resource-too-long.patch
+dpt_i20-several-use-after-free-issues.patch
+sbshc-acpi_device_class-smbus_host_controller-too-long.patch
+acpi_pad-processor_aggregator-name-too-long.patch
+backlight-backlight_device_register-return-err_ptr.patch
+scsi-remove-superfluous-null-pointer-check-from-scsi_kill_request.patch
+iscsi-change-to.patch
+drbd-potential-null-dereference.patch
+musb-potential-use-after-free.patch
+dynamic_debug-small-cleanup-in-ddebug_proc_write.patch
+sis-strcpy-=-strlcpy.patch
+proc-cleanup-remove-unused-assignments.patch
+
