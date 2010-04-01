@@ -1,17 +1,15 @@
-Return-Path: <akpm@linux-foundation.org>
-Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
-	[140.211.169.13])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 217EA105B0BB
-	for <drbd-dev@lists.linbit.com>; Thu,  1 Apr 2010 00:51:06 +0200 (CEST)
-Message-Id: <201003312250.o2VMoweK013539@imap1.linux-foundation.org>
-To: mm-commits@vger.kernel.org
-From: akpm@linux-foundation.org
-Date: Wed, 31 Mar 2010 15:50:58 -0700
-Cc: jens.axboe@oracle.com, error27@gmail.com, philipp.reisner@linbit.com,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] + drbd-potential-null-dereference.patch added to -mm tree
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Dan Carpenter <error27@gmail.com>
+Date: Thu,  1 Apr 2010 10:56:39 +0200
+Message-Id: <9736574BB1380E.7050404@linbit.com>
+In-Reply-To: <20100327145950.GG5069@bicker>
+References: <20100327145950.GG5069@bicker>
+Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Jens Axboe <jens.axboe@oracle.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [patch] drbd: potential null dereference
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,68 +19,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hi Dan, 
 
-The patch titled
-     drbd: fix potential null dereference
-has been added to the -mm tree.  Its filename is
-     drbd-potential-null-dereference.patch
+Thanks for the work with the static analyzer, but the patch is
+bogus. The lc_element_by_index() function causes a BUG_ON before
+returning a NULL. The next mail contains a patch that removes
+the unnecessary conditional expression operator.
 
-Before you just go and hit "reply", please:
-   a) Consider who else should be cc'ed
-   b) Prefer to cc a suitable mailing list as well
-   c) Ideally: find the original patch on the mailing list and do a
-      reply-to-all to that, adding suitable additional cc's
-
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
-
-See http://userweb.kernel.org/~akpm/stuff/added-to-mm.txt to find
-out what to do about this
-
-The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
-
-------------------------------------------------------
-Subject: drbd: fix potential null dereference
-From: Dan Carpenter <error27@gmail.com>
-
-If "e" is NULL then "bm_ext" would be NULL too.
-
-Signed-off-by: Dan Carpenter <error27@gmail.com>
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+Philipp Reisner (1):
+  drbd: lc_element_by_index() never returns NULL
 
  drivers/block/drbd/drbd_actlog.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff -puN drivers/block/drbd/drbd_actlog.c~drbd-potential-null-dereference drivers/block/drbd/drbd_actlog.c
---- a/drivers/block/drbd/drbd_actlog.c~drbd-potential-null-dereference
-+++ a/drivers/block/drbd/drbd_actlog.c
-@@ -1337,7 +1337,7 @@ int drbd_rs_del_all(struct drbd_conf *md
- 		for (i = 0; i < mdev->resync->nr_elements; i++) {
- 			e = lc_element_by_index(mdev->resync, i);
- 			bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
--			if (bm_ext->lce.lc_number == LC_FREE)
-+			if (!bm_ext || bm_ext->lce.lc_number == LC_FREE)
- 				continue;
- 			if (bm_ext->lce.lc_number == mdev->resync_wenr) {
- 				dev_info(DEV, "dropping %u in drbd_rs_del_all, apparently"
-_
-
-Patches currently in -mm which might be from error27@gmail.com are
-
-linux-next.patch
-power_meter-acpi_device_class-power_meter_resource-too-long.patch
-dpt_i20-several-use-after-free-issues.patch
-sbshc-acpi_device_class-smbus_host_controller-too-long.patch
-acpi_pad-processor_aggregator-name-too-long.patch
-backlight-backlight_device_register-return-err_ptr.patch
-scsi-remove-superfluous-null-pointer-check-from-scsi_kill_request.patch
-iscsi-change-to.patch
-drbd-potential-null-dereference.patch
-musb-potential-use-after-free.patch
-dynamic_debug-small-cleanup-in-ddebug_proc_write.patch
-sis-strcpy-=-strlcpy.patch
-proc-cleanup-remove-unused-assignments.patch
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
