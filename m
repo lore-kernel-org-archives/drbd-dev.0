@@ -1,17 +1,21 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3CBC0105B1DE
-	for <drbd-dev@lists.linbit.com>; Fri, 14 May 2010 08:07:47 +0200 (CEST)
-Resent-Message-ID: <20100514060746.GA14070@soda.linbit>
-Date: Thu, 13 May 2010 22:02:21 +0200 (CEST)
-From: Julia Lawall <julia@diku.dk>
-To: Lars Ellenberg <drbd-dev@lists.linbit.com>,
-	drbd-user@lists.linbit.com, linux-kernel@vger.kernel.org,
-	kernel-janitors@vger.kernel.org
-Message-ID: <Pine.LNX.4.64.1005132202040.6282@ask.diku.dk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Subject: [Drbd-dev] [PATCH 10/20] drivers/block/drbd: Use kzalloc
+Return-Path: <iustin@google.com>
+Received: from smtp-out.google.com (smtp-out.google.com [74.125.121.35])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6E13910585E0
+	for <drbd-dev@lists.linbit.com>; Mon, 17 May 2010 14:38:04 +0200 (CEST)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com
+	[172.25.105.84]) by smtp-out.google.com with ESMTP id o4HCc2iD029591
+	for <drbd-dev@lists.linbit.com>; Mon, 17 May 2010 05:38:03 -0700
+From: Iustin Pop <iustin@google.com>
+To: drbd-dev@lists.linbit.com
+Date: Mon, 17 May 2010 14:37:58 +0200
+Message-Id: <07dd832067f25c0f687b7afe1d37e2f432c74335.1274099535.git.iustin@google.com>
+In-Reply-To: <cover.1274099535.git.iustin@google.com>
+References: <cover.1274099535.git.iustin@google.com>
+Cc: Iustin Pop <iustin@google.com>
+Subject: [Drbd-dev] [PATCH 1/3] Implement before|after-resync-source in
+	drbdadm
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,46 +25,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Julia Lawall <julia@diku.dk>
-
-Use kzalloc rather than the combination of kmalloc and memset.
-
-The semantic patch that makes this change is as follows:
-(http://coccinelle.lip6.fr/)
-
-// <smpl>
-@@
-expression x,size,flags;
-statement S;
-@@
-
--x = kmalloc(size,flags);
-+x = kzalloc(size,flags);
- if (x == NULL) S
--memset(x, 0, size);
-// </smpl>
-
-Signed-off-by: Julia Lawall <julia@diku.dk>
-
 ---
- drivers/block/drbd/drbd_nl.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ scripts/global_common.conf |    2 ++
+ user/drbdadm_main.c        |    2 ++
+ user/drbdadm_scanner.fl    |    2 ++
+ 3 files changed, 6 insertions(+), 0 deletions(-)
 
-diff -u -p a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1199,13 +1199,12 @@ static int drbd_nl_net_conf(struct drbd_
+diff --git a/scripts/global_common.conf b/scripts/global_common.conf
+index 5269515..ad07ce2 100644
+--- a/scripts/global_common.conf
++++ b/scripts/global_common.conf
+@@ -15,6 +15,8 @@ common {
+ 		# out-of-sync "/usr/lib/drbd/notify-out-of-sync.sh root";
+ 		# before-resync-target "/usr/lib/drbd/snapshot-resync-target-lvm.sh -p 15 -- -c 16k";
+ 		# after-resync-target /usr/lib/drbd/unsnapshot-resync-target-lvm.sh;
++		# before-resync-source /bin/true;
++		# after-resync-target /bin/true;
  	}
  
- 	/* allocation not in the IO path, cqueue thread context */
--	new_conf = kmalloc(sizeof(struct net_conf), GFP_KERNEL);
-+	new_conf = kzalloc(sizeof(struct net_conf), GFP_KERNEL);
- 	if (!new_conf) {
- 		retcode = ERR_NOMEM;
- 		goto fail;
- 	}
+ 	startup {
+diff --git a/user/drbdadm_main.c b/user/drbdadm_main.c
+index b697fd6..38d427a 100644
+--- a/user/drbdadm_main.c
++++ b/user/drbdadm_main.c
+@@ -327,6 +327,8 @@ struct adm_cmd cmds[] = {
  
--	memset(new_conf, 0, sizeof(struct net_conf));
- 	new_conf->timeout	   = DRBD_TIMEOUT_DEF;
- 	new_conf->try_connect_int  = DRBD_CONNECT_INT_DEF;
- 	new_conf->ping_int	   = DRBD_PING_INT_DEF;
+ 	{"before-resync-target", adm_khelper, DRBD_acf3_handler},
+ 	{"after-resync-target", adm_khelper, DRBD_acf3_handler},
++	{"before-resync-source", adm_khelper, DRBD_acf3_handler},
++	{"after-resync-source", adm_khelper, DRBD_acf3_handler},
+ 	{"pri-on-incon-degr", adm_khelper, DRBD_acf3_handler},
+ 	{"pri-lost-after-sb", adm_khelper, DRBD_acf3_handler},
+ 	{"fence-peer", adm_khelper, DRBD_acf3_handler},
+diff --git a/user/drbdadm_scanner.fl b/user/drbdadm_scanner.fl
+index d4cad32..a4a9441 100644
+--- a/user/drbdadm_scanner.fl
++++ b/user/drbdadm_scanner.fl
+@@ -141,6 +141,8 @@ fence-peer		{ DP; CP; return TK_HANDLER_OPTION;	}
+ local-io-error		{ DP; CP; return TK_HANDLER_OPTION;     }
+ before-resync-target	{ DP; CP; return TK_HANDLER_OPTION;	}
+ after-resync-target	{ DP; CP; return TK_HANDLER_OPTION;	}
++before-resync-source	{ DP; CP; return TK_HANDLER_OPTION;	}
++after-resync-source	{ DP; CP; return TK_HANDLER_OPTION;	}
+ memlimit		{ DP; CP; return TK_PROXY_OPTION;       }
+ read-loops		{ DP; CP; return TK_PROXY_OPTION;       }
+ compression		{ DP; CP; return TK_PROXY_OPTION;       }
+-- 
+1.7.0.1
+
