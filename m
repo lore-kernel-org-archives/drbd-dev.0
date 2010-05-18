@@ -1,25 +1,16 @@
-Return-Path: <axboe@kernel.dk>
-Received: from kernel.dk (0122700014.0.fullrate.dk [95.166.99.235])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 39B0910BB09E
-	for <drbd-dev@lists.linbit.com>; Tue, 18 May 2010 15:05:47 +0200 (CEST)
-Date: Tue, 18 May 2010 15:05:46 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Message-ID: <20100518130545.GZ25951@kernel.dk>
-References: <20100518152031.9a244971.sfr@canb.auug.org.au>
-	<201005181345.22986.philipp.reisner@linbit.com>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B25B2105EC2D
+	for <drbd-dev@lists.linbit.com>; Sun, 23 May 2010 22:13:21 +0200 (CEST)
+Resent-Message-ID: <20100523201321.GH14070@soda.linbit>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201005181345.22986.philipp.reisner@linbit.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-next@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] linux-next: manual merge of the drbd tree with the
-	block tree
+Date: Tue, 18 May 2010 13:30:16 +0800
+Message-ID: <AANLkTinX8Ax9ZJFdLk3Zjzc0CBh-gIIN0wg8YjQ-7PQP@mail.gmail.com>
+From: Steven Liu <lingjiujianke@gmail.com>
+To: drbd-dev@lists.linbit.com, drbd-user@lists.linbit.com,
+	linux-kernel@vger.kernel.org, liuqi@thunderst.com
+Content-Type: text/plain; charset=ISO-8859-1
+Subject: [Drbd-dev] [PATCH] drbd: Check-kmalloc-return-value before use it
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -29,24 +20,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, May 18 2010, Philipp Reisner wrote:
-> Hi Stephen,
-> 
-> FYI:
-> I use 
-> git://git.drbd.org/linux-2.6-drbd.git for-jens
-> as path of my patches to Jens.
-> 
-> I switched that tree to Jens' 
-> git://git.kernel.dk/linux-2.6-block.git for-2.6.35
-> and provided the DRBD patches on top of that.
-> 
-> Not that I am not willing to help, I have the feeling that this
-> merge conflict has nothing to do with DRBD.
+Check-kmalloc-return-value before use it
 
-I suspect that the merge will go smoothly with the updated branches when
-Stephen runs his scripts tomorrow.
+Signed-off-by: Liu Qi <lingjiujianke@gmail.com>
+---
+ drivers/block/drbd/drbd_receiver.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
--- 
-Jens Axboe
+diff --git a/drivers/block/drbd/drbd_receiver.c
+b/drivers/block/drbd/drbd_receiver.c
+index 3f096e7..533df04 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -2977,6 +2977,10 @@ static int receive_uuids(struct drbd_conf
+*mdev, struct p_header *h)
+        return FALSE;
 
+    p_uuid = kmalloc(sizeof(u64)*UI_EXTENDED_SIZE, GFP_NOIO);
++   if(p_uuid == NULL){
++       printk(KERN_ERR "Kmalloc p_uuid failed in %s \n", __func__);
++       return FALSE;
++   }
+
+    for (i = UI_CURRENT; i < UI_EXTENDED_SIZE; i++)
+        p_uuid[i] = be64_to_cpu(p->uuid[i]);
+--
+1.7.1
+
+
+Best regards
