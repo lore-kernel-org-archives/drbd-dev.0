@@ -1,20 +1,25 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Date: Tue, 18 May 2010 14:05:04 +0200
-References: <cover.1274099535.git.iustin@google.com>
-	<201005172344.40802.philipp.reisner@linbit.com>
-	<20100518085207.GB19087@google.com>
-In-Reply-To: <20100518085207.GB19087@google.com>
+Return-Path: <axboe@kernel.dk>
+Received: from kernel.dk (0122700014.0.fullrate.dk [95.166.99.235])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 39B0910BB09E
+	for <drbd-dev@lists.linbit.com>; Tue, 18 May 2010 15:05:47 +0200 (CEST)
+Date: Tue, 18 May 2010 15:05:46 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Message-ID: <20100518130545.GZ25951@kernel.dk>
+References: <20100518152031.9a244971.sfr@canb.auug.org.au>
+	<201005181345.22986.philipp.reisner@linbit.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201005181405.04970.philipp.reisner@linbit.com>
-Cc: Iustin Pop <iustin@google.com>
-Subject: Re: [Drbd-dev]
- =?utf-8?q?=5BPATCH_0/3=5D_Implement_=7Bbegin=7Cafter?=
- =?utf-8?q?=7D-resync-source=09handlers?=
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201005181345.22986.philipp.reisner@linbit.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-next@vger.kernel.org, linux-kernel@vger.kernel.org,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] linux-next: manual merge of the drbd tree with the
+	block tree
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,46 +29,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-[..]
-> > * Are you going to use them in your organisation?
->=20
-> That too, but better said we're going to use them in Ganeti (opensource,
-> cluster-based virtualization manager). Background: Ganeti uses only the
-> low-level drbdsetup interface, and not the drbdadm one, since we manage
-> the minor numbers assignments dynamically. This dynamic part hits us,
-> because we cannot make easy 'resync-after' rules (especially as on
-> bigger Ganeti clusters, like 20-40 nodes, you could get easily into
-> circular dependencies if you're not careful.
->=20
-> So the plan is to write a custom usermode_helper (right now Ganeti
-> documentations says to use /bin/true :), so we're not losing any
-> functionality by moving to a custom helper), that will simply restrict
-> DRBD to a single sync (either incoming or outgoing) per machine, in
-> order to not overload any machine's I/O resources. When a begin-sync
-> request comes in, either source or target, the helper will look if any
-> other minors are undergoing syncs, and if so will drbdsetup pause-sync
-> the minor - I hope that this is safe to do from the callback, my few
-> tests show it so. And when a after-resync-* requests comes, we look if
-> there are any paused syncs (on our end), and if so then we'll unpause
-> one.
->=20
-> Now, if drbd (the kernel driver) would have a setting like 'max_syncs',
-> then we wouldn't have to implement anything in Ganeti, but that is
-> probably more work in the kernel - which is harder, compared with a
-> simple userspace shell script.
->=20
-> Hope my explanation makes sense=E2=80=A6
+On Tue, May 18 2010, Philipp Reisner wrote:
+> Hi Stephen,
+> 
+> FYI:
+> I use 
+> git://git.drbd.org/linux-2.6-drbd.git for-jens
+> as path of my patches to Jens.
+> 
+> I switched that tree to Jens' 
+> git://git.kernel.dk/linux-2.6-block.git for-2.6.35
+> and provided the DRBD patches on top of that.
+> 
+> Not that I am not willing to help, I have the feeling that this
+> merge conflict has nothing to do with DRBD.
 
-Hi Iustin,
+I suspect that the merge will go smoothly with the updated branches when
+Stephen runs his scripts tomorrow.
 
-Yes, makes sense. It will go in, after the 8.3.8 release dust settled.
+-- 
+Jens Axboe
 
-Best,
- Phil
-=2D-=20
-: Dipl-Ing Philipp Reisner
-: LINBIT | Your Way to High Availability
-: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
-: http://www.linbit.com
-
-DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
