@@ -1,17 +1,16 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Iustin Pop <iustin@google.com>
-Date: Mon, 17 May 2010 23:44:40 +0200
-References: <cover.1274099535.git.iustin@google.com>
-In-Reply-To: <cover.1274099535.git.iustin@google.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201005172344.40802.philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 0/3] Implement {begin|after}-resync-source
-	handlers
+Return-Path: <sfr@canb.auug.org.au>
+Date: Tue, 18 May 2010 15:20:31 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Philipp Reisner <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Message-Id: <20100518152031.9a244971.sfr@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+	micalg="PGP-SHA1";
+	boundary="Signature=_Tue__18_May_2010_15_20_31_+1000_NelEjYw54Z3ygQJ7"
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-next@vger.kernel.org,
+	linux-kernel@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>
+Subject: [Drbd-dev] linux-next: manual merge of the drbd tree with the block
+	tree
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,20 +20,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Montag 17 Mai 2010 14:37:57 schrieb Iustin Pop:
-> These small patches duplicate the resync-target handlers for the other
-> end of the connection.
->
+--Signature=_Tue__18_May_2010_15_20_31_+1000_NelEjYw54Z3ygQJ7
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Hi Iustin,
+Hi all,
 
-The patches look okay so far, I am considering to apply them
-to our tree.
+Today's linux-next merge of the drbd tree got a conflict in
+mm/page-writeback.c between commit
+42bd225c0ba7c95af39293d39a950c48e7e5cb23 (""laptop-mode: Make flushes
+per-device" fix") from the block tree and commit
+e913fc825dc685a444cb4c1d0f9d32f372f59861 ("writeback: fix WB_SYNC_NONE
+writeback from umount") from the drbd tree (via its merge of the block
+tree).
 
-* Have you ever considered to use the "drbdsetup events" 
-  interface instead?
+I used the next-20100517 version of the block tree today (because the
+above conflict was not resolved correctly in the block tree and caused a
+build failure), so I will also use the next-20100517 version of the drbd
+tree for today.
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
-* Are you going to use them in your organisation? 
+--Signature=_Tue__18_May_2010_15_20_31_+1000_NelEjYw54Z3ygQJ7
+Content-Type: application/pgp-signature
 
-Best,
- Phil
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iEYEARECAAYFAkvyI58ACgkQjjKRsyhoI8wzaQCcC7BjrS41+6/VunWH2k22rV9I
+5q8AnAzKvtDlvBqH2ypu67DzeLvaU2KU
+=GaEt
+-----END PGP SIGNATURE-----
+
+--Signature=_Tue__18_May_2010_15_20_31_+1000_NelEjYw54Z3ygQJ7--
