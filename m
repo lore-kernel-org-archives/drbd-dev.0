@@ -1,23 +1,19 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F18E2105EC5A
-	for <drbd-dev@lists.linbit.com>; Thu, 27 May 2010 14:02:05 +0200 (CEST)
-Resent-Message-ID: <20100527120205.GH26213@soda.linbit>
-Received: from xenotime.net (xenotime.net [72.52.115.56])
-	by mail09.linbit.com (LINBIT Mail Daemon) with SMTP id 943CC10871CE
-	for <drbd-dev@lists.linbit.com>; Thu, 27 May 2010 04:18:55 +0200 (CEST)
-Received: from chimera.site ([71.245.98.113]) by xenotime.net for
-	<drbd-dev@lists.linbit.com>; Wed, 26 May 2010 19:04:03 -0700
-Date: Wed, 26 May 2010 19:04:03 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3B5A4103B4A7
+	for <drbd-dev@lists.linbit.com>; Thu, 27 May 2010 14:02:29 +0200 (CEST)
+Resent-Message-ID: <20100527120228.GI26213@soda.linbit>
+Received: from n10-vm0.bullet.mail.in.yahoo.com
+	(n10-vm0.bullet.mail.in.yahoo.com [202.86.4.194])
+	by mail09.linbit.com (LINBIT Mail Daemon) with SMTP id 521FA105EC85
+	for <drbd-dev@lists.linbit.com>; Thu, 27 May 2010 07:09:44 +0200 (CEST)
+Message-ID: <550601.96338.qm@web95313.mail.in2.yahoo.com>
+Date: Thu, 27 May 2010 10:27:12 +0530 (IST)
+From: Atul Gupta <atgupta2k@yahoo.co.in>
 To: drbd-dev@lists.linbit.com
-Message-Id: <20100526190403.fcf8d536.rdunlap@xenotime.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>
-Subject: [Drbd-dev] drbd sparse warnings
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="0-546972360-1274936232=:96338"
+Subject: [Drbd-dev] more than 2 node replication
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -27,56 +23,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+--0-546972360-1274936232=:96338
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-When I build a Linux kernel with "make C=1" to invoke sparse,
-I see 135 sparse warnings like (shorter list):
+Is there a plan to support more than 2 node replication in DRBD i.e. more t=
+han one secondary? What all changes one envisages for supporting the same?=
+=0A=0A
+--0-546972360-1274936232=:96338
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
+<html><head><style type=3D"text/css"><!-- DIV {margin:0px;} --></style></he=
+ad><body><div style=3D"font-family:times new roman, new york, times, serif;=
+font-size:12pt"><DIV>Is there a plan to support more than 2 node replicatio=
+n in DRBD i.e. more than one secondary? What all changes one envisages for =
+supporting the same?</DIV>=0A<DIV>&nbsp;</DIV>=0A<DIV>&nbsp;</DIV></div><br=
+></body></html>
+--0-546972360-1274936232=:96338--
 
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:931:39: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1212:69: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1213:70: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1214:59: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1215:60: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1216:63: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1217:65: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1218:66: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1376:75: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1377:50: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1378:51: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1435:91: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1437:74: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1498:61: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_bitmap.c:751:98: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_bitmap.c:815:50: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_bitmap.c:876:42: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_receiver.c:341:54: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_receiver.c:1116:81: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_receiver.c:1356:79: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_actlog.c:547:69: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_main.c:3498:60: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_main.c:3506:63: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_main.c:3714:59: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_nl.c:513:94: error: attribute 'require_context': unknown attribute
-linux-2.6.34-git11/drivers/block/drbd/drbd_nl.c:701:77: error: attribute 'require_context': unknown attribute
-
-
-What is the meaning and usage of require_context in drbd_int.h?
-
-#ifdef __CHECKER__
-# define __protected_by(x)       __attribute__((require_context(x,1,999,"rdwr")))
-# define __protected_read_by(x)  __attribute__((require_context(x,1,999,"read")))
-# define __protected_write_by(x) __attribute__((require_context(x,1,999,"write")))
-# define __must_hold(x)       __attribute__((context(x,1,1), require_context(x,1,999,"call")))
-#else
-# define __protected_by(x)
-# define __protected_read_by(x)
-# define __protected_write_by(x)
-# define __must_hold(x)
-#endif
-
-
-thanks,
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
