@@ -1,20 +1,16 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 999CB108714D
-	for <drbd-dev@lists.linbit.com>; Thu, 27 May 2010 16:21:39 +0200 (CEST)
-Date: Thu, 27 May 2010 16:21:39 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20100527142139.GM26213@soda.linbit>
-References: <AANLkTim66dldWydThtZraIL6dqzVn0lxB1Q_chcOkkaa@mail.gmail.com>
-	<20100527090125.GC26213@soda.linbit>
-	<AANLkTimujV7rnDws-Mhvnba7nuIht2GyTC8pGCN63H9i@mail.gmail.com>
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Randy Dunlap <rdunlap@xenotime.net>
+Date: Fri, 28 May 2010 10:07:11 +0200
+References: <20100526190403.fcf8d536.rdunlap@xenotime.net>
+In-Reply-To: <20100526190403.fcf8d536.rdunlap@xenotime.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTimujV7rnDws-Mhvnba7nuIht2GyTC8pGCN63H9i@mail.gmail.com>
-Subject: Re: [Drbd-dev] DRBD + DM = EIO.
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201005281007.11478.philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] drbd sparse warnings
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,22 +20,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, May 27, 2010 at 10:14:42AM -0400, Ben Timby wrote:
-> Lars, you rock! That fixes my problem. However...
+Am Donnerstag, 27. Mai 2010, um 04:04:03 schrieb Randy Dunlap:
+> Hi,
 > 
-> I still get read error -5 warnings in my messages:
+> When I build a Linux kernel with "make C=1" to invoke sparse,
+> I see 135 sparse warnings like (shorter list):
 > 
-> May 27 09:56:03 ragoon6 kernel: block drbd1: p read: error=-5
-> May 27 09:59:48 ragoon6 last message repeated 26 times
-> May 27 09:59:49 ragoon6 last message repeated 146 times
+> 
+> linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:931:39: error: attribute 'require_context': unknown attribute
+> linux-2.6.34-git11/drivers/block/drbd/drbd_int.h:1212:69: error: attribute 'require_context': unknown attribute
+[...]
 
-We quietened those messages in the upcomming 8.3.8 release.
+We have a patched sparse here. 
 
-Thanks,
+I tried to get those improvements into sparse upstream, but
+at that time the sparse maintainer was not very active...
 
+http://marc.info/?l=linux-sparse&m=120696665813430&w=4
+
+> 
+> What is the meaning and usage of require_context in drbd_int.h?
+> 
+
+I guess I will remove that stuff from DRBD in Linux mainline.
+
+Or someone steps up, and helps to get those sparse improvements 
+into sparse ;)
+
+Best,
+ Phil
 -- 
-: Lars Ellenberg
+: Dipl-Ing Philipp Reisner
 : LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
+: http://www.linbit.com
 
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
+DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
