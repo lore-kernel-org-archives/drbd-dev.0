@@ -1,16 +1,16 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: YAMAGUCHI Masashi <yamagu-m@saturn.dti.ne.jp>
-Date: Fri, 28 May 2010 11:13:10 +0200
-References: <201005272346.o4RNkutF012753@smtp14.dti.ne.jp>
-In-Reply-To: <201005272346.o4RNkutF012753@smtp14.dti.ne.jp>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Return-Path: <sfr@canb.auug.org.au>
+Date: Tue, 1 Jun 2010 14:13:24 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Philipp Reisner <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Message-Id: <20100601141324.edf41f7f.sfr@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <201005281113.10709.philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] scripts/notify.sh: Fix event identification
+Cc: Jens Axboe <jens.axboe@oracle.com>, linux-next@vger.kernel.org,
+	Julia Lawall <julia@diku.dk>, linux-kernel@vger.kernel.org,
+	Al Viro <viro@zeniv.linux.org.uk>
+Subject: [Drbd-dev] linux-next: manual merge of the drbd tree with Linus'
+	tree
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,22 +20,66 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Freitag, 28. Mai 2010, um 01:46:56 schrieb YAMAGUCHI Masashi:
-> Hi,
-> 
-> "notify.sh" cannot identify the events of "notify-pri-lost.sh" and
-> "notify-pri-lost-after-sb.sh" so the mails sent by these scripts are
-> treated as "Unspecified DRBD notification".
-> 
+Hi all,
 
-Thanks for pointing that out, patch goes in.
+Today's linux-next merge of the drbd tree got a conflict in fs/pipe.c
+between commit cc967be54710d97c05229b2e5ba2d00df84ddd64 ("fs: Add missing
+mutex_unlock") from Linus' tree and commits
+0191f8697bbdfefcd36e7b8dc3eeddfe82893e4b ("pipe: F_SETPIPE_SZ should
+return -EPERM for non-root") and b9598db3401282bb27b4aef77e3eee12015f7f29
+("pipe: make F_{GET,SET}PIPE_SZ deal with byte sizes") from the drbd tree.
 
-Best,
- Phil
+I fixed it up (see below) and can carry the fix for a while.
 -- 
-: Dipl-Ing Philipp Reisner
-: LINBIT | Your Way to High Availability
-: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
-: http://www.linbit.com
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
-DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
+diff --cc fs/pipe.c
+index db6eaab,bdd3f96..0000000
+--- a/fs/pipe.c
++++ b/fs/pipe.c
+@@@ -1174,23 -1162,30 +1168,34 @@@ long pipe_fcntl(struct file *file, unsi
+  	mutex_lock(&pipe->inode->i_mutex);
+  
+  	switch (cmd) {
+- 	case F_SETPIPE_SZ:
+- 		if (!capable(CAP_SYS_ADMIN) && arg > pipe_max_pages) {
+- 			ret = -EINVAL;
++ 	case F_SETPIPE_SZ: {
++ 		unsigned long nr_pages;
++ 
++ 		/*
++ 		 * Currently the array must be a power-of-2 size, so adjust
++ 		 * upwards if needed.
++ 		 */
++ 		nr_pages = (arg + PAGE_SIZE - 1) >> PAGE_SHIFT;
++ 		nr_pages = roundup_pow_of_two(nr_pages);
++ 
+ -		if (!capable(CAP_SYS_ADMIN) && nr_pages > pipe_max_pages)
+ -			return -EPERM;
+++		if (!capable(CAP_SYS_ADMIN) && nr_pages > pipe_max_pages) {
+++			ret = -EPERM;
+ +			goto out;
+ +		}
++ 
+  		/*
+  		 * The pipe needs to be at least 2 pages large to
+  		 * guarantee POSIX behaviour.
+  		 */
+- 		if (arg < 2) {
+ -		if (nr_pages < 2)
+ -			return -EINVAL;
+++		if (nr_pages < 2) {
+ +			ret = -EINVAL;
+ +			goto out;
+ +		}
+- 		ret = pipe_set_size(pipe, arg);
++ 		ret = pipe_set_size(pipe, nr_pages);
+  		break;
++ 		}
+  	case F_GETPIPE_SZ:
+- 		ret = pipe->buffers;
++ 		ret = pipe->buffers * PAGE_SIZE;
+  		break;
+  	default:
+  		ret = -EINVAL;
