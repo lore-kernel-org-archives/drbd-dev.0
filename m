@@ -1,29 +1,16 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E1B401483779
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Jun 2010 14:07:43 +0200 (CEST)
-Resent-Message-ID: <20100601120743.GH26706@soda.linbit>
-Date: Tue, 1 Jun 2010 12:50:56 +0200
-From: Jens Axboe <jaxboe@fusionio.com>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Message-ID: <20100601105055.GN3564@kernel.dk>
-References: <20100601141324.edf41f7f.sfr@canb.auug.org.au>
-	<20100601081823.GA29991@infradead.org>
-	<20100601182213.479a777e.sfr@canb.auug.org.au>
-	<20100601104515.GM3564@kernel.dk>
-	<20100601204942.134965e5.sfr@canb.auug.org.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100601204942.134965e5.sfr@canb.auug.org.au>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	"linux-next@vger.kernel.org" <linux-next@vger.kernel.org>,
-	Julia Lawall <julia@diku.dk>, Al Viro <viro@zeniv.linux.org.uk>,
-	"drbd-dev@linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] linux-next: manual merge of the drbd tree with
-	Linus' tree
+Return-Path: <sfr@canb.auug.org.au>
+Date: Wed, 2 Jun 2010 14:03:22 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Philipp Reisner <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
+Message-Id: <20100602140322.7e374a2e.sfr@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+	micalg="PGP-SHA1";
+	boundary="Signature=_Wed__2_Jun_2010_14_03_22_+1000_qmgOgDBi0rK_YRSd"
+Cc: Jens Axboe <axboe@kernel.dk>, Artem Bityutskiy <Artem.Bityutskiy@nokia.com>,
+	linux-next@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: [Drbd-dev] linux-next: manual merge of the drbd tree with the block
+	tree
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -33,29 +20,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jun 01 2010, Stephen Rothwell wrote:
-> HI Jens,
-> 
-> On Tue, 1 Jun 2010 12:45:15 +0200 Jens Axboe <jaxboe@fusionio.com> wrote:
-> >
-> > So the pipe patches were the same, the problem was that a fix for a
-> > missing pipe_unlock() had gone into mainline and for-linus/for-next
-> > weren't synced up to that. I'm guessing you pull drbd before for-next
-> > and that is why it showed up there.
-> 
-> Actually, I merge the drbd tree after the block tree and this fell to the
-> drbd tree only because your for-next branch had not been updated (and I
-> don't merge your for-linus branch).
+--Signature=_Wed__2_Jun_2010_14_03_22_+1000_qmgOgDBi0rK_YRSd
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Ah I see, then it all adds up.
+Hi all,
 
-> > BTW, I would recommend moving for-next from the block tree up before any
-> > potential other trees being based off it if that is the case.
-> 
-> That is already true.
+Today's linux-next merge of the drbd tree got a conflict in
+fs/fs-writeback.c between commit f17625b318d9b151e7bd41e31223e9d89b2aaa77
+("Revert "writeback: ensure that WB_SYNC_NONE writeback with sb pinned is
+sync"") from the block tree and commits
+5c92877730b509fefc445bbba6b3bc441c2c272a ("writeback: fix early free of
+work struct") and dff38fd3d1d0914ac0715445bbe21fbce9abed15 ("writeback:
+fix non-integrity write-back") from the drbd tree.
 
-Good!
+I suspect this is caused because the drbd tree id based on a different
+version of the block tree to what is in the block tree for-next branch.
+I just used the version of this file from the block tree.
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
--- 
-Jens Axboe
+--Signature=_Wed__2_Jun_2010_14_03_22_+1000_qmgOgDBi0rK_YRSd
+Content-Type: application/pgp-signature
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iEYEARECAAYFAkwF2AoACgkQjjKRsyhoI8y7WwCdHpBjAr/Jr/EGUhwowhgFPrz8
+qEgAoLfPWJrydOrd+3Mvqdk6I9nVWc7i
+=RKTC
+-----END PGP SIGNATURE-----
+
+--Signature=_Wed__2_Jun_2010_14_03_22_+1000_qmgOgDBi0rK_YRSd--
