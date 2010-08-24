@@ -1,18 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Jens Axboe <jaxboe@fusionio.com>
-Date: Mon, 23 Aug 2010 18:03:22 +0200
-References: <20100811223845.GE645@bicker> <4C724EB5.8030807@fusionio.com>
-In-Reply-To: <4C724EB5.8030807@fusionio.com>
+To: Dan Carpenter <error27@gmail.com>
+Date: Tue, 24 Aug 2010 10:38:12 +0200
+References: <20100811223845.GE645@bicker>
+In-Reply-To: <20100811223845.GE645@bicker>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201008231803.22680.philipp.reisner@linbit.com>
-Cc: "kernel-janitors@vger.kernel.org" <kernel-janitors@vger.kernel.org>,
-	Sam Ravnborg <sam@ravnborg.org>, Dan Carpenter <error27@gmail.com>,
-	"drbd-user@lists.linbit.com" <drbd-user@lists.linbit.com>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
+Message-Id: <201008241038.12979.philipp.reisner@linbit.com>
+Cc: Jens Axboe <jaxboe@fusionio.com>, kernel-janitors@vger.kernel.org,
+	Sam Ravnborg <sam@ravnborg.org>, Lars Ellenberg <drbd-dev@lists.linbit.com>
 Subject: Re: [Drbd-dev] [patch] drbd: cleanup: change "<= 0" to "== 0"
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -23,40 +21,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Montag, 23. August 2010, um 12:34:29 schrieb Jens Axboe:
-> On 2010-08-12 00:38, Dan Carpenter wrote:
-> > dt is unsigned so it's never less than zero.  We are calculating the
-> > elapsed time, and that's never less than zero (unless there is a bug or
-> > we invent time travel).  The comparison here is just to guard against
-> > divide by zero bugs.
-> > 
-> > Signed-off-by: Dan Carpenter <error27@gmail.com>
-> > 
-> > diff --git a/drivers/block/drbd/drbd_proc.c
-> > b/drivers/block/drbd/drbd_proc.c index be3374b..4c0c4aa 100644
-> > --- a/drivers/block/drbd/drbd_proc.c
-> > +++ b/drivers/block/drbd/drbd_proc.c
-> > @@ -118,7 +118,7 @@ static void drbd_syncer_progress(struct drbd_conf
-> > *mdev, struct seq_file *seq)
-> > 
-> >  	/* mean speed since syncer started
-> >  	
-> >  	 * we do account for PausedSync periods */
-> >  	
-> >  	dt = (jiffies - mdev->rs_start - mdev->rs_paused) / HZ;
-> > 
-> > -	if (dt <= 0)
-> > +	if (dt == 0)
-> > 
-> >  		dt = 1;
-> >  	
-> >  	db = mdev->rs_total - rs_left;
-> >  	dbdt = Bit2KB(db/dt);
+Am Donnerstag, 12. August 2010, um 00:38:45 schrieb Dan Carpenter:
+> dt is unsigned so it's never less than zero.  We are calculating the
+> elapsed time, and that's never less than zero (unless there is a bug or
+> we invent time travel).  The comparison here is just to guard against
+> divide by zero bugs.
 > 
-> Lars et al, I'll let you pick this up.
+> Signed-off-by: Dan Carpenter <error27@gmail.com>
+> 
+> diff --git a/drivers/block/drbd/drbd_proc.c
+> b/drivers/block/drbd/drbd_proc.c index be3374b..4c0c4aa 100644
+> --- a/drivers/block/drbd/drbd_proc.c
+> +++ b/drivers/block/drbd/drbd_proc.c
+> @@ -118,7 +118,7 @@ static void drbd_syncer_progress(struct drbd_conf
+> *mdev, struct seq_file *seq) /* mean speed since syncer started
+>  	 * we do account for PausedSync periods */
+>  	dt = (jiffies - mdev->rs_start - mdev->rs_paused) / HZ;
+> -	if (dt <= 0)
+> +	if (dt == 0)
+>  		dt = 1;
+>  	db = mdev->rs_total - rs_left;
+>  	dbdt = Bit2KB(db/dt);
 
-Jens, we (LINBIT) feel responsible for picking this up. I work on that
-tomorrow.
+Hi Dan,
+
+Please elaborate the improvement this patch brings.
+dt can actually get negative, on jiffie wrap. I see
+little value in displaying then a negative resync speed...
 
 Best,
  Phil
