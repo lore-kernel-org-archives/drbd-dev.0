@@ -1,20 +1,28 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Jens Axboe <jaxboe@fusionio.com>
-Date: Tue, 24 Aug 2010 11:10:37 +0200
-References: <20100811223845.GE645@bicker>
-	<201008241038.12979.philipp.reisner@linbit.com>
-	<4C7385BB.9080504@fusionio.com>
-In-Reply-To: <4C7385BB.9080504@fusionio.com>
+Return-Path: <livewire@google.com>
+Received: from smtp-out.google.com (smtp-out.google.com [216.239.44.51])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C63F3108991F
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2010 15:18:40 +0200 (CEST)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com
+	[172.24.198.97]) by smtp-out.google.com with ESMTP id o7VDIddf027869
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2010 06:18:39 -0700
+Received: from pwj10 (pwj10.prod.google.com [10.241.219.74])
+	by wpaz33.hot.corp.google.com with ESMTP id o7VDIGYn003281
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2010 06:18:38 -0700
+Received: by pwj10 with SMTP id 10so2540395pwj.39
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2010 06:18:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201008241110.37508.philipp.reisner@linbit.com>
-Cc: "kernel-janitors@vger.kernel.org" <kernel-janitors@vger.kernel.org>,
-	Sam Ravnborg <sam@ravnborg.org>, Dan Carpenter <error27@gmail.com>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [patch] drbd: cleanup: change "<= 0" to "== 0"
+In-Reply-To: <b338ba23c4a721b53876c40464e5daeb2fe0b14a.1279723469.git.livewire@google.com>
+References: <b338ba23c4a721b53876c40464e5daeb2fe0b14a.1279723469.git.livewire@google.com>
+From: Manuel Franceschini <livewire@google.com>
+Date: Tue, 31 Aug 2010 15:18:17 +0200
+Message-ID: <AANLkTikGtzfrttA18xebJcfthbHiXpMFdS=9zTCMAkiY@mail.gmail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [Drbd-dev] [PATCH master] Fix bug in split_address() when
+	handling IPv6 addresses
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,52 +32,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Dienstag, 24. August 2010, um 10:41:31 schrieb Jens Axboe:
-> On 2010-08-24 10:38, Philipp Reisner wrote:
-> > Am Donnerstag, 12. August 2010, um 00:38:45 schrieb Dan Carpenter:
-> >> dt is unsigned so it's never less than zero.  We are calculating the
-> >> elapsed time, and that's never less than zero (unless there is a bug or
-> >> we invent time travel).  The comparison here is just to guard against
-> >> divide by zero bugs.
-> >> 
-> >> Signed-off-by: Dan Carpenter <error27@gmail.com>
-> >> 
-> >> diff --git a/drivers/block/drbd/drbd_proc.c
-> >> b/drivers/block/drbd/drbd_proc.c index be3374b..4c0c4aa 100644
-> >> --- a/drivers/block/drbd/drbd_proc.c
-> >> +++ b/drivers/block/drbd/drbd_proc.c
-> >> @@ -118,7 +118,7 @@ static void drbd_syncer_progress(struct drbd_conf
-> >> *mdev, struct seq_file *seq) /* mean speed since syncer started
-> >> 
-> >>  	 * we do account for PausedSync periods */
-> >>  	
-> >>  	dt = (jiffies - mdev->rs_start - mdev->rs_paused) / HZ;
-> >> 
-> >> -	if (dt <= 0)
-> >> +	if (dt == 0)
-> >> 
-> >>  		dt = 1;
-> >>  	
-> >>  	db = mdev->rs_total - rs_left;
-> >>  	dbdt = Bit2KB(db/dt);
-> > 
-> > Hi Dan,
-> > 
-> > Please elaborate the improvement this patch brings.
-> > dt can actually get negative, on jiffie wrap. I see
-> > little value in displaying then a negative resync speed...
-> 
-> Aren't all members unsigned long? If not, then you have
-> another bug.
+Hi all,
 
-Um, well that is right. Ok, patch goes in.
+On Wed, Jul 21, 2010 at 4:55 PM, Manuel Franceschini
+<livewire@google.com> wrote:
+>
+> Signed-off-by: Manuel Franceschini <livewire@google.com>
+> ---
+>
+> Hi all,
+>
+> this small patch fixes a bug when using "drbdsetup /dev/drbdX net" with
+> IPv6 addresses without specifying a port number as in
+> "ipv6:2001:db8::1".
+>
+> This patch relies, however, on a slighlty different syntax:
+>
+> $ drbdsetup /dev/drbdX net ipv6:[2001:db8::1] ipv6:[2001:db8::2]:7799 A
+>
+> The introduction of brackets is necessary, since there is no way to
+> reliably separate the IPv6 address with the port number being optional.
+>
+> I'm happy for any feedback/suggestions.
+>
+>
+> Cheers, Manuel.
+>
+>
+> =A0user/drbdsetup.c | =A0 31 +++++++++++++++++++++++++------
+> =A01 files changed, 25 insertions(+), 6 deletions(-)
 
-Best,
- Phil
--- 
-: Dipl-Ing Philipp Reisner
-: LINBIT | Your Way to High Availability
-: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
-: http://www.linbit.com
+Any feedback/update on this patch?
 
-DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
+
+Thanks, Manuel.
