@@ -3,16 +3,19 @@ Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
 	[140.211.169.13])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E22661058FBB
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Oct 2010 00:50:23 +0200 (CEST)
-Message-Id: <201010252250.o9PMoC5Q020891@imap1.linux-foundation.org>
-To: mm-commits@vger.kernel.org
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D8E841059228
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Oct 2010 21:44:04 +0200 (CEST)
+Message-Id: <201010271943.o9RJh9cY013845@imap1.linux-foundation.org>
+To: axboe@kernel.dk
 From: akpm@linux-foundation.org
-Date: Mon, 25 Oct 2010 15:50:12 -0700
-Cc: nikai@nikai.net, axboe@kernel.dk, philipp.reisner@linbit.com,
+Date: Wed, 27 Oct 2010 12:43:09 -0700
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
+Cc: nikai@nikai.net, akpm@linux-foundation.org, philipp.reisner@linbit.com,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] + drivers-block-drbd-drbd_mainc-fix-error-path.patch
-	added to -mm tree
+Subject: [Drbd-dev] [patch 4/4] drivers/block/drbd/drbd_main.c: fix error
+	path
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,27 +25,6 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-
-The patch titled
-     drivers/block/drbd/drbd_main.c: fix error path
-has been added to the -mm tree.  Its filename is
-     drivers-block-drbd-drbd_mainc-fix-error-path.patch
-
-Before you just go and hit "reply", please:
-   a) Consider who else should be cc'ed
-   b) Prefer to cc a suitable mailing list as well
-   c) Ideally: find the original patch on the mailing list and do a
-      reply-to-all to that, adding suitable additional cc's
-
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
-
-See http://userweb.kernel.org/~akpm/stuff/added-to-mm.txt to find
-out what to do about this
-
-The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
-
-------------------------------------------------------
-Subject: drivers/block/drbd/drbd_main.c: fix error path
 From: Nicolas Kaiser <nikai@nikai.net>
 
 Failure to create drbd_ee_mempool appears not to get checked.  Looks like
@@ -71,12 +53,3 @@ diff -puN drivers/block/drbd/drbd_main.c~drivers-block-drbd-drbd_mainc-fix-error
  
  	/* drbd's page pool */
 _
-
-Patches currently in -mm which might be from nikai@nikai.net are
-
-origin.patch
-linux-next.patch
-drivers-media-video-gspca-cpia1c-fix-error-check.patch
-drivers-block-drbd-drbd_mainc-fix-error-path.patch
-drivers-crypto-dubious-error-check.patch
-
