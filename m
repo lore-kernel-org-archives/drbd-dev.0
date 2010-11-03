@@ -1,23 +1,27 @@
-Return-Path: <grawert@b1-systems.de>
-Received: from mx1.b1-systems.de (unknown [217.11.58.34])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 233C31059360
-	for <drbd-dev@lists.linbit.com>; Wed,  3 Nov 2010 09:04:31 +0100 (CET)
-Received: from groupware.intern.b1-systems.de (midgard.systems.b1-systems.de
-	[85.10.208.34])
-	by mx1.b1-systems.de (Postfix) with ESMTPSA id 061604072
-	for <drbd-dev@lists.linbit.com>; Wed,  3 Nov 2010 08:55:15 +0100 (CET)
-Message-ID: <20101103085515.16500maycqm4c2ub@groupware.intern.b1-systems.de>
-Date: Wed, 03 Nov 2010 08:55:15 +0100
-From: Uwe Grawert <grawert@b1-systems.de>
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
 To: drbd-dev@lists.linbit.com
+Date: Wed, 3 Nov 2010 16:53:08 +0100
+References: <1288628129-12811-1-git-send-email-tj@kernel.org>
+In-Reply-To: <1288628129-12811-1-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=ISO-8859-1;
- DelSp="Yes";
- format="flowed"
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-Subject: [Drbd-dev] DRBD Resource Agent flaw when stopping
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201011031653.09159.philipp.reisner@linbit.com>
+Cc: jack@suse.cz, leochen@broadcom.com, neilb@suse.de,
+	heiko.carstens@de.ibm.com, dm-devel@redhat.com,
+	adilger.kernel@dilger.ca, konishi.ryusuke@lab.ntt.co.jp,
+	shaggy@linux.vnet.ibm.com, joel.becker@oracle.com,
+	hch@infradead.org, aelder@sgi.com, mfasheh@suse.com,
+	joern@logfs.org, reiserfs-devel@vger.kernel.org,
+	Tejun Heo <tj@kernel.org>, viro@zeniv.linux.org.uk,
+	swhiteho@redhat.com, chris.mason@oracle.com, axboe@kernel.dk,
+	tytso@mit.edu, sbranden@broadcom.com, petero2@telia.com,
+	linux-kernel@vger.kernel.org, schwidefsky@de.ibm.com,
+	akpm@linux-foundation.org
+Subject: Re: [Drbd-dev] [PATCHSET] block: clean up bdev claim/release
+	handling
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -27,44 +31,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello,
+Am Montag, 1. November 2010, um 17:15:24 schrieb Tejun Heo:
+> bdev exclusive access handling is somewhat clumsy.  The primary
+> interface is bd_claim() and bd_release() but there also are
+> open_bdev_exclusive(), close_bdev_exclusive() and bd_claim_by_disk()
+> and bd_release_from_disk().
+[...]
+>  drivers/block/drbd/drbd_int.h   |    2
+>  drivers/block/drbd/drbd_main.c  |    7
+>  drivers/block/drbd/drbd_nl.c    |  103 ++-----
+[...]
 
-in the OCF Resource Agent (ocf:linbit:drbd) is a flaw, when cleaning =20
-up a resource and stopping the resource afterwards. The resource agent =20
-returns a OCF_ERR_CONFIGURED which happens because of the following =20
-lines:
+Hi Tejun,
 
-if [[ ${OCF_RESKEY_CRM_meta_notify_start_uname- NOT SET } =3D " NOT SET =20
-" ]]; then
-=09ocf_log err "you really should enable notify when using this RA"
-=09return $OCF_ERR_CONFIGURED
-fi
+  Acked-by: Philipp Reisner <philipp.reisner@linbit.com>
 
-After a cleanup of a started resource the variable =20
-OCF_RESKEY_CRM_meta_notify_start_uname is empty. A simple and quick =20
-solution would be to add "stop" to the following block in a case switch:
+...for the DRBD part of the patch.
 
-case $__OCF_ACTION in
-monitor|validate-all)
-:;;
-
-This is line 778 in the Resource Agent. In my opinion it does not make =20
-much sense to make the "is notify enabled" check when stopping a =20
-resource. Hence it seems reasonable to exclude a stop action from this =20
-check.
-
-Is there something that speaks against it? If not, I will send a patch =20
-to this list.
-
---=20
-Uwe Grawert
-Linux / Unix Consultant & Trainer
-Tel.: +49 151 12051100
-Mail: grawert@b1-systems.de
-
-B1 Systems GmbH
-Osterfeldstra=DFe 7 / 85088 Vohburg / http://www.b1-systems.de
-GF: Ralph Dehner / Unternehmenssitz: Vohburg / AG: Ingolstadt,HRB 3537
-
-
-
+Best,
+ Phil
