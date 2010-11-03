@@ -1,32 +1,18 @@
-Return-Path: <BATV+8bc7b7cc9627fb935322+2628+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [18.85.46.34])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1F21B105938B
-	for <drbd-dev@lists.linbit.com>; Wed,  3 Nov 2010 17:53:36 +0100 (CET)
-Date: Wed, 3 Nov 2010 12:10:59 -0400
-From: Christoph Hellwig <hch@infradead.org>
-To: Tejun Heo <tj@kernel.org>
-Message-ID: <20101103161059.GA13621@infradead.org>
-References: <1288628129-12811-1-git-send-email-tj@kernel.org>
-	<1288628129-12811-5-git-send-email-tj@kernel.org>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 88FE1105938B
+	for <drbd-dev@lists.linbit.com>; Wed,  3 Nov 2010 18:24:59 +0100 (CET)
+Date: Wed, 3 Nov 2010 18:24:59 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20101103172459.GF4767@barkeeper1-xen.linbit>
+References: <20101103085515.16500maycqm4c2ub@groupware.intern.b1-systems.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1288628129-12811-5-git-send-email-tj@kernel.org>
-Cc: jack@suse.cz, leochen@broadcom.com, neilb@suse.de,
-	heiko.carstens@de.ibm.com, dm-devel@redhat.com,
-	adilger.kernel@dilger.ca, konishi.ryusuke@lab.ntt.co.jp,
-	shaggy@linux.vnet.ibm.com, drbd-dev@lists.linbit.com,
-	joel.becker@oracle.com, hch@infradead.org, aelder@sgi.com,
-	mfasheh@suse.com, joern@logfs.org,
-	reiserfs-devel@vger.kernel.org, viro@zeniv.linux.org.uk,
-	swhiteho@redhat.com, chris.mason@oracle.com, axboe@kernel.dk,
-	tytso@mit.edu, sbranden@broadcom.com, petero2@telia.com,
-	linux-kernel@vger.kernel.org, schwidefsky@de.ibm.com,
-	akpm@linux-foundation.org
-Subject: Re: [Drbd-dev] [PATCH 4/5] block: make blkdev_get/put() handle
-	exclusive access
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20101103085515.16500maycqm4c2ub@groupware.intern.b1-systems.de>
+Subject: Re: [Drbd-dev] DRBD Resource Agent flaw when stopping
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -36,34 +22,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Nov 01, 2010 at 05:15:28PM +0100, Tejun Heo wrote:
-> * blkdev_get() is extended to include exclusive access management.
->   @holder argument is added and, if is @FMODE_EXCL specified, it will
->   gain exclusive access atomically w.r.t. other exclusive accesses.
+On Wed, Nov 03, 2010 at 08:55:15AM +0100, Uwe Grawert wrote:
+> Hello,
 > 
-> * blkdev_put() is similarly extended.  It now takes @mode argument and
->   if @FMODE_EXCL is set, it releases an exclusive access.  Also, when
->   the last exclusive claim is released, the holder/slave symlinks are
->   removed automatically.
+> in the OCF Resource Agent (ocf:linbit:drbd) is a flaw, when cleaning
+> up a resource and stopping the resource afterwards. The resource
+> agent returns a OCF_ERR_CONFIGURED which happens because of the
+> following lines:
+> 
+> if [[ ${OCF_RESKEY_CRM_meta_notify_start_uname- NOT SET } = " NOT
+> SET " ]]; then
+> 	ocf_log err "you really should enable notify when using this RA"
+> 	return $OCF_ERR_CONFIGURED
+> fi
+> 
+> After a cleanup of a started resource the variable
+> OCF_RESKEY_CRM_meta_notify_start_uname is empty. A simple and quick
+> solution would be to add "stop" to the following block in a case
+> switch:
+> 
+> case $__OCF_ACTION in
+> monitor|validate-all)
+> :;;
+> 
+> This is line 778 in the Resource Agent. In my opinion it does not
+> make much sense to make the "is notify enabled" check when stopping
+> a resource. Hence it seems reasonable to exclude a stop action from
+> this check.
+> 
+> Is there something that speaks against it? If not, I will send a
+> patch to this list.
 
-Could we get rid of FMODE_EXCL and just make a non-NULL holder field
-mean to open it exlusively (and pass a holder to the blkdev_put to
-release it)?
 
-> * bd_link_disk_holder() remains the same but bd_unlink_disk_holder()
->   is no longer necessary and removed.
+Thanks,
+but that should be fixed already:
+http://git.drbd.org/?p=drbd-8.3.git;a=shortlog
 
-That's a rather asymetric interface.  What about having
-blkdev_get_stacked that require a gendisk as holder and set up the
-links underneath?
+Always first check git...
 
+-- 
+: Lars Ellenberg
+: LINBIT | Your Way to High Availability
+: DRBD/HA support and consulting http://www.linbit.com
 
-> open_bdev_exclusive() and open_by_devnum() can use further cleanup -
-> rename to blkdev_get_by_path() and blkdev_get_by_devt() and drop
-> special features.  Well, let's leave them for another day.
-
-s/blkdev_get_by_devt/blkdev_get_by_dev/
-
-And yes, that rename is a good idea and should go in ASAP after this
-patch.
-
+DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
