@@ -2,27 +2,32 @@ Return-Path: <tj@kernel.org>
 Received: from hera.kernel.org (hera.kernel.org [140.211.167.34])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 829991059181
-	for <drbd-dev@lists.linbit.com>; Thu, 11 Nov 2010 18:15:36 +0100 (CET)
-Message-ID: <4CDC2488.1030801@kernel.org>
-Date: Thu, 11 Nov 2010 18:14:48 +0100
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E210B1059369
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Nov 2010 11:43:52 +0100 (CET)
+Message-ID: <4CDE6BB2.5070806@kernel.org>
+Date: Sat, 13 Nov 2010 11:42:58 +0100
 From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-To: axboe@kernel.dk, hch@infradead.org, linux-kernel@vger.kernel.org,
-	petero2@telia.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com,
-	jack@suse.cz, akpm@linux-foundation.org, adilger.kernel@dilger.ca,
-	tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com,
-	aelder@sgi.com, dm-devel@redhat.com, drbd-dev@lists.linbit.com,
-	neilb@suse.de, leochen@broadcom.com, sbranden@broadcom.com,
-	chris.mason@oracle.com, swhiteho@redhat.com, shaggy@linux.vnet.ibm.com,
-	joern@logfs.org, konishi.ryusuke@lab.ntt.co.jp,
-	reiserfs-devel@vger.kernel.org, viro@zeniv.linux.org.uk
-References: <1288628129-12811-1-git-send-email-tj@kernel.org>
-In-Reply-To: <1288628129-12811-1-git-send-email-tj@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+To: dedekind1@gmail.com
+References: <1288628129-12811-1-git-send-email-tj@kernel.org>	
+	<1288628129-12811-2-git-send-email-tj@kernel.org>
+	<1289644735.2218.8.camel@localhost>
+In-Reply-To: <1289644735.2218.8.camel@localhost>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] [PATCHSET] block: clean up bdev claim/release
-	handling
+Cc: jack@suse.cz, leochen@broadcom.com, neilb@suse.de,
+	heiko.carstens@de.ibm.com, dm-devel@redhat.com,
+	adilger.kernel@dilger.ca, konishi.ryusuke@lab.ntt.co.jp,
+	shaggy@linux.vnet.ibm.com, drbd-dev@lists.linbit.com,
+	joel.becker@oracle.com, hch@infradead.org, aelder@sgi.com,
+	mfasheh@suse.com, joern@logfs.org,
+	reiserfs-devel@vger.kernel.org, viro@zeniv.linux.org.uk,
+	swhiteho@redhat.com, chris.mason@oracle.com, axboe@kernel.dk,
+	tytso@mit.edu, sbranden@broadcom.com, petero2@telia.com,
+	linux-kernel@vger.kernel.org, schwidefsky@de.ibm.com,
+	linux-mtd@lists.infradead.org, akpm@linux-foundation.org
+Subject: Re: [Drbd-dev] [PATCH 1/5] mtd: fix bdev exclusive open bugs in
+	block2mtd::add_device()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -34,17 +39,32 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hello,
 
-I just appended two patches to the series.  These two are the
-blkdev_get_by_*() cleanup patches suggested in the fourth patch which
-Christoph liked.
+On 11/13/2010 11:38 AM, Artem Bityutskiy wrote:
+> On Mon, 2010-11-01 at 17:15 +0100, Tejun Heo wrote:
+>> +			if (!IS_ERR(bdev)) {
+>> +				int ret;
+>> +				ret = bd_claim(bdev, dev);
+>> +				if (ret) {
+>> +					blkdev_put(bdev,
+>> +						   FMODE_READ | FMODE_WRITE);
+> 
+> Would be a bit cleaner to define ea temporary variable:
+> 
+> fmode_t mode = FMODE_READ | FMODE_WRITE;
+> 
+> Would you to re-send with this little change please?
 
-I updated the git tree accordingly and added acked-by's.
+Yeap, sure.
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/tj/misc.git cleanup-bd_claim
+> And ideally, 2 independent patches would be nicer because you fix 2
+> independent issues.
 
-Jens, if you want the whole series resent, please let me know.
+Hmmm... not really.  The patch is small enough and splitting it won't
+really buy as any better bisectability.  Splitting patches into
+logical changes is a good thing but it's no religious dogma.  Let's
+apply it to the point it actually helps.
 
-Thanks.
+Thank you.
 
 -- 
 tejun
