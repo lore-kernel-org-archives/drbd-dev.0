@@ -1,29 +1,17 @@
-Return-Path: <grawert@b1-systems.de>
-Received: from mx1.b1-systems.de (schattenjagd.systems.b1-systems.de
-	[217.11.58.34])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3F4281058DE2
-	for <drbd-dev@lists.linbit.com>; Tue, 16 Nov 2010 10:33:31 +0100 (CET)
-Received: from groupware.intern.b1-systems.de (midgard.systems.b1-systems.de
-	[85.10.208.34])
-	by mx1.b1-systems.de (Postfix) with ESMTPSA id 54FA64051
-	for <drbd-dev@lists.linbit.com>; Tue, 16 Nov 2010 10:33:31 +0100 (CET)
-Message-ID: <20101116103331.74464skgusdrk73f@groupware.intern.b1-systems.de>
-Date: Tue, 16 Nov 2010 10:33:31 +0100
-From: Uwe Grawert <grawert@b1-systems.de>
-To: drbd-dev@lists.linbit.com
-References: <20101115145304.121957du5vfxdv0g@groupware.intern.b1-systems.de>
-	<20101115142144.GA20084@barkeeper1-xen.linbit>
-	<20101115155546.15091v5tmmvzj75e@groupware.intern.b1-systems.de>
-	<20101115170313.GE20084@barkeeper1-xen.linbit>
-In-Reply-To: <20101115170313.GE20084@barkeeper1-xen.linbit>
+Return-Path: <rshriram@gmail.com>
+Received: from mail-iw0-f182.google.com (mail-iw0-f182.google.com
+	[209.85.214.182])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5BF0D1058E85
+	for <drbd-dev@lists.linbit.com>; Wed, 17 Nov 2010 20:06:43 +0100 (CET)
+Received: by iwn39 with SMTP id 39so2568757iwn.27
+	for <drbd-dev@lists.linbit.com>; Wed, 17 Nov 2010 11:06:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=ISO-8859-1;
- DelSp="Yes";
- format="flowed"
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] drbd.ocf Split-Brain detection patch
+Date: Wed, 17 Nov 2010 11:00:03 -0800
+Message-ID: <AANLkTikZaR_GPaDO=zjq_DyWD0C5-_6DtBHjgbevGwUL@mail.gmail.com>
+From: Shriram Rajagopalan <rshriram@gmail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative; boundary=00032557a35eeaa2a804954447dd
+Subject: [Drbd-dev] Protocol A,B & submit ee failure
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -33,50 +21,145 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+--00032557a35eeaa2a804954447dd
+Content-Type: text/plain; charset=ISO-8859-1
 
-Zitat von Lars Ellenberg <lars.ellenberg@linbit.com>:
+[I apologize if this is a double post]
+Hi all,
+I have recently started hacking into drbd kernel code and I am bit of a
+newbie to the concept of "bio"s.
 
-> On Mon, Nov 15, 2010 at 03:55:46PM +0100, Uwe Grawert wrote:
->>
->> Zitat von Lars Ellenberg <lars.ellenberg@linbit.com>:
->>
->> >>--- /usr/lib/ocf/resource.d/linbit/drbd=092010-10-28 =20
->> 14:58:05.000000000 +0200
->> >>+++ drbd.split-brain.patch=092010-11-15 14:28:46.000000000 +0100
->> >>@@ -405,6 +405,9 @@
->> >> =09case "${DRBD_ROLE_LOCAL}" in
->> >> =09Primary)
->> >> =09=09rc=3D$OCF_RUNNING_MASTER
->> >>+=09=09# This Node is Primary but StandAlone, there must be a Split-Br=
-ain
->> >>+=09=09[[ $OCF_RESKEY_CRM_meta_master_max =3D 2 && $DRBD_CSTATE =3D
->> >>"StandAlone" ]] \
->> >>+=09=09&& rc=3D$OCF_ERR_CONFIGURED
->> >
->> >If only it was so easy.  It it not.
->> >There are other ways to end up in StandAlone.
->>
->> Ok. Meaning there is no way to determine a Split-Brain at a central
->> point like this? This one is off course what I experienced while
->> setting up a cluster.
->
-> Not really, no.
-> Maybe you can use your "split-brain" notification handler to do it?
+my question: (all concerning IO at secondary, for Protocol A/B)
+ In drbd_receiver.c, esp in function receive_Data(..),
+the backup disconnects from primary when drbd_submit_ee(..) call fails.
+The comments indicate
+        /* drbd_submit_ee currently fails for one reason only:
+         * not being able to allocate enough
+bios.
 
-That is possible. The intention was to show in the crm status that =20
-there is a problem. This is especially helpful if you`re new to DRBD. =20
-But if only one of several possible situations can be recognized, the =20
-patch doesn't make much sense.
+         * Is dropping the connection going to help? */
 
---=20
-Uwe Grawert
-Linux / Unix Consultant & Trainer
-Tel.: +49 151 12051100
-Mail: grawert@b1-systems.de
+So, the code just finishes the activity log io, releases the ee and returns
+false,
+which causes the main loop to disconnect from primary.
 
-B1 Systems GmbH
-Osterfeldstra=DFe 7 / 85088 Vohburg / http://www.b1-systems.de
-GF: Ralph Dehner / Unternehmenssitz: Vohburg / AG: Ingolstadt,HRB 3537
+Why was this choice made?
+Please correct me if I am wrong:
+Isnt failure to allocate a bio a temporary issue? I mean the kernel ran out
+of
+bio's to allocate out of its slabs (or short of memory currently) and thus
+retrying again after a while might work.
+
+I understand that for protocol C, one cannot buffer the IO on secondary. But
+for Protocol A/B, they
+can certainly be buffered and retried. Isnt that better than just
+disconnecting from primary and causing
+reconnects?
+==========
+On the same note,
+function "w_e_reissue" callback is used to resubmit a failed IO , if the IO
+had REQ_HARDBARRIER flag.
+Looking at this function, it tries to reissue the IO and
+ (a) when drbd_submit_ee fails,
+    it installs itself as the callback handler and re queues the work. This
+contradicts with the receive_Data(..)
+error handling, where drbd_submit_ee call failure leads to connection
+termination.
+
+   Also, this could cause potential looping (probably infinite) when the
+submit_ee call keeps failing due to ENOMEM.
+   shouldnt there be some sort of "num_attempts" counter that limits number
+of IO retries?
+
+the comments in this function
+"@cancel  The connection will be closed anyways (unused in this callback)"
+I cannot find a control path that causes a connection close, before reaching
+this function. On the other hand,
+ drbd_endio_sec --> drbd_endio_sec_final
+   where this ee is simply requeued, with its callback changed to
+w_e_reissue which always returns 1.
+   (unlike e_end_block which returns 0 causing the worker thread to force
+connection to go down)
+=========
+
+shriram
 
 
+-- 
+perception is but an offspring of its own self
 
+--00032557a35eeaa2a804954447dd
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+[I apologize if this is a double post]<br>Hi all,<br>I have recently starte=
+d hacking into drbd kernel code and I am bit of a newbie to the concept of =
+&quot;bio&quot;s. <br><br>my question: (all concerning IO at secondary, for=
+ Protocol A/B)<br>
+=A0In drbd_receiver.c, esp in function receive_Data(..),<br>
+
+the backup disconnects from primary when drbd_submit_ee(..) call fails.<br>=
+The comments indicate <br>=A0=A0=A0=A0=A0=A0=A0 /* drbd_submit_ee currently=
+ fails for one reason only:<br><div id=3D":1hu"><div>
+=A0=A0=A0=A0=A0=A0=A0=A0 * not being able to allocate enough bios.=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 <b=
+r>
+
+
+=A0=A0=A0=A0=A0=A0=A0=A0 * Is dropping the connection going to help? */<br>=
+<br>So, the code just finishes the activity log io, releases the ee and ret=
+urns false, <br>which causes the main loop to disconnect from primary.<br><=
+br>Why was this choice made? <br>
+
+
+Please correct me if I am wrong: <br>Isnt failure to allocate a bio a tempo=
+rary issue? I mean the kernel ran out of<br>bio&#39;s to allocate out of it=
+s slabs (or short of memory currently) and thus <br>retrying again after a =
+while might work.<br>
+
+
+<br>I understand that for protocol C, one cannot buffer the IO on secondary=
+. But for Protocol A/B, they<br>can certainly be buffered and retried. Isnt=
+ that better than just disconnecting from primary and causing<br>reconnects=
+?<br>
+
+
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D<br>On the same note, <br>function &quot;w_e_=
+reissue&quot; callback is used to resubmit a failed IO , if the IO had REQ_=
+HARDBARRIER flag.<br>Looking at this function, it tries to reissue the IO a=
+nd <br>=A0(a) when drbd_submit_ee fails, <br>
+
+
+=A0=A0=A0 it installs itself as the callback handler and re queues the work=
+. This contradicts with the receive_Data(..)<br>error handling, where drbd_=
+submit_ee call failure leads to connection termination.<br><br>=A0=A0 Also,=
+ this could cause potential looping (probably infinite) when the submit_ee =
+call keeps failing due to ENOMEM.<br>
+
+
+=A0=A0 shouldnt there be some sort of &quot;num_attempts&quot; counter that=
+ limits number of IO retries?<br><br>the comments in this function<br>&quot=
+;@cancel=A0 The connection will be closed anyways (unused in this callback)=
+&quot;<br>
+
+
+I cannot find a control path that causes a connection close, before reachin=
+g this function. On the other hand,<br>=A0drbd_endio_sec --&gt; drbd_endio_=
+sec_final <br>=A0=A0 where this ee is simply requeued, with its callback ch=
+anged to w_e_reissue which always returns 1.<br>
+
+
+=A0=A0 (unlike e_end_block which returns 0 causing the worker thread to for=
+ce connection to go down)<br>=3D=3D=3D=3D=3D=3D=3D=3D=3D<br><font color=3D"=
+#888888"><font color=3D"#888888"><br>shriram</font></font></div></div><br c=
+lear=3D"all"><br>-- <br>
+perception is but an offspring of its own self<br>
+
+--00032557a35eeaa2a804954447dd--
