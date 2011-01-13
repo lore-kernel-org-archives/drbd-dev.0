@@ -1,17 +1,24 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Or Gerlitz <ogerlitz@voltaire.com>
-Date: Thu, 13 Jan 2011 16:04:57 +0100
-References: <Pine.LNX.4.64.1101131124380.19218@zuben.voltaire.com>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id ABD281057AC4
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Jan 2011 16:20:29 +0100 (CET)
+Resent-Message-ID: <20110113152029.GD25975@barkeeper1-xen.linbit>
+Received: from Exil2010.voltaire.com (fwil.voltaire.com [193.47.165.2])
+	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 80B941057AB2
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Jan 2011 15:27:15 +0100 (CET)
+Date: Thu, 13 Jan 2011 16:27:01 +0200
+From: Or Gerlitz <ogerlitz@voltaire.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>
 In-Reply-To: <Pine.LNX.4.64.1101131124380.19218@zuben.voltaire.com>
+Message-ID: <Pine.LNX.4.64.1101131625400.3887@zuben.voltaire.com>
+References: <Pine.LNX.4.64.1101131124380.19218@zuben.voltaire.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201101131604.58153.philipp.reisner@linbit.com>
+Content-Type: text/plain; charset="US-ASCII"
 Cc: Jens Axboe <jaxboe@fusionio.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] drbd: clean reference to old kernels
+Subject: [Drbd-dev] [PATCH v2] drbd: clean reference to old kernels
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,35 +28,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Donnerstag, 13. Januar 2011, um 10:34:35 schrieb Or Gerlitz:
-> drop code present under #ifdef which is relevant to 2.6.28 and below
-> 
-> Signed-off-by: Or Gerlitz <ogerlitz@voltaire.com>
-> 
-> ---
-> 
-> Philipp, I haven't noted if/where the drbd updates for 2.6.38 were posted,
-> have them? do you typically post the pull request to LKML or there's a
-> lower volume mailing list where this can be tracked?
-> 
+drop ifdef which is relevant to 2.6.28 and below
 
-Yes, I send my pull requests to Jens, and CC them to LKML. 
-See http://kerneltrap.org/mailarchive/linux-kernel/2010/11/25/4651216
+Signed-off-by: Or Gerlitz <ogerlitz@voltaire.com>
 
-If it would help you I can start to CC them to drbd-dev@lists.linbit.com 
-as well. It is a really low traffic mailing list.
+---
 
-BTW, I will pick up the patch and send it with the next pull request
-to Jens. (That will be for the 2.6.39 merge window).
+changes from v1:
+	the call now collapsed into a single line
 
-FYI, We are missing the (current) 2.6.38 merge window, with drbd-8.3.10
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 11a75d3..6496b32 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1073,11 +1073,7 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
+ 		const int sps = 1 << HT_SHIFT; /* sectors per slot */
+ 		const int mask = sps - 1;
+ 		const sector_t first_sectors = sps - (sect & mask);
+-		bp = bio_split(bio,
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+-				bio_split_pool,
+-#endif
+-				first_sectors);
++		bp = bio_split(bio, first_sectors);
 
-Best,
- Phil
--- 
-: Dipl-Ing Philipp Reisner
-: LINBIT | Your Way to High Availability
-: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
-: http://www.linbit.com
-
-DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
+ 		/* we need to get a "reference count" (ap_bio_cnt)
+ 		 * to avoid races with the disconnect/reconnect/suspend code.
