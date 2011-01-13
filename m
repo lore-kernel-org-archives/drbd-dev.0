@@ -1,19 +1,16 @@
-Return-Path: <JAxboe@fusionio.com>
-Received: from mx1.fusionio.com (mx1.fusionio.com [64.244.102.30])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5780F1057AB3
-	for <drbd-dev@lists.linbit.com>; Thu, 13 Jan 2011 14:56:59 +0100 (CET)
-Message-ID: <4D2F04AE.8010007@fusionio.com>
-Date: Thu, 13 Jan 2011 14:57:02 +0100
-From: Jens Axboe <jaxboe@fusionio.com>
-MIME-Version: 1.0
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Or Gerlitz <ogerlitz@voltaire.com>
+Date: Thu, 13 Jan 2011 16:04:57 +0100
 References: <Pine.LNX.4.64.1101131124380.19218@zuben.voltaire.com>
 In-Reply-To: <Pine.LNX.4.64.1101131124380.19218@zuben.voltaire.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Message-Id: <201101131604.58153.philipp.reisner@linbit.com>
+Cc: Jens Axboe <jaxboe@fusionio.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] drbd: clean reference to old kernels
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -24,7 +21,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2011-01-13 10:34, Or Gerlitz wrote:
+Am Donnerstag, 13. Januar 2011, um 10:34:35 schrieb Or Gerlitz:
 > drop code present under #ifdef which is relevant to 2.6.28 and below
 > 
 > Signed-off-by: Or Gerlitz <ogerlitz@voltaire.com>
@@ -32,27 +29,27 @@ On 2011-01-13 10:34, Or Gerlitz wrote:
 > ---
 > 
 > Philipp, I haven't noted if/where the drbd updates for 2.6.38 were posted,
-> have them? do you typically post the pull request to LKML or there's a lower
-> volume mailing list where this can be tracked?
+> have them? do you typically post the pull request to LKML or there's a
+> lower volume mailing list where this can be tracked?
 > 
-> diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-> index 11a75d3..85f6cf6 100644
-> --- a/drivers/block/drbd/drbd_req.c
-> +++ b/drivers/block/drbd/drbd_req.c
-> @@ -1074,9 +1074,6 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
->  		const int mask = sps - 1;
->  		const sector_t first_sectors = sps - (sect & mask);
->  		bp = bio_split(bio,
-> -#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-> -				bio_split_pool,
-> -#endif
->  				first_sectors);
-> 
->  		/* we need to get a "reference count" (ap_bio_cnt)
 
-Thanks, that should die. Preferably the line could now be collapsed into
-a single line as well.
+Yes, I send my pull requests to Jens, and CC them to LKML. 
+See http://kerneltrap.org/mailarchive/linux-kernel/2010/11/25/4651216
 
+If it would help you I can start to CC them to drbd-dev@lists.linbit.com 
+as well. It is a really low traffic mailing list.
+
+BTW, I will pick up the patch and send it with the next pull request
+to Jens. (That will be for the 2.6.39 merge window).
+
+FYI, We are missing the (current) 2.6.38 merge window, with drbd-8.3.10
+
+Best,
+ Phil
 -- 
-Jens Axboe
+: Dipl-Ing Philipp Reisner
+: LINBIT | Your Way to High Availability
+: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
+: http://www.linbit.com
 
+DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
