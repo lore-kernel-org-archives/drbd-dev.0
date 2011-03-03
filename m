@@ -1,26 +1,20 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 53DFF10571BD
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2011 23:16:22 +0100 (CET)
-Resent-Message-ID: <20110303221620.GH25069@barkeeper1-xen.linbit>
-Received: from sunset.davemloft.net
-	(74-93-104-97-Washington.hfc.comcastbusiness.net [74.93.104.97])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 376B410571A0
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2011 22:39:11 +0100 (CET)
-Date: Thu, 03 Mar 2011 13:39:46 -0800 (PST)
-Message-Id: <20110303.133946.02287820.davem@davemloft.net>
-To: chrisw@sous-sol.org
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20110303201522.GT4988@sequoia.sous-sol.org>
-References: <20110303173230.GP4988@sequoia.sous-sol.org>
+Date: Thu, 3 Mar 2011 23:37:46 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Chris Wright <chrisw@sous-sol.org>
+Message-ID: <20110303223746.GI25069@barkeeper1-xen.linbit>
+References: <4D6F6180.5030903@trash.net>
+	<20110303173230.GP4988@sequoia.sous-sol.org>
 	<20110303.105655.189705829.davem@davemloft.net>
 	<20110303201522.GT4988@sequoia.sous-sol.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110303201522.GT4988@sequoia.sous-sol.org>
 Cc: linux-fbdev@vger.kernel.org, netdev@vger.kernel.org,
-	linux-security-module@vger.kernel.org, dm-devel@redhat.com,
-	zbr@ioremap.net, kaber@trash.net, drbd-dev@lists.linbit.com
+	linux-security-module@vger.kernel.org, kaber@trash.net,
+	dm-devel@redhat.com, Evgeniy Polyakov <zbr@ioremap.net>,
+	David Miller <davem@davemloft.net>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH 2/2 v2] netlink: kill eff_cap from struct
  netlink_skb_parms
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
@@ -32,11 +26,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Chris Wright <chrisw@sous-sol.org>
-Date: Thu, 3 Mar 2011 12:15:22 -0800
+On Thu, Mar 03, 2011 at 12:15:22PM -0800, Chris Wright wrote:
+> * David Miller (davem@davemloft.net) wrote:
+> > From: Chris Wright <chrisw@sous-sol.org>
+> > Date: Thu, 3 Mar 2011 09:32:30 -0800
+> > 
+> > > * Patrick McHardy (kaber@trash.net) wrote:
+> > > 
+> > >> commit 8ff259625f0ab295fa085b0718eed13093813fbc
+> > >> Author: Patrick McHardy <kaber@trash.net>
+> > >> Date:   Thu Mar 3 10:17:31 2011 +0100
+> > >> 
+> > >>     netlink: kill eff_cap from struct netlink_skb_parms
+> > >>     
+> > >>     Netlink message processing in the kernel is synchronous these days,
+> > >>     capabilities can be checked directly in security_netlink_recv() from
+> > >>     the current process.
+> > >>     
+> > >>     Signed-off-by: Patrick McHardy <kaber@trash.net>
+> > > 
+> > > Thanks for doing that Patrick.  I looked at this earlier and thought
+> > > there was still an async path, but I guess that's just to another
+> > > userspace process.
+> > > 
+> > > BTW, I think you missed a couple connector based callers:
+> > > 
+> > > drivers/staging/pohmelfs/config.c:      if (!cap_raised(nsp->eff_cap, CAP_SYS_AD
+> > > drivers/video/uvesafb.c:        if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN))
 
-> Here, I respun it so I could work on top of it
- ...
-> I did not do exhaustive .config compile tests
 
-Thanks a lot Chris, applied.
+Last time I checked, current() for connector based netlink message
+consumers was the work queue that is used for connector.
+
+So unless that changed, or my understanding is wrong, current_cap()
+inside cn_queue_wrapper(), respectively the d->callback()
+will not be the userland sender process' capabilities, but the work
+queue capabilities.
+
+If so, then this change introduces the possibility for normal users to
+send privileged commands to connector based subsystems, even if they
+may not be able to bind() to suitable sockets to receive any replies.
+
+Am I missing something?
+
+	Lars
