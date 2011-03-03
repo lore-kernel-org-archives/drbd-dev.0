@@ -1,16 +1,24 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Date: Mon, 21 Feb 2011 09:44:19 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Ilia Mirkin <imirkin@alum.mit.edu>
-Message-ID: <20110221084419.GC20194@barkeeper1-xen.linbit>
-References: <1298241914-1400-1-git-send-email-imirkin@alum.mit.edu>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 51D2F10571A0
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2011 23:15:11 +0100 (CET)
+Resent-Message-ID: <20110303221509.GB25069@barkeeper1-xen.linbit>
+Received: from stinky.trash.net (stinky.trash.net [213.144.137.162])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7AC8210571A2
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2011 10:44:13 +0100 (CET)
+Message-ID: <4D6F6180.5030903@trash.net>
+Date: Thu, 03 Mar 2011 10:38:08 +0100
+From: Patrick McHardy <kaber@trash.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1298241914-1400-1-git-send-email-imirkin@alum.mit.edu>
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] lru_cache: Use correct type in sizeof for
- allocation
+To: NetDev <netdev@vger.kernel.org>, dm-devel@redhat.com
+Content-Type: multipart/mixed; boundary="------------080700080301090103000800"
+Cc: Chris Wright <chrisw@sous-sol.org>, "linux-security-module@vger.kernel.org"
+	<linux-security-module@vger.kernel.org>,
+	"David S. Miller" <davem@davemloft.net>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 2/2] netlink: kill eff_cap from struct
+	netlink_skb_parms
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,56 +28,104 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Feb 20, 2011 at 05:45:14PM -0500, Ilia Mirkin wrote:
-> This has no actual effect, since sizeof(struct hlist_head) ==
-> sizeof(struct hlist_head *), but it's still the wrong type to use.
-> 
-> The semantic match that finds this problem:
-> // <smpl>
-> @@
-> type T;
-> identifier x;
-> @@
-> T *x;
-> ...
-> * x = kzalloc(... * sizeof(T*) * ..., ...);
-> // </smpl>
-> 
-> Signed-off-by: Ilia Mirkin <imirkin@alum.mit.edu>
+This is a multi-part message in MIME format.
+--------------080700080301090103000800
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 
-  Acked-by: Lars Ellenberg <lars@linbit.com>
 
-> 
-> ---
->  lib/lru_cache.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> Note that in lc_reset, there is the line
-> 
-> memset(lc->lc_slot, 0, sizeof(struct hlist_head) * lc->nr_elements);
-> 
-> So this seems correct. But otherwise untested.
-> 
-> diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-> index 270de9d..b312c8f 100644
-> --- a/lib/lru_cache.c
-> +++ b/lib/lru_cache.c
-> @@ -84,7 +84,7 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
->  	if (e_count > LC_MAX_ACTIVE)
->  		return NULL;
->  
-> -	slot = kzalloc(e_count * sizeof(struct hlist_head*), GFP_KERNEL);
-> +	slot = kzalloc(e_count * sizeof(struct hlist_head), GFP_KERNEL);
+--------------080700080301090103000800
+Content-Type: text/plain;
+ name="02.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="02.diff"
 
-Luckily sizeof(struct hlist_head*) == sizeof(struct hlist_head),
-so this went unnoticed, as it did not have any effect.
+commit 8ff259625f0ab295fa085b0718eed13093813fbc
+Author: Patrick McHardy <kaber@trash.net>
+Date:   Thu Mar 3 10:17:31 2011 +0100
 
-Thanks for having this spotted by semantic matching.
+    netlink: kill eff_cap from struct netlink_skb_parms
+    
+    Netlink message processing in the kernel is synchronous these days,
+    capabilities can be checked directly in security_netlink_recv() from
+    the current process.
+    
+    Signed-off-by: Patrick McHardy <kaber@trash.net>
 
-	Lars
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 8cbfaa6..fe81c85 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -2177,7 +2177,7 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
+ 		return;
+ 	}
+ 
+-	if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN)) {
++	if (!cap_raised(current_cap(), CAP_SYS_ADMIN)) {
+ 		retcode = ERR_PERM;
+ 		goto fail;
+ 	}
+diff --git a/drivers/md/dm-log-userspace-transfer.c b/drivers/md/dm-log-userspace-transfer.c
+index 049eaf1..1f23e04 100644
+--- a/drivers/md/dm-log-userspace-transfer.c
++++ b/drivers/md/dm-log-userspace-transfer.c
+@@ -134,7 +134,7 @@ static void cn_ulog_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
+ {
+ 	struct dm_ulog_request *tfr = (struct dm_ulog_request *)(msg + 1);
+ 
+-	if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN))
++	if (!cap_raised(current_cap(), CAP_SYS_ADMIN))
+ 		return;
+ 
+ 	spin_lock(&receiving_list_lock);
+diff --git a/include/linux/netlink.h b/include/linux/netlink.h
+index 66823b8..4c4ac3f 100644
+--- a/include/linux/netlink.h
++++ b/include/linux/netlink.h
+@@ -160,7 +160,6 @@ struct netlink_skb_parms {
+ 	struct ucred		creds;		/* Skb credentials	*/
+ 	__u32			pid;
+ 	__u32			dst_group;
+-	kernel_cap_t		eff_cap;
+ };
+ 
+ #define NETLINK_CB(skb)		(*(struct netlink_skb_parms*)&((skb)->cb))
+diff --git a/net/netlink/af_netlink.c b/net/netlink/af_netlink.c
+index 97ecd92..a808fb1 100644
+--- a/net/netlink/af_netlink.c
++++ b/net/netlink/af_netlink.c
+@@ -1364,12 +1364,6 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
+ 	NETLINK_CB(skb).dst_group = dst_group;
+ 	memcpy(NETLINK_CREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
+ 
+-	/* What can I do? Netlink is asynchronous, so that
+-	   we will have to save current capabilities to
+-	   check them, when this message will be delivered
+-	   to corresponding kernel module.   --ANK (980802)
+-	 */
+-
+ 	err = -EFAULT;
+ 	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+ 		kfree_skb(skb);
+diff --git a/security/commoncap.c b/security/commoncap.c
+index 64c2ed9..a83e607 100644
+--- a/security/commoncap.c
++++ b/security/commoncap.c
+@@ -52,13 +52,12 @@ static void warn_setuid_and_fcaps_mixed(const char *fname)
+ 
+ int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
+ {
+-	NETLINK_CB(skb).eff_cap = current_cap();
+ 	return 0;
+ }
+ 
+ int cap_netlink_recv(struct sk_buff *skb, int cap)
+ {
+-	if (!cap_raised(NETLINK_CB(skb).eff_cap, cap))
++	if (!cap_raised(current_cap(), cap))
+ 		return -EPERM;
+ 	return 0;
+ }
 
->  	if (!slot)
->  		goto out_fail;
->  	element = kzalloc(e_count * sizeof(struct lc_element *), GFP_KERNEL);
-> -- 
-> 1.7.3.4
+--------------080700080301090103000800--
