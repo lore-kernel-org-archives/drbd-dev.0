@@ -1,15 +1,15 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 644A71057487
-	for <drbd-dev@lists.linbit.com>; Tue,  8 Mar 2011 17:38:21 +0100 (CET)
-Resent-Message-ID: <20110308163821.GC9823@barkeeper1-xen.linbit>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 05D05108D61B
+	for <drbd-dev@lists.linbit.com>; Tue,  8 Mar 2011 20:39:21 +0100 (CET)
+Resent-Message-ID: <20110308193922.GD9823@barkeeper1-xen.linbit>
 Received: from stinky.trash.net (stinky.trash.net [213.144.137.162])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 544DE105747B
-	for <drbd-dev@lists.linbit.com>; Tue,  8 Mar 2011 15:50:53 +0100 (CET)
-Message-ID: <4D764247.9080509@trash.net>
-Date: Tue, 08 Mar 2011 15:50:47 +0100
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 29B6510571DA
+	for <drbd-dev@lists.linbit.com>; Tue,  8 Mar 2011 19:54:37 +0100 (CET)
+Message-ID: <4D767B69.2030603@trash.net>
+Date: Tue, 08 Mar 2011 19:54:33 +0100
 From: Patrick McHardy <kaber@trash.net>
 MIME-Version: 1.0
 To: Evgeniy Polyakov <zbr@ioremap.net>
@@ -18,8 +18,9 @@ References: <4D6F6180.5030903@trash.net>
 	<20110303.105655.189705829.davem@davemloft.net>
 	<20110303201522.GT4988@sequoia.sous-sol.org>
 	<20110303223746.GI25069@barkeeper1-xen.linbit>
-	<20110304012956.GA13573@ioremap.net>
-In-Reply-To: <20110304012956.GA13573@ioremap.net>
+	<20110304012956.GA13573@ioremap.net> <4D764247.9080509@trash.net>
+	<20110308183246.GA17412@ioremap.net>
+In-Reply-To: <20110308183246.GA17412@ioremap.net>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Cc: linux-fbdev@vger.kernel.org, netdev@vger.kernel.org,
@@ -37,20 +38,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 04.03.2011 02:29, schrieb Evgeniy Polyakov:
-> Hi.
+Am 08.03.2011 19:32, schrieb Evgeniy Polyakov:
+> Hi Patrick.
 > 
-> On Thu, Mar 03, 2011 at 11:37:46PM +0100, Lars Ellenberg (lars.ellenberg@linbit.com) wrote:
->> If so, then this change introduces the possibility for normal users to
->> send privileged commands to connector based subsystems, even if they
->> may not be able to bind() to suitable sockets to receive any replies.
+> On Tue, Mar 08, 2011 at 03:50:47PM +0100, Patrick McHardy (kaber@trash.net) wrote:
+>>> Yup, connector is very async at that place, but I wonder why the hell I
+>>> ever made that decision. I believe we can replace it with pure sync call
+>>> of the registered connector callback, since netlink is synchronous and
+>>> no one has any problem with it.
 >>
->> Am I missing something?
+>> Are you going to do this or do you want me to take care of it?
 > 
-> Yup, connector is very async at that place, but I wonder why the hell I
-> ever made that decision. I believe we can replace it with pure sync call
-> of the registered connector callback, since netlink is synchronous and
-> no one has any problem with it.
-> 
+> I will return back at the end of the week and will take care of this
+> problem. I will not mind if you complete it first though :)
 
-Are you going to do this or do you want me to take care of it?
+Thanks Evgeniy, I'll give it a shot.
