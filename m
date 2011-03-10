@@ -1,20 +1,16 @@
-Return-Path: <axboe@kernel.dk>
-Received: from kernel.dk (0122700014.0.fullrate.dk [95.166.99.235])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id CEAC81056F66
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Mar 2011 12:26:05 +0100 (CET)
-Message-ID: <4D78B54B.2060803@kernel.dk>
-Date: Thu, 10 Mar 2011 12:26:03 +0100
-From: Jens Axboe <axboe@kernel.dk>
-MIME-Version: 1.0
-To: Philipp Reisner <philipp.reisner@linbit.com>
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Thu, 10 Mar 2011 13:10:38 +0100
 References: <201103091523.51815.philipp.reisner@linbit.com>
-	<4D789ED1.6060905@kernel.dk>
 	<201103101200.24005.philipp.reisner@linbit.com>
-In-Reply-To: <201103101200.24005.philipp.reisner@linbit.com>
-Content-Type: text/plain; charset=ISO-8859-1
+	<4D78B54B.2060803@kernel.dk>
+In-Reply-To: <4D78B54B.2060803@kernel.dk>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201103101310.39012.philipp.reisner@linbit.com>
 Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [GIT PULL] DRBD bits for 2.6.39
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
@@ -26,42 +22,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2011-03-10 12:00, Philipp Reisner wrote:
-> [...]
->> Philip, sorry for the extra work, but can I please ask you to rebase
->> this on the new for-2.6.39/core? Two things happened:
->>
->> - I pulled in the stack-plug changes, it's causing a few conflicts. All
->>   of them are trivial, so that's not a real worry.
->>
->> - I had to rebase for-2.6.39/core to get rid of an OOPS in the
->>   ->check_events() changes from Tejun.
+[...]
 > 
-> Hi Jens,
-> 
-> Done, it is rebased:
-> 
-> The following changes since commit 4c63f5646e405b5010cc9499419060bf2e838f5b:
-> 
->   Merge branch 'for-2.6.39/stack-plug' into for-2.6.39/core (2011-03-10 
-> 08:58:35 +0100)
-> 
-> are available in the git repository at:
-> 
->   git://git.drbd.org/linux-2.6-drbd.git for-jens
+> Now that I have your attention... Did you look at the plugging changes?
 
-Awesome, thanks!
+You always have it :)
+I looked at the changes, and I noticed that we no longer get the unplug
+events. 
 
-Now that I have your attention... Did you look at the plugging changes?
-As Christoph mentioned, you seem to be passing plugging information on
-the wire. What is the reason for that? With the on-stack plugging, these
-events are not seen by the block device anymore.
+> As Christoph mentioned, you seem to be passing plugging information on
+> the wire. What is the reason for that? With the on-stack plugging, these
+> events are not seen by the block device anymore.
+> 
 
-> BTW, since we got a request for a "summary change-log":
+Imagine DRBD in synchronous mode (protocol C in DRBD speak) on an older
+kernel. We mirror a write, in order to get the write-ack packet from the
+peer, the peer needs to unplug as well. -> Send the unplug events via the
+wire.
 
-Yes, please do that in the future, it's good to have a verbalized
-summary outside of the shortlog.
+Now, it we would connect a current-head-of-git DRBD on one node to
+a older one (which still needs unplug packets to respond quickly),
+we would have a tar pit block device. (At least for single synchronous
+writes)
 
+We are in brainstorming mode right now here.
+One idea is to have a timer, that gets touched with every request we get
+in, in case it expires, we send out a unplug event over the wire.
+
+But having the unplug events would be more elegant of course...
+
+Best,
+ Phil
 -- 
-Jens Axboe
+: Dipl-Ing Philipp Reisner
+: LINBIT | Your Way to High Availability
+: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
+: http://www.linbit.com
 
+DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
