@@ -1,18 +1,32 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 34E3F1057026
-	for <drbd-dev@lists.linbit.com>; Mon, 14 Mar 2011 10:33:39 +0100 (CET)
-Resent-Message-ID: <20110314093338.GD11932@barkeeper1-xen.linbit>
-Date: Mon, 14 Mar 2011 12:25:11 +0300
-From: Dan Carpenter <error27@gmail.com>
-To: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Message-ID: <20110314092511.GK2008@bicker>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 21D0A10570A7
+	for <drbd-dev@lists.linbit.com>; Fri, 18 Mar 2011 14:24:45 +0100 (CET)
+Resent-Message-ID: <20110318132444.GC28441@barkeeper1-xen.linbit>
+Received: from tservice.net.ru (kandzendo.ru [195.178.208.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5F21610570AE
+	for <drbd-dev@lists.linbit.com>; Thu, 17 Mar 2011 16:43:05 +0100 (CET)
+Date: Thu, 17 Mar 2011 18:43:03 +0300
+From: Evgeniy Polyakov <zbr@ioremap.net>
+To: Patrick McHardy <kaber@trash.net>
+Message-ID: <20110317154303.GA12811@ioremap.net>
+References: <4D6F6180.5030903@trash.net>
+	<20110303173230.GP4988@sequoia.sous-sol.org>
+	<20110303.105655.189705829.davem@davemloft.net>
+	<20110303201522.GT4988@sequoia.sous-sol.org>
+	<20110303223746.GI25069@barkeeper1-xen.linbit>
+	<20110304012956.GA13573@ioremap.net> <4D764247.9080509@trash.net>
+	<20110308183246.GA17412@ioremap.net> <4D767B69.2030603@trash.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-user@lists.linbit.com
-Subject: [Drbd-dev] [patch] drbd: change int to unsigned int
+In-Reply-To: <4D767B69.2030603@trash.net>
+Cc: linux-fbdev@vger.kernel.org, netdev@vger.kernel.org,
+	linux-security-module@vger.kernel.org,
+	Chris Wright <chrisw@sous-sol.org>, dm-devel@redhat.com,
+	David Miller <davem@davemloft.net>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 2/2 v2] netlink: kill eff_cap from struct
+ netlink_skb_parms
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,40 +36,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-These are changes to make my static checker happy.  I don't know the
-code well enough to say if it makes a difference at run-time but it
-doesn't hurt to fix these up.
+Hi.
 
-Signed-off-by: Dan Carpenter <error27@gmail.com>
+On Tue, Mar 08, 2011 at 07:54:33PM +0100, Patrick McHardy (kaber@trash.net) wrote:
+> >> Are you going to do this or do you want me to take care of it?
+> > 
+> > I will return back at the end of the week and will take care of this
+> > problem. I will not mind if you complete it first though :)
+> 
+> Thanks Evgeniy, I'll give it a shot.
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index fe1564c..f33575c 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1383,7 +1383,7 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
- 	D_ASSERT(sector == bio->bi_sector);
- 
- 	bio_for_each_segment(bvec, bio, i) {
--		expect = min_t(int, data_size, bvec->bv_len);
-+		expect = min_t(unsigned int, data_size, bvec->bv_len);
- 		rr = drbd_recv(mdev,
- 			     kmap(bvec->bv_page)+bvec->bv_offset,
- 			     expect);
-@@ -3996,7 +3996,7 @@ static int drbd_do_handshake(struct drbd_conf *mdev)
- 	    PRO_VERSION_MIN > p->protocol_max)
- 		goto incompat;
- 
--	mdev->agreed_pro_version = min_t(int, PRO_VERSION_MAX, p->protocol_max);
-+	mdev->agreed_pro_version = min_t(unsigned int, PRO_VERSION_MAX, p->protocol_max);
- 
- 	dev_info(DEV, "Handshake successful: "
- 	     "Agreed network protocol version %d\n", mdev->agreed_pro_version);
-@@ -4515,7 +4515,7 @@ struct asender_cmd {
- 	int (*process)(struct drbd_conf *mdev, struct p_header80 *h);
- };
- 
--static struct asender_cmd *get_asender_cmd(int cmd)
-+static struct asender_cmd *get_asender_cmd(unsigned int cmd)
- {
- 	static struct asender_cmd asender_tbl[] = {
- 		/* anything missing from this table is in
+Is my help needed there or you will clean things up?
+
+-- 
+	Evgeniy Polyakov
