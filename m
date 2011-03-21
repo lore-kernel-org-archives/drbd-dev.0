@@ -1,32 +1,22 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 21D0A10570A7
-	for <drbd-dev@lists.linbit.com>; Fri, 18 Mar 2011 14:24:45 +0100 (CET)
-Resent-Message-ID: <20110318132444.GC28441@barkeeper1-xen.linbit>
-Received: from tservice.net.ru (kandzendo.ru [195.178.208.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5F21610570AE
-	for <drbd-dev@lists.linbit.com>; Thu, 17 Mar 2011 16:43:05 +0100 (CET)
-Date: Thu, 17 Mar 2011 18:43:03 +0300
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D53310570C9
+	for <drbd-dev@lists.linbit.com>; Mon, 21 Mar 2011 09:51:25 +0100 (CET)
+Resent-Message-ID: <20110321085121.GF28441@barkeeper1-xen.linbit>
+Received: from tservice.net.ru (unknown [195.178.208.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 27018105714A
+	for <drbd-dev@lists.linbit.com>; Mon, 21 Mar 2011 06:27:01 +0100 (CET)
+Date: Mon, 21 Mar 2011 08:27:00 +0300
 From: Evgeniy Polyakov <zbr@ioremap.net>
-To: Patrick McHardy <kaber@trash.net>
-Message-ID: <20110317154303.GA12811@ioremap.net>
-References: <4D6F6180.5030903@trash.net>
-	<20110303173230.GP4988@sequoia.sous-sol.org>
-	<20110303.105655.189705829.davem@davemloft.net>
-	<20110303201522.GT4988@sequoia.sous-sol.org>
-	<20110303223746.GI25069@barkeeper1-xen.linbit>
-	<20110304012956.GA13573@ioremap.net> <4D764247.9080509@trash.net>
-	<20110308183246.GA17412@ioremap.net> <4D767B69.2030603@trash.net>
+To: Ken-ichirou MATSUZAWA <chamas@h4.dion.ne.jp>
+Message-ID: <20110321052700.GA13236@ioremap.net>
+References: <87vczde0rg.wl%chamas@h4.dion.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4D767B69.2030603@trash.net>
-Cc: linux-fbdev@vger.kernel.org, netdev@vger.kernel.org,
-	linux-security-module@vger.kernel.org,
-	Chris Wright <chrisw@sous-sol.org>, dm-devel@redhat.com,
-	David Miller <davem@davemloft.net>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 2/2 v2] netlink: kill eff_cap from struct
- netlink_skb_parms
+In-Reply-To: <87vczde0rg.wl%chamas@h4.dion.ne.jp>
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] DRBD on container, lxc
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -38,15 +28,19 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hi.
 
-On Tue, Mar 08, 2011 at 07:54:33PM +0100, Patrick McHardy (kaber@trash.net) wrote:
-> >> Are you going to do this or do you want me to take care of it?
-> > 
-> > I will return back at the end of the week and will take care of this
-> > problem. I will not mind if you complete it first though :)
+On Mon, Mar 21, 2011 at 10:10:59AM +0900, Ken-ichirou MATSUZAWA (chamas@h4.dion.ne.jp) wrote:
+> I did not know where I should post, here is my starting point. I
+> started to try DRBD on lxc but did not work. I thought first thing
+> to do is makeing connector to net namespace aware. Appended patch
+> may have many issue but I noticed only a few though. 
 > 
-> Thanks Evgeniy, I'll give it a shot.
+> First this does not add connector sock to struct net, but just
+> holding sock as a list and send message to all net namespace. I
+> referred lib/kobject_uevent.c
 
-Is my help needed there or you will clean things up?
+You are holding rcu lock during skb allocation, which is not permitted
+for GFP_KERNEL, which may lead to a deadlock. Also netlink_broadcast()
+may sleep if allocation policy permits.
 
 -- 
 	Evgeniy Polyakov
