@@ -1,22 +1,26 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9D8CC1057461
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Mar 2011 10:55:00 +0200 (CEST)
-Resent-Message-ID: <20110329085457.GH16279@barkeeper1-xen.linbit>
-Received: from na3sys010aog112.obsmtp.com (na3sys010aog112.obsmtp.com
-	[74.125.245.92])
-	by mail09.linbit.com (LINBIT Mail Daemon) with SMTP id EF19010572C8
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Mar 2011 18:30:24 +0200 (CEST)
-Received: by mail-iw0-f181.google.com with SMTP id 2so4073748iwn.26
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Mar 2011 09:30:23 -0700 (PDT)
-Sender: Roland Dreier <roland@purestorage.com>
-From: Roland Dreier <roland@kernel.org>
-To: Lars Ellenberg <drbd-dev@lists.linbit.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 28 Mar 2011 09:23:27 -0700
-Message-Id: <1301329407-12493-1-git-send-email-roland@kernel.org>
-Cc: linux-kernel@vger.kernel.org
-Subject: [Drbd-dev] drbd: Fix build after bitop renames
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 649841056A67
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2011 02:31:32 +0200 (CEST)
+Resent-Message-ID: <20110407003130.GD3726@barkeeper1-xen.linbit>
+Received: from smtp.iplink.net (smtp.iplink.net [192.139.81.186])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8746A1056A67
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2011 22:22:35 +0200 (CEST)
+Received: from lework.alteeve.com (fw.iplink.net [192.139.81.98])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by smtp.iplink.net (Postfix) with ESMTP id 21D15B00E9C
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2011 15:50:36 -0400 (EDT)
+Message-ID: <4D9CC40C.7070805@alteeve.com>
+Date: Wed, 06 Apr 2011 15:50:36 -0400
+From: Madison Kelly <mkelly@alteeve.com>
+MIME-Version: 1.0
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] diff for adding 'wipe-md' to drbdadm.xml
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,63 +30,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Roland Dreier <roland@purestorage.com>
+I noticed that the 'wipe-md' option wasn't documented. With the help of
+adam_g on #drbd, I sorted out how to use it. I cloned the 8.3 repo and
+patched drbdadm.xml to document the feature. I'm not entirely sure what
+the devs prefer, both in language and diff syntax, so here is my initial
+stab and I'm happy to hear feedback/criticism.
 
-From: Roland Dreier <roland@purestorage.com>
+--- drbdadm.xml	2010-12-01 11:59:14.283726427 -0500
++++ digimer.drbdadm.xml	2011-04-06 15:45:58.910806575 -0400
+@@ -295,6 +295,15 @@
+         </listitem>
+       </varlistentry>
+       <varlistentry>
++        <term>wipe-md</term>
++        <listitem>
++          <para><indexterm
+significance="normal"><primary>drbdadm</primary><secondary>wipe-md</secondary></indexterm>
++          Wipes the meta data from the specified resource and it's backing
++	  devices. Must be run on all nodes. Syntax is: drbdadm wipe-md res
++        </para>
++        </listitem>
++      </varlistentry>
++      <varlistentry>
+         <term>outdate</term>
+         <listitem>
+           <para><indexterm
+significance="normal"><primary>drbdadm</primary><secondary>outdate</secondary></indexterm>
 
-Commit c4945b9ed472 ("asm-generic: rename generic little-endian bitops
-functions") got rid of the "generic_" prefix from various bitop
-functions.  Fix drbd up so it matches (and compiles).
 
-Signed-off-by: Roland Dreier <roland@purestorage.com>
----
- drivers/block/drbd/drbd_bitmap.c |   12 ++++++------
- 1 files changed, 6 insertions(+), 6 deletions(-)
-
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index f0ae63d..eb925fa 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -1184,10 +1184,10 @@ static unsigned long __bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo,
- 			p_addr = __bm_map_pidx(b, bm_bit_to_page_idx(b, bm_fo), km);
- 
- 			if (find_zero_bit)
--				i = generic_find_next_zero_le_bit(p_addr,
-+				i = find_next_zero_bit_le(p_addr,
- 						PAGE_SIZE*8, bm_fo & BITS_PER_PAGE_MASK);
- 			else
--				i = generic_find_next_le_bit(p_addr,
-+				i = find_next_bit_le(p_addr,
- 						PAGE_SIZE*8, bm_fo & BITS_PER_PAGE_MASK);
- 
- 			__bm_unmap(p_addr, km);
-@@ -1287,9 +1287,9 @@ static int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
- 			last_page_nr = page_nr;
- 		}
- 		if (val)
--			c += (0 == generic___test_and_set_le_bit(bitnr & BITS_PER_PAGE_MASK, p_addr));
-+			c += (0 == __test_and_set_bit_le(bitnr & BITS_PER_PAGE_MASK, p_addr));
- 		else
--			c -= (0 != generic___test_and_clear_le_bit(bitnr & BITS_PER_PAGE_MASK, p_addr));
-+			c -= (0 != __test_and_clear_bit_le(bitnr & BITS_PER_PAGE_MASK, p_addr));
- 	}
- 	if (p_addr)
- 		__bm_unmap(p_addr, km);
-@@ -1438,7 +1438,7 @@ int drbd_bm_test_bit(struct drbd_conf *mdev, const unsigned long bitnr)
- 		bm_print_lock_info(mdev);
- 	if (bitnr < b->bm_bits) {
- 		p_addr = bm_map_pidx(b, bm_bit_to_page_idx(b, bitnr));
--		i = generic_test_le_bit(bitnr & BITS_PER_PAGE_MASK, p_addr) ? 1 : 0;
-+		i = test_bit_le(bitnr & BITS_PER_PAGE_MASK, p_addr) ? 1 : 0;
- 		bm_unmap(p_addr);
- 	} else if (bitnr == b->bm_bits) {
- 		i = -1;
-@@ -1482,7 +1482,7 @@ int drbd_bm_count_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
- 		ERR_IF (bitnr >= b->bm_bits) {
- 			dev_err(DEV, "bitnr=%lu bm_bits=%lu\n", bitnr, b->bm_bits);
- 		} else {
--			c += (0 != generic_test_le_bit(bitnr - (page_nr << (PAGE_SHIFT+3)), p_addr));
-+			c += (0 != test_bit_le(bitnr - (page_nr << (PAGE_SHIFT+3)), p_addr));
- 		}
- 	}
- 	if (p_addr)
+-- 
+Madison Kelly        647-501-5200
+E-Mail:              mkelly@alteeve.com
+Papers and Projects: http://alteeve.com
+"Without risk, without reward."
