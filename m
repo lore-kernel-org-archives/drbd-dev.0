@@ -1,22 +1,18 @@
-Return-Path: <akpm@linux-foundation.org>
-Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
-	[140.211.169.13])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <schmiddy@gmail.com>
+Received: from mail-ww0-f42.google.com (mail-ww0-f42.google.com [74.125.82.42])
+	(using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 51F731056A8A
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2011 23:19:46 +0200 (CEST)
-Date: Thu, 7 Apr 2011 14:19:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Ilia Mirkin <imirkin@alum.mit.edu>
-Message-Id: <20110407141942.9d303e8c.akpm@linux-foundation.org>
-In-Reply-To: <1298241914-1400-1-git-send-email-imirkin@alum.mit.edu>
-References: <1298241914-1400-1-git-send-email-imirkin@alum.mit.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] lru_cache: Use correct type in sizeof for
-	allocation
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 29F911057140
+	for <drbd-dev@lists.linbit.com>; Sun, 24 Apr 2011 02:16:44 +0200 (CEST)
+Received: by wwk4 with SMTP id 4so615013wwk.3
+	for <drbd-dev@lists.linbit.com>; Sat, 23 Apr 2011 17:16:43 -0700 (PDT)
+MIME-Version: 1.0
+From: Josh Kupershmidt <schmiddy@gmail.com>
+Date: Sat, 23 Apr 2011 20:10:16 -0400
+Message-ID: <BANLkTikPLSwDgUGqHrpxnNQMbXtKkHoNYQ@mail.gmail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/mixed; boundary=00504502d3199401f504a19eeb7b
+Subject: [Drbd-dev] Makefile: non-portable flags to mv
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,58 +22,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, 20 Feb 2011 17:45:14 -0500
-Ilia Mirkin <imirkin@alum.mit.edu> wrote:
+--00504502d3199401f504a19eeb7b
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-> This has no actual effect, since sizeof(struct hlist_head) ==
-> sizeof(struct hlist_head *), but it's still the wrong type to use.
-> 
-> The semantic match that finds this problem:
-> // <smpl>
-> @@
-> type T;
-> identifier x;
-> @@
-> T *x;
-> ...
-> * x = kzalloc(... * sizeof(T*) * ..., ...);
-> // </smpl>
-> 
-> ...
->
-> --- a/lib/lru_cache.c
-> +++ b/lib/lru_cache.c
-> @@ -84,7 +84,7 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
->  	if (e_count > LC_MAX_ACTIVE)
->  		return NULL;
->  
-> -	slot = kzalloc(e_count * sizeof(struct hlist_head*), GFP_KERNEL);
-> +	slot = kzalloc(e_count * sizeof(struct hlist_head), GFP_KERNEL);
->  	if (!slot)
->  		goto out_fail;
->  	element = kzalloc(e_count * sizeof(struct lc_element *), GFP_KERNEL);
+Hi all,
 
-This is one of the reasons why I think it's better to use
+I noticed that ./drbd/Makefile tries to use the command
+  mv --force =85
 
-	foo = kmalloc(sizeof(*foo));
+On some systems this will not work; only the -f flag is in the UNIX
+spec <http://pubs.opengroup.org/onlinepubs/007908799/xcu/mv.html>.
+Trivial patch attached.
 
-Then, you just *know* it's correct by looking at the code and you don't
-need to scroll up and double-check the type of foo.
+Josh
 
-The code as you have it is still vulnerable to multiplicative overflow.
-So, to be really really correct,
+--00504502d3199401f504a19eeb7b
+Content-Type: text/x-patch; charset=US-ASCII; name="drbd_Makefile.patch"
+Content-Disposition: attachment; filename="drbd_Makefile.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_gmv80avf0
 
-
---- a/lib/lru_cache.c~lru_cache-use-correct-type-in-sizeof-for-allocation-fix
-+++ a/lib/lru_cache.c
-@@ -84,7 +84,7 @@ struct lru_cache *lc_create(const char *
- 	if (e_count > LC_MAX_ACTIVE)
- 		return NULL;
- 
--	slot = kzalloc(e_count * sizeof(struct hlist_head), GFP_KERNEL);
-+	slot = kcalloc(e_count, sizeof(struct hlist_head), GFP_KERNEL);
- 	if (!slot)
- 		goto out_fail;
- 	element = kzalloc(e_count * sizeof(struct lc_element *), GFP_KERNEL);
-_
-
+ZGlmZiAtLWdpdCBhL2RyYmQvTWFrZWZpbGUgYi9kcmJkL01ha2VmaWxlCmluZGV4IDdlNWM4NDQu
+LjUyMTA1ZDIgMTAwNjQ0Ci0tLSBhL2RyYmQvTWFrZWZpbGUKKysrIGIvZHJiZC9NYWtlZmlsZQpA
+QCAtMTMzLDcgKzEzMyw3IEBAIGVsc2UKIAkJZ3JlcCByZXR1cm4gJEAgOwkJCQkJCVwKIAlmaSA7
+CQkJCQkJCQkJXAogCWVjaG8gLWUgIlx0XHRcIiBidWlsZCBieSAkJFVTRVJAJCRIT1NUTkFNRSwg
+YGRhdGUgIislRiAlVCJgXCI7XG59IjsJXAotCW12IC0tZm9yY2UgJEAubmV3ICRACisJbXYgLWYg
+JEAubmV3ICRACiAKICAga2J1aWxkOiBkcmJkX2J1aWxkdGFnLmMKIAlAcm0gLWYgLmRyYmRfa2Vy
+bmVscmVsZWFzZSoK
+--00504502d3199401f504a19eeb7b--
