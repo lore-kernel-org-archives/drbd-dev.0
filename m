@@ -1,20 +1,14 @@
-Return-Path: <akpm@linux-foundation.org>
-Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
-	[140.211.169.13])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id F13BA1057453
-	for <drbd-dev@lists.linbit.com>; Tue, 24 May 2011 00:29:43 +0200 (CEST)
-Message-Id: <201105232229.p4NMTWGo016167@imap1.linux-foundation.org>
-To: jens.axboe@oracle.com
-From: akpm@linux-foundation.org
-Date: Mon, 23 May 2011 15:29:32 -0700
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Tue, 24 May 2011 10:50:24 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
-Cc: axboe@kernel.dk, akpm@linux-foundation.org, philipp.reisner@linbit.com,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [patch 1/1] drbd: fix warning
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201105241050.24719.philipp.reisner@linbit.com>
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [GIT PULL] DRBD bits for 2.6.40
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,45 +18,74 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andrew Morton <akpm@linux-foundation.org>
+The following changes since commit 779d530632c98967820d3bbcae15d492fc20301e:
 
-In file included from drivers/block/drbd/drbd_main.c:54:                        drivers/block/drbd/drbd_int.h:1190: warning: parameter has incomplete type
+  Merge branches 'for-jens/xen-backend-fixes' and 'for-jens/xen-blkback-v3.3' 
+of git://git.kernel.org/pub/scm/linux/kernel/git/konrad/xen into 
+for-2.6.40/drivers (2011-05-19 09:46:00 +0200)
 
-Forward declarations of enums do not work.
+are available in the git repository at:
 
-Fix it unpleasantly by moving the prototype.
+  git://git.drbd.org/linux-2.6-drbd.git for-jens
 
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+DRBD's changelog:
+8.3.11 (api:88/proto:86-96)
+--------
+ * Fixed handling of read errors during online verify runs
+ * Fixes for possible distributed deadlocks during online verify and
+   checksum based resync processes
+ * Fixed handling of IO errors with an on-io-error=pass-on policy; the
+   disk state goes to inconsistent
+ * Fixed the behavior in case ping-timeout and ping-int are set to the
+   same value
+ * Fix for connecting on high latency network links
+ * Fixed state transitions if fence-peer handler returns after connection was
+   established again
+ * Made die max_bio_size negotiation conservative instead of optimistic
+ * Network timeouts for mirrored write requests are now always enforced,
+   no longer only when the socket is congested
 
- drivers/block/drbd/drbd_int.h |    2 --
- drivers/block/drbd/drbd_req.h |    1 +
- 2 files changed, 1 insertion(+), 2 deletions(-)
 
-diff -puN drivers/block/drbd/drbd_int.h~drbd-fix-warning drivers/block/drbd/drbd_int.h
---- a/drivers/block/drbd/drbd_int.h~drbd-fix-warning
-+++ a/drivers/block/drbd/drbd_int.h
-@@ -1218,8 +1218,6 @@ extern void drbd_free_resources(struct d
- extern void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
- 		       unsigned int set_size);
- extern void tl_clear(struct drbd_conf *mdev);
--enum drbd_req_event;
--extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
- extern void _tl_add_barrier(struct drbd_conf *, struct drbd_tl_epoch *);
- extern void drbd_free_sock(struct drbd_conf *mdev);
- extern int drbd_send(struct drbd_conf *mdev, struct socket *sock,
-diff -puN drivers/block/drbd/drbd_req.h~drbd-fix-warning drivers/block/drbd/drbd_req.h
---- a/drivers/block/drbd/drbd_req.h~drbd-fix-warning
-+++ a/drivers/block/drbd/drbd_req.h
-@@ -323,6 +323,7 @@ extern int __req_mod(struct drbd_request
- extern void complete_master_bio(struct drbd_conf *mdev,
- 		struct bio_and_error *m);
- extern void request_timer_fn(unsigned long data);
-+extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
- 
- /* use this if you don't want to deal with calling complete_master_bio()
-  * outside the spinlock, e.g. when walking some list on cleanup. */
-_
+
+Andrew Morton (1):
+      drbd: fix warning
+
+Bart Van Assche (1):
+      drbd: Fix spelling
+
+Lars Ellenberg (5):
+      lru_cache.h: fix comments referring to ts_ instead of lc_
+      drbd: fix potential distributed deadlock
+      drbd: fix disconnect/reconnect loop, if ping-timeout == ping-int
+      drbd: fix potential activity log refcount imbalance in error path
+      drbd: fix schedule in atomic
+
+Philipp Reisner (7):
+      drbd: Fix for application IO with the on-io-error=pass-on policy
+      drbd: Only downgrade the disk state in case of disk failures
+      drbd: Fix for the connection problems on high latency links
+      drbd: Disallow the peer_disk_state to be D_OUTDATED while connected
+      drbd: Fixed state transitions after async outdate-peer-handler returned
+      drbd: Take a more conservative approach when deciding max_bio_size
+      drbd: fix warning
+
+ drivers/block/drbd/drbd_actlog.c   |    2 +-
+ drivers/block/drbd/drbd_bitmap.c   |    6 +-
+ drivers/block/drbd/drbd_int.h      |   19 ++++--
+ drivers/block/drbd/drbd_main.c     |   37 +++++++++--
+ drivers/block/drbd/drbd_nl.c       |  127 ++++++++++++++++++++++++++---------
+ drivers/block/drbd/drbd_receiver.c |   68 ++++++++------------
+ drivers/block/drbd/drbd_req.c      |   20 +++---
+ drivers/block/drbd/drbd_req.h      |    5 +-
+ drivers/block/drbd/drbd_worker.c   |   98 +++++++++++++++++-----------
+ include/linux/drbd.h               |   10 ++--
+ include/linux/drbd_tag_magic.h     |    2 +-
+ include/linux/lru_cache.h          |   12 ++--
+ 12 files changed, 255 insertions(+), 151 deletions(-)
+-- 
+: Dipl-Ing Philipp Reisner
+: LINBIT | Your Way to High Availability
+: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
+: http://www.linbit.com
+
+DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
