@@ -1,20 +1,16 @@
-Return-Path: <axboe@kernel.dk>
-Received: from kernel.dk (0122700014.0.fullrate.dk [95.166.99.235])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <akpm@linux-foundation.org>
+Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
+	[140.211.169.13])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 805F210576C2
-	for <drbd-dev@lists.linbit.com>; Tue, 24 May 2011 11:33:00 +0200 (CEST)
-Message-ID: <4DDB7946.5090301@kernel.dk>
-Date: Tue, 24 May 2011 11:24:22 +0200
-From: Jens Axboe <axboe@kernel.dk>
-MIME-Version: 1.0
-To: Philipp Reisner <philipp.reisner@linbit.com>
-References: <201105241050.24719.philipp.reisner@linbit.com>
-In-Reply-To: <201105241050.24719.philipp.reisner@linbit.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [GIT PULL] DRBD bits for 2.6.40
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 61CDF1057EC6
+	for <drbd-dev@lists.linbit.com>; Wed, 25 May 2011 22:32:03 +0200 (CEST)
+Message-Id: <201105252031.p4PKVQc1015063@imap1.linux-foundation.org>
+To: akpm@linux-foundation.org, axboe@kernel.dk, drbd-dev@lists.linbit.com,
+	philipp.reisner@linbit.com, mm-commits@vger.kernel.org
+From: akpm@linux-foundation.org
+Date: Wed, 25 May 2011 13:33:03 -0700
+Subject: [Drbd-dev] [merged] drbd-fix-warning.patch removed from -mm tree
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,19 +20,109 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2011-05-24 10:50, Philipp Reisner wrote:
-> The following changes since commit 779d530632c98967820d3bbcae15d492fc20301e:
-> 
->   Merge branches 'for-jens/xen-backend-fixes' and 'for-jens/xen-blkback-v3.3' 
-> of git://git.kernel.org/pub/scm/linux/kernel/git/konrad/xen into 
-> for-2.6.40/drivers (2011-05-19 09:46:00 +0200)
-> 
-> are available in the git repository at:
-> 
->   git://git.drbd.org/linux-2.6-drbd.git for-jens
 
-Thanks, pulled into for-2.6.40/drivers
+The patch titled
+     drbd: fix warning
+has been removed from the -mm tree.  Its filename was
+     drbd-fix-warning.patch
 
--- 
-Jens Axboe
+This patch was dropped because it was merged into mainline or a subsystem tree
+
+The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
+
+------------------------------------------------------
+Subject: drbd: fix warning
+From: Andrew Morton <akpm@linux-foundation.org>
+
+In file included from drivers/block/drbd/drbd_main.c:54:                        drivers/block/drbd/drbd_int.h:1190: warning: parameter has incomplete type
+
+Forward declarations of enums do not work.
+
+Fix it unpleasantly by moving the prototype.
+
+Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ drivers/block/drbd/drbd_int.h |    2 --
+ drivers/block/drbd/drbd_req.h |    1 +
+ 2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff -puN drivers/block/drbd/drbd_int.h~drbd-fix-warning drivers/block/drbd/drbd_int.h
+--- a/drivers/block/drbd/drbd_int.h~drbd-fix-warning
++++ a/drivers/block/drbd/drbd_int.h
+@@ -1218,8 +1218,6 @@ extern void drbd_free_resources(struct d
+ extern void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
+ 		       unsigned int set_size);
+ extern void tl_clear(struct drbd_conf *mdev);
+-enum drbd_req_event;
+-extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
+ extern void _tl_add_barrier(struct drbd_conf *, struct drbd_tl_epoch *);
+ extern void drbd_free_sock(struct drbd_conf *mdev);
+ extern int drbd_send(struct drbd_conf *mdev, struct socket *sock,
+diff -puN drivers/block/drbd/drbd_req.h~drbd-fix-warning drivers/block/drbd/drbd_req.h
+--- a/drivers/block/drbd/drbd_req.h~drbd-fix-warning
++++ a/drivers/block/drbd/drbd_req.h
+@@ -323,6 +323,7 @@ extern int __req_mod(struct drbd_request
+ extern void complete_master_bio(struct drbd_conf *mdev,
+ 		struct bio_and_error *m);
+ extern void request_timer_fn(unsigned long data);
++extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
+ 
+ /* use this if you don't want to deal with calling complete_master_bio()
+  * outside the spinlock, e.g. when walking some list on cleanup. */
+_
+
+Patches currently in -mm which might be from akpm@linux-foundation.org are
+
+origin.patch
+backlight-add-backlight-type-fix.patch
+linux-next.patch
+next-remove-localversion.patch
+i-need-old-gcc.patch
+arch-alpha-kernel-systblss-remove-debug-check.patch
+revert-m68k-merge-mmu-and-non-mmu-bitopsh.patch
+drivers-base-platformc-dont-mark-platform_device_register_resndata-as-__init_or_module.patch
+arch-x86-include-asm-delayh-fix-udelay-and-ndelay-for-8-bit-args.patch
+mtd-convert-to-seq_file-interface.patch
+rfcomm-corec-avoid-dangling-pointer-check-session-exists-checkpatch-fixes.patch
+drivers-bcma-host_pcic-needs-slabh.patch
+slab-use-numa_no_node.patch
+mm.patch
+writeback-sync-expired-inodes-first-in-background-writeback-fix.patch
+writeback-split-inode_wb_list_lock-into-bdi_writebacklist_lock-fix-fix.patch
+writeback-split-inode_wb_list_lock-into-bdi_writebacklist_lock-fix-fix-fix.patch
+frv-duplicate-output_buffer-of-e03-checkpatch-fixes.patch
+hpet-factor-timer-allocate-from-open.patch
+arch-alpha-include-asm-ioh-s-extern-inline-static-inline.patch
+leds-route-kbd-leds-through-the-generic-leds-layer.patch
+checkpatch-suggest-using-min_t-or-max_t.patch
+lib-hexdumpc-make-hex2bin-return-the-updated-src-address.patch
+fs-binfmt_miscc-use-kernels-hex_to_bin-method-fix.patch
+fs-binfmt_miscc-use-kernels-hex_to_bin-method-fix-fix.patch
+drivers-rtc-rtc-mrstc-use-release_mem_region-after-request_mem_region-fix.patch
+rtc-driver-for-pt7c4338-chip-checkpatch-fixes.patch
+rtc-driver-for-pt7c4338-chip-fix.patch
+drivers-rtc-rtc-mxcc-remove-defines-already-included-in-rtch-fix.patch
+documentation-accounting-getdelaysc-handle-sendto-failures.patch
+documentation-configfs-examples-crash-fix-checkpatch-fixes.patch
+mm-move-enum-vm_event_item-into-a-standalone-header-file.patch
+memcg-reclaim-memory-from-nodes-in-round-robin-fix.patch
+add-the-pagefault-count-into-memcg-stats.patch
+cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node.patch
+cpusets-randomize-node-rotor-used-in-cpuset_mem_spread_node-cpusets-initialize-spread-rotor-lazily-fix.patch
+fs-partitions-efic-corrupted-guid-partition-tables-can-cause-kernel-oops-fix.patch
+kernel-profilec-remove-some-duplicate-code-from-profile_hits-fix.patch
+scatterlist-new-helper-functions.patch
+scatterlist-new-helper-functions-update-fix.patch
+w1-add-maxim-dallas-ds2780-stand-alone-fuel-gauge-ic-support-v3-fix.patch
+kexec-remove-kmsg_dump_kexec-fix.patch
+journal_add_journal_head-debug.patch
+mutex-subsystem-synchro-test-module-fix.patch
+slab-leaks3-default-y.patch
+put_bh-debug.patch
+memblock-add-input-size-checking-to-memblock_find_region.patch
+memblock-add-input-size-checking-to-memblock_find_region-fix.patch
 
