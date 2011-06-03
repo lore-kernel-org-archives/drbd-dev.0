@@ -1,24 +1,20 @@
-Return-Path: <en@lightwerk.com>
-Received: from mail2.lightwerk.com (mail2.lightwerk.com [213.23.242.244])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F3B951057D4F
-	for <drbd-dev@lists.linbit.com>; Wed,  1 Jun 2011 14:02:47 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by mail2.lightwerk.com (Postfix) with ESMTP id 3C5CB123BBF
-	for <drbd-dev@lists.linbit.com>; Wed,  1 Jun 2011 14:02:47 +0200 (CEST)
-Received: from mail2.lightwerk.com ([127.0.0.1])
-	by localhost (mail2.lightwerk.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 06892-08 for <drbd-dev@lists.linbit.com>;
-	Wed,  1 Jun 2011 14:02:32 +0200 (CEST)
-Received: from ibiza.lightwerk.loc (unknown [192.168.1.46])
-	by mail2.lightwerk.com (Postfix) with ESMTP id 0AB59113F38
-	for <drbd-dev@lists.linbit.com>; Wed,  1 Jun 2011 14:02:32 +0200 (CEST)
-Date: Wed, 1 Jun 2011 14:02:30 +0200
-From: Eric Price <en@lightwerk.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20110601140230.5cdf7c56@ibiza.lightwerk.loc>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="MP_/ztDPeYk21m33YOZUjwiZ6tY"
-Subject: [Drbd-dev] drbd-8.4.0-rc2 Pacemaker ocf resource agent script bugfix
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B00E1056F4B
+	for <drbd-dev@lists.linbit.com>; Fri,  3 Jun 2011 13:38:46 +0200 (CEST)
+Resent-Message-ID: <20110603113846.GI9498@barkeeper1-xen.linbit>
+Received: from mail.perches.com (mail.perches.com [173.55.12.10])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E525A105695E
+	for <drbd-dev@lists.linbit.com>; Fri,  3 Jun 2011 11:29:15 +0200 (CEST)
+From: Joe Perches <joe@perches.com>
+To: Jiri Kosina <trivial@kernel.org>, drbd-dev@lists.linbit.com,
+	dri-devel@lists.freedesktop.org
+Date: Fri,  3 Jun 2011 02:28:45 -0700
+Message-Id: <cover.1307092588.git.joe@perches.com>
+Cc: devel@driverdev.osuosl.org, alsa-devel@alsa-project.org,
+	linux-kernel@vger.kernel.org, linux-scsi@vger.kernel.org
+Subject: [Drbd-dev] [Trivial PATCH 0/5] treewide: Use angle brackets for
+	system includes
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -28,71 +24,56 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---MP_/ztDPeYk21m33YOZUjwiZ6tY
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Just neatening.
 
+Joe Perches (5):
+  drbd: Use angle brackets for system includes
+  drm: Use angle brackets for system includes
+  aix94xx: Use angle brackets for system includes
+  ALSA: asihpi: Use angle brackets for system includes
+  staging: msm: Use angle brackets for system includes
 
-I dunno if you guys already spotted and/or fixed that in git.
+ drivers/block/drbd/drbd_int.h                 |    2 +-
+ drivers/block/drbd/drbd_nl.c                  |    4 ++--
+ drivers/gpu/drm/drm_ioctl.c                   |    2 +-
+ drivers/gpu/drm/i915/i915_gem_tiling.c        |    4 ++--
+ drivers/gpu/drm/nouveau/nouveau_drv.h         |   10 +++++-----
+ drivers/gpu/drm/ttm/ttm_agp_backend.c         |    6 +++---
+ drivers/gpu/drm/ttm/ttm_bo.c                  |    6 +++---
+ drivers/gpu/drm/ttm/ttm_bo_manager.c          |    6 +++---
+ drivers/gpu/drm/ttm/ttm_bo_util.c             |    4 ++--
+ drivers/gpu/drm/ttm/ttm_execbuf_util.c        |    6 +++---
+ drivers/gpu/drm/ttm/ttm_lock.c                |    4 ++--
+ drivers/gpu/drm/ttm/ttm_memory.c              |    6 +++---
+ drivers/gpu/drm/ttm/ttm_module.c              |    2 +-
+ drivers/gpu/drm/ttm/ttm_object.c              |    4 ++--
+ drivers/gpu/drm/ttm/ttm_page_alloc.c          |    4 ++--
+ drivers/gpu/drm/ttm/ttm_tt.c                  |    8 ++++----
+ drivers/gpu/drm/vmwgfx/vmwgfx_buffer.c        |    4 ++--
+ drivers/gpu/drm/vmwgfx/vmwgfx_drv.c           |    8 ++++----
+ drivers/gpu/drm/vmwgfx/vmwgfx_drv.h           |   12 ++++++------
+ drivers/gpu/drm/vmwgfx/vmwgfx_execbuf.c       |    4 ++--
+ drivers/gpu/drm/vmwgfx/vmwgfx_fb.c            |    2 +-
+ drivers/gpu/drm/vmwgfx/vmwgfx_fifo.c          |    2 +-
+ drivers/gpu/drm/vmwgfx/vmwgfx_gmr.c           |    2 +-
+ drivers/gpu/drm/vmwgfx/vmwgfx_gmrid_manager.c |    6 +++---
+ drivers/gpu/drm/vmwgfx/vmwgfx_overlay.c       |    2 +-
+ drivers/gpu/drm/vmwgfx/vmwgfx_resource.c      |    4 ++--
+ drivers/scsi/aic94xx/aic94xx_dump.c           |    2 +-
+ drivers/staging/msm/ebi2_l2f.c                |    2 +-
+ drivers/staging/msm/ebi2_tmd20.c              |    2 +-
+ drivers/staging/msm/mddihost.h                |    2 +-
+ drivers/staging/msm/mdp_ppp.c                 |    2 +-
+ drivers/staging/msm/mdp_ppp_v20.c             |    2 +-
+ drivers/staging/msm/mdp_ppp_v31.c             |    2 +-
+ drivers/staging/msm/msm_fb.h                  |    2 +-
+ include/drm/ttm/ttm_bo_driver.h               |   12 ++++++------
+ include/drm/ttm/ttm_execbuf_util.h            |    2 +-
+ include/drm/ttm/ttm_lock.h                    |    2 +-
+ include/linux/drbd_tag_magic.h                |    2 +-
+ sound/pci/asihpi/hpidspcd.c                   |    2 +-
+ 39 files changed, 80 insertions(+), 80 deletions(-)
 
+-- 
+1.7.5.rc3.dirty
 
-The drbd resource agent makes a check in "dual primary configuration"
-whether
-
-> drbdadm <resource> -d -v dump
-
-includes a line called
-
-> allow-two-primaries;
-
-however with 8.4.x drbdadmin reports that line as
-
-> allow-two-primaries yes;
-
-(even though drbd still accepts the old syntax in the config file)
-
-Thus the regex grep in the resource agent doesn't find it, and the
-resource startup fails.
-
-My fix just checks for an optional [ yes] in front of the ; and the
-resource management works again.
-
-
-Hope that helps.
-
-
-Cheers
-
---=20
-Eric Price
-Linux Solutions / Development
-
-Lightwerk GmbH - www.lightwerk.com
-Schulze-Delitzsch-Str. 38, 70565 Stuttgart
-E-Mail: en@lightwerk.com
-
-Gesch=C3=A4ftsf=C3=BChrender Gesellschafter: Veikko W=C3=BCnsche
-Amtsgericht Stuttgart, HRB 22214
-Ust.-ID: DE 813315708
-
-
---MP_/ztDPeYk21m33YOZUjwiZ6tY
-Content-Type: text/x-patch; name=drbd_resource.patch
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment; filename=drbd_resource.patch
-
---- drbd.ocf.orig	2011-06-01 13:08:05.331245528 +0200
-+++ drbd.ocf		2011-06-01 13:08:04.597124211 +0200
-@@ -867,7 +867,7 @@
- 	case $__OCF_ACTION:$OCF_RESKEY_CRM_meta_master_max in
- 	start:2|promote:2)
- 		if ! $DRBDADM -d -v dump $DRBD_RESOURCE 2>/dev/null |
--			grep '^[[:space:]]*allow-two-primaries;$'
-+			grep '^[[:space:]]*allow-two-primaries\( yes\)\?;$'
- 		then
- 			ocf_log err "master-max =3D 2, but DRBD resource $DRBD_RESOURCE does no=
-t allow-two-primaries."
- 			return $OCF_ERR_CONFIGURED
-
---MP_/ztDPeYk21m33YOZUjwiZ6tY--
