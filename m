@@ -1,20 +1,22 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7CF191056F4B
-	for <drbd-dev@lists.linbit.com>; Fri,  3 Jun 2011 13:38:52 +0200 (CEST)
-Resent-Message-ID: <20110603113850.GJ9498@barkeeper1-xen.linbit>
-Received: from mail.perches.com (mail.perches.com [173.55.12.10])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 800A51056F30
-	for <drbd-dev@lists.linbit.com>; Fri,  3 Jun 2011 11:29:16 +0200 (CEST)
-From: Joe Perches <joe@perches.com>
-To: Jiri Kosina <trivial@kernel.org>
-Date: Fri,  3 Jun 2011 02:28:46 -0700
-Message-Id: <6d11c5760da28eacfa6acfad79037e8080a488bd.1307092588.git.joe@perches.com>
-In-Reply-To: <cover.1307092588.git.joe@perches.com>
-References: <cover.1307092588.git.joe@perches.com>
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [Trivial PATCH 1/5] drbd: Use angle brackets for system
-	includes
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D32DB120710C
+	for <drbd-dev@lists.linbit.com>; Wed, 15 Jun 2011 12:02:15 +0200 (CEST)
+Resent-Message-ID: <20110615100215.GB21617@barkeeper1-xen.linbit>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 53273108D476
+	for <drbd-dev@lists.linbit.com>; Wed, 15 Jun 2011 01:59:23 +0200 (CEST)
+From: David Howells <dhowells@redhat.com>
+Date: Wed, 15 Jun 2011 00:59:04 +0100
+Message-ID: <20110614235904.5009.69393.stgit@warthog.procyon.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Cc: David Howells <dhowells@redhat.com>, Jens Axboe <axboe@kernel.dk>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] DRDB: Fix comparison always false warning due to
+ long/long long compare
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,63 +26,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the normal include style.
+Fix warnings of the following nature in the drbd header:
 
-Signed-off-by: Joe Perches <joe@perches.com>
+In file included from drivers/block/drbd/drbd_bitmap.c:32:
+drivers/block/drbd/drbd_int.h: In function 'drbd_get_syncer_progress':
+drivers/block/drbd/drbd_int.h:2234: warning: comparison is always false due to limited range of data
+
+where mdev->rs_total (an unsigned long) is being compared to 1ULL << 32, which
+is always false on a 32-bit machine.
+
+Signed-off-by: David Howells <dhowells@redhat.com>
+cc: Philipp Reisner <philipp.reisner@linbit.com>
+cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+cc: drbd-dev@lists.linbit.com
+cc: Jens Axboe <axboe@kernel.dk>
 ---
- drivers/block/drbd/drbd_int.h  |    2 +-
- drivers/block/drbd/drbd_nl.c   |    4 ++--
- include/linux/drbd_tag_magic.h |    2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+
+ drivers/block/drbd/drbd_int.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index ef2ceed..a6ab1b2 100644
+index ef2ceed..2e0278d 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -928,7 +928,7 @@ struct drbd_md {
- #define NL_INT64(pn,pr,member) __u64 member;
- #define NL_BIT(pn,pr,member)   unsigned member:1;
- #define NL_STRING(pn,pr,member,len) unsigned char member[len]; int member ## _len;
--#include "linux/drbd_nl.h"
-+#include <linux/drbd_nl.h>
- 
- struct drbd_backing_dev {
- 	struct block_device *backing_bdev;
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 515bcd9..20de58d 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -94,7 +94,7 @@ static int name ## _from_tags(struct drbd_conf *mdev, \
- 		 arg->member ## _len = dlen; \
- 		 memcpy(arg->member, tags, min_t(size_t, dlen, len)); \
- 		 break;
--#include "linux/drbd_nl.h"
-+#include <linux/drbd_nl.h>
- 
- /* Generate the struct to tag_list functions */
- #define NL_PACKET(name, number, fields) \
-@@ -129,7 +129,7 @@ name ## _to_tags(struct drbd_conf *mdev, \
- 	put_unaligned(arg->member ## _len, tags++);	\
- 	memcpy(tags, arg->member, arg->member ## _len); \
- 	tags = (unsigned short *)((char *)tags + arg->member ## _len);
--#include "linux/drbd_nl.h"
-+#include <linux/drbd_nl.h>
- 
- void drbd_bcast_ev_helper(struct drbd_conf *mdev, char *helper_name);
- void drbd_nl_send_reply(struct cn_msg *, int);
-diff --git a/include/linux/drbd_tag_magic.h b/include/linux/drbd_tag_magic.h
-index 0695431..81f52f2 100644
---- a/include/linux/drbd_tag_magic.h
-+++ b/include/linux/drbd_tag_magic.h
-@@ -28,7 +28,7 @@ enum packet_types {
- #define NL_STRING(pn, pr, member, len)	\
- 	unsigned char member[len]; int member ## _len; \
- 	int tag_and_len ## member;
--#include "linux/drbd_nl.h"
-+#include <linux/drbd_nl.h>
- 
- /* declare tag-list-sizes */
- static const int tag_list_sizes[] = {
--- 
-1.7.5.rc3.dirty
+@@ -2231,7 +2231,7 @@ static inline void drbd_get_syncer_progress(struct drbd_conf *mdev,
+ 		 * Note: currently we don't support such large bitmaps on 32bit
+ 		 * arch anyways, but no harm done to be prepared for it here.
+ 		 */
+-		unsigned int shift = mdev->rs_total >= (1ULL << 32) ? 16 : 10;
++		unsigned int shift = mdev->rs_total > UINT_MAX ? 16 : 10;
+ 		unsigned long left = *bits_left >> shift;
+ 		unsigned long total = 1UL + (mdev->rs_total >> shift);
+ 		unsigned long tmp = 1000UL - left * 1000UL/total;
 
