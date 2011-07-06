@@ -1,22 +1,21 @@
-Return-Path: <axboe@kernel.dk>
-Received: from kernel.dk (0122700014.0.fullrate.dk [95.166.99.235])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2D44A10565B6
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Jun 2011 10:13:45 +0200 (CEST)
-Message-ID: <4E0C3037.6040905@kernel.dk>
-Date: Thu, 30 Jun 2011 10:13:43 +0200
-From: Jens Axboe <axboe@kernel.dk>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 545921056835
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Jul 2011 20:20:19 +0200 (CEST)
+Resent-Message-ID: <20110707182018.GE5862@barkeeper1-xen.linbit>
+Received: from smtp5.server.rpi.edu (smtp5.server.rpi.edu [128.113.2.225])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E2C7D1056672
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Jul 2011 00:35:34 +0200 (CEST)
+Received: from [129.161.1.45] (bree.ccni.rpi.edu [129.161.1.45])
+	by smtp5.server.rpi.edu (8.13.1/8.13.1) with ESMTP id p66LO7KX017506
+	for <drbd-dev@lists.linbit.com>; Wed, 6 Jul 2011 17:24:07 -0400
+Message-ID: <4E14D277.4050106@rpi.edu>
+Date: Wed, 06 Jul 2011 17:24:07 -0400
+From: Lindsay Todd <toddr@rpi.edu>
 MIME-Version: 1.0
-To: Philipp Reisner <philipp.reisner@linbit.com>
-References: <201106291714.57384.philipp.reisner@linbit.com>
-	<4E0B6B85.5090202@kernel.dk>
-	<201106301008.32832.philipp.reisner@linbit.com>
-In-Reply-To: <201106301008.32832.philipp.reisner@linbit.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [GIT PULL] DRBD minor fixes for 3.0-rc6
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/mixed; boundary="------------000202070705000500050207"
+Subject: [Drbd-dev] Building drbd RPM on Scientific Linux 6
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,32 +25,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2011-06-30 10:08, Philipp Reisner wrote:
-> Am Mittwoch, 29. Juni 2011, 20:14:29 schrieb Jens Axboe:
->> On 2011-06-29 17:14, Philipp Reisner wrote:
->>> The following changes since commit a1c15c59feee36267c43142a41152fbf7402afb6:
->>>   loop: handle on-demand devices correctly (2011-05-24 16:48:55 +0200)
->>>
->>> are available in the git repository at:
->>>   git://git.drbd.org/linux-2.6-drbd.git for-jens
->>
->> This looks way too big for -rc6. Take another look at the list and
->> re-send with what is absolutely crucial this late in the cycle, please.
-> 
-> Hi Jens,
-> 
-> I categorised them into three branches:
-> for-3.0-important, for-3.0-non-important-trivia and for-3.0-non-trivial-cosmetic.
-> 
-> Please consider to pull the first one, eventually the second one. (The third
-> one is only there for sake of completeness, to document that this patch will
-> be scheduled for the next merge window)
+This is a multi-part message in MIME format.
+--------------000202070705000500050207
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 
-I have pulled your for-3.0-important branch, looks fine. I'm not pulling
-any non-important or trivia for 3.0, so both of the latter branches will
-have to wait for 3.1. But do send me pull request for them, might as
-well queue it up now since it'll soon be merge time again.
+I needed to build DRBD 8.3.11 on a Scientific Linux 6 (Red Hat 6 clone)
+system with support for rgmanager.  However, the resulting RPMs require
+rgmanager < 3.  The attached patch to the spec file fixes that problem.
 
 -- 
-Jens Axboe
+R. Lindsay Todd, PhD                 email: toddr@rpi.edu
+Senior Systems Programmer            phone: 518-276-2605
+Rensselaer Polytechnic Institute     fax:   518-276-2809
+Troy, NY 12180-3590                  WWW:   http://www.rpi.edu/~toddr
 
+The views, opinions, and judgments expressed in this message are
+solely those of the author. The message contents have not been
+reviewed or approved by Rensselaer.
+
+
+--------------000202070705000500050207
+Content-Type: text/x-patch;
+ name="drbd-8.3.11-sl.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="drbd-8.3.11-sl.diff"
+
+--- drbd.spec.in.ORIG	2011-07-06 15:52:39.292317940 -0400
++++ drbd.spec.in	2011-07-06 15:55:35.161538906 -0400
+@@ -208,7 +208,11 @@
+ %package rgmanager
+ Summary: Red Hat Cluster Suite agent for DRBD
+ Group: System Environment/Base
++%if 0%{?centos} != 6 && 0%{?rhel} != 6
+ Requires: %{name}-utils = %{version}-%{release}, rgmanager < 3
++%else
++Requires: %{name}-utils = %{version}-%{release}
++%endif
+ # RHEL 6 removed some scripts from upstream version,
+ # including drbd. Heuristic only...
+ %if 0%{?centos} != 6 && 0%{?rhel} != 6
+
+--------------000202070705000500050207--
