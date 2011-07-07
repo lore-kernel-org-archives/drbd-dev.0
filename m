@@ -1,21 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 545921056835
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Jul 2011 20:20:19 +0200 (CEST)
-Resent-Message-ID: <20110707182018.GE5862@barkeeper1-xen.linbit>
-Received: from smtp5.server.rpi.edu (smtp5.server.rpi.edu [128.113.2.225])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E2C7D1056672
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Jul 2011 00:35:34 +0200 (CEST)
-Received: from [129.161.1.45] (bree.ccni.rpi.edu [129.161.1.45])
-	by smtp5.server.rpi.edu (8.13.1/8.13.1) with ESMTP id p66LO7KX017506
-	for <drbd-dev@lists.linbit.com>; Wed, 6 Jul 2011 17:24:07 -0400
-Message-ID: <4E14D277.4050106@rpi.edu>
-Date: Wed, 06 Jul 2011 17:24:07 -0400
-From: Lindsay Todd <toddr@rpi.edu>
-MIME-Version: 1.0
+Return-Path: <mrten@ii.nl>
+Received: from mail1.ii.nl (mail1.ii.nl [82.94.191.120])
+	(using TLSv1 with cipher AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2A2DD105669B
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Jul 2011 18:00:12 +0200 (CEST)
+From: Mrten <mrten+drbd@ii.nl>
 To: drbd-dev@lists.linbit.com
-Content-Type: multipart/mixed; boundary="------------000202070705000500050207"
-Subject: [Drbd-dev] Building drbd RPM on Scientific Linux 6
+Date: Thu,  7 Jul 2011 17:44:21 +0200
+Message-Id: <1310053461-15060-2-git-send-email-mrten+drbd@ii.nl>
+In-Reply-To: <1310053461-15060-1-git-send-email-mrten+drbd@ii.nl>
+References: <1310053461-15060-1-git-send-email-mrten+drbd@ii.nl>
+Subject: [Drbd-dev] [PATCH 2/2] expand section on throughput tuning to
+	highlight prime usecase of external metadata
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,46 +21,65 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
---------------000202070705000500050207
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+---
+ users-guide/throughput.txt |   33 +++++++++++++++++++++++++++++++++
+ 1 files changed, 33 insertions(+), 0 deletions(-)
 
-I needed to build DRBD 8.3.11 on a Scientific Linux 6 (Red Hat 6 clone)
-system with support for rgmanager.  However, the resulting RPMs require
-rgmanager < 3.  The attached patch to the spec file fixes that problem.
-
+diff --git a/users-guide/throughput.txt b/users-guide/throughput.txt
+index f033db5..584d0bf 100644
+--- a/users-guide/throughput.txt
++++ b/users-guide/throughput.txt
+@@ -48,6 +48,7 @@ important to consider the following natural limitations:
+ 
+ * DRBD throughput is limited by that of the raw I/O subsystem.
+ * DRBD throughput is limited by the available network bandwidth.
++* DRBD throughput can be limited by head seeks with 'meta-disk internal'
+ 
+ The _minimum_ between the two establishes the theoretical throughput
+ _maximum_ available to DRBD. DRBD then reduces that throughput maximum
+@@ -64,6 +65,16 @@ less than 3 percent.
+ * By contrast, if the I/O subsystem is capable of only 100 MB/s for
+   sustained writes, then it constitutes the bottleneck, and you would
+   be able to expect only 97 MB/s maximum DRBD throughput.
++  
++* In case of meta-disk internal without a hardware write cache (which 
++  should be battery backupped!), DRBD metadata updates necessary to guarantee
++  data-completeness in case of failure can slow down 
++  write throughput significantly. If a raw device is normally capable of
++  250 MB/s write throughput it is not an anomaly to see writes as slow as 
++  70 MB/s with DRBD enabled (numbers are for rotational disks). This is 
++  purely caused by head seeks; 4MB data updates have to be followed by metadata updates
++  and the data-writes can only continue after the metadata has been reached the 
++  platters (caching and write reordering does not help).
+ 
+ [[s-throughput-tuning]]
+ === Tuning recommendations
+@@ -204,3 +215,25 @@ resource <resource> {
+   ...
+ }
+ ----------------------------
++
++[[s-tune-external-metadata]]
++==== Moving meta-disk to external device
++
++WARNING: The recommended configuration is running with internal meta-disk. 
++With external metadata, when underlying storage dies the metadata does not 
++die with it, so special care should be taken. See <<s-external-meta-data,external meta data>>.
++
++With a software raid (md) of rotational media it is often faster to move the metadata to a 
++dedicated set of platters. 
++
++[source,drbd]
++----------------------------
++resource <resource> {
++  disk {
++    disk /dev/md3;
++    flexible-meta-disk /dev/md4;
++    ...
++  }
++  ...
++}
++----------------------------
 -- 
-R. Lindsay Todd, PhD                 email: toddr@rpi.edu
-Senior Systems Programmer            phone: 518-276-2605
-Rensselaer Polytechnic Institute     fax:   518-276-2809
-Troy, NY 12180-3590                  WWW:   http://www.rpi.edu/~toddr
+1.7.0.4
 
-The views, opinions, and judgments expressed in this message are
-solely those of the author. The message contents have not been
-reviewed or approved by Rensselaer.
-
-
---------------000202070705000500050207
-Content-Type: text/x-patch;
- name="drbd-8.3.11-sl.diff"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="drbd-8.3.11-sl.diff"
-
---- drbd.spec.in.ORIG	2011-07-06 15:52:39.292317940 -0400
-+++ drbd.spec.in	2011-07-06 15:55:35.161538906 -0400
-@@ -208,7 +208,11 @@
- %package rgmanager
- Summary: Red Hat Cluster Suite agent for DRBD
- Group: System Environment/Base
-+%if 0%{?centos} != 6 && 0%{?rhel} != 6
- Requires: %{name}-utils = %{version}-%{release}, rgmanager < 3
-+%else
-+Requires: %{name}-utils = %{version}-%{release}
-+%endif
- # RHEL 6 removed some scripts from upstream version,
- # including drbd. Heuristic only...
- %if 0%{?centos} != 6 && 0%{?rhel} != 6
-
---------------000202070705000500050207--
