@@ -1,14 +1,21 @@
-Return-Path: <mrten@ii.nl>
-Received: from mail1.ii.nl (mail1.ii.nl [82.94.191.120])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 582E8105669B
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Jul 2011 18:00:14 +0200 (CEST)
-From: Mrten <mrten+drbd@ii.nl>
-To: drbd-dev@lists.linbit.com
-Date: Thu,  7 Jul 2011 17:44:20 +0200
-Message-Id: <1310053461-15060-1-git-send-email-mrten+drbd@ii.nl>
-Subject: [Drbd-dev] [PATCH 1/2] add extra paragraph about manpages/ directory
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1F8981056471
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Jul 2011 14:31:16 +0200 (CEST)
+Resent-Message-ID: <20110708123115.GA15170@barkeeper1-xen.linbit>
+Message-ID: <4E16A712.5040102@linbit.com>
+Date: Fri, 08 Jul 2011 08:43:30 +0200
+From: Florian Haas <florian.haas@linbit.com>
+MIME-Version: 1.0
+To: Mrten <mrten+drbd@ii.nl>
+References: <1310053349-14778-1-git-send-email-mrten+drbd@ii.nl>
+In-Reply-To: <1310053349-14778-1-git-send-email-mrten+drbd@ii.nl>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature";
+	boundary="------------enigCEDC7CFB1C42882DBD2055F0"
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] more information about differences between
+ flexible- and meta-disk
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,34 +25,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
----
- README.txt |   13 +++++++++++++
- 1 files changed, 13 insertions(+), 0 deletions(-)
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enigCEDC7CFB1C42882DBD2055F0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-diff --git a/README.txt b/README.txt
-index 20e664b..3dc4a18 100644
---- a/README.txt
-+++ b/README.txt
-@@ -72,6 +72,19 @@ of your choice, and the git version control system. The documentation
- syntax is AsciiDoc; see http://www.methods.co.nz/asciidoc/ for details
- on this format.
- 
-+Manpages
-+--------
-+
-+To edit the manpages you need to check out the relevant drbd too in the same directory as 
-+the drbd-documentation (adjust version number  here):
-+
-+-----------------------------------
-+git clone git://git.drbd.org/drbd-8.3.git
-+-----------------------------------
-+
-+Then adjust the Makefile in drbd-documentation/manpages to point to the right 
-+drbd version and 'make' there will work (create symlinks).
-+
- 
- Submitting documentation patches
- --------------------------------
--- 
-1.7.0.4
+Maarten, I much appreciate these but am unsure whether I will be able to
+review today. Please bear with me for a couple of days or so. Thanks!
 
+Cheers,
+Florian
+
+On 07/07/2011 05:42 PM, Mrten wrote:
+> ---
+>  documentation/drbd.conf.xml |   13 ++++++++++---
+>  1 files changed, 10 insertions(+), 3 deletions(-)
+
+
+--------------enigCEDC7CFB1C42882DBD2055F0
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
+
+iEYEARECAAYFAk4WpxIACgkQc0m4l7x1nPEIpACfc2hasdOesS5iW7U0PnSU4P+z
+E2AAn0m8KsSiON2AZ8eMjN0BJac/KOIY
+=cujq
+-----END PGP SIGNATURE-----
+
+--------------enigCEDC7CFB1C42882DBD2055F0--
