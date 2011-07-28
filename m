@@ -1,28 +1,21 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3903110567A6
-	for <drbd-dev@lists.linbit.com>; Mon, 25 Jul 2011 17:04:04 +0200 (CEST)
-Resent-Message-ID: <20110725150403.GC4035@barkeeper1-xen.linbit>
-Received: from swan.nt.tuwien.ac.at (swan.nt.tuwien.ac.at [128.131.67.158])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <akpm@linux-foundation.org>
+Received: from smtp1.linux-foundation.org (smtp1.linux-foundation.org
+	[140.211.169.13])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5983C1056792
-	for <drbd-dev@lists.linbit.com>; Mon, 25 Jul 2011 15:09:56 +0200 (CEST)
-Date: Mon, 25 Jul 2011 15:09:55 +0200
-From: Thomas Zeitlhofer <thomas.zeitlhofer@nt.tuwien.ac.at>
-To: Andreas Gruenbacher <agruen@linbit.com>
-Message-ID: <20110725130955.GA19513@swan.nt.tuwien.ac.at>
-References: <20110724233847.GA2356@swan.nt.tuwien.ac.at>
-	<201107251139.45806.agruen@linbit.com>
-	<20110725123657.GB25953@swan.nt.tuwien.ac.at>
-	<201107251447.22654.agruen@linbit.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5EE8D1056787
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jul 2011 22:52:15 +0200 (CEST)
+Message-Id: <201107282052.p6SKq1TZ007835@imap1.linux-foundation.org>
+To: drbd-dev@lists.linbit.com
+From: akpm@linux-foundation.org
+Date: Thu, 28 Jul 2011 13:52:01 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201107251447.22654.agruen@linbit.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] initialize tconn->peer_integrity_tfm
-	in	drbd_adm_connect()
+Content-Type: text/plain; charset=ASCII
+Content-Transfer-Encoding: 8bit
+Cc: axboe@kernel.dk, hsweeten@visionengravers.com, akpm@linux-foundation.org,
+	philipp.reisner@linbit.com, hartleys@visionengravers.com
+Subject: [Drbd-dev] [patch 1/1] drivers/block/drbd/drbd_nl.c: use
+	bitmap_parse instead of __bitmap_parse
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -32,20 +25,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jul 25, 2011 at 02:47:22PM +0200, Andreas Gruenbacher wrote:
-> On Monday 25 July 2011 14:36:57 Thomas Zeitlhofer wrote:
-> > On Mon, Jul 25, 2011 at 11:39:45AM +0200, Andreas Gruenbacher wrote:
-> > > The master branch in http://git.drbd.org/?p=drbd-8.4.git contains a few 
-> > > additional minor fixes.
-> > 
-> > Thanks for the information - the public git repository did not show any
-> > commits since the 8.4.0 release, so I just had a look at this issue.
-> 
-> Yes ... you should see all commits up to "drbd: remove disfunctional 
-> NLM_F_REPLACE usage" from Lars now.
+From: H Hartley Sweeten <hartleys@visionengravers.com>
 
-Yes, these commits do show up now.
+The buffer 'sc.cpu_mask' is a kernel buffer.  If bitmap_parse is used
+instead of __bitmap_parse the extra parameter that indicates a kernel
+buffer is not needed.
 
-Thanks,
+Signed-off-by: H Hartley Sweeten <hsweeten@visionengravers.com>
+Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
 
-Thomas
+ drivers/block/drbd/drbd_nl.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff -puN drivers/block/drbd/drbd_nl.c~drivers-block-drbd-drbd_nlc-use-bitmap_parse-instead-of-__bitmap_parse drivers/block/drbd/drbd_nl.c
+--- a/drivers/block/drbd/drbd_nl.c~drivers-block-drbd-drbd_nlc-use-bitmap_parse-instead-of-__bitmap_parse
++++ a/drivers/block/drbd/drbd_nl.c
+@@ -1829,10 +1829,10 @@ static int drbd_nl_syncer_conf(struct dr
+ 
+ 	/* silently ignore cpu mask on UP kernel */
+ 	if (nr_cpu_ids > 1 && sc.cpu_mask[0] != 0) {
+-		err = __bitmap_parse(sc.cpu_mask, 32, 0,
++		err = bitmap_parse(sc.cpu_mask, 32,
+ 				cpumask_bits(new_cpu_mask), nr_cpu_ids);
+ 		if (err) {
+-			dev_warn(DEV, "__bitmap_parse() failed with %d\n", err);
++			dev_warn(DEV, "bitmap_parse() failed with %d\n", err);
+ 			retcode = ERR_CPU_MASK_PARSE;
+ 			goto fail;
+ 		}
+_
