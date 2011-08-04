@@ -2,14 +2,12 @@ Return-Path: <mrten@ii.nl>
 Received: from mail1.ii.nl (mail1.ii.nl [82.94.191.120])
 	(using TLSv1 with cipher AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 29E5E10567A3
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Aug 2011 17:37:06 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3693410567B0
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Aug 2011 18:33:36 +0200 (CEST)
 From: mrten+drbd@ii.nl
 To: drbd-dev@lists.linbit.com
-Date: Thu,  4 Aug 2011 17:34:49 +0200
-Message-Id: <1312472089-4215-2-git-send-email-mrten+drbd@ii.nl>
-In-Reply-To: <1312472089-4215-1-git-send-email-mrten+drbd@ii.nl>
-References: <1312472089-4215-1-git-send-email-mrten+drbd@ii.nl>
+Date: Thu,  4 Aug 2011 18:32:59 +0200
+Message-Id: <1312475579-28296-1-git-send-email-mrten+drbd@ii.nl>
 Subject: [Drbd-dev] [PATCH] expand section on throughput tuning to highlight
 	prime usecase of external metadata florians comments applied,
 	added section replacing metadata
