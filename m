@@ -1,16 +1,27 @@
-Return-Path: <mrten@ii.nl>
-Received: from mail1.ii.nl (mail1.ii.nl [82.94.191.120])
+Return-Path: <mrten+drbd@ii.nl>
+Received: from mail2.ii.nl (mail2.ii.nl [82.94.191.121])
 	(using TLSv1 with cipher AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3693410567B0
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Aug 2011 18:33:36 +0200 (CEST)
-From: mrten+drbd@ii.nl
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5D3B91056C28
+	for <drbd-dev@lists.linbit.com>; Fri,  5 Aug 2011 10:13:52 +0200 (CEST)
+Received: from s529c1e11.adsl.wanadoo.nl ([82.156.30.17]:53141 helo=kyra.ii.nl)
+	by mail2.ii.nl with esmtpsa (TLS1.0:RSA_AES_256_CBC_SHA1:32)
+	(Exim 4.71) (envelope-from <mrten+drbd@ii.nl>) id 1QpFXU-0006m1-4L
+	for drbd-dev@lists.linbit.com; Fri, 05 Aug 2011 10:13:52 +0200
+Received: from droopy.i.mrten ([192.168.27.2]:54253)
+	by kyra.ii.nl with esmtps (TLS1.0:RSA_AES_256_CBC_SHA1:32)
+	(Exim 4.72) (envelope-from <mrten+drbd@ii.nl>) id 1QpFXT-0001Oc-3H
+	for drbd-dev@lists.linbit.com; Fri, 05 Aug 2011 10:13:51 +0200
+Message-ID: <4E3BA638.9000601@ii.nl>
+Date: Fri, 05 Aug 2011 10:13:44 +0200
+From: Mrten <mrten+drbd@ii.nl>
+MIME-Version: 1.0
 To: drbd-dev@lists.linbit.com
-Date: Thu,  4 Aug 2011 18:32:59 +0200
-Message-Id: <1312475579-28296-1-git-send-email-mrten+drbd@ii.nl>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Subject: [Drbd-dev] [PATCH] expand section on throughput tuning to highlight
-	prime usecase of external metadata florians comments applied,
-	added section replacing metadata
+ prime usecase of external metadata, florians comments applied,
+ added section replacing metadata
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,7 +31,9 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Mrten <mrten+drbd@ii.nl>
+Git and I do not jive, yet. Sorry for duplicate mails, sent by hand this time.
+
+Mrten.
 
 ---
  users-guide/throughput.txt |   66 ++++++++++++++++++++++++++++++++++++++++++--
@@ -31,26 +44,26 @@ index 1cdf1b7..dd32d56 100644
 --- a/users-guide/throughput.txt
 +++ b/users-guide/throughput.txt
 @@ -48,11 +48,12 @@ important to consider the following natural limitations:
- 
+
  * DRBD throughput is limited by that of the raw I/O subsystem.
  * DRBD throughput is limited by the available network bandwidth.
 +* DRBD throughput can possibly be limited by head seeks with '+meta-disk internal+'
- 
+
 -The _minimum_ between the two establishes the theoretical throughput
 -_maximum_ available to DRBD. DRBD then reduces that throughput maximum
 +The _minimum_ of the first two establishes the _maximum_ theoretical throughput
 +available to DRBD. DRBD then reduces that throughput maximum
  by its additional throughput overhead, which can be expected to be
 -less than 3 percent.
-+less than 3 percent. 
- 
++less than 3 percent.
+
  * Consider the example of two cluster nodes containing I/O subsystems
    capable of 200 MB/s throughput, with a Gigabit Ethernet link
 @@ -64,6 +65,18 @@ less than 3 percent.
  * By contrast, if the I/O subsystem is capable of only 100 MB/s for
    sustained writes, then it constitutes the bottleneck, and you would
    be able to expect only 97 MB/s maximum DRBD throughput.
-+  
++
 +* In case of +meta-disk+ internal and without a hardware write cache, DRBD
 +metadata updates to the <<s-activity-log,activity log>> can slow down write
 +throughput significantly. If a raw software RAID-0 device with rotational disks
@@ -62,7 +75,7 @@ index 1cdf1b7..dd32d56 100644
 +seeking most of the time instead of writing, lowering throughput. External meta
 +data on a different device (which is not on a disk used by the RAID-0 device)
 +can be used to mitigate this.
- 
+
  [[s-throughput-tuning]]
  === Tuning recommendations
 @@ -204,3 +217,50 @@ resource <resource> {
@@ -73,11 +86,11 @@ index 1cdf1b7..dd32d56 100644
 +[[s-tune-external-metadata]]
 +==== Moving meta-disk to external device
 +
-+WARNING: The recommended configuration is running with internal +meta-disk+. 
-+With external meta data, when underlying storage dies the meta data does not 
++WARNING: The recommended configuration is running with internal +meta-disk+.
++With external meta data, when underlying storage dies the meta data does not
 +die with it, so special care should be taken. See <<s-external-meta-data,external meta data>>.
 +
-+With a software raid (md) of rotational media it is often faster to create the meta data on a 
++With a software raid (md) of rotational media it is often faster to create the meta data on a
 +dedicated device.
 +
 +[source,drbd]
@@ -107,7 +120,7 @@ index 1cdf1b7..dd32d56 100644
 +
 +Wipe the current meta data so that DRBD isn't confronted with it in a later stage:
 +----------------------------
-+drbdadm wipe-md [resource] 
++drbdadm wipe-md [resource]
 +----------------------------
 +
 +Write the meta data to another device:
@@ -116,6 +129,5 @@ index 1cdf1b7..dd32d56 100644
 +----------------------------
 +
 +Adjust your config, and start the device again.
--- 
+--
 1.7.0.4
-
