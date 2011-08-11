@@ -1,17 +1,27 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0E2DB1055FA7
-	for <drbd-dev@lists.linbit.com>; Wed, 17 Aug 2011 17:55:37 +0200 (CEST)
-Resent-Message-ID: <20110817155537.GC9133@barkeeper1-xen.linbit>
-From: Jesper Juhl <jj@chaosbits.net>
-To: LKML <linux-kernel@vger.kernel.org>
-Message-ID: <alpine.LNX.2.00.1108012314410.31999@swampdragon.chaosbits.net>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 11D1A1055FB5
+	for <drbd-dev@lists.linbit.com>; Wed, 17 Aug 2011 17:57:31 +0200 (CEST)
+Resent-Message-ID: <20110817155731.GD9133@barkeeper1-xen.linbit>
+Received: from mail-vx0-f182.google.com (mail-vx0-f182.google.com
+	[209.85.220.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id CA81E105627A
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Aug 2011 20:57:23 +0200 (CEST)
+Received: by vxh11 with SMTP id 11so3543555vxh.27
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Aug 2011 11:57:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, trivial@kernel.org,
-	drbd-user@lists.linbit.com, Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [PATCH][Resend] Remove unneeded version.h includes from
- drivers/block/
+In-Reply-To: <201108081557.48504.philipp.reisner@linbit.com>
+References: <201108081557.48504.philipp.reisner@linbit.com>
+Date: Thu, 11 Aug 2011 20:34:57 +0200
+Message-ID: <CAJAFBLC+MpBRk29dX286G1mkobi_FnXAiQuF++eACZ8VUct2XQ@mail.gmail.com>
+From: Fubo Chen <fubo.chen@gmail.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] request for review - DRBD multi volume support for
+	3.2
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,48 +30,38 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Wed, 17 Aug 2011 15:55:38 -0000
 
-It was pointed out by 'make versioncheck' that some includes of
-linux/version.h are not needed in drivers/block/.
-This patch removes them.
+On Mon, Aug 8, 2011 at 3:57 PM, Philipp Reisner
+<philipp.reisner@linbit.com> wrote:
+> This is a request for review of drbd-8.4. I intend to send a pull request
+> to Jens early next week, for his for-3.2/drivers branch.
+>
+> I want to point out the idr_for_each_entry() macro, added to
+> include/linux/idr.h. =A0Though we use this macro extensively in the new D=
+RBD
+> code, it is not DRBD specific. I intend to leave it in this patch series,=
+ as
+> the following patches depend on it.
+>
+> The most noticeable change is the support for multiple replicated volumes=
+ in
+> a single DRBD connection. =A0Write-ordering is obeyed among all writes in=
+ all
+> volumes in a single connection. =A0This feature is really important for u=
+sers
+> who DRBD for mirroring over longer distances. (Protocol A).
 
-Signed-off-by: Jesper Juhl <jj@chaosbits.net>
----
- drivers/block/drbd/drbd_int.h      |    1 -
- drivers/block/xen-blkback/common.h |    1 -
- 2 files changed, 0 insertions(+), 2 deletions(-)
+Does not build here. Is EXPORT_SYMBOL(lc_is_used) missing ?
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index ef2ceed..1c3194d 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -28,7 +28,6 @@
- 
- #include <linux/compiler.h>
- #include <linux/types.h>
--#include <linux/version.h>
- #include <linux/list.h>
- #include <linux/sched.h>
- #include <linux/bitops.h>
-diff --git a/drivers/block/xen-blkback/common.h b/drivers/block/xen-blkback/common.h
-index 9e40b28..0d04c7f 100644
---- a/drivers/block/xen-blkback/common.h
-+++ b/drivers/block/xen-blkback/common.h
-@@ -27,7 +27,6 @@
- #ifndef __XEN_BLKIF__BACKEND__COMMON_H__
- #define __XEN_BLKIF__BACKEND__COMMON_H__
- 
--#include <linux/version.h>
- #include <linux/module.h>
- #include <linux/interrupt.h>
- #include <linux/slab.h>
--- 
-1.7.6
+drivers/block/drbd/drbd_main.c: In function 'drbd_buildtag':
+drivers/block/drbd/drbd_main.c:3561:19: warning: the comparison will
+always evaluate as 'true' for the address of '__this_module' will
+never be NULL [-Waddress]
+drivers/block/drbd/drbd_nl.c:2463:12: warning: 'drbd_bmio_set_susp_al'
+defined but not used [-Wunused-function]
+ERROR: "lc_is_used" [drivers/block/drbd/drbd.ko] undefined!
+ERROR: "lc_try_lock" [drivers/block/drbd/drbd.ko] undefined!
+ERROR: "drbd_nla_parse_nested" [drivers/block/drbd/drbd.ko] undefined!
+ERROR: "drbd_nla_find_nested" [drivers/block/drbd/drbd.ko] undefined!
 
-
--- 
-Jesper Juhl <jj@chaosbits.net>       http://www.chaosbits.net/
-Don't top-post http://www.catb.org/jargon/html/T/top-post.html
-Plain text mails only, please.
-
+Fubo.
