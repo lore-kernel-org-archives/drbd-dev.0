@@ -1,21 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 50C341056C51
-	for <drbd-dev@lists.linbit.com>; Tue, 16 Aug 2011 21:00:44 +0200 (CEST)
-Date: Tue, 16 Aug 2011 21:00:44 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20110816190044.GI3975@barkeeper1-xen.linbit>
-References: <4E3BA638.9000601@ii.nl>
-	<20110816130833.GD3975@barkeeper1-xen.linbit>
-	<20110816152505.GA1712@garage.freebsd.pl>
+Return-Path: <shenqiyu@hotmail.com>
+Received: from bay0-omc4-s13.bay0.hotmail.com (bay0-omc4-s13.bay0.hotmail.com
+	[65.54.190.215])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3EF1B105627F
+	for <drbd-dev@lists.linbit.com>; Fri, 12 Aug 2011 08:12:33 +0200 (CEST)
+Message-ID: <BAY165-W48FA9D87FF3A44D0B3D391CB250@phx.gbl>
+Content-Type: multipart/alternative;
+	boundary="_f68c6270-267d-4c00-96ff-1862fbe7cf38_"
+From: ShenQiyu <shenqiyu@hotmail.com>
+To: <drbd-dev@lists.linbit.com>
+Date: Fri, 12 Aug 2011 14:12:32 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110816152505.GA1712@garage.freebsd.pl>
-Subject: Re: [Drbd-dev] [PATCH] expand section on throughput tuning to
- highlight prime usecase of external metadata, florians comments applied,
- added section replacing metadata
+Subject: [Drbd-dev] How DRBD uses active log to recovery from a crash in
+	8.4.0
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,31 +21,56 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Aug 16, 2011 at 05:25:06PM +0200, Pawel Jakub Dawidek wrote:
-> On Tue, Aug 16, 2011 at 03:08:33PM +0200, Lars Ellenberg wrote:
-> > I suggest to point out that this is for _linear streaming writes_,
-> > which, once they leave the covered area, need one activity log
-> > transaction every 4 MiB.
-> > 
-> > Other, more localized, usage patterns need less AL-transactions per
-> > amount of changes, and are less impacted, or virtually not at all,
-> > depending on the change rate and size of the working set, and the
-> > size of the activity log.
-> > 
-> > The impact heavily depends on the overall AL-transaction latency, which
-> > is why write cache enabled controllers do much better. Even better than
-> > a dedicated disk, usually, which may no longer suffer from seek time,
-> > but still has access and processing time up to two orders of magnitude
-> > higher than a decent write cache.
-> 
-> BTW. How do you ensure AL update "reached the platters"? Do you flush
-> disk write cache after every AL update?
-
-Yes, unless not supported by the lower level stack,
-or explicitly disabled by the drbd configuration (no-md-flushes)
+--_f68c6270-267d-4c00-96ff-1862fbe7cf38_
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: 8bit
 
 
--- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+Dear sir,
+ 
+When learning and testing DRBD 8.4.0, I could not find where it applies active log to bitmap when up a resource after a crash.
+ 
+While DRBD 8.3.9 do it in drbd_nl_disk_conf()  calls drbd_al_read_log(), then drbd_al_apply_to_bm().
+ 
+So, is there anything I have not caught up? The code is download from http://oss.linbit.com/drbd/8.4/drbd-8.4.0.tar.gz
+ 
+Any hints are very appreciated!
+ 
+Regards!
+ 
+Paul 		 	   		  
+--_f68c6270-267d-4c00-96ff-1862fbe7cf38_
+Content-Type: text/html; charset="gb2312"
+Content-Transfer-Encoding: 8bit
+
+<html>
+<head>
+<style><!--
+.hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Î¢ÈíÑÅºÚ
+}
+--></style>
+</head>
+<body class='hmmessage'><div dir='ltr'>
+Dear sir,<BR>
+&nbsp;<BR>
+When&nbsp;learning and testing DRBD 8.4.0, I could not find where it&nbsp;applies active log to bitmap when up a resource&nbsp;after a crash.<BR>
+&nbsp;<BR>
+While DRBD 8.3.9 do it in drbd_nl_disk_conf()&nbsp; calls&nbsp;drbd_al_read_log(), then drbd_al_apply_to_bm().<BR>
+&nbsp;<BR>
+So, is there anything I have not caught up? The code is download from <A href="http://oss.linbit.com/drbd/8.4/drbd-8.4.0.tar.gz">http://oss.linbit.com/drbd/8.4/drbd-8.4.0.tar.gz</A><BR>
+&nbsp;<BR>
+Any hints are very appreciated!<BR>
+&nbsp;<BR>
+Regards!<BR>
+&nbsp;<BR>
+Paul<BR> 		 	   		  </div></body>
+</html>
+--_f68c6270-267d-4c00-96ff-1862fbe7cf38_--
