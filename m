@@ -1,17 +1,21 @@
-Return-Path: <shenqiyu@hotmail.com>
-Received: from bay0-omc4-s13.bay0.hotmail.com (bay0-omc4-s13.bay0.hotmail.com
-	[65.54.190.215])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3EF1B105627F
-	for <drbd-dev@lists.linbit.com>; Fri, 12 Aug 2011 08:12:33 +0200 (CEST)
-Message-ID: <BAY165-W48FA9D87FF3A44D0B3D391CB250@phx.gbl>
-Content-Type: multipart/alternative;
-	boundary="_f68c6270-267d-4c00-96ff-1862fbe7cf38_"
-From: ShenQiyu <shenqiyu@hotmail.com>
-To: <drbd-dev@lists.linbit.com>
-Date: Fri, 12 Aug 2011 14:12:32 +0800
+Return-Path: <lmb@suse.de>
+Received: from mx.in-addr.de (gate.in-addr.de [212.8.193.158])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7DF6D105626A
+	for <drbd-dev@lists.linbit.com>; Sun, 14 Aug 2011 21:55:59 +0200 (CEST)
+Date: Sun, 14 Aug 2011 21:30:45 +0200
+From: Lars Marowsky-Bree <lmb@suse.de>
+To: ha-wg@lists.linux-foundation.org, linux-ha@lists.linux-ha.org,
+	linux-ha-dev@lists.linux-ha.org, drbd-dev@lists.linbit.com,
+	pacemaker@oss.clusterlabs.org, linux-cluster@redhat.com,
+	openais@lists.osdl.org, ocfs2-users@oss.oracle.com
+Message-ID: <20110814193045.GP5299@suse.de>
 MIME-Version: 1.0
-Subject: [Drbd-dev] How DRBD uses active log to recovery from a crash in
-	8.4.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+Cc: John Fryer <JFryer@goahead.com>,
+	Mary Slonske <mslonske@nereus-worldwide.com>
+Subject: [Drbd-dev] CFP: HA Mini-Conference in Prague on Oct 25th
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,56 +25,53 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---_f68c6270-267d-4c00-96ff-1862fbe7cf38_
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: 8bit
+Hi all,
+
+thanks to the Linux Foundation, we have a chance to organize a
+High-Availability & Clustering mini-conference on Oct 25th in Prague, in
+the same venue as the LinuxCon and Kernel Summit.
+
+You can find out more about the exciting venue at:
+http://events.linuxfoundation.org/events/linuxcon-europe
+
+Since this is low-overhead, we don't have a formal registration website;
+on the other hand, it is also free of charge. ;-)
+
+I'd like to invite speakers to present on the following topics:
+
+- High-Availability project cooperation on Linux
+- Future plans for your HA & clustering project on Linux
+- Discussion of joint roadmaps
+- HA & Clustering and the Cloud
+- Key projects and case studies that would be informative to the
+  developer community
+- How could the HA & Clustering community be more appealing to users,
+  administrators, software and hardware partners?
+
+The target audience is the HA & Clustering & Storage community on
+Linux. That perhaps means *you*. ;-)
+
+Please include the topic you wish to speak about, the time you need
+(allow for discussion), and a short biography. We are pretty flexible
+about the format.
+
+Please send your proposal to ha-wg@lists.linux-foundation.org
+(https://lists.linux-foundation.org/mailman/listinfo/ha-wg), the mailing
+list that we use to coordinate the event.
+
+Attendance is free, but please also do send a mail to the list if you
+plan on attending, so that we can keep track of the open spaces.
+
+Please kindly also forward this mail to others who might be interested.
+
+		Please do not group reply to this announcement!
 
 
-Dear sir,
- 
-When learning and testing DRBD 8.4.0, I could not find where it applies active log to bitmap when up a resource after a crash.
- 
-While DRBD 8.3.9 do it in drbd_nl_disk_conf()  calls drbd_al_read_log(), then drbd_al_apply_to_bm().
- 
-So, is there anything I have not caught up? The code is download from http://oss.linbit.com/drbd/8.4/drbd-8.4.0.tar.gz
- 
-Any hints are very appreciated!
- 
-Regards!
- 
-Paul 		 	   		  
---_f68c6270-267d-4c00-96ff-1862fbe7cf38_
-Content-Type: text/html; charset="gb2312"
-Content-Transfer-Encoding: 8bit
+Regards,
+    Lars
 
-<html>
-<head>
-<style><!--
-.hmmessage P
-{
-margin:0px;
-padding:0px
-}
-body.hmmessage
-{
-font-size: 10pt;
-font-family:Î¢ÈíÑÅºÚ
-}
---></style>
-</head>
-<body class='hmmessage'><div dir='ltr'>
-Dear sir,<BR>
-&nbsp;<BR>
-When&nbsp;learning and testing DRBD 8.4.0, I could not find where it&nbsp;applies active log to bitmap when up a resource&nbsp;after a crash.<BR>
-&nbsp;<BR>
-While DRBD 8.3.9 do it in drbd_nl_disk_conf()&nbsp; calls&nbsp;drbd_al_read_log(), then drbd_al_apply_to_bm().<BR>
-&nbsp;<BR>
-So, is there anything I have not caught up? The code is download from <A href="http://oss.linbit.com/drbd/8.4/drbd-8.4.0.tar.gz">http://oss.linbit.com/drbd/8.4/drbd-8.4.0.tar.gz</A><BR>
-&nbsp;<BR>
-Any hints are very appreciated!<BR>
-&nbsp;<BR>
-Regards!<BR>
-&nbsp;<BR>
-Paul<BR> 		 	   		  </div></body>
-</html>
---_f68c6270-267d-4c00-96ff-1862fbe7cf38_--
+-- 
+Architect Storage/HA, OPS Engineering, Novell, Inc.
+SUSE LINUX Products GmbH, GF: Jeff Hawn, Jennifer Guild, Felix Imendörffer, HRB 21284 (AG Nürnberg)
+"Experience is the name everyone gives to their mistakes." -- Oscar Wilde
+
