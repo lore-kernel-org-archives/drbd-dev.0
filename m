@@ -1,21 +1,17 @@
-Return-Path: <lmb@suse.de>
-Received: from mx.in-addr.de (gate.in-addr.de [212.8.193.158])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7DF6D105626A
-	for <drbd-dev@lists.linbit.com>; Sun, 14 Aug 2011 21:55:59 +0200 (CEST)
-Date: Sun, 14 Aug 2011 21:30:45 +0200
-From: Lars Marowsky-Bree <lmb@suse.de>
-To: ha-wg@lists.linux-foundation.org, linux-ha@lists.linux-ha.org,
-	linux-ha-dev@lists.linux-ha.org, drbd-dev@lists.linbit.com,
-	pacemaker@oss.clusterlabs.org, linux-cluster@redhat.com,
-	openais@lists.osdl.org, ocfs2-users@oss.oracle.com
-Message-ID: <20110814193045.GP5299@suse.de>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0E2DB1055FA7
+	for <drbd-dev@lists.linbit.com>; Wed, 17 Aug 2011 17:55:37 +0200 (CEST)
+Resent-Message-ID: <20110817155537.GC9133@barkeeper1-xen.linbit>
+From: Jesper Juhl <jj@chaosbits.net>
+To: LKML <linux-kernel@vger.kernel.org>
+Message-ID: <alpine.LNX.2.00.1108012314410.31999@swampdragon.chaosbits.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-Cc: John Fryer <JFryer@goahead.com>,
-	Mary Slonske <mslonske@nereus-worldwide.com>
-Subject: [Drbd-dev] CFP: HA Mini-Conference in Prague on Oct 25th
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, trivial@kernel.org,
+	drbd-user@lists.linbit.com, Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] [PATCH][Resend] Remove unneeded version.h includes from
+ drivers/block/
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,54 +20,48 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
+Date: Wed, 17 Aug 2011 15:55:38 -0000
 
-Hi all,
+It was pointed out by 'make versioncheck' that some includes of
+linux/version.h are not needed in drivers/block/.
+This patch removes them.
 
-thanks to the Linux Foundation, we have a chance to organize a
-High-Availability & Clustering mini-conference on Oct 25th in Prague, in
-the same venue as the LinuxCon and Kernel Summit.
+Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+---
+ drivers/block/drbd/drbd_int.h      |    1 -
+ drivers/block/xen-blkback/common.h |    1 -
+ 2 files changed, 0 insertions(+), 2 deletions(-)
 
-You can find out more about the exciting venue at:
-http://events.linuxfoundation.org/events/linuxcon-europe
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index ef2ceed..1c3194d 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -28,7 +28,6 @@
+ 
+ #include <linux/compiler.h>
+ #include <linux/types.h>
+-#include <linux/version.h>
+ #include <linux/list.h>
+ #include <linux/sched.h>
+ #include <linux/bitops.h>
+diff --git a/drivers/block/xen-blkback/common.h b/drivers/block/xen-blkback/common.h
+index 9e40b28..0d04c7f 100644
+--- a/drivers/block/xen-blkback/common.h
++++ b/drivers/block/xen-blkback/common.h
+@@ -27,7 +27,6 @@
+ #ifndef __XEN_BLKIF__BACKEND__COMMON_H__
+ #define __XEN_BLKIF__BACKEND__COMMON_H__
+ 
+-#include <linux/version.h>
+ #include <linux/module.h>
+ #include <linux/interrupt.h>
+ #include <linux/slab.h>
+-- 
+1.7.6
 
-Since this is low-overhead, we don't have a formal registration website;
-on the other hand, it is also free of charge. ;-)
-
-I'd like to invite speakers to present on the following topics:
-
-- High-Availability project cooperation on Linux
-- Future plans for your HA & clustering project on Linux
-- Discussion of joint roadmaps
-- HA & Clustering and the Cloud
-- Key projects and case studies that would be informative to the
-  developer community
-- How could the HA & Clustering community be more appealing to users,
-  administrators, software and hardware partners?
-
-The target audience is the HA & Clustering & Storage community on
-Linux. That perhaps means *you*. ;-)
-
-Please include the topic you wish to speak about, the time you need
-(allow for discussion), and a short biography. We are pretty flexible
-about the format.
-
-Please send your proposal to ha-wg@lists.linux-foundation.org
-(https://lists.linux-foundation.org/mailman/listinfo/ha-wg), the mailing
-list that we use to coordinate the event.
-
-Attendance is free, but please also do send a mail to the list if you
-plan on attending, so that we can keep track of the open spaces.
-
-Please kindly also forward this mail to others who might be interested.
-
-		Please do not group reply to this announcement!
-
-
-Regards,
-    Lars
 
 -- 
-Architect Storage/HA, OPS Engineering, Novell, Inc.
-SUSE LINUX Products GmbH, GF: Jeff Hawn, Jennifer Guild, Felix Imendörffer, HRB 21284 (AG Nürnberg)
-"Experience is the name everyone gives to their mistakes." -- Oscar Wilde
+Jesper Juhl <jj@chaosbits.net>       http://www.chaosbits.net/
+Don't top-post http://www.catb.org/jargon/html/T/top-post.html
+Plain text mails only, please.
 
