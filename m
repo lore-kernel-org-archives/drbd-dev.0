@@ -1,22 +1,20 @@
-Return-Path: <axboe@kernel.dk>
-Received: from kernel.dk (87-104-106-3-dynamic-customer.profibernet.dk
-	[87.104.106.3])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6E4DF1055FBC
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Aug 2011 19:08:56 +0200 (CEST)
-Message-ID: <4E552E9C.2000104@kernel.dk>
-Date: Wed, 24 Aug 2011 19:02:20 +0200
-From: Jens Axboe <axboe@kernel.dk>
-MIME-Version: 1.0
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A19C51055FBC
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Aug 2011 19:48:48 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Kyle Moffett <kyle@moffetthome.net>
+Date: Wed, 24 Aug 2011 19:48:40 +0200
 References: <201108241641.42676.philipp.reisner@linbit.com>
 	<CAGZ=bq+A1ExZYRnuBBwfAq7Ez37mpBtT1_T91AWcchDBZ3iqPw@mail.gmail.com>
 In-Reply-To: <CAGZ=bq+A1ExZYRnuBBwfAq7Ez37mpBtT1_T91AWcchDBZ3iqPw@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Cc: drbd-dev@lists.linbit.com, Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org
+Message-Id: <201108241948.40982.philipp.reisner@linbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
+	drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [GIT PULL] drbd-8.4 for mainline
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -27,42 +25,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2011-08-24 18:00, Kyle Moffett wrote:
+Am Mittwoch 24 August 2011, 18:00:02 schrieb Kyle Moffett:
 > On Wed, Aug 24, 2011 at 10:41, Philipp Reisner
+> 
 > <philipp.reisner@linbit.com> wrote:
->> Hi Jens,
->>
->> First the announcement of drbd-8.4, then the git pull-request text:
->>
->> We are proud to announce the availability of DRBD-8.4.0.
->>
->>  The most noticeable change is the support for multiple replicated
->>  volumes in a single DRBD connection.
->>  Write-ordering is obeyed among all writes in all volumes in a
->>  single connection.
->>  This feature is really important for users who DRBD for mirroring
->>  over longer distances. (Protocol A).
->>
->> We do not only release DRBD-8.4.0 today:
->> The DRBD User's Guide was reviewed and updated to match DRBD-8.4.
->>
->> I suggest to everybody who considers to upgrade from 8.3 to 8.4
->> to have a look at the "Recent changes" appendix of the UG:
->> http://www.drbd.org/users-guide/ap-recent-changes.html
->>
->>  This release brings a new meta-data format. Forward (8.3 -> 8.4)
->>  conversion happens complete seamless. Backward conversion
->>  is done by a single command (drbdadm apply-al res).
->>
->>  This release is protocol compatible with all it predecessor.
->>  Although, we do not recommend to run it in 8.3 - 8.4 for long
->>  time frames. We recommend to use that capability only for the
->>  rolling upgrade.
->>
->>  drbdadm of 8.4 can parse config files of 8.3. We recommend
->>  to switch to the new configuration syntax after the upgrade
->>  of both nodes. (Use drbdadm dump to learn about the new
->>  config syntax)
+> > Hi Jens,
+> > 
+> > First the announcement of drbd-8.4, then the git pull-request text:
+> > 
+> > We are proud to announce the availability of DRBD-8.4.0.
+> > 
+> >  The most noticeable change is the support for multiple replicated
+> >  volumes in a single DRBD connection.
+> >  Write-ordering is obeyed among all writes in all volumes in a
+> >  single connection.
+> >  This feature is really important for users who DRBD for mirroring
+> >  over longer distances. (Protocol A).
+> > 
+> > We do not only release DRBD-8.4.0 today:
+> > The DRBD User's Guide was reviewed and updated to match DRBD-8.4.
+> > 
+> > I suggest to everybody who considers to upgrade from 8.3 to 8.4
+> > to have a look at the "Recent changes" appendix of the UG:
+> > http://www.drbd.org/users-guide/ap-recent-changes.html
+> > 
+> >  This release brings a new meta-data format. Forward (8.3 -> 8.4)
+> >  conversion happens complete seamless. Backward conversion
+> >  is done by a single command (drbdadm apply-al res).
+> > 
+> >  This release is protocol compatible with all it predecessor.
+> >  Although, we do not recommend to run it in 8.3 - 8.4 for long
+> >  time frames. We recommend to use that capability only for the
+> >  rolling upgrade.
+> > 
+> >  drbdadm of 8.4 can parse config files of 8.3. We recommend
+> >  to switch to the new configuration syntax after the upgrade
+> >  of both nodes. (Use drbdadm dump to learn about the new
+> >  config syntax)
 > 
 > Hm...
 > 
@@ -77,13 +76,12 @@ On 2011-08-24 18:00, Kyle Moffett wrote:
 > patch series has bisection issues; are you sure it compiles and runs
 > after every patch?
 > 
-> I'm obviously not anywhere in the maintenance chain for this code, but
-> it does look really funny.
 
-That was my exact response a few weeks back, but I don't recall seeing
-anything until this email today. Philipp, has this been reviewed at all
-outside your internal group?
+Yes I am, since I explicitly tested that after each and every patch. (Though
+you are right, we have issues in this regard in our out of tree code).
 
--- 
-Jens Axboe
+Some warnings get introduced along the way, and cleaned up later, but
+it compiles after each patch.
 
+Best,
+ Phil
