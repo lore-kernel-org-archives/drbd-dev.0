@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:06 +0200
-Message-Id: <1314284934-17999-71-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:07 +0200
+Message-Id: <1314284934-17999-72-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 070/118] drbd: Converted drbd_wait_for_connect()
-	from mdev to tconn
+Subject: [Drbd-dev] [PATCH 071/118] drbd: Started to separated connection
+	flags (tconn) from block device flags (mdev)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,96 +21,89 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   29 ++++++++++++++---------------
- 1 files changed, 14 insertions(+), 15 deletions(-)
+ drivers/block/drbd/drbd_int.h  |   10 +++++++---
+ drivers/block/drbd/drbd_main.c |    8 ++++----
+ 2 files changed, 11 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index c59858a..83066a3 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -447,8 +447,7 @@ void drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 1ecde6f..b325b0a 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -753,7 +753,7 @@ enum {
+ #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
+ #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
  
- /* see also kernel_accept; which is only present since 2.6.18.
-  * also we want to log which part of it failed, exactly */
--static int drbd_accept(struct drbd_conf *mdev, const char **what,
--		struct socket *sock, struct socket **newsock)
-+static int drbd_accept(const char **what, struct socket *sock, struct socket **newsock)
+-/* global flag bits */
++/* flag bits per mdev */
+ enum {
+ 	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
+ 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
+@@ -781,8 +781,6 @@ enum {
+ 	GO_DISKLESS,		/* Disk is being detached, on io-error or admin request. */
+ 	WAS_IO_ERROR,		/* Local disk failed returned IO error */
+ 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
+-	NET_CONGESTED,		/* The data socket is congested */
+-
+ 	CONFIG_PENDING,		/* serialization of (re)configuration requests.
+ 				 * if set, also prevents the device from dying */
+ 	DEVICE_DYING,		/* device became unconfigured,
+@@ -909,10 +907,16 @@ struct fifo_buffer {
+ 	unsigned int size;
+ };
+ 
++/* flag bits per tconn */
++enum {
++	NET_CONGESTED,		/* The data socket is congested */
++};
++
+ struct drbd_tconn {			/* is a resource from the config file */
+ 	char *name;			/* Resource name */
+ 	struct list_head all_tconn;	/* List of all drbd_tconn, prot by global_state_lock */
+ 	struct drbd_conf *volume0;	/* TODO: Remove me again */
++	unsigned long flags;
+ 
+ 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
+ 	atomic_t net_cnt;		/* Users of net_conf */
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 0e2969d..45b8f67 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1370,7 +1370,7 @@ static void drbd_update_congested(struct drbd_conf *mdev)
  {
- 	struct sock *sk = sock->sk;
- 	int err = 0;
-@@ -650,51 +649,51 @@ out:
- 	return sock;
+ 	struct sock *sk = mdev->tconn->data.socket->sk;
+ 	if (sk->sk_wmem_queued > sk->sk_sndbuf * 4 / 5)
+-		set_bit(NET_CONGESTED, &mdev->flags);
++		set_bit(NET_CONGESTED, &mdev->tconn->flags);
  }
  
--static struct socket *drbd_wait_for_connect(struct drbd_conf *mdev)
-+static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
- {
- 	int timeo, err;
- 	struct socket *s_estab = NULL, *s_listen;
- 	const char *what;
+ /* The idea of sendpage seems to be to put some kind of reference
+@@ -1443,7 +1443,7 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
+ 		offset += sent;
+ 	} while (len > 0 /* THINK && mdev->cstate >= C_CONNECTED*/);
+ 	set_fs(oldfs);
+-	clear_bit(NET_CONGESTED, &mdev->flags);
++	clear_bit(NET_CONGESTED, &mdev->tconn->flags);
  
--	if (!get_net_conf(mdev->tconn))
-+	if (!get_net_conf(tconn))
- 		return NULL;
+ 	ok = (len == 0);
+ 	if (likely(ok))
+@@ -1706,7 +1706,7 @@ int drbd_send(struct drbd_conf *mdev, struct socket *sock,
+ 	} while (sent < size);
  
- 	what = "sock_create_kern";
--	err = sock_create_kern(((struct sockaddr *)mdev->tconn->net_conf->my_addr)->sa_family,
-+	err = sock_create_kern(((struct sockaddr *)tconn->net_conf->my_addr)->sa_family,
- 		SOCK_STREAM, IPPROTO_TCP, &s_listen);
- 	if (err) {
- 		s_listen = NULL;
- 		goto out;
+ 	if (sock == mdev->tconn->data.socket)
+-		clear_bit(NET_CONGESTED, &mdev->flags);
++		clear_bit(NET_CONGESTED, &mdev->tconn->flags);
+ 
+ 	if (rv <= 0) {
+ 		if (rv != -EAGAIN) {
+@@ -2173,7 +2173,7 @@ static int drbd_congested(void *congested_data, int bdi_bits)
+ 			reason = 'b';
  	}
  
--	timeo = mdev->tconn->net_conf->try_connect_int * HZ;
-+	timeo = tconn->net_conf->try_connect_int * HZ;
- 	timeo += (random32() & 1) ? timeo / 7 : -timeo / 7; /* 28.5% random jitter */
- 
- 	s_listen->sk->sk_reuse    = 1; /* SO_REUSEADDR */
- 	s_listen->sk->sk_rcvtimeo = timeo;
- 	s_listen->sk->sk_sndtimeo = timeo;
--	drbd_setbufsize(s_listen, mdev->tconn->net_conf->sndbuf_size,
--			mdev->tconn->net_conf->rcvbuf_size);
-+	drbd_setbufsize(s_listen, tconn->net_conf->sndbuf_size,
-+			tconn->net_conf->rcvbuf_size);
- 
- 	what = "bind before listen";
- 	err = s_listen->ops->bind(s_listen,
--			      (struct sockaddr *) mdev->tconn->net_conf->my_addr,
--			      mdev->tconn->net_conf->my_addr_len);
-+			      (struct sockaddr *) tconn->net_conf->my_addr,
-+			      tconn->net_conf->my_addr_len);
- 	if (err < 0)
- 		goto out;
- 
--	err = drbd_accept(mdev, &what, s_listen, &s_estab);
-+	err = drbd_accept(&what, s_listen, &s_estab);
- 
- out:
- 	if (s_listen)
- 		sock_release(s_listen);
- 	if (err < 0) {
- 		if (err != -EAGAIN && err != -EINTR && err != -ERESTARTSYS) {
--			dev_err(DEV, "%s failed, err = %d\n", what, err);
--			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
-+			conn_err(tconn, "%s failed, err = %d\n", what, err);
-+			drbd_force_state(tconn->volume0, NS(conn, C_DISCONNECTING));
- 		}
+-	if (bdi_bits & (1 << BDI_async_congested) && test_bit(NET_CONGESTED, &mdev->flags)) {
++	if (bdi_bits & (1 << BDI_async_congested) && test_bit(NET_CONGESTED, &mdev->tconn->flags)) {
+ 		r |= (1 << BDI_async_congested);
+ 		reason = reason == 'b' ? 'a' : 'n';
  	}
--	put_net_conf(mdev->tconn);
-+	put_net_conf(tconn);
- 
- 	return s_estab;
- }
-@@ -805,7 +804,7 @@ static int drbd_connect(struct drbd_conf *mdev)
- 		}
- 
- retry:
--		s = drbd_wait_for_connect(mdev);
-+		s = drbd_wait_for_connect(mdev->tconn);
- 		if (s) {
- 			try = drbd_recv_fp(mdev, s);
- 			drbd_socket_okay(mdev, &sock);
 -- 
 1.7.4.1
 
