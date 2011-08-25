@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:21 +0200
-Message-Id: <1314284934-17999-26-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:22 +0200
+Message-Id: <1314284934-17999-27-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 025/118] drbd: Inline function overlaps() is now
-	unused
+Subject: [Drbd-dev] [PATCH 026/118] drbd: Interval tree bugfix
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,25 +22,24 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_req.h |    5 -----
- 1 files changed, 0 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_interval.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
-index 6dbbe89..9d75647 100644
---- a/drivers/block/drbd/drbd_req.h
-+++ b/drivers/block/drbd/drbd_req.h
-@@ -260,11 +260,6 @@ static inline void drbd_req_free(struct drbd_request *req)
- 	mempool_free(req, drbd_request_mempool);
- }
+diff --git a/drivers/block/drbd/drbd_interval.c b/drivers/block/drbd/drbd_interval.c
+index 2511dd9..b77a9bd 100644
+--- a/drivers/block/drbd/drbd_interval.c
++++ b/drivers/block/drbd/drbd_interval.c
+@@ -58,8 +58,9 @@ drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
+ 			new = &(*new)->rb_right;
+ 		else if (this < here)
+ 			new = &(*new)->rb_left;
+-		else if (this->sector > here->sector)
++		else if (this > here)
+ 			new = &(*new)->rb_right;
++		else
+ 			return false;
+ 	}
  
--static inline int overlaps(sector_t s1, int l1, sector_t s2, int l2)
--{
--	return !((s1 + (l1>>9) <= s2) || (s1 >= s2 + (l2>>9)));
--}
--
- /* Short lived temporary struct on the stack.
-  * We could squirrel the error to be returned into
-  * bio->bi_size, or similar. But that would be too ugly. */
 -- 
 1.7.4.1
 
