@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:10 +0200
-Message-Id: <1314284934-17999-75-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:11 +0200
+Message-Id: <1314284934-17999-76-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 074/118] drbd: Moved SIGNAL_ASENDER to the per
-	connection (tconn) flags
+Subject: [Drbd-dev] [PATCH 075/118] drbd: Converted wake_asender() and
+	request_ping() from mdev to tconn
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,77 +21,101 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    5 ++---
- drivers/block/drbd/drbd_receiver.c |    8 ++++----
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_int.h      |   12 ++++++------
+ drivers/block/drbd/drbd_main.c     |    2 +-
+ drivers/block/drbd/drbd_nl.c       |    2 +-
+ drivers/block/drbd/drbd_receiver.c |    2 +-
+ drivers/block/drbd/drbd_worker.c   |    4 ++--
+ 5 files changed, 11 insertions(+), 11 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 9024bc6..1c43975 100644
+index 1c43975..e8c2c2a 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -756,8 +756,6 @@ enum {
- /* flag bits per mdev */
- enum {
- 	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
--	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
--
- 	UNPLUG_QUEUED,		/* only relevant with kernel 2.4 */
- 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
- 	MD_DIRTY,		/* current uuids and flags not yet on disk */
-@@ -910,6 +908,7 @@ enum {
- 	NET_CONGESTED,		/* The data socket is congested */
- 	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
- 	SEND_PING,		/* whether asender should send a ping asap */
-+	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
- };
- 
- struct drbd_tconn {			/* is a resource from the config file */
-@@ -1860,7 +1859,7 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
- 
- static inline void wake_asender(struct drbd_conf *mdev)
- {
--	if (test_bit(SIGNAL_ASENDER, &mdev->flags))
-+	if (test_bit(SIGNAL_ASENDER, &mdev->tconn->flags))
- 		force_sig(DRBD_SIG, mdev->tconn->asender.task);
+@@ -1857,16 +1857,16 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
+ 	spin_unlock_irqrestore(&q->q_lock, flags);
  }
  
+-static inline void wake_asender(struct drbd_conf *mdev)
++static inline void wake_asender(struct drbd_tconn *tconn)
+ {
+-	if (test_bit(SIGNAL_ASENDER, &mdev->tconn->flags))
+-		force_sig(DRBD_SIG, mdev->tconn->asender.task);
++	if (test_bit(SIGNAL_ASENDER, &tconn->flags))
++		force_sig(DRBD_SIG, tconn->asender.task);
+ }
+ 
+-static inline void request_ping(struct drbd_conf *mdev)
++static inline void request_ping(struct drbd_tconn *tconn)
+ {
+-	set_bit(SEND_PING, &mdev->tconn->flags);
+-	wake_asender(mdev);
++	set_bit(SEND_PING, &tconn->flags);
++	wake_asender(tconn);
+ }
+ 
+ static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 45b8f67..4c31410 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1360,7 +1360,7 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
+ 	if (!drop_it) {
+ 		dev_err(DEV, "[%s/%d] sock_sendmsg time expired, ko = %u\n",
+ 		       current->comm, current->pid, mdev->tconn->ko_count);
+-		request_ping(mdev);
++		request_ping(mdev->tconn);
+ 	}
+ 
+ 	return drop_it; /* && (mdev->state == R_PRIMARY) */;
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index fda399a..df36a57 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -318,7 +318,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
+ 	enum drbd_disk_state nps;
+ 
+ 	if (new_role == R_PRIMARY)
+-		request_ping(mdev); /* Detect a dead peer ASAP */
++		request_ping(mdev->tconn); /* Detect a dead peer ASAP */
+ 
+ 	mutex_lock(&mdev->state_mutex);
+ 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 4b1d19d..5f44b43 100644
+index 5f44b43..409b8c8 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4584,12 +4584,12 @@ int drbd_asender(struct drbd_thread *thi)
- 			3 < atomic_read(&mdev->unacked_cnt))
- 			drbd_tcp_cork(mdev->tconn->meta.socket);
- 		while (1) {
--			clear_bit(SIGNAL_ASENDER, &mdev->flags);
-+			clear_bit(SIGNAL_ASENDER, &mdev->tconn->flags);
- 			flush_signals(current);
- 			if (!drbd_process_done_ee(mdev))
- 				goto reconnect;
- 			/* to avoid race with newly queued ACKs */
--			set_bit(SIGNAL_ASENDER, &mdev->flags);
-+			set_bit(SIGNAL_ASENDER, &mdev->tconn->flags);
- 			spin_lock_irq(&mdev->tconn->req_lock);
- 			empty = list_empty(&mdev->done_ee);
- 			spin_unlock_irq(&mdev->tconn->req_lock);
-@@ -4609,7 +4609,7 @@ int drbd_asender(struct drbd_thread *thi)
+@@ -1868,7 +1868,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 				 * but I don't like the receiver using the msock */
  
- 		rv = drbd_recv_short(mdev, mdev->tconn->meta.socket,
- 				     buf, expect-received, 0);
--		clear_bit(SIGNAL_ASENDER, &mdev->flags);
-+		clear_bit(SIGNAL_ASENDER, &mdev->tconn->flags);
+ 				put_ldev(mdev);
+-				wake_asender(mdev);
++				wake_asender(mdev->tconn);
+ 				finish_wait(&mdev->misc_wait, &wait);
+ 				return true;
+ 			}
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index a705979..5be179b 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -145,7 +145,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
+ 	if (do_al_complete_io)
+ 		drbd_al_complete_io(mdev, e_sector);
  
- 		flush_signals(current);
+-	wake_asender(mdev);
++	wake_asender(mdev->tconn);
+ 	put_ldev(mdev);
+ }
  
-@@ -4692,7 +4692,7 @@ disconnect:
- 		drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
- 		drbd_md_sync(mdev);
- 	}
--	clear_bit(SIGNAL_ASENDER, &mdev->flags);
-+	clear_bit(SIGNAL_ASENDER, &mdev->tconn->flags);
- 
- 	D_ASSERT(mdev->state.conn < C_CONNECTED);
- 	dev_info(DEV, "asender terminated\n");
+@@ -728,7 +728,7 @@ static int w_resync_finished(struct drbd_conf *mdev, struct drbd_work *w, int ca
+ static void ping_peer(struct drbd_conf *mdev)
+ {
+ 	clear_bit(GOT_PING_ACK, &mdev->flags);
+-	request_ping(mdev);
++	request_ping(mdev->tconn);
+ 	wait_event(mdev->misc_wait,
+ 		   test_bit(GOT_PING_ACK, &mdev->flags) || mdev->state.conn < C_CONNECTED);
+ }
 -- 
 1.7.4.1
 
