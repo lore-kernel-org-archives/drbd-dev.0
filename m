@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:00 +0200
-Message-Id: <1314284934-17999-65-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:01 +0200
+Message-Id: <1314284934-17999-66-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 064/118] drbd: Moved code
+Subject: [Drbd-dev] [PATCH 065/118] drbd: Do no sleep long in
+	drbd_start_resync
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,73 +18,104 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Work items that sleep too long can cause requests to take as
+long as the longest sleeping work item.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_worker.c |   43 ++++++++++++++++++-------------------
- 1 files changed, 21 insertions(+), 22 deletions(-)
+ drivers/block/drbd/drbd_int.h    |    1 +
+ drivers/block/drbd/drbd_worker.c |   58 +++++++++++++++++++++++--------------
+ 2 files changed, 37 insertions(+), 22 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 4dfbbbc..c625f59 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -787,6 +787,7 @@ enum {
+ 	NEW_CUR_UUID,		/* Create new current UUID when thawing IO */
+ 	AL_SUSPENDED,		/* Activity logging is currently suspended. */
+ 	AHEAD_TO_SYNC_SOURCE,   /* Ahead -> SyncSource queued */
++	B_RS_H_DONE,		/* Before resync handler done (already executed) */
+ };
+ 
+ struct drbd_bitmap; /* opaque for drbd_conf */
 diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 0dbd20c..28925d3 100644
+index 28925d3..a705979 100644
 --- a/drivers/block/drbd/drbd_worker.c
 +++ b/drivers/block/drbd/drbd_worker.c
-@@ -707,28 +707,6 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
- 	return 1;
- }
+@@ -1487,35 +1487,49 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
+ 		   Ahead/Behind and SyncSource/SyncTarget */
+ 	}
  
--
--void start_resync_timer_fn(unsigned long data)
--{
--	struct drbd_conf *mdev = (struct drbd_conf *) data;
--
--	drbd_queue_work(&mdev->tconn->data.work, &mdev->start_resync_work);
--}
--
--int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
--{
--	if (atomic_read(&mdev->unacked_cnt) || atomic_read(&mdev->rs_pending_cnt)) {
--		dev_warn(DEV, "w_start_resync later...\n");
--		mdev->start_resync_timer.expires = jiffies + HZ/10;
--		add_timer(&mdev->start_resync_timer);
--		return 1;
--	}
--
--	drbd_start_resync(mdev, C_SYNC_SOURCE);
--	clear_bit(AHEAD_TO_SYNC_SOURCE, &mdev->current_epoch->flags);
--	return 1;
--}
--
- int w_ov_finished(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- {
- 	kfree(w);
-@@ -1462,6 +1440,27 @@ void drbd_rs_controller_reset(struct drbd_conf *mdev)
- 	spin_unlock(&mdev->peer_seq_lock);
- }
+-	if (side == C_SYNC_TARGET) {
+-		/* Since application IO was locked out during C_WF_BITMAP_T and
+-		   C_WF_SYNC_UUID we are still unmodified. Before going to C_SYNC_TARGET
+-		   we check that we might make the data inconsistent. */
+-		r = drbd_khelper(mdev, "before-resync-target");
+-		r = (r >> 8) & 0xff;
+-		if (r > 0) {
+-			dev_info(DEV, "before-resync-target handler returned %d, "
+-			     "dropping connection.\n", r);
+-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+-			return;
+-		}
+-	} else /* C_SYNC_SOURCE */ {
+-		r = drbd_khelper(mdev, "before-resync-source");
+-		r = (r >> 8) & 0xff;
+-		if (r > 0) {
+-			if (r == 3) {
+-				dev_info(DEV, "before-resync-source handler returned %d, "
+-					 "ignoring. Old userland tools?", r);
+-			} else {
+-				dev_info(DEV, "before-resync-source handler returned %d, "
++	if (!test_bit(B_RS_H_DONE, &mdev->flags)) {
++		if (side == C_SYNC_TARGET) {
++			/* Since application IO was locked out during C_WF_BITMAP_T and
++			   C_WF_SYNC_UUID we are still unmodified. Before going to C_SYNC_TARGET
++			   we check that we might make the data inconsistent. */
++			r = drbd_khelper(mdev, "before-resync-target");
++			r = (r >> 8) & 0xff;
++			if (r > 0) {
++				dev_info(DEV, "before-resync-target handler returned %d, "
+ 					 "dropping connection.\n", r);
+ 				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+ 				return;
+ 			}
++		} else /* C_SYNC_SOURCE */ {
++			r = drbd_khelper(mdev, "before-resync-source");
++			r = (r >> 8) & 0xff;
++			if (r > 0) {
++				if (r == 3) {
++					dev_info(DEV, "before-resync-source handler returned %d, "
++						 "ignoring. Old userland tools?", r);
++				} else {
++					dev_info(DEV, "before-resync-source handler returned %d, "
++						 "dropping connection.\n", r);
++					drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
++					return;
++				}
++			}
+ 		}
+ 	}
  
-+void start_resync_timer_fn(unsigned long data)
-+{
-+	struct drbd_conf *mdev = (struct drbd_conf *) data;
-+
-+	drbd_queue_work(&mdev->tconn->data.work, &mdev->start_resync_work);
-+}
-+
-+int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+{
-+	if (atomic_read(&mdev->unacked_cnt) || atomic_read(&mdev->rs_pending_cnt)) {
-+		dev_warn(DEV, "w_start_resync later...\n");
-+		mdev->start_resync_timer.expires = jiffies + HZ/10;
-+		add_timer(&mdev->start_resync_timer);
-+		return 1;
+-	drbd_state_lock(mdev);
++	if (current == mdev->tconn->worker.task) {
++		/* The worker should not sleep waiting for drbd_state_lock(),
++		   that can take long */
++		if (test_and_set_bit(CLUSTER_ST_CHANGE, &mdev->flags)) {
++			set_bit(B_RS_H_DONE, &mdev->flags);
++			mdev->start_resync_timer.expires = jiffies + HZ/5;
++			add_timer(&mdev->start_resync_timer);
++			return;
++		}
++	} else {
++		drbd_state_lock(mdev);
 +	}
-+
-+	drbd_start_resync(mdev, C_SYNC_SOURCE);
-+	clear_bit(AHEAD_TO_SYNC_SOURCE, &mdev->current_epoch->flags);
-+	return 1;
-+}
-+
- /**
-  * drbd_start_resync() - Start the resync process
-  * @mdev:	DRBD device.
++	clear_bit(B_RS_H_DONE, &mdev->flags);
+ 
+ 	if (!get_ldev_if_state(mdev, D_NEGOTIATING)) {
+ 		drbd_state_unlock(mdev);
 -- 
 1.7.4.1
 
