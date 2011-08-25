@@ -2,12 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:08 +0200
-Message-Id: <1314284934-17999-13-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:09 +0200
+Message-Id: <1314284934-17999-14-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 012/118] drbd: Request lookup code cleanup (4)
+Subject: [Drbd-dev] [PATCH 013/118] drbd: Add interval tree data structure
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,154 +19,226 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-Factor out duplicate code in got_NegAck().
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   66 +++++++++++++++--------------------
- 1 files changed, 28 insertions(+), 38 deletions(-)
+ drivers/block/drbd/Makefile        |    1 +
+ drivers/block/drbd/drbd_interval.c |  156 ++++++++++++++++++++++++++++++++++++
+ drivers/block/drbd/drbd_interval.h |   31 +++++++
+ 3 files changed, 188 insertions(+), 0 deletions(-)
+ create mode 100644 drivers/block/drbd/drbd_interval.c
+ create mode 100644 drivers/block/drbd/drbd_interval.h
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 84c8d94..8e7875e 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1472,7 +1472,7 @@ fail:
- static struct drbd_request *
- find_request(struct drbd_conf *mdev,
- 	     struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
--	     u64 id, sector_t sector, const char *func)
-+	     u64 id, sector_t sector, bool missing_ok, const char *func)
- {
- 	struct hlist_head *slot = hash_slot(mdev, sector);
- 	struct hlist_node *n;
-@@ -1487,10 +1487,14 @@ find_request(struct drbd_conf *mdev,
- 				func, (unsigned long)req,
- 				(unsigned long long)req->sector,
- 				(unsigned long long)sector);
--			break;
-+			return NULL;
- 		}
- 		return req;
- 	}
-+	if (!missing_ok) {
-+		dev_err(DEV, "%s: failed to find request %lu, sector %llus\n", func,
-+			(unsigned long)id, (unsigned long long)sector);
+diff --git a/drivers/block/drbd/Makefile b/drivers/block/drbd/Makefile
+index 0d3f337..cacbb04 100644
+--- a/drivers/block/drbd/Makefile
++++ b/drivers/block/drbd/Makefile
+@@ -1,5 +1,6 @@
+ drbd-y := drbd_bitmap.o drbd_proc.o
+ drbd-y += drbd_worker.o drbd_receiver.o drbd_req.o drbd_actlog.o
+ drbd-y += drbd_main.o drbd_strings.o drbd_nl.o
++drbd-y += drbd_interval.o
+ 
+ obj-$(CONFIG_BLK_DEV_DRBD)     += drbd.o
+diff --git a/drivers/block/drbd/drbd_interval.c b/drivers/block/drbd/drbd_interval.c
+new file mode 100644
+index 0000000..2511dd9
+--- /dev/null
++++ b/drivers/block/drbd/drbd_interval.c
+@@ -0,0 +1,156 @@
++#include "drbd_interval.h"
++
++/**
++ * interval_end  -  return end of @node
++ */
++static inline
++sector_t interval_end(struct rb_node *node)
++{
++	struct drbd_interval *this = rb_entry(node, struct drbd_interval, rb);
++	return this->end;
++}
++
++/**
++ * update_interval_end  -  recompute end of @node
++ *
++ * The end of an interval is the highest (start + (size >> 9)) value of this
++ * node and of its children.  Called for @node and its parents whenever the end
++ * may have changed.
++ */
++static void
++update_interval_end(struct rb_node *node, void *__unused)
++{
++	struct drbd_interval *this = rb_entry(node, struct drbd_interval, rb);
++	sector_t end;
++
++	end = this->sector + (this->size >> 9);
++	if (node->rb_left) {
++		sector_t left = interval_end(node->rb_left);
++		if (left > end)
++			end = left;
 +	}
- 	return NULL;
- }
- 
-@@ -1504,12 +1508,10 @@ static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
- 	sector = be64_to_cpu(p->sector);
- 
- 	spin_lock_irq(&mdev->req_lock);
--	req = find_request(mdev, ar_hash_slot, p->block_id, sector, __func__);
-+	req = find_request(mdev, ar_hash_slot, p->block_id, sector, false, __func__);
- 	spin_unlock_irq(&mdev->req_lock);
--	if (unlikely(!req)) {
--		dev_err(DEV, "Got a corrupt block_id/sector pair(1).\n");
-+	if (unlikely(!req))
- 		return false;
--	}
- 
- 	/* hlist_del(&req->collision) is done in _req_may_be_done, to avoid
- 	 * special casing it there for the various failure cases.
-@@ -4248,18 +4250,15 @@ static int got_IsInSync(struct drbd_conf *mdev, struct p_header80 *h)
- static int validate_req_change_req_state(struct drbd_conf *mdev,
- 	u64 id, sector_t sector,
- 	struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
--	const char *func, enum drbd_req_event what)
-+	const char *func, enum drbd_req_event what, bool missing_ok)
- {
- 	struct drbd_request *req;
- 	struct bio_and_error m;
- 
- 	spin_lock_irq(&mdev->req_lock);
--	req = find_request(mdev, hash_slot, id, sector, func);
-+	req = find_request(mdev, hash_slot, id, sector, missing_ok, func);
- 	if (unlikely(!req)) {
- 		spin_unlock_irq(&mdev->req_lock);
--
--		dev_err(DEV, "%s: failed to find req %p, sector %llus\n", func,
--			(void *)(unsigned long)id, (unsigned long long)sector);
- 		return false;
- 	}
- 	__req_mod(req, what, &m);
-@@ -4307,7 +4306,8 @@ static int got_BlockAck(struct drbd_conf *mdev, struct p_header80 *h)
- 	}
- 
- 	return validate_req_change_req_state(mdev, p->block_id, sector,
--					     tl_hash_slot, __func__, what);
-+					     tl_hash_slot, __func__, what,
-+					     false);
- }
- 
- static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
-@@ -4315,8 +4315,9 @@ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
- 	struct p_block_ack *p = (struct p_block_ack *)h;
- 	sector_t sector = be64_to_cpu(p->sector);
- 	int size = be32_to_cpu(p->blksize);
--	struct drbd_request *req;
--	struct bio_and_error m;
-+	bool missing_ok = mdev->net_conf->wire_protocol == DRBD_PROT_A ||
-+			  mdev->net_conf->wire_protocol == DRBD_PROT_B;
-+	bool found;
- 
- 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
- 
-@@ -4326,31 +4327,19 @@ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
- 		return true;
- 	}
- 
--	spin_lock_irq(&mdev->req_lock);
--	req = find_request(mdev, tl_hash_slot, p->block_id, sector, __func__);
--	if (!req) {
--		spin_unlock_irq(&mdev->req_lock);
--		if (mdev->net_conf->wire_protocol == DRBD_PROT_A ||
--		    mdev->net_conf->wire_protocol == DRBD_PROT_B) {
--			/* Protocol A has no P_WRITE_ACKs, but has P_NEG_ACKs.
--			   The master bio might already be completed, therefore the
--			   request is no longer in the collision hash.
--			   => Do not try to validate block_id as request. */
--			/* In Protocol B we might already have got a P_RECV_ACK
--			   but then get a P_NEG_ACK after wards. */
--			drbd_set_out_of_sync(mdev, sector, size);
--			return true;
--		} else {
--			dev_err(DEV, "%s: failed to find req %p, sector %llus\n", __func__,
--				(void *)(unsigned long)p->block_id, (unsigned long long)sector);
-+	found = validate_req_change_req_state(mdev, p->block_id, sector,
-+					      tl_hash_slot, __func__,
-+					      neg_acked, missing_ok);
-+	if (!found) {
-+		/* Protocol A has no P_WRITE_ACKs, but has P_NEG_ACKs.
-+		   The master bio might already be completed, therefore the
-+		   request is no longer in the collision hash. */
-+		/* In Protocol B we might already have got a P_RECV_ACK
-+		   but then get a P_NEG_ACK afterwards. */
-+		if (!missing_ok)
- 			return false;
--		}
-+		drbd_set_out_of_sync(mdev, sector, size);
- 	}
--	__req_mod(req, neg_acked, &m);
--	spin_unlock_irq(&mdev->req_lock);
--
--	if (m.bio)
--		complete_master_bio(mdev, &m);
- 	return true;
- }
- 
-@@ -4364,7 +4353,8 @@ static int got_NegDReply(struct drbd_conf *mdev, struct p_header80 *h)
- 	    (unsigned long long)sector, be32_to_cpu(p->blksize));
- 
- 	return validate_req_change_req_state(mdev, p->block_id, sector,
--					     ar_hash_slot, __func__, neg_acked);
-+					     ar_hash_slot, __func__, neg_acked,
-+					     false);
- }
- 
- static int got_NegRSDReply(struct drbd_conf *mdev, struct p_header80 *h)
++	if (node->rb_right) {
++		sector_t right = interval_end(node->rb_right);
++		if (right > end)
++			end = right;
++	}
++	this->end = end;
++}
++
++/**
++ * drbd_insert_interval  -  insert a new interval into a tree
++ */
++bool
++drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
++{
++	struct rb_node **new = &root->rb_node, *parent = NULL;
++
++	BUG_ON(!IS_ALIGNED(this->size, 512));
++
++	while (*new) {
++		struct drbd_interval *here =
++			rb_entry(*new, struct drbd_interval, rb);
++
++		parent = *new;
++		if (this->sector < here->sector)
++			new = &(*new)->rb_left;
++		else if (this->sector > here->sector)
++			new = &(*new)->rb_right;
++		else if (this < here)
++			new = &(*new)->rb_left;
++		else if (this->sector > here->sector)
++			new = &(*new)->rb_right;
++			return false;
++	}
++
++	rb_link_node(&this->rb, parent, new);
++	rb_insert_color(&this->rb, root);
++	rb_augment_insert(&this->rb, update_interval_end, NULL);
++	return true;
++}
++
++/**
++ * drbd_contains_interval  -  check if a tree contains a given interval
++ * @sector:	start sector of @interval
++ * @interval:	may not be a valid pointer
++ *
++ * Returns if the tree contains the node @interval with start sector @start.
++ * Does not dereference @interval until @interval is known to be a valid object
++ * in @tree.  Returns %false if @interval is in the tree but with a different
++ * sector number.
++ */
++bool
++drbd_contains_interval(struct rb_root *root, sector_t sector,
++		       struct drbd_interval *interval)
++{
++	struct rb_node *node = root->rb_node;
++
++	while (node) {
++		struct drbd_interval *here =
++			rb_entry(node, struct drbd_interval, rb);
++
++		if (sector < here->sector)
++			node = node->rb_left;
++		else if (sector > here->sector)
++			node = node->rb_right;
++		else if (interval < here)
++			node = node->rb_left;
++		else if (interval > here)
++			node = node->rb_right;
++		else
++			return interval->sector == sector;
++	}
++	return false;
++}
++
++/**
++ * drbd_remove_interval  -  remove an interval from a tree
++ */
++void
++drbd_remove_interval(struct rb_root *root, struct drbd_interval *this)
++{
++	struct rb_node *deepest;
++
++	deepest = rb_augment_erase_begin(&this->rb);
++	rb_erase(&this->rb, root);
++	rb_augment_erase_end(deepest, update_interval_end, NULL);
++}
++
++/**
++ * drbd_find_overlap  - search for an interval overlapping with [sector, sector + size)
++ * @sector:	start sector
++ * @size:	size, aligned to 512 bytes
++ *
++ * Returns the interval overlapping with [sector, sector + size), or NULL.
++ * When there is more than one overlapping interval in the tree, the interval
++ * with the lowest start sector is returned.
++ */
++struct drbd_interval *
++drbd_find_overlap(struct rb_root *root, sector_t sector, unsigned int size)
++{
++	struct rb_node *node = root->rb_node;
++	struct drbd_interval *overlap = NULL;
++	sector_t end = sector + (size >> 9);
++
++	BUG_ON(!IS_ALIGNED(size, 512));
++
++	while (node) {
++		struct drbd_interval *here =
++			rb_entry(node, struct drbd_interval, rb);
++
++		if (node->rb_left &&
++		    sector < interval_end(node->rb_left)) {
++			/* Overlap if any must be on left side */
++			node = node->rb_left;
++		} else if (here->sector < end &&
++			   sector < here->sector + (here->size >> 9)) {
++			overlap = here;
++			break;
++		} else if (sector >= here->sector) {
++			/* Overlap if any must be on right side */
++			node = node->rb_right;
++		} else
++			break;
++	}
++	return overlap;
++}
+diff --git a/drivers/block/drbd/drbd_interval.h b/drivers/block/drbd/drbd_interval.h
+new file mode 100644
+index 0000000..bf8dcf7
+--- /dev/null
++++ b/drivers/block/drbd/drbd_interval.h
+@@ -0,0 +1,31 @@
++#ifndef __DRBD_INTERVAL_H
++#define __DRBD_INTERVAL_H
++
++#include <linux/types.h>
++#include <linux/rbtree.h>
++
++struct drbd_interval {
++	struct rb_node rb;
++	sector_t sector;	/* start sector of the interval */
++	unsigned int size;	/* size in bytes */
++	sector_t end;		/* highest interval end in subtree */
++};
++
++static inline void drbd_clear_interval(struct drbd_interval *i)
++{
++	RB_CLEAR_NODE(&i->rb);
++}
++
++static inline bool drbd_interval_empty(struct drbd_interval *i)
++{
++	return RB_EMPTY_NODE(&i->rb);
++}
++
++bool drbd_insert_interval(struct rb_root *, struct drbd_interval *);
++struct drbd_interval *drbd_find_interval(struct rb_root *, sector_t,
++					 struct drbd_interval *);
++void drbd_remove_interval(struct rb_root *, struct drbd_interval *);
++struct drbd_interval *drbd_find_overlap(struct rb_root *, sector_t,
++					unsigned int);
++
++#endif  /* __DRBD_INTERVAL_H */
 -- 
 1.7.4.1
 
