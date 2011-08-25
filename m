@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:06:59 +0200
-Message-Id: <1314284934-17999-4-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:00 +0200
+Message-Id: <1314284934-17999-5-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 003/118] drbd: Consistently use block_id ==
-	ID_SYNCER for checksum based resync and online verify
+Subject: [Drbd-dev] [PATCH 004/118] drbd: Get rid of BE_DRBD_MAGIC and
+	BE_DRBD_MAGIC_BIG
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,76 +20,126 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-DRBD_MAGIC has nothing to do with block ids and the funny values
-computed were not actually used, anyway.
+Converting the constants happens at compile time.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_main.c     |    4 ++--
- drivers/block/drbd/drbd_receiver.c |    4 ++++
- drivers/block/drbd/drbd_worker.c   |    4 +---
- 3 files changed, 7 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_main.c     |   14 +++++++-------
+ drivers/block/drbd/drbd_receiver.c |    8 ++++----
+ include/linux/drbd.h               |    2 --
+ 3 files changed, 11 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 0358e55..0c16620 100644
+index 0c16620..2cd132a 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -2474,7 +2474,7 @@ int drbd_send_drequest_csum(struct drbd_conf *mdev,
- 	struct p_block_req p;
+@@ -1841,7 +1841,7 @@ int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
+ 	ERR_IF(!h) return false;
+ 	ERR_IF(!size) return false;
  
- 	p.sector   = cpu_to_be64(sector);
--	p.block_id = BE_DRBD_MAGIC + 0xbeef;
-+	p.block_id = ID_SYNCER /* unused */;
+-	h->magic   = BE_DRBD_MAGIC;
++	h->magic   = cpu_to_be32(DRBD_MAGIC);
+ 	h->command = cpu_to_be16(cmd);
+ 	h->length  = cpu_to_be16(size-sizeof(struct p_header80));
+ 
+@@ -1889,7 +1889,7 @@ int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packets cmd, char *data,
+ 	struct p_header80 h;
+ 	int ok;
+ 
+-	h.magic   = BE_DRBD_MAGIC;
++	h.magic   = cpu_to_be32(DRBD_MAGIC);
+ 	h.command = cpu_to_be16(cmd);
+ 	h.length  = cpu_to_be16(size);
+ 
+@@ -2477,7 +2477,7 @@ int drbd_send_drequest_csum(struct drbd_conf *mdev,
+ 	p.block_id = ID_SYNCER /* unused */;
  	p.blksize  = cpu_to_be32(size);
  
- 	p.head.magic   = BE_DRBD_MAGIC;
-@@ -2497,7 +2497,7 @@ int drbd_send_ov_request(struct drbd_conf *mdev, sector_t sector, int size)
- 	struct p_block_req p;
+-	p.head.magic   = BE_DRBD_MAGIC;
++	p.head.magic   = cpu_to_be32(DRBD_MAGIC);
+ 	p.head.command = cpu_to_be16(cmd);
+ 	p.head.length  = cpu_to_be16(sizeof(p) - sizeof(struct p_header80) + digest_size);
  
- 	p.sector   = cpu_to_be64(sector);
--	p.block_id = BE_DRBD_MAGIC + 0xbabe;
-+	p.block_id = ID_SYNCER /* unused */;
- 	p.blksize  = cpu_to_be32(size);
+@@ -2682,12 +2682,12 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
+ 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
  
- 	ok = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_OV_REQUEST,
+ 	if (req->size <= DRBD_MAX_SIZE_H80_PACKET) {
+-		p.head.h80.magic   = BE_DRBD_MAGIC;
++		p.head.h80.magic   = cpu_to_be32(DRBD_MAGIC);
+ 		p.head.h80.command = cpu_to_be16(P_DATA);
+ 		p.head.h80.length  =
+ 			cpu_to_be16(sizeof(p) - sizeof(union p_header) + dgs + req->size);
+ 	} else {
+-		p.head.h95.magic   = BE_DRBD_MAGIC_BIG;
++		p.head.h95.magic   = cpu_to_be16(DRBD_MAGIC_BIG);
+ 		p.head.h95.command = cpu_to_be16(P_DATA);
+ 		p.head.h95.length  =
+ 			cpu_to_be32(sizeof(p) - sizeof(union p_header) + dgs + req->size);
+@@ -2767,12 +2767,12 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
+ 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
+ 
+ 	if (e->size <= DRBD_MAX_SIZE_H80_PACKET) {
+-		p.head.h80.magic   = BE_DRBD_MAGIC;
++		p.head.h80.magic   = cpu_to_be32(DRBD_MAGIC);
+ 		p.head.h80.command = cpu_to_be16(cmd);
+ 		p.head.h80.length  =
+ 			cpu_to_be16(sizeof(p) - sizeof(struct p_header80) + dgs + e->size);
+ 	} else {
+-		p.head.h95.magic   = BE_DRBD_MAGIC_BIG;
++		p.head.h95.magic   = cpu_to_be16(DRBD_MAGIC_BIG);
+ 		p.head.h95.command = cpu_to_be16(cmd);
+ 		p.head.h95.length  =
+ 			cpu_to_be32(sizeof(p) - sizeof(struct p_header80) + dgs + e->size);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index d499aa6..5ed9619 100644
+index 5ed9619..69eec69 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -341,6 +341,10 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
- 	e->size = data_size;
- 	e->flags = 0;
- 	e->sector = sector;
-+	/*
-+	 * The block_id is opaque to the receiver.  It is not endianness
-+	 * converted, and sent back to the sender unchanged.
-+	 */
- 	e->block_id = id;
+@@ -712,7 +712,7 @@ static enum drbd_packets drbd_recv_fp(struct drbd_conf *mdev, struct socket *soc
  
- 	return e;
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 4d3e6f6..10438c4 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -305,8 +305,6 @@ int w_e_send_csum(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	void *digest;
- 	int ok = 1;
+ 	rr = drbd_recv_short(mdev, sock, h, sizeof(*h), 0);
  
--	D_ASSERT(e->block_id == DRBD_MAGIC + 0xbeef);
--
- 	if (unlikely(cancel))
- 		goto out;
+-	if (rr == sizeof(*h) && h->magic == BE_DRBD_MAGIC)
++	if (rr == sizeof(*h) && h->magic == cpu_to_be32(DRBD_MAGIC))
+ 		return be16_to_cpu(h->command);
  
-@@ -359,7 +357,7 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
+ 	return 0xffff;
+@@ -935,10 +935,10 @@ static int drbd_recv_header(struct drbd_conf *mdev, enum drbd_packets *cmd, unsi
+ 		return false;
+ 	}
  
- 	/* GFP_TRY, because if there is no memory available right now, this may
- 	 * be rescheduled for later. It is "only" background resync, after all. */
--	e = drbd_alloc_ee(mdev, DRBD_MAGIC+0xbeef, sector, size, GFP_TRY);
-+	e = drbd_alloc_ee(mdev, ID_SYNCER /* unused */, sector, size, GFP_TRY);
- 	if (!e)
- 		goto defer;
+-	if (likely(h->h80.magic == BE_DRBD_MAGIC)) {
++	if (likely(h->h80.magic == cpu_to_be32(DRBD_MAGIC))) {
+ 		*cmd = be16_to_cpu(h->h80.command);
+ 		*packet_size = be16_to_cpu(h->h80.length);
+-	} else if (h->h95.magic == BE_DRBD_MAGIC_BIG) {
++	} else if (h->h95.magic == cpu_to_be16(DRBD_MAGIC_BIG)) {
+ 		*cmd = be16_to_cpu(h->h95.command);
+ 		*packet_size = be32_to_cpu(h->h95.length);
+ 	} else {
+@@ -4623,7 +4623,7 @@ int drbd_asender(struct drbd_thread *thi)
+ 		}
  
+ 		if (received == expect && cmd == NULL) {
+-			if (unlikely(h->magic != BE_DRBD_MAGIC)) {
++			if (unlikely(h->magic != cpu_to_be32(DRBD_MAGIC))) {
+ 				dev_err(DEV, "magic?? on meta m: 0x%08x c: %d l: %d\n",
+ 				    be32_to_cpu(h->magic),
+ 				    be16_to_cpu(h->command),
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index 9e5f560..d282028 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -334,9 +334,7 @@ enum drbd_timeout_flag {
+ #define UUID_JUST_CREATED ((__u64)4)
+ 
+ #define DRBD_MAGIC 0x83740267
+-#define BE_DRBD_MAGIC __constant_cpu_to_be32(DRBD_MAGIC)
+ #define DRBD_MAGIC_BIG 0x835a
+-#define BE_DRBD_MAGIC_BIG __constant_cpu_to_be16(DRBD_MAGIC_BIG)
+ 
+ /* these are of type "int" */
+ #define DRBD_MD_INDEX_INTERNAL -1
 -- 
 1.7.4.1
 
