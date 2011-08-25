@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:46 +0200
-Message-Id: <1314284934-17999-51-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:47 +0200
+Message-Id: <1314284934-17999-52-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 050/118] drbd: Allow to wait for the completion
-	of an epoch entry as well
+Subject: [Drbd-dev] [PATCH 051/118] drbd: _req_conflicts(): Get rid of the
+	epoch_entries tree
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,202 +20,233 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
+Instead of keeping a separate tree for local and remote write requests
+for finding requests and for conflict detection, use the same tree for
+both purposes.  Introduce a flag to allow distinguishing the two
+possible types of entries in this tree.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
+ drivers/block/drbd/drbd_int.h      |    3 ---
  drivers/block/drbd/drbd_interval.h |    1 +
- drivers/block/drbd/drbd_receiver.c |   35 ++++++++++++++++++++++-------------
- drivers/block/drbd/drbd_req.c      |   23 ++++++++++++++++++-----
- drivers/block/drbd/drbd_req.h      |    7 -------
- 4 files changed, 41 insertions(+), 25 deletions(-)
+ drivers/block/drbd/drbd_main.c     |    1 -
+ drivers/block/drbd/drbd_receiver.c |   33 ++++++++++++++++-----------------
+ drivers/block/drbd/drbd_req.c      |   28 ++++------------------------
+ drivers/block/drbd/drbd_worker.c   |    2 +-
+ 6 files changed, 22 insertions(+), 46 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index e917859..faa7cbd 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1045,9 +1045,6 @@ struct drbd_conf {
+ 	struct list_head read_ee;   /* IO in progress (any read) */
+ 	struct list_head net_ee;    /* zero-copy network send in progress */
+ 
+-	/* Interval tree of pending remote write requests (struct drbd_epoch_entry) */
+-	struct rb_root epoch_entries;
+-
+ 	/* this one is protected by ee_lock, single thread */
+ 	struct drbd_epoch_entry *last_write_w_barrier;
+ 
 diff --git a/drivers/block/drbd/drbd_interval.h b/drivers/block/drbd/drbd_interval.h
-index a847b4a..9d1e5eb 100644
+index 9d1e5eb..4010ad9 100644
 --- a/drivers/block/drbd/drbd_interval.h
 +++ b/drivers/block/drbd/drbd_interval.h
 @@ -9,6 +9,7 @@ struct drbd_interval {
  	sector_t sector;	/* start sector of the interval */
  	unsigned int size;	/* size in bytes */
  	sector_t end;		/* highest interval end in subtree */
-+	int waiting:1;
++	int local:1		/* local or remote request? */;
+ 	int waiting:1;
  };
  
- static inline void drbd_clear_interval(struct drbd_interval *i)
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 13aadca..a2417e4 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3450,7 +3450,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
+ 		goto out_no_tl;
+ 	mdev->read_requests = RB_ROOT;
+ 	mdev->write_requests = RB_ROOT;
+-	mdev->epoch_entries = RB_ROOT;
+ 
+ 	mdev->current_epoch = kzalloc(sizeof(struct drbd_epoch), GFP_KERNEL);
+ 	if (!mdev->current_epoch)
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index ed24dc3..558c630 100644
+index 558c630..cde48f3 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -334,13 +334,15 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
- 		goto fail;
- 
+@@ -336,6 +336,7 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
  	drbd_clear_interval(&e->i);
-+	e->i.size = data_size;
-+	e->i.sector = sector;
-+	e->i.waiting = false;
-+
+ 	e->i.size = data_size;
+ 	e->i.sector = sector;
++	e->i.local = false;
+ 	e->i.waiting = false;
+ 
  	e->epoch = NULL;
- 	e->mdev = mdev;
- 	e->pages = page;
- 	atomic_set(&e->pending_bios, 0);
--	e->i.size = data_size;
- 	e->flags = 0;
--	e->i.sector = sector;
- 	/*
- 	 * The block_id is opaque to the receiver.  It is not endianness
- 	 * converted, and sent back to the sender unchanged.
-@@ -1176,6 +1178,19 @@ fail:
- 	return err;
- }
+@@ -1512,7 +1513,7 @@ find_request(struct drbd_conf *mdev, struct rb_root *root, u64 id,
  
-+static void drbd_remove_epoch_entry_interval(struct drbd_conf *mdev,
-+					     struct drbd_epoch_entry *e)
-+{
-+	struct drbd_interval *i = &e->i;
-+
-+	drbd_remove_interval(&mdev->write_requests, i);
-+	drbd_clear_interval(i);
-+
-+	/* Wake up any processes waiting for this epoch entry to complete.  */
-+	if (i->waiting)
-+		wake_up(&mdev->misc_wait);
-+}
-+
- static int receive_Barrier(struct drbd_conf *mdev, enum drbd_packet cmd,
- 			   unsigned int data_size)
- {
-@@ -1595,8 +1610,7 @@ static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	if (mdev->tconn->net_conf->two_primaries) {
+ 	/* Request object according to our peer */
+ 	req = (struct drbd_request *)(unsigned long)id;
+-	if (drbd_contains_interval(root, sector, &req->i))
++	if (drbd_contains_interval(root, sector, &req->i) && req->i.local)
+ 		return req;
+ 	if (!missing_ok) {
+ 		dev_err(DEV, "%s: failed to find request %lu, sector %llus\n", func,
+@@ -1792,17 +1793,12 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 		/* conflict detection and handling:
+ 		 * 1. wait on the sequence number,
+ 		 *    in case this data packet overtook ACK packets.
+-		 * 2. check our interval trees for conflicting requests:
+-		 *    we only need to check the write_requests tree; the
+-		 *    epoch_entries tree cannot contain any overlaps because
+-		 *    they were already eliminated on the submitting node.
++		 * 2. check for conflicting write requests.
+ 		 *
+ 		 * Note: for two_primaries, we are protocol C,
+ 		 * so there cannot be any request that is DONE
+ 		 * but still on the transfer log.
+ 		 *
+-		 * unconditionally add to the epoch_entries tree.
+-		 *
+ 		 * if no conflicting request is found:
+ 		 *    submit.
+ 		 *
+@@ -1827,12 +1823,9 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 
  		spin_lock_irq(&mdev->tconn->req_lock);
- 		D_ASSERT(!drbd_interval_empty(&e->i));
--		drbd_remove_interval(&mdev->epoch_entries, &e->i);
--		drbd_clear_interval(&e->i);
-+		drbd_remove_epoch_entry_interval(mdev, e);
- 		spin_unlock_irq(&mdev->tconn->req_lock);
- 	} else
- 		D_ASSERT(drbd_interval_empty(&e->i));
-@@ -1616,8 +1630,7 @@ static int e_send_discard_ack(struct drbd_conf *mdev, struct drbd_work *w, int u
  
- 	spin_lock_irq(&mdev->tconn->req_lock);
- 	D_ASSERT(!drbd_interval_empty(&e->i));
--	drbd_remove_interval(&mdev->epoch_entries, &e->i);
--	drbd_clear_interval(&e->i);
-+	drbd_remove_epoch_entry_interval(mdev, e);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
+-		drbd_insert_interval(&mdev->epoch_entries, &e->i);
+-
+ 		first = 1;
+ 		for (;;) {
+ 			struct drbd_interval *i;
+-			struct drbd_request *req2;
+ 			int have_unacked = 0;
+ 			int have_conflict = 0;
+ 			prepare_to_wait(&mdev->misc_wait, &wait,
+@@ -1840,18 +1833,23 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
  
- 	dec_unacked(mdev);
-@@ -1864,17 +1877,14 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			i = drbd_find_overlap(&mdev->write_requests, sector, size);
+ 			if (i) {
+-				req2 = container_of(i, struct drbd_request, i);
+-
+ 				/* only ALERT on first iteration,
+ 				 * we may be woken up early... */
+ 				if (first)
+-					dev_alert(DEV, "%s[%u] Concurrent local write detected!"
++					dev_alert(DEV, "%s[%u] Concurrent %s write detected!"
+ 					      "	new: %llus +%u; pending: %llus +%u\n",
+ 					      current->comm, current->pid,
++					      i->local ? "local" : "remote",
+ 					      (unsigned long long)sector, size,
+-					      (unsigned long long)req2->i.sector, req2->i.size);
+-				if (req2->rq_state & RQ_NET_PENDING)
+-					++have_unacked;
++					      (unsigned long long)i->sector, i->size);
++
++				if (i->local) {
++					struct drbd_request *req2;
++
++					req2 = container_of(i, struct drbd_request, i);
++					if (req2->rq_state & RQ_NET_PENDING)
++						++have_unacked;
++				}
+ 				++have_conflict;
+ 			}
+ 			if (!have_conflict)
+@@ -1877,7 +1875,6 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
  			}
  
  			if (signal_pending(current)) {
--				drbd_remove_interval(&mdev->epoch_entries, &e->i);
--				drbd_clear_interval(&e->i);
--
-+				drbd_remove_epoch_entry_interval(mdev, e);
+-				drbd_remove_epoch_entry_interval(mdev, e);
  				spin_unlock_irq(&mdev->tconn->req_lock);
--
  				finish_wait(&mdev->misc_wait, &wait);
  				goto out_interrupted;
- 			}
+@@ -1900,6 +1897,8 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			spin_lock_irq(&mdev->tconn->req_lock);
+ 		}
+ 		finish_wait(&mdev->misc_wait, &wait);
++
++		drbd_insert_interval(&mdev->write_requests, &e->i);
+ 	}
  
- 			/* Indicate to wake up mdev->misc_wait upon completion.  */
--			req2->rq_state |= RQ_COLLISION;
-+			i->waiting = true;
- 
- 			spin_unlock_irq(&mdev->tconn->req_lock);
- 			if (first) {
-@@ -1926,8 +1936,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	dev_err(DEV, "submit failed, triggering re-connect\n");
- 	spin_lock_irq(&mdev->tconn->req_lock);
- 	list_del(&e->w.list);
--	drbd_remove_interval(&mdev->epoch_entries, &e->i);
--	drbd_clear_interval(&e->i);
-+	drbd_remove_epoch_entry_interval(mdev, e);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 	if (e->flags & EE_CALL_AL_COMPLETE_IO)
- 		drbd_al_complete_io(mdev, e->i.sector);
+ 	list_add(&e->w.list, &mdev->active_ee);
 diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 8b4ba94..078f77b 100644
+index 078f77b..df5f106 100644
 --- a/drivers/block/drbd/drbd_req.c
 +++ b/drivers/block/drbd/drbd_req.c
-@@ -70,9 +70,12 @@ static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
- 	req->mdev        = mdev;
- 	req->master_bio  = bio_src;
- 	req->epoch       = 0;
-+
+@@ -74,6 +74,7 @@ static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
  	drbd_clear_interval(&req->i);
  	req->i.sector     = bio_src->bi_sector;
  	req->i.size      = bio_src->bi_size;
-+	req->i.waiting = false;
-+
++	req->i.local = true;
+ 	req->i.waiting = false;
+ 
  	INIT_LIST_HEAD(&req->tl_requests);
- 	INIT_LIST_HEAD(&req->w.list);
+@@ -317,8 +318,6 @@ static void _req_may_be_done_not_susp(struct drbd_request *req, struct bio_and_e
+  * to happen, but this is the rationale why we also have to check for
+  * conflicting requests with local origin, and why we have to do so regardless
+  * of whether we allowed multiple primaries.
+- *
+- * In case we only have one primary, the epoch_entries tree is empty.
+  */
+ static int _req_conflicts(struct drbd_request *req)
+ {
+@@ -334,35 +333,16 @@ static int _req_conflicts(struct drbd_request *req)
  
-@@ -175,10 +178,6 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
- 	    (s & RQ_NET_SENT) != 0 &&
- 	    req->epoch == mdev->tconn->newest_tle->br_number)
- 		queue_barrier(mdev);
+ 	i = drbd_find_overlap(&mdev->write_requests, sector, size);
+ 	if (i) {
+-		struct drbd_request *req2 =
+-			container_of(i, struct drbd_request, i);
 -
--	/* Wake up any processes waiting for this request to complete.  */
--	if ((s & RQ_NET_DONE) && (s & RQ_COLLISION))
--		wake_up(&mdev->misc_wait);
- }
+-		dev_alert(DEV, "%s[%u] Concurrent local write detected! "
++		dev_alert(DEV, "%s[%u] Concurrent %s write detected! "
+ 		      "[DISCARD L] new: %llus +%u; "
+ 		      "pending: %llus +%u\n",
+ 		      current->comm, current->pid,
++		      i->local ? "local" : "remote",
+ 		      (unsigned long long)sector, size,
+-		      (unsigned long long)req2->i.sector, req2->i.size);
++		      (unsigned long long)i->sector, i->size);
+ 		goto out_conflict;
+ 	}
  
- void complete_master_bio(struct drbd_conf *mdev,
-@@ -188,6 +187,20 @@ void complete_master_bio(struct drbd_conf *mdev,
- 	dec_ap_bio(mdev);
- }
- 
-+
-+static void drbd_remove_request_interval(struct rb_root *root,
-+					 struct drbd_request *req)
-+{
-+	struct drbd_conf *mdev = req->mdev;
-+	struct drbd_interval *i = &req->i;
-+
-+	drbd_remove_interval(root, i);
-+
-+	/* Wake up any processes waiting for this request to complete.  */
-+	if (i->waiting)
-+		wake_up(&mdev->misc_wait);
-+}
-+
- /* Helper for __req_mod().
-  * Set m->bio to the master bio, if it is fit to be completed,
-  * or leave it alone (it is initialized to NULL in __req_mod),
-@@ -251,7 +264,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
- 				root = &mdev->write_requests;
- 			else
- 				root = &mdev->read_requests;
--			drbd_remove_interval(root, &req->i);
-+			drbd_remove_request_interval(root, req);
- 		} else
- 			D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
- 
-diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
-index 7a7464a..431e3f9 100644
---- a/drivers/block/drbd/drbd_req.h
-+++ b/drivers/block/drbd/drbd_req.h
-@@ -194,12 +194,6 @@ enum drbd_req_state_bits {
- 
- 	/* Should call drbd_al_complete_io() for this request... */
- 	__RQ_IN_ACT_LOG,
+-	if (!RB_EMPTY_ROOT(&mdev->epoch_entries)) {
+-		/* check for overlapping requests with remote origin */
+-		i = drbd_find_overlap(&mdev->epoch_entries, sector, size);
+-		if (i) {
+-			struct drbd_epoch_entry *e =
+-				container_of(i, struct drbd_epoch_entry, i);
 -
--	/*
--	 * Set when a processes puts itself to sleep to wait for this request
--	 * to complete.
--	 */
--	__RQ_COLLISION,
- };
+-			dev_alert(DEV, "%s[%u] Concurrent remote write detected!"
+-			      " [DISCARD L] new: %llus +%u; "
+-			      "pending: %llus +%u\n",
+-			      current->comm, current->pid,
+-			      (unsigned long long)sector, size,
+-			      (unsigned long long)e->i.sector, e->i.size);
+-			goto out_conflict;
+-		}
+-	}
+-
+ 	/* this is like it should be, and what we expected.
+ 	 * our users do behave after all... */
+ 	put_net_conf(mdev->tconn);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index afad8ea..0359600 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -123,7 +123,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
+ 	list_add_tail(&e->w.list, &mdev->done_ee);
  
- #define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
-@@ -220,7 +214,6 @@ enum drbd_req_state_bits {
- 
- #define RQ_WRITE           (1UL << __RQ_WRITE)
- #define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
--#define RQ_COLLISION	   (1UL << __RQ_COLLISION)
- 
- /* For waking up the frozen transfer log mod_req() has to return if the request
-    should be counted in the epoch object*/
+ 	/*
+-	 * Do not remove from the epoch_entries tree here: we did not send the
++	 * Do not remove from the write_requests tree here: we did not send the
+ 	 * Ack yet and did not wake possibly waiting conflicting requests.
+ 	 * Removed from the tree from "drbd_process_done_ee" within the
+ 	 * appropriate w.cb (e_end_block/e_end_resync_block) or from
 -- 
 1.7.4.1
 
