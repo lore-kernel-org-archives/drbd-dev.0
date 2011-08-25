@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:20 +0200
-Message-Id: <1314284934-17999-25-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:21 +0200
+Message-Id: <1314284934-17999-26-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 024/118] drbd: Remove some useless paranoia code
+Subject: [Drbd-dev] [PATCH 025/118] drbd: Inline function overlaps() is now
+	unused
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,41 +20,28 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-The open_cnt check is an open-coded D_ASSERT() check.
-
-In case the data.work queue is not empty, it does not really help to
-know which drbd_work elements remained on that list: they will be freed
-immediately afterwards, anyway.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_main.c |   12 ++----------
- 1 files changed, 2 insertions(+), 10 deletions(-)
+ drivers/block/drbd/drbd_req.h |    5 -----
+ 1 files changed, 0 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 46ba4aa..2902f6d 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -3254,16 +3254,8 @@ static void drbd_delete_device(unsigned int minor)
- 		return;
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
+index 6dbbe89..9d75647 100644
+--- a/drivers/block/drbd/drbd_req.h
++++ b/drivers/block/drbd/drbd_req.h
+@@ -260,11 +260,6 @@ static inline void drbd_req_free(struct drbd_request *req)
+ 	mempool_free(req, drbd_request_mempool);
+ }
  
- 	/* paranoia asserts */
--	if (mdev->open_cnt != 0)
--		dev_err(DEV, "open_cnt = %d in %s:%u", mdev->open_cnt,
--				__FILE__ , __LINE__);
+-static inline int overlaps(sector_t s1, int l1, sector_t s2, int l2)
+-{
+-	return !((s1 + (l1>>9) <= s2) || (s1 >= s2 + (l2>>9)));
+-}
 -
--	if (!expect(list_empty(&mdev->data.work.q))) {
--		struct list_head *lp;
--		list_for_each(lp, &mdev->data.work.q) {
--			dev_err(DEV, "lp = %p\n", lp);
--		}
--	};
-+	D_ASSERT(mdev->open_cnt == 0);
-+	D_ASSERT(list_empty(&mdev->data.work.q));
- 	/* end paranoia asserts */
- 
- 	del_gendisk(mdev->vdisk);
+ /* Short lived temporary struct on the stack.
+  * We could squirrel the error to be returned into
+  * bio->bi_size, or similar. But that would be too ugly. */
 -- 
 1.7.4.1
 
