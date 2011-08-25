@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:37 +0200
-Message-Id: <1314284934-17999-42-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:38 +0200
+Message-Id: <1314284934-17999-43-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 041/118] drbd: Do not access tconn after it was
-	freed
+Subject: [Drbd-dev] [PATCH 042/118] drbd: Move cmdname() out of drbd_int.h
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,37 +17,157 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+From: Andreas Gruenbacher <agruen@linbit.com>
+
+There is no good reason for cmdname() to be an inline function.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_main.c |    7 +++----
- 1 files changed, 3 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_int.h  |   59 +---------------------------------------
+ drivers/block/drbd/drbd_main.c |   59 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 58 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 4c5d143..e2a33ce 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -221,64 +221,7 @@ enum drbd_packets {
+ 	P_HAND_SHAKE	      = 0xfffe	/* FIXED for the next century! */
+ };
+ 
+-static inline const char *cmdname(enum drbd_packets cmd)
+-{
+-	/* THINK may need to become several global tables
+-	 * when we want to support more than
+-	 * one PRO_VERSION */
+-	static const char *cmdnames[] = {
+-		[P_DATA]	        = "Data",
+-		[P_DATA_REPLY]	        = "DataReply",
+-		[P_RS_DATA_REPLY]	= "RSDataReply",
+-		[P_BARRIER]	        = "Barrier",
+-		[P_BITMAP]	        = "ReportBitMap",
+-		[P_BECOME_SYNC_TARGET]  = "BecomeSyncTarget",
+-		[P_BECOME_SYNC_SOURCE]  = "BecomeSyncSource",
+-		[P_UNPLUG_REMOTE]	= "UnplugRemote",
+-		[P_DATA_REQUEST]	= "DataRequest",
+-		[P_RS_DATA_REQUEST]     = "RSDataRequest",
+-		[P_SYNC_PARAM]	        = "SyncParam",
+-		[P_SYNC_PARAM89]	= "SyncParam89",
+-		[P_PROTOCOL]            = "ReportProtocol",
+-		[P_UUIDS]	        = "ReportUUIDs",
+-		[P_SIZES]	        = "ReportSizes",
+-		[P_STATE]	        = "ReportState",
+-		[P_SYNC_UUID]           = "ReportSyncUUID",
+-		[P_AUTH_CHALLENGE]      = "AuthChallenge",
+-		[P_AUTH_RESPONSE]	= "AuthResponse",
+-		[P_PING]		= "Ping",
+-		[P_PING_ACK]	        = "PingAck",
+-		[P_RECV_ACK]	        = "RecvAck",
+-		[P_WRITE_ACK]	        = "WriteAck",
+-		[P_RS_WRITE_ACK]	= "RSWriteAck",
+-		[P_DISCARD_ACK]	        = "DiscardAck",
+-		[P_NEG_ACK]	        = "NegAck",
+-		[P_NEG_DREPLY]	        = "NegDReply",
+-		[P_NEG_RS_DREPLY]	= "NegRSDReply",
+-		[P_BARRIER_ACK]	        = "BarrierAck",
+-		[P_STATE_CHG_REQ]       = "StateChgRequest",
+-		[P_STATE_CHG_REPLY]     = "StateChgReply",
+-		[P_OV_REQUEST]          = "OVRequest",
+-		[P_OV_REPLY]            = "OVReply",
+-		[P_OV_RESULT]           = "OVResult",
+-		[P_CSUM_RS_REQUEST]     = "CsumRSRequest",
+-		[P_RS_IS_IN_SYNC]	= "CsumRSIsInSync",
+-		[P_COMPRESSED_BITMAP]   = "CBitmap",
+-		[P_DELAY_PROBE]         = "DelayProbe",
+-		[P_OUT_OF_SYNC]		= "OutOfSync",
+-		[P_MAX_CMD]	        = NULL,
+-	};
+-
+-	if (cmd == P_HAND_SHAKE_M)
+-		return "HandShakeM";
+-	if (cmd == P_HAND_SHAKE_S)
+-		return "HandShakeS";
+-	if (cmd == P_HAND_SHAKE)
+-		return "HandShake";
+-	if (cmd >= P_MAX_CMD)
+-		return "Unknown";
+-	return cmdnames[cmd];
+-}
++extern const char *cmdname(enum drbd_packets cmd);
+ 
+ /* for sending/receiving the bitmap,
+  * possibly in some encoding scheme */
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index f464cfa..a9dea6d 100644
+index a9dea6d..097b7a2 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -3260,10 +3260,6 @@ static void drbd_delete_device(unsigned int minor)
- 	kfree(mdev->p_uuid);
- 	/* mdev->p_uuid = NULL; */
- 
--	kfree(mdev->tconn->int_dig_out);
--	kfree(mdev->tconn->int_dig_in);
--	kfree(mdev->tconn->int_dig_vv);
--
- 	/* cleanup the rest that has been
- 	 * allocated from drbd_new_device
- 	 * and actually free the mdev itself */
-@@ -3377,6 +3373,9 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
- 	write_unlock_irq(&global_state_lock);
- 
- 	kfree(tconn->name);
-+	kfree(tconn->int_dig_out);
-+	kfree(tconn->int_dig_in);
-+	kfree(tconn->int_dig_vv);
- 	kfree(tconn);
+@@ -4101,6 +4101,65 @@ static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused)
+ 	return 1;
  }
  
++const char *cmdname(enum drbd_packets cmd)
++{
++	/* THINK may need to become several global tables
++	 * when we want to support more than
++	 * one PRO_VERSION */
++	static const char *cmdnames[] = {
++		[P_DATA]	        = "Data",
++		[P_DATA_REPLY]	        = "DataReply",
++		[P_RS_DATA_REPLY]	= "RSDataReply",
++		[P_BARRIER]	        = "Barrier",
++		[P_BITMAP]	        = "ReportBitMap",
++		[P_BECOME_SYNC_TARGET]  = "BecomeSyncTarget",
++		[P_BECOME_SYNC_SOURCE]  = "BecomeSyncSource",
++		[P_UNPLUG_REMOTE]	= "UnplugRemote",
++		[P_DATA_REQUEST]	= "DataRequest",
++		[P_RS_DATA_REQUEST]     = "RSDataRequest",
++		[P_SYNC_PARAM]	        = "SyncParam",
++		[P_SYNC_PARAM89]	= "SyncParam89",
++		[P_PROTOCOL]            = "ReportProtocol",
++		[P_UUIDS]	        = "ReportUUIDs",
++		[P_SIZES]	        = "ReportSizes",
++		[P_STATE]	        = "ReportState",
++		[P_SYNC_UUID]           = "ReportSyncUUID",
++		[P_AUTH_CHALLENGE]      = "AuthChallenge",
++		[P_AUTH_RESPONSE]	= "AuthResponse",
++		[P_PING]		= "Ping",
++		[P_PING_ACK]	        = "PingAck",
++		[P_RECV_ACK]	        = "RecvAck",
++		[P_WRITE_ACK]	        = "WriteAck",
++		[P_RS_WRITE_ACK]	= "RSWriteAck",
++		[P_DISCARD_ACK]	        = "DiscardAck",
++		[P_NEG_ACK]	        = "NegAck",
++		[P_NEG_DREPLY]	        = "NegDReply",
++		[P_NEG_RS_DREPLY]	= "NegRSDReply",
++		[P_BARRIER_ACK]	        = "BarrierAck",
++		[P_STATE_CHG_REQ]       = "StateChgRequest",
++		[P_STATE_CHG_REPLY]     = "StateChgReply",
++		[P_OV_REQUEST]          = "OVRequest",
++		[P_OV_REPLY]            = "OVReply",
++		[P_OV_RESULT]           = "OVResult",
++		[P_CSUM_RS_REQUEST]     = "CsumRSRequest",
++		[P_RS_IS_IN_SYNC]	= "CsumRSIsInSync",
++		[P_COMPRESSED_BITMAP]   = "CBitmap",
++		[P_DELAY_PROBE]         = "DelayProbe",
++		[P_OUT_OF_SYNC]		= "OutOfSync",
++		[P_MAX_CMD]	        = NULL,
++	};
++
++	if (cmd == P_HAND_SHAKE_M)
++		return "HandShakeM";
++	if (cmd == P_HAND_SHAKE_S)
++		return "HandShakeS";
++	if (cmd == P_HAND_SHAKE)
++		return "HandShake";
++	if (cmd >= P_MAX_CMD)
++		return "Unknown";
++	return cmdnames[cmd];
++}
++
+ #ifdef CONFIG_DRBD_FAULT_INJECTION
+ /* Fault insertion support including random number generator shamelessly
+  * stolen from kernel/rcutorture.c */
 -- 
 1.7.4.1
 
