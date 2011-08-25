@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:43 +0200
-Message-Id: <1314284934-17999-108-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:44 +0200
+Message-Id: <1314284934-17999-109-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 107/118] drbd: Extracted
-	is_valid_conn_transition() out of is_valid_transition()
+Subject: [Drbd-dev] [PATCH 108/118] drbd: Removed the os parameter form
+	sanitize_state()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,70 +21,121 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_state.c |   37 +++++++++++++++++++++++--------------
- 1 files changed, 23 insertions(+), 14 deletions(-)
+ drivers/block/drbd/drbd_state.c |   39 +++++++++++++++++++--------------------
+ 1 files changed, 19 insertions(+), 20 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 3199bf9..b381faa 100644
+index b381faa..02516ed 100644
 --- a/drivers/block/drbd/drbd_state.c
 +++ b/drivers/block/drbd/drbd_state.c
-@@ -396,33 +396,42 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns)
+@@ -48,8 +48,8 @@ static void after_conn_state_ch(struct drbd_tconn *tconn, union drbd_state os,
+ static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
+ static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state);
+ static enum drbd_state_rv is_valid_transition(union drbd_state os, union drbd_state ns);
+-static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
+-				       union drbd_state ns, const char **warn_sync_abort);
++static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state ns,
++				       const char **warn_sync_abort);
+ 
+ /**
+  * cl_wide_st_chg() - true if the state change is a cluster wide one
+@@ -116,7 +116,7 @@ _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
+ 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
+ 	os = mdev->state;
+ 	ns.i = (os.i & ~mask.i) | val.i;
+-	ns = sanitize_state(mdev, os, ns, NULL);
++	ns = sanitize_state(mdev, ns, NULL);
+ 	rv = is_valid_transition(os, ns);
+ 	if (rv == SS_SUCCESS)
+ 		rv = SS_UNKNOWN_ERROR;  /* cont waiting, otherwise fail. */
+@@ -163,7 +163,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
+ 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
+ 	os = mdev->state;
+ 	ns.i = (os.i & ~mask.i) | val.i;
+-	ns = sanitize_state(mdev, os, ns, NULL);
++	ns = sanitize_state(mdev, ns, NULL);
+ 	rv = is_valid_transition(os, ns);
+ 	if (rv < SS_SUCCESS)
+ 		goto abort;
+@@ -436,6 +436,13 @@ is_valid_transition(union drbd_state os, union drbd_state ns)
+ 	if (ns.disk == D_FAILED && os.disk == D_DISKLESS)
+ 		rv = SS_IS_DISKLESS;
+ 
++	/* if we are only D_ATTACHING yet,
++	 * we can (and should) go directly to D_DISKLESS. */
++	if (ns.disk == D_FAILED && os.disk == D_ATTACHING) {
++		printk("TODO: FIX ME\n");
++		rv = SS_IS_DISKLESS;
++	}
++
  	return rv;
  }
  
--/**
-- * is_valid_transition() - Returns an SS_ error code if the state transition is not possible
-- * This limits hard state transitions. Hard state transitions are facts there are
-- * imposed on DRBD by the environment. E.g. disk broke or network broke down.
-- * But those hard state transitions are still not allowed to do everything.
-- * @ns:		new state.
-- * @os:		old state.
-- */
- static enum drbd_state_rv
--is_valid_transition(union drbd_state os, union drbd_state ns)
-+is_valid_conn_transition(enum drbd_conns oc, enum drbd_conns nc)
+@@ -449,8 +456,8 @@ is_valid_transition(union drbd_state os, union drbd_state ns)
+  * When we loose connection, we have to set the state of the peers disk (pdsk)
+  * to D_UNKNOWN. This rule and many more along those lines are in this function.
+  */
+-static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
+-				       union drbd_state ns, const char **warn_sync_abort)
++static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state ns,
++				       const char **warn_sync_abort)
  {
- 	enum drbd_state_rv rv = SS_SUCCESS;
+ 	enum drbd_fencing_p fp;
+ 	enum drbd_disk_state disk_min, disk_max, pdsk_min, pdsk_max;
+@@ -461,11 +468,6 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state
+ 		put_ldev(mdev);
+ 	}
  
- 	/* Disallow Network errors to configure a device's network part */
--	if ((ns.conn >= C_TIMEOUT && ns.conn <= C_TEAR_DOWN) &&
--	    os.conn <= C_DISCONNECTING)
-+	if ((nc >= C_TIMEOUT && nc <= C_TEAR_DOWN) && oc <= C_DISCONNECTING)
- 		rv = SS_NEED_CONNECTION;
+-	/* if we are only D_ATTACHING yet,
+-	 * we can (and should) go directly to D_DISKLESS. */
+-	if (ns.disk == D_FAILED && os.disk == D_ATTACHING)
+-		ns.disk = D_DISKLESS;
+-
+ 	/* Implications from connection to peer and peer_isp */
+ 	if (ns.conn < C_CONNECTED) {
+ 		ns.peer_isp = 0;
+@@ -478,12 +480,12 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state
+ 	if (ns.conn == C_STANDALONE && ns.disk == D_DISKLESS && ns.role == R_SECONDARY)
+ 		ns.aftr_isp = 0;
  
- 	/* After a network error only C_UNCONNECTED or C_DISCONNECTING may follow. */
--	if (os.conn >= C_TIMEOUT && os.conn <= C_TEAR_DOWN &&
--	    ns.conn != C_UNCONNECTED && ns.conn != C_DISCONNECTING)
-+	if (oc >= C_TIMEOUT && oc <= C_TEAR_DOWN && nc != C_UNCONNECTED && nc != C_DISCONNECTING)
- 		rv = SS_IN_TRANSIENT_STATE;
++	/* An implication of the disk states onto the connection state */
+ 	/* Abort resync if a disk fails/detaches */
+-	if (os.conn > C_CONNECTED && ns.conn > C_CONNECTED &&
+-	    (ns.disk <= D_FAILED || ns.pdsk <= D_FAILED)) {
++	if (ns.conn > C_CONNECTED && (ns.disk <= D_FAILED || ns.pdsk <= D_FAILED)) {
+ 		if (warn_sync_abort)
+ 			*warn_sync_abort =
+-				os.conn == C_VERIFY_S || os.conn == C_VERIFY_T ?
++				ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T ?
+ 				"Online-verify" : "Resync";
+ 		ns.conn = C_CONNECTED;
+ 	}
+@@ -591,13 +593,11 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state
+ 	}
  
- 	/* After C_DISCONNECTING only C_STANDALONE may follow */
--	if (os.conn == C_DISCONNECTING && ns.conn != C_STANDALONE)
-+	if (oc == C_DISCONNECTING && nc != C_STANDALONE)
- 		rv = SS_IN_TRANSIENT_STATE;
+ 	if (fp == FP_STONITH &&
+-	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED) &&
+-	    !(os.role == R_PRIMARY && os.conn < C_CONNECTED && os.pdsk > D_OUTDATED))
++	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED))
+ 		ns.susp_fen = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
  
-+	return rv;
-+}
-+
-+
-+/**
-+ * is_valid_transition() - Returns an SS_ error code if the state transition is not possible
-+ * This limits hard state transitions. Hard state transitions are facts there are
-+ * imposed on DRBD by the environment. E.g. disk broke or network broke down.
-+ * But those hard state transitions are still not allowed to do everything.
-+ * @ns:		new state.
-+ * @os:		old state.
-+ */
-+static enum drbd_state_rv
-+is_valid_transition(union drbd_state os, union drbd_state ns)
-+{
-+	enum drbd_state_rv rv;
-+
-+	rv = is_valid_conn_transition(os.conn, ns.conn);
-+
- 	/* we cannot fail (again) if we already detached */
- 	if (ns.disk == D_FAILED && os.disk == D_DISKLESS)
- 		rv = SS_IS_DISKLESS;
+ 	if (mdev->sync_conf.on_no_data == OND_SUSPEND_IO &&
+-	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE) &&
+-	    !(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE))
++	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE))
+ 		ns.susp_nod = 1; /* Suspend IO while no data available (no accessible data available) */
+ 
+ 	if (ns.aftr_isp || ns.peer_isp || ns.user_isp) {
+@@ -668,8 +668,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+ 
+ 	os = mdev->state;
+ 
+-	ns = sanitize_state(mdev, os, ns, &warn_sync_abort);
+-
++	ns = sanitize_state(mdev, ns, &warn_sync_abort);
+ 	if (ns.i == os.i)
+ 		return SS_NOTHING_TO_DO;
+ 
 -- 
 1.7.4.1
 
