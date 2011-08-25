@@ -2,13 +2,16 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:53 +0200
-Message-Id: <1314284934-17999-118-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:54 +0200
+Message-Id: <1314284934-17999-119-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 117/118] drbd: implemented receiving of
-	P_CONN_ST_CHG_REQ
+Subject: [Drbd-dev] =?utf-8?q?=5BPATCH_118/118=5D_drbd=3A_Implemented_conn?=
+	=?utf-8?q?ection_wide_state_changes?=
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,54 +21,160 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+That is used for graceful disconnect only
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   10 ++++++++--
- drivers/block/drbd/drbd_state.h    |    1 +
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_nl.c    |   28 +++++++++---------
+ drivers/block/drbd/drbd_state.c |   62 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 14 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index bdd3f00..e346245 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3235,9 +3235,14 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	mask = convert_state(mask);
- 	val = convert_state(val);
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 3d8e631..d6832f8 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1572,6 +1572,7 @@ fail:
+ static int drbd_nl_disconnect(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
+ 			      struct drbd_nl_cfg_reply *reply)
+ {
++	struct drbd_tconn *tconn = mdev->tconn;
+ 	int retcode;
+ 	struct disconnect dc;
  
--	rv = drbd_change_state(mdev, CS_VERBOSE, mask, val);
-+	if (cmd == P_CONN_ST_CHG_REQ) {
-+		rv = conn_request_state(mdev->tconn, mask, val, CS_VERBOSE | CS_LOCAL_ONLY);
-+		conn_send_sr_reply(mdev->tconn, rv);
-+	} else {
-+		rv = drbd_change_state(mdev, CS_VERBOSE, mask, val);
-+		drbd_send_sr_reply(mdev, rv);
+@@ -1582,30 +1583,29 @@ static int drbd_nl_disconnect(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
+ 	}
+ 
+ 	if (dc.force) {
+-		spin_lock_irq(&mdev->tconn->req_lock);
+-		if (mdev->state.conn >= C_WF_CONNECTION)
+-			_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), CS_HARD, NULL);
+-		spin_unlock_irq(&mdev->tconn->req_lock);
++		spin_lock_irq(&tconn->req_lock);
++		if (tconn->cstate >= C_WF_CONNECTION)
++			_conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
++		spin_unlock_irq(&tconn->req_lock);
+ 		goto done;
+ 	}
+ 
+-	retcode = _drbd_request_state(mdev, NS(conn, C_DISCONNECTING), CS_ORDERED);
++	retcode = conn_request_state(tconn, NS(conn, C_DISCONNECTING), 0);
+ 
+ 	if (retcode == SS_NOTHING_TO_DO)
+ 		goto done;
+ 	else if (retcode == SS_ALREADY_STANDALONE)
+ 		goto done;
+ 	else if (retcode == SS_PRIMARY_NOP) {
+-		/* Our statche checking code wants to see the peer outdated. */
+-		retcode = drbd_request_state(mdev, NS2(conn, C_DISCONNECTING,
+-						      pdsk, D_OUTDATED));
++		/* Our state checking code wants to see the peer outdated. */
++		retcode = conn_request_state(tconn, NS2(conn, C_DISCONNECTING,
++							pdsk, D_OUTDATED), CS_VERBOSE);
+ 	} else if (retcode == SS_CW_FAILED_BY_PEER) {
+ 		/* The peer probably wants to see us outdated. */
+-		retcode = _drbd_request_state(mdev, NS2(conn, C_DISCONNECTING,
+-							disk, D_OUTDATED),
+-					      CS_ORDERED);
++		retcode = conn_request_state(tconn, NS2(conn, C_DISCONNECTING,
++							disk, D_OUTDATED), 0);
+ 		if (retcode == SS_IS_DISKLESS || retcode == SS_LOWER_THAN_OUTDATED) {
+-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
++			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
+ 			retcode = SS_SUCCESS;
+ 		}
+ 	}
+@@ -1613,8 +1613,8 @@ static int drbd_nl_disconnect(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
+ 	if (retcode < SS_SUCCESS)
+ 		goto fail;
+ 
+-	if (wait_event_interruptible(mdev->state_wait,
+-				     mdev->state.conn != C_DISCONNECTING)) {
++	if (wait_event_interruptible(tconn->ping_wait,
++				     tconn->cstate != C_DISCONNECTING)) {
+ 		/* Do not test for mdev->state.conn == C_STANDALONE, since
+ 		   someone else might connect us in the mean time! */
+ 		retcode = ERR_INTR;
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 81f66b3..61c65f5 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -1366,6 +1366,62 @@ static int _set_state_itr_fn(int vnr, void *p, void *data)
+ 	return 0;
+ }
+ 
++static enum drbd_state_rv
++_conn_rq_cond(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val)
++{
++	struct _is_valid_itr_params params;
++	enum drbd_conns oc = tconn->cstate;
++	enum drbd_state_rv rv;
++
++	if (test_and_clear_bit(CONN_WD_ST_CHG_OKAY, &tconn->flags))
++		return SS_CW_SUCCESS;
++
++	if (test_and_clear_bit(CONN_WD_ST_CHG_FAIL, &tconn->flags))
++		return SS_CW_FAILED_BY_PEER;
++
++	params.flags = CS_NO_CSTATE_CHG; /* öö think */
++	params.mask = mask;
++	params.val = val;
++
++	spin_lock_irq(&tconn->req_lock);
++	rv = oc != C_WF_REPORT_PARAMS ? SS_CW_NO_NEED : SS_UNKNOWN_ERROR;
++
++	if (rv == SS_UNKNOWN_ERROR)
++		rv = idr_for_each(&tconn->volumes, _is_valid_itr_fn, &params);
++
++	if (rv == 0)  /* idr_for_each semantics */
++		rv = SS_UNKNOWN_ERROR;  /* cont waiting, otherwise fail. */
++
++	spin_unlock_irq(&tconn->req_lock);
++
++	return rv;
++}
++
++static enum drbd_state_rv
++conn_cl_wide(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
++	     enum chg_state_flags f)
++{
++	enum drbd_state_rv rv;
++
++	spin_unlock_irq(&tconn->req_lock);
++	mutex_lock(&tconn->cstate_mutex);
++
++	if (!conn_send_state_req(tconn, mask, val)) {
++		rv = SS_CW_FAILED_BY_PEER;
++		/* if (f & CS_VERBOSE)
++		   print_st_err(mdev, os, ns, rv); */
++		goto abort;
 +	}
++
++	wait_event(tconn->ping_wait, (rv = _conn_rq_cond(tconn, mask, val)));
++
++abort:
++	mutex_unlock(&tconn->cstate_mutex);
++	spin_lock_irq(&tconn->req_lock);
++
++	return rv;
++}
++
+ enum drbd_state_rv
+ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
+ 		    enum chg_state_flags flags)
+@@ -1393,6 +1449,12 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
+ 	if (rv < SS_SUCCESS)
+ 		goto abort;
  
--	drbd_send_sr_reply(mdev, rv);
- 	drbd_md_sync(mdev);
- 
- 	return true;
-@@ -3771,6 +3776,7 @@ static struct data_cmd drbd_cmd_handler[] = {
- 	[P_CSUM_RS_REQUEST] = { 1, sizeof(struct p_block_req), receive_DataRequest },
- 	[P_DELAY_PROBE]     = { 0, sizeof(struct p_delay_probe93), receive_skip },
- 	[P_OUT_OF_SYNC]     = { 0, sizeof(struct p_block_desc), receive_out_of_sync },
-+	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), receive_req_state },
- 	/* anything missing from this table is in
- 	 * the asender_tbl, see get_asender_cmd */
- 	[P_MAX_CMD]	    = { 0, 0, NULL },
-diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
-index d312d84..5fdbdf0 100644
---- a/drivers/block/drbd/drbd_state.h
-+++ b/drivers/block/drbd/drbd_state.h
-@@ -63,6 +63,7 @@ enum chg_state_flags {
- 	CS_SERIALIZE    = 8,
- 	CS_ORDERED      = CS_WAIT_COMPLETE + CS_SERIALIZE,
- 	CS_NO_CSTATE_CHG = 16, /* Do not display changes in cstate. Internal to drbd_state.c */
-+	CS_LOCAL_ONLY = 32, /* Do not consider a device pair wide state change */
- };
- 
- extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,
++	if (oc == C_WF_REPORT_PARAMS && val.conn == C_DISCONNECTING && !(flags & CS_LOCAL_ONLY)) {
++		rv = conn_cl_wide(tconn, mask, val, flags);
++		if (rv < SS_SUCCESS)
++			goto abort;
++	}
++
+ 	if (params.oc_state == OC_CONSISTENT) {
+ 		oc = params.oc;
+ 		print_conn_state_change(tconn, oc, val.conn);
 -- 
 1.7.4.1
 
