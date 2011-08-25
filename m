@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:35 +0200
-Message-Id: <1314284934-17999-100-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:36 +0200
+Message-Id: <1314284934-17999-101-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 099/118] drbd: Converted drbd_worker() from mdev
-	to tconn
+Subject: [Drbd-dev] [PATCH 100/118] drbd: drbd_thread has now a pointer to a
+	tconn instead of to a mdev
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,167 +21,262 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_worker.c |   97 ++++++++++++++++++++------------------
- 1 files changed, 51 insertions(+), 46 deletions(-)
+ drivers/block/drbd/drbd_bitmap.c   |    8 +++---
+ drivers/block/drbd/drbd_int.h      |    4 +-
+ drivers/block/drbd/drbd_main.c     |   43 ++++++++++++++++-------------------
+ drivers/block/drbd/drbd_receiver.c |    4 +-
+ drivers/block/drbd/drbd_worker.c   |    2 +-
+ 5 files changed, 29 insertions(+), 32 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 6f70962..c9b10d6 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1624,35 +1624,53 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
- 	drbd_state_unlock(mdev);
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index e85221f..e8d652f 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -119,9 +119,9 @@ static void __bm_print_lock_info(struct drbd_conf *mdev, const char *func)
+ 	if (!__ratelimit(&drbd_ratelimit_state))
+ 		return;
+ 	dev_err(DEV, "FIXME %s in %s, bitmap locked for '%s' by %s\n",
+-		drbd_task_to_thread_name(mdev, current),
++		drbd_task_to_thread_name(mdev->tconn, current),
+ 		func, b->bm_why ?: "?",
+-		drbd_task_to_thread_name(mdev, b->bm_task));
++		drbd_task_to_thread_name(mdev->tconn, b->bm_task));
  }
  
-+static int _worker_dying(int vnr, void *p, void *data)
-+{
-+	struct drbd_conf *mdev = (struct drbd_conf *)p;
-+
-+	D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
-+	/* _drbd_set_state only uses stop_nowait.
-+	 * wait here for the exiting receiver. */
-+	drbd_thread_stop(&mdev->tconn->receiver);
-+	drbd_mdev_cleanup(mdev);
-+
-+	clear_bit(DEVICE_DYING, &mdev->flags);
-+	clear_bit(CONFIG_PENDING, &mdev->flags);
-+	wake_up(&mdev->state_wait);
-+
-+	return 0;
-+}
-+
- int drbd_worker(struct drbd_thread *thi)
+ void drbd_bm_lock(struct drbd_conf *mdev, char *why, enum bm_flag flags)
+@@ -138,9 +138,9 @@ void drbd_bm_lock(struct drbd_conf *mdev, char *why, enum bm_flag flags)
+ 
+ 	if (trylock_failed) {
+ 		dev_warn(DEV, "%s going to '%s' but bitmap already locked for '%s' by %s\n",
+-			 drbd_task_to_thread_name(mdev, current),
++			 drbd_task_to_thread_name(mdev->tconn, current),
+ 			 why, b->bm_why ?: "?",
+-			 drbd_task_to_thread_name(mdev, b->bm_task));
++			 drbd_task_to_thread_name(mdev->tconn, b->bm_task));
+ 		mutex_lock(&b->bm_change);
+ 	}
+ 	if (BM_LOCKED_MASK & b->bm_flags)
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 5be0ae8..ddbb3d2 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -624,7 +624,7 @@ struct drbd_thread {
+ 	struct completion stop;
+ 	enum drbd_thread_state t_state;
+ 	int (*function) (struct drbd_thread *);
+-	struct drbd_conf *mdev;
++	struct drbd_tconn *tconn;
+ 	int reset_cpu_mask;
+ 	char name[9];
+ };
+@@ -1150,7 +1150,7 @@ enum dds_flags {
+ extern void drbd_init_set_defaults(struct drbd_conf *mdev);
+ extern int  drbd_thread_start(struct drbd_thread *thi);
+ extern void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait);
+-extern char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task);
++extern char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *task);
+ #ifdef CONFIG_SMP
+ extern void drbd_thread_current_set_cpu(struct drbd_thread *thi);
+ extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 4589be4..dca4832 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -454,12 +454,12 @@ void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
+ static int drbd_thread_setup(void *arg)
+ {
+ 	struct drbd_thread *thi = (struct drbd_thread *) arg;
+-	struct drbd_conf *mdev = thi->mdev;
++	struct drbd_tconn *tconn = thi->tconn;
+ 	unsigned long flags;
+ 	int retval;
+ 
+ 	snprintf(current->comm, sizeof(current->comm), "drbd_%c_%s",
+-		 thi->name[0], thi->mdev->tconn->name);
++		 thi->name[0], thi->tconn->name);
+ 
+ restart:
+ 	retval = thi->function(thi);
+@@ -477,7 +477,7 @@ restart:
+ 	 */
+ 
+ 	if (thi->t_state == RESTARTING) {
+-		dev_info(DEV, "Restarting %s thread\n", thi->name);
++		conn_info(tconn, "Restarting %s thread\n", thi->name);
+ 		thi->t_state = RUNNING;
+ 		spin_unlock_irqrestore(&thi->t_lock, flags);
+ 		goto restart;
+@@ -489,27 +489,27 @@ restart:
+ 	complete(&thi->stop);
+ 	spin_unlock_irqrestore(&thi->t_lock, flags);
+ 
+-	dev_info(DEV, "Terminating %s\n", current->comm);
++	conn_info(tconn, "Terminating %s\n", current->comm);
+ 
+ 	/* Release mod reference taken when thread was started */
+ 	module_put(THIS_MODULE);
+ 	return retval;
+ }
+ 
+-static void drbd_thread_init(struct drbd_conf *mdev, struct drbd_thread *thi,
++static void drbd_thread_init(struct drbd_tconn *tconn, struct drbd_thread *thi,
+ 			     int (*func) (struct drbd_thread *), char *name)
+ {
+ 	spin_lock_init(&thi->t_lock);
+ 	thi->task    = NULL;
+ 	thi->t_state = NONE;
+ 	thi->function = func;
+-	thi->mdev = mdev;
++	thi->tconn = tconn;
+ 	strncpy(thi->name, name, ARRAY_SIZE(thi->name));
+ }
+ 
+ int drbd_thread_start(struct drbd_thread *thi)
  {
 -	struct drbd_conf *mdev = thi->mdev;
-+	struct drbd_tconn *tconn = thi->mdev->tconn;
++	struct drbd_tconn *tconn = thi->tconn;
+ 	struct task_struct *nt;
+ 	unsigned long flags;
+ 
+@@ -519,28 +519,27 @@ int drbd_thread_start(struct drbd_thread *thi)
+ 
+ 	switch (thi->t_state) {
+ 	case NONE:
+-		dev_info(DEV, "Starting %s thread (from %s [%d])\n",
++		conn_info(tconn, "Starting %s thread (from %s [%d])\n",
+ 			 thi->name, current->comm, current->pid);
+ 
+ 		/* Get ref on module for thread - this is released when thread exits */
+ 		if (!try_module_get(THIS_MODULE)) {
+-			dev_err(DEV, "Failed to get module reference in drbd_thread_start\n");
++			conn_err(tconn, "Failed to get module reference in drbd_thread_start\n");
+ 			spin_unlock_irqrestore(&thi->t_lock, flags);
+ 			return false;
+ 		}
+ 
+ 		init_completion(&thi->stop);
+-		D_ASSERT(thi->task == NULL);
+ 		thi->reset_cpu_mask = 1;
+ 		thi->t_state = RUNNING;
+ 		spin_unlock_irqrestore(&thi->t_lock, flags);
+ 		flush_signals(current); /* otherw. may get -ERESTARTNOINTR */
+ 
+ 		nt = kthread_create(drbd_thread_setup, (void *) thi,
+-				    "drbd%d_%s", mdev_to_minor(mdev), thi->name);
++				    "drbd_%c_%s", thi->name[0], thi->tconn->name);
+ 
+ 		if (IS_ERR(nt)) {
+-			dev_err(DEV, "Couldn't start thread\n");
++			conn_err(tconn, "Couldn't start thread\n");
+ 
+ 			module_put(THIS_MODULE);
+ 			return false;
+@@ -553,7 +552,7 @@ int drbd_thread_start(struct drbd_thread *thi)
+ 		break;
+ 	case EXITING:
+ 		thi->t_state = RESTARTING;
+-		dev_info(DEV, "Restarting %s thread (from %s [%d])\n",
++		conn_info(tconn, "Restarting %s thread (from %s [%d])\n",
+ 				thi->name, current->comm, current->pid);
+ 		/* fall through */
+ 	case RUNNING:
+@@ -594,7 +593,6 @@ void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait)
+ 		init_completion(&thi->stop);
+ 		if (thi->task != current)
+ 			force_sig(DRBD_SIGKILL, thi->task);
+-
+ 	}
+ 
+ 	spin_unlock_irqrestore(&thi->t_lock, flags);
+@@ -603,9 +601,8 @@ void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait)
+ 		wait_for_completion(&thi->stop);
+ }
+ 
+-static struct drbd_thread *drbd_task_to_thread(struct drbd_conf *mdev, struct task_struct *task)
++static struct drbd_thread *drbd_task_to_thread(struct drbd_tconn *tconn, struct task_struct *task)
+ {
+-	struct drbd_tconn *tconn = mdev->tconn;
+ 	struct drbd_thread *thi =
+ 		task == tconn->receiver.task ? &tconn->receiver :
+ 		task == tconn->asender.task  ? &tconn->asender :
+@@ -614,9 +611,9 @@ static struct drbd_thread *drbd_task_to_thread(struct drbd_conf *mdev, struct ta
+ 	return thi;
+ }
+ 
+-char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task)
++char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *task)
+ {
+-	struct drbd_thread *thi = drbd_task_to_thread(mdev, task);
++	struct drbd_thread *thi = drbd_task_to_thread(tconn, task);
+ 	return thi ? thi->name : task->comm;
+ }
+ 
+@@ -668,7 +665,7 @@ void drbd_thread_current_set_cpu(struct drbd_thread *thi)
+ 	if (!thi->reset_cpu_mask)
+ 		return;
+ 	thi->reset_cpu_mask = 0;
+-	set_cpus_allowed_ptr(p, thi->mdev->tconn->cpu_mask);
++	set_cpus_allowed_ptr(p, thi->tconn->cpu_mask);
+ }
+ #endif
+ 
+@@ -1878,10 +1875,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
+ 	init_waitqueue_head(&mdev->al_wait);
+ 	init_waitqueue_head(&mdev->seq_wait);
+ 
+-	drbd_thread_init(mdev, &mdev->tconn->receiver, drbdd_init, "receiver");
+-	drbd_thread_init(mdev, &mdev->tconn->worker, drbd_worker, "worker");
+-	drbd_thread_init(mdev, &mdev->tconn->asender, drbd_asender, "asender");
+-
+ 	/* mdev->tconn->agreed_pro_version gets initialized in drbd_connect() */
+ 	mdev->write_ordering = WO_bdev_flush;
+ 	mdev->resync_wenr = LC_FREE;
+@@ -2214,6 +2207,10 @@ struct drbd_tconn *drbd_new_tconn(char *name)
+ 	init_waitqueue_head(&tconn->net_cnt_wait);
+ 	idr_init(&tconn->volumes);
+ 
++	drbd_thread_init(tconn, &tconn->receiver, drbdd_init, "receiver");
++	drbd_thread_init(tconn, &tconn->worker, drbd_worker, "worker");
++	drbd_thread_init(tconn, &tconn->asender, drbd_asender, "asender");
++
+ 	write_lock_irq(&global_state_lock);
+ 	list_add(&tconn->all_tconn, &drbd_tconns);
+ 	write_unlock_irq(&global_state_lock);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 3434ca9..54eb53f 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -4227,7 +4227,7 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
+ 
+ int drbdd_init(struct drbd_thread *thi)
+ {
+-	struct drbd_tconn *tconn = thi->mdev->tconn;
++	struct drbd_tconn *tconn = thi->tconn;
+ 	int h;
+ 
+ 	conn_info(tconn, "receiver (re)started\n");
+@@ -4594,7 +4594,7 @@ static int tconn_process_done_ee(struct drbd_tconn *tconn)
+ 
+ int drbd_asender(struct drbd_thread *thi)
+ {
+-	struct drbd_tconn *tconn = thi->mdev->tconn;
++	struct drbd_tconn *tconn = thi->tconn;
+ 	struct p_header *h = &tconn->meta.rbuf.header;
+ 	struct asender_cmd *cmd = NULL;
+ 	struct packet_info pi;
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index c9b10d6..3f0f84a 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1643,7 +1643,7 @@ static int _worker_dying(int vnr, void *p, void *data)
+ 
+ int drbd_worker(struct drbd_thread *thi)
+ {
+-	struct drbd_tconn *tconn = thi->mdev->tconn;
++	struct drbd_tconn *tconn = thi->tconn;
  	struct drbd_work *w = NULL;
  	LIST_HEAD(work_list);
--	int intr = 0, i;
-+	int intr = 0;
- 
- 	while (get_t_state(thi) == RUNNING) {
- 		drbd_thread_current_set_cpu(thi);
- 
--		if (down_trylock(&mdev->tconn->data.work.s)) {
--			mutex_lock(&mdev->tconn->data.mutex);
--			if (mdev->tconn->data.socket && !mdev->tconn->net_conf->no_cork)
--				drbd_tcp_uncork(mdev->tconn->data.socket);
--			mutex_unlock(&mdev->tconn->data.mutex);
-+		if (down_trylock(&tconn->data.work.s)) {
-+			mutex_lock(&tconn->data.mutex);
-+			if (tconn->data.socket && !tconn->net_conf->no_cork)
-+				drbd_tcp_uncork(tconn->data.socket);
-+			mutex_unlock(&tconn->data.mutex);
- 
--			intr = down_interruptible(&mdev->tconn->data.work.s);
-+			intr = down_interruptible(&tconn->data.work.s);
- 
--			mutex_lock(&mdev->tconn->data.mutex);
--			if (mdev->tconn->data.socket  && !mdev->tconn->net_conf->no_cork)
--				drbd_tcp_cork(mdev->tconn->data.socket);
--			mutex_unlock(&mdev->tconn->data.mutex);
-+			mutex_lock(&tconn->data.mutex);
-+			if (tconn->data.socket  && !tconn->net_conf->no_cork)
-+				drbd_tcp_cork(tconn->data.socket);
-+			mutex_unlock(&tconn->data.mutex);
- 		}
- 
- 		if (intr) {
--			D_ASSERT(intr == -EINTR);
- 			flush_signals(current);
--			if (!expect(get_t_state(thi) != RUNNING))
-+			if (get_t_state(thi) == RUNNING) {
-+				conn_warn(tconn, "Worker got an unexpected signal\n");
- 				continue;
-+			}
- 			break;
- 		}
- 
-@@ -1663,8 +1681,8 @@ int drbd_worker(struct drbd_thread *thi)
- 		   this...   */
- 
- 		w = NULL;
--		spin_lock_irq(&mdev->tconn->data.work.q_lock);
--		if (!expect(!list_empty(&mdev->tconn->data.work.q))) {
-+		spin_lock_irq(&tconn->data.work.q_lock);
-+		if (list_empty(&tconn->data.work.q)) {
- 			/* something terribly wrong in our logic.
- 			 * we were able to down() the semaphore,
- 			 * but the list is empty... doh.
-@@ -1676,57 +1694,44 @@ int drbd_worker(struct drbd_thread *thi)
- 			 *
- 			 * I'll try to get away just starting over this loop.
- 			 */
--			spin_unlock_irq(&mdev->tconn->data.work.q_lock);
-+			conn_warn(tconn, "Work list unexpectedly empty\n");
-+			spin_unlock_irq(&tconn->data.work.q_lock);
- 			continue;
- 		}
--		w = list_entry(mdev->tconn->data.work.q.next, struct drbd_work, list);
-+		w = list_entry(tconn->data.work.q.next, struct drbd_work, list);
- 		list_del_init(&w->list);
--		spin_unlock_irq(&mdev->tconn->data.work.q_lock);
-+		spin_unlock_irq(&tconn->data.work.q_lock);
- 
--		if (!w->cb(mdev, w, mdev->state.conn < C_CONNECTED)) {
-+		if (!w->cb(w->mdev, w, tconn->volume0->state.conn < C_CONNECTED)) {
- 			/* dev_warn(DEV, "worker: a callback failed! \n"); */
--			if (mdev->state.conn >= C_CONNECTED)
--				drbd_force_state(mdev,
--						NS(conn, C_NETWORK_FAILURE));
-+			if (tconn->volume0->state.conn >= C_CONNECTED)
-+				drbd_force_state(tconn->volume0,
-+						 NS(conn, C_NETWORK_FAILURE));
- 		}
- 	}
--	D_ASSERT(test_bit(DEVICE_DYING, &mdev->flags));
--	D_ASSERT(test_bit(CONFIG_PENDING, &mdev->flags));
- 
--	spin_lock_irq(&mdev->tconn->data.work.q_lock);
--	i = 0;
--	while (!list_empty(&mdev->tconn->data.work.q)) {
--		list_splice_init(&mdev->tconn->data.work.q, &work_list);
--		spin_unlock_irq(&mdev->tconn->data.work.q_lock);
-+	spin_lock_irq(&tconn->data.work.q_lock);
-+	while (!list_empty(&tconn->data.work.q)) {
-+		list_splice_init(&tconn->data.work.q, &work_list);
-+		spin_unlock_irq(&tconn->data.work.q_lock);
- 
- 		while (!list_empty(&work_list)) {
- 			w = list_entry(work_list.next, struct drbd_work, list);
- 			list_del_init(&w->list);
--			w->cb(mdev, w, 1);
--			i++; /* dead debugging code */
-+			w->cb(w->mdev, w, 1);
- 		}
- 
--		spin_lock_irq(&mdev->tconn->data.work.q_lock);
-+		spin_lock_irq(&tconn->data.work.q_lock);
- 	}
--	sema_init(&mdev->tconn->data.work.s, 0);
-+	sema_init(&tconn->data.work.s, 0);
- 	/* DANGEROUS race: if someone did queue his work within the spinlock,
- 	 * but up() ed outside the spinlock, we could get an up() on the
- 	 * semaphore without corresponding list entry.
- 	 * So don't do that.
- 	 */
--	spin_unlock_irq(&mdev->tconn->data.work.q_lock);
-+	spin_unlock_irq(&tconn->data.work.q_lock);
- 
--	D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
--	/* _drbd_set_state only uses stop_nowait.
--	 * wait here for the exiting receiver. */
--	drbd_thread_stop(&mdev->tconn->receiver);
--	drbd_mdev_cleanup(mdev);
--
--	dev_info(DEV, "worker terminated\n");
--
--	clear_bit(DEVICE_DYING, &mdev->flags);
--	clear_bit(CONFIG_PENDING, &mdev->flags);
--	wake_up(&mdev->state_wait);
-+	idr_for_each(&tconn->volumes, _worker_dying, NULL);
- 
- 	return 0;
- }
+ 	int intr = 0;
 -- 
 1.7.4.1
 
