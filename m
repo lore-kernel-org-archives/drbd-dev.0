@@ -2,12 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:06 +0200
-Message-Id: <1314284934-17999-11-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:07 +0200
+Message-Id: <1314284934-17999-12-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 010/118] drbd: Request lookup code cleanup (2)
+Subject: [Drbd-dev] [PATCH 011/118] drbd: Request lookup code cleanup (3)
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,93 +19,96 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-Unify the ar_id_to_req() and ack_id_to_req() functions: make both fail
-if the consistency check fails.  Move the request lookup code now
-duplicated in both functions into its own function.
+Get rid of the ar_id_to_req() and ack_id_to_req() wrappers.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   49 +++++++++++++++++------------------
- 1 files changed, 24 insertions(+), 25 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |   28 ++++++----------------------
+ 1 files changed, 6 insertions(+), 22 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 1684c48..ae32aed 100644
+index ae32aed..84c8d94 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1469,24 +1469,39 @@ fail:
- 	return false;
+@@ -1494,14 +1494,6 @@ find_request(struct drbd_conf *mdev,
+ 	return NULL;
  }
  
 -/* when we receive the answer for a read request,
 - * verify that we actually know about it */
 -static struct drbd_request *ar_id_to_req(struct drbd_conf *mdev, u64 id,
 -					 sector_t sector)
-+static struct drbd_request *
-+find_request(struct drbd_conf *mdev,
-+	     struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
-+	     u64 id, sector_t sector, const char *func)
- {
--	struct hlist_head *slot = ar_hash_slot(mdev, sector);
-+	struct hlist_head *slot = hash_slot(mdev, sector);
- 	struct hlist_node *n;
- 	struct drbd_request *req;
- 
- 	hlist_for_each_entry(req, n, slot, collision) {
--		if ((unsigned long)req == (unsigned long)id) {
--			D_ASSERT(req->sector == sector);
--			return req;
-+		if ((unsigned long)req != (unsigned long)id)
-+			continue;
-+		if (req->sector != sector) {
-+			dev_err(DEV, "%s: found request %lu but it has "
-+				"wrong sector (%llus versus %llus)\n",
-+				func, (unsigned long)req,
-+				(unsigned long long)req->sector,
-+				(unsigned long long)sector);
-+			break;
- 		}
-+		return req;
- 	}
- 	return NULL;
- }
- 
-+/* when we receive the answer for a read request,
-+ * verify that we actually know about it */
-+static struct drbd_request *ar_id_to_req(struct drbd_conf *mdev, u64 id,
-+					 sector_t sector)
-+{
-+	return find_request(mdev, ar_hash_slot, id, sector, __func__);
-+}
-+
+-{
+-	return find_request(mdev, ar_hash_slot, id, sector, __func__);
+-}
+-
  static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned int data_size)
  {
  	struct drbd_request *req;
-@@ -4243,23 +4258,7 @@ static int got_IsInSync(struct drbd_conf *mdev, struct p_header80 *h)
- static struct drbd_request *ack_id_to_req(struct drbd_conf *mdev, u64 id,
- 					  sector_t sector)
- {
--	struct hlist_head *slot = tl_hash_slot(mdev, sector);
--	struct hlist_node *n;
--	struct drbd_request *req;
--
--	hlist_for_each_entry(req, n, slot, collision) {
--		if ((unsigned long)req == (unsigned long)id) {
--			if (req->sector != sector) {
--				dev_err(DEV, "ack_id_to_req: found req %p but it has "
--				    "wrong sector (%llus versus %llus)\n", req,
--				    (unsigned long long)req->sector,
--				    (unsigned long long)sector);
--				break;
--			}
--			return req;
--		}
--	}
--	return NULL;
-+	return find_request(mdev, tl_hash_slot, id, sector, __func__);
+@@ -1512,7 +1504,7 @@ static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
+ 	sector = be64_to_cpu(p->sector);
+ 
+ 	spin_lock_irq(&mdev->req_lock);
+-	req = ar_id_to_req(mdev, p->block_id, sector);
++	req = find_request(mdev, ar_hash_slot, p->block_id, sector, __func__);
+ 	spin_unlock_irq(&mdev->req_lock);
+ 	if (unlikely(!req)) {
+ 		dev_err(DEV, "Got a corrupt block_id/sector pair(1).\n");
+@@ -4253,24 +4245,16 @@ static int got_IsInSync(struct drbd_conf *mdev, struct p_header80 *h)
+ 	return true;
  }
  
+-/* when we receive the ACK for a write request,
+- * verify that we actually know about it */
+-static struct drbd_request *ack_id_to_req(struct drbd_conf *mdev, u64 id,
+-					  sector_t sector)
+-{
+-	return find_request(mdev, tl_hash_slot, id, sector, __func__);
+-}
+-
  static int validate_req_change_req_state(struct drbd_conf *mdev,
+ 	u64 id, sector_t sector,
+-	struct drbd_request *(*validator)(struct drbd_conf *, u64, sector_t),
++	struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
+ 	const char *func, enum drbd_req_event what)
+ {
+ 	struct drbd_request *req;
+ 	struct bio_and_error m;
+ 
+ 	spin_lock_irq(&mdev->req_lock);
+-	req = validator(mdev, id, sector);
++	req = find_request(mdev, hash_slot, id, sector, func);
+ 	if (unlikely(!req)) {
+ 		spin_unlock_irq(&mdev->req_lock);
+ 
+@@ -4323,7 +4307,7 @@ static int got_BlockAck(struct drbd_conf *mdev, struct p_header80 *h)
+ 	}
+ 
+ 	return validate_req_change_req_state(mdev, p->block_id, sector,
+-					     ack_id_to_req, __func__, what);
++					     tl_hash_slot, __func__, what);
+ }
+ 
+ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
+@@ -4343,7 +4327,7 @@ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
+ 	}
+ 
+ 	spin_lock_irq(&mdev->req_lock);
+-	req = ack_id_to_req(mdev, p->block_id, sector);
++	req = find_request(mdev, tl_hash_slot, p->block_id, sector, __func__);
+ 	if (!req) {
+ 		spin_unlock_irq(&mdev->req_lock);
+ 		if (mdev->net_conf->wire_protocol == DRBD_PROT_A ||
+@@ -4380,7 +4364,7 @@ static int got_NegDReply(struct drbd_conf *mdev, struct p_header80 *h)
+ 	    (unsigned long long)sector, be32_to_cpu(p->blksize));
+ 
+ 	return validate_req_change_req_state(mdev, p->block_id, sector,
+-					     ar_id_to_req, __func__ , neg_acked);
++					     ar_hash_slot, __func__, neg_acked);
+ }
+ 
+ static int got_NegRSDReply(struct drbd_conf *mdev, struct p_header80 *h)
 -- 
 1.7.4.1
 
