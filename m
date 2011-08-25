@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:42 +0200
-Message-Id: <1314284934-17999-47-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:43 +0200
+Message-Id: <1314284934-17999-48-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 046/118] drbd: Move sequence number logic into
-	drbd_receiver.c and simplify it
+Subject: [Drbd-dev] [PATCH 047/118] drbd: Move some functions to where they
+	are used
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,100 +20,132 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-These things are only used there.
+Move drbd_update_congested() to drbd_main.c, and drbd_req_new() and
+drbd_req_free() to drbd_req.c: those functions are not used anywhere
+else.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |   27 ---------------------------
- drivers/block/drbd/drbd_receiver.c |   29 ++++++++++++++++++++++++++++-
- 2 files changed, 28 insertions(+), 28 deletions(-)
+ drivers/block/drbd/drbd_int.h  |    7 -------
+ drivers/block/drbd/drbd_main.c |    7 +++++++
+ drivers/block/drbd/drbd_req.c  |   29 +++++++++++++++++++++++++++++
+ drivers/block/drbd/drbd_req.h  |   26 --------------------------
+ 4 files changed, 36 insertions(+), 33 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 7cc75dd9..fafadb6 100644
+index fafadb6..e917859 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -2355,33 +2355,6 @@ static inline int drbd_set_ed_uuid(struct drbd_conf *mdev, u64 val)
+@@ -2355,13 +2355,6 @@ static inline int drbd_set_ed_uuid(struct drbd_conf *mdev, u64 val)
  	return changed;
  }
  
--static inline int seq_cmp(u32 a, u32 b)
+-static inline void drbd_update_congested(struct drbd_conf *mdev)
 -{
--	/* we assume wrap around at 32bit.
--	 * for wrap around at 24bit (old atomic_t),
--	 * we'd have to
--	 *  a <<= 8; b <<= 8;
--	 */
--	return (s32)(a) - (s32)(b);
--}
--#define seq_lt(a, b) (seq_cmp((a), (b)) < 0)
--#define seq_gt(a, b) (seq_cmp((a), (b)) > 0)
--#define seq_ge(a, b) (seq_cmp((a), (b)) >= 0)
--#define seq_le(a, b) (seq_cmp((a), (b)) <= 0)
--/* CAUTION: please no side effects in arguments! */
--#define seq_max(a, b) ((u32)(seq_gt((a), (b)) ? (a) : (b)))
--
--static inline void update_peer_seq(struct drbd_conf *mdev, unsigned int new_seq)
--{
--	unsigned int m;
--	spin_lock(&mdev->peer_seq_lock);
--	m = seq_max(mdev->peer_seq, new_seq);
--	mdev->peer_seq = m;
--	spin_unlock(&mdev->peer_seq_lock);
--	if (m == new_seq)
--		wake_up(&mdev->seq_wait);
+-	struct sock *sk = mdev->tconn->data.socket->sk;
+-	if (sk->sk_wmem_queued > sk->sk_sndbuf * 4 / 5)
+-		set_bit(NET_CONGESTED, &mdev->flags);
 -}
 -
- static inline void drbd_update_congested(struct drbd_conf *mdev)
+ static inline int drbd_queue_order_type(struct drbd_conf *mdev)
  {
- 	struct sock *sk = mdev->tconn->data.socket->sk;
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 72b2512..0d9d777 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1625,6 +1625,33 @@ static int e_send_discard_ack(struct drbd_conf *mdev, struct drbd_work *w, int u
- 	return ok;
+ 	/* sorry, we currently have no working implementation
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index fbd3f04..13aadca 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2528,6 +2528,13 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
+ 	return drop_it; /* && (mdev->state == R_PRIMARY) */;
  }
  
-+static bool seq_greater(u32 a, u32 b)
++static void drbd_update_congested(struct drbd_conf *mdev)
 +{
-+	/*
-+	 * We assume 32-bit wrap-around here.
-+	 * For 24-bit wrap-around, we would have to shift:
-+	 *  a <<= 8; b <<= 8;
-+	 */
-+	return (s32)a - (s32)b > 0;
++	struct sock *sk = mdev->tconn->data.socket->sk;
++	if (sk->sk_wmem_queued > sk->sk_sndbuf * 4 / 5)
++		set_bit(NET_CONGESTED, &mdev->flags);
 +}
 +
-+static u32 seq_max(u32 a, u32 b)
+ /* The idea of sendpage seems to be to put some kind of reference
+  * to the page into the skb, and to hand it over to the NIC. In
+  * this process get_page() gets called.
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 74179f7..25fa87c 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -56,6 +56,35 @@ static void _drbd_end_io_acct(struct drbd_conf *mdev, struct drbd_request *req)
+ 	part_stat_unlock();
+ }
+ 
++static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
++					       struct bio *bio_src)
 +{
-+	return seq_greater(a, b) ? a : b;
++	struct drbd_request *req;
++
++	req = mempool_alloc(drbd_request_mempool, GFP_NOIO);
++	if (!req)
++		return NULL;
++
++	drbd_req_make_private_bio(req, bio_src);
++	req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
++	req->mdev        = mdev;
++	req->master_bio  = bio_src;
++	req->epoch       = 0;
++	drbd_clear_interval(&req->i);
++	req->i.sector     = bio_src->bi_sector;
++	req->i.size      = bio_src->bi_size;
++	INIT_LIST_HEAD(&req->tl_requests);
++	INIT_LIST_HEAD(&req->w.list);
++
++	return req;
 +}
 +
-+static void update_peer_seq(struct drbd_conf *mdev, unsigned int new_seq)
++static void drbd_req_free(struct drbd_request *req)
 +{
-+	unsigned int m;
-+
-+	spin_lock(&mdev->peer_seq_lock);
-+	m = seq_max(mdev->peer_seq, new_seq);
-+	mdev->peer_seq = m;
-+	spin_unlock(&mdev->peer_seq_lock);
-+	if (m == new_seq)
-+		wake_up(&mdev->seq_wait);
++	mempool_free(req, drbd_request_mempool);
 +}
 +
- /* Called from receive_Data.
-  * Synchronize packets on sock with packets on msock.
-  *
-@@ -1655,7 +1682,7 @@ static int drbd_wait_peer_seq(struct drbd_conf *mdev, const u32 packet_seq)
- 	spin_lock(&mdev->peer_seq_lock);
- 	for (;;) {
- 		prepare_to_wait(&mdev->seq_wait, &wait, TASK_INTERRUPTIBLE);
--		if (seq_le(packet_seq, mdev->peer_seq+1))
-+		if (!seq_greater(packet_seq, mdev->peer_seq + 1))
- 			break;
- 		if (signal_pending(current)) {
- 			ret = -ERESTARTSYS;
++/* rw is bio_data_dir(), only READ or WRITE */
+ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const int rw)
+ {
+ 	const unsigned long s = req->rq_state;
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
+index 4b0858b..431e3f9 100644
+--- a/drivers/block/drbd/drbd_req.h
++++ b/drivers/block/drbd/drbd_req.h
+@@ -234,32 +234,6 @@ static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bi
+ 	bio->bi_next     = NULL;
+ }
+ 
+-static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
+-	struct bio *bio_src)
+-{
+-	struct drbd_request *req =
+-		mempool_alloc(drbd_request_mempool, GFP_NOIO);
+-	if (likely(req)) {
+-		drbd_req_make_private_bio(req, bio_src);
+-
+-		req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
+-		req->mdev        = mdev;
+-		req->master_bio  = bio_src;
+-		req->epoch       = 0;
+-		req->i.sector     = bio_src->bi_sector;
+-		req->i.size      = bio_src->bi_size;
+-		drbd_clear_interval(&req->i);
+-		INIT_LIST_HEAD(&req->tl_requests);
+-		INIT_LIST_HEAD(&req->w.list);
+-	}
+-	return req;
+-}
+-
+-static inline void drbd_req_free(struct drbd_request *req)
+-{
+-	mempool_free(req, drbd_request_mempool);
+-}
+-
+ /* Short lived temporary struct on the stack.
+  * We could squirrel the error to be returned into
+  * bio->bi_size, or similar. But that would be too ugly. */
 -- 
 1.7.4.1
 
