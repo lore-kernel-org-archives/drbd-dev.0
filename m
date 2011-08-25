@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:25 +0200
-Message-Id: <1314284934-17999-90-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:26 +0200
+Message-Id: <1314284934-17999-91-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 089/118] drbd: Converted drbd_send_protocol()
-	from mdev to tconn
+Subject: [Drbd-dev] [PATCH 090/118] drbd: Use and idr data structure to map
+	volume numbers to mdev pointers
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,103 +21,77 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    2 +-
- drivers/block/drbd/drbd_main.c     |   30 +++++++++++++++---------------
- drivers/block/drbd/drbd_receiver.c |    2 +-
- 3 files changed, 17 insertions(+), 17 deletions(-)
+ drivers/block/drbd/drbd_int.h  |    4 +++-
+ drivers/block/drbd/drbd_main.c |   12 +++++++++++-
+ 2 files changed, 14 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index ddff35b..9bd156a 100644
+index 9bd156a..4ececc3 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1160,7 +1160,7 @@ extern void _tl_add_barrier(struct drbd_conf *, struct drbd_tl_epoch *);
- extern void drbd_free_sock(struct drbd_conf *mdev);
- extern int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
- 		     void *buf, size_t size, unsigned msg_flags);
--extern int drbd_send_protocol(struct drbd_conf *mdev);
-+extern int drbd_send_protocol(struct drbd_tconn *tconn);
- extern int drbd_send_uuids(struct drbd_conf *mdev);
- extern int drbd_send_uuids_skip_initial_sync(struct drbd_conf *mdev);
- extern int drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev);
+@@ -40,6 +40,7 @@
+ #include <linux/major.h>
+ #include <linux/blkdev.h>
+ #include <linux/genhd.h>
++#include <linux/idr.h>
+ #include <net/tcp.h>
+ #include <linux/lru_cache.h>
+ #include <linux/prefetch.h>
+@@ -915,8 +916,9 @@ struct drbd_tconn {			/* is a resource from the config file */
+ 	char *name;			/* Resource name */
+ 	struct list_head all_tconn;	/* List of all drbd_tconn, prot by global_state_lock */
+ 	struct drbd_conf *volume0;	/* TODO: Remove me again */
+-	unsigned long flags;
++	struct idr volumes;             /* <tconn, vnr> to mdev mapping */
+ 
++	unsigned long flags;
+ 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
+ 	atomic_t net_cnt;		/* Users of net_conf */
+ 	wait_queue_head_t net_cnt_wait;
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 14961d8..ca40f0a 100644
+index ca40f0a..d7421b6 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -808,15 +808,15 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
- 	return rv;
- }
+@@ -2195,6 +2195,7 @@ struct drbd_tconn *drbd_new_tconn(char *name)
  
--int drbd_send_protocol(struct drbd_conf *mdev)
-+int drbd_send_protocol(struct drbd_tconn *tconn)
- {
- 	struct p_protocol *p;
- 	int size, cf, rv;
+ 	atomic_set(&tconn->net_cnt, 0);
+ 	init_waitqueue_head(&tconn->net_cnt_wait);
++	idr_init(&tconn->volumes);
  
- 	size = sizeof(struct p_protocol);
+ 	write_lock_irq(&global_state_lock);
+ 	list_add(&tconn->all_tconn, &drbd_tconns);
+@@ -2214,6 +2215,7 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
+ 	write_lock_irq(&global_state_lock);
+ 	list_del(&tconn->all_tconn);
+ 	write_unlock_irq(&global_state_lock);
++	idr_destroy(&tconn->volumes);
  
--	if (mdev->tconn->agreed_pro_version >= 87)
--		size += strlen(mdev->tconn->net_conf->integrity_alg) + 1;
-+	if (tconn->agreed_pro_version >= 87)
-+		size += strlen(tconn->net_conf->integrity_alg) + 1;
+ 	kfree(tconn->name);
+ 	kfree(tconn->int_dig_out);
+@@ -2228,6 +2230,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
+ 	struct gendisk *disk;
+ 	struct request_queue *q;
+ 	char conn_name[9]; /* drbd1234N */
++	int vnr;
  
- 	/* we must not recurse into our own queue,
- 	 * as that is blocked during handshake */
-@@ -824,30 +824,30 @@ int drbd_send_protocol(struct drbd_conf *mdev)
- 	if (p == NULL)
- 		return 0;
+ 	/* GFP_KERNEL, we are outside of all write-out paths */
+ 	mdev = kzalloc(sizeof(struct drbd_conf), GFP_KERNEL);
+@@ -2237,7 +2240,14 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
+ 	mdev->tconn = drbd_new_tconn(conn_name);
+ 	if (!mdev->tconn)
+ 		goto out_no_tconn;
+-
++	if (!idr_pre_get(&mdev->tconn->volumes, GFP_KERNEL))
++		goto out_no_cpumask;
++	if (idr_get_new(&mdev->tconn->volumes, mdev, &vnr))
++		goto out_no_cpumask;
++	if (vnr != 0) {
++		dev_err(DEV, "vnr = %d\n", vnr);
++		goto out_no_cpumask;
++	}
+ 	if (!zalloc_cpumask_var(&mdev->cpu_mask, GFP_KERNEL))
+ 		goto out_no_cpumask;
  
--	p->protocol      = cpu_to_be32(mdev->tconn->net_conf->wire_protocol);
--	p->after_sb_0p   = cpu_to_be32(mdev->tconn->net_conf->after_sb_0p);
--	p->after_sb_1p   = cpu_to_be32(mdev->tconn->net_conf->after_sb_1p);
--	p->after_sb_2p   = cpu_to_be32(mdev->tconn->net_conf->after_sb_2p);
--	p->two_primaries = cpu_to_be32(mdev->tconn->net_conf->two_primaries);
-+	p->protocol      = cpu_to_be32(tconn->net_conf->wire_protocol);
-+	p->after_sb_0p   = cpu_to_be32(tconn->net_conf->after_sb_0p);
-+	p->after_sb_1p   = cpu_to_be32(tconn->net_conf->after_sb_1p);
-+	p->after_sb_2p   = cpu_to_be32(tconn->net_conf->after_sb_2p);
-+	p->two_primaries = cpu_to_be32(tconn->net_conf->two_primaries);
- 
- 	cf = 0;
--	if (mdev->tconn->net_conf->want_lose)
-+	if (tconn->net_conf->want_lose)
- 		cf |= CF_WANT_LOSE;
--	if (mdev->tconn->net_conf->dry_run) {
--		if (mdev->tconn->agreed_pro_version >= 92)
-+	if (tconn->net_conf->dry_run) {
-+		if (tconn->agreed_pro_version >= 92)
- 			cf |= CF_DRY_RUN;
- 		else {
--			dev_err(DEV, "--dry-run is not supported by peer");
-+			conn_err(tconn, "--dry-run is not supported by peer");
- 			kfree(p);
- 			return -1;
- 		}
- 	}
- 	p->conn_flags    = cpu_to_be32(cf);
- 
--	if (mdev->tconn->agreed_pro_version >= 87)
--		strcpy(p->integrity_alg, mdev->tconn->net_conf->integrity_alg);
-+	if (tconn->agreed_pro_version >= 87)
-+		strcpy(p->integrity_alg, tconn->net_conf->integrity_alg);
- 
--	rv = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_PROTOCOL, &p->head, size);
-+	rv = conn_send_cmd2(tconn, P_PROTOCOL, p->head.payload, size);
- 	kfree(p);
- 	return rv;
- }
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 95b0d6c..42a2b39 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -910,7 +910,7 @@ retry:
- 
- 	drbd_thread_start(&mdev->tconn->asender);
- 
--	if (drbd_send_protocol(mdev) == -1)
-+	if (drbd_send_protocol(mdev->tconn) == -1)
- 		return -1;
- 	drbd_send_sync_param(mdev, &mdev->sync_conf);
- 	drbd_send_sizes(mdev, 0, 0);
 -- 
 1.7.4.1
 
