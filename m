@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:08 +0200
-Message-Id: <1314284934-17999-73-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:09 +0200
+Message-Id: <1314284934-17999-74-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 072/118] drbd: Moved DISCARD_CONCURRENT to the
-	per connection (tconn) flags
+Subject: [Drbd-dev] [PATCH 073/118] drbd: Moved SEND_PING to the per
+	connection (tconn) flags
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,111 +21,61 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    2 +-
- drivers/block/drbd/drbd_nl.c       |    2 +-
- drivers/block/drbd/drbd_receiver.c |   14 +++++++-------
- 3 files changed, 9 insertions(+), 9 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    4 ++--
+ drivers/block/drbd/drbd_receiver.c |    4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index b325b0a..a88bf7c 100644
+index a88bf7c..9024bc6 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -762,7 +762,6 @@ enum {
+@@ -757,7 +757,6 @@ enum {
+ enum {
+ 	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
+ 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
+-	SEND_PING,		/* whether asender should send a ping asap */
+ 
  	UNPLUG_QUEUED,		/* only relevant with kernel 2.4 */
  	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
- 	MD_DIRTY,		/* current uuids and flags not yet on disk */
--	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
- 	USE_DEGR_WFC_T,		/* degr-wfc-timeout instead of wfc-timeout. */
- 	CLUSTER_ST_CHANGE,	/* Cluster wide state change going on... */
- 	CL_ST_CHG_SUCCESS,
 @@ -910,6 +909,7 @@ struct fifo_buffer {
- /* flag bits per tconn */
  enum {
  	NET_CONGESTED,		/* The data socket is congested */
-+	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
+ 	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
++	SEND_PING,		/* whether asender should send a ping asap */
  };
  
  struct drbd_tconn {			/* is a resource from the config file */
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index e30d52b..fda399a 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1637,7 +1637,7 @@ void resync_after_online_grow(struct drbd_conf *mdev)
- 	if (mdev->state.role != mdev->state.peer)
- 		iass = (mdev->state.role == R_PRIMARY);
- 	else
--		iass = test_bit(DISCARD_CONCURRENT, &mdev->flags);
-+		iass = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
+@@ -1866,7 +1866,7 @@ static inline void wake_asender(struct drbd_conf *mdev)
  
- 	if (iass)
- 		drbd_start_resync(mdev, C_SYNC_SOURCE);
+ static inline void request_ping(struct drbd_conf *mdev)
+ {
+-	set_bit(SEND_PING, &mdev->flags);
++	set_bit(SEND_PING, &mdev->tconn->flags);
+ 	wake_asender(mdev);
+ }
+ 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 83066a3..cb45a3c 100644
+index cb45a3c..4b1d19d 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -762,7 +762,7 @@ static int drbd_connect(struct drbd_conf *mdev)
- 	if (drbd_request_state(mdev, NS(conn, C_WF_CONNECTION)) < SS_SUCCESS)
- 		return -2;
+@@ -4568,7 +4568,7 @@ int drbd_asender(struct drbd_thread *thi)
  
--	clear_bit(DISCARD_CONCURRENT, &mdev->flags);
-+	clear_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
- 	mdev->tconn->agreed_pro_version = 99;
- 	/* agreed_pro_version must be smaller than 100 so we send the old
- 	   header (h80) in the first packet and in the handshake packet. */
-@@ -823,7 +823,7 @@ retry:
- 					sock_release(msock);
- 				}
- 				msock = s;
--				set_bit(DISCARD_CONCURRENT, &mdev->flags);
-+				set_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
- 				break;
- 			default:
- 				dev_warn(DEV, "Error receiving initial packet\n");
-@@ -1783,7 +1783,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 		/* don't get the req_lock yet,
- 		 * we may sleep in drbd_wait_peer_seq */
- 		const int size = peer_req->i.size;
--		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->flags);
-+		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
- 		DEFINE_WAIT(wait);
- 		int first;
- 
-@@ -2243,7 +2243,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
- 		     "Using discard-least-changes instead\n");
- 	case ASB_DISCARD_ZERO_CHG:
- 		if (ch_peer == 0 && ch_self == 0) {
--			rv = test_bit(DISCARD_CONCURRENT, &mdev->flags)
-+			rv = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags)
- 				? -1 : 1;
- 			break;
- 		} else {
-@@ -2259,7 +2259,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
- 			rv =  1;
- 		else /* ( ch_self == ch_peer ) */
- 		     /* Well, then use something else. */
--			rv = test_bit(DISCARD_CONCURRENT, &mdev->flags)
-+			rv = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags)
- 				? -1 : 1;
- 		break;
- 	case ASB_DISCARD_LOCAL:
-@@ -2472,7 +2472,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
- 		case 1: /*  self_pri && !peer_pri */ return 1;
- 		case 2: /* !self_pri &&  peer_pri */ return -1;
- 		case 3: /*  self_pri &&  peer_pri */
--			dc = test_bit(DISCARD_CONCURRENT, &mdev->flags);
-+			dc = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
- 			return dc ? -1 : 1;
- 		}
- 	}
-@@ -3213,7 +3213,7 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	mask.i = be32_to_cpu(p->mask);
- 	val.i = be32_to_cpu(p->val);
- 
--	if (test_bit(DISCARD_CONCURRENT, &mdev->flags) &&
-+	if (test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags) &&
- 	    test_bit(CLUSTER_ST_CHANGE, &mdev->flags)) {
- 		drbd_send_sr_reply(mdev, SS_CONCURRENT_ST_CHG);
- 		return true;
+ 	while (get_t_state(thi) == RUNNING) {
+ 		drbd_thread_current_set_cpu(mdev, thi);
+-		if (test_and_clear_bit(SEND_PING, &mdev->flags)) {
++		if (test_and_clear_bit(SEND_PING, &mdev->tconn->flags)) {
+ 			if (!drbd_send_ping(mdev)) {
+ 				dev_err(DEV, "drbd_send_ping has failed\n");
+ 				goto reconnect;
+@@ -4639,7 +4639,7 @@ int drbd_asender(struct drbd_thread *thi)
+ 				dev_err(DEV, "PingAck did not arrive in time.\n");
+ 				goto reconnect;
+ 			}
+-			set_bit(SEND_PING, &mdev->flags);
++			set_bit(SEND_PING, &mdev->tconn->flags);
+ 			continue;
+ 		} else if (rv == -EINTR) {
+ 			continue;
 -- 
 1.7.4.1
 
