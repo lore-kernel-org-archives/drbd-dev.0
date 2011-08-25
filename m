@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:28 +0200
-Message-Id: <1314284934-17999-93-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:29 +0200
+Message-Id: <1314284934-17999-94-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 092/118] drbd: Converted drbd_calc_cpu_mask() and
-	drbd_thread_current_set_cpu() from mdev to tconn
+Subject: [Drbd-dev] [PATCH 093/118] drbd: Converted drbdd() from mdev to
+	tconn
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,192 +18,119 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+The drbd_md_sync(mdev) happens in the after state change anyways...
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    8 ++++----
- drivers/block/drbd/drbd_main.c     |   26 ++++++++++++++++----------
- drivers/block/drbd/drbd_nl.c       |    6 +++---
- drivers/block/drbd/drbd_receiver.c |    4 ++--
- drivers/block/drbd/drbd_worker.c   |    2 +-
- 5 files changed, 26 insertions(+), 20 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    5 +++++
+ drivers/block/drbd/drbd_receiver.c |   30 ++++++++++++++----------------
+ 2 files changed, 19 insertions(+), 16 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 4ececc3..ae482ed 100644
+index ae482ed..70509c5 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -945,6 +945,7 @@ struct drbd_tconn {			/* is a resource from the config file */
- 	struct drbd_thread receiver;
- 	struct drbd_thread worker;
- 	struct drbd_thread asender;
-+	cpumask_var_t cpu_mask;
- };
- 
- struct drbd_conf {
-@@ -1074,7 +1075,6 @@ struct drbd_conf {
- 	spinlock_t peer_seq_lock;
- 	unsigned int minor;
- 	unsigned long comm_bm_set; /* communicated number of set bits. */
--	cpumask_var_t cpu_mask;
- 	struct bm_io_work bm_io_work;
- 	u64 ed_uuid; /* UUID of the exposed data */
- 	struct mutex state_mutex;
-@@ -1148,10 +1148,10 @@ extern int  drbd_thread_start(struct drbd_thread *thi);
- extern void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait);
- extern char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task);
- #ifdef CONFIG_SMP
--extern void drbd_thread_current_set_cpu(struct drbd_conf *mdev, struct drbd_thread *thi);
--extern void drbd_calc_cpu_mask(struct drbd_conf *mdev);
-+extern void drbd_thread_current_set_cpu(struct drbd_thread *thi);
-+extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);
- #else
--#define drbd_thread_current_set_cpu(A, B) ({})
-+#define drbd_thread_current_set_cpu(A) ({})
- #define drbd_calc_cpu_mask(A) ({})
- #endif
- extern void drbd_free_resources(struct drbd_conf *mdev);
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index d7421b6..7612394 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -618,6 +618,12 @@ char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task)
+@@ -1107,6 +1107,11 @@ static inline unsigned int mdev_to_minor(struct drbd_conf *mdev)
+ 	return mdev->minor;
  }
  
- #ifdef CONFIG_SMP
-+static int conn_lowest_minor(struct drbd_tconn *tconn)
++static inline struct drbd_conf *vnr_to_mdev(struct drbd_tconn *tconn, int vnr)
 +{
-+	int minor = 0;
-+	idr_get_next(&tconn->volumes, &minor);
-+	return minor;
++	return (struct drbd_conf *)idr_find(&tconn->volumes, vnr);
 +}
- /**
-  * drbd_calc_cpu_mask() - Generate CPU masks, spread over all CPUs
-  * @mdev:	DRBD device.
-@@ -625,23 +631,23 @@ char *drbd_task_to_thread_name(struct drbd_conf *mdev, struct task_struct *task)
-  * Forces all threads of a device onto the same CPU. This is beneficial for
-  * DRBD's performance. May be overwritten by user's configuration.
-  */
--void drbd_calc_cpu_mask(struct drbd_conf *mdev)
-+void drbd_calc_cpu_mask(struct drbd_tconn *tconn)
- {
- 	int ord, cpu;
- 
- 	/* user override. */
--	if (cpumask_weight(mdev->cpu_mask))
-+	if (cpumask_weight(tconn->cpu_mask))
- 		return;
- 
--	ord = mdev_to_minor(mdev) % cpumask_weight(cpu_online_mask);
-+	ord = conn_lowest_minor(tconn) % cpumask_weight(cpu_online_mask);
- 	for_each_online_cpu(cpu) {
- 		if (ord-- == 0) {
--			cpumask_set_cpu(cpu, mdev->cpu_mask);
-+			cpumask_set_cpu(cpu, tconn->cpu_mask);
- 			return;
- 		}
- 	}
- 	/* should not be reached */
--	cpumask_setall(mdev->cpu_mask);
-+	cpumask_setall(tconn->cpu_mask);
- }
- 
- /**
-@@ -652,14 +658,14 @@ void drbd_calc_cpu_mask(struct drbd_conf *mdev)
-  * call in the "main loop" of _all_ threads, no need for any mutex, current won't die
-  * prematurely.
-  */
--void drbd_thread_current_set_cpu(struct drbd_conf *mdev, struct drbd_thread *thi)
-+void drbd_thread_current_set_cpu(struct drbd_thread *thi)
- {
- 	struct task_struct *p = current;
- 
- 	if (!thi->reset_cpu_mask)
- 		return;
- 	thi->reset_cpu_mask = 0;
--	set_cpus_allowed_ptr(p, mdev->cpu_mask);
-+	set_cpus_allowed_ptr(p, thi->mdev->tconn->cpu_mask);
- }
- #endif
- 
-@@ -2248,7 +2254,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
- 		dev_err(DEV, "vnr = %d\n", vnr);
- 		goto out_no_cpumask;
- 	}
--	if (!zalloc_cpumask_var(&mdev->cpu_mask, GFP_KERNEL))
-+	if (!zalloc_cpumask_var(&mdev->tconn->cpu_mask, GFP_KERNEL))
- 		goto out_no_cpumask;
- 
- 	mdev->tconn->volume0 = mdev;
-@@ -2325,7 +2331,7 @@ out_no_io_page:
- out_no_disk:
- 	blk_cleanup_queue(q);
- out_no_q:
--	free_cpumask_var(mdev->cpu_mask);
-+	free_cpumask_var(mdev->tconn->cpu_mask);
- out_no_cpumask:
- 	drbd_free_tconn(mdev->tconn);
- out_no_tconn:
-@@ -2344,7 +2350,7 @@ void drbd_free_mdev(struct drbd_conf *mdev)
- 	__free_page(mdev->md_io_page);
- 	put_disk(mdev->vdisk);
- 	blk_cleanup_queue(mdev->rq_queue);
--	free_cpumask_var(mdev->cpu_mask);
-+	free_cpumask_var(mdev->tconn->cpu_mask);
- 	kfree(mdev);
- }
- 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index df36a57..331495f 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1884,9 +1884,9 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
- 	if (mdev->state.conn >= C_CONNECTED)
- 		drbd_send_sync_param(mdev, &sc);
- 
--	if (!cpumask_equal(mdev->cpu_mask, new_cpu_mask)) {
--		cpumask_copy(mdev->cpu_mask, new_cpu_mask);
--		drbd_calc_cpu_mask(mdev);
-+	if (!cpumask_equal(mdev->tconn->cpu_mask, new_cpu_mask)) {
-+		cpumask_copy(mdev->tconn->cpu_mask, new_cpu_mask);
-+		drbd_calc_cpu_mask(mdev->tconn);
- 		mdev->tconn->receiver.reset_cpu_mask = 1;
- 		mdev->tconn->asender.reset_cpu_mask = 1;
- 		mdev->tconn->worker.reset_cpu_mask = 1;
++
+ /* returns 1 if it was successful,
+  * returns 0 if there was no data socket.
+  * so wherever you are going to use the data.socket, e.g. do
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index b1eedd1..306532c 100644
+index 306532c..1d6df7a 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3782,7 +3782,7 @@ static void drbdd(struct drbd_conf *mdev)
+@@ -941,6 +941,7 @@ static bool decode_header(struct drbd_tconn *tconn, struct p_header *h, struct p
+ 	if (h->h80.magic == cpu_to_be32(DRBD_MAGIC)) {
+ 		pi->cmd = be16_to_cpu(h->h80.command);
+ 		pi->size = be16_to_cpu(h->h80.length);
++		pi->vnr = 0;
+ 	} else if (h->h95.magic == cpu_to_be16(DRBD_MAGIC_BIG)) {
+ 		pi->cmd = be16_to_cpu(h->h95.command);
+ 		vol_n_len = be32_to_cpu(h->h95.vol_n_len);
+@@ -3774,42 +3775,42 @@ static struct data_cmd drbd_cmd_handler[] = {
+    p_header, but they may not rely on that. Since there is also p_header95 !
+  */
+ 
+-static void drbdd(struct drbd_conf *mdev)
++static void drbdd(struct drbd_tconn *tconn)
+ {
+-	struct p_header *header = &mdev->tconn->data.rbuf.header;
++	struct p_header *header = &tconn->data.rbuf.header;
+ 	struct packet_info pi;
+ 	size_t shs; /* sub header size */
  	int rv;
  
- 	while (get_t_state(&mdev->tconn->receiver) == RUNNING) {
--		drbd_thread_current_set_cpu(mdev, &mdev->tconn->receiver);
-+		drbd_thread_current_set_cpu(&mdev->tconn->receiver);
- 		if (!drbd_recv_header(mdev->tconn, &pi))
+-	while (get_t_state(&mdev->tconn->receiver) == RUNNING) {
+-		drbd_thread_current_set_cpu(&mdev->tconn->receiver);
+-		if (!drbd_recv_header(mdev->tconn, &pi))
++	while (get_t_state(&tconn->receiver) == RUNNING) {
++		drbd_thread_current_set_cpu(&tconn->receiver);
++		if (!drbd_recv_header(tconn, &pi))
  			goto err_out;
  
-@@ -4571,7 +4571,7 @@ int drbd_asender(struct drbd_thread *thi)
- 	current->rt_priority = 2;    /* more important than all other tasks */
+ 		if (unlikely(pi.cmd >= P_MAX_CMD || !drbd_cmd_handler[pi.cmd].function)) {
+-			dev_err(DEV, "unknown packet type %d, l: %d!\n", pi.cmd, pi.size);
++			conn_err(tconn, "unknown packet type %d, l: %d!\n", pi.cmd, pi.size);
+ 			goto err_out;
+ 		}
  
- 	while (get_t_state(thi) == RUNNING) {
--		drbd_thread_current_set_cpu(mdev, thi);
-+		drbd_thread_current_set_cpu(thi);
- 		if (test_and_clear_bit(SEND_PING, &mdev->tconn->flags)) {
- 			if (!drbd_send_ping(mdev)) {
- 				dev_err(DEV, "drbd_send_ping has failed\n");
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index f5c27bb..16db1f4 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1634,7 +1634,7 @@ int drbd_worker(struct drbd_thread *thi)
- 	sprintf(current->comm, "drbd%d_worker", mdev_to_minor(mdev));
+ 		shs = drbd_cmd_handler[pi.cmd].pkt_size - sizeof(struct p_header);
+ 		if (pi.size - shs > 0 && !drbd_cmd_handler[pi.cmd].expect_payload) {
+-			dev_err(DEV, "No payload expected %s l:%d\n", cmdname(pi.cmd), pi.size);
++			conn_err(tconn, "No payload expected %s l:%d\n", cmdname(pi.cmd), pi.size);
+ 			goto err_out;
+ 		}
  
- 	while (get_t_state(thi) == RUNNING) {
--		drbd_thread_current_set_cpu(mdev, thi);
-+		drbd_thread_current_set_cpu(thi);
+ 		if (shs) {
+-			rv = drbd_recv(mdev->tconn, &header->payload, shs);
++			rv = drbd_recv(tconn, &header->payload, shs);
+ 			if (unlikely(rv != shs)) {
+ 				if (!signal_pending(current))
+-					dev_warn(DEV, "short read while reading sub header: rv=%d\n", rv);
++					conn_warn(tconn, "short read while reading sub header: rv=%d\n", rv);
+ 				goto err_out;
+ 			}
+ 		}
  
- 		if (down_trylock(&mdev->tconn->data.work.s)) {
- 			mutex_lock(&mdev->tconn->data.mutex);
+-		rv = drbd_cmd_handler[pi.cmd].function(mdev, pi.cmd, pi.size - shs);
++		rv = drbd_cmd_handler[pi.cmd].function(vnr_to_mdev(tconn, pi.vnr), pi.cmd, pi.size - shs);
+ 
+ 		if (unlikely(!rv)) {
+-			dev_err(DEV, "error receiving %s, l: %d!\n",
++			conn_err(tconn, "error receiving %s, l: %d!\n",
+ 			    cmdname(pi.cmd), pi.size);
+ 			goto err_out;
+ 		}
+@@ -3817,11 +3818,8 @@ static void drbdd(struct drbd_conf *mdev)
+ 
+ 	if (0) {
+ 	err_out:
+-		drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
++		drbd_force_state(tconn->volume0, NS(conn, C_PROTOCOL_ERROR));
+ 	}
+-	/* If we leave here, we probably want to update at least the
+-	 * "Connected" indicator on stable storage. Do so explicitly here. */
+-	drbd_md_sync(mdev);
+ }
+ 
+ void drbd_flush_workqueue(struct drbd_tconn *tconn)
+@@ -4242,7 +4240,7 @@ int drbdd_init(struct drbd_thread *thi)
+ 
+ 	if (h > 0) {
+ 		if (get_net_conf(mdev->tconn)) {
+-			drbdd(mdev);
++			drbdd(mdev->tconn);
+ 			put_net_conf(mdev->tconn);
+ 		}
+ 	}
 -- 
 1.7.4.1
 
