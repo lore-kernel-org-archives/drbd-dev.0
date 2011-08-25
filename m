@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:03 +0200
-Message-Id: <1314284934-17999-68-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:04 +0200
+Message-Id: <1314284934-17999-69-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 067/118] drbd: Moving state related macros to
-	drbd_state.h
+Subject: [Drbd-dev] [PATCH 068/118] drbd: conn_printk() a dev_printk() alike
+	for drbd's connections
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,72 +21,69 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h |   52 -----------------------------------------
- 1 files changed, 0 insertions(+), 52 deletions(-)
+ drivers/block/drbd/drbd_int.h  |    9 +++++++++
+ drivers/block/drbd/drbd_main.c |   16 +++++++++++++++-
+ 2 files changed, 24 insertions(+), 1 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index c625f59..df24541 100644
+index df24541..1ecde6f 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1603,58 +1603,6 @@ void drbd_bcast_ee(struct drbd_conf *, const char *, const int, const char *,
- 		   const char *, const struct drbd_peer_request *);
+@@ -102,6 +102,15 @@ struct drbd_tconn;
+ /* to shorten dev_warn(DEV, "msg"); and relatives statements */
+ #define DEV (disk_to_dev(mdev->vdisk))
  
++extern void conn_printk(const char *level, struct drbd_tconn *tconn, const char *fmt, ...);
++#define conn_alert(TCONN, FMT, ARGS...)  conn_printk(KERN_ALERT, TCONN, FMT, ## ARGS)
++#define conn_crit(TCONN, FMT, ARGS...)   conn_printk(KERN_CRIT, TCONN, FMT, ## ARGS)
++#define conn_err(TCONN, FMT, ARGS...)    conn_printk(KERN_ERR, TCONN, FMT, ## ARGS)
++#define conn_warn(TCONN, FMT, ARGS...)   conn_printk(KERN_WARNING, TCONN, FMT, ## ARGS)
++#define conn_notice(TCONN, FMT, ARGS...) conn_printk(KERN_NOTICE, TCONN, FMT, ## ARGS)
++#define conn_info(TCONN, FMT, ARGS...)   conn_printk(KERN_INFO, TCONN, FMT, ## ARGS)
++#define conn_dbg(TCONN, FMT, ARGS...)    conn_printk(KERN_DEBUG, TCONN, FMT, ## ARGS)
++
+ #define D_ASSERT(exp)	if (!(exp)) \
+ 	 dev_err(DEV, "ASSERT( " #exp " ) in %s:%d\n", __FILE__, __LINE__)
  
--/**
-- * DOC: DRBD State macros
-- *
-- * These macros are used to express state changes in easily readable form.
-- *
-- * The NS macros expand to a mask and a value, that can be bit ored onto the
-- * current state as soon as the spinlock (req_lock) was taken.
-- *
-- * The _NS macros are used for state functions that get called with the
-- * spinlock. These macros expand directly to the new state value.
-- *
-- * Besides the basic forms NS() and _NS() additional _?NS[23] are defined
-- * to express state changes that affect more than one aspect of the state.
-- *
-- * E.g. NS2(conn, C_CONNECTED, peer, R_SECONDARY)
-- * Means that the network connection was established and that the peer
-- * is in secondary role.
-- */
--#define role_MASK R_MASK
--#define peer_MASK R_MASK
--#define disk_MASK D_MASK
--#define pdsk_MASK D_MASK
--#define conn_MASK C_MASK
--#define susp_MASK 1
--#define user_isp_MASK 1
--#define aftr_isp_MASK 1
--#define susp_nod_MASK 1
--#define susp_fen_MASK 1
--
--#define NS(T, S) \
--	({ union drbd_state mask; mask.i = 0; mask.T = T##_MASK; mask; }), \
--	({ union drbd_state val; val.i = 0; val.T = (S); val; })
--#define NS2(T1, S1, T2, S2) \
--	({ union drbd_state mask; mask.i = 0; mask.T1 = T1##_MASK; \
--	  mask.T2 = T2##_MASK; mask; }), \
--	({ union drbd_state val; val.i = 0; val.T1 = (S1); \
--	  val.T2 = (S2); val; })
--#define NS3(T1, S1, T2, S2, T3, S3) \
--	({ union drbd_state mask; mask.i = 0; mask.T1 = T1##_MASK; \
--	  mask.T2 = T2##_MASK; mask.T3 = T3##_MASK; mask; }), \
--	({ union drbd_state val;  val.i = 0; val.T1 = (S1); \
--	  val.T2 = (S2); val.T3 = (S3); val; })
--
--#define _NS(D, T, S) \
--	D, ({ union drbd_state __ns; __ns.i = D->state.i; __ns.T = (S); __ns; })
--#define _NS2(D, T1, S1, T2, S2) \
--	D, ({ union drbd_state __ns; __ns.i = D->state.i; __ns.T1 = (S1); \
--	__ns.T2 = (S2); __ns; })
--#define _NS3(D, T1, S1, T2, S2, T3, S3) \
--	D, ({ union drbd_state __ns; __ns.i = D->state.i; __ns.T1 = (S1); \
--	__ns.T2 = (S2); __ns.T3 = (S3); __ns; })
--
- /*
-  * inline helper functions
-  *************************/
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index dbd6d72..0e2969d 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -170,6 +170,18 @@ int _get_ldev_if_state(struct drbd_conf *mdev, enum drbd_disk_state mins)
+ 
+ #endif
+ 
++/* printk functions for connections
++ */
++void conn_printk(const char *level, struct drbd_tconn *tconn, const char *fmt, ...)
++{
++	va_list args;
++
++	printk("%sd-con %s: ", level, tconn->name);
++	va_start(args, fmt);
++	vprintk(fmt, args);
++	va_end(args);
++}
++
+ /**
+  * DOC: The transfer log
+  *
+@@ -2217,12 +2229,14 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
+ 	struct drbd_conf *mdev;
+ 	struct gendisk *disk;
+ 	struct request_queue *q;
++	char conn_name[9]; /* drbd1234N */
+ 
+ 	/* GFP_KERNEL, we are outside of all write-out paths */
+ 	mdev = kzalloc(sizeof(struct drbd_conf), GFP_KERNEL);
+ 	if (!mdev)
+ 		return NULL;
+-	mdev->tconn = drbd_new_tconn("dummy");
++	sprintf(conn_name, "drbd%d", minor);
++	mdev->tconn = drbd_new_tconn(conn_name);
+ 	if (!mdev->tconn)
+ 		goto out_no_tconn;
+ 
 -- 
 1.7.4.1
 
