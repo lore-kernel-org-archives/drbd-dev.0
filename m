@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:50 +0200
-Message-Id: <1314284934-17999-55-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:51 +0200
+Message-Id: <1314284934-17999-56-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 054/118] drbd: Make the peer_seq updating code
-	more obvious
+Subject: [Drbd-dev] [PATCH 055/118] drbd: Improve the drbd_find_overlap()
+	documentation
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,40 +20,34 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-Make it more clear that update_peer_seq() is supposed to wake up the
-seq_wait queue whenever the sequence number changes.
+Describe how to reach any further overlapping intervals from the first
+overlap found.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   10 +++++-----
- 1 files changed, 5 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_interval.c |    8 +++++---
+ 1 files changed, 5 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index cde48f3..654c1c9 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1654,15 +1654,15 @@ static u32 seq_max(u32 a, u32 b)
- 	return seq_greater(a, b) ? a : b;
- }
- 
--static void update_peer_seq(struct drbd_conf *mdev, unsigned int new_seq)
-+static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
- {
--	unsigned int m;
-+	unsigned int old_peer_seq;
- 
- 	spin_lock(&mdev->peer_seq_lock);
--	m = seq_max(mdev->peer_seq, new_seq);
--	mdev->peer_seq = m;
-+	old_peer_seq = mdev->peer_seq;
-+	mdev->peer_seq = seq_max(mdev->peer_seq, peer_seq);
- 	spin_unlock(&mdev->peer_seq_lock);
--	if (m == new_seq)
-+	if (old_peer_seq != peer_seq)
- 		wake_up(&mdev->seq_wait);
- }
- 
+diff --git a/drivers/block/drbd/drbd_interval.c b/drivers/block/drbd/drbd_interval.c
+index 0d17eaa..14dbe2d 100644
+--- a/drivers/block/drbd/drbd_interval.c
++++ b/drivers/block/drbd/drbd_interval.c
+@@ -122,9 +122,11 @@ drbd_remove_interval(struct rb_root *root, struct drbd_interval *this)
+  * @sector:	start sector
+  * @size:	size, aligned to 512 bytes
+  *
+- * Returns the interval overlapping with [sector, sector + size), or NULL.
+- * When there is more than one overlapping interval in the tree, the interval
+- * with the lowest start sector is returned.
++ * Returns an interval overlapping with [sector, sector + size), or NULL if
++ * there is none.  When there is more than one overlapping interval in the
++ * tree, the interval with the lowest start sector is returned, and all other
++ * overlapping intervals will be on the right side of the tree, reachable with
++ * rb_next().
+  */
+ struct drbd_interval *
+ drbd_find_overlap(struct rb_root *root, sector_t sector, unsigned int size)
 -- 
 1.7.4.1
 
