@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:56 +0200
-Message-Id: <1314284934-17999-61-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:57 +0200
+Message-Id: <1314284934-17999-62-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 060/118] drbd: Local variable renames: e ->
-	peer_req
+Subject: [Drbd-dev] [PATCH 061/118] drbd: Moved the state functions into its
+	own source file
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,1347 +18,2655 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andreas Gruenbacher <agruen@linbit.com>
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    4 +-
- drivers/block/drbd/drbd_main.c     |   36 +++---
- drivers/block/drbd/drbd_nl.c       |   18 ++-
- drivers/block/drbd/drbd_receiver.c |  256 ++++++++++++++++++------------------
- drivers/block/drbd/drbd_worker.c   |  197 ++++++++++++++--------------
- 5 files changed, 259 insertions(+), 252 deletions(-)
+ drivers/block/drbd/Makefile     |    2 +-
+ drivers/block/drbd/drbd_int.h   |   46 +--
+ drivers/block/drbd/drbd_main.c  | 1179 +-------------------------------------
+ drivers/block/drbd/drbd_state.c | 1217 +++++++++++++++++++++++++++++++++++++++
+ drivers/block/drbd/drbd_state.h |  101 ++++
+ 5 files changed, 1326 insertions(+), 1219 deletions(-)
+ create mode 100644 drivers/block/drbd/drbd_state.c
+ create mode 100644 drivers/block/drbd/drbd_state.h
 
+diff --git a/drivers/block/drbd/Makefile b/drivers/block/drbd/Makefile
+index cacbb04..06fb445 100644
+--- a/drivers/block/drbd/Makefile
++++ b/drivers/block/drbd/Makefile
+@@ -1,6 +1,6 @@
+ drbd-y := drbd_bitmap.o drbd_proc.o
+ drbd-y += drbd_worker.o drbd_receiver.o drbd_req.o drbd_actlog.o
+ drbd-y += drbd_main.o drbd_strings.o drbd_nl.o
+-drbd-y += drbd_interval.o
++drbd-y += drbd_interval.o drbd_state.o
+ 
+ obj-$(CONFIG_BLK_DEV_DRBD)     += drbd.o
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 2cebdd6..f934aa2 100644
+index f934aa2..2c18cf3 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1701,9 +1701,9 @@ static inline int drbd_bio_has_active_page(struct bio *bio)
- 	return 0;
+@@ -43,6 +43,8 @@
+ #include <net/tcp.h>
+ #include <linux/lru_cache.h>
+ #include <linux/prefetch.h>
++#include <linux/drbd.h>
++#include "drbd_state.h"
+ 
+ #ifdef __CHECKER__
+ # define __protected_by(x)       __attribute__((require_context(x,1,999,"rdwr")))
+@@ -1120,35 +1122,12 @@ static inline void drbd_put_data_sock(struct drbd_conf *mdev)
+ 
+ /* drbd_main.c */
+ 
+-enum chg_state_flags {
+-	CS_HARD	= 1,
+-	CS_VERBOSE = 2,
+-	CS_WAIT_COMPLETE = 4,
+-	CS_SERIALIZE    = 8,
+-	CS_ORDERED      = CS_WAIT_COMPLETE + CS_SERIALIZE,
+-};
+-
+ enum dds_flags {
+ 	DDSF_FORCED    = 1,
+ 	DDSF_NO_RESYNC = 2, /* Do not run a resync for the new space */
+ };
+ 
+ extern void drbd_init_set_defaults(struct drbd_conf *mdev);
+-extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,
+-					    enum chg_state_flags f,
+-					    union drbd_state mask,
+-					    union drbd_state val);
+-extern void drbd_force_state(struct drbd_conf *, union drbd_state,
+-			union drbd_state);
+-extern enum drbd_state_rv _drbd_request_state(struct drbd_conf *,
+-					      union drbd_state,
+-					      union drbd_state,
+-					      enum chg_state_flags);
+-extern enum drbd_state_rv __drbd_set_state(struct drbd_conf *, union drbd_state,
+-					   enum chg_state_flags,
+-					   struct completion *done);
+-extern void print_st_err(struct drbd_conf *, union drbd_state,
+-			union drbd_state, int);
+ extern int  drbd_thread_start(struct drbd_thread *thi);
+ extern void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait);
+ #ifdef CONFIG_SMP
+@@ -1712,6 +1691,10 @@ static inline int drbd_ee_has_active_page(struct drbd_peer_request *peer_req)
  }
  
--static inline int drbd_ee_has_active_page(struct drbd_peer_request *e)
-+static inline int drbd_ee_has_active_page(struct drbd_peer_request *peer_req)
+ 
++
++
++
++
+ static inline void drbd_state_lock(struct drbd_conf *mdev)
  {
--	struct page *page = e->pages;
-+	struct page *page = peer_req->pages;
- 	page_chain_for_each(page) {
- 		if (page_count(page) > 1)
- 			return 1;
+ 	wait_event(mdev->misc_wait,
+@@ -1737,23 +1720,6 @@ _drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+ 	return rv;
+ }
+ 
+-/**
+- * drbd_request_state() - Reqest a state change
+- * @mdev:	DRBD device.
+- * @mask:	mask of state bits to change.
+- * @val:	value of new state bits.
+- *
+- * This is the most graceful way of requesting a state change. It is verbose
+- * quite verbose in case the state change is not possible, and all those
+- * state changes are globally serialized.
+- */
+-static inline int drbd_request_state(struct drbd_conf *mdev,
+-				     union drbd_state mask,
+-				     union drbd_state val)
+-{
+-	return _drbd_request_state(mdev, mask, val, CS_VERBOSE + CS_ORDERED);
+-}
+-
+ #define __drbd_chk_io_error(m,f) __drbd_chk_io_error_(m,f, __func__)
+ static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach, const char *where)
+ {
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 964f76e..44be1f2 100644
+index 44be1f2..ccd57a9 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -2429,17 +2429,17 @@ int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
+@@ -56,14 +56,6 @@
  
- /**
-  * drbd_send_ack() - Sends an ack packet
-- * @mdev:	DRBD device.
-- * @cmd:	Packet command code.
-- * @e:		Epoch entry.
-+ * @mdev:	DRBD device
-+ * @cmd:	packet command code
-+ * @peer_req:	peer request
-  */
- int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
--		  struct drbd_peer_request *e)
-+		  struct drbd_peer_request *peer_req)
- {
- 	return _drbd_send_ack(mdev, cmd,
--			      cpu_to_be64(e->i.sector),
--			      cpu_to_be32(e->i.size),
--			      e->block_id);
-+			      cpu_to_be64(peer_req->i.sector),
-+			      cpu_to_be32(peer_req->i.size),
-+			      peer_req->block_id);
- }
+ #include "drbd_vli.h"
  
- /* This function misuses the block_id field to signal if the blocks
-@@ -2641,10 +2641,12 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
- 	return 1;
- }
- 
--static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_peer_request *e)
-+static int _drbd_send_zc_ee(struct drbd_conf *mdev,
-+			    struct drbd_peer_request *peer_req)
- {
--	struct page *page = e->pages;
--	unsigned len = e->i.size;
-+	struct page *page = peer_req->pages;
-+	unsigned len = peer_req->i.size;
-+
- 	/* hint all but last page with MSG_MORE */
- 	page_chain_for_each(page) {
- 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
-@@ -2747,7 +2749,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
-  *  C_SYNC_SOURCE -> C_SYNC_TARGET         (P_RS_DATA_REPLY)
-  */
- int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
--		    struct drbd_peer_request *e)
-+		    struct drbd_peer_request *peer_req)
- {
- 	int ok;
- 	struct p_data p;
-@@ -2757,9 +2759,11 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
- 		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
- 
--	prepare_header(mdev, &p.head, cmd, sizeof(p) - sizeof(struct p_header80) + dgs + e->i.size);
--	p.sector   = cpu_to_be64(e->i.sector);
--	p.block_id = e->block_id;
-+	prepare_header(mdev, &p.head, cmd, sizeof(p) -
-+					   sizeof(struct p_header80) +
-+					   dgs + peer_req->i.size);
-+	p.sector   = cpu_to_be64(peer_req->i.sector);
-+	p.block_id = peer_req->block_id;
- 	p.seq_num = 0;  /* unused */
- 
- 	/* Only called by our kernel thread.
-@@ -2772,11 +2776,11 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	ok = sizeof(p) == drbd_send(mdev, mdev->tconn->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0);
- 	if (ok && dgs) {
- 		dgb = mdev->tconn->int_dig_out;
--		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, e, dgb);
-+		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, peer_req, dgb);
- 		ok = dgs == drbd_send(mdev, mdev->tconn->data.socket, dgb, dgs, 0);
- 	}
- 	if (ok)
--		ok = _drbd_send_zc_ee(mdev, e);
-+		ok = _drbd_send_zc_ee(mdev, peer_req);
- 
- 	drbd_put_data_sock(mdev);
- 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index ee00ffa..e30d52b 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -2445,7 +2445,7 @@ void drbd_bcast_ev_helper(struct drbd_conf *mdev, char *helper_name)
- 
- void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
- 		   const char *seen_hash, const char *calc_hash,
--			   const struct drbd_peer_request *e)
-+			   const struct drbd_peer_request *peer_req)
- {
- 	struct cn_msg *cn_reply;
- 	struct drbd_nl_cfg_reply *reply;
-@@ -2453,7 +2453,7 @@ void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
- 	struct page *page;
- 	unsigned len;
- 
--	if (!e)
-+	if (!peer_req)
- 		return;
- 	if (!reason || !reason[0])
- 		return;
-@@ -2472,8 +2472,10 @@ void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
- 		GFP_NOIO);
- 
- 	if (!cn_reply) {
--		dev_err(DEV, "could not kmalloc buffer for drbd_bcast_ee, sector %llu, size %u\n",
--				(unsigned long long)e->i.sector, e->i.size);
-+		dev_err(DEV, "could not kmalloc buffer for drbd_bcast_ee, "
-+			     "sector %llu, size %u\n",
-+			(unsigned long long)peer_req->i.sector,
-+			peer_req->i.size);
- 		return;
- 	}
- 
-@@ -2483,15 +2485,15 @@ void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
- 	tl = tl_add_str(tl, T_dump_ee_reason, reason);
- 	tl = tl_add_blob(tl, T_seen_digest, seen_hash, dgs);
- 	tl = tl_add_blob(tl, T_calc_digest, calc_hash, dgs);
--	tl = tl_add_int(tl, T_ee_sector, &e->i.sector);
--	tl = tl_add_int(tl, T_ee_block_id, &e->block_id);
-+	tl = tl_add_int(tl, T_ee_sector, &peer_req->i.sector);
-+	tl = tl_add_int(tl, T_ee_block_id, &peer_req->block_id);
- 
- 	/* dump the first 32k */
--	len = min_t(unsigned, e->i.size, 32 << 10);
-+	len = min_t(unsigned, peer_req->i.size, 32 << 10);
- 	put_unaligned(T_ee_data, tl++);
- 	put_unaligned(len, tl++);
- 
--	page = e->pages;
-+	page = peer_req->pages;
- 	page_chain_for_each(page) {
- 		void *d = kmap_atomic(page, KM_USER0);
- 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 5c4c260..3f0f41f 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -189,7 +189,7 @@ static struct page *drbd_pp_first_pages_or_try_alloc(struct drbd_conf *mdev, int
- 
- static void reclaim_net_ee(struct drbd_conf *mdev, struct list_head *to_be_freed)
- {
--	struct drbd_peer_request *e;
-+	struct drbd_peer_request *peer_req;
- 	struct list_head *le, *tle;
- 
- 	/* The EEs are always appended to the end of the list. Since
-@@ -198,8 +198,8 @@ static void reclaim_net_ee(struct drbd_conf *mdev, struct list_head *to_be_freed
- 	   stop to examine the list... */
- 
- 	list_for_each_safe(le, tle, &mdev->net_ee) {
--		e = list_entry(le, struct drbd_peer_request, w.list);
--		if (drbd_ee_has_active_page(e))
-+		peer_req = list_entry(le, struct drbd_peer_request, w.list);
-+		if (drbd_ee_has_active_page(peer_req))
- 			break;
- 		list_move(le, to_be_freed);
- 	}
-@@ -208,14 +208,14 @@ static void reclaim_net_ee(struct drbd_conf *mdev, struct list_head *to_be_freed
- static void drbd_kick_lo_and_reclaim_net(struct drbd_conf *mdev)
- {
- 	LIST_HEAD(reclaimed);
--	struct drbd_peer_request *e, *t;
-+	struct drbd_peer_request *peer_req, *t;
- 
- 	spin_lock_irq(&mdev->tconn->req_lock);
- 	reclaim_net_ee(mdev, &reclaimed);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
--	list_for_each_entry_safe(e, t, &reclaimed, w.list)
--		drbd_free_net_ee(mdev, e);
-+	list_for_each_entry_safe(peer_req, t, &reclaimed, w.list)
-+		drbd_free_net_ee(mdev, peer_req);
- }
- 
- /**
-@@ -313,15 +313,15 @@ struct drbd_peer_request *
- drbd_alloc_ee(struct drbd_conf *mdev, u64 id, sector_t sector,
- 	      unsigned int data_size, gfp_t gfp_mask) __must_hold(local)
- {
--	struct drbd_peer_request *e;
-+	struct drbd_peer_request *peer_req;
- 	struct page *page;
- 	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
- 
- 	if (drbd_insert_fault(mdev, DRBD_FAULT_AL_EE))
- 		return NULL;
- 
--	e = mempool_alloc(drbd_ee_mempool, gfp_mask & ~__GFP_HIGHMEM);
--	if (!e) {
-+	peer_req = mempool_alloc(drbd_ee_mempool, gfp_mask & ~__GFP_HIGHMEM);
-+	if (!peer_req) {
- 		if (!(gfp_mask & __GFP_NOWARN))
- 			dev_err(DEV, "alloc_ee: Allocation of an EE failed\n");
- 		return NULL;
-@@ -331,45 +331,45 @@ drbd_alloc_ee(struct drbd_conf *mdev, u64 id, sector_t sector,
- 	if (!page)
- 		goto fail;
- 
--	drbd_clear_interval(&e->i);
--	e->i.size = data_size;
--	e->i.sector = sector;
--	e->i.local = false;
--	e->i.waiting = false;
+-struct after_state_chg_work {
+-	struct drbd_work w;
+-	union drbd_state os;
+-	union drbd_state ns;
+-	enum chg_state_flags flags;
+-	struct completion *done;
+-};
 -
--	e->epoch = NULL;
--	e->mdev = mdev;
--	e->pages = page;
--	atomic_set(&e->pending_bios, 0);
--	e->flags = 0;
-+	drbd_clear_interval(&peer_req->i);
-+	peer_req->i.size = data_size;
-+	peer_req->i.sector = sector;
-+	peer_req->i.local = false;
-+	peer_req->i.waiting = false;
+ static DEFINE_MUTEX(drbd_main_mutex);
+ int drbdd_init(struct drbd_thread *);
+ int drbd_worker(struct drbd_thread *);
+@@ -72,9 +64,6 @@ int drbd_asender(struct drbd_thread *);
+ int drbd_init(void);
+ static int drbd_open(struct block_device *bdev, fmode_t mode);
+ static int drbd_release(struct gendisk *gd, fmode_t mode);
+-static int w_after_state_ch(struct drbd_conf *mdev, struct drbd_work *w, int unused);
+-static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
+-			   union drbd_state ns, enum chg_state_flags flags);
+ static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused);
+ static void md_sync_timer_fn(unsigned long data);
+ static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused);
+@@ -340,7 +329,7 @@ bail:
+  * @what might be one of CONNECTION_LOST_WHILE_PENDING, RESEND, FAIL_FROZEN_DISK_IO,
+  * RESTART_FROZEN_DISK_IO.
+  */
+-static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
++void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
+ {
+ 	struct drbd_tl_epoch *b, *tmp, **pn;
+ 	struct list_head *le, *tle, carry_reads;
+@@ -450,1172 +439,6 @@ void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
+ 	spin_unlock_irq(&mdev->tconn->req_lock);
+ }
+ 
+-/**
+- * cl_wide_st_chg() - true if the state change is a cluster wide one
+- * @mdev:	DRBD device.
+- * @os:		old (current) state.
+- * @ns:		new (wanted) state.
+- */
+-static int cl_wide_st_chg(struct drbd_conf *mdev,
+-			  union drbd_state os, union drbd_state ns)
+-{
+-	return (os.conn >= C_CONNECTED && ns.conn >= C_CONNECTED &&
+-		 ((os.role != R_PRIMARY && ns.role == R_PRIMARY) ||
+-		  (os.conn != C_STARTING_SYNC_T && ns.conn == C_STARTING_SYNC_T) ||
+-		  (os.conn != C_STARTING_SYNC_S && ns.conn == C_STARTING_SYNC_S) ||
+-		  (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))) ||
+-		(os.conn >= C_CONNECTED && ns.conn == C_DISCONNECTING) ||
+-		(os.conn == C_CONNECTED && ns.conn == C_VERIFY_S);
+-}
+-
+-enum drbd_state_rv
+-drbd_change_state(struct drbd_conf *mdev, enum chg_state_flags f,
+-		  union drbd_state mask, union drbd_state val)
+-{
+-	unsigned long flags;
+-	union drbd_state os, ns;
+-	enum drbd_state_rv rv;
+-
+-	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
+-	os = mdev->state;
+-	ns.i = (os.i & ~mask.i) | val.i;
+-	rv = _drbd_set_state(mdev, ns, f, NULL);
+-	ns = mdev->state;
+-	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
+-
+-	return rv;
+-}
+-
+-/**
+- * drbd_force_state() - Impose a change which happens outside our control on our state
+- * @mdev:	DRBD device.
+- * @mask:	mask of state bits to change.
+- * @val:	value of new state bits.
+- */
+-void drbd_force_state(struct drbd_conf *mdev,
+-	union drbd_state mask, union drbd_state val)
+-{
+-	drbd_change_state(mdev, CS_HARD, mask, val);
+-}
+-
+-static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
+-static enum drbd_state_rv is_valid_state_transition(struct drbd_conf *,
+-						    union drbd_state,
+-						    union drbd_state);
+-static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
+-				       union drbd_state ns, const char **warn_sync_abort);
+-int drbd_send_state_req(struct drbd_conf *,
+-			union drbd_state, union drbd_state);
+-
+-static enum drbd_state_rv
+-_req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
+-	     union drbd_state val)
+-{
+-	union drbd_state os, ns;
+-	unsigned long flags;
+-	enum drbd_state_rv rv;
+-
+-	if (test_and_clear_bit(CL_ST_CHG_SUCCESS, &mdev->flags))
+-		return SS_CW_SUCCESS;
+-
+-	if (test_and_clear_bit(CL_ST_CHG_FAIL, &mdev->flags))
+-		return SS_CW_FAILED_BY_PEER;
+-
+-	rv = 0;
+-	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
+-	os = mdev->state;
+-	ns.i = (os.i & ~mask.i) | val.i;
+-	ns = sanitize_state(mdev, os, ns, NULL);
+-
+-	if (!cl_wide_st_chg(mdev, os, ns))
+-		rv = SS_CW_NO_NEED;
+-	if (!rv) {
+-		rv = is_valid_state(mdev, ns);
+-		if (rv == SS_SUCCESS) {
+-			rv = is_valid_state_transition(mdev, ns, os);
+-			if (rv == SS_SUCCESS)
+-				rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
+-		}
+-	}
+-	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
+-
+-	return rv;
+-}
+-
+-/**
+- * drbd_req_state() - Perform an eventually cluster wide state change
+- * @mdev:	DRBD device.
+- * @mask:	mask of state bits to change.
+- * @val:	value of new state bits.
+- * @f:		flags
+- *
+- * Should not be called directly, use drbd_request_state() or
+- * _drbd_request_state().
+- */
+-static enum drbd_state_rv
+-drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
+-	       union drbd_state val, enum chg_state_flags f)
+-{
+-	struct completion done;
+-	unsigned long flags;
+-	union drbd_state os, ns;
+-	enum drbd_state_rv rv;
+-
+-	init_completion(&done);
+-
+-	if (f & CS_SERIALIZE)
+-		mutex_lock(&mdev->state_mutex);
+-
+-	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
+-	os = mdev->state;
+-	ns.i = (os.i & ~mask.i) | val.i;
+-	ns = sanitize_state(mdev, os, ns, NULL);
+-
+-	if (cl_wide_st_chg(mdev, os, ns)) {
+-		rv = is_valid_state(mdev, ns);
+-		if (rv == SS_SUCCESS)
+-			rv = is_valid_state_transition(mdev, ns, os);
+-		spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
+-
+-		if (rv < SS_SUCCESS) {
+-			if (f & CS_VERBOSE)
+-				print_st_err(mdev, os, ns, rv);
+-			goto abort;
+-		}
+-
+-		drbd_state_lock(mdev);
+-		if (!drbd_send_state_req(mdev, mask, val)) {
+-			drbd_state_unlock(mdev);
+-			rv = SS_CW_FAILED_BY_PEER;
+-			if (f & CS_VERBOSE)
+-				print_st_err(mdev, os, ns, rv);
+-			goto abort;
+-		}
+-
+-		wait_event(mdev->state_wait,
+-			(rv = _req_st_cond(mdev, mask, val)));
+-
+-		if (rv < SS_SUCCESS) {
+-			drbd_state_unlock(mdev);
+-			if (f & CS_VERBOSE)
+-				print_st_err(mdev, os, ns, rv);
+-			goto abort;
+-		}
+-		spin_lock_irqsave(&mdev->tconn->req_lock, flags);
+-		os = mdev->state;
+-		ns.i = (os.i & ~mask.i) | val.i;
+-		rv = _drbd_set_state(mdev, ns, f, &done);
+-		drbd_state_unlock(mdev);
+-	} else {
+-		rv = _drbd_set_state(mdev, ns, f, &done);
+-	}
+-
+-	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
+-
+-	if (f & CS_WAIT_COMPLETE && rv == SS_SUCCESS) {
+-		D_ASSERT(current != mdev->tconn->worker.task);
+-		wait_for_completion(&done);
+-	}
+-
+-abort:
+-	if (f & CS_SERIALIZE)
+-		mutex_unlock(&mdev->state_mutex);
+-
+-	return rv;
+-}
+-
+-/**
+- * _drbd_request_state() - Request a state change (with flags)
+- * @mdev:	DRBD device.
+- * @mask:	mask of state bits to change.
+- * @val:	value of new state bits.
+- * @f:		flags
+- *
+- * Cousin of drbd_request_state(), useful with the CS_WAIT_COMPLETE
+- * flag, or when logging of failed state change requests is not desired.
+- */
+-enum drbd_state_rv
+-_drbd_request_state(struct drbd_conf *mdev, union drbd_state mask,
+-		    union drbd_state val, enum chg_state_flags f)
+-{
+-	enum drbd_state_rv rv;
+-
+-	wait_event(mdev->state_wait,
+-		   (rv = drbd_req_state(mdev, mask, val, f)) != SS_IN_TRANSIENT_STATE);
+-
+-	return rv;
+-}
+-
+-static void print_st(struct drbd_conf *mdev, char *name, union drbd_state ns)
+-{
+-	dev_err(DEV, " %s = { cs:%s ro:%s/%s ds:%s/%s %c%c%c%c }\n",
+-	    name,
+-	    drbd_conn_str(ns.conn),
+-	    drbd_role_str(ns.role),
+-	    drbd_role_str(ns.peer),
+-	    drbd_disk_str(ns.disk),
+-	    drbd_disk_str(ns.pdsk),
+-	    is_susp(ns) ? 's' : 'r',
+-	    ns.aftr_isp ? 'a' : '-',
+-	    ns.peer_isp ? 'p' : '-',
+-	    ns.user_isp ? 'u' : '-'
+-	    );
+-}
+-
+-void print_st_err(struct drbd_conf *mdev, union drbd_state os,
+-	          union drbd_state ns, enum drbd_state_rv err)
+-{
+-	if (err == SS_IN_TRANSIENT_STATE)
+-		return;
+-	dev_err(DEV, "State change failed: %s\n", drbd_set_st_err_str(err));
+-	print_st(mdev, " state", os);
+-	print_st(mdev, "wanted", ns);
+-}
+-
+-
+-/**
+- * is_valid_state() - Returns an SS_ error code if ns is not valid
+- * @mdev:	DRBD device.
+- * @ns:		State to consider.
+- */
+-static enum drbd_state_rv
+-is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
+-{
+-	/* See drbd_state_sw_errors in drbd_strings.c */
+-
+-	enum drbd_fencing_p fp;
+-	enum drbd_state_rv rv = SS_SUCCESS;
+-
+-	fp = FP_DONT_CARE;
+-	if (get_ldev(mdev)) {
+-		fp = mdev->ldev->dc.fencing;
+-		put_ldev(mdev);
+-	}
+-
+-	if (get_net_conf(mdev->tconn)) {
+-		if (!mdev->tconn->net_conf->two_primaries &&
+-		    ns.role == R_PRIMARY && ns.peer == R_PRIMARY)
+-			rv = SS_TWO_PRIMARIES;
+-		put_net_conf(mdev->tconn);
+-	}
+-
+-	if (rv <= 0)
+-		/* already found a reason to abort */;
+-	else if (ns.role == R_SECONDARY && mdev->open_cnt)
+-		rv = SS_DEVICE_IN_USE;
+-
+-	else if (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.disk < D_UP_TO_DATE)
+-		rv = SS_NO_UP_TO_DATE_DISK;
+-
+-	else if (fp >= FP_RESOURCE &&
+-		 ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk >= D_UNKNOWN)
+-		rv = SS_PRIMARY_NOP;
+-
+-	else if (ns.role == R_PRIMARY && ns.disk <= D_INCONSISTENT && ns.pdsk <= D_INCONSISTENT)
+-		rv = SS_NO_UP_TO_DATE_DISK;
+-
+-	else if (ns.conn > C_CONNECTED && ns.disk < D_INCONSISTENT)
+-		rv = SS_NO_LOCAL_DISK;
+-
+-	else if (ns.conn > C_CONNECTED && ns.pdsk < D_INCONSISTENT)
+-		rv = SS_NO_REMOTE_DISK;
+-
+-	else if (ns.conn > C_CONNECTED && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE)
+-		rv = SS_NO_UP_TO_DATE_DISK;
+-
+-	else if ((ns.conn == C_CONNECTED ||
+-		  ns.conn == C_WF_BITMAP_S ||
+-		  ns.conn == C_SYNC_SOURCE ||
+-		  ns.conn == C_PAUSED_SYNC_S) &&
+-		  ns.disk == D_OUTDATED)
+-		rv = SS_CONNECTED_OUTDATES;
+-
+-	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
+-		 (mdev->sync_conf.verify_alg[0] == 0))
+-		rv = SS_NO_VERIFY_ALG;
+-
+-	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
+-		  mdev->tconn->agreed_pro_version < 88)
+-		rv = SS_NOT_SUPPORTED;
+-
+-	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
+-		rv = SS_CONNECTED_OUTDATES;
+-
+-	return rv;
+-}
+-
+-/**
+- * is_valid_state_transition() - Returns an SS_ error code if the state transition is not possible
+- * @mdev:	DRBD device.
+- * @ns:		new state.
+- * @os:		old state.
+- */
+-static enum drbd_state_rv
+-is_valid_state_transition(struct drbd_conf *mdev, union drbd_state ns,
+-			  union drbd_state os)
+-{
+-	enum drbd_state_rv rv = SS_SUCCESS;
+-
+-	if ((ns.conn == C_STARTING_SYNC_T || ns.conn == C_STARTING_SYNC_S) &&
+-	    os.conn > C_CONNECTED)
+-		rv = SS_RESYNC_RUNNING;
+-
+-	if (ns.conn == C_DISCONNECTING && os.conn == C_STANDALONE)
+-		rv = SS_ALREADY_STANDALONE;
+-
+-	if (ns.disk > D_ATTACHING && os.disk == D_DISKLESS)
+-		rv = SS_IS_DISKLESS;
+-
+-	if (ns.conn == C_WF_CONNECTION && os.conn < C_UNCONNECTED)
+-		rv = SS_NO_NET_CONFIG;
+-
+-	if (ns.disk == D_OUTDATED && os.disk < D_OUTDATED && os.disk != D_ATTACHING)
+-		rv = SS_LOWER_THAN_OUTDATED;
+-
+-	if (ns.conn == C_DISCONNECTING && os.conn == C_UNCONNECTED)
+-		rv = SS_IN_TRANSIENT_STATE;
+-
+-	if (ns.conn == os.conn && ns.conn == C_WF_REPORT_PARAMS)
+-		rv = SS_IN_TRANSIENT_STATE;
+-
+-	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
+-		rv = SS_NEED_CONNECTION;
+-
+-	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
+-	    ns.conn != os.conn && os.conn > C_CONNECTED)
+-		rv = SS_RESYNC_RUNNING;
+-
+-	if ((ns.conn == C_STARTING_SYNC_S || ns.conn == C_STARTING_SYNC_T) &&
+-	    os.conn < C_CONNECTED)
+-		rv = SS_NEED_CONNECTION;
+-
+-	if ((ns.conn == C_SYNC_TARGET || ns.conn == C_SYNC_SOURCE)
+-	    && os.conn < C_WF_REPORT_PARAMS)
+-		rv = SS_NEED_CONNECTION; /* No NetworkFailure -> SyncTarget etc... */
+-
+-	return rv;
+-}
+-
+-/**
+- * sanitize_state() - Resolves implicitly necessary additional changes to a state transition
+- * @mdev:	DRBD device.
+- * @os:		old state.
+- * @ns:		new state.
+- * @warn_sync_abort:
+- *
+- * When we loose connection, we have to set the state of the peers disk (pdsk)
+- * to D_UNKNOWN. This rule and many more along those lines are in this function.
+- */
+-static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
+-				       union drbd_state ns, const char **warn_sync_abort)
+-{
+-	enum drbd_fencing_p fp;
+-	enum drbd_disk_state disk_min, disk_max, pdsk_min, pdsk_max;
+-
+-	fp = FP_DONT_CARE;
+-	if (get_ldev(mdev)) {
+-		fp = mdev->ldev->dc.fencing;
+-		put_ldev(mdev);
+-	}
+-
+-	/* Disallow Network errors to configure a device's network part */
+-	if ((ns.conn >= C_TIMEOUT && ns.conn <= C_TEAR_DOWN) &&
+-	    os.conn <= C_DISCONNECTING)
+-		ns.conn = os.conn;
+-
+-	/* After a network error (+C_TEAR_DOWN) only C_UNCONNECTED or C_DISCONNECTING can follow.
+-	 * If you try to go into some Sync* state, that shall fail (elsewhere). */
+-	if (os.conn >= C_TIMEOUT && os.conn <= C_TEAR_DOWN &&
+-	    ns.conn != C_UNCONNECTED && ns.conn != C_DISCONNECTING && ns.conn <= C_TEAR_DOWN)
+-		ns.conn = os.conn;
+-
+-	/* we cannot fail (again) if we already detached */
+-	if (ns.disk == D_FAILED && os.disk == D_DISKLESS)
+-		ns.disk = D_DISKLESS;
+-
+-	/* if we are only D_ATTACHING yet,
+-	 * we can (and should) go directly to D_DISKLESS. */
+-	if (ns.disk == D_FAILED && os.disk == D_ATTACHING)
+-		ns.disk = D_DISKLESS;
+-
+-	/* After C_DISCONNECTING only C_STANDALONE may follow */
+-	if (os.conn == C_DISCONNECTING && ns.conn != C_STANDALONE)
+-		ns.conn = os.conn;
+-
+-	if (ns.conn < C_CONNECTED) {
+-		ns.peer_isp = 0;
+-		ns.peer = R_UNKNOWN;
+-		if (ns.pdsk > D_UNKNOWN || ns.pdsk < D_INCONSISTENT)
+-			ns.pdsk = D_UNKNOWN;
+-	}
+-
+-	/* Clear the aftr_isp when becoming unconfigured */
+-	if (ns.conn == C_STANDALONE && ns.disk == D_DISKLESS && ns.role == R_SECONDARY)
+-		ns.aftr_isp = 0;
+-
+-	/* Abort resync if a disk fails/detaches */
+-	if (os.conn > C_CONNECTED && ns.conn > C_CONNECTED &&
+-	    (ns.disk <= D_FAILED || ns.pdsk <= D_FAILED)) {
+-		if (warn_sync_abort)
+-			*warn_sync_abort =
+-				os.conn == C_VERIFY_S || os.conn == C_VERIFY_T ?
+-				"Online-verify" : "Resync";
+-		ns.conn = C_CONNECTED;
+-	}
+-
+-	/* Connection breaks down before we finished "Negotiating" */
+-	if (ns.conn < C_CONNECTED && ns.disk == D_NEGOTIATING &&
+-	    get_ldev_if_state(mdev, D_NEGOTIATING)) {
+-		if (mdev->ed_uuid == mdev->ldev->md.uuid[UI_CURRENT]) {
+-			ns.disk = mdev->new_state_tmp.disk;
+-			ns.pdsk = mdev->new_state_tmp.pdsk;
+-		} else {
+-			dev_alert(DEV, "Connection lost while negotiating, no data!\n");
+-			ns.disk = D_DISKLESS;
+-			ns.pdsk = D_UNKNOWN;
+-		}
+-		put_ldev(mdev);
+-	}
+-
+-	/* D_CONSISTENT and D_OUTDATED vanish when we get connected */
+-	if (ns.conn >= C_CONNECTED && ns.conn < C_AHEAD) {
+-		if (ns.disk == D_CONSISTENT || ns.disk == D_OUTDATED)
+-			ns.disk = D_UP_TO_DATE;
+-		if (ns.pdsk == D_CONSISTENT || ns.pdsk == D_OUTDATED)
+-			ns.pdsk = D_UP_TO_DATE;
+-	}
+-
+-	/* Implications of the connection stat on the disk states */
+-	disk_min = D_DISKLESS;
+-	disk_max = D_UP_TO_DATE;
+-	pdsk_min = D_INCONSISTENT;
+-	pdsk_max = D_UNKNOWN;
+-	switch ((enum drbd_conns)ns.conn) {
+-	case C_WF_BITMAP_T:
+-	case C_PAUSED_SYNC_T:
+-	case C_STARTING_SYNC_T:
+-	case C_WF_SYNC_UUID:
+-	case C_BEHIND:
+-		disk_min = D_INCONSISTENT;
+-		disk_max = D_OUTDATED;
+-		pdsk_min = D_UP_TO_DATE;
+-		pdsk_max = D_UP_TO_DATE;
+-		break;
+-	case C_VERIFY_S:
+-	case C_VERIFY_T:
+-		disk_min = D_UP_TO_DATE;
+-		disk_max = D_UP_TO_DATE;
+-		pdsk_min = D_UP_TO_DATE;
+-		pdsk_max = D_UP_TO_DATE;
+-		break;
+-	case C_CONNECTED:
+-		disk_min = D_DISKLESS;
+-		disk_max = D_UP_TO_DATE;
+-		pdsk_min = D_DISKLESS;
+-		pdsk_max = D_UP_TO_DATE;
+-		break;
+-	case C_WF_BITMAP_S:
+-	case C_PAUSED_SYNC_S:
+-	case C_STARTING_SYNC_S:
+-	case C_AHEAD:
+-		disk_min = D_UP_TO_DATE;
+-		disk_max = D_UP_TO_DATE;
+-		pdsk_min = D_INCONSISTENT;
+-		pdsk_max = D_CONSISTENT; /* D_OUTDATED would be nice. But explicit outdate necessary*/
+-		break;
+-	case C_SYNC_TARGET:
+-		disk_min = D_INCONSISTENT;
+-		disk_max = D_INCONSISTENT;
+-		pdsk_min = D_UP_TO_DATE;
+-		pdsk_max = D_UP_TO_DATE;
+-		break;
+-	case C_SYNC_SOURCE:
+-		disk_min = D_UP_TO_DATE;
+-		disk_max = D_UP_TO_DATE;
+-		pdsk_min = D_INCONSISTENT;
+-		pdsk_max = D_INCONSISTENT;
+-		break;
+-	case C_STANDALONE:
+-	case C_DISCONNECTING:
+-	case C_UNCONNECTED:
+-	case C_TIMEOUT:
+-	case C_BROKEN_PIPE:
+-	case C_NETWORK_FAILURE:
+-	case C_PROTOCOL_ERROR:
+-	case C_TEAR_DOWN:
+-	case C_WF_CONNECTION:
+-	case C_WF_REPORT_PARAMS:
+-	case C_MASK:
+-		break;
+-	}
+-	if (ns.disk > disk_max)
+-		ns.disk = disk_max;
+-
+-	if (ns.disk < disk_min) {
+-		dev_warn(DEV, "Implicitly set disk from %s to %s\n",
+-			 drbd_disk_str(ns.disk), drbd_disk_str(disk_min));
+-		ns.disk = disk_min;
+-	}
+-	if (ns.pdsk > pdsk_max)
+-		ns.pdsk = pdsk_max;
+-
+-	if (ns.pdsk < pdsk_min) {
+-		dev_warn(DEV, "Implicitly set pdsk from %s to %s\n",
+-			 drbd_disk_str(ns.pdsk), drbd_disk_str(pdsk_min));
+-		ns.pdsk = pdsk_min;
+-	}
+-
+-	if (fp == FP_STONITH &&
+-	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED) &&
+-	    !(os.role == R_PRIMARY && os.conn < C_CONNECTED && os.pdsk > D_OUTDATED))
+-		ns.susp_fen = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
+-
+-	if (mdev->sync_conf.on_no_data == OND_SUSPEND_IO &&
+-	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE) &&
+-	    !(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE))
+-		ns.susp_nod = 1; /* Suspend IO while no data available (no accessible data available) */
+-
+-	if (ns.aftr_isp || ns.peer_isp || ns.user_isp) {
+-		if (ns.conn == C_SYNC_SOURCE)
+-			ns.conn = C_PAUSED_SYNC_S;
+-		if (ns.conn == C_SYNC_TARGET)
+-			ns.conn = C_PAUSED_SYNC_T;
+-	} else {
+-		if (ns.conn == C_PAUSED_SYNC_S)
+-			ns.conn = C_SYNC_SOURCE;
+-		if (ns.conn == C_PAUSED_SYNC_T)
+-			ns.conn = C_SYNC_TARGET;
+-	}
+-
+-	return ns;
+-}
+-
+-/* helper for __drbd_set_state */
+-static void set_ov_position(struct drbd_conf *mdev, enum drbd_conns cs)
+-{
+-	if (mdev->tconn->agreed_pro_version < 90)
+-		mdev->ov_start_sector = 0;
+-	mdev->rs_total = drbd_bm_bits(mdev);
+-	mdev->ov_position = 0;
+-	if (cs == C_VERIFY_T) {
+-		/* starting online verify from an arbitrary position
+-		 * does not fit well into the existing protocol.
+-		 * on C_VERIFY_T, we initialize ov_left and friends
+-		 * implicitly in receive_DataRequest once the
+-		 * first P_OV_REQUEST is received */
+-		mdev->ov_start_sector = ~(sector_t)0;
+-	} else {
+-		unsigned long bit = BM_SECT_TO_BIT(mdev->ov_start_sector);
+-		if (bit >= mdev->rs_total) {
+-			mdev->ov_start_sector =
+-				BM_BIT_TO_SECT(mdev->rs_total - 1);
+-			mdev->rs_total = 1;
+-		} else
+-			mdev->rs_total -= bit;
+-		mdev->ov_position = mdev->ov_start_sector;
+-	}
+-	mdev->ov_left = mdev->rs_total;
+-}
+-
+-static void drbd_resume_al(struct drbd_conf *mdev)
+-{
+-	if (test_and_clear_bit(AL_SUSPENDED, &mdev->flags))
+-		dev_info(DEV, "Resumed AL updates\n");
+-}
+-
+-/**
+- * __drbd_set_state() - Set a new DRBD state
+- * @mdev:	DRBD device.
+- * @ns:		new state.
+- * @flags:	Flags
+- * @done:	Optional completion, that will get completed after the after_state_ch() finished
+- *
+- * Caller needs to hold req_lock, and global_state_lock. Do not call directly.
+- */
+-enum drbd_state_rv
+-__drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+-	         enum chg_state_flags flags, struct completion *done)
+-{
+-	union drbd_state os;
+-	enum drbd_state_rv rv = SS_SUCCESS;
+-	const char *warn_sync_abort = NULL;
+-	struct after_state_chg_work *ascw;
+-
+-	os = mdev->state;
+-
+-	ns = sanitize_state(mdev, os, ns, &warn_sync_abort);
+-
+-	if (ns.i == os.i)
+-		return SS_NOTHING_TO_DO;
+-
+-	if (!(flags & CS_HARD)) {
+-		/*  pre-state-change checks ; only look at ns  */
+-		/* See drbd_state_sw_errors in drbd_strings.c */
+-
+-		rv = is_valid_state(mdev, ns);
+-		if (rv < SS_SUCCESS) {
+-			/* If the old state was illegal as well, then let
+-			   this happen...*/
+-
+-			if (is_valid_state(mdev, os) == rv)
+-				rv = is_valid_state_transition(mdev, ns, os);
+-		} else
+-			rv = is_valid_state_transition(mdev, ns, os);
+-	}
+-
+-	if (rv < SS_SUCCESS) {
+-		if (flags & CS_VERBOSE)
+-			print_st_err(mdev, os, ns, rv);
+-		return rv;
+-	}
+-
+-	if (warn_sync_abort)
+-		dev_warn(DEV, "%s aborted.\n", warn_sync_abort);
+-
+-	{
+-	char *pbp, pb[300];
+-	pbp = pb;
+-	*pbp = 0;
+-	if (ns.role != os.role)
+-		pbp += sprintf(pbp, "role( %s -> %s ) ",
+-			       drbd_role_str(os.role),
+-			       drbd_role_str(ns.role));
+-	if (ns.peer != os.peer)
+-		pbp += sprintf(pbp, "peer( %s -> %s ) ",
+-			       drbd_role_str(os.peer),
+-			       drbd_role_str(ns.peer));
+-	if (ns.conn != os.conn)
+-		pbp += sprintf(pbp, "conn( %s -> %s ) ",
+-			       drbd_conn_str(os.conn),
+-			       drbd_conn_str(ns.conn));
+-	if (ns.disk != os.disk)
+-		pbp += sprintf(pbp, "disk( %s -> %s ) ",
+-			       drbd_disk_str(os.disk),
+-			       drbd_disk_str(ns.disk));
+-	if (ns.pdsk != os.pdsk)
+-		pbp += sprintf(pbp, "pdsk( %s -> %s ) ",
+-			       drbd_disk_str(os.pdsk),
+-			       drbd_disk_str(ns.pdsk));
+-	if (is_susp(ns) != is_susp(os))
+-		pbp += sprintf(pbp, "susp( %d -> %d ) ",
+-			       is_susp(os),
+-			       is_susp(ns));
+-	if (ns.aftr_isp != os.aftr_isp)
+-		pbp += sprintf(pbp, "aftr_isp( %d -> %d ) ",
+-			       os.aftr_isp,
+-			       ns.aftr_isp);
+-	if (ns.peer_isp != os.peer_isp)
+-		pbp += sprintf(pbp, "peer_isp( %d -> %d ) ",
+-			       os.peer_isp,
+-			       ns.peer_isp);
+-	if (ns.user_isp != os.user_isp)
+-		pbp += sprintf(pbp, "user_isp( %d -> %d ) ",
+-			       os.user_isp,
+-			       ns.user_isp);
+-	dev_info(DEV, "%s\n", pb);
+-	}
+-
+-	/* solve the race between becoming unconfigured,
+-	 * worker doing the cleanup, and
+-	 * admin reconfiguring us:
+-	 * on (re)configure, first set CONFIG_PENDING,
+-	 * then wait for a potentially exiting worker,
+-	 * start the worker, and schedule one no_op.
+-	 * then proceed with configuration.
+-	 */
+-	if (ns.disk == D_DISKLESS &&
+-	    ns.conn == C_STANDALONE &&
+-	    ns.role == R_SECONDARY &&
+-	    !test_and_set_bit(CONFIG_PENDING, &mdev->flags))
+-		set_bit(DEVICE_DYING, &mdev->flags);
+-
+-	/* if we are going -> D_FAILED or D_DISKLESS, grab one extra reference
+-	 * on the ldev here, to be sure the transition -> D_DISKLESS resp.
+-	 * drbd_ldev_destroy() won't happen before our corresponding
+-	 * after_state_ch works run, where we put_ldev again. */
+-	if ((os.disk != D_FAILED && ns.disk == D_FAILED) ||
+-	    (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))
+-		atomic_inc(&mdev->local_cnt);
+-
+-	mdev->state = ns;
+-
+-	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
+-		drbd_print_uuids(mdev, "attached to UUIDs");
+-
+-	wake_up(&mdev->misc_wait);
+-	wake_up(&mdev->state_wait);
+-
+-	/* aborted verify run. log the last position */
+-	if ((os.conn == C_VERIFY_S || os.conn == C_VERIFY_T) &&
+-	    ns.conn < C_CONNECTED) {
+-		mdev->ov_start_sector =
+-			BM_BIT_TO_SECT(drbd_bm_bits(mdev) - mdev->ov_left);
+-		dev_info(DEV, "Online Verify reached sector %llu\n",
+-			(unsigned long long)mdev->ov_start_sector);
+-	}
+-
+-	if ((os.conn == C_PAUSED_SYNC_T || os.conn == C_PAUSED_SYNC_S) &&
+-	    (ns.conn == C_SYNC_TARGET  || ns.conn == C_SYNC_SOURCE)) {
+-		dev_info(DEV, "Syncer continues.\n");
+-		mdev->rs_paused += (long)jiffies
+-				  -(long)mdev->rs_mark_time[mdev->rs_last_mark];
+-		if (ns.conn == C_SYNC_TARGET)
+-			mod_timer(&mdev->resync_timer, jiffies);
+-	}
+-
+-	if ((os.conn == C_SYNC_TARGET  || os.conn == C_SYNC_SOURCE) &&
+-	    (ns.conn == C_PAUSED_SYNC_T || ns.conn == C_PAUSED_SYNC_S)) {
+-		dev_info(DEV, "Resync suspended\n");
+-		mdev->rs_mark_time[mdev->rs_last_mark] = jiffies;
+-	}
+-
+-	if (os.conn == C_CONNECTED &&
+-	    (ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T)) {
+-		unsigned long now = jiffies;
+-		int i;
+-
+-		set_ov_position(mdev, ns.conn);
+-		mdev->rs_start = now;
+-		mdev->rs_last_events = 0;
+-		mdev->rs_last_sect_ev = 0;
+-		mdev->ov_last_oos_size = 0;
+-		mdev->ov_last_oos_start = 0;
+-
+-		for (i = 0; i < DRBD_SYNC_MARKS; i++) {
+-			mdev->rs_mark_left[i] = mdev->ov_left;
+-			mdev->rs_mark_time[i] = now;
+-		}
+-
+-		drbd_rs_controller_reset(mdev);
+-
+-		if (ns.conn == C_VERIFY_S) {
+-			dev_info(DEV, "Starting Online Verify from sector %llu\n",
+-					(unsigned long long)mdev->ov_position);
+-			mod_timer(&mdev->resync_timer, jiffies);
+-		}
+-	}
+-
+-	if (get_ldev(mdev)) {
+-		u32 mdf = mdev->ldev->md.flags & ~(MDF_CONSISTENT|MDF_PRIMARY_IND|
+-						 MDF_CONNECTED_IND|MDF_WAS_UP_TO_DATE|
+-						 MDF_PEER_OUT_DATED|MDF_CRASHED_PRIMARY);
+-
+-		if (test_bit(CRASHED_PRIMARY, &mdev->flags))
+-			mdf |= MDF_CRASHED_PRIMARY;
+-		if (mdev->state.role == R_PRIMARY ||
+-		    (mdev->state.pdsk < D_INCONSISTENT && mdev->state.peer == R_PRIMARY))
+-			mdf |= MDF_PRIMARY_IND;
+-		if (mdev->state.conn > C_WF_REPORT_PARAMS)
+-			mdf |= MDF_CONNECTED_IND;
+-		if (mdev->state.disk > D_INCONSISTENT)
+-			mdf |= MDF_CONSISTENT;
+-		if (mdev->state.disk > D_OUTDATED)
+-			mdf |= MDF_WAS_UP_TO_DATE;
+-		if (mdev->state.pdsk <= D_OUTDATED && mdev->state.pdsk >= D_INCONSISTENT)
+-			mdf |= MDF_PEER_OUT_DATED;
+-		if (mdf != mdev->ldev->md.flags) {
+-			mdev->ldev->md.flags = mdf;
+-			drbd_md_mark_dirty(mdev);
+-		}
+-		if (os.disk < D_CONSISTENT && ns.disk >= D_CONSISTENT)
+-			drbd_set_ed_uuid(mdev, mdev->ldev->md.uuid[UI_CURRENT]);
+-		put_ldev(mdev);
+-	}
+-
+-	/* Peer was forced D_UP_TO_DATE & R_PRIMARY, consider to resync */
+-	if (os.disk == D_INCONSISTENT && os.pdsk == D_INCONSISTENT &&
+-	    os.peer == R_SECONDARY && ns.peer == R_PRIMARY)
+-		set_bit(CONSIDER_RESYNC, &mdev->flags);
+-
+-	/* Receiver should clean up itself */
+-	if (os.conn != C_DISCONNECTING && ns.conn == C_DISCONNECTING)
+-		drbd_thread_stop_nowait(&mdev->tconn->receiver);
+-
+-	/* Now the receiver finished cleaning up itself, it should die */
+-	if (os.conn != C_STANDALONE && ns.conn == C_STANDALONE)
+-		drbd_thread_stop_nowait(&mdev->tconn->receiver);
+-
+-	/* Upon network failure, we need to restart the receiver. */
+-	if (os.conn > C_TEAR_DOWN &&
+-	    ns.conn <= C_TEAR_DOWN && ns.conn >= C_TIMEOUT)
+-		drbd_thread_restart_nowait(&mdev->tconn->receiver);
+-
+-	/* Resume AL writing if we get a connection */
+-	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
+-		drbd_resume_al(mdev);
+-
+-	ascw = kmalloc(sizeof(*ascw), GFP_ATOMIC);
+-	if (ascw) {
+-		ascw->os = os;
+-		ascw->ns = ns;
+-		ascw->flags = flags;
+-		ascw->w.cb = w_after_state_ch;
+-		ascw->done = done;
+-		drbd_queue_work(&mdev->tconn->data.work, &ascw->w);
+-	} else {
+-		dev_warn(DEV, "Could not kmalloc an ascw\n");
+-	}
+-
+-	return rv;
+-}
+-
+-static int w_after_state_ch(struct drbd_conf *mdev, struct drbd_work *w, int unused)
+-{
+-	struct after_state_chg_work *ascw =
+-		container_of(w, struct after_state_chg_work, w);
+-	after_state_ch(mdev, ascw->os, ascw->ns, ascw->flags);
+-	if (ascw->flags & CS_WAIT_COMPLETE) {
+-		D_ASSERT(ascw->done != NULL);
+-		complete(ascw->done);
+-	}
+-	kfree(ascw);
+-
+-	return 1;
+-}
+-
+-static void abw_start_sync(struct drbd_conf *mdev, int rv)
+-{
+-	if (rv) {
+-		dev_err(DEV, "Writing the bitmap failed not starting resync.\n");
+-		_drbd_request_state(mdev, NS(conn, C_CONNECTED), CS_VERBOSE);
+-		return;
+-	}
+-
+-	switch (mdev->state.conn) {
+-	case C_STARTING_SYNC_T:
+-		_drbd_request_state(mdev, NS(conn, C_WF_SYNC_UUID), CS_VERBOSE);
+-		break;
+-	case C_STARTING_SYNC_S:
+-		drbd_start_resync(mdev, C_SYNC_SOURCE);
+-		break;
+-	}
+-}
+-
+-int drbd_bitmap_io_from_worker(struct drbd_conf *mdev,
+-		int (*io_fn)(struct drbd_conf *),
+-		char *why, enum bm_flag flags)
+-{
+-	int rv;
+-
+-	D_ASSERT(current == mdev->tconn->worker.task);
+-
+-	/* open coded non-blocking drbd_suspend_io(mdev); */
+-	set_bit(SUSPEND_IO, &mdev->flags);
+-
+-	drbd_bm_lock(mdev, why, flags);
+-	rv = io_fn(mdev);
+-	drbd_bm_unlock(mdev);
+-
+-	drbd_resume_io(mdev);
+-
+-	return rv;
+-}
+-
+-/**
+- * after_state_ch() - Perform after state change actions that may sleep
+- * @mdev:	DRBD device.
+- * @os:		old state.
+- * @ns:		new state.
+- * @flags:	Flags
+- */
+-static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
+-			   union drbd_state ns, enum chg_state_flags flags)
+-{
+-	enum drbd_fencing_p fp;
+-	enum drbd_req_event what = NOTHING;
+-	union drbd_state nsm = (union drbd_state){ .i = -1 };
+-
+-	if (os.conn != C_CONNECTED && ns.conn == C_CONNECTED) {
+-		clear_bit(CRASHED_PRIMARY, &mdev->flags);
+-		if (mdev->p_uuid)
+-			mdev->p_uuid[UI_FLAGS] &= ~((u64)2);
+-	}
+-
+-	fp = FP_DONT_CARE;
+-	if (get_ldev(mdev)) {
+-		fp = mdev->ldev->dc.fencing;
+-		put_ldev(mdev);
+-	}
+-
+-	/* Inform userspace about the change... */
+-	drbd_bcast_state(mdev, ns);
+-
+-	if (!(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE) &&
+-	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE))
+-		drbd_khelper(mdev, "pri-on-incon-degr");
+-
+-	/* Here we have the actions that are performed after a
+-	   state change. This function might sleep */
+-
+-	nsm.i = -1;
+-	if (ns.susp_nod) {
+-		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
+-			what = RESEND;
+-
+-		if (os.disk == D_ATTACHING && ns.disk > D_ATTACHING)
+-			what = RESTART_FROZEN_DISK_IO;
+-
+-		if (what != NOTHING)
+-			nsm.susp_nod = 0;
+-	}
+-
+-	if (ns.susp_fen) {
+-		/* case1: The outdate peer handler is successful: */
+-		if (os.pdsk > D_OUTDATED  && ns.pdsk <= D_OUTDATED) {
+-			tl_clear(mdev);
+-			if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
+-				drbd_uuid_new_current(mdev);
+-				clear_bit(NEW_CUR_UUID, &mdev->flags);
+-			}
+-			spin_lock_irq(&mdev->tconn->req_lock);
+-			_drbd_set_state(_NS(mdev, susp_fen, 0), CS_VERBOSE, NULL);
+-			spin_unlock_irq(&mdev->tconn->req_lock);
+-		}
+-		/* case2: The connection was established again: */
+-		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
+-			clear_bit(NEW_CUR_UUID, &mdev->flags);
+-			what = RESEND;
+-			nsm.susp_fen = 0;
+-		}
+-	}
+-
+-	if (what != NOTHING) {
+-		spin_lock_irq(&mdev->tconn->req_lock);
+-		_tl_restart(mdev, what);
+-		nsm.i &= mdev->state.i;
+-		_drbd_set_state(mdev, nsm, CS_VERBOSE, NULL);
+-		spin_unlock_irq(&mdev->tconn->req_lock);
+-	}
+-
+-	/* Became sync source.  With protocol >= 96, we still need to send out
+-	 * the sync uuid now. Need to do that before any drbd_send_state, or
+-	 * the other side may go "paused sync" before receiving the sync uuids,
+-	 * which is unexpected. */
+-	if ((os.conn != C_SYNC_SOURCE && os.conn != C_PAUSED_SYNC_S) &&
+-	    (ns.conn == C_SYNC_SOURCE || ns.conn == C_PAUSED_SYNC_S) &&
+-	    mdev->tconn->agreed_pro_version >= 96 && get_ldev(mdev)) {
+-		drbd_gen_and_send_sync_uuid(mdev);
+-		put_ldev(mdev);
+-	}
+-
+-	/* Do not change the order of the if above and the two below... */
+-	if (os.pdsk == D_DISKLESS && ns.pdsk > D_DISKLESS) {      /* attach on the peer */
+-		drbd_send_uuids(mdev);
+-		drbd_send_state(mdev);
+-	}
+-	/* No point in queuing send_bitmap if we don't have a connection
+-	 * anymore, so check also the _current_ state, not only the new state
+-	 * at the time this work was queued. */
+-	if (os.conn != C_WF_BITMAP_S && ns.conn == C_WF_BITMAP_S &&
+-	    mdev->state.conn == C_WF_BITMAP_S)
+-		drbd_queue_bitmap_io(mdev, &drbd_send_bitmap, NULL,
+-				"send_bitmap (WFBitMapS)",
+-				BM_LOCKED_TEST_ALLOWED);
+-
+-	/* Lost contact to peer's copy of the data */
+-	if ((os.pdsk >= D_INCONSISTENT &&
+-	     os.pdsk != D_UNKNOWN &&
+-	     os.pdsk != D_OUTDATED)
+-	&&  (ns.pdsk < D_INCONSISTENT ||
+-	     ns.pdsk == D_UNKNOWN ||
+-	     ns.pdsk == D_OUTDATED)) {
+-		if (get_ldev(mdev)) {
+-			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
+-			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
+-				if (is_susp(mdev->state)) {
+-					set_bit(NEW_CUR_UUID, &mdev->flags);
+-				} else {
+-					drbd_uuid_new_current(mdev);
+-					drbd_send_uuids(mdev);
+-				}
+-			}
+-			put_ldev(mdev);
+-		}
+-	}
+-
+-	if (ns.pdsk < D_INCONSISTENT && get_ldev(mdev)) {
+-		if (ns.peer == R_PRIMARY && mdev->ldev->md.uuid[UI_BITMAP] == 0) {
+-			drbd_uuid_new_current(mdev);
+-			drbd_send_uuids(mdev);
+-		}
+-
+-		/* D_DISKLESS Peer becomes secondary */
+-		if (os.peer == R_PRIMARY && ns.peer == R_SECONDARY)
+-			/* We may still be Primary ourselves.
+-			 * No harm done if the bitmap still changes,
+-			 * redirtied pages will follow later. */
+-			drbd_bitmap_io_from_worker(mdev, &drbd_bm_write,
+-				"demote diskless peer", BM_LOCKED_SET_ALLOWED);
+-		put_ldev(mdev);
+-	}
+-
+-	/* Write out all changed bits on demote.
+-	 * Though, no need to da that just yet
+-	 * if there is a resync going on still */
+-	if (os.role == R_PRIMARY && ns.role == R_SECONDARY &&
+-		mdev->state.conn <= C_CONNECTED && get_ldev(mdev)) {
+-		/* No changes to the bitmap expected this time, so assert that,
+-		 * even though no harm was done if it did change. */
+-		drbd_bitmap_io_from_worker(mdev, &drbd_bm_write,
+-				"demote", BM_LOCKED_TEST_ALLOWED);
+-		put_ldev(mdev);
+-	}
+-
+-	/* Last part of the attaching process ... */
+-	if (ns.conn >= C_CONNECTED &&
+-	    os.disk == D_ATTACHING && ns.disk == D_NEGOTIATING) {
+-		drbd_send_sizes(mdev, 0, 0);  /* to start sync... */
+-		drbd_send_uuids(mdev);
+-		drbd_send_state(mdev);
+-	}
+-
+-	/* We want to pause/continue resync, tell peer. */
+-	if (ns.conn >= C_CONNECTED &&
+-	     ((os.aftr_isp != ns.aftr_isp) ||
+-	      (os.user_isp != ns.user_isp)))
+-		drbd_send_state(mdev);
+-
+-	/* In case one of the isp bits got set, suspend other devices. */
+-	if ((!os.aftr_isp && !os.peer_isp && !os.user_isp) &&
+-	    (ns.aftr_isp || ns.peer_isp || ns.user_isp))
+-		suspend_other_sg(mdev);
+-
+-	/* Make sure the peer gets informed about eventual state
+-	   changes (ISP bits) while we were in WFReportParams. */
+-	if (os.conn == C_WF_REPORT_PARAMS && ns.conn >= C_CONNECTED)
+-		drbd_send_state(mdev);
+-
+-	if (os.conn != C_AHEAD && ns.conn == C_AHEAD)
+-		drbd_send_state(mdev);
+-
+-	/* We are in the progress to start a full sync... */
+-	if ((os.conn != C_STARTING_SYNC_T && ns.conn == C_STARTING_SYNC_T) ||
+-	    (os.conn != C_STARTING_SYNC_S && ns.conn == C_STARTING_SYNC_S))
+-		/* no other bitmap changes expected during this phase */
+-		drbd_queue_bitmap_io(mdev,
+-			&drbd_bmio_set_n_write, &abw_start_sync,
+-			"set_n_write from StartingSync", BM_LOCKED_TEST_ALLOWED);
+-
+-	/* We are invalidating our self... */
+-	if (os.conn < C_CONNECTED && ns.conn < C_CONNECTED &&
+-	    os.disk > D_INCONSISTENT && ns.disk == D_INCONSISTENT)
+-		/* other bitmap operation expected during this phase */
+-		drbd_queue_bitmap_io(mdev, &drbd_bmio_set_n_write, NULL,
+-			"set_n_write from invalidate", BM_LOCKED_MASK);
+-
+-	/* first half of local IO error, failure to attach,
+-	 * or administrative detach */
+-	if (os.disk != D_FAILED && ns.disk == D_FAILED) {
+-		enum drbd_io_error_p eh;
+-		int was_io_error;
+-		/* corresponding get_ldev was in __drbd_set_state, to serialize
+-		 * our cleanup here with the transition to D_DISKLESS,
+-		 * so it is safe to dreference ldev here. */
+-		eh = mdev->ldev->dc.on_io_error;
+-		was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
+-
+-		/* current state still has to be D_FAILED,
+-		 * there is only one way out: to D_DISKLESS,
+-		 * and that may only happen after our put_ldev below. */
+-		if (mdev->state.disk != D_FAILED)
+-			dev_err(DEV,
+-				"ASSERT FAILED: disk is %s during detach\n",
+-				drbd_disk_str(mdev->state.disk));
+-
+-		if (drbd_send_state(mdev))
+-			dev_warn(DEV, "Notified peer that I am detaching my disk\n");
+-		else
+-			dev_err(DEV, "Sending state for detaching disk failed\n");
+-
+-		drbd_rs_cancel_all(mdev);
+-
+-		/* In case we want to get something to stable storage still,
+-		 * this may be the last chance.
+-		 * Following put_ldev may transition to D_DISKLESS. */
+-		drbd_md_sync(mdev);
+-		put_ldev(mdev);
+-
+-		if (was_io_error && eh == EP_CALL_HELPER)
+-			drbd_khelper(mdev, "local-io-error");
+-	}
+-
+-        /* second half of local IO error, failure to attach,
+-         * or administrative detach,
+-         * after local_cnt references have reached zero again */
+-        if (os.disk != D_DISKLESS && ns.disk == D_DISKLESS) {
+-                /* We must still be diskless,
+-                 * re-attach has to be serialized with this! */
+-                if (mdev->state.disk != D_DISKLESS)
+-                        dev_err(DEV,
+-                                "ASSERT FAILED: disk is %s while going diskless\n",
+-                                drbd_disk_str(mdev->state.disk));
+-
+-                mdev->rs_total = 0;
+-                mdev->rs_failed = 0;
+-                atomic_set(&mdev->rs_pending_cnt, 0);
+-
+-		if (drbd_send_state(mdev))
+-			dev_warn(DEV, "Notified peer that I'm now diskless.\n");
+-		/* corresponding get_ldev in __drbd_set_state
+-		 * this may finally trigger drbd_ldev_destroy. */
+-		put_ldev(mdev);
+-	}
+-
+-	/* Notify peer that I had a local IO error, and did not detached.. */
+-	if (os.disk == D_UP_TO_DATE && ns.disk == D_INCONSISTENT)
+-		drbd_send_state(mdev);
+-
+-	/* Disks got bigger while they were detached */
+-	if (ns.disk > D_NEGOTIATING && ns.pdsk > D_NEGOTIATING &&
+-	    test_and_clear_bit(RESYNC_AFTER_NEG, &mdev->flags)) {
+-		if (ns.conn == C_CONNECTED)
+-			resync_after_online_grow(mdev);
+-	}
+-
+-	/* A resync finished or aborted, wake paused devices... */
+-	if ((os.conn > C_CONNECTED && ns.conn <= C_CONNECTED) ||
+-	    (os.peer_isp && !ns.peer_isp) ||
+-	    (os.user_isp && !ns.user_isp))
+-		resume_next_sg(mdev);
+-
+-	/* sync target done with resync.  Explicitly notify peer, even though
+-	 * it should (at least for non-empty resyncs) already know itself. */
+-	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
+-		drbd_send_state(mdev);
+-
+-	/* This triggers bitmap writeout of potentially still unwritten pages
+-	 * if the resync finished cleanly, or aborted because of peer disk
+-	 * failure, or because of connection loss.
+-	 * For resync aborted because of local disk failure, we cannot do
+-	 * any bitmap writeout anymore.
+-	 * No harm done if some bits change during this phase.
+-	 */
+-	if (os.conn > C_CONNECTED && ns.conn <= C_CONNECTED && get_ldev(mdev)) {
+-		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL,
+-			"write from resync_finished", BM_LOCKED_SET_ALLOWED);
+-		put_ldev(mdev);
+-	}
+-
+-	/* Upon network connection, we need to start the receiver */
+-	if (os.conn == C_STANDALONE && ns.conn == C_UNCONNECTED)
+-		drbd_thread_start(&mdev->tconn->receiver);
+-
+-	/* Terminate worker thread if we are unconfigured - it will be
+-	   restarted as needed... */
+-	if (ns.disk == D_DISKLESS &&
+-	    ns.conn == C_STANDALONE &&
+-	    ns.role == R_SECONDARY) {
+-		if (os.aftr_isp != ns.aftr_isp)
+-			resume_next_sg(mdev);
+-		/* set in __drbd_set_state, unless CONFIG_PENDING was set */
+-		if (test_bit(DEVICE_DYING, &mdev->flags))
+-			drbd_thread_stop_nowait(&mdev->tconn->worker);
+-	}
+-
+-	drbd_md_sync(mdev);
+-}
+-
+-
+ static int drbd_thread_setup(void *arg)
+ {
+ 	struct drbd_thread *thi = (struct drbd_thread *) arg;
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+new file mode 100644
+index 0000000..38d330b
+--- /dev/null
++++ b/drivers/block/drbd/drbd_state.c
+@@ -0,0 +1,1217 @@
++/*
++   drbd_state.c
 +
-+	peer_req->epoch = NULL;
-+	peer_req->mdev = mdev;
-+	peer_req->pages = page;
-+	atomic_set(&peer_req->pending_bios, 0);
-+	peer_req->flags = 0;
- 	/*
- 	 * The block_id is opaque to the receiver.  It is not endianness
- 	 * converted, and sent back to the sender unchanged.
- 	 */
--	e->block_id = id;
-+	peer_req->block_id = id;
- 
--	return e;
-+	return peer_req;
- 
-  fail:
--	mempool_free(e, drbd_ee_mempool);
-+	mempool_free(peer_req, drbd_ee_mempool);
- 	return NULL;
- }
- 
--void drbd_free_some_ee(struct drbd_conf *mdev, struct drbd_peer_request *e,
-+void drbd_free_some_ee(struct drbd_conf *mdev, struct drbd_peer_request *peer_req,
- 		       int is_net)
- {
--	if (e->flags & EE_HAS_DIGEST)
--		kfree(e->digest);
--	drbd_pp_free(mdev, e->pages, is_net);
--	D_ASSERT(atomic_read(&e->pending_bios) == 0);
--	D_ASSERT(drbd_interval_empty(&e->i));
--	mempool_free(e, drbd_ee_mempool);
-+	if (peer_req->flags & EE_HAS_DIGEST)
-+		kfree(peer_req->digest);
-+	drbd_pp_free(mdev, peer_req->pages, is_net);
-+	D_ASSERT(atomic_read(&peer_req->pending_bios) == 0);
-+	D_ASSERT(drbd_interval_empty(&peer_req->i));
-+	mempool_free(peer_req, drbd_ee_mempool);
- }
- 
- int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list)
- {
- 	LIST_HEAD(work_list);
--	struct drbd_peer_request *e, *t;
-+	struct drbd_peer_request *peer_req, *t;
- 	int count = 0;
- 	int is_net = list == &mdev->net_ee;
- 
-@@ -377,8 +377,8 @@ int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list)
- 	list_splice_init(list, &work_list);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
--	list_for_each_entry_safe(e, t, &work_list, w.list) {
--		drbd_free_some_ee(mdev, e, is_net);
-+	list_for_each_entry_safe(peer_req, t, &work_list, w.list) {
-+		drbd_free_some_ee(mdev, peer_req, is_net);
- 		count++;
- 	}
- 	return count;
-@@ -398,7 +398,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
- {
- 	LIST_HEAD(work_list);
- 	LIST_HEAD(reclaimed);
--	struct drbd_peer_request *e, *t;
-+	struct drbd_peer_request *peer_req, *t;
- 	int ok = (mdev->state.conn >= C_WF_REPORT_PARAMS);
- 
- 	spin_lock_irq(&mdev->tconn->req_lock);
-@@ -406,17 +406,17 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
- 	list_splice_init(&mdev->done_ee, &work_list);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
--	list_for_each_entry_safe(e, t, &reclaimed, w.list)
--		drbd_free_net_ee(mdev, e);
-+	list_for_each_entry_safe(peer_req, t, &reclaimed, w.list)
-+		drbd_free_net_ee(mdev, peer_req);
- 
- 	/* possible callbacks here:
- 	 * e_end_block, and e_end_resync_block, e_send_discard_ack.
- 	 * all ignore the last argument.
- 	 */
--	list_for_each_entry_safe(e, t, &work_list, w.list) {
-+	list_for_each_entry_safe(peer_req, t, &work_list, w.list) {
- 		/* list_del not necessary, next/prev members not touched */
--		ok = e->w.cb(mdev, &e->w, !ok) && ok;
--		drbd_free_ee(mdev, e);
-+		ok = peer_req->w.cb(mdev, &peer_req->w, !ok) && ok;
-+		drbd_free_ee(mdev, peer_req);
- 	}
- 	wake_up(&mdev->ee_wait);
- 
-@@ -1089,7 +1089,7 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo)
- /**
-  * drbd_submit_ee()
-  * @mdev:	DRBD device.
-- * @e:		peer request
-+ * @peer_req:	peer request
-  * @rw:		flag field, see bio->bi_rw
-  *
-  * May spread the pages to multiple bios,
-@@ -1103,14 +1103,14 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo)
-  *  on certain Xen deployments.
-  */
- /* TODO allocate from our own bio_set. */
--int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_peer_request *e,
-+int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_peer_request *peer_req,
- 		   const unsigned rw, const int fault_type)
- {
- 	struct bio *bios = NULL;
- 	struct bio *bio;
--	struct page *page = e->pages;
--	sector_t sector = e->i.sector;
--	unsigned ds = e->i.size;
-+	struct page *page = peer_req->pages;
-+	sector_t sector = peer_req->i.sector;
-+	unsigned ds = peer_req->i.size;
- 	unsigned n_bios = 0;
- 	unsigned nr_pages = (ds + PAGE_SIZE -1) >> PAGE_SHIFT;
- 	int err = -ENOMEM;
-@@ -1125,11 +1125,11 @@ next_bio:
- 		dev_err(DEV, "submit_ee: Allocation of a bio failed\n");
- 		goto fail;
- 	}
--	/* > e->i.sector, unless this is the first bio */
-+	/* > peer_req->i.sector, unless this is the first bio */
- 	bio->bi_sector = sector;
- 	bio->bi_bdev = mdev->ldev->backing_bdev;
- 	bio->bi_rw = rw;
--	bio->bi_private = e;
-+	bio->bi_private = peer_req;
- 	bio->bi_end_io = drbd_endio_sec;
- 
- 	bio->bi_next = bios;
-@@ -1159,7 +1159,7 @@ next_bio:
- 	D_ASSERT(page == NULL);
- 	D_ASSERT(ds == 0);
- 
--	atomic_set(&e->pending_bios, n_bios);
-+	atomic_set(&peer_req->pending_bios, n_bios);
- 	do {
- 		bio = bios;
- 		bios = bios->bi_next;
-@@ -1179,9 +1179,9 @@ fail:
- }
- 
- static void drbd_remove_epoch_entry_interval(struct drbd_conf *mdev,
--					     struct drbd_peer_request *e)
-+					     struct drbd_peer_request *peer_req)
- {
--	struct drbd_interval *i = &e->i;
-+	struct drbd_interval *i = &peer_req->i;
- 
- 	drbd_remove_interval(&mdev->write_requests, i);
- 	drbd_clear_interval(i);
-@@ -1270,7 +1270,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
- 	      int data_size) __must_hold(local)
- {
- 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
--	struct drbd_peer_request *e;
-+	struct drbd_peer_request *peer_req;
- 	struct page *page;
- 	int dgs, ds, rr;
- 	void *dig_in = mdev->tconn->int_dig_in;
-@@ -1313,12 +1313,12 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
- 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
- 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
- 	 * which in turn might block on the other node at this very place.  */
--	e = drbd_alloc_ee(mdev, id, sector, data_size, GFP_NOIO);
--	if (!e)
-+	peer_req = drbd_alloc_ee(mdev, id, sector, data_size, GFP_NOIO);
-+	if (!peer_req)
- 		return NULL;
- 
- 	ds = data_size;
--	page = e->pages;
-+	page = peer_req->pages;
- 	page_chain_for_each(page) {
- 		unsigned len = min_t(int, ds, PAGE_SIZE);
- 		data = kmap(page);
-@@ -1329,7 +1329,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
- 		}
- 		kunmap(page);
- 		if (rr != len) {
--			drbd_free_ee(mdev, e);
-+			drbd_free_ee(mdev, peer_req);
- 			if (!signal_pending(current))
- 				dev_warn(DEV, "short read receiving data: read %d expected %d\n",
- 				rr, len);
-@@ -1339,18 +1339,18 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
- 	}
- 
- 	if (dgs) {
--		drbd_csum_ee(mdev, mdev->tconn->integrity_r_tfm, e, dig_vv);
-+		drbd_csum_ee(mdev, mdev->tconn->integrity_r_tfm, peer_req, dig_vv);
- 		if (memcmp(dig_in, dig_vv, dgs)) {
- 			dev_err(DEV, "Digest integrity check FAILED: %llus +%u\n",
- 				(unsigned long long)sector, data_size);
- 			drbd_bcast_ee(mdev, "digest failed",
--					dgs, dig_in, dig_vv, e);
--			drbd_free_ee(mdev, e);
-+					dgs, dig_in, dig_vv, peer_req);
-+			drbd_free_ee(mdev, peer_req);
- 			return NULL;
- 		}
- 	}
- 	mdev->recv_cnt += data_size>>9;
--	return e;
-+	return peer_req;
- }
- 
- /* drbd_drain_block() just takes a data block
-@@ -1449,20 +1449,20 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
-  * drbd_process_done_ee() by asender only */
- static int e_end_resync_block(struct drbd_conf *mdev, struct drbd_work *w, int unused)
- {
--	struct drbd_peer_request *e = (struct drbd_peer_request *)w;
--	sector_t sector = e->i.sector;
-+	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
-+	sector_t sector = peer_req->i.sector;
- 	int ok;
- 
--	D_ASSERT(drbd_interval_empty(&e->i));
-+	D_ASSERT(drbd_interval_empty(&peer_req->i));
- 
--	if (likely((e->flags & EE_WAS_ERROR) == 0)) {
--		drbd_set_in_sync(mdev, sector, e->i.size);
--		ok = drbd_send_ack(mdev, P_RS_WRITE_ACK, e);
-+	if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
-+		drbd_set_in_sync(mdev, sector, peer_req->i.size);
-+		ok = drbd_send_ack(mdev, P_RS_WRITE_ACK, peer_req);
- 	} else {
- 		/* Record failure to sync */
--		drbd_rs_failed_io(mdev, sector, e->i.size);
-+		drbd_rs_failed_io(mdev, sector, peer_req->i.size);
- 
--		ok  = drbd_send_ack(mdev, P_NEG_ACK, e);
-+		ok  = drbd_send_ack(mdev, P_NEG_ACK, peer_req);
- 	}
- 	dec_unacked(mdev);
- 
-@@ -1471,10 +1471,10 @@ static int e_end_resync_block(struct drbd_conf *mdev, struct drbd_work *w, int u
- 
- static int recv_resync_read(struct drbd_conf *mdev, sector_t sector, int data_size) __releases(local)
- {
--	struct drbd_peer_request *e;
-+	struct drbd_peer_request *peer_req;
- 
--	e = read_in_block(mdev, ID_SYNCER, sector, data_size);
--	if (!e)
-+	peer_req = read_in_block(mdev, ID_SYNCER, sector, data_size);
-+	if (!peer_req)
- 		goto fail;
- 
- 	dec_rs_pending(mdev);
-@@ -1483,23 +1483,23 @@ static int recv_resync_read(struct drbd_conf *mdev, sector_t sector, int data_si
- 	/* corresponding dec_unacked() in e_end_resync_block()
- 	 * respective _drbd_clear_done_ee */
- 
--	e->w.cb = e_end_resync_block;
-+	peer_req->w.cb = e_end_resync_block;
- 
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	list_add(&e->w.list, &mdev->sync_ee);
-+	list_add(&peer_req->w.list, &mdev->sync_ee);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
- 	atomic_add(data_size >> 9, &mdev->rs_sect_ev);
--	if (drbd_submit_ee(mdev, e, WRITE, DRBD_FAULT_RS_WR) == 0)
-+	if (drbd_submit_ee(mdev, peer_req, WRITE, DRBD_FAULT_RS_WR) == 0)
- 		return true;
- 
- 	/* don't care for the reason here */
- 	dev_err(DEV, "submit failed, triggering re-connect\n");
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	list_del(&e->w.list);
-+	list_del(&peer_req->w.list);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
--	drbd_free_ee(mdev, e);
-+	drbd_free_ee(mdev, peer_req);
- fail:
- 	put_ldev(mdev);
- 	return false;
-@@ -1586,21 +1586,21 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
-  */
- static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- {
--	struct drbd_peer_request *e = (struct drbd_peer_request *)w;
--	sector_t sector = e->i.sector;
-+	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
-+	sector_t sector = peer_req->i.sector;
- 	int ok = 1, pcmd;
- 
- 	if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C) {
--		if (likely((e->flags & EE_WAS_ERROR) == 0)) {
-+		if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
- 			pcmd = (mdev->state.conn >= C_SYNC_SOURCE &&
- 				mdev->state.conn <= C_PAUSED_SYNC_T &&
--				e->flags & EE_MAY_SET_IN_SYNC) ?
-+				peer_req->flags & EE_MAY_SET_IN_SYNC) ?
- 				P_RS_WRITE_ACK : P_WRITE_ACK;
--			ok &= drbd_send_ack(mdev, pcmd, e);
-+			ok &= drbd_send_ack(mdev, pcmd, peer_req);
- 			if (pcmd == P_RS_WRITE_ACK)
--				drbd_set_in_sync(mdev, sector, e->i.size);
-+				drbd_set_in_sync(mdev, sector, peer_req->i.size);
- 		} else {
--			ok  = drbd_send_ack(mdev, P_NEG_ACK, e);
-+			ok  = drbd_send_ack(mdev, P_NEG_ACK, peer_req);
- 			/* we expect it to be marked out of sync anyways...
- 			 * maybe assert this?  */
- 		}
-@@ -1610,28 +1610,28 @@ static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	 * P_WRITE_ACK / P_NEG_ACK, to get the sequence number right.  */
- 	if (mdev->tconn->net_conf->two_primaries) {
- 		spin_lock_irq(&mdev->tconn->req_lock);
--		D_ASSERT(!drbd_interval_empty(&e->i));
--		drbd_remove_epoch_entry_interval(mdev, e);
-+		D_ASSERT(!drbd_interval_empty(&peer_req->i));
-+		drbd_remove_epoch_entry_interval(mdev, peer_req);
- 		spin_unlock_irq(&mdev->tconn->req_lock);
- 	} else
--		D_ASSERT(drbd_interval_empty(&e->i));
-+		D_ASSERT(drbd_interval_empty(&peer_req->i));
- 
--	drbd_may_finish_epoch(mdev, e->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
-+	drbd_may_finish_epoch(mdev, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
- 
- 	return ok;
- }
- 
- static int e_send_discard_ack(struct drbd_conf *mdev, struct drbd_work *w, int unused)
- {
--	struct drbd_peer_request *e = (struct drbd_peer_request *)w;
-+	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
- 	int ok = 1;
- 
- 	D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
--	ok = drbd_send_ack(mdev, P_DISCARD_ACK, e);
-+	ok = drbd_send_ack(mdev, P_DISCARD_ACK, peer_req);
- 
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	D_ASSERT(!drbd_interval_empty(&e->i));
--	drbd_remove_epoch_entry_interval(mdev, e);
-+	D_ASSERT(!drbd_interval_empty(&peer_req->i));
-+	drbd_remove_epoch_entry_interval(mdev, peer_req);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
- 	dec_unacked(mdev);
-@@ -1735,7 +1735,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 			unsigned int data_size)
- {
- 	sector_t sector;
--	struct drbd_peer_request *e;
-+	struct drbd_peer_request *peer_req;
- 	struct p_data *p = &mdev->tconn->data.rbuf.data;
- 	int rw = WRITE;
- 	u32 dp_flags;
-@@ -1757,24 +1757,24 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	 * the end of this function. */
- 
- 	sector = be64_to_cpu(p->sector);
--	e = read_in_block(mdev, p->block_id, sector, data_size);
--	if (!e) {
-+	peer_req = read_in_block(mdev, p->block_id, sector, data_size);
-+	if (!peer_req) {
- 		put_ldev(mdev);
- 		return false;
- 	}
- 
--	e->w.cb = e_end_block;
-+	peer_req->w.cb = e_end_block;
- 
- 	dp_flags = be32_to_cpu(p->dp_flags);
- 	rw |= wire_flags_to_bio(mdev, dp_flags);
- 
- 	if (dp_flags & DP_MAY_SET_IN_SYNC)
--		e->flags |= EE_MAY_SET_IN_SYNC;
-+		peer_req->flags |= EE_MAY_SET_IN_SYNC;
- 
- 	spin_lock(&mdev->epoch_lock);
--	e->epoch = mdev->current_epoch;
--	atomic_inc(&e->epoch->epoch_size);
--	atomic_inc(&e->epoch->active);
-+	peer_req->epoch = mdev->current_epoch;
-+	atomic_inc(&peer_req->epoch->epoch_size);
-+	atomic_inc(&peer_req->epoch->active);
- 	spin_unlock(&mdev->epoch_lock);
- 
- 	/* I'm the receiver, I do hold a net_cnt reference. */
-@@ -1783,7 +1783,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	} else {
- 		/* don't get the req_lock yet,
- 		 * we may sleep in drbd_wait_peer_seq */
--		const int size = e->i.size;
-+		const int size = peer_req->i.size;
- 		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->flags);
- 		DEFINE_WAIT(wait);
- 		int first;
-@@ -1860,8 +1860,8 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 				dev_alert(DEV, "Concurrent write! [DISCARD BY FLAG] sec=%llus\n",
- 				     (unsigned long long)sector);
- 				inc_unacked(mdev);
--				e->w.cb = e_send_discard_ack;
--				list_add_tail(&e->w.list, &mdev->done_ee);
-+				peer_req->w.cb = e_send_discard_ack;
-+				list_add_tail(&peer_req->w.list, &mdev->done_ee);
- 
- 				spin_unlock_irq(&mdev->tconn->req_lock);
- 
-@@ -1898,10 +1898,10 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 		}
- 		finish_wait(&mdev->misc_wait, &wait);
- 
--		drbd_insert_interval(&mdev->write_requests, &e->i);
-+		drbd_insert_interval(&mdev->write_requests, &peer_req->i);
- 	}
- 
--	list_add(&e->w.list, &mdev->active_ee);
-+	list_add(&peer_req->w.list, &mdev->active_ee);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
- 	switch (mdev->tconn->net_conf->wire_protocol) {
-@@ -1913,7 +1913,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	case DRBD_PROT_B:
- 		/* I really don't like it that the receiver thread
- 		 * sends on the msock, but anyways */
--		drbd_send_ack(mdev, P_RECV_ACK, e);
-+		drbd_send_ack(mdev, P_RECV_ACK, peer_req);
- 		break;
- 	case DRBD_PROT_A:
- 		/* nothing to do */
-@@ -1922,28 +1922,28 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 
- 	if (mdev->state.pdsk < D_INCONSISTENT) {
- 		/* In case we have the only disk of the cluster, */
--		drbd_set_out_of_sync(mdev, e->i.sector, e->i.size);
--		e->flags |= EE_CALL_AL_COMPLETE_IO;
--		e->flags &= ~EE_MAY_SET_IN_SYNC;
--		drbd_al_begin_io(mdev, e->i.sector);
-+		drbd_set_out_of_sync(mdev, peer_req->i.sector, peer_req->i.size);
-+		peer_req->flags |= EE_CALL_AL_COMPLETE_IO;
-+		peer_req->flags &= ~EE_MAY_SET_IN_SYNC;
-+		drbd_al_begin_io(mdev, peer_req->i.sector);
- 	}
- 
--	if (drbd_submit_ee(mdev, e, rw, DRBD_FAULT_DT_WR) == 0)
-+	if (drbd_submit_ee(mdev, peer_req, rw, DRBD_FAULT_DT_WR) == 0)
- 		return true;
- 
- 	/* don't care for the reason here */
- 	dev_err(DEV, "submit failed, triggering re-connect\n");
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	list_del(&e->w.list);
--	drbd_remove_epoch_entry_interval(mdev, e);
-+	list_del(&peer_req->w.list);
-+	drbd_remove_epoch_entry_interval(mdev, peer_req);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
--	if (e->flags & EE_CALL_AL_COMPLETE_IO)
--		drbd_al_complete_io(mdev, e->i.sector);
-+	if (peer_req->flags & EE_CALL_AL_COMPLETE_IO)
-+		drbd_al_complete_io(mdev, peer_req->i.sector);
- 
- out_interrupted:
--	drbd_may_finish_epoch(mdev, e->epoch, EV_PUT + EV_CLEANUP);
-+	drbd_may_finish_epoch(mdev, peer_req->epoch, EV_PUT + EV_CLEANUP);
- 	put_ldev(mdev);
--	drbd_free_ee(mdev, e);
-+	drbd_free_ee(mdev, peer_req);
- 	return false;
- }
- 
-@@ -2019,7 +2019,7 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packet cmd,
- {
- 	sector_t sector;
- 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
--	struct drbd_peer_request *e;
-+	struct drbd_peer_request *peer_req;
- 	struct digest_info *di = NULL;
- 	int size, verb;
- 	unsigned int fault_type;
-@@ -2070,21 +2070,21 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
- 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
- 	 * which in turn might block on the other node at this very place.  */
--	e = drbd_alloc_ee(mdev, p->block_id, sector, size, GFP_NOIO);
--	if (!e) {
-+	peer_req = drbd_alloc_ee(mdev, p->block_id, sector, size, GFP_NOIO);
-+	if (!peer_req) {
- 		put_ldev(mdev);
- 		return false;
- 	}
- 
- 	switch (cmd) {
- 	case P_DATA_REQUEST:
--		e->w.cb = w_e_end_data_req;
-+		peer_req->w.cb = w_e_end_data_req;
- 		fault_type = DRBD_FAULT_DT_RD;
- 		/* application IO, don't drbd_rs_begin_io */
- 		goto submit;
- 
- 	case P_RS_DATA_REQUEST:
--		e->w.cb = w_e_end_rsdata_req;
-+		peer_req->w.cb = w_e_end_rsdata_req;
- 		fault_type = DRBD_FAULT_RS_RD;
- 		/* used in the sector offset progress display */
- 		mdev->bm_resync_fo = BM_SECT_TO_BIT(sector);
-@@ -2100,21 +2100,21 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packet cmd,
- 		di->digest_size = digest_size;
- 		di->digest = (((char *)di)+sizeof(struct digest_info));
- 
--		e->digest = di;
--		e->flags |= EE_HAS_DIGEST;
-+		peer_req->digest = di;
-+		peer_req->flags |= EE_HAS_DIGEST;
- 
- 		if (drbd_recv(mdev, di->digest, digest_size) != digest_size)
- 			goto out_free_e;
- 
- 		if (cmd == P_CSUM_RS_REQUEST) {
- 			D_ASSERT(mdev->tconn->agreed_pro_version >= 89);
--			e->w.cb = w_e_end_csum_rs_req;
-+			peer_req->w.cb = w_e_end_csum_rs_req;
- 			/* used in the sector offset progress display */
- 			mdev->bm_resync_fo = BM_SECT_TO_BIT(sector);
- 		} else if (cmd == P_OV_REPLY) {
- 			/* track progress, we may need to throttle */
- 			atomic_add(size >> 9, &mdev->rs_sect_in);
--			e->w.cb = w_e_end_ov_reply;
-+			peer_req->w.cb = w_e_end_ov_reply;
- 			dec_rs_pending(mdev);
- 			/* drbd_rs_begin_io done when we sent this request,
- 			 * but accounting still needs to be done. */
-@@ -2138,7 +2138,7 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packet cmd,
- 			dev_info(DEV, "Online Verify start sector: %llu\n",
- 					(unsigned long long)sector);
- 		}
--		e->w.cb = w_e_end_ov_req;
-+		peer_req->w.cb = w_e_end_ov_req;
- 		fault_type = DRBD_FAULT_RS_RD;
- 		break;
- 
-@@ -2182,22 +2182,22 @@ submit_for_resync:
- submit:
- 	inc_unacked(mdev);
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	list_add_tail(&e->w.list, &mdev->read_ee);
-+	list_add_tail(&peer_req->w.list, &mdev->read_ee);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
--	if (drbd_submit_ee(mdev, e, READ, fault_type) == 0)
-+	if (drbd_submit_ee(mdev, peer_req, READ, fault_type) == 0)
- 		return true;
- 
- 	/* don't care for the reason here */
- 	dev_err(DEV, "submit failed, triggering re-connect\n");
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	list_del(&e->w.list);
-+	list_del(&peer_req->w.list);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 	/* no drbd_rs_complete_io(), we are dropping the connection anyways */
- 
- out_free_e:
- 	put_ldev(mdev);
--	drbd_free_ee(mdev, e);
-+	drbd_free_ee(mdev, peer_req);
- 	return false;
- }
- 
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 06628d1..f13d56c 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -80,47 +80,47 @@ void drbd_md_io_complete(struct bio *bio, int error)
- /* reads on behalf of the partner,
-  * "submitted" by the receiver
-  */
--void drbd_endio_read_sec_final(struct drbd_peer_request *e) __releases(local)
-+void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __releases(local)
- {
- 	unsigned long flags = 0;
--	struct drbd_conf *mdev = e->mdev;
-+	struct drbd_conf *mdev = peer_req->mdev;
- 
- 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
--	mdev->read_cnt += e->i.size >> 9;
--	list_del(&e->w.list);
-+	mdev->read_cnt += peer_req->i.size >> 9;
-+	list_del(&peer_req->w.list);
- 	if (list_empty(&mdev->read_ee))
- 		wake_up(&mdev->ee_wait);
--	if (test_bit(__EE_WAS_ERROR, &e->flags))
-+	if (test_bit(__EE_WAS_ERROR, &peer_req->flags))
- 		__drbd_chk_io_error(mdev, false);
- 	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
- 
--	drbd_queue_work(&mdev->tconn->data.work, &e->w);
-+	drbd_queue_work(&mdev->tconn->data.work, &peer_req->w);
- 	put_ldev(mdev);
- }
- 
- /* writes on behalf of the partner, or resync writes,
-  * "submitted" by the receiver, final stage.  */
--static void drbd_endio_write_sec_final(struct drbd_peer_request *e) __releases(local)
-+static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(local)
- {
- 	unsigned long flags = 0;
--	struct drbd_conf *mdev = e->mdev;
-+	struct drbd_conf *mdev = peer_req->mdev;
- 	sector_t e_sector;
- 	int do_wake;
- 	u64 block_id;
- 	int do_al_complete_io;
- 
--	/* after we moved e to done_ee,
-+	/* after we moved peer_req to done_ee,
- 	 * we may no longer access it,
- 	 * it may be freed/reused already!
- 	 * (as soon as we release the req_lock) */
--	e_sector = e->i.sector;
--	do_al_complete_io = e->flags & EE_CALL_AL_COMPLETE_IO;
--	block_id = e->block_id;
-+	e_sector = peer_req->i.sector;
-+	do_al_complete_io = peer_req->flags & EE_CALL_AL_COMPLETE_IO;
-+	block_id = peer_req->block_id;
- 
- 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
--	mdev->writ_cnt += e->i.size >> 9;
--	list_del(&e->w.list); /* has been on active_ee or sync_ee */
--	list_add_tail(&e->w.list, &mdev->done_ee);
-+	mdev->writ_cnt += peer_req->i.size >> 9;
-+	list_del(&peer_req->w.list); /* has been on active_ee or sync_ee */
-+	list_add_tail(&peer_req->w.list, &mdev->done_ee);
- 
- 	/*
- 	 * Do not remove from the write_requests tree here: we did not send the
-@@ -132,7 +132,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *e) __releases(l
- 
- 	do_wake = list_empty(block_id == ID_SYNCER ? &mdev->sync_ee : &mdev->active_ee);
- 
--	if (test_bit(__EE_WAS_ERROR, &e->flags))
-+	if (test_bit(__EE_WAS_ERROR, &peer_req->flags))
- 		__drbd_chk_io_error(mdev, false);
- 	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
- 
-@@ -154,20 +154,20 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *e) __releases(l
-  */
- void drbd_endio_sec(struct bio *bio, int error)
- {
--	struct drbd_peer_request *e = bio->bi_private;
--	struct drbd_conf *mdev = e->mdev;
-+	struct drbd_peer_request *peer_req = bio->bi_private;
-+	struct drbd_conf *mdev = peer_req->mdev;
- 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
- 	int is_write = bio_data_dir(bio) == WRITE;
- 
- 	if (error && __ratelimit(&drbd_ratelimit_state))
- 		dev_warn(DEV, "%s: error=%d s=%llus\n",
- 				is_write ? "write" : "read", error,
--				(unsigned long long)e->i.sector);
-+				(unsigned long long)peer_req->i.sector);
- 	if (!error && !uptodate) {
- 		if (__ratelimit(&drbd_ratelimit_state))
- 			dev_warn(DEV, "%s: setting error to -EIO s=%llus\n",
- 					is_write ? "write" : "read",
--					(unsigned long long)e->i.sector);
-+					(unsigned long long)peer_req->i.sector);
- 		/* strange behavior of some lower level drivers...
- 		 * fail the request by clearing the uptodate flag,
- 		 * but do not return any error?! */
-@@ -175,14 +175,14 @@ void drbd_endio_sec(struct bio *bio, int error)
- 	}
- 
- 	if (error)
--		set_bit(__EE_WAS_ERROR, &e->flags);
-+		set_bit(__EE_WAS_ERROR, &peer_req->flags);
- 
- 	bio_put(bio); /* no need for the bio anymore */
--	if (atomic_dec_and_test(&e->pending_bios)) {
-+	if (atomic_dec_and_test(&peer_req->pending_bios)) {
- 		if (is_write)
--			drbd_endio_write_sec_final(e);
-+			drbd_endio_write_sec_final(peer_req);
- 		else
--			drbd_endio_read_sec_final(e);
-+			drbd_endio_read_sec_final(peer_req);
- 	}
- }
- 
-@@ -248,11 +248,11 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- }
- 
- void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm,
--		  struct drbd_peer_request *e, void *digest)
-+		  struct drbd_peer_request *peer_req, void *digest)
- {
- 	struct hash_desc desc;
- 	struct scatterlist sg;
--	struct page *page = e->pages;
-+	struct page *page = peer_req->pages;
- 	struct page *tmp;
- 	unsigned len;
- 
-@@ -269,7 +269,7 @@ void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm,
- 		page = tmp;
- 	}
- 	/* and now the last, possibly only partially used page */
--	len = e->i.size & (PAGE_SIZE - 1);
-+	len = peer_req->i.size & (PAGE_SIZE - 1);
- 	sg_set_page(&sg, page, len ?: PAGE_SIZE, 0);
- 	crypto_hash_update(&desc, &sg, sg.length);
- 	crypto_hash_final(&desc, digest);
-@@ -298,7 +298,8 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
- /* TODO merge common code with w_e_end_ov_req */
- int w_e_send_csum(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- {
--	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_peer_request *peer_req =
-+		container_of(w, struct drbd_peer_request, w);
- 	int digest_size;
- 	void *digest;
- 	int ok = 1;
-@@ -306,22 +307,22 @@ int w_e_send_csum(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	if (unlikely(cancel))
- 		goto out;
- 
--	if (likely((e->flags & EE_WAS_ERROR) != 0))
-+	if (likely((peer_req->flags & EE_WAS_ERROR) != 0))
- 		goto out;
- 
- 	digest_size = crypto_hash_digestsize(mdev->csums_tfm);
- 	digest = kmalloc(digest_size, GFP_NOIO);
- 	if (digest) {
--		sector_t sector = e->i.sector;
--		unsigned int size = e->i.size;
--		drbd_csum_ee(mdev, mdev->csums_tfm, e, digest);
-+		sector_t sector = peer_req->i.sector;
-+		unsigned int size = peer_req->i.size;
-+		drbd_csum_ee(mdev, mdev->csums_tfm, peer_req, digest);
- 		/* Free e and pages before send.
- 		 * In case we block on congestion, we could otherwise run into
- 		 * some distributed deadlock, if the other side blocks on
- 		 * congestion as well, because our receiver blocks in
- 		 * drbd_pp_alloc due to pp_in_use > max_buffers. */
--		drbd_free_ee(mdev, e);
--		e = NULL;
-+		drbd_free_ee(mdev, peer_req);
-+		peer_req = NULL;
- 		inc_rs_pending(mdev);
- 		ok = drbd_send_drequest_csum(mdev, sector, size,
- 					     digest, digest_size,
-@@ -333,8 +334,8 @@ int w_e_send_csum(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	}
- 
- out:
--	if (e)
--		drbd_free_ee(mdev, e);
-+	if (peer_req)
-+		drbd_free_ee(mdev, peer_req);
- 
- 	if (unlikely(!ok))
- 		dev_err(DEV, "drbd_send_drequest(..., csum) failed\n");
-@@ -345,7 +346,7 @@ out:
- 
- static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
- {
--	struct drbd_peer_request *e;
-+	struct drbd_peer_request *peer_req;
- 
- 	if (!get_ldev(mdev))
- 		return -EIO;
-@@ -355,17 +356,17 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
- 
- 	/* GFP_TRY, because if there is no memory available right now, this may
- 	 * be rescheduled for later. It is "only" background resync, after all. */
--	e = drbd_alloc_ee(mdev, ID_SYNCER /* unused */, sector, size, GFP_TRY);
--	if (!e)
-+	peer_req = drbd_alloc_ee(mdev, ID_SYNCER /* unused */, sector, size, GFP_TRY);
-+	if (!peer_req)
- 		goto defer;
- 
--	e->w.cb = w_e_send_csum;
-+	peer_req->w.cb = w_e_send_csum;
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	list_add(&e->w.list, &mdev->read_ee);
-+	list_add(&peer_req->w.list, &mdev->read_ee);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
- 	atomic_add(size >> 9, &mdev->rs_sect_ev);
--	if (drbd_submit_ee(mdev, e, READ, DRBD_FAULT_RS_RD) == 0)
-+	if (drbd_submit_ee(mdev, peer_req, READ, DRBD_FAULT_RS_RD) == 0)
- 		return 0;
- 
- 	/* If it failed because of ENOMEM, retry should help.  If it failed
-@@ -373,10 +374,10 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
- 	 * retry may or may not help.
- 	 * If it does not, you may need to force disconnect. */
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	list_del(&e->w.list);
-+	list_del(&peer_req->w.list);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
--	drbd_free_ee(mdev, e);
-+	drbd_free_ee(mdev, peer_req);
- defer:
- 	put_ldev(mdev);
- 	return -EAGAIN;
-@@ -901,19 +902,19 @@ out:
- }
- 
- /* helper */
--static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_peer_request *e)
-+static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_peer_request *peer_req)
- {
--	if (drbd_ee_has_active_page(e)) {
-+	if (drbd_ee_has_active_page(peer_req)) {
- 		/* This might happen if sendpage() has not finished */
--		int i = (e->i.size + PAGE_SIZE -1) >> PAGE_SHIFT;
-+		int i = (peer_req->i.size + PAGE_SIZE -1) >> PAGE_SHIFT;
- 		atomic_add(i, &mdev->pp_in_use_by_net);
- 		atomic_sub(i, &mdev->pp_in_use);
- 		spin_lock_irq(&mdev->tconn->req_lock);
--		list_add_tail(&e->w.list, &mdev->net_ee);
-+		list_add_tail(&peer_req->w.list, &mdev->net_ee);
- 		spin_unlock_irq(&mdev->tconn->req_lock);
- 		wake_up(&drbd_pp_wait);
- 	} else
--		drbd_free_ee(mdev, e);
-+		drbd_free_ee(mdev, peer_req);
- }
- 
- /**
-@@ -924,28 +925,28 @@ static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_peer_requ
-  */
- int w_e_end_data_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- {
--	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
- 	int ok;
- 
- 	if (unlikely(cancel)) {
--		drbd_free_ee(mdev, e);
-+		drbd_free_ee(mdev, peer_req);
- 		dec_unacked(mdev);
- 		return 1;
- 	}
- 
--	if (likely((e->flags & EE_WAS_ERROR) == 0)) {
--		ok = drbd_send_block(mdev, P_DATA_REPLY, e);
-+	if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
-+		ok = drbd_send_block(mdev, P_DATA_REPLY, peer_req);
- 	} else {
- 		if (__ratelimit(&drbd_ratelimit_state))
- 			dev_err(DEV, "Sending NegDReply. sector=%llus.\n",
--			    (unsigned long long)e->i.sector);
-+			    (unsigned long long)peer_req->i.sector);
- 
--		ok = drbd_send_ack(mdev, P_NEG_DREPLY, e);
-+		ok = drbd_send_ack(mdev, P_NEG_DREPLY, peer_req);
- 	}
- 
- 	dec_unacked(mdev);
- 
--	move_to_net_ee_or_free(mdev, e);
-+	move_to_net_ee_or_free(mdev, peer_req);
- 
- 	if (unlikely(!ok))
- 		dev_err(DEV, "drbd_send_block() failed\n");
-@@ -960,26 +961,26 @@ int w_e_end_data_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-  */
- int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- {
--	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
- 	int ok;
- 
- 	if (unlikely(cancel)) {
--		drbd_free_ee(mdev, e);
-+		drbd_free_ee(mdev, peer_req);
- 		dec_unacked(mdev);
- 		return 1;
- 	}
- 
- 	if (get_ldev_if_state(mdev, D_FAILED)) {
--		drbd_rs_complete_io(mdev, e->i.sector);
-+		drbd_rs_complete_io(mdev, peer_req->i.sector);
- 		put_ldev(mdev);
- 	}
- 
- 	if (mdev->state.conn == C_AHEAD) {
--		ok = drbd_send_ack(mdev, P_RS_CANCEL, e);
--	} else if (likely((e->flags & EE_WAS_ERROR) == 0)) {
-+		ok = drbd_send_ack(mdev, P_RS_CANCEL, peer_req);
-+	} else if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
- 		if (likely(mdev->state.pdsk >= D_INCONSISTENT)) {
- 			inc_rs_pending(mdev);
--			ok = drbd_send_block(mdev, P_RS_DATA_REPLY, e);
-+			ok = drbd_send_block(mdev, P_RS_DATA_REPLY, peer_req);
- 		} else {
- 			if (__ratelimit(&drbd_ratelimit_state))
- 				dev_err(DEV, "Not sending RSDataReply, "
-@@ -989,17 +990,17 @@ int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	} else {
- 		if (__ratelimit(&drbd_ratelimit_state))
- 			dev_err(DEV, "Sending NegRSDReply. sector %llus.\n",
--			    (unsigned long long)e->i.sector);
-+			    (unsigned long long)peer_req->i.sector);
- 
--		ok = drbd_send_ack(mdev, P_NEG_RS_DREPLY, e);
-+		ok = drbd_send_ack(mdev, P_NEG_RS_DREPLY, peer_req);
- 
- 		/* update resync data with failure */
--		drbd_rs_failed_io(mdev, e->i.sector, e->i.size);
-+		drbd_rs_failed_io(mdev, peer_req->i.sector, peer_req->i.size);
- 	}
- 
- 	dec_unacked(mdev);
- 
--	move_to_net_ee_or_free(mdev, e);
-+	move_to_net_ee_or_free(mdev, peer_req);
- 
- 	if (unlikely(!ok))
- 		dev_err(DEV, "drbd_send_block() failed\n");
-@@ -1008,26 +1009,26 @@ int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 
- int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- {
--	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
- 	struct digest_info *di;
- 	int digest_size;
- 	void *digest = NULL;
- 	int ok, eq = 0;
- 
- 	if (unlikely(cancel)) {
--		drbd_free_ee(mdev, e);
-+		drbd_free_ee(mdev, peer_req);
- 		dec_unacked(mdev);
- 		return 1;
- 	}
- 
- 	if (get_ldev(mdev)) {
--		drbd_rs_complete_io(mdev, e->i.sector);
-+		drbd_rs_complete_io(mdev, peer_req->i.sector);
- 		put_ldev(mdev);
- 	}
- 
--	di = e->digest;
-+	di = peer_req->digest;
- 
--	if (likely((e->flags & EE_WAS_ERROR) == 0)) {
-+	if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
- 		/* quick hack to try to avoid a race against reconfiguration.
- 		 * a real fix would be much more involved,
- 		 * introducing more locking mechanisms */
-@@ -1037,31 +1038,31 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 			digest = kmalloc(digest_size, GFP_NOIO);
- 		}
- 		if (digest) {
--			drbd_csum_ee(mdev, mdev->csums_tfm, e, digest);
-+			drbd_csum_ee(mdev, mdev->csums_tfm, peer_req, digest);
- 			eq = !memcmp(digest, di->digest, digest_size);
- 			kfree(digest);
- 		}
- 
- 		if (eq) {
--			drbd_set_in_sync(mdev, e->i.sector, e->i.size);
-+			drbd_set_in_sync(mdev, peer_req->i.sector, peer_req->i.size);
- 			/* rs_same_csums unit is BM_BLOCK_SIZE */
--			mdev->rs_same_csum += e->i.size >> BM_BLOCK_SHIFT;
--			ok = drbd_send_ack(mdev, P_RS_IS_IN_SYNC, e);
-+			mdev->rs_same_csum += peer_req->i.size >> BM_BLOCK_SHIFT;
-+			ok = drbd_send_ack(mdev, P_RS_IS_IN_SYNC, peer_req);
- 		} else {
- 			inc_rs_pending(mdev);
--			e->block_id = ID_SYNCER; /* By setting block_id, digest pointer becomes invalid! */
--			e->flags &= ~EE_HAS_DIGEST; /* This e no longer has a digest pointer */
-+			peer_req->block_id = ID_SYNCER; /* By setting block_id, digest pointer becomes invalid! */
-+			peer_req->flags &= ~EE_HAS_DIGEST; /* This peer request no longer has a digest pointer */
- 			kfree(di);
--			ok = drbd_send_block(mdev, P_RS_DATA_REPLY, e);
-+			ok = drbd_send_block(mdev, P_RS_DATA_REPLY, peer_req);
- 		}
- 	} else {
--		ok = drbd_send_ack(mdev, P_NEG_RS_DREPLY, e);
-+		ok = drbd_send_ack(mdev, P_NEG_RS_DREPLY, peer_req);
- 		if (__ratelimit(&drbd_ratelimit_state))
- 			dev_err(DEV, "Sending NegDReply. I guess it gets messy.\n");
- 	}
- 
- 	dec_unacked(mdev);
--	move_to_net_ee_or_free(mdev, e);
-+	move_to_net_ee_or_free(mdev, peer_req);
- 
- 	if (unlikely(!ok))
- 		dev_err(DEV, "drbd_send_block/ack() failed\n");
-@@ -1071,9 +1072,9 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- /* TODO merge common code with w_e_send_csum */
- int w_e_end_ov_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- {
--	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
--	sector_t sector = e->i.sector;
--	unsigned int size = e->i.size;
-+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-+	sector_t sector = peer_req->i.sector;
-+	unsigned int size = peer_req->i.size;
- 	int digest_size;
- 	void *digest;
- 	int ok = 1;
-@@ -1088,8 +1089,8 @@ int w_e_end_ov_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 		goto out;
- 	}
- 
--	if (likely(!(e->flags & EE_WAS_ERROR)))
--		drbd_csum_ee(mdev, mdev->verify_tfm, e, digest);
-+	if (likely(!(peer_req->flags & EE_WAS_ERROR)))
-+		drbd_csum_ee(mdev, mdev->verify_tfm, peer_req, digest);
- 	else
- 		memset(digest, 0, digest_size);
- 
-@@ -1098,8 +1099,8 @@ int w_e_end_ov_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	 * some distributed deadlock, if the other side blocks on
- 	 * congestion as well, because our receiver blocks in
- 	 * drbd_pp_alloc due to pp_in_use > max_buffers. */
--	drbd_free_ee(mdev, e);
--	e = NULL;
-+	drbd_free_ee(mdev, peer_req);
-+	peer_req = NULL;
- 	inc_rs_pending(mdev);
- 	ok = drbd_send_drequest_csum(mdev, sector, size,
- 				     digest, digest_size,
-@@ -1109,8 +1110,8 @@ int w_e_end_ov_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	kfree(digest);
- 
- out:
--	if (e)
--		drbd_free_ee(mdev, e);
-+	if (peer_req)
-+		drbd_free_ee(mdev, peer_req);
- 	dec_unacked(mdev);
- 	return ok;
- }
-@@ -1128,16 +1129,16 @@ void drbd_ov_oos_found(struct drbd_conf *mdev, sector_t sector, int size)
- 
- int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- {
--	struct drbd_peer_request *e = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
- 	struct digest_info *di;
- 	void *digest;
--	sector_t sector = e->i.sector;
--	unsigned int size = e->i.size;
-+	sector_t sector = peer_req->i.sector;
-+	unsigned int size = peer_req->i.size;
- 	int digest_size;
- 	int ok, eq = 0;
- 
- 	if (unlikely(cancel)) {
--		drbd_free_ee(mdev, e);
-+		drbd_free_ee(mdev, peer_req);
- 		dec_unacked(mdev);
- 		return 1;
- 	}
-@@ -1145,17 +1146,17 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	/* after "cancel", because after drbd_disconnect/drbd_rs_cancel_all
- 	 * the resync lru has been cleaned up already */
- 	if (get_ldev(mdev)) {
--		drbd_rs_complete_io(mdev, e->i.sector);
-+		drbd_rs_complete_io(mdev, peer_req->i.sector);
- 		put_ldev(mdev);
- 	}
- 
--	di = e->digest;
-+	di = peer_req->digest;
- 
--	if (likely((e->flags & EE_WAS_ERROR) == 0)) {
-+	if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
- 		digest_size = crypto_hash_digestsize(mdev->verify_tfm);
- 		digest = kmalloc(digest_size, GFP_NOIO);
- 		if (digest) {
--			drbd_csum_ee(mdev, mdev->verify_tfm, e, digest);
-+			drbd_csum_ee(mdev, mdev->verify_tfm, peer_req, digest);
- 
- 			D_ASSERT(digest_size == di->digest_size);
- 			eq = !memcmp(digest, di->digest, digest_size);
-@@ -1168,7 +1169,7 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 		 * some distributed deadlock, if the other side blocks on
- 		 * congestion as well, because our receiver blocks in
- 		 * drbd_pp_alloc due to pp_in_use > max_buffers. */
--	drbd_free_ee(mdev, e);
-+	drbd_free_ee(mdev, peer_req);
- 	if (!eq)
- 		drbd_ov_oos_found(mdev, sector, size);
- 	else
++   This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
++
++   Copyright (C) 2001-2008, LINBIT Information Technologies GmbH.
++   Copyright (C) 1999-2008, Philipp Reisner <philipp.reisner@linbit.com>.
++   Copyright (C) 2002-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
++
++   Thanks to Carter Burden, Bart Grantham and Gennadiy Nerubayev
++   from Logicworks, Inc. for making SDP replication support possible.
++
++   drbd is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 2, or (at your option)
++   any later version.
++
++   drbd is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with drbd; see the file COPYING.  If not, write to
++   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
++ */
++
++#include <linux/drbd_limits.h>
++#include "drbd_int.h"
++#include "drbd_req.h"
++
++struct after_state_chg_work {
++	struct drbd_work w;
++	union drbd_state os;
++	union drbd_state ns;
++	enum chg_state_flags flags;
++	struct completion *done;
++};
++
++
++extern void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
++int drbd_send_state_req(struct drbd_conf *, union drbd_state, union drbd_state);
++static int w_after_state_ch(struct drbd_conf *mdev, struct drbd_work *w, int unused);
++static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
++			   union drbd_state ns, enum chg_state_flags flags);
++static void after_conn_state_ch(struct drbd_tconn *tconn, union drbd_state os,
++				union drbd_state ns, enum chg_state_flags flags);
++static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
++static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state);
++static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
++				       union drbd_state ns, const char **warn_sync_abort);
++
++/**
++ * cl_wide_st_chg() - true if the state change is a cluster wide one
++ * @mdev:	DRBD device.
++ * @os:		old (current) state.
++ * @ns:		new (wanted) state.
++ */
++static int cl_wide_st_chg(struct drbd_conf *mdev,
++			  union drbd_state os, union drbd_state ns)
++{
++	return (os.conn >= C_CONNECTED && ns.conn >= C_CONNECTED &&
++		 ((os.role != R_PRIMARY && ns.role == R_PRIMARY) ||
++		  (os.conn != C_STARTING_SYNC_T && ns.conn == C_STARTING_SYNC_T) ||
++		  (os.conn != C_STARTING_SYNC_S && ns.conn == C_STARTING_SYNC_S) ||
++		  (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))) ||
++		(os.conn >= C_CONNECTED && ns.conn == C_DISCONNECTING) ||
++		(os.conn == C_CONNECTED && ns.conn == C_VERIFY_S);
++}
++
++enum drbd_state_rv
++drbd_change_state(struct drbd_conf *mdev, enum chg_state_flags f,
++		  union drbd_state mask, union drbd_state val)
++{
++	unsigned long flags;
++	union drbd_state os, ns;
++	enum drbd_state_rv rv;
++
++	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
++	os = mdev->state;
++	ns.i = (os.i & ~mask.i) | val.i;
++	rv = _drbd_set_state(mdev, ns, f, NULL);
++	ns = mdev->state;
++	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
++
++	return rv;
++}
++
++/**
++ * drbd_force_state() - Impose a change which happens outside our control on our state
++ * @mdev:	DRBD device.
++ * @mask:	mask of state bits to change.
++ * @val:	value of new state bits.
++ */
++void drbd_force_state(struct drbd_conf *mdev,
++	union drbd_state mask, union drbd_state val)
++{
++	drbd_change_state(mdev, CS_HARD, mask, val);
++}
++
++static enum drbd_state_rv
++_req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
++	     union drbd_state val)
++{
++	union drbd_state os, ns;
++	unsigned long flags;
++	enum drbd_state_rv rv;
++
++	if (test_and_clear_bit(CL_ST_CHG_SUCCESS, &mdev->flags))
++		return SS_CW_SUCCESS;
++
++	if (test_and_clear_bit(CL_ST_CHG_FAIL, &mdev->flags))
++		return SS_CW_FAILED_BY_PEER;
++
++	rv = 0;
++	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
++	os = mdev->state;
++	ns.i = (os.i & ~mask.i) | val.i;
++	ns = sanitize_state(mdev, os, ns, NULL);
++
++	if (!cl_wide_st_chg(mdev, os, ns))
++		rv = SS_CW_NO_NEED;
++	if (!rv) {
++		rv = is_valid_state(mdev, ns);
++		if (rv == SS_SUCCESS) {
++			rv = is_valid_soft_transition(os, ns);
++			if (rv == SS_SUCCESS)
++				rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
++		}
++	}
++	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
++
++	return rv;
++}
++
++/**
++ * drbd_req_state() - Perform an eventually cluster wide state change
++ * @mdev:	DRBD device.
++ * @mask:	mask of state bits to change.
++ * @val:	value of new state bits.
++ * @f:		flags
++ *
++ * Should not be called directly, use drbd_request_state() or
++ * _drbd_request_state().
++ */
++static enum drbd_state_rv
++drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
++	       union drbd_state val, enum chg_state_flags f)
++{
++	struct completion done;
++	unsigned long flags;
++	union drbd_state os, ns;
++	enum drbd_state_rv rv;
++
++	init_completion(&done);
++
++	if (f & CS_SERIALIZE)
++		mutex_lock(&mdev->state_mutex);
++
++	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
++	os = mdev->state;
++	ns.i = (os.i & ~mask.i) | val.i;
++
++	ns = sanitize_state(mdev, os, ns, NULL);
++
++	if (cl_wide_st_chg(mdev, os, ns)) {
++		rv = is_valid_state(mdev, ns);
++		if (rv == SS_SUCCESS)
++			rv = is_valid_soft_transition(os, ns);
++		spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
++
++		if (rv < SS_SUCCESS) {
++			if (f & CS_VERBOSE)
++				print_st_err(mdev, os, ns, rv);
++			goto abort;
++		}
++
++		drbd_state_lock(mdev);
++		if (!drbd_send_state_req(mdev, mask, val)) {
++			drbd_state_unlock(mdev);
++			rv = SS_CW_FAILED_BY_PEER;
++			if (f & CS_VERBOSE)
++				print_st_err(mdev, os, ns, rv);
++			goto abort;
++		}
++
++		wait_event(mdev->state_wait,
++			(rv = _req_st_cond(mdev, mask, val)));
++
++		if (rv < SS_SUCCESS) {
++			drbd_state_unlock(mdev);
++			if (f & CS_VERBOSE)
++				print_st_err(mdev, os, ns, rv);
++			goto abort;
++		}
++		spin_lock_irqsave(&mdev->tconn->req_lock, flags);
++		os = mdev->state;
++		ns.i = (os.i & ~mask.i) | val.i;
++		rv = _drbd_set_state(mdev, ns, f, &done);
++		drbd_state_unlock(mdev);
++	} else {
++		rv = _drbd_set_state(mdev, ns, f, &done);
++	}
++
++	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
++
++	if (f & CS_WAIT_COMPLETE && rv == SS_SUCCESS) {
++		D_ASSERT(current != mdev->tconn->worker.task);
++		wait_for_completion(&done);
++	}
++
++abort:
++	if (f & CS_SERIALIZE)
++		mutex_unlock(&mdev->state_mutex);
++
++	return rv;
++}
++
++/**
++ * _drbd_request_state() - Request a state change (with flags)
++ * @mdev:	DRBD device.
++ * @mask:	mask of state bits to change.
++ * @val:	value of new state bits.
++ * @f:		flags
++ *
++ * Cousin of drbd_request_state(), useful with the CS_WAIT_COMPLETE
++ * flag, or when logging of failed state change requests is not desired.
++ */
++enum drbd_state_rv
++_drbd_request_state(struct drbd_conf *mdev, union drbd_state mask,
++		    union drbd_state val, enum chg_state_flags f)
++{
++	enum drbd_state_rv rv;
++
++	wait_event(mdev->state_wait,
++		   (rv = drbd_req_state(mdev, mask, val, f)) != SS_IN_TRANSIENT_STATE);
++
++	return rv;
++}
++
++static void print_st(struct drbd_conf *mdev, char *name, union drbd_state ns)
++{
++	dev_err(DEV, " %s = { cs:%s ro:%s/%s ds:%s/%s %c%c%c%c%c%c }\n",
++	    name,
++	    drbd_conn_str(ns.conn),
++	    drbd_role_str(ns.role),
++	    drbd_role_str(ns.peer),
++	    drbd_disk_str(ns.disk),
++	    drbd_disk_str(ns.pdsk),
++	    is_susp(ns) ? 's' : 'r',
++	    ns.aftr_isp ? 'a' : '-',
++	    ns.peer_isp ? 'p' : '-',
++	    ns.user_isp ? 'u' : '-',
++	    ns.susp_fen ? 'F' : '-',
++	    ns.susp_nod ? 'N' : '-'
++	    );
++}
++
++void print_st_err(struct drbd_conf *mdev, union drbd_state os,
++	          union drbd_state ns, enum drbd_state_rv err)
++{
++	if (err == SS_IN_TRANSIENT_STATE)
++		return;
++	dev_err(DEV, "State change failed: %s\n", drbd_set_st_err_str(err));
++	print_st(mdev, " state", os);
++	print_st(mdev, "wanted", ns);
++}
++
++
++/**
++ * is_valid_state() - Returns an SS_ error code if ns is not valid
++ * @mdev:	DRBD device.
++ * @ns:		State to consider.
++ */
++static enum drbd_state_rv
++is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
++{
++	/* See drbd_state_sw_errors in drbd_strings.c */
++
++	enum drbd_fencing_p fp;
++	enum drbd_state_rv rv = SS_SUCCESS;
++
++	fp = FP_DONT_CARE;
++	if (get_ldev(mdev)) {
++		fp = mdev->ldev->dc.fencing;
++		put_ldev(mdev);
++	}
++
++	if (get_net_conf(mdev->tconn)) {
++		if (!mdev->tconn->net_conf->two_primaries &&
++		    ns.role == R_PRIMARY && ns.peer == R_PRIMARY)
++			rv = SS_TWO_PRIMARIES;
++		put_net_conf(mdev->tconn);
++	}
++
++	if (rv <= 0)
++		/* already found a reason to abort */;
++	else if (ns.role == R_SECONDARY && mdev->open_cnt)
++		rv = SS_DEVICE_IN_USE;
++
++	else if (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.disk < D_UP_TO_DATE)
++		rv = SS_NO_UP_TO_DATE_DISK;
++
++	else if (fp >= FP_RESOURCE &&
++		 ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk >= D_UNKNOWN)
++		rv = SS_PRIMARY_NOP;
++
++	else if (ns.role == R_PRIMARY && ns.disk <= D_INCONSISTENT && ns.pdsk <= D_INCONSISTENT)
++		rv = SS_NO_UP_TO_DATE_DISK;
++
++	else if (ns.conn > C_CONNECTED && ns.disk < D_INCONSISTENT)
++		rv = SS_NO_LOCAL_DISK;
++
++	else if (ns.conn > C_CONNECTED && ns.pdsk < D_INCONSISTENT)
++		rv = SS_NO_REMOTE_DISK;
++
++	else if (ns.conn > C_CONNECTED && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE)
++		rv = SS_NO_UP_TO_DATE_DISK;
++
++	else if ((ns.conn == C_CONNECTED ||
++		  ns.conn == C_WF_BITMAP_S ||
++		  ns.conn == C_SYNC_SOURCE ||
++		  ns.conn == C_PAUSED_SYNC_S) &&
++		  ns.disk == D_OUTDATED)
++		rv = SS_CONNECTED_OUTDATES;
++
++	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
++		 (mdev->sync_conf.verify_alg[0] == 0))
++		rv = SS_NO_VERIFY_ALG;
++
++	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
++		  mdev->tconn->agreed_pro_version < 88)
++		rv = SS_NOT_SUPPORTED;
++
++	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
++		rv = SS_CONNECTED_OUTDATES;
++
++	return rv;
++}
++
++/**
++ * is_valid_soft_transition() - Returns an SS_ error code if the state transition is not possible
++ * @mdev:	DRBD device.
++ * @ns:		new state.
++ * @os:		old state.
++ */
++static enum drbd_state_rv
++is_valid_soft_transition(union drbd_state os, union drbd_state ns)
++{
++	enum drbd_state_rv rv = SS_SUCCESS;
++
++	if ((ns.conn == C_STARTING_SYNC_T || ns.conn == C_STARTING_SYNC_S) &&
++	    os.conn > C_CONNECTED)
++		rv = SS_RESYNC_RUNNING;
++
++	if (ns.conn == C_DISCONNECTING && os.conn == C_STANDALONE)
++		rv = SS_ALREADY_STANDALONE;
++
++	if (ns.disk > D_ATTACHING && os.disk == D_DISKLESS)
++		rv = SS_IS_DISKLESS;
++
++	if (ns.conn == C_WF_CONNECTION && os.conn < C_UNCONNECTED)
++		rv = SS_NO_NET_CONFIG;
++
++	if (ns.disk == D_OUTDATED && os.disk < D_OUTDATED && os.disk != D_ATTACHING)
++		rv = SS_LOWER_THAN_OUTDATED;
++
++	if (ns.conn == C_DISCONNECTING && os.conn == C_UNCONNECTED)
++		rv = SS_IN_TRANSIENT_STATE;
++
++	if (ns.conn == os.conn && ns.conn == C_WF_REPORT_PARAMS)
++		rv = SS_IN_TRANSIENT_STATE;
++
++	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
++		rv = SS_NEED_CONNECTION;
++
++	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
++	    ns.conn != os.conn && os.conn > C_CONNECTED)
++		rv = SS_RESYNC_RUNNING;
++
++	if ((ns.conn == C_STARTING_SYNC_S || ns.conn == C_STARTING_SYNC_T) &&
++	    os.conn < C_CONNECTED)
++		rv = SS_NEED_CONNECTION;
++
++	if ((ns.conn == C_SYNC_TARGET || ns.conn == C_SYNC_SOURCE)
++	    && os.conn < C_WF_REPORT_PARAMS)
++		rv = SS_NEED_CONNECTION; /* No NetworkFailure -> SyncTarget etc... */
++
++	return rv;
++}
++
++/**
++ * sanitize_state() - Resolves implicitly necessary additional changes to a state transition
++ * @mdev:	DRBD device.
++ * @os:		old state.
++ * @ns:		new state.
++ * @warn_sync_abort:
++ *
++ * When we loose connection, we have to set the state of the peers disk (pdsk)
++ * to D_UNKNOWN. This rule and many more along those lines are in this function.
++ */
++static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
++				       union drbd_state ns, const char **warn_sync_abort)
++{
++	enum drbd_fencing_p fp;
++	enum drbd_disk_state disk_min, disk_max, pdsk_min, pdsk_max;
++
++	fp = FP_DONT_CARE;
++	if (get_ldev(mdev)) {
++		fp = mdev->ldev->dc.fencing;
++		put_ldev(mdev);
++	}
++
++	/* Disallow Network errors to configure a device's network part */
++	if ((ns.conn >= C_TIMEOUT && ns.conn <= C_TEAR_DOWN) &&
++	    os.conn <= C_DISCONNECTING)
++		ns.conn = os.conn;
++
++	/* After a network error (+C_TEAR_DOWN) only C_UNCONNECTED or C_DISCONNECTING can follow.
++	 * If you try to go into some Sync* state, that shall fail (elsewhere). */
++	if (os.conn >= C_TIMEOUT && os.conn <= C_TEAR_DOWN &&
++	    ns.conn != C_UNCONNECTED && ns.conn != C_DISCONNECTING && ns.conn <= C_TEAR_DOWN)
++		ns.conn = os.conn;
++
++	/* we cannot fail (again) if we already detached */
++	if (ns.disk == D_FAILED && os.disk == D_DISKLESS)
++		ns.disk = D_DISKLESS;
++
++	/* if we are only D_ATTACHING yet,
++	 * we can (and should) go directly to D_DISKLESS. */
++	if (ns.disk == D_FAILED && os.disk == D_ATTACHING)
++		ns.disk = D_DISKLESS;
++
++	/* After C_DISCONNECTING only C_STANDALONE may follow */
++	if (os.conn == C_DISCONNECTING && ns.conn != C_STANDALONE)
++		ns.conn = os.conn;
++
++	if (ns.conn < C_CONNECTED) {
++		ns.peer_isp = 0;
++		ns.peer = R_UNKNOWN;
++		if (ns.pdsk > D_UNKNOWN || ns.pdsk < D_INCONSISTENT)
++			ns.pdsk = D_UNKNOWN;
++	}
++
++	/* Clear the aftr_isp when becoming unconfigured */
++	if (ns.conn == C_STANDALONE && ns.disk == D_DISKLESS && ns.role == R_SECONDARY)
++		ns.aftr_isp = 0;
++
++	/* Abort resync if a disk fails/detaches */
++	if (os.conn > C_CONNECTED && ns.conn > C_CONNECTED &&
++	    (ns.disk <= D_FAILED || ns.pdsk <= D_FAILED)) {
++		if (warn_sync_abort)
++			*warn_sync_abort =
++				os.conn == C_VERIFY_S || os.conn == C_VERIFY_T ?
++				"Online-verify" : "Resync";
++		ns.conn = C_CONNECTED;
++	}
++
++	/* Connection breaks down before we finished "Negotiating" */
++	if (ns.conn < C_CONNECTED && ns.disk == D_NEGOTIATING &&
++	    get_ldev_if_state(mdev, D_NEGOTIATING)) {
++		if (mdev->ed_uuid == mdev->ldev->md.uuid[UI_CURRENT]) {
++			ns.disk = mdev->new_state_tmp.disk;
++			ns.pdsk = mdev->new_state_tmp.pdsk;
++		} else {
++			dev_alert(DEV, "Connection lost while negotiating, no data!\n");
++			ns.disk = D_DISKLESS;
++			ns.pdsk = D_UNKNOWN;
++		}
++		put_ldev(mdev);
++	}
++
++	/* D_CONSISTENT and D_OUTDATED vanish when we get connected */
++	if (ns.conn >= C_CONNECTED && ns.conn < C_AHEAD) {
++		if (ns.disk == D_CONSISTENT || ns.disk == D_OUTDATED)
++			ns.disk = D_UP_TO_DATE;
++		if (ns.pdsk == D_CONSISTENT || ns.pdsk == D_OUTDATED)
++			ns.pdsk = D_UP_TO_DATE;
++	}
++
++	/* Implications of the connection stat on the disk states */
++	disk_min = D_DISKLESS;
++	disk_max = D_UP_TO_DATE;
++	pdsk_min = D_INCONSISTENT;
++	pdsk_max = D_UNKNOWN;
++	switch ((enum drbd_conns)ns.conn) {
++	case C_WF_BITMAP_T:
++	case C_PAUSED_SYNC_T:
++	case C_STARTING_SYNC_T:
++	case C_WF_SYNC_UUID:
++	case C_BEHIND:
++		disk_min = D_INCONSISTENT;
++		disk_max = D_OUTDATED;
++		pdsk_min = D_UP_TO_DATE;
++		pdsk_max = D_UP_TO_DATE;
++		break;
++	case C_VERIFY_S:
++	case C_VERIFY_T:
++		disk_min = D_UP_TO_DATE;
++		disk_max = D_UP_TO_DATE;
++		pdsk_min = D_UP_TO_DATE;
++		pdsk_max = D_UP_TO_DATE;
++		break;
++	case C_CONNECTED:
++		disk_min = D_DISKLESS;
++		disk_max = D_UP_TO_DATE;
++		pdsk_min = D_DISKLESS;
++		pdsk_max = D_UP_TO_DATE;
++		break;
++	case C_WF_BITMAP_S:
++	case C_PAUSED_SYNC_S:
++	case C_STARTING_SYNC_S:
++	case C_AHEAD:
++		disk_min = D_UP_TO_DATE;
++		disk_max = D_UP_TO_DATE;
++		pdsk_min = D_INCONSISTENT;
++		pdsk_max = D_CONSISTENT; /* D_OUTDATED would be nice. But explicit outdate necessary*/
++		break;
++	case C_SYNC_TARGET:
++		disk_min = D_INCONSISTENT;
++		disk_max = D_INCONSISTENT;
++		pdsk_min = D_UP_TO_DATE;
++		pdsk_max = D_UP_TO_DATE;
++		break;
++	case C_SYNC_SOURCE:
++		disk_min = D_UP_TO_DATE;
++		disk_max = D_UP_TO_DATE;
++		pdsk_min = D_INCONSISTENT;
++		pdsk_max = D_INCONSISTENT;
++		break;
++	case C_STANDALONE:
++	case C_DISCONNECTING:
++	case C_UNCONNECTED:
++	case C_TIMEOUT:
++	case C_BROKEN_PIPE:
++	case C_NETWORK_FAILURE:
++	case C_PROTOCOL_ERROR:
++	case C_TEAR_DOWN:
++	case C_WF_CONNECTION:
++	case C_WF_REPORT_PARAMS:
++	case C_MASK:
++		break;
++	}
++	if (ns.disk > disk_max)
++		ns.disk = disk_max;
++
++	if (ns.disk < disk_min) {
++		dev_warn(DEV, "Implicitly set disk from %s to %s\n",
++			 drbd_disk_str(ns.disk), drbd_disk_str(disk_min));
++		ns.disk = disk_min;
++	}
++	if (ns.pdsk > pdsk_max)
++		ns.pdsk = pdsk_max;
++
++	if (ns.pdsk < pdsk_min) {
++		dev_warn(DEV, "Implicitly set pdsk from %s to %s\n",
++			 drbd_disk_str(ns.pdsk), drbd_disk_str(pdsk_min));
++		ns.pdsk = pdsk_min;
++	}
++
++	if (fp == FP_STONITH &&
++	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED) &&
++	    !(os.role == R_PRIMARY && os.conn < C_CONNECTED && os.pdsk > D_OUTDATED))
++		ns.susp_fen = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
++
++	if (mdev->sync_conf.on_no_data == OND_SUSPEND_IO &&
++	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE) &&
++	    !(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE))
++		ns.susp_nod = 1; /* Suspend IO while no data available (no accessible data available) */
++
++	if (ns.aftr_isp || ns.peer_isp || ns.user_isp) {
++		if (ns.conn == C_SYNC_SOURCE)
++			ns.conn = C_PAUSED_SYNC_S;
++		if (ns.conn == C_SYNC_TARGET)
++			ns.conn = C_PAUSED_SYNC_T;
++	} else {
++		if (ns.conn == C_PAUSED_SYNC_S)
++			ns.conn = C_SYNC_SOURCE;
++		if (ns.conn == C_PAUSED_SYNC_T)
++			ns.conn = C_SYNC_TARGET;
++	}
++
++	return ns;
++}
++
++void drbd_resume_al(struct drbd_conf *mdev)
++{
++	if (test_and_clear_bit(AL_SUSPENDED, &mdev->flags))
++		dev_info(DEV, "Resumed AL updates\n");
++}
++
++/* helper for __drbd_set_state */
++static void set_ov_position(struct drbd_conf *mdev, enum drbd_conns cs)
++{
++	if (mdev->tconn->agreed_pro_version < 90)
++		mdev->ov_start_sector = 0;
++	mdev->rs_total = drbd_bm_bits(mdev);
++	mdev->ov_position = 0;
++	if (cs == C_VERIFY_T) {
++		/* starting online verify from an arbitrary position
++		 * does not fit well into the existing protocol.
++		 * on C_VERIFY_T, we initialize ov_left and friends
++		 * implicitly in receive_DataRequest once the
++		 * first P_OV_REQUEST is received */
++		mdev->ov_start_sector = ~(sector_t)0;
++	} else {
++		unsigned long bit = BM_SECT_TO_BIT(mdev->ov_start_sector);
++		if (bit >= mdev->rs_total) {
++			mdev->ov_start_sector =
++				BM_BIT_TO_SECT(mdev->rs_total - 1);
++			mdev->rs_total = 1;
++		} else
++			mdev->rs_total -= bit;
++		mdev->ov_position = mdev->ov_start_sector;
++	}
++	mdev->ov_left = mdev->rs_total;
++}
++
++/**
++ * __drbd_set_state() - Set a new DRBD state
++ * @mdev:	DRBD device.
++ * @ns:		new state.
++ * @flags:	Flags
++ * @done:	Optional completion, that will get completed after the after_state_ch() finished
++ *
++ * Caller needs to hold req_lock, and global_state_lock. Do not call directly.
++ */
++enum drbd_state_rv
++__drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
++	         enum chg_state_flags flags, struct completion *done)
++{
++	union drbd_state os;
++	enum drbd_state_rv rv = SS_SUCCESS;
++	const char *warn_sync_abort = NULL;
++	struct after_state_chg_work *ascw;
++
++	os = mdev->state;
++
++	ns = sanitize_state(mdev, os, ns, &warn_sync_abort);
++
++	if (ns.i == os.i)
++		return SS_NOTHING_TO_DO;
++
++	if (!(flags & CS_HARD)) {
++		/*  pre-state-change checks ; only look at ns  */
++		/* See drbd_state_sw_errors in drbd_strings.c */
++
++		rv = is_valid_state(mdev, ns);
++		if (rv < SS_SUCCESS) {
++			/* If the old state was illegal as well, then let
++			   this happen...*/
++
++			if (is_valid_state(mdev, os) == rv)
++				rv = is_valid_soft_transition(os, ns);
++		} else
++			rv = is_valid_soft_transition(os, ns);
++	}
++
++	if (rv < SS_SUCCESS) {
++		if (flags & CS_VERBOSE)
++			print_st_err(mdev, os, ns, rv);
++		return rv;
++	}
++
++	if (warn_sync_abort)
++		dev_warn(DEV, "%s aborted.\n", warn_sync_abort);
++
++	{
++	char *pbp, pb[300];
++	pbp = pb;
++	*pbp = 0;
++	if (ns.role != os.role)
++		pbp += sprintf(pbp, "role( %s -> %s ) ",
++			       drbd_role_str(os.role),
++			       drbd_role_str(ns.role));
++	if (ns.peer != os.peer)
++		pbp += sprintf(pbp, "peer( %s -> %s ) ",
++			       drbd_role_str(os.peer),
++			       drbd_role_str(ns.peer));
++	if (ns.conn != os.conn)
++		pbp += sprintf(pbp, "conn( %s -> %s ) ",
++			       drbd_conn_str(os.conn),
++			       drbd_conn_str(ns.conn));
++	if (ns.disk != os.disk)
++		pbp += sprintf(pbp, "disk( %s -> %s ) ",
++			       drbd_disk_str(os.disk),
++			       drbd_disk_str(ns.disk));
++	if (ns.pdsk != os.pdsk)
++		pbp += sprintf(pbp, "pdsk( %s -> %s ) ",
++			       drbd_disk_str(os.pdsk),
++			       drbd_disk_str(ns.pdsk));
++	if (is_susp(ns) != is_susp(os))
++		pbp += sprintf(pbp, "susp( %d -> %d ) ",
++			       is_susp(os),
++			       is_susp(ns));
++	if (ns.aftr_isp != os.aftr_isp)
++		pbp += sprintf(pbp, "aftr_isp( %d -> %d ) ",
++			       os.aftr_isp,
++			       ns.aftr_isp);
++	if (ns.peer_isp != os.peer_isp)
++		pbp += sprintf(pbp, "peer_isp( %d -> %d ) ",
++			       os.peer_isp,
++			       ns.peer_isp);
++	if (ns.user_isp != os.user_isp)
++		pbp += sprintf(pbp, "user_isp( %d -> %d ) ",
++			       os.user_isp,
++			       ns.user_isp);
++	dev_info(DEV, "%s\n", pb);
++	}
++
++	/* solve the race between becoming unconfigured,
++	 * worker doing the cleanup, and
++	 * admin reconfiguring us:
++	 * on (re)configure, first set CONFIG_PENDING,
++	 * then wait for a potentially exiting worker,
++	 * start the worker, and schedule one no_op.
++	 * then proceed with configuration.
++	 */
++	if (ns.disk == D_DISKLESS &&
++	    ns.conn == C_STANDALONE &&
++	    ns.role == R_SECONDARY &&
++	    !test_and_set_bit(CONFIG_PENDING, &mdev->flags))
++		set_bit(DEVICE_DYING, &mdev->flags);
++
++	/* if we are going -> D_FAILED or D_DISKLESS, grab one extra reference
++	 * on the ldev here, to be sure the transition -> D_DISKLESS resp.
++	 * drbd_ldev_destroy() won't happen before our corresponding
++	 * after_state_ch works run, where we put_ldev again. */
++	if ((os.disk != D_FAILED && ns.disk == D_FAILED) ||
++	    (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))
++		atomic_inc(&mdev->local_cnt);
++
++	mdev->state = ns;
++
++	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
++		drbd_print_uuids(mdev, "attached to UUIDs");
++
++	wake_up(&mdev->misc_wait);
++	wake_up(&mdev->state_wait);
++
++	/* aborted verify run. log the last position */
++	if ((os.conn == C_VERIFY_S || os.conn == C_VERIFY_T) &&
++	    ns.conn < C_CONNECTED) {
++		mdev->ov_start_sector =
++			BM_BIT_TO_SECT(drbd_bm_bits(mdev) - mdev->ov_left);
++		dev_info(DEV, "Online Verify reached sector %llu\n",
++			(unsigned long long)mdev->ov_start_sector);
++	}
++
++	if ((os.conn == C_PAUSED_SYNC_T || os.conn == C_PAUSED_SYNC_S) &&
++	    (ns.conn == C_SYNC_TARGET  || ns.conn == C_SYNC_SOURCE)) {
++		dev_info(DEV, "Syncer continues.\n");
++		mdev->rs_paused += (long)jiffies
++				  -(long)mdev->rs_mark_time[mdev->rs_last_mark];
++		if (ns.conn == C_SYNC_TARGET)
++			mod_timer(&mdev->resync_timer, jiffies);
++	}
++
++	if ((os.conn == C_SYNC_TARGET  || os.conn == C_SYNC_SOURCE) &&
++	    (ns.conn == C_PAUSED_SYNC_T || ns.conn == C_PAUSED_SYNC_S)) {
++		dev_info(DEV, "Resync suspended\n");
++		mdev->rs_mark_time[mdev->rs_last_mark] = jiffies;
++	}
++
++	if (os.conn == C_CONNECTED &&
++	    (ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T)) {
++		unsigned long now = jiffies;
++		int i;
++
++		set_ov_position(mdev, ns.conn);
++		mdev->rs_start = now;
++		mdev->rs_last_events = 0;
++		mdev->rs_last_sect_ev = 0;
++		mdev->ov_last_oos_size = 0;
++		mdev->ov_last_oos_start = 0;
++
++		for (i = 0; i < DRBD_SYNC_MARKS; i++) {
++			mdev->rs_mark_left[i] = mdev->ov_left;
++			mdev->rs_mark_time[i] = now;
++		}
++
++		drbd_rs_controller_reset(mdev);
++
++		if (ns.conn == C_VERIFY_S) {
++			dev_info(DEV, "Starting Online Verify from sector %llu\n",
++					(unsigned long long)mdev->ov_position);
++			mod_timer(&mdev->resync_timer, jiffies);
++		}
++	}
++
++	if (get_ldev(mdev)) {
++		u32 mdf = mdev->ldev->md.flags & ~(MDF_CONSISTENT|MDF_PRIMARY_IND|
++						 MDF_CONNECTED_IND|MDF_WAS_UP_TO_DATE|
++						 MDF_PEER_OUT_DATED|MDF_CRASHED_PRIMARY);
++
++		if (test_bit(CRASHED_PRIMARY, &mdev->flags))
++			mdf |= MDF_CRASHED_PRIMARY;
++		if (mdev->state.role == R_PRIMARY ||
++		    (mdev->state.pdsk < D_INCONSISTENT && mdev->state.peer == R_PRIMARY))
++			mdf |= MDF_PRIMARY_IND;
++		if (mdev->state.conn > C_WF_REPORT_PARAMS)
++			mdf |= MDF_CONNECTED_IND;
++		if (mdev->state.disk > D_INCONSISTENT)
++			mdf |= MDF_CONSISTENT;
++		if (mdev->state.disk > D_OUTDATED)
++			mdf |= MDF_WAS_UP_TO_DATE;
++		if (mdev->state.pdsk <= D_OUTDATED && mdev->state.pdsk >= D_INCONSISTENT)
++			mdf |= MDF_PEER_OUT_DATED;
++		if (mdf != mdev->ldev->md.flags) {
++			mdev->ldev->md.flags = mdf;
++			drbd_md_mark_dirty(mdev);
++		}
++		if (os.disk < D_CONSISTENT && ns.disk >= D_CONSISTENT)
++			drbd_set_ed_uuid(mdev, mdev->ldev->md.uuid[UI_CURRENT]);
++		put_ldev(mdev);
++	}
++
++	/* Peer was forced D_UP_TO_DATE & R_PRIMARY, consider to resync */
++	if (os.disk == D_INCONSISTENT && os.pdsk == D_INCONSISTENT &&
++	    os.peer == R_SECONDARY && ns.peer == R_PRIMARY)
++		set_bit(CONSIDER_RESYNC, &mdev->flags);
++
++	/* Receiver should clean up itself */
++	if (os.conn != C_DISCONNECTING && ns.conn == C_DISCONNECTING)
++		drbd_thread_stop_nowait(&mdev->tconn->receiver);
++
++	/* Now the receiver finished cleaning up itself, it should die */
++	if (os.conn != C_STANDALONE && ns.conn == C_STANDALONE)
++		drbd_thread_stop_nowait(&mdev->tconn->receiver);
++
++	/* Upon network failure, we need to restart the receiver. */
++	if (os.conn > C_TEAR_DOWN &&
++	    ns.conn <= C_TEAR_DOWN && ns.conn >= C_TIMEOUT)
++		drbd_thread_restart_nowait(&mdev->tconn->receiver);
++
++	/* Resume AL writing if we get a connection */
++	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
++		drbd_resume_al(mdev);
++
++	ascw = kmalloc(sizeof(*ascw), GFP_ATOMIC);
++	if (ascw) {
++		ascw->os = os;
++		ascw->ns = ns;
++		ascw->flags = flags;
++		ascw->w.cb = w_after_state_ch;
++		ascw->done = done;
++		drbd_queue_work(&mdev->tconn->data.work, &ascw->w);
++	} else {
++		dev_warn(DEV, "Could not kmalloc an ascw\n");
++	}
++
++	return rv;
++}
++
++static int w_after_state_ch(struct drbd_conf *mdev, struct drbd_work *w, int unused)
++{
++	struct after_state_chg_work *ascw =
++		container_of(w, struct after_state_chg_work, w);
++
++	after_state_ch(mdev, ascw->os, ascw->ns, ascw->flags);
++	if (ascw->flags & CS_WAIT_COMPLETE) {
++		D_ASSERT(ascw->done != NULL);
++		complete(ascw->done);
++	}
++	kfree(ascw);
++
++	return 1;
++}
++
++static void abw_start_sync(struct drbd_conf *mdev, int rv)
++{
++	if (rv) {
++		dev_err(DEV, "Writing the bitmap failed not starting resync.\n");
++		_drbd_request_state(mdev, NS(conn, C_CONNECTED), CS_VERBOSE);
++		return;
++	}
++
++	switch (mdev->state.conn) {
++	case C_STARTING_SYNC_T:
++		_drbd_request_state(mdev, NS(conn, C_WF_SYNC_UUID), CS_VERBOSE);
++		break;
++	case C_STARTING_SYNC_S:
++		drbd_start_resync(mdev, C_SYNC_SOURCE);
++		break;
++	}
++}
++
++int drbd_bitmap_io_from_worker(struct drbd_conf *mdev,
++		int (*io_fn)(struct drbd_conf *),
++		char *why, enum bm_flag flags)
++{
++	int rv;
++
++	D_ASSERT(current == mdev->tconn->worker.task);
++
++	/* open coded non-blocking drbd_suspend_io(mdev); */
++	set_bit(SUSPEND_IO, &mdev->flags);
++
++	drbd_bm_lock(mdev, why, flags);
++	rv = io_fn(mdev);
++	drbd_bm_unlock(mdev);
++
++	drbd_resume_io(mdev);
++
++	return rv;
++}
++
++/**
++ * after_state_ch() - Perform after state change actions that may sleep
++ * @mdev:	DRBD device.
++ * @os:		old state.
++ * @ns:		new state.
++ * @flags:	Flags
++ */
++static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
++			   union drbd_state ns, enum chg_state_flags flags)
++{
++	enum drbd_fencing_p fp;
++	enum drbd_req_event what = NOTHING;
++	union drbd_state nsm = (union drbd_state){ .i = -1 };
++
++	if (os.conn != C_CONNECTED && ns.conn == C_CONNECTED) {
++		clear_bit(CRASHED_PRIMARY, &mdev->flags);
++		if (mdev->p_uuid)
++			mdev->p_uuid[UI_FLAGS] &= ~((u64)2);
++	}
++
++	fp = FP_DONT_CARE;
++	if (get_ldev(mdev)) {
++		fp = mdev->ldev->dc.fencing;
++		put_ldev(mdev);
++	}
++
++	/* Inform userspace about the change... */
++	drbd_bcast_state(mdev, ns);
++
++	if (!(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE) &&
++	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE))
++		drbd_khelper(mdev, "pri-on-incon-degr");
++
++	/* Here we have the actions that are performed after a
++	   state change. This function might sleep */
++
++	nsm.i = -1;
++	if (ns.susp_nod) {
++		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
++			what = RESEND;
++
++		if (os.disk == D_ATTACHING && ns.disk > D_ATTACHING)
++			what = RESTART_FROZEN_DISK_IO;
++
++		if (what != NOTHING)
++			nsm.susp_nod = 0;
++	}
++
++	if (ns.susp_fen) {
++		/* case1: The outdate peer handler is successful: */
++		if (os.pdsk > D_OUTDATED  && ns.pdsk <= D_OUTDATED) {
++			tl_clear(mdev);
++			if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
++				drbd_uuid_new_current(mdev);
++				clear_bit(NEW_CUR_UUID, &mdev->flags);
++			}
++			spin_lock_irq(&mdev->tconn->req_lock);
++			_drbd_set_state(_NS(mdev, susp_fen, 0), CS_VERBOSE, NULL);
++			spin_unlock_irq(&mdev->tconn->req_lock);
++		}
++		/* case2: The connection was established again: */
++		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
++			clear_bit(NEW_CUR_UUID, &mdev->flags);
++			what = RESEND;
++			nsm.susp_fen = 0;
++		}
++	}
++
++	if (what != NOTHING) {
++		spin_lock_irq(&mdev->tconn->req_lock);
++		_tl_restart(mdev, what);
++		nsm.i &= mdev->state.i;
++		_drbd_set_state(mdev, nsm, CS_VERBOSE, NULL);
++		spin_unlock_irq(&mdev->tconn->req_lock);
++	}
++
++	/* Became sync source.  With protocol >= 96, we still need to send out
++	 * the sync uuid now. Need to do that before any drbd_send_state, or
++	 * the other side may go "paused sync" before receiving the sync uuids,
++	 * which is unexpected. */
++	if ((os.conn != C_SYNC_SOURCE && os.conn != C_PAUSED_SYNC_S) &&
++	    (ns.conn == C_SYNC_SOURCE || ns.conn == C_PAUSED_SYNC_S) &&
++	    mdev->tconn->agreed_pro_version >= 96 && get_ldev(mdev)) {
++		drbd_gen_and_send_sync_uuid(mdev);
++		put_ldev(mdev);
++	}
++
++	/* Do not change the order of the if above and the two below... */
++	if (os.pdsk == D_DISKLESS && ns.pdsk > D_DISKLESS) {      /* attach on the peer */
++		drbd_send_uuids(mdev);
++		drbd_send_state(mdev);
++	}
++	/* No point in queuing send_bitmap if we don't have a connection
++	 * anymore, so check also the _current_ state, not only the new state
++	 * at the time this work was queued. */
++	if (os.conn != C_WF_BITMAP_S && ns.conn == C_WF_BITMAP_S &&
++	    mdev->state.conn == C_WF_BITMAP_S)
++		drbd_queue_bitmap_io(mdev, &drbd_send_bitmap, NULL,
++				"send_bitmap (WFBitMapS)",
++				BM_LOCKED_TEST_ALLOWED);
++
++	/* Lost contact to peer's copy of the data */
++	if ((os.pdsk >= D_INCONSISTENT &&
++	     os.pdsk != D_UNKNOWN &&
++	     os.pdsk != D_OUTDATED)
++	&&  (ns.pdsk < D_INCONSISTENT ||
++	     ns.pdsk == D_UNKNOWN ||
++	     ns.pdsk == D_OUTDATED)) {
++		if (get_ldev(mdev)) {
++			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
++			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
++				if (is_susp(mdev->state)) {
++					set_bit(NEW_CUR_UUID, &mdev->flags);
++				} else {
++					drbd_uuid_new_current(mdev);
++					drbd_send_uuids(mdev);
++				}
++			}
++			put_ldev(mdev);
++		}
++	}
++
++	if (ns.pdsk < D_INCONSISTENT && get_ldev(mdev)) {
++		if (ns.peer == R_PRIMARY && mdev->ldev->md.uuid[UI_BITMAP] == 0) {
++			drbd_uuid_new_current(mdev);
++			drbd_send_uuids(mdev);
++		}
++
++		/* D_DISKLESS Peer becomes secondary */
++		if (os.peer == R_PRIMARY && ns.peer == R_SECONDARY)
++			/* We may still be Primary ourselves.
++			 * No harm done if the bitmap still changes,
++			 * redirtied pages will follow later. */
++			drbd_bitmap_io_from_worker(mdev, &drbd_bm_write,
++				"demote diskless peer", BM_LOCKED_SET_ALLOWED);
++		put_ldev(mdev);
++	}
++
++	/* Write out all changed bits on demote.
++	 * Though, no need to da that just yet
++	 * if there is a resync going on still */
++	if (os.role == R_PRIMARY && ns.role == R_SECONDARY &&
++		mdev->state.conn <= C_CONNECTED && get_ldev(mdev)) {
++		/* No changes to the bitmap expected this time, so assert that,
++		 * even though no harm was done if it did change. */
++		drbd_bitmap_io_from_worker(mdev, &drbd_bm_write,
++				"demote", BM_LOCKED_TEST_ALLOWED);
++		put_ldev(mdev);
++	}
++
++	/* Last part of the attaching process ... */
++	if (ns.conn >= C_CONNECTED &&
++	    os.disk == D_ATTACHING && ns.disk == D_NEGOTIATING) {
++		drbd_send_sizes(mdev, 0, 0);  /* to start sync... */
++		drbd_send_uuids(mdev);
++		drbd_send_state(mdev);
++	}
++
++	/* We want to pause/continue resync, tell peer. */
++	if (ns.conn >= C_CONNECTED &&
++	     ((os.aftr_isp != ns.aftr_isp) ||
++	      (os.user_isp != ns.user_isp)))
++		drbd_send_state(mdev);
++
++	/* In case one of the isp bits got set, suspend other devices. */
++	if ((!os.aftr_isp && !os.peer_isp && !os.user_isp) &&
++	    (ns.aftr_isp || ns.peer_isp || ns.user_isp))
++		suspend_other_sg(mdev);
++
++	/* Make sure the peer gets informed about eventual state
++	   changes (ISP bits) while we were in WFReportParams. */
++	if (os.conn == C_WF_REPORT_PARAMS && ns.conn >= C_CONNECTED)
++		drbd_send_state(mdev);
++
++	if (os.conn != C_AHEAD && ns.conn == C_AHEAD)
++		drbd_send_state(mdev);
++
++	/* We are in the progress to start a full sync... */
++	if ((os.conn != C_STARTING_SYNC_T && ns.conn == C_STARTING_SYNC_T) ||
++	    (os.conn != C_STARTING_SYNC_S && ns.conn == C_STARTING_SYNC_S))
++		/* no other bitmap changes expected during this phase */
++		drbd_queue_bitmap_io(mdev,
++			&drbd_bmio_set_n_write, &abw_start_sync,
++			"set_n_write from StartingSync", BM_LOCKED_TEST_ALLOWED);
++
++	/* We are invalidating our self... */
++	if (os.conn < C_CONNECTED && ns.conn < C_CONNECTED &&
++	    os.disk > D_INCONSISTENT && ns.disk == D_INCONSISTENT)
++		/* other bitmap operation expected during this phase */
++		drbd_queue_bitmap_io(mdev, &drbd_bmio_set_n_write, NULL,
++			"set_n_write from invalidate", BM_LOCKED_MASK);
++
++	/* first half of local IO error, failure to attach,
++	 * or administrative detach */
++	if (os.disk != D_FAILED && ns.disk == D_FAILED) {
++		enum drbd_io_error_p eh;
++		int was_io_error;
++		/* corresponding get_ldev was in __drbd_set_state, to serialize
++		 * our cleanup here with the transition to D_DISKLESS,
++		 * so it is safe to dreference ldev here. */
++		eh = mdev->ldev->dc.on_io_error;
++		was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
++
++		/* current state still has to be D_FAILED,
++		 * there is only one way out: to D_DISKLESS,
++		 * and that may only happen after our put_ldev below. */
++		if (mdev->state.disk != D_FAILED)
++			dev_err(DEV,
++				"ASSERT FAILED: disk is %s during detach\n",
++				drbd_disk_str(mdev->state.disk));
++
++		if (drbd_send_state(mdev))
++			dev_warn(DEV, "Notified peer that I am detaching my disk\n");
++		else
++			dev_err(DEV, "Sending state for detaching disk failed\n");
++
++		drbd_rs_cancel_all(mdev);
++
++		/* In case we want to get something to stable storage still,
++		 * this may be the last chance.
++		 * Following put_ldev may transition to D_DISKLESS. */
++		drbd_md_sync(mdev);
++		put_ldev(mdev);
++
++		if (was_io_error && eh == EP_CALL_HELPER)
++			drbd_khelper(mdev, "local-io-error");
++	}
++
++        /* second half of local IO error, failure to attach,
++         * or administrative detach,
++         * after local_cnt references have reached zero again */
++        if (os.disk != D_DISKLESS && ns.disk == D_DISKLESS) {
++                /* We must still be diskless,
++                 * re-attach has to be serialized with this! */
++                if (mdev->state.disk != D_DISKLESS)
++                        dev_err(DEV,
++                                "ASSERT FAILED: disk is %s while going diskless\n",
++                                drbd_disk_str(mdev->state.disk));
++
++                mdev->rs_total = 0;
++                mdev->rs_failed = 0;
++                atomic_set(&mdev->rs_pending_cnt, 0);
++
++		if (drbd_send_state(mdev))
++			dev_warn(DEV, "Notified peer that I'm now diskless.\n");
++		/* corresponding get_ldev in __drbd_set_state
++		 * this may finally trigger drbd_ldev_destroy. */
++		put_ldev(mdev);
++	}
++
++	/* Notify peer that I had a local IO error, and did not detached.. */
++	if (os.disk == D_UP_TO_DATE && ns.disk == D_INCONSISTENT)
++		drbd_send_state(mdev);
++
++	/* Disks got bigger while they were detached */
++	if (ns.disk > D_NEGOTIATING && ns.pdsk > D_NEGOTIATING &&
++	    test_and_clear_bit(RESYNC_AFTER_NEG, &mdev->flags)) {
++		if (ns.conn == C_CONNECTED)
++			resync_after_online_grow(mdev);
++	}
++
++	/* A resync finished or aborted, wake paused devices... */
++	if ((os.conn > C_CONNECTED && ns.conn <= C_CONNECTED) ||
++	    (os.peer_isp && !ns.peer_isp) ||
++	    (os.user_isp && !ns.user_isp))
++		resume_next_sg(mdev);
++
++	/* sync target done with resync.  Explicitly notify peer, even though
++	 * it should (at least for non-empty resyncs) already know itself. */
++	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
++		drbd_send_state(mdev);
++
++	/* This triggers bitmap writeout of potentially still unwritten pages
++	 * if the resync finished cleanly, or aborted because of peer disk
++	 * failure, or because of connection loss.
++	 * For resync aborted because of local disk failure, we cannot do
++	 * any bitmap writeout anymore.
++	 * No harm done if some bits change during this phase.
++	 */
++	if (os.conn > C_CONNECTED && ns.conn <= C_CONNECTED && get_ldev(mdev)) {
++		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL,
++			"write from resync_finished", BM_LOCKED_SET_ALLOWED);
++		put_ldev(mdev);
++	}
++
++	if (ns.disk == D_DISKLESS &&
++	    ns.conn == C_STANDALONE &&
++	    ns.role == R_SECONDARY) {
++		if (os.aftr_isp != ns.aftr_isp)
++			resume_next_sg(mdev);
++	}
++
++	after_conn_state_ch(mdev->tconn, os, ns, flags);
++	drbd_md_sync(mdev);
++}
++
++static void after_conn_state_ch(struct drbd_tconn *tconn, union drbd_state os,
++				union drbd_state ns, enum chg_state_flags flags)
++{
++	/* Upon network configuration, we need to start the receiver */
++	if (os.conn == C_STANDALONE && ns.conn == C_UNCONNECTED)
++		drbd_thread_start(&tconn->receiver);
++
++	if (ns.disk == D_DISKLESS &&
++	    ns.conn == C_STANDALONE &&
++	    ns.role == R_SECONDARY) {
++		/* if (test_bit(DEVICE_DYING, &mdev->flags)) TODO: DEVICE_DYING functionality */
++		drbd_thread_stop_nowait(&tconn->worker);
++	}
++}
+diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
+new file mode 100644
+index 0000000..3ec26e2
+--- /dev/null
++++ b/drivers/block/drbd/drbd_state.h
+@@ -0,0 +1,101 @@
++#ifndef DRBD_STATE_H
++#define DRBD_STATE_H
++
++struct drbd_conf;
++
++/**
++ * DOC: DRBD State macros
++ *
++ * These macros are used to express state changes in easily readable form.
++ *
++ * The NS macros expand to a mask and a value, that can be bit ored onto the
++ * current state as soon as the spinlock (req_lock) was taken.
++ *
++ * The _NS macros are used for state functions that get called with the
++ * spinlock. These macros expand directly to the new state value.
++ *
++ * Besides the basic forms NS() and _NS() additional _?NS[23] are defined
++ * to express state changes that affect more than one aspect of the state.
++ *
++ * E.g. NS2(conn, C_CONNECTED, peer, R_SECONDARY)
++ * Means that the network connection was established and that the peer
++ * is in secondary role.
++ */
++#define role_MASK R_MASK
++#define peer_MASK R_MASK
++#define disk_MASK D_MASK
++#define pdsk_MASK D_MASK
++#define conn_MASK C_MASK
++#define susp_MASK 1
++#define user_isp_MASK 1
++#define aftr_isp_MASK 1
++#define susp_nod_MASK 1
++#define susp_fen_MASK 1
++
++#define NS(T, S) \
++	({ union drbd_state mask; mask.i = 0; mask.T = T##_MASK; mask; }), \
++	({ union drbd_state val; val.i = 0; val.T = (S); val; })
++#define NS2(T1, S1, T2, S2) \
++	({ union drbd_state mask; mask.i = 0; mask.T1 = T1##_MASK; \
++	  mask.T2 = T2##_MASK; mask; }), \
++	({ union drbd_state val; val.i = 0; val.T1 = (S1); \
++	  val.T2 = (S2); val; })
++#define NS3(T1, S1, T2, S2, T3, S3) \
++	({ union drbd_state mask; mask.i = 0; mask.T1 = T1##_MASK; \
++	  mask.T2 = T2##_MASK; mask.T3 = T3##_MASK; mask; }), \
++	({ union drbd_state val;  val.i = 0; val.T1 = (S1); \
++	  val.T2 = (S2); val.T3 = (S3); val; })
++
++#define _NS(D, T, S) \
++	D, ({ union drbd_state __ns; __ns.i = D->state.i; __ns.T = (S); __ns; })
++#define _NS2(D, T1, S1, T2, S2) \
++	D, ({ union drbd_state __ns; __ns.i = D->state.i; __ns.T1 = (S1); \
++	__ns.T2 = (S2); __ns; })
++#define _NS3(D, T1, S1, T2, S2, T3, S3) \
++	D, ({ union drbd_state __ns; __ns.i = D->state.i; __ns.T1 = (S1); \
++	__ns.T2 = (S2); __ns.T3 = (S3); __ns; })
++
++enum chg_state_flags {
++	CS_HARD	= 1,
++	CS_VERBOSE = 2,
++	CS_WAIT_COMPLETE = 4,
++	CS_SERIALIZE    = 8,
++	CS_ORDERED      = CS_WAIT_COMPLETE + CS_SERIALIZE,
++};
++
++extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,
++					    enum chg_state_flags f,
++					    union drbd_state mask,
++					    union drbd_state val);
++extern void drbd_force_state(struct drbd_conf *, union drbd_state,
++			union drbd_state);
++extern enum drbd_state_rv _drbd_request_state(struct drbd_conf *,
++					      union drbd_state,
++					      union drbd_state,
++					      enum chg_state_flags);
++extern enum drbd_state_rv __drbd_set_state(struct drbd_conf *, union drbd_state,
++					   enum chg_state_flags,
++					   struct completion *done);
++extern void print_st_err(struct drbd_conf *, union drbd_state,
++			union drbd_state, int);
++
++extern void drbd_resume_al(struct drbd_conf *mdev);
++
++/**
++ * drbd_request_state() - Reqest a state change
++ * @mdev:	DRBD device.
++ * @mask:	mask of state bits to change.
++ * @val:	value of new state bits.
++ *
++ * This is the most graceful way of requesting a state change. It is verbose
++ * quite verbose in case the state change is not possible, and all those
++ * state changes are globally serialized.
++ */
++static inline int drbd_request_state(struct drbd_conf *mdev,
++				     union drbd_state mask,
++				     union drbd_state val)
++{
++	return _drbd_request_state(mdev, mask, val, CS_VERBOSE + CS_ORDERED);
++}
++
++#endif
 -- 
 1.7.4.1
 
