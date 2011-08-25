@@ -2,12 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:06:57 +0200
-Message-Id: <1314284934-17999-2-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:06:58 +0200
+Message-Id: <1314284934-17999-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 001/118] drbd: Get rid of req_validator_fn typedef
+Subject: [Drbd-dev] [PATCH 002/118] drbd: Remove superfluous declaration
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,27 +22,21 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |    6 ++----
- 1 files changed, 2 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_int.h |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 43beaca..d499aa6 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4270,11 +4270,9 @@ static struct drbd_request *_ack_id_to_req(struct drbd_conf *mdev,
- 	return NULL;
- }
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index ef2ceed..88b247e 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -689,7 +689,6 @@ struct drbd_work {
+ 	drbd_work_cb cb;
+ };
  
--typedef struct drbd_request *(req_validator_fn)
--	(struct drbd_conf *mdev, u64 id, sector_t sector);
--
- static int validate_req_change_req_state(struct drbd_conf *mdev,
--	u64 id, sector_t sector, req_validator_fn validator,
-+	u64 id, sector_t sector,
-+	struct drbd_request *(*validator)(struct drbd_conf *, u64, sector_t),
- 	const char *func, enum drbd_req_event what)
- {
- 	struct drbd_request *req;
+-struct drbd_tl_epoch;
+ struct drbd_request {
+ 	struct drbd_work w;
+ 	struct drbd_conf *mdev;
 -- 
 1.7.4.1
 
