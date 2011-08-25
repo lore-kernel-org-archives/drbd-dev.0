@@ -1,27 +1,24 @@
-Return-Path: <kyle@moffetthome.net>
-Received: from mail-wy0-f182.google.com (mail-wy0-f182.google.com
-	[74.125.82.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 277C31055FB9
+	for <drbd-dev@lists.linbit.com>; Thu, 25 Aug 2011 10:56:56 +0200 (CEST)
+Resent-Message-ID: <20110825085653.GI14479@barkeeper1-xen.linbit>
+Received: from smtp-out.google.com (smtp-out.google.com [74.125.121.67])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6F2651055FBC
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Aug 2011 21:32:47 +0200 (CEST)
-Received: by wyh15 with SMTP id 15so2016125wyh.27
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Aug 2011 12:32:47 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E25711055FB9
+	for <drbd-dev@lists.linbit.com>; Thu, 25 Aug 2011 10:31:23 +0200 (CEST)
+From: =?UTF-8?q?Ren=C3=A9=20Nussbaumer?= <rn@google.com>
+To: linux-kernel@vger.kernel.org
+Date: Thu, 25 Aug 2011 10:20:03 +0200
+Message-Id: <1314260403-5572-1-git-send-email-rn@google.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOJsxLHNeZq-kOy2UorOTia7AO3UmfpaWm6gfx3WeW7J6F4hEw@mail.gmail.com>
-References: <201108241641.42676.philipp.reisner@linbit.com>
-	<CAGZ=bq+A1ExZYRnuBBwfAq7Ez37mpBtT1_T91AWcchDBZ3iqPw@mail.gmail.com>
-	<4E552E9C.2000104@kernel.dk>
-	<201108241949.43716.philipp.reisner@linbit.com>
-	<4E553ABF.3030904@kernel.dk>
-	<CAOJsxLHNeZq-kOy2UorOTia7AO3UmfpaWm6gfx3WeW7J6F4hEw@mail.gmail.com>
-From: Kyle Moffett <kyle@moffetthome.net>
-Date: Wed, 24 Aug 2011 15:32:26 -0400
-Message-ID: <CAGZ=bqLhcjzPDdb8mkGf5MbwqjrA_3ETLDe9Xiv-Wq2GnTgaUw@mail.gmail.com>
-To: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=UTF-8
-Cc: Jens Axboe <axboe@kernel.dk>, drbd-dev@lists.linbit.com,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org
-Subject: Re: [Drbd-dev] [GIT PULL] drbd-8.4 for mainline
+Content-Transfer-Encoding: 8bit
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com,
+	=?UTF-8?q?Ren=C3=A9=20Nussbaumer?= <rn@google.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>
+Subject: [Drbd-dev] [PATCH] DRBD: Fix /proc/drbd output
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -31,27 +28,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Aug 24, 2011 at 14:16, Pekka Enberg <penberg@kernel.org> wrote:
-> On Wed, Aug 24, 2011 at 8:54 PM, Jens Axboe <axboe@kernel.dk> wrote:
->> So, please do this right. The email you sent is perfect for a 0/N header
->> email, then each patch must follow as a reply to that. There's git
->> send-email to help you with this. If you haven't used it before, I'd
->> advise you to do a dry-run or two to your own email address to ensure
->> that it produces the right result. When it does, then send it off to
->> lkml and myself. Then I too will see reviews and have a better chance of
->> judging whether this is mergeable now or not.
->
-> Another thing: there's roughly 500 commit in the pull request. Please
-> don't send all of them at the same time if you want people to take a
-> look at them.
+Patch 4b0715f096 introduced an inconsistency in the output of /proc/drbd
+while resyncing. Before that patch the "finish:"-line was places on a
+new line with one tab indent. This is still true if the unit is KB but
+not if it's MB.
 
-Clearly you've been developing DRBD 8.4 for quite a while; it will save you
-a lot of time overall in the future to submit patches as soon as you have
-each one ready for review.
+This bug is not present in the upstream version of DRBD 8.3.11.
 
-You should be merging functional and code improvements continuously
-into every release window, instead of batching them up and submitting
-500 at a time.
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+CC: drbd-dev@lists.linbit.com
+Signed-off-by: René Nussbaumer <rn@google.com>
+---
+ drivers/block/drbd/drbd_proc.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
 
-Cheers,
-Kyle Moffett
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index 2959cdf..7340546 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -97,10 +97,12 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
+ 			    (unsigned long) Bit2KB(rs_left >> 10),
+ 			    (unsigned long) Bit2KB(mdev->rs_total >> 10));
+ 	else
+-		seq_printf(seq, "(%lu/%lu)K\n\t",
++		seq_printf(seq, "(%lu/%lu)K",
+ 			    (unsigned long) Bit2KB(rs_left),
+ 			    (unsigned long) Bit2KB(mdev->rs_total));
+ 
++	seq_printf(seq, "\n\t");
++
+ 	/* see drivers/md/md.c
+ 	 * We do not want to overflow, so the order of operands and
+ 	 * the * 100 / 100 trick are important. We do a +1 to be
+-- 
+1.7.3.1
+
