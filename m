@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:07 +0200
-Message-Id: <1314284934-17999-72-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:08 +0200
+Message-Id: <1314284934-17999-73-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 071/118] drbd: Started to separated connection
-	flags (tconn) from block device flags (mdev)
+Subject: [Drbd-dev] [PATCH 072/118] drbd: Moved DISCARD_CONCURRENT to the
+	per connection (tconn) flags
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,89 +21,111 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |   10 +++++++---
- drivers/block/drbd/drbd_main.c |    8 ++++----
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    2 +-
+ drivers/block/drbd/drbd_nl.c       |    2 +-
+ drivers/block/drbd/drbd_receiver.c |   14 +++++++-------
+ 3 files changed, 9 insertions(+), 9 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 1ecde6f..b325b0a 100644
+index b325b0a..a88bf7c 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -753,7 +753,7 @@ enum {
- #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
- #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
- 
--/* global flag bits */
-+/* flag bits per mdev */
+@@ -762,7 +762,6 @@ enum {
+ 	UNPLUG_QUEUED,		/* only relevant with kernel 2.4 */
+ 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
+ 	MD_DIRTY,		/* current uuids and flags not yet on disk */
+-	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
+ 	USE_DEGR_WFC_T,		/* degr-wfc-timeout instead of wfc-timeout. */
+ 	CLUSTER_ST_CHANGE,	/* Cluster wide state change going on... */
+ 	CL_ST_CHG_SUCCESS,
+@@ -910,6 +909,7 @@ struct fifo_buffer {
+ /* flag bits per tconn */
  enum {
- 	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
- 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
-@@ -781,8 +781,6 @@ enum {
- 	GO_DISKLESS,		/* Disk is being detached, on io-error or admin request. */
- 	WAS_IO_ERROR,		/* Local disk failed returned IO error */
- 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
--	NET_CONGESTED,		/* The data socket is congested */
--
- 	CONFIG_PENDING,		/* serialization of (re)configuration requests.
- 				 * if set, also prevents the device from dying */
- 	DEVICE_DYING,		/* device became unconfigured,
-@@ -909,10 +907,16 @@ struct fifo_buffer {
- 	unsigned int size;
+ 	NET_CONGESTED,		/* The data socket is congested */
++	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
  };
  
-+/* flag bits per tconn */
-+enum {
-+	NET_CONGESTED,		/* The data socket is congested */
-+};
-+
  struct drbd_tconn {			/* is a resource from the config file */
- 	char *name;			/* Resource name */
- 	struct list_head all_tconn;	/* List of all drbd_tconn, prot by global_state_lock */
- 	struct drbd_conf *volume0;	/* TODO: Remove me again */
-+	unsigned long flags;
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index e30d52b..fda399a 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1637,7 +1637,7 @@ void resync_after_online_grow(struct drbd_conf *mdev)
+ 	if (mdev->state.role != mdev->state.peer)
+ 		iass = (mdev->state.role == R_PRIMARY);
+ 	else
+-		iass = test_bit(DISCARD_CONCURRENT, &mdev->flags);
++		iass = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
  
- 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
- 	atomic_t net_cnt;		/* Users of net_conf */
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 0e2969d..45b8f67 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -1370,7 +1370,7 @@ static void drbd_update_congested(struct drbd_conf *mdev)
- {
- 	struct sock *sk = mdev->tconn->data.socket->sk;
- 	if (sk->sk_wmem_queued > sk->sk_sndbuf * 4 / 5)
--		set_bit(NET_CONGESTED, &mdev->flags);
-+		set_bit(NET_CONGESTED, &mdev->tconn->flags);
- }
+ 	if (iass)
+ 		drbd_start_resync(mdev, C_SYNC_SOURCE);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 83066a3..cb45a3c 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -762,7 +762,7 @@ static int drbd_connect(struct drbd_conf *mdev)
+ 	if (drbd_request_state(mdev, NS(conn, C_WF_CONNECTION)) < SS_SUCCESS)
+ 		return -2;
  
- /* The idea of sendpage seems to be to put some kind of reference
-@@ -1443,7 +1443,7 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
- 		offset += sent;
- 	} while (len > 0 /* THINK && mdev->cstate >= C_CONNECTED*/);
- 	set_fs(oldfs);
--	clear_bit(NET_CONGESTED, &mdev->flags);
-+	clear_bit(NET_CONGESTED, &mdev->tconn->flags);
+-	clear_bit(DISCARD_CONCURRENT, &mdev->flags);
++	clear_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
+ 	mdev->tconn->agreed_pro_version = 99;
+ 	/* agreed_pro_version must be smaller than 100 so we send the old
+ 	   header (h80) in the first packet and in the handshake packet. */
+@@ -823,7 +823,7 @@ retry:
+ 					sock_release(msock);
+ 				}
+ 				msock = s;
+-				set_bit(DISCARD_CONCURRENT, &mdev->flags);
++				set_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
+ 				break;
+ 			default:
+ 				dev_warn(DEV, "Error receiving initial packet\n");
+@@ -1783,7 +1783,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 		/* don't get the req_lock yet,
+ 		 * we may sleep in drbd_wait_peer_seq */
+ 		const int size = peer_req->i.size;
+-		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->flags);
++		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
+ 		DEFINE_WAIT(wait);
+ 		int first;
  
- 	ok = (len == 0);
- 	if (likely(ok))
-@@ -1706,7 +1706,7 @@ int drbd_send(struct drbd_conf *mdev, struct socket *sock,
- 	} while (sent < size);
- 
- 	if (sock == mdev->tconn->data.socket)
--		clear_bit(NET_CONGESTED, &mdev->flags);
-+		clear_bit(NET_CONGESTED, &mdev->tconn->flags);
- 
- 	if (rv <= 0) {
- 		if (rv != -EAGAIN) {
-@@ -2173,7 +2173,7 @@ static int drbd_congested(void *congested_data, int bdi_bits)
- 			reason = 'b';
+@@ -2243,7 +2243,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
+ 		     "Using discard-least-changes instead\n");
+ 	case ASB_DISCARD_ZERO_CHG:
+ 		if (ch_peer == 0 && ch_self == 0) {
+-			rv = test_bit(DISCARD_CONCURRENT, &mdev->flags)
++			rv = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags)
+ 				? -1 : 1;
+ 			break;
+ 		} else {
+@@ -2259,7 +2259,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
+ 			rv =  1;
+ 		else /* ( ch_self == ch_peer ) */
+ 		     /* Well, then use something else. */
+-			rv = test_bit(DISCARD_CONCURRENT, &mdev->flags)
++			rv = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags)
+ 				? -1 : 1;
+ 		break;
+ 	case ASB_DISCARD_LOCAL:
+@@ -2472,7 +2472,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
+ 		case 1: /*  self_pri && !peer_pri */ return 1;
+ 		case 2: /* !self_pri &&  peer_pri */ return -1;
+ 		case 3: /*  self_pri &&  peer_pri */
+-			dc = test_bit(DISCARD_CONCURRENT, &mdev->flags);
++			dc = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
+ 			return dc ? -1 : 1;
+ 		}
  	}
+@@ -3213,7 +3213,7 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	mask.i = be32_to_cpu(p->mask);
+ 	val.i = be32_to_cpu(p->val);
  
--	if (bdi_bits & (1 << BDI_async_congested) && test_bit(NET_CONGESTED, &mdev->flags)) {
-+	if (bdi_bits & (1 << BDI_async_congested) && test_bit(NET_CONGESTED, &mdev->tconn->flags)) {
- 		r |= (1 << BDI_async_congested);
- 		reason = reason == 'b' ? 'a' : 'n';
- 	}
+-	if (test_bit(DISCARD_CONCURRENT, &mdev->flags) &&
++	if (test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags) &&
+ 	    test_bit(CLUSTER_ST_CHANGE, &mdev->flags)) {
+ 		drbd_send_sr_reply(mdev, SS_CONCURRENT_ST_CHG);
+ 		return true;
 -- 
 1.7.4.1
 
