@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:08:38 +0200
-Message-Id: <1314284934-17999-103-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:08:39 +0200
+Message-Id: <1314284934-17999-104-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 102/118] drbd: Generalized the work callbacks
+Subject: [Drbd-dev] [PATCH 103/118] drbd: Converted drbd_send_ping() and
+	related functions from mdev to tconn
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,546 +18,211 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-No longer work callbacks must operate on a mdev. From now on they
-can also operate on a tconn.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_actlog.c   |    8 ++-
- drivers/block/drbd/drbd_int.h      |   45 ++++++++++---------
- drivers/block/drbd/drbd_main.c     |   17 +++++---
- drivers/block/drbd/drbd_receiver.c |   13 ++++--
- drivers/block/drbd/drbd_state.c    |    5 +-
- drivers/block/drbd/drbd_worker.c   |   82 +++++++++++++++++++++--------------
- 6 files changed, 100 insertions(+), 70 deletions(-)
+ drivers/block/drbd/drbd_int.h      |   21 ++++++++++++++-------
+ drivers/block/drbd/drbd_main.c     |   17 +++++++++--------
+ drivers/block/drbd/drbd_receiver.c |   11 ++++++-----
+ drivers/block/drbd/drbd_state.c    |    1 +
+ drivers/block/drbd/drbd_worker.c   |   10 ++++++----
+ 5 files changed, 36 insertions(+), 24 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 637a937..0748871 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -63,7 +63,7 @@ struct drbd_atodb_wait {
- };
- 
- 
--int w_al_write_transaction(struct drbd_conf *, struct drbd_work *, int);
-+int w_al_write_transaction(struct drbd_work *, int);
- 
- static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
- 				 struct drbd_backing_dev *bdev,
-@@ -291,9 +291,10 @@ static unsigned int rs_extent_to_bm_page(unsigned int rs_enr)
- }
- 
- int
--w_al_write_transaction(struct drbd_conf *mdev, struct drbd_work *w, int unused)
-+w_al_write_transaction(struct drbd_work *w, int unused)
- {
- 	struct update_al_work *aw = container_of(w, struct update_al_work, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	struct lc_element *updated = aw->al_ext;
- 	const unsigned int new_enr = aw->enr;
- 	const unsigned int evicted = aw->old_enr;
-@@ -612,9 +613,10 @@ void drbd_al_shrink(struct drbd_conf *mdev)
- 	wake_up(&mdev->al_wait);
- }
- 
--static int w_update_odbm(struct drbd_conf *mdev, struct drbd_work *w, int unused)
-+static int w_update_odbm(struct drbd_work *w, int unused)
- {
- 	struct update_odbm_work *udw = container_of(w, struct update_odbm_work, w);
-+	struct drbd_conf *mdev = w->mdev;
- 
- 	if (!get_ldev(mdev)) {
- 		if (__ratelimit(&drbd_ratelimit_state))
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index ddbb3d2..12f0c5e 100644
+index 12f0c5e..9c63b10 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -640,11 +640,14 @@ static inline enum drbd_thread_state get_t_state(struct drbd_thread *thi)
- }
- 
- struct drbd_work;
--typedef int (*drbd_work_cb)(struct drbd_conf *, struct drbd_work *, int cancel);
-+typedef int (*drbd_work_cb)(struct drbd_work *, int cancel);
- struct drbd_work {
- 	struct list_head list;
- 	drbd_work_cb cb;
--	struct drbd_conf *mdev;
-+	union {
-+		struct drbd_conf *mdev;
-+		struct drbd_tconn *tconn;
-+	};
+@@ -789,7 +789,6 @@ enum {
+ 	RESIZE_PENDING,		/* Size change detected locally, waiting for the response from
+ 				 * the peer, if it changed there as well. */
+ 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
+-	GOT_PING_ACK,		/* set when we receive a ping_ack packet, misc wait gets woken */
+ 	NEW_CUR_UUID,		/* Create new current UUID when thawing IO */
+ 	AL_SUSPENDED,		/* Activity logging is currently suspended. */
+ 	AHEAD_TO_SYNC_SOURCE,   /* Ahead -> SyncSource queued */
+@@ -912,6 +911,7 @@ enum {
+ 	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
+ 	SEND_PING,		/* whether asender should send a ping asap */
+ 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
++	GOT_PING_ACK,		/* set when we receive a ping_ack packet, ping_wait gets woken */
  };
  
- #include "drbd_interval.h"
-@@ -1494,25 +1497,25 @@ extern void drbd_csum_bio(struct drbd_conf *, struct crypto_hash *, struct bio *
- extern void drbd_csum_ee(struct drbd_conf *, struct crypto_hash *,
- 			 struct drbd_peer_request *, void *);
- /* worker callbacks */
--extern int w_req_cancel_conflict(struct drbd_conf *, struct drbd_work *, int);
--extern int w_read_retry_remote(struct drbd_conf *, struct drbd_work *, int);
--extern int w_e_end_data_req(struct drbd_conf *, struct drbd_work *, int);
--extern int w_e_end_rsdata_req(struct drbd_conf *, struct drbd_work *, int);
--extern int w_e_end_csum_rs_req(struct drbd_conf *, struct drbd_work *, int);
--extern int w_e_end_ov_reply(struct drbd_conf *, struct drbd_work *, int);
--extern int w_e_end_ov_req(struct drbd_conf *, struct drbd_work *, int);
--extern int w_ov_finished(struct drbd_conf *, struct drbd_work *, int);
--extern int w_resync_timer(struct drbd_conf *, struct drbd_work *, int);
--extern int w_resume_next_sg(struct drbd_conf *, struct drbd_work *, int);
--extern int w_send_write_hint(struct drbd_conf *, struct drbd_work *, int);
--extern int w_send_dblock(struct drbd_conf *, struct drbd_work *, int);
--extern int w_send_barrier(struct drbd_conf *, struct drbd_work *, int);
--extern int w_send_read_req(struct drbd_conf *, struct drbd_work *, int);
--extern int w_prev_work_done(struct drbd_conf *, struct drbd_work *, int);
--extern int w_e_reissue(struct drbd_conf *, struct drbd_work *, int);
--extern int w_restart_disk_io(struct drbd_conf *, struct drbd_work *, int);
--extern int w_send_oos(struct drbd_conf *, struct drbd_work *, int);
--extern int w_start_resync(struct drbd_conf *, struct drbd_work *, int);
-+extern int w_req_cancel_conflict(struct drbd_work *, int);
-+extern int w_read_retry_remote(struct drbd_work *, int);
-+extern int w_e_end_data_req(struct drbd_work *, int);
-+extern int w_e_end_rsdata_req(struct drbd_work *, int);
-+extern int w_e_end_csum_rs_req(struct drbd_work *, int);
-+extern int w_e_end_ov_reply(struct drbd_work *, int);
-+extern int w_e_end_ov_req(struct drbd_work *, int);
-+extern int w_ov_finished(struct drbd_work *, int);
-+extern int w_resync_timer(struct drbd_work *, int);
-+extern int w_resume_next_sg(struct drbd_work *, int);
-+extern int w_send_write_hint(struct drbd_work *, int);
-+extern int w_send_dblock(struct drbd_work *, int);
-+extern int w_send_barrier(struct drbd_work *, int);
-+extern int w_send_read_req(struct drbd_work *, int);
-+extern int w_prev_work_done(struct drbd_work *, int);
-+extern int w_e_reissue(struct drbd_work *, int);
-+extern int w_restart_disk_io(struct drbd_work *, int);
-+extern int w_send_oos(struct drbd_work *, int);
-+extern int w_start_resync(struct drbd_work *, int);
+ struct drbd_tconn {			/* is a resource from the config file */
+@@ -924,6 +924,7 @@ struct drbd_tconn {			/* is a resource from the config file */
+ 	struct net_conf *net_conf;	/* protected by get_net_conf() and put_net_conf() */
+ 	atomic_t net_cnt;		/* Users of net_conf */
+ 	wait_queue_head_t net_cnt_wait;
++	wait_queue_head_t ping_wait;		/* Woken upon reception of a ping, and a state change */
  
- extern void resync_timer_fn(unsigned long data);
- extern void start_resync_timer_fn(unsigned long data);
+ 	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
+ 	struct drbd_socket meta;	/* ping/ack (metadata) packets */
+@@ -1179,12 +1180,12 @@ extern int drbd_send_state(struct drbd_conf *mdev);
+ extern int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
+ 			  enum drbd_packet cmd, struct p_header *h, size_t size,
+ 			  unsigned msg_flags);
++extern int conn_send_cmd(struct drbd_tconn *tconn, int vnr, int use_data_socket,
++			 enum drbd_packet cmd, struct p_header *h, size_t size);
+ extern int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd,
+ 			  char *data, size_t size);
+ #define USE_DATA_SOCKET 1
+ #define USE_META_SOCKET 0
+-extern int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
+-			 enum drbd_packet cmd, struct p_header *h, size_t size);
+ extern int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc);
+ extern int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
+ 			u32 set_size);
+@@ -1885,6 +1886,12 @@ static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
+ 	return _conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size, msg_flags);
+ }
+ 
++static inline int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
++				enum drbd_packet cmd, struct p_header *h, size_t size)
++{
++	return conn_send_cmd(mdev->tconn, mdev->vnr, use_data_socket, cmd, h, size);
++}
++
+ static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
+ 				      enum drbd_packet cmd)
+ {
+@@ -1892,16 +1899,16 @@ static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
+ 	return drbd_send_cmd(mdev, USE_DATA_SOCKET, cmd, &h, sizeof(h));
+ }
+ 
+-static inline int drbd_send_ping(struct drbd_conf *mdev)
++static inline int drbd_send_ping(struct drbd_tconn *tconn)
+ {
+ 	struct p_header h;
+-	return drbd_send_cmd(mdev, USE_META_SOCKET, P_PING, &h, sizeof(h));
++	return conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING, &h, sizeof(h));
+ }
+ 
+-static inline int drbd_send_ping_ack(struct drbd_conf *mdev)
++static inline int drbd_send_ping_ack(struct drbd_tconn *tconn)
+ {
+ 	struct p_header h;
+-	return drbd_send_cmd(mdev, USE_META_SOCKET, P_PING_ACK, &h, sizeof(h));
++	return conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING_ACK, &h, sizeof(h));
+ }
+ 
+ static inline void drbd_thread_stop(struct drbd_thread *thi)
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 8f04fd0..3b49d0e 100644
+index 3b49d0e..9d6eb74 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -64,10 +64,10 @@ int drbd_asender(struct drbd_thread *);
- int drbd_init(void);
- static int drbd_open(struct block_device *bdev, fmode_t mode);
- static int drbd_release(struct gendisk *gd, fmode_t mode);
--static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused);
-+static int w_md_sync(struct drbd_work *w, int unused);
- static void md_sync_timer_fn(unsigned long data);
--static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused);
--static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused);
-+static int w_bitmap_io(struct drbd_work *w, int unused);
-+static int w_go_diskless(struct drbd_work *w, int unused);
+@@ -719,29 +719,29 @@ int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
+ /* don't pass the socket. we may only look at it
+  * when we hold the appropriate socket mutex.
+  */
+-int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
++int conn_send_cmd(struct drbd_tconn *tconn, int vnr, int use_data_socket,
+ 		  enum drbd_packet cmd, struct p_header *h, size_t size)
+ {
+ 	int ok = 0;
+ 	struct socket *sock;
  
- MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
- 	      "Lars Ellenberg <lars@linbit.com>");
-@@ -2803,9 +2803,10 @@ int drbd_bmio_clear_n_write(struct drbd_conf *mdev)
- 	return rv;
+ 	if (use_data_socket) {
+-		mutex_lock(&mdev->tconn->data.mutex);
+-		sock = mdev->tconn->data.socket;
++		mutex_lock(&tconn->data.mutex);
++		sock = tconn->data.socket;
+ 	} else {
+-		mutex_lock(&mdev->tconn->meta.mutex);
+-		sock = mdev->tconn->meta.socket;
++		mutex_lock(&tconn->meta.mutex);
++		sock = tconn->meta.socket;
+ 	}
+ 
+ 	/* drbd_disconnect() could have called drbd_free_sock()
+ 	 * while we were waiting in down()... */
+ 	if (likely(sock != NULL))
+-		ok = _drbd_send_cmd(mdev, sock, cmd, h, size, 0);
++		ok = _conn_send_cmd(tconn, vnr, sock, cmd, h, size, 0);
+ 
+ 	if (use_data_socket)
+-		mutex_unlock(&mdev->tconn->data.mutex);
++		mutex_unlock(&tconn->data.mutex);
+ 	else
+-		mutex_unlock(&mdev->tconn->meta.mutex);
++		mutex_unlock(&tconn->meta.mutex);
+ 	return ok;
  }
  
--static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
-+static int w_bitmap_io(struct drbd_work *w, int unused)
- {
- 	struct bm_io_work *work = container_of(w, struct bm_io_work, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	int rv = -EIO;
+@@ -2203,6 +2203,7 @@ struct drbd_tconn *drbd_new_tconn(char *name)
+ 	spin_lock_init(&tconn->req_lock);
+ 	atomic_set(&tconn->net_cnt, 0);
+ 	init_waitqueue_head(&tconn->net_cnt_wait);
++	init_waitqueue_head(&tconn->ping_wait);
+ 	idr_init(&tconn->volumes);
  
- 	D_ASSERT(atomic_read(&mdev->ap_bio_cnt) == 0);
-@@ -2848,8 +2849,10 @@ void drbd_ldev_destroy(struct drbd_conf *mdev)
- 	clear_bit(GO_DISKLESS, &mdev->flags);
- }
- 
--static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused)
-+static int w_go_diskless(struct drbd_work *w, int unused)
- {
-+	struct drbd_conf *mdev = w->mdev;
-+
- 	D_ASSERT(mdev->state.disk == D_FAILED);
- 	/* we cannot assert local_cnt == 0 here, as get_ldev_if_state will
- 	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
-@@ -2962,8 +2965,10 @@ static void md_sync_timer_fn(unsigned long data)
- 	drbd_queue_work_front(&mdev->tconn->data.work, &mdev->md_sync_work);
- }
- 
--static int w_md_sync(struct drbd_conf *mdev, struct drbd_work *w, int unused)
-+static int w_md_sync(struct drbd_work *w, int unused)
- {
-+	struct drbd_conf *mdev = w->mdev;
-+
- 	dev_warn(DEV, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
- #ifdef DEBUG
- 	dev_warn(DEV, "last md_mark_dirty: %s:%u\n",
+ 	drbd_init_workqueue(&tconn->data.work);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 54eb53f..55fc243 100644
+index 55fc243..113d37f 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -65,7 +65,7 @@ static int drbd_do_auth(struct drbd_tconn *tconn);
- static int drbd_disconnected(int vnr, void *p, void *data);
+@@ -4282,16 +4282,17 @@ static int got_RqSReply(struct drbd_conf *mdev, enum drbd_packet cmd)
  
- static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *, struct drbd_epoch *, enum epoch_event);
--static int e_end_block(struct drbd_conf *, struct drbd_work *, int);
-+static int e_end_block(struct drbd_work *, int);
- 
- 
- #define GFP_TRY	(__GFP_HIGHMEM | __GFP_NOWARN)
-@@ -420,7 +420,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
- 	 */
- 	list_for_each_entry_safe(peer_req, t, &work_list, w.list) {
- 		/* list_del not necessary, next/prev members not touched */
--		ok = peer_req->w.cb(mdev, &peer_req->w, !ok) && ok;
-+		ok = peer_req->w.cb(&peer_req->w, !ok) && ok;
- 		drbd_free_ee(mdev, peer_req);
- 	}
- 	wake_up(&mdev->ee_wait);
-@@ -1450,9 +1450,10 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
- 
- /* e_end_resync_block() is called via
-  * drbd_process_done_ee() by asender only */
--static int e_end_resync_block(struct drbd_conf *mdev, struct drbd_work *w, int unused)
-+static int e_end_resync_block(struct drbd_work *w, int unused)
+ static int got_Ping(struct drbd_conf *mdev, enum drbd_packet cmd)
  {
- 	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
-+	struct drbd_conf *mdev = w->mdev;
- 	sector_t sector = peer_req->i.sector;
- 	int ok;
+-	return drbd_send_ping_ack(mdev);
++	return drbd_send_ping_ack(mdev->tconn);
  
-@@ -1587,9 +1588,10 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
- /* e_end_block() is called via drbd_process_done_ee().
-  * this means this function only runs in the asender thread
-  */
--static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+static int e_end_block(struct drbd_work *w, int cancel)
- {
- 	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
-+	struct drbd_conf *mdev = w->mdev;
- 	sector_t sector = peer_req->i.sector;
- 	int ok = 1, pcmd;
- 
-@@ -1624,9 +1626,10 @@ static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	return ok;
  }
  
--static int e_send_discard_ack(struct drbd_conf *mdev, struct drbd_work *w, int unused)
-+static int e_send_discard_ack(struct drbd_work *w, int unused)
+ static int got_PingAck(struct drbd_conf *mdev, enum drbd_packet cmd)
  {
- 	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
-+	struct drbd_conf *mdev = w->mdev;
- 	int ok = 1;
++	struct drbd_tconn *tconn = mdev->tconn;
+ 	/* restore idle timeout */
+-	mdev->tconn->meta.socket->sk->sk_rcvtimeo = mdev->tconn->net_conf->ping_int*HZ;
+-	if (!test_and_set_bit(GOT_PING_ACK, &mdev->flags))
+-		wake_up(&mdev->misc_wait);
++	tconn->meta.socket->sk->sk_rcvtimeo = tconn->net_conf->ping_int*HZ;
++	if (!test_and_set_bit(GOT_PING_ACK, &tconn->flags))
++		wake_up(&tconn->ping_wait);
  
- 	D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
+ 	return true;
+ }
+@@ -4613,7 +4614,7 @@ int drbd_asender(struct drbd_thread *thi)
+ 	while (get_t_state(thi) == RUNNING) {
+ 		drbd_thread_current_set_cpu(thi);
+ 		if (test_and_clear_bit(SEND_PING, &tconn->flags)) {
+-			if (!drbd_send_ping(tconn->volume0)) {
++			if (!drbd_send_ping(tconn)) {
+ 				conn_err(tconn, "drbd_send_ping has failed\n");
+ 				goto reconnect;
+ 			}
 diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 3667984..30a3a1d 100644
+index 30a3a1d..d577715 100644
 --- a/drivers/block/drbd/drbd_state.c
 +++ b/drivers/block/drbd/drbd_state.c
-@@ -40,7 +40,7 @@ struct after_state_chg_work {
+@@ -737,6 +737,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
  
- extern void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
- int drbd_send_state_req(struct drbd_conf *, union drbd_state, union drbd_state);
--static int w_after_state_ch(struct drbd_conf *mdev, struct drbd_work *w, int unused);
-+static int w_after_state_ch(struct drbd_work *w, int unused);
- static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
- 			   union drbd_state ns, enum chg_state_flags flags);
- static void after_conn_state_ch(struct drbd_tconn *tconn, union drbd_state os,
-@@ -853,10 +853,11 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
- 	return rv;
- }
+ 	wake_up(&mdev->misc_wait);
+ 	wake_up(&mdev->state_wait);
++	wake_up(&mdev->tconn->ping_wait);
  
--static int w_after_state_ch(struct drbd_conf *mdev, struct drbd_work *w, int unused)
-+static int w_after_state_ch(struct drbd_work *w, int unused)
- {
- 	struct after_state_chg_work *ascw =
- 		container_of(w, struct after_state_chg_work, w);
-+	struct drbd_conf *mdev = w->mdev;
- 
- 	after_state_ch(mdev, ascw->os, ascw->ns, ascw->flags);
- 	if (ascw->flags & CS_WAIT_COMPLETE) {
+ 	/* aborted verify run. log the last position */
+ 	if ((os.conn == C_VERIFY_S || os.conn == C_VERIFY_T) &&
 diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 3f0f84a..418f44a 100644
+index 418f44a..8539df2 100644
 --- a/drivers/block/drbd/drbd_worker.c
 +++ b/drivers/block/drbd/drbd_worker.c
-@@ -38,9 +38,8 @@
- #include "drbd_int.h"
- #include "drbd_req.h"
+@@ -730,10 +730,12 @@ static int w_resync_finished(struct drbd_work *w, int cancel)
  
--static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int cancel);
--static int w_make_resync_request(struct drbd_conf *mdev,
--				 struct drbd_work *w, int cancel);
-+static int w_make_ov_request(struct drbd_work *w, int cancel);
-+static int w_make_resync_request(struct drbd_work *w, int cancel);
- 
- 
- 
-@@ -228,9 +227,10 @@ void drbd_endio_pri(struct bio *bio, int error)
- 		complete_master_bio(mdev, &m);
- }
- 
--int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_read_retry_remote(struct drbd_work *w, int cancel)
+ static void ping_peer(struct drbd_conf *mdev)
  {
- 	struct drbd_request *req = container_of(w, struct drbd_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 
- 	/* We should not detach for read io-error,
- 	 * but try to WRITE the P_DATA_REPLY to the failed location,
-@@ -244,7 +244,7 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	}
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
--	return w_send_read_req(mdev, w, 0);
-+	return w_send_read_req(w, 0);
- }
- 
- void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm,
-@@ -295,11 +295,10 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
- 	crypto_hash_final(&desc, digest);
- }
- 
--/* TODO merge common code with w_e_end_ov_req */
--int w_e_send_csum(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+static int w_e_send_csum(struct drbd_work *w, int cancel)
- {
--	struct drbd_peer_request *peer_req =
--		container_of(w, struct drbd_peer_request, w);
-+	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	int digest_size;
- 	void *digest;
- 	int ok = 1;
-@@ -383,14 +382,15 @@ defer:
- 	return -EAGAIN;
- }
- 
--int w_resync_timer(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_resync_timer(struct drbd_work *w, int cancel)
- {
-+	struct drbd_conf *mdev = w->mdev;
- 	switch (mdev->state.conn) {
- 	case C_VERIFY_S:
--		w_make_ov_request(mdev, w, cancel);
-+		w_make_ov_request(w, cancel);
- 		break;
- 	case C_SYNC_TARGET:
--		w_make_resync_request(mdev, w, cancel);
-+		w_make_resync_request(w, cancel);
- 		break;
- 	}
- 
-@@ -504,9 +504,9 @@ static int drbd_rs_number_requests(struct drbd_conf *mdev)
- 	return number;
- }
- 
--static int w_make_resync_request(struct drbd_conf *mdev,
--				 struct drbd_work *w, int cancel)
-+static int w_make_resync_request(struct drbd_work *w, int cancel)
- {
-+	struct drbd_conf *mdev = w->mdev;
- 	unsigned long bit;
- 	sector_t sector;
- 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
-@@ -664,8 +664,9 @@ next_sector:
- 	return 1;
- }
- 
--static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+static int w_make_ov_request(struct drbd_work *w, int cancel)
- {
-+	struct drbd_conf *mdev = w->mdev;
- 	int number, i, size;
- 	sector_t sector;
- 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
-@@ -707,8 +708,9 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
- 	return 1;
- }
- 
--int w_ov_finished(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_ov_finished(struct drbd_work *w, int cancel)
- {
-+	struct drbd_conf *mdev = w->mdev;
- 	kfree(w);
- 	ov_oos_print(mdev);
- 	drbd_resync_finished(mdev);
-@@ -716,8 +718,9 @@ int w_ov_finished(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	return 1;
- }
- 
--static int w_resync_finished(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+static int w_resync_finished(struct drbd_work *w, int cancel)
- {
-+	struct drbd_conf *mdev = w->mdev;
- 	kfree(w);
- 
- 	drbd_resync_finished(mdev);
-@@ -901,9 +904,10 @@ static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_peer_requ
-  * @w:		work object.
-  * @cancel:	The connection will be closed anyways
-  */
--int w_e_end_data_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_e_end_data_req(struct drbd_work *w, int cancel)
- {
- 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	int ok;
- 
- 	if (unlikely(cancel)) {
-@@ -937,9 +941,10 @@ int w_e_end_data_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-  * @w:		work object.
-  * @cancel:	The connection will be closed anyways
-  */
--int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
- {
- 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	int ok;
- 
- 	if (unlikely(cancel)) {
-@@ -985,9 +990,10 @@ int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	return ok;
- }
- 
--int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
- {
- 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	struct digest_info *di;
- 	int digest_size;
- 	void *digest = NULL;
-@@ -1047,10 +1053,10 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	return ok;
- }
- 
--/* TODO merge common code with w_e_send_csum */
--int w_e_end_ov_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_e_end_ov_req(struct drbd_work *w, int cancel)
- {
- 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	sector_t sector = peer_req->i.sector;
- 	unsigned int size = peer_req->i.size;
- 	int digest_size;
-@@ -1105,9 +1111,10 @@ void drbd_ov_oos_found(struct drbd_conf *mdev, sector_t sector, int size)
- 	drbd_set_out_of_sync(mdev, sector, size);
- }
- 
--int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_e_end_ov_reply(struct drbd_work *w, int cancel)
- {
- 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	struct digest_info *di;
- 	void *digest;
- 	sector_t sector = peer_req->i.sector;
-@@ -1172,16 +1179,18 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	return ok;
- }
- 
--int w_prev_work_done(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_prev_work_done(struct drbd_work *w, int cancel)
- {
- 	struct drbd_wq_barrier *b = container_of(w, struct drbd_wq_barrier, w);
+-	clear_bit(GOT_PING_ACK, &mdev->flags);
+-	request_ping(mdev->tconn);
+-	wait_event(mdev->misc_wait,
+-		   test_bit(GOT_PING_ACK, &mdev->flags) || mdev->state.conn < C_CONNECTED);
++	struct drbd_tconn *tconn = mdev->tconn;
 +
- 	complete(&b->done);
- 	return 1;
++	clear_bit(GOT_PING_ACK, &tconn->flags);
++	request_ping(tconn);
++	wait_event(tconn->ping_wait,
++		   test_bit(GOT_PING_ACK, &tconn->flags) || mdev->state.conn < C_CONNECTED);
  }
  
--int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_send_barrier(struct drbd_work *w, int cancel)
- {
- 	struct drbd_tl_epoch *b = container_of(w, struct drbd_tl_epoch, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	struct p_barrier *p = &mdev->tconn->data.sbuf.barrier;
- 	int ok = 1;
- 
-@@ -1210,16 +1219,18 @@ int w_send_barrier(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	return ok;
- }
- 
--int w_send_write_hint(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_send_write_hint(struct drbd_work *w, int cancel)
- {
-+	struct drbd_conf *mdev = w->mdev;
- 	if (cancel)
- 		return 1;
- 	return drbd_send_short_cmd(mdev, P_UNPLUG_REMOTE);
- }
- 
--int w_send_oos(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_send_oos(struct drbd_work *w, int cancel)
- {
- 	struct drbd_request *req = container_of(w, struct drbd_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	int ok;
- 
- 	if (unlikely(cancel)) {
-@@ -1239,9 +1250,10 @@ int w_send_oos(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-  * @w:		work object.
-  * @cancel:	The connection will be closed anyways
-  */
--int w_send_dblock(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_send_dblock(struct drbd_work *w, int cancel)
- {
- 	struct drbd_request *req = container_of(w, struct drbd_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	int ok;
- 
- 	if (unlikely(cancel)) {
-@@ -1261,9 +1273,10 @@ int w_send_dblock(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-  * @w:		work object.
-  * @cancel:	The connection will be closed anyways
-  */
--int w_send_read_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_send_read_req(struct drbd_work *w, int cancel)
- {
- 	struct drbd_request *req = container_of(w, struct drbd_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 	int ok;
- 
- 	if (unlikely(cancel)) {
-@@ -1285,9 +1298,10 @@ int w_send_read_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
- 	return ok;
- }
- 
--int w_restart_disk_io(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_restart_disk_io(struct drbd_work *w, int cancel)
- {
- 	struct drbd_request *req = container_of(w, struct drbd_request, w);
-+	struct drbd_conf *mdev = w->mdev;
- 
- 	if (bio_data_dir(req->master_bio) == WRITE && req->rq_state & RQ_IN_ACT_LOG)
- 		drbd_al_begin_io(mdev, req->i.sector);
-@@ -1447,8 +1461,10 @@ void start_resync_timer_fn(unsigned long data)
- 	drbd_queue_work(&mdev->tconn->data.work, &mdev->start_resync_work);
- }
- 
--int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-+int w_start_resync(struct drbd_work *w, int cancel)
- {
-+	struct drbd_conf *mdev = w->mdev;
-+
- 	if (atomic_read(&mdev->unacked_cnt) || atomic_read(&mdev->rs_pending_cnt)) {
- 		dev_warn(DEV, "w_start_resync later...\n");
- 		mdev->start_resync_timer.expires = jiffies + HZ/10;
-@@ -1702,7 +1718,7 @@ int drbd_worker(struct drbd_thread *thi)
- 		list_del_init(&w->list);
- 		spin_unlock_irq(&tconn->data.work.q_lock);
- 
--		if (!w->cb(w->mdev, w, tconn->volume0->state.conn < C_CONNECTED)) {
-+		if (!w->cb(w, tconn->volume0->state.conn < C_CONNECTED)) {
- 			/* dev_warn(DEV, "worker: a callback failed! \n"); */
- 			if (tconn->volume0->state.conn >= C_CONNECTED)
- 				drbd_force_state(tconn->volume0,
-@@ -1718,7 +1734,7 @@ int drbd_worker(struct drbd_thread *thi)
- 		while (!list_empty(&work_list)) {
- 			w = list_entry(work_list.next, struct drbd_work, list);
- 			list_del_init(&w->list);
--			w->cb(w->mdev, w, 1);
-+			w->cb(w, 1);
- 		}
- 
- 		spin_lock_irq(&tconn->data.work.q_lock);
+ int drbd_resync_finished(struct drbd_conf *mdev)
 -- 
 1.7.4.1
 
