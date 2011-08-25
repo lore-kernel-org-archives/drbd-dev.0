@@ -2,11 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:06:56 +0200
-Message-Id: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:06:57 +0200
+Message-Id: <1314284934-17999-2-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
+References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [RFC 000/118] drbd: part 1 of adding multiple volume
-	support to drbd
+Subject: [Drbd-dev] [PATCH 001/118] drbd: Get rid of req_validator_fn typedef
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -16,26 +17,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This the first request for review of drbd-8.4. The complete set has 
-500 patches. In this first series there are only 118 of these.
+From: Andreas Gruenbacher <agruen@linbit.com>
 
-The most noticeable change is the support for multiple replicated volumes in
-a single DRBD connection.  Write-ordering is obeyed among all writes in all
-volumes in a single connection.  This feature is really important for users
-who use DRBD for mirroring over longer distances. (Protocol A).
+Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+---
+ drivers/block/drbd/drbd_receiver.c |    6 ++----
+ 1 files changed, 2 insertions(+), 4 deletions(-)
 
-0001 - 0012  cleanups
-0013 - 0026  replace the hash tables of drbd_requests with two interval trees
-0027         have a look at the idr_for_each_entry(). Outside of drbd's directory.
-0028 - 0035  introduced a new object which represents a DRBD connection;
-             move a view members from the device object to the new conenction
-             object
-0036 - 0041  Introduce volume numbers into the protocol
-0042 - 0052  cleanups; renames; 
-0053         Improvements to handling of conflicting writes
-0054 - 0060  cleanups; renames; 
-0061 - 0064  code reorganisation
-0065         IO latency bugfix
-0066 - 0099  moving members from the device object to the connection object;
-             converting function from the device object to the connection obj
-0100 - 0118  work on the state engine to match the new object model
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 43beaca..d499aa6 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -4270,11 +4270,9 @@ static struct drbd_request *_ack_id_to_req(struct drbd_conf *mdev,
+ 	return NULL;
+ }
+ 
+-typedef struct drbd_request *(req_validator_fn)
+-	(struct drbd_conf *mdev, u64 id, sector_t sector);
+-
+ static int validate_req_change_req_state(struct drbd_conf *mdev,
+-	u64 id, sector_t sector, req_validator_fn validator,
++	u64 id, sector_t sector,
++	struct drbd_request *(*validator)(struct drbd_conf *, u64, sector_t),
+ 	const char *func, enum drbd_req_event what)
+ {
+ 	struct drbd_request *req;
+-- 
+1.7.4.1
+
