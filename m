@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 25 Aug 2011 17:07:12 +0200
-Message-Id: <1314284934-17999-17-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 25 Aug 2011 17:07:13 +0200
+Message-Id: <1314284934-17999-18-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 016/118] drbd: Add read_requests tree
+Subject: [Drbd-dev] [PATCH 017/118] drbd: Use the read and write request
+	trees for request lookups
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,82 +20,126 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-We do not do collision detection for read requests, but we still need to
-look up the request objects when we receive a package over the network.
-Using the same data structure for read and write requests results in
-simpler code once the tl_hash and app_reads_hash tables are removed.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |    1 +
- drivers/block/drbd/drbd_main.c |    1 +
- drivers/block/drbd/drbd_req.c  |   13 ++++++++++---
- 3 files changed, 12 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_interval.h |    3 +-
+ drivers/block/drbd/drbd_receiver.c |   44 +++++++++++++----------------------
+ 2 files changed, 17 insertions(+), 30 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 0583713..fe15319 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1020,6 +1020,7 @@ struct drbd_conf {
- 	unsigned int tl_hash_s;
+diff --git a/drivers/block/drbd/drbd_interval.h b/drivers/block/drbd/drbd_interval.h
+index bf8dcf7..a847b4a 100644
+--- a/drivers/block/drbd/drbd_interval.h
++++ b/drivers/block/drbd/drbd_interval.h
+@@ -22,8 +22,7 @@ static inline bool drbd_interval_empty(struct drbd_interval *i)
+ }
  
- 	/* Interval tree of pending local write requests */
-+	struct rb_root read_requests;
- 	struct rb_root write_requests;
+ bool drbd_insert_interval(struct rb_root *, struct drbd_interval *);
+-struct drbd_interval *drbd_find_interval(struct rb_root *, sector_t,
+-					 struct drbd_interval *);
++bool drbd_contains_interval(struct rb_root *, sector_t, struct drbd_interval *);
+ void drbd_remove_interval(struct rb_root *, struct drbd_interval *);
+ struct drbd_interval *drbd_find_overlap(struct rb_root *, sector_t,
+ 					unsigned int);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 6b072584..b148398 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1470,27 +1470,15 @@ fail:
+ }
  
- 	/* blocks to resync in this run [unit BM_BLOCK_SIZE] */
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 4d85838..c0ea5ba 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -3473,6 +3473,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
- 	/* no need to lock access, we are still initializing this minor device. */
- 	if (!tl_init(mdev))
- 		goto out_no_tl;
-+	mdev->read_requests = RB_ROOT;
- 	mdev->write_requests = RB_ROOT;
+ static struct drbd_request *
+-find_request(struct drbd_conf *mdev,
+-	     struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
+-	     u64 id, sector_t sector, bool missing_ok, const char *func)
++find_request(struct drbd_conf *mdev, struct rb_root *root, u64 id,
++	     sector_t sector, bool missing_ok, const char *func)
+ {
+-	struct hlist_head *slot = hash_slot(mdev, sector);
+-	struct hlist_node *n;
+ 	struct drbd_request *req;
  
- 	mdev->app_reads_hash = kzalloc(APP_R_HSIZE*sizeof(void *), GFP_KERNEL);
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 593576f..d2a78c4 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -260,10 +260,15 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
+-	hlist_for_each_entry(req, n, slot, collision) {
+-		if ((unsigned long)req != (unsigned long)id)
+-			continue;
+-		if (req->i.sector != sector) {
+-			dev_err(DEV, "%s: found request %lu but it has "
+-				"wrong sector (%llus versus %llus)\n",
+-				func, (unsigned long)req,
+-				(unsigned long long)req->i.sector,
+-				(unsigned long long)sector);
+-			return NULL;
+-		}
++	/* Request object according to our peer */
++	req = (struct drbd_request *)(unsigned long)id;
++	if (drbd_contains_interval(root, sector, &req->i))
+ 		return req;
+-	}
+ 	if (!missing_ok) {
+ 		dev_err(DEV, "%s: failed to find request %lu, sector %llus\n", func,
+ 			(unsigned long)id, (unsigned long long)sector);
+@@ -1508,7 +1496,7 @@ static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
+ 	sector = be64_to_cpu(p->sector);
  
- 		/* remove the request from the conflict detection
- 		 * respective block_id verification hash */
--		if (!hlist_unhashed(&req->collision)) {
-+		if (!drbd_interval_empty(&req->i)) {
-+			struct rb_root *root;
-+
- 			hlist_del(&req->collision);
--			if (!drbd_interval_empty(&req->i))
--				drbd_remove_interval(&mdev->write_requests, &req->i);
-+			if (rw == WRITE)
-+				root = &mdev->write_requests;
-+			else
-+				root = &mdev->read_requests;
-+			drbd_remove_interval(root, &req->i);
- 		} else
- 			D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
+ 	spin_lock_irq(&mdev->req_lock);
+-	req = find_request(mdev, ar_hash_slot, p->block_id, sector, false, __func__);
++	req = find_request(mdev, &mdev->read_requests, p->block_id, sector, false, __func__);
+ 	spin_unlock_irq(&mdev->req_lock);
+ 	if (unlikely(!req))
+ 		return false;
+@@ -4245,16 +4233,16 @@ static int got_IsInSync(struct drbd_conf *mdev, struct p_header80 *h)
+ 	return true;
+ }
  
-@@ -332,6 +337,7 @@ static int _req_conflicts(struct drbd_request *req)
- 	struct hlist_head *slot;
+-static int validate_req_change_req_state(struct drbd_conf *mdev,
+-	u64 id, sector_t sector,
+-	struct hlist_head *(*hash_slot)(struct drbd_conf *, sector_t),
+-	const char *func, enum drbd_req_event what, bool missing_ok)
++static int
++validate_req_change_req_state(struct drbd_conf *mdev, u64 id, sector_t sector,
++			      struct rb_root *root, const char *func,
++			      enum drbd_req_event what, bool missing_ok)
+ {
+ 	struct drbd_request *req;
+ 	struct bio_and_error m;
  
- 	D_ASSERT(hlist_unhashed(&req->collision));
-+	D_ASSERT(drbd_interval_empty(&req->i));
+ 	spin_lock_irq(&mdev->req_lock);
+-	req = find_request(mdev, hash_slot, id, sector, missing_ok, func);
++	req = find_request(mdev, root, id, sector, missing_ok, func);
+ 	if (unlikely(!req)) {
+ 		spin_unlock_irq(&mdev->req_lock);
+ 		return false;
+@@ -4304,8 +4292,8 @@ static int got_BlockAck(struct drbd_conf *mdev, struct p_header80 *h)
+ 	}
  
- 	if (!get_net_conf(mdev))
- 		return 0;
-@@ -493,6 +499,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
- 		/* so we can verify the handle in the answer packet
- 		 * corresponding hlist_del is in _req_may_be_done() */
- 		hlist_add_head(&req->collision, ar_hash_slot(mdev, req->i.sector));
-+		drbd_insert_interval(&mdev->read_requests, &req->i);
+ 	return validate_req_change_req_state(mdev, p->block_id, sector,
+-					     tl_hash_slot, __func__, what,
+-					     false);
++					     &mdev->write_requests, __func__,
++					     what, false);
+ }
  
- 		set_bit(UNPLUG_REMOTE, &mdev->flags);
+ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
+@@ -4326,7 +4314,7 @@ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
+ 	}
  
+ 	found = validate_req_change_req_state(mdev, p->block_id, sector,
+-					      tl_hash_slot, __func__,
++					      &mdev->write_requests, __func__,
+ 					      neg_acked, missing_ok);
+ 	if (!found) {
+ 		/* Protocol A has no P_WRITE_ACKs, but has P_NEG_ACKs.
+@@ -4351,8 +4339,8 @@ static int got_NegDReply(struct drbd_conf *mdev, struct p_header80 *h)
+ 	    (unsigned long long)sector, be32_to_cpu(p->blksize));
+ 
+ 	return validate_req_change_req_state(mdev, p->block_id, sector,
+-					     ar_hash_slot, __func__, neg_acked,
+-					     false);
++					     &mdev->read_requests, __func__,
++					     neg_acked, false);
+ }
+ 
+ static int got_NegRSDReply(struct drbd_conf *mdev, struct p_header80 *h)
 -- 
 1.7.4.1
 
