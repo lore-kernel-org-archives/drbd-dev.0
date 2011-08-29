@@ -1,19 +1,20 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4F6A610556B3
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Aug 2011 13:46:37 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0D16810556B2
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Aug 2011 13:51:14 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Greg Freemyer <greg.freemyer@gmail.com>, Jens Axboe <axboe@kernel.dk>,
+To: Kyle Moffett <kyle@moffetthome.net>, Jens Axboe <axboe@kernel.dk>,
 	linux-kernel@vger.kernel.org
-Date: Mon, 29 Aug 2011 13:46:23 +0200
+Date: Mon, 29 Aug 2011 13:51:05 +0200
 References: <1314284934-17999-1-git-send-email-philipp.reisner@linbit.com>
-	<CAGpXXZKem-uEdF4SyUgpQFV6=d5Vo3v9p3wmcaygAKa4w4x01w@mail.gmail.com>
-In-Reply-To: <CAGpXXZKem-uEdF4SyUgpQFV6=d5Vo3v9p3wmcaygAKa4w4x01w@mail.gmail.com>
+	<20110826135402.GS14479@barkeeper1-xen.linbit>
+	<CAGZ=bqJojmtfVjQdbx3j2vZyrz01dZZs7wVqBxNbqreejZu4JQ@mail.gmail.com>
+In-Reply-To: <CAGZ=bqJojmtfVjQdbx3j2vZyrz01dZZs7wVqBxNbqreejZu4JQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
-  charset="iso-8859-15"
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201108291346.29847.philipp.reisner@linbit.com>
+Message-Id: <201108291351.06092.philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [RFC 000/118] drbd: part 1 of adding multiple volume
 	support to drbd
@@ -26,38 +27,61 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Freitag, 26. August 2011, 15:20:51 schrieb Greg Freemyer:
-> On Thu, Aug 25, 2011 at 11:06 AM, Philipp Reisner <
+Am Freitag, 26. August 2011, 17:18:53 schrieb Kyle Moffett:
+> On Fri, Aug 26, 2011 at 09:54, Lars Ellenberg <lars.ellenberg@linbit.com> 
+wrote:
+> > On Fri, Aug 26, 2011 at 09:20:51AM -0400, Greg Freemyer wrote:
+> >> On Thu, Aug 25, 2011 at 11:06 AM, Philipp Reisner <
+> >> 
+> >> philipp.reisner@linbit.com> wrote:
+> >> > This the first request for review of drbd-8.4. The complete set has
+> >> > 500 patches. In this first series there are only 118 of these.
+> >> 
+> >> I've only taken a quick glance, but is drbd functional between applying
+> >> each patch?
+> >> 
+> >> It doesn't look like it to me, but I didn't look that close.  I also saw
+> >> at least one patch that introduced a new function with no caller to
+> >> test it.
+> >> 
+> >> The idea is that a patch series leave a testable / functional kernel
+> >> after each patch in the series is applied sequentially.
+> >> 
+> >> That is the only way git bisect can do its job.
+> > 
+> > Very likely DRBD will not always be completely functional between
+> > any arbitrary two of these patches.
+> > 
+> > The kernel as such will still be bisectable "just fine".
 > 
-> philipp.reisner@linbit.com> wrote:
-> > This the first request for review of drbd-8.4. The complete set has
-> > 500 patches. In this first series there are only 118 of these.
+> No.
 > 
-> Lars,
+> That's not the way that kernel development works.
 > 
-> I've only taken a quick glance, but is drbd functional between applying
-> each patch?
+> Besides which, that's not the way that "git bisect" works.
 > 
-> It doesn't look like it to me, but I didn't look that close.  I also saw at
-> least one patch that introduced a new function with no caller to test it.
+> For example, say I have a driver bug that happens to be triggering
+> on my server which also happens to use GFS on DRBD.  I try to
+> bisect the bug and it happens to pick a commit right in the middle
+> of this DRBD branch.
 > 
-> The idea is that a patch series leave a testable / functional kernel after
-> each patch in the series is applied sequentially.
-> 
-> That is the only way git bisect can do its job.
-> 
-> ie. Introducing a new function but no new caller makes a change, but there
-> is no way to test it.  Therefore there is no real value in not merging that
-> patch with one that has the new call in it.
+> Suddenly DRBD is unusable or corrupting data or something, which
+> is unacceptable for an unrelated bisection of a driver bug.
 > 
 
-Greg,
+No. It compiles after each and every patch. Verified. It is
+functional after each and every patch, though providing the
+feature set that was present before this whole patch series.
 
-You replied to mail 000. Please point out to which patch/function you
-refer, so that we can fix this.
+If you are looking for a regression with "git bisect" then
+you are using DRBD with only the old features.
+
+The new feature set, might be partially broken, but introducing
+the new features is the whole point of this patch series.
 
 Best,
  Phil
+
 -- 
 : Dipl-Ing Philipp Reisner
 : LINBIT | Your Way to High Availability
