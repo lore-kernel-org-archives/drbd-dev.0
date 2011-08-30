@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Tue, 30 Aug 2011 11:05:35 +0200
-Message-Id: <1314695149-387-2-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 30 Aug 2011 11:05:36 +0200
+Message-Id: <1314695149-387-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314695149-387-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314695149-387-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/15] drbd: Rename drbd_endio_{pri,
-	sec} -> drbd_{, peer_}request_endio
+Subject: [Drbd-dev] [PATCH 02/15] drbd: Iterate over all overlapping
+	intervals in a tree
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,151 +20,68 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
+Add a macro and helper function for doing that.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    2 +-
- drivers/block/drbd/drbd_receiver.c |   13 +++++++------
- drivers/block/drbd/drbd_req.c      |    4 ++--
- drivers/block/drbd/drbd_req.h      |    2 +-
- drivers/block/drbd/drbd_worker.c   |    8 ++++----
- drivers/block/drbd/drbd_wrappers.h |    4 ++--
- 6 files changed, 17 insertions(+), 16 deletions(-)
+ drivers/block/drbd/drbd_interval.c |   18 ++++++++++++++++++
+ drivers/block/drbd/drbd_interval.h |   16 ++++++++++++----
+ 2 files changed, 30 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 29e32f7..de92e8b 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -661,7 +661,7 @@ struct drbd_request {
- 	/* if local IO is not allowed, will be NULL.
- 	 * if local IO _is_ allowed, holds the locally submitted bio clone,
- 	 * or, after local IO completion, the ERR_PTR(error).
--	 * see drbd_endio_pri(). */
-+	 * see drbd_request_endio(). */
- 	struct bio *private_bio;
- 
- 	struct drbd_interval i;
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 9b18cc9..deae7cb 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1139,7 +1139,7 @@ next_bio:
- 	bio->bi_bdev = mdev->ldev->backing_bdev;
- 	bio->bi_rw = rw;
- 	bio->bi_private = peer_req;
--	bio->bi_end_io = drbd_endio_sec;
-+	bio->bi_end_io = drbd_peer_request_endio;
- 
- 	bio->bi_next = bios;
- 	bios = bio;
-@@ -1575,7 +1575,7 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	if (get_ldev(mdev)) {
- 		/* data is submitted to disk within recv_resync_read.
- 		 * corresponding put_ldev done below on error,
--		 * or in drbd_endio_sec. */
-+		 * or in drbd_peer_request_endio. */
- 		ok = recv_resync_read(mdev, sector, data_size);
- 	} else {
- 		if (__ratelimit(&drbd_ratelimit_state))
-@@ -1763,10 +1763,11 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 		return drbd_drain_block(mdev, data_size);
+diff --git a/drivers/block/drbd/drbd_interval.c b/drivers/block/drbd/drbd_interval.c
+index 14dbe2d..0e53f10 100644
+--- a/drivers/block/drbd/drbd_interval.c
++++ b/drivers/block/drbd/drbd_interval.c
+@@ -157,3 +157,21 @@ drbd_find_overlap(struct rb_root *root, sector_t sector, unsigned int size)
  	}
- 
--	/* get_ldev(mdev) successful.
--	 * Corresponding put_ldev done either below (on various errors),
--	 * or in drbd_endio_sec, if we successfully submit the data at
--	 * the end of this function. */
-+	/*
-+	 * Corresponding put_ldev done either below (on various errors), or in
-+	 * drbd_peer_request_endio, if we successfully submit the data at the
-+	 * end of this function.
-+	 */
- 
- 	sector = be64_to_cpu(p->sector);
- 	peer_req = read_in_block(mdev, p->block_id, sector, data_size);
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 45a543e..18eb3d1 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -116,7 +116,7 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
- 			drbd_set_in_sync(mdev, req->i.sector, req->i.size);
- 
- 		/* one might be tempted to move the drbd_al_complete_io
--		 * to the local io completion callback drbd_endio_pri.
-+		 * to the local io completion callback drbd_request_endio.
- 		 * but, if this was a mirror write, we may only
- 		 * drbd_al_complete_io after this is RQ_NET_DONE,
- 		 * otherwise the extent could be dropped from the al
-@@ -252,7 +252,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
- 		 * what we need to do here is just: complete the master_bio.
- 		 *
- 		 * local completion error, if any, has been stored as ERR_PTR
--		 * in private_bio within drbd_endio_pri.
-+		 * in private_bio within drbd_request_endio.
- 		 */
- 		int ok = (s & RQ_LOCAL_OK) || (s & RQ_NET_OK);
- 		int error = PTR_ERR(req->private_bio);
-diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
-index e6232ce..e6f2361 100644
---- a/drivers/block/drbd/drbd_req.h
-+++ b/drivers/block/drbd/drbd_req.h
-@@ -230,7 +230,7 @@ static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bi
- 	req->private_bio = bio;
- 
- 	bio->bi_private  = req;
--	bio->bi_end_io   = drbd_endio_pri;
-+	bio->bi_end_io   = drbd_request_endio;
- 	bio->bi_next     = NULL;
+ 	return overlap;
+ }
++
++struct drbd_interval *
++drbd_next_overlap(struct drbd_interval *i, sector_t sector, unsigned int size)
++{
++	sector_t end = sector + (size >> 9);
++	struct rb_node *node;
++
++	for (;;) {
++		node = rb_next(&i->rb);
++		if (!node)
++			return NULL;
++		i = rb_entry(node, struct drbd_interval, rb);
++		if (i->sector >= end)
++			return NULL;
++		if (sector < i->sector + (i->size >> 9))
++			return i;
++	}
++}
+diff --git a/drivers/block/drbd/drbd_interval.h b/drivers/block/drbd/drbd_interval.h
+index 4010ad9..f38fcb0 100644
+--- a/drivers/block/drbd/drbd_interval.h
++++ b/drivers/block/drbd/drbd_interval.h
+@@ -23,10 +23,18 @@ static inline bool drbd_interval_empty(struct drbd_interval *i)
+ 	return RB_EMPTY_NODE(&i->rb);
  }
  
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 2da2d23..01ab0bc 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -45,8 +45,8 @@ static int w_make_resync_request(struct drbd_work *w, int cancel);
+-bool drbd_insert_interval(struct rb_root *, struct drbd_interval *);
+-bool drbd_contains_interval(struct rb_root *, sector_t, struct drbd_interval *);
+-void drbd_remove_interval(struct rb_root *, struct drbd_interval *);
+-struct drbd_interval *drbd_find_overlap(struct rb_root *, sector_t,
++extern bool drbd_insert_interval(struct rb_root *, struct drbd_interval *);
++extern bool drbd_contains_interval(struct rb_root *, sector_t,
++				   struct drbd_interval *);
++extern void drbd_remove_interval(struct rb_root *, struct drbd_interval *);
++extern struct drbd_interval *drbd_find_overlap(struct rb_root *, sector_t,
+ 					unsigned int);
++extern struct drbd_interval *drbd_next_overlap(struct drbd_interval *, sector_t,
++					unsigned int);
++
++#define drbd_for_each_overlap(i, root, sector, size)		\
++	for (i = drbd_find_overlap(root, sector, size);		\
++	     i;							\
++	     i = drbd_next_overlap(i, sector, size))
  
- /* endio handlers:
-  *   drbd_md_io_complete (defined here)
-- *   drbd_endio_pri (defined here)
-- *   drbd_endio_sec (defined here)
-+ *   drbd_request_endio (defined here)
-+ *   drbd_peer_request_endio (defined here)
-  *   bm_async_io_complete (defined in drbd_bitmap.c)
-  *
-  * For all these callbacks, note the following:
-@@ -151,7 +151,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
- /* writes on behalf of the partner, or resync writes,
-  * "submitted" by the receiver.
-  */
--void drbd_endio_sec(struct bio *bio, int error)
-+void drbd_peer_request_endio(struct bio *bio, int error)
- {
- 	struct drbd_peer_request *peer_req = bio->bi_private;
- 	struct drbd_conf *mdev = peer_req->w.mdev;
-@@ -187,7 +187,7 @@ void drbd_endio_sec(struct bio *bio, int error)
- 
- /* read, readA or write requests on R_PRIMARY coming from drbd_make_request
-  */
--void drbd_endio_pri(struct bio *bio, int error)
-+void drbd_request_endio(struct bio *bio, int error)
- {
- 	unsigned long flags;
- 	struct drbd_request *req = bio->bi_private;
-diff --git a/drivers/block/drbd/drbd_wrappers.h b/drivers/block/drbd/drbd_wrappers.h
-index 151f1a3..decf9b2 100644
---- a/drivers/block/drbd/drbd_wrappers.h
-+++ b/drivers/block/drbd/drbd_wrappers.h
-@@ -20,8 +20,8 @@ static inline void drbd_set_my_capacity(struct drbd_conf *mdev,
- 
- /* bi_end_io handlers */
- extern void drbd_md_io_complete(struct bio *bio, int error);
--extern void drbd_endio_sec(struct bio *bio, int error);
--extern void drbd_endio_pri(struct bio *bio, int error);
-+extern void drbd_peer_request_endio(struct bio *bio, int error);
-+extern void drbd_request_endio(struct bio *bio, int error);
- 
- /*
-  * used to submit our private bio
+ #endif  /* __DRBD_INTERVAL_H */
 -- 
 1.7.4.1
 
