@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 31 Aug 2011 17:11:04 +0200
-Message-Id: <1314803468-1201-13-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 31 Aug 2011 17:11:05 +0200
+Message-Id: <1314803468-1201-14-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314803468-1201-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314803468-1201-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 12/16] drbd: Converted the transfer log from mdev
-	to tconn
+Subject: [Drbd-dev] [PATCH 13/16] drbd: Preparing the connector interface to
+	operator on connections
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,442 +18,247 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Up to now it only operated on minor numbers. Now it can work also
+on named connections.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    6 +-
- drivers/block/drbd/drbd_main.c     |  125 +++++++++++++++++++-----------------
- drivers/block/drbd/drbd_nl.c       |    4 +-
- drivers/block/drbd/drbd_receiver.c |    6 +-
- drivers/block/drbd/drbd_req.c      |    2 +-
- drivers/block/drbd/drbd_req.h      |    2 +-
- drivers/block/drbd/drbd_state.c    |    6 +-
- 7 files changed, 79 insertions(+), 72 deletions(-)
+ drivers/block/drbd/drbd_int.h  |    1 +
+ drivers/block/drbd/drbd_main.c |   15 ++++++
+ drivers/block/drbd/drbd_nl.c   |   96 ++++++++++++++++++++++++++--------------
+ include/linux/drbd.h           |   19 ++++++--
+ 4 files changed, 94 insertions(+), 37 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 004419e..fe3c2d2 100644
+index fe3c2d2..8ef5b82 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1173,10 +1173,10 @@ extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);
- #define drbd_calc_cpu_mask(A) ({})
- #endif
- extern void drbd_free_resources(struct drbd_conf *mdev);
--extern void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
-+extern void tl_release(struct drbd_tconn *, unsigned int barrier_nr,
- 		       unsigned int set_size);
--extern void tl_clear(struct drbd_conf *mdev);
--extern void _tl_add_barrier(struct drbd_conf *, struct drbd_tl_epoch *);
-+extern void tl_clear(struct drbd_tconn *);
-+extern void _tl_add_barrier(struct drbd_tconn *, struct drbd_tl_epoch *);
- extern void drbd_free_sock(struct drbd_tconn *tconn);
- extern int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
- 		     void *buf, size_t size, unsigned msg_flags);
+@@ -1479,6 +1479,7 @@ extern void drbd_free_mdev(struct drbd_conf *mdev);
+ 
+ struct drbd_tconn *drbd_new_tconn(char *name);
+ extern void drbd_free_tconn(struct drbd_tconn *tconn);
++struct drbd_tconn *conn_by_name(const char *name);
+ 
+ extern int proc_details;
+ 
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index eb51650..860ed18 100644
+index 860ed18..689f23f 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -180,7 +180,7 @@ int _get_ldev_if_state(struct drbd_conf *mdev, enum drbd_disk_state mins)
-  * Each &struct drbd_tl_epoch has a circular double linked list of requests
-  * attached.
-  */
--static int tl_init(struct drbd_conf *mdev)
-+static int tl_init(struct drbd_tconn *tconn)
- {
- 	struct drbd_tl_epoch *b;
- 
-@@ -195,21 +195,23 @@ static int tl_init(struct drbd_conf *mdev)
- 	b->n_writes = 0;
- 	b->w.cb = NULL; /* if this is != NULL, we need to dec_ap_pending in tl_clear */
- 
--	mdev->tconn->oldest_tle = b;
--	mdev->tconn->newest_tle = b;
--	INIT_LIST_HEAD(&mdev->tconn->out_of_sequence_requests);
-+	tconn->oldest_tle = b;
-+	tconn->newest_tle = b;
-+	INIT_LIST_HEAD(&tconn->out_of_sequence_requests);
- 
- 	return 1;
+@@ -2196,6 +2196,21 @@ static void drbd_init_workqueue(struct drbd_work_queue* wq)
+ 	INIT_LIST_HEAD(&wq->q);
  }
  
--static void tl_cleanup(struct drbd_conf *mdev)
-+static void tl_cleanup(struct drbd_tconn *tconn)
- {
--	D_ASSERT(mdev->tconn->oldest_tle == mdev->tconn->newest_tle);
--	D_ASSERT(list_empty(&mdev->tconn->out_of_sequence_requests));
--	kfree(mdev->tconn->oldest_tle);
--	mdev->tconn->oldest_tle = NULL;
--	kfree(mdev->tconn->unused_spare_tle);
--	mdev->tconn->unused_spare_tle = NULL;
-+	if (tconn->oldest_tle != tconn->newest_tle)
-+		conn_err(tconn, "ASSERT FAILED: oldest_tle == newest_tle\n");
-+	if (!list_empty(&tconn->out_of_sequence_requests))
-+		conn_err(tconn, "ASSERT FAILED: list_mepty(out_of_sequence_requests)\n");
-+	kfree(tconn->oldest_tle);
-+	tconn->oldest_tle = NULL;
-+	kfree(tconn->unused_spare_tle);
-+	tconn->unused_spare_tle = NULL;
- }
- 
- /**
-@@ -219,7 +221,7 @@ static void tl_cleanup(struct drbd_conf *mdev)
-  *
-  * The caller must hold the req_lock.
-  */
--void _tl_add_barrier(struct drbd_conf *mdev, struct drbd_tl_epoch *new)
-+void _tl_add_barrier(struct drbd_tconn *tconn, struct drbd_tl_epoch *new)
- {
- 	struct drbd_tl_epoch *newest_before;
- 
-@@ -229,13 +231,13 @@ void _tl_add_barrier(struct drbd_conf *mdev, struct drbd_tl_epoch *new)
- 	new->next = NULL;
- 	new->n_writes = 0;
- 
--	newest_before = mdev->tconn->newest_tle;
-+	newest_before = tconn->newest_tle;
- 	/* never send a barrier number == 0, because that is special-cased
- 	 * when using TCQ for our write ordering code */
- 	new->br_number = (newest_before->br_number+1) ?: 1;
--	if (mdev->tconn->newest_tle != new) {
--		mdev->tconn->newest_tle->next = new;
--		mdev->tconn->newest_tle = new;
-+	if (tconn->newest_tle != new) {
-+		tconn->newest_tle->next = new;
-+		tconn->newest_tle = new;
- 	}
- }
- 
-@@ -249,31 +251,32 @@ void _tl_add_barrier(struct drbd_conf *mdev, struct drbd_tl_epoch *new)
-  * &struct drbd_tl_epoch objects this function will cause a termination
-  * of the connection.
-  */
--void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
--		       unsigned int set_size)
-+void tl_release(struct drbd_tconn *tconn, unsigned int barrier_nr,
-+		unsigned int set_size)
- {
-+	struct drbd_conf *mdev;
- 	struct drbd_tl_epoch *b, *nob; /* next old barrier */
- 	struct list_head *le, *tle;
- 	struct drbd_request *r;
- 
--	spin_lock_irq(&mdev->tconn->req_lock);
-+	spin_lock_irq(&tconn->req_lock);
- 
--	b = mdev->tconn->oldest_tle;
-+	b = tconn->oldest_tle;
- 
- 	/* first some paranoia code */
- 	if (b == NULL) {
--		dev_err(DEV, "BAD! BarrierAck #%u received, but no epoch in tl!?\n",
--			barrier_nr);
-+		conn_err(tconn, "BAD! BarrierAck #%u received, but no epoch in tl!?\n",
-+			 barrier_nr);
- 		goto bail;
- 	}
- 	if (b->br_number != barrier_nr) {
--		dev_err(DEV, "BAD! BarrierAck #%u received, expected #%u!\n",
--			barrier_nr, b->br_number);
-+		conn_err(tconn, "BAD! BarrierAck #%u received, expected #%u!\n",
-+			 barrier_nr, b->br_number);
- 		goto bail;
- 	}
- 	if (b->n_writes != set_size) {
--		dev_err(DEV, "BAD! BarrierAck #%u received with n_writes=%u, expected n_writes=%u!\n",
--			barrier_nr, set_size, b->n_writes);
-+		conn_err(tconn, "BAD! BarrierAck #%u received with n_writes=%u, expected n_writes=%u!\n",
-+			 barrier_nr, set_size, b->n_writes);
- 		goto bail;
- 	}
- 
-@@ -296,28 +299,29 @@ void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
- 	   _req_mod(, BARRIER_ACKED) above.
- 	   */
- 	list_del_init(&b->requests);
-+	mdev = b->w.mdev;
- 
- 	nob = b->next;
- 	if (test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
--		_tl_add_barrier(mdev, b);
-+		_tl_add_barrier(tconn, b);
- 		if (nob)
--			mdev->tconn->oldest_tle = nob;
-+			tconn->oldest_tle = nob;
- 		/* if nob == NULL b was the only barrier, and becomes the new
--		   barrier. Therefore mdev->tconn->oldest_tle points already to b */
-+		   barrier. Therefore tconn->oldest_tle points already to b */
- 	} else {
- 		D_ASSERT(nob != NULL);
--		mdev->tconn->oldest_tle = nob;
-+		tconn->oldest_tle = nob;
- 		kfree(b);
- 	}
- 
--	spin_unlock_irq(&mdev->tconn->req_lock);
-+	spin_unlock_irq(&tconn->req_lock);
- 	dec_ap_pending(mdev);
- 
- 	return;
- 
- bail:
--	spin_unlock_irq(&mdev->tconn->req_lock);
--	drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
-+	spin_unlock_irq(&tconn->req_lock);
-+	conn_request_state(tconn, NS(conn, C_PROTOCOL_ERROR), CS_HARD);
- }
- 
- 
-@@ -329,15 +333,15 @@ bail:
-  * @what might be one of CONNECTION_LOST_WHILE_PENDING, RESEND, FAIL_FROZEN_DISK_IO,
-  * RESTART_FROZEN_DISK_IO.
-  */
--void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
-+void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
- {
- 	struct drbd_tl_epoch *b, *tmp, **pn;
- 	struct list_head *le, *tle, carry_reads;
- 	struct drbd_request *req;
- 	int rv, n_writes, n_reads;
- 
--	b = mdev->tconn->oldest_tle;
--	pn = &mdev->tconn->oldest_tle;
-+	b = tconn->oldest_tle;
-+	pn = &tconn->oldest_tle;
- 	while (b) {
- 		n_writes = 0;
- 		n_reads = 0;
-@@ -356,11 +360,11 @@ void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
- 				b->n_writes = n_writes;
- 				if (b->w.cb == NULL) {
- 					b->w.cb = w_send_barrier;
--					inc_ap_pending(mdev);
--					set_bit(CREATE_BARRIER, &mdev->flags);
-+					inc_ap_pending(b->w.mdev);
-+					set_bit(CREATE_BARRIER, &b->w.mdev->flags);
- 				}
- 
--				drbd_queue_work(&mdev->tconn->data.work, &b->w);
-+				drbd_queue_work(&tconn->data.work, &b->w);
- 			}
- 			pn = &b->next;
- 		} else {
-@@ -374,11 +378,12 @@ void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
- 			 * the newest barrier may not have been queued yet,
- 			 * in which case w.cb is still NULL. */
- 			if (b->w.cb != NULL)
--				dec_ap_pending(mdev);
-+				dec_ap_pending(b->w.mdev);
- 
--			if (b == mdev->tconn->newest_tle) {
-+			if (b == tconn->newest_tle) {
- 				/* recycle, but reinit! */
--				D_ASSERT(tmp == NULL);
-+				if (tmp != NULL)
-+					conn_err(tconn, "ASSERT FAILED tmp == NULL");
- 				INIT_LIST_HEAD(&b->requests);
- 				list_splice(&carry_reads, &b->requests);
- 				INIT_LIST_HEAD(&b->w.list);
-@@ -406,20 +411,23 @@ void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
-  * by the requests on the transfer gets marked as our of sync. Called from the
-  * receiver thread and the worker thread.
-  */
--void tl_clear(struct drbd_conf *mdev)
-+void tl_clear(struct drbd_tconn *tconn)
- {
-+	struct drbd_conf *mdev;
- 	struct list_head *le, *tle;
- 	struct drbd_request *r;
-+	int minor;
- 
--	spin_lock_irq(&mdev->tconn->req_lock);
-+	spin_lock_irq(&tconn->req_lock);
- 
--	_tl_restart(mdev, CONNECTION_LOST_WHILE_PENDING);
-+	_tl_restart(tconn, CONNECTION_LOST_WHILE_PENDING);
- 
- 	/* we expect this list to be empty. */
--	D_ASSERT(list_empty(&mdev->tconn->out_of_sequence_requests));
-+	if (!list_empty(&tconn->out_of_sequence_requests))
-+		conn_err(tconn, "ASSERT FAILED list_empty(&out_of_sequence_requests)\n");
- 
- 	/* but just in case, clean it up anyways! */
--	list_for_each_safe(le, tle, &mdev->tconn->out_of_sequence_requests) {
-+	list_for_each_safe(le, tle, &tconn->out_of_sequence_requests) {
- 		r = list_entry(le, struct drbd_request, tl_requests);
- 		/* It would be nice to complete outside of spinlock.
- 		 * But this is easier for now. */
-@@ -427,16 +435,17 @@ void tl_clear(struct drbd_conf *mdev)
- 	}
- 
- 	/* ensure bit indicating barrier is required is clear */
--	clear_bit(CREATE_BARRIER, &mdev->flags);
-+	idr_for_each_entry(&tconn->volumes, mdev, minor)
-+		clear_bit(CREATE_BARRIER, &mdev->flags);
- 
--	spin_unlock_irq(&mdev->tconn->req_lock);
-+	spin_unlock_irq(&tconn->req_lock);
- }
- 
--void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
-+void tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
- {
--	spin_lock_irq(&mdev->tconn->req_lock);
--	_tl_restart(mdev, what);
--	spin_unlock_irq(&mdev->tconn->req_lock);
-+	spin_lock_irq(&tconn->req_lock);
-+	_tl_restart(tconn, what);
-+	spin_unlock_irq(&tconn->req_lock);
- }
- 
- static int drbd_thread_setup(void *arg)
-@@ -2199,6 +2208,9 @@ struct drbd_tconn *drbd_new_tconn(char *name)
- 	if (!tconn->name)
- 		goto fail;
- 
-+	if (!tl_init(tconn))
-+		goto fail;
++struct drbd_tconn *conn_by_name(const char *name)
++{
++	struct drbd_tconn *tconn;
 +
- 	tconn->cstate = C_STANDALONE;
- 	mutex_init(&tconn->cstate_mutex);
- 	spin_lock_init(&tconn->req_lock);
-@@ -2224,6 +2236,7 @@ struct drbd_tconn *drbd_new_tconn(char *name)
- 	return tconn;
- 
- fail:
-+	tl_cleanup(tconn);
- 	kfree(tconn->name);
- 	kfree(tconn);
- 
-@@ -2316,9 +2329,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
- 
- 	if (drbd_bm_init(mdev))
- 		goto out_no_bitmap;
--	/* no need to lock access, we are still initializing this minor device. */
--	if (!tl_init(mdev))
--		goto out_no_tl;
- 	mdev->read_requests = RB_ROOT;
- 	mdev->write_requests = RB_ROOT;
- 
-@@ -2334,8 +2344,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
- /* out_whatever_else:
- 	kfree(mdev->current_epoch); */
- out_no_epoch:
--	tl_cleanup(mdev);
--out_no_tl:
- 	drbd_bm_cleanup(mdev);
- out_no_bitmap:
- 	__free_page(mdev->md_io_page);
-@@ -2357,7 +2365,6 @@ out_no_tconn:
- void drbd_free_mdev(struct drbd_conf *mdev)
++	write_lock_irq(&global_state_lock);
++	list_for_each_entry(tconn, &drbd_tconns, all_tconn) {
++		if (!strcmp(tconn->name, name))
++			goto found;
++	}
++	tconn = NULL;
++found:
++	write_unlock_irq(&global_state_lock);
++	return tconn;
++}
++
+ struct drbd_tconn *drbd_new_tconn(char *name)
  {
- 	kfree(mdev->current_epoch);
--	tl_cleanup(mdev);
- 	if (mdev->bitmap) /* should no longer be there. */
- 		drbd_bm_cleanup(mdev);
- 	__free_page(mdev->md_io_page);
+ 	struct drbd_tconn *tconn;
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 33159e4..b141f89 100644
+index b141f89..27a43d1 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1996,9 +1996,9 @@ static int drbd_nl_resume_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
- 	reply->ret_code = drbd_request_state(mdev, NS3(susp, 0, susp_nod, 0, susp_fen, 0));
- 	if (reply->ret_code == SS_SUCCESS) {
- 		if (mdev->state.conn < C_CONNECTED)
--			tl_clear(mdev);
-+			tl_clear(mdev->tconn);
- 		if (mdev->state.disk == D_DISKLESS || mdev->state.disk == D_FAILED)
--			tl_restart(mdev, FAIL_FROZEN_DISK_IO);
-+			tl_restart(mdev->tconn, FAIL_FROZEN_DISK_IO);
- 	}
- 	drbd_resume_io(mdev);
+@@ -2184,42 +2184,57 @@ out:
+ 	return 0;
+ }
  
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index b58dc16..e607503 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3469,7 +3469,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packet cmd,
- 		   for temporal network outages! */
- 		spin_unlock_irq(&mdev->tconn->req_lock);
- 		dev_err(DEV, "Aborting Connect, can not thaw IO with an only Consistent peer\n");
--		tl_clear(mdev);
-+		tl_clear(mdev->tconn);
- 		drbd_uuid_new_current(mdev);
- 		clear_bit(NEW_CUR_UUID, &mdev->flags);
- 		drbd_force_state(mdev, NS2(conn, C_PROTOCOL_ERROR, susp, 0));
-@@ -4028,7 +4028,7 @@ static int drbd_disconnected(int vnr, void *p, void *data)
- 	mdev->p_uuid = NULL;
- 
- 	if (!is_susp(mdev->state))
--		tl_clear(mdev);
-+		tl_clear(mdev->tconn);
- 
- 	drbd_md_sync(mdev);
- 
-@@ -4588,7 +4588,7 @@ static int got_BarrierAck(struct drbd_conf *mdev, enum drbd_packet cmd)
- {
- 	struct p_barrier_ack *p = &mdev->tconn->meta.rbuf.barrier_ack;
- 
--	tl_release(mdev, p->barrier, be32_to_cpu(p->set_size));
-+	tl_release(mdev->tconn, p->barrier, be32_to_cpu(p->set_size));
- 
- 	if (mdev->state.conn == C_AHEAD &&
- 	    atomic_read(&mdev->ap_in_flight) == 0 &&
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index cfa5fba..fa799e3 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -885,7 +885,7 @@ allocate_barrier:
- 	 * barrier packet, this request is queued within the same spinlock. */
- 	if ((remote || send_oos) && mdev->tconn->unused_spare_tle &&
- 	    test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
--		_tl_add_barrier(mdev, mdev->tconn->unused_spare_tle);
-+		_tl_add_barrier(mdev->tconn, mdev->tconn->unused_spare_tle);
- 		mdev->tconn->unused_spare_tle = NULL;
- 	} else {
- 		D_ASSERT(!(remote && rw == WRITE &&
-diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
-index 0b3cd41..7cfcf3d 100644
---- a/drivers/block/drbd/drbd_req.h
-+++ b/drivers/block/drbd/drbd_req.h
-@@ -254,7 +254,7 @@ extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
- extern void complete_master_bio(struct drbd_conf *mdev,
- 		struct bio_and_error *m);
- extern void request_timer_fn(unsigned long data);
--extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
-+extern void tl_restart(struct drbd_tconn *, enum drbd_req_event what);
- 
- /* use this if you don't want to deal with calling complete_master_bio()
-  * outside the spinlock, e.g. when walking some list on cleanup. */
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index febefcc..100d48b 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -37,7 +37,7 @@ struct after_state_chg_work {
- 	struct completion *done;
++enum cn_handler_type {
++	CHT_MINOR,
++	CHT_CONN,
++	CHT_CTOR,
++	/* CHT_RES, later */
++};
++
+ struct cn_handler_struct {
+-	int (*function)(struct drbd_conf *,
+-			 struct drbd_nl_cfg_req *,
+-			 struct drbd_nl_cfg_reply *);
++	enum cn_handler_type type;
++	union {
++		int (*minor_based)(struct drbd_conf *,
++				   struct drbd_nl_cfg_req *,
++				   struct drbd_nl_cfg_reply *);
++		int (*conn_based)(struct drbd_tconn *,
++				  struct drbd_nl_cfg_req *,
++				  struct drbd_nl_cfg_reply *);
++		int (*constructor)(struct drbd_nl_cfg_req *,
++				   struct drbd_nl_cfg_reply *);
++	};
+ 	int reply_body_size;
  };
  
--extern void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
-+extern void _tl_restart(struct drbd_tconn *, enum drbd_req_event what);
- static int w_after_state_ch(struct drbd_work *w, int unused);
- static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
- 			   union drbd_state ns, enum chg_state_flags flags);
-@@ -1009,7 +1009,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
- 	if (ns.susp_fen) {
- 		/* case1: The outdate peer handler is successful: */
- 		if (os.pdsk > D_OUTDATED  && ns.pdsk <= D_OUTDATED) {
--			tl_clear(mdev);
-+			tl_clear(mdev->tconn);
- 			if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
- 				drbd_uuid_new_current(mdev);
- 				clear_bit(NEW_CUR_UUID, &mdev->flags);
-@@ -1028,7 +1028,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
+ static struct cn_handler_struct cnd_table[] = {
+-	[ P_primary ]		= { &drbd_nl_primary,		0 },
+-	[ P_secondary ]		= { &drbd_nl_secondary,		0 },
+-	[ P_disk_conf ]		= { &drbd_nl_disk_conf,		0 },
+-	[ P_detach ]		= { &drbd_nl_detach,		0 },
+-	[ P_net_conf ]		= { &drbd_nl_net_conf,		0 },
+-	[ P_disconnect ]	= { &drbd_nl_disconnect,	0 },
+-	[ P_resize ]		= { &drbd_nl_resize,		0 },
+-	[ P_syncer_conf ]	= { &drbd_nl_syncer_conf,	0 },
+-	[ P_invalidate ]	= { &drbd_nl_invalidate,	0 },
+-	[ P_invalidate_peer ]	= { &drbd_nl_invalidate_peer,	0 },
+-	[ P_pause_sync ]	= { &drbd_nl_pause_sync,	0 },
+-	[ P_resume_sync ]	= { &drbd_nl_resume_sync,	0 },
+-	[ P_suspend_io ]	= { &drbd_nl_suspend_io,	0 },
+-	[ P_resume_io ]		= { &drbd_nl_resume_io,		0 },
+-	[ P_outdate ]		= { &drbd_nl_outdate,		0 },
+-	[ P_get_config ]	= { &drbd_nl_get_config,
++	[ P_primary ]		= { CHT_MINOR, { &drbd_nl_primary },	0 },
++	[ P_secondary ]		= { CHT_MINOR, { &drbd_nl_secondary },	0 },
++	[ P_disk_conf ]		= { CHT_MINOR, { &drbd_nl_disk_conf },	0 },
++	[ P_detach ]		= { CHT_MINOR, { &drbd_nl_detach },	0 },
++	[ P_net_conf ]		= { CHT_MINOR, { &drbd_nl_net_conf },	0 },
++	[ P_disconnect ]	= { CHT_MINOR, { &drbd_nl_disconnect },	0 },
++	[ P_resize ]		= { CHT_MINOR, { &drbd_nl_resize },	0 },
++	[ P_syncer_conf ]	= { CHT_MINOR, { &drbd_nl_syncer_conf },0 },
++	[ P_invalidate ]	= { CHT_MINOR, { &drbd_nl_invalidate },	0 },
++	[ P_invalidate_peer ]	= { CHT_MINOR, { &drbd_nl_invalidate_peer },0 },
++	[ P_pause_sync ]	= { CHT_MINOR, { &drbd_nl_pause_sync },	0 },
++	[ P_resume_sync ]	= { CHT_MINOR, { &drbd_nl_resume_sync },0 },
++	[ P_suspend_io ]	= { CHT_MINOR, { &drbd_nl_suspend_io },	0 },
++	[ P_resume_io ]		= { CHT_MINOR, { &drbd_nl_resume_io },	0 },
++	[ P_outdate ]		= { CHT_MINOR, { &drbd_nl_outdate },	0 },
++	[ P_get_config ]	= { CHT_MINOR, { &drbd_nl_get_config },
+ 				    sizeof(struct syncer_conf_tag_len_struct) +
+ 				    sizeof(struct disk_conf_tag_len_struct) +
+ 				    sizeof(struct net_conf_tag_len_struct) },
+-	[ P_get_state ]		= { &drbd_nl_get_state,
++	[ P_get_state ]		= { CHT_MINOR, { &drbd_nl_get_state },
+ 				    sizeof(struct get_state_tag_len_struct) +
+ 				    sizeof(struct sync_progress_tag_len_struct)	},
+-	[ P_get_uuids ]		= { &drbd_nl_get_uuids,
++	[ P_get_uuids ]		= { CHT_MINOR, { &drbd_nl_get_uuids },
+ 				    sizeof(struct get_uuids_tag_len_struct) },
+-	[ P_get_timeout_flag ]	= { &drbd_nl_get_timeout_flag,
++	[ P_get_timeout_flag ]	= { CHT_MINOR, { &drbd_nl_get_timeout_flag },
+ 				    sizeof(struct get_timeout_flag_tag_len_struct)},
+-	[ P_start_ov ]		= { &drbd_nl_start_ov,		0 },
+-	[ P_new_c_uuid ]	= { &drbd_nl_new_c_uuid,	0 },
++	[ P_start_ov ]		= { CHT_MINOR, { &drbd_nl_start_ov },	0 },
++	[ P_new_c_uuid ]	= { CHT_MINOR, { &drbd_nl_new_c_uuid },	0 },
+ };
  
- 	if (what != NOTHING) {
- 		spin_lock_irq(&mdev->tconn->req_lock);
--		_tl_restart(mdev, what);
-+		_tl_restart(mdev->tconn, what);
- 		nsm.i &= mdev->state.i;
- 		_drbd_set_state(mdev, nsm, CS_VERBOSE, NULL);
- 		spin_unlock_irq(&mdev->tconn->req_lock);
+ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms *nsp)
+@@ -2229,6 +2244,7 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
+ 	struct cn_msg *cn_reply;
+ 	struct drbd_nl_cfg_reply *reply;
+ 	struct drbd_conf *mdev;
++	struct drbd_tconn *tconn;
+ 	int retcode, rr;
+ 	int reply_size = sizeof(struct cn_msg)
+ 		+ sizeof(struct drbd_nl_cfg_reply)
+@@ -2244,13 +2260,6 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
+ 		goto fail;
+ 	}
+ 
+-	mdev = ensure_mdev(nlp->drbd_minor,
+-			(nlp->flags & DRBD_NL_CREATE_DEVICE));
+-	if (!mdev) {
+-		retcode = ERR_MINOR_INVALID;
+-		goto fail;
+-	}
+-
+ 	if (nlp->packet_type >= P_nl_after_last_packet ||
+ 	    nlp->packet_type == P_return_code_only) {
+ 		retcode = ERR_PACKET_NR;
+@@ -2260,7 +2269,7 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
+ 	cm = cnd_table + nlp->packet_type;
+ 
+ 	/* This may happen if packet number is 0: */
+-	if (cm->function == NULL) {
++	if (cm->minor_based == NULL) {
+ 		retcode = ERR_PACKET_NR;
+ 		goto fail;
+ 	}
+@@ -2281,7 +2290,28 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
+ 	reply->ret_code = NO_ERROR; /* Might by modified by cm->function. */
+ 	/* reply->tag_list; might be modified by cm->function. */
+ 
+-	rr = cm->function(mdev, nlp, reply);
++	retcode = ERR_MINOR_INVALID;
++	rr = 0;
++	switch (cm->type) {
++	case CHT_MINOR:
++		mdev = minor_to_mdev(nlp->drbd_minor);
++		if (!mdev)
++			goto fail;
++		rr = cm->minor_based(mdev, nlp, reply);
++		break;
++	case CHT_CONN:
++		tconn = conn_by_name(nlp->obj_name);
++		if (!tconn) {
++			retcode = ERR_CONN_NOT_KNOWN;
++			goto fail;
++		}
++		rr = cm->conn_based(tconn, nlp, reply);
++		break;
++	case CHT_CTOR:
++		rr = cm->constructor(nlp, reply);
++		break;
++	/* case CHT_RES: */
++	}
+ 
+ 	cn_reply->id = req->id;
+ 	cn_reply->seq = req->seq;
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index 70a688b..7683b4a 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -155,6 +155,7 @@ enum drbd_ret_code {
+ 	ERR_CONG_NOT_PROTO_A	= 155,
+ 	ERR_PIC_AFTER_DEP	= 156,
+ 	ERR_PIC_PEER_DEP	= 157,
++	ERR_CONN_NOT_KNOWN      = 158,
+ 
+ 	/* insert new ones above this line */
+ 	AFTER_LAST_ERR_CODE
+@@ -347,8 +348,11 @@ enum drbd_timeout_flag {
+ 
+ /* Start of the new netlink/connector stuff */
+ 
+-#define DRBD_NL_CREATE_DEVICE 0x01
+-#define DRBD_NL_SET_DEFAULTS  0x02
++enum drbd_ncr_flags {
++	DRBD_NL_CREATE_DEVICE = 0x01,
++	DRBD_NL_SET_DEFAULTS =  0x02,
++};
++#define DRBD_NL_OBJ_NAME_LEN 32
+ 
+ 
+ /* For searching a vacant cn_idx value */
+@@ -356,8 +360,15 @@ enum drbd_timeout_flag {
+ 
+ struct drbd_nl_cfg_req {
+ 	int packet_type;
+-	unsigned int drbd_minor;
+-	int flags;
++	union {
++		struct {
++			unsigned int drbd_minor;
++			enum drbd_ncr_flags flags;
++		};
++		struct {
++			char obj_name[DRBD_NL_OBJ_NAME_LEN];
++		};
++	};
+ 	unsigned short tag_list[];
+ };
+ 
 -- 
 1.7.4.1
 
