@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 31 Aug 2011 17:11:07 +0200
-Message-Id: <1314803468-1201-16-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 31 Aug 2011 17:11:08 +0200
+Message-Id: <1314803468-1201-17-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314803468-1201-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314803468-1201-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 15/16] drbd: Implemented new commands to
-	create/delete connections/minors
+Subject: [Drbd-dev] [PATCH 16/16] drbd: Replaced the minor_table array by an
+	idr
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,372 +21,234 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |    4 +-
- drivers/block/drbd/drbd_main.c |   66 ++++++++++++++-----------
- drivers/block/drbd/drbd_nl.c   |  106 ++++++++++++++++++++++++---------------
- include/linux/drbd.h           |    3 +
- include/linux/drbd_nl.h        |   12 +++++
- 5 files changed, 119 insertions(+), 72 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    8 +-----
+ drivers/block/drbd/drbd_main.c     |   42 ++++++++++++++++++-----------------
+ drivers/block/drbd/drbd_proc.c     |   14 +++--------
+ drivers/block/drbd/drbd_receiver.c |    2 +-
+ drivers/block/drbd/drbd_worker.c   |   10 +------
+ 5 files changed, 31 insertions(+), 45 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 2ef168c..5fb5bd0 100644
+index 5fb5bd0..e3f542c 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1258,7 +1258,6 @@ extern int drbd_bmio_clear_n_write(struct drbd_conf *mdev);
- extern void drbd_go_diskless(struct drbd_conf *mdev);
- extern void drbd_ldev_destroy(struct drbd_conf *mdev);
+@@ -168,8 +168,8 @@ drbd_insert_fault(struct drbd_conf *mdev, unsigned int type) {
+ /* 4th incarnation of the disk layout. */
+ #define DRBD_MD_MAGIC (DRBD_MAGIC+4)
  
+-extern struct drbd_conf **minor_table;
+ extern struct ratelimit_state drbd_ratelimit_state;
++extern struct idr minors;
+ extern struct list_head drbd_tconns;
+ 
+ /* on the wire */
+@@ -1109,11 +1109,7 @@ struct drbd_conf {
+ 
+ static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
+ {
+-	struct drbd_conf *mdev;
 -
- /* Meta data layout
-    We reserve a 128MB Block (4k aligned)
-    * either at the end of the backing device
-@@ -1476,8 +1475,9 @@ extern wait_queue_head_t drbd_pp_wait;
- extern rwlock_t global_state_lock;
+-	mdev = minor < minor_count ? minor_table[minor] : NULL;
+-
+-	return mdev;
++	return (struct drbd_conf *)idr_find(&minors, minor);
+ }
  
- extern int conn_lowest_minor(struct drbd_tconn *tconn);
--extern struct drbd_conf *drbd_new_device(unsigned int minor);
-+enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr);
- extern void drbd_free_mdev(struct drbd_conf *mdev);
-+extern void drbd_delete_device(unsigned int minor);
- 
- struct drbd_tconn *drbd_new_tconn(char *name);
- extern void drbd_free_tconn(struct drbd_tconn *tconn);
+ static inline unsigned int mdev_to_minor(struct drbd_conf *mdev)
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 004118e..1188fca 100644
+index 1188fca..0a2575c 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -614,13 +614,16 @@ char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *tas
- 	return thi ? thi->name : task->comm;
+@@ -74,7 +74,7 @@ MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
+ MODULE_DESCRIPTION("drbd - Distributed Replicated Block Device v" REL_VERSION);
+ MODULE_VERSION(REL_VERSION);
+ MODULE_LICENSE("GPL");
+-MODULE_PARM_DESC(minor_count, "Maximum number of drbd devices ("
++MODULE_PARM_DESC(minor_count, "Approximate number of drbd devices ("
+ 		 __stringify(DRBD_MINOR_COUNT_MIN) "-" __stringify(DRBD_MINOR_COUNT_MAX) ")");
+ MODULE_ALIAS_BLOCKDEV_MAJOR(DRBD_MAJOR);
+ 
+@@ -120,7 +120,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
+ /* in 2.6.x, our device mapping and config info contains our virtual gendisks
+  * as member "struct gendisk *vdisk;"
+  */
+-struct drbd_conf **minor_table;
++struct idr minors;
+ struct list_head drbd_tconns;  /* list of struct drbd_tconn */
+ 
+ struct kmem_cache *drbd_request_cache;
+@@ -2118,11 +2118,13 @@ void drbd_delete_device(unsigned int minor)
+ 	 * allocated from drbd_new_device
+ 	 * and actually free the mdev itself */
+ 	drbd_free_mdev(mdev);
++	idr_remove(&minors, minor);
  }
  
--#ifdef CONFIG_SMP
- int conn_lowest_minor(struct drbd_tconn *tconn)
+ static void drbd_cleanup(void)
  {
- 	int minor = 0;
--	idr_get_next(&tconn->volumes, &minor);
+ 	unsigned int i;
++	struct drbd_conf *mdev;
+ 
+ 	unregister_reboot_notifier(&drbd_notifier);
+ 
+@@ -2139,17 +2141,13 @@ static void drbd_cleanup(void)
+ 
+ 	drbd_nl_cleanup();
+ 
+-	if (minor_table) {
+-		i = minor_count;
+-		while (i--)
+-			drbd_delete_device(i);
+-		drbd_destroy_mempools();
+-	}
+-
+-	kfree(minor_table);
+-
++	idr_for_each_entry(&minors, mdev, i)
++		drbd_delete_device(i);
++	drbd_destroy_mempools();
+ 	unregister_blkdev(DRBD_MAJOR, "drbd");
+ 
++	idr_destroy(&minors);
 +
-+	if (!idr_get_next(&tconn->volumes, &minor))
-+		return -1;
- 	return minor;
- }
-+
-+#ifdef CONFIG_SMP
- /**
-  * drbd_calc_cpu_mask() - Generate CPU masks, spread over all CPUs
-  * @mdev:	DRBD device.
-@@ -2078,15 +2081,16 @@ static void drbd_release_ee_lists(struct drbd_conf *mdev)
- 		dev_err(DEV, "%d EEs in net list found!\n", rr);
- }
- 
--/* caution. no locking.
-- * currently only used from module cleanup code. */
--static void drbd_delete_device(unsigned int minor)
-+/* caution. no locking. */
-+void drbd_delete_device(unsigned int minor)
- {
- 	struct drbd_conf *mdev = minor_to_mdev(minor);
- 
- 	if (!mdev)
- 		return;
- 
-+	idr_remove(&mdev->tconn->volumes, minor);
-+
- 	/* paranoia asserts */
- 	D_ASSERT(mdev->open_cnt == 0);
- 	D_ASSERT(list_empty(&mdev->tconn->data.work.q));
-@@ -2101,7 +2105,6 @@ static void drbd_delete_device(unsigned int minor)
- 		bdput(mdev->this_bdev);
- 
- 	drbd_free_resources(mdev);
--	drbd_free_tconn(mdev->tconn);
- 
- 	drbd_release_ee_lists(mdev);
- 
-@@ -2223,6 +2226,9 @@ struct drbd_tconn *drbd_new_tconn(char *name)
- 	if (!tconn->name)
- 		goto fail;
- 
-+	if (!zalloc_cpumask_var(&tconn->cpu_mask, GFP_KERNEL))
-+		goto fail;
-+
- 	if (!tl_init(tconn))
- 		goto fail;
- 
-@@ -2252,6 +2258,7 @@ struct drbd_tconn *drbd_new_tconn(char *name)
- 
- fail:
- 	tl_cleanup(tconn);
-+	free_cpumask_var(tconn->cpu_mask);
- 	kfree(tconn->name);
- 	kfree(tconn);
- 
-@@ -2265,6 +2272,7 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
- 	write_unlock_irq(&global_state_lock);
- 	idr_destroy(&tconn->volumes);
- 
-+	free_cpumask_var(tconn->cpu_mask);
- 	kfree(tconn->name);
- 	kfree(tconn->int_dig_out);
- 	kfree(tconn->int_dig_in);
-@@ -2272,32 +2280,31 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
- 	kfree(tconn);
+ 	printk(KERN_INFO "drbd: module cleanup done.\n");
  }
  
--struct drbd_conf *drbd_new_device(unsigned int minor)
-+enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr)
- {
- 	struct drbd_conf *mdev;
+@@ -2286,6 +2284,7 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor,
  	struct gendisk *disk;
  	struct request_queue *q;
--	char conn_name[9]; /* drbd1234N */
--	int vnr;
-+	int vnr_got = vnr;
-+
-+	mdev = minor_to_mdev(minor);
-+	if (mdev)
-+		return ERR_MINOR_EXISTS;
+ 	int vnr_got = vnr;
++	int minor_got = minor;
  
- 	/* GFP_KERNEL, we are outside of all write-out paths */
- 	mdev = kzalloc(sizeof(struct drbd_conf), GFP_KERNEL);
- 	if (!mdev)
--		return NULL;
--	sprintf(conn_name, "drbd%d", minor);
--	mdev->tconn = drbd_new_tconn(conn_name);
--	if (!mdev->tconn)
--		goto out_no_tconn;
--	if (!idr_pre_get(&mdev->tconn->volumes, GFP_KERNEL))
--		goto out_no_cpumask;
--	if (idr_get_new(&mdev->tconn->volumes, mdev, &vnr))
--		goto out_no_cpumask;
--	if (vnr != 0) {
--		dev_err(DEV, "vnr = %d\n", vnr);
--		goto out_no_cpumask;
--	}
--	if (!zalloc_cpumask_var(&mdev->tconn->cpu_mask, GFP_KERNEL))
--		goto out_no_cpumask;
-+		return ERR_NOMEM;
-+
-+	mdev->tconn = tconn;
-+	if (!idr_pre_get(&tconn->volumes, GFP_KERNEL))
-+		goto out_no_idr;
-+	if (idr_get_new(&tconn->volumes, mdev, &vnr_got))
-+		goto out_no_idr;
-+	if (vnr_got != vnr) {
-+		dev_err(DEV, "vnr_got (%d) != vnr (%d)\n", vnr_got, vnr);
-+		goto out_no_q;
-+	}
- 
- 	mdev->minor = minor;
- 
-@@ -2354,7 +2361,10 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
+ 	mdev = minor_to_mdev(minor);
+ 	if (mdev)
+@@ -2361,13 +2360,20 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor,
  	INIT_LIST_HEAD(&mdev->current_epoch->list);
  	mdev->epochs = 1;
  
--	return mdev;
-+	minor_table[minor] = mdev;
-+	add_disk(disk);
-+
-+	return NO_ERROR;
+-	minor_table[minor] = mdev;
++	if (!idr_pre_get(&minors, GFP_KERNEL))
++		goto out_no_minor_idr;
++	if (idr_get_new(&minors, mdev, &minor_got))
++		goto out_no_minor_idr;
++	if (minor_got != minor) {
++		idr_remove(&minors, minor_got);
++		goto out_no_minor_idr;
++	}
+ 	add_disk(disk);
  
- /* out_whatever_else:
- 	kfree(mdev->current_epoch); */
-@@ -2367,12 +2377,10 @@ out_no_io_page:
- out_no_disk:
- 	blk_cleanup_queue(q);
- out_no_q:
--	free_cpumask_var(mdev->tconn->cpu_mask);
--out_no_cpumask:
--	drbd_free_tconn(mdev->tconn);
--out_no_tconn:
-+	idr_remove(&tconn->volumes, vnr_got);
-+out_no_idr:
- 	kfree(mdev);
--	return NULL;
-+	return ERR_NOMEM;
- }
+ 	return NO_ERROR;
  
- /* counterpart of drbd_new_device.
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 455a51d..f2739fd 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -443,40 +443,6 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
- 	return rv;
- }
+-/* out_whatever_else:
+-	kfree(mdev->current_epoch); */
++out_no_minor_idr:
++	kfree(mdev->current_epoch);
+ out_no_epoch:
+ 	drbd_bm_cleanup(mdev);
+ out_no_bitmap:
+@@ -2407,7 +2413,7 @@ int __init drbd_init(void)
  
--static struct drbd_conf *ensure_mdev(int minor, int create)
--{
--	struct drbd_conf *mdev;
--
--	if (minor >= minor_count)
--		return NULL;
--
--	mdev = minor_to_mdev(minor);
--
--	if (!mdev && create) {
--		struct gendisk *disk = NULL;
--		mdev = drbd_new_device(minor);
--
--		spin_lock_irq(&drbd_pp_lock);
--		if (minor_table[minor] == NULL) {
--			minor_table[minor] = mdev;
--			disk = mdev->vdisk;
--			mdev = NULL;
--		} /* else: we lost the race */
--		spin_unlock_irq(&drbd_pp_lock);
--
--		if (disk) /* we won the race above */
--			/* in case we ever add a drbd_delete_device(),
--			 * don't forget the del_gendisk! */
--			add_disk(disk);
--		else /* we lost the race above */
--			drbd_free_mdev(mdev);
--
--		mdev = minor_to_mdev(minor);
--	}
--
--	return mdev;
--}
--
- static int drbd_nl_primary(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
- 			   struct drbd_nl_cfg_reply *reply)
+ 	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
+ 		printk(KERN_ERR
+-			"drbd: invalid minor_count (%d)\n", minor_count);
++		       "drbd: invalid minor_count (%d)\n", minor_count);
+ #ifdef MODULE
+ 		return -EINVAL;
+ #else
+@@ -2437,10 +2443,7 @@ int __init drbd_init(void)
+ 	init_waitqueue_head(&drbd_pp_wait);
+ 
+ 	drbd_proc = NULL; /* play safe for drbd_cleanup */
+-	minor_table = kzalloc(sizeof(struct drbd_conf *)*minor_count,
+-				GFP_KERNEL);
+-	if (!minor_table)
+-		goto Enomem;
++	idr_init(&minors);
+ 
+ 	err = drbd_create_mempools();
+ 	if (err)
+@@ -2461,7 +2464,6 @@ int __init drbd_init(void)
+ 	printk(KERN_INFO "drbd: %s\n", drbd_buildtag());
+ 	printk(KERN_INFO "drbd: registered as block device major %d\n",
+ 		DRBD_MAJOR);
+-	printk(KERN_INFO "drbd: minor_table @ 0x%p\n", minor_table);
+ 
+ 	return 0; /* Success! */
+ 
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index 4e53cb3..36c9a6c 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -194,7 +194,7 @@ static void resync_dump_detail(struct seq_file *seq, struct lc_element *e)
+ 
+ static int drbd_seq_show(struct seq_file *seq, void *v)
  {
-@@ -1789,12 +1755,6 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
- 	if (!expect(sc.al_extents <= DRBD_AL_EXTENTS_MAX))
- 		sc.al_extents = DRBD_AL_EXTENTS_MAX;
+-	int i, hole = 0;
++	int i, prev_i = -1;
+ 	const char *sn;
+ 	struct drbd_conf *mdev;
  
--	/* to avoid spurious errors when configuring minors before configuring
--	 * the minors they depend on: if necessary, first create the minor we
--	 * depend on */
--	if (sc.after >= 0)
--		ensure_mdev(sc.after, 1);
--
- 	/* most sanity checks done, try to assign the new sync-after
- 	 * dependency.  need to hold the global lock in there,
- 	 * to avoid a race in the dependency loop check. */
-@@ -2184,13 +2144,73 @@ out:
- 	return 0;
- }
+@@ -227,16 +227,10 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
+ 	 oos .. known out-of-sync kB
+ 	*/
  
-+static int drbd_nl_new_conn(struct drbd_nl_cfg_req *nlp, struct drbd_nl_cfg_reply *reply)
-+{
-+	struct new_connection args;
-+
-+	if (!new_connection_from_tags(nlp->tag_list, &args)) {
-+		reply->ret_code = ERR_MANDATORY_TAG;
-+		return 0;
-+	}
-+
-+	reply->ret_code = NO_ERROR;
-+	if (!drbd_new_tconn(args.name))
-+		reply->ret_code = ERR_NOMEM;
-+
-+	return 0;
-+}
-+
-+static int drbd_nl_new_minor(struct drbd_tconn *tconn,
-+		      struct drbd_nl_cfg_req *nlp, struct drbd_nl_cfg_reply *reply)
-+{
-+	struct new_minor args;
-+
-+	args.vol_nr = 0;
-+	args.minor = 0;
-+
-+	if (!new_minor_from_tags(nlp->tag_list, &args)) {
-+		reply->ret_code = ERR_MANDATORY_TAG;
-+		return 0;
-+	}
-+
-+	reply->ret_code = conn_new_minor(tconn, args.minor, args.vol_nr);
-+
-+	return 0;
-+}
-+
-+static int drbd_nl_del_minor(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
-+			     struct drbd_nl_cfg_reply *reply)
-+{
-+	if (mdev->state.disk == D_DISKLESS &&
-+	    mdev->state.conn == C_STANDALONE &&
-+	    mdev->state.role == R_SECONDARY) {
-+		drbd_delete_device(mdev_to_minor(mdev));
-+		reply->ret_code = NO_ERROR;
-+	} else {
-+		reply->ret_code = ERR_MINOR_CONFIGURED;
-+	}
-+	return 0;
-+}
-+
-+static int drbd_nl_del_conn(struct drbd_tconn *tconn,
-+			    struct drbd_nl_cfg_req *nlp, struct drbd_nl_cfg_reply *reply)
-+{
-+	if (conn_lowest_minor(tconn) < 0) {
-+		drbd_free_tconn(tconn);
-+		reply->ret_code = NO_ERROR;
-+	} else {
-+		reply->ret_code = ERR_CONN_IN_USE;
-+	}
-+
-+	return 0;
-+}
-+
- enum cn_handler_type {
- 	CHT_MINOR,
- 	CHT_CONN,
- 	CHT_CTOR,
- 	/* CHT_RES, later */
- };
--
- struct cn_handler_struct {
- 	enum cn_handler_type type;
- 	union {
-@@ -2235,6 +2255,10 @@ static struct cn_handler_struct cnd_table[] = {
- 				    sizeof(struct get_timeout_flag_tag_len_struct)},
- 	[ P_start_ov ]		= { CHT_MINOR, { &drbd_nl_start_ov },	0 },
- 	[ P_new_c_uuid ]	= { CHT_MINOR, { &drbd_nl_new_c_uuid },	0 },
-+	[ P_new_connection ]	= { CHT_CTOR,  { .constructor = &drbd_nl_new_conn }, 0 },
-+	[ P_new_minor ]		= { CHT_CONN,  { .conn_based = &drbd_nl_new_minor }, 0 },
-+	[ P_del_minor ]		= { CHT_MINOR, { &drbd_nl_del_minor },	0 },
-+	[ P_del_connection ]    = { CHT_CONN,  { .conn_based = &drbd_nl_del_conn }, 0 },
- };
+-	for (i = 0; i < minor_count; i++) {
+-		mdev = minor_to_mdev(i);
+-		if (!mdev) {
+-			hole = 1;
+-			continue;
+-		}
+-		if (hole) {
+-			hole = 0;
++	idr_for_each_entry(&minors, mdev, i) {
++		if (prev_i != i - 1)
+ 			seq_printf(seq, "\n");
+-		}
++		prev_i = i;
  
- static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms *nsp)
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 7683b4a..e192167 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -156,6 +156,9 @@ enum drbd_ret_code {
- 	ERR_PIC_AFTER_DEP	= 156,
- 	ERR_PIC_PEER_DEP	= 157,
- 	ERR_CONN_NOT_KNOWN      = 158,
-+	ERR_CONN_IN_USE         = 159,
-+	ERR_MINOR_CONFIGURED    = 160,
-+	ERR_MINOR_EXISTS	= 161,
+ 		sn = drbd_conn_str(mdev->state.conn);
  
- 	/* insert new ones above this line */
- 	AFTER_LAST_ERR_CODE
-diff --git a/include/linux/drbd_nl.h b/include/linux/drbd_nl.h
-index ab6159e4..1216c7a 100644
---- a/include/linux/drbd_nl.h
-+++ b/include/linux/drbd_nl.h
-@@ -152,6 +152,18 @@ NL_PACKET(new_c_uuid, 26,
- NL_RESPONSE(return_code_only, 27)
- #endif
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index e607503..620f27f 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -284,7 +284,7 @@ static void drbd_pp_free(struct drbd_conf *mdev, struct page *page, int is_net)
+ 	atomic_t *a = is_net ? &mdev->pp_in_use_by_net : &mdev->pp_in_use;
+ 	int i;
  
-+NL_PACKET(new_connection, 28, /* CHT_CTOR */
-+	NL_STRING(	85,	T_MANDATORY,	name, DRBD_NL_OBJ_NAME_LEN)
-+)
-+
-+NL_PACKET(new_minor, 29, /* CHT_CONN */
-+	NL_INTEGER(	86,	T_MANDATORY,	minor)
-+	NL_INTEGER(	87,	T_MANDATORY,	vol_nr)
-+)
-+
-+NL_PACKET(del_minor, 30, ) /* CHT_MINOR */
-+NL_PACKET(del_connection, 31, ) /* CHT_CONN */
-+
- #undef NL_PACKET
- #undef NL_INTEGER
- #undef NL_INT64
+-	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE)*minor_count)
++	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count)
+ 		i = page_chain_free(page);
+ 	else {
+ 		struct page *tmp;
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 5cb5ffc..e459cb2 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1349,10 +1349,7 @@ static int _drbd_pause_after(struct drbd_conf *mdev)
+ 	struct drbd_conf *odev;
+ 	int i, rv = 0;
+ 
+-	for (i = 0; i < minor_count; i++) {
+-		odev = minor_to_mdev(i);
+-		if (!odev)
+-			continue;
++	idr_for_each_entry(&minors, odev, i) {
+ 		if (odev->state.conn == C_STANDALONE && odev->state.disk == D_DISKLESS)
+ 			continue;
+ 		if (!_drbd_may_sync_now(odev))
+@@ -1374,10 +1371,7 @@ static int _drbd_resume_next(struct drbd_conf *mdev)
+ 	struct drbd_conf *odev;
+ 	int i, rv = 0;
+ 
+-	for (i = 0; i < minor_count; i++) {
+-		odev = minor_to_mdev(i);
+-		if (!odev)
+-			continue;
++	idr_for_each_entry(&minors, odev, i) {
+ 		if (odev->state.conn == C_STANDALONE && odev->state.disk == D_DISKLESS)
+ 			continue;
+ 		if (odev->state.aftr_isp) {
 -- 
 1.7.4.1
 
