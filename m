@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 31 Aug 2011 17:10:59 +0200
-Message-Id: <1314803468-1201-8-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 31 Aug 2011 17:11:00 +0200
+Message-Id: <1314803468-1201-9-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314803468-1201-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314803468-1201-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/16] drbd: Replace get_asender_cmd() with its
-	implementation
+Subject: [Drbd-dev] [PATCH 08/16] drbd: Remove left-over function prototypes
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,107 +22,42 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   66 +++++++++++++++--------------------
- 1 files changed, 28 insertions(+), 38 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    2 --
+ drivers/block/drbd/drbd_receiver.c |    1 -
+ 2 files changed, 0 insertions(+), 3 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index c7b9fc9..e065985 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1534,7 +1534,6 @@ extern void drbd_csum_bio(struct drbd_conf *, struct crypto_hash *, struct bio *
+ extern void drbd_csum_ee(struct drbd_conf *, struct crypto_hash *,
+ 			 struct drbd_peer_request *, void *);
+ /* worker callbacks */
+-extern int w_req_cancel_conflict(struct drbd_work *, int);
+ extern int w_read_retry_remote(struct drbd_work *, int);
+ extern int w_e_end_data_req(struct drbd_work *, int);
+ extern int w_e_end_rsdata_req(struct drbd_work *, int);
+@@ -1543,7 +1542,6 @@ extern int w_e_end_ov_reply(struct drbd_work *, int);
+ extern int w_e_end_ov_req(struct drbd_work *, int);
+ extern int w_ov_finished(struct drbd_work *, int);
+ extern int w_resync_timer(struct drbd_work *, int);
+-extern int w_resume_next_sg(struct drbd_work *, int);
+ extern int w_send_write_hint(struct drbd_work *, int);
+ extern int w_send_dblock(struct drbd_work *, int);
+ extern int w_send_barrier(struct drbd_work *, int);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 9b29348..d78ab6e 100644
+index d78ab6e..88552e1 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4651,41 +4651,6 @@ static int got_skip(struct drbd_conf *mdev, enum drbd_packet cmd)
- 	return true;
- }
+@@ -4012,7 +4012,6 @@ static int drbd_disconnected(int vnr, void *p, void *data)
  
--struct asender_cmd {
--	size_t pkt_size;
--	int (*process)(struct drbd_conf *mdev, enum drbd_packet cmd);
--};
--
--static struct asender_cmd *get_asender_cmd(int cmd)
--{
--	static struct asender_cmd asender_tbl[] = {
--		/* anything missing from this table is in
--		 * the drbd_cmd_handler (drbd_default_handler) table,
--		 * see the beginning of drbdd() */
--	[P_PING]	    = { sizeof(struct p_header), got_Ping },
--	[P_PING_ACK]	    = { sizeof(struct p_header), got_PingAck },
--	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
--	[P_WRITE_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
--	[P_RS_WRITE_ACK]    = { sizeof(struct p_block_ack), got_BlockAck },
--	[P_DISCARD_WRITE]   = { sizeof(struct p_block_ack), got_BlockAck },
--	[P_NEG_ACK]	    = { sizeof(struct p_block_ack), got_NegAck },
--	[P_NEG_DREPLY]	    = { sizeof(struct p_block_ack), got_NegDReply },
--	[P_NEG_RS_DREPLY]   = { sizeof(struct p_block_ack), got_NegRSDReply},
--	[P_OV_RESULT]	    = { sizeof(struct p_block_ack), got_OVResult },
--	[P_BARRIER_ACK]	    = { sizeof(struct p_barrier_ack), got_BarrierAck },
--	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), got_RqSReply },
--	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
--	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), got_skip },
--	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), got_NegRSDReply},
--	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), got_RqSReply },
--	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
--	};
--
--	if (cmd >= ARRAY_SIZE(asender_tbl) || !asender_tbl[cmd].process)
--		return NULL;
--	return &asender_tbl[cmd];
--}
--
- static int _drbd_process_done_ee(int vnr, void *p, void *data)
- {
- 	struct drbd_conf *mdev = (struct drbd_conf *)p;
-@@ -4722,6 +4687,31 @@ static int tconn_process_done_ee(struct drbd_tconn *tconn)
- 	return 0;
- }
+ 	del_timer(&mdev->request_timer);
  
-+struct asender_cmd {
-+	size_t pkt_size;
-+	int (*process)(struct drbd_conf *, enum drbd_packet);
-+};
-+
-+static struct asender_cmd asender_tbl[] = {
-+	[P_PING]	    = { sizeof(struct p_header), got_Ping },
-+	[P_PING_ACK]	    = { sizeof(struct p_header), got_PingAck },
-+	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
-+	[P_WRITE_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
-+	[P_RS_WRITE_ACK]    = { sizeof(struct p_block_ack), got_BlockAck },
-+	[P_DISCARD_WRITE]   = { sizeof(struct p_block_ack), got_BlockAck },
-+	[P_NEG_ACK]	    = { sizeof(struct p_block_ack), got_NegAck },
-+	[P_NEG_DREPLY]	    = { sizeof(struct p_block_ack), got_NegDReply },
-+	[P_NEG_RS_DREPLY]   = { sizeof(struct p_block_ack), got_NegRSDReply},
-+	[P_OV_RESULT]	    = { sizeof(struct p_block_ack), got_OVResult },
-+	[P_BARRIER_ACK]	    = { sizeof(struct p_barrier_ack), got_BarrierAck },
-+	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), got_RqSReply },
-+	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
-+	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), got_skip },
-+	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), got_NegRSDReply},
-+	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), got_RqSReply },
-+	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
-+};
-+
- int drbd_asender(struct drbd_thread *thi)
- {
- 	struct drbd_tconn *tconn = thi->tconn;
-@@ -4806,8 +4796,8 @@ int drbd_asender(struct drbd_thread *thi)
- 		if (received == expect && cmd == NULL) {
- 			if (!decode_header(tconn, h, &pi))
- 				goto reconnect;
--			cmd = get_asender_cmd(pi.cmd);
--			if (unlikely(cmd == NULL)) {
-+			cmd = &asender_tbl[pi.cmd];
-+			if (pi.cmd >= ARRAY_SIZE(asender_tbl) || !cmd) {
- 				conn_err(tconn, "unknown command %d on meta (l: %d)\n",
- 					pi.cmd, pi.size);
- 				goto disconnect;
-@@ -4826,7 +4816,7 @@ int drbd_asender(struct drbd_thread *thi)
+-	/* make sure syncer is stopped and w_resume_next_sg queued */
+ 	del_timer_sync(&mdev->resync_timer);
+ 	resync_timer_fn((unsigned long)mdev);
  
- 			/* the idle_timeout (ping-int)
- 			 * has been restored in got_PingAck() */
--			if (cmd == get_asender_cmd(P_PING_ACK))
-+			if (cmd == &asender_tbl[P_PING_ACK])
- 				ping_timeout_active = 0;
- 
- 			buf	 = h;
 -- 
 1.7.4.1
 
