@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 31 Aug 2011 17:10:53 +0200
-Message-Id: <1314803468-1201-2-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 31 Aug 2011 17:10:54 +0200
+Message-Id: <1314803468-1201-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314803468-1201-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314803468-1201-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/16] drbd: Concurrent write detection fix
+Subject: [Drbd-dev] [PATCH 02/16] drbd: Replace atomic_add_return with
+	atomic_inc_return
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,124 +20,75 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-Commit 9b1e63e changed the concurrent write detection algorithm to only insert
-peer requests into write_requests tree after determining that there is no
-conflict.  With this change, new conflicting local requests could be added
-while the algorithm runs, but this case was not handled correctly.  Instead of
-making the algorithm deal with this case, switch back to adding peer requests
-to the write_requests tree immediately: this improves fairness.
-
-When a peer request is discarded, remove that request from the write_requests
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   41 ++++++++++++++++++-----------------
- 1 files changed, 21 insertions(+), 20 deletions(-)
+ drivers/block/drbd/drbd_main.c |    4 ++--
+ drivers/block/drbd/drbd_nl.c   |    8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 1b67426..987af1a 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1639,16 +1639,10 @@ static int e_send_discard_ack(struct drbd_work *w, int unused)
- 	struct drbd_peer_request *peer_req =
- 		container_of(w, struct drbd_peer_request, w);
- 	struct drbd_conf *mdev = w->mdev;
--	int ok = 1;
-+	int ok;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 47c4bae..e9e60d8 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1242,7 +1242,7 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	p.sector   = sector;
+ 	p.block_id = block_id;
+ 	p.blksize  = blksize;
+-	p.seq_num  = cpu_to_be32(atomic_add_return(1, &mdev->packet_seq));
++	p.seq_num  = cpu_to_be32(atomic_inc_return(&mdev->packet_seq));
  
- 	D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
- 	ok = drbd_send_ack(mdev, P_DISCARD_ACK, peer_req);
--
--	spin_lock_irq(&mdev->tconn->req_lock);
--	D_ASSERT(!drbd_interval_empty(&peer_req->i));
--	drbd_remove_epoch_entry_interval(mdev, peer_req);
--	spin_unlock_irq(&mdev->tconn->req_lock);
--
- 	dec_unacked(mdev);
+ 	if (!mdev->tconn->meta.socket || mdev->state.conn < C_CONNECTED)
+ 		return false;
+@@ -1530,7 +1530,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
+ 	prepare_header(mdev, &p.head, P_DATA, sizeof(p) - sizeof(struct p_header) + dgs + req->i.size);
+ 	p.sector   = cpu_to_be64(req->i.sector);
+ 	p.block_id = (unsigned long)req;
+-	p.seq_num  = cpu_to_be32(req->seq_num = atomic_add_return(1, &mdev->packet_seq));
++	p.seq_num  = cpu_to_be32(req->seq_num = atomic_inc_return(&mdev->packet_seq));
  
- 	return ok;
-@@ -1839,6 +1833,12 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	dp_flags = bio_flags_to_wire(mdev, req->master_bio->bi_rw);
  
- 		spin_lock_irq(&mdev->tconn->req_lock);
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 90d7317..0168587 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -2374,7 +2374,7 @@ void drbd_bcast_state(struct drbd_conf *mdev, union drbd_state state)
+ 	cn_reply->id.idx = CN_IDX_DRBD;
+ 	cn_reply->id.val = CN_VAL_DRBD;
  
-+		/*
-+		 * Inserting the peer request into the write_requests tree will
-+		 * prevent new conflicting local requests from being added.
-+		 */
-+		drbd_insert_interval(&mdev->write_requests, &peer_req->i);
-+
- 		first = 1;
- 		for (;;) {
- 			struct drbd_interval *i;
-@@ -1847,26 +1847,26 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 			prepare_to_wait(&mdev->misc_wait, &wait,
- 				TASK_INTERRUPTIBLE);
+-	cn_reply->seq = atomic_add_return(1, &drbd_nl_seq);
++	cn_reply->seq = atomic_inc_return(&drbd_nl_seq);
+ 	cn_reply->ack = 0; /* not used here. */
+ 	cn_reply->len = sizeof(struct drbd_nl_cfg_reply) +
+ 		(int)((char *)tl - (char *)reply->tag_list);
+@@ -2406,7 +2406,7 @@ void drbd_bcast_ev_helper(struct drbd_conf *mdev, char *helper_name)
+ 	cn_reply->id.idx = CN_IDX_DRBD;
+ 	cn_reply->id.val = CN_VAL_DRBD;
  
--			i = drbd_find_overlap(&mdev->write_requests, sector, size);
--			if (i) {
-+			drbd_for_each_overlap(i, &mdev->write_requests, sector, size) {
-+				struct drbd_request *req2;
-+
-+				if (i == &peer_req->i || !i->local)
-+					continue;
-+
- 				/* only ALERT on first iteration,
- 				 * we may be woken up early... */
- 				if (first)
--					dev_alert(DEV, "%s[%u] Concurrent %s write detected!"
-+					dev_alert(DEV, "%s[%u] Concurrent local write detected!"
- 					      "	new: %llus +%u; pending: %llus +%u\n",
- 					      current->comm, current->pid,
--					      i->local ? "local" : "remote",
- 					      (unsigned long long)sector, size,
- 					      (unsigned long long)i->sector, i->size);
+-	cn_reply->seq = atomic_add_return(1, &drbd_nl_seq);
++	cn_reply->seq = atomic_inc_return(&drbd_nl_seq);
+ 	cn_reply->ack = 0; /* not used here. */
+ 	cn_reply->len = sizeof(struct drbd_nl_cfg_reply) +
+ 		(int)((char *)tl - (char *)reply->tag_list);
+@@ -2485,7 +2485,7 @@ void drbd_bcast_ee(struct drbd_conf *mdev, const char *reason, const int dgs,
+ 	cn_reply->id.idx = CN_IDX_DRBD;
+ 	cn_reply->id.val = CN_VAL_DRBD;
  
--				if (i->local) {
--					struct drbd_request *req2;
--
--					req2 = container_of(i, struct drbd_request, i);
--					if (req2->rq_state & RQ_NET_PENDING)
--						++have_unacked;
--				}
-+				req2 = container_of(i, struct drbd_request, i);
-+				if (req2->rq_state & RQ_NET_PENDING)
-+					++have_unacked;
- 				++have_conflict;
-+				break;
- 			}
- 			if (!have_conflict)
- 				break;
-@@ -1875,6 +1875,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 			if (first && discard && have_unacked) {
- 				dev_alert(DEV, "Concurrent write! [DISCARD BY FLAG] sec=%llus\n",
- 				     (unsigned long long)sector);
-+				drbd_remove_epoch_entry_interval(mdev, peer_req);
- 				inc_unacked(mdev);
- 				peer_req->w.cb = e_send_discard_ack;
- 				list_add_tail(&peer_req->w.list, &mdev->done_ee);
-@@ -1891,6 +1892,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 			}
+-	cn_reply->seq = atomic_add_return(1,&drbd_nl_seq);
++	cn_reply->seq = atomic_inc_return(&drbd_nl_seq);
+ 	cn_reply->ack = 0; // not used here.
+ 	cn_reply->len = sizeof(struct drbd_nl_cfg_reply) +
+ 		(int)((char*)tl - (char*)reply->tag_list);
+@@ -2524,7 +2524,7 @@ void drbd_bcast_sync_progress(struct drbd_conf *mdev)
+ 	cn_reply->id.idx = CN_IDX_DRBD;
+ 	cn_reply->id.val = CN_VAL_DRBD;
  
- 			if (signal_pending(current)) {
-+				drbd_remove_epoch_entry_interval(mdev, peer_req);
- 				spin_unlock_irq(&mdev->tconn->req_lock);
- 				finish_wait(&mdev->misc_wait, &wait);
- 				goto out_interrupted;
-@@ -1909,12 +1911,11 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
- 				 * there must be none now. */
- 				D_ASSERT(have_unacked == 0);
- 			}
-+			/* FIXME: Introduce a timeout here after which we disconnect.  */
- 			schedule();
- 			spin_lock_irq(&mdev->tconn->req_lock);
- 		}
- 		finish_wait(&mdev->misc_wait, &wait);
--
--		drbd_insert_interval(&mdev->write_requests, &peer_req->i);
- 	}
- 
- 	list_add(&peer_req->w.list, &mdev->active_ee);
+-	cn_reply->seq = atomic_add_return(1, &drbd_nl_seq);
++	cn_reply->seq = atomic_inc_return(&drbd_nl_seq);
+ 	cn_reply->ack = 0; /* not used here. */
+ 	cn_reply->len = sizeof(struct drbd_nl_cfg_reply) +
+ 		(int)((char *)tl - (char *)reply->tag_list);
 -- 
 1.7.4.1
 
