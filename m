@@ -1,16 +1,12 @@
-Return-Path: <f.g.haas@gmx.net>
-Received: from mailout-de.gmx.net (mailout-de.gmx.net [213.165.64.23])
-	by mail09.linbit.com (LINBIT Mail Daemon) with SMTP id 03D4510556A6
-	for <drbd-dev@lists.linbit.com>; Fri,  2 Sep 2011 09:37:23 +0200 (CEST)
-Message-ID: <4E6087B1.5080901@gmx.net>
-Date: Fri, 02 Sep 2011 09:37:21 +0200
-From: Florian Haas <f.g.haas@gmx.net>
-MIME-Version: 1.0
-To: drbd-dev@lists.linbit.com
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature";
-	boundary="------------enigEEF191F0AB1EB11A7D609AD7"
-Subject: [Drbd-dev] [GIT PULL] Tiny addition to User's Guide LVM chapter
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: linux-kernel@vger.kernel.org,
+	Jens Axboe <axboe@kernel.dk>
+Date: Fri,  2 Sep 2011 12:00:32 +0200
+Message-Id: <1314957648-13242-1-git-send-email-philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [RFC 00/16] drbd: part 5 of adding multiple volume
+	support to drbd
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,48 +16,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enigEEF191F0AB1EB11A7D609AD7
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+This the first request for review of drbd-8.4. The complete set has 
+492 patches. This is the fifth installment containing 16 patches.
 
-Phil/Lars,
+The whole set is available here:
+  git://git.drbd.org/linux-2.6-drbd.git for-jens
 
-Please consider pulling this little UG patch reminding users to update
-their initrd after they make DRBD-related changes to lvm.conf. This is
-an issue that has popped up on IRC a few times recently.
+and is jens_for-3.2_drivers...for-jens
+and this part is c807047...668659d
 
-Thanks,
-Florian
+The most noticeable change is the support for multiple replicated volumes in
+a single DRBD connection.  Write-ordering is obeyed among all writes in all
+volumes in a single connection.  This feature is really important for users
+who use DRBD for mirroring over longer distances. (Protocol A).
 
-The following changes since commit 1e37327f145e42f6e9c8f93f2934a28f1d0596=
-4c:
-
-  User's Guide: rename preface to "Please Read This First" (2011-07-15
-12:08:55 +0200)
-
-are available in the git repository at:
-  git://github.com/fghaas/drbd-documentation master
-
-Florian Haas (1):
-      User's Guide: add note about updating initrd in LVM chapter
-
- users-guide/lvm.txt |    8 ++++++++
- 1 files changed, 8 insertions(+), 0 deletions(-)
-
-
---------------enigEEF191F0AB1EB11A7D609AD7
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
-
-iEYEARECAAYFAk5gh7EACgkQ3LcKy7E7Hp2vPwCeMagkHMSN8GER3JPa2REFUuVy
-gHcAnRr6WRuQIkGZHUeWQez0vNmU1eHT
-=FOCV
------END PGP SIGNATURE-----
-
---------------enigEEF191F0AB1EB11A7D609AD7--
