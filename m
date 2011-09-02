@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri,  2 Sep 2011 12:00:38 +0200
-Message-Id: <1314957648-13242-7-git-send-email-philipp.reisner@linbit.com>
+Date: Fri,  2 Sep 2011 12:00:39 +0200
+Message-Id: <1314957648-13242-8-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314957648-13242-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314957648-13242-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/16] drbd: Allow packet handler functions that
-	take a connection
+Subject: [Drbd-dev] [PATCH 07/16] drbd: Converted receive_protocol() from
+	mdev to tconn
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,127 +18,119 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-That is necessary in case a connection does not have a volume 0
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   75 ++++++++++++++++++++----------------
- 1 files changed, 42 insertions(+), 33 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |   46 ++++++++++++++++++------------------
+ 1 files changed, 23 insertions(+), 23 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 7bb5e5c..1301ba1 100644
+index 1301ba1..17904f7 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3856,39 +3856,45 @@ static int receive_out_of_sync(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	return true;
+@@ -2856,10 +2856,10 @@ static int cmp_after_sb(enum drbd_after_sb_p peer, enum drbd_after_sb_p self)
+ 	return 1;
  }
  
--typedef int (*drbd_cmd_handler_f)(struct drbd_conf *, enum drbd_packet cmd,
--				  unsigned int to_receive);
--
- struct data_cmd {
- 	int expect_payload;
- 	size_t pkt_size;
--	drbd_cmd_handler_f function;
-+	enum {
-+		MDEV,
-+		CONN,
-+	} type;
-+	union {
-+		int (*mdev_fn)(struct drbd_conf *, enum drbd_packet cmd,
-+				  unsigned int to_receive);
-+		int (*conn_fn)(struct drbd_tconn *, enum drbd_packet cmd,
-+				  unsigned int to_receive);
-+	};
- };
- 
- static struct data_cmd drbd_cmd_handler[] = {
--	[P_DATA]	    = { 1, sizeof(struct p_data), receive_Data },
--	[P_DATA_REPLY]	    = { 1, sizeof(struct p_data), receive_DataReply },
--	[P_RS_DATA_REPLY]   = { 1, sizeof(struct p_data), receive_RSDataReply } ,
--	[P_BARRIER]	    = { 0, sizeof(struct p_barrier), receive_Barrier } ,
--	[P_BITMAP]	    = { 1, sizeof(struct p_header), receive_bitmap } ,
--	[P_COMPRESSED_BITMAP] = { 1, sizeof(struct p_header), receive_bitmap } ,
--	[P_UNPLUG_REMOTE]   = { 0, sizeof(struct p_header), receive_UnplugRemote },
--	[P_DATA_REQUEST]    = { 0, sizeof(struct p_block_req), receive_DataRequest },
--	[P_RS_DATA_REQUEST] = { 0, sizeof(struct p_block_req), receive_DataRequest },
--	[P_SYNC_PARAM]	    = { 1, sizeof(struct p_header), receive_SyncParam },
--	[P_SYNC_PARAM89]    = { 1, sizeof(struct p_header), receive_SyncParam },
--	[P_PROTOCOL]        = { 1, sizeof(struct p_protocol), receive_protocol },
--	[P_UUIDS]	    = { 0, sizeof(struct p_uuids), receive_uuids },
--	[P_SIZES]	    = { 0, sizeof(struct p_sizes), receive_sizes },
--	[P_STATE]	    = { 0, sizeof(struct p_state), receive_state },
--	[P_STATE_CHG_REQ]   = { 0, sizeof(struct p_req_state), receive_req_state },
--	[P_SYNC_UUID]       = { 0, sizeof(struct p_rs_uuid), receive_sync_uuid },
--	[P_OV_REQUEST]      = { 0, sizeof(struct p_block_req), receive_DataRequest },
--	[P_OV_REPLY]        = { 1, sizeof(struct p_block_req), receive_DataRequest },
--	[P_CSUM_RS_REQUEST] = { 1, sizeof(struct p_block_req), receive_DataRequest },
--	[P_DELAY_PROBE]     = { 0, sizeof(struct p_delay_probe93), receive_skip },
--	[P_OUT_OF_SYNC]     = { 0, sizeof(struct p_block_desc), receive_out_of_sync },
--	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), receive_req_state },
-+	[P_DATA]	    = { 1, sizeof(struct p_data), MDEV, { receive_Data } },
-+	[P_DATA_REPLY]	    = { 1, sizeof(struct p_data), MDEV, { receive_DataReply } },
-+	[P_RS_DATA_REPLY]   = { 1, sizeof(struct p_data), MDEV, { receive_RSDataReply } } ,
-+	[P_BARRIER]	    = { 0, sizeof(struct p_barrier), MDEV, { receive_Barrier } } ,
-+	[P_BITMAP]	    = { 1, sizeof(struct p_header), MDEV, { receive_bitmap } } ,
-+	[P_COMPRESSED_BITMAP] = { 1, sizeof(struct p_header), MDEV, { receive_bitmap } } ,
-+	[P_UNPLUG_REMOTE]   = { 0, sizeof(struct p_header), MDEV, { receive_UnplugRemote } },
-+	[P_DATA_REQUEST]    = { 0, sizeof(struct p_block_req), MDEV, { receive_DataRequest } },
-+	[P_RS_DATA_REQUEST] = { 0, sizeof(struct p_block_req), MDEV, { receive_DataRequest } },
-+	[P_SYNC_PARAM]	    = { 1, sizeof(struct p_header), MDEV, { receive_SyncParam } },
-+	[P_SYNC_PARAM89]    = { 1, sizeof(struct p_header), MDEV, { receive_SyncParam } },
-+	[P_PROTOCOL]        = { 1, sizeof(struct p_protocol), MDEV, { receive_protocol } },
-+	[P_UUIDS]	    = { 0, sizeof(struct p_uuids), MDEV, { receive_uuids } },
-+	[P_SIZES]	    = { 0, sizeof(struct p_sizes), MDEV, { receive_sizes } },
-+	[P_STATE]	    = { 0, sizeof(struct p_state), MDEV, { receive_state } },
-+	[P_STATE_CHG_REQ]   = { 0, sizeof(struct p_req_state), MDEV, { receive_req_state } },
-+	[P_SYNC_UUID]       = { 0, sizeof(struct p_rs_uuid), MDEV, { receive_sync_uuid } },
-+	[P_OV_REQUEST]      = { 0, sizeof(struct p_block_req), MDEV, { receive_DataRequest } },
-+	[P_OV_REPLY]        = { 1, sizeof(struct p_block_req), MDEV, { receive_DataRequest } },
-+	[P_CSUM_RS_REQUEST] = { 1, sizeof(struct p_block_req), MDEV, { receive_DataRequest } },
-+	[P_DELAY_PROBE]     = { 0, sizeof(struct p_delay_probe93), MDEV, { receive_skip } },
-+	[P_OUT_OF_SYNC]     = { 0, sizeof(struct p_block_desc), MDEV, { receive_out_of_sync } },
-+	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), MDEV, { receive_req_state } },
- };
- 
- /* All handler functions that expect a sub-header get that sub-heder in
-@@ -3901,7 +3907,6 @@ static struct data_cmd drbd_cmd_handler[] = {
- static void drbdd(struct drbd_tconn *tconn)
+-static int receive_protocol(struct drbd_conf *mdev, enum drbd_packet cmd,
++static int receive_protocol(struct drbd_tconn *tconn, enum drbd_packet cmd,
+ 			    unsigned int data_size)
  {
- 	struct p_header *header = &tconn->data.rbuf.header;
--	struct drbd_conf *mdev;
- 	struct packet_info pi;
- 	size_t shs; /* sub header size */
- 	int rv;
-@@ -3912,7 +3917,7 @@ static void drbdd(struct drbd_tconn *tconn)
- 			goto err_out;
+-	struct p_protocol *p = &mdev->tconn->data.rbuf.protocol;
++	struct p_protocol *p = &tconn->data.rbuf.protocol;
+ 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
+ 	int p_want_lose, p_two_primaries, cf;
+ 	char p_integrity_alg[SHARED_SECRET_MAX] = "";
+@@ -2872,60 +2872,60 @@ static int receive_protocol(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	cf		= be32_to_cpu(p->conn_flags);
+ 	p_want_lose = cf & CF_WANT_LOSE;
  
- 		if (unlikely(pi.cmd >= ARRAY_SIZE(drbd_cmd_handler) ||
--		    !drbd_cmd_handler[pi.cmd].function)) {
-+		    !drbd_cmd_handler[pi.cmd].mdev_fn)) {
- 			conn_err(tconn, "unknown packet type %d, l: %d!\n", pi.cmd, pi.size);
- 			goto err_out;
+-	clear_bit(CONN_DRY_RUN, &mdev->tconn->flags);
++	clear_bit(CONN_DRY_RUN, &tconn->flags);
+ 
+ 	if (cf & CF_DRY_RUN)
+-		set_bit(CONN_DRY_RUN, &mdev->tconn->flags);
++		set_bit(CONN_DRY_RUN, &tconn->flags);
+ 
+-	if (p_proto != mdev->tconn->net_conf->wire_protocol) {
+-		dev_err(DEV, "incompatible communication protocols\n");
++	if (p_proto != tconn->net_conf->wire_protocol) {
++		conn_err(tconn, "incompatible communication protocols\n");
+ 		goto disconnect;
+ 	}
+ 
+-	if (cmp_after_sb(p_after_sb_0p, mdev->tconn->net_conf->after_sb_0p)) {
+-		dev_err(DEV, "incompatible after-sb-0pri settings\n");
++	if (cmp_after_sb(p_after_sb_0p, tconn->net_conf->after_sb_0p)) {
++		conn_err(tconn, "incompatible after-sb-0pri settings\n");
+ 		goto disconnect;
+ 	}
+ 
+-	if (cmp_after_sb(p_after_sb_1p, mdev->tconn->net_conf->after_sb_1p)) {
+-		dev_err(DEV, "incompatible after-sb-1pri settings\n");
++	if (cmp_after_sb(p_after_sb_1p, tconn->net_conf->after_sb_1p)) {
++		conn_err(tconn, "incompatible after-sb-1pri settings\n");
+ 		goto disconnect;
+ 	}
+ 
+-	if (cmp_after_sb(p_after_sb_2p, mdev->tconn->net_conf->after_sb_2p)) {
+-		dev_err(DEV, "incompatible after-sb-2pri settings\n");
++	if (cmp_after_sb(p_after_sb_2p, tconn->net_conf->after_sb_2p)) {
++		conn_err(tconn, "incompatible after-sb-2pri settings\n");
+ 		goto disconnect;
+ 	}
+ 
+-	if (p_want_lose && mdev->tconn->net_conf->want_lose) {
+-		dev_err(DEV, "both sides have the 'want_lose' flag set\n");
++	if (p_want_lose && tconn->net_conf->want_lose) {
++		conn_err(tconn, "both sides have the 'want_lose' flag set\n");
+ 		goto disconnect;
+ 	}
+ 
+-	if (p_two_primaries != mdev->tconn->net_conf->two_primaries) {
+-		dev_err(DEV, "incompatible setting of the two-primaries options\n");
++	if (p_two_primaries != tconn->net_conf->two_primaries) {
++		conn_err(tconn, "incompatible setting of the two-primaries options\n");
+ 		goto disconnect;
+ 	}
+ 
+-	if (mdev->tconn->agreed_pro_version >= 87) {
+-		unsigned char *my_alg = mdev->tconn->net_conf->integrity_alg;
++	if (tconn->agreed_pro_version >= 87) {
++		unsigned char *my_alg = tconn->net_conf->integrity_alg;
+ 
+-		if (drbd_recv(mdev->tconn, p_integrity_alg, data_size) != data_size)
++		if (drbd_recv(tconn, p_integrity_alg, data_size) != data_size)
+ 			return false;
+ 
+ 		p_integrity_alg[SHARED_SECRET_MAX-1] = 0;
+ 		if (strcmp(p_integrity_alg, my_alg)) {
+-			dev_err(DEV, "incompatible setting of the data-integrity-alg\n");
++			conn_err(tconn, "incompatible setting of the data-integrity-alg\n");
+ 			goto disconnect;
  		}
-@@ -3932,10 +3937,14 @@ static void drbdd(struct drbd_tconn *tconn)
- 			}
- 		}
+-		dev_info(DEV, "data-integrity-alg: %s\n",
++		conn_info(tconn, "data-integrity-alg: %s\n",
+ 		     my_alg[0] ? my_alg : (unsigned char *)"<not-used>");
+ 	}
  
--		mdev = vnr_to_mdev(tconn, pi.vnr);
--		rv = mdev ?
--			drbd_cmd_handler[pi.cmd].function(mdev, pi.cmd, pi.size - shs) :
--			tconn_receive_skip(tconn, pi.cmd, pi.size - shs);
-+		if (drbd_cmd_handler[pi.cmd].type == CONN) {
-+			rv = drbd_cmd_handler[pi.cmd].conn_fn(tconn, pi.cmd, pi.size - shs);
-+		} else {
-+			struct drbd_conf *mdev = vnr_to_mdev(tconn, pi.vnr);
-+			rv = mdev ?
-+				drbd_cmd_handler[pi.cmd].mdev_fn(mdev, pi.cmd, pi.size - shs) :
-+				tconn_receive_skip(tconn, pi.cmd, pi.size - shs);
-+		}
+ 	return true;
  
- 		if (unlikely(!rv)) {
- 			conn_err(tconn, "error receiving %s, l: %d!\n",
+ disconnect:
+-	conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
++	conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
+ 	return false;
+ }
+ 
+@@ -3883,7 +3883,7 @@ static struct data_cmd drbd_cmd_handler[] = {
+ 	[P_RS_DATA_REQUEST] = { 0, sizeof(struct p_block_req), MDEV, { receive_DataRequest } },
+ 	[P_SYNC_PARAM]	    = { 1, sizeof(struct p_header), MDEV, { receive_SyncParam } },
+ 	[P_SYNC_PARAM89]    = { 1, sizeof(struct p_header), MDEV, { receive_SyncParam } },
+-	[P_PROTOCOL]        = { 1, sizeof(struct p_protocol), MDEV, { receive_protocol } },
++	[P_PROTOCOL]        = { 1, sizeof(struct p_protocol), CONN, { .conn_fn = receive_protocol } },
+ 	[P_UUIDS]	    = { 0, sizeof(struct p_uuids), MDEV, { receive_uuids } },
+ 	[P_SIZES]	    = { 0, sizeof(struct p_sizes), MDEV, { receive_sizes } },
+ 	[P_STATE]	    = { 0, sizeof(struct p_state), MDEV, { receive_state } },
 -- 
 1.7.4.1
 
