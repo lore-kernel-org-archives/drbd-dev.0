@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri,  2 Sep 2011 12:00:33 +0200
-Message-Id: <1314957648-13242-2-git-send-email-philipp.reisner@linbit.com>
+Date: Fri,  2 Sep 2011 12:00:34 +0200
+Message-Id: <1314957648-13242-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1314957648-13242-1-git-send-email-philipp.reisner@linbit.com>
 References: <1314957648-13242-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/16] drbd: process_done_ee() has to handle
-	unconfigured devices now
+Subject: [Drbd-dev] [PATCH 02/16] drbd: New minors have to intherit the
+	connection state form their connection
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,92 +18,74 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Took the chance and converted tconn_process_done_ee() to use
-idr_for_each_entry()
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   44 ++++++++++++++---------------------
- 1 files changed, 18 insertions(+), 26 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    1 +
+ drivers/block/drbd/drbd_main.c     |    5 +++++
+ drivers/block/drbd/drbd_receiver.c |    5 +++--
+ drivers/block/drbd/drbd_state.c    |    4 ++--
+ 4 files changed, 11 insertions(+), 4 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index d84a073..05bb9fd 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1595,6 +1595,7 @@ extern void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,
+ extern void drbd_set_recv_tcq(struct drbd_conf *mdev, int tcq_enabled);
+ extern void _drbd_clear_done_ee(struct drbd_conf *mdev, struct list_head *to_be_freed);
+ extern void conn_flush_workqueue(struct drbd_tconn *tconn);
++extern int drbd_connected(int vnr, void *p, void *data);
+ static inline void drbd_flush_workqueue(struct drbd_conf *mdev)
+ {
+ 	conn_flush_workqueue(mdev->tconn);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index de49c8d..4bfffe9 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2410,6 +2410,11 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor,
+ 	}
+ 	add_disk(disk);
+ 
++	/* inherit the connection state */
++	mdev->state.conn = tconn->cstate;
++	if (mdev->state.conn == C_WF_REPORT_PARAMS)
++		drbd_connected(vnr, mdev, tconn);
++
+ 	return NO_ERROR;
+ 
+ out_idr_remove_vol:
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index c57ef9f..956a0e2 100644
+index 956a0e2..1c83a12 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -404,7 +404,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
- 	LIST_HEAD(work_list);
- 	LIST_HEAD(reclaimed);
- 	struct drbd_peer_request *peer_req, *t;
--	int ok = (mdev->state.conn >= C_WF_REPORT_PARAMS);
-+	int ok = 1;
- 
- 	spin_lock_irq(&mdev->tconn->req_lock);
- 	reclaim_net_ee(mdev, &reclaimed);
-@@ -4670,37 +4670,27 @@ static int got_skip(struct drbd_conf *mdev, enum drbd_packet cmd)
- 	return true;
+@@ -744,8 +744,9 @@ static int drbd_socket_okay(struct socket **sock)
+ 		return false;
+ 	}
  }
- 
--static int _drbd_process_done_ee(int vnr, void *p, void *data)
--{
--	struct drbd_conf *mdev = (struct drbd_conf *)p;
--	return !drbd_process_done_ee(mdev);
--}
 -
--static int _check_ee_empty(int vnr, void *p, void *data)
--{
--	struct drbd_conf *mdev = (struct drbd_conf *)p;
--	struct drbd_tconn *tconn = mdev->tconn;
--	int not_empty;
--
--	spin_lock_irq(&tconn->req_lock);
--	not_empty = !list_empty(&mdev->done_ee);
--	spin_unlock_irq(&tconn->req_lock);
--
--	return not_empty;
--}
--
- static int tconn_process_done_ee(struct drbd_tconn *tconn)
+-static int drbd_connected(int vnr, void *p, void *data)
++/* Gets called if a connection is established, or if a new minor gets created
++   in a connection */
++int drbd_connected(int vnr, void *p, void *data)
  {
--	int not_empty, err;
-+	struct drbd_conf *mdev;
-+	int i, not_empty = 0;
+ 	struct drbd_conf *mdev = (struct drbd_conf *)p;
+ 	int ok = 1;
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 3ca535e..37b52d7 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -433,8 +433,8 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns)
+ 	if (ns.conn == C_DISCONNECTING && os.conn == C_UNCONNECTED)
+ 		rv = SS_IN_TRANSIENT_STATE;
  
- 	do {
- 		clear_bit(SIGNAL_ASENDER, &tconn->flags);
- 		flush_signals(current);
--		err = idr_for_each(&tconn->volumes, _drbd_process_done_ee, NULL);
--		if (err)
--			return err;
-+		idr_for_each_entry(&tconn->volumes, mdev, i) {
-+			if (!drbd_process_done_ee(mdev))
-+				return 1; /* error */
-+		}
- 		set_bit(SIGNAL_ASENDER, &tconn->flags);
--		not_empty = idr_for_each(&tconn->volumes, _check_ee_empty, NULL);
-+
-+		spin_lock_irq(&tconn->req_lock);
-+		idr_for_each_entry(&tconn->volumes, mdev, i) {
-+			not_empty = !list_empty(&mdev->done_ee);
-+			if (not_empty)
-+				break;
-+		}
-+		spin_unlock_irq(&tconn->req_lock);
- 	} while (not_empty);
+-	if (ns.conn == os.conn && ns.conn == C_WF_REPORT_PARAMS)
+-		rv = SS_IN_TRANSIENT_STATE;
++	/* if (ns.conn == os.conn && ns.conn == C_WF_REPORT_PARAMS)
++	   rv = SS_IN_TRANSIENT_STATE; */
  
- 	return 0;
-@@ -4762,8 +4752,10 @@ int drbd_asender(struct drbd_thread *thi)
- 		   much to send */
- 		if (!tconn->net_conf->no_cork)
- 			drbd_tcp_cork(tconn->meta.socket);
--		if (tconn_process_done_ee(tconn))
-+		if (tconn_process_done_ee(tconn)) {
-+			conn_err(tconn, "tconn_process_done_ee() failed\n");
- 			goto reconnect;
-+		}
- 		/* but unconditionally uncork unless disabled */
- 		if (!tconn->net_conf->no_cork)
- 			drbd_tcp_uncork(tconn->meta.socket);
+ 	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
+ 		rv = SS_NEED_CONNECTION;
 -- 
 1.7.4.1
 
