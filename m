@@ -1,13 +1,18 @@
 Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2030B10556CA
+	for <drbd-dev@lists.linbit.com>; Fri,  2 Sep 2011 12:51:07 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
-To: linux-kernel@vger.kernel.org,
-	Jens Axboe <axboe@kernel.dk>
-Date: Fri,  2 Sep 2011 12:00:48 +0200
-Message-Id: <1314957648-13242-17-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1314957648-13242-1-git-send-email-philipp.reisner@linbit.com>
-References: <1314957648-13242-1-git-send-email-philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 16/16] drbd: Fixed conn_lowest_minor
+To: drbd-dev@lists.linbit.com
+Date: Fri, 2 Sep 2011 12:50:59 +0200
+References: <4E6087B1.5080901@gmx.net>
+In-Reply-To: <4E6087B1.5080901@gmx.net>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201109021251.00356.philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] [GIT PULL] Tiny addition to User's Guide LVM chapter
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,100 +22,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-It actually returned the lowest volume number. While doing that
-renamed a few wrongly named variables.
+Am Freitag, 2. September 2011, 09:37:21 schrieb Florian Haas:
+> Phil/Lars,
+> 
+> Please consider pulling this little UG patch reminding users to update
+> their initrd after they make DRBD-related changes to lvm.conf. This is
+> an issue that has popped up on IRC a few times recently.
+> 
 
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_main.c  |   12 +++++++-----
- drivers/block/drbd/drbd_nl.c    |    4 ++--
- drivers/block/drbd/drbd_state.c |    8 ++++----
- 3 files changed, 13 insertions(+), 11 deletions(-)
+Thanks, pulled.
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index b1de7e8..4d6207a 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -434,7 +434,7 @@ void tl_clear(struct drbd_tconn *tconn)
- 	struct drbd_conf *mdev;
- 	struct list_head *le, *tle;
- 	struct drbd_request *r;
--	int minor;
-+	int vnr;
- 
- 	spin_lock_irq(&tconn->req_lock);
- 
-@@ -453,7 +453,7 @@ void tl_clear(struct drbd_tconn *tconn)
- 	}
- 
- 	/* ensure bit indicating barrier is required is clear */
--	idr_for_each_entry(&tconn->volumes, mdev, minor)
-+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
- 		clear_bit(CREATE_BARRIER, &mdev->flags);
- 
- 	spin_unlock_irq(&tconn->req_lock);
-@@ -634,11 +634,13 @@ char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *tas
- 
- int conn_lowest_minor(struct drbd_tconn *tconn)
- {
--	int minor = 0;
-+	int vnr = 0;
-+	struct drbd_conf *mdev;
- 
--	if (!idr_get_next(&tconn->volumes, &minor))
-+	mdev = idr_get_next(&tconn->volumes, &vnr);
-+	if (!mdev)
- 		return -1;
--	return minor;
-+	return mdev_to_minor(mdev);
- }
- 
- #ifdef CONFIG_SMP
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index ab22019..fe4b106 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -361,9 +361,9 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
- static void conn_md_sync(struct drbd_tconn *tconn)
- {
- 	struct drbd_conf *mdev;
--	int minor;
-+	int vnr;
- 
--	idr_for_each_entry(&tconn->volumes, mdev, minor)
-+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
- 		drbd_md_sync(mdev);
- }
- 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index c4a0710..42a94cd 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -51,9 +51,9 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state
- bool conn_all_vols_unconf(struct drbd_tconn *tconn)
- {
- 	struct drbd_conf *mdev;
--	int minor;
-+	int vnr;
- 
--	idr_for_each_entry(&tconn->volumes, mdev, minor) {
-+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
- 		if (mdev->state.disk != D_DISKLESS ||
- 		    mdev->state.conn != C_STANDALONE ||
- 		    mdev->state.role != R_SECONDARY)
-@@ -333,9 +333,9 @@ static void print_state_change(struct drbd_conf *mdev, union drbd_state os, unio
- static bool vol_has_primary_peer(struct drbd_tconn *tconn)
- {
- 	struct drbd_conf *mdev;
--	int minor;
-+	int vnr;
- 
--	idr_for_each_entry(&tconn->volumes, mdev, minor) {
-+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
- 		if (mdev->state.peer == R_PRIMARY)
- 			return true;
- 	}
+Best,
+ Phil
 -- 
-1.7.4.1
+: Dipl-Ing Philipp Reisner
+: LINBIT | Your Way to High Availability
+: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
+: http://www.linbit.com
 
+DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
