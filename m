@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon,  5 Sep 2011 13:45:14 +0200
-Message-Id: <1315223145-20640-24-git-send-email-philipp.reisner@linbit.com>
+Date: Mon,  5 Sep 2011 13:45:15 +0200
+Message-Id: <1315223145-20640-25-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315223145-20640-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315223145-20640-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 23/54] drbd: drbd_send_ack_{dp,
-	rp}(): Return void: the result is never used
+Subject: [Drbd-dev] [PATCH 24/54] drbd: drbd_send_ack_ex(): Return 0 upon
+	success and an error code otherwise
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,60 +23,44 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |    8 ++++----
- drivers/block/drbd/drbd_main.c |   14 +++++++-------
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ drivers/block/drbd/drbd_main.c   |    8 ++++----
+ drivers/block/drbd/drbd_worker.c |    4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 8e0f59b..d10505e 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1185,10 +1185,10 @@ extern void drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
- 			    u32 set_size);
- extern int drbd_send_ack(struct drbd_conf *, enum drbd_packet,
- 			 struct drbd_peer_request *);
--extern int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
--			    struct p_block_req *rp);
--extern int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
--			    struct p_data *dp, int data_size);
-+extern void drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
-+			     struct p_block_req *rp);
-+extern void drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
-+			     struct p_data *dp, int data_size);
- extern int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packet cmd,
- 			    sector_t sector, int blksize, u64 block_id);
- extern int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req);
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 6d40647..a5371fb 100644
+index a5371fb..c120977 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -1264,19 +1264,19 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
- /* dp->sector and dp->block_id already/still in network byte order,
-  * data_size is payload size according to dp->head,
-  * and may need to be corrected for digest size. */
--int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
--		     struct p_data *dp, int data_size)
-+void drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
-+		      struct p_data *dp, int data_size)
+@@ -1299,10 +1299,10 @@ int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
+ int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 		     sector_t sector, int blksize, u64 block_id)
  {
- 	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
- 		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
--	return !_drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
--			       dp->block_id);
-+	_drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
-+		       dp->block_id);
+-	return !_drbd_send_ack(mdev, cmd,
+-			       cpu_to_be64(sector),
+-			       cpu_to_be32(blksize),
+-			       cpu_to_be64(block_id));
++	return _drbd_send_ack(mdev, cmd,
++			      cpu_to_be64(sector),
++			      cpu_to_be32(blksize),
++			      cpu_to_be64(block_id));
  }
  
--int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
--		     struct p_block_req *rp)
-+void drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
-+		      struct p_block_req *rp)
- {
--	return !_drbd_send_ack(mdev, cmd, rp->sector, rp->blksize, rp->block_id);
-+	_drbd_send_ack(mdev, cmd, rp->sector, rp->blksize, rp->block_id);
- }
+ int drbd_send_drequest(struct drbd_conf *mdev, int cmd,
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 69db6de..9b74086 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1163,8 +1163,8 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
+ 	else
+ 		ov_oos_print(mdev);
  
- /**
+-	ok = drbd_send_ack_ex(mdev, P_OV_RESULT, sector, size,
+-			      eq ? ID_IN_SYNC : ID_OUT_OF_SYNC);
++	ok = !drbd_send_ack_ex(mdev, P_OV_RESULT, sector, size,
++			       eq ? ID_IN_SYNC : ID_OUT_OF_SYNC);
+ 
+ 	dec_unacked(mdev);
+ 
 -- 
 1.7.4.1
 
