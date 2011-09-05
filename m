@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon,  5 Sep 2011 13:44:52 +0200
-Message-Id: <1315223145-20640-2-git-send-email-philipp.reisner@linbit.com>
+Date: Mon,  5 Sep 2011 13:44:53 +0200
+Message-Id: <1315223145-20640-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315223145-20640-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315223145-20640-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/54] drbd: drbd_get_data_sock(): Return 0 upon
-	success and an error code otherwise
+Subject: [Drbd-dev] [PATCH 02/54] drbd: Add drbd_send_all(): Send an entire
+	buffer
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,97 +23,53 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h    |   17 ++++-------------
- drivers/block/drbd/drbd_main.c   |    8 ++++----
- drivers/block/drbd/drbd_worker.c |    2 +-
- 3 files changed, 9 insertions(+), 18 deletions(-)
+ drivers/block/drbd/drbd_int.h  |    3 +++
+ drivers/block/drbd/drbd_main.c |   18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 0 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index a9138ff..eaa1fd5 100644
+index eaa1fd5..32799ea 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1115,24 +1115,15 @@ static inline struct drbd_conf *vnr_to_mdev(struct drbd_tconn *tconn, int vnr)
- 	return (struct drbd_conf *)idr_find(&tconn->volumes, vnr);
- }
- 
--/* returns 1 if it was successful,
-- * returns 0 if there was no data socket.
-- * so wherever you are going to use the data.socket, e.g. do
-- * if (!drbd_get_data_sock(mdev->tconn))
-- *	return 0;
-- *	CODE();
-- * drbd_get_data_sock(mdev->tconn);
-- */
- static inline int drbd_get_data_sock(struct drbd_tconn *tconn)
- {
- 	mutex_lock(&tconn->data.mutex);
--	/* drbd_disconnect() could have called drbd_free_sock()
--	 * while we were waiting in down()... */
--	if (unlikely(tconn->data.socket == NULL)) {
-+	if (!tconn->data.socket) {
-+		/* Disconnected.  */
- 		mutex_unlock(&tconn->data.mutex);
--		return 0;
-+		return -EIO;
- 	}
--	return 1;
-+	return 0;
- }
- 
- static inline void drbd_put_data_sock(struct drbd_tconn *tconn)
+@@ -1161,6 +1161,9 @@ extern void _tl_add_barrier(struct drbd_tconn *, struct drbd_tl_epoch *);
+ extern void drbd_free_sock(struct drbd_tconn *tconn);
+ extern int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
+ 		     void *buf, size_t size, unsigned msg_flags);
++extern int drbd_send_all(struct drbd_tconn *, struct socket *, void *, size_t,
++			 unsigned);
++
+ extern int drbd_send_protocol(struct drbd_tconn *tconn);
+ extern int drbd_send_uuids(struct drbd_conf *mdev);
+ extern int drbd_send_uuids_skip_initial_sync(struct drbd_conf *mdev);
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index dc8ebd2..628005a 100644
+index 628005a..1381d01 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -773,7 +773,7 @@ int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd, char *data,
+@@ -1764,6 +1764,24 @@ int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
+ 	return sent;
+ }
  
- 	prepare_header80(&h, cmd, size);
- 
--	if (!drbd_get_data_sock(tconn))
-+	if (drbd_get_data_sock(tconn))
- 		return 0;
- 
- 	ok = (sizeof(h) ==
-@@ -1245,7 +1245,7 @@ int drbd_send_bitmap(struct drbd_conf *mdev)
++/**
++ * drbd_send_all  -  Send an entire buffer
++ *
++ * Returns 0 upon success and a negative error value otherwise.
++ */
++int drbd_send_all(struct drbd_tconn *tconn, struct socket *sock, void *buffer,
++		  size_t size, unsigned msg_flags)
++{
++	int err;
++
++	err = drbd_send(tconn, sock, buffer, size, msg_flags);
++	if (err < 0)
++		return err;
++	if (err != size)
++		return -EIO;
++	return 0;
++}
++
+ static int drbd_open(struct block_device *bdev, fmode_t mode)
  {
- 	int err;
- 
--	if (!drbd_get_data_sock(mdev->tconn))
-+	if (drbd_get_data_sock(mdev->tconn))
- 		return -1;
- 	err = !_drbd_send_bitmap(mdev);
- 	drbd_put_data_sock(mdev->tconn);
-@@ -1562,7 +1562,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
- 	void *dgb;
- 	int dgs;
- 
--	if (!drbd_get_data_sock(mdev->tconn))
-+	if (drbd_get_data_sock(mdev->tconn))
- 		return 0;
- 
- 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
-@@ -1652,7 +1652,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	 * This one may be interrupted by DRBD_SIG and/or DRBD_SIGKILL
- 	 * in response to admin command or module unload.
- 	 */
--	if (!drbd_get_data_sock(mdev->tconn))
-+	if (drbd_get_data_sock(mdev->tconn))
- 		return 0;
- 
- 	ok = sizeof(p) == drbd_send(mdev->tconn, mdev->tconn->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0);
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 005876b..39e4915 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1209,7 +1209,7 @@ int w_send_barrier(struct drbd_work *w, int cancel)
- 	if (cancel)
- 		return 1;
- 
--	if (!drbd_get_data_sock(mdev->tconn))
-+	if (drbd_get_data_sock(mdev->tconn))
- 		return 0;
- 	p->barrier = b->br_number;
- 	/* inc_ap_pending was done where this was queued.
+ 	struct drbd_conf *mdev = bdev->bd_disk->private_data;
 -- 
 1.7.4.1
 
