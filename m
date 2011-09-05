@@ -2,12 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon,  5 Sep 2011 13:45:01 +0200
-Message-Id: <1315223145-20640-11-git-send-email-philipp.reisner@linbit.com>
+Date: Mon,  5 Sep 2011 13:45:02 +0200
+Message-Id: <1315223145-20640-12-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315223145-20640-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315223145-20640-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 10/54] drbd: drbd_send_state(): Return 0 upon
+Subject: [Drbd-dev] [PATCH 11/54] drbd: drbd_send_handshake(): Return 0 upon
 	success and an error code otherwise
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -23,73 +23,58 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_main.c     |    6 +++---
- drivers/block/drbd/drbd_receiver.c |    2 +-
- drivers/block/drbd/drbd_state.c    |    4 ++--
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |   16 ++++++++--------
+ 1 files changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 7a5019a..4e53450 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -974,7 +974,7 @@ int drbd_send_state(struct drbd_conf *mdev)
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 66772be..91de208 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -4133,25 +4133,25 @@ static int drbd_send_handshake(struct drbd_tconn *tconn)
  {
- 	struct socket *sock;
- 	struct p_state p;
--	int ok = 0;
-+	int err = -EIO;
+ 	/* ASSERT current == mdev->tconn->receiver ... */
+ 	struct p_handshake *p = &tconn->data.sbuf.handshake;
+-	int ok;
++	int err;
  
- 	mutex_lock(&mdev->tconn->data.mutex);
+ 	if (mutex_lock_interruptible(&tconn->data.mutex)) {
+ 		conn_err(tconn, "interrupted during initial handshake\n");
+-		return 0; /* interrupted. not ok. */
++		return -EINTR;
+ 	}
  
-@@ -982,11 +982,11 @@ int drbd_send_state(struct drbd_conf *mdev)
- 	sock = mdev->tconn->data.socket;
+ 	if (tconn->data.socket == NULL) {
+ 		mutex_unlock(&tconn->data.mutex);
+-		return 0;
++		return -EIO;
+ 	}
  
- 	if (likely(sock != NULL))
--		ok = !_drbd_send_cmd(mdev, sock, P_STATE, &p.head, sizeof(p), 0);
-+		err = _drbd_send_cmd(mdev, sock, P_STATE, &p.head, sizeof(p), 0);
- 
- 	mutex_unlock(&mdev->tconn->data.mutex);
- 
+ 	memset(p, 0, sizeof(*p));
+ 	p->protocol_min = cpu_to_be32(PRO_VERSION_MIN);
+ 	p->protocol_max = cpu_to_be32(PRO_VERSION_MAX);
+-	ok = !_conn_send_cmd(tconn, 0, tconn->data.socket, P_HAND_SHAKE,
++	err = _conn_send_cmd(tconn, 0, tconn->data.socket, P_HAND_SHAKE,
+ 			     &p->head, sizeof(*p), 0);
+ 	mutex_unlock(&tconn->data.mutex);
 -	return ok;
 +	return err;
  }
  
- int _conn_send_state_req(struct drbd_tconn *tconn, int vnr, enum drbd_packet cmd,
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index d93bb3c..66772be 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -766,7 +766,7 @@ int drbd_connected(int vnr, void *p, void *data)
- 	ok &= !drbd_send_sync_param(mdev);
- 	ok &= drbd_send_sizes(mdev, 0, 0);
- 	ok &= drbd_send_uuids(mdev);
--	ok &= drbd_send_state(mdev);
-+	ok &= !drbd_send_state(mdev);
- 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
- 	clear_bit(RESIZE_PENDING, &mdev->flags);
+ /*
+@@ -4167,10 +4167,10 @@ static int drbd_do_handshake(struct drbd_tconn *tconn)
+ 	struct p_handshake *p = &tconn->data.rbuf.handshake;
+ 	const int expect = sizeof(struct p_handshake) - sizeof(struct p_header80);
+ 	struct packet_info pi;
+-	int rv;
++	int err, rv;
  
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 42a94cd..f1a55d8 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1189,7 +1189,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
- 				"ASSERT FAILED: disk is %s during detach\n",
- 				drbd_disk_str(mdev->state.disk));
+-	rv = drbd_send_handshake(tconn);
+-	if (!rv)
++	err = drbd_send_handshake(tconn);
++	if (err)
+ 		return 0;
  
--		if (drbd_send_state(mdev))
-+		if (!drbd_send_state(mdev))
- 			dev_warn(DEV, "Notified peer that I am detaching my disk\n");
- 		else
- 			dev_err(DEV, "Sending state for detaching disk failed\n");
-@@ -1221,7 +1221,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
-                 mdev->rs_failed = 0;
-                 atomic_set(&mdev->rs_pending_cnt, 0);
- 
--		if (drbd_send_state(mdev))
-+		if (!drbd_send_state(mdev))
- 			dev_warn(DEV, "Notified peer that I'm now diskless.\n");
- 		/* corresponding get_ldev in __drbd_set_state
- 		 * this may finally trigger drbd_ldev_destroy. */
+ 	rv = drbd_recv_header(tconn, &pi);
 -- 
 1.7.4.1
 
