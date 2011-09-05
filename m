@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon,  5 Sep 2011 13:45:00 +0200
-Message-Id: <1315223145-20640-10-git-send-email-philipp.reisner@linbit.com>
+Date: Mon,  5 Sep 2011 13:45:01 +0200
+Message-Id: <1315223145-20640-11-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315223145-20640-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315223145-20640-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 09/54] drbd: drbd_send_sync_param(): Return 0
-	upon success and an error code otherwise
+Subject: [Drbd-dev] [PATCH 10/54] drbd: drbd_send_state(): Return 0 upon
+	success and an error code otherwise
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,53 +23,73 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_main.c     |    8 ++++----
+ drivers/block/drbd/drbd_main.c     |    6 +++---
  drivers/block/drbd/drbd_receiver.c |    2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_state.c    |    4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index b2f1022..7a5019a 100644
+index 7a5019a..4e53450 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -769,7 +769,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
+@@ -974,7 +974,7 @@ int drbd_send_state(struct drbd_conf *mdev)
  {
- 	struct p_rs_param_95 *p;
  	struct socket *sock;
--	int size, rv;
-+	int size, err;
- 	const int apv = mdev->tconn->agreed_pro_version;
+ 	struct p_state p;
+-	int ok = 0;
++	int err = -EIO;
  
- 	size = apv <= 87 ? sizeof(struct p_rs_param)
-@@ -813,13 +813,13 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
- 		if (apv >= 89)
- 			strcpy(p->csums_alg, mdev->tconn->net_conf->csums_alg);
+ 	mutex_lock(&mdev->tconn->data.mutex);
  
--		rv = !_drbd_send_cmd(mdev, sock, cmd, &p->head, size, 0);
-+		err = _drbd_send_cmd(mdev, sock, cmd, &p->head, size, 0);
- 	} else
--		rv = 0; /* not ok */
-+		err = -EIO;
+@@ -982,11 +982,11 @@ int drbd_send_state(struct drbd_conf *mdev)
+ 	sock = mdev->tconn->data.socket;
+ 
+ 	if (likely(sock != NULL))
+-		ok = !_drbd_send_cmd(mdev, sock, P_STATE, &p.head, sizeof(p), 0);
++		err = _drbd_send_cmd(mdev, sock, P_STATE, &p.head, sizeof(p), 0);
  
  	mutex_unlock(&mdev->tconn->data.mutex);
  
--	return rv;
+-	return ok;
 +	return err;
  }
  
- int drbd_send_protocol(struct drbd_tconn *tconn)
+ int _conn_send_state_req(struct drbd_tconn *tconn, int vnr, enum drbd_packet cmd,
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 7431e3c..d93bb3c 100644
+index d93bb3c..66772be 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -763,7 +763,7 @@ int drbd_connected(int vnr, void *p, void *data)
- 		&mdev->tconn->cstate_mutex :
- 		&mdev->own_state_mutex;
- 
--	ok &= drbd_send_sync_param(mdev);
-+	ok &= !drbd_send_sync_param(mdev);
+@@ -766,7 +766,7 @@ int drbd_connected(int vnr, void *p, void *data)
+ 	ok &= !drbd_send_sync_param(mdev);
  	ok &= drbd_send_sizes(mdev, 0, 0);
  	ok &= drbd_send_uuids(mdev);
- 	ok &= drbd_send_state(mdev);
+-	ok &= drbd_send_state(mdev);
++	ok &= !drbd_send_state(mdev);
+ 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
+ 	clear_bit(RESIZE_PENDING, &mdev->flags);
+ 
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 42a94cd..f1a55d8 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -1189,7 +1189,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
+ 				"ASSERT FAILED: disk is %s during detach\n",
+ 				drbd_disk_str(mdev->state.disk));
+ 
+-		if (drbd_send_state(mdev))
++		if (!drbd_send_state(mdev))
+ 			dev_warn(DEV, "Notified peer that I am detaching my disk\n");
+ 		else
+ 			dev_err(DEV, "Sending state for detaching disk failed\n");
+@@ -1221,7 +1221,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
+                 mdev->rs_failed = 0;
+                 atomic_set(&mdev->rs_pending_cnt, 0);
+ 
+-		if (drbd_send_state(mdev))
++		if (!drbd_send_state(mdev))
+ 			dev_warn(DEV, "Notified peer that I'm now diskless.\n");
+ 		/* corresponding get_ldev in __drbd_set_state
+ 		 * this may finally trigger drbd_ldev_destroy. */
 -- 
 1.7.4.1
 
