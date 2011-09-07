@@ -2,11 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  7 Sep 2011 16:17:27 +0200
-Message-Id: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
+Date: Wed,  7 Sep 2011 16:17:28 +0200
+Message-Id: <1315405061-1473-2-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
+References: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [RFC 00/14] drbd: part 7 of adding multiple volume
-	support to drbd
+Subject: [Drbd-dev] [PATCH 01/14] drbd: drbd_connected(): Return an error
+	code upon failure.
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -16,16 +18,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This the first request for review of drbd-8.4. The complete set has 
-492 patches. This is the sixth installment containing 54 patches.
+From: Andreas Gruenbacher <agruen@linbit.com>
 
-The whole set is available here:
-  git://git.drbd.org/linux-2.6-drbd.git for-jens
+Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+---
+ drivers/block/drbd/drbd_receiver.c |   17 +++++++++--------
+ 1 files changed, 9 insertions(+), 8 deletions(-)
 
-and is jens_for-3.2_drivers...for-jens
-and this part is f6833a3...0f44265
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 49dc08a..2253423 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -781,7 +781,7 @@ static int drbd_socket_okay(struct socket **sock)
+ int drbd_connected(int vnr, void *p, void *data)
+ {
+ 	struct drbd_conf *mdev = (struct drbd_conf *)p;
+-	int ok = 1;
++	int err;
+ 
+ 	atomic_set(&mdev->packet_seq, 0);
+ 	mdev->peer_seq = 0;
+@@ -790,15 +790,16 @@ int drbd_connected(int vnr, void *p, void *data)
+ 		&mdev->tconn->cstate_mutex :
+ 		&mdev->own_state_mutex;
+ 
+-	ok &= !drbd_send_sync_param(mdev);
+-	ok &= !drbd_send_sizes(mdev, 0, 0);
+-	ok &= !drbd_send_uuids(mdev);
+-	ok &= !drbd_send_state(mdev);
++	err = drbd_send_sync_param(mdev);
++	if (!err)
++		err = drbd_send_sizes(mdev, 0, 0);
++	if (!err)
++		err = drbd_send_uuids(mdev);
++	if (!err)
++		err = drbd_send_state(mdev);
+ 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
+ 	clear_bit(RESIZE_PENDING, &mdev->flags);
+-
+-
+-	return !ok;
++	return err;
+ }
+ 
+ /*
+-- 
+1.7.4.1
 
-This patch series contains:
- * Use a pre-allocated page as send buffer
- * Use a pre-allocated page as receive buffer
- * Cleanups and renames
