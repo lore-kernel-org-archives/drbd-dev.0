@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  7 Sep 2011 16:17:36 +0200
-Message-Id: <1315405061-1473-10-git-send-email-philipp.reisner@linbit.com>
+Date: Wed,  7 Sep 2011 16:17:37 +0200
+Message-Id: <1315405061-1473-11-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 09/14] drbd: Preallocate one page per drbd_socket
-	as a send buffer
+Subject: [Drbd-dev] [PATCH 10/14] drbd: _drbd_send_bitmap(): Use the
+	pre-allocated send buffer
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,117 +23,92 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |   23 +----------------------
- drivers/block/drbd/drbd_main.c     |    6 +++++-
- drivers/block/drbd/drbd_receiver.c |    4 ++--
- drivers/block/drbd/drbd_worker.c   |    2 +-
- 4 files changed, 9 insertions(+), 26 deletions(-)
+ drivers/block/drbd/drbd_main.c |   26 +++++++-------------------
+ 1 files changed, 7 insertions(+), 19 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 4a4ecec..984b2a3 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -556,27 +556,6 @@ struct p_delay_probe93 {
- 
- #define DRBD_SOCKET_BUFFER_SIZE 4096
- 
--union p_polymorph {
--        struct p_header           header;
--        struct p_handshake       handshake;
--        struct p_data            data;
--        struct p_block_ack       block_ack;
--        struct p_barrier         barrier;
--        struct p_barrier_ack     barrier_ack;
--        struct p_rs_param_89     rs_param_89;
--        struct p_rs_param_95     rs_param_95;
--        struct p_protocol        protocol;
--        struct p_sizes           sizes;
--        struct p_uuids           uuids;
--        struct p_state           state;
--        struct p_req_state       req_state;
--        struct p_req_state_reply req_state_reply;
--        struct p_block_req       block_req;
--	struct p_delay_probe93   delay_probe93;
--	struct p_rs_uuid         rs_uuid;
--	struct p_block_desc      block_desc;
--} __packed;
--
- /**********************************************************************/
- enum drbd_thread_state {
- 	NONE,
-@@ -804,7 +783,7 @@ struct drbd_socket {
- 	struct socket    *socket;
- 	/* this way we get our
- 	 * send/receive buffers off the stack */
--	union p_polymorph sbuf;
-+	void *sbuf;
- 	void *rbuf;
- };
- 
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 7b6da0e..6c2a51f 100644
+index 6c2a51f..36b2b56 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -800,7 +800,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
- 		enum drbd_packet cmd =
- 			apv >= 89 ? P_SYNC_PARAM89 : P_SYNC_PARAM;
+@@ -790,9 +790,6 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
+ 		: apv <= 94 ? sizeof(struct p_rs_param_89)
+ 		: /* apv >= 95 */ sizeof(struct p_rs_param_95);
  
--		p = &mdev->tconn->data.sbuf.rs_param_95;
-+		p = mdev->tconn->data.sbuf;
+-	/* used from admin command context and receiver/worker context.
+-	 * to avoid kmalloc, grab the socket right here,
+-	 * then use the pre-allocated sbuf there */
+ 	mutex_lock(&mdev->tconn->data.mutex);
+ 	sock = mdev->tconn->data.socket;
  
- 		/* initialize verify_alg and csums_alg */
- 		memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
-@@ -2279,11 +2279,15 @@ static int drbd_alloc_socket(struct drbd_socket *socket)
- 	socket->rbuf = (void *) __get_free_page(GFP_KERNEL);
- 	if (!socket->rbuf)
- 		return -ENOMEM;
-+	socket->sbuf = (void *) __get_free_page(GFP_KERNEL);
-+	if (!socket->sbuf)
-+		return -ENOMEM;
- 	return 0;
- }
- 
- static void drbd_free_socket(struct drbd_socket *socket)
+@@ -1147,10 +1144,9 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
+  * code upon failure.
+  */
+ static int
+-send_bitmap_rle_or_plain(struct drbd_conf *mdev,
+-			 struct p_header *h, struct bm_xfer_ctx *c)
++send_bitmap_rle_or_plain(struct drbd_conf *mdev, struct bm_xfer_ctx *c)
  {
-+	free_page((unsigned long) socket->sbuf);
- 	free_page((unsigned long) socket->rbuf);
- }
+-	struct p_compressed_bm *p = (void*)h;
++	struct p_compressed_bm *p = mdev->tconn->data.sbuf;
+ 	unsigned long num_words;
+ 	int len, err;
  
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index e5099db..57e65ac 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -736,7 +736,7 @@ out:
+@@ -1162,7 +1158,7 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
+ 	if (len) {
+ 		dcbp_set_code(p, RLE_VLI_Bits);
+ 		err = _drbd_send_cmd(mdev, mdev->tconn->data.socket,
+-				     P_COMPRESSED_BITMAP, h,
++				     P_COMPRESSED_BITMAP, &p->head,
+ 				     sizeof(*p) + len, 0);
  
- static int drbd_send_fp(struct drbd_tconn *tconn, struct socket *sock, enum drbd_packet cmd)
+ 		c->packets[0]++;
+@@ -1173,10 +1169,12 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
+ 	} else {
+ 		/* was not compressible.
+ 		 * send a buffer full of plain text bits instead. */
++		struct p_header *h = mdev->tconn->data.sbuf;
+ 		num_words = min_t(size_t, BM_PACKET_WORDS, c->bm_words - c->word_offset);
+ 		len = num_words * sizeof(long);
+ 		if (len)
+-			drbd_bm_get_lel(mdev, c->word_offset, num_words, (unsigned long*)h->payload);
++			drbd_bm_get_lel(mdev, c->word_offset, num_words,
++					(unsigned long *)h->payload);
+ 		err = _drbd_send_cmd(mdev, mdev->tconn->data.socket, P_BITMAP,
+ 				     h, sizeof(struct p_header80) + len, 0);
+ 		c->word_offset += num_words;
+@@ -1202,20 +1200,11 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
+ static int _drbd_send_bitmap(struct drbd_conf *mdev)
  {
--	struct p_header *h = &tconn->data.sbuf.header;
-+	struct p_header *h = tconn->data.sbuf;
- 
- 	return !_conn_send_cmd(tconn, 0, sock, cmd, h, sizeof(*h), 0);
- }
-@@ -4136,7 +4136,7 @@ static int drbd_disconnected(int vnr, void *p, void *data)
- static int drbd_send_handshake(struct drbd_tconn *tconn)
- {
- 	/* ASSERT current == mdev->tconn->receiver ... */
--	struct p_handshake *p = &tconn->data.sbuf.handshake;
-+	struct p_handshake *p = tconn->data.sbuf;
+ 	struct bm_xfer_ctx c;
+-	struct p_header *p;
  	int err;
  
- 	if (mutex_lock_interruptible(&tconn->data.mutex)) {
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index e96a816..ed12cdf 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1195,7 +1195,7 @@ int w_send_barrier(struct drbd_work *w, int cancel)
- {
- 	struct drbd_tl_epoch *b = container_of(w, struct drbd_tl_epoch, w);
- 	struct drbd_conf *mdev = w->mdev;
--	struct p_barrier *p = &mdev->tconn->data.sbuf.barrier;
-+	struct p_barrier *p = mdev->tconn->data.sbuf;
- 	int err = 0;
+ 	if (!expect(mdev->bitmap))
+ 		return false;
  
- 	/* really avoid racing with tl_clear.  w.cb may have been referenced
+-	/* maybe we should use some per thread scratch page,
+-	 * and allocate that during initial device creation? */
+-	p = (struct p_header *) __get_free_page(GFP_NOIO);
+-	if (!p) {
+-		dev_err(DEV, "failed to allocate one page buffer in %s\n", __func__);
+-		return false;
+-	}
+-
+ 	if (get_ldev(mdev)) {
+ 		if (drbd_md_test_flag(mdev->ldev, MDF_FULL_SYNC)) {
+ 			dev_info(DEV, "Writing the whole bitmap, MDF_FullSync was set.\n");
+@@ -1239,10 +1228,9 @@ static int _drbd_send_bitmap(struct drbd_conf *mdev)
+ 	};
+ 
+ 	do {
+-		err = send_bitmap_rle_or_plain(mdev, p, &c);
++		err = send_bitmap_rle_or_plain(mdev, &c);
+ 	} while (err > 0);
+ 
+-	free_page((unsigned long) p);
+ 	return err == 0;
+ }
+ 
 -- 
 1.7.4.1
 
