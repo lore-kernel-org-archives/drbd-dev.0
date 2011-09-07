@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  7 Sep 2011 16:17:35 +0200
-Message-Id: <1315405061-1473-9-git-send-email-philipp.reisner@linbit.com>
+Date: Wed,  7 Sep 2011 16:17:36 +0200
+Message-Id: <1315405061-1473-10-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/14] drbd: receive_bitmap(): Use the
-	pre-allocated receive buffer
+Subject: [Drbd-dev] [PATCH 09/14] drbd: Preallocate one page per drbd_socket
+	as a send buffer
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,77 +23,117 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   21 +++++----------------
- 1 files changed, 5 insertions(+), 16 deletions(-)
+ drivers/block/drbd/drbd_int.h      |   23 +----------------------
+ drivers/block/drbd/drbd_main.c     |    6 +++++-
+ drivers/block/drbd/drbd_receiver.c |    4 ++--
+ drivers/block/drbd/drbd_worker.c   |    2 +-
+ 4 files changed, 9 insertions(+), 26 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 3738d56..e5099db 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3572,8 +3572,9 @@ static int receive_sync_uuid(struct drbd_conf *mdev, enum drbd_packet cmd,
-  */
- static int
- receive_bitmap_plain(struct drbd_conf *mdev, unsigned int data_size,
--		     unsigned long *buffer, struct bm_xfer_ctx *c)
-+		     struct p_header *h, struct bm_xfer_ctx *c)
- {
-+	unsigned long *buffer = (unsigned long *)h->payload;
- 	unsigned num_words = min_t(size_t, BM_PACKET_WORDS, c->bm_words - c->word_offset);
- 	unsigned want = num_words * sizeof(long);
- 	int err;
-@@ -3748,7 +3749,6 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
- 			  unsigned int data_size)
- {
- 	struct bm_xfer_ctx c;
--	void *buffer;
- 	int err;
- 	struct p_header *h = mdev->tconn->data.rbuf;
- 	struct packet_info pi;
-@@ -3757,15 +3757,6 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	/* you are supposed to send additional out-of-sync information
- 	 * if you actually set bits during this phase */
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 4a4ecec..984b2a3 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -556,27 +556,6 @@ struct p_delay_probe93 {
  
--	/* maybe we should use some per thread scratch page,
--	 * and allocate that during initial device creation? */
--	buffer	 = (unsigned long *) __get_free_page(GFP_NOIO);
--	if (!buffer) {
--		dev_err(DEV, "failed to allocate one page buffer in %s\n", __func__);
--		err = -ENOMEM;
--		goto out;
--	}
+ #define DRBD_SOCKET_BUFFER_SIZE 4096
+ 
+-union p_polymorph {
+-        struct p_header           header;
+-        struct p_handshake       handshake;
+-        struct p_data            data;
+-        struct p_block_ack       block_ack;
+-        struct p_barrier         barrier;
+-        struct p_barrier_ack     barrier_ack;
+-        struct p_rs_param_89     rs_param_89;
+-        struct p_rs_param_95     rs_param_95;
+-        struct p_protocol        protocol;
+-        struct p_sizes           sizes;
+-        struct p_uuids           uuids;
+-        struct p_state           state;
+-        struct p_req_state       req_state;
+-        struct p_req_state_reply req_state_reply;
+-        struct p_block_req       block_req;
+-	struct p_delay_probe93   delay_probe93;
+-	struct p_rs_uuid         rs_uuid;
+-	struct p_block_desc      block_desc;
+-} __packed;
 -
- 	c = (struct bm_xfer_ctx) {
- 		.bm_bits = drbd_bm_bits(mdev),
- 		.bm_words = drbd_bm_words(mdev),
-@@ -3773,7 +3764,7 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
+ /**********************************************************************/
+ enum drbd_thread_state {
+ 	NONE,
+@@ -804,7 +783,7 @@ struct drbd_socket {
+ 	struct socket    *socket;
+ 	/* this way we get our
+ 	 * send/receive buffers off the stack */
+-	union p_polymorph sbuf;
++	void *sbuf;
+ 	void *rbuf;
+ };
  
- 	for(;;) {
- 		if (cmd == P_BITMAP) {
--			err = receive_bitmap_plain(mdev, data_size, buffer, &c);
-+			err = receive_bitmap_plain(mdev, data_size, h, &c);
- 		} else if (cmd == P_COMPRESSED_BITMAP) {
- 			/* MAYBE: sanity check that we speak proto >= 90,
- 			 * and the feature is enabled! */
-@@ -3784,9 +3775,8 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
- 				err = -EIO;
- 				goto out;
- 			}
--			/* use the page buff */
--			p = buffer;
--			memcpy(p, h, sizeof(*h));
-+
-+			p = mdev->tconn->data.rbuf;
- 			err = drbd_recv_all(mdev->tconn, p->head.payload, data_size);
- 			if (err)
- 			       goto out;
-@@ -3840,7 +3830,6 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	drbd_bm_unlock(mdev);
- 	if (!err && mdev->state.conn == C_WF_BITMAP_S)
- 		drbd_start_resync(mdev, C_SYNC_SOURCE);
--	free_page((unsigned long) buffer);
- 	return err;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 7b6da0e..6c2a51f 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -800,7 +800,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
+ 		enum drbd_packet cmd =
+ 			apv >= 89 ? P_SYNC_PARAM89 : P_SYNC_PARAM;
+ 
+-		p = &mdev->tconn->data.sbuf.rs_param_95;
++		p = mdev->tconn->data.sbuf;
+ 
+ 		/* initialize verify_alg and csums_alg */
+ 		memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
+@@ -2279,11 +2279,15 @@ static int drbd_alloc_socket(struct drbd_socket *socket)
+ 	socket->rbuf = (void *) __get_free_page(GFP_KERNEL);
+ 	if (!socket->rbuf)
+ 		return -ENOMEM;
++	socket->sbuf = (void *) __get_free_page(GFP_KERNEL);
++	if (!socket->sbuf)
++		return -ENOMEM;
+ 	return 0;
  }
  
+ static void drbd_free_socket(struct drbd_socket *socket)
+ {
++	free_page((unsigned long) socket->sbuf);
+ 	free_page((unsigned long) socket->rbuf);
+ }
+ 
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index e5099db..57e65ac 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -736,7 +736,7 @@ out:
+ 
+ static int drbd_send_fp(struct drbd_tconn *tconn, struct socket *sock, enum drbd_packet cmd)
+ {
+-	struct p_header *h = &tconn->data.sbuf.header;
++	struct p_header *h = tconn->data.sbuf;
+ 
+ 	return !_conn_send_cmd(tconn, 0, sock, cmd, h, sizeof(*h), 0);
+ }
+@@ -4136,7 +4136,7 @@ static int drbd_disconnected(int vnr, void *p, void *data)
+ static int drbd_send_handshake(struct drbd_tconn *tconn)
+ {
+ 	/* ASSERT current == mdev->tconn->receiver ... */
+-	struct p_handshake *p = &tconn->data.sbuf.handshake;
++	struct p_handshake *p = tconn->data.sbuf;
+ 	int err;
+ 
+ 	if (mutex_lock_interruptible(&tconn->data.mutex)) {
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index e96a816..ed12cdf 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1195,7 +1195,7 @@ int w_send_barrier(struct drbd_work *w, int cancel)
+ {
+ 	struct drbd_tl_epoch *b = container_of(w, struct drbd_tl_epoch, w);
+ 	struct drbd_conf *mdev = w->mdev;
+-	struct p_barrier *p = &mdev->tconn->data.sbuf.barrier;
++	struct p_barrier *p = mdev->tconn->data.sbuf;
+ 	int err = 0;
+ 
+ 	/* really avoid racing with tl_clear.  w.cb may have been referenced
 -- 
 1.7.4.1
 
