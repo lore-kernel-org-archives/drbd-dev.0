@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  7 Sep 2011 16:17:33 +0200
-Message-Id: <1315405061-1473-7-git-send-email-philipp.reisner@linbit.com>
+Date: Wed,  7 Sep 2011 16:17:34 +0200
+Message-Id: <1315405061-1473-8-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/14] drbd: Converted drbd_try_outdate_peer()
-	from mdev to tconn
+Subject: [Drbd-dev] [PATCH 07/14] drbd: Preallocate one page per drbd_socket
+	as a receive buffer
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,398 +18,366 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+From: Andreas Gruenbacher <agruen@linbit.com>
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    4 +-
- drivers/block/drbd/drbd_nl.c       |  139 ++++++++++++++++--------------------
- drivers/block/drbd/drbd_receiver.c |    7 +-
- drivers/block/drbd/drbd_state.c    |   62 +++++++++++++----
- drivers/block/drbd/drbd_state.h    |    5 ++
- include/linux/drbd.h               |    3 +-
- 6 files changed, 124 insertions(+), 96 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    4 ++-
+ drivers/block/drbd/drbd_main.c     |   22 ++++++++++++
+ drivers/block/drbd/drbd_receiver.c |   65 ++++++++++++++++--------------------
+ 3 files changed, 54 insertions(+), 37 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 04716df..47a435a 100644
+index 47a435a..4a4ecec 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1472,8 +1472,8 @@ extern void drbd_reconsider_max_bio_size(struct drbd_conf *mdev);
- extern enum drbd_state_rv drbd_set_role(struct drbd_conf *mdev,
- 					enum drbd_role new_role,
- 					int force);
--extern enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev);
--extern void drbd_try_outdate_peer_async(struct drbd_conf *mdev);
-+extern bool conn_try_outdate_peer(struct drbd_tconn *tconn);
-+extern void conn_try_outdate_peer_async(struct drbd_tconn *tconn);
- extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
+@@ -554,6 +554,8 @@ struct p_delay_probe93 {
+ #error "PAGE_SIZE too small"
+ #endif
  
- /* drbd_worker.c */
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 9a0e446..931ffc4 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -401,116 +401,113 @@ int conn_khelper(struct drbd_tconn *tconn, char *cmd)
- 	return ret;
++#define DRBD_SOCKET_BUFFER_SIZE 4096
++
+ union p_polymorph {
+         struct p_header           header;
+         struct p_handshake       handshake;
+@@ -803,7 +805,7 @@ struct drbd_socket {
+ 	/* this way we get our
+ 	 * send/receive buffers off the stack */
+ 	union p_polymorph sbuf;
+-	union p_polymorph rbuf;
++	void *rbuf;
+ };
+ 
+ struct drbd_md {
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 54778e9..7b6da0e 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2274,6 +2274,19 @@ found:
+ 	return tconn;
  }
  
--enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev)
-+static enum drbd_fencing_p highest_fencing_policy(struct drbd_tconn *tconn)
- {
-+	enum drbd_fencing_p fp = FP_NOT_AVAIL;
-+	struct drbd_conf *mdev;
-+	int vnr;
-+
-+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
-+		if (get_ldev_if_state(mdev, D_CONSISTENT)) {
-+			fp = max_t(enum drbd_fencing_p, fp, mdev->ldev->dc.fencing);
-+			put_ldev(mdev);
-+		}
-+	}
-+
-+	return fp;
++static int drbd_alloc_socket(struct drbd_socket *socket)
++{
++	socket->rbuf = (void *) __get_free_page(GFP_KERNEL);
++	if (!socket->rbuf)
++		return -ENOMEM;
++	return 0;
 +}
 +
-+bool conn_try_outdate_peer(struct drbd_tconn *tconn)
++static void drbd_free_socket(struct drbd_socket *socket)
 +{
-+	union drbd_state mask = { { .susp_fen = 1 } };
-+	union drbd_state val = { };
-+	enum drbd_fencing_p fp;
- 	char *ex_to_string;
- 	int r;
--	enum drbd_disk_state nps;
--	enum drbd_fencing_p fp;
- 
--	D_ASSERT(mdev->state.pdsk == D_UNKNOWN);
-+	if (tconn->cstate >= C_WF_REPORT_PARAMS) {
-+		conn_err(tconn, "Expected cstate < C_WF_REPORT_PARAMS\n");
-+		return false;
-+	}
- 
--	if (get_ldev_if_state(mdev, D_CONSISTENT)) {
--		fp = mdev->ldev->dc.fencing;
--		put_ldev(mdev);
--	} else {
--		dev_warn(DEV, "Not fencing peer, I'm not even Consistent myself.\n");
--		nps = mdev->state.pdsk;
-+	fp = highest_fencing_policy(tconn);
-+	switch (fp) {
-+	case FP_NOT_AVAIL:
-+		conn_warn(tconn, "Not fencing peer, I'm not even Consistent myself.\n");
- 		goto out;
-+	case FP_DONT_CARE:
-+		return true;
-+	default: ;
- 	}
- 
--	r = drbd_khelper(mdev, "fence-peer");
-+	r = conn_khelper(tconn, "fence-peer");
- 
- 	switch ((r>>8) & 0xff) {
- 	case 3: /* peer is inconsistent */
- 		ex_to_string = "peer is inconsistent or worse";
--		nps = D_INCONSISTENT;
-+		mask.pdsk = D_MASK;
-+		val.pdsk = D_INCONSISTENT;
- 		break;
- 	case 4: /* peer got outdated, or was already outdated */
- 		ex_to_string = "peer was fenced";
--		nps = D_OUTDATED;
-+		mask.pdsk = D_MASK;
-+		val.pdsk = D_OUTDATED;
- 		break;
- 	case 5: /* peer was down */
--		if (mdev->state.disk == D_UP_TO_DATE) {
-+		if (conn_highest_disk(tconn) == D_UP_TO_DATE) {
- 			/* we will(have) create(d) a new UUID anyways... */
- 			ex_to_string = "peer is unreachable, assumed to be dead";
--			nps = D_OUTDATED;
-+			mask.pdsk = D_MASK;
-+			val.pdsk = D_OUTDATED;
- 		} else {
- 			ex_to_string = "peer unreachable, doing nothing since disk != UpToDate";
--			nps = mdev->state.pdsk;
- 		}
- 		break;
- 	case 6: /* Peer is primary, voluntarily outdate myself.
- 		 * This is useful when an unconnected R_SECONDARY is asked to
- 		 * become R_PRIMARY, but finds the other peer being active. */
- 		ex_to_string = "peer is active";
--		dev_warn(DEV, "Peer is primary, outdating myself.\n");
--		nps = D_UNKNOWN;
--		_drbd_request_state(mdev, NS(disk, D_OUTDATED), CS_WAIT_COMPLETE);
-+		conn_warn(tconn, "Peer is primary, outdating myself.\n");
-+		mask.disk = D_MASK;
-+		val.disk = D_OUTDATED;
- 		break;
- 	case 7:
- 		if (fp != FP_STONITH)
--			dev_err(DEV, "fence-peer() = 7 && fencing != Stonith !!!\n");
-+			conn_err(tconn, "fence-peer() = 7 && fencing != Stonith !!!\n");
- 		ex_to_string = "peer was stonithed";
--		nps = D_OUTDATED;
-+		mask.pdsk = D_MASK;
-+		val.pdsk = D_OUTDATED;
- 		break;
- 	default:
- 		/* The script is broken ... */
--		nps = D_UNKNOWN;
--		dev_err(DEV, "fence-peer helper broken, returned %d\n", (r>>8)&0xff);
--		return nps;
-+		conn_err(tconn, "fence-peer helper broken, returned %d\n", (r>>8)&0xff);
-+		return false; /* Eventually leave IO frozen */
- 	}
- 
--	dev_info(DEV, "fence-peer helper returned %d (%s)\n",
--			(r>>8) & 0xff, ex_to_string);
--
--out:
--	if (mdev->state.susp_fen && nps >= D_UNKNOWN) {
--		/* The handler was not successful... unfreeze here, the
--		   state engine can not unfreeze... */
--		_drbd_request_state(mdev, NS(susp_fen, 0), CS_VERBOSE);
--	}
-+	conn_info(tconn, "fence-peer helper returned %d (%s)\n",
-+		  (r>>8) & 0xff, ex_to_string);
- 
--	return nps;
-+ out:
-+	conn_request_state(tconn, mask, val, CS_VERBOSE);
-+	return conn_highest_pdsk(tconn) <= D_OUTDATED;
- }
- 
- static int _try_outdate_peer_async(void *data)
++	free_page((unsigned long) socket->rbuf);
++}
++
+ struct drbd_tconn *drbd_new_tconn(const char *name)
  {
--	struct drbd_conf *mdev = (struct drbd_conf *)data;
--	enum drbd_disk_state nps;
--	union drbd_state ns;
--
--	nps = drbd_try_outdate_peer(mdev);
--
--	/* Not using
--	   drbd_request_state(mdev, NS(pdsk, nps));
--	   here, because we might were able to re-establish the connection
--	   in the meantime. This can only partially be solved in the state's
--	   engine is_valid_state() and is_valid_state_transition()
--	   functions.
-+	struct drbd_tconn *tconn = (struct drbd_tconn *)data;
+ 	struct drbd_tconn *tconn;
+@@ -2286,6 +2299,11 @@ struct drbd_tconn *drbd_new_tconn(const char *name)
+ 	if (!tconn->name)
+ 		goto fail;
  
--	   nps can be D_INCONSISTENT, D_OUTDATED or D_UNKNOWN.
--	   pdsk == D_INCONSISTENT while conn >= C_CONNECTED is valid,
--	   therefore we have to have the pre state change check here.
--	*/
--	spin_lock_irq(&mdev->tconn->req_lock);
--	ns = mdev->state;
--	if (ns.conn < C_WF_REPORT_PARAMS) {
--		ns.pdsk = nps;
--		_drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
--	}
--	spin_unlock_irq(&mdev->tconn->req_lock);
-+	conn_try_outdate_peer(tconn);
++	if (drbd_alloc_socket(&tconn->data))
++		goto fail;
++	if (drbd_alloc_socket(&tconn->meta))
++		goto fail;
++
+ 	if (!zalloc_cpumask_var(&tconn->cpu_mask, GFP_KERNEL))
+ 		goto fail;
  
- 	return 0;
- }
+@@ -2324,6 +2342,8 @@ struct drbd_tconn *drbd_new_tconn(const char *name)
+ fail:
+ 	tl_cleanup(tconn);
+ 	free_cpumask_var(tconn->cpu_mask);
++	drbd_free_socket(&tconn->meta);
++	drbd_free_socket(&tconn->data);
+ 	kfree(tconn->name);
+ 	kfree(tconn);
  
--void drbd_try_outdate_peer_async(struct drbd_conf *mdev)
-+void conn_try_outdate_peer_async(struct drbd_tconn *tconn)
- {
- 	struct task_struct *opa;
+@@ -2336,6 +2356,8 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
+ 	idr_destroy(&tconn->volumes);
  
--	opa = kthread_run(_try_outdate_peer_async, mdev, "drbd%d_a_helper", mdev_to_minor(mdev));
-+	opa = kthread_run(_try_outdate_peer_async, tconn, "drbd_async_h");
- 	if (IS_ERR(opa))
--		dev_err(DEV, "out of mem, failed to invoke fence-peer helper\n");
-+		conn_err(tconn, "out of mem, failed to invoke fence-peer helper\n");
- }
- 
- enum drbd_state_rv
-@@ -521,7 +518,6 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
- 	int try = 0;
- 	int forced = 0;
- 	union drbd_state mask, val;
--	enum drbd_disk_state nps;
- 
- 	if (new_role == R_PRIMARY)
- 		request_ping(mdev->tconn); /* Detect a dead peer ASAP */
-@@ -554,32 +550,23 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
- 		if (rv == SS_NO_UP_TO_DATE_DISK &&
- 		    mdev->state.disk == D_CONSISTENT && mask.pdsk == 0) {
- 			D_ASSERT(mdev->state.pdsk == D_UNKNOWN);
--			nps = drbd_try_outdate_peer(mdev);
- 
--			if (nps == D_OUTDATED || nps == D_INCONSISTENT) {
-+			if (conn_try_outdate_peer(mdev->tconn)) {
- 				val.disk = D_UP_TO_DATE;
- 				mask.disk = D_MASK;
- 			}
--
--			val.pdsk = nps;
--			mask.pdsk = D_MASK;
--
- 			continue;
- 		}
- 
- 		if (rv == SS_NOTHING_TO_DO)
- 			goto out;
- 		if (rv == SS_PRIMARY_NOP && mask.pdsk == 0) {
--			nps = drbd_try_outdate_peer(mdev);
--
--			if (force && nps > D_OUTDATED) {
-+			if (!conn_try_outdate_peer(mdev->tconn) && force) {
- 				dev_warn(DEV, "Forced into split brain situation!\n");
--				nps = D_OUTDATED;
--			}
--
--			mask.pdsk = D_MASK;
--			val.pdsk  = nps;
-+				mask.pdsk = D_MASK;
-+				val.pdsk  = D_OUTDATED;
- 
-+			}
- 			continue;
- 		}
- 		if (rv == SS_TWO_PRIMARIES) {
+ 	free_cpumask_var(tconn->cpu_mask);
++	drbd_free_socket(&tconn->meta);
++	drbd_free_socket(&tconn->data);
+ 	kfree(tconn->name);
+ 	kfree(tconn->int_dig_out);
+ 	kfree(tconn->int_dig_in);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 449637f..08140d9 100644
+index 08140d9..3738d56 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4028,9 +4028,11 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
- 	drbd_free_sock(tconn);
+@@ -743,7 +743,7 @@ static int drbd_send_fp(struct drbd_tconn *tconn, struct socket *sock, enum drbd
  
- 	idr_for_each(&tconn->volumes, drbd_disconnected, tconn);
--
- 	conn_info(tconn, "Connection closed\n");
+ static enum drbd_packet drbd_recv_fp(struct drbd_tconn *tconn, struct socket *sock)
+ {
+-	struct p_header80 *h = &tconn->data.rbuf.header.h80;
++	struct p_header80 *h = tconn->data.rbuf;
+ 	int rr;
  
-+	if (conn_highest_role(tconn) == R_PRIMARY && conn_highest_pdsk(tconn) >= D_UNKNOWN)
-+		conn_try_outdate_peer_async(tconn);
-+
- 	spin_lock_irq(&tconn->req_lock);
- 	oc = tconn->cstate;
- 	if (oc >= C_UNCONNECTED)
-@@ -4107,9 +4109,6 @@ static int drbd_disconnected(int vnr, void *p, void *data)
- 		put_ldev(mdev);
- 	}
+ 	rr = drbd_recv_short(sock, h, sizeof(*h), 0);
+@@ -997,7 +997,7 @@ static int decode_header(struct drbd_tconn *tconn, struct p_header *h, struct pa
  
--	if (mdev->state.role == R_PRIMARY && fp >= FP_RESOURCE && mdev->state.pdsk >= D_UNKNOWN)
--		drbd_try_outdate_peer_async(mdev);
--
- 	/* serialize with bitmap writeout triggered by the state change,
- 	 * if any. */
- 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index a14511b..280b31c 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -62,6 +62,54 @@ bool conn_all_vols_unconf(struct drbd_tconn *tconn)
- 	return true;
- }
+ static int drbd_recv_header(struct drbd_tconn *tconn, struct packet_info *pi)
+ {
+-	struct p_header *h = &tconn->data.rbuf.header;
++	struct p_header *h = tconn->data.rbuf;
+ 	int err;
  
-+enum drbd_role conn_highest_role(struct drbd_tconn *tconn)
-+{
-+	enum drbd_role role = R_UNKNOWN;
-+	struct drbd_conf *mdev;
-+	int vnr;
-+
-+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
-+		role = max_t(enum drbd_role, role, mdev->state.role);
-+
-+	return role;
-+}
-+
-+enum drbd_role conn_highest_peer(struct drbd_tconn *tconn)
-+{
-+	enum drbd_role peer = R_UNKNOWN;
-+	struct drbd_conf *mdev;
-+	int vnr;
-+
-+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
-+		peer = max_t(enum drbd_role, peer, mdev->state.role);
-+
-+	return peer;
-+}
-+
-+enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn)
-+{
-+	enum drbd_disk_state ds = D_DISKLESS;
-+	struct drbd_conf *mdev;
-+	int vnr;
-+
-+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
-+		ds = max_t(enum drbd_disk_state, ds, mdev->state.disk);
-+
-+	return ds;
-+}
-+
-+enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn)
-+{
-+	enum drbd_disk_state ds = D_DISKLESS;
-+	struct drbd_conf *mdev;
-+	int vnr;
-+
-+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
-+		ds = max_t(enum drbd_disk_state, ds, mdev->state.pdsk);
-+
-+	return ds;
-+}
-+
- /**
-  * cl_wide_st_chg() - true if the state change is a cluster wide one
-  * @mdev:	DRBD device.
-@@ -330,18 +378,6 @@ static void print_state_change(struct drbd_conf *mdev, union drbd_state os, unio
- 		dev_info(DEV, "%s\n", pb);
- }
+ 	err = drbd_recv_all_warn(tconn, h, sizeof(*h));
+@@ -1239,7 +1239,7 @@ static int receive_Barrier(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			   unsigned int data_size)
+ {
+ 	int rv;
+-	struct p_barrier *p = &mdev->tconn->data.rbuf.barrier;
++	struct p_barrier *p = mdev->tconn->data.rbuf;
+ 	struct drbd_epoch *epoch;
  
--static bool vol_has_primary_peer(struct drbd_tconn *tconn)
--{
--	struct drbd_conf *mdev;
--	int vnr;
--
--	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
--		if (mdev->state.peer == R_PRIMARY)
--			return true;
--	}
--	return false;
--}
--
- /**
-  * is_valid_state() - Returns an SS_ error code if ns is not valid
-  * @mdev:	DRBD device.
-@@ -365,7 +401,7 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
- 		if (!mdev->tconn->net_conf->two_primaries && ns.role == R_PRIMARY) {
- 			if (ns.peer == R_PRIMARY)
- 				rv = SS_TWO_PRIMARIES;
--			else if (vol_has_primary_peer(mdev->tconn))
-+			else if (conn_highest_peer(mdev->tconn) == R_PRIMARY)
- 				rv = SS_O_VOL_PEER_PRI;
- 			}
- 		put_net_conf(mdev->tconn);
-diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
-index 55df072..394a199 100644
---- a/drivers/block/drbd/drbd_state.h
-+++ b/drivers/block/drbd/drbd_state.h
-@@ -110,4 +110,9 @@ static inline int drbd_request_state(struct drbd_conf *mdev,
- 	return _drbd_request_state(mdev, mask, val, CS_VERBOSE + CS_ORDERED);
- }
+ 	inc_unacked(mdev);
+@@ -1549,7 +1549,7 @@ static int receive_DataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	struct drbd_request *req;
+ 	sector_t sector;
+ 	int err;
+-	struct p_data *p = &mdev->tconn->data.rbuf.data;
++	struct p_data *p = mdev->tconn->data.rbuf;
  
-+enum drbd_role conn_highest_role(struct drbd_tconn *tconn);
-+enum drbd_role conn_highest_peer(struct drbd_tconn *tconn);
-+enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn);
-+enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn);
-+
- #endif
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 9cdb888..60d3088 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -65,7 +65,8 @@ enum drbd_io_error_p {
+ 	sector = be64_to_cpu(p->sector);
+ 
+@@ -1577,7 +1577,7 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
+ {
+ 	sector_t sector;
+ 	int err;
+-	struct p_data *p = &mdev->tconn->data.rbuf.data;
++	struct p_data *p = mdev->tconn->data.rbuf;
+ 
+ 	sector = be64_to_cpu(p->sector);
+ 	D_ASSERT(p->block_id == ID_SYNCER);
+@@ -1966,7 +1966,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
+ {
+ 	sector_t sector;
+ 	struct drbd_peer_request *peer_req;
+-	struct p_data *p = &mdev->tconn->data.rbuf.data;
++	struct p_data *p = mdev->tconn->data.rbuf;
+ 	u32 peer_seq = be32_to_cpu(p->seq_num);
+ 	int rw = WRITE;
+ 	u32 dp_flags;
+@@ -2150,7 +2150,7 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	struct digest_info *di = NULL;
+ 	int size, verb;
+ 	unsigned int fault_type;
+-	struct p_block_req *p =	&mdev->tconn->data.rbuf.block_req;
++	struct p_block_req *p =	mdev->tconn->data.rbuf;
+ 
+ 	sector = be64_to_cpu(p->sector);
+ 	size   = be32_to_cpu(p->blksize);
+@@ -2870,7 +2870,7 @@ static int cmp_after_sb(enum drbd_after_sb_p peer, enum drbd_after_sb_p self)
+ static int receive_protocol(struct drbd_tconn *tconn, enum drbd_packet cmd,
+ 			    unsigned int data_size)
+ {
+-	struct p_protocol *p = &tconn->data.rbuf.protocol;
++	struct p_protocol *p = tconn->data.rbuf;
+ 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
+ 	int p_want_lose, p_two_primaries, cf;
+ 	char p_integrity_alg[SHARED_SECRET_MAX] = "";
+@@ -2972,7 +2972,7 @@ struct crypto_hash *drbd_crypto_alloc_digest_safe(const struct drbd_conf *mdev,
+ static int receive_SyncParam(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			     unsigned int packet_size)
+ {
+-	struct p_rs_param_95 *p = &mdev->tconn->data.rbuf.rs_param_95;
++	struct p_rs_param_95 *p = mdev->tconn->data.rbuf;
+ 	unsigned int header_size, data_size, exp_max_sz;
+ 	struct crypto_hash *verify_tfm = NULL;
+ 	struct crypto_hash *csums_tfm = NULL;
+@@ -3139,7 +3139,7 @@ static void warn_if_differ_considerably(struct drbd_conf *mdev,
+ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			 unsigned int data_size)
+ {
+-	struct p_sizes *p = &mdev->tconn->data.rbuf.sizes;
++	struct p_sizes *p = mdev->tconn->data.rbuf;
+ 	enum determine_dev_size dd = unchanged;
+ 	sector_t p_size, p_usize, my_usize;
+ 	int ldsc = 0; /* local disk size changed */
+@@ -3237,7 +3237,7 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packet cmd,
+ static int receive_uuids(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			 unsigned int data_size)
+ {
+-	struct p_uuids *p = &mdev->tconn->data.rbuf.uuids;
++	struct p_uuids *p = mdev->tconn->data.rbuf;
+ 	u64 *p_uuid;
+ 	int i, updated_uuids = 0;
+ 
+@@ -3333,7 +3333,7 @@ static union drbd_state convert_state(union drbd_state ps)
+ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			     unsigned int data_size)
+ {
+-	struct p_req_state *p = &mdev->tconn->data.rbuf.req_state;
++	struct p_req_state *p = mdev->tconn->data.rbuf;
+ 	union drbd_state mask, val;
+ 	enum drbd_state_rv rv;
+ 
+@@ -3360,7 +3360,7 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packet cmd,
+ static int receive_req_conn_state(struct drbd_tconn *tconn, enum drbd_packet cmd,
+ 				  unsigned int data_size)
+ {
+-	struct p_req_state *p = &tconn->data.rbuf.req_state;
++	struct p_req_state *p = tconn->data.rbuf;
+ 	union drbd_state mask, val;
+ 	enum drbd_state_rv rv;
+ 
+@@ -3385,7 +3385,7 @@ static int receive_req_conn_state(struct drbd_tconn *tconn, enum drbd_packet cmd
+ static int receive_state(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			 unsigned int data_size)
+ {
+-	struct p_state *p = &mdev->tconn->data.rbuf.state;
++	struct p_state *p = mdev->tconn->data.rbuf;
+ 	union drbd_state os, ns, peer_state;
+ 	enum drbd_disk_state real_peer_disk;
+ 	enum chg_state_flags cs_flags;
+@@ -3538,7 +3538,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packet cmd,
+ static int receive_sync_uuid(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			     unsigned int data_size)
+ {
+-	struct p_rs_uuid *p = &mdev->tconn->data.rbuf.rs_uuid;
++	struct p_rs_uuid *p = mdev->tconn->data.rbuf;
+ 
+ 	wait_event(mdev->misc_wait,
+ 		   mdev->state.conn == C_WF_SYNC_UUID ||
+@@ -3750,7 +3750,7 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	struct bm_xfer_ctx c;
+ 	void *buffer;
+ 	int err;
+-	struct p_header *h = &mdev->tconn->data.rbuf.header;
++	struct p_header *h = mdev->tconn->data.rbuf;
+ 	struct packet_info pi;
+ 
+ 	drbd_bm_lock(mdev, "receive bitmap", BM_LOCKED_SET_ALLOWED);
+@@ -3891,7 +3891,7 @@ static int receive_UnplugRemote(struct drbd_conf *mdev, enum drbd_packet cmd,
+ static int receive_out_of_sync(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 			       unsigned int data_size)
+ {
+-	struct p_block_desc *p = &mdev->tconn->data.rbuf.block_desc;
++	struct p_block_desc *p = mdev->tconn->data.rbuf;
+ 
+ 	switch (mdev->state.conn) {
+ 	case C_WF_SYNC_UUID:
+@@ -3946,16 +3946,9 @@ static struct data_cmd drbd_cmd_handler[] = {
+ 	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), CONN, { .conn_fn = receive_req_conn_state } },
  };
  
- enum drbd_fencing_p {
--	FP_DONT_CARE,
-+	FP_NOT_AVAIL = -1, /* Not a policy */
-+	FP_DONT_CARE = 0,
- 	FP_RESOURCE,
- 	FP_STONITH
- };
+-/* All handler functions that expect a sub-header get that sub-heder in
+-   mdev->tconn->data.rbuf.header.head.payload.
+-
+-   Usually in mdev->tconn->data.rbuf.header.head the callback can find the usual
+-   p_header, but they may not rely on that. Since there is also p_header95 !
+- */
+-
+ static void drbdd(struct drbd_tconn *tconn)
+ {
+-	struct p_header *header = &tconn->data.rbuf.header;
++	struct p_header *header = tconn->data.rbuf;
+ 	struct packet_info pi;
+ 	size_t shs; /* sub header size */
+ 	int err;
+@@ -4186,7 +4179,7 @@ static int drbd_send_handshake(struct drbd_tconn *tconn)
+ static int drbd_do_handshake(struct drbd_tconn *tconn)
+ {
+ 	/* ASSERT current == tconn->receiver ... */
+-	struct p_handshake *p = &tconn->data.rbuf.handshake;
++	struct p_handshake *p = tconn->data.rbuf;
+ 	const int expect = sizeof(struct p_handshake) - sizeof(struct p_header80);
+ 	struct packet_info pi;
+ 	int err;
+@@ -4433,7 +4426,7 @@ int drbdd_init(struct drbd_thread *thi)
+ 
+ static int got_conn_RqSReply(struct drbd_tconn *tconn, enum drbd_packet cmd)
+ {
+-	struct p_req_state_reply *p = &tconn->meta.rbuf.req_state_reply;
++	struct p_req_state_reply *p = tconn->meta.rbuf;
+ 	int retcode = be32_to_cpu(p->retcode);
+ 
+ 	if (retcode >= SS_SUCCESS) {
+@@ -4450,7 +4443,7 @@ static int got_conn_RqSReply(struct drbd_tconn *tconn, enum drbd_packet cmd)
+ 
+ static int got_RqSReply(struct drbd_conf *mdev, enum drbd_packet cmd)
+ {
+-	struct p_req_state_reply *p = &mdev->tconn->meta.rbuf.req_state_reply;
++	struct p_req_state_reply *p = mdev->tconn->meta.rbuf;
+ 	int retcode = be32_to_cpu(p->retcode);
+ 
+ 	if (retcode >= SS_SUCCESS) {
+@@ -4483,7 +4476,7 @@ static int got_PingAck(struct drbd_tconn *tconn, enum drbd_packet cmd)
+ 
+ static int got_IsInSync(struct drbd_conf *mdev, enum drbd_packet cmd)
+ {
+-	struct p_block_ack *p = &mdev->tconn->meta.rbuf.block_ack;
++	struct p_block_ack *p = mdev->tconn->meta.rbuf;
+ 	sector_t sector = be64_to_cpu(p->sector);
+ 	int blksize = be32_to_cpu(p->blksize);
+ 
+@@ -4528,7 +4521,7 @@ validate_req_change_req_state(struct drbd_conf *mdev, u64 id, sector_t sector,
+ 
+ static int got_BlockAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+ {
+-	struct p_block_ack *p = &mdev->tconn->meta.rbuf.block_ack;
++	struct p_block_ack *p = mdev->tconn->meta.rbuf;
+ 	sector_t sector = be64_to_cpu(p->sector);
+ 	int blksize = be32_to_cpu(p->blksize);
+ 	enum drbd_req_event what;
+@@ -4573,7 +4566,7 @@ static int got_BlockAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+ 
+ static int got_NegAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+ {
+-	struct p_block_ack *p = &mdev->tconn->meta.rbuf.block_ack;
++	struct p_block_ack *p = mdev->tconn->meta.rbuf;
+ 	sector_t sector = be64_to_cpu(p->sector);
+ 	int size = be32_to_cpu(p->blksize);
+ 	bool missing_ok = mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A ||
+@@ -4606,7 +4599,7 @@ static int got_NegAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+ 
+ static int got_NegDReply(struct drbd_conf *mdev, enum drbd_packet cmd)
+ {
+-	struct p_block_ack *p = &mdev->tconn->meta.rbuf.block_ack;
++	struct p_block_ack *p = mdev->tconn->meta.rbuf;
+ 	sector_t sector = be64_to_cpu(p->sector);
+ 
+ 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
+@@ -4623,7 +4616,7 @@ static int got_NegRSDReply(struct drbd_conf *mdev, enum drbd_packet cmd)
+ {
+ 	sector_t sector;
+ 	int size;
+-	struct p_block_ack *p = &mdev->tconn->meta.rbuf.block_ack;
++	struct p_block_ack *p = mdev->tconn->meta.rbuf;
+ 
+ 	sector = be64_to_cpu(p->sector);
+ 	size = be32_to_cpu(p->blksize);
+@@ -4652,7 +4645,7 @@ static int got_NegRSDReply(struct drbd_conf *mdev, enum drbd_packet cmd)
+ 
+ static int got_BarrierAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+ {
+-	struct p_barrier_ack *p = &mdev->tconn->meta.rbuf.barrier_ack;
++	struct p_barrier_ack *p = mdev->tconn->meta.rbuf;
+ 
+ 	tl_release(mdev->tconn, p->barrier, be32_to_cpu(p->set_size));
+ 
+@@ -4668,7 +4661,7 @@ static int got_BarrierAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+ 
+ static int got_OVResult(struct drbd_conf *mdev, enum drbd_packet cmd)
+ {
+-	struct p_block_ack *p = &mdev->tconn->meta.rbuf.block_ack;
++	struct p_block_ack *p = mdev->tconn->meta.rbuf;
+ 	struct drbd_work *w;
+ 	sector_t sector;
+ 	int size;
+@@ -4774,7 +4767,7 @@ static struct asender_cmd asender_tbl[] = {
+ int drbd_asender(struct drbd_thread *thi)
+ {
+ 	struct drbd_tconn *tconn = thi->tconn;
+-	struct p_header *h = &tconn->meta.rbuf.header;
++	struct p_header *h = tconn->meta.rbuf;
+ 	struct asender_cmd *cmd = NULL;
+ 	struct packet_info pi;
+ 	int rv;
 -- 
 1.7.4.1
 
