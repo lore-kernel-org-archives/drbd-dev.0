@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  7 Sep 2011 16:17:32 +0200
-Message-Id: <1315405061-1473-6-git-send-email-philipp.reisner@linbit.com>
+Date: Wed,  7 Sep 2011 16:17:33 +0200
+Message-Id: <1315405061-1473-7-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315405061-1473-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/14] drbd: Rename the DCBP_* functions to
-	dcbp_* and move them to where they are used
+Subject: [Drbd-dev] [PATCH 06/14] drbd: Converted drbd_try_outdate_peer()
+	from mdev to tconn
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,176 +18,398 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andreas Gruenbacher <agruen@linbit.com>
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |   39 ------------------------------------
- drivers/block/drbd/drbd_main.c     |   25 +++++++++++++++++++---
- drivers/block/drbd/drbd_receiver.c |   21 ++++++++++++++++--
- 3 files changed, 39 insertions(+), 46 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    4 +-
+ drivers/block/drbd/drbd_nl.c       |  139 ++++++++++++++++--------------------
+ drivers/block/drbd/drbd_receiver.c |    7 +-
+ drivers/block/drbd/drbd_state.c    |   62 +++++++++++++----
+ drivers/block/drbd/drbd_state.h    |    5 ++
+ include/linux/drbd.h               |    3 +-
+ 6 files changed, 124 insertions(+), 96 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 077aa0c..04716df 100644
+index 04716df..47a435a 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -541,45 +541,6 @@ struct p_delay_probe93 {
- 	u32     offset;  /* usecs the probe got sent after the reference time point */
- } __packed;
+@@ -1472,8 +1472,8 @@ extern void drbd_reconsider_max_bio_size(struct drbd_conf *mdev);
+ extern enum drbd_state_rv drbd_set_role(struct drbd_conf *mdev,
+ 					enum drbd_role new_role,
+ 					int force);
+-extern enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev);
+-extern void drbd_try_outdate_peer_async(struct drbd_conf *mdev);
++extern bool conn_try_outdate_peer(struct drbd_tconn *tconn);
++extern void conn_try_outdate_peer_async(struct drbd_tconn *tconn);
+ extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
  
--/* DCBP: Drbd Compressed Bitmap Packet ... */
--static inline enum drbd_bitmap_code
--DCBP_get_code(struct p_compressed_bm *p)
--{
--	return (enum drbd_bitmap_code)(p->encoding & 0x0f);
--}
--
--static inline void
--DCBP_set_code(struct p_compressed_bm *p, enum drbd_bitmap_code code)
--{
--	BUG_ON(code & ~0xf);
--	p->encoding = (p->encoding & ~0xf) | code;
--}
--
--static inline int
--DCBP_get_start(struct p_compressed_bm *p)
--{
--	return (p->encoding & 0x80) != 0;
--}
--
--static inline void
--DCBP_set_start(struct p_compressed_bm *p, int set)
--{
--	p->encoding = (p->encoding & ~0x80) | (set ? 0x80 : 0);
--}
--
--static inline int
--DCBP_get_pad_bits(struct p_compressed_bm *p)
--{
--	return (p->encoding >> 4) & 0x7;
--}
--
--static inline void
--DCBP_set_pad_bits(struct p_compressed_bm *p, int n)
--{
--	BUG_ON(n & ~0x7);
--	p->encoding = (p->encoding & (~0x7 << 4)) | (n << 4);
--}
--
- /* one bitmap packet, including the p_header,
-  * should fit within one _architecture independend_ page.
-  * so we need to use the fixed size 4KiB page size
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 53e887d..54778e9 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -1029,6 +1029,23 @@ int conn_send_sr_reply(struct drbd_tconn *tconn, enum drbd_state_rv retcode)
- 	return !conn_send_cmd(tconn, 0, &tconn->meta, cmd, &p.head, sizeof(p));
+ /* drbd_worker.c */
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 9a0e446..931ffc4 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -401,116 +401,113 @@ int conn_khelper(struct drbd_tconn *tconn, char *cmd)
+ 	return ret;
  }
  
-+static void dcbp_set_code(struct p_compressed_bm *p, enum drbd_bitmap_code code)
-+{
-+	BUG_ON(code & ~0xf);
-+	p->encoding = (p->encoding & ~0xf) | code;
+-enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev)
++static enum drbd_fencing_p highest_fencing_policy(struct drbd_tconn *tconn)
+ {
++	enum drbd_fencing_p fp = FP_NOT_AVAIL;
++	struct drbd_conf *mdev;
++	int vnr;
++
++	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
++		if (get_ldev_if_state(mdev, D_CONSISTENT)) {
++			fp = max_t(enum drbd_fencing_p, fp, mdev->ldev->dc.fencing);
++			put_ldev(mdev);
++		}
++	}
++
++	return fp;
 +}
 +
-+static void dcbp_set_start(struct p_compressed_bm *p, int set)
++bool conn_try_outdate_peer(struct drbd_tconn *tconn)
 +{
-+	p->encoding = (p->encoding & ~0x80) | (set ? 0x80 : 0);
-+}
-+
-+static void dcbp_set_pad_bits(struct p_compressed_bm *p, int n)
-+{
-+	BUG_ON(n & ~0x7);
-+	p->encoding = (p->encoding & (~0x7 << 4)) | (n << 4);
-+}
-+
- int fill_bitmap_rle_bits(struct drbd_conf *mdev,
- 	struct p_compressed_bm *p,
- 	struct bm_xfer_ctx *c)
-@@ -1073,12 +1090,12 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
- 			if (rl == 0) {
- 				/* the first checked bit was set,
- 				 * store start value, */
--				DCBP_set_start(p, 1);
-+				dcbp_set_start(p, 1);
- 				/* but skip encoding of zero run length */
- 				toggle = !toggle;
- 				continue;
++	union drbd_state mask = { { .susp_fen = 1 } };
++	union drbd_state val = { };
++	enum drbd_fencing_p fp;
+ 	char *ex_to_string;
+ 	int r;
+-	enum drbd_disk_state nps;
+-	enum drbd_fencing_p fp;
+ 
+-	D_ASSERT(mdev->state.pdsk == D_UNKNOWN);
++	if (tconn->cstate >= C_WF_REPORT_PARAMS) {
++		conn_err(tconn, "Expected cstate < C_WF_REPORT_PARAMS\n");
++		return false;
++	}
+ 
+-	if (get_ldev_if_state(mdev, D_CONSISTENT)) {
+-		fp = mdev->ldev->dc.fencing;
+-		put_ldev(mdev);
+-	} else {
+-		dev_warn(DEV, "Not fencing peer, I'm not even Consistent myself.\n");
+-		nps = mdev->state.pdsk;
++	fp = highest_fencing_policy(tconn);
++	switch (fp) {
++	case FP_NOT_AVAIL:
++		conn_warn(tconn, "Not fencing peer, I'm not even Consistent myself.\n");
+ 		goto out;
++	case FP_DONT_CARE:
++		return true;
++	default: ;
+ 	}
+ 
+-	r = drbd_khelper(mdev, "fence-peer");
++	r = conn_khelper(tconn, "fence-peer");
+ 
+ 	switch ((r>>8) & 0xff) {
+ 	case 3: /* peer is inconsistent */
+ 		ex_to_string = "peer is inconsistent or worse";
+-		nps = D_INCONSISTENT;
++		mask.pdsk = D_MASK;
++		val.pdsk = D_INCONSISTENT;
+ 		break;
+ 	case 4: /* peer got outdated, or was already outdated */
+ 		ex_to_string = "peer was fenced";
+-		nps = D_OUTDATED;
++		mask.pdsk = D_MASK;
++		val.pdsk = D_OUTDATED;
+ 		break;
+ 	case 5: /* peer was down */
+-		if (mdev->state.disk == D_UP_TO_DATE) {
++		if (conn_highest_disk(tconn) == D_UP_TO_DATE) {
+ 			/* we will(have) create(d) a new UUID anyways... */
+ 			ex_to_string = "peer is unreachable, assumed to be dead";
+-			nps = D_OUTDATED;
++			mask.pdsk = D_MASK;
++			val.pdsk = D_OUTDATED;
+ 		} else {
+ 			ex_to_string = "peer unreachable, doing nothing since disk != UpToDate";
+-			nps = mdev->state.pdsk;
+ 		}
+ 		break;
+ 	case 6: /* Peer is primary, voluntarily outdate myself.
+ 		 * This is useful when an unconnected R_SECONDARY is asked to
+ 		 * become R_PRIMARY, but finds the other peer being active. */
+ 		ex_to_string = "peer is active";
+-		dev_warn(DEV, "Peer is primary, outdating myself.\n");
+-		nps = D_UNKNOWN;
+-		_drbd_request_state(mdev, NS(disk, D_OUTDATED), CS_WAIT_COMPLETE);
++		conn_warn(tconn, "Peer is primary, outdating myself.\n");
++		mask.disk = D_MASK;
++		val.disk = D_OUTDATED;
+ 		break;
+ 	case 7:
+ 		if (fp != FP_STONITH)
+-			dev_err(DEV, "fence-peer() = 7 && fencing != Stonith !!!\n");
++			conn_err(tconn, "fence-peer() = 7 && fencing != Stonith !!!\n");
+ 		ex_to_string = "peer was stonithed";
+-		nps = D_OUTDATED;
++		mask.pdsk = D_MASK;
++		val.pdsk = D_OUTDATED;
+ 		break;
+ 	default:
+ 		/* The script is broken ... */
+-		nps = D_UNKNOWN;
+-		dev_err(DEV, "fence-peer helper broken, returned %d\n", (r>>8)&0xff);
+-		return nps;
++		conn_err(tconn, "fence-peer helper broken, returned %d\n", (r>>8)&0xff);
++		return false; /* Eventually leave IO frozen */
+ 	}
+ 
+-	dev_info(DEV, "fence-peer helper returned %d (%s)\n",
+-			(r>>8) & 0xff, ex_to_string);
+-
+-out:
+-	if (mdev->state.susp_fen && nps >= D_UNKNOWN) {
+-		/* The handler was not successful... unfreeze here, the
+-		   state engine can not unfreeze... */
+-		_drbd_request_state(mdev, NS(susp_fen, 0), CS_VERBOSE);
+-	}
++	conn_info(tconn, "fence-peer helper returned %d (%s)\n",
++		  (r>>8) & 0xff, ex_to_string);
+ 
+-	return nps;
++ out:
++	conn_request_state(tconn, mask, val, CS_VERBOSE);
++	return conn_highest_pdsk(tconn) <= D_OUTDATED;
+ }
+ 
+ static int _try_outdate_peer_async(void *data)
+ {
+-	struct drbd_conf *mdev = (struct drbd_conf *)data;
+-	enum drbd_disk_state nps;
+-	union drbd_state ns;
+-
+-	nps = drbd_try_outdate_peer(mdev);
+-
+-	/* Not using
+-	   drbd_request_state(mdev, NS(pdsk, nps));
+-	   here, because we might were able to re-establish the connection
+-	   in the meantime. This can only partially be solved in the state's
+-	   engine is_valid_state() and is_valid_state_transition()
+-	   functions.
++	struct drbd_tconn *tconn = (struct drbd_tconn *)data;
+ 
+-	   nps can be D_INCONSISTENT, D_OUTDATED or D_UNKNOWN.
+-	   pdsk == D_INCONSISTENT while conn >= C_CONNECTED is valid,
+-	   therefore we have to have the pre state change check here.
+-	*/
+-	spin_lock_irq(&mdev->tconn->req_lock);
+-	ns = mdev->state;
+-	if (ns.conn < C_WF_REPORT_PARAMS) {
+-		ns.pdsk = nps;
+-		_drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
+-	}
+-	spin_unlock_irq(&mdev->tconn->req_lock);
++	conn_try_outdate_peer(tconn);
+ 
+ 	return 0;
+ }
+ 
+-void drbd_try_outdate_peer_async(struct drbd_conf *mdev)
++void conn_try_outdate_peer_async(struct drbd_tconn *tconn)
+ {
+ 	struct task_struct *opa;
+ 
+-	opa = kthread_run(_try_outdate_peer_async, mdev, "drbd%d_a_helper", mdev_to_minor(mdev));
++	opa = kthread_run(_try_outdate_peer_async, tconn, "drbd_async_h");
+ 	if (IS_ERR(opa))
+-		dev_err(DEV, "out of mem, failed to invoke fence-peer helper\n");
++		conn_err(tconn, "out of mem, failed to invoke fence-peer helper\n");
+ }
+ 
+ enum drbd_state_rv
+@@ -521,7 +518,6 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
+ 	int try = 0;
+ 	int forced = 0;
+ 	union drbd_state mask, val;
+-	enum drbd_disk_state nps;
+ 
+ 	if (new_role == R_PRIMARY)
+ 		request_ping(mdev->tconn); /* Detect a dead peer ASAP */
+@@ -554,32 +550,23 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
+ 		if (rv == SS_NO_UP_TO_DATE_DISK &&
+ 		    mdev->state.disk == D_CONSISTENT && mask.pdsk == 0) {
+ 			D_ASSERT(mdev->state.pdsk == D_UNKNOWN);
+-			nps = drbd_try_outdate_peer(mdev);
+ 
+-			if (nps == D_OUTDATED || nps == D_INCONSISTENT) {
++			if (conn_try_outdate_peer(mdev->tconn)) {
+ 				val.disk = D_UP_TO_DATE;
+ 				mask.disk = D_MASK;
  			}
--			DCBP_set_start(p, 0);
-+			dcbp_set_start(p, 0);
+-
+-			val.pdsk = nps;
+-			mask.pdsk = D_MASK;
+-
+ 			continue;
  		}
  
- 		/* paranoia: catch zero runlength.
-@@ -1118,7 +1135,7 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
- 	bm_xfer_ctx_bit_to_word_offset(c);
+ 		if (rv == SS_NOTHING_TO_DO)
+ 			goto out;
+ 		if (rv == SS_PRIMARY_NOP && mask.pdsk == 0) {
+-			nps = drbd_try_outdate_peer(mdev);
+-
+-			if (force && nps > D_OUTDATED) {
++			if (!conn_try_outdate_peer(mdev->tconn) && force) {
+ 				dev_warn(DEV, "Forced into split brain situation!\n");
+-				nps = D_OUTDATED;
+-			}
+-
+-			mask.pdsk = D_MASK;
+-			val.pdsk  = nps;
++				mask.pdsk = D_MASK;
++				val.pdsk  = D_OUTDATED;
  
- 	/* store pad_bits */
--	DCBP_set_pad_bits(p, (8 - bs.cur.bit) & 0x7);
-+	dcbp_set_pad_bits(p, (8 - bs.cur.bit) & 0x7);
- 
- 	return len;
- }
-@@ -1143,7 +1160,7 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
- 		return -EIO;
- 
- 	if (len) {
--		DCBP_set_code(p, RLE_VLI_Bits);
-+		dcbp_set_code(p, RLE_VLI_Bits);
- 		err = _drbd_send_cmd(mdev, mdev->tconn->data.socket,
- 				     P_COMPRESSED_BITMAP, h,
- 				     sizeof(*p) + len, 0);
++			}
+ 			continue;
+ 		}
+ 		if (rv == SS_TWO_PRIMARIES) {
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 48e073a..449637f 100644
+index 449637f..08140d9 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3598,6 +3598,21 @@ receive_bitmap_plain(struct drbd_conf *mdev, unsigned int data_size,
- 	return 1;
+@@ -4028,9 +4028,11 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
+ 	drbd_free_sock(tconn);
+ 
+ 	idr_for_each(&tconn->volumes, drbd_disconnected, tconn);
+-
+ 	conn_info(tconn, "Connection closed\n");
+ 
++	if (conn_highest_role(tconn) == R_PRIMARY && conn_highest_pdsk(tconn) >= D_UNKNOWN)
++		conn_try_outdate_peer_async(tconn);
++
+ 	spin_lock_irq(&tconn->req_lock);
+ 	oc = tconn->cstate;
+ 	if (oc >= C_UNCONNECTED)
+@@ -4107,9 +4109,6 @@ static int drbd_disconnected(int vnr, void *p, void *data)
+ 		put_ldev(mdev);
+ 	}
+ 
+-	if (mdev->state.role == R_PRIMARY && fp >= FP_RESOURCE && mdev->state.pdsk >= D_UNKNOWN)
+-		drbd_try_outdate_peer_async(mdev);
+-
+ 	/* serialize with bitmap writeout triggered by the state change,
+ 	 * if any. */
+ 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index a14511b..280b31c 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -62,6 +62,54 @@ bool conn_all_vols_unconf(struct drbd_tconn *tconn)
+ 	return true;
  }
  
-+static enum drbd_bitmap_code dcbp_get_code(struct p_compressed_bm *p)
++enum drbd_role conn_highest_role(struct drbd_tconn *tconn)
 +{
-+	return (enum drbd_bitmap_code)(p->encoding & 0x0f);
++	enum drbd_role role = R_UNKNOWN;
++	struct drbd_conf *mdev;
++	int vnr;
++
++	idr_for_each_entry(&tconn->volumes, mdev, vnr)
++		role = max_t(enum drbd_role, role, mdev->state.role);
++
++	return role;
 +}
 +
-+static int dcbp_get_start(struct p_compressed_bm *p)
++enum drbd_role conn_highest_peer(struct drbd_tconn *tconn)
 +{
-+	return (p->encoding & 0x80) != 0;
++	enum drbd_role peer = R_UNKNOWN;
++	struct drbd_conf *mdev;
++	int vnr;
++
++	idr_for_each_entry(&tconn->volumes, mdev, vnr)
++		peer = max_t(enum drbd_role, peer, mdev->state.role);
++
++	return peer;
 +}
 +
-+static int dcbp_get_pad_bits(struct p_compressed_bm *p)
++enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn)
 +{
-+	return (p->encoding >> 4) & 0x7;
++	enum drbd_disk_state ds = D_DISKLESS;
++	struct drbd_conf *mdev;
++	int vnr;
++
++	idr_for_each_entry(&tconn->volumes, mdev, vnr)
++		ds = max_t(enum drbd_disk_state, ds, mdev->state.disk);
++
++	return ds;
++}
++
++enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn)
++{
++	enum drbd_disk_state ds = D_DISKLESS;
++	struct drbd_conf *mdev;
++	int vnr;
++
++	idr_for_each_entry(&tconn->volumes, mdev, vnr)
++		ds = max_t(enum drbd_disk_state, ds, mdev->state.pdsk);
++
++	return ds;
 +}
 +
  /**
-  * recv_bm_rle_bits
-  *
-@@ -3616,11 +3631,11 @@ recv_bm_rle_bits(struct drbd_conf *mdev,
- 	u64 tmp;
- 	unsigned long s = c->bit_offset;
- 	unsigned long e;
--	int toggle = DCBP_get_start(p);
-+	int toggle = dcbp_get_start(p);
- 	int have;
- 	int bits;
+  * cl_wide_st_chg() - true if the state change is a cluster wide one
+  * @mdev:	DRBD device.
+@@ -330,18 +378,6 @@ static void print_state_change(struct drbd_conf *mdev, union drbd_state os, unio
+ 		dev_info(DEV, "%s\n", pb);
+ }
  
--	bitstream_init(&bs, p->code, len, DCBP_get_pad_bits(p));
-+	bitstream_init(&bs, p->code, len, dcbp_get_pad_bits(p));
+-static bool vol_has_primary_peer(struct drbd_tconn *tconn)
+-{
+-	struct drbd_conf *mdev;
+-	int vnr;
+-
+-	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+-		if (mdev->state.peer == R_PRIMARY)
+-			return true;
+-	}
+-	return false;
+-}
+-
+ /**
+  * is_valid_state() - Returns an SS_ error code if ns is not valid
+  * @mdev:	DRBD device.
+@@ -365,7 +401,7 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
+ 		if (!mdev->tconn->net_conf->two_primaries && ns.role == R_PRIMARY) {
+ 			if (ns.peer == R_PRIMARY)
+ 				rv = SS_TWO_PRIMARIES;
+-			else if (vol_has_primary_peer(mdev->tconn))
++			else if (conn_highest_peer(mdev->tconn) == R_PRIMARY)
+ 				rv = SS_O_VOL_PEER_PRI;
+ 			}
+ 		put_net_conf(mdev->tconn);
+diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
+index 55df072..394a199 100644
+--- a/drivers/block/drbd/drbd_state.h
++++ b/drivers/block/drbd/drbd_state.h
+@@ -110,4 +110,9 @@ static inline int drbd_request_state(struct drbd_conf *mdev,
+ 	return _drbd_request_state(mdev, mask, val, CS_VERBOSE + CS_ORDERED);
+ }
  
- 	bits = bitstream_get_bits(&bs, &look_ahead, 64);
- 	if (bits < 0)
-@@ -3675,7 +3690,7 @@ decode_bitmap_c(struct drbd_conf *mdev,
- 		struct bm_xfer_ctx *c,
- 		unsigned int len)
- {
--	if (DCBP_get_code(p) == RLE_VLI_Bits)
-+	if (dcbp_get_code(p) == RLE_VLI_Bits)
- 		return recv_bm_rle_bits(mdev, p, c, len);
++enum drbd_role conn_highest_role(struct drbd_tconn *tconn);
++enum drbd_role conn_highest_peer(struct drbd_tconn *tconn);
++enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn);
++enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn);
++
+ #endif
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index 9cdb888..60d3088 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -65,7 +65,8 @@ enum drbd_io_error_p {
+ };
  
- 	/* other variants had been implemented for evaluation,
+ enum drbd_fencing_p {
+-	FP_DONT_CARE,
++	FP_NOT_AVAIL = -1, /* Not a policy */
++	FP_DONT_CARE = 0,
+ 	FP_RESOURCE,
+ 	FP_STONITH
+ };
 -- 
 1.7.4.1
 
