@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu,  8 Sep 2011 14:45:25 +0200
-Message-Id: <1315485937-18989-5-git-send-email-philipp.reisner@linbit.com>
+Date: Thu,  8 Sep 2011 14:45:26 +0200
+Message-Id: <1315485937-18989-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315485937-18989-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315485937-18989-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/16] drbd: Allow to disconnect if one volume is
-	diskless
+Subject: [Drbd-dev] [PATCH 05/16] drbd: Do not segfault if a sync dependency
+	reaches a diskless device
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,60 +21,22 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |    2 +-
- drivers/block/drbd/drbd_state.c    |    6 ++++++
- drivers/block/drbd/drbd_state.h    |    1 +
- 3 files changed, 8 insertions(+), 1 deletions(-)
+ drivers/block/drbd/drbd_worker.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 0301775..e45a417 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3450,7 +3450,7 @@ static int receive_req_conn_state(struct drbd_tconn *tconn, struct packet_info *
- 	mask = convert_state(mask);
- 	val = convert_state(val);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index ed12cdf..829a2ce 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1321,6 +1321,8 @@ static int _drbd_may_sync_now(struct drbd_conf *mdev)
+ 	struct drbd_conf *odev = mdev;
  
--	rv = conn_request_state(tconn, mask, val, CS_VERBOSE | CS_LOCAL_ONLY);
-+	rv = conn_request_state(tconn, mask, val, CS_VERBOSE | CS_LOCAL_ONLY | CS_IGN_OUTD_FAIL);
- 	conn_send_sr_reply(tconn, rv);
- 
- 	return 0;
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index ea2bf74..c73be9e 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1415,6 +1415,9 @@ conn_is_valid_transition(struct drbd_tconn *tconn, union drbd_state mask, union
- 		os = mdev->state;
- 		ns = sanitize_state(mdev, apply_mask_val(os, mask, val), NULL);
- 
-+		if (flags & CS_IGN_OUTD_FAIL && ns.disk == D_OUTDATED && os.disk < D_OUTDATED)
-+			ns.disk = os.disk;
-+
- 		if (ns.i == os.i)
- 			continue;
- 
-@@ -1456,6 +1459,9 @@ conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state
- 		ns = apply_mask_val(os, mask, val);
- 		ns = sanitize_state(mdev, ns, NULL);
- 
-+		if (flags & CS_IGN_OUTD_FAIL && ns.disk == D_OUTDATED && os.disk < D_OUTDATED)
-+			ns.disk = os.disk;
-+
- 		rv = __drbd_set_state(mdev, ns, flags, NULL);
- 		if (rv < SS_SUCCESS)
- 			BUG();
-diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
-index 11fd0f8..c0331f1 100644
---- a/drivers/block/drbd/drbd_state.h
-+++ b/drivers/block/drbd/drbd_state.h
-@@ -69,6 +69,7 @@ enum chg_state_flags {
- 	CS_DC_DISK       = 1 << 8,
- 	CS_DC_PDSK       = 1 << 9,
- 	CS_DC_MASK       = CS_DC_ROLE + CS_DC_PEER + CS_DC_CONN + CS_DC_DISK + CS_DC_PDSK,
-+	CS_IGN_OUTD_FAIL = 1 << 10,
- };
- 
- extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,
+ 	while (1) {
++		if (!odev->ldev)
++			return 1;
+ 		if (odev->ldev->dc.resync_after == -1)
+ 			return 1;
+ 		odev = minor_to_mdev(odev->ldev->dc.resync_after);
 -- 
 1.7.4.1
 
