@@ -1,11 +1,9 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0A8BC10556B6
-	for <drbd-dev@lists.linbit.com>; Thu,  8 Sep 2011 17:10:37 +0200 (CEST)
-Date: Thu, 8 Sep 2011 17:10:35 +0200
+Date: Thu, 8 Sep 2011 17:13:05 +0200
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20110908151035.GI14243@barkeeper1-xen.linbit>
+To: drbd-dev@lists.linbit.com, linux-kernel@vger.kernel.org,
+	xfs@oss.sgi.com
+Message-ID: <20110908151305.GJ14243@barkeeper1-xen.linbit>
 References: <20110907221505.GC21603@hostway.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -20,6 +18,8 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
+
+Sorry for double posting on drbd-dev, I managed to strip the other lists from Cc.
 
 On Wed, Sep 07, 2011 at 03:15:05PM -0700, Simon Kirby wrote:
 > We will try again with most recent Linus HEAD, but with a build of Linus
