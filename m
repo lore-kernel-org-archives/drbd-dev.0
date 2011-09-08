@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu,  8 Sep 2011 14:45:28 +0200
-Message-Id: <1315485937-18989-8-git-send-email-philipp.reisner@linbit.com>
+Date: Thu,  8 Sep 2011 14:45:29 +0200
+Message-Id: <1315485937-18989-9-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315485937-18989-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315485937-18989-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/16] drbd: Map from (connection,
-	volume number) to device in the asender handlers
+Subject: [Drbd-dev] [PATCH 08/16] drbd: drbd_connect(): Initialize struct
+	drbd_socket before sending anything
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,273 +23,148 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |  137 +++++++++++++++++++++--------------
- 1 files changed, 82 insertions(+), 55 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |   66 ++++++++++++++++++-----------------
+ 1 files changed, 34 insertions(+), 32 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 5e464a7..cc236d7 100644
+index cc236d7..830b107 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -60,11 +60,6 @@ enum finish_epoch {
- 	FE_RECYCLED,
- };
+@@ -807,7 +807,7 @@ int drbd_connected(int vnr, void *p, void *data)
+  */
+ static int drbd_connect(struct drbd_tconn *tconn)
+ {
+-	struct socket *s, *sock, *msock;
++	struct socket *sock, *msock;
+ 	int try, h, ok;
  
--enum mdev_or_conn {
--	MDEV,
--	CONN,
--};
+ 	if (conn_request_state(tconn, NS(conn, C_WF_CONNECTION), CS_VERBOSE) < SS_SUCCESS)
+@@ -818,10 +818,9 @@ static int drbd_connect(struct drbd_tconn *tconn)
+ 	/* Assume that the peer only understands protocol 80 until we know better.  */
+ 	tconn->agreed_pro_version = 80;
+ 
+-	sock  = NULL;
+-	msock = NULL;
 -
- static int drbd_do_handshake(struct drbd_tconn *tconn);
- static int drbd_do_auth(struct drbd_tconn *tconn);
- static int drbd_disconnected(int vnr, void *p, void *data);
-@@ -4479,11 +4474,16 @@ static int got_conn_RqSReply(struct drbd_tconn *tconn, struct packet_info *pi)
- 	return true;
- }
- 
--static int got_RqSReply(struct drbd_conf *mdev, struct packet_info *pi)
-+static int got_RqSReply(struct drbd_tconn *tconn, struct packet_info *pi)
- {
--	struct p_req_state_reply *p = mdev->tconn->meta.rbuf;
-+	struct drbd_conf *mdev;
-+	struct p_req_state_reply *p = tconn->meta.rbuf;
- 	int retcode = be32_to_cpu(p->retcode);
- 
-+	mdev = vnr_to_mdev(tconn, pi->vnr);
-+	if (!mdev)
-+		return false;
+ 	do {
++		struct socket *s;
 +
- 	if (retcode >= SS_SUCCESS) {
- 		set_bit(CL_ST_CHG_SUCCESS, &mdev->flags);
- 	} else {
-@@ -4512,12 +4512,17 @@ static int got_PingAck(struct drbd_tconn *tconn, struct packet_info *pi)
- 	return true;
- }
+ 		for (try = 0;;) {
+ 			/* 3 tries, this should take less than a second! */
+ 			s = drbd_try_connect(tconn);
+@@ -832,24 +831,22 @@ static int drbd_connect(struct drbd_tconn *tconn)
+ 		}
  
--static int got_IsInSync(struct drbd_conf *mdev, struct packet_info *pi)
-+static int got_IsInSync(struct drbd_tconn *tconn, struct packet_info *pi)
- {
--	struct p_block_ack *p = mdev->tconn->meta.rbuf;
-+	struct drbd_conf *mdev;
-+	struct p_block_ack *p = tconn->meta.rbuf;
- 	sector_t sector = be64_to_cpu(p->sector);
- 	int blksize = be32_to_cpu(p->blksize);
+ 		if (s) {
+-			if (!sock) {
+-				drbd_send_fp(tconn, s, P_HAND_SHAKE_S);
+-				sock = s;
+-				s = NULL;
+-			} else if (!msock) {
+-				drbd_send_fp(tconn, s, P_HAND_SHAKE_M);
+-				msock = s;
+-				s = NULL;
++			if (!tconn->data.socket) {
++				tconn->data.socket = s;
++				drbd_send_fp(tconn, tconn->data.socket, P_HAND_SHAKE_S);
++			} else if (!tconn->meta.socket) {
++				tconn->meta.socket = s;
++				drbd_send_fp(tconn, tconn->meta.socket, P_HAND_SHAKE_M);
+ 			} else {
+ 				conn_err(tconn, "Logic error in drbd_connect()\n");
+ 				goto out_release_sockets;
+ 			}
+ 		}
  
-+	mdev = vnr_to_mdev(tconn, pi->vnr);
-+	if (!mdev)
-+		return false;
+-		if (sock && msock) {
++		if (tconn->data.socket && tconn->meta.socket) {
+ 			schedule_timeout_interruptible(tconn->net_conf->ping_timeo*HZ/10);
+-			ok = drbd_socket_okay(&sock);
+-			ok = drbd_socket_okay(&msock) && ok;
++			ok = drbd_socket_okay(&tconn->data.socket);
++			ok = drbd_socket_okay(&tconn->meta.socket) && ok;
+ 			if (ok)
+ 				break;
+ 		}
+@@ -858,22 +855,22 @@ retry:
+ 		s = drbd_wait_for_connect(tconn);
+ 		if (s) {
+ 			try = drbd_recv_fp(tconn, s);
+-			drbd_socket_okay(&sock);
+-			drbd_socket_okay(&msock);
++			drbd_socket_okay(&tconn->data.socket);
++			drbd_socket_okay(&tconn->meta.socket);
+ 			switch (try) {
+ 			case P_HAND_SHAKE_S:
+-				if (sock) {
++				if (tconn->data.socket) {
+ 					conn_warn(tconn, "initial packet S crossed\n");
+-					sock_release(sock);
++					sock_release(tconn->data.socket);
+ 				}
+-				sock = s;
++				tconn->data.socket = s;
+ 				break;
+ 			case P_HAND_SHAKE_M:
+-				if (msock) {
++				if (tconn->meta.socket) {
+ 					conn_warn(tconn, "initial packet M crossed\n");
+-					sock_release(msock);
++					sock_release(tconn->meta.socket);
+ 				}
+-				msock = s;
++				tconn->meta.socket = s;
+ 				set_bit(DISCARD_CONCURRENT, &tconn->flags);
+ 				break;
+ 			default:
+@@ -893,14 +890,17 @@ retry:
+ 				goto out_release_sockets;
+ 		}
+ 
+-		if (sock && msock) {
+-			ok = drbd_socket_okay(&sock);
+-			ok = drbd_socket_okay(&msock) && ok;
++		if (tconn->data.socket && &tconn->meta.socket) {
++			ok = drbd_socket_okay(&tconn->data.socket);
++			ok = drbd_socket_okay(&tconn->meta.socket) && ok;
+ 			if (ok)
+ 				break;
+ 		}
+ 	} while (1);
+ 
++	sock  = tconn->data.socket;
++	msock = tconn->meta.socket;
 +
- 	D_ASSERT(mdev->tconn->agreed_pro_version >= 89);
+ 	msock->sk->sk_reuse = 1; /* SO_REUSEADDR */
+ 	sock->sk->sk_reuse = 1; /* SO_REUSEADDR */
  
- 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
-@@ -4557,13 +4562,18 @@ validate_req_change_req_state(struct drbd_conf *mdev, u64 id, sector_t sector,
- 	return true;
+@@ -926,8 +926,6 @@ retry:
+ 	drbd_tcp_nodelay(sock);
+ 	drbd_tcp_nodelay(msock);
+ 
+-	tconn->data.socket = sock;
+-	tconn->meta.socket = msock;
+ 	tconn->last_received = jiffies;
+ 
+ 	h = drbd_do_handshake(tconn);
+@@ -960,10 +958,14 @@ retry:
+ 	return !idr_for_each(&tconn->volumes, drbd_connected, tconn);
+ 
+ out_release_sockets:
+-	if (sock)
+-		sock_release(sock);
+-	if (msock)
+-		sock_release(msock);
++	if (tconn->data.socket) {
++		sock_release(tconn->data.socket);
++		tconn->data.socket = NULL;
++	}
++	if (tconn->meta.socket) {
++		sock_release(tconn->meta.socket);
++		tconn->meta.socket = NULL;
++	}
+ 	return -1;
  }
- 
--static int got_BlockAck(struct drbd_conf *mdev, struct packet_info *pi)
-+static int got_BlockAck(struct drbd_tconn *tconn, struct packet_info *pi)
- {
--	struct p_block_ack *p = mdev->tconn->meta.rbuf;
-+	struct drbd_conf *mdev;
-+	struct p_block_ack *p = tconn->meta.rbuf;
- 	sector_t sector = be64_to_cpu(p->sector);
- 	int blksize = be32_to_cpu(p->blksize);
- 	enum drbd_req_event what;
- 
-+	mdev = vnr_to_mdev(tconn, pi->vnr);
-+	if (!mdev)
-+		return false;
-+
- 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
- 
- 	if (p->block_id == ID_SYNCER) {
-@@ -4602,15 +4612,20 @@ static int got_BlockAck(struct drbd_conf *mdev, struct packet_info *pi)
- 					     what, false);
- }
- 
--static int got_NegAck(struct drbd_conf *mdev, struct packet_info *pi)
-+static int got_NegAck(struct drbd_tconn *tconn, struct packet_info *pi)
- {
--	struct p_block_ack *p = mdev->tconn->meta.rbuf;
-+	struct drbd_conf *mdev;
-+	struct p_block_ack *p = tconn->meta.rbuf;
- 	sector_t sector = be64_to_cpu(p->sector);
- 	int size = be32_to_cpu(p->blksize);
--	bool missing_ok = mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A ||
--			  mdev->tconn->net_conf->wire_protocol == DRBD_PROT_B;
-+	bool missing_ok = tconn->net_conf->wire_protocol == DRBD_PROT_A ||
-+			  tconn->net_conf->wire_protocol == DRBD_PROT_B;
- 	bool found;
- 
-+	mdev = vnr_to_mdev(tconn, pi->vnr);
-+	if (!mdev)
-+		return false;
-+
- 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
- 
- 	if (p->block_id == ID_SYNCER) {
-@@ -4635,11 +4650,16 @@ static int got_NegAck(struct drbd_conf *mdev, struct packet_info *pi)
- 	return true;
- }
- 
--static int got_NegDReply(struct drbd_conf *mdev, struct packet_info *pi)
-+static int got_NegDReply(struct drbd_tconn *tconn, struct packet_info *pi)
- {
--	struct p_block_ack *p = mdev->tconn->meta.rbuf;
-+	struct drbd_conf *mdev;
-+	struct p_block_ack *p = tconn->meta.rbuf;
- 	sector_t sector = be64_to_cpu(p->sector);
- 
-+	mdev = vnr_to_mdev(tconn, pi->vnr);
-+	if (!mdev)
-+		return false;
-+
- 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
- 
- 	dev_err(DEV, "Got NegDReply; Sector %llus, len %u; Fail original request.\n",
-@@ -4650,11 +4670,16 @@ static int got_NegDReply(struct drbd_conf *mdev, struct packet_info *pi)
- 					     NEG_ACKED, false);
- }
- 
--static int got_NegRSDReply(struct drbd_conf *mdev, struct packet_info *pi)
-+static int got_NegRSDReply(struct drbd_tconn *tconn, struct packet_info *pi)
- {
-+	struct drbd_conf *mdev;
- 	sector_t sector;
- 	int size;
--	struct p_block_ack *p = mdev->tconn->meta.rbuf;
-+	struct p_block_ack *p = tconn->meta.rbuf;
-+
-+	mdev = vnr_to_mdev(tconn, pi->vnr);
-+	if (!mdev)
-+		return false;
- 
- 	sector = be64_to_cpu(p->sector);
- 	size = be32_to_cpu(p->blksize);
-@@ -4681,9 +4706,14 @@ static int got_NegRSDReply(struct drbd_conf *mdev, struct packet_info *pi)
- 	return true;
- }
- 
--static int got_BarrierAck(struct drbd_conf *mdev, struct packet_info *pi)
-+static int got_BarrierAck(struct drbd_tconn *tconn, struct packet_info *pi)
- {
--	struct p_barrier_ack *p = mdev->tconn->meta.rbuf;
-+	struct drbd_conf *mdev;
-+	struct p_barrier_ack *p = tconn->meta.rbuf;
-+
-+	mdev = vnr_to_mdev(tconn, pi->vnr);
-+	if (!mdev)
-+		return false;
- 
- 	tl_release(mdev->tconn, p->barrier, be32_to_cpu(p->set_size));
- 
-@@ -4697,13 +4727,18 @@ static int got_BarrierAck(struct drbd_conf *mdev, struct packet_info *pi)
- 	return true;
- }
- 
--static int got_OVResult(struct drbd_conf *mdev, struct packet_info *pi)
-+static int got_OVResult(struct drbd_tconn *tconn, struct packet_info *pi)
- {
--	struct p_block_ack *p = mdev->tconn->meta.rbuf;
-+	struct drbd_conf *mdev;
-+	struct p_block_ack *p = tconn->meta.rbuf;
- 	struct drbd_work *w;
- 	sector_t sector;
- 	int size;
- 
-+	mdev = vnr_to_mdev(tconn, pi->vnr);
-+	if (!mdev)
-+		return false;
-+
- 	sector = be64_to_cpu(p->sector);
- 	size = be32_to_cpu(p->blksize);
- 
-@@ -4742,7 +4777,7 @@ static int got_OVResult(struct drbd_conf *mdev, struct packet_info *pi)
- 	return true;
- }
- 
--static int got_skip(struct drbd_conf *mdev, struct packet_info *pi)
-+static int got_skip(struct drbd_tconn *tconn, struct packet_info *pi)
- {
- 	return true;
- }
-@@ -4775,31 +4810,27 @@ static int tconn_process_done_ee(struct drbd_tconn *tconn)
- 
- struct asender_cmd {
- 	size_t pkt_size;
--	enum mdev_or_conn fa_type; /* first argument's type */
--	union {
--		int (*mdev_fn)(struct drbd_conf *mdev, struct packet_info *);
--		int (*conn_fn)(struct drbd_tconn *tconn, struct packet_info *);
--	};
-+	int (*fn)(struct drbd_tconn *tconn, struct packet_info *);
- };
- 
- static struct asender_cmd asender_tbl[] = {
--	[P_PING]	    = { sizeof(struct p_header), CONN, { .conn_fn = got_Ping } },
--	[P_PING_ACK]	    = { sizeof(struct p_header), CONN, { .conn_fn = got_PingAck } },
--	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), MDEV, { got_BlockAck } },
--	[P_WRITE_ACK]	    = { sizeof(struct p_block_ack), MDEV, { got_BlockAck } },
--	[P_RS_WRITE_ACK]    = { sizeof(struct p_block_ack), MDEV, { got_BlockAck } },
--	[P_DISCARD_WRITE]   = { sizeof(struct p_block_ack), MDEV, { got_BlockAck } },
--	[P_NEG_ACK]	    = { sizeof(struct p_block_ack), MDEV, { got_NegAck } },
--	[P_NEG_DREPLY]	    = { sizeof(struct p_block_ack), MDEV, { got_NegDReply } },
--	[P_NEG_RS_DREPLY]   = { sizeof(struct p_block_ack), MDEV, { got_NegRSDReply } },
--	[P_OV_RESULT]	    = { sizeof(struct p_block_ack), MDEV, { got_OVResult } },
--	[P_BARRIER_ACK]	    = { sizeof(struct p_barrier_ack), MDEV, { got_BarrierAck } },
--	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), MDEV, { got_RqSReply } },
--	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), MDEV, { got_IsInSync } },
--	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), MDEV, { got_skip } },
--	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), MDEV, { got_NegRSDReply } },
--	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), CONN, {.conn_fn = got_conn_RqSReply}},
--	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), MDEV, { got_BlockAck } },
-+	[P_PING]	    = { sizeof(struct p_header), got_Ping },
-+	[P_PING_ACK]	    = { sizeof(struct p_header), got_PingAck },
-+	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
-+	[P_WRITE_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
-+	[P_RS_WRITE_ACK]    = { sizeof(struct p_block_ack), got_BlockAck },
-+	[P_DISCARD_WRITE]   = { sizeof(struct p_block_ack), got_BlockAck },
-+	[P_NEG_ACK]	    = { sizeof(struct p_block_ack), got_NegAck },
-+	[P_NEG_DREPLY]	    = { sizeof(struct p_block_ack), got_NegDReply },
-+	[P_NEG_RS_DREPLY]   = { sizeof(struct p_block_ack), got_NegRSDReply },
-+	[P_OV_RESULT]	    = { sizeof(struct p_block_ack), got_OVResult },
-+	[P_BARRIER_ACK]	    = { sizeof(struct p_barrier_ack), got_BarrierAck },
-+	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), got_RqSReply },
-+	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
-+	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), got_skip },
-+	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), got_NegRSDReply },
-+	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), got_conn_RqSReply },
-+	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
- };
- 
- int drbd_asender(struct drbd_thread *thi)
-@@ -4889,7 +4920,7 @@ int drbd_asender(struct drbd_thread *thi)
- 			if (decode_header(tconn, h, &pi))
- 				goto reconnect;
- 			cmd = &asender_tbl[pi.cmd];
--			if (pi.cmd >= ARRAY_SIZE(asender_tbl) || !cmd) {
-+			if (pi.cmd >= ARRAY_SIZE(asender_tbl) || !cmd->fn) {
- 				conn_err(tconn, "unknown command %d on meta (l: %d)\n",
- 					pi.cmd, pi.size);
- 				goto disconnect;
-@@ -4904,15 +4935,11 @@ int drbd_asender(struct drbd_thread *thi)
- 		if (received == expect) {
- 			bool rv;
- 
--			if (cmd->fa_type == CONN) {
--				rv = cmd->conn_fn(tconn, &pi);
--			} else {
--				struct drbd_conf *mdev = vnr_to_mdev(tconn, pi.vnr);
--				rv = cmd->mdev_fn(mdev, &pi);
--			}
--
--			if (!rv)
-+			rv = cmd->fn(tconn, &pi);
-+			if (!rv) {
-+				conn_err(tconn, "%pf failed\n", cmd->fn);
- 				goto reconnect;
-+			}
- 
- 			tconn->last_received = jiffies;
  
 -- 
 1.7.4.1
