@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri,  9 Sep 2011 13:17:34 +0200
-Message-Id: <1315567056-32314-10-git-send-email-philipp.reisner@linbit.com>
+Date: Fri,  9 Sep 2011 13:17:35 +0200
+Message-Id: <1315567056-32314-11-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1315567056-32314-1-git-send-email-philipp.reisner@linbit.com>
 References: <1315567056-32314-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 09/11] drbd: Implemented IO thawing for multiple
-	volumes
+Subject: [Drbd-dev] [PATCH 10/11] drbd: Improved logging of state changes
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,121 +20,116 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_state.c |   72 +++++++++++++++++++++-----------------
- 1 files changed, 40 insertions(+), 32 deletions(-)
+ drivers/block/drbd/drbd_state.c |   44 ++++++++++++++++++++++++++------------
+ drivers/block/drbd/drbd_state.h |    3 +-
+ 2 files changed, 32 insertions(+), 15 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 5db514e..441d80f 100644
+index 441d80f..694bd3f 100644
 --- a/drivers/block/drbd/drbd_state.c
 +++ b/drivers/block/drbd/drbd_state.c
-@@ -1070,8 +1070,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
- 			   union drbd_state ns, enum chg_state_flags flags)
- {
- 	enum drbd_fencing_p fp;
--	enum drbd_req_event what = NOTHING;
--	union drbd_state nsm;
- 	struct sib_info sib;
- 
- 	sib.sib_reason = SIB_STATE_CHANGE;
-@@ -1100,44 +1098,21 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
- 	/* Here we have the actions that are performed after a
- 	   state change. This function might sleep */
- 
--	nsm.i = -1;
- 	if (ns.susp_nod) {
--		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
-+		enum drbd_req_event what = NOTHING;
+@@ -366,6 +366,7 @@ static long print_state_change(char *pb, union drbd_state os, union drbd_state n
+ 	char *pbp;
+ 	pbp = pb;
+ 	*pbp = 0;
 +
-+		if (os.conn < C_CONNECTED && conn_lowest_conn(mdev->tconn) >= C_CONNECTED)
- 			what = RESEND;
+ 	if (ns.role != os.role && flags & CS_DC_ROLE)
+ 		pbp += sprintf(pbp, "role( %s -> %s ) ",
+ 			       drbd_role_str(os.role),
+@@ -386,10 +387,18 @@ static long print_state_change(char *pb, union drbd_state os, union drbd_state n
+ 		pbp += sprintf(pbp, "pdsk( %s -> %s ) ",
+ 			       drbd_disk_str(os.pdsk),
+ 			       drbd_disk_str(ns.pdsk));
+-	if (is_susp(ns) != is_susp(os))
+-		pbp += sprintf(pbp, "susp( %d -> %d ) ",
+-			       is_susp(os),
+-			       is_susp(ns));
++
++	return pbp - pb;
++}
++
++static void drbd_pr_state_change(struct drbd_conf *mdev, union drbd_state os, union drbd_state ns,
++				 enum chg_state_flags flags)
++{
++	char pb[300];
++	char *pbp = pb;
++
++	pbp += print_state_change(pbp, os, ns, flags ^ CS_DC_MASK);
++
+ 	if (ns.aftr_isp != os.aftr_isp)
+ 		pbp += sprintf(pbp, "aftr_isp( %d -> %d ) ",
+ 			       os.aftr_isp,
+@@ -403,15 +412,7 @@ static long print_state_change(char *pb, union drbd_state os, union drbd_state n
+ 			       os.user_isp,
+ 			       ns.user_isp);
  
--		if (os.disk == D_ATTACHING && ns.disk > D_ATTACHING)
-+		if (os.disk == D_ATTACHING && conn_lowest_disk(mdev->tconn) > D_ATTACHING)
- 			what = RESTART_FROZEN_DISK_IO;
+-	return pbp - pb;
+-}
+-
+-static void drbd_pr_state_change(struct drbd_conf *mdev, union drbd_state os, union drbd_state ns,
+-				 enum chg_state_flags flags)
+-{
+-	char pb[300];
+-
+-	if (print_state_change(pb, os, ns, flags ^ CS_DC_MASK))
++	if (pbp != pb)
+ 		dev_info(DEV, "%s\n", pb);
+ }
  
--		if (what != NOTHING)
--			nsm.susp_nod = 0;
--	}
--
--	if (ns.susp_fen) {
--		/* case1: The outdate peer handler is successful: */
--		if (os.pdsk > D_OUTDATED  && ns.pdsk <= D_OUTDATED) {
--			tl_clear(mdev->tconn);
--			if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
--				drbd_uuid_new_current(mdev);
--				clear_bit(NEW_CUR_UUID, &mdev->flags);
--			}
-+		if (what != NOTHING) {
- 			spin_lock_irq(&mdev->tconn->req_lock);
--			_drbd_set_state(_NS(mdev, susp_fen, 0), CS_VERBOSE, NULL);
-+			_tl_restart(mdev->tconn, what);
-+			_drbd_set_state(_NS(mdev, susp_nod, 0), CS_VERBOSE, NULL);
- 			spin_unlock_irq(&mdev->tconn->req_lock);
- 		}
--		/* case2: The connection was established again: */
--		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
--			clear_bit(NEW_CUR_UUID, &mdev->flags);
--			what = RESEND;
--			nsm.susp_fen = 0;
--		}
--	}
--
--	if (what != NOTHING) {
--		spin_lock_irq(&mdev->tconn->req_lock);
--		_tl_restart(mdev->tconn, what);
--		nsm.i &= mdev->state.i;
--		_drbd_set_state(mdev, nsm, CS_VERBOSE, NULL);
--		spin_unlock_irq(&mdev->tconn->req_lock);
+@@ -419,8 +420,16 @@ static void conn_pr_state_change(struct drbd_tconn *tconn, union drbd_state os,
+ 				 enum chg_state_flags flags)
+ {
+ 	char pb[300];
++	char *pbp = pb;
++
++	pbp += print_state_change(pbp, os, ns, flags);
+ 
+-	if (print_state_change(pb, os, ns, flags))
++	if (is_susp(ns) != is_susp(os) && flags & CS_DC_SUSP)
++		pbp += sprintf(pbp, "susp( %d -> %d ) ",
++			       is_susp(os),
++			       is_susp(ns));
++
++	if (pbp != pb)
+ 		conn_info(tconn, "%s\n", pb);
+ }
+ 
+@@ -858,6 +867,12 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+ 
+ 	drbd_pr_state_change(mdev, os, ns, flags);
+ 
++	/* Display changes to the susp* flags that where caused by the call to
++	   sanitize_state(). Only display it here if we where not called from
++	   _conn_request_state() */
++	if (!(flags & CS_DC_SUSP))
++		conn_pr_state_change(mdev->tconn, os, ns, (flags & ~CS_DC_MASK) | CS_DC_SUSP);
++
+ 	/* if we are going -> D_FAILED or D_DISKLESS, grab one extra reference
+ 	 * on the ldev here, to be sure the transition -> D_DISKLESS resp.
+ 	 * drbd_ldev_destroy() won't happen before our corresponding
+@@ -1610,6 +1625,7 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
  	}
  
- 	/* Became sync source.  With protocol >= 96, we still need to send out
-@@ -1384,6 +1359,9 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
- 	struct drbd_tconn *tconn = w->tconn;
- 	enum drbd_conns oc = acscw->oc;
- 	union drbd_state ns_max = acscw->ns_max;
-+	union drbd_state ns_min = acscw->ns_min;
-+	struct drbd_conf *mdev;
-+	int vnr;
+ 	conn_old_common_state(tconn, &os, &flags);
++	flags |= CS_DC_SUSP;
+ 	conn_set_state(tconn, mask, val, &ns_min, &ns_max, flags);
+ 	conn_pr_state_change(tconn, os, ns_max, flags);
  
- 	kfree(acscw);
+diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
+index 72e2053..a49bece 100644
+--- a/drivers/block/drbd/drbd_state.h
++++ b/drivers/block/drbd/drbd_state.h
+@@ -68,8 +68,9 @@ enum chg_state_flags {
+ 	CS_DC_CONN       = 1 << 7,
+ 	CS_DC_DISK       = 1 << 8,
+ 	CS_DC_PDSK       = 1 << 9,
++	CS_DC_SUSP       = 1 << 10,
+ 	CS_DC_MASK       = CS_DC_ROLE + CS_DC_PEER + CS_DC_CONN + CS_DC_DISK + CS_DC_PDSK,
+-	CS_IGN_OUTD_FAIL = 1 << 10,
++	CS_IGN_OUTD_FAIL = 1 << 11,
+ };
  
-@@ -1391,6 +1369,36 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
- 	if (oc == C_STANDALONE && ns_max.conn == C_UNCONNECTED)
- 		drbd_thread_start(&tconn->receiver);
- 
-+	if (ns_max.susp_fen) {
-+		/* case1: The outdate peer handler is successful: */
-+		if (ns_max.pdsk <= D_OUTDATED) {
-+			tl_clear(tconn);
-+			idr_for_each_entry(&tconn->volumes, mdev, vnr) {
-+				if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
-+					drbd_uuid_new_current(mdev);
-+					clear_bit(NEW_CUR_UUID, &mdev->flags);
-+				}
-+			}
-+			conn_request_state(tconn,
-+					   (union drbd_state) { { .susp_fen = 1 } },
-+					   (union drbd_state) { { .susp_fen = 0 } },
-+					   CS_VERBOSE);
-+		}
-+		/* case2: The connection was established again: */
-+		if (ns_min.conn >= C_CONNECTED) {
-+			idr_for_each_entry(&tconn->volumes, mdev, vnr)
-+				clear_bit(NEW_CUR_UUID, &mdev->flags);
-+			spin_lock_irq(&tconn->req_lock);
-+			_tl_restart(tconn, RESEND);
-+			_conn_request_state(tconn,
-+					    (union drbd_state) { { .susp_fen = 1 } },
-+					    (union drbd_state) { { .susp_fen = 0 } },
-+					    CS_VERBOSE);
-+			spin_unlock_irq(&tconn->req_lock);
-+		}
-+	}
-+
-+
- 	//conn_err(tconn, STATE_FMT, STATE_ARGS("nms", nms));
- 	after_all_state_ch(tconn);
- 
+ /* drbd_dev_state and drbd_state are different types. This is to stress the
 -- 
 1.7.4.1
 
