@@ -1,13 +1,20 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: linux-kernel@vger.kernel.org,
-	Jens Axboe <axboe@kernel.dk>
-Date: Fri,  9 Sep 2011 13:17:36 +0200
-Message-Id: <1315567056-32314-12-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1315567056-32314-1-git-send-email-philipp.reisner@linbit.com>
-References: <1315567056-32314-1-git-send-email-philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/11] drbd: Use tconn in request_timer_fn()
+Return-Path: <sim@netnation.com>
+Received: from peace.netnation.com (peace.netnation.com [204.174.223.2])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C828E10556B4
+	for <drbd-dev@lists.linbit.com>; Fri,  9 Sep 2011 22:13:27 +0200 (CEST)
+Date: Fri, 9 Sep 2011 13:13:24 -0700
+From: Simon Kirby <sim@hostway.ca>
+To: drbd-dev@lists.linbit.com, linux-kernel@vger.kernel.org,
+	xfs@oss.sgi.com
+Message-ID: <20110909201324.GD6195@hostway.ca>
+References: <20110907221505.GC21603@hostway.ca>
+	<20110908151305.GJ14243@barkeeper1-xen.linbit>
+	<20110908174324.GA8043@hostway.ca>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110908174324.GA8043@hostway.ca>
+Subject: Re: [Drbd-dev] [3.1-rc4] XFS+DRBD hangs
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,65 +24,44 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_receiver.c |    1 +
- drivers/block/drbd/drbd_req.c      |   15 ++++++++-------
- 2 files changed, 9 insertions(+), 7 deletions(-)
+On Thu, Sep 08, 2011 at 10:43:24AM -0700, Simon Kirby wrote:
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index d6afb3a..6e6b829 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -794,6 +794,7 @@ int drbd_connected(int vnr, void *p, void *data)
- 		err = drbd_send_state(mdev);
- 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
- 	clear_bit(RESIZE_PENDING, &mdev->flags);
-+	mod_timer(&mdev->request_timer, jiffies + HZ); /* just start it here. */
- 	return err;
- }
- 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index e296d7e..fd0b452 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1047,21 +1047,22 @@ int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct
- void request_timer_fn(unsigned long data)
- {
- 	struct drbd_conf *mdev = (struct drbd_conf *) data;
-+	struct drbd_tconn *tconn = mdev->tconn;
- 	struct drbd_request *req; /* oldest request */
- 	struct list_head *le;
- 	unsigned long et = 0; /* effective timeout = ko_count * timeout */
- 
--	if (get_net_conf(mdev->tconn)) {
--		et = mdev->tconn->net_conf->timeout*HZ/10 * mdev->tconn->net_conf->ko_count;
--		put_net_conf(mdev->tconn);
-+	if (get_net_conf(tconn)) {
-+		et = tconn->net_conf->timeout*HZ/10 * tconn->net_conf->ko_count;
-+		put_net_conf(tconn);
- 	}
- 	if (!et || mdev->state.conn < C_WF_REPORT_PARAMS)
- 		return; /* Recurring timer stopped */
- 
--	spin_lock_irq(&mdev->tconn->req_lock);
--	le = &mdev->tconn->oldest_tle->requests;
-+	spin_lock_irq(&tconn->req_lock);
-+	le = &tconn->oldest_tle->requests;
- 	if (list_empty(le)) {
--		spin_unlock_irq(&mdev->tconn->req_lock);
-+		spin_unlock_irq(&tconn->req_lock);
- 		mod_timer(&mdev->request_timer, jiffies + et);
- 		return;
- 	}
-@@ -1080,5 +1081,5 @@ void request_timer_fn(unsigned long data)
- 		mod_timer(&mdev->request_timer, req->start_time + et);
- 	}
- 
--	spin_unlock_irq(&mdev->tconn->req_lock);
-+	spin_unlock_irq(&tconn->req_lock);
- }
--- 
-1.7.4.1
+> On Thu, Sep 08, 2011 at 05:13:05PM +0200, Lars Ellenberg wrote:
+> 
+> > Sorry for double posting on drbd-dev, I managed to strip the other lists from Cc.
+> > 
+> > > We upgraded from 2.6.36 which seemed to have a page leak (file pages left
+> > > on the LRU) and so would eventually perform very poorly. 2.6.37 and
+> > > 2.6.38 seemed to have some unix socket issue that caused heartbeat to
+> > > wedge. Shall we enable lock debugging or something here?
+> > 
+> > That could help us understand that stack trace.
+> > 
+> > It looks like cpu 1 blocks in
+> > 
+> > > [ 1532.427149]  [<ffffffff8103d512>] ? try_to_wake_up+0xc2/0x270
+> > > [ 1532.427149]  <<EOE>>  <IRQ>  [<ffffffff8103d6cd>] default_wake_function+0xd/0x10
+> > 
+> > Which does not make sense to me at all.
+> 
+> Well, good news, I think.. I believe this may be related to
+> "PCI: Set PCI-E Max Payload Size on fabric", added by b03e7495a862b02829.
+> 3.1-rc5 is running now with a patch to basically disable those changes,
+> and has been stable for 12 hours. It usually hung in a few minutes
+> before.
+> 
+> The XFS peoples say it was very likely not 58d84c4ee0389ddeb86238d5 which
+> is the only other thing that changed between these versions that seems to
+> be at all in the hang path.
+> 
+> Also, when the thing hangs, it stops pinging immediately, and with the
+> PCI-E max payload thing active, the device that raises a bus error is
+> actually the PCI-E to PCI-X bridge chip used to support the BCM5708 NICs,
+> so that all seems related.
 
+Except that I accidentally git reset out the patch, and so it's been
+running unmodified 79016f648872549392d232cd648bd02298c2d2bb (past -rc5),
+and still hasn't crashed, so I guess it _was_ the XFS changes, or
+something else. Boggle. In any event, it's still running well. :)
+
+Simon-
