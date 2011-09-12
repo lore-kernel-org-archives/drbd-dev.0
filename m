@@ -1,20 +1,45 @@
-Return-Path: <sim@netnation.com>
-Received: from peace.netnation.com (peace.netnation.com [204.174.223.2])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C828E10556B4
-	for <drbd-dev@lists.linbit.com>; Fri,  9 Sep 2011 22:13:27 +0200 (CEST)
-Date: Fri, 9 Sep 2011 13:13:24 -0700
-From: Simon Kirby <sim@hostway.ca>
-To: drbd-dev@lists.linbit.com, linux-kernel@vger.kernel.org,
-	xfs@oss.sgi.com
-Message-ID: <20110909201324.GD6195@hostway.ca>
-References: <20110907221505.GC21603@hostway.ca>
-	<20110908151305.GJ14243@barkeeper1-xen.linbit>
-	<20110908174324.GA8043@hostway.ca>
+Return-Path: <bunk@iat.uni-leipzig.de>
+Received: from v4.rz.uni-leipzig.de (v4.rz.uni-leipzig.de [139.18.1.30])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1974410556C5
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:57:19 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by v4.rz.uni-leipzig.de (Postfix) with ESMTP id 77453473D6
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:52:10 +0200 (CEST)
+Received: from v4.rz.uni-leipzig.de ([127.0.0.1])
+	by localhost (v4.rz.uni-leipzig.de [127.0.0.1]) (amavisd-new,
+	port 10024)
+	with ESMTP id qk-5FsCuHpYA for <drbd-dev@lists.linbit.com>;
+	Mon, 12 Sep 2011 16:52:10 +0200 (CEST)
+Received: from v1.rz.uni-leipzig.de (v1.rz.uni-leipzig.de [139.18.1.26])
+	by v4.rz.uni-leipzig.de (Postfix) with ESMTP id 5080F473D2
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:52:10 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by v1.rz.uni-leipzig.de (Postfix) with ESMTP id 0AECCF805A
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:52:10 +0200 (CEST)
+Received: from v1.rz.uni-leipzig.de ([127.0.0.1])
+	by localhost (v1.rz.uni-leipzig.de [127.0.0.1]) (amavisd-new,
+	port 10024)
+	with ESMTP id TsqAcHeiTtt3 for <drbd-dev@lists.linbit.com>;
+	Mon, 12 Sep 2011 16:52:09 +0200 (CEST)
+Received: from server1.rz.uni-leipzig.de (server1.rz.uni-leipzig.de
+	[139.18.1.1])
+	by v1.rz.uni-leipzig.de (Postfix) with ESMTP id E553DF8054
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:52:09 +0200 (CEST)
+Received: from gg1.iat.uni-leipzig.de (gg.iat.uni-leipzig.de [139.18.202.33])
+	by server1.rz.uni-leipzig.de (Postfix) with ESMTPS id E32B92A004
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:52:09 +0200 (CEST)
+Received: from gg1.iat.uni-leipzig.de (localhost [127.0.0.1])
+	by gg1.iat.uni-leipzig.de (8.14.3/8.14.3) with ESMTP id p8CEq9iG023366
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:52:09 +0200 (CEST)
+Date: Mon, 12 Sep 2011 16:52:00 +0200
+From: Michael Bunk <bunk@iat.uni-leipzig.de>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20110912145200.GA4560@pc514.iat.uni-leipzig.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110908174324.GA8043@hostway.ca>
-Subject: Re: [Drbd-dev] [3.1-rc4] XFS+DRBD hangs
+Subject: [Drbd-dev] [PATCH] drbdadm: Avoid null pointer dereference on wrong
+	hostnames
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,44 +49,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Sep 08, 2011 at 10:43:24AM -0700, Simon Kirby wrote:
+If all hostnames in the config did not apply to the current host, a pointer was
+dereferenced (resulting in a segmentation fault), before an error message
+regarding the hostname could be output.
+---
+ user/drbdadm_main.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-> On Thu, Sep 08, 2011 at 05:13:05PM +0200, Lars Ellenberg wrote:
-> 
-> > Sorry for double posting on drbd-dev, I managed to strip the other lists from Cc.
-> > 
-> > > We upgraded from 2.6.36 which seemed to have a page leak (file pages left
-> > > on the LRU) and so would eventually perform very poorly. 2.6.37 and
-> > > 2.6.38 seemed to have some unix socket issue that caused heartbeat to
-> > > wedge. Shall we enable lock debugging or something here?
-> > 
-> > That could help us understand that stack trace.
-> > 
-> > It looks like cpu 1 blocks in
-> > 
-> > > [ 1532.427149]  [<ffffffff8103d512>] ? try_to_wake_up+0xc2/0x270
-> > > [ 1532.427149]  <<EOE>>  <IRQ>  [<ffffffff8103d6cd>] default_wake_function+0xd/0x10
-> > 
-> > Which does not make sense to me at all.
-> 
-> Well, good news, I think.. I believe this may be related to
-> "PCI: Set PCI-E Max Payload Size on fabric", added by b03e7495a862b02829.
-> 3.1-rc5 is running now with a patch to basically disable those changes,
-> and has been stable for 12 hours. It usually hung in a few minutes
-> before.
-> 
-> The XFS peoples say it was very likely not 58d84c4ee0389ddeb86238d5 which
-> is the only other thing that changed between these versions that seems to
-> be at all in the hang path.
-> 
-> Also, when the thing hangs, it stops pinging immediately, and with the
-> PCI-E max payload thing active, the device that raises a bus error is
-> actually the PCI-E to PCI-X bridge chip used to support the BCM5708 NICs,
-> so that all seems related.
+diff --git a/user/drbdadm_main.c b/user/drbdadm_main.c
+index db7c0d3..f27eaff 100644
+--- a/user/drbdadm_main.c
++++ b/user/drbdadm_main.c
+@@ -2556,6 +2556,10 @@ int ctx_set_implicit_volume(struct cfg_ctx *ctx)
+ 	if (ctx->vol || !ctx->res)
+ 		return 0;
+ 
++	if (!ctx->res->me) {
++		return 0;
++	}
++
+ 	for_each_volume(vol, ctx->res->me->volumes) {
+ 		volumes++;
+ 		v = vol;
+-- 
+1.4.4.4
 
-Except that I accidentally git reset out the patch, and so it's been
-running unmodified 79016f648872549392d232cd648bd02298c2d2bb (past -rc5),
-and still hasn't crashed, so I guess it _was_ the XFS changes, or
-something else. Boggle. In any event, it's still running well. :)
-
-Simon-
