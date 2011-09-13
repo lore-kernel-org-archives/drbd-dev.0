@@ -1,44 +1,17 @@
-Return-Path: <bunk@iat.uni-leipzig.de>
-Received: from v4.rz.uni-leipzig.de (v4.rz.uni-leipzig.de [139.18.1.30])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 20B7C10556C7
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:57:19 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by v4.rz.uni-leipzig.de (Postfix) with ESMTP id 116F7473D1
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:50:57 +0200 (CEST)
-Received: from v4.rz.uni-leipzig.de ([127.0.0.1])
-	by localhost (v4.rz.uni-leipzig.de [127.0.0.1]) (amavisd-new,
-	port 10024)
-	with ESMTP id y44lraHacK58 for <drbd-dev@lists.linbit.com>;
-	Mon, 12 Sep 2011 16:50:56 +0200 (CEST)
-Received: from v1.rz.uni-leipzig.de (v1.rz.uni-leipzig.de [139.18.1.26])
-	by v4.rz.uni-leipzig.de (Postfix) with ESMTP id E7323473CB
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:50:56 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by v1.rz.uni-leipzig.de (Postfix) with ESMTP id 0ECB2F8054
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:50:55 +0200 (CEST)
-Received: from v1.rz.uni-leipzig.de ([127.0.0.1])
-	by localhost (v1.rz.uni-leipzig.de [127.0.0.1]) (amavisd-new,
-	port 10024)
-	with ESMTP id 9njXIlc6nh5I for <drbd-dev@lists.linbit.com>;
-	Mon, 12 Sep 2011 16:50:54 +0200 (CEST)
-Received: from server1.rz.uni-leipzig.de (server1.rz.uni-leipzig.de
-	[139.18.1.1])
-	by v1.rz.uni-leipzig.de (Postfix) with ESMTP id ECA69F805A
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:50:54 +0200 (CEST)
-Received: from gg1.iat.uni-leipzig.de (gg.iat.uni-leipzig.de [139.18.202.33])
-	by server1.rz.uni-leipzig.de (Postfix) with ESMTPS id E409B2A004
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:50:54 +0200 (CEST)
-Received: from gg1.iat.uni-leipzig.de (localhost [127.0.0.1])
-	by gg1.iat.uni-leipzig.de (8.14.3/8.14.3) with ESMTP id p8CEos0d000147
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2011 16:50:54 +0200 (CEST)
-Date: Mon, 12 Sep 2011 16:50:49 +0200
-From: Michael Bunk <bunk@iat.uni-leipzig.de>
+Return-Path: <fsimonce@redhat.com>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E1DCC10556C4
+	for <drbd-dev@lists.linbit.com>; Tue, 13 Sep 2011 10:49:27 +0200 (CEST)
+Received: from int-mx01.intmail.prod.int.phx2.redhat.com
+	(int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	by mx1.redhat.com (8.14.4/8.14.4) with ESMTP id p8D8nPN8020297
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <drbd-dev@lists.linbit.com>; Tue, 13 Sep 2011 04:49:25 -0400
+From: Federico Simoncelli <fsimonce@redhat.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20110912145049.GA5272@pc514.iat.uni-leipzig.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Subject: [Drbd-dev] [PATCH] drbdadm: Fix typo in man page
+Date: Tue, 13 Sep 2011 08:48:59 +0000
+Message-Id: <1315903740-3442-1-git-send-email-fsimonce@redhat.com>
+Subject: [Drbd-dev] [drbd][PATCH 1/2] build: escape CC environment variable
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -48,23 +21,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+This will allow to set CC to multiple commands; useful if you want to
+use ccache: export CC="ccache gcc"
 ---
- documentation/drbdadm.xml |    2 +-
+ configure.ac |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/documentation/drbdadm.xml b/documentation/drbdadm.xml
-index f458e67..32fb88e 100644
---- a/documentation/drbdadm.xml
-+++ b/documentation/drbdadm.xml
-@@ -79,7 +79,7 @@
-     <option>verify</option>, <option>pause-sync</option>, <option>resume-sync</option>,
-     <option>role</option>, <option>csytate</option>, <option>dstate</option>,
-     <option>create-md</option>, <option>show-gi</option>, <option>get-gi</option>,
--    <option>dump-md</option>, <option>wipe-md</option> are work on whole resources and on
-+    <option>dump-md</option>, <option>wipe-md</option> work on whole resources and on
-     individual volumes. </para>
+diff --git a/configure.ac b/configure.ac
+index e3ab808..724b03f 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -130,7 +130,7 @@ AC_PATH_PROG(DPKG_BUILDPACKAGE, dpkg-buildpackage)
+ AC_PATH_PROG(UDEVADM, udevadm, [false], [/sbin$PATH_SEPARATOR$PATH])
+ AC_PATH_PROG(UDEVINFO, udevinfo, [false], [/sbin$PATH_SEPARATOR$PATH])
  
-     <para>Resource level only commands are: <option>connect</option>, <option>disconnect</option>,
+-if test -z $CC; then
++if test -z "$CC"; then
+    if test "$WITH_UTILS" = "yes"; then
+       AC_MSG_ERROR([Cannot build utils without a C compiler, either install a compiler or pass the --without-utils option.])
+    fi 
 -- 
-1.4.4.4
+1.7.1
 
