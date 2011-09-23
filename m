@@ -1,20 +1,27 @@
-Return-Path: <fsimonce@redhat.com>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1B7B110556D8
-	for <drbd-dev@lists.linbit.com>; Tue, 13 Sep 2011 10:49:33 +0200 (CEST)
-Received: from int-mx01.intmail.prod.int.phx2.redhat.com
-	(int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	by mx1.redhat.com (8.14.4/8.14.4) with ESMTP id p8D8nXdM007061
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <drbd-dev@lists.linbit.com>; Tue, 13 Sep 2011 04:49:33 -0400
-From: Federico Simoncelli <fsimonce@redhat.com>
+Return-Path: <gld-drbd-dev@m.gmane.org>
+Received: from lo.gmane.org (lo.gmane.org [80.91.229.12])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 365E610556C5
+	for <drbd-dev@lists.linbit.com>; Fri, 23 Sep 2011 12:20:18 +0200 (CEST)
+Received: from list by lo.gmane.org with local (Exim 4.69)
+	(envelope-from <gld-drbd-dev@m.gmane.org>) id 1R72d1-0003Le-Ni
+	for drbd-dev@lists.linbit.com; Fri, 23 Sep 2011 12:05:07 +0200
+Received: from barriere.frankfurter-softwarefabrik.de ([217.11.197.1])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <drbd-dev@lists.linbit.com>; Fri, 23 Sep 2011 12:05:07 +0200
+Received: from lvml by barriere.frankfurter-softwarefabrik.de with local
+	(Gmexim 0.1 (Debian)) id 1AlnuQ-0007hv-00
+	for <drbd-dev@lists.linbit.com>; Fri, 23 Sep 2011 12:05:07 +0200
 To: drbd-dev@lists.linbit.com
-Date: Tue, 13 Sep 2011 08:49:00 +0000
-Message-Id: <1315903740-3442-2-git-send-email-fsimonce@redhat.com>
-In-Reply-To: <1315903740-3442-1-git-send-email-fsimonce@redhat.com>
-References: <1315903740-3442-1-git-send-email-fsimonce@redhat.com>
-Subject: [Drbd-dev] [drbd][PATCH 2/2] drbdsetup: sh-status should use _pdsk
-	in all cases
+From: Lutz Vieweg <lvml@5t9.de>
+Date: Fri, 23 Sep 2011 11:48:17 +0200
+Message-ID: <j5hkl1$o4o$1@dough.gmane.org>
+References: <201108241641.42676.philipp.reisner@linbit.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <201108241641.42676.philipp.reisner@linbit.com>
+Subject: Re: [Drbd-dev] [GIT PULL] drbd-8.4 for mainline
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,39 +31,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Either the resource is StandAlone/Diskless or not we should report
-the peer disk status using the same label (_pdsk).
----
- user/drbdsetup.c        |    2 +-
- user/legacy/drbdsetup.c |    2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+On 08/24/2011 04:41 PM, Philipp Reisner wrote:
+>    This release brings a new meta-data format. Forward (8.3 ->  8.4)
+>    conversion happens complete seamless.
 
-diff --git a/user/drbdsetup.c b/user/drbdsetup.c
-index ac0618d..81ee13a 100644
---- a/user/drbdsetup.c
-+++ b/user/drbdsetup.c
-@@ -1808,7 +1808,7 @@ static int sh_status_scmd(struct drbd_cmd *cm __attribute((unused)),
- 		printf("%s_role=\n", _P);
- 		printf("%s_peer=\n", _P);
- 		printf("%s_disk=\n", _P);
--		printf("%s_pdisk=\n", _P);
-+		printf("%s_pdsk=\n", _P);
- 		printf("%s_flags_susp=\n", _P);
- 		printf("%s_flags_aftr_isp=\n", _P);
- 		printf("%s_flags_peer_isp=\n", _P);
-diff --git a/user/legacy/drbdsetup.c b/user/legacy/drbdsetup.c
-index 3492d0c..c04c0fa 100644
---- a/user/legacy/drbdsetup.c
-+++ b/user/legacy/drbdsetup.c
-@@ -1653,7 +1653,7 @@ static int sh_status_scmd(struct drbd_cmd *cm __attribute((unused)),
- 		printf("%s_role=\n", _P);
- 		printf("%s_peer=\n", _P);
- 		printf("%s_disk=\n", _P);
--		printf("%s_pdisk=\n", _P);
-+		printf("%s_pdsk=\n", _P);
- 		printf("%s_flags_susp=\n", _P);
- 		printf("%s_flags_aftr_isp=\n", _P);
- 		printf("%s_flags_peer_isp=\n", _P);
--- 
-1.7.1
+Well, it may happen seamless unless you reboot the machine before
+it has completed the resyncing with the other (still 8.3 running)
+machine.
+
+I happened to require yet some other kernel setting (unrelated to DRBD),
+installed the changed kernel, while one DRBD resource was still syncing
+(for the first time after upgrading to 8.4), and rebooted (clean shutdown/restart).
+
+After the reboot, DRBD complained about not finding valid meta data
+on the device, and I had to write new metadata and perform a full sync
+to rectify the situation.
+
+(Luckily, since the other machine was still running, so no data was lost
+in the process.)
+
+Regards,
+
+Lutz Vieweg
 
