@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri, 23 Sep 2011 16:31:17 +0200
-Message-Id: <1316788285-17433-3-git-send-email-philipp.reisner@linbit.com>
+Date: Fri, 23 Sep 2011 16:31:18 +0200
+Message-Id: <1316788285-17433-4-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1316788285-17433-1-git-send-email-philipp.reisner@linbit.com>
 References: <1316788285-17433-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/10] drbd: Introduce new primitives for sending
-	commands
+Subject: [Drbd-dev] [PATCH 03/10] drbd: Introduce drbd_header_size()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,105 +22,90 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |    9 +++++
- drivers/block/drbd/drbd_main.c |   64 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 73 insertions(+), 0 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    2 ++
+ drivers/block/drbd/drbd_main.c     |   14 ++++++++++++++
+ drivers/block/drbd/drbd_receiver.c |    9 +++++----
+ 3 files changed, 21 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 912ee5e..d61819f 100644
+index d61819f..29db016 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1903,6 +1903,15 @@ static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
- 	return drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &h, sizeof(h));
- }
+@@ -315,6 +315,8 @@ struct p_header {
+ 	u8	  payload[0];
+ };
  
-+extern void *conn_prepare_command(struct drbd_tconn *, struct drbd_socket *);
-+extern void *drbd_prepare_command(struct drbd_conf *, struct drbd_socket *);
-+extern int conn_send_command(struct drbd_tconn *, struct drbd_socket *,
-+			     enum drbd_packet, unsigned int, void *,
-+			     unsigned int);
-+extern int drbd_send_command(struct drbd_conf *, struct drbd_socket *,
-+			     enum drbd_packet, unsigned int, void *,
-+			     unsigned int);
++extern unsigned int drbd_header_size(struct drbd_tconn *tconn);
 +
- extern int drbd_send_ping(struct drbd_tconn *tconn);
- extern int drbd_send_ping_ack(struct drbd_tconn *tconn);
- 
+ /*
+  * short commands, packets without payload, plain p_header:
+  *   P_PING
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 7d7b30c..c8384cd 100644
+index c8384cd..b291d73 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -765,6 +765,70 @@ int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd, char *data,
- 	return err;
+@@ -689,6 +689,20 @@ void drbd_thread_current_set_cpu(struct drbd_thread *thi)
  }
+ #endif
  
-+void *conn_prepare_command(struct drbd_tconn *tconn, struct drbd_socket *sock)
++/**
++ * drbd_header_size  -  size of a packet header
++ *
++ * The header size is a multiple of 8, so any payload following the header is
++ * word aligned on 64-bit architectures.  (The bitmap send and receive code
++ * relies on this.)
++ */
++unsigned int drbd_header_size(struct drbd_tconn *tconn)
 +{
-+	mutex_lock(&sock->mutex);
-+	if (!sock->socket) {
-+		mutex_unlock(&sock->mutex);
-+		return NULL;
-+	}
-+	return sock->sbuf;
++	BUILD_BUG_ON(sizeof(struct p_header80) != sizeof(struct p_header95));
++	BUILD_BUG_ON(!IS_ALIGNED(sizeof(struct p_header80), 8));
++	return sizeof(struct p_header80);
 +}
 +
-+void *drbd_prepare_command(struct drbd_conf *mdev, struct drbd_socket *sock)
-+{
-+	return conn_prepare_command(mdev->tconn, sock);
-+}
-+
-+static int __send_command(struct drbd_tconn *tconn, int vnr,
-+			  struct drbd_socket *sock, enum drbd_packet cmd,
-+			  unsigned int header_size, void *data,
-+			  unsigned int size)
-+{
-+	int msg_flags;
-+	int err;
-+
-+	/*
-+	 * Called with @data == NULL and the size of the data blocks in @size
-+	 * for commands that send data blocks.  For those commands, omit the
-+	 * MSG_MORE flag: this will increase the likelihood that data blocks
-+	 * which are page aligned on the sender will end up page aligned on the
-+	 * receiver.
-+	 */
-+	msg_flags = data ? MSG_MORE : 0;
-+
-+	_prepare_header(tconn, vnr, sock->sbuf, cmd,
-+			header_size - sizeof(struct p_header) + size);
-+	err = drbd_send_all(tconn, sock->socket, sock->sbuf, header_size,
-+			    msg_flags);
-+	if (data && !err)
-+		err = drbd_send_all(tconn, sock->socket, data, size, 0);
-+	return err;
-+}
-+
-+int conn_send_command(struct drbd_tconn *tconn, struct drbd_socket *sock,
-+		      enum drbd_packet cmd, unsigned int header_size,
-+		      void *data, unsigned int size)
-+{
-+	int err;
-+
-+	err = __send_command(tconn, 0, sock, cmd, header_size, data, size);
-+	mutex_unlock(&sock->mutex);
-+	return err;
-+}
-+
-+int drbd_send_command(struct drbd_conf *mdev, struct drbd_socket *sock,
-+		      enum drbd_packet cmd, unsigned int header_size,
-+		      void *data, unsigned int size)
-+{
-+	int err;
-+
-+	err = __send_command(mdev->tconn, mdev->vnr, sock, cmd, header_size,
-+			     data, size);
-+	mutex_unlock(&sock->mutex);
-+	return err;
-+}
-+
- int drbd_send_ping(struct drbd_tconn *tconn)
+ static void prepare_header80(struct p_header80 *h, enum drbd_packet cmd, int size)
  {
- 	struct p_header h;
+ 	h->magic   = cpu_to_be32(DRBD_MAGIC);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 6879082..ceca24f 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -998,7 +998,7 @@ static int drbd_recv_header(struct drbd_tconn *tconn, struct packet_info *pi)
+ 	struct p_header *h = tconn->data.rbuf;
+ 	int err;
+ 
+-	err = drbd_recv_all_warn(tconn, h, sizeof(*h));
++	err = drbd_recv_all_warn(tconn, h, drbd_header_size(tconn));
+ 	if (err)
+ 		return err;
+ 
+@@ -4845,7 +4845,8 @@ int drbd_asender(struct drbd_thread *thi)
+ 	int rv;
+ 	void *buf    = h;
+ 	int received = 0;
+-	int expect   = sizeof(struct p_header);
++	unsigned int header_size = drbd_header_size(tconn);
++	int expect   = header_size;
+ 	int ping_timeout_active = 0;
+ 
+ 	current->policy = SCHED_RR;  /* Make this a realtime task! */
+@@ -4929,7 +4930,7 @@ int drbd_asender(struct drbd_thread *thi)
+ 				goto disconnect;
+ 			}
+ 			expect = cmd->pkt_size;
+-			if (pi.size != expect - sizeof(struct p_header)) {
++			if (pi.size != expect - header_size) {
+ 				conn_err(tconn, "Wrong packet size on meta (c: %d, l: %d)\n",
+ 					pi.cmd, pi.size);
+ 				goto reconnect;
+@@ -4953,7 +4954,7 @@ int drbd_asender(struct drbd_thread *thi)
+ 
+ 			buf	 = h;
+ 			received = 0;
+-			expect	 = sizeof(struct p_header);
++			expect	 = header_size;
+ 			cmd	 = NULL;
+ 		}
+ 	}
 -- 
 1.7.4.1
 
