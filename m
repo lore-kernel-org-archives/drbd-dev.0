@@ -1,22 +1,23 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4780210556B9
-	for <drbd-dev@lists.linbit.com>; Tue, 27 Sep 2011 11:34:15 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CC27310556C5
+	for <drbd-dev@lists.linbit.com>; Tue, 27 Sep 2011 11:34:17 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Kyle Moffett <kyle@moffetthome.net>
-Date: Tue, 27 Sep 2011 11:34:01 +0200
+Date: Tue, 27 Sep 2011 11:34:06 +0200
 References: <1316788285-17433-1-git-send-email-philipp.reisner@linbit.com>
-	<1316788285-17433-5-git-send-email-philipp.reisner@linbit.com>
-	<CAGZ=bqJ_b54h9xid_PNwz-Ag6aNuvyUHx2QCm5UXpdc-JvHhKQ@mail.gmail.com>
-In-Reply-To: <CAGZ=bqJ_b54h9xid_PNwz-Ag6aNuvyUHx2QCm5UXpdc-JvHhKQ@mail.gmail.com>
+	<1316788285-17433-10-git-send-email-philipp.reisner@linbit.com>
+	<CAGZ=bq+Ef+wy8E9taBv=vZfTdvC_VBFFD=GzNqR9Em46U-wMmg@mail.gmail.com>
+In-Reply-To: <CAGZ=bq+Ef+wy8E9taBv=vZfTdvC_VBFFD=GzNqR9Em46U-wMmg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201109271134.02299.philipp.reisner@linbit.com>
+Message-Id: <201109271134.06410.philipp.reisner@linbit.com>
 Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 04/10] drbd: Replace and remove old primitives
+Subject: Re: [Drbd-dev] [PATCH 09/10] drbd: Remove volume numbers from
+	struct p_header95
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,7 +27,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Freitag, 23. September 2011, 19:33:45 schrieb Kyle Moffett:
+Am Freitag, 23. September 2011, 19:28:24 schrieb Kyle Moffett:
 > Hi!
 > 
 > On Fri, Sep 23, 2011 at 10:31, Philipp Reisner
@@ -37,42 +38,49 @@ Am Freitag, 23. September 2011, 19:33:45 schrieb Kyle Moffett:
 > > Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 > > Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 > > ---
-> >  drivers/block/drbd/drbd_int.h      |   45 +----
-> >  drivers/block/drbd/drbd_main.c     |  502
-> > ++++++++++++++++-------------------- drivers/block/drbd/drbd_receiver.c
-> > |   86 ++++---
-> >  drivers/block/drbd/drbd_worker.c   |   24 +-
-> >  4 files changed, 294 insertions(+), 363 deletions(-)
 > 
-> I'm afraid this commit is waaaaay too large and complicated
-> to have a one-line commit message.
+> [...snip...]
 > 
-> You should either split this up into more pieces or you should
-> write a detailed log indicated what this is supposed to be doing
-> and why it is OK.  (Or both).
+> > diff --git a/drivers/block/drbd/drbd_main.c
+> > b/drivers/block/drbd/drbd_main.c index 3310986..99b467e 100644
+> > --- a/drivers/block/drbd/drbd_main.c
+> > +++ b/drivers/block/drbd/drbd_main.c
+> > @@ -717,11 +717,11 @@ static unsigned int prepare_header80(struct
+> > p_header80 *h, enum drbd_packet cmd, return sizeof(struct p_header80);
+> >  }
+> > 
+> > -static unsigned int prepare_header95(struct p_header95 *h, enum
+> > drbd_packet cmd, int size, int vnr) +static unsigned int
+> > prepare_header95(struct p_header95 *h, enum drbd_packet cmd, int size) {
+> >        h->magic   = cpu_to_be16(DRBD_MAGIC_BIG);
+> >        h->command = cpu_to_be16(cmd);
+> > -       h->vol_n_len = cpu_to_be32(vnr << 24 | size);
+> > +       h->length = cpu_to_be32(size);
+> >        return sizeof(struct p_header95);
+> >  }
+> 
+> This patch needs a commit message indicating why it does not break
+> compatibility.  If you are guaranteed that the "vnr" passed into
+> prepare_header95 is always zero, then you should indicate why that is
+> true.
 > 
 
-I updated the patch to the following commit message:
+Here is the commit message for that one. The alternative is to merge
+that to patch 'drbd: Use new header layout, and send volume IOs'.
+( Which is patch number 236, i.e. outside of this (10th) posting of
+  DRBD-8.4 patches. It was posted on August 25.
+  See https://lkml.org/lkml/2011/8/25/322 )
 
 Author: Andreas Gruenbacher <agruen@linbit.com>
-Date:   Mon Mar 28 14:23:08 2011 +0200
+Date:   Tue Mar 22 13:17:47 2011 +0100
 
-    drbd: Replace and remove old primitives
+    drbd: Remove volume numbers from struct p_header95
     
-    Centralize sock->mutex locking and unlocking in [drbd|conn]_prepare_command()
-    and [drbd|conn]_send_comman().
-    
-    Therefore all *_send_* functions are touched to use these primitives instead
-    of drbd_get_data_sock()/drbd_put_data_sock() and former helper functions.
-    
-    That change makes the *_send_* functions more standardized.
+    Remove the temporal 8 bit volume number form header 95. All connections
+    that support multiple volumes are new using protocol 100 with header 100.
     
     Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
     Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
-
-
-The complete, updated set is available at:
-git://git.drbd.org/linux-2.6-drbd.git for-jens
 
 Best,
  Phil
