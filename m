@@ -2,14 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 29 Sep 2011 10:15:26 +0200
-Message-Id: <1317284131-17464-8-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 29 Sep 2011 10:15:28 +0200
+Message-Id: <1317284131-17464-10-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317284131-17464-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317284131-17464-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/12] drbd: Rename reclaim_net_ee(),
-	drbd_process_done_ee(), drbd_process_done_ee(),
-	tconn_process_done_ee() to *_peer_reqs
+Subject: [Drbd-dev] [PATCH 09/12] drbd: Make drbd_wait_ee_list_empty() and
+	_drbd_wait_ee_list_empty() static
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,133 +23,49 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   42 ++++++++++++++++-------------------
- 1 files changed, 19 insertions(+), 23 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    4 ----
+ drivers/block/drbd/drbd_receiver.c |    6 ++++--
+ 2 files changed, 4 insertions(+), 6 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index d64aaf3..8fc21a7 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1463,10 +1463,6 @@ extern void __drbd_free_peer_req(struct drbd_conf *, struct drbd_peer_request *,
+ 				 int);
+ #define drbd_free_peer_req(m,e) __drbd_free_peer_req(m, e, 0)
+ #define drbd_free_net_peer_req(m,e) __drbd_free_peer_req(m, e, 1)
+-extern void drbd_wait_ee_list_empty(struct drbd_conf *mdev,
+-		struct list_head *head);
+-extern void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,
+-		struct list_head *head);
+ extern void drbd_set_recv_tcq(struct drbd_conf *mdev, int tcq_enabled);
+ extern void _drbd_clear_done_ee(struct drbd_conf *mdev, struct list_head *to_be_freed);
+ extern void conn_flush_workqueue(struct drbd_tconn *tconn);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index b59d2f8..0eda1f0 100644
+index 8b73589..3003d9e 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -195,7 +195,8 @@ static struct page *drbd_pp_first_pages_or_try_alloc(struct drbd_conf *mdev, int
- 	return NULL;
+@@ -428,7 +428,8 @@ static int drbd_finish_peer_reqs(struct drbd_conf *mdev)
+ 	return err;
  }
  
--static void reclaim_net_ee(struct drbd_conf *mdev, struct list_head *to_be_freed)
-+static void reclaim_finished_net_peer_reqs(struct drbd_conf *mdev,
-+					   struct list_head *to_be_freed)
+-void _drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
++static void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,
++				     struct list_head *head)
  {
- 	struct drbd_peer_request *peer_req;
- 	struct list_head *le, *tle;
-@@ -219,7 +220,7 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_conf *mdev)
- 	struct drbd_peer_request *peer_req, *t;
+ 	DEFINE_WAIT(wait);
  
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	reclaim_net_ee(mdev, &reclaimed);
-+	reclaim_finished_net_peer_reqs(mdev, &reclaimed);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
- 	list_for_each_entry_safe(peer_req, t, &reclaimed, w.list)
-@@ -311,7 +312,7 @@ You must not have the req_lock:
-  drbd_alloc_peer_req()
-  drbd_free_peer_reqs()
-  drbd_ee_fix_bhs()
-- drbd_process_done_ee()
-+ drbd_finish_peer_reqs()
-  drbd_clear_done_ee()
-  drbd_wait_ee_list_empty()
- */
-@@ -391,15 +392,10 @@ int drbd_free_peer_reqs(struct drbd_conf *mdev, struct list_head *list)
- 	return count;
- }
- 
--
--/* See also comments in _req_mod(,BARRIER_ACKED)
-- * and receive_Barrier.
-- *
-- * Move entries from net_ee to done_ee, if ready.
-- * Grab done_ee, call all callbacks, free the entries.
-- * The callbacks typically send out ACKs.
-+/*
-+ * See also comments in _req_mod(,BARRIER_ACKED) and receive_Barrier.
-  */
--static int drbd_process_done_ee(struct drbd_conf *mdev)
-+static int drbd_finish_peer_reqs(struct drbd_conf *mdev)
- {
- 	LIST_HEAD(work_list);
- 	LIST_HEAD(reclaimed);
-@@ -407,7 +403,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
- 	int err = 0;
- 
- 	spin_lock_irq(&mdev->tconn->req_lock);
--	reclaim_net_ee(mdev, &reclaimed);
-+	reclaim_finished_net_peer_reqs(mdev, &reclaimed);
- 	list_splice_init(&mdev->done_ee, &work_list);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
- 
-@@ -1491,8 +1487,10 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
- 	return 0;
- }
- 
--/* e_end_resync_block() is called via
-- * drbd_process_done_ee() by asender only */
-+/*
-+ * e_end_resync_block() is called in asender context via
-+ * drbd_finish_peer_reqs().
-+ */
- static int e_end_resync_block(struct drbd_work *w, int unused)
- {
- 	struct drbd_peer_request *peer_req =
-@@ -1681,8 +1679,8 @@ static void restart_conflicting_writes(struct drbd_conf *mdev,
+@@ -443,7 +444,8 @@ void _drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
  	}
  }
  
--/* e_end_block() is called via drbd_process_done_ee().
-- * this means this function only runs in the asender thread
-+/*
-+ * e_end_block() is called in asender context via drbd_finish_peer_reqs().
-  */
- static int e_end_block(struct drbd_work *w, int cancel)
+-void drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
++static void drbd_wait_ee_list_empty(struct drbd_conf *mdev,
++				    struct list_head *head)
  {
-@@ -4146,9 +4144,7 @@ static int drbd_disconnected(int vnr, void *p, void *data)
- 	 * to be "canceled" */
- 	drbd_flush_workqueue(mdev);
- 
--	/* This also does reclaim_net_ee().  If we do this too early, we might
--	 * miss some resync ee and pages.*/
--	drbd_process_done_ee(mdev);
-+	drbd_finish_peer_reqs(mdev);
- 
- 	kfree(mdev->p_uuid);
- 	mdev->p_uuid = NULL;
-@@ -4813,7 +4809,7 @@ static int got_skip(struct drbd_tconn *tconn, struct packet_info *pi)
- 	return 0;
- }
- 
--static int tconn_process_done_ee(struct drbd_tconn *tconn)
-+static int tconn_finish_peer_reqs(struct drbd_tconn *tconn)
- {
- 	struct drbd_conf *mdev;
- 	int i, not_empty = 0;
-@@ -4822,7 +4818,7 @@ static int tconn_process_done_ee(struct drbd_tconn *tconn)
- 		clear_bit(SIGNAL_ASENDER, &tconn->flags);
- 		flush_signals(current);
- 		idr_for_each_entry(&tconn->volumes, mdev, i) {
--			if (drbd_process_done_ee(mdev))
-+			if (drbd_finish_peer_reqs(mdev))
- 				return 1; /* error */
- 		}
- 		set_bit(SIGNAL_ASENDER, &tconn->flags);
-@@ -4895,8 +4891,8 @@ int drbd_asender(struct drbd_thread *thi)
- 		   much to send */
- 		if (!tconn->net_conf->no_cork)
- 			drbd_tcp_cork(tconn->meta.socket);
--		if (tconn_process_done_ee(tconn)) {
--			conn_err(tconn, "tconn_process_done_ee() failed\n");
-+		if (tconn_finish_peer_reqs(tconn)) {
-+			conn_err(tconn, "tconn_finish_peer_reqs() failed\n");
- 			goto reconnect;
- 		}
- 		/* but unconditionally uncork unless disabled */
+ 	spin_lock_irq(&mdev->tconn->req_lock);
+ 	_drbd_wait_ee_list_empty(mdev, head);
 -- 
 1.7.4.1
 
