@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 29 Sep 2011 10:15:28 +0200
-Message-Id: <1317284131-17464-10-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 29 Sep 2011 10:15:29 +0200
+Message-Id: <1317284131-17464-11-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317284131-17464-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317284131-17464-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 09/12] drbd: Make drbd_wait_ee_list_empty() and
-	_drbd_wait_ee_list_empty() static
+Subject: [Drbd-dev] [PATCH 10/12] drbd: Rename
+	drbd_pp_first_pages_or_try_alloc() to __drbd_alloc_pages()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,49 +23,46 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    4 ----
- drivers/block/drbd/drbd_receiver.c |    6 ++++--
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |    9 +++++----
+ 1 files changed, 5 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index d64aaf3..8fc21a7 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1463,10 +1463,6 @@ extern void __drbd_free_peer_req(struct drbd_conf *, struct drbd_peer_request *,
- 				 int);
- #define drbd_free_peer_req(m,e) __drbd_free_peer_req(m, e, 0)
- #define drbd_free_net_peer_req(m,e) __drbd_free_peer_req(m, e, 1)
--extern void drbd_wait_ee_list_empty(struct drbd_conf *mdev,
--		struct list_head *head);
--extern void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,
--		struct list_head *head);
- extern void drbd_set_recv_tcq(struct drbd_conf *mdev, int tcq_enabled);
- extern void _drbd_clear_done_ee(struct drbd_conf *mdev, struct list_head *to_be_freed);
- extern void conn_flush_workqueue(struct drbd_tconn *tconn);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 8b73589..3003d9e 100644
+index 3003d9e..0e4e651 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -428,7 +428,8 @@ static int drbd_finish_peer_reqs(struct drbd_conf *mdev)
- 	return err;
+@@ -150,11 +150,12 @@ static void page_chain_add(struct page **head,
+ 	*head = chain_first;
  }
  
--void _drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
-+static void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,
-+				     struct list_head *head)
+-static struct page *drbd_pp_first_pages_or_try_alloc(struct drbd_conf *mdev, int number)
++static struct page *__drbd_alloc_pages(struct drbd_conf *mdev,
++				       unsigned int number)
  {
- 	DEFINE_WAIT(wait);
+ 	struct page *page = NULL;
+ 	struct page *tmp = NULL;
+-	int i = 0;
++	unsigned int i = 0;
  
-@@ -443,7 +444,8 @@ void _drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
- 	}
- }
+ 	/* Yes, testing drbd_pp_vacant outside the lock is racy.
+ 	 * So what. It saves a spin_lock. */
+@@ -247,7 +248,7 @@ static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool
+ 	/* Yes, we may run up to @number over max_buffers. If we
+ 	 * follow it strictly, the admin will get it wrong anyways. */
+ 	if (atomic_read(&mdev->pp_in_use) < mdev->tconn->net_conf->max_buffers)
+-		page = drbd_pp_first_pages_or_try_alloc(mdev, number);
++		page = __drbd_alloc_pages(mdev, number);
  
--void drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
-+static void drbd_wait_ee_list_empty(struct drbd_conf *mdev,
-+				    struct list_head *head)
- {
- 	spin_lock_irq(&mdev->tconn->req_lock);
- 	_drbd_wait_ee_list_empty(mdev, head);
+ 	while (page == NULL) {
+ 		prepare_to_wait(&drbd_pp_wait, &wait, TASK_INTERRUPTIBLE);
+@@ -255,7 +256,7 @@ static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool
+ 		drbd_kick_lo_and_reclaim_net(mdev);
+ 
+ 		if (atomic_read(&mdev->pp_in_use) < mdev->tconn->net_conf->max_buffers) {
+-			page = drbd_pp_first_pages_or_try_alloc(mdev, number);
++			page = __drbd_alloc_pages(mdev, number);
+ 			if (page)
+ 				break;
+ 		}
 -- 
 1.7.4.1
 
