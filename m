@@ -1,14 +1,12 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Kyle Moffett <kyle@moffetthome.net>, linux-kernel@vger.kernel.org,
+To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 28 Sep 2011 11:21:38 +0200
-Message-Id: <1317201698-7776-1-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <201109281120.07349.philipp.reisner@linbit.com>
-References: <201109281120.07349.philipp.reisner@linbit.com>
+Date: Thu, 29 Sep 2011 10:15:19 +0200
+Message-Id: <1317284131-17464-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 9/9] drbd: Removed outdated comments and code
-	that envisioned VNRs in header 95
+Subject: [Drbd-dev] [RFC 00/12] drbd: part 11 of adding multiple volume
+	support to drbd
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,63 +16,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andreas Gruenbacher <agruen@linbit.com>
+This the first request for review of drbd-8.4. The complete set has 
+477 patches. This is the eleventh installment containing 12 patches.
 
-Since have now header 100, that has space for 16 bit volume numbers,
-the high byte of the length in header 95 is no longer reserved for
-8 bit volume numbers.
+The whole set is available here:
+  git://git.drbd.org/linux-2.6-drbd.git for-jens
 
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_int.h      |    2 +-
- drivers/block/drbd/drbd_main.c     |    2 +-
- drivers/block/drbd/drbd_receiver.c |    5 ++---
- 3 files changed, 4 insertions(+), 5 deletions(-)
+and is jens_for-3.2_drivers...for-jens
+and this part is 6533a57^...570536f
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 2fcf370..8f67093 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -304,7 +304,7 @@ struct p_header80 {
- struct p_header95 {
- 	u16	  magic;	/* use DRBD_MAGIC_BIG here */
- 	u16	  command;
--	u32	  length;	/* Use only 24 bits of that. Ignore the highest 8 bit. */
-+	u32	  length;
- } __packed;
- 
- struct p_header100 {
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 2c75a03..6afcfab 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -721,7 +721,7 @@ static unsigned int prepare_header95(struct p_header95 *h, enum drbd_packet cmd,
- {
- 	h->magic   = cpu_to_be16(DRBD_MAGIC_BIG);
- 	h->command = cpu_to_be16(cmd);
--	h->length  = cpu_to_be32(size);
-+	h->length = cpu_to_be32(size);
- 	return sizeof(struct p_header95);
- }
- 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 80bbc55..7539253 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -996,10 +996,9 @@ static int decode_header(struct drbd_tconn *tconn, void *header, struct packet_i
- 	} else if (header_size == sizeof(struct p_header95) &&
- 		   *(__be16 *)header == cpu_to_be16(DRBD_MAGIC_BIG)) {
- 		struct p_header95 *h = header;
--
- 		pi->cmd = be16_to_cpu(h->command);
--		pi->size = be32_to_cpu(h->length) & 0x00ffffff;
--		pi->vnr  = 0;
-+		pi->size = be32_to_cpu(h->length);
-+		pi->vnr = 0;
- 	} else if (header_size == sizeof(struct p_header80) &&
- 		   *(__be32 *)header == cpu_to_be32(DRBD_MAGIC)) {
- 		struct p_header80 *h = header;
--- 
-1.7.4.1
+This patch series contains:
+ * Code Cleanups, removal of wrong comments
+ * Adapt 0 = success / -errno calling convention
+ * renamed ee -> peer_req
 
