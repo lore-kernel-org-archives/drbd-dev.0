@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri, 30 Sep 2011 14:48:19 +0200
-Message-Id: <1317386906-19260-5-git-send-email-philipp.reisner@linbit.com>
+Date: Fri, 30 Sep 2011 14:48:20 +0200
+Message-Id: <1317386906-19260-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317386906-19260-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317386906-19260-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/11] drbd: Converted drbd_cfg_mutex into
-	drbd_cfg_rwsem
+Subject: [Drbd-dev] [PATCH 05/11] drbd: protect all idr accesses that might
+	sleep with drbd_cfg_rwsem
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,174 +18,160 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+With this commit the locking for all accesses to IDRs is complete:
+
+ * Non sleeping read accesses are protected by RCU
+ * sleeping read accesses are protocted by a read lock on drbd_cfg_rwsem
+ * accesses that add anything are protected by a write lock
+ * accesses that remove an object are protoected by a write lock
+   and a call to synchronize_rcu() after it is removed from the IDR
+   and before the object is actually free()ed.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |    4 +++-
- drivers/block/drbd/drbd_main.c |   10 +++++-----
- drivers/block/drbd/drbd_nl.c   |   27 ++++++++++++++++-----------
- 3 files changed, 24 insertions(+), 17 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    2 +-
+ drivers/block/drbd/drbd_main.c     |    2 ++
+ drivers/block/drbd/drbd_nl.c       |    4 ++++
+ drivers/block/drbd/drbd_proc.c     |    2 ++
+ drivers/block/drbd/drbd_receiver.c |   13 +++++++++++--
+ drivers/block/drbd/drbd_worker.c   |    2 ++
+ 6 files changed, 22 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index c49dc08..7896a64 100644
+index 7896a64..2119d9b 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -171,7 +171,9 @@ drbd_insert_fault(struct drbd_conf *mdev, unsigned int type) {
- extern struct ratelimit_state drbd_ratelimit_state;
+@@ -172,7 +172,7 @@ extern struct ratelimit_state drbd_ratelimit_state;
  extern struct idr minors;
  extern struct list_head drbd_tconns;
--extern struct mutex drbd_cfg_mutex;
-+extern struct rw_semaphore drbd_cfg_rwsem;
-+/* drbd_cfg_rwsem protects: drbd_tconns list,
-+   note: non sleeping iterations over the idrs are protoected by RCU */
+ extern struct rw_semaphore drbd_cfg_rwsem;
+-/* drbd_cfg_rwsem protects: drbd_tconns list,
++/* drbd_cfg_rwsem protects: drbd_tconns list, minors idr, tconn->volumes idr 
+    note: non sleeping iterations over the idrs are protoected by RCU */
  
  /* on the wire */
- enum drbd_packet {
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index c4c0bc5..d48efb4 100644
+index d48efb4..a2cac15 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -120,7 +120,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
-  */
- struct idr minors;
- struct list_head drbd_tconns;  /* list of struct drbd_tconn */
--DEFINE_MUTEX(drbd_cfg_mutex);
-+DECLARE_RWSEM(drbd_cfg_rwsem);
+@@ -2257,8 +2257,10 @@ static void drbd_cleanup(void)
  
- struct kmem_cache *drbd_request_cache;
- struct kmem_cache *drbd_ee_cache;	/* peer requests */
-@@ -2321,14 +2321,14 @@ struct drbd_tconn *conn_by_name(const char *name)
- 	if (!name || !name[0])
- 		return NULL;
+ 	drbd_genl_unregister();
  
--	mutex_lock(&drbd_cfg_mutex);
-+	down_read(&drbd_cfg_rwsem);
- 	list_for_each_entry(tconn, &drbd_tconns, all_tconn) {
- 		if (!strcmp(tconn->name, name))
- 			goto found;
- 	}
- 	tconn = NULL;
- found:
--	mutex_unlock(&drbd_cfg_mutex);
-+	up_read(&drbd_cfg_rwsem);
- 	return tconn;
- }
- 
-@@ -2395,9 +2395,9 @@ struct drbd_tconn *drbd_new_tconn(const char *name)
- 		DRBD_ON_NO_DATA_DEF, /* on_no_data */
- 	};
- 
--	mutex_lock(&drbd_cfg_mutex);
 +	down_write(&drbd_cfg_rwsem);
- 	list_add_tail(&tconn->all_tconn, &drbd_tconns);
--	mutex_unlock(&drbd_cfg_mutex);
+ 	idr_for_each_entry(&minors, mdev, i)
+ 		drbd_delete_device(mdev);
 +	up_write(&drbd_cfg_rwsem);
  
- 	return tconn;
- 
+ 	drbd_destroy_mempools();
+ 	unregister_blkdev(DRBD_MAJOR, "drbd");
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index fc918d0..5667536 100644
+index 5667536..331da4f 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1959,7 +1959,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 	new_my_addr = (struct sockaddr *)&new_conf->my_addr;
- 	new_peer_addr = (struct sockaddr *)&new_conf->peer_addr;
+@@ -363,8 +363,10 @@ static void conn_md_sync(struct drbd_tconn *tconn)
+ 	struct drbd_conf *mdev;
+ 	int vnr;
  
--	/* No need to take drbd_cfg_mutex here.  All reconfiguration is
-+	/* No need to take drbd_cfg_rwsem here.  All reconfiguration is
- 	 * strictly serialized on genl_lock(). We are protected against
- 	 * concurrent reconfiguration/addition/deletion */
- 	list_for_each_entry(oconn, &drbd_tconns, all_tconn) {
-@@ -2635,7 +2635,7 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
- 	 */
- 
- 	/* synchronize with drbd_new_tconn/drbd_free_tconn */
--	mutex_lock(&drbd_cfg_mutex);
 +	down_read(&drbd_cfg_rwsem);
- next_tconn:
- 	/* revalidate iterator position */
- 	list_for_each_entry(tmp, &drbd_tconns, all_tconn) {
-@@ -2698,7 +2698,7 @@ next_tconn:
-         }
- 
- out:
--	mutex_unlock(&drbd_cfg_mutex);
+ 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
+ 		drbd_md_sync(mdev);
 +	up_read(&drbd_cfg_rwsem);
- 	/* where to start the next iteration */
-         cb->args[0] = (long)pos;
-         cb->args[1] = (pos == tconn) ? volume + 1 : 0;
-@@ -2949,9 +2949,9 @@ int drbd_adm_delete_minor(struct sk_buff *skb, struct genl_info *info)
- 	if (retcode != NO_ERROR)
- 		goto out;
+ }
  
--	mutex_lock(&drbd_cfg_mutex);
-+	down_write(&drbd_cfg_rwsem);
- 	retcode = adm_delete_minor(adm_ctx.mdev);
--	mutex_unlock(&drbd_cfg_mutex);
-+	up_write(&drbd_cfg_rwsem);
- 	/* if this was the last volume of this connection,
- 	 * this will terminate all threads */
- 	if (retcode == NO_ERROR)
-@@ -2979,7 +2979,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
+ int conn_khelper(struct drbd_tconn *tconn, char *cmd)
+@@ -2920,7 +2922,9 @@ int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info)
  		goto out;
  	}
  
--	mutex_lock(&drbd_cfg_mutex);
-+	down_read(&drbd_cfg_rwsem);
- 	/* demote */
- 	idr_for_each_entry(&adm_ctx.tconn->volumes, mdev, i) {
- 		retcode = drbd_set_role(mdev, R_SECONDARY, 0);
-@@ -3006,14 +3006,17 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
- 			goto out_unlock;
- 		}
- 	}
-+	up_read(&drbd_cfg_rwsem);
- 
- 	/* delete volumes */
 +	down_write(&drbd_cfg_rwsem);
- 	idr_for_each_entry(&adm_ctx.tconn->volumes, mdev, i) {
- 		retcode = adm_delete_minor(mdev);
- 		if (retcode != NO_ERROR) {
- 			/* "can not happen" */
- 			drbd_msg_put_info("failed to delete volume");
--			goto out_unlock;
-+			up_write(&drbd_cfg_rwsem);
-+			goto out;
- 		}
- 	}
- 
-@@ -3028,10 +3031,12 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
- 		/* "can not happen" */
- 		retcode = ERR_CONN_IN_USE;
- 		drbd_msg_put_info("failed to delete connection");
--		goto out_unlock;
- 	}
-+
+ 	retcode = conn_new_minor(adm_ctx.tconn, dh->minor, adm_ctx.volume);
 +	up_write(&drbd_cfg_rwsem);
-+	goto out;
- out_unlock:
--	mutex_unlock(&drbd_cfg_mutex);
-+	up_read(&drbd_cfg_rwsem);
  out:
  	drbd_adm_finish(info, retcode);
  	return 0;
-@@ -3047,14 +3052,14 @@ int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info)
- 	if (retcode != NO_ERROR)
- 		goto out;
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index a4dbdbc..4025d08 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -227,6 +227,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
+ 	 oos .. known out-of-sync kB
+ 	*/
  
--	mutex_lock(&drbd_cfg_mutex);
-+	down_write(&drbd_cfg_rwsem);
- 	if (conn_lowest_minor(adm_ctx.tconn) < 0) {
- 		drbd_free_tconn(adm_ctx.tconn);
- 		retcode = NO_ERROR;
- 	} else {
- 		retcode = ERR_CONN_IN_USE;
++	down_read(&drbd_cfg_rwsem);
+ 	idr_for_each_entry(&minors, mdev, i) {
+ 		if (prev_i != i - 1)
+ 			seq_printf(seq, "\n");
+@@ -293,6 +294,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
+ 			}
+ 		}
  	}
--	mutex_unlock(&drbd_cfg_mutex);
-+	up_write(&drbd_cfg_rwsem);
++	up_read(&drbd_cfg_rwsem);
  
- out:
- 	drbd_adm_finish(info, retcode);
+ 	return 0;
+ }
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 92ecb22..4d9d71a 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -964,7 +964,10 @@ retry:
+ 	if (drbd_send_protocol(tconn) == -EOPNOTSUPP)
+ 		return -1;
+ 
+-	return !idr_for_each(&tconn->volumes, drbd_connected, tconn);
++	down_read(&drbd_cfg_rwsem);
++	h = !idr_for_each(&tconn->volumes, drbd_connected, tconn);
++	up_read(&drbd_cfg_rwsem);
++	return h;
+ 
+ out_release_sockets:
+ 	if (tconn->data.socket) {
+@@ -4084,7 +4087,9 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
+ 	drbd_thread_stop(&tconn->asender);
+ 	drbd_free_sock(tconn);
+ 
++	down_read(&drbd_cfg_rwsem);
+ 	idr_for_each(&tconn->volumes, drbd_disconnected, tconn);
++	up_read(&drbd_cfg_rwsem);
+ 	conn_info(tconn, "Connection closed\n");
+ 
+ 	if (conn_highest_role(tconn) == R_PRIMARY && conn_highest_pdsk(tconn) >= D_UNKNOWN)
+@@ -4821,10 +4826,14 @@ static int tconn_finish_peer_reqs(struct drbd_tconn *tconn)
+ 	do {
+ 		clear_bit(SIGNAL_ASENDER, &tconn->flags);
+ 		flush_signals(current);
++		down_read(&drbd_cfg_rwsem);
+ 		idr_for_each_entry(&tconn->volumes, mdev, i) {
+-			if (drbd_finish_peer_reqs(mdev))
++			if (drbd_finish_peer_reqs(mdev)) {
++				up_read(&drbd_cfg_rwsem);
+ 				return 1; /* error */
++			}
+ 		}
++		up_read(&drbd_cfg_rwsem);
+ 		set_bit(SIGNAL_ASENDER, &tconn->flags);
+ 
+ 		spin_lock_irq(&tconn->req_lock);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 536eb05..b63c08e 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1733,12 +1733,14 @@ int drbd_worker(struct drbd_thread *thi)
+ 	spin_unlock_irq(&tconn->data.work.q_lock);
+ 
+ 	drbd_thread_stop(&tconn->receiver);
++	down_read(&drbd_cfg_rwsem);
+ 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+ 		D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
+ 		/* _drbd_set_state only uses stop_nowait.
+ 		 * wait here for the exiting receiver. */
+ 		drbd_mdev_cleanup(mdev);
+ 	}
++	up_read(&drbd_cfg_rwsem);
+ 	clear_bit(OBJECT_DYING, &tconn->flags);
+ 	clear_bit(CONFIG_PENDING, &tconn->flags);
+ 	wake_up(&tconn->ping_wait);
 -- 
 1.7.4.1
 
