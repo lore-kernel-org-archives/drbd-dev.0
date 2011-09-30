@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri, 30 Sep 2011 14:48:20 +0200
-Message-Id: <1317386906-19260-6-git-send-email-philipp.reisner@linbit.com>
+Date: Fri, 30 Sep 2011 14:48:21 +0200
+Message-Id: <1317386906-19260-7-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317386906-19260-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317386906-19260-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/11] drbd: protect all idr accesses that might
-	sleep with drbd_cfg_rwsem
+Subject: [Drbd-dev] [PATCH 06/11] drbd: Runtime changeable wire protocol
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,160 +17,290 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-With this commit the locking for all accesses to IDRs is complete:
-
- * Non sleeping read accesses are protected by RCU
- * sleeping read accesses are protocted by a read lock on drbd_cfg_rwsem
- * accesses that add anything are protected by a write lock
- * accesses that remove an object are protoected by a write lock
-   and a call to synchronize_rcu() after it is removed from the IDR
-   and before the object is actually free()ed.
+The wire protocol is no longer a property that is negotiated
+between the two peers. It is now expressed with two bits
+(DP_SEND_WRITE_ACK and DP_SEND_RECEIVE_ACK) in each data
+packet. Therefore the primary node is free to change the
+wire protocol at any time without disconnect/reconnect.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    2 +-
- drivers/block/drbd/drbd_main.c     |    2 ++
- drivers/block/drbd/drbd_nl.c       |    4 ++++
- drivers/block/drbd/drbd_proc.c     |    2 ++
- drivers/block/drbd/drbd_receiver.c |   13 +++++++++++--
- drivers/block/drbd/drbd_worker.c   |    2 ++
- 6 files changed, 22 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    6 +++++
+ drivers/block/drbd/drbd_main.c     |    8 ++++++-
+ drivers/block/drbd/drbd_receiver.c |   39 +++++++++++++++++------------------
+ drivers/block/drbd/drbd_req.c      |   18 ++++++++++++----
+ drivers/block/drbd/drbd_req.h      |    8 +++++++
+ 5 files changed, 53 insertions(+), 26 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 7896a64..2119d9b 100644
+index 2119d9b..c57cedb 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -172,7 +172,7 @@ extern struct ratelimit_state drbd_ratelimit_state;
- extern struct idr minors;
- extern struct list_head drbd_tconns;
- extern struct rw_semaphore drbd_cfg_rwsem;
--/* drbd_cfg_rwsem protects: drbd_tconns list,
-+/* drbd_cfg_rwsem protects: drbd_tconns list, minors idr, tconn->volumes idr 
-    note: non sleeping iterations over the idrs are protoected by RCU */
+@@ -327,6 +327,8 @@ extern unsigned int drbd_header_size(struct drbd_tconn *tconn);
+ #define DP_FUA               16 /* equals REQ_FUA     */
+ #define DP_FLUSH             32 /* equals REQ_FLUSH   */
+ #define DP_DISCARD           64 /* equals REQ_DISCARD */
++#define DP_SEND_RECEIVE_ACK 128 /* This is a proto B write request */
++#define DP_SEND_WRITE_ACK   256 /* This is a proto C write request */
  
- /* on the wire */
+ struct p_data {
+ 	u64	    sector;    /* 64 bits sector number */
+@@ -656,6 +658,9 @@ enum {
+ 
+ 	/* Conflicting local requests need to be restarted after this request */
+ 	__EE_RESTART_REQUESTS,
++
++	/* The peer wants a write ACK for this (wire proto C) */
++	__EE_SEND_WRITE_ACK,
+ };
+ #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
+ #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
+@@ -663,6 +668,7 @@ enum {
+ #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
+ #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
+ #define EE_RESTART_REQUESTS	(1<<__EE_RESTART_REQUESTS)
++#define EE_SEND_WRITE_ACK	(1<<__EE_SEND_WRITE_ACK)
+ 
+ /* flag bits per mdev */
+ enum {
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index d48efb4..a2cac15 100644
+index a2cac15..6a11e9d 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -2257,8 +2257,10 @@ static void drbd_cleanup(void)
- 
- 	drbd_genl_unregister();
- 
-+	down_write(&drbd_cfg_rwsem);
- 	idr_for_each_entry(&minors, mdev, i)
- 		drbd_delete_device(mdev);
-+	up_write(&drbd_cfg_rwsem);
- 
- 	drbd_destroy_mempools();
- 	unregister_blkdev(DRBD_MAJOR, "drbd");
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 5667536..331da4f 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -363,8 +363,10 @@ static void conn_md_sync(struct drbd_tconn *tconn)
- 	struct drbd_conf *mdev;
- 	int vnr;
- 
-+	down_read(&drbd_cfg_rwsem);
- 	idr_for_each_entry(&tconn->volumes, mdev, vnr)
- 		drbd_md_sync(mdev);
-+	up_read(&drbd_cfg_rwsem);
- }
- 
- int conn_khelper(struct drbd_tconn *tconn, char *cmd)
-@@ -2920,7 +2922,9 @@ int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info)
- 		goto out;
- 	}
- 
-+	down_write(&drbd_cfg_rwsem);
- 	retcode = conn_new_minor(adm_ctx.tconn, dh->minor, adm_ctx.volume);
-+	up_write(&drbd_cfg_rwsem);
- out:
- 	drbd_adm_finish(info, retcode);
- 	return 0;
-diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
-index a4dbdbc..4025d08 100644
---- a/drivers/block/drbd/drbd_proc.c
-+++ b/drivers/block/drbd/drbd_proc.c
-@@ -227,6 +227,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
- 	 oos .. known out-of-sync kB
- 	*/
- 
-+	down_read(&drbd_cfg_rwsem);
- 	idr_for_each_entry(&minors, mdev, i) {
- 		if (prev_i != i - 1)
- 			seq_printf(seq, "\n");
-@@ -293,6 +294,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
- 			}
- 		}
- 	}
-+	up_read(&drbd_cfg_rwsem);
- 
- 	return 0;
- }
+@@ -1672,6 +1672,12 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
+ 	if (mdev->state.conn >= C_SYNC_SOURCE &&
+ 	    mdev->state.conn <= C_PAUSED_SYNC_T)
+ 		dp_flags |= DP_MAY_SET_IN_SYNC;
++	if (mdev->tconn->agreed_pro_version >= 100) {
++		if (req->rq_state & RQ_EXP_RECEIVE_ACK)
++			dp_flags |= DP_SEND_RECEIVE_ACK;
++		if (req->rq_state & RQ_EXP_WRITE_ACK)
++			dp_flags |= DP_SEND_WRITE_ACK;
++	}
+ 	p->dp_flags = cpu_to_be32(dp_flags);
+ 	if (dgs)
+ 		drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, p + 1);
+@@ -1688,7 +1694,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
+ 		 * out ok after sending on this side, but does not fit on the
+ 		 * receiving side, we sure have detected corruption elsewhere.
+ 		 */
+-		if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A || dgs)
++		if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)) || dgs)
+ 			err = _drbd_send_bio(mdev, req->master_bio);
+ 		else
+ 			err = _drbd_send_zc_bio(mdev, req->master_bio);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 92ecb22..4d9d71a 100644
+index 4d9d71a..0b648dc 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -964,7 +964,10 @@ retry:
- 	if (drbd_send_protocol(tconn) == -EOPNOTSUPP)
- 		return -1;
+@@ -1697,7 +1697,7 @@ static int e_end_block(struct drbd_work *w, int cancel)
+ 	sector_t sector = peer_req->i.sector;
+ 	int err = 0, pcmd;
  
--	return !idr_for_each(&tconn->volumes, drbd_connected, tconn);
-+	down_read(&drbd_cfg_rwsem);
-+	h = !idr_for_each(&tconn->volumes, drbd_connected, tconn);
-+	up_read(&drbd_cfg_rwsem);
-+	return h;
+-	if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C) {
++	if (peer_req->flags & EE_SEND_WRITE_ACK) {
+ 		if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
+ 			pcmd = (mdev->state.conn >= C_SYNC_SOURCE &&
+ 				mdev->state.conn <= C_PAUSED_SYNC_T &&
+@@ -2074,20 +2074,28 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
+ 	list_add(&peer_req->w.list, &mdev->active_ee);
+ 	spin_unlock_irq(&mdev->tconn->req_lock);
  
- out_release_sockets:
- 	if (tconn->data.socket) {
-@@ -4084,7 +4087,9 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
- 	drbd_thread_stop(&tconn->asender);
- 	drbd_free_sock(tconn);
- 
-+	down_read(&drbd_cfg_rwsem);
- 	idr_for_each(&tconn->volumes, drbd_disconnected, tconn);
-+	up_read(&drbd_cfg_rwsem);
- 	conn_info(tconn, "Connection closed\n");
- 
- 	if (conn_highest_role(tconn) == R_PRIMARY && conn_highest_pdsk(tconn) >= D_UNKNOWN)
-@@ -4821,10 +4826,14 @@ static int tconn_finish_peer_reqs(struct drbd_tconn *tconn)
- 	do {
- 		clear_bit(SIGNAL_ASENDER, &tconn->flags);
- 		flush_signals(current);
-+		down_read(&drbd_cfg_rwsem);
- 		idr_for_each_entry(&tconn->volumes, mdev, i) {
--			if (drbd_finish_peer_reqs(mdev))
-+			if (drbd_finish_peer_reqs(mdev)) {
-+				up_read(&drbd_cfg_rwsem);
- 				return 1; /* error */
-+			}
- 		}
-+		up_read(&drbd_cfg_rwsem);
- 		set_bit(SIGNAL_ASENDER, &tconn->flags);
- 
- 		spin_lock_irq(&tconn->req_lock);
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 536eb05..b63c08e 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1733,12 +1733,14 @@ int drbd_worker(struct drbd_thread *thi)
- 	spin_unlock_irq(&tconn->data.work.q_lock);
- 
- 	drbd_thread_stop(&tconn->receiver);
-+	down_read(&drbd_cfg_rwsem);
- 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
- 		D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
- 		/* _drbd_set_state only uses stop_nowait.
- 		 * wait here for the exiting receiver. */
- 		drbd_mdev_cleanup(mdev);
+-	switch (mdev->tconn->net_conf->wire_protocol) {
+-	case DRBD_PROT_C:
++	if (mdev->tconn->agreed_pro_version < 100) {
++		switch (mdev->tconn->net_conf->wire_protocol) {
++		case DRBD_PROT_C:
++			dp_flags |= DP_SEND_WRITE_ACK;
++			break;
++		case DRBD_PROT_B:
++			dp_flags |= DP_SEND_RECEIVE_ACK;
++			break;
++		}
++	}
++
++	if (dp_flags & DP_SEND_WRITE_ACK) {
++		peer_req->flags |= EE_SEND_WRITE_ACK;
+ 		inc_unacked(mdev);
+ 		/* corresponding dec_unacked() in e_end_block()
+ 		 * respective _drbd_clear_done_ee */
+-		break;
+-	case DRBD_PROT_B:
++	}
++
++	if (dp_flags & DP_SEND_RECEIVE_ACK) {
+ 		/* I really don't like it that the receiver thread
+ 		 * sends on the msock, but anyways */
+ 		drbd_send_ack(mdev, P_RECV_ACK, peer_req);
+-		break;
+-	case DRBD_PROT_A:
+-		/* nothing to do */
+-		break;
  	}
-+	up_read(&drbd_cfg_rwsem);
- 	clear_bit(OBJECT_DYING, &tconn->flags);
- 	clear_bit(CONFIG_PENDING, &tconn->flags);
- 	wake_up(&tconn->ping_wait);
+ 
+ 	if (mdev->state.pdsk < D_INCONSISTENT) {
+@@ -2932,7 +2940,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
+ 	if (cf & CF_DRY_RUN)
+ 		set_bit(CONN_DRY_RUN, &tconn->flags);
+ 
+-	if (p_proto != tconn->net_conf->wire_protocol) {
++	if (p_proto != tconn->net_conf->wire_protocol && tconn->agreed_pro_version < 100) {
+ 		conn_err(tconn, "incompatible communication protocols\n");
+ 		goto disconnect;
+ 	}
+@@ -4622,23 +4630,18 @@ static int got_BlockAck(struct drbd_tconn *tconn, struct packet_info *pi)
+ 	}
+ 	switch (pi->cmd) {
+ 	case P_RS_WRITE_ACK:
+-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
+ 		what = WRITE_ACKED_BY_PEER_AND_SIS;
+ 		break;
+ 	case P_WRITE_ACK:
+-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
+ 		what = WRITE_ACKED_BY_PEER;
+ 		break;
+ 	case P_RECV_ACK:
+-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_B);
+ 		what = RECV_ACKED_BY_PEER;
+ 		break;
+ 	case P_DISCARD_WRITE:
+-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
+ 		what = DISCARD_WRITE;
+ 		break;
+ 	case P_RETRY_WRITE:
+-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
+ 		what = POSTPONE_WRITE;
+ 		break;
+ 	default:
+@@ -4656,8 +4659,6 @@ static int got_NegAck(struct drbd_tconn *tconn, struct packet_info *pi)
+ 	struct p_block_ack *p = pi->data;
+ 	sector_t sector = be64_to_cpu(p->sector);
+ 	int size = be32_to_cpu(p->blksize);
+-	bool missing_ok = tconn->net_conf->wire_protocol == DRBD_PROT_A ||
+-			  tconn->net_conf->wire_protocol == DRBD_PROT_B;
+ 	int err;
+ 
+ 	mdev = vnr_to_mdev(tconn, pi->vnr);
+@@ -4674,15 +4675,13 @@ static int got_NegAck(struct drbd_tconn *tconn, struct packet_info *pi)
+ 
+ 	err = validate_req_change_req_state(mdev, p->block_id, sector,
+ 					    &mdev->write_requests, __func__,
+-					    NEG_ACKED, missing_ok);
++					    NEG_ACKED, true);
+ 	if (err) {
+ 		/* Protocol A has no P_WRITE_ACKs, but has P_NEG_ACKs.
+ 		   The master bio might already be completed, therefore the
+ 		   request is no longer in the collision hash. */
+ 		/* In Protocol B we might already have got a P_RECV_ACK
+ 		   but then get a P_NEG_ACK afterwards. */
+-		if (!missing_ok)
+-			return err;
+ 		drbd_set_out_of_sync(mdev, sector, size);
+ 	}
+ 	return 0;
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index fd0b452..0f1a29f 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -323,7 +323,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
+ 		struct bio_and_error *m)
+ {
+ 	struct drbd_conf *mdev = req->w.mdev;
+-	int rv = 0;
++	int p, rv = 0;
+ 
+ 	if (m)
+ 		m->bio = NULL;
+@@ -344,6 +344,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
+ 		 * and from w_read_retry_remote */
+ 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
+ 		req->rq_state |= RQ_NET_PENDING;
++		p = mdev->tconn->net_conf->wire_protocol;
++		req->rq_state |=
++			p == DRBD_PROT_C ? RQ_EXP_WRITE_ACK :
++			p == DRBD_PROT_B ? RQ_EXP_RECEIVE_ACK : 0;
+ 		inc_ap_pending(mdev);
+ 		break;
+ 
+@@ -500,7 +504,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
+ 			atomic_add(req->i.size >> 9, &mdev->ap_in_flight);
+ 
+ 		if (bio_data_dir(req->master_bio) == WRITE &&
+-		    mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A) {
++		    !(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK))) {
+ 			/* this is what is dangerous about protocol A:
+ 			 * pretend it was successfully written on the peer. */
+ 			if (req->rq_state & RQ_NET_PENDING) {
+@@ -550,6 +554,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
+ 		req->rq_state |= RQ_NET_DONE;
+ 		/* fall through */
+ 	case WRITE_ACKED_BY_PEER:
++		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
+ 		/* protocol C; successfully written on peer.
+ 		 * Nothing to do here.
+ 		 * We want to keep the tl in place for all protocols, to cater
+@@ -560,11 +565,14 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
+ 		 * request could set NET_DONE right here, and not wait for the
+ 		 * P_BARRIER_ACK, but that is an unnecessary optimization. */
+ 
++		goto ack_common;
+ 		/* this makes it effectively the same as for: */
+ 	case RECV_ACKED_BY_PEER:
++		D_ASSERT(req->rq_state & RQ_EXP_RECEIVE_ACK);
+ 		/* protocol B; pretends to be successfully written on peer.
+ 		 * see also notes above in HANDED_OVER_TO_NETWORK about
+ 		 * protocol != C */
++	ack_common:
+ 		req->rq_state |= RQ_NET_OK;
+ 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
+ 		dec_ap_pending(mdev);
+@@ -574,8 +582,8 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
+ 		break;
+ 
+ 	case POSTPONE_WRITE:
+-		/*
+-		 * If this node has already detected the write conflict, the
++		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
++		/* If this node has already detected the write conflict, the
+ 		 * worker will be waiting on misc_wait.  Wake it up once this
+ 		 * request has completed locally.
+ 		 */
+@@ -646,7 +654,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
+ 		}
+ 		if ((req->rq_state & RQ_NET_MASK) != 0) {
+ 			req->rq_state |= RQ_NET_DONE;
+-			if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A)
++			if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)))
+ 				atomic_sub(req->i.size>>9, &mdev->ap_in_flight);
+ 		}
+ 		_req_may_be_done(req, m); /* Allowed while state.susp */
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
+index b9f474a..dfd2cef 100644
+--- a/drivers/block/drbd/drbd_req.h
++++ b/drivers/block/drbd/drbd_req.h
+@@ -198,6 +198,12 @@ enum drbd_req_state_bits {
+ 
+ 	/* The peer has sent a retry ACK */
+ 	__RQ_POSTPONED,
++
++	/* We expect a receive ACK (wire proto B) */
++	__RQ_EXP_RECEIVE_ACK,
++
++	/* We expect a write ACK (wite proto C) */
++	__RQ_EXP_WRITE_ACK,
+ };
+ 
+ #define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
+@@ -219,6 +225,8 @@ enum drbd_req_state_bits {
+ #define RQ_WRITE           (1UL << __RQ_WRITE)
+ #define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
+ #define RQ_POSTPONED	   (1UL << __RQ_POSTPONED)
++#define RQ_EXP_RECEIVE_ACK (1UL << __RQ_EXP_RECEIVE_ACK)
++#define RQ_EXP_WRITE_ACK   (1UL << __RQ_EXP_WRITE_ACK)
+ 
+ /* For waking up the frozen transfer log mod_req() has to return if the request
+    should be counted in the epoch object*/
 -- 
 1.7.4.1
 
