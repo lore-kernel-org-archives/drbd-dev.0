@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri, 30 Sep 2011 14:48:22 +0200
-Message-Id: <1317386906-19260-8-git-send-email-philipp.reisner@linbit.com>
+Date: Fri, 30 Sep 2011 14:48:23 +0200
+Message-Id: <1317386906-19260-9-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317386906-19260-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317386906-19260-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/11] drbd: Check consistency of net options
-	when the get changed online
+Subject: [Drbd-dev] [PATCH 08/11] drbd: Allow online change of replication
+	protocol only with agreed_pv >= 100
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,121 +21,38 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c |   79 ++++++++++++++++++++++++------------------
- 1 files changed, 45 insertions(+), 34 deletions(-)
+ drivers/block/drbd/drbd_nl.c |    5 +++++
+ include/linux/drbd.h         |    1 +
+ 2 files changed, 6 insertions(+), 0 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 331da4f..0bf1c2e 100644
+index 0bf1c2e..bb41af1 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1705,6 +1705,45 @@ static bool conn_ov_running(struct drbd_tconn *tconn)
- 	return rv;
- }
+@@ -1711,6 +1711,11 @@ check_net_options(struct drbd_tconn *tconn, struct net_conf *new_conf)
+ 	struct drbd_conf *mdev;
+ 	int i;
  
-+static enum drbd_ret_code
-+check_net_options(struct drbd_tconn *tconn, struct net_conf *new_conf)
-+{
-+	struct drbd_conf *mdev;
-+	int i;
++	if (tconn->net_conf && tconn->agreed_pro_version < 100 &&
++	    tconn->cstate == C_WF_REPORT_PARAMS &&
++	    new_conf->wire_protocol != tconn->net_conf->wire_protocol)
++		return ERR_NEED_APV_100;
 +
-+	if (new_conf->two_primaries &&
-+	    (new_conf->wire_protocol != DRBD_PROT_C))
-+		return ERR_NOT_PROTO_C;
-+
-+	rcu_read_lock();
-+	idr_for_each_entry(&tconn->volumes, mdev, i) {
-+		if (get_ldev(mdev)) {
-+			enum drbd_fencing_p fp = mdev->ldev->dc.fencing;
-+			put_ldev(mdev);
-+			if (new_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH) {
-+				rcu_read_unlock();
-+				return ERR_STONITH_AND_PROT_A;
-+			}
-+		}
-+		if (mdev->state.role == R_PRIMARY && new_conf->want_lose) {
-+			rcu_read_unlock();
-+			return ERR_DISCARD;
-+		}
-+		if (!mdev->bitmap) {
-+			if(drbd_bm_init(mdev)) {
-+				rcu_read_unlock();
-+				return ERR_NOMEM;
-+			}
-+		}
-+	}
-+	rcu_read_unlock();
-+
-+	if (new_conf->on_congestion != OC_BLOCK && new_conf->wire_protocol != DRBD_PROT_A)
-+		return ERR_CONG_NOT_PROTO_A;
-+
-+	return NO_ERROR;
-+}
-+
- int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- {
- 	enum drbd_ret_code retcode;
-@@ -1763,6 +1802,10 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 		goto fail;
- 	}
+ 	if (new_conf->two_primaries &&
+ 	    (new_conf->wire_protocol != DRBD_PROT_C))
+ 		return ERR_NOT_PROTO_C;
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index fe8d6ba..6c7c85d 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -160,6 +160,7 @@ enum drbd_ret_code {
+ 	ERR_MINOR_CONFIGURED    = 160,
+ 	ERR_MINOR_EXISTS	= 161,
+ 	ERR_INVALID_REQUEST	= 162,
++	ERR_NEED_APV_100	= 163,
  
-+	retcode = check_net_options(tconn, new_conf);
-+	if (retcode != NO_ERROR)
-+		goto fail;
-+
- 	/* re-sync running */
- 	rsr = conn_resync_running(tconn);
- 	if (rsr && strcmp(new_conf->csums_alg, tconn->net_conf->csums_alg)) {
-@@ -1922,39 +1965,9 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 		goto fail;
- 	}
- 
--	if (new_conf->two_primaries
--	    && (new_conf->wire_protocol != DRBD_PROT_C)) {
--		retcode = ERR_NOT_PROTO_C;
--		goto fail;
--	}
--
--	rcu_read_lock();
--	idr_for_each_entry(&tconn->volumes, mdev, i) {
--		if (get_ldev(mdev)) {
--			enum drbd_fencing_p fp = mdev->ldev->dc.fencing;
--			put_ldev(mdev);
--			if (new_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH) {
--				retcode = ERR_STONITH_AND_PROT_A;
--				goto fail_rcu_unlock;
--			}
--		}
--		if (mdev->state.role == R_PRIMARY && new_conf->want_lose) {
--			retcode = ERR_DISCARD;
--			goto fail_rcu_unlock;
--		}
--		if (!mdev->bitmap) {
--			if(drbd_bm_init(mdev)) {
--				retcode = ERR_NOMEM;
--				goto fail_rcu_unlock;
--			}
--		}
--	}
--	rcu_read_unlock();
--
--	if (new_conf->on_congestion != OC_BLOCK && new_conf->wire_protocol != DRBD_PROT_A) {
--		retcode = ERR_CONG_NOT_PROTO_A;
-+	retcode = check_net_options(tconn, new_conf);
-+	if (retcode != NO_ERROR)
- 		goto fail;
--	}
- 
- 	retcode = NO_ERROR;
- 
-@@ -2074,8 +2087,6 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 	drbd_adm_finish(info, retcode);
- 	return 0;
- 
--fail_rcu_unlock:
--	rcu_read_unlock();
- fail:
- 	kfree(int_dig_in);
- 	kfree(int_dig_vv);
+ 	/* insert new ones above this line */
+ 	AFTER_LAST_ERR_CODE
 -- 
 1.7.4.1
 
