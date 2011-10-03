@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon,  3 Oct 2011 22:58:25 +0200
-Message-Id: <1317675513-12745-3-git-send-email-philipp.reisner@linbit.com>
+Date: Mon,  3 Oct 2011 22:58:26 +0200
+Message-Id: <1317675513-12745-4-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317675513-12745-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317675513-12745-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/10] drbd: fix setsockopt for user mode linux
+Subject: [Drbd-dev] [PATCH 03/10] drbd: cmdname() enum to string convertion
+	was missing a few constants
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,88 +20,34 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-We use our own copy of kernel_setsockopt, and did not mess around with
-get_fs/set_fs, since we thought we knew we would always be KERNEL_DS
-anyways. Apparently not so for at least user mode linux, so put the
-set_fs(KERNEL_DS) in there.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h |   33 ++++++++++++++++++++-------------
- 1 files changed, 20 insertions(+), 13 deletions(-)
+ drivers/block/drbd/drbd_main.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 3833d56..3080192 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1484,46 +1484,53 @@ static inline void drbd_flush_workqueue(struct drbd_conf *mdev)
- 	conn_flush_workqueue(mdev->tconn);
- }
- 
--/* yes, there is kernel_setsockopt, but only since 2.6.18. we don't need to
-- * mess with get_fs/set_fs, we know we are KERNEL_DS always. */
-+/* Yes, there is kernel_setsockopt, but only since 2.6.18.
-+ * So we have our own copy of it here. */
- static inline int drbd_setsockopt(struct socket *sock, int level, int optname,
--			char __user *optval, int optlen)
-+				  char *optval, int optlen)
- {
-+	mm_segment_t oldfs = get_fs();
-+	char __user *uoptval;
- 	int err;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index a0d81de..96add4e 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3243,8 +3243,17 @@ const char *cmdname(enum drbd_packet cmd)
+ 		[P_DELAY_PROBE]         = "DelayProbe",
+ 		[P_OUT_OF_SYNC]		= "OutOfSync",
+ 		[P_RETRY_WRITE]		= "RetryWrite",
++		[P_RS_CANCEL]		= "RSCancel",
++		[P_CONN_ST_CHG_REQ]	= "conn_st_chg_req",
++		[P_CONN_ST_CHG_REPLY]	= "conn_st_chg_reply",
 +
-+	uoptval = (char __user __force *)optval;
-+
-+	set_fs(KERNEL_DS);
- 	if (level == SOL_SOCKET)
--		err = sock_setsockopt(sock, level, optname, optval, optlen);
-+		err = sock_setsockopt(sock, level, optname, uoptval, optlen);
- 	else
--		err = sock->ops->setsockopt(sock, level, optname, optval,
-+		err = sock->ops->setsockopt(sock, level, optname, uoptval,
- 					    optlen);
-+	set_fs(oldfs);
- 	return err;
- }
++		/* enum drbd_packet, but not commands - obsoleted flags:
++		 *	P_MAY_IGNORE
++		 *	P_MAX_OPT_CMD
++		 */
+ 	};
  
- static inline void drbd_tcp_cork(struct socket *sock)
- {
--	int __user val = 1;
-+	int val = 1;
- 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
--			(char __user *)&val, sizeof(val));
-+			(char*)&val, sizeof(val));
- }
- 
- static inline void drbd_tcp_uncork(struct socket *sock)
- {
--	int __user val = 0;
-+	int val = 0;
- 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
--			(char __user *)&val, sizeof(val));
-+			(char*)&val, sizeof(val));
- }
- 
- static inline void drbd_tcp_nodelay(struct socket *sock)
- {
--	int __user val = 1;
-+	int val = 1;
- 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_NODELAY,
--			(char __user *)&val, sizeof(val));
-+			(char*)&val, sizeof(val));
- }
- 
- static inline void drbd_tcp_quickack(struct socket *sock)
- {
--	int __user val = 2;
-+	int val = 2;
- 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
--			(char __user *)&val, sizeof(val));
-+			(char*)&val, sizeof(val));
- }
- 
- void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo);
++	/* too big for the array: 0xfffX */
+ 	if (cmd == P_INITIAL_META)
+ 		return "InitialMeta";
+ 	if (cmd == P_INITIAL_DATA)
 -- 
 1.7.4.1
 
