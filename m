@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon,  3 Oct 2011 22:58:30 +0200
-Message-Id: <1317675513-12745-8-git-send-email-philipp.reisner@linbit.com>
+Date: Mon,  3 Oct 2011 22:58:31 +0200
+Message-Id: <1317675513-12745-9-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317675513-12745-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317675513-12745-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/10] drbd: Take a reference on tconn when
-	finding a tconn by name
+Subject: [Drbd-dev] [PATCH 08/10] drbd: Removed the OBJECT_DYING and the
+	CONFIG_PENDING bits
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,104 +18,125 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Rule #3 of kref.txt
+superseded by refcounting
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |    2 +-
- drivers/block/drbd/drbd_main.c |    6 ++++--
- drivers/block/drbd/drbd_nl.c   |   15 +++++++++++----
- 3 files changed, 16 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_int.h    |    6 ------
+ drivers/block/drbd/drbd_nl.c     |   20 +++-----------------
+ drivers/block/drbd/drbd_state.c  |   16 +---------------
+ drivers/block/drbd/drbd_worker.c |    3 ---
+ 4 files changed, 4 insertions(+), 41 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 3abf982..7797879 100644
+index 7797879..28e7ecc 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1381,7 +1381,7 @@ extern void drbd_delete_device(struct drbd_conf *mdev);
+@@ -816,12 +816,6 @@ enum {
+ 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, ping_wait gets woken */
+ 	CONN_WD_ST_CHG_OKAY,
+ 	CONN_WD_ST_CHG_FAIL,
+-	CONFIG_PENDING,		/* serialization of (re)configuration requests.
+-				 * if set, also prevents the device from dying */
+-	OBJECT_DYING,		/* device became unconfigured,
+-				 * but worker thread is still handling the cleanup.
+-				 * reconfiguring (nl_disk_conf, nl_net_conf) is dissalowed,
+-				 * while this is set. */
+ 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
+ };
  
- struct drbd_tconn *conn_create(const char *name);
- extern void conn_destroy(struct kref *kref);
--struct drbd_tconn *conn_by_name(const char *name);
-+struct drbd_tconn *conn_get_by_name(const char *name);
- extern void conn_free_crypto(struct drbd_tconn *tconn);
- 
- extern int proc_details;
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 1c94d56..02efec5 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2359,7 +2359,7 @@ static void drbd_init_workqueue(struct drbd_work_queue* wq)
- 	INIT_LIST_HEAD(&wq->q);
- }
- 
--struct drbd_tconn *conn_by_name(const char *name)
-+struct drbd_tconn *conn_get_by_name(const char *name)
- {
- 	struct drbd_tconn *tconn;
- 
-@@ -2368,8 +2368,10 @@ struct drbd_tconn *conn_by_name(const char *name)
- 
- 	down_read(&drbd_cfg_rwsem);
- 	list_for_each_entry(tconn, &drbd_tconns, all_tconn) {
--		if (!strcmp(tconn->name, name))
-+		if (!strcmp(tconn->name, name)) {
-+			kref_get(&tconn->kref);
- 			goto found;
-+		}
- 	}
- 	tconn = NULL;
- found:
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index b854427..3d03114 100644
+index 3d03114..7926491 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -219,7 +219,7 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
+@@ -1062,34 +1062,20 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
+ 	drbd_setup_queue_param(mdev, new);
+ }
  
- 	adm_ctx.minor = d_in->minor;
- 	adm_ctx.mdev = minor_to_mdev(d_in->minor);
--	adm_ctx.tconn = conn_by_name(adm_ctx.conn_name);
-+	adm_ctx.tconn = conn_get_by_name(adm_ctx.conn_name);
+-/* serialize deconfig (worker exiting, doing cleanup)
+- * and reconfig (drbdsetup disk, drbdsetup net)
+- *
+- * Wait for a potentially exiting worker, then restart it,
+- * or start a new one.  Flush any pending work, there may still be an
+- * after_state_change queued.
+- */
++/* Starts the worker thread */
+ static void conn_reconfig_start(struct drbd_tconn *tconn)
+ {
+-	wait_event(tconn->ping_wait, !test_and_set_bit(CONFIG_PENDING, &tconn->flags));
+-	wait_event(tconn->ping_wait, !test_bit(OBJECT_DYING, &tconn->flags));
+ 	drbd_thread_start(&tconn->worker);
+ 	conn_flush_workqueue(tconn);
+ }
  
- 	pr_info("adm request: cmd=%u[%s], flags=0x%x, minor=%d, conn=%s\n",
- 		cmd, drbd_genl_cmd_to_str(cmd), d_in->flags,
-@@ -251,8 +251,7 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
- 		drbd_msg_put_info("minor exists as different volume");
- 		return ERR_INVALID_REQUEST;
+-/* if still unconfigured, stops worker again.
+- * if configured now, clears CONFIG_PENDING.
+- * wakes potential waiters */
++/* if still unconfigured, stops worker again. */
+ static void conn_reconfig_done(struct drbd_tconn *tconn)
+ {
+ 	spin_lock_irq(&tconn->req_lock);
+-	if (conn_all_vols_unconf(tconn)) {
+-		set_bit(OBJECT_DYING, &tconn->flags);
++	if (conn_all_vols_unconf(tconn))
+ 		drbd_thread_stop_nowait(&tconn->worker);
+-	} else
+-		clear_bit(CONFIG_PENDING, &tconn->flags);
+ 	spin_unlock_irq(&tconn->req_lock);
+-	wake_up(&tconn->ping_wait);
+ }
+ 
+ /* Make sure IO is suspended before calling this function(). */
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 054b698..4465be8 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -908,18 +908,6 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+ 	mdev->tconn->susp_nod = ns.susp_nod;
+ 	mdev->tconn->susp_fen = ns.susp_fen;
+ 
+-	/* solve the race between becoming unconfigured,
+-	 * worker doing the cleanup, and
+-	 * admin reconfiguring us:
+-	 * on (re)configure, first set CONFIG_PENDING,
+-	 * then wait for a potentially exiting worker,
+-	 * start the worker, and schedule one no_op.
+-	 * then proceed with configuration.
+-	 */
+-	if(conn_all_vols_unconf(mdev->tconn) &&
+-	   !test_and_set_bit(CONFIG_PENDING, &mdev->tconn->flags))
+-		set_bit(OBJECT_DYING, &mdev->tconn->flags);
+-
+ 	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
+ 		drbd_print_uuids(mdev, "attached to UUIDs");
+ 
+@@ -1383,10 +1371,8 @@ struct after_conn_state_chg_work {
+ 
+ static void after_all_state_ch(struct drbd_tconn *tconn)
+ {
+-	if (conn_all_vols_unconf(tconn) &&
+-	    test_bit(OBJECT_DYING, &tconn->flags)) {
++	if (conn_all_vols_unconf(tconn))
+ 		drbd_thread_stop_nowait(&tconn->worker);
+-	}
+ }
+ 
+ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 4e14133..a8aa667 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1756,9 +1756,6 @@ int drbd_worker(struct drbd_thread *thi)
+ 		drbd_mdev_cleanup(mdev);
  	}
--	if (adm_ctx.mdev && !adm_ctx.tconn)
--		adm_ctx.tconn = adm_ctx.mdev->tconn;
-+
- 	return NO_ERROR;
+ 	up_read(&drbd_cfg_rwsem);
+-	clear_bit(OBJECT_DYING, &tconn->flags);
+-	clear_bit(CONFIG_PENDING, &tconn->flags);
+-	wake_up(&tconn->ping_wait);
  
- fail:
-@@ -267,6 +266,11 @@ static int drbd_adm_finish(struct genl_info *info, int retcode)
- 	const char *conn_name = NULL;
- 	const u8 cmd = info->genlhdr->cmd;
- 
-+	if (adm_ctx.tconn) {
-+		kref_put(&adm_ctx.tconn->kref, &conn_destroy);
-+		adm_ctx.tconn = NULL;
-+	}
-+
- 	if (!adm_ctx.reply_skb)
- 		return -ENOMEM;
- 
-@@ -2795,10 +2799,13 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
- 	if (!nla)
- 		return -EINVAL;
- 	conn_name = nla_data(nla);
--	tconn = conn_by_name(conn_name);
-+	tconn = conn_get_by_name(conn_name);
-+
- 	if (!tconn)
- 		return -ENODEV;
- 
-+	kref_put(&tconn->kref, &conn_destroy); /* get_one_status() (re)validates tconn by itself */
-+
- 	/* prime iterators, and set "filter" mode mark:
- 	 * only dump this tconn. */
- 	cb->args[0] = (long)tconn;
+ 	return 0;
+ }
 -- 
 1.7.4.1
 
