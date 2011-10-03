@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon,  3 Oct 2011 22:58:27 +0200
-Message-Id: <1317675513-12745-5-git-send-email-philipp.reisner@linbit.com>
+Date: Mon,  3 Oct 2011 22:58:28 +0200
+Message-Id: <1317675513-12745-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317675513-12745-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317675513-12745-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/10] drbd: move comment about stopping the
-	receiver thread to where it belongs
+Subject: [Drbd-dev] [PATCH 05/10] drbd: Eliminated drbd_free_resoruces() it
+	is superseeded by conn_free_crypto()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,42 +18,97 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-
-When the last volume of a replication group is unconfigured,
-the worker thread exits. To not interfere with cleanup
-of other threads, before the the last cleanups run,
-we need to make sure the receiver has already exited.
-
-The commend explaining that clearly belongs above
-drbd_thread_stop(&tconn->receiver), not in the cleanup loop below.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_worker.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_int.h  |    1 -
+ drivers/block/drbd/drbd_main.c |   35 ++++++++++++-----------------------
+ 2 files changed, 12 insertions(+), 24 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index c54c191..4e14133 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1746,12 +1746,13 @@ int drbd_worker(struct drbd_thread *thi)
- 	 */
- 	spin_unlock_irq(&tconn->data.work.q_lock);
- 
-+	/* _drbd_set_state only uses stop_nowait.
-+	 * wait here for the exiting receiver. */
- 	drbd_thread_stop(&tconn->receiver);
-+
- 	down_read(&drbd_cfg_rwsem);
- 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
- 		D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
--		/* _drbd_set_state only uses stop_nowait.
--		 * wait here for the exiting receiver. */
- 		drbd_mdev_cleanup(mdev);
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 3080192..0fb3fc3 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1046,7 +1046,6 @@ extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);
+ #define drbd_thread_current_set_cpu(A) ({})
+ #define drbd_calc_cpu_mask(A) ({})
+ #endif
+-extern void drbd_free_resources(struct drbd_conf *mdev);
+ extern void tl_release(struct drbd_tconn *, unsigned int barrier_nr,
+ 		       unsigned int set_size);
+ extern void tl_clear(struct drbd_tconn *);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 96add4e..28f1b74 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2054,7 +2054,9 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
+ 		drbd_bm_cleanup(mdev);
  	}
- 	up_read(&drbd_cfg_rwsem);
+ 
+-	drbd_free_resources(mdev);
++	drbd_free_bc(mdev->ldev);
++	mdev->ldev = NULL;
++
+ 	clear_bit(AL_SUSPENDED, &mdev->flags);
+ 
+ 	D_ASSERT(list_empty(&mdev->active_ee));
+@@ -2249,7 +2251,8 @@ void drbd_delete_device(struct drbd_conf *mdev)
+ 	if (mdev->this_bdev)
+ 		bdput(mdev->this_bdev);
+ 
+-	drbd_free_resources(mdev);
++	drbd_free_bc(mdev->ldev);
++	mdev->ldev = NULL;
+ 
+ 	drbd_release_all_peer_reqs(mdev);
+ 
+@@ -2384,11 +2387,18 @@ static void drbd_free_socket(struct drbd_socket *socket)
+ 
+ void conn_free_crypto(struct drbd_tconn *tconn)
+ {
++	drbd_free_sock(tconn);
++
++	crypto_free_hash(tconn->csums_tfm);
++	crypto_free_hash(tconn->verify_tfm);
+ 	crypto_free_hash(tconn->cram_hmac_tfm);
+ 	crypto_free_hash(tconn->integrity_w_tfm);
+ 	crypto_free_hash(tconn->integrity_r_tfm);
+ 	kfree(tconn->int_dig_in);
+ 	kfree(tconn->int_dig_vv);
++
++	tconn->csums_tfm = NULL;
++	tconn->verify_tfm = NULL;
+ 	tconn->cram_hmac_tfm = NULL;
+ 	tconn->integrity_w_tfm = NULL;
+ 	tconn->integrity_r_tfm = NULL;
+@@ -2697,27 +2707,6 @@ void drbd_free_sock(struct drbd_tconn *tconn)
+ 	}
+ }
+ 
+-
+-void drbd_free_resources(struct drbd_conf *mdev)
+-{
+-	crypto_free_hash(mdev->tconn->csums_tfm);
+-	mdev->tconn->csums_tfm = NULL;
+-	crypto_free_hash(mdev->tconn->verify_tfm);
+-	mdev->tconn->verify_tfm = NULL;
+-	crypto_free_hash(mdev->tconn->cram_hmac_tfm);
+-	mdev->tconn->cram_hmac_tfm = NULL;
+-	crypto_free_hash(mdev->tconn->integrity_w_tfm);
+-	mdev->tconn->integrity_w_tfm = NULL;
+-	crypto_free_hash(mdev->tconn->integrity_r_tfm);
+-	mdev->tconn->integrity_r_tfm = NULL;
+-
+-	drbd_free_sock(mdev->tconn);
+-
+-	__no_warn(local,
+-		  drbd_free_bc(mdev->ldev);
+-		  mdev->ldev = NULL;);
+-}
+-
+ /* meta data management */
+ 
+ struct meta_data_on_disk {
 -- 
 1.7.4.1
 
