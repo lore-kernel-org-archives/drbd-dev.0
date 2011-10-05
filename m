@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  5 Oct 2011 11:37:54 +0200
-Message-Id: <1317807484-24628-7-git-send-email-philipp.reisner@linbit.com>
+Date: Wed,  5 Oct 2011 11:37:55 +0200
+Message-Id: <1317807484-24628-8-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317807484-24628-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317807484-24628-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/16] drbd: Wrong use of RCU in
-	receive_protocol()
+Subject: [Drbd-dev] [PATCH 07/16] drbd: Rename integrity_w_tfm ->
+	integrity_tfm
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,78 +20,160 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-It is not enough to grab net_conf->integrity_alg under rcu_read_lock()
-and access it outside of it; the entire net_conf object may be gone by
-then.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   32 +++++++++++++++++++-------------
- 1 files changed, 19 insertions(+), 13 deletions(-)
+ drivers/block/drbd/drbd_int.h  |    2 +-
+ drivers/block/drbd/drbd_main.c |   18 +++++++++---------
+ drivers/block/drbd/drbd_nl.c   |   16 ++++++++--------
+ 3 files changed, 18 insertions(+), 18 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 6da7aeb..98f03b1 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -2998,7 +2998,6 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
- 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
- 	int p_want_lose, p_two_primaries, cf;
- 	char p_integrity_alg[SHARED_SECRET_MAX] = "";
--	unsigned char *my_alg;
- 	struct net_conf *nc;
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index e90bc9f..4787c790 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -849,7 +849,7 @@ struct drbd_tconn {			/* is a resource from the config file */
+ 	struct list_head out_of_sequence_requests;
  
- 	p_proto		= be32_to_cpu(p->protocol);
-@@ -3009,6 +3008,18 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
- 	cf		= be32_to_cpu(p->conn_flags);
- 	p_want_lose = cf & CF_WANT_LOSE;
+ 	struct crypto_hash *cram_hmac_tfm;
+-	struct crypto_hash *integrity_w_tfm; /* to be used by the worker thread */
++	struct crypto_hash *integrity_tfm;  /* checksums we compute */
+ 	struct crypto_hash *integrity_r_tfm; /* to be used by the receiver thread */
+ 	struct crypto_hash *csums_tfm;
+ 	struct crypto_hash *verify_tfm;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index c5134c8..30dd8a9 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1689,8 +1689,8 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
+ 	int dgs;
+ 	int err;
  
-+	if (tconn->agreed_pro_version >= 87) {
-+		int err;
-+
-+		if (pi->size > sizeof(p_integrity_alg))
-+			return -EIO;
-+		err = drbd_recv_all(tconn, p_integrity_alg, pi->size);
-+		if (err)
-+			return err;
-+
-+		p_integrity_alg[SHARED_SECRET_MAX-1] = 0;
-+	}
-+
- 	clear_bit(CONN_DRY_RUN, &tconn->flags);
+-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
+-		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
++	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
++		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
  
- 	if (cf & CF_DRY_RUN)
-@@ -3047,23 +3058,18 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
- 		goto disconnect_rcu_unlock;
+ 	sock = &mdev->tconn->data;
+ 	p = drbd_prepare_command(mdev, sock);
+@@ -1711,7 +1711,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
  	}
+ 	p->dp_flags = cpu_to_be32(dp_flags);
+ 	if (dgs)
+-		drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, p + 1);
++		drbd_csum_bio(mdev, mdev->tconn->integrity_tfm, req->master_bio, p + 1);
+ 	err = __send_command(mdev->tconn, mdev->vnr, sock, P_DATA, sizeof(*p) + dgs, NULL, req->i.size);
+ 	if (!err) {
+ 		/* For protocol A, we have to memcpy the payload into
+@@ -1735,7 +1735,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
+ 			/* 64 byte, 512 bit, is the largest digest size
+ 			 * currently supported in kernel crypto. */
+ 			unsigned char digest[64];
+-			drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, digest);
++			drbd_csum_bio(mdev, mdev->tconn->integrity_tfm, req->master_bio, digest);
+ 			if (memcmp(p + 1, digest, dgs)) {
+ 				dev_warn(DEV,
+ 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
+@@ -1762,8 +1762,8 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	int err;
+ 	int dgs;
  
--	my_alg = nc->integrity_alg;
--	rcu_read_unlock();
--
- 	if (tconn->agreed_pro_version >= 87) {
--		int err;
--
--		err = drbd_recv_all(tconn, p_integrity_alg, pi->size);
--		if (err)
--			return err;
--
--		p_integrity_alg[SHARED_SECRET_MAX-1] = 0;
--		if (strcmp(p_integrity_alg, my_alg)) {
-+		if (strcmp(p_integrity_alg, nc->integrity_alg)) {
- 			conn_err(tconn, "incompatible setting of the data-integrity-alg\n");
- 			goto disconnect;
- 		}
-+	}
-+
-+	rcu_read_unlock();
-+
-+	if (tconn->agreed_pro_version >= 87) {
- 		conn_info(tconn, "data-integrity-alg: %s\n",
--		     my_alg[0] ? my_alg : (unsigned char *)"<not-used>");
-+			  nc->integrity_alg[0] ? nc->integrity_alg : (unsigned char *)"<not-used>");
+-	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
+-		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
++	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
++		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
+ 
+ 	sock = &mdev->tconn->data;
+ 	p = drbd_prepare_command(mdev, sock);
+@@ -1773,7 +1773,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	p->block_id = peer_req->block_id;
+ 	p->seq_num = 0;  /* unused */
+ 	if (dgs)
+-		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, peer_req, p + 1);
++		drbd_csum_ee(mdev, mdev->tconn->integrity_tfm, peer_req, p + 1);
+ 	err = __send_command(mdev->tconn, mdev->vnr, sock, cmd, sizeof(*p) + dgs, NULL, peer_req->i.size);
+ 	if (!err)
+ 		err = _drbd_send_zc_ee(mdev, peer_req);
+@@ -2406,7 +2406,7 @@ void conn_free_crypto(struct drbd_tconn *tconn)
+ 	crypto_free_hash(tconn->csums_tfm);
+ 	crypto_free_hash(tconn->verify_tfm);
+ 	crypto_free_hash(tconn->cram_hmac_tfm);
+-	crypto_free_hash(tconn->integrity_w_tfm);
++	crypto_free_hash(tconn->integrity_tfm);
+ 	crypto_free_hash(tconn->integrity_r_tfm);
+ 	kfree(tconn->int_dig_in);
+ 	kfree(tconn->int_dig_vv);
+@@ -2414,7 +2414,7 @@ void conn_free_crypto(struct drbd_tconn *tconn)
+ 	tconn->csums_tfm = NULL;
+ 	tconn->verify_tfm = NULL;
+ 	tconn->cram_hmac_tfm = NULL;
+-	tconn->integrity_w_tfm = NULL;
++	tconn->integrity_tfm = NULL;
+ 	tconn->integrity_r_tfm = NULL;
+ 	tconn->int_dig_in = NULL;
+ 	tconn->int_dig_vv = NULL;
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index addd175..d24d96d 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1823,7 +1823,7 @@ struct crypto {
+ 	struct crypto_hash *verify_tfm;
+ 	struct crypto_hash *csums_tfm;
+ 	struct crypto_hash *cram_hmac_tfm;
+-	struct crypto_hash *integrity_w_tfm;
++	struct crypto_hash *integrity_tfm;
+ 	struct crypto_hash *integrity_r_tfm;
+ 	void *int_dig_in;
+ 	void *int_dig_vv;
+@@ -1862,7 +1862,7 @@ alloc_crypto(struct crypto *crypto, struct net_conf *new_conf)
+ 		       ERR_VERIFY_ALG, ERR_VERIFY_ALG_ND);
+ 	if (rv != NO_ERROR)
+ 		return rv;
+-	rv = alloc_tfm(&crypto->integrity_w_tfm, new_conf->integrity_alg,
++	rv = alloc_tfm(&crypto->integrity_tfm, new_conf->integrity_alg,
+ 		       ERR_INTEGRITY_ALG, ERR_INTEGRITY_ALG_ND);
+ 	if (rv != NO_ERROR)
+ 		return rv;
+@@ -1877,8 +1877,8 @@ alloc_crypto(struct crypto *crypto, struct net_conf *new_conf)
+ 		rv = alloc_tfm(&crypto->cram_hmac_tfm, hmac_name,
+ 			       ERR_AUTH_ALG, ERR_AUTH_ALG_ND);
  	}
+-	if (crypto->integrity_w_tfm) {
+-		hash_size = crypto_hash_digestsize(crypto->integrity_w_tfm);
++	if (crypto->integrity_tfm) {
++		hash_size = crypto_hash_digestsize(crypto->integrity_tfm);
+ 		crypto->int_dig_in = kmalloc(hash_size, GFP_KERNEL);
+ 		if (!crypto->int_dig_in)
+ 			return ERR_NOMEM;
+@@ -1895,7 +1895,7 @@ static void free_crypto(struct crypto *crypto)
+ 	kfree(crypto->int_dig_in);
+ 	kfree(crypto->int_dig_vv);
+ 	crypto_free_hash(crypto->cram_hmac_tfm);
+-	crypto_free_hash(crypto->integrity_w_tfm);
++	crypto_free_hash(crypto->integrity_tfm);
+ 	crypto_free_hash(crypto->integrity_r_tfm);
+ 	crypto_free_hash(crypto->csums_tfm);
+ 	crypto_free_hash(crypto->verify_tfm);
+@@ -2001,8 +2001,8 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
+ 	tconn->int_dig_in = crypto.int_dig_in;
+ 	kfree(tconn->int_dig_vv);
+ 	tconn->int_dig_vv = crypto.int_dig_vv;
+-	crypto_free_hash(tconn->integrity_w_tfm);
+-	tconn->integrity_w_tfm = crypto.integrity_w_tfm;
++	crypto_free_hash(tconn->integrity_tfm);
++	tconn->integrity_tfm = crypto.integrity_tfm;
+ 	crypto_free_hash(tconn->integrity_r_tfm);
+ 	tconn->integrity_r_tfm = crypto.integrity_r_tfm;
  
- 	return 0;
+@@ -2128,7 +2128,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
+ 	tconn->int_dig_in = crypto.int_dig_in;
+ 	tconn->int_dig_vv = crypto.int_dig_vv;
+ 	tconn->cram_hmac_tfm = crypto.cram_hmac_tfm;
+-	tconn->integrity_w_tfm = crypto.integrity_w_tfm;
++	tconn->integrity_tfm = crypto.integrity_tfm;
+ 	tconn->integrity_r_tfm = crypto.integrity_r_tfm;
+ 	tconn->csums_tfm = crypto.csums_tfm;
+ 	tconn->verify_tfm = crypto.verify_tfm;
 -- 
 1.7.4.1
 
