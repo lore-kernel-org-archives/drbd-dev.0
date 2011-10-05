@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  5 Oct 2011 11:37:56 +0200
-Message-Id: <1317807484-24628-9-git-send-email-philipp.reisner@linbit.com>
+Date: Wed,  5 Oct 2011 11:37:57 +0200
+Message-Id: <1317807484-24628-10-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317807484-24628-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317807484-24628-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/16] drbd: Rename integrity_r_tfm ->
-	peer_integrity_tfm
+Subject: [Drbd-dev] [PATCH 09/16] drbd: Remove obsolete drbd_crypto_is_hash()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,156 +19,113 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
+We allocate hash transformations with crypto_alloc_hash() which will
+only return hash algorithms.  It is not necessary to reconfirm that we
+actually got a hash algorithm.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |    2 +-
- drivers/block/drbd/drbd_main.c     |    8 ++++----
- drivers/block/drbd/drbd_nl.c       |   12 ++++++------
- drivers/block/drbd/drbd_receiver.c |   12 ++++++------
- 4 files changed, 17 insertions(+), 17 deletions(-)
+ drivers/block/drbd/drbd_nl.c       |   25 +++++++++++--------------
+ drivers/block/drbd/drbd_receiver.c |    5 -----
+ drivers/block/drbd/drbd_wrappers.h |    6 ------
+ 3 files changed, 11 insertions(+), 25 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 4787c790..e6e4f4e 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -850,7 +850,7 @@ struct drbd_tconn {			/* is a resource from the config file */
- 
- 	struct crypto_hash *cram_hmac_tfm;
- 	struct crypto_hash *integrity_tfm;  /* checksums we compute */
--	struct crypto_hash *integrity_r_tfm; /* to be used by the receiver thread */
-+	struct crypto_hash *peer_integrity_tfm;  /* checksums we verify */
- 	struct crypto_hash *csums_tfm;
- 	struct crypto_hash *verify_tfm;
- 	void *int_dig_in;
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 30dd8a9..417c437 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -1405,8 +1405,8 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
- void drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
- 		      struct p_data *dp, int data_size)
- {
--	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
--		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
-+	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
-+		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
- 	_drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
- 		       dp->block_id);
- }
-@@ -2407,7 +2407,7 @@ void conn_free_crypto(struct drbd_tconn *tconn)
- 	crypto_free_hash(tconn->verify_tfm);
- 	crypto_free_hash(tconn->cram_hmac_tfm);
- 	crypto_free_hash(tconn->integrity_tfm);
--	crypto_free_hash(tconn->integrity_r_tfm);
-+	crypto_free_hash(tconn->peer_integrity_tfm);
- 	kfree(tconn->int_dig_in);
- 	kfree(tconn->int_dig_vv);
- 
-@@ -2415,7 +2415,7 @@ void conn_free_crypto(struct drbd_tconn *tconn)
- 	tconn->verify_tfm = NULL;
- 	tconn->cram_hmac_tfm = NULL;
- 	tconn->integrity_tfm = NULL;
--	tconn->integrity_r_tfm = NULL;
-+	tconn->peer_integrity_tfm = NULL;
- 	tconn->int_dig_in = NULL;
- 	tconn->int_dig_vv = NULL;
- }
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index d24d96d..efae733 100644
+index efae733..fd97ffb 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1824,7 +1824,7 @@ struct crypto {
- 	struct crypto_hash *csums_tfm;
- 	struct crypto_hash *cram_hmac_tfm;
- 	struct crypto_hash *integrity_tfm;
--	struct crypto_hash *integrity_r_tfm;
-+	struct crypto_hash *peer_integrity_tfm;
- 	void *int_dig_in;
- 	void *int_dig_vv;
+@@ -1830,7 +1830,7 @@ struct crypto {
  };
-@@ -1866,7 +1866,7 @@ alloc_crypto(struct crypto *crypto, struct net_conf *new_conf)
- 		       ERR_INTEGRITY_ALG, ERR_INTEGRITY_ALG_ND);
- 	if (rv != NO_ERROR)
- 		return rv;
--	rv = alloc_tfm(&crypto->integrity_r_tfm, new_conf->integrity_alg,
-+	rv = alloc_tfm(&crypto->peer_integrity_tfm, new_conf->integrity_alg,
- 		       ERR_INTEGRITY_ALG, ERR_INTEGRITY_ALG_ND);
- 	if (rv != NO_ERROR)
- 		return rv;
-@@ -1896,7 +1896,7 @@ static void free_crypto(struct crypto *crypto)
- 	kfree(crypto->int_dig_vv);
- 	crypto_free_hash(crypto->cram_hmac_tfm);
- 	crypto_free_hash(crypto->integrity_tfm);
--	crypto_free_hash(crypto->integrity_r_tfm);
-+	crypto_free_hash(crypto->peer_integrity_tfm);
- 	crypto_free_hash(crypto->csums_tfm);
- 	crypto_free_hash(crypto->verify_tfm);
+ 
+ static int
+-alloc_tfm(struct crypto_hash **tfm, char *tfm_name, int err_alg, int err_nd)
++alloc_hash(struct crypto_hash **tfm, char *tfm_name, int err_alg)
+ {
+ 	if (!tfm_name[0])
+ 		return NO_ERROR;
+@@ -1841,9 +1841,6 @@ alloc_tfm(struct crypto_hash **tfm, char *tfm_name, int err_alg, int err_nd)
+ 		return err_alg;
+ 	}
+ 
+-	if (!drbd_crypto_is_hash(crypto_hash_tfm(*tfm)))
+-		return err_nd;
+-
+ 	return NO_ERROR;
  }
-@@ -2003,8 +2003,8 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 	tconn->int_dig_vv = crypto.int_dig_vv;
- 	crypto_free_hash(tconn->integrity_tfm);
- 	tconn->integrity_tfm = crypto.integrity_tfm;
--	crypto_free_hash(tconn->integrity_r_tfm);
--	tconn->integrity_r_tfm = crypto.integrity_r_tfm;
-+	crypto_free_hash(tconn->peer_integrity_tfm);
-+	tconn->peer_integrity_tfm = crypto.peer_integrity_tfm;
  
- 	/* FIXME Changing cram_hmac while the connection is established is useless */
- 	crypto_free_hash(tconn->cram_hmac_tfm);
-@@ -2129,7 +2129,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 	tconn->int_dig_vv = crypto.int_dig_vv;
- 	tconn->cram_hmac_tfm = crypto.cram_hmac_tfm;
- 	tconn->integrity_tfm = crypto.integrity_tfm;
--	tconn->integrity_r_tfm = crypto.integrity_r_tfm;
-+	tconn->peer_integrity_tfm = crypto.peer_integrity_tfm;
- 	tconn->csums_tfm = crypto.csums_tfm;
- 	tconn->verify_tfm = crypto.verify_tfm;
+@@ -1854,28 +1851,28 @@ alloc_crypto(struct crypto *crypto, struct net_conf *new_conf)
+ 	enum drbd_ret_code rv;
+ 	int hash_size;
  
+-	rv = alloc_tfm(&crypto->csums_tfm, new_conf->csums_alg,
+-		       ERR_CSUMS_ALG, ERR_CSUMS_ALG_ND);
++	rv = alloc_hash(&crypto->csums_tfm, new_conf->csums_alg,
++		       ERR_CSUMS_ALG);
+ 	if (rv != NO_ERROR)
+ 		return rv;
+-	rv = alloc_tfm(&crypto->verify_tfm, new_conf->verify_alg,
+-		       ERR_VERIFY_ALG, ERR_VERIFY_ALG_ND);
++	rv = alloc_hash(&crypto->verify_tfm, new_conf->verify_alg,
++		       ERR_VERIFY_ALG);
+ 	if (rv != NO_ERROR)
+ 		return rv;
+-	rv = alloc_tfm(&crypto->integrity_tfm, new_conf->integrity_alg,
+-		       ERR_INTEGRITY_ALG, ERR_INTEGRITY_ALG_ND);
++	rv = alloc_hash(&crypto->integrity_tfm, new_conf->integrity_alg,
++		       ERR_INTEGRITY_ALG);
+ 	if (rv != NO_ERROR)
+ 		return rv;
+-	rv = alloc_tfm(&crypto->peer_integrity_tfm, new_conf->integrity_alg,
+-		       ERR_INTEGRITY_ALG, ERR_INTEGRITY_ALG_ND);
++	rv = alloc_hash(&crypto->peer_integrity_tfm, new_conf->integrity_alg,
++		       ERR_INTEGRITY_ALG);
+ 	if (rv != NO_ERROR)
+ 		return rv;
+ 	if (new_conf->cram_hmac_alg[0] != 0) {
+ 		snprintf(hmac_name, CRYPTO_MAX_ALG_NAME, "hmac(%s)",
+ 			 new_conf->cram_hmac_alg);
+ 
+-		rv = alloc_tfm(&crypto->cram_hmac_tfm, hmac_name,
+-			       ERR_AUTH_ALG, ERR_AUTH_ALG_ND);
++		rv = alloc_hash(&crypto->cram_hmac_tfm, hmac_name,
++			       ERR_AUTH_ALG);
+ 	}
+ 	if (crypto->integrity_tfm) {
+ 		hash_size = crypto_hash_digestsize(crypto->integrity_tfm);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 98f03b1..36b846b 100644
+index 36b846b..30b6556 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1384,8 +1384,8 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
- 	void *dig_vv = mdev->tconn->int_dig_vv;
- 	unsigned long *data;
- 
--	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
--		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
-+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
-+		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
- 
- 	if (dgs) {
- 		/*
-@@ -1442,7 +1442,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
+@@ -3100,11 +3100,6 @@ struct crypto_hash *drbd_crypto_alloc_digest_safe(const struct drbd_conf *mdev,
+ 			alg, name, PTR_ERR(tfm));
+ 		return tfm;
  	}
+-	if (!drbd_crypto_is_hash(crypto_hash_tfm(tfm))) {
+-		crypto_free_hash(tfm);
+-		dev_err(DEV, "\"%s\" is not a digest (%s)\n", alg, name);
+-		return ERR_PTR(-EINVAL);
+-	}
+ 	return tfm;
+ }
  
- 	if (dgs) {
--		drbd_csum_ee(mdev, mdev->tconn->integrity_r_tfm, peer_req, dig_vv);
-+		drbd_csum_ee(mdev, mdev->tconn->peer_integrity_tfm, peer_req, dig_vv);
- 		if (memcmp(dig_in, dig_vv, dgs)) {
- 			dev_err(DEV, "Digest integrity check FAILED: %llus +%u\n",
- 				(unsigned long long)sector, data_size);
-@@ -1491,8 +1491,8 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
- 	void *dig_in = mdev->tconn->int_dig_in;
- 	void *dig_vv = mdev->tconn->int_dig_vv;
+diff --git a/drivers/block/drbd/drbd_wrappers.h b/drivers/block/drbd/drbd_wrappers.h
+index decf9b2..46a6d99 100644
+--- a/drivers/block/drbd/drbd_wrappers.h
++++ b/drivers/block/drbd/drbd_wrappers.h
+@@ -45,12 +45,6 @@ static inline void drbd_generic_make_request(struct drbd_conf *mdev,
+ 		generic_make_request(bio);
+ }
  
--	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
--		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
-+	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
-+		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
- 
- 	if (dgs) {
- 		err = drbd_recv_all_warn(mdev->tconn, dig_in, dgs);
-@@ -1520,7 +1520,7 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
- 	}
- 
- 	if (dgs) {
--		drbd_csum_bio(mdev, mdev->tconn->integrity_r_tfm, bio, dig_vv);
-+		drbd_csum_bio(mdev, mdev->tconn->peer_integrity_tfm, bio, dig_vv);
- 		if (memcmp(dig_in, dig_vv, dgs)) {
- 			dev_err(DEV, "Digest integrity check FAILED. Broken NICs?\n");
- 			return -EINVAL;
+-static inline int drbd_crypto_is_hash(struct crypto_tfm *tfm)
+-{
+-        return (crypto_tfm_alg_type(tfm) & CRYPTO_ALG_TYPE_HASH_MASK)
+-                == CRYPTO_ALG_TYPE_HASH;
+-}
+-
+ #ifndef __CHECKER__
+ # undef __cond_lock
+ # define __cond_lock(x,c) (c)
 -- 
 1.7.4.1
 
