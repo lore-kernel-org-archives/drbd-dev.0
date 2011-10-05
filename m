@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  5 Oct 2011 11:37:59 +0200
-Message-Id: <1317807484-24628-12-git-send-email-philipp.reisner@linbit.com>
+Date: Wed,  5 Oct 2011 11:38:00 +0200
+Message-Id: <1317807484-24628-13-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317807484-24628-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317807484-24628-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/16] drbd: Allow to change data-integrity-alg
-	on the fly
+Subject: [Drbd-dev] [PATCH 12/16] drbd: fix race when forcefully
+	disconnecting
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,258 +18,225 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andreas Gruenbacher <agruen@linbit.com>
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-The main purpose of this is to allow to turn data integrity checking on
-and off on demand without causing interruptions.
+If a forced disconnect hits a restarting receiver right after it passed
+its final "if (C_DISCONNECTING)" test in drbdd_init(), but before it was
+actually restarted by drbd_thread_setup, we could be left with a
+connection stuck in C_DISCONNECTING, never reaching C_STANDALONE,
+which would be necessary to take it down or reconfigure it.
 
-Implemented by allocating tconn->peer_integrity_tfm only when receiving
-a P_PROTOCOL message.  l accesses to tconn->peer_integrity_tf happen in
-worker context, and no further synchronization is necessary.
-
-On the sender side, tconn->integrity_tfm is modified under
-tconn->data.mutex, and a P_PROTOCOL message is sent whenever.  All
-accesses to tconn->integrity_tfm already happen under this mutex.
+Move the last cleanup into w_after_conn_state_ch(), and do an additional
+state change request in conn_try_disconnect(), just in case.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_main.c     |    4 +-
- drivers/block/drbd/drbd_nl.c       |   22 ++++++++------
- drivers/block/drbd/drbd_receiver.c |   54 +++++++++++++++++------------------
- 3 files changed, 40 insertions(+), 40 deletions(-)
+ drivers/block/drbd/drbd_nl.c       |   85 ++++++++++++++++++++----------------
+ drivers/block/drbd/drbd_receiver.c |   14 +------
+ drivers/block/drbd/drbd_state.c    |   13 ++++++
+ 3 files changed, 62 insertions(+), 50 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index bcdd66d..1ea12d4 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -1433,8 +1433,8 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
- void drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
- 		      struct p_data *dp, int data_size)
- {
--	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
--		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
-+	if (mdev->tconn->peer_integrity_tfm)
-+		data_size -= crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm);
- 	_drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
- 		       dp->block_id);
- }
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index fd97ffb..0bf74b1 100644
+index 0bf74b1..455b9a9 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1824,7 +1824,6 @@ struct crypto {
- 	struct crypto_hash *csums_tfm;
- 	struct crypto_hash *cram_hmac_tfm;
- 	struct crypto_hash *integrity_tfm;
--	struct crypto_hash *peer_integrity_tfm;
- 	void *int_dig_in;
- 	void *int_dig_vv;
- };
-@@ -1863,10 +1862,6 @@ alloc_crypto(struct crypto *crypto, struct net_conf *new_conf)
- 		       ERR_INTEGRITY_ALG);
- 	if (rv != NO_ERROR)
- 		return rv;
--	rv = alloc_hash(&crypto->peer_integrity_tfm, new_conf->integrity_alg,
--		       ERR_INTEGRITY_ALG);
--	if (rv != NO_ERROR)
+@@ -2160,37 +2160,54 @@ out:
+ static enum drbd_state_rv conn_try_disconnect(struct drbd_tconn *tconn, bool force)
+ {
+ 	enum drbd_state_rv rv;
+-	if (force) {
+-		spin_lock_irq(&tconn->req_lock);
+-		rv = _conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
+-		spin_unlock_irq(&tconn->req_lock);
 -		return rv;
- 	if (new_conf->cram_hmac_alg[0] != 0) {
- 		snprintf(hmac_name, CRYPTO_MAX_ALG_NAME, "hmac(%s)",
- 			 new_conf->cram_hmac_alg);
-@@ -1893,7 +1888,6 @@ static void free_crypto(struct crypto *crypto)
- 	kfree(crypto->int_dig_vv);
- 	crypto_free_hash(crypto->cram_hmac_tfm);
- 	crypto_free_hash(crypto->integrity_tfm);
--	crypto_free_hash(crypto->peer_integrity_tfm);
- 	crypto_free_hash(crypto->csums_tfm);
- 	crypto_free_hash(crypto->verify_tfm);
- }
-@@ -1907,6 +1901,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 	int ovr; /* online verify running */
- 	int rsr; /* re-sync running */
- 	struct crypto crypto = { };
-+	bool change_integrity_alg;
+-	}
  
- 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONN);
- 	if (!adm_ctx.reply_skb)
-@@ -1938,6 +1933,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
+-	rv = conn_request_state(tconn, NS(conn, C_DISCONNECTING), 0);
++	rv = conn_request_state(tconn, NS(conn, C_DISCONNECTING),
++			force ? CS_HARD : 0);
  
- 	conn_reconfig_start(tconn);
- 
-+	mutex_lock(&tconn->data.mutex);
- 	mutex_lock(&tconn->net_conf_update);
- 	old_conf = tconn->net_conf;
- 
-@@ -1976,6 +1972,9 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 		goto fail;
+ 	switch (rv) {
+ 	case SS_NOTHING_TO_DO:
++		break;
+ 	case SS_ALREADY_STANDALONE:
+ 		return SS_SUCCESS;
+ 	case SS_PRIMARY_NOP:
+ 		/* Our state checking code wants to see the peer outdated. */
+ 		rv = conn_request_state(tconn, NS2(conn, C_DISCONNECTING,
+-							pdsk, D_OUTDATED), CS_VERBOSE);
++						pdsk, D_OUTDATED), CS_VERBOSE);
+ 		break;
+ 	case SS_CW_FAILED_BY_PEER:
+ 		/* The peer probably wants to see us outdated. */
+ 		rv = conn_request_state(tconn, NS2(conn, C_DISCONNECTING,
+ 							disk, D_OUTDATED), 0);
+ 		if (rv == SS_IS_DISKLESS || rv == SS_LOWER_THAN_OUTDATED) {
+-			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
+-			rv = SS_SUCCESS;
++			rv = conn_request_state(tconn, NS(conn, C_DISCONNECTING),
++					CS_HARD);
+ 		}
+ 		break;
+ 	default:;
+ 		/* no special handling necessary */
  	}
  
-+	change_integrity_alg = strcmp(old_conf->integrity_alg,
-+				      new_conf->integrity_alg);
++	if (rv >= SS_SUCCESS) {
++		enum drbd_state_rv rv2;
++		/* No one else can reconfigure the network while I am here.
++		 * The state handling only uses drbd_thread_stop_nowait(),
++		 * we want to really wait here until the receiver is no more.
++		 */
++		drbd_thread_stop(&adm_ctx.tconn->receiver);
 +
- 	retcode = alloc_crypto(&crypto, new_conf);
- 	if (retcode != NO_ERROR)
- 		goto fail;
-@@ -1993,21 +1992,24 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 		crypto.verify_tfm = NULL;
++		/* Race breaker.  This additional state change request may be
++		 * necessary, if this was a forced disconnect during a receiver
++		 * restart.  We may have "killed" the receiver thread just
++		 * after drbdd_init() returned.  Typically, we should be
++		 * C_STANDALONE already, now, and this becomes a no-op.
++		 */
++		rv2 = conn_request_state(tconn, NS(conn, C_STANDALONE),
++				CS_VERBOSE | CS_HARD);
++		if (rv2 < SS_SUCCESS)
++			conn_err(tconn,
++				"unexpected rv2=%d in conn_try_disconnect()\n",
++				rv2);
++	}
+ 	return rv;
+ }
+ 
+@@ -2221,19 +2238,9 @@ int drbd_adm_disconnect(struct sk_buff *skb, struct genl_info *info)
+ 
+ 	rv = conn_try_disconnect(tconn, parms.force_disconnect);
+ 	if (rv < SS_SUCCESS)
+-		goto fail;
+-
+-	/* No one else can reconfigure the network while I am here.
+-	 * The state handling only uses drbd_thread_stop_nowait(),
+-	 * we want to really wait here until the receiver is no more. */
+-	drbd_thread_stop(&tconn->receiver);
+-	if (wait_event_interruptible(tconn->ping_wait,
+-				     tconn->cstate == C_STANDALONE)) {
+-		retcode = ERR_INTR;
+-		goto fail;
+-	}
+-
+-	retcode = NO_ERROR;
++		retcode = rv;  /* FIXME: Type mismatch. */
++	else
++		retcode = NO_ERROR;
+  fail:
+ 	drbd_adm_finish(info, retcode);
+ 	return 0;
+@@ -3095,8 +3102,7 @@ out:
+ 
+ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
+ {
+-	enum drbd_ret_code retcode;
+-	enum drbd_state_rv rv;
++	int retcode; /* enum drbd_ret_code rsp. enum drbd_state_rv */
+ 	struct drbd_conf *mdev;
+ 	unsigned i;
+ 
+@@ -3120,30 +3126,35 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
+ 			goto out_unlock;
+ 		}
+ 	}
++	up_read(&drbd_cfg_rwsem);
+ 
+-	/* disconnect */
+-	rv = conn_try_disconnect(adm_ctx.tconn, 0);
+-	if (rv < SS_SUCCESS) {
+-		retcode = rv; /* enum type mismatch! */
++	/* disconnect; may stop the receiver;
++	 * must not hold the drbd_cfg_rwsem */
++	retcode = conn_try_disconnect(adm_ctx.tconn, 0);
++	if (retcode < SS_SUCCESS) {
+ 		drbd_msg_put_info("failed to disconnect");
+-		goto out_unlock;
++		goto out;
  	}
  
--	/* FIXME can not assign these so bluntly while we have ongoing IO */
- 	kfree(tconn->int_dig_in);
- 	tconn->int_dig_in = crypto.int_dig_in;
- 	kfree(tconn->int_dig_vv);
- 	tconn->int_dig_vv = crypto.int_dig_vv;
- 	crypto_free_hash(tconn->integrity_tfm);
- 	tconn->integrity_tfm = crypto.integrity_tfm;
--	crypto_free_hash(tconn->peer_integrity_tfm);
--	tconn->peer_integrity_tfm = crypto.peer_integrity_tfm;
-+	if (change_integrity_alg) {
-+		/* Do this without trying to take tconn->data.mutex again.  */
-+		if (__drbd_send_protocol(tconn))
-+			goto fail;
-+	}
+-	/* Make sure the network threads have actually stopped,
+-	 * state handling only does drbd_thread_stop_nowait(). */
+-	drbd_thread_stop(&adm_ctx.tconn->receiver);
+-
++	down_read(&drbd_cfg_rwsem);
+ 	/* detach */
+ 	idr_for_each_entry(&adm_ctx.tconn->volumes, mdev, i) {
+-		rv = adm_detach(mdev);
+-		if (rv < SS_SUCCESS) {
+-			retcode = rv; /* enum type mismatch! */
++		retcode = adm_detach(mdev);
++		if (retcode < SS_SUCCESS) {
+ 			drbd_msg_put_info("failed to detach");
+ 			goto out_unlock;
+ 		}
+ 	}
+ 	up_read(&drbd_cfg_rwsem);
  
- 	/* FIXME Changing cram_hmac while the connection is established is useless */
- 	crypto_free_hash(tconn->cram_hmac_tfm);
- 	tconn->cram_hmac_tfm = crypto.cram_hmac_tfm;
- 
- 	mutex_unlock(&tconn->net_conf_update);
-+	mutex_unlock(&tconn->data.mutex);
- 	synchronize_rcu();
- 	kfree(old_conf);
- 
-@@ -2018,6 +2020,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 
-  fail:
- 	mutex_unlock(&tconn->net_conf_update);
-+	mutex_unlock(&tconn->data.mutex);
- 	free_crypto(&crypto);
- 	kfree(new_conf);
-  done:
-@@ -2126,7 +2129,6 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 	tconn->int_dig_vv = crypto.int_dig_vv;
- 	tconn->cram_hmac_tfm = crypto.cram_hmac_tfm;
- 	tconn->integrity_tfm = crypto.integrity_tfm;
--	tconn->peer_integrity_tfm = crypto.peer_integrity_tfm;
- 	tconn->csums_tfm = crypto.csums_tfm;
- 	tconn->verify_tfm = crypto.verify_tfm;
- 
++	/* If we reach this, all volumes (of this tconn) are Secondary,
++	 * Disconnected, Diskless, aka Unconfigured. Make sure all threads have
++	 * actually stopped, state handling only does drbd_thread_stop_nowait().
++	 * This needs to be done without holding drbd_cfg_rwsem. */
++	drbd_thread_stop(&adm_ctx.tconn->worker);
++
++	/* Now, nothing can fail anymore */
++
+ 	/* delete volumes */
+ 	down_write(&drbd_cfg_rwsem);
+ 	idr_for_each_entry(&adm_ctx.tconn->volumes, mdev, i) {
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 30b6556..9c8bcce 100644
+index 9c8bcce..956cdda 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1384,10 +1384,9 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
- 	void *dig_vv = mdev->tconn->int_dig_vv;
- 	unsigned long *data;
+@@ -4213,20 +4213,8 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
  
--	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
--		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
+ 	spin_unlock_irq(&tconn->req_lock);
+ 
+-	if (oc == C_DISCONNECTING) {
+-		struct net_conf *old_conf;
 -
--	if (dgs) {
-+	dgs = 0;
-+	if (mdev->tconn->peer_integrity_tfm) {
-+		dgs = crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm);
- 		/*
- 		 * FIXME: Receive the incoming digest into the receive buffer
- 		 *	  here, together with its struct p_data?
-@@ -1395,10 +1394,9 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
- 		err = drbd_recv_all_warn(mdev->tconn, dig_in, dgs);
- 		if (err)
- 			return NULL;
-+		data_size -= dgs;
- 	}
- 
--	data_size -= dgs;
+-		mutex_lock(&tconn->net_conf_update);
+-		old_conf = tconn->net_conf;
+-		rcu_assign_pointer(tconn->net_conf, NULL);
+-		conn_free_crypto(tconn);
+-		mutex_unlock(&tconn->net_conf_update);
 -
- 	if (!expect(data_size != 0))
- 		return NULL;
- 	if (!expect(IS_ALIGNED(data_size, 512)))
-@@ -1491,17 +1489,15 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
- 	void *dig_in = mdev->tconn->int_dig_in;
- 	void *dig_vv = mdev->tconn->int_dig_vv;
- 
--	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->peer_integrity_tfm) ?
--		crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm) : 0;
+-		synchronize_rcu();
+-		kfree(old_conf);
 -
--	if (dgs) {
-+	dgs = 0;
-+	if (mdev->tconn->peer_integrity_tfm) {
-+		dgs = crypto_hash_digestsize(mdev->tconn->peer_integrity_tfm);
- 		err = drbd_recv_all_warn(mdev->tconn, dig_in, dgs);
- 		if (err)
- 			return err;
-+		data_size -= dgs;
- 	}
++	if (oc == C_DISCONNECTING)
+ 		conn_request_state(tconn, NS(conn, C_STANDALONE), CS_VERBOSE | CS_HARD);
+-	}
+ }
  
--	data_size -= dgs;
--
- 	/* optimistically update recv_cnt.  if receiving fails below,
- 	 * we disconnect anyways, and counters will be reset. */
- 	mdev->recv_cnt += data_size>>9;
-@@ -2997,7 +2993,6 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
- 	struct p_protocol *p = pi->data;
- 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
- 	int p_want_lose, p_two_primaries, cf;
--	char p_integrity_alg[SHARED_SECRET_MAX] = "";
- 	struct net_conf *nc;
+ static int drbd_disconnected(int vnr, void *p, void *data)
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 978dcef..f2e1535 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -1398,6 +1398,19 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
+ 	if (oc == C_STANDALONE && ns_max.conn == C_UNCONNECTED)
+ 		drbd_thread_start(&tconn->receiver);
  
- 	p_proto		= be32_to_cpu(p->protocol);
-@@ -3009,15 +3004,30 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
- 	p_want_lose = cf & CF_WANT_LOSE;
- 
- 	if (tconn->agreed_pro_version >= 87) {
-+		char integrity_alg[SHARED_SECRET_MAX];
-+		struct crypto_hash *tfm = NULL;
- 		int err;
- 
--		if (pi->size > sizeof(p_integrity_alg))
-+		if (pi->size > sizeof(integrity_alg))
- 			return -EIO;
--		err = drbd_recv_all(tconn, p_integrity_alg, pi->size);
-+		err = drbd_recv_all(tconn, integrity_alg, pi->size);
- 		if (err)
- 			return err;
-+		integrity_alg[SHARED_SECRET_MAX-1] = 0;
- 
--		p_integrity_alg[SHARED_SECRET_MAX-1] = 0;
-+		if (integrity_alg[0]) {
-+			tfm = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
-+			if (!tfm) {
-+				conn_err(tconn, "peer data-integrity-alg %s not supported\n",
-+					 integrity_alg);
-+				goto disconnect;
-+			}
-+			conn_info(tconn, "peer data-integrity-alg: %s\n", integrity_alg);
-+		}
++	if (oc == C_DISCONNECTING && ns_max.conn == C_STANDALONE) {
++		struct net_conf *old_conf;
 +
-+		if (tconn->peer_integrity_tfm)
-+			crypto_free_hash(tconn->peer_integrity_tfm);
-+		tconn->peer_integrity_tfm = tfm;
- 	}
- 
- 	clear_bit(CONN_DRY_RUN, &tconn->flags);
-@@ -3058,20 +3068,8 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
- 		goto disconnect_rcu_unlock;
- 	}
- 
--	if (tconn->agreed_pro_version >= 87) {
--		if (strcmp(p_integrity_alg, nc->integrity_alg)) {
--			conn_err(tconn, "incompatible setting of the data-integrity-alg\n");
--			goto disconnect;
--		}
--	}
--
- 	rcu_read_unlock();
- 
--	if (tconn->agreed_pro_version >= 87) {
--		conn_info(tconn, "data-integrity-alg: %s\n",
--			  nc->integrity_alg[0] ? nc->integrity_alg : (unsigned char *)"<not-used>");
--	}
--
- 	return 0;
- 
- disconnect_rcu_unlock:
++		mutex_lock(&tconn->net_conf_update);
++		old_conf = tconn->net_conf;
++		rcu_assign_pointer(tconn->net_conf, NULL);
++		conn_free_crypto(tconn);
++		mutex_unlock(&tconn->net_conf_update);
++
++		synchronize_rcu();
++		kfree(old_conf);
++	}
++
+ 	if (ns_max.susp_fen) {
+ 		/* case1: The outdate peer handler is successful: */
+ 		if (ns_max.pdsk <= D_OUTDATED) {
 -- 
 1.7.4.1
 
