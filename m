@@ -2,12 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  5 Oct 2011 11:37:51 +0200
-Message-Id: <1317807484-24628-4-git-send-email-philipp.reisner@linbit.com>
+Date: Wed,  5 Oct 2011 11:37:52 +0200
+Message-Id: <1317807484-24628-5-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317807484-24628-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317807484-24628-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/16] drbd: rename variable ndc to new_disk_conf
+Subject: [Drbd-dev] [PATCH 04/16] drbd: rename variable sc to res_opts
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,105 +19,62 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
+sc was short for syncer conf, which does not exist anymore anyways.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c |   34 +++++++++++++++++-----------------
- 1 files changed, 17 insertions(+), 17 deletions(-)
+ drivers/block/drbd/drbd_nl.c |   14 +++++++-------
+ 1 files changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 7bfcb96..51dc869 100644
+index 51dc869..addd175 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1181,7 +1181,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- {
- 	enum drbd_ret_code retcode;
- 	struct drbd_conf *mdev;
--	struct disk_conf *ndc; /* new disk conf */
-+	struct disk_conf *new_disk_conf;
- 	int err, fifo_size;
+@@ -2335,7 +2335,7 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
+ 	cpumask_var_t new_cpu_mask;
+ 	struct drbd_tconn *tconn;
  	int *rs_plan_s = NULL;
+-	struct res_opts sc;
++	struct res_opts res_opts;
+ 	int err;
  
-@@ -1220,39 +1220,39 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
-  * some half-updated struct when we
-  * assign it later. */
- 
--	ndc = kmalloc(sizeof(*ndc), GFP_KERNEL);
--	if (!ndc) {
-+	new_disk_conf = kmalloc(sizeof(*new_disk_conf), GFP_KERNEL);
-+	if (!new_disk_conf) {
- 		retcode = ERR_NOMEM;
+ 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONN);
+@@ -2351,11 +2351,11 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
  		goto fail;
  	}
  
--	memcpy(ndc, &mdev->ldev->dc, sizeof(*ndc));
-+	memcpy(new_disk_conf, &mdev->ldev->dc, sizeof(*new_disk_conf));
+-	sc = tconn->res_opts;
++	res_opts = tconn->res_opts;
  	if (should_set_defaults(info))
--		drbd_set_disk_conf_defaults(ndc);
-+		drbd_set_disk_conf_defaults(new_disk_conf);
+-		drbd_set_res_opts_default(&sc);
++		drbd_set_res_opts_default(&res_opts);
  
--	err = disk_conf_from_attrs(ndc, info);
-+	err = disk_conf_from_attrs(new_disk_conf, info);
+-	err = res_opts_from_attrs(&sc, info);
++	err = res_opts_from_attrs(&res_opts, info);
  	if (err) {
  		retcode = ERR_MANDATORY_TAG;
  		drbd_msg_put_info(from_attrs_err_to_txt(err));
+@@ -2363,8 +2363,8 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
  	}
  
--	if (!expect(ndc->resync_rate >= 1))
--		ndc->resync_rate = 1;
-+	if (!expect(new_disk_conf->resync_rate >= 1))
-+		new_disk_conf->resync_rate = 1;
+ 	/* silently ignore cpu mask on UP kernel */
+-	if (nr_cpu_ids > 1 && sc.cpu_mask[0] != 0) {
+-		err = __bitmap_parse(sc.cpu_mask, 32, 0,
++	if (nr_cpu_ids > 1 && res_opts.cpu_mask[0] != 0) {
++		err = __bitmap_parse(res_opts.cpu_mask, 32, 0,
+ 				cpumask_bits(new_cpu_mask), nr_cpu_ids);
+ 		if (err) {
+ 			conn_warn(tconn, "__bitmap_parse() failed with %d\n", err);
+@@ -2374,7 +2374,7 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
+ 	}
  
- 	/* clip to allowed range */
--	if (!expect(ndc->al_extents >= DRBD_AL_EXTENTS_MIN))
--		ndc->al_extents = DRBD_AL_EXTENTS_MIN;
--	if (!expect(ndc->al_extents <= DRBD_AL_EXTENTS_MAX))
--		ndc->al_extents = DRBD_AL_EXTENTS_MAX;
-+	if (!expect(new_disk_conf->al_extents >= DRBD_AL_EXTENTS_MIN))
-+		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
-+	if (!expect(new_disk_conf->al_extents <= DRBD_AL_EXTENTS_MAX))
-+		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MAX;
  
- 	/* most sanity checks done, try to assign the new sync-after
- 	 * dependency.  need to hold the global lock in there,
- 	 * to avoid a race in the dependency loop check. */
--	retcode = drbd_alter_sa(mdev, ndc->resync_after);
-+	retcode = drbd_alter_sa(mdev, new_disk_conf->resync_after);
- 	if (retcode != NO_ERROR)
- 		goto fail;
+-	tconn->res_opts = sc;
++	tconn->res_opts = res_opts;
  
--	fifo_size = (ndc->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
-+	fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
- 	if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
- 		rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
- 		if (!rs_plan_s) {
-@@ -1272,7 +1272,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 
- 	wait_event(mdev->al_wait, lc_try_lock(mdev->act_log));
- 	drbd_al_shrink(mdev);
--	err = drbd_check_al_size(mdev, ndc);
-+	err = drbd_check_al_size(mdev, new_disk_conf);
- 	lc_unlock(mdev->act_log);
- 	wake_up(&mdev->al_wait);
- 
-@@ -1285,7 +1285,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 	 * To avoid someone looking at a half-updated struct, we probably
- 	 * should have a rw-semaphor on net_conf and disk_conf.
- 	 */
--	mdev->ldev->dc = *ndc;
-+	mdev->ldev->dc = *new_disk_conf;
- 
- 	drbd_md_sync(mdev);
- 
-@@ -1295,7 +1295,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 
-  fail:
- 	put_ldev(mdev);
--	kfree(ndc);
-+	kfree(new_disk_conf);
- 	kfree(rs_plan_s);
-  out:
- 	drbd_adm_finish(info, retcode);
+ 	if (!cpumask_equal(tconn->cpu_mask, new_cpu_mask)) {
+ 		cpumask_copy(tconn->cpu_mask, new_cpu_mask);
 -- 
 1.7.4.1
 
