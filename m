@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu,  6 Oct 2011 15:37:46 +0200
-Message-Id: <1317908280-28951-2-git-send-email-philipp.reisner@linbit.com>
+Date: Thu,  6 Oct 2011 15:37:47 +0200
+Message-Id: <1317908280-28951-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317908280-28951-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317908280-28951-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/15] drbd: Removed dead code
+Subject: [Drbd-dev] [PATCH 02/15] drbd: Renamed the net_conf_update mutex to
+	conf_update
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,32 +18,173 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Preparing to use the same mutex for disk_conf updates
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    2 +-
+ drivers/block/drbd/drbd_main.c     |    2 +-
+ drivers/block/drbd/drbd_nl.c       |   16 ++++++++--------
+ drivers/block/drbd/drbd_receiver.c |   10 +++++-----
+ drivers/block/drbd/drbd_state.c    |    4 ++--
+ 5 files changed, 17 insertions(+), 17 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 8655fcb..0311dfd 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -832,7 +832,7 @@ struct drbd_tconn {			/* is a resource from the config file */
+ 
+ 	unsigned long flags;
+ 	struct net_conf *net_conf;	/* content protected by rcu */
+-	struct mutex net_conf_update;	/* mutex for ready-copy-update of net_conf */
++	struct mutex conf_update;	/* mutex for ready-copy-update of net_conf and disk_conf */
+ 	wait_queue_head_t ping_wait;	/* Woken upon reception of a ping, and a state change */
+ 	struct res_opts res_opts;
+ 
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index cd08136..352c36f 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2474,7 +2474,7 @@ struct drbd_tconn *conn_create(const char *name)
+ 	tconn->cstate = C_STANDALONE;
+ 	mutex_init(&tconn->cstate_mutex);
+ 	spin_lock_init(&tconn->req_lock);
+-	mutex_init(&tconn->net_conf_update);
++	mutex_init(&tconn->conf_update);
+ 	init_waitqueue_head(&tconn->ping_wait);
+ 	idr_init(&tconn->volumes);
+ 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index d596900..13230d9 100644
+index 13230d9..6317ae5 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -2285,7 +2285,6 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
- 	enum drbd_ret_code retcode;
- 	cpumask_var_t new_cpu_mask;
- 	struct drbd_tconn *tconn;
--	int *rs_plan_s = NULL;
- 	struct res_opts res_opts;
- 	int err;
+@@ -619,11 +619,11 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
+ 			put_ldev(mdev);
+ 		}
+ 	} else {
+-		mutex_lock(&mdev->tconn->net_conf_update);
++		mutex_lock(&mdev->tconn->conf_update);
+ 		nc = mdev->tconn->net_conf;
+ 		if (nc)
+ 			nc->want_lose = 0; /* without copy; single bit op is atomic */
+-		mutex_unlock(&mdev->tconn->net_conf_update);
++		mutex_unlock(&mdev->tconn->conf_update);
  
-@@ -2336,7 +2335,6 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
+ 		set_disk_ro(mdev->vdisk, false);
+ 		if (get_ldev(mdev)) {
+@@ -1874,7 +1874,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
+ 	conn_reconfig_start(tconn);
+ 
+ 	mutex_lock(&tconn->data.mutex);
+-	mutex_lock(&tconn->net_conf_update);
++	mutex_lock(&tconn->conf_update);
+ 	old_conf = tconn->net_conf;
+ 
+ 	if (!old_conf) {
+@@ -1948,7 +1948,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
+ 	crypto_free_hash(tconn->cram_hmac_tfm);
+ 	tconn->cram_hmac_tfm = crypto.cram_hmac_tfm;
+ 
+-	mutex_unlock(&tconn->net_conf_update);
++	mutex_unlock(&tconn->conf_update);
+ 	mutex_unlock(&tconn->data.mutex);
+ 	synchronize_rcu();
+ 	kfree(old_conf);
+@@ -1959,7 +1959,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
+ 	goto done;
+ 
+  fail:
+-	mutex_unlock(&tconn->net_conf_update);
++	mutex_unlock(&tconn->conf_update);
+ 	mutex_unlock(&tconn->data.mutex);
+ 	free_crypto(&crypto);
+ 	kfree(new_conf);
+@@ -2055,11 +2055,11 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
+ 
+ 	conn_flush_workqueue(tconn);
+ 
+-	mutex_lock(&tconn->net_conf_update);
++	mutex_lock(&tconn->conf_update);
+ 	old_conf = tconn->net_conf;
+ 	if (old_conf) {
+ 		retcode = ERR_NET_CONFIGURED;
+-		mutex_unlock(&tconn->net_conf_update);
++		mutex_unlock(&tconn->conf_update);
+ 		goto fail;
+ 	}
+ 	rcu_assign_pointer(tconn->net_conf, new_conf);
+@@ -2072,7 +2072,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
+ 	tconn->csums_tfm = crypto.csums_tfm;
+ 	tconn->verify_tfm = crypto.verify_tfm;
+ 
+-	mutex_unlock(&tconn->net_conf_update);
++	mutex_unlock(&tconn->conf_update);
+ 
+ 	rcu_read_lock();
+ 	idr_for_each_entry(&tconn->volumes, mdev, i) {
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 956cdda..567d64b 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -3221,7 +3221,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
+ 			p->csums_alg[SHARED_SECRET_MAX-1] = 0;
+ 		}
+ 
+-		mutex_lock(&mdev->tconn->net_conf_update);
++		mutex_lock(&mdev->tconn->conf_update);
+ 		old_conf = mdev->tconn->net_conf;
+ 
+ 		if (strcmp(old_conf->verify_alg, p->verify_alg)) {
+@@ -3296,7 +3296,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
+ 			}
+ 			rcu_assign_pointer(tconn->net_conf, new_conf);
+ 		}
+-		mutex_unlock(&mdev->tconn->net_conf_update);
++		mutex_unlock(&mdev->tconn->conf_update);
+ 		if (new_conf) {
+ 			synchronize_rcu();
+ 			kfree(old_conf);
+@@ -3314,7 +3314,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
+ 	return 0;
+ 
+ disconnect:
+-	mutex_unlock(&mdev->tconn->net_conf_update);
++	mutex_unlock(&mdev->tconn->conf_update);
+ 	/* just for completeness: actually not needed,
+ 	 * as this is not reached if csums_tfm was ok. */
+ 	crypto_free_hash(csums_tfm);
+@@ -3744,9 +3744,9 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
+ 		}
  	}
  
- fail:
--	kfree(rs_plan_s);
- 	free_cpumask_var(new_cpu_mask);
+-	mutex_lock(&mdev->tconn->net_conf_update);
++	mutex_lock(&mdev->tconn->conf_update);
+ 	mdev->tconn->net_conf->want_lose = 0; /* without copy; single bit op is atomic */
+-	mutex_unlock(&mdev->tconn->net_conf_update);
++	mutex_unlock(&mdev->tconn->conf_update);
  
- 	drbd_adm_finish(info, retcode);
+ 	drbd_md_sync(mdev); /* update connected indicator, la_size, ... */
+ 
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 327a75e..befaf07 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -1392,11 +1392,11 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
+ 	if (oc == C_DISCONNECTING && ns_max.conn == C_STANDALONE) {
+ 		struct net_conf *old_conf;
+ 
+-		mutex_lock(&tconn->net_conf_update);
++		mutex_lock(&tconn->conf_update);
+ 		old_conf = tconn->net_conf;
+ 		rcu_assign_pointer(tconn->net_conf, NULL);
+ 		conn_free_crypto(tconn);
+-		mutex_unlock(&tconn->net_conf_update);
++		mutex_unlock(&tconn->conf_update);
+ 
+ 		synchronize_rcu();
+ 		kfree(old_conf);
 -- 
 1.7.4.1
 
