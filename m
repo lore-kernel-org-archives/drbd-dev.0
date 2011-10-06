@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu,  6 Oct 2011 15:37:49 +0200
-Message-Id: <1317908280-28951-5-git-send-email-philipp.reisner@linbit.com>
+Date: Thu,  6 Oct 2011 15:37:50 +0200
+Message-Id: <1317908280-28951-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317908280-28951-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317908280-28951-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/15] drbd: Split drbd_alter_sa() into
-	drbd_sync_after_valid() and drbd_sync_after_changed()
+Subject: [Drbd-dev] [PATCH 05/15] drbd: Renamed (old|new)_conf into
+	(old|new)_net_conf in receive_SyncParam
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,101 +23,96 @@ Preparing RCU for disk_conf
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h    |    3 ++-
- drivers/block/drbd/drbd_nl.c     |   15 +++++++--------
- drivers/block/drbd/drbd_worker.c |   22 ++++++++--------------
- 3 files changed, 17 insertions(+), 23 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |   32 ++++++++++++++++----------------
+ 1 files changed, 16 insertions(+), 16 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 8c7e340..f8d0ac3 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1409,7 +1409,8 @@ extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 23614e4..bba0050 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -3146,7 +3146,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
+ 	unsigned int header_size, data_size, exp_max_sz;
+ 	struct crypto_hash *verify_tfm = NULL;
+ 	struct crypto_hash *csums_tfm = NULL;
+-	struct net_conf *old_conf, *new_conf = NULL;
++	struct net_conf *old_net_conf, *new_net_conf = NULL;
+ 	const int apv = tconn->agreed_pro_version;
+ 	int *rs_plan_s = NULL;
+ 	int fifo_size = 0;
+@@ -3222,12 +3222,12 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
+ 		}
  
- /* drbd_worker.c */
- extern int drbd_worker(struct drbd_thread *thi);
--extern int drbd_alter_sa(struct drbd_conf *mdev, int na);
-+enum drbd_ret_code drbd_sync_after_valid(struct drbd_conf *mdev, int o_minor);
-+void drbd_sync_after_changed(struct drbd_conf *mdev);
- extern void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side);
- extern void resume_next_sg(struct drbd_conf *mdev);
- extern void suspend_other_sg(struct drbd_conf *mdev);
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index dfe43f2..4efeffa 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1181,13 +1181,6 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 	if (!expect(new_disk_conf->al_extents <= DRBD_AL_EXTENTS_MAX))
- 		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MAX;
+ 		mutex_lock(&mdev->tconn->conf_update);
+-		old_conf = mdev->tconn->net_conf;
++		old_net_conf = mdev->tconn->net_conf;
  
--	/* most sanity checks done, try to assign the new sync-after
--	 * dependency.  need to hold the global lock in there,
--	 * to avoid a race in the dependency loop check. */
--	retcode = drbd_alter_sa(mdev, new_disk_conf->resync_after);
--	if (retcode != NO_ERROR)
--		goto fail;
--
- 	fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
- 	if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
- 		rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
-@@ -1221,7 +1214,13 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 	 * To avoid someone looking at a half-updated struct, we probably
- 	 * should have a rw-semaphor on net_conf and disk_conf.
- 	 */
--	mdev->ldev->dc = *new_disk_conf;
-+	write_lock_irq(&global_state_lock);
-+	retcode = drbd_sync_after_valid(mdev, new_disk_conf->resync_after);
-+	if (retcode == NO_ERROR) {
-+		mdev->ldev->dc = *new_disk_conf;
-+		drbd_sync_after_changed(mdev);
-+	}
-+	write_unlock_irq(&global_state_lock);
+-		if (strcmp(old_conf->verify_alg, p->verify_alg)) {
++		if (strcmp(old_net_conf->verify_alg, p->verify_alg)) {
+ 			if (mdev->state.conn == C_WF_REPORT_PARAMS) {
+ 				dev_err(DEV, "Different verify-alg settings. me=\"%s\" peer=\"%s\"\n",
+-				    old_conf->verify_alg, p->verify_alg);
++				    old_net_conf->verify_alg, p->verify_alg);
+ 				goto disconnect;
+ 			}
+ 			verify_tfm = drbd_crypto_alloc_digest_safe(mdev,
+@@ -3238,10 +3238,10 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
+ 			}
+ 		}
  
- 	drbd_md_sync(mdev);
+-		if (apv >= 89 && strcmp(old_conf->csums_alg, p->csums_alg)) {
++		if (apv >= 89 && strcmp(old_net_conf->csums_alg, p->csums_alg)) {
+ 			if (mdev->state.conn == C_WF_REPORT_PARAMS) {
+ 				dev_err(DEV, "Different csums-alg settings. me=\"%s\" peer=\"%s\"\n",
+-				    old_conf->csums_alg, p->csums_alg);
++				    old_net_conf->csums_alg, p->csums_alg);
+ 				goto disconnect;
+ 			}
+ 			csums_tfm = drbd_crypto_alloc_digest_safe(mdev,
+@@ -3272,34 +3272,34 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
+ 		}
  
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index f22288b1..f8fdf75 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1401,7 +1401,8 @@ void suspend_other_sg(struct drbd_conf *mdev)
- 	write_unlock_irq(&global_state_lock);
- }
+ 		if (verify_tfm || csums_tfm) {
+-			new_conf = kzalloc(sizeof(struct net_conf), GFP_KERNEL);
+-			if (!new_conf) {
++			new_net_conf = kzalloc(sizeof(struct net_conf), GFP_KERNEL);
++			if (!new_net_conf) {
+ 				dev_err(DEV, "Allocation of new net_conf failed\n");
+ 				goto disconnect;
+ 			}
  
--static int sync_after_error(struct drbd_conf *mdev, int o_minor)
-+/* caller must hold global_state_lock */
-+enum drbd_ret_code drbd_sync_after_valid(struct drbd_conf *mdev, int o_minor)
- {
- 	struct drbd_conf *odev;
+-			*new_conf = *old_conf;
++			*new_net_conf = *old_net_conf;
  
-@@ -1425,22 +1426,15 @@ static int sync_after_error(struct drbd_conf *mdev, int o_minor)
- 	}
- }
+ 			if (verify_tfm) {
+-				strcpy(new_conf->verify_alg, p->verify_alg);
+-				new_conf->verify_alg_len = strlen(p->verify_alg) + 1;
++				strcpy(new_net_conf->verify_alg, p->verify_alg);
++				new_net_conf->verify_alg_len = strlen(p->verify_alg) + 1;
+ 				crypto_free_hash(mdev->tconn->verify_tfm);
+ 				mdev->tconn->verify_tfm = verify_tfm;
+ 				dev_info(DEV, "using verify-alg: \"%s\"\n", p->verify_alg);
+ 			}
+ 			if (csums_tfm) {
+-				strcpy(new_conf->csums_alg, p->csums_alg);
+-				new_conf->csums_alg_len = strlen(p->csums_alg) + 1;
++				strcpy(new_net_conf->csums_alg, p->csums_alg);
++				new_net_conf->csums_alg_len = strlen(p->csums_alg) + 1;
+ 				crypto_free_hash(mdev->tconn->csums_tfm);
+ 				mdev->tconn->csums_tfm = csums_tfm;
+ 				dev_info(DEV, "using csums-alg: \"%s\"\n", p->csums_alg);
+ 			}
+-			rcu_assign_pointer(tconn->net_conf, new_conf);
++			rcu_assign_pointer(tconn->net_conf, new_net_conf);
+ 		}
+ 		mutex_unlock(&mdev->tconn->conf_update);
+-		if (new_conf) {
++		if (new_net_conf) {
+ 			synchronize_rcu();
+-			kfree(old_conf);
++			kfree(old_net_conf);
+ 		}
  
--int drbd_alter_sa(struct drbd_conf *mdev, int na)
-+/* caller must hold global_state_lock */
-+void drbd_sync_after_changed(struct drbd_conf *mdev)
- {
- 	int changes;
--	int retcode;
- 
--	write_lock_irq(&global_state_lock);
--	retcode = sync_after_error(mdev, na);
--	if (retcode == NO_ERROR) {
--		mdev->ldev->dc.resync_after = na;
--		do {
--			changes  = _drbd_pause_after(mdev);
--			changes |= _drbd_resume_next(mdev);
--		} while (changes);
--	}
--	write_unlock_irq(&global_state_lock);
--	return retcode;
-+	do {
-+		changes  = _drbd_pause_after(mdev);
-+		changes |= _drbd_resume_next(mdev);
-+	} while (changes);
- }
- 
- void drbd_rs_controller_reset(struct drbd_conf *mdev)
+ 		spin_lock(&mdev->peer_seq_lock);
 -- 
 1.7.4.1
 
