@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu,  6 Oct 2011 15:37:47 +0200
-Message-Id: <1317908280-28951-3-git-send-email-philipp.reisner@linbit.com>
+Date: Thu,  6 Oct 2011 15:37:48 +0200
+Message-Id: <1317908280-28951-4-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317908280-28951-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317908280-28951-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/15] drbd: Renamed the net_conf_update mutex to
-	conf_update
+Subject: [Drbd-dev] [PATCH 03/15] drbd: drbd_dew_dev_size() gets the user
+	requests disk_size as argument
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,173 +18,89 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Preparing to use the same mutex for disk_conf updates
+Preparing RCU for disk_conf
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
  drivers/block/drbd/drbd_int.h      |    2 +-
- drivers/block/drbd/drbd_main.c     |    2 +-
- drivers/block/drbd/drbd_nl.c       |   16 ++++++++--------
- drivers/block/drbd/drbd_receiver.c |   10 +++++-----
- drivers/block/drbd/drbd_state.c    |    4 ++--
- 5 files changed, 17 insertions(+), 17 deletions(-)
+ drivers/block/drbd/drbd_nl.c       |   11 ++++++-----
+ drivers/block/drbd/drbd_receiver.c |    2 +-
+ 3 files changed, 8 insertions(+), 7 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 8655fcb..0311dfd 100644
+index 0311dfd..8c7e340 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -832,7 +832,7 @@ struct drbd_tconn {			/* is a resource from the config file */
- 
- 	unsigned long flags;
- 	struct net_conf *net_conf;	/* content protected by rcu */
--	struct mutex net_conf_update;	/* mutex for ready-copy-update of net_conf */
-+	struct mutex conf_update;	/* mutex for ready-copy-update of net_conf and disk_conf */
- 	wait_queue_head_t ping_wait;	/* Woken upon reception of a ping, and a state change */
- 	struct res_opts res_opts;
- 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index cd08136..352c36f 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2474,7 +2474,7 @@ struct drbd_tconn *conn_create(const char *name)
- 	tconn->cstate = C_STANDALONE;
- 	mutex_init(&tconn->cstate_mutex);
- 	spin_lock_init(&tconn->req_lock);
--	mutex_init(&tconn->net_conf_update);
-+	mutex_init(&tconn->conf_update);
- 	init_waitqueue_head(&tconn->ping_wait);
- 	idr_init(&tconn->volumes);
- 
+@@ -1395,7 +1395,7 @@ extern int drbd_msg_put_info(const char *info);
+ extern void drbd_suspend_io(struct drbd_conf *mdev);
+ extern void drbd_resume_io(struct drbd_conf *mdev);
+ extern char *ppsize(char *buf, unsigned long long size);
+-extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *, int);
++extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *, sector_t, int);
+ enum determine_dev_size { dev_size_error = -1, unchanged = 0, shrunk = 1, grew = 2 };
+ extern enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
+ extern void resync_after_online_grow(struct drbd_conf *);
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 13230d9..6317ae5 100644
+index 6317ae5..dfe43f2 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -619,11 +619,11 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
- 			put_ldev(mdev);
- 		}
- 	} else {
--		mutex_lock(&mdev->tconn->net_conf_update);
-+		mutex_lock(&mdev->tconn->conf_update);
- 		nc = mdev->tconn->net_conf;
- 		if (nc)
- 			nc->want_lose = 0; /* without copy; single bit op is atomic */
--		mutex_unlock(&mdev->tconn->net_conf_update);
-+		mutex_unlock(&mdev->tconn->conf_update);
+@@ -797,7 +797,7 @@ void drbd_resume_io(struct drbd_conf *mdev)
+ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags) __must_hold(local)
+ {
+ 	sector_t prev_first_sect, prev_size; /* previous meta location */
+-	sector_t la_size;
++	sector_t la_size, u_size;
+ 	sector_t size;
+ 	char ppb[10];
  
- 		set_disk_ro(mdev->vdisk, false);
- 		if (get_ldev(mdev)) {
-@@ -1874,7 +1874,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 	conn_reconfig_start(tconn);
+@@ -825,7 +825,8 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
+ 	/* TODO: should only be some assert here, not (re)init... */
+ 	drbd_md_set_sector_offsets(mdev, mdev->ldev);
  
- 	mutex_lock(&tconn->data.mutex);
--	mutex_lock(&tconn->net_conf_update);
-+	mutex_lock(&tconn->conf_update);
- 	old_conf = tconn->net_conf;
+-	size = drbd_new_dev_size(mdev, mdev->ldev, flags & DDSF_FORCED);
++	u_size = mdev->ldev->dc.disk_size;
++	size = drbd_new_dev_size(mdev, mdev->ldev, u_size, flags & DDSF_FORCED);
  
- 	if (!old_conf) {
-@@ -1948,7 +1948,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 	crypto_free_hash(tconn->cram_hmac_tfm);
- 	tconn->cram_hmac_tfm = crypto.cram_hmac_tfm;
+ 	if (drbd_get_capacity(mdev->this_bdev) != size ||
+ 	    drbd_bm_capacity(mdev) != size) {
+@@ -888,12 +889,12 @@ out:
+ }
  
--	mutex_unlock(&tconn->net_conf_update);
-+	mutex_unlock(&tconn->conf_update);
- 	mutex_unlock(&tconn->data.mutex);
- 	synchronize_rcu();
- 	kfree(old_conf);
-@@ -1959,7 +1959,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 	goto done;
+ sector_t
+-drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev, int assume_peer_has_space)
++drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
++		  sector_t u_size, int assume_peer_has_space)
+ {
+ 	sector_t p_size = mdev->p_size;   /* partner's disk size. */
+ 	sector_t la_size = bdev->md.la_size_sect; /* last agreed size. */
+ 	sector_t m_size; /* my size */
+-	sector_t u_size = bdev->dc.disk_size; /* size requested by user. */
+ 	sector_t size = 0;
  
-  fail:
--	mutex_unlock(&tconn->net_conf_update);
-+	mutex_unlock(&tconn->conf_update);
- 	mutex_unlock(&tconn->data.mutex);
- 	free_crypto(&crypto);
- 	kfree(new_conf);
-@@ -2055,11 +2055,11 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
+ 	m_size = drbd_get_max_capacity(bdev);
+@@ -1442,7 +1443,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
  
- 	conn_flush_workqueue(tconn);
- 
--	mutex_lock(&tconn->net_conf_update);
-+	mutex_lock(&tconn->conf_update);
- 	old_conf = tconn->net_conf;
- 	if (old_conf) {
- 		retcode = ERR_NET_CONFIGURED;
--		mutex_unlock(&tconn->net_conf_update);
-+		mutex_unlock(&tconn->conf_update);
- 		goto fail;
- 	}
- 	rcu_assign_pointer(tconn->net_conf, new_conf);
-@@ -2072,7 +2072,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 	tconn->csums_tfm = crypto.csums_tfm;
- 	tconn->verify_tfm = crypto.verify_tfm;
- 
--	mutex_unlock(&tconn->net_conf_update);
-+	mutex_unlock(&tconn->conf_update);
- 
- 	rcu_read_lock();
- 	idr_for_each_entry(&tconn->volumes, mdev, i) {
+ 	/* Prevent shrinking of consistent devices ! */
+ 	if (drbd_md_test_flag(nbc, MDF_CONSISTENT) &&
+-	    drbd_new_dev_size(mdev, nbc, 0) < nbc->md.la_size_sect) {
++	    drbd_new_dev_size(mdev, nbc, nbc->dc.disk_size, 0) < nbc->md.la_size_sect) {
+ 		dev_warn(DEV, "refusing to truncate a consistent device\n");
+ 		retcode = ERR_DISK_TO_SMALL;
+ 		goto force_diskless_dec;
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 956cdda..567d64b 100644
+index 567d64b..23614e4 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3221,7 +3221,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
- 			p->csums_alg[SHARED_SECRET_MAX-1] = 0;
- 		}
+@@ -3379,7 +3379,7 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
  
--		mutex_lock(&mdev->tconn->net_conf_update);
-+		mutex_lock(&mdev->tconn->conf_update);
- 		old_conf = mdev->tconn->net_conf;
- 
- 		if (strcmp(old_conf->verify_alg, p->verify_alg)) {
-@@ -3296,7 +3296,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
- 			}
- 			rcu_assign_pointer(tconn->net_conf, new_conf);
- 		}
--		mutex_unlock(&mdev->tconn->net_conf_update);
-+		mutex_unlock(&mdev->tconn->conf_update);
- 		if (new_conf) {
- 			synchronize_rcu();
- 			kfree(old_conf);
-@@ -3314,7 +3314,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
- 	return 0;
- 
- disconnect:
--	mutex_unlock(&mdev->tconn->net_conf_update);
-+	mutex_unlock(&mdev->tconn->conf_update);
- 	/* just for completeness: actually not needed,
- 	 * as this is not reached if csums_tfm was ok. */
- 	crypto_free_hash(csums_tfm);
-@@ -3744,9 +3744,9 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
- 		}
- 	}
- 
--	mutex_lock(&mdev->tconn->net_conf_update);
-+	mutex_lock(&mdev->tconn->conf_update);
- 	mdev->tconn->net_conf->want_lose = 0; /* without copy; single bit op is atomic */
--	mutex_unlock(&mdev->tconn->net_conf_update);
-+	mutex_unlock(&mdev->tconn->conf_update);
- 
- 	drbd_md_sync(mdev); /* update connected indicator, la_size, ... */
- 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 327a75e..befaf07 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1392,11 +1392,11 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
- 	if (oc == C_DISCONNECTING && ns_max.conn == C_STANDALONE) {
- 		struct net_conf *old_conf;
- 
--		mutex_lock(&tconn->net_conf_update);
-+		mutex_lock(&tconn->conf_update);
- 		old_conf = tconn->net_conf;
- 		rcu_assign_pointer(tconn->net_conf, NULL);
- 		conn_free_crypto(tconn);
--		mutex_unlock(&tconn->net_conf_update);
-+		mutex_unlock(&tconn->conf_update);
- 
- 		synchronize_rcu();
- 		kfree(old_conf);
+ 		/* Never shrink a device with usable data during connect.
+ 		   But allow online shrinking if we are connected. */
+-		if (drbd_new_dev_size(mdev, mdev->ldev, 0) <
++		if (drbd_new_dev_size(mdev, mdev->ldev, p_usize, 0) <
+ 		   drbd_get_capacity(mdev->this_bdev) &&
+ 		   mdev->state.disk >= D_OUTDATED &&
+ 		   mdev->state.conn < C_CONNECTED) {
 -- 
 1.7.4.1
 
