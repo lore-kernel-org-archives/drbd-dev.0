@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu,  6 Oct 2011 15:37:56 +0200
-Message-Id: <1317908280-28951-12-git-send-email-philipp.reisner@linbit.com>
+Date: Thu,  6 Oct 2011 15:37:57 +0200
+Message-Id: <1317908280-28951-13-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317908280-28951-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317908280-28951-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/15] drbd: Convert boolean flags on netlink
-	from NLA_FLAG to NLA_U8
+Subject: [Drbd-dev] [PATCH 12/15] drbd: Turn no-disk-flushes into
+	disk-flushes={yes|no}
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,47 +20,44 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-Flags of type NLA_FLAG are either present or absent, but do not have a
-value by themselves.  Use type NLA_U8 for our boolean flags instead, and
-use the value to determine if the flag should be on or off.
-
-On the drbdsetup command line, all those flags have an optional yes/no
-argument which defaults to yes.
+Change the --no-disk-flushes drbdsetup command line option as well as
+the no_disk_flush netlink packet.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- include/linux/genl_magic_struct.h |   10 ++--------
- 1 files changed, 2 insertions(+), 8 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |    2 +-
+ include/linux/drbd_genl.h          |    4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/genl_magic_struct.h b/include/linux/genl_magic_struct.h
-index ddbdd0a..b1ddbb5 100644
---- a/include/linux/genl_magic_struct.h
-+++ b/include/linux/genl_magic_struct.h
-@@ -86,8 +86,8 @@ enum {
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 73f605b..1024f04 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1179,7 +1179,7 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo)
+ 	rcu_read_lock();
+ 	dc = rcu_dereference(mdev->ldev->disk_conf);
  
- /* possible field types */
- #define __flg_field(attr_nr, attr_flag, name) \
--	__field(attr_nr, attr_flag, name, NLA_FLAG, char, \
--			nla_get_flag, __nla_put_flag)
-+	__field(attr_nr, attr_flag, name, NLA_U8, char, \
-+			nla_get_u8, NLA_PUT_U8)
- #define __u8_field(attr_nr, attr_flag, name)	\
- 	__field(attr_nr, attr_flag, name, NLA_U8, unsigned char, \
- 			nla_get_u8, NLA_PUT_U8)
-@@ -118,12 +118,6 @@ enum {
- #define __str_field_def(attr_nr, attr_flag, name, maxlen) \
- 	__str_field(attr_nr, attr_flag, name, maxlen)
+-	if (wo == WO_bdev_flush && dc->no_disk_flush)
++	if (wo == WO_bdev_flush && !dc->disk_flushes)
+ 		wo = WO_drain_io;
+ 	if (wo == WO_drain_io && dc->no_disk_drain)
+ 		wo = WO_none;
+diff --git a/include/linux/drbd_genl.h b/include/linux/drbd_genl.h
+index 529627b..c5e7a99 100644
+--- a/include/linux/drbd_genl.h
++++ b/include/linux/drbd_genl.h
+@@ -124,8 +124,8 @@ GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
+ 	__u32_field_def(14,	GENLA_F_MANDATORY,	c_max_rate, DRBD_C_MAX_RATE_DEF)
+ 	__u32_field_def(15,	GENLA_F_MANDATORY,	c_min_rate, DRBD_C_MIN_RATE_DEF)
  
--#define __nla_put_flag(skb, attrtype, value)		\
--	do {						\
--		if (value)				\
--			NLA_PUT_FLAG(skb, attrtype);	\
--	} while (0)
--
- #define GENL_op_init(args...)	args
- #define GENL_doit(handler)		\
- 	.doit = handler,		\
+-	__flg_field_def(16, GENLA_F_MANDATORY,	no_disk_barrier, 0)
+-	__flg_field_def(17, GENLA_F_MANDATORY,	no_disk_flush, 0)
++	__flg_field_def(16, GENLA_F_MANDATORY,	disk_barrier, 1)
++	__flg_field_def(17, GENLA_F_MANDATORY,	disk_flushes, 1)
+ 	__flg_field_def(18, GENLA_F_MANDATORY,	no_disk_drain, 0)
+ 	__flg_field_def(19, GENLA_F_MANDATORY,	no_md_flush, 0)
+ )
 -- 
 1.7.4.1
 
