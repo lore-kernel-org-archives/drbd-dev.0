@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri,  7 Oct 2011 13:27:37 +0200
-Message-Id: <1317986865-3706-5-git-send-email-philipp.reisner@linbit.com>
+Date: Fri,  7 Oct 2011 13:27:38 +0200
+Message-Id: <1317986865-3706-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317986865-3706-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317986865-3706-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/12] drbd: Make broadcast events return NO_ERROR
+Subject: [Drbd-dev] [PATCH 05/12] drbd: Also define the default values of
+	boolean flags in a single place
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -19,29 +20,68 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-Instead of returning a ret_code outside of the range of enum
-drbd_ret_code, use NO_ERROR to indicate success.  This way,
-ret_code has the same meaning in all packets.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ include/linux/drbd_genl.h   |   16 ++++++++--------
+ include/linux/drbd_limits.h |   10 ++++++++++
+ 2 files changed, 18 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 70f7dd8..caa8ba2 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -3229,7 +3229,7 @@ void drbd_bcast_event(struct drbd_conf *mdev, const struct sib_info *sib)
- 	if (!d_out) /* cannot happen, but anyways. */
- 		goto nla_put_failure;
- 	d_out->minor = mdev_to_minor(mdev);
--	d_out->ret_code = 0;
-+	d_out->ret_code = NO_ERROR;
+diff --git a/include/linux/drbd_genl.h b/include/linux/drbd_genl.h
+index 601334b..eba635a 100644
+--- a/include/linux/drbd_genl.h
++++ b/include/linux/drbd_genl.h
+@@ -124,10 +124,10 @@ GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
+ 	__u32_field_def(14,	GENLA_F_MANDATORY,	c_max_rate, DRBD_C_MAX_RATE_DEF)
+ 	__u32_field_def(15,	GENLA_F_MANDATORY,	c_min_rate, DRBD_C_MIN_RATE_DEF)
  
- 	pr_info("event: minor=%u, conn=%s\n", d_out->minor, mdev->tconn->name);
+-	__flg_field_def(16, GENLA_F_MANDATORY,	disk_barrier, 1)
+-	__flg_field_def(17, GENLA_F_MANDATORY,	disk_flushes, 1)
+-	__flg_field_def(18, GENLA_F_MANDATORY,	disk_drain, 1)
+-	__flg_field_def(19, GENLA_F_MANDATORY,	md_flushes, 1)
++	__flg_field_def(16, GENLA_F_MANDATORY,	disk_barrier, DRBD_DISK_BARRIER_DEF)
++	__flg_field_def(17, GENLA_F_MANDATORY,	disk_flushes, DRBD_DISK_FLUSHES_DEF)
++	__flg_field_def(18, GENLA_F_MANDATORY,	disk_drain, DRBD_DISK_DRAIN_DEF)
++	__flg_field_def(19, GENLA_F_MANDATORY,	md_flushes, DRBD_MD_FLUSHES_DEF)
+ )
  
+ GENL_struct(DRBD_NLA_RESOURCE_OPTS, 4, res_opts,
+@@ -162,12 +162,12 @@ GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
+ 	__u32_field_def(23,	GENLA_F_MANDATORY,	on_congestion, DRBD_ON_CONGESTION_DEF)
+ 	__u32_field_def(24,	GENLA_F_MANDATORY,	cong_fill, DRBD_CONG_FILL_DEF)
+ 	__u32_field_def(25,	GENLA_F_MANDATORY,	cong_extents, DRBD_CONG_EXTENTS_DEF)
+-	__flg_field_def(26, GENLA_F_MANDATORY,	two_primaries, 0)
++	__flg_field_def(26, GENLA_F_MANDATORY,	two_primaries, DRBD_ALLOW_TWO_PRIMARIES_DEF)
+ 	__flg_field(27, GENLA_F_MANDATORY | GENLA_F_INVARIANT,	want_lose)
+-	__flg_field_def(28, GENLA_F_MANDATORY,	tcp_cork, 1)
+-	__flg_field_def(29, GENLA_F_MANDATORY,	always_asbp, 0)
++	__flg_field_def(28, GENLA_F_MANDATORY,	tcp_cork, DRBD_TCP_CORK_DEF)
++	__flg_field_def(29, GENLA_F_MANDATORY,	always_asbp, DRBD_ALWAYS_ASBP_DEF)
+ 	__flg_field(30, GENLA_F_MANDATORY | GENLA_F_INVARIANT,	dry_run)
+-	__flg_field_def(31,	GENLA_F_MANDATORY,	use_rle, 0)
++	__flg_field_def(31,	GENLA_F_MANDATORY,	use_rle, DRBD_USE_RLE_DEF)
+ )
+ 
+ GENL_struct(DRBD_NLA_SET_ROLE_PARMS, 6, set_role_parms,
+diff --git a/include/linux/drbd_limits.h b/include/linux/drbd_limits.h
+index 52530aa..f44a0b3 100644
+--- a/include/linux/drbd_limits.h
++++ b/include/linux/drbd_limits.h
+@@ -168,4 +168,14 @@
+ 
+ #define DRBD_PROTOCOL_DEF DRBD_PROT_C
+ 
++#define DRBD_DISK_BARRIER_DEF	1
++#define DRBD_DISK_FLUSHES_DEF	1
++#define DRBD_DISK_DRAIN_DEF	1
++#define DRBD_MD_FLUSHES_DEF	1
++#define DRBD_TCP_CORK_DEF	1
++
++#define DRBD_ALLOW_TWO_PRIMARIES_DEF	0
++#define DRBD_ALWAYS_ASBP_DEF	0
++#define DRBD_USE_RLE_DEF	0
++
+ #endif
 -- 
 1.7.4.1
 
