@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri,  7 Oct 2011 13:27:42 +0200
-Message-Id: <1317986865-3706-10-git-send-email-philipp.reisner@linbit.com>
+Date: Fri,  7 Oct 2011 13:27:43 +0200
+Message-Id: <1317986865-3706-11-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1317986865-3706-1-git-send-email-philipp.reisner@linbit.com>
 References: <1317986865-3706-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 09/12] drbd: Refer to connect-int consistently
-	throughout the code
+Subject: [Drbd-dev] [PATCH 10/12] drbd: Fix the upper limit of resync-after
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,84 +19,180 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
+The 32-bit resync_after netlink field takes a device minor number as
+parameter, which is no longer limited to 255.  We cannot statically
+verify which device numbers are valid, so set the ummer limit to the
+highest possible signed 32-bit integer.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   12 ++++++------
- include/linux/drbd_genl.h          |    2 +-
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_int.h    |    4 ++--
+ drivers/block/drbd/drbd_nl.c     |    4 ++--
+ drivers/block/drbd/drbd_worker.c |   26 +++++++++++++-------------
+ include/linux/drbd.h             |    4 ++--
+ include/linux/drbd_genl.h        |    2 +-
+ include/linux/drbd_limits.h      |    7 ++++---
+ 6 files changed, 24 insertions(+), 23 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 684f795..7deade1 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -617,7 +617,7 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
- 	struct sockaddr_in6 peer_in6;
- 	struct net_conf *nc;
- 	int err, peer_addr_len, my_addr_len;
--	int sndbuf_size, rcvbuf_size, try_connect_int;
-+	int sndbuf_size, rcvbuf_size, connect_int;
- 	int disconnect_on_error = 1;
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 8026ada..e167228 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1408,8 +1408,8 @@ extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
  
- 	rcu_read_lock();
-@@ -629,7 +629,7 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
- 
- 	sndbuf_size = nc->sndbuf_size;
- 	rcvbuf_size = nc->rcvbuf_size;
--	try_connect_int = nc->try_connect_int;
-+	connect_int = nc->connect_int;
- 
- 	my_addr_len = min_t(int, nc->my_addr_len, sizeof(src_in6));
- 	memcpy(&src_in6, nc->my_addr, my_addr_len);
-@@ -653,7 +653,7 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
+ /* drbd_worker.c */
+ extern int drbd_worker(struct drbd_thread *thi);
+-enum drbd_ret_code drbd_sync_after_valid(struct drbd_conf *mdev, int o_minor);
+-void drbd_sync_after_changed(struct drbd_conf *mdev);
++enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor);
++void drbd_resync_after_changed(struct drbd_conf *mdev);
+ extern void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side);
+ extern void resume_next_sg(struct drbd_conf *mdev);
+ extern void suspend_other_sg(struct drbd_conf *mdev);
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 64de372..e67ce20 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1219,10 +1219,10 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
  	}
  
- 	sock->sk->sk_rcvtimeo =
--	sock->sk->sk_sndtimeo = try_connect_int * HZ;
-+	sock->sk->sk_sndtimeo = connect_int * HZ;
- 	drbd_setbufsize(sock, sndbuf_size, rcvbuf_size);
+ 	write_lock_irq(&global_state_lock);
+-	retcode = drbd_sync_after_valid(mdev, new_disk_conf->resync_after);
++	retcode = drbd_resync_after_valid(mdev, new_disk_conf->resync_after);
+ 	if (retcode == NO_ERROR) {
+ 		rcu_assign_pointer(mdev->ldev->disk_conf, new_disk_conf);
+-		drbd_sync_after_changed(mdev);
++		drbd_resync_after_changed(mdev);
+ 	}
+ 	write_unlock_irq(&global_state_lock);
  
-        /* explicitly bind to the configured IP as source IP
-@@ -702,7 +702,7 @@ out:
- static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 46b5f7f..85bcab9 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -57,7 +57,7 @@ static int w_make_ov_request(struct drbd_work *w, int cancel);
+ 
+ /* About the global_state_lock
+    Each state transition on an device holds a read lock. In case we have
+-   to evaluate the sync after dependencies, we grab a write lock, because
++   to evaluate the resync after dependencies, we grab a write lock, because
+    we need stable states on all devices for that.  */
+ rwlock_t global_state_lock;
+ 
+@@ -1340,17 +1340,17 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
+ static int _drbd_may_sync_now(struct drbd_conf *mdev)
  {
- 	int timeo, err, my_addr_len;
--	int sndbuf_size, rcvbuf_size, try_connect_int;
-+	int sndbuf_size, rcvbuf_size, connect_int;
- 	struct socket *s_estab = NULL, *s_listen;
- 	struct sockaddr_in6 my_addr;
- 	struct net_conf *nc;
-@@ -717,7 +717,7 @@ static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
+ 	struct drbd_conf *odev = mdev;
+-	int ra;
++	int resync_after;
  
- 	sndbuf_size = nc->sndbuf_size;
- 	rcvbuf_size = nc->rcvbuf_size;
--	try_connect_int = nc->try_connect_int;
-+	connect_int = nc->connect_int;
+ 	while (1) {
+ 		if (!odev->ldev)
+ 			return 1;
+ 		rcu_read_lock();
+-		ra = rcu_dereference(odev->ldev->disk_conf)->resync_after;
++		resync_after = rcu_dereference(odev->ldev->disk_conf)->resync_after;
+ 		rcu_read_unlock();
+-		if (ra == -1)
++		if (resync_after == -1)
+ 			return 1;
+-		odev = minor_to_mdev(ra);
++		odev = minor_to_mdev(resync_after);
+ 		if (!expect(odev))
+ 			return 1;
+ 		if ((odev->state.conn >= C_SYNC_SOURCE &&
+@@ -1426,36 +1426,36 @@ void suspend_other_sg(struct drbd_conf *mdev)
+ }
  
- 	my_addr_len = min_t(int, nc->my_addr_len, sizeof(struct sockaddr_in6));
- 	memcpy(&my_addr, nc->my_addr, my_addr_len);
-@@ -731,7 +731,7 @@ static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
- 		goto out;
+ /* caller must hold global_state_lock */
+-enum drbd_ret_code drbd_sync_after_valid(struct drbd_conf *mdev, int o_minor)
++enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor)
+ {
+ 	struct drbd_conf *odev;
+-	int ra;
++	int resync_after;
+ 
+ 	if (o_minor == -1)
+ 		return NO_ERROR;
+ 	if (o_minor < -1 || minor_to_mdev(o_minor) == NULL)
+-		return ERR_SYNC_AFTER;
++		return ERR_RESYNC_AFTER;
+ 
+ 	/* check for loops */
+ 	odev = minor_to_mdev(o_minor);
+ 	while (1) {
+ 		if (odev == mdev)
+-			return ERR_SYNC_AFTER_CYCLE;
++			return ERR_RESYNC_AFTER_CYCLE;
+ 
+ 		rcu_read_lock();
+-		ra = rcu_dereference(odev->ldev->disk_conf)->resync_after;
++		resync_after = rcu_dereference(odev->ldev->disk_conf)->resync_after;
+ 		rcu_read_unlock();
+ 		/* dependency chain ends here, no cycles. */
+-		if (ra == -1)
++		if (resync_after == -1)
+ 			return NO_ERROR;
+ 
+ 		/* follow the dependency chain */
+-		odev = minor_to_mdev(ra);
++		odev = minor_to_mdev(resync_after);
  	}
+ }
  
--	timeo = try_connect_int * HZ;
-+	timeo = connect_int * HZ;
- 	timeo += (random32() & 1) ? timeo / 7 : -timeo / 7; /* 28.5% random jitter */
+ /* caller must hold global_state_lock */
+-void drbd_sync_after_changed(struct drbd_conf *mdev)
++void drbd_resync_after_changed(struct drbd_conf *mdev)
+ {
+ 	int changes;
  
- 	s_listen->sk->sk_reuse    = 1; /* SO_REUSEADDR */
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index 6c7c85d..05063e6 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -130,8 +130,8 @@ enum drbd_ret_code {
+ 	ERR_INTR		= 129, /* EINTR */
+ 	ERR_RESIZE_RESYNC	= 130,
+ 	ERR_NO_PRIMARY		= 131,
+-	ERR_SYNC_AFTER		= 132,
+-	ERR_SYNC_AFTER_CYCLE	= 133,
++	ERR_RESYNC_AFTER	= 132,
++	ERR_RESYNC_AFTER_CYCLE	= 133,
+ 	ERR_PAUSE_IS_SET	= 134,
+ 	ERR_PAUSE_IS_CLEAR	= 135,
+ 	ERR_PACKET_NR		= 137,
 diff --git a/include/linux/drbd_genl.h b/include/linux/drbd_genl.h
-index 4d76d0a..07b4f4a 100644
+index 07b4f4a..40606ad 100644
 --- a/include/linux/drbd_genl.h
 +++ b/include/linux/drbd_genl.h
-@@ -145,7 +145,7 @@ GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
- 	__str_field_def(6,	GENLA_F_MANDATORY,	verify_alg,     SHARED_SECRET_MAX)
- 	__str_field_def(7,	GENLA_F_MANDATORY,	csums_alg,	SHARED_SECRET_MAX)
- 	__u32_field_def(8,	GENLA_F_MANDATORY,	wire_protocol, DRBD_PROTOCOL_DEF)
--	__u32_field_def(9,	GENLA_F_MANDATORY,	try_connect_int, DRBD_CONNECT_INT_DEF)
-+	__u32_field_def(9,	GENLA_F_MANDATORY,	connect_int, DRBD_CONNECT_INT_DEF)
- 	__u32_field_def(10,	GENLA_F_MANDATORY,	timeout, DRBD_TIMEOUT_DEF)
- 	__u32_field_def(11,	GENLA_F_MANDATORY,	ping_int, DRBD_PING_INT_DEF)
- 	__u32_field_def(12,	GENLA_F_MANDATORY,	ping_timeo, DRBD_PING_TIMEO_DEF)
+@@ -116,7 +116,7 @@ GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
+ 	__u32_field_def(7, GENLA_F_MANDATORY,	fencing, DRBD_FENCING_DEF)
+ 
+ 	__u32_field_def(8,	GENLA_F_MANDATORY,	resync_rate, DRBD_RESYNC_RATE_DEF)
+-	__u32_field_def(9,	GENLA_F_MANDATORY,	resync_after, DRBD_AFTER_DEF)
++	__u32_field_def(9,	GENLA_F_MANDATORY,	resync_after, DRBD_RESYNC_AFTER_DEF)
+ 	__u32_field_def(10,	GENLA_F_MANDATORY,	al_extents, DRBD_AL_EXTENTS_DEF)
+ 	__u32_field_def(11,	GENLA_F_MANDATORY,	c_plan_ahead, DRBD_C_PLAN_AHEAD_DEF)
+ 	__u32_field_def(12,	GENLA_F_MANDATORY,	c_delay_target, DRBD_C_DELAY_TARGET_DEF)
+diff --git a/include/linux/drbd_limits.h b/include/linux/drbd_limits.h
+index 27f5a13..62e93b2 100644
+--- a/include/linux/drbd_limits.h
++++ b/include/linux/drbd_limits.h
+@@ -111,9 +111,10 @@
+ #define DRBD_AL_EXTENTS_MAX  6433
+ #define DRBD_AL_EXTENTS_DEF  127
+ 
+-#define DRBD_AFTER_MIN  -1
+-#define DRBD_AFTER_MAX  255
+-#define DRBD_AFTER_DEF  -1
++#define DRBD_RESYNC_AFTER_MIN  -1
++#define DRBD_RESYNC_AFTER_MAX  (1<<30)
++#define DRBD_RESYNC_AFTER_DEF  -1
++#define DRBD_RESYNC_AFTER_SCALE '1'
+ 
+ /* } */
+ 
 -- 
 1.7.4.1
 
