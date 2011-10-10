@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 10 Oct 2011 13:54:54 +0200
-Message-Id: <1318247706-7732-2-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 10 Oct 2011 13:54:55 +0200
+Message-Id: <1318247706-7732-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1318247706-7732-1-git-send-email-philipp.reisner@linbit.com>
 References: <1318247706-7732-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/13] drbd: Refuse to change network options
-	online when...
+Subject: [Drbd-dev] [PATCH 02/13] drbd: protect updates to integrits_tfm by
+	tconn->data->mutex
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,67 +18,64 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-* the peer does not speak protocol_version 100 and the
-  user wants to change one of:
-    - wire_protocol
-    - two_primaries
-    - integrity_alg
-
-* the user wants to remove the allow_two_primaries flag
-  when there are two primaries
+Since we need to hold that mutex anyways to make sure the peer
+gets that change in the right position in the data stream,
+it makes a lot of sense to use the same mutex to ensure existence
+of the tfm.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c |   22 ++++++++++++++++++----
- include/linux/drbd.h         |    1 +
- 2 files changed, 19 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_int.h  |    2 +-
+ drivers/block/drbd/drbd_main.c |    9 +++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 972178b..87fd3bf 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1771,10 +1771,24 @@ _check_net_options(struct drbd_tconn *tconn, struct net_conf *old_conf, struct n
- 	struct drbd_conf *mdev;
- 	int i;
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index e167228..c59012f 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -848,7 +848,7 @@ struct drbd_tconn {			/* is a resource from the config file */
+ 	struct list_head out_of_sequence_requests;
  
--	if (old_conf && tconn->agreed_pro_version < 100 &&
--	    tconn->cstate == C_WF_REPORT_PARAMS &&
--	    new_conf->wire_protocol != old_conf->wire_protocol)
--		return ERR_NEED_APV_100;
-+	if (old_conf && tconn->cstate == C_WF_REPORT_PARAMS && tconn->agreed_pro_version < 100) {
-+		if (new_conf->wire_protocol != old_conf->wire_protocol)
-+			return ERR_NEED_APV_100;
-+
-+		if (new_conf->two_primaries != old_conf->two_primaries)
-+			return ERR_NEED_APV_100;
-+
-+		if (!new_conf->integrity_alg != !old_conf->integrity_alg)
-+			return ERR_NEED_APV_100;
-+
-+		if (strcmp(new_conf->integrity_alg, old_conf->integrity_alg))
-+			return ERR_NEED_APV_100;
-+	}
-+
-+	if (!new_conf->two_primaries &&
-+	    conn_highest_role(tconn) == R_PRIMARY &&
-+	    conn_highest_peer(tconn) == R_PRIMARY)
-+		return ERR_NEED_ALLOW_TWO_PRI;
+ 	struct crypto_hash *cram_hmac_tfm;
+-	struct crypto_hash *integrity_tfm;  /* checksums we compute */
++	struct crypto_hash *integrity_tfm;  /* checksums we compute, updates protected by tconn->data->mutex */
+ 	struct crypto_hash *peer_integrity_tfm;  /* checksums we verify */
+ 	struct crypto_hash *csums_tfm;
+ 	struct crypto_hash *verify_tfm;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 939d31b..7c806b9 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1720,11 +1720,11 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
+ 	int dgs;
+ 	int err;
  
- 	if (new_conf->two_primaries &&
- 	    (new_conf->wire_protocol != DRBD_PROT_C))
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 05063e6..679e811 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -161,6 +161,7 @@ enum drbd_ret_code {
- 	ERR_MINOR_EXISTS	= 161,
- 	ERR_INVALID_REQUEST	= 162,
- 	ERR_NEED_APV_100	= 163,
-+	ERR_NEED_ALLOW_TWO_PRI  = 164,
++	sock = &mdev->tconn->data;
++	p = drbd_prepare_command(mdev, sock);
+ 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
+ 		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
  
- 	/* insert new ones above this line */
- 	AFTER_LAST_ERR_CODE
+-	sock = &mdev->tconn->data;
+-	p = drbd_prepare_command(mdev, sock);
+ 	if (!p)
+ 		return -EIO;
+ 	p->sector = cpu_to_be64(req->i.sector);
+@@ -1793,11 +1793,12 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
+ 	int err;
+ 	int dgs;
+ 
++	sock = &mdev->tconn->data;
++	p = drbd_prepare_command(mdev, sock);
++
+ 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
+ 		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
+ 
+-	sock = &mdev->tconn->data;
+-	p = drbd_prepare_command(mdev, sock);
+ 	if (!p)
+ 		return -EIO;
+ 	p->sector = cpu_to_be64(peer_req->i.sector);
 -- 
 1.7.4.1
 
