@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 10 Oct 2011 13:54:55 +0200
-Message-Id: <1318247706-7732-3-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 10 Oct 2011 13:54:56 +0200
+Message-Id: <1318247706-7732-4-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1318247706-7732-1-git-send-email-philipp.reisner@linbit.com>
 References: <1318247706-7732-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/13] drbd: protect updates to integrits_tfm by
-	tconn->data->mutex
+Subject: [Drbd-dev] [PATCH 03/13] drbd: Made cmp_after_sb() more generic
+	into convert_after_sb()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -18,64 +18,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Since we need to hold that mutex anyways to make sure the peer
-gets that change in the right position in the data stream,
-it makes a lot of sense to use the same mutex to ensure existence
-of the tfm.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |    2 +-
- drivers/block/drbd/drbd_main.c |    9 +++++----
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |   25 +++++++++----------------
+ 1 files changed, 9 insertions(+), 16 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index e167228..c59012f 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -848,7 +848,7 @@ struct drbd_tconn {			/* is a resource from the config file */
- 	struct list_head out_of_sequence_requests;
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 7deade1..b5eeb8d 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -2984,25 +2984,18 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
+ 	return rv;
+ }
  
- 	struct crypto_hash *cram_hmac_tfm;
--	struct crypto_hash *integrity_tfm;  /* checksums we compute */
-+	struct crypto_hash *integrity_tfm;  /* checksums we compute, updates protected by tconn->data->mutex */
- 	struct crypto_hash *peer_integrity_tfm;  /* checksums we verify */
- 	struct crypto_hash *csums_tfm;
- 	struct crypto_hash *verify_tfm;
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 939d31b..7c806b9 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -1720,11 +1720,11 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
- 	int dgs;
- 	int err;
+-/* returns 1 if invalid */
+-static int cmp_after_sb(enum drbd_after_sb_p peer, enum drbd_after_sb_p self)
++static enum drbd_after_sb_p convert_after_sb(enum drbd_after_sb_p peer)
+ {
+ 	/* ASB_DISCARD_REMOTE - ASB_DISCARD_LOCAL is valid */
+-	if ((peer == ASB_DISCARD_REMOTE && self == ASB_DISCARD_LOCAL) ||
+-	    (self == ASB_DISCARD_REMOTE && peer == ASB_DISCARD_LOCAL))
+-		return 0;
++	if (peer == ASB_DISCARD_REMOTE)
++		return ASB_DISCARD_LOCAL;
  
-+	sock = &mdev->tconn->data;
-+	p = drbd_prepare_command(mdev, sock);
- 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
- 		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
+ 	/* any other things with ASB_DISCARD_REMOTE or ASB_DISCARD_LOCAL are invalid */
+-	if (peer == ASB_DISCARD_REMOTE || peer == ASB_DISCARD_LOCAL ||
+-	    self == ASB_DISCARD_REMOTE || self == ASB_DISCARD_LOCAL)
+-		return 1;
++	if (peer == ASB_DISCARD_LOCAL)
++		return ASB_DISCARD_REMOTE;
  
--	sock = &mdev->tconn->data;
--	p = drbd_prepare_command(mdev, sock);
- 	if (!p)
- 		return -EIO;
- 	p->sector = cpu_to_be64(req->i.sector);
-@@ -1793,11 +1793,12 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
- 	int err;
- 	int dgs;
+ 	/* everything else is valid if they are equal on both sides. */
+-	if (peer == self)
+-		return 0;
+-
+-	/* everything es is invalid. */
+-	return 1;
++	return peer;
+ }
  
-+	sock = &mdev->tconn->data;
-+	p = drbd_prepare_command(mdev, sock);
-+
- 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
- 		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
+ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
+@@ -3060,17 +3053,17 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
+ 		goto disconnect_rcu_unlock;
+ 	}
  
--	sock = &mdev->tconn->data;
--	p = drbd_prepare_command(mdev, sock);
- 	if (!p)
- 		return -EIO;
- 	p->sector = cpu_to_be64(peer_req->i.sector);
+-	if (cmp_after_sb(p_after_sb_0p, nc->after_sb_0p)) {
++	if (convert_after_sb(p_after_sb_0p) != nc->after_sb_0p) {
+ 		conn_err(tconn, "incompatible after-sb-0pri settings\n");
+ 		goto disconnect_rcu_unlock;
+ 	}
+ 
+-	if (cmp_after_sb(p_after_sb_1p, nc->after_sb_1p)) {
++	if (convert_after_sb(p_after_sb_1p) != nc->after_sb_1p) {
+ 		conn_err(tconn, "incompatible after-sb-1pri settings\n");
+ 		goto disconnect_rcu_unlock;
+ 	}
+ 
+-	if (cmp_after_sb(p_after_sb_2p, nc->after_sb_2p)) {
++	if (convert_after_sb(p_after_sb_2p) != nc->after_sb_2p) {
+ 		conn_err(tconn, "incompatible after-sb-2pri settings\n");
+ 		goto disconnect_rcu_unlock;
+ 	}
 -- 
 1.7.4.1
 
