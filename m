@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 12 Oct 2011 14:27:29 +0200
-Message-Id: <1318422455-17539-8-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 12 Oct 2011 14:27:30 +0200
+Message-Id: <1318422455-17539-9-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1318422455-17539-1-git-send-email-philipp.reisner@linbit.com>
 References: <1318422455-17539-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/13] drbd: Split off netlink mandatory
-	attribute handling into separate file
+Subject: [Drbd-dev] [PATCH 08/13] drbd: Rename DRBD_ADM_NEED_{CONN ->
+	RESOURCE}
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,202 +20,102 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-Duplicate this file in the kernel module and in user space; both sides need it.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/Makefile        |    1 +
- drivers/block/drbd/drbd_int.h      |    6 ----
- drivers/block/drbd/drbd_nl.c       |   51 +--------------------------------
- drivers/block/drbd/drbd_nla.c      |   55 ++++++++++++++++++++++++++++++++++++
- drivers/block/drbd/drbd_nla.h      |    8 +++++
- drivers/block/drbd/drbd_wrappers.h |    1 +
- 6 files changed, 66 insertions(+), 56 deletions(-)
- create mode 100644 drivers/block/drbd/drbd_nla.c
- create mode 100644 drivers/block/drbd/drbd_nla.h
+ drivers/block/drbd/drbd_nl.c |   22 +++++++++++-----------
+ 1 files changed, 11 insertions(+), 11 deletions(-)
 
-diff --git a/drivers/block/drbd/Makefile b/drivers/block/drbd/Makefile
-index 06fb445..8b45033 100644
---- a/drivers/block/drbd/Makefile
-+++ b/drivers/block/drbd/Makefile
-@@ -2,5 +2,6 @@ drbd-y := drbd_bitmap.o drbd_proc.o
- drbd-y += drbd_worker.o drbd_receiver.o drbd_req.o drbd_actlog.o
- drbd-y += drbd_main.o drbd_strings.o drbd_nl.o
- drbd-y += drbd_interval.o drbd_state.o
-+drbd-y += drbd_nla.o
- 
- obj-$(CONFIG_BLK_DEV_DRBD)     += drbd.o
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index c584301..c301973 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1407,12 +1407,6 @@ extern bool conn_try_outdate_peer(struct drbd_tconn *tconn);
- extern void conn_try_outdate_peer_async(struct drbd_tconn *tconn);
- extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
- 
--struct nla_policy;
--extern int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla);
--extern int drbd_nla_parse_nested(struct nlattr *tb[], int maxtype, struct nlattr *nla,
--				 const struct nla_policy *policy);
--extern struct nlattr *drbd_nla_find_nested(int maxtype, struct nlattr *nla, int attrtype);
--
- /* drbd_worker.c */
- extern int drbd_worker(struct drbd_thread *thi);
- enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor);
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index b75fde7..0c07baf 100644
+index 0c07baf..a834097 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -99,6 +99,7 @@ int drbd_adm_get_timeout_type(struct sk_buff *skb, struct genl_info *info);
- int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb);
+@@ -165,7 +165,7 @@ int drbd_msg_put_info(const char *info)
+  * If it returns successfully, adm_ctx members are valid.
+  */
+ #define DRBD_ADM_NEED_MINOR	1
+-#define DRBD_ADM_NEED_CONN	2
++#define DRBD_ADM_NEED_RESOURCE	2
+ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
+ 		unsigned flags)
+ {
+@@ -230,18 +230,18 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
+ 		drbd_msg_put_info("unknown minor");
+ 		return ERR_MINOR_INVALID;
+ 	}
+-	if (!adm_ctx.tconn && (flags & DRBD_ADM_NEED_CONN)) {
+-		drbd_msg_put_info("unknown connection");
++	if (!adm_ctx.tconn && (flags & DRBD_ADM_NEED_RESOURCE)) {
++		drbd_msg_put_info("unknown resource");
+ 		return ERR_INVALID_REQUEST;
+ 	}
  
- #include <linux/drbd_genl_api.h>
-+#include "drbd_nla.h"
- #include <linux/genl_magic_func.h>
+ 	/* some more paranoia, if the request was over-determined */
+ 	if (adm_ctx.mdev && adm_ctx.tconn &&
+ 	    adm_ctx.mdev->tconn != adm_ctx.tconn) {
+-		pr_warning("request: minor=%u, conn=%s; but that minor belongs to connection %s\n",
++		pr_warning("request: minor=%u, resource=%s; but that minor belongs to connection %s\n",
+ 				adm_ctx.minor, adm_ctx.resource_name,
+ 				adm_ctx.mdev->tconn->name);
+-		drbd_msg_put_info("minor exists in different connection");
++		drbd_msg_put_info("minor exists in different resource");
+ 		return ERR_INVALID_REQUEST;
+ 	}
+ 	if (adm_ctx.mdev &&
+@@ -1909,7 +1909,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
+ 	int rsr; /* re-sync running */
+ 	struct crypto crypto = { };
  
- /* used blkdev_get_by_path, to claim our meta data device(s) */
-@@ -3266,53 +3267,3 @@ failed:
- 			"Event seq:%u sib_reason:%u\n",
- 			err, seq, sib->sib_reason);
- }
--
--int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla)
--{
--	struct nlattr *head = nla_data(nla);
--	int len = nla_len(nla);
--	int rem;
--
--	/*
--	 * validate_nla (called from nla_parse_nested) ignores attributes
--	 * beyond maxtype, and does not understand the DRBD_GENLA_F_MANDATORY flag.
--	 * In order to have it validate attributes with the DRBD_GENLA_F_MANDATORY
--	 * flag set also, check and remove that flag before calling
--	 * nla_parse_nested.
--	 */
--
--	nla_for_each_attr(nla, head, len, rem) {
--		if (nla->nla_type & DRBD_GENLA_F_MANDATORY) {
--			nla->nla_type &= ~DRBD_GENLA_F_MANDATORY;
--			if (nla_type(nla) > maxtype)
--				return -EOPNOTSUPP;
--		}
--	}
--	return 0;
--}
--
--int drbd_nla_parse_nested(struct nlattr *tb[], int maxtype, struct nlattr *nla,
--			  const struct nla_policy *policy)
--{
--	int err;
--
--	err = drbd_nla_check_mandatory(maxtype, nla);
--	if (!err)
--		err = nla_parse_nested(tb, maxtype, nla, policy);
--
--	return err;
--}
--
--struct nlattr *drbd_nla_find_nested(int maxtype, struct nlattr *nla, int attrtype)
--{
--	int err;
--	/*
--	 * If any nested attribute has the DRBD_GENLA_F_MANDATORY flag set and
--	 * we don't know about that attribute, reject all the nested
--	 * attributes.
--	 */
--	err = drbd_nla_check_mandatory(maxtype, nla);
--	if (err)
--		return ERR_PTR(err);
--	return nla_find_nested(nla, attrtype);
--}
-diff --git a/drivers/block/drbd/drbd_nla.c b/drivers/block/drbd/drbd_nla.c
-new file mode 100644
-index 0000000..fa672b6
---- /dev/null
-+++ b/drivers/block/drbd/drbd_nla.c
-@@ -0,0 +1,55 @@
-+#include "drbd_wrappers.h"
-+#include <linux/kernel.h>
-+#include <net/netlink.h>
-+#include <linux/drbd_genl_api.h>
-+#include "drbd_nla.h"
-+
-+static int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla)
-+{
-+	struct nlattr *head = nla_data(nla);
-+	int len = nla_len(nla);
-+	int rem;
-+
-+	/*
-+	 * validate_nla (called from nla_parse_nested) ignores attributes
-+	 * beyond maxtype, and does not understand the DRBD_GENLA_F_MANDATORY flag.
-+	 * In order to have it validate attributes with the DRBD_GENLA_F_MANDATORY
-+	 * flag set also, check and remove that flag before calling
-+	 * nla_parse_nested.
-+	 */
-+
-+	nla_for_each_attr(nla, head, len, rem) {
-+		if (nla->nla_type & DRBD_GENLA_F_MANDATORY) {
-+			nla->nla_type &= ~DRBD_GENLA_F_MANDATORY;
-+			if (nla_type(nla) > maxtype)
-+				return -EOPNOTSUPP;
-+		}
-+	}
-+	return 0;
-+}
-+
-+int drbd_nla_parse_nested(struct nlattr *tb[], int maxtype, struct nlattr *nla,
-+			  const struct nla_policy *policy)
-+{
-+	int err;
-+
-+	err = drbd_nla_check_mandatory(maxtype, nla);
-+	if (!err)
-+		err = nla_parse_nested(tb, maxtype, nla, policy);
-+
-+	return err;
-+}
-+
-+struct nlattr *drbd_nla_find_nested(int maxtype, struct nlattr *nla, int attrtype)
-+{
-+	int err;
-+	/*
-+	 * If any nested attribute has the DRBD_GENLA_F_MANDATORY flag set and
-+	 * we don't know about that attribute, reject all the nested
-+	 * attributes.
-+	 */
-+	err = drbd_nla_check_mandatory(maxtype, nla);
-+	if (err)
-+		return ERR_PTR(err);
-+	return nla_find_nested(nla, attrtype);
-+}
-diff --git a/drivers/block/drbd/drbd_nla.h b/drivers/block/drbd/drbd_nla.h
-new file mode 100644
-index 0000000..679c2d5
---- /dev/null
-+++ b/drivers/block/drbd/drbd_nla.h
-@@ -0,0 +1,8 @@
-+#ifndef __DRBD_NLA_H
-+#define __DRBD_NLA_H
-+
-+extern int drbd_nla_parse_nested(struct nlattr *tb[], int maxtype, struct nlattr *nla,
-+				 const struct nla_policy *policy);
-+extern struct nlattr *drbd_nla_find_nested(int maxtype, struct nlattr *nla, int attrtype);
-+
-+#endif  /* __DRBD_NLA_H */
-diff --git a/drivers/block/drbd/drbd_wrappers.h b/drivers/block/drbd/drbd_wrappers.h
-index 46a6d99..328f18e 100644
---- a/drivers/block/drbd/drbd_wrappers.h
-+++ b/drivers/block/drbd/drbd_wrappers.h
-@@ -3,6 +3,7 @@
+-	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONN);
++	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+ 	if (!adm_ctx.reply_skb)
+ 		return retcode;
+ 	if (retcode != NO_ERROR)
+@@ -2042,7 +2042,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
+ 	int i;
+ 	int err;
  
- #include <linux/ctype.h>
- #include <linux/mm.h>
-+#include "drbd_int.h"
+-	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONN);
++	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+ 	if (!adm_ctx.reply_skb)
+ 		return retcode;
+ 	if (retcode != NO_ERROR)
+@@ -2219,7 +2219,7 @@ int drbd_adm_disconnect(struct sk_buff *skb, struct genl_info *info)
+ 	enum drbd_ret_code retcode;
+ 	int err;
  
- /* see get_sb_bdev and bd_claim */
- extern char *drbd_sec_holder;
+-	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONN);
++	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+ 	if (!adm_ctx.reply_skb)
+ 		return retcode;
+ 	if (retcode != NO_ERROR)
+@@ -2371,7 +2371,7 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
+ 	struct res_opts res_opts;
+ 	int err;
+ 
+-	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONN);
++	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+ 	if (!adm_ctx.reply_skb)
+ 		return retcode;
+ 	if (retcode != NO_ERROR)
+@@ -3063,7 +3063,7 @@ int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info)
+ 	struct drbd_genlmsghdr *dh = info->userhdr;
+ 	enum drbd_ret_code retcode;
+ 
+-	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONN);
++	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+ 	if (!adm_ctx.reply_skb)
+ 		return retcode;
+ 	if (retcode != NO_ERROR)
+@@ -3207,7 +3207,7 @@ int drbd_adm_del_resource(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	enum drbd_ret_code retcode;
+ 
+-	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONN);
++	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+ 	if (!adm_ctx.reply_skb)
+ 		return retcode;
+ 	if (retcode != NO_ERROR)
 -- 
 1.7.4.1
 
