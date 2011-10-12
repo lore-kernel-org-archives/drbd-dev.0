@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 12 Oct 2011 14:27:34 +0200
-Message-Id: <1318422455-17539-13-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 12 Oct 2011 14:27:35 +0200
+Message-Id: <1318422455-17539-14-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1318422455-17539-1-git-send-email-philipp.reisner@linbit.com>
 References: <1318422455-17539-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 12/13] drbd: Rename --dry-run to --tentative
+Subject: [Drbd-dev] [PATCH 13/13] DRBD: Fix comparison always false warning
+	due to long/long long compare
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,88 +18,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andreas Gruenbacher <agruen@linbit.com>
+From: David Howells <dhowells@redhat.com>
 
-drbdadm already has a --dry-run option, so this option cannot directly be
-passed through to drbdsetup.  Rename the drbdsetup option to resolve this
-conflict.
+Fix warnings of the following nature in the drbd header:
 
-For backward compatibility, make --dry-run an alias of --tentative.
+In file included from drivers/block/drbd/drbd_bitmap.c:32:
+drivers/block/drbd/drbd_int.h: In function 'drbd_get_syncer_progress':
+drivers/block/drbd/drbd_int.h:2234: warning: comparison is always false due to limited range of data
+
+where mdev->rs_total (an unsigned long) is being compared to 1ULL << 32, which
+is always false on a 32-bit machine.
+
+Signed-off-by: David Howells <dhowells@redhat.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_main.c     |    4 ++--
- drivers/block/drbd/drbd_receiver.c |    6 +++---
- include/linux/drbd_genl.h          |    2 +-
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ drivers/block/drbd/drbd_int.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index a67b4ca..1f53f95 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -926,7 +926,7 @@ int __drbd_send_protocol(struct drbd_tconn *tconn, enum drbd_packet cmd)
- 	rcu_read_lock();
- 	nc = rcu_dereference(tconn->net_conf);
- 
--	if (nc->dry_run && tconn->agreed_pro_version < 92) {
-+	if (nc->tentative && tconn->agreed_pro_version < 92) {
- 		rcu_read_unlock();
- 		mutex_unlock(&sock->mutex);
- 		conn_err(tconn, "--dry-run is not supported by peer");
-@@ -945,7 +945,7 @@ int __drbd_send_protocol(struct drbd_tconn *tconn, enum drbd_packet cmd)
- 	cf = 0;
- 	if (nc->discard_my_data)
- 		cf |= CF_DISCARD_MY_DATA;
--	if (nc->dry_run)
-+	if (nc->tentative)
- 		cf |= CF_DRY_RUN;
- 	p->conn_flags    = cpu_to_be32(cf);
- 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index ab1d36c..d55a3cb 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -2836,7 +2836,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
- 	enum drbd_conns rv = C_MASK;
- 	enum drbd_disk_state mydisk;
- 	struct net_conf *nc;
--	int hg, rule_nr, rr_conflict, dry_run;
-+	int hg, rule_nr, rr_conflict, tentative;
- 
- 	mydisk = mdev->state.disk;
- 	if (mydisk == D_NEGOTIATING)
-@@ -2916,7 +2916,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
- 			     (hg < 0) ? "peer" : "this");
- 	}
- 	rr_conflict = nc->rr_conflict;
--	dry_run = nc->dry_run;
-+	tentative = nc->tentative;
- 	rcu_read_unlock();
- 
- 	if (hg == -100) {
-@@ -2949,7 +2949,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
- 		}
- 	}
- 
--	if (dry_run || test_bit(CONN_DRY_RUN, &mdev->tconn->flags)) {
-+	if (tentative || test_bit(CONN_DRY_RUN, &mdev->tconn->flags)) {
- 		if (hg == 0)
- 			dev_info(DEV, "dry-run connect: No resync, would become Connected immediately.\n");
- 		else
-diff --git a/include/linux/drbd_genl.h b/include/linux/drbd_genl.h
-index b93db6c..e879a93 100644
---- a/include/linux/drbd_genl.h
-+++ b/include/linux/drbd_genl.h
-@@ -164,7 +164,7 @@ GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
- 	__flg_field(25, DRBD_GENLA_F_MANDATORY | DRBD_F_INVARIANT,	discard_my_data)
- 	__flg_field_def(26, DRBD_GENLA_F_MANDATORY,	tcp_cork, DRBD_TCP_CORK_DEF)
- 	__flg_field_def(27, DRBD_GENLA_F_MANDATORY,	always_asbp, DRBD_ALWAYS_ASBP_DEF)
--	__flg_field(28, DRBD_GENLA_F_MANDATORY | DRBD_F_INVARIANT,	dry_run)
-+	__flg_field(28, DRBD_GENLA_F_MANDATORY | DRBD_F_INVARIANT,	tentative)
- 	__flg_field_def(29,	DRBD_GENLA_F_MANDATORY,	use_rle, DRBD_USE_RLE_DEF)
- )
- 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index ece2e4a..de42c7c 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -2071,7 +2071,7 @@ static inline void drbd_get_syncer_progress(struct drbd_conf *mdev,
+ 		 * Note: currently we don't support such large bitmaps on 32bit
+ 		 * arch anyways, but no harm done to be prepared for it here.
+ 		 */
+-		unsigned int shift = mdev->rs_total >= (1ULL << 32) ? 16 : 10;
++		unsigned int shift = mdev->rs_total > UINT_MAX ? 16 : 10;
+ 		unsigned long left = *bits_left >> shift;
+ 		unsigned long total = 1UL + (mdev->rs_total >> shift);
+ 		unsigned long tmp = 1000UL - left * 1000UL/total;
 -- 
 1.7.4.1
 
