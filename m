@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 12 Oct 2011 14:27:26 +0200
-Message-Id: <1318422455-17539-5-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 12 Oct 2011 14:27:27 +0200
+Message-Id: <1318422455-17539-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1318422455-17539-1-git-send-email-philipp.reisner@linbit.com>
 References: <1318422455-17539-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/13] drbd: spelling fix: too small
+Subject: [Drbd-dev] [PATCH 05/13] drbd: Use the terminology suggested by the
+	command names in the source code and messages
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,72 +18,134 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-
-It is not "to small", but "too small".
+From: Andreas Gruenbacher <agruen@linbit.com>
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c |    8 ++++----
+ drivers/block/drbd/drbd_nl.c |   16 ++++++++--------
  include/linux/drbd.h         |    4 ++--
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ include/linux/drbd_genl.h    |   17 ++++-------------
+ 3 files changed, 14 insertions(+), 23 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index ab58651..261b512 100644
+index 261b512..8be3bef 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1400,7 +1400,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 		dev_err(DEV, "max capacity %llu smaller than disk size %llu\n",
- 			(unsigned long long) drbd_get_max_capacity(nbc),
- 			(unsigned long long) new_disk_conf->disk_size);
--		retcode = ERR_DISK_TO_SMALL;
-+		retcode = ERR_DISK_TOO_SMALL;
- 		goto fail;
+@@ -71,8 +71,8 @@ err_out:
+ int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info);
+ int drbd_adm_delete_minor(struct sk_buff *skb, struct genl_info *info);
+ 
+-int drbd_adm_create_connection(struct sk_buff *skb, struct genl_info *info);
+-int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info);
++int drbd_adm_new_resource(struct sk_buff *skb, struct genl_info *info);
++int drbd_adm_del_resource(struct sk_buff *skb, struct genl_info *info);
+ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info);
+ 
+ int drbd_adm_set_role(struct sk_buff *skb, struct genl_info *info);
+@@ -3021,7 +3021,7 @@ drbd_check_conn_name(const char *name)
+ 	return NO_ERROR;
+ }
+ 
+-int drbd_adm_create_connection(struct sk_buff *skb, struct genl_info *info)
++int drbd_adm_new_resource(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	enum drbd_ret_code retcode;
+ 
+@@ -3038,7 +3038,7 @@ int drbd_adm_create_connection(struct sk_buff *skb, struct genl_info *info)
+ 	if (adm_ctx.tconn) {
+ 		if (info->nlhdr->nlmsg_flags & NLM_F_EXCL) {
+ 			retcode = ERR_INVALID_REQUEST;
+-			drbd_msg_put_info("connection exists");
++			drbd_msg_put_info("resource exists");
+ 		}
+ 		/* else: still NO_ERROR */
+ 		goto out;
+@@ -3133,7 +3133,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
+ 		goto out;
+ 
+ 	if (!adm_ctx.tconn) {
+-		retcode = ERR_CONN_NOT_KNOWN;
++		retcode = ERR_RES_NOT_KNOWN;
+ 		goto out;
  	}
  
-@@ -1414,7 +1414,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+@@ -3187,7 +3187,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
+ 		retcode = NO_ERROR;
+ 	} else {
+ 		/* "can not happen" */
+-		retcode = ERR_CONN_IN_USE;
++		retcode = ERR_RES_IN_USE;
+ 		drbd_msg_put_info("failed to delete connection");
+ 	}
+ 	goto out;
+@@ -3196,7 +3196,7 @@ out:
+ 	return 0;
+ }
+ 
+-int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info)
++int drbd_adm_del_resource(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	enum drbd_ret_code retcode;
+ 
+@@ -3213,7 +3213,7 @@ int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info)
+ 
+ 		retcode = NO_ERROR;
+ 	} else {
+-		retcode = ERR_CONN_IN_USE;
++		retcode = ERR_RES_IN_USE;
  	}
  
- 	if (drbd_get_capacity(nbc->md_bdev) < min_md_device_sectors) {
--		retcode = ERR_MD_DISK_TO_SMALL;
-+		retcode = ERR_MD_DISK_TOO_SMALL;
- 		dev_warn(DEV, "refusing attach: md-device too small, "
- 		     "at least %llu sectors needed for this meta-disk type\n",
- 		     (unsigned long long) min_md_device_sectors);
-@@ -1425,7 +1425,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 	 * (we may currently be R_PRIMARY with no local disk...) */
- 	if (drbd_get_max_capacity(nbc) <
- 	    drbd_get_capacity(mdev->this_bdev)) {
--		retcode = ERR_DISK_TO_SMALL;
-+		retcode = ERR_DISK_TOO_SMALL;
- 		goto fail;
- 	}
- 
-@@ -1487,7 +1487,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 	if (drbd_md_test_flag(nbc, MDF_CONSISTENT) &&
- 	    drbd_new_dev_size(mdev, nbc, nbc->disk_conf->disk_size, 0) < nbc->md.la_size_sect) {
- 		dev_warn(DEV, "refusing to truncate a consistent device\n");
--		retcode = ERR_DISK_TO_SMALL;
-+		retcode = ERR_DISK_TOO_SMALL;
- 		goto force_diskless_dec;
- 	}
- 
+ 	if (retcode == NO_ERROR)
 diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 679e811..fedda00 100644
+index fedda00..161cd41 100644
 --- a/include/linux/drbd.h
 +++ b/include/linux/drbd.h
-@@ -112,8 +112,8 @@ enum drbd_ret_code {
- 	ERR_OPEN_MD_DISK	= 105,
- 	ERR_DISK_NOT_BDEV	= 107,
- 	ERR_MD_NOT_BDEV		= 108,
--	ERR_DISK_TO_SMALL	= 111,
--	ERR_MD_DISK_TO_SMALL	= 112,
-+	ERR_DISK_TOO_SMALL	= 111,
-+	ERR_MD_DISK_TOO_SMALL	= 112,
- 	ERR_BDCLAIM_DISK	= 114,
- 	ERR_BDCLAIM_MD_DISK	= 115,
- 	ERR_MD_IDX_INVALID	= 116,
+@@ -155,8 +155,8 @@ enum drbd_ret_code {
+ 	ERR_CONG_NOT_PROTO_A	= 155,
+ 	ERR_PIC_AFTER_DEP	= 156,
+ 	ERR_PIC_PEER_DEP	= 157,
+-	ERR_CONN_NOT_KNOWN      = 158,
+-	ERR_CONN_IN_USE         = 159,
++	ERR_RES_NOT_KNOWN	= 158,
++	ERR_RES_IN_USE		= 159,
+ 	ERR_MINOR_CONFIGURED    = 160,
+ 	ERR_MINOR_EXISTS	= 161,
+ 	ERR_INVALID_REQUEST	= 162,
+diff --git a/include/linux/drbd_genl.h b/include/linux/drbd_genl.h
+index 4ceecb9..47ef324 100644
+--- a/include/linux/drbd_genl.h
++++ b/include/linux/drbd_genl.h
+@@ -253,25 +253,16 @@ GENL_op(
+ 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
+ )
+ 
+-#if 0
+-	/* TO BE DONE */
+-	/* create or destroy resources, aka replication groups */
+-GENL_op(DRBD_ADM_CREATE_RESOURCE, 3, GENL_doit(drbd_adm_create_resource),
+-	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
+-GENL_op(DRBD_ADM_DELETE_RESOURCE, 4, GENL_doit(drbd_adm_delete_resource),
+-	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
+-#endif
+-
+ 	/* add DRBD minor devices as volumes to resources */
+-GENL_op(DRBD_ADM_ADD_MINOR, 5, GENL_doit(drbd_adm_add_minor),
++GENL_op(DRBD_ADM_NEW_MINOR, 5, GENL_doit(drbd_adm_add_minor),
+ 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
+ GENL_op(DRBD_ADM_DEL_MINOR, 6, GENL_doit(drbd_adm_delete_minor),
+ 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
+ 
+-	/* add or delete replication links to resources */
+-GENL_op(DRBD_ADM_ADD_LINK, 7, GENL_doit(drbd_adm_create_connection),
++	/* add or delete resources */
++GENL_op(DRBD_ADM_NEW_RESOURCE, 7, GENL_doit(drbd_adm_new_resource),
+ 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
+-GENL_op(DRBD_ADM_DEL_LINK, 8, GENL_doit(drbd_adm_delete_connection),
++GENL_op(DRBD_ADM_DEL_RESOURCE, 8, GENL_doit(drbd_adm_del_resource),
+ 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
+ 
+ GENL_op(DRBD_ADM_RESOURCE_OPTS, 9,
 -- 
 1.7.4.1
 
