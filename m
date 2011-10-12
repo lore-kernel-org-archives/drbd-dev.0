@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 12 Oct 2011 14:27:25 +0200
-Message-Id: <1318422455-17539-4-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 12 Oct 2011 14:27:26 +0200
+Message-Id: <1318422455-17539-5-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1318422455-17539-1-git-send-email-philipp.reisner@linbit.com>
 References: <1318422455-17539-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/13] drbd: cosmetic: fix accidental division
-	instead of modulo when pretty printing
+Subject: [Drbd-dev] [PATCH 04/13] drbd: spelling fix: too small
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,28 +19,70 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-For large resync rates, seq_printf_with_thousands_grouping()
-accidentally only produced Y,000,00Y, instead of the real numbers.
+It is not "to small", but "too small".
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_proc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ drivers/block/drbd/drbd_nl.c |    8 ++++----
+ include/linux/drbd.h         |    4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
-index 6b226cc..7e68d99 100644
---- a/drivers/block/drbd/drbd_proc.c
-+++ b/drivers/block/drbd/drbd_proc.c
-@@ -52,7 +52,7 @@ void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
- 	if (unlikely(v >= 1000000)) {
- 		/* cool: > GiByte/s */
- 		seq_printf(seq, "%ld,", v / 1000000);
--		v /= 1000000;
-+		v %= 1000000;
- 		seq_printf(seq, "%03ld,%03ld", v/1000, v % 1000);
- 	} else if (likely(v >= 1000))
- 		seq_printf(seq, "%ld,%03ld", v/1000, v % 1000);
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index ab58651..261b512 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1400,7 +1400,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 		dev_err(DEV, "max capacity %llu smaller than disk size %llu\n",
+ 			(unsigned long long) drbd_get_max_capacity(nbc),
+ 			(unsigned long long) new_disk_conf->disk_size);
+-		retcode = ERR_DISK_TO_SMALL;
++		retcode = ERR_DISK_TOO_SMALL;
+ 		goto fail;
+ 	}
+ 
+@@ -1414,7 +1414,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	}
+ 
+ 	if (drbd_get_capacity(nbc->md_bdev) < min_md_device_sectors) {
+-		retcode = ERR_MD_DISK_TO_SMALL;
++		retcode = ERR_MD_DISK_TOO_SMALL;
+ 		dev_warn(DEV, "refusing attach: md-device too small, "
+ 		     "at least %llu sectors needed for this meta-disk type\n",
+ 		     (unsigned long long) min_md_device_sectors);
+@@ -1425,7 +1425,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	 * (we may currently be R_PRIMARY with no local disk...) */
+ 	if (drbd_get_max_capacity(nbc) <
+ 	    drbd_get_capacity(mdev->this_bdev)) {
+-		retcode = ERR_DISK_TO_SMALL;
++		retcode = ERR_DISK_TOO_SMALL;
+ 		goto fail;
+ 	}
+ 
+@@ -1487,7 +1487,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	if (drbd_md_test_flag(nbc, MDF_CONSISTENT) &&
+ 	    drbd_new_dev_size(mdev, nbc, nbc->disk_conf->disk_size, 0) < nbc->md.la_size_sect) {
+ 		dev_warn(DEV, "refusing to truncate a consistent device\n");
+-		retcode = ERR_DISK_TO_SMALL;
++		retcode = ERR_DISK_TOO_SMALL;
+ 		goto force_diskless_dec;
+ 	}
+ 
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index 679e811..fedda00 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -112,8 +112,8 @@ enum drbd_ret_code {
+ 	ERR_OPEN_MD_DISK	= 105,
+ 	ERR_DISK_NOT_BDEV	= 107,
+ 	ERR_MD_NOT_BDEV		= 108,
+-	ERR_DISK_TO_SMALL	= 111,
+-	ERR_MD_DISK_TO_SMALL	= 112,
++	ERR_DISK_TOO_SMALL	= 111,
++	ERR_MD_DISK_TOO_SMALL	= 112,
+ 	ERR_BDCLAIM_DISK	= 114,
+ 	ERR_BDCLAIM_MD_DISK	= 115,
+ 	ERR_MD_IDX_INVALID	= 116,
 -- 
 1.7.4.1
 
