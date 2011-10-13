@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 13 Oct 2011 12:32:07 +0200
-Message-Id: <1318501936-11689-2-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 13 Oct 2011 12:32:08 +0200
+Message-Id: <1318501936-11689-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1318501936-11689-1-git-send-email-philipp.reisner@linbit.com>
 References: <1318501936-11689-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/10] drbd: allow ping-timeout of up to 30
-	seconds
+Subject: [Drbd-dev] [PATCH 02/10] drbd: downgraded error printk to info
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,30 +19,36 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Allow up to 300 centi-seconds to be configured for the "ping timeout".
-There may be setups where heavy congestion, huge buffers, and asymmetric
-bandwidth limitations may need a "huge" ping-timeout as work-around
-for "spurious connection loss" problems.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- include/linux/drbd_limits.h |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ drivers/block/drbd/drbd_state.c |    6 ++----
+ 1 files changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/drbd_limits.h b/include/linux/drbd_limits.h
-index dd8b8bf..f74334d 100644
---- a/include/linux/drbd_limits.h
-+++ b/include/linux/drbd_limits.h
-@@ -62,7 +62,7 @@
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 1da97e0..1be92e5 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -1305,9 +1305,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
+ 				drbd_disk_str(mdev->state.disk));
  
-  /* timeout for the ping packets.*/
- #define DRBD_PING_TIMEO_MIN  1
--#define DRBD_PING_TIMEO_MAX  100
-+#define DRBD_PING_TIMEO_MAX  300
- #define DRBD_PING_TIMEO_DEF  5
+ 		if (!drbd_send_state(mdev))
+-			dev_warn(DEV, "Notified peer that I am detaching my disk\n");
+-		else
+-			dev_err(DEV, "Sending state for detaching disk failed\n");
++			dev_info(DEV, "Notified peer that I am detaching my disk\n");
  
-   /* max number of write requests between write barriers */
+ 		drbd_rs_cancel_all(mdev);
+ 
+@@ -1337,7 +1335,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
+                 atomic_set(&mdev->rs_pending_cnt, 0);
+ 
+ 		if (!drbd_send_state(mdev))
+-			dev_warn(DEV, "Notified peer that I'm now diskless.\n");
++			dev_info(DEV, "Notified peer that I'm now diskless.\n");
+ 		/* corresponding get_ldev in __drbd_set_state
+ 		 * this may finally trigger drbd_ldev_destroy. */
+ 		put_ldev(mdev);
 -- 
 1.7.4.1
 
