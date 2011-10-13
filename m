@@ -2,12 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 13 Oct 2011 12:32:13 +0200
-Message-Id: <1318501936-11689-8-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 13 Oct 2011 12:32:14 +0200
+Message-Id: <1318501936-11689-9-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1318501936-11689-1-git-send-email-philipp.reisner@linbit.com>
 References: <1318501936-11689-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/10] drbd: detach from frozen backing device
+Subject: [Drbd-dev] [PATCH 08/10] drbd: on attach, enforce clean meta data
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -17,980 +17,489 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-* drbd-8.3:
-  documentation: Documented detach's --force and disk's --disk-timeout
-  drbd: Implemented the disk-timeout option
-  drbd: Force flag for the detach operation
-  drbd: Allow new IOs while the local disk in in FAILED state
-  drbd: Bitmap IO functions can not return prematurely if the disk breaks
-  drbd: Added a kref to bm_aio_ctx
-  drbd: Hold a reference to ldev while doing meta-data IO
-  drbd: Keep a reference to the bio until the completion handler finished
-  drbd: Implemented wait_until_done_or_disk_failure()
-  drbd: Replaced md_io_mutex by an atomic: md_io_in_use
-  drbd: moved md_io into mdev
-  drbd: Immediately allow completion of IOs, that wait for IO completions on a failed disk
-  drbd: Keep a reference to barrier acked requests
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+
+Detection of unclean shutdown has moved into user space.
+
+The kernel code will, whenever it updates the meta data, mark it as
+"unclean", and will refuse to attach to such unclean meta data.
+
+"drbdadm up" now schedules "drbdmeta apply-al", which will apply
+the activity log to the bitmap, and/or reinitialize it, if necessary,
+as well as set a "clean" indicator flag.
+
+This moves a bit code out of kernel space.
+As a side effect, it also prevents some 8.3 module from accidentally
+ignoring the 8.4 style activity log, if someone should downgrade,
+whether on purpose, or accidentally because he changed kernel versions
+without providing an 8.4 for the new kernel, and the new kernel comes
+with in-tree 8.3.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_actlog.c   |   75 +++++++++++++++++++------
- drivers/block/drbd/drbd_bitmap.c   |  109 ++++++++++++++++++++++++++---------
- drivers/block/drbd/drbd_int.h      |   12 +++-
- drivers/block/drbd/drbd_main.c     |   77 ++++++++++++++++++++++---
- drivers/block/drbd/drbd_nl.c       |   28 ++++++++-
- drivers/block/drbd/drbd_receiver.c |    2 -
- drivers/block/drbd/drbd_req.c      |   52 ++++++++++++-----
- drivers/block/drbd/drbd_req.h      |   19 ++++--
- drivers/block/drbd/drbd_state.c    |    7 ++
- drivers/block/drbd/drbd_worker.c   |    9 +++-
- include/linux/drbd_genl.h          |    9 +++-
- include/linux/drbd_limits.h        |    6 ++
- 12 files changed, 317 insertions(+), 88 deletions(-)
+ drivers/block/drbd/drbd_actlog.c |  259 --------------------------------------
+ drivers/block/drbd/drbd_int.h    |    6 -
+ drivers/block/drbd/drbd_main.c   |   21 +++-
+ drivers/block/drbd/drbd_nl.c     |   19 +---
+ drivers/block/drbd/drbd_state.c  |    1 +
+ include/linux/drbd.h             |   10 ++-
+ 6 files changed, 28 insertions(+), 288 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index aeb483d..58b5b61 100644
+index 58b5b61..da8ffd5 100644
 --- a/drivers/block/drbd/drbd_actlog.c
 +++ b/drivers/block/drbd/drbd_actlog.c
-@@ -114,18 +114,44 @@ struct drbd_atodb_wait {
- 
- static int w_al_write_transaction(struct drbd_work *, int);
- 
-+void *drbd_md_get_buffer(struct drbd_conf *mdev)
-+{
-+	int r;
-+
-+	wait_event(mdev->misc_wait,
-+		   (r = atomic_cmpxchg(&mdev->md_io_in_use, 0, 1)) == 0 ||
-+		   mdev->state.disk <= D_FAILED);
-+
-+	return r ? NULL : page_address(mdev->md_io_page);
-+}
-+
-+void drbd_md_put_buffer(struct drbd_conf *mdev)
-+{
-+	if (atomic_dec_and_test(&mdev->md_io_in_use))
-+		wake_up(&mdev->misc_wait);
-+}
-+
-+static bool md_io_allowed(struct drbd_conf *mdev)
-+{
-+	enum drbd_disk_state ds = mdev->state.disk;
-+	return ds >= D_NEGOTIATING || ds == D_ATTACHING;
-+}
-+
-+void wait_until_done_or_disk_failure(struct drbd_conf *mdev, unsigned int *done)
-+{
-+	wait_event(mdev->misc_wait, *done || !md_io_allowed(mdev));
-+}
-+
- static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
- 				 struct drbd_backing_dev *bdev,
- 				 struct page *page, sector_t sector,
- 				 int rw, int size)
- {
- 	struct bio *bio;
--	struct drbd_md_io md_io;
- 	int err;
- 
--	md_io.mdev = mdev;
--	init_completion(&md_io.event);
--	md_io.error = 0;
-+	mdev->md_io.done = 0;
-+	mdev->md_io.error = -ENODEV;
- 
- 	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &mdev->flags))
- 		rw |= REQ_FUA | REQ_FLUSH;
-@@ -137,17 +163,25 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
- 	err = -EIO;
- 	if (bio_add_page(bio, page, size, 0) != size)
- 		goto out;
--	bio->bi_private = &md_io;
-+	bio->bi_private = &mdev->md_io;
- 	bio->bi_end_io = drbd_md_io_complete;
- 	bio->bi_rw = rw;
- 
-+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* Corresponding put_ldev in drbd_md_io_complete() */
-+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in _drbd_md_sync_page_io()\n");
-+		err = -ENODEV;
-+		goto out;
-+	}
-+
-+	bio_get(bio); /* one bio_put() is in the completion handler */
-+	atomic_inc(&mdev->md_io_in_use); /* drbd_md_put_buffer() is in the completion handler */
- 	if (drbd_insert_fault(mdev, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
- 		bio_endio(bio, -EIO);
- 	else
- 		submit_bio(rw, bio);
--	wait_for_completion(&md_io.event);
-+	wait_until_done_or_disk_failure(mdev, &mdev->md_io.done);
- 	if (bio_flagged(bio, BIO_UPTODATE))
--		err = md_io.error;
-+		err = mdev->md_io.error;
- 
-  out:
- 	bio_put(bio);
-@@ -160,7 +194,7 @@ int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
- 	int err;
- 	struct page *iop = mdev->md_io_page;
- 
--	D_ASSERT(mutex_is_locked(&mdev->md_io_mutex));
-+	D_ASSERT(atomic_read(&mdev->md_io_in_use) == 1);
- 
- 	BUG_ON(!bdev->md_bdev);
- 
-@@ -344,8 +378,14 @@ w_al_write_transaction(struct drbd_work *w, int unused)
- 		return 0;
- 	}
- 
--	mutex_lock(&mdev->md_io_mutex); /* protects md_io_buffer, al_tr_cycle, ... */
--	buffer = page_address(mdev->md_io_page);
-+	buffer = drbd_md_get_buffer(mdev); /* protects md_io_buffer, al_tr_cycle, ... */
-+	if (!buffer) {
-+		dev_err(DEV, "disk failed while waiting for md_io buffer\n");
-+		aw->err = -EIO;
-+		complete(&((struct update_al_work *)w)->event);
-+		put_ldev(mdev);
-+		return 1;
-+	}
- 
- 	memset(buffer, 0, sizeof(*buffer));
- 	buffer->magic = cpu_to_be32(DRBD_AL_MAGIC);
-@@ -415,7 +455,7 @@ w_al_write_transaction(struct drbd_work *w, int unused)
- 		mdev->al_tr_number++;
- 	}
- 
--	mutex_unlock(&mdev->md_io_mutex);
-+	drbd_md_put_buffer(mdev);
- 	complete(&((struct update_al_work *)w)->event);
- 	put_ldev(mdev);
- 
-@@ -506,8 +546,9 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
- 	/* lock out all other meta data io for now,
- 	 * and make sure the page is mapped.
- 	 */
--	mutex_lock(&mdev->md_io_mutex);
--	b = page_address(mdev->md_io_page);
-+	b = drbd_md_get_buffer(mdev);
-+	if (!b)
-+		return 0;
- 
- 	/* Always use the full ringbuffer space for now.
- 	 * possible optimization: read in all of it,
-@@ -528,7 +569,7 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
- 
- 		/* IO error */
- 		if (rv == -1) {
--			mutex_unlock(&mdev->md_io_mutex);
-+			drbd_md_put_buffer(mdev);
- 			return 0;
- 		}
- 
-@@ -558,7 +599,7 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
- 	if (!found_valid) {
- 		if (found_initialized != mx)
- 			dev_warn(DEV, "No usable activity log found.\n");
--		mutex_unlock(&mdev->md_io_mutex);
-+		drbd_md_put_buffer(mdev);
- 		return 1;
- 	}
- 
-@@ -573,7 +614,7 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
- 		if (!expect(rv != 0))
- 			goto cancel;
- 		if (rv == -1) {
--			mutex_unlock(&mdev->md_io_mutex);
-+			drbd_md_put_buffer(mdev);
- 			return 0;
- 		}
- 
-@@ -643,7 +684,7 @@ cancel:
- 	mdev->al_tr_pos = (to + 1) % (MD_AL_SECTORS*512/MD_BLOCK_SIZE);
- 
- 	/* ok, we are done with it */
--	mutex_unlock(&mdev->md_io_mutex);
-+	drbd_md_put_buffer(mdev);
- 
- 	dev_info(DEV, "Found %d transactions (%d active extents) in activity log.\n",
- 	     transactions, active_extents);
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index 52c4814..7249671 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -918,13 +918,22 @@ void drbd_bm_clear_all(struct drbd_conf *mdev)
- struct bm_aio_ctx {
- 	struct drbd_conf *mdev;
- 	atomic_t in_flight;
--	struct completion done;
-+	unsigned int done;
- 	unsigned flags;
- #define BM_AIO_COPY_PAGES	1
- #define BM_AIO_WRITE_HINTED	2
- 	int error;
-+	struct kref kref;
- };
- 
-+static void bm_aio_ctx_destroy(struct kref *kref)
-+{
-+	struct bm_aio_ctx *ctx = container_of(kref, struct bm_aio_ctx, kref);
-+
-+	put_ldev(ctx->mdev);
-+	kfree(ctx);
-+}
-+
- /* bv_page may be a copy, or may be the original */
- static void bm_async_io_complete(struct bio *bio, int error)
- {
-@@ -968,8 +977,11 @@ static void bm_async_io_complete(struct bio *bio, int error)
- 
- 	bio_put(bio);
- 
--	if (atomic_dec_and_test(&ctx->in_flight))
--		complete(&ctx->done);
-+	if (atomic_dec_and_test(&ctx->in_flight)) {
-+		ctx->done = 1;
-+		wake_up(&mdev->misc_wait);
-+		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
-+	}
- }
- 
- static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must_hold(local)
-@@ -1032,12 +1044,7 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
-  */
- static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_writeout_upper_idx) __must_hold(local)
- {
--	struct bm_aio_ctx ctx = {
--		.mdev = mdev,
--		.in_flight = ATOMIC_INIT(1),
--		.done = COMPLETION_INITIALIZER_ONSTACK(ctx.done),
--		.flags = flags,
--	};
-+	struct bm_aio_ctx *ctx;
- 	struct drbd_bitmap *b = mdev->bitmap;
- 	int num_pages, i, count = 0;
- 	unsigned long now;
-@@ -1052,7 +1059,27 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
- 	 * For lazy writeout, we don't care for ongoing changes to the bitmap,
- 	 * as we submit copies of pages anyways.
- 	 */
--	if (!ctx.flags)
-+
-+	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_KERNEL);
-+	if (!ctx)
-+		return -ENOMEM;
-+
-+	*ctx = (struct bm_aio_ctx) {
-+		.mdev = mdev,
-+		.in_flight = ATOMIC_INIT(1),
-+		.done = 0,
-+		.flags = flags,
-+		.error = 0,
-+		.kref = { ATOMIC_INIT(2) },
-+	};
-+
-+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
-+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in bm_rw()\n");
-+		err = -ENODEV;
-+		goto out;
-+	}
-+
-+	if (!ctx->flags)
- 		WARN_ON(!(BM_LOCKED_MASK & b->bm_flags));
- 
- 	num_pages = b->bm_number_of_pages;
-@@ -1081,32 +1108,38 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
- 				continue;
- 			}
- 		}
--		atomic_inc(&ctx.in_flight);
--		bm_page_io_async(&ctx, i, rw);
-+		atomic_inc(&ctx->in_flight);
-+		bm_page_io_async(ctx, i, rw);
- 		++count;
- 		cond_resched();
- 	}
- 
- 	/*
--	 * We initialize ctx.in_flight to one to make sure bm_async_io_complete
-+	 * We initialize ctx->in_flight to one to make sure bm_async_io_complete
- 	 * will not complete() early, and decrement / test it here.  If there
- 	 * are still some bios in flight, we need to wait for them here.
- 	 */
--	if (!atomic_dec_and_test(&ctx.in_flight))
--		wait_for_completion(&ctx.done);
-+	if (!atomic_dec_and_test(&ctx->in_flight))
-+		wait_until_done_or_disk_failure(mdev, &ctx->done);
-+
-+	if (!count)
-+		put_ldev(mdev); /* Since no IO was started, the completion handler was not invoked */
- 
- 	/* summary for global bitmap IO */
- 	if (flags == 0)
- 		dev_info(DEV, "bitmap %s of %u pages took %lu jiffies\n",
--				rw == WRITE ? "WRITE" : "READ",
--				count, jiffies - now);
-+			 rw == WRITE ? "WRITE" : "READ",
-+			 count, jiffies - now);
- 
--	if (ctx.error) {
-+	if (ctx->error) {
- 		dev_alert(DEV, "we had at least one MD IO ERROR during bitmap IO\n");
- 		drbd_chk_io_error(mdev, 1, true);
--		err = -EIO; /* ctx.error ? */
-+		err = -EIO; /* ctx->error ? */
- 	}
- 
-+	if (atomic_read(&ctx->in_flight))
-+		err = -EIO; /* Disk failed during IO... */
-+
- 	now = jiffies;
- 	if (rw == WRITE) {
- 		drbd_md_flush(mdev);
-@@ -1121,6 +1154,8 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
- 		dev_info(DEV, "%s (%lu bits) marked out-of-sync by on disk bit-map.\n",
- 		     ppsize(ppb, now << (BM_BLOCK_SHIFT-10)), now);
- 
-+out:
-+	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
- 	return err;
- }
- 
-@@ -1177,28 +1212,46 @@ int drbd_bm_write_hinted(struct drbd_conf *mdev) __must_hold(local)
-  */
- int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(local)
- {
--	struct bm_aio_ctx ctx = {
-+	struct bm_aio_ctx *ctx;
-+	int err;
-+
-+	if (bm_test_page_unchanged(mdev->bitmap->bm_pages[idx])) {
-+		dynamic_dev_dbg(DEV, "skipped bm page write for idx %u\n", idx);
-+		return 0;
-+	}
-+
-+	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_KERNEL);
-+	if (!ctx)
-+		return -ENOMEM;
-+
-+	*ctx = (struct bm_aio_ctx) {
- 		.mdev = mdev,
- 		.in_flight = ATOMIC_INIT(1),
--		.done = COMPLETION_INITIALIZER_ONSTACK(ctx.done),
-+		.done = 0,
- 		.flags = BM_AIO_COPY_PAGES,
-+		.error = 0,
-+		.kref = { ATOMIC_INIT(2) },
- 	};
- 
--	if (bm_test_page_unchanged(mdev->bitmap->bm_pages[idx])) {
--		dynamic_dev_dbg(DEV, "skipped bm page write for idx %u\n", idx);
--		return 0;
-+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
-+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in drbd_bm_write_page()\n");
-+		err = -ENODEV;
-+		goto out;
- 	}
- 
--	bm_page_io_async(&ctx, idx, WRITE_SYNC);
--	wait_for_completion(&ctx.done);
-+	bm_page_io_async(ctx, idx, WRITE_SYNC);
-+	wait_until_done_or_disk_failure(mdev, &ctx->done);
- 
--	if (ctx.error)
-+	if (ctx->error)
- 		drbd_chk_io_error(mdev, 1, true);
- 		/* that should force detach, so the in memory bitmap will be
- 		 * gone in a moment as well. */
- 
- 	mdev->bm_writ_cnt++;
--	return ctx.error;
-+	err = atomic_read(&ctx->in_flight) ? -EIO : ctx->error;
-+ out:
-+	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
-+	return err;
- }
- 
- /* NOTE
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 6035784..4e58205 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -780,8 +780,7 @@ struct drbd_backing_dev {
- };
- 
- struct drbd_md_io {
--	struct drbd_conf *mdev;
--	struct completion event;
-+	unsigned int done;
- 	int error;
- };
- 
-@@ -852,6 +851,7 @@ struct drbd_tconn {			/* is a resource from the config file */
- 	struct drbd_tl_epoch *newest_tle;
- 	struct drbd_tl_epoch *oldest_tle;
- 	struct list_head out_of_sequence_requests;
-+	struct list_head barrier_acked_requests;
- 
- 	struct crypto_hash *cram_hmac_tfm;
- 	struct crypto_hash *integrity_tfm;  /* checksums we compute, updates protected by tconn->data->mutex */
-@@ -978,7 +978,8 @@ struct drbd_conf {
- 	atomic_t pp_in_use_by_net;	/* sendpage()d, still referenced by tcp */
- 	wait_queue_head_t ee_wait;
- 	struct page *md_io_page;	/* one page buffer for md_io */
--	struct mutex md_io_mutex;	/* protects the md_io_buffer */
-+	struct drbd_md_io md_io;
-+	atomic_t md_io_in_use;		/* protects the md_io, md_io_page and md_io_tmpp */
- 	spinlock_t al_lock;
- 	wait_queue_head_t al_wait;
- 	struct lru_cache *act_log;	/* activity log */
-@@ -1424,9 +1425,12 @@ extern void resume_next_sg(struct drbd_conf *mdev);
- extern void suspend_other_sg(struct drbd_conf *mdev);
- extern int drbd_resync_finished(struct drbd_conf *mdev);
- /* maybe rather drbd_main.c ? */
-+extern void *drbd_md_get_buffer(struct drbd_conf *mdev);
-+extern void drbd_md_put_buffer(struct drbd_conf *mdev);
- extern int drbd_md_sync_page_io(struct drbd_conf *mdev,
- 		struct drbd_backing_dev *bdev, sector_t sector, int rw);
- extern void drbd_ov_out_of_sync_found(struct drbd_conf *, sector_t, int);
-+extern void wait_until_done_or_disk_failure(struct drbd_conf *mdev, unsigned int *done);
- extern void drbd_rs_controller_reset(struct drbd_conf *mdev);
- 
- static inline void ov_out_of_sync_print(struct drbd_conf *mdev)
-@@ -2151,12 +2155,12 @@ static inline int drbd_state_is_stable(struct drbd_conf *mdev)
- 	case D_OUTDATED:
- 	case D_CONSISTENT:
- 	case D_UP_TO_DATE:
-+	case D_FAILED:
- 		/* disk state is stable as well. */
- 		break;
- 
- 	/* no new io accepted during transitional states */
- 	case D_ATTACHING:
--	case D_FAILED:
- 	case D_NEGOTIATING:
- 	case D_UNKNOWN:
- 	case D_MASK:
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 448de7b..1538498 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -215,6 +215,7 @@ static int tl_init(struct drbd_tconn *tconn)
- 	tconn->oldest_tle = b;
- 	tconn->newest_tle = b;
- 	INIT_LIST_HEAD(&tconn->out_of_sequence_requests);
-+	INIT_LIST_HEAD(&tconn->barrier_acked_requests);
- 
- 	return 1;
- }
-@@ -315,7 +316,7 @@ void tl_release(struct drbd_tconn *tconn, unsigned int barrier_nr,
- 	   These have been list_move'd to the out_of_sequence_requests list in
- 	   _req_mod(, BARRIER_ACKED) above.
- 	   */
--	list_del_init(&b->requests);
-+	list_splice_init(&b->requests, &tconn->barrier_acked_requests);
- 	mdev = b->w.mdev;
- 
- 	nob = b->next;
-@@ -417,8 +418,23 @@ void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
- 		b = tmp;
- 		list_splice(&carry_reads, &b->requests);
- 	}
--}
- 
-+	/* Actions operating on the disk state, also want to work on
-+	   requests that got barrier acked. */
-+	switch (what) {
-+	case FAIL_FROZEN_DISK_IO:
-+	case RESTART_FROZEN_DISK_IO:
-+		list_for_each_safe(le, tle, &tconn->barrier_acked_requests) {
-+			req = list_entry(le, struct drbd_request, tl_requests);
-+			_req_mod(req, what);
-+		}
-+	case CONNECTION_LOST_WHILE_PENDING:
-+	case RESEND:
-+		break;
-+	default:
-+		conn_err(tconn, "what = %d in _tl_restart()\n", what);
-+	}
-+}
- 
- /**
-  * tl_clear() - Clears all requests and &struct drbd_tl_epoch objects out of the TL
-@@ -467,6 +483,42 @@ void tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
- 	spin_unlock_irq(&tconn->req_lock);
- }
- 
-+/**
-+ * tl_apply() - Applies an event to all requests for a certain mdev in the TL
-+ * @mdev:	DRBD device.
-+ * @what:       The action/event to perform with all request objects
-+ *
-+ * @what might ony be ABORT_DISK_IO.
-+ */
-+void tl_apply(struct drbd_conf *mdev, enum drbd_req_event what)
-+{
-+	struct drbd_tconn *tconn = mdev->tconn;
-+	struct drbd_tl_epoch *b;
-+	struct list_head *le, *tle;
-+	struct drbd_request *req;
-+
-+	D_ASSERT(what == ABORT_DISK_IO);
-+
-+	spin_lock_irq(&tconn->req_lock);
-+	b = tconn->oldest_tle;
-+	while (b) {
-+		list_for_each_safe(le, tle, &b->requests) {
-+			req = list_entry(le, struct drbd_request, tl_requests);
-+			if (req->w.mdev == mdev)
-+				_req_mod(req, what);
-+		}
-+		b = b->next;
-+	}
-+
-+	list_for_each_safe(le, tle, &tconn->barrier_acked_requests) {
-+		req = list_entry(le, struct drbd_request, tl_requests);
-+		if (req->w.mdev == mdev)
-+			_req_mod(req, what);
-+	}
-+
-+	spin_unlock_irq(&tconn->req_lock);
-+}
-+
- static int drbd_thread_setup(void *arg)
- {
- 	struct drbd_thread *thi = (struct drbd_thread *) arg;
-@@ -2003,8 +2055,8 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
- 	atomic_set(&mdev->rs_sect_in, 0);
- 	atomic_set(&mdev->rs_sect_ev, 0);
- 	atomic_set(&mdev->ap_in_flight, 0);
-+	atomic_set(&mdev->md_io_in_use, 0);
- 
--	mutex_init(&mdev->md_io_mutex);
- 	mutex_init(&mdev->own_state_mutex);
- 	mdev->state_mutex = &mdev->own_state_mutex;
- 
-@@ -2282,6 +2334,8 @@ void drbd_minor_destroy(struct kref *kref)
- 	struct drbd_conf *mdev = container_of(kref, struct drbd_conf, kref);
- 	struct drbd_tconn *tconn = mdev->tconn;
- 
-+	del_timer_sync(&mdev->request_timer);
-+
- 	/* paranoia asserts */
- 	D_ASSERT(mdev->open_cnt == 0);
- 	D_ASSERT(list_empty(&mdev->tconn->data.work.q));
-@@ -2868,8 +2922,10 @@ void drbd_md_sync(struct drbd_conf *mdev)
- 	if (!get_ldev_if_state(mdev, D_FAILED))
- 		return;
- 
--	mutex_lock(&mdev->md_io_mutex);
--	buffer = (struct meta_data_on_disk *)page_address(mdev->md_io_page);
-+	buffer = drbd_md_get_buffer(mdev);
-+	if (!buffer)
-+		goto out;
-+
- 	memset(buffer, 0, 512);
- 
- 	buffer->la_size = cpu_to_be64(drbd_get_capacity(mdev->this_bdev));
-@@ -2900,7 +2956,8 @@ void drbd_md_sync(struct drbd_conf *mdev)
- 	 * since we updated it on metadata. */
- 	mdev->ldev->md.la_size_sect = drbd_get_capacity(mdev->this_bdev);
- 
--	mutex_unlock(&mdev->md_io_mutex);
-+	drbd_md_put_buffer(mdev);
-+out:
- 	put_ldev(mdev);
- }
- 
-@@ -2920,8 +2977,9 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
- 	if (!get_ldev_if_state(mdev, D_ATTACHING))
- 		return ERR_IO_MD_DISK;
- 
--	mutex_lock(&mdev->md_io_mutex);
--	buffer = (struct meta_data_on_disk *)page_address(mdev->md_io_page);
-+	buffer = drbd_md_get_buffer(mdev);
-+	if (!buffer)
-+		goto out;
- 
- 	if (drbd_md_sync_page_io(mdev, bdev, bdev->md.md_offset, READ)) {
- 		/* NOTE: can't do normal error processing here as this is
-@@ -2983,7 +3041,8 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
- 		bdev->disk_conf->al_extents = DRBD_AL_EXTENTS_DEF;
- 
-  err:
--	mutex_unlock(&mdev->md_io_mutex);
-+	drbd_md_put_buffer(mdev);
-+ out:
- 	put_ldev(mdev);
- 
- 	return rv;
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 0f8d473..d6bdb59 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1276,6 +1276,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 	synchronize_rcu();
- 	kfree(old_disk_conf);
- 	kfree(old_plan);
-+	mod_timer(&mdev->request_timer, jiffies + HZ);
- 	goto success;
- 
- fail_unlock:
-@@ -1668,6 +1669,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 	if (rv < SS_SUCCESS)
- 		goto force_diskless_dec;
- 
-+	mod_timer(&mdev->request_timer, jiffies + HZ);
-+
- 	if (mdev->state.role == R_PRIMARY)
- 		mdev->ldev->md.uuid[UI_CURRENT] |=  (u64)1;
- 	else
-@@ -1707,10 +1710,17 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+@@ -462,265 +462,6 @@ w_al_write_transaction(struct drbd_work *w, int unused)
  	return 0;
  }
  
--static int adm_detach(struct drbd_conf *mdev)
-+static int adm_detach(struct drbd_conf *mdev, int force)
+-/* FIXME
+- * reading of the activity log,
+- * and potentially dirtying of the affected bitmap regions,
+- * should be done from userland only.
+- * DRBD would simply always attach with an empty activity log,
+- * and refuse to attach to something that looks like a crashed primary.
+- */
+-
+-/**
+- * drbd_al_read_tr() - Read a single transaction from the on disk activity log
+- * @mdev:	DRBD device.
+- * @bdev:	Block device to read form.
+- * @b:		pointer to an al_transaction.
+- * @index:	On disk slot of the transaction to read.
+- *
+- * Returns -1 on IO error, 0 on checksum error and 1 upon success.
+- */
+-static int drbd_al_read_tr(struct drbd_conf *mdev,
+-			   struct drbd_backing_dev *bdev,
+-			   int index)
+-{
+-	struct al_transaction_on_disk *b = page_address(mdev->md_io_page);
+-	sector_t sector;
+-	u32 crc;
+-
+-	sector =  bdev->md.md_offset
+-		+ bdev->md.al_offset
+-		+ index * (MD_BLOCK_SIZE>>9);
+-
+-	/* Dont process error normally,
+-	 * as this is done before disk is attached! */
+-	if (drbd_md_sync_page_io(mdev, bdev, sector, READ))
+-		return -1;
+-
+-	if (!expect(b->magic == cpu_to_be32(DRBD_AL_MAGIC)))
+-		return 0;
+-
+-	if (!expect(be16_to_cpu(b->n_updates) <= AL_UPDATES_PER_TRANSACTION))
+-		return 0;
+-
+-	if (!expect(be16_to_cpu(b->context_size) <= DRBD_AL_EXTENTS_MAX))
+-		return 0;
+-
+-	if (!expect(be16_to_cpu(b->context_start_slot_nr) < DRBD_AL_EXTENTS_MAX))
+-		return 0;
+-
+-	crc = be32_to_cpu(b->crc32c);
+-	b->crc32c = 0;
+-	if (!expect(crc == crc32c(0, b, 4096)))
+-		return 0;
+-
+-	return 1;
+-}
+-
+-/**
+- * drbd_al_read_log() - Restores the activity log from its on disk representation.
+- * @mdev:	DRBD device.
+- * @bdev:	Block device to read form.
+- *
+- * Returns 1 on success, returns 0 when reading the log failed due to IO errors.
+- */
+-int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
+-{
+-	struct al_transaction_on_disk *b;
+-	int i;
+-	int rv;
+-	int mx;
+-	int active_extents = 0;
+-	int transactions = 0;
+-	int found_valid = 0;
+-	int found_initialized = 0;
+-	int from = 0;
+-	int to = 0;
+-	u32 from_tnr = 0;
+-	u32 to_tnr = 0;
+-	u32 cnr;
+-
+-	/* Note that this is expected to be called with a newly created,
+-	 * clean and all unused activity log of the "expected size".
+-	 */
+-
+-	/* lock out all other meta data io for now,
+-	 * and make sure the page is mapped.
+-	 */
+-	b = drbd_md_get_buffer(mdev);
+-	if (!b)
+-		return 0;
+-
+-	/* Always use the full ringbuffer space for now.
+-	 * possible optimization: read in all of it,
+-	 * then scan the in-memory pages. */
+-
+-	mx = (MD_AL_SECTORS*512/MD_BLOCK_SIZE);
+-
+-	/* Find the valid transaction in the log */
+-	for (i = 0; i < mx; i++) {
+-		rv = drbd_al_read_tr(mdev, bdev, i);
+-		/* invalid data in that block */
+-		if (rv == 0)
+-			continue;
+-		if (be16_to_cpu(b->transaction_type) == AL_TR_INITIALIZED) {
+-			++found_initialized;
+-			continue;
+-		}
+-
+-		/* IO error */
+-		if (rv == -1) {
+-			drbd_md_put_buffer(mdev);
+-			return 0;
+-		}
+-
+-		cnr = be32_to_cpu(b->tr_number);
+-		if (++found_valid == 1) {
+-			from = i;
+-			to = i;
+-			from_tnr = cnr;
+-			to_tnr = cnr;
+-			continue;
+-		}
+-
+-		D_ASSERT(cnr != to_tnr);
+-		D_ASSERT(cnr != from_tnr);
+-		if ((int)cnr - (int)from_tnr < 0) {
+-			D_ASSERT(from_tnr - cnr + i - from == mx);
+-			from = i;
+-			from_tnr = cnr;
+-		}
+-		if ((int)cnr - (int)to_tnr > 0) {
+-			D_ASSERT(cnr - to_tnr == i - to);
+-			to = i;
+-			to_tnr = cnr;
+-		}
+-	}
+-
+-	if (!found_valid) {
+-		if (found_initialized != mx)
+-			dev_warn(DEV, "No usable activity log found.\n");
+-		drbd_md_put_buffer(mdev);
+-		return 1;
+-	}
+-
+-	/* Read the valid transactions.
+-	 * dev_info(DEV, "Reading from %d to %d.\n",from,to); */
+-	i = from;
+-	while (1) {
+-		struct lc_element *e;
+-		unsigned j, n, slot, extent_nr;
+-
+-		rv = drbd_al_read_tr(mdev, bdev, i);
+-		if (!expect(rv != 0))
+-			goto cancel;
+-		if (rv == -1) {
+-			drbd_md_put_buffer(mdev);
+-			return 0;
+-		}
+-
+-		/* deal with different transaction types.
+-		 * not yet implemented */
+-		if (!expect(b->transaction_type == 0))
+-			goto cancel;
+-
+-		/* on the fly re-create/resize activity log?
+-		 * will be a special transaction type flag. */
+-		if (!expect(be16_to_cpu(b->context_size) == mdev->act_log->nr_elements))
+-			goto cancel;
+-		if (!expect(be16_to_cpu(b->context_start_slot_nr) < mdev->act_log->nr_elements))
+-			goto cancel;
+-
+-		/* We are the only user of the activity log right now,
+-		 * don't actually need to take that lock. */
+-		spin_lock_irq(&mdev->al_lock);
+-
+-		/* first, apply the context, ... */
+-		for (j = 0, slot = be16_to_cpu(b->context_start_slot_nr);
+-		     j < AL_CONTEXT_PER_TRANSACTION &&
+-		     slot < mdev->act_log->nr_elements; j++, slot++) {
+-			extent_nr = be32_to_cpu(b->context[j]);
+-			e = lc_element_by_index(mdev->act_log, slot);
+-			if (e->lc_number != extent_nr) {
+-				if (extent_nr != LC_FREE)
+-					active_extents++;
+-				else
+-					active_extents--;
+-			}
+-			lc_set(mdev->act_log, extent_nr, slot);
+-		}
+-
+-		/* ... then apply the updates,
+-		 * which override the context information.
+-		 * drbd_al_read_tr already did the rangecheck
+-		 * on n <= AL_UPDATES_PER_TRANSACTION */
+-		n = be16_to_cpu(b->n_updates);
+-		for (j = 0; j < n; j++) {
+-			slot = be16_to_cpu(b->update_slot_nr[j]);
+-			extent_nr = be32_to_cpu(b->update_extent_nr[j]);
+-			if (!expect(slot < mdev->act_log->nr_elements))
+-				break;
+-			e = lc_element_by_index(mdev->act_log, slot);
+-			if (e->lc_number != extent_nr) {
+-				if (extent_nr != LC_FREE)
+-					active_extents++;
+-				else
+-					active_extents--;
+-			}
+-			lc_set(mdev->act_log, extent_nr, slot);
+-		}
+-		spin_unlock_irq(&mdev->al_lock);
+-
+-		transactions++;
+-
+-cancel:
+-		if (i == to)
+-			break;
+-		i++;
+-		if (i >= mx)
+-			i = 0;
+-	}
+-
+-	mdev->al_tr_number = to_tnr+1;
+-	mdev->al_tr_pos = (to + 1) % (MD_AL_SECTORS*512/MD_BLOCK_SIZE);
+-
+-	/* ok, we are done with it */
+-	drbd_md_put_buffer(mdev);
+-
+-	dev_info(DEV, "Found %d transactions (%d active extents) in activity log.\n",
+-	     transactions, active_extents);
+-
+-	return 1;
+-}
+-
+-/**
+- * drbd_al_apply_to_bm() - Sets the bitmap to dirty(1) where covered by active AL extents
+- * @mdev:	DRBD device.
+- */
+-void drbd_al_apply_to_bm(struct drbd_conf *mdev)
+-{
+-	unsigned int enr;
+-	unsigned long add = 0;
+-	char ppb[10];
+-	int i, tmp;
+-
+-	wait_event(mdev->al_wait, lc_try_lock(mdev->act_log));
+-
+-	for (i = 0; i < mdev->act_log->nr_elements; i++) {
+-		enr = lc_element_by_index(mdev->act_log, i)->lc_number;
+-		if (enr == LC_FREE)
+-			continue;
+-		tmp = drbd_bm_ALe_set_all(mdev, enr);
+-		dynamic_dev_dbg(DEV, "AL: set %d bits in extent %u\n", tmp, enr);
+-		add += tmp;
+-	}
+-
+-	lc_unlock(mdev->act_log);
+-	wake_up(&mdev->al_wait);
+-
+-	dev_info(DEV, "Marked additional %s as out-of-sync based on AL.\n",
+-	     ppsize(ppb, Bit2KB(add)));
+-}
+-
+ static int _try_lc_del(struct drbd_conf *mdev, struct lc_element *al_ext)
  {
- 	enum drbd_state_rv retcode;
- 	int ret;
-+
-+	if (force) {
-+		drbd_force_state(mdev, NS(disk, D_FAILED));
-+		retcode = SS_SUCCESS;
-+		goto out;
-+	}
-+
- 	drbd_suspend_io(mdev); /* so no-one is stuck in drbd_al_begin_io */
- 	retcode = drbd_request_state(mdev, NS(disk, D_FAILED));
- 	/* D_FAILED will transition to DISKLESS. */
-@@ -1721,6 +1731,7 @@ static int adm_detach(struct drbd_conf *mdev)
- 		retcode = SS_NOTHING_TO_DO;
- 	if (ret)
- 		retcode = ERR_INTR;
-+out:
- 	return retcode;
- }
+ 	int rv;
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 4e58205..9d0d6d0 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -164,10 +164,6 @@ drbd_insert_fault(struct drbd_conf *mdev, unsigned int type) {
+ /* usual integer division */
+ #define div_floor(A, B) ((A)/(B))
  
-@@ -1732,6 +1743,8 @@ static int adm_detach(struct drbd_conf *mdev)
- int drbd_adm_detach(struct sk_buff *skb, struct genl_info *info)
+-/* drbd_meta-data.c (still in drbd_main.c) */
+-/* 4th incarnation of the disk layout. */
+-#define DRBD_MD_MAGIC (DRBD_MAGIC+4)
+-
+ extern struct ratelimit_state drbd_ratelimit_state;
+ extern struct idr minors; /* RCU, updates: genl_lock() */
+ extern struct list_head drbd_tconns; /* RCU, updates: genl_lock() */
+@@ -1560,7 +1556,6 @@ extern void drbd_rs_cancel_all(struct drbd_conf *mdev);
+ extern int drbd_rs_del_all(struct drbd_conf *mdev);
+ extern void drbd_rs_failed_io(struct drbd_conf *mdev,
+ 		sector_t sector, int size);
+-extern int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *);
+ extern void drbd_advance_rs_marks(struct drbd_conf *mdev, unsigned long still_to_go);
+ extern void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector,
+ 		int size, const char *file, const unsigned int line);
+@@ -1570,7 +1565,6 @@ extern int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector,
+ 		int size, const char *file, const unsigned int line);
+ #define drbd_set_out_of_sync(mdev, sector, size) \
+ 	__drbd_set_out_of_sync(mdev, sector, size, __FILE__, __LINE__)
+-extern void drbd_al_apply_to_bm(struct drbd_conf *mdev);
+ extern void drbd_al_shrink(struct drbd_conf *mdev);
+ 
+ /* drbd_nl.c */
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 1538498..0e49dea 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2932,7 +2932,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
+ 	for (i = UI_CURRENT; i < UI_SIZE; i++)
+ 		buffer->uuid[i] = cpu_to_be64(mdev->ldev->md.uuid[i]);
+ 	buffer->flags = cpu_to_be32(mdev->ldev->md.flags);
+-	buffer->magic = cpu_to_be32(DRBD_MD_MAGIC);
++	buffer->magic = cpu_to_be32(DRBD_MD_MAGIC_84_UNCLEAN);
+ 
+ 	buffer->md_size_sect  = cpu_to_be32(mdev->ldev->md.md_size_sect);
+ 	buffer->al_offset     = cpu_to_be32(mdev->ldev->md.al_offset);
+@@ -2967,11 +2967,12 @@ out:
+  * @bdev:	Device from which the meta data should be read in.
+  *
+  * Return 0 (NO_ERROR) on success, and an enum drbd_ret_code in case
+- * something goes wrong.  Currently only: ERR_IO_MD_DISK, ERR_MD_INVALID.
++ * something goes wrong.
+  */
+ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
  {
- 	enum drbd_ret_code retcode;
-+	struct detach_parms parms = { };
-+	int err;
+ 	struct meta_data_on_disk *buffer;
++	u32 magic, flags;
+ 	int i, rv = NO_ERROR;
+ 
+ 	if (!get_ldev_if_state(mdev, D_ATTACHING))
+@@ -2989,8 +2990,20 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
+ 		goto err;
+ 	}
+ 
+-	if (buffer->magic != cpu_to_be32(DRBD_MD_MAGIC)) {
+-		dev_err(DEV, "Error while reading metadata, magic not found.\n");
++	magic = be32_to_cpu(buffer->magic);
++	flags = be32_to_cpu(buffer->flags);
++	if (magic == DRBD_MD_MAGIC_84_UNCLEAN ||
++	    (magic == DRBD_MD_MAGIC_08 && !(flags & MDF_AL_CLEAN))) {
++			/* btw: that's Activity Log clean, not "all" clean. */
++		dev_err(DEV, "Found unclean meta data. Did you \"drbdadm apply-al\"?\n");
++		rv = ERR_MD_UNCLEAN;
++		goto err;
++	}
++	if (magic != DRBD_MD_MAGIC_08) {
++		if (magic == DRBD_MD_MAGIC_07) 
++			dev_err(DEV, "Found old (0.7) meta data magic. Did you \"drbdadm create-md\"?\n");
++		else
++			dev_err(DEV, "Meta data magic not found. Did you \"drbdadm create-md\"?\n");
+ 		rv = ERR_MD_INVALID;
+ 		goto err;
+ 	}
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index d6bdb59..463029a 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1307,7 +1307,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	union drbd_state ns, os;
+ 	enum drbd_state_rv rv;
+ 	struct net_conf *nc;
+-	int cp_discovered = 0;
  
  	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_MINOR);
  	if (!adm_ctx.reply_skb)
-@@ -1739,7 +1752,16 @@ int drbd_adm_detach(struct sk_buff *skb, struct genl_info *info)
- 	if (retcode != NO_ERROR)
- 		goto out;
- 
--	retcode = adm_detach(adm_ctx.mdev);
-+	if (info->attrs[DRBD_NLA_DETACH_PARMS]) {
-+		err = detach_parms_from_attrs(&parms, info);
-+		if (err) {
-+			retcode = ERR_MANDATORY_TAG;
-+			drbd_msg_put_info(from_attrs_err_to_txt(err));
-+			goto out;
-+		}
-+	}
-+
-+	retcode = adm_detach(adm_ctx.mdev, parms.force_detach);
- out:
- 	drbd_adm_finish(info, retcode);
- 	return 0;
-@@ -3162,7 +3184,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
- 
- 	/* detach */
- 	idr_for_each_entry(&adm_ctx.tconn->volumes, mdev, i) {
--		retcode = adm_detach(mdev);
-+		retcode = adm_detach(mdev, 0);
- 		if (retcode < SS_SUCCESS) {
- 			drbd_msg_put_info("failed to detach");
- 			goto out;
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 7218750..3a7e54b 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4366,8 +4366,6 @@ static int drbd_disconnected(struct drbd_conf *mdev)
- 	atomic_set(&mdev->rs_pending_cnt, 0);
- 	wake_up(&mdev->misc_wait);
- 
--	del_timer(&mdev->request_timer);
--
- 	del_timer_sync(&mdev->resync_timer);
- 	resync_timer_fn((unsigned long)mdev);
- 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index c4e4553..2f41205 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -213,8 +213,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
- {
- 	const unsigned long s = req->rq_state;
- 	struct drbd_conf *mdev = req->w.mdev;
--	/* only WRITES may end up here without a master bio (on barrier ack) */
--	int rw = req->master_bio ? bio_data_dir(req->master_bio) : WRITE;
-+	int rw = req->rq_state & RQ_WRITE ? WRITE : READ;
- 
- 	/* we must not complete the master bio, while it is
- 	 *	still being processed by _drbd_send_zc_bio (drbd_send_dblock)
-@@ -225,7 +224,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
- 	 *	the receiver,
- 	 *	the bio_endio completion callbacks.
- 	 */
--	if (s & RQ_LOCAL_PENDING)
-+	if (s & RQ_LOCAL_PENDING && !(s & RQ_LOCAL_ABORTED))
- 		return;
- 	if (req->i.waiting) {
- 		/* Retry all conflicting peer requests.  */
-@@ -288,6 +287,9 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
- 		req->master_bio = NULL;
+@@ -1517,11 +1516,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 		goto force_diskless_dec;
  	}
  
-+	if (s & RQ_LOCAL_PENDING)
-+		return;
-+
- 	if ((s & RQ_NET_MASK) == 0 || (s & RQ_NET_DONE)) {
- 		/* this is disconnected (local only) operation,
- 		 * or protocol C P_WRITE_ACK,
-@@ -362,7 +364,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
- 		break;
+-	if (!drbd_al_read_log(mdev, nbc)) {
+-		retcode = ERR_IO_MD_DISK;
+-		goto force_diskless_dec;
+-	}
+-
+ 	/* Reset the "barriers don't work" bits here, then force meta data to
+ 	 * be written, to ensure we determine if barriers are supported. */
+ 	if (new_disk_conf->md_flushes)
+@@ -1551,10 +1545,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
  
- 	case COMPLETED_OK:
--		if (bio_data_dir(req->master_bio) == WRITE)
-+		if (req->rq_state & RQ_WRITE)
- 			mdev->writ_cnt += req->i.size >> 9;
- 		else
- 			mdev->read_cnt += req->i.size >> 9;
-@@ -374,6 +376,14 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
- 		put_ldev(mdev);
- 		break;
+ 	if (drbd_md_test_flag(mdev->ldev, MDF_PRIMARY_IND) &&
+-	    !(mdev->state.role == R_PRIMARY && mdev->tconn->susp_nod)) {
++	    !(mdev->state.role == R_PRIMARY && mdev->tconn->susp_nod))
+ 		set_bit(CRASHED_PRIMARY, &mdev->flags);
+-		cp_discovered = 1;
+-	}
  
-+	case ABORT_DISK_IO:
-+		req->rq_state |= RQ_LOCAL_ABORTED;
-+		if (req->rq_state & RQ_WRITE)
-+			_req_may_be_done_not_susp(req, m);
-+		else
-+			goto goto_queue_for_net_read;
-+		break;
-+
- 	case WRITE_COMPLETED_WITH_ERROR:
- 		req->rq_state |= RQ_LOCAL_COMPLETED;
- 		req->rq_state &= ~RQ_LOCAL_PENDING;
-@@ -402,6 +412,8 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
- 		__drbd_chk_io_error(mdev, false);
- 		put_ldev(mdev);
- 
-+	goto_queue_for_net_read:
-+
- 		/* no point in retrying if there is no good remote data,
- 		 * or we have no connection. */
- 		if (mdev->state.pdsk != D_UP_TO_DATE) {
-@@ -1071,14 +1083,21 @@ void request_timer_fn(unsigned long data)
- 	struct drbd_request *req; /* oldest request */
- 	struct list_head *le;
- 	struct net_conf *nc;
--	unsigned long et; /* effective timeout = ko_count * timeout */
-+	unsigned long ent = 0, dt = 0, et; /* effective timeout = ko_count * timeout */
- 
- 	rcu_read_lock();
- 	nc = rcu_dereference(tconn->net_conf);
--	et = nc ? nc->timeout * HZ/10 * nc->ko_count : 0;
-+	ent = nc ? nc->timeout * HZ/10 * nc->ko_count : 0;
-+
-+	if (get_ldev(mdev)) {
-+		dt = rcu_dereference(mdev->ldev->disk_conf)->disk_timeout * HZ / 10;
-+		put_ldev(mdev);
-+	}
- 	rcu_read_unlock();
- 
--	if (!et || mdev->state.conn < C_WF_REPORT_PARAMS)
-+	et = min_not_zero(dt, ent);
-+
-+	if (!et || (mdev->state.conn < C_WF_REPORT_PARAMS && mdev->state.disk <= D_FAILED))
- 		return; /* Recurring timer stopped */
- 
- 	spin_lock_irq(&tconn->req_lock);
-@@ -1091,17 +1110,18 @@ void request_timer_fn(unsigned long data)
- 
- 	le = le->prev;
- 	req = list_entry(le, struct drbd_request, tl_requests);
--	if (time_is_before_eq_jiffies(req->start_time + et)) {
--		if (req->rq_state & RQ_NET_PENDING) {
-+	if (ent && req->rq_state & RQ_NET_PENDING) {
-+		if (time_is_before_eq_jiffies(req->start_time + ent)) {
- 			dev_warn(DEV, "Remote failed to finish a request within ko-count * timeout\n");
--			_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE, NULL);
--		} else {
--			dev_warn(DEV, "Local backing block device frozen?\n");
--			mod_timer(&mdev->request_timer, jiffies + et);
-+			_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
-+		}
-+	}
-+	if (dt && req->rq_state & RQ_LOCAL_PENDING) {
-+		if (time_is_before_eq_jiffies(req->start_time + dt)) {
-+			dev_warn(DEV, "Local backing device failed to meet the disk-timeout\n");
-+			_drbd_set_state(_NS(mdev, disk, D_FAILED), CS_VERBOSE | CS_HARD, NULL);
+ 	mdev->send_cnt = 0;
+ 	mdev->recv_cnt = 0;
+@@ -1606,15 +1598,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
  		}
--	} else {
--		mod_timer(&mdev->request_timer, req->start_time + et);
  	}
+ 
+-	if (cp_discovered) {
+-		drbd_al_apply_to_bm(mdev);
+-		if (drbd_bitmap_io(mdev, &drbd_bm_write,
+-			"crashed primary apply AL", BM_LOCKED_MASK)) {
+-			retcode = ERR_IO_MD_DISK;
+-			goto force_diskless_dec;
+-		}
+-	}
 -
- 	spin_unlock_irq(&tconn->req_lock);
-+	mod_timer(&mdev->request_timer, req->start_time + et);
- }
-diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
-index 5135c95..f6aff15 100644
---- a/drivers/block/drbd/drbd_req.h
-+++ b/drivers/block/drbd/drbd_req.h
-@@ -106,6 +106,7 @@ enum drbd_req_event {
- 	READ_COMPLETED_WITH_ERROR,
- 	READ_AHEAD_COMPLETED_WITH_ERROR,
- 	WRITE_COMPLETED_WITH_ERROR,
-+	ABORT_DISK_IO,
- 	COMPLETED_OK,
- 	RESEND,
- 	FAIL_FROZEN_DISK_IO,
-@@ -119,18 +120,21 @@ enum drbd_req_event {
-  * same time, so we should hold the request lock anyways.
-  */
- enum drbd_req_state_bits {
--	/* 210
--	 * 000: no local possible
--	 * 001: to be submitted
-+	/* 3210
-+	 * 0000: no local possible
-+	 * 0001: to be submitted
- 	 *    UNUSED, we could map: 011: submitted, completion still pending
--	 * 110: completed ok
--	 * 010: completed with error
-+	 * 0110: completed ok
-+	 * 0010: completed with error
-+	 * 1001: Aborted (before completion)
-+	 * 1x10: Aborted and completed -> free
- 	 */
- 	__RQ_LOCAL_PENDING,
- 	__RQ_LOCAL_COMPLETED,
- 	__RQ_LOCAL_OK,
-+	__RQ_LOCAL_ABORTED,
+ 	if (_drbd_bm_total_weight(mdev) == drbd_bm_bits(mdev))
+ 		drbd_suspend_al(mdev); /* IO is still suspended here... */
  
--	/* 76543
-+	/* 87654
- 	 * 00000: no network possible
- 	 * 00001: to be send
- 	 * 00011: to be send, on worker queue
-@@ -209,8 +213,9 @@ enum drbd_req_state_bits {
- #define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
- #define RQ_LOCAL_COMPLETED (1UL << __RQ_LOCAL_COMPLETED)
- #define RQ_LOCAL_OK        (1UL << __RQ_LOCAL_OK)
-+#define RQ_LOCAL_ABORTED   (1UL << __RQ_LOCAL_ABORTED)
- 
--#define RQ_LOCAL_MASK      ((RQ_LOCAL_OK << 1)-1) /* 0x07 */
-+#define RQ_LOCAL_MASK      ((RQ_LOCAL_ABORTED << 1)-1)
- 
- #define RQ_NET_PENDING     (1UL << __RQ_NET_PENDING)
- #define RQ_NET_QUEUED      (1UL << __RQ_NET_QUEUED)
 diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 65ba12b..0f538a6 100644
+index 0f538a6..65d22f3 100644
 --- a/drivers/block/drbd/drbd_state.c
 +++ b/drivers/block/drbd/drbd_state.c
-@@ -29,6 +29,9 @@
- #include "drbd_int.h"
- #include "drbd_req.h"
+@@ -1017,6 +1017,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+ 						 MDF_CONNECTED_IND|MDF_WAS_UP_TO_DATE|
+ 						 MDF_PEER_OUT_DATED|MDF_CRASHED_PRIMARY);
  
-+/* in drbd_main.c */
-+extern void tl_apply(struct drbd_conf *mdev, enum drbd_req_event what);
++		mdf &= ~MDF_AL_CLEAN;
+ 		if (test_bit(CRASHED_PRIMARY, &mdev->flags))
+ 			mdf |= MDF_CRASHED_PRIMARY;
+ 		if (mdev->state.role == R_PRIMARY ||
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index 161cd41..1e9f754 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -162,6 +162,7 @@ enum drbd_ret_code {
+ 	ERR_INVALID_REQUEST	= 162,
+ 	ERR_NEED_APV_100	= 163,
+ 	ERR_NEED_ALLOW_TWO_PRI  = 164,
++	ERR_MD_UNCLEAN          = 165,
+ 
+ 	/* insert new ones above this line */
+ 	AFTER_LAST_ERR_CODE
+@@ -321,7 +322,8 @@ extern const char *drbd_set_st_err_str(enum drbd_state_rv);
+ #define MDF_FULL_SYNC		(1 << 3)
+ #define MDF_WAS_UP_TO_DATE	(1 << 4)
+ #define MDF_PEER_OUT_DATED	(1 << 5)
+-#define MDF_CRASHED_PRIMARY     (1 << 6)
++#define MDF_CRASHED_PRIMARY	(1 << 6)
++#define MDF_AL_CLEAN		(1 << 7)
+ 
+ enum drbd_uuid_index {
+ 	UI_CURRENT,
+@@ -341,10 +343,16 @@ enum drbd_timeout_flag {
+ 
+ #define UUID_JUST_CREATED ((__u64)4)
+ 
++/* magic numbers used in meta data and network packets */
+ #define DRBD_MAGIC 0x83740267
+ #define DRBD_MAGIC_BIG 0x835a
+ #define DRBD_MAGIC_100 0x8620ec20
+ 
++#define DRBD_MD_MAGIC_07   (DRBD_MAGIC+3)
++#define DRBD_MD_MAGIC_08   (DRBD_MAGIC+4)
++#define DRBD_MD_MAGIC_84_UNCLEAN	(DRBD_MAGIC+5)
 +
- struct after_state_chg_work {
- 	struct drbd_work w;
- 	union drbd_state os;
-@@ -1315,6 +1318,10 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
- 		rcu_read_unlock();
- 		was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
- 
-+		/* Immediately allow completion of all application IO, that waits
-+		   for completion from the local disk. */
-+		tl_apply(mdev, ABORT_DISK_IO);
 +
- 		/* current state still has to be D_FAILED,
- 		 * there is only one way out: to D_DISKLESS,
- 		 * and that may only happen after our put_ldev below. */
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 85bcab9..9eae4f6 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -67,11 +67,18 @@ rwlock_t global_state_lock;
- void drbd_md_io_complete(struct bio *bio, int error)
- {
- 	struct drbd_md_io *md_io;
-+	struct drbd_conf *mdev;
- 
- 	md_io = (struct drbd_md_io *)bio->bi_private;
-+	mdev = container_of(md_io, struct drbd_conf, md_io);
-+
- 	md_io->error = error;
- 
--	complete(&md_io->event);
-+	md_io->done = 1;
-+	wake_up(&mdev->misc_wait);
-+	bio_put(bio);
-+	drbd_md_put_buffer(mdev);
-+	put_ldev(mdev);
- }
- 
- /* reads on behalf of the partner,
-diff --git a/include/linux/drbd_genl.h b/include/linux/drbd_genl.h
-index e879a93..2e6cefe 100644
---- a/include/linux/drbd_genl.h
-+++ b/include/linux/drbd_genl.h
-@@ -128,6 +128,7 @@ GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
- 	__flg_field_def(17, DRBD_GENLA_F_MANDATORY,	disk_flushes, DRBD_DISK_FLUSHES_DEF)
- 	__flg_field_def(18, DRBD_GENLA_F_MANDATORY,	disk_drain, DRBD_DISK_DRAIN_DEF)
- 	__flg_field_def(19, DRBD_GENLA_F_MANDATORY,	md_flushes, DRBD_MD_FLUSHES_DEF)
-+	__u32_field_def(20,	DRBD_GENLA_F_MANDATORY,	disk_timeout, DRBD_DISK_TIMEOUT_DEF)
- )
- 
- GENL_struct(DRBD_NLA_RESOURCE_OPTS, 4, res_opts,
-@@ -224,6 +225,10 @@ GENL_struct(DRBD_NLA_DISCONNECT_PARMS, 12, disconnect_parms,
- 	__flg_field(1, DRBD_GENLA_F_MANDATORY,	force_disconnect)
- )
- 
-+GENL_struct(DRBD_NLA_DETACH_PARMS, 13, detach_parms,
-+	__flg_field(1, DRBD_GENLA_F_MANDATORY,	force_detach)
-+)
-+
- /*
-  * Notifications and commands (genlmsghdr->cmd)
-  */
-@@ -335,7 +340,9 @@ GENL_op(
- )
- 
- GENL_op(DRBD_ADM_DETACH,	18, GENL_doit(drbd_adm_detach),
--	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
-+	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
-+	GENL_tla_expected(DRBD_NLA_DETACH_PARMS, DRBD_GENLA_F_MANDATORY))
-+
- GENL_op(DRBD_ADM_INVALIDATE,	19, GENL_doit(drbd_adm_invalidate),
- 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
- GENL_op(DRBD_ADM_INVAL_PEER,	20, GENL_doit(drbd_adm_invalidate_peer),
-diff --git a/include/linux/drbd_limits.h b/include/linux/drbd_limits.h
-index cd51207..425010a 100644
---- a/include/linux/drbd_limits.h
-+++ b/include/linux/drbd_limits.h
-@@ -50,6 +50,12 @@
- #define DRBD_TIMEOUT_MAX 600
- #define DRBD_TIMEOUT_DEF 60       /* 6 seconds */
- 
-+ /* If backing disk takes longer than disk_timeout, mark the disk as failed */
-+#define DRBD_DISK_TIMEOUT_MIN 0    /* 0 = disabled */
-+#define DRBD_DISK_TIMEOUT_MAX 6000 /* 10 Minutes */
-+#define DRBD_DISK_TIMEOUT_DEF 0    /* disabled */
-+#define DRBD_DISK_TIMEOUT_SCALE '1'
-+
-   /* active connection retries when C_WF_CONNECTION */
- #define DRBD_CONNECT_INT_MIN 1
- #define DRBD_CONNECT_INT_MAX 120
+ /* how I came up with this magic?
+  * base64 decode "actlog==" ;) */
+ #define DRBD_AL_MAGIC 0x69cb65a2
 -- 
 1.7.4.1
 
