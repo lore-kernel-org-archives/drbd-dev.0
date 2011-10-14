@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri, 14 Oct 2011 23:57:48 +0200
-Message-Id: <1318629472-11110-8-git-send-email-philipp.reisner@linbit.com>
+Date: Fri, 14 Oct 2011 23:57:49 +0200
+Message-Id: <1318629472-11110-9-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1318629472-11110-1-git-send-email-philipp.reisner@linbit.com>
 References: <1318629472-11110-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/11] drbd: Print memory address in hex instead
-	of decimal in error message
+Subject: [Drbd-dev] [PATCH 08/11] drbd: receive_protocol(): Give variables
+	more easily searchable names
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,22 +23,71 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |   18 +++++++++---------
+ 1 files changed, 9 insertions(+), 9 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index d4e677c..bfbc103 100644
+index bfbc103..11f2e72 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1611,7 +1611,7 @@ find_request(struct drbd_conf *mdev, struct rb_root *root, u64 id,
- 	if (drbd_contains_interval(root, sector, &req->i) && req->i.local)
- 		return req;
- 	if (!missing_ok) {
--		dev_err(DEV, "%s: failed to find request %lu, sector %llus\n", func,
-+		dev_err(DEV, "%s: failed to find request 0x%lx, sector %llus\n", func,
- 			(unsigned long)id, (unsigned long long)sector);
- 	}
- 	return NULL;
+@@ -3002,7 +3002,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
+ 	int p_proto, p_discard_my_data, p_two_primaries, cf;
+ 	struct net_conf *nc, *old_net_conf, *new_net_conf = NULL;
+ 	char integrity_alg[SHARED_SECRET_MAX] = "";
+-	struct crypto_hash *peer_tfm = NULL, *tfm = NULL;
++	struct crypto_hash *peer_integrity_tfm = NULL, *integrity_tfm = NULL;
+ 	void *int_dig_in = NULL, *int_dig_vv = NULL;
+ 
+ 	p_proto		= be32_to_cpu(p->protocol);
+@@ -3028,15 +3028,15 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
+ 		if (integrity_alg[0]) {
+ 			int hash_size;
+ 
+-			peer_tfm = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
+-			tfm      = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
+-			if (!(peer_tfm && tfm)) {
++			peer_integrity_tfm = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
++			integrity_tfm = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
++			if (!(peer_integrity_tfm && integrity_tfm)) {
+ 				conn_err(tconn, "peer data-integrity-alg %s not supported\n",
+ 					 integrity_alg);
+ 				goto disconnect;
+ 			}
+ 
+-			hash_size = crypto_hash_digestsize(tfm);
++			hash_size = crypto_hash_digestsize(integrity_tfm);
+ 			int_dig_in = kmalloc(hash_size, GFP_KERNEL);
+ 			int_dig_vv = kmalloc(hash_size, GFP_KERNEL);
+ 			if (!(int_dig_in && int_dig_vv)) {
+@@ -3065,7 +3065,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
+ 		new_net_conf->integrity_alg_len = strlen(integrity_alg) + 1;
+ 
+ 		crypto_free_hash(tconn->integrity_tfm);
+-		tconn->integrity_tfm = tfm;
++		tconn->integrity_tfm = integrity_tfm;
+ 
+ 		rcu_assign_pointer(tconn->net_conf, new_net_conf);
+ 		mutex_unlock(&tconn->conf_update);
+@@ -3074,7 +3074,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
+ 		crypto_free_hash(tconn->peer_integrity_tfm);
+ 		kfree(tconn->int_dig_in);
+ 		kfree(tconn->int_dig_vv);
+-		tconn->peer_integrity_tfm = peer_tfm;
++		tconn->peer_integrity_tfm = peer_integrity_tfm;
+ 		tconn->int_dig_in = int_dig_in;
+ 		tconn->int_dig_vv = int_dig_vv;
+ 
+@@ -3137,8 +3137,8 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
+ disconnect_rcu_unlock:
+ 	rcu_read_unlock();
+ disconnect:
+-	crypto_free_hash(peer_tfm);
+-	crypto_free_hash(tfm);
++	crypto_free_hash(peer_integrity_tfm);
++	crypto_free_hash(integrity_tfm);
+ 	kfree(int_dig_in);
+ 	kfree(int_dig_vv);
+ 	conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 -- 
 1.7.4.1
 
