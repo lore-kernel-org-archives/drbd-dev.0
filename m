@@ -1,24 +1,17 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D62B81055702
-	for <drbd-dev@lists.linbit.com>; Mon,  7 Nov 2011 10:23:57 +0100 (CET)
-Resent-Message-ID: <20111107092357.GC15431@barkeeper1-xen.linbit>
-Received: from mail-fx0-f54.google.com (mail-fx0-f54.google.com
-	[209.85.161.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2B41C10556DA
-	for <drbd-dev@lists.linbit.com>; Sun,  6 Nov 2011 17:10:29 +0100 (CET)
-Received: by mail-fx0-f54.google.com with SMTP id r19so8390582faa.27
-	for <drbd-dev@lists.linbit.com>; Sun, 06 Nov 2011 08:10:29 -0800 (PST)
-From: Florian Haas <florian@hastexo.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8EA3310556D2
+	for <drbd-dev@lists.linbit.com>; Mon,  7 Nov 2011 10:32:40 +0100 (CET)
+Date: Mon, 7 Nov 2011 10:32:40 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Date: Sun,  6 Nov 2011 17:09:56 +0100
-Message-Id: <1320595796-5181-2-git-send-email-florian@hastexo.com>
-In-Reply-To: <1320595796-5181-1-git-send-email-florian@hastexo.com>
+Message-ID: <20111107093240.GD15431@barkeeper1-xen.linbit>
 References: <1320595796-5181-1-git-send-email-florian@hastexo.com>
-Cc: Florian Haas <florian@hastexo.com>
-Subject: [Drbd-dev] [PATCH] build: properly create DRBD_LIB_DIR and
-	DRBD_RUN_DIR
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1320595796-5181-1-git-send-email-florian@hastexo.com>
+Subject: Re: [Drbd-dev] fix missing directory creation in "make install"
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -28,31 +21,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-configure defines DRBD_LIB_DIR and DRBD_RUN_DIR to be
-$localstatedir/{lib,run}/${PACKAGE_TARNAME), but "make install"
+On Sun, Nov 06, 2011 at 05:09:55PM +0100, Florian Haas wrote:
+> Lars/Phil,
+> 
+> please consider the following patch, which ensures that "make install"
+> creates DRBD_RUN_DIR. Issue highlighted by Eric Robinson, see:
+> 
+> http://lists.linux-ha.org/pipermail/linux-ha/2011-November/044198.html
 
-- does not create DRBD_RUN_DIR at all,
-- does not define DRBD_LIB_DIR in terms of $(PACKAGE_TARNAME).
+Can we just drop the configure nonsense again instead?
 
-Bring the Makefile into sync with what the userland tools expect.
----
- user/Makefile.in |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+As /var/run/ is a tmpfs on many distros now, subdirs and other things in
+it need to be recreated anyways as needed, which drbdsetup is actually
+supposed to be doing.
 
-diff --git a/user/Makefile.in b/user/Makefile.in
-index 8252f01..4a26752 100644
---- a/user/Makefile.in
-+++ b/user/Makefile.in
-@@ -113,7 +113,8 @@ distclean: clean
- install:
- ifeq ($(WITH_UTILS),yes)
- 	install -d $(DESTDIR)/sbin/
--	install -d $(DESTDIR)$(localstatedir)/lib/drbd
-+	install -d $(DESTDIR)$(localstatedir)/lib/$(PACKAGE_TARNAME)
-+	install -d $(DESTDIR)$(localstatedir)/run/$(PACKAGE_TARNAME)
- 	install -d $(DESTDIR)$(localstatedir)/lock
- 	if getent group haclient > /dev/null 2> /dev/null ; then	\
- 		install -g haclient -m 4750 drbdsetup $(DESTDIR)/sbin/ ;	\
+And "someone" (the OS) is supposed to cleanup those dirs on reboot,
+which won't happen with the braindead configure autofoo defautls,
+which again may (or may not) confuse some things.
+
+Ah, well, thanks for the patch, anyways ;)
+
 -- 
-1.7.4.1
-
+: Lars Ellenberg
+: LINBIT | Your Way to High Availability
+: DRBD/HA support and consulting http://www.linbit.com
