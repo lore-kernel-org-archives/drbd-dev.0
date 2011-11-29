@@ -2,14 +2,14 @@ Return-Path: <florian@hastexo.com>
 Received: from mail-ey0-f182.google.com (mail-ey0-f182.google.com
 	[209.85.215.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9DE91105570F
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2011 20:04:57 +0100 (CET)
-Received: by eaai12 with SMTP id i12so6052086eaa.27
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2011 11:04:57 -0800 (PST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4A15E1055730
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2011 20:05:06 +0100 (CET)
+Received: by mail-ey0-f182.google.com with SMTP id i12so6052086eaa.27
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2011 11:05:06 -0800 (PST)
 From: Florian Haas <florian@hastexo.com>
 To: drbd-dev@lists.linbit.com
-Date: Tue, 29 Nov 2011 20:04:44 +0100
-Message-Id: <1322593484-2387-1-git-send-email-florian@hastexo.com>
+Date: Tue, 29 Nov 2011 19:57:25 +0100
+Message-Id: <1322593045-678-2-git-send-email-florian@hastexo.com>
 In-Reply-To: <1322593045-678-1-git-send-email-florian@hastexo.com>
 References: <1322593045-678-1-git-send-email-florian@hastexo.com>
 Subject: [Drbd-dev] [PATCH] udev rules file: skip if invoked for a subsystem
