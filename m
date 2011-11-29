@@ -2,16 +2,18 @@ Return-Path: <florian@hastexo.com>
 Received: from mail-ey0-f182.google.com (mail-ey0-f182.google.com
 	[209.85.215.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id F0DD1105570F
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2011 19:57:46 +0100 (CET)
-Received: by eaai12 with SMTP id i12so6040387eaa.27
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2011 10:57:45 -0800 (PST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9DE91105570F
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2011 20:04:57 +0100 (CET)
+Received: by eaai12 with SMTP id i12so6052086eaa.27
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2011 11:04:57 -0800 (PST)
 From: Florian Haas <florian@hastexo.com>
 To: drbd-dev@lists.linbit.com
-Date: Tue, 29 Nov 2011 19:57:24 +0100
-Message-Id: <1322593045-678-1-git-send-email-florian@hastexo.com>
-Subject: [Drbd-dev] [PATCH] Modify udev rules file so non-block devices
-	aren't renamed
+Date: Tue, 29 Nov 2011 20:04:44 +0100
+Message-Id: <1322593484-2387-1-git-send-email-florian@hastexo.com>
+In-Reply-To: <1322593045-678-1-git-send-email-florian@hastexo.com>
+References: <1322593045-678-1-git-send-email-florian@hastexo.com>
+Subject: [Drbd-dev] [PATCH] udev rules file: skip if invoked for a subsystem
+	other than block
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,17 +23,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Phil/Lars/Andreas,
+---
+ scripts/drbd.rules |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-attached is a suggested patch for the udev rules file that DRBD ships.
-Julian Seifert ("alamar" on freenode) made the interesting choice of
-naming one of his network interfaces "drbdlink". This the drbd udev
-rule apparently then promptly re-renamed "drbd0", which shouldn't
-happen.
+diff --git a/scripts/drbd.rules b/scripts/drbd.rules
+index 080635f..18708b7 100644
+--- a/scripts/drbd.rules
++++ b/scripts/drbd.rules
+@@ -1,5 +1,7 @@
+ # This file contains the rules to create named DRBD devices.
+ 
++SUBSYSTEM!="block", GOTO="drbd_end"
++
+ # DO NOT WRAP THIS LINE
+ #
+ # old udev does not understand some of it,
+@@ -13,3 +15,5 @@
+ #
+ # DO NOT WRAP THIS LINE
+ KERNEL=="drbd*", IMPORT{program}="/sbin/drbdadm sh-udev minor-%m", NAME="$env{DEVICE}", SYMLINK="drbd/by-res/$env{RESOURCE} drbd/by-disk/$env{DISK}"
++
++LABEL="drbd_end"
+-- 
+1.7.5.4
 
-As always, feel free to improve the patch as you see fit. If you wish
-to apply it unmodified, consider pulling it from the "drbd-8.3"
-branch in my GitHub repo; git://github.com/fghaas/drbd-8.git.
-
-Cheers,
-Florian
