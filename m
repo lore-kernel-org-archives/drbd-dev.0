@@ -1,32 +1,21 @@
-Return-Path: <oleg@redhat.com>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5D8381019A68
-	for <drbd-dev@lists.linbit.com>; Wed,  8 Feb 2012 15:10:42 +0100 (CET)
-Date: Wed, 8 Feb 2012 15:04:02 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <20120208140402.GB3547@redhat.com>
-References: <20120202173504.GA25528@redhat.com>
-	<201202032254.GCJ30240.SLMOVFFHtJOFOQ@I-love.SAKURA.ne.jp>
-	<20120203151534.GB32503@redhat.com>
-	<201202041426.ICI23458.FFFtOMLOJOVSQH@I-love.SAKURA.ne.jp>
-	<201202051415.JEB43260.SFMJOHLtOFVQOF@I-love.SAKURA.ne.jp>
-	<201202072055.GEC05251.FFMSVHOLOFOQJt@I-love.SAKURA.ne.jp>
-	<20120207171031.GA11215@redhat.com>
-	<201202080227.q182RnCp077670@www262.sakura.ne.jp>
-	<20120208140333.GA3547@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120208140333.GA3547@redhat.com>
-Cc: john.johansen@canonical.com,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	fhrbata@redhat.com, rusty@rustcorp.com.au, apw@canonical.com,
-	Michal Januszewski <spock@gentoo.org>, rientjes@google.com,
-	tj@kernel.org, akpm@linux-foundation.org, arjan@linux.intel.com,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [PATCH 1/1] usermodehelper: use UMH_WAIT_PROC
-	consistently
+Return-Path: <akpm@linux-foundation.org>
+Received: from mail-fx0-f74.google.com (mail-fx0-f74.google.com
+	[209.85.161.74]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id CDA311019A85
+	for <drbd-dev@lists.linbit.com>; Thu,  9 Feb 2012 01:22:15 +0100 (CET)
+Received: by faaa19 with SMTP id a19so34551faa.3
+	for <drbd-dev@lists.linbit.com>; Wed, 08 Feb 2012 16:22:15 -0800 (PST)
+To: mm-commits@vger.kernel.org
+From: akpm@linux-foundation.org
+Date: Wed, 08 Feb 2012 16:14:35 -0800
+Message-Id: <20120209001435.C216FA04C2@akpm.mtv.corp.google.com>
+Cc: FlorianSchandinat@gmx.de, penguin-kernel@I-love.SAKURA.ne.jp,
+	gregkh@linuxfoundation.org, jmorris@namei.org, oleg@redhat.com,
+	penguin-kernel@i-love.sakura.ne.jp, spock@gentoo.org,
+	takedakn@nttdata.co.jp, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] + usermodehelper-use-umh_wait_proc-consistently.patch
+	added to -mm tree
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -36,12 +25,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-A few call_usermodehelper() callers use the hardcoded constant
-instead of the proper UMH_WAIT_PROC, fix them.
+
+The patch titled
+     Subject: usermodehelper: use UMH_WAIT_PROC consistently
+has been added to the -mm tree.  Its filename is
+     usermodehelper-use-umh_wait_proc-consistently.patch
+
+Before you just go and hit "reply", please:
+   a) Consider who else should be cc'ed
+   b) Prefer to cc a suitable mailing list as well
+   c) Ideally: find the original patch on the mailing list and do a
+      reply-to-all to that, adding suitable additional cc's
+
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
+
+The -mm tree is included into linux-next and is updated
+there every 3-4 working days
+
+------------------------------------------------------
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: usermodehelper: use UMH_WAIT_PROC consistently
+
+A few call_usermodehelper() callers use the hardcoded constant instead of
+the proper UMH_WAIT_PROC, fix them.
 
 Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Michal Januszewski <spock@gentoo.org>
+Cc: Florian Tobias Schandinat <FlorianSchandinat@gmx.de>
+Cc: Kentaro Takeda <takedakn@nttdata.co.jp>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: James Morris <jmorris@namei.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
+
  drivers/block/drbd/drbd_nl.c               |    2 +-
  drivers/staging/rtl8187se/r8180_core.c     |    2 +-
  drivers/staging/rtl8192e/rtl8192e/rtl_dm.c |    4 ++--
@@ -49,11 +68,10 @@ Signed-off-by: Oleg Nesterov <oleg@redhat.com>
  security/tomoyo/load_policy.c              |    2 +-
  5 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index af2a250..e407da6 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -179,7 +179,7 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
+diff -puN drivers/block/drbd/drbd_nl.c~usermodehelper-use-umh_wait_proc-consistently drivers/block/drbd/drbd_nl.c
+--- a/drivers/block/drbd/drbd_nl.c~usermodehelper-use-umh_wait_proc-consistently
++++ a/drivers/block/drbd/drbd_nl.c
+@@ -179,7 +179,7 @@ int drbd_khelper(struct drbd_conf *mdev,
  	dev_info(DEV, "helper command: %s %s %s\n", usermode_helper, cmd, mb);
  
  	drbd_bcast_ev_helper(mdev, cmd);
@@ -62,11 +80,10 @@ index af2a250..e407da6 100644
  	if (ret)
  		dev_warn(DEV, "helper command: %s %s %s exit code %u (0x%x)\n",
  				usermode_helper, cmd, mb,
-diff --git a/drivers/staging/rtl8187se/r8180_core.c b/drivers/staging/rtl8187se/r8180_core.c
-index 04c2391..24072f7 100644
---- a/drivers/staging/rtl8187se/r8180_core.c
-+++ b/drivers/staging/rtl8187se/r8180_core.c
-@@ -4144,7 +4144,7 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
+diff -puN drivers/staging/rtl8187se/r8180_core.c~usermodehelper-use-umh_wait_proc-consistently drivers/staging/rtl8187se/r8180_core.c
+--- a/drivers/staging/rtl8187se/r8180_core.c~usermodehelper-use-umh_wait_proc-consistently
++++ a/drivers/staging/rtl8187se/r8180_core.c
+@@ -4144,7 +4144,7 @@ void GPIOChangeRFWorkItemCallBack(struct
  		argv[0] = RadioPowerPath;
  		argv[2] = NULL;
  
@@ -75,11 +92,10 @@ index 04c2391..24072f7 100644
  	}
  }
  
-diff --git a/drivers/staging/rtl8192e/rtl8192e/rtl_dm.c b/drivers/staging/rtl8192e/rtl8192e/rtl_dm.c
-index a7fa9aa..f026b71 100644
---- a/drivers/staging/rtl8192e/rtl8192e/rtl_dm.c
-+++ b/drivers/staging/rtl8192e/rtl8192e/rtl_dm.c
-@@ -208,7 +208,7 @@ static void dm_check_ac_dc_power(struct net_device *dev)
+diff -puN drivers/staging/rtl8192e/rtl8192e/rtl_dm.c~usermodehelper-use-umh_wait_proc-consistently drivers/staging/rtl8192e/rtl8192e/rtl_dm.c
+--- a/drivers/staging/rtl8192e/rtl8192e/rtl_dm.c~usermodehelper-use-umh_wait_proc-consistently
++++ a/drivers/staging/rtl8192e/rtl8192e/rtl_dm.c
+@@ -208,7 +208,7 @@ static void dm_check_ac_dc_power(struct 
  
  	if (priv->rtllib->state != RTLLIB_LINKED)
  		return;
@@ -97,10 +113,9 @@ index a7fa9aa..f026b71 100644
  	}
  }
  
-diff --git a/drivers/video/uvesafb.c b/drivers/video/uvesafb.c
-index e7f69ef..506d16e 100644
---- a/drivers/video/uvesafb.c
-+++ b/drivers/video/uvesafb.c
+diff -puN drivers/video/uvesafb.c~usermodehelper-use-umh_wait_proc-consistently drivers/video/uvesafb.c
+--- a/drivers/video/uvesafb.c~usermodehelper-use-umh_wait_proc-consistently
++++ a/drivers/video/uvesafb.c
 @@ -121,7 +121,7 @@ static int uvesafb_helper_start(void)
  		NULL,
  	};
@@ -110,11 +125,10 @@ index e7f69ef..506d16e 100644
  }
  
  /*
-diff --git a/security/tomoyo/load_policy.c b/security/tomoyo/load_policy.c
-index 6797540..078fac0 100644
---- a/security/tomoyo/load_policy.c
-+++ b/security/tomoyo/load_policy.c
-@@ -102,7 +102,7 @@ void tomoyo_load_policy(const char *filename)
+diff -puN security/tomoyo/load_policy.c~usermodehelper-use-umh_wait_proc-consistently security/tomoyo/load_policy.c
+--- a/security/tomoyo/load_policy.c~usermodehelper-use-umh_wait_proc-consistently
++++ a/security/tomoyo/load_policy.c
+@@ -102,7 +102,7 @@ void tomoyo_load_policy(const char *file
  	envp[0] = "HOME=/";
  	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
  	envp[2] = NULL;
@@ -123,7 +137,21 @@ index 6797540..078fac0 100644
  	tomoyo_check_profile();
  }
  
--- 
-1.5.5.1
+_
+Subject: Subject: usermodehelper: use UMH_WAIT_PROC consistently
 
+Patches currently in -mm which might be from oleg@redhat.com are
+
+origin.patch
+linux-next.patch
+prctl-add-pr_setget_child_subreaper-to-allow-simple-process-supervision.patch
+prctl-add-pr_setget_child_subreaper-to-allow-simple-process-supervision-fix.patch
+prctl-add-pr_setget_child_subreaper-to-allow-simple-process-supervision-fix-fix.patch
+prctl-add-pr_setget_child_subreaper-to-allow-simple-process-supervision-fix-fix-fix.patch
+kernel-exitc-if-init-dies-log-a-signal-which-killed-it-if-any.patch
+kernel-exitc-if-init-dies-log-a-signal-which-killed-it-if-any-fix.patch
+usermodehelper-use-umh_wait_proc-consistently.patch
+pidns-add-reboot_pid_ns-to-handle-the-reboot-syscall.patch
+pidns-add-reboot_pid_ns-to-handle-the-reboot-syscall-fix.patch
+sysctl-make-kernelns_last_pid-control-being-checkpoint_restore-dependent.patch
 
