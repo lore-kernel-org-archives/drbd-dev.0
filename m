@@ -1,17 +1,17 @@
-Return-Path: <florian@hastexo.com>
-Received: from mail-ey0-f182.google.com (mail-ey0-f182.google.com
-	[209.85.215.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 33CF1105CA37
-	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2012 16:11:29 +0100 (CET)
-Received: by eaan10 with SMTP id n10so1658865eaa.27
-	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2012 07:11:29 -0800 (PST)
-MIME-Version: 1.0
-From: Florian Haas <florian@hastexo.com>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from soda.linbit (unknown [10.9.9.55])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 22AAC106E0E3
+	for <drbd-dev@lists.linbit.com>; Sat, 25 Feb 2012 23:21:05 +0100 (CET)
+Date: Sat, 25 Feb 2012 23:21:04 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Date: Fri, 17 Feb 2012 16:10:03 +0100
-Message-Id: <1329491404-15769-1-git-send-email-florian@hastexo.com>
-Subject: [Drbd-dev] [8.3 PATCH 0/1]: peer fencing via stonith_admin
+Message-ID: <20120225222104.GH28351@barkeeper1-xen.linbit>
+References: <201202241728.29238.apollonskiy.e@digdes.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201202241728.29238.apollonskiy.e@digdes.com>
+Subject: Re: [Drbd-dev] ko-count overflow
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -21,18 +21,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Lars,
+On Fri, Feb 24, 2012 at 05:28:29PM +0400, Apollonskiy Evgeniy wrote:
+> Hello,
+> 
+> There is a strange code fragment in drbd_main.c:
+> 
+> 	drop_it = !--mdev->ko_count;
+> 	if (!drop_it) {
+> 		dev_err(DEV, "[%s/%d] sock_sendmsg time expired, ko = %u\n",
+> 		       current->comm, current->pid, mdev->ko_count);
+> 		request_ping(mdev);
+> 	}
+> 
+> Default value of ko_count is 0, so --mdev->ko_count will be equal to 
+> 4294967295 (ko_count is unsigned int).
 
-here's a trivial peer fencing handler that kicks out a peer via
-Pacemaker's stonith_ng client utility, stonith_admin.
+That is intentional.
 
-Likely to be useful only in dual-Primary configurations, where
-it will of course lead to the inevitable cluster shootout on
-replication network failure -- but since stonith_admin -F is
-synchronous that shouldn't be a problem.
+Configuring "0" should be equivalent to "disabled",
+but we still want the recurring log message with the "count down".
 
-This is certainly far from perfect, so please feed free to add
-your own shell wizardry to this.
-
-Cheers,
-Florian
+-- 
+: Lars Ellenberg
+: LINBIT | Your Way to High Availability
+: DRBD/HA support and consulting http://www.linbit.com
