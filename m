@@ -1,18 +1,19 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2BC89106DCC0
-	for <drbd-dev@lists.linbit.com>; Tue, 20 Mar 2012 21:00:10 +0100 (CET)
-Resent-Message-ID: <20120320200009.GG4969@barkeeper1-xen.linbit>
-From: =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <uwe@kleine-koenig.org>
-To: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Date: Mon, 19 Mar 2012 17:11:27 +0100
-Message-Id: <1332173487-14167-1-git-send-email-uwe@kleine-koenig.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: linux-kernel@vger.kernel.org, drbd-user@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] block/drbd: simplify drbd_buildtag fixing a
-	build warning
+Return-Path: <florian@hastexo.com>
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com
+	[74.125.82.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 67BBE1019A68
+	for <drbd-dev@lists.linbit.com>; Thu, 22 Mar 2012 13:30:55 +0100 (CET)
+Received: by wern13 with SMTP id n13so2989736wer.27
+	for <drbd-dev@lists.linbit.com>; Thu, 22 Mar 2012 05:30:55 -0700 (PDT)
+From: Florian Haas <florian@hastexo.com>
+To: drbd-dev@lists.linbit.com
+Date: Thu, 22 Mar 2012 13:30:18 +0100
+Message-Id: <1332419419-29091-3-git-send-email-florian@hastexo.com>
+In-Reply-To: <1332419419-29091-1-git-send-email-florian@hastexo.com>
+References: <1332419419-29091-1-git-send-email-florian@hastexo.com>
+Subject: [Drbd-dev] [PATCH 2/3] User's Guide: update blog links in "more
+	info" section
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -22,48 +23,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This fixes:
-	drivers/block/drbd/drbd_main.c: In function ‘drbd_buildtag’:
-	drivers/block/drbd/drbd_main.c:4187:24: warning: the comparison will always evaluate as ‘true’ for the address of ‘__this_module’ will never be NULL [-Waddress]
-
-Signed-off-by: Uwe Kleine-König <uwe@kleine-koenig.org>
 ---
- drivers/block/drbd/drbd_main.c |   16 +++++++---------
- 1 files changed, 7 insertions(+), 9 deletions(-)
+ users-guide/more-info.txt |    7 +++----
+ 1 files changed, 3 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 211fc44..9cc7178 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -4177,21 +4177,19 @@ _drbd_insert_fault(struct drbd_conf *mdev, unsigned int type)
+diff --git a/users-guide/more-info.txt b/users-guide/more-info.txt
+index 7ba0d27..f941c05 100644
+--- a/users-guide/more-info.txt
++++ b/users-guide/more-info.txt
+@@ -35,12 +35,11 @@ improvements in DRBD, and having developer level discussions.
+ === Blogs
  
- const char *drbd_buildtag(void)
- {
-+#if IS_MODULE(CONFIG_BLK_DEV_DRBD)
- 	/* DRBD built from external sources has here a reference to the
- 	   git hash of the source code. */
+ * Florian Haas, one of the co-authors of this guide, maintains
+-  http://blogs.linbit.com/florian[a technical blog].
++  http://fghaas.wordpress.com/[a technical blog].
  
--	static char buildtag[38] = "\0uilt-in";
-+	static char buildtag[38] = "\0";
+-* Martin Loschwitz a.k.a. +madkiss+, another
+-  http://www.linbit.com[LINBIT] employee and co-maintainer of the
++* Martin Loschwitz a.k.a. +madkiss+, co-maintainer of the
+   http://www.debian.org[Debian] DRBD packages, keeps
+-  http://blogs.linbit.com/martin[a personal blog] in German.
++  http://martinloschwitz.wordpress.com[a personal blog] in German.
  
--	if (buildtag[0] == 0) {
--#ifdef CONFIG_MODULES
--		if (THIS_MODULE != NULL)
--			sprintf(buildtag, "srcversion: %-24s", THIS_MODULE->srcversion);
--		else
--#endif
--			buildtag[0] = 'b';
--	}
-+	if (buildtag[0] == '\0')
-+		sprintf(buildtag, "srcversion: %-24s", THIS_MODULE->srcversion);
- 
- 	return buildtag;
-+#else
-+	return "built-in";
-+#endif
- }
- 
- module_init(drbd_init)
+ * http://www.planet-ha.org/[Planet HA] is an aggregated feed
+   centralizing blog posts from a number of high availability
 -- 
-1.7.9.1
+1.7.5.4
 
