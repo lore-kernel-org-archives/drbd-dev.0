@@ -1,20 +1,24 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0C34D106DCC0
-	for <drbd-dev@lists.linbit.com>; Fri, 23 Mar 2012 11:23:01 +0100 (CET)
-Date: Fri, 23 Mar 2012 11:23:00 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20120323102300.GI3743@barkeeper1-xen.linbit>
+Return-Path: <florian.haas@hastexo.com>
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com
+	[209.85.216.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D0F9D106DCC0
+	for <drbd-dev@lists.linbit.com>; Fri, 23 Mar 2012 11:25:40 +0100 (CET)
+Received: by qcsg15 with SMTP id g15so2636559qcs.27
+	for <drbd-dev@lists.linbit.com>; Fri, 23 Mar 2012 03:25:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20120323102300.GI3743@barkeeper1-xen.linbit>
 References: <1332420276-29946-1-git-send-email-florian@hastexo.com>
 	<1332420276-29946-2-git-send-email-florian@hastexo.com>
 	<20120323100432.GH3743@barkeeper1-xen.linbit>
 	<CAPUexz_0+mzbbrVmyXq+yBxCdUpkmrh9tvWEKyBNcaxXMUVO7g@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPUexz_0+mzbbrVmyXq+yBxCdUpkmrh9tvWEKyBNcaxXMUVO7g@mail.gmail.com>
+	<20120323102300.GI3743@barkeeper1-xen.linbit>
+Date: Fri, 23 Mar 2012 11:25:37 +0100
+Message-ID: <CAPUexz8cKDooO0DkK_eEH45OkDnb6UdiQmv5tudqQ-vz4cS1dw@mail.gmail.com>
+From: Florian Haas <florian@hastexo.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Subject: Re: [Drbd-dev] [PATCH] udev rules file: skip if invoked for a
  subsystem other than block
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
@@ -26,44 +30,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Mar 23, 2012 at 11:08:04AM +0100, Florian Haas wrote:
-> On Fri, Mar 23, 2012 at 11:04 AM, Lars Ellenberg
-> <lars.ellenberg@linbit.com> wrote:
-> > On Thu, Mar 22, 2012 at 01:44:36PM +0100, Florian Haas wrote:
-> >> ---
-> >>  scripts/drbd.rules |    4 ++++
-> >>  1 files changed, 4 insertions(+), 0 deletions(-)
-> >>
-> >> diff --git a/scripts/drbd.rules b/scripts/drbd.rules
-> >> index 080635f..18708b7 100644
-> >> --- a/scripts/drbd.rules
-> >> +++ b/scripts/drbd.rules
-> >> @@ -1,5 +1,7 @@
-> >>  # This file contains the rules to create named DRBD devices.
-> >>
-> >> +SUBSYSTEM!="block", GOTO="drbd_end"
-> >
-> > I see what it does, and it probably is good practice,
-> > or at least "polite" to do so.
-> >
-> > Does this actually fix anything?
-> >
-> > Do you have seen other devices with kernel provided device names
-> > matching "drbd*" ?
-> >
-> > "What's the point?"
-> > Am I missing something?
-> 
-> http://lists.linbit.com/pipermail/drbd-dev/2011-November/002007.html
+On Fri, Mar 23, 2012 at 11:23 AM, Lars Ellenberg
+<lars.ellenberg@linbit.com> wrote:
+>> http://lists.linbit.com/pipermail/drbd-dev/2011-November/002007.html
+>
+> Right. I remember now.
+> Should not happen, as the "drbdlinks" is not a "KERNEL=3D*" name
+> anymore... =C2=A0But whatever. Udev voodoo.
+>
+> I don't see how this can possible break things,
+> and apparently it fixes some. So:
+>
+> Thanks :-)
 
-Right. I remember now.
-Should not happen, as the "drbdlinks" is not a "KERNEL=*" name
-anymore...  But whatever. Udev voodoo.
+alamar did report back at the time that it fixed his problem. So,
+you're welcome. :)
 
-I don't see how this can possible break things,
-and apparently it fixes some. So:
+Cheers,
+Florian
 
-Thanks :-)
-
-	Lars
-
+--=20
+Need help with High Availability?
+http://www.hastexo.com/now
