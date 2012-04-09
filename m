@@ -1,20 +1,16 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from soda.linbit (unknown [10.9.9.55])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E1ED6106DCC2
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Apr 2012 16:23:23 +0200 (CEST)
-Resent-Message-ID: <20120404142323.GE9163@barkeeper1-xen.linbit>
-From: Cong Wang <xiyou.wangcong@gmail.com>
-To: linux-kernel@vger.kernel.org
-Date: Tue,  3 Apr 2012 14:13:36 +0800
-Message-Id: <1333433616-8315-1-git-send-email-xiyou.wangcong@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: WANG Cong <xiyou.wangcong@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>, drbd-user@lists.linbit.com,
+Return-Path: <akpm@linux-foundation.org>
+Date: Mon, 9 Apr 2012 16:14:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Cong Wang <xiyou.wangcong@gmail.com>
+Message-Id: <20120409161427.1decc2c1.akpm@linux-foundation.org>
+In-Reply-To: <1333433616-8315-1-git-send-email-xiyou.wangcong@gmail.com>
+References: <1333433616-8315-1-git-send-email-xiyou.wangcong@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Cc: linux-kernel@vger.kernel.org, drbd-user@lists.linbit.com,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] =?utf-8?q?=5BPatch=5D_drbd=3A_check_MODULE_for_THIS=5F?=
-	=?utf-8?q?MODULE?=
+Subject: Re: [Drbd-dev] [Patch] drbd: check MODULE for THIS_MODULE
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,36 +20,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-THIS_MODULE is NULL only when drbd is compiled as built-in,
-so the #ifdef CONFIG_MODULES should be #ifdef MODULE instead.
+On Tue,  3 Apr 2012 14:13:36 +0800
+Cong Wang <xiyou.wangcong@gmail.com> wrote:
 
-This fixes the warning:
+> THIS_MODULE is NULL only when drbd is compiled as built-in,
+> so the #ifdef CONFIG_MODULES should be #ifdef MODULE instead.
+> 
+> This fixes the warning:
+> 
+> drivers/block/drbd/drbd_main.c: In function ___drbd_buildtag___:
+> drivers/block/drbd/drbd_main.c:4187:24: warning: the comparison will always evaluate as ___true___ for the address of _____this_module___ will never be NULL [-Waddress]
+> 
+> Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
+> Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
+> 
+> ---
+> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+> index 211fc44..96c432f 100644
+> --- a/drivers/block/drbd/drbd_main.c
+> +++ b/drivers/block/drbd/drbd_main.c
+> @@ -4183,12 +4183,11 @@ const char *drbd_buildtag(void)
+>  	static char buildtag[38] = "\0uilt-in";
+>  
+>  	if (buildtag[0] == 0) {
+> -#ifdef CONFIG_MODULES
+> -		if (THIS_MODULE != NULL)
+> -			sprintf(buildtag, "srcversion: %-24s", THIS_MODULE->srcversion);
+> -		else
+> +#ifdef MODULE
+> +		sprintf(buildtag, "srcversion: %-24s", THIS_MODULE->srcversion);
+> +#else
+> +		buildtag[0] = 'b';
+>  #endif
+> -			buildtag[0] = 'b';
+>  	}
+>  
+>  	return buildtag;
 
-drivers/block/drbd/drbd_main.c: In function ‘drbd_buildtag’:
-drivers/block/drbd/drbd_main.c:4187:24: warning: the comparison will always evaluate as ‘true’ for the address of ‘__this_module’ will never be NULL [-Waddress]
+If the MODULE_SRCVERSION_ALL help in init/Kconfig is to be believed,
+this should depend on CONFIG_MODULE_SRCVERSION_ALL?
 
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Signed-off-by: WANG Cong <xiyou.wangcong@gmail.com>
+But drbd is the only driver in all of Linux which plays with
+srcversion.  Can we just delete this code?
 
----
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 211fc44..96c432f 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -4183,12 +4183,11 @@ const char *drbd_buildtag(void)
- 	static char buildtag[38] = "\0uilt-in";
- 
- 	if (buildtag[0] == 0) {
--#ifdef CONFIG_MODULES
--		if (THIS_MODULE != NULL)
--			sprintf(buildtag, "srcversion: %-24s", THIS_MODULE->srcversion);
--		else
-+#ifdef MODULE
-+		sprintf(buildtag, "srcversion: %-24s", THIS_MODULE->srcversion);
-+#else
-+		buildtag[0] = 'b';
- #endif
--			buildtag[0] = 'b';
- 	}
- 
- 	return buildtag;
