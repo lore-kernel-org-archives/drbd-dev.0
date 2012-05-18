@@ -1,21 +1,19 @@
-Return-Path: <evdo.hsdpa@gmail.com>
-Received: from mail-yw0-f54.google.com (mail-yw0-f54.google.com
-	[209.85.213.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Return-Path: <axboe@kernel.dk>
+Received: from casper.infradead.org (casper.infradead.org [85.118.1.10])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7E0CD1017A2C
-	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2012 08:45:24 +0200 (CEST)
-Received: by yhgm50 with SMTP id m50so650309yhg.27
-	for <drbd-dev@lists.linbit.com>; Tue, 15 May 2012 23:45:22 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4277851.LeAnKnANCB@fat-tyre>
-References: <4277851.LeAnKnANCB@fat-tyre>
-Date: Wed, 16 May 2012 15:45:22 +0900
-Message-ID: <CA+xKNSheVa7d22oztUQao1s3HdZeQCM-QQzwDNsSHasH-scOQg@mail.gmail.com>
-From: Robert Kim App and Facebook Marketing <evdo.hsdpa@gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 397971013803
+	for <drbd-dev@lists.linbit.com>; Fri, 18 May 2012 17:12:53 +0200 (CEST)
+Date: Fri, 18 May 2012 16:22:26 +0200
+From: Jens Axboe <axboe@kernel.dk>
 To: Philipp Reisner <philipp.reisner@linbit.com>
-Content-Type: multipart/alternative; boundary=14dae9d678cad4d30204c021a990
-Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
+Message-ID: <20120518142226.GF6496@kernel.dk>
+References: <4277851.LeAnKnANCB@fat-tyre>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4277851.LeAnKnANCB@fat-tyre>
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [GIT PULL] drbd-8.3 updates
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -26,85 +24,68 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---14dae9d678cad4d30204c021a990
-Content-Type: text/plain; charset=ISO-8859-1
-
-Jens,
-
-Guys...
-
-Can you post this online... on a blog or something so i have a goto place
-for all updates???
-
-My email just gets swamped!
-
-
-Hi Jens,
->
+On Thu, May 10 2012, Philipp Reisner wrote:
+> Hi Jens,
+> 
 > This are the updates we have in the drbd-8.3 tree. They are intended
 > for your "for-3.5/drivers" drivers branch.
->
+> 
 > These changes include one new feature:
 >  * Allow detach from frozen backing devices with the new --force option;
->   configurable timeout for backing devices by the new disk-timeout option
->
+>    configurable timeout for backing devices by the new disk-timeout option
+> 
 > And huge number of bug fixes:
 >  * Fixed a write ordering problem on SyncTarget nodes for a write
->   to a block that gets resynced at the same time. The bug can
->   only be triggered with a device that has a firmware that
->   actually reorders writes to the same block
+>    to a block that gets resynced at the same time. The bug can
+>    only be triggered with a device that has a firmware that
+>    actually reorders writes to the same block
 >  * Fixed a race between disconnect and receive_state, that could cause
->   a IO lockup
+>    a IO lockup
 >  * Fixed resend/resubmit for requests with disk or network timeout
 >  * Make sure that hard state changed do not disturb the connection
->   establishing process (I.e. detach due to an IO error). When the
->   bug was triggered it caused a retry in the connect process
+>    establishing process (I.e. detach due to an IO error). When the
+>    bug was triggered it caused a retry in the connect process
+>  * Postpone soft state changes to no disturb the connection
+>    establishing process (I.e. becoming primary). When the bug
+>    was triggered it could cause both nodes going into SyncSource state
+>  * Fixed a refcount leak that could cause failures when trying to
+>    unload a protocol family modules, that was used by DRBD
+>  * Dedicated page pool for meta data IOs
+>  * Deny normal detach (as opposed to --forced) if the user tries
+>    to detach from the last UpToDate disk in the resource
+>  * Fixed a possible protocol error that could be caused by
+>    "unusual" BIOs.
+>  * Enforce the disk-timeout option also on meta-data IO operations
+>  * Implemented stable bitmap pages when we do a full write out of
+>    the bitmap
+>  * Fixed a rare compatibility issue with DRBD's older than 8.3.7
+>    when negotiating the bio_size
+>  * Fixed a rare race condition where an empty resync could stall with
+>    if pause/unpause events happen in parallel
+>  * Made the re-establishing of connections quicker, if it got a broken pipe
+>    once. Previously there was a bug in the code caused it to waste the first
+>    successful established connection after a broken pipe event.
+> 
+> PS: I am postponing the drbd-8.4 for mainline for one or two kernel
+>     development cycles more (the ~400 patchets set).
+> 
+> Best regards,
+>  Philipp
+> 
+> The following changes since commit 0b7877d4eea3f93e3dd941999522bbd8c538cb53:
+> 
+>   Merge tag 'v3.4-rc5' into for-3.5/core (2012-05-01 14:29:55 +0200)
+> 
+> are available in the git repository at:
+> 
+>   git@git.drbd.org:linux-drbd for-jens
 
+Thanks, pulled in. Your git url confused me a bit, though, I pulled in
+git://git.drbd.org/linux-drbd for-jens
+
+Diffstat matches etc, so I'm jotting the above down to a typo in your
+pull request script.
 
 -- 
-Robert Q Kim
-Social Media Agencies and Publicity
-http://www.youtube.com/watch?v=cIFyEuGqdwI
-2611 S Coast Highway
-San Diego, CA 92007
-310 598 1606
+Jens Axboe
 
---14dae9d678cad4d30204c021a990
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-Jens,=A0<div><br></div><div>Guys...</div><div><br></div><div>Can you post t=
-his online... on a blog or something so i have a goto place for all updates=
-???</div><div><br></div><div>My email just gets swamped!<br><br><br><div cl=
-ass=3D"gmail_quote">
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">Hi Jens,<br>
-<br>
-This are the updates we have in the drbd-8.3 tree. They are intended<br>
-for your &quot;for-3.5/drivers&quot; drivers branch.<br>
-<br>
-These changes include one new feature:<br>
-=A0* Allow detach from frozen backing devices with the new --force option;<=
-br>
- =A0 configurable timeout for backing devices by the new disk-timeout optio=
-n<br>
-<br>
-And huge number of bug fixes:<br>
-=A0* Fixed a write ordering problem on SyncTarget nodes for a write<br>
- =A0 to a block that gets resynced at the same time. The bug can<br>
- =A0 only be triggered with a device that has a firmware that<br>
- =A0 actually reorders writes to the same block<br>
-=A0* Fixed a race between disconnect and receive_state, that could cause<br=
->
- =A0 a IO lockup<br>
-=A0* Fixed resend/resubmit for requests with disk or network timeout<br>
-=A0* Make sure that hard state changed do not disturb the connection<br>
- =A0 establishing process (I.e. detach due to an IO error). When the<br>
- =A0 bug was triggered it caused a retry in the connect process</blockquote=
-></div><div><br></div>-- <br>Robert Q Kim<br>Social Media Agencies and Publ=
-icity</div><div><a href=3D"http://www.youtube.com/watch?v=3DcIFyEuGqdwI">ht=
-tp://www.youtube.com/watch?v=3DcIFyEuGqdwI</a></div>
-<div>2611 S Coast Highway<br>San Diego, CA 92007<br>310 598 1606<br>
-</div>
-
---14dae9d678cad4d30204c021a990--
