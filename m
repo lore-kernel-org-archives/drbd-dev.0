@@ -1,38 +1,37 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7AF45100542D
-	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 18:15:21 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 32E38100542E
+	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 18:15:25 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 746841B4268
-	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 18:15:21 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 2A9401B4262
+	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 18:15:25 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id yDOzLy0IEGrG for <drbd-dev@lists.linbit.com>;
-	Thu, 24 May 2012 18:15:21 +0200 (CEST)
+	with ESMTP id q-2rG-paSqyN for <drbd-dev@lists.linbit.com>;
+	Thu, 24 May 2012 18:15:25 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 536831B40FA
-	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 18:15:21 +0200 (CEST)
-Resent-Message-ID: <20120524161521.GM5734@soda.linbit>
+	by zimbra.linbit.com (Postfix) with ESMTP id 0B3381B40FA
+	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 18:15:25 +0200 (CEST)
+Resent-Message-ID: <20120524161524.GN5734@soda.linbit>
 Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
 	[209.85.160.54]) (using TLSv1 with cipher RC4-MD5 (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 852341013802
-	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 02:10:02 +0200 (CEST)
-Received: by pbbro2 with SMTP id ro2so13654756pbb.27
-	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2012 17:10:00 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 661BE106DCE1
+	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 02:10:35 +0200 (CEST)
+Received: by pbbro2 with SMTP id ro2so13655294pbb.27
+	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2012 17:10:33 -0700 (PDT)
 From: Kent Overstreet <koverstreet@google.com>
 To: linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
 	dm-devel@redhat.com, linux-fsdevel@vger.kernel.org
-Date: Wed, 23 May 2012 17:02:50 -0700
-Message-Id: <1337817771-25038-14-git-send-email-koverstreet@google.com>
+Date: Wed, 23 May 2012 17:02:44 -0700
+Message-Id: <1337817771-25038-8-git-send-email-koverstreet@google.com>
 In-Reply-To: <1337817771-25038-1-git-send-email-koverstreet@google.com>
 References: <1337817771-25038-1-git-send-email-koverstreet@google.com>
 Cc: axboe@kernel.dk, yehuda@hq.newdream.net, neilb@suse.de,
 	Kent Overstreet <koverstreet@google.com>, mpatocka@redhat.com,
 	vgoyal@redhat.com, bharrosh@panasas.com, tj@kernel.org,
 	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 13/14] Make generic_make_request handle
-	arbitrarily large bios
+Subject: [Drbd-dev] [PATCH v2 07/14] pktcdvd: Switch to bio_kmalloc()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -42,289 +41,195 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The way the block layer is currently written, it goes to great lengths
-to avoid having to split bios; upper layer code (such as bio_add_page())
-checks what the underlying device can handle and tries to always create
-bios that don't need to be split.
-
-But this approach becomes unwieldy and eventually breaks down with
-stacked devices and devices with dynamic limits, and it adds a lot of
-complexity. If the block layer could split bios as needed, we could
-eliminate a lot of complexity elsewhere - particularly in stacked
-drivers. Code that creates bios can then create whatever size bios are
-convenient, and more importantly stacked drivers don't have to deal with
-both their own bio size limitations and the limitations of the
-(potentially multiple) devices underneath them.
+This is prep work for killing bi_destructor - previously, pktcdvd had
+its own pkt_bio_alloc which was basically duplication bio_kmalloc(),
+necessitating its own bi_destructor implementation.
 
 Signed-off-by: Kent Overstreet <koverstreet@google.com>
-Change-Id: I53ed182e8c0a5fe192b040b1fdedba205fe953d5
+Change-Id: I5604293e07f695c8f0106ae819e306f1def89a67
 ---
- block/blk-core.c       |  118 ++++++++++++++++++++++++++++++++++++++++++++++++
- fs/bio.c               |   41 +++++++++++++++++
- include/linux/bio.h    |    7 +++
- include/linux/blkdev.h |    3 ++
- 4 files changed, 169 insertions(+)
+ drivers/block/pktcdvd.c |  115 ++++++++++++++++-------------------------------
+ 1 file changed, 39 insertions(+), 76 deletions(-)
 
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 91617eb..19145ab 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -29,6 +29,7 @@
- #include <linux/fault-inject.h>
- #include <linux/list_sort.h>
- #include <linux/delay.h>
-+#include <linux/closure.h>
- 
- #define CREATE_TRACE_POINTS
- #include <trace/events/block.h>
-@@ -52,6 +53,12 @@ static struct kmem_cache *request_cachep;
- struct kmem_cache *blk_requestq_cachep;
- 
- /*
-+ * For bio_split_hook
-+ */
-+static struct kmem_cache *bio_split_cache;
-+static struct workqueue_struct *bio_split_wq;
-+
-+/*
-  * Controlling structure to kblockd
-  */
- static struct workqueue_struct *kblockd_workqueue;
-@@ -487,6 +494,14 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
- 	if (q->id < 0)
- 		goto fail_q;
- 
-+	q->bio_split_hook = mempool_create_slab_pool(4, bio_split_cache);
-+	if (!q->bio_split_hook)
-+		goto fail_split_hook;
-+
-+	q->bio_split = bioset_create(4, 0);
-+	if (!q->bio_split)
-+		goto fail_split;
-+
- 	q->backing_dev_info.ra_pages =
- 			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
- 	q->backing_dev_info.state = 0;
-@@ -526,6 +541,10 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
- 
- fail_id:
- 	ida_simple_remove(&blk_queue_ida, q->id);
-+fail_split:
-+	bioset_free(q->bio_split);
-+fail_split_hook:
-+	mempool_destroy(q->bio_split_hook);
- fail_q:
- 	kmem_cache_free(blk_requestq_cachep, q);
- 	return NULL;
-@@ -1493,6 +1512,90 @@ static inline bool should_fail_request(struct hd_struct *part,
- 
- #endif /* CONFIG_FAIL_MAKE_REQUEST */
- 
-+struct bio_split_hook {
-+	struct closure		cl;
-+	struct request_queue	*q;
-+	struct bio		*bio;
-+	bio_end_io_t		*bi_end_io;
-+	void			*bi_private;
-+};
-+
-+static void bio_submit_split_done(struct closure *cl)
-+{
-+	struct bio_split_hook *s = container_of(cl, struct bio_split_hook, cl);
-+
-+	s->bio->bi_end_io = s->bi_end_io;
-+	s->bio->bi_private = s->bi_private;
-+	bio_endio(s->bio, 0);
-+
-+	closure_debug_destroy(&s->cl);
-+	mempool_free(s, s->q->bio_split_hook);
-+}
-+
-+static void bio_submit_split_endio(struct bio *bio, int error)
-+{
-+	struct closure *cl = bio->bi_private;
-+	struct bio_split_hook *s = container_of(cl, struct bio_split_hook, cl);
-+
-+	if (error)
-+		clear_bit(BIO_UPTODATE, &s->bio->bi_flags);
-+
-+	bio_put(bio);
-+	closure_put(cl);
-+}
-+
-+static void __bio_submit_split(struct closure *cl)
-+{
-+	struct bio_split_hook *s = container_of(cl, struct bio_split_hook, cl);
-+	struct bio *bio = s->bio, *n;
-+
-+	do {
-+		/*
-+		 * If we're running underneath generic_make_request(), we risk
-+		 * deadlock if we allocate multiple bios from the mempool.
-+		 *
-+		 * To avoid this, bio_split() masks out __GFP_WAIT
-+		 * current->bio_list != NULL; if it fails, the continue_at()
-+		 * just punts us to a workqueue, where we can safely retry the
-+		 * allocation using the mempool.
-+		 */
-+		n = bio_split(bio, bio_max_sectors(bio),
-+			      GFP_NOIO, s->q->bio_split);
-+		if (!n)
-+			continue_at(cl, __bio_submit_split, bio_split_wq);
-+
-+		closure_get(cl);
-+		generic_make_request(n);
-+	} while (n != bio);
-+
-+	continue_at(cl, bio_submit_split_done, NULL);
-+}
-+
-+static bool bio_submit_split(struct bio *bio)
-+{
-+	struct bio_split_hook *s;
-+	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-+
-+	if (!bio_has_data(bio) || !q || !q->bio_split_hook ||
-+	    bio_sectors(bio) <= bio_max_sectors(bio))
-+		return false;
-+
-+	s = mempool_alloc(q->bio_split_hook, GFP_NOIO);
-+
-+	closure_init(&s->cl, NULL);
-+	s->bio		= bio;
-+	s->q		= q;
-+	s->bi_end_io	= bio->bi_end_io;
-+	s->bi_private	= bio->bi_private;
-+
-+	bio_get(bio);
-+	bio->bi_end_io	= bio_submit_split_endio;
-+	bio->bi_private	= &s->cl;
-+
-+	__bio_submit_split(&s->cl);
-+	return true;
-+}
-+
- /*
-  * Check whether this bio extends beyond the end of the device.
-  */
-@@ -1646,6 +1749,14 @@ void generic_make_request(struct bio *bio)
- 	 * it is non-NULL, then a make_request is active, and new requests
- 	 * should be added at the tail
- 	 */
-+
-+	/*
-+	 * If the device can't accept arbitrary sized bios, check if we
-+	 * need to split:
-+	 */
-+	if (bio_submit_split(bio))
-+		return;
-+
- 	if (current->bio_list) {
- 		bio_list_add(current->bio_list, bio);
- 		return;
-@@ -2892,11 +3003,18 @@ int __init blk_dev_init(void)
- 	if (!kblockd_workqueue)
- 		panic("Failed to create kblockd\n");
- 
-+	bio_split_wq = alloc_workqueue("bio_split", WQ_MEM_RECLAIM, 0);
-+	if (!bio_split_wq)
-+		panic("Failed to create bio_split wq\n");
-+
- 	request_cachep = kmem_cache_create("blkdev_requests",
- 			sizeof(struct request), 0, SLAB_PANIC, NULL);
- 
- 	blk_requestq_cachep = kmem_cache_create("blkdev_queue",
- 			sizeof(struct request_queue), 0, SLAB_PANIC, NULL);
- 
-+	bio_split_cache = kmem_cache_create("bio_split_hook",
-+			sizeof(struct bio_split_hook), 0, SLAB_PANIC, NULL);
-+
- 	return 0;
+diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
+index ba66e44..6fe693a 100644
+--- a/drivers/block/pktcdvd.c
++++ b/drivers/block/pktcdvd.c
+@@ -522,36 +522,38 @@ static void pkt_bio_finished(struct pktcdvd_device *pd)
+ 	}
  }
-diff --git a/fs/bio.c b/fs/bio.c
-index b73c570..9077a07 100644
---- a/fs/bio.c
-+++ b/fs/bio.c
-@@ -426,6 +426,47 @@ inline int bio_phys_segments(struct request_queue *q, struct bio *bio)
- }
- EXPORT_SYMBOL(bio_phys_segments);
  
-+unsigned __bio_max_sectors(struct bio *bio, struct block_device *bdev,
-+			   sector_t sector)
-+{
-+	unsigned ret = bio_sectors(bio);
-+	struct request_queue *q = bdev_get_queue(bdev);
-+	struct bio_vec *bv, *end = bio_iovec(bio) +
-+		min_t(int, bio_segments(bio), queue_max_segments(q));
-+
-+	struct bvec_merge_data bvm = {
-+		.bi_bdev	= bdev,
-+		.bi_sector	= sector,
-+		.bi_size	= 0,
-+		.bi_rw		= bio->bi_rw,
-+	};
-+
-+	if (bio_segments(bio) > queue_max_segments(q) ||
-+	    q->merge_bvec_fn) {
-+		ret = 0;
-+
-+		for (bv = bio_iovec(bio); bv < end; bv++) {
-+			if (q->merge_bvec_fn &&
-+			    q->merge_bvec_fn(q, &bvm, bv) < (int) bv->bv_len)
-+				break;
-+
-+			ret		+= bv->bv_len >> 9;
-+			bvm.bi_size	+= bv->bv_len;
-+		}
-+
-+		if (ret >= (BIO_MAX_PAGES * PAGE_SIZE) >> 9)
-+			return (BIO_MAX_PAGES * PAGE_SIZE) >> 9;
+-static void pkt_bio_destructor(struct bio *bio)
++static void pkt_end_io_read(struct bio *bio, int err)
+ {
+-	kfree(bio->bi_io_vec);
+-	kfree(bio);
+-}
++	struct packet_data *pkt = bio->bi_private;
++	struct pktcdvd_device *pd = pkt->pd;
++	BUG_ON(!pd);
+ 
+-static struct bio *pkt_bio_alloc(int nr_iovecs)
+-{
+-	struct bio_vec *bvl = NULL;
+-	struct bio *bio;
++	VPRINTK("pkt_end_io_read: bio=%p sec0=%llx sec=%llx err=%d\n", bio,
++		(unsigned long long)pkt->sector, (unsigned long long)bio->bi_sector, err);
+ 
+-	bio = kmalloc(sizeof(struct bio), GFP_KERNEL);
+-	if (!bio)
+-		goto no_bio;
+-	bio_init(bio);
++	if (err)
++		atomic_inc(&pkt->io_errors);
++	if (atomic_dec_and_test(&pkt->io_wait)) {
++		atomic_inc(&pkt->run_sm);
++		wake_up(&pd->wqueue);
 +	}
-+
-+	ret = min(ret, queue_max_sectors(q));
-+
-+	WARN_ON(!ret);
-+	ret = max_t(int, ret, bio_iovec(bio)->bv_len >> 9);
-+
-+	return ret;
++	pkt_bio_finished(pd);
 +}
-+EXPORT_SYMBOL_GPL(__bio_max_sectors);
-+
- /**
-  * 	__bio_clone	-	clone a bio
-  * 	@bio: destination bio
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 64fdcc8..3669942 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -219,6 +219,13 @@ extern void bio_endio(struct bio *, int);
- struct request_queue;
- extern int bio_phys_segments(struct request_queue *, struct bio *);
  
-+unsigned __bio_max_sectors(struct bio *, struct block_device *, sector_t);
-+
-+static inline unsigned bio_max_sectors(struct bio *bio)
+-	bvl = kcalloc(nr_iovecs, sizeof(struct bio_vec), GFP_KERNEL);
+-	if (!bvl)
+-		goto no_bvl;
++static void pkt_end_io_packet_write(struct bio *bio, int err)
 +{
-+	return __bio_max_sectors(bio, bio->bi_bdev, bio->bi_sector);
-+}
-+
- extern void __bio_clone(struct bio *, struct bio *);
- extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *bs);
- extern struct bio *bio_clone(struct bio *, gfp_t);
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 2aa2466..464adb7 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -399,6 +399,9 @@ struct request_queue {
- 	/* Throttle data */
- 	struct throtl_data *td;
- #endif
-+
-+	mempool_t		*bio_split_hook;
-+	struct bio_set		*bio_split;
- };
++	struct packet_data *pkt = bio->bi_private;
++	struct pktcdvd_device *pd = pkt->pd;
++	BUG_ON(!pd);
  
- #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
+-	bio->bi_max_vecs = nr_iovecs;
+-	bio->bi_io_vec = bvl;
+-	bio->bi_destructor = pkt_bio_destructor;
++	VPRINTK("pkt_end_io_packet_write: id=%d, err=%d\n", pkt->id, err);
+ 
+-	return bio;
++	pd->stats.pkt_ended++;
+ 
+- no_bvl:
+-	kfree(bio);
+- no_bio:
+-	return NULL;
++	pkt_bio_finished(pd);
++	atomic_dec(&pkt->io_wait);
++	atomic_inc(&pkt->run_sm);
++	wake_up(&pd->wqueue);
+ }
+ 
+ /*
+@@ -567,10 +569,13 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
+ 		goto no_pkt;
+ 
+ 	pkt->frames = frames;
+-	pkt->w_bio = pkt_bio_alloc(frames);
++	pkt->w_bio = bio_kmalloc(GFP_KERNEL, frames);
+ 	if (!pkt->w_bio)
+ 		goto no_bio;
+ 
++	pkt->w_bio->bi_end_io = pkt_end_io_packet_write;
++	pkt->w_bio->bi_private = pkt;
++
+ 	for (i = 0; i < frames / FRAMES_PER_PAGE; i++) {
+ 		pkt->pages[i] = alloc_page(GFP_KERNEL|__GFP_ZERO);
+ 		if (!pkt->pages[i])
+@@ -581,9 +586,12 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
+ 	bio_list_init(&pkt->orig_bios);
+ 
+ 	for (i = 0; i < frames; i++) {
+-		struct bio *bio = pkt_bio_alloc(1);
++		struct bio *bio = bio_kmalloc(GFP_KERNEL, 1);
+ 		if (!bio)
+ 			goto no_rd_bio;
++
++		bio->bi_end_io = pkt_end_io_read;
++		bio->bi_private = pkt;
+ 		pkt->r_bios[i] = bio;
+ 	}
+ 
+@@ -1036,40 +1044,6 @@ static void pkt_make_local_copy(struct packet_data *pkt, struct bio_vec *bvec)
+ 	}
+ }
+ 
+-static void pkt_end_io_read(struct bio *bio, int err)
+-{
+-	struct packet_data *pkt = bio->bi_private;
+-	struct pktcdvd_device *pd = pkt->pd;
+-	BUG_ON(!pd);
+-
+-	VPRINTK("pkt_end_io_read: bio=%p sec0=%llx sec=%llx err=%d\n", bio,
+-		(unsigned long long)pkt->sector, (unsigned long long)bio->bi_sector, err);
+-
+-	if (err)
+-		atomic_inc(&pkt->io_errors);
+-	if (atomic_dec_and_test(&pkt->io_wait)) {
+-		atomic_inc(&pkt->run_sm);
+-		wake_up(&pd->wqueue);
+-	}
+-	pkt_bio_finished(pd);
+-}
+-
+-static void pkt_end_io_packet_write(struct bio *bio, int err)
+-{
+-	struct packet_data *pkt = bio->bi_private;
+-	struct pktcdvd_device *pd = pkt->pd;
+-	BUG_ON(!pd);
+-
+-	VPRINTK("pkt_end_io_packet_write: id=%d, err=%d\n", pkt->id, err);
+-
+-	pd->stats.pkt_ended++;
+-
+-	pkt_bio_finished(pd);
+-	atomic_dec(&pkt->io_wait);
+-	atomic_inc(&pkt->run_sm);
+-	wake_up(&pd->wqueue);
+-}
+-
+ /*
+  * Schedule reads for the holes in a packet
+  */
+@@ -1111,21 +1085,15 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
+ 	 * Schedule reads for missing parts of the packet.
+ 	 */
+ 	for (f = 0; f < pkt->frames; f++) {
+-		struct bio_vec *vec;
+-
+ 		int p, offset;
++
+ 		if (written[f])
+ 			continue;
++
+ 		bio = pkt->r_bios[f];
+-		vec = bio->bi_io_vec;
+-		bio_init(bio);
+-		bio->bi_max_vecs = 1;
+-		bio->bi_sector = pkt->sector + f * (CD_FRAMESIZE >> 9);
+-		bio->bi_bdev = pd->bdev;
+-		bio->bi_end_io = pkt_end_io_read;
+-		bio->bi_private = pkt;
+-		bio->bi_io_vec = vec;
+-		bio->bi_destructor = pkt_bio_destructor;
++		bio_reset(bio);
++		bio->bi_sector	= pkt->sector + f * (CD_FRAMESIZE >> 9);
++		bio->bi_bdev	= pd->bdev;
+ 
+ 		p = (f * CD_FRAMESIZE) / PAGE_SIZE;
+ 		offset = (f * CD_FRAMESIZE) % PAGE_SIZE;
+@@ -1418,14 +1386,9 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
+ 	}
+ 
+ 	/* Start the write request */
+-	bio_init(pkt->w_bio);
+-	pkt->w_bio->bi_max_vecs = PACKET_MAX_SIZE;
++	bio_reset(pkt->w_bio);
+ 	pkt->w_bio->bi_sector = pkt->sector;
+ 	pkt->w_bio->bi_bdev = pd->bdev;
+-	pkt->w_bio->bi_end_io = pkt_end_io_packet_write;
+-	pkt->w_bio->bi_private = pkt;
+-	pkt->w_bio->bi_io_vec = bvec;
+-	pkt->w_bio->bi_destructor = pkt_bio_destructor;
+ 	for (f = 0; f < pkt->frames; f++)
+ 		if (!bio_add_page(pkt->w_bio, bvec[f].bv_page, CD_FRAMESIZE, bvec[f].bv_offset))
+ 			BUG();
 -- 
 1.7.9.3.327.g2980b
 
