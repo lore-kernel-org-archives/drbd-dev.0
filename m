@@ -1,20 +1,28 @@
-Return-Path: <axboe@kernel.dk>
-Received: from casper.infradead.org (casper.infradead.org [85.118.1.10])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <htejun@gmail.com>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
+	[209.85.160.54]) (using TLSv1 with cipher RC4-MD5 (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 397971013803
-	for <drbd-dev@lists.linbit.com>; Fri, 18 May 2012 17:12:53 +0200 (CEST)
-Date: Fri, 18 May 2012 16:22:26 +0200
-From: Jens Axboe <axboe@kernel.dk>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Message-ID: <20120518142226.GF6496@kernel.dk>
-References: <4277851.LeAnKnANCB@fat-tyre>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 04ADA1017A2C
+	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 18:09:51 +0200 (CEST)
+Received: by pbbro2 with SMTP id ro2so590019pbb.27
+	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 09:09:49 -0700 (PDT)
+Sender: Tejun Heo <htejun@gmail.com>
+Date: Thu, 24 May 2012 09:09:44 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Kent Overstreet <koverstreet@google.com>
+Message-ID: <20120524160944.GB27983@google.com>
+References: <1337817771-25038-1-git-send-email-koverstreet@google.com>
+	<1337817771-25038-2-git-send-email-koverstreet@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4277851.LeAnKnANCB@fat-tyre>
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [GIT PULL] drbd-8.3 updates
+In-Reply-To: <1337817771-25038-2-git-send-email-koverstreet@google.com>
+Cc: axboe@kernel.dk, yehuda@hq.newdream.net, dm-devel@redhat.com, neilb@suse.de,
+	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
+	mpatocka@redhat.com, vgoyal@redhat.com, bharrosh@panasas.com,
+	linux-fsdevel@vger.kernel.org, sage@newdream.net, agk@redhat.com,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v2 01/14] block: Generalized bio pool freeing
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -24,68 +32,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, May 10 2012, Philipp Reisner wrote:
-> Hi Jens,
+On Wed, May 23, 2012 at 05:02:38PM -0700, Kent Overstreet wrote:
+> With the old code, when you allocate a bio from a bio pool you have to
+> implement your own destructor that knows how to find the bio pool the
+> bio was originally allocated from.
 > 
-> This are the updates we have in the drbd-8.3 tree. They are intended
-> for your "for-3.5/drivers" drivers branch.
+> This adds a new field to struct bio (bi_pool) and changes
+> bio_alloc_bioset() to use it. This makes various bio destructors
+> unnecessary, so they're then deleted.
 > 
-> These changes include one new feature:
->  * Allow detach from frozen backing devices with the new --force option;
->    configurable timeout for backing devices by the new disk-timeout option
-> 
-> And huge number of bug fixes:
->  * Fixed a write ordering problem on SyncTarget nodes for a write
->    to a block that gets resynced at the same time. The bug can
->    only be triggered with a device that has a firmware that
->    actually reorders writes to the same block
->  * Fixed a race between disconnect and receive_state, that could cause
->    a IO lockup
->  * Fixed resend/resubmit for requests with disk or network timeout
->  * Make sure that hard state changed do not disturb the connection
->    establishing process (I.e. detach due to an IO error). When the
->    bug was triggered it caused a retry in the connect process
->  * Postpone soft state changes to no disturb the connection
->    establishing process (I.e. becoming primary). When the bug
->    was triggered it could cause both nodes going into SyncSource state
->  * Fixed a refcount leak that could cause failures when trying to
->    unload a protocol family modules, that was used by DRBD
->  * Dedicated page pool for meta data IOs
->  * Deny normal detach (as opposed to --forced) if the user tries
->    to detach from the last UpToDate disk in the resource
->  * Fixed a possible protocol error that could be caused by
->    "unusual" BIOs.
->  * Enforce the disk-timeout option also on meta-data IO operations
->  * Implemented stable bitmap pages when we do a full write out of
->    the bitmap
->  * Fixed a rare compatibility issue with DRBD's older than 8.3.7
->    when negotiating the bio_size
->  * Fixed a rare race condition where an empty resync could stall with
->    if pause/unpause events happen in parallel
->  * Made the re-establishing of connections quicker, if it got a broken pipe
->    once. Previously there was a bug in the code caused it to waste the first
->    successful established connection after a broken pipe event.
-> 
-> PS: I am postponing the drbd-8.4 for mainline for one or two kernel
->     development cycles more (the ~400 patchets set).
-> 
-> Best regards,
->  Philipp
-> 
-> The following changes since commit 0b7877d4eea3f93e3dd941999522bbd8c538cb53:
-> 
->   Merge tag 'v3.4-rc5' into for-3.5/core (2012-05-01 14:29:55 +0200)
-> 
-> are available in the git repository at:
-> 
->   git@git.drbd.org:linux-drbd for-jens
+> Signed-off-by: Kent Overstreet <koverstreet@google.com>
+> Change-Id: I5eb66c1d6910757f4af8755b8857dcbe4619cf8d
 
-Thanks, pulled in. Your git url confused me a bit, though, I pulled in
-git://git.drbd.org/linux-drbd for-jens
+Please drop Change-ID tag and it would be great how you tested the
+changes, other than that,
 
-Diffstat matches etc, so I'm jotting the above down to a typo in your
-pull request script.
+ Acked-by: Tejun Heo <tj@kernel.org>
+
+Thanks.
 
 -- 
-Jens Axboe
-
+tejun
