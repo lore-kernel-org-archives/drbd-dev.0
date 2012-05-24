@@ -1,44 +1,44 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0E8F81005428
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 09:04:02 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2623D100542E
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 09:04:03 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 00D3C1B4268
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 09:04:02 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 18B0F1B4262
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 09:04:03 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id rnSPgj2DAdZa for <drbd-dev@lists.linbit.com>;
-	Fri, 25 May 2012 09:04:01 +0200 (CEST)
+	with ESMTP id Wu9e5qrgiHE3 for <drbd-dev@lists.linbit.com>;
+	Fri, 25 May 2012 09:04:03 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id AD2FC1B4206
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 09:04:01 +0200 (CEST)
-Resent-Message-ID: <20120525070401.GM12726@soda.linbit>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
-	[209.85.160.54]) (using TLSv1 with cipher RC4-MD5 (128/128 bits))
+	by zimbra.linbit.com (Postfix) with ESMTP id EA9281B4206
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 09:04:02 +0200 (CEST)
+Resent-Message-ID: <20120525070402.GN12726@soda.linbit>
+Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com
+	[209.85.214.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 97C7B1019A78
-	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 23:32:03 +0200 (CEST)
-Received: by pbbro2 with SMTP id ro2so1076879pbb.27
-	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 14:32:01 -0700 (PDT)
-Date: Thu, 24 May 2012 14:31:58 -0700
-From: Kent Overstreet <koverstreet@google.com>
-To: Boaz Harrosh <bharrosh@panasas.com>
-Message-ID: <20120524213158.GB22664@google.com>
-References: <1337817771-25038-1-git-send-email-koverstreet@google.com>
-	<1337817771-25038-10-git-send-email-koverstreet@google.com>
-	<4FBE687E.1030605@panasas.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 778D81019A78
+	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 23:41:25 +0200 (CEST)
+Received: by bkvi18 with SMTP id i18so367605bkv.27
+	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2012 14:41:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4FBE687E.1030605@panasas.com>
-Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
+Sender: yehudasa@gmail.com
+In-Reply-To: <20120524185919.GE27550@redhat.com>
+References: <1337817771-25038-1-git-send-email-koverstreet@google.com>
+	<1337817771-25038-5-git-send-email-koverstreet@google.com>
+	<20120524185919.GE27550@redhat.com>
+Date: Thu, 24 May 2012 14:41:24 -0700
+Message-ID: <CAC-hyiHNFSiqPAoe9ynokUg1xTS=V32JDYiVHh_qH7ow=0C1fw@mail.gmail.com>
+From: Yehuda Sadeh <yehuda@inktank.com>
+To: Vivek Goyal <vgoyal@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+Cc: axboe@kernel.dk, Alex Elder <elder@inktank.com>, dm-devel@redhat.com,
+	neilb@suse.de, Kent Overstreet <koverstreet@google.com>,
 	linux-kernel@vger.kernel.org, tj@kernel.org,
 	linux-bcache@vger.kernel.org, mpatocka@redhat.com,
-	vgoyal@redhat.com, yehuda@hq.newdream.net,
-	linux-fsdevel@vger.kernel.org, sage@newdream.net, agk@redhat.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v2 09/14] block: Add an explicit bio flag for
- bios that own their bvec
+	bharrosh@panasas.com, linux-fsdevel@vger.kernel.org,
+	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v2 04/14] block: Add bio_clone_kmalloc()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -48,24 +48,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, May 24, 2012 at 07:57:34PM +0300, Boaz Harrosh wrote:
-> How do you insure that the original bio which owns the
-> bvec is not freed before the split-out bio.
-> 
-> Perhaps calling code needs to make sure by taking an extra
-> ref on the original bio, or something. If so a big fat comment
-> at bio_split is do.
+On Thu, May 24, 2012 at 11:59 AM, Vivek Goyal <vgoyal@redhat.com> wrote:
+> On Wed, May 23, 2012 at 05:02:41PM -0700, Kent Overstreet wrote:
+>
+> [..]
+>> diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
+>> index 013c7a5..5a953c6 100644
+>> --- a/drivers/block/rbd.c
+>> +++ b/drivers/block/rbd.c
+>> @@ -729,7 +729,7 @@ static struct bio *bio_chain_clone(struct bio **old,=
+ struct bio **next,
+>> =A0 =A0 =A0 }
+>>
+>> =A0 =A0 =A0 while (old_chain && (total < len)) {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 tmp =3D bio_kmalloc(gfpmask, old_chain->bi_max=
+_vecs);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 tmp =3D bio_clone_kmalloc(old_chain, gfpmask);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!tmp)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto err_out;
+>>
+>> @@ -751,13 +751,9 @@ static struct bio *bio_chain_clone(struct bio **old=
+, struct bio **next,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!bp)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto err_out=
+;
+>>
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __bio_clone(tmp, &bp->bio1);
+>> -
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 *next =3D &bp->bio2;
+>
+> Is this code correct. Now original code might clone bio after split and
+> new code will clone the original bio itself and not the split one?
+>
 
-Yeah, just added that.
+Yeah, that's wrong.
 
-> 
-> And I understand you did not like my suggestion of negating
-> the meaning of the flag, so the default is zero?
-> Please say why?
-
-I liked it at first, but I think I prefer having the flag be set
-if bio_free() must take some action; i.e. you set the flag when you
-allocate bi_io_vec. Also, I think bio_alloc_bioset() getting
-reimplemented is less likely than people open coding bio splitting or
-something that shares bi_io_vec in the future, so it's slightlry less
-likely to be used wrong this way.
+Yehuda
