@@ -1,38 +1,37 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DD7801005413
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:30:10 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3FBDC1005413
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:30:11 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 96A3E1B4315
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:30:10 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 377601B40F5
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:30:11 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 8lrDObo5wgxl for <drbd-dev@lists.linbit.com>;
-	Fri, 25 May 2012 22:30:10 +0200 (CEST)
+	with ESMTP id cUbUddfgPtD8 for <drbd-dev@lists.linbit.com>;
+	Fri, 25 May 2012 22:30:11 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 671A81B40F5
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:30:10 +0200 (CEST)
-Resent-Message-ID: <20120525203010.GK1903@soda.linbit>
-Received: from mail-pz0-f54.google.com (mail-pz0-f54.google.com
-	[209.85.210.54]) (using TLSv1 with cipher RC4-MD5 (128/128 bits))
+	by zimbra.linbit.com (Postfix) with ESMTP id 0C4B81B4315
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:30:11 +0200 (CEST)
+Resent-Message-ID: <20120525203010.GM1903@soda.linbit>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
+	[209.85.160.54]) (using TLSv1 with cipher RC4-MD5 (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0D98C1013804
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:26:18 +0200 (CEST)
-Received: by mail-pz0-f54.google.com with SMTP id v36so2229902dad.27
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 13:26:18 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4EC161013804
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:26:21 +0200 (CEST)
+Received: by mail-pb0-f54.google.com with SMTP id ro2so2900232pbb.27
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 13:26:21 -0700 (PDT)
 From: Kent Overstreet <koverstreet@google.com>
 To: linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
 	dm-devel@redhat.com, linux-fsdevel@vger.kernel.org
-Date: Fri, 25 May 2012 13:25:30 -0700
-Message-Id: <1337977539-16977-8-git-send-email-koverstreet@google.com>
+Date: Fri, 25 May 2012 13:25:32 -0700
+Message-Id: <1337977539-16977-10-git-send-email-koverstreet@google.com>
 In-Reply-To: <1337977539-16977-1-git-send-email-koverstreet@google.com>
 References: <1337977539-16977-1-git-send-email-koverstreet@google.com>
 Cc: axboe@kernel.dk, yehuda@hq.newdream.net, neilb@suse.de,
 	Kent Overstreet <koverstreet@google.com>, mpatocka@redhat.com,
 	vgoyal@redhat.com, bharrosh@panasas.com, tj@kernel.org,
 	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v3 07/16] block: Rename bio_split() ->
-	bio_pair_split()
+Subject: [Drbd-dev] [PATCH v3 09/16] block: Add bio_clone_kmalloc()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -42,144 +41,91 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is prep work for introducing a more general bio_split()
-
-Change-Id: Ib9c4ff691af889d26bc9ec9fb42a2f3068f34ad9
-
 Signed-off-by: Kent Overstreet <koverstreet@google.com>
+Change-Id: I4aad3ae23640e847056f9de54d6cb75b0ddaa85b
 ---
- drivers/block/drbd/drbd_req.c |    2 +-
- drivers/block/pktcdvd.c       |    2 +-
- drivers/block/rbd.c           |    3 ++-
- drivers/md/linear.c           |    2 +-
- drivers/md/raid0.c            |    6 +++---
- drivers/md/raid10.c           |    4 ++--
- fs/bio.c                      |    4 ++--
- include/linux/bio.h           |    2 +-
- 8 files changed, 13 insertions(+), 12 deletions(-)
+ drivers/block/osdblk.c |    3 +--
+ fs/bio.c               |   13 +++++++++++++
+ fs/exofs/ore.c         |    5 ++---
+ include/linux/bio.h    |    1 +
+ 4 files changed, 17 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 4a0f314..1c7e3c4 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1128,7 +1128,7 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
- 		const int sps = 1 << HT_SHIFT; /* sectors per slot */
- 		const int mask = sps - 1;
- 		const sector_t first_sectors = sps - (sect & mask);
--		bp = bio_split(bio, first_sectors);
-+		bp = bio_pair_split(bio, first_sectors);
+diff --git a/drivers/block/osdblk.c b/drivers/block/osdblk.c
+index 87311eb..1bbc681 100644
+--- a/drivers/block/osdblk.c
++++ b/drivers/block/osdblk.c
+@@ -266,11 +266,10 @@ static struct bio *bio_chain_clone(struct bio *old_chain, gfp_t gfpmask)
+ 	struct bio *tmp, *new_chain = NULL, *tail = NULL;
  
- 		/* we need to get a "reference count" (ap_bio_cnt)
- 		 * to avoid races with the disconnect/reconnect/suspend code.
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index 6fe693a..12a14c0 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -2467,7 +2467,7 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
- 		if (last_zone != zone) {
- 			BUG_ON(last_zone != zone + pd->settings.size);
- 			first_sectors = last_zone - bio->bi_sector;
--			bp = bio_split(bio, first_sectors);
-+			bp = bio_pair_split(bio, first_sectors);
- 			BUG_ON(!bp);
- 			pkt_make_request(q, &bp->bio1);
- 			pkt_make_request(q, &bp->bio2);
-diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
-index 013c7a5..a0b76c6 100644
---- a/drivers/block/rbd.c
-+++ b/drivers/block/rbd.c
-@@ -747,7 +747,8 @@ static struct bio *bio_chain_clone(struct bio **old, struct bio **next,
+ 	while (old_chain) {
+-		tmp = bio_kmalloc(gfpmask, old_chain->bi_max_vecs);
++		tmp = bio_clone_kmalloc(old_chain, gfpmask);
+ 		if (!tmp)
+ 			goto err_out;
  
- 			/* split the bio. We'll release it either in the next
- 			   call, or it will have to be released outside */
--			bp = bio_split(old_chain, (len - total) / SECTOR_SIZE);
-+			bp = bio_pair_split(old_chain,
-+					    (len - total) / SECTOR_SIZE);
- 			if (!bp)
- 				goto err_out;
- 
-diff --git a/drivers/md/linear.c b/drivers/md/linear.c
-index fa211d8..e860cb9 100644
---- a/drivers/md/linear.c
-+++ b/drivers/md/linear.c
-@@ -314,7 +314,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
- 
- 		rcu_read_unlock();
- 
--		bp = bio_split(bio, end_sector - bio->bi_sector);
-+		bp = bio_pair_split(bio, end_sector - bio->bi_sector);
- 
- 		linear_make_request(mddev, &bp->bio1);
- 		linear_make_request(mddev, &bp->bio2);
-diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
-index de63a1f..c89c8aa 100644
---- a/drivers/md/raid0.c
-+++ b/drivers/md/raid0.c
-@@ -516,11 +516,11 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
- 		 * refuse to split for us, so we need to split it.
- 		 */
- 		if (likely(is_power_of_2(chunk_sects)))
--			bp = bio_split(bio, chunk_sects - (sector &
-+			bp = bio_pair_split(bio, chunk_sects - (sector &
- 							   (chunk_sects-1)));
- 		else
--			bp = bio_split(bio, chunk_sects -
--				       sector_div(sector, chunk_sects));
-+			bp = bio_pair_split(bio, chunk_sects -
-+					    sector_div(sector, chunk_sects));
- 		raid0_make_request(mddev, &bp->bio1);
- 		raid0_make_request(mddev, &bp->bio2);
- 		bio_pair_release(bp);
-diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-index 3e7b154..f8b6f14 100644
---- a/drivers/md/raid10.c
-+++ b/drivers/md/raid10.c
-@@ -1008,8 +1008,8 @@ static void make_request(struct mddev *mddev, struct bio * bio)
- 		/* This is a one page bio that upper layers
- 		 * refuse to split for us, so we need to split it.
- 		 */
--		bp = bio_split(bio,
--			       chunk_sects - (bio->bi_sector & (chunk_sects - 1)) );
-+		bp = bio_pair_split(bio,
-+				    chunk_sects - (bio->bi_sector & (chunk_sects - 1)) );
- 
- 		/* Each of these 'make_request' calls will call 'wait_barrier'.
- 		 * If the first succeeds but the second blocks due to the resync
+-		__bio_clone(tmp, old_chain);
+ 		tmp->bi_bdev = NULL;
+ 		gfpmask &= ~__GFP_WAIT;
+ 		tmp->bi_next = NULL;
 diff --git a/fs/bio.c b/fs/bio.c
-index 692911e..fb7607b 100644
+index 62c4af81..d212ee2 100644
 --- a/fs/bio.c
 +++ b/fs/bio.c
-@@ -1478,7 +1478,7 @@ static void bio_pair_end_2(struct bio *bi, int err)
- /*
-  * split a bio - only worry about a bio with a single page in its iovec
-  */
--struct bio_pair *bio_split(struct bio *bi, int first_sectors)
-+struct bio_pair *bio_pair_split(struct bio *bi, int first_sectors)
- {
- 	struct bio_pair *bp = mempool_alloc(bio_split_pool, GFP_NOIO);
- 
-@@ -1521,7 +1521,7 @@ struct bio_pair *bio_split(struct bio *bi, int first_sectors)
- 
- 	return bp;
+@@ -489,6 +489,19 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
  }
--EXPORT_SYMBOL(bio_split);
-+EXPORT_SYMBOL(bio_pair_split);
+ EXPORT_SYMBOL(bio_clone);
  
++struct bio *bio_clone_kmalloc(struct bio *bio, gfp_t gfp_mask)
++{
++	struct bio *b = bio_kmalloc(gfp_mask, bio->bi_max_vecs);
++
++	if (!b)
++		return NULL;
++
++	__bio_clone(b, bio);
++
++	return b;
++}
++EXPORT_SYMBOL(bio_clone_kmalloc);
++
  /**
-  *      bio_sector_offset - Find hardware sector offset in bio
+  *	bio_get_nr_vecs		- return approx number of vecs
+  *	@bdev:  I/O target
+diff --git a/fs/exofs/ore.c b/fs/exofs/ore.c
+index 49cf230..95c7264 100644
+--- a/fs/exofs/ore.c
++++ b/fs/exofs/ore.c
+@@ -820,8 +820,8 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
+ 			struct bio *bio;
+ 
+ 			if (per_dev != master_dev) {
+-				bio = bio_kmalloc(GFP_KERNEL,
+-						  master_dev->bio->bi_max_vecs);
++				bio = bio_clone_kmalloc(master_dev->bio,
++							GFP_KERNEL);
+ 				if (unlikely(!bio)) {
+ 					ORE_DBGMSG(
+ 					      "Failed to allocate BIO size=%u\n",
+@@ -830,7 +830,6 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
+ 					goto out;
+ 				}
+ 
+-				__bio_clone(bio, master_dev->bio);
+ 				bio->bi_bdev = NULL;
+ 				bio->bi_next = NULL;
+ 				per_dev->offset = master_dev->offset;
 diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 9e89f5e..18ab020 100644
+index 486233c..8f280f7 100644
 --- a/include/linux/bio.h
 +++ b/include/linux/bio.h
-@@ -201,7 +201,7 @@ struct bio_pair {
- 	atomic_t			cnt;
- 	int				error;
- };
--extern struct bio_pair *bio_split(struct bio *bi, int first_sectors);
-+extern struct bio_pair *bio_pair_split(struct bio *bi, int first_sectors);
- extern void bio_pair_release(struct bio_pair *dbio);
+@@ -220,6 +220,7 @@ extern int bio_phys_segments(struct request_queue *, struct bio *);
  
- extern struct bio_set *bioset_create(unsigned int, unsigned int);
+ extern void __bio_clone(struct bio *, struct bio *);
+ extern struct bio *bio_clone(struct bio *, gfp_t);
++struct bio *bio_clone_kmalloc(struct bio *, gfp_t);
+ 
+ extern void bio_init(struct bio *);
+ extern void bio_reset(struct bio *);
 -- 
 1.7.9.3.327.g2980b
 
