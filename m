@@ -1,37 +1,37 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3FBDC1005413
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B1CFF10003C5
 	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:30:11 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 377601B40F5
+	by zimbra.linbit.com (Postfix) with ESMTP id 9915F1B4315
 	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:30:11 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id cUbUddfgPtD8 for <drbd-dev@lists.linbit.com>;
+	with ESMTP id D5qi7mKOl2KU for <drbd-dev@lists.linbit.com>;
 	Fri, 25 May 2012 22:30:11 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 0C4B81B4315
+	by zimbra.linbit.com (Postfix) with ESMTP id 69E0C1B40F5
 	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:30:11 +0200 (CEST)
-Resent-Message-ID: <20120525203010.GM1903@soda.linbit>
+Resent-Message-ID: <20120525203011.GN1903@soda.linbit>
 Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
 	[209.85.160.54]) (using TLSv1 with cipher RC4-MD5 (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4EC161013804
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:26:21 +0200 (CEST)
-Received: by mail-pb0-f54.google.com with SMTP id ro2so2900232pbb.27
-	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 13:26:21 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 811451019A78
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 22:26:22 +0200 (CEST)
+Received: by mail-pb0-f54.google.com with SMTP id ro2so2900252pbb.27
+	for <drbd-dev@lists.linbit.com>; Fri, 25 May 2012 13:26:22 -0700 (PDT)
 From: Kent Overstreet <koverstreet@google.com>
 To: linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
 	dm-devel@redhat.com, linux-fsdevel@vger.kernel.org
-Date: Fri, 25 May 2012 13:25:32 -0700
-Message-Id: <1337977539-16977-10-git-send-email-koverstreet@google.com>
+Date: Fri, 25 May 2012 13:25:33 -0700
+Message-Id: <1337977539-16977-11-git-send-email-koverstreet@google.com>
 In-Reply-To: <1337977539-16977-1-git-send-email-koverstreet@google.com>
 References: <1337977539-16977-1-git-send-email-koverstreet@google.com>
 Cc: axboe@kernel.dk, yehuda@hq.newdream.net, neilb@suse.de,
 	Kent Overstreet <koverstreet@google.com>, mpatocka@redhat.com,
 	vgoyal@redhat.com, bharrosh@panasas.com, tj@kernel.org,
 	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v3 09/16] block: Add bio_clone_kmalloc()
+Subject: [Drbd-dev] [PATCH v3 10/16] block: Add bio_clone_bioset()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -41,91 +41,149 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Signed-off-by: Kent Overstreet <koverstreet@google.com>
-Change-Id: I4aad3ae23640e847056f9de54d6cb75b0ddaa85b
----
- drivers/block/osdblk.c |    3 +--
- fs/bio.c               |   13 +++++++++++++
- fs/exofs/ore.c         |    5 ++---
- include/linux/bio.h    |    1 +
- 4 files changed, 17 insertions(+), 5 deletions(-)
+This consolidates some code, and will help in a later patch changing how
+bio cloning works.
 
-diff --git a/drivers/block/osdblk.c b/drivers/block/osdblk.c
-index 87311eb..1bbc681 100644
---- a/drivers/block/osdblk.c
-+++ b/drivers/block/osdblk.c
-@@ -266,11 +266,10 @@ static struct bio *bio_chain_clone(struct bio *old_chain, gfp_t gfpmask)
- 	struct bio *tmp, *new_chain = NULL, *tail = NULL;
+Signed-off-by: Kent Overstreet <koverstreet@google.com>
+Change-Id: If6cfd840db9cf90a798c6a5862e3314465c83000
+---
+ block/blk-core.c    |    8 +-------
+ drivers/md/dm.c     |    4 ++--
+ drivers/md/md.c     |   20 +-------------------
+ fs/bio.c            |   16 ++++++++++++----
+ include/linux/bio.h |    1 +
+ 5 files changed, 17 insertions(+), 32 deletions(-)
+
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 1f61b74..91617eb 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -2660,16 +2660,10 @@ int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
+ 	blk_rq_init(NULL, rq);
  
- 	while (old_chain) {
--		tmp = bio_kmalloc(gfpmask, old_chain->bi_max_vecs);
-+		tmp = bio_clone_kmalloc(old_chain, gfpmask);
- 		if (!tmp)
- 			goto err_out;
+ 	__rq_for_each_bio(bio_src, rq_src) {
+-		bio = bio_alloc_bioset(gfp_mask, bio_src->bi_max_vecs, bs);
++		bio = bio_clone_bioset(bio_src, gfp_mask, bs);
+ 		if (!bio)
+ 			goto free_and_out;
  
--		__bio_clone(tmp, old_chain);
- 		tmp->bi_bdev = NULL;
- 		gfpmask &= ~__GFP_WAIT;
- 		tmp->bi_next = NULL;
+-		__bio_clone(bio, bio_src);
+-
+-		if (bio_integrity(bio_src) &&
+-		    bio_integrity_clone(bio, bio_src, gfp_mask, bs))
+-			goto free_and_out;
+-
+ 		if (bio_ctr && bio_ctr(bio, bio_src, data))
+ 			goto free_and_out;
+ 
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index 4014696..3f3c26e 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -1101,8 +1101,8 @@ static void __issue_target_request(struct clone_info *ci, struct dm_target *ti,
+ 	 * ci->bio->bi_max_vecs is BIO_INLINE_VECS anyway, for both flush
+ 	 * and discard, so no need for concern about wasted bvec allocations.
+ 	 */
+-	clone = bio_alloc_bioset(GFP_NOIO, ci->bio->bi_max_vecs, ci->md->bs);
+-	__bio_clone(clone, ci->bio);
++	clone = bio_clone_bioset(ci->bio, GFP_NOIO, ci->md->bs);
++
+ 	if (len) {
+ 		clone->bi_sector = ci->sector;
+ 		clone->bi_size = to_bytes(len);
+diff --git a/drivers/md/md.c b/drivers/md/md.c
+index a5a524e..508ae81 100644
+--- a/drivers/md/md.c
++++ b/drivers/md/md.c
+@@ -173,28 +173,10 @@ EXPORT_SYMBOL_GPL(bio_alloc_mddev);
+ struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
+ 			    struct mddev *mddev)
+ {
+-	struct bio *b;
+-
+ 	if (!mddev || !mddev->bio_set)
+ 		return bio_clone(bio, gfp_mask);
+ 
+-	b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, mddev->bio_set);
+-	if (!b)
+-		return NULL;
+-
+-	__bio_clone(b, bio);
+-	if (bio_integrity(bio)) {
+-		int ret;
+-
+-		ret = bio_integrity_clone(b, bio, gfp_mask, mddev->bio_set);
+-
+-		if (ret < 0) {
+-			bio_put(b);
+-			return NULL;
+-		}
+-	}
+-
+-	return b;
++	return bio_clone_bioset(bio, gfp_mask, mddev->bio_set);
+ }
+ EXPORT_SYMBOL_GPL(bio_clone_mddev);
+ 
 diff --git a/fs/bio.c b/fs/bio.c
-index 62c4af81..d212ee2 100644
+index d212ee2..a62b5b6 100644
 --- a/fs/bio.c
 +++ b/fs/bio.c
-@@ -489,6 +489,19 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
+@@ -459,15 +459,17 @@ void __bio_clone(struct bio *bio, struct bio *bio_src)
+ EXPORT_SYMBOL(__bio_clone);
+ 
+ /**
+- *	bio_clone	-	clone a bio
++ *	bio_clone_bioset -	clone a bio
+  *	@bio: bio to clone
+  *	@gfp_mask: allocation priority
++ *	@bs: bio_set to allocate from
+  *
+  * 	Like __bio_clone, only also allocates the returned bio
+  */
+-struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
++struct bio *bio_clone_bioset(struct bio *bio, gfp_t gfp_mask,
++			     struct bio_set *bs)
+ {
+-	struct bio *b = bio_alloc(gfp_mask, bio->bi_max_vecs);
++	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, bs);
+ 
+ 	if (!b)
+ 		return NULL;
+@@ -477,7 +479,7 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
+ 	if (bio_integrity(bio)) {
+ 		int ret;
+ 
+-		ret = bio_integrity_clone(b, bio, gfp_mask, fs_bio_set);
++		ret = bio_integrity_clone(b, bio, gfp_mask, bs);
+ 
+ 		if (ret < 0) {
+ 			bio_put(b);
+@@ -487,6 +489,12 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
+ 
+ 	return b;
  }
++EXPORT_SYMBOL(bio_clone_bioset);
++
++struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
++{
++	return bio_clone_bioset(bio, gfp_mask, fs_bio_set);
++}
  EXPORT_SYMBOL(bio_clone);
  
-+struct bio *bio_clone_kmalloc(struct bio *bio, gfp_t gfp_mask)
-+{
-+	struct bio *b = bio_kmalloc(gfp_mask, bio->bi_max_vecs);
-+
-+	if (!b)
-+		return NULL;
-+
-+	__bio_clone(b, bio);
-+
-+	return b;
-+}
-+EXPORT_SYMBOL(bio_clone_kmalloc);
-+
- /**
-  *	bio_get_nr_vecs		- return approx number of vecs
-  *	@bdev:  I/O target
-diff --git a/fs/exofs/ore.c b/fs/exofs/ore.c
-index 49cf230..95c7264 100644
---- a/fs/exofs/ore.c
-+++ b/fs/exofs/ore.c
-@@ -820,8 +820,8 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
- 			struct bio *bio;
- 
- 			if (per_dev != master_dev) {
--				bio = bio_kmalloc(GFP_KERNEL,
--						  master_dev->bio->bi_max_vecs);
-+				bio = bio_clone_kmalloc(master_dev->bio,
-+							GFP_KERNEL);
- 				if (unlikely(!bio)) {
- 					ORE_DBGMSG(
- 					      "Failed to allocate BIO size=%u\n",
-@@ -830,7 +830,6 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
- 					goto out;
- 				}
- 
--				__bio_clone(bio, master_dev->bio);
- 				bio->bi_bdev = NULL;
- 				bio->bi_next = NULL;
- 				per_dev->offset = master_dev->offset;
+ struct bio *bio_clone_kmalloc(struct bio *bio, gfp_t gfp_mask)
 diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 486233c..8f280f7 100644
+index 8f280f7..0880a71 100644
 --- a/include/linux/bio.h
 +++ b/include/linux/bio.h
-@@ -220,6 +220,7 @@ extern int bio_phys_segments(struct request_queue *, struct bio *);
+@@ -219,6 +219,7 @@ struct request_queue;
+ extern int bio_phys_segments(struct request_queue *, struct bio *);
  
  extern void __bio_clone(struct bio *, struct bio *);
++extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *bs);
  extern struct bio *bio_clone(struct bio *, gfp_t);
-+struct bio *bio_clone_kmalloc(struct bio *, gfp_t);
+ struct bio *bio_clone_kmalloc(struct bio *, gfp_t);
  
- extern void bio_init(struct bio *);
- extern void bio_reset(struct bio *);
 -- 
 1.7.9.3.327.g2980b
 
