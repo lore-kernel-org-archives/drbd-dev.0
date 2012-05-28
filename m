@@ -1,41 +1,39 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0184B100540A
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:40:58 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7DA2C1011BE7
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:01 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id E9B661B435C
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:40:57 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 740961B435D
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:01 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 4fbuNiNGz5R3 for <drbd-dev@lists.linbit.com>;
-	Wed, 30 May 2012 10:40:57 +0200 (CEST)
+	with ESMTP id t5a+5k5cGl7z for <drbd-dev@lists.linbit.com>;
+	Wed, 30 May 2012 10:41:01 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id CFB2A1B435B
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:40:57 +0200 (CEST)
-Resent-Message-ID: <20120530084057.GI4141@soda.linbit>
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp [202.32.8.206])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 17D921019A78
-	for <drbd-dev@lists.linbit.com>; Mon, 28 May 2012 02:59:43 +0200 (CEST)
-Message-ID: <4FC2CD93.1080009@ce.jp.nec.com>
-Date: Mon, 28 May 2012 09:57:55 +0900
-From: "Jun'ichi Nomura" <j-nomura@ce.jp.nec.com>
+	by zimbra.linbit.com (Postfix) with ESMTP id 49F391B435C
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:01 +0200 (CEST)
+Resent-Message-ID: <20120530084101.GJ4141@soda.linbit>
+Received: from natasha.panasas.com (natasha.panasas.com [67.152.220.90])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 417061013802
+	for <drbd-dev@lists.linbit.com>; Mon, 28 May 2012 12:03:48 +0200 (CEST)
+Message-ID: <4FC34D45.7040806@panasas.com>
+Date: Mon, 28 May 2012 13:02:45 +0300
+From: Boaz Harrosh <bharrosh@panasas.com>
 MIME-Version: 1.0
-To: Kent Overstreet <koverstreet@google.com>
+To: Tejun Heo <tj@kernel.org>
 References: <1337977539-16977-1-git-send-email-koverstreet@google.com>
-	<1337977539-16977-3-git-send-email-koverstreet@google.com>
-In-Reply-To: <1337977539-16977-3-git-send-email-koverstreet@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+	<1337977539-16977-4-git-send-email-koverstreet@google.com>
+	<20120528012307.GC9891@dhcp-172-17-108-109.mtv.corp.google.com>
+In-Reply-To: <20120528012307.GC9891@dhcp-172-17-108-109.mtv.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
-Cc: axboe@kernel.dk, device-mapper development <dm-devel@redhat.com>,
-	linux-kernel@vger.kernel.org, tj@kernel.org,
-	linux-bcache@vger.kernel.org, mpatocka@redhat.com,
-	agk@redhat.com, bharrosh@panasas.com,
-	linux-fsdevel@vger.kernel.org, yehuda@hq.newdream.net,
-	drbd-dev@lists.linbit.com, vgoyal@redhat.com, sage@newdream.net
-Subject: Re: [Drbd-dev] [dm-devel] [PATCH v3 02/16] dm: Use bioset's
-	front_pad for dm_rq_clone_bio_info
+Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
+	Kent Overstreet <koverstreet@google.com>,
+	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
+	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
+	linux-fsdevel@vger.kernel.org, sage@newdream.net, agk@redhat.com,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v3 03/16] block: Add bio_reset()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -45,25 +43,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 05/26/12 05:25, Kent Overstreet wrote:
->  struct dm_rq_clone_bio_info {
->  	struct bio *orig;
->  	struct dm_rq_target_io *tio;
-> +	struct bio clone;
->  };
-...
-> -	pools->bs = bioset_create(pool_size, 0);
-> +	pools->bs = bioset_create(pool_size,
-> +				  offsetof(struct dm_rq_clone_bio_info, orig));
->  	if (!pools->bs)
->  		goto free_tio_pool_and_out;
+On 05/28/2012 04:23 AM, Tejun Heo wrote:
 
-Did you mean offset of *clone*?
-"offsetof(struct dm_rq_clone_bio_info, orig)" is zero.
+> On Fri, May 25, 2012 at 01:25:26PM -0700, Kent Overstreet wrote:
+>> Reusing bios is something that's been highly frowned upon in the past,
+>> but driver code keeps doing it anyways. If it's going to happen anyways,
+>> we should provide a generic method.
+>>
+>> This'll help with getting rid of bi_destructor - drivers/block/pktcdvd.c
+>> was open coding it, by doing a bio_init() and resetting bi_destructor.
+>>
+>> Signed-off-by: Kent Overstreet <koverstreet@google.com>
+>> Change-Id: Ib0a43dfcb3f6c22a54da513d4a86be544b5ffd95
+>> ---
+>>  fs/bio.c                  |    8 ++++++++
+>>  include/linux/bio.h       |    1 +
+>>  include/linux/blk_types.h |    6 ++++++
+>>  3 files changed, 15 insertions(+)
+>>
+>> diff --git a/fs/bio.c b/fs/bio.c
+>> index 3667cef..240da21 100644
+>> --- a/fs/bio.c
+>> +++ b/fs/bio.c
+>> @@ -259,6 +259,14 @@ void bio_init(struct bio *bio)
+>>  }
+>>  EXPORT_SYMBOL(bio_init);
+>>  
+> 
+> Function comment please.
 
-And now _rq_bio_info_cache has no user and can be removed.
 
-Otherwise, I think it's nicer than the previous version.
-Thank you.
--- 
-Jun'ichi Nomura, NEC Corporation
+And please make this inline in header. We should not 
+EXPORT_SYMBOL a memset. (Even the memset gets inlined by
+compiler.
+
+Boaz
+
+> 
+>> +void bio_reset(struct bio *bio)
+>> +{
+>> +	memset(bio, 0, BIO_RESET_BYTES);
+>> +	bio->bi_flags = 1 << BIO_UPTODATE;
+>> +
+>> +}
+>> +EXPORT_SYMBOL(bio_reset);
+> 
+
+
