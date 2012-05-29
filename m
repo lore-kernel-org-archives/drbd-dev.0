@@ -1,42 +1,41 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9376E1005425
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:08 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 024BC10003B1
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:09 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 826F71B435C
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:08 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id ABFD11B435C
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:09 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id BapA3mwcepUd for <drbd-dev@lists.linbit.com>;
-	Wed, 30 May 2012 10:41:08 +0200 (CEST)
+	with ESMTP id KFWAPOyjbwKd for <drbd-dev@lists.linbit.com>;
+	Wed, 30 May 2012 10:41:09 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 61B851B435B
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:08 +0200 (CEST)
-Resent-Message-ID: <20120530084108.GP4141@soda.linbit>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6D8CA1013804
-	for <drbd-dev@lists.linbit.com>; Mon, 28 May 2012 23:27:51 +0200 (CEST)
-Date: Mon, 28 May 2012 17:27:33 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-To: Tejun Heo <tj@kernel.org>
-In-Reply-To: <20120528202839.GA18537@dhcp-172-17-108-109.mtv.corp.google.com>
-Message-ID: <Pine.LNX.4.64.1205281659580.11763@file.rdu.redhat.com>
+	by zimbra.linbit.com (Postfix) with ESMTP id 7BE441B435B
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:09 +0200 (CEST)
+Resent-Message-ID: <20120530084109.GQ4141@soda.linbit>
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net
+	[150.101.137.145])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DA6B51019A78
+	for <drbd-dev@lists.linbit.com>; Tue, 29 May 2012 03:59:48 +0200 (CEST)
+Date: Tue, 29 May 2012 11:54:38 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Kent Overstreet <koverstreet@google.com>
+Message-ID: <20120529015438.GZ5091@dastard>
 References: <1337977539-16977-1-git-send-email-koverstreet@google.com>
 	<1337977539-16977-15-git-send-email-koverstreet@google.com>
-	<20120525204651.GA24246@redhat.com> <20120525210944.GB14196@google.com>
-	<20120525223937.GF5761@agk-dp.fab.redhat.com>
-	<Pine.LNX.4.64.1205281129180.2227@file.rdu.redhat.com>
-	<20120528202839.GA18537@dhcp-172-17-108-109.mtv.corp.google.com>
+	<20120525204651.GA24246@redhat.com>
+	<20120525210944.GB14196@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20120525210944.GB14196@google.com>
 Cc: axboe@kernel.dk, Mike Snitzer <snitzer@redhat.com>,
-	Kent Overstreet <koverstreet@google.com>,
 	Dave Chinner <dchinner@redhat.com>, dm-devel@redhat.com,
-	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
-	tytso@google.com, vgoyal@redhat.com, bharrosh@panasas.com,
+	linux-kernel@vger.kernel.org, tj@kernel.org,
+	linux-bcache@vger.kernel.org, tytso@google.com,
+	mpatocka@redhat.com, agk@redhat.com, bharrosh@panasas.com,
 	linux-fsdevel@vger.kernel.org, yehuda@hq.newdream.net,
-	drbd-dev@lists.linbit.com, Alasdair G Kergon <agk@redhat.com>,
-	sage@newdream.net
+	drbd-dev@lists.linbit.com, vgoyal@redhat.com, sage@newdream.net
 Subject: Re: [Drbd-dev] [PATCH v3 14/16] Gut bio_add_page()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -47,88 +46,80 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-
-
-On Tue, 29 May 2012, Tejun Heo wrote:
-
-> Hello,
+On Fri, May 25, 2012 at 02:09:44PM -0700, Kent Overstreet wrote:
+> On Fri, May 25, 2012 at 04:46:51PM -0400, Mike Snitzer wrote:
+> > I'd love to see the merge_bvec stuff go away but it does serve a
+> > purpose: filesystems benefit from accurately building up much larger
+> > bios (based on underlying device limits).  XFS has leveraged this for
+> > some time and ext4 adopted this (commit bd2d0210cf) because of the
+> > performance advantage.
 > 
-> On Mon, May 28, 2012 at 12:07:14PM -0400, Mikulas Patocka wrote:
-> > With accurately sized bios, you send one bio for 256 sectors (it is sent 
-> > immediatelly to the disk) and a second bio for another 256 sectors (it is 
-> > put to the block device queue). The first bio finishes, pages are marked 
-> > as uptodate, the second bio is sent to the disk. While the disk is 
+> That commit only talks about skipping buffer heads, from the patch
+> description I don't see how merge_bvec_fn would have anything to do with
+> what it's after.
+
+XFS has used it since 2.6.16 as building our own bios enabled the Io
+path form IOs of sizes that are independent of the filesystem block
+size.
+
+http://oss.sgi.com/projects/xfs/papers/ols2006/ols-2006-paper.pdf
+
+And it's not just the XFS write path that uses bio_add_page - the XFS
+metadata read/write IO code uses it as well because we have metadata
+constructs that are larger than a single page...
+
+> > So if you don't have a mechanism for the filesystem's IO to have
+> > accurate understanding of the limits of the device the filesystem is
+> > built on (merge_bvec was the mechanism) and are leaning on late
+> > splitting does filesystem performance suffer?
 > 
-> They're split and made in-flight together.
+> So is the issue that it may take longer for an IO to complete, or is it
+> CPU utilization/scalability?
 
-I was talking about old ATA disk (without command queueing). So the 
-requests are not sent together. USB 2 may be a similar case, it has 
-limited transfer size and it doesn't have command queueing too.
+Both. Moving to this code reduced the CPU overhead per MB of data
+written to disk by 80-90%. It also allowed us to build IOs that span
+entire RAID stripe widths, thereby avoiding potential RAID RMW
+cycles, and even allowing high end raid controllers to trigger BBWC
+bypass fast paths that could double or triple the write throughput
+of the arrays...
 
-> > processing the second bio, the kernel already knows that the first 256 
-> > sectors are finished - so it copies the data to userspace and lets the 
-> > userspace process them - while the disk is processing the second bio. So, 
-> > disk transfer and data processing are overlapped.
-> >
-> > Now, with your patch, you send just one 512-sector bio. The bio is split 
-> > to two bios, the first one is sent to the disk and you wait. The disk 
-> > finishes the first bio, you send the second bio to the disk and wait. The 
-> > disk finishes the second bio. You complete the master bio, mark all 512 
-> > sectors as uptodate in the pagecache, start copying data to the userspace 
-> > and processing them. Disk transfer and data processing are not overlapped.
+> If it's the former, we've got a real problem.
+
+... then you have a real problem.
+
+> If it's the latter - it
+> might be a problem in the interim (I don't expect generic_make_request()
+> to be splitting bios in the common case long term), but I doubt it's
+> going to be much of an issue.
+
+I think this will also be an issue - the typical sort of throughput
+I've been hearing about over the past year for typical HPC
+deployments is >20GB/s buffered write throughput to disk on a single
+XFS filesystem, and that is typically limited by the flusher thread
+being CPU bound. So if you changes have a CPU usage impact, then
+these systems will definitely see reduced performance....
+
+> > Would be nice to see before and after XFS and ext4 benchmarks against a
+> > RAID device (level 5 or 6).  I'm especially interested to get Dave
+> > Chinner's and Ted's insight here.
 > 
-> Disk will most likely seek to the sector read all of them into buffer
-> at once and then serve the two consecutive commands back-to-back
-> without much inter-command delay.
-
-Without command queueing, the disk will serve the first request, then 
-receive the second request, and then serve the second request (hopefully 
-the data would be already prefetched after the first request).
-
-The point is that while the disk is processing the second request, the CPU 
-can already process data from the first request.
-
-> > accurately-sized bios (that don't span stripe boundaries), each bio waits 
-> > just for one disk to seek to the requested position. If you send oversized 
-> > bio that spans several stripes, that bio will wait until all the disks 
-> > seek to the requested position.
-> > 
-> > In general, you can send oversized bios if the user is waiting for all the 
-> > data requested (for example O_DIRECT read or write). You shouldn't send 
-> > oversized bios if the user is waiting just for a small part of data and 
-> > the kernel is doing readahead - in this case, oversized bio will result in 
-> > additional delay.
+> Yeah.
 > 
-> Isn't it more like you shouldn't be sending read requested by user and
-> read ahead in the same bio?
+> I can't remember who it was, but Ted knows someone who was able to
+> benchmark on a 48 core system. I don't think we need numbers from a 48
+> core machine for these patches, but whatever workloads they were testing
+> that were problematic CPU wise would be useful to test.
 
-If the user calls read with 512 bytes, you would send bio for just one 
-sector. That's too small and you'd get worse performance because of higher 
-command overhead. You need to send larger bios.
+Eric Whitney.
 
-AHCI can interrupt after partial transfer (so for example you can send a 
-command to read 1M, but signal interrupt after the first 4k was 
-transferred), but no one really wrote code that could use this feature. It 
-is questionable if this would improve performance because it would double 
-interrupt load.
+http://downloads.linux.hp.com/~enw/ext4/3.2/
 
-> > I think bio_add_page should be simplified in such a way that in the most 
-> > common cases it doesn't create oversized bio, but it can create oversized 
-> > bios in uncommon cases. We could retain a limit on a maximum number of 
-> > sectors (this limit is most commonly hit on disks), put a stripe boundary 
-> > to queue_limits (the stripe boundary limit is most commonly hit on raid), 
-> > ignore the rest of the limits in bio_add_page and remove merge_bvec.
-> 
-> If exposing segmenting limit upwards is a must (I'm kinda skeptical),
-> let's have proper hints (or dynamic hinting interface) instead.
+His storage hardware probably isn't fast enough to demonstrate the
+sort of problems I'm expecting that would occur...
 
-With this patchset, you don't have to expose all the limits. You can 
-expose just a few most useful limits to avoid bio split in the cases 
-described above.
+Cheers,
 
-> Thanks.
-> 
-> -- 
-> tejun
-
-Mikulas
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
