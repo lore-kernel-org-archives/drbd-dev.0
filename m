@@ -1,50 +1,44 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0E2F01005425
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:11 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5E3AE100542E
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:12 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id CD2B61B435E
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:10 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 3436B1B4361
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:12 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 4WwxhITEuDrC for <drbd-dev@lists.linbit.com>;
-	Wed, 30 May 2012 10:41:10 +0200 (CEST)
+	with ESMTP id NcojMXeF52Bn for <drbd-dev@lists.linbit.com>;
+	Wed, 30 May 2012 10:41:12 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 660671B435D
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:10 +0200 (CEST)
-Resent-Message-ID: <20120530084110.GS4141@soda.linbit>
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net
-	[150.101.137.145])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 456101019A78
-	for <drbd-dev@lists.linbit.com>; Tue, 29 May 2012 04:08:18 +0200 (CEST)
-Date: Tue, 29 May 2012 12:08:15 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Tejun Heo <tj@kernel.org>
-Message-ID: <20120529020815.GB5091@dastard>
+	by zimbra.linbit.com (Postfix) with ESMTP id 142E71B435B
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2012 10:41:12 +0200 (CEST)
+Resent-Message-ID: <20120530084112.GU4141@soda.linbit>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
+	[209.85.160.54]) (using TLSv1 with cipher RC4-MD5 (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 067811019A78
+	for <drbd-dev@lists.linbit.com>; Tue, 29 May 2012 04:15:20 +0200 (CEST)
+Received: by pbbro2 with SMTP id ro2so6638315pbb.27
+	for <drbd-dev@lists.linbit.com>; Mon, 28 May 2012 19:15:19 -0700 (PDT)
+Date: Mon, 28 May 2012 22:15:15 -0400
+From: Kent Overstreet <koverstreet@google.com>
+To: Boaz Harrosh <bharrosh@panasas.com>
+Message-ID: <20120529021515.GB6472@dhcp-172-18-216-138.mtv.corp.google.com>
 References: <1337977539-16977-1-git-send-email-koverstreet@google.com>
-	<1337977539-16977-15-git-send-email-koverstreet@google.com>
-	<20120525204651.GA24246@redhat.com>
-	<20120525210944.GB14196@google.com>
-	<20120525223937.GF5761@agk-dp.fab.redhat.com>
-	<Pine.LNX.4.64.1205281129180.2227@file.rdu.redhat.com>
-	<20120528202839.GA18537@dhcp-172-17-108-109.mtv.corp.google.com>
-	<Pine.LNX.4.64.1205281659580.11763@file.rdu.redhat.com>
-	<20120528213839.GB18537@dhcp-172-17-108-109.mtv.corp.google.com>
-	<20120528230208.GA20954@dhcp-172-17-108-109.mtv.corp.google.com>
+	<1337977539-16977-8-git-send-email-koverstreet@google.com>
+	<4FC3504B.7000903@panasas.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120528230208.GA20954@dhcp-172-17-108-109.mtv.corp.google.com>
-Cc: axboe@kernel.dk, dm-devel@redhat.com, Mike Snitzer <snitzer@redhat.com>,
-	Kent Overstreet <koverstreet@google.com>,
-	Dave Chinner <dchinner@redhat.com>, linux-kernel@vger.kernel.org,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	linux-bcache@vger.kernel.org, tytso@google.com,
-	Mikulas Patocka <mpatocka@redhat.com>, vgoyal@redhat.com,
-	bharrosh@panasas.com, linux-fsdevel@vger.kernel.org,
-	yehuda@hq.newdream.net, drbd-dev@lists.linbit.com,
-	Alasdair G Kergon <agk@redhat.com>, sage@newdream.net
-Subject: Re: [Drbd-dev] [PATCH v3 14/16] Gut bio_add_page()
+In-Reply-To: <4FC3504B.7000903@panasas.com>
+Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
+	linux-kernel@vger.kernel.org, tj@kernel.org,
+	linux-bcache@vger.kernel.org, mpatocka@redhat.com,
+	vgoyal@redhat.com, yehuda@hq.newdream.net,
+	linux-fsdevel@vger.kernel.org, sage@newdream.net, agk@redhat.com,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v3 07/16] block: Rename bio_split() ->
+	bio_pair_split()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -54,30 +48,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, May 29, 2012 at 08:02:08AM +0900, Tejun Heo wrote:
-> (cc'ing Martin K. Petersen, hi!)
+On Mon, May 28, 2012 at 01:15:39PM +0300, Boaz Harrosh wrote:
+> On 05/25/2012 11:25 PM, Kent Overstreet wrote:
 > 
-> On Tue, May 29, 2012 at 06:38:39AM +0900, Tejun Heo wrote:
-> > > With this patchset, you don't have to expose all the limits. You can 
-> > > expose just a few most useful limits to avoid bio split in the cases 
-> > > described above.
+> > This is prep work for introducing a more general bio_split()
 > > 
-> > Yeah, if that actually helps, sure.  From what I read, dm is already
-> > (ab)using merge_bvec_fn() like that anyway.
+> > Change-Id: Ib9c4ff691af889d26bc9ec9fb42a2f3068f34ad9
+> > 
 > 
-> i thought a bit more about it and the only thing which makes sense to
-> me is exposing the stripe granularity for striped devices -
-> ie. something which says "if you go across this boundary, the
-> performance characteristics including latency might get affected",
-> which should fit nicely with the rest of topology information.
-> Martin, adding that shouldn't be difficult, right?
+> 
+> Since these patches will go through Jens tree this kind of
+> comment can *never* be true/correct. And it is plenty unwanted
+> for sure.
 
-We already have the optimal IO size/alignment field in the topology.
-Doesn't this fit what you want exactly?
+That's from a gerrit hook, which I always forget to delete so I just
+disabled the hook on my work machine. Apologies.
 
-Cheers,
+> Here:
+> bio_do means an operation on bio. But here we are actually operating
+> on a bio_pair. So rename it it to bio_pair_do.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I don't follow what you mean by bio_do... but I think I get what you're
+after, comment wise.
+
+> 
+> We will later introduce a real bio_split() function that receives
+> a bio and splits it.
+> 
+> Or something like that.
+> Thanks
+> Boaz
+> 
+> > Signed-off-by: Kent Overstreet <koverstreet@google.com>
+> 
+> <snip>
+> 
+> > @@ -201,7 +201,7 @@ struct bio_pair {
+> >  	atomic_t			cnt;
+> >  	int				error;
+> >  };
+> > -extern struct bio_pair *bio_split(struct bio *bi, int first_sectors);
+> > +extern struct bio_pair *bio_pair_split(struct bio *bi, int first_sectors);
+> >  extern void bio_pair_release(struct bio_pair *dbio);
+> >  
+> >  extern struct bio_set *bioset_create(unsigned int, unsigned int);
+> 
+> 
