@@ -1,21 +1,16 @@
-Return-Path: <lars.ellenberg@linbit.com>
+Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E29FF1013809
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jun 2012 14:25:06 +0200 (CEST)
-Date: Tue, 12 Jun 2012 14:25:06 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Message-ID: <20120612122506.GF4069@soda.linbit>
-References: <20120612074310.GC15060@elgon.mountain>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4305910003DE
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jun 2012 18:22:04 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Tue, 12 Jun 2012 18:22:03 +0000
+Message-ID: <1788738.mNsnrf6o6T@fat-tyre>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120612074310.GC15060@elgon.mountain>
-Cc: kernel-janitors@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [patch] drbd: potential integer overflow in
- receive_SyncParam()
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [GIT PULL] drbd fixes
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,29 +20,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jun 12, 2012 at 10:43:11AM +0300, Dan Carpenter wrote:
-> I believe this comes from the network so there is a risk of integer
-> overflow on 32 bit.  Using kcalloc() is a little cleaner as well.
-> 
-> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
-> 
-> diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-> index ea4836e..1e27876 100644
-> --- a/drivers/block/drbd/drbd_receiver.c
-> +++ b/drivers/block/drbd/drbd_receiver.c
-> @@ -2902,7 +2902,7 @@ static int receive_SyncParam(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
->  
->  			fifo_size = (mdev->sync_conf.c_plan_ahead * 10 * SLEEP_TIME) / HZ;
->  			if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
-> -				rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
-> +				rs_plan_s = kcalloc(fifo_size, sizeof(int), GFP_KERNEL);
->  				if (!rs_plan_s) {
->  					dev_err(DEV, "kmalloc of fifo_buffer failed");
->  					goto disconnect;
+Hi Jens,
 
-sync_conf.c_plan_ahead is capped at 300 by drbdsetup.
-But yes, since this is not enforced in kernel code,
-your fix is correct.
+In the last 4 weeks three bugs were reported and fixed. Please consider
+to pass these 3 commits on to Linus.
+
+The following changes since commit 4fd1ffaa122cf66bfb710ced43679413df4f3605:
+
+  Merge branch 'for-jens' of git://git.drbd.org/linux-drbd into for-3.5/drivers (2012-05-18 16:20:06 +0200)
+
+are available in the git repository at:
 
 
-	Lars
+  git://git.drbd.org/linux-drbd.git for-jens
+
+for you to fetch changes up to 0d5934e3c258fc5decc4103600c597086fd95a52:
+
+  drbd: fix null pointer dereference with on-congestion policy when diskless (2012-06-12 14:35:19 +0200)
+
+----------------------------------------------------------------
+Lars Ellenberg (3):
+      drbd: fix access of unallocated pages and kernel panic
+      drbd: fix list corruption by failing but already aborted reads
+      drbd: fix null pointer dereference with on-congestion policy when diskless
+
+ drivers/block/drbd/drbd_bitmap.c |   11 +++++--
+ drivers/block/drbd/drbd_req.c    |   66 ++++++++++++++++++++++++--------------
+2 files changed, 51 insertions(+), 26 deletions(-)
+
+Best,
+ Philipp
+-- 
+: Dipl-Ing Philipp Reisner
+: LINBIT | Your Way to High Availability
+: Tel: +43-1-8178292-50, Fax: +43-1-8178292-82
+: http://www.linbit.com
+
+DRBD(R) and LINBIT(R) are registered trademarks of LINBIT, Austria.
+
