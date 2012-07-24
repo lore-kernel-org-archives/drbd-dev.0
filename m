@@ -1,23 +1,16 @@
-Return-Path: <florian.haas@hastexo.com>
-Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com
-	[209.85.216.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9C3A61013802
-	for <drbd-dev@lists.linbit.com>; Mon,  9 Jul 2012 16:06:25 +0200 (CEST)
-Received: by qaat11 with SMTP id t11so1672539qaa.6
-	for <drbd-dev@lists.linbit.com>; Mon, 09 Jul 2012 07:06:22 -0700 (PDT)
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 186051005431
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 16:24:36 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Tue, 24 Jul 2012 16:24:35 +0200
+Message-ID: <6356994.vJFLSmzzfE@fat-tyre>
 MIME-Version: 1.0
-In-Reply-To: <B326DCECA83A2E44BE98082EA1A715FA19CD0E4902@SI-MBX13.de.bosch.com>
-References: <B326DCECA83A2E44BE98082EA1A715FA19CD0E4902@SI-MBX13.de.bosch.com>
-Date: Mon, 9 Jul 2012 15:59:48 +0200
-Message-ID: <CAPUexz8WEM=EyjX6CpZ4aPxEN1YRe_pQKGcTqupmE=KgAX8C1w@mail.gmail.com>
-From: Florian Haas <florian@hastexo.com>
-To: "EXTERNAL Konold Martin (erfrakon,
-	RtP2/TEF72)" <external.Martin.Konold@de.bosch.com>
-Content-Type: text/plain; charset=UTF-8
-Cc: "drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] drbdadm before-resync-source minor-0 causing kernel
-	Oops
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] drbd-8.3 fixes
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -27,25 +20,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jul 5, 2012 at 10:06 AM, EXTERNAL Konold Martin (erfrakon,
-RtP2/TEF72) <external.Martin.Konold@de.bosch.com> wrote:
-> Hi there,
->
-> I occassionally get:
->
-> <snip>
->
-> Is this report of some use to you?
+Hi Jens,
 
-Looks very much like this:
+Please consider to pull these changes for the 3.6 merge window.
+I did not found a for-3.6/drivers branch, so I based the patches
+on the 3.5 release.
 
-http://www.mail-archive.com/drbd-user@lists.linbit.com/msg05670.html
+Best,
+ Phil
 
-Please read the whole thread, not just that one message.
 
-Hope this helps,
-Florian
+The following changes since commit 28a33cbc24e4256c143dce96c7d93bf423229f92:
 
--- 
-Need help with High Availability?
-http://www.hastexo.com/now
+  Linux 3.5 (2012-07-21 13:58:29 -0700)
+
+are available in the git repository at:
+
+  git://git.drbd.org/linux-drbd.git for-jens
+
+for you to fetch changes up to a73ff3231df59a4b92ccd0dd4e73897c5822489b:
+
+  drbd: announce FLUSH/FUA capability to upper layers (2012-07-24 15:14:28 +0200)
+
+----------------------------------------------------------------
+Lars Ellenberg (10):
+      drbd: cleanup, remove two unused global flags
+      drbd: differentiate between normal and forced detach
+      drbd: report congestion if we are waiting for some userland callback
+      drbd: reset congestion information before reporting it in /proc/drbd
+      drbd: do not reset rs_pending_cnt too early
+      drbd: call local-io-error handler early
+      drbd: fix potential access after free
+      drbd: flush drbd work queue before invalidate/invalidate remote                                 
+      drbd: fix max_bio_size to be unsigned                                                           
+      drbd: announce FLUSH/FUA capability to upper layers
+
+ drivers/block/drbd/drbd_actlog.c   |    8 +++--
+ drivers/block/drbd/drbd_bitmap.c   |    4 +--
+ drivers/block/drbd/drbd_int.h      |   44 ++++++++++++++++--------
+ drivers/block/drbd/drbd_main.c     |   65 +++++++++++++++++++++++++++---------
+ drivers/block/drbd/drbd_nl.c       |   36 +++++++++++++++-----
+ drivers/block/drbd/drbd_proc.c     |    3 ++
+ drivers/block/drbd/drbd_receiver.c |   38 +++++++++++++++------
+ drivers/block/drbd/drbd_req.c      |    9 +++--
+ drivers/block/drbd/drbd_worker.c   |   12 ++-----
+ 9 files changed, 153 insertions(+), 66 deletions(-)
+
+
