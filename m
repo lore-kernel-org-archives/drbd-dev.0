@@ -1,38 +1,37 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 58EF61055F42
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D1B021055F45
 	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:41 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 511371B436A
+	by zimbra.linbit.com (Postfix) with ESMTP id C9D0E1B4369
 	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:41 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id kvAB5i9p6EXG for <drbd-dev@lists.linbit.com>;
+	with ESMTP id 29q8TxwcuYlJ for <drbd-dev@lists.linbit.com>;
 	Thu, 26 Jul 2012 11:35:41 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 314711B4368
+	by zimbra.linbit.com (Postfix) with ESMTP id AC37E1B4368
 	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:41 +0200 (CEST)
-Resent-Message-ID: <20120726093541.GS29767@soda.linbit>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
-	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Resent-Message-ID: <20120726093541.GT29767@soda.linbit>
+Received: from mail-gh0-f182.google.com (mail-gh0-f182.google.com
+	[209.85.160.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3E4CE1013803
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 22:12:09 +0200 (CEST)
-Received: by mail-pb0-f54.google.com with SMTP id ro2so146142pbb.27
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 13:12:08 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5F3AB10000EC
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 22:18:13 +0200 (CEST)
+Received: by ghbz22 with SMTP id z22so10336567ghb.27
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 13:18:12 -0700 (PDT)
 From: Kent Overstreet <koverstreet@google.com>
 To: linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
 	dm-devel@redhat.com
-Date: Tue, 24 Jul 2012 13:11:29 -0700
-Message-Id: <1343160689-12378-13-git-send-email-koverstreet@google.com>
+Date: Tue, 24 Jul 2012 13:11:25 -0700
+Message-Id: <1343160689-12378-9-git-send-email-koverstreet@google.com>
 In-Reply-To: <1343160689-12378-1-git-send-email-koverstreet@google.com>
 References: <1343160689-12378-1-git-send-email-koverstreet@google.com>
 Cc: axboe@kernel.dk, yehuda@hq.newdream.net, neilb@suse.de,
 	Kent Overstreet <koverstreet@google.com>, mpatocka@redhat.com,
 	vgoyal@redhat.com, bharrosh@panasas.com, tj@kernel.org,
 	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v4 12/12] block: Only clone bio vecs that are in
-	use
+Subject: [Drbd-dev] [PATCH v4 08/12] block: Introduce new bio_split()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -42,98 +41,126 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-bcache creates large bios internally, and then splits them according to
-the device requirements before it sends them down. If a lower level
-device tries to clone the bio, and the original bio had more than
-BIO_MAX_PAGES, the clone will fail unecessarily.
-
-We can fix this by only cloning the bio vecs that are actually in use.
+The new bio_split() can split arbitrary bios - it's not restricted to
+single page bios, like the old bio_split() (previously renamed to
+bio_pair_split()). It also has different semantics - it doesn't allocate
+a struct bio_pair, leaving it up to the caller to handle completions.
 
 Signed-off-by: Kent Overstreet <koverstreet@google.com>
 ---
- drivers/block/rbd.c |    2 +-
- drivers/md/dm.c     |    5 ++---
- fs/bio.c            |   13 +++++++------
- 3 files changed, 10 insertions(+), 10 deletions(-)
+ fs/bio.c |   99 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 99 insertions(+), 0 deletions(-)
 
-diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
-index 692cf05..21edfe5 100644
---- a/drivers/block/rbd.c
-+++ b/drivers/block/rbd.c
-@@ -714,7 +714,7 @@ static struct bio *bio_chain_clone(struct bio **old, struct bio **next,
- 	}
- 
- 	while (old_chain && (total < len)) {
--		tmp = bio_kmalloc(gfpmask, old_chain->bi_max_vecs);
-+		tmp = bio_kmalloc(gfpmask, bio_segments(old_chain));
- 		if (!tmp)
- 			goto err_out;
- 
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index 3f3c26e..193fb19 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -1057,11 +1057,10 @@ static struct bio *clone_bio(struct bio *bio, sector_t sector,
- {
- 	struct bio *clone;
- 
--	clone = bio_alloc_bioset(GFP_NOIO, bio->bi_max_vecs, bs);
-+	clone = bio_alloc_bioset(GFP_NOIO, bv_count, bs);
- 	__bio_clone(clone, bio);
- 	clone->bi_sector = sector;
--	clone->bi_idx = idx;
--	clone->bi_vcnt = idx + bv_count;
-+	clone->bi_vcnt = bv_count;
- 	clone->bi_size = to_bytes(len);
- 	clone->bi_flags &= ~(1 << BIO_SEG_VALID);
- 
 diff --git a/fs/bio.c b/fs/bio.c
-index 7a0801d..ec6a357 100644
+index 5d02aa5..a15e121 100644
 --- a/fs/bio.c
 +++ b/fs/bio.c
-@@ -451,8 +451,9 @@ EXPORT_SYMBOL(bio_phys_segments);
-  */
- void __bio_clone(struct bio *bio, struct bio *bio_src)
- {
--	memcpy(bio->bi_io_vec, bio_src->bi_io_vec,
--		bio_src->bi_max_vecs * sizeof(struct bio_vec));
-+	memcpy(bio->bi_io_vec,
-+	       bio_iovec(bio_src),
-+	       bio_segments(bio_src) * sizeof(struct bio_vec));
+@@ -1539,6 +1539,105 @@ struct bio_pair *bio_pair_split(struct bio *bi, int first_sectors)
+ EXPORT_SYMBOL(bio_pair_split);
  
- 	/*
- 	 * most users will be overriding ->bi_bdev with a new target,
-@@ -461,10 +462,10 @@ void __bio_clone(struct bio *bio, struct bio *bio_src)
- 	bio->bi_sector = bio_src->bi_sector;
- 	bio->bi_bdev = bio_src->bi_bdev;
- 	bio->bi_flags |= 1 << BIO_CLONED;
-+	bio->bi_flags &= ~(1 << BIO_SEG_VALID);
- 	bio->bi_rw = bio_src->bi_rw;
--	bio->bi_vcnt = bio_src->bi_vcnt;
-+	bio->bi_vcnt = bio_segments(bio_src);
- 	bio->bi_size = bio_src->bi_size;
--	bio->bi_idx = bio_src->bi_idx;
- }
- EXPORT_SYMBOL(__bio_clone);
- 
-@@ -479,7 +480,7 @@ EXPORT_SYMBOL(__bio_clone);
- struct bio *bio_clone_bioset(struct bio *bio, gfp_t gfp_mask,
- 			     struct bio_set *bs)
- {
--	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, bs);
-+	struct bio *b = bio_alloc_bioset(gfp_mask, bio_segments(bio), bs);
- 
- 	if (!b)
- 		return NULL;
-@@ -509,7 +510,7 @@ EXPORT_SYMBOL(bio_clone);
- 
- struct bio *bio_clone_kmalloc(struct bio *bio, gfp_t gfp_mask)
- {
--	struct bio *b = bio_kmalloc(gfp_mask, bio->bi_max_vecs);
-+	struct bio *b = bio_kmalloc(gfp_mask, bio_segments(bio));
- 
- 	if (!b)
- 		return NULL;
+ /**
++ * bio_split - split a bio
++ * @bio:	bio to split
++ * @sectors:	number of sectors to split from the front of @bio
++ * @gfp:	gfp mask
++ * @bs:		bio set to allocate from
++ *
++ * Allocates and returns a new bio which represents @sectors from the start of
++ * @bio, and updates @bio to represent the remaining sectors.
++ *
++ * If bio_sectors(@bio) was less than or equal to @sectors, returns @bio
++ * unchanged.
++ *
++ * The newly allocated bio will point to @bio's bi_io_vec, if the split was on a
++ * bvec boundry; it is the caller's responsibility to ensure that @bio is not
++ * freed before the split.
++ *
++ * If bio_split() is running under generic_make_request(), it's not safe to
++ * allocate more than one bio from the same bio set. Therefore, if it is running
++ * under generic_make_request() it masks out __GFP_WAIT when doing the
++ * allocation. The caller must check for failure if there's any possibility of
++ * it being called from under generic_make_request(); it is then the caller's
++ * responsibility to retry from a safe context (by e.g. punting to workqueue).
++ */
++struct bio *bio_split(struct bio *bio, int sectors,
++		      gfp_t gfp, struct bio_set *bs)
++{
++	unsigned idx, vcnt = 0, nbytes = sectors << 9;
++	struct bio_vec *bv;
++	struct bio *ret = NULL;
++
++	BUG_ON(sectors <= 0);
++
++	/*
++	 * If we're being called from underneath generic_make_request() and we
++	 * already allocated any bios from this bio set, we risk deadlock if we
++	 * use the mempool. So instead, we possibly fail and let the caller punt
++	 * to workqueue or somesuch and retry in a safe context.
++	 */
++	if (current->bio_list)
++		gfp &= ~__GFP_WAIT;
++
++	if (sectors >= bio_sectors(bio))
++		return bio;
++
++	trace_block_split(bdev_get_queue(bio->bi_bdev), bio,
++			  bio->bi_sector + sectors);
++
++	bio_for_each_segment(bv, bio, idx) {
++		vcnt = idx - bio->bi_idx;
++
++		if (!nbytes) {
++			ret = bio_alloc_bioset(gfp, 0, bs);
++			if (!ret)
++				return NULL;
++
++			ret->bi_io_vec = bio_iovec(bio);
++			ret->bi_flags |= 1 << BIO_CLONED;
++			break;
++		} else if (nbytes < bv->bv_len) {
++			ret = bio_alloc_bioset(gfp, ++vcnt, bs);
++			if (!ret)
++				return NULL;
++
++			memcpy(ret->bi_io_vec, bio_iovec(bio),
++			       sizeof(struct bio_vec) * vcnt);
++
++			ret->bi_io_vec[vcnt - 1].bv_len = nbytes;
++			bv->bv_offset	+= nbytes;
++			bv->bv_len	-= nbytes;
++			break;
++		}
++
++		nbytes -= bv->bv_len;
++	}
++
++	ret->bi_bdev	= bio->bi_bdev;
++	ret->bi_sector	= bio->bi_sector;
++	ret->bi_size	= sectors << 9;
++	ret->bi_rw	= bio->bi_rw;
++	ret->bi_vcnt	= vcnt;
++	ret->bi_max_vecs = vcnt;
++	ret->bi_end_io	= bio->bi_end_io;
++	ret->bi_private	= bio->bi_private;
++
++	bio->bi_sector	+= sectors;
++	bio->bi_size	-= sectors << 9;
++	bio->bi_idx	 = idx;
++
++	if (bio_integrity(bio)) {
++		bio_integrity_clone(ret, bio, gfp, bs);
++		bio_integrity_trim(ret, 0, bio_sectors(ret));
++		bio_integrity_trim(bio, bio_sectors(ret), bio_sectors(bio));
++	}
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(bio_split);
++
++/**
+  *      bio_sector_offset - Find hardware sector offset in bio
+  *      @bio:           bio to inspect
+  *      @index:         bio_vec index
 -- 
 1.7.7.3
 
