@@ -1,38 +1,37 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id AB3971005431
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:34 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 38C4E103B4CB
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:35 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id A6AA71B4369
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:34 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 26DCB1B4369
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:35 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id CsmNvwtUd5pq for <drbd-dev@lists.linbit.com>;
-	Thu, 26 Jul 2012 11:35:34 +0200 (CEST)
+	with ESMTP id IlGmiOLj-bDb for <drbd-dev@lists.linbit.com>;
+	Thu, 26 Jul 2012 11:35:35 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 848711B4368
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:34 +0200 (CEST)
-Resent-Message-ID: <20120726093534.GL29767@soda.linbit>
+	by zimbra.linbit.com (Postfix) with ESMTP id 078F51B4368
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:35 +0200 (CEST)
+Resent-Message-ID: <20120726093534.GM29767@soda.linbit>
 Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
 	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 78F7A1013802
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 22:11:54 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3EC931013802
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 22:11:56 +0200 (CEST)
 Received: by mail-pb0-f54.google.com with SMTP id ro2so146142pbb.27
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 13:11:54 -0700 (PDT)
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 13:11:55 -0700 (PDT)
 From: Kent Overstreet <koverstreet@google.com>
 To: linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
 	dm-devel@redhat.com
-Date: Tue, 24 Jul 2012 13:11:19 -0700
-Message-Id: <1343160689-12378-3-git-send-email-koverstreet@google.com>
+Date: Tue, 24 Jul 2012 13:11:20 -0700
+Message-Id: <1343160689-12378-4-git-send-email-koverstreet@google.com>
 In-Reply-To: <1343160689-12378-1-git-send-email-koverstreet@google.com>
 References: <1343160689-12378-1-git-send-email-koverstreet@google.com>
 Cc: axboe@kernel.dk, yehuda@hq.newdream.net, neilb@suse.de,
 	Kent Overstreet <koverstreet@google.com>, mpatocka@redhat.com,
 	vgoyal@redhat.com, bharrosh@panasas.com, tj@kernel.org,
 	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v4 02/12] dm: Use bioset's front_pad for
-	dm_rq_clone_bio_info
+Subject: [Drbd-dev] [PATCH v4 03/12] block: Add bio_reset()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -42,88 +41,77 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Previously, dm_rq_clone_bio_info needed to be freed by the bio's
-destructor to avoid a memory leak in the blk_rq_prep_clone() error path.
-This gets rid of a memory allocation and means we can kill
-dm_rq_bio_destructor.
+Reusing bios is something that's been highly frowned upon in the past,
+but driver code keeps doing it anyways. If it's going to happen anyways,
+we should provide a generic method.
+
+This'll help with getting rid of bi_destructor - drivers/block/pktcdvd.c
+was open coding it, by doing a bio_init() and resetting bi_destructor.
 
 Signed-off-by: Kent Overstreet <koverstreet@google.com>
 ---
- drivers/md/dm.c |   31 +++++--------------------------
- 1 files changed, 5 insertions(+), 26 deletions(-)
+ fs/bio.c                  |   10 ++++++++++
+ include/linux/bio.h       |    1 +
+ include/linux/blk_types.h |    6 ++++++
+ 3 files changed, 17 insertions(+), 0 deletions(-)
 
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index 40b7735..4014696 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -92,6 +92,7 @@ struct dm_rq_target_io {
- struct dm_rq_clone_bio_info {
- 	struct bio *orig;
- 	struct dm_rq_target_io *tio;
-+	struct bio clone;
+diff --git a/fs/bio.c b/fs/bio.c
+index 1c6c8b7..252e253 100644
+--- a/fs/bio.c
++++ b/fs/bio.c
+@@ -261,6 +261,16 @@ void bio_init(struct bio *bio)
+ }
+ EXPORT_SYMBOL(bio_init);
+ 
++void bio_reset(struct bio *bio)
++{
++	/* Clear all flags below BIO_OWNS_VEC */
++	unsigned long flags = bio->bi_flags & (~0UL << BIO_OWNS_VEC);
++
++	memset(bio, 0, BIO_RESET_BYTES);
++	bio->bi_flags = flags|(1 << BIO_UPTODATE);
++}
++EXPORT_SYMBOL(bio_reset);
++
+ /**
+  * bio_alloc_bioset - allocate a bio for I/O
+  * @gfp_mask:   the GFP_ mask given to the slab allocator
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 2643589..ba60319 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -226,6 +226,7 @@ extern void __bio_clone(struct bio *, struct bio *);
+ extern struct bio *bio_clone(struct bio *, gfp_t);
+ 
+ extern void bio_init(struct bio *);
++extern void bio_reset(struct bio *);
+ 
+ extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
+ extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
+diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+index 293547e..40411e2 100644
+--- a/include/linux/blk_types.h
++++ b/include/linux/blk_types.h
+@@ -59,6 +59,10 @@ struct bio {
+ 	unsigned int		bi_seg_front_size;
+ 	unsigned int		bi_seg_back_size;
+ 
++	/*
++	 * Everything starting with bi_max_vecs will be preserved by bio_reset()
++	 */
++
+ 	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
+ 
+ 	atomic_t		bi_cnt;		/* pin count */
+@@ -93,6 +97,8 @@ struct bio {
+ 	struct bio_vec		bi_inline_vecs[0];
  };
  
- union map_info *dm_get_mapinfo(struct bio *bio)
-@@ -467,16 +468,6 @@ static void free_rq_tio(struct dm_rq_target_io *tio)
- 	mempool_free(tio, tio->md->tio_pool);
- }
- 
--static struct dm_rq_clone_bio_info *alloc_bio_info(struct mapped_device *md)
--{
--	return mempool_alloc(md->io_pool, GFP_ATOMIC);
--}
--
--static void free_bio_info(struct dm_rq_clone_bio_info *info)
--{
--	mempool_free(info, info->tio->md->io_pool);
--}
--
- static int md_in_flight(struct mapped_device *md)
- {
- 	return atomic_read(&md->pending[READ]) +
-@@ -1438,30 +1429,17 @@ void dm_dispatch_request(struct request *rq)
- }
- EXPORT_SYMBOL_GPL(dm_dispatch_request);
- 
--static void dm_rq_bio_destructor(struct bio *bio)
--{
--	struct dm_rq_clone_bio_info *info = bio->bi_private;
--	struct mapped_device *md = info->tio->md;
--
--	free_bio_info(info);
--	bio_free(bio, md->bs);
--}
--
- static int dm_rq_bio_constructor(struct bio *bio, struct bio *bio_orig,
- 				 void *data)
- {
- 	struct dm_rq_target_io *tio = data;
--	struct mapped_device *md = tio->md;
--	struct dm_rq_clone_bio_info *info = alloc_bio_info(md);
--
--	if (!info)
--		return -ENOMEM;
-+	struct dm_rq_clone_bio_info *info =
-+		container_of(bio, struct dm_rq_clone_bio_info, clone);
- 
- 	info->orig = bio_orig;
- 	info->tio = tio;
- 	bio->bi_end_io = end_clone_bio;
- 	bio->bi_private = info;
--	bio->bi_destructor = dm_rq_bio_destructor;
- 
- 	return 0;
- }
-@@ -2696,7 +2674,8 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity)
- 	if (!pools->tio_pool)
- 		goto free_io_pool_and_out;
- 
--	pools->bs = bioset_create(pool_size, 0);
-+	pools->bs = bioset_create(pool_size,
-+				  offsetof(struct dm_rq_clone_bio_info, orig));
- 	if (!pools->bs)
- 		goto free_tio_pool_and_out;
- 
++#define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
++
+ /*
+  * bio flags
+  */
 -- 
 1.7.7.3
 
