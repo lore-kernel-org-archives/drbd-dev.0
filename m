@@ -1,16 +1,32 @@
-Return-Path: <philipp.reisner@linbit.com>
+Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 186051005431
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2012 16:24:36 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 24 Jul 2012 16:24:35 +0200
-Message-ID: <6356994.vJFLSmzzfE@fat-tyre>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] drbd-8.3 fixes
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 552D81005431
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:32:31 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra.linbit.com (Postfix) with ESMTP id 3DCCD1B4369
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:32:31 +0200 (CEST)
+Received: from zimbra.linbit.com ([127.0.0.1])
+	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id OpV2aYWP98lt for <drbd-dev@lists.linbit.com>;
+	Thu, 26 Jul 2012 11:32:31 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra.linbit.com (Postfix) with ESMTP id 1DAF31B4368
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:32:31 +0200 (CEST)
+Resent-Message-ID: <20120726093229.GJ29767@soda.linbit>
+Received: from mga02.intel.com (mga02.intel.com [134.134.136.20])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 86CBF10000EC
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Jul 2012 17:21:16 +0200 (CEST)
+From: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Date: Wed, 25 Jul 2012 18:12:12 +0300
+Message-Id: <1343229134-29487-15-git-send-email-artem.bityutskiy@linux.intel.com>
+In-Reply-To: <1343229134-29487-1-git-send-email-artem.bityutskiy@linux.intel.com>
+References: <1343229134-29487-1-git-send-email-artem.bityutskiy@linux.intel.com>
+Cc: Linux FS Maling List <linux-fsdevel@vger.kernel.org>,
+	Artem Bityutskiy <artem.bityutskiy@linux.intel.com>,
+	Linux Kernel Maling List <linux-kernel@vger.kernel.org>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 14/16] drbd: nuke pdflush from comments
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,50 +36,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+From: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
 
-Please consider to pull these changes for the 3.6 merge window.
-I did not found a for-3.6/drivers branch, so I based the patches
-on the 3.5 release.
+The pdflush thread is long gone, so this patch removes references to pdflush
+from drbd comments.
 
-Best,
- Phil
+Cc: drbd-dev@lists.linbit.com
+Signed-off-by: Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+---
 
+I expect this patch to be merged via Al Viro's VFS tree.
 
-The following changes since commit 28a33cbc24e4256c143dce96c7d93bf423229f92:
+ drivers/block/drbd/drbd_main.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-  Linux 3.5 (2012-07-21 13:58:29 -0700)
-
-are available in the git repository at:
-
-  git://git.drbd.org/linux-drbd.git for-jens
-
-for you to fetch changes up to a73ff3231df59a4b92ccd0dd4e73897c5822489b:
-
-  drbd: announce FLUSH/FUA capability to upper layers (2012-07-24 15:14:28 +0200)
-
-----------------------------------------------------------------
-Lars Ellenberg (10):
-      drbd: cleanup, remove two unused global flags
-      drbd: differentiate between normal and forced detach
-      drbd: report congestion if we are waiting for some userland callback
-      drbd: reset congestion information before reporting it in /proc/drbd
-      drbd: do not reset rs_pending_cnt too early
-      drbd: call local-io-error handler early
-      drbd: fix potential access after free
-      drbd: flush drbd work queue before invalidate/invalidate remote                                 
-      drbd: fix max_bio_size to be unsigned                                                           
-      drbd: announce FLUSH/FUA capability to upper layers
-
- drivers/block/drbd/drbd_actlog.c   |    8 +++--
- drivers/block/drbd/drbd_bitmap.c   |    4 +--
- drivers/block/drbd/drbd_int.h      |   44 ++++++++++++++++--------
- drivers/block/drbd/drbd_main.c     |   65 +++++++++++++++++++++++++++---------
- drivers/block/drbd/drbd_nl.c       |   36 +++++++++++++++-----
- drivers/block/drbd/drbd_proc.c     |    3 ++
- drivers/block/drbd/drbd_receiver.c |   38 +++++++++++++++------
- drivers/block/drbd/drbd_req.c      |    9 +++--
- drivers/block/drbd/drbd_worker.c   |   12 ++-----
- 9 files changed, 153 insertions(+), 66 deletions(-)
-
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 920ede2..974f2b6 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3521,9 +3521,9 @@ static void drbd_cleanup(void)
+ }
+ 
+ /**
+- * drbd_congested() - Callback for pdflush
++ * drbd_congested() - Callback for the flusher thread
+  * @congested_data:	User data
+- * @bdi_bits:		Bits pdflush is currently interested in
++ * @bdi_bits:		Bits the BDI flusher thread is currently interested in
+  *
+  * Returns 1<<BDI_async_congested and/or 1<<BDI_sync_congested if we are congested.
+  */
+-- 
+1.7.10
 
