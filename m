@@ -1,41 +1,41 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id AAC45103B4C9
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:56 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 16BC9103B4C9
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:57 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 9B90C1B4368
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:56 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 0F5B21B4369
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:57 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id gbaIgSmpPelq for <drbd-dev@lists.linbit.com>;
+	with ESMTP id b33bRrbOMWi7 for <drbd-dev@lists.linbit.com>;
 	Thu, 26 Jul 2012 11:35:56 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 644921B4369
+	by zimbra.linbit.com (Postfix) with ESMTP id DE7711B4368
 	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:56 +0200 (CEST)
-Resent-Message-ID: <20120726093556.GF29767@soda.linbit>
+Resent-Message-ID: <20120726093556.GG29767@soda.linbit>
 Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
 	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 74D2E1005431
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 01:01:47 +0200 (CEST)
-Received: by pbbro2 with SMTP id ro2so2690848pbb.27
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Jul 2012 16:01:45 -0700 (PDT)
-Date: Wed, 25 Jul 2012 16:01:42 -0700
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 01A3C1005431
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 01:15:21 +0200 (CEST)
+Received: by pbbro2 with SMTP id ro2so2712102pbb.27
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Jul 2012 16:15:19 -0700 (PDT)
+Date: Wed, 25 Jul 2012 16:15:15 -0700
 From: Kent Overstreet <koverstreet@google.com>
 To: Boaz Harrosh <bharrosh@panasas.com>
-Message-ID: <20120725230142.GB8673@moria.home.lan>
+Message-ID: <20120725231515.GC8673@moria.home.lan>
 References: <1343160689-12378-1-git-send-email-koverstreet@google.com>
-	<1343160689-12378-5-git-send-email-koverstreet@google.com>
-	<500FD8B7.9040701@panasas.com>
+	<1343160689-12378-6-git-send-email-koverstreet@google.com>
+	<500FDB0D.4070605@panasas.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <500FD8B7.9040701@panasas.com>
+In-Reply-To: <500FDB0D.4070605@panasas.com>
 Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
 	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
 	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
 	tj@kernel.org, sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v4 04/12] pktcdvd: Switch to bio_kmalloc()
+Subject: Re: [Drbd-dev] [PATCH v4 05/12] block: Kill bi_destructor
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -45,181 +45,171 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Jul 25, 2012 at 02:29:59PM +0300, Boaz Harrosh wrote:
+On Wed, Jul 25, 2012 at 02:39:57PM +0300, Boaz Harrosh wrote:
 > On 07/24/2012 11:11 PM, Kent Overstreet wrote:
 > 
-> > This is prep work for killing bi_destructor - previously, pktcdvd had
-> > its own pkt_bio_alloc which was basically duplication bio_kmalloc(),
-> > necessitating its own bi_destructor implementation.
+> > Now that we've got generic code for freeing bios allocated from bio
+> > pools, this isn't needed anymore.
+> > 
+> > This also changes the semantics of bio_free() a bit - it now also frees
+> > bios allocated by bio_kmalloc(). It's also no longer exported, as
+> > without bi_destructor there should be no need for it to be called
+> > anywhere else.
 > > 
 > > Signed-off-by: Kent Overstreet <koverstreet@google.com>
-> > ---
-> >  drivers/block/pktcdvd.c |  115 ++++++++++++++++-------------------------------
-> >  1 files changed, 39 insertions(+), 76 deletions(-)
-> > 
-> > diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-> > index ba66e44..6fe693a 100644
-> > --- a/drivers/block/pktcdvd.c
-> > +++ b/drivers/block/pktcdvd.c
-> > @@ -522,36 +522,38 @@ static void pkt_bio_finished(struct pktcdvd_device *pd)
+> 
+> <snip>
+> 
+> > diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+> > index be65582..9338d0602 100644
+> > --- a/drivers/target/target_core_iblock.c
+> > +++ b/drivers/target/target_core_iblock.c
+> > @@ -467,15 +467,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
 > >  	}
-> >  }
 > >  
-> > -static void pkt_bio_destructor(struct bio *bio)
-> > +static void pkt_end_io_read(struct bio *bio, int err)
-> >  {
-> > -	kfree(bio->bi_io_vec);
-> > -	kfree(bio);
-> > -}
+> >  	bio->bi_bdev = ib_dev->ibd_bd;
+> > -<<<<<<< HEAD
+> >  	bio->bi_private = cmd;
+> > -	bio->bi_destructor = iblock_bio_destructor;
+> > -||||||| merged common ancestors
+> > -	bio->bi_private = task;
+> > -	bio->bi_destructor = iblock_bio_destructor;
+> > -=======
+> > -	bio->bi_private = task;
+> > ->>>>>>> block: Generalized bio pool freeing
+> >  	bio->bi_end_io = &iblock_bio_done;
+> >  	bio->bi_sector = lba;
+> >  	return bio;
 > 
 > 
-> Again here, you decided to move the pkt_end_io_read && pkt_end_io_packet_write
-> functions from below, to above here. Which makes it impossible to find
-> any bugs by just reviewing the patch.
+> Merge conflict allmodconfig compilation please?
 > 
-> So I have not reviewed it. 
+> > diff --git a/fs/bio.c b/fs/bio.c
+> > index 252e253..a301071 100644
+> > --- a/fs/bio.c
+> > +++ b/fs/bio.c
+> > @@ -56,6 +56,9 @@ static struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly = {
+> >   */
+> >  struct bio_set *fs_bio_set;
+> >  
+> > +/* Only used as a sentinal value */
+> > +static struct bio_set bio_kmalloc_pool;
+> > +
 > 
-> I know that you wanted so you can reference them at pkt_alloc_packet_data.
-> I'd use a forward reference, in this case. And a move in a next patch. But
-> this is just me. Perhaps the owner of this code can review it?
+> 
+> Id rather if you use a define like:
+> #define BIO_KMALLOC_POOL ((void *)~0)
+> 
+> So any code access actually crashes in the bug case where
+> this leaks out. (And there is no actual unused storage allocated)
 
-Yeah, I tend to be pretty anal about unnecessary forward declarations.
-Overly anal in this case, I suppose. Here's a better patch:
+I kind of prefer having a sentinal value that can't be used for anything
+else, but it doesn't really matter if there's only ever going to be one
+sentinal value.
 
+> BTW I like this reuse of the bi_pool member as a flag as well.
 
-commit 88cb170314bfa6cc90af37e433c07927b3b79ed2
-Author: Kent Overstreet <koverstreet@google.com>
-Date:   Wed Jul 25 16:00:00 2012 -0700
+Yeah me too, this way bi_pool always tells you how to free the bio.
 
-    pktcdvd: Switch to bio_kmalloc()
-    
-    This is prep work for killing bi_destructor - previously, pktcdvd had
-    its own pkt_bio_alloc which was basically duplication bio_kmalloc(),
-    necessitating its own bi_destructor implementation.
-    
-    Signed-off-by: Kent Overstreet <koverstreet@google.com>
-
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index ba66e44..ae55f08 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -101,6 +101,8 @@ static struct dentry	*pkt_debugfs_root = NULL; /* /sys/kernel/debug/pktcdvd */
- static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev);
- static int pkt_remove_dev(dev_t pkt_dev);
- static int pkt_seq_show(struct seq_file *m, void *p);
-+static void pkt_end_io_read(struct bio *bio, int err);
-+static void pkt_end_io_packet_write(struct bio *bio, int err);
+diff --git a/fs/bio.c b/fs/bio.c
+index c7f3442..ebc7309 100644
+--- a/fs/bio.c
++++ b/fs/bio.c
+@@ -56,6 +56,8 @@ static struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly = {
+  */
+ struct bio_set *fs_bio_set;
  
- 
- 
-@@ -522,38 +524,6 @@ static void pkt_bio_finished(struct pktcdvd_device *pd)
- 	}
++#define BIO_KMALLOC_POOL ((void *) ~0)
++
+ /*
+  * Our slab pool management
+  */
+@@ -232,10 +234,21 @@ fallback:
+ 	return bvl;
  }
  
--static void pkt_bio_destructor(struct bio *bio)
+-void bio_free(struct bio *bio, struct bio_set *bs)
++void bio_free(struct bio *bio)
+ {
++	struct bio_set *bs = bio->bi_pool;
+ 	void *p;
+ 
++	BUG_ON(!bs);
++
++	if (bs == BIO_KMALLOC_POOL) {
++		/* Bio was allocated by bio_kmalloc() */
++		if (bio_integrity(bio))
++			bio_integrity_free(bio, fs_bio_set);
++		kfree(bio);
++		return;
++	}
++
+ 	if (bio_has_allocated_vec(bio))
+ 		bvec_free_bs(bs, bio->bi_io_vec, BIO_POOL_IDX(bio));
+ 
+@@ -346,13 +359,6 @@ struct bio *bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
+ }
+ EXPORT_SYMBOL(bio_alloc);
+ 
+-static void bio_kmalloc_destructor(struct bio *bio)
 -{
--	kfree(bio->bi_io_vec);
+-	if (bio_integrity(bio))
+-		bio_integrity_free(bio, fs_bio_set);
 -	kfree(bio);
 -}
 -
--static struct bio *pkt_bio_alloc(int nr_iovecs)
--{
--	struct bio_vec *bvl = NULL;
--	struct bio *bio;
--
--	bio = kmalloc(sizeof(struct bio), GFP_KERNEL);
--	if (!bio)
--		goto no_bio;
--	bio_init(bio);
--
--	bvl = kcalloc(nr_iovecs, sizeof(struct bio_vec), GFP_KERNEL);
--	if (!bvl)
--		goto no_bvl;
--
--	bio->bi_max_vecs = nr_iovecs;
--	bio->bi_io_vec = bvl;
--	bio->bi_destructor = pkt_bio_destructor;
--
--	return bio;
--
-- no_bvl:
--	kfree(bio);
-- no_bio:
--	return NULL;
--}
--
- /*
-  * Allocate a packet_data struct
-  */
-@@ -567,10 +537,13 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
- 		goto no_pkt;
+ /**
+  * bio_kmalloc - allocate a bio for I/O using kmalloc()
+  * @gfp_mask:   the GFP_ mask given to the slab allocator
+@@ -379,7 +385,7 @@ struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned int nr_iovecs)
+ 	bio->bi_flags |= BIO_POOL_NONE << BIO_POOL_OFFSET;
+ 	bio->bi_max_vecs = nr_iovecs;
+ 	bio->bi_io_vec = bio->bi_inline_vecs;
+-	bio->bi_destructor = bio_kmalloc_destructor;
++	bio->bi_pool = BIO_KMALLOC_POOL;
  
- 	pkt->frames = frames;
--	pkt->w_bio = pkt_bio_alloc(frames);
-+	pkt->w_bio = bio_kmalloc(GFP_KERNEL, frames);
- 	if (!pkt->w_bio)
- 		goto no_bio;
- 
-+	pkt->w_bio->bi_end_io = pkt_end_io_packet_write;
-+	pkt->w_bio->bi_private = pkt;
-+
- 	for (i = 0; i < frames / FRAMES_PER_PAGE; i++) {
- 		pkt->pages[i] = alloc_page(GFP_KERNEL|__GFP_ZERO);
- 		if (!pkt->pages[i])
-@@ -581,9 +554,12 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
- 	bio_list_init(&pkt->orig_bios);
- 
- 	for (i = 0; i < frames; i++) {
--		struct bio *bio = pkt_bio_alloc(1);
-+		struct bio *bio = bio_kmalloc(GFP_KERNEL, 1);
- 		if (!bio)
- 			goto no_rd_bio;
-+
-+		bio->bi_end_io = pkt_end_io_read;
-+		bio->bi_private = pkt;
- 		pkt->r_bios[i] = bio;
- 	}
- 
-@@ -1111,21 +1087,15 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
- 	 * Schedule reads for missing parts of the packet.
+ 	return bio;
+ }
+@@ -417,12 +423,7 @@ void bio_put(struct bio *bio)
  	 */
- 	for (f = 0; f < pkt->frames; f++) {
--		struct bio_vec *vec;
+ 	if (atomic_dec_and_test(&bio->bi_cnt)) {
+ 		bio_disassociate_task(bio);
+-		bio->bi_next = NULL;
 -
- 		int p, offset;
-+
- 		if (written[f])
- 			continue;
-+
- 		bio = pkt->r_bios[f];
--		vec = bio->bi_io_vec;
--		bio_init(bio);
--		bio->bi_max_vecs = 1;
--		bio->bi_sector = pkt->sector + f * (CD_FRAMESIZE >> 9);
--		bio->bi_bdev = pd->bdev;
--		bio->bi_end_io = pkt_end_io_read;
--		bio->bi_private = pkt;
--		bio->bi_io_vec = vec;
--		bio->bi_destructor = pkt_bio_destructor;
-+		bio_reset(bio);
-+		bio->bi_sector	= pkt->sector + f * (CD_FRAMESIZE >> 9);
-+		bio->bi_bdev	= pd->bdev;
- 
- 		p = (f * CD_FRAMESIZE) / PAGE_SIZE;
- 		offset = (f * CD_FRAMESIZE) % PAGE_SIZE;
-@@ -1418,14 +1388,9 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
+-		if (bio->bi_pool)
+-			bio_free(bio, bio->bi_pool);
+-		else
+-			bio->bi_destructor(bio);
++		bio_free(bio);
  	}
+ }
+ EXPORT_SYMBOL(bio_put);
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index ba60319..393c87e 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -216,7 +216,7 @@ extern struct bio *bio_alloc(gfp_t, unsigned int);
+ extern struct bio *bio_kmalloc(gfp_t, unsigned int);
+ extern struct bio *bio_alloc_bioset(gfp_t, int, struct bio_set *);
+ extern void bio_put(struct bio *);
+-extern void bio_free(struct bio *, struct bio_set *);
++extern void bio_free(struct bio *);
  
- 	/* Start the write request */
--	bio_init(pkt->w_bio);
--	pkt->w_bio->bi_max_vecs = PACKET_MAX_SIZE;
-+	bio_reset(pkt->w_bio);
- 	pkt->w_bio->bi_sector = pkt->sector;
- 	pkt->w_bio->bi_bdev = pd->bdev;
--	pkt->w_bio->bi_end_io = pkt_end_io_packet_write;
--	pkt->w_bio->bi_private = pkt;
--	pkt->w_bio->bi_io_vec = bvec;
--	pkt->w_bio->bi_destructor = pkt_bio_destructor;
- 	for (f = 0; f < pkt->frames; f++)
- 		if (!bio_add_page(pkt->w_bio, bvec[f].bv_page, CD_FRAMESIZE, bvec[f].bv_offset))
- 			BUG();
+ extern void bio_endio(struct bio *, int);
+ struct request_queue;
+diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+index 769799f..4bd8685 100644
+--- a/include/linux/blk_types.h
++++ b/include/linux/blk_types.h
+@@ -84,11 +84,8 @@ struct bio {
+ 	struct bio_integrity_payload *bi_integrity;  /* data integrity */
+ #endif
+ 
+-	/* If bi_pool is non NULL, bi_destructor is not called */
+ 	struct bio_set		*bi_pool;
+ 
+-	bio_destructor_t	*bi_destructor;	/* destructor */
+-
+ 	/*
+ 	 * We can inline a number of vecs at the end of the bio, to avoid
+ 	 * double allocations for a small number of bio_vecs. This member
