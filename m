@@ -1,36 +1,41 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B6C761055F6A
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:49 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E93AD1005438
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:55 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id AD64B1B4368
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:49 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id DDD821B4369
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:55 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id bYtCYqFB2rq0 for <drbd-dev@lists.linbit.com>;
-	Thu, 26 Jul 2012 11:35:49 +0200 (CEST)
+	with ESMTP id pRYz4wYmM-fI for <drbd-dev@lists.linbit.com>;
+	Thu, 26 Jul 2012 11:35:55 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 8E51E1B4369
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:49 +0200 (CEST)
-Resent-Message-ID: <20120726093549.GD29767@soda.linbit>
-Received: from natasha.panasas.com (natasha.panasas.com [67.152.220.90])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E7633100542F
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Jul 2012 14:06:10 +0200 (CEST)
-Message-ID: <500FE114.1000707@panasas.com>
-Date: Wed, 25 Jul 2012 15:05:40 +0300
-From: Boaz Harrosh <bharrosh@panasas.com>
-MIME-Version: 1.0
-To: Kent Overstreet <koverstreet@google.com>
+	by zimbra.linbit.com (Postfix) with ESMTP id BDAD71B4368
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 11:35:55 +0200 (CEST)
+Resent-Message-ID: <20120726093554.GE29767@soda.linbit>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
+	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B40061005431
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2012 00:56:26 +0200 (CEST)
+Received: by pbbro2 with SMTP id ro2so2682388pbb.27
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Jul 2012 15:56:25 -0700 (PDT)
+Date: Wed, 25 Jul 2012 15:56:20 -0700
+From: Kent Overstreet <koverstreet@google.com>
+To: Boaz Harrosh <bharrosh@panasas.com>
+Message-ID: <20120725225620.GA8673@moria.home.lan>
 References: <1343160689-12378-1-git-send-email-koverstreet@google.com>
-	<1343160689-12378-11-git-send-email-koverstreet@google.com>
-In-Reply-To: <1343160689-12378-11-git-send-email-koverstreet@google.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+	<1343160689-12378-4-git-send-email-koverstreet@google.com>
+	<500FD63F.7050501@panasas.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <500FD63F.7050501@panasas.com>
 Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
 	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
 	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
 	tj@kernel.org, sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v4 10/12] block: Add bio_clone_kmalloc()
+Subject: Re: [Drbd-dev] [PATCH v4 03/12] block: Add bio_reset()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -40,97 +45,113 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 07/24/2012 11:11 PM, Kent Overstreet wrote:
-
-ACK-by: Boaz Harrosh <bharrosh@panasas.com>
-
-> Signed-off-by: Kent Overstreet <koverstreet@google.com>
-
-
-Thanks looks nice
-
-> ---
->  drivers/block/osdblk.c |    3 +--
->  fs/bio.c               |   13 +++++++++++++
->  fs/exofs/ore.c         |    5 ++---
->  include/linux/bio.h    |    1 +
->  4 files changed, 17 insertions(+), 5 deletions(-)
+On Wed, Jul 25, 2012 at 02:19:27PM +0300, Boaz Harrosh wrote:
+> On 07/24/2012 11:11 PM, Kent Overstreet wrote:
 > 
-> diff --git a/drivers/block/osdblk.c b/drivers/block/osdblk.c
-> index 87311eb..1bbc681 100644
-> --- a/drivers/block/osdblk.c
-> +++ b/drivers/block/osdblk.c
-> @@ -266,11 +266,10 @@ static struct bio *bio_chain_clone(struct bio *old_chain, gfp_t gfpmask)
->  	struct bio *tmp, *new_chain = NULL, *tail = NULL;
->  
->  	while (old_chain) {
-> -		tmp = bio_kmalloc(gfpmask, old_chain->bi_max_vecs);
-> +		tmp = bio_clone_kmalloc(old_chain, gfpmask);
->  		if (!tmp)
->  			goto err_out;
->  
-> -		__bio_clone(tmp, old_chain);
->  		tmp->bi_bdev = NULL;
->  		gfpmask &= ~__GFP_WAIT;
->  		tmp->bi_next = NULL;
-> diff --git a/fs/bio.c b/fs/bio.c
-> index fa6dee4..9d0ceb2 100644
-> --- a/fs/bio.c
-> +++ b/fs/bio.c
-> @@ -499,6 +499,19 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
->  }
->  EXPORT_SYMBOL(bio_clone);
->  
-> +struct bio *bio_clone_kmalloc(struct bio *bio, gfp_t gfp_mask)
-> +{
-> +	struct bio *b = bio_kmalloc(gfp_mask, bio->bi_max_vecs);
-> +
-> +	if (!b)
-> +		return NULL;
-> +
-> +	__bio_clone(b, bio);
-> +
-> +	return b;
-> +}
-> +EXPORT_SYMBOL(bio_clone_kmalloc);
-> +
->  /**
->   *	bio_get_nr_vecs		- return approx number of vecs
->   *	@bdev:  I/O target
-> diff --git a/fs/exofs/ore.c b/fs/exofs/ore.c
-> index 24a49d4..a8d92fc 100644
-> --- a/fs/exofs/ore.c
-> +++ b/fs/exofs/ore.c
-> @@ -814,8 +814,8 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
->  			struct bio *bio;
->  
->  			if (per_dev != master_dev) {
-> -				bio = bio_kmalloc(GFP_KERNEL,
-> -						  master_dev->bio->bi_max_vecs);
-> +				bio = bio_clone_kmalloc(master_dev->bio,
-> +							GFP_KERNEL);
->  				if (unlikely(!bio)) {
->  					ORE_DBGMSG(
->  					      "Failed to allocate BIO size=%u\n",
-> @@ -824,7 +824,6 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
->  					goto out;
->  				}
->  
-> -				__bio_clone(bio, master_dev->bio);
->  				bio->bi_bdev = NULL;
->  				bio->bi_next = NULL;
->  				per_dev->offset = master_dev->offset;
-> diff --git a/include/linux/bio.h b/include/linux/bio.h
-> index 9720544..e180f1d 100644
-> --- a/include/linux/bio.h
-> +++ b/include/linux/bio.h
-> @@ -221,6 +221,7 @@ extern int bio_phys_segments(struct request_queue *, struct bio *);
->  
->  extern void __bio_clone(struct bio *, struct bio *);
->  extern struct bio *bio_clone(struct bio *, gfp_t);
-> +struct bio *bio_clone_kmalloc(struct bio *, gfp_t);
->  
->  extern void bio_init(struct bio *);
->  extern void bio_reset(struct bio *);
+> > Reusing bios is something that's been highly frowned upon in the past,
+> > but driver code keeps doing it anyways. If it's going to happen anyways,
+> > we should provide a generic method.
+> > 
+> > This'll help with getting rid of bi_destructor - drivers/block/pktcdvd.c
+> > was open coding it, by doing a bio_init() and resetting bi_destructor.
+> > 
+> > Signed-off-by: Kent Overstreet <koverstreet@google.com>
+> > ---
+> >  fs/bio.c                  |   10 ++++++++++
+> >  include/linux/bio.h       |    1 +
+> >  include/linux/blk_types.h |    6 ++++++
+> >  3 files changed, 17 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/fs/bio.c b/fs/bio.c
+> > index 1c6c8b7..252e253 100644
+> > --- a/fs/bio.c
+> > +++ b/fs/bio.c
+> > @@ -261,6 +261,16 @@ void bio_init(struct bio *bio)
+> >  }
+> >  EXPORT_SYMBOL(bio_init);
+> >  
+> > +void bio_reset(struct bio *bio)
+> > +{
+> > +	/* Clear all flags below BIO_OWNS_VEC */
+> > +	unsigned long flags = bio->bi_flags & (~0UL << BIO_OWNS_VEC);
+> > +
+> 
+> 
+> Hey I have not seen these FLAGS thing before. Are these new?
+> 
+> Anyway. Please NO!!! for one you need to put a big fat comment
+> over at flags definitions. And two what happens when one adds
+> a new flag. Is it reset or not reset?
+> 
+> I'd rather you define a flags mask for those that need to be
+> preserved, at header, plus a comment that any needed-to-be-preserved
+> cross init flags, must be added to the mask.
 
+Yeah, that's a much better idea. Do you think this is clear enough?
 
+diff --git a/fs/bio.c b/fs/bio.c
+index 1c6c8b7..c7f3442 100644
+--- a/fs/bio.c
++++ b/fs/bio.c
+@@ -261,6 +261,15 @@ void bio_init(struct bio *bio)
+ }
+ EXPORT_SYMBOL(bio_init);
+ 
++void bio_reset(struct bio *bio)
++{
++	unsigned long flags = bio->bi_flags & (~0UL << BIO_RESET_BITS);
++
++	memset(bio, 0, BIO_RESET_BYTES);
++	bio->bi_flags = flags|(1 << BIO_UPTODATE);
++}
++EXPORT_SYMBOL(bio_reset);
++
+ /**
+  * bio_alloc_bioset - allocate a bio for I/O
+  * @gfp_mask:   the GFP_ mask given to the slab allocator
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 2643589..ba60319 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -226,6 +226,7 @@ extern void __bio_clone(struct bio *, struct bio *);
+ extern struct bio *bio_clone(struct bio *, gfp_t);
+ 
+ extern void bio_init(struct bio *);
++extern void bio_reset(struct bio *);
+ 
+ extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
+ extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
+diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+index 293547e..769799f 100644
+--- a/include/linux/blk_types.h
++++ b/include/linux/blk_types.h
+@@ -59,6 +59,10 @@ struct bio {
+ 	unsigned int		bi_seg_front_size;
+ 	unsigned int		bi_seg_back_size;
+ 
++	/*
++	 * Everything starting with bi_max_vecs will be preserved by bio_reset()
++	 */
++
+ 	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
+ 
+ 	atomic_t		bi_cnt;		/* pin count */
+@@ -93,6 +97,8 @@ struct bio {
+ 	struct bio_vec		bi_inline_vecs[0];
+ };
+ 
++#define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
++
+ /*
+  * bio flags
+  */
+@@ -108,6 +114,9 @@ struct bio {
+ #define BIO_FS_INTEGRITY 9	/* fs owns integrity data, not block layer */
+ #define BIO_QUIET	10	/* Make BIO Quiet */
+ #define BIO_MAPPED_INTEGRITY 11/* integrity metadata has been remapped */
++
++#define BIO_RESET_BITS 12	/* Flags starting here get preserved by bio_reset() */
++
+ #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
+ 
+ /*
