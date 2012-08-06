@@ -1,38 +1,34 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 03D681017A2C
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:07 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 25CD11011C0C
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:14 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id E89071B435C
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:07 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 1FAB51B435C
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:14 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 50gI6-yjGViE for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Aug 2012 22:33:07 +0200 (CEST)
+	with ESMTP id ZZfgKALNA0qs for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Aug 2012 22:33:14 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id BC1C31B4206
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:07 +0200 (CEST)
-Resent-Message-ID: <20120810203307.GD31190@soda.linbit>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 008441017A2C
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Jul 2012 02:51:02 +0200 (CEST)
-Date: Thu, 26 Jul 2012 20:50:46 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-To: Kent Overstreet <koverstreet@google.com>
-In-Reply-To: <20120725232611.GD8673@moria.home.lan>
-Message-ID: <Pine.LNX.4.64.1207262005450.28322@file.rdu.redhat.com>
-References: <1343160689-12378-1-git-send-email-koverstreet@google.com>
-	<1343160689-12378-9-git-send-email-koverstreet@google.com>
-	<500FDEBC.9050607@panasas.com>
-	<20120725232611.GD8673@moria.home.lan>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Cc: axboe@kernel.dk, yehuda@hq.newdream.net, dm-devel@redhat.com, neilb@suse.de,
-	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
-	vgoyal@redhat.com, Boaz Harrosh <bharrosh@panasas.com>,
+	by zimbra.linbit.com (Postfix) with ESMTP id 026E51B4206
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:14 +0200 (CEST)
+Resent-Message-ID: <20120810203313.GE31190@soda.linbit>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
+	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id EF99B100542F
+	for <drbd-dev@lists.linbit.com>; Tue,  7 Aug 2012 00:09:07 +0200 (CEST)
+Received: by pbbrp2 with SMTP id rp2so2275323pbb.27
+	for <drbd-dev@lists.linbit.com>; Mon, 06 Aug 2012 15:09:05 -0700 (PDT)
+From: Kent Overstreet <koverstreet@google.com>
+To: linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
+	dm-devel@redhat.com
+Date: Mon,  6 Aug 2012 15:08:29 -0700
+Message-Id: <1344290921-25154-1-git-send-email-koverstreet@google.com>
+Cc: axboe@kernel.dk, neilb@suse.de, Kent Overstreet <koverstreet@google.com>,
+	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
 	tj@kernel.org, sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] A possible deadlock with stacked devices (was:
- [PATCH v4 08/12] block: Introduce new bio_split())
+Subject: [Drbd-dev] [PATCH v5 00/12] Block cleanups
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -42,165 +38,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Various cleanups for the generic block layer - the patches should be pretty
+self explanatory.
 
+CHANGES SINCE LAST VERSION:
 
-On Wed, 25 Jul 2012, Kent Overstreet wrote:
+Review feedback - should all be noted in the patch descriptions. Fixed
+retarded rebase conflicts. Added some acked-bys.
 
-> On Wed, Jul 25, 2012 at 02:55:40PM +0300, Boaz Harrosh wrote:
-> > On 07/24/2012 11:11 PM, Kent Overstreet wrote:
-> > 
-> > > The new bio_split() can split arbitrary bios - it's not restricted to
-> > > single page bios, like the old bio_split() (previously renamed to
-> > > bio_pair_split()). It also has different semantics - it doesn't allocate
-> > > a struct bio_pair, leaving it up to the caller to handle completions.
-> > > 
-> > > Signed-off-by: Kent Overstreet <koverstreet@google.com>
-> > > ---
-> > >  fs/bio.c |   99 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> > >  1 files changed, 99 insertions(+), 0 deletions(-)
-> > > 
-> > > diff --git a/fs/bio.c b/fs/bio.c
-> > > index 5d02aa5..a15e121 100644
-> > > --- a/fs/bio.c
-> > > +++ b/fs/bio.c
-> > > @@ -1539,6 +1539,105 @@ struct bio_pair *bio_pair_split(struct bio *bi, int first_sectors)
-> > >  EXPORT_SYMBOL(bio_pair_split);
-> > >  
-> > >  /**
-> > > + * bio_split - split a bio
-> > > + * @bio:	bio to split
-> > > + * @sectors:	number of sectors to split from the front of @bio
-> > > + * @gfp:	gfp mask
-> > > + * @bs:		bio set to allocate from
-> > > + *
-> > > + * Allocates and returns a new bio which represents @sectors from the start of
-> > > + * @bio, and updates @bio to represent the remaining sectors.
-> > > + *
-> > > + * If bio_sectors(@bio) was less than or equal to @sectors, returns @bio
-> > > + * unchanged.
-> > > + *
-> > > + * The newly allocated bio will point to @bio's bi_io_vec, if the split was on a
-> > > + * bvec boundry; it is the caller's responsibility to ensure that @bio is not
-> > > + * freed before the split.
-> > > + *
-> > > + * If bio_split() is running under generic_make_request(), it's not safe to
-> > > + * allocate more than one bio from the same bio set. Therefore, if it is running
-> > > + * under generic_make_request() it masks out __GFP_WAIT when doing the
-> > > + * allocation. The caller must check for failure if there's any possibility of
-> > > + * it being called from under generic_make_request(); it is then the caller's
-> > > + * responsibility to retry from a safe context (by e.g. punting to workqueue).
-> > > + */
-> > > +struct bio *bio_split(struct bio *bio, int sectors,
-> > > +		      gfp_t gfp, struct bio_set *bs)
-> > > +{
-> > > +	unsigned idx, vcnt = 0, nbytes = sectors << 9;
-> > > +	struct bio_vec *bv;
-> > > +	struct bio *ret = NULL;
-> > > +
-> > > +	BUG_ON(sectors <= 0);
-> > > +
-> > > +	/*
-> > > +	 * If we're being called from underneath generic_make_request() and we
-> > > +	 * already allocated any bios from this bio set, we risk deadlock if we
-> > > +	 * use the mempool. So instead, we possibly fail and let the caller punt
-> > > +	 * to workqueue or somesuch and retry in a safe context.
-> > > +	 */
-> > > +	if (current->bio_list)
-> > > +		gfp &= ~__GFP_WAIT;
-> > 
-> > 
-> > NACK!
-> > 
-> > If as you said above in the comment:
-> > 	if there's any possibility of it being called from under generic_make_request();
-> >         it is then the caller's responsibility to ...
-> > 
-> > So all the comment needs to say is: 
-> > 	... caller's responsibility to not set __GFP_WAIT at gfp.
-> > 
-> > And drop this here. It is up to the caller to decide. If the caller wants he can do
-> > "if (current->bio_list)" by his own.
-> > 
-> > This is a general purpose utility you might not know it's context.
-> > for example with osdblk above will break.
-> 
-> Well I'm highly highly skeptical that using __GFP_WAIT under
-> generic_make_request() is ever a sane thing to do - it could certainly
-> be safe in specific circumstances, but it's just such a fragile thing to
-> rely on, you have to _never_ use the same bio pool more than once. And
-> even then I bet there's other subtle ways it could break.
-> 
-> But you're not the first to complain about it, and your point about
-> existing code is compelling.
+Kent Overstreet (12):
+  block: Generalized bio pool freeing
+  dm: Use bioset's front_pad for dm_rq_clone_bio_info
+  block: Add bio_reset()
+  pktcdvd: Switch to bio_kmalloc()
+  block: Kill bi_destructor
+  block: Add an explicit bio flag for bios that own their bvec
+  block: Rename bio_split() -> bio_pair_split()
+  block: Introduce new bio_split()
+  block: Rework bio_pair_split()
+  block: Add bio_clone_kmalloc()
+  block: Add bio_clone_bioset()
+  block: Only clone bio vecs that are in use
 
-Both md and dm use __GFP_WAIT allocations from mempools in 
-generic_make_request.
+ Documentation/block/biodoc.txt      |    5 -
+ block/blk-core.c                    |   10 +-
+ drivers/block/drbd/drbd_main.c      |   13 +--
+ drivers/block/drbd/drbd_req.c       |   18 +--
+ drivers/block/osdblk.c              |    3 +-
+ drivers/block/pktcdvd.c             |   73 +++-------
+ drivers/block/rbd.c                 |    8 +-
+ drivers/md/dm-crypt.c               |    9 --
+ drivers/md/dm-io.c                  |   11 --
+ drivers/md/dm.c                     |   60 ++-------
+ drivers/md/linear.c                 |    6 +-
+ drivers/md/md.c                     |   44 +------
+ drivers/md/raid0.c                  |    8 +-
+ drivers/md/raid10.c                 |   23 +---
+ drivers/target/target_core_iblock.c |    9 --
+ fs/bio-integrity.c                  |   44 ------
+ fs/bio.c                            |  259 +++++++++++++++++++++++------------
+ fs/exofs/ore.c                      |    5 +-
+ include/linux/bio.h                 |   37 ++---
+ include/linux/blk_types.h           |   12 ++-
+ 20 files changed, 256 insertions(+), 401 deletions(-)
 
-I think you found an interesting bug here. Suppose that we have three 
-stacked devices: d1 depends on d2 and d2 depends on d3.
+-- 
+1.7.7.3
 
-Now, a bio b1 comes to d1. d1 splits it to two bios: b2.1 and b2.2 and 
-sends them to the device d2 - these bios end up in current->bio_list. The 
-driver for d2 receives bio b2.1 and sends bio b3.1 to d3. Now, 
-current->bio_list contains bios b2.2, b3.1. Now, bio b2.2 is popped off 
-the bio list and the driver for d2 is called with b2.2 - suppose that for 
-some reason mempool in d2 is exhausted and the driver needs to wait until 
-b2.1 finishes. b2.1 never finishes, because b2.1 depends on b3.1 and b3.1 
-is still in current->bio_list. So it deadlocks.
-
-Turning off __GFP_WAIT fixes nothing - it just turns one bug (a possible 
-deadlock) into another bug (a possible bio failure with -ENOMEM).
-
-Increasing mempool sizes doesn't fix it either, the bio would just have to 
-be split to more pieces in the above example to make it deadlock.
-
-I think the above possible deadlock scenario could be fixed by reversing 
-current->bio_list processing - i.e. when some device's make_request_fn 
-adds some bios to current->bio_list, these bios are processed before other 
-bios that were on the list before. This way, bio list would contain "b3.1, 
-b2.2" instead of "b2.2, b3.1" in the above example and the deadlock would 
-not happen.
-
-Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
-
----
- block/blk-core.c |   13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
-
-Index: linux-3.5-fast/block/blk-core.c
-===================================================================
---- linux-3.5-fast.orig/block/blk-core.c	2012-07-27 02:20:25.000000000 +0200
-+++ linux-3.5-fast/block/blk-core.c	2012-07-27 02:34:37.000000000 +0200
-@@ -1740,6 +1740,7 @@ end_io:
- void generic_make_request(struct bio *bio)
- {
- 	struct bio_list bio_list_on_stack;
-+	struct bio_list current_bio_list;
- 
- 	if (!generic_make_request_checks(bio))
- 		return;
-@@ -1789,14 +1790,22 @@ void generic_make_request(struct bio *bi
- 	 * bio_list, and call into ->make_request() again.
- 	 */
- 	BUG_ON(bio->bi_next);
--	bio_list_init(&bio_list_on_stack);
-+	bio_list_init(&current_bio_list);
- 	current->bio_list = &bio_list_on_stack;
- 	do {
- 		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
- 
-+		bio_list_init(&bio_list_on_stack);
-+
- 		q->make_request_fn(q, bio);
- 
--		bio = bio_list_pop(current->bio_list);
-+		/*
-+		 * To avoid a possible deadlock, bios that were added by
-+		 * the most recent make_request_fn must be processed first.
-+		 */
-+		bio_list_merge_head(&current_bio_list, &bio_list_on_stack);
-+
-+		bio = bio_list_pop(&current_bio_list);
- 	} while (bio);
- 	current->bio_list = NULL; /* deactivate */
- }
