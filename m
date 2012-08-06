@@ -1,36 +1,37 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CB7B81045C2E
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:17 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2CE0D1045C2E
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:18 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id C32531B435E
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:17 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 26B561B435C
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:18 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id bA7Nq5B1vK5D for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Aug 2012 22:33:17 +0200 (CEST)
+	with ESMTP id y-hc-ie01neX for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Aug 2012 22:33:18 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 8C8981B4206
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:17 +0200 (CEST)
-Resent-Message-ID: <20120810203317.GJ31190@soda.linbit>
+	by zimbra.linbit.com (Postfix) with ESMTP id 0760C1B4206
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:18 +0200 (CEST)
+Resent-Message-ID: <20120810203317.GK31190@soda.linbit>
 Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
 	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DA16A1005434
-	for <drbd-dev@lists.linbit.com>; Tue,  7 Aug 2012 00:09:13 +0200 (CEST)
-Received: by mail-pb0-f54.google.com with SMTP id rp2so2275323pbb.27
-	for <drbd-dev@lists.linbit.com>; Mon, 06 Aug 2012 15:09:13 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8B35F103B4A4
+	for <drbd-dev@lists.linbit.com>; Tue,  7 Aug 2012 00:09:15 +0200 (CEST)
+Received: by mail-pb0-f54.google.com with SMTP id rp2so2275366pbb.27
+	for <drbd-dev@lists.linbit.com>; Mon, 06 Aug 2012 15:09:15 -0700 (PDT)
 From: Kent Overstreet <koverstreet@google.com>
 To: linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
 	dm-devel@redhat.com
-Date: Mon,  6 Aug 2012 15:08:34 -0700
-Message-Id: <1344290921-25154-6-git-send-email-koverstreet@google.com>
+Date: Mon,  6 Aug 2012 15:08:35 -0700
+Message-Id: <1344290921-25154-7-git-send-email-koverstreet@google.com>
 In-Reply-To: <1344290921-25154-1-git-send-email-koverstreet@google.com>
 References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
 Cc: axboe@kernel.dk, neilb@suse.de, Kent Overstreet <koverstreet@google.com>,
 	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
 	tj@kernel.org, sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v5 05/12] block: Kill bi_destructor
+Subject: [Drbd-dev] [PATCH v5 06/12] block: Add an explicit bio flag for
+	bios that own their bvec
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -40,193 +41,66 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Now that we've got generic code for freeing bios allocated from bio
-pools, this isn't needed anymore.
-
-This also changes the semantics of bio_free() a bit - it now also frees
-bios allocated by bio_kmalloc(). It's also no longer exported, as
-without bi_destructor there should be no need for it to be called
-anywhere else.
-
-v5: Switch to BIO_KMALLOC_POOL ((void *)~0), per Boaz
+This is for the new bio splitting code. When we split a bio, if the
+split occured on a bvec boundry we reuse the bvec for the new bio. But
+that means bio_free() can't free it, hence the explicit flag.
 
 Signed-off-by: Kent Overstreet <koverstreet@google.com>
 ---
- Documentation/block/biodoc.txt |    5 -----
- block/blk-core.c               |    2 +-
- drivers/block/drbd/drbd_main.c |   13 +------------
- fs/bio.c                       |   31 ++++++++++++++++---------------
- include/linux/bio.h            |    2 +-
- include/linux/blk_types.h      |    3 ---
- 6 files changed, 19 insertions(+), 37 deletions(-)
+ fs/bio.c                  |    3 ++-
+ include/linux/bio.h       |    5 -----
+ include/linux/blk_types.h |    1 +
+ 3 files changed, 3 insertions(+), 6 deletions(-)
 
-diff --git a/Documentation/block/biodoc.txt b/Documentation/block/biodoc.txt
-index e418dc0..8df5e8e 100644
---- a/Documentation/block/biodoc.txt
-+++ b/Documentation/block/biodoc.txt
-@@ -465,7 +465,6 @@ struct bio {
-        bio_end_io_t	*bi_end_io;  /* bi_end_io (bio) */
-        atomic_t		bi_cnt;	     /* pin count: free when it hits zero */
-        void             *bi_private;
--       bio_destructor_t *bi_destructor; /* bi_destructor (bio) */
- };
- 
- With this multipage bio design:
-@@ -647,10 +646,6 @@ for a non-clone bio. There are the 6 pools setup for different size biovecs,
- so bio_alloc(gfp_mask, nr_iovecs) will allocate a vec_list of the
- given size from these slabs.
- 
--The bi_destructor() routine takes into account the possibility of the bio
--having originated from a different source (see later discussions on
--n/w to block transfers and kvec_cb)
--
- The bio_get() routine may be used to hold an extra reference on a bio prior
- to i/o submission, if the bio fields are likely to be accessed after the
- i/o is issued (since the bio may otherwise get freed in case i/o completion
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 93eb3e4..e9058c2 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -2794,7 +2794,7 @@ int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
- 
- free_and_out:
- 	if (bio)
--		bio_free(bio, bs);
-+		bio_free(bio);
- 	blk_rq_unprep_clone(rq);
- 
- 	return -ENOMEM;
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 920ede2..19bf632 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -161,23 +161,12 @@ static const struct block_device_operations drbd_ops = {
- 	.release = drbd_release,
- };
- 
--static void bio_destructor_drbd(struct bio *bio)
--{
--	bio_free(bio, drbd_md_io_bio_set);
--}
--
- struct bio *bio_alloc_drbd(gfp_t gfp_mask)
- {
--	struct bio *bio;
--
- 	if (!drbd_md_io_bio_set)
- 		return bio_alloc(gfp_mask, 1);
- 
--	bio = bio_alloc_bioset(gfp_mask, 1, drbd_md_io_bio_set);
--	if (!bio)
--		return NULL;
--	bio->bi_destructor = bio_destructor_drbd;
--	return bio;
-+	return bio_alloc_bioset(gfp_mask, 1, drbd_md_io_bio_set);
- }
- 
- #ifdef __CHECKER__
 diff --git a/fs/bio.c b/fs/bio.c
-index c7f3442..ebc7309 100644
+index ebc7309..ff34311 100644
 --- a/fs/bio.c
 +++ b/fs/bio.c
-@@ -56,6 +56,8 @@ static struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly = {
-  */
- struct bio_set *fs_bio_set;
+@@ -249,7 +249,7 @@ void bio_free(struct bio *bio)
+ 		return;
+ 	}
  
-+#define BIO_KMALLOC_POOL ((void *) ~0)
-+
- /*
-  * Our slab pool management
-  */
-@@ -232,10 +234,21 @@ fallback:
- 	return bvl;
- }
- 
--void bio_free(struct bio *bio, struct bio_set *bs)
-+void bio_free(struct bio *bio)
- {
-+	struct bio_set *bs = bio->bi_pool;
- 	void *p;
- 
-+	BUG_ON(!bs);
-+
-+	if (bs == BIO_KMALLOC_POOL) {
-+		/* Bio was allocated by bio_kmalloc() */
-+		if (bio_integrity(bio))
-+			bio_integrity_free(bio, fs_bio_set);
-+		kfree(bio);
-+		return;
-+	}
-+
- 	if (bio_has_allocated_vec(bio))
+-	if (bio_has_allocated_vec(bio))
++	if (bio_flagged(bio, BIO_OWNS_VEC))
  		bvec_free_bs(bs, bio->bi_io_vec, BIO_POOL_IDX(bio));
  
-@@ -346,13 +359,6 @@ struct bio *bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
- }
- EXPORT_SYMBOL(bio_alloc);
+ 	if (bio_integrity(bio))
+@@ -321,6 +321,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
+ 			goto err_free;
  
--static void bio_kmalloc_destructor(struct bio *bio)
--{
--	if (bio_integrity(bio))
--		bio_integrity_free(bio, fs_bio_set);
--	kfree(bio);
--}
--
- /**
-  * bio_kmalloc - allocate a bio for I/O using kmalloc()
-  * @gfp_mask:   the GFP_ mask given to the slab allocator
-@@ -379,7 +385,7 @@ struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned int nr_iovecs)
- 	bio->bi_flags |= BIO_POOL_NONE << BIO_POOL_OFFSET;
- 	bio->bi_max_vecs = nr_iovecs;
- 	bio->bi_io_vec = bio->bi_inline_vecs;
--	bio->bi_destructor = bio_kmalloc_destructor;
-+	bio->bi_pool = BIO_KMALLOC_POOL;
- 
- 	return bio;
- }
-@@ -417,12 +423,7 @@ void bio_put(struct bio *bio)
- 	 */
- 	if (atomic_dec_and_test(&bio->bi_cnt)) {
- 		bio_disassociate_task(bio);
--		bio->bi_next = NULL;
--
--		if (bio->bi_pool)
--			bio_free(bio, bio->bi_pool);
--		else
--			bio->bi_destructor(bio);
-+		bio_free(bio);
+ 		nr_iovecs = bvec_nr_vecs(idx);
++		bio->bi_flags |= 1 << BIO_OWNS_VEC;
  	}
- }
- EXPORT_SYMBOL(bio_put);
+ out_set:
+ 	bio->bi_flags |= idx << BIO_POOL_OFFSET;
 diff --git a/include/linux/bio.h b/include/linux/bio.h
-index ba60319..393c87e 100644
+index 393c87e..484b96e 100644
 --- a/include/linux/bio.h
 +++ b/include/linux/bio.h
-@@ -216,7 +216,7 @@ extern struct bio *bio_alloc(gfp_t, unsigned int);
- extern struct bio *bio_kmalloc(gfp_t, unsigned int);
- extern struct bio *bio_alloc_bioset(gfp_t, int, struct bio_set *);
- extern void bio_put(struct bio *);
--extern void bio_free(struct bio *, struct bio_set *);
-+extern void bio_free(struct bio *);
+@@ -84,11 +84,6 @@ static inline void *bio_data(struct bio *bio)
+ 	return NULL;
+ }
  
- extern void bio_endio(struct bio *, int);
- struct request_queue;
+-static inline int bio_has_allocated_vec(struct bio *bio)
+-{
+-	return bio->bi_io_vec && bio->bi_io_vec != bio->bi_inline_vecs;
+-}
+-
+ /*
+  * will die
+  */
 diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
-index 401c573..d10c2e49 100644
+index d10c2e49..416aae4 100644
 --- a/include/linux/blk_types.h
 +++ b/include/linux/blk_types.h
-@@ -84,11 +84,8 @@ struct bio {
- 	struct bio_integrity_payload *bi_integrity;  /* data integrity */
- #endif
+@@ -113,6 +113,7 @@ struct bio {
+ #define BIO_MAPPED_INTEGRITY 11/* integrity metadata has been remapped */
  
--	/* If bi_pool is non NULL, bi_destructor is not called */
- 	struct bio_set		*bi_pool;
+ #define BIO_RESET_BITS	12	/* Flags starting here get preserved by bio_reset() */
++#define BIO_OWNS_VEC	12	/* bio_free() should free bvec */
  
--	bio_destructor_t	*bi_destructor;	/* destructor */
--
- 	/*
- 	 * We can inline a number of vecs at the end of the bio, to avoid
- 	 * double allocations for a small number of bio_vecs. This member
+ #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
+ 
 -- 
 1.7.7.3
 
