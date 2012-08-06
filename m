@@ -1,36 +1,36 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 96308103B4B1
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:15 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2564F103B4AB
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:17 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 905801B435E
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:15 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 18E961B435E
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:17 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id Sivs-UjSGVck for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Aug 2012 22:33:15 +0200 (CEST)
+	with ESMTP id iuA-y2a3Bhqo for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Aug 2012 22:33:17 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 70F231B4206
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:15 +0200 (CEST)
-Resent-Message-ID: <20120810203315.GH31190@soda.linbit>
+	by zimbra.linbit.com (Postfix) with ESMTP id 97A691B435C
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:16 +0200 (CEST)
+Resent-Message-ID: <20120810203316.GI31190@soda.linbit>
 Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
 	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 81C94100542F
-	for <drbd-dev@lists.linbit.com>; Tue,  7 Aug 2012 00:09:10 +0200 (CEST)
-Received: by mail-pb0-f54.google.com with SMTP id rp2so2275323pbb.27
-	for <drbd-dev@lists.linbit.com>; Mon, 06 Aug 2012 15:09:10 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0EC0D100542F
+	for <drbd-dev@lists.linbit.com>; Tue,  7 Aug 2012 00:09:11 +0200 (CEST)
+Received: by mail-pb0-f54.google.com with SMTP id rp2so2275366pbb.27
+	for <drbd-dev@lists.linbit.com>; Mon, 06 Aug 2012 15:09:11 -0700 (PDT)
 From: Kent Overstreet <koverstreet@google.com>
 To: linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
 	dm-devel@redhat.com
-Date: Mon,  6 Aug 2012 15:08:32 -0700
-Message-Id: <1344290921-25154-4-git-send-email-koverstreet@google.com>
+Date: Mon,  6 Aug 2012 15:08:33 -0700
+Message-Id: <1344290921-25154-5-git-send-email-koverstreet@google.com>
 In-Reply-To: <1344290921-25154-1-git-send-email-koverstreet@google.com>
 References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
 Cc: axboe@kernel.dk, neilb@suse.de, Kent Overstreet <koverstreet@google.com>,
 	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
 	tj@kernel.org, sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v5 03/12] block: Add bio_reset()
+Subject: [Drbd-dev] [PATCH v5 04/12] pktcdvd: Switch to bio_kmalloc()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -40,90 +40,141 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Reusing bios is something that's been highly frowned upon in the past,
-but driver code keeps doing it anyways. If it's going to happen anyways,
-we should provide a generic method.
+This is prep work for killing bi_destructor - previously, pktcdvd had
+its own pkt_bio_alloc which was basically duplication bio_kmalloc(),
+necessitating its own bi_destructor implementation.
 
-This'll help with getting rid of bi_destructor - drivers/block/pktcdvd.c
-was open coding it, by doing a bio_init() and resetting bi_destructor.
-
-v5: Add a define BIO_RESET_BITS, to be very explicit about what parts of
-bio->bi_flags are saved.
+v5: Un-reorder some functions, to make the patch easier to review
 
 Signed-off-by: Kent Overstreet <koverstreet@google.com>
-Change-Id: I4eb2975bd678d3be811d5423d0620b08020be9ff
 ---
- fs/bio.c                  |    9 +++++++++
- include/linux/bio.h       |    1 +
- include/linux/blk_types.h |    9 +++++++++
- 3 files changed, 19 insertions(+), 0 deletions(-)
+ drivers/block/pktcdvd.c |   67 +++++++++++-----------------------------------
+ 1 files changed, 16 insertions(+), 51 deletions(-)
 
-diff --git a/fs/bio.c b/fs/bio.c
-index 1c6c8b7..c7f3442 100644
---- a/fs/bio.c
-+++ b/fs/bio.c
-@@ -261,6 +261,15 @@ void bio_init(struct bio *bio)
+diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
+index ba66e44..ae55f08 100644
+--- a/drivers/block/pktcdvd.c
++++ b/drivers/block/pktcdvd.c
+@@ -101,6 +101,8 @@ static struct dentry	*pkt_debugfs_root = NULL; /* /sys/kernel/debug/pktcdvd */
+ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev);
+ static int pkt_remove_dev(dev_t pkt_dev);
+ static int pkt_seq_show(struct seq_file *m, void *p);
++static void pkt_end_io_read(struct bio *bio, int err);
++static void pkt_end_io_packet_write(struct bio *bio, int err);
+ 
+ 
+ 
+@@ -522,38 +524,6 @@ static void pkt_bio_finished(struct pktcdvd_device *pd)
+ 	}
  }
- EXPORT_SYMBOL(bio_init);
  
-+void bio_reset(struct bio *bio)
-+{
-+	unsigned long flags = bio->bi_flags & (~0UL << BIO_RESET_BITS);
-+
-+	memset(bio, 0, BIO_RESET_BYTES);
-+	bio->bi_flags = flags|(1 << BIO_UPTODATE);
-+}
-+EXPORT_SYMBOL(bio_reset);
-+
- /**
-  * bio_alloc_bioset - allocate a bio for I/O
-  * @gfp_mask:   the GFP_ mask given to the slab allocator
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 2643589..ba60319 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -226,6 +226,7 @@ extern void __bio_clone(struct bio *, struct bio *);
- extern struct bio *bio_clone(struct bio *, gfp_t);
- 
- extern void bio_init(struct bio *);
-+extern void bio_reset(struct bio *);
- 
- extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
- extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
-diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
-index 293547e..401c573 100644
---- a/include/linux/blk_types.h
-+++ b/include/linux/blk_types.h
-@@ -59,6 +59,10 @@ struct bio {
- 	unsigned int		bi_seg_front_size;
- 	unsigned int		bi_seg_back_size;
- 
-+	/*
-+	 * Everything starting with bi_max_vecs will be preserved by bio_reset()
-+	 */
-+
- 	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
- 
- 	atomic_t		bi_cnt;		/* pin count */
-@@ -93,6 +97,8 @@ struct bio {
- 	struct bio_vec		bi_inline_vecs[0];
- };
- 
-+#define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
-+
+-static void pkt_bio_destructor(struct bio *bio)
+-{
+-	kfree(bio->bi_io_vec);
+-	kfree(bio);
+-}
+-
+-static struct bio *pkt_bio_alloc(int nr_iovecs)
+-{
+-	struct bio_vec *bvl = NULL;
+-	struct bio *bio;
+-
+-	bio = kmalloc(sizeof(struct bio), GFP_KERNEL);
+-	if (!bio)
+-		goto no_bio;
+-	bio_init(bio);
+-
+-	bvl = kcalloc(nr_iovecs, sizeof(struct bio_vec), GFP_KERNEL);
+-	if (!bvl)
+-		goto no_bvl;
+-
+-	bio->bi_max_vecs = nr_iovecs;
+-	bio->bi_io_vec = bvl;
+-	bio->bi_destructor = pkt_bio_destructor;
+-
+-	return bio;
+-
+- no_bvl:
+-	kfree(bio);
+- no_bio:
+-	return NULL;
+-}
+-
  /*
-  * bio flags
+  * Allocate a packet_data struct
   */
-@@ -108,6 +114,9 @@ struct bio {
- #define BIO_FS_INTEGRITY 9	/* fs owns integrity data, not block layer */
- #define BIO_QUIET	10	/* Make BIO Quiet */
- #define BIO_MAPPED_INTEGRITY 11/* integrity metadata has been remapped */
-+
-+#define BIO_RESET_BITS	12	/* Flags starting here get preserved by bio_reset() */
-+
- #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
+@@ -567,10 +537,13 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
+ 		goto no_pkt;
  
- /*
+ 	pkt->frames = frames;
+-	pkt->w_bio = pkt_bio_alloc(frames);
++	pkt->w_bio = bio_kmalloc(GFP_KERNEL, frames);
+ 	if (!pkt->w_bio)
+ 		goto no_bio;
+ 
++	pkt->w_bio->bi_end_io = pkt_end_io_packet_write;
++	pkt->w_bio->bi_private = pkt;
++
+ 	for (i = 0; i < frames / FRAMES_PER_PAGE; i++) {
+ 		pkt->pages[i] = alloc_page(GFP_KERNEL|__GFP_ZERO);
+ 		if (!pkt->pages[i])
+@@ -581,9 +554,12 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
+ 	bio_list_init(&pkt->orig_bios);
+ 
+ 	for (i = 0; i < frames; i++) {
+-		struct bio *bio = pkt_bio_alloc(1);
++		struct bio *bio = bio_kmalloc(GFP_KERNEL, 1);
+ 		if (!bio)
+ 			goto no_rd_bio;
++
++		bio->bi_end_io = pkt_end_io_read;
++		bio->bi_private = pkt;
+ 		pkt->r_bios[i] = bio;
+ 	}
+ 
+@@ -1111,21 +1087,15 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
+ 	 * Schedule reads for missing parts of the packet.
+ 	 */
+ 	for (f = 0; f < pkt->frames; f++) {
+-		struct bio_vec *vec;
+-
+ 		int p, offset;
++
+ 		if (written[f])
+ 			continue;
++
+ 		bio = pkt->r_bios[f];
+-		vec = bio->bi_io_vec;
+-		bio_init(bio);
+-		bio->bi_max_vecs = 1;
+-		bio->bi_sector = pkt->sector + f * (CD_FRAMESIZE >> 9);
+-		bio->bi_bdev = pd->bdev;
+-		bio->bi_end_io = pkt_end_io_read;
+-		bio->bi_private = pkt;
+-		bio->bi_io_vec = vec;
+-		bio->bi_destructor = pkt_bio_destructor;
++		bio_reset(bio);
++		bio->bi_sector	= pkt->sector + f * (CD_FRAMESIZE >> 9);
++		bio->bi_bdev	= pd->bdev;
+ 
+ 		p = (f * CD_FRAMESIZE) / PAGE_SIZE;
+ 		offset = (f * CD_FRAMESIZE) % PAGE_SIZE;
+@@ -1418,14 +1388,9 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
+ 	}
+ 
+ 	/* Start the write request */
+-	bio_init(pkt->w_bio);
+-	pkt->w_bio->bi_max_vecs = PACKET_MAX_SIZE;
++	bio_reset(pkt->w_bio);
+ 	pkt->w_bio->bi_sector = pkt->sector;
+ 	pkt->w_bio->bi_bdev = pd->bdev;
+-	pkt->w_bio->bi_end_io = pkt_end_io_packet_write;
+-	pkt->w_bio->bi_private = pkt;
+-	pkt->w_bio->bi_io_vec = bvec;
+-	pkt->w_bio->bi_destructor = pkt_bio_destructor;
+ 	for (f = 0; f < pkt->frames; f++)
+ 		if (!bio_add_page(pkt->w_bio, bvec[f].bv_page, CD_FRAMESIZE, bvec[f].bv_offset))
+ 			BUG();
 -- 
 1.7.7.3
 
