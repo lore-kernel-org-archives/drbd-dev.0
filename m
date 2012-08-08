@@ -1,22 +1,28 @@
-Return-Path: <msnitzer@redhat.com>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7439C100542F
-	for <drbd-dev@lists.linbit.com>; Tue,  7 Aug 2012 05:19:33 +0200 (CEST)
-Date: Mon, 6 Aug 2012 23:19:21 -0400
-From: Mike Snitzer <snitzer@redhat.com>
+Return-Path: <htejun@gmail.com>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
+	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A82FB1012A9B
+	for <drbd-dev@lists.linbit.com>; Thu,  9 Aug 2012 00:06:20 +0200 (CEST)
+Received: by pbbrp2 with SMTP id rp2so2614170pbb.27
+	for <drbd-dev@lists.linbit.com>; Wed, 08 Aug 2012 15:06:17 -0700 (PDT)
+Sender: Tejun Heo <htejun@gmail.com>
+Date: Wed, 8 Aug 2012 15:06:12 -0700
+From: Tejun Heo <tj@kernel.org>
 To: Kent Overstreet <koverstreet@google.com>
-Message-ID: <20120807031921.GA31977@redhat.com>
+Message-ID: <20120808220612.GA6983@dhcp-172-17-108-109.mtv.corp.google.com>
 References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
-	<1344290921-25154-6-git-send-email-koverstreet@google.com>
+	<1344290921-25154-3-git-send-email-koverstreet@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1344290921-25154-6-git-send-email-koverstreet@google.com>
-Cc: axboe@kernel.dk, dm-devel@redhat.com, linux-kernel@vger.kernel.org,
-	linux-bcache@vger.kernel.org, mpatocka@redhat.com,
-	agk@redhat.com, sage@newdream.net, tj@kernel.org,
-	yehuda@hq.newdream.net, vgoyal@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v5 05/12] block: Kill bi_destructor
+In-Reply-To: <1344290921-25154-3-git-send-email-koverstreet@google.com>
+Cc: axboe@kernel.dk, snitzer@redhat.com, dm-devel@redhat.com, neilb@suse.de,
+	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
+	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
+	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v5 02/12] dm: Use bioset's front_pad for
+ dm_rq_clone_bio_info
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -26,15 +32,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Aug 06 2012 at  6:08pm -0400,
-Kent Overstreet <koverstreet@google.com> wrote:
+Hello,
 
-> Now that we've got generic code for freeing bios allocated from bio
-> pools, this isn't needed anymore.
+On Mon, Aug 06, 2012 at 03:08:31PM -0700, Kent Overstreet wrote:
+> Previously, dm_rq_clone_bio_info needed to be freed by the bio's
+> destructor to avoid a memory leak in the blk_rq_prep_clone() error path.
+> This gets rid of a memory allocation and means we can kill
+> dm_rq_bio_destructor.
 > 
-> This also changes the semantics of bio_free() a bit - it now also frees
-> bios allocated by bio_kmalloc(). It's also no longer exported, as
-> without bi_destructor there should be no need for it to be called
-> anywhere else.
+> Signed-off-by: Kent Overstreet <koverstreet@google.com>
+> ---
+>  drivers/md/dm.c |   31 +++++--------------------------
+>  1 files changed, 5 insertions(+), 26 deletions(-)
+> 
+> diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+> index 40b7735..4014696 100644
+> --- a/drivers/md/dm.c
+> +++ b/drivers/md/dm.c
+> @@ -92,6 +92,7 @@ struct dm_rq_target_io {
+>  struct dm_rq_clone_bio_info {
+>  	struct bio *orig;
+>  	struct dm_rq_target_io *tio;
+> +	struct bio clone;
+>  };
+...
+> @@ -2696,7 +2674,8 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity)
+>  	if (!pools->tio_pool)
+>  		goto free_io_pool_and_out;
+>  
+> -	pools->bs = bioset_create(pool_size, 0);
+> +	pools->bs = bioset_create(pool_size,
+> +				  offsetof(struct dm_rq_clone_bio_info, orig));
+>  	if (!pools->bs)
+>  		goto free_tio_pool_and_out;
 
-Seems you forgot to remove bio_free's EXPORT_SYMBOL
+I do like this approach much better but this isn't something
+super-obvious.  Can we please explain what's going on?  Especially,
+the comment above dm_rq_clone_bio_info is outright misleading now.
+
+Can someone more familiar review this one?  Alasdir, Mike?
+
+Also, how was this tested?
+
+Thanks.
+
+-- 
+tejun
