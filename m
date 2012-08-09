@@ -1,33 +1,29 @@
 Return-Path: <htejun@gmail.com>
-Received: from mail-yx0-f182.google.com (mail-yx0-f182.google.com
-	[209.85.213.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Received: from mail-gg0-f182.google.com (mail-gg0-f182.google.com
+	[209.85.161.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 61A37103B4C6
-	for <drbd-dev@lists.linbit.com>; Thu,  9 Aug 2012 09:08:18 +0200 (CEST)
-Received: by yenl7 with SMTP id l7so175823yen.27
-	for <drbd-dev@lists.linbit.com>; Thu, 09 Aug 2012 00:08:16 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 49EE0103B4DA
+	for <drbd-dev@lists.linbit.com>; Thu,  9 Aug 2012 09:22:24 +0200 (CEST)
+Received: by ggnk4 with SMTP id k4so187992ggn.27
+	for <drbd-dev@lists.linbit.com>; Thu, 09 Aug 2012 00:22:23 -0700 (PDT)
 Sender: Tejun Heo <htejun@gmail.com>
-Date: Thu, 9 Aug 2012 00:01:54 -0700
+Date: Thu, 9 Aug 2012 00:22:17 -0700
 From: Tejun Heo <tj@kernel.org>
-To: Muthu Kumar <muthu.lkml@gmail.com>
-Message-ID: <20120809070154.GG2845@dhcp-172-17-108-109.mtv.corp.google.com>
+To: Kent Overstreet <koverstreet@google.com>
+Message-ID: <20120809072217.GH2845@dhcp-172-17-108-109.mtv.corp.google.com>
 References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
-	<1344290921-25154-13-git-send-email-koverstreet@google.com>
-	<Pine.LNX.4.64.1208061913500.21956@file.rdu.redhat.com>
-	<20120808232804.GL6983@dhcp-172-17-108-109.mtv.corp.google.com>
-	<CAFR8uedZiG0NWgWQQa03r+kKh8rT0jzpj+hwPzq+i7K6zhpT_A@mail.gmail.com>
+	<1344290921-25154-9-git-send-email-koverstreet@google.com>
+	<20120808230532.GH6983@dhcp-172-17-108-109.mtv.corp.google.com>
+	<20120809013923.GH7262@moria.home.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFR8uedZiG0NWgWQQa03r+kKh8rT0jzpj+hwPzq+i7K6zhpT_A@mail.gmail.com>
-Cc: axboe@kernel.dk, Kent Overstreet <koverstreet@google.com>,
-	linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
-	device-mapper development <dm-devel@redhat.com>,
-	Mikulas Patocka <mpatocka@redhat.com>, agk@redhat.com,
-	sage@newdream.net, yehuda@hq.newdream.net, vgoyal@redhat.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [dm-devel] [PATCH v5 12/12] block: Only clone bio
- vecs that are in use
+In-Reply-To: <20120809013923.GH7262@moria.home.lan>
+Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
+	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
+	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
+	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v5 08/12] block: Introduce new bio_split()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -37,29 +33,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello,
+On Wed, Aug 08, 2012 at 06:39:23PM -0700, Kent Overstreet wrote:
+> On Wed, Aug 08, 2012 at 04:05:32PM -0700, Tejun Heo wrote:
+> > One more thing.
+> > 
+> > On Mon, Aug 06, 2012 at 03:08:37PM -0700, Kent Overstreet wrote:
+> > > +	if (bio_integrity(bio)) {
+> > > +		bio_integrity_clone(ret, bio, gfp, bs);
+> > > +		bio_integrity_trim(ret, 0, bio_sectors(ret));
+> > > +		bio_integrity_trim(bio, bio_sectors(ret), bio_sectors(bio));
+> > 
+> > Is this equivalent to bio_integrity_split() performance-wise?
+> 
+> Strictly speaking, no. But it has the advantage of being drastically
+> simpler - and the only one only worked for single page bios so I
+> would've had to come up with something new from scratch, and as
+> confusing as the integrity stuff is I wouldn't trust the result.
 
-On Wed, Aug 08, 2012 at 04:47:46PM -0700, Muthu Kumar wrote:
-> You are changing the meaning of __bio_clone() here. In old code, the
-> number of io_vecs, bi_idx, bi_vcnt are preserved. But in this modified
-> code, you are mapping bio_src's bi_iovec[bi_idx] to bio_dests
-> bi_iovec[0] and also restricting the number of allocated io_vecs of
-> the clone. It may be useful for cases were we would like a identical
-> copy of the original bio (may not be in current code base, but this
-> implementation is definitely not what one would expect from the name
-> "clone").
+There's already bio_integrity_split() and you're actively dropping it.
 
-Implementation details changed somewhat but the high-level semantics
-didn't change at all.  Any driver not messing with bio internals - and
-they shouldn't - shouldn't notice the change.  No in-kernel drivers
-seem to be broken by the change.  If you ask me, this looks more like
-a bug fix to me where the bug is a silly behavior restricting
-usefulness of the interface.
+> I'm skeptical that it's going to matter in practice given how much
+> iteration is done elsewhere in the course of processing a bio and given
+> that this stuff isn't used with high end SSDs...
 
-> May be, call this new implementation some thing else (and use it for bcache)?
-
-This doesn't only change __bio_clone() but all clone interface stacked
-on top of it, so, no way.  This ain't windows.
+If you think the active dropping is justified, please let the change
+and justification clearly stated.  You're burying the active change in
+two separate patches without even mentioning it or cc'ing people who
+care about bio-integrity (Martin K. Petersen).  Ummm.... this is
+simply unacceptable and makes me a lot more suspicious about the
+patchset.  Please be explicit about changes you make.  Peer-review
+breaks down unless such trust can be maintained.
 
 Thanks.
 
