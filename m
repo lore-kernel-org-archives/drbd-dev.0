@@ -1,29 +1,29 @@
 Return-Path: <htejun@gmail.com>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
-	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Received: from mail-yx0-f182.google.com (mail-yx0-f182.google.com
+	[209.85.213.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2D0D9103B4DA
-	for <drbd-dev@lists.linbit.com>; Thu,  9 Aug 2012 08:00:26 +0200 (CEST)
-Received: by pbbrp2 with SMTP id rp2so426106pbb.27
-	for <drbd-dev@lists.linbit.com>; Wed, 08 Aug 2012 23:00:24 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 967A9104C146
+	for <drbd-dev@lists.linbit.com>; Thu,  9 Aug 2012 08:05:23 +0200 (CEST)
+Received: by yenl7 with SMTP id l7so122923yen.27
+	for <drbd-dev@lists.linbit.com>; Wed, 08 Aug 2012 23:05:22 -0700 (PDT)
 Sender: Tejun Heo <htejun@gmail.com>
-Date: Wed, 8 Aug 2012 23:00:19 -0700
+Date: Wed, 8 Aug 2012 23:05:17 -0700
 From: Tejun Heo <tj@kernel.org>
 To: Kent Overstreet <koverstreet@google.com>
-Message-ID: <20120809060019.GA2845@dhcp-172-17-108-109.mtv.corp.google.com>
+Message-ID: <20120809060517.GB2845@dhcp-172-17-108-109.mtv.corp.google.com>
 References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
-	<1344290921-25154-4-git-send-email-koverstreet@google.com>
-	<20120808221129.GB6983@dhcp-172-17-108-109.mtv.corp.google.com>
-	<20120809000711.GB7262@moria.home.lan>
+	<1344290921-25154-6-git-send-email-koverstreet@google.com>
+	<20120808222223.GD6983@dhcp-172-17-108-109.mtv.corp.google.com>
+	<20120809002154.GE7262@moria.home.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120809000711.GB7262@moria.home.lan>
+In-Reply-To: <20120809002154.GE7262@moria.home.lan>
 Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
 	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
 	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
 	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v5 03/12] block: Add bio_reset()
+Subject: Re: [Drbd-dev] [PATCH v5 05/12] block: Kill bi_destructor
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -35,37 +35,21 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hello,
 
-On Wed, Aug 08, 2012 at 05:07:11PM -0700, Kent Overstreet wrote:
-> > > +void bio_reset(struct bio *bio)
-> > > +{
-> > > +	unsigned long flags = bio->bi_flags & (~0UL << BIO_RESET_BITS);
-> > 
-> > How many flags are we talking about?  If there aren't too many, I'd
-> > prefer explicit BIO_FLAGS_PRESERVED or whatever.
+On Wed, Aug 08, 2012 at 05:21:54PM -0700, Kent Overstreet wrote:
+> > What's wrong with good ol' NULL?
 > 
-> It mostly isn't actual flags that are preserved - the high bits of the
-> flags are used for indicating what slab the bvec was allocated from, and
-> that's the main thing that has to be preserved.
+> If it's NULL, we can't distinguish between bios where that field wasn't
+> set (i.e. bios that were statically allocated somewhere) from bios that
+> were allocated by bio_kmalloc().
 > 
-> So that's why I went with defining the things that are reset instead of
-> the things that are preserved.
-> 
-> I would prefer if bitfields were used for at least BIO_POOL_IDX, but the
-> problem is flags is used as an atomic bit vector for BIO_UPTODATE.
-> 
-> But flags isn't treated as an atomic bit vector elsewhere -
-> bio_flagged() doesn't use test_bit(), and flags are set/cleared with
+> It's just there to make debugging easier - if bi_cnt goes to 0 on a bio
+> where it shouldn't we'll catch it at the BUG_ON() in bio_free() instead
+> of kfreeing a bad pointer.
 
-Not using test_bit() may not be necessarily wrong.
-
-> atomic bit operations in some places but not in others (probably _most_
-> of them are technically safe, but... ick).
-
-Mixing atomic and non-atomic modifications is almost always wrong tho.
-
-Anyways, understood.  Can you *please* put some comment what bits are
-being preserved across reset then?  Things like this aren't obvious at
-all and need ample explanation.
+I fail to see how that improves anything.  slab will complain clearly
+if it gets passed in a pointer to static area.  The benefit is
+imaginery.  If there's no bioset, it's NULL.  Let's please keep things
+usual.
 
 Thanks.
 
