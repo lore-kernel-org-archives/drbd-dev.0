@@ -1,44 +1,46 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CCB2610561B2
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:36 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CF7AC10561AB
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:38 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id C28A71B4206
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:36 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 889F91B435E
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:38 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 2YNCr46LTCYZ for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Aug 2012 22:33:36 +0200 (CEST)
+	with ESMTP id J4DGdrPkQaDh for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Aug 2012 22:33:38 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id A19141B435C
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:36 +0200 (CEST)
-Resent-Message-ID: <20120810203336.GM31190@soda.linbit>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
-	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	by zimbra.linbit.com (Postfix) with ESMTP id 4EFF71B4206
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 22:33:38 +0200 (CEST)
+Resent-Message-ID: <20120810203338.GO31190@soda.linbit>
+Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com
+	[209.85.220.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 10212103B4DA
-	for <drbd-dev@lists.linbit.com>; Thu,  9 Aug 2012 09:33:34 +0200 (CEST)
-Received: by pbbrp2 with SMTP id rp2so565678pbb.27
-	for <drbd-dev@lists.linbit.com>; Thu, 09 Aug 2012 00:33:32 -0700 (PDT)
-Date: Thu, 9 Aug 2012 03:33:34 -0400
-From: Kent Overstreet <koverstreet@google.com>
-To: Tejun Heo <tj@kernel.org>
-Message-ID: <20120809073334.GD9128@dhcp-172-18-216-138.mtv.corp.google.com>
-References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
-	<1344290921-25154-9-git-send-email-koverstreet@google.com>
-	<20120808230532.GH6983@dhcp-172-17-108-109.mtv.corp.google.com>
-	<20120809013923.GH7262@moria.home.lan>
-	<20120809072217.GH2845@dhcp-172-17-108-109.mtv.corp.google.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 951DF1013809
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Aug 2012 04:37:21 +0200 (CEST)
+Received: by vcbgb22 with SMTP id gb22so1939485vcb.27
+	for <drbd-dev@lists.linbit.com>; Thu, 09 Aug 2012 19:37:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120809072217.GH2845@dhcp-172-17-108-109.mtv.corp.google.com>
-Cc: axboe@kernel.dk, martin.petersen@oracle.com, dm-devel@redhat.com,
-	neilb@suse.de, linux-kernel@vger.kernel.org,
-	linux-bcache@vger.kernel.org, mpatocka@redhat.com,
-	vgoyal@redhat.com, yehuda@hq.newdream.net, sage@newdream.net,
-	agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v5 08/12] block: Introduce new bio_split()
+In-Reply-To: <20120809070154.GG2845@dhcp-172-17-108-109.mtv.corp.google.com>
+References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
+	<1344290921-25154-13-git-send-email-koverstreet@google.com>
+	<Pine.LNX.4.64.1208061913500.21956@file.rdu.redhat.com>
+	<20120808232804.GL6983@dhcp-172-17-108-109.mtv.corp.google.com>
+	<CAFR8uedZiG0NWgWQQa03r+kKh8rT0jzpj+hwPzq+i7K6zhpT_A@mail.gmail.com>
+	<20120809070154.GG2845@dhcp-172-17-108-109.mtv.corp.google.com>
+Date: Thu, 9 Aug 2012 19:29:04 -0700
+Message-ID: <CAFR8uedwrfv8TB==BkDTZAENYhDOY8S++aTqEoJ7xbn7Vo-6Ag@mail.gmail.com>
+From: Muthu Kumar <muthu.lkml@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Cc: axboe@kernel.dk, Kent Overstreet <koverstreet@google.com>,
+	linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
+	device-mapper development <dm-devel@redhat.com>,
+	Mikulas Patocka <mpatocka@redhat.com>, agk@redhat.com,
+	sage@newdream.net, yehuda@hq.newdream.net, vgoyal@redhat.com,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [dm-devel] [PATCH v5 12/12] block: Only clone bio
+ vecs that are in use
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -48,37 +50,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Aug 09, 2012 at 12:22:17AM -0700, Tejun Heo wrote:
-> On Wed, Aug 08, 2012 at 06:39:23PM -0700, Kent Overstreet wrote:
-> > On Wed, Aug 08, 2012 at 04:05:32PM -0700, Tejun Heo wrote:
-> > > One more thing.
-> > > 
-> > > On Mon, Aug 06, 2012 at 03:08:37PM -0700, Kent Overstreet wrote:
-> > > > +	if (bio_integrity(bio)) {
-> > > > +		bio_integrity_clone(ret, bio, gfp, bs);
-> > > > +		bio_integrity_trim(ret, 0, bio_sectors(ret));
-> > > > +		bio_integrity_trim(bio, bio_sectors(ret), bio_sectors(bio));
-> > > 
-> > > Is this equivalent to bio_integrity_split() performance-wise?
-> > 
-> > Strictly speaking, no. But it has the advantage of being drastically
-> > simpler - and the only one only worked for single page bios so I
-> > would've had to come up with something new from scratch, and as
-> > confusing as the integrity stuff is I wouldn't trust the result.
-> 
-> There's already bio_integrity_split() and you're actively dropping it.
+Tejun,
 
-Because it only works for single page bios, AFAICT. I'd have to start
-from scratch.
+On Thu, Aug 9, 2012 at 12:01 AM, Tejun Heo <tj@kernel.org> wrote:
+> Hello,
+>
+> On Wed, Aug 08, 2012 at 04:47:46PM -0700, Muthu Kumar wrote:
+>> You are changing the meaning of __bio_clone() here. In old code, the
+>> number of io_vecs, bi_idx, bi_vcnt are preserved. But in this modified
+>> code, you are mapping bio_src's bi_iovec[bi_idx] to bio_dests
+>> bi_iovec[0] and also restricting the number of allocated io_vecs of
+>> the clone. It may be useful for cases were we would like a identical
+>> copy of the original bio (may not be in current code base, but this
+>> implementation is definitely not what one would expect from the name
+>> "clone").
+>
+> Implementation details changed somewhat but the high-level semantics
+> didn't change at all.  Any driver not messing with bio internals - and
+> they shouldn't - shouldn't notice the change.
 
-> > I'm skeptical that it's going to matter in practice given how much
-> > iteration is done elsewhere in the course of processing a bio and given
-> > that this stuff isn't used with high end SSDs...
-> 
-> If you think the active dropping is justified, please let the change
-> and justification clearly stated.  You're burying the active change in
-> two separate patches without even mentioning it or cc'ing people who
-> care about bio-integrity (Martin K. Petersen). 
+The reason for doing this change is because the code in question is
+messing with bio internals.
 
-Not intentionally, he isn't in MAINTAINERS so get_maintainers.pl missed
-it and it slipped by while I was looking for people to CC. Added him.
+No in-kernel drivers
+> seem to be broken by the change.  If you ask me, this looks more like
+> a bug fix to me where the bug is a silly behavior restricting
+> usefulness of the interface.
+>
+>> May be, call this new implementation some thing else (and use it for bcache)?
+>
+> This doesn't only change __bio_clone() but all clone interface stacked
+> on top of it, so, no way.
+
+>This ain't windows.
+
+ah... when you put it this way, it gets a different perspective :)
+
+Anyway, my point is, we shouldn't make it non-obvious ("clone" should
+be just "clone"). But, we can always add more comments i guess.
+
+Regards,
+Muthu
+
+
+>
+> Thanks.
+>
+> --
+> tejun
