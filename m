@@ -1,45 +1,42 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2ADBA1013804
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A0CF8103B4C6
 	for <drbd-dev@lists.linbit.com>; Thu, 16 Aug 2012 20:17:07 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 251971B4361
+	by zimbra.linbit.com (Postfix) with ESMTP id 9BDE51B4361
 	for <drbd-dev@lists.linbit.com>; Thu, 16 Aug 2012 20:17:07 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id Tcm3m8vom9mo for <drbd-dev@lists.linbit.com>;
+	with ESMTP id UZMK7AQbTS5T for <drbd-dev@lists.linbit.com>;
 	Thu, 16 Aug 2012 20:17:07 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id F3B8F1B435E
-	for <drbd-dev@lists.linbit.com>; Thu, 16 Aug 2012 20:17:06 +0200 (CEST)
-Resent-Message-ID: <20120816181706.GC8189@soda.linbit>
-Received: from mail-gh0-f182.google.com (mail-gh0-f182.google.com
-	[209.85.160.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	by zimbra.linbit.com (Postfix) with ESMTP id 7B0EB1B435E
+	for <drbd-dev@lists.linbit.com>; Thu, 16 Aug 2012 20:17:07 +0200 (CEST)
+Resent-Message-ID: <20120816181707.GD8189@soda.linbit>
+Received: from mail-yx0-f182.google.com (mail-yx0-f182.google.com
+	[209.85.213.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7AD951013803
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Aug 2012 23:44:51 +0200 (CEST)
-Received: by ghrr13 with SMTP id r13so5263250ghr.27
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Aug 2012 14:44:50 -0700 (PDT)
-Date: Mon, 13 Aug 2012 14:44:46 -0700
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E60B41019A78
+	for <drbd-dev@lists.linbit.com>; Mon, 13 Aug 2012 23:46:59 +0200 (CEST)
+Received: by yenl7 with SMTP id l7so5514487yen.27
+	for <drbd-dev@lists.linbit.com>; Mon, 13 Aug 2012 14:46:58 -0700 (PDT)
+Date: Mon, 13 Aug 2012 14:46:54 -0700
 From: Kent Overstreet <koverstreet@google.com>
-To: Joseph Glanville <joseph.glanville@orionvm.com.au>
-Message-ID: <20120813214446.GC9541@google.com>
+To: Tejun Heo <tj@kernel.org>
+Message-ID: <20120813214654.GD9541@google.com>
 References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
-	<1344290921-25154-3-git-send-email-koverstreet@google.com>
-	<20120808220612.GA6983@dhcp-172-17-108-109.mtv.corp.google.com>
-	<20120808235731.GA7262@moria.home.lan>
-	<CAOzFzEhPW5-edb6mnL2gNbb4956u2MbWqQovv01010PyBCbc+g@mail.gmail.com>
+	<1344290921-25154-13-git-send-email-koverstreet@google.com>
+	<20120809173700.GB6644@dhcp-172-17-108-109.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOzFzEhPW5-edb6mnL2gNbb4956u2MbWqQovv01010PyBCbc+g@mail.gmail.com>
-Cc: axboe@kernel.dk, snitzer@redhat.com, dm-devel@redhat.com, neilb@suse.de,
+In-Reply-To: <20120809173700.GB6644@dhcp-172-17-108-109.mtv.corp.google.com>
+Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
 	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
 	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
-	Tejun Heo <tj@kernel.org>, sage@newdream.net, agk@redhat.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v5 02/12] dm: Use bioset's front_pad for
- dm_rq_clone_bio_info
+	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v5 12/12] block: Only clone bio vecs that are
+	in use
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -49,25 +46,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, Aug 11, 2012 at 03:24:45PM +1000, Joseph Glanville wrote:
-> Hi Kent, Tejun
+On Thu, Aug 09, 2012 at 10:37:00AM -0700, Tejun Heo wrote:
+> Hello,
 > 
-> On 9 August 2012 09:57, Kent Overstreet <koverstreet@google.com> wrote:
-> >> Also, how was this tested?
-> >
-> > Well, AFAICT the only request based dm target is multipath, and from the
-> > documentation I've seen it doesn't appear to work without multipath
-> > hardware, or at least I haven't seen it documented how. So, unless
-> > there's another user I missed it's not been tested.
+> On Mon, Aug 06, 2012 at 03:08:41PM -0700, Kent Overstreet wrote:
+> > bcache creates large bios internally, and then splits them according to
+> > the device requirements before it sends them down. If a lower level
+> > device tries to clone the bio, and the original bio had more than
+> > BIO_MAX_PAGES, the clone will fail unecessarily.
+> > 
+> > We can fix this by only cloning the bio vecs that are actually in use.
 > 
-> Multipath can be tested quite easily with a loopback scsi target, you
-> don't require specialized hardware.
-> The easiest way to do this would probably be the built in LIO target +
-> open_iscsi initiator.
-> 
-> I haven't attempted running this current version of the patch series
-> but I haven't run into issues with bcache+multipath in the past.
+> How was this tested?
 
-Actually, I bet you have been running this code - do you think you could
-check the git log for the version you're running? That'd be awesome if
-you are.
+This code has been in the bcache tree for months, and I added it to fix
+a real bug (think I saw it with bcache on top of dm) - and since then
+it's been tested in probably just about all the relevant configurations,
+certainly both dm and md.
