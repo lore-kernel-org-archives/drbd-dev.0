@@ -1,29 +1,16 @@
-Return-Path: <htejun@gmail.com>
-Received: from mail-yw0-f54.google.com (mail-yw0-f54.google.com
-	[209.85.213.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D7EBA1017A2C
-	for <drbd-dev@lists.linbit.com>; Tue, 14 Aug 2012 00:05:40 +0200 (CEST)
-Received: by yhfs35 with SMTP id s35so5534432yhf.27
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Aug 2012 15:05:39 -0700 (PDT)
-Sender: Tejun Heo <htejun@gmail.com>
-Date: Mon, 13 Aug 2012 15:05:34 -0700
-From: Tejun Heo <tj@kernel.org>
-To: Kent Overstreet <koverstreet@google.com>
-Message-ID: <20120813220534.GB25632@google.com>
-References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
-	<1344290921-25154-9-git-send-email-koverstreet@google.com>
-	<20120808225839.GG6983@dhcp-172-17-108-109.mtv.corp.google.com>
-	<20120813215511.GE9541@google.com>
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 214B81017A2C
+	for <drbd-dev@lists.linbit.com>; Thu, 16 Aug 2012 17:28:27 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Thu, 16 Aug 2012 17:28:26 +0200
+Message-ID: <4092615.Zqxn9JocAf@fat-tyre>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120813215511.GE9541@google.com>
-Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
-	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
-	mpatocka@redhat.com, vgoyal@redhat.com, yehuda@hq.newdream.net,
-	sage@newdream.net, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v5 08/12] block: Introduce new bio_split()
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] drbd fixes
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -33,33 +20,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello,
+Hi Jens,
 
-On Mon, Aug 13, 2012 at 02:55:11PM -0700, Kent Overstreet wrote:
-> > If the condition is detectable, WARN_ON_ONCE() please.
-> 
-> I know I said I liked this idea, but I changed my mind.
-> 
-> Sticking a WARN_ON_ONCE() there is saying that passing __GFP_WAIT from
-> under generic_make_request() is always wrong - it might as well be a
-> BUG_ON() except warn is better for the user.
+Please consider to pull these 3 fixes in for 3.6.
 
-WARN_ON_ONCE(), as opposed to BUG_ON(), doesn't mean that something
-isn't always wrong.  It's just better to always use WARN variant if
-the system doesn't *need* to be put down immediately to avoid, say,
-massive data corruption - limping machine is simply better than dead
-one.
+Best,
+ Phil
 
-> If that's true, then an assertion is completely wrong because we can
-> just do the right thing instead - mask out __GFP_WAIT if
-> current->bio_list != NULL and document that it can fail in that
-> situation.
+The following changes since commit a73ff3231df59a4b92ccd0dd4e73897c5822489b:
 
-That's worse because it confuses the reader.  Taking something which
-is as well-known as __GFP_WAIT and then silently ignoring it isn't a
-good idea.  Please just add a WARN_ON.
+  drbd: announce FLUSH/FUA capability to upper layers (2012-07-24 15:14:28 +0200)
 
-Thanks.
+are available in the git repository at:
 
--- 
-tejun
+  git://git.drbd.org/linux-drbd.git for-jens
+
+for you to fetch changes up to d1aa4d04da8de5c89d73859e077d89c4c71d8ed1:
+
+  drbd: Write all pages of the bitmap after an online resize (2012-08-16 17:17:35 +0200)
+
+----------------------------------------------------------------
+Lars Ellenberg (1):
+      drbd: fix drbd wire compatibility for empty flushes
+
+Philipp Reisner (2):
+      drbd: Finish requests that completed while IO was frozen
+      drbd: Write all pages of the bitmap after an online resize
+
+ drivers/block/drbd/drbd_bitmap.c |   15 ++++++++++++++-
+ drivers/block/drbd/drbd_int.h    |    1 +
+ drivers/block/drbd/drbd_main.c   |   28 ++++++++++++----------------
+ drivers/block/drbd/drbd_nl.c     |    4 ++--
+ drivers/block/drbd/drbd_req.c    |   36 ++++++++++++++++++++++++++++++++----
+ 5 files changed, 61 insertions(+), 23 deletions(-)
+
