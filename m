@@ -1,27 +1,26 @@
-Return-Path: <evdo.hsdpa@gmail.com>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
-	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 86D0A1011C0C
-	for <drbd-dev@lists.linbit.com>; Sun, 19 Aug 2012 13:46:04 +0200 (CEST)
-Received: by pbbrp2 with SMTP id rp2so6513926pbb.27
-	for <drbd-dev@lists.linbit.com>; Sun, 19 Aug 2012 04:46:02 -0700 (PDT)
+Return-Path: <i.galic@brainsware.org>
+Received: from mail.brainsware.org (mail.brainsware.org [188.40.115.121])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BC4741013809
+	for <drbd-dev@lists.linbit.com>; Tue,  4 Sep 2012 00:38:09 +0200 (CEST)
+Received: from localhost (localhost.localdomain [127.0.0.1])
+	by mail.brainsware.org (Postfix) with ESMTP id 084A028829A
+	for <drbd-dev@lists.linbit.com>; Mon,  3 Sep 2012 22:30:08 +0000 (UTC)
+Received: from mail.brainsware.org ([127.0.0.1])
+	by localhost (mail.brainsware.org [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id XeWLIsmbgBM7 for <drbd-dev@lists.linbit.com>;
+	Mon,  3 Sep 2012 22:30:05 +0000 (UTC)
+Received: from mail.brainsware.org (mail.brainsware.org [188.40.115.121])
+	by mail.brainsware.org (Postfix) with ESMTP id EADA0288286
+	for <drbd-dev@lists.linbit.com>; Mon,  3 Sep 2012 22:30:05 +0000 (UTC)
+Date: Mon, 03 Sep 2012 22:30:05 -0000 (UTC)
+From: Igor =?utf-8?Q?Gali=C4=87?= <i.galic@brainsware.org>
+To: drbd-dev@lists.linbit.com
+Message-ID: <0bfc9d31-6d7e-4cf2-9319-d463d4b927e2@iris>
+In-Reply-To: <70652293-fdab-49a4-add0-a2890e30f216@iris>
+Content-Type: multipart/mixed;
+	boundary="=_7324fb1e-4920-4de7-ae0e-d8955c0726f7"
 MIME-Version: 1.0
-In-Reply-To: <1344290921-25154-3-git-send-email-koverstreet@google.com>
-References: <1344290921-25154-1-git-send-email-koverstreet@google.com>
-	<1344290921-25154-3-git-send-email-koverstreet@google.com>
-Date: Sun, 19 Aug 2012 20:46:02 +0900
-Message-ID: <CA+xKNSjhQ=t5uw0yWqrx+3LspYz03Jns5tBHmyrN7nj35R_g1Q@mail.gmail.com>
-From: Robert Kim App and Facebook Marketing <evdo.hsdpa@gmail.com>
-To: Kent Overstreet <koverstreet@google.com>
-Content-Type: multipart/alternative; boundary=047d7b33d64409f8eb04c79cf0fa
-Cc: axboe@kernel.dk, dm-devel@redhat.com, neilb@suse.de,
-	linux-kernel@vger.kernel.org, linux-bcache@vger.kernel.org,
-	mpatocka@redhat.com, agk@redhat.com, sage@newdream.net,
-	tj@kernel.org, yehuda@hq.newdream.net, vgoyal@redhat.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v5 02/12] dm: Use bioset's front_pad for
-	dm_rq_clone_bio_info
+Subject: [Drbd-dev] [PATCH]: Creating a three-node setup
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -31,50 +30,54 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---047d7b33d64409f8eb04c79cf0fa
-Content-Type: text/plain; charset=ISO-8859-1
-
-Kent,
-
-Do you have a website or blog that you've published on this? I tend to
-always lose gems i find here unless I bookmark them. AND we can all leave
-comments too... That would be helpful.
-
--- 
-Robert Q Kim,
-Sparkah Destination Event Management
-Trade Show Marketing Strategies VP
-http://www.youtube.com/watch?v=RrXcLCVkFds
-2611 S Coast Highway
-San Diego, CA 92007
-310 598 1606
-
---047d7b33d64409f8eb04c79cf0fa
-Content-Type: text/html; charset=ISO-8859-1
+--=_7324fb1e-4920-4de7-ae0e-d8955c0726f7
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-Kent,<div><br></div><div>Do you have a website or blog that you&#39;ve publ=
-ished on this? I tend to always lose gems i find here unless I bookmark the=
-m. AND we can all leave comments too... That would be helpful.<br clear=3D"=
-all">
-<div><br></div>-- <br><span style=3D"color:rgb(136,136,136);font-family:ari=
-al,sans-serif;font-size:13px;background-color:rgb(255,255,255)">Robert Q Ki=
-m,</span><br style=3D"color:rgb(136,136,136);font-family:arial,sans-serif;f=
-ont-size:13px;background-color:rgb(255,255,255)">
-<div style=3D"color:rgb(136,136,136);font-family:arial,sans-serif;font-size=
-:13px;background-color:rgb(255,255,255)">Sparkah Destination Event Manageme=
-nt</div><div style=3D"color:rgb(136,136,136);font-family:arial,sans-serif;f=
-ont-size:13px;background-color:rgb(255,255,255)">
-Trade Show Marketing Strategies VP<br></div><div style=3D"color:rgb(136,136=
-,136);font-family:arial,sans-serif;font-size:13px;background-color:rgb(255,=
-255,255)"><a href=3D"http://www.youtube.com/watch?v=3DRrXcLCVkFds" target=
-=3D"_blank" style=3D"color:rgb(17,85,204)">http://www.youtube.com/watch?v=
-=3DRrXcLCVkFds</a></div>
-<div style=3D"color:rgb(136,136,136);font-family:arial,sans-serif;font-size=
-:13px;background-color:rgb(255,255,255)">2611 S Coast Highway<br>San Diego,=
- CA 92007<br><span id=3D"gc-number-9" class=3D"gc-cs-link" title=3D"Call wi=
-th Google Voice">310 598 1606</span></div>
 
-</div>
+Here's a small patch to the users guide:
 
---047d7b33d64409f8eb04c79cf0fa--
+Consistently refer to the nodes as +alice+, +bob+ and
++charlie+ when telling users where to execute commands.
+
+
+So long,
+
+i
+
+--
+Igor Gali=C4=87
+
+Tel: +43 (0) 664 886 22 883
+Mail: i.galic@brainsware.org
+URL: http://brainsware.org/
+GPG: 6880 4155 74BD FD7C B515  2EA5 4B1D 9E08 A097 C9AE
+
+
+--=_7324fb1e-4920-4de7-ae0e-d8955c0726f7
+Content-Type: text/x-patch; name=s-three-nodes.patch
+Content-Disposition: attachment; filename=s-three-nodes.patch
+Content-Transfer-Encoding: base64
+
+ZGlmZiAtLWdpdCB1c2Vycy1ndWlkZS9hZG1pbmlzdHJhdGlvbi50eHQgdXNlcnMtZ3VpZGUvYWRt
+aW5pc3RyYXRpb24udHh0CmluZGV4IGNkM2QyMWYuLjg2YWMzYzkgMTAwNjQ0Ci0tLSB1c2Vycy1n
+dWlkZS9hZG1pbmlzdHJhdGlvbi50eHQKKysrIHVzZXJzLWd1aWRlL2FkbWluaXN0cmF0aW9uLnR4
+dApAQCAtMTYyMiw3ICsxNjIyLDcgQEAgZGVwZW5kaW5nIG9uIHlvdXIgYXBwbGljYXRpb24uCiA9
+PT09IEVuYWJsaW5nIHN0YWNrZWQgcmVzb3VyY2VzCiAKIFRvIGVuYWJsZSBhIHN0YWNrZWQgcmVz
+b3VyY2UsIHlvdSBmaXJzdCBlbmFibGUgaXRzIGxvd2VyLWxldmVsCi1yZXNvdXJjZSBhbmQgcHJv
+bW90ZSBpdDoKK3Jlc291cmNlIGFuZCBwcm9tb3RlIGl0IG9uICthbGljZSsgYW5kICtib2IrOgog
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogZHJiZGFkbSB1cCByMAogZHJiZGFkbSBwcmlt
+YXJ5IHIwCkBAIC0xNjM1LDE1ICsxNjM1LDE1IEBAIHN0YWNrZWQgcmVzb3VyY2VzLiBUaGlzIGlz
+IGRvbmUgdXNpbmcgdGhlIGZvbGxvd2luZyBjb21tYW5kOgogIyBkcmJkYWRtIGNyZWF0ZS1tZCAt
+LXN0YWNrZWQgcjAtVQogLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogCi1UaGVuLCB5b3Ug
+bWF5IGVuYWJsZSB0aGUgc3RhY2tlZCByZXNvdXJjZToKK1RoZW4sIHlvdSBtYXkgZW5hYmxlIHRo
+ZSBzdGFja2VkIHJlc291cmNlIG9uICthbGljZSsgYW5kICtib2IrOgogCiAtLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0KICMgZHJiZGFkbSB1cCAtLXN0YWNrZWQgcjAtVQogIyBkcmJkYWRtIHBy
+aW1hcnkgLS1zdGFja2VkIHIwLVUKIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIAotQWZ0
+ZXIgdGhpcywgeW91IG1heSBicmluZyB1cCB0aGUgcmVzb3VyY2Ugb24gdGhlIGJhY2t1cCBub2Rl
+LCBlbmFibGluZwotdGhyZWUtbm9kZSByZXBsaWNhdGlvbjoKK0FmdGVyIHRoaXMsIHlvdSBtYXkg
+YnJpbmcgdXAgdGhlIHJlc291cmNlIG9uIHRoZSBiYWNrdXAgbm9kZSwgK2NoYXJsaWUrLAorZW5h
+YmxpbmcgdGhyZWUtbm9kZSByZXBsaWNhdGlvbjoKIAogLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLQogIyBkcmJkYWRtIGNyZWF0ZS1tZCByMC1VCg==
+
+--=_7324fb1e-4920-4de7-ae0e-d8955c0726f7--
