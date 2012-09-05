@@ -1,23 +1,28 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F1511017A2C
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Sep 2012 12:07:25 +0200 (CEST)
-Date: Wed, 5 Sep 2012 12:07:24 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Tejun Heo <tj@kernel.org>
-Message-ID: <20120905100724.GA27527@soda.linbit>
-References: <8439412.RChiDciQdh@fat-tyre>
-	<20120904224620.GB9092@dhcp-172-17-108-109.mtv.corp.google.com>
-	<3029802.oqG0dEY71l@fat-tyre>
-	<20120905084915.GF3195@dhcp-172-17-108-109.mtv.corp.google.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0ED3F1019A78
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Sep 2012 13:19:03 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra.linbit.com (Postfix) with ESMTP id ECC5F1B40FC
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Sep 2012 13:19:02 +0200 (CEST)
+Received: from zimbra.linbit.com ([127.0.0.1])
+	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id hagoHzOmMyUi for <drbd-dev@lists.linbit.com>;
+	Wed,  5 Sep 2012 13:19:02 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra.linbit.com (Postfix) with ESMTP id CE2C51B40FB
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Sep 2012 13:19:02 +0200 (CEST)
+Resent-Message-ID: <20120905111902.GA28527@soda.linbit>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20120905084915.GF3195@dhcp-172-17-108-109.mtv.corp.google.com>
-Cc: Jens Axboe <axboe@kernel.dk>, drbd-dev@lists.linbit.com,
-	Christoph Hellwig <hch@lst.de>,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org
-Subject: Re: [Drbd-dev] FLUSH/FUA documentation & code discrepancy
+Date: Wed, 5 Sep 2012 15:09:25 +0800
+Message-ID: <CAPgLHd_HTYgzRJWvM7wekcm+EiVj24WzrhcOXkj9c1k33z+ARg@mail.gmail.com>
+From: Wei Yongjun <weiyj.lk@gmail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=ISO-8859-1
+Cc: yongjun_wei@trendmicro.com.cn, linux-kernel@vger.kernel.org,
+	drbd-user@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: use list_move_tail instead of
+	list_del/list_add_tail
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -27,59 +32,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Sep 05, 2012 at 01:49:15AM -0700, Tejun Heo wrote:
-> On Wed, Sep 05, 2012 at 10:44:55AM +0200, Philipp Reisner wrote:
-> > > Currently, FLUSH/FUA doesn't enforce any ordering requirement.  File
-> > > systems are responsible for draining all writes which have to happen
-> > > before and not issue further writes which should come after.
-> > 
-> > Ok. That is a clear statement. So we will do it that way.
-> > 
-> > The "Currently" in you statement, suggests that there might be something
-> > more mighty in the future. Is that true?
-> 
-> Heh, I was more thinking about the past.  We used to have barrier
-> support with much stricter ordering.  I don't think we're gonna change
-> the ordering requirement in any foreseeable future.
+From: Wei Yongjun <yongjun_wei@trendmicro.com.cn>
 
-So reiterating the situation:
+Using list_move_tail() instead of list_del() + list_add_tail().
 
-If I'd submit a non-empty bio with FLUSH/FUA set,
-on a queue that does support flush, we get to
-	blk_queue_bio()
-		if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
-			spin_lock_irq(q->queue_lock);
-			where = ELEVATOR_INSERT_FLUSH;
-			goto get_rq;
+spatch with a semantic match is used to found this problem.
+(http://coccinelle.lip6.fr/)
 
-This bio ends up *not* being merged or reordered by the elevator.
-(and, by means of flush/fua not by the hardware, either, obviously)
+Signed-off-by: Wei Yongjun <yongjun_wei@trendmicro.com.cn>
+---
+ drivers/block/drbd/drbd_worker.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 6bce2cc..a196281 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -141,8 +141,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
+ 
+ 	spin_lock_irqsave(&mdev->req_lock, flags);
+ 	mdev->writ_cnt += e->size >> 9;
+-	list_del(&e->w.list); /* has been on active_ee or sync_ee */
+-	list_add_tail(&e->w.list, &mdev->done_ee);
++	list_move_tail(&e->w.list, &mdev->done_ee);
+ 
+ 	/* No hlist_del_init(&e->collision) here, we did not send the Ack yet,
+ 	 * neither did we wake possibly waiting conflicting requests.
 
-If the queue does not support it, flags are stripped away in
-generic_make_request_checks(), and we will not take that branch
-in blk_queue_bio(), but enter the normal elevator code path,
-attempting a merge, or doing ELEVATOR_INSERT_SORT.
-
-This same bio, happening to be submitted on a different IO stack,
-now *is* being reordered in the elevator already,
-even before being sent to the hardware.
-
-
-
-
-If we somehow can express at submit_bio time that we would like
-this bio, once it reaches the elevator, to not be reordered,
-regardless of whether or not FLUSH is supported respectively required
-by the IO stack in use, that would be better than now, IMO.
-In fact, for our particular use case it would even be good enough.
-
-
-Could we "just" strip these flags a "little bit later"?
-Or set some other indicator when stripping them?
-
-
-Thanks,
-
-	Lars
 
