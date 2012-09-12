@@ -1,27 +1,27 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C1777103B4C9
-	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2012 10:26:49 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C9878103B4C8
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2012 10:26:48 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 621551B4497
-	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2012 10:26:49 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id C33E21B4487
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2012 10:26:48 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 75Bq9nF8D+a8 for <drbd-dev@lists.linbit.com>;
-	Thu, 13 Sep 2012 10:26:49 +0200 (CEST)
+	with ESMTP id P+X9plkaWkYK for <drbd-dev@lists.linbit.com>;
+	Thu, 13 Sep 2012 10:26:48 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 1D40C1B4458
-	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2012 10:26:49 +0200 (CEST)
-Resent-Message-ID: <20120913082649.GG13815@soda.linbit>
+	by zimbra.linbit.com (Postfix) with ESMTP id AA6581B4458
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2012 10:26:48 +0200 (CEST)
+Resent-Message-ID: <20120913082648.GF13815@soda.linbit>
 Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com
 	[209.85.214.182]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 463EF1013803
-	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2012 02:24:23 +0200 (CEST)
-Received: by obbun3 with SMTP id un3so6210011obb.27
-	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2012 17:24:22 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B4B921013803
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2012 01:53:10 +0200 (CEST)
+Received: by obbun3 with SMTP id un3so6149523obb.27
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2012 16:53:08 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAOzFzEhfoCpGCy0n5cu60xz+tSbB26g1f2ztcD1DwZOY-6aTwQ@mail.gmail.com>
+In-Reply-To: <20120912232019.GW7677@google.com>
 References: <20120905100724.GA27527@soda.linbit>
 	<20120906212952.GP29092@google.com>
 	<20120907084221.GD7028@soda.linbit>
@@ -33,9 +33,8 @@ References: <20120905100724.GA27527@soda.linbit>
 	<20120912185824.GS7677@google.com>
 	<CAOzFzEjCf7ZPbheq-tfhts-E=Ep1kvn0muksaaTFqJ=cMm772w@mail.gmail.com>
 	<20120912232019.GW7677@google.com>
-	<CAOzFzEhfoCpGCy0n5cu60xz+tSbB26g1f2ztcD1DwZOY-6aTwQ@mail.gmail.com>
-Date: Thu, 13 Sep 2012 10:17:35 +1000
-Message-ID: <CAOzFzEhU6Y2hbRKU9qdFbtx_A-+wgs14E8Xza107G+z7uHzs_w@mail.gmail.com>
+Date: Thu, 13 Sep 2012 09:53:08 +1000
+Message-ID: <CAOzFzEhfoCpGCy0n5cu60xz+tSbB26g1f2ztcD1DwZOY-6aTwQ@mail.gmail.com>
 From: Joseph Glanville <joseph.glanville@orionvm.com.au>
 To: Tejun Heo <tj@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -54,81 +53,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 13 September 2012 09:53, Joseph Glanville
-<joseph.glanville@orionvm.com.au> wrote:
-> On 13 September 2012 09:20, Tejun Heo <tj@kernel.org> wrote:
->> On Thu, Sep 13, 2012 at 09:12:25AM +1000, Joseph Glanville wrote:
->>> diff --git a/block/blk-core.c b/block/blk-core.c
->>> index 4b4dbdf..68b5671 100644
->>> --- a/block/blk-core.c
->>> +++ b/block/blk-core.c
->>> @@ -1809,6 +1809,9 @@ EXPORT_SYMBOL(generic_make_request);
->>>   * uses that function to do most of the work. Both are fairly rough
->>>   * interfaces; @bio must be presetup and ready for I/O.
->>>   *
->>> + * Ordering of requests is not guaranteed, callers should drain the queue
->>> + * and issue a flush before submission of any dependent bios.
->>
->> I think using "requests" here is confusing given that struct request
->> means something else in the block layer.  Also, the caller doesn't
+On 13 September 2012 09:20, Tejun Heo <tj@kernel.org> wrote:
+> On Thu, Sep 13, 2012 at 09:12:25AM +1000, Joseph Glanville wrote:
+>> diff --git a/block/blk-core.c b/block/blk-core.c
+>> index 4b4dbdf..68b5671 100644
+>> --- a/block/blk-core.c
+>> +++ b/block/blk-core.c
+>> @@ -1809,6 +1809,9 @@ EXPORT_SYMBOL(generic_make_request);
+>>   * uses that function to do most of the work. Both are fairly rough
+>>   * interfaces; @bio must be presetup and ready for I/O.
+>>   *
+>> + * Ordering of requests is not guaranteed, callers should drain the queue
+>> + * and issue a flush before submission of any dependent bios.
 >
-> Agreed, my bad.
+> I think using "requests" here is confusing given that struct request
+> means something else in the block layer.  Also, the caller doesn't
+
+Agreed, my bad.
+
+> have to drain the whole queue but just the ones involved in the
+> dependency and flush doesn't really matter here although mentioning
+> that flush too doesn't have any ordering guarantee would be nice.
+
+Will do.
+Would you prefer it being added to the top of the file describing the
+semantics or the blkdev_issue_flush function itself?
+
+> Also, updating submit_bio() comment too would be nice - something
+> simple about lack of ordering and then reference to
+> generic_make_request().
+
+Will do.
+
 >
->> have to drain the whole queue but just the ones involved in the
->> dependency and flush doesn't really matter here although mentioning
->> that flush too doesn't have any ordering guarantee would be nice.
->
-> Will do.
-> Would you prefer it being added to the top of the file describing the
-> semantics or the blkdev_issue_flush function itself?
->
->> Also, updating submit_bio() comment too would be nice - something
->> simple about lack of ordering and then reference to
->> generic_make_request().
->
-> Will do.
->
->>
->> Thanks.
->>
->> --
->> tejun
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
->
->
+> Thanks.
 >
 > --
-> CTO | Orion Virtualisation Solutions | www.orionvm.com.au
-> Phone: 1300 56 99 52 | Mobile: 0428 754 846
+> tejun
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 4b4dbdf..b3559d8 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -1749,6 +1749,11 @@ end_io:
-  * bio happens to be merged with someone else, and may resubmit the bio to
-  * a lower device by calling into generic_make_request recursively, which
-  * means the bio should NOT be touched after the call to ->make_request_fn.
-+ *
-+ * Ordering is not guaranteed, callers of generic_make_request()
-+ * that require ordering should ensure dependencies are first drained
-+ * before submission of dependent bios.
-+ *
-  */
- void generic_make_request(struct bio *bio)
- {
-@@ -1808,6 +1813,7 @@ EXPORT_SYMBOL(generic_make_request);
-  * submit_bio() is very similar in purpose to generic_make_request(), and
-  * uses that function to do most of the work. Both are fairly rough
-  * interfaces; @bio must be presetup and ready for I/O.
-+ * Note: submit_bio() doesn't ensure ordering, see generic_make_request()
-  *
-  */
- void submit_bio(int rw, struct bio *bio)
+
 
 -- 
 CTO | Orion Virtualisation Solutions | www.orionvm.com.au
