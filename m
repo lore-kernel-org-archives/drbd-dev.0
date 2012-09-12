@@ -1,47 +1,33 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 91431103B4B5
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Sep 2012 10:47:10 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 8E30E1B43C5
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Sep 2012 10:47:10 +0200 (CEST)
-Received: from zimbra.linbit.com ([127.0.0.1])
-	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 4TtnO+MqWHOu for <drbd-dev@lists.linbit.com>;
-	Tue, 11 Sep 2012 10:47:10 +0200 (CEST)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 73ADF1B43BE
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Sep 2012 10:47:10 +0200 (CEST)
-Resent-Message-ID: <20120911084710.GL7028@soda.linbit>
+Return-Path: <htejun@gmail.com>
 Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
 	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6AE3E1017A2C
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Sep 2012 01:39:31 +0200 (CEST)
-Received: by pbbrp2 with SMTP id rp2so3659709pbb.27
-	for <drbd-dev@lists.linbit.com>; Mon, 10 Sep 2012 16:39:29 -0700 (PDT)
-Date: Mon, 10 Sep 2012 16:31:59 -0700
-From: Kent Overstreet <koverstreet@google.com>
-To: Tejun Heo <tj@kernel.org>
-Message-ID: <20120910233159.GE19739@google.com>
-References: <8439412.RChiDciQdh@fat-tyre>
-	<20120904224620.GB9092@dhcp-172-17-108-109.mtv.corp.google.com>
-	<3029802.oqG0dEY71l@fat-tyre>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 30DD21013809
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2012 20:58:31 +0200 (CEST)
+Received: by pbbrp2 with SMTP id rp2so3310352pbb.27
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2012 11:58:29 -0700 (PDT)
+Sender: Tejun Heo <htejun@gmail.com>
+Date: Wed, 12 Sep 2012 11:58:24 -0700
+From: Tejun Heo <tj@kernel.org>
+To: NeilBrown <neilb@suse.de>, Kent Overstreet <koverstreet@google.com>,
+	Jens Axboe <axboe@kernel.dk>, Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
+	Vivek Goyal <vgoyal@redhat.com>, drbd-dev@lists.linbit.com
+Message-ID: <20120912185824.GS7677@google.com>
+References: <3029802.oqG0dEY71l@fat-tyre>
 	<20120905084915.GF3195@dhcp-172-17-108-109.mtv.corp.google.com>
 	<20120905100724.GA27527@soda.linbit>
 	<20120906212952.GP29092@google.com>
 	<20120907084221.GD7028@soda.linbit>
 	<20120910225442.GE7677@google.com>
 	<20120910230654.GF7677@google.com>
+	<20120910233159.GE19739@google.com>
+	<20120911155820.74f1f918@notabene.brown>
+	<20120911082501.GH7028@soda.linbit>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120910230654.GF7677@google.com>
-Cc: Jens Axboe <axboe@kernel.dk>, NeilBrown <neilb@suse.de>,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Christoph Hellwig <hch@lst.de>, Vivek Goyal <vgoyal@redhat.com>,
-	drbd-dev@lists.linbit.com
+In-Reply-To: <20120911082501.GH7028@soda.linbit>
 Subject: Re: [Drbd-dev] FLUSH/FUA documentation & code discrepancy
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -52,51 +38,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-cc'ing Neil
+Hello,
 
-On Mon, Sep 10, 2012 at 04:06:54PM -0700, Tejun Heo wrote:
-> Hello, again.
+On Tue, Sep 11, 2012 at 10:25:01AM +0200, Lars Ellenberg wrote:
+> Or do we have a better place to document write ordering requirements?
 > 
-> cc'ing Kent and Vivek.  The original thread is at
+> "To enforce write-after-write dependencies, you *have* to drain the
+> queue (do we have a generic interface available for that?),
+> or at least wait for the completion of all the requests you
+> (potentially) depend upon, before even submitting the dependent request.
 > 
->   http://thread.gmane.org/gmane.linux.network.drbd.devel/2130
-> 
-> On Mon, Sep 10, 2012 at 03:54:42PM -0700, Tejun Heo wrote:
-> > > We can possibly work around that by introducing an additional submitter thread,
-> > > or at least our own list where we queue assembled bios until the lower
-> > > level device queue drains.
-> > > 
-> > > But we'd rather have the elevator see the FLUSH/FUA,
-> > > and treat them as at least a soft barrier/reorder boundary.
-> > > 
-> > > I may be wrong here, but all the necessary bits for this seem to be in
-> > > place already, if the information would even reach the elevator in one
-> > > way or other, and not be completely stripped away early.
-> > > 
-> > > What would you rather see, the elevator recognizing reorder boundaries?
-> > > Or additional higher level queueing and extra thread/work queue/whatever?
-> > > 
-> > > Both are fine with me, I'm just asking for an opinion.
-> > 
-> > First of all, using FLUSH/FUA for such purpose is an error-prone
-> > abuse.  You're trying to exploit an implementation detail which may
-> > change at any time.  I think what you want is to be able to specify
-> > REQ_SOFTBARRIER on bio submission, which shouldn't be too hard but I'm
-> > still lost why this is necessary.  Can you please explain it a bit
-> > more?
-> 
-> The problem with exposing REQ_SOFTBARRIER at bio submission is that it
-> would require block layer not to reorder bios while passing through
-> stacked adrivers until it reaches a rq-based driver.  I *suspect* this
-> has been true until now but Kent's pending patch to fix possible
-> deadlock issue breaks that.
+> Additionally, to avoid integrity issues due to volatile caches,
+> you need to use FLUSH/FUA as appropriate."
 
-Yeah, you might be right about that. I think Neil Brown would know
-better than I if this ordering was ever explicitly broken.
+I think it would be best to note the lack of any ordering guarantee in
+the comment of bio_submit()?  Any one interested in submitting a
+patch?
 
-But I don't think anything else is relying on that kind of ordering any
-more.
+Thanks.
 
->   http://thread.gmane.org/gmane.linux.kernel.bcache.devel/1017/focus=1356250
-> 
-> As for what the resolution should be, urgh... I don't know. :(
+-- 
+tejun
