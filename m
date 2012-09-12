@@ -1,22 +1,17 @@
 Return-Path: <htejun@gmail.com>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
-	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Received: from mail-pz0-f54.google.com (mail-pz0-f54.google.com
+	[209.85.210.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 30DD21013809
-	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2012 20:58:31 +0200 (CEST)
-Received: by pbbrp2 with SMTP id rp2so3310352pbb.27
-	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2012 11:58:29 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E20C11013803
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2012 01:20:25 +0200 (CEST)
+Received: by dadr6 with SMTP id r6so1556149dad.27
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2012 16:20:23 -0700 (PDT)
 Sender: Tejun Heo <htejun@gmail.com>
-Date: Wed, 12 Sep 2012 11:58:24 -0700
+Date: Wed, 12 Sep 2012 16:20:19 -0700
 From: Tejun Heo <tj@kernel.org>
-To: NeilBrown <neilb@suse.de>, Kent Overstreet <koverstreet@google.com>,
-	Jens Axboe <axboe@kernel.dk>, Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
-	Vivek Goyal <vgoyal@redhat.com>, drbd-dev@lists.linbit.com
-Message-ID: <20120912185824.GS7677@google.com>
-References: <3029802.oqG0dEY71l@fat-tyre>
-	<20120905084915.GF3195@dhcp-172-17-108-109.mtv.corp.google.com>
-	<20120905100724.GA27527@soda.linbit>
+To: Joseph Glanville <joseph.glanville@orionvm.com.au>
+Message-ID: <20120912232019.GW7677@google.com>
+References: <20120905100724.GA27527@soda.linbit>
 	<20120906212952.GP29092@google.com>
 	<20120907084221.GD7028@soda.linbit>
 	<20120910225442.GE7677@google.com>
@@ -24,10 +19,17 @@ References: <3029802.oqG0dEY71l@fat-tyre>
 	<20120910233159.GE19739@google.com>
 	<20120911155820.74f1f918@notabene.brown>
 	<20120911082501.GH7028@soda.linbit>
+	<20120912185824.GS7677@google.com>
+	<CAOzFzEjCf7ZPbheq-tfhts-E=Ep1kvn0muksaaTFqJ=cMm772w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20120911082501.GH7028@soda.linbit>
+In-Reply-To: <CAOzFzEjCf7ZPbheq-tfhts-E=Ep1kvn0muksaaTFqJ=cMm772w@mail.gmail.com>
+Cc: Jens Axboe <axboe@kernel.dk>, NeilBrown <neilb@suse.de>,
+	Kent Overstreet <koverstreet@google.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
+	Vivek Goyal <vgoyal@redhat.com>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] FLUSH/FUA documentation & code discrepancy
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
@@ -38,22 +40,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello,
+On Thu, Sep 13, 2012 at 09:12:25AM +1000, Joseph Glanville wrote:
+> diff --git a/block/blk-core.c b/block/blk-core.c
+> index 4b4dbdf..68b5671 100644
+> --- a/block/blk-core.c
+> +++ b/block/blk-core.c
+> @@ -1809,6 +1809,9 @@ EXPORT_SYMBOL(generic_make_request);
+>   * uses that function to do most of the work. Both are fairly rough
+>   * interfaces; @bio must be presetup and ready for I/O.
+>   *
+> + * Ordering of requests is not guaranteed, callers should drain the queue
+> + * and issue a flush before submission of any dependent bios.
 
-On Tue, Sep 11, 2012 at 10:25:01AM +0200, Lars Ellenberg wrote:
-> Or do we have a better place to document write ordering requirements?
-> 
-> "To enforce write-after-write dependencies, you *have* to drain the
-> queue (do we have a generic interface available for that?),
-> or at least wait for the completion of all the requests you
-> (potentially) depend upon, before even submitting the dependent request.
-> 
-> Additionally, to avoid integrity issues due to volatile caches,
-> you need to use FLUSH/FUA as appropriate."
-
-I think it would be best to note the lack of any ordering guarantee in
-the comment of bio_submit()?  Any one interested in submitting a
-patch?
+I think using "requests" here is confusing given that struct request
+means something else in the block layer.  Also, the caller doesn't
+have to drain the whole queue but just the ones involved in the
+dependency and flush doesn't really matter here although mentioning
+that flush too doesn't have any ordering guarantee would be nice.
+Also, updating submit_bio() comment too would be nice - something
+simple about lack of ordering and then reference to
+generic_make_request().
 
 Thanks.
 
