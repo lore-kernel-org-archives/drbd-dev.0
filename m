@@ -1,41 +1,38 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 417DD103B4B1
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Sep 2012 13:41:04 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2540C103B4DA
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Sep 2012 13:41:09 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 2D49F1B4206
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Sep 2012 13:41:04 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 1F31F1B4206
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Sep 2012 13:41:09 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id DxHC+sc5G-8u for <drbd-dev@lists.linbit.com>;
-	Tue, 25 Sep 2012 13:41:04 +0200 (CEST)
+	with ESMTP id J7xq2D9eOPtR for <drbd-dev@lists.linbit.com>;
+	Tue, 25 Sep 2012 13:41:09 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 0A9951B413D
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Sep 2012 13:41:04 +0200 (CEST)
-Resent-Message-ID: <20120925114103.GD8143@soda.linbit>
+	by zimbra.linbit.com (Postfix) with ESMTP id EA2FE1B413D
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Sep 2012 13:41:08 +0200 (CEST)
+Resent-Message-ID: <20120925114108.GE8143@soda.linbit>
 Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com
 	[209.85.160.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 779F01013804
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Sep 2012 00:35:40 +0200 (CEST)
-Received: by pbbrp8 with SMTP id rp8so4123107pbb.27
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Sep 2012 15:35:37 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id CA0021019A78
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Sep 2012 00:35:41 +0200 (CEST)
+Received: by pbbrp8 with SMTP id rp8so4123166pbb.27
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Sep 2012 15:35:40 -0700 (PDT)
 From: Kent Overstreet <koverstreet@google.com>
 To: linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
 	dm-devel@redhat.com
-Date: Mon, 24 Sep 2012 15:34:46 -0700
-Message-Id: <1348526106-17074-7-git-send-email-koverstreet@google.com>
+Date: Mon, 24 Sep 2012 15:34:48 -0700
+Message-Id: <1348526106-17074-9-git-send-email-koverstreet@google.com>
 In-Reply-To: <1348526106-17074-1-git-send-email-koverstreet@google.com>
 References: <1348526106-17074-1-git-send-email-koverstreet@google.com>
-Cc: axboe@kernel.dk, linux-s390@vger.kernel.org,
-	Chris Mason <chris.mason@fusionio.com>, neilb@suse.de,
-	Jiri Kosina <jkosina@suse.cz>, Kent Overstreet <koverstreet@google.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Alasdair Kergon <agk@redhat.com>, tj@kernel.org,
-	Steven Whitehouse <swhiteho@redhat.com>, vgoyal@redhat.com,
+Cc: axboe@kernel.dk, "Martin K. Petersen" <martin.petersen@oracle.com>,
+	neilb@suse.de, Kent Overstreet <koverstreet@google.com>,
+	tj@kernel.org, vgoyal@redhat.com,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [PATCH v3 06/26] block: Add bio_end_sector()
+Subject: [Drbd-dev] [PATCH v3 08/26] block: Change bio_split() to respect
+	the current value of bi_idx
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -45,324 +42,118 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Just a little convenience macro - main reason to add it now is preparing
-for immutable bio vecs, it'll reduce the size of the patch that puts
-bi_sector/bi_size/bi_idx into a struct bvec_iter.
+In the current code bio_split() won't be seeing partially completed bios
+so this doesn't change any behaviour, but this makes the code a bit
+clearer as to what bio_split() actually requires.
+
+The immediate purpose of the patch is removing unnecessary bi_idx
+references, but the end goal is to allow partial completed bios to be
+submitted, which along with immutable biovecs enables effecient bio
+splitting.
+
+Some of the callers were (double) checking that bios could be split, so
+update their checks too.
 
 Signed-off-by: Kent Overstreet <koverstreet@google.com>
 CC: Jens Axboe <axboe@kernel.dk>
 CC: Lars Ellenberg <drbd-dev@lists.linbit.com>
-CC: Jiri Kosina <jkosina@suse.cz>
-CC: Alasdair Kergon <agk@redhat.com>
-CC: dm-devel@redhat.com
 CC: Neil Brown <neilb@suse.de>
-CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
-CC: Heiko Carstens <heiko.carstens@de.ibm.com>
-CC: linux-s390@vger.kernel.org
-CC: Chris Mason <chris.mason@fusionio.com>
-CC: Steven Whitehouse <swhiteho@redhat.com>
-Acked-by: Steven Whitehouse <swhiteho@redhat.com>
+CC: Martin K. Petersen <martin.petersen@oracle.com>
 ---
- block/blk-core.c              |  2 +-
- block/cfq-iosched.c           |  7 ++-----
- block/deadline-iosched.c      |  2 +-
- drivers/block/drbd/drbd_req.c |  2 +-
- drivers/block/pktcdvd.c       |  6 +++---
- drivers/md/dm-stripe.c        |  2 +-
- drivers/md/dm-verity.c        |  2 +-
- drivers/md/faulty.c           |  6 ++----
- drivers/md/linear.c           |  3 +--
- drivers/md/raid1.c            |  4 ++--
- drivers/md/raid5.c            | 14 +++++++-------
- drivers/s390/block/dcssblk.c  |  3 +--
- fs/btrfs/extent_io.c          |  3 +--
- fs/gfs2/lops.c                |  2 +-
- include/linux/bio.h           |  1 +
- 15 files changed, 26 insertions(+), 33 deletions(-)
+ drivers/block/drbd/drbd_req.c | 6 +++---
+ drivers/md/raid0.c            | 3 +--
+ drivers/md/raid10.c           | 3 +--
+ fs/bio-integrity.c            | 4 ++--
+ fs/bio.c                      | 7 +++----
+ 5 files changed, 10 insertions(+), 13 deletions(-)
 
-diff --git a/block/blk-core.c b/block/blk-core.c
-index a8a1a9e..df9bb5f 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -1550,7 +1550,7 @@ static void handle_bad_sector(struct bio *bio)
- 	printk(KERN_INFO "%s: rw=%ld, want=%Lu, limit=%Lu\n",
- 			bdevname(bio->bi_bdev, b),
- 			bio->bi_rw,
--			(unsigned long long)bio->bi_sector + bio_sectors(bio),
-+			(unsigned long long)bio_end_sector(bio),
- 			(long long)(i_size_read(bio->bi_bdev->bd_inode) >> 9));
- 
- 	set_bit(BIO_EOF, &bio->bi_flags);
-diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
-index fb52df9..59b64b7 100644
---- a/block/cfq-iosched.c
-+++ b/block/cfq-iosched.c
-@@ -1883,11 +1883,8 @@ cfq_find_rq_fmerge(struct cfq_data *cfqd, struct bio *bio)
- 		return NULL;
- 
- 	cfqq = cic_to_cfqq(cic, cfq_bio_sync(bio));
--	if (cfqq) {
--		sector_t sector = bio->bi_sector + bio_sectors(bio);
--
--		return elv_rb_find(&cfqq->sort_list, sector);
--	}
-+	if (cfqq)
-+		return elv_rb_find(&cfqq->sort_list, bio_end_sector(bio));
- 
- 	return NULL;
- }
-diff --git a/block/deadline-iosched.c b/block/deadline-iosched.c
-index 599b12e..ef19d5f 100644
---- a/block/deadline-iosched.c
-+++ b/block/deadline-iosched.c
-@@ -132,7 +132,7 @@ deadline_merge(struct request_queue *q, struct request **req, struct bio *bio)
- 	 * check for front merge
- 	 */
- 	if (dd->front_merges) {
--		sector_t sector = bio->bi_sector + bio_sectors(bio);
-+		sector_t sector = bio_end_sector(bio);
- 
- 		__rq = elv_rb_find(&dd->sort_list[bio_data_dir(bio)], sector);
- 		if (__rq) {
 diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 01b2ac6..d90a1fd 100644
+index d90a1fd..4d09e74 100644
 --- a/drivers/block/drbd/drbd_req.c
 +++ b/drivers/block/drbd/drbd_req.c
-@@ -1144,7 +1144,7 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
- 	/* to make some things easier, force alignment of requests within the
- 	 * granularity of our hash tables */
- 	s_enr = bio->bi_sector >> HT_SHIFT;
--	e_enr = bio->bi_size ? (bio->bi_sector+(bio->bi_size>>9)-1) >> HT_SHIFT : s_enr;
-+	e_enr = (bio_end_sector(bio) - 1) >> HT_SHIFT;
+@@ -1155,11 +1155,11 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
  
- 	if (likely(s_enr == e_enr)) {
- 		do {
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index 2e7de7a..26938e8 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -901,7 +901,7 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
- 			pd->iosched.successive_reads += bio->bi_size >> 10;
- 		else {
- 			pd->iosched.successive_reads = 0;
--			pd->iosched.last_write = bio->bi_sector + bio_sectors(bio);
-+			pd->iosched.last_write = bio_end_sector(bio);
- 		}
- 		if (pd->iosched.successive_reads >= HI_SPEED_SWITCH) {
- 			if (pd->read_speed == pd->write_speed) {
-@@ -2454,7 +2454,7 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
- 	zone = ZONE(bio->bi_sector, pd);
- 	VPRINTK("pkt_make_request: start = %6llx stop = %6llx\n",
- 		(unsigned long long)bio->bi_sector,
--		(unsigned long long)(bio->bi_sector + bio_sectors(bio)));
-+		(unsigned long long)bio_end_sector(bio));
- 
- 	/* Check if we have to split the bio */
- 	{
-@@ -2462,7 +2462,7 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
- 		sector_t last_zone;
- 		int first_sectors;
- 
--		last_zone = ZONE(bio->bi_sector + bio_sectors(bio) - 1, pd);
-+		last_zone = ZONE(bio_end_sector(bio) - 1, pd);
- 		if (last_zone != zone) {
- 			BUG_ON(last_zone != zone + pd->settings.size);
- 			first_sectors = last_zone - bio->bi_sector;
-diff --git a/drivers/md/dm-stripe.c b/drivers/md/dm-stripe.c
-index a087bf2..ac1a8cd 100644
---- a/drivers/md/dm-stripe.c
-+++ b/drivers/md/dm-stripe.c
-@@ -257,7 +257,7 @@ static int stripe_map_discard(struct stripe_c *sc, struct bio *bio,
- 	sector_t begin, end;
- 
- 	stripe_map_range_sector(sc, bio->bi_sector, target_stripe, &begin);
--	stripe_map_range_sector(sc, bio->bi_sector + bio_sectors(bio),
-+	stripe_map_range_sector(sc, bio_end_sector(bio),
- 				target_stripe, &end);
- 	if (begin < end) {
- 		bio->bi_bdev = sc->stripe[target_stripe].dev->bdev;
-diff --git a/drivers/md/dm-verity.c b/drivers/md/dm-verity.c
-index 254d192..8f95664 100644
---- a/drivers/md/dm-verity.c
-+++ b/drivers/md/dm-verity.c
-@@ -477,7 +477,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio,
- 		return -EIO;
- 	}
- 
--	if ((bio->bi_sector + bio_sectors(bio)) >>
-+	if (bio_end_sector(bio) >>
- 	    (v->data_dev_block_bits - SECTOR_SHIFT) > v->data_blocks) {
- 		DMERR_LIMIT("io out of range");
- 		return -EIO;
-diff --git a/drivers/md/faulty.c b/drivers/md/faulty.c
-index 45135f6..4a5ca4b 100644
---- a/drivers/md/faulty.c
-+++ b/drivers/md/faulty.c
-@@ -185,8 +185,7 @@ static void make_request(struct mddev *mddev, struct bio *bio)
- 			return;
- 		}
- 
--		if (check_sector(conf, bio->bi_sector, bio->bi_sector+(bio->bi_size>>9),
--				 WRITE))
-+		if (check_sector(conf, bio->bi_sector, bio_end_sector(bio), WRITE))
- 			failit = 1;
- 		if (check_mode(conf, WritePersistent)) {
- 			add_sector(conf, bio->bi_sector, WritePersistent);
-@@ -196,8 +195,7 @@ static void make_request(struct mddev *mddev, struct bio *bio)
- 			failit = 1;
+ 	/* can this bio be split generically?
+ 	 * Maybe add our own split-arbitrary-bios function. */
+-	if (bio->bi_vcnt != 1 || bio->bi_idx != 0 || bio->bi_size > DRBD_MAX_BIO_SIZE) {
++	if (bio_segments(bio) != 1 || bio->bi_size > DRBD_MAX_BIO_SIZE) {
+ 		/* rather error out here than BUG in bio_split */
+ 		dev_err(DEV, "bio would need to, but cannot, be split: "
+-		    "(vcnt=%u,idx=%u,size=%u,sector=%llu)\n",
+-		    bio->bi_vcnt, bio->bi_idx, bio->bi_size,
++		    "(segments=%u,size=%u,sector=%llu)\n",
++		    bio_segments(bio), bio->bi_size,
+ 		    (unsigned long long)bio->bi_sector);
+ 		bio_endio(bio, -EINVAL);
  	} else {
- 		/* read request */
--		if (check_sector(conf, bio->bi_sector, bio->bi_sector + (bio->bi_size>>9),
--				 READ))
-+		if (check_sector(conf, bio->bi_sector, bio_end_sector(bio), READ))
- 			failit = 1;
- 		if (check_mode(conf, ReadTransient))
- 			failit = 1;
-diff --git a/drivers/md/linear.c b/drivers/md/linear.c
-index fa211d8..af391db 100644
---- a/drivers/md/linear.c
-+++ b/drivers/md/linear.c
-@@ -304,8 +304,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
- 		bio_io_error(bio);
- 		return;
- 	}
--	if (unlikely(bio->bi_sector + (bio->bi_size >> 9) >
--		     tmp_dev->end_sector)) {
-+	if (unlikely(bio_end_sector(bio) > tmp_dev->end_sector)) {
- 		/* This bio crosses a device boundary, so we have to
- 		 * split it.
- 		 */
-diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-index 611b5f7..32eab5b 100644
---- a/drivers/md/raid1.c
-+++ b/drivers/md/raid1.c
-@@ -1010,7 +1010,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
- 	md_write_start(mddev, bio); /* wait on superblock update early */
+diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
+index 89016cb..769b3cb 100644
+--- a/drivers/md/raid0.c
++++ b/drivers/md/raid0.c
+@@ -510,8 +510,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
+ 		sector_t sector = bio->bi_sector;
+ 		struct bio_pair *bp;
+ 		/* Sanity check -- queue functions should prevent this happening */
+-		if (bio->bi_vcnt != 1 ||
+-		    bio->bi_idx != 0)
++		if (bio_segments(bio) != 1)
+ 			goto bad_map;
+ 		/* This is a one page bio that upper layers
+ 		 * refuse to split for us, so we need to split it.
+diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
+index 9715aaf..bbd08f5 100644
+--- a/drivers/md/raid10.c
++++ b/drivers/md/raid10.c
+@@ -1081,8 +1081,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
+ 			 || conf->prev.near_copies < conf->prev.raid_disks))) {
+ 		struct bio_pair *bp;
+ 		/* Sanity check -- queue functions should prevent this happening */
+-		if (bio->bi_vcnt != 1 ||
+-		    bio->bi_idx != 0)
++		if (bio_segments(bio) != 1)
+ 			goto bad_map;
+ 		/* This is a one page bio that upper layers
+ 		 * refuse to split for us, so we need to split it.
+diff --git a/fs/bio-integrity.c b/fs/bio-integrity.c
+index 65b708d..f175814 100644
+--- a/fs/bio-integrity.c
++++ b/fs/bio-integrity.c
+@@ -659,8 +659,8 @@ void bio_integrity_split(struct bio *bio, struct bio_pair *bp, int sectors)
+ 	bp->bio1.bi_integrity = &bp->bip1;
+ 	bp->bio2.bi_integrity = &bp->bip2;
  
- 	if (bio_data_dir(bio) == WRITE &&
--	    bio->bi_sector + bio->bi_size/512 > mddev->suspend_lo &&
-+	    bio_end_sector(bio) > mddev->suspend_lo &&
- 	    bio->bi_sector < mddev->suspend_hi) {
- 		/* As the suspend_* range is controlled by
- 		 * userspace, we want an interruptible
-@@ -1021,7 +1021,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
- 			flush_signals(current);
- 			prepare_to_wait(&conf->wait_barrier,
- 					&w, TASK_INTERRUPTIBLE);
--			if (bio->bi_sector + bio->bi_size/512 <= mddev->suspend_lo ||
-+			if (bio_end_sector(bio) <= mddev->suspend_lo ||
- 			    bio->bi_sector >= mddev->suspend_hi)
- 				break;
- 			schedule();
-diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-index adda94d..45a632c 100644
---- a/drivers/md/raid5.c
-+++ b/drivers/md/raid5.c
-@@ -2377,11 +2377,11 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx, in
- 	} else
- 		bip = &sh->dev[dd_idx].toread;
- 	while (*bip && (*bip)->bi_sector < bi->bi_sector) {
--		if ((*bip)->bi_sector + ((*bip)->bi_size >> 9) > bi->bi_sector)
-+		if (bio_end_sector(*bip) > bi->bi_sector)
- 			goto overlap;
- 		bip = & (*bip)->bi_next;
- 	}
--	if (*bip && (*bip)->bi_sector < bi->bi_sector + ((bi->bi_size)>>9))
-+	if (*bip && (*bip)->bi_sector < bio_end_sector(bi))
- 		goto overlap;
+-	bp->iv1 = bip->bip_vec[0];
+-	bp->iv2 = bip->bip_vec[0];
++	bp->iv1 = bip->bip_vec[bip->bip_idx];
++	bp->iv2 = bip->bip_vec[bip->bip_idx];
  
- 	BUG_ON(*bip && bi->bi_next && (*bip) != bi->bi_next);
-@@ -2397,8 +2397,8 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx, in
- 		     sector < sh->dev[dd_idx].sector + STRIPE_SECTORS &&
- 			     bi && bi->bi_sector <= sector;
- 		     bi = r5_next_bio(bi, sh->dev[dd_idx].sector)) {
--			if (bi->bi_sector + (bi->bi_size>>9) >= sector)
--				sector = bi->bi_sector + (bi->bi_size>>9);
-+			if (bio_end_sector(bi) >= sector)
-+				sector = bio_end_sector(bi);
- 		}
- 		if (sector >= sh->dev[dd_idx].sector + STRIPE_SECTORS)
- 			set_bit(R5_OVERWRITE, &sh->dev[dd_idx].flags);
-@@ -3908,7 +3908,7 @@ static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
- 						    0,
- 						    &dd_idx, NULL);
+ 	bp->bip1.bip_vec = &bp->iv1;
+ 	bp->bip2.bip_vec = &bp->iv2;
+diff --git a/fs/bio.c b/fs/bio.c
+index 9a3935f..062ba8f 100644
+--- a/fs/bio.c
++++ b/fs/bio.c
+@@ -1616,8 +1616,7 @@ struct bio_pair *bio_split(struct bio *bi, int first_sectors)
+ 	trace_block_split(bdev_get_queue(bi->bi_bdev), bi,
+ 				bi->bi_sector + first_sectors);
  
--	end_sector = align_bi->bi_sector + (align_bi->bi_size >> 9);
-+	end_sector = bio_end_sector(align_bi);
- 	rcu_read_lock();
- 	rdev = rcu_dereference(conf->disks[dd_idx].replacement);
- 	if (!rdev || test_bit(Faulty, &rdev->flags) ||
-@@ -4090,7 +4090,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
- 		return;
+-	BUG_ON(bi->bi_vcnt != 1);
+-	BUG_ON(bi->bi_idx != 0);
++	BUG_ON(bio_segments(bi) != 1);
+ 	atomic_set(&bp->cnt, 3);
+ 	bp->error = 0;
+ 	bp->bio1 = *bi;
+@@ -1626,8 +1625,8 @@ struct bio_pair *bio_split(struct bio *bi, int first_sectors)
+ 	bp->bio2.bi_size -= first_sectors << 9;
+ 	bp->bio1.bi_size = first_sectors << 9;
  
- 	logical_sector = bi->bi_sector & ~((sector_t)STRIPE_SECTORS-1);
--	last_sector = bi->bi_sector + (bi->bi_size>>9);
-+	last_sector = bio_end_sector(bi);
- 	bi->bi_next = NULL;
- 	bi->bi_phys_segments = 1;	/* over-loaded to count active stripes */
+-	bp->bv1 = bi->bi_io_vec[0];
+-	bp->bv2 = bi->bi_io_vec[0];
++	bp->bv1 = *bio_iovec(bi);
++	bp->bv2 = *bio_iovec(bi);
  
-@@ -4553,7 +4553,7 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
- 	logical_sector = raid_bio->bi_sector & ~((sector_t)STRIPE_SECTORS-1);
- 	sector = raid5_compute_sector(conf, logical_sector,
- 				      0, &dd_idx, NULL);
--	last_sector = raid_bio->bi_sector + (raid_bio->bi_size>>9);
-+	last_sector = bio_end_sector(raid_bio);
- 
- 	for (; logical_sector < last_sector;
- 	     logical_sector += STRIPE_SECTORS,
-diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-index a5a55da..1d2826b 100644
---- a/drivers/s390/block/dcssblk.c
-+++ b/drivers/s390/block/dcssblk.c
-@@ -832,8 +832,7 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
- 	if ((bio->bi_sector & 7) != 0 || (bio->bi_size & 4095) != 0)
- 		/* Request is not page-aligned. */
- 		goto fail;
--	if (((bio->bi_size >> 9) + bio->bi_sector)
--			> get_capacity(bio->bi_bdev->bd_disk)) {
-+	if (bio_end_sector(bio) > get_capacity(bio->bi_bdev->bd_disk)) {
- 		/* Request beyond end of DCSS segment. */
- 		goto fail;
- 	}
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index 4c87847..e1122a6 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -2480,8 +2480,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
- 		if (old_compressed)
- 			contig = bio->bi_sector == sector;
- 		else
--			contig = bio->bi_sector + (bio->bi_size >> 9) ==
--				sector;
-+			contig = bio_end_sector(bio) == sector;
- 
- 		if (prev_bio_flags != bio_flags || !contig ||
- 		    merge_bio(tree, page, offset, page_size, bio, bio_flags) ||
-diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
-index 8ff95a2..4245a7e 100644
---- a/fs/gfs2/lops.c
-+++ b/fs/gfs2/lops.c
-@@ -300,7 +300,7 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno)
- 	u64 nblk;
- 
- 	if (bio) {
--		nblk = bio->bi_sector + bio_sectors(bio);
-+		nblk = bio_end_sector(bio);
- 		nblk >>= sdp->sd_fsb2bb_shift;
- 		if (blkno == nblk)
- 			return bio;
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 4e32be1..d985e90 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -67,6 +67,7 @@
- #define bio_offset(bio)		bio_iovec((bio))->bv_offset
- #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
- #define bio_sectors(bio)	((bio)->bi_size >> 9)
-+#define bio_end_sector(bio)	((bio)->bi_sector + bio_sectors(bio))
- 
- static inline unsigned int bio_cur_bytes(struct bio *bio)
- {
+ 	if (bio_is_rw(bi)) {
+ 		bp->bv2.bv_offset += first_sectors << 9;
 -- 
 1.7.12
 
