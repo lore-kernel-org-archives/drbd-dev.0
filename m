@@ -1,21 +1,40 @@
-Return-Path: <axboe@kernel.dk>
-Received: from casper.infradead.org (casper.infradead.org [85.118.1.10])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DE956100540F
-	for <drbd-dev@lists.linbit.com>; Wed,  3 Oct 2012 16:04:45 +0200 (CEST)
-Message-ID: <506C45D8.7000306@kernel.dk>
-Date: Wed, 03 Oct 2012 16:04:08 +0200
-From: Jens Axboe <axboe@kernel.dk>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E10131012A92
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Oct 2012 14:39:04 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra.linbit.com (Postfix) with ESMTP id B714B1B4369
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Oct 2012 14:39:04 +0200 (CEST)
+Received: from zimbra.linbit.com ([127.0.0.1])
+	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id sQ4+PARFP-sI for <drbd-dev@lists.linbit.com>;
+	Thu,  4 Oct 2012 14:39:04 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra.linbit.com (Postfix) with ESMTP id 95D241B4368
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Oct 2012 14:39:04 +0200 (CEST)
+Resent-Message-ID: <20121004123904.GL26479@soda.linbit>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D3E15103B4B5
+	for <drbd-dev@lists.linbit.com>; Tue,  2 Oct 2012 20:10:23 +0200 (CEST)
+Date: Tue, 2 Oct 2012 14:10:01 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+To: Kent Overstreet <koverstreet@google.com>
+Message-ID: <20121002181001.GB3283@redhat.com>
+References: <1348526106-17074-1-git-send-email-koverstreet@google.com>
+	<1348526106-17074-7-git-send-email-koverstreet@google.com>
 MIME-Version: 1.0
-To: Philipp Reisner <philipp.reisner@linbit.com>
-References: <8391701.3EY4hQfmFv@fat-tyre> <10403443.3yRLLBkj5b@fat-tyre>
-	<506C343E.60203@kernel.dk> <1646250.CkOtqoMF8x@fat-tyre>
-In-Reply-To: <1646250.CkOtqoMF8x@fat-tyre>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [GIT PULL] drbd-8.3 updates
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1348526106-17074-7-git-send-email-koverstreet@google.com>
+Cc: axboe@kernel.dk, linux-s390@vger.kernel.org,
+	Chris Mason <chris.mason@fusionio.com>, dm-devel@redhat.com,
+	Jiri Kosina <jkosina@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>,
+	linux-kernel@vger.kernel.org, tj@kernel.org, linux-bcache@vger.kernel.org,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Steven Whitehouse <swhiteho@redhat.com>, Alasdair Kergon <agk@redhat.com>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [dm-devel] [PATCH v3 06/26] block: Add
+	bio_end_sector()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -25,36 +44,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2012-10-03 15:49, Philipp Reisner wrote:
->> Thanks, one question before this is pulled in:
->>> Philipp Reisner (6):
->>>       drbd: Add a drbd directory to sysfs
->>>       drbd: expose the data generation identifiers via sysfs
->>
->> What are these? It's sitting in /sys/block/<dev>/drbd/, I don't see any
->> documentation or justification for that.
->>
->> Why isn't it off in debugfs or similar instead?
-> 
-> The long-time goal is to get rid of the /proc/drbd virtual file, and
-> present the information that was there in a more structured way in /sys.
-> 
-> This patch adds a very first step into that direction. Later we intend to
-> have here things like the connections state, device roles, statistics
-> counters there.
-> 
-> When coming up with the layout we used the sysfs presence of software raid 
-> as example.
+On Mon, Sep 24, 2012 at 03:34:46PM -0700, Kent Overstreet wrote:
 
-Software raid is different, though, in that it's a class/type of device.
-So for drbd, I'd still recommend you look outside of the regular
-/sys/block hierarchy for adding something like this.
+[..]
+> diff --git a/include/linux/bio.h b/include/linux/bio.h
+> index 4e32be1..d985e90 100644
+> --- a/include/linux/bio.h
+> +++ b/include/linux/bio.h
+> @@ -67,6 +67,7 @@
+>  #define bio_offset(bio)		bio_iovec((bio))->bv_offset
+>  #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
+>  #define bio_sectors(bio)	((bio)->bi_size >> 9)
+> +#define bio_end_sector(bio)	((bio)->bi_sector + bio_sectors(bio))
 
-> I have removed it from this pull-request, so that there is more time for
-> consideration before the next merge window.
+May be it is just me. But bio_end_sector() kind of sounds that it will
+calculate to the last sector of bio. So I thought of it more as
+bio_last_sector() and not the sector which is next to the last sector.
 
-Thanks, pulled.
+Will it make sense to introduce bio_last_sector() and use +1 everywhere.
+Or may be we need a better name. Can't think of one though.
 
--- 
-Jens Axboe
-
+Thanks
+Vivek
