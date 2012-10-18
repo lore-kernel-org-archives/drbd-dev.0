@@ -1,30 +1,28 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E28A3103B4B4
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Oct 2012 13:02:41 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A1142103B4CD
+	for <drbd-dev@lists.linbit.com>; Thu, 18 Oct 2012 13:06:45 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id CE04B1B40FB
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Oct 2012 13:02:41 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 96C501B40FB
+	for <drbd-dev@lists.linbit.com>; Thu, 18 Oct 2012 13:06:45 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id qzD8FLN7enFF for <drbd-dev@lists.linbit.com>;
-	Thu, 18 Oct 2012 13:02:41 +0200 (CEST)
+	with ESMTP id TSiOuD-xtz9b for <drbd-dev@lists.linbit.com>;
+	Thu, 18 Oct 2012 13:06:45 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id B0E801B40F5
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Oct 2012 13:02:41 +0200 (CEST)
-Resent-Message-ID: <20121018110241.GP9562@soda.linbit>
-Received: from mx.in-addr.de (gate.in-addr.de [212.8.193.158])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2EFB21019A78
-	for <drbd-dev@lists.linbit.com>; Thu, 11 Oct 2012 23:23:43 +0200 (CEST)
-Date: Thu, 11 Oct 2012 22:55:55 +0200
-From: Lars Marowsky-Bree <lmb@suse.com>
+	by zimbra.linbit.com (Postfix) with ESMTP id 814641B40F5
+	for <drbd-dev@lists.linbit.com>; Thu, 18 Oct 2012 13:06:45 +0200 (CEST)
+Date: Thu, 18 Oct 2012 13:06:45 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20121011205555.GT4662@suse.de>
+Message-ID: <20121018110645.GQ9562@soda.linbit>
+References: <20121011205555.GT4662@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-Subject: [Drbd-dev] MSG_NEW_PACKET flag?
+In-Reply-To: <20121011205555.GT4662@suse.de>
+Subject: Re: [Drbd-dev] MSG_NEW_PACKET flag?
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -34,16 +32,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-https://lkml.org/lkml/2012/6/29/204
+On Thu, Oct 11, 2012 at 10:55:55PM +0200, Lars Marowsky-Bree wrote:
+> https://lkml.org/lkml/2012/6/29/204
+> 
+> Could/would drbd benefit from this?
 
-Could/would drbd benefit from this?
+Sure.
+As Andreas writes in that thread,
 
+	The primary use case is fast Gigabit (10 or more) Ethernet connections
+	with jumbo frames and switches that support them.  There, frames will go
+	through unchanged and you can zero-copy receive all the time.
 
-Regards,
-    Lars
+If the data is misaligned in the socket buffers,
+we cannot effectively do zero copy receive.
 
 -- 
-Architect Storage/HA
-SUSE LINUX Products GmbH, GF: Jeff Hawn, Jennifer Guild, Felix Imendörffer, HRB 21284 (AG Nürnberg)
-"Experience is the name everyone gives to their mistakes." -- Oscar Wilde
+: Lars Ellenberg
+: LINBIT | Your Way to High Availability
+: DRBD/HA support and consulting http://www.linbit.com
 
+DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
