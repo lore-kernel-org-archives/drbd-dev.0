@@ -1,28 +1,26 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A1142103B4CD
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Oct 2012 13:06:45 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2432D1055F68
+	for <drbd-dev@lists.linbit.com>; Sat, 27 Oct 2012 11:50:04 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 96C501B40FB
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Oct 2012 13:06:45 +0200 (CEST)
+	by zimbra.linbit.com (Postfix) with ESMTP id 1A9321B436A
+	for <drbd-dev@lists.linbit.com>; Sat, 27 Oct 2012 11:50:04 +0200 (CEST)
 Received: from zimbra.linbit.com ([127.0.0.1])
 	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id TSiOuD-xtz9b for <drbd-dev@lists.linbit.com>;
-	Thu, 18 Oct 2012 13:06:45 +0200 (CEST)
+	with ESMTP id iyLklGrobLqL for <drbd-dev@lists.linbit.com>;
+	Sat, 27 Oct 2012 11:50:04 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 814641B40F5
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Oct 2012 13:06:45 +0200 (CEST)
-Date: Thu, 18 Oct 2012 13:06:45 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20121018110645.GQ9562@soda.linbit>
-References: <20121011205555.GT4662@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20121011205555.GT4662@suse.de>
-Subject: Re: [Drbd-dev] MSG_NEW_PACKET flag?
+	by zimbra.linbit.com (Postfix) with ESMTP id ECE331B4368
+	for <drbd-dev@lists.linbit.com>; Sat, 27 Oct 2012 11:50:03 +0200 (CEST)
+Resent-Message-ID: <20121027095003.GF16059@soda.linbit>
+From: Jing Wang <windsdaemon@gmail.com>
+To: Lars Ellenberg <drbd-dev@lists.linbit.com>,
+	drbd-user@lists.linbit.com
+Date: Thu, 25 Oct 2012 15:00:56 +0800
+Message-Id: <1351148456-11129-1-git-send-email-windsdaemon@gmail.com>
+Cc: Jing Wang <windsdaemon@gmail.com>
+Subject: [Drbd-dev] [PATCH 1/1] drbd: check return of kmalloc in
+	receive_uuids
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -32,24 +30,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Oct 11, 2012 at 10:55:55PM +0200, Lars Marowsky-Bree wrote:
-> https://lkml.org/lkml/2012/6/29/204
-> 
-> Could/would drbd benefit from this?
 
-Sure.
-As Andreas writes in that thread,
+Signed-off-by: Jing Wang <windsdaemon@gmail.com>
+---
+ drivers/block/drbd/drbd_receiver.c |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
 
-	The primary use case is fast Gigabit (10 or more) Ethernet connections
-	with jumbo frames and switches that support them.  There, frames will go
-	through unchanged and you can zero-copy receive all the time.
-
-If the data is misaligned in the socket buffers,
-we cannot effectively do zero copy receive.
-
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index c74ca2d..4227f38 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -3076,10 +3076,14 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
+ static int receive_uuids(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned int data_size)
+ {
+ 	struct p_uuids *p = &mdev->data.rbuf.uuids;
+-	u64 *p_uuid;
++	u64 *p_uuid = NULL;
+ 	int i, updated_uuids = 0;
+ 
+ 	p_uuid = kmalloc(sizeof(u64)*UI_EXTENDED_SIZE, GFP_NOIO);
++	if (!p_uuid) {
++		dev_err(DEV, "kmalloc of p_uuid failed\n");
++		return -ENOMEM;
++	}
+ 
+ 	for (i = UI_CURRENT; i < UI_EXTENDED_SIZE; i++)
+ 		p_uuid[i] = be64_to_cpu(p->uuid[i]);
 -- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+1.7.5.4
 
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
