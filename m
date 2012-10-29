@@ -1,19 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F2481013804
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Oct 2012 11:29:18 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C31F51055F53
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Oct 2012 15:48:30 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Jing Wang <windsdaemon@gmail.com>
-Date: Mon, 29 Oct 2012 11:26:27 +0100
-Message-ID: <5124709.NeBDm9xAYE@fat-tyre>
-In-Reply-To: <1351148456-11129-1-git-send-email-windsdaemon@gmail.com>
-References: <1351148456-11129-1-git-send-email-windsdaemon@gmail.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Mon, 29 Oct 2012 15:48:29 +0100
+Message-ID: <3728568.yDZLErye6B@fat-tyre>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="us-ascii"
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 1/1] drbd: check return of kmalloc in
-	receive_uuids
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [GIT PULL] 4 fixes for drbd
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -23,37 +20,44 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+Hi Jens,
 
-Thanks for pointint this out. I fixed your patch for the drbd-8.3
-context and applied it. See:
-http://git.drbd.org/gitweb.cgi?p=drbd-8.3.git;a=commit;h=371289b8b632e8b4e364563faa430ff3b6d7d1d9
+please consider to pull these fixes in. It is based on your
+for-3.7/drivers branch.
 
-best,
+Best regards,
  Phil
 
-> Signed-off-by: Jing Wang <windsdaemon@gmail.com>
-> ---
->  drivers/block/drbd/drbd_receiver.c |    6 +++++-
->  1 files changed, 5 insertions(+), 1 deletions(-)
-> 
-> diff --git a/drivers/block/drbd/drbd_receiver.c
-> b/drivers/block/drbd/drbd_receiver.c index c74ca2d..4227f38 100644
-> --- a/drivers/block/drbd/drbd_receiver.c
-> +++ b/drivers/block/drbd/drbd_receiver.c
-> @@ -3076,10 +3076,14 @@ static int receive_sizes(struct drbd_conf *mdev,
-> enum drbd_packets cmd, unsigned static int receive_uuids(struct drbd_conf
-> *mdev, enum drbd_packets cmd, unsigned int data_size) {
->  	struct p_uuids *p = &mdev->data.rbuf.uuids;
-> -	u64 *p_uuid;
-> +	u64 *p_uuid = NULL;
->  	int i, updated_uuids = 0;
-> 
->  	p_uuid = kmalloc(sizeof(u64)*UI_EXTENDED_SIZE, GFP_NOIO);
-> +	if (!p_uuid) {
-> +		dev_err(DEV, "kmalloc of p_uuid failed\n");
-> +		return -ENOMEM;
-> +	}
-> 
->  	for (i = UI_CURRENT; i < UI_EXTENDED_SIZE; i++)
->  		p_uuid[i] = be64_to_cpu(p->uuid[i]);
+
+The following changes since commit 34a73dd594699dc3834167297a74c43948bb6e41:
+
+  Revert "memstick: add support for legacy memorysticks" (2012-10-10 16:13:26 
+-0600)
+
+are available in the git repository at:
+
+  git://git.drbd.org/linux-drbd.git for-jens
+
+for you to fetch changes up to 731d4596a6f3ba41418a0b11018c453456c51d92:
+
+  drbd: check return of kmalloc in receive_uuids (2012-10-29 13:18:13 +0100)
+
+----------------------------------------------------------------
+Jing Wang (1):
+      drbd: check return of kmalloc in receive_uuids
+
+Lars Ellenberg (2):
+      drbd: fix regression: potential NULL pointer dereference
+      drbd: don't try to clear bits once the disk has failed
+
+Philipp Reisner (1):
+      drbd: Broadcast sync progress no more often than once per second
+
+ drivers/block/drbd/drbd_actlog.c   |   19 +++++++++++++------
+ drivers/block/drbd/drbd_int.h      |    6 ++++++
+ drivers/block/drbd/drbd_main.c     |    8 ++++++--
+ drivers/block/drbd/drbd_nl.c       |    5 +++++
+ drivers/block/drbd/drbd_receiver.c |    4 ++++
+ drivers/block/drbd/drbd_worker.c   |    4 ++++
+ 6 files changed, 38 insertions(+), 8 deletions(-)
+
