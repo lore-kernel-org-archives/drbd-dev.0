@@ -1,16 +1,21 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C31F51055F53
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Oct 2012 15:48:30 +0100 (CET)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 29 Oct 2012 15:48:29 +0100
-Message-ID: <3728568.yDZLErye6B@fat-tyre>
+Return-Path: <alessandro.bono@gmail.com>
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	(using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0388E103B4B5
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Oct 2012 22:16:52 +0100 (CET)
+Received: by mail-ee0-f54.google.com with SMTP id c50so3650130eek.27
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Oct 2012 14:16:52 -0700 (PDT)
+Message-ID: <508EEC80.3020902@gmail.com>
+Date: Mon, 29 Oct 2012 21:52:16 +0100
+From: Alessandro Bono <alessandro.bono@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [GIT PULL] 4 fixes for drbd
+To: drbd-dev@lists.linbit.com
+References: <k6e1m5$n09$1@ger.gmane.org> <20121029102233.GB18606@soda.linbit>
+In-Reply-To: <20121029102233.GB18606@soda.linbit>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Subject: Re: [Drbd-dev] fix %preun script in drbd-km.spec from 8.3 package
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -20,44 +25,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+On 10/29/2012 11:22 AM, Lars Ellenberg wrote:
+> On Fri, Oct 26, 2012 at 01:03:01PM +0000, Alessandro Bono wrote:
+>> Hi
+>>
+>> %preun script in drbd-km.spec try to unload drbd.ko if present without check kernel version running
+>> without this patch it's not possible to remove drbd-km package of old kernel
+> ... unless you first unload the current DRBD module as well,
+> or use rpm -e --noscript.
+>
+> Which in fact is intentional, to prevent people from "accidentally"
+> uninstall a module package while the provided module is still in use
+> (it may have been symlinked in place into some other kernel version
+>   by some weak-module magic, or explicitly).
+>
+> But yes, it may be annoying at times.
+>
+> So maybe
+> filename=$(modinfo -F filename drbd)
+> filename=$(readlink "$filename")
+> rpm -qf $filename
+> and check if that is in fact the current package?
+ok I cooked this patch
+tested removing drbd for old and in use kernel on centos 6
+please check readlink option, -e seems to me correct one but not sure
 
-please consider to pull these fixes in. It is based on your
-for-3.7/drivers branch.
+--- drbd-8.3.14/drbd-km.spec    2012-10-29 17:39:48.786446160 +0100
++++ drbd-8.3.14.my/drbd-km.spec 2012-10-29 21:50:20.470461556 +0100
+@@ -80,10 +80,16 @@
+  rm -rf %{buildroot}
+                                                                                                                                                                                                                                          
+  %preun %{krelver}
++filename=$(modinfo -F filename drbd)
++filename=$(readlink -e "$filename")
++drbdrpm=$(rpm -qf "$filename")
++arch=$(uname -i)
++if [ $drbdrpm = %{name}-%{krelver}-%{version}-%{release}.$arch ]; then
+  lsmod | grep drbd > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+      rmmod drbd
+  fi
++fi
+                                                                                                                                                                                                                                          
+  %post %{krelver}
+  # hack for distribution kernel packages,
 
-Best regards,
- Phil
 
 
-The following changes since commit 34a73dd594699dc3834167297a74c43948bb6e41:
+>> --- drbd-8.3.13/drbd-km.spec    2012-10-26 13:43:43.163366400 +0200
+>> +++ drbd-8.3.13.my/drbd-km.spec 2012-10-26 13:44:33.368384889 +0200
+>> @@ -80,10 +80,12 @@
+>>   rm -rf %{buildroot}
+>>
+>>   %preun %{krelver}
+>> +if [ 'uname -r' = %{kernelversion} ]; then
+>>   lsmod | grep drbd > /dev/null 2>&1
+>>   if [ $? -eq 0 ]; then
+>>       rmmod drbd
+>>   fi
+>> +fi
+>>
+>>   %post %{krelver}
+>>   # hack for distribution kernel packages,
 
-  Revert "memstick: add support for legacy memorysticks" (2012-10-10 16:13:26 
--0600)
 
-are available in the git repository at:
-
-  git://git.drbd.org/linux-drbd.git for-jens
-
-for you to fetch changes up to 731d4596a6f3ba41418a0b11018c453456c51d92:
-
-  drbd: check return of kmalloc in receive_uuids (2012-10-29 13:18:13 +0100)
-
-----------------------------------------------------------------
-Jing Wang (1):
-      drbd: check return of kmalloc in receive_uuids
-
-Lars Ellenberg (2):
-      drbd: fix regression: potential NULL pointer dereference
-      drbd: don't try to clear bits once the disk has failed
-
-Philipp Reisner (1):
-      drbd: Broadcast sync progress no more often than once per second
-
- drivers/block/drbd/drbd_actlog.c   |   19 +++++++++++++------
- drivers/block/drbd/drbd_int.h      |    6 ++++++
- drivers/block/drbd/drbd_main.c     |    8 ++++++--
- drivers/block/drbd/drbd_nl.c       |    5 +++++
- drivers/block/drbd/drbd_receiver.c |    4 ++++
- drivers/block/drbd/drbd_worker.c   |    4 ++++
- 6 files changed, 38 insertions(+), 8 deletions(-)
+-- 
+Cordiali Saluti
+Alessandro Bono
 
