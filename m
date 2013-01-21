@@ -1,24 +1,16 @@
-Return-Path: <pallair78@gmail.com>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com
-	[209.85.215.43]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 92D49101707A
-	for <drbd-dev@lists.linbit.com>; Wed, 16 Jan 2013 23:50:15 +0100 (CET)
-Received: by mail-la0-f43.google.com with SMTP id eg20so1980765lab.2
-	for <drbd-dev@lists.linbit.com>; Wed, 16 Jan 2013 14:50:14 -0800 (PST)
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 291801019A78
+	for <drbd-dev@lists.linbit.com>; Mon, 21 Jan 2013 23:11:07 +0100 (CET)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Mon, 21 Jan 2013 23:11:02 +0100
+Message-ID: <30887993.uQFo99UF9h@quad>
 MIME-Version: 1.0
-Sender: pallair78@gmail.com
-In-Reply-To: <20130116102621.GI18620@soda.linbit>
-References: <CALj=1wh+JA2m9nuhtS_+eyuvvK9GBaY+W2RYc71YPaxh1+PUhw@mail.gmail.com>
-	<CALj=1whe16wjWO=DFgqPRz=uwxKQTnSOVNq=FM8RymF1aALVow@mail.gmail.com>
-	<20130116102621.GI18620@soda.linbit>
-Date: Wed, 16 Jan 2013 23:50:14 +0100
-Message-ID: <CALj=1wiRE+WLjGm5PRT62ZxVRNGBbROSDMCfV1AAXBsfkud_vw@mail.gmail.com>
-From: Pallai Roland <dap@magex.hu>
-To: drbd-dev@lists.linbit.com
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] /usr/lib/drbd/crm-unfence-peer.sh: fencing rule leak?
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [GIT PULL] drbd regression fix
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -28,33 +20,84 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-2013/1/16 Lars Ellenberg <lars.ellenberg@linbit.com>:
-> But still, the race, or races, you describe
-> would still be possible in one form or an other.
->
-> The only sane way I see would be to add some logic to the resource agent
-> monitor section, and try to reliably detect a "healthy" replication (all
-> nodes "UpToDate"), then "race free" remove a possibly leaked constraint.
->
-> Unless cibadmin has a "compare exchange" mode, I don't see how you can
-> do this race free. Hm, okay, you could protect both "critical sections"
-> of crm-fence-peer and the resource agent monitor with flock, maybe.
+Hi Jens,
 
-I think there is no such fencing race if the fencing node does the
-unfencing too. In that case the fencing and unfencing requests may be
-queued in FIFO order in the cluster (optionally with some locking that
-you outlined), no leaked constraints.
+Here is a single fix I want to hand in for Linux-3.8.
 
-Extend drbd.conf's handlers to support primary side unfencing seems
-like easy. What's the problem with that?
+The following changes since commit d2ec180c23a5a1bfe34d8638b0342a47c00cf70f:
 
-> --
-> : Lars Ellenberg
-> : LINBIT | Your Way to High Availability
-> : DRBD/HA support and consulting http://www.linbit.com
->
-> DRBD=AE and LINBIT=AE are registered trademarks of LINBIT, Austria.
->
+  drbd: update Kconfig to match current dependencies (2012-12-06 13:08:29 +0100)
 
-(Lars, reply to drbd-user@ or personally me if this thread is too
-annoying on drbd-dev@, sorry.)
+are available in the git repository at:
+
+  git://git.drbd.org/linux-drbd for-jens
+
+for you to fetch changes up to 2681f7f6ce6c7416eb619d0fb19422bcc68bd9e1:
+
+  drbd: fix potential protocol error and resulting disconnect/reconnect (2013-01-21 22:58:36 +0100)
+
+----------------------------------------------------------------
+Lars Ellenberg (1):
+      drbd: fix potential protocol error and resulting disconnect/reconnect
+
+ drivers/block/drbd/drbd_req.c   |    2 +-
+ drivers/block/drbd/drbd_req.h   |    1 +
+ drivers/block/drbd/drbd_state.c |    7 +++++++
+ 3 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index f58a4a4..2b8303a 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -168,7 +168,7 @@ static void wake_all_senders(struct drbd_tconn *tconn) {
+ }
+ 
+ /* must hold resource->req_lock */
+-static void start_new_tl_epoch(struct drbd_tconn *tconn)
++void start_new_tl_epoch(struct drbd_tconn *tconn)
+ {
+ 	/* no point closing an epoch, if it is empty, anyways. */
+ 	if (tconn->current_tle_writes == 0)
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
+index 016de6b..c08d229 100644
+--- a/drivers/block/drbd/drbd_req.h
++++ b/drivers/block/drbd/drbd_req.h
+@@ -267,6 +267,7 @@ struct bio_and_error {
+ 	int error;
+ };
+ 
++extern void start_new_tl_epoch(struct drbd_tconn *tconn);
+ extern void drbd_req_destroy(struct kref *kref);
+ extern void _req_may_be_done(struct drbd_request *req,
+ 		struct bio_and_error *m);
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 53bf618..0fe220c 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -931,6 +931,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+ 	enum drbd_state_rv rv = SS_SUCCESS;
+ 	enum sanitize_state_warnings ssw;
+ 	struct after_state_chg_work *ascw;
++	bool did_remote, should_do_remote;
+ 
+ 	os = drbd_read_state(mdev);
+ 
+@@ -981,11 +982,17 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+ 	    (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))
+ 		atomic_inc(&mdev->local_cnt);
+ 
++	did_remote = drbd_should_do_remote(mdev->state);
+ 	mdev->state.i = ns.i;
++	should_do_remote = drbd_should_do_remote(mdev->state);
+ 	mdev->tconn->susp = ns.susp;
+ 	mdev->tconn->susp_nod = ns.susp_nod;
+ 	mdev->tconn->susp_fen = ns.susp_fen;
+ 
++	/* put replicated vs not-replicated requests in seperate epochs */
++	if (did_remote != should_do_remote)
++		start_new_tl_epoch(mdev->tconn);
++
+ 	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
+ 		drbd_print_uuids(mdev, "attached to UUIDs");
+ 
+
