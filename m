@@ -1,36 +1,17 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B19601017084
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Mar 2013 17:33:16 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id A89131B43F9
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Mar 2013 17:33:16 +0100 (CET)
-Received: from zimbra.linbit.com ([127.0.0.1])
-	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id tsu3esgZctnc for <drbd-dev@lists.linbit.com>;
-	Mon,  4 Mar 2013 17:33:16 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 8931A1B43F8
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Mar 2013 17:33:16 +0100 (CET)
-Resent-Message-ID: <20130304163316.GB2696@soda.linbit>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com
-	[209.85.220.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9066E1017A24
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Mar 2013 14:22:53 +0100 (CET)
-Received: by mail-pa0-f54.google.com with SMTP id fa10so3161389pad.27
-	for <drbd-dev@lists.linbit.com>; Mon, 04 Mar 2013 05:22:52 -0800 (PST)
-From: Akinobu Mita <akinobu.mita@gmail.com>
-To: linux-kernel@vger.kernel.org,
-	akpm@linux-foundation.org
-Date: Mon,  4 Mar 2013 21:58:16 +0900
-Message-Id: <1362401911-14074-9-git-send-email-akinobu.mita@gmail.com>
-In-Reply-To: <1362401911-14074-1-git-send-email-akinobu.mita@gmail.com>
-References: <1362401911-14074-1-git-send-email-akinobu.mita@gmail.com>
-Cc: Jens Axboe <axboe@kernel.dk>, Akinobu Mita <akinobu.mita@gmail.com>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH -v3 08/23] drbd: rename random32() to
-	prandom_u32()
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Alexey Khoroshilov <khoroshilov@ispras.ru>
+Date: Mon, 04 Mar 2013 21:31:09 +0100
+Message-ID: <9738633.yZ4agRkgQF@quad>
+In-Reply-To: <1362173982-26454-1-git-send-email-khoroshilov@ispras.ru>
+References: <1362173982-26454-1-git-send-email-khoroshilov@ispras.ru>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Cc: ldv-project@linuxtesting.org, linux-kernel@vger.kernel.org,
+	drbd-user@lists.linbit.com, Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH] drbd: add module_put() on error path in
+	drbd_proc_open()
 List-Id: Coordination of development <drbd-dev.lists.linbit.com>
 List-Unsubscribe: <http://lists.linbit.com/mailman/options/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=unsubscribe>
@@ -40,42 +21,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use more preferable function name which implies using a pseudo-random
-number generator.
+Hi Alexey,
 
-Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: drbd-dev@lists.linbit.com
-Cc: Jens Axboe <axboe@kernel.dk>
----
+Thanks a lot! I have put it into our tree.
+http://git.drbd.org/gitweb.cgi?p=drbd-8.4.git
 
-No change from v2
+I intend to get it into the 3.10 merge window.
 
- drivers/block/drbd/drbd_receiver.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+Best,
+ Phil
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index a9eccfc..83c5ae0 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -757,7 +757,8 @@ static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn, struct acc
- 	rcu_read_unlock();
- 
- 	timeo = connect_int * HZ;
--	timeo += (random32() & 1) ? timeo / 7 : -timeo / 7; /* 28.5% random jitter */
-+	/* 28.5% random jitter */
-+	timeo += (prandom_u32() & 1) ? timeo / 7 : -timeo / 7;
- 
- 	err = wait_for_completion_interruptible_timeout(&ad->door_bell, timeo);
- 	if (err <= 0)
-@@ -953,7 +954,7 @@ retry:
- 				conn_warn(tconn, "Error receiving initial packet\n");
- 				sock_release(s);
- randomize:
--				if (random32() & 1)
-+				if (prandom_u32() & 1)
- 					goto retry;
- 			}
- 		}
--- 
-1.8.1.2
-
+> If single_open() fails in drbd_proc_open(), module refcount is left
+> incremented. The patch adds module_put() on the error path.
+> 
+> Found by Linux Driver Verification project (linuxtesting.org).
+> 
+> Signed-off-by: Alexey Khoroshilov <khoroshilov@ispras.ru>
+> ---
+>  drivers/block/drbd/drbd_proc.c |   10 ++++++++--
+>  1 file changed, 8 insertions(+), 2 deletions(-)
+> 
+> diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+> index 56672a6..30fe0a5 100644
+> --- a/drivers/block/drbd/drbd_proc.c
+> +++ b/drivers/block/drbd/drbd_proc.c
+> @@ -313,8 +313,14 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
+> 
+>  static int drbd_proc_open(struct inode *inode, struct file *file)
+>  {
+> -	if (try_module_get(THIS_MODULE))
+> -		return single_open(file, drbd_seq_show, PDE(inode)->data);
+> +	int err;
+> +
+> +	if (try_module_get(THIS_MODULE)) {
+> +		err = single_open(file, drbd_seq_show, PDE(inode)->data);
+> +		if (err)
+> +			module_put(THIS_MODULE);
+> +		return err;
+> +	}
+>  	return -ENODEV;
+>  }
