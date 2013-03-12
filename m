@@ -2,25 +2,23 @@ Return-Path: <tvb@able.be>
 Received: from mail.able.be (gwb.able.be [194.78.97.254])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 55EB01055F5F
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Mar 2013 16:54:37 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8BBA71017081
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Mar 2013 11:27:23 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by gw-master.mechelen.vasco.com (Postfix) with ESMTP id 00ABC18015
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Mar 2013 16:54:37 +0100 (CET)
+	by gw-master.mechelen.vasco.com (Postfix) with ESMTP id F3166181DC
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Mar 2013 11:27:20 +0100 (CET)
 Received: from itsj.localnet (tvb.mechelen.vasco.com [10.32.64.113])
-	by gw-master.mechelen.vasco.com (Postfix) with ESMTP id D862D17F35
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Mar 2013 16:54:36 +0100 (CET)
+	by gw-master.mechelen.vasco.com (Postfix) with ESMTP id D1763181A7
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Mar 2013 11:27:20 +0100 (CET)
 From: Tijs Van Buggenhout <tvb@able.be>
 To: drbd-dev@lists.linbit.com
-Date: Thu, 07 Mar 2013 16:54:42 +0100
-Message-ID: <1452163.IjCXaMLILp@itsj>
-In-Reply-To: <20130307093137.GA21005@soda.linbit>
-References: <1963827.4HPAHhzfUk@itsj> <20130307093137.GA21005@soda.linbit>
+Date: Tue, 12 Mar 2013 11:27:28 +0100
+Message-ID: <9038753.EJLsLPPSYd@itsj>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="us-ascii"
-Subject: Re: [Drbd-dev] DRBD 8.4.3 : create-md possibly broken for fixed
-	sized (shared) meta devices
+Subject: [Drbd-dev] Only 63 characters maximum allowed for shared secret
+	(and other string values)
 Reply-To: Tijs Van Buggenhout <tvb@able.be>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -33,61 +31,89 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thursday 07 March 2013 10:31:37 Lars Ellenberg wrote:
-> On Wed, Mar 06, 2013 at 03:24:36PM +0100, Tijs Van Buggenhout wrote:
-> > Hi,
-> > 
-> > I recently installed drbd 8.4.3 packages and ran into problems when trying
-> > to create a drbd resource using fixed size drbd meta device ided by an
-> > index. Investigating further, it seems that when using a flexible meta
-> > disk, there is no problem whatsoever.
-> > I also used the same configuration file/set of commands on the previous
-> > version (8.4.2) for fixed size meta-disk, which worked without problems.
-> > 
-> > The following excerpt from the console log shows how I first create a drbd
-> > resource (drbd0) with flexible meta disk (/dev/lv/drbd-meta-84).
-> > Afterwards I undo the configuration, and try to do the same for fixed
-> > drbd meta disk, which fails (every time). Then I roll back to the
-> > previous version of drbd utils/module, and try the setup with fixed drbd
-> > meta disk again, which succeeds.
-> > 
-> > resource drbd0 {
-> > 
-> >         on master.domain.com {
-> >         
-> >                 device /dev/drbd0;
-> >                 disk /dev/lv/data;
-> >                 address 172.16.1.179:7788;
-> >                 meta-disk /dev/lv/drbd-meta-84 [0];
-> > 
-> > (master.domain.com):~# dd if=/dev/zero of=/dev/lv/drbd-meta-84
-> > bs=$[1024*1024] (master.domain.com):~# modprobe drbd
-> > (master.domain.com):~# cat /proc/drbd
-> > version: 8.4.3 (api:1/proto:86-101)
-> > GIT-hash: 89a294209144b68adb3ee85a73221f964d3ee515 build by root@build,
-> > 2013-03-05 15:10:01
-> > (master.domain.com):~# drbdsetup new-resource drbd0
-> > (master.domain.com):~# drbdsetup new-minor drbd0 /dev/drbd0 0
-> > (master.domain.com):~# drbdadm create-md drbd0 -vvvvvvvvvv
-> > (master.domain.com):~# drbdadm attach drbd0
-> > 0: Failure: (119) No valid meta-data signature found.
-> > 
-> >         ==> Use 'drbdadm create-md res' to initialize meta-data area. <==
-> 
-> D'oh.
-> That is embarrassing.
-> 
-> I wonder why the regression tests using "old style indexed fixed size
-> external meta data" have not been exercised.
-> 
-> http://git.drbd.org/gitweb.cgi?p=drbd-8.4.git;a=commitdiff;h=82cf5feada2e4d0
-> f536af5f6f377bd0f3fac1236
-> 
-> Thanks,
+Hi,
 
-Patch is working, thanks for the quick response/fix!
+In the online users-guide manual (and man 8 drbdsetup) I can read the 
+following for shared-secret keyword: "The shared secret used in peer 
+authentication. May be up to 64 characters."
 
-Is a new release of drbd 8.4 series to be expected in the near future?
+This seems to be inaccurate, as only 63 characters can be defined as valid 
+value for the keyword, otherwise an error is raised. 64 bytes is the buffer 
+size for the value of the keyword (drbd/linux/drbd.h:#define SHARED_SECRET_MAX 
+64) but it needs to be null terminated, hence one character is lost..
 
-Regards,
+(master.domain.be):~# drbdsetup connect drbd0 172.16.1.179 172.16.1.180 --
+protocol C --cram-hmac-alg sha1 --shared-secret 
+'012345678901234567890123456789012345678901234567890123456789012'
+(master.domain.be):~# drbdsetup disconnect 172.16.1.179 172.16.1.180
+(master.domain.be):~# drbdsetup connect drbd0 172.16.1.179 172.16.1.180 --
+protocol C --cram-hmac-alg sha1 --shared-secret 
+'0123456789012345678901234567890123456789012345678901234567890123'
+drbd0: Failure: (126) UnknownMandatoryTag
+additional info from kernel:
+invalid attribute value
+(master.domain.be):~# drbdsetup connect drbd0 172.16.1.179 172.16.1.180 --
+protocol C --cram-hmac-alg sha1 --shared-secret 
+'01234567890123456789012345678901234567890123456789012345678901234'
+drbd0: Failure: (126) UnknownMandatoryTag
+additional info from kernel:
+invalid attribute value
+
+A bit confusing though, as...
+
+struct net_conf is defined in drbd/linux/drbd_genl.h
+
+GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
+    __str_field_def(1,DRBD_GENLA_F_MANDATORY | DRBD_F_SENSITIVE,                                    
+                    shared_secret,SHARED_SECRET_MAX)
+
+but __str_field_def as defined in drbd/linux/genl_magic_struct.h reads :
+
+#define __str_field_def(attr_nr, attr_flag, name, maxlen) \
+        __str_field(attr_nr, attr_flag, name, maxlen)
+
+which would make one believe SHARED_SECRET_MAX is actually the maximum length 
+allowed for shared secret (SHARED_SECRET_MAX correspons with maxlen parameter 
+of __str_field_def macro).
+
+Also in the same file, __str_field macro is defined as:
+
+#define __str_field(attr_nr, attr_flag, name, maxlen) \
+        __array(attr_nr, attr_flag, name, NLA_NUL_STRING, char, maxlen, \
+                        nla_strlcpy, nla_put, false)
+
+where NLA_NUL_STRING is introduced as nla type for the field, meaning..
+
+user/libgenl.h: *    NLA_NUL_STRING       Maximum length of string (excluding 
+NUL)
+
+.. which again implies that SHARED_SECRET_MAX would be the maximum length.
+
+However in drbd/linux/genl_magic_struct.h the __array macro is defined as:
+
+#define __array(attr_nr, attr_flag, name, nla_type, _type, maxlen,      \
+                __get, __put, __is_signed)                              \
+        [attr_nr] = { .type = nla_type,                                 \
+                      .len = maxlen - (nla_type == NLA_NUL_STRING) },
+
+the (max) length for the value of the field is decreased to (maxlen - 1) when 
+nla_type equals NLA_NUL_STRING.
+
+Also..
+
+drbd/drbd_receiver.c:   char secret[SHARED_SECRET_MAX]; /* 64 byte */
+drbd/drbd_receiver.c:   key_len = strlen(nc->shared_secret);
+drbd/drbd_receiver.c:   memcpy(secret, nc->shared_secret, key_len);
+
+and 
+
+drbd/drbd_nl.c: ((char *)new_conf->shared_secret)[SHARED_SECRET_MAX-1] = 0;
+
+require shared_secret to be null terminated, and max 63 bytes in length... 
+Other fields like cram_hmac_alg, integrity_alg, verify_alg and csums_alg use 
+the same boundary.
+
+Did I misinterprete the manual? What is the intended behaviour?
+
+Best regards,
 Tijs
