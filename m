@@ -1,13 +1,14 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org
-Date: Tue, 19 Mar 2013 18:16:55 +0100
-Message-Id: <1363713419-17803-15-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 19 Mar 2013 18:16:56 +0100
+Message-Id: <1363713419-17803-16-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
 References: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Jens Axboe <axboe@kernel.dk>, lars.ellenberg@linbit.com,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 14/18] lru_cache: introduce lc_get_cumulative()
+Subject: [Drbd-dev] [PATCH 15/18] drbd: consolidate as many updates as
+	possible into one AL transaction
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,132 +22,183 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-New helper to be able to consolidate more updates
-into a single transaction.
-Without this, we can only grab a single refcount
-on an updated element while preparing a transaction.
-
-lc_get_cumulative - like lc_get; also finds to-be-changed elements
-  @lc: the lru cache to operate on
-  @enr: the label to look up
-
-  Unlike lc_get this also returns the element for @enr, if it is belonging to
-  a pending transaction, so the return values are like for lc_get(),
-  plus:
-
-  pointer to an element already on the "to_be_changed" list.
-	  In this case, the cache was already marked %LC_DIRTY.
-
-  Caller needs to make sure that the pending transaction is completed,
-  before proceeding to actually use this element.
+Depending on current IO depth, try to consolidate as many updates
+as possible into one activity log transaction.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- include/linux/lru_cache.h |    1 +
- lib/lru_cache.c           |   55 ++++++++++++++++++++++++++++++++++++---------
- 2 files changed, 46 insertions(+), 10 deletions(-)
+ drivers/block/drbd/drbd_actlog.c |   49 ++++++++++++++++++++++++++
+ drivers/block/drbd/drbd_int.h    |    2 ++
+ drivers/block/drbd/drbd_req.c    |   70 ++++++++++++++++++++++++++++++--------
+ 3 files changed, 107 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/lru_cache.h b/include/linux/lru_cache.h
-index 4019013..4626228 100644
---- a/include/linux/lru_cache.h
-+++ b/include/linux/lru_cache.h
-@@ -256,6 +256,7 @@ extern void lc_destroy(struct lru_cache *lc);
- extern void lc_set(struct lru_cache *lc, unsigned int enr, int index);
- extern void lc_del(struct lru_cache *lc, struct lc_element *element);
- 
-+extern struct lc_element *lc_get_cumulative(struct lru_cache *lc, unsigned int enr);
- extern struct lc_element *lc_try_get(struct lru_cache *lc, unsigned int enr);
- extern struct lc_element *lc_find(struct lru_cache *lc, unsigned int enr);
- extern struct lc_element *lc_get(struct lru_cache *lc, unsigned int enr);
-diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index d71d894..e8d5003 100644
---- a/lib/lru_cache.c
-+++ b/lib/lru_cache.c
-@@ -366,7 +366,13 @@ static int lc_unused_element_available(struct lru_cache *lc)
- 	return 0;
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index ff03f90..6afe173 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -359,6 +359,55 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
+ 		drbd_al_begin_io_commit(mdev, delegate);
  }
  
--static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, bool may_change)
-+/* used as internal flags to __lc_get */
-+enum {
-+	LC_GET_MAY_CHANGE = 1,
-+	LC_GET_MAY_USE_UNCOMMITTED = 2,
-+};
++int drbd_al_begin_io_nonblock(struct drbd_conf *mdev, struct drbd_interval *i)
++{
++	struct lru_cache *al = mdev->act_log;
++	/* for bios crossing activity log extent boundaries,
++	 * we may need to activate two extents in one go */
++	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
++	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
++	unsigned nr_al_extents;
++	unsigned available_update_slots;
++	unsigned enr;
 +
-+static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsigned int flags)
- {
- 	struct lc_element *e;
- 
-@@ -381,22 +387,31 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, bool
- 	 * this enr is currently being pulled in already,
- 	 * and will be available once the pending transaction
- 	 * has been committed. */
--	if (e && e->lc_new_number == e->lc_number) {
-+	if (e) {
-+		if (e->lc_new_number != e->lc_number) {
-+			/* It has been found above, but on the "to_be_changed"
-+			 * list, not yet committed.  Don't pull it in twice,
-+			 * wait for the transaction, then try again...
-+			 */
-+			if (!(flags & LC_GET_MAY_USE_UNCOMMITTED))
-+				RETURN(NULL);
-+			/* ... unless the caller is aware of the implications,
-+			 * probably preparing a cumulative transaction. */
-+			++e->refcnt;
-+			++lc->hits;
-+			RETURN(e);
++	D_ASSERT(first <= last);
++
++	nr_al_extents = 1 + last - first; /* worst case: all touched extends are cold. */
++	available_update_slots = min(al->nr_elements - al->used,
++				al->max_pending_changes - al->pending_changes);
++
++	/* We want all necessary updates for a given request within the same transaction
++	 * We could first check how many updates are *actually* needed,
++	 * and use that instead of the worst-case nr_al_extents */
++	if (available_update_slots < nr_al_extents)
++		return -EWOULDBLOCK;
++
++	/* Is resync active in this area? */
++	for (enr = first; enr <= last; enr++) {
++		struct lc_element *tmp;
++		tmp = lc_find(mdev->resync, enr/AL_EXT_PER_BM_SECT);
++		if (unlikely(tmp != NULL)) {
++			struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
++			if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
++				if (!test_and_set_bit(BME_PRIORITY, &bm_ext->flags));
++					return -EBUSY;
++				return -EWOULDBLOCK;
++			}
 +		}
-+		/* else: lc_new_number == lc_number; a real hit. */
- 		++lc->hits;
- 		if (e->refcnt++ == 0)
- 			lc->used++;
- 		list_move(&e->list, &lc->in_use); /* Not evictable... */
- 		RETURN(e);
- 	}
-+	/* e == NULL */
- 
- 	++lc->misses;
--	if (!may_change)
--		RETURN(NULL);
--
--	/* It has been found above, but on the "to_be_changed" list, not yet
--	 * committed.  Don't pull it in twice, wait for the transaction, then
--	 * try again */
--	if (e)
-+	if (!(flags & LC_GET_MAY_CHANGE))
- 		RETURN(NULL);
- 
- 	/* To avoid races with lc_try_lock(), first, mark us dirty
-@@ -478,7 +493,27 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, bool
-  */
- struct lc_element *lc_get(struct lru_cache *lc, unsigned int enr)
- {
--	return __lc_get(lc, enr, 1);
-+	return __lc_get(lc, enr, LC_GET_MAY_CHANGE);
++	}
++
++	/* Checkout the refcounts.
++	 * Given that we checked for available elements and update slots above,
++	 * this has to be successful. */
++	for (enr = first; enr <= last; enr++) {
++		struct lc_element *al_ext;
++		al_ext = lc_get_cumulative(mdev->act_log, enr);
++		if (!al_ext)
++			dev_info(DEV, "LOGIC BUG for enr=%u\n", enr);
++	}
++	return 0;
 +}
 +
-+/**
-+ * lc_get_cumulative - like lc_get; also finds to-be-changed elements
-+ * @lc: the lru cache to operate on
-+ * @enr: the label to look up
-+ *
-+ * Unlike lc_get this also returns the element for @enr, if it is belonging to
-+ * a pending transaction, so the return values are like for lc_get(),
-+ * plus:
-+ *
-+ * pointer to an element already on the "to_be_changed" list.
-+ * 	In this case, the cache was already marked %LC_DIRTY.
-+ *
-+ * Caller needs to make sure that the pending transaction is completed,
-+ * before proceeding to actually use this element.
-+ */
-+struct lc_element *lc_get_cumulative(struct lru_cache *lc, unsigned int enr)
-+{
-+	return __lc_get(lc, enr, LC_GET_MAY_CHANGE|LC_GET_MAY_USE_UNCOMMITTED);
+ void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i)
+ {
+ 	/* for bios crossing activity log extent boundaries,
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index b7b52dd..f943aac 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1611,6 +1611,8 @@ extern const char *drbd_conn_str(enum drbd_conns s);
+ extern const char *drbd_role_str(enum drbd_role s);
+ 
+ /* drbd_actlog.c */
++extern int drbd_al_begin_io_nonblock(struct drbd_conf *mdev, struct drbd_interval *i);
++extern void drbd_al_begin_io_commit(struct drbd_conf *mdev, bool delegate);
+ extern bool drbd_al_begin_io_fastpath(struct drbd_conf *mdev, struct drbd_interval *i);
+ extern void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool delegate);
+ extern void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i);
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 43bc1d0..b923d41 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1164,32 +1164,74 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long
+ 	drbd_send_and_submit(mdev, req);
  }
  
- /**
+-void __drbd_make_request_from_worker(struct drbd_conf *mdev, struct drbd_request *req)
++static void submit_fast_path(struct drbd_conf *mdev, struct list_head *incoming)
+ {
+-	const int rw = bio_rw(req->master_bio);
++	struct drbd_request *req, *tmp;
++	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
++		const int rw = bio_data_dir(req->master_bio);
+ 
+-	if (rw == WRITE && req->private_bio && req->i.size
+-	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
+-		drbd_al_begin_io(mdev, &req->i, false);
+-		req->rq_state |= RQ_IN_ACT_LOG;
++		if (rw == WRITE /* rw != WRITE should not even end up here! */
++		&& req->private_bio && req->i.size
++		&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
++			if (!drbd_al_begin_io_fastpath(mdev, &req->i))
++				continue;
++
++			req->rq_state |= RQ_IN_ACT_LOG;
++		}
++
++		list_del_init(&req->tl_requests);
++		drbd_send_and_submit(mdev, req);
+ 	}
+-	drbd_send_and_submit(mdev, req);
+ }
+ 
++static bool prepare_al_transaction_nonblock(struct drbd_conf *mdev,
++					    struct list_head *incoming,
++					    struct list_head *pending)
++{
++	struct drbd_request *req, *tmp;
++	int wake = 0;
++	int err;
++
++	spin_lock_irq(&mdev->al_lock);
++	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
++		err = drbd_al_begin_io_nonblock(mdev, &req->i);
++		if (err == -EBUSY)
++			wake = 1;
++		if (err)
++			continue;
++		req->rq_state |= RQ_IN_ACT_LOG;
++		list_move_tail(&req->tl_requests, pending);
++	}
++	spin_unlock_irq(&mdev->al_lock);
++	if (wake)
++		wake_up(&mdev->al_wait);
++
++	return !list_empty(pending);
++}
+ 
+ void do_submit(struct work_struct *ws)
+ {
+ 	struct drbd_conf *mdev = container_of(ws, struct drbd_conf, submit.worker);
+-	LIST_HEAD(writes);
++	LIST_HEAD(incoming);
++	LIST_HEAD(pending);
+ 	struct drbd_request *req, *tmp;
+ 
+-	spin_lock(&mdev->submit.lock);
+-	list_splice_init(&mdev->submit.writes, &writes);
+-	spin_unlock(&mdev->submit.lock);
++	for (;;) {
++		spin_lock(&mdev->submit.lock);
++		list_splice_tail_init(&mdev->submit.writes, &incoming);
++		spin_unlock(&mdev->submit.lock);
+ 
+-	list_for_each_entry_safe(req, tmp, &writes, tl_requests) {
+-		list_del_init(&req->tl_requests);
+-		__drbd_make_request_from_worker(mdev, req);
++		submit_fast_path(mdev, &incoming);
++		if (list_empty(&incoming))
++			break;
++
++		wait_event(mdev->al_wait, prepare_al_transaction_nonblock(mdev, &incoming, &pending));
++		drbd_al_begin_io_commit(mdev, false);
++
++		list_for_each_entry_safe(req, tmp, &pending, tl_requests) {
++			list_del_init(&req->tl_requests);
++			drbd_send_and_submit(mdev, req);
++		}
+ 	}
+ }
+ 
 -- 
 1.7.9.5
 
