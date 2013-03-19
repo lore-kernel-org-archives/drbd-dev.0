@@ -1,14 +1,14 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org
-Date: Tue, 19 Mar 2013 18:16:53 +0100
-Message-Id: <1363713419-17803-13-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 19 Mar 2013 18:16:54 +0100
+Message-Id: <1363713419-17803-14-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
 References: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Jens Axboe <axboe@kernel.dk>, lars.ellenberg@linbit.com,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 12/18] drbd: split out some helper functions to
-	drbd_al_begin_io
+Subject: [Drbd-dev] [PATCH 13/18] drbd: queue writes on submitter thread,
+	unless they pass the activity log fastpath
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,103 +22,53 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-To make the code easier to follow,
-use an explicit find_active_resync_extent(),
-and add a "nonblock" parameter to _al_get().
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_actlog.c |   49 ++++++++++++++++++++++----------------
- 1 file changed, 28 insertions(+), 21 deletions(-)
+ drivers/block/drbd/drbd_req.c |   20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index e4f1231..ff03f90 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -222,25 +222,37 @@ int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
- 	return err;
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 4af709e..43bc1d0 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1020,6 +1020,14 @@ drbd_submit_req_private_bio(struct drbd_request *req)
+ 		bio_endio(bio, -EIO);
  }
  
--static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
-+static struct bm_extent *find_active_resync_extent(struct drbd_conf *mdev, unsigned int enr)
- {
--	struct lc_element *al_ext;
- 	struct lc_element *tmp;
--	int wake;
--
--	spin_lock_irq(&mdev->al_lock);
- 	tmp = lc_find(mdev->resync, enr/AL_EXT_PER_BM_SECT);
- 	if (unlikely(tmp != NULL)) {
- 		struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
--		if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
--			wake = !test_and_set_bit(BME_PRIORITY, &bm_ext->flags);
--			spin_unlock_irq(&mdev->al_lock);
--			if (wake)
--				wake_up(&mdev->al_wait);
--			return NULL;
--		}
-+		if (test_bit(BME_NO_WRITES, &bm_ext->flags))
-+			return bm_ext;
- 	}
--	al_ext = lc_get(mdev->act_log, enr);
-+	return NULL;
++static void drbd_queue_write(struct drbd_conf *mdev, struct drbd_request *req)
++{
++	spin_lock(&mdev->submit.lock);
++	list_add_tail(&req->tl_requests, &mdev->submit.writes);
++	spin_unlock(&mdev->submit.lock);
++	queue_work(mdev->submit.wq, &mdev->submit.worker);
 +}
 +
-+static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr, bool nonblock)
-+{
-+	struct lc_element *al_ext;
-+	struct bm_extent *bm_ext;
-+	int wake;
-+
-+	spin_lock_irq(&mdev->al_lock);
-+	bm_ext = find_active_resync_extent(mdev, enr);
-+	if (bm_ext) {
-+		wake = !test_and_set_bit(BME_PRIORITY, &bm_ext->flags);
-+		spin_unlock_irq(&mdev->al_lock);
-+		if (wake)
-+			wake_up(&mdev->al_wait);
-+		return NULL;
-+	}
-+	if (nonblock)
-+		al_ext = lc_try_get(mdev->act_log, enr);
-+	else
-+		al_ext = lc_get(mdev->act_log, enr);
- 	spin_unlock_irq(&mdev->al_lock);
- 	return al_ext;
- }
-@@ -251,7 +263,6 @@ bool drbd_al_begin_io_fastpath(struct drbd_conf *mdev, struct drbd_interval *i)
- 	 * we may need to activate two extents in one go */
- 	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
- 	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
--	bool fastpath_ok = true;
- 
- 	D_ASSERT((unsigned)(last - first) <= 1);
- 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
-@@ -260,12 +271,7 @@ bool drbd_al_begin_io_fastpath(struct drbd_conf *mdev, struct drbd_interval *i)
- 	if (first != last)
- 		return false;
- 
--	spin_lock_irq(&mdev->al_lock);
--	fastpath_ok =
--		lc_find(mdev->resync, first/AL_EXT_PER_BM_SECT) == NULL &&
--		lc_try_get(mdev->act_log, first) != NULL;
--	spin_unlock_irq(&mdev->al_lock);
--	return fastpath_ok;
-+	return _al_get(mdev, first, true);
- }
- 
- bool drbd_al_begin_io_prepare(struct drbd_conf *mdev, struct drbd_interval *i)
-@@ -282,7 +288,8 @@ bool drbd_al_begin_io_prepare(struct drbd_conf *mdev, struct drbd_interval *i)
- 
- 	for (enr = first; enr <= last; enr++) {
- 		struct lc_element *al_ext;
--		wait_event(mdev->al_wait, (al_ext = _al_get(mdev, enr)) != NULL);
-+		wait_event(mdev->al_wait,
-+				(al_ext = _al_get(mdev, enr, false)) != NULL);
- 		if (al_ext->lc_number != enr)
- 			need_transaction = true;
+ /* returns the new drbd_request pointer, if the caller is expected to
+  * drbd_send_and_submit() it (to save latency), or NULL if we queued the
+  * request on the submitter thread.
+@@ -1048,17 +1056,13 @@ drbd_request_prepare(struct drbd_conf *mdev, struct bio *bio, unsigned long star
+ 		req->private_bio = NULL;
  	}
+ 
+-	/* For WRITES going to the local disk, grab a reference on the target
+-	 * extent.  This waits for any resync activity in the corresponding
+-	 * resync extent to finish, and, if necessary, pulls in the target
+-	 * extent into the activity log, which involves further disk io because
+-	 * of transactional on-disk meta data updates.
+-	 * Empty flushes don't need to go into the activity log, they can only
+-	 * flush data for pending writes which are already in there. */
+ 	if (rw == WRITE && req->private_bio && req->i.size
+ 	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
++		if (!drbd_al_begin_io_fastpath(mdev, &req->i)) {
++			drbd_queue_write(mdev, req);
++			return NULL;
++		}
+ 		req->rq_state |= RQ_IN_ACT_LOG;
+-		drbd_al_begin_io(mdev, &req->i, true);
+ 	}
+ 
+ 	return req;
 -- 
 1.7.9.5
 
