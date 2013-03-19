@@ -1,14 +1,14 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org
-Date: Tue, 19 Mar 2013 18:16:51 +0100
-Message-Id: <1363713419-17803-11-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 19 Mar 2013 18:16:52 +0100
+Message-Id: <1363713419-17803-12-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
 References: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Jens Axboe <axboe@kernel.dk>, lars.ellenberg@linbit.com,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 10/18] drbd: prepare to queue write requests on a
-	submit worker
+Subject: [Drbd-dev] [PATCH 11/18] drbd: split drbd_al_begin_io into fastpath,
+	prepare, and commit
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,159 +25,183 @@ From: Lars Ellenberg <lars.ellenberg@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |   13 +++++++++++++
- drivers/block/drbd/drbd_main.c |   25 ++++++++++++++++++++++++-
- drivers/block/drbd/drbd_nl.c   |    1 +
- drivers/block/drbd/drbd_req.c  |   29 +++++++++++++++++++++++++++++
- 4 files changed, 67 insertions(+), 1 deletion(-)
+ drivers/block/drbd/drbd_actlog.c |  104 ++++++++++++++++++++++++++------------
+ drivers/block/drbd/drbd_int.h    |    1 +
+ 2 files changed, 72 insertions(+), 33 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index 1d7244d..e4f1231 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -104,7 +104,6 @@ struct update_al_work {
+ 	int err;
+ };
+ 
+-static int al_write_transaction(struct drbd_conf *mdev, bool delegate);
+ 
+ void *drbd_md_get_buffer(struct drbd_conf *mdev)
+ {
+@@ -246,30 +245,37 @@ static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
+ 	return al_ext;
+ }
+ 
+-/*
+- * @delegate:   delegate activity log I/O to the worker thread
+- */
+-void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool delegate)
++bool drbd_al_begin_io_fastpath(struct drbd_conf *mdev, struct drbd_interval *i)
+ {
+ 	/* for bios crossing activity log extent boundaries,
+ 	 * we may need to activate two extents in one go */
+ 	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
+ 	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
+-	unsigned enr;
+-	bool need_transaction = false;
+-	bool locked = false;
++	bool fastpath_ok = true;
+ 
+-	/* When called through generic_make_request(), we must delegate
+-	 * activity log I/O to the worker thread: a further request
+-	 * submitted via generic_make_request() within the same task
+-	 * would be queued on current->bio_list, and would only start
+-	 * after this function returns (see generic_make_request()).
+-	 *
+-	 * However, if we *are* the worker, we must not delegate to ourselves.
+-	 */
++	D_ASSERT((unsigned)(last - first) <= 1);
++	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
++
++	/* FIXME figure out a fast path for bios crossing AL extent boundaries */
++	if (first != last)
++		return false;
++
++	spin_lock_irq(&mdev->al_lock);
++	fastpath_ok =
++		lc_find(mdev->resync, first/AL_EXT_PER_BM_SECT) == NULL &&
++		lc_try_get(mdev->act_log, first) != NULL;
++	spin_unlock_irq(&mdev->al_lock);
++	return fastpath_ok;
++}
+ 
+-	if (delegate)
+-		BUG_ON(current == mdev->tconn->worker.task);
++bool drbd_al_begin_io_prepare(struct drbd_conf *mdev, struct drbd_interval *i)
++{
++	/* for bios crossing activity log extent boundaries,
++	 * we may need to activate two extents in one go */
++	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
++	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
++	unsigned enr;
++	bool need_transaction = false;
+ 
+ 	D_ASSERT(first <= last);
+ 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
+@@ -280,11 +286,28 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
+ 		if (al_ext->lc_number != enr)
+ 			need_transaction = true;
+ 	}
++	return need_transaction;
++}
+ 
+-	/* If *this* request was to an already active extent,
+-	 * we're done, even if there are pending changes. */
+-	if (!need_transaction)
+-		return;
++static int al_write_transaction(struct drbd_conf *mdev, bool delegate);
++
++/* When called through generic_make_request(), we must delegate
++ * activity log I/O to the worker thread: a further request
++ * submitted via generic_make_request() within the same task
++ * would be queued on current->bio_list, and would only start
++ * after this function returns (see generic_make_request()).
++ *
++ * However, if we *are* the worker, we must not delegate to ourselves.
++ */
++
++/*
++ * @delegate:   delegate activity log I/O to the worker thread
++ */
++void drbd_al_begin_io_commit(struct drbd_conf *mdev, bool delegate)
++{
++	bool locked = false;
++
++	BUG_ON(delegate && current == mdev->tconn->worker.task);
+ 
+ 	/* Serialize multiple transactions.
+ 	 * This uses test_and_set_bit, memory barrier is implicit.
+@@ -303,11 +326,8 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
+ 			write_al_updates = rcu_dereference(mdev->ldev->disk_conf)->al_updates;
+ 			rcu_read_unlock();
+ 
+-			if (write_al_updates) {
++			if (write_al_updates)
+ 				al_write_transaction(mdev, delegate);
+-				mdev->al_writ_cnt++;
+-			}
+-
+ 			spin_lock_irq(&mdev->al_lock);
+ 			/* FIXME
+ 			if (err)
+@@ -321,6 +341,17 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
+ 	}
+ }
+ 
++/*
++ * @delegate:   delegate activity log I/O to the worker thread
++ */
++void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool delegate)
++{
++	BUG_ON(delegate && current == mdev->tconn->worker.task);
++
++	if (drbd_al_begin_io_prepare(mdev, i))
++		drbd_al_begin_io_commit(mdev, delegate);
++}
++
+ void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i)
+ {
+ 	/* for bios crossing activity log extent boundaries,
+@@ -478,15 +509,22 @@ _al_write_transaction(struct drbd_conf *mdev)
+ 	crc = crc32c(0, buffer, 4096);
+ 	buffer->crc32c = cpu_to_be32(crc);
+ 
+-	/* normal execution path goes through all three branches */
+ 	if (drbd_bm_write_hinted(mdev))
+ 		err = -EIO;
+-		/* drbd_chk_io_error done already */
+-	else if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
+-		err = -EIO;
+-		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
+-	} else {
+-		mdev->al_tr_number++;
++	else {
++		bool write_al_updates;
++		rcu_read_lock();
++		write_al_updates = rcu_dereference(mdev->ldev->disk_conf)->al_updates;
++		rcu_read_unlock();
++		if (write_al_updates) {
++			if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
++				err = -EIO;
++				drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
++			} else {
++				mdev->al_tr_number++;
++				mdev->al_writ_cnt++;
++			}
++		}
+ 	}
+ 
+ 	drbd_md_put_buffer(mdev);
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 453fccf..a6b71b6 100644
+index a6b71b6..b7b52dd 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -894,6 +894,14 @@ struct drbd_tconn {			/* is a resource from the config file */
- 	} send;
- };
+@@ -1611,6 +1611,7 @@ extern const char *drbd_conn_str(enum drbd_conns s);
+ extern const char *drbd_role_str(enum drbd_role s);
  
-+struct submit_worker {
-+	struct workqueue_struct *wq;
-+	struct work_struct worker;
-+
-+	spinlock_t lock;
-+	struct list_head writes;
-+};
-+
- struct drbd_conf {
- 	struct drbd_tconn *tconn;
- 	int vnr;			/* volume number within the connection */
-@@ -1034,6 +1042,10 @@ struct drbd_conf {
- 	atomic_t ap_in_flight; /* App sectors in flight (waiting for ack) */
- 	unsigned int peer_max_bio_size;
- 	unsigned int local_max_bio_size;
-+
-+	/* any requests that would block in drbd_make_request()
-+	 * are deferred to this single-threaded work queue */
-+	struct submit_worker submit;
- };
- 
- static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
-@@ -1440,6 +1452,7 @@ extern void conn_free_crypto(struct drbd_tconn *tconn);
- extern int proc_details;
- 
- /* drbd_req */
-+extern void do_submit(struct work_struct *ws);
- extern void __drbd_make_request(struct drbd_conf *, struct bio *, unsigned long);
- extern void drbd_make_request(struct request_queue *q, struct bio *bio);
- extern int drbd_read_remote(struct drbd_conf *mdev, struct drbd_request *req);
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 3d212b9..c84226e 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -45,7 +45,7 @@
- #include <linux/reboot.h>
- #include <linux/notifier.h>
- #include <linux/kthread.h>
--
-+#include <linux/workqueue.h>
- #define __KERNEL_SYSCALLS__
- #include <linux/unistd.h>
- #include <linux/vmalloc.h>
-@@ -2300,6 +2300,7 @@ static void drbd_cleanup(void)
- 	idr_for_each_entry(&minors, mdev, i) {
- 		idr_remove(&minors, mdev_to_minor(mdev));
- 		idr_remove(&mdev->tconn->volumes, mdev->vnr);
-+		destroy_workqueue(mdev->submit.wq);
- 		del_gendisk(mdev->vdisk);
- 		/* synchronize_rcu(); No other threads running at this point */
- 		kref_put(&mdev->kref, &drbd_minor_destroy);
-@@ -2589,6 +2590,21 @@ void conn_destroy(struct kref *kref)
- 	kfree(tconn);
- }
- 
-+int init_submitter(struct drbd_conf *mdev)
-+{
-+	/* opencoded create_singlethread_workqueue(),
-+	 * to be able to say "drbd%d", ..., minor */
-+	mdev->submit.wq = alloc_workqueue("drbd%u_submit",
-+			WQ_UNBOUND | WQ_MEM_RECLAIM, 1, mdev->minor);
-+	if (!mdev->submit.wq)
-+		return -ENOMEM;
-+
-+	INIT_WORK(&mdev->submit.worker, do_submit);
-+	spin_lock_init(&mdev->submit.lock);
-+	INIT_LIST_HEAD(&mdev->submit.writes);
-+	return 0;
-+}
-+
- enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr)
- {
- 	struct drbd_conf *mdev;
-@@ -2679,6 +2695,13 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor,
- 		drbd_msg_put_info("requested volume exists already");
- 		goto out_idr_remove_vol;
- 	}
-+
-+	if (init_submitter(mdev)) {
-+		err = ERR_NOMEM;
-+		drbd_msg_put_info("unable to create submit workqueue");
-+		goto out_idr_remove_vol;
-+	}
-+
- 	add_disk(disk);
- 	kref_init(&mdev->kref); /* one ref for both idrs and the the add_disk */
- 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 974ea47..bcf900b 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -3173,6 +3173,7 @@ static enum drbd_ret_code adm_delete_minor(struct drbd_conf *mdev)
- 				    CS_VERBOSE + CS_WAIT_COMPLETE);
- 		idr_remove(&mdev->tconn->volumes, mdev->vnr);
- 		idr_remove(&minors, mdev_to_minor(mdev));
-+		destroy_workqueue(mdev->submit.wq);
- 		del_gendisk(mdev->vdisk);
- 		synchronize_rcu();
- 		kref_put(&mdev->kref, &drbd_minor_destroy);
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 96d5968..4af709e 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1160,6 +1160,35 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long
- 	drbd_send_and_submit(mdev, req);
- }
- 
-+void __drbd_make_request_from_worker(struct drbd_conf *mdev, struct drbd_request *req)
-+{
-+	const int rw = bio_rw(req->master_bio);
-+
-+	if (rw == WRITE && req->private_bio && req->i.size
-+	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
-+		drbd_al_begin_io(mdev, &req->i, false);
-+		req->rq_state |= RQ_IN_ACT_LOG;
-+	}
-+	drbd_send_and_submit(mdev, req);
-+}
-+
-+
-+void do_submit(struct work_struct *ws)
-+{
-+	struct drbd_conf *mdev = container_of(ws, struct drbd_conf, submit.worker);
-+	LIST_HEAD(writes);
-+	struct drbd_request *req, *tmp;
-+
-+	spin_lock(&mdev->submit.lock);
-+	list_splice_init(&mdev->submit.writes, &writes);
-+	spin_unlock(&mdev->submit.lock);
-+
-+	list_for_each_entry_safe(req, tmp, &writes, tl_requests) {
-+		list_del_init(&req->tl_requests);
-+		__drbd_make_request_from_worker(mdev, req);
-+	}
-+}
-+
- void drbd_make_request(struct request_queue *q, struct bio *bio)
- {
- 	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
+ /* drbd_actlog.c */
++extern bool drbd_al_begin_io_fastpath(struct drbd_conf *mdev, struct drbd_interval *i);
+ extern void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool delegate);
+ extern void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i);
+ extern void drbd_rs_complete_io(struct drbd_conf *mdev, sector_t sector);
 -- 
 1.7.9.5
 
