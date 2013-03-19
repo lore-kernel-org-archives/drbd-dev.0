@@ -1,12 +1,13 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org
-Date: Tue, 19 Mar 2013 18:16:41 +0100
-Message-Id: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 19 Mar 2013 18:16:42 +0100
+Message-Id: <1363713419-17803-2-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
+References: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Jens Axboe <axboe@kernel.dk>, lars.ellenberg@linbit.com,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 00/18] RFC: Non blocking submit for activity log
-	misses
+Subject: [Drbd-dev] [PATCH 01/18] drbd: cleanup bogus assert message
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -18,86 +19,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The Issues
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Since the beginning DRBD was written with the assumption that the write
-pattern has spacial locality. (This assumption was driven from the fact,
-that rotating media performs better if you do not send the head too far too
-often)
+This fixes ASSERT( mdev->state.disk == D_FAILED ) in drivers/block/drbd/drbd_main.c
 
-Backed by this assumption a caller that submits a request that is outside of
-the current active set, was blocked until the active set was changed.
-(Changing the active set is a synchronous write operation to the meta-data
-area on the backing storage = "an AL-update" in DRBD-speak)
+When we detach from local disk, we let the local refcount hit zero twice.
 
-A second effect was that DRBD's meta-data was located in a very narrow
-area. When DRBD is used on top of a RAID0 stripe set, this causes all
-AL-updates to got to the same disk.
+First, we transition to D_FAILED, so we won't give out new references
+to incoming requests; we still may give out *internal* references, though.
+Once the refcount hits zero [1] while in D_FAILED, we queue a transition
+to D_DISKLESS to our worker.  We need to queue it, because we may be in
+atomic context when putting the reference.
+Once the transition to D_DISKLESS actually happened [2] from worker context,
+we don't give out new internal references either.
 
+Between hitting zero the first time [1] and actually transition to
+D_DISKLESS [2], there may be a few very short lived internal get/put,
+so we may hit zero more than once while being in D_FAILED, or even see a
+race where a an internal get_ldev() happened while D_FAILED, but the
+corresponding put_ldev() happens just after the transition to D_DISKLESS.
 
-The Proposed Solution
+That's why we have the additional test_and_set_bit(GO_DISKLESS,);
+and that's why the assert was placed wrong.
+Since there was exactly one code path left to drbd_go_diskless(),
+and that checks already for D_FAILED, drop that assert,
+and fold in the drbd_queue_work().
 
-This patch series improves DRBD's behavior. A submitter is no longer blocked
-in the case of a AL-miss. For this a dedicated submitter worker is introduced
-(patch 13).
+Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+---
+ drivers/block/drbd/drbd_int.h  |    7 ++++---
+ drivers/block/drbd/drbd_main.c |    7 -------
+ 2 files changed, 4 insertions(+), 10 deletions(-)
 
-In order to better distribute the AL-updates to more disks in a stripe set
-this patch series also introduces an optional striped layout of the part
-of the meta-data that holds the AL-updates (patch 4).
-
-
-The Results
-
-This of course drastically improves DRBD's performance if the write pattern
-does not have any spacial locality. E.g. random writes spread out over the
-whole device.
-
-In the test systems we have SSDs with are able to do up to 50000 writes per
-second. The test does random distributed writes over a work set size of
-128GiB with IO depths from 1 to 1024.
-
-At an IO depth of 64:
-without this patch we observed ~100 IOPs.
-With this patches we observed about 20000 IOPs.
-
-Please find charts of the results here:
-http://blogs.linbit.com/p/469/843-random-writes-faster/
-
-
-Lars Ellenberg (18):
-  drbd: cleanup bogus assert message
-  drbd: cleanup ondisk meta data layout calculations and defines
-  drbd: prepare for new striped layout of activity log
-  drbd: use the cached meta_dev_idx
-  drbd: mechanically rename la_size to la_size_sect
-  drbd: read meta data early, base on-disk offsets on super block
-  drbd: Clarify when activity log I/O is delegated to the worker thread
-  drbd: drbd_al_being_io: short circuit to reduce latency
-  drbd: split __drbd_make_request in before and after drbd_al_begin_io
-  drbd: prepare to queue write requests on a submit worker
-  drbd: split drbd_al_begin_io into fastpath, prepare, and commit
-  drbd: split out some helper functions to drbd_al_begin_io
-  drbd: queue writes on submitter thread, unless they pass the activity
-    log fastpath
-  lru_cache: introduce lc_get_cumulative()
-  drbd: consolidate as many updates as possible into one AL transaction
-  drbd: move start io accounting before activity log transaction
-  drbd: try hard to max out the updates per AL transaction
-  drbd: adjust upper limit for activity log extents
-
- drivers/block/drbd/drbd_actlog.c   |  246 +++++++++++++++++++++++++++---------
- drivers/block/drbd/drbd_bitmap.c   |   13 +-
- drivers/block/drbd/drbd_int.h      |  179 +++++++++++++-------------
- drivers/block/drbd/drbd_main.c     |  243 +++++++++++++++++++++++++++++------
- drivers/block/drbd/drbd_nl.c       |  129 ++++++++++++-------
- drivers/block/drbd/drbd_receiver.c |    4 +-
- drivers/block/drbd/drbd_req.c      |  166 +++++++++++++++++++++---
- drivers/block/drbd/drbd_worker.c   |    5 +-
- include/linux/drbd_limits.h        |   11 +-
- include/linux/lru_cache.h          |    1 +
- lib/lru_cache.c                    |   55 ++++++--
- 11 files changed, 782 insertions(+), 270 deletions(-)
-
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 6b51afa..db504d0 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1148,7 +1148,6 @@ extern int drbd_bitmap_io_from_worker(struct drbd_conf *mdev,
+ 		char *why, enum bm_flag flags);
+ extern int drbd_bmio_set_n_write(struct drbd_conf *mdev);
+ extern int drbd_bmio_clear_n_write(struct drbd_conf *mdev);
+-extern void drbd_go_diskless(struct drbd_conf *mdev);
+ extern void drbd_ldev_destroy(struct drbd_conf *mdev);
+ 
+ /* Meta data layout
+@@ -2053,9 +2052,11 @@ static inline void put_ldev(struct drbd_conf *mdev)
+ 		if (mdev->state.disk == D_DISKLESS)
+ 			/* even internal references gone, safe to destroy */
+ 			drbd_ldev_destroy(mdev);
+-		if (mdev->state.disk == D_FAILED)
++		if (mdev->state.disk == D_FAILED) {
+ 			/* all application IO references gone. */
+-			drbd_go_diskless(mdev);
++			if (!test_and_set_bit(GO_DISKLESS, &mdev->flags))
++				drbd_queue_work(&mdev->tconn->sender_work, &mdev->go_diskless);
++		}
+ 		wake_up(&mdev->misc_wait);
+ 	}
+ }
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 8c13eeb..6224963 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3255,13 +3255,6 @@ static int w_go_diskless(struct drbd_work *w, int unused)
+ 	return 0;
+ }
+ 
+-void drbd_go_diskless(struct drbd_conf *mdev)
+-{
+-	D_ASSERT(mdev->state.disk == D_FAILED);
+-	if (!test_and_set_bit(GO_DISKLESS, &mdev->flags))
+-		drbd_queue_work(&mdev->tconn->sender_work, &mdev->go_diskless);
+-}
+-
+ /**
+  * drbd_queue_bitmap_io() - Queues an IO operation on the whole bitmap
+  * @mdev:	DRBD device.
 -- 
 1.7.9.5
 
