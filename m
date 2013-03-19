@@ -1,13 +1,14 @@
 Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org
-Date: Tue, 19 Mar 2013 18:16:45 +0100
-Message-Id: <1363713419-17803-5-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 19 Mar 2013 18:16:46 +0100
+Message-Id: <1363713419-17803-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
 References: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Jens Axboe <axboe@kernel.dk>, lars.ellenberg@linbit.com,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/18] drbd: use the cached meta_dev_idx
+Subject: [Drbd-dev] [PATCH 05/18] drbd: mechanically rename la_size to
+	la_size_sect
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,113 +22,123 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Now we have the cached meta_dev_idx member,
-we can get rid of a few rcu_read_lock() sections and rcu_dereference().
+Make it obvious that this value is in units of 512 Byte sectors.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h |   32 +++++---------------------------
- drivers/block/drbd/drbd_nl.c  |    7 +------
- 2 files changed, 6 insertions(+), 33 deletions(-)
+ drivers/block/drbd/drbd_main.c     |    6 +++---
+ drivers/block/drbd/drbd_nl.c       |   16 ++++++++--------
+ drivers/block/drbd/drbd_receiver.c |    2 +-
+ 3 files changed, 12 insertions(+), 12 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index ee19ba2..6eecdec 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1777,9 +1777,9 @@ static inline void drbd_chk_io_error_(struct drbd_conf *mdev,
-  * BTW, for internal meta data, this happens to be the maximum capacity
-  * we could agree upon with our peer node.
-  */
--static inline sector_t _drbd_md_first_sector(int meta_dev_idx, struct drbd_backing_dev *bdev)
-+static inline sector_t drbd_md_first_sector(struct drbd_backing_dev *bdev)
- {
--	switch (meta_dev_idx) {
-+	switch (bdev->md.meta_dev_idx) {
- 	case DRBD_MD_INDEX_INTERNAL:
- 	case DRBD_MD_INDEX_FLEX_INT:
- 		return bdev->md.md_offset + bdev->md.bm_offset;
-@@ -1789,30 +1789,13 @@ static inline sector_t _drbd_md_first_sector(int meta_dev_idx, struct drbd_backi
- 	}
- }
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index b9bfb10..d8bbb41 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2839,7 +2839,7 @@ void conn_md_sync(struct drbd_tconn *tconn)
  
--static inline sector_t drbd_md_first_sector(struct drbd_backing_dev *bdev)
--{
--	int meta_dev_idx;
--
--	rcu_read_lock();
--	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
--	rcu_read_unlock();
--
--	return _drbd_md_first_sector(meta_dev_idx, bdev);
--}
--
- /**
-  * drbd_md_last_sector() - Return the last sector number of the meta data area
-  * @bdev:	Meta data block device.
-  */
- static inline sector_t drbd_md_last_sector(struct drbd_backing_dev *bdev)
- {
--	int meta_dev_idx;
--
--	rcu_read_lock();
--	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
--	rcu_read_unlock();
--
--	switch (meta_dev_idx) {
-+	switch (bdev->md.meta_dev_idx) {
- 	case DRBD_MD_INDEX_INTERNAL:
- 	case DRBD_MD_INDEX_FLEX_INT:
- 		return bdev->md.md_offset + MD_4kB_SECT -1;
-@@ -1840,18 +1823,13 @@ static inline sector_t drbd_get_capacity(struct block_device *bdev)
- static inline sector_t drbd_get_max_capacity(struct drbd_backing_dev *bdev)
- {
- 	sector_t s;
--	int meta_dev_idx;
--
--	rcu_read_lock();
--	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
--	rcu_read_unlock();
+ /* aligned 4kByte */
+ struct meta_data_on_disk {
+-	u64 la_size;           /* last agreed size. */
++	u64 la_size_sect;      /* last agreed size. */
+ 	u64 uuid[UI_SIZE];   /* UUIDs. */
+ 	u64 device_uuid;
+ 	u64 reserved_u64_1;
+@@ -2890,7 +2890,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
  
--	switch (meta_dev_idx) {
-+	switch (bdev->md.meta_dev_idx) {
- 	case DRBD_MD_INDEX_INTERNAL:
- 	case DRBD_MD_INDEX_FLEX_INT:
- 		s = drbd_get_capacity(bdev->backing_bdev)
- 			? min_t(sector_t, DRBD_MAX_SECTORS_FLEX,
--				_drbd_md_first_sector(meta_dev_idx, bdev))
-+				drbd_md_first_sector(bdev))
- 			: 0;
- 		break;
- 	case DRBD_MD_INDEX_FLEX_EXT:
+ 	memset(buffer, 0, sizeof(*buffer));
+ 
+-	buffer->la_size = cpu_to_be64(drbd_get_capacity(mdev->this_bdev));
++	buffer->la_size_sect = cpu_to_be64(drbd_get_capacity(mdev->this_bdev));
+ 	for (i = UI_CURRENT; i < UI_SIZE; i++)
+ 		buffer->uuid[i] = cpu_to_be64(mdev->ldev->md.uuid[i]);
+ 	buffer->flags = cpu_to_be32(mdev->ldev->md.flags);
+@@ -3052,7 +3052,7 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
+ 
+ 	rv = NO_ERROR;
+ 
+-	bdev->md.la_size_sect = be64_to_cpu(buffer->la_size);
++	bdev->md.la_size_sect = be64_to_cpu(buffer->la_size_sect);
+ 	for (i = UI_CURRENT; i < UI_SIZE; i++)
+ 		bdev->md.uuid[i] = be64_to_cpu(buffer->uuid[i]);
+ 	bdev->md.flags = be32_to_cpu(buffer->flags);
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 104b7ce..5621df8 100644
+index 5621df8..d5211b0 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -722,14 +722,10 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
+@@ -819,7 +819,7 @@ void drbd_resume_io(struct drbd_conf *mdev)
+ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags) __must_hold(local)
  {
- 	sector_t md_size_sect = 0;
- 	unsigned int al_size_sect = MD_32kB_SECT;
--	int meta_dev_idx;
--
--	rcu_read_lock();
--	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
+ 	sector_t prev_first_sect, prev_size; /* previous meta location */
+-	sector_t la_size, u_size;
++	sector_t la_size_sect, u_size;
+ 	sector_t size;
+ 	char ppb[10];
  
- 	bdev->md.md_offset = drbd_md_ss(bdev);
+@@ -842,7 +842,7 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
  
--	switch (meta_dev_idx) {
-+	switch (bdev->md.meta_dev_idx) {
- 	default:
- 		/* v07 style fixed size indexed meta data */
- 		bdev->md.md_size_sect = MD_128MB_SECT;
-@@ -761,7 +757,6 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
- 		bdev->md.bm_offset   = -md_size_sect + MD_4kB_SECT;
- 		break;
+ 	prev_first_sect = drbd_md_first_sector(mdev->ldev);
+ 	prev_size = mdev->ldev->md.md_size_sect;
+-	la_size = mdev->ldev->md.la_size_sect;
++	la_size_sect = mdev->ldev->md.la_size_sect;
+ 
+ 	/* TODO: should only be some assert here, not (re)init... */
+ 	drbd_md_set_sector_offsets(mdev, mdev->ldev);
+@@ -878,7 +878,7 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
+ 	if (rv == dev_size_error)
+ 		goto out;
+ 
+-	la_size_changed = (la_size != mdev->ldev->md.la_size_sect);
++	la_size_changed = (la_size_sect != mdev->ldev->md.la_size_sect);
+ 
+ 	md_moved = prev_first_sect != drbd_md_first_sector(mdev->ldev)
+ 		|| prev_size	   != mdev->ldev->md.md_size_sect;
+@@ -900,9 +900,9 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
+ 		drbd_md_mark_dirty(mdev);
  	}
--	rcu_read_unlock();
- }
  
- /* input size is expected to be in KB */
+-	if (size > la_size)
++	if (size > la_size_sect)
+ 		rv = grew;
+-	if (size < la_size)
++	if (size < la_size_sect)
+ 		rv = shrunk;
+ out:
+ 	lc_unlock(mdev->act_log);
+@@ -917,7 +917,7 @@ drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
+ 		  sector_t u_size, int assume_peer_has_space)
+ {
+ 	sector_t p_size = mdev->p_size;   /* partner's disk size. */
+-	sector_t la_size = bdev->md.la_size_sect; /* last agreed size. */
++	sector_t la_size_sect = bdev->md.la_size_sect; /* last agreed size. */
+ 	sector_t m_size; /* my size */
+ 	sector_t size = 0;
+ 
+@@ -931,8 +931,8 @@ drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
+ 	if (p_size && m_size) {
+ 		size = min_t(sector_t, p_size, m_size);
+ 	} else {
+-		if (la_size) {
+-			size = la_size;
++		if (la_size_sect) {
++			size = la_size_sect;
+ 			if (m_size && m_size < size)
+ 				size = m_size;
+ 			if (p_size && p_size < size)
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index a9eccfc..8172a2c 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -3992,7 +3992,7 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
+ 
+ 	clear_bit(DISCARD_MY_DATA, &mdev->flags);
+ 
+-	drbd_md_sync(mdev); /* update connected indicator, la_size, ... */
++	drbd_md_sync(mdev); /* update connected indicator, la_size_sect, ... */
+ 
+ 	return 0;
+ }
 -- 
 1.7.9.5
 
