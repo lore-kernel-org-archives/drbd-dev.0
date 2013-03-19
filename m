@@ -1,28 +1,12 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9862D1017081
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Mar 2013 10:26:26 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra.linbit.com (Postfix) with ESMTP id 8D6FA1B4361
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Mar 2013 10:26:26 +0100 (CET)
-Received: from zimbra.linbit.com ([127.0.0.1])
-	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id tcxYx0Wc1ZZD for <drbd-dev@lists.linbit.com>;
-	Fri, 15 Mar 2013 10:26:26 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra.linbit.com (Postfix) with ESMTP id 7414C1B435C
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Mar 2013 10:26:26 +0100 (CET)
-Date: Fri, 15 Mar 2013 10:26:26 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20130315092626.GB25782@soda.linbit>
-References: <1363183325-20384-1-git-send-email-holer@ics.muni.cz>
-	<20130313195434.GF19508@soda.linbit> <51410654.4070107@alteeve.ca>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51410654.4070107@alteeve.ca>
-Subject: Re: [Drbd-dev] [PATCH] scripts: Updated rhcs_fence script
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: linux-kernel@vger.kernel.org
+Date: Tue, 19 Mar 2013 18:16:41 +0100
+Message-Id: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>, lars.ellenberg@linbit.com,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 00/18] RFC: Non blocking submit for activity log
+	misses
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,19 +18,86 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 13, 2013 at 07:05:56PM -0400, Madison Kelly wrote:
-> On 03/13/2013 03:54 PM, Lars Ellenberg wrote:
-> >On Wed, Mar 13, 2013 at 03:02:05PM +0100, Vlastimil Holer wrote:
-> >>cman_tool option -f is obsolete in current RHEL 6.x.
-> >>Syntax for kill action allows only:
-> >>   -n <nodename>    The name of the node to kill (can specify multiple times)
+The Issues
 
-...
+Since the beginning DRBD was written with the assumption that the write
+pattern has spacial locality. (This assumption was driven from the fact,
+that rotating media performs better if you do not send the head too far too
+often)
 
-> Strike the delay, I've made the changes and pushed to github
-> (https://github.com/digimer/rhcs_fence).
+Backed by this assumption a caller that submits a request that is outside of
+the current active set, was blocked until the active set was changed.
+(Changing the active set is a synchronous write operation to the meta-data
+area on the backing storage = "an AL-update" in DRBD-speak)
 
-Thanks, will show up in the drbd repo shortly.
+A second effect was that DRBD's meta-data was located in a very narrow
+area. When DRBD is used on top of a RAID0 stripe set, this causes all
+AL-updates to got to the same disk.
 
-	Lars
+
+The Proposed Solution
+
+This patch series improves DRBD's behavior. A submitter is no longer blocked
+in the case of a AL-miss. For this a dedicated submitter worker is introduced
+(patch 13).
+
+In order to better distribute the AL-updates to more disks in a stripe set
+this patch series also introduces an optional striped layout of the part
+of the meta-data that holds the AL-updates (patch 4).
+
+
+The Results
+
+This of course drastically improves DRBD's performance if the write pattern
+does not have any spacial locality. E.g. random writes spread out over the
+whole device.
+
+In the test systems we have SSDs with are able to do up to 50000 writes per
+second. The test does random distributed writes over a work set size of
+128GiB with IO depths from 1 to 1024.
+
+At an IO depth of 64:
+without this patch we observed ~100 IOPs.
+With this patches we observed about 20000 IOPs.
+
+Please find charts of the results here:
+http://blogs.linbit.com/p/469/843-random-writes-faster/
+
+
+Lars Ellenberg (18):
+  drbd: cleanup bogus assert message
+  drbd: cleanup ondisk meta data layout calculations and defines
+  drbd: prepare for new striped layout of activity log
+  drbd: use the cached meta_dev_idx
+  drbd: mechanically rename la_size to la_size_sect
+  drbd: read meta data early, base on-disk offsets on super block
+  drbd: Clarify when activity log I/O is delegated to the worker thread
+  drbd: drbd_al_being_io: short circuit to reduce latency
+  drbd: split __drbd_make_request in before and after drbd_al_begin_io
+  drbd: prepare to queue write requests on a submit worker
+  drbd: split drbd_al_begin_io into fastpath, prepare, and commit
+  drbd: split out some helper functions to drbd_al_begin_io
+  drbd: queue writes on submitter thread, unless they pass the activity
+    log fastpath
+  lru_cache: introduce lc_get_cumulative()
+  drbd: consolidate as many updates as possible into one AL transaction
+  drbd: move start io accounting before activity log transaction
+  drbd: try hard to max out the updates per AL transaction
+  drbd: adjust upper limit for activity log extents
+
+ drivers/block/drbd/drbd_actlog.c   |  246 +++++++++++++++++++++++++++---------
+ drivers/block/drbd/drbd_bitmap.c   |   13 +-
+ drivers/block/drbd/drbd_int.h      |  179 +++++++++++++-------------
+ drivers/block/drbd/drbd_main.c     |  243 +++++++++++++++++++++++++++++------
+ drivers/block/drbd/drbd_nl.c       |  129 ++++++++++++-------
+ drivers/block/drbd/drbd_receiver.c |    4 +-
+ drivers/block/drbd/drbd_req.c      |  166 +++++++++++++++++++++---
+ drivers/block/drbd/drbd_worker.c   |    5 +-
+ include/linux/drbd_limits.h        |   11 +-
+ include/linux/lru_cache.h          |    1 +
+ lib/lru_cache.c                    |   55 ++++++--
+ 11 files changed, 782 insertions(+), 270 deletions(-)
+
+-- 
+1.7.9.5
 
