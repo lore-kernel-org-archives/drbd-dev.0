@@ -1,14 +1,22 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: linux-kernel@vger.kernel.org
-Date: Tue, 19 Mar 2013 18:16:59 +0100
-Message-Id: <1363713419-17803-19-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
+Return-Path: <axboe@kernel.dk>
+Received: from merlin.infradead.org (merlin.infradead.org [205.233.59.134])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A1E521019A78
+	for <drbd-dev@lists.linbit.com>; Fri, 22 Mar 2013 18:33:24 +0100 (CET)
+Date: Fri, 22 Mar 2013 11:17:06 -0600
+From: Jens Axboe <axboe@kernel.dk>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Message-ID: <20130322171706.GF1628@kernel.dk>
 References: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>, lars.ellenberg@linbit.com,
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1363713419-17803-1-git-send-email-philipp.reisner@linbit.com>
+Cc: lars.ellenberg@linbit.com, linux-kernel@vger.kernel.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 18/18] drbd: adjust upper limit for activity log
-	extents
+Subject: Re: [Drbd-dev] [PATCH 00/18] RFC: Non blocking submit for activity
+	log misses
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,130 +28,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+On Tue, Mar 19 2013, Philipp Reisner wrote:
+> The Issues
+> 
+> Since the beginning DRBD was written with the assumption that the write
+> pattern has spacial locality. (This assumption was driven from the fact,
+> that rotating media performs better if you do not send the head too far too
+> often)
+> 
+> Backed by this assumption a caller that submits a request that is outside of
+> the current active set, was blocked until the active set was changed.
+> (Changing the active set is a synchronous write operation to the meta-data
+> area on the backing storage = "an AL-update" in DRBD-speak)
+> 
+> A second effect was that DRBD's meta-data was located in a very narrow
+> area. When DRBD is used on top of a RAID0 stripe set, this causes all
+> AL-updates to got to the same disk.
+> 
+> 
+> The Proposed Solution
+> 
+> This patch series improves DRBD's behavior. A submitter is no longer blocked
+> in the case of a AL-miss. For this a dedicated submitter worker is introduced
+> (patch 13).
+> 
+> In order to better distribute the AL-updates to more disks in a stripe set
+> this patch series also introduces an optional striped layout of the part
+> of the meta-data that holds the AL-updates (patch 4).
+> 
+> 
+> The Results
+> 
+> This of course drastically improves DRBD's performance if the write pattern
+> does not have any spacial locality. E.g. random writes spread out over the
+> whole device.
+> 
+> In the test systems we have SSDs with are able to do up to 50000 writes per
+> second. The test does random distributed writes over a work set size of
+> 128GiB with IO depths from 1 to 1024.
+> 
+> At an IO depth of 64:
+> without this patch we observed ~100 IOPs.
+> With this patches we observed about 20000 IOPs.
+> 
+> Please find charts of the results here:
+> http://blogs.linbit.com/p/469/843-random-writes-faster/
 
-Now that the on-disk activity-log ring buffer size is adjustable,
-the maximum active set can become larger, and is now limited by
-the use of 16bit "labels".
+Patchset doesn't apply to current tree. 10/18 gets into problems, last
+hunk of drbd_main.c. What is this based on?
 
-This increases the maximum working set from 6433 to 65534 extents,
-each of which covers an area of 4MiB.
-Which means that if you use the maximum, you'd have to resync
-more than 250 GiB after an unclean Primary shutdown.
-With capable backend storage and replication links,
-this is entirely feasible.
-
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_nl.c |   47 ++++++++++++++++++++++++++++++++++--------
- include/linux/drbd_limits.h  |   11 +++++-----
- 2 files changed, 43 insertions(+), 15 deletions(-)
-
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index bcf900b..42fda4a 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1141,15 +1141,32 @@ static bool should_set_defaults(struct genl_info *info)
- 	return 0 != (flags & DRBD_GENL_F_SET_DEFAULTS);
- }
- 
--static void enforce_disk_conf_limits(struct disk_conf *dc)
-+static unsigned int drbd_al_extents_max(struct drbd_backing_dev *bdev)
- {
--	if (dc->al_extents < DRBD_AL_EXTENTS_MIN)
--		dc->al_extents = DRBD_AL_EXTENTS_MIN;
--	if (dc->al_extents > DRBD_AL_EXTENTS_MAX)
--		dc->al_extents = DRBD_AL_EXTENTS_MAX;
-+	/* This is limited by 16 bit "slot" numbers,
-+	 * and by available on-disk context storage.
-+	 *
-+	 * Also (u16)~0 is special (denotes a "free" extent).
-+	 *
-+	 * One transaction occupies one 4kB on-disk block,
-+	 * we have n such blocks in the on disk ring buffer,
-+	 * the "current" transaction may fail (n-1),
-+	 * and there is 919 slot numbers context information per transaction.
-+	 *
-+	 * 72 transaction blocks amounts to more than 2**16 context slots,
-+	 * so cap there first.
-+	 */
-+	const unsigned int max_al_nr = DRBD_AL_EXTENTS_MAX;
-+	const unsigned int sufficient_on_disk =
-+		(max_al_nr + AL_CONTEXT_PER_TRANSACTION -1)
-+		/AL_CONTEXT_PER_TRANSACTION;
- 
--	if (dc->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
--		dc->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
-+	unsigned int al_size_4k = bdev->md.al_size_4k;
-+
-+	if (al_size_4k > sufficient_on_disk)
-+		return max_al_nr;
-+
-+	return (al_size_4k - 1) * AL_CONTEXT_PER_TRANSACTION;
- }
- 
- int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
-@@ -1196,7 +1213,13 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 	if (!expect(new_disk_conf->resync_rate >= 1))
- 		new_disk_conf->resync_rate = 1;
- 
--	enforce_disk_conf_limits(new_disk_conf);
-+	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
-+		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
-+	if (new_disk_conf->al_extents > drbd_al_extents_max(mdev->ldev))
-+		new_disk_conf->al_extents = drbd_al_extents_max(mdev->ldev);
-+
-+	if (new_disk_conf->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
-+		new_disk_conf->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
- 
- 	fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
- 	if (fifo_size != mdev->rs_plan_s->size) {
-@@ -1344,7 +1367,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 		goto fail;
- 	}
- 
--	enforce_disk_conf_limits(new_disk_conf);
-+	if (new_disk_conf->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
-+		new_disk_conf->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
- 
- 	new_plan = fifo_alloc((new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ);
- 	if (!new_plan) {
-@@ -1419,6 +1443,11 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 	if (retcode != NO_ERROR)
- 		goto fail;
- 
-+	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
-+		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
-+	if (new_disk_conf->al_extents > drbd_al_extents_max(nbc))
-+		new_disk_conf->al_extents = drbd_al_extents_max(nbc);
-+
- 	if (drbd_get_max_capacity(nbc) < new_disk_conf->disk_size) {
- 		dev_err(DEV, "max capacity %llu smaller than disk size %llu\n",
- 			(unsigned long long) drbd_get_max_capacity(nbc),
-diff --git a/include/linux/drbd_limits.h b/include/linux/drbd_limits.h
-index 1fa19c5..1fedf2b 100644
---- a/include/linux/drbd_limits.h
-+++ b/include/linux/drbd_limits.h
-@@ -126,13 +126,12 @@
- #define DRBD_RESYNC_RATE_DEF 250
- #define DRBD_RESYNC_RATE_SCALE 'k'  /* kilobytes */
- 
--  /* less than 7 would hit performance unnecessarily.
--   * 919 slots context information per transaction,
--   * 32k activity log, 4k transaction size,
--   * one transaction in flight:
--   * 919 * 7 = 6433 */
-+  /* less than 7 would hit performance unnecessarily. */
- #define DRBD_AL_EXTENTS_MIN  7
--#define DRBD_AL_EXTENTS_MAX  6433
-+  /* we use u16 as "slot number", (u16)~0 is "FREE".
-+   * If you use >= 292 kB on-disk ring buffer,
-+   * this is the maximum you can use: */
-+#define DRBD_AL_EXTENTS_MAX  0xfffe
- #define DRBD_AL_EXTENTS_DEF  1237
- #define DRBD_AL_EXTENTS_SCALE '1'
- 
 -- 
-1.7.9.5
+Jens Axboe
 
