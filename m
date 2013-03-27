@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 27 Mar 2013 14:08:48 +0100
-Message-Id: <1364389729-17559-17-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 27 Mar 2013 14:08:49 +0100
+Message-Id: <1364389729-17559-18-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 References: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 16/17] drbd: use sched_setscheduler()
+Subject: [Drbd-dev] [PATCH 17/17] drbd: fix if(); found by kbuild test robot
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,48 +20,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-It was unnoticed for some time that assigning to current->policy is
-no longer sufficient to set a real time priority for a kernel thread.
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Reported-by: Charlie Suffin <Charlie.Suffin@stratus.com>
+Recently introduced al_begin_io_nonblock() was returning -EBUSY,
+even when it should return -EWOULDBLOCK.
+
+Impact:
+A few spurious wake_up() calls in prepare_al_transaction_nonblock().
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |    6 ++++--
- include/linux/drbd.h               |    2 +-
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_actlog.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index a75c0b1..0f449bb 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -5257,9 +5257,11 @@ int drbd_asender(struct drbd_thread *thi)
- 	bool ping_timeout_active = false;
- 	struct net_conf *nc;
- 	int ping_timeo, tcp_cork, ping_int;
-+	struct sched_param param = { .sched_priority = 2 };
- 
--	current->policy = SCHED_RR;  /* Make this a realtime task! */
--	current->rt_priority = 2;    /* more important than all other tasks */
-+	rv = sched_setscheduler(current, SCHED_RR, &param);
-+	if (rv < 0)
-+		conn_err(tconn, "drbd_asender: ERROR set priority, ret=%d\n", rv);
- 
- 	while (get_t_state(thi) == RUNNING) {
- 		drbd_thread_current_set_cpu(thi);
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 3163307..1b4d4ee 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -52,7 +52,7 @@
- #endif
- 
- extern const char *drbd_buildtag(void);
--#define REL_VERSION "8.4.2"
-+#define REL_VERSION "8.4.3"
- #define API_VERSION 1
- #define PRO_VERSION_MIN 86
- #define PRO_VERSION_MAX 101
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index 6afe173..6608076 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -389,7 +389,7 @@ int drbd_al_begin_io_nonblock(struct drbd_conf *mdev, struct drbd_interval *i)
+ 		if (unlikely(tmp != NULL)) {
+ 			struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
+ 			if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
+-				if (!test_and_set_bit(BME_PRIORITY, &bm_ext->flags));
++				if (!test_and_set_bit(BME_PRIORITY, &bm_ext->flags))
+ 					return -EBUSY;
+ 				return -EWOULDBLOCK;
+ 			}
 -- 
 1.7.9.5
 
