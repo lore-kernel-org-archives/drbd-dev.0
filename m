@@ -2,14 +2,15 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 27 Mar 2013 14:08:45 +0100
-Message-Id: <1364389729-17559-14-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 27 Mar 2013 14:08:46 +0100
+Message-Id: <1364389729-17559-15-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 References: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 13/17] drbd: fix drbd epoch write count for
-	ahead/behind mode
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Alexey Khoroshilov <khoroshilov@ispras.ru>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 14/17] drbd: add module_put() on error path in
+	drbd_proc_open()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,70 +22,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+From: Alexey Khoroshilov <khoroshilov@ispras.ru>
 
-The sanity check when receiving P_BARRIER_ACK does expect all write
-requests with a given req->epoch to have been either all replicated,
-or all not replicated.
+If single_open() fails in drbd_proc_open(), module refcount is left incremented.
+The patch adds module_put() on the error path.
 
-Because req->epoch was assigned before calling maybe_pull_ahead(),
-this expectation was not met, leading to an off-by-one in the sanity
-check, and further to a "Protocol Error".
+Found by Linux Driver Verification project (linuxtesting.org).
 
-Fix: move the call to maybe_pull_ahead() a few lines up,
-and assign req->epoch only after that.
-
+Signed-off-by: Alexey Khoroshilov <khoroshilov@ispras.ru>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_req.c |   14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_proc.c |   10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index beefe65..c24379f 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -865,8 +865,10 @@ static void maybe_pull_ahead(struct drbd_conf *mdev)
- 	bool congested = false;
- 	enum drbd_on_congestion on_congestion;
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index 56672a6..30fe0a5 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -313,8 +313,14 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
  
-+	rcu_read_lock();
- 	nc = rcu_dereference(tconn->net_conf);
- 	on_congestion = nc ? nc->on_congestion : OC_BLOCK;
-+	rcu_read_unlock();
- 	if (on_congestion == OC_BLOCK ||
- 	    tconn->agreed_pro_version < 96)
- 		return;
-@@ -960,14 +962,8 @@ static int drbd_process_write_request(struct drbd_request *req)
- 	struct drbd_conf *mdev = req->w.mdev;
- 	int remote, send_oos;
- 
--	rcu_read_lock();
- 	remote = drbd_should_do_remote(mdev->state);
--	if (remote) {
--		maybe_pull_ahead(mdev);
--		remote = drbd_should_do_remote(mdev->state);
--	}
- 	send_oos = drbd_should_send_out_of_sync(mdev->state);
--	rcu_read_unlock();
- 
- 	/* Need to replicate writes.  Unless it is an empty flush,
- 	 * which is better mapped to a DRBD P_BARRIER packet,
-@@ -1087,9 +1083,13 @@ static void drbd_send_and_submit(struct drbd_conf *mdev, struct drbd_request *re
- 		 * but will re-aquire it before it returns here.
- 		 * Needs to be before the check on drbd_suspended() */
- 		complete_conflicting_writes(req);
-+		/* no more giving up req_lock from now on! */
+ static int drbd_proc_open(struct inode *inode, struct file *file)
+ {
+-	if (try_module_get(THIS_MODULE))
+-		return single_open(file, drbd_seq_show, PDE(inode)->data);
++	int err;
 +
-+		/* check for congestion, and potentially stop sending
-+		 * full data updates, but start sending "dirty bits" only. */
-+		maybe_pull_ahead(mdev);
- 	}
++	if (try_module_get(THIS_MODULE)) {
++		err = single_open(file, drbd_seq_show, PDE(inode)->data);
++		if (err)
++			module_put(THIS_MODULE);
++		return err;
++	}
+ 	return -ENODEV;
+ }
  
--	/* no more giving up req_lock from now on! */
- 
- 	if (drbd_suspended(mdev)) {
- 		/* push back and retry: */
 -- 
 1.7.9.5
 
