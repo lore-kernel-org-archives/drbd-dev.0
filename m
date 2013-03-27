@@ -2,14 +2,14 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 27 Mar 2013 14:08:43 +0100
-Message-Id: <1364389729-17559-12-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 27 Mar 2013 14:08:44 +0100
+Message-Id: <1364389729-17559-13-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 References: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/17] drbd: validate resync_after dependency on
-	attach already
+Subject: [Drbd-dev] [PATCH 12/17] drbd: Fix build error when
+	CONFIG_CRYPTO_HMAC is not set
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,92 +21,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-
-We validated resync_after dependencies, if changed via disk-options.
-But we did not validate them when first created via attach.
-We also did not check or cleanup dependencies that used to be correct,
-but now point to meanwhile removed minor devices.
-
-If the drbd_resync_after_valid() validation in disk-options tried to
-follow a dependency chain in this way, this could lead to NULL pointer
-dereference.
-
-Validate resync_after settings in drbd_adm_attach() already, as well as
-in drbd_adm_disk_opts(), and and only reject dependency loops.
-Depending on non-existing disks is allowed and equivalent to no dependency.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c     |    6 ++++++
- drivers/block/drbd/drbd_worker.c |   15 ++++++++++++---
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 39e9a91..9e3f441 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1381,6 +1381,12 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 		goto fail;
- 	}
- 
-+	write_lock_irq(&global_state_lock);
-+	retcode = drbd_resync_after_valid(mdev, new_disk_conf->resync_after);
-+	write_unlock_irq(&global_state_lock);
-+	if (retcode != NO_ERROR)
-+		goto fail;
-+
- 	rcu_read_lock();
- 	nc = rcu_dereference(mdev->tconn->net_conf);
- 	if (nc) {
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 7f51f88..891c0ec 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1426,7 +1426,7 @@ static int _drbd_may_sync_now(struct drbd_conf *mdev)
- 	int resync_after;
- 
- 	while (1) {
--		if (!odev->ldev)
-+		if (!odev->ldev || odev->state.disk == D_DISKLESS)
- 			return 1;
- 		rcu_read_lock();
- 		resync_after = rcu_dereference(odev->ldev->disk_conf)->resync_after;
-@@ -1434,7 +1434,7 @@ static int _drbd_may_sync_now(struct drbd_conf *mdev)
- 		if (resync_after == -1)
- 			return 1;
- 		odev = minor_to_mdev(resync_after);
--		if (!expect(odev))
-+		if (!odev)
- 			return 1;
- 		if ((odev->state.conn >= C_SYNC_SOURCE &&
- 		     odev->state.conn <= C_PAUSED_SYNC_T) ||
-@@ -1516,7 +1516,7 @@ enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor)
- 
- 	if (o_minor == -1)
- 		return NO_ERROR;
--	if (o_minor < -1 || minor_to_mdev(o_minor) == NULL)
-+	if (o_minor < -1 || o_minor > MINORMASK)
- 		return ERR_RESYNC_AFTER;
- 
- 	/* check for loops */
-@@ -1525,6 +1525,15 @@ enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor)
- 		if (odev == mdev)
- 			return ERR_RESYNC_AFTER_CYCLE;
- 
-+		/* You are free to depend on diskless, non-existing,
-+		 * or not yet/no longer existing minors.
-+		 * We only reject dependency loops.
-+		 * We cannot follow the dependency chain beyond a detached or
-+		 * missing minor.
-+		 */
-+		if (!odev || !odev->ldev || odev->state.disk == D_DISKLESS)
-+			return NO_ERROR;
-+
- 		rcu_read_lock();
- 		resync_after = rcu_dereference(odev->ldev->disk_conf)->resync_after;
- 		rcu_read_unlock();
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index cd172b4..7af0cc7 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -4660,8 +4660,8 @@ static int drbd_do_features(struct drbd_tconn *tconn)
+ #if !defined(CONFIG_CRYPTO_HMAC) && !defined(CONFIG_CRYPTO_HMAC_MODULE)
+ static int drbd_do_auth(struct drbd_tconn *tconn)
+ {
+-	dev_err(DEV, "This kernel was build without CONFIG_CRYPTO_HMAC.\n");
+-	dev_err(DEV, "You need to disable 'cram-hmac-alg' in drbd.conf.\n");
++	conn_err(tconn, "This kernel was build without CONFIG_CRYPTO_HMAC.\n");
++	conn_err(tconn, "You need to disable 'cram-hmac-alg' in drbd.conf.\n");
+ 	return -1;
+ }
+ #else
 -- 
 1.7.9.5
 
