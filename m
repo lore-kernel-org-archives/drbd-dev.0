@@ -2,14 +2,14 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 27 Mar 2013 14:08:44 +0100
-Message-Id: <1364389729-17559-13-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 27 Mar 2013 14:08:45 +0100
+Message-Id: <1364389729-17559-14-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 References: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 12/17] drbd: Fix build error when
-	CONFIG_CRYPTO_HMAC is not set
+Subject: [Drbd-dev] [PATCH 13/17] drbd: fix drbd epoch write count for
+	ahead/behind mode
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,27 +21,70 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+
+The sanity check when receiving P_BARRIER_ACK does expect all write
+requests with a given req->epoch to have been either all replicated,
+or all not replicated.
+
+Because req->epoch was assigned before calling maybe_pull_ahead(),
+this expectation was not met, leading to an off-by-one in the sanity
+check, and further to a "Protocol Error".
+
+Fix: move the call to maybe_pull_ahead() a few lines up,
+and assign req->epoch only after that.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_req.c |   14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index cd172b4..7af0cc7 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4660,8 +4660,8 @@ static int drbd_do_features(struct drbd_tconn *tconn)
- #if !defined(CONFIG_CRYPTO_HMAC) && !defined(CONFIG_CRYPTO_HMAC_MODULE)
- static int drbd_do_auth(struct drbd_tconn *tconn)
- {
--	dev_err(DEV, "This kernel was build without CONFIG_CRYPTO_HMAC.\n");
--	dev_err(DEV, "You need to disable 'cram-hmac-alg' in drbd.conf.\n");
-+	conn_err(tconn, "This kernel was build without CONFIG_CRYPTO_HMAC.\n");
-+	conn_err(tconn, "You need to disable 'cram-hmac-alg' in drbd.conf.\n");
- 	return -1;
- }
- #else
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index beefe65..c24379f 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -865,8 +865,10 @@ static void maybe_pull_ahead(struct drbd_conf *mdev)
+ 	bool congested = false;
+ 	enum drbd_on_congestion on_congestion;
+ 
++	rcu_read_lock();
+ 	nc = rcu_dereference(tconn->net_conf);
+ 	on_congestion = nc ? nc->on_congestion : OC_BLOCK;
++	rcu_read_unlock();
+ 	if (on_congestion == OC_BLOCK ||
+ 	    tconn->agreed_pro_version < 96)
+ 		return;
+@@ -960,14 +962,8 @@ static int drbd_process_write_request(struct drbd_request *req)
+ 	struct drbd_conf *mdev = req->w.mdev;
+ 	int remote, send_oos;
+ 
+-	rcu_read_lock();
+ 	remote = drbd_should_do_remote(mdev->state);
+-	if (remote) {
+-		maybe_pull_ahead(mdev);
+-		remote = drbd_should_do_remote(mdev->state);
+-	}
+ 	send_oos = drbd_should_send_out_of_sync(mdev->state);
+-	rcu_read_unlock();
+ 
+ 	/* Need to replicate writes.  Unless it is an empty flush,
+ 	 * which is better mapped to a DRBD P_BARRIER packet,
+@@ -1087,9 +1083,13 @@ static void drbd_send_and_submit(struct drbd_conf *mdev, struct drbd_request *re
+ 		 * but will re-aquire it before it returns here.
+ 		 * Needs to be before the check on drbd_suspended() */
+ 		complete_conflicting_writes(req);
++		/* no more giving up req_lock from now on! */
++
++		/* check for congestion, and potentially stop sending
++		 * full data updates, but start sending "dirty bits" only. */
++		maybe_pull_ahead(mdev);
+ 	}
+ 
+-	/* no more giving up req_lock from now on! */
+ 
+ 	if (drbd_suspended(mdev)) {
+ 		/* push back and retry: */
 -- 
 1.7.9.5
 
