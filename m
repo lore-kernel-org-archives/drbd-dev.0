@@ -2,14 +2,14 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 27 Mar 2013 14:08:38 +0100
-Message-Id: <1364389729-17559-7-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 27 Mar 2013 14:08:39 +0100
+Message-Id: <1364389729-17559-8-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 References: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/17] drbd: drop now useless duplicate state
-	request from invalidate
+Subject: [Drbd-dev] [PATCH 07/17] drbd: fix spurious warning about bitmap
+	being locked from detach
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,99 +21,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Patch best viewed with git diff --ignore-space-change.
+Introduced in drbd: always write bitmap on detach,
+the bitmap bulk writeout on detach was indicating
+it expected exclusive bitmap access.
 
-Now that we attempt the fallback to local bitmap operation
-only when disconnected, we can safely drop the extra "silent"
-state request from both invalidate and invalidate-remote.
+Where I meant to say: expect no more modifications,
+but testing/counting is still allowed.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c |   62 +++++++++++++++++++-----------------------
- 1 file changed, 28 insertions(+), 34 deletions(-)
+ drivers/block/drbd/drbd_main.c |    6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index c49bda7..56bafdc 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -2446,26 +2446,19 @@ int drbd_adm_invalidate(struct sk_buff *skb, struct genl_info *info)
- 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
- 	drbd_flush_workqueue(mdev);
- 
--	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T), CS_ORDERED);
--
--	/* If that did not work, try again,
--	 * but log failures this time (implicit CS_VERBOSE).
--	 *
--	 * If we happen to be C_STANDALONE R_SECONDARY,
--	 * just change to D_INCONSISTENT, and set all bits in the bitmap.
--	 * Otherwise, we just fail, to avoid races with the resync handshake.
-+	/* If we happen to be C_STANDALONE R_SECONDARY, just change to
-+	 * D_INCONSISTENT, and set all bits in the bitmap.  Otherwise,
-+	 * try to start a resync handshake as sync target for full sync.
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index a150b59..67d2bb3 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3412,8 +3412,12 @@ static int w_go_diskless(struct drbd_work *w, int unused)
+ 	 * end up here after a failed attach, before ldev was even assigned.
  	 */
--	if (retcode < SS_SUCCESS) {
--		if (mdev->state.conn == C_STANDALONE && mdev->state.role == R_SECONDARY) {
--			retcode = drbd_request_state(mdev, NS(disk, D_INCONSISTENT));
--			if (retcode >= SS_SUCCESS) {
--				if (drbd_bitmap_io(mdev, &drbd_bmio_set_n_write,
--					"set_n_write from invalidate", BM_LOCKED_MASK))
--					retcode = ERR_IO_MD_DISK;
--			}
--		} else
--			retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T));
--	}
-+	if (mdev->state.conn == C_STANDALONE && mdev->state.role == R_SECONDARY) {
-+		retcode = drbd_request_state(mdev, NS(disk, D_INCONSISTENT));
-+		if (retcode >= SS_SUCCESS) {
-+			if (drbd_bitmap_io(mdev, &drbd_bmio_set_n_write,
-+				"set_n_write from invalidate", BM_LOCKED_MASK))
-+				retcode = ERR_IO_MD_DISK;
-+		}
-+	} else
-+		retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T));
- 	drbd_resume_io(mdev);
- 
- out:
-@@ -2519,21 +2512,22 @@ int drbd_adm_invalidate_peer(struct sk_buff *skb, struct genl_info *info)
- 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
- 	drbd_flush_workqueue(mdev);
- 
--	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S), CS_ORDERED);
--	if (retcode < SS_SUCCESS) {
--		if (mdev->state.conn == C_STANDALONE && mdev->state.role == R_PRIMARY) {
--			/* The peer will get a resync upon connect anyways. Just make that
--			   into a full resync. */
--			retcode = drbd_request_state(mdev, NS(pdsk, D_INCONSISTENT));
--			if (retcode >= SS_SUCCESS) {
--				if (drbd_bitmap_io(mdev, &drbd_bmio_set_susp_al,
--						   "set_n_write from invalidate_peer",
--						   BM_LOCKED_SET_ALLOWED))
--					retcode = ERR_IO_MD_DISK;
--			}
--		} else
--			retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
--	}
-+	/* If we happen to be C_STANDALONE R_PRIMARY, just set all bits
-+	 * in the bitmap.  Otherwise, try to start a resync handshake
-+	 * as sync source for full sync.
-+	 */
-+	if (mdev->state.conn == C_STANDALONE && mdev->state.role == R_PRIMARY) {
-+		/* The peer will get a resync upon connect anyways. Just make that
-+		   into a full resync. */
-+		retcode = drbd_request_state(mdev, NS(pdsk, D_INCONSISTENT));
-+		if (retcode >= SS_SUCCESS) {
-+			if (drbd_bitmap_io(mdev, &drbd_bmio_set_susp_al,
-+				"set_n_write from invalidate_peer",
-+				BM_LOCKED_SET_ALLOWED))
-+				retcode = ERR_IO_MD_DISK;
-+		}
-+	} else
-+		retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
- 	drbd_resume_io(mdev);
- 
- out:
+ 	if (mdev->bitmap && mdev->ldev) {
++		/* An interrupted resync or similar is allowed to recounts bits
++		 * while we detach.
++		 * Any modifications would not be expected anymore, though.
++		 */
+ 		if (drbd_bitmap_io_from_worker(mdev, drbd_bm_write,
+-					"detach", BM_LOCKED_MASK)) {
++					"detach", BM_LOCKED_TEST_ALLOWED)) {
+ 			if (test_bit(WAS_READ_ERROR, &mdev->flags)) {
+ 				drbd_md_set_flag(mdev, MDF_FULL_SYNC);
+ 				drbd_md_sync(mdev);
 -- 
 1.7.9.5
 
