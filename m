@@ -1,22 +1,27 @@
-Return-Path: <axboe@kernel.dk>
-Received: from bombadil.infradead.org
-	(173-166-109-252-newengland.hfc.comcastbusiness.net
-	[173.166.109.252])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 86C07105643F
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Mar 2013 17:11:19 +0100 (CET)
-Date: Thu, 28 Mar 2013 10:11:14 -0600
-From: Jens Axboe <axboe@kernel.dk>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Message-ID: <20130328161114.GD19488@kernel.dk>
-References: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2116710565B6
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Apr 2013 20:52:49 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra.linbit.com (Postfix) with ESMTP id 17F781B435E
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Apr 2013 20:52:49 +0200 (CEST)
+Received: from zimbra.linbit.com ([127.0.0.1])
+	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id IQSTtFdJ-Aig for <drbd-dev@lists.linbit.com>;
+	Thu,  4 Apr 2013 20:52:48 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra.linbit.com (Postfix) with ESMTP id E42A21B435A
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Apr 2013 20:52:48 +0200 (CEST)
+Resent-Message-ID: <20130404185248.GI22095@soda.linbit>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1364389729-17559-1-git-send-email-philipp.reisner@linbit.com>
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/17] RFC: Pile of DRBD fixes
+Date: Thu, 4 Apr 2013 14:17:09 +0800
+Message-ID: <CAPgLHd9NdpPH74owO-5=h7G2Qmhb5OJSWnuo=gPWHhnUbE6ULQ@mail.gmail.com>
+From: Wei Yongjun <weiyj.lk@gmail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=ISO-8859-1
+Cc: yongjun_wei@trendmicro.com.cn, linux-kernel@vger.kernel.org,
+	drbd-user@lists.linbit.com
+Subject: [Drbd-dev] [PATCH -next] drbd: fix error return code in drbd_init()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,15 +33,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 27 2013, Philipp Reisner wrote:
-> The first patch improves the idr_for_each_entry() macro and its
-> documentation, which is not specific to DRBD.
-> 
-> Each patch in this series addresses an independent issue, please refer
-> to the individual commit messages for a description.
+From: Wei Yongjun <yongjun_wei@trendmicro.com.cn>
 
-Applied to for-3.10/drivers, thanks.
+Fix to return a negative error code from the error handling
+case instead of 0, as returned elsewhere in this function.
 
--- 
-Jens Axboe
+Signed-off-by: Wei Yongjun <yongjun_wei@trendmicro.com.cn>
+---
+ drivers/block/drbd/drbd_main.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 1b93a726..768bca9 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2777,6 +2777,7 @@ int __init drbd_init(void)
+ 	drbd_proc = proc_create_data("drbd", S_IFREG | S_IRUGO , NULL, &drbd_proc_fops, NULL);
+ 	if (!drbd_proc)	{
+ 		printk(KERN_ERR "drbd: unable to register proc file\n");
++		err = -ENOMEM;
+ 		goto fail;
+ 	}
+ 
+@@ -2786,6 +2787,7 @@ int __init drbd_init(void)
+ 	retry.wq = create_singlethread_workqueue("drbd-reissue");
+ 	if (!retry.wq) {
+ 		printk(KERN_ERR "drbd: unable to create retry workqueue\n");
++		err = -ENOMEM;
+ 		goto fail;
+ 	}
+ 	INIT_WORK(&retry.worker, do_retry);
 
