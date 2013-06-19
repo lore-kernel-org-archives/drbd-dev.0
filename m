@@ -1,14 +1,43 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: linux-kernel@vger.kernel.org,
-	Jens Axboe <axboe@kernel.dk>
-Date: Tue, 25 Jun 2013 16:50:08 +0200
-Message-Id: <1372171808-30515-7-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1372171808-30515-1-git-send-email-philipp.reisner@linbit.com>
-References: <1372171808-30515-1-git-send-email-philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 6/6] drbd: Allow online change of al-stripes and
-	al-stripe-size
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7766D1057ED1
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Jun 2013 16:59:06 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra.linbit.com (Postfix) with ESMTP id 6A19E1B4361
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Jun 2013 16:59:06 +0200 (CEST)
+Received: from zimbra.linbit.com ([127.0.0.1])
+	by localhost (zimbra.linbit.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id gIaOtquybp8s for <drbd-dev@lists.linbit.com>;
+	Tue, 25 Jun 2013 16:59:06 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra.linbit.com (Postfix) with ESMTP id 4F2F61B435D
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Jun 2013 16:59:06 +0200 (CEST)
+Resent-Message-ID: <20130625145906.GD25155@soda.linbit>
+Message-ID: <1371669353.2038.45.camel@joe-AO722>
+From: Joe Perches <joe@perches.com>
+To: Jiri Kosina <trivial@kernel.org>
+Date: Wed, 19 Jun 2013 12:15:53 -0700
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Cc: Chris Mason <chris.mason@fusionio.com>, Michailidis <dm@chelsio.com>,
+	Andreas Dilger <adilger.kernel@dilger.ca>,
+	Sean Hefty <sean.hefty@intel.com>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>,
+	Roland Dreier <roland@kernel.org>, linux-scsi@vger.kernel.org,
+	linux-rdma@vger.kernel.org,
+	"James E.J. Bottomley" <JBottomley@parallels.com>, Dimitris,
+	cluster-devel <cluster-devel@redhat.com>, linux-ext4@vger.kernel.org,
+	Hal Rosenstock <hal.rosenstock@gmail.com>,
+	Jamal Hadi Salim <jhs@mojatatu.com>, Christoph Raisch <raisch@de.ibm.com>,
+	Hoang-Nam Nguyen <hnguyen@de.ibm.com>,
+	Steven Whitehouse <swhiteho@redhat.com>,
+	Divy Le Ray <divy@chelsio.com>, Theodore Ts'o <tytso@mit.edu>,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-btrfs@vger.kernel.org, "David S. Miller" <davem@davemloft.net>,
+	drbd-user@lists.linbit.com
+Subject: [Drbd-dev] [trivial PATCH] treewide: Add __GFP_NOWARN to k.alloc
+ calls with v.alloc fallbacks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,500 +49,158 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Allow to change the AL layout with an resize operation. For that
-the reisze command gets two new fields: al_stripes and al_stripe_size.
+Don't emit OOM warnings when k.alloc calls fail when
+there there is a v.alloc immediately afterwards.
 
-In order to make the operation crash save:
-1) Lock out all IO and MD-IO
-2) Write the super block with MDF_PRIMARY_IND clear
-3) write the bitmap to the new location (all zeros, since
-   we allow only while connected)
-4) Initialize the new AL-area
-5) Write the super block with the restored MDF_PRIMARY_IND.
-6) Unfreeze all IO
+Converted a kmalloc/vmalloc with memset to kzalloc/vzalloc.
 
-Since the AL-layout has no influence on the protocol, this operation
-needs to be beforemed on both sides of a resource (if intended).
-
-Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Joe Perches <joe@perches.com>
 ---
- drivers/block/drbd/drbd_actlog.c   |   21 ++++++
- drivers/block/drbd/drbd_int.h      |    7 +-
- drivers/block/drbd/drbd_main.c     |   57 ++++++++-------
- drivers/block/drbd/drbd_nl.c       |  137 +++++++++++++++++++++++++++++-------
- drivers/block/drbd/drbd_receiver.c |    2 +-
- include/linux/drbd.h               |    6 +-
- include/linux/drbd_genl.h          |    2 +
- include/linux/drbd_limits.h        |    9 +++
- 8 files changed, 188 insertions(+), 53 deletions(-)
+ drivers/block/drbd/drbd_bitmap.c                   | 2 +-
+ drivers/infiniband/hw/ehca/ipz_pt_fn.c             | 3 ++-
+ drivers/net/ethernet/chelsio/cxgb3/cxgb3_offload.c | 2 +-
+ drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c    | 2 +-
+ drivers/scsi/cxgbi/libcxgbi.h                      | 8 ++++----
+ fs/btrfs/send.c                                    | 2 +-
+ fs/ext4/super.c                                    | 4 ++--
+ fs/gfs2/dir.c                                      | 2 +-
+ net/sched/sch_choke.c                              | 3 ++-
+ 9 files changed, 15 insertions(+), 13 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 6608076..28c73ca 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -659,6 +659,27 @@ void drbd_al_shrink(struct drbd_conf *mdev)
- 	wake_up(&mdev->al_wait);
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index 64fbb83..b12c11e 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -393,7 +393,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
+ 	 * we must not block on IO to ourselves.
+ 	 * Context is receiver thread or dmsetup. */
+ 	bytes = sizeof(struct page *)*want;
+-	new_pages = kzalloc(bytes, GFP_NOIO);
++	new_pages = kzalloc(bytes, GFP_NOIO | __GFP_NOWARN);
+ 	if (!new_pages) {
+ 		new_pages = __vmalloc(bytes,
+ 				GFP_NOIO | __GFP_HIGHMEM | __GFP_ZERO,
+diff --git a/drivers/infiniband/hw/ehca/ipz_pt_fn.c b/drivers/infiniband/hw/ehca/ipz_pt_fn.c
+index 62c71fa..8d59451 100644
+--- a/drivers/infiniband/hw/ehca/ipz_pt_fn.c
++++ b/drivers/infiniband/hw/ehca/ipz_pt_fn.c
+@@ -222,7 +222,8 @@ int ipz_queue_ctor(struct ehca_pd *pd, struct ipz_queue *queue,
+ 	queue->small_page = NULL;
+ 
+ 	/* allocate queue page pointers */
+-	queue->queue_pages = kzalloc(nr_of_pages * sizeof(void *), GFP_KERNEL);
++	queue->queue_pages = kzalloc(nr_of_pages * sizeof(void *),
++				     GFP_KERNEL | __GFP_NOWARN);
+ 	if (!queue->queue_pages) {
+ 		queue->queue_pages = vzalloc(nr_of_pages * sizeof(void *));
+ 		if (!queue->queue_pages) {
+diff --git a/drivers/net/ethernet/chelsio/cxgb3/cxgb3_offload.c b/drivers/net/ethernet/chelsio/cxgb3/cxgb3_offload.c
+index 4058b85..76ae0999 100644
+--- a/drivers/net/ethernet/chelsio/cxgb3/cxgb3_offload.c
++++ b/drivers/net/ethernet/chelsio/cxgb3/cxgb3_offload.c
+@@ -1157,7 +1157,7 @@ static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new,
+  */
+ void *cxgb_alloc_mem(unsigned long size)
+ {
+-	void *p = kzalloc(size, GFP_KERNEL);
++	void *p = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+ 
+ 	if (!p)
+ 		p = vzalloc(size);
+diff --git a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c
+index 5a3256b..5d5f268 100644
+--- a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c
++++ b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c
+@@ -1133,7 +1133,7 @@ out:	release_firmware(fw);
+  */
+ void *t4_alloc_mem(size_t size)
+ {
+-	void *p = kzalloc(size, GFP_KERNEL);
++	void *p = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+ 
+ 	if (!p)
+ 		p = vzalloc(size);
+diff --git a/drivers/scsi/cxgbi/libcxgbi.h b/drivers/scsi/cxgbi/libcxgbi.h
+index 80fa99b..8135f04 100644
+--- a/drivers/scsi/cxgbi/libcxgbi.h
++++ b/drivers/scsi/cxgbi/libcxgbi.h
+@@ -658,11 +658,11 @@ static inline u32 cxgbi_tag_nonrsvd_bits(struct cxgbi_tag_format *tformat,
+ static inline void *cxgbi_alloc_big_mem(unsigned int size,
+ 					gfp_t gfp)
+ {
+-	void *p = kmalloc(size, gfp);
++	void *p = kzalloc(size, gfp | __GFP_NOWARN);
++
+ 	if (!p)
+-		p = vmalloc(size);
+-	if (p)
+-		memset(p, 0, size);
++		p = vzalloc(size);
++
+ 	return p;
  }
  
-+int drbd_initialize_al(struct drbd_conf *mdev, void *buffer)
-+{
-+	struct al_transaction_on_disk *al = buffer;
-+	struct drbd_md *md = &mdev->ldev->md;
-+	sector_t al_base = md->md_offset + md->al_offset;
-+	int al_size_4k = md->al_stripes * md->al_stripe_size_4k;
-+	int i;
-+
-+	memset(al, 0, 4096);
-+	al->magic = cpu_to_be32(DRBD_AL_MAGIC);
-+	al->transaction_type = cpu_to_be16(AL_TR_INITIALIZED);
-+	al->crc32c = cpu_to_be32(crc32c(0, al, 4096));
-+
-+	for (i = 0; i < al_size_4k; i++) {
-+		int err = drbd_md_sync_page_io(mdev, mdev->ldev, al_base + i * 8, WRITE);
-+		if (err)
-+			return err;
-+	}
-+	return 0;
-+}
-+
- static int w_update_odbm(struct drbd_work *w, int unused)
+diff --git a/fs/btrfs/send.c b/fs/btrfs/send.c
+index ff40f1c..f7499ed 100644
+--- a/fs/btrfs/send.c
++++ b/fs/btrfs/send.c
+@@ -219,7 +219,7 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
+ 	len = PAGE_ALIGN(len);
+ 
+ 	if (p->buf == p->inline_buf) {
+-		tmp_buf = kmalloc(len, GFP_NOFS);
++		tmp_buf = kmalloc(len, GFP_NOFS | __GFP_NOWARN);
+ 		if (!tmp_buf) {
+ 			tmp_buf = vmalloc(len);
+ 			if (!tmp_buf)
+diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+index 85b3dd6..0f94f55 100644
+--- a/fs/ext4/super.c
++++ b/fs/ext4/super.c
+@@ -162,7 +162,7 @@ void *ext4_kvmalloc(size_t size, gfp_t flags)
  {
- 	struct update_odbm_work *udw = container_of(w, struct update_odbm_work, w);
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 4519d63..2d7f608 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1133,6 +1133,7 @@ extern void drbd_mdev_cleanup(struct drbd_conf *mdev);
- void drbd_print_uuids(struct drbd_conf *mdev, const char *text);
+ 	void *ret;
  
- extern void conn_md_sync(struct drbd_tconn *tconn);
-+extern void drbd_md_write(struct drbd_conf *mdev, void *buffer);
- extern void drbd_md_sync(struct drbd_conf *mdev);
- extern int  drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev);
- extern void drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local);
-@@ -1468,12 +1469,15 @@ extern void drbd_resume_io(struct drbd_conf *mdev);
- extern char *ppsize(char *buf, unsigned long long size);
- extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *, sector_t, int);
- enum determine_dev_size {
-+	DS_ERROR_SHRINK = -3,
-+	DS_ERROR_SPACE_MD = -2,
- 	DS_ERROR = -1,
- 	DS_UNCHANGED = 0,
- 	DS_SHRUNK = 1,
- 	DS_GREW = 2
- };
--extern enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
-+extern enum determine_dev_size
-+drbd_determine_dev_size(struct drbd_conf *, enum dds_flags, struct resize_parms *) __must_hold(local);
- extern void resync_after_online_grow(struct drbd_conf *);
- extern void drbd_reconsider_max_bio_size(struct drbd_conf *mdev);
- extern enum drbd_state_rv drbd_set_role(struct drbd_conf *mdev,
-@@ -1639,6 +1643,7 @@ extern int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector,
- #define drbd_set_out_of_sync(mdev, sector, size) \
- 	__drbd_set_out_of_sync(mdev, sector, size, __FILE__, __LINE__)
- extern void drbd_al_shrink(struct drbd_conf *mdev);
-+extern int drbd_initialize_al(struct drbd_conf *, void *);
- 
- /* drbd_nl.c */
- /* state info broadcast */
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 49040a3..55635ed 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2879,34 +2879,14 @@ struct meta_data_on_disk {
- 	u8 reserved_u8[4096 - (7*8 + 10*4)];
- } __packed;
- 
--/**
-- * drbd_md_sync() - Writes the meta data super block if the MD_DIRTY flag bit is set
-- * @mdev:	DRBD device.
-- */
--void drbd_md_sync(struct drbd_conf *mdev)
-+
-+
-+void drbd_md_write(struct drbd_conf *mdev, void *b)
+-	ret = kmalloc(size, flags);
++	ret = kmalloc(size, flags | __GFP_NOWARN);
+ 	if (!ret)
+ 		ret = __vmalloc(size, flags, PAGE_KERNEL);
+ 	return ret;
+@@ -172,7 +172,7 @@ void *ext4_kvzalloc(size_t size, gfp_t flags)
  {
--	struct meta_data_on_disk *buffer;
-+	struct meta_data_on_disk *buffer = b;
- 	sector_t sector;
- 	int i;
+ 	void *ret;
  
--	/* Don't accidentally change the DRBD meta data layout. */
--	BUILD_BUG_ON(UI_SIZE != 4);
--	BUILD_BUG_ON(sizeof(struct meta_data_on_disk) != 4096);
--
--	del_timer(&mdev->md_sync_timer);
--	/* timer may be rearmed by drbd_md_mark_dirty() now. */
--	if (!test_and_clear_bit(MD_DIRTY, &mdev->flags))
--		return;
--
--	/* We use here D_FAILED and not D_ATTACHING because we try to write
--	 * metadata even if we detach due to a disk failure! */
--	if (!get_ldev_if_state(mdev, D_FAILED))
--		return;
--
--	buffer = drbd_md_get_buffer(mdev);
--	if (!buffer)
--		goto out;
--
- 	memset(buffer, 0, sizeof(*buffer));
+-	ret = kzalloc(size, flags);
++	ret = kzalloc(size, flags | __GFP_NOWARN);
+ 	if (!ret)
+ 		ret = __vmalloc(size, flags | __GFP_ZERO, PAGE_KERNEL);
+ 	return ret;
+diff --git a/fs/gfs2/dir.c b/fs/gfs2/dir.c
+index 147fcc5..9ba9e0c 100644
+--- a/fs/gfs2/dir.c
++++ b/fs/gfs2/dir.c
+@@ -1867,7 +1867,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
  
- 	buffer->la_size_sect = cpu_to_be64(drbd_get_capacity(mdev->this_bdev));
-@@ -2935,6 +2915,35 @@ void drbd_md_sync(struct drbd_conf *mdev)
- 		dev_err(DEV, "meta data update failed!\n");
- 		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
- 	}
-+}
-+
-+/**
-+ * drbd_md_sync() - Writes the meta data super block if the MD_DIRTY flag bit is set
-+ * @mdev:	DRBD device.
-+ */
-+void drbd_md_sync(struct drbd_conf *mdev)
-+{
-+	struct meta_data_on_disk *buffer;
-+
-+	/* Don't accidentally change the DRBD meta data layout. */
-+	BUILD_BUG_ON(UI_SIZE != 4);
-+	BUILD_BUG_ON(sizeof(struct meta_data_on_disk) != 4096);
-+
-+	del_timer(&mdev->md_sync_timer);
-+	/* timer may be rearmed by drbd_md_mark_dirty() now. */
-+	if (!test_and_clear_bit(MD_DIRTY, &mdev->flags))
-+		return;
-+
-+	/* We use here D_FAILED and not D_ATTACHING because we try to write
-+	 * metadata even if we detach due to a disk failure! */
-+	if (!get_ldev_if_state(mdev, D_FAILED))
-+		return;
-+
-+	buffer = drbd_md_get_buffer(mdev);
-+	if (!buffer)
-+		goto out;
-+
-+	drbd_md_write(mdev, buffer);
+ 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
  
- 	/* Update mdev->ldev->md.la_size_sect,
- 	 * since we updated it on metadata. */
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 45d1275..8cc1e64 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -827,12 +827,17 @@ void drbd_resume_io(struct drbd_conf *mdev)
-  * Returns 0 on success, negative return values indicate errors.
-  * You should call drbd_md_sync() after calling this function.
-  */
--enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags) __must_hold(local)
-+enum determine_dev_size
-+drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags, struct resize_parms *rs) __must_hold(local)
- {
- 	sector_t prev_first_sect, prev_size; /* previous meta location */
- 	sector_t la_size_sect, u_size;
-+	struct drbd_md *md = &mdev->ldev->md;
-+	u32 prev_al_stripe_size_4k;
-+	u32 prev_al_stripes;
- 	sector_t size;
- 	char ppb[10];
-+	void *buffer;
+-	ht = kzalloc(size, GFP_NOFS);
++	ht = kzalloc(size, GFP_NOFS | __GFP_NOWARN);
+ 	if (ht == NULL)
+ 		ht = vzalloc(size);
+ 	if (!ht)
+diff --git a/net/sched/sch_choke.c b/net/sched/sch_choke.c
+index ef53ab8..ddd73cb 100644
+--- a/net/sched/sch_choke.c
++++ b/net/sched/sch_choke.c
+@@ -438,7 +438,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
+ 	if (mask != q->tab_mask) {
+ 		struct sk_buff **ntab;
  
- 	int md_moved, la_size_changed;
- 	enum determine_dev_size rv = DS_UNCHANGED;
-@@ -847,6 +852,11 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
- 	 * still lock the act_log to not trigger ASSERTs there.
- 	 */
- 	drbd_suspend_io(mdev);
-+	buffer = drbd_md_get_buffer(mdev); /* Lock meta-data IO */
-+	if (!buffer) {
-+		drbd_resume_io(mdev);
-+		return DS_ERROR;
-+	}
- 
- 	/* no wait necessary anymore, actually we could assert that */
- 	wait_event(mdev->al_wait, lc_try_lock(mdev->act_log));
-@@ -855,7 +865,17 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
- 	prev_size = mdev->ldev->md.md_size_sect;
- 	la_size_sect = mdev->ldev->md.la_size_sect;
- 
--	/* TODO: should only be some assert here, not (re)init... */
-+	if (rs) {
-+		/* rs is non NULL if we should change the AL layout only */
-+
-+		prev_al_stripes = md->al_stripes;
-+		prev_al_stripe_size_4k = md->al_stripe_size_4k;
-+
-+		md->al_stripes = rs->al_stripes;
-+		md->al_stripe_size_4k = rs->al_stripe_size / 4;
-+		md->al_size_4k = (u64)rs->al_stripes * rs->al_stripe_size / 4;
-+	}
-+
- 	drbd_md_set_sector_offsets(mdev, mdev->ldev);
- 
- 	rcu_read_lock();
-@@ -863,6 +883,21 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
- 	rcu_read_unlock();
- 	size = drbd_new_dev_size(mdev, mdev->ldev, u_size, flags & DDSF_FORCED);
- 
-+	if (size < la_size_sect) {
-+		if (rs && u_size == 0) {
-+			/* Remove "rs &&" later. This check should always be active, but
-+			   right now the receiver expects the permissive behavior */
-+			dev_warn(DEV, "Implicit shrink not allowed. "
-+				 "Use --size=%llus for explicit shrink.\n",
-+				 (unsigned long long)size);
-+			rv = DS_ERROR_SHRINK;
-+		}
-+		if (u_size > size)
-+			rv = DS_ERROR_SPACE_MD;
-+		if (rv != DS_UNCHANGED)
-+			goto err_out;
-+	}
-+
- 	if (drbd_get_capacity(mdev->this_bdev) != size ||
- 	    drbd_bm_capacity(mdev) != size) {
- 		int err;
-@@ -886,38 +921,57 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
- 		dev_info(DEV, "size = %s (%llu KB)\n", ppsize(ppb, size>>1),
- 		     (unsigned long long)size>>1);
- 	}
--	if (rv == DS_ERROR)
--		goto out;
-+	if (rv <= DS_ERROR)
-+		goto err_out;
- 
- 	la_size_changed = (la_size_sect != mdev->ldev->md.la_size_sect);
- 
- 	md_moved = prev_first_sect != drbd_md_first_sector(mdev->ldev)
- 		|| prev_size	   != mdev->ldev->md.md_size_sect;
- 
--	if (la_size_changed || md_moved) {
--		int err;
-+	if (la_size_changed || md_moved || rs) {
-+		u32 prev_flags;
- 
- 		drbd_al_shrink(mdev); /* All extents inactive. */
-+
-+		prev_flags = md->flags;
-+		md->flags &= ~MDF_PRIMARY_IND;
-+		drbd_md_write(mdev, buffer);
-+
- 		dev_info(DEV, "Writing the whole bitmap, %s\n",
- 			 la_size_changed && md_moved ? "size changed and md moved" :
- 			 la_size_changed ? "size changed" : "md moved");
- 		/* next line implicitly does drbd_suspend_io()+drbd_resume_io() */
--		err = drbd_bitmap_io(mdev, md_moved ? &drbd_bm_write_all : &drbd_bm_write,
--				     "size changed", BM_LOCKED_MASK);
--		if (err) {
--			rv = DS_ERROR;
--			goto out;
--		}
--		drbd_md_mark_dirty(mdev);
-+		drbd_bitmap_io(mdev, md_moved ? &drbd_bm_write_all : &drbd_bm_write,
-+			       "size changed", BM_LOCKED_MASK);
-+		drbd_initialize_al(mdev, buffer);
-+
-+		md->flags = prev_flags;
-+		drbd_md_write(mdev, buffer);
-+
-+		if (rs)
-+			dev_info(DEV, "Changed AL layout to al-stripes = %d, al-stripe-size-kB = %d\n",
-+				 md->al_stripes, md->al_stripe_size_4k * 4);
- 	}
- 
- 	if (size > la_size_sect)
- 		rv = DS_GREW;
- 	if (size < la_size_sect)
- 		rv = DS_SHRUNK;
--out:
-+
-+	if (0) {
-+	err_out:
-+		if (rs) {
-+			md->al_stripes = prev_al_stripes;
-+			md->al_stripe_size_4k = prev_al_stripe_size_4k;
-+			md->al_size_4k = (u64)prev_al_stripes * prev_al_stripe_size_4k;
-+
-+			drbd_md_set_sector_offsets(mdev, mdev->ldev);
-+		}
-+	}
- 	lc_unlock(mdev->act_log);
- 	wake_up(&mdev->al_wait);
-+	drbd_md_put_buffer(mdev);
- 	drbd_resume_io(mdev);
- 
- 	return rv;
-@@ -1618,8 +1672,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 	    !drbd_md_test_flag(mdev->ldev, MDF_CONNECTED_IND))
- 		set_bit(USE_DEGR_WFC_T, &mdev->flags);
- 
--	dd = drbd_determine_dev_size(mdev, 0);
--	if (dd == DS_ERROR) {
-+	dd = drbd_determine_dev_size(mdev, 0, NULL);
-+	if (dd <= DS_ERROR) {
- 		retcode = ERR_NOMEM_BITMAP;
- 		goto force_diskless_dec;
- 	} else if (dd == DS_GREW)
-@@ -2316,6 +2370,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
- 	struct drbd_conf *mdev;
- 	enum drbd_ret_code retcode;
- 	enum determine_dev_size dd;
-+	bool change_al_layout = false;
- 	enum dds_flags ddsf;
- 	sector_t u_size;
- 	int err;
-@@ -2326,31 +2381,33 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
- 	if (retcode != NO_ERROR)
- 		goto fail;
- 
-+	mdev = adm_ctx.mdev;
-+	if (!get_ldev(mdev)) {
-+		retcode = ERR_NO_DISK;
-+		goto fail;
-+	}
-+
- 	memset(&rs, 0, sizeof(struct resize_parms));
-+	rs.al_stripes = mdev->ldev->md.al_stripes;
-+	rs.al_stripe_size = mdev->ldev->md.al_stripe_size_4k * 4;
- 	if (info->attrs[DRBD_NLA_RESIZE_PARMS]) {
- 		err = resize_parms_from_attrs(&rs, info);
- 		if (err) {
- 			retcode = ERR_MANDATORY_TAG;
- 			drbd_msg_put_info(from_attrs_err_to_txt(err));
--			goto fail;
-+			goto fail_ldev;
- 		}
- 	}
- 
--	mdev = adm_ctx.mdev;
- 	if (mdev->state.conn > C_CONNECTED) {
- 		retcode = ERR_RESIZE_RESYNC;
--		goto fail;
-+		goto fail_ldev;
- 	}
- 
- 	if (mdev->state.role == R_SECONDARY &&
- 	    mdev->state.peer == R_SECONDARY) {
- 		retcode = ERR_NO_PRIMARY;
--		goto fail;
--	}
--
--	if (!get_ldev(mdev)) {
--		retcode = ERR_NO_DISK;
--		goto fail;
-+		goto fail_ldev;
- 	}
- 
- 	if (rs.no_resync && mdev->tconn->agreed_pro_version < 93) {
-@@ -2369,6 +2426,28 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
- 		}
- 	}
- 
-+	if (mdev->ldev->md.al_stripes != rs.al_stripes ||
-+	    mdev->ldev->md.al_stripe_size_4k != rs.al_stripe_size / 4) {
-+		u32 al_size_k = rs.al_stripes * rs.al_stripe_size;
-+
-+		if (al_size_k > (16 * 1024 * 1024)) {
-+			retcode = ERR_MD_LAYOUT_TOO_BIG;
-+			goto fail_ldev;
-+		}
-+
-+		if (al_size_k < MD_32kB_SECT/2) {
-+			retcode = ERR_MD_LAYOUT_TOO_SMALL;
-+			goto fail_ldev;
-+		}
-+
-+		if (mdev->state.conn != C_CONNECTED) {
-+			retcode = ERR_MD_LAYOUT_CONNECTED;
-+			goto fail_ldev;
-+		}
-+
-+		change_al_layout = true;
-+	}
-+
- 	if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev))
- 		mdev->ldev->known_size = drbd_get_capacity(mdev->ldev->backing_bdev);
- 
-@@ -2384,12 +2463,18 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
- 	}
- 
- 	ddsf = (rs.resize_force ? DDSF_FORCED : 0) | (rs.no_resync ? DDSF_NO_RESYNC : 0);
--	dd = drbd_determine_dev_size(mdev, ddsf);
-+	dd = drbd_determine_dev_size(mdev, ddsf, change_al_layout ? &rs : NULL);
- 	drbd_md_sync(mdev);
- 	put_ldev(mdev);
- 	if (dd == DS_ERROR) {
- 		retcode = ERR_NOMEM_BITMAP;
- 		goto fail;
-+	} else if (dd == DS_ERROR_SPACE_MD) {
-+		retcode = ERR_MD_LAYOUT_NO_FIT;
-+		goto fail;
-+	} else if (dd == DS_ERROR_SHRINK) {
-+		retcode = ERR_IMPLICIT_SHRINK;
-+		goto fail;
- 	}
- 
- 	if (mdev->state.conn == C_CONNECTED) {
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 26852b8..cc29cd3 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3617,7 +3617,7 @@ static int receive_sizes(struct drbd_tconn *tconn, struct packet_info *pi)
- 
- 	ddsf = be16_to_cpu(p->dds_flags);
- 	if (get_ldev(mdev)) {
--		dd = drbd_determine_dev_size(mdev, ddsf);
-+		dd = drbd_determine_dev_size(mdev, ddsf, NULL);
- 		put_ldev(mdev);
- 		if (dd == DS_ERROR)
- 			return -EIO;
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 1b4d4ee..de7d74a 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -177,7 +177,11 @@ enum drbd_ret_code {
- 	ERR_NEED_APV_100	= 163,
- 	ERR_NEED_ALLOW_TWO_PRI  = 164,
- 	ERR_MD_UNCLEAN          = 165,
--
-+	ERR_MD_LAYOUT_CONNECTED = 166,
-+	ERR_MD_LAYOUT_TOO_BIG   = 167,
-+	ERR_MD_LAYOUT_TOO_SMALL = 168,
-+	ERR_MD_LAYOUT_NO_FIT    = 169,
-+	ERR_IMPLICIT_SHRINK     = 170,
- 	/* insert new ones above this line */
- 	AFTER_LAST_ERR_CODE
- };
-diff --git a/include/linux/drbd_genl.h b/include/linux/drbd_genl.h
-index d0d8fac..e8c4457 100644
---- a/include/linux/drbd_genl.h
-+++ b/include/linux/drbd_genl.h
-@@ -181,6 +181,8 @@ GENL_struct(DRBD_NLA_RESIZE_PARMS, 7, resize_parms,
- 	__u64_field(1, DRBD_GENLA_F_MANDATORY,	resize_size)
- 	__flg_field(2, DRBD_GENLA_F_MANDATORY,	resize_force)
- 	__flg_field(3, DRBD_GENLA_F_MANDATORY,	no_resync)
-+	__u32_field_def(4, 0 /* OPTIONAL */, al_stripes, DRBD_AL_STRIPES_DEF)
-+	__u32_field_def(5, 0 /* OPTIONAL */, al_stripe_size, DRBD_AL_STRIPE_SIZE_DEF)
- )
- 
- GENL_struct(DRBD_NLA_STATE_INFO, 8, state_info,
-diff --git a/include/linux/drbd_limits.h b/include/linux/drbd_limits.h
-index 1fedf2b..17e50bb 100644
---- a/include/linux/drbd_limits.h
-+++ b/include/linux/drbd_limits.h
-@@ -215,4 +215,13 @@
- #define DRBD_ALWAYS_ASBP_DEF	0
- #define DRBD_USE_RLE_DEF	1
- 
-+#define DRBD_AL_STRIPES_MIN     1
-+#define DRBD_AL_STRIPES_MAX     1024
-+#define DRBD_AL_STRIPES_DEF     1
-+#define DRBD_AL_STRIPES_SCALE   '1'
-+
-+#define DRBD_AL_STRIPE_SIZE_MIN   4
-+#define DRBD_AL_STRIPE_SIZE_MAX   16777216
-+#define DRBD_AL_STRIPE_SIZE_DEF   32
-+#define DRBD_AL_STRIPE_SIZE_SCALE 'k' /* kilobytes */
- #endif
--- 
-1.7.9.5
+-		ntab = kcalloc(mask + 1, sizeof(struct sk_buff *), GFP_KERNEL);
++		ntab = kcalloc(mask + 1, sizeof(struct sk_buff *),
++			       GFP_KERNEL | __GFP_NOWARN);
+ 		if (!ntab)
+ 			ntab = vzalloc((mask + 1) * sizeof(struct sk_buff *));
+ 		if (!ntab)
+
 
