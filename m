@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Wed, 31 Jul 2013 11:41:12 +0200
-Message-Id: <1375263675-18410-3-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 31 Jul 2013 11:41:13 +0200
+Message-Id: <1375263675-18410-4-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1375263675-18410-1-git-send-email-philipp.reisner@linbit.com>
 References: <1375263675-18410-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 2/5] drbd: Fix an connection drop issue after
-	enabling allow-two-primaries
+Subject: [Drbd-dev] [PATCH 3/5] drbd: Fix adding of new minors with freshly
+	created meta data
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,110 +20,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Since drbd-8.4.0 it is possible to change the allow-two-primaries
-network option while the connection is established.
+Online adding of new minors with freshly created meta data
+to an resource with an established connection failed, with a
+wrong state transition on one side on one side of the new minor.
 
-The sequence code used to partially order packets from the
-data socket with packets from the meta-data socket, still assued
-that the allow-two-primaries option is constant while the
-connection is established.
+Freshly created meta-data has a la_size (last agreed size) of 0.
+When we online add such devices, the code wrongly got into
+the code path for resyncing new storage that was added while
+the disk was detached.
 
-I.e.
-On a node that has the RESOLVE_CONFLICTS bits set, after enabling
-allow-two-primaries, when receiving the next data packet it timed out
-while waiting for the necessary packets on the data socket to arrive
-(wait_for_and_update_peer_seq() function).
-
-Fixed that by always tracking the sequence number, but only waiting
-for it if allow-two-primaries is set.
+Fixed that by making the GREW from ZERO a special case.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |   39 +++++++++++++++---------------------
- 1 file changed, 16 insertions(+), 23 deletions(-)
+ drivers/block/drbd/drbd_int.h |    3 ++-
+ drivers/block/drbd/drbd_nl.c  |    2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index cc29cd3..12c59eb 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1890,29 +1890,11 @@ static u32 seq_max(u32 a, u32 b)
- 	return seq_greater(a, b) ? a : b;
- }
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 2d7f608..0e06f0c 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1474,7 +1474,8 @@ enum determine_dev_size {
+ 	DS_ERROR = -1,
+ 	DS_UNCHANGED = 0,
+ 	DS_SHRUNK = 1,
+-	DS_GREW = 2
++	DS_GREW = 2,
++	DS_GREW_FROM_ZERO = 3,
+ };
+ extern enum determine_dev_size
+ drbd_determine_dev_size(struct drbd_conf *, enum dds_flags, struct resize_parms *) __must_hold(local);
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 8cc1e64..37dad18 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -955,7 +955,7 @@ drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags, struct res
+ 	}
  
--static bool need_peer_seq(struct drbd_conf *mdev)
--{
--	struct drbd_tconn *tconn = mdev->tconn;
--	int tp;
--
--	/*
--	 * We only need to keep track of the last packet_seq number of our peer
--	 * if we are in dual-primary mode and we have the resolve-conflicts flag set; see
--	 * handle_write_conflicts().
--	 */
--
--	rcu_read_lock();
--	tp = rcu_dereference(mdev->tconn->net_conf)->two_primaries;
--	rcu_read_unlock();
--
--	return tp && test_bit(RESOLVE_CONFLICTS, &tconn->flags);
--}
--
- static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
- {
- 	unsigned int newest_peer_seq;
- 
--	if (need_peer_seq(mdev)) {
-+	if (test_bit(RESOLVE_CONFLICTS, &mdev->tconn->flags)) {
- 		spin_lock(&mdev->peer_seq_lock);
- 		newest_peer_seq = seq_max(mdev->peer_seq, peer_seq);
- 		mdev->peer_seq = newest_peer_seq;
-@@ -1972,22 +1954,31 @@ static int wait_for_and_update_peer_seq(struct drbd_conf *mdev, const u32 peer_s
- {
- 	DEFINE_WAIT(wait);
- 	long timeout;
--	int ret;
-+	int ret = 0, tp;
- 
--	if (!need_peer_seq(mdev))
-+	if (!test_bit(RESOLVE_CONFLICTS, &mdev->tconn->flags))
- 		return 0;
- 
- 	spin_lock(&mdev->peer_seq_lock);
- 	for (;;) {
- 		if (!seq_greater(peer_seq - 1, mdev->peer_seq)) {
- 			mdev->peer_seq = seq_max(mdev->peer_seq, peer_seq);
--			ret = 0;
- 			break;
- 		}
-+
- 		if (signal_pending(current)) {
- 			ret = -ERESTARTSYS;
- 			break;
- 		}
-+
-+		rcu_read_lock();
-+		tp = rcu_dereference(mdev->tconn->net_conf)->two_primaries;
-+		rcu_read_unlock();
-+
-+		if (!tp)
-+			break;
-+
-+		/* Only need to wait if two_primaries is enabled */
- 		prepare_to_wait(&mdev->seq_wait, &wait, TASK_INTERRUPTIBLE);
- 		spin_unlock(&mdev->peer_seq_lock);
- 		rcu_read_lock();
-@@ -2228,8 +2219,10 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
- 			}
- 			goto out_interrupted;
- 		}
--	} else
-+	} else {
-+		update_peer_seq(mdev, peer_seq);
- 		spin_lock_irq(&mdev->tconn->req_lock);
-+	}
- 	list_add(&peer_req->w.list, &mdev->active_ee);
- 	spin_unlock_irq(&mdev->tconn->req_lock);
+ 	if (size > la_size_sect)
+-		rv = DS_GREW;
++		rv = la_size_sect ? DS_GREW : DS_GREW_FROM_ZERO;
+ 	if (size < la_size_sect)
+ 		rv = DS_SHRUNK;
  
 -- 
 1.7.9.5
