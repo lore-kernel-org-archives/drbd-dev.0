@@ -1,19 +1,11 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E300E105815B
-	for <drbd-dev@lists.linbit.com>; Fri,  5 Jul 2013 21:55:29 +0200 (CEST)
-Date: Fri, 5 Jul 2013 21:55:29 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Kei Kurono <kuronense@outlook.com>
-Message-ID: <20130705195529.GC17905@soda.linbit>
-References: <BLU173-W45773F4F7B7B69A6A949B8AC8E0@phx.gbl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <BLU173-W45773F4F7B7B69A6A949B8AC8E0@phx.gbl>
-Cc: "drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] DRBD Replication Modes
+Return-Path: <philipp.reisner@linbit.com>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: linux-kernel@vger.kernel.org,
+	Jens Axboe <axboe@kernel.dk>
+Date: Wed, 31 Jul 2013 11:41:10 +0200
+Message-Id: <1375263675-18410-1-git-send-email-philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 0/5] RFC: DRBD Fixes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,31 +17,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jun 20, 2013 at 11:19:21PM +0000, Kei Kurono wrote:
-> Hi,
-> I just want to propose a new feature that implements a synchrnous mode
-> were the I/O is blocked (in the primary node) in the case when the
-> remote node (secondary node) is down. This could help us achieve
-> absolute confidence that both nodes are trully identical. This would
-> be very helpul for paranoid organizations.
+These are five independend fixes. Please see the commit messages
+for descriptions.
 
-We already have "fencing resource-and-stonith",
-which freezes IO when the replication link breaks,
-and calls out to a user space helper,
-which is supposed to implement policy,
-and exit with meaningful exit code
-(e.g. "Successfully fenced peer", or "Don't know what to do, either").
+The series is based on v3.11-rc3, and intended for the 3.12 merge
+window.
 
-You are of course free to implement that handler any way you like,
-including "exit 1", which will keep IO frozen.
+I will post a second series targeted at the 3.12 merge window
+in the next days. It will contain only renames (no functional changes)
 
-"Thanks, but we already have that" ...
 
-Cheers,
+Lars Ellenberg (3):
+  drbd: fix NULL pointer deref in module init error path
+  drbd: fix decoding of bitmap vli rle for device sizes > 64 TB
+  drbd: avoid to shrink max_bio_size due to peer re-configuration
+
+Philipp Reisner (2):
+  drbd: Fix an connection drop issue after enabling allow-two-primaries
+  drbd: Fix adding of new minors with freshly created meta data
+
+ drivers/block/drbd/drbd_int.h      |    3 ++-
+ drivers/block/drbd/drbd_main.c     |   19 ++++++++-------
+ drivers/block/drbd/drbd_nl.c       |    6 ++---
+ drivers/block/drbd/drbd_receiver.c |   45 +++++++++++++++++-------------------
+ drivers/block/drbd/drbd_req.c      |    3 +++
+ 5 files changed, 38 insertions(+), 38 deletions(-)
 
 -- 
-: Lars Ellenberg
-: LINBIT | Your Way to High Availability
-: DRBD/HA support and consulting http://www.linbit.com
+1.7.9.5
 
-DRBD® and LINBIT® are registered trademarks of LINBIT, Austria.
