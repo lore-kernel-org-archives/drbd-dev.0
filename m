@@ -1,35 +1,44 @@
-Return-Path: <philipp.reisner@linbit.com>
+Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E6F7810583BF
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2013 15:11:56 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EFC9B10583BF
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2013 15:59:21 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id D3B6245C84F
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2013 15:11:56 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id C93B644A2C3
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2013 15:59:21 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 3h-ZCKtY65pK for <drbd-dev@lists.linbit.com>;
-	Fri,  8 Nov 2013 15:11:56 +0100 (CET)
+	with ESMTP id IzawxkhSw38j for <drbd-dev@lists.linbit.com>;
+	Fri,  8 Nov 2013 15:59:21 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B721D45C9BE
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2013 15:11:56 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 8DFDE44A3C9
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2013 15:59:21 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id BIceJcss9f8G for <drbd-dev@lists.linbit.com>;
-	Fri,  8 Nov 2013 15:11:56 +0100 (CET)
-Received: from fat-tyre.localnet (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPSA id 92C3545C84F
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2013 15:11:56 +0100 (CET)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: drbd-dev@lists.linbit.com
-Date: Fri, 08 Nov 2013 15:11:56 +0100
-Message-ID: <8941341.SgXKTi2gej@fat-tyre>
-In-Reply-To: <20131108080125.GF4144@soda.linbit>
-References: <005405fd01ac65c72fbe01f5b6e70daf@ugr.es>
-	<20131108080125.GF4144@soda.linbit>
-MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain; charset="iso-8859-1"
-Subject: Re: [Drbd-dev] UDP multicast transport
+	with ESMTP id X5GgHr3Xh57b for <drbd-dev@lists.linbit.com>;
+	Fri,  8 Nov 2013 15:59:21 +0100 (CET)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 71C0C44A2C3
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2013 15:59:21 +0100 (CET)
+Resent-Message-ID: <20131108145921.GH4144@soda.linbit>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com
+	[209.85.220.49]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A3FB910578A3
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Oct 2013 21:24:26 +0100 (CET)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so552931pab.22
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Oct 2013 13:24:24 -0700 (PDT)
+From: Kent Overstreet <kmo@daterainc.com>
+To: axboe@kernel.dk
+Date: Tue, 29 Oct 2013 13:18:01 -0700
+Message-Id: <1383077896-4132-9-git-send-email-kmo@daterainc.com>
+In-Reply-To: <1383077896-4132-1-git-send-email-kmo@daterainc.com>
+References: <1383077896-4132-1-git-send-email-kmo@daterainc.com>
+Cc: nbd-general@lists.sourceforge.net,
+	Paul Clements <Paul.Clements@steeleye.com>,
+	linux-kernel@vger.kernel.org, hch@infradead.org,
+	Kent Overstreet <kmo@daterainc.com>, tj@kernel.org,
+	drbd-user@lists.linbit.com, Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] [PATCH 08/23] block: Immutable bio vecs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,60 +50,248 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> Hi there,
->=20
-> Yes, I=B4m interested in making multicast protocol development, then =
-I
-> will study and define an algorithm.
->=20
-> What I can do?
->=20
-> Ra=FAl
+This adds a mechanism by which we can advance a bio by an arbitrary
+number of bytes without modifying the biovec: bio->bi_iter.bi_bvec_done
+indicates the number of bytes completed in the current bvec.
 
-Hi Ra=FAl,
+Various driver code still needs to be updated to not refer to the bvec
+directly before we can use this for interesting things, like efficient
+bio splitting.
 
-We welcome such a contribution very much. We will help you
-in the progress in answering questions and giving pointers.
+Signed-off-by: Kent Overstreet <kmo@daterainc.com>
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
+Cc: Paul Clements <Paul.Clements@steeleye.com>
+Cc: drbd-user@lists.linbit.com
+Cc: nbd-general@lists.sourceforge.net
+---
+ drivers/block/drbd/drbd_main.c |  4 +--
+ drivers/block/nbd.c            |  2 +-
+ fs/bio.c                       | 27 ++------------
+ include/linux/bio.h            | 81 +++++++++++++++++++++++++++++++++++++-----
+ include/linux/blk_types.h      |  2 ++
+ include/linux/blkdev.h         |  4 +--
+ 6 files changed, 82 insertions(+), 38 deletions(-)
 
-But let me give you a warning as well:
- The DRBD code is complex, and kernel programming and debugging
- is hard. Plan for several month of your full attention for this task.
- If that is fine for you please read on.
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 1589ea4..fee8b51 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1546,7 +1546,7 @@ static int _drbd_send_bio(struct drbd_conf *mdev, struct bio *bio)
+ 
+ 		err = _drbd_no_send_page(mdev, bvec.bv_page,
+ 					 bvec.bv_offset, bvec.bv_len,
+-					 bio_iter_last(bio, iter)
++					 bio_iter_last(bvec, iter)
+ 					 ? 0 : MSG_MORE);
+ 		if (err)
+ 			return err;
+@@ -1565,7 +1565,7 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
+ 
+ 		err = _drbd_send_page(mdev, bvec.bv_page,
+ 				      bvec.bv_offset, bvec.bv_len,
+-				      bio_iter_last(bio, iter) ? 0 : MSG_MORE);
++				      bio_iter_last(bvec, iter) ? 0 : MSG_MORE);
+ 		if (err)
+ 			return err;
+ 	}
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index aa362f4..55298db 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -278,7 +278,7 @@ static int nbd_send_req(struct nbd_device *nbd, struct request *req)
+ 		 */
+ 		rq_for_each_segment(bvec, req, iter) {
+ 			flags = 0;
+-			if (!rq_iter_last(req, iter))
++			if (!rq_iter_last(bvec, iter))
+ 				flags = MSG_MORE;
+ 			dprintk(DBG_TX, "%s: request %p: sending %d bytes data\n",
+ 					nbd->disk->disk_name, req, bvec.bv_len);
+diff --git a/fs/bio.c b/fs/bio.c
+index eca05c7..b39436a 100644
+--- a/fs/bio.c
++++ b/fs/bio.c
+@@ -532,13 +532,11 @@ void __bio_clone(struct bio *bio, struct bio *bio_src)
+ 	 * most users will be overriding ->bi_bdev with a new target,
+ 	 * so we don't set nor calculate new physical/hw segment counts here
+ 	 */
+-	bio->bi_iter.bi_sector = bio_src->bi_iter.bi_sector;
+ 	bio->bi_bdev = bio_src->bi_bdev;
+ 	bio->bi_flags |= 1 << BIO_CLONED;
+ 	bio->bi_rw = bio_src->bi_rw;
+ 	bio->bi_vcnt = bio_src->bi_vcnt;
+-	bio->bi_iter.bi_size = bio_src->bi_iter.bi_size;
+-	bio->bi_iter.bi_idx = bio_src->bi_iter.bi_idx;
++	bio->bi_iter = bio_src->bi_iter;
+ }
+ EXPORT_SYMBOL(__bio_clone);
+ 
+@@ -808,28 +806,7 @@ void bio_advance(struct bio *bio, unsigned bytes)
+ 	if (bio_integrity(bio))
+ 		bio_integrity_advance(bio, bytes);
+ 
+-	bio->bi_iter.bi_sector += bytes >> 9;
+-	bio->bi_iter.bi_size -= bytes;
+-
+-	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
+-		return;
+-
+-	while (bytes) {
+-		if (unlikely(bio->bi_iter.bi_idx >= bio->bi_vcnt)) {
+-			WARN_ONCE(1, "bio idx %d >= vcnt %d\n",
+-				  bio->bi_iter.bi_idx, bio->bi_vcnt);
+-			break;
+-		}
+-
+-		if (bytes >= bio_iovec(bio).bv_len) {
+-			bytes -= bio_iovec(bio).bv_len;
+-			bio->bi_iter.bi_idx++;
+-		} else {
+-			bio_iovec(bio).bv_len -= bytes;
+-			bio_iovec(bio).bv_offset += bytes;
+-			bytes = 0;
+-		}
+-	}
++	bio_advance_iter(bio, &bio->bi_iter, bytes);
+ }
+ EXPORT_SYMBOL(bio_advance);
+ 
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 5724feb..151868e 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -64,11 +64,38 @@
+ #define bio_iovec_idx(bio, idx)	(&((bio)->bi_io_vec[(idx)]))
+ #define __bio_iovec(bio)	bio_iovec_idx((bio), (bio)->bi_iter.bi_idx)
+ 
+-#define bio_iter_iovec(bio, iter) ((bio)->bi_io_vec[(iter).bi_idx])
++#define __bvec_iter_bvec(bvec, iter)	(&(bvec)[(iter).bi_idx])
+ 
+-#define bio_page(bio)		(bio_iovec((bio)).bv_page)
+-#define bio_offset(bio)		(bio_iovec((bio)).bv_offset)
+-#define bio_iovec(bio)		(*__bio_iovec(bio))
++#define bvec_iter_page(bvec, iter)				\
++	(__bvec_iter_bvec((bvec), (iter))->bv_page)
++
++#define bvec_iter_len(bvec, iter)				\
++	min((iter).bi_size,					\
++	    __bvec_iter_bvec((bvec), (iter))->bv_len - (iter).bi_bvec_done)
++
++#define bvec_iter_offset(bvec, iter)				\
++	(__bvec_iter_bvec((bvec), (iter))->bv_offset + (iter).bi_bvec_done)
++
++#define bvec_iter_bvec(bvec, iter)				\
++((struct bio_vec) {						\
++	.bv_page	= bvec_iter_page((bvec), (iter)),	\
++	.bv_len		= bvec_iter_len((bvec), (iter)),	\
++	.bv_offset	= bvec_iter_offset((bvec), (iter)),	\
++})
++
++#define bio_iter_iovec(bio, iter)				\
++	bvec_iter_bvec((bio)->bi_io_vec, (iter))
++
++#define bio_iter_page(bio, iter)				\
++	bvec_iter_page((bio)->bi_io_vec, (iter))
++#define bio_iter_len(bio, iter)					\
++	bvec_iter_len((bio)->bi_io_vec, (iter))
++#define bio_iter_offset(bio, iter)				\
++	bvec_iter_offset((bio)->bi_io_vec, (iter))
++
++#define bio_page(bio)		bio_iter_page((bio), (bio)->bi_iter)
++#define bio_offset(bio)		bio_iter_offset((bio), (bio)->bi_iter)
++#define bio_iovec(bio)		bio_iter_iovec((bio), (bio)->bi_iter)
+ 
+ #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_iter.bi_idx)
+ #define bio_sectors(bio)	((bio)->bi_iter.bi_size >> 9)
+@@ -145,16 +172,54 @@ static inline void *bio_data(struct bio *bio)
+ 	     bvl = bio_iovec_idx((bio), (i)), i < (bio)->bi_vcnt;	\
+ 	     i++)
+ 
++static inline void bvec_iter_advance(struct bio_vec *bv, struct bvec_iter *iter,
++				     unsigned bytes)
++{
++	WARN_ONCE(bytes > iter->bi_size,
++		  "Attempted to advance past end of bvec iter\n");
++
++	while (bytes) {
++		unsigned len = min(bytes, bvec_iter_len(bv, *iter));
++
++		bytes -= len;
++		iter->bi_size -= len;
++		iter->bi_bvec_done += len;
++
++		if (iter->bi_bvec_done == __bvec_iter_bvec(bv, *iter)->bv_len) {
++			iter->bi_bvec_done = 0;
++			iter->bi_idx++;
++		}
++	}
++}
++
++#define for_each_bvec(bvl, bio_vec, iter, start)			\
++	for ((iter) = start;						\
++	     (bvl) = bvec_iter_bvec((bio_vec), (iter)),			\
++		(iter).bi_size;						\
++	     bvec_iter_advance((bio_vec), &(iter), (bvl).bv_len))
++
++
++static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
++				    unsigned bytes)
++{
++	iter->bi_sector += bytes >> 9;
++
++	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
++		iter->bi_size -= bytes;
++	else
++		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
++}
++
+ #define __bio_for_each_segment(bvl, bio, iter, start)			\
+ 	for (iter = (start);						\
+-	     bvl = bio_iter_iovec((bio), (iter)),			\
+-	     (iter).bi_idx < (bio)->bi_vcnt;				\
+-	     (iter).bi_idx++)
++	     (iter).bi_size &&						\
++		((bvl = bio_iter_iovec((bio), (iter))), 1);		\
++	     bio_advance_iter((bio), &(iter), (bvl).bv_len))
+ 
+ #define bio_for_each_segment(bvl, bio, iter)				\
+ 	__bio_for_each_segment(bvl, bio, iter, (bio)->bi_iter)
+ 
+-#define bio_iter_last(bio, iter) ((iter).bi_idx == (bio)->bi_vcnt - 1)
++#define bio_iter_last(bvec, iter) ((iter).bi_size == (bvec).bv_len)
+ 
+ /*
+  * get a reference to a bio, so it won't disappear. the intended use is
+diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+index d46e8a6..72f1274 100644
+--- a/include/linux/blk_types.h
++++ b/include/linux/blk_types.h
+@@ -34,6 +34,8 @@ struct bvec_iter {
+ 	unsigned int		bi_size;	/* residual I/O count */
+ 
+ 	unsigned int		bi_idx;		/* current index into bvl_vec */
++
++	unsigned int            bi_bvec_done;
+ };
+ 
+ /*
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index a436249..9874af4 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -714,9 +714,9 @@ struct req_iterator {
+ 	__rq_for_each_bio(_iter.bio, _rq)			\
+ 		bio_for_each_segment(bvl, _iter.bio, _iter.iter)
+ 
+-#define rq_iter_last(rq, _iter)					\
++#define rq_iter_last(bvec, _iter)				\
+ 		(_iter.bio->bi_next == NULL &&			\
+-		 bio_iter_last(_iter.bio, _iter.iter))
++		 bio_iter_last(bvec, _iter.iter))
+ 
+ #ifndef ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
+ # error	"You should define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE for your platform"
+-- 
+1.8.4.rc3
 
-* You need to base your work on the current drbd-9.0 development
-  code.
-
-* In case you are not used to GIT, make yourself familiar with this
-  great tool. Understand what "rebase" means.
-
-* Make yourself familiar with the DRBD code, make yourself familiar
-  with using drbd-9.0 (deploy it in a least 3 virtual machines)
-
-Then you may either do a=20
- a (prove of concept) first step, you may introduce UDP support
- as a new address family into the userland tools (drbdadm, drbdsetup).
- [Strictly speaking UDP is not a difference address family but a differ=
-ent
- socket type]
-
- Get that to work in a network without packet loss.
-
- Develop ideas of how to deal with packet loss...
-
- Last step: Actually do multicasting for sending data packets.
-
-or have some completely other approach
-
-You will actually need to keep your work in a dedicated branch that you=
-
-will need to rebase on the drbd-9.0 branch from time to time.
-
-In case you work turns into something useful, we might be in the
-position to merge your branch mid 2014.
-
-Does this give you an idea?
-
-PS: May I ask about your motivation for this effort?
-
-Best,
- Phil
