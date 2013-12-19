@@ -1,29 +1,29 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 191D2105B0A1
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C8C69105B0C4
 	for <drbd-dev@lists.linbit.com>; Fri, 20 Dec 2013 10:16:52 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id C24362B7731
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Dec 2013 10:16:47 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id B38562B7735
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Dec 2013 10:16:51 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id fgTBTdFqo2TU for <drbd-dev@lists.linbit.com>;
-	Fri, 20 Dec 2013 10:16:47 +0100 (CET)
+	with ESMTP id R-dNFq3r2-Fj for <drbd-dev@lists.linbit.com>;
+	Fri, 20 Dec 2013 10:16:51 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id AB7B82B7733
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Dec 2013 10:16:46 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 89FAF2B7733
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Dec 2013 10:16:49 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id DQTZlkyAX76P for <drbd-dev@lists.linbit.com>;
-	Fri, 20 Dec 2013 10:16:46 +0100 (CET)
+	with ESMTP id 6kcbxs-HTCTj for <drbd-dev@lists.linbit.com>;
+	Fri, 20 Dec 2013 10:16:49 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 8E6752B7731
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Dec 2013 10:16:46 +0100 (CET)
-Resent-Message-ID: <20131220091646.GI31214@soda.linbit>
-Date: Thu, 19 Dec 2013 15:12:27 +0530
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 640E82B7735
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Dec 2013 10:16:49 +0100 (CET)
+Resent-Message-ID: <20131220091649.GK31214@soda.linbit>
+Date: Thu, 19 Dec 2013 15:15:02 +0530
 From: Rashika Kheria <rashika.kheria@gmail.com>
 To: linux-kernel@vger.kernel.org
-Message-ID: <bed1e9bacd23651dac1fdcc20049fe9f930c804b.1387445396.git.rashika.kheria@gmail.com>
+Message-ID: <858d992f118ff1695201c7fb22c9a14052a5a96f.1387445396.git.rashika.kheria@gmail.com>
 References: <f460591345e87defe53122cf056991c7f2eefa10.1387445396.git.rashika.kheria@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
@@ -32,8 +32,8 @@ In-Reply-To: <f460591345e87defe53122cf056991c7f2eefa10.1387445396.git.rashika.kh
 Content-Transfer-Encoding: quoted-printable
 Cc: josh@joshtriplett.org, drbd-user@lists.linbit.com,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [PATCH 07/13] drivers: block: Mark functions as static
-	in drbd_req.c
+Subject: [Drbd-dev] [PATCH 09/13] drivers: block: Move prototype declaration
+ of function tl_abort_disk_io() to appropriate header file from drbd_state.c
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,48 +45,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Mark functions drbd_request_prepare() and find_oldest_request() as
-static in drbd/drbd_req.c because they are not used outside this file.
+Move the prototype declaration of function tl_abort_disk_io() from
+drbd/drbd_state.c to appropriate header file drbd/drbd_int.h because it
+is used by more than 2 files.
 
-This eliminates the following warnings in drbd/drbd_req.c:
-drivers/block/drbd/drbd_req.c:1037:1: warning: no previous prototype for =
-=E2=80=98drbd_request_prepare=E2=80=99 [-Wmissing-prototypes]
-drivers/block/drbd/drbd_req.c:1323:22: warning: no previous prototype for=
- =E2=80=98find_oldest_request=E2=80=99 [-Wmissing-prototypes]
+This eliminates the following warnings in drbd/drbd_main.c:
+drivers/block/drbd/drbd_main.c:310:6: warning: no previous prototype for =
+=E2=80=98tl_abort_disk_io=E2=80=99 [-Wmissing-prototypes]
 
 Signed-off-by: Rashika Kheria <rashika.kheria@gmail.com>
 Reviewed-by: Josh Triplett <josh@joshtriplett.org>
 ---
- drivers/block/drbd/drbd_req.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_int.h   |    1 +
+ drivers/block/drbd/drbd_state.c |    3 ---
+ 2 files changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.=
-c
-index fec7bef..771697b 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1033,7 +1033,7 @@ static void drbd_queue_write(struct drbd_conf *mdev=
-, struct drbd_request *req)
-  * request on the submitter thread.
-  * Returns ERR_PTR(-ENOMEM) if we cannot allocate a drbd_request.
-  */
--struct drbd_request *
-+static struct drbd_request *
- drbd_request_prepare(struct drbd_conf *mdev, struct bio *bio, unsigned l=
-ong start_time)
- {
- 	const int rw =3D bio_data_dir(bio);
-@@ -1320,7 +1320,7 @@ int drbd_merge_bvec(struct request_queue *q, struct=
- bvec_merge_data *bvm, struct
- 	return limit;
- }
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.=
+h
+index 0cc79f4..27df55f 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -65,6 +65,7 @@
+ extern unsigned int minor_count;
+ extern bool disable_sendpage;
+ extern bool allow_oos;
++void tl_abort_disk_io(struct drbd_conf *mdev);
 =20
--struct drbd_request *find_oldest_request(struct drbd_tconn *tconn)
-+static struct drbd_request *find_oldest_request(struct drbd_tconn *tconn=
-)
- {
- 	/* Walk the transfer log,
- 	 * and find the oldest not yet completed request */
+ #ifdef CONFIG_DRBD_FAULT_INJECTION
+ extern int enable_faults;
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_st=
+ate.c
+index 216d47b..120e1c0 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -29,9 +29,6 @@
+ #include "drbd_int.h"
+ #include "drbd_req.h"
+=20
+-/* in drbd_main.c */
+-extern void tl_abort_disk_io(struct drbd_conf *mdev);
+-
+ struct after_state_chg_work {
+ 	struct drbd_work w;
+ 	union drbd_state os;
 --=20
 1.7.9.5
 
