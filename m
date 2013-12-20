@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Fri, 20 Dec 2013 13:29:20 +0100
-Message-Id: <1387542563-6833-24-git-send-email-philipp.reisner@linbit.com>
+Date: Fri, 20 Dec 2013 13:29:21 +0100
+Message-Id: <1387542563-6833-25-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1387542563-6833-1-git-send-email-philipp.reisner@linbit.com>
 References: <1387542563-6833-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 23/26] drbd: Rename drbd_{create,
-	delete}_minor -> drbd_{create, delete}_device
+Subject: [Drbd-dev] [PATCH 24/26] drbd: get_one_status(): Iterate over
+	resource->devices instead of connection->peer_devices
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,80 +25,155 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  |    4 ++--
- drivers/block/drbd/drbd_main.c |    6 +++---
- drivers/block/drbd/drbd_nl.c   |    4 ++--
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_nl.c |   70 +++++++++++++++++++++++++++---------------
+ 1 file changed, 45 insertions(+), 25 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 3d1fb33..7021621 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1234,9 +1234,9 @@ extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
- extern rwlock_t global_state_lock;
- 
- extern int conn_lowest_minor(struct drbd_connection *connection);
--enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigned int minor, int vnr);
-+enum drbd_ret_code drbd_create_device(struct drbd_connection *connection, unsigned int minor, int vnr);
- extern void drbd_destroy_device(struct kref *kref);
--extern void drbd_delete_minor(struct drbd_device *mdev);
-+extern void drbd_delete_device(struct drbd_device *mdev);
- 
- extern struct drbd_resource *drbd_create_resource(const char *name);
- extern void drbd_free_resource(struct drbd_resource *resource);
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 72ead5b..7cab345 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2329,7 +2329,7 @@ static void drbd_cleanup(void)
- 	drbd_genl_unregister();
- 
- 	idr_for_each_entry(&drbd_devices, device, i)
--		drbd_delete_minor(device);
-+		drbd_delete_device(device);
- 
- 	/* not _rcu since, no other updater anymore. Genl already unregistered */
- 	for_each_resource_safe(resource, tmp, &drbd_resources) {
-@@ -2661,7 +2661,7 @@ int init_submitter(struct drbd_device *device)
- 	return 0;
- }
- 
--enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigned int minor, int vnr)
-+enum drbd_ret_code drbd_create_device(struct drbd_connection *connection, unsigned int minor, int vnr)
- {
- 	struct drbd_resource *resource = connection->resource;
- 	struct drbd_device *device;
-@@ -2811,7 +2811,7 @@ out_no_peer_device:
- 	return err;
- }
- 
--void drbd_delete_minor(struct drbd_device *device)
-+void drbd_delete_device(struct drbd_device *device)
- {
- 	struct drbd_resource *resource = device->resource;
- 	struct drbd_connection *connection;
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index c8604e7..12a65ce 100644
+index 12a65ce..f999e7c 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -3328,7 +3328,7 @@ int drbd_adm_new_minor(struct sk_buff *skb, struct genl_info *info)
- 		goto out;
- 	}
+@@ -2752,23 +2752,28 @@ int drbd_adm_outdate(struct sk_buff *skb, struct genl_info *info)
+ 	return drbd_adm_simple_request_state(skb, info, NS(disk, D_OUTDATED));
+ }
  
--	retcode = drbd_create_minor(adm_ctx.connection, dh->minor, adm_ctx.volume);
-+	retcode = drbd_create_device(adm_ctx.connection, dh->minor, adm_ctx.volume);
- out:
- 	drbd_adm_finish(info, retcode);
+-int nla_put_drbd_cfg_context(struct sk_buff *skb, struct drbd_connection *connection, unsigned vnr)
++static int nla_put_drbd_cfg_context(struct sk_buff *skb,
++				    struct drbd_resource *resource,
++				    struct drbd_connection *connection,
++				    struct drbd_device *device)
+ {
+ 	struct nlattr *nla;
+ 	nla = nla_nest_start(skb, DRBD_NLA_CFG_CONTEXT);
+ 	if (!nla)
+ 		goto nla_put_failure;
+-	if (vnr != VOLUME_UNSPECIFIED &&
+-	    nla_put_u32(skb, T_ctx_volume, vnr))
++	if (device &&
++	    nla_put_u32(skb, T_ctx_volume, device->vnr))
+ 		goto nla_put_failure;
+ 	if (nla_put_string(skb, T_ctx_resource_name, connection->resource->name))
+ 		goto nla_put_failure;
+-	if (connection->my_addr_len &&
+-	    nla_put(skb, T_ctx_my_addr, connection->my_addr_len, &connection->my_addr))
+-		goto nla_put_failure;
+-	if (connection->peer_addr_len &&
+-	    nla_put(skb, T_ctx_peer_addr, connection->peer_addr_len, &connection->peer_addr))
+-		goto nla_put_failure;
++	if (connection) {
++		if (connection->my_addr_len &&
++		    nla_put(skb, T_ctx_my_addr, connection->my_addr_len, &connection->my_addr))
++			goto nla_put_failure;
++		if (connection->peer_addr_len &&
++		    nla_put(skb, T_ctx_peer_addr, connection->peer_addr_len, &connection->peer_addr))
++			goto nla_put_failure;
++	}
+ 	nla_nest_end(skb, nla);
  	return 0;
-@@ -3343,7 +3343,7 @@ static enum drbd_ret_code adm_del_minor(struct drbd_device *device)
- 	    device->state.role == R_SECONDARY) {
- 		_drbd_request_state(device, NS(conn, C_WF_REPORT_PARAMS),
- 				    CS_VERBOSE + CS_WAIT_COMPLETE);
--		drbd_delete_minor(device);
-+		drbd_delete_device(device);
- 		return NO_ERROR;
- 	} else
- 		return ERR_MINOR_CONFIGURED;
+ 
+@@ -2778,9 +2783,22 @@ nla_put_failure:
+ 	return -EMSGSIZE;
+ }
+ 
++/*
++ * Return the connection of @resource if @resource has exactly one connection.
++ */
++static struct drbd_connection *the_only_connection(struct drbd_resource *resource)
++{
++	struct list_head *connections = &resource->connections;
++
++	if (list_empty(connections) || connections->next->next != connections)
++		return NULL;
++	return list_first_entry(&resource->connections, struct drbd_connection, connections);
++}
++
+ int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
+ 		const struct sib_info *sib)
+ {
++	struct drbd_resource *resource = device->resource;
+ 	struct state_info *si = NULL; /* for sizeof(si->member); */
+ 	struct nlattr *nla;
+ 	int got_ldev;
+@@ -2804,7 +2822,7 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
+ 
+ 	/* We need to add connection name and volume number information still.
+ 	 * Minor number is in drbd_genlmsghdr. */
+-	if (nla_put_drbd_cfg_context(skb, first_peer_device(device)->connection, device->vnr))
++	if (nla_put_drbd_cfg_context(skb, resource, the_only_connection(resource), device))
+ 		goto nla_put_failure;
+ 
+ 	if (res_opts_to_skb(skb, &device->resource->res_opts, exclude_sensitive))
+@@ -2922,19 +2940,17 @@ out:
+ 
+ static int get_one_status(struct sk_buff *skb, struct netlink_callback *cb)
+ {
+-	struct drbd_peer_device *peer_device;
+ 	struct drbd_device *device;
+ 	struct drbd_genlmsghdr *dh;
+ 	struct drbd_resource *pos = (struct drbd_resource *)cb->args[0];
+ 	struct drbd_resource *resource = NULL;
+-	struct drbd_connection *connection;
+ 	struct drbd_resource *tmp;
+ 	unsigned volume = cb->args[1];
+ 
+ 	/* Open coded, deferred, iteration:
+ 	 * for_each_resource_safe(resource, tmp, &drbd_resources) {
+-	 *      connection = "first connection of resource";
+-	 *	idr_for_each_entry(&connection->peer_devices, peer_device, i) {
++	 *      connection = "first connection of resource or undefined";
++	 *	idr_for_each_entry(&resource->devices, device, i) {
+ 	 *	  ...
+ 	 *	}
+ 	 * }
+@@ -2969,9 +2985,8 @@ static int get_one_status(struct sk_buff *skb, struct netlink_callback *cb)
+ 	}
+ 	if (resource) {
+ next_resource:
+-		connection = first_connection(resource);
+-		peer_device = idr_get_next(&connection->peer_devices, &volume);
+-		if (!peer_device) {
++		device = idr_get_next(&resource->devices, &volume);
++		if (!device) {
+ 			/* No more volumes to dump on this resource.
+ 			 * Advance resource iterator. */
+ 			pos = list_entry_rcu(resource->resources.next,
+@@ -2995,24 +3010,29 @@ next_resource:
+ 		if (!dh)
+ 			goto out;
+ 
+-		if (!peer_device) {
++		if (!device) {
+ 			/* This is a connection without a single volume.
+ 			 * Suprisingly enough, it may have a network
+ 			 * configuration. */
+-			struct net_conf *nc;
++			struct drbd_connection *connection;
++
+ 			dh->minor = -1U;
+ 			dh->ret_code = NO_ERROR;
+-			if (nla_put_drbd_cfg_context(skb, connection, VOLUME_UNSPECIFIED))
+-				goto cancel;
+-			nc = rcu_dereference(connection->net_conf);
+-			if (nc && net_conf_to_skb(skb, nc, 1) != 0)
++			connection = the_only_connection(resource);
++			if (nla_put_drbd_cfg_context(skb, resource, connection, NULL))
+ 				goto cancel;
++			if (connection) {
++				struct net_conf *nc;
++
++				nc = rcu_dereference(connection->net_conf);
++				if (nc && net_conf_to_skb(skb, nc, 1) != 0)
++					goto cancel;
++			}
+ 			goto done;
+ 		}
+ 
+-		device = peer_device->device;
+ 		D_ASSERT(device, device->vnr == volume);
+-		D_ASSERT(device, first_peer_device(device)->connection == connection);
++		D_ASSERT(device, device->resource == resource);
+ 
+ 		dh->minor = device_to_minor(device);
+ 		dh->ret_code = NO_ERROR;
 -- 
 1.7.9.5
 
