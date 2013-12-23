@@ -1,17 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 39B4D105B0D0
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5AF9D105B0BB
 	for <drbd-dev@lists.linbit.com>; Mon, 23 Dec 2013 22:50:58 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 23 Dec 2013 22:50:44 +0100
-Message-Id: <1387835456-29695-16-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 23 Dec 2013 22:50:45 +0100
+Message-Id: <1387835456-29695-17-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 References: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 15/27] drbd: Move string function prototypes from
-	linux/drbd.h to drbd_string.h
+Subject: [Drbd-dev] [PATCH 16/27] drbd: Rename w_prev_work_done -> w_complete
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,72 +24,72 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
+Also move it to drbd_receiver.c and make it static.
+
 Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h     |    1 +
- drivers/block/drbd/drbd_strings.c |    1 +
- drivers/block/drbd/drbd_strings.h |    9 +++++++++
- include/linux/drbd.h              |    6 ------
- 4 files changed, 11 insertions(+), 6 deletions(-)
- create mode 100644 drivers/block/drbd/drbd_strings.h
+ drivers/block/drbd/drbd_int.h      |    1 -
+ drivers/block/drbd/drbd_receiver.c |   10 +++++++++-
+ drivers/block/drbd/drbd_worker.c   |    8 --------
+ 3 files changed, 9 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index ef4c621..2b0fdfd 100644
+index 2b0fdfd..5cf496d 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -45,6 +45,7 @@
- #include <linux/prefetch.h>
- #include <linux/drbd_genl_api.h>
- #include <linux/drbd.h>
-+#include "drbd_strings.h"
- #include "drbd_state.h"
- #include "drbd_protocol.h"
+@@ -1321,7 +1321,6 @@ extern int w_send_write_hint(struct drbd_work *, int);
+ extern int w_make_resync_request(struct drbd_work *, int);
+ extern int w_send_dblock(struct drbd_work *, int);
+ extern int w_send_read_req(struct drbd_work *, int);
+-extern int w_prev_work_done(struct drbd_work *, int);
+ extern int w_e_reissue(struct drbd_work *, int);
+ extern int w_restart_disk_io(struct drbd_work *, int);
+ extern int w_send_out_of_sync(struct drbd_work *, int);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 9ccb856..250c8d4 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -4481,11 +4481,19 @@ static void drbdd(struct drbd_connection *connection)
+ 	conn_request_state(connection, NS(conn, C_PROTOCOL_ERROR), CS_HARD);
+ }
  
-diff --git a/drivers/block/drbd/drbd_strings.c b/drivers/block/drbd/drbd_strings.c
-index 58e08ff..80b0f63 100644
---- a/drivers/block/drbd/drbd_strings.c
-+++ b/drivers/block/drbd/drbd_strings.c
-@@ -24,6 +24,7 @@
- */
- 
- #include <linux/drbd.h>
-+#include "drbd_strings.h"
- 
- static const char *drbd_conn_s_names[] = {
- 	[C_STANDALONE]       = "StandAlone",
-diff --git a/drivers/block/drbd/drbd_strings.h b/drivers/block/drbd/drbd_strings.h
-new file mode 100644
-index 0000000..f9923cc
---- /dev/null
-+++ b/drivers/block/drbd/drbd_strings.h
-@@ -0,0 +1,9 @@
-+#ifndef __DRBD_STRINGS_H
-+#define __DRBD_STRINGS_H
++static int w_complete(struct drbd_work *w, int cancel)
++{
++	struct drbd_wq_barrier *b = container_of(w, struct drbd_wq_barrier, w);
 +
-+extern const char *drbd_conn_str(enum drbd_conns);
-+extern const char *drbd_role_str(enum drbd_role);
-+extern const char *drbd_disk_str(enum drbd_disk_state);
-+extern const char *drbd_set_st_err_str(enum drbd_state_rv);
++	complete(&b->done);
++	return 0;
++}
 +
-+#endif  /* __DRBD_STRINGS_H */
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 6f60136..3dbe9bd 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -327,12 +327,6 @@ enum drbd_state_rv {
- 	SS_AFTER_LAST_ERROR = -22,    /* Keep this at bottom */
- };
+ void conn_flush_workqueue(struct drbd_connection *connection)
+ {
+ 	struct drbd_wq_barrier barr;
  
--/* from drbd_strings.c */
--extern const char *drbd_conn_str(enum drbd_conns);
--extern const char *drbd_role_str(enum drbd_role);
--extern const char *drbd_disk_str(enum drbd_disk_state);
--extern const char *drbd_set_st_err_str(enum drbd_state_rv);
+-	barr.w.cb = w_prev_work_done;
++	barr.w.cb = w_complete;
+ 	barr.w.connection = connection;
+ 	init_completion(&barr.done);
+ 	drbd_queue_work(&connection->sender_work, &barr.w);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 8aaec6c..7d68227 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1262,14 +1262,6 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
+ 	return err;
+ }
+ 
+-int w_prev_work_done(struct drbd_work *w, int cancel)
+-{
+-	struct drbd_wq_barrier *b = container_of(w, struct drbd_wq_barrier, w);
 -
- #define SHARED_SECRET_MAX 64
- 
- #define MDF_CONSISTENT		(1 << 0)
+-	complete(&b->done);
+-	return 0;
+-}
+-
+ /* FIXME
+  * We need to track the number of pending barrier acks,
+  * and to be able to wait for them.
 -- 
 1.7.9.5
 
