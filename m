@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 840AD105B0CF
-	for <drbd-dev@lists.linbit.com>; Mon, 23 Dec 2013 22:50:58 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 98E35105B0BB
+	for <drbd-dev@lists.linbit.com>; Mon, 23 Dec 2013 22:50:57 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 23 Dec 2013 22:50:47 +0100
-Message-Id: <1387835456-29695-19-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 23 Dec 2013 22:50:39 +0100
+Message-Id: <1387835456-29695-11-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 References: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 18/27] drbd: Turn conn_flush_workqueue() into
-	drbd_flush_workqueue()
+Subject: [Drbd-dev] [PATCH 10/27] drbd: drbd_csum_bio(),
+	drbd_csum_ee(): Remove unused device argument
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,186 +25,143 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-The new function can flush any work queue, not just the work queue of the data
-socket of a connection.
-
 Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |   12 ++----------
- drivers/block/drbd/drbd_main.c     |   24 ++++++++++++++++++++++++
- drivers/block/drbd/drbd_nl.c       |   10 +++++-----
- drivers/block/drbd/drbd_receiver.c |   22 ++--------------------
- 4 files changed, 33 insertions(+), 35 deletions(-)
+ drivers/block/drbd/drbd_int.h      |    5 ++---
+ drivers/block/drbd/drbd_main.c     |    6 +++---
+ drivers/block/drbd/drbd_receiver.c |    4 ++--
+ drivers/block/drbd/drbd_worker.c   |   13 ++++++-------
+ 4 files changed, 13 insertions(+), 15 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index eb2bc90..7185c98 100644
+index c9eea4d..7ba1db8 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -346,11 +346,6 @@ enum epoch_event {
- 	EV_CLEANUP = 32, /* used as flag */
- };
- 
--struct drbd_wq_barrier {
--	struct drbd_work w;
--	struct completion done;
--};
--
- struct digest_info {
- 	int digest_size;
- 	void *digest;
-@@ -1349,12 +1344,7 @@ extern void __drbd_free_peer_req(struct drbd_device *, struct drbd_peer_request
- extern struct page *drbd_alloc_pages(struct drbd_peer_device *, unsigned int, bool);
- extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
- extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
--extern void conn_flush_workqueue(struct drbd_connection *connection);
- extern int drbd_connected(struct drbd_peer_device *);
--static inline void drbd_flush_workqueue(struct drbd_device *device)
--{
--	conn_flush_workqueue(first_peer_device(device)->connection);
--}
- 
- /* Yes, there is kernel_setsockopt, but only since 2.6.18.
-  * So we have our own copy of it here. */
-@@ -1709,6 +1699,8 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
- 	wake_up(&q->q_wait);
+@@ -1315,9 +1315,8 @@ static inline void ov_out_of_sync_print(struct drbd_device *device)
  }
  
-+extern void drbd_flush_workqueue(struct drbd_work_queue *work_queue);
-+
- static inline void wake_asender(struct drbd_connection *connection)
- {
- 	if (test_bit(SIGNAL_ASENDER, &connection->flags))
+ 
+-extern void drbd_csum_bio(struct drbd_device *, struct crypto_hash *, struct bio *, void *);
+-extern void drbd_csum_ee(struct drbd_device *, struct crypto_hash *,
+-			 struct drbd_peer_request *, void *);
++extern void drbd_csum_bio(struct crypto_hash *, struct bio *, void *);
++extern void drbd_csum_ee(struct crypto_hash *, struct drbd_peer_request *, void *);
+ /* worker callbacks */
+ extern int w_e_end_data_req(struct drbd_work *, int);
+ extern int w_e_end_rsdata_req(struct drbd_work *, int);
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 0500b56..e11f606 100644
+index a7f992f..7df2de8 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -2397,6 +2397,30 @@ static void drbd_init_workqueue(struct drbd_work_queue* wq)
- 	init_waitqueue_head(&wq->q_wait);
- }
- 
-+struct completion_work {
-+	struct drbd_work w;
-+	struct completion done;
-+};
-+
-+static int w_complete(struct drbd_work *w, int cancel)
-+{
-+	struct completion_work *completion_work =
-+		container_of(w, struct completion_work, w);
-+
-+	complete(&completion_work->done);
-+	return 0;
-+}
-+
-+void drbd_flush_workqueue(struct drbd_work_queue *work_queue)
-+{
-+	struct completion_work completion_work;
-+
-+	completion_work.w.cb = w_complete;
-+	init_completion(&completion_work.done);
-+	drbd_queue_work(work_queue, &completion_work.w);
-+	wait_for_completion(&completion_work.done);
-+}
-+
- struct drbd_resource *drbd_find_resource(const char *name)
- {
- 	struct drbd_resource *resource;
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index f613ba9..b202cdb 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1181,7 +1181,7 @@ void drbd_reconsider_max_bio_size(struct drbd_device *device)
- static void conn_reconfig_start(struct drbd_connection *connection)
- {
- 	drbd_thread_start(&connection->worker);
--	conn_flush_workqueue(connection);
-+	drbd_flush_workqueue(&connection->sender_work);
- }
- 
- /* if still unconfigured, stops worker again. */
-@@ -1600,7 +1600,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 	 */
- 	wait_event(device->misc_wait, !atomic_read(&device->ap_pending_cnt) || drbd_suspended(device));
- 	/* and for any other previously queued work */
--	drbd_flush_workqueue(device);
-+	drbd_flush_workqueue(&first_peer_device(device)->connection->sender_work);
- 
- 	rv = _drbd_request_state(device, NS(disk, D_ATTACHING), CS_VERBOSE);
- 	retcode = rv;  /* FIXME: Type mismatch. */
-@@ -2249,7 +2249,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 
- 	((char *)new_net_conf->shared_secret)[SHARED_SECRET_MAX-1] = 0;
- 
--	conn_flush_workqueue(connection);
-+	drbd_flush_workqueue(&connection->sender_work);
- 
- 	mutex_lock(&adm_ctx.resource->conf_update);
- 	old_net_conf = connection->net_conf;
-@@ -2589,7 +2589,7 @@ int drbd_adm_invalidate(struct sk_buff *skb, struct genl_info *info)
- 	 * Also wait for it's after_state_ch(). */
- 	drbd_suspend_io(device);
- 	wait_event(device->misc_wait, !test_bit(BITMAP_IO, &device->flags));
--	drbd_flush_workqueue(device);
-+	drbd_flush_workqueue(&first_peer_device(device)->connection->sender_work);
- 
- 	/* If we happen to be C_STANDALONE R_SECONDARY, just change to
- 	 * D_INCONSISTENT, and set all bits in the bitmap.  Otherwise,
-@@ -2655,7 +2655,7 @@ int drbd_adm_invalidate_peer(struct sk_buff *skb, struct genl_info *info)
- 	 * Also wait for it's after_state_ch(). */
- 	drbd_suspend_io(device);
- 	wait_event(device->misc_wait, !test_bit(BITMAP_IO, &device->flags));
--	drbd_flush_workqueue(device);
-+	drbd_flush_workqueue(&first_peer_device(device)->connection->sender_work);
- 
- 	/* If we happen to be C_STANDALONE R_PRIMARY, just set all bits
- 	 * in the bitmap.  Otherwise, try to start a resync handshake
+@@ -1646,7 +1646,7 @@ int drbd_send_dblock(struct drbd_device *device, struct drbd_request *req)
+ 	}
+ 	p->dp_flags = cpu_to_be32(dp_flags);
+ 	if (dgs)
+-		drbd_csum_bio(device, first_peer_device(device)->connection->integrity_tfm, req->master_bio, p + 1);
++		drbd_csum_bio(first_peer_device(device)->connection->integrity_tfm, req->master_bio, p + 1);
+ 	err = __send_command(first_peer_device(device)->connection, device->vnr, sock, P_DATA, sizeof(*p) + dgs, NULL, req->i.size);
+ 	if (!err) {
+ 		/* For protocol A, we have to memcpy the payload into
+@@ -1670,7 +1670,7 @@ int drbd_send_dblock(struct drbd_device *device, struct drbd_request *req)
+ 			/* 64 byte, 512 bit, is the largest digest size
+ 			 * currently supported in kernel crypto. */
+ 			unsigned char digest[64];
+-			drbd_csum_bio(device, first_peer_device(device)->connection->integrity_tfm, req->master_bio, digest);
++			drbd_csum_bio(first_peer_device(device)->connection->integrity_tfm, req->master_bio, digest);
+ 			if (memcmp(p + 1, digest, dgs)) {
+ 				drbd_warn(device,
+ 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
+@@ -1710,7 +1710,7 @@ int drbd_send_block(struct drbd_device *device, enum drbd_packet cmd,
+ 	p->seq_num = 0;  /* unused */
+ 	p->dp_flags = 0;
+ 	if (dgs)
+-		drbd_csum_ee(device, first_peer_device(device)->connection->integrity_tfm, peer_req, p + 1);
++		drbd_csum_ee(first_peer_device(device)->connection->integrity_tfm, peer_req, p + 1);
+ 	err = __send_command(first_peer_device(device)->connection, device->vnr, sock, cmd, sizeof(*p) + dgs, NULL, peer_req->i.size);
+ 	if (!err)
+ 		err = _drbd_send_zc_ee(device, peer_req);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 3c88efa..c99f252 100644
+index 9349113..cb37e23 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4484,24 +4484,6 @@ static void drbdd(struct drbd_connection *connection)
- 	conn_request_state(connection, NS(conn, C_PROTOCOL_ERROR), CS_HARD);
+@@ -1560,7 +1560,7 @@ read_in_block(struct drbd_device *device, u64 id, sector_t sector,
+ 	}
+ 
+ 	if (dgs) {
+-		drbd_csum_ee(device, first_peer_device(device)->connection->peer_integrity_tfm, peer_req, dig_vv);
++		drbd_csum_ee(first_peer_device(device)->connection->peer_integrity_tfm, peer_req, dig_vv);
+ 		if (memcmp(dig_in, dig_vv, dgs)) {
+ 			drbd_err(device, "Digest integrity check FAILED: %llus +%u\n",
+ 				(unsigned long long)sector, data_size);
+@@ -1637,7 +1637,7 @@ static int recv_dless_read(struct drbd_device *device, struct drbd_request *req,
+ 	}
+ 
+ 	if (dgs) {
+-		drbd_csum_bio(device, first_peer_device(device)->connection->peer_integrity_tfm, bio, dig_vv);
++		drbd_csum_bio(first_peer_device(device)->connection->peer_integrity_tfm, bio, dig_vv);
+ 		if (memcmp(dig_in, dig_vv, dgs)) {
+ 			drbd_err(device, "Digest integrity check FAILED. Broken NICs?\n");
+ 			return -EINVAL;
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 167c198..cf40a8a 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -282,8 +282,7 @@ void drbd_request_endio(struct bio *bio, int error)
+ 		complete_master_bio(device, &m);
  }
  
--static int w_complete(struct drbd_work *w, int cancel)
--{
--	struct drbd_wq_barrier *b = container_of(w, struct drbd_wq_barrier, w);
--
--	complete(&b->done);
--	return 0;
--}
--
--void conn_flush_workqueue(struct drbd_connection *connection)
--{
--	struct drbd_wq_barrier barr;
--
--	barr.w.cb = w_complete;
--	init_completion(&barr.done);
--	drbd_queue_work(&connection->sender_work, &barr.w);
--	wait_for_completion(&barr.done);
--}
--
- static void conn_disconnect(struct drbd_connection *connection)
+-void drbd_csum_ee(struct drbd_device *device, struct crypto_hash *tfm,
+-		  struct drbd_peer_request *peer_req, void *digest)
++void drbd_csum_ee(struct crypto_hash *tfm, struct drbd_peer_request *peer_req, void *digest)
  {
- 	struct drbd_peer_device *peer_device;
-@@ -4589,14 +4571,14 @@ static int drbd_disconnected(struct drbd_peer_device *peer_device)
- 	/* wait for all w_e_end_data_req, w_e_end_rsdata_req, w_send_barrier,
- 	 * w_make_resync_request etc. which may still be on the worker queue
- 	 * to be "canceled" */
--	drbd_flush_workqueue(device);
-+	drbd_flush_workqueue(&peer_device->connection->sender_work);
+ 	struct hash_desc desc;
+ 	struct scatterlist sg;
+@@ -310,7 +309,7 @@ void drbd_csum_ee(struct drbd_device *device, struct crypto_hash *tfm,
+ 	crypto_hash_final(&desc, digest);
+ }
  
- 	drbd_finish_peer_reqs(device);
+-void drbd_csum_bio(struct drbd_device *device, struct crypto_hash *tfm, struct bio *bio, void *digest)
++void drbd_csum_bio(struct crypto_hash *tfm, struct bio *bio, void *digest)
+ {
+ 	struct hash_desc desc;
+ 	struct scatterlist sg;
+@@ -350,7 +349,7 @@ static int w_e_send_csum(struct drbd_work *w, int cancel)
+ 	if (digest) {
+ 		sector_t sector = peer_req->i.sector;
+ 		unsigned int size = peer_req->i.size;
+-		drbd_csum_ee(device, first_peer_device(device)->connection->csums_tfm, peer_req, digest);
++		drbd_csum_ee(first_peer_device(device)->connection->csums_tfm, peer_req, digest);
+ 		/* Free peer_req and pages before send.
+ 		 * In case we block on congestion, we could otherwise run into
+ 		 * some distributed deadlock, if the other side blocks on
+@@ -1103,7 +1102,7 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
+ 			digest = kmalloc(digest_size, GFP_NOIO);
+ 		}
+ 		if (digest) {
+-			drbd_csum_ee(device, first_peer_device(device)->connection->csums_tfm, peer_req, digest);
++			drbd_csum_ee(first_peer_device(device)->connection->csums_tfm, peer_req, digest);
+ 			eq = !memcmp(digest, di->digest, digest_size);
+ 			kfree(digest);
+ 		}
+@@ -1155,7 +1154,7 @@ int w_e_end_ov_req(struct drbd_work *w, int cancel)
+ 	}
  
- 	/* This second workqueue flush is necessary, since drbd_finish_peer_reqs()
- 	   might have issued a work again. The one before drbd_finish_peer_reqs() is
- 	   necessary to reclain net_ee in drbd_finish_peer_reqs(). */
--	drbd_flush_workqueue(device);
-+	drbd_flush_workqueue(&peer_device->connection->sender_work);
+ 	if (likely(!(peer_req->flags & EE_WAS_ERROR)))
+-		drbd_csum_ee(device, first_peer_device(device)->connection->verify_tfm, peer_req, digest);
++		drbd_csum_ee(first_peer_device(device)->connection->verify_tfm, peer_req, digest);
+ 	else
+ 		memset(digest, 0, digest_size);
  
- 	/* need to do it again, drbd_finish_peer_reqs() may have populated it
- 	 * again via drbd_try_clear_on_disk_bm(). */
+@@ -1221,7 +1220,7 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
+ 		digest_size = crypto_hash_digestsize(first_peer_device(device)->connection->verify_tfm);
+ 		digest = kmalloc(digest_size, GFP_NOIO);
+ 		if (digest) {
+-			drbd_csum_ee(device, first_peer_device(device)->connection->verify_tfm, peer_req, digest);
++			drbd_csum_ee(first_peer_device(device)->connection->verify_tfm, peer_req, digest);
+ 
+ 			D_ASSERT(device, digest_size == di->digest_size);
+ 			eq = !memcmp(digest, di->digest, digest_size);
 -- 
 1.7.9.5
 
