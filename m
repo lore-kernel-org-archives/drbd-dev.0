@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 08E0D105B0D2
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0DE56105B0D3
 	for <drbd-dev@lists.linbit.com>; Mon, 23 Dec 2013 22:50:59 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 23 Dec 2013 22:50:52 +0100
-Message-Id: <1387835456-29695-24-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 23 Dec 2013 22:50:53 +0100
+Message-Id: <1387835456-29695-25-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 References: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 23/27] drbd: In the worker thread,
-	process drbd_work instead of drbd_device_work items
+Subject: [Drbd-dev] [PATCH 24/27] drbd: Get rid of first_peer_device() in
+	handle_write_conflicts()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,53 +23,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andreas Gruenbacher <agruen@kernel.org>
+From: Andreas Gruenbacher <agruen@linbit.com>
 
 Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 ---
- drivers/block/drbd/drbd_worker.c |   14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |    8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 7961af9..b826648 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1888,7 +1888,7 @@ void wait_for_work(struct drbd_connection *connection, struct list_head *work_li
- int drbd_worker(struct drbd_thread *thi)
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index e2e01b4..5c0239e 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -2065,7 +2065,7 @@ static void fail_postponed_requests(struct drbd_device *device, sector_t sector,
+ static int handle_write_conflicts(struct drbd_device *device,
+ 				  struct drbd_peer_request *peer_req)
  {
- 	struct drbd_connection *connection = thi->connection;
--	struct drbd_device_work *dw = NULL;
-+	struct drbd_work *w = NULL;
- 	struct drbd_peer_device *peer_device;
- 	LIST_HEAD(work_list);
- 	int vnr;
-@@ -1914,9 +1914,9 @@ int drbd_worker(struct drbd_thread *thi)
- 			break;
+-	struct drbd_connection *connection = first_peer_device(device)->connection;
++	struct drbd_connection *connection = peer_req->peer_device->connection;
+ 	bool resolve_conflicts = test_bit(RESOLVE_CONFLICTS, &connection->flags);
+ 	sector_t sector = peer_req->i.sector;
+ 	const unsigned int size = peer_req->i.size;
+@@ -2119,7 +2119,7 @@ static int handle_write_conflicts(struct drbd_device *device,
+ 			peer_req->w.cb = superseded ? e_send_superseded :
+ 						   e_send_retry_write;
+ 			list_add_tail(&peer_req->w.list, &device->done_ee);
+-			wake_asender(first_peer_device(device)->connection);
++			wake_asender(connection);
  
- 		while (!list_empty(&work_list)) {
--			dw = list_first_entry(&work_list, struct drbd_device_work, w.list);
--			list_del_init(&dw->w.list);
--			if (dw->w.cb(&dw->w, connection->cstate < C_WF_REPORT_PARAMS) == 0)
-+			w = list_first_entry(&work_list, struct drbd_work, list);
-+			list_del_init(&w->list);
-+			if (w->cb(w, connection->cstate < C_WF_REPORT_PARAMS) == 0)
- 				continue;
- 			if (connection->cstate >= C_WF_REPORT_PARAMS)
- 				conn_request_state(connection, NS(conn, C_NETWORK_FAILURE), CS_HARD);
-@@ -1925,9 +1925,9 @@ int drbd_worker(struct drbd_thread *thi)
- 
- 	do {
- 		while (!list_empty(&work_list)) {
--			dw = list_first_entry(&work_list, struct drbd_device_work, w.list);
--			list_del_init(&dw->w.list);
--			dw->w.cb(&dw->w, 1);
-+			w = list_first_entry(&work_list, struct drbd_work, list);
-+			list_del_init(&w->list);
-+			w->cb(w, 1);
- 		}
- 		dequeue_work_batch(&connection->sender_work, &work_list);
- 	} while (!list_empty(&work_list));
+ 			err = -ENOENT;
+ 			goto out;
+@@ -2148,9 +2148,7 @@ static int handle_write_conflicts(struct drbd_device *device,
+ 				 */
+ 				err = drbd_wait_misc(device, &req->i);
+ 				if (err) {
+-					_conn_request_state(first_peer_device(device)->connection,
+-							    NS(conn, C_TIMEOUT),
+-							    CS_HARD);
++					_conn_request_state(connection, NS(conn, C_TIMEOUT), CS_HARD);
+ 					fail_postponed_requests(device, sector, size);
+ 					goto out;
+ 				}
 -- 
 1.7.9.5
 
