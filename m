@@ -1,17 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E1C8E105B0CF
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E3CEC105B0D0
 	for <drbd-dev@lists.linbit.com>; Mon, 23 Dec 2013 22:50:56 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 23 Dec 2013 22:50:30 +0100
-Message-Id: <1387835456-29695-2-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 23 Dec 2013 22:50:31 +0100
+Message-Id: <1387835456-29695-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 References: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/27] drbd: Rename net_conf variables old_conf
-	-> old_net_conf and new_conf -> new_net_conf
+Subject: [Drbd-dev] [PATCH 02/27] drbd: Iterate over all connections
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,288 +24,242 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
+in drbd_adm_down(), drbd_create_device() and drbd_set_role()
+
 Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c |   92 +++++++++++++++++++++---------------------
- 1 file changed, 46 insertions(+), 46 deletions(-)
+ drivers/block/drbd/drbd_main.c |   55 +++++++++++++++++++-------------
+ drivers/block/drbd/drbd_nl.c   |   68 ++++++++++++++++++++++------------------
+ 2 files changed, 70 insertions(+), 53 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 6ed09d5..c4aec68 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2663,9 +2663,9 @@ int init_submitter(struct drbd_device *device)
+ 
+ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned int minor, int vnr)
+ {
+-	struct drbd_connection *connection = first_connection(resource);
++	struct drbd_connection *connection;
+ 	struct drbd_device *device;
+-	struct drbd_peer_device *peer_device;
++	struct drbd_peer_device *peer_device, *tmp_peer_device;
+ 	struct gendisk *disk;
+ 	struct request_queue *q;
+ 	int id;
+@@ -2681,18 +2681,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
+ 		return ERR_NOMEM;
+ 	kref_init(&device->kref);
+ 
+-	peer_device = kzalloc(sizeof(struct drbd_peer_device), GFP_KERNEL);
+-	if (!peer_device)
+-		goto out_no_peer_device;
+-
+-	INIT_LIST_HEAD(&device->peer_devices);
+-	list_add(&peer_device->peer_devices, &device->peer_devices);
+ 	kref_get(&resource->kref);
+ 	device->resource = resource;
+-	kref_get(&connection->kref);
+-	peer_device->connection = connection;
+-	peer_device->device = device;
+-
+ 	device->minor = minor;
+ 	device->vnr = vnr;
+ 
+@@ -2763,15 +2753,27 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
+ 	}
+ 	kref_get(&device->kref);
+ 
+-	id = idr_alloc(&connection->peer_devices, peer_device, vnr, vnr + 1, GFP_KERNEL);
+-	if (id < 0) {
+-		if (id == -ENOSPC) {
+-			err = ERR_INVALID_REQUEST;
+-			drbd_msg_put_info("requested volume exists already");
++	INIT_LIST_HEAD(&device->peer_devices);
++	for_each_connection(connection, resource) {
++		peer_device = kzalloc(sizeof(struct drbd_peer_device), GFP_KERNEL);
++		if (!peer_device)
++			goto out_idr_remove_from_resource;
++		peer_device->connection = connection;
++		peer_device->device = device;
++
++		list_add(&peer_device->peer_devices, &device->peer_devices);
++		kref_get(&device->kref);
++
++		id = idr_alloc(&connection->peer_devices, peer_device, vnr, vnr + 1, GFP_KERNEL);
++		if (id < 0) {
++			if (id == -ENOSPC) {
++				err = ERR_INVALID_REQUEST;
++				drbd_msg_put_info("requested volume exists already");
++			}
++			goto out_idr_remove_from_resource;
+ 		}
+-		goto out_idr_remove_from_resource;
++		kref_get(&connection->kref);
+ 	}
+-	kref_get(&device->kref);
+ 
+ 	if (init_submitter(device)) {
+ 		err = ERR_NOMEM;
+@@ -2782,7 +2784,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
+ 	add_disk(disk);
+ 
+ 	/* inherit the connection state */
+-	device->state.conn = connection->cstate;
++	device->state.conn = first_connection(resource)->cstate;
+ 	if (device->state.conn == C_WF_REPORT_PARAMS)
+ 		drbd_connected(device);
+ 
+@@ -2791,6 +2793,17 @@ enum drbd_ret_code drbd_create_device(struct drbd_resource *resource, unsigned i
+ out_idr_remove_vol:
+ 	idr_remove(&connection->peer_devices, vnr);
+ out_idr_remove_from_resource:
++	for_each_connection(connection, resource) {
++		peer_device = idr_find(&connection->peer_devices, vnr);
++		if (peer_device) {
++			idr_remove(&connection->peer_devices, vnr);
++			kref_put(&connection->kref, drbd_destroy_connection);
++		}
++	}
++	for_each_peer_device_safe(peer_device, tmp_peer_device, device) {
++		list_del(&peer_device->peer_devices);
++		kfree(peer_device);
++	}
+ 	idr_remove(&resource->devices, vnr);
+ out_idr_remove_minor:
+ 	idr_remove(&drbd_devices, minor);
+@@ -2804,9 +2817,7 @@ out_no_io_page:
+ out_no_disk:
+ 	blk_cleanup_queue(q);
+ out_no_q:
+-	kref_put(&connection->kref, drbd_destroy_connection);
+ 	kref_put(&resource->kref, drbd_destroy_resource);
+-out_no_peer_device:
+ 	kfree(device);
+ 	return err;
+ }
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index abe96b0..a07b65a 100644
+index a07b65a..26051c6 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1921,29 +1921,29 @@ static bool conn_ov_running(struct drbd_connection *connection)
- }
+@@ -560,8 +560,16 @@ drbd_set_role(struct drbd_device *device, enum drbd_role new_role, int force)
+ 	int forced = 0;
+ 	union drbd_state mask, val;
  
- static enum drbd_ret_code
--_check_net_options(struct drbd_connection *connection, struct net_conf *old_conf, struct net_conf *new_conf)
-+_check_net_options(struct drbd_connection *connection, struct net_conf *old_net_conf, struct net_conf *new_net_conf)
+-	if (new_role == R_PRIMARY)
+-		request_ping(first_peer_device(device)->connection); /* Detect a dead peer ASAP */
++	if (new_role == R_PRIMARY) {
++		struct drbd_connection *connection;
++
++		/* Detect dead peers as soon as possible.  */
++
++		rcu_read_lock();
++		for_each_connection(connection, device->resource)
++			request_ping(connection);
++		rcu_read_unlock();
++	}
+ 
+ 	mutex_lock(device->state_mutex);
+ 
+@@ -3387,8 +3395,10 @@ out:
+ 
+ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
  {
- 	struct drbd_peer_device *peer_device;
- 	int i;
++	struct drbd_resource *resource;
++	struct drbd_connection *connection;
++	struct drbd_device *device;
+ 	int retcode; /* enum drbd_ret_code rsp. enum drbd_state_rv */
+-	struct drbd_peer_device *peer_device;
+ 	unsigned i;
  
--	if (old_conf && connection->cstate == C_WF_REPORT_PARAMS && connection->agreed_pro_version < 100) {
--		if (new_conf->wire_protocol != old_conf->wire_protocol)
-+	if (old_net_conf && connection->cstate == C_WF_REPORT_PARAMS && connection->agreed_pro_version < 100) {
-+		if (new_net_conf->wire_protocol != old_net_conf->wire_protocol)
- 			return ERR_NEED_APV_100;
- 
--		if (new_conf->two_primaries != old_conf->two_primaries)
-+		if (new_net_conf->two_primaries != old_net_conf->two_primaries)
- 			return ERR_NEED_APV_100;
- 
--		if (strcmp(new_conf->integrity_alg, old_conf->integrity_alg))
-+		if (strcmp(new_net_conf->integrity_alg, old_net_conf->integrity_alg))
- 			return ERR_NEED_APV_100;
- 	}
- 
--	if (!new_conf->two_primaries &&
-+	if (!new_net_conf->two_primaries &&
- 	    conn_highest_role(connection) == R_PRIMARY &&
- 	    conn_highest_peer(connection) == R_PRIMARY)
- 		return ERR_NEED_ALLOW_TWO_PRI;
- 
--	if (new_conf->two_primaries &&
--	    (new_conf->wire_protocol != DRBD_PROT_C))
-+	if (new_net_conf->two_primaries &&
-+	    (new_net_conf->wire_protocol != DRBD_PROT_C))
- 		return ERR_NOT_PROTO_C;
- 
- 	idr_for_each_entry(&connection->peer_devices, peer_device, i) {
-@@ -1951,28 +1951,28 @@ _check_net_options(struct drbd_connection *connection, struct net_conf *old_conf
- 		if (get_ldev(device)) {
- 			enum drbd_fencing_p fp = rcu_dereference(device->ldev->disk_conf)->fencing;
- 			put_ldev(device);
--			if (new_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH)
-+			if (new_net_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH)
- 				return ERR_STONITH_AND_PROT_A;
- 		}
--		if (device->state.role == R_PRIMARY && new_conf->discard_my_data)
-+		if (device->state.role == R_PRIMARY && new_net_conf->discard_my_data)
- 			return ERR_DISCARD_IMPOSSIBLE;
- 	}
- 
--	if (new_conf->on_congestion != OC_BLOCK && new_conf->wire_protocol != DRBD_PROT_A)
-+	if (new_net_conf->on_congestion != OC_BLOCK && new_net_conf->wire_protocol != DRBD_PROT_A)
- 		return ERR_CONG_NOT_PROTO_A;
- 
- 	return NO_ERROR;
- }
- 
- static enum drbd_ret_code
--check_net_options(struct drbd_connection *connection, struct net_conf *new_conf)
-+check_net_options(struct drbd_connection *connection, struct net_conf *new_net_conf)
- {
- 	static enum drbd_ret_code rv;
- 	struct drbd_peer_device *peer_device;
- 	int i;
- 
- 	rcu_read_lock();
--	rv = _check_net_options(connection, rcu_dereference(connection->net_conf), new_conf);
-+	rv = _check_net_options(connection, rcu_dereference(connection->net_conf), new_net_conf);
- 	rcu_read_unlock();
- 
- 	/* connection->volumes protected by genl_lock() here */
-@@ -2010,26 +2010,26 @@ alloc_hash(struct crypto_hash **tfm, char *tfm_name, int err_alg)
- }
- 
- static enum drbd_ret_code
--alloc_crypto(struct crypto *crypto, struct net_conf *new_conf)
-+alloc_crypto(struct crypto *crypto, struct net_conf *new_net_conf)
- {
- 	char hmac_name[CRYPTO_MAX_ALG_NAME];
- 	enum drbd_ret_code rv;
- 
--	rv = alloc_hash(&crypto->csums_tfm, new_conf->csums_alg,
-+	rv = alloc_hash(&crypto->csums_tfm, new_net_conf->csums_alg,
- 		       ERR_CSUMS_ALG);
- 	if (rv != NO_ERROR)
- 		return rv;
--	rv = alloc_hash(&crypto->verify_tfm, new_conf->verify_alg,
-+	rv = alloc_hash(&crypto->verify_tfm, new_net_conf->verify_alg,
- 		       ERR_VERIFY_ALG);
- 	if (rv != NO_ERROR)
- 		return rv;
--	rv = alloc_hash(&crypto->integrity_tfm, new_conf->integrity_alg,
-+	rv = alloc_hash(&crypto->integrity_tfm, new_net_conf->integrity_alg,
- 		       ERR_INTEGRITY_ALG);
- 	if (rv != NO_ERROR)
- 		return rv;
--	if (new_conf->cram_hmac_alg[0] != 0) {
-+	if (new_net_conf->cram_hmac_alg[0] != 0) {
- 		snprintf(hmac_name, CRYPTO_MAX_ALG_NAME, "hmac(%s)",
--			 new_conf->cram_hmac_alg);
-+			 new_net_conf->cram_hmac_alg);
- 
- 		rv = alloc_hash(&crypto->cram_hmac_tfm, hmac_name,
- 			       ERR_AUTH_ALG);
-@@ -2050,7 +2050,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- {
- 	enum drbd_ret_code retcode;
- 	struct drbd_connection *connection;
--	struct net_conf *old_conf, *new_conf = NULL;
-+	struct net_conf *old_net_conf, *new_net_conf = NULL;
- 	int err;
- 	int ovr; /* online verify running */
- 	int rsr; /* re-sync running */
-@@ -2064,8 +2064,8 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 
- 	connection = adm_ctx.connection;
- 
--	new_conf = kzalloc(sizeof(struct net_conf), GFP_KERNEL);
--	if (!new_conf) {
-+	new_net_conf = kzalloc(sizeof(struct net_conf), GFP_KERNEL);
-+	if (!new_net_conf) {
- 		retcode = ERR_NOMEM;
+ 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+@@ -3397,24 +3407,29 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
+ 	if (retcode != NO_ERROR)
  		goto out;
- 	}
-@@ -2074,48 +2074,48 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
  
- 	mutex_lock(&connection->data.mutex);
- 	mutex_lock(&connection->conf_update);
--	old_conf = connection->net_conf;
-+	old_net_conf = connection->net_conf;
- 
--	if (!old_conf) {
-+	if (!old_net_conf) {
- 		drbd_msg_put_info("net conf missing, try connect");
- 		retcode = ERR_INVALID_REQUEST;
- 		goto fail;
- 	}
- 
--	*new_conf = *old_conf;
-+	*new_net_conf = *old_net_conf;
- 	if (should_set_defaults(info))
--		set_net_conf_defaults(new_conf);
-+		set_net_conf_defaults(new_net_conf);
- 
--	err = net_conf_from_attrs_for_change(new_conf, info);
-+	err = net_conf_from_attrs_for_change(new_net_conf, info);
- 	if (err && err != -ENOMSG) {
- 		retcode = ERR_MANDATORY_TAG;
- 		drbd_msg_put_info(from_attrs_err_to_txt(err));
- 		goto fail;
++	resource = adm_ctx.resource;
+ 	/* demote */
+-	idr_for_each_entry(&adm_ctx.connection->peer_devices, peer_device, i) {
+-		retcode = drbd_set_role(peer_device->device, R_SECONDARY, 0);
++	for_each_connection(connection, resource) {
++		struct drbd_peer_device *peer_device;
++
++		idr_for_each_entry(&connection->peer_devices, peer_device, i) {
++			retcode = drbd_set_role(peer_device->device, R_SECONDARY, 0);
++			if (retcode < SS_SUCCESS) {
++				drbd_msg_put_info("failed to demote");
++				goto out;
++			}
++		}
++
++		retcode = conn_try_disconnect(connection, 0);
+ 		if (retcode < SS_SUCCESS) {
+-			drbd_msg_put_info("failed to demote");
++			drbd_msg_put_info("failed to disconnect");
+ 			goto out;
+ 		}
  	}
  
--	retcode = check_net_options(connection, new_conf);
-+	retcode = check_net_options(connection, new_net_conf);
- 	if (retcode != NO_ERROR)
- 		goto fail;
+-	retcode = conn_try_disconnect(adm_ctx.connection, 0);
+-	if (retcode < SS_SUCCESS) {
+-		drbd_msg_put_info("failed to disconnect");
+-		goto out;
+-	}
+-
+ 	/* detach */
+-	idr_for_each_entry(&adm_ctx.connection->peer_devices, peer_device, i) {
+-		retcode = adm_detach(peer_device->device, 0);
++	idr_for_each_entry(&resource->devices, device, i) {
++		retcode = adm_detach(device, 0);
+ 		if (retcode < SS_SUCCESS || retcode > NO_ERROR) {
+ 			drbd_msg_put_info("failed to detach");
+ 			goto out;
+@@ -3424,13 +3439,14 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
+ 	/* If we reach this, all volumes (of this connection) are Secondary,
+ 	 * Disconnected, Diskless, aka Unconfigured. Make sure all threads have
+ 	 * actually stopped, state handling only does drbd_thread_stop_nowait(). */
+-	drbd_thread_stop(&adm_ctx.connection->worker);
++	for_each_connection(connection, resource)
++		drbd_thread_stop(&connection->worker);
  
- 	/* re-sync running */
- 	rsr = conn_resync_running(connection);
--	if (rsr && strcmp(new_conf->csums_alg, old_conf->csums_alg)) {
-+	if (rsr && strcmp(new_net_conf->csums_alg, old_net_conf->csums_alg)) {
- 		retcode = ERR_CSUMS_RESYNC_RUNNING;
- 		goto fail;
+ 	/* Now, nothing can fail anymore */
+ 
+ 	/* delete volumes */
+-	idr_for_each_entry(&adm_ctx.connection->peer_devices, peer_device, i) {
+-		retcode = adm_del_minor(peer_device->device);
++	idr_for_each_entry(&resource->devices, device, i) {
++		retcode = adm_del_minor(device);
+ 		if (retcode != NO_ERROR) {
+ 			/* "can not happen" */
+ 			drbd_msg_put_info("failed to delete volume");
+@@ -3438,21 +3454,11 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
+ 		}
  	}
  
- 	/* online verify running */
- 	ovr = conn_ov_running(connection);
--	if (ovr && strcmp(new_conf->verify_alg, old_conf->verify_alg)) {
-+	if (ovr && strcmp(new_net_conf->verify_alg, old_net_conf->verify_alg)) {
- 		retcode = ERR_VERIFY_RUNNING;
- 		goto fail;
- 	}
+-	/* delete connection */
+-	if (conn_lowest_minor(adm_ctx.connection) < 0) {
+-		struct drbd_resource *resource = adm_ctx.connection->resource;
+-
+-		list_del_rcu(&resource->resources);
+-		synchronize_rcu();
+-		drbd_free_resource(resource);
++	list_del_rcu(&resource->resources);
++	synchronize_rcu();
++	drbd_free_resource(resource);
++	retcode = NO_ERROR;
  
--	retcode = alloc_crypto(&crypto, new_conf);
-+	retcode = alloc_crypto(&crypto, new_net_conf);
- 	if (retcode != NO_ERROR)
- 		goto fail;
- 
--	rcu_assign_pointer(connection->net_conf, new_conf);
-+	rcu_assign_pointer(connection->net_conf, new_net_conf);
- 
- 	if (!rsr) {
- 		crypto_free_hash(connection->csums_tfm);
-@@ -2140,7 +2140,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 	mutex_unlock(&connection->conf_update);
- 	mutex_unlock(&connection->data.mutex);
- 	synchronize_rcu();
--	kfree(old_conf);
-+	kfree(old_net_conf);
- 
- 	if (connection->cstate >= C_WF_REPORT_PARAMS)
- 		drbd_send_sync_param(minor_to_device(conn_lowest_minor(connection)));
-@@ -2151,7 +2151,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 	mutex_unlock(&connection->conf_update);
- 	mutex_unlock(&connection->data.mutex);
- 	free_crypto(&crypto);
--	kfree(new_conf);
-+	kfree(new_net_conf);
-  done:
- 	conn_reconfig_done(connection);
-  out:
-@@ -2162,7 +2162,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- {
- 	struct drbd_peer_device *peer_device;
--	struct net_conf *old_conf, *new_conf = NULL;
-+	struct net_conf *old_net_conf, *new_net_conf = NULL;
- 	struct crypto crypto = { };
- 	struct drbd_resource *resource;
- 	struct drbd_connection *connection;
-@@ -2212,41 +2212,41 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 	}
- 
- 	/* allocation not in the IO path, drbdsetup / netlink process context */
--	new_conf = kzalloc(sizeof(*new_conf), GFP_KERNEL);
--	if (!new_conf) {
-+	new_net_conf = kzalloc(sizeof(*new_net_conf), GFP_KERNEL);
-+	if (!new_net_conf) {
- 		retcode = ERR_NOMEM;
- 		goto fail;
- 	}
- 
--	set_net_conf_defaults(new_conf);
-+	set_net_conf_defaults(new_net_conf);
- 
--	err = net_conf_from_attrs(new_conf, info);
-+	err = net_conf_from_attrs(new_net_conf, info);
- 	if (err && err != -ENOMSG) {
- 		retcode = ERR_MANDATORY_TAG;
- 		drbd_msg_put_info(from_attrs_err_to_txt(err));
- 		goto fail;
- 	}
- 
--	retcode = check_net_options(connection, new_conf);
-+	retcode = check_net_options(connection, new_net_conf);
- 	if (retcode != NO_ERROR)
- 		goto fail;
- 
--	retcode = alloc_crypto(&crypto, new_conf);
-+	retcode = alloc_crypto(&crypto, new_net_conf);
- 	if (retcode != NO_ERROR)
- 		goto fail;
- 
--	((char *)new_conf->shared_secret)[SHARED_SECRET_MAX-1] = 0;
-+	((char *)new_net_conf->shared_secret)[SHARED_SECRET_MAX-1] = 0;
- 
- 	conn_flush_workqueue(connection);
- 
- 	mutex_lock(&connection->conf_update);
--	old_conf = connection->net_conf;
--	if (old_conf) {
-+	old_net_conf = connection->net_conf;
-+	if (old_net_conf) {
- 		retcode = ERR_NET_CONFIGURED;
- 		mutex_unlock(&connection->conf_update);
- 		goto fail;
- 	}
--	rcu_assign_pointer(connection->net_conf, new_conf);
-+	rcu_assign_pointer(connection->net_conf, new_net_conf);
- 
- 	conn_free_crypto(connection);
- 	connection->cram_hmac_tfm = crypto.cram_hmac_tfm;
-@@ -2277,7 +2277,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 
- fail:
- 	free_crypto(&crypto);
--	kfree(new_conf);
-+	kfree(new_net_conf);
- 
- 	conn_reconfig_done(connection);
+-		retcode = NO_ERROR;
+-	} else {
+-		/* "can not happen" */
+-		retcode = ERR_RES_IN_USE;
+-		drbd_msg_put_info("failed to delete connection");
+-	}
+-	goto out;
  out:
+ 	drbd_adm_finish(info, retcode);
+ 	return 0;
 -- 
 1.7.9.5
 
