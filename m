@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2E254105B0DA
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 36D81105B0DC
 	for <drbd-dev@lists.linbit.com>; Mon, 23 Dec 2013 22:50:57 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 23 Dec 2013 22:50:34 +0100
-Message-Id: <1387835456-29695-6-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 23 Dec 2013 22:50:35 +0100
+Message-Id: <1387835456-29695-7-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 References: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/27] drbd: Move susp, susp_nod,
-	susp_fen from connection to resource
+Subject: [Drbd-dev] [PATCH 06/27] drbd: Define the size of
+	res_opts->cpu_mask in a single place
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,149 +28,49 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h   |   18 ++++++++++--------
- drivers/block/drbd/drbd_main.c  |    2 +-
- drivers/block/drbd/drbd_nl.c    |    3 +--
- drivers/block/drbd/drbd_state.c |   17 +++++++++--------
- 4 files changed, 21 insertions(+), 19 deletions(-)
+ drivers/block/drbd/drbd_main.c |    3 +--
+ include/linux/drbd.h           |    2 ++
+ include/linux/drbd_genl.h      |    2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index bdfa1de..d0defe8 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -575,6 +575,10 @@ struct drbd_resource {
- 	struct res_opts res_opts;
- 	struct mutex conf_update;	/* mutex for ready-copy-update of net_conf and disk_conf */
- 	spinlock_t req_lock;
-+
-+	unsigned susp:1;		/* IO suspended by user */
-+	unsigned susp_nod:1;		/* IO suspended because no data */
-+	unsigned susp_fen:1;		/* IO suspended because fence peer handler runs */
- };
- 
- struct drbd_connection {
-@@ -583,9 +587,6 @@ struct drbd_connection {
- 	struct kref kref;
- 	struct idr peer_devices;	/* volume number to peer device mapping */
- 	enum drbd_conns cstate;		/* Only C_STANDALONE to C_WF_REPORT_PARAMS */
--	unsigned susp:1;		/* IO suspended by user */
--	unsigned susp_nod:1;		/* IO suspended because no data */
--	unsigned susp_fen:1;		/* IO suspended because fence peer handler runs */
- 	struct mutex cstate_mutex;	/* Protects graceful disconnects */
- 	unsigned int connect_cnt;	/* Inc each time a connection is established */
- 
-@@ -1502,12 +1503,13 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
- 
- static inline union drbd_state drbd_read_state(struct drbd_device *device)
- {
-+	struct drbd_resource *resource = device->resource;
- 	union drbd_state rv;
- 
- 	rv.i = device->state.i;
--	rv.susp = first_peer_device(device)->connection->susp;
--	rv.susp_nod = first_peer_device(device)->connection->susp_nod;
--	rv.susp_fen = first_peer_device(device)->connection->susp_fen;
-+	rv.susp = resource->susp;
-+	rv.susp_nod = resource->susp_nod;
-+	rv.susp_fen = resource->susp_fen;
- 
- 	return rv;
- }
-@@ -2028,9 +2030,9 @@ static inline int drbd_state_is_stable(struct drbd_device *device)
- 
- static inline int drbd_suspended(struct drbd_device *device)
- {
--	struct drbd_connection *connection = first_peer_device(device)->connection;
-+	struct drbd_resource *resource = device->resource;
- 
--	return connection->susp || connection->susp_fen || connection->susp_nod;
-+	return resource->susp || resource->susp_fen || resource->susp_nod;
- }
- 
- static inline bool may_inc_ap_bio(struct drbd_device *device)
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 43b9141..824bc7a 100644
+index 824bc7a..cab0641 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -2536,7 +2536,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
- {
- 	struct drbd_resource *resource;
+@@ -2505,8 +2505,7 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
  
--	resource = kmalloc(sizeof(struct drbd_resource), GFP_KERNEL);
-+	resource = kzalloc(sizeof(struct drbd_resource), GFP_KERNEL);
- 	if (!resource)
- 		return NULL;
- 	resource->name = kstrdup(name, GFP_KERNEL);
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 5ccfebb..a84f1e2 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1665,8 +1665,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 		clear_bit(CRASHED_PRIMARY, &device->flags);
+ 	/* silently ignore cpu mask on UP kernel */
+ 	if (nr_cpu_ids > 1 && res_opts->cpu_mask[0] != 0) {
+-		/* FIXME: Get rid of constant 32 here */
+-		err = bitmap_parse(res_opts->cpu_mask, 32,
++		err = bitmap_parse(res_opts->cpu_mask, DRBD_CPU_MASK_SIZE,
+ 				   cpumask_bits(new_cpu_mask), nr_cpu_ids);
+ 		if (err) {
+ 			drbd_warn(resource, "bitmap_parse() failed with %d\n", err);
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index de7d74a..6f60136 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -382,4 +382,6 @@ enum drbd_timeout_flag {
+ #define DRBD_MD_INDEX_FLEX_EXT -2
+ #define DRBD_MD_INDEX_FLEX_INT -3
  
- 	if (drbd_md_test_flag(device->ldev, MDF_PRIMARY_IND) &&
--	    !(device->state.role == R_PRIMARY &&
--	      first_peer_device(device)->connection->susp_nod))
-+	    !(device->state.role == R_PRIMARY && device->resource->susp_nod))
- 		set_bit(CRASHED_PRIMARY, &device->flags);
++#define DRBD_CPU_MASK_SIZE 32
++
+ #endif
+diff --git a/include/linux/drbd_genl.h b/include/linux/drbd_genl.h
+index b14a2e8..4193f5f 100644
+--- a/include/linux/drbd_genl.h
++++ b/include/linux/drbd_genl.h
+@@ -135,7 +135,7 @@ GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
+ )
  
- 	device->send_cnt = 0;
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 0e69bb1..56b4aee 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1011,9 +1011,9 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
- 	did_remote = drbd_should_do_remote(device->state);
- 	device->state.i = ns.i;
- 	should_do_remote = drbd_should_do_remote(device->state);
--	first_peer_device(device)->connection->susp = ns.susp;
--	first_peer_device(device)->connection->susp_nod = ns.susp_nod;
--	first_peer_device(device)->connection->susp_fen = ns.susp_fen;
-+	device->resource->susp = ns.susp;
-+	device->resource->susp_nod = ns.susp_nod;
-+	device->resource->susp_fen = ns.susp_fen;
+ GENL_struct(DRBD_NLA_RESOURCE_OPTS, 4, res_opts,
+-	__str_field_def(1,	DRBD_GENLA_F_MANDATORY,	cpu_mask,       32)
++	__str_field_def(1,	DRBD_GENLA_F_MANDATORY,	cpu_mask,       DRBD_CPU_MASK_SIZE)
+ 	__u32_field_def(2,	DRBD_GENLA_F_MANDATORY,	on_no_data, DRBD_ON_NO_DATA_DEF)
+ )
  
- 	/* put replicated vs not-replicated requests in seperate epochs */
- 	if (did_remote != should_do_remote)
-@@ -1222,6 +1222,7 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
- static void after_state_ch(struct drbd_device *device, union drbd_state os,
- 			   union drbd_state ns, enum chg_state_flags flags)
- {
-+	struct drbd_resource *resource = device->resource;
- 	struct sib_info sib;
- 
- 	sib.sib_reason = SIB_STATE_CHANGE;
-@@ -1256,7 +1257,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
- 		    conn_lowest_disk(connection) > D_NEGOTIATING)
- 			what = RESTART_FROZEN_DISK_IO;
- 
--		if (connection->susp_nod && what != NOTHING) {
-+		if (resource->susp_nod && what != NOTHING) {
- 			_tl_restart(connection, what);
- 			_conn_request_state(connection,
- 					    (union drbd_state) { { .susp_nod = 1 } },
-@@ -1270,7 +1271,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
- 		struct drbd_connection *connection = first_peer_device(device)->connection;
- 
- 		spin_lock_irq(&device->resource->req_lock);
--		if (connection->susp_fen && conn_lowest_conn(connection) >= C_CONNECTED) {
-+		if (resource->susp_fen && conn_lowest_conn(connection) >= C_CONNECTED) {
- 			/* case2: The connection was established again: */
- 			struct drbd_peer_device *peer_device;
- 			int vnr;
-@@ -1753,9 +1754,9 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union
- 			} };
- 	}
- 
--	ns_min.susp = ns_max.susp = connection->susp;
--	ns_min.susp_nod = ns_max.susp_nod = connection->susp_nod;
--	ns_min.susp_fen = ns_max.susp_fen = connection->susp_fen;
-+	ns_min.susp = ns_max.susp = connection->resource->susp;
-+	ns_min.susp_nod = ns_max.susp_nod = connection->resource->susp_nod;
-+	ns_min.susp_fen = ns_max.susp_fen = connection->resource->susp_fen;
- 
- 	*pns_min = ns_min;
- 	*pns_max = ns_max;
 -- 
 1.7.9.5
 
