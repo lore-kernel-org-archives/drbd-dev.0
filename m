@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0DE56105B0D3
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2D84D105B0DA
 	for <drbd-dev@lists.linbit.com>; Mon, 23 Dec 2013 22:50:59 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 23 Dec 2013 22:50:53 +0100
-Message-Id: <1387835456-29695-25-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 23 Dec 2013 22:50:54 +0100
+Message-Id: <1387835456-29695-26-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 References: <1387835456-29695-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 24/27] drbd: Get rid of first_peer_device() in
-	handle_write_conflicts()
+Subject: [Drbd-dev] [PATCH 25/27] drbd: Remove unused parameter of
+	wire_flags_to_bio()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,42 +28,31 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c |    8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_receiver.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index e2e01b4..5c0239e 100644
+index 5c0239e..b7b05c9 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -2065,7 +2065,7 @@ static void fail_postponed_requests(struct drbd_device *device, sector_t sector,
- static int handle_write_conflicts(struct drbd_device *device,
- 				  struct drbd_peer_request *peer_req)
+@@ -2029,7 +2029,7 @@ static int wait_for_and_update_peer_seq(struct drbd_peer_device *peer_device, co
+ /* see also bio_flags_to_wire()
+  * DRBD_REQ_*, because we need to semantically map the flags to data packet
+  * flags and back. We may replicate to other kernel versions. */
+-static unsigned long wire_flags_to_bio(struct drbd_device *device, u32 dpf)
++static unsigned long wire_flags_to_bio(u32 dpf)
  {
--	struct drbd_connection *connection = first_peer_device(device)->connection;
-+	struct drbd_connection *connection = peer_req->peer_device->connection;
- 	bool resolve_conflicts = test_bit(RESOLVE_CONFLICTS, &connection->flags);
- 	sector_t sector = peer_req->i.sector;
- 	const unsigned int size = peer_req->i.size;
-@@ -2119,7 +2119,7 @@ static int handle_write_conflicts(struct drbd_device *device,
- 			peer_req->w.cb = superseded ? e_send_superseded :
- 						   e_send_retry_write;
- 			list_add_tail(&peer_req->w.list, &device->done_ee);
--			wake_asender(first_peer_device(device)->connection);
-+			wake_asender(connection);
+ 	return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
+ 		(dpf & DP_FUA ? REQ_FUA : 0) |
+@@ -2215,7 +2215,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
+ 	peer_req->w.cb = e_end_block;
  
- 			err = -ENOENT;
- 			goto out;
-@@ -2148,9 +2148,7 @@ static int handle_write_conflicts(struct drbd_device *device,
- 				 */
- 				err = drbd_wait_misc(device, &req->i);
- 				if (err) {
--					_conn_request_state(first_peer_device(device)->connection,
--							    NS(conn, C_TIMEOUT),
--							    CS_HARD);
-+					_conn_request_state(connection, NS(conn, C_TIMEOUT), CS_HARD);
- 					fail_postponed_requests(device, sector, size);
- 					goto out;
- 				}
+ 	dp_flags = be32_to_cpu(p->dp_flags);
+-	rw |= wire_flags_to_bio(device, dp_flags);
++	rw |= wire_flags_to_bio(dp_flags);
+ 	if (peer_req->pages == NULL) {
+ 		D_ASSERT(device, peer_req->i.size == 0);
+ 		D_ASSERT(device, dp_flags & DP_FLUSH);
 -- 
 1.7.9.5
 
