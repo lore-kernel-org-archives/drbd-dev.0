@@ -1,39 +1,36 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D8A6A101AC78
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Feb 2014 14:00:52 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 652C4101AC77
+	for <drbd-dev@lists.linbit.com>; Wed, 26 Feb 2014 17:24:07 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id CF4B33207A5
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Feb 2014 14:00:52 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 2896B32174F
+	for <drbd-dev@lists.linbit.com>; Wed, 26 Feb 2014 17:24:06 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 3ixTYEQzLz5a for <drbd-dev@lists.linbit.com>;
-	Tue, 25 Feb 2014 14:00:52 +0100 (CET)
+	with ESMTP id yEKsQaZFVStE for <drbd-dev@lists.linbit.com>;
+	Wed, 26 Feb 2014 17:24:05 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B0EAE3207F3
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Feb 2014 14:00:52 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id DE2CC321753
+	for <drbd-dev@lists.linbit.com>; Wed, 26 Feb 2014 17:24:05 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id pw6tbdUM0BtN for <drbd-dev@lists.linbit.com>;
-	Tue, 25 Feb 2014 14:00:52 +0100 (CET)
+	with ESMTP id sQieXkvjOiUa for <drbd-dev@lists.linbit.com>;
+	Wed, 26 Feb 2014 17:24:05 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 6418F3207A5
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Feb 2014 14:00:52 +0100 (CET)
-Resent-Message-ID: <20140225130051.GI21096@soda.linbit>
-Date: Tue, 25 Feb 2014 13:11:35 +0530
-From: Rashika Kheria <rashika.kheria@gmail.com>
-To: linux-kernel@vger.kernel.org
-Message-ID: <616a0d7efd9e54541f9038f0816b97f2336e9e78.1393313946.git.rashika.kheria@gmail.com>
-References: <7bf34999aea7f3d1441dc8fc344882a814da6e06.1393313946.git.rashika.kheria@gmail.com>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 8A83E32174F
+	for <drbd-dev@lists.linbit.com>; Wed, 26 Feb 2014 17:24:05 +0100 (CET)
+Resent-Message-ID: <20140226162405.GD3154@soda.linbit>
+Message-ID: <530E05DA.6070500@citrix.com>
+Date: Wed, 26 Feb 2014 16:18:50 +0100
+From: =?UTF-8?B?Um9nZXIgUGF1IE1vbm7DqQ==?= <roger.pau@citrix.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <7bf34999aea7f3d1441dc8fc344882a814da6e06.1393313946.git.rashika.kheria@gmail.com>
+To: <drbd-dev@lists.linbit.com>
+References: <1392911976-37506-1-git-send-email-roger.pau@citrix.com>
+In-Reply-To: <1392911976-37506-1-git-send-email-roger.pau@citrix.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Cc: josh@joshtriplett.org, drbd-user@lists.linbit.com,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [PATCH 2/8] lib: Mark function as static in
-	lib/lru_cache.c
+Cc: xen-devel@lists.xenproject.org, drbd-user@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] block-drbd: type is "phy" for drbd backends
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,32 +42,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Mark function as static in lib/lru_cache.c because it is not used
-outside this file.
 
-This eliminates the following warning in lib/lru_cache.c:
-lib/lru_cache.c:172:6: warning: no previous prototype for =E2=80=98lc_fre=
-e_by_index=E2=80=99 [-Wmissing-prototypes]
+I've realized I haven't Cc'ed the drbd developers lists, so adding it now=
+.
 
-Signed-off-by: Rashika Kheria <rashika.kheria@gmail.com>
-Reviewed-by: Josh Triplett <josh@joshtriplett.org>
----
- lib/lru_cache.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index 4a83ecd..6111cd1 100644
---- a/lib/lru_cache.c
-+++ b/lib/lru_cache.c
-@@ -169,7 +169,7 @@ out_fail:
- 	return NULL;
- }
-=20
--void lc_free_by_index(struct lru_cache *lc, unsigned i)
-+static void lc_free_by_index(struct lru_cache *lc, unsigned i)
- {
- 	void *p =3D lc->lc_element[i];
- 	WARN_ON(!p);
---=20
-1.7.9.5
+On 20/02/14 16:59, Roger Pau Monne wrote:
+> The type written to xenstore by libxl when attaching a drbd backend is
+> "phy", not "drbd", so handle this case also.
+>=20
+> Signed-off-by: Roger Pau Monn=C3=A9 <roger.pau@citrix.com>
+> ---
+>  scripts/block-drbd |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
+>=20
+> diff --git a/scripts/block-drbd b/scripts/block-drbd
+> index 5563ccb..975802b 100755
+> --- a/scripts/block-drbd
+> +++ b/scripts/block-drbd
+> @@ -250,7 +250,7 @@ case "$command" in
+>      fi
+> =20
+>      case $t in=20
+> -      drbd)
+> +      drbd|phy)
+>          drbd_resource=3D$p
+>          drbd_role=3D"$(drbdadm role $drbd_resource)"
+>          drbd_lrole=3D"${drbd_role%%/*}"
+> @@ -278,7 +278,7 @@ case "$command" in
+> =20
+>    remove)
+>      case $t in=20
+> -      drbd)
+> +      drbd|phy)
+>          p=3D$(xenstore_read "$XENBUS_PATH/params")
+>          drbd_resource=3D$p
+>          drbd_role=3D"$(drbdadm role $drbd_resource)"
+>=20
 
