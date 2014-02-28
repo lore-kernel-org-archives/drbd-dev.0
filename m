@@ -1,35 +1,22 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0BBD6101AC7F
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Feb 2014 16:03:52 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 010DD322E0E
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Feb 2014 16:03:52 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id M43ZTr3YLoyV for <drbd-dev@lists.linbit.com>;
-	Fri, 28 Feb 2014 16:03:51 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id D802A322F08
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Feb 2014 16:03:51 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id oDl85vxqEiP4 for <drbd-dev@lists.linbit.com>;
-	Fri, 28 Feb 2014 16:03:51 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id BB597322E0E
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Feb 2014 16:03:51 +0100 (CET)
-Resent-Message-ID: <20140228150351.GM3154@soda.linbit>
-Date: Thu, 27 Feb 2014 12:22:54 -0500
-From: Matthew Wilcox <willy@linux.intel.com>
-To: Kent Overstreet <kmo@daterainc.com>
-Message-ID: <20140227172254.GI5744@linux.intel.com>
+Return-Path: <kmo@daterainc.com>
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com
+	[209.85.160.45]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 52D09101AC75
+	for <drbd-dev@lists.linbit.com>; Sat,  1 Mar 2014 00:32:38 +0100 (CET)
+Received: by mail-pb0-f45.google.com with SMTP id uo5so683001pbc.32
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Feb 2014 15:32:36 -0800 (PST)
+Date: Fri, 28 Feb 2014 15:30:39 -0800
+From: Kent Overstreet <kmo@daterainc.com>
+To: Matthew Wilcox <willy@linux.intel.com>
+Message-ID: <20140228233039.GA2739@moria.home.lan>
 References: <1393457997-17618-1-git-send-email-kmo@daterainc.com>
 	<1393457997-17618-2-git-send-email-kmo@daterainc.com>
+	<20140227172254.GI5744@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1393457997-17618-2-git-send-email-kmo@daterainc.com>
+In-Reply-To: <20140227172254.GI5744@linux.intel.com>
 Cc: axboe@kernel.dk, Martin Schwidefsky <schwidefsky@de.ibm.com>,
 	Minchan Kim <minchan@kernel.org>, Neil Brown <neilb@suse.de>,
 	Asai Thambi S P <asamymuthupa@micron.com>, Peng Tao <bergwolf@gmail.com>,
@@ -55,213 +42,67 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Feb 26, 2014 at 03:39:49PM -0800, Kent Overstreet wrote:
-> We do this by adding calls to blk_queue_split() to the various
-> make_request functions that need it - a few can already handle arbitrary
-> size bios. Note that we add the call _after_ any call to blk_queue_bounce();
-> this means that blk_queue_split() and blk_recalc_rq_segments() don't need to
-> be concerned with bouncing affecting segment merging.
-
-> diff --git a/drivers/block/nvme-core.c b/drivers/block/nvme-core.c
-> index 51824d1f23..e4376b9613 100644
-> --- a/drivers/block/nvme-core.c
-> +++ b/drivers/block/nvme-core.c
-> @@ -737,6 +737,8 @@ static void nvme_make_request(struct request_queue *q, struct bio *bio)
->  	struct nvme_queue *nvmeq = get_nvmeq(ns->dev);
+On Thu, Feb 27, 2014 at 12:22:54PM -0500, Matthew Wilcox wrote:
+> On Wed, Feb 26, 2014 at 03:39:49PM -0800, Kent Overstreet wrote:
+> > We do this by adding calls to blk_queue_split() to the various
+> > make_request functions that need it - a few can already handle arbitrary
+> > size bios. Note that we add the call _after_ any call to blk_queue_bounce();
+> > this means that blk_queue_split() and blk_recalc_rq_segments() don't need to
+> > be concerned with bouncing affecting segment merging.
+> 
+> > diff --git a/drivers/block/nvme-core.c b/drivers/block/nvme-core.c
+> > index 51824d1f23..e4376b9613 100644
+> > --- a/drivers/block/nvme-core.c
+> > +++ b/drivers/block/nvme-core.c
+> > @@ -737,6 +737,8 @@ static void nvme_make_request(struct request_queue *q, struct bio *bio)
+> >  	struct nvme_queue *nvmeq = get_nvmeq(ns->dev);
+> >  	int result = -EBUSY;
+> >  
+> > +	blk_queue_split(q, &bio, q->bio_split);
+> > +
+> >  	if (!nvmeq) {
+> >  		put_nvmeq(NULL);
+> >  		bio_endio(bio, -EIO);
+> 
+> I'd suggest that we do:
+> 
+> -	struct nvme_queue *nvmeq = get_nvmeq(ns->dev);
+> +	struct nvme_queue *nvmeq;
 >  	int result = -EBUSY;
->  
+> 
 > +	blk_queue_split(q, &bio, q->bio_split);
 > +
+> +	nvmeq = get_nvmeq(ns->dev);
 >  	if (!nvmeq) {
->  		put_nvmeq(NULL);
->  		bio_endio(bio, -EIO);
+> 
+> so that we're running the blk_queue_split() code outside the get_cpu()
+> call.
+> 
+> Now, the NVMe driver has its own rules about when BIOs have to be split.
+> Right now, that's way down inside the nvme_map_bio() call when we're
+> walking the bio to compose the scatterlist.  Should we instead have an
+> nvme_bio_split() routine that is called instead of blk_queue_split(),
+> and we can simplify nvme_map_bio() since it'll know that it's working
+> with bios that don't have to be split.
+> 
+> In fact, I think it would have little NVMe-specific in it at that point,
+> so we could name __blk_bios_map_sg() better, export it to drivers and
+> call it from nvme_map_bio(), which I think would make everybody happier.
 
-I'd suggest that we do:
+Actually, reading nvme_map_bio() (it's different since last I looked at
+it) it looks like nvme should already be able to handle arbitrary size
+bios?
 
--	struct nvme_queue *nvmeq = get_nvmeq(ns->dev);
-+	struct nvme_queue *nvmeq;
- 	int result = -EBUSY;
+I do intend to rework the blk_bio_map_sg() (or add a new one?) to
+incrementally map as much of a bio as will fit in the provided
+scatterlist, but it looks like nvme has some odd restrictions where it's
+using BIOVEC_PHYS_MERGABLE()/BIOVEC_NOT_VIRT_MERGABLE() so I dunno if
+it's worth bothering to try and have it use generic code.
 
-+	blk_queue_split(q, &bio, q->bio_split);
-+
-+	nvmeq = get_nvmeq(ns->dev);
- 	if (!nvmeq) {
-
-so that we're running the blk_queue_split() code outside the get_cpu()
-call.
-
-Now, the NVMe driver has its own rules about when BIOs have to be split.
-Right now, that's way down inside the nvme_map_bio() call when we're
-walking the bio to compose the scatterlist.  Should we instead have an
-nvme_bio_split() routine that is called instead of blk_queue_split(),
-and we can simplify nvme_map_bio() since it'll know that it's working
-with bios that don't have to be split.
-
-In fact, I think it would have little NVMe-specific in it at that point,
-so we could name __blk_bios_map_sg() better, export it to drivers and
-call it from nvme_map_bio(), which I think would make everybody happier.
-
-> diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-> index a2af73db18..a37acf722b 100644
-> --- a/drivers/block/pktcdvd.c
-> +++ b/drivers/block/pktcdvd.c
-> @@ -2444,6 +2444,10 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
->  	char b[BDEVNAME_SIZE];
->  	struct bio *split;
->  
-> +	blk_queue_bounce(q, &bio);
-> +
-> +	blk_queue_split(q, &bio, q->bio_split);
-> +
->  	pd = q->queuedata;
->  	if (!pd) {
->  		pr_err("%s incorrect request queue\n",
-> @@ -2474,8 +2478,6 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
->  		goto end_io;
->  	}
->  
-> -	blk_queue_bounce(q, &bio);
-> -
->  	do {
->  		sector_t zone = get_zone(bio->bi_iter.bi_sector, pd);
->  		sector_t last_zone = get_zone(bio_end_sector(bio) - 1, pd);
-> diff --git a/drivers/block/ps3vram.c b/drivers/block/ps3vram.c
-> index ef45cfb98f..a995972961 100644
-> --- a/drivers/block/ps3vram.c
-> +++ b/drivers/block/ps3vram.c
-> @@ -603,6 +603,8 @@ static void ps3vram_make_request(struct request_queue *q, struct bio *bio)
->  	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
->  	int busy;
->  
-> +	blk_queue_split(q, &bio, q->bio_split);
-> +
->  	dev_dbg(&dev->core, "%s\n", __func__);
->  
->  	spin_lock_irq(&priv->lock);
-> diff --git a/drivers/block/rsxx/dev.c b/drivers/block/rsxx/dev.c
-> index 2839d37e5a..ff074a3cd4 100644
-> --- a/drivers/block/rsxx/dev.c
-> +++ b/drivers/block/rsxx/dev.c
-> @@ -169,6 +169,8 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
->  	struct rsxx_bio_meta *bio_meta;
->  	int st = -EINVAL;
->  
-> +	blk_queue_split(q, &bio, q->bio_split);
-> +
->  	might_sleep();
->  
->  	if (!card)
-> diff --git a/drivers/block/umem.c b/drivers/block/umem.c
-> index 4cf81b5bf0..13d577cfbc 100644
-> --- a/drivers/block/umem.c
-> +++ b/drivers/block/umem.c
-> @@ -531,6 +531,8 @@ static void mm_make_request(struct request_queue *q, struct bio *bio)
->  		 (unsigned long long)bio->bi_iter.bi_sector,
->  		 bio->bi_iter.bi_size);
->  
-> +	blk_queue_split(q, &bio, q->bio_split);
-> +
->  	spin_lock_irq(&card->lock);
->  	*card->biotail = bio;
->  	bio->bi_next = NULL;
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 011e55d820..ecf9daa01c 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -733,6 +733,8 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
->  {
->  	struct zram *zram = queue->queuedata;
->  
-> +	blk_queue_split(queue, &bio, queue->bio_split);
-> +
->  	down_read(&zram->init_lock);
->  	if (unlikely(!zram->init_done))
->  		goto error;
-> diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-> index 8c53b09b9a..97f70420f2 100644
-> --- a/drivers/md/dm.c
-> +++ b/drivers/md/dm.c
-> @@ -1500,6 +1500,8 @@ static void dm_request(struct request_queue *q, struct bio *bio)
->  {
->  	struct mapped_device *md = q->queuedata;
->  
-> +	blk_queue_split(q, &bio, q->bio_split);
-> +
->  	if (dm_request_based(md))
->  		blk_queue_bio(q, bio);
->  	else
-> diff --git a/drivers/md/md.c b/drivers/md/md.c
-> index 4ad5cc4e63..1421bc3f7b 100644
-> --- a/drivers/md/md.c
-> +++ b/drivers/md/md.c
-> @@ -256,6 +256,8 @@ static void md_make_request(struct request_queue *q, struct bio *bio)
->  	int cpu;
->  	unsigned int sectors;
->  
-> +	blk_queue_split(q, &bio, q->bio_split);
-> +
->  	if (mddev == NULL || mddev->pers == NULL
->  	    || !mddev->ready) {
->  		bio_io_error(bio);
-> diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-> index ebf41e228e..db33cd3e4c 100644
-> --- a/drivers/s390/block/dcssblk.c
-> +++ b/drivers/s390/block/dcssblk.c
-> @@ -815,6 +815,8 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
->  	unsigned long source_addr;
->  	unsigned long bytes_done;
->  
-> +	blk_queue_split(q, &bio, q->bio_split);
-> +
->  	bytes_done = 0;
->  	dev_info = bio->bi_bdev->bd_disk->private_data;
->  	if (dev_info == NULL)
-> diff --git a/drivers/s390/block/xpram.c b/drivers/s390/block/xpram.c
-> index 6969d39f1e..f03c103f13 100644
-> --- a/drivers/s390/block/xpram.c
-> +++ b/drivers/s390/block/xpram.c
-> @@ -190,6 +190,8 @@ static void xpram_make_request(struct request_queue *q, struct bio *bio)
->  	unsigned long page_addr;
->  	unsigned long bytes;
->  
-> +	blk_queue_split(q, &bio, q->bio_split);
-> +
->  	if ((bio->bi_iter.bi_sector & 7) != 0 ||
->  	    (bio->bi_iter.bi_size & 4095) != 0)
->  		/* Request is not page-aligned. */
-> diff --git a/drivers/staging/lustre/lustre/llite/lloop.c b/drivers/staging/lustre/lustre/llite/lloop.c
-> index 0718905ade..a3f6dc930b 100644
-> --- a/drivers/staging/lustre/lustre/llite/lloop.c
-> +++ b/drivers/staging/lustre/lustre/llite/lloop.c
-> @@ -344,6 +344,8 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
->  	int rw = bio_rw(old_bio);
->  	int inactive;
->  
-> +	blk_queue_split(q, &old_bio, q->bio_split);
-> +
->  	if (!lo)
->  		goto err;
->  
-> diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-> index 1e1fa3f93d..99e9955c4d 100644
-> --- a/include/linux/blkdev.h
-> +++ b/include/linux/blkdev.h
-> @@ -470,6 +470,7 @@ struct request_queue {
->  	wait_queue_head_t	mq_freeze_wq;
->  	struct percpu_counter	mq_usage_counter;
->  	struct list_head	all_q_node;
-> +	struct bio_set		*bio_split;
->  };
->  
->  #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
-> @@ -781,6 +782,8 @@ extern void blk_rq_unprep_clone(struct request *rq);
->  extern int blk_insert_cloned_request(struct request_queue *q,
->  				     struct request *rq);
->  extern void blk_delay_queue(struct request_queue *, unsigned long);
-> +extern void blk_queue_split(struct request_queue *, struct bio **,
-> +			    struct bio_set *);
->  extern void blk_recount_segments(struct request_queue *, struct bio *);
->  extern int scsi_verify_blk_ioctl(struct block_device *, unsigned int);
->  extern int scsi_cmd_blk_ioctl(struct block_device *, fmode_t,
-> -- 
-> 1.9.0
+However we don't need an explicit split here: if the sg fills up (i.e.
+the places nvme_split_and_submit() is called), we can just mark the bio
+as partially completed (set bio->bi_iter = iter, i.e. use the iterator
+you passed to bio_for_each_segment), then increment bi_remaining (which
+just counts completions, i.e. bio_endio() calls before the bio is really
+completed) and resubmit the original bio. No need to allocate a split
+bio, or loop over the bio again in bio_split().
