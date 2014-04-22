@@ -1,24 +1,18 @@
-Return-Path: <evdo.hsdpa@gmail.com>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com
-	[209.85.220.51]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 116ED101AC7F
-	for <drbd-dev@lists.linbit.com>; Fri, 11 Apr 2014 16:03:48 +0200 (CEST)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so5407836pab.24
-	for <drbd-dev@lists.linbit.com>; Fri, 11 Apr 2014 07:03:47 -0700 (PDT)
+Return-Path: <ls@numerigraphe.com>
+Received: from chr.numerigraphe.com (chr.numerigraphe.com [91.121.34.38])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7BB91101AC75
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Apr 2014 14:05:39 +0200 (CEST)
+Received: from localhost.localdomain (ovh3 [5.135.35.94])
+	by chr.numerigraphe.com (Postfix) with ESMTP id 3D21719600D8
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Apr 2014 13:56:17 +0200 (CEST)
+Message-ID: <535658E0.7060409@numerigraphe.com>
+Date: Tue, 22 Apr 2014 13:56:16 +0200
+From: Lionel Sausin <ls@numerigraphe.com>
 MIME-Version: 1.0
-In-Reply-To: <7d816ba83fe590c23f80011bc225fb31@ugr.es>
-References: <bd4dca3f93ea0361c978541eb47ff5c1@ugr.es>
-	<5302c0939964d7f19bec260413f4c90c@ugr.es>
-	<20140407143320.GH2209@soda.linbit>
-	<7d816ba83fe590c23f80011bc225fb31@ugr.es>
-Date: Fri, 11 Apr 2014 22:56:22 +0900
-Message-ID: <CA+xKNSjJEsXPR_wiKuWe2VW=drW=0L_=haOd286zoJ=BkEGWbg@mail.gmail.com>
-From: Bob Web Offset Kim <evdo.hsdpa@gmail.com>
-To: raulhp <raulhp@ugr.es>
-Content-Type: multipart/alternative; boundary=047d7b33d592f1b6fc04f6c4b2e6
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] obtain addr
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative;
+	boundary="------------000501040208060505090203"
+Subject: [Drbd-dev] drbdsetup legacy utils can't fall back to version 8.3
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,83 +24,78 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---047d7b33d592f1b6fc04f6c4b2e6
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+This is a multi-part message in MIME format.
+--------------000501040208060505090203
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Any answers on this one yet?
+Dear DRBD developers,
 
-If it's still an open item, I can blast it out via my twitter.
+Ubuntu 12.04 has several kernel users can choose from, some with DRBD 
+8.3 and others with 8.4.
+To address this, they have just deployed the drbd utils v8.4.3 with 
+"--with-legacy_utils".
+This works fine for drbdadm but drbdsetup seems to not revert to the 
+legacy version, even though drbdsetup is built and deployed to 
+/lib/drbd/drbdsetup-83:
+     # /sbin/drbdsetup show 1
+     Could not connect to 'drbd' generic netlink family
 
-Let me know
+     # /lib/drbd/drbdsetup-83 show 1
+     disk {
+         size                0s _is_default; # bytes
+     ...
+     }
 
+ From my (quick) reading of the source code, drbdadmin works because it 
+adds /lib/drbd to the path using add_lib_drbd_to_path(), and drbdsetup 
+seems not to.
+Is the correct fix to add a symlink from /lib/drbd/drbdsetup-83 to 
+/sbin, or should drbdsetup be patched to search in /lib/drbd too?
 
-On Mon, Apr 7, 2014 at 11:44 PM, raulhp <raulhp@ugr.es> wrote:
+Thanks in advance,
+Lionel Sausin.
 
-> Hi, Only I=B4m trying to understand how DRBD obtain the IP address from
-> drbd.conf, but I have seen the drbdsetup.c file
->
-> Thanks!
->
-> El 2014-04-07 16:33, Lars Ellenberg escribi=F3:
->
->  On Thu, Apr 03, 2014 at 12:35:36PM +0200, raulhp wrote:
->>
->>> Sorry, I accidentally sent email, then...
->>>
->>>
->>>  Where is the section in the source code that can obtain the IP address
->>> from
->>> drbd.conf file?
->>>
->>
-
---=20
-Robert Kim
-Web Offset Printing Hong Kong Japan
-http://www.youtube.com/watch?v=3Dq_qBSz0_Els <http://sparkah.com/google>
-2611 S Coast Highway
-San Diego, CA 92007
-310 598 1606
-
---047d7b33d592f1b6fc04f6c4b2e6
+--------------000501040208060505090203
 Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 
-<div dir=3D"ltr">Any answers on this one yet?<div><br></div><div>If it&#39;=
-s still an open item, I can blast it out via my twitter.</div><div><br></di=
-v><div>Let me know</div><div class=3D"gmail_extra"><br><br><div class=3D"gm=
-ail_quote">
-On Mon, Apr 7, 2014 at 11:44 PM, raulhp <span dir=3D"ltr">&lt;<a href=3D"ma=
-ilto:raulhp@ugr.es" target=3D"_blank">raulhp@ugr.es</a>&gt;</span> wrote:<b=
-r><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;borde=
-r-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid=
-;padding-left:1ex">
-Hi, Only I=B4m trying to understand how DRBD obtain the IP address from drb=
-d.conf, but I have seen the drbdsetup.c file<br>
-<br>
-Thanks!<br>
-<br>
-El 2014-04-07 16:33, Lars Ellenberg escribi=F3:<div class=3D"im"><br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;p=
-adding-left:1ex">
-On Thu, Apr 03, 2014 at 12:35:36PM +0200, raulhp wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;p=
-adding-left:1ex">
-Sorry, I accidentally sent email, then...<br>
-<br>
-<br>
-=A0Where is the section in the source code that can obtain the IP address f=
-rom<br>
-drbd.conf file?<br>
-</blockquote>
-</blockquote></div></blockquote></div><br clear=3D"all"><div><br></div><div=
->--=A0<br>Robert Kim<br>Web Offset Printing Hong Kong Japan<br><a href=3D"h=
-ttp://sparkah.com/google" target=3D"_blank">http://www.youtube.com/watch?v=
-=3Dq_qBSz0_Els</a><br>
-2611 S Coast Highway<br>San Diego, CA 92007<br>310 598 1606<br></div></div>=
-</div>
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    Dear DRBD developers,<br>
+    <br>
+    Ubuntu 12.04 has several kernel users can choose from, some with
+    DRBD 8.3 and others with 8.4.<br>
+    To address this, they have just deployed the drbd utils v8.4.3 with
+    "--with-legacy_utils".<br>
+    This works fine for drbdadm but drbdsetup seems to not revert to the
+    legacy version, even though drbdsetup is built and deployed to
+    /lib/drbd/drbdsetup-83:<br>
+    &nbsp;&nbsp;&nbsp; # /sbin/drbdsetup show 1<br>
+    &nbsp;&nbsp;&nbsp; Could not connect to 'drbd' generic netlink family<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; # /lib/drbd/drbdsetup-83 show 1<br>
+    &nbsp;&nbsp;&nbsp; disk {<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 0s _is_default; # bytes<br>
+    &nbsp;&nbsp;&nbsp; ...<br>
+    &nbsp;&nbsp;&nbsp; }<br>
+    <div class="boardCommentBody">
+      <div class="comment-text" itemprop="commentText">
+        <p>From my (quick) reading of the source code, drbdadmin works
+          because it adds /lib/drbd to the path using add_lib_<wbr>drbd_to_<wbr>path(),
+          and drbdsetup seems not to.<br>
+          Is the correct fix to add a symlink from /lib/drbd/<wbr>drbdsetup-<wbr>83
+          to /sbin, or should drbdsetup be patched to search in
+          /lib/drbd too?</p>
+      </div>
+    </div>
+    Thanks in advance,<br>
+    Lionel Sausin.<br>
+  </body>
+</html>
 
---047d7b33d592f1b6fc04f6c4b2e6--
+--------------000501040208060505090203--
