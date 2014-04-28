@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:30 +0200
-Message-Id: <1398703415-17780-20-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 28 Apr 2014 18:43:31 +0200
+Message-Id: <1398703415-17780-21-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 19/24] drbd: Fix a hole in the challange-response
-	connection authentication
+Subject: [Drbd-dev] [PATCH 20/24] drbd: evaluate disk and network timeout on
+	different requests
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,53 +20,119 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In the implementation as it was, the two peers sent each other
-a challenge, and expects the challenge hashed with the shared
-secret back.
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-A attacker could simply wait for the challenge of the peer, and
-send the same challenge back. Then it waits for the response, and
-sends the same response back.
+Just because it is the oldest not yet completed request
+does not make it the oldest request waiting for disk.
+Or waiting for the peer.
 
-Prevent this by not accepting a challenge from the peer that is
-the same as the challenge sent to the peer.
+And we completely missed already completed requests
+that would still hold references to activity log extents,
+waiting only for the barrier ack.
+
+Find two oldest not yet completely processed requests,
+one that is still waiting for local completion,
+and one that is still waiting for some response from the peer.
+These may or may not be the same request object.
+
+Then separately apply the network and disk timeouts, respectively.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ drivers/block/drbd/drbd_req.c | 47 ++++++++++++++++++++++++++++++-------------
+ 1 file changed, 33 insertions(+), 14 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 3fa3b78..b6c8aaf 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4846,6 +4846,12 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 		goto fail;
- 	}
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 99411bf..09803d0 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1353,23 +1353,35 @@ int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct
+ 	return limit;
+ }
  
-+	if (pi.size < CHALLENGE_LEN) {
-+		drbd_err(connection, "AuthChallenge payload too small.\n");
-+		rv = -1;
-+		goto fail;
-+	}
+-static struct drbd_request *find_oldest_request(struct drbd_connection *connection)
++static void find_oldest_requests(
++		struct drbd_connection *connection,
++		struct drbd_device *device,
++		struct drbd_request **oldest_req_waiting_for_peer,
++		struct drbd_request **oldest_req_waiting_for_disk)
+ {
+-	/* Walk the transfer log,
+-	 * and find the oldest not yet completed request */
+ 	struct drbd_request *r;
++	*oldest_req_waiting_for_peer = NULL;
++	*oldest_req_waiting_for_disk = NULL;
+ 	list_for_each_entry(r, &connection->transfer_log, tl_requests) {
+-		if (atomic_read(&r->completion_ref))
+-			return r;
++		const unsigned s = r->rq_state;
++		if (!*oldest_req_waiting_for_peer
++		&& ((s & RQ_NET_MASK) && !(s & RQ_NET_DONE)))
++			*oldest_req_waiting_for_peer = r;
 +
- 	peers_ch = kmalloc(pi.size, GFP_NOIO);
- 	if (peers_ch == NULL) {
- 		drbd_err(connection, "kmalloc of peers_ch failed\n");
-@@ -4859,6 +4865,12 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 		goto fail;
++		if (!*oldest_req_waiting_for_disk
++		&& (s & RQ_LOCAL_PENDING) && r->device == device)
++			*oldest_req_waiting_for_disk = r;
++
++		if (*oldest_req_waiting_for_peer && *oldest_req_waiting_for_disk)
++			break;
  	}
+-	return NULL;
+ }
  
-+	if (!memcmp(my_challenge, peers_ch, CHALLENGE_LEN)) {
-+		drbd_err(connection, "Peer presented the same challenge!\n");
-+		rv = -1;
-+		goto fail;
-+	}
+ void request_timer_fn(unsigned long data)
+ {
+ 	struct drbd_device *device = (struct drbd_device *) data;
+ 	struct drbd_connection *connection = first_peer_device(device)->connection;
+-	struct drbd_request *req; /* oldest request */
++	struct drbd_request *req_disk, *req_peer; /* oldest request */
+ 	struct net_conf *nc;
+ 	unsigned long ent = 0, dt = 0, et, nt; /* effective timeout = ko_count * timeout */
+ 	unsigned long now;
+@@ -1393,8 +1405,8 @@ void request_timer_fn(unsigned long data)
+ 	now = jiffies;
+ 
+ 	spin_lock_irq(&device->resource->req_lock);
+-	req = find_oldest_request(connection);
+-	if (!req) {
++	find_oldest_requests(connection, device, &req_peer, &req_disk);
++	if (req_peer == NULL && req_disk == NULL) {
+ 		spin_unlock_irq(&device->resource->req_lock);
+ 		mod_timer(&device->request_timer, now + et);
+ 		return;
+@@ -1416,19 +1428,26 @@ void request_timer_fn(unsigned long data)
+ 	 * ~198 days with 250 HZ, we have a window where the timeout would need
+ 	 * to expire twice (worst case) to become effective. Good enough.
+ 	 */
+-	if (ent && req->rq_state & RQ_NET_PENDING &&
+-		 time_after(now, req->start_time + ent) &&
++	if (ent && req_peer &&
++		 time_after(now, req_peer->start_time + ent) &&
+ 		!time_in_range(now, connection->last_reconnect_jif, connection->last_reconnect_jif + ent)) {
+ 		drbd_warn(device, "Remote failed to finish a request within ko-count * timeout\n");
+ 		_drbd_set_state(_NS(device, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
+ 	}
+-	if (dt && req->rq_state & RQ_LOCAL_PENDING && req->device == device &&
+-		 time_after(now, req->start_time + dt) &&
++	if (dt && req_disk &&
++		 time_after(now, req_disk->start_time + dt) &&
+ 		!time_in_range(now, device->last_reattach_jif, device->last_reattach_jif + dt)) {
+ 		drbd_warn(device, "Local backing device failed to meet the disk-timeout\n");
+ 		__drbd_chk_io_error(device, DRBD_FORCE_DETACH);
+ 	}
+-	nt = (time_after(now, req->start_time + et) ? now : req->start_time) + et;
 +
- 	resp_size = crypto_hash_digestsize(connection->cram_hmac_tfm);
- 	response = kmalloc(resp_size, GFP_NOIO);
- 	if (response == NULL) {
++	/* Reschedule timer for the nearest not already expired timeout.
++	 * Fallback to now + min(effective network timeout, disk timeout). */
++	ent = (ent && req_peer && time_before(now, req_peer->start_time + ent))
++		? req_peer->start_time + ent : now + et;
++	dt = (dt && req_disk && time_before(now, req_disk->start_time + dt))
++		? req_disk->start_time + dt : now + et;
++	nt = time_before(ent, dt) ? ent : dt;
+ 	spin_unlock_irq(&connection->resource->req_lock);
+ 	mod_timer(&device->request_timer, nt);
+ }
 -- 
 1.9.1
 
