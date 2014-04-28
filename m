@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:19 +0200
-Message-Id: <1398703415-17780-9-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 28 Apr 2014 18:43:20 +0200
+Message-Id: <1398703415-17780-10-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/24] drbd: don't let application IO pre-empt
-	resync too often
+Subject: [Drbd-dev] [PATCH 09/24] drbd: Do not BUG() when connection breaks
+	in a special way
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,166 +20,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+When a 'cluster wide' disconnect executes, the result comes back
+from the peer, and immediately after that the connection breaks
+then _conn_rq_cond() reported back SS_CW_SUCCESS.
+Therefore _conn_request_state() calls conn_set_state(), which
+has a BUG() in it.
+The BUG() is hit because conn_is_valid_transition() does not like
+the transaction. Which goes back to is_valid_soft_transition()
+returning SS_OUTDATE_WO_CONN.
 
-Before, application IO could pre-empt resync activity
-for up to hardcoded 20 seconds per resync request.
-A very busy server could throttle the effective resync bandwidth
-down to one request per 20 seconds.
-
-Now, we only let application IO pre-empt resync traffic
-while the current resync rate estimate is above c-min-rate.
-
-If you disable the c-min-rate throttle feature (set c-min-rate = 0),
-application IO will no longer pre-empt resync traffic at all.
+This fix is to consider an error reported by is_valid_soft_transition()
+even when the peer agreed to the transaction.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_actlog.c   | 13 +++++------
- drivers/block/drbd/drbd_int.h      |  3 ++-
- drivers/block/drbd/drbd_receiver.c | 47 +++++++++++++++++++++-----------------
- 3 files changed, 34 insertions(+), 29 deletions(-)
+ drivers/block/drbd/drbd_state.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 7e7b0e1..8dd09a7 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -1022,8 +1022,7 @@ int drbd_rs_begin_io(struct drbd_device *device, sector_t sector)
- 	unsigned int enr = BM_SECT_TO_EXT(sector);
- 	struct bm_extent *bm_ext;
- 	int i, sig;
--	int sa = 200; /* Step aside 200 times, then grab the extent and let app-IO wait.
--			 200 times -> 20 seconds. */
-+	bool sa;
- 
- retry:
- 	sig = wait_event_interruptible(device->al_wait,
-@@ -1034,12 +1033,15 @@ retry:
- 	if (test_bit(BME_LOCKED, &bm_ext->flags))
- 		return 0;
- 
-+	/* step aside only while we are above c-min-rate; unless disabled. */
-+	sa = drbd_rs_c_min_rate_throttle(device);
-+
- 	for (i = 0; i < AL_EXT_PER_BM_SECT; i++) {
- 		sig = wait_event_interruptible(device->al_wait,
- 					       !_is_in_al(device, enr * AL_EXT_PER_BM_SECT + i) ||
--					       test_bit(BME_PRIORITY, &bm_ext->flags));
-+					       (sa && test_bit(BME_PRIORITY, &bm_ext->flags)));
- 
--		if (sig || (test_bit(BME_PRIORITY, &bm_ext->flags) && sa)) {
-+		if (sig || (sa && test_bit(BME_PRIORITY, &bm_ext->flags))) {
- 			spin_lock_irq(&device->al_lock);
- 			if (lc_put(device->resync, &bm_ext->lce) == 0) {
- 				bm_ext->flags = 0; /* clears BME_NO_WRITES and eventually BME_PRIORITY */
-@@ -1051,9 +1053,6 @@ retry:
- 				return -EINTR;
- 			if (schedule_timeout_interruptible(HZ/10))
- 				return -EINTR;
--			if (sa && --sa == 0)
--				drbd_warn(device, "drbd_rs_begin_io() stepped aside for 20sec."
--					 "Resync stalled?\n");
- 			goto retry;
- 		}
- 	}
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 361a2e9..f0cabea 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1339,7 +1339,8 @@ extern void start_resync_timer_fn(unsigned long data);
- /* drbd_receiver.c */
- extern int drbd_receiver(struct drbd_thread *thi);
- extern int drbd_asender(struct drbd_thread *thi);
--extern int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector);
-+extern bool drbd_rs_c_min_rate_throttle(struct drbd_device *device);
-+extern bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector);
- extern int drbd_submit_peer_request(struct drbd_device *,
- 				    struct drbd_peer_request *, const unsigned,
- 				    const int);
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 6ffbc22..10d2dcb 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -2323,39 +2323,45 @@ out_interrupted:
-  * The current sync rate used here uses only the most recent two step marks,
-  * to have a short time average so we can react faster.
-  */
--int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
-+bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 3796662..a5d8aae 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -1765,19 +1765,19 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union
+ static enum drbd_state_rv
+ _conn_rq_cond(struct drbd_connection *connection, union drbd_state mask, union drbd_state val)
  {
--	struct gendisk *disk = device->ldev->backing_bdev->bd_contains->bd_disk;
--	unsigned long db, dt, dbdt;
- 	struct lc_element *tmp;
--	int curr_events;
--	int throttle = 0;
--	unsigned int c_min_rate;
-+	bool throttle = true;
+-	enum drbd_state_rv rv;
++	enum drbd_state_rv err, rv = SS_UNKNOWN_ERROR; /* continue waiting */;
  
--	rcu_read_lock();
--	c_min_rate = rcu_dereference(device->ldev->disk_conf)->c_min_rate;
--	rcu_read_unlock();
--
--	/* feature disabled? */
--	if (c_min_rate == 0)
--		return 0;
-+	if (!drbd_rs_c_min_rate_throttle(device))
-+		return false;
+ 	if (test_and_clear_bit(CONN_WD_ST_CHG_OKAY, &connection->flags))
+-		return SS_CW_SUCCESS;
++		rv = SS_CW_SUCCESS;
  
- 	spin_lock_irq(&device->al_lock);
- 	tmp = lc_find(device->resync, BM_SECT_TO_EXT(sector));
- 	if (tmp) {
- 		struct bm_extent *bm_ext = lc_entry(tmp, struct bm_extent, lce);
--		if (test_bit(BME_PRIORITY, &bm_ext->flags)) {
--			spin_unlock_irq(&device->al_lock);
--			return 0;
--		}
-+		if (test_bit(BME_PRIORITY, &bm_ext->flags))
-+			throttle = false;
- 		/* Do not slow down if app IO is already waiting for this extent */
- 	}
- 	spin_unlock_irq(&device->al_lock);
+ 	if (test_and_clear_bit(CONN_WD_ST_CHG_FAIL, &connection->flags))
+-		return SS_CW_FAILED_BY_PEER;
++		rv = SS_CW_FAILED_BY_PEER;
  
-+	return throttle;
-+}
-+
-+bool drbd_rs_c_min_rate_throttle(struct drbd_device *device)
-+{
-+	struct gendisk *disk = device->ldev->backing_bdev->bd_contains->bd_disk;
-+	unsigned long db, dt, dbdt;
-+	unsigned int c_min_rate;
-+	int curr_events;
-+
-+	rcu_read_lock();
-+	c_min_rate = rcu_dereference(device->ldev->disk_conf)->c_min_rate;
-+	rcu_read_unlock();
-+
-+	/* feature disabled? */
-+	if (c_min_rate == 0)
-+		return false;
-+
- 	curr_events = (int)part_stat_read(&disk->part0, sectors[0]) +
- 		      (int)part_stat_read(&disk->part0, sectors[1]) -
- 			atomic_read(&device->rs_sect_ev);
--
- 	if (!device->rs_last_events || curr_events - device->rs_last_events > 64) {
- 		unsigned long rs_left;
- 		int i;
-@@ -2378,12 +2384,11 @@ int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
- 		dbdt = Bit2KB(db/dt);
+-	rv = conn_is_valid_transition(connection, mask, val, 0);
+-	if (rv == SS_SUCCESS && connection->cstate == C_WF_REPORT_PARAMS)
+-		rv = SS_UNKNOWN_ERROR; /* continue waiting */
++	err = conn_is_valid_transition(connection, mask, val, 0);
++	if (err == SS_SUCCESS && connection->cstate == C_WF_REPORT_PARAMS)
++		return rv;
  
- 		if (dbdt > c_min_rate)
--			throttle = 1;
-+			return true;
- 	}
--	return throttle;
-+	return false;
+-	return rv;
++	return err;
  }
  
--
- static int receive_DataRequest(struct drbd_connection *connection, struct packet_info *pi)
- {
- 	struct drbd_peer_device *peer_device;
+ enum drbd_state_rv
 -- 
 1.9.1
 
