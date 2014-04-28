@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:18 +0200
-Message-Id: <1398703415-17780-8-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 28 Apr 2014 18:43:19 +0200
+Message-Id: <1398703415-17780-9-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/24] drbd: fix potential distributed deadlock
-	during verify or resync
+Subject: [Drbd-dev] [PATCH 08/24] drbd: don't let application IO pre-empt
+	resync too often
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,145 +22,164 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-If max-buffers and socket buffer sizes are "too small" for the chosen
-resync rate, this could lead potentially lead to a distributed deadlock,
-which may or may not resolve itself via the "ko-count" and request
-timeout mechanism, or could be resolved by forced disconnect.
+Before, application IO could pre-empt resync activity
+for up to hardcoded 20 seconds per resync request.
+A very busy server could throttle the effective resync bandwidth
+down to one request per 20 seconds.
 
-One option to deal with this is proper configuration:
-use larger max-buffer and socket buffers settings,
-or reduce the resync rate.
+Now, we only let application IO pre-empt resync traffic
+while the current resync rate estimate is above c-min-rate.
 
-But even with bad configuration we should not deadlock,
-but "gracefully" recover.
-
-The issue is avoided by using only up to max-buffers/2 for resync
-requests, and by using max-buffers not as a hard limit for data buffer
-allocations, but as a throttle threshold only.
+If you disable the c-min-rate throttle feature (set c-min-rate = 0),
+application IO will no longer pre-empt resync traffic at all.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 17 ++++++++++++-----
- drivers/block/drbd/drbd_worker.c   | 27 +++++++++++++++++----------
- 2 files changed, 29 insertions(+), 15 deletions(-)
+ drivers/block/drbd/drbd_actlog.c   | 13 +++++------
+ drivers/block/drbd/drbd_int.h      |  3 ++-
+ drivers/block/drbd/drbd_receiver.c | 47 +++++++++++++++++++++-----------------
+ 3 files changed, 34 insertions(+), 29 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index 7e7b0e1..8dd09a7 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -1022,8 +1022,7 @@ int drbd_rs_begin_io(struct drbd_device *device, sector_t sector)
+ 	unsigned int enr = BM_SECT_TO_EXT(sector);
+ 	struct bm_extent *bm_ext;
+ 	int i, sig;
+-	int sa = 200; /* Step aside 200 times, then grab the extent and let app-IO wait.
+-			 200 times -> 20 seconds. */
++	bool sa;
+ 
+ retry:
+ 	sig = wait_event_interruptible(device->al_wait,
+@@ -1034,12 +1033,15 @@ retry:
+ 	if (test_bit(BME_LOCKED, &bm_ext->flags))
+ 		return 0;
+ 
++	/* step aside only while we are above c-min-rate; unless disabled. */
++	sa = drbd_rs_c_min_rate_throttle(device);
++
+ 	for (i = 0; i < AL_EXT_PER_BM_SECT; i++) {
+ 		sig = wait_event_interruptible(device->al_wait,
+ 					       !_is_in_al(device, enr * AL_EXT_PER_BM_SECT + i) ||
+-					       test_bit(BME_PRIORITY, &bm_ext->flags));
++					       (sa && test_bit(BME_PRIORITY, &bm_ext->flags)));
+ 
+-		if (sig || (test_bit(BME_PRIORITY, &bm_ext->flags) && sa)) {
++		if (sig || (sa && test_bit(BME_PRIORITY, &bm_ext->flags))) {
+ 			spin_lock_irq(&device->al_lock);
+ 			if (lc_put(device->resync, &bm_ext->lce) == 0) {
+ 				bm_ext->flags = 0; /* clears BME_NO_WRITES and eventually BME_PRIORITY */
+@@ -1051,9 +1053,6 @@ retry:
+ 				return -EINTR;
+ 			if (schedule_timeout_interruptible(HZ/10))
+ 				return -EINTR;
+-			if (sa && --sa == 0)
+-				drbd_warn(device, "drbd_rs_begin_io() stepped aside for 20sec."
+-					 "Resync stalled?\n");
+ 			goto retry;
+ 		}
+ 	}
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 361a2e9..f0cabea 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1339,7 +1339,8 @@ extern void start_resync_timer_fn(unsigned long data);
+ /* drbd_receiver.c */
+ extern int drbd_receiver(struct drbd_thread *thi);
+ extern int drbd_asender(struct drbd_thread *thi);
+-extern int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector);
++extern bool drbd_rs_c_min_rate_throttle(struct drbd_device *device);
++extern bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector);
+ extern int drbd_submit_peer_request(struct drbd_device *,
+ 				    struct drbd_peer_request *, const unsigned,
+ 				    const int);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 125c9e8..6ffbc22 100644
+index 6ffbc22..10d2dcb 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -234,9 +234,17 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_device *device)
-  * @retry:	whether to retry, if not enough pages are available right now
-  *
-  * Tries to allocate number pages, first from our own page pool, then from
-- * the kernel, unless this allocation would exceed the max_buffers setting.
-+ * the kernel.
-  * Possibly retry until DRBD frees sufficient pages somewhere else.
-  *
-+ * If this allocation would exceed the max_buffers setting, we throttle
-+ * allocation (schedule_timeout) to give the system some room to breathe.
-+ *
-+ * We do not use max-buffers as hard limit, because it could lead to
-+ * congestion and further to a distributed deadlock during online-verify or
-+ * (checksum based) resync, if the max-buffers, socket buffer sizes and
-+ * resync-rate settings are mis-configured.
-+ *
-  * Returns a page chain linked via page->private.
+@@ -2323,39 +2323,45 @@ out_interrupted:
+  * The current sync rate used here uses only the most recent two step marks,
+  * to have a short time average so we can react faster.
   */
- struct page *drbd_alloc_pages(struct drbd_peer_device *peer_device, unsigned int number,
-@@ -246,10 +254,8 @@ struct page *drbd_alloc_pages(struct drbd_peer_device *peer_device, unsigned int
- 	struct page *page = NULL;
- 	struct net_conf *nc;
- 	DEFINE_WAIT(wait);
--	int mxb;
-+	unsigned int mxb;
- 
--	/* Yes, we may run up to @number over max_buffers. If we
--	 * follow it strictly, the admin will get it wrong anyways. */
- 	rcu_read_lock();
- 	nc = rcu_dereference(peer_device->connection->net_conf);
- 	mxb = nc ? nc->max_buffers : 1000000;
-@@ -277,7 +283,8 @@ struct page *drbd_alloc_pages(struct drbd_peer_device *peer_device, unsigned int
- 			break;
- 		}
- 
--		schedule();
-+		if (schedule_timeout(HZ/10) == 0)
-+			mxb = UINT_MAX;
- 	}
- 	finish_wait(&drbd_pp_wait, &wait);
- 
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index dcd95a6..7e633ca 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -492,10 +492,9 @@ struct fifo_buffer *fifo_alloc(int fifo_size)
- 	return fb;
- }
- 
--static int drbd_rs_controller(struct drbd_device *device)
-+static int drbd_rs_controller(struct drbd_device *device, unsigned int sect_in)
+-int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
++bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
  {
- 	struct disk_conf *dc;
--	unsigned int sect_in;  /* Number of sectors that came in since the last turn */
- 	unsigned int want;     /* The number of sectors we want in the proxy */
- 	int req_sect; /* Number of sectors to request in this turn */
- 	int correction; /* Number of sectors more we need in the proxy*/
-@@ -505,9 +504,6 @@ static int drbd_rs_controller(struct drbd_device *device)
- 	int max_sect;
- 	struct fifo_buffer *plan;
+-	struct gendisk *disk = device->ldev->backing_bdev->bd_contains->bd_disk;
+-	unsigned long db, dt, dbdt;
+ 	struct lc_element *tmp;
+-	int curr_events;
+-	int throttle = 0;
+-	unsigned int c_min_rate;
++	bool throttle = true;
  
--	sect_in = atomic_xchg(&device->rs_sect_in, 0); /* Number of sectors that came in */
--	device->rs_in_flight -= sect_in;
+-	rcu_read_lock();
+-	c_min_rate = rcu_dereference(device->ldev->disk_conf)->c_min_rate;
+-	rcu_read_unlock();
 -
- 	dc = rcu_dereference(device->ldev->disk_conf);
- 	plan = rcu_dereference(device->rs_plan_s);
+-	/* feature disabled? */
+-	if (c_min_rate == 0)
+-		return 0;
++	if (!drbd_rs_c_min_rate_throttle(device))
++		return false;
  
-@@ -550,11 +546,16 @@ static int drbd_rs_controller(struct drbd_device *device)
- 
- static int drbd_rs_number_requests(struct drbd_device *device)
- {
--	int number;
-+	unsigned int sect_in;  /* Number of sectors that came in since the last turn */
-+	int number, mxb;
-+
-+	sect_in = atomic_xchg(&device->rs_sect_in, 0);
-+	device->rs_in_flight -= sect_in;
- 
- 	rcu_read_lock();
-+	mxb = drbd_get_max_buffers(device) / 2;
- 	if (rcu_dereference(device->rs_plan_s)->size) {
--		number = drbd_rs_controller(device) >> (BM_BLOCK_SHIFT - 9);
-+		number = drbd_rs_controller(device, sect_in) >> (BM_BLOCK_SHIFT - 9);
- 		device->c_sync_rate = number * HZ * (BM_BLOCK_SIZE / 1024) / SLEEP_TIME;
- 	} else {
- 		device->c_sync_rate = rcu_dereference(device->ldev->disk_conf)->resync_rate;
-@@ -562,8 +563,14 @@ static int drbd_rs_number_requests(struct drbd_device *device)
+ 	spin_lock_irq(&device->al_lock);
+ 	tmp = lc_find(device->resync, BM_SECT_TO_EXT(sector));
+ 	if (tmp) {
+ 		struct bm_extent *bm_ext = lc_entry(tmp, struct bm_extent, lce);
+-		if (test_bit(BME_PRIORITY, &bm_ext->flags)) {
+-			spin_unlock_irq(&device->al_lock);
+-			return 0;
+-		}
++		if (test_bit(BME_PRIORITY, &bm_ext->flags))
++			throttle = false;
+ 		/* Do not slow down if app IO is already waiting for this extent */
  	}
- 	rcu_read_unlock();
+ 	spin_unlock_irq(&device->al_lock);
  
--	/* ignore the amount of pending requests, the resync controller should
--	 * throttle down to incoming reply rate soon enough anyways. */
-+	/* Don't have more than "max-buffers"/2 in-flight.
-+	 * Otherwise we may cause the remote site to stall on drbd_alloc_pages(),
-+	 * potentially causing a distributed deadlock on congestion during
-+	 * online-verify or (checksum-based) resync, if max-buffers,
-+	 * socket buffer sizes and resync rate settings are mis-configured. */
-+	if (mxb - device->rs_in_flight < number)
-+		number = mxb - device->rs_in_flight;
++	return throttle;
++}
 +
- 	return number;
++bool drbd_rs_c_min_rate_throttle(struct drbd_device *device)
++{
++	struct gendisk *disk = device->ldev->backing_bdev->bd_contains->bd_disk;
++	unsigned long db, dt, dbdt;
++	unsigned int c_min_rate;
++	int curr_events;
++
++	rcu_read_lock();
++	c_min_rate = rcu_dereference(device->ldev->disk_conf)->c_min_rate;
++	rcu_read_unlock();
++
++	/* feature disabled? */
++	if (c_min_rate == 0)
++		return false;
++
+ 	curr_events = (int)part_stat_read(&disk->part0, sectors[0]) +
+ 		      (int)part_stat_read(&disk->part0, sectors[1]) -
+ 			atomic_read(&device->rs_sect_ev);
+-
+ 	if (!device->rs_last_events || curr_events - device->rs_last_events > 64) {
+ 		unsigned long rs_left;
+ 		int i;
+@@ -2378,12 +2384,11 @@ int drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector)
+ 		dbdt = Bit2KB(db/dt);
+ 
+ 		if (dbdt > c_min_rate)
+-			throttle = 1;
++			return true;
+ 	}
+-	return throttle;
++	return false;
  }
  
-@@ -597,7 +604,7 @@ static int make_resync_request(struct drbd_device *device, int cancel)
- 
- 	max_bio_size = queue_max_hw_sectors(device->rq_queue) << 9;
- 	number = drbd_rs_number_requests(device);
--	if (number == 0)
-+	if (number <= 0)
- 		goto requeue;
- 
- 	for (i = 0; i < number; i++) {
+-
+ static int receive_DataRequest(struct drbd_connection *connection, struct packet_info *pi)
+ {
+ 	struct drbd_peer_device *peer_device;
 -- 
 1.9.1
 
