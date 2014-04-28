@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:25 +0200
-Message-Id: <1398703415-17780-15-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 28 Apr 2014 18:43:26 +0200
+Message-Id: <1398703415-17780-16-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 14/24] drbd: Enable QUEUE_FLAG_DISCARD only if
-	the peer can recieve P_TRIM
+Subject: [Drbd-dev] [PATCH 15/24] drbd: fix a race between start_resync and
+	send_and_submit
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,138 +20,62 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+From: Lars Ellenberg <lars@linbit.com>
 
-Allow the user of REQ_DISCARD.
+In the drbd make request function, specifically in
+drbd_send_and_submit(), we decide whether we want to send the actual
+write request, or only a "set this block out of sync" information.
+
+We do so based on the current connection state, while holding the req_lock.
+The connection state is not supposed to change while holding the req_lock.
+
+But in drbd_start_resync, we did change that state anyways,
+while only holding the global_state_lock, which is enough to change
+sync-after dependencies (paused vs active resync), but
+not good enough to change the connection state.
+
+Fix: in drbd_start_resync, first grab the req_lock to serialize with
+drbd_send_and_submit(), before grabbing the global_state_lock
+to be able to evaluate the sync-after dependencies.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |  1 +
- drivers/block/drbd/drbd_nl.c       | 20 ++++++++++++++++++++
- drivers/block/drbd/drbd_protocol.h |  2 ++
- drivers/block/drbd/drbd_receiver.c | 18 ++++++++++++++----
- 4 files changed, 37 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_worker.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 29123df..d5f39fd 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -618,6 +618,7 @@ struct drbd_connection {
- 	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
- 	struct drbd_socket meta;	/* ping/ack (metadata) packets */
- 	int agreed_pro_version;		/* actually used protocol version */
-+	u32 agreed_features;
- 	unsigned long last_received;	/* in jiffies, either socket */
- 	unsigned int ko_count;
- 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index bb36792..2364b78 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1133,6 +1133,26 @@ static void drbd_setup_queue_param(struct drbd_device *device, unsigned int max_
- 
- 	if (get_ldev_if_state(device, D_ATTACHING)) {
- 		struct request_queue * const b = device->ldev->backing_bdev->bd_disk->queue;
-+		struct drbd_connection *connection = first_peer_device(device)->connection;
-+
-+		if (blk_queue_discard(b) &&
-+		    (connection->cstate < C_CONNECTED || connection->agreed_features & FF_TRIM)) {
-+			/* inherit from backing queue */
-+			q->limits.discard_zeroes_data = 1;
-+			/* For now, don't allow more than one activity log extent worth of data
-+			 * to be discarded in one go. We may need to rework drbd_al_begin_io()
-+			 * to allow for even larger discard ranges */
-+			q->limits.max_discard_sectors = DRBD_MAX_DISCARD_SECTORS;
-+
-+			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
-+			/* REALLY? Is stacking secdiscard "legal"? */
-+			if (blk_queue_secdiscard(b))
-+				queue_flag_set_unlocked(QUEUE_FLAG_SECDISCARD, q);
-+		} else {
-+			q->limits.max_discard_sectors = 0;
-+			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
-+			queue_flag_clear_unlocked(QUEUE_FLAG_SECDISCARD, q);
-+		}
- 
- 		blk_queue_stack_limits(q, b);
- 
-diff --git a/drivers/block/drbd/drbd_protocol.h b/drivers/block/drbd/drbd_protocol.h
-index 478c63d..2da9104a 100644
---- a/drivers/block/drbd/drbd_protocol.h
-+++ b/drivers/block/drbd/drbd_protocol.h
-@@ -160,6 +160,8 @@ struct p_block_req {
-  *   ReportParams
-  */
- 
-+#define FF_TRIM      1
-+
- struct p_connection_features {
- 	u32 protocol_min;
- 	u32 feature_flags;
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 9640b64..3fa3b78 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -46,9 +46,10 @@
- #include "drbd_int.h"
- #include "drbd_protocol.h"
- #include "drbd_req.h"
--
- #include "drbd_vli.h"
- 
-+#define PRO_FEATURES (FF_TRIM)
-+
- struct packet_info {
- 	enum drbd_packet cmd;
- 	unsigned int size;
-@@ -3705,6 +3706,13 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
- 		put_ldev(device);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 26338be..34dde10 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1686,11 +1686,15 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
  	}
+ 	clear_bit(B_RS_H_DONE, &device->flags);
  
-+	device->peer_max_bio_size = be32_to_cpu(p->max_bio_size);
-+	drbd_reconsider_max_bio_size(device);
-+	/* Leave drbd_reconsider_max_bio_size() before drbd_determine_dev_size().
-+	   In case we cleared the QUEUE_FLAG_DISCARD from our queue in
-+	   drbd_reconsider_max_bio_size(), we can be sure that after
-+	   drbd_determine_dev_size() no REQ_DISCARDs are in the queue. */
-+
- 	ddsf = be16_to_cpu(p->dds_flags);
- 	if (get_ldev(device)) {
- 		dd = drbd_determine_dev_size(device, ddsf, NULL);
-@@ -3717,9 +3725,6 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
- 		drbd_set_my_capacity(device, p_size);
+-	write_lock_irq(&global_state_lock);
++	/* req_lock: serialize with drbd_send_and_submit() and others
++	 * global_state_lock: for stable sync-after dependencies */
++	spin_lock_irq(&device->resource->req_lock);
++	write_lock(&global_state_lock);
+ 	/* Did some connection breakage or IO error race with us? */
+ 	if (device->state.conn < C_CONNECTED
+ 	|| !get_ldev_if_state(device, D_NEGOTIATING)) {
+-		write_unlock_irq(&global_state_lock);
++		write_unlock(&global_state_lock);
++		spin_unlock_irq(&device->resource->req_lock);
+ 		mutex_unlock(device->state_mutex);
+ 		return;
  	}
+@@ -1730,7 +1734,8 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
+ 		}
+ 		_drbd_pause_after(device);
+ 	}
+-	write_unlock_irq(&global_state_lock);
++	write_unlock(&global_state_lock);
++	spin_unlock_irq(&device->resource->req_lock);
  
--	device->peer_max_bio_size = be32_to_cpu(p->max_bio_size);
--	drbd_reconsider_max_bio_size(device);
--
- 	if (get_ldev(device)) {
- 		if (device->ldev->known_size != drbd_get_capacity(device->ldev->backing_bdev)) {
- 			device->ldev->known_size = drbd_get_capacity(device->ldev->backing_bdev);
-@@ -4688,6 +4693,7 @@ static int drbd_send_features(struct drbd_connection *connection)
- 	memset(p, 0, sizeof(*p));
- 	p->protocol_min = cpu_to_be32(PRO_VERSION_MIN);
- 	p->protocol_max = cpu_to_be32(PRO_VERSION_MAX);
-+	p->feature_flags = cpu_to_be32(PRO_FEATURES);
- 	return conn_send_command(connection, sock, P_CONNECTION_FEATURES, sizeof(*p), NULL, 0);
- }
- 
-@@ -4741,10 +4747,14 @@ static int drbd_do_features(struct drbd_connection *connection)
- 		goto incompat;
- 
- 	connection->agreed_pro_version = min_t(int, PRO_VERSION_MAX, p->protocol_max);
-+	connection->agreed_features = PRO_FEATURES & be32_to_cpu(p->feature_flags);
- 
- 	drbd_info(connection, "Handshake successful: "
- 	     "Agreed network protocol version %d\n", connection->agreed_pro_version);
- 
-+	drbd_info(connection, "Agreed to%ssupport TRIM on protocol level\n",
-+		  connection->agreed_features & FF_TRIM ? " " : " not ");
-+
- 	return 1;
- 
-  incompat:
+ 	if (r == SS_SUCCESS) {
+ 		/* reset rs_last_bcast when a resync or verify is started,
 -- 
 1.9.1
 
