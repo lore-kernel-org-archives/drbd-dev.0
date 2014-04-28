@@ -2,12 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:33 +0200
-Message-Id: <1398703415-17780-23-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 28 Apr 2014 18:43:34 +0200
+Message-Id: <1398703415-17780-24-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 22/24] drbd: Test cstate while holding req_lock
+Subject: [Drbd-dev] [PATCH 23/24] drbd: Allow attaching of a newly created
+	device to any backing device
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -19,50 +20,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In case a connection transitions into C_TIMEOUT within the timer
-function (request_timer_fn()) we need to make sure that the receiver
-thread (potentially running on a different CPU) sees the updated
-cstate later on.
+A newly created device was never exposed before, i.e. has a
+exposed_data_uuid of 0. Then it is valid to attach to any current_uuid
+of a backing device (of course also to a newly created one (4))
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c | 3 ++-
- include/linux/drbd.h         | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index b4fc401..f4d3aff 100644
+index f4d3aff..1b35c45 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -442,12 +442,13 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
- 	char *ex_to_string;
- 	int r;
- 
-+	spin_lock_irq(&connection->resource->req_lock);
- 	if (connection->cstate >= C_WF_REPORT_PARAMS) {
- 		drbd_err(connection, "Expected cstate < C_WF_REPORT_PARAMS\n");
-+		spin_unlock_irq(&connection->resource->req_lock);
- 		return false;
+@@ -1662,7 +1662,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
  	}
  
--	spin_lock_irq(&connection->resource->req_lock);
- 	connect_cnt = connection->connect_cnt;
- 	spin_unlock_irq(&connection->resource->req_lock);
- 
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index fffd4b8..3dbe9bd 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -52,7 +52,7 @@
- #endif
- 
- extern const char *drbd_buildtag(void);
--#define REL_VERSION "8.4.4"
-+#define REL_VERSION "8.4.3"
- #define API_VERSION 1
- #define PRO_VERSION_MIN 86
- #define PRO_VERSION_MAX 101
+ 	if (device->state.conn < C_CONNECTED &&
+-	    device->state.role == R_PRIMARY &&
++	    device->state.role == R_PRIMARY && device->ed_uuid &&
+ 	    (device->ed_uuid & ~((u64)1)) != (nbc->md.uuid[UI_CURRENT] & ~((u64)1))) {
+ 		drbd_err(device, "Can only attach to data with current UUID=%016llX\n",
+ 		    (unsigned long long)device->ed_uuid);
 -- 
 1.9.1
 
