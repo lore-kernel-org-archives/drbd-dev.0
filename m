@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:28 +0200
-Message-Id: <1398703415-17780-18-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 28 Apr 2014 18:43:29 +0200
+Message-Id: <1398703415-17780-19-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 17/24] drbd: add back some fairness to AL
-	transactions
+Subject: [Drbd-dev] [PATCH 18/24] drbd: always implicitly close last epoch
+	when idle
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,105 +22,101 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars@linbit.com>
 
-When batching more updates to the activity log into single transactions,
-we lost the ability for new requests to force themselves into the active
-set: all preparation steps became non-blocking, and if all currently
-hot extents keep busy, they could starve out new incoming requests
-to cold extents for quite a while.
+Once our sender thread needs to wait_for_work(),
+and actually needs to schedule(), just before we do that,
+we already check if it is useful to implicitly close the last epoch.
 
-This can only happen if your IO backend accepts more IO operations per
-average DRBD replication round trip time than you have al-extents
-configured.
+The condition was too strict: only implicitly close the epoch,
+if there have been no new (write) requests at all.
 
-If we have incoming requests to cold extents,
-at least do one blocking update per transaction.
+The assumption was that if there were new requests, they would
+always be communicated one way or another, and would send necessary
+epoch separating barriers explicitly.
 
-In an artificial worst-case workload on SSD with an asynchronous 600 ms
-replication link, with al-extents = 7 (the minimum we allow), and
-concurrent full resynch, without this patch, some write requests have
-been observed to be starved for 40 seconds.
-With this patch, application observed a worst case latency of twice the
-replication round trip time.
+This is not always true, e.g. when becoming diskless,
+or while explicitly starting a full resync.
+
+The last communicated epoch could stay open for a long time,
+locking down corresponding activity log extents.
+
+It is safe to always implicitly send that last barrier, as soon as we
+determin that there cannot be more requests in the last communicated
+epoch, even if there have been (uncommunicated) new requests in new
+epochs meanwhile.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_actlog.c |  3 +--
- drivers/block/drbd/drbd_int.h    |  1 +
- drivers/block/drbd/drbd_req.c    | 20 ++++++++++++++++++++
- 3 files changed, 22 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_worker.c | 48 +++++++++++++---------------------------
+ 1 file changed, 15 insertions(+), 33 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 8fc5d71..05a1780 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -203,7 +203,7 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
- 
- 	BUG_ON(!bdev->md_bdev);
- 
--	drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
-+	dynamic_drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
- 	     current->comm, current->pid, __func__,
- 	     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ",
- 	     (void*)_RET_IP_ );
-@@ -275,7 +275,6 @@ bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval
- 	return _al_get(device, first, true);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 34dde10..d8f57b6 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1799,34 +1799,6 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
+ 	mutex_unlock(device->state_mutex);
  }
  
--static
- bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i)
+-/* If the resource already closed the current epoch, but we did not
+- * (because we have not yet seen new requests), we should send the
+- * corresponding barrier now.  Must be checked within the same spinlock
+- * that is used to check for new requests. */
+-static bool need_to_send_barrier(struct drbd_connection *connection)
+-{
+-	if (!connection->send.seen_any_write_yet)
+-		return false;
+-
+-	/* Skip barriers that do not contain any writes.
+-	 * This may happen during AHEAD mode. */
+-	if (!connection->send.current_epoch_writes)
+-		return false;
+-
+-	/* ->req_lock is held when requests are queued on
+-	 * connection->sender_work, and put into ->transfer_log.
+-	 * It is also held when ->current_tle_nr is increased.
+-	 * So either there are already new requests queued,
+-	 * and corresponding barriers will be send there.
+-	 * Or nothing new is queued yet, so the difference will be 1.
+-	 */
+-	if (atomic_read(&connection->current_tle_nr) !=
+-	    connection->send.current_epoch_nr + 1)
+-		return false;
+-
+-	return true;
+-}
+-
+ static bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *work_list)
  {
- 	/* for bios crossing activity log extent boundaries,
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index d5f39fd..297ba40 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1487,6 +1487,7 @@ extern const char *drbd_conn_str(enum drbd_conns s);
- extern const char *drbd_role_str(enum drbd_role s);
- 
- /* drbd_actlog.c */
-+extern bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i);
- extern int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *i);
- extern void drbd_al_begin_io_commit(struct drbd_device *device, bool delegate);
- extern bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval *i);
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 7aadd09..99411bf 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1242,6 +1242,7 @@ void do_submit(struct work_struct *ws)
- 		if (list_empty(&incoming))
+ 	spin_lock_irq(&queue->q_lock);
+@@ -1885,12 +1857,22 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
+ 			spin_unlock_irq(&connection->resource->req_lock);
  			break;
- 
-+skip_fast_path:
- 		wait_event(device->al_wait, prepare_al_transaction_nonblock(device, &incoming, &pending));
- 		/* Maybe more was queued, while we prepared the transaction?
- 		 * Try to stuff them into this transaction as well.
-@@ -1280,6 +1281,25 @@ void do_submit(struct work_struct *ws)
- 			list_del_init(&req->tl_requests);
- 			drbd_send_and_submit(device, req);
  		}
+-		send_barrier = need_to_send_barrier(connection);
 +
-+		/* If all currently hot activity log extents are kept busy by
-+		 * incoming requests, we still must not totally starve new
-+		 * requests to cold extents. In that case, prepare one request
-+		 * in blocking mode. */
-+		list_for_each_entry_safe(req, tmp, &incoming, tl_requests) {
-+			list_del_init(&req->tl_requests);
-+			req->rq_state |= RQ_IN_ACT_LOG;
-+			if (!drbd_al_begin_io_prepare(device, &req->i)) {
-+				/* Corresponding extent was hot after all? */
-+				drbd_send_and_submit(device, req);
-+			} else {
-+				/* Found a request to a cold extent.
-+				 * Put on "pending" list,
-+				 * and try to cumulate with more. */
-+				list_add(&req->tl_requests, &pending);
-+				goto skip_fast_path;
-+			}
-+		}
- 	}
- }
- 
++		/* We found nothing new to do, no to-be-communicated request,
++		 * no other work item.  We may still need to close the last
++		 * epoch.  Next incoming request epoch will be connection ->
++		 * current transfer log epoch number.  If that is different
++		 * from the epoch of the last request we communicated, it is
++		 * safe to send the epoch separating barrier now.
++		 */
++		send_barrier =
++			atomic_read(&connection->current_tle_nr) !=
++			connection->send.current_epoch_nr;
+ 		spin_unlock_irq(&connection->resource->req_lock);
+-		if (send_barrier) {
+-			drbd_send_barrier(connection);
+-			connection->send.current_epoch_nr++;
+-		}
++
++		if (send_barrier)
++			maybe_send_barrier(connection,
++					connection->send.current_epoch_nr + 1);
+ 		schedule();
+ 		/* may be woken up for other things but new work, too,
+ 		 * e.g. if the current epoch got closed.
 -- 
 1.9.1
 
