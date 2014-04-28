@@ -2,13 +2,12 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:13 +0200
-Message-Id: <1398703415-17780-3-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 28 Apr 2014 18:43:14 +0200
+Message-Id: <1398703415-17780-4-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/24] drbd: Leave IO suspended if the fence
-	handler find the peer primary
+Subject: [Drbd-dev] [PATCH 03/24] drbd: Remove drbd_wrappers.h
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,125 +19,176 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Actually we are clearing the susp_fen flag if we are not going
-to call a fencing handler.
-
-For setting the susp_fen flag needs to be edge-triggerd, and not
-level triggered.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c    |  8 ++++++++
- drivers/block/drbd/drbd_state.c | 24 +++++++++++++-----------
- 2 files changed, 21 insertions(+), 11 deletions(-)
+ drivers/block/drbd/drbd_actlog.c   |  1 -
+ drivers/block/drbd/drbd_int.h      | 35 ++++++++++++++++++++++++
+ drivers/block/drbd/drbd_nl.c       |  1 -
+ drivers/block/drbd/drbd_nla.c      |  1 -
+ drivers/block/drbd/drbd_req.h      |  1 -
+ drivers/block/drbd/drbd_wrappers.h | 54 --------------------------------------
+ 6 files changed, 35 insertions(+), 58 deletions(-)
+ delete mode 100644 drivers/block/drbd/drbd_wrappers.h
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 526414b..5ccbd71 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -426,6 +426,14 @@ static enum drbd_fencing_p highest_fencing_policy(struct drbd_connection *connec
- 	}
- 	rcu_read_unlock();
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index 90ae4ba..7e7b0e1 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -29,7 +29,6 @@
+ #include <linux/drbd_limits.h>
+ #include <linux/dynamic_debug.h>
+ #include "drbd_int.h"
+-#include "drbd_wrappers.h"
  
-+	if (fp == FP_NOT_AVAIL) {
-+		/* IO Suspending works on the whole resource.
-+		   Do it only for one device. */
-+		vnr = 0;
-+		peer_device = idr_get_next(&connection->peer_devices, &vnr);
-+		drbd_change_state(peer_device->device, CS_VERBOSE | CS_HARD, NS(susp_fen, 0));
-+	}
-+
- 	return fp;
+ 
+ enum al_transaction_types {
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index e7093d4..361a2e9 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1283,6 +1283,10 @@ extern void conn_try_outdate_peer_async(struct drbd_connection *connection);
+ extern int drbd_khelper(struct drbd_device *device, char *cmd);
+ 
+ /* drbd_worker.c */
++/* bi_end_io handlers */
++extern void drbd_md_io_complete(struct bio *bio, int error);
++extern void drbd_peer_request_endio(struct bio *bio, int error);
++extern void drbd_request_endio(struct bio *bio, int error);
+ extern int drbd_worker(struct drbd_thread *thi);
+ enum drbd_ret_code drbd_resync_after_valid(struct drbd_device *device, int o_minor);
+ void drbd_resync_after_changed(struct drbd_device *device);
+@@ -1401,6 +1405,37 @@ static inline void drbd_tcp_quickack(struct socket *sock)
+ 			(char*)&val, sizeof(val));
  }
  
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 1a84345..3796662 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -54,8 +54,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
- static enum drbd_state_rv is_valid_state(struct drbd_device *, union drbd_state);
- static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state, struct drbd_connection *);
- static enum drbd_state_rv is_valid_transition(union drbd_state os, union drbd_state ns);
--static union drbd_state sanitize_state(struct drbd_device *device, union drbd_state ns,
--				       enum sanitize_state_warnings *warn);
-+static union drbd_state sanitize_state(struct drbd_device *device, union drbd_state os,
-+				       union drbd_state ns, enum sanitize_state_warnings *warn);
++/* sets the number of 512 byte sectors of our virtual device */
++static inline void drbd_set_my_capacity(struct drbd_device *device,
++					sector_t size)
++{
++	/* set_capacity(device->this_bdev->bd_disk, size); */
++	set_capacity(device->vdisk, size);
++	device->this_bdev->bd_inode->i_size = (loff_t)size << 9;
++}
++
++/*
++ * used to submit our private bio
++ */
++static inline void drbd_generic_make_request(struct drbd_device *device,
++					     int fault_type, struct bio *bio)
++{
++	__release(local);
++	if (!bio->bi_bdev) {
++		printk(KERN_ERR "drbd%d: drbd_generic_make_request: "
++				"bio->bi_bdev == NULL\n",
++		       device_to_minor(device));
++		dump_stack();
++		bio_endio(bio, -ENODEV);
++		return;
++	}
++
++	if (drbd_insert_fault(device, fault_type))
++		bio_endio(bio, -EIO);
++	else
++		generic_make_request(bio);
++}
++
+ void drbd_bump_write_ordering(struct drbd_connection *connection, enum write_ordering_e wo);
  
- static inline bool is_susp(union drbd_state s)
- {
-@@ -287,7 +287,7 @@ _req_st_cond(struct drbd_device *device, union drbd_state mask,
+ /* drbd_proc.c */
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 5ccbd71..e891cb0 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -34,7 +34,6 @@
+ #include "drbd_int.h"
+ #include "drbd_protocol.h"
+ #include "drbd_req.h"
+-#include "drbd_wrappers.h"
+ #include <asm/unaligned.h>
+ #include <linux/drbd_limits.h>
+ #include <linux/kthread.h>
+diff --git a/drivers/block/drbd/drbd_nla.c b/drivers/block/drbd/drbd_nla.c
+index fa672b6d..b2d4791 100644
+--- a/drivers/block/drbd/drbd_nla.c
++++ b/drivers/block/drbd/drbd_nla.c
+@@ -1,4 +1,3 @@
+-#include "drbd_wrappers.h"
+ #include <linux/kernel.h>
+ #include <net/netlink.h>
+ #include <linux/drbd_genl_api.h>
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
+index c684c96..07cc8e8 100644
+--- a/drivers/block/drbd/drbd_req.h
++++ b/drivers/block/drbd/drbd_req.h
+@@ -30,7 +30,6 @@
+ #include <linux/slab.h>
+ #include <linux/drbd.h>
+ #include "drbd_int.h"
+-#include "drbd_wrappers.h"
  
- 	spin_lock_irqsave(&device->resource->req_lock, flags);
- 	os = drbd_read_state(device);
--	ns = sanitize_state(device, apply_mask_val(os, mask, val), NULL);
-+	ns = sanitize_state(device, os, apply_mask_val(os, mask, val), NULL);
- 	rv = is_valid_transition(os, ns);
- 	if (rv >= SS_SUCCESS)
- 		rv = SS_UNKNOWN_ERROR;  /* cont waiting, otherwise fail. */
-@@ -333,7 +333,7 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
- 
- 	spin_lock_irqsave(&device->resource->req_lock, flags);
- 	os = drbd_read_state(device);
--	ns = sanitize_state(device, apply_mask_val(os, mask, val), NULL);
-+	ns = sanitize_state(device, os, apply_mask_val(os, mask, val), NULL);
- 	rv = is_valid_transition(os, ns);
- 	if (rv < SS_SUCCESS) {
- 		spin_unlock_irqrestore(&device->resource->req_lock, flags);
-@@ -740,8 +740,8 @@ static void print_sanitize_warnings(struct drbd_device *device, enum sanitize_st
-  * When we loose connection, we have to set the state of the peers disk (pdsk)
-  * to D_UNKNOWN. This rule and many more along those lines are in this function.
-  */
--static union drbd_state sanitize_state(struct drbd_device *device, union drbd_state ns,
--				       enum sanitize_state_warnings *warn)
-+static union drbd_state sanitize_state(struct drbd_device *device, union drbd_state os,
-+				       union drbd_state ns, enum sanitize_state_warnings *warn)
- {
- 	enum drbd_fencing_p fp;
- 	enum drbd_disk_state disk_min, disk_max, pdsk_min, pdsk_max;
-@@ -882,11 +882,13 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
- 	}
- 
- 	if (fp == FP_STONITH &&
--	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED))
-+	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED) &&
-+	    !(os.role == R_PRIMARY && os.conn < C_CONNECTED && os.pdsk > D_OUTDATED))
- 		ns.susp_fen = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
- 
- 	if (device->resource->res_opts.on_no_data == OND_SUSPEND_IO &&
--	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE))
-+	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE) &&
-+	    !(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE))
- 		ns.susp_nod = 1; /* Suspend IO while no data available (no accessible data available) */
- 
- 	if (ns.aftr_isp || ns.peer_isp || ns.user_isp) {
-@@ -958,7 +960,7 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
- 
- 	os = drbd_read_state(device);
- 
--	ns = sanitize_state(device, ns, &ssw);
-+	ns = sanitize_state(device, os, ns, &ssw);
- 	if (ns.i == os.i)
- 		return SS_NOTHING_TO_DO;
- 
-@@ -1656,7 +1658,7 @@ conn_is_valid_transition(struct drbd_connection *connection, union drbd_state ma
- 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
- 		struct drbd_device *device = peer_device->device;
- 		os = drbd_read_state(device);
--		ns = sanitize_state(device, apply_mask_val(os, mask, val), NULL);
-+		ns = sanitize_state(device, os, apply_mask_val(os, mask, val), NULL);
- 
- 		if (flags & CS_IGN_OUTD_FAIL && ns.disk == D_OUTDATED && os.disk < D_OUTDATED)
- 			ns.disk = os.disk;
-@@ -1718,7 +1720,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union
- 		number_of_volumes++;
- 		os = drbd_read_state(device);
- 		ns = apply_mask_val(os, mask, val);
--		ns = sanitize_state(device, ns, NULL);
-+		ns = sanitize_state(device, os, ns, NULL);
- 
- 		if (flags & CS_IGN_OUTD_FAIL && ns.disk == D_OUTDATED && os.disk < D_OUTDATED)
- 			ns.disk = os.disk;
+ /* The request callbacks will be called in irq context by the IDE drivers,
+    and in Softirqs/Tasklets/BH context by the SCSI drivers,
+diff --git a/drivers/block/drbd/drbd_wrappers.h b/drivers/block/drbd/drbd_wrappers.h
+deleted file mode 100644
+index 3db9eba..0000000
+--- a/drivers/block/drbd/drbd_wrappers.h
++++ /dev/null
+@@ -1,54 +0,0 @@
+-#ifndef _DRBD_WRAPPERS_H
+-#define _DRBD_WRAPPERS_H
+-
+-#include <linux/ctype.h>
+-#include <linux/mm.h>
+-#include "drbd_int.h"
+-
+-/* see get_sb_bdev and bd_claim */
+-extern char *drbd_sec_holder;
+-
+-/* sets the number of 512 byte sectors of our virtual device */
+-static inline void drbd_set_my_capacity(struct drbd_device *device,
+-					sector_t size)
+-{
+-	/* set_capacity(device->this_bdev->bd_disk, size); */
+-	set_capacity(device->vdisk, size);
+-	device->this_bdev->bd_inode->i_size = (loff_t)size << 9;
+-}
+-
+-#define drbd_bio_uptodate(bio) bio_flagged(bio, BIO_UPTODATE)
+-
+-/* bi_end_io handlers */
+-extern void drbd_md_io_complete(struct bio *bio, int error);
+-extern void drbd_peer_request_endio(struct bio *bio, int error);
+-extern void drbd_request_endio(struct bio *bio, int error);
+-
+-/*
+- * used to submit our private bio
+- */
+-static inline void drbd_generic_make_request(struct drbd_device *device,
+-					     int fault_type, struct bio *bio)
+-{
+-	__release(local);
+-	if (!bio->bi_bdev) {
+-		printk(KERN_ERR "drbd%d: drbd_generic_make_request: "
+-				"bio->bi_bdev == NULL\n",
+-		       device_to_minor(device));
+-		dump_stack();
+-		bio_endio(bio, -ENODEV);
+-		return;
+-	}
+-
+-	if (drbd_insert_fault(device, fault_type))
+-		bio_endio(bio, -EIO);
+-	else
+-		generic_make_request(bio);
+-}
+-
+-#ifndef __CHECKER__
+-# undef __cond_lock
+-# define __cond_lock(x,c) (c)
+-#endif
+-
+-#endif
 -- 
 1.9.1
 
