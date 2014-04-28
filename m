@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:16 +0200
-Message-Id: <1398703415-17780-6-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 28 Apr 2014 18:43:17 +0200
+Message-Id: <1398703415-17780-7-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/24] drbd: fix stalled resync detection in
-	/proc/drbd
+Subject: [Drbd-dev] [PATCH 06/24] drbd: resync: fix too large bursts for
+	very slow rates
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,35 +22,30 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-If we don't make resync or verify progress for "too long",
-we want to flag it as "stalled".
-
-Since 2010, "use rolling marks for resync speed calculation"
-this "too long" was wrong by a factor of HZ.
-With HZ 250, it would have been flagged as stalled
-after 100 minutes.
-
-Hardcode 3 minutes instead.
+While merging adjacent dirty blocks into resync requests,
+the resync rate throttle was disregarded.
+For very low resync rates, the effective rate may have exceeded
+the intended rate by a larger margin.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_proc.c | 2 +-
+ drivers/block/drbd/drbd_worker.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
-index 2f26e8f..89736bd 100644
---- a/drivers/block/drbd/drbd_proc.c
-+++ b/drivers/block/drbd/drbd_proc.c
-@@ -116,7 +116,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
- 	/* ------------------------ ~18s average ------------------------ */
- 	i = (device->rs_last_mark + 2) % DRBD_SYNC_MARKS;
- 	dt = (jiffies - device->rs_mark_time[i]) / HZ;
--	if (dt > (DRBD_SYNC_MARK_STEP * DRBD_SYNC_MARKS))
-+	if (dt > 180)
- 		stalled = 1;
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 2c4ce42..dcd95a6 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -647,7 +647,7 @@ next_sector:
+ 		 */
+ 		align = 1;
+ 		rollback_i = i;
+-		for (;;) {
++		while (i < number) {
+ 			if (size + BM_BLOCK_SIZE > max_bio_size)
+ 				break;
  
- 	if (!dt)
 -- 
 1.9.1
 
