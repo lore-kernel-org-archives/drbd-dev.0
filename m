@@ -2,13 +2,13 @@ Return-Path: <philipp.reisner@linbit.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:15 +0200
-Message-Id: <1398703415-17780-5-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 28 Apr 2014 18:43:16 +0200
+Message-Id: <1398703415-17780-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/24] drbd: Allow online layout change of AL
-	while peer is not connected
+Subject: [Drbd-dev] [PATCH 05/24] drbd: fix stalled resync detection in
+	/proc/drbd
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,28 +20,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-If a user forces the operation he takes the blame in case
-the peer does not have enough space. No reason to dey this...
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+
+If we don't make resync or verify progress for "too long",
+we want to flag it as "stalled".
+
+Since 2010, "use rolling marks for resync speed calculation"
+this "too long" was wrong by a factor of HZ.
+With HZ 250, it would have been flagged as stalled
+after 100 minutes.
+
+Hardcode 3 minutes instead.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c | 2 +-
+ drivers/block/drbd/drbd_proc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index e891cb0..d219210 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -2489,7 +2489,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
- 			goto fail_ldev;
- 		}
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index 2f26e8f..89736bd 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -116,7 +116,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
+ 	/* ------------------------ ~18s average ------------------------ */
+ 	i = (device->rs_last_mark + 2) % DRBD_SYNC_MARKS;
+ 	dt = (jiffies - device->rs_mark_time[i]) / HZ;
+-	if (dt > (DRBD_SYNC_MARK_STEP * DRBD_SYNC_MARKS))
++	if (dt > 180)
+ 		stalled = 1;
  
--		if (device->state.conn != C_CONNECTED) {
-+		if (device->state.conn != C_CONNECTED && !rs.resize_force) {
- 			retcode = ERR_MD_LAYOUT_CONNECTED;
- 			goto fail_ldev;
- 		}
+ 	if (!dt)
 -- 
 1.9.1
 
