@@ -1,14 +1,22 @@
-Return-Path: <philipp.reisner@linbit.com>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: linux-kernel@vger.kernel.org,
-	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 28 Apr 2014 18:43:35 +0200
-Message-Id: <1398703415-17780-25-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com
+	[209.85.192.181]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 972EB101AC78
+	for <drbd-dev@lists.linbit.com>; Thu,  1 May 2014 02:41:29 +0200 (CEST)
+Received: by mail-pd0-f181.google.com with SMTP id w10so1140383pde.40
+	for <drbd-dev@lists.linbit.com>; Wed, 30 Apr 2014 17:41:28 -0700 (PDT)
+Message-ID: <53617140.6060206@kernel.dk>
+Date: Wed, 30 Apr 2014 15:55:12 -0600
+From: Jens Axboe <axboe@kernel.dk>
+MIME-Version: 1.0
+To: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org
 References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 24/24] drbd: use list_first_entry_or_null in
-	first_peer_device/first_connection
+Subject: Re: [Drbd-dev] [PATCH 00/24] RFC: DRBD Fixes and REQ_DISCARD support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,43 +28,77 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+On 04/28/2014 10:43 AM, Philipp Reisner wrote:
+> This patch series contains these new features for DRBD:
+>  * Support for REQ_DISCARD
+>  * Allow parallel promote/demote
+>  * Allow online changing of al-stripes and al-stripe-size with the
+>    resize command
+> 
+> and contains fixes for these issues:
+>  * fix potential deadlock when concurrently fencing and establishing a connection
+>  * fix potential distributed deadlock during verify or resync
+>  * fix decoding of bitmap vli rle for device sizes > 64 TB
+>  * fix for deadlock when using automatic split-brain-recovery
+>  * only fail empty flushes if no good data is reachable
+>  * avoid to shrink max_bio_size due to peer re-configuration
+>  * fix resume-io after reconnect with broken fence-peer handler
+>  * fix too large bursts for very slow resync rates
+>  * don't let application IO throttle resync to a stall
+>  * Fixed a hole in the challenge-response implementation
+>  * Fixed a theoretical IO deadlock (Only triggers with unusual small AL i.e. 7)
+>  * Fixed attaching to disks with fixed size external meta-data
+>    (This regressions was introduced with 8.4.3)
+>  * Fixed a crash when the connection broke at a very exact point in
+>    time while a graceful disconnect executes
+> 
+> Lars Ellenberg (15):
+>   drbd: fix stalled resync detection in /proc/drbd
+>   drbd: resync: fix too large bursts for very slow rates
+>   drbd: fix potential distributed deadlock during verify or resync
+>   drbd: don't let application IO pre-empt resync too often
+>   drbd: perpare for genetlink parallel_ops
+>   drbd: allow parallel promote/demote actions
+>   drbd: prepare receiving side for REQ_DISCARD
+>   drbd: prepare sending side for REQ_DISCARD
+>   drbd: Enable QUEUE_FLAG_DISCARD only if the peer can recieve P_TRIM
+>   drbd: fix a race between start_resync and send_and_submit
+>   drbd: keep max-bio size during detach/attach on disconnected primary
+>   drbd: add back some fairness to AL transactions
+>   drbd: always implicitly close last epoch when idle
+>   drbd: evaluate disk and network timeout on different requests
+>   drbd: use list_first_entry_or_null in first_peer_device/first_connection
+> 
+> Philipp Reisner (9):
+>   drbd: Break a deadlock while concurrent fencing and establishing a connection
+>   drbd: Leave IO suspended if the fence handler find the peer primary
+>   drbd: Remove drbd_wrappers.h
+>   drbd: Allow online layout change of AL while peer is not connected
+>   drbd: Do not BUG() when connection breaks in a special way
+>   drbd: Fix a hole in the challange-response connection authentication
+>   drbd: use blk_set_stacking_limits()
+>   drbd: Test cstate while holding req_lock
+>   drbd: Allow attaching of a newly created device to any backing device
+> 
+>  drivers/block/drbd/drbd_actlog.c   |  23 +-
+>  drivers/block/drbd/drbd_int.h      |  92 ++++++-
+>  drivers/block/drbd/drbd_main.c     |  28 ++-
+>  drivers/block/drbd/drbd_nl.c       | 485 ++++++++++++++++++++++---------------
+>  drivers/block/drbd/drbd_nla.c      |   1 -
+>  drivers/block/drbd/drbd_proc.c     |   2 +-
+>  drivers/block/drbd/drbd_protocol.h |  12 +
+>  drivers/block/drbd/drbd_receiver.c | 196 ++++++++++-----
+>  drivers/block/drbd/drbd_req.c      |  74 ++++--
+>  drivers/block/drbd/drbd_req.h      |   6 +-
+>  drivers/block/drbd/drbd_state.c    |  38 +--
+>  drivers/block/drbd/drbd_worker.c   | 107 ++++----
+>  drivers/block/drbd/drbd_wrappers.h |  54 -----
+>  13 files changed, 701 insertions(+), 417 deletions(-)
+>  delete mode 100644 drivers/block/drbd/drbd_wrappers.h
 
-If there are no peer_devices or connections, I'd rather have NULL
-than some "arbitrary" address pretending to point to a struct.
+Added for 3.16, thanks.
 
-Helps to avoid hard to debug symptoms, in case we ever try to use
-and dereference a drbd_connection or drbd_peer_device
-where we in fact don't have any connection at all.
 
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_int.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 297ba40..a76ceb3 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -853,7 +853,7 @@ static inline struct drbd_device *minor_to_device(unsigned int minor)
- 
- static inline struct drbd_peer_device *first_peer_device(struct drbd_device *device)
- {
--	return list_first_entry(&device->peer_devices, struct drbd_peer_device, peer_devices);
-+	return list_first_entry_or_null(&device->peer_devices, struct drbd_peer_device, peer_devices);
- }
- 
- #define for_each_resource(resource, _resources) \
-@@ -2222,7 +2222,7 @@ static inline void drbd_md_flush(struct drbd_device *device)
- 
- static inline struct drbd_connection *first_connection(struct drbd_resource *resource)
- {
--	return list_first_entry(&resource->connections,
-+	return list_first_entry_or_null(&resource->connections,
- 				struct drbd_connection, connections);
- }
- 
 -- 
-1.9.1
+Jens Axboe
 
