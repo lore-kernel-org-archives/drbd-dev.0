@@ -1,22 +1,36 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com
-	[209.85.192.181]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 972EB101AC78
-	for <drbd-dev@lists.linbit.com>; Thu,  1 May 2014 02:41:29 +0200 (CEST)
-Received: by mail-pd0-f181.google.com with SMTP id w10so1140383pde.40
-	for <drbd-dev@lists.linbit.com>; Wed, 30 Apr 2014 17:41:28 -0700 (PDT)
-Message-ID: <53617140.6060206@kernel.dk>
-Date: Wed, 30 Apr 2014 15:55:12 -0600
-From: Jens Axboe <axboe@kernel.dk>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BFC0E101AC71
+	for <drbd-dev@lists.linbit.com>; Wed,  7 May 2014 12:20:13 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id A39D32A58C8
+	for <drbd-dev@lists.linbit.com>; Wed,  7 May 2014 12:20:13 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id zbfeMBRQPFa7 for <drbd-dev@lists.linbit.com>;
+	Wed,  7 May 2014 12:20:13 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 6EDD42A5D21
+	for <drbd-dev@lists.linbit.com>; Wed,  7 May 2014 12:20:13 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id ItlzuJcNbe0O for <drbd-dev@lists.linbit.com>;
+	Wed,  7 May 2014 12:20:13 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 3B3962A58C8
+	for <drbd-dev@lists.linbit.com>; Wed,  7 May 2014 12:20:13 +0200 (CEST)
+Resent-Message-ID: <20140507102013.GD32422@soda.linbit>
+Date: Tue, 6 May 2014 14:28:32 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+To: Lars Ellenberg <drbd-dev@lists.linbit.com>
+Message-ID: <20140506112832.GA25561@mwanda>
 MIME-Version: 1.0
-To: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org
-References: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1398703415-17780-1-git-send-email-philipp.reisner@linbit.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/24] RFC: DRBD Fixes and REQ_DISCARD support
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org,
+	drbd-user@lists.linbit.com
+Subject: [Drbd-dev] [patch] drbd: silence underflow warning in
+	read_in_block()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,77 +42,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 04/28/2014 10:43 AM, Philipp Reisner wrote:
-> This patch series contains these new features for DRBD:
->  * Support for REQ_DISCARD
->  * Allow parallel promote/demote
->  * Allow online changing of al-stripes and al-stripe-size with the
->    resize command
-> 
-> and contains fixes for these issues:
->  * fix potential deadlock when concurrently fencing and establishing a connection
->  * fix potential distributed deadlock during verify or resync
->  * fix decoding of bitmap vli rle for device sizes > 64 TB
->  * fix for deadlock when using automatic split-brain-recovery
->  * only fail empty flushes if no good data is reachable
->  * avoid to shrink max_bio_size due to peer re-configuration
->  * fix resume-io after reconnect with broken fence-peer handler
->  * fix too large bursts for very slow resync rates
->  * don't let application IO throttle resync to a stall
->  * Fixed a hole in the challenge-response implementation
->  * Fixed a theoretical IO deadlock (Only triggers with unusual small AL i.e. 7)
->  * Fixed attaching to disks with fixed size external meta-data
->    (This regressions was introduced with 8.4.3)
->  * Fixed a crash when the connection broke at a very exact point in
->    time while a graceful disconnect executes
-> 
-> Lars Ellenberg (15):
->   drbd: fix stalled resync detection in /proc/drbd
->   drbd: resync: fix too large bursts for very slow rates
->   drbd: fix potential distributed deadlock during verify or resync
->   drbd: don't let application IO pre-empt resync too often
->   drbd: perpare for genetlink parallel_ops
->   drbd: allow parallel promote/demote actions
->   drbd: prepare receiving side for REQ_DISCARD
->   drbd: prepare sending side for REQ_DISCARD
->   drbd: Enable QUEUE_FLAG_DISCARD only if the peer can recieve P_TRIM
->   drbd: fix a race between start_resync and send_and_submit
->   drbd: keep max-bio size during detach/attach on disconnected primary
->   drbd: add back some fairness to AL transactions
->   drbd: always implicitly close last epoch when idle
->   drbd: evaluate disk and network timeout on different requests
->   drbd: use list_first_entry_or_null in first_peer_device/first_connection
-> 
-> Philipp Reisner (9):
->   drbd: Break a deadlock while concurrent fencing and establishing a connection
->   drbd: Leave IO suspended if the fence handler find the peer primary
->   drbd: Remove drbd_wrappers.h
->   drbd: Allow online layout change of AL while peer is not connected
->   drbd: Do not BUG() when connection breaks in a special way
->   drbd: Fix a hole in the challange-response connection authentication
->   drbd: use blk_set_stacking_limits()
->   drbd: Test cstate while holding req_lock
->   drbd: Allow attaching of a newly created device to any backing device
-> 
->  drivers/block/drbd/drbd_actlog.c   |  23 +-
->  drivers/block/drbd/drbd_int.h      |  92 ++++++-
->  drivers/block/drbd/drbd_main.c     |  28 ++-
->  drivers/block/drbd/drbd_nl.c       | 485 ++++++++++++++++++++++---------------
->  drivers/block/drbd/drbd_nla.c      |   1 -
->  drivers/block/drbd/drbd_proc.c     |   2 +-
->  drivers/block/drbd/drbd_protocol.h |  12 +
->  drivers/block/drbd/drbd_receiver.c | 196 ++++++++++-----
->  drivers/block/drbd/drbd_req.c      |  74 ++++--
->  drivers/block/drbd/drbd_req.h      |   6 +-
->  drivers/block/drbd/drbd_state.c    |  38 +--
->  drivers/block/drbd/drbd_worker.c   | 107 ++++----
->  drivers/block/drbd/drbd_wrappers.h |  54 -----
->  13 files changed, 701 insertions(+), 417 deletions(-)
->  delete mode 100644 drivers/block/drbd/drbd_wrappers.h
+My static checker warns that "data_size" could be negative and underflow
+the limit check.  The code looks suspicious but I don't know if it is a
+real bug.
 
-Added for 3.16, thanks.
+Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
 
-
--- 
-Jens Axboe
-
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index b6c8aaf..15daf86d 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1528,7 +1528,7 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
+ 	struct drbd_peer_request *peer_req;
+ 	struct page *page;
+ 	int dgs, ds, err;
+-	int data_size = pi->size;
++	unsigned int data_size = pi->size;
+ 	void *dig_in = peer_device->connection->int_dig_in;
+ 	void *dig_vv = peer_device->connection->int_dig_vv;
+ 	unsigned long *data;
