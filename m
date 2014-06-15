@@ -1,33 +1,35 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A7D93101AC76
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Jun 2014 14:58:06 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 90081101AC7E
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Jun 2014 14:58:16 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 998FD3C0052
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Jun 2014 14:58:06 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 8674F2A7E3F
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Jun 2014 14:58:16 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 0ZGcB2740p22 for <drbd-dev@lists.linbit.com>;
-	Mon, 16 Jun 2014 14:58:06 +0200 (CEST)
+	with ESMTP id xBNlDUJdD-oX for <drbd-dev@lists.linbit.com>;
+	Mon, 16 Jun 2014 14:58:16 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 7C6AB3C0EF6
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Jun 2014 14:58:06 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 6A7FF3D0047
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Jun 2014 14:58:16 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id rK7zv_40HyWQ for <drbd-dev@lists.linbit.com>;
-	Mon, 16 Jun 2014 14:58:06 +0200 (CEST)
+	with ESMTP id Cz142HtC4Nwz for <drbd-dev@lists.linbit.com>;
+	Mon, 16 Jun 2014 14:58:16 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id DC80D3D0048
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Jun 2014 14:58:05 +0200 (CEST)
-Resent-Message-ID: <20140616125804.GA28884@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 4D6D52A7E3F
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Jun 2014 14:58:16 +0200 (CEST)
+Resent-Message-ID: <20140616125815.GB28884@soda.linbit>
 From: Martin Kepplinger <martink@posteo.de>
 To: drbd-dev@lists.linbit.com
-Date: Sun, 15 Jun 2014 01:07:55 +0200
-Message-Id: <1402787275-12258-1-git-send-email-martink@posteo.de>
+Date: Sun, 15 Jun 2014 02:45:21 +0200
+Message-Id: <1402793121-17181-1-git-send-email-martink@posteo.de>
+In-Reply-To: <1402787275-12258-1-git-send-email-martink@posteo.de>
+References: <1402787275-12258-1-git-send-email-martink@posteo.de>
 Cc: Martin Kepplinger <martink@posteo.de>, linux-kernel@vger.kernel.org,
 	drbd-user@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] drbd: change one-bit bitfield to be an unsigned
-	int
+Subject: [Drbd-dev] [PATCH v2] drbd: change one-bit bitfield to be an
+	unsigned int
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,15 +46,17 @@ unsigned int.
 
 Signed-off-by: Martin Kepplinger <martink@posteo.de>
 ---
-No idea if you take such small changes. Please ignore if not.
-This applies to next-20140613 and fixes a sparse error.
+Sorry for the visually ugly first patch. Take this one, if any.
+
+thanks,
+                     martin
 
 
  drivers/block/drbd/drbd_interval.h |    4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_interval.h b/drivers/block/drbd/drbd_interval.h
-index f38fcb0..68b4301 100644
+index f38fcb0..8d670e6 100644
 --- a/drivers/block/drbd/drbd_interval.h
 +++ b/drivers/block/drbd/drbd_interval.h
 @@ -9,8 +9,8 @@ struct drbd_interval {
@@ -61,7 +65,7 @@ index f38fcb0..68b4301 100644
  	sector_t end;		/* highest interval end in subtree */
 -	int local:1		/* local or remote request? */;
 -	int waiting:1;
-+	unsigned int local:1		/* local or remote request? */;
++	unsigned int local:1;	/* local or remote request? */
 +	unsigned int waiting:1;
  };
  
