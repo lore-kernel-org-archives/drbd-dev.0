@@ -1,17 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id AD7D6101AC7A
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D1126101AC79
 	for <drbd-dev@lists.linbit.com>; Mon, 30 Jun 2014 17:53:08 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 30 Jun 2014 17:53:06 +0200
-Message-Id: <1404143587-24344-18-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 30 Jun 2014 17:53:07 +0200
+Message-Id: <1404143587-24344-19-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404143587-24344-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404143587-24344-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 17/18] drbd: use drbd_device_post_work() in more
-	places
+Subject: [Drbd-dev] [PATCH 18/18] drbd: get rid of drbd_queue_work_front
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,191 +24,236 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-This replaces the md_sync_work member of struct drbd_device
-by a new MD_SYNC "work bit" in device->flags.
+The last user was al_write_transaction, if called with "delegate",
+and the last user to call it with "delegate = true" was the receiver
+thread, which has no need to delegate, but can call it himself.
 
-This replaces the resync_start_work member of struct drbd_device
-by a new RS_START "work bit" in device->flags.
+Finally drop the delegate parameter, drop the extra
+w_al_write_transaction callback, and drop drbd_queue_work_front.
+
+Do not (yet) change dequeue_work_item to dequeue_work_batch, though.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h    | 16 ++--------------
- drivers/block/drbd/drbd_main.c   | 25 +------------------------
- drivers/block/drbd/drbd_worker.c | 27 +++++++++++++++++----------
- 3 files changed, 20 insertions(+), 48 deletions(-)
+ drivers/block/drbd/drbd_actlog.c   | 69 ++++----------------------------------
+ drivers/block/drbd/drbd_int.h      | 14 ++------
+ drivers/block/drbd/drbd_receiver.c |  2 +-
+ drivers/block/drbd/drbd_req.c      |  2 +-
+ drivers/block/drbd/drbd_worker.c   |  6 ++--
+ 5 files changed, 12 insertions(+), 81 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 5768260..3c701b0 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -457,6 +457,8 @@ enum {
- 	/* to be used in drbd_device_post_work() */
- 	GO_DISKLESS,		/* tell worker to schedule cleanup before detach */
- 	DESTROY_DISK,		/* tell worker to close backing devices and destroy related structures. */
-+	MD_SYNC,		/* tell worker to call drbd_md_sync() */
-+	RS_START,		/* tell worker to start resync/OV */
- 	RS_PROGRESS,		/* tell worker that resync made significant progress */
- 	RS_DONE,		/* tell worker that resync is done */
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index 5add201..5f82a36 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -92,14 +92,6 @@ struct __packed al_transaction_on_disk {
+ 	__be32	context[AL_CONTEXT_PER_TRANSACTION];
  };
-@@ -709,18 +711,10 @@ struct drbd_device {
- 	unsigned long last_reattach_jif;
- 	struct drbd_work resync_work;
- 	struct drbd_work unplug_work;
--	struct drbd_work md_sync_work;
--	struct drbd_work start_resync_work;
- 	struct timer_list resync_timer;
- 	struct timer_list md_sync_timer;
- 	struct timer_list start_resync_timer;
- 	struct timer_list request_timer;
--#ifdef DRBD_DEBUG_MD_SYNC
--	struct {
--		unsigned int line;
--		const char* func;
--	} last_md_mark_dirty;
--#endif
  
- 	/* Used after attach while negotiating new disk state. */
- 	union drbd_state new_state_tmp;
-@@ -977,13 +971,7 @@ extern void __drbd_uuid_set(struct drbd_device *device, int idx, u64 val) __must
- extern void drbd_md_set_flag(struct drbd_device *device, int flags) __must_hold(local);
- extern void drbd_md_clear_flag(struct drbd_device *device, int flags)__must_hold(local);
- extern int drbd_md_test_flag(struct drbd_backing_dev *, int);
--#ifndef DRBD_DEBUG_MD_SYNC
- extern void drbd_md_mark_dirty(struct drbd_device *device);
--#else
--#define drbd_md_mark_dirty(m)	drbd_md_mark_dirty_(m, __LINE__ , __func__ )
--extern void drbd_md_mark_dirty_(struct drbd_device *device,
--		unsigned int line, const char *func);
--#endif
- extern void drbd_queue_bitmap_io(struct drbd_device *device,
- 				 int (*io_fn)(struct drbd_device *),
- 				 void (*done)(struct drbd_device *, int),
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 0cf6094..ed35d52 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -60,7 +60,6 @@
- static DEFINE_MUTEX(drbd_main_mutex);
- static int drbd_open(struct block_device *bdev, fmode_t mode);
- static void drbd_release(struct gendisk *gd, fmode_t mode);
--static int w_md_sync(struct drbd_work *w, int unused);
- static void md_sync_timer_fn(unsigned long data);
- static int w_bitmap_io(struct drbd_work *w, int unused);
- 
-@@ -1928,15 +1927,11 @@ void drbd_init_set_defaults(struct drbd_device *device)
- 	INIT_LIST_HEAD(&device->resync_reads);
- 	INIT_LIST_HEAD(&device->resync_work.list);
- 	INIT_LIST_HEAD(&device->unplug_work.list);
--	INIT_LIST_HEAD(&device->md_sync_work.list);
--	INIT_LIST_HEAD(&device->start_resync_work.list);
- 	INIT_LIST_HEAD(&device->bm_io_work.w.list);
- 
- 	device->resync_work.cb  = w_resync_timer;
- 	device->unplug_work.cb  = w_send_write_hint;
--	device->md_sync_work.cb = w_md_sync;
- 	device->bm_io_work.w.cb = w_bitmap_io;
--	device->start_resync_work.cb = w_start_resync;
- 
- 	init_timer(&device->resync_timer);
- 	init_timer(&device->md_sync_timer);
-@@ -3623,25 +3618,7 @@ int drbd_md_test_flag(struct drbd_backing_dev *bdev, int flag)
- static void md_sync_timer_fn(unsigned long data)
- {
- 	struct drbd_device *device = (struct drbd_device *) data;
+-struct update_al_work {
+-	struct drbd_work w;
+-	struct drbd_device *device;
+-	struct completion event;
+-	int err;
+-};
 -
--	/* must not double-queue! */
--	if (list_empty(&device->md_sync_work.list))
--		drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
--				      &device->md_sync_work);
+-
+ void *drbd_md_get_buffer(struct drbd_device *device)
+ {
+ 	int r;
+@@ -291,26 +283,12 @@ bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *
+ 	return need_transaction;
+ }
+ 
+-static int al_write_transaction(struct drbd_device *device, bool delegate);
++static int al_write_transaction(struct drbd_device *device);
+ 
+-/* When called through generic_make_request(), we must delegate
+- * activity log I/O to the worker thread: a further request
+- * submitted via generic_make_request() within the same task
+- * would be queued on current->bio_list, and would only start
+- * after this function returns (see generic_make_request()).
+- *
+- * However, if we *are* the worker, we must not delegate to ourselves.
+- */
+-
+-/*
+- * @delegate:   delegate activity log I/O to the worker thread
+- */
+-void drbd_al_begin_io_commit(struct drbd_device *device, bool delegate)
++void drbd_al_begin_io_commit(struct drbd_device *device)
+ {
+ 	bool locked = false;
+ 
+-	BUG_ON(delegate && current == first_peer_device(device)->connection->worker.task);
+-
+ 	/* Serialize multiple transactions.
+ 	 * This uses test_and_set_bit, memory barrier is implicit.
+ 	 */
+@@ -329,7 +307,7 @@ void drbd_al_begin_io_commit(struct drbd_device *device, bool delegate)
+ 			rcu_read_unlock();
+ 
+ 			if (write_al_updates)
+-				al_write_transaction(device, delegate);
++				al_write_transaction(device);
+ 			spin_lock_irq(&device->al_lock);
+ 			/* FIXME
+ 			if (err)
+@@ -346,12 +324,10 @@ void drbd_al_begin_io_commit(struct drbd_device *device, bool delegate)
+ /*
+  * @delegate:   delegate activity log I/O to the worker thread
+  */
+-void drbd_al_begin_io(struct drbd_device *device, struct drbd_interval *i, bool delegate)
++void drbd_al_begin_io(struct drbd_device *device, struct drbd_interval *i)
+ {
+-	BUG_ON(delegate && current == first_peer_device(device)->connection->worker.task);
+-
+ 	if (drbd_al_begin_io_prepare(device, i))
+-		drbd_al_begin_io_commit(device, delegate);
++		drbd_al_begin_io_commit(device);
+ }
+ 
+ int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *i)
+@@ -464,8 +440,7 @@ static sector_t al_tr_number_to_on_disk_sector(struct drbd_device *device)
+ 	return device->ldev->md.md_offset + device->ldev->md.al_offset + t;
+ }
+ 
+-static int
+-_al_write_transaction(struct drbd_device *device)
++int al_write_transaction(struct drbd_device *device)
+ {
+ 	struct al_transaction_on_disk *buffer;
+ 	struct lc_element *e;
+@@ -575,38 +550,6 @@ _al_write_transaction(struct drbd_device *device)
+ 	return err;
+ }
+ 
+-
+-static int w_al_write_transaction(struct drbd_work *w, int unused)
+-{
+-	struct update_al_work *aw = container_of(w, struct update_al_work, w);
+-	struct drbd_device *device = aw->device;
+-	int err;
+-
+-	err = _al_write_transaction(device);
+-	aw->err = err;
+-	complete(&aw->event);
+-
+-	return err != -EIO ? err : 0;
 -}
 -
--static int w_md_sync(struct drbd_work *w, int unused)
+-/* Calls from worker context (see w_restart_disk_io()) need to write the
+-   transaction directly. Others came through generic_make_request(),
+-   those need to delegate it to the worker. */
+-static int al_write_transaction(struct drbd_device *device, bool delegate)
 -{
--	struct drbd_device *device =
--		container_of(w, struct drbd_device, md_sync_work);
+-	if (delegate) {
+-		struct update_al_work al_work;
+-		init_completion(&al_work.event);
+-		al_work.w.cb = w_al_write_transaction;
+-		al_work.device = device;
+-		drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
+-				      &al_work.w);
+-		wait_for_completion(&al_work.event);
+-		return al_work.err;
+-	} else
+-		return _al_write_transaction(device);
+-}
 -
--	drbd_warn(device, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
--#ifdef DEBUG
--	drbd_warn(device, "last md_mark_dirty: %s:%u\n",
--		device->last_md_mark_dirty.func, device->last_md_mark_dirty.line);
--#endif
--	drbd_md_sync(device);
--	return 0;
-+	drbd_device_post_work(device, MD_SYNC);
+ static int _try_lc_del(struct drbd_device *device, struct lc_element *al_ext)
+ {
+ 	int rv;
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 3c701b0..72b5001 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1491,9 +1491,9 @@ extern const char *drbd_role_str(enum drbd_role s);
+ /* drbd_actlog.c */
+ extern bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i);
+ extern int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *i);
+-extern void drbd_al_begin_io_commit(struct drbd_device *device, bool delegate);
++extern void drbd_al_begin_io_commit(struct drbd_device *device);
+ extern bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval *i);
+-extern void drbd_al_begin_io(struct drbd_device *device, struct drbd_interval *i, bool delegate);
++extern void drbd_al_begin_io(struct drbd_device *device, struct drbd_interval *i);
+ extern void drbd_al_complete_io(struct drbd_device *device, struct drbd_interval *i);
+ extern void drbd_rs_complete_io(struct drbd_device *device, sector_t sector);
+ extern int drbd_rs_begin_io(struct drbd_device *device, sector_t sector);
+@@ -1769,16 +1769,6 @@ static inline sector_t drbd_md_ss(struct drbd_backing_dev *bdev)
  }
  
- const char *cmdname(enum drbd_packet cmd)
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 00bf490..a4310fd 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1606,26 +1606,20 @@ void drbd_rs_controller_reset(struct drbd_device *device)
- void start_resync_timer_fn(unsigned long data)
- {
- 	struct drbd_device *device = (struct drbd_device *) data;
+ static inline void
+-drbd_queue_work_front(struct drbd_work_queue *q, struct drbd_work *w)
+-{
+-	unsigned long flags;
+-	spin_lock_irqsave(&q->q_lock, flags);
+-	list_add(&w->list, &q->q);
+-	spin_unlock_irqrestore(&q->q_lock, flags);
+-	wake_up(&q->q_wait);
+-}
 -
--	drbd_queue_work(&first_peer_device(device)->connection->sender_work,
--			&device->start_resync_work);
-+	drbd_device_post_work(device, RS_START);
- }
- 
--int w_start_resync(struct drbd_work *w, int cancel)
-+static void do_start_resync(struct drbd_device *device)
+-static inline void
+ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
  {
--	struct drbd_device *device =
--		container_of(w, struct drbd_device, start_resync_work);
--
- 	if (atomic_read(&device->unacked_cnt) || atomic_read(&device->rs_pending_cnt)) {
--		drbd_warn(device, "w_start_resync later...\n");
-+		drbd_warn(device, "postponing start_resync ...\n");
- 		device->start_resync_timer.expires = jiffies + HZ/10;
- 		add_timer(&device->start_resync_timer);
--		return 0;
-+		return;
+ 	unsigned long flags;
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 8d8a6b7..cfc3d43 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -2351,7 +2351,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
+ 		drbd_set_out_of_sync(device, peer_req->i.sector, peer_req->i.size);
+ 		peer_req->flags |= EE_CALL_AL_COMPLETE_IO;
+ 		peer_req->flags &= ~EE_MAY_SET_IN_SYNC;
+-		drbd_al_begin_io(device, &peer_req->i, true);
++		drbd_al_begin_io(device, &peer_req->i);
  	}
  
- 	drbd_start_resync(device, C_SYNC_SOURCE);
- 	clear_bit(AHEAD_TO_SYNC_SOURCE, &device->flags);
--	return 0;
- }
+ 	err = drbd_submit_peer_request(device, peer_req, rw, DRBD_FAULT_DT_WR);
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 042bbc6..1ee7355 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1286,7 +1286,7 @@ skip_fast_path:
+ 			if (!made_progress)
+ 				break;
+ 		}
+-		drbd_al_begin_io_commit(device, false);
++		drbd_al_begin_io_commit(device);
  
- /**
-@@ -1882,9 +1876,18 @@ static void go_diskless(struct drbd_device *device)
- 	drbd_force_state(device, NS(disk, D_DISKLESS));
- }
+ 		list_for_each_entry_safe(req, tmp, &pending, tl_requests) {
+ 			list_del_init(&req->tl_requests);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index a4310fd..2ff5fd4 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1438,7 +1438,7 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
+ 	struct drbd_device *device = req->device;
  
-+static int do_md_sync(struct drbd_device *device)
-+{
-+	drbd_warn(device, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
-+	drbd_md_sync(device);
-+	return 0;
-+}
-+
- #define WORK_PENDING(work_bit, todo)	(todo & (1UL << work_bit))
- static void do_device_work(struct drbd_device *device, const unsigned long todo)
- {
-+	if (WORK_PENDING(MD_SYNC, todo))
-+		do_md_sync(device);
- 	if (WORK_PENDING(RS_DONE, todo) ||
- 	    WORK_PENDING(RS_PROGRESS, todo))
- 		update_on_disk_bitmap(device, WORK_PENDING(RS_DONE, todo));
-@@ -1892,11 +1895,15 @@ static void do_device_work(struct drbd_device *device, const unsigned long todo)
- 		go_diskless(device);
- 	if (WORK_PENDING(DESTROY_DISK, todo))
- 		drbd_ldev_destroy(device);
-+	if (WORK_PENDING(RS_START, todo))
-+		do_start_resync(device);
- }
+ 	if (bio_data_dir(req->master_bio) == WRITE && req->rq_state & RQ_IN_ACT_LOG)
+-		drbd_al_begin_io(device, &req->i, false);
++		drbd_al_begin_io(device, &req->i);
  
- #define DRBD_DEVICE_WORK_MASK	\
- 	((1UL << GO_DISKLESS)	\
- 	|(1UL << DESTROY_DISK)	\
-+	|(1UL << MD_SYNC)	\
-+	|(1UL << RS_START)	\
- 	|(1UL << RS_PROGRESS)	\
- 	|(1UL << RS_DONE)	\
- 	)
+ 	drbd_req_make_private_bio(req, req->master_bio);
+ 	req->private_bio->bi_bdev = device->ldev->backing_bdev;
+@@ -1991,7 +1991,7 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
+ 		/* dequeue single item only,
+ 		 * we still use drbd_queue_work_front() in some places */
+ 		if (!list_empty(&connection->sender_work.q))
+-			list_move(connection->sender_work.q.next, work_list);
++			list_splice_tail_init(&connection->sender_work.q, work_list);
+ 		spin_unlock(&connection->sender_work.q_lock);	/* FIXME get rid of this one? */
+ 		if (!list_empty(work_list) || signal_pending(current)) {
+ 			spin_unlock_irq(&connection->resource->req_lock);
+@@ -2054,8 +2054,6 @@ int drbd_worker(struct drbd_thread *thi)
+ 	while (get_t_state(thi) == RUNNING) {
+ 		drbd_thread_current_set_cpu(thi);
+ 
+-		/* as long as we use drbd_queue_work_front(),
+-		 * we may only dequeue single work items here, not batches. */
+ 		if (list_empty(&work_list))
+ 			wait_for_work(connection, &work_list);
+ 
 -- 
 1.9.1
 
