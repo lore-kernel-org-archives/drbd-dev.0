@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A6087101AC79
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id AD7D6101AC7A
 	for <drbd-dev@lists.linbit.com>; Mon, 30 Jun 2014 17:53:08 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 30 Jun 2014 17:53:05 +0200
-Message-Id: <1404143587-24344-17-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 30 Jun 2014 17:53:06 +0200
+Message-Id: <1404143587-24344-18-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404143587-24344-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404143587-24344-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 16/18] drbd: make sure disk cleanup happens in
-	worker context
+Subject: [Drbd-dev] [PATCH 17/18] drbd: use drbd_device_post_work() in more
+	places
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,424 +25,191 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-The recent fix to put_ldev() (correct ordering of access to local_cnt
-and state.disk; memory barrier in __drbd_set_state) guarantees
-that the cleanup happens exactly once.
+This replaces the md_sync_work member of struct drbd_device
+by a new MD_SYNC "work bit" in device->flags.
 
-However it does not yet guarantee that the cleanup happens from worker
-context, the last put_ldev() may still happen from atomic context,
-which must not happen: blkdev_put() may sleep.
-
-Fix this by scheduling the cleanup to the worker instead,
-using a couple more bits in device->flags and a new helper,
-drbd_device_post_work().
-
-Generalized the "resync progress" work to cover these new work bits.
+This replaces the resync_start_work member of struct drbd_device
+by a new RS_START "work bit" in device->flags.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_actlog.c |   9 +---
- drivers/block/drbd/drbd_int.h    |  40 +++++++++++-----
- drivers/block/drbd/drbd_main.c   |  59 -----------------------
- drivers/block/drbd/drbd_nl.c     |   2 +-
- drivers/block/drbd/drbd_worker.c | 100 +++++++++++++++++++++++++++++++++++----
- 5 files changed, 120 insertions(+), 90 deletions(-)
+ drivers/block/drbd/drbd_int.h    | 16 ++--------------
+ drivers/block/drbd/drbd_main.c   | 25 +------------------------
+ drivers/block/drbd/drbd_worker.c | 27 +++++++++++++++++----------
+ 3 files changed, 20 insertions(+), 48 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 14b2f27..5add201 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -797,20 +797,13 @@ static bool lazy_bitmap_update_due(struct drbd_device *device)
- 
- static void maybe_schedule_on_disk_bitmap_update(struct drbd_device *device, bool rs_done)
- {
--	struct drbd_connection *connection;
- 	if (rs_done)
- 		set_bit(RS_DONE, &device->flags);
- 		/* and also set RS_PROGRESS below */
- 	else if (!lazy_bitmap_update_due(device))
- 		return;
- 
--	/* compare with test_and_clear_bit() calls in and above
--	 * try_update_all_on_disk_bitmaps() from the drbd_worker(). */
--	if (test_and_set_bit(RS_PROGRESS, &device->flags))
--		return;
--	connection = first_peer_device(device)->connection;
--	if (!test_and_set_bit(CONN_RS_PROGRESS, &connection->flags))
--		wake_up(&connection->sender_work.q_wait);
-+	drbd_device_post_work(device, RS_PROGRESS);
- }
- 
- static int update_sync_bits(struct drbd_device *device,
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index a0ffc19..5768260 100644
+index 5768260..3c701b0 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -432,16 +432,12 @@ enum {
- 				 * goes into C_CONNECTED state. */
- 	CONSIDER_RESYNC,
- 
--	RS_PROGRESS,		/* tell worker that resync made significant progress */
--	RS_DONE,		/* tell worker that resync is done */
--
- 	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
- 
- 	SUSPEND_IO,		/* suspend application io */
- 	BITMAP_IO,		/* suspend application io;
- 				   once no more io in flight, start bitmap io */
- 	BITMAP_IO_QUEUED,       /* Started bitmap IO */
--	GO_DISKLESS,		/* Disk is being detached, on io-error or admin request. */
- 	WAS_IO_ERROR,		/* Local disk failed, returned IO error */
- 	WAS_READ_ERROR,		/* Local disk READ failed (set additionally to the above) */
- 	FORCE_DETACH,		/* Force-detach from local disk, aborting any pending local IO */
-@@ -454,6 +450,15 @@ enum {
- 	B_RS_H_DONE,		/* Before resync handler done (already executed) */
- 	DISCARD_MY_DATA,	/* discard_my_data flag per volume */
- 	READ_BALANCE_RR,
-+
-+	/* cleared only after backing device related structures have been destroyed. */
-+	GOING_DISKLESS,		/* Disk is being detached, because of io-error, or admin request. */
-+
-+	/* to be used in drbd_device_post_work() */
-+	GO_DISKLESS,		/* tell worker to schedule cleanup before detach */
-+	DESTROY_DISK,		/* tell worker to close backing devices and destroy related structures. */
-+	RS_PROGRESS,		/* tell worker that resync made significant progress */
-+	RS_DONE,		/* tell worker that resync is done */
+@@ -457,6 +457,8 @@ enum {
+ 	/* to be used in drbd_device_post_work() */
+ 	GO_DISKLESS,		/* tell worker to schedule cleanup before detach */
+ 	DESTROY_DISK,		/* tell worker to close backing devices and destroy related structures. */
++	MD_SYNC,		/* tell worker to call drbd_md_sync() */
++	RS_START,		/* tell worker to start resync/OV */
+ 	RS_PROGRESS,		/* tell worker that resync made significant progress */
+ 	RS_DONE,		/* tell worker that resync is done */
  };
- 
- struct drbd_bitmap; /* opaque for drbd_device */
-@@ -581,7 +586,8 @@ enum {
- 				 * and potentially deadlock on, this drbd worker.
- 				 */
- 	DISCONNECT_SENT,
--	CONN_RS_PROGRESS,	/* tell worker that resync made significant progress */
-+
-+	DEVICE_WORK_PENDING,	/* tell worker that some device has pending work */
- };
- 
- struct drbd_resource {
-@@ -703,7 +709,6 @@ struct drbd_device {
+@@ -709,18 +711,10 @@ struct drbd_device {
  	unsigned long last_reattach_jif;
  	struct drbd_work resync_work;
  	struct drbd_work unplug_work;
--	struct drbd_work go_diskless;
- 	struct drbd_work md_sync_work;
- 	struct drbd_work start_resync_work;
+-	struct drbd_work md_sync_work;
+-	struct drbd_work start_resync_work;
  	struct timer_list resync_timer;
-@@ -991,7 +996,6 @@ extern int drbd_bitmap_io_from_worker(struct drbd_device *device,
- 		char *why, enum bm_flag flags);
- extern int drbd_bmio_set_n_write(struct drbd_device *device) __must_hold(local);
- extern int drbd_bmio_clear_n_write(struct drbd_device *device) __must_hold(local);
--extern void drbd_ldev_destroy(struct drbd_device *device);
+ 	struct timer_list md_sync_timer;
+ 	struct timer_list start_resync_timer;
+ 	struct timer_list request_timer;
+-#ifdef DRBD_DEBUG_MD_SYNC
+-	struct {
+-		unsigned int line;
+-		const char* func;
+-	} last_md_mark_dirty;
+-#endif
  
- /* Meta data layout
-  *
-@@ -1796,6 +1800,18 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
- 	wake_up(&q->q_wait);
- }
- 
-+static inline void
-+drbd_device_post_work(struct drbd_device *device, int work_bit)
-+{
-+	if (!test_and_set_bit(work_bit, &device->flags)) {
-+		struct drbd_connection *connection =
-+			first_peer_device(device)->connection;
-+		struct drbd_work_queue *q = &connection->sender_work;
-+		if (!test_and_set_bit(DEVICE_WORK_PENDING, &connection->flags))
-+			wake_up(&q->q_wait);
-+	}
-+}
-+
- extern void drbd_flush_workqueue(struct drbd_work_queue *work_queue);
- 
- static inline void wake_asender(struct drbd_connection *connection)
-@@ -1961,13 +1977,11 @@ static inline void put_ldev(struct drbd_device *device)
- 	if (i == 0) {
- 		if (ds == D_DISKLESS)
- 			/* even internal references gone, safe to destroy */
--			drbd_ldev_destroy(device);
--		if (ds == D_FAILED) {
-+			drbd_device_post_work(device, DESTROY_DISK);
-+		if (ds == D_FAILED)
- 			/* all application IO references gone. */
--			if (!test_and_set_bit(GO_DISKLESS, &device->flags))
--				drbd_queue_work(&first_peer_device(device)->connection->sender_work,
--						&device->go_diskless);
--		}
-+			if (!test_and_set_bit(GOING_DISKLESS, &device->flags))
-+				drbd_device_post_work(device, GO_DISKLESS);
- 		wake_up(&device->misc_wait);
- 	}
- }
+ 	/* Used after attach while negotiating new disk state. */
+ 	union drbd_state new_state_tmp;
+@@ -977,13 +971,7 @@ extern void __drbd_uuid_set(struct drbd_device *device, int idx, u64 val) __must
+ extern void drbd_md_set_flag(struct drbd_device *device, int flags) __must_hold(local);
+ extern void drbd_md_clear_flag(struct drbd_device *device, int flags)__must_hold(local);
+ extern int drbd_md_test_flag(struct drbd_backing_dev *, int);
+-#ifndef DRBD_DEBUG_MD_SYNC
+ extern void drbd_md_mark_dirty(struct drbd_device *device);
+-#else
+-#define drbd_md_mark_dirty(m)	drbd_md_mark_dirty_(m, __LINE__ , __func__ )
+-extern void drbd_md_mark_dirty_(struct drbd_device *device,
+-		unsigned int line, const char *func);
+-#endif
+ extern void drbd_queue_bitmap_io(struct drbd_device *device,
+ 				 int (*io_fn)(struct drbd_device *),
+ 				 void (*done)(struct drbd_device *, int),
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 77d34a6..0cf6094 100644
+index 0cf6094..ed35d52 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -63,7 +63,6 @@ static void drbd_release(struct gendisk *gd, fmode_t mode);
- static int w_md_sync(struct drbd_work *w, int unused);
+@@ -60,7 +60,6 @@
+ static DEFINE_MUTEX(drbd_main_mutex);
+ static int drbd_open(struct block_device *bdev, fmode_t mode);
+ static void drbd_release(struct gendisk *gd, fmode_t mode);
+-static int w_md_sync(struct drbd_work *w, int unused);
  static void md_sync_timer_fn(unsigned long data);
  static int w_bitmap_io(struct drbd_work *w, int unused);
--static int w_go_diskless(struct drbd_work *w, int unused);
  
- MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
- 	      "Lars Ellenberg <lars@linbit.com>");
-@@ -1929,14 +1928,12 @@ void drbd_init_set_defaults(struct drbd_device *device)
+@@ -1928,15 +1927,11 @@ void drbd_init_set_defaults(struct drbd_device *device)
  	INIT_LIST_HEAD(&device->resync_reads);
  	INIT_LIST_HEAD(&device->resync_work.list);
  	INIT_LIST_HEAD(&device->unplug_work.list);
--	INIT_LIST_HEAD(&device->go_diskless.list);
- 	INIT_LIST_HEAD(&device->md_sync_work.list);
- 	INIT_LIST_HEAD(&device->start_resync_work.list);
+-	INIT_LIST_HEAD(&device->md_sync_work.list);
+-	INIT_LIST_HEAD(&device->start_resync_work.list);
  	INIT_LIST_HEAD(&device->bm_io_work.w.list);
  
  	device->resync_work.cb  = w_resync_timer;
  	device->unplug_work.cb  = w_send_write_hint;
--	device->go_diskless.cb  = w_go_diskless;
- 	device->md_sync_work.cb = w_md_sync;
+-	device->md_sync_work.cb = w_md_sync;
  	device->bm_io_work.w.cb = w_bitmap_io;
- 	device->start_resync_work.cb = w_start_resync;
-@@ -2011,7 +2008,6 @@ void drbd_device_cleanup(struct drbd_device *device)
- 	D_ASSERT(device, list_empty(&first_peer_device(device)->connection->sender_work.q));
- 	D_ASSERT(device, list_empty(&device->resync_work.list));
- 	D_ASSERT(device, list_empty(&device->unplug_work.list));
--	D_ASSERT(device, list_empty(&device->go_diskless.list));
+-	device->start_resync_work.cb = w_start_resync;
  
- 	drbd_set_defaults(device);
- }
-@@ -3531,61 +3527,6 @@ static int w_bitmap_io(struct drbd_work *w, int unused)
- 	return 0;
- }
- 
--void drbd_ldev_destroy(struct drbd_device *device)
--{
--	lc_destroy(device->resync);
--	device->resync = NULL;
--	lc_destroy(device->act_log);
--	device->act_log = NULL;
--	__no_warn(local,
--		drbd_free_ldev(device->ldev);
--		device->ldev = NULL;);
+ 	init_timer(&device->resync_timer);
+ 	init_timer(&device->md_sync_timer);
+@@ -3623,25 +3618,7 @@ int drbd_md_test_flag(struct drbd_backing_dev *bdev, int flag)
+ static void md_sync_timer_fn(unsigned long data)
+ {
+ 	struct drbd_device *device = (struct drbd_device *) data;
 -
--	clear_bit(GO_DISKLESS, &device->flags);
+-	/* must not double-queue! */
+-	if (list_empty(&device->md_sync_work.list))
+-		drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
+-				      &device->md_sync_work);
 -}
 -
--static int w_go_diskless(struct drbd_work *w, int unused)
+-static int w_md_sync(struct drbd_work *w, int unused)
 -{
 -	struct drbd_device *device =
--		container_of(w, struct drbd_device, go_diskless);
+-		container_of(w, struct drbd_device, md_sync_work);
 -
--	D_ASSERT(device, device->state.disk == D_FAILED);
--	/* we cannot assert local_cnt == 0 here, as get_ldev_if_state will
--	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
--	 * the protected members anymore, though, so once put_ldev reaches zero
--	 * again, it will be safe to free them. */
--
--	/* Try to write changed bitmap pages, read errors may have just
--	 * set some bits outside the area covered by the activity log.
--	 *
--	 * If we have an IO error during the bitmap writeout,
--	 * we will want a full sync next time, just in case.
--	 * (Do we want a specific meta data flag for this?)
--	 *
--	 * If that does not make it to stable storage either,
--	 * we cannot do anything about that anymore.
--	 *
--	 * We still need to check if both bitmap and ldev are present, we may
--	 * end up here after a failed attach, before ldev was even assigned.
--	 */
--	if (device->bitmap && device->ldev) {
--		/* An interrupted resync or similar is allowed to recounts bits
--		 * while we detach.
--		 * Any modifications would not be expected anymore, though.
--		 */
--		if (drbd_bitmap_io_from_worker(device, drbd_bm_write,
--					"detach", BM_LOCKED_TEST_ALLOWED)) {
--			if (test_bit(WAS_READ_ERROR, &device->flags)) {
--				drbd_md_set_flag(device, MDF_FULL_SYNC);
--				drbd_md_sync(device);
--			}
--		}
--	}
--
--	drbd_force_state(device, NS(disk, D_DISKLESS));
+-	drbd_warn(device, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
+-#ifdef DEBUG
+-	drbd_warn(device, "last md_mark_dirty: %s:%u\n",
+-		device->last_md_mark_dirty.func, device->last_md_mark_dirty.line);
+-#endif
+-	drbd_md_sync(device);
 -	return 0;
--}
--
- /**
-  * drbd_queue_bitmap_io() - Queues an IO operation on the whole bitmap
-  * @device:	DRBD device.
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index ceebd31..628167d 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1482,7 +1482,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 	 * drbd_ldev_destroy is done already, we may end up here very fast,
- 	 * e.g. if someone calls attach from the on-io-error handler,
- 	 * to realize a "hot spare" feature (not that I'd recommend that) */
--	wait_event(device->misc_wait, !atomic_read(&device->local_cnt));
-+	wait_event(device->misc_wait, !test_bit(GOING_DISKLESS, &device->flags));
++	drbd_device_post_work(device, MD_SYNC);
+ }
  
- 	/* make sure there is no leftover from previous force-detach attempts */
- 	clear_bit(FORCE_DETACH, &device->flags);
+ const char *cmdname(enum drbd_packet cmd)
 diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index bafb62e..00bf490 100644
+index 00bf490..a4310fd 100644
 --- a/drivers/block/drbd/drbd_worker.c
 +++ b/drivers/block/drbd/drbd_worker.c
-@@ -1813,10 +1813,9 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
- 	mutex_unlock(device->state_mutex);
+@@ -1606,26 +1606,20 @@ void drbd_rs_controller_reset(struct drbd_device *device)
+ void start_resync_timer_fn(unsigned long data)
+ {
+ 	struct drbd_device *device = (struct drbd_device *) data;
+-
+-	drbd_queue_work(&first_peer_device(device)->connection->sender_work,
+-			&device->start_resync_work);
++	drbd_device_post_work(device, RS_START);
  }
  
--static void update_on_disk_bitmap(struct drbd_device *device)
-+static void update_on_disk_bitmap(struct drbd_device *device, bool resync_done)
+-int w_start_resync(struct drbd_work *w, int cancel)
++static void do_start_resync(struct drbd_device *device)
  {
- 	struct sib_info sib = { .sib_reason = SIB_SYNC_PROGRESS, };
--	bool resync_done = test_and_clear_bit(RS_DONE, &device->flags);
- 	device->rs_last_bcast = jiffies;
+-	struct drbd_device *device =
+-		container_of(w, struct drbd_device, start_resync_work);
+-
+ 	if (atomic_read(&device->unacked_cnt) || atomic_read(&device->rs_pending_cnt)) {
+-		drbd_warn(device, "w_start_resync later...\n");
++		drbd_warn(device, "postponing start_resync ...\n");
+ 		device->start_resync_timer.expires = jiffies + HZ/10;
+ 		add_timer(&device->start_resync_timer);
+-		return 0;
++		return;
+ 	}
  
- 	if (!get_ldev(device))
-@@ -1832,7 +1831,87 @@ static void update_on_disk_bitmap(struct drbd_device *device)
- 	put_ldev(device);
+ 	drbd_start_resync(device, C_SYNC_SOURCE);
+ 	clear_bit(AHEAD_TO_SYNC_SOURCE, &device->flags);
+-	return 0;
  }
  
--static void try_update_all_on_disk_bitmaps(struct drbd_connection *connection)
-+static void drbd_ldev_destroy(struct drbd_device *device)
+ /**
+@@ -1882,9 +1876,18 @@ static void go_diskless(struct drbd_device *device)
+ 	drbd_force_state(device, NS(disk, D_DISKLESS));
+ }
+ 
++static int do_md_sync(struct drbd_device *device)
 +{
-+	lc_destroy(device->resync);
-+	device->resync = NULL;
-+	lc_destroy(device->act_log);
-+	device->act_log = NULL;
-+	__no_warn(local,
-+		drbd_free_ldev(device->ldev);
-+		device->ldev = NULL;);
-+	clear_bit(GOING_DISKLESS, &device->flags);
-+	wake_up(&device->misc_wait);
++	drbd_warn(device, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
++	drbd_md_sync(device);
++	return 0;
 +}
 +
-+static void go_diskless(struct drbd_device *device)
-+{
-+	D_ASSERT(device, device->state.disk == D_FAILED);
-+	/* we cannot assert local_cnt == 0 here, as get_ldev_if_state will
-+	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
-+	 * the protected members anymore, though, so once put_ldev reaches zero
-+	 * again, it will be safe to free them. */
-+
-+	/* Try to write changed bitmap pages, read errors may have just
-+	 * set some bits outside the area covered by the activity log.
-+	 *
-+	 * If we have an IO error during the bitmap writeout,
-+	 * we will want a full sync next time, just in case.
-+	 * (Do we want a specific meta data flag for this?)
-+	 *
-+	 * If that does not make it to stable storage either,
-+	 * we cannot do anything about that anymore.
-+	 *
-+	 * We still need to check if both bitmap and ldev are present, we may
-+	 * end up here after a failed attach, before ldev was even assigned.
-+	 */
-+	if (device->bitmap && device->ldev) {
-+		/* An interrupted resync or similar is allowed to recounts bits
-+		 * while we detach.
-+		 * Any modifications would not be expected anymore, though.
-+		 */
-+		if (drbd_bitmap_io_from_worker(device, drbd_bm_write,
-+					"detach", BM_LOCKED_TEST_ALLOWED)) {
-+			if (test_bit(WAS_READ_ERROR, &device->flags)) {
-+				drbd_md_set_flag(device, MDF_FULL_SYNC);
-+				drbd_md_sync(device);
-+			}
-+		}
-+	}
-+
-+	drbd_force_state(device, NS(disk, D_DISKLESS));
-+}
-+
-+#define WORK_PENDING(work_bit, todo)	(todo & (1UL << work_bit))
-+static void do_device_work(struct drbd_device *device, const unsigned long todo)
-+{
-+	if (WORK_PENDING(RS_DONE, todo) ||
-+	    WORK_PENDING(RS_PROGRESS, todo))
-+		update_on_disk_bitmap(device, WORK_PENDING(RS_DONE, todo));
-+	if (WORK_PENDING(GO_DISKLESS, todo))
-+		go_diskless(device);
-+	if (WORK_PENDING(DESTROY_DISK, todo))
-+		drbd_ldev_destroy(device);
-+}
-+
-+#define DRBD_DEVICE_WORK_MASK	\
-+	((1UL << GO_DISKLESS)	\
-+	|(1UL << DESTROY_DISK)	\
-+	|(1UL << RS_PROGRESS)	\
-+	|(1UL << RS_DONE)	\
-+	)
-+
-+static unsigned long get_work_bits(unsigned long *flags)
-+{
-+	unsigned long old, new;
-+	do {
-+		old = *flags;
-+		new = old & ~DRBD_DEVICE_WORK_MASK;
-+	} while (cmpxchg(flags, old, new) != old);
-+	return old & DRBD_DEVICE_WORK_MASK;
-+}
-+
-+static void do_unqueued_work(struct drbd_connection *connection)
+ #define WORK_PENDING(work_bit, todo)	(todo & (1UL << work_bit))
+ static void do_device_work(struct drbd_device *device, const unsigned long todo)
  {
- 	struct drbd_peer_device *peer_device;
- 	int vnr;
-@@ -1840,12 +1919,13 @@ static void try_update_all_on_disk_bitmaps(struct drbd_connection *connection)
- 	rcu_read_lock();
- 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
- 		struct drbd_device *device = peer_device->device;
--		if (!test_and_clear_bit(RS_PROGRESS, &device->flags))
-+		unsigned long todo = get_work_bits(&device->flags);
-+		if (!todo)
- 			continue;
++	if (WORK_PENDING(MD_SYNC, todo))
++		do_md_sync(device);
+ 	if (WORK_PENDING(RS_DONE, todo) ||
+ 	    WORK_PENDING(RS_PROGRESS, todo))
+ 		update_on_disk_bitmap(device, WORK_PENDING(RS_DONE, todo));
+@@ -1892,11 +1895,15 @@ static void do_device_work(struct drbd_device *device, const unsigned long todo)
+ 		go_diskless(device);
+ 	if (WORK_PENDING(DESTROY_DISK, todo))
+ 		drbd_ldev_destroy(device);
++	if (WORK_PENDING(RS_START, todo))
++		do_start_resync(device);
+ }
  
- 		kref_get(&device->kref);
- 		rcu_read_unlock();
--		update_on_disk_bitmap(device);
-+		do_device_work(device, todo);
- 		kref_put(&device->kref, drbd_destroy_device);
- 		rcu_read_lock();
- 	}
-@@ -1927,7 +2007,7 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
- 			maybe_send_barrier(connection,
- 					connection->send.current_epoch_nr + 1);
- 
--		if (test_bit(CONN_RS_PROGRESS, &connection->flags))
-+		if (test_bit(DEVICE_WORK_PENDING, &connection->flags))
- 			break;
- 
- 		/* drbd_send() may have called flush_signals() */
-@@ -1972,8 +2052,8 @@ int drbd_worker(struct drbd_thread *thi)
- 		if (list_empty(&work_list))
- 			wait_for_work(connection, &work_list);
- 
--		if (test_and_clear_bit(CONN_RS_PROGRESS, &connection->flags))
--			try_update_all_on_disk_bitmaps(connection);
-+		if (test_and_clear_bit(DEVICE_WORK_PENDING, &connection->flags))
-+			do_unqueued_work(connection);
- 
- 		if (signal_pending(current)) {
- 			flush_signals(current);
-@@ -1998,13 +2078,15 @@ int drbd_worker(struct drbd_thread *thi)
- 	}
- 
- 	do {
-+		if (test_and_clear_bit(DEVICE_WORK_PENDING, &connection->flags))
-+			do_unqueued_work(connection);
- 		while (!list_empty(&work_list)) {
- 			w = list_first_entry(&work_list, struct drbd_work, list);
- 			list_del_init(&w->list);
- 			w->cb(w, 1);
- 		}
- 		dequeue_work_batch(&connection->sender_work, &work_list);
--	} while (!list_empty(&work_list));
-+	} while (!list_empty(&work_list) || test_bit(DEVICE_WORK_PENDING, &connection->flags));
- 
- 	rcu_read_lock();
- 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+ #define DRBD_DEVICE_WORK_MASK	\
+ 	((1UL << GO_DISKLESS)	\
+ 	|(1UL << DESTROY_DISK)	\
++	|(1UL << MD_SYNC)	\
++	|(1UL << RS_START)	\
+ 	|(1UL << RS_PROGRESS)	\
+ 	|(1UL << RS_DONE)	\
+ 	)
 -- 
 1.9.1
 
