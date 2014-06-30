@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 61C66101AC79
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 69DF8101AC7A
 	for <drbd-dev@lists.linbit.com>; Mon, 30 Jun 2014 17:53:08 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 30 Jun 2014 17:53:00 +0200
-Message-Id: <1404143587-24344-12-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 30 Jun 2014 17:53:01 +0200
+Message-Id: <1404143587-24344-13-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404143587-24344-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404143587-24344-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/18] drbd: re-add lost conf_mutex protection in
-	drbd_set_role
+Subject: [Drbd-dev] [PATCH 12/18] drbd: trigger tcp_push_pending_frames()
+	for PING and PING_ACK
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,40 +25,32 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-The conf_update mutex used to be held while clearing the
-net_conf->discard_my_data flag inside drbd_set_role.
-
-It was moved into drbd_adm_set_role with
-    drbd: allow parallel promote/demote actions
-but then replaced at that location by the newly introduced adm_mutex with
-    drbd: Fix a potential deadlock in drbdsetup, introduce resource->adm_mutex
-
-And I simply forgot to put it back in at the original location.
+This should reduce latency for such in-DRBD-protocol "pings",
+and may help reduce spurious disconnect/reconnect cycles due to
+ "PingAck did not arrive in time."
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_main.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 133e9b3..23670d8 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -661,11 +661,11 @@ drbd_set_role(struct drbd_device *const device, enum drbd_role new_role, int for
- 			put_ldev(device);
- 		}
- 	} else {
--		/* Called from drbd_adm_set_role only.
--		 * We are still holding the conf_update mutex. */
-+		mutex_lock(&device->resource->conf_update);
- 		nc = connection->net_conf;
- 		if (nc)
- 			nc->discard_my_data = 0; /* without copy; single bit op is atomic */
-+		mutex_unlock(&device->resource->conf_update);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 8e0813d..77d34a6 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -662,6 +662,11 @@ static int __send_command(struct drbd_connection *connection, int vnr,
+ 			    msg_flags);
+ 	if (data && !err)
+ 		err = drbd_send_all(connection, sock->socket, data, size, 0);
++	/* DRBD protocol "pings" are latency critical.
++	 * This is supposed to trigger tcp_push_pending_frames() */
++	if (!err && (cmd == P_PING || cmd == P_PING_ACK))
++		drbd_tcp_nodelay(sock->socket);
++
+ 	return err;
+ }
  
- 		set_disk_ro(device->vdisk, false);
- 		if (get_ldev(device)) {
 -- 
 1.9.1
 
