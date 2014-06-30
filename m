@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DCF37101AC7A
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E2FBE101AC7C
 	for <drbd-dev@lists.linbit.com>; Mon, 30 Jun 2014 17:53:07 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 30 Jun 2014 17:52:52 +0200
-Message-Id: <1404143587-24344-4-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 30 Jun 2014 17:52:53 +0200
+Message-Id: <1404143587-24344-5-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404143587-24344-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404143587-24344-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/18] drbd: rename drbd_free_bc() to
-	drbd_free_ldev()
+Subject: [Drbd-dev] [PATCH 04/18] drbd: reduce number of spinlock
+	drop/re-aquire cycles
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,68 +23,67 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Since the member of drbd_device is called ldev
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+
+Instead of dropping and re-aquiring the spinlock around the submit,
+just remember that we want to submit, and do that only once we have
+dropped the spinlock for good.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h  | 2 +-
- drivers/block/drbd/drbd_main.c | 8 ++++----
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_req.c | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index c87bc8e..82ece1b 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -950,7 +950,7 @@ extern int drbd_send_ov_request(struct drbd_peer_device *, sector_t sector, int
- extern int drbd_send_bitmap(struct drbd_device *device);
- extern void drbd_send_sr_reply(struct drbd_peer_device *, enum drbd_state_rv retcode);
- extern void conn_send_sr_reply(struct drbd_connection *connection, enum drbd_state_rv retcode);
--extern void drbd_free_bc(struct drbd_backing_dev *ldev);
-+extern void drbd_free_ldev(struct drbd_backing_dev *ldev);
- extern void drbd_device_cleanup(struct drbd_device *device);
- void drbd_print_uuids(struct drbd_device *device, const char *text);
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 09803d0..4c7fee1 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1086,11 +1086,13 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long
  
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index a6af935..8e0813d 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -1992,7 +1992,7 @@ void drbd_device_cleanup(struct drbd_device *device)
- 		drbd_bm_cleanup(device);
- 	}
- 
--	drbd_free_bc(device->ldev);
-+	drbd_free_ldev(device->ldev);
- 	device->ldev = NULL;
- 
- 	clear_bit(AL_SUSPENDED, &device->flags);
-@@ -2187,7 +2187,7 @@ void drbd_destroy_device(struct kref *kref)
- 	if (device->this_bdev)
- 		bdput(device->this_bdev);
- 
--	drbd_free_bc(device->ldev);
-+	drbd_free_ldev(device->ldev);
- 	device->ldev = NULL;
- 
- 	drbd_release_all_peer_reqs(device);
-@@ -2960,7 +2960,7 @@ fail:
- 	return err;
- }
- 
--void drbd_free_bc(struct drbd_backing_dev *ldev)
-+void drbd_free_ldev(struct drbd_backing_dev *ldev)
+ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request *req)
  {
- 	if (ldev == NULL)
- 		return;
-@@ -3533,7 +3533,7 @@ void drbd_ldev_destroy(struct drbd_device *device)
- 	lc_destroy(device->act_log);
- 	device->act_log = NULL;
- 	__no_warn(local,
--		drbd_free_bc(device->ldev);
-+		drbd_free_ldev(device->ldev);
- 		device->ldev = NULL;);
++	struct drbd_resource *resource = device->resource;
+ 	const int rw = bio_rw(req->master_bio);
+ 	struct bio_and_error m = { NULL, };
+ 	bool no_remote = false;
++	bool submit_private_bio = false;
  
- 	clear_bit(GO_DISKLESS, &device->flags);
+-	spin_lock_irq(&device->resource->req_lock);
++	spin_lock_irq(&resource->req_lock);
+ 	if (rw == WRITE) {
+ 		/* This may temporarily give up the req_lock,
+ 		 * but will re-aquire it before it returns here.
+@@ -1152,9 +1154,7 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
+ 		/* needs to be marked within the same spinlock */
+ 		_req_mod(req, TO_BE_SUBMITTED);
+ 		/* but we need to give up the spinlock to submit */
+-		spin_unlock_irq(&device->resource->req_lock);
+-		drbd_submit_req_private_bio(req);
+-		spin_lock_irq(&device->resource->req_lock);
++		submit_private_bio = true;
+ 	} else if (no_remote) {
+ nodata:
+ 		if (__ratelimit(&drbd_ratelimit_state))
+@@ -1167,8 +1167,16 @@ nodata:
+ out:
+ 	if (drbd_req_put_completion_ref(req, &m, 1))
+ 		kref_put(&req->kref, drbd_req_destroy);
+-	spin_unlock_irq(&device->resource->req_lock);
+-
++	spin_unlock_irq(&resource->req_lock);
++
++	/* Even though above is a kref_put(), this is safe.
++	 * As long as we still need to submit our private bio,
++	 * we hold a completion ref, and the request cannot disappear.
++	 * If however this request did not even have a private bio to submit
++	 * (e.g. remote read), req may already be invalid now.
++	 * That's why we cannot check on req->private_bio. */
++	if (submit_private_bio)
++		drbd_submit_req_private_bio(req);
+ 	if (m.bio)
+ 		complete_master_bio(device, &m);
+ }
 -- 
 1.9.1
 
