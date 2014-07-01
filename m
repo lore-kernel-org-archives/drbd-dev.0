@@ -1,17 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1274A101AC79
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1AAC6101AC7A
 	for <drbd-dev@lists.linbit.com>; Tue,  1 Jul 2014 18:16:51 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Tue,  1 Jul 2014 18:16:35 +0200
-Message-Id: <1404231410-29852-6-git-send-email-philipp.reisner@linbit.com>
+Date: Tue,  1 Jul 2014 18:16:36 +0200
+Message-Id: <1404231410-29852-7-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/20] drbd: don't implicitly resize Diskless
-	node beyond end of device
+Subject: [Drbd-dev] [PATCH 06/20] drbd: implement csums-after-crash-only
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,71 +24,140 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-During handshake, we compare backend sizes, and user set limits,
-and agree on what device size we are going to expose.
+Checksum based resync trades CPU cycles for network bandwidth,
+in situations where we expect much of the to-be-resynced blocks
+to be actually identical on both sides already.
 
-We remember that last-agreed-size in our meta data.
+In a "network hickup" scenario, it won't help:
+all to-be-resynced blocks will typically be different.
 
-But if we come up diskless, we have to accept what the peer
-presents us with. We used to accept the peers maximum potential
-capacity (backend size), which is wrong, and could lead to IO errors
-due to access beyond end of device.
+The use case is for the resync of *potentially* different blocks
+after crash recovery -- the crash recovery had marked larger areas
+(those covered by the activity log) as need-to-be-resynced,
+just in case. Most of those blocks will be identical.
 
-Instead, we need to accept the peer's current size.
-Unless that is communicated as 0, in which case we
-accept the backend size, or the user set limit, if set.
+This option makes it possible to configure checksum based resync,
+but only actually use it for the first resync after primary crash.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_int.h      |  2 ++
+ drivers/block/drbd/drbd_receiver.c |  2 ++
+ drivers/block/drbd/drbd_worker.c   | 24 ++++++++++++++++++++----
+ include/linux/drbd_genl.h          |  3 +++
+ include/linux/drbd_limits.h        |  1 +
+ 5 files changed, 28 insertions(+), 4 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index abf5aef..fe6595a 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -738,6 +738,8 @@ struct drbd_device {
+ 	struct rb_root read_requests;
+ 	struct rb_root write_requests;
+ 
++	/* use checksums for *this* resync */
++	bool use_csums;
+ 	/* blocks to resync in this run [unit BM_BLOCK_SIZE] */
+ 	unsigned long rs_total;
+ 	/* number of resync blocks that failed in this run */
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 2fcc3af..5626c5b 100644
+index 5626c5b..d326af6 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3657,7 +3657,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
- 	struct drbd_device *device;
- 	struct p_sizes *p = pi->data;
- 	enum determine_dev_size dd = DS_UNCHANGED;
--	sector_t p_size, p_usize, my_usize;
-+	sector_t p_size, p_usize, p_csize, my_usize;
- 	int ldsc = 0; /* local disk size changed */
- 	enum dds_flags ddsf;
+@@ -2555,6 +2555,8 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
+ 			peer_req->w.cb = w_e_end_csum_rs_req;
+ 			/* used in the sector offset progress display */
+ 			device->bm_resync_fo = BM_SECT_TO_BIT(sector);
++			/* remember to report stats in drbd_resync_finished */
++			device->use_csums = true;
+ 		} else if (pi->cmd == P_OV_REPLY) {
+ 			/* track progress, we may need to throttle */
+ 			atomic_add(size >> 9, &device->rs_sect_in);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 2ff5fd4..6532a69 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -698,8 +698,8 @@ next_sector:
+ 		/* adjust very last sectors, in case we are oddly sized */
+ 		if (sector + (size>>9) > capacity)
+ 			size = (capacity-sector)<<9;
+-		if (connection->agreed_pro_version >= 89 &&
+-		    connection->csums_tfm) {
++
++		if (device->use_csums) {
+ 			switch (read_for_csum(peer_device, sector, size)) {
+ 			case -EIO: /* Disk failure */
+ 				put_ldev(device);
+@@ -913,7 +913,7 @@ int drbd_resync_finished(struct drbd_device *device)
+ 		if (os.conn == C_SYNC_TARGET || os.conn == C_PAUSED_SYNC_T)
+ 			khelper_cmd = "after-resync-target";
  
-@@ -3668,6 +3668,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
+-		if (first_peer_device(device)->connection->csums_tfm && device->rs_total) {
++		if (device->use_csums && device->rs_total) {
+ 			const unsigned long s = device->rs_same_csum;
+ 			const unsigned long t = device->rs_total;
+ 			const int ratio =
+@@ -1622,6 +1622,18 @@ static void do_start_resync(struct drbd_device *device)
+ 	clear_bit(AHEAD_TO_SYNC_SOURCE, &device->flags);
+ }
  
- 	p_size = be64_to_cpu(p->d_size);
- 	p_usize = be64_to_cpu(p->u_size);
-+	p_csize = be64_to_cpu(p->c_size);
++static bool use_checksum_based_resync(struct drbd_connection *connection, struct drbd_device *device)
++{
++	bool csums_after_crash_only;
++	rcu_read_lock();
++	csums_after_crash_only = rcu_dereference(connection->net_conf)->csums_after_crash_only;
++	rcu_read_unlock();
++	return connection->agreed_pro_version >= 89 &&		/* supported? */
++		connection->csums_tfm &&			/* configured? */
++		(csums_after_crash_only == 0			/* use for each resync? */
++		 || test_bit(CRASHED_PRIMARY, &device->flags));	/* or only after Primary crash? */
++}
++
+ /**
+  * drbd_start_resync() - Start the resync process
+  * @device:	DRBD device.
+@@ -1756,8 +1768,12 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
+ 		     drbd_conn_str(ns.conn),
+ 		     (unsigned long) device->rs_total << (BM_BLOCK_SHIFT-10),
+ 		     (unsigned long) device->rs_total);
+-		if (side == C_SYNC_TARGET)
++		if (side == C_SYNC_TARGET) {
+ 			device->bm_resync_fo = 0;
++			device->use_csums = use_checksum_based_resync(connection, device);
++		} else {
++			device->use_csums = 0;
++		}
  
- 	/* just store the peer's disk size for now.
- 	 * we still need to figure out whether we accept that. */
-@@ -3742,9 +3743,21 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
- 			return -EIO;
- 		drbd_md_sync(device);
- 	} else {
--		/* I am diskless, need to accept the peer's size. */
-+		/*
-+		 * I am diskless, need to accept the peer's *current* size.
-+		 * I must NOT accept the peers backing disk size,
-+		 * it may have been larger than mine all along...
-+		 *
-+		 * At this point, the peer knows more about my disk, or at
-+		 * least about what we last agreed upon, than myself.
-+		 * So if his c_size is less than his d_size, the most likely
-+		 * reason is that *my* d_size was smaller last time we checked.
-+		 *
-+		 * However, if he sends a zero current size,
-+		 * take his (user-capped or) backing disk size anyways.
-+		 */
- 		drbd_reconsider_max_bio_size(device, NULL);
--		drbd_set_my_capacity(device, p_size);
-+		drbd_set_my_capacity(device, p_csize ?: p_usize ?: p_size);
- 	}
+ 		/* Since protocol 96, we must serialize drbd_gen_and_send_sync_uuid
+ 		 * with w_send_oos, or the sync target will get confused as to
+diff --git a/include/linux/drbd_genl.h b/include/linux/drbd_genl.h
+index 4193f5f..71fc924 100644
+--- a/include/linux/drbd_genl.h
++++ b/include/linux/drbd_genl.h
+@@ -171,6 +171,9 @@ GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
+ 	__flg_field(28, DRBD_GENLA_F_MANDATORY | DRBD_F_INVARIANT,	tentative)
+ 	__flg_field_def(29,	DRBD_GENLA_F_MANDATORY,	use_rle, DRBD_USE_RLE_DEF)
+ 	/* 9: __u32_field_def(30,	DRBD_GENLA_F_MANDATORY,	fencing_policy, DRBD_FENCING_DEF) */
++	/* 9: __str_field_def(31,     DRBD_GENLA_F_MANDATORY, name, SHARED_SECRET_MAX) */
++	/* 9: __u32_field(32,         DRBD_F_REQUIRED | DRBD_F_INVARIANT,     peer_node_id) */
++	__flg_field_def(33, 0 /* OPTIONAL */,	csums_after_crash_only, DRBD_CSUMS_AFTER_CRASH_ONLY_DEF)
+ )
  
- 	if (get_ldev(device)) {
+ GENL_struct(DRBD_NLA_SET_ROLE_PARMS, 6, set_role_parms,
+diff --git a/include/linux/drbd_limits.h b/include/linux/drbd_limits.h
+index 17e50bb..9d2df1d 100644
+--- a/include/linux/drbd_limits.h
++++ b/include/linux/drbd_limits.h
+@@ -214,6 +214,7 @@
+ #define DRBD_ALLOW_TWO_PRIMARIES_DEF	0
+ #define DRBD_ALWAYS_ASBP_DEF	0
+ #define DRBD_USE_RLE_DEF	1
++#define DRBD_CSUMS_AFTER_CRASH_ONLY_DEF 0
+ 
+ #define DRBD_AL_STRIPES_MIN     1
+ #define DRBD_AL_STRIPES_MAX     1024
 -- 
 1.9.1
 
