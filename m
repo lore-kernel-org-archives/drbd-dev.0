@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B8E151019A35
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D77A21019A5C
 	for <drbd-dev@lists.linbit.com>; Tue,  1 Jul 2014 18:16:51 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Tue,  1 Jul 2014 18:16:45 +0200
-Message-Id: <1404231410-29852-16-git-send-email-philipp.reisner@linbit.com>
+Date: Tue,  1 Jul 2014 18:16:47 +0200
+Message-Id: <1404231410-29852-18-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 15/20] drbd: cosmetic: change all printk(level,
-	...) to pr_<level>(...)
+Subject: [Drbd-dev] [PATCH 17/20] drbd: add drbd_queue_work_if_unqueued
+	helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,181 +25,77 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Cosmetic change only.
+We sometimes do
+    if (list_empty(&w.list))
+	drbd_queue_work(&q, &w.list);
+
+Removal (list_del_init) may happen outside all locks, after all
+pending work entries have been moved to an on-stack local work list.
+
+For not dynamically allocated, but embeded, work structs,
+we must avoid to re-add until it really was removed.
+
+Move that list_empty check inside the spin_lock(&q->q_lock)
+within the helper function, and change to list_empty_careful().
+
+This may have been the reason for a list_add corruption
+inside drbd_queue_work().
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_bitmap.c |  9 ++++-----
- drivers/block/drbd/drbd_int.h    |  4 +---
- drivers/block/drbd/drbd_main.c   | 28 +++++++++++++---------------
- drivers/block/drbd/drbd_nl.c     |  4 +++-
- 4 files changed, 21 insertions(+), 24 deletions(-)
+ drivers/block/drbd/drbd_int.h    | 11 +++++++++++
+ drivers/block/drbd/drbd_worker.c |  8 ++++----
+ 2 files changed, 15 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index 3da6730..7e6f924 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -353,9 +353,8 @@ static void bm_free_pages(struct page **pages, unsigned long number)
- 
- 	for (i = 0; i < number; i++) {
- 		if (!pages[i]) {
--			printk(KERN_ALERT "drbd: bm_free_pages tried to free "
--					  "a NULL pointer; i=%lu n=%lu\n",
--					  i, number);
-+			pr_alert("bm_free_pages tried to free a NULL pointer; i=%lu n=%lu\n",
-+				 i, number);
- 			continue;
- 		}
- 		__free_page(pages[i]);
-@@ -592,7 +591,7 @@ static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
- 	end = offset + len;
- 
- 	if (end > b->bm_words) {
--		printk(KERN_ALERT "drbd: bm_memset end > bm_words\n");
-+		pr_alert("bm_memset end > bm_words\n");
- 		return;
- 	}
- 
-@@ -602,7 +601,7 @@ static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
- 		p_addr = bm_map_pidx(b, idx);
- 		bm = p_addr + MLPP(offset);
- 		if (bm+do_now > p_addr + LWPP) {
--			printk(KERN_ALERT "drbd: BUG BUG BUG! p_addr:%p bm:%p do_now:%d\n",
-+			pr_alert("BUG BUG BUG! p_addr:%p bm:%p do_now:%d\n",
- 			       p_addr, bm, (int)do_now);
- 		} else
- 			memset(bm, c, do_now * sizeof(long));
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index b0ab358..c88d6c6 100644
+index c88d6c6..a71f8bb 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1467,9 +1467,7 @@ static inline void drbd_generic_make_request(struct drbd_device *device,
- {
- 	__release(local);
- 	if (!bio->bi_bdev) {
--		printk(KERN_ERR "drbd%d: drbd_generic_make_request: "
--				"bio->bi_bdev == NULL\n",
--		       device_to_minor(device));
-+		drbd_err(device, "drbd_generic_make_request: bio->bi_bdev == NULL\n");
- 		bio_endio(bio, -ENODEV);
- 		return;
- 	}
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 7ada5d3..ce387bb 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -26,6 +26,8 @@
+@@ -1778,6 +1778,17 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
+ }
  
-  */
- 
-+#define pr_fmt(fmt)	"drbd: " fmt
+ static inline void
++drbd_queue_work_if_unqueued(struct drbd_work_queue *q, struct drbd_work *w)
++{
++	unsigned long flags;
++	spin_lock_irqsave(&q->q_lock, flags);
++	if (list_empty_careful(&w->list))
++		list_add_tail(&w->list, &q->q);
++	spin_unlock_irqrestore(&q->q_lock, flags);
++	wake_up(&q->q_wait);
++}
 +
- #include <linux/module.h>
- #include <linux/drbd.h>
- #include <asm/uaccess.h>
-@@ -2333,7 +2335,7 @@ static void drbd_cleanup(void)
- 
- 	idr_destroy(&drbd_devices);
- 
--	printk(KERN_INFO "drbd: module cleanup done.\n");
-+	pr_info("module cleanup done.\n");
- }
- 
- /**
-@@ -2869,8 +2871,7 @@ static int __init drbd_init(void)
- 	int err;
- 
- 	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
--		printk(KERN_ERR
--		       "drbd: invalid minor_count (%d)\n", minor_count);
-+		pr_err("invalid minor_count (%d)\n", minor_count);
- #ifdef MODULE
- 		return -EINVAL;
- #else
-@@ -2880,8 +2881,7 @@ static int __init drbd_init(void)
- 
- 	err = register_blkdev(DRBD_MAJOR, "drbd");
- 	if (err) {
--		printk(KERN_ERR
--		       "drbd: unable to register block device major %d\n",
-+		pr_err("unable to register block device major %d\n",
- 		       DRBD_MAJOR);
- 		return err;
- 	}
-@@ -2899,7 +2899,7 @@ static int __init drbd_init(void)
- 
- 	err = drbd_genl_register();
- 	if (err) {
--		printk(KERN_ERR "drbd: unable to register generic netlink family\n");
-+		pr_err("unable to register generic netlink family\n");
- 		goto fail;
- 	}
- 
-@@ -2910,34 +2910,32 @@ static int __init drbd_init(void)
- 	err = -ENOMEM;
- 	drbd_proc = proc_create_data("drbd", S_IFREG | S_IRUGO , NULL, &drbd_proc_fops, NULL);
- 	if (!drbd_proc)	{
--		printk(KERN_ERR "drbd: unable to register proc file\n");
-+		pr_err("unable to register proc file\n");
- 		goto fail;
- 	}
- 
- 	retry.wq = create_singlethread_workqueue("drbd-reissue");
- 	if (!retry.wq) {
--		printk(KERN_ERR "drbd: unable to create retry workqueue\n");
-+		pr_err("unable to create retry workqueue\n");
- 		goto fail;
- 	}
- 	INIT_WORK(&retry.worker, do_retry);
- 	spin_lock_init(&retry.lock);
- 	INIT_LIST_HEAD(&retry.writes);
- 
--	printk(KERN_INFO "drbd: initialized. "
-+	pr_info("initialized. "
- 	       "Version: " REL_VERSION " (api:%d/proto:%d-%d)\n",
- 	       API_VERSION, PRO_VERSION_MIN, PRO_VERSION_MAX);
--	printk(KERN_INFO "drbd: %s\n", drbd_buildtag());
--	printk(KERN_INFO "drbd: registered as block device major %d\n",
--		DRBD_MAJOR);
--
-+	pr_info("%s\n", drbd_buildtag());
-+	pr_info("registered as block device major %d\n", DRBD_MAJOR);
- 	return 0; /* Success! */
- 
- fail:
- 	drbd_cleanup();
- 	if (err == -ENOMEM)
--		printk(KERN_ERR "drbd: ran out of memory\n");
-+		pr_err("ran out of memory\n");
- 	else
--		printk(KERN_ERR "drbd: initialization failure\n");
-+		pr_err("initialization failure\n");
- 	return err;
- }
- 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 81949d6..e2f535f 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -23,6 +23,8 @@
- 
-  */
- 
-+#define pr_fmt(fmt)	"drbd: " fmt
-+
- #include <linux/module.h>
- #include <linux/drbd.h>
- #include <linux/in.h>
-@@ -85,7 +87,7 @@ static void drbd_adm_send_reply(struct sk_buff *skb, struct genl_info *info)
++static inline void
+ drbd_device_post_work(struct drbd_device *device, int work_bit)
  {
- 	genlmsg_end(skb, genlmsg_data(nlmsg_data(nlmsg_hdr(skb))));
- 	if (genlmsg_reply(skb, info))
--		printk(KERN_ERR "drbd: error sending genl reply\n");
-+		pr_err("error sending genl reply\n");
+ 	if (!test_and_set_bit(work_bit, &device->flags)) {
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 9f0acb0..49b8873 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -452,9 +452,9 @@ void resync_timer_fn(unsigned long data)
+ {
+ 	struct drbd_device *device = (struct drbd_device *) data;
+ 
+-	if (list_empty(&device->resync_work.list))
+-		drbd_queue_work(&first_peer_device(device)->connection->sender_work,
+-				&device->resync_work);
++	drbd_queue_work_if_unqueued(
++		&first_peer_device(device)->connection->sender_work,
++		&device->resync_work);
  }
  
- /* Used on a fresh "drbd_adm_prepare"d reply_skb, this cannot fail: The only
+ static void fifo_set(struct fifo_buffer *fb, int value)
+@@ -1968,7 +1968,7 @@ static void do_unqueued_work(struct drbd_connection *connection)
+ static bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *work_list)
+ {
+ 	spin_lock_irq(&queue->q_lock);
+-	list_splice_init(&queue->q, work_list);
++	list_splice_tail_init(&queue->q, work_list);
+ 	spin_unlock_irq(&queue->q_lock);
+ 	return !list_empty(work_list);
+ }
 -- 
 1.9.1
 
