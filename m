@@ -1,17 +1,39 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EEAB7101707A
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Jul 2014 18:16:51 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: linux-kernel@vger.kernel.org,
-	Jens Axboe <axboe@kernel.dk>
-Date: Tue,  1 Jul 2014 18:16:49 +0200
-Message-Id: <1404231410-29852-20-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7B9B1101AC79
+	for <drbd-dev@lists.linbit.com>; Wed,  2 Jul 2014 11:39:52 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 6C1A33C7282
+	for <drbd-dev@lists.linbit.com>; Wed,  2 Jul 2014 11:39:52 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id 249TMBkp_10J for <drbd-dev@lists.linbit.com>;
+	Wed,  2 Jul 2014 11:39:52 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 4AF313C7298
+	for <drbd-dev@lists.linbit.com>; Wed,  2 Jul 2014 11:39:52 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id PL3hRcBLc1ue for <drbd-dev@lists.linbit.com>;
+	Wed,  2 Jul 2014 11:39:52 +0200 (CEST)
+Received: from fat-tyre.localnet (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPSA id 2EF5C3C7282
+	for <drbd-dev@lists.linbit.com>; Wed,  2 Jul 2014 11:39:52 +0200 (CEST)
+Message-ID: <1404232237.14624.2.camel@joe-AO725>
+From: Joe Perches <joe@perches.com>
+Date: Tue, 01 Jul 2014 09:30:37 -0700
+In-Reply-To: <1404231410-29852-16-git-send-email-philipp.reisner@linbit.com>
 References: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 19/20] drbd: consistently use list_add_tail for
-	peer_request tracking
+	<1404231410-29852-16-git-send-email-philipp.reisner@linbit.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Resent-Message-ID: <201407021139.51746.>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 15/20] drbd: cosmetic: change all
+	printk(level, ...) to pr_<level>(...)
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,54 +45,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+On Tue, 2014-07-01 at 18:16 +0200, Philipp Reisner wrote:
+> From: Lars Ellenberg <lars.ellenberg@linbit.com>
+> 
+> Cosmetic change only.
+[]
+> diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+[]
+> @@ -353,9 +353,8 @@ static void bm_free_pages(struct page **pages, unsigned long number)
+>  
+>  	for (i = 0; i < number; i++) {
+>  		if (!pages[i]) {
+> -			printk(KERN_ALERT "drbd: bm_free_pages tried to free "
+> -					  "a NULL pointer; i=%lu n=%lu\n",
+> -					  i, number);
+> +			pr_alert("bm_free_pages tried to free a NULL pointer; i=%lu n=%lu\n",
+> +				 i, number);
 
-Keep the epoch entry lists (active_ee, read_ee, sync_ee, ...)
-consistently "oldest first".  That way finding the oldest not yet
-successfully processed request is simply list_first_entry_or_null.
+Cosmetic yes, but these won't be prefixed with "drbd: "
+unless there's a #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+somewhere above this and before any other #include.
 
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_receiver.c | 4 ++--
- drivers/block/drbd/drbd_worker.c   | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+[]
+> @@ -26,6 +26,8 @@
+>  
+>   */
+>  
+> +#define pr_fmt(fmt)	"drbd: " fmt
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 3a3c489..db5c580 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1777,7 +1777,7 @@ static int recv_resync_read(struct drbd_peer_device *peer_device, sector_t secto
- 	peer_req->w.cb = e_end_resync_block;
- 
- 	spin_lock_irq(&device->resource->req_lock);
--	list_add(&peer_req->w.list, &device->sync_ee);
-+	list_add_tail(&peer_req->w.list, &device->sync_ee);
- 	spin_unlock_irq(&device->resource->req_lock);
- 
- 	atomic_add(pi->size >> 9, &device->rs_sect_ev);
-@@ -2341,7 +2341,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
- 	 * active_ee to become empty in drbd_submit_peer_request();
- 	 * better not add ourselves here. */
- 	if ((peer_req->flags & EE_IS_TRIM_USE_ZEROOUT) == 0)
--		list_add(&peer_req->w.list, &device->active_ee);
-+		list_add_tail(&peer_req->w.list, &device->active_ee);
- 	spin_unlock_irq(&device->resource->req_lock);
- 
- 	if (device->state.conn == C_SYNC_TARGET)
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 49b8873..ad57129 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -410,7 +410,7 @@ static int read_for_csum(struct drbd_peer_device *peer_device, sector_t sector,
- 
- 	peer_req->w.cb = w_e_send_csum;
- 	spin_lock_irq(&device->resource->req_lock);
--	list_add(&peer_req->w.list, &device->read_ee);
-+	list_add_tail(&peer_req->w.list, &device->read_ee);
- 	spin_unlock_irq(&device->resource->req_lock);
- 
- 	atomic_add(size >> 9, &device->rs_sect_ev);
--- 
-1.9.1
+like this one, though I think KBUILD_MODNAME would be better.
+
+
+
 
