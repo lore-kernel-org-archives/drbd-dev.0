@@ -1,16 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B96F7101AC79
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D0C52101AC79
 	for <drbd-dev@lists.linbit.com>; Tue,  1 Jul 2014 18:16:50 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Tue,  1 Jul 2014 18:16:32 +0200
-Message-Id: <1404231410-29852-3-git-send-email-philipp.reisner@linbit.com>
+Date: Tue,  1 Jul 2014 18:16:33 +0200
+Message-Id: <1404231410-29852-4-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/20] drbd: silence -Wmissing-prototypes warnings
+Subject: [Drbd-dev] [PATCH 03/20] drbd: Remove unnecessary/unused code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,115 +22,95 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+From: Andreas Gruenbacher <agruen@linbit.com>
+
+Get rid of dump_stack() debug statements.
+
+There is no point whatsoever in registering and unregistering a reboot
+notifier that doesn't do anything.
+
+The intention was to switch to an "emergency read-only" mode,
+so we won't have to resync the full activity log just because
+we had been Primary before the reboot.
+
+Once we have that implemented, we may re-introduce the reboot notifier.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_main.c     | 2 +-
- drivers/block/drbd/drbd_nl.c       | 2 +-
- drivers/block/drbd/drbd_receiver.c | 3 +--
- drivers/block/drbd/drbd_req.h      | 1 +
- drivers/block/drbd/drbd_state.c    | 6 +++---
- lib/lru_cache.c                    | 2 +-
- 6 files changed, 8 insertions(+), 8 deletions(-)
+ drivers/block/drbd/drbd_int.h  |  1 -
+ drivers/block/drbd/drbd_main.c | 18 ------------------
+ drivers/block/drbd/drbd_proc.c |  2 +-
+ 3 files changed, 1 insertion(+), 20 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 72b5001..e306a22 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1468,7 +1468,6 @@ static inline void drbd_generic_make_request(struct drbd_device *device,
+ 		printk(KERN_ERR "drbd%d: drbd_generic_make_request: "
+ 				"bio->bi_bdev == NULL\n",
+ 		       device_to_minor(device));
+-		dump_stack();
+ 		bio_endio(bio, -ENODEV);
+ 		return;
+ 	}
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index ed35d52..68ec774 100644
+index 68ec774..7c06024 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -2877,7 +2877,7 @@ void drbd_delete_device(struct drbd_device *device)
- 	kref_sub(&device->kref, refs, drbd_destroy_device);
+@@ -2125,20 +2125,6 @@ Enomem:
+ 	return -ENOMEM;
  }
  
--int __init drbd_init(void)
-+static int __init drbd_init(void)
+-static int drbd_notify_sys(struct notifier_block *this, unsigned long code,
+-	void *unused)
+-{
+-	/* just so we have it.  you never know what interesting things we
+-	 * might want to do here some day...
+-	 */
+-
+-	return NOTIFY_DONE;
+-}
+-
+-static struct notifier_block drbd_notifier = {
+-	.notifier_call = drbd_notify_sys,
+-};
+-
+ static void drbd_release_all_peer_reqs(struct drbd_device *device)
  {
+ 	int rr;
+@@ -2314,8 +2300,6 @@ static void drbd_cleanup(void)
+ 	struct drbd_device *device;
+ 	struct drbd_resource *resource, *tmp;
+ 
+-	unregister_reboot_notifier(&drbd_notifier);
+-
+ 	/* first remove proc,
+ 	 * drbdsetup uses it's presence to detect
+ 	 * whether DRBD is loaded.
+@@ -2899,8 +2883,6 @@ static int __init drbd_init(void)
+ 		return err;
+ 	}
+ 
+-	register_reboot_notifier(&drbd_notifier);
+-
+ 	/*
+ 	 * allocate all necessary structs
+ 	 */
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index 46bb8dd..886f6be 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -299,7 +299,7 @@ static int drbd_proc_open(struct inode *inode, struct file *file)
  	int err;
  
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 628167d..81949d6 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -2913,7 +2913,7 @@ static struct drbd_connection *the_only_connection(struct drbd_resource *resourc
- 	return list_first_entry(&resource->connections, struct drbd_connection, connections);
- }
- 
--int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
-+static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
- 		const struct sib_info *sib)
- {
- 	struct drbd_resource *resource = device->resource;
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index cfc3d43..2fcc3af 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3371,8 +3371,7 @@ disconnect:
-  * return: NULL (alg name was "")
-  *         ERR_PTR(error) if something goes wrong
-  *         or the crypto hash ptr, if it worked out ok. */
--static
--struct crypto_hash *drbd_crypto_alloc_digest_safe(const struct drbd_device *device,
-+static struct crypto_hash *drbd_crypto_alloc_digest_safe(const struct drbd_device *device,
- 		const char *alg, const char *name)
- {
- 	struct crypto_hash *tfm;
-diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
-index 8566cd5..9f6a040 100644
---- a/drivers/block/drbd/drbd_req.h
-+++ b/drivers/block/drbd/drbd_req.h
-@@ -288,6 +288,7 @@ extern void complete_master_bio(struct drbd_device *device,
- extern void request_timer_fn(unsigned long data);
- extern void tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
- extern void _tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
-+extern void tl_abort_disk_io(struct drbd_device *device);
- 
- /* this is in drbd_main.c */
- extern void drbd_restart_request(struct drbd_request *req);
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 6629f46..a7772e2 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -410,7 +410,7 @@ _drbd_request_state(struct drbd_device *device, union drbd_state mask,
- 	return rv;
- }
- 
--static void print_st(struct drbd_device *device, char *name, union drbd_state ns)
-+static void print_st(struct drbd_device *device, const char *name, union drbd_state ns)
- {
- 	drbd_err(device, " %s = { cs:%s ro:%s/%s ds:%s/%s %c%c%c%c%c%c }\n",
- 	    name,
-@@ -1606,7 +1606,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
- 	return 0;
- }
- 
--void conn_old_common_state(struct drbd_connection *connection, union drbd_state *pcs, enum chg_state_flags *pf)
-+static void conn_old_common_state(struct drbd_connection *connection, union drbd_state *pcs, enum chg_state_flags *pf)
- {
- 	enum chg_state_flags flags = ~0;
- 	struct drbd_peer_device *peer_device;
-@@ -1695,7 +1695,7 @@ conn_is_valid_transition(struct drbd_connection *connection, union drbd_state ma
- 	return rv;
- }
- 
--void
-+static void
- conn_set_state(struct drbd_connection *connection, union drbd_state mask, union drbd_state val,
- 	       union drbd_state *pns_min, union drbd_state *pns_max, enum chg_state_flags flags)
- {
-diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index 4a83ecd..6111cd1 100644
---- a/lib/lru_cache.c
-+++ b/lib/lru_cache.c
-@@ -169,7 +169,7 @@ out_fail:
- 	return NULL;
- }
- 
--void lc_free_by_index(struct lru_cache *lc, unsigned i)
-+static void lc_free_by_index(struct lru_cache *lc, unsigned i)
- {
- 	void *p = lc->lc_element[i];
- 	WARN_ON(!p);
+ 	if (try_module_get(THIS_MODULE)) {
+-		err = single_open(file, drbd_seq_show, PDE_DATA(inode));
++		err = single_open(file, drbd_seq_show, NULL);
+ 		if (err)
+ 			module_put(THIS_MODULE);
+ 		return err;
 -- 
 1.9.1
 
