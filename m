@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 87E941019A35
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 95B55101AC79
 	for <drbd-dev@lists.linbit.com>; Tue,  1 Jul 2014 18:16:51 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Tue,  1 Jul 2014 18:16:43 +0200
-Message-Id: <1404231410-29852-14-git-send-email-philipp.reisner@linbit.com>
+Date: Tue,  1 Jul 2014 18:16:44 +0200
+Message-Id: <1404231410-29852-15-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 13/20] drbd: improve resync request throttling
-	due to sendbuf size
+Subject: [Drbd-dev] [PATCH 14/20] drbd: clear CRASHED_PRIMARY only after
+	successful resync
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,59 +25,31 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-If we throttle resync because the socket sendbuffer is filling up,
-tell TCP about it, so it may expand the sendbuffer for us.
+If we lost a disk during the first resync after primary crash,
+we could have prematurely cleared the CRASHED_PRIMARY flag.
+Testing on C_CONNECTED is not what we meant there,
+but testing for both peers to become D_UP_TO_DATE.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_worker.c | 23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
+ drivers/block/drbd/drbd_state.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 6532a69..0b5e429 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -592,7 +592,7 @@ static int make_resync_request(struct drbd_device *const device, int cancel)
- 	const sector_t capacity = drbd_get_capacity(device->this_bdev);
- 	int max_bio_size;
- 	int number, rollback_i, size;
--	int align, queued, sndbuf;
-+	int align, requeue = 0;
- 	int i = 0;
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 4a75b7a..c35c0f0 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -1238,7 +1238,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
+ 	sib.os = os;
+ 	sib.ns = ns;
  
- 	if (unlikely(cancel))
-@@ -619,17 +619,22 @@ static int make_resync_request(struct drbd_device *const device, int cancel)
- 		goto requeue;
- 
- 	for (i = 0; i < number; i++) {
--		/* Stop generating RS requests, when half of the send buffer is filled */
-+		/* Stop generating RS requests when half of the send buffer is filled,
-+		 * but notify TCP that we'd like to have more space. */
- 		mutex_lock(&connection->data.mutex);
- 		if (connection->data.socket) {
--			queued = connection->data.socket->sk->sk_wmem_queued;
--			sndbuf = connection->data.socket->sk->sk_sndbuf;
--		} else {
--			queued = 1;
--			sndbuf = 0;
--		}
-+			struct sock *sk = connection->data.socket->sk;
-+			int queued = sk->sk_wmem_queued;
-+			int sndbuf = sk->sk_sndbuf;
-+			if (queued > sndbuf / 2) {
-+				requeue = 1;
-+				if (sk->sk_socket)
-+					set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-+			}
-+		} else
-+			requeue = 1;
- 		mutex_unlock(&connection->data.mutex);
--		if (queued > sndbuf / 2)
-+		if (requeue)
- 			goto requeue;
- 
- next_sector:
+-	if (os.conn != C_CONNECTED && ns.conn == C_CONNECTED) {
++	if ((os.disk != D_UP_TO_DATE || os.pdsk != D_UP_TO_DATE)
++	&&  (ns.disk == D_UP_TO_DATE && ns.pdsk == D_UP_TO_DATE)) {
+ 		clear_bit(CRASHED_PRIMARY, &device->flags);
+ 		if (device->p_uuid)
+ 			device->p_uuid[UI_FLAGS] &= ~((u64)2);
 -- 
 1.9.1
 
