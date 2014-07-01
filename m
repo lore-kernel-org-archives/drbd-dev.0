@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 084371019A35
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Jul 2014 18:16:52 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EEAB7101707A
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Jul 2014 18:16:51 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Tue,  1 Jul 2014 18:16:50 +0200
-Message-Id: <1404231410-29852-21-git-send-email-philipp.reisner@linbit.com>
+Date: Tue,  1 Jul 2014 18:16:49 +0200
+Message-Id: <1404231410-29852-20-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 20/20] drbd: also keep track of trim -> zero-out
-	fallback peer_requests
+Subject: [Drbd-dev] [PATCH 19/20] drbd: consistently use list_add_tail for
+	peer_request tracking
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,31 +25,52 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-To be able to find and present such zero-out fallback peer_requests
-in debugfs, we add those to "active_ee", once that list drained.
+Keep the epoch entry lists (active_ee, read_ee, sync_ee, ...)
+consistently "oldest first".  That way finding the oldest not yet
+successfully processed request is simply list_first_entry_or_null.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ drivers/block/drbd/drbd_receiver.c | 4 ++--
+ drivers/block/drbd/drbd_worker.c   | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index db5c580..7a1078d 100644
+index 3a3c489..db5c580 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1370,6 +1370,11 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 		/* wait for all pending IO completions, before we start
- 		 * zeroing things out. */
- 		conn_wait_active_ee_empty(first_peer_device(device)->connection);
-+		/* add it to the active list now,
-+		 * so we can find it to present it in debugfs */
-+		spin_lock_irq(&device->resource->req_lock);
+@@ -1777,7 +1777,7 @@ static int recv_resync_read(struct drbd_peer_device *peer_device, sector_t secto
+ 	peer_req->w.cb = e_end_resync_block;
+ 
+ 	spin_lock_irq(&device->resource->req_lock);
+-	list_add(&peer_req->w.list, &device->sync_ee);
++	list_add_tail(&peer_req->w.list, &device->sync_ee);
+ 	spin_unlock_irq(&device->resource->req_lock);
+ 
+ 	atomic_add(pi->size >> 9, &device->rs_sect_ev);
+@@ -2341,7 +2341,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
+ 	 * active_ee to become empty in drbd_submit_peer_request();
+ 	 * better not add ourselves here. */
+ 	if ((peer_req->flags & EE_IS_TRIM_USE_ZEROOUT) == 0)
+-		list_add(&peer_req->w.list, &device->active_ee);
 +		list_add_tail(&peer_req->w.list, &device->active_ee);
-+		spin_unlock_irq(&device->resource->req_lock);
- 		if (blkdev_issue_zeroout(device->ldev->backing_bdev,
- 			sector, ds >> 9, GFP_NOIO))
- 			peer_req->flags |= EE_WAS_ERROR;
+ 	spin_unlock_irq(&device->resource->req_lock);
+ 
+ 	if (device->state.conn == C_SYNC_TARGET)
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 49b8873..ad57129 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -410,7 +410,7 @@ static int read_for_csum(struct drbd_peer_device *peer_device, sector_t sector,
+ 
+ 	peer_req->w.cb = w_e_send_csum;
+ 	spin_lock_irq(&device->resource->req_lock);
+-	list_add(&peer_req->w.list, &device->read_ee);
++	list_add_tail(&peer_req->w.list, &device->read_ee);
+ 	spin_unlock_irq(&device->resource->req_lock);
+ 
+ 	atomic_add(size >> 9, &device->rs_sect_ev);
 -- 
 1.9.1
 
