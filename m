@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D77A21019A5C
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C7E76101AC79
 	for <drbd-dev@lists.linbit.com>; Tue,  1 Jul 2014 18:16:51 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Tue,  1 Jul 2014 18:16:47 +0200
-Message-Id: <1404231410-29852-18-git-send-email-philipp.reisner@linbit.com>
+Date: Tue,  1 Jul 2014 18:16:46 +0200
+Message-Id: <1404231410-29852-17-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404231410-29852-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 17/20] drbd: add drbd_queue_work_if_unqueued
-	helper
+Subject: [Drbd-dev] [PATCH 16/20] drbd: drbd_rs_number_requests: fix unit
+	mismatch in comparison
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,76 +25,50 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-We sometimes do
-    if (list_empty(&w.list))
-	drbd_queue_work(&q, &w.list);
+We try to limit the number of "in-flight" resync requests.
+One condition for that is the amount of requested data should not exceed
+half of what can be covered by our "max-buffers" setting.
 
-Removal (list_del_init) may happen outside all locks, after all
-pending work entries have been moved to an on-stack local work list.
-
-For not dynamically allocated, but embeded, work structs,
-we must avoid to re-add until it really was removed.
-
-Move that list_empty check inside the spin_lock(&q->q_lock)
-within the helper function, and change to list_empty_careful().
-
-This may have been the reason for a list_add corruption
-inside drbd_queue_work().
+However we compared number of 4k pages with number of in-flight 512 Byte
+sectors, and this extra throttle triggered much earlier than intended.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h    | 11 +++++++++++
- drivers/block/drbd/drbd_worker.c |  8 ++++----
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_worker.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index c88d6c6..a71f8bb 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1778,6 +1778,17 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
- }
- 
- static inline void
-+drbd_queue_work_if_unqueued(struct drbd_work_queue *q, struct drbd_work *w)
-+{
-+	unsigned long flags;
-+	spin_lock_irqsave(&q->q_lock, flags);
-+	if (list_empty_careful(&w->list))
-+		list_add_tail(&w->list, &q->q);
-+	spin_unlock_irqrestore(&q->q_lock, flags);
-+	wake_up(&q->q_wait);
-+}
-+
-+static inline void
- drbd_device_post_work(struct drbd_device *device, int work_bit)
- {
- 	if (!test_and_set_bit(work_bit, &device->flags)) {
 diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 9f0acb0..49b8873 100644
+index 0b5e429..9f0acb0 100644
 --- a/drivers/block/drbd/drbd_worker.c
 +++ b/drivers/block/drbd/drbd_worker.c
-@@ -452,9 +452,9 @@ void resync_timer_fn(unsigned long data)
+@@ -504,9 +504,9 @@ struct fifo_buffer *fifo_alloc(int fifo_size)
+ static int drbd_rs_controller(struct drbd_device *device, unsigned int sect_in)
  {
- 	struct drbd_device *device = (struct drbd_device *) data;
+ 	struct disk_conf *dc;
+-	unsigned int want;     /* The number of sectors we want in the proxy */
++	unsigned int want;     /* The number of sectors we want in-flight */
+ 	int req_sect; /* Number of sectors to request in this turn */
+-	int correction; /* Number of sectors more we need in the proxy*/
++	int correction; /* Number of sectors more we need in-flight */
+ 	int cps; /* correction per invocation of drbd_rs_controller() */
+ 	int steps; /* Number of time steps to plan ahead */
+ 	int curr_corr;
+@@ -577,8 +577,13 @@ static int drbd_rs_number_requests(struct drbd_device *device)
+ 	 * potentially causing a distributed deadlock on congestion during
+ 	 * online-verify or (checksum-based) resync, if max-buffers,
+ 	 * socket buffer sizes and resync rate settings are mis-configured. */
+-	if (mxb - device->rs_in_flight < number)
+-		number = mxb - device->rs_in_flight;
++
++	/* note that "number" is in units of "BM_BLOCK_SIZE" (which is 4k),
++	 * mxb (as used here, and in drbd_alloc_pages on the peer) is
++	 * "number of pages" (typically also 4k),
++	 * but "rs_in_flight" is in "sectors" (512 Byte). */
++	if (mxb - device->rs_in_flight/8 < number)
++		number = mxb - device->rs_in_flight/8;
  
--	if (list_empty(&device->resync_work.list))
--		drbd_queue_work(&first_peer_device(device)->connection->sender_work,
--				&device->resync_work);
-+	drbd_queue_work_if_unqueued(
-+		&first_peer_device(device)->connection->sender_work,
-+		&device->resync_work);
- }
- 
- static void fifo_set(struct fifo_buffer *fb, int value)
-@@ -1968,7 +1968,7 @@ static void do_unqueued_work(struct drbd_connection *connection)
- static bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *work_list)
- {
- 	spin_lock_irq(&queue->q_lock);
--	list_splice_init(&queue->q, work_list);
-+	list_splice_tail_init(&queue->q, work_list);
- 	spin_unlock_irq(&queue->q_lock);
- 	return !list_empty(work_list);
+ 	return number;
  }
 -- 
 1.9.1
