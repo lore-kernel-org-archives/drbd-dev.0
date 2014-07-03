@@ -1,17 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E8B9C101AC75
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F332F101AC79
 	for <drbd-dev@lists.linbit.com>; Thu,  3 Jul 2014 10:43:15 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu,  3 Jul 2014 10:42:56 +0200
-Message-Id: <1404376995-4877-5-git-send-email-philipp.reisner@linbit.com>
+Date: Thu,  3 Jul 2014 10:42:57 +0200
+Message-Id: <1404376995-4877-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404376995-4877-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404376995-4877-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/23] drbd: gather detailed timing statistics
-	for drbd_requests
+Subject: [Drbd-dev] [PATCH 05/23] drbd: add lists to find oldest pending
+	requests
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,403 +25,198 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Record (in jiffies) how much time a request spends in which stages.
-Followup commits will use and present this additional timing information
-so we can better locate and tackle the root causes of latency spikes,
-or present the backlog for asynchronous replication.
+Adding requests to per-device fifo lists as soon as possible after
+allocating them leaves a simple list_first_entry_or_null() to find the
+oldest request, regardless what it is still waiting for.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h    | 54 ++++++++++++++++++++++-
- drivers/block/drbd/drbd_main.c   |  7 +--
- drivers/block/drbd/drbd_req.c    | 93 +++++++++++++++++++++++++---------------
- drivers/block/drbd/drbd_worker.c |  3 ++
- 4 files changed, 119 insertions(+), 38 deletions(-)
+ drivers/block/drbd/drbd_int.h  | 11 ++++++++++-
+ drivers/block/drbd/drbd_main.c |  7 ++++++-
+ drivers/block/drbd/drbd_req.c  | 45 +++++++++++++++++++++++++++++++-----------
+ 3 files changed, 49 insertions(+), 14 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 3f8281b..08fa2dc 100644
+index 08fa2dc..f29f107 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -317,7 +317,59 @@ struct drbd_request {
- 
+@@ -318,6 +318,10 @@ struct drbd_request {
  	struct list_head tl_requests; /* ring list in the transfer log */
  	struct bio *master_bio;       /* master bio pointer */
--	unsigned long start_time;
-+
-+	/* for generic IO accounting */
-+	unsigned long start_jif;
-+
-+	/* for DRBD internal statistics */
-+
-+	/* Minimal set of time stamps to determine if we wait for activity log
-+	 * transactions, local disk or peer.  32 bit "jiffies" are good enough,
-+	 * we don't expect a DRBD request to be stalled for several month.
-+	 */
-+
-+	/* before actual request processing */
-+	unsigned long in_actlog_jif;
-+
-+	/* local disk */
-+	unsigned long pre_submit_jif;
-+
-+	/* per connection */
-+	unsigned long pre_send_jif;
-+	unsigned long acked_jif;
-+	unsigned long net_done_jif;
-+
-+	/* Possibly even more detail to track each phase:
-+	 *  master_completion_jif
-+	 *      how long did it take to complete the master bio
-+	 *      (application visible latency)
-+	 *  allocated_jif
-+	 *      how long the master bio was blocked until we finally allocated
-+	 *      a tracking struct
-+	 *  in_actlog_jif
-+	 *      how long did we wait for activity log transactions
-+	 *
-+	 *  net_queued_jif
-+	 *      when did we finally queue it for sending
-+	 *  pre_send_jif
-+	 *      when did we start sending it
-+	 *  post_send_jif
-+	 *      how long did we block in the network stack trying to send it
-+	 *  acked_jif
-+	 *      when did we receive (or fake, in protocol A) a remote ACK
-+	 *  net_done_jif
-+	 *      when did we receive final acknowledgement (P_BARRIER_ACK),
-+	 *      or decide, e.g. on connection loss, that we do no longer expect
-+	 *      anything from this peer for this request.
-+	 *
-+	 *  pre_submit_jif
-+	 *  post_sub_jif
-+	 *      when did we start submiting to the lower level device,
-+	 *      and how long did we block in that submit function
-+	 *  local_completion_jif
-+	 *      how long did it take the lower level device to complete this request
-+	 */
-+
  
- 	/* once it hits 0, we may complete the master_bio */
- 	atomic_t completion_ref;
++	/* see struct drbd_device */
++	struct list_head req_pending_master_completion;
++	struct list_head req_pending_local;
++
+ 	/* for generic IO accounting */
+ 	unsigned long start_jif;
+ 
+@@ -738,7 +742,7 @@ struct submit_worker {
+ 	struct workqueue_struct *wq;
+ 	struct work_struct worker;
+ 
+-	spinlock_t lock;
++	/* protected by ..->resource->req_lock */
+ 	struct list_head writes;
+ };
+ 
+@@ -795,6 +799,11 @@ struct drbd_device {
+ 	struct rb_root read_requests;
+ 	struct rb_root write_requests;
+ 
++	/* for statistics and timeouts */
++	/* [0] read, [1] write */
++	struct list_head pending_master_completion[2];
++	struct list_head pending_completion[2];
++
+ 	/* use checksums for *this* resync */
+ 	bool use_csums;
+ 	/* blocks to resync in this run [unit BM_BLOCK_SIZE] */
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 3ab7461..0baec7a 100644
+index 0baec7a..5886596 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -29,6 +29,7 @@
- #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+@@ -1934,6 +1934,10 @@ void drbd_init_set_defaults(struct drbd_device *device)
+ 	INIT_LIST_HEAD(&device->resync_work.list);
+ 	INIT_LIST_HEAD(&device->unplug_work.list);
+ 	INIT_LIST_HEAD(&device->bm_io_work.w.list);
++	INIT_LIST_HEAD(&device->pending_master_completion[0]);
++	INIT_LIST_HEAD(&device->pending_master_completion[1]);
++	INIT_LIST_HEAD(&device->pending_completion[0]);
++	INIT_LIST_HEAD(&device->pending_completion[1]);
  
- #include <linux/module.h>
-+#include <linux/jiffies.h>
- #include <linux/drbd.h>
- #include <asm/uaccess.h>
- #include <asm/types.h>
-@@ -264,7 +265,7 @@ bail:
- 
- /**
-  * _tl_restart() - Walks the transfer log, and applies an action to all requests
-- * @device:	DRBD device.
-+ * @connection:	DRBD connection to operate on.
-  * @what:       The action/event to perform with all request objects
-  *
-  * @what might be one of CONNECTION_LOST_WHILE_PENDING, RESEND, FAIL_FROZEN_DISK_IO,
-@@ -2228,7 +2229,7 @@ static void do_retry(struct work_struct *ws)
- 	list_for_each_entry_safe(req, tmp, &writes, tl_requests) {
- 		struct drbd_device *device = req->device;
- 		struct bio *bio = req->master_bio;
--		unsigned long start_time = req->start_time;
-+		unsigned long start_jif = req->start_jif;
- 		bool expected;
- 
- 		expected =
-@@ -2263,7 +2264,7 @@ static void do_retry(struct work_struct *ws)
- 		/* We are not just doing generic_make_request(),
- 		 * as we want to keep the start_time information. */
- 		inc_ap_bio(device);
--		__drbd_make_request(device, bio, start_time);
-+		__drbd_make_request(device, bio, start_jif);
+ 	device->resync_work.cb  = w_resync_timer;
+ 	device->unplug_work.cb  = w_send_write_hint;
+@@ -2268,6 +2272,8 @@ static void do_retry(struct work_struct *ws)
  	}
  }
  
++/* called via drbd_req_put_completion_ref(),
++ * holds resource->req_lock */
+ void drbd_restart_request(struct drbd_request *req)
+ {
+ 	unsigned long flags;
+@@ -2687,7 +2693,6 @@ static int init_submitter(struct drbd_device *device)
+ 		return -ENOMEM;
+ 
+ 	INIT_WORK(&device->submit.worker, do_submit);
+-	spin_lock_init(&device->submit.lock);
+ 	INIT_LIST_HEAD(&device->submit.writes);
+ 	return 0;
+ }
 diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 3824d5c..1319bea 100644
+index 1319bea..23cd909 100644
 --- a/drivers/block/drbd/drbd_req.c
 +++ b/drivers/block/drbd/drbd_req.c
-@@ -52,7 +52,7 @@ static void _drbd_start_io_acct(struct drbd_device *device, struct drbd_request
- static void _drbd_end_io_acct(struct drbd_device *device, struct drbd_request *req)
- {
- 	int rw = bio_data_dir(req->master_bio);
--	unsigned long duration = jiffies - req->start_time;
-+	unsigned long duration = jiffies - req->start_jif;
- 	int cpu;
- 	cpu = part_stat_lock();
- 	part_stat_add(cpu, &device->vdisk->part0, ticks[rw], duration);
-@@ -66,7 +66,7 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device,
- {
- 	struct drbd_request *req;
+@@ -84,6 +84,8 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device,
  
--	req = mempool_alloc(drbd_request_mempool, GFP_NOIO);
-+	req = mempool_alloc(drbd_request_mempool, GFP_NOIO | __GFP_ZERO);
- 	if (!req)
- 		return NULL;
+ 	INIT_LIST_HEAD(&req->tl_requests);
+ 	INIT_LIST_HEAD(&req->w.list);
++	INIT_LIST_HEAD(&req->req_pending_master_completion);
++	INIT_LIST_HEAD(&req->req_pending_local);
  
-@@ -366,14 +366,18 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
- 		atomic_inc(&req->completion_ref);
- 	}
- 
--	if (!(s & RQ_NET_QUEUED) && (set & RQ_NET_QUEUED))
-+	if (!(s & RQ_NET_QUEUED) && (set & RQ_NET_QUEUED)) {
- 		atomic_inc(&req->completion_ref);
-+	}
- 
- 	if (!(s & RQ_EXP_BARR_ACK) && (set & RQ_EXP_BARR_ACK))
- 		kref_get(&req->kref); /* wait for the DONE */
- 
--	if (!(s & RQ_NET_SENT) && (set & RQ_NET_SENT))
--		atomic_add(req->i.size >> 9, &device->ap_in_flight);
-+	if (!(s & RQ_NET_SENT) && (set & RQ_NET_SENT)) {
-+		/* potentially already completed in the asender thread */
-+		if (!(s & RQ_NET_DONE))
-+			atomic_add(req->i.size >> 9, &device->ap_in_flight);
-+	}
- 
- 	if (!(s & RQ_COMPLETION_SUSP) && (set & RQ_COMPLETION_SUSP))
- 		atomic_inc(&req->completion_ref);
-@@ -401,15 +405,18 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
- 	if ((s & RQ_NET_PENDING) && (clear & RQ_NET_PENDING)) {
- 		dec_ap_pending(device);
- 		++c_put;
-+		req->acked_jif = jiffies;
- 	}
- 
- 	if ((s & RQ_NET_QUEUED) && (clear & RQ_NET_QUEUED))
- 		++c_put;
- 
--	if ((s & RQ_EXP_BARR_ACK) && !(s & RQ_NET_DONE) && (set & RQ_NET_DONE)) {
--		if (req->rq_state & RQ_NET_SENT)
-+	if (!(s & RQ_NET_DONE) && (set & RQ_NET_DONE)) {
-+		if (s & RQ_NET_SENT)
- 			atomic_sub(req->i.size >> 9, &device->ap_in_flight);
--		++k_put;
-+		if (s & RQ_EXP_BARR_ACK)
-+			++k_put;
-+		req->net_done_jif = jiffies;
- 	}
- 
- 	/* potentially complete and destroy */
-@@ -449,6 +456,19 @@ static void drbd_report_io_error(struct drbd_device *device, struct drbd_request
- 			bdevname(device->ldev->backing_bdev, b));
- }
- 
-+/* Helper for HANDED_OVER_TO_NETWORK.
-+ * Is this a protocol A write (neither WRITE_ACK nor RECEIVE_ACK expected)?
-+ * Is it also still "PENDING"?
-+ * --> If so, clear PENDING and set NET_OK below.
-+ * If it is a protocol A write, but not RQ_PENDING anymore, neg-ack was faster
-+ * (and we must not set RQ_NET_OK) */
-+static inline bool is_pending_write_protocol_A(struct drbd_request *req)
-+{
-+	return (req->rq_state &
-+		   (RQ_WRITE|RQ_NET_PENDING|RQ_EXP_WRITE_ACK|RQ_EXP_RECEIVE_ACK))
-+		== (RQ_WRITE|RQ_NET_PENDING);
-+}
-+
- /* obviously this could be coded as many single functions
-  * instead of one huge switch,
-  * or by putting the code directly in the respective locations
-@@ -627,18 +647,16 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
- 
- 	case HANDED_OVER_TO_NETWORK:
- 		/* assert something? */
--		if (bio_data_dir(req->master_bio) == WRITE &&
--		    !(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK))) {
-+		if (is_pending_write_protocol_A(req))
- 			/* this is what is dangerous about protocol A:
- 			 * pretend it was successfully written on the peer. */
--			if (req->rq_state & RQ_NET_PENDING)
--				mod_rq_state(req, m, RQ_NET_PENDING, RQ_NET_OK);
--			/* else: neg-ack was faster... */
--			/* it is still not yet RQ_NET_DONE until the
--			 * corresponding epoch barrier got acked as well,
--			 * so we know what to dirty on connection loss */
--		}
--		mod_rq_state(req, m, RQ_NET_QUEUED, RQ_NET_SENT);
-+			mod_rq_state(req, m, RQ_NET_QUEUED|RQ_NET_PENDING,
-+						RQ_NET_SENT|RQ_NET_OK);
-+		else
-+			mod_rq_state(req, m, RQ_NET_QUEUED, RQ_NET_SENT);
-+		/* It is still not yet RQ_NET_DONE until the
-+		 * corresponding epoch barrier got acked as well,
-+		 * so we know what to dirty on connection loss. */
- 		break;
- 
- 	case OOS_HANDED_TO_NETWORK:
-@@ -1037,6 +1055,7 @@ drbd_submit_req_private_bio(struct drbd_request *req)
- 	 * stable storage, and this is a WRITE, we may not even submit
- 	 * this bio. */
- 	if (get_ldev(device)) {
-+		req->pre_submit_jif = jiffies;
- 		if (drbd_insert_fault(device,
- 				      rw == WRITE ? DRBD_FAULT_DT_WR
- 				    : rw == READ  ? DRBD_FAULT_DT_RD
-@@ -1063,7 +1082,7 @@ static void drbd_queue_write(struct drbd_device *device, struct drbd_request *re
-  * Returns ERR_PTR(-ENOMEM) if we cannot allocate a drbd_request.
-  */
- static struct drbd_request *
--drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long start_time)
-+drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long start_jif)
- {
- 	const int rw = bio_data_dir(bio);
- 	struct drbd_request *req;
-@@ -1078,7 +1097,7 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long
- 		bio_endio(bio, -ENOMEM);
- 		return ERR_PTR(-ENOMEM);
- 	}
--	req->start_time = start_time;
-+	req->start_jif = start_jif;
- 
- 	if (!get_ldev(device)) {
- 		bio_put(req->private_bio);
-@@ -1095,6 +1114,7 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long
- 			return NULL;
- 		}
- 		req->rq_state |= RQ_IN_ACT_LOG;
-+		req->in_actlog_jif = jiffies;
- 	}
- 
- 	return req;
-@@ -1197,9 +1217,9 @@ out:
- 		complete_master_bio(device, &m);
- }
- 
--void __drbd_make_request(struct drbd_device *device, struct bio *bio, unsigned long start_time)
-+void __drbd_make_request(struct drbd_device *device, struct bio *bio, unsigned long start_jif)
- {
--	struct drbd_request *req = drbd_request_prepare(device, bio, start_time);
-+	struct drbd_request *req = drbd_request_prepare(device, bio, start_jif);
- 	if (IS_ERR_OR_NULL(req))
+ 	/* one reference to be put by __drbd_make_request */
+ 	atomic_set(&req->completion_ref, 1);
+@@ -120,12 +122,14 @@ void drbd_req_destroy(struct kref *kref)
  		return;
- 	drbd_send_and_submit(device, req);
-@@ -1218,6 +1238,7 @@ static void submit_fast_path(struct drbd_device *device, struct list_head *incom
- 				continue;
- 
- 			req->rq_state |= RQ_IN_ACT_LOG;
-+			req->in_actlog_jif = jiffies;
- 		}
- 
- 		list_del_init(&req->tl_requests);
-@@ -1240,7 +1261,6 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
- 			wake = 1;
- 		if (err)
- 			continue;
--		req->rq_state |= RQ_IN_ACT_LOG;
- 		list_move_tail(&req->tl_requests, pending);
  	}
- 	spin_unlock_irq(&device->al_lock);
-@@ -1302,6 +1322,8 @@ skip_fast_path:
- 		drbd_al_begin_io_commit(device);
  
- 		list_for_each_entry_safe(req, tmp, &pending, tl_requests) {
-+			req->rq_state |= RQ_IN_ACT_LOG;
-+			req->in_actlog_jif = jiffies;
- 			list_del_init(&req->tl_requests);
- 			drbd_send_and_submit(device, req);
- 		}
-@@ -1311,9 +1333,12 @@ skip_fast_path:
- 		 * requests to cold extents. In that case, prepare one request
- 		 * in blocking mode. */
- 		list_for_each_entry_safe(req, tmp, &incoming, tl_requests) {
-+			bool was_cold;
- 			list_del_init(&req->tl_requests);
--			req->rq_state |= RQ_IN_ACT_LOG;
--			if (!drbd_al_begin_io_prepare(device, &req->i)) {
-+			was_cold = drbd_al_begin_io_prepare(device, &req->i);
-+			if (!was_cold) {
-+				req->rq_state |= RQ_IN_ACT_LOG;
-+				req->in_actlog_jif = jiffies;
- 				/* Corresponding extent was hot after all? */
- 				drbd_send_and_submit(device, req);
- 			} else {
-@@ -1330,9 +1355,9 @@ skip_fast_path:
- void drbd_make_request(struct request_queue *q, struct bio *bio)
- {
- 	struct drbd_device *device = (struct drbd_device *) q->queuedata;
--	unsigned long start_time;
-+	unsigned long start_jif;
+-	/* remove it from the transfer log.
+-	 * well, only if it had been there in the first
+-	 * place... if it had not (local only or conflicting
+-	 * and never sent), it should still be "empty" as
+-	 * initialized in drbd_req_new(), so we can list_del() it
+-	 * here unconditionally */
++	/* If called from mod_rq_state (expected normal case) or
++	 * drbd_send_and_submit (the less likely normal path), this holds the
++	 * req_lock, and req->tl_requests will typicaly be on ->transfer_log,
++	 * though it may be still empty (never added to the transfer log).
++	 *
++	 * If called from do_retry(), we do NOT hold the req_lock, but we are
++	 * still allowed to unconditionally list_del(&req->tl_requests),
++	 * because it will be on a local on-stack list only. */
+ 	list_del_init(&req->tl_requests);
  
--	start_time = jiffies;
-+	start_jif = jiffies;
+ 	/* finally remove the request from the conflict detection
+@@ -312,8 +316,15 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
  
- 	/*
- 	 * what we "blindly" assume:
-@@ -1340,7 +1365,7 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
- 	D_ASSERT(device, IS_ALIGNED(bio->bi_iter.bi_size, 512));
- 
- 	inc_ap_bio(device);
--	__drbd_make_request(device, bio, start_time);
-+	__drbd_make_request(device, bio, start_jif);
+ 	if (req->i.waiting)
+ 		wake_up(&device->misc_wait);
++
++	/* Either we are about to complete to upper layers,
++	 * or we will restart this request.
++	 * In either case, the request object will be destroyed soon,
++	 * so better remove it from all lists. */
++	list_del_init(&req->req_pending_master_completion);
  }
  
- /* This is called by bio_add_page().
-@@ -1453,13 +1478,13 @@ void request_timer_fn(unsigned long data)
- 	 * to expire twice (worst case) to become effective. Good enough.
- 	 */
- 	if (ent && req_peer &&
--		 time_after(now, req_peer->start_time + ent) &&
-+		 time_after(now, req_peer->start_jif + ent) &&
- 		!time_in_range(now, connection->last_reconnect_jif, connection->last_reconnect_jif + ent)) {
- 		drbd_warn(device, "Remote failed to finish a request within ko-count * timeout\n");
- 		_drbd_set_state(_NS(device, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
++/* still holds resource->req_lock */
+ static int drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_error *m, int put)
+ {
+ 	struct drbd_device *device = req->device;
+@@ -400,6 +411,7 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
+ 			++k_put;
+ 		else
+ 			++c_put;
++		list_del_init(&req->req_pending_local);
  	}
- 	if (dt && req_disk &&
--		 time_after(now, req_disk->start_time + dt) &&
-+		 time_after(now, req_disk->start_jif + dt) &&
- 		!time_in_range(now, device->last_reattach_jif, device->last_reattach_jif + dt)) {
- 		drbd_warn(device, "Local backing device failed to meet the disk-timeout\n");
- 		__drbd_chk_io_error(device, DRBD_FORCE_DETACH);
-@@ -1467,10 +1492,10 @@ void request_timer_fn(unsigned long data)
  
- 	/* Reschedule timer for the nearest not already expired timeout.
- 	 * Fallback to now + min(effective network timeout, disk timeout). */
--	ent = (ent && req_peer && time_before(now, req_peer->start_time + ent))
--		? req_peer->start_time + ent : now + et;
--	dt = (dt && req_disk && time_before(now, req_disk->start_time + dt))
--		? req_disk->start_time + dt : now + et;
-+	ent = (ent && req_peer && time_before(now, req_peer->start_jif + ent))
-+		? req_peer->start_jif + ent : now + et;
-+	dt = (dt && req_disk && time_before(now, req_disk->start_jif + dt))
-+		? req_disk->start_jif + dt : now + et;
- 	nt = time_before(ent, dt) ? ent : dt;
- 	spin_unlock_irq(&connection->resource->req_lock);
- 	mod_timer(&device->request_timer, nt);
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 3978d9e..0ff8f46 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1368,6 +1368,7 @@ int w_send_out_of_sync(struct drbd_work *w, int cancel)
- 		req_mod(req, SEND_CANCELED);
- 		return 0;
+ 	if ((s & RQ_NET_PENDING) && (clear & RQ_NET_PENDING)) {
+@@ -1070,9 +1082,11 @@ drbd_submit_req_private_bio(struct drbd_request *req)
+ 
+ static void drbd_queue_write(struct drbd_device *device, struct drbd_request *req)
+ {
+-	spin_lock(&device->submit.lock);
++	spin_lock_irq(&device->resource->req_lock);
+ 	list_add_tail(&req->tl_requests, &device->submit.writes);
+-	spin_unlock(&device->submit.lock);
++	list_add_tail(&req->req_pending_master_completion,
++			&device->pending_master_completion[1 /* WRITE */]);
++	spin_unlock_irq(&device->resource->req_lock);
+ 	queue_work(device->submit.wq, &device->submit.worker);
+ }
+ 
+@@ -1186,8 +1200,15 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
+ 			no_remote = true;
  	}
-+	req->pre_send_jif = jiffies;
  
- 	/* this time, no connection->send.current_epoch_writes++;
- 	 * If it was sent, it was the closing barrier for the last
-@@ -1398,6 +1399,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
- 		req_mod(req, SEND_CANCELED);
- 		return 0;
- 	}
-+	req->pre_send_jif = jiffies;
++	/* If it took the fast path in drbd_request_prepare, add it here.
++	 * The slow path has added it already. */
++	if (list_empty(&req->req_pending_master_completion))
++		list_add_tail(&req->req_pending_master_completion,
++			&device->pending_master_completion[rw == WRITE]);
+ 	if (req->private_bio) {
+ 		/* needs to be marked within the same spinlock */
++		list_add_tail(&req->req_pending_local,
++			&device->pending_completion[rw == WRITE]);
+ 		_req_mod(req, TO_BE_SUBMITTED);
+ 		/* but we need to give up the spinlock to submit */
+ 		submit_private_bio = true;
+@@ -1278,9 +1299,9 @@ void do_submit(struct work_struct *ws)
+ 	struct drbd_request *req, *tmp;
  
- 	re_init_if_first_write(connection, req->epoch);
- 	maybe_send_barrier(connection, req->epoch);
-@@ -1426,6 +1428,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
- 		req_mod(req, SEND_CANCELED);
- 		return 0;
- 	}
-+	req->pre_send_jif = jiffies;
+ 	for (;;) {
+-		spin_lock(&device->submit.lock);
++		spin_lock_irq(&device->resource->req_lock);
+ 		list_splice_tail_init(&device->submit.writes, &incoming);
+-		spin_unlock(&device->submit.lock);
++		spin_unlock_irq(&device->resource->req_lock);
  
- 	/* Even read requests may close a write epoch,
- 	 * if there was any yet. */
+ 		submit_fast_path(device, &incoming);
+ 		if (list_empty(&incoming))
+@@ -1304,9 +1325,9 @@ skip_fast_path:
+ 			if (list_empty(&device->submit.writes))
+ 				break;
+ 
+-			spin_lock(&device->submit.lock);
++			spin_lock_irq(&device->resource->req_lock);
+ 			list_splice_tail_init(&device->submit.writes, &more_incoming);
+-			spin_unlock(&device->submit.lock);
++			spin_unlock_irq(&device->resource->req_lock);
+ 
+ 			if (list_empty(&more_incoming))
+ 				break;
 -- 
 1.9.1
 
