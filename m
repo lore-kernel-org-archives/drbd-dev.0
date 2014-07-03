@@ -1,16 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 902EB101AC75
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9BC5C101AC79
 	for <drbd-dev@lists.linbit.com>; Thu,  3 Jul 2014 10:43:16 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu,  3 Jul 2014 10:43:06 +0200
-Message-Id: <1404376995-4877-15-git-send-email-philipp.reisner@linbit.com>
+Date: Thu,  3 Jul 2014 10:43:07 +0200
+Message-Id: <1404376995-4877-16-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404376995-4877-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404376995-4877-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 14/23] drbd: debugfs: Add in_flight_summary
+Subject: [Drbd-dev] [PATCH 15/23] drbd: debugfs: add callback_history
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,383 +24,288 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-* Add details about pending meta data operations to in_flight_summary.
-
-* Report number of requests waiting for activity log transactions.
-
-* timing details of peer_requests to in_flight_summary.
-
-* FLUSH details
-  DRBD devides the incoming request stream into "epochs",
-  in which peers are allowed to re-order writes independendly.
-
-  These epochs are separated by P_BARRIER on the replication link.
-  Such barrier packets, depending on configuration, may cause
-  the receiving side to drain the lower level device request queues
-  and call blkdev_issue_flush().
-
-  This is known to be an other major source of latency in DRBD.
-
-  Track timing details of calls to blkdev_issue_flush(),
-  and add them to in_flight_summary.
-
-* data socket stats
-  To be able to diagnose bottlenecks and root causes of "slow" IO on DRBD,
-  it is useful to see network buffer stats along with the timing details of
-  requests, peer requests, and meta data IO.
-
-* pending bitmap IO timing details to in_flight_summary.
+Add a per-connection worker thread callback_history
+with timing details, call site and callback function.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_debugfs.c  | 231 ++++++++++++++++++++++++++++++++++++-
- drivers/block/drbd/drbd_int.h      |   3 +
- drivers/block/drbd/drbd_main.c     |  33 +++---
- drivers/block/drbd/drbd_receiver.c |   8 ++
- 4 files changed, 255 insertions(+), 20 deletions(-)
+ drivers/block/drbd/drbd_debugfs.c  | 78 ++++++++++++++++++++++++++++++++++++++
+ drivers/block/drbd/drbd_int.h      | 26 +++++++++++++
+ drivers/block/drbd/drbd_receiver.c |  6 +++
+ drivers/block/drbd/drbd_worker.c   | 37 ++++++++++++++++--
+ 4 files changed, 144 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_debugfs.c b/drivers/block/drbd/drbd_debugfs.c
-index 51c64ec..12d072d 100644
+index 12d072d..230d9e1 100644
 --- a/drivers/block/drbd/drbd_debugfs.c
 +++ b/drivers/block/drbd/drbd_debugfs.c
-@@ -23,14 +23,24 @@ static void seq_print_age_or_dash(struct seq_file *m, bool valid, unsigned long
- 		seq_printf(m, "\t-");
+@@ -521,6 +521,77 @@ void drbd_debugfs_resource_cleanup(struct drbd_resource *resource)
+ 	drbd_debugfs_remove(&resource->debugfs_res);
  }
  
-+static void __seq_print_rq_state_bit(struct seq_file *m,
-+	bool is_set, char *sep, const char *set_name, const char *unset_name)
-+{
-+	if (is_set && set_name) {
-+		seq_putc(m, *sep);
-+		seq_puts(m, set_name);
-+		*sep = '|';
-+	} else if (!is_set && unset_name) {
-+		seq_putc(m, *sep);
-+		seq_puts(m, unset_name);
-+		*sep = '|';
-+	}
-+}
-+
- static void seq_print_rq_state_bit(struct seq_file *m,
--	bool is_set, char *sep, const char *name)
-+	bool is_set, char *sep, const char *set_name)
- {
--	if (!is_set)
--		return;
--	seq_putc(m, *sep);
--	seq_puts(m, name);
--	*sep = '|';
-+	__seq_print_rq_state_bit(m, is_set, sep, set_name, NULL);
- }
- 
- /* pretty print enum drbd_req_state_bits req->rq_state */
-@@ -108,6 +118,184 @@ static void seq_print_minor_vnr_req(struct seq_file *m, struct drbd_request *req
- 	seq_print_one_request(m, req, now);
- }
- 
-+static void seq_print_resource_pending_meta_io(struct seq_file *m, struct drbd_resource *resource, unsigned long now)
-+{
-+	struct drbd_device *device;
-+	unsigned int i;
-+
-+	seq_puts(m, "minor\tvnr\tstart\tsubmit\tintent\n");
-+	rcu_read_lock();
-+	idr_for_each_entry(&resource->devices, device, i) {
-+		struct drbd_md_io tmp;
-+		/* In theory this is racy,
-+		 * in the sense that there could have been a
-+		 * drbd_md_put_buffer(); drbd_md_get_buffer();
-+		 * between accessing these members here.  */
-+		tmp = device->md_io;
-+		if (atomic_read(&tmp.in_use)) {
-+			seq_printf(m, "%u\t%u\t%d\t",
-+				device->minor, device->vnr,
-+				jiffies_to_msecs(now - tmp.start_jif));
-+			if (time_before(tmp.submit_jif, tmp.start_jif))
-+				seq_puts(m, "-\t");
-+			else
-+				seq_printf(m, "%d\t", jiffies_to_msecs(now - tmp.submit_jif));
-+			seq_printf(m, "%s\n", tmp.current_use);
-+		}
-+	}
-+	rcu_read_unlock();
-+}
-+
-+static void seq_print_waiting_for_AL(struct seq_file *m, struct drbd_resource *resource, unsigned long now)
-+{
-+	struct drbd_device *device;
-+	unsigned int i;
-+
-+	seq_puts(m, "minor\tvnr\tage\t#waiting\n");
-+	rcu_read_lock();
-+	idr_for_each_entry(&resource->devices, device, i) {
-+		unsigned long jif;
-+		struct drbd_request *req;
-+		int n = atomic_read(&device->ap_actlog_cnt);
-+		if (n) {
-+			spin_lock_irq(&device->resource->req_lock);
-+			req = list_first_entry_or_null(&device->pending_master_completion[1],
-+				struct drbd_request, req_pending_master_completion);
-+			/* if the oldest request does not wait for the activity log
-+			 * it is not interesting for us here */
-+			if (req && !(req->rq_state & RQ_IN_ACT_LOG))
-+				jif = req->start_jif;
-+			else
-+				req = NULL;
-+			spin_unlock_irq(&device->resource->req_lock);
-+		}
-+		if (n) {
-+			seq_printf(m, "%u\t%u\t", device->minor, device->vnr);
-+			if (req)
-+				seq_printf(m, "%u\t", jiffies_to_msecs(now - jif));
-+			else
-+				seq_puts(m, "-\t");
-+			seq_printf(m, "%u\n", n);
-+		}
-+	}
-+	rcu_read_unlock();
-+}
-+
-+static void seq_print_device_bitmap_io(struct seq_file *m, struct drbd_device *device, unsigned long now)
-+{
-+	struct drbd_bm_aio_ctx *ctx;
-+	unsigned long start_jif;
-+	unsigned int in_flight;
-+	unsigned int flags;
-+	spin_lock_irq(&device->resource->req_lock);
-+	ctx = list_first_entry_or_null(&device->pending_bitmap_io, struct drbd_bm_aio_ctx, list);
-+	if (ctx && ctx->done)
-+		ctx = NULL;
-+	if (ctx) {
-+		start_jif = ctx->start_jif;
-+		in_flight = atomic_read(&ctx->in_flight);
-+		flags = ctx->flags;
-+	}
-+	spin_unlock_irq(&device->resource->req_lock);
-+	if (ctx) {
-+		seq_printf(m, "%u\t%u\t%c\t%u\t%u\n",
-+			device->minor, device->vnr,
-+			(flags & BM_AIO_READ) ? 'R' : 'W',
-+			jiffies_to_msecs(now - start_jif),
-+			in_flight);
-+	}
-+}
-+
-+static void seq_print_resource_pending_bitmap_io(struct seq_file *m, struct drbd_resource *resource, unsigned long now)
-+{
-+	struct drbd_device *device;
-+	unsigned int i;
-+
-+	seq_puts(m, "minor\tvnr\trw\tage\t#in-flight\n");
-+	rcu_read_lock();
-+	idr_for_each_entry(&resource->devices, device, i) {
-+		seq_print_device_bitmap_io(m, device, now);
-+	}
-+	rcu_read_unlock();
-+}
-+
-+/* pretty print enum peer_req->flags */
-+static void seq_print_peer_request_flags(struct seq_file *m, struct drbd_peer_request *peer_req)
-+{
-+	unsigned long f = peer_req->flags;
-+	char sep = ' ';
-+
-+	__seq_print_rq_state_bit(m, f & EE_SUBMITTED, &sep, "submitted", "preparing");
-+	__seq_print_rq_state_bit(m, f & EE_APPLICATION, &sep, "application", "internal");
-+	seq_print_rq_state_bit(m, f & EE_CALL_AL_COMPLETE_IO, &sep, "in-AL");
-+	seq_print_rq_state_bit(m, f & EE_SEND_WRITE_ACK, &sep, "C");
-+	seq_print_rq_state_bit(m, f & EE_MAY_SET_IN_SYNC, &sep, "set-in-sync");
-+
-+	if (f & EE_IS_TRIM) {
-+		seq_putc(m, sep);
-+		sep = '|';
-+		if (f & EE_IS_TRIM_USE_ZEROOUT)
-+			seq_puts(m, "zero-out");
-+		else
-+			seq_puts(m, "trim");
-+	}
-+	seq_putc(m, '\n');
-+}
-+
-+static void seq_print_peer_request(struct seq_file *m,
-+	struct drbd_device *device, struct list_head *lh,
++static void seq_print_one_timing_detail(struct seq_file *m,
++	const struct drbd_thread_timing_details *tdp,
 +	unsigned long now)
 +{
-+	bool reported_preparing = false;
-+	struct drbd_peer_request *peer_req;
-+	list_for_each_entry(peer_req, lh, w.list) {
-+		if (reported_preparing && !(peer_req->flags & EE_SUBMITTED))
-+			continue;
-+
-+		if (device)
-+			seq_printf(m, "%u\t%u\t", device->minor, device->vnr);
-+
-+		seq_printf(m, "%llu\t%u\t%c\t%u\t",
-+			(unsigned long long)peer_req->i.sector, peer_req->i.size >> 9,
-+			(peer_req->flags & EE_WRITE) ? 'W' : 'R',
-+			jiffies_to_msecs(now - peer_req->submit_jif));
-+		seq_print_peer_request_flags(m, peer_req);
-+		if (peer_req->flags & EE_SUBMITTED)
-+			break;
-+		else
-+			reported_preparing = true;
-+	}
++	struct drbd_thread_timing_details td;
++	/* No locking...
++	 * use temporary assignment to get at consistent data. */
++	do {
++		td = *tdp;
++	} while (td.cb_nr != tdp->cb_nr);
++	if (!td.cb_addr)
++		return;
++	seq_printf(m, "%u\t%d\t%s:%u\t%ps\n",
++			td.cb_nr,
++			jiffies_to_msecs(now - td.start_jif),
++			td.caller_fn, td.line,
++			td.cb_addr);
 +}
 +
-+static void seq_print_device_peer_requests(struct seq_file *m,
-+	struct drbd_device *device, unsigned long now)
++static void seq_print_timing_details(struct seq_file *m,
++		const char *title,
++		unsigned int cb_nr, struct drbd_thread_timing_details *tdp, unsigned long now)
 +{
-+	seq_puts(m, "minor\tvnr\tsector\tsize\trw\tage\tflags\n");
-+	spin_lock_irq(&device->resource->req_lock);
-+	seq_print_peer_request(m, device, &device->active_ee, now);
-+	seq_print_peer_request(m, device, &device->read_ee, now);
-+	seq_print_peer_request(m, device, &device->sync_ee, now);
-+	spin_unlock_irq(&device->resource->req_lock);
-+	if (test_bit(FLUSH_PENDING, &device->flags)) {
-+		seq_printf(m, "%u\t%u\t-\t-\tF\t%u\tflush\n",
-+			device->minor, device->vnr,
-+			jiffies_to_msecs(now - device->flush_jif));
-+	}
-+}
-+
-+static void seq_print_resource_pending_peer_requests(struct seq_file *m,
-+	struct drbd_resource *resource, unsigned long now)
-+{
-+	struct drbd_device *device;
++	unsigned int start_idx;
 +	unsigned int i;
 +
-+	rcu_read_lock();
-+	idr_for_each_entry(&resource->devices, device, i) {
-+		seq_print_device_peer_requests(m, device, now);
-+	}
-+	rcu_read_unlock();
++	seq_printf(m, "%s\n", title);
++	/* If not much is going on, this will result in natural ordering.
++	 * If it is very busy, we will possibly skip events, or even see wrap
++	 * arounds, which could only be avoided with locking.
++	 */
++	start_idx = cb_nr % DRBD_THREAD_DETAILS_HIST;
++	for (i = start_idx; i < DRBD_THREAD_DETAILS_HIST; i++)
++		seq_print_one_timing_detail(m, tdp+i, now);
++	for (i = 0; i < start_idx; i++)
++		seq_print_one_timing_detail(m, tdp+i, now);
 +}
 +
- static void seq_print_resource_transfer_log_summary(struct seq_file *m,
- 	struct drbd_resource *resource,
- 	struct drbd_connection *connection,
-@@ -180,6 +368,37 @@ static int in_flight_summary_show(struct seq_file *m, void *pos)
- 	if (!connection || !kref_get_unless_zero(&connection->kref))
- 		return -ESTALE;
++static int callback_history_show(struct seq_file *m, void *ignored)
++{
++	struct drbd_connection *connection = m->private;
++	unsigned long jif = jiffies;
++
++	seq_puts(m, "n\tage\tcallsite\tfn\n");
++	seq_print_timing_details(m, "worker", connection->w_cb_nr, connection->w_timing_details, jif);
++	seq_print_timing_details(m, "receiver", connection->r_cb_nr, connection->r_timing_details, jif);
++	return 0;
++}
++
++static int callback_history_open(struct inode *inode, struct file *file)
++{
++	struct drbd_connection *connection = inode->i_private;
++	return drbd_single_open(file, callback_history_show, connection,
++				&connection->kref, drbd_destroy_connection);
++}
++
++static int callback_history_release(struct inode *inode, struct file *file)
++{
++	struct drbd_connection *connection = inode->i_private;
++	kref_put(&connection->kref, drbd_destroy_connection);
++	return single_release(inode, file);
++}
++
++static const struct file_operations connection_callback_history_fops = {
++	.owner		= THIS_MODULE,
++	.open		= callback_history_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= callback_history_release,
++};
++
+ void drbd_debugfs_connection_add(struct drbd_connection *connection)
+ {
+ 	struct dentry *conns_dir = connection->resource->debugfs_res_connections;
+@@ -535,6 +606,13 @@ void drbd_debugfs_connection_add(struct drbd_connection *connection)
+ 	if (IS_ERR_OR_NULL(dentry))
+ 		goto fail;
+ 	connection->debugfs_conn = dentry;
++
++	dentry = debugfs_create_file("callback_history", S_IRUSR|S_IRGRP,
++			connection->debugfs_conn, connection,
++			&connection_callback_history_fops);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	connection->debugfs_conn_callback_history = dentry;
+ 	return;
  
-+	seq_puts(m, "oldest bitmap IO\n");
-+	seq_print_resource_pending_bitmap_io(m, resource, jif);
-+	seq_putc(m, '\n');
-+
-+	seq_puts(m, "meta data IO\n");
-+	seq_print_resource_pending_meta_io(m, resource, jif);
-+	seq_putc(m, '\n');
-+
-+	seq_puts(m, "socket buffer stats\n");
-+	/* for each connection ... once we have more than one */
-+	rcu_read_lock();
-+	if (connection->data.socket) {
-+		/* open coded SIOCINQ, the "relevant" part */
-+		struct tcp_sock *tp = tcp_sk(connection->data.socket->sk);
-+		int answ = tp->rcv_nxt - tp->copied_seq;
-+		seq_printf(m, "unread receive buffer: %u Byte\n", answ);
-+		/* open coded SIOCOUTQ, the "relevant" part */
-+		answ = tp->write_seq - tp->snd_una;
-+		seq_printf(m, "unacked send buffer: %u Byte\n", answ);
-+	}
-+	rcu_read_unlock();
-+	seq_putc(m, '\n');
-+
-+	seq_puts(m, "oldest peer requests\n");
-+	seq_print_resource_pending_peer_requests(m, resource, jif);
-+	seq_putc(m, '\n');
-+
-+	seq_puts(m, "application requests waiting for activity log\n");
-+	seq_print_waiting_for_AL(m, resource, jif);
-+	seq_putc(m, '\n');
-+
- 	seq_puts(m, "oldest application requests\n");
- 	seq_print_resource_transfer_log_summary(m, resource, connection, jif);
- 	seq_putc(m, '\n');
+ fail:
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 20f2b38..30ed430 100644
+index 30ed430..1a00001 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -522,6 +522,9 @@ enum {
- 	DISCARD_MY_DATA,	/* discard_my_data flag per volume */
- 	READ_BALANCE_RR,
+@@ -697,6 +697,15 @@ struct drbd_resource {
+ 	cpumask_var_t cpu_mask;
+ };
  
-+	FLUSH_PENDING,		/* if set, device->flush_jif is when we submitted that flush
-+				 * from drbd_flush_after_epoch() */
-+
- 	/* cleared only after backing device related structures have been destroyed. */
- 	GOING_DISKLESS,		/* Disk is being detached, because of io-error, or admin request. */
- 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 01de57e..9712bcc 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2982,24 +2982,29 @@ void drbd_free_ldev(struct drbd_backing_dev *ldev)
- 	kfree(ldev);
- }
- 
--void drbd_free_sock(struct drbd_connection *connection)
-+static void drbd_free_one_sock(struct drbd_socket *ds)
- {
--	if (connection->data.socket) {
--		mutex_lock(&connection->data.mutex);
--		kernel_sock_shutdown(connection->data.socket, SHUT_RDWR);
--		sock_release(connection->data.socket);
--		connection->data.socket = NULL;
--		mutex_unlock(&connection->data.mutex);
--	}
--	if (connection->meta.socket) {
--		mutex_lock(&connection->meta.mutex);
--		kernel_sock_shutdown(connection->meta.socket, SHUT_RDWR);
--		sock_release(connection->meta.socket);
--		connection->meta.socket = NULL;
--		mutex_unlock(&connection->meta.mutex);
-+	struct socket *s;
-+	mutex_lock(&ds->mutex);
-+	s = ds->socket;
-+	ds->socket = NULL;
-+	mutex_unlock(&ds->mutex);
-+	if (s) {
-+		/* so debugfs does not need to mutex_lock() */
-+		synchronize_rcu();
-+		kernel_sock_shutdown(s, SHUT_RDWR);
-+		sock_release(s);
- 	}
- }
- 
-+void drbd_free_sock(struct drbd_connection *connection)
++struct drbd_thread_timing_details
 +{
-+	if (connection->data.socket)
-+		drbd_free_one_sock(&connection->data);
-+	if (connection->meta.socket)
-+		drbd_free_one_sock(&connection->meta);
-+}
++	unsigned long start_jif;
++	void *cb_addr;
++	const char *caller_fn;
++	unsigned int line;
++	unsigned int cb_nr;
++};
 +
- /* meta data management */
+ struct drbd_connection {
+ 	struct list_head connections;
+ 	struct drbd_resource *resource;
+@@ -759,6 +768,12 @@ struct drbd_connection {
+ 	/* sender side */
+ 	struct drbd_work_queue sender_work;
  
- void conn_md_sync(struct drbd_connection *connection)
++#define DRBD_THREAD_DETAILS_HIST	16
++	unsigned int w_cb_nr; /* keeps counting up */
++	unsigned int r_cb_nr; /* keeps counting up */
++	struct drbd_thread_timing_details w_timing_details[DRBD_THREAD_DETAILS_HIST];
++	struct drbd_thread_timing_details r_timing_details[DRBD_THREAD_DETAILS_HIST];
++
+ 	struct {
+ 		/* whether this sender thread
+ 		 * has processed a single write yet. */
+@@ -774,6 +789,17 @@ struct drbd_connection {
+ 	} send;
+ };
+ 
++void __update_timing_details(
++		struct drbd_thread_timing_details *tdp,
++		unsigned int *cb_nr,
++		void *cb,
++		const char *fn, const unsigned int line);
++
++#define update_worker_timing_details(c, cb) \
++	__update_timing_details(c->w_timing_details, &c->w_cb_nr, cb, __func__ , __LINE__ )
++#define update_receiver_timing_details(c, cb) \
++	__update_timing_details(c->r_timing_details, &c->r_cb_nr, cb, __func__ , __LINE__ )
++
+ struct submit_worker {
+ 	struct workqueue_struct *wq;
+ 	struct work_struct worker;
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 42e3835..9f6ed24 100644
+index 9f6ed24..f972988 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1187,8 +1187,16 @@ static void drbd_flush(struct drbd_connection *connection)
- 			kref_get(&device->kref);
- 			rcu_read_unlock();
+@@ -2682,9 +2682,11 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
+ 	list_add_tail(&peer_req->w.list, &device->read_ee);
+ 	spin_unlock_irq(&device->resource->req_lock);
  
-+			/* Right now, we have only this one synchronous code path
-+			 * for flushes between request epochs.
-+			 * We may want to make those asynchronous,
-+			 * or at least parallelize the flushes to the volume devices.
-+			 */
-+			device->flush_jif = jiffies;
-+			set_bit(FLUSH_PENDING, &device->flags);
- 			rv = blkdev_issue_flush(device->ldev->backing_bdev,
- 					GFP_NOIO, NULL);
-+			clear_bit(FLUSH_PENDING, &device->flags);
- 			if (rv) {
- 				drbd_info(device, "local disk flush failed with status %d\n", rv);
- 				/* would rather check on EOPNOTSUPP, but that is not reliable.
++	update_receiver_timing_details(connection, drbd_rs_should_slow_down);
+ 	if (device->state.peer != R_PRIMARY
+ 	&& drbd_rs_should_slow_down(device, sector, false))
+ 		schedule_timeout_uninterruptible(HZ/10);
++	update_receiver_timing_details(connection, drbd_rs_begin_io);
+ 	if (drbd_rs_begin_io(device, sector))
+ 		goto out_free_e;
+ 
+@@ -2692,6 +2694,7 @@ submit_for_resync:
+ 	atomic_add(size >> 9, &device->rs_sect_ev);
+ 
+ submit:
++	update_receiver_timing_details(connection, drbd_submit_peer_request);
+ 	inc_unacked(device);
+ 	if (drbd_submit_peer_request(device, peer_req, READ, fault_type) == 0)
+ 		return 0;
+@@ -4601,6 +4604,7 @@ static void drbdd(struct drbd_connection *connection)
+ 		struct data_cmd *cmd;
+ 
+ 		drbd_thread_current_set_cpu(&connection->receiver);
++		update_receiver_timing_details(connection, drbd_recv_header);
+ 		if (drbd_recv_header(connection, &pi))
+ 			goto err_out;
+ 
+@@ -4619,12 +4623,14 @@ static void drbdd(struct drbd_connection *connection)
+ 		}
+ 
+ 		if (shs) {
++			update_receiver_timing_details(connection, drbd_recv_all_warn);
+ 			err = drbd_recv_all_warn(connection, pi.data, shs);
+ 			if (err)
+ 				goto err_out;
+ 			pi.size -= shs;
+ 		}
+ 
++		update_receiver_timing_details(connection, cmd->fn);
+ 		err = cmd->fn(connection, &pi);
+ 		if (err) {
+ 			drbd_err(connection, "error receiving %s, e: %d l: %d!\n",
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index b908e9b..50776b3 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1905,6 +1905,29 @@ static int do_md_sync(struct drbd_device *device)
+ 	return 0;
+ }
+ 
++/* only called from drbd_worker thread, no locking */
++void __update_timing_details(
++		struct drbd_thread_timing_details *tdp,
++		unsigned int *cb_nr,
++		void *cb,
++		const char *fn, const unsigned int line)
++{
++	unsigned int i = *cb_nr % DRBD_THREAD_DETAILS_HIST;
++	struct drbd_thread_timing_details *td = tdp + i;
++
++	td->start_jif = jiffies;
++	td->cb_addr = cb;
++	td->caller_fn = fn;
++	td->line = line;
++	td->cb_nr = *cb_nr;
++
++	i = (i+1) % DRBD_THREAD_DETAILS_HIST;
++	td = tdp + i;
++	memset(td, 0, sizeof(*td));
++
++	++(*cb_nr);
++}
++
+ #define WORK_PENDING(work_bit, todo)	(todo & (1UL << work_bit))
+ static void do_device_work(struct drbd_device *device, const unsigned long todo)
+ {
+@@ -2076,11 +2099,15 @@ int drbd_worker(struct drbd_thread *thi)
+ 	while (get_t_state(thi) == RUNNING) {
+ 		drbd_thread_current_set_cpu(thi);
+ 
+-		if (list_empty(&work_list))
++		if (list_empty(&work_list)) {
++			update_worker_timing_details(connection, wait_for_work);
+ 			wait_for_work(connection, &work_list);
++		}
+ 
+-		if (test_and_clear_bit(DEVICE_WORK_PENDING, &connection->flags))
++		if (test_and_clear_bit(DEVICE_WORK_PENDING, &connection->flags)) {
++			update_worker_timing_details(connection, do_unqueued_work);
+ 			do_unqueued_work(connection);
++		}
+ 
+ 		if (signal_pending(current)) {
+ 			flush_signals(current);
+@@ -2097,6 +2124,7 @@ int drbd_worker(struct drbd_thread *thi)
+ 		while (!list_empty(&work_list)) {
+ 			w = list_first_entry(&work_list, struct drbd_work, list);
+ 			list_del_init(&w->list);
++			update_worker_timing_details(connection, w->cb);
+ 			if (w->cb(w, connection->cstate < C_WF_REPORT_PARAMS) == 0)
+ 				continue;
+ 			if (connection->cstate >= C_WF_REPORT_PARAMS)
+@@ -2105,11 +2133,14 @@ int drbd_worker(struct drbd_thread *thi)
+ 	}
+ 
+ 	do {
+-		if (test_and_clear_bit(DEVICE_WORK_PENDING, &connection->flags))
++		if (test_and_clear_bit(DEVICE_WORK_PENDING, &connection->flags)) {
++			update_worker_timing_details(connection, do_unqueued_work);
+ 			do_unqueued_work(connection);
++		}
+ 		while (!list_empty(&work_list)) {
+ 			w = list_first_entry(&work_list, struct drbd_work, list);
+ 			list_del_init(&w->list);
++			update_worker_timing_details(connection, w->cb);
+ 			w->cb(w, 1);
+ 		}
+ 		dequeue_work_batch(&connection->sender_work, &work_list);
 -- 
 1.9.1
 
