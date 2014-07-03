@@ -1,16 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5D6C2101AC79
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6F240101AC75
 	for <drbd-dev@lists.linbit.com>; Thu,  3 Jul 2014 10:43:16 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu,  3 Jul 2014 10:43:02 +0200
-Message-Id: <1404376995-4877-11-git-send-email-philipp.reisner@linbit.com>
+Date: Thu,  3 Jul 2014 10:43:03 +0200
+Message-Id: <1404376995-4877-12-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1404376995-4877-1-git-send-email-philipp.reisner@linbit.com>
 References: <1404376995-4877-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 10/23] drbd: track details of bitmap IO
+Subject: [Drbd-dev] [PATCH 11/23] drbd: debugfs: add basic hierarchy
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,285 +24,443 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Track start and submit time of bitmap operations, and
-add pending bitmap IO contexts to a new pending_bitmap_io list.
+Add new debugfs hierarchy /sys/kernel/debug/
+  drbd/
+    resources/
+      $resource_name/connections/peer/$volume_number/
+      $resource_name/volumes/$volume_number/
+    minors/$minor_number -> ../resources/$resource_name/volumes/$volume_number/
+
+Followup commits will populate this hierarchy with files containing
+statistics, diagnostic information and some attribute data.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_bitmap.c | 70 +++++++++++++++++++---------------------
- drivers/block/drbd/drbd_int.h    | 16 +++++++++
- drivers/block/drbd/drbd_main.c   |  1 +
- 3 files changed, 51 insertions(+), 36 deletions(-)
+ drivers/block/drbd/Makefile       |   1 +
+ drivers/block/drbd/drbd_debugfs.c | 191 ++++++++++++++++++++++++++++++++++++++
+ drivers/block/drbd/drbd_debugfs.h |  39 ++++++++
+ drivers/block/drbd/drbd_int.h     |  30 +++++-
+ drivers/block/drbd/drbd_main.c    |  22 ++++-
+ 5 files changed, 278 insertions(+), 5 deletions(-)
+ create mode 100644 drivers/block/drbd/drbd_debugfs.c
+ create mode 100644 drivers/block/drbd/drbd_debugfs.h
 
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index c5f5a20..f435e7e 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -928,22 +928,14 @@ void drbd_bm_clear_all(struct drbd_device *device)
- 	spin_unlock_irq(&b->bm_lock);
- }
+diff --git a/drivers/block/drbd/Makefile b/drivers/block/drbd/Makefile
+index 8b45033..4464e35 100644
+--- a/drivers/block/drbd/Makefile
++++ b/drivers/block/drbd/Makefile
+@@ -3,5 +3,6 @@ drbd-y += drbd_worker.o drbd_receiver.o drbd_req.o drbd_actlog.o
+ drbd-y += drbd_main.o drbd_strings.o drbd_nl.o
+ drbd-y += drbd_interval.o drbd_state.o
+ drbd-y += drbd_nla.o
++drbd-$(CONFIG_DEBUG_FS) += drbd_debugfs.o
  
--struct bm_aio_ctx {
--	struct drbd_device *device;
--	atomic_t in_flight;
--	unsigned int done;
--	unsigned flags;
--#define BM_AIO_COPY_PAGES	1
--#define BM_AIO_WRITE_HINTED	2
--#define BM_WRITE_ALL_PAGES	4
--	int error;
--	struct kref kref;
--};
--
--static void bm_aio_ctx_destroy(struct kref *kref)
-+static void drbd_bm_aio_ctx_destroy(struct kref *kref)
- {
--	struct bm_aio_ctx *ctx = container_of(kref, struct bm_aio_ctx, kref);
-+	struct drbd_bm_aio_ctx *ctx = container_of(kref, struct drbd_bm_aio_ctx, kref);
-+	unsigned long flags;
- 
-+	spin_lock_irqsave(&ctx->device->resource->req_lock, flags);
-+	list_del(&ctx->list);
-+	spin_unlock_irqrestore(&ctx->device->resource->req_lock, flags);
- 	put_ldev(ctx->device);
- 	kfree(ctx);
- }
-@@ -951,7 +943,7 @@ static void bm_aio_ctx_destroy(struct kref *kref)
- /* bv_page may be a copy, or may be the original */
- static void bm_async_io_complete(struct bio *bio, int error)
- {
--	struct bm_aio_ctx *ctx = bio->bi_private;
-+	struct drbd_bm_aio_ctx *ctx = bio->bi_private;
- 	struct drbd_device *device = ctx->device;
- 	struct drbd_bitmap *b = device->bitmap;
- 	unsigned int idx = bm_page_to_idx(bio->bi_io_vec[0].bv_page);
-@@ -994,17 +986,18 @@ static void bm_async_io_complete(struct bio *bio, int error)
- 	if (atomic_dec_and_test(&ctx->in_flight)) {
- 		ctx->done = 1;
- 		wake_up(&device->misc_wait);
--		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
-+		kref_put(&ctx->kref, &drbd_bm_aio_ctx_destroy);
- 	}
- }
- 
--static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must_hold(local)
-+static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_hold(local)
- {
- 	struct bio *bio = bio_alloc_drbd(GFP_NOIO);
- 	struct drbd_device *device = ctx->device;
- 	struct drbd_bitmap *b = device->bitmap;
- 	struct page *page;
- 	unsigned int len;
-+	unsigned int rw = (ctx->flags & BM_AIO_READ) ? READ : WRITE;
- 
- 	sector_t on_disk_sector =
- 		device->ldev->md.md_offset + device->ldev->md.bm_offset;
-@@ -1050,9 +1043,9 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
- /*
-  * bm_rw: read/write the whole bitmap from/to its on disk location.
-  */
--static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned lazy_writeout_upper_idx) __must_hold(local)
-+static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned lazy_writeout_upper_idx) __must_hold(local)
- {
--	struct bm_aio_ctx *ctx;
-+	struct drbd_bm_aio_ctx *ctx;
- 	struct drbd_bitmap *b = device->bitmap;
- 	int num_pages, i, count = 0;
- 	unsigned long now;
-@@ -1068,12 +1061,13 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
- 	 * as we submit copies of pages anyways.
- 	 */
- 
--	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_NOIO);
-+	ctx = kmalloc(sizeof(struct drbd_bm_aio_ctx), GFP_NOIO);
- 	if (!ctx)
- 		return -ENOMEM;
- 
--	*ctx = (struct bm_aio_ctx) {
-+	*ctx = (struct drbd_bm_aio_ctx) {
- 		.device = device,
-+		.start_jif = jiffies,
- 		.in_flight = ATOMIC_INIT(1),
- 		.done = 0,
- 		.flags = flags,
-@@ -1081,7 +1075,7 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
- 		.kref = { ATOMIC_INIT(2) },
- 	};
- 
--	if (!get_ldev_if_state(device, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
-+	if (!get_ldev_if_state(device, D_ATTACHING)) {  /* put is in drbd_bm_aio_ctx_destroy() */
- 		drbd_err(device, "ASSERT FAILED: get_ldev_if_state() == 1 in bm_rw()\n");
- 		kfree(ctx);
- 		return -ENODEV;
-@@ -1089,9 +1083,13 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
- 	/* Here D_ATTACHING is sufficient since drbd_bm_read() is called only from
- 	   drbd_adm_attach(), after device->ldev was assigned. */
- 
--	if (!ctx->flags)
-+	if (0 == (ctx->flags & ~BM_AIO_READ))
- 		WARN_ON(!(BM_LOCKED_MASK & b->bm_flags));
- 
-+	spin_lock_irq(&device->resource->req_lock);
-+	list_add_tail(&ctx->list, &device->pending_bitmap_io);
-+	spin_unlock_irq(&device->resource->req_lock);
+ obj-$(CONFIG_BLK_DEV_DRBD)     += drbd.o
+diff --git a/drivers/block/drbd/drbd_debugfs.c b/drivers/block/drbd/drbd_debugfs.c
+new file mode 100644
+index 0000000..9b120c3
+--- /dev/null
++++ b/drivers/block/drbd/drbd_debugfs.c
+@@ -0,0 +1,191 @@
++#define pr_fmt(fmt) "drbd debugfs: " fmt
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/debugfs.h>
++#include <linux/stat.h>
++#include <linux/list.h>
 +
- 	num_pages = b->bm_number_of_pages;
- 
- 	now = jiffies;
-@@ -1101,13 +1099,13 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
- 		/* ignore completely unchanged pages */
- 		if (lazy_writeout_upper_idx && i == lazy_writeout_upper_idx)
- 			break;
--		if (rw & WRITE) {
-+		if (!(flags & BM_AIO_READ)) {
- 			if ((flags & BM_AIO_WRITE_HINTED) &&
- 			    !test_and_clear_bit(BM_PAGE_HINT_WRITEOUT,
- 				    &page_private(b->bm_pages[i])))
- 				continue;
- 
--			if (!(flags & BM_WRITE_ALL_PAGES) &&
-+			if (!(flags & BM_AIO_WRITE_ALL_PAGES) &&
- 			    bm_test_page_unchanged(b->bm_pages[i])) {
- 				dynamic_drbd_dbg(device, "skipped bm write for idx %u\n", i);
- 				continue;
-@@ -1121,7 +1119,7 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
- 			}
- 		}
- 		atomic_inc(&ctx->in_flight);
--		bm_page_io_async(ctx, i, rw);
-+		bm_page_io_async(ctx, i);
- 		++count;
- 		cond_resched();
- 	}
-@@ -1137,12 +1135,12 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
- 	if (!atomic_dec_and_test(&ctx->in_flight))
- 		wait_until_done_or_force_detached(device, device->ldev, &ctx->done);
- 	else
--		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
-+		kref_put(&ctx->kref, &drbd_bm_aio_ctx_destroy);
- 
- 	/* summary for global bitmap IO */
- 	if (flags == 0)
- 		drbd_info(device, "bitmap %s of %u pages took %lu jiffies\n",
--			 rw == WRITE ? "WRITE" : "READ",
-+			 (flags & BM_AIO_READ) ? "READ" : "WRITE",
- 			 count, jiffies - now);
- 
- 	if (ctx->error) {
-@@ -1155,18 +1153,18 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
- 		err = -EIO; /* Disk timeout/force-detach during IO... */
- 
- 	now = jiffies;
--	if (rw == READ) {
-+	if (flags & BM_AIO_READ) {
- 		b->bm_set = bm_count_bits(b);
- 		drbd_info(device, "recounting of set bits took additional %lu jiffies\n",
- 		     jiffies - now);
- 	}
- 	now = b->bm_set;
- 
--	if (flags == 0)
-+	if ((flags & ~BM_AIO_READ) == 0)
- 		drbd_info(device, "%s (%lu bits) marked out-of-sync by on disk bit-map.\n",
- 		     ppsize(ppb, now << (BM_BLOCK_SHIFT-10)), now);
- 
--	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
-+	kref_put(&ctx->kref, &drbd_bm_aio_ctx_destroy);
- 	return err;
- }
- 
-@@ -1176,7 +1174,7 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
-  */
- int drbd_bm_read(struct drbd_device *device) __must_hold(local)
- {
--	return bm_rw(device, READ, 0, 0);
-+	return bm_rw(device, BM_AIO_READ, 0);
- }
- 
- /**
-@@ -1187,7 +1185,7 @@ int drbd_bm_read(struct drbd_device *device) __must_hold(local)
-  */
- int drbd_bm_write(struct drbd_device *device) __must_hold(local)
- {
--	return bm_rw(device, WRITE, 0, 0);
-+	return bm_rw(device, 0, 0);
- }
- 
- /**
-@@ -1198,7 +1196,7 @@ int drbd_bm_write(struct drbd_device *device) __must_hold(local)
-  */
- int drbd_bm_write_all(struct drbd_device *device) __must_hold(local)
- {
--	return bm_rw(device, WRITE, BM_WRITE_ALL_PAGES, 0);
-+	return bm_rw(device, BM_AIO_WRITE_ALL_PAGES, 0);
- }
- 
- /**
-@@ -1214,7 +1212,7 @@ int drbd_bm_write_all(struct drbd_device *device) __must_hold(local)
-  */
- int drbd_bm_write_copy_pages(struct drbd_device *device) __must_hold(local)
- {
--	return bm_rw(device, WRITE, BM_AIO_COPY_PAGES, 0);
-+	return bm_rw(device, BM_AIO_COPY_PAGES, 0);
- }
- 
- /**
-@@ -1223,7 +1221,7 @@ int drbd_bm_write_copy_pages(struct drbd_device *device) __must_hold(local)
-  */
- int drbd_bm_write_hinted(struct drbd_device *device) __must_hold(local)
- {
--	return bm_rw(device, WRITE, BM_AIO_WRITE_HINTED | BM_AIO_COPY_PAGES, 0);
-+	return bm_rw(device, BM_AIO_WRITE_HINTED | BM_AIO_COPY_PAGES, 0);
- }
- 
- /* NOTE
++#include "drbd_int.h"
++#include "drbd_req.h"
++#include "drbd_debugfs.h"
++
++static struct dentry *drbd_debugfs_root;
++static struct dentry *drbd_debugfs_resources;
++static struct dentry *drbd_debugfs_minors;
++
++void drbd_debugfs_resource_add(struct drbd_resource *resource)
++{
++	struct dentry *dentry;
++	if (!drbd_debugfs_resources)
++		return;
++
++	dentry = debugfs_create_dir(resource->name, drbd_debugfs_resources);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	resource->debugfs_res = dentry;
++
++	dentry = debugfs_create_dir("volumes", resource->debugfs_res);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	resource->debugfs_res_volumes = dentry;
++
++	dentry = debugfs_create_dir("connections", resource->debugfs_res);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	resource->debugfs_res_connections = dentry;
++
++	return;
++
++fail:
++	drbd_debugfs_resource_cleanup(resource);
++	drbd_err(resource, "failed to create debugfs dentry\n");
++}
++
++static void drbd_debugfs_remove(struct dentry **dp)
++{
++	debugfs_remove(*dp);
++	*dp = NULL;
++}
++
++void drbd_debugfs_resource_cleanup(struct drbd_resource *resource)
++{
++	/* it is ok to call debugfs_remove(NULL) */
++	drbd_debugfs_remove(&resource->debugfs_res_in_flight_summary);
++	drbd_debugfs_remove(&resource->debugfs_res_connections);
++	drbd_debugfs_remove(&resource->debugfs_res_volumes);
++	drbd_debugfs_remove(&resource->debugfs_res);
++}
++
++void drbd_debugfs_connection_add(struct drbd_connection *connection)
++{
++	struct dentry *conns_dir = connection->resource->debugfs_res_connections;
++	struct dentry *dentry;
++	if (!conns_dir)
++		return;
++
++	/* Once we enable mutliple peers,
++	 * these connections will have descriptive names.
++	 * For now, it is just the one connection to the (only) "peer". */
++	dentry = debugfs_create_dir("peer", conns_dir);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	connection->debugfs_conn = dentry;
++	return;
++
++fail:
++	drbd_debugfs_connection_cleanup(connection);
++	drbd_err(connection, "failed to create debugfs dentry\n");
++}
++
++void drbd_debugfs_connection_cleanup(struct drbd_connection *connection)
++{
++	drbd_debugfs_remove(&connection->debugfs_conn_callback_history);
++	drbd_debugfs_remove(&connection->debugfs_conn_oldest_requests);
++	drbd_debugfs_remove(&connection->debugfs_conn);
++}
++
++void drbd_debugfs_device_add(struct drbd_device *device)
++{
++	struct dentry *vols_dir = device->resource->debugfs_res_volumes;
++	char minor_buf[8]; /* MINORMASK, MINORBITS == 20; */
++	char vnr_buf[8];   /* volume number vnr is even 16 bit only; */
++	char *slink_name = NULL;
++
++	struct dentry *dentry;
++	if (!vols_dir || !drbd_debugfs_minors)
++		return;
++
++	snprintf(vnr_buf, sizeof(vnr_buf), "%u", device->vnr);
++	dentry = debugfs_create_dir(vnr_buf, vols_dir);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	device->debugfs_vol = dentry;
++
++	snprintf(minor_buf, sizeof(minor_buf), "%u", device->minor);
++	slink_name = kasprintf(GFP_KERNEL, "../resources/%s/volumes/%u",
++			device->resource->name, device->vnr);
++	if (!slink_name)
++		goto fail;
++	dentry = debugfs_create_symlink(minor_buf, drbd_debugfs_minors, slink_name);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	device->debugfs_minor = dentry;
++	kfree(slink_name);
++
++fail:
++	drbd_debugfs_device_cleanup(device);
++	drbd_err(device, "failed to create debugfs entries\n");
++}
++
++void drbd_debugfs_device_cleanup(struct drbd_device *device)
++{
++	drbd_debugfs_remove(&device->debugfs_minor);
++	drbd_debugfs_remove(&device->debugfs_vol_oldest_requests);
++	drbd_debugfs_remove(&device->debugfs_vol_act_log_extents);
++	drbd_debugfs_remove(&device->debugfs_vol_resync_extents);
++	drbd_debugfs_remove(&device->debugfs_vol_data_gen_id);
++	drbd_debugfs_remove(&device->debugfs_vol);
++}
++
++void drbd_debugfs_peer_device_add(struct drbd_peer_device *peer_device)
++{
++	struct dentry *conn_dir = peer_device->connection->debugfs_conn;
++	struct dentry *dentry;
++	char vnr_buf[8];
++
++	if (!conn_dir)
++		return;
++
++	snprintf(vnr_buf, sizeof(vnr_buf), "%u", peer_device->device->vnr);
++	dentry = debugfs_create_dir(vnr_buf, conn_dir);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	peer_device->debugfs_peer_dev = dentry;
++	return;
++
++fail:
++	drbd_debugfs_peer_device_cleanup(peer_device);
++	drbd_err(peer_device, "failed to create debugfs entries\n");
++}
++
++void drbd_debugfs_peer_device_cleanup(struct drbd_peer_device *peer_device)
++{
++	drbd_debugfs_remove(&peer_device->debugfs_peer_dev);
++}
++
++/* not __exit, may be indirectly called
++ * from the module-load-failure path as well. */
++void drbd_debugfs_cleanup(void)
++{
++	drbd_debugfs_remove(&drbd_debugfs_resources);
++	drbd_debugfs_remove(&drbd_debugfs_minors);
++	drbd_debugfs_remove(&drbd_debugfs_root);
++}
++
++int __init drbd_debugfs_init(void)
++{
++	struct dentry *dentry;
++
++	dentry = debugfs_create_dir("drbd", NULL);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	drbd_debugfs_root = dentry;
++
++	dentry = debugfs_create_dir("resources", drbd_debugfs_root);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	drbd_debugfs_resources = dentry;
++
++	dentry = debugfs_create_dir("minors", drbd_debugfs_root);
++	if (IS_ERR_OR_NULL(dentry))
++		goto fail;
++	drbd_debugfs_minors = dentry;
++	return 0;
++
++fail:
++	drbd_debugfs_cleanup();
++	if (dentry)
++		return PTR_ERR(dentry);
++	else
++		return -EINVAL;
++}
+diff --git a/drivers/block/drbd/drbd_debugfs.h b/drivers/block/drbd/drbd_debugfs.h
+new file mode 100644
+index 0000000..8bee213
+--- /dev/null
++++ b/drivers/block/drbd/drbd_debugfs.h
+@@ -0,0 +1,39 @@
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/debugfs.h>
++
++#include "drbd_int.h"
++
++#ifdef CONFIG_DEBUG_FS
++int __init drbd_debugfs_init(void);
++void drbd_debugfs_cleanup(void);
++
++void drbd_debugfs_resource_add(struct drbd_resource *resource);
++void drbd_debugfs_resource_cleanup(struct drbd_resource *resource);
++
++void drbd_debugfs_connection_add(struct drbd_connection *connection);
++void drbd_debugfs_connection_cleanup(struct drbd_connection *connection);
++
++void drbd_debugfs_device_add(struct drbd_device *device);
++void drbd_debugfs_device_cleanup(struct drbd_device *device);
++
++void drbd_debugfs_peer_device_add(struct drbd_peer_device *peer_device);
++void drbd_debugfs_peer_device_cleanup(struct drbd_peer_device *peer_device);
++#else
++
++static inline int __init drbd_debugfs_init(void) { return -ENODEV; }
++static inline void drbd_debugfs_cleanup(void) { }
++
++static inline void drbd_debugfs_resource_add(struct drbd_resource *resource) { }
++static inline void drbd_debugfs_resource_cleanup(struct drbd_resource *resource) { }
++
++static inline void drbd_debugfs_connection_add(struct drbd_connection *connection) { }
++static inline void drbd_debugfs_connection_cleanup(struct drbd_connection *connection) { }
++
++static inline void drbd_debugfs_device_add(struct drbd_device *device) { }
++static inline void drbd_debugfs_device_cleanup(struct drbd_device *device) { }
++
++static inline void drbd_debugfs_peer_device_add(struct drbd_peer_device *peer_device) { }
++static inline void drbd_debugfs_peer_device_cleanup(struct drbd_peer_device *peer_device) { }
++
++#endif
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index c7a409f..40c816c 100644
+index 40c816c..20f2b38 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -777,6 +777,7 @@ struct drbd_peer_device {
+@@ -670,6 +670,12 @@ enum {
+ 
+ struct drbd_resource {
+ 	char *name;
++#ifdef CONFIG_DEBUG_FS
++	struct dentry *debugfs_res;
++	struct dentry *debugfs_res_volumes;
++	struct dentry *debugfs_res_connections;
++	struct dentry *debugfs_res_in_flight_summary;
++#endif
+ 	struct kref kref;
+ 	struct idr devices;		/* volume number to device mapping */
+ 	struct list_head connections;
+@@ -691,6 +697,11 @@ struct drbd_resource {
+ struct drbd_connection {
+ 	struct list_head connections;
+ 	struct drbd_resource *resource;
++#ifdef CONFIG_DEBUG_FS
++	struct dentry *debugfs_conn;
++	struct dentry *debugfs_conn_callback_history;
++	struct dentry *debugfs_conn_oldest_requests;
++#endif
+ 	struct kref kref;
+ 	struct idr peer_devices;	/* volume number to peer device mapping */
+ 	enum drbd_conns cstate;		/* Only C_STANDALONE to C_WF_REPORT_PARAMS */
+@@ -772,13 +783,29 @@ struct drbd_peer_device {
+ 	struct list_head peer_devices;
+ 	struct drbd_device *device;
+ 	struct drbd_connection *connection;
++#ifdef CONFIG_DEBUG_FS
++	struct dentry *debugfs_peer_dev;
++#endif
+ };
+ 
  struct drbd_device {
  	struct drbd_resource *resource;
  	struct list_head peer_devices;
-+	struct list_head pending_bitmap_io;
- 	int vnr;			/* volume number within the connection */
+ 	struct list_head pending_bitmap_io;
+-	int vnr;			/* volume number within the connection */
++
++	unsigned long flush_jif;
++#ifdef CONFIG_DEBUG_FS
++	struct dentry *debugfs_minor;
++	struct dentry *debugfs_vol;
++	struct dentry *debugfs_vol_oldest_requests;
++	struct dentry *debugfs_vol_act_log_extents;
++	struct dentry *debugfs_vol_resync_extents;
++	struct dentry *debugfs_vol_data_gen_id;
++#endif
++
++	unsigned int vnr;	/* volume number within the connection */
++	unsigned int minor;	/* device minor number */
++
  	struct kref kref;
  
-@@ -918,6 +919,21 @@ struct drbd_device {
- 	struct submit_worker submit;
- };
- 
-+struct drbd_bm_aio_ctx {
-+	struct drbd_device *device;
-+	struct list_head list; /* on device->pending_bitmap_io */;
-+	unsigned long start_jif;
-+	atomic_t in_flight;
-+	unsigned int done;
-+	unsigned flags;
-+#define BM_AIO_COPY_PAGES	1
-+#define BM_AIO_WRITE_HINTED	2
-+#define BM_AIO_WRITE_ALL_PAGES	4
-+#define BM_AIO_READ		8
-+	int error;
-+	struct kref kref;
-+};
-+
- struct drbd_config_context {
- 	/* assigned from drbd_genlmsghdr */
- 	unsigned int minor;
+ 	/* things that are stored as / read from meta data on disk */
+@@ -895,7 +922,6 @@ struct drbd_device {
+ 	atomic_t packet_seq;
+ 	unsigned int peer_seq;
+ 	spinlock_t peer_seq_lock;
+-	unsigned int minor;
+ 	unsigned long comm_bm_set; /* communicated number of set bits. */
+ 	struct bm_io_work bm_io_work;
+ 	u64 ed_uuid; /* UUID of the exposed data */
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index ad7c0e8..922d631 100644
+index 922d631..01de57e 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -2793,6 +2793,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- 	kref_get(&device->kref);
+@@ -57,8 +57,8 @@
+ #include "drbd_int.h"
+ #include "drbd_protocol.h"
+ #include "drbd_req.h" /* only for _req_mod in tl_release and tl_clear */
+-
+ #include "drbd_vli.h"
++#include "drbd_debugfs.h"
  
- 	INIT_LIST_HEAD(&device->peer_devices);
-+	INIT_LIST_HEAD(&device->pending_bitmap_io);
+ static DEFINE_MUTEX(drbd_main_mutex);
+ static int drbd_open(struct block_device *bdev, fmode_t mode);
+@@ -2308,8 +2308,10 @@ void drbd_free_resource(struct drbd_resource *resource)
+ 
+ 	for_each_connection_safe(connection, tmp, resource) {
+ 		list_del(&connection->connections);
++		drbd_debugfs_connection_cleanup(connection);
+ 		kref_put(&connection->kref, drbd_destroy_connection);
+ 	}
++	drbd_debugfs_resource_cleanup(resource);
+ 	kref_put(&resource->kref, drbd_destroy_resource);
+ }
+ 
+@@ -2334,6 +2336,7 @@ static void drbd_cleanup(void)
+ 		destroy_workqueue(retry.wq);
+ 
+ 	drbd_genl_unregister();
++	drbd_debugfs_cleanup();
+ 
+ 	idr_for_each_entry(&drbd_devices, device, i)
+ 		drbd_delete_device(device);
+@@ -2583,6 +2586,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
+ 	mutex_init(&resource->conf_update);
+ 	mutex_init(&resource->adm_mutex);
+ 	spin_lock_init(&resource->req_lock);
++	drbd_debugfs_resource_add(resource);
+ 	return resource;
+ 
+ fail_free_name:
+@@ -2593,7 +2597,7 @@ fail:
+ 	return NULL;
+ }
+ 
+-/* caller must be under genl_lock() */
++/* caller must be under adm_mutex */
+ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
+ {
+ 	struct drbd_resource *resource;
+@@ -2651,6 +2655,7 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
+ 
+ 	kref_get(&resource->kref);
+ 	list_add_tail_rcu(&connection->connections, &resource->connections);
++	drbd_debugfs_connection_add(connection);
+ 	return connection;
+ 
+ fail_resource:
+@@ -2829,7 +2834,10 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 		for_each_peer_device(peer_device, device)
+ 			drbd_connected(peer_device);
+ 	}
+-
++	/* move to create_peer_device() */
++	for_each_peer_device(peer_device, device)
++		drbd_debugfs_peer_device_add(peer_device);
++	drbd_debugfs_device_add(device);
+ 	return NO_ERROR;
+ 
+ out_idr_remove_vol:
+@@ -2868,8 +2876,13 @@ void drbd_delete_device(struct drbd_device *device)
+ {
+ 	struct drbd_resource *resource = device->resource;
+ 	struct drbd_connection *connection;
++	struct drbd_peer_device *peer_device;
+ 	int refs = 3;
+ 
++	/* move to free_peer_device() */
++	for_each_peer_device(peer_device, device)
++		drbd_debugfs_peer_device_cleanup(peer_device);
++	drbd_debugfs_device_cleanup(device);
  	for_each_connection(connection, resource) {
- 		peer_device = kzalloc(sizeof(struct drbd_peer_device), GFP_KERNEL);
- 		if (!peer_device)
+ 		idr_remove(&connection->peer_devices, device->vnr);
+ 		refs++;
+@@ -2938,6 +2951,9 @@ static int __init drbd_init(void)
+ 	spin_lock_init(&retry.lock);
+ 	INIT_LIST_HEAD(&retry.writes);
+ 
++	if (drbd_debugfs_init())
++		pr_notice("failed to initialize debugfs -- will not be available\n");
++
+ 	pr_info("initialized. "
+ 	       "Version: " REL_VERSION " (api:%d/proto:%d-%d)\n",
+ 	       API_VERSION, PRO_VERSION_MIN, PRO_VERSION_MAX);
 -- 
 1.9.1
 
