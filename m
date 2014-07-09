@@ -1,21 +1,14 @@
-Return-Path: <lwang@suse.com>
-Received: from soto.provo.novell.com (soto.provo.novell.com [137.65.250.214])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 72CD1101AC75
-	for <drbd-dev@lists.linbit.com>; Mon,  7 Jul 2014 10:48:16 +0200 (CEST)
-Message-Id: <53BACEB7020000A000009B23@soto.provo.novell.com>
-Date: Mon, 07 Jul 2014 02:45:43 -0600
-From: "Liuhua Wang" <lwang@suse.com>
-To: "Roland Kammerer" <roland.kammerer@linbit.com>, <drbd-dev@lists.linbit.com>
-References: <53B6ED86020000A0000099B9@soto.provo.novell.com>
-	<20140707083415.GA1962@rck.sh>
-In-Reply-To: <20140707083415.GA1962@rck.sh>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Subject: Re: [Drbd-dev] [PATCH 1/1] fix drbd.rules to avoid start drbd fail
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 64841101E048
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Jul 2014 21:18:33 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: linux-kernel@vger.kernel.org,
+	Jens Axboe <axboe@kernel.dk>
+Date: Wed,  9 Jul 2014 21:18:31 +0200
+Message-Id: <1404933512-5166-1-git-send-email-philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] Fix DRBD regression
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,40 +20,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi, Roland
+Hi Jens,
 
->>> On 7/7/2014 at 04:34 PM, in message <20140707083415.GA1962@rck.sh>, =
-Roland
-Kammerer <roland.kammerer@linbit.com> wrote:=20
-> On Fri, Jul 04, 2014 at 04:08:06AM -0600, Liuhua Wang wrote:
-> > Hi, Roland
-> >=20
-> > Thank you for you reply.
->=20
-> You should really use the ML and not send me private mails...
+In 3.13 the commit 786235eeb 'kthread: make kthread_create() killable'
+broke DRBD's fence peer mechanism in a subtle way. Since only a part
+of our user base has fencing properly configured this regression was
+unnoticed until now. Please consider to submit this for 3.16-rc5.
 
-Sorry, I forgot "cc" to ML.
+Thanks,
+ Phil
 
-> >=20
-> > There is only drbd0 under /dev/.
-> > I think if user can set the device name to "/dev/drbd_r0"
-> > it will be better to have the name under /dev.
-> >=20
->=20
-> I checked with one of our senior-devs and you are actually using
-> depricated behavior. What you should use is /dev/drbd/by-*, and not the
-> device name in /dev.
-OK, we can use /dev/drbd/by-*, but still there is rename problem
-in your udev rules, except not permit user to configure the device name.
+Lars Ellenberg (1):
+  drbd: fix regression 'out of mem, failed to invoke fence-peer helper'
 
-Regards,
- Liuhua
---
-Liuhua Wang
-lwang@suse.com
+ drivers/block/drbd/drbd_nl.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-> regards, rck
->=20
->=20
-
+-- 
+1.9.1
 
