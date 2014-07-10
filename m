@@ -1,18 +1,22 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6B19C101AC7A
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Jul 2014 10:35:42 +0200 (CEST)
-Date: Thu, 10 Jul 2014 10:35:41 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: Liuhua Wang <lwang@suse.com>
-Message-ID: <20140710083540.GJ1962@rck.sh>
+Return-Path: <lwang@suse.com>
+Received: from soto.provo.novell.com (soto.provo.novell.com [137.65.250.214])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BCFC2101E050
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Jul 2014 10:44:31 +0200 (CEST)
+Message-Id: <53BEC251020000A000009E29@soto.provo.novell.com>
+Date: Thu, 10 Jul 2014 02:41:53 -0600
+From: "Liuhua Wang" <lwang@suse.com>
+To: "Roland Kammerer" <roland.kammerer@linbit.com>
 References: <53B6ED86020000A0000099B9@soto.provo.novell.com>
 	<20140707083415.GA1962@rck.sh>
 	<53BEB579020000A000009DFF@soto.provo.novell.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	<20140710083540.GJ1962@rck.sh>
+In-Reply-To: <20140710083540.GJ1962@rck.sh>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <53BEB579020000A000009DFF@soto.provo.novell.com>
 Cc: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH 1/1] fix drbd.rules to avoid start drbd fail
 List-Id: "*Coordination* of development, patches,
@@ -26,27 +30,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jul 10, 2014 at 01:47:05AM -0600, Liuhua Wang wrote:
-> Hi Roland,
-> 
-> I tested pacemaker+drbd8.4.5+drbd-utils-8.9.0,
-> drbd resource will fail to start in case of device name
-> different from drbd%minor. for example:
-> [...]
->       device	/dev/drbd_r0 minor 0;
-> [...]
-> 
-> What do you thinks?
+Hi Roland,
 
-Still the same as last time... You are using deprecated behavior. Maybe
-"deprecated" is a bit strong, lets say you are using something you
-should not use anymore ;-).
 
->       device	/dev/drbd_r0 minor 0;
+>>> On 7/10/2014 at 04:35 PM, in message <20140710083540.GJ1962@rck.sh>, =
+Roland
+Kammerer <roland.kammerer@linbit.com> wrote:=20
+> names, not now, not in the future.
 
-We removed the part mentioning this class of names from the man-page in
-our internal repo (it will make it into 8.9.1 soon). Simply do not use
-these "custom device names". My suggestion: Do not use custom device
-names, not now, not in the future.
+I see now ;-)
+Thanks you very much.
 
-Regards, rck
+Best regards,
+Liuhua(lwang@suse.com)
+
+
