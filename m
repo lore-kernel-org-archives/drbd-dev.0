@@ -1,24 +1,21 @@
-Return-Path: <lwang@suse.com>
-Received: from soto.provo.novell.com (soto.provo.novell.com [137.65.250.214])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BCFC2101E050
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Jul 2014 10:44:31 +0200 (CEST)
-Message-Id: <53BEC251020000A000009E29@soto.provo.novell.com>
-Date: Thu, 10 Jul 2014 02:41:53 -0600
-From: "Liuhua Wang" <lwang@suse.com>
-To: "Roland Kammerer" <roland.kammerer@linbit.com>
-References: <53B6ED86020000A0000099B9@soto.provo.novell.com>
-	<20140707083415.GA1962@rck.sh>
-	<53BEB579020000A000009DFF@soto.provo.novell.com>
-	<20140710083540.GJ1962@rck.sh>
-In-Reply-To: <20140710083540.GJ1962@rck.sh>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 1/1] fix drbd.rules to avoid start drbd fail
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 24ACB101E050
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Jul 2014 11:53:30 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Thu, 10 Jul 2014 11:53:29 +0200
+Message-ID: <2397073.C8BSPuutsL@fat-tyre>
+In-Reply-To: <53BE57CA.9020807@kernel.dk>
+References: <1404933512-5166-1-git-send-email-philipp.reisner@linbit.com>
+	<1404933512-5166-2-git-send-email-philipp.reisner@linbit.com>
+	<53BE57CA.9020807@kernel.dk>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd: fix regression 'out of mem,
+	failed to invoke fence-peer helper'
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,18 +27,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Roland,
+Am Donnerstag, 10. Juli 2014, 11:07:22 schrieb Jens Axboe:
+> On 2014-07-09 21:18, Philipp Reisner wrote:
+> > From: Lars Ellenberg <lars.ellenberg@linbit.com>
+> > 
+> > Since linux kernel 3.13, kthread_run() internally uses
+> > wait_for_completion_killable().  We sometimes may use kthread_run()
+> > while we still have a signal pending, which we used to kick our threads
+> > out of potentially blocking network functions, causing kthread_run() to
+> > mistake that as a new fatal signal and fail.
+> > 
+> > Fix: flush_signals() before kthread_run().
+> 
+> Applied - should this have been marked stable, if it affects 3..13+ kernels?
 
+Yes, you are right. It should go to the stable kernels since 3.13 as
+well.
 
->>> On 7/10/2014 at 04:35 PM, in message <20140710083540.GJ1962@rck.sh>, =
-Roland
-Kammerer <roland.kammerer@linbit.com> wrote:=20
-> names, not now, not in the future.
+What is the correct way for me to mark it as stable when sending a patch?
 
-I see now ;-)
-Thanks you very much.
-
-Best regards,
-Liuhua(lwang@suse.com)
-
+-phil
 
