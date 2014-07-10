@@ -1,16 +1,19 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CAB78101E049
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Jul 2014 15:54:17 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id AAA10101AC78
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Jul 2014 18:47:57 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org
-Date: Thu, 10 Jul 2014 15:54:16 +0200
-Message-ID: <14195494.KgRksUidBS@fat-tyre>
+Date: Thu, 10 Jul 2014 18:47:56 +0200
+Message-ID: <1620384.qJGGe2kQsK@fat-tyre>
+In-Reply-To: <14195494.KgRksUidBS@fat-tyre>
+References: <14195494.KgRksUidBS@fat-tyre>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="us-ascii"
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [GIT PULL] DRBD updates for your for-3.17/drivers branch
+Subject: Re: [Drbd-dev] [GIT PULL] DRBD updates for your for-3.17/drivers
+	branch
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,17 +27,13 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hi Jens,
 
-here is the pull request for the patches that I sent for review
-on June 30, July 1st and 3rd. The suggested improvement is amended.
+shame on me. The previous pull request had a mistake in commit 
+7 'drbd: get rid of atomic update on disk bitmap works'. 
+It missed the function drbd_bm_write_lazy() in drbd_bitmap.c.
+My test procedure only had a module build, but that does not
+unveil a completely missed function. 
 
-The important news are:
-* Debugfs hierarchy for DRBD.  It unveils a lot of information 
-  about timing of states/stages of IO requests.
-* The bitmap updates during resync got restructured, to be form
-  a much nicer IO pattern. No longer updates to the same sector.
-  Now issued in bursts every 2 seconds.
-
--phil
+Here is a branch with that mistake corrected.
 
 The following changes since commit 6a27b656fc0210e976db362e1368c56db05c8f08:
 
@@ -42,11 +41,11 @@ The following changes since commit 6a27b656fc0210e976db362e1368c56db05c8f08:
 
 are available in the git repository at:
 
-  git://git.linbit.com/linux-drbd.git for-3.17
+  git://git.linbit.com/linux-drbd.git for-3.17v2
 
-for you to fetch changes up to 3f500c97166a2cdd7c15743c77c5ba3c766904de:
+for you to fetch changes up to bf0d6e4a1138e71cafdbbb99cde430eee50c4ff1:
 
-  drbd: silence underflow warning in read_in_block() (2014-07-10 15:27:04 +0200)
+  drbd: silence underflow warning in read_in_block() (2014-07-10 18:35:23 +0200)
 
 ----------------------------------------------------------------
 Andreas Gruenbacher (1):
@@ -123,25 +122,25 @@ Philipp Reisner (5):
       drbd: New net configuration option socket-check-timeout
 
  drivers/block/drbd/Makefile        |   1 +
- drivers/block/drbd/drbd_actlog.c   | 518 +++++++++++++-------------------
- drivers/block/drbd/drbd_bitmap.c   | 140 +++------
- drivers/block/drbd/drbd_debugfs.c  | 958 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- drivers/block/drbd/drbd_debugfs.h  |  39 +++
- drivers/block/drbd/drbd_int.h      | 383 ++++++++++++++++--------
+ drivers/block/drbd/drbd_actlog.c   | 518 ++++++++------------
+ drivers/block/drbd/drbd_bitmap.c   | 150 ++----
+ drivers/block/drbd/drbd_debugfs.c  | 958 +++++++++++++++++++++++++++++++++++++
+ drivers/block/drbd/drbd_debugfs.h  |  39 ++
+ drivers/block/drbd/drbd_int.h      | 383 ++++++++++-----
  drivers/block/drbd/drbd_interval.h |   4 +-
- drivers/block/drbd/drbd_main.c     | 302 ++++++++-----------
- drivers/block/drbd/drbd_nl.c       | 110 ++++---
- drivers/block/drbd/drbd_proc.c     | 125 +++++---
- drivers/block/drbd/drbd_receiver.c | 316 +++++++++++++-------
- drivers/block/drbd/drbd_req.c      | 527 ++++++++++++++++++++++----------
+ drivers/block/drbd/drbd_main.c     | 302 +++++-------
+ drivers/block/drbd/drbd_nl.c       | 110 +++--
+ drivers/block/drbd/drbd_proc.c     | 125 +++--
+ drivers/block/drbd/drbd_receiver.c | 316 ++++++++----
+ drivers/block/drbd/drbd_req.c      | 527 +++++++++++++-------
  drivers/block/drbd/drbd_req.h      |   1 +
- drivers/block/drbd/drbd_state.c    |  90 +++---
- drivers/block/drbd/drbd_worker.c   | 348 +++++++++++++++++-----
+ drivers/block/drbd/drbd_state.c    |  90 ++--
+ drivers/block/drbd/drbd_worker.c   | 348 +++++++++++---
  include/linux/drbd.h               |   4 +-
  include/linux/drbd_genl.h          |   4 +
  include/linux/drbd_limits.h        |   6 +
  lib/lru_cache.c                    |  23 +-
- 19 files changed, 2689 insertions(+), 1210 deletions(-)
+ 19 files changed, 2699 insertions(+), 1210 deletions(-)
  create mode 100644 drivers/block/drbd/drbd_debugfs.c
  create mode 100644 drivers/block/drbd/drbd_debugfs.h
 
