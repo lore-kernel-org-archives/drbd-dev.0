@@ -1,17 +1,22 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6F3C5101E04C
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Jul 2014 21:18:33 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: linux-kernel@vger.kernel.org,
-	Jens Axboe <axboe@kernel.dk>
-Date: Wed,  9 Jul 2014 21:18:32 +0200
-Message-Id: <1404933512-5166-2-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1404933512-5166-1-git-send-email-philipp.reisner@linbit.com>
-References: <1404933512-5166-1-git-send-email-philipp.reisner@linbit.com>
+Return-Path: <lwang@suse.com>
+Received: from soto.provo.novell.com (soto.provo.novell.com [137.65.250.214])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2AFB5101AC71
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Jul 2014 09:49:40 +0200 (CEST)
+Message-Id: <53BEB579020000A000009DFF@soto.provo.novell.com>
+Date: Thu, 10 Jul 2014 01:47:05 -0600
+From: "Liuhua Wang" <lwang@suse.com>
+To: "Roland Kammerer" <roland.kammerer@linbit.com>
+References: <53B6ED86020000A0000099B9@soto.provo.novell.com>
+	<20140707083415.GA1962@rck.sh>
+In-Reply-To: <20140707083415.GA1962@rck.sh>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] drbd: fix regression 'out of mem,
-	failed to invoke fence-peer helper'
+Subject: Re: [Drbd-dev] [PATCH 1/1] fix drbd.rules to avoid start drbd fail
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,39 +28,62 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+Hi Roland,
+=20
+>=20
+> I checked with one of our senior-devs and you are actually using
+> depricated behavior. What you should use is /dev/drbd/by-*, and not the
+> device name in /dev.
+>=20
 
-Since linux kernel 3.13, kthread_run() internally uses
-wait_for_completion_killable().  We sometimes may use kthread_run()
-while we still have a signal pending, which we used to kick our threads
-out of potentially blocking network functions, causing kthread_run() to
-mistake that as a new fatal signal and fail.
+I tested pacemaker+drbd8.4.5+drbd-utils-8.9.0,
+drbd resource will fail to start in case of device name
+different from drbd%minor. for example:
 
-Fix: flush_signals() before kthread_run().
+# cat /etc/drbd.d/test.res
+---------------------------
+resource test {
+   protocol	C;
+   disk {
+      on-io-error	pass_on;
+   }
+   on vm13-sle12b8 {
+      address	192.168.124.13:7788;
+      device	/dev/drbd_r0 minor 0;
+      disk	/dev/sda4;
+      meta-disk	internal;
+   }
+   on vm14-sle12b8 {
+      address	192.168.124.14:7788;
+      device	/dev/drbd_r0 minor 0;
+      disk	/dev/sda4;
+      meta-disk	internal;
+   }
+}
+-------------------
 
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_nl.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+That is because in drbd_start will wait forever for the
+drbd%minor settled in loop:
+----------------=20
+my_udevsettle()
+{
+        for dev in ${DRBD_DEVICES[@]}; do
+                while ! test -b $dev; do
+                        sleep 1;
+                done
+        done
+        return 0
+}
+----------------
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 1b35c45..3f2e167 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -544,6 +544,12 @@ void conn_try_outdate_peer_async(struct drbd_connection *connection)
- 	struct task_struct *opa;
- 
- 	kref_get(&connection->kref);
-+	/* We may just have force_sig()'ed this thread
-+	 * to get it out of some blocking network function.
-+	 * Clear signals; otherwise kthread_run(), which internally uses
-+	 * wait_on_completion_killable(), will mistake our pending signal
-+	 * for a new fatal signal and fail. */
-+	flush_signals(current);
- 	opa = kthread_run(_try_outdate_peer_async, connection, "drbd_async_h");
- 	if (IS_ERR(opa)) {
- 		drbd_err(connection, "out of mem, failed to invoke fence-peer helper\n");
--- 
-1.9.1
+I think there is either of the following way to resolve it.
+1. fix drbd.rules by adding SYMLINK to drbd%minor
+2. fix drbd.ocf not waiting DRBD_DEVICES but drbd%minor
+
+What do you thinks?
+
+> regards, rck
+>=20
+>=20
+
 
