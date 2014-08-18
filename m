@@ -1,24 +1,36 @@
-Return-Path: <robert@fedoraproject.org>
-Received: from mail.linuxnetz.de (mail.linuxnetz.de [62.216.180.11])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 08DDF101E04B
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Aug 2014 16:15:58 +0200 (CEST)
-Received: from hurricane.linuxnetz.de (hurricane.linuxnetz.de [IPv6:::1])
-	by mail.linuxnetz.de (8.14.9/8.14.9) with ESMTP id s7FDw9jR014597
-	(version=TLSv1/SSLv3 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256
-	verify=NOT)
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Aug 2014 15:58:12 +0200
-Date: Fri, 15 Aug 2014 15:58:09 +0200
-From: Robert Scheck <robert@fedoraproject.org>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20140815135809.GA13736@hurricane.linuxnetz.de>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0914F101AC7F
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Aug 2014 11:27:18 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id F22E82A54E4
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Aug 2014 11:27:17 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id 9Qa1Pz7Khg8R for <drbd-dev@lists.linbit.com>;
+	Tue, 19 Aug 2014 11:27:17 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id D54C12A5A50
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Aug 2014 11:27:17 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id fGIaxVSOWNR6 for <drbd-dev@lists.linbit.com>;
+	Tue, 19 Aug 2014 11:27:17 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 87D262A54E4
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Aug 2014 11:27:17 +0200 (CEST)
+Resent-Message-ID: <20140819092717.GG4652@soda.linbit>
+Date: Mon, 18 Aug 2014 17:37:05 +0300
+From: Andreea-Cristina Bernat <bernat.ada@gmail.com>
+To: drbd-dev@lists.linbit.com, drbd-user@lists.linbit.com,
+	linux-kernel@vger.kernel.org
+Message-ID: <20140818143705.GA13718@ada>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="k1lZvvs/B4yU6o8G"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Subject: [Drbd-dev] "you are the 21th user to install this version" - 21th
-	rather 21st
+Cc: paulmck@linux.vnet.ibm.com
+Subject: [Drbd-dev] [PATCH] drbd: Replace rcu_assign_pointer() with
+	RCU_INIT_POINTER()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,37 +42,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+The use of "rcu_assign_pointer()" is NULLing out the pointer.
+According to RCU_INIT_POINTER()'s block comment:
+"1.   This use of RCU_INIT_POINTER() is NULLing out the pointer"
+it is better to use it instead of rcu_assign_pointer() because it has a
+smaller overhead.
 
---k1lZvvs/B4yU6o8G
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+The following Coccinelle semantic patch was used:
+@@
+@@
 
-Hello folks,
+- rcu_assign_pointer
++ RCU_INIT_POINTER
+  (..., NULL)
 
-a "drbdadm create-md data" reported "you are the 21th user to install this
-version". I guess a minor bugfix is needed, this should be 21st, I guess.
-And as I am also the 22nd user to install this version this needs a fix for
-the 22th, too ;-)
+Signed-off-by: Andreea-Cristina Bernat <bernat.ada@gmail.com>
+---
+ drivers/block/drbd/drbd_state.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-According to Wikipedia there is e.g. only a 21st century, no 21th century.
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index a5d8aae..73bc23f 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -1563,7 +1563,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
+ 		old_conf = connection->net_conf;
+ 		connection->my_addr_len = 0;
+ 		connection->peer_addr_len = 0;
+-		rcu_assign_pointer(connection->net_conf, NULL);
++		RCU_INIT_POINTER(connection->net_conf, NULL);
+ 		conn_free_crypto(connection);
+ 		mutex_unlock(&connection->resource->conf_update);
+ 
+-- 
+1.9.1
 
-This is 1d360bde0e095d495786eaeb2a1ac76888e4db96, DRBD 8.4.5 which has been
-built from the regular release tarball. Thanks to my colleague who pointed
-out this while watching...
-
-
-Greetings,
-  Robert
-
---k1lZvvs/B4yU6o8G
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlPuEfEACgkQUwMgnc4+H1ZqygCg05G9PpoGPrPrfeRVqa6+i3iE
-wH4AoLhbML6XPgCtVIGYCAmblOEEccOM
-=8Ty4
------END PGP SIGNATURE-----
-
---k1lZvvs/B4yU6o8G--
