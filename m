@@ -1,21 +1,20 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6EC62101AC7E
-	for <drbd-dev@lists.linbit.com>; Wed,  3 Sep 2014 16:22:51 +0200 (CEST)
-Date: Wed, 3 Sep 2014 16:22:50 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Imre Palik <imrep.amz@gmail.com>
-Message-ID: <20140903142250.GE2958@soda.linbit>
-References: <1409749356-5450-1-git-send-email-imrep.amz@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1409749356-5450-1-git-send-email-imrep.amz@gmail.com>
-Cc: linux-kernel@vger.kernel.org, "Palik, Imre" <imrep@amazon.de>,
+Return-Path: <imrep.amz@gmail.com>
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com
+	[74.125.82.174]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E9106101AC7E
+	for <drbd-dev@lists.linbit.com>; Wed,  3 Sep 2014 15:33:11 +0200 (CEST)
+Received: by mail-we0-f174.google.com with SMTP id u57so8559016wes.5
+	for <drbd-dev@lists.linbit.com>; Wed, 03 Sep 2014 06:33:10 -0700 (PDT)
+From: Imre Palik <imrep.amz@gmail.com>
+To: drbd-dev@lists.linbit.com
+Date: Wed,  3 Sep 2014 15:02:36 +0200
+Message-Id: <1409749356-5450-1-git-send-email-imrep.amz@gmail.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, "Palik, Imre" <imrep@amazon.de>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	Matt Wilson <msw@amazon.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: fix throttling on newly created DM
-	backing devices
+	Matt Wilson <msw@amazon.com>, linux-kernel@vger.kernel.org
+Subject: [Drbd-dev] [PATCH] drbd: fix throttling on newly created DM backing
+	devices
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,51 +26,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Sep 03, 2014 at 03:02:36PM +0200, Imre Palik wrote:
-> From: "Palik, Imre" <imrep@amazon.de>
-> 
-> If the drbd backing device is a new device mapper device (e.g., a
-> dm-linear mapping of an existing block device that contains data), the
-> counters are initially 0 even though the device contains useful
-> data. This causes throttling until something accesses the drbd device
-> or the backing device.
-> 
-> The patch disables throttling, as long as only resync is responsible
-> for disk activity on a freshly created device.
+From: "Palik, Imre" <imrep@amazon.de>
 
-You are right, the !device->rs_last_events was supposed to be an
-indicator of "just started resync, please call once to initialize".
-But if curr_events stays 0, which is quite possible given the bursty
-nature of the DRBD resync, that will stay 0, and keep throttling.
+If the drbd backing device is a new device mapper device (e.g., a
+dm-linear mapping of an existing block device that contains data), the
+counters are initially 0 even though the device contains useful
+data. This causes throttling until something accesses the drbd device
+or the backing device.
 
-I'm not sure I like your patch, though.
-We may want to properly initialize rs_last_events instead.
+The patch disables throttling, as long as only resync is responsible
+for disk activity on a freshly created device.
 
-I'll think about that...
+Reported-by: Mikhail Sugakov <msugakov@amazon.de>
+Cc: Matt Wilson <msw@amazon.com>
+Signed-off-by: Imre Palik <imrep@amazon.de>
+---
+ drivers/block/drbd/drbd_receiver.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-	Lars Ellenberg
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 9342b8d..511d2eb 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -2482,7 +2482,8 @@ bool drbd_rs_c_min_rate_throttle(struct drbd_device *device)
+ 			atomic_read(&device->rs_sect_ev);
+ 
+ 	if (atomic_read(&device->ap_actlog_cnt)
+-	    || !device->rs_last_events || curr_events - device->rs_last_events > 64) {
++		|| (curr_events && (!device->rs_last_events
++					|| curr_events - device->rs_last_events > 64))) {
+ 		unsigned long rs_left;
+ 		int i;
+ 
+-- 
+1.7.9.5
 
-> Reported-by: Mikhail Sugakov <msugakov@amazon.de>
-> Cc: Matt Wilson <msw@amazon.com>
-> Signed-off-by: Imre Palik <imrep@amazon.de>
-> ---
->  drivers/block/drbd/drbd_receiver.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-> index 9342b8d..511d2eb 100644
-> --- a/drivers/block/drbd/drbd_receiver.c
-> +++ b/drivers/block/drbd/drbd_receiver.c
-> @@ -2482,7 +2482,8 @@ bool drbd_rs_c_min_rate_throttle(struct drbd_device *device)
->  			atomic_read(&device->rs_sect_ev);
->  
->  	if (atomic_read(&device->ap_actlog_cnt)
-> -	    || !device->rs_last_events || curr_events - device->rs_last_events > 64) {
-> +		|| (curr_events && (!device->rs_last_events
-> +					|| curr_events - device->rs_last_events > 64))) {
->  		unsigned long rs_left;
->  		int i;
->  
-> -- 
-> 1.7.9.5
-> 
