@@ -1,16 +1,17 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D038D101AC7E
-	for <drbd-dev@lists.linbit.com>; Thu, 11 Sep 2014 14:29:14 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1E012101E067
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Sep 2014 14:29:15 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>,
 	linux-kernel@vger.kernel.org
-Date: Thu, 11 Sep 2014 14:29:05 +0200
-Message-Id: <1410438553-30440-2-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 11 Sep 2014 14:29:06 +0200
+Message-Id: <1410438553-30440-3-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1410438553-30440-1-git-send-email-philipp.reisner@linbit.com>
 References: <1410438553-30440-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/9] drbd: Use better variable names
+Subject: [Drbd-dev] [PATCH 2/9] drbd: Use consistent names for all the
+	bi_end_io callbacks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,340 +23,110 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andreas Gruenbacher <agruen@linbit.com>
+From: Andreas Gruenbacher <andreas.gruenbacher@gmail.com>
 
-Rename local variable 'ds' to 'disk_state' or 'data_size'.
-'dgs' to 'digest_size'
+Now they follow the _endio naming sheme.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |  6 ++---
- drivers/block/drbd/drbd_main.c     | 28 +++++++++++------------
- drivers/block/drbd/drbd_receiver.c | 46 +++++++++++++++++++-------------------
- drivers/block/drbd/drbd_state.c    | 18 +++++++--------
- 4 files changed, 49 insertions(+), 49 deletions(-)
+ drivers/block/drbd/drbd_actlog.c | 4 ++--
+ drivers/block/drbd/drbd_bitmap.c | 6 +++---
+ drivers/block/drbd/drbd_int.h    | 2 +-
+ drivers/block/drbd/drbd_worker.c | 6 +++---
+ 4 files changed, 9 insertions(+), 9 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index d26a3fa..a2dfa16 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -158,14 +158,14 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
+ 	if (bio_add_page(bio, device->md_io.page, size, 0) != size)
+ 		goto out;
+ 	bio->bi_private = device;
+-	bio->bi_end_io = drbd_md_io_complete;
++	bio->bi_end_io = drbd_md_endio;
+ 	bio->bi_rw = rw;
+ 
+ 	if (!(rw & WRITE) && device->state.disk == D_DISKLESS && device->ldev == NULL)
+ 		/* special case, drbd_md_read() during drbd_adm_attach(): no get_ldev */
+ 		;
+ 	else if (!get_ldev_if_state(device, D_ATTACHING)) {
+-		/* Corresponding put_ldev in drbd_md_io_complete() */
++		/* Corresponding put_ldev in drbd_md_endio() */
+ 		drbd_err(device, "ASSERT FAILED: get_ldev_if_state() == 1 in _drbd_md_sync_page_io()\n");
+ 		err = -ENODEV;
+ 		goto out;
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index 426c97a..434c77d 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -941,7 +941,7 @@ static void drbd_bm_aio_ctx_destroy(struct kref *kref)
+ }
+ 
+ /* bv_page may be a copy, or may be the original */
+-static void bm_async_io_complete(struct bio *bio, int error)
++static void drbd_bm_endio(struct bio *bio, int error)
+ {
+ 	struct drbd_bm_aio_ctx *ctx = bio->bi_private;
+ 	struct drbd_device *device = ctx->device;
+@@ -1027,7 +1027,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
+ 	 * according to api.  Do we want to assert that? */
+ 	bio_add_page(bio, page, len, 0);
+ 	bio->bi_private = ctx;
+-	bio->bi_end_io = bm_async_io_complete;
++	bio->bi_end_io = drbd_bm_endio;
+ 
+ 	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
+ 		bio->bi_rw |= rw;
+@@ -1125,7 +1125,7 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned
+ 	}
+ 
+ 	/*
+-	 * We initialize ctx->in_flight to one to make sure bm_async_io_complete
++	 * We initialize ctx->in_flight to one to make sure drbd_bm_endio
+ 	 * will not set ctx->done early, and decrement / test it here.  If there
+ 	 * are still some bios in flight, we need to wait for them here.
+ 	 * If all IO is done already (or nothing had been submitted), there is
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 1a00001..9e1288e 100644
+index 9e1288e..f424dc0 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -2109,7 +2109,7 @@ static inline bool is_sync_state(enum drbd_conns connection_state)
+@@ -1483,7 +1483,7 @@ extern int drbd_khelper(struct drbd_device *device, char *cmd);
  
- static inline void put_ldev(struct drbd_device *device)
+ /* drbd_worker.c */
+ /* bi_end_io handlers */
+-extern void drbd_md_io_complete(struct bio *bio, int error);
++extern void drbd_md_endio(struct bio *bio, int error);
+ extern void drbd_peer_request_endio(struct bio *bio, int error);
+ extern void drbd_request_endio(struct bio *bio, int error);
+ extern int drbd_worker(struct drbd_thread *thi);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 50776b3..6e01e62 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -43,10 +43,10 @@ static int make_ov_request(struct drbd_device *, int);
+ static int make_resync_request(struct drbd_device *, int);
+ 
+ /* endio handlers:
+- *   drbd_md_io_complete (defined here)
++ *   drbd_md_endio (defined here)
+  *   drbd_request_endio (defined here)
+  *   drbd_peer_request_endio (defined here)
+- *   bm_async_io_complete (defined in drbd_bitmap.c)
++ *   drbd_bm_endio (defined in drbd_bitmap.c)
+  *
+  * For all these callbacks, note the following:
+  * The callbacks will be called in irq context by the IDE drivers,
+@@ -65,7 +65,7 @@ rwlock_t global_state_lock;
+ /* used for synchronous meta data and bitmap IO
+  * submitted by drbd_md_sync_page_io()
+  */
+-void drbd_md_io_complete(struct bio *bio, int error)
++void drbd_md_endio(struct bio *bio, int error)
  {
--	enum drbd_disk_state ds = device->state.disk;
-+	enum drbd_disk_state disk_state = device->state.disk;
- 	/* We must check the state *before* the atomic_dec becomes visible,
- 	 * or we have a theoretical race where someone hitting zero,
- 	 * while state still D_FAILED, will then see D_DISKLESS in the
-@@ -2122,10 +2122,10 @@ static inline void put_ldev(struct drbd_device *device)
- 	__release(local);
- 	D_ASSERT(device, i >= 0);
- 	if (i == 0) {
--		if (ds == D_DISKLESS)
-+		if (disk_state == D_DISKLESS)
- 			/* even internal references gone, safe to destroy */
- 			drbd_device_post_work(device, DESTROY_DISK);
--		if (ds == D_FAILED)
-+		if (disk_state == D_FAILED)
- 			/* all application IO references gone. */
- 			if (!test_and_set_bit(GOING_DISKLESS, &device->flags))
- 				drbd_device_post_work(device, GO_DISKLESS);
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 9b465bb..973c185 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -1622,13 +1622,13 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
- 	struct drbd_socket *sock;
- 	struct p_data *p;
- 	unsigned int dp_flags = 0;
--	int dgs;
-+	int digest_size;
- 	int err;
+ 	struct drbd_device *device;
  
- 	sock = &peer_device->connection->data;
- 	p = drbd_prepare_command(peer_device, sock);
--	dgs = peer_device->connection->integrity_tfm ?
--	      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
-+	digest_size = peer_device->connection->integrity_tfm ?
-+		      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
- 
- 	if (!p)
- 		return -EIO;
-@@ -1659,9 +1659,9 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
- 
- 	/* our digest is still only over the payload.
- 	 * TRIM does not carry any payload. */
--	if (dgs)
-+	if (digest_size)
- 		drbd_csum_bio(peer_device->connection->integrity_tfm, req->master_bio, p + 1);
--	err = __send_command(peer_device->connection, device->vnr, sock, P_DATA, sizeof(*p) + dgs, NULL, req->i.size);
-+	err = __send_command(peer_device->connection, device->vnr, sock, P_DATA, sizeof(*p) + digest_size, NULL, req->i.size);
- 	if (!err) {
- 		/* For protocol A, we have to memcpy the payload into
- 		 * socket buffers, as we may complete right away
-@@ -1674,23 +1674,23 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
- 		 * out ok after sending on this side, but does not fit on the
- 		 * receiving side, we sure have detected corruption elsewhere.
- 		 */
--		if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)) || dgs)
-+		if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)) || digest_size)
- 			err = _drbd_send_bio(peer_device, req->master_bio);
- 		else
- 			err = _drbd_send_zc_bio(peer_device, req->master_bio);
- 
- 		/* double check digest, sometimes buffers have been modified in flight. */
--		if (dgs > 0 && dgs <= 64) {
-+		if (digest_size > 0 && digest_size <= 64) {
- 			/* 64 byte, 512 bit, is the largest digest size
- 			 * currently supported in kernel crypto. */
- 			unsigned char digest[64];
- 			drbd_csum_bio(peer_device->connection->integrity_tfm, req->master_bio, digest);
--			if (memcmp(p + 1, digest, dgs)) {
-+			if (memcmp(p + 1, digest, digest_size)) {
- 				drbd_warn(device,
- 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
- 					(unsigned long long)req->i.sector, req->i.size);
- 			}
--		} /* else if (dgs > 64) {
-+		} /* else if (digest_size > 64) {
- 		     ... Be noisy about digest too large ...
- 		} */
- 	}
-@@ -1711,13 +1711,13 @@ int drbd_send_block(struct drbd_peer_device *peer_device, enum drbd_packet cmd,
- 	struct drbd_socket *sock;
- 	struct p_data *p;
- 	int err;
--	int dgs;
-+	int digest_size;
- 
- 	sock = &peer_device->connection->data;
- 	p = drbd_prepare_command(peer_device, sock);
- 
--	dgs = peer_device->connection->integrity_tfm ?
--	      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
-+	digest_size = peer_device->connection->integrity_tfm ?
-+		      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
- 
- 	if (!p)
- 		return -EIO;
-@@ -1725,9 +1725,9 @@ int drbd_send_block(struct drbd_peer_device *peer_device, enum drbd_packet cmd,
- 	p->block_id = peer_req->block_id;
- 	p->seq_num = 0;  /* unused */
- 	p->dp_flags = 0;
--	if (dgs)
-+	if (digest_size)
- 		drbd_csum_ee(peer_device->connection->integrity_tfm, peer_req, p + 1);
--	err = __send_command(peer_device->connection, device->vnr, sock, cmd, sizeof(*p) + dgs, NULL, peer_req->i.size);
-+	err = __send_command(peer_device->connection, device->vnr, sock, cmd, sizeof(*p) + digest_size, NULL, peer_req->i.size);
- 	if (!err)
- 		err = _drbd_send_zc_ee(peer_device, peer_req);
- 	mutex_unlock(&sock->mutex);  /* locked by drbd_prepare_command() */
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 9342b8d..3ae769e 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1371,9 +1371,9 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 	struct bio *bio;
- 	struct page *page = peer_req->pages;
- 	sector_t sector = peer_req->i.sector;
--	unsigned ds = peer_req->i.size;
-+	unsigned data_size = peer_req->i.size;
- 	unsigned n_bios = 0;
--	unsigned nr_pages = (ds + PAGE_SIZE -1) >> PAGE_SHIFT;
-+	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
- 	int err = -ENOMEM;
- 
- 	if (peer_req->flags & EE_IS_TRIM_USE_ZEROOUT) {
-@@ -1388,7 +1388,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 		list_add_tail(&peer_req->w.list, &device->active_ee);
- 		spin_unlock_irq(&device->resource->req_lock);
- 		if (blkdev_issue_zeroout(device->ldev->backing_bdev,
--			sector, ds >> 9, GFP_NOIO))
-+			sector, data_size >> 9, GFP_NOIO))
- 			peer_req->flags |= EE_WAS_ERROR;
- 		drbd_endio_write_sec_final(peer_req);
- 		return 0;
-@@ -1426,12 +1426,12 @@ next_bio:
- 	++n_bios;
- 
- 	if (rw & REQ_DISCARD) {
--		bio->bi_iter.bi_size = ds;
-+		bio->bi_iter.bi_size = data_size;
- 		goto submit;
- 	}
- 
- 	page_chain_for_each(page) {
--		unsigned len = min_t(unsigned, ds, PAGE_SIZE);
-+		unsigned len = min_t(unsigned, data_size, PAGE_SIZE);
- 		if (!bio_add_page(bio, page, len, 0)) {
- 			/* A single page must always be possible!
- 			 * But in case it fails anyways,
-@@ -1446,11 +1446,11 @@ next_bio:
- 			}
- 			goto next_bio;
- 		}
--		ds -= len;
-+		data_size -= len;
- 		sector += len >> 9;
- 		--nr_pages;
- 	}
--	D_ASSERT(device, ds == 0);
-+	D_ASSERT(device, data_size == 0);
- submit:
- 	D_ASSERT(device, page == NULL);
- 
-@@ -1591,24 +1591,24 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
- 	const sector_t capacity = drbd_get_capacity(device->this_bdev);
- 	struct drbd_peer_request *peer_req;
- 	struct page *page;
--	int dgs, ds, err;
--	unsigned int data_size = pi->size;
-+	int digest_size, err;
-+	unsigned int data_size = pi->size, ds;
- 	void *dig_in = peer_device->connection->int_dig_in;
- 	void *dig_vv = peer_device->connection->int_dig_vv;
- 	unsigned long *data;
- 	struct p_trim *trim = (pi->cmd == P_TRIM) ? pi->data : NULL;
- 
--	dgs = 0;
-+	digest_size = 0;
- 	if (!trim && peer_device->connection->peer_integrity_tfm) {
--		dgs = crypto_hash_digestsize(peer_device->connection->peer_integrity_tfm);
-+		digest_size = crypto_hash_digestsize(peer_device->connection->peer_integrity_tfm);
- 		/*
- 		 * FIXME: Receive the incoming digest into the receive buffer
- 		 *	  here, together with its struct p_data?
- 		 */
--		err = drbd_recv_all_warn(peer_device->connection, dig_in, dgs);
-+		err = drbd_recv_all_warn(peer_device->connection, dig_in, digest_size);
- 		if (err)
- 			return NULL;
--		data_size -= dgs;
-+		data_size -= digest_size;
- 	}
- 
- 	if (trim) {
-@@ -1661,16 +1661,16 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
- 		ds -= len;
- 	}
- 
--	if (dgs) {
-+	if (digest_size) {
- 		drbd_csum_ee(peer_device->connection->peer_integrity_tfm, peer_req, dig_vv);
--		if (memcmp(dig_in, dig_vv, dgs)) {
-+		if (memcmp(dig_in, dig_vv, digest_size)) {
- 			drbd_err(device, "Digest integrity check FAILED: %llus +%u\n",
- 				(unsigned long long)sector, data_size);
- 			drbd_free_peer_req(device, peer_req);
- 			return NULL;
- 		}
- 	}
--	device->recv_cnt += data_size>>9;
-+	device->recv_cnt += data_size >> 9;
- 	return peer_req;
- }
- 
-@@ -1708,17 +1708,17 @@ static int recv_dless_read(struct drbd_peer_device *peer_device, struct drbd_req
- 	struct bio_vec bvec;
- 	struct bvec_iter iter;
- 	struct bio *bio;
--	int dgs, err, expect;
-+	int digest_size, err, expect;
- 	void *dig_in = peer_device->connection->int_dig_in;
- 	void *dig_vv = peer_device->connection->int_dig_vv;
- 
--	dgs = 0;
-+	digest_size = 0;
- 	if (peer_device->connection->peer_integrity_tfm) {
--		dgs = crypto_hash_digestsize(peer_device->connection->peer_integrity_tfm);
--		err = drbd_recv_all_warn(peer_device->connection, dig_in, dgs);
-+		digest_size = crypto_hash_digestsize(peer_device->connection->peer_integrity_tfm);
-+		err = drbd_recv_all_warn(peer_device->connection, dig_in, digest_size);
- 		if (err)
- 			return err;
--		data_size -= dgs;
-+		data_size -= digest_size;
- 	}
- 
- 	/* optimistically update recv_cnt.  if receiving fails below,
-@@ -1738,9 +1738,9 @@ static int recv_dless_read(struct drbd_peer_device *peer_device, struct drbd_req
- 		data_size -= expect;
- 	}
- 
--	if (dgs) {
-+	if (digest_size) {
- 		drbd_csum_bio(peer_device->connection->peer_integrity_tfm, bio, dig_vv);
--		if (memcmp(dig_in, dig_vv, dgs)) {
-+		if (memcmp(dig_in, dig_vv, digest_size)) {
- 			drbd_err(peer_device, "Digest integrity check FAILED. Broken NICs?\n");
- 			return -EINVAL;
- 		}
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index c35c0f0..84b11f8 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -136,50 +136,50 @@ enum drbd_role conn_highest_peer(struct drbd_connection *connection)
- 
- enum drbd_disk_state conn_highest_disk(struct drbd_connection *connection)
- {
--	enum drbd_disk_state ds = D_DISKLESS;
-+	enum drbd_disk_state disk_state = D_DISKLESS;
- 	struct drbd_peer_device *peer_device;
- 	int vnr;
- 
- 	rcu_read_lock();
- 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
- 		struct drbd_device *device = peer_device->device;
--		ds = max_t(enum drbd_disk_state, ds, device->state.disk);
-+		disk_state = max_t(enum drbd_disk_state, disk_state, device->state.disk);
- 	}
- 	rcu_read_unlock();
- 
--	return ds;
-+	return disk_state;
- }
- 
- enum drbd_disk_state conn_lowest_disk(struct drbd_connection *connection)
- {
--	enum drbd_disk_state ds = D_MASK;
-+	enum drbd_disk_state disk_state = D_MASK;
- 	struct drbd_peer_device *peer_device;
- 	int vnr;
- 
- 	rcu_read_lock();
- 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
- 		struct drbd_device *device = peer_device->device;
--		ds = min_t(enum drbd_disk_state, ds, device->state.disk);
-+		disk_state = min_t(enum drbd_disk_state, disk_state, device->state.disk);
- 	}
- 	rcu_read_unlock();
- 
--	return ds;
-+	return disk_state;
- }
- 
- enum drbd_disk_state conn_highest_pdsk(struct drbd_connection *connection)
- {
--	enum drbd_disk_state ds = D_DISKLESS;
-+	enum drbd_disk_state disk_state = D_DISKLESS;
- 	struct drbd_peer_device *peer_device;
- 	int vnr;
- 
- 	rcu_read_lock();
- 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
- 		struct drbd_device *device = peer_device->device;
--		ds = max_t(enum drbd_disk_state, ds, device->state.pdsk);
-+		disk_state = max_t(enum drbd_disk_state, disk_state, device->state.pdsk);
- 	}
- 	rcu_read_unlock();
- 
--	return ds;
-+	return disk_state;
- }
- 
- enum drbd_conns conn_lowest_conn(struct drbd_connection *connection)
 -- 
 1.9.1
 
