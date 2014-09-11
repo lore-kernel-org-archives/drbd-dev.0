@@ -1,26 +1,14 @@
-Return-Path: <imrep.amz@gmail.com>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com
-	[209.85.212.175]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3DB88101E04F
-	for <drbd-dev@lists.linbit.com>; Tue,  9 Sep 2014 21:03:56 +0200 (CEST)
-Received: by mail-wi0-f175.google.com with SMTP id ex7so4880294wid.14
-	for <drbd-dev@lists.linbit.com>; Tue, 09 Sep 2014 12:03:56 -0700 (PDT)
-Message-ID: <540F4F0E.8050306@gmail.com>
-Date: Tue, 09 Sep 2014 21:03:42 +0200
-From: Imre Palik <imrep.amz@gmail.com>
-MIME-Version: 1.0
-To: drbd-dev@lists.linbit.com, Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, "Palik, Imre" <imrep@amazon.de>,
-	Matt Wilson <msw@amazon.com>
-References: <1409942478-29135-1-git-send-email-imrep.amz@gmail.com>
-	<20140907095834.GA2332@hein> <540DA998.7060807@gmail.com>
-	<20140908133816.GF9353@soda.linbit>
-In-Reply-To: <20140908133816.GF9353@soda.linbit>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] [PATCH v3] drbd: fix throttling on newly created DM
-	backing devices
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2E833101AC7E
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Sep 2014 14:29:14 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>,
+	linux-kernel@vger.kernel.org
+Date: Thu, 11 Sep 2014 14:29:04 +0200
+Message-Id: <1410438553-30440-1-git-send-email-philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 0/9] DRBD updates for 3.18
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,73 +20,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 09/08/14 15:38, Lars wrote:
-> On Mon, Sep 08, 2014 at 03:05:28PM +0200, Imre Palik wrote:
->> On 09/07/14 11:58, Lars wrote:
->>> On Fri, Sep 05, 2014 at 08:41:18PM +0200, Imre Palik wrote:
->>>> From: "Palik, Imre" <imrep@amazon.de>
->>>>
->>>> If the drbd backing device is a new device mapper device (e.g., a
->>>> dm-linear mapping of an existing block device that contains data), the
->>>> counters are initially 0 even though the device contains useful
->>>> data. This causes throttling until something accesses the drbd device
->>>> or the backing device.
->>>
->>> What was wrong with my previous proposal?
->>
->> Sorry, I haven't realised you added a proposal to your reply.  It
->> seems, I really needed that extra sleep during the weekend ...
->>
->> Your proposal is good.  Of course, I like my last one a slightly
->> better.  But as they say, beauty is in the eye of the beholder :-)
->>
->>> How does changing the signedness help with
->>> rs_last_events not being properly initialized?
->>
->> It only helps with reasoning.  I reason with modular arithmetic way
->> easier than with signed integer overflows.  Accidentally, 0 is a
->> good initialisation value in case of unsigned arithmetic.
->>
->>> Are you sure you have also considered all wrap-around cases?
->>>
->>> Maybe you are too focused on your particular corner case
->>> (disk_stats starting with 0).
->>> Maybe I'm just thick right now, so please explain.
->>
->> The idea is that 0 is the smallest possible value for an unsigned,
->> and curr_events is monotonically increasing (mod 2^32) .
->
-> The problem is: it is not :-(
->
-> It's a difference between stats that are increased by the
-> block core at (usually) completion time, and an atomic_t
-> that is increased by DRBD at just before (or just after) submittion.
->
-> Depending very much on stress in the IO subsystem,
-> and overall timing of events, a later call may see a smaller
-> "curr_events" (because rs_last_sect_ev has already increased,
-> but the disk stats have not yet noticed).
->
-> With unsigned, that may wrap around to UINT_MAX, which we don't want.
+Hi Jens,
 
-I see.  You hide the jitter behind the signedness.  Thanks for the 
-explanation.
+please consider to put these patches into your (future) for-3.18/drivers
+branch. I have posted it for review on August 28. It consists mainly of
+minor cleanups, and an important performance improvement. With that
+DRBD was seen to write with 160k IOPS, on SSDs.
 
->> This
->> means, initially either curr_events > 64, that is, we enter the
->> loop, and do the initialisation, or it will be bigger than 64 at
->> most when we want to start throttle in an ideal world (after no more
->> than 64 sectors of activity).
->>
->> Basically, while you initialise rs_last_events to an ideal value
->> with some calculation, I choose a safe static value.  I am content
->> with both approaches.  I think, as a subsystem maintainer, you
->> should choose the one you like better.  If you choose yours, then
->> you can add
->> Reviewed-by: Imre Palik <imrep@amazon.de>
->
-> Thanks,
->
-> 	Lars
->
+You may take the patches from this posting, or pull them from
+http://git.drbd.org/linux-2.6-drbd.git for-3.18-rc1
+the branch there is based on Linux 3.17-rc4.
+
+Andreas Gruenbacher (5):
+  drbd: Use better variable names
+  drbd: Use consistent names for all the bi_end_io callbacks
+  drbd: Avoid inconsistent locking warning
+  drbd: Get rid of the __no_warn and __cond_lock macros
+  drbd: Get rid of the WORK_PENDING macro
+
+Lars Ellenberg (2):
+  drbd: Improve asender performance
+  drbd: reduce lock contention in drbd_worker
+
+Philipp Marek (1):
+  drbd: Remove superfluous newline from "resync_extents" debugfs entry.
+
+Philipp Reisner (1):
+  drbd: Add missing newline in resync progress display in /proc/drbd
+
+ drivers/block/drbd/drbd_actlog.c   |  4 +--
+ drivers/block/drbd/drbd_bitmap.c   |  6 ++---
+ drivers/block/drbd/drbd_debugfs.c  |  2 +-
+ drivers/block/drbd/drbd_int.h      | 19 +++++++-------
+ drivers/block/drbd/drbd_main.c     | 28 ++++++++++----------
+ drivers/block/drbd/drbd_proc.c     |  4 ++-
+ drivers/block/drbd/drbd_receiver.c | 52 +++++++++++++++++++++-----------------
+ drivers/block/drbd/drbd_req.c      |  2 +-
+ drivers/block/drbd/drbd_state.c    | 18 ++++++-------
+ drivers/block/drbd/drbd_worker.c   | 51 +++++++++++++++----------------------
+ 10 files changed, 93 insertions(+), 93 deletions(-)
+
+-- 
+1.9.1
 
