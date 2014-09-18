@@ -1,18 +1,23 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2C77C101E06E
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Sep 2014 16:49:45 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: linux-kernel@vger.kernel.org,
-	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 18 Sep 2014 16:49:42 +0200
-Message-Id: <1411051782-23375-3-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1411051782-23375-1-git-send-email-philipp.reisner@linbit.com>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com
+	[209.85.192.171]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 048E1101E067
+	for <drbd-dev@lists.linbit.com>; Thu, 18 Sep 2014 17:07:47 +0200 (CEST)
+Received: by mail-pd0-f171.google.com with SMTP id y13so554715pdi.16
+	for <drbd-dev@lists.linbit.com>; Thu, 18 Sep 2014 08:07:45 -0700 (PDT)
+Message-ID: <541AF3A8.3000900@kernel.dk>
+Date: Thu, 18 Sep 2014 09:00:56 -0600
+From: Jens Axboe <axboe@kernel.dk>
+MIME-Version: 1.0
+To: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org
 References: <1411051782-23375-1-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1411051782-23375-1-git-send-email-philipp.reisner@linbit.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Cc: Michel Lespinasse <walken@google.com>, Lai Jiangshan <laijs@cn.fujitsu.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 2/2] drbd: use RB_DECLARE_CALLBACKS() to define
-	augment callbacks
+Subject: Re: [Drbd-dev] [PATCH 0/2] More for the 3.18 merge window
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,65 +29,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
+On 2014-09-18 08:49, Philipp Reisner wrote:
+> Hi Jens,
+>
+> please put these two patches into your for-3.18/drivers branch.  They fix
+> the safety code for concurrent overlapping write detection in a DRBD
+> dual primary setup.
+>
+> The first of those two should also go to the stable kernels, I marked it
+> with CC: stable@kernel.org
 
-The original code are the same as RB_DECLARE_CALLBACKS().
+Applied, thanks.
 
-CC: Michel Lespinasse <walken@google.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
----
- drivers/block/drbd/drbd_interval.c | 36 ++----------------------------------
- 1 file changed, 2 insertions(+), 34 deletions(-)
-
-diff --git a/drivers/block/drbd/drbd_interval.c b/drivers/block/drbd/drbd_interval.c
-index 04a14e0..51b25ad 100644
---- a/drivers/block/drbd/drbd_interval.c
-+++ b/drivers/block/drbd/drbd_interval.c
-@@ -37,40 +37,8 @@ compute_subtree_last(struct drbd_interval *node)
- 	return max;
- }
- 
--static void augment_propagate(struct rb_node *rb, struct rb_node *stop)
--{
--	while (rb != stop) {
--		struct drbd_interval *node = rb_entry(rb, struct drbd_interval, rb);
--		sector_t subtree_last = compute_subtree_last(node);
--		if (node->end == subtree_last)
--			break;
--		node->end = subtree_last;
--		rb = rb_parent(&node->rb);
--	}
--}
--
--static void augment_copy(struct rb_node *rb_old, struct rb_node *rb_new)
--{
--	struct drbd_interval *old = rb_entry(rb_old, struct drbd_interval, rb);
--	struct drbd_interval *new = rb_entry(rb_new, struct drbd_interval, rb);
--
--	new->end = old->end;
--}
--
--static void augment_rotate(struct rb_node *rb_old, struct rb_node *rb_new)
--{
--	struct drbd_interval *old = rb_entry(rb_old, struct drbd_interval, rb);
--	struct drbd_interval *new = rb_entry(rb_new, struct drbd_interval, rb);
--
--	new->end = old->end;
--	old->end = compute_subtree_last(old);
--}
--
--static const struct rb_augment_callbacks augment_callbacks = {
--	augment_propagate,
--	augment_copy,
--	augment_rotate,
--};
-+RB_DECLARE_CALLBACKS(static, augment_callbacks, struct drbd_interval, rb,
-+		     sector_t, end, compute_subtree_last);
- 
- /**
-  * drbd_insert_interval  -  insert a new interval into a tree
 -- 
-1.9.1
+Jens Axboe
 
