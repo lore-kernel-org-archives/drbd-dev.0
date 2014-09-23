@@ -2,18 +2,18 @@ Return-Path: <m@sys4.de>
 Received: from mail.sys4.de (mail.sys4.de [194.126.158.139])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B840F101AC7E
-	for <drbd-dev@lists.linbit.com>; Tue, 23 Sep 2014 19:08:26 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 22460101E063
+	for <drbd-dev@lists.linbit.com>; Tue, 23 Sep 2014 20:14:22 +0200 (CEST)
 Received: from localhost (ip2505fba1.dynamic.kabel-deutschland.de
 	[37.5.251.161])
 	(using TLSv1 with cipher ECDHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.sys4.de (Postfix) with ESMTPSA id 3j2TVx5HlmzJC
-	for <drbd-dev@lists.linbit.com>; Tue, 23 Sep 2014 19:08:25 +0200 (CEST)
-Date: Tue, 23 Sep 2014 19:08:24 +0200
+	by mail.sys4.de (Postfix) with ESMTPSA id 3j2Vz20Msfz6V
+	for <drbd-dev@lists.linbit.com>; Tue, 23 Sep 2014 20:14:22 +0200 (CEST)
+Date: Tue, 23 Sep 2014 20:14:21 +0200
 From: Marc Schiffbauer <m@sys4.de>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20140923170824.GA32597@schiffbauer.net>
+Message-ID: <20140923181421.GB32597@schiffbauer.net>
 References: <20140919094909.GA21578@schiffbauer.net>
 	<20140919144805.GS13125@soda.linbit>
 	<20140919151653.GH21578@schiffbauer.net>
@@ -64,25 +64,14 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 >> >It is *not* a refcount.
 >> >It is an atomic counter.
 >> >It is meant to overflow.
->>
->> Ok, then I can report this back and it should be fixed in PaX as a
->> false postive. Thanks for clarifying this.
->
->I still don't get why PAX is even sending a signal there.
->How could sending a signal possibly help against an overflowing counter?
 
 
-PAX is a patchset for the linux kernel that hardens the kernel in 
-several ways.
+Another question PaX-Team is asking:
 
-The REFCOUNT feature will detect and prevent overflowing of 
-refcounters.
-
-This is a good introduction of what it does:
-http://wiki.gentoo.org/wiki/Hardened/PaX_Quickstart
+what about rs_sect_in?
 
 
--Marc
+Thanks
 
 
 -- 
