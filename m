@@ -1,37 +1,37 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1876D101AC7E
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Sep 2014 12:04:45 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D0D97101AC7E
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Sep 2014 12:15:03 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 0C2332A0C2F
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Sep 2014 12:04:45 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id BE9402A5686
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Sep 2014 12:15:03 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id takVhiVl4hgw for <drbd-dev@lists.linbit.com>;
-	Wed, 24 Sep 2014 12:04:44 +0200 (CEST)
+	with ESMTP id YQykAgreB5s1 for <drbd-dev@lists.linbit.com>;
+	Wed, 24 Sep 2014 12:15:03 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id E236F2A5795
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Sep 2014 12:04:44 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id A5EA52A5AAD
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Sep 2014 12:15:03 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id Bfic6AfTpaX0 for <drbd-dev@lists.linbit.com>;
-	Wed, 24 Sep 2014 12:04:44 +0200 (CEST)
+	with ESMTP id HVJutSSvRsiT for <drbd-dev@lists.linbit.com>;
+	Wed, 24 Sep 2014 12:15:03 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 36A682A0C2F
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Sep 2014 12:04:44 +0200 (CEST)
-Date: Wed, 24 Sep 2014 12:04:42 +0200
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 654D62A5686
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Sep 2014 12:15:03 +0200 (CEST)
+Date: Wed, 24 Sep 2014 12:14:51 +0200
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20140924100442.GB7118@soda.linbit>
+Message-ID: <20140924101451.GC7118@soda.linbit>
 References: <20140919094909.GA21578@schiffbauer.net>
 	<20140919144805.GS13125@soda.linbit>
 	<20140919151653.GH21578@schiffbauer.net>
 	<20140923110348.GA19076@soda.linbit>
-	<20140923170824.GA32597@schiffbauer.net>
+	<20140923181421.GB32597@schiffbauer.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20140923170824.GA32597@schiffbauer.net>
+In-Reply-To: <20140923181421.GB32597@schiffbauer.net>
 Content-Transfer-Encoding: quoted-printable
 Subject: Re: [Drbd-dev] drbd 8.4.3: refcounter overflow on re-sync
 List-Id: "*Coordination* of development, patches,
@@ -45,7 +45,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Sep 23, 2014 at 07:08:24PM +0200, Marc Schiffbauer wrote:
+On Tue, Sep 23, 2014 at 08:14:21PM +0200, Marc Schiffbauer wrote:
 > * Lars Ellenberg schrieb am 23.09.14 um 13:03 Uhr:
 > >On Fri, Sep 19, 2014 at 05:16:53PM +0200, Marc Schiffbauer wrote:
 > >>* Lars Ellenberg schrieb am 19.09.14 um 16:48 Uhr:
@@ -77,31 +77,21 @@ o far:
 > >>>It is *not* a refcount.
 > >>>It is an atomic counter.
 > >>>It is meant to overflow.
-> >>
-> >>Ok, then I can report this back and it should be fixed in PaX as a
-> >>false postive. Thanks for clarifying this.
-> >
-> >I still don't get why PAX is even sending a signal there.
-> >How could sending a signal possibly help against an overflowing counte=
-r?
 >=20
 >=20
-> PAX is a patchset for the linux kernel that hardens the kernel in
-> several ways.
+> Another question PaX-Team is asking:
 >=20
-> The REFCOUNT feature will detect and prevent overflowing of
-> refcounters.
->=20
-> This is a good introduction of what it does:
-> http://wiki.gentoo.org/wiki/Hardened/PaX_Quickstart
+> what about rs_sect_in?
 
-Yeah.
+That usually should not overflow, as it is typically regularly (several
+times per second) reset to zero (and for other reasons).
 
-Why would sending a signal to the current thread prevent a counter from
-overflowing. How could that possibly improve the overall situation,
-even assuming that the overflow would have bad side effects?
+If you manage to transfer more 2 TiByte in subseconds via a single TCP
+connection, more power to you.
 
-Never mind.  This won't be a fruitful discussion...
+Still, if it should overflow (for whatever reason), no real harm done.
+Arbitrarily sending a signal or terminating processes in that case would
+be the only actually disturbing thing.
 
 --=20
 : Lars Ellenberg
