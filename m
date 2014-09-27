@@ -1,21 +1,45 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C7F43101E048
-	for <drbd-dev@lists.linbit.com>; Thu, 25 Sep 2014 02:07:48 +0200 (CEST)
-Date: Thu, 25 Sep 2014 02:07:48 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: PaX Team <pageexec@freemail.hu>
-Message-ID: <20140925000748.GB20814@soda.linbit>
-References: <20140919094909.GA21578@schiffbauer.net>
-	<5423084F.5168.4D040014@pageexec.freemail.hu>
-	<20140924215047.GI7118@soda.linbit>
-	<542352D0.5354.4E270879@pageexec.freemail.hu>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 577EC101E048
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 417E23829C2
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id J_TQ1ybkDeJx for <drbd-dev@lists.linbit.com>;
+	Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 23D08386986
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id WNUfE94BTjPv for <drbd-dev@lists.linbit.com>;
+	Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id C1B9A3829C2
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Sep 2014 20:31:44 +0200 (CEST)
+Resent-Message-ID: <20140929183144.GD14672@soda.linbit>
+Received: from r00tworld.com (r00tworld.com [212.85.137.150])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DC3AA101E067
+	for <drbd-dev@lists.linbit.com>; Sat, 27 Sep 2014 02:46:11 +0200 (CEST)
+From: "PaX Team" <pageexec@freemail.hu>
+To: Lars Ellenberg <lars.ellenberg@linbit.com>
+Date: Sat, 27 Sep 2014 02:45:47 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <542352D0.5354.4E270879@pageexec.freemail.hu>
+Message-ID: <542608BB.1155.7B400B3@pageexec.freemail.hu>
+In-reply-to: <20140925000748.GB20814@soda.linbit>
+References: <20140919094909.GA21578@schiffbauer.net>,
+	<542352D0.5354.4E270879@pageexec.freemail.hu>,
+	<20140925000748.GB20814@soda.linbit>
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Content-description: Mail message body
 Cc: spender@grsecurity.net, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] drbd 8.4.3: refcounter overflow on re-sync
+Reply-To: pageexec@freemail.hu
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,54 +51,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Sep 25, 2014 at 01:25:04AM +0200, PaX Team wrote:
-> On 24 Sep 2014 at 23:50, Lars Ellenberg wrote:
-> 
-> > On Wed, Sep 24, 2014 at 08:07:11PM +0200, PaX Team wrote:
-> > > > > perhaps it's a consequence of the reaction from the kernel on the overflow
-> > > > > which is equivalent to a SIGKILL with all that it implies (files and network
-> > > > > connections get closed, etc).
-> > > > 
-> > > > That would be the result of the _ASM_EXTABLE()?
-> > > > or what causes that "reaction"?
-> > > 
-> > > no, the extable mechanism is only used to re-enter the kernel in a known
-> > > way to be able to report back on the detected refcount overflow. the actual
-> > > reaction is in pax_report_refcount_overflow
-> > 
-> > Which is registered in the corresponding place in the exception table.
-> > So yes.
-> 
-> no, what is registered in the exception table is the address of the continuation
-...
-> it's an implementation choice only.
+On 25 Sep 2014 at 2:07, Lars Ellenberg wrote:
 
-And that was what I wanted to know about. So yes ;-)
+> In this overflow case, I still don't see why it is supposed to help to
+> shoot the process that happens to be "current" when the overflow occurs,
+> respectively why it would be a valid assumption that this process would
+> be "the exploit", provoking the overflow on purpose...
 
-> > I predicted earlier that this would not be a fruitful discussion.
+for an exploit to be useful it has to be both successful (be able to exploit
+the bug(s)) and also reliable (do so 100% of the time, or at least without
+any ill side-effects in case of both success and failure).
 
-> you're conflating the general concept of reaction to exploits
+for refcount overflow based exploits it means precise control over the refcount.
+since the exploit is a userland process, in practice only those refcount bugs
+are relevant that execute in syscalls. therefore 'current' is actually the
+exploit process in practice and more strategically, it runs under the uid that
+must have been owned a priori. so killing the triggering process does not only
+clean up an otherwise cpu-hungry process (taking 4G refcounts takes time) but
+also generates an event about a potential breach of security with actionable
+details (at least grsec has such capabilities).
 
-Absolutely, yes, I do.
+> Though I dislike it even more that it (implementing protection
+> techniques) is even necessary, if you have to assume they are out to get
+> you.  Which is more a fact than an assumption, in more scenarios than
+> I'd like it to be.  So you keep preventing existing bugs elsewhere from
+> becoming exploitable, and I'll shut up :)
 
-In this overflow case, I still don't see why it is supposed to help to
-shoot the process that happens to be "current" when the overflow occurs,
-respectively why it would be a valid assumption that this process would
-be "the exploit", provoking the overflow on purpose...
-But never mind, if you say that's so, fine.
+our protection mechanisms (will continue to) cover all kernel code, including
+drbd ;). speaking of that, you could do some hardening yourself in fact, e.g.,
+constify data_cmd and asender_cmd. we do this automatically with a gcc plugin
+but it'd be a trivial source patch.
 
-> every major operating system vendor and cpu manufacturer have adopted protection
-> techniques that were pioneered by us, i think that speaks more than a lone doubting
-> Thomas on the drbd list ;).
-
-I know. I'm not doubting. I get it.
-I just don't like it (precautionary shooting in general), is all.
-
-Though I dislike it even more that it (implementing protection
-techniques) is even necessary, if you have to assume they are out to get
-you.  Which is more a fact than an assumption, in more scenarios than
-I'd like it to be.  So you keep preventing existing bugs elsewhere from
-becoming exploitable, and I'll shut up :)
-
-	Lars
+cheers,
+  PaX Team
 
