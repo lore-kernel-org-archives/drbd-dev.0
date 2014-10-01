@@ -1,45 +1,20 @@
-Return-Path: <lars.ellenberg@linbit.com>
+Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 577EC101E048
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 417E23829C2
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id J_TQ1ybkDeJx for <drbd-dev@lists.linbit.com>;
-	Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 23D08386986
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id WNUfE94BTjPv for <drbd-dev@lists.linbit.com>;
-	Mon, 29 Sep 2014 20:31:45 +0200 (CEST)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id C1B9A3829C2
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Sep 2014 20:31:44 +0200 (CEST)
-Resent-Message-ID: <20140929183144.GD14672@soda.linbit>
-Received: from r00tworld.com (r00tworld.com [212.85.137.150])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DC3AA101E067
-	for <drbd-dev@lists.linbit.com>; Sat, 27 Sep 2014 02:46:11 +0200 (CEST)
-From: "PaX Team" <pageexec@freemail.hu>
-To: Lars Ellenberg <lars.ellenberg@linbit.com>
-Date: Sat, 27 Sep 2014 02:45:47 +0200
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 550BA101AC75
+	for <drbd-dev@lists.linbit.com>; Wed,  1 Oct 2014 11:32:30 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: stable@vger.kernel.org
+Date: Wed, 01 Oct 2014 11:32:29 +0200
+Message-ID: <2120692.Pa81LKFuHn@fat-tyre>
+In-Reply-To: <026a6017e1b052f58cf908fc2f63aea7@de.mcbf.net>
+References: <026a6017e1b052f58cf908fc2f63aea7@de.mcbf.net>
 MIME-Version: 1.0
-Message-ID: <542608BB.1155.7B400B3@pageexec.freemail.hu>
-In-reply-to: <20140925000748.GB20814@soda.linbit>
-References: <20140919094909.GA21578@schiffbauer.net>,
-	<542352D0.5354.4E270879@pageexec.freemail.hu>,
-	<20140925000748.GB20814@soda.linbit>
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7BIT
-Content-description: Mail message body
-Cc: spender@grsecurity.net, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] drbd 8.4.3: refcounter overflow on re-sync
-Reply-To: pageexec@freemail.hu
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Cc: Jens Axboe <axboe@kernel.dk>, David Mohr <david@mcbf.net>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: fix regression 'out of mem,
+	failed to invoke fence-peer helper'
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -51,37 +26,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 25 Sep 2014 at 2:07, Lars Ellenberg wrote:
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-> In this overflow case, I still don't see why it is supposed to help to
-> shoot the process that happens to be "current" when the overflow occurs,
-> respectively why it would be a valid assumption that this process would
-> be "the exploit", provoking the overflow on purpose...
+Stable info:
+  This patch landed in upstream with v3.16 as commit
+  bbc1c5e8ad6dfebf9d13b8a4ccdf66c92913eac9
+  it should go into v3.14+
 
-for an exploit to be useful it has to be both successful (be able to exploit
-the bug(s)) and also reliable (do so 100% of the time, or at least without
-any ill side-effects in case of both success and failure).
+Since linux kernel 3.13, kthread_run() internally uses
+wait_for_completion_killable().  We sometimes may use kthread_run()
+while we still have a signal pending, which we used to kick our threads
+out of potentially blocking network functions, causing kthread_run() to
+mistake that as a new fatal signal and fail.
 
-for refcount overflow based exploits it means precise control over the refcount.
-since the exploit is a userland process, in practice only those refcount bugs
-are relevant that execute in syscalls. therefore 'current' is actually the
-exploit process in practice and more strategically, it runs under the uid that
-must have been owned a priori. so killing the triggering process does not only
-clean up an otherwise cpu-hungry process (taking 4G refcounts takes time) but
-also generates an event about a potential breach of security with actionable
-details (at least grsec has such capabilities).
+Fix: flush_signals() before kthread_run().
 
-> Though I dislike it even more that it (implementing protection
-> techniques) is even necessary, if you have to assume they are out to get
-> you.  Which is more a fact than an assumption, in more scenarios than
-> I'd like it to be.  So you keep preventing existing bugs elsewhere from
-> becoming exploitable, and I'll shut up :)
+Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+Signed-off-by: Jens Axboe <axboe@fb.com>
+---
+ drivers/block/drbd/drbd_nl.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-our protection mechanisms (will continue to) cover all kernel code, including
-drbd ;). speaking of that, you could do some hardening yourself in fact, e.g.,
-constify data_cmd and asender_cmd. we do this automatically with a gcc plugin
-but it'd be a trivial source patch.
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 1b35c45..3f2e167 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -544,6 +544,12 @@ void conn_try_outdate_peer_async(struct drbd_connection *connection)
+        struct task_struct *opa;
 
-cheers,
-  PaX Team
+        kref_get(&connection->kref);
++       /* We may just have force_sig()'ed this thread
++        * to get it out of some blocking network function.
++        * Clear signals; otherwise kthread_run(), which internally uses
++        * wait_on_completion_killable(), will mistake our pending signal
++        * for a new fatal signal and fail. */
++       flush_signals(current);
+        opa = kthread_run(_try_outdate_peer_async, connection, "drbd_async_h");
+        if (IS_ERR(opa)) {
+                drbd_err(connection, "out of mem, failed to invoke fence-peer helper\n");
+-- 
+1.9.1
 
