@@ -1,24 +1,45 @@
-Return-Path: <igor@novg.net>
-Received: from mail.novg.net (mail.novg.net [194.190.107.140])
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 44E24101E062
+	for <drbd-dev@lists.linbit.com>; Tue,  7 Oct 2014 16:51:07 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 383303C3E1F
+	for <drbd-dev@lists.linbit.com>; Tue,  7 Oct 2014 16:51:07 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id G8_jCgBG8P9I for <drbd-dev@lists.linbit.com>;
+	Tue,  7 Oct 2014 16:51:07 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 1AF843C4383
+	for <drbd-dev@lists.linbit.com>; Tue,  7 Oct 2014 16:51:07 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id FzJs8T1V0NuA for <drbd-dev@lists.linbit.com>;
+	Tue,  7 Oct 2014 16:51:07 +0200 (CEST)
+Received: from soda.linbit (unknown [217.196.73.213])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id EFB803C3E1F
+	for <drbd-dev@lists.linbit.com>; Tue,  7 Oct 2014 16:51:06 +0200 (CEST)
+Resent-Message-ID: <20141007145106.GG8574@soda.linbit>
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org
+	[140.211.169.12])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7EBA21028A42
-	for <drbd-dev@lists.linbit.com>; Mon,  6 Oct 2014 18:21:16 +0200 (CEST)
-Received: from [192.168.22.101] (a4k2.static.corbina.ru [93.81.251.34])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.novg.net (Postfix) with ESMTPSA id 2D859780EF3
-	for <drbd-dev@lists.linbit.com>; Mon,  6 Oct 2014 20:21:15 +0400 (MSK)
-Message-ID: <5432C17B.4050502@novg.net>
-Date: Mon, 06 Oct 2014 20:21:15 +0400
-From: Igor Novgorodov <igor@novg.net>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4467B101E048
+	for <drbd-dev@lists.linbit.com>; Mon,  6 Oct 2014 01:56:07 +0200 (CEST)
+Date: Sun, 5 Oct 2014 16:47:01 -0700
+From: Greg KH <gregkh@linuxfoundation.org>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Message-ID: <20141005234701.GA23078@kroah.com>
+References: <026a6017e1b052f58cf908fc2f63aea7@de.mcbf.net>
+	<2120692.Pa81LKFuHn@fat-tyre>
 MIME-Version: 1.0
-To: drbd-dev@lists.linbit.com
-References: <542EFA18.9060705@novg.net> <20141006153435.GE8574@soda.linbit>
-In-Reply-To: <20141006153435.GE8574@soda.linbit>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] Bug in latest 8.4-git
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2120692.Pa81LKFuHn@fat-tyre>
+Cc: Jens Axboe <axboe@kernel.dk>, David Mohr <david@mcbf.net>,
+	stable@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd: fix regression 'out of mem,
+ failed to invoke fence-peer helper'
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,134 +51,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-I didn't found any bugtracker for DRBD project, so i reported the bug here.
+On Wed, Oct 01, 2014 at 11:32:29AM +0200, Philipp Reisner wrote:
+> From: Lars Ellenberg <lars.ellenberg@linbit.com>
+> 
+> Stable info:
+>   This patch landed in upstream with v3.16 as commit
+>   bbc1c5e8ad6dfebf9d13b8a4ccdf66c92913eac9
+>   it should go into v3.14+
+> 
+> Since linux kernel 3.13, kthread_run() internally uses
+> wait_for_completion_killable().  We sometimes may use kthread_run()
+> while we still have a signal pending, which we used to kick our threads
+> out of potentially blocking network functions, causing kthread_run() to
+> mistake that as a new fatal signal and fail.
+> 
+> Fix: flush_signals() before kthread_run().
+> 
+> Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+> Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+> Signed-off-by: Jens Axboe <axboe@fb.com>
+> ---
+>  drivers/block/drbd/drbd_nl.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+> index 1b35c45..3f2e167 100644
+> --- a/drivers/block/drbd/drbd_nl.c
+> +++ b/drivers/block/drbd/drbd_nl.c
+> @@ -544,6 +544,12 @@ void conn_try_outdate_peer_async(struct drbd_connection *connection)
+>         struct task_struct *opa;
+> 
+>         kref_get(&connection->kref);
+> +       /* We may just have force_sig()'ed this thread
+> +        * to get it out of some blocking network function.
+> +        * Clear signals; otherwise kthread_run(), which internally uses
+> +        * wait_on_completion_killable(), will mistake our pending signal
+> +        * for a new fatal signal and fail. */
+> +       flush_signals(current);
+>         opa = kthread_run(_try_outdate_peer_async, connection, "drbd_async_h");
+>         if (IS_ERR(opa)) {
+>                 drbd_err(connection, "out of mem, failed to invoke fence-peer helper\n");
 
-ENOIOCTLCMD is returned in several places in net/socket.c and 
-net/ipv4/tcp.c,
-it seems to have something to do with 32-bit code emulation on 64-bit 
-kernel:
+This doesn't apply to 3.16-stable or 3.14-stable, can you please provide
+a working backport?
 
-#ifdef CONFIG_COMPAT
-static int inet_compat_ioctl(struct socket *sock, unsigned int cmd, 
-unsigned long arg)
-{
-          struct sock *sk = sock->sk;
-          int err = -ENOIOCTLCMD;
+thanks,
 
-          if (sk->sk_prot->compat_ioctl)
-                  err = sk->sk_prot->compat_ioctl(sk, cmd, arg);
 
-          return err;
-}
-#endif
-
-CONFIG_COMPAT is only defined if 32-bit emulation is enabled in kernel.
-
-I've just rebuilt kernel with CONFIG_X86_X32 and drbd-8.4-git started to 
-work fine,
-so the problem is there, somewhere in 64/32 compatibility layer :)
-
-On 06.10.2014 19:34, Lars Ellenberg wrote:
-> On Fri, Oct 03, 2014 at 11:33:44PM +0400, Igor Novgorodov wrote:
->> Hello!
->>
->> Just checked out latest rev of git tree and built it against latest
->> LTS vanilla kernel - 3.14.19
->>
->> And the problem is that it won't connect to the peer server (it's
->> drbd 8.4.3 and kernel 3.4.42) at all
->> with "listen failed, err = -515" error. Replication link is 4x1G
->> balance-rr bond which worked fine
->> for years, if that's relevant. IPv6 is disabled in kernel completely.
-> Then why are you trying git checkouts on it...
->
->> I've fallen back to 8.4.5 stable release and it all worked fine again.
-> Great.  As long as the released code works ;-)
->
->> The thing is that last time i've checked out git version around July
->> 2014 - it worked fine too,
->> something broke later.
-> Thanks for reporting anyways.  That way we may be able to figure out
-> what's wrong before the next release.
->
-> errno -515  is "ENOIOCTLCMD" according to my kernel sources.
-> Not sure why listen would report that?
->
->> Kernel log of the connection follows, glad to get any help or answer
->> any questions:
->>
->> [  987.195779] drbd: failed to initialize debugfs -- will not be available
->> [  987.195875] drbd: initialized. Version: 8.4.5 (api:1/proto:86-101)
->> [  987.195946] drbd: GIT-hash:
->> ca3a67af3823b85614621a4cf95e191c5820c0eb build by
->> root@debian-service, 2014-10-03 21:23:28
->> [  987.196039] drbd: registered as block device major 147
->> [  987.243928] drbd VM_STORAGE2_1: Starting worker thread (from
->> drbdsetup-84 [7574])
->> [  987.244564] block drbd0: disk( Diskless -> Attaching )
->> [  987.245006] drbd VM_STORAGE2_1: Method to ensure write ordering: drain
->> [  987.245080] block drbd0: max BIO size = 286720
->> [  987.245151] block drbd0: Adjusting my ra_pages to backing
->> device's (32 -> 70)
->> [  987.245227] block drbd0: drbd_bm_resize called with capacity ==
->> 23436772800
->> [  987.309127] block drbd0: resync bitmap: bits=2929596600
->> words=45774947 pages=89405
->> [  987.309223] block drbd0: size = 11 TB (11718386400 KB)
->> [  988.983804] block drbd0: recounting of set bits took additional 8 jiffies
->> [  988.983884] block drbd0: 0 KB (0 bits) marked out-of-sync by on
->> disk bit-map.
->> [  988.983964] block drbd0: disk( Attaching -> UpToDate )
->> [  988.984048] block drbd0: attached to UUIDs
->> 6BCB7D550A1E86DE:0000000000000000:22A0154CECB25AF2:229F154CECB25AF3
->> [  989.016875] drbd VM_STORAGE2_2: Starting worker thread (from
->> drbdsetup-84 [7580])
->> [  989.017381] block drbd1: disk( Diskless -> Attaching )
->> [  989.017842] drbd VM_STORAGE2_2: Method to ensure write ordering: drain
->> [  989.017919] block drbd1: max BIO size = 286720
->> [  989.017990] block drbd1: Adjusting my ra_pages to backing
->> device's (32 -> 70)
->> [  989.018066] block drbd1: drbd_bm_resize called with capacity ==
->> 17577578552
->> [  989.065815] block drbd1: resync bitmap: bits=2197197319
->> words=34331209 pages=67054
->> [  989.065908] block drbd1: size = 8382 GB (8788789276 KB)
->> [  990.280610] block drbd1: recounting of set bits took additional 5 jiffies
->> [  990.280690] block drbd1: 0 KB (0 bits) marked out-of-sync by on
->> disk bit-map.
->> [  990.280771] block drbd1: disk( Attaching -> UpToDate )
->> [  990.280855] block drbd1: attached to UUIDs
->> 7869022EE30A1DDC:0000000000000000:BEFCB1DA3C794170:BEFBB1DA3C794171
->> [  990.282283] drbd VM_STORAGE2_1: conn( StandAlone -> Unconnected )
->> [  990.282382] drbd VM_STORAGE2_1: Starting receiver thread (from
->> drbd_w_VM_STORA [7575])
->> [  990.282590] drbd VM_STORAGE2_1: receiver (re)started
->> [  990.282698] drbd VM_STORAGE2_1: conn( Unconnected -> WFConnection )
->> [  990.282788] drbd VM_STORAGE2_1: listen failed, err = -515
->> [  990.282888] drbd VM_STORAGE2_1: conn( WFConnection -> Disconnecting )
->> [  990.283287] drbd VM_STORAGE2_1: Connection closed
->> [  990.283307] drbd VM_STORAGE2_2: conn( StandAlone -> Unconnected )
->> [  990.283349] drbd VM_STORAGE2_2: Starting receiver thread (from
->> drbd_w_VM_STORA [7581])
->> [  990.283461] drbd VM_STORAGE2_2: receiver (re)started
->> [  990.283500] drbd VM_STORAGE2_2: conn( Unconnected -> WFConnection )
->> [  990.283515] drbd VM_STORAGE2_2: listen failed, err = -515
->> [  990.283542] drbd VM_STORAGE2_2: conn( WFConnection -> Disconnecting )
->> [  990.283580] drbd VM_STORAGE2_2: Connection closed
->> [  990.283611] drbd VM_STORAGE2_2: conn( Disconnecting -> StandAlone )
->> [  990.283975] drbd VM_STORAGE2_1: conn( Disconnecting -> StandAlone )
->> [  991.282537] drbd VM_STORAGE2_1: State change failed: Need a
->> connection to start verify or resync
->> [  991.282540] drbd VM_STORAGE2_2: State change failed: Need a
->> connection to start verify or resync
->> [  991.282541] drbd VM_STORAGE2_2:  mask = 0x1f0 val = 0x80
->> [  991.282544] drbd VM_STORAGE2_2:  old_conn:StandAlone
->> wanted_conn:WFConnection
->> [  991.282545] drbd VM_STORAGE2_2: receiver terminated
->> [  991.282546] drbd VM_STORAGE2_2: Terminating drbd_r_VM_STORA
->> [  991.283005] drbd VM_STORAGE2_1:  mask = 0x1f0 val = 0x80
->> [  991.283076] drbd VM_STORAGE2_1:  old_conn:StandAlone
->> wanted_conn:WFConnection
->> [  991.283149] drbd VM_STORAGE2_1: receiver terminated
->> [  991.283220] drbd VM_STORAGE2_1: Terminating drbd_r_VM_STORA
-
+greg k-h
