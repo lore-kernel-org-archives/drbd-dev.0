@@ -2,19 +2,15 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 633BA101AC7E
-	for <drbd-dev@lists.linbit.com>; Wed, 29 Oct 2014 17:25:24 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8ADDE101AC7E
+	for <drbd-dev@lists.linbit.com>; Wed, 29 Oct 2014 17:37:57 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Jan Kara <jack@suse.cz>
-Date: Wed, 29 Oct 2014 17:25:23 +0100
-Message-ID: <3062677.eVKfvK0gZD@fat-tyre>
-In-Reply-To: <20141021141226.GA9223@quack.suse.cz>
-References: <20141021141226.GA9223@quack.suse.cz>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+To: linux-kernel@vger.kernel.org,
+	Jens Axboe <axboe@kernel.dk>
+Date: Wed, 29 Oct 2014 17:37:49 +0100
+Message-Id: <1414600676-11203-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Bug in drbd_adm_attach()
+Subject: [Drbd-dev] [PATCH 0/7] RFC DRBD updates for 3.19
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,23 +22,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Dienstag, 21. Oktober 2014, 16:12:26 schrieb Jan Kara:
->   Hello,
-> 
->   Coverity has spotted a problem in drbd_adm_attach() which does:
-> 
->         connection = peer_device ? peer_device->connection : NULL;
->         conn_reconfig_start(connection);
-> 
-> and conn_reconfig_start() just blindly dereferences 'connection'. So either
-> peer_device cannot be NULL (and then the test is superfluous) or there's a
-> bug...
-> 
-> 								Honza
+Hi,
+
+these are the proposed DRBD changes for 3.19. All minor stuff
+and fixes.
+
+I will repost it in one week with the appropriate CC: stable
+header set, and eventual feedback integrated.
+
+Thanks!
 
 
-Thanks for pointing out.
-http://git.drbd.org/gitweb.cgi?p=drbd-8.4.git;a=commitdiff;h=8d7d18b40dbe006a3ca25d560e42617a04c68e1f;hp=1564eb39534debeead593f597c5c951c588ecf8b
+Andreas Gruenbacher (2):
+  drbd: Minor cleanups
+  drbd: Only use drbd_msg_put_info() in drbd_nl.c
 
-Best,
- Phil
+Lars Ellenberg (2):
+  drbd: fix resync throttling initialization
+  drbd: merge_bvec_fn: properly remap bvm->bi_bdev
+
+Philipp Reisner (3):
+  drbd: fix race between role change and handshake
+  drbd: Fix state change in case of connection timeout
+  drbd: Remove an useless copy of kernel_setsockopt()
+
+ drivers/block/drbd/drbd_actlog.c   |  3 +-
+ drivers/block/drbd/drbd_int.h      | 39 +++++------------------
+ drivers/block/drbd/drbd_main.c     | 23 ++++----------
+ drivers/block/drbd/drbd_nl.c       | 64 +++++++++++++++++---------------------
+ drivers/block/drbd/drbd_receiver.c |  2 +-
+ drivers/block/drbd/drbd_req.c      |  3 +-
+ drivers/block/drbd/drbd_state.c    | 42 ++++++++++++++++++++-----
+ drivers/block/drbd/drbd_state.h    |  5 +++
+ drivers/block/drbd/drbd_worker.c   |  5 ++-
+ include/linux/drbd.h               |  2 +-
+ 10 files changed, 90 insertions(+), 98 deletions(-)
+
+-- 
+1.9.1
+
