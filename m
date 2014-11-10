@@ -1,19 +1,22 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com
+	[209.85.220.52]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 778E2103B4A4
-	for <drbd-dev@lists.linbit.com>; Mon, 10 Nov 2014 17:21:17 +0100 (CET)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: linux-kernel@vger.kernel.org,
-	Jens Axboe <axboe@kernel.dk>
-Date: Mon, 10 Nov 2014 17:21:15 +0100
-Message-Id: <1415636475-7883-8-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1415636475-7883-1-git-send-email-philipp.reisner@linbit.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A3464101E064
+	for <drbd-dev@lists.linbit.com>; Mon, 10 Nov 2014 18:08:50 +0100 (CET)
+Received: by mail-pa0-f52.google.com with SMTP id fa1so8638992pad.11
+	for <drbd-dev@lists.linbit.com>; Mon, 10 Nov 2014 09:08:48 -0800 (PST)
+Message-ID: <5460EA16.1060908@kernel.dk>
+Date: Mon, 10 Nov 2014 09:38:46 -0700
+From: Jens Axboe <axboe@kernel.dk>
+MIME-Version: 1.0
+To: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org
 References: <1415636475-7883-1-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1415636475-7883-1-git-send-email-philipp.reisner@linbit.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 7/7] drbd: Remove an useless copy of
-	kernel_setsockopt()
+Subject: Re: [Drbd-dev] [PATCH 0/7] DRBD updates for the 3.19 merge window
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,75 +28,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Old backward-compat cruft
+On 2014-11-10 09:21, Philipp Reisner wrote:
+> Hi Jens,
+>
+> please take these patches for you for-3.19/drivers branch.
+> They where posted for review on 2014-10-29.
+>
+> Some cleanups and 3 fixes. Two of them marked for stable:
+> 0005-drbd-merge_bvec_fn-properly-remap-bvm-bi_bdev.patch and
+> 0006-drbd-Fix-state-change-in-case-of-connection-timeout.patch
+> (marked for stable)
 
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_int.h | 29 ++++-------------------------
- 1 file changed, 4 insertions(+), 25 deletions(-)
+Applied, thanks.
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index d2a7589..b905e98 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1557,52 +1557,31 @@ extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
- extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
- extern int drbd_connected(struct drbd_peer_device *);
- 
--/* Yes, there is kernel_setsockopt, but only since 2.6.18.
-- * So we have our own copy of it here. */
--static inline int drbd_setsockopt(struct socket *sock, int level, int optname,
--				  char *optval, int optlen)
--{
--	mm_segment_t oldfs = get_fs();
--	char __user *uoptval;
--	int err;
--
--	uoptval = (char __user __force *)optval;
--
--	set_fs(KERNEL_DS);
--	if (level == SOL_SOCKET)
--		err = sock_setsockopt(sock, level, optname, uoptval, optlen);
--	else
--		err = sock->ops->setsockopt(sock, level, optname, uoptval,
--					    optlen);
--	set_fs(oldfs);
--	return err;
--}
--
- static inline void drbd_tcp_cork(struct socket *sock)
- {
- 	int val = 1;
--	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
-+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
- 			(char*)&val, sizeof(val));
- }
- 
- static inline void drbd_tcp_uncork(struct socket *sock)
- {
- 	int val = 0;
--	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
-+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
- 			(char*)&val, sizeof(val));
- }
- 
- static inline void drbd_tcp_nodelay(struct socket *sock)
- {
- 	int val = 1;
--	(void) drbd_setsockopt(sock, SOL_TCP, TCP_NODELAY,
-+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
- 			(char*)&val, sizeof(val));
- }
- 
- static inline void drbd_tcp_quickack(struct socket *sock)
- {
- 	int val = 2;
--	(void) drbd_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
-+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
- 			(char*)&val, sizeof(val));
- }
- 
 -- 
-1.9.1
+Jens Axboe
 
