@@ -1,19 +1,22 @@
-Return-Path: <imrep.amz@gmail.com>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	(using TLSv1 with cipher RC4-SHA (128/128 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 58D0E1028A4A
-	for <drbd-dev@lists.linbit.com>; Mon,  9 Feb 2015 14:11:36 +0100 (CET)
-Received: by mail-wg0-f54.google.com with SMTP id y19so577768wgg.13
-	for <drbd-dev@lists.linbit.com>; Mon, 09 Feb 2015 05:11:36 -0800 (PST)
-From: Imre Palik <imrep.amz@gmail.com>
-To: drbd-dev@lists.linbit.com
-Date: Mon,  9 Feb 2015 14:05:38 +0100
-Message-Id: <1423487138-6971-1-git-send-email-imrep.amz@gmail.com>
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, "Palik, Imre" <imrep@amazon.de>,
-	Philipp Reisner <philipp.reisner@linbit.com>
-Subject: [Drbd-dev] [PATCH] drbd-utils: drbd service: specifying commands
-	from /sbin/ with absolute path
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5060E100EBF0
+	for <drbd-dev@lists.linbit.com>; Mon,  9 Feb 2015 15:52:19 +0100 (CET)
+Date: Mon, 9 Feb 2015 15:52:16 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Imre Palik <imrep.amz@gmail.com>
+Message-ID: <20150209145215.GA1325@soda.linbit>
+References: <1423487138-6971-1-git-send-email-imrep.amz@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1423487138-6971-1-git-send-email-imrep.amz@gmail.com>
+Cc: "Palik, Imre" <imrep@amazon.de>,
+	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd-utils: drbd service: specifying
+ commands from /sbin/ with absolute path
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,46 +28,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: "Palik, Imre" <imrep@amazon.de>
+On Mon, Feb 09, 2015 at 02:05:38PM +0100, Imre Palik wrote:
+> From: "Palik, Imre" <imrep@amazon.de>
+> 
+> This change removes the dependance of the service on wether /sbin is
+> in the path or not.
 
-This change removes the dependance of the service on wether /sbin is
-in the path or not.
+If you are NOT root,
+this will not work anyways.
 
-Signed-off-by: Imre Palik <imrep@amazon.de>
----
- scripts/drbd |    8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+If you ARE root,
+/sbin (or your local equivalent) is supposed to be in your path.
 
-diff --git a/scripts/drbd b/scripts/drbd
-index b6b0a2c..482c69d 100755
---- a/scripts/drbd
-+++ b/scripts/drbd
-@@ -27,6 +27,8 @@ DRBDSETUP="drbdsetup"
- PROC_DRBD="/proc/drbd"
- MODPROBE="/sbin/modprobe"
- RMMOD="/sbin/rmmod"
-+UDEVADM="/sbin/udevadm"
-+UDEVSETTLE="/sbin/udevsettle"
- UDEV_TIMEOUT=10
- ADD_MOD_PARAM=""
- 
-@@ -120,13 +122,13 @@ drbd_pretty_status()
- # But don't wait too long.
- _udev_settle()
- {
--	if udevadm version ; then
-+	if $UDEVADM version ; then
- 		# ok, we have udevadm, use it.
--		udevadm settle --timeout=5
-+		$UDEVADM settle --timeout=5
- 	else
- 		# if udevsettle is not there,
- 		# no matter.
--		udevsettle --timeout=5
-+		$UDEVSETTLE --timeout=5
- 	fi
- }
- 
--- 
-1.7.9.5
+There are deployments out there
+that have these tools not in /sbin but elsewhere. 
 
+	Lars
