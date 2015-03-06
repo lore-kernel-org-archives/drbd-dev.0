@@ -1,37 +1,23 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+Return-Path: <nwang@suse.com>
+Received: from relay2.provo.novell.com (relay2.provo.novell.com
+	[137.65.250.214])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 241F01019A36
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Feb 2015 12:38:36 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 171043EF03E
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Feb 2015 12:38:36 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id VcC8YBZzE_zY for <drbd-dev@lists.linbit.com>;
-	Fri, 27 Feb 2015 12:38:36 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id ECAEF3EF3A8
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Feb 2015 12:38:35 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id QNfWUCOwBB-B for <drbd-dev@lists.linbit.com>;
-	Fri, 27 Feb 2015 12:38:35 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 7F8A33EF03E
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Feb 2015 12:38:35 +0100 (CET)
-Resent-Message-ID: <20150227113835.GM19088@soda.linbit>
-From: Joe Perches <joe@perches.com>
-To: Andrew Morton <akpm@linux-foundation.org>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Date: Sat, 21 Feb 2015 18:53:52 -0800
-Message-Id: <71e9974045e2d3728e3f8dd21e5882986b1402a6.1424573328.git.joe@perches.com>
-In-Reply-To: <cover.1424573328.git.joe@perches.com>
-References: <cover.1424573328.git.joe@perches.com>
-Cc: linux-kernel@vger.kernel.org, drbd-user@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 25/27] lru_cache: Remove use of seq_printf return
-	value
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 872581045C28
+	for <drbd-dev@lists.linbit.com>; Fri,  6 Mar 2015 02:45:54 +0100 (CET)
+Message-Id: <54F9776D020000700004B9CC@relay2.provo.novell.com>
+Date: Thu, 05 Mar 2015 18:46:21 -0700
+From: "Nick Wang" <nwang@suse.com>
+To: <drbd-dev@lists.linbit.com>
+References: <54F893C4020000700004B720@relay2.provo.novell.com>
+	<54F9776D020000700004B9CC@relay2.provo.novell.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+Cc: Lars Marowsky-Bree <lmb@suse.com>
+Subject: [Drbd-dev] Querying the devel plan of speed up initial sync of new
+ and empty devices
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,37 +29,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The seq_printf return value, because it's frequently misused,
-will eventually be converted to void.
+Hi,
 
-See: commit 1f33c41c03da ("seq_file: Rename seq_overflow() to
-     seq_has_overflowed() and make public")
+DRBD is quite important and useful in SUSE HA product.
+With the feedback from customer, the initial sync will took some time=20
+even if no 'real' data has to be synced, especially with huge devices.
+Although the DRBD device can be fully operational with performance=20
+reduced before the initial synchronization has completed.
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- lib/lru_cache.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+A method that can be used in SUSE HA 12 SP1 is under evaluation.=20
+One draft idea is to set a "a zeroed device" flag in metadata when=20
+using "drbdadm primary --force --<zeroed device flag> <res>",=20
+then the secondary device can skip the data sync but zeroing the=20
+device locally.
 
-diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index 852c81e..028f5d9 100644
---- a/lib/lru_cache.c
-+++ b/lib/lru_cache.c
-@@ -247,10 +247,11 @@ size_t lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc)
- 	 * progress) and "changed", when this in fact lead to an successful
- 	 * update of the cache.
- 	 */
--	return seq_printf(seq, "\t%s: used:%u/%u "
--		"hits:%lu misses:%lu starving:%lu locked:%lu changed:%lu\n",
--		lc->name, lc->used, lc->nr_elements,
--		lc->hits, lc->misses, lc->starving, lc->locked, lc->changed);
-+	seq_printf(seq, "\t%s: used:%u/%u hits:%lu misses:%lu starving:%lu locked:%lu changed:%lu\n",
-+		   lc->name, lc->used, lc->nr_elements,
-+		   lc->hits, lc->misses, lc->starving, lc->locked, lc->changed);
-+
-+	return 0;
- }
- 
- static struct hlist_head *lc_hash_slot(struct lru_cache *lc, unsigned int enr)
--- 
-2.1.2
+Comparing to the full sync, the data can be zerod without sync(only=20
+metadata synced). And compare to only sync the metadata, there=20
+is not necessary to the admin to guarantee all remote device are=20
+zerod/new already.
+
+Before starting to do it. I want to ask is there any plan of the similar=20=
+
+feature in upstream? And if not, can i work on it for both upstream=20
+and SUSE?
+
+Since I am not an expert of DRBD yet like you, any suggestion or idea=20
+will be appreciate and helpful. Thanks in advanced.
+
+# Since DRBD9 GM is not ready yet, the first target of=20
+development is drbd.8.4.x
+
+Best regards,
+Nick=20
 
