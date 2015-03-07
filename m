@@ -2,43 +2,32 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id F0E4B105059D
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:13 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D3DC210518AC
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:35 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id EDCB044D30A
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:13 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 9D11244D329
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:35 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id z2AT91jjKPsH for <drbd-dev@lists.linbit.com>;
-	Fri, 13 Mar 2015 00:08:13 +0100 (CET)
+	with ESMTP id OrhCEfmTkhOb for <drbd-dev@lists.linbit.com>;
+	Fri, 13 Mar 2015 00:08:35 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id CB33C44D391
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:13 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 7D78D44D391
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:35 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id AfAMsHVh-00x for <drbd-dev@lists.linbit.com>;
-	Fri, 13 Mar 2015 00:08:13 +0100 (CET)
+	with ESMTP id HpXEl_lA9ceH for <drbd-dev@lists.linbit.com>;
+	Fri, 13 Mar 2015 00:08:35 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id A1ABB44D30A
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:13 +0100 (CET)
-Resent-Message-ID: <20150312230813.GR3961@soda.linbit>
-Message-ID: <54FBA9A3.9070606@fb.com>
-Date: Sat, 7 Mar 2015 18:45:07 -0700
-From: Jens Axboe <axboe@fb.com>
-MIME-Version: 1.0
-To: David Rientjes <rientjes@google.com>
-References: <alpine.DEB.2.10.1503071623250.31688@chino.kir.corp.google.com>
-	<54FB98F3.2050308@fb.com>
-	<alpine.DEB.2.10.1503071650270.2926@chino.kir.corp.google.com>
-	<54FB9FE2.5040707@fb.com>
-	<alpine.DEB.2.10.1503071724050.4711@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1503071724050.4711@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
-Cc: linux-kernel@vger.kernel.org, drbd-user@lists.linbit.com,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [patch 1/2] block,
-	drbd: fix drbd_req_new() initialization
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 54A6A44D329
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:35 +0100 (CET)
+Resent-Message-ID: <20150312230835.GS3961@soda.linbit>
+From: Fabio Estevam <festevam@gmail.com>
+To: drbd-dev@lists.linbit.com
+Date: Sat,  7 Mar 2015 15:14:26 -0300
+Message-Id: <1425752066-25196-1-git-send-email-festevam@gmail.com>
+Cc: Fabio Estevam <fabio.estevam@freescale.com>, drbd-user@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: drbd_bitmap: Avoid name collision
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -50,54 +39,141 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 03/07/2015 06:27 PM, David Rientjes wrote:
-> On Sat, 7 Mar 2015, Jens Axboe wrote:
-> 
->>>>> mempool_alloc() does not support __GFP_ZERO since elements may come from
->>>>> memory that has already been released by mempool_free().
->>>>>
->>>>> Remove __GFP_ZERO from mempool_alloc() in drbd_req_new() and properly
->>>>> initialize it to 0.
->>>>
->>>> You should add it to mempool instead, avoid having this issue show up for
->>>> other folks as well. It'd be trivial to do. Normal ->alloc() should honor
->>>> __GFP_ZERO, just do the same manually for removing an item from the internal
->>>> pool.
->>>>
->>>
->>> Umm, it's not trivial to do and wouldn't make sense to do it.  Mempools 
->>
->> Uhm, it would make sense, though.
->>
-> 
-> Disagree, I don't think we should extend mempool to know the element size, 
-> modify every user of mempool to pass it in, and keep it consistent with 
-> mempool_alloc_t for the benefit of __GFP_ZERO for this one buggy caller.  
-> Most users don't need __GFP_ZERO and just overwrite the entire element 
-> after mempool_alloc() and it would be an unnecessary overhead to even 
-> check for the bit set.  So it wouldn't make sense in terms of performance 
-> or maintainability.
+From: Fabio Estevam <fabio.estevam@freescale.com>
 
-My point is that conceptually, of course it makes sense to do and it
-_should_ do it. We don't have the size, too bad, I don't disagree that
-adding it just for this is necessarily the best idea.
+Building for ARM64 leads to the following build warnings:
 
->>> don't know the element size, in other words it wouldn't know the length to 
->>> memset() to 0 for mempool_alloc().  It shouldn't be modified to know the 
->>> element size since elements are allocated by the implementation of 
->>> mempool_alloc_t and they could easily become inconsistent.  This patch is 
->>> what you want to merge, really.
->>>
->>
->> I forgot we don't have the size in there. Then I would suggest adding a
->> WARN_ON() for __GFP_ZERO being set in mempool_alloc(), at the very least.
->>
-> 
-> There is, it's a VM_WARN_ON_ONCE() that will show up if you configure 
-> CONFIG_DEBUG_VM.
+  CC      drivers/block/drbd/drbd_bitmap.o
+drivers/block/drbd/drbd_bitmap.c:483:0: warning: "BITS_PER_PAGE" redefined
+ #define BITS_PER_PAGE  (1UL << (PAGE_SHIFT + 3))
+ ^
+In file included from include/linux/ptrace.h:8:0,
+                 from ./arch/arm64/include/asm/compat.h:26,
+                 from ./arch/arm64/include/asm/stat.h:23,
+                 from include/linux/stat.h:5,
+                 from include/linux/sysfs.h:21,
+                 from include/linux/kobject.h:21,
+                 from include/linux/device.h:17,
+                 from include/linux/pm_qos.h:10,
+                 from include/linux/netdevice.h:28,
+                 from include/net/sock.h:51,
+                 from include/linux/connector.h:30,
+                 from include/linux/drbd.h:28,
+                 from drivers/block/drbd/drbd_bitmap.c:30:
+include/linux/pid_namespace.h:18:0: note: this is the location of the previous definition
+ #define BITS_PER_PAGE  (PAGE_SIZE * 8)
+ ^
+drivers/block/drbd/drbd_bitmap.c:484:0: warning: "BITS_PER_PAGE_MASK" redefined
+ #define BITS_PER_PAGE_MASK (BITS_PER_PAGE - 1)
+ ^
+In file included from include/linux/ptrace.h:8:0,
+                 from ./arch/arm64/include/asm/compat.h:26,
+                 from ./arch/arm64/include/asm/stat.h:23,
+                 from include/linux/stat.h:5,
+                 from include/linux/sysfs.h:21,
+                 from include/linux/kobject.h:21,
+                 from include/linux/device.h:17,
+                 from include/linux/pm_qos.h:10,
+                 from include/linux/netdevice.h:28,
+                 from include/net/sock.h:51,
+                 from include/linux/connector.h:30,
+                 from include/linux/drbd.h:28,
+                 from drivers/block/drbd/drbd_bitmap.c:30:
+include/linux/pid_namespace.h:19:0: note: this is the location of the previous definition
+ #define BITS_PER_PAGE_MASK (BITS_PER_PAGE-1)
+ ^
 
-OK, that's good enough then.
+Fix the warnings by using BITS_PER_PAGE_DRBD and BITS_PER_PAGE_MASK_DRBD 
+definitions to avoid the name collision.
 
+Reported-by: Olof's autobuilder <build@lixom.net>
+Signed-off-by: Fabio Estevam <fabio.estevam@freescale.com>
+---
+ drivers/block/drbd/drbd_bitmap.c | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index 434c77d..b8dc9fc 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -479,8 +479,8 @@ void drbd_bm_cleanup(struct drbd_device *device)
+  * this masks out the remaining bits.
+  * Returns the number of bits cleared.
+  */
+-#define BITS_PER_PAGE		(1UL << (PAGE_SHIFT + 3))
+-#define BITS_PER_PAGE_MASK	(BITS_PER_PAGE - 1)
++#define BITS_PER_PAGE_DRBD	(1UL << (PAGE_SHIFT + 3))
++#define BITS_PER_PAGE_MASK_DRBD	(BITS_PER_PAGE_DRBD - 1)
+ #define BITS_PER_LONG_MASK	(BITS_PER_LONG - 1)
+ static int bm_clear_surplus(struct drbd_bitmap *b)
+ {
+@@ -490,7 +490,7 @@ static int bm_clear_surplus(struct drbd_bitmap *b)
+ 	int cleared = 0;
+ 
+ 	/* number of bits modulo bits per page */
+-	tmp = (b->bm_bits & BITS_PER_PAGE_MASK);
++	tmp = (b->bm_bits & BITS_PER_PAGE_MASK_DRBD);
+ 	/* mask the used bits of the word containing the last bit */
+ 	mask = (1UL << (tmp & BITS_PER_LONG_MASK)) -1;
+ 	/* bitmap is always stored little endian,
+@@ -526,7 +526,7 @@ static void bm_set_surplus(struct drbd_bitmap *b)
+ 	int tmp;
+ 
+ 	/* number of bits modulo bits per page */
+-	tmp = (b->bm_bits & BITS_PER_PAGE_MASK);
++	tmp = (b->bm_bits & BITS_PER_PAGE_MASK_DRBD);
+ 	/* mask the used bits of the word containing the last bit */
+ 	mask = (1UL << (tmp & BITS_PER_LONG_MASK)) -1;
+ 	/* bitmap is always stored little endian,
+@@ -570,7 +570,7 @@ static unsigned long bm_count_bits(struct drbd_bitmap *b)
+ 		cond_resched();
+ 	}
+ 	/* last (or only) page */
+-	last_word = ((b->bm_bits - 1) & BITS_PER_PAGE_MASK) >> LN2_BPL;
++	last_word = ((b->bm_bits - 1) & BITS_PER_PAGE_MASK_DRBD) >> LN2_BPL;
+ 	p_addr = __bm_map_pidx(b, idx);
+ 	for (i = 0; i < last_word; i++)
+ 		bits += hweight_long(p_addr[i]);
+@@ -1257,15 +1257,15 @@ static unsigned long __bm_find_next(struct drbd_device *device, unsigned long bm
+ 	} else {
+ 		while (bm_fo < b->bm_bits) {
+ 			/* bit offset of the first bit in the page */
+-			bit_offset = bm_fo & ~BITS_PER_PAGE_MASK;
++			bit_offset = bm_fo & ~BITS_PER_PAGE_MASK_DRBD;
+ 			p_addr = __bm_map_pidx(b, bm_bit_to_page_idx(b, bm_fo));
+ 
+ 			if (find_zero_bit)
+ 				i = find_next_zero_bit_le(p_addr,
+-						PAGE_SIZE*8, bm_fo & BITS_PER_PAGE_MASK);
++						PAGE_SIZE*8, bm_fo & BITS_PER_PAGE_MASK_DRBD);
+ 			else
+ 				i = find_next_bit_le(p_addr,
+-						PAGE_SIZE*8, bm_fo & BITS_PER_PAGE_MASK);
++						PAGE_SIZE*8, bm_fo & BITS_PER_PAGE_MASK_DRBD);
+ 
+ 			__bm_unmap(p_addr);
+ 			if (i < PAGE_SIZE*8) {
+@@ -1366,9 +1366,9 @@ static int __bm_change_bits_to(struct drbd_device *device, const unsigned long s
+ 			last_page_nr = page_nr;
+ 		}
+ 		if (val)
+-			c += (0 == __test_and_set_bit_le(bitnr & BITS_PER_PAGE_MASK, p_addr));
++			c += (0 == __test_and_set_bit_le(bitnr & BITS_PER_PAGE_MASK_DRBD, p_addr));
+ 		else
+-			c -= (0 != __test_and_clear_bit_le(bitnr & BITS_PER_PAGE_MASK, p_addr));
++			c -= (0 != __test_and_clear_bit_le(bitnr & BITS_PER_PAGE_MASK_DRBD, p_addr));
+ 	}
+ 	if (p_addr)
+ 		__bm_unmap(p_addr);
+@@ -1545,7 +1545,7 @@ int drbd_bm_test_bit(struct drbd_device *device, const unsigned long bitnr)
+ 		bm_print_lock_info(device);
+ 	if (bitnr < b->bm_bits) {
+ 		p_addr = bm_map_pidx(b, bm_bit_to_page_idx(b, bitnr));
+-		i = test_bit_le(bitnr & BITS_PER_PAGE_MASK, p_addr) ? 1 : 0;
++		i = test_bit_le(bitnr & BITS_PER_PAGE_MASK_DRBD, p_addr) ? 1 : 0;
+ 		bm_unmap(p_addr);
+ 	} else if (bitnr == b->bm_bits) {
+ 		i = -1;
 -- 
-Jens Axboe
+1.9.1
 
