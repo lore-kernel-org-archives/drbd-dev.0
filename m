@@ -2,43 +2,46 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 25A5B1050584
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:05 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 63AA41050597
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:11 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 1ED3644D391
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:05 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 5DD2E44D391
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:11 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id QSLd_q0JqJkV for <drbd-dev@lists.linbit.com>;
-	Fri, 13 Mar 2015 00:08:05 +0100 (CET)
+	with ESMTP id 7Ee9fngxWQZL for <drbd-dev@lists.linbit.com>;
+	Fri, 13 Mar 2015 00:08:11 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id F414844D398
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:04 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 082E944D398
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:11 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id qFbdloGhAISq for <drbd-dev@lists.linbit.com>;
-	Fri, 13 Mar 2015 00:08:04 +0100 (CET)
+	with ESMTP id Uv8McOBMLuOW for <drbd-dev@lists.linbit.com>;
+	Fri, 13 Mar 2015 00:08:10 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id CAC5244D391
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:04 +0100 (CET)
-Resent-Message-ID: <20150312230804.GM3961@soda.linbit>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com
-	[209.85.223.181]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	by zimbra13.linbit.com (Postfix) with ESMTPS id AC0D244D391
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Mar 2015 00:08:10 +0100 (CET)
+Resent-Message-ID: <20150312230810.GN3961@soda.linbit>
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com
+	[209.85.223.177]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 72C6F104B1D2
-	for <drbd-dev@lists.linbit.com>; Sun,  8 Mar 2015 01:31:03 +0100 (CET)
-Received: by iecrp18 with SMTP id rp18so26707463iec.10
-	for <drbd-dev@lists.linbit.com>; Sat, 07 Mar 2015 16:31:03 -0800 (PST)
-Date: Sat, 7 Mar 2015 16:24:30 -0800 (PST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 84E301019A36
+	for <drbd-dev@lists.linbit.com>; Sun,  8 Mar 2015 01:53:22 +0100 (CET)
+Received: by iecrd18 with SMTP id rd18so3905117iec.12
+	for <drbd-dev@lists.linbit.com>; Sat, 07 Mar 2015 16:53:21 -0800 (PST)
+Date: Sat, 7 Mar 2015 16:53:20 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-To: Jens Axboe <axboe@fb.com>, Lars Ellenberg <drbd-dev@lists.linbit.com>
-In-Reply-To: <alpine.DEB.2.10.1503071623250.31688@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1503071624160.31688@chino.kir.corp.google.com>
+To: Jens Axboe <axboe@fb.com>
+In-Reply-To: <54FB98F3.2050308@fb.com>
+Message-ID: <alpine.DEB.2.10.1503071650270.2926@chino.kir.corp.google.com>
 References: <alpine.DEB.2.10.1503071623250.31688@chino.kir.corp.google.com>
+	<54FB98F3.2050308@fb.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
-Cc: linux-kernel@vger.kernel.org, drbd-user@lists.linbit.com
-Subject: [Drbd-dev] [patch 2/2] block, drbd: use mempool_create_slab_pool()
+Cc: linux-kernel@vger.kernel.org, drbd-user@lists.linbit.com,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [patch 1/2] block,
+	drbd: fix drbd_req_new() initialization
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -50,33 +53,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Mempools created for slab caches should use
-mempool_create_slab_pool().
+On Sat, 7 Mar 2015, Jens Axboe wrote:
 
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Cc: Jens Axboe <axboe@fb.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- drivers/block/drbd/drbd_main.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+> > mempool_alloc() does not support __GFP_ZERO since elements may come from
+> > memory that has already been released by mempool_free().
+> > 
+> > Remove __GFP_ZERO from mempool_alloc() in drbd_req_new() and properly
+> > initialize it to 0.
+> 
+> You should add it to mempool instead, avoid having this issue show up for
+> other folks as well. It'd be trivial to do. Normal ->alloc() should honor
+> __GFP_ZERO, just do the same manually for removing an item from the internal
+> pool.
+> 
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2107,13 +2107,12 @@ static int drbd_create_mempools(void)
- 	if (drbd_md_io_page_pool == NULL)
- 		goto Enomem;
- 
--	drbd_request_mempool = mempool_create(number,
--		mempool_alloc_slab, mempool_free_slab, drbd_request_cache);
-+	drbd_request_mempool = mempool_create_slab_pool(number,
-+		drbd_request_cache);
- 	if (drbd_request_mempool == NULL)
- 		goto Enomem;
- 
--	drbd_ee_mempool = mempool_create(number,
--		mempool_alloc_slab, mempool_free_slab, drbd_ee_cache);
-+	drbd_ee_mempool = mempool_create_slab_pool(number, drbd_ee_cache);
- 	if (drbd_ee_mempool == NULL)
- 		goto Enomem;
- 
+Umm, it's not trivial to do and wouldn't make sense to do it.  Mempools 
+don't know the element size, in other words it wouldn't know the length to 
+memset() to 0 for mempool_alloc().  It shouldn't be modified to know the 
+element size since elements are allocated by the implementation of 
+mempool_alloc_t and they could easily become inconsistent.  This patch is 
+what you want to merge, really.
