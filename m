@@ -1,27 +1,22 @@
-Return-Path: <nwang@suse.com>
-Received: from relay2.provo.novell.com (relay2.provo.novell.com
-	[137.65.250.214])
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0FFB51050584
-	for <drbd-dev@lists.linbit.com>; Tue, 10 Mar 2015 04:40:29 +0100 (CET)
-Message-Id: <54FED842020000700004C399@relay2.provo.novell.com>
-Date: Mon, 09 Mar 2015 21:40:50 -0600
-From: "Nick Wang" <nwang@suse.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>
-References: <54F893C4020000700004B720@relay2.provo.novell.com>
-	<1487465.h977aYRqAU@fat-tyre>
-	<54FDC6DF020000700004C043@relay2.provo.novell.com>
-	<2835660.5HzbWRi9pB@fat-tyre>
-In-Reply-To: <2835660.5HzbWRi9pB@fat-tyre>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 08DC81050584
+	for <drbd-dev@lists.linbit.com>; Tue, 10 Mar 2015 11:38:39 +0100 (CET)
+Date: Tue, 10 Mar 2015 11:38:38 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: David Rientjes <rientjes@google.com>
+Message-ID: <20150310103838.GB3961@soda.linbit>
+References: <alpine.DEB.2.10.1503071623250.31688@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Cc: Lars Marowsky-Bree <lmb@suse.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev]
- =?utf-8?b?562U5aSN77yaIFJlOiAgUXVlcnlpbmcgdGhlIGRldmVs?=
- =?utf-8?q?_plan_of_speed_up_initial_sync_of_new_and_empty_devices?=
+In-Reply-To: <alpine.DEB.2.10.1503071623250.31688@chino.kir.corp.google.com>
+Cc: Jens Axboe <axboe@fb.com>, linux-kernel@vger.kernel.org,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [DRBD-user] [patch 1/2] block,
+ drbd: fix drbd_req_new() initialization
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,35 +28,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello Philipp,
-
-Thanks for your information.
-i was wrong.mkfs don't zero out the device, otherwise it won't 
-perform that fast.
-
-It is no harm for inconsistent date if don't touch it,  i still need to 
-evaluate the benefit of implement the option to customer. It should 
-faster than full sync (without checksum-based), but still need quite 
-a long time for the large disk. 
-
-Thanks & Best regards,
-Nick
-
->>> 在 23:11 的 2015-3-9 上，在讯息 <2835660.5HzbWRi9pB@fat-tyre> 中，Philipp
-Reisner <philipp.reisner@linbit.com> 写入：
-> Hi Nick,
+On Sat, Mar 07, 2015 at 04:24:02PM -0800, David Rientjes wrote:
+> mempool_alloc() does not support __GFP_ZERO since elements may come from
+> memory that has already been released by mempool_free().
 > 
-> FYI: I do not know a mkfs that zeros out the block device.
-> All mkfs.XXX I know only write a few blocks of a block device.
-> The super block, block group descriptors, a journal...
-> 
-> ..onyl if the device supports discard (SSDs, thinly provisioned
-> storage) e.g. mkfs.ext4 uses that to discard the block device.
-> 
-> The remaining question is if it is worth the trouble to do it
-> in DRBD as well? -- BTW, you will not need to implement a
-> flag in the meta-data, but you need to ship such a flag
-> in the protocol...
-> 
-> best regards,
->  Phil 
+> Remove __GFP_ZERO from mempool_alloc() in drbd_req_new() and properly
+> initialize it to 0.
+
+We used to have the explicit memset there,
+but then changed that, because
+
+I was under the impression that since
+2007-07-17 d07dbea, Slab allocators: support __GFP_ZERO in all allocators
+it was supported?
+
+	Lars Ellenberg
+
