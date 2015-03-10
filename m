@@ -1,24 +1,27 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+Return-Path: <nwang@suse.com>
+Received: from relay2.provo.novell.com (relay2.provo.novell.com
+	[137.65.250.214])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 779561011B9B
-	for <drbd-dev@lists.linbit.com>; Mon,  9 Mar 2015 16:11:17 +0100 (CET)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Nick Wang <nwang@suse.com>
-Date: Mon, 09 Mar 2015 16:11:16 +0100
-Message-ID: <2835660.5HzbWRi9pB@fat-tyre>
-In-Reply-To: <54FDC6DF020000700004C043@relay2.provo.novell.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0FFB51050584
+	for <drbd-dev@lists.linbit.com>; Tue, 10 Mar 2015 04:40:29 +0100 (CET)
+Message-Id: <54FED842020000700004C399@relay2.provo.novell.com>
+Date: Mon, 09 Mar 2015 21:40:50 -0600
+From: "Nick Wang" <nwang@suse.com>
+To: "Philipp Reisner" <philipp.reisner@linbit.com>
 References: <54F893C4020000700004B720@relay2.provo.novell.com>
 	<1487465.h977aYRqAU@fat-tyre>
 	<54FDC6DF020000700004C043@relay2.provo.novell.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+	<2835660.5HzbWRi9pB@fat-tyre>
+In-Reply-To: <2835660.5HzbWRi9pB@fat-tyre>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
 Cc: Lars Marowsky-Bree <lmb@suse.com>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev]
-	=?utf-8?b?562U5aSN77yaIFJlOiAgUXVlcnlpbmcgdGhlIGRldmVs?=
-	=?utf-8?q?_plan_of_speed_up_initial_sync_of_new_and_empty_devices?=
+ =?utf-8?b?562U5aSN77yaIFJlOiAgUXVlcnlpbmcgdGhlIGRldmVs?=
+ =?utf-8?q?_plan_of_speed_up_initial_sync_of_new_and_empty_devices?=
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,40 +33,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Nick,
+Hello Philipp,
 
-FYI: I do not know a mkfs that zeros out the block device.
-All mkfs.XXX I know only write a few blocks of a block device.
-The super block, block group descriptors, a journal...
+Thanks for your information.
+i was wrong.mkfs don't zero out the device, otherwise it won't 
+perform that fast.
 
-..onyl if the device supports discard (SSDs, thinly provisioned
-storage) e.g. mkfs.ext4 uses that to discard the block device.
+It is no harm for inconsistent date if don't touch it,  i still need to 
+evaluate the benefit of implement the option to customer. It should 
+faster than full sync (without checksum-based), but still need quite 
+a long time for the large disk. 
 
-The remaining question is if it is worth the trouble to do it
-in DRBD as well? -- BTW, you will not need to implement a
-flag in the meta-data, but you need to ship such a flag
-in the protocol...
+Thanks & Best regards,
+Nick
 
-best regards,
- Phil
-
-> Hello Philipp,
+>>> 在 23:11 的 2015-3-9 上，在讯息 <2835660.5HzbWRi9pB@fat-tyre> 中，Philipp
+Reisner <philipp.reisner@linbit.com> 写入：
+> Hi Nick,
 > 
-> Thanks for your hint about "new-current-uuid --clear-bitmap"
-> to skip the sync.
+> FYI: I do not know a mkfs that zeros out the block device.
+> All mkfs.XXX I know only write a few blocks of a block device.
+> The super block, block group descriptors, a journal...
 > 
-> However the inconsistent date before a mkfs make the world
-> not perfect. I will check whether zeroing out the peer devices
-> before one goes to primary (and mkfs) is worth to implement,
-> since zeroing a device also take some time and will do again
-> during mkfs. If plan to do it, add "--discard-backing-devices"
-> to "new-current-uuid" and need a flag to write in metadata,
-> since it only run on one node, it my understanding right?
+> ..onyl if the device supports discard (SSDs, thinly provisioned
+> storage) e.g. mkfs.ext4 uses that to discard the block device.
 > 
-> One question about new-current-uuid. With two fresh devices
-> (no current-uuid on both node), will new-current-uuid without the
-> option --clear-bitmap do a full sync as well?
+> The remaining question is if it is worth the trouble to do it
+> in DRBD as well? -- BTW, you will not need to implement a
+> flag in the meta-data, but you need to ship such a flag
+> in the protocol...
 > 
-> Best regards,
-> Nick
-> 
+> best regards,
+>  Phil 
