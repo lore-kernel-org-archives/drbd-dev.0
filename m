@@ -2,45 +2,41 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2F4E81011B9B
-	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 15:58:52 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3EC481011B9B
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 15:59:01 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 17D4B2AB5B3
-	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 15:58:52 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 19C592AB5B3
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 15:59:01 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id zHyBQUhsO8ra for <drbd-dev@lists.linbit.com>;
-	Sun, 22 Mar 2015 15:58:52 +0100 (CET)
+	with ESMTP id 0neb9P9D3KRp for <drbd-dev@lists.linbit.com>;
+	Sun, 22 Mar 2015 15:59:01 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id E6A412ABE62
-	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 15:58:51 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id BEC042ABEB1
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 15:59:00 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id jxk8fzPf8Tlk for <drbd-dev@lists.linbit.com>;
-	Sun, 22 Mar 2015 15:58:51 +0100 (CET)
+	with ESMTP id 0bJX4KdlQBfg for <drbd-dev@lists.linbit.com>;
+	Sun, 22 Mar 2015 15:59:00 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id ADE5E2AB5B3
-	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 15:58:51 +0100 (CET)
-Resent-Message-ID: <20150322145851.GJ3556@soda.linbit>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com
-	[209.85.215.52]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 929592AB5B3
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 15:59:00 +0100 (CET)
+Resent-Message-ID: <20150322145900.GK3556@soda.linbit>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com
+	[209.85.192.170]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 525B7104B1D2
-	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 03:19:45 +0100 (CET)
-Received: by labon10 with SMTP id on10so11016249lab.2
-	for <drbd-dev@lists.linbit.com>; Sat, 21 Mar 2015 19:19:45 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150320151450.GG3556@soda.linbit>
-References: <1426295577-10836-1-git-send-email-akinobu.mita@gmail.com>
-	<1426295577-10836-4-git-send-email-akinobu.mita@gmail.com>
-	<20150320151450.GG3556@soda.linbit>
-Date: Sun, 22 Mar 2015 11:11:41 +0900
-Message-ID: <CAC5umyiWnqDT2EmhcaanZZKYtPoBgG5UzB2602sOO2sRNak3Ng@mail.gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C55A11011B9B
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 08:31:45 +0100 (CET)
+Received: by pdbni2 with SMTP id ni2so153392279pdb.1
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2015 00:31:44 -0700 (PDT)
 From: Akinobu Mita <akinobu.mita@gmail.com>
-To: Akinobu Mita <akinobu.mita@gmail.com>, LKML <linux-kernel@vger.kernel.org>,
-	drbd-dev@lists.linbit.com
-Content-Type: text/plain; charset=UTF-8
-Subject: Re: [Drbd-dev] [PATCH] drbd: use bitmap_weight()
+To: linux-kernel@vger.kernel.org
+Date: Sun, 22 Mar 2015 16:31:29 +0900
+Message-Id: <1427009489-4269-1-git-send-email-akinobu.mita@gmail.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com,
+	Akinobu Mita <akinobu.mita@gmail.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>
+Subject: [Drbd-dev] [PATCH] drbd: use bitmap_weight()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -52,27 +48,65 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-2015-03-21 0:14 GMT+09:00 Lars Ellenberg <lars.ellenberg@linbit.com>:
-> On Sat, Mar 14, 2015 at 10:12:56AM +0900, Akinobu Mita wrote:
->> Use bitmap_weight to count the total number of bits set in bitmap.
->> This change just simplifies the code a bit.
->
-> "Simplifies", not sure about that, but ok, maybe.
->
-> For the "bm_set_full_words_within_one_page", I disagree.
-> I think it is more cpu cache friendly to hweight_long then set to ~0UL
-> each word in turn, than to first bitmap_weight() all words, then
-> bitmap_fill() all words.
+Use bitmap_weight to count the total number of bits set in bitmap.
+This change just simplifies the code a bit.
 
-I see. I'll remove the change in bm_set_full_words_within_one_page().
+Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+---
+ drivers/block/drbd/drbd_bitmap.c | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)
 
-> Thanks,
->
->         Lars Ellenberg
->
-> BTW, you swapped names and email addresses of phil and me.  Are those
-> listed incorrectly somewhere, or was that just a mishap on your part?
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index 434c77d..1e62c49 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -24,7 +24,7 @@
+ 
+ #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+ 
+-#include <linux/bitops.h>
++#include <linux/bitmap.h>
+ #include <linux/vmalloc.h>
+ #include <linux/string.h>
+ #include <linux/drbd.h>
+@@ -559,21 +559,19 @@ static unsigned long bm_count_bits(struct drbd_bitmap *b)
+ 	unsigned long *p_addr;
+ 	unsigned long bits = 0;
+ 	unsigned long mask = (1UL << (b->bm_bits & BITS_PER_LONG_MASK)) -1;
+-	int idx, i, last_word;
++	int idx, last_word;
+ 
+ 	/* all but last page */
+ 	for (idx = 0; idx < b->bm_number_of_pages - 1; idx++) {
+ 		p_addr = __bm_map_pidx(b, idx);
+-		for (i = 0; i < LWPP; i++)
+-			bits += hweight_long(p_addr[i]);
++		bits += bitmap_weight(p_addr, PAGE_SIZE * BITS_PER_BYTE);
+ 		__bm_unmap(p_addr);
+ 		cond_resched();
+ 	}
+ 	/* last (or only) page */
+ 	last_word = ((b->bm_bits - 1) & BITS_PER_PAGE_MASK) >> LN2_BPL;
+ 	p_addr = __bm_map_pidx(b, idx);
+-	for (i = 0; i < last_word; i++)
+-		bits += hweight_long(p_addr[i]);
++	bits += bitmap_weight(p_addr, last_word * BITS_PER_LONG);
+ 	p_addr[last_word] &= cpu_to_lel(mask);
+ 	bits += hweight_long(p_addr[last_word]);
+ 	/* 32bit arch, may have an unused padding long */
+@@ -1637,8 +1635,7 @@ int drbd_bm_e_weight(struct drbd_device *device, unsigned long enr)
+ 		int n = e-s;
+ 		p_addr = bm_map_pidx(b, bm_word_to_page_idx(b, s));
+ 		bm = p_addr + MLPP(s);
+-		while (n--)
+-			count += hweight_long(*bm++);
++		count = bitmap_weight(bm, n * BITS_PER_LONG);
+ 		bm_unmap(p_addr);
+ 	} else {
+ 		drbd_err(device, "start offset (%d) too large in drbd_bm_e_weight\n", s);
+-- 
+1.9.1
 
-It's just my mistake.  I copied your names from MAINTAINERS, but it
-doesn't list your email addresses then I incorrectly swapped while
-retrieving email addrsses from git log.
