@@ -1,20 +1,17 @@
-Return-Path: <akpm@linux-foundation.org>
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org
-	[140.211.169.12])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 15B8310003FC
-	for <drbd-dev@lists.linbit.com>; Thu, 16 Apr 2015 01:21:02 +0200 (CEST)
-Date: Wed, 15 Apr 2015 16:18:25 -0700
-From: akpm@linux-foundation.org
-To: torvalds@linux-foundation.org, akpm@linux-foundation.org,
-	joe@perches.com, drbd-dev@lists.linbit.com
-Message-ID: <552ef1c1.NbdbnaMmebXElpGW%akpm@linux-foundation.org>
+Return-Path: <lars.ellenberg@linbit.com>
+Date: Thu, 16 Apr 2015 15:46:44 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: drbd-user@lists.linbit.com, drbd-dev@lists.linbit.com
+Message-ID: <20150416134644.GB18767@soda.linbit>
+References: <CAEBniQ5wGKGuTpQ3OR3eobqYJStc+3zfrqKup3X2rARHwTGGcw@mail.gmail.com>
+	<CAEBniQ506H3-wwBfYMSNv3hDyd3Pg1OwR3QXqQ4GE6rfL49NHA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] [patch 113/114] lru_cache: remove use of seq_printf
-	return value
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <CAEBniQ506H3-wwBfYMSNv3hDyd3Pg1OwR3QXqQ4GE6rfL49NHA@mail.gmail.com>
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [Drbd-dev] [DRBD-user] A question about drbd hang in
+	conn_disconnect
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,40 +23,75 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Joe Perches <joe@perches.com>
-Subject: lru_cache: remove use of seq_printf return value
+On Mon, Apr 13, 2015 at 05:45:25PM -0600, Fang Sun wrote:
+> Hi drbd developers,
+>=20
+> After some research and tests I feel I found the reason of this problem=
+ and
+> a possible fix in drbd.
+> Would you please check if my theory is correct?
+>=20
+>=20
+> Let me use 8.4.6 as the code base when I explain it.
+> When conn_disconnect hang it is hanging at line drbd_receiver.c:5178
+> static int drbd_disconnected(struct drbd_peer_device *peer_device)
+> {
+> ........
+> wait_event(device->misc_wait, !test_bit(BITMAP_IO, &device->flags));
+> }
+>=20
+> The reason is device has flag BITMAP_IO set.
+>=20
+>=20
+> The reason why flag BITMAP_IO is set and not clear is:
+> Disk state changes when network is disconnected and after_state_ch is
+> called.
+>=20
+> At drbd_state.c line 1949 drbd_queue_bitmap_io is called inafter_state_=
+ch()
+> .
+>=20
+> I think the real reason is in drbd_queue_bitmap_io. drbd_main.c line 36=
+41.
+> void drbd_queue_bitmap_io(struct drbd_device *device,
+>   int (*io_fn)(struct drbd_device *),
+>   void (*done)(struct drbd_device *, int),
+>   char *why, enum bm_flag flags)
+> {
+> .........
+> set_bit(BITMAP_IO, &device->flags);
+> if (atomic_read(&device->ap_bio_cnt) =3D=3D 0) {
+> if (!test_and_set_bit(BITMAP_IO_QUEUED, &device->flags))
+> drbd_queue_work(&first_peer_device(device)->connection->sender_work,
+> &device->bm_io_work.w);
+> }
+> ........
+> }
+>=20
+> In the code the only code to clear BITMAP_IO is in
+> device->bm_io_work.w(w_bitmap_io). But when
+> atomic_read(&device->ap_bio_cnt) !=3D 0 the flag BITMAP_IO  is set, how=
+ever
+> bm_io_work.w is not called.
+> Then drbd_disconnected() is blocked.
+>=20
+> Should we move set_bit(BITMAP_IO, &device->flags) to the front of
+> drbd_queue_work()?
 
-The seq_printf return value, because it's frequently misused,
-will eventually be converted to void.
+No.  That would be the wrong fix,
+and cause potential inconsistencies later.
 
-See: commit 1f33c41c03da ("seq_file: Rename seq_overflow() to
-     seq_has_overflowed() and make public")
+It may need to be fixed, but in a different way.
 
-Signed-off-by: Joe Perches <joe@perches.com>
-Cc: Lars Ellenberg <drbd-dev@lists.linbit.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+Let me (reproduce locally ... and) think about that for a bit.
 
- lib/lru_cache.c |    9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+Thanks,
 
-diff -puN lib/lru_cache.c~lru_cache-remove-use-of-seq_printf-return-value lib/lru_cache.c
---- a/lib/lru_cache.c~lru_cache-remove-use-of-seq_printf-return-value
-+++ a/lib/lru_cache.c
-@@ -247,10 +247,11 @@ size_t lc_seq_printf_stats(struct seq_fi
- 	 * progress) and "changed", when this in fact lead to an successful
- 	 * update of the cache.
- 	 */
--	return seq_printf(seq, "\t%s: used:%u/%u "
--		"hits:%lu misses:%lu starving:%lu locked:%lu changed:%lu\n",
--		lc->name, lc->used, lc->nr_elements,
--		lc->hits, lc->misses, lc->starving, lc->locked, lc->changed);
-+	seq_printf(seq, "\t%s: used:%u/%u hits:%lu misses:%lu starving:%lu locked:%lu changed:%lu\n",
-+		   lc->name, lc->used, lc->nr_elements,
-+		   lc->hits, lc->misses, lc->starving, lc->locked, lc->changed);
-+
-+	return 0;
- }
- 
- static struct hlist_head *lc_hash_slot(struct lru_cache *lc, unsigned int enr)
-_
+--=20
+: Lars Ellenberg
+: http://www.LINBIT.com | Your Way to High Availability
+: DRBD, Linux-HA  and  Pacemaker support and consulting
+
+DRBD=AE and LINBIT=AE are registered trademarks of LINBIT, Austria.
+__
+please don't Cc me, but send to list   --   I'm subscribed
