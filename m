@@ -2,47 +2,40 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1745B10556A0
-	for <drbd-dev@lists.linbit.com>; Thu,  7 May 2015 11:35:41 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C3193105570E
+	for <drbd-dev@lists.linbit.com>; Thu,  7 May 2015 11:35:46 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 0D5B1444287
-	for <drbd-dev@lists.linbit.com>; Thu,  7 May 2015 11:35:41 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id BD60B4448B0
+	for <drbd-dev@lists.linbit.com>; Thu,  7 May 2015 11:35:46 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id QVxW3kGfj0kv for <drbd-dev@lists.linbit.com>;
-	Thu,  7 May 2015 11:35:40 +0200 (CEST)
+	with ESMTP id PDzx4WzwrUh5 for <drbd-dev@lists.linbit.com>;
+	Thu,  7 May 2015 11:35:46 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id E625244A5E5
-	for <drbd-dev@lists.linbit.com>; Thu,  7 May 2015 11:35:40 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 8668B449119
+	for <drbd-dev@lists.linbit.com>; Thu,  7 May 2015 11:35:46 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id OrW3PNB6v5kH for <drbd-dev@lists.linbit.com>;
-	Thu,  7 May 2015 11:35:40 +0200 (CEST)
+	with ESMTP id q5-1BZ9rFcSq for <drbd-dev@lists.linbit.com>;
+	Thu,  7 May 2015 11:35:46 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id BBBCA449119
-	for <drbd-dev@lists.linbit.com>; Thu,  7 May 2015 11:35:40 +0200 (CEST)
-Resent-Message-ID: <20150507093540.GU18767@soda.linbit>
-Message-ID: <5547241B.1040903@kernel.org>
-Date: Mon, 04 May 2015 00:47:39 -0700
-From: Ming Lin <mlin@kernel.org>
-MIME-Version: 1.0
-To: NeilBrown <neilb@suse.de>
-References: <1430203717-13307-1-git-send-email-mlin@kernel.org>	<1430203717-13307-8-git-send-email-mlin@kernel.org>
-	<20150429080919.342fddfd@notabene.brown>
-In-Reply-To: <20150429080919.342fddfd@notabene.brown>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Cc: Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>,
-	Alex Elder <elder@kernel.org>, Sage Weil <sage@inktank.com>,
-	Mike Snitzer <snitzer@redhat.com>, Jiri Kosina <jkosina@suse.cz>,
-	linux-kernel@vger.kernel.org, Yehuda Sadeh <yehuda@inktank.com>,
-	linux-raid@vger.kernel.org, dm-devel@redhat.com,
-	Alasdair Kergon <agk@redhat.com>,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	ceph-devel@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
-	Kent Overstreet <kent.overstreet@gmail.com>, drbd-user@lists.linbit.com,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH 07/10] block: kill merge_bvec_fn() completely
+	by zimbra13.linbit.com (Postfix) with ESMTPS id D38AF4448B0
+	for <drbd-dev@lists.linbit.com>; Thu,  7 May 2015 11:35:45 +0200 (CEST)
+Resent-Message-ID: <20150507093545.GA18767@soda.linbit>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B65EB100EBF0
+	for <drbd-dev@lists.linbit.com>; Wed,  6 May 2015 21:00:47 +0200 (CEST)
+From: Denys Vlasenko <dvlasenk@redhat.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Date: Wed,  6 May 2015 21:00:21 +0200
+Message-Id: <1430938821-6390-1-git-send-email-dvlasenk@redhat.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>,
+	Andreas Gruenbacher <agruen@linbit.com>,
+	linux-kernel@vger.kernel.org, Jens Axboe <axboe@fb.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: deinline __drbd_chk_io_error_()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -54,94 +47,159 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 04/28/2015 03:09 PM, NeilBrown wrote:
-> On Mon, 27 Apr 2015 23:48:34 -0700 Ming Lin <mlin@kernel.org> wrote:
-> 
->> From: Kent Overstreet <kent.overstreet@gmail.com>
->>
->> As generic_make_request() is now able to handle arbitrarily sized bios,
->> it's no longer necessary for each individual block driver to define its
->> own ->merge_bvec_fn() callback. Remove every invocation completely.
-> 
-> This patch it just a little premature I think.
-> 
-> md/raid5 still assumes read requests will mostly fit within a single chunk
-> (which merge_bvec_fn encourages) so they can be serviced without using the
-> stripe-cache.
-> You've just broken that assumption.
-> 
-> I think 'chunk_aligned_read' needs to get a loop using bio_split, a bit like
-> raid0, first.
+The function compiles to 552 bytes of machine code.
+On x86 allyesconfig build it has 8 callsites.
+Deinlining it shrinks kernel by more than 1k:
 
-How about below?
+    text     data      bss       dec     hex filename
+82433898 22255384 20627456 125316738 7782e82 vmlinux.before
+82432426 22255384 20627456 125315266 77828c2 vmlinux
 
- drivers/md/raid5.c | 35 ++++++++++++++++++++++++++++++++---
- 1 file changed, 32 insertions(+), 3 deletions(-)
+Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+CC: Andreas Gruenbacher <agruen@linbit.com>
+CC: Philipp Reisner <philipp.reisner@linbit.com>
+CC: Lars Ellenberg <lars.ellenberg@linbit.com>
+CC: Jens Axboe <axboe@fb.com>
+CC: drbd-dev@lists.linbit.com
+CC: linux-kernel@vger.kernel.org
+---
+ drivers/block/drbd/drbd_int.h  | 55 ++----------------------------------------
+ drivers/block/drbd/drbd_main.c | 55 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 53 deletions(-)
 
-diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-index e42b624..2ddfa1e 100644
---- a/drivers/md/raid5.c
-+++ b/drivers/md/raid5.c
-@@ -4709,7 +4709,7 @@ static void raid5_align_endio(struct bio *bi, int error)
- 	add_bio_to_retry(raid_bi, conf);
- }
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index b905e98..74a7afd 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1727,60 +1727,9 @@ enum drbd_force_detach_flags {
+ };
  
--static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
-+static int __chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
- {
- 	struct r5conf *conf = mddev->private;
- 	int dd_idx;
-@@ -4718,7 +4718,7 @@ static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
- 	sector_t end_sector;
+ #define __drbd_chk_io_error(m,f) __drbd_chk_io_error_(m,f, __func__)
+-static inline void __drbd_chk_io_error_(struct drbd_device *device,
++void __drbd_chk_io_error_(struct drbd_device *device,
+ 		enum drbd_force_detach_flags df,
+-		const char *where)
+-{
+-	enum drbd_io_error_p ep;
+-
+-	rcu_read_lock();
+-	ep = rcu_dereference(device->ldev->disk_conf)->on_io_error;
+-	rcu_read_unlock();
+-	switch (ep) {
+-	case EP_PASS_ON: /* FIXME would this be better named "Ignore"? */
+-		if (df == DRBD_READ_ERROR || df == DRBD_WRITE_ERROR) {
+-			if (__ratelimit(&drbd_ratelimit_state))
+-				drbd_err(device, "Local IO failed in %s.\n", where);
+-			if (device->state.disk > D_INCONSISTENT)
+-				_drbd_set_state(_NS(device, disk, D_INCONSISTENT), CS_HARD, NULL);
+-			break;
+-		}
+-		/* NOTE fall through for DRBD_META_IO_ERROR or DRBD_FORCE_DETACH */
+-	case EP_DETACH:
+-	case EP_CALL_HELPER:
+-		/* Remember whether we saw a READ or WRITE error.
+-		 *
+-		 * Recovery of the affected area for WRITE failure is covered
+-		 * by the activity log.
+-		 * READ errors may fall outside that area though. Certain READ
+-		 * errors can be "healed" by writing good data to the affected
+-		 * blocks, which triggers block re-allocation in lower layers.
+-		 *
+-		 * If we can not write the bitmap after a READ error,
+-		 * we may need to trigger a full sync (see w_go_diskless()).
+-		 *
+-		 * Force-detach is not really an IO error, but rather a
+-		 * desperate measure to try to deal with a completely
+-		 * unresponsive lower level IO stack.
+-		 * Still it should be treated as a WRITE error.
+-		 *
+-		 * Meta IO error is always WRITE error:
+-		 * we read meta data only once during attach,
+-		 * which will fail in case of errors.
+-		 */
+-		set_bit(WAS_IO_ERROR, &device->flags);
+-		if (df == DRBD_READ_ERROR)
+-			set_bit(WAS_READ_ERROR, &device->flags);
+-		if (df == DRBD_FORCE_DETACH)
+-			set_bit(FORCE_DETACH, &device->flags);
+-		if (device->state.disk > D_FAILED) {
+-			_drbd_set_state(_NS(device, disk, D_FAILED), CS_HARD, NULL);
+-			drbd_err(device,
+-				"Local IO failed in %s. Detaching...\n", where);
+-		}
+-		break;
+-	}
+-}
++		const char *where);
  
- 	if (!in_chunk_boundary(mddev, raid_bio)) {
--		pr_debug("chunk_aligned_read : non aligned\n");
-+		pr_debug("__chunk_aligned_read : non aligned\n");
- 		return 0;
- 	}
- 	/*
-@@ -4793,6 +4793,35 @@ static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
- 	}
- }
+ /**
+  * drbd_chk_io_error: Handle the on_io_error setting, should be called from all io completion handlers
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 1fc8342..10f27e6 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -146,6 +146,61 @@ static const struct block_device_operations drbd_ops = {
+ 	.release = drbd_release,
+ };
  
-+static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
++void __drbd_chk_io_error_(struct drbd_device *device,
++		enum drbd_force_detach_flags df,
++		const char *where)
 +{
-+	struct bio *split;
++	enum drbd_io_error_p ep;
 +
-+	do {
-+		sector_t sector = raid_bio->bi_iter.bi_sector;
-+		unsigned chunk_sects = mddev->chunk_sectors;
-+
-+		unsigned sectors = chunk_sects -
-+			(likely(is_power_of_2(chunk_sects))
-+			 ? (sector & (chunk_sects-1))
-+			 : sector_div(sector, chunk_sects));
-+
-+		if (sectors < bio_sectors(raid_bio)) {
-+			split = bio_split(raid_bio, sectors, GFP_NOIO, fs_bio_set);
-+			bio_chain(split, raid_bio);
-+		} else
-+			split = raid_bio;
-+
-+		if (!__chunk_aligned_read(mddev, split)) {
-+			if (split != raid_bio)
-+				generic_make_request(raid_bio);
-+			return split;
++	rcu_read_lock();
++	ep = rcu_dereference(device->ldev->disk_conf)->on_io_error;
++	rcu_read_unlock();
++	switch (ep) {
++	case EP_PASS_ON: /* FIXME would this be better named "Ignore"? */
++		if (df == DRBD_READ_ERROR || df == DRBD_WRITE_ERROR) {
++			if (__ratelimit(&drbd_ratelimit_state))
++				drbd_err(device, "Local IO failed in %s.\n", where);
++			if (device->state.disk > D_INCONSISTENT)
++				_drbd_set_state(_NS(device, disk, D_INCONSISTENT), CS_HARD, NULL);
++			break;
 +		}
-+	} while (split != raid_bio);
-+
-+	return NULL;
++		/* NOTE fall through for DRBD_META_IO_ERROR or DRBD_FORCE_DETACH */
++	case EP_DETACH:
++	case EP_CALL_HELPER:
++		/* Remember whether we saw a READ or WRITE error.
++		 *
++		 * Recovery of the affected area for WRITE failure is covered
++		 * by the activity log.
++		 * READ errors may fall outside that area though. Certain READ
++		 * errors can be "healed" by writing good data to the affected
++		 * blocks, which triggers block re-allocation in lower layers.
++		 *
++		 * If we can not write the bitmap after a READ error,
++		 * we may need to trigger a full sync (see w_go_diskless()).
++		 *
++		 * Force-detach is not really an IO error, but rather a
++		 * desperate measure to try to deal with a completely
++		 * unresponsive lower level IO stack.
++		 * Still it should be treated as a WRITE error.
++		 *
++		 * Meta IO error is always WRITE error:
++		 * we read meta data only once during attach,
++		 * which will fail in case of errors.
++		 */
++		set_bit(WAS_IO_ERROR, &device->flags);
++		if (df == DRBD_READ_ERROR)
++			set_bit(WAS_READ_ERROR, &device->flags);
++		if (df == DRBD_FORCE_DETACH)
++			set_bit(FORCE_DETACH, &device->flags);
++		if (device->state.disk > D_FAILED) {
++			_drbd_set_state(_NS(device, disk, D_FAILED), CS_HARD, NULL);
++			drbd_err(device,
++				"Local IO failed in %s. Detaching...\n", where);
++		}
++		break;
++	}
 +}
 +
- /* __get_priority_stripe - get the next stripe to process
-  *
-  * Full stripe writes are allowed to pass preread active stripes up until
-@@ -5071,7 +5100,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
- 	 */
- 	if (rw == READ && mddev->degraded == 0 &&
- 	     mddev->reshape_position == MaxSector &&
--	     chunk_aligned_read(mddev,bi))
-+	     (!(bi = chunk_aligned_read(mddev, bi))))
- 		return;
- 
- 	if (unlikely(bi->bi_rw & REQ_DISCARD)) {
+ struct bio *bio_alloc_drbd(gfp_t gfp_mask)
+ {
+ 	struct bio *bio;
+-- 
+1.8.1.4
+
