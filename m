@@ -1,20 +1,27 @@
-Return-Path: <philipp.marek@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <pryzby@telsasoft.com>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com
+	[209.85.213.171]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 90EF21028A43
-	for <drbd-dev@lists.linbit.com>; Fri,  8 May 2015 10:24:04 +0200 (CEST)
-Date: Fri, 8 May 2015 10:24:02 +0200
-From: Philipp Marek <philipp.marek@linbit.com>
-To: Justin Pryzby <pryzby@telsasoft.com>
-Message-ID: <20150508082402.GF7534@cacao.linbit>
-References: <20150421161439.GA23797@telsasoft.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id EF5A51028A43
+	for <drbd-dev@lists.linbit.com>; Fri,  8 May 2015 17:09:07 +0200 (CEST)
+Received: by igbpi8 with SMTP id pi8so23202532igb.1
+	for <drbd-dev@lists.linbit.com>; Fri, 08 May 2015 08:09:05 -0700 (PDT)
+Received: from pryzbyj (charmander.telsasoft.com. [50.244.222.1])
+	by mx.google.com with ESMTPSA id j20sm5231731igt.5.2015.05.08.08.09.03
+	for <drbd-dev@lists.linbit.com>
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Fri, 08 May 2015 08:09:04 -0700 (PDT)
+Date: Fri, 8 May 2015 10:09:02 -0500
+From: Justin Pryzby <pryzby@telsasoft.com>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20150508150902.GB3518@telsasoft.com>
+References: <20150508045517.GA6131@telsasoft.com>
+	<20150508080325.GS1968@rck.sh>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150421161439.GA23797@telsasoft.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] drbd guide 8.4: /outdate-peer/
+In-Reply-To: <20150508080325.GS1968@rck.sh>
+Subject: Re: [Drbd-dev] crm-fence-peer.sh missing shell expansion
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,20 +33,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Justin,
-
-> https://drbd.linbit.com/users-guide/ch-ocfs2.html
+On Fri, May 08, 2015 at 10:03:26AM +0200, Roland Kammerer wrote:
+> On Thu, May 07, 2015 at 11:55:17PM -0500, Justin Pryzby wrote:
+> > There are several instances of unexpanded variables in here:
+> > 
+> >                 sleep $(( net_hickup_time - SECONDS ))
+> >         reboot_timeout=$(( reboot_timeout + SECONDS ))
+> >                 echo WARNING "${extra_msg}going to reboot -f in $(( reboot_timeout - SECONDS )) seconds! To cancel: kill $$"
+> >                         if out=$( crmadmin -t $(( cibtimeout * 200 )) -S $DRBD_PEER ) \
 > 
-> handlers {
->         outdate-peer "/sbin/kill-other-node.sh";
-> 
-> Should probably use the new name, "fence-peer".
-thanks, being pushed to our documentation.
+> Could you be a bit more precise where you _exactly_ see the problem,
+> please? "Several" does not help a bash n00b like me. Do you mean the '$'
+> is missing for example for 'SECONDS'?
 
-Are you reading all of the documentation, or really trying to run
-a cluster filesystem?
+Yes, I was referring to that .. but, oh my goodness, you're right ..
 
+Sorry for noise and thanks for the lesson :)
 
-Regards,
-
-Phil
+Justin
