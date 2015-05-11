@@ -2,19 +2,19 @@ Return-Path: <dietmar@proxmox.com>
 Received: from proxmox.maurer-it.com (proxmox.maurer-it.com [94.136.31.133])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D8761100EBF0
-	for <drbd-dev@lists.linbit.com>; Mon, 11 May 2015 10:43:44 +0200 (CEST)
-Date: Mon, 11 May 2015 10:43:38 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9794C1050584
+	for <drbd-dev@lists.linbit.com>; Mon, 11 May 2015 10:54:08 +0200 (CEST)
+Received: from proxmox.maurer-it.com (localhost.localdomain [127.0.0.1])
+	by proxmox.maurer-it.com (Proxmox) with ESMTP id 64925AD09BB
+	for <drbd-dev@lists.linbit.com>; Mon, 11 May 2015 10:54:08 +0200 (CEST)
+Date: Mon, 11 May 2015 10:54:03 +0200 (CEST)
 From: Dietmar Maurer <dietmar@proxmox.com>
-To: Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
-Message-ID: <1348675331.157.1431333818922.JavaMail.open-xchange@ronja.mits.lan>
-In-Reply-To: <20150511074859.GU1968@rck.sh>
-References: <1676265523.49.1431326660324.JavaMail.open-xchange@ronja.mits.lan>
-	<20150511074859.GU1968@rck.sh>
+To: drbd-dev <drbd-dev@lists.linbit.com>
+Message-ID: <1945028087.159.1431334443252.JavaMail.open-xchange@ronja.mits.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] drbdmanage package name
+Subject: [Drbd-dev] drbdmanage lintian warnings
 Reply-To: Dietmar Maurer <dietmar@proxmox.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -27,19 +27,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> Currently, it is a "frankenstein-package" anyways, because it contains
-> the server, the modules which could be used for example to write your
-> own client, and the client itself...
-> 
-> I will keep it in mind and think about renaming/splitting.
+I compile my own debian package on jessie, but get many lintian warnings about
+man pages:
 
-Yes, I guess you should split the package if it contains a library.
-But the package with the binary toolkit should be called 'drbdmanage',
-an sections should be 'admin' instead of 'python'.
+# lintian drbdmanage_0.34-1_amd64.deb
+warning: the authors of lintian do not recommend running it with root
+privileges!
+W: drbdmanage: manpage-has-bad-whatis-entry
+usr/share/man/man8/dm-add-resource.8.gz
+W: drbdmanage: manpage-section-mismatch
+usr/share/man/man8/dm-add-resource.8.gz:2 8 != ADD-RESOURCE
+W: drbdmanage: manpage-has-bad-whatis-entry
+usr/share/man/man8/dm-add-volume.8.gz
+W: drbdmanage: manpage-section-mismatch usr/share/man/man8/dm-add-volume.8.gz:2
+8 != ADD-VOLUME
+W: drbdmanage: manpage-has-bad-whatis-entry usr/share/man/man8/dm-assign.8.gz
+W: drbdmanage: manpage-has-bad-whatis-entry
+usr/share/man/man8/dm-assignments.8.gz
+W: drbdmanage: manpage-has-bad-whatis-entry usr/share/man/man8/dm-attach.8.gz
+...
 
-I also noticed that you do not apply the quilt patches, which is good because 
-the included patches are out of date. I suggest to remove patch
-0001-var-lib-drbdd.patch from debian/patches/series to avoid confusion.
-
- 
+Can someone reproduce that?
 
