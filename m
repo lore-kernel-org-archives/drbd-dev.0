@@ -1,21 +1,32 @@
-Return-Path: <dietmar@proxmox.com>
-Received: from proxmox.maurer-it.com (proxmox.maurer-it.com [94.136.31.133])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 48808100EBF0
-	for <drbd-dev@lists.linbit.com>; Tue, 12 May 2015 06:36:18 +0200 (CEST)
-Date: Tue, 12 May 2015 06:36:16 +0200 (CEST)
-From: Dietmar Maurer <dietmar@proxmox.com>
-To: Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
-Message-ID: <882854472.8.1431405376885.JavaMail.open-xchange@ronja.mits.lan>
-In-Reply-To: <20150511100735.GY1968@rck.sh>
-References: <1945028087.159.1431334443252.JavaMail.open-xchange@ronja.mits.lan>
-	<20150511092206.GX1968@rck.sh> <20150511100735.GY1968@rck.sh>
+Return-Path: <hch@lst.de>
+Date: Mon, 18 May 2015 19:22:59 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Jeff Moyer <jmoyer@redhat.com>
+Message-ID: <20150518172259.GA8116@lst.de>
+References: <1430980461-5235-1-git-send-email-mlin@kernel.org>
+	<1430980461-5235-2-git-send-email-mlin@kernel.org>
+	<x49twv9kevg.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] drbdmanage lintian warnings
-Reply-To: Dietmar Maurer <dietmar@proxmox.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49twv9kevg.fsf@segfault.boston.devel.redhat.com>
+Cc: Mike Snitzer <snitzer@redhat.com>, Neil Brown <neilb@suse.de>,
+	Ming Lei <ming.lei@canonical.com>, dm-devel@redhat.com,
+	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>,
+	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Kent Overstreet <kent.overstreet@gmail.com>,
+	Nitin Gupta <ngupta@vflare.org>, Oleg Drokin <oleg.drokin@intel.com>,
+	Al Viro <viro@zeniv.linux.org.uk>, Ming Lin <mlin@kernel.org>,
+	Jens Axboe <axboe@kernel.dk>, Andreas Dilger <andreas.dilger@intel.com>,
+	Geoff Levand <geoff@infradead.org>,
+	Jiri Kosina <jkosina@suse.cz>, linux-kernel@vger.kernel.org,
+	Jim Paris <jim@jtan.com>, Minchan Kim <minchan@kernel.org>,
+	Dongsu Park <dpark@posteo.net>, drbd-user@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v3 01/11] block: make generic_make_request
+	handle	arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,9 +38,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> See attached patch. It fixes the bulk of the lintian warnings. There are
-> still some other unrelated manpage errors left that would need a closer
-> look (e.g. command string too long).
+On Mon, May 18, 2015 at 12:52:03PM -0400, Jeff Moyer wrote:
+> > +	return bio_split(bio, split_sectors, GFP_NOIO, bs);
+> 
+> Much of this function is cut-n-paste from blk-lib.c.  Is there any way
+> to factor it out?
 
-Many thanks, that fixes almost all warnings. 
+The code in blk-lib.c can go away now that any driver that cares
+does the split.
 
+> > +static struct bio *blk_bio_segment_split(struct request_queue *q,
+> > +					 struct bio *bio,
+> > +					 struct bio_set *bs)
+> > +{
+> 
+> Funny name for a function that also merges segments.  ;-)  I admit I am
+> at a loss for coming up with a better name that won't overflow 80
+> columns.
+
+I'd keep the name and add a funny comment instead.
