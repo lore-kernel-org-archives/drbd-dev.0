@@ -1,39 +1,23 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+Return-Path: <dietmar@proxmox.com>
+Received: from proxmox.maurer-it.com (proxmox.maurer-it.com [94.136.31.133])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 13C131045C28
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:48:38 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 05E4644CA95
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:48:38 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id Ib3ESt35g6OH for <drbd-dev@lists.linbit.com>;
-	Wed, 20 May 2015 14:48:37 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B79DC44CFEB
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:48:37 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id as5Rm8_KBn8E for <drbd-dev@lists.linbit.com>;
-	Wed, 20 May 2015 14:48:37 +0200 (CEST)
-Received: from localhost (chello213047144126.1.15.vie.surfer.at
-	[213.47.144.126])
-	by zimbra13.linbit.com (Postfix) with ESMTPSA id 8C73D44CA95
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:48:37 +0200 (CEST)
-Date: Wed, 20 May 2015 14:48:36 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20150520124836.GX1968@rck.sh>
-References: <1335158101.57.1432118468143.JavaMail.open-xchange@ronja.mits.lan>
-	<20150520120147.GV1968@rck.sh>
-	<1529837518.111.1432124741450.JavaMail.open-xchange@ronja.mits.lan>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D3DC01050584
+	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:54:57 +0200 (CEST)
+Date: Wed, 20 May 2015 14:54:54 +0200 (CEST)
+From: Dietmar Maurer <dietmar@proxmox.com>
+To: Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
+Message-ID: <2051305130.123.1432126495128.JavaMail.open-xchange@ronja.mits.lan>
+In-Reply-To: <20150520124010.GW1968@rck.sh>
+References: <1182776473.27.1432113988008.JavaMail.open-xchange@ronja.mits.lan>
+	<20150520115527.GU1968@rck.sh>
+	<1438073088.99.1432123743344.JavaMail.open-xchange@ronja.mits.lan>
+	<20150520124010.GW1968@rck.sh>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1529837518.111.1432124741450.JavaMail.open-xchange@ronja.mits.lan>
-Subject: Re: [Drbd-dev] howto enable auto-promote
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+Subject: Re: [Drbd-dev] cluster initialization with drbdmanage
+Reply-To: Dietmar Maurer <dietmar@proxmox.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,39 +29,14 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, May 20, 2015 at 02:25:41PM +0200, Dietmar Maurer wrote:
+> In that case it is exactly as drbdmanage told you:
 > 
-> > Auto-promote is enabled. As you can see it failed, and it can only fail
-> > if it was enabled... Your problem is the "multiple primaries" thingy.
-> > Please tell us which drbdmanage commands you executed. 
+> CAUTION! Note that:
+> * Any previous drbdmanage cluster information may be removed
+> * Any remaining resources managed by a previous drbdmanage installation
+> that still exist on this system will no longer be managed by drbdmanage
 > 
-> What commands? The idea is that 'auto-promote' works without any commands.
-> So I just start the kvm VM on the second node, which tries to open the device.
-> 
-> So I tried to enable allow-two-primaries somehow. Adding it 
-> to /etc/drbd.d/global_common.conf did not help. 
+> The control volume gets overwritten, the old information is lost.
 
-You probably forgot to "drbdadm adjust"...
+But what if I want to add additional nodes to a cluster later?
 
-> Then I tried:
-> 
-> # drbdadm net-options --allow-two-primaries=yes vm-100-disk-1
-> 
-> on each node, and it seems to work now.
-> 
-> So where is the right place to set allow-two-primaries for 
-> volumes managed by drbdmanage? 
-
-Passing these "generic drbd options" to drbdmanage is work in progress.
-I expect it to be finished for the next release. 
-
-> And why is that disabled by default? 
-> 
-
-Oh, because you really really have to know if two primiaries are a good
-idea. Allowing multiple primaries is definitely nothing that should be
-enabled by default.
-
-Regards, rck
-
-Again: Please no TO/CC, and please ask such questions on drbd-user.
