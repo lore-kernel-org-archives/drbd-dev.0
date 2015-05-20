@@ -1,37 +1,21 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+Return-Path: <dietmar@proxmox.com>
+Received: from proxmox.maurer-it.com (proxmox.maurer-it.com [94.136.31.133])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E782D105058C
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:01:49 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id C23F844CA95
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:01:49 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id Vl6QjpMbUGjm for <drbd-dev@lists.linbit.com>;
-	Wed, 20 May 2015 14:01:49 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id A47F544CAF6
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:01:49 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id yLa3Be7eKofg for <drbd-dev@lists.linbit.com>;
-	Wed, 20 May 2015 14:01:49 +0200 (CEST)
-Received: from localhost (chello213047144126.1.15.vie.surfer.at
-	[213.47.144.126])
-	by zimbra13.linbit.com (Postfix) with ESMTPSA id 58AC544CA95
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:01:49 +0200 (CEST)
-Date: Wed, 20 May 2015 14:01:48 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20150520120147.GV1968@rck.sh>
-References: <1335158101.57.1432118468143.JavaMail.open-xchange@ronja.mits.lan>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 175DD1051881
+	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 14:09:05 +0200 (CEST)
+Date: Wed, 20 May 2015 14:09:03 +0200 (CEST)
+From: Dietmar Maurer <dietmar@proxmox.com>
+To: Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
+Message-ID: <1438073088.99.1432123743344.JavaMail.open-xchange@ronja.mits.lan>
+In-Reply-To: <20150520115527.GU1968@rck.sh>
+References: <1182776473.27.1432113988008.JavaMail.open-xchange@ronja.mits.lan>
+	<20150520115527.GU1968@rck.sh>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1335158101.57.1432118468143.JavaMail.open-xchange@ronja.mits.lan>
-Subject: Re: [Drbd-dev] howto enable auto-promote
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+Subject: Re: [Drbd-dev] cluster initialization with drbdmanage
+Reply-To: Dietmar Maurer <dietmar@proxmox.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,20 +27,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, May 20, 2015 at 12:41:08PM +0200, Dietmar Maurer wrote:
-> I am trying to live migrate a kvm based VM which uses a 
-> drbd9 image created with drbdmanage. But I get the 
-> following error:
+> > 1.) Where is the command line to join the node (mentioned in the README
+> > above)?
 > 
-> [ 7268.069023] drbd vm-100-disk-1: Auto-promote failed: Multiple primaries not
-> allowed by config
+> If the node where you execute "add-node" is able to ssh to the new node,
+> everything is fine and the join is executed for you. 
+
+The README tell to execute new-node always on 
+"a node of the existing drbdmanage cluster"
+So for example, I should run 'add-node' always on the first node?
+Is that correct?
+
+> If not, the join
+> command gets printed and you have to manually execute the command on the
+> new node.
 > 
-> So how can I enable the auto-promote feature?
+> If you want to know which command that would be, you can use:
+> drbdmanage howto-join <nodename>
+> 
+> > 2.) Does this really destroy all existing resources? If so, how can I add 
+> > nodes to a cluster which already have existing resources?
+> 
+> Resouces managed by drbdmanage 
 
-Auto-promote is enabled. As you can see it failed, and it can only fail
-if it was enabled... Your problem is the "multiple primaries" thingy.
-Please tell us which drbdmanage commands you executed. The granularity
-of "trying to live migrate" is a bit too coarse to reproduce the issue.
-At least for me.
+yes
 
-Regards, rck
