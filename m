@@ -1,44 +1,30 @@
 Return-Path: <mlin@kernel.org>
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4F2951050592
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 22:18:29 +0200 (CEST)
-Received: from mail.kernel.org (localhost [127.0.0.1])
-	by mail.kernel.org (Postfix) with ESMTP id 0704E203F7
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 20:18:27 +0000 (UTC)
-Received: from mail-vn0-f51.google.com (mail-vn0-f51.google.com
-	[209.85.216.51])
-	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 33895203ED
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 20:18:23 +0000 (UTC)
-Received: by vnbf190 with SMTP id f190so4494775vnb.0
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2015 13:18:22 -0700 (PDT)
+Message-ID: <555EDFE7.2020304@kernel.org>
+Date: Fri, 22 May 2015 00:51:03 -0700
+From: Ming Lin <mlin@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <x49k2w3oz32.fsf@segfault.boston.devel.redhat.com>
+To: Christoph Hellwig <hch@lst.de>, Jeff Moyer <jmoyer@redhat.com>
 References: <1430980461-5235-1-git-send-email-mlin@kernel.org>
 	<1430980461-5235-2-git-send-email-mlin@kernel.org>
 	<x49twv9kevg.fsf@segfault.boston.devel.redhat.com>
-	<CAF1ivSbdbvnCi04oR9h4sqnMcLFNXfOo-8=_2qFVkzNYmnmELQ@mail.gmail.com>
-	<x49k2w3oz32.fsf@segfault.boston.devel.redhat.com>
-Date: Wed, 20 May 2015 13:18:22 -0700
-Message-ID: <CAF1ivSaMGtwg11p9K9D4H4W2=1OhP8vRfi9Bj6cpU1F9Miow5Q@mail.gmail.com>
-From: Ming Lin <mlin@kernel.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Content-Type: text/plain; charset=UTF-8
+	<20150518172259.GA8116@lst.de>
+In-Reply-To: <20150518172259.GA8116@lst.de>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Cc: Mike Snitzer <snitzer@redhat.com>, Neil Brown <neilb@suse.de>,
 	Ming Lei <ming.lei@canonical.com>, dm-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>, Alasdair Kergon <agk@redhat.com>,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>,
 	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Joshua Morris <josh.h.morris@us.ibm.com>,
 	Christoph Hellwig <hch@infradead.org>,
 	Kent Overstreet <kent.overstreet@gmail.com>,
 	Nitin Gupta <ngupta@vflare.org>, Oleg Drokin <oleg.drokin@intel.com>,
-	Al Viro <viro@zeniv.linux.org.uk>, Ming Lin <mlin@kernel.org>,
-	Jens Axboe <axboe@kernel.dk>, Andreas Dilger <andreas.dilger@intel.com>,
-	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
-	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
-	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>
+	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
+	Andreas Dilger <andreas.dilger@intel.com>,
+	Geoff Levand <geoff@infradead.org>,
+	Jiri Kosina <jkosina@suse.cz>, linux-kernel@vger.kernel.org,
+	Jim Paris <jim@jtan.com>, Minchan Kim <minchan@kernel.org>,
+	Dongsu Park <dpark@posteo.net>, drbd-user@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH v3 01/11] block: make generic_make_request
  handle arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
@@ -52,50 +38,137 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, May 20, 2015 at 11:58 AM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> Ming Lin <mlin@kernel.org> writes:
->
->> On Mon, May 18, 2015 at 9:52 AM, Jeff Moyer <jmoyer@redhat.com> wrote:
->>> Ming Lin <mlin@kernel.org> writes:
->>>
->>>> diff --git a/block/blk-core.c b/block/blk-core.c
->>>> index fd154b9..909f317 100644
->>>> --- a/block/blk-core.c
->>>> +++ b/block/blk-core.c
->>>> @@ -617,6 +617,10 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
->>>>       if (q->id < 0)
->>>>               goto fail_q;
->>>>
->>>> +     q->bio_split = bioset_create(4, 0);
->>>> +     if (!q->bio_split)
->>>> +             goto fail_id;
->>>> +
->>>
->>> Arbitrary numbers should be documented.
+On 05/18/2015 10:22 AM, Christoph Hellwig wrote:
+> On Mon, May 18, 2015 at 12:52:03PM -0400, Jeff Moyer wrote:
+>>> +	return bio_split(bio, split_sectors, GFP_NOIO, bs);
 >>
->> Kent,
->>
->> Is there specific reason to choose number 4?
->> If no, I may change it to BIO_POOL_SIZE which is 2.
->
-> Here's what he had to say last time around:
->
->   On Mon, Nov 25, 2013 at 10:09:21PM -0800, Christoph Hellwig wrote:
->   > > +   q->bio_split = bioset_create(4, 0);
->   > > +   if (!q->bio_split)
->   > > +      goto fail_id;
->   >
->   > How did we arrive at a mempool size of 4 to make sure we can always make
->   > progress with arbitrarily sized bios?  Shouldn't we document the design
->   > decision somewhere?
->
->   It just has to be nonzero to guarantee forward progress - the
+>> Much of this function is cut-n-paste from blk-lib.c.  Is there any way
+>> to factor it out?
+> 
+> The code in blk-lib.c can go away now that any driver that cares
+> does the split.
 
-Then I'll update it to BIO_POOL_SIZE.
+How about below?
 
->   bio_alloc_bioset() rescuer thing I did awhile back guarantees that.
->
-> link:  https://lkml.org/lkml/2013/11/26/47
->
-> Cheers,
-> Jeff
+From 23aec71f3e44a21aece46f7939715e022b7d3daa Mon Sep 17 00:00:00 2001
+From: Ming Lin <mlin@kernel.org>
+Date: Fri, 22 May 2015 00:46:56 -0700
+Subject: [PATCH] block: remove split code in blkdev_issue_discard
+
+The split code in blkdev_issue_discard() can go away now
+that any driver that cares does the split.
+
+Signed-off-by: Ming Lin <mlin@kernel.org>
+---
+ block/blk-lib.c | 73 +++++++++++----------------------------------------------
+ 1 file changed, 14 insertions(+), 59 deletions(-)
+
+diff --git a/block/blk-lib.c b/block/blk-lib.c
+index 7688ee3..3bf3c4a 100644
+--- a/block/blk-lib.c
++++ b/block/blk-lib.c
+@@ -43,34 +43,17 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+ 	DECLARE_COMPLETION_ONSTACK(wait);
+ 	struct request_queue *q = bdev_get_queue(bdev);
+ 	int type = REQ_WRITE | REQ_DISCARD;
+-	unsigned int max_discard_sectors, granularity;
+-	int alignment;
+ 	struct bio_batch bb;
+ 	struct bio *bio;
+ 	int ret = 0;
+ 	struct blk_plug plug;
+ 
+-	if (!q)
++	if (!q || !nr_sects)
+ 		return -ENXIO;
+ 
+ 	if (!blk_queue_discard(q))
+ 		return -EOPNOTSUPP;
+ 
+-	/* Zero-sector (unknown) and one-sector granularities are the same.  */
+-	granularity = max(q->limits.discard_granularity >> 9, 1U);
+-	alignment = (bdev_discard_alignment(bdev) >> 9) % granularity;
+-
+-	/*
+-	 * Ensure that max_discard_sectors is of the proper
+-	 * granularity, so that requests stay aligned after a split.
+-	 */
+-	max_discard_sectors = min(q->limits.max_discard_sectors, UINT_MAX >> 9);
+-	max_discard_sectors -= max_discard_sectors % granularity;
+-	if (unlikely(!max_discard_sectors)) {
+-		/* Avoid infinite loop below. Being cautious never hurts. */
+-		return -EOPNOTSUPP;
+-	}
+-
+ 	if (flags & BLKDEV_DISCARD_SECURE) {
+ 		if (!blk_queue_secdiscard(q))
+ 			return -EOPNOTSUPP;
+@@ -82,52 +65,24 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+ 	bb.wait = &wait;
+ 
+ 	blk_start_plug(&plug);
+-	while (nr_sects) {
+-		unsigned int req_sects;
+-		sector_t end_sect, tmp;
+ 
+-		bio = bio_alloc(gfp_mask, 1);
+-		if (!bio) {
+-			ret = -ENOMEM;
+-			break;
+-		}
++	bio = bio_alloc(gfp_mask, 1);
++	if (!bio) {
++		ret = -ENOMEM;
++		goto out;
++	}
+ 
+-		req_sects = min_t(sector_t, nr_sects, max_discard_sectors);
+-
+-		/*
+-		 * If splitting a request, and the next starting sector would be
+-		 * misaligned, stop the discard at the previous aligned sector.
+-		 */
+-		end_sect = sector + req_sects;
+-		tmp = end_sect;
+-		if (req_sects < nr_sects &&
+-		    sector_div(tmp, granularity) != alignment) {
+-			end_sect = end_sect - alignment;
+-			sector_div(end_sect, granularity);
+-			end_sect = end_sect * granularity + alignment;
+-			req_sects = end_sect - sector;
+-		}
++	bio->bi_iter.bi_sector = sector;
++	bio->bi_end_io = bio_batch_end_io;
++	bio->bi_bdev = bdev;
++	bio->bi_private = &bb;
+ 
+-		bio->bi_iter.bi_sector = sector;
+-		bio->bi_end_io = bio_batch_end_io;
+-		bio->bi_bdev = bdev;
+-		bio->bi_private = &bb;
++	bio->bi_iter.bi_size = nr_sects << 9;
+ 
+-		bio->bi_iter.bi_size = req_sects << 9;
+-		nr_sects -= req_sects;
+-		sector = end_sect;
++	atomic_inc(&bb.done);
++	submit_bio(type, bio);
+ 
+-		atomic_inc(&bb.done);
+-		submit_bio(type, bio);
+-
+-		/*
+-		 * We can loop for a long time in here, if someone does
+-		 * full device discards (like mkfs). Be nice and allow
+-		 * us to schedule out to avoid softlocking if preempt
+-		 * is disabled.
+-		 */
+-		cond_resched();
+-	}
++out:
+ 	blk_finish_plug(&plug);
+ 
+ 	/* Wait for bios in-flight */
+-- 
+1.9.1
+
