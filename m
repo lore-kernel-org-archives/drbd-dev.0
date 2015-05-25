@@ -2,55 +2,52 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 792881055734
-	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2015 10:58:05 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 34E271055F5F
+	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2015 10:58:08 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 408722A0E92
-	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2015 10:58:05 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 30D902A0E92
+	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2015 10:58:08 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id OHI6J05RE1W8 for <drbd-dev@lists.linbit.com>;
-	Wed, 27 May 2015 10:58:05 +0200 (CEST)
+	with ESMTP id sjRyJWr6n2tS for <drbd-dev@lists.linbit.com>;
+	Wed, 27 May 2015 10:58:08 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 219383D84CB
-	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2015 10:58:05 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 107173D84CB
+	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2015 10:58:08 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id LYvuupzLohrE for <drbd-dev@lists.linbit.com>;
-	Wed, 27 May 2015 10:58:05 +0200 (CEST)
+	with ESMTP id gbL6EXYi41l6 for <drbd-dev@lists.linbit.com>;
+	Wed, 27 May 2015 10:58:07 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id EA7882A0E92
-	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2015 10:58:04 +0200 (CEST)
-Resent-Message-ID: <20150527085804.GC18767@soda.linbit>
-From: Jeff Moyer <jmoyer@redhat.com>
-To: Ming Lin <mlin@kernel.org>
-References: <1430980461-5235-1-git-send-email-mlin@kernel.org>
-	<1430980461-5235-2-git-send-email-mlin@kernel.org>
-	<x49twv9kevg.fsf@segfault.boston.devel.redhat.com>
-	<CAF1ivSbdbvnCi04oR9h4sqnMcLFNXfOo-8=_2qFVkzNYmnmELQ@mail.gmail.com>
-Date: Wed, 20 May 2015 14:58:41 -0400
-In-Reply-To: <CAF1ivSbdbvnCi04oR9h4sqnMcLFNXfOo-8=_2qFVkzNYmnmELQ@mail.gmail.com>
-	(Ming Lin's message of "Wed, 20 May 2015 11:30:10 -0700")
-Message-ID: <x49k2w3oz32.fsf@segfault.boston.devel.redhat.com>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id DB0152A0E92
+	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2015 10:58:07 +0200 (CEST)
+Resent-Message-ID: <20150527085807.GE18767@soda.linbit>
 MIME-Version: 1.0
-Content-Type: text/plain
-Cc: Mike Snitzer <snitzer@redhat.com>, Neil Brown <neilb@suse.de>,
-	Ming Lei <ming.lei@canonical.com>, dm-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>,
-	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Joshua Morris <josh.h.morris@us.ibm.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Nitin Gupta <ngupta@vflare.org>, Oleg Drokin <oleg.drokin@intel.com>,
-	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
-	Andreas Dilger <andreas.dilger@intel.com>,
-	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
-	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
-	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
-	drbd-user@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v3 01/11] block: make generic_make_request
-	handle arbitrarily sized bios
+In-Reply-To: <20150525150827.GA27012@lst.de>
+References: <1432318723-18829-1-git-send-email-mlin@kernel.org>
+	<1432318723-18829-9-git-send-email-mlin@kernel.org>
+	<20150525140413.GA26065@lst.de>
+	<CAOi1vP8vNEXw2e1eWa4LqKD14SA7XtSQ_C8+4d_sz20t4nfEng@mail.gmail.com>
+	<20150525150827.GA27012@lst.de>
+Date: Mon, 25 May 2015 18:19:33 +0300
+Message-ID: <CAOi1vP81kGRXjKEgu8+hkvWBZyXP5Q46U2KwPbdiVJsgU70Ocg@mail.gmail.com>
+From: Ilya Dryomov <idryomov@gmail.com>
+To: Christoph Hellwig <hch@lst.de>
+Content-Type: text/plain; charset=UTF-8
+Cc: Jens Axboe <axboe@kernel.dk>, Alex Elder <elder@kernel.org>,
+	Sage Weil <sage@inktank.com>, Mike Snitzer <snitzer@redhat.com>,
+	Neil Brown <neilb@suse.de>, Jiri Kosina <jkosina@suse.cz>,
+	Alex Elder <elder@linaro.org>,
+	Ceph Development <ceph-devel@vger.kernel.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Yehuda Sadeh <yehuda@inktank.com>, linux-raid@vger.kernel.org,
+	dm-devel@redhat.com, Alasdair Kergon <agk@redhat.com>,
+	Dongsu Park <dpark@posteo.net>,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	Ming Lin <mlin@kernel.org>, Kent Overstreet <kent.overstreet@gmail.com>,
+	drbd-user@lists.linbit.com, Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH v4 08/11] block: kill merge_bvec_fn()
+	completely
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -62,46 +59,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Ming Lin <mlin@kernel.org> writes:
-
-> On Mon, May 18, 2015 at 9:52 AM, Jeff Moyer <jmoyer@redhat.com> wrote:
->> Ming Lin <mlin@kernel.org> writes:
+On Mon, May 25, 2015 at 6:08 PM, Christoph Hellwig <hch@lst.de> wrote:
+> On Mon, May 25, 2015 at 06:02:30PM +0300, Ilya Dryomov wrote:
+>> I'm not Alex, but yeah, we have all the clone/split machinery and so we
+>> can handle a spanning case just fine.  I think rbd_merge_bvec() exists
+>> to make sure we don't have to do that unless it's really necessary -
+>> like when a single page gets submitted at an inconvenient offset.
 >>
->>> diff --git a/block/blk-core.c b/block/blk-core.c
->>> index fd154b9..909f317 100644
->>> --- a/block/blk-core.c
->>> +++ b/block/blk-core.c
->>> @@ -617,6 +617,10 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
->>>       if (q->id < 0)
->>>               goto fail_q;
->>>
->>> +     q->bio_split = bioset_create(4, 0);
->>> +     if (!q->bio_split)
->>> +             goto fail_id;
->>> +
->>
->> Arbitrary numbers should be documented.
+>> I have a patch that adds a blk_queue_chunk_sectors(object_size) call to
+>> rbd_init_disk() but I haven't had a chance to play with it yet.  In any
+>> case, we should be fine with getting rid of rbd_merge_bvec().  If this
+>> ends up a per-driver patchset, I can make rbd_merge_bvec() ->
+>> blk_queue_chunk_sectors() a single patch and push it through
+>> ceph-client.git.
 >
-> Kent,
+> Hmm, looks like the new blk_queue_split_bio ignore the chunk_sectors
+> value, another thing that needs updating.  I forgot how many weird
+> merging hacks we had to add for nvme..
 >
-> Is there specific reason to choose number 4?
-> If no, I may change it to BIO_POOL_SIZE which is 2.
+> While I'd like to see per-driver patches we'd still need to merge
+> them together through the block tree.  Note that with this series
+> there won't be any benefit of using blk_queue_chunk_sectors over just
+> doing the split in rbd.  Maybe we can even remove it again and do
+> that work in the drivers in the future.
 
-Here's what he had to say last time around:
+OK, I'll drop it, especially if it's potentially on its way out.  With
+the fancy striping support, which I'll hopefully get to sometime, the
+striping pattern will become much more complicated anyway, so relying
+on rbd doing bio splitting is right in the long run as well.
 
-  On Mon, Nov 25, 2013 at 10:09:21PM -0800, Christoph Hellwig wrote:
-  > > +   q->bio_split = bioset_create(4, 0);
-  > > +   if (!q->bio_split)
-  > > +      goto fail_id;
-  > 
-  > How did we arrive at a mempool size of 4 to make sure we can always make
-  > progress with arbitrarily sized bios?  Shouldn't we document the design
-  > decision somewhere?
+Thanks,
 
-  It just has to be nonzero to guarantee forward progress - the
-  bio_alloc_bioset() rescuer thing I did awhile back guarantees that.
-
-link:  https://lkml.org/lkml/2013/11/26/47
-
-Cheers,
-Jeff
+                Ilya
