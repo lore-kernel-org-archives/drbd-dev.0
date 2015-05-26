@@ -1,30 +1,31 @@
-Return-Path: <hch@lst.de>
-Date: Mon, 25 May 2015 17:08:27 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Ilya Dryomov <idryomov@gmail.com>
-Message-ID: <20150525150827.GA27012@lst.de>
+Return-Path: <msnitzer@redhat.com>
+Date: Tue, 26 May 2015 10:36:26 -0400
+From: Mike Snitzer <snitzer@redhat.com>
+To: Ming Lin <mlin@kernel.org>
+Message-ID: <20150526143626.GA4315@redhat.com>
 References: <1432318723-18829-1-git-send-email-mlin@kernel.org>
-	<1432318723-18829-9-git-send-email-mlin@kernel.org>
-	<20150525140413.GA26065@lst.de>
-	<CAOi1vP8vNEXw2e1eWa4LqKD14SA7XtSQ_C8+4d_sz20t4nfEng@mail.gmail.com>
+	<1432318723-18829-2-git-send-email-mlin@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOi1vP8vNEXw2e1eWa4LqKD14SA7XtSQ_C8+4d_sz20t4nfEng@mail.gmail.com>
-Cc: Jens Axboe <axboe@kernel.dk>, Alex Elder <elder@kernel.org>,
-	Sage Weil <sage@inktank.com>, Mike Snitzer <snitzer@redhat.com>,
-	Neil Brown <neilb@suse.de>, Jiri Kosina <jkosina@suse.cz>,
-	Alex Elder <elder@linaro.org>,
-	Ceph Development <ceph-devel@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Yehuda Sadeh <yehuda@inktank.com>, linux-raid@vger.kernel.org,
-	dm-devel@redhat.com, Alasdair Kergon <agk@redhat.com>,
-	Dongsu Park <dpark@posteo.net>,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	Ming Lin <mlin@kernel.org>, Kent Overstreet <kent.overstreet@gmail.com>,
-	drbd-user@lists.linbit.com, Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH v4 08/11] block: kill merge_bvec_fn()
-	completely
+In-Reply-To: <1432318723-18829-2-git-send-email-mlin@kernel.org>
+Cc: Neil Brown <neilb@suse.de>, Ming Lei <ming.lei@canonical.com>,
+	dm-devel@redhat.com, Christoph Hellwig <hch@lst.de>,
+	Alasdair Kergon <agk@redhat.com>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>,
+	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Kent Overstreet <kent.overstreet@gmail.com>,
+	Nitin Gupta <ngupta@vflare.org>, Oleg Drokin <oleg.drokin@intel.com>,
+	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
+	Andreas Dilger <andreas.dilger@intel.com>,
+	Geoff Levand <geoff@infradead.org>,
+	Jiri Kosina <jkosina@suse.cz>, linux-kernel@vger.kernel.org,
+	Jim Paris <jim@jtan.com>, Minchan Kim <minchan@kernel.org>,
+	Dongsu Park <dpark@posteo.net>, drbd-user@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v4 01/11] block: make generic_make_request
+ handle arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,25 +37,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, May 25, 2015 at 06:02:30PM +0300, Ilya Dryomov wrote:
-> I'm not Alex, but yeah, we have all the clone/split machinery and so we
-> can handle a spanning case just fine.  I think rbd_merge_bvec() exists
-> to make sure we don't have to do that unless it's really necessary -
-> like when a single page gets submitted at an inconvenient offset.
+On Fri, May 22 2015 at  2:18pm -0400,
+Ming Lin <mlin@kernel.org> wrote:
+
+> From: Kent Overstreet <kent.overstreet@gmail.com>
 > 
-> I have a patch that adds a blk_queue_chunk_sectors(object_size) call to
-> rbd_init_disk() but I haven't had a chance to play with it yet.  In any
-> case, we should be fine with getting rid of rbd_merge_bvec().  If this
-> ends up a per-driver patchset, I can make rbd_merge_bvec() ->
-> blk_queue_chunk_sectors() a single patch and push it through
-> ceph-client.git.
+> The way the block layer is currently written, it goes to great lengths
+> to avoid having to split bios; upper layer code (such as bio_add_page())
+> checks what the underlying device can handle and tries to always create
+> bios that don't need to be split.
+> 
+> But this approach becomes unwieldy and eventually breaks down with
+> stacked devices and devices with dynamic limits, and it adds a lot of
+> complexity. If the block layer could split bios as needed, we could
+> eliminate a lot of complexity elsewhere - particularly in stacked
+> drivers. Code that creates bios can then create whatever size bios are
+> convenient, and more importantly stacked drivers don't have to deal with
+> both their own bio size limitations and the limitations of the
+> (potentially multiple) devices underneath them.  In the future this will
+> let us delete merge_bvec_fn and a bunch of other code.
 
-Hmm, looks like the new blk_queue_split_bio ignore the chunk_sectors
-value, another thing that needs updating.  I forgot how many weird
-merging hacks we had to add for nvme..
+This series doesn't take any steps to train upper layers
+(e.g. filesystems) to size their bios larger (which is defined as
+"whatever size bios are convenient" above).
 
-While I'd like to see per-driver patches we'd still need to merge
-them together through the block tree.  Note that with this series
-there won't be any benefit of using blk_queue_chunk_sectors over just
-doing the split in rbd.  Maybe we can even remove it again and do
-that work in the drivers in the future.
+bio_add_page(), and merge_bvec_fn, served as the means for upper layers
+(and direct IO) to build up optimally sized bios.  Without a replacement
+(that I can see anyway) how is this patchset making forward progress
+(getting Acks, etc)!?
+
+I like the idea of reduced complexity associated with these late bio
+splitting changes I'm just not seeing how this is ready given there are
+no upper layer changes that speak to building larger bios..
+
+What am I missing?
+
+Please advise, thanks!
+Mike
