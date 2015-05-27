@@ -1,35 +1,37 @@
-Return-Path: <neilb@suse.de>
-Date: Wed, 27 May 2015 09:06:40 +1000
-From: NeilBrown <neilb@suse.de>
-To: Alasdair G Kergon <agk@redhat.com>
-Message-ID: <20150527090640.44c346e2@notabene.brown>
-In-Reply-To: <20150526153414.GA31182@agk-dp.fab.redhat.com>
+Return-Path: <hch@lst.de>
+Date: Wed, 27 May 2015 10:20:18 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: device-mapper development <dm-devel@redhat.com>,
+	Alasdair G Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>,
+	Ming Lei <ming.lei@canonical.com>, Al@redhat.com,
+	Christoph Hellwig <hch@lst.de>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>, Oleg@redhat.com,
+	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>,
+	Christoph Hellwig <hch@infradead.org>, Kent@redhat.com,
+	Overstreet <kent.overstreet@gmail.com>,
+	Nitin Gupta <ngupta@vflare.org>, Drokin <oleg.drokin@intel.com>,
+	Viro <viro@zeniv.linux.org.uk>, Dave Chinner <dchinner@redhat.com>,
+	Ming Lin <mlin@kernel.org>, Jens Axboe <axboe@kernel.dk>,
+	Andreas Dilger <andreas.dilger@intel.com>,
+	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
+	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
+	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
+	drbd-user@lists.linbit.com
+Message-ID: <20150527082018.GB25575@lst.de>
 References: <1432318723-18829-1-git-send-email-mlin@kernel.org>
 	<1432318723-18829-2-git-send-email-mlin@kernel.org>
 	<20150526143626.GA4315@redhat.com>
 	<CAF1ivSb3ptYObS3_8bJwWhq98EcNgAgRhN_L-c3uyFfCzdn=9A@mail.gmail.com>
 	<20150526153414.GA31182@agk-dp.fab.redhat.com>
+	<20150527090640.44c346e2@notabene.brown>
+	<20150527004022.GD31182@agk-dp.fab.redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	boundary="Sig_/cp2xcSEZDnlt4B7CsO6fyKB";
-	protocol="application/pgp-signature"
-Cc: Mike Snitzer <snitzer@redhat.com>, Ming Lei <ming.lei@canonical.com>,
-	lkml <linux-kernel@vger.kernel.org>, dm-devel@redhat.com, Kent,
-	Christoph Hellwig <hch@lst.de>, Lars Ellenberg <drbd-dev@lists.linbit.com>,
-	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Joshua Morris <josh.h.morris@us.ibm.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Overstreet <kent.overstreet@gmail.com>,
-	Nitin Gupta <ngupta@vflare.org>, Drokin <oleg.drokin@intel.com>,
-	Oleg, Viro <viro@zeniv.linux.org.uk>,
-	Dave Chinner <dchinner@redhat.com>, Ming Lin <mlin@kernel.org>,
-	Jens Axboe <axboe@kernel.dk>, Andreas Dilger <andreas.dilger@intel.com>,
-	Geoff Levand <geoff@infradead.org>,
-	Jiri Kosina <jkosina@suse.cz>, Al, Jim Paris <jim@jtan.com>,
-	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
-	drbd-user@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v4 01/11] block: make generic_make_request
- handle arbitrarily sized bios
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150527004022.GD31182@agk-dp.fab.redhat.com>
+Subject: Re: [Drbd-dev] [dm-devel] [PATCH v4 01/11] block: make
+	generic_make_request	handle arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,67 +43,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---Sig_/cp2xcSEZDnlt4B7CsO6fyKB
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Wed, May 27, 2015 at 01:40:22AM +0100, Alasdair G Kergon wrote:
+> It does sometimes make a significant difference to device-mapper stacks.
+> DM only uses it for performance reasons - it can already split bios when
+> it needs to.  I tried to remove merge_bvec_fn from DM several years ago but
+> couldn't because of the adverse performance impact of lots of splitting activity.
 
-On Tue, 26 May 2015 16:34:14 +0100 Alasdair G Kergon <agk@redhat.com> wrote:
-
-> On Tue, May 26, 2015 at 08:02:08AM -0700, Ming Lin wrote:
-> > Now bio_add_page() can build lager bios.
-> > And blk_queue_split() can split the bios in ->make_request() if needed.
->=20
-> But why not try to make the bio the right size in the first place so you
-> don't have to incur the performance impact of splitting?
-
-Because we don't know what the "right" size is.  And the "right" size can
-change when array reconfiguration happens.
-
-Splitting has to happen somewhere, if only in bio_addpage where it decides =
-to
-create a new bio rather than add another page to the current one.  So moving
-the split to a different level of the stack shouldn't necessarily change the
-performance profile.
-
-Obviously testing is important to confirm that.
-
-NeilBrown
-
->=20
-> What performance testing have you yet done to demonstrate the *actual* im=
-pact
-> of this patchset in situations where merge_bvec_fn is currently a net ben=
-efit?
->=20
-> Alasdair
->=20
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
-
---Sig_/cp2xcSEZDnlt4B7CsO6fyKB
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIVAwUBVWT8gTnsnt1WYoG5AQLPchAAhrwL4XhtBInjN+nQIz3d88KQWPGzTZRx
-5MEeBMrfDOHC4ZksJgdwcMb7x5SGz5Q86JOKuNfDP/f1njGWnhlgcuTcdhnHtMik
-eJ0CtZ3X0asVh/1j+kdDYKD8Bz4oi9TYLIe5bA6mNAFhWtU5f4OhV3ahHNvwfery
-ai99HYZORwf7/3LlwSvi8juWUK06iFqdowDkfnxmUnoHpXd8Enk0B7dcTHi9HBu6
-z/xA3VSCcclEU8f7eSRn5/G+hV9626MPFknXhvAFfGSxDyLwSyWLdeVbbaqnbSDH
-q3cZqtZk4whb5EobZVptZofTOna5q7/5u+FRPVESVeTSeov/c5eAvEndUaLxMNLQ
-MsnOAk/KlVlSdU3CHPm0Rej7+5CpXaiLDia0zUo/vgOSAS7JzqHuYnSVvsH5yNQ2
-Vkv7VZRr2WinZD5Z+l9SwE416A2POtvgTXrljIGcjon1ZUZQrUTk/zIUtVOIKflC
-kmFOw+F1ApY3uio81hl3SZ4ABUqhlrRzRzJ/FP2hpYfnXV+QFo+lVXC0fODzyLS3
-KS3ULL056oT1dMKf139INFGbgTLZXXYPzo4FQHr7d+rMlgB0p0f0zqh+kmEGdDhU
-KBFt7pHcjKJWMV8kvlplLWfz9K/e3QtO5uScY3xJQTCJkqySxw+NRCQ4wGIdZOyw
-DGnUcTRiXUo=
-=YtUu
------END PGP SIGNATURE-----
-
---Sig_/cp2xcSEZDnlt4B7CsO6fyKB--
+Does it still?  Since the move to immutable biovecs the bio splits are
+pretty cheap now, but I'd really like to see this verified by benchmarks.
