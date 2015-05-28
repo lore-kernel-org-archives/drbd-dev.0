@@ -1,22 +1,45 @@
-Return-Path: <mlin@kernel.org>
-Message-ID: <1433138551.11778.4.camel@hasee>
-From: Ming Lin <mlin@kernel.org>
-To: Alasdair G Kergon <agk@redhat.com>
-Date: Sun, 31 May 2015 23:02:31 -0700
-In-Reply-To: <20150528003627.GD32216@agk-dp.fab.redhat.com>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 505041011B9B
+	for <drbd-dev@lists.linbit.com>; Tue,  2 Jun 2015 21:09:37 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 169052A98C6
+	for <drbd-dev@lists.linbit.com>; Tue,  2 Jun 2015 21:09:37 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id R4jW3aXY0lrn for <drbd-dev@lists.linbit.com>;
+	Tue,  2 Jun 2015 21:09:37 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id E8AB43FA3A1
+	for <drbd-dev@lists.linbit.com>; Tue,  2 Jun 2015 21:09:36 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id EC_KGbTghURZ for <drbd-dev@lists.linbit.com>;
+	Tue,  2 Jun 2015 21:09:36 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 6502C2A98C6
+	for <drbd-dev@lists.linbit.com>; Tue,  2 Jun 2015 21:09:36 +0200 (CEST)
+Resent-Message-ID: <20150602190936.GM18767@soda.linbit>
+Date: Thu, 28 May 2015 01:36:27 +0100
+From: Alasdair G Kergon <agk@redhat.com>
+To: Ming Lin <mlin@kernel.org>
+Message-ID: <20150528003627.GD32216@agk-dp.fab.redhat.com>
 References: <1432318723-18829-1-git-send-email-mlin@kernel.org>
 	<1432318723-18829-2-git-send-email-mlin@kernel.org>
 	<20150526143626.GA4315@redhat.com>
 	<CAF1ivSb3ptYObS3_8bJwWhq98EcNgAgRhN_L-c3uyFfCzdn=9A@mail.gmail.com>
 	<20150526160400.GB4715@redhat.com>
 	<CAF1ivSZ351yV4re1Ghf5yqPjgq6aXjrZT4yWd+T9msAFsBnDSw@mail.gmail.com>
-	<20150528003627.GD32216@agk-dp.fab.redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAF1ivSZ351yV4re1Ghf5yqPjgq6aXjrZT4yWd+T9msAFsBnDSw@mail.gmail.com>
 Cc: Mike Snitzer <snitzer@redhat.com>, Neil Brown <neilb@suse.de>,
 	Ming Lei <ming.lei@canonical.com>, dm-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Lars Ellenberg <drbd-dev@lists.linbit.com>,
+	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>,
 	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
 	Joshua Morris <josh.h.morris@us.ibm.com>,
 	Christoph Hellwig <hch@infradead.org>,
@@ -29,7 +52,7 @@ Cc: Mike Snitzer <snitzer@redhat.com>, Neil Brown <neilb@suse.de>,
 	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
 	drbd-user@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH v4 01/11] block: make generic_make_request
- handle arbitrarily sized bios
+	handle	arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,94 +64,57 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 2015-05-28 at 01:36 +0100, Alasdair G Kergon wrote:
-> On Wed, May 27, 2015 at 04:42:44PM -0700, Ming Lin wrote:
-> > Here are fio results of XFS on a DM stripped target with 2 SSDs + 1 HDD.
-> > Does it make sense?
-> 
-> To stripe across devices with different characteristics?
-> 
-> Some suggestions.
-> 
-> Prepare 3 kernels.
->   O - Old kernel.
->   M - Old kernel with merge_bvec_fn disabled.
->   N - New kernel.
-> 
-> You're trying to search for counter-examples to the hypothesis that 
-> "Kernel N always outperforms Kernel O".  Then if you find any, trying 
-> to show either that the performance impediment is small enough that
-> it doesn't matter or that the cases are sufficiently rare or obscure
-> that they may be ignored because of the greater benefits of N in much more
-> common cases.
-> 
-> (1) You're looking to set up configurations where kernel O performs noticeably
-> better than M.  Then you're comparing the performance of O and N in those
-> situations.
-> 
-> (2) You're looking at other sensible configurations where O and M have
-> similar performance, and comparing that with the performance of N.
+On Wed, May 27, 2015 at 04:42:44PM -0700, Ming Lin wrote:
+> Here are fio results of XFS on a DM stripped target with 2 SSDs + 1 HDD.
+> Does it make sense?
 
-I didn't find case (1).
+To stripe across devices with different characteristics?
 
-But the important thing for this series is to simplify block layer
-based on immutable biovecs. I don't expect performance improvement.
+Some suggestions.
 
-Here is the changes statistics.
+Prepare 3 kernels.
+  O - Old kernel.
+  M - Old kernel with merge_bvec_fn disabled.
+  N - New kernel.
 
-"68 files changed, 336 insertions(+), 1331 deletions(-)"
+You're trying to search for counter-examples to the hypothesis that 
+"Kernel N always outperforms Kernel O".  Then if you find any, trying 
+to show either that the performance impediment is small enough that
+it doesn't matter or that the cases are sufficiently rare or obscure
+that they may be ignored because of the greater benefits of N in much more
+common cases.
 
-I run below 3 test cases to make sure it didn't bring any regressions.
-Test environment: 2 NVMe drives on 2 sockets server.
-Each case run for 30 minutes.
+(1) You're looking to set up configurations where kernel O performs noticeably
+better than M.  Then you're comparing the performance of O and N in those
+situations.
 
-2) btrfs radi0
+(2) You're looking at other sensible configurations where O and M have
+similar performance, and comparing that with the performance of N.
 
-mkfs.btrfs -f -d raid0 /dev/nvme0n1 /dev/nvme1n1
-mount /dev/nvme0n1 /mnt
+In each case you find, you expect to be able to vary some parameter (such as
+stripe size) to show a progression of the effect.
 
-Then run 8K read.
+When running tests you've to take care the system is reset into the same
+initial state before each test, so you'll normally also try to include some
+baseline test between tests that should give the same results each time
+and also take the average of a number of runs (while also reporting some
+measure of the variation within each set to make sure that remains low,
+typically a low single digit percentage).
 
-[global]
-ioengine=libaio
-iodepth=64
-direct=1
-runtime=1800
-time_based
-group_reporting
-numjobs=4
-rw=read
+Since we're mostly concerned about splitting, you'll want to monitor
+iostat to see if that gives you enough information to home in on 
+suitable configurations for (1).  Failing that, you might need to
+instrument the kernels to tell you the sizes of the bios being
+created and the amount of splitting actually happening.
 
-[job1]
-bs=8K
-directory=/mnt
-size=1G
+Striping was mentioned because it forces splitting.  So show the progression
+from tiny stripes to huge stripes.  (Ensure all the devices providing the
+stripes have identical characteristics, but you can test with slow and
+fast underlying devices.)
 
-2) ext4 on MD raid5
+You may also want to test systems with a restricted amount of available
+memory to show how the splitting via worker thread performs.  (Again,
+instrument to prove the extent to which the new code is being exercised.)
 
-mdadm --create /dev/md0 --level=5 --raid-devices=2 /dev/nvme0n1 /dev/nvme1n1
-mkfs.ext4 /dev/md0
-mount /dev/md0 /mnt
-
-fio script same as btrfs test
-
-3) xfs on DM stripped target
-
-pvcreate /dev/nvme0n1 /dev/nvme1n1
-vgcreate striped_vol_group /dev/nvme0n1 /dev/nvme1n1
-lvcreate -i2 -I4 -L250G -nstriped_logical_volume striped_vol_group
-mkfs.xfs -f /dev/striped_vol_group/striped_logical_volume
-mount /dev/striped_vol_group/striped_logical_volume /mnt
-
-fio script same as btrfs test
-
-------
-
-Results:
-
-	4.1-rc4		4.1-rc4-patched
-btrfs	1818.6MB/s	1874.1MB/s
-ext4	717307KB/s	714030KB/s
-xfs	1396.6MB/s	1398.6MB/s
-
+Alasdair
 
