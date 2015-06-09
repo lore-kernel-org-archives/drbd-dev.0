@@ -1,7 +1,11 @@
 Return-Path: <mlin@kernel.org>
-MIME-Version: 1.0
-In-Reply-To: <20150605000636.GA24611@redhat.com>
-References: <1432318723-18829-2-git-send-email-mlin@kernel.org>
+Message-ID: <1433830169.1197.6.camel@hasee>
+From: Ming Lin <mlin@kernel.org>
+To: Mike Snitzer <snitzer@redhat.com>
+Date: Mon, 08 Jun 2015 23:09:29 -0700
+In-Reply-To: <20150604210617.GA23710@redhat.com>
+References: <1432318723-18829-1-git-send-email-mlin@kernel.org>
+	<1432318723-18829-2-git-send-email-mlin@kernel.org>
 	<20150526143626.GA4315@redhat.com>
 	<CAF1ivSb3ptYObS3_8bJwWhq98EcNgAgRhN_L-c3uyFfCzdn=9A@mail.gmail.com>
 	<20150526160400.GB4715@redhat.com>
@@ -10,29 +14,23 @@ References: <1432318723-18829-2-git-send-email-mlin@kernel.org>
 	<1433138551.11778.4.camel@hasee>
 	<CAF1ivSY_7M1OhrMuXg0OKu7BPy=SbTHSHCk+2q6vfEVgvJL8YA@mail.gmail.com>
 	<20150604210617.GA23710@redhat.com>
-	<CAF1ivSa_U5LFNWMdw8dBadoWVU6uk+ph_NP5jQztLWYHyRz-MQ@mail.gmail.com>
-	<20150605000636.GA24611@redhat.com>
-Date: Thu, 4 Jun 2015 22:21:24 -0700
-Message-ID: <CAF1ivSZpwXiW+DtW2oGEmprLD9+LKqbj99qkFmr8GoJZ5EUxOg@mail.gmail.com>
-From: Ming Lin <mlin@kernel.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Cc: Jens Axboe <axboe@kernel.dk>, Oleg Drokin <oleg.drokin@intel.com>,
-	Andreas Dilger <andreas.dilger@intel.com>,
-	Geoff Levand <geoff@infradead.org>,
-	Jiri Kosina <jkosina@suse.cz>, Ming Lei <ming.lei@canonical.com>,
-	lkml <linux-kernel@vger.kernel.org>,
-	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Al Viro <viro@zeniv.linux.org.uk>,
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Cc: Ming Lei <ming.lei@canonical.com>, dm-devel@redhat.com,
 	Joshua Morris <josh.h.morris@us.ibm.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Minchan Kim <minchan@kernel.org>, dm-devel@redhat.com,
-	Dongsu Park <dpark@posteo.net>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	drbd-user@lists.linbit.com, Jim Paris <jim@jtan.com>,
-	Nitin Gupta <ngupta@vflare.org>, Christoph Hellwig <hch@lst.de>,
 	Alasdair G Kergon <agk@redhat.com>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
+	Lars Ellenberg <drbd-dev@lists.linbit.com>,
+	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
+	Hellwig <hch@lst.de>, Christoph Hellwig <hch@infradead.org>,
+	Nitin, Kent Overstreet <kent.overstreet@gmail.com>,
+	Gupta <ngupta@vflare.org>, Oleg Drokin <oleg.drokin@intel.com>,
+	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
+	Andreas Dilger <andreas.dilger@intel.com>, Christoph,
+	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
+	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
+	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
+	drbd-user@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH v4 01/11] block: make generic_make_request
  handle arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
@@ -46,77 +44,125 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jun 4, 2015 at 5:06 PM, Mike Snitzer <snitzer@redhat.com> wrote:
-> On Thu, Jun 04 2015 at  6:21pm -0400,
-> Ming Lin <mlin@kernel.org> wrote:
->
->> On Thu, Jun 4, 2015 at 2:06 PM, Mike Snitzer <snitzer@redhat.com> wrote:
->> >
->> > We need to test on large HW raid setups like a Netapp filer (or even
->> > local SAS drives connected via some SAS controller).  Like a 8+2 drive
->> > RAID6 or 8+1 RAID5 setup.  Testing with MD raid on JBOD setups with 8
->> > devices is also useful.  It is larger RAID setups that will be more
->> > sensitive to IO sizes being properly aligned on RAID stripe and/or chunk
->> > size boundaries.
->>
->> I'll test it on large HW raid setup.
->>
->> Here is HW RAID5 setup with 19 278G HDDs on Dell R730xd(2sockets/48
->> logical cpus/264G mem).
->> http://minggr.net/pub/20150604/hw_raid5.jpg
->>
->> The stripe size is 64K.
->>
->> I'm going to test ext4/btrfs/xfs on it.
->> "bs" set to 1216k(64K * 19 = 1216k)
->> and run 48 jobs.
->
-> Definitely an odd blocksize (though 1280K full stripe is pretty common
-> for 10+2 HW RAID6 w/ 128K chunk size).
+On Thu, 2015-06-04 at 17:06 -0400, Mike Snitzer wrote:
+> We need to test on large HW raid setups like a Netapp filer (or even
+> local SAS drives connected via some SAS controller).  Like a 8+2 drive
+> RAID6 or 8+1 RAID5 setup.  Testing with MD raid on JBOD setups with 8
+> devices is also useful.  It is larger RAID setups that will be more
+> sensitive to IO sizes being properly aligned on RAID stripe and/or chunk
+> size boundaries.
 
-I can change it to 10 HDDs HW RAID6 w/ 128K chunk size, then use bs=1280K
+Here are tests results of xfs/ext4/btrfs read/write on HW RAID6/MD RAID6/DM stripe target.
+Each case run 0.5 hour, so it took 36 hours to finish all the tests on 4.1-rc4 and 4.1-rc4-patched kernels.
 
->
->> [global]
->> ioengine=libaio
->> iodepth=64
->> direct=1
->> runtime=1800
->> time_based
->> group_reporting
->> numjobs=48
->> rw=read
->>
->> [job1]
->> bs=1216K
->> directory=/mnt
->> size=1G
->
-> How does time_based relate to size=1G?  It'll rewrite the same 1 gig
-> file repeatedly?
+No performance regressions were introduced.
 
-Above job file is for read.
-For write, I think so.
-Do is make sense for performance test?
+Test server: Dell R730xd(2 sockets/48 logical cpus/264G memory)
+HW RAID6/MD RAID6/DM stripe target were configured with 10 HDDs, each 280G
+Stripe size 64k and 128k were tested.
 
->
->> Or do you have other suggestions of what tests I should run?
->
-> You're welcome to run this job but I'll also check with others here to
-> see what fio jobs we used in the recent past when assessing performance
-> of the dm-crypt parallelization changes.
+devs="/dev/sdb /dev/sdc /dev/sdd /dev/sde /dev/sdf /dev/sdg /dev/sdh /dev/sdi /dev/sdj /dev/sdk"
+spare_devs="/dev/sdl /dev/sdm"
+stripe_size=64 (or 128)
 
-That's very helpful.
+MD RAID6 was created by:
+mdadm --create --verbose /dev/md0 --level=6 --raid-devices=10 $devs --spare-devices=2 $spare_devs -c $stripe_size
 
->
-> Also, a lot of care needs to be taken to eliminate jitter in the system
-> while the test is running.  We got a lot of good insight from Bart Van
-> Assche on that and put it to practice.  I'll see if we can (re)summarize
-> that too.
+DM stripe target was created by:
+pvcreate $devs
+vgcreate striped_vol_group $devs
+lvcreate -i10 -I${stripe_size} -L2T -nstriped_logical_volume striped_vol_group
 
-Very helpful too.
+Here is an example of fio script for stripe size 128k:
+[global]
+ioengine=libaio
+iodepth=64
+direct=1
+runtime=1800
+time_based
+group_reporting
+numjobs=48
+gtod_reduce=0
+norandommap
+write_iops_log=fs
 
-Thanks.
+[job1]
+bs=1280K
+directory=/mnt
+size=5G
+rw=read
 
->
-> Mike
+All results here: http://minggr.net/pub/20150608/fio_results/
+
+Results summary:
+
+1. HW RAID6: stripe size 64k
+		4.1-rc4		4.1-rc4-patched
+		-------		---------------
+		(MB/s)		(MB/s)
+xfs read:	821.23		812.20  -1.09%
+xfs write:	753.16		754.42  +0.16%
+ext4 read:	827.80		834.82  +0.84%
+ext4 write:	783.08		777.58  -0.70%
+btrfs read:	859.26		871.68  +1.44%
+btrfs write:	815.63		844.40  +3.52%
+
+2. HW RAID6: stripe size 128k
+		4.1-rc4		4.1-rc4-patched
+		-------		---------------
+		(MB/s)		(MB/s)
+xfs read:	948.27		979.11  +3.25%
+xfs write:	820.78		819.94  -0.10%
+ext4 read:	978.35		997.92  +2.00%
+ext4 write:	853.51		847.97  -0.64%
+btrfs read:	1013.1		1015.6  +0.24%
+btrfs write:	854.43		850.42  -0.46%
+
+3. MD RAID6: stripe size 64k
+		4.1-rc4		4.1-rc4-patched
+		-------		---------------
+		(MB/s)		(MB/s)
+xfs read:	847.34		869.43  +2.60%
+xfs write:	198.67		199.03  +0.18%
+ext4 read:	763.89		767.79  +0.51%
+ext4 write:	281.44		282.83  +0.49%
+btrfs read:	756.02		743.69  -1.63%
+btrfs write:	268.37		265.93  -0.90%
+
+4. MD RAID6: stripe size 128k
+		4.1-rc4		4.1-rc4-patched
+		-------		---------------
+		(MB/s)		(MB/s)
+xfs read:	993.04		1014.1  +2.12%
+xfs write:	293.06		298.95  +2.00%
+ext4 read:	1019.6		1020.9  +0.12%
+ext4 write:	371.51		371.47  -0.01%
+btrfs read:	1000.4		1020.8  +2.03%
+btrfs write:	241.08		246.77  +2.36%
+
+5. DM: stripe size 64k
+		4.1-rc4		4.1-rc4-patched
+		-------		---------------
+		(MB/s)		(MB/s)
+xfs read:	1084.4		1080.1  -0.39%
+xfs write:	1071.1		1063.4  -0.71%
+ext4 read:	991.54		1003.7  +1.22%
+ext4 write:	1069.7		1052.2  -1.63%
+btrfs read:	1076.1		1082.1  +0.55%
+btrfs write:	968.98		965.07  -0.40%
+
+6. DM: stripe size 128k
+		4.1-rc4		4.1-rc4-patched
+		-------		---------------
+		(MB/s)		(MB/s)
+xfs read:	1020.4		1066.1  +4.47%
+xfs write:	1058.2		1066.6  +0.79%
+ext4 read:	990.72		988.19  -0.25%
+ext4 write:	1050.4		1070.2  +1.88%
+btrfs read:	1080.9		1074.7  -0.57%
+btrfs write:	975.10		972.76  -0.23%
+
+
+
+
+
