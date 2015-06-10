@@ -1,38 +1,20 @@
-Return-Path: <mlin@kernel.org>
-Message-ID: <1433830169.1197.6.camel@hasee>
-From: Ming Lin <mlin@kernel.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Date: Mon, 08 Jun 2015 23:09:29 -0700
-In-Reply-To: <20150604210617.GA23710@redhat.com>
-References: <1432318723-18829-1-git-send-email-mlin@kernel.org>
-	<1432318723-18829-2-git-send-email-mlin@kernel.org>
-	<20150526143626.GA4315@redhat.com>
-	<CAF1ivSb3ptYObS3_8bJwWhq98EcNgAgRhN_L-c3uyFfCzdn=9A@mail.gmail.com>
-	<20150526160400.GB4715@redhat.com>
-	<CAF1ivSZ351yV4re1Ghf5yqPjgq6aXjrZT4yWd+T9msAFsBnDSw@mail.gmail.com>
-	<20150528003627.GD32216@agk-dp.fab.redhat.com>
-	<1433138551.11778.4.camel@hasee>
-	<CAF1ivSY_7M1OhrMuXg0OKu7BPy=SbTHSHCk+2q6vfEVgvJL8YA@mail.gmail.com>
-	<20150604210617.GA23710@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Cc: Ming Lei <ming.lei@canonical.com>, dm-devel@redhat.com,
-	Joshua Morris <josh.h.morris@us.ibm.com>,
-	Alasdair G Kergon <agk@redhat.com>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>,
-	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Hellwig <hch@lst.de>, Christoph Hellwig <hch@infradead.org>,
-	Nitin, Kent Overstreet <kent.overstreet@gmail.com>,
-	Gupta <ngupta@vflare.org>, Oleg Drokin <oleg.drokin@intel.com>,
-	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
-	Andreas Dilger <andreas.dilger@intel.com>, Christoph,
-	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
-	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
-	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
-	drbd-user@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v4 01/11] block: make generic_make_request
- handle arbitrarily sized bios
+Return-Path: <nwang@suse.com>
+Received: from prv3-mh.provo.novell.com (victor.provo.novell.com
+	[137.65.250.26])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id ECB4410003FC
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Jun 2015 09:49:05 +0200 (CEST)
+From: Nick Wang <nwang@suse.com>
+To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
+	drbd-dev@lists.linbit.com
+Date: Wed, 10 Jun 2015 15:48:21 +0800
+Message-Id: <1433922509-10280-3-git-send-email-nwang@suse.com>
+In-Reply-To: <1433922509-10280-1-git-send-email-nwang@suse.com>
+References: <1433922509-10280-1-git-send-email-nwang@suse.com>
+Cc: linux-kernel@vger.kernel.org
+Subject: [Drbd-dev] [PATCH 02/10] Add options zap_devices to
+	new-current-uuid for zeroing out device before initial sync.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,125 +26,59 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 2015-06-04 at 17:06 -0400, Mike Snitzer wrote:
-> We need to test on large HW raid setups like a Netapp filer (or even
-> local SAS drives connected via some SAS controller).  Like a 8+2 drive
-> RAID6 or 8+1 RAID5 setup.  Testing with MD raid on JBOD setups with 8
-> devices is also useful.  It is larger RAID setups that will be more
-> sensitive to IO sizes being properly aligned on RAID stripe and/or chunk
-> size boundaries.
+Add zap-devices options for new-current-uuid.
+Need to change .h file in drbd-utils for user space.
 
-Here are tests results of xfs/ext4/btrfs read/write on HW RAID6/MD RAID6/DM stripe target.
-Each case run 0.5 hour, so it took 36 hours to finish all the tests on 4.1-rc4 and 4.1-rc4-patched kernels.
+Signed-off-by: Nick Wang <nwang@suse.com>
+CC: Philipp Reisner <philipp.reisner@linbit.com>
+CC: Lars Ellenberg <lars.ellenberg@linbit.com>
+CC: drbd-dev@lists.linbit.com
+CC: linux-kernel@vger.kernel.org
 
-No performance regressions were introduced.
+---
+ drbd/drbd_nl.c         | 9 +++++++++
+ drbd/linux/drbd_genl.h | 1 +
+ 2 files changed, 10 insertions(+)
 
-Test server: Dell R730xd(2 sockets/48 logical cpus/264G memory)
-HW RAID6/MD RAID6/DM stripe target were configured with 10 HDDs, each 280G
-Stripe size 64k and 128k were tested.
-
-devs="/dev/sdb /dev/sdc /dev/sdd /dev/sde /dev/sdf /dev/sdg /dev/sdh /dev/sdi /dev/sdj /dev/sdk"
-spare_devs="/dev/sdl /dev/sdm"
-stripe_size=64 (or 128)
-
-MD RAID6 was created by:
-mdadm --create --verbose /dev/md0 --level=6 --raid-devices=10 $devs --spare-devices=2 $spare_devs -c $stripe_size
-
-DM stripe target was created by:
-pvcreate $devs
-vgcreate striped_vol_group $devs
-lvcreate -i10 -I${stripe_size} -L2T -nstriped_logical_volume striped_vol_group
-
-Here is an example of fio script for stripe size 128k:
-[global]
-ioengine=libaio
-iodepth=64
-direct=1
-runtime=1800
-time_based
-group_reporting
-numjobs=48
-gtod_reduce=0
-norandommap
-write_iops_log=fs
-
-[job1]
-bs=1280K
-directory=/mnt
-size=5G
-rw=read
-
-All results here: http://minggr.net/pub/20150608/fio_results/
-
-Results summary:
-
-1. HW RAID6: stripe size 64k
-		4.1-rc4		4.1-rc4-patched
-		-------		---------------
-		(MB/s)		(MB/s)
-xfs read:	821.23		812.20  -1.09%
-xfs write:	753.16		754.42  +0.16%
-ext4 read:	827.80		834.82  +0.84%
-ext4 write:	783.08		777.58  -0.70%
-btrfs read:	859.26		871.68  +1.44%
-btrfs write:	815.63		844.40  +3.52%
-
-2. HW RAID6: stripe size 128k
-		4.1-rc4		4.1-rc4-patched
-		-------		---------------
-		(MB/s)		(MB/s)
-xfs read:	948.27		979.11  +3.25%
-xfs write:	820.78		819.94  -0.10%
-ext4 read:	978.35		997.92  +2.00%
-ext4 write:	853.51		847.97  -0.64%
-btrfs read:	1013.1		1015.6  +0.24%
-btrfs write:	854.43		850.42  -0.46%
-
-3. MD RAID6: stripe size 64k
-		4.1-rc4		4.1-rc4-patched
-		-------		---------------
-		(MB/s)		(MB/s)
-xfs read:	847.34		869.43  +2.60%
-xfs write:	198.67		199.03  +0.18%
-ext4 read:	763.89		767.79  +0.51%
-ext4 write:	281.44		282.83  +0.49%
-btrfs read:	756.02		743.69  -1.63%
-btrfs write:	268.37		265.93  -0.90%
-
-4. MD RAID6: stripe size 128k
-		4.1-rc4		4.1-rc4-patched
-		-------		---------------
-		(MB/s)		(MB/s)
-xfs read:	993.04		1014.1  +2.12%
-xfs write:	293.06		298.95  +2.00%
-ext4 read:	1019.6		1020.9  +0.12%
-ext4 write:	371.51		371.47  -0.01%
-btrfs read:	1000.4		1020.8  +2.03%
-btrfs write:	241.08		246.77  +2.36%
-
-5. DM: stripe size 64k
-		4.1-rc4		4.1-rc4-patched
-		-------		---------------
-		(MB/s)		(MB/s)
-xfs read:	1084.4		1080.1  -0.39%
-xfs write:	1071.1		1063.4  -0.71%
-ext4 read:	991.54		1003.7  +1.22%
-ext4 write:	1069.7		1052.2  -1.63%
-btrfs read:	1076.1		1082.1  +0.55%
-btrfs write:	968.98		965.07  -0.40%
-
-6. DM: stripe size 128k
-		4.1-rc4		4.1-rc4-patched
-		-------		---------------
-		(MB/s)		(MB/s)
-xfs read:	1020.4		1066.1  +4.47%
-xfs write:	1058.2		1066.6  +0.79%
-ext4 read:	990.72		988.19  -0.25%
-ext4 write:	1050.4		1070.2  +1.88%
-btrfs read:	1080.9		1074.7  -0.57%
-btrfs write:	975.10		972.76  -0.23%
-
-
-
-
+diff --git a/drbd/drbd_nl.c b/drbd/drbd_nl.c
+index 9c14cf3..1ef4551 100644
+--- a/drbd/drbd_nl.c
++++ b/drbd/drbd_nl.c
+@@ -4000,6 +4000,7 @@ int drbd_adm_new_c_uuid(struct sk_buff *skb, struct genl_info *info)
+ 	struct drbd_device *device;
+ 	enum drbd_ret_code retcode;
+ 	int skip_initial_sync = 0;
++	int zero_out_devices = 0;
+ 	int err;
+ 	struct new_c_uuid_parms args;
+ 
+@@ -4034,6 +4035,14 @@ int drbd_adm_new_c_uuid(struct sk_buff *skb, struct genl_info *info)
+ 	    device->ldev->md.uuid[UI_CURRENT] == UUID_JUST_CREATED && args.clear_bm) {
+ 		drbd_info(device, "Preparing to skip initial sync\n");
+ 		skip_initial_sync = 1;
++	/* this is "zero out" devices to make it all zero.
++	* ignore "zero out" if both "clear_bm" and "zap_devices" set. */
++	} else if (device->state.conn == C_CONNECTED &&
++	    first_peer_device(device)->connection->agreed_pro_version >= 90 &&
++	    device->ldev->md.uuid[UI_CURRENT] == UUID_JUST_CREATED &&
++		args.zap_devices) {
++		drbd_info(device, "Preparing to zero out devices, will take a long time\n");
++		zero_out_devices = 1;
+ 	} else if (device->state.conn != C_STANDALONE) {
+ 		retcode = ERR_CONNECTED;
+ 		goto out_dec;
+diff --git a/drbd/linux/drbd_genl.h b/drbd/linux/drbd_genl.h
+index 5db53f5..eef8d8c 100644
+--- a/drbd/linux/drbd_genl.h
++++ b/drbd/linux/drbd_genl.h
+@@ -240,6 +240,7 @@ GENL_struct(DRBD_NLA_START_OV_PARMS, 9, start_ov_parms,
+ 
+ GENL_struct(DRBD_NLA_NEW_C_UUID_PARMS, 10, new_c_uuid_parms,
+ 	__flg_field(1, DRBD_GENLA_F_MANDATORY, clear_bm)
++	__flg_field(2, DRBD_GENLA_F_MANDATORY, zap_devices)
+ )
+ 
+ GENL_struct(DRBD_NLA_TIMEOUT_PARMS, 11, timeout_parms,
+-- 
+1.8.4.5
 
