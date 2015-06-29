@@ -1,39 +1,24 @@
-Return-Path: <mlin@kernel.org>
-MIME-Version: 1.0
-In-Reply-To: <20150610214611.GA744@redhat.com>
-References: <20150526143626.GA4315@redhat.com>
-	<CAF1ivSb3ptYObS3_8bJwWhq98EcNgAgRhN_L-c3uyFfCzdn=9A@mail.gmail.com>
-	<20150526160400.GB4715@redhat.com>
-	<CAF1ivSZ351yV4re1Ghf5yqPjgq6aXjrZT4yWd+T9msAFsBnDSw@mail.gmail.com>
-	<20150528003627.GD32216@agk-dp.fab.redhat.com>
-	<1433138551.11778.4.camel@hasee>
-	<CAF1ivSY_7M1OhrMuXg0OKu7BPy=SbTHSHCk+2q6vfEVgvJL8YA@mail.gmail.com>
-	<20150604210617.GA23710@redhat.com> <1433830169.1197.6.camel@hasee>
-	<CAF1ivSbo456n+1JxDp7eAHAgKs5qBOcomN4N9hhCEXmy8i4nPQ@mail.gmail.com>
-	<20150610214611.GA744@redhat.com>
-Date: Wed, 17 Jun 2015 22:27:33 -0700
-Message-ID: <CAF1ivSbHMUmEYd3V-55Dackyb87W=WeJACbC+Qv6iF7-sqm3dQ@mail.gmail.com>
-From: Ming Lin <mlin@kernel.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Cc: Jens Axboe <axboe@kernel.dk>, Oleg Drokin <oleg.drokin@intel.com>,
-	Andreas Dilger <andreas.dilger@intel.com>,
-	Geoff Levand <geoff@infradead.org>,
-	Jiri Kosina <jkosina@suse.cz>, Ming Lei <ming.lei@canonical.com>,
-	lkml <linux-kernel@vger.kernel.org>,
-	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Joshua Morris <josh.h.morris@us.ibm.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Minchan Kim <minchan@kernel.org>, dm-devel@redhat.com,
-	Dongsu Park <dpark@posteo.net>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	drbd-user@lists.linbit.com, Jim Paris <jim@jtan.com>,
-	Nitin Gupta <ngupta@vflare.org>, Christoph Hellwig <hch@lst.de>,
-	Alasdair G Kergon <agk@redhat.com>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH v4 01/11] block: make generic_make_request
- handle arbitrarily sized bios
+Return-Path: <chris@prolocation.net>
+Received: from smtpq-133-118.prolocation.net (smtpq-133-118.prolocation.net
+	[94.228.133.118])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 28BDA10556A0
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Jun 2015 14:25:06 +0200 (CEST)
+Received: from static-38-195-78-212.thenetworkfactory.nl ([212.78.195.38]
+	helo=[192.168.2.100])
+	by relay40.prolocation.net with esmtpsa (TLSv1:AES256-SHA:256)
+	(Exim 4.76) (envelope-from <chris@prolocation.net>)
+	id 1Z9Y0m-0003Sk-Lt
+	for drbd-dev@lists.linbit.com; Mon, 29 Jun 2015 14:18:09 +0200
+From: Christiaan den Besten <chris@prolocation.net>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <B775D229-620D-4FDE-B041-08E86699F1BB@prolocation.net>
+Date: Mon, 29 Jun 2015 14:18:08 +0200
+To: drbd-dev@lists.linbit.com
+Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2098\))
+Subject: [Drbd-dev] Recover node after hard-crash (drbd9)
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,166 +30,429 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Jun 10, 2015 at 2:46 PM, Mike Snitzer <snitzer@redhat.com> wrote:
-> On Wed, Jun 10 2015 at  5:20pm -0400,
-> Ming Lin <mlin@kernel.org> wrote:
->
->> On Mon, Jun 8, 2015 at 11:09 PM, Ming Lin <mlin@kernel.org> wrote:
->> > On Thu, 2015-06-04 at 17:06 -0400, Mike Snitzer wrote:
->> >> We need to test on large HW raid setups like a Netapp filer (or even
->> >> local SAS drives connected via some SAS controller).  Like a 8+2 drive
->> >> RAID6 or 8+1 RAID5 setup.  Testing with MD raid on JBOD setups with 8
->> >> devices is also useful.  It is larger RAID setups that will be more
->> >> sensitive to IO sizes being properly aligned on RAID stripe and/or chunk
->> >> size boundaries.
->> >
->> > Here are tests results of xfs/ext4/btrfs read/write on HW RAID6/MD RAID6/DM stripe target.
->> > Each case run 0.5 hour, so it took 36 hours to finish all the tests on 4.1-rc4 and 4.1-rc4-patched kernels.
->> >
->> > No performance regressions were introduced.
->> >
->> > Test server: Dell R730xd(2 sockets/48 logical cpus/264G memory)
->> > HW RAID6/MD RAID6/DM stripe target were configured with 10 HDDs, each 280G
->> > Stripe size 64k and 128k were tested.
->> >
->> > devs="/dev/sdb /dev/sdc /dev/sdd /dev/sde /dev/sdf /dev/sdg /dev/sdh /dev/sdi /dev/sdj /dev/sdk"
->> > spare_devs="/dev/sdl /dev/sdm"
->> > stripe_size=64 (or 128)
->> >
->> > MD RAID6 was created by:
->> > mdadm --create --verbose /dev/md0 --level=6 --raid-devices=10 $devs --spare-devices=2 $spare_devs -c $stripe_size
->> >
->> > DM stripe target was created by:
->> > pvcreate $devs
->> > vgcreate striped_vol_group $devs
->> > lvcreate -i10 -I${stripe_size} -L2T -nstriped_logical_volume striped_vol_group
->
-> DM had a regression relative to merge_bvec that wasn't fixed until
-> recently (it wasn't in 4.1-rc4), see commit 1c220c69ce0 ("dm: fix
-> casting bug in dm_merge_bvec()").  It was introduced in 4.1.
->
-> So your 4.1-rc4 DM stripe testing may have effectively been with
-> merge_bvec disabled.
->
->> > Here is an example of fio script for stripe size 128k:
->> > [global]
->> > ioengine=libaio
->> > iodepth=64
->> > direct=1
->> > runtime=1800
->> > time_based
->> > group_reporting
->> > numjobs=48
->> > gtod_reduce=0
->> > norandommap
->> > write_iops_log=fs
->> >
->> > [job1]
->> > bs=1280K
->> > directory=/mnt
->> > size=5G
->> > rw=read
->> >
->> > All results here: http://minggr.net/pub/20150608/fio_results/
->> >
->> > Results summary:
->> >
->> > 1. HW RAID6: stripe size 64k
->> >                 4.1-rc4         4.1-rc4-patched
->> >                 -------         ---------------
->> >                 (MB/s)          (MB/s)
->> > xfs read:       821.23          812.20  -1.09%
->> > xfs write:      753.16          754.42  +0.16%
->> > ext4 read:      827.80          834.82  +0.84%
->> > ext4 write:     783.08          777.58  -0.70%
->> > btrfs read:     859.26          871.68  +1.44%
->> > btrfs write:    815.63          844.40  +3.52%
->> >
->> > 2. HW RAID6: stripe size 128k
->> >                 4.1-rc4         4.1-rc4-patched
->> >                 -------         ---------------
->> >                 (MB/s)          (MB/s)
->> > xfs read:       948.27          979.11  +3.25%
->> > xfs write:      820.78          819.94  -0.10%
->> > ext4 read:      978.35          997.92  +2.00%
->> > ext4 write:     853.51          847.97  -0.64%
->> > btrfs read:     1013.1          1015.6  +0.24%
->> > btrfs write:    854.43          850.42  -0.46%
->> >
->> > 3. MD RAID6: stripe size 64k
->> >                 4.1-rc4         4.1-rc4-patched
->> >                 -------         ---------------
->> >                 (MB/s)          (MB/s)
->> > xfs read:       847.34          869.43  +2.60%
->> > xfs write:      198.67          199.03  +0.18%
->> > ext4 read:      763.89          767.79  +0.51%
->> > ext4 write:     281.44          282.83  +0.49%
->> > btrfs read:     756.02          743.69  -1.63%
->> > btrfs write:    268.37          265.93  -0.90%
->> >
->> > 4. MD RAID6: stripe size 128k
->> >                 4.1-rc4         4.1-rc4-patched
->> >                 -------         ---------------
->> >                 (MB/s)          (MB/s)
->> > xfs read:       993.04          1014.1  +2.12%
->> > xfs write:      293.06          298.95  +2.00%
->> > ext4 read:      1019.6          1020.9  +0.12%
->> > ext4 write:     371.51          371.47  -0.01%
->> > btrfs read:     1000.4          1020.8  +2.03%
->> > btrfs write:    241.08          246.77  +2.36%
->> >
->> > 5. DM: stripe size 64k
->> >                 4.1-rc4         4.1-rc4-patched
->> >                 -------         ---------------
->> >                 (MB/s)          (MB/s)
->> > xfs read:       1084.4          1080.1  -0.39%
->> > xfs write:      1071.1          1063.4  -0.71%
->> > ext4 read:      991.54          1003.7  +1.22%
->> > ext4 write:     1069.7          1052.2  -1.63%
->> > btrfs read:     1076.1          1082.1  +0.55%
->> > btrfs write:    968.98          965.07  -0.40%
->> >
->> > 6. DM: stripe size 128k
->> >                 4.1-rc4         4.1-rc4-patched
->> >                 -------         ---------------
->> >                 (MB/s)          (MB/s)
->> > xfs read:       1020.4          1066.1  +4.47%
->> > xfs write:      1058.2          1066.6  +0.79%
->> > ext4 read:      990.72          988.19  -0.25%
->> > ext4 write:     1050.4          1070.2  +1.88%
->> > btrfs read:     1080.9          1074.7  -0.57%
->> > btrfs write:    975.10          972.76  -0.23%
->>
->> Hi Mike,
->>
->> How about these numbers?
->
-> Looks fairly good.  I just am not sure the workload is going to test the
-> code paths in question like we'd hope.  I'll have to set aside some time
-> to think through scenarios to test.
+Hi !
 
-Hi Mike,
+I just started testing the (official) drbd9 modules and tools on thee =
+CentOS 7 VMx (running on Xen Hypervisor) in PV mode.
 
-Will you get a chance to think about it?
+My DRBD =E2=80=98cluster=E2=80=99 has 3 nodes :
 
-Thanks.
+cluster1-a.storage.as41887.net
+cluster1-b.storage.as41887.net
+cluster1-c.storage.as41887.net
 
->
-> My concern still remains that at some point it the future we'll regret
-> not having merge_bvec but it'll be too late.  That is just my own FUD at
-> this point...
->
->> I'm also happy to run other fio jobs your team used.
->
-> I've been busy getting DM changes for the 4.2 merge window finalized.
-> As such I haven't connected with others on the team to discuss this
-> issue.
->
-> I'll see if we can make time in the next 2 days.  But I also have
-> RHEL-specific kernel deadlines I'm coming up against.
->
-> Seems late to be staging this extensive a change for 4.2... are you
-> pushing for this code to land in the 4.2 merge window?  Or do we have
-> time to work this further and target the 4.3 merge?
->
-> Mike
+No actual Cluster software (pacemaker) has been installed just yet. =
+Trying to get the hand of =E2=80=98drbdmanage=E2=80=99 and do some =
+testing on the recoverability of resources after various scenario=E2=80=99=
+s.
+
+Scenario that I can=E2=80=99t seem to =E2=80=98fix=E2=80=99 (or am doing =
+wrong =E2=80=A6 )
+
+* Create a resource/volume through drbdmanage (puts it on node-b and =
+node-c)
+* Remove data from node-c and assign node-a as a secondary data node
+* Make node-c a Diskless client node, create a filesystem on the =
+drbd-volume and mount it
+
+Then to see how we can can recover from a hard error I started a fio =
+disk-benchmark on node-c and few seconds later kill the node-a by =
+destroying the VM. All keeps running as expected, but I can=E2=80=99t =
+seem to get node-a back into normal shape without having to remove te =
+Primary state from node-c.
+
+I followed to following steps, please advise where I went wrong :
+
+IPv7:~ chris$ cat /tmp/drbd-replay.txt=20
+
+[root@cluster1-a ~]# drbdmanage new-volume testvm_prolocation_net 10GB =
+--deploy 2
+[root@cluster1-a ~]# drbdmanage nodes
+=
++-------------------------------------------------------------------------=
+-----------------------------------+
+| Name                           | Pool Size | Pool Free |               =
+                            | State |
+=
++-------------------------------------------------------------------------=
+-----------------------------------+
+| cluster1-a.storage.as41887.net |    204796 |    204792 |               =
+                            |    ok |
+| cluster1-b.storage.as41887.net |    204796 |    195252 |               =
+                            |    ok |
+| cluster1-c.storage.as41887.net |    204796 |    195252 |               =
+                            |    ok |
+=
++-------------------------------------------------------------------------=
+-----------------------------------+
+
+[root@cluster1-a ~]# drbdmanage unassign testvm_prolocation_net =
+cluster1-c.storage.as41887.net
+[root@cluster1-a ~]# drbdmanage assign testvm_prolocation_net =
+cluster1-a.storage.as41887.net
+[root@cluster1-a ~]# drbdmanage assign --client testvm_prolocation_net =
+cluster1-c.storage.as41887.net
+
+[root@cluster1-a ~]# drbdmanage nodes
+=
++-------------------------------------------------------------------------=
+-----------------------------------+
+| Name                           | Pool Size | Pool Free |               =
+                            | State |
+=
++-------------------------------------------------------------------------=
+-----------------------------------+
+| cluster1-a.storage.as41887.net |    204796 |    195252 |               =
+                            |    ok |
+| cluster1-b.storage.as41887.net |    204796 |    195252 |               =
+                            |    ok |
+| cluster1-c.storage.as41887.net |    204796 |    204792 |               =
+                            |    ok |
+=
++-------------------------------------------------------------------------=
+-----------------------------------+
+
+Affer a few minutes (node-a needs to sync data from node-b) :
+
+[root@cluster1-a ~]# drbdadm status | grep 'testvm_prolocation_net' -A 6
+testvm_prolocation_net role:Secondary
+  disk:UpToDate
+  cluster1-b.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+  cluster1-c.storage.as41887.net role:Secondary
+    peer-disk:Diskless
+
+[root@cluster1-c ~]# mkfs.ext4 /dev/drbd10=20
+[root@cluster1-c ~]# mount /dev/drbd10 /mnt
+
+[root@cluster1-a ~]# drbdadm status | grep 'testvm_prolocation_net' -A 6
+testvm_prolocation_net role:Secondary
+  disk:UpToDate
+  cluster1-b.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+  cluster1-c.storage.as41887.net role:Primary
+    peer-disk:Diskless
+
+[root@cluster1-c mnt]# fio =
+/usr/share/doc/fio-2.2.8/examples/iometer-file-access-server.fio
+
+To fake a nice hard crash of one of the data-nodes : xm destroy =
+cluster1-a.storage.as41887.net
+
+Before booting cluster1-a :
+
+[root@cluster1-c mnt]# drbdadm status | grep testvm_prolocation_net -A 6
+testvm_prolocation_net role:Primary
+  disk:Diskless
+  cluster1-a.storage.as41887.net connection:Connecting
+  cluster1-b.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+
+After booting cluster1-a, now the fun starts ;)
+
+[root@cluster1-c mnt]# drbdadm status | grep testvm_prolocation_net -A 6
+testvm_prolocation_net role:Primary
+  disk:Diskless
+  cluster1-a.storage.as41887.net connection:StandAlone
+  cluster1-b.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+
+[root@cluster1-a ~]# drbdadm status | grep 'testvm_prolocation_net' -A 6
+testvm_prolocation_net role:Secondary
+  disk:Outdated
+  cluster1-b.storage.as41887.net connection:StandAlone
+  cluster1-c.storage.as41887.net connection:Connecting
+
+To resolve our 'split brain' I discard the data on node-a
+
+[root@cluster1-a ~]# drbdadm --discard-my-data connect =
+testvm_prolocation_net
+
+[root@cluster1-a ~]# drbdadm status | grep 'testvm_prolocation_net' -A 6
+testvm_prolocation_net role:Secondary
+  disk:Outdated
+  cluster1-b.storage.as41887.net connection:Connecting
+  cluster1-c.storage.as41887.net connection:Connecting
+
+[root@cluster1-b ~]# drbdadm connect testvm_prolocation_net
+
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Handshake successful: Agreed network =
+protocol version 110
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Agreed to support TRIM on protocol level
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Peer authenticated using 20 bytes HMAC
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Starting ack_recv thread (from =
+drbd_r_testvm_p [2297])
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Preparing remote state change 2288137045 =
+(primary_nodes=3D0, weak_nodes=3D0)
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Committing remote state change =
+2288137045
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: conn( Connecting -> Connected ) peer( =
+Unknown -> Secondary )
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: drbd_sync_handshake:
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: self =
+BF8F65EBAABAF138:0000000000000000:0000000000000000:0000000000000000 =
+bits:0 flags:0
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: peer =
+374B6E4C8ECEB4F4:2CA8DD9FBE1E313E:0000000000000000:0000000000000000 =
+bits:225445 flags:100
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: uuid_compare()=3D-100 by rule 100
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+initial-split-brain
+Jun 29 13:47:52 cluster1-a drbdadm[2320]: Don't know which config file =
+belongs to resource testvm_prolocation_net, trying default ones...
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+initial-split-brain exit code 0 (0x0)
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10: =
+Split-Brain detected, manually solved. Sync from peer node
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: pdsk( DUnknown -> UpToDate ) repl( Off =
+-> WFBitMapT )
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: receive bitmap stats [Bytes(packets)]: =
+plain 0(0), RLE 82229(21), total 82229; compression: 73.1%
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: send bitmap stats [Bytes(packets)]: =
+plain 0(0), RLE 82229(21), total 82229; compression: 73.1%
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+before-resync-target
+Jun 29 13:47:52 cluster1-a drbdadm[2322]: Don't know which config file =
+belongs to resource testvm_prolocation_net, trying default ones...
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+before-resync-target exit code 0 (0x0)
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10: =
+disk( Outdated -> Inconsistent )
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: repl( WFBitMapT -> SyncTarget )
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-c.storage.as41887.net: resync-susp( no -> connection dependency =
+)
+Jun 29 13:47:52 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: Began resync as SyncTarget (will sync =
+901780 KB [225445 bits set]).
+
+[root@cluster1-a ~]# drbdadm status | grep 'testvm_prolocation_net' -A 6
+testvm_prolocation_net role:Secondary
+  disk:Inconsistent
+  cluster1-b.storage.as41887.net role:Secondary
+    replication:SyncTarget peer-disk:UpToDate done:91.61
+  cluster1-c.storage.as41887.net connection:Connecting
+
+end up in ... :
+
+Jun 29 13:48:48 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: Resync done (total 56 sec; paused 0 sec; =
+16100 K/sec)
+Jun 29 13:48:48 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: Peer was unstable during resync
+Jun 29 13:48:48 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: updated UUIDs =
+BF8F65EBAABAF138:0000000000000000:0000000000000000:0000000000000000
+Jun 29 13:48:48 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: repl( SyncTarget -> Established )
+Jun 29 13:48:48 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-c.storage.as41887.net: resync-susp( connection dependency -> no =
+)
+Jun 29 13:48:48 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+after-resync-target
+Jun 29 13:48:48 cluster1-a drbdadm[2393]: Don't know which config file =
+belongs to resource testvm_prolocation_net, trying default ones...
+Jun 29 13:48:48 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+after-resync-target exit code 0 (0x0)
+
+[root@cluster1-a ~]# drbdadm status | grep 'testvm_prolocation_net' -A 6
+testvm_prolocation_net role:Secondary
+  disk:Inconsistent
+  cluster1-b.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+  cluster1-c.storage.as41887.net connection:Connecting
+
+To get it going I need to unmount the mountpoint on the Diskless DRBD =
+client node-c.
+
+[root@cluster1-c ~]# umount /mnt
+
+[root@cluster1-c ~]# drbdadm status | grep testvm_prolocation_net -A 6
+testvm_prolocation_net role:Secondary
+  disk:Diskless
+  cluster1-a.storage.as41887.net connection:StandAlone
+  cluster1-b.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+
+[root@cluster1-a ~]# drbdadm disconnect testvm_prolocation_net
+
+[root@cluster1-b ~]# drbdadm status | grep testvm_prolocation_net -A 6
+testvm_prolocation_net role:Secondary
+  disk:UpToDate
+  cluster1-a.storage.as41887.net connection:Connecting
+  cluster1-c.storage.as41887.net role:Secondary
+    peer-disk:Diskless
+
+[root@cluster1-a ~]# drbdadm --discard-my-data connect =
+testvm_prolocation_net
+
+Jun 29 13:54:37 cluster1-a kernel: drbd testvm_prolocation_net =
+tcp:cluster1-c.storage.as41887.net: Closing unexpected connection from =
+94.228.142.34 to port 7700
+Jun 29 13:54:44 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: conn( StandAlone -> Unconnected )
+Jun 29 13:54:44 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Starting receiver thread (from =
+drbd_w_testvm_p [1330])
+Jun 29 13:54:44 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: conn( Unconnected -> Connecting )
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Handshake successful: Agreed network =
+protocol version 110
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Agreed to support TRIM on protocol level
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Peer authenticated using 20 bytes HMAC
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Starting ack_recv thread (from =
+drbd_r_testvm_p [2481])
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Preparing remote state change 439073605 =
+(primary_nodes=3D0, weak_nodes=3D0)
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: Committing remote state change 439073605
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net =
+cluster1-b.storage.as41887.net: conn( Connecting -> Connected ) peer( =
+Unknown -> Secondary )
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: drbd_sync_handshake:
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: self =
+BF8F65EBAABAF138:0000000000000000:0000000000000000:0000000000000000 =
+bits:0 flags:0
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: peer =
+374B6E4C8ECEB4F4:2CA8DD9FBE1E313E:0000000000000000:0000000000000000 =
+bits:2 flags:120
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: uuid_compare()=3D-100 by rule 100
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+initial-split-brain
+Jun 29 13:54:45 cluster1-a drbdadm[2485]: Don't know which config file =
+belongs to resource testvm_prolocation_net, trying default ones...
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+initial-split-brain exit code 0 (0x0)
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10: =
+Split-Brain detected, manually solved. Sync from peer node
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: pdsk( DUnknown -> UpToDate ) repl( Off =
+-> WFBitMapT )
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: receive bitmap stats [Bytes(packets)]: =
+plain 0(0), RLE 25(1), total 25; compression: 100.0%
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: send bitmap stats [Bytes(packets)]: =
+plain 0(0), RLE 25(1), total 25; compression: 100.0%
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+before-resync-target
+Jun 29 13:54:45 cluster1-a drbdadm[2487]: Don't know which config file =
+belongs to resource testvm_prolocation_net, trying default ones...
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+before-resync-target exit code 0 (0x0)
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: repl( WFBitMapT -> SyncTarget )
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-c.storage.as41887.net: resync-susp( no -> connection dependency =
+)
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: Began resync as SyncTarget (will sync 8 =
+KB [2 bits set]).
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: Resync done (total 1 sec; paused 0 sec; =
+8 K/sec)
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: updated UUIDs =
+374B6E4C8ECEB4F4:0000000000000000:BF8F65EBAABAF138:406F8167C11BEB40
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10: =
+disk( Inconsistent -> UpToDate )
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: repl( SyncTarget -> Established )
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-c.storage.as41887.net: pdsk( DUnknown -> Outdated ) =
+resync-susp( connection dependency -> no )
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+after-resync-target
+Jun 29 13:54:45 cluster1-a drbdadm[2489]: Don't know which config file =
+belongs to resource testvm_prolocation_net, trying default ones...
+Jun 29 13:54:45 cluster1-a kernel: drbd testvm_prolocation_net/0 drbd10 =
+cluster1-b.storage.as41887.net: helper command: /sbin/drbdadm =
+after-resync-target exit code 0 (0x0)
+
+[root@cluster1-a ~]# drbdadm status | grep testvm_prolocation_net -A 6
+testvm_prolocation_net role:Secondary
+  disk:UpToDate
+  cluster1-b.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+  cluster1-c.storage.as41887.net connection:Connecting
+
+Now I still need to re-connect node-c to the recovered node-a
+
+[root@cluster1-c ~]# drbdadm status | grep testvm_prolocation_net -A 6
+testvm_prolocation_net role:Secondary
+  disk:Diskless
+  cluster1-a.storage.as41887.net connection:StandAlone
+  cluster1-b.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+
+[root@cluster1-c ~]# drbdadm connect testvm_prolocation_net
+testvm_prolocation_net: Failure: (125) Device has a net-config (use =
+disconnect first)
+Command 'drbdsetup connect testvm_prolocation_net 0' terminated with =
+exit code 10
+
+[root@cluster1-c ~]# drbdadm connect testvm_prolocation_net --peer =
+cluster1-a.storage.as41887.net
+testvm_prolocation_net: Failure: (125) Device has a net-config (use =
+disconnect first)
+Command 'drbdsetup connect testvm_prolocation_net 0' terminated with =
+exit code 10
+
+[root@cluster1-c ~]# drbdadm disconnect testvm_prolocation_net
+[root@cluster1-c ~]# drbdadm connect testvm_prolocation_net
+[root@cluster1-c ~]# drbdadm status | grep testvm_prolocation_net -A 6
+testvm_prolocation_net role:Secondary
+  disk:Diskless
+  cluster1-a.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+  cluster1-b.storage.as41887.net role:Secondary
+    peer-disk:UpToDate
+
+Finally, all is synced and well connected again =E2=80=A6.
+
+Above steps where a replay I did today after having seen this behaviour =
+last night. So it seems to be reproducible. Also wondering if the =
+=E2=80=98recover=E2=80=99 steps should be done though drbdmanage as =
+well? Can=E2=80=99t seem to find any complete documentation on =
+drbdmanage besides the man-page.
+
+Yours,
+Chris
+
+
+
