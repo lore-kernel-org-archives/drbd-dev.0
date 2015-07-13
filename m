@@ -3,18 +3,18 @@ Received: from prv3-mh.provo.novell.com (victor.provo.novell.com
 	[137.65.250.26])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 923EC105570E
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Jul 2015 10:39:55 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D0D0B1028A59
+	for <drbd-dev@lists.linbit.com>; Mon, 13 Jul 2015 12:09:01 +0200 (CEST)
 From: Nick Wang <nwang@suse.com>
 To: nwang@suse.com
-Date: Mon, 13 Jul 2015 16:39:03 +0800
-Message-Id: <1436776744-3135-10-git-send-email-nwang@suse.com>
+Date: Mon, 13 Jul 2015 16:39:04 +0800
+Message-Id: <1436776744-3135-11-git-send-email-nwang@suse.com>
 In-Reply-To: <1436776744-3135-1-git-send-email-nwang@suse.com>
 References: <1436776744-3135-1-git-send-email-nwang@suse.com>
 Cc: linux-kernel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	philipp.reisner@linbit.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [Patch v2 09/10] drbd: Handle zero out command from peer
-	node
+Subject: [Drbd-dev] [Patch v2 10/10] drbd: Handle new-current-uuid
+	--zap-devices
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,9 +26,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Recevie P_UUID flag 16 for starting zero out device,
-P_UUID flag 32 after both side finished zeroing,
-Change state to uptodate.
+Zap devices for zeroing out device on both side
+instead of initial full sync.
 
 Signed-off-by: Nick Wang <nwang@suse.com>
 CC: Philipp Reisner <philipp.reisner@linbit.com>
@@ -36,65 +35,39 @@ CC: Lars Ellenberg <lars.ellenberg@linbit.com>
 CC: drbd-dev@lists.linbit.com
 CC: linux-kernel@vger.kernel.org
 ---
- drbd/drbd_receiver.c | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ drbd/drbd_nl.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
 
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index 6eae84f..4d6d99a 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -4317,6 +4317,15 @@ static int receive_uuids(struct drbd_connection *connection, struct packet_info
- 			peer_device->connection->agreed_pro_version >= 90 &&
- 			device->ldev->md.uuid[UI_CURRENT] == UUID_JUST_CREATED &&
- 			(p_uuid[UI_FLAGS] & 8);
-+		int zero_out_devices =
-+			device->state.conn == C_CONNECTED &&
-+			peer_device->connection->agreed_pro_version >= 90 &&
-+			device->ldev->md.uuid[UI_CURRENT] == UUID_JUST_CREATED &&
-+			(p_uuid[UI_FLAGS] & 16);
-+		int zero_out_finish =
-+			device->state.conn == C_CONNECTED &&
-+			peer_device->connection->agreed_pro_version >= 90 &&
-+			(p_uuid[UI_FLAGS] & 32);
- 		if (skip_initial_sync) {
- 			drbd_info(device, "Accepted new current UUID, preparing to skip initial sync\n");
- 			drbd_bitmap_io(device, &drbd_bmio_clear_n_write,
-@@ -4324,11 +4333,35 @@ static int receive_uuids(struct drbd_connection *connection, struct packet_info
- 					BM_LOCKED_TEST_ALLOWED);
- 			_drbd_uuid_set(device, UI_CURRENT, p_uuid[UI_CURRENT]);
- 			_drbd_uuid_set(device, UI_BITMAP, 0);
-+			spin_lock_irq(&device->resource->req_lock);
- 			_drbd_set_state(_NS2(device, disk, D_UP_TO_DATE, pdsk, D_UP_TO_DATE),
+diff --git a/drbd/drbd_nl.c b/drbd/drbd_nl.c
+index 1d17663..131f112 100644
+--- a/drbd/drbd_nl.c
++++ b/drbd/drbd_nl.c
+@@ -4068,7 +4068,7 @@ int drbd_adm_new_c_uuid(struct sk_buff *skb, struct genl_info *info)
+ 	drbd_uuid_set(device, UI_BITMAP, 0); /* Rotate UI_BITMAP to History 1, etc... */
+ 	drbd_uuid_new_current(device); /* New current, previous to UI_BITMAP */
+ 
+-	if (args.clear_bm) {
++	if (args.clear_bm || args.zap_devices) {
+ 		err = drbd_bitmap_io(device, &drbd_bmio_clear_n_write,
+ 			"clear_n_write from new_c_uuid", BM_LOCKED_MASK);
+ 		if (err) {
+@@ -4084,6 +4084,16 @@ int drbd_adm_new_c_uuid(struct sk_buff *skb, struct genl_info *info)
  					CS_VERBOSE, NULL);
-+			spin_unlock_irq(&device->resource->req_lock);
- 			drbd_md_sync(device);
- 			updated_uuids = 1;
+ 			spin_unlock_irq(&device->resource->req_lock);
  		}
-+
 +		if (zero_out_devices) {
-+			drbd_info(device, "Accepted to zero out devices, will take a long time\n");
-+			drbd_bitmap_io(device, &drbd_bmio_clear_n_write,
-+					"clear_n_write from receive_uuids",
-+					BM_LOCKED_TEST_ALLOWED);
-+			_drbd_uuid_set(device, UI_CURRENT, p_uuid[UI_CURRENT]);
++			drbd_send_zero_out_start(first_peer_device(device));
 +			_drbd_uuid_set(device, UI_BITMAP, 0);
 +			drbd_print_uuids(device, "cleared bitmap UUID for zeroing device");
 +
-+			drbd_device_post_work(device, S_ZERO_START);
-+			updated_uuids = 1;
++			/* CLear bit flag of zero out */
++			clear_bit(ZERO_DONE, &device->flags);
++			clear_bit(ZERO_FAIL, &device->flags);
++			drbd_device_post_work(device, P_ZERO_START);
 +		}
-+
-+		if (zero_out_finish) {
-+			drbd_info(device, "Both side finished zero out devices.\n");
-+			spin_lock_irq(&device->resource->req_lock);
-+			_drbd_set_state(_NS2(device, disk, D_UP_TO_DATE, pdsk, D_UP_TO_DATE),
-+					CS_VERBOSE, NULL);
-+			spin_unlock_irq(&device->resource->req_lock);
-+		}
-+
- 		put_ldev(device);
- 	} else if (device->state.disk < D_INCONSISTENT &&
- 		   device->state.role == R_PRIMARY) {
+ 	}
+ 
+ 	drbd_md_sync(device);
 -- 
 1.8.4.5
 
