@@ -1,37 +1,18 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+Return-Path: <nwang@suse.com>
+Received: from prv3-mh.provo.novell.com (victor.provo.novell.com
+	[137.65.250.26])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9012E105058C
-	for <drbd-dev@lists.linbit.com>; Tue, 14 Jul 2015 15:42:51 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 64EA2467874
-	for <drbd-dev@lists.linbit.com>; Tue, 14 Jul 2015 15:42:51 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id wvA4Two7W8Bt for <drbd-dev@lists.linbit.com>;
-	Tue, 14 Jul 2015 15:42:51 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 46FBE467953
-	for <drbd-dev@lists.linbit.com>; Tue, 14 Jul 2015 15:42:51 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id MqhSMH2XI8CI for <drbd-dev@lists.linbit.com>;
-	Tue, 14 Jul 2015 15:42:51 +0200 (CEST)
-Received: from localhost (chello213047144126.1.15.vie.surfer.at
-	[213.47.144.126])
-	by zimbra13.linbit.com (Postfix) with ESMTPSA id 1C03F467874
-	for <drbd-dev@lists.linbit.com>; Tue, 14 Jul 2015 15:42:51 +0200 (CEST)
-Date: Tue, 14 Jul 2015 15:42:50 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20150714134249.GA22235@rck.sh>
-References: <55A50445.70205@mhtx.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55A50445.70205@mhtx.net>
-Subject: Re: [Drbd-dev] drbdmanage and Python 3
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DF4751011B99
+	for <drbd-dev@lists.linbit.com>; Tue, 21 Jul 2015 04:43:37 +0200 (CEST)
+From: Nick Wang <nwang@suse.com>
+To: nwang@suse.com
+Date: Tue, 21 Jul 2015 10:43:16 +0800
+Message-Id: <1437446596-19004-1-git-send-email-nwang@suse.com>
+Cc: linux-kernel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbdsetup: Allow zeroing out devices locally to
+	instead of initial full sync.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,41 +24,65 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jul 14, 2015 at 07:44:53AM -0500, Major Hayden wrote:
-> Hello there,
-> 
-> This is my first email to this list, so please let me know if this
-> email is off-topic or belongs elsewhere!  I've been a DRBD user for
-> several years and I maintain the drbd packages for Fedora.
-> 
-> I heard about drbdmanage and DRBD9 at a conference recently and I'm
-> working to package drbdmanage on Fedora.  However, it appears that
-> drbdmanage isn't ready to be run with Python 3 quite yet.  I found
-> some print's without parentheses fairly quickly but I haven't taken a
-> deep dive yet.
-> 
-> Would Python 3 support and fixes be welcomed for drbdmanage?  If so,
-> would it make sense to send lots of patches to this list or send them
-> somewhere else?
-> 
+Full sync for drbd initial usually take a long time,
+allow "--zap-devices" on "new-current-uuid" to zero
+out device on both side.
 
-Hi and welcome to the list,
+Signed-off-by: Nick Wang <nwang@suse.com>
+CC: Philipp Reisner <philipp.reisner@linbit.com>
+CC: Lars Ellenberg <lars.ellenberg@linbit.com>
+CC: drbd-dev@lists.linbit.com
+CC: linux-kernel@vger.kernel.org
+---
+ documentation/v84/drbdsetup.xml | 9 +++++++++
+ user/v84/config_flags.c         | 1 +
+ user/v84/linux/drbd_genl.h      | 1 +
+ 3 files changed, 11 insertions(+)
 
-drbd-dev is for patch coordination and drbdmanage is also coordinated on
-this list, so it is the right list.
+diff --git a/documentation/v84/drbdsetup.xml b/documentation/v84/drbdsetup.xml
+index d4c4e87..a44b733 100644
+--- a/documentation/v84/drbdsetup.xml
++++ b/documentation/v84/drbdsetup.xml
+@@ -1705,6 +1705,15 @@
+               <para>Clears the sync bitmap in addition to generating a new current UUID.</para>
+             </listitem>
+           </varlistentry>
++
++          <varlistentry>
++            <term><option>--zap-devices</option></term>
++
++            <listitem>
++              <para>Start to zeroing out the device on both side in addition to generating
++              a new current UUID .</para>
++            </listitem>
++          </varlistentry>
+         </variablelist></para>
+ 
+       <para>This can be used to skip the initial sync, if you want to start from scratch. This
+diff --git a/user/v84/config_flags.c b/user/v84/config_flags.c
+index 3b0303f..8712a11 100644
+--- a/user/v84/config_flags.c
++++ b/user/v84/config_flags.c
+@@ -1019,6 +1019,7 @@ struct context_def new_current_uuid_cmd_ctx = {
+ 	NLA_POLICY(new_c_uuid_parms),
+ 	.fields = {
+ 		{ "clear-bitmap", FLAG(clear_bm) },
++		{ "zap-devices", FLAG(zap_devices) },
+ 		{ } },
+ };
+ 
+diff --git a/user/v84/linux/drbd_genl.h b/user/v84/linux/drbd_genl.h
+index 8ddedd1..0b850d3 100644
+--- a/user/v84/linux/drbd_genl.h
++++ b/user/v84/linux/drbd_genl.h
+@@ -238,6 +238,7 @@ GENL_struct(DRBD_NLA_START_OV_PARMS, 9, start_ov_parms,
+ 
+ GENL_struct(DRBD_NLA_NEW_C_UUID_PARMS, 10, new_c_uuid_parms,
+ 	__flg_field(1, DRBD_GENLA_F_MANDATORY, clear_bm)
++	__flg_field(2, DRBD_GENLA_F_MANDATORY, zap_devices)
+ )
+ 
+ GENL_struct(DRBD_NLA_TIMEOUT_PARMS, 11, timeout_parms,
+-- 
+1.8.4.5
 
-You are right, drbdmanage is not yet ready for python3 and it is one of
-the TODO items where help is highly appreciated! 
-
-Sending patches to this list is fine. If you can host your own repo, a
-clone of our public repo with your own "for-upstream-py3" branch would
-also be okay. Actually, I would prefer that plus mails to drbd-dev
-whenever you are ready and we should merge your patches. Choose whatever
-work flow you are most comfortable.
-
-Currently, development on drbdmanage is mainly done by Robert, the
-chief, and myself, his sidekick. For me it is perfectly fine to contact
-me off-list if there are questions not appropriate for a broader
-audience.
-
-Regards, rck
