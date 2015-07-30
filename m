@@ -2,18 +2,17 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B30ED10518B6
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D558C10518BC
 	for <drbd-dev@lists.linbit.com>; Thu, 30 Jul 2015 13:22:06 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 30 Jul 2015 13:21:38 +0200
-Message-Id: <1438255314-14877-4-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 30 Jul 2015 13:21:39 +0200
+Message-Id: <1438255314-14877-5-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1438255314-14877-1-git-send-email-philipp.reisner@linbit.com>
 References: <1438255314-14877-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/19] drbd: Get rid of some first_peer_device()
-	calls
+Subject: [Drbd-dev] [PATCH 04/19] drbd: Move enum write_ordering_e to drbd.h
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,52 +26,190 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
+Also change the enum values to all-capital letters.
+
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_int.h      |  6 ------
+ drivers/block/drbd/drbd_main.c     |  2 +-
+ drivers/block/drbd/drbd_nl.c       |  4 ++--
+ drivers/block/drbd/drbd_proc.c     |  6 +++---
+ drivers/block/drbd/drbd_receiver.c | 28 ++++++++++++++--------------
+ include/linux/drbd.h               |  7 +++++++
+ 6 files changed, 27 insertions(+), 26 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index efd19c2..443ae18 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -632,12 +632,6 @@ struct bm_io_work {
+ 	void (*done)(struct drbd_device *device, int rv);
+ };
+ 
+-enum write_ordering_e {
+-	WO_none,
+-	WO_drain_io,
+-	WO_bdev_flush,
+-};
+-
+ struct fifo_buffer {
+ 	unsigned int head_index;
+ 	unsigned int size;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index a151853..f21f46f 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2590,7 +2590,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
+ 	kref_init(&resource->kref);
+ 	idr_init(&resource->devices);
+ 	INIT_LIST_HEAD(&resource->connections);
+-	resource->write_ordering = WO_bdev_flush;
++	resource->write_ordering = WO_BDEV_FLUSH;
+ 	list_add_tail_rcu(&resource->resources, &drbd_resources);
+ 	mutex_init(&resource->conf_update);
+ 	mutex_init(&resource->adm_mutex);
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index bdd405b..e1d5453 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1418,7 +1418,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
+ 		set_bit(MD_NO_FUA, &device->flags);
+ 
+ 	if (write_ordering_changed(old_disk_conf, new_disk_conf))
+-		drbd_bump_write_ordering(device->resource, NULL, WO_bdev_flush);
++		drbd_bump_write_ordering(device->resource, NULL, WO_BDEV_FLUSH);
+ 
+ 	drbd_md_sync(device);
+ 
+@@ -1727,7 +1727,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	new_disk_conf = NULL;
+ 	new_plan = NULL;
+ 
+-	drbd_bump_write_ordering(device->resource, device->ldev, WO_bdev_flush);
++	drbd_bump_write_ordering(device->resource, device->ldev, WO_BDEV_FLUSH);
+ 
+ 	if (drbd_md_test_flag(device->ldev, MDF_CRASHED_PRIMARY))
+ 		set_bit(CRASHED_PRIMARY, &device->flags);
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index 3b10fa6..6537b25 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -245,9 +245,9 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
+ 	char wp;
+ 
+ 	static char write_ordering_chars[] = {
+-		[WO_none] = 'n',
+-		[WO_drain_io] = 'd',
+-		[WO_bdev_flush] = 'f',
++		[WO_NONE] = 'n',
++		[WO_DRAIN_IO] = 'd',
++		[WO_BDEV_FLUSH] = 'f',
+ 	};
+ 
+ 	seq_printf(seq, "version: " REL_VERSION " (api:%d/proto:%d-%d)\n%s\n",
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index c097909..e594391 100644
+index e594391..85856ec 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1379,7 +1379,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 	if (peer_req->flags & EE_IS_TRIM_USE_ZEROOUT) {
- 		/* wait for all pending IO completions, before we start
- 		 * zeroing things out. */
--		conn_wait_active_ee_empty(first_peer_device(device)->connection);
-+		conn_wait_active_ee_empty(peer_req->peer_device->connection);
- 		/* add it to the active list now,
- 		 * so we can find it to present it in debugfs */
- 		peer_req->submit_jif = jiffies;
-@@ -1965,7 +1965,7 @@ static int e_end_block(struct drbd_work *w, int cancel)
- 	} else
- 		D_ASSERT(device, drbd_interval_empty(&peer_req->i));
+@@ -1177,7 +1177,7 @@ static void drbd_flush(struct drbd_connection *connection)
+ 	struct drbd_peer_device *peer_device;
+ 	int vnr;
  
--	drbd_may_finish_epoch(first_peer_device(device)->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
-+	drbd_may_finish_epoch(peer_device->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
- 
- 	return err;
- }
-@@ -2097,7 +2097,7 @@ static int wait_for_and_update_peer_seq(struct drbd_peer_device *peer_device, co
- 		}
- 
+-	if (connection->resource->write_ordering >= WO_bdev_flush) {
++	if (connection->resource->write_ordering >= WO_BDEV_FLUSH) {
  		rcu_read_lock();
--		tp = rcu_dereference(first_peer_device(device)->connection->net_conf)->two_primaries;
-+		tp = rcu_dereference(peer_device->connection->net_conf)->two_primaries;
- 		rcu_read_unlock();
+ 		idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+ 			struct drbd_device *device = peer_device->device;
+@@ -1202,7 +1202,7 @@ static void drbd_flush(struct drbd_connection *connection)
+ 				/* would rather check on EOPNOTSUPP, but that is not reliable.
+ 				 * don't try again for ANY return value != 0
+ 				 * if (rv == -EOPNOTSUPP) */
+-				drbd_bump_write_ordering(connection->resource, NULL, WO_drain_io);
++				drbd_bump_write_ordering(connection->resource, NULL, WO_DRAIN_IO);
+ 			}
+ 			put_ldev(device);
+ 			kref_put(&device->kref, drbd_destroy_device);
+@@ -1298,10 +1298,10 @@ max_allowed_wo(struct drbd_backing_dev *bdev, enum write_ordering_e wo)
  
- 		if (!tp)
-@@ -2363,7 +2363,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
- 	if (dp_flags & DP_SEND_RECEIVE_ACK) {
- 		/* I really don't like it that the receiver thread
- 		 * sends on the msock, but anyways */
--		drbd_send_ack(first_peer_device(device), P_RECV_ACK, peer_req);
-+		drbd_send_ack(peer_device, P_RECV_ACK, peer_req);
- 	}
+ 	dc = rcu_dereference(bdev->disk_conf);
  
- 	if (tp) {
+-	if (wo == WO_bdev_flush && !dc->disk_flushes)
+-		wo = WO_drain_io;
+-	if (wo == WO_drain_io && !dc->disk_drain)
+-		wo = WO_none;
++	if (wo == WO_BDEV_FLUSH && !dc->disk_flushes)
++		wo = WO_DRAIN_IO;
++	if (wo == WO_DRAIN_IO && !dc->disk_drain)
++		wo = WO_NONE;
+ 
+ 	return wo;
+ }
+@@ -1318,13 +1318,13 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
+ 	enum write_ordering_e pwo;
+ 	int vnr;
+ 	static char *write_ordering_str[] = {
+-		[WO_none] = "none",
+-		[WO_drain_io] = "drain",
+-		[WO_bdev_flush] = "flush",
++		[WO_NONE] = "none",
++		[WO_DRAIN_IO] = "drain",
++		[WO_BDEV_FLUSH] = "flush",
+ 	};
+ 
+ 	pwo = resource->write_ordering;
+-	if (wo != WO_bdev_flush)
++	if (wo != WO_BDEV_FLUSH)
+ 		wo = min(pwo, wo);
+ 	rcu_read_lock();
+ 	idr_for_each_entry(&resource->devices, device, vnr) {
+@@ -1342,7 +1342,7 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
+ 	rcu_read_unlock();
+ 
+ 	resource->write_ordering = wo;
+-	if (pwo != resource->write_ordering || wo == WO_bdev_flush)
++	if (pwo != resource->write_ordering || wo == WO_BDEV_FLUSH)
+ 		drbd_info(resource, "Method to ensure write ordering: %s\n", write_ordering_str[resource->write_ordering]);
+ }
+ 
+@@ -1532,7 +1532,7 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
+ 	 * Therefore we must send the barrier_ack after the barrier request was
+ 	 * completed. */
+ 	switch (connection->resource->write_ordering) {
+-	case WO_none:
++	case WO_NONE:
+ 		if (rv == FE_RECYCLED)
+ 			return 0;
+ 
+@@ -1545,8 +1545,8 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
+ 			drbd_warn(connection, "Allocation of an epoch failed, slowing down\n");
+ 			/* Fall through */
+ 
+-	case WO_bdev_flush:
+-	case WO_drain_io:
++	case WO_BDEV_FLUSH:
++	case WO_DRAIN_IO:
+ 		conn_wait_active_ee_empty(connection);
+ 		drbd_flush(connection);
+ 
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index 8723f2a..15a1472 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -357,6 +357,13 @@ enum drbd_timeout_flag {
+ 
+ #define UUID_JUST_CREATED ((__u64)4)
+ 
++enum write_ordering_e {
++	WO_NONE,
++	WO_DRAIN_IO,
++	WO_BDEV_FLUSH,
++	WO_BIO_BARRIER
++};
++
+ /* magic numbers used in meta data and network packets */
+ #define DRBD_MAGIC 0x83740267
+ #define DRBD_MAGIC_BIG 0x835a
 -- 
 1.9.1
 
