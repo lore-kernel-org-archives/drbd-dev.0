@@ -2,17 +2,18 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D558C10518BC
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id F373310518BD
 	for <drbd-dev@lists.linbit.com>; Thu, 30 Jul 2015 13:22:06 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Thu, 30 Jul 2015 13:21:39 +0200
-Message-Id: <1438255314-14877-5-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 30 Jul 2015 13:21:40 +0200
+Message-Id: <1438255314-14877-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1438255314-14877-1-git-send-email-philipp.reisner@linbit.com>
 References: <1438255314-14877-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/19] drbd: Move enum write_ordering_e to drbd.h
+Subject: [Drbd-dev] [PATCH 05/19] drbd: drbd_adm_attach(): Add missing
+	drbd_resync_after_changed()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,190 +27,142 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-Also change the enum values to all-capital letters.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      |  6 ------
- drivers/block/drbd/drbd_main.c     |  2 +-
- drivers/block/drbd/drbd_nl.c       |  4 ++--
- drivers/block/drbd/drbd_proc.c     |  6 +++---
- drivers/block/drbd/drbd_receiver.c | 28 ++++++++++++++--------------
- include/linux/drbd.h               |  7 +++++++
- 6 files changed, 27 insertions(+), 26 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index efd19c2..443ae18 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -632,12 +632,6 @@ struct bm_io_work {
- 	void (*done)(struct drbd_device *device, int rv);
- };
- 
--enum write_ordering_e {
--	WO_none,
--	WO_drain_io,
--	WO_bdev_flush,
--};
--
- struct fifo_buffer {
- 	unsigned int head_index;
- 	unsigned int size;
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index a151853..f21f46f 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2590,7 +2590,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
- 	kref_init(&resource->kref);
- 	idr_init(&resource->devices);
- 	INIT_LIST_HEAD(&resource->connections);
--	resource->write_ordering = WO_bdev_flush;
-+	resource->write_ordering = WO_BDEV_FLUSH;
- 	list_add_tail_rcu(&resource->resources, &drbd_resources);
- 	mutex_init(&resource->conf_update);
- 	mutex_init(&resource->adm_mutex);
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index bdd405b..e1d5453 100644
+index e1d5453..186dc9e 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1418,7 +1418,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 		set_bit(MD_NO_FUA, &device->flags);
+@@ -1541,9 +1541,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
  
- 	if (write_ordering_changed(old_disk_conf, new_disk_conf))
--		drbd_bump_write_ordering(device->resource, NULL, WO_bdev_flush);
-+		drbd_bump_write_ordering(device->resource, NULL, WO_BDEV_FLUSH);
+ 	write_lock_irq(&global_state_lock);
+ 	retcode = drbd_resync_after_valid(device, new_disk_conf->resync_after);
+-	write_unlock_irq(&global_state_lock);
+ 	if (retcode != NO_ERROR)
+-		goto fail;
++		goto fail_unlock;
  
- 	drbd_md_sync(device);
+ 	rcu_read_lock();
+ 	nc = rcu_dereference(connection->net_conf);
+@@ -1551,7 +1550,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 		if (new_disk_conf->fencing == FP_STONITH && nc->wire_protocol == DRBD_PROT_A) {
+ 			rcu_read_unlock();
+ 			retcode = ERR_STONITH_AND_PROT_A;
+-			goto fail;
++			goto fail_unlock;
+ 		}
+ 	}
+ 	rcu_read_unlock();
+@@ -1562,7 +1561,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 		drbd_err(device, "open(\"%s\") failed with %ld\n", new_disk_conf->backing_dev,
+ 			PTR_ERR(bdev));
+ 		retcode = ERR_OPEN_DISK;
+-		goto fail;
++		goto fail_unlock;
+ 	}
+ 	nbc->backing_bdev = bdev;
  
-@@ -1727,7 +1727,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+@@ -1582,7 +1581,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 		drbd_err(device, "open(\"%s\") failed with %ld\n", new_disk_conf->meta_dev,
+ 			PTR_ERR(bdev));
+ 		retcode = ERR_OPEN_MD_DISK;
+-		goto fail;
++		goto fail_unlock;
+ 	}
+ 	nbc->md_bdev = bdev;
+ 
+@@ -1590,7 +1589,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	    (new_disk_conf->meta_dev_idx == DRBD_MD_INDEX_INTERNAL ||
+ 	     new_disk_conf->meta_dev_idx == DRBD_MD_INDEX_FLEX_INT)) {
+ 		retcode = ERR_MD_IDX_INVALID;
+-		goto fail;
++		goto fail_unlock;
+ 	}
+ 
+ 	resync_lru = lc_create("resync", drbd_bm_ext_cache,
+@@ -1598,14 +1597,14 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 			offsetof(struct bm_extent, lce));
+ 	if (!resync_lru) {
+ 		retcode = ERR_NOMEM;
+-		goto fail;
++		goto fail_unlock;
+ 	}
+ 
+ 	/* Read our meta data super block early.
+ 	 * This also sets other on-disk offsets. */
+ 	retcode = drbd_md_read(device, nbc);
+ 	if (retcode != NO_ERROR)
+-		goto fail;
++		goto fail_unlock;
+ 
+ 	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
+ 		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
+@@ -1617,7 +1616,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 			(unsigned long long) drbd_get_max_capacity(nbc),
+ 			(unsigned long long) new_disk_conf->disk_size);
+ 		retcode = ERR_DISK_TOO_SMALL;
+-		goto fail;
++		goto fail_unlock;
+ 	}
+ 
+ 	if (new_disk_conf->meta_dev_idx < 0) {
+@@ -1634,7 +1633,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 		drbd_warn(device, "refusing attach: md-device too small, "
+ 		     "at least %llu sectors needed for this meta-disk type\n",
+ 		     (unsigned long long) min_md_device_sectors);
+-		goto fail;
++		goto fail_unlock;
+ 	}
+ 
+ 	/* Make sure the new disk is big enough
+@@ -1642,7 +1641,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	if (drbd_get_max_capacity(nbc) <
+ 	    drbd_get_capacity(device->this_bdev)) {
+ 		retcode = ERR_DISK_TOO_SMALL;
+-		goto fail;
++		goto fail_unlock;
+ 	}
+ 
+ 	nbc->known_size = drbd_get_capacity(nbc->backing_bdev);
+@@ -1672,7 +1671,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	retcode = rv;  /* FIXME: Type mismatch. */
+ 	drbd_resume_io(device);
+ 	if (rv < SS_SUCCESS)
+-		goto fail;
++		goto fail_unlock;
+ 
+ 	if (!get_ldev_if_state(device, D_ATTACHING))
+ 		goto force_diskless;
+@@ -1727,6 +1726,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
  	new_disk_conf = NULL;
  	new_plan = NULL;
  
--	drbd_bump_write_ordering(device->resource, device->ldev, WO_bdev_flush);
-+	drbd_bump_write_ordering(device->resource, device->ldev, WO_BDEV_FLUSH);
++	drbd_resync_after_changed(device);
+ 	drbd_bump_write_ordering(device->resource, device->ldev, WO_BDEV_FLUSH);
  
  	if (drbd_md_test_flag(device->ldev, MDF_CRASHED_PRIMARY))
- 		set_bit(CRASHED_PRIMARY, &device->flags);
-diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
-index 3b10fa6..6537b25 100644
---- a/drivers/block/drbd/drbd_proc.c
-+++ b/drivers/block/drbd/drbd_proc.c
-@@ -245,9 +245,9 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
- 	char wp;
+@@ -1850,6 +1850,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	if (rv < SS_SUCCESS)
+ 		goto force_diskless_dec;
  
- 	static char write_ordering_chars[] = {
--		[WO_none] = 'n',
--		[WO_drain_io] = 'd',
--		[WO_bdev_flush] = 'f',
-+		[WO_NONE] = 'n',
-+		[WO_DRAIN_IO] = 'd',
-+		[WO_BDEV_FLUSH] = 'f',
- 	};
- 
- 	seq_printf(seq, "version: " REL_VERSION " (api:%d/proto:%d-%d)\n%s\n",
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index e594391..85856ec 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1177,7 +1177,7 @@ static void drbd_flush(struct drbd_connection *connection)
- 	struct drbd_peer_device *peer_device;
- 	int vnr;
- 
--	if (connection->resource->write_ordering >= WO_bdev_flush) {
-+	if (connection->resource->write_ordering >= WO_BDEV_FLUSH) {
- 		rcu_read_lock();
- 		idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
- 			struct drbd_device *device = peer_device->device;
-@@ -1202,7 +1202,7 @@ static void drbd_flush(struct drbd_connection *connection)
- 				/* would rather check on EOPNOTSUPP, but that is not reliable.
- 				 * don't try again for ANY return value != 0
- 				 * if (rv == -EOPNOTSUPP) */
--				drbd_bump_write_ordering(connection->resource, NULL, WO_drain_io);
-+				drbd_bump_write_ordering(connection->resource, NULL, WO_DRAIN_IO);
- 			}
- 			put_ldev(device);
- 			kref_put(&device->kref, drbd_destroy_device);
-@@ -1298,10 +1298,10 @@ max_allowed_wo(struct drbd_backing_dev *bdev, enum write_ordering_e wo)
- 
- 	dc = rcu_dereference(bdev->disk_conf);
- 
--	if (wo == WO_bdev_flush && !dc->disk_flushes)
--		wo = WO_drain_io;
--	if (wo == WO_drain_io && !dc->disk_drain)
--		wo = WO_none;
-+	if (wo == WO_BDEV_FLUSH && !dc->disk_flushes)
-+		wo = WO_DRAIN_IO;
-+	if (wo == WO_DRAIN_IO && !dc->disk_drain)
-+		wo = WO_NONE;
- 
- 	return wo;
- }
-@@ -1318,13 +1318,13 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
- 	enum write_ordering_e pwo;
- 	int vnr;
- 	static char *write_ordering_str[] = {
--		[WO_none] = "none",
--		[WO_drain_io] = "drain",
--		[WO_bdev_flush] = "flush",
-+		[WO_NONE] = "none",
-+		[WO_DRAIN_IO] = "drain",
-+		[WO_BDEV_FLUSH] = "flush",
- 	};
- 
- 	pwo = resource->write_ordering;
--	if (wo != WO_bdev_flush)
-+	if (wo != WO_BDEV_FLUSH)
- 		wo = min(pwo, wo);
- 	rcu_read_lock();
- 	idr_for_each_entry(&resource->devices, device, vnr) {
-@@ -1342,7 +1342,7 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
- 	rcu_read_unlock();
- 
- 	resource->write_ordering = wo;
--	if (pwo != resource->write_ordering || wo == WO_bdev_flush)
-+	if (pwo != resource->write_ordering || wo == WO_BDEV_FLUSH)
- 		drbd_info(resource, "Method to ensure write ordering: %s\n", write_ordering_str[resource->write_ordering]);
- }
- 
-@@ -1532,7 +1532,7 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
- 	 * Therefore we must send the barrier_ack after the barrier request was
- 	 * completed. */
- 	switch (connection->resource->write_ordering) {
--	case WO_none:
-+	case WO_NONE:
- 		if (rv == FE_RECYCLED)
- 			return 0;
- 
-@@ -1545,8 +1545,8 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
- 			drbd_warn(connection, "Allocation of an epoch failed, slowing down\n");
- 			/* Fall through */
- 
--	case WO_bdev_flush:
--	case WO_drain_io:
-+	case WO_BDEV_FLUSH:
-+	case WO_DRAIN_IO:
- 		conn_wait_active_ee_empty(connection);
- 		drbd_flush(connection);
- 
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 8723f2a..15a1472 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -357,6 +357,13 @@ enum drbd_timeout_flag {
- 
- #define UUID_JUST_CREATED ((__u64)4)
- 
-+enum write_ordering_e {
-+	WO_NONE,
-+	WO_DRAIN_IO,
-+	WO_BDEV_FLUSH,
-+	WO_BIO_BARRIER
-+};
++	write_unlock(&global_state_lock);
 +
- /* magic numbers used in meta data and network packets */
- #define DRBD_MAGIC 0x83740267
- #define DRBD_MAGIC_BIG 0x835a
+ 	mod_timer(&device->request_timer, jiffies + HZ);
+ 
+ 	if (device->state.role == R_PRIMARY)
+@@ -1872,6 +1874,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+  force_diskless:
+ 	drbd_force_state(device, NS(disk, D_DISKLESS));
+ 	drbd_md_sync(device);
++ fail_unlock:
++	write_unlock_irq(&global_state_lock);
+  fail:
+ 	conn_reconfig_done(connection);
+ 	if (nbc) {
 -- 
 1.9.1
 
