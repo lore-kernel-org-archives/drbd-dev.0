@@ -2,18 +2,18 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9EE601055F4A
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D108F1055F55
 	for <drbd-dev@lists.linbit.com>; Tue,  4 Aug 2015 14:56:59 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Tue,  4 Aug 2015 14:56:35 +0200
-Message-Id: <1438693003-17554-12-git-send-email-philipp.reisner@linbit.com>
+Date: Tue,  4 Aug 2015 14:56:36 +0200
+Message-Id: <1438693003-17554-13-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1438693003-17554-1-git-send-email-philipp.reisner@linbit.com>
 References: <1438693003-17554-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/19] lru_cache: Converted lc_seq_printf_status
-	to return void
+Subject: [Drbd-dev] [PATCH 12/19] drbd: don't block forever in disconnect
+	during resync if fencing=r-a-stonith
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,53 +25,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Roland Kammerer <roland.kammerer@linbit.com>
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Fix the semantic of lc_seq_printf. Currently, it always returns 0 and
-the return value is unused, therefore, convert the return type to void.
+Disconnect should wait for pending bitmap IO.
+But if that bitmap IO is not happening, because it is waiting for
+pending application IO, and there is no progress, because the fencing
+policy suspended application IO because of the disconnect,
+then we deadlock.
+
+The bitmap writeout in this case does not care for concurrent
+application IO, so there is no point waiting for it.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- include/linux/lru_cache.h | 2 +-
- lib/lru_cache.c           | 4 +---
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_main.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/lru_cache.h b/include/linux/lru_cache.h
-index 4626228..04fc6e6 100644
---- a/include/linux/lru_cache.h
-+++ b/include/linux/lru_cache.h
-@@ -264,7 +264,7 @@ extern unsigned int lc_put(struct lru_cache *lc, struct lc_element *e);
- extern void lc_committed(struct lru_cache *lc);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index fea97fe..d26ddb6 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3564,7 +3564,9 @@ void drbd_queue_bitmap_io(struct drbd_device *device,
  
- struct seq_file;
--extern size_t lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc);
-+extern void lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc);
- 
- extern void lc_seq_dump_details(struct seq_file *seq, struct lru_cache *lc, char *utext,
- 				void (*detail) (struct seq_file *, struct lc_element *));
-diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index 028f5d9..28ba40b 100644
---- a/lib/lru_cache.c
-+++ b/lib/lru_cache.c
-@@ -238,7 +238,7 @@ void lc_reset(struct lru_cache *lc)
-  * @seq: the seq_file to print into
-  * @lc: the lru cache to print statistics of
-  */
--size_t lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc)
-+void lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc)
- {
- 	/* NOTE:
- 	 * total calls to lc_get are
-@@ -250,8 +250,6 @@ size_t lc_seq_printf_stats(struct seq_file *seq, struct lru_cache *lc)
- 	seq_printf(seq, "\t%s: used:%u/%u hits:%lu misses:%lu starving:%lu locked:%lu changed:%lu\n",
- 		   lc->name, lc->used, lc->nr_elements,
- 		   lc->hits, lc->misses, lc->starving, lc->locked, lc->changed);
--
--	return 0;
- }
- 
- static struct hlist_head *lc_hash_slot(struct lru_cache *lc, unsigned int enr)
+ 	spin_lock_irq(&device->resource->req_lock);
+ 	set_bit(BITMAP_IO, &device->flags);
+-	if (atomic_read(&device->ap_bio_cnt) == 0) {
++	/* don't wait for pending application IO if the caller indicates that
++	 * application IO does not conflict anyways. */
++	if (flags == BM_LOCKED_CHANGE_ALLOWED || atomic_read(&device->ap_bio_cnt) == 0) {
+ 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &device->flags))
+ 			drbd_queue_work(&first_peer_device(device)->connection->sender_work,
+ 					&device->bm_io_work.w);
 -- 
 1.9.1
 
