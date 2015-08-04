@@ -1,37 +1,17 @@
-Return-Path: <hch@lst.de>
-Date: Tue, 4 Aug 2015 13:36:26 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Ming Lin <mlin@kernel.org>
-Message-ID: <20150804113626.GA12682@lst.de>
-References: <1436168690-32102-1-git-send-email-mlin@kernel.org>
-	<20150731192337.GA8907@redhat.com>
-	<CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
-	<20150731213831.GA16464@redhat.com>
-	<1438412290.26596.14.camel@hasee>
-	<20150801163356.GA21478@redhat.com>
-	<1438581502.26596.24.camel@hasee>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1438581502.26596.24.camel@hasee>
-Cc: Mike Snitzer <snitzer@redhat.com>, Neil Brown <neilb@suse.de>,
-	Ming Lei <ming.lei@canonical.com>, dm-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>,
-	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Joshua Morris <josh.h.morris@us.ibm.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Nitin Gupta <ngupta@vflare.org>, Ming Lin <ming.l@ssi.samsung.com>,
-	Oleg Drokin <oleg.drokin@intel.com>,
-	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
-	Andreas Dilger <andreas.dilger@intel.com>,
-	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
-	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
-	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
-	drbd-user@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v5 01/11] block: make generic_make_request
-	handle	arbitrarily sized bios
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C8D4A100EC11
+	for <drbd-dev@lists.linbit.com>; Tue,  4 Aug 2015 14:56:57 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: linux-kernel@vger.kernel.org,
+	Jens Axboe <axboe@kernel.dk>
+Date: Tue,  4 Aug 2015 14:56:24 +0200
+Message-Id: <1438693003-17554-1-git-send-email-philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 00/19] RFC DRBD updates for the 4.3 merge window
+	(part II)
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,14 +23,64 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Aug 02, 2015 at 10:58:22PM -0700, Ming Lin wrote:
-> I think the important thing is the late splitting for regular bio.
-> For discard/write_same bio, how about just don't do late splitting?
+Hi,
 
-I'd hate having to special case them even more.  Especially as the
-discard splitting is nasty and we really don't want to send giant
-discards by default anyway (see Jens' patches to limit discard size
-by default).
+these patches are intended for the 4.3 merge window.
 
-So I'd recommend to keep everything as-is, just make sure we don't
-overflow bi_size.
+The first two patches split on of kernel threads (drbd_asender)
+into one that mainly receives packets on the control connection,
+and a workqueue that only sends packets on the control connection.
+
+All the other patches are self-contained fixes or minor
+improvements described in the commit message.
+
+Lars Ellenberg (13):
+  drbd: prevent NULL pointer deref when resuming diskless primary
+  drbd: debugfs: expose ed_data_gen_id
+  drbd: use resource name in workqueue
+  drbd: avoid redefinition of BITS_PER_PAGE
+  drbd: use bitmap_weight() helper, don't open code
+  drbd: fix spurious alert level printk
+  drbd: fix queue limit setup for discard
+  drbd: make drbd known to lsblk: use bd_link_disk_holder
+  drbd: don't block forever in disconnect during resync if
+    fencing=r-a-stonith
+  drbd: fix "endless" transfer log walk in protocol A
+  drbd: separate out __al_write_transaction helper function
+  drbd: avoid potential deadlock during handshake
+  drbd: fix error path during resize
+
+Oleg Drokin (1):
+  drbd: fix memory leak in drbd_adm_resize
+
+Philipp Reisner (3):
+  drbd: Rename asender to ack_receiver
+  drbd: Create a dedicated workqueue for sending acks on the control
+    connection
+  drbd: make suspend_io() / resume_io() must be thread and recursion
+    safe
+
+Roland Kammerer (2):
+  lru_cache: Converted lc_seq_printf_status to return void
+  MAINTAINERS: Updated information for DRBD DRIVER
+
+ MAINTAINERS                        |  11 +-
+ drivers/block/drbd/drbd_actlog.c   | 323 +++++++++++++++++++------------------
+ drivers/block/drbd/drbd_bitmap.c   |  22 ++-
+ drivers/block/drbd/drbd_debugfs.c  |  10 ++
+ drivers/block/drbd/drbd_int.h      |  40 ++---
+ drivers/block/drbd/drbd_main.c     |  48 ++----
+ drivers/block/drbd/drbd_nl.c       | 285 +++++++++++++++++++++-----------
+ drivers/block/drbd/drbd_protocol.h |   2 +-
+ drivers/block/drbd/drbd_receiver.c | 212 +++++++++++++-----------
+ drivers/block/drbd/drbd_req.c      |   4 +-
+ drivers/block/drbd/drbd_state.c    |   2 +-
+ drivers/block/drbd/drbd_worker.c   |  10 +-
+ include/linux/drbd.h               |   2 +-
+ include/linux/lru_cache.h          |   2 +-
+ lib/lru_cache.c                    |   4 +-
+ 15 files changed, 560 insertions(+), 417 deletions(-)
+
+-- 
+1.9.1
+
