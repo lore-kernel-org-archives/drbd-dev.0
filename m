@@ -2,16 +2,17 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C8D4A100EC11
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DCC63100EC11
 	for <drbd-dev@lists.linbit.com>; Tue,  4 Aug 2015 14:56:57 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: linux-kernel@vger.kernel.org,
 	Jens Axboe <axboe@kernel.dk>
-Date: Tue,  4 Aug 2015 14:56:24 +0200
-Message-Id: <1438693003-17554-1-git-send-email-philipp.reisner@linbit.com>
+Date: Tue,  4 Aug 2015 14:56:25 +0200
+Message-Id: <1438693003-17554-2-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1438693003-17554-1-git-send-email-philipp.reisner@linbit.com>
+References: <1438693003-17554-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 00/19] RFC DRBD updates for the 4.3 merge window
-	(part II)
+Subject: [Drbd-dev] [PATCH 01/19] drbd: Rename asender to ack_receiver
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,64 +24,114 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+This prepares the next patch where the sending on the meta (or
+control) socket is moved to a dedicated workqueue.
 
-these patches are intended for the 4.3 merge window.
+Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+---
+ drivers/block/drbd/drbd_int.h      |  6 +++---
+ drivers/block/drbd/drbd_main.c     | 10 +++++-----
+ drivers/block/drbd/drbd_receiver.c |  6 +++---
+ 3 files changed, 11 insertions(+), 11 deletions(-)
 
-The first two patches split on of kernel threads (drbd_asender)
-into one that mainly receives packets on the control connection,
-and a workqueue that only sends packets on the control connection.
-
-All the other patches are self-contained fixes or minor
-improvements described in the commit message.
-
-Lars Ellenberg (13):
-  drbd: prevent NULL pointer deref when resuming diskless primary
-  drbd: debugfs: expose ed_data_gen_id
-  drbd: use resource name in workqueue
-  drbd: avoid redefinition of BITS_PER_PAGE
-  drbd: use bitmap_weight() helper, don't open code
-  drbd: fix spurious alert level printk
-  drbd: fix queue limit setup for discard
-  drbd: make drbd known to lsblk: use bd_link_disk_holder
-  drbd: don't block forever in disconnect during resync if
-    fencing=r-a-stonith
-  drbd: fix "endless" transfer log walk in protocol A
-  drbd: separate out __al_write_transaction helper function
-  drbd: avoid potential deadlock during handshake
-  drbd: fix error path during resize
-
-Oleg Drokin (1):
-  drbd: fix memory leak in drbd_adm_resize
-
-Philipp Reisner (3):
-  drbd: Rename asender to ack_receiver
-  drbd: Create a dedicated workqueue for sending acks on the control
-    connection
-  drbd: make suspend_io() / resume_io() must be thread and recursion
-    safe
-
-Roland Kammerer (2):
-  lru_cache: Converted lc_seq_printf_status to return void
-  MAINTAINERS: Updated information for DRBD DRIVER
-
- MAINTAINERS                        |  11 +-
- drivers/block/drbd/drbd_actlog.c   | 323 +++++++++++++++++++------------------
- drivers/block/drbd/drbd_bitmap.c   |  22 ++-
- drivers/block/drbd/drbd_debugfs.c  |  10 ++
- drivers/block/drbd/drbd_int.h      |  40 ++---
- drivers/block/drbd/drbd_main.c     |  48 ++----
- drivers/block/drbd/drbd_nl.c       | 285 +++++++++++++++++++++-----------
- drivers/block/drbd/drbd_protocol.h |   2 +-
- drivers/block/drbd/drbd_receiver.c | 212 +++++++++++++-----------
- drivers/block/drbd/drbd_req.c      |   4 +-
- drivers/block/drbd/drbd_state.c    |   2 +-
- drivers/block/drbd/drbd_worker.c   |  10 +-
- include/linux/drbd.h               |   2 +-
- include/linux/lru_cache.h          |   2 +-
- lib/lru_cache.c                    |   4 +-
- 15 files changed, 560 insertions(+), 417 deletions(-)
-
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index cb5fb68..3d5f3c0 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -754,7 +754,7 @@ struct drbd_connection {
+ 	unsigned long last_reconnect_jif;
+ 	struct drbd_thread receiver;
+ 	struct drbd_thread worker;
+-	struct drbd_thread asender;
++	struct drbd_thread ack_receiver;
+ 
+ 	/* cached pointers,
+ 	 * so we can look up the oldest pending requests more quickly.
+@@ -1558,7 +1558,7 @@ extern void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req);
+ 
+ /* drbd_receiver.c */
+ extern int drbd_receiver(struct drbd_thread *thi);
+-extern int drbd_asender(struct drbd_thread *thi);
++extern int drbd_ack_receiver(struct drbd_thread *thi);
+ extern bool drbd_rs_c_min_rate_throttle(struct drbd_device *device);
+ extern bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector,
+ 		bool throttle_if_app_is_waiting);
+@@ -1971,7 +1971,7 @@ extern void drbd_flush_workqueue(struct drbd_work_queue *work_queue);
+ static inline void wake_asender(struct drbd_connection *connection)
+ {
+ 	if (test_bit(SIGNAL_ASENDER, &connection->flags))
+-		force_sig(DRBD_SIG, connection->asender.task);
++		force_sig(DRBD_SIG, connection->ack_receiver.task);
+ }
+ 
+ static inline void request_ping(struct drbd_connection *connection)
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 81a8679..3f7371d 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1436,8 +1436,8 @@ static int we_should_drop_the_connection(struct drbd_connection *connection, str
+ 	/* long elapsed = (long)(jiffies - device->last_received); */
+ 
+ 	drop_it =   connection->meta.socket == sock
+-		|| !connection->asender.task
+-		|| get_t_state(&connection->asender) != RUNNING
++		|| !connection->ack_receiver.task
++		|| get_t_state(&connection->ack_receiver) != RUNNING
+ 		|| connection->cstate < C_WF_REPORT_PARAMS;
+ 
+ 	if (drop_it)
+@@ -2564,7 +2564,7 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
+ 		cpumask_copy(resource->cpu_mask, new_cpu_mask);
+ 		for_each_connection_rcu(connection, resource) {
+ 			connection->receiver.reset_cpu_mask = 1;
+-			connection->asender.reset_cpu_mask = 1;
++			connection->ack_receiver.reset_cpu_mask = 1;
+ 			connection->worker.reset_cpu_mask = 1;
+ 		}
+ 	}
+@@ -2653,8 +2653,8 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
+ 	connection->receiver.connection = connection;
+ 	drbd_thread_init(resource, &connection->worker, drbd_worker, "worker");
+ 	connection->worker.connection = connection;
+-	drbd_thread_init(resource, &connection->asender, drbd_asender, "asender");
+-	connection->asender.connection = connection;
++	drbd_thread_init(resource, &connection->ack_receiver, drbd_ack_receiver, "ack_recv");
++	connection->ack_receiver.connection = connection;
+ 
+ 	kref_init(&connection->kref);
+ 
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index d4c61af..5521465 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1098,7 +1098,7 @@ randomize:
+ 		return 0;
+ 	}
+ 
+-	drbd_thread_start(&connection->asender);
++	drbd_thread_start(&connection->ack_receiver);
+ 
+ 	mutex_lock(&connection->resource->conf_update);
+ 	/* The discard_my_data flag is a single-shot modifier to the next
+@@ -4655,7 +4655,7 @@ static void conn_disconnect(struct drbd_connection *connection)
+ 	conn_request_state(connection, NS(conn, C_NETWORK_FAILURE), CS_HARD);
+ 
+ 	/* asender does not clean up anything. it must not interfere, either */
+-	drbd_thread_stop(&connection->asender);
++	drbd_thread_stop(&connection->ack_receiver);
+ 	drbd_free_sock(connection);
+ 
+ 	rcu_read_lock();
+@@ -5486,7 +5486,7 @@ static struct asender_cmd asender_tbl[] = {
+ 	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
+ };
+ 
+-int drbd_asender(struct drbd_thread *thi)
++int drbd_ack_receiver(struct drbd_thread *thi)
+ {
+ 	struct drbd_connection *connection = thi->connection;
+ 	struct asender_cmd *cmd = NULL;
 -- 
 1.9.1
 
