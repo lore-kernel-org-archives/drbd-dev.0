@@ -1,8 +1,8 @@
 Return-Path: <hch@lst.de>
-Date: Fri, 7 Aug 2015 09:30:01 +0200
+Date: Fri, 7 Aug 2015 09:30:59 +0200
 From: Christoph Hellwig <hch@lst.de>
-To: Ming Lin <mlin@kernel.org>
-Message-ID: <20150807073001.GA17485@lst.de>
+To: Kent Overstreet <kent.overstreet@gmail.com>
+Message-ID: <20150807073059.GB17485@lst.de>
 References: <1436168690-32102-1-git-send-email-mlin@kernel.org>
 	<20150731192337.GA8907@redhat.com>
 	<CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
@@ -10,22 +10,21 @@ References: <1436168690-32102-1-git-send-email-mlin@kernel.org>
 	<1438412290.26596.14.camel@hasee>
 	<20150801163356.GA21478@redhat.com>
 	<1438581502.26596.24.camel@hasee> <20150804113626.GA12682@lst.de>
-	<1438754604.29731.31.camel@hasee>
+	<20150807000004.GB30757@moria.home.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1438754604.29731.31.camel@hasee>
+In-Reply-To: <20150807000004.GB30757@moria.home.lan>
 Cc: Mike Snitzer <snitzer@redhat.com>, Neil Brown <neilb@suse.de>,
 	Ming Lei <ming.lei@canonical.com>, dm-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>, Alasdair Kergon <agk@redhat.com>,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>,
 	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
+	Christoph Hellwig <hch@lst.de>, Christoph Hellwig <hch@infradead.org>,
 	Nitin Gupta <ngupta@vflare.org>, Ming Lin <ming.l@ssi.samsung.com>,
 	Oleg Drokin <oleg.drokin@intel.com>,
-	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
-	Andreas Dilger <andreas.dilger@intel.com>,
+	Al Viro <viro@zeniv.linux.org.uk>, Ming Lin <mlin@kernel.org>,
+	Jens Axboe <axboe@kernel.dk>, Andreas Dilger <andreas.dilger@intel.com>,
 	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
 	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
 	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
@@ -43,11 +42,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-I'm for solution 3:
+On Thu, Aug 06, 2015 at 05:00:04PM -0700, Kent Overstreet wrote:
+> Why is it that we don't want to send giant discards? Is it a latency issue?
 
- - keep blk_bio_{discard,write_same}_split, but ensure we never built
-   a > 4GB bio in blkdev_issue_{discard,write_same}.
-
-Note that this isn't special casing, we can't build > 4GB bios for
-data either, it's just implemented as a side effect right now instead
-of checked explicitly.
+Yes.  Take a look at the "Configurable max discard size" thread(s).
