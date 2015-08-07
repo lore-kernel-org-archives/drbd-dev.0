@@ -1,18 +1,36 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3EA90100EC11
-	for <drbd-dev@lists.linbit.com>; Fri,  7 Aug 2015 14:52:11 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Jens Axboe <axboe@fb.com>
-Date: Fri, 07 Aug 2015 14:51:56 +0200
-Message-ID: <18460711.j6in3RjE5D@fat-tyre>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
-Cc: lnux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [GIT PULL] DRBD updates for 4.3
+Return-Path: <mlin@kernel.org>
+Message-ID: <1438990806.24452.8.camel@ssi>
+From: Ming Lin <mlin@kernel.org>
+To: Christoph Hellwig <hch@lst.de>
+Date: Fri, 07 Aug 2015 16:40:06 -0700
+In-Reply-To: <20150807073001.GA17485@lst.de>
+References: <1436168690-32102-1-git-send-email-mlin@kernel.org>
+	<20150731192337.GA8907@redhat.com>
+	<CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
+	<20150731213831.GA16464@redhat.com> <1438412290.26596.14.camel@hasee>
+	<20150801163356.GA21478@redhat.com> <1438581502.26596.24.camel@hasee>
+	<20150804113626.GA12682@lst.de> <1438754604.29731.31.camel@hasee>
+	<20150807073001.GA17485@lst.de>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Cc: Mike Snitzer <snitzer@redhat.com>, Brown <neilb@suse.de>,
+	Ming Lei <ming.lei@canonical.com>, Al, dm-devel@redhat.com,
+	Alasdair Kergon <agk@redhat.com>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>,
+	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Kent Overstreet <kent.overstreet@gmail.com>,
+	Nitin Gupta <ngupta@vflare.org>, Ming Lin <ming.l@ssi.samsung.com>,
+	Oleg Drokin <oleg.drokin@intel.com>, Viro <viro@zeniv.linux.org.uk>,
+	Andreas Dilger <andreas.dilger@intel.com>,
+	Jens Axboe <axboe@kernel.dk>, Neil, Geoff Levand <geoff@infradead.org>,
+	Jiri Kosina <jkosina@suse.cz>,
+	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
+	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
+	drbd-user@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v5 01/11] block: make generic_make_request
+ handle arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,96 +42,155 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
 
-please pull these patches into your	for-4.3/drivers tree. I have posted
-them for review last week and Wednesday 
+On Fri, 2015-08-07 at 09:30 +0200, Christoph Hellwig wrote:
+> I'm for solution 3:
+> 
+>  - keep blk_bio_{discard,write_same}_split, but ensure we never built
+>    a > 4GB bio in blkdev_issue_{discard,write_same}.
+
+This has problem as I mentioned in solution 1.
+We need to also make sure max discard size is of proper granularity.
+See below example.
+
+      4G: 8388608 sectors
+UINT_MAX: 8388607 sectors
+
+dm-thinp block size = default discard granularity = 128 sectors
+
+blkdev_issue_discard(sector=0, nr_sectors=8388608)
+
+1. Only ensure bi_size not overflow
+
+It doesn't work.
+
+[start_sector, end_sector]
+[0, 8388607]
+    [0, 8388606], then dm-thinp splits it to 2 bios
+        [0, 8388479]
+        [8388480, 8388606] ---> this has problem in process_discard_bio(),
+                                because the discard size(7 sectors) covers less than a block(128 sectors)
+    [8388607, 8388607] ---> same problem 
+
+2. Ensure bi_size not overflow and max discard size is of proper granularity
+
+It works.
+
+[start_sector, end_sector]
+[0, 8388607]
+    [0, 8388479]
+    [8388480, 8388607]
 
 
-The following changes since commit c45f5c9943ce0b16b299b543c2aae12408039027:
+So how about below patch?
 
-  nvme: Fixes u64 division which breaks i386 builds (2015-07-21 15:36:24 -0600)
+commit 1ca2ad977255efb3c339f4ca16fb798ed5ec54f7
+Author: Ming Lin <ming.l@ssi.samsung.com>
+Date:   Fri Aug 7 15:07:07 2015 -0700
 
-are available in the git repository at:
+    block: remove split code in blkdev_issue_{discard,write_same}
+    
+    The split code in blkdev_issue_{discard,write_same} can go away
+    now that any driver that cares does the split. We have to make
+    sure bio size doesn't overflow.
+    
+    For discard, we ensure max_discard_sectors is of the proper
+    granularity. So if discard size > 4G, blkdev_issue_discard() always
+    send multiple granularity requests to lower level, except that the
+    last one may be not multiple granularity.
+    
+    Signed-off-by: Ming Lin <ming.l@ssi.samsung.com>
+---
+ block/blk-lib.c | 37 +++++++++----------------------------
+ 1 file changed, 9 insertions(+), 28 deletions(-)
 
-  http://git.drbd.org/linux-drbd.git/ for-4.3
+diff --git a/block/blk-lib.c b/block/blk-lib.c
+index 7688ee3..e178a07 100644
+--- a/block/blk-lib.c
++++ b/block/blk-lib.c
+@@ -44,7 +44,6 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+ 	struct request_queue *q = bdev_get_queue(bdev);
+ 	int type = REQ_WRITE | REQ_DISCARD;
+ 	unsigned int max_discard_sectors, granularity;
+-	int alignment;
+ 	struct bio_batch bb;
+ 	struct bio *bio;
+ 	int ret = 0;
+@@ -58,18 +57,15 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+ 
+ 	/* Zero-sector (unknown) and one-sector granularities are the same.  */
+ 	granularity = max(q->limits.discard_granularity >> 9, 1U);
+-	alignment = (bdev_discard_alignment(bdev) >> 9) % granularity;
+ 
+ 	/*
+-	 * Ensure that max_discard_sectors is of the proper
+-	 * granularity, so that requests stay aligned after a split.
+-	 */
+-	max_discard_sectors = min(q->limits.max_discard_sectors, UINT_MAX >> 9);
++	 * Ensure that max_discard_sectors doesn't overflow bi_size and is of
++	 * the proper granularity. So if discard size > 4G, blkdev_issue_discard()
++	 * always split and send multiple granularity requests to lower level,
++	 * except that the last one may be not multiple granularity.
++         */
++	max_discard_sectors = UINT_MAX >> 9;
+ 	max_discard_sectors -= max_discard_sectors % granularity;
+-	if (unlikely(!max_discard_sectors)) {
+-		/* Avoid infinite loop below. Being cautious never hurts. */
+-		return -EOPNOTSUPP;
+-	}
+ 
+ 	if (flags & BLKDEV_DISCARD_SECURE) {
+ 		if (!blk_queue_secdiscard(q))
+@@ -84,7 +80,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+ 	blk_start_plug(&plug);
+ 	while (nr_sects) {
+ 		unsigned int req_sects;
+-		sector_t end_sect, tmp;
++		sector_t end_sect;
+ 
+ 		bio = bio_alloc(gfp_mask, 1);
+ 		if (!bio) {
+@@ -93,20 +89,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+ 		}
+ 
+ 		req_sects = min_t(sector_t, nr_sects, max_discard_sectors);
+-
+-		/*
+-		 * If splitting a request, and the next starting sector would be
+-		 * misaligned, stop the discard at the previous aligned sector.
+-		 */
+ 		end_sect = sector + req_sects;
+-		tmp = end_sect;
+-		if (req_sects < nr_sects &&
+-		    sector_div(tmp, granularity) != alignment) {
+-			end_sect = end_sect - alignment;
+-			sector_div(end_sect, granularity);
+-			end_sect = end_sect * granularity + alignment;
+-			req_sects = end_sect - sector;
+-		}
+ 
+ 		bio->bi_iter.bi_sector = sector;
+ 		bio->bi_end_io = bio_batch_end_io;
+@@ -166,10 +149,8 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
+ 	if (!q)
+ 		return -ENXIO;
+ 
+-	max_write_same_sectors = q->limits.max_write_same_sectors;
+-
+-	if (max_write_same_sectors == 0)
+-		return -EOPNOTSUPP;
++	/* Ensure that max_write_same_sectors doesn't overflow bi_size */
++	max_write_same_sectors = UINT_MAX >> 9;
+ 
+ 	atomic_set(&bb.done, 1);
+ 	bb.flags = 1 << BIO_UPTODATE;
 
-for you to fetch changes up to f8381300ea1812299d5ddf83c5f890b231bcb830:
 
-  MAINTAINERS: Updated information for DRBD DRIVER (2015-08-07 14:33:53 +0200)
+> 
+> Note that this isn't special casing, we can't build > 4GB bios for
+> data either, it's just implemented as a side effect right now instead
+> of checked explicitly.
 
-----------------------------------------------------------------
-Andreas Gruenbacher (7):
-      drbd: De-inline drbd_should_do_remote() and drbd_should_send_out_of_sync()
-      drbd: Get rid of some first_peer_device() calls
-      drbd: Move enum write_ordering_e to drbd.h
-      drbd: drbd_adm_attach(): Add missing drbd_resync_after_changed()
-      drbd: Fix locking across all resources
-      drbd: Backport the "events2" command
-      drbd: Backport the "status" command
 
-Lars Ellenberg (22):
-      drbd: Fix spurious disk-timeout
-      drbd: drop remnants of connector -- we don't use it anymore in drbd 8.4
-      drbd: drbdsetup detach of an unresponsive local disk should not block IO "forever"
-      drbd: also bump UUIDs if a diskless primary connects
-      drbd: add comment why we want to first call local-io-error, then send state
-      drbd: drbd_panic_after_delayed_completion_of_aborted_request()
-      drbd: improve network timeout detection
-      drbd: fix NULL deref in remember_new_state
-      drbd: fix refcount error during detach of an already failed disk
-      drbd: prevent NULL pointer deref when resuming diskless primary
-      drbd: debugfs: expose ed_data_gen_id
-      drbd: use resource name in workqueue
-      drbd: avoid redefinition of BITS_PER_PAGE
-      drbd: use bitmap_weight() helper, don't open code
-      drbd: fix spurious alert level printk
-      drbd: fix queue limit setup for discard
-      drbd: make drbd known to lsblk: use bd_link_disk_holder
-      drbd: don't block forever in disconnect during resync if fencing=r-a-stonith
-      drbd: fix "endless" transfer log walk in protocol A
-      drbd: separate out __al_write_transaction helper function
-      drbd: avoid potential deadlock during handshake
-      drbd: fix error path during resize
 
-Markus Elfring (1):
-      drbd: Deletion of an unnecessary check before the function call "lc_destroy"
-
-Oleg Drokin (1):
-      drbd: fix memory leak in drbd_adm_resize
-
-Philipp Reisner (5):
-      drbd: Remove pointless check
-      drbd: Replace 0 with the more meaningful GFP_NOWAIT
-      drbd: Rename asender to ack_receiver
-      drbd: Create a dedicated workqueue for sending acks on the control connection
-      drbd: make suspend_io() / resume_io() must be thread and recursion safe
-
-Roland Kammerer (2):
-      lru_cache: Converted lc_seq_printf_status to return void
-      MAINTAINERS: Updated information for DRBD DRIVER
-
- MAINTAINERS                            |   11 +-
- drivers/block/drbd/drbd_actlog.c       |  323 ++++----
- drivers/block/drbd/drbd_bitmap.c       |   22 +-
- drivers/block/drbd/drbd_debugfs.c      |   10 +
- drivers/block/drbd/drbd_int.h          |  111 ++-
- drivers/block/drbd/drbd_main.c         |   74 +-
- drivers/block/drbd/drbd_nl.c           | 1361 +++++++++++++++++++++++++++++---
- drivers/block/drbd/drbd_proc.c         |    6 +-
- drivers/block/drbd/drbd_protocol.h     |    2 +-
- drivers/block/drbd/drbd_receiver.c     |  254 +++---
- drivers/block/drbd/drbd_req.c          |  147 +++-
- drivers/block/drbd/drbd_req.h          |   17 +-
- drivers/block/drbd/drbd_state.c        |  428 +++++++++-
- drivers/block/drbd/drbd_state.h        |    6 +-
- drivers/block/drbd/drbd_state_change.h |   63 ++
- drivers/block/drbd/drbd_worker.c       |  105 +--
- include/linux/drbd.h                   |   26 +-
- include/linux/drbd_genl.h              |  149 ++++
- include/linux/idr.h                    |   14 +
- include/linux/lru_cache.h              |    2 +-
- lib/lru_cache.c                        |    4 +-
- 21 files changed, 2543 insertions(+), 592 deletions(-)
- create mode 100644 drivers/block/drbd/drbd_state_change.h
 
