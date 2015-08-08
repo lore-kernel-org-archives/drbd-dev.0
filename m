@@ -1,35 +1,34 @@
-Return-Path: <hch@lst.de>
-Date: Sat, 8 Aug 2015 14:35:21 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Kent Overstreet <kent.overstreet@gmail.com>
-Message-ID: <20150808123521.GA8216@lst.de>
-References: <1438412290.26596.14.camel@hasee>
+Return-Path: <martin.petersen@oracle.com>
+To: Mike Snitzer <snitzer@redhat.com>
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
+References: <1436168690-32102-1-git-send-email-mlin@kernel.org>
+	<20150731192337.GA8907@redhat.com>
+	<CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
+	<20150731213831.GA16464@redhat.com> <1438412290.26596.14.camel@hasee>
 	<20150801163356.GA21478@redhat.com>
-	<1438581502.26596.24.camel@hasee> <20150804113626.GA12682@lst.de>
-	<1438754604.29731.31.camel@hasee>
-	<20150807073001.GA17485@lst.de> <1438990806.24452.8.camel@ssi>
-	<20150808003057.GA1811@kmo-pixel>
-	<CAF1ivSYAiRqG1RhxiHE+cfogB_VKyDDs0aE7YbtZ2o6UeGhZcQ@mail.gmail.com>
-	<20150808052226.GA7050@kmo-pixel>
+Date: Sat, 08 Aug 2015 12:19:20 -0400
+In-Reply-To: <20150801163356.GA21478@redhat.com> (Mike Snitzer's message of
+	"Sat, 1 Aug 2015 12:33:57 -0400")
+Message-ID: <yq18u9liwhj.fsf@sermon.lab.mkp.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150808052226.GA7050@kmo-pixel>
-Cc: Mike Snitzer <snitzer@redhat.com>, Neil Brown <neilb@suse.de>,
-	Ming Lei <ming.lei@canonical.com>, dm-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
+Content-Type: text/plain
+Cc: Ming Lei <ming.lei@canonical.com>,
+	device-mapper development <dm-devel@redhat.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>, Alasdair Kergon <agk@redhat.com>,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>,
 	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Christoph Hellwig <hch@infradead.org>, Nitin Gupta <ngupta@vflare.org>,
-	Ming Lin <ming.l@ssi.samsung.com>, Oleg Drokin <oleg.drokin@intel.com>,
+	Christoph Hellwig <hch@lst.de>, Christoph Hellwig <hch@infradead.org>,
+	Kent Overstreet <kent.overstreet@gmail.com>,
+	Nitin Gupta <ngupta@vflare.org>, Ming Lin <ming.l@ssi.samsung.com>,
+	Oleg Drokin <oleg.drokin@intel.com>,
 	Al Viro <viro@zeniv.linux.org.uk>, Ming Lin <mlin@kernel.org>,
 	Jens Axboe <axboe@kernel.dk>, Andreas Dilger <andreas.dilger@intel.com>,
 	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
 	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
 	Minchan Kim <minchan@kernel.org>, Dongsu Park <dpark@posteo.net>,
 	drbd-user@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v5 01/11] block: make generic_make_request
-	handle	arbitrarily sized bios
+Subject: Re: [Drbd-dev] [dm-devel] [PATCH v5 01/11] block: make
+	generic_make_request handle arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,9 +40,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Aug 07, 2015 at 09:22:26PM -0800, Kent Overstreet wrote:
-> Is granularity required to be a power of two? One would hope, but looking at the
-> code that doesn't appear to be a requirement... ugh, that's terrible...
+>>>>> "Mike" == Mike Snitzer <snitzer@redhat.com> writes:
 
-If devices have an odd granularity we'll just have to split more than
-nessecary.  Let's hope no major hardware does that.
+Mike> This will translate to all intermediate layers that might split
+Mike> discards needing to worry about granularity/alignment too
+Mike> (e.g. how dm-thinp will have to care because it must generate
+Mike> discard mappings with associated bios based on how blocks were
+Mike> mapped to thinp).
+
+The fundamental issue here is that alignment and granularity should
+never, ever have been enforced at the top of the stack. Horrendous idea
+from the very beginning.
+
+For the < handful of braindead devices that get confused when you do
+partial or misaligned blocks we should have had a quirk that did any
+range adjusting at the bottom in sd_setup_discard_cmnd().
+
+There's a reason I turned discard_zeroes_data off for UNMAP!
+
+Wrt. the range size I don't have a problem with capping at the 32-bit
+bi_size limit. We probably don't want to send commands much bigger than
+that anyway.
+
+-- 
+Martin K. Petersen	Oracle Linux Engineering
