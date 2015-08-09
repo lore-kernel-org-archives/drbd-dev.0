@@ -1,8 +1,8 @@
 Return-Path: <BATV+86c5c5088f552ba8cf40+4368+infradead.org+hch@bombadil.srs.infradead.org>
-Date: Sun, 9 Aug 2015 00:01:28 -0700
+Date: Sat, 8 Aug 2015 23:41:28 -0700
 From: Christoph Hellwig <hch@infradead.org>
 To: Ming Lin <mlin@kernel.org>
-Message-ID: <20150809070128.GA25739@infradead.org>
+Message-ID: <20150809064128.GB2436@infradead.org>
 References: <1436168690-32102-1-git-send-email-mlin@kernel.org>
 	<20150731192337.GA8907@redhat.com>
 	<CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
@@ -11,18 +11,16 @@ References: <1436168690-32102-1-git-send-email-mlin@kernel.org>
 	<20150801163356.GA21478@redhat.com>
 	<yq18u9liwhj.fsf@sermon.lab.mkp.net>
 	<1439099990.7880.0.camel@hasee>
-	<20150809064128.GB2436@infradead.org>
-	<1439103347.7880.3.camel@hasee>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1439103347.7880.3.camel@hasee>
+In-Reply-To: <1439099990.7880.0.camel@hasee>
 Cc: Mike Snitzer <snitzer@redhat.com>, Ming Lei <ming.lei@canonical.com>,
 	device-mapper development <dm-devel@redhat.com>,
-	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>, Alasdair Kergon <agk@redhat.com>,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>,
 	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
-	Christoph Hellwig <hch@infradead.org>,
+	Christoph Hellwig <hch@lst.de>, Christoph Hellwig <hch@infradead.org>,
 	Kent Overstreet <kent.overstreet@gmail.com>,
 	Nitin Gupta <ngupta@vflare.org>, Ming Lin <ming.l@ssi.samsung.com>,
 	Oleg Drokin <oleg.drokin@intel.com>,
@@ -46,8 +44,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, Aug 08, 2015 at 11:55:47PM -0700, Ming Lin wrote:
-> Will change it to MAX_BIO_SECTORS.
-> May I add your ACK?
+On Sat, Aug 08, 2015 at 10:59:50PM -0700, Ming Lin wrote:
+> +/*
+> + * Ensure that max discard sectors doesn't overflow bi_size and hopefully
+> + * it is of the proper granularity as long as the granularity is a power
+> + * of two.
+> + */
+> +#define MAX_DISCARD_SECTORS ((1U << 31) >> 9)
 
-Yes, please go ahead.
+Thisn't isn't MAX_DISCARD_SECTORS, it's MAX_BIO_SECTORS.  If we ever
+to something like Kent's multipage biovecs we'll actually need it for
+regular read/write bios in addition to discard and write same.
+
+Except for that the patch looks reasonable to me.
