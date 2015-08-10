@@ -1,38 +1,38 @@
-Return-Path: <mlin@kernel.org>
-Message-ID: <1439223518.27204.13.camel@hasee>
-From: Ming Lin <mlin@kernel.org>
+Return-Path: <martin.petersen@oracle.com>
 To: Mike Snitzer <snitzer@redhat.com>
-Date: Mon, 10 Aug 2015 09:18:38 -0700
-In-Reply-To: <1439223252.27204.10.camel@hasee>
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
 References: <CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
 	<20150731213831.GA16464@redhat.com> <1438412290.26596.14.camel@hasee>
 	<20150801163356.GA21478@redhat.com>
-	<yq18u9liwhj.fsf@sermon.lab.mkp.net>
-	<1439099990.7880.0.camel@hasee> <20150809064128.GB2436@infradead.org>
-	<1439103347.7880.3.camel@hasee> <20150809070128.GA25739@infradead.org>
-	<1439104707.7880.8.camel@hasee> <20150810150216.GA22719@redhat.com>
-	<1439223252.27204.10.camel@hasee>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	<yq18u9liwhj.fsf@sermon.lab.mkp.net> <1439099990.7880.0.camel@hasee>
+	<20150809064128.GB2436@infradead.org> <1439103347.7880.3.camel@hasee>
+	<20150809070128.GA25739@infradead.org> <1439104707.7880.8.camel@hasee>
+	<20150810150216.GA22719@redhat.com>
+Date: Mon, 10 Aug 2015 12:22:07 -0400
+In-Reply-To: <20150810150216.GA22719@redhat.com> (Mike Snitzer's message of
+	"Mon, 10 Aug 2015 11:02:17 -0400")
+Message-ID: <yq1si7rgllc.fsf@sermon.lab.mkp.net>
+MIME-Version: 1.0
+Content-Type: text/plain
 Cc: Ming Lei <ming.lei@canonical.com>,
 	device-mapper development <dm-devel@redhat.com>,
-	Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
+	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>,
 	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
 	Christoph Hellwig <hch@infradead.org>,
 	Kent Overstreet <kent.overstreet@gmail.com>,
 	Nitin Gupta <ngupta@vflare.org>, Ming Lin <ming.l@ssi.samsung.com>,
 	Oleg Drokin <oleg.drokin@intel.com>,
-	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
-	axboe@fb.com, Andreas Dilger <andreas.dilger@intel.com>, "Martin K.
-	Petersen" <martin.petersen@oracle.com>, Christoph,
+	Al Viro <viro@zeniv.linux.org.uk>, Ming Lin <mlin@kernel.org>,
+	Jens Axboe <axboe@kernel.dk>, axboe@fb.com,
+	Andreas Dilger <andreas.dilger@intel.com>,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
 	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
 	Minchan Kim <minchan@kernel.org>, Joe Thornber <ejt@redhat.com>,
 	Dongsu Park <dpark@posteo.net>, drbd-user@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH v5 01/11] block: make generic_make_request
- handle arbitrarily sized bios
+	handle arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,82 +44,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, 2015-08-10 at 09:14 -0700, Ming Lin wrote:
-> On Mon, 2015-08-10 at 11:02 -0400, Mike Snitzer wrote:
-> > On Sun, Aug 09 2015 at  3:18am -0400,
-> > Ming Lin <mlin@kernel.org> wrote:
-> > 
-> > > On Sun, 2015-08-09 at 00:01 -0700, Christoph Hellwig wrote:
-> > > > On Sat, Aug 08, 2015 at 11:55:47PM -0700, Ming Lin wrote:
-> > > > > Will change it to MAX_BIO_SECTORS.
-> > > > > May I add your ACK?
-> > > > 
-> > > > Yes, please go ahead.
-> > > 
-> > > Thanks. I'll send a new version of the series once device-mapper guy
-> > > acks.
-> > > 
-> > > Hi Mike,
-> > > 
-> > > I have updated my tree. Could you pull and re-test?
-> > > https://git.kernel.org/cgit/linux/kernel/git/mlin/linux.git/log/?h=block-generic-req
-> > > 
-> > > The 2 thin-provisioning tests passed.
-> > 
-> > I've merged your latest branch with my dm-4.3 branch, I had one conflict
-> > in the merge due to the dm_merge_bvec() change from 4.2-rc6 (no
-> > surprise).  I've published the result here:
-> > http://git.kernel.org/cgit/linux/kernel/git/snitzer/linux.git/log/?h=block-late-bio-splitting
-> > 
-> > It passes the device-mapper-test-suite's 'thin-provisioning' tests.
-> > 
-> > > Hope I can have your ACK soon.
-> > 
-> > Shouldn't we also be using MAX_BIO_SECTORS in blkdev_issue_write_same
-> > (instead of UINT_MAX >> 9)?
-> 
-> I also prefer using MAX_BIO_SECTORS.
-> Otherwise, we may have non page size aligned splits.
-> 
-> Say, write_same 8G.
-> 
-> Using UINT_MAX >> 9, we'll have 2 sector aligned splits in
-> blkdev_issue_write_same():
-> 0 - (4G - 512 - 1)
-> (4G - 512, 8G -1)
+>>>>> "Mike" == Mike Snitzer <snitzer@redhat.com> writes:
 
-Actually, 3 sector aligned splits.
+Mike> Shouldn't we also be using MAX_BIO_SECTORS in
+Mike> blkdev_issue_write_same (instead of UINT_MAX >> 9)?
 
-0 - (4G-512-1)
-(4G-512), (8G-512-1)
-(8G-512), (8G-1)
+The granularity of WRITE SAME is always 1 logical block and there is no
+reason to round it down to the next power of two.
 
-> 
-> This looks weired.
-> 
-> Using MAX_BIO_SECTORS, we'll have 4 page size aligned splits:
-> 0 - (2G -1)
-> 2G - (4G - 1)
-> 4G - (6G - 1)
-> 6G - (8G - 1)
-> 
-> I'll use MAX_BIO_SECTORS in blkdev_issue_write_same() if no objection.
-> 
-> > 
-> > Aside from that, I'm in favor of seeing this late bio splitting patchset
-> > finally land upstream (hopefully in time for the 4.3 merge, Jens?):
-> > 
-> > Acked-by: Mike Snitzer <snitzer@redhat.com>
-> 
-> Thanks!
-> 
-> May I add your Ack to "PATCH: block: kill merge_bvec_fn() completely"
-> also?
-> 
-> > 
-> > p.s. I'll be working with Joe Thornber on optimizing DM (particularly
-> > dm-thinp and dm-cache) once this patchset is included upstream.  You'll
-> > see I've already added a couple WIP dm-thinp patches ontop.
-> 
++/*
++ * Ensure that max discard sectors doesn't overflow bi_size and hopefully
++ * it is of the proper granularity as long as the granularity is a power
++ * of two.
++ */
++#define MAX_DISCARD_SECTORS ((1U << 31) >> 9)
++
 
+That's fine for SATA since we're already capping at 2TB minus change.
+But it means we'll be capping unnecessarily on SCSI. And larger range
+counts are impending in SATA as well.
 
+So this goes back to my original comment: The only place there can be a
+discard granularity is for SCSI UNMAP. And consequently, we should only
+enforce alignment and granularity when that code path is taken in sd.c.
+
+I'm OK with Ming's patch series in general. Let's leave the discard cap
+at UINT_MAX and I'll twiddle the rest in SCSI.
+
+Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+-- 
+Martin K. Petersen	Oracle Linux Engineering
