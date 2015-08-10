@@ -1,5 +1,5 @@
 Return-Path: <martin.petersen@oracle.com>
-To: Mike Snitzer <snitzer@redhat.com>
+To: Ming Lin <mlin@kernel.org>
 From: "Martin K. Petersen" <martin.petersen@oracle.com>
 References: <CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
 	<20150731213831.GA16464@redhat.com> <1438412290.26596.14.camel@hasee>
@@ -7,14 +7,14 @@ References: <CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
 	<yq18u9liwhj.fsf@sermon.lab.mkp.net> <1439099990.7880.0.camel@hasee>
 	<20150809064128.GB2436@infradead.org> <1439103347.7880.3.camel@hasee>
 	<20150809070128.GA25739@infradead.org> <1439104707.7880.8.camel@hasee>
-	<20150810150216.GA22719@redhat.com>
-Date: Mon, 10 Aug 2015 12:22:07 -0400
-In-Reply-To: <20150810150216.GA22719@redhat.com> (Mike Snitzer's message of
-	"Mon, 10 Aug 2015 11:02:17 -0400")
-Message-ID: <yq1si7rgllc.fsf@sermon.lab.mkp.net>
+	<20150810150216.GA22719@redhat.com> <1439223252.27204.10.camel@hasee>
+Date: Mon, 10 Aug 2015 12:40:52 -0400
+In-Reply-To: <1439223252.27204.10.camel@hasee> (Ming Lin's message of "Mon, 10
+	Aug 2015 09:14:12 -0700")
+Message-ID: <yq1k2t3gkq3.fsf@sermon.lab.mkp.net>
 MIME-Version: 1.0
 Content-Type: text/plain
-Cc: Ming Lei <ming.lei@canonical.com>,
+Cc: Mike Snitzer <snitzer@redhat.com>, Ming Lei <ming.lei@canonical.com>,
 	device-mapper development <dm-devel@redhat.com>,
 	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>,
@@ -23,9 +23,8 @@ Cc: Ming Lei <ming.lei@canonical.com>,
 	Kent Overstreet <kent.overstreet@gmail.com>,
 	Nitin Gupta <ngupta@vflare.org>, Ming Lin <ming.l@ssi.samsung.com>,
 	Oleg Drokin <oleg.drokin@intel.com>,
-	Al Viro <viro@zeniv.linux.org.uk>, Ming Lin <mlin@kernel.org>,
-	Jens Axboe <axboe@kernel.dk>, axboe@fb.com,
-	Andreas Dilger <andreas.dilger@intel.com>,
+	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
+	axboe@fb.com, Andreas Dilger <andreas.dilger@intel.com>,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
 	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
@@ -44,34 +43,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
->>>>> "Mike" == Mike Snitzer <snitzer@redhat.com> writes:
+>>>>> "Ming" == Ming Lin <mlin@kernel.org> writes:
 
-Mike> Shouldn't we also be using MAX_BIO_SECTORS in
-Mike> blkdev_issue_write_same (instead of UINT_MAX >> 9)?
+Ming,
 
-The granularity of WRITE SAME is always 1 logical block and there is no
-reason to round it down to the next power of two.
+Ming> I also prefer using MAX_BIO_SECTORS.  Otherwise, we may have non
+Ming> page size aligned splits.
 
-+/*
-+ * Ensure that max discard sectors doesn't overflow bi_size and hopefully
-+ * it is of the proper granularity as long as the granularity is a power
-+ * of two.
-+ */
-+#define MAX_DISCARD_SECTORS ((1U << 31) >> 9)
-+
+This does not matter for write same and discard since there is only a
+single logical block of payload. Also, given limitations in SATA we're
+always issuing 2GB-32KB sized discards. Rounding those down to an even
+1GB would impact performance.
 
-That's fine for SATA since we're already capping at 2TB minus change.
-But it means we'll be capping unnecessarily on SCSI. And larger range
-counts are impending in SATA as well.
+I am sympathetic to wanting to issue I/Os that are aligned to powers of
+two. But for most devices this matters little since the additional cost
+is limited to misaligned head and tail blocks.
 
-So this goes back to my original comment: The only place there can be a
-discard granularity is for SCSI UNMAP. And consequently, we should only
-enforce alignment and granularity when that code path is taken in sd.c.
-
-I'm OK with Ming's patch series in general. Let's leave the discard cap
-at UINT_MAX and I'll twiddle the rest in SCSI.
-
-Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
+One thing that may be worth considering is switching bi_size from bytes
+to blocks for REQ_FS. That would give us some headroom without
+increasing bi_size beyond 32 bits. But I'm not entirely sure it's worth
+the pain.
 
 -- 
 Martin K. Petersen	Oracle Linux Engineering
