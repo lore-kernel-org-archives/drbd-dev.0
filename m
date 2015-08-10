@@ -1,25 +1,22 @@
-Return-Path: <msnitzer@redhat.com>
-Date: Mon, 10 Aug 2015 11:02:17 -0400
-From: Mike Snitzer <snitzer@redhat.com>
-To: Ming Lin <mlin@kernel.org>, axboe@fb.com
-Message-ID: <20150810150216.GA22719@redhat.com>
+Return-Path: <mlin@kernel.org>
+Message-ID: <1439223252.27204.10.camel@hasee>
+From: Ming Lin <mlin@kernel.org>
+To: Mike Snitzer <snitzer@redhat.com>
+Date: Mon, 10 Aug 2015 09:14:12 -0700
+In-Reply-To: <20150810150216.GA22719@redhat.com>
 References: <CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
-	<20150731213831.GA16464@redhat.com>
-	<1438412290.26596.14.camel@hasee>
+	<20150731213831.GA16464@redhat.com> <1438412290.26596.14.camel@hasee>
 	<20150801163356.GA21478@redhat.com>
 	<yq18u9liwhj.fsf@sermon.lab.mkp.net>
-	<1439099990.7880.0.camel@hasee>
-	<20150809064128.GB2436@infradead.org>
-	<1439103347.7880.3.camel@hasee>
-	<20150809070128.GA25739@infradead.org>
-	<1439104707.7880.8.camel@hasee>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1439104707.7880.8.camel@hasee>
+	<1439099990.7880.0.camel@hasee> <20150809064128.GB2436@infradead.org>
+	<1439103347.7880.3.camel@hasee> <20150809070128.GA25739@infradead.org>
+	<1439104707.7880.8.camel@hasee> <20150810150216.GA22719@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Cc: Ming Lei <ming.lei@canonical.com>,
 	device-mapper development <dm-devel@redhat.com>,
-	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
+	Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>,
 	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
 	Christoph Hellwig <hch@infradead.org>,
@@ -27,8 +24,8 @@ Cc: Ming Lei <ming.lei@canonical.com>,
 	Nitin Gupta <ngupta@vflare.org>, Ming Lin <ming.l@ssi.samsung.com>,
 	Oleg Drokin <oleg.drokin@intel.com>,
 	Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
-	Andreas Dilger <andreas.dilger@intel.com>,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	axboe@fb.com, Andreas Dilger <andreas.dilger@intel.com>, "Martin K.
+	Petersen" <martin.petersen@oracle.com>, Christoph,
 	Geoff Levand <geoff@infradead.org>, Jiri Kosina <jkosina@suse.cz>,
 	lkml <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
 	Minchan Kim <minchan@kernel.org>, Joe Thornber <ejt@redhat.com>,
@@ -46,43 +43,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Aug 09 2015 at  3:18am -0400,
-Ming Lin <mlin@kernel.org> wrote:
-
-> On Sun, 2015-08-09 at 00:01 -0700, Christoph Hellwig wrote:
-> > On Sat, Aug 08, 2015 at 11:55:47PM -0700, Ming Lin wrote:
-> > > Will change it to MAX_BIO_SECTORS.
-> > > May I add your ACK?
+On Mon, 2015-08-10 at 11:02 -0400, Mike Snitzer wrote:
+> On Sun, Aug 09 2015 at  3:18am -0400,
+> Ming Lin <mlin@kernel.org> wrote:
+> 
+> > On Sun, 2015-08-09 at 00:01 -0700, Christoph Hellwig wrote:
+> > > On Sat, Aug 08, 2015 at 11:55:47PM -0700, Ming Lin wrote:
+> > > > Will change it to MAX_BIO_SECTORS.
+> > > > May I add your ACK?
+> > > 
+> > > Yes, please go ahead.
 > > 
-> > Yes, please go ahead.
+> > Thanks. I'll send a new version of the series once device-mapper guy
+> > acks.
+> > 
+> > Hi Mike,
+> > 
+> > I have updated my tree. Could you pull and re-test?
+> > https://git.kernel.org/cgit/linux/kernel/git/mlin/linux.git/log/?h=block-generic-req
+> > 
+> > The 2 thin-provisioning tests passed.
 > 
-> Thanks. I'll send a new version of the series once device-mapper guy
-> acks.
+> I've merged your latest branch with my dm-4.3 branch, I had one conflict
+> in the merge due to the dm_merge_bvec() change from 4.2-rc6 (no
+> surprise).  I've published the result here:
+> http://git.kernel.org/cgit/linux/kernel/git/snitzer/linux.git/log/?h=block-late-bio-splitting
 > 
-> Hi Mike,
+> It passes the device-mapper-test-suite's 'thin-provisioning' tests.
 > 
-> I have updated my tree. Could you pull and re-test?
-> https://git.kernel.org/cgit/linux/kernel/git/mlin/linux.git/log/?h=block-generic-req
+> > Hope I can have your ACK soon.
 > 
-> The 2 thin-provisioning tests passed.
+> Shouldn't we also be using MAX_BIO_SECTORS in blkdev_issue_write_same
+> (instead of UINT_MAX >> 9)?
 
-I've merged your latest branch with my dm-4.3 branch, I had one conflict
-in the merge due to the dm_merge_bvec() change from 4.2-rc6 (no
-surprise).  I've published the result here:
-http://git.kernel.org/cgit/linux/kernel/git/snitzer/linux.git/log/?h=block-late-bio-splitting
+I also prefer using MAX_BIO_SECTORS.
+Otherwise, we may have non page size aligned splits.
 
-It passes the device-mapper-test-suite's 'thin-provisioning' tests.
+Say, write_same 8G.
 
-> Hope I can have your ACK soon.
+Using UINT_MAX >> 9, we'll have 2 sector aligned splits in
+blkdev_issue_write_same():
+0 - (4G - 512 - 1)
+(4G - 512, 8G -1)
 
-Shouldn't we also be using MAX_BIO_SECTORS in blkdev_issue_write_same
-(instead of UINT_MAX >> 9)?
+This looks weired.
 
-Aside from that, I'm in favor of seeing this late bio splitting patchset
-finally land upstream (hopefully in time for the 4.3 merge, Jens?):
+Using MAX_BIO_SECTORS, we'll have 4 page size aligned splits:
+0 - (2G -1)
+2G - (4G - 1)
+4G - (6G - 1)
+6G - (8G - 1)
 
-Acked-by: Mike Snitzer <snitzer@redhat.com>
+I'll use MAX_BIO_SECTORS in blkdev_issue_write_same() if no objection.
 
-p.s. I'll be working with Joe Thornber on optimizing DM (particularly
-dm-thinp and dm-cache) once this patchset is included upstream.  You'll
-see I've already added a couple WIP dm-thinp patches ontop.
+> 
+> Aside from that, I'm in favor of seeing this late bio splitting patchset
+> finally land upstream (hopefully in time for the 4.3 merge, Jens?):
+> 
+> Acked-by: Mike Snitzer <snitzer@redhat.com>
+
+Thanks!
+
+May I add your Ack to "PATCH: block: kill merge_bvec_fn() completely"
+also?
+
+> 
+> p.s. I'll be working with Joe Thornber on optimizing DM (particularly
+> dm-thinp and dm-cache) once this patchset is included upstream.  You'll
+> see I've already added a couple WIP dm-thinp patches ontop.
+
+
