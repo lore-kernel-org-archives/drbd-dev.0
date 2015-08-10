@@ -1,20 +1,22 @@
-Return-Path: <martin.petersen@oracle.com>
+Return-Path: <msnitzer@redhat.com>
+Date: Mon, 10 Aug 2015 14:13:25 -0400
+From: Mike Snitzer <snitzer@redhat.com>
 To: Ming Lin <mlin@kernel.org>
-From: "Martin K. Petersen" <martin.petersen@oracle.com>
-References: <CAF1ivSZbMDgyo_-wFGusSNSZ1fonSMWmNU9aVavGFaQsmEyYmQ@mail.gmail.com>
-	<20150731213831.GA16464@redhat.com> <1438412290.26596.14.camel@hasee>
+Message-ID: <20150810181325.GA24125@redhat.com>
+References: <1438412290.26596.14.camel@hasee>
 	<20150801163356.GA21478@redhat.com>
-	<yq18u9liwhj.fsf@sermon.lab.mkp.net> <1439099990.7880.0.camel@hasee>
-	<20150809064128.GB2436@infradead.org> <1439103347.7880.3.camel@hasee>
-	<20150809070128.GA25739@infradead.org> <1439104707.7880.8.camel@hasee>
-	<20150810150216.GA22719@redhat.com> <1439223252.27204.10.camel@hasee>
-Date: Mon, 10 Aug 2015 12:40:52 -0400
-In-Reply-To: <1439223252.27204.10.camel@hasee> (Ming Lin's message of "Mon, 10
-	Aug 2015 09:14:12 -0700")
-Message-ID: <yq1k2t3gkq3.fsf@sermon.lab.mkp.net>
+	<yq18u9liwhj.fsf@sermon.lab.mkp.net>
+	<1439099990.7880.0.camel@hasee>
+	<20150809064128.GB2436@infradead.org>
+	<1439103347.7880.3.camel@hasee>
+	<20150809070128.GA25739@infradead.org>
+	<1439104707.7880.8.camel@hasee> <20150810150216.GA22719@redhat.com>
+	<1439223252.27204.10.camel@hasee>
 MIME-Version: 1.0
-Content-Type: text/plain
-Cc: Mike Snitzer <snitzer@redhat.com>, Ming Lei <ming.lei@canonical.com>,
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1439223252.27204.10.camel@hasee>
+Cc: Ming Lei <ming.lei@canonical.com>,
 	device-mapper development <dm-devel@redhat.com>,
 	Christoph Hellwig <hch@lst.de>, Alasdair Kergon <agk@redhat.com>,
 	Lars Ellenberg <drbd-dev@lists.linbit.com>,
@@ -31,7 +33,7 @@ Cc: Mike Snitzer <snitzer@redhat.com>, Ming Lei <ming.lei@canonical.com>,
 	Minchan Kim <minchan@kernel.org>, Joe Thornber <ejt@redhat.com>,
 	Dongsu Park <dpark@posteo.net>, drbd-user@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH v5 01/11] block: make generic_make_request
-	handle arbitrarily sized bios
+ handle arbitrarily sized bios
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,26 +45,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
->>>>> "Ming" == Ming Lin <mlin@kernel.org> writes:
+On Mon, Aug 10 2015 at 12:14pm -0400,
+Ming Lin <mlin@kernel.org> wrote:
 
-Ming,
+> On Mon, 2015-08-10 at 11:02 -0400, Mike Snitzer wrote:
+> > 
+> > Aside from that, I'm in favor of seeing this late bio splitting patchset
+> > finally land upstream (hopefully in time for the 4.3 merge, Jens?):
+> > 
+> > Acked-by: Mike Snitzer <snitzer@redhat.com>
+> 
+> Thanks!
+> 
+> May I add your Ack to "PATCH: block: kill merge_bvec_fn() completely"
+> also?
 
-Ming> I also prefer using MAX_BIO_SECTORS.  Otherwise, we may have non
-Ming> page size aligned splits.
+Sure, but please fold in the removal of dm.c comments I made in this
+merge commit:
 
-This does not matter for write same and discard since there is only a
-single logical block of payload. Also, given limitations in SATA we're
-always issuing 2GB-32KB sized discards. Rounding those down to an even
-1GB would impact performance.
+http://git.kernel.org/cgit/linux/kernel/git/snitzer/linux.git/commit/?h=block-late-bio-splitting&id=d6df875bb65ef1ee10c91cf09cb58d009286321f
 
-I am sympathetic to wanting to issue I/Os that are aligned to powers of
-two. But for most devices this matters little since the additional cost
-is limited to misaligned head and tail blocks.
-
-One thing that may be worth considering is switching bi_size from bytes
-to blocks for REQ_FS. That would give us some headroom without
-increasing bi_size beyond 32 bits. But I'm not entirely sure it's worth
-the pain.
-
--- 
-Martin K. Petersen	Oracle Linux Engineering
+thanks.
