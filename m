@@ -1,27 +1,21 @@
-Return-Path: <nwang@suse.com>
-Received: from relay2.provo.novell.com (relay2.provo.novell.com
-	[137.65.250.214])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <BATV+bd67e5505ea4382539b6+4387+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
+	(using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 948791011B99
-	for <drbd-dev@lists.linbit.com>; Fri, 21 Aug 2015 05:25:35 +0200 (CEST)
-Message-Id: <55D70AD10200007000065BF8@relay2.provo.novell.com>
-Date: Thu, 20 Aug 2015 21:26:09 -0600
-From: "Nick Wang" <nwang@suse.com>
-To: "Lars Ellenberg" <lars.ellenberg@linbit.com>
-References: <1950665.2mvfrclfR5@fat-tyre>
-	<1438855462-3757-1-git-send-email-nwang@suse.com>
-	<1438855462-3757-2-git-send-email-nwang@suse.com>
-	<20150818150319.GL19958@soda.linbit>
-In-Reply-To: <20150818150319.GL19958@soda.linbit>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Cc: linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] =?utf-8?b?562U5aSN77yaIFJlOiBbUEFUQ0hdIGRyYmQ6IFN1cHBv?=
- =?utf-8?q?rt_zeroout_device_instead_of_initial_full_sync?=
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4624710518BC
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Aug 2015 09:30:45 +0200 (CEST)
+From: Christoph Hellwig <hch@lst.de>
+To: arnd@arndb.de
+Date: Fri, 28 Aug 2015 09:27:15 +0200
+Message-Id: <1440746842-19029-3-git-send-email-hch@lst.de>
+In-Reply-To: <1440746842-19029-1-git-send-email-hch@lst.de>
+References: <1440746842-19029-1-git-send-email-hch@lst.de>
+Cc: linux-arch@vger.kernel.org, mitake@dcl.info.waseda.ac.jp,
+	linux-kernel@vger.kernel.org, oded.gabbay@amd.com,
+	dhowells@redhat.com, linux-gpio@vger.kernel.org,
+	eli@mellanox.com, james_p_freyensee@linux.intel.com,
+	drbd-dev@lists.linbit.com, herbert@gondor.apana.org.au
+Subject: [Drbd-dev] [PATCH 2/9] move count_zeroes.h out of asm-generic
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,37 +27,171 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Lars,
+This header contains a few helpers currenly only used by the mpi
+implementation, and not default implementation of architecture code.
 
-> I still think this does not belong into the kernel at all.
-> I may not yet have properly explained why.
->=20
-   Thanks for your information.=20
-   I tried blkdiscard on my test machine, but unfortunately the=20
-underlying block device i used doesn't support discard...
-(/sys/block/<dev>/queue/discard_max_bytes =3D=3D 0)
-However, i think blkscard could work well for SSDs and=20
-thinly-provisioned support storage as a workaround.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ include/asm-generic/bitops/count_zeros.h | 57 --------------------------------
+ include/linux/count_zeros.h              | 57 ++++++++++++++++++++++++++++++++
+ lib/mpi/longlong.h                       |  2 +-
+ lib/mpi/mpicoder.c                       |  2 +-
+ 4 files changed, 59 insertions(+), 59 deletions(-)
+ delete mode 100644 include/asm-generic/bitops/count_zeros.h
+ create mode 100644 include/linux/count_zeros.h
 
-> This is a lot of stuff to add to the DRBD module,
-> introducing write protocol incompatibility/protocol version bump.
->=20
-> For no good reason.
->=20
-  Yes, it is not a mandatory feature, more like a enhancement=20
-"convenience patch" for some edge cases. User can choose=20
-zeroout/discard devices via drbd tools, in case the storage
-does not support discard, it will using zeroout instead of only=20
-throw an "not support" error to output.
-
-  Implement this function to drbd also help to sync the status=20
-between nodes, convenience for auto deploy or monitor by admin.
-Also have the possibility to implement a resume broken=20
-zeroout/discard in future.
-
-  And i can understand your concern and any decision, many thanks=20
-for your and Philipp's help and review:)
-
-Best regards,
-Nick=20
+diff --git a/include/asm-generic/bitops/count_zeros.h b/include/asm-generic/bitops/count_zeros.h
+deleted file mode 100644
+index 97520d2..0000000
+--- a/include/asm-generic/bitops/count_zeros.h
++++ /dev/null
+@@ -1,57 +0,0 @@
+-/* Count leading and trailing zeros functions
+- *
+- * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
+- * Written by David Howells (dhowells@redhat.com)
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public Licence
+- * as published by the Free Software Foundation; either version
+- * 2 of the Licence, or (at your option) any later version.
+- */
+-
+-#ifndef _ASM_GENERIC_BITOPS_COUNT_ZEROS_H_
+-#define _ASM_GENERIC_BITOPS_COUNT_ZEROS_H_
+-
+-#include <asm/bitops.h>
+-
+-/**
+- * count_leading_zeros - Count the number of zeros from the MSB back
+- * @x: The value
+- *
+- * Count the number of leading zeros from the MSB going towards the LSB in @x.
+- *
+- * If the MSB of @x is set, the result is 0.
+- * If only the LSB of @x is set, then the result is BITS_PER_LONG-1.
+- * If @x is 0 then the result is COUNT_LEADING_ZEROS_0.
+- */
+-static inline int count_leading_zeros(unsigned long x)
+-{
+-	if (sizeof(x) == 4)
+-		return BITS_PER_LONG - fls(x);
+-	else
+-		return BITS_PER_LONG - fls64(x);
+-}
+-
+-#define COUNT_LEADING_ZEROS_0 BITS_PER_LONG
+-
+-/**
+- * count_trailing_zeros - Count the number of zeros from the LSB forwards
+- * @x: The value
+- *
+- * Count the number of trailing zeros from the LSB going towards the MSB in @x.
+- *
+- * If the LSB of @x is set, the result is 0.
+- * If only the MSB of @x is set, then the result is BITS_PER_LONG-1.
+- * If @x is 0 then the result is COUNT_TRAILING_ZEROS_0.
+- */
+-static inline int count_trailing_zeros(unsigned long x)
+-{
+-#define COUNT_TRAILING_ZEROS_0 (-1)
+-
+-	if (sizeof(x) == 4)
+-		return ffs(x);
+-	else
+-		return (x != 0) ? __ffs(x) : COUNT_TRAILING_ZEROS_0;
+-}
+-
+-#endif /* _ASM_GENERIC_BITOPS_COUNT_ZEROS_H_ */
+diff --git a/include/linux/count_zeros.h b/include/linux/count_zeros.h
+new file mode 100644
+index 0000000..363da78
+--- /dev/null
++++ b/include/linux/count_zeros.h
+@@ -0,0 +1,57 @@
++/* Count leading and trailing zeros functions
++ *
++ * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
++ * Written by David Howells (dhowells@redhat.com)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public Licence
++ * as published by the Free Software Foundation; either version
++ * 2 of the Licence, or (at your option) any later version.
++ */
++
++#ifndef _LINUX_BITOPS_COUNT_ZEROS_H_
++#define _LINUX_BITOPS_COUNT_ZEROS_H_
++
++#include <asm/bitops.h>
++
++/**
++ * count_leading_zeros - Count the number of zeros from the MSB back
++ * @x: The value
++ *
++ * Count the number of leading zeros from the MSB going towards the LSB in @x.
++ *
++ * If the MSB of @x is set, the result is 0.
++ * If only the LSB of @x is set, then the result is BITS_PER_LONG-1.
++ * If @x is 0 then the result is COUNT_LEADING_ZEROS_0.
++ */
++static inline int count_leading_zeros(unsigned long x)
++{
++	if (sizeof(x) == 4)
++		return BITS_PER_LONG - fls(x);
++	else
++		return BITS_PER_LONG - fls64(x);
++}
++
++#define COUNT_LEADING_ZEROS_0 BITS_PER_LONG
++
++/**
++ * count_trailing_zeros - Count the number of zeros from the LSB forwards
++ * @x: The value
++ *
++ * Count the number of trailing zeros from the LSB going towards the MSB in @x.
++ *
++ * If the LSB of @x is set, the result is 0.
++ * If only the MSB of @x is set, then the result is BITS_PER_LONG-1.
++ * If @x is 0 then the result is COUNT_TRAILING_ZEROS_0.
++ */
++static inline int count_trailing_zeros(unsigned long x)
++{
++#define COUNT_TRAILING_ZEROS_0 (-1)
++
++	if (sizeof(x) == 4)
++		return ffs(x);
++	else
++		return (x != 0) ? __ffs(x) : COUNT_TRAILING_ZEROS_0;
++}
++
++#endif /* _LINUX_BITOPS_COUNT_ZEROS_H_ */
+diff --git a/lib/mpi/longlong.h b/lib/mpi/longlong.h
+index a89d041..b90e255 100644
+--- a/lib/mpi/longlong.h
++++ b/lib/mpi/longlong.h
+@@ -19,7 +19,7 @@
+  * the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+  * MA 02111-1307, USA. */
+ 
+-#include <asm-generic/bitops/count_zeros.h>
++#include <linux/count_zeros.h>
+ 
+ /* You have to define the following before including this file:
+  *
+diff --git a/lib/mpi/mpicoder.c b/lib/mpi/mpicoder.c
+index bc0a1da..9e1ec99 100644
+--- a/lib/mpi/mpicoder.c
++++ b/lib/mpi/mpicoder.c
+@@ -19,7 +19,7 @@
+  */
+ 
+ #include <linux/bitops.h>
+-#include <asm-generic/bitops/count_zeros.h>
++#include <linux/count_zeros.h>
+ #include "mpi-internal.h"
+ 
+ #define MAX_EXTERN_MPI_BITS 16384
+-- 
+1.9.1
 
