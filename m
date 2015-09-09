@@ -1,39 +1,20 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <lists@alteeve.ca>
+Received: from vm08-mail01.alteeve.ca (mail.alteeve.ca [65.39.153.71])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 21474100EC11
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 16:24:00 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 1370C46E8E9
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 16:24:00 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id cl5GCsoyXoEJ for <drbd-dev@lists.linbit.com>;
-	Wed,  9 Sep 2015 16:24:00 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id E2F1F46E8EB
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 16:23:59 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id VCsoDBjNpp9g for <drbd-dev@lists.linbit.com>;
-	Wed,  9 Sep 2015 16:23:59 +0200 (CEST)
-Received: from localhost (chello213047144126.1.15.vie.surfer.at
-	[213.47.144.126])
-	by zimbra13.linbit.com (Postfix) with ESMTPSA id B759946E8E9
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 16:23:59 +0200 (CEST)
-Date: Wed, 9 Sep 2015 16:23:59 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20150909142358.GE1313@rck.sh>
-References: <1441804567-2372-1-git-send-email-cvubrugier@fastmail.fm>
-	<20150909133353.GD1313@rck.sh>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B941510518BD
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 17:31:12 +0200 (CEST)
+To: Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
+References: <55EF7BEA.5060409@alteeve.ca> <55EFD2FD.6010500@alteeve.ca>
+	<20150909082106.GB1313@rck.sh> <20150909083737.GC1313@rck.sh>
+From: Digimer <lists@alteeve.ca>
+Message-ID: <55F050BE.3090405@alteeve.ca>
+Date: Wed, 9 Sep 2015 11:31:10 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150909133353.GD1313@rck.sh>
-Subject: Re: [Drbd-dev] [PATCH 0/2] drbd-utils: build fixes for the musl C
- library
+In-Reply-To: <20150909083737.GC1313@rck.sh>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Subject: Re: [Drbd-dev] rhcs_fence
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,21 +26,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Sep 09, 2015 at 03:33:54PM +0200, Roland Kammerer wrote:
-> On Wed, Sep 09, 2015 at 03:16:05PM +0200, Christophe Vu-Brugier wrote:
-> > Hi,
-> > 
-> > Here are two patches that fix compilation errors when drbd-utils is
-> > built with the musl C library.
-> > 
+On 09/09/15 04:37 AM, Roland Kammerer wrote:
+> On Wed, Sep 09, 2015 at 10:21:07AM +0200, Roland Kammerer wrote:
+>> On Wed, Sep 09, 2015 at 02:34:37AM -0400, Digimer wrote:
+>>> On 08/09/15 08:23 PM, Digimer wrote:
+>>>> Is rhcs_fence not shipped with drbd 8.4?
+>>>
+>>> If not (it appears not), and if there is interest in adding it, I've
+>>> moved it's development into the main striker repo:
+>>>
+>>> https://github.com/digimer/striker/blob/master/tools/rhcs_fence
+>>>
+>>
+>> Mind the repo-split... There is one in drbd-utils/scripts
+>>
 > 
-> Hi Christophe,
+> Oh, ours is the bash version Lars wrote, yours is the one in perl.
 > 
-> I like the musl libc and will review the patches in the next days.
+> It's neither my expertise nor my decision, but FWIW: My (evil) plan is
+> to get rid of the existing perl code (AFAIK drbd-overview.pl), so
+> personally I am not a fan of merging perl code. I would like to drop the
+> perl dependency. For example RHEL7 does not ship perl in its minimal setup
+> configuration if I remember correctly.
 > 
-> Thanks, rck
+> Regards, rck
 
-Committed to our internal tree. Will take some time till it shows up in
-the public repo.
+Well, cman+rgmanager is gone entirely in EL7, so this is really for EL6
+users.
 
-Regards, rck
+What is the bash version called? The only other one I knew of the cman
+was obliterate-peer.sh, which Lon wrote ages ago. I created rhcs_fence
+to improve on his agent.
+
+-- 
+Digimer
+Papers and Projects: https://alteeve.ca/w/
+What if the cure for cancer is trapped in the mind of a person without
+access to education?
