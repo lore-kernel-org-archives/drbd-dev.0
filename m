@@ -1,22 +1,37 @@
-Return-Path: <lists@alteeve.ca>
-Received: from vm08-mail01.alteeve.ca (mail.alteeve.ca [65.39.153.71])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <roland.kammerer@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1A484100EC11
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 08:34:39 +0200 (CEST)
-Received: from lemass.alteeve.ca (dhcp-108-168-17-164.cable.user.start.ca
-	[108.168.17.164])
-	by vm08-mail01.alteeve.ca (Postfix) with ESMTPSA id 9324920281
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 02:34:34 -0400 (EDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 31FA710556A0
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 10:21:08 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 263DE46E74F
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 10:21:08 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id lILaLE_B4Evz for <drbd-dev@lists.linbit.com>;
+	Wed,  9 Sep 2015 10:21:08 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 089C746E75F
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 10:21:08 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id B1u9jp27YpXU for <drbd-dev@lists.linbit.com>;
+	Wed,  9 Sep 2015 10:21:07 +0200 (CEST)
+Received: from localhost (chello213047144126.1.15.vie.surfer.at
+	[213.47.144.126])
+	by zimbra13.linbit.com (Postfix) with ESMTPSA id C127846E74F
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Sep 2015 10:21:07 +0200 (CEST)
+Date: Wed, 9 Sep 2015 10:21:07 +0200
+From: Roland Kammerer <roland.kammerer@linbit.com>
 To: drbd-dev@lists.linbit.com
+Message-ID: <20150909082106.GB1313@rck.sh>
 References: <55EF7BEA.5060409@alteeve.ca>
-From: Digimer <lists@alteeve.ca>
-Message-ID: <55EFD2FD.6010500@alteeve.ca>
-Date: Wed, 9 Sep 2015 02:34:37 -0400
+ <55EFD2FD.6010500@alteeve.ca>
 MIME-Version: 1.0
-In-Reply-To: <55EF7BEA.5060409@alteeve.ca>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55EFD2FD.6010500@alteeve.ca>
 Subject: Re: [Drbd-dev] rhcs_fence
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -29,16 +44,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 08/09/15 08:23 PM, Digimer wrote:
-> Is rhcs_fence not shipped with drbd 8.4?
+On Wed, Sep 09, 2015 at 02:34:37AM -0400, Digimer wrote:
+> On 08/09/15 08:23 PM, Digimer wrote:
+> > Is rhcs_fence not shipped with drbd 8.4?
+> 
+> If not (it appears not), and if there is interest in adding it, I've
+> moved it's development into the main striker repo:
+> 
+> https://github.com/digimer/striker/blob/master/tools/rhcs_fence
+> 
 
-If not (it appears not), and if there is interest in adding it, I've
-moved it's development into the main striker repo:
+Mind the repo-split... There is one in drbd-utils/scripts
 
-https://github.com/digimer/striker/blob/master/tools/rhcs_fence
+Thank you for the hint.
 
--- 
-Digimer
-Papers and Projects: https://alteeve.ca/w/
-What if the cure for cancer is trapped in the mind of a person without
-access to education?
+Regards, rck
