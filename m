@@ -1,19 +1,36 @@
-Return-Path: <Bart.VanAssche@sandisk.com>
-Received: from na01-bl2-obe.outbound.protection.outlook.com
-	(mail-bl2on0068.outbound.protection.outlook.com [65.55.169.68])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 227331055731
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Sep 2015 19:43:25 +0200 (CEST)
-To: <drbd-dev@lists.linbit.com>
-From: Bart Van Assche <bart.vanassche@sandisk.com>
-Message-ID: <55F1BD96.7010507@sandisk.com>
-Date: Thu, 10 Sep 2015 10:27:50 -0700
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id EF16C10518BD
+	for <drbd-dev@lists.linbit.com>; Fri, 11 Sep 2015 14:44:33 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id DCCA52BE86B
+	for <drbd-dev@lists.linbit.com>; Fri, 11 Sep 2015 14:44:33 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id Th542TOhpel0 for <drbd-dev@lists.linbit.com>;
+	Fri, 11 Sep 2015 14:44:33 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id BDE352BE872
+	for <drbd-dev@lists.linbit.com>; Fri, 11 Sep 2015 14:44:33 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id JfM7AZszyxLt for <drbd-dev@lists.linbit.com>;
+	Fri, 11 Sep 2015 14:44:33 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 9B4C42BE86B
+	for <drbd-dev@lists.linbit.com>; Fri, 11 Sep 2015 14:44:33 +0200 (CEST)
+Date: Fri, 11 Sep 2015 14:44:33 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20150911124433.GM3436@soda.linbit>
+References: <55F1BECF.1000409@sandisk.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] [PATCH] drbd-utils: Add support for building without
-	manuals
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55F1BECF.1000409@sandisk.com>
+Subject: Re: [Drbd-dev] [PATCH] drbd-km.spec: Port to openSuSE
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,128 +42,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-When building DRBD for installation on e.g. an appliance no manuals
-are needed. Hence add an option to the spec file to build the
-drbd-utils RPM without manuals.
+On Thu, Sep 10, 2015 at 10:33:03AM -0700, Bart Van Assche wrote:
+> Currently building an RPM with the drbd-km.spec fails on openSuSE
+> because of an incorrect build dependency (kernel-syms instead of
+> kernel-default-devel). Fix the algorithm in the spec file for
+> determining the kernel development RPM name. Note: if the kernel
+> development headers have not been installed as an RPM the
+> %{kernel_devel_rpm} variable will be empty.
+> 
+> This patch has been tested on openSuSE 13.2, CentOS 7.1 and SLES11 SP3.
 
-Signed-off-by: Bart Van Assche <bart.vanassche@sandisk.com>
----
- Makefile.in  | 13 +++++++++----
- drbd.spec.in | 19 ++++++++++++++++++-
- 2 files changed, 27 insertions(+), 5 deletions(-)
+You are not supposed to build a "drbd-km" from "drbd-km.spec",
+you are supposed to build a kmod-drbd (resp. drbd-kmp) from "drbd-kernel.spec",
+using the kernel module build "magic" of the respective ditribution.
+(not "make km-rpm", but "make kmp-rpm")
 
-diff --git a/Makefile.in b/Makefile.in
-index 5365a2c..b80ac52 100644
---- a/Makefile.in
-+++ b/Makefile.in
-@@ -45,7 +45,9 @@ WITH_84_SUPPORT = @WITH_84_SUPPORT@
- # and not in e.g. dash. I'm too lazy to fix it to be compatible.
- SHELL=/bin/bash
- 
--SUBDIRS     = user/shared user/v9 user/v84 user/v83 scripts documentation/v83 documentation/v84 documentation/v9
-+TOOLS_DIRS  = user/shared user/v9 user/v84 user/v83 scripts
-+DOC_DIRS    = documentation/v83 documentation/v84 documentation/v9
-+SUBDIRS     = $(TOOLS_DIRS) $(DOC_DIRS)
- 
- REL_VERSION := $(shell $(SED) -ne '/^AC_INIT/{s/^[^,]*, *\([^,]*\) *,.*/\1/;p;q}' configure.ac)
- ifdef FORCE
-@@ -69,7 +71,7 @@ all: check-submods configure tools
- 
- .PHONY: all tools doc
- tools:
--	@ set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
-+	@ set -e; for i in $(TOOLS_DIRS); do $(MAKE) -C $$i ; done
- 	@ echo -e "\n\tUserland tools build was successful."
- 
- doc:
-@@ -105,10 +107,13 @@ ifeq ($(WITH_84_SUPPORT),yes)
- 	$(MAKE) -C documentation/v84 doc-clean
- endif
- 
--install: install-tools
-+install: install-tools install-doc
- 
- install-tools:
--	@ set -e; for i in $(patsubst drbd,,$(SUBDIRS)); do $(MAKE) -C $$i install; done
-+	@ set -e; for i in $(patsubst drbd,,$(TOOLS_DIRS)); do $(MAKE) -C $$i install; done
-+
-+install-doc:
-+	@ set -e; for i in $(patsubst drbd,,$(DOC_DIRS)); do $(MAKE) -C $$i install; done
- 
- .NOTPARALLEL clean:
- 	@ set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i clean; done
-diff --git a/drbd.spec.in b/drbd.spec.in
-index 0271640..300698a 100644
---- a/drbd.spec.in
-+++ b/drbd.spec.in
-@@ -23,6 +23,7 @@
- # Conditionals
- # Invoke "rpmbuild --without <feature>" or "rpmbuild --with <feature>"
- # to disable or enable specific features
-+%bcond_without manual
- %bcond_without udev
- %bcond_without pacemaker
- %bcond_with rgmanager
-@@ -181,11 +182,14 @@ This packages includes the DRBD administration tools.
- %config(noreplace) %{_sysconfdir}/drbd.conf
- %dir %{_sysconfdir}/drbd.d
- %config(noreplace) %{_sysconfdir}/drbd.d/global_common.conf
-+%if %{without manual}
-+%else
- %{_mandir}/man8/drbd-*
- %{_mandir}/man8/drbdsetup-*
- %{_mandir}/man8/drbdadm-*
- %{_mandir}/man5/drbd.conf-*
- %{_mandir}/man8/drbdmeta-*
-+%endif
- %doc scripts/drbd.conf.example
- %doc COPYING
- %doc ChangeLog
-@@ -310,7 +314,10 @@ resource manager (in v1 compatibility mode).
- %{_sysconfdir}/ha.d/resource.d/drbdupper
- 
- %defattr(-,root,root,-)
-+%if %{without manual}
-+%else
- %{_mandir}/man8/drbddisk-*
-+%endif
- %endif # with heartbeat
- 
- %if %{with bashcompletion}
-@@ -352,11 +359,18 @@ autoconf
-     %{?_tmpfilesdir:--with-tmpfilesdir=%{_tmpfilesdir}} \
-     --with-initscripttype=%{initscripttype}
- make %{?_smp_mflags}
-+%if %{without manual}
-+%else
- make doc
-+%endif
- 
- %install
- rm -rf %{buildroot}
--make install DESTDIR=%{buildroot} CREATE_MAN_LINK=no
-+make install-tools DESTDIR=%{buildroot} CREATE_MAN_LINK=no
-+%if %{without manual}
-+%else
-+make install-doc DESTDIR=%{buildroot} CREATE_MAN_LINK=no
-+%endif
- 
- %if %{with sbinsymlinks}
- # Don't do this if you are already on a /sbin -=> /usr/sbin distro
-@@ -380,10 +394,13 @@ rm -rf %{buildroot}
- %else
- chkconfig --add drbd
- %endif
-+%if %{without manual}
-+%else
- for f in drbd drbdadm drbdmeta drbdsetup; do
-     ln -sf $f-8.4.8.gz %{_mandir}/man8/$f.8.gz
- done
- ln -sf drbd.conf-8.4.5.gz %{_mandir}/man5/drbd.conf.5.gz
-+%endif
- %if %{without udev}
- for i in `seq 0 15` ; do
-     test -b /dev/drbd$i || mknod -m 0660 /dev/drbd$i b 147 $i;
--- 
-2.1.4
+But thanks ;-)
+
+	Lars
 
