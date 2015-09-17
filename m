@@ -1,16 +1,36 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Date: Thu, 17 Sep 2015 15:47:25 +0200
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6F73F10518BE
+	for <drbd-dev@lists.linbit.com>; Thu, 17 Sep 2015 15:48:54 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 63509465BBC
+	for <drbd-dev@lists.linbit.com>; Thu, 17 Sep 2015 15:48:54 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id Kb0_MZZq5KKn for <drbd-dev@lists.linbit.com>;
+	Thu, 17 Sep 2015 15:48:54 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id D1F0E465BD2
+	for <drbd-dev@lists.linbit.com>; Thu, 17 Sep 2015 15:48:53 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id BL_siMABhV2a for <drbd-dev@lists.linbit.com>;
+	Thu, 17 Sep 2015 15:48:53 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id AE9DA465BBC
+	for <drbd-dev@lists.linbit.com>; Thu, 17 Sep 2015 15:48:53 +0200 (CEST)
+Date: Thu, 17 Sep 2015 15:48:53 +0200
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com, drbd-user@lists.linbit.com
-Message-ID: <20150917134725.GF7519@soda.linbit>
-References: <1442146532-9100-1-git-send-email-Julia.Lawall@lip6.fr>
-	<1442146532-9100-22-git-send-email-Julia.Lawall@lip6.fr>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20150917134853.GG7519@soda.linbit>
+References: <1442486932.25039.41.camel@vaduz.fondsnet.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1442146532-9100-22-git-send-email-Julia.Lawall@lip6.fr>
-Subject: Re: [Drbd-dev] [PATCH 21/39] drbd: drop null test before destroy
- functions
+In-Reply-To: <1442486932.25039.41.camel@vaduz.fondsnet.de>
+Subject: Re: [Drbd-dev] Bug in DRBD 8.4 potentially leading to data loss
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,28 +42,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Sep 13, 2015 at 02:15:14PM +0200, Julia Lawall wrote:
-> Remove unneeded NULL test.
-> 
-> The semantic patch that makes this change is as follows:
-> (http://coccinelle.lip6.fr/)
-> 
-> // <smpl>
-> @@ expression x; @@
-> -if (x != NULL)
->   \(kmem_cache_destroy\|mempool_destroy\|dma_pool_destroy\)(x);
-> // </smpl>
+On Thu, Sep 17, 2015 at 12:48:52PM +0200, Veit Wahlich wrote:
 
-Thanks.
+> -	char mb[12];
+> +	char mb[14];
 
-Just a note for our external module repo, which is supposed to be
-compatible to "all" kernel versions: don't apply,
-requires upstream commits
-44d7175 mm/dmapool: allow NULL `pool' pointer in dma_pool_destroy()
-4e3ca3e mm/mempool: allow NULL `pool' pointer in mempool_destroy()
-3942d29 mm/slab_common: allow NULL cache pointer in kmem_cache_destroy()
-(v4.3-rc1)
+> -	snprintf(mb, 12, "minor-%d", device_to_minor(device));
+> +	snprintf(mb, 14, "minor-%d", device_to_minor(device));
 
+Thanks for spotting, applied.
 
-	Lars Ellenberg
+	Lars
 
