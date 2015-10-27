@@ -1,21 +1,18 @@
-Return-Path: <nwang@suse.com>
-Received: from relay2.provo.novell.com (relay2.provo.novell.com
-	[137.65.250.214])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <tpoluri@mvista.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com
+	[209.85.212.173]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6F28510003FC
-	for <drbd-dev@lists.linbit.com>; Mon, 19 Oct 2015 02:00:24 +0200 (CEST)
-Message-Id: <5624CD4302000070000537A6@relay2.provo.novell.com>
-Date: Sun, 18 Oct 2015 18:00:19 -0600
-From: "Nick Wang" <nwang@suse.com>
-To: <lars.ellenberg@linbit.com>,<drbd-dev@lists.linbit.com>
-References: <1444983195-12439-1-git-send-email-nwang@suse.com>
-	<20151016113152.GS32439@soda.linbit>
-In-Reply-To: <20151016113152.GS32439@soda.linbit>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="=__PartAB9CD483.2__="
-Subject: [Drbd-dev] =?utf-8?b?562U5aSN77yaIFJlOiAgW1BBVENIXSBmaXggZmFpbHVy?=
- =?utf-8?q?e_with_new_bi=5Ferror_field_of_bio?=
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 717D110556D9
+	for <drbd-dev@lists.linbit.com>; Tue, 27 Oct 2015 07:18:34 +0100 (CET)
+Received: by wicll6 with SMTP id ll6so144200612wic.0
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Oct 2015 23:18:33 -0700 (PDT)
+MIME-Version: 1.0
+Date: Tue, 27 Oct 2015 11:40:34 +0530
+Message-ID: <CAM8gD7Xvm3=UU=M0nZcdL-ByJ4noJbxJqMe0D1=rG2=TQ_SSbA@mail.gmail.com>
+From: Tejaswini Poluri <tpoluri@mvista.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative; boundary=bcaec53f2feb90079305230fefe1
+Subject: [Drbd-dev] Understanding barriers in DRBD
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,67 +24,53 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a MIME message. If you are reading this text, you may want to 
-consider changing to a mail reader or gateway that understands how to 
-properly handle MIME multipart messages.
-
---=__PartAB9CD483.2__=
-Content-Type: multipart/alternative; boundary="=__PartAB9CD483.3__="
-
---=__PartAB9CD483.3__=
+--bcaec53f2feb90079305230fefe1
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 
-Hi Lars,
+Hii all,
 
-> >>> Lars Ellenberg <lars.ellenberg@linbit.com> 2015-10-16 下午 19:32 >>>
-> On Fri, Oct 16, 2015 at 04:13:15PM +0800, Nick Wang wrote:
-> > drbd fail to build with new bio structure and interface
-> > after 4.3.0, see 4246a0b63bd8f56a1469b12eafeb875b1041a451
-> 
-> Yes.
-> *out-of-tree* drbd, as is in public git right now, that is.
-  Does the *out-of-tree* drbd also need to be updated? Since the "in-tree" 
-drbd only need to take care the current kernel, the one "out-of-tree" 
-should work with different kernel version with conditions.
+I have been trying to solve an issue on DRBD-8.3 branch since a month and
+could not yet find a solution.  We have a iscsid secondary disk and a
+primary drbd mounted disk using protocol B and are in sync.  During writing
+in the primary when the network of the iscsi disk of secondary is down, the
+request timer function is supposed to be triggered within ko-count time and
+the primary should change the connection state to Timeout and then to
+Network Failure state. This is happening in Protocol C and not is not
+working in Protocol B.
 
-> > CC: linux-kernel@vger.kernel.org
-> 
-> No reason to CC linux-kernel, they won't care for out-of-tree drivers.
-> And the in-tree ones are adjusted to new infrastructure on-the-go,
-> whenever infrastructure changes. So that's all been done already.
+During debugging, we came to stage where  even after the iscsi disk is in
+blocked state the Primary sends *w_send_barrier* continuously even though
+there is no *BarrierAck.*
 
-Got it.
-
-Best regards,
-Nick
+I would like to understand the implementation of barriers and barrier acks
+of DRBD in more detail. I think there could be some synchronization problem
+of barriers for every epoch. It would be great if someone could share me
+some pointers about barrier acks,
 
 
---=__PartAB9CD483.3__=
+Regards,
+Tejaswini
+
+--bcaec53f2feb90079305230fefe1
 Content-Type: text/html; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
-Content-Description: HTML
 
-<html><head><meta http-equiv=3DContent-Type content=3D"text/html; =
-charset=3Dutf-8"><META name=3D"Author" content=3D"Novell GroupWise =
-WebAccess"><style type=3D"text/css"> =0Abody p =0A{ =0A	margin: 0px; =
-=0A}=0A</style></head><body style=3D'font-family: Helvetica, Arial, =
-sans-serif; font-size: 13px; '>Hi Lars,<br><br>&gt; &gt;&gt;&gt; Lars&nbsp;=
-Ellenberg&nbsp;&lt;lars.ellenberg@linbit.com&gt; 2015-10-16 =E4=B8=8B=E5=8D=
-=88 19:32 &gt;&gt;&gt;<br>&gt; On Fri, Oct 16, 2015 at 04:13:15PM +0800, =
-Nick Wang wrote:<br>&gt; &gt; drbd fail to build with new bio structure =
-and interface<br>&gt; &gt; after 4.3.0, see 4246a0b63bd8f56a1469b12eafeb875=
-b1041a451<br>&gt; <br>&gt; Yes.<br>&gt; *out-of-tree* drbd, as is in =
-public git right now, that is.<br>&nbsp; Does the *out-of-tree* drbd also =
-need to be updated? Since the "in-tree" <br>drbd only need to take care =
-the current kernel, the one "out-of-tree" <br>should work with different =
-kernel version with conditions.<br><br>&gt; &gt; CC: linux-kernel@vger.kern=
-el.org<br>&gt; <br>&gt; No reason to CC linux-kernel, they won't care for =
-out-of-tree drivers.<br>&gt; And the in-tree ones are adjusted to new =
-infrastructure on-the-go,<br>&gt; whenever infrastructure changes. So =
-that's all been done already.<br><br>Got it.<br><br>Best regards,<br>Nick<b=
-r></body></html>
+<div dir=3D"ltr">Hii all,=C2=A0<div><br></div><div>I have been trying to so=
+lve an issue on DRBD-8.3 branch since a month and could not yet find a solu=
+tion.=C2=A0 We have a iscsid secondary disk and a primary drbd mounted disk=
+ using protocol B and are in sync.=C2=A0 During writing in the primary when=
+ the network of the iscsi disk of secondary is down, the request timer func=
+tion is supposed to be triggered within ko-count time and the primary shoul=
+d change the connection state to Timeout and then to Network Failure state.=
+ This is happening in Protocol C and not is not working in Protocol B.=C2=
+=A0</div><div><br></div><div>During debugging, we came to stage where=C2=A0=
+=C2=A0even after the iscsi disk is in blocked state the Primary sends <b>w_=
+send_barrier</b> continuously even though there is no <b>BarrierAck.</b></d=
+iv><div><br></div><div>I would like to understand the implementation of bar=
+riers and barrier acks of DRBD in more detail. I think there could be some =
+synchronization problem of barriers for every epoch. It would be great if s=
+omeone could share me some pointers about barrier acks,</div><div><br></div=
+><div><br></div><div>Regards,</div><div>Tejaswini</div><div><br></div><div>=
+<br></div></div>
 
---=__PartAB9CD483.3__=--
-
---=__PartAB9CD483.2__=--
+--bcaec53f2feb90079305230fefe1--
