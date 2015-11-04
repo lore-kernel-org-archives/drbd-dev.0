@@ -1,22 +1,40 @@
-Return-Path: <roland.kammerer@linbit.com>
+Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id CA139100EC11
-	for <drbd-dev@lists.linbit.com>; Wed, 28 Oct 2015 10:17:32 +0100 (CET)
-Date: Wed, 28 Oct 2015 10:17:31 +0100
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: punit vara <punitvara@gmail.com>, drbd-dev@lists.linbit.com
-Message-ID: <20151028091731.GK1947@rck.sh>
-References: <1445798917-18876-1-git-send-email-punitvara@gmail.com>
-	<1445798917-18876-2-git-send-email-punitvara@gmail.com>
-	<CABXAfNL=WkXT8m-hcay9Mii+GePugKf=OQyqUdsdLGKf489=PA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CABXAfNL=WkXT8m-hcay9Mii+GePugKf=OQyqUdsdLGKf489=PA@mail.gmail.com>
-Subject: Re: [Drbd-dev] [DRBD-user] [PATCH 1/6] block: Remove unneeded
- variable err for returning 0
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0AF041056192
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:34 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id F1CB52A24E3
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:33 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id apAC4cWRxSAD for <drbd-dev@lists.linbit.com>;
+	Wed,  4 Nov 2015 18:09:33 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id B3B4E2A253E
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:33 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id VroR12vYq-jv for <drbd-dev@lists.linbit.com>;
+	Wed,  4 Nov 2015 18:09:33 +0100 (CET)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 885C02A24E3
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:33 +0100 (CET)
+Resent-Message-ID: <20151104170933.GN14472@soda.linbit>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 10CD210518AB
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 17:33:33 +0100 (CET)
+From: mchristi@redhat.com
+To: linux-fsdevel@vger.kernel.org, dm-devel@redhat.com,
+	linux-raid@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
+Date: Wed,  4 Nov 2015 10:32:55 -0600
+Message-Id: <1446654807-6935-1-git-send-email-mchristi@redhat.com>
+Subject: [Drbd-dev] [RFC PATCH 00/32] separate operations from flags in the
+	bio/request structs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,57 +46,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 28, 2015 at 12:41:28AM +0530, punit vara wrote:
-> On Mon, Oct 26, 2015 at 12:18 AM, Punit Vara <punitvara@gmail.com> wrote:
-> > This patch is to the mg_disk.c file that removes unnecessary err
-> > and fixes  following warning reported by coccicheck:
-> >
-> > Unneeded variable: "err". Return "0" on line 1077
-> >
-> > Signed-off-by: Punit Vara <punitvara@gmail.com>
-> > ---
-> >  drivers/block/mg_disk.c | 3 +--
-> >  1 file changed, 1 insertion(+), 2 deletions(-)
-> >
-> > diff --git a/drivers/block/mg_disk.c b/drivers/block/mg_disk.c
-> > index 145ce2a..d6f3feb 100644
-> > --- a/drivers/block/mg_disk.c
-> > +++ b/drivers/block/mg_disk.c
-> > @@ -1038,7 +1038,6 @@ static int mg_remove(struct platform_device *plat_dev)
-> >  {
-> >         struct mg_drv_data *prv_data = plat_dev->dev.platform_data;
-> >         struct mg_host *host = prv_data->host;
-> > -       int err = 0;
-> >
-> >         /* delete timer */
-> >         del_timer_sync(&host->timer);
-> > @@ -1074,7 +1073,7 @@ static int mg_remove(struct platform_device *plat_dev)
-> >         /* free mg_host */
-> >         kfree(host);
-> >
-> > -       return err;
-> > +       return 0;
-> >  }
-> >
-> >  static struct platform_driver mg_disk_driver = {
-> > --
-> > 2.5.3
-> >
-> Anybody going to review this patches please and I dont know who is
-> maintainer for all these patches
+There are a couple new block layer commands we are trying to add support
+for in the near term:
 
-Hi,
+compare and write
+http://www.spinics.net/lists/target-devel/msg07826.html
 
-hm, so if it always returns the same value, why not make the function
-"void" and change the call sites? The compiler optimizes it anyways,
-this does not save anything.
+copy offload/extended copy/xcopy
+https://www.redhat.com/archives/dm-devel/2014-July/msg00070.html
 
-Like the rest of your patch set, it does not really improve anything.
-These style/whitespace fixes will happen anyways when someone is
-actually working on the _code_...
+The problem is if we contine to add more commands we will have to one day
+extend the cmd_flags/bi_rw fields again. To prevent that, this patchset
+separates the operation (REQ_WRITE, REQ_DISCARD, REQ_WRITE_SAME, etc) from
+the flags (REQ_SYNC, REQ_QUIET, etc) in the bio and request structs. In the
+end of this set, we will have two fields bio->bi_op/request->op and
+bio->bi_rw/request->cmd_flags.
 
-So thank you for your input, valid points, but as long as there is a
-single item on my todo-list, I - again highly personal view - don't care
-about whitespace patches.
+The patches were made against Jens's linux-block tree's for-linus branch:
+https://git.kernel.org/cgit/linux/kernel/git/axboe/linux-block.git/log/?h=for-linus
+(last commit a22c4d7e34402ccdf3414f64c50365436eba7b93).
 
-Regards, rck
+I have done some basic testing for a lot of the drivers and filesystems,
+but I wanted to get comments before trying to track down more hardware/
+systems for testing.
+
+
+Known issues:
+- REQ_FLUSH is still a flag, but should probably be a operation.
+ For lower level drivers like SCSI where we only get a flush, it makes
+more sense to be a operation. However, upper layers like filesystems
+can send down flushes with writes, so it is more of a flag for them.
+I am still working on this.
+
+- There is a regression with the dm flakey target. It currently
+cannot corrupt the operation values.
+
+- The patchset is a little awkward. It touches so much code,
+but I wanted to maintain git bisectibility, so there is lots of compat code
+left around until the last patches where everyting is cleaned up.
+
+
