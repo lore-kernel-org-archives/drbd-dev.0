@@ -2,39 +2,41 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0AF041056192
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:34 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id EBCC51056199
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:38 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id F1CB52A24E3
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:33 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id CEEC12A24E3
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:38 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id apAC4cWRxSAD for <drbd-dev@lists.linbit.com>;
-	Wed,  4 Nov 2015 18:09:33 +0100 (CET)
+	with ESMTP id UpYuEQ8xn5cN for <drbd-dev@lists.linbit.com>;
+	Wed,  4 Nov 2015 18:09:38 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B3B4E2A253E
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:33 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id B09F92A2BCB
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:38 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id VroR12vYq-jv for <drbd-dev@lists.linbit.com>;
-	Wed,  4 Nov 2015 18:09:33 +0100 (CET)
+	with ESMTP id J_6Wpgo9Anu8 for <drbd-dev@lists.linbit.com>;
+	Wed,  4 Nov 2015 18:09:38 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 885C02A24E3
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:33 +0100 (CET)
-Resent-Message-ID: <20151104170933.GN14472@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 6FBDA2A24E3
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:38 +0100 (CET)
+Resent-Message-ID: <20151104170938.GO14472@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 10CD210518AB
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 17:33:33 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8166E1055F58
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 17:33:34 +0100 (CET)
 From: mchristi@redhat.com
 To: linux-fsdevel@vger.kernel.org, dm-devel@redhat.com,
 	linux-raid@vger.kernel.org, linux-kernel@vger.kernel.org,
 	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Date: Wed,  4 Nov 2015 10:32:55 -0600
-Message-Id: <1446654807-6935-1-git-send-email-mchristi@redhat.com>
-Subject: [Drbd-dev] [RFC PATCH 00/32] separate operations from flags in the
-	bio/request structs
+Date: Wed,  4 Nov 2015 10:32:56 -0600
+Message-Id: <1446654807-6935-2-git-send-email-mchristi@redhat.com>
+In-Reply-To: <1446654807-6935-1-git-send-email-mchristi@redhat.com>
+References: <1446654807-6935-1-git-send-email-mchristi@redhat.com>
+Cc: Mike Christie <mchristi@redhat.com>
+Subject: [Drbd-dev] [PATCH 01/32] block/fs: add REQ_OP definitions.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,43 +48,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-There are a couple new block layer commands we are trying to add support
-for in the near term:
+From: Mike Christie <mchristi@redhat.com>
 
-compare and write
-http://www.spinics.net/lists/target-devel/msg07826.html
+This patch adds definitions for request/bio operations which
+will be used in the next patches.
 
-copy offload/extended copy/xcopy
-https://www.redhat.com/archives/dm-devel/2014-July/msg00070.html
+In the initial patches the REQ_OPs match the REQ ones for compat reasons
+while all the code is converted in this set. In the last patches
+that will be removed.
 
-The problem is if we contine to add more commands we will have to one day
-extend the cmd_flags/bi_rw fields again. To prevent that, this patchset
-separates the operation (REQ_WRITE, REQ_DISCARD, REQ_WRITE_SAME, etc) from
-the flags (REQ_SYNC, REQ_QUIET, etc) in the bio and request structs. In the
-end of this set, we will have two fields bio->bi_op/request->op and
-bio->bi_rw/request->cmd_flags.
+Signed-off-by: Mike Christie <mchristi@redhat.com>
+---
+ include/linux/blk_types.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-The patches were made against Jens's linux-block tree's for-linus branch:
-https://git.kernel.org/cgit/linux/kernel/git/axboe/linux-block.git/log/?h=for-linus
-(last commit a22c4d7e34402ccdf3414f64c50365436eba7b93).
-
-I have done some basic testing for a lot of the drivers and filesystems,
-but I wanted to get comments before trying to track down more hardware/
-systems for testing.
-
-
-Known issues:
-- REQ_FLUSH is still a flag, but should probably be a operation.
- For lower level drivers like SCSI where we only get a flush, it makes
-more sense to be a operation. However, upper layers like filesystems
-can send down flushes with writes, so it is more of a flag for them.
-I am still working on this.
-
-- There is a regression with the dm flakey target. It currently
-cannot corrupt the operation values.
-
-- The patchset is a little awkward. It touches so much code,
-but I wanted to maintain git bisectibility, so there is lots of compat code
-left around until the last patches where everyting is cleaned up.
-
+diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+index e813013..d7b6009 100644
+--- a/include/linux/blk_types.h
++++ b/include/linux/blk_types.h
+@@ -244,4 +244,11 @@ enum rq_flag_bits {
+ #define REQ_MQ_INFLIGHT		(1ULL << __REQ_MQ_INFLIGHT)
+ #define REQ_NO_TIMEOUT		(1ULL << __REQ_NO_TIMEOUT)
+ 
++enum req_op {
++	REQ_OP_READ,
++	REQ_OP_WRITE		= REQ_WRITE,
++	REQ_OP_DISCARD		= REQ_DISCARD,
++	REQ_OP_WRITE_SAME	= REQ_WRITE_SAME,
++};
++
+ #endif /* __LINUX_BLK_TYPES_H */
+-- 
+1.8.3.1
 
