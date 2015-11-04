@@ -2,41 +2,41 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 634D010561A3
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:44 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 35C4010561A4
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:45 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 5EF5C2A24E3
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:44 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 28E5E2A24E3
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:45 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 5vtNDUarAfUc for <drbd-dev@lists.linbit.com>;
-	Wed,  4 Nov 2015 18:09:44 +0100 (CET)
+	with ESMTP id 8Awscstw_vDr for <drbd-dev@lists.linbit.com>;
+	Wed,  4 Nov 2015 18:09:45 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 415EF2A2BCB
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:44 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 093922A2BCB
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:45 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id B0Y4XGx2bT4x for <drbd-dev@lists.linbit.com>;
+	with ESMTP id En4mQwhOPeFR for <drbd-dev@lists.linbit.com>;
 	Wed,  4 Nov 2015 18:09:44 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 145222A24E3
+	by zimbra13.linbit.com (Postfix) with ESMTPS id CACA82A24E3
 	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 18:09:44 +0100 (CET)
-Resent-Message-ID: <20151104170943.GS14472@soda.linbit>
+Resent-Message-ID: <20151104170944.GT14472@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id CEDD51056180
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 17:33:39 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 464A41056187
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 17:33:41 +0100 (CET)
 From: mchristi@redhat.com
 To: linux-fsdevel@vger.kernel.org, dm-devel@redhat.com,
 	linux-raid@vger.kernel.org, linux-kernel@vger.kernel.org,
 	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Date: Wed,  4 Nov 2015 10:33:00 -0600
-Message-Id: <1446654807-6935-6-git-send-email-mchristi@redhat.com>
+Date: Wed,  4 Nov 2015 10:33:01 -0600
+Message-Id: <1446654807-6935-7-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1446654807-6935-1-git-send-email-mchristi@redhat.com>
 References: <1446654807-6935-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 05/32] drbd: prepare drbd for bi_rw split
+Subject: [Drbd-dev] [PATCH 06/32] xen blkback: prepare for bi_rw split
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -50,7 +50,7 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-This patch prepares drbd's submit_bio use for the next
+This patch prepares xen blkback submit_bio use for the next
 patches that split bi_rw into a operation and flags field.
 Instead of passing in a bitmap with both the operation and
 flags mixed in, the callers will now pass them in seperately.
@@ -62,159 +62,98 @@ modify the actual submit_bio call, so the patches are bisectable.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 ---
- drivers/block/drbd/drbd_actlog.c | 30 ++++++++++++++++--------------
- drivers/block/drbd/drbd_bitmap.c |  4 ++--
- drivers/block/drbd/drbd_int.h    |  2 +-
- drivers/block/drbd/drbd_main.c   |  5 +++--
- 4 files changed, 22 insertions(+), 19 deletions(-)
+ drivers/block/xen-blkback/blkback.c | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index b3868e7..c290e8b 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -137,19 +137,19 @@ void wait_until_done_or_force_detached(struct drbd_device *device, struct drbd_b
+diff --git a/drivers/block/xen-blkback/blkback.c b/drivers/block/xen-blkback/blkback.c
+index 6a685ae..bfffab3 100644
+--- a/drivers/block/xen-blkback/blkback.c
++++ b/drivers/block/xen-blkback/blkback.c
+@@ -488,7 +488,7 @@ static int xen_vbd_translate(struct phys_req *req, struct xen_blkif *blkif,
+ 	struct xen_vbd *vbd = &blkif->vbd;
+ 	int rc = -EACCES;
  
- static int _drbd_md_sync_page_io(struct drbd_device *device,
- 				 struct drbd_backing_dev *bdev,
--				 sector_t sector, int rw)
-+				 sector_t sector, int op)
- {
- 	struct bio *bio;
- 	/* we do all our meta data IO in aligned 4k blocks. */
- 	const int size = 4096;
--	int err;
-+	int err, op_flags = 0;
- 
- 	device->md_io.done = 0;
- 	device->md_io.error = -ENODEV;
- 
--	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &device->flags))
--		rw |= REQ_FUA | REQ_FLUSH;
--	rw |= REQ_SYNC | REQ_NOIDLE;
-+	if ((op == REQ_OP_WRITE) && !test_bit(MD_NO_FUA, &device->flags))
-+		op_flags |= REQ_FUA | REQ_FLUSH;
-+	op_flags |= REQ_SYNC | REQ_NOIDLE;
- 
- 	bio = bio_alloc_drbd(GFP_NOIO);
- 	bio->bi_bdev = bdev->md_bdev;
-@@ -159,9 +159,9 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
+-	if ((operation != READ) && vbd->readonly)
++	if ((operation != REQ_OP_READ) && vbd->readonly)
  		goto out;
- 	bio->bi_private = device;
- 	bio->bi_end_io = drbd_md_endio;
--	bio->bi_rw = rw;
-+	bio->bi_rw = op | op_flags;
  
--	if (!(rw & WRITE) && device->state.disk == D_DISKLESS && device->ldev == NULL)
-+	if (op != REQ_OP_WRITE && device->state.disk == D_DISKLESS && device->ldev == NULL)
- 		/* special case, drbd_md_read() during drbd_adm_attach(): no get_ldev */
- 		;
- 	else if (!get_ldev_if_state(device, D_ATTACHING)) {
-@@ -174,10 +174,10 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
- 	bio_get(bio); /* one bio_put() is in the completion handler */
- 	atomic_inc(&device->md_io.in_use); /* drbd_md_put_buffer() is in the completion handler */
- 	device->md_io.submit_jif = jiffies;
--	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
-+	if (drbd_insert_fault(device, (op == REQ_OP_WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
- 		bio_io_error(bio);
- 	else
--		submit_bio(rw, bio);
-+		submit_bio(op | op_flags, bio);
- 	wait_until_done_or_force_detached(device, bdev, &device->md_io.done);
- 	if (!bio->bi_error)
- 		err = device->md_io.error;
-@@ -188,7 +188,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
- }
+ 	if (likely(req->nr_sects)) {
+@@ -990,7 +990,7 @@ static int dispatch_discard_io(struct xen_blkif *blkif,
+ 	preq.sector_number = req->u.discard.sector_number;
+ 	preq.nr_sects      = req->u.discard.nr_sectors;
  
- int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bdev,
--			 sector_t sector, int rw)
-+			 sector_t sector, int op)
- {
- 	int err;
- 	D_ASSERT(device, atomic_read(&device->md_io.in_use) == 1);
-@@ -197,19 +197,21 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
- 
- 	dynamic_drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
- 	     current->comm, current->pid, __func__,
--	     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ",
-+	     (unsigned long long)sector, (op == REQ_OP_WRITE) ? "WRITE" : "READ",
- 	     (void*)_RET_IP_ );
- 
- 	if (sector < drbd_md_first_sector(bdev) ||
- 	    sector + 7 > drbd_md_last_sector(bdev))
- 		drbd_alert(device, "%s [%d]:%s(,%llus,%s) out of range md access!\n",
- 		     current->comm, current->pid, __func__,
--		     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
-+		     (unsigned long long)sector,
-+		     (op == REQ_OP_WRITE) ? "WRITE" : "READ");
- 
--	err = _drbd_md_sync_page_io(device, bdev, sector, rw);
-+	err = _drbd_md_sync_page_io(device, bdev, sector, op);
+-	err = xen_vbd_translate(&preq, blkif, WRITE);
++	err = xen_vbd_translate(&preq, blkif, REQ_OP_WRITE);
  	if (err) {
- 		drbd_err(device, "drbd_md_sync_page_io(,%llus,%s) failed with error %d\n",
--		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ", err);
-+		    (unsigned long long)sector,
-+		    (op == REQ_OP_WRITE) ? "WRITE" : "READ", err);
- 	}
- 	return err;
- }
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index e5e0f19..7ea1502 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -988,7 +988,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
- 	struct drbd_bitmap *b = device->bitmap;
- 	struct page *page;
- 	unsigned int len;
--	unsigned int rw = (ctx->flags & BM_AIO_READ) ? READ : WRITE;
-+	unsigned int rw = (ctx->flags & BM_AIO_READ) ? REQ_OP_READ : REQ_OP_WRITE;
+ 		pr_warn("access denied: DISCARD [%llu->%llu] on dev=%04x\n",
+ 			preq.sector_number,
+@@ -1203,6 +1203,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
+ 	struct bio **biolist = pending_req->biolist;
+ 	int i, nbio = 0;
+ 	int operation;
++	int operation_flags = 0;
+ 	struct blk_plug plug;
+ 	bool drain = false;
+ 	struct grant_page **pages = pending_req->segments;
+@@ -1220,17 +1221,19 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
+ 	switch (req_operation) {
+ 	case BLKIF_OP_READ:
+ 		blkif->st_rd_req++;
+-		operation = READ;
++		operation = REQ_OP_READ;
+ 		break;
+ 	case BLKIF_OP_WRITE:
+ 		blkif->st_wr_req++;
+-		operation = WRITE_ODIRECT;
++		operation = REQ_OP_WRITE;
++		operation_flags = WRITE_ODIRECT;
+ 		break;
+ 	case BLKIF_OP_WRITE_BARRIER:
+ 		drain = true;
+ 	case BLKIF_OP_FLUSH_DISKCACHE:
+ 		blkif->st_f_req++;
+-		operation = WRITE_FLUSH;
++		operation = REQ_OP_WRITE;
++		operation_flags = WRITE_FLUSH;
+ 		break;
+ 	default:
+ 		operation = 0; /* make gcc happy */
+@@ -1242,7 +1245,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
+ 	nseg = req->operation == BLKIF_OP_INDIRECT ?
+ 	       req->u.indirect.nr_segments : req->u.rw.nr_segments;
  
- 	sector_t on_disk_sector =
- 		device->ldev->md.md_offset + device->ldev->md.bm_offset;
-@@ -1020,7 +1020,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
- 	bio->bi_private = ctx;
- 	bio->bi_end_io = drbd_bm_endio;
+-	if (unlikely(nseg == 0 && operation != WRITE_FLUSH) ||
++	if (unlikely(nseg == 0 && operation_flags != WRITE_FLUSH) ||
+ 	    unlikely((req->operation != BLKIF_OP_INDIRECT) &&
+ 		     (nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) ||
+ 	    unlikely((req->operation == BLKIF_OP_INDIRECT) &&
+@@ -1349,7 +1352,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
  
--	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
-+	if (drbd_insert_fault(device, (rw == REQ_OP_WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
- 		bio->bi_rw |= rw;
- 		bio_io_error(bio);
- 	} else {
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 015c6e9..2934481 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1494,7 +1494,7 @@ extern int drbd_resync_finished(struct drbd_device *device);
- extern void *drbd_md_get_buffer(struct drbd_device *device, const char *intent);
- extern void drbd_md_put_buffer(struct drbd_device *device);
- extern int drbd_md_sync_page_io(struct drbd_device *device,
--		struct drbd_backing_dev *bdev, sector_t sector, int rw);
-+		struct drbd_backing_dev *bdev, sector_t sector, int op);
- extern void drbd_ov_out_of_sync_found(struct drbd_device *, sector_t, int);
- extern void wait_until_done_or_force_detached(struct drbd_device *device,
- 		struct drbd_backing_dev *bdev, unsigned int *done);
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 74d97f4..9eb8039 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -3080,7 +3080,7 @@ void drbd_md_write(struct drbd_device *device, void *b)
- 	D_ASSERT(device, drbd_md_ss(device->ldev) == device->ldev->md.md_offset);
- 	sector = device->ldev->md.md_offset;
+ 	/* This will be hit if the operation was a flush or discard. */
+ 	if (!bio) {
+-		BUG_ON(operation != WRITE_FLUSH);
++		BUG_ON(operation_flags != WRITE_FLUSH);
  
--	if (drbd_md_sync_page_io(device, device->ldev, sector, WRITE)) {
-+	if (drbd_md_sync_page_io(device, device->ldev, sector, REQ_OP_WRITE)) {
- 		/* this was a try anyways ... */
- 		drbd_err(device, "meta data update failed!\n");
- 		drbd_chk_io_error(device, 1, DRBD_META_IO_ERROR);
-@@ -3278,7 +3278,8 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
- 	bdev->md.meta_dev_idx = bdev->disk_conf->meta_dev_idx;
- 	bdev->md.md_offset = drbd_md_ss(bdev);
+ 		bio = bio_alloc(GFP_KERNEL, 0);
+ 		if (unlikely(bio == NULL))
+@@ -1365,14 +1368,14 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
+ 	blk_start_plug(&plug);
  
--	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset, READ)) {
-+	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset,
-+				 REQ_OP_READ)) {
- 		/* NOTE: can't do normal error processing here as this is
- 		   called BEFORE disk is attached */
- 		drbd_err(device, "Error while reading metadata.\n");
+ 	for (i = 0; i < nbio; i++)
+-		submit_bio(operation, biolist[i]);
++		submit_bio(operation | operation_flags, biolist[i]);
+ 
+ 	/* Let the I/Os go.. */
+ 	blk_finish_plug(&plug);
+ 
+-	if (operation == READ)
++	if (operation == REQ_OP_READ)
+ 		blkif->st_rd_sect += preq.nr_sects;
+-	else if (operation & WRITE)
++	else if (operation == REQ_OP_WRITE)
+ 		blkif->st_wr_sect += preq.nr_sects;
+ 
+ 	return 0;
 -- 
 1.8.3.1
 
