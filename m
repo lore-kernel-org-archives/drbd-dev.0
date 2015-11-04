@@ -1,24 +1,26 @@
 Return-Path: <Bart.VanAssche@sandisk.com>
-Received: from na01-bn1-obe.outbound.protection.outlook.com
-	(mail-bn1on0055.outbound.protection.outlook.com [157.56.110.55])
+Received: from na01-bl2-obe.outbound.protection.outlook.com
+	(mail-bl2on0079.outbound.protection.outlook.com [65.55.169.79])
 	(using TLSv1 with cipher AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BC5611056180
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 19:22:58 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B614D1056180
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Nov 2015 23:44:12 +0100 (CET)
 To: device-mapper development <dm-devel@redhat.com>,
 	<linux-fsdevel@vger.kernel.org>, <linux-raid@vger.kernel.org>,
 	<linux-kernel@vger.kernel.org>, <linux-scsi@vger.kernel.org>,
 	<drbd-dev@lists.linbit.com>
-References: <1446654807-6935-1-git-send-email-mchristi@redhat.com>
+References: <1446674909-5371-1-git-send-email-mchristi@redhat.com>
+	<1446674909-5371-20-git-send-email-mchristi@redhat.com>
 From: Bart Van Assche <bart.vanassche@sandisk.com>
-Message-ID: <563A36FC.6010001@sandisk.com>
-Date: Wed, 4 Nov 2015 08:49:00 -0800
+Message-ID: <563A8A33.3000002@sandisk.com>
+Date: Wed, 4 Nov 2015 14:44:03 -0800
 MIME-Version: 1.0
-In-Reply-To: <1446654807-6935-1-git-send-email-mchristi@redhat.com>
+In-Reply-To: <1446674909-5371-20-git-send-email-mchristi@redhat.com>
 Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] [dm-devel] [RFC PATCH 00/32] separate operations
- from flags in the bio/request structs
+Cc: Mike Christie <mchristi@redhat.com>
+Subject: Re: [Drbd-dev] [dm-devel] [PATCH 19/32] block: add helper to get
+ data dir from op
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,53 +32,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 11/04/2015 08:32 AM, mchristi@redhat.com wrote:
-> There are a couple new block layer commands we are trying to add support
-> for in the near term:
+On 11/04/2015 02:08 PM, mchristi@redhat.com wrote:
+> From: Mike Christie <mchristi@redhat.com>
 >
-> compare and write
-> http://www.spinics.net/lists/target-devel/msg07826.html
+> In later patches the op will no longer be a bitmap, so we will
+> not have REQ_WRITE set for all non reads like discard, flush,
+> and write same. Drivers will still want to treat them as writes
+> for accounting reasons, so this patch adds a helper to translate
+> a op to a data direction.
 >
-> copy offload/extended copy/xcopy
-> https://www.redhat.com/archives/dm-devel/2014-July/msg00070.html
+> Signed-off-by: Mike Christie <mchristi@redhat.com>
+> ---
+>   include/linux/blkdev.h | 12 ++++++++++++
+>   1 file changed, 12 insertions(+)
 >
-> The problem is if we contine to add more commands we will have to one day
-> extend the cmd_flags/bi_rw fields again. To prevent that, this patchset
-> separates the operation (REQ_WRITE, REQ_DISCARD, REQ_WRITE_SAME, etc) from
-> the flags (REQ_SYNC, REQ_QUIET, etc) in the bio and request structs. In the
-> end of this set, we will have two fields bio->bi_op/request->op and
-> bio->bi_rw/request->cmd_flags.
+> diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+> index 19c2e94..cf5f518 100644
+> --- a/include/linux/blkdev.h
+> +++ b/include/linux/blkdev.h
+> @@ -586,6 +586,18 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 >
-> The patches were made against Jens's linux-block tree's for-linus branch:
-> https://git.kernel.org/cgit/linux/kernel/git/axboe/linux-block.git/log/?h=for-linus
-> (last commit a22c4d7e34402ccdf3414f64c50365436eba7b93).
+>   #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 >
-> I have done some basic testing for a lot of the drivers and filesystems,
-> but I wanted to get comments before trying to track down more hardware/
-> systems for testing.
+> +/*
+> + * Non REQ_OP_WRITE requests like discard, write same, etc, are
+> + * considered WRITEs.
+> + */
+> +static inline int op_to_data_dir(int op)
+> +{
+> +	if (op == REQ_OP_READ)
+> +		return READ;
+> +	else
+> +		return WRITE;
+> +}
+> +
+>   #define rq_data_dir(rq)		((int)((rq)->cmd_flags & 1))
 >
+>   /*
 >
-> Known issues:
-> - REQ_FLUSH is still a flag, but should probably be a operation.
->   For lower level drivers like SCSI where we only get a flush, it makes
-> more sense to be a operation. However, upper layers like filesystems
-> can send down flushes with writes, so it is more of a flag for them.
-> I am still working on this.
->
-> - There is a regression with the dm flakey target. It currently
-> cannot corrupt the operation values.
->
-> - The patchset is a little awkward. It touches so much code,
-> but I wanted to maintain git bisectibility, so there is lots of compat code
-> left around until the last patches where everyting is cleaned up.
 
-Hello Mike,
-
-If you have to touch submit_bio() and submit_bio_wait(), how about 
-requiring the callers of these functions to set the cmd and flags 
-arguments in the bio structure and to leave out the cmd and flags 
-arguments from the submit_bio() and submit_bio_wait() functions ? A 
-(compile tested only) patch that implements this idea is available at 
-https://lkml.org/lkml/2014/6/2/173.
+How about introducing two functions - op_is_write() and op_is_read() ? I 
+think that approach will result in shorter and easier to read code in 
+the contexts where these functions are used.
 
 Bart.
