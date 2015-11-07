@@ -2,23 +2,24 @@ Return-Path: <BATV+5516fb9bc7e0e97e7aa6+4458+infradead.org+hch@bombadil.srs.infr
 Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
 	(using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5D01E1055F4A
-	for <drbd-dev@lists.linbit.com>; Sat,  7 Nov 2015 11:21:50 +0100 (CET)
-Date: Sat, 7 Nov 2015 02:21:47 -0800
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 90B791056192
+	for <drbd-dev@lists.linbit.com>; Sat,  7 Nov 2015 11:23:15 +0100 (CET)
+Date: Sat, 7 Nov 2015 02:23:09 -0800
 From: Christoph Hellwig <hch@infradead.org>
-To: mchristi@redhat.com
-Message-ID: <20151107102147.GD12117@infradead.org>
-References: <1446674909-5371-1-git-send-email-mchristi@redhat.com>
-	<1446674909-5371-33-git-send-email-mchristi@redhat.com>
+To: Mike Christie <michaelc@cs.wisc.edu>
+Message-ID: <20151107102309.GE12117@infradead.org>
+References: <1446654807-6935-1-git-send-email-mchristi@redhat.com>
+	<563A36FC.6010001@sandisk.com> <563A3813.5010604@cs.wisc.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1446674909-5371-33-git-send-email-mchristi@redhat.com>
+In-Reply-To: <563A3813.5010604@cs.wisc.edu>
 Cc: linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-raid@vger.kernel.org, dm-devel@redhat.com,
+	linux-raid@vger.kernel.org,
+	device-mapper development <dm-devel@redhat.com>,
 	linux-fsdevel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 32/32] block: remove __REQ op defs and reduce
- bi_op/bi_rw sizes
+Subject: Re: [Drbd-dev] [dm-devel] [RFC PATCH 00/32] separate operations
+ from flags in the bio/request structs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,18 +31,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-I love this series!
+On Wed, Nov 04, 2015 at 10:53:39AM -0600, Mike Christie wrote:
+> > If you have to touch submit_bio() and submit_bio_wait(), how about
+> > requiring the callers of these functions to set the cmd and flags
+> > arguments in the bio structure and to leave out the cmd and flags
+> > arguments from the submit_bio() and submit_bio_wait() functions ? A
+> > (compile tested only) patch that implements this idea is available at
+> > https://lkml.org/lkml/2014/6/2/173.
+> > 
+> 
+> Yeah, I can do that.
 
-Also I think it's very good that we finally split the ioprio out to it's
-own field.
-
-Thanks a lot for doing this work.
-
-> I was not sure if or how much or where people wanted to stick things.
-> There also appears to be room in the bi_flags field. If bi_flags is
-> only using 13 bits and there are only 16 REQ_XYZs bits related bios,
-> I could put them all in one variable if we wanted to go wild with trying
-> to shrink the bio while I am at it..
-
-This sounds interesting, but I'd rather do it as a separate project
-later.
+I think this would be useful to do at the beginning of the series.
+While this will have a huge trickle effect through the series it should
+make thing a bit simpler overall.  By leaving op 0 undefined it should
+also help to create a nice error trap for unconverted code.
