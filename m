@@ -2,17 +2,18 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E97D110561B9
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:34 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0AD5910561BB
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:35 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Wed, 25 Nov 2015 11:53:52 +0100
-Message-Id: <1448448851-10343-20-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 25 Nov 2015 11:53:53 +0100
+Message-Id: <1448448851-10343-21-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 References: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 19/38] drbd: fix NULL deref in remember_new_state
+Subject: [Drbd-dev] [PATCH 20/38] drbd: fix refcount error during detach of
+	an already failed disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,123 +27,51 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-The recent (not yet released) backport of the extended state broadcasts
-to support the "events2" subcommand of drbdsetup had some glitches.
+A D_FAILED disk transitions as quickly as possible to
+D_DISKLESS. But in the "unresponsive local disk" case,
+there remains a time window where a administrative detach command could
+find the disk already failed, but some internal meta data IO against the
+unresponsive local disk still pending.
 
-remember_old_state() would first count all connections with a
-net_conf != NULL, then allocate a suitable array, then populate that
-array with all connections found to have net_conf != NULL.
-
-This races with the state change to C_STANDALONE,
-and the NULL assignment there.
-
-remember_new_state() then iterates over said connection array,
-assuming that it would be fully populated.
-
-But rcu_lock() just makes sure the thing some pointer points to,
-if any, won't go away. It does not make the pointer itself immutable.
-
-In fact there is no need to "filter" connections based on whether or not
-they have a currently valid configuration.  Just record them always, if
-they don't have a config, that's fine, there will be no change then.
+In that case, drbd_md_get_buffer() will return NULL.
+Don't unconditionally call drbd_md_put_buffer(), or it will cause
+refcount imbalance, and prevent any further re-attach on this volume
+(until it is deleted and re-created).
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_state.c | 46 +++++++++++++----------------------------
- 1 file changed, 14 insertions(+), 32 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index a4e4505..f022e99 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -63,11 +63,8 @@ static void count_objects(struct drbd_resource *resource,
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 331b378..79dc3d4 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1915,6 +1915,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ static int adm_detach(struct drbd_device *device, int force)
+ {
+ 	enum drbd_state_rv retcode;
++	void *buffer;
+ 	int ret;
  
- 	idr_for_each_entry(&resource->devices, device, vnr)
- 		(*n_devices)++;
--	for_each_connection(connection, resource) {
--		if (!has_net_conf(connection))
--			continue;
-+	for_each_connection(connection, resource)
- 		(*n_connections)++;
--	}
- }
- 
- static struct drbd_state_change *alloc_state_change(unsigned int n_devices, unsigned int n_connections, gfp_t gfp)
-@@ -108,23 +105,13 @@ struct drbd_state_change *remember_old_state(struct drbd_resource *resource, gfp
- 	struct drbd_peer_device_state_change *peer_device_state_change;
- 	struct drbd_connection_state_change *connection_state_change;
- 
--retry:
--	rcu_read_lock();
-+	/* Caller holds req_lock spinlock.
-+	 * No state, no device IDR, no connections lists can change. */
- 	count_objects(resource, &n_devices, &n_connections);
--	rcu_read_unlock();
- 	state_change = alloc_state_change(n_devices, n_connections, gfp);
- 	if (!state_change)
- 		return NULL;
- 
--	rcu_read_lock();
--	count_objects(resource, &n_devices, &n_connections);
--	if (n_devices != state_change->n_devices ||
--	    n_connections != state_change->n_connections) {
--		kfree(state_change);
--		rcu_read_unlock();
--		goto retry;
--	}
--
- 	kref_get(&resource->kref);
- 	state_change->resource->resource = resource;
- 	state_change->resource->role[OLD] =
-@@ -133,6 +120,17 @@ retry:
- 	state_change->resource->susp_nod[OLD] = resource->susp_nod;
- 	state_change->resource->susp_fen[OLD] = resource->susp_fen;
- 
-+	connection_state_change = state_change->connections;
-+	for_each_connection(connection, resource) {
-+		kref_get(&connection->kref);
-+		connection_state_change->connection = connection;
-+		connection_state_change->cstate[OLD] =
-+			connection->cstate;
-+		connection_state_change->peer_role[OLD] =
-+			conn_highest_peer(connection);
-+		connection_state_change++;
-+	}
-+
- 	device_state_change = state_change->devices;
- 	peer_device_state_change = state_change->peer_devices;
- 	idr_for_each_entry(&resource->devices, device, vnr) {
-@@ -145,8 +143,6 @@ retry:
- 		for_each_connection(connection, resource) {
- 			struct drbd_peer_device *peer_device;
- 
--			if (!has_net_conf(connection))
--				continue;
- 			peer_device = conn_peer_device(connection, device->vnr);
- 			peer_device_state_change->peer_device = peer_device;
- 			peer_device_state_change->disk_state[OLD] =
-@@ -165,20 +161,6 @@ retry:
- 		device_state_change++;
+ 	if (force) {
+@@ -1925,9 +1926,12 @@ static int adm_detach(struct drbd_device *device, int force)
  	}
  
--	connection_state_change = state_change->connections;
--	for_each_connection(connection, resource) {
--		if (!has_net_conf(connection))
--			continue;
--		kref_get(&connection->kref);
--		connection_state_change->connection = connection;
--		connection_state_change->cstate[OLD] =
--			connection->cstate;
--		connection_state_change->peer_role[OLD] =
--			conn_highest_peer(connection);
--		connection_state_change++;
--	}
--	rcu_read_unlock();
--
- 	return state_change;
- }
- 
+ 	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
+-	drbd_md_get_buffer(device, __func__); /* make sure there is no in-flight meta-data IO */
+-	retcode = drbd_request_state(device, NS(disk, D_FAILED));
+-	drbd_md_put_buffer(device);
++	buffer = drbd_md_get_buffer(device, __func__); /* make sure there is no in-flight meta-data IO */
++	if (buffer) {
++		retcode = drbd_request_state(device, NS(disk, D_FAILED));
++		drbd_md_put_buffer(device);
++	} else /* already <= D_FAILED */
++		retcode = SS_NOTHING_TO_DO;
+ 	/* D_FAILED will transition to DISKLESS. */
+ 	drbd_resume_io(device);
+ 	ret = wait_event_interruptible(device->misc_wait,
 -- 
 1.9.1
 
