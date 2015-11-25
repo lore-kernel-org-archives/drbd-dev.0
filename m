@@ -2,18 +2,18 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0D1441056307
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3DED81056308
 	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:39 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Wed, 25 Nov 2015 11:54:09 +0100
-Message-Id: <1448448851-10343-37-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 25 Nov 2015 11:54:10 +0100
+Message-Id: <1448448851-10343-38-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 References: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 36/38] drbd: separate out __al_write_transaction
-	helper function
+Subject: [Drbd-dev] [PATCH 37/38] drbd: avoid potential deadlock during
+	handshake
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,344 +27,156 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-To be able to "force out" an activity log transaction,
-even if there are no pending updates.
+During handshake communication, we also reconsider our device size,
+using drbd_determine_dev_size(). Just in case we need to change the
+offsets or layout of our on-disk metadata, we lock out application
+and other meta data IO, and wait for the activity log to be "idle"
+(no more referenced extents).
 
-This will be used to relocate the on-disk activity log,
-if the on-disk offsets have to be changed,
-without the need to empty the activity log first.
+If this handshake happens just after a connection loss, with a fencing
+policy of "resource-and-stonith", we have frozen IO.
 
-While at it, move the definition,
-so we can drop the forward declaration of a static helper.
+If, additionally, the activity log was "starving" (too many incoming
+random writes at that point in time), it won't become idle, ever,
+because of the frozen IO, and this would be a lockup of the receiver
+thread, and consquentially of DRBD.
+
+Previous logic (re-)initialized with a special "empty" transaction
+block, which required the activity log to fully drain first.
+
+Instead, write out some standard activity log transactions.
+Using lc_try_lock_for_transaction() instead of lc_try_lock() does not
+care about pending activity log references, avoiding the potential
+deadlock.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_actlog.c | 304 ++++++++++++++++++++-------------------
- 1 file changed, 156 insertions(+), 148 deletions(-)
+ drivers/block/drbd/drbd_actlog.c | 19 +++++++++++--------
+ drivers/block/drbd/drbd_int.h    |  2 +-
+ drivers/block/drbd/drbd_nl.c     | 33 +++++++++++++++++++--------------
+ 3 files changed, 31 insertions(+), 23 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index b3868e7..4b484ac 100644
+index 4b484ac..10459a1 100644
 --- a/drivers/block/drbd/drbd_actlog.c
 +++ b/drivers/block/drbd/drbd_actlog.c
-@@ -288,7 +288,162 @@ bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *
- 	return need_transaction;
- }
- 
--static int al_write_transaction(struct drbd_device *device);
-+#if (PAGE_SHIFT + 3) < (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT)
-+/* Currently BM_BLOCK_SHIFT, BM_EXT_SHIFT and AL_EXTENT_SHIFT
-+ * are still coupled, or assume too much about their relation.
-+ * Code below will not work if this is violated.
-+ * Will be cleaned up with some followup patch.
-+ */
-+# error FIXME
-+#endif
-+
-+static unsigned int al_extent_to_bm_page(unsigned int al_enr)
-+{
-+	return al_enr >>
-+		/* bit to page */
-+		((PAGE_SHIFT + 3) -
-+		/* al extent number to bit */
-+		 (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT));
-+}
-+
-+static sector_t al_tr_number_to_on_disk_sector(struct drbd_device *device)
-+{
-+	const unsigned int stripes = device->ldev->md.al_stripes;
-+	const unsigned int stripe_size_4kB = device->ldev->md.al_stripe_size_4k;
-+
-+	/* transaction number, modulo on-disk ring buffer wrap around */
-+	unsigned int t = device->al_tr_number % (device->ldev->md.al_size_4k);
-+
-+	/* ... to aligned 4k on disk block */
-+	t = ((t % stripes) * stripe_size_4kB) + t/stripes;
-+
-+	/* ... to 512 byte sector in activity log */
-+	t *= 8;
-+
-+	/* ... plus offset to the on disk position */
-+	return device->ldev->md.md_offset + device->ldev->md.al_offset + t;
-+}
-+
-+static int __al_write_transaction(struct drbd_device *device, struct al_transaction_on_disk *buffer)
-+{
-+	struct lc_element *e;
-+	sector_t sector;
-+	int i, mx;
-+	unsigned extent_nr;
-+	unsigned crc = 0;
-+	int err = 0;
-+
-+	memset(buffer, 0, sizeof(*buffer));
-+	buffer->magic = cpu_to_be32(DRBD_AL_MAGIC);
-+	buffer->tr_number = cpu_to_be32(device->al_tr_number);
-+
-+	i = 0;
-+
-+	/* Even though no one can start to change this list
-+	 * once we set the LC_LOCKED -- from drbd_al_begin_io(),
-+	 * lc_try_lock_for_transaction() --, someone may still
-+	 * be in the process of changing it. */
-+	spin_lock_irq(&device->al_lock);
-+	list_for_each_entry(e, &device->act_log->to_be_changed, list) {
-+		if (i == AL_UPDATES_PER_TRANSACTION) {
-+			i++;
-+			break;
-+		}
-+		buffer->update_slot_nr[i] = cpu_to_be16(e->lc_index);
-+		buffer->update_extent_nr[i] = cpu_to_be32(e->lc_new_number);
-+		if (e->lc_number != LC_FREE)
-+			drbd_bm_mark_for_writeout(device,
-+					al_extent_to_bm_page(e->lc_number));
-+		i++;
-+	}
-+	spin_unlock_irq(&device->al_lock);
-+	BUG_ON(i > AL_UPDATES_PER_TRANSACTION);
-+
-+	buffer->n_updates = cpu_to_be16(i);
-+	for ( ; i < AL_UPDATES_PER_TRANSACTION; i++) {
-+		buffer->update_slot_nr[i] = cpu_to_be16(-1);
-+		buffer->update_extent_nr[i] = cpu_to_be32(LC_FREE);
-+	}
-+
-+	buffer->context_size = cpu_to_be16(device->act_log->nr_elements);
-+	buffer->context_start_slot_nr = cpu_to_be16(device->al_tr_cycle);
-+
-+	mx = min_t(int, AL_CONTEXT_PER_TRANSACTION,
-+		   device->act_log->nr_elements - device->al_tr_cycle);
-+	for (i = 0; i < mx; i++) {
-+		unsigned idx = device->al_tr_cycle + i;
-+		extent_nr = lc_element_by_index(device->act_log, idx)->lc_number;
-+		buffer->context[i] = cpu_to_be32(extent_nr);
-+	}
-+	for (; i < AL_CONTEXT_PER_TRANSACTION; i++)
-+		buffer->context[i] = cpu_to_be32(LC_FREE);
-+
-+	device->al_tr_cycle += AL_CONTEXT_PER_TRANSACTION;
-+	if (device->al_tr_cycle >= device->act_log->nr_elements)
-+		device->al_tr_cycle = 0;
-+
-+	sector = al_tr_number_to_on_disk_sector(device);
-+
-+	crc = crc32c(0, buffer, 4096);
-+	buffer->crc32c = cpu_to_be32(crc);
-+
-+	if (drbd_bm_write_hinted(device))
-+		err = -EIO;
-+	else {
-+		bool write_al_updates;
-+		rcu_read_lock();
-+		write_al_updates = rcu_dereference(device->ldev->disk_conf)->al_updates;
-+		rcu_read_unlock();
-+		if (write_al_updates) {
-+			if (drbd_md_sync_page_io(device, device->ldev, sector, WRITE)) {
-+				err = -EIO;
-+				drbd_chk_io_error(device, 1, DRBD_META_IO_ERROR);
-+			} else {
-+				device->al_tr_number++;
-+				device->al_writ_cnt++;
-+			}
-+		}
-+	}
-+
-+	return err;
-+}
-+
-+static int al_write_transaction(struct drbd_device *device)
-+{
-+	struct al_transaction_on_disk *buffer;
-+	int err;
-+
-+	if (!get_ldev(device)) {
-+		drbd_err(device, "disk is %s, cannot start al transaction\n",
-+			drbd_disk_str(device->state.disk));
-+		return -EIO;
-+	}
-+
-+	/* The bitmap write may have failed, causing a state change. */
-+	if (device->state.disk < D_INCONSISTENT) {
-+		drbd_err(device,
-+			"disk is %s, cannot write al transaction\n",
-+			drbd_disk_str(device->state.disk));
-+		put_ldev(device);
-+		return -EIO;
-+	}
-+
-+	/* protects md_io_buffer, al_tr_cycle, ... */
-+	buffer = drbd_md_get_buffer(device, __func__);
-+	if (!buffer) {
-+		drbd_err(device, "disk failed while waiting for md_io buffer\n");
-+		put_ldev(device);
-+		return -ENODEV;
-+	}
-+
-+	err = __al_write_transaction(device, buffer);
-+
-+	drbd_md_put_buffer(device);
-+	put_ldev(device);
-+
-+	return err;
-+}
-+
- 
- void drbd_al_begin_io_commit(struct drbd_device *device)
- {
-@@ -420,153 +575,6 @@ void drbd_al_complete_io(struct drbd_device *device, struct drbd_interval *i)
+@@ -614,21 +614,24 @@ void drbd_al_shrink(struct drbd_device *device)
  	wake_up(&device->al_wait);
  }
  
--#if (PAGE_SHIFT + 3) < (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT)
--/* Currently BM_BLOCK_SHIFT, BM_EXT_SHIFT and AL_EXTENT_SHIFT
-- * are still coupled, or assume too much about their relation.
-- * Code below will not work if this is violated.
-- * Will be cleaned up with some followup patch.
-- */
--# error FIXME
--#endif
--
--static unsigned int al_extent_to_bm_page(unsigned int al_enr)
--{
--	return al_enr >>
--		/* bit to page */
--		((PAGE_SHIFT + 3) -
--		/* al extent number to bit */
--		 (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT));
--}
--
--static sector_t al_tr_number_to_on_disk_sector(struct drbd_device *device)
--{
--	const unsigned int stripes = device->ldev->md.al_stripes;
--	const unsigned int stripe_size_4kB = device->ldev->md.al_stripe_size_4k;
--
--	/* transaction number, modulo on-disk ring buffer wrap around */
--	unsigned int t = device->al_tr_number % (device->ldev->md.al_size_4k);
--
--	/* ... to aligned 4k on disk block */
--	t = ((t % stripes) * stripe_size_4kB) + t/stripes;
--
--	/* ... to 512 byte sector in activity log */
--	t *= 8;
--
--	/* ... plus offset to the on disk position */
--	return device->ldev->md.md_offset + device->ldev->md.al_offset + t;
--}
--
--int al_write_transaction(struct drbd_device *device)
--{
--	struct al_transaction_on_disk *buffer;
--	struct lc_element *e;
--	sector_t sector;
--	int i, mx;
--	unsigned extent_nr;
--	unsigned crc = 0;
--	int err = 0;
--
--	if (!get_ldev(device)) {
--		drbd_err(device, "disk is %s, cannot start al transaction\n",
--			drbd_disk_str(device->state.disk));
--		return -EIO;
--	}
--
--	/* The bitmap write may have failed, causing a state change. */
--	if (device->state.disk < D_INCONSISTENT) {
--		drbd_err(device,
--			"disk is %s, cannot write al transaction\n",
--			drbd_disk_str(device->state.disk));
--		put_ldev(device);
--		return -EIO;
--	}
--
--	/* protects md_io_buffer, al_tr_cycle, ... */
--	buffer = drbd_md_get_buffer(device, __func__);
--	if (!buffer) {
--		drbd_err(device, "disk failed while waiting for md_io buffer\n");
--		put_ldev(device);
--		return -ENODEV;
--	}
--
--	memset(buffer, 0, sizeof(*buffer));
--	buffer->magic = cpu_to_be32(DRBD_AL_MAGIC);
--	buffer->tr_number = cpu_to_be32(device->al_tr_number);
--
--	i = 0;
--
--	/* Even though no one can start to change this list
--	 * once we set the LC_LOCKED -- from drbd_al_begin_io(),
--	 * lc_try_lock_for_transaction() --, someone may still
--	 * be in the process of changing it. */
--	spin_lock_irq(&device->al_lock);
--	list_for_each_entry(e, &device->act_log->to_be_changed, list) {
--		if (i == AL_UPDATES_PER_TRANSACTION) {
--			i++;
--			break;
--		}
--		buffer->update_slot_nr[i] = cpu_to_be16(e->lc_index);
--		buffer->update_extent_nr[i] = cpu_to_be32(e->lc_new_number);
--		if (e->lc_number != LC_FREE)
--			drbd_bm_mark_for_writeout(device,
--					al_extent_to_bm_page(e->lc_number));
--		i++;
--	}
--	spin_unlock_irq(&device->al_lock);
--	BUG_ON(i > AL_UPDATES_PER_TRANSACTION);
--
--	buffer->n_updates = cpu_to_be16(i);
--	for ( ; i < AL_UPDATES_PER_TRANSACTION; i++) {
--		buffer->update_slot_nr[i] = cpu_to_be16(-1);
--		buffer->update_extent_nr[i] = cpu_to_be32(LC_FREE);
--	}
--
--	buffer->context_size = cpu_to_be16(device->act_log->nr_elements);
--	buffer->context_start_slot_nr = cpu_to_be16(device->al_tr_cycle);
--
--	mx = min_t(int, AL_CONTEXT_PER_TRANSACTION,
--		   device->act_log->nr_elements - device->al_tr_cycle);
--	for (i = 0; i < mx; i++) {
--		unsigned idx = device->al_tr_cycle + i;
--		extent_nr = lc_element_by_index(device->act_log, idx)->lc_number;
--		buffer->context[i] = cpu_to_be32(extent_nr);
--	}
--	for (; i < AL_CONTEXT_PER_TRANSACTION; i++)
--		buffer->context[i] = cpu_to_be32(LC_FREE);
--
--	device->al_tr_cycle += AL_CONTEXT_PER_TRANSACTION;
--	if (device->al_tr_cycle >= device->act_log->nr_elements)
--		device->al_tr_cycle = 0;
--
--	sector = al_tr_number_to_on_disk_sector(device);
--
--	crc = crc32c(0, buffer, 4096);
--	buffer->crc32c = cpu_to_be32(crc);
--
--	if (drbd_bm_write_hinted(device))
--		err = -EIO;
--	else {
--		bool write_al_updates;
--		rcu_read_lock();
--		write_al_updates = rcu_dereference(device->ldev->disk_conf)->al_updates;
--		rcu_read_unlock();
--		if (write_al_updates) {
--			if (drbd_md_sync_page_io(device, device->ldev, sector, WRITE)) {
--				err = -EIO;
--				drbd_chk_io_error(device, 1, DRBD_META_IO_ERROR);
--			} else {
--				device->al_tr_number++;
--				device->al_writ_cnt++;
--			}
--		}
--	}
--
--	drbd_md_put_buffer(device);
--	put_ldev(device);
--
--	return err;
--}
--
- static int _try_lc_del(struct drbd_device *device, struct lc_element *al_ext)
+-int drbd_initialize_al(struct drbd_device *device, void *buffer)
++int drbd_al_initialize(struct drbd_device *device, void *buffer)
  {
- 	int rv;
+ 	struct al_transaction_on_disk *al = buffer;
+ 	struct drbd_md *md = &device->ldev->md;
+-	sector_t al_base = md->md_offset + md->al_offset;
+ 	int al_size_4k = md->al_stripes * md->al_stripe_size_4k;
+ 	int i;
+ 
+-	memset(al, 0, 4096);
+-	al->magic = cpu_to_be32(DRBD_AL_MAGIC);
+-	al->transaction_type = cpu_to_be16(AL_TR_INITIALIZED);
+-	al->crc32c = cpu_to_be32(crc32c(0, al, 4096));
++	__al_write_transaction(device, al);
++	/* There may or may not have been a pending transaction. */
++	spin_lock_irq(&device->al_lock);
++	lc_committed(device->act_log);
++	spin_unlock_irq(&device->al_lock);
+ 
+-	for (i = 0; i < al_size_4k; i++) {
+-		int err = drbd_md_sync_page_io(device, device->ldev, al_base + i * 8, WRITE);
++	/* The rest of the transactions will have an empty "updates" list, and
++	 * are written out only to provide the context, and to initialize the
++	 * on-disk ring buffer. */
++	for (i = 1; i < al_size_4k; i++) {
++		int err = __al_write_transaction(device, al);
+ 		if (err)
+ 			return err;
+ 	}
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index df3d89d..b6844fe 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1667,7 +1667,7 @@ extern int __drbd_change_sync(struct drbd_device *device, sector_t sector, int s
+ #define drbd_rs_failed_io(device, sector, size) \
+ 	__drbd_change_sync(device, sector, size, RECORD_RS_FAILED)
+ extern void drbd_al_shrink(struct drbd_device *device);
+-extern int drbd_initialize_al(struct drbd_device *, void *);
++extern int drbd_al_initialize(struct drbd_device *, void *);
+ 
+ /* drbd_nl.c */
+ /* state info broadcast */
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index c7cd3df..f4ca273 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -903,15 +903,14 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
+ 	int md_moved, la_size_changed;
+ 	enum determine_dev_size rv = DS_UNCHANGED;
+ 
+-	/* race:
+-	 * application request passes inc_ap_bio,
+-	 * but then cannot get an AL-reference.
+-	 * this function later may wait on ap_bio_cnt == 0. -> deadlock.
++	/* We may change the on-disk offsets of our meta data below.  Lock out
++	 * anything that may cause meta data IO, to avoid acting on incomplete
++	 * layout changes or scribbling over meta data that is in the process
++	 * of being moved.
+ 	 *
+-	 * to avoid that:
+-	 * Suspend IO right here.
+-	 * still lock the act_log to not trigger ASSERTs there.
+-	 */
++	 * Move is not exactly correct, btw, currently we have all our meta
++	 * data in core memory, to "move" it we just write it all out, there
++	 * are no reads. */
+ 	drbd_suspend_io(device);
+ 	buffer = drbd_md_get_buffer(device, __func__); /* Lock meta-data IO */
+ 	if (!buffer) {
+@@ -919,9 +918,6 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
+ 		return DS_ERROR;
+ 	}
+ 
+-	/* no wait necessary anymore, actually we could assert that */
+-	wait_event(device->al_wait, lc_try_lock(device->act_log));
+-
+ 	prev_first_sect = drbd_md_first_sector(device->ldev);
+ 	prev_size = device->ldev->md.md_size_sect;
+ 	la_size_sect = device->ldev->md.la_size_sect;
+@@ -997,20 +993,29 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
+ 		 * Clear the timer, to avoid scary "timer expired!" messages,
+ 		 * "Superblock" is written out at least twice below, anyways. */
+ 		del_timer(&device->md_sync_timer);
+-		drbd_al_shrink(device); /* All extents inactive. */
+ 
++		/* We won't change the "al-extents" setting, we just may need
++		 * to move the on-disk location of the activity log ringbuffer.
++		 * Lock for transaction is good enough, it may well be "dirty"
++		 * or even "starving". */
++		wait_event(device->al_wait, lc_try_lock_for_transaction(device->act_log));
++
++		/* mark current on-disk bitmap and activity log as unreliable */
+ 		prev_flags = md->flags;
+-		md->flags &= ~MDF_PRIMARY_IND;
++		md->flags |= MDF_FULL_SYNC | MDF_AL_DISABLED;
+ 		drbd_md_write(device, buffer);
+ 
++		drbd_al_initialize(device, buffer);
++
+ 		drbd_info(device, "Writing the whole bitmap, %s\n",
+ 			 la_size_changed && md_moved ? "size changed and md moved" :
+ 			 la_size_changed ? "size changed" : "md moved");
+ 		/* next line implicitly does drbd_suspend_io()+drbd_resume_io() */
+ 		drbd_bitmap_io(device, md_moved ? &drbd_bm_write_all : &drbd_bm_write,
+ 			       "size changed", BM_LOCKED_MASK);
+-		drbd_initialize_al(device, buffer);
+ 
++		/* on-disk bitmap and activity log is authoritative again
++		 * (unless there was an IO error meanwhile...) */
+ 		md->flags = prev_flags;
+ 		drbd_md_write(device, buffer);
+ 
 -- 
 1.9.1
 
