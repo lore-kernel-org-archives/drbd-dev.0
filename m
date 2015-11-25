@@ -2,18 +2,17 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3DED81056308
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7999C1056309
 	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:39 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Wed, 25 Nov 2015 11:54:10 +0100
-Message-Id: <1448448851-10343-38-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 25 Nov 2015 11:54:11 +0100
+Message-Id: <1448448851-10343-39-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 References: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 37/38] drbd: avoid potential deadlock during
-	handshake
+Subject: [Drbd-dev] [PATCH 38/38] drbd: fix error path during resize
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,156 +26,157 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-During handshake communication, we also reconsider our device size,
-using drbd_determine_dev_size(). Just in case we need to change the
-offsets or layout of our on-disk metadata, we lock out application
-and other meta data IO, and wait for the activity log to be "idle"
-(no more referenced extents).
+In case the lower level device size changed, but some other internal
+details of the resize did not work out, drbd_determine_dev_size() would
+try to restore the previous settings, trusting
+drbd_md_set_sector_offsets() to "do the right thing", but overlooked
+that this internally may set the meta data base offset based on device size.
 
-If this handshake happens just after a connection loss, with a fencing
-policy of "resource-and-stonith", we have frozen IO.
+This could end up with incomplete on-disk meta data layout change, and
+ultimately lead to data corruption (if the failure was not noticed or
+ignored by the operator, and other things go wrong as well).
 
-If, additionally, the activity log was "starving" (too many incoming
-random writes at that point in time), it won't become idle, ever,
-because of the frozen IO, and this would be a lockup of the receiver
-thread, and consquentially of DRBD.
-
-Previous logic (re-)initialized with a special "empty" transaction
-block, which required the activity log to fully drain first.
-
-Instead, write out some standard activity log transactions.
-Using lc_try_lock_for_transaction() instead of lc_try_lock() does not
-care about pending activity log references, avoiding the potential
-deadlock.
+Just remember all meta data related offsets/sizes,
+and on error restore them all.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_actlog.c | 19 +++++++++++--------
- drivers/block/drbd/drbd_int.h    |  2 +-
- drivers/block/drbd/drbd_nl.c     | 33 +++++++++++++++++++--------------
- 3 files changed, 31 insertions(+), 23 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 68 +++++++++++++++++++++++++-------------------
+ 1 file changed, 38 insertions(+), 30 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 4b484ac..10459a1 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -614,21 +614,24 @@ void drbd_al_shrink(struct drbd_device *device)
- 	wake_up(&device->al_wait);
- }
- 
--int drbd_initialize_al(struct drbd_device *device, void *buffer)
-+int drbd_al_initialize(struct drbd_device *device, void *buffer)
- {
- 	struct al_transaction_on_disk *al = buffer;
- 	struct drbd_md *md = &device->ldev->md;
--	sector_t al_base = md->md_offset + md->al_offset;
- 	int al_size_4k = md->al_stripes * md->al_stripe_size_4k;
- 	int i;
- 
--	memset(al, 0, 4096);
--	al->magic = cpu_to_be32(DRBD_AL_MAGIC);
--	al->transaction_type = cpu_to_be16(AL_TR_INITIALIZED);
--	al->crc32c = cpu_to_be32(crc32c(0, al, 4096));
-+	__al_write_transaction(device, al);
-+	/* There may or may not have been a pending transaction. */
-+	spin_lock_irq(&device->al_lock);
-+	lc_committed(device->act_log);
-+	spin_unlock_irq(&device->al_lock);
- 
--	for (i = 0; i < al_size_4k; i++) {
--		int err = drbd_md_sync_page_io(device, device->ldev, al_base + i * 8, WRITE);
-+	/* The rest of the transactions will have an empty "updates" list, and
-+	 * are written out only to provide the context, and to initialize the
-+	 * on-disk ring buffer. */
-+	for (i = 1; i < al_size_4k; i++) {
-+		int err = __al_write_transaction(device, al);
- 		if (err)
- 			return err;
- 	}
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index df3d89d..b6844fe 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1667,7 +1667,7 @@ extern int __drbd_change_sync(struct drbd_device *device, sector_t sector, int s
- #define drbd_rs_failed_io(device, sector, size) \
- 	__drbd_change_sync(device, sector, size, RECORD_RS_FAILED)
- extern void drbd_al_shrink(struct drbd_device *device);
--extern int drbd_initialize_al(struct drbd_device *, void *);
-+extern int drbd_al_initialize(struct drbd_device *, void *);
- 
- /* drbd_nl.c */
- /* state info broadcast */
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index c7cd3df..f4ca273 100644
+index f4ca273..c055c5e 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -903,15 +903,14 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
- 	int md_moved, la_size_changed;
- 	enum determine_dev_size rv = DS_UNCHANGED;
+@@ -891,12 +891,18 @@ void drbd_resume_io(struct drbd_device *device)
+ enum determine_dev_size
+ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct resize_parms *rs) __must_hold(local)
+ {
+-	sector_t prev_first_sect, prev_size; /* previous meta location */
+-	sector_t la_size_sect, u_size;
++	struct md_offsets_and_sizes {
++		u64 last_agreed_sect;
++		u64 md_offset;
++		s32 al_offset;
++		s32 bm_offset;
++		u32 md_size_sect;
++
++		u32 al_stripes;
++		u32 al_stripe_size_4k;
++	} prev;
++	sector_t u_size, size;
+ 	struct drbd_md *md = &device->ldev->md;
+-	u32 prev_al_stripe_size_4k;
+-	u32 prev_al_stripes;
+-	sector_t size;
+ 	char ppb[10];
+ 	void *buffer;
  
--	/* race:
--	 * application request passes inc_ap_bio,
--	 * but then cannot get an AL-reference.
--	 * this function later may wait on ap_bio_cnt == 0. -> deadlock.
-+	/* We may change the on-disk offsets of our meta data below.  Lock out
-+	 * anything that may cause meta data IO, to avoid acting on incomplete
-+	 * layout changes or scribbling over meta data that is in the process
-+	 * of being moved.
- 	 *
--	 * to avoid that:
--	 * Suspend IO right here.
--	 * still lock the act_log to not trigger ASSERTs there.
--	 */
-+	 * Move is not exactly correct, btw, currently we have all our meta
-+	 * data in core memory, to "move" it we just write it all out, there
-+	 * are no reads. */
- 	drbd_suspend_io(device);
- 	buffer = drbd_md_get_buffer(device, __func__); /* Lock meta-data IO */
- 	if (!buffer) {
-@@ -919,9 +918,6 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
+@@ -918,16 +924,17 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
  		return DS_ERROR;
  	}
  
--	/* no wait necessary anymore, actually we could assert that */
--	wait_event(device->al_wait, lc_try_lock(device->act_log));
+-	prev_first_sect = drbd_md_first_sector(device->ldev);
+-	prev_size = device->ldev->md.md_size_sect;
+-	la_size_sect = device->ldev->md.la_size_sect;
++	/* remember current offset and sizes */
++	prev.last_agreed_sect = md->la_size_sect;
++	prev.md_offset = md->md_offset;
++	prev.al_offset = md->al_offset;
++	prev.bm_offset = md->bm_offset;
++	prev.md_size_sect = md->md_size_sect;
++	prev.al_stripes = md->al_stripes;
++	prev.al_stripe_size_4k = md->al_stripe_size_4k;
+ 
+ 	if (rs) {
+ 		/* rs is non NULL if we should change the AL layout only */
 -
- 	prev_first_sect = drbd_md_first_sector(device->ldev);
- 	prev_size = device->ldev->md.md_size_sect;
- 	la_size_sect = device->ldev->md.la_size_sect;
-@@ -997,20 +993,29 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
- 		 * Clear the timer, to avoid scary "timer expired!" messages,
- 		 * "Superblock" is written out at least twice below, anyways. */
- 		del_timer(&device->md_sync_timer);
--		drbd_al_shrink(device); /* All extents inactive. */
+-		prev_al_stripes = md->al_stripes;
+-		prev_al_stripe_size_4k = md->al_stripe_size_4k;
+-
+ 		md->al_stripes = rs->al_stripes;
+ 		md->al_stripe_size_4k = rs->al_stripe_size / 4;
+ 		md->al_size_4k = (u64)rs->al_stripes * rs->al_stripe_size / 4;
+@@ -940,7 +947,7 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
+ 	rcu_read_unlock();
+ 	size = drbd_new_dev_size(device, device->ldev, u_size, flags & DDSF_FORCED);
  
-+		/* We won't change the "al-extents" setting, we just may need
-+		 * to move the on-disk location of the activity log ringbuffer.
-+		 * Lock for transaction is good enough, it may well be "dirty"
-+		 * or even "starving". */
-+		wait_event(device->al_wait, lc_try_lock_for_transaction(device->act_log));
-+
-+		/* mark current on-disk bitmap and activity log as unreliable */
- 		prev_flags = md->flags;
--		md->flags &= ~MDF_PRIMARY_IND;
-+		md->flags |= MDF_FULL_SYNC | MDF_AL_DISABLED;
- 		drbd_md_write(device, buffer);
+-	if (size < la_size_sect) {
++	if (size < prev.last_agreed_sect) {
+ 		if (rs && u_size == 0) {
+ 			/* Remove "rs &&" later. This check should always be active, but
+ 			   right now the receiver expects the permissive behavior */
+@@ -961,30 +968,29 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
+ 		err = drbd_bm_resize(device, size, !(flags & DDSF_NO_RESYNC));
+ 		if (unlikely(err)) {
+ 			/* currently there is only one error: ENOMEM! */
+-			size = drbd_bm_capacity(device)>>1;
++			size = drbd_bm_capacity(device);
+ 			if (size == 0) {
+ 				drbd_err(device, "OUT OF MEMORY! "
+ 				    "Could not allocate bitmap!\n");
+ 			} else {
+ 				drbd_err(device, "BM resizing failed. "
+-				    "Leaving size unchanged at size = %lu KB\n",
+-				    (unsigned long)size);
++				    "Leaving size unchanged\n");
+ 			}
+ 			rv = DS_ERROR;
+ 		}
+ 		/* racy, see comments above. */
+ 		drbd_set_my_capacity(device, size);
+-		device->ldev->md.la_size_sect = size;
++		md->la_size_sect = size;
+ 		drbd_info(device, "size = %s (%llu KB)\n", ppsize(ppb, size>>1),
+ 		     (unsigned long long)size>>1);
+ 	}
+ 	if (rv <= DS_ERROR)
+ 		goto err_out;
  
-+		drbd_al_initialize(device, buffer);
-+
- 		drbd_info(device, "Writing the whole bitmap, %s\n",
- 			 la_size_changed && md_moved ? "size changed and md moved" :
- 			 la_size_changed ? "size changed" : "md moved");
- 		/* next line implicitly does drbd_suspend_io()+drbd_resume_io() */
- 		drbd_bitmap_io(device, md_moved ? &drbd_bm_write_all : &drbd_bm_write,
- 			       "size changed", BM_LOCKED_MASK);
--		drbd_initialize_al(device, buffer);
+-	la_size_changed = (la_size_sect != device->ldev->md.la_size_sect);
++	la_size_changed = (prev.last_agreed_sect != md->la_size_sect);
  
-+		/* on-disk bitmap and activity log is authoritative again
-+		 * (unless there was an IO error meanwhile...) */
- 		md->flags = prev_flags;
- 		drbd_md_write(device, buffer);
+-	md_moved = prev_first_sect != drbd_md_first_sector(device->ldev)
+-		|| prev_size	   != device->ldev->md.md_size_sect;
++	md_moved = prev.md_offset    != md->md_offset
++		|| prev.md_size_sect != md->md_size_sect;
  
+ 	if (la_size_changed || md_moved || rs) {
+ 		u32 prev_flags;
+@@ -1024,20 +1030,22 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
+ 				  md->al_stripes, md->al_stripe_size_4k * 4);
+ 	}
+ 
+-	if (size > la_size_sect)
+-		rv = la_size_sect ? DS_GREW : DS_GREW_FROM_ZERO;
+-	if (size < la_size_sect)
++	if (size > prev.last_agreed_sect)
++		rv = prev.last_agreed_sect ? DS_GREW : DS_GREW_FROM_ZERO;
++	if (size < prev.last_agreed_sect)
+ 		rv = DS_SHRUNK;
+ 
+ 	if (0) {
+ 	err_out:
+-		if (rs) {
+-			md->al_stripes = prev_al_stripes;
+-			md->al_stripe_size_4k = prev_al_stripe_size_4k;
+-			md->al_size_4k = (u64)prev_al_stripes * prev_al_stripe_size_4k;
+-
+-			drbd_md_set_sector_offsets(device, device->ldev);
+-		}
++		/* restore previous offset and sizes */
++		md->la_size_sect = prev.last_agreed_sect;
++		md->md_offset = prev.md_offset;
++		md->al_offset = prev.al_offset;
++		md->bm_offset = prev.bm_offset;
++		md->md_size_sect = prev.md_size_sect;
++		md->al_stripes = prev.al_stripes;
++		md->al_stripe_size_4k = prev.al_stripe_size_4k;
++		md->al_size_4k = (u64)prev.al_stripes * prev.al_stripe_size_4k;
+ 	}
+ 	lc_unlock(device->act_log);
+ 	wake_up(&device->al_wait);
 -- 
 1.9.1
 
