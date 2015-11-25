@@ -2,17 +2,17 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E958810562AF
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:35 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2FED010562B2
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:36 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Wed, 25 Nov 2015 11:53:57 +0100
-Message-Id: <1448448851-10343-25-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 25 Nov 2015 11:53:58 +0100
+Message-Id: <1448448851-10343-26-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 References: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 24/38] drbd: debugfs: expose ed_data_gen_id
+Subject: [Drbd-dev] [PATCH 25/38] drbd: use resource name in workqueue
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,70 +26,47 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-The effective data generation ID may be interesting for debugging
-purposes of scenarios involving diskless states.
+Since kernel 3.3, we can use snprintf-style arguments
+to create a workqueue.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_debugfs.c | 10 ++++++++++
- drivers/block/drbd/drbd_int.h     |  1 +
- 2 files changed, 11 insertions(+)
+ drivers/block/drbd/drbd_main.c     | 4 ++--
+ drivers/block/drbd/drbd_receiver.c | 5 ++++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_debugfs.c b/drivers/block/drbd/drbd_debugfs.c
-index 6b88a35..96a0107 100644
---- a/drivers/block/drbd/drbd_debugfs.c
-+++ b/drivers/block/drbd/drbd_debugfs.c
-@@ -771,6 +771,13 @@ static int device_data_gen_id_show(struct seq_file *m, void *ignored)
- 	return 0;
- }
- 
-+static int device_ed_gen_id_show(struct seq_file *m, void *ignored)
-+{
-+	struct drbd_device *device = m->private;
-+	seq_printf(m, "0x%016llX\n", (unsigned long long)device->ed_uuid);
-+	return 0;
-+}
-+
- #define drbd_debugfs_device_attr(name)						\
- static int device_ ## name ## _open(struct inode *inode, struct file *file)	\
- {										\
-@@ -796,6 +803,7 @@ drbd_debugfs_device_attr(oldest_requests)
- drbd_debugfs_device_attr(act_log_extents)
- drbd_debugfs_device_attr(resync_extents)
- drbd_debugfs_device_attr(data_gen_id)
-+drbd_debugfs_device_attr(ed_gen_id)
- 
- void drbd_debugfs_device_add(struct drbd_device *device)
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 938bca2..3a9a0f1 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2694,8 +2694,8 @@ static int init_submitter(struct drbd_device *device)
  {
-@@ -839,6 +847,7 @@ void drbd_debugfs_device_add(struct drbd_device *device)
- 	DCF(act_log_extents);
- 	DCF(resync_extents);
- 	DCF(data_gen_id);
-+	DCF(ed_gen_id);
- #undef DCF
- 	return;
+ 	/* opencoded create_singlethread_workqueue(),
+ 	 * to be able to say "drbd%d", ..., minor */
+-	device->submit.wq = alloc_workqueue("drbd%u_submit",
+-			WQ_UNBOUND | WQ_MEM_RECLAIM, 1, device->minor);
++	device->submit.wq =
++		alloc_ordered_workqueue("drbd%u_submit", WQ_MEM_RECLAIM, device->minor);
+ 	if (!device->submit.wq)
+ 		return -ENOMEM;
  
-@@ -854,6 +863,7 @@ void drbd_debugfs_device_cleanup(struct drbd_device *device)
- 	drbd_debugfs_remove(&device->debugfs_vol_act_log_extents);
- 	drbd_debugfs_remove(&device->debugfs_vol_resync_extents);
- 	drbd_debugfs_remove(&device->debugfs_vol_data_gen_id);
-+	drbd_debugfs_remove(&device->debugfs_vol_ed_gen_id);
- 	drbd_debugfs_remove(&device->debugfs_vol);
- }
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index ea54341..1957fe8 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1124,7 +1124,10 @@ randomize:
+ 	}
  
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 3efaf18..08f266e 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -835,6 +835,7 @@ struct drbd_device {
- 	struct dentry *debugfs_vol_act_log_extents;
- 	struct dentry *debugfs_vol_resync_extents;
- 	struct dentry *debugfs_vol_data_gen_id;
-+	struct dentry *debugfs_vol_ed_gen_id;
- #endif
- 
- 	unsigned int vnr;	/* volume number within the connection */
+ 	drbd_thread_start(&connection->ack_receiver);
+-	connection->ack_sender = create_singlethread_workqueue("drbd_ack_sender");
++	/* opencoded create_singlethread_workqueue(),
++	 * to be able to use format string arguments */
++	connection->ack_sender =
++		alloc_ordered_workqueue("drbd_as_%s", WQ_MEM_RECLAIM, connection->resource->name);
+ 	if (!connection->ack_sender) {
+ 		drbd_err(connection, "Failed to create workqueue ack_sender\n");
+ 		return 0;
 -- 
 1.9.1
 
