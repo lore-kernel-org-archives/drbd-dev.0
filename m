@@ -2,17 +2,17 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1F41510561B7
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:33 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E97D110561B9
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:34 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Wed, 25 Nov 2015 11:53:51 +0100
-Message-Id: <1448448851-10343-19-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 25 Nov 2015 11:53:52 +0100
+Message-Id: <1448448851-10343-20-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 References: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 18/38] drbd: improve network timeout detection
+Subject: [Drbd-dev] [PATCH 19/38] drbd: fix NULL deref in remember_new_state
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,215 +26,121 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Don't blame the peer for being unresponsive,
-if we did not even ask the question yet.
+The recent (not yet released) backport of the extended state broadcasts
+to support the "events2" subcommand of drbdsetup had some glitches.
+
+remember_old_state() would first count all connections with a
+net_conf != NULL, then allocate a suitable array, then populate that
+array with all connections found to have net_conf != NULL.
+
+This races with the state change to C_STANDALONE,
+and the NULL assignment there.
+
+remember_new_state() then iterates over said connection array,
+assuming that it would be fully populated.
+
+But rcu_lock() just makes sure the thing some pointer points to,
+if any, won't go away. It does not make the pointer itself immutable.
+
+In fact there is no need to "filter" connections based on whether or not
+they have a currently valid configuration.  Just record them always, if
+they don't have a config, that's fine, there will be no change then.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h    |   2 +
- drivers/block/drbd/drbd_req.c    | 123 ++++++++++++++++++++++++++++++---------
- drivers/block/drbd/drbd_worker.c |   2 +
- 3 files changed, 100 insertions(+), 27 deletions(-)
+ drivers/block/drbd/drbd_state.c | 46 +++++++++++++----------------------------
+ 1 file changed, 14 insertions(+), 32 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 965aae0..1d00f2e 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -773,6 +773,8 @@ struct drbd_connection {
- 	struct drbd_thread_timing_details r_timing_details[DRBD_THREAD_DETAILS_HIST];
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index a4e4505..f022e99 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -63,11 +63,8 @@ static void count_objects(struct drbd_resource *resource,
  
- 	struct {
-+		unsigned long last_sent_barrier_jif;
-+
- 		/* whether this sender thread
- 		 * has processed a single write yet. */
- 		bool seen_any_write_yet;
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 7660f6e..3add7c5 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1531,6 +1531,78 @@ blk_qc_t drbd_make_request(struct request_queue *q, struct bio *bio)
- 	return BLK_QC_T_NONE;
- }
- 
-+static bool net_timeout_reached(struct drbd_request *net_req,
-+		struct drbd_connection *connection,
-+		unsigned long now, unsigned long ent,
-+		unsigned int ko_count, unsigned int timeout)
-+{
-+	struct drbd_device *device = net_req->device;
-+
-+	if (!time_after(now, net_req->pre_send_jif + ent))
-+		return false;
-+
-+	if (time_in_range(now, connection->last_reconnect_jif, connection->last_reconnect_jif + ent))
-+		return false;
-+
-+	if (net_req->rq_state & RQ_NET_PENDING) {
-+		drbd_warn(device, "Remote failed to finish a request within %ums > ko-count (%u) * timeout (%u * 0.1s)\n",
-+			jiffies_to_msecs(now - net_req->pre_send_jif), ko_count, timeout);
-+		return true;
-+	}
-+
-+	/* We received an ACK already (or are using protocol A),
-+	 * but are waiting for the epoch closing barrier ack.
-+	 * Check if we sent the barrier already.  We should not blame the peer
-+	 * for being unresponsive, if we did not even ask it yet. */
-+	if (net_req->epoch == connection->send.current_epoch_nr) {
-+		drbd_warn(device,
-+			"We did not send a P_BARRIER for %ums > ko-count (%u) * timeout (%u * 0.1s); drbd kernel thread blocked?\n",
-+			jiffies_to_msecs(now - net_req->pre_send_jif), ko_count, timeout);
-+		return false;
-+	}
-+
-+	/* Worst case: we may have been blocked for whatever reason, then
-+	 * suddenly are able to send a lot of requests (and epoch separating
-+	 * barriers) in quick succession.
-+	 * The timestamp of the net_req may be much too old and not correspond
-+	 * to the sending time of the relevant unack'ed barrier packet, so
-+	 * would trigger a spurious timeout.  The latest barrier packet may
-+	 * have a too recent timestamp to trigger the timeout, potentially miss
-+	 * a timeout.  Right now we don't have a place to conveniently store
-+	 * these timestamps.
-+	 * But in this particular situation, the application requests are still
-+	 * completed to upper layers, DRBD should still "feel" responsive.
-+	 * No need yet to kill this connection, it may still recover.
-+	 * If not, eventually we will have queued enough into the network for
-+	 * us to block. From that point of view, the timestamp of the last sent
-+	 * barrier packet is relevant enough.
-+	 */
-+	if (time_after(now, connection->send.last_sent_barrier_jif + ent)) {
-+		drbd_warn(device, "Remote failed to answer a P_BARRIER (sent at %lu jif; now=%lu jif) within %ums > ko-count (%u) * timeout (%u * 0.1s)\n",
-+			connection->send.last_sent_barrier_jif, now,
-+			jiffies_to_msecs(now - connection->send.last_sent_barrier_jif), ko_count, timeout);
-+		return true;
-+	}
-+	return false;
-+}
-+
-+/* A request is considered timed out, if
-+ * - we have some effective timeout from the configuration,
-+ *   with some state restrictions applied,
-+ * - the oldest request is waiting for a response from the network
-+ *   resp. the local disk,
-+ * - the oldest request is in fact older than the effective timeout,
-+ * - the connection was established (resp. disk was attached)
-+ *   for longer than the timeout already.
-+ * Note that for 32bit jiffies and very stable connections/disks,
-+ * we may have a wrap around, which is catched by
-+ *   !time_in_range(now, last_..._jif, last_..._jif + timeout).
-+ *
-+ * Side effect: once per 32bit wrap-around interval, which means every
-+ * ~198 days with 250 HZ, we have a window where the timeout would need
-+ * to expire twice (worst case) to become effective. Good enough.
-+ */
-+
- void request_timer_fn(unsigned long data)
- {
- 	struct drbd_device *device = (struct drbd_device *) data;
-@@ -1540,11 +1612,14 @@ void request_timer_fn(unsigned long data)
- 	unsigned long oldest_submit_jif;
- 	unsigned long ent = 0, dt = 0, et, nt; /* effective timeout = ko_count * timeout */
- 	unsigned long now;
-+	unsigned int ko_count = 0, timeout = 0;
- 
- 	rcu_read_lock();
- 	nc = rcu_dereference(connection->net_conf);
--	if (nc && device->state.conn >= C_WF_REPORT_PARAMS)
--		ent = nc->timeout * HZ/10 * nc->ko_count;
-+	if (nc && device->state.conn >= C_WF_REPORT_PARAMS) {
-+		ko_count = nc->ko_count;
-+		timeout = nc->timeout;
-+	}
- 
- 	if (get_ldev(device)) { /* implicit state.disk >= D_INCONSISTENT */
- 		dt = rcu_dereference(device->ldev->disk_conf)->disk_timeout * HZ / 10;
-@@ -1552,6 +1627,8 @@ void request_timer_fn(unsigned long data)
- 	}
- 	rcu_read_unlock();
- 
-+
-+	ent = timeout * HZ/10 * ko_count;
- 	et = min_not_zero(dt, ent);
- 
- 	if (!et)
-@@ -1563,11 +1640,22 @@ void request_timer_fn(unsigned long data)
- 	spin_lock_irq(&device->resource->req_lock);
- 	req_read = list_first_entry_or_null(&device->pending_completion[0], struct drbd_request, req_pending_local);
- 	req_write = list_first_entry_or_null(&device->pending_completion[1], struct drbd_request, req_pending_local);
--	req_peer = connection->req_not_net_done;
-+
- 	/* maybe the oldest request waiting for the peer is in fact still
--	 * blocking in tcp sendmsg */
--	if (!req_peer && connection->req_next && connection->req_next->pre_send_jif)
--		req_peer = connection->req_next;
-+	 * blocking in tcp sendmsg.  That's ok, though, that's handled via the
-+	 * socket send timeout, requesting a ping, and bumping ko-count in
-+	 * we_should_drop_the_connection().
-+	 */
-+
-+	/* check the oldest request we did successfully sent,
-+	 * but which is still waiting for an ACK. */
-+	req_peer = connection->req_ack_pending;
-+
-+	/* if we don't have such request (e.g. protocoll A)
-+	 * check the oldest requests which is still waiting on its epoch
-+	 * closing barrier ack. */
-+	if (!req_peer)
-+		req_peer = connection->req_not_net_done;
- 
- 	/* evaluate the oldest peer request only in one timer! */
- 	if (req_peer && req_peer->device != device)
-@@ -1584,28 +1672,9 @@ void request_timer_fn(unsigned long data)
- 		: req_write ? req_write->pre_submit_jif
- 		: req_read ? req_read->pre_submit_jif : now;
- 
--	/* The request is considered timed out, if
--	 * - we have some effective timeout from the configuration,
--	 *   with above state restrictions applied,
--	 * - the oldest request is waiting for a response from the network
--	 *   resp. the local disk,
--	 * - the oldest request is in fact older than the effective timeout,
--	 * - the connection was established (resp. disk was attached)
--	 *   for longer than the timeout already.
--	 * Note that for 32bit jiffies and very stable connections/disks,
--	 * we may have a wrap around, which is catched by
--	 *   !time_in_range(now, last_..._jif, last_..._jif + timeout).
--	 *
--	 * Side effect: once per 32bit wrap-around interval, which means every
--	 * ~198 days with 250 HZ, we have a window where the timeout would need
--	 * to expire twice (worst case) to become effective. Good enough.
--	 */
--	if (ent && req_peer &&
--		 time_after(now, req_peer->pre_send_jif + ent) &&
--		!time_in_range(now, connection->last_reconnect_jif, connection->last_reconnect_jif + ent)) {
--		drbd_warn(device, "Remote failed to finish a request within ko-count * timeout\n");
-+	if (ent && req_peer && net_timeout_reached(req_peer, connection, now, ent, ko_count, timeout))
- 		_conn_request_state(connection, NS(conn, C_TIMEOUT), CS_VERBOSE | CS_HARD);
+ 	idr_for_each_entry(&resource->devices, device, vnr)
+ 		(*n_devices)++;
+-	for_each_connection(connection, resource) {
+-		if (!has_net_conf(connection))
+-			continue;
++	for_each_connection(connection, resource)
+ 		(*n_connections)++;
 -	}
-+
- 	if (dt && oldest_submit_jif != now &&
- 		 time_after(now, oldest_submit_jif + dt) &&
- 		!time_in_range(now, device->last_reattach_jif, device->last_reattach_jif + dt)) {
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 9c89ebe..8bbabe3 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1290,6 +1290,7 @@ static int drbd_send_barrier(struct drbd_connection *connection)
- 	p->barrier = connection->send.current_epoch_nr;
- 	p->pad = 0;
- 	connection->send.current_epoch_writes = 0;
-+	connection->send.last_sent_barrier_jif = jiffies;
- 
- 	return conn_send_command(connection, sock, P_BARRIER, sizeof(*p), NULL, 0);
  }
-@@ -1314,6 +1315,7 @@ static void re_init_if_first_write(struct drbd_connection *connection, unsigned
- 		connection->send.seen_any_write_yet = true;
- 		connection->send.current_epoch_nr = epoch;
- 		connection->send.current_epoch_writes = 0;
-+		connection->send.last_sent_barrier_jif = jiffies;
+ 
+ static struct drbd_state_change *alloc_state_change(unsigned int n_devices, unsigned int n_connections, gfp_t gfp)
+@@ -108,23 +105,13 @@ struct drbd_state_change *remember_old_state(struct drbd_resource *resource, gfp
+ 	struct drbd_peer_device_state_change *peer_device_state_change;
+ 	struct drbd_connection_state_change *connection_state_change;
+ 
+-retry:
+-	rcu_read_lock();
++	/* Caller holds req_lock spinlock.
++	 * No state, no device IDR, no connections lists can change. */
+ 	count_objects(resource, &n_devices, &n_connections);
+-	rcu_read_unlock();
+ 	state_change = alloc_state_change(n_devices, n_connections, gfp);
+ 	if (!state_change)
+ 		return NULL;
+ 
+-	rcu_read_lock();
+-	count_objects(resource, &n_devices, &n_connections);
+-	if (n_devices != state_change->n_devices ||
+-	    n_connections != state_change->n_connections) {
+-		kfree(state_change);
+-		rcu_read_unlock();
+-		goto retry;
+-	}
+-
+ 	kref_get(&resource->kref);
+ 	state_change->resource->resource = resource;
+ 	state_change->resource->role[OLD] =
+@@ -133,6 +120,17 @@ retry:
+ 	state_change->resource->susp_nod[OLD] = resource->susp_nod;
+ 	state_change->resource->susp_fen[OLD] = resource->susp_fen;
+ 
++	connection_state_change = state_change->connections;
++	for_each_connection(connection, resource) {
++		kref_get(&connection->kref);
++		connection_state_change->connection = connection;
++		connection_state_change->cstate[OLD] =
++			connection->cstate;
++		connection_state_change->peer_role[OLD] =
++			conn_highest_peer(connection);
++		connection_state_change++;
++	}
++
+ 	device_state_change = state_change->devices;
+ 	peer_device_state_change = state_change->peer_devices;
+ 	idr_for_each_entry(&resource->devices, device, vnr) {
+@@ -145,8 +143,6 @@ retry:
+ 		for_each_connection(connection, resource) {
+ 			struct drbd_peer_device *peer_device;
+ 
+-			if (!has_net_conf(connection))
+-				continue;
+ 			peer_device = conn_peer_device(connection, device->vnr);
+ 			peer_device_state_change->peer_device = peer_device;
+ 			peer_device_state_change->disk_state[OLD] =
+@@ -165,20 +161,6 @@ retry:
+ 		device_state_change++;
  	}
+ 
+-	connection_state_change = state_change->connections;
+-	for_each_connection(connection, resource) {
+-		if (!has_net_conf(connection))
+-			continue;
+-		kref_get(&connection->kref);
+-		connection_state_change->connection = connection;
+-		connection_state_change->cstate[OLD] =
+-			connection->cstate;
+-		connection_state_change->peer_role[OLD] =
+-			conn_highest_peer(connection);
+-		connection_state_change++;
+-	}
+-	rcu_read_unlock();
+-
+ 	return state_change;
  }
  
 -- 
