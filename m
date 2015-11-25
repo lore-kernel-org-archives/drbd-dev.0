@@ -2,18 +2,18 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 80C9410518AB
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A10A410518AC
 	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:28 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Wed, 25 Nov 2015 11:53:36 +0100
-Message-Id: <1448448851-10343-4-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 25 Nov 2015 11:53:37 +0100
+Message-Id: <1448448851-10343-5-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 References: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/38] drbd: De-inline drbd_should_do_remote()
-	and drbd_should_send_out_of_sync()
+Subject: [Drbd-dev] [PATCH 04/38] drbd: Get rid of some first_peer_device()
+	calls
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,72 +27,52 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Andreas Gruenbacher <agruen@linbit.com>
 
-There is no need to have these two as inline functions.  In addition,
-drbd_should_send_out_of_sync() is only used in a single place, anyway.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_req.c | 18 ++++++++++++++++++
- drivers/block/drbd/drbd_req.h | 17 +----------------
- 2 files changed, 19 insertions(+), 16 deletions(-)
+ drivers/block/drbd/drbd_receiver.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 3ae2c00..55fca68 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1095,6 +1095,24 @@ static bool do_remote_read(struct drbd_request *req)
- 	return false;
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index b4b5680..5bb71e5 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1380,7 +1380,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
+ 	if (peer_req->flags & EE_IS_TRIM_USE_ZEROOUT) {
+ 		/* wait for all pending IO completions, before we start
+ 		 * zeroing things out. */
+-		conn_wait_active_ee_empty(first_peer_device(device)->connection);
++		conn_wait_active_ee_empty(peer_req->peer_device->connection);
+ 		/* add it to the active list now,
+ 		 * so we can find it to present it in debugfs */
+ 		peer_req->submit_jif = jiffies;
+@@ -1966,7 +1966,7 @@ static int e_end_block(struct drbd_work *w, int cancel)
+ 	} else
+ 		D_ASSERT(device, drbd_interval_empty(&peer_req->i));
+ 
+-	drbd_may_finish_epoch(first_peer_device(device)->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
++	drbd_may_finish_epoch(peer_device->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
+ 
+ 	return err;
  }
+@@ -2098,7 +2098,7 @@ static int wait_for_and_update_peer_seq(struct drbd_peer_device *peer_device, co
+ 		}
  
-+bool drbd_should_do_remote(union drbd_dev_state s)
-+{
-+	return s.pdsk == D_UP_TO_DATE ||
-+		(s.pdsk >= D_INCONSISTENT &&
-+		 s.conn >= C_WF_BITMAP_T &&
-+		 s.conn < C_AHEAD);
-+	/* Before proto 96 that was >= CONNECTED instead of >= C_WF_BITMAP_T.
-+	   That is equivalent since before 96 IO was frozen in the C_WF_BITMAP*
-+	   states. */
-+}
-+
-+static bool drbd_should_send_out_of_sync(union drbd_dev_state s)
-+{
-+	return s.conn == C_AHEAD || s.conn == C_WF_BITMAP_S;
-+	/* pdsk = D_INCONSISTENT as a consequence. Protocol 96 check not necessary
-+	   since we enter state C_AHEAD only if proto >= 96 */
-+}
-+
- /* returns number of connections (== 1, for drbd 8.4)
-  * expected to actually write this data,
-  * which does NOT include those that we are L_AHEAD for. */
-diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
-index 9f6a040..bb2ef78 100644
---- a/drivers/block/drbd/drbd_req.h
-+++ b/drivers/block/drbd/drbd_req.h
-@@ -331,21 +331,6 @@ static inline int req_mod(struct drbd_request *req,
- 	return rv;
- }
+ 		rcu_read_lock();
+-		tp = rcu_dereference(first_peer_device(device)->connection->net_conf)->two_primaries;
++		tp = rcu_dereference(peer_device->connection->net_conf)->two_primaries;
+ 		rcu_read_unlock();
  
--static inline bool drbd_should_do_remote(union drbd_dev_state s)
--{
--	return s.pdsk == D_UP_TO_DATE ||
--		(s.pdsk >= D_INCONSISTENT &&
--		 s.conn >= C_WF_BITMAP_T &&
--		 s.conn < C_AHEAD);
--	/* Before proto 96 that was >= CONNECTED instead of >= C_WF_BITMAP_T.
--	   That is equivalent since before 96 IO was frozen in the C_WF_BITMAP*
--	   states. */
--}
--static inline bool drbd_should_send_out_of_sync(union drbd_dev_state s)
--{
--	return s.conn == C_AHEAD || s.conn == C_WF_BITMAP_S;
--	/* pdsk = D_INCONSISTENT as a consequence. Protocol 96 check not necessary
--	   since we enter state C_AHEAD only if proto >= 96 */
--}
-+extern bool drbd_should_do_remote(union drbd_dev_state);
+ 		if (!tp)
+@@ -2364,7 +2364,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
+ 	if (dp_flags & DP_SEND_RECEIVE_ACK) {
+ 		/* I really don't like it that the receiver thread
+ 		 * sends on the msock, but anyways */
+-		drbd_send_ack(first_peer_device(device), P_RECV_ACK, peer_req);
++		drbd_send_ack(peer_device, P_RECV_ACK, peer_req);
+ 	}
  
- #endif
+ 	if (tp) {
 -- 
 1.9.1
 
