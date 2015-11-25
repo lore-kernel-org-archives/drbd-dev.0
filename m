@@ -2,17 +2,17 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2FED010562B2
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 65DB810562BD
 	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2015 11:54:36 +0100 (CET)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Wed, 25 Nov 2015 11:53:58 +0100
-Message-Id: <1448448851-10343-26-git-send-email-philipp.reisner@linbit.com>
+Date: Wed, 25 Nov 2015 11:53:59 +0100
+Message-Id: <1448448851-10343-27-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 References: <1448448851-10343-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 25/38] drbd: use resource name in workqueue
+Subject: [Drbd-dev] [PATCH 26/38] drbd: avoid redefinition of BITS_PER_PAGE
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,47 +26,37 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Since kernel 3.3, we can use snprintf-style arguments
-to create a workqueue.
+Apparently we now implicitly get definitions for BITS_PER_PAGE and
+BITS_PER_PAGE_MASK from the pid_namespace.h
+
+Instead of renaming our defines, I chose to define only if not yet
+defined, but to double check the value if already defined.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_main.c     | 4 ++--
- drivers/block/drbd/drbd_receiver.c | 5 ++++-
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_bitmap.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 938bca2..3a9a0f1 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2694,8 +2694,8 @@ static int init_submitter(struct drbd_device *device)
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index 9462d27..8bdc34d 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -479,8 +479,14 @@ void drbd_bm_cleanup(struct drbd_device *device)
+  * this masks out the remaining bits.
+  * Returns the number of bits cleared.
+  */
++#ifndef BITS_PER_PAGE
+ #define BITS_PER_PAGE		(1UL << (PAGE_SHIFT + 3))
+ #define BITS_PER_PAGE_MASK	(BITS_PER_PAGE - 1)
++#else
++# if BITS_PER_PAGE != (1UL << (PAGE_SHIFT + 3))
++#  error "ambiguous BITS_PER_PAGE"
++# endif
++#endif
+ #define BITS_PER_LONG_MASK	(BITS_PER_LONG - 1)
+ static int bm_clear_surplus(struct drbd_bitmap *b)
  {
- 	/* opencoded create_singlethread_workqueue(),
- 	 * to be able to say "drbd%d", ..., minor */
--	device->submit.wq = alloc_workqueue("drbd%u_submit",
--			WQ_UNBOUND | WQ_MEM_RECLAIM, 1, device->minor);
-+	device->submit.wq =
-+		alloc_ordered_workqueue("drbd%u_submit", WQ_MEM_RECLAIM, device->minor);
- 	if (!device->submit.wq)
- 		return -ENOMEM;
- 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index ea54341..1957fe8 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1124,7 +1124,10 @@ randomize:
- 	}
- 
- 	drbd_thread_start(&connection->ack_receiver);
--	connection->ack_sender = create_singlethread_workqueue("drbd_ack_sender");
-+	/* opencoded create_singlethread_workqueue(),
-+	 * to be able to use format string arguments */
-+	connection->ack_sender =
-+		alloc_ordered_workqueue("drbd_as_%s", WQ_MEM_RECLAIM, connection->resource->name);
- 	if (!connection->ack_sender) {
- 		drbd_err(connection, "Failed to create workqueue ack_sender\n");
- 		return 0;
 -- 
 1.9.1
 
