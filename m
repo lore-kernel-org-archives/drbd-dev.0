@@ -2,40 +2,41 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B52961055F5A
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E21641055F71
 	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:13 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id AF60F2AE5F4
+	by zimbra13.linbit.com (Postfix) with ESMTP id C99032A910D
 	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:13 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id xQ0yNUTDQcY8 for <drbd-dev@lists.linbit.com>;
-	Mon, 30 Nov 2015 20:30:12 +0100 (CET)
+	with ESMTP id 0A9E6quwI0P0 for <drbd-dev@lists.linbit.com>;
+	Mon, 30 Nov 2015 20:30:13 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id A2B4D2AE8C3
-	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:12 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 994742ADE0A
+	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:13 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 07nuKECE89W0 for <drbd-dev@lists.linbit.com>;
-	Mon, 30 Nov 2015 20:30:12 +0100 (CET)
+	with ESMTP id BRF6PmwuMJQ1 for <drbd-dev@lists.linbit.com>;
+	Mon, 30 Nov 2015 20:30:13 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 7AC502AE5F4
-	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:12 +0100 (CET)
-Resent-Message-ID: <20151130193012.GM22693@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 76CF02A910D
+	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:13 +0100 (CET)
+Resent-Message-ID: <20151130193013.GN22693@soda.linbit>
 Received: from mailrelay119.isp.belgacom.be (mailrelay119.isp.belgacom.be
 	[195.238.20.146])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 985951055F4A
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Nov 2015 22:27:33 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 56FD01055F58
+	for <drbd-dev@lists.linbit.com>; Fri, 27 Nov 2015 22:28:49 +0100 (CET)
 From: Fabian Frederick <fabf@skynet.be>
 To: linux-kernel@vger.kernel.org
-Date: Fri, 27 Nov 2015 22:26:10 +0100
-Message-Id: <1448659575-13485-6-git-send-email-fabf@skynet.be>
+Date: Fri, 27 Nov 2015 22:26:12 +0100
+Message-Id: <1448659575-13485-8-git-send-email-fabf@skynet.be>
 In-Reply-To: <1448659575-13485-1-git-send-email-fabf@skynet.be>
 References: <1448659575-13485-1-git-send-email-fabf@skynet.be>
 Cc: Fabian Frederick <fabf@skynet.be>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/21] drbd: rework is_valid_state()
+Subject: [Drbd-dev] [PATCH 07/21] drbd: kerneldoc warning fix in
+	w_e_end_data_req()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,110 +48,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Remove empty condition to avoid semantic warnings
+device in not passed to that function.
 
 Signed-off-by: Fabian Frederick <fabf@skynet.be>
 ---
- drivers/block/drbd/drbd_state.c | 86 ++++++++++++++++++-----------------------
- 1 file changed, 38 insertions(+), 48 deletions(-)
+ drivers/block/drbd/drbd_worker.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 5a7ef78..a7631a3 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -813,54 +813,44 @@ is_valid_state(struct drbd_device *device, union drbd_state ns)
- 		}
- 	}
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index eff716c..e47bde9 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -994,7 +994,6 @@ static void move_to_net_ee_or_free(struct drbd_device *device, struct drbd_peer_
  
--	if (rv <= 0)
--		/* already found a reason to abort */;
--	else if (ns.role == R_SECONDARY && device->open_cnt)
--		rv = SS_DEVICE_IN_USE;
--
--	else if (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.disk < D_UP_TO_DATE)
--		rv = SS_NO_UP_TO_DATE_DISK;
--
--	else if (fp >= FP_RESOURCE &&
--		 ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk >= D_UNKNOWN)
--		rv = SS_PRIMARY_NOP;
--
--	else if (ns.role == R_PRIMARY && ns.disk <= D_INCONSISTENT && ns.pdsk <= D_INCONSISTENT)
--		rv = SS_NO_UP_TO_DATE_DISK;
--
--	else if (ns.conn > C_CONNECTED && ns.disk < D_INCONSISTENT)
--		rv = SS_NO_LOCAL_DISK;
--
--	else if (ns.conn > C_CONNECTED && ns.pdsk < D_INCONSISTENT)
--		rv = SS_NO_REMOTE_DISK;
--
--	else if (ns.conn > C_CONNECTED && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE)
--		rv = SS_NO_UP_TO_DATE_DISK;
--
--	else if ((ns.conn == C_CONNECTED ||
--		  ns.conn == C_WF_BITMAP_S ||
--		  ns.conn == C_SYNC_SOURCE ||
--		  ns.conn == C_PAUSED_SYNC_S) &&
--		  ns.disk == D_OUTDATED)
--		rv = SS_CONNECTED_OUTDATES;
--
--	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
--		 (nc->verify_alg[0] == 0))
--		rv = SS_NO_VERIFY_ALG;
--
--	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
--		  first_peer_device(device)->connection->agreed_pro_version < 88)
--		rv = SS_NOT_SUPPORTED;
--
--	else if (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE)
--		rv = SS_NO_UP_TO_DATE_DISK;
--
--	else if ((ns.conn == C_STARTING_SYNC_S || ns.conn == C_STARTING_SYNC_T) &&
--                 ns.pdsk == D_UNKNOWN)
--		rv = SS_NEED_CONNECTION;
--
--	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
--		rv = SS_CONNECTED_OUTDATES;
-+	if (rv > 0) {
-+		if (ns.role == R_SECONDARY && device->open_cnt)
-+			rv = SS_DEVICE_IN_USE;
-+		else if (ns.role == R_PRIMARY && ns.conn < C_CONNECTED &&
-+			 ns.disk < D_UP_TO_DATE)
-+			rv = SS_NO_UP_TO_DATE_DISK;
-+		else if (fp >= FP_RESOURCE && ns.role == R_PRIMARY &&
-+			 ns.conn < C_CONNECTED && ns.pdsk >= D_UNKNOWN)
-+			rv = SS_PRIMARY_NOP;
-+		else if (ns.role == R_PRIMARY && ns.disk <= D_INCONSISTENT &&
-+			 ns.pdsk <= D_INCONSISTENT)
-+			rv = SS_NO_UP_TO_DATE_DISK;
-+		else if (ns.conn > C_CONNECTED && ns.disk < D_INCONSISTENT)
-+			rv = SS_NO_LOCAL_DISK;
-+		else if (ns.conn > C_CONNECTED && ns.pdsk < D_INCONSISTENT)
-+			rv = SS_NO_REMOTE_DISK;
-+		else if (ns.conn > C_CONNECTED && ns.disk < D_UP_TO_DATE &&
-+			 ns.pdsk < D_UP_TO_DATE)
-+			rv = SS_NO_UP_TO_DATE_DISK;
-+		else if ((ns.conn == C_CONNECTED || ns.conn == C_WF_BITMAP_S ||
-+			  ns.conn == C_SYNC_SOURCE ||
-+			  ns.conn == C_PAUSED_SYNC_S) && ns.disk == D_OUTDATED)
-+			rv = SS_CONNECTED_OUTDATES;
-+		else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
-+			 (nc->verify_alg[0] == 0))
-+			rv = SS_NO_VERIFY_ALG;
-+		else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
-+			  first_peer_device(device)->connection->agreed_pro_version < 88)
-+			rv = SS_NOT_SUPPORTED;
-+		else if (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE &&
-+			 ns.pdsk < D_UP_TO_DATE)
-+			rv = SS_NO_UP_TO_DATE_DISK;
-+		else if ((ns.conn == C_STARTING_SYNC_S ||
-+			  ns.conn == C_STARTING_SYNC_T) && ns.pdsk == D_UNKNOWN)
-+			rv = SS_NEED_CONNECTION;
-+		else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
-+			rv = SS_CONNECTED_OUTDATES;
-+	}
- 
- 	rcu_read_unlock();
- 
+ /**
+  * w_e_end_data_req() - Worker callback, to send a P_DATA_REPLY packet in response to a P_DATA_REQUEST
+- * @device:	DRBD device.
+  * @w:		work object.
+  * @cancel:	The connection will be closed anyways
+  */
 -- 
 2.1.4
 
