@@ -1,42 +1,20 @@
-Return-Path: <lars.ellenberg@linbit.com>
+Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1D5E510561B9
-	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:29 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id EBB042A910D
-	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:28 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id BHvrmtd1PILV for <drbd-dev@lists.linbit.com>;
-	Mon, 30 Nov 2015 20:30:28 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id CF2362ADE0A
-	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:28 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 2HzodBqKbVM4 for <drbd-dev@lists.linbit.com>;
-	Mon, 30 Nov 2015 20:30:28 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id AA5C12A910D
-	for <drbd-dev@lists.linbit.com>; Mon, 30 Nov 2015 20:30:28 +0100 (CET)
-Resent-Message-ID: <20151130193028.GC22693@soda.linbit>
-Received: from mailrelay119.isp.belgacom.be (mailrelay119.isp.belgacom.be
-	[195.238.20.146])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 84EEE10561B9
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Nov 2015 22:30:49 +0100 (CET)
-From: Fabian Frederick <fabf@skynet.be>
-To: linux-kernel@vger.kernel.org
-Date: Fri, 27 Nov 2015 22:30:36 +0100
-Message-Id: <1448659836-13747-2-git-send-email-fabf@skynet.be>
-In-Reply-To: <1448659836-13747-1-git-send-email-fabf@skynet.be>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 179431019A36
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Dec 2015 09:55:39 +0100 (CET)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Fabian Frederick <fabf@skynet.be>
+Date: Tue, 01 Dec 2015 09:55:17 +0100
+Message-ID: <13681562.iEXrDB2gtG@fat-tyre>
+In-Reply-To: <1448659575-13485-1-git-send-email-fabf@skynet.be>
 References: <1448659575-13485-1-git-send-email-fabf@skynet.be>
-	<1448659836-13747-1-git-send-email-fabf@skynet.be>
-Cc: Fabian Frederick <fabf@skynet.be>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 21/21] drbd: replace if/BUG by BUG_ON
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 00/21] drbd: clean-up patchset
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,26 +26,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Signed-off-by: Fabian Frederick <fabf@skynet.be>
----
- drivers/block/drbd/drbd_state.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+Hi Fabian,
 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index a7631a3..5f16a11 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -2150,9 +2150,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union
- 			ns.disk = os.disk;
- 
- 		rv = _drbd_set_state(device, ns, flags, NULL);
--		if (rv < SS_SUCCESS)
--			BUG();
--
-+		BUG_ON(rv < SS_SUCCESS);
- 		ns.i = device->state.i;
- 		ns_max.role = max_role(ns.role, ns_max.role);
- 		ns_max.peer = max_role(ns.peer, ns_max.peer);
--- 
-2.1.4
+I will take these patches and send them towards upstream in the
+next round. (Probably squashing them into a smaller number of
+patches while doing so)
+
+Best regards,
+ Phil
+
+Am Freitag, 27. November 2015, 22:26:05 schrieb Fabian Frederick:
+> This small patchset does some code clean-up in drivers/block/drbd tree.
+> 
+> Fabian Frederick (21):
+>   drbd: debugfs: constify drbd_version_fops
+>   drbd: simplify drbd_md_set_sector_offsets()
+>   drbd: use seq_put instead of seq_print where possible
+>   drbd: include linux/uaccess.h instead of asm/uaccess.h
+>   drbd: rework is_valid_state()
+>   drbd: use const char * const for drbd strings
+>   drbd: kerneldoc warning fix in w_e_end_data_req()
+>   drbd: use unsigned for one bit fields
+>   drbd: use bool for peer is_ states
+>   drbd: fix typo
+>   drbd: use | for bitmask combination
+>   drbd: use true/false for bool
+>   drbd: fix drbd_bm_init() comments
+>   drbd: clean-up receive_SyncParam()
+>   drbd: introduce peer state union
+>   drbd: fix maybe_pull_ahead() locking comments
+>   drbd: use bool for growing
+>   drbd: remove redundant declarations
+>   drbd: remove bm_vk_free()
+>   drbd: remove unused definitions
+>   drbd: replace if/BUG by BUG_ON
+> 
+>  drivers/block/drbd/drbd_bitmap.c   | 19 +++-----
+>  drivers/block/drbd/drbd_debugfs.c  |  2 +-
+>  drivers/block/drbd/drbd_int.h      |  7 ---
+>  drivers/block/drbd/drbd_interval.h | 14 +++---
+>  drivers/block/drbd/drbd_main.c     |  2 +-
+>  drivers/block/drbd/drbd_nl.c       | 37 ++++++++--------
+>  drivers/block/drbd/drbd_proc.c     | 30 ++++++-------
+>  drivers/block/drbd/drbd_receiver.c | 22 +++++-----
+>  drivers/block/drbd/drbd_req.c      |  2 +-
+>  drivers/block/drbd/drbd_state.c    | 90
+> +++++++++++++++++--------------------- drivers/block/drbd/drbd_state.h    |
+>  2 +-
+>  drivers/block/drbd/drbd_strings.c  |  8 ++--
+>  drivers/block/drbd/drbd_worker.c   |  9 ++--
+>  include/linux/drbd.h               |  8 ++++
+>  14 files changed, 116 insertions(+), 136 deletions(-)
 
