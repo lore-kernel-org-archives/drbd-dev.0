@@ -1,29 +1,36 @@
-Return-Path: <BATV+c4519af19bc0c6ddca75+4520+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
-	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 626A91056307
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 15:00:02 +0100 (CET)
-Date: Fri, 8 Jan 2016 05:32:37 -0800
-From: Christoph Hellwig <hch@infradead.org>
-To: mchristi@redhat.com
-Message-ID: <20160108133237.GA7663@infradead.org>
-References: <1452027218-32303-1-git-send-email-mchristi@redhat.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3AB611056317
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:30:53 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id B52632A5A63
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:30:52 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id SqBA72BEYbeF for <drbd-dev@lists.linbit.com>;
+	Fri,  8 Jan 2016 21:30:52 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 92E782A59D3
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:30:52 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id vYFntlrt4N95 for <drbd-dev@lists.linbit.com>;
+	Fri,  8 Jan 2016 21:30:52 +0100 (CET)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 5F8972A5A63
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:30:52 +0100 (CET)
+Resent-Message-ID: <20160108203051.GI28982@soda.linbit>
+Date: Sun, 27 Dec 2015 21:18:09 +0700
+From: Ivan Safonov <insafonov@gmail.com>
+To: Lars Ellenberg <drbd-dev@lists.linbit.com>
+Message-ID: <20151227141809.GA18632@alpha.sfu-kras.ru>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1452027218-32303-1-git-send-email-mchristi@redhat.com>
-Cc: linux-bcache@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com,
-	ocfs2-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
-	konrad.wilk@oracle.com, linux-kernel@vger.kernel.org,
-	philipp.reisner@linbit.com, linux-f2fs-devel@lists.sourceforge.net,
-	linux-raid@vger.kernel.org, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	osd-dev@open-osd.org, linux-fsdevel@vger.kernel.org,
-	lars.ellenberg@linbit.com, linux-ext4@vger.kernel.org,
-	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/35 v2] separate operations from flags in
- the bio/request structs
+Cc: linux-kernel@vger.kernel.org, drbd-user@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drivers: block: drbd: remove unused macros
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,6 +42,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This looks good to me from a highlevel point of view.
-Do you also have a git tree to take a look at all the changes in a
-single big diff?
+div_ceil and div_floor macros duplicates round_up and round_down from kernel.h
+
+Signed-off-by: Ivan Safonov <insafonov@gmail.com>
+---
+ drivers/block/drbd/drbd_int.h | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index e66d453..08256ad 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -195,11 +195,6 @@ drbd_insert_fault(struct drbd_device *device, unsigned int type) {
+ #endif
+ }
+ 
+-/* integer division, round _UP_ to the next integer */
+-#define div_ceil(A, B) ((A)/(B) + ((A)%(B) ? 1 : 0))
+-/* usual integer division */
+-#define div_floor(A, B) ((A)/(B))
+-
+ extern struct ratelimit_state drbd_ratelimit_state;
+ extern struct idr drbd_devices; /* RCU, updates: genl_lock() */
+ extern struct list_head drbd_resources; /* RCU, updates: genl_lock() */
+-- 
+2.4.10
+
