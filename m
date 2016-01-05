@@ -2,30 +2,30 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A1BBE1056426
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:31:45 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0AC581056427
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:31:47 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 9C67B2A5C46
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:31:45 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 028F12A5C46
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:31:47 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id vzRj5hAG1bU1 for <drbd-dev@lists.linbit.com>;
-	Fri,  8 Jan 2016 21:31:45 +0100 (CET)
+	with ESMTP id xUpZKzad3cEi for <drbd-dev@lists.linbit.com>;
+	Fri,  8 Jan 2016 21:31:46 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 7782C2A5C4B
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:31:45 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id DA88C2A5C4B
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:31:46 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id lgqqgI3ECVeb for <drbd-dev@lists.linbit.com>;
-	Fri,  8 Jan 2016 21:31:45 +0100 (CET)
+	with ESMTP id EiQWDMnRn8gZ for <drbd-dev@lists.linbit.com>;
+	Fri,  8 Jan 2016 21:31:46 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 500012A5C46
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:31:45 +0100 (CET)
-Resent-Message-ID: <20160108203144.GH28982@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id B15AD2A5C46
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:31:46 +0100 (CET)
+Resent-Message-ID: <20160108203146.GI28982@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3817A1056326
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4353F1056327
 	for <drbd-dev@lists.linbit.com>; Tue,  5 Jan 2016 22:01:04 +0100 (CET)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Tue,  5 Jan 2016 14:53:23 -0600
-Message-Id: <1452027218-32303-21-git-send-email-mchristi@redhat.com>
+Date: Tue,  5 Jan 2016 14:53:15 -0600
+Message-Id: <1452027218-32303-13-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1452027218-32303-1-git-send-email-mchristi@redhat.com>
 References: <1452027218-32303-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 20/35] dm: pass dm stats data dir instead of bi_rw
+Subject: [Drbd-dev] [PATCH 12/35] gfs2: set bi_op to REQ_OP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,90 +56,166 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-It looks like dm stats cares about the data direction
-(READ vs WRITE) and does not need the bio/request flags.
-Commands like REQ_FLUSH, REQ_DISCARD and REQ_WRITE_SAME
-are currently always set with REQ_WRITE, so the extra check for
-REQ_DISCARD in dm_stats_account_io is not needed.
-
-This patch has it use the bio and request data_dir helpers
-instead of accessing the bi_rw/cmd_flags directly. This makes
-the next patches that remove the operation from the cmd_flags
-and bi_rw easier, because we will no longer have the REQ_WRITE
-bit set for operations like discards.
+This patch has gfs2 set the bio bi_op to a REQ_OP, and
+rq_flag_bits to bi_rw.
 
 This patch is compile tested only.
 
+v2:
+
+Bob, I did not add your signed off, because there was
+the gfs2_submit_bhs changes since last time you reviewed
+it.
+
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 ---
- drivers/md/dm-stats.c | 6 +++---
- drivers/md/dm.c       | 8 ++++----
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ fs/gfs2/log.c        |  8 ++++----
+ fs/gfs2/lops.c       | 12 +++++++-----
+ fs/gfs2/lops.h       |  2 +-
+ fs/gfs2/meta_io.c    |  8 +++++---
+ fs/gfs2/ops_fstype.c |  1 +
+ 5 files changed, 18 insertions(+), 13 deletions(-)
 
-diff --git a/drivers/md/dm-stats.c b/drivers/md/dm-stats.c
-index 8289804..96b5c1b 100644
---- a/drivers/md/dm-stats.c
-+++ b/drivers/md/dm-stats.c
-@@ -518,7 +518,7 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
- 			      struct dm_stats_aux *stats_aux, bool end,
- 			      unsigned long duration_jiffies)
+diff --git a/fs/gfs2/log.c b/fs/gfs2/log.c
+index 0ff028c..e58ccef0 100644
+--- a/fs/gfs2/log.c
++++ b/fs/gfs2/log.c
+@@ -657,7 +657,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
+ 	struct gfs2_log_header *lh;
+ 	unsigned int tail;
+ 	u32 hash;
+-	int rw = WRITE_FLUSH_FUA | REQ_META;
++	int op_flags = WRITE_FLUSH_FUA | REQ_META;
+ 	struct page *page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
+ 	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
+ 	lh = page_address(page);
+@@ -682,12 +682,12 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
+ 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags)) {
+ 		gfs2_ordered_wait(sdp);
+ 		log_flush_wait(sdp);
+-		rw = WRITE_SYNC | REQ_META | REQ_PRIO;
++		op_flags = WRITE_SYNC | REQ_META | REQ_PRIO;
+ 	}
+ 
+ 	sdp->sd_log_idle = (tail == sdp->sd_log_flush_head);
+ 	gfs2_log_write_page(sdp, page);
+-	gfs2_log_flush_bio(sdp, rw);
++	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, op_flags);
+ 	log_flush_wait(sdp);
+ 
+ 	if (sdp->sd_log_tail != tail)
+@@ -738,7 +738,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
+ 
+ 	gfs2_ordered_write(sdp);
+ 	lops_before_commit(sdp, tr);
+-	gfs2_log_flush_bio(sdp, WRITE);
++	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
+ 
+ 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
+ 		log_flush_wait(sdp);
+diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
+index acc5ccb..11980f6 100644
+--- a/fs/gfs2/lops.c
++++ b/fs/gfs2/lops.c
+@@ -230,17 +230,19 @@ static void gfs2_end_log_write(struct bio *bio)
+ /**
+  * gfs2_log_flush_bio - Submit any pending log bio
+  * @sdp: The superblock
+- * @rw: The rw flags
++ * @op: REQ_OP
++ * @op_flags: rq_flag_bits
+  *
+  * Submit any pending part-built or full bio to the block device. If
+  * there is no pending bio, then this is a no-op.
+  */
+ 
+-void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw)
++void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int op, int op_flags)
  {
--	unsigned long idx = bi_rw & REQ_WRITE;
-+	unsigned long idx = bi_rw;
- 	struct dm_stat_shared *shared = &s->stat_shared[entry];
- 	struct dm_stat_percpu *p;
+ 	if (sdp->sd_log_bio) {
+ 		atomic_inc(&sdp->sd_log_in_flight);
+-		sdp->sd_log_bio->bi_rw |= rw;
++		sdp->sd_log_bio->bi_op = op;
++		sdp->sd_log_bio->bi_rw |= op_flags;
+ 		submit_bio(sdp->sd_log_bio);
+ 		sdp->sd_log_bio = NULL;
+ 	}
+@@ -300,7 +302,7 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno)
+ 		nblk >>= sdp->sd_fsb2bb_shift;
+ 		if (blkno == nblk)
+ 			return bio;
+-		gfs2_log_flush_bio(sdp, WRITE);
++		gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
+ 	}
  
-@@ -645,8 +645,8 @@ void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
- 		last = raw_cpu_ptr(stats->last);
- 		stats_aux->merged =
- 			(bi_sector == (ACCESS_ONCE(last->last_sector) &&
--				       ((bi_rw & (REQ_WRITE | REQ_DISCARD)) ==
--					(ACCESS_ONCE(last->last_rw) & (REQ_WRITE | REQ_DISCARD)))
-+				       ((bi_rw == WRITE) ==
-+					(ACCESS_ONCE(last->last_rw) == WRITE))
- 				       ));
- 		ACCESS_ONCE(last->last_sector) = end_sector;
- 		ACCESS_ONCE(last->last_rw) = bi_rw;
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index 1777c9c..5dbdae7 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -686,7 +686,7 @@ static void start_io_acct(struct dm_io *io)
- 		atomic_inc_return(&md->pending[rw]));
+ 	return gfs2_log_alloc_bio(sdp, blkno);
+@@ -329,7 +331,7 @@ static void gfs2_log_write(struct gfs2_sbd *sdp, struct page *page,
+ 	bio = gfs2_log_get_bio(sdp, blkno);
+ 	ret = bio_add_page(bio, page, size, offset);
+ 	if (ret == 0) {
+-		gfs2_log_flush_bio(sdp, WRITE);
++		gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
+ 		bio = gfs2_log_alloc_bio(sdp, blkno);
+ 		ret = bio_add_page(bio, page, size, offset);
+ 		WARN_ON(ret == 0);
+diff --git a/fs/gfs2/lops.h b/fs/gfs2/lops.h
+index a65a7ba..e529f53 100644
+--- a/fs/gfs2/lops.h
++++ b/fs/gfs2/lops.h
+@@ -27,7 +27,7 @@ extern const struct gfs2_log_operations gfs2_databuf_lops;
  
- 	if (unlikely(dm_stats_used(&md->stats)))
--		dm_stats_account_io(&md->stats, bio->bi_rw, bio->bi_iter.bi_sector,
-+		dm_stats_account_io(&md->stats, bio_data_dir(bio), bio->bi_iter.bi_sector,
- 				    bio_sectors(bio), false, 0, &io->stats_aux);
+ extern const struct gfs2_log_operations *gfs2_log_ops[];
+ extern void gfs2_log_write_page(struct gfs2_sbd *sdp, struct page *page);
+-extern void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw);
++extern void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int op, int op_flags);
+ extern void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh);
+ 
+ static inline unsigned int buf_limit(struct gfs2_sbd *sdp)
+diff --git a/fs/gfs2/meta_io.c b/fs/gfs2/meta_io.c
+index e2fc2b9..3996c1d 100644
+--- a/fs/gfs2/meta_io.c
++++ b/fs/gfs2/meta_io.c
+@@ -213,7 +213,8 @@ static void gfs2_meta_read_endio(struct bio *bio)
+  * Submit several consecutive buffer head I/O requests as a single bio I/O
+  * request.  (See submit_bh_wbc.)
+  */
+-static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
++static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
++			    int num)
+ {
+ 	struct buffer_head *bh = bhs[0];
+ 	struct bio *bio;
+@@ -230,7 +231,8 @@ static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
+ 		bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
+ 	}
+ 	bio->bi_end_io = gfs2_meta_read_endio;
+-	bio->bi_rw |= rw;
++	bio->bi_op = op;
++	bio->bi_rw |= op_flags;
+ 	submit_bio(bio);
  }
  
-@@ -701,7 +701,7 @@ static void end_io_acct(struct dm_io *io)
- 	generic_end_io_acct(rw, &dm_disk(md)->part0, io->start_time);
- 
- 	if (unlikely(dm_stats_used(&md->stats)))
--		dm_stats_account_io(&md->stats, bio->bi_rw, bio->bi_iter.bi_sector,
-+		dm_stats_account_io(&md->stats, bio_data_dir(bio), bio->bi_iter.bi_sector,
- 				    bio_sectors(bio), true, duration, &io->stats_aux);
- 
- 	/*
-@@ -1084,7 +1084,7 @@ static void rq_end_stats(struct mapped_device *md, struct request *orig)
- 	if (unlikely(dm_stats_used(&md->stats))) {
- 		struct dm_rq_target_io *tio = tio_from_request(orig);
- 		tio->duration_jiffies = jiffies - tio->duration_jiffies;
--		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
-+		dm_stats_account_io(&md->stats, rq_data_dir(orig), blk_rq_pos(orig),
- 				    tio->n_sectors, true, tio->duration_jiffies,
- 				    &tio->stats_aux);
- 	}
-@@ -2017,7 +2017,7 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
- 		struct dm_rq_target_io *tio = tio_from_request(orig);
- 		tio->duration_jiffies = jiffies;
- 		tio->n_sectors = blk_rq_sectors(orig);
--		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
-+		dm_stats_account_io(&md->stats, rq_data_dir(orig), blk_rq_pos(orig),
- 				    tio->n_sectors, false, 0, &tio->stats_aux);
+@@ -281,7 +283,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
+ 		}
  	}
  
+-	gfs2_submit_bhs(READ_SYNC | REQ_META | REQ_PRIO, bhs, num);
++	gfs2_submit_bhs(REQ_OP_READ, READ_SYNC | REQ_META | REQ_PRIO, bhs, num);
+ 	if (!(flags & DIO_WAIT))
+ 		return 0;
+ 
+diff --git a/fs/gfs2/ops_fstype.c b/fs/gfs2/ops_fstype.c
+index 15a4f86..cc8600a 100644
+--- a/fs/gfs2/ops_fstype.c
++++ b/fs/gfs2/ops_fstype.c
+@@ -246,6 +246,7 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
+ 
+ 	bio->bi_end_io = end_bio_io_page;
+ 	bio->bi_private = page;
++	bio->bi_op = REQ_OP_READ;
+ 	bio->bi_rw |= READ_SYNC | REQ_META;
+ 	submit_bio(bio);
+ 	wait_on_page_locked(page);
 -- 
 1.8.3.1
 
