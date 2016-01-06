@@ -1,37 +1,32 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <Bart.VanAssche@sandisk.com>
+Received: from na01-bn1-obe.outbound.protection.outlook.com
+	(mail-bn1on0092.outbound.protection.outlook.com [157.56.110.92])
+	(using TLSv1 with cipher AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C2E0A10562DA
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Dec 2015 15:30:53 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id AFC404849B7
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Dec 2015 15:30:53 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id TE6iFQXbqnMN for <drbd-dev@lists.linbit.com>;
-	Tue, 22 Dec 2015 15:30:53 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 8E2283FA1F2
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Dec 2015 15:30:53 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id zLn7e8OmNA_j for <drbd-dev@lists.linbit.com>;
-	Tue, 22 Dec 2015 15:30:53 +0100 (CET)
-Received: from localhost (chello213047144126.1.15.vie.surfer.at
-	[213.47.144.126])
-	by zimbra13.linbit.com (Postfix) with ESMTPSA id 5D6752A6371
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Dec 2015 15:30:53 +0100 (CET)
-Date: Tue, 22 Dec 2015 15:30:52 +0100
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20151222143051.GI1383@rck.sh>
-References: <1448659575-13485-1-git-send-email-fabf@skynet.be>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id AA1121056308
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Jan 2016 18:31:22 +0100 (CET)
+To: device-mapper development <dm-devel@redhat.com>,
+	<linux-f2fs-devel@lists.sourceforge.net>, <linux-ext4@vger.kernel.org>,
+	<konrad.wilk@oracle.com>, <drbd-dev@lists.linbit.com>,
+	<philipp.reisner@linbit.com>, <lars.ellenberg@linbit.com>,
+	<linux-raid@vger.kernel.org>, <linux-fsdevel@vger.kernel.org>,
+	<linux-bcache@vger.kernel.org>, <linux-block@vger.kernel.org>,
+	<linux-kernel@vger.kernel.org>, <linux-scsi@vger.kernel.org>,
+	<linux-mtd@lists.infradead.org>, <target-devel@vger.kernel.org>,
+	<linux-btrfs@vger.kernel.org>, <osd-dev@open-osd.org>, <xfs@oss.sgi.com>,
+	<ocfs2-devel@oss.oracle.com>
+References: <1452027218-32303-1-git-send-email-mchristi@redhat.com>
+	<1452027218-32303-2-git-send-email-mchristi@redhat.com>
+From: Bart Van Assche <bart.vanassche@sandisk.com>
+Message-ID: <568D39DE.2060709@sandisk.com>
+Date: Wed, 6 Jan 2016 16:59:26 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1448659575-13485-1-git-send-email-fabf@skynet.be>
-Subject: Re: [Drbd-dev] [PATCH 00/21] drbd: clean-up patchset
+In-Reply-To: <1452027218-32303-2-git-send-email-mchristi@redhat.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
+Cc: Mike Christie <mchristi@redhat.com>
+Subject: Re: [Drbd-dev] [dm-devel] [PATCH 01/35] block/fs/drivers: remove rw
+ argument from submit_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,11 +38,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Fabian,
+On 01/05/2016 09:53 PM, mchristi@redhat.com wrote:
+> From: Mike Christie <mchristi@redhat.com>
+>
+> This has callers of submit_bio/submit_bio_wait set the bio->bi_rw
+> instead of passing it in. This makes that use the same as
+> generic_make_request and how we set the other bio fields.
 
-Thanks for your patches, the result is now in our repo and will be sent
-upstream soon.
-
-http://git.drbd.org/gitweb.cgi/drbd-8.4.git
-
-Regards, rck
+Reviewed-by: Bart Van Assche <bart.vanassche@sandisk.com>
