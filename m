@@ -1,51 +1,31 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+Return-Path: <msnitzer@redhat.com>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A1BBB1056312
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 22:03:20 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 68BD72A6416
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 22:03:20 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id e_mob_1WkLFM for <drbd-dev@lists.linbit.com>;
-	Fri,  8 Jan 2016 22:03:20 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 4B21E2A6434
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 22:03:20 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id RLJ_mvYhB2bR for <drbd-dev@lists.linbit.com>;
-	Fri,  8 Jan 2016 22:03:20 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 2118A2A6416
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 22:03:20 +0100 (CET)
-Resent-Message-ID: <20160108210319.GA28982@soda.linbit>
-Received: from sabe.cs.wisc.edu (sabe.cs.wisc.edu [128.105.6.20])
-	(using TLSv1 with cipher DHE-RSA-AES128-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3DBA41056431
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Jan 2016 21:59:53 +0100 (CET)
-Message-ID: <56902132.8080008@cs.wisc.edu>
-Date: Fri, 08 Jan 2016 14:50:58 -0600
-From: Mike Christie <michaelc@cs.wisc.edu>
-MIME-Version: 1.0
-To: Christoph Hellwig <hch@infradead.org>, mchristi@redhat.com
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 10C681056307
+	for <drbd-dev@lists.linbit.com>; Sat,  9 Jan 2016 00:07:16 +0100 (CET)
+Date: Fri, 8 Jan 2016 18:07:10 -0500
+From: Mike Snitzer <snitzer@redhat.com>
+To: Mike Christie <michaelc@cs.wisc.edu>
+Message-ID: <20160108230709.GA15655@redhat.com>
 References: <1452027218-32303-1-git-send-email-mchristi@redhat.com>
 	<20160108133237.GA7663@infradead.org>
-In-Reply-To: <20160108133237.GA7663@infradead.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Cc: linux-bcache@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com,
-	ocfs2-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
-	konrad.wilk@oracle.com, linux-kernel@vger.kernel.org,
-	philipp.reisner@linbit.com, linux-f2fs-devel@lists.sourceforge.net,
+	<56902132.8080008@cs.wisc.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56902132.8080008@cs.wisc.edu>
+Cc: linux-block@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	linux-raid@vger.kernel.org, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	osd-dev@open-osd.org, linux-fsdevel@vger.kernel.org,
-	lars.ellenberg@linbit.com, linux-ext4@vger.kernel.org,
-	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
+	linux-scsi@vger.kernel.org, konrad.wilk@oracle.com,
+	linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
+	linux-kernel@vger.kernel.org, xfs@oss.sgi.com,
+	Christoph Hellwig <hch@infradead.org>,
+	linux-bcache@vger.kernel.org, mchristi@redhat.com,
+	linux-mtd@lists.infradead.org, osd-dev@open-osd.org,
+	linux-fsdevel@vger.kernel.org, lars.ellenberg@linbit.com,
+	philipp.reisner@linbit.com, drbd-dev@lists.linbit.com,
+	ocfs2-devel@oss.oracle.com, target-devel@vger.kernel.org
 Subject: Re: [Drbd-dev] [PATCH 00/35 v2] separate operations from flags in
  the bio/request structs
 List-Id: "*Coordination* of development, patches,
@@ -59,13 +39,86 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 01/08/2016 07:32 AM, Christoph Hellwig wrote:
-> This looks good to me from a highlevel point of view.
-> Do you also have a git tree to take a look at all the changes in a
-> single big diff?
+On Fri, Jan 08 2016 at  3:50P -0500,
+Mike Christie <michaelc@cs.wisc.edu> wrote:
 
-I uploaded a git tree here:
+> On 01/08/2016 07:32 AM, Christoph Hellwig wrote:
+> > This looks good to me from a highlevel point of view.
+> > Do you also have a git tree to take a look at all the changes in a
+> > single big diff?
+> 
+> I uploaded a git tree here:
+> 
+> https://github.com/mikechristie/linux-kernel.git
+> 
+> based off of linux-next today. The patches are just in the master branch.
 
-https://github.com/mikechristie/linux-kernel.git
+Hi Mike,
 
-based off of linux-next today. The patches are just in the master branch.
+I had a look at your DM changes.  That sucked (but things looked good).
+So much so that I want to thank you for tackling this task (and taking
+one for the team).
+
+I'll get this kernel built and tested (using the various DM testsuites:
+lvm2, cryptsetup, device-mapper-test-suite for dm-thinp and dm-cache).
+
+But I did make some changes during my review that I'd appreciate if
+you'd fold in to wherever you think it appropriate in your series:
+
+diff --git a/drivers/md/dm-stats.c b/drivers/md/dm-stats.c
+index 96b5c1b..9e29dba 100644
+--- a/drivers/md/dm-stats.c
++++ b/drivers/md/dm-stats.c
+@@ -514,11 +514,10 @@ static void dm_stat_round(struct dm_stat *s, struct dm_stat_shared *shared,
+ }
+ 
+ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
+-			      unsigned long bi_rw, sector_t len,
++			      int idx, sector_t len,
+ 			      struct dm_stats_aux *stats_aux, bool end,
+ 			      unsigned long duration_jiffies)
+ {
+-	unsigned long idx = bi_rw;
+ 	struct dm_stat_shared *shared = &s->stat_shared[entry];
+ 	struct dm_stat_percpu *p;
+ 
+@@ -584,7 +583,7 @@ static void dm_stat_for_entry(struct dm_stat *s, size_t entry,
+ #endif
+ }
+ 
+-static void __dm_stat_bio(struct dm_stat *s, unsigned long bi_rw,
++static void __dm_stat_bio(struct dm_stat *s, int bi_rw,
+ 			  sector_t bi_sector, sector_t end_sector,
+ 			  bool end, unsigned long duration_jiffies,
+ 			  struct dm_stats_aux *stats_aux)
+@@ -622,7 +621,7 @@ static void __dm_stat_bio(struct dm_stat *s, unsigned long bi_rw,
+ 	} while (unlikely(todo != 0));
+ }
+ 
+-void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
++void dm_stats_account_io(struct dm_stats *stats, int bi_rw,
+ 			 sector_t bi_sector, unsigned bi_sectors, bool end,
+ 			 unsigned long duration_jiffies,
+ 			 struct dm_stats_aux *stats_aux)
+diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
+index 5e940f7..9a4b3cb 100644
+--- a/drivers/md/dm-table.c
++++ b/drivers/md/dm-table.c
+@@ -1326,7 +1326,7 @@ static int device_fua_capable(struct dm_target *ti, struct dm_dev *dev,
+ }
+ 
+ static bool dm_table_supports_flush(struct dm_table *t,
+-				    iterate_devices_callout_fn support_test)
++				    iterate_devices_callout_fn callout_fn)
+ {
+ 	struct dm_target *ti;
+ 	unsigned i = 0;
+@@ -1347,7 +1347,7 @@ static bool dm_table_supports_flush(struct dm_table *t,
+ 			return true;
+ 
+ 		if (ti->type->iterate_devices &&
+-		    ti->type->iterate_devices(ti, support_test, NULL))
++		    ti->type->iterate_devices(ti, callout_fn, NULL))
+ 			return true;
+ 	}
+ 
