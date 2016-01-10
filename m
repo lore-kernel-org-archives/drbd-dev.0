@@ -1,29 +1,34 @@
-Return-Path: <BATV+e0e8e2f09c0ec55de608+4521+infradead.org+hch@bombadil.srs.infradead.org>
+Return-Path: <BATV+aab932a23b7e96aeb608+4522+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
 	(using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B32581056312
-	for <drbd-dev@lists.linbit.com>; Sat,  9 Jan 2016 14:39:26 +0100 (CET)
-Date: Sat, 9 Jan 2016 05:39:18 -0800
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7F2B31056307
+	for <drbd-dev@lists.linbit.com>; Sun, 10 Jan 2016 08:15:15 +0100 (CET)
+Date: Sat, 9 Jan 2016 23:14:57 -0800
 From: Christoph Hellwig <hch@infradead.org>
-To: mchristi@redhat.com
-Message-ID: <20160109133918.GC26660@infradead.org>
+To: Mike Christie <michaelc@cs.wisc.edu>
+Message-ID: <20160110071457.GA12831@infradead.org>
 References: <1452027218-32303-1-git-send-email-mchristi@redhat.com>
-	<1452027218-32303-27-git-send-email-mchristi@redhat.com>
+	<1452027218-32303-3-git-send-email-mchristi@redhat.com>
+	<20160109133716.GB26660@infradead.org>
+	<5691AC2E.2050403@cs.wisc.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1452027218-32303-27-git-send-email-mchristi@redhat.com>
-Cc: linux-bcache@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com,
-	ocfs2-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
+In-Reply-To: <5691AC2E.2050403@cs.wisc.edu>
+Cc: linux-raid@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	target-devel@vger.kernel.org, linux-scsi@vger.kernel.org,
 	konrad.wilk@oracle.com, linux-kernel@vger.kernel.org,
-	philipp.reisner@linbit.com, linux-f2fs-devel@lists.sourceforge.net,
-	linux-raid@vger.kernel.org, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	linux-ext4@vger.kernel.org, linux-bcache@vger.kernel.org,
+	xfs@oss.sgi.com, linux-block@vger.kernel.org,
+	device-mapper development <dm-devel@redhat.com>,
+	mchristi@redhat.com, linux-mtd@lists.infradead.org,
 	osd-dev@open-osd.org, linux-fsdevel@vger.kernel.org,
-	lars.ellenberg@linbit.com, linux-ext4@vger.kernel.org,
-	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 26/35] block: set op to REQ_OP
+	lars.ellenberg@linbit.com, philipp.reisner@linbit.com,
+	drbd-dev@lists.linbit.com, ocfs2-devel@oss.oracle.com,
+	linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [dm-devel] [PATCH 02/35] block: add REQ_OP
+ definitions and bi_op/op fields
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,14 +40,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> @@ -1149,10 +1151,12 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
->  
->  	blk_rq_init(q, rq);
->  	blk_rq_set_rl(rq, rl);
-> -	rq->cmd_flags = rw_flags | REQ_ALLOCED;
-> +	/* tmp compat - allow users to check either one for the op */
-> +	rq->cmd_flags = op | op_flags | REQ_ALLOCED;
+On Sat, Jan 09, 2016 at 06:56:14PM -0600, Mike Christie wrote:
+> I did not change the flush related code until the last patches. I added
+> REQ_OP_FLUSH in patch:
 
-This one is still left after the whole series is applied, seems like
-the hunk to remove it again got lost somewhere.
-
+Oh, I missed that.
