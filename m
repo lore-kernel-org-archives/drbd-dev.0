@@ -1,34 +1,54 @@
-Return-Path: <BATV+aab932a23b7e96aeb608+4522+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
-	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7E2411056317
-	for <drbd-dev@lists.linbit.com>; Sun, 10 Jan 2016 08:16:08 +0100 (CET)
-Date: Sat, 9 Jan 2016 23:15:58 -0800
-From: Christoph Hellwig <hch@infradead.org>
-To: Mike Christie <michaelc@cs.wisc.edu>
-Message-ID: <20160110071558.GB12831@infradead.org>
-References: <1452027218-32303-1-git-send-email-mchristi@redhat.com>
-	<1452027218-32303-3-git-send-email-mchristi@redhat.com>
-	<20160109133716.GB26660@infradead.org>
-	<5691AC2E.2050403@cs.wisc.edu> <5691B208.9060001@cs.wisc.edu>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 27F8F1056314
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:25 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 14FA3360050
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:25 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id Ub5rbIoUeVCj for <drbd-dev@lists.linbit.com>;
+	Tue, 12 Jan 2016 11:09:25 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id E99FF364770
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:24 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id QZ9SBMgWTIPI for <drbd-dev@lists.linbit.com>;
+	Tue, 12 Jan 2016 11:09:24 +0100 (CET)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id BFC97360050
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:24 +0100 (CET)
+Resent-Message-ID: <20160112100924.GA3313@soda.linbit>
+Received: from sabe.cs.wisc.edu (sabe.cs.wisc.edu [128.105.6.20])
+	(using TLSv1 with cipher DHE-RSA-AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4DD311056308
+	for <drbd-dev@lists.linbit.com>; Sun, 10 Jan 2016 01:44:42 +0100 (CET)
+Message-ID: <5691A934.8020000@cs.wisc.edu>
+Date: Sat, 09 Jan 2016 18:43:32 -0600
+From: Mike Christie <michaelc@cs.wisc.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5691B208.9060001@cs.wisc.edu>
-Cc: linux-raid@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
-	target-devel@vger.kernel.org, linux-scsi@vger.kernel.org,
+To: Christoph Hellwig <hch@infradead.org>, mchristi@redhat.com
+References: <1452027218-32303-1-git-send-email-mchristi@redhat.com>
+	<1452027218-32303-2-git-send-email-mchristi@redhat.com>
+	<20160109133409.GA26660@infradead.org>
+In-Reply-To: <20160109133409.GA26660@infradead.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Cc: linux-bcache@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com,
+	ocfs2-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
 	konrad.wilk@oracle.com, linux-kernel@vger.kernel.org,
-	linux-ext4@vger.kernel.org, linux-bcache@vger.kernel.org,
-	xfs@oss.sgi.com, linux-block@vger.kernel.org,
-	device-mapper development <dm-devel@redhat.com>,
-	mchristi@redhat.com, linux-mtd@lists.infradead.org,
+	philipp.reisner@linbit.com, linux-f2fs-devel@lists.sourceforge.net,
+	linux-raid@vger.kernel.org, dm-devel@redhat.com,
+	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	osd-dev@open-osd.org, linux-fsdevel@vger.kernel.org,
-	lars.ellenberg@linbit.com, philipp.reisner@linbit.com,
-	drbd-dev@lists.linbit.com, ocfs2-devel@oss.oracle.com,
-	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [dm-devel] [PATCH 02/35] block: add REQ_OP
- definitions and bi_op/op fields
+	lars.ellenberg@linbit.com, linux-ext4@vger.kernel.org,
+	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 01/35] block/fs/drivers: remove rw argument
+	from submit_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,20 +60,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, Jan 09, 2016 at 07:21:12PM -0600, Mike Christie wrote:
-> Oh yeah, to answer the second part of your question, REQ_OP_FLUSH is
-> only a flush operation like what request_fn drivers wanted.
+On 01/09/2016 07:34 AM, Christoph Hellwig wrote:
+>>  				count);
+>> > diff --git a/block/blk-flush.c b/block/blk-flush.c
+>> > index 9c423e5..e092e13 100644
+>> > --- a/block/blk-flush.c
+>> > +++ b/block/blk-flush.c
+>> > @@ -484,8 +484,9 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
+>> >  
+>> >  	bio = bio_alloc(gfp_mask, 0);
+>> >  	bio->bi_bdev = bdev;
+>> > +	bio->bi_rw |= WRITE_FLUSH;
+> Shouldn't the |= be a = here and in many other places?
 
-And that's the odd part that trips me up.
-
-> 
-> REQ_PREFLUSH can be set with a REQ_OP_WRITE bio when filesystems want to
-> do both.
-> 
-> There is then the case where filesystems and blkdev_issue_flush could
-> just want to request a flush. I left them as a REQ_PREFLUSH with
-> REQ_OP_WRITE set, so there would be a single code path.
-
-But the pure flush without data transfer case is pretty different,
-so it seems rather odd to handle it like that.  But I suspec we could
-just fix that up later.
+Yeah, I was trying to merge bi_rw and bio_flags. I am not going to send
+that. I will fix up the patchset.
