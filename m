@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3A11E1056423
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D557C1056424
 	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:49 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 333EB360050
+	by zimbra13.linbit.com (Postfix) with ESMTP id CBE2C364792
 	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:49 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 8ZdCq4HNxVze for <drbd-dev@lists.linbit.com>;
+	with ESMTP id RJbedPwOYloP for <drbd-dev@lists.linbit.com>;
 	Tue, 12 Jan 2016 11:09:49 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 13BA236457E
+	by zimbra13.linbit.com (Postfix) with ESMTP id A6F6536457E
 	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:49 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id dBHT8Pv9sC-b for <drbd-dev@lists.linbit.com>;
+	with ESMTP id eJ1JjbYoVh6s for <drbd-dev@lists.linbit.com>;
 	Tue, 12 Jan 2016 11:09:49 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id B29EC360050
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:48 +0100 (CET)
-Resent-Message-ID: <20160112100948.GB3313@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 725EA360050
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:49 +0100 (CET)
+Resent-Message-ID: <20160112100949.GC3313@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4D7FE1056326
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Jan 2016 21:30:49 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3CCA91056327
+	for <drbd-dev@lists.linbit.com>; Mon, 11 Jan 2016 21:30:58 +0100 (CET)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Mon, 11 Jan 2016 14:21:10 -0600
-Message-Id: <1452543693-4440-13-git-send-email-mchristi@redhat.com>
+Date: Mon, 11 Jan 2016 14:21:12 -0600
+Message-Id: <1452543693-4440-15-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1452543693-4440-1-git-send-email-mchristi@redhat.com>
 References: <1452543693-4440-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 12/35] gfs2: set bi_op to REQ_OP
+Subject: [Drbd-dev] [PATCH 14/35] hfsplus: set bi_op to REQ_OP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,166 +56,134 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-This patch has gfs2 set the bio bi_op to a REQ_OP, and
+This patch has hfsplus set the bio bi_op to a REQ_OP, and
 rq_flag_bits to bi_rw.
 
 This patch is compile tested only.
 
-v2:
-
-Bob, I did not add your signed off, because there was
-the gfs2_submit_bhs changes since last time you reviewed
-it.
-
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 ---
- fs/gfs2/log.c        |  8 ++++----
- fs/gfs2/lops.c       | 12 +++++++-----
- fs/gfs2/lops.h       |  2 +-
- fs/gfs2/meta_io.c    |  8 +++++---
- fs/gfs2/ops_fstype.c |  1 +
- 5 files changed, 18 insertions(+), 13 deletions(-)
+ fs/hfsplus/hfsplus_fs.h |  2 +-
+ fs/hfsplus/part_tbl.c   |  5 +++--
+ fs/hfsplus/super.c      |  6 ++++--
+ fs/hfsplus/wrapper.c    | 15 +++++++++------
+ 4 files changed, 17 insertions(+), 11 deletions(-)
 
-diff --git a/fs/gfs2/log.c b/fs/gfs2/log.c
-index 0ff028c..e58ccef0 100644
---- a/fs/gfs2/log.c
-+++ b/fs/gfs2/log.c
-@@ -657,7 +657,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
- 	struct gfs2_log_header *lh;
- 	unsigned int tail;
- 	u32 hash;
--	int rw = WRITE_FLUSH_FUA | REQ_META;
-+	int op_flags = WRITE_FLUSH_FUA | REQ_META;
- 	struct page *page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
- 	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
- 	lh = page_address(page);
-@@ -682,12 +682,12 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
- 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags)) {
- 		gfs2_ordered_wait(sdp);
- 		log_flush_wait(sdp);
--		rw = WRITE_SYNC | REQ_META | REQ_PRIO;
-+		op_flags = WRITE_SYNC | REQ_META | REQ_PRIO;
- 	}
+diff --git a/fs/hfsplus/hfsplus_fs.h b/fs/hfsplus/hfsplus_fs.h
+index f91a1fa..80154aa 100644
+--- a/fs/hfsplus/hfsplus_fs.h
++++ b/fs/hfsplus/hfsplus_fs.h
+@@ -525,7 +525,7 @@ int hfsplus_compare_dentry(const struct dentry *parent,
  
- 	sdp->sd_log_idle = (tail == sdp->sd_log_flush_head);
- 	gfs2_log_write_page(sdp, page);
--	gfs2_log_flush_bio(sdp, rw);
-+	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, op_flags);
- 	log_flush_wait(sdp);
+ /* wrapper.c */
+ int hfsplus_submit_bio(struct super_block *sb, sector_t sector, void *buf,
+-		       void **data, int rw);
++		       void **data, int op, int op_flags);
+ int hfsplus_read_wrapper(struct super_block *sb);
  
- 	if (sdp->sd_log_tail != tail)
-@@ -738,7 +738,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
+ /* time macros */
+diff --git a/fs/hfsplus/part_tbl.c b/fs/hfsplus/part_tbl.c
+index eb355d8..63164eb 100644
+--- a/fs/hfsplus/part_tbl.c
++++ b/fs/hfsplus/part_tbl.c
+@@ -112,7 +112,8 @@ static int hfs_parse_new_pmap(struct super_block *sb, void *buf,
+ 		if ((u8 *)pm - (u8 *)buf >= buf_size) {
+ 			res = hfsplus_submit_bio(sb,
+ 						 *part_start + HFS_PMAP_BLK + i,
+-						 buf, (void **)&pm, READ);
++						 buf, (void **)&pm, REQ_OP_READ,
++						 0);
+ 			if (res)
+ 				return res;
+ 		}
+@@ -136,7 +137,7 @@ int hfs_part_find(struct super_block *sb,
+ 		return -ENOMEM;
  
- 	gfs2_ordered_write(sdp);
- 	lops_before_commit(sdp, tr);
--	gfs2_log_flush_bio(sdp, WRITE);
-+	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
+ 	res = hfsplus_submit_bio(sb, *part_start + HFS_PMAP_BLK,
+-				 buf, &data, READ);
++				 buf, &data, REQ_OP_READ, 0);
+ 	if (res)
+ 		goto out;
  
- 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
- 		log_flush_wait(sdp);
-diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
-index ce28242..c1099b4 100644
---- a/fs/gfs2/lops.c
-+++ b/fs/gfs2/lops.c
-@@ -230,17 +230,19 @@ static void gfs2_end_log_write(struct bio *bio)
- /**
-  * gfs2_log_flush_bio - Submit any pending log bio
-  * @sdp: The superblock
-- * @rw: The rw flags
-+ * @op: REQ_OP
-+ * @op_flags: rq_flag_bits
+diff --git a/fs/hfsplus/super.c b/fs/hfsplus/super.c
+index 5d54490..01cf313 100644
+--- a/fs/hfsplus/super.c
++++ b/fs/hfsplus/super.c
+@@ -219,7 +219,8 @@ static int hfsplus_sync_fs(struct super_block *sb, int wait)
+ 
+ 	error2 = hfsplus_submit_bio(sb,
+ 				   sbi->part_start + HFSPLUS_VOLHEAD_SECTOR,
+-				   sbi->s_vhdr_buf, NULL, WRITE_SYNC);
++				   sbi->s_vhdr_buf, NULL, REQ_OP_WRITE,
++				   WRITE_SYNC);
+ 	if (!error)
+ 		error = error2;
+ 	if (!write_backup)
+@@ -227,7 +228,8 @@ static int hfsplus_sync_fs(struct super_block *sb, int wait)
+ 
+ 	error2 = hfsplus_submit_bio(sb,
+ 				  sbi->part_start + sbi->sect_count - 2,
+-				  sbi->s_backup_vhdr_buf, NULL, WRITE_SYNC);
++				  sbi->s_backup_vhdr_buf, NULL, REQ_OP_WRITE,
++				  WRITE_SYNC);
+ 	if (!error)
+ 		error2 = error;
+ out:
+diff --git a/fs/hfsplus/wrapper.c b/fs/hfsplus/wrapper.c
+index d026bb3..c5c916d 100644
+--- a/fs/hfsplus/wrapper.c
++++ b/fs/hfsplus/wrapper.c
+@@ -30,7 +30,8 @@ struct hfsplus_wd {
+  * @sector: block to read or write, for blocks of HFSPLUS_SECTOR_SIZE bytes
+  * @buf: buffer for I/O
+  * @data: output pointer for location of requested data
+- * @rw: direction of I/O
++ * @op: direction of I/O
++ * @op_flags: request op flags
   *
-  * Submit any pending part-built or full bio to the block device. If
-  * there is no pending bio, then this is a no-op.
+  * The unit of I/O is hfsplus_min_io_size(sb), which may be bigger than
+  * HFSPLUS_SECTOR_SIZE, and @buf must be sized accordingly. On reads
+@@ -44,7 +45,7 @@ struct hfsplus_wd {
+  * will work correctly.
   */
- 
--void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw)
-+void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int op, int op_flags)
+ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
+-		void *buf, void **data, int rw)
++		       void *buf, void **data, int op, int op_flags)
  {
- 	if (sdp->sd_log_bio) {
- 		atomic_inc(&sdp->sd_log_in_flight);
--		sdp->sd_log_bio->bi_rw = rw;
-+		sdp->sd_log_bio->bi_op = op;
-+		sdp->sd_log_bio->bi_rw = op_flags;
- 		submit_bio(sdp->sd_log_bio);
- 		sdp->sd_log_bio = NULL;
- 	}
-@@ -300,7 +302,7 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno)
- 		nblk >>= sdp->sd_fsb2bb_shift;
- 		if (blkno == nblk)
- 			return bio;
--		gfs2_log_flush_bio(sdp, WRITE);
-+		gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
- 	}
- 
- 	return gfs2_log_alloc_bio(sdp, blkno);
-@@ -329,7 +331,7 @@ static void gfs2_log_write(struct gfs2_sbd *sdp, struct page *page,
- 	bio = gfs2_log_get_bio(sdp, blkno);
- 	ret = bio_add_page(bio, page, size, offset);
- 	if (ret == 0) {
--		gfs2_log_flush_bio(sdp, WRITE);
-+		gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
- 		bio = gfs2_log_alloc_bio(sdp, blkno);
- 		ret = bio_add_page(bio, page, size, offset);
- 		WARN_ON(ret == 0);
-diff --git a/fs/gfs2/lops.h b/fs/gfs2/lops.h
-index a65a7ba..e529f53 100644
---- a/fs/gfs2/lops.h
-+++ b/fs/gfs2/lops.h
-@@ -27,7 +27,7 @@ extern const struct gfs2_log_operations gfs2_databuf_lops;
- 
- extern const struct gfs2_log_operations *gfs2_log_ops[];
- extern void gfs2_log_write_page(struct gfs2_sbd *sdp, struct page *page);
--extern void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw);
-+extern void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int op, int op_flags);
- extern void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh);
- 
- static inline unsigned int buf_limit(struct gfs2_sbd *sdp)
-diff --git a/fs/gfs2/meta_io.c b/fs/gfs2/meta_io.c
-index 96c8140..f790f38 100644
---- a/fs/gfs2/meta_io.c
-+++ b/fs/gfs2/meta_io.c
-@@ -213,7 +213,8 @@ static void gfs2_meta_read_endio(struct bio *bio)
-  * Submit several consecutive buffer head I/O requests as a single bio I/O
-  * request.  (See submit_bh_wbc.)
-  */
--static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
-+static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
-+			    int num)
- {
- 	struct buffer_head *bh = bhs[0];
  	struct bio *bio;
-@@ -230,7 +231,8 @@ static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
- 		bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
- 	}
- 	bio->bi_end_io = gfs2_meta_read_endio;
+ 	int ret = 0;
+@@ -65,9 +66,10 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
+ 	bio = bio_alloc(GFP_NOIO, 1);
+ 	bio->bi_iter.bi_sector = sector;
+ 	bio->bi_bdev = sb->s_bdev;
 -	bio->bi_rw = rw;
 +	bio->bi_op = op;
 +	bio->bi_rw = op_flags;
- 	submit_bio(bio);
- }
  
-@@ -281,7 +283,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
- 		}
- 	}
+-	if (!(rw & WRITE) && data)
++	if (op != WRITE && data)
+ 		*data = (u8 *)buf + offset;
  
--	gfs2_submit_bhs(READ_SYNC | REQ_META | REQ_PRIO, bhs, num);
-+	gfs2_submit_bhs(REQ_OP_READ, READ_SYNC | REQ_META | REQ_PRIO, bhs, num);
- 	if (!(flags & DIO_WAIT))
- 		return 0;
+ 	while (io_size > 0) {
+@@ -182,7 +184,7 @@ int hfsplus_read_wrapper(struct super_block *sb)
+ reread:
+ 	error = hfsplus_submit_bio(sb, part_start + HFSPLUS_VOLHEAD_SECTOR,
+ 				   sbi->s_vhdr_buf, (void **)&sbi->s_vhdr,
+-				   READ);
++				   REQ_OP_READ, 0);
+ 	if (error)
+ 		goto out_free_backup_vhdr;
  
-diff --git a/fs/gfs2/ops_fstype.c b/fs/gfs2/ops_fstype.c
-index 4872a61..f3e1e0e 100644
---- a/fs/gfs2/ops_fstype.c
-+++ b/fs/gfs2/ops_fstype.c
-@@ -246,6 +246,7 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
+@@ -214,7 +216,8 @@ reread:
  
- 	bio->bi_end_io = end_bio_io_page;
- 	bio->bi_private = page;
-+	bio->bi_op = REQ_OP_READ;
- 	bio->bi_rw = READ_SYNC | REQ_META;
- 	submit_bio(bio);
- 	wait_on_page_locked(page);
+ 	error = hfsplus_submit_bio(sb, part_start + part_size - 2,
+ 				   sbi->s_backup_vhdr_buf,
+-				   (void **)&sbi->s_backup_vhdr, READ);
++				   (void **)&sbi->s_backup_vhdr, REQ_OP_READ,
++				   0);
+ 	if (error)
+ 		goto out_free_backup_vhdr;
+ 
 -- 
 1.8.3.1
 
