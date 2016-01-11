@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3A0A51056332
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D55631056333
 	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:38 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 3154F360050
+	by zimbra13.linbit.com (Postfix) with ESMTP id CF9F2360050
 	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:38 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id BwhzvL5s8z9q for <drbd-dev@lists.linbit.com>;
+	with ESMTP id r5-u1WFiae90 for <drbd-dev@lists.linbit.com>;
 	Tue, 12 Jan 2016 11:09:38 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 178F0364792
+	by zimbra13.linbit.com (Postfix) with ESMTP id B47F4364792
 	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:38 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 7trL-33tp7GC for <drbd-dev@lists.linbit.com>;
+	with ESMTP id EK8V8X3Uf1-y for <drbd-dev@lists.linbit.com>;
 	Tue, 12 Jan 2016 11:09:38 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id DE912360050
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:37 +0100 (CET)
-Resent-Message-ID: <20160112100937.GM3313@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 7C059360050
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:38 +0100 (CET)
+Resent-Message-ID: <20160112100938.GN3313@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D5F971056329
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Jan 2016 21:22:03 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B11311056315
+	for <drbd-dev@lists.linbit.com>; Mon, 11 Jan 2016 21:22:45 +0100 (CET)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,13 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Mon, 11 Jan 2016 14:21:07 -0600
-Message-Id: <1452543693-4440-10-git-send-email-mchristi@redhat.com>
+Date: Mon, 11 Jan 2016 14:21:25 -0600
+Message-Id: <1452543693-4440-28-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1452543693-4440-1-git-send-email-mchristi@redhat.com>
 References: <1452543693-4440-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 09/35] btrfs: update __btrfs_map_block for bi_op
-	transition
+Subject: [Drbd-dev] [PATCH 27/35] drivers: set request op to REQ_OP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -57,251 +56,356 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-We no longer pass in a bitmap of rq_flag_bits bits
-to __btrfs_map_block. It will always be a REQ_OP,
-or the btrfs specific REQ_GET_READ_MIRRORS,
-so this drops the bit tests.
+This patch has the block driver use the request->op for REQ_OP
+operations and cmd_flags for rq_flag_bits.
+
+I have only tested scsi and rbd.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 ---
- fs/btrfs/extent-tree.c |  2 +-
- fs/btrfs/inode.c       |  2 +-
- fs/btrfs/volumes.c     | 55 +++++++++++++++++++++++++++-----------------------
- fs/btrfs/volumes.h     |  4 ++--
- 4 files changed, 34 insertions(+), 29 deletions(-)
+ drivers/block/loop.c              |  6 +++---
+ drivers/block/mtip32xx/mtip32xx.c |  2 +-
+ drivers/block/nbd.c               |  2 +-
+ drivers/block/rbd.c               |  2 +-
+ drivers/block/skd_main.c          | 11 ++++-------
+ drivers/block/xen-blkfront.c      |  8 +++++---
+ drivers/md/dm.c                   |  2 +-
+ drivers/mmc/card/block.c          |  7 +++----
+ drivers/mmc/card/queue.c          |  6 ++----
+ drivers/mmc/card/queue.h          |  5 ++++-
+ drivers/mtd/mtd_blkdevs.c         |  2 +-
+ drivers/nvme/host/pci.c           |  4 ++--
+ drivers/scsi/sd.c                 | 25 ++++++++++++++++---------
+ 13 files changed, 44 insertions(+), 38 deletions(-)
 
-diff --git a/fs/btrfs/extent-tree.c b/fs/btrfs/extent-tree.c
-index add4af6..4d503d0 100644
---- a/fs/btrfs/extent-tree.c
-+++ b/fs/btrfs/extent-tree.c
-@@ -2043,7 +2043,7 @@ int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
- 
- 
- 	/* Tell the block device(s) that the sectors can be discarded */
--	ret = btrfs_map_block(root->fs_info, REQ_DISCARD,
-+	ret = btrfs_map_block(root->fs_info, REQ_OP_DISCARD,
- 			      bytenr, &num_bytes, &bbio, 0);
- 	/* Error condition is -ENOMEM */
- 	if (!ret) {
-diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index dd435ee..32a9aa1 100644
---- a/fs/btrfs/inode.c
-+++ b/fs/btrfs/inode.c
-@@ -8206,7 +8206,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
- 	int async_submit = 0;
- 
- 	map_length = orig_bio->bi_iter.bi_size;
--	ret = btrfs_map_block(root->fs_info, rw, start_sector << 9,
-+	ret = btrfs_map_block(root->fs_info, orig_bio->bi_op, start_sector << 9,
- 			      &map_length, NULL, 0);
- 	if (ret)
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index 423f4ca..e771bab 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -538,7 +538,7 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
+ 	if (rq->cmd_flags & REQ_WRITE) {
+ 		if (rq->cmd_flags & REQ_FLUSH)
+ 			ret = lo_req_flush(lo, rq);
+-		else if (rq->cmd_flags & REQ_DISCARD)
++		else if (rq->op == REQ_OP_DISCARD)
+ 			ret = lo_discard(lo, rq, pos);
+ 		else if (lo->transfer)
+ 			ret = lo_write_transfer(lo, rq, pos);
+@@ -1653,8 +1653,8 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
+ 	if (lo->lo_state != Lo_bound)
  		return -EIO;
-diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
-index 0da1d32..bf1e9af 100644
---- a/fs/btrfs/volumes.c
-+++ b/fs/btrfs/volumes.c
-@@ -5218,7 +5218,7 @@ void btrfs_put_bbio(struct btrfs_bio *bbio)
- 		kfree(bbio);
- }
  
--static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
-+static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
- 			     u64 logical, u64 *length,
- 			     struct btrfs_bio **bbio_ret,
- 			     int mirror_num, int need_raid_map)
-@@ -5296,7 +5296,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 		raid56_full_stripe_start *= full_stripe_len;
+-	if (lo->use_dio && !(cmd->rq->cmd_flags & (REQ_FLUSH |
+-					REQ_DISCARD)))
++	if (lo->use_dio && (!(cmd->rq->cmd_flags & REQ_FLUSH) ||
++	     cmd->rq->op == REQ_OP_DISCARD))
+ 		cmd->use_aio = true;
+ 	else
+ 		cmd->use_aio = false;
+diff --git a/drivers/block/mtip32xx/mtip32xx.c b/drivers/block/mtip32xx/mtip32xx.c
+index 9b180db..3995a9e 100644
+--- a/drivers/block/mtip32xx/mtip32xx.c
++++ b/drivers/block/mtip32xx/mtip32xx.c
+@@ -3670,7 +3670,7 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
+ 			return -ENXIO;
  	}
  
--	if (rw & REQ_DISCARD) {
-+	if (op == REQ_OP_DISCARD) {
- 		/* we don't discard raid56 yet */
- 		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
- 			ret = -EOPNOTSUPP;
-@@ -5309,7 +5309,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 		   For other RAID types and for RAID[56] reads, just allow a single
- 		   stripe (on a single disk). */
- 		if ((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) &&
--		    (rw & REQ_WRITE)) {
-+		    (op == REQ_OP_WRITE)) {
- 			max_len = stripe_len * nr_data_stripes(map) -
- 				(offset - raid56_full_stripe_start);
- 		} else {
-@@ -5332,8 +5332,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 		btrfs_dev_replace_unlock(dev_replace);
+-	if (rq->cmd_flags & REQ_DISCARD) {
++	if (rq->op == REQ_OP_DISCARD) {
+ 		int err;
  
- 	if (dev_replace_is_ongoing && mirror_num == map->num_stripes + 1 &&
--	    !(rw & (REQ_WRITE | REQ_DISCARD | REQ_GET_READ_MIRRORS)) &&
--	    dev_replace->tgtdev != NULL) {
-+	    op != REQ_OP_WRITE && op != REQ_OP_DISCARD &&
-+	    op != REQ_GET_READ_MIRRORS && dev_replace->tgtdev != NULL) {
+ 		err = mtip_send_trim(dd, blk_rq_pos(rq), blk_rq_sectors(rq));
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index e4c5cc1..dd8f3e9 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -242,7 +242,7 @@ static int nbd_send_req(struct nbd_device *nbd, struct request *req)
+ 
+ 	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
+ 		type = NBD_CMD_DISC;
+-	else if (req->cmd_flags & REQ_DISCARD)
++	else if (req->op == REQ_OP_DISCARD)
+ 		type = NBD_CMD_TRIM;
+ 	else if (req->cmd_flags & REQ_FLUSH)
+ 		type = NBD_CMD_FLUSH;
+diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
+index 81ea69f..ea326ef 100644
+--- a/drivers/block/rbd.c
++++ b/drivers/block/rbd.c
+@@ -3373,7 +3373,7 @@ static void rbd_queue_workfn(struct work_struct *work)
+ 		goto err;
+ 	}
+ 
+-	if (rq->cmd_flags & REQ_DISCARD)
++	if (rq->op == REQ_OP_DISCARD)
+ 		op_type = OBJ_OP_DISCARD;
+ 	else if (rq->cmd_flags & REQ_WRITE)
+ 		op_type = OBJ_OP_WRITE;
+diff --git a/drivers/block/skd_main.c b/drivers/block/skd_main.c
+index 586f916..f89a0c8 100644
+--- a/drivers/block/skd_main.c
++++ b/drivers/block/skd_main.c
+@@ -576,7 +576,6 @@ static void skd_request_fn(struct request_queue *q)
+ 	struct request *req = NULL;
+ 	struct skd_scsi_request *scsi_req;
+ 	struct page *page;
+-	unsigned long io_flags;
+ 	int error;
+ 	u32 lba;
+ 	u32 count;
+@@ -624,12 +623,11 @@ static void skd_request_fn(struct request_queue *q)
+ 		lba = (u32)blk_rq_pos(req);
+ 		count = blk_rq_sectors(req);
+ 		data_dir = rq_data_dir(req);
+-		io_flags = req->cmd_flags;
+ 
+-		if (io_flags & REQ_FLUSH)
++		if (req->cmd_flags & REQ_FLUSH)
+ 			flush++;
+ 
+-		if (io_flags & REQ_FUA)
++		if (req->cmd_flags & REQ_FUA)
+ 			fua++;
+ 
+ 		pr_debug("%s:%s:%d new req=%p lba=%u(0x%x) "
+@@ -735,7 +733,7 @@ static void skd_request_fn(struct request_queue *q)
+ 		else
+ 			skreq->sg_data_dir = SKD_DATA_DIR_HOST_TO_CARD;
+ 
+-		if (io_flags & REQ_DISCARD) {
++		if (req->op == REQ_OP_DISCARD) {
+ 			page = alloc_page(GFP_ATOMIC | __GFP_ZERO);
+ 			if (!page) {
+ 				pr_err("request_fn:Page allocation failed.\n");
+@@ -852,9 +850,8 @@ static void skd_end_request(struct skd_device *skdev,
+ 			    struct skd_request_context *skreq, int error)
+ {
+ 	struct request *req = skreq->req;
+-	unsigned int io_flags = req->cmd_flags;
+ 
+-	if ((io_flags & REQ_DISCARD) &&
++	if ((req->op == REQ_OP_DISCARD) &&
+ 		(skreq->discard_page == 1)) {
+ 		pr_debug("%s:%s:%d, free the page!",
+ 			 skdev->name, __func__, __LINE__);
+diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
+index 81444fc..d4aa473 100644
+--- a/drivers/block/xen-blkfront.c
++++ b/drivers/block/xen-blkfront.c
+@@ -718,7 +718,8 @@ static int blkif_queue_request(struct request *req)
+ 	if (unlikely(info->connected != BLKIF_STATE_CONNECTED))
+ 		return 1;
+ 
+-	if (unlikely(req->cmd_flags & (REQ_DISCARD | REQ_SECURE)))
++	if (unlikely(req->op == REQ_OP_DISCARD ||
++		     req->cmd_flags & REQ_SECURE))
+ 		return blkif_queue_discard_req(req);
+ 	else
+ 		return blkif_queue_rw_req(req);
+@@ -1691,8 +1692,9 @@ static int blkif_recover(struct blkfront_info *info)
  		/*
- 		 * in dev-replace case, for repair case (that's the only
- 		 * case where the mirror is selected explicitly when
-@@ -5422,15 +5422,17 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 			    (offset + *length);
+ 		 * Get the bios in the request so we can re-queue them.
+ 		 */
+-		if (copy[i].request->cmd_flags &
+-		    (REQ_FLUSH | REQ_FUA | REQ_DISCARD | REQ_SECURE)) {
++		if (copy[i].request->cmd_flags & REQ_FLUSH ||
++		    copy[i].request->op == REQ_OP_DISCARD ||
++		    copy[i].request->cmd_flags & (REQ_FUA | REQ_SECURE)) {
+ 			/*
+ 			 * Flush operations don't contain bios, so
+ 			 * we need to requeue the whole request
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index b882e56c..0e7ddc4 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -1278,7 +1278,7 @@ static void dm_done(struct request *clone, int error, bool mapped)
+ 			r = rq_end_io(tio->ti, clone, error, &tio->info);
+ 	}
  
- 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
--		if (rw & REQ_DISCARD)
-+		if (op == REQ_OP_DISCARD)
- 			num_stripes = min_t(u64, map->num_stripes,
- 					    stripe_nr_end - stripe_nr_orig);
- 		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes,
- 				&stripe_index);
--		if (!(rw & (REQ_WRITE | REQ_DISCARD | REQ_GET_READ_MIRRORS)))
-+		if (op != REQ_OP_WRITE && op != REQ_OP_DISCARD &&
-+		    op != REQ_GET_READ_MIRRORS)
- 			mirror_num = 1;
- 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
--		if (rw & (REQ_WRITE | REQ_DISCARD | REQ_GET_READ_MIRRORS))
-+		if (op == REQ_OP_WRITE || op == REQ_OP_DISCARD ||
-+		    op == REQ_GET_READ_MIRRORS)
- 			num_stripes = map->num_stripes;
- 		else if (mirror_num)
- 			stripe_index = mirror_num - 1;
-@@ -5443,7 +5445,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 		}
+-	if (unlikely(r == -EREMOTEIO && (clone->cmd_flags & REQ_WRITE_SAME) &&
++	if (unlikely(r == -EREMOTEIO && (clone->op == REQ_OP_WRITE_SAME) &&
+ 		     !clone->q->limits.max_write_same_sectors))
+ 		disable_write_same(tio->md);
  
- 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
--		if (rw & (REQ_WRITE | REQ_DISCARD | REQ_GET_READ_MIRRORS)) {
-+		if (op == REQ_OP_WRITE || REQ_OP_DISCARD ||
-+		    op == REQ_GET_READ_MIRRORS) {
- 			num_stripes = map->num_stripes;
- 		} else if (mirror_num) {
- 			stripe_index = mirror_num - 1;
-@@ -5457,9 +5460,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 		stripe_nr = div_u64_rem(stripe_nr, factor, &stripe_index);
- 		stripe_index *= map->sub_stripes;
+diff --git a/drivers/mmc/card/block.c b/drivers/mmc/card/block.c
+index 5914263..cc9b1ff 100644
+--- a/drivers/mmc/card/block.c
++++ b/drivers/mmc/card/block.c
+@@ -1691,8 +1691,7 @@ static u8 mmc_blk_prep_packed_list(struct mmc_queue *mq, struct request *req)
+ 		    !IS_ALIGNED(blk_rq_sectors(next), 8))
+ 			break;
  
--		if (rw & (REQ_WRITE | REQ_GET_READ_MIRRORS))
-+		if (op == REQ_OP_WRITE || op == REQ_GET_READ_MIRRORS)
- 			num_stripes = map->sub_stripes;
--		else if (rw & REQ_DISCARD)
-+		else if (op == REQ_OP_DISCARD)
- 			num_stripes = min_t(u64, map->sub_stripes *
- 					    (stripe_nr_end - stripe_nr_orig),
- 					    map->num_stripes);
-@@ -5477,7 +5480,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+-		if (next->cmd_flags & REQ_DISCARD ||
+-		    next->cmd_flags & REQ_FLUSH)
++		if (next->op == REQ_OP_DISCARD || next->cmd_flags & REQ_FLUSH)
+ 			break;
  
- 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
- 		if (need_raid_map &&
--		    ((rw & (REQ_WRITE | REQ_GET_READ_MIRRORS)) ||
-+		    (op == REQ_OP_WRITE || op == REQ_GET_READ_MIRRORS ||
- 		     mirror_num > 1)) {
- 			/* push stripe_nr back to the start of the full stripe */
- 			stripe_nr = div_u64(raid56_full_stripe_start,
-@@ -5505,8 +5508,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 			/* We distribute the parity blocks across stripes */
- 			div_u64_rem(stripe_nr + stripe_index, map->num_stripes,
- 					&stripe_index);
--			if (!(rw & (REQ_WRITE | REQ_DISCARD |
--				    REQ_GET_READ_MIRRORS)) && mirror_num <= 1)
-+			if ((op != REQ_OP_WRITE && op != REQ_OP_DISCARD &&
-+			    op != REQ_GET_READ_MIRRORS) && mirror_num <= 1)
- 				mirror_num = 1;
- 		}
+ 		if (rq_data_dir(cur) != rq_data_dir(next))
+@@ -2133,7 +2132,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
+ 	}
+ 
+ 	mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
+-	if (cmd_flags & REQ_DISCARD) {
++	if (req && req->op == REQ_OP_DISCARD) {
+ 		/* complete ongoing async transfer before issuing discard */
+ 		if (card->host->areq)
+ 			mmc_blk_issue_rw_rq(mq, NULL);
+@@ -2157,7 +2156,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
+ 
+ out:
+ 	if ((!req && !(mq->flags & MMC_QUEUE_NEW_REQUEST)) ||
+-	     (cmd_flags & MMC_REQ_SPECIAL_MASK))
++	    mmc_req_is_special(req))
+ 		/*
+ 		 * Release host when there are no more requests
+ 		 * and after special request(discard, flush) is done.
+diff --git a/drivers/mmc/card/queue.c b/drivers/mmc/card/queue.c
+index 6f4323c..9fb8d21 100644
+--- a/drivers/mmc/card/queue.c
++++ b/drivers/mmc/card/queue.c
+@@ -33,7 +33,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
+ 	/*
+ 	 * We only like normal block requests and discards.
+ 	 */
+-	if (req->cmd_type != REQ_TYPE_FS && !(req->cmd_flags & REQ_DISCARD)) {
++	if (req->cmd_type != REQ_TYPE_FS && req->op != REQ_OP_DISCARD) {
+ 		blk_dump_rq_flags(req, "MMC bad request");
+ 		return BLKPREP_KILL;
+ 	}
+@@ -56,7 +56,6 @@ static int mmc_queue_thread(void *d)
+ 	down(&mq->thread_sem);
+ 	do {
+ 		struct request *req = NULL;
+-		unsigned int cmd_flags = 0;
+ 
+ 		spin_lock_irq(q->queue_lock);
+ 		set_current_state(TASK_INTERRUPTIBLE);
+@@ -66,7 +65,6 @@ static int mmc_queue_thread(void *d)
+ 
+ 		if (req || mq->mqrq_prev->req) {
+ 			set_current_state(TASK_RUNNING);
+-			cmd_flags = req ? req->cmd_flags : 0;
+ 			mq->issue_fn(mq, req);
+ 			cond_resched();
+ 			if (mq->flags & MMC_QUEUE_NEW_REQUEST) {
+@@ -81,7 +79,7 @@ static int mmc_queue_thread(void *d)
+ 			 * has been finished. Do not assign it to previous
+ 			 * request.
+ 			 */
+-			if (cmd_flags & MMC_REQ_SPECIAL_MASK)
++			if (mmc_req_is_special(req))
+ 				mq->mqrq_cur->req = NULL;
+ 
+ 			mq->mqrq_prev->brq.mrq.data = NULL;
+diff --git a/drivers/mmc/card/queue.h b/drivers/mmc/card/queue.h
+index 36cddab..f166e5b 100644
+--- a/drivers/mmc/card/queue.h
++++ b/drivers/mmc/card/queue.h
+@@ -1,7 +1,10 @@
+ #ifndef MMC_QUEUE_H
+ #define MMC_QUEUE_H
+ 
+-#define MMC_REQ_SPECIAL_MASK	(REQ_DISCARD | REQ_FLUSH)
++static inline bool mmc_req_is_special(struct request *req)
++{
++	return req && (req->cmd_flags & REQ_FLUSH || req->op == REQ_OP_DISCARD);
++}
+ 
+ struct request;
+ struct task_struct;
+diff --git a/drivers/mtd/mtd_blkdevs.c b/drivers/mtd/mtd_blkdevs.c
+index f470118..b2e0bce 100644
+--- a/drivers/mtd/mtd_blkdevs.c
++++ b/drivers/mtd/mtd_blkdevs.c
+@@ -94,7 +94,7 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
+ 	    get_capacity(req->rq_disk))
+ 		return -EIO;
+ 
+-	if (req->cmd_flags & REQ_DISCARD)
++	if (req->op == REQ_OP_DISCARD)
+ 		return tr->discard(dev, block, nsect);
+ 
+ 	if (rq_data_dir(req) == READ) {
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index 92fa1a6..c51205a 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -347,7 +347,7 @@ static int nvme_init_iod(struct request *rq, struct nvme_dev *dev)
+ 	int nseg = rq->nr_phys_segments;
+ 	unsigned size;
+ 
+-	if (rq->cmd_flags & REQ_DISCARD)
++	if (rq->op == REQ_OP_DISCARD)
+ 		size = sizeof(struct nvme_dsm_range);
+ 	else
+ 		size = blk_rq_bytes(rq);
+@@ -663,7 +663,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
+ 	if (ret)
+ 		return ret;
+ 
+-	if (req->cmd_flags & REQ_DISCARD) {
++	if (req->op == REQ_OP_DISCARD) {
+ 		ret = nvme_setup_discard(nvmeq, ns, req, &cmnd);
  	} else {
-@@ -5523,9 +5526,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 
- 	num_alloc_stripes = num_stripes;
- 	if (dev_replace_is_ongoing) {
--		if (rw & (REQ_WRITE | REQ_DISCARD))
-+		if (op == REQ_OP_WRITE || op == REQ_OP_DISCARD)
- 			num_alloc_stripes <<= 1;
--		if (rw & REQ_GET_READ_MIRRORS)
-+		if (op == REQ_GET_READ_MIRRORS)
- 			num_alloc_stripes++;
- 		tgtdev_indexes = num_stripes;
- 	}
-@@ -5540,7 +5543,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 
- 	/* build raid_map */
- 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK &&
--	    need_raid_map && ((rw & (REQ_WRITE | REQ_GET_READ_MIRRORS)) ||
-+	    need_raid_map &&
-+	    ((op == REQ_OP_WRITE || op == REQ_GET_READ_MIRRORS) ||
- 	    mirror_num > 1)) {
- 		u64 tmp;
- 		unsigned rot;
-@@ -5565,7 +5569,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 				RAID6_Q_STRIPE;
+ 		if (req->cmd_type == REQ_TYPE_DRV_PRIV)
+diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
+index 4e08d1cd..f6eda6d 100644
+--- a/drivers/scsi/sd.c
++++ b/drivers/scsi/sd.c
+@@ -1012,7 +1012,8 @@ static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
+ 	} else if (rq_data_dir(rq) == READ) {
+ 		SCpnt->cmnd[0] = READ_6;
+ 	} else {
+-		scmd_printk(KERN_ERR, SCpnt, "Unknown command %llx\n", (unsigned long long) rq->cmd_flags);
++		scmd_printk(KERN_ERR, SCpnt, "Unknown command %d,%llx\n",
++			    rq->op, (unsigned long long) rq->cmd_flags);
+ 		goto out;
  	}
  
--	if (rw & REQ_DISCARD) {
-+	if (op == REQ_OP_DISCARD) {
- 		u32 factor = 0;
- 		u32 sub_stripes = 0;
- 		u64 stripes_per_dev = 0;
-@@ -5645,14 +5649,15 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 		}
- 	}
- 
--	if (rw & (REQ_WRITE | REQ_GET_READ_MIRRORS))
-+	if (op == REQ_OP_WRITE || op == REQ_GET_READ_MIRRORS)
- 		max_errors = btrfs_chunk_max_errors(map);
- 
- 	if (bbio->raid_map)
- 		sort_parity_stripes(bbio, num_stripes);
- 
- 	tgtdev_indexes = 0;
--	if (dev_replace_is_ongoing && (rw & (REQ_WRITE | REQ_DISCARD)) &&
-+	if (dev_replace_is_ongoing &&
-+	   (op == REQ_OP_WRITE || op == REQ_OP_DISCARD) &&
- 	    dev_replace->tgtdev != NULL) {
- 		int index_where_to_add;
- 		u64 srcdev_devid = dev_replace->srcdev->devid;
-@@ -5687,7 +5692,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
- 			}
- 		}
- 		num_stripes = index_where_to_add;
--	} else if (dev_replace_is_ongoing && (rw & REQ_GET_READ_MIRRORS) &&
-+	} else if (dev_replace_is_ongoing && (op == REQ_GET_READ_MIRRORS) &&
- 		   dev_replace->tgtdev != NULL) {
- 		u64 srcdev_devid = dev_replace->srcdev->devid;
- 		int index_srcdev = 0;
-@@ -5760,21 +5765,21 @@ out:
- 	return ret;
- }
- 
--int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
-+int btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
- 		      u64 logical, u64 *length,
- 		      struct btrfs_bio **bbio_ret, int mirror_num)
+@@ -1137,21 +1138,27 @@ static int sd_init_command(struct scsi_cmnd *cmd)
  {
--	return __btrfs_map_block(fs_info, rw, logical, length, bbio_ret,
-+	return __btrfs_map_block(fs_info, op, logical, length, bbio_ret,
- 				 mirror_num, 0);
+ 	struct request *rq = cmd->request;
+ 
+-	if (rq->cmd_flags & REQ_DISCARD)
++	switch (rq->op) {
++	case REQ_OP_DISCARD:
+ 		return sd_setup_discard_cmnd(cmd);
+-	else if (rq->cmd_flags & REQ_WRITE_SAME)
++	case REQ_OP_WRITE_SAME:
+ 		return sd_setup_write_same_cmnd(cmd);
+-	else if (rq->cmd_flags & REQ_FLUSH)
+-		return sd_setup_flush_cmnd(cmd);
+-	else
+-		return sd_setup_read_write_cmnd(cmd);
++	case REQ_OP_READ:
++	case REQ_OP_WRITE:
++		if (rq->cmd_flags & REQ_FLUSH)
++			return sd_setup_flush_cmnd(cmd);
++		else
++			return sd_setup_read_write_cmnd(cmd);
++	default:
++		BUG();
++	}
  }
  
- /* For Scrub/replace */
--int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int rw,
-+int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int op,
- 		     u64 logical, u64 *length,
- 		     struct btrfs_bio **bbio_ret, int mirror_num,
- 		     int need_raid_map)
+ static void sd_uninit_command(struct scsi_cmnd *SCpnt)
  {
--	return __btrfs_map_block(fs_info, rw, logical, length, bbio_ret,
-+	return __btrfs_map_block(fs_info, op, logical, length, bbio_ret,
- 				 mirror_num, need_raid_map);
- }
+ 	struct request *rq = SCpnt->request;
  
-diff --git a/fs/btrfs/volumes.h b/fs/btrfs/volumes.h
-index 6a4375a..8ef796a 100644
---- a/fs/btrfs/volumes.h
-+++ b/fs/btrfs/volumes.h
-@@ -421,10 +421,10 @@ int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
- 				   u64 end, u64 *length);
- void btrfs_get_bbio(struct btrfs_bio *bbio);
- void btrfs_put_bbio(struct btrfs_bio *bbio);
--int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
-+int btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
- 		    u64 logical, u64 *length,
- 		    struct btrfs_bio **bbio_ret, int mirror_num);
--int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int rw,
-+int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int op,
- 		     u64 logical, u64 *length,
- 		     struct btrfs_bio **bbio_ret, int mirror_num,
- 		     int need_raid_map);
+-	if (rq->cmd_flags & REQ_DISCARD)
++	if (rq->op == REQ_OP_DISCARD)
+ 		__free_page(rq->completion_data);
+ 
+ 	if (SCpnt->cmnd != rq->cmd) {
+@@ -1768,7 +1775,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
+ 	unsigned char op = SCpnt->cmnd[0];
+ 	unsigned char unmap = SCpnt->cmnd[1] & 8;
+ 
+-	if (req->cmd_flags & REQ_DISCARD || req->cmd_flags & REQ_WRITE_SAME) {
++	if (req->op == REQ_OP_DISCARD || req->op == REQ_OP_WRITE_SAME) {
+ 		if (!result) {
+ 			good_bytes = blk_rq_bytes(req);
+ 			scsi_set_resid(SCpnt, 0);
 -- 
 1.8.3.1
 
