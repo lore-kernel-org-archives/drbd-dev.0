@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 685FC1056425
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:51 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 98D381056426
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:54 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 5D39736457E
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:51 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 8F2A436457E
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:54 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id U8AOg0M79nsJ for <drbd-dev@lists.linbit.com>;
-	Tue, 12 Jan 2016 11:09:51 +0100 (CET)
+	with ESMTP id ZZ1FTAw_kcqW for <drbd-dev@lists.linbit.com>;
+	Tue, 12 Jan 2016 11:09:54 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 13B19364792
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:51 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 73988364792
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:54 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id YRqdZnN4PL8d for <drbd-dev@lists.linbit.com>;
-	Tue, 12 Jan 2016 11:09:51 +0100 (CET)
+	with ESMTP id UXquln-gh_Eq for <drbd-dev@lists.linbit.com>;
+	Tue, 12 Jan 2016 11:09:54 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id D30DD36457E
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:50 +0100 (CET)
-Resent-Message-ID: <20160112100949.GD3313@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 1DFB636457E
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:54 +0100 (CET)
+Resent-Message-ID: <20160112100953.GE3313@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4C9DA1056329
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Jan 2016 21:30:58 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 37CA0105632B
+	for <drbd-dev@lists.linbit.com>; Mon, 11 Jan 2016 21:31:12 +0100 (CET)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Mon, 11 Jan 2016 14:21:22 -0600
-Message-Id: <1452543693-4440-25-git-send-email-mchristi@redhat.com>
+Date: Mon, 11 Jan 2016 14:21:14 -0600
+Message-Id: <1452543693-4440-17-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1452543693-4440-1-git-send-email-mchristi@redhat.com>
 References: <1452543693-4440-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 24/35] xen: set bi_op to REQ_OP
+Subject: [Drbd-dev] [PATCH 16/35] nilfs: set bi_op to REQ_OP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,128 +56,83 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-This patch has xen set the bio bi_op to a REQ_OP, and rq_flag_bits
-to bi_rw.
+This patch has nilfs set the bio bi_op to a REQ_OP, and
+rq_flag_bits to bi_rw.
 
 This patch is compile tested only.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 ---
- drivers/block/xen-blkback/blkback.c | 29 +++++++++++++++++------------
- 1 file changed, 17 insertions(+), 12 deletions(-)
+ fs/nilfs2/segbuf.c | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/block/xen-blkback/blkback.c b/drivers/block/xen-blkback/blkback.c
-index 733d397..f977d29 100644
---- a/drivers/block/xen-blkback/blkback.c
-+++ b/drivers/block/xen-blkback/blkback.c
-@@ -488,7 +488,7 @@ static int xen_vbd_translate(struct phys_req *req, struct xen_blkif *blkif,
- 	struct xen_vbd *vbd = &blkif->vbd;
- 	int rc = -EACCES;
+diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
+index 7666f1d..7b13e14 100644
+--- a/fs/nilfs2/segbuf.c
++++ b/fs/nilfs2/segbuf.c
+@@ -350,7 +350,8 @@ static void nilfs_end_bio_write(struct bio *bio)
+ }
  
--	if ((operation != READ) && vbd->readonly)
-+	if ((operation != REQ_OP_READ) && vbd->readonly)
- 		goto out;
+ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
+-				   struct nilfs_write_info *wi, int mode)
++				   struct nilfs_write_info *wi, int mode,
++				   int mode_flags)
+ {
+ 	struct bio *bio = wi->bio;
+ 	int err;
+@@ -368,7 +369,8 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
  
- 	if (likely(req->nr_sects)) {
-@@ -995,7 +995,7 @@ static int dispatch_discard_io(struct xen_blkif *blkif,
- 	preq.sector_number = req->u.discard.sector_number;
- 	preq.nr_sects      = req->u.discard.nr_sectors;
+ 	bio->bi_end_io = nilfs_end_bio_write;
+ 	bio->bi_private = segbuf;
+-	bio->bi_rw = mode;
++	bio->bi_op = mode;
++	bio->bi_rw = mode_flags;
+ 	submit_bio(bio);
+ 	segbuf->sb_nbio++;
  
--	err = xen_vbd_translate(&preq, blkif, WRITE);
-+	err = xen_vbd_translate(&preq, blkif, REQ_OP_WRITE);
- 	if (err) {
- 		pr_warn("access denied: DISCARD [%llu->%llu] on dev=%04x\n",
- 			preq.sector_number,
-@@ -1208,6 +1208,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
- 	struct bio **biolist = pending_req->biolist;
- 	int i, nbio = 0;
- 	int operation;
-+	int operation_flags = 0;
- 	struct blk_plug plug;
- 	bool drain = false;
- 	struct grant_page **pages = pending_req->segments;
-@@ -1226,17 +1227,19 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
- 	switch (req_operation) {
- 	case BLKIF_OP_READ:
- 		blkif->st_rd_req++;
--		operation = READ;
-+		operation = REQ_OP_READ;
- 		break;
- 	case BLKIF_OP_WRITE:
- 		blkif->st_wr_req++;
--		operation = WRITE_ODIRECT;
-+		operation = REQ_OP_WRITE;
-+		operation_flags = WRITE_ODIRECT;
- 		break;
- 	case BLKIF_OP_WRITE_BARRIER:
- 		drain = true;
- 	case BLKIF_OP_FLUSH_DISKCACHE:
- 		blkif->st_f_req++;
--		operation = WRITE_FLUSH;
-+		operation = REQ_OP_WRITE;
-+		operation_flags = WRITE_FLUSH;
- 		break;
- 	default:
- 		operation = 0; /* make gcc happy */
-@@ -1248,7 +1251,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
- 	nseg = req->operation == BLKIF_OP_INDIRECT ?
- 	       req->u.indirect.nr_segments : req->u.rw.nr_segments;
+@@ -442,7 +444,7 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
+ 		return 0;
+ 	}
+ 	/* bio is FULL */
+-	err = nilfs_segbuf_submit_bio(segbuf, wi, mode);
++	err = nilfs_segbuf_submit_bio(segbuf, wi, mode, 0);
+ 	/* never submit current bh */
+ 	if (likely(!err))
+ 		goto repeat;
+@@ -466,19 +468,19 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
+ {
+ 	struct nilfs_write_info wi;
+ 	struct buffer_head *bh;
+-	int res = 0, rw = WRITE;
++	int res = 0;
  
--	if (unlikely(nseg == 0 && operation != WRITE_FLUSH) ||
-+	if (unlikely(nseg == 0 && operation_flags != WRITE_FLUSH) ||
- 	    unlikely((req->operation != BLKIF_OP_INDIRECT) &&
- 		     (nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) ||
- 	    unlikely((req->operation == BLKIF_OP_INDIRECT) &&
-@@ -1289,7 +1292,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
+ 	wi.nilfs = nilfs;
+ 	nilfs_segbuf_prepare_write(segbuf, &wi);
  
- 	if (xen_vbd_translate(&preq, blkif, operation) != 0) {
- 		pr_debug("access denied: %s of [%llu,%llu] on dev=%04x\n",
--			 operation == READ ? "read" : "write",
-+			 operation == REQ_OP_READ ? "read" : "write",
- 			 preq.sector_number,
- 			 preq.sector_number + preq.nr_sects,
- 			 blkif->vbd.pdevice);
-@@ -1348,7 +1351,8 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
- 			bio->bi_private = pending_req;
- 			bio->bi_end_io  = end_block_io_op;
- 			bio->bi_iter.bi_sector  = preq.sector_number;
--			bio->bi_rw	= operation;
-+			bio->bi_op	= operation;
-+			bio->bi_rw	= operation_flags;
- 		}
- 
- 		preq.sector_number += seg[i].nsec;
-@@ -1356,7 +1360,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
- 
- 	/* This will be hit if the operation was a flush or discard. */
- 	if (!bio) {
--		BUG_ON(operation != WRITE_FLUSH);
-+		BUG_ON(operation_flags != WRITE_FLUSH);
- 
- 		bio = bio_alloc(GFP_KERNEL, 0);
- 		if (unlikely(bio == NULL))
-@@ -1366,7 +1370,8 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
- 		bio->bi_bdev    = preq.bdev;
- 		bio->bi_private = pending_req;
- 		bio->bi_end_io  = end_block_io_op;
--		bio->bi_rw	= operation;
-+		bio->bi_op	= operation;
-+		bio->bi_rw	= operation_flags;
+ 	list_for_each_entry(bh, &segbuf->sb_segsum_buffers, b_assoc_buffers) {
+-		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
++		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
+ 		if (unlikely(res))
+ 			goto failed_bio;
  	}
  
- 	atomic_set(&pending_req->pendcnt, nbio);
-@@ -1378,9 +1383,9 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
- 	/* Let the I/Os go.. */
- 	blk_finish_plug(&plug);
+ 	list_for_each_entry(bh, &segbuf->sb_payload_buffers, b_assoc_buffers) {
+-		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
++		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
+ 		if (unlikely(res))
+ 			goto failed_bio;
+ 	}
+@@ -488,8 +490,8 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
+ 		 * Last BIO is always sent through the following
+ 		 * submission.
+ 		 */
+-		rw |= REQ_SYNC;
+-		res = nilfs_segbuf_submit_bio(segbuf, &wi, rw);
++		res = nilfs_segbuf_submit_bio(segbuf, &wi, REQ_OP_WRITE,
++					      REQ_SYNC);
+ 	}
  
--	if (operation == READ)
-+	if (operation == REQ_OP_READ)
- 		blkif->st_rd_sect += preq.nr_sects;
--	else if (operation & WRITE)
-+	else if (operation == REQ_OP_WRITE)
- 		blkif->st_wr_sect += preq.nr_sects;
- 
- 	return 0;
+  failed_bio:
 -- 
 1.8.3.1
 
