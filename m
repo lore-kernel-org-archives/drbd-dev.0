@@ -2,30 +2,30 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 98D381056426
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:54 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 570201056427
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:55 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 8F2A436457E
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:54 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 4E31E36457E
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:55 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id ZZ1FTAw_kcqW for <drbd-dev@lists.linbit.com>;
-	Tue, 12 Jan 2016 11:09:54 +0100 (CET)
+	with ESMTP id rvkpuEspIXRv for <drbd-dev@lists.linbit.com>;
+	Tue, 12 Jan 2016 11:09:55 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 73988364792
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:54 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 2E7F3364792
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:55 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id UXquln-gh_Eq for <drbd-dev@lists.linbit.com>;
-	Tue, 12 Jan 2016 11:09:54 +0100 (CET)
+	with ESMTP id XkduTmvG-_1g for <drbd-dev@lists.linbit.com>;
+	Tue, 12 Jan 2016 11:09:55 +0100 (CET)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 1DFB636457E
+	by zimbra13.linbit.com (Postfix) with ESMTPS id CD1FA36457E
 	for <drbd-dev@lists.linbit.com>; Tue, 12 Jan 2016 11:09:54 +0100 (CET)
-Resent-Message-ID: <20160112100953.GE3313@soda.linbit>
+Resent-Message-ID: <20160112100954.GF3313@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 37CA0105632B
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 56C0E1056330
 	for <drbd-dev@lists.linbit.com>; Mon, 11 Jan 2016 21:31:12 +0100 (CET)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Mon, 11 Jan 2016 14:21:14 -0600
-Message-Id: <1452543693-4440-17-git-send-email-mchristi@redhat.com>
+Date: Mon, 11 Jan 2016 14:21:11 -0600
+Message-Id: <1452543693-4440-14-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1452543693-4440-1-git-send-email-mchristi@redhat.com>
 References: <1452543693-4440-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 16/35] nilfs: set bi_op to REQ_OP
+Subject: [Drbd-dev] [PATCH 13/35] xfs: set bi_op to REQ_OP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,83 +56,109 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-This patch has nilfs set the bio bi_op to a REQ_OP, and
+This patch has xfs set the bio bi_op to a REQ_OP, and
 rq_flag_bits to bi_rw.
-
-This patch is compile tested only.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 ---
- fs/nilfs2/segbuf.c | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ fs/xfs/xfs_aops.c |  3 ++-
+ fs/xfs/xfs_buf.c  | 27 +++++++++++++++------------
+ 2 files changed, 17 insertions(+), 13 deletions(-)
 
-diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
-index 7666f1d..7b13e14 100644
---- a/fs/nilfs2/segbuf.c
-+++ b/fs/nilfs2/segbuf.c
-@@ -350,7 +350,8 @@ static void nilfs_end_bio_write(struct bio *bio)
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index 5525a1b..25673e0 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -382,7 +382,8 @@ xfs_submit_ioend_bio(
+ 	atomic_inc(&ioend->io_remaining);
+ 	bio->bi_private = ioend;
+ 	bio->bi_end_io = xfs_end_bio;
+-	bio->bi_rw = (wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE);
++	bio->bi_op = REQ_OP_WRITE;
++	bio->bi_rw = WB_SYNC_ALL ? WRITE_SYNC : 0;
+ 	submit_bio(bio);
  }
  
- static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
--				   struct nilfs_write_info *wi, int mode)
-+				   struct nilfs_write_info *wi, int mode,
-+				   int mode_flags)
+diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+index 9fd85d5..de35a3c 100644
+--- a/fs/xfs/xfs_buf.c
++++ b/fs/xfs/xfs_buf.c
+@@ -1124,7 +1124,8 @@ xfs_buf_ioapply_map(
+ 	int		map,
+ 	int		*buf_offset,
+ 	int		*count,
+-	int		rw)
++	int		op,
++	int		op_flags)
  {
- 	struct bio *bio = wi->bio;
- 	int err;
-@@ -368,7 +369,8 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
+ 	int		page_index;
+ 	int		total_nr_pages = bp->b_page_count;
+@@ -1163,7 +1164,8 @@ next_chunk:
+ 	bio->bi_iter.bi_sector = sector;
+ 	bio->bi_end_io = xfs_buf_bio_end_io;
+ 	bio->bi_private = bp;
+-	bio->bi_rw = rw;
++	bio->bi_op = op;
++	bio->bi_rw = op_flags;
  
- 	bio->bi_end_io = nilfs_end_bio_write;
- 	bio->bi_private = segbuf;
--	bio->bi_rw = mode;
-+	bio->bi_op = mode;
-+	bio->bi_rw = mode_flags;
- 	submit_bio(bio);
- 	segbuf->sb_nbio++;
- 
-@@ -442,7 +444,7 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
- 		return 0;
- 	}
- 	/* bio is FULL */
--	err = nilfs_segbuf_submit_bio(segbuf, wi, mode);
-+	err = nilfs_segbuf_submit_bio(segbuf, wi, mode, 0);
- 	/* never submit current bh */
- 	if (likely(!err))
- 		goto repeat;
-@@ -466,19 +468,19 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
+ 	for (; size && nr_pages; nr_pages--, page_index++) {
+ 		int	rbytes, nbytes = PAGE_SIZE - offset;
+@@ -1207,7 +1209,8 @@ _xfs_buf_ioapply(
+ 	struct xfs_buf	*bp)
  {
- 	struct nilfs_write_info wi;
- 	struct buffer_head *bh;
--	int res = 0, rw = WRITE;
-+	int res = 0;
+ 	struct blk_plug	plug;
+-	int		rw;
++	int		op;
++	int		op_flags = 0;
+ 	int		offset;
+ 	int		size;
+ 	int		i;
+@@ -1226,14 +1229,13 @@ _xfs_buf_ioapply(
+ 		bp->b_ioend_wq = bp->b_target->bt_mount->m_buf_workqueue;
  
- 	wi.nilfs = nilfs;
- 	nilfs_segbuf_prepare_write(segbuf, &wi);
+ 	if (bp->b_flags & XBF_WRITE) {
++		op = REQ_OP_WRITE;
+ 		if (bp->b_flags & XBF_SYNCIO)
+-			rw = WRITE_SYNC;
+-		else
+-			rw = WRITE;
++			op_flags = WRITE_SYNC;
+ 		if (bp->b_flags & XBF_FUA)
+-			rw |= REQ_FUA;
++			op_flags |= REQ_FUA;
+ 		if (bp->b_flags & XBF_FLUSH)
+-			rw |= REQ_FLUSH;
++			op_flags |= REQ_FLUSH;
  
- 	list_for_each_entry(bh, &segbuf->sb_segsum_buffers, b_assoc_buffers) {
--		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
-+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
- 		if (unlikely(res))
- 			goto failed_bio;
+ 		/*
+ 		 * Run the write verifier callback function if it exists. If
+@@ -1263,13 +1265,14 @@ _xfs_buf_ioapply(
+ 			}
+ 		}
+ 	} else if (bp->b_flags & XBF_READ_AHEAD) {
+-		rw = READA;
++		op = REQ_OP_READ;
++		op_flags = REQ_RAHEAD;
+ 	} else {
+-		rw = READ;
++		op = REQ_OP_READ;
  	}
  
- 	list_for_each_entry(bh, &segbuf->sb_payload_buffers, b_assoc_buffers) {
--		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
-+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
- 		if (unlikely(res))
- 			goto failed_bio;
- 	}
-@@ -488,8 +490,8 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
- 		 * Last BIO is always sent through the following
- 		 * submission.
- 		 */
--		rw |= REQ_SYNC;
--		res = nilfs_segbuf_submit_bio(segbuf, &wi, rw);
-+		res = nilfs_segbuf_submit_bio(segbuf, &wi, REQ_OP_WRITE,
-+					      REQ_SYNC);
- 	}
+ 	/* we only use the buffer cache for meta-data */
+-	rw |= REQ_META;
++	op_flags |= REQ_META;
  
-  failed_bio:
+ 	/*
+ 	 * Walk all the vectors issuing IO on them. Set up the initial offset
+@@ -1281,7 +1284,7 @@ _xfs_buf_ioapply(
+ 	size = BBTOB(bp->b_io_length);
+ 	blk_start_plug(&plug);
+ 	for (i = 0; i < bp->b_map_count; i++) {
+-		xfs_buf_ioapply_map(bp, i, &offset, &size, rw);
++		xfs_buf_ioapply_map(bp, i, &offset, &size, op, op_flags);
+ 		if (bp->b_error)
+ 			break;
+ 		if (size <= 0)
 -- 
 1.8.3.1
 
