@@ -1,18 +1,19 @@
 Return-Path: <jhkim@mantech.co.kr>
-Received: from mail-vk0-f41.google.com (mail-vk0-f41.google.com
-	[209.85.213.41]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Received: from mail-vk0-f42.google.com (mail-vk0-f42.google.com
+	[209.85.213.42]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 24432105632E
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 07:44:58 +0100 (CET)
-Received: by mail-vk0-f41.google.com with SMTP id e185so8369909vkb.1
-	for <drbd-dev@lists.linbit.com>; Tue, 23 Feb 2016 22:44:58 -0800 (PST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8658C1056333
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 08:04:13 +0100 (CET)
+Received: by mail-vk0-f42.google.com with SMTP id c3so8628228vkb.3
+	for <drbd-dev@lists.linbit.com>; Tue, 23 Feb 2016 23:04:13 -0800 (PST)
 MIME-Version: 1.0
-Date: Wed, 24 Feb 2016 15:44:56 +0900
-Message-ID: <CAF6H8oFsnxUs4FrSSN4a+0qPp6yvy0wWL13jncZBNxNTzrmqgw@mail.gmail.com>
+Date: Wed, 24 Feb 2016 16:04:11 +0900
+Message-ID: <CAF6H8oFkGOr-=Uej1fR5JZxh47UPNzF-Dc2Va4p6ZpUcmwip6A@mail.gmail.com>
 From: =?UTF-8?B?6rmA7J6s7ZeM?= <jhkim@mantech.co.kr>
 To: drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary=001a1143f1547697d9052c7e6789
-Subject: [Drbd-dev] [CASE-23] please check potential error possibility.
+Content-Type: multipart/alternative; boundary=001a114318c84dd315052c7eac2c
+Subject: [Drbd-dev] [CASE-24] Does replication have to wait until the end of
+	handler service?
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,48 +25,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---001a1143f1547697d9052c7e6789
+--001a114318c84dd315052c7eac2c
 Content-Type: text/plain; charset=UTF-8
 
 Hi,
 
-Please check following codes whether potential error or not on version:
-9.0.1-1.
+Conf:
+ - A(Async) or C(sync) replication mode
+ - setup before-resync-source( this handler sleeps just 1 minute)
 
-1. drbd_pause_after/drbd_resume_next
+Test:
+ - 1) Big file copy
+ - 2) During copy,disconnect and connect
+ - 3) before-resync-source handler called
+ - 4) At this point copy operation is pending until handler finished.
 
- - You used disk_state without array index.
-
-#if 1
-       if (other_device->disk_state[NOW] == D_DISKLESS) { // new
-#else
-       if (other_device->disk_state == D_DISKLESS) { // orignal code
-#endif
-
-
-2. drbd_adm_dump_peer_devices/drbd_adm_dump_devices
-
- - If you run the first "goto put_result;" statement, you should meet
-rcu_read_unlock() without rcu_read_lock().
- - Is it no problem?
-
+Is it normal operation?
 
 Thanks.
 
---001a1143f1547697d9052c7e6789
+--001a114318c84dd315052c7eac2c
 Content-Type: text/html; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 
-<div dir=3D"ltr">Hi,<br><br>Please check following codes whether potential =
-error or not on version: 9.0.1-1.<br><br>1. drbd_pause_after/drbd_resume_ne=
-xt<div><br>=C2=A0- You used disk_state without array index.<br><br>#if 1<br=
->=C2=A0 =C2=A0 =C2=A0 =C2=A0if (other_device-&gt;disk_state[NOW] =3D=3D D_D=
-ISKLESS) { // new<br>#else<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0if (other_device-&=
-gt;disk_state =3D=3D D_DISKLESS) { // orignal code<br>#endif<br><br><br>2. =
-drbd_adm_dump_peer_devices/drbd_adm_dump_devices<br><br>=C2=A0- If you run =
-the first &quot;goto put_result;&quot; statement, you should meet rcu_read_=
-unlock() without rcu_read_lock().<br>=C2=A0- Is it no problem?<br><br><br>T=
-hanks.
-</div><div><br></div></div>
+<div dir=3D"ltr">Hi,<br><br>Conf:<br>=C2=A0- A(Async) or C(sync) replicatio=
+n mode<br>=C2=A0- setup before-resync-source( this handler sleeps just 1 mi=
+nute)<br>=C2=A0<br>Test:<br>=C2=A0- 1) Big file copy<br>=C2=A0- 2) During c=
+opy,disconnect and connect<br>=C2=A0- 3) before-resync-source handler calle=
+d<br>=C2=A0- 4) At this point copy operation is pending until handler finis=
+hed.<br><br>Is it normal operation?<br><br>Thanks.<div><br></div>
+</div>
 
---001a1143f1547697d9052c7e6789--
+--001a114318c84dd315052c7eac2c--
