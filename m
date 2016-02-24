@@ -1,39 +1,38 @@
-Return-Path: <roland.kammerer@linbit.com>
+Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5E9011056330
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 14:50:09 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C86D9104B1A2
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 15:17:39 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 4CA652A8250
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 14:50:09 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id BBBAA3E7FD7
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 15:17:39 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id HXstOqjVOMrL for <drbd-dev@lists.linbit.com>;
-	Wed, 24 Feb 2016 14:50:09 +0100 (CET)
+	with ESMTP id X1QPgeTnHHCR for <drbd-dev@lists.linbit.com>;
+	Wed, 24 Feb 2016 15:17:39 +0100 (CET)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 2F0203FC169
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 14:50:09 +0100 (CET)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 9C23F3E83BC
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 15:17:39 +0100 (CET)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id F-kb4UYy46tH for <drbd-dev@lists.linbit.com>;
-	Wed, 24 Feb 2016 14:50:09 +0100 (CET)
-Received: from localhost (chello213047144126.1.15.vie.surfer.at
-	[213.47.144.126])
-	by zimbra13.linbit.com (Postfix) with ESMTPSA id E640F2A8250
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 14:50:08 +0100 (CET)
-Date: Wed, 24 Feb 2016 14:50:07 +0100
-From: Roland Kammerer <roland.kammerer@linbit.com>
+	with ESMTP id uheXdkMu3N_g for <drbd-dev@lists.linbit.com>;
+	Wed, 24 Feb 2016 15:17:39 +0100 (CET)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 7207A3E7FD7
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 15:17:39 +0100 (CET)
+Date: Wed, 24 Feb 2016 15:17:39 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20160224135005.GL1621@rck.sh>
-References: <CAF6H8oFsnxUs4FrSSN4a+0qPp6yvy0wWL13jncZBNxNTzrmqgw@mail.gmail.com>
-	<20160224095617.GK1621@rck.sh>
+Message-ID: <20160224141738.GI17669@soda.linbit>
+References: <CAF6H8oFkGOr-=Uej1fR5JZxh47UPNzF-Dc2Va4p6ZpUcmwip6A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20160224095617.GK1621@rck.sh>
+In-Reply-To: <CAF6H8oFkGOr-=Uej1fR5JZxh47UPNzF-Dc2Va4p6ZpUcmwip6A@mail.gmail.com>
 Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] [CASE-23] please check potential error possibility.
+Subject: Re: [Drbd-dev] [CASE-24] Does replication have to wait until the
+ end of handler service?
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,42 +44,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Feb 24, 2016 at 10:56:18AM +0100, Roland Kammerer wrote:
-> On Wed, Feb 24, 2016 at 03:44:56PM +0900, =EA=B9=80=EC=9E=AC=ED=97=8C w=
-rote:
-> > Hi,
-> >=20
-> > Please check following codes whether potential error or not on versio=
-n:
-> > 9.0.1-1.
-> >=20
-> > 1. drbd_pause_after/drbd_resume_next
-> >=20
-> >  - You used disk_state without array index.
-> >=20
-> > #if 1
-> >        if (other_device->disk_state[NOW] =3D=3D D_DISKLESS) { // new
-> > #else
-> >        if (other_device->disk_state =3D=3D D_DISKLESS) { // orignal c=
-ode
-> > #endif
-> >=20
-> >=20
-> > 2. drbd_adm_dump_peer_devices/drbd_adm_dump_devices
-> >=20
-> >  - If you run the first "goto put_result;" statement, you should meet
-> > rcu_read_unlock() without rcu_read_lock().
-> >  - Is it no problem?
->=20
+On Wed, Feb 24, 2016 at 04:04:11PM +0900, =EA=B9=80=EC=9E=AC=ED=97=8C wro=
+te:
 > Hi,
 >=20
-> I think you are right in both cases, I prepared fixes, which are
-> currently under review...
+> Conf:
+>  - A(Async) or C(sync) replication mode
+>  - setup before-resync-source( this handler sleeps just 1 minute)
+>=20
+> Test:
+>  - 1) Big file copy
+>  - 2) During copy,disconnect and connect
+>  - 3) before-resync-source handler called
+>  - 4) At this point copy operation is pending until handler finished.
+>=20
+> Is it normal operation?
 
-http://git.linbit.com/drbd-9.0.git/commitdiff/89fc34d91724c402c64e9f8cd7d=
-7d92058abf0ed
-and
-http://git.linbit.com/drbd-9.0.git/commitdiff/3cd85d42444749166d04d1f8ffc=
-ea25c7e9add04
+The before-resync handlers can return an exit code !=3D 0 (and !=3D 3,
+for hysterical reasons), and will cause the connection to be dropped
+(and nothing to be resynced or changed).
 
-Thanks again, rck
+So yes, the resync has to wait for that exit code.
+
+What would you want to do from there?
+
+Also, if you think that is useful,
+you can do the equivalent of "nohup some-long-running-script & exit 0"...
+But I fail to see the usecase.
+
+
+--=20
+: Lars Ellenberg
+: http://www.LINBIT.com | Your Way to High Availability
+: DRBD, Linux-HA  and  Pacemaker support and consulting
+
+DRBD=C2=AE and LINBIT=C2=AE are registered trademarks of LINBIT, Austria.
