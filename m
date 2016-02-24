@@ -1,23 +1,19 @@
 Return-Path: <kmpak@mantech.co.kr>
-Received: from mail-yw0-f181.google.com (mail-yw0-f181.google.com
-	[209.85.161.181]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Received: from mail-yw0-f173.google.com (mail-yw0-f173.google.com
+	[209.85.161.173]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 12217105632B
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 00:56:29 +0100 (CET)
-Received: by mail-yw0-f181.google.com with SMTP id g127so1934529ywf.2
-	for <drbd-dev@lists.linbit.com>; Tue, 23 Feb 2016 15:56:29 -0800 (PST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6683C105632B
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Feb 2016 01:14:41 +0100 (CET)
+Received: by mail-yw0-f173.google.com with SMTP id g127so2254860ywf.2
+	for <drbd-dev@lists.linbit.com>; Tue, 23 Feb 2016 16:14:41 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20160223084433.GG17669@soda.linbit>
-References: <CALLFrTR-30gWwnWQU2ArAcj3MZAT1LnfDPO6HWJDdg8-RMr_jQ@mail.gmail.com>
-	<20160223084433.GG17669@soda.linbit>
-Date: Wed, 24 Feb 2016 08:56:28 +0900
-Message-ID: <CALLFrTSQhStCc=08MRQSU3NoEK=CCsBPh5a41R44hvWXwtLVEw@mail.gmail.com>
+Date: Wed, 24 Feb 2016 09:14:40 +0900
+Message-ID: <CALLFrTTx28UeJV0NTb-1jq58_Gmd6TOdt28ANWeP1bF6jjaPDg@mail.gmail.com>
 From: =?UTF-8?B?67CV6rK966+8?= <kmpak@mantech.co.kr>
 To: drbd-dev@lists.linbit.com
-Content-Type: multipart/related; boundary=94eb2c0bccd8a3a6e7052c78b208
+Content-Type: multipart/related; boundary=001a11428100bd36c9052c78f304
 Cc: Windows DRBD <wdrbd@mantech.co.kr>
-Subject: Re: [Drbd-dev] Parse error on drbdadm adjust command in drbd-utils
-	8.9.6
+Subject: [Drbd-dev] Confusing about outdate state
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,163 +25,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---94eb2c0bccd8a3a6e7052c78b208
-Content-Type: multipart/alternative; boundary=94eb2c0bccd8a3a6e2052c78b207
+--001a11428100bd36c9052c78f304
+Content-Type: multipart/alternative; boundary=001a11428100bd36c2052c78f303
 
---94eb2c0bccd8a3a6e2052c78b207
+--001a11428100bd36c2052c78f303
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: base64
 
-It's my mistake.
-
-After updating, sysconfigdir was mismatched (./configure ....
---sysconfigdir), which was occurred parse error
-
-Thanks for your reply.
-
-2016-02-23 17:44 GMT+09:00 Lars Ellenberg <lars.ellenberg@linbit.com>:
-
-> On Tue, Feb 23, 2016 at 11:20:26AM +0900, =EB=B0=95=EA=B2=BD=EB=AF=BC wro=
-te:
-> > Hello
-> >
-> > Lately, I have updated drbd-utils 8.9.3 to 8.9.6 (with drbd-header).
-> >
-> > I did not tested all command yet, no problem except *adjust* option.
-> >
-> > At a glance in documents, in v8.9.6, there are some changes about 'path=
-'
-> in
-> > connection, but I don't know how to use and what kind of parse error.
->
-> "adjust" parses both drbd config files,
-> and the output of "drbdsetup show".
->
-> My guess is that the parse error is with the "drbdsetup show" output.
->
-> And that an adjust while nothing is configured yet would succeed,
-> because then the output would be empty.
->
-> Please post "drbdsetup show" when adjust fails.
->
-> Also, please double check that all used binaries (drbdadm, drbdsetup)
-> are in fact from the new 8.9.6 build.
->
->
-> --
-> : Lars Ellenberg
-> : http://www.LINBIT.com | Your Way to High Availability
-> : DRBD, Linux-HA  and  Pacemaker support and consulting
->
-> DRBD=C2=AE and LINBIT=C2=AE are registered trademarks of LINBIT, Austria.
->
-
-
-
---=20
-
-=EA=B8=B0=EC=88=A0=EC=97=B0=EA=B5=AC=EC=86=8C                  Mobile : 010=
--4762-0519
-
-*=EB=B0=95 =EA=B2=BD =EB=AF=BC =EC=B0=A8=EC=9E=A5*              kmpak@mante=
-ch.co.kr
-
-=EC=84=9C=EC=9A=B8=ED=8A=B9=EB=B3=84=EC=8B=9C =EC=84=B1=EB=8F=99=EA=B5=AC =
-=EC=84=B1=EC=88=98=EC=9D=BC=EB=A1=9C4=EA=B8=B8 25 =EC=84=9C=EC=9A=B8=EC=88=
-=B2=EC=BD=94=EC=98=A4=EB=A1=B1=EB=94=94=EC=A7=80=ED=84=B8=ED=83=80=EC=9B=8C=
- 12=EC=B8=B5
-
-Fax : 02-575-4858 / Tel : (02) 2136-6978 (978)
-
---94eb2c0bccd8a3a6e2052c78b207
+SGVsbG8uDQoNCkluIGNhc2UsIDE6MSBub2RlcywgUHJpbWFyeS9TZWNvbmRhcnkgc3RhdHVzLi4u
+DQpUaGVyZSBpcyBhIGRpZmZlcmVuY2UgdGhpbmcgYmV0d2VlbiA4LjQuNyBhbmQgOS4wLjENCg0K
+QWZ0ZXIgKmRyYmRhZG0gZGlzY29ubmVjdCwgKmRzIHdpbGwgYmUNCjEpIDguNC43IC0gVXBUb0Rh
+dGUvVXBUb0RhdGUNCjIpIDkuMC4xIC0gVXBUb0RhdGUvT3V0ZGF0ZQ0KDQpJIGRvbid0IHVuZGVy
+c3RhbmQgd2h5IGlzIGRpZmZlcnJlbnQgaW4gc2FtZSBlbnZpcm9ubWVudC4NCg0KDQpUaGFua3Mu
+DQoNCi0tIA0KDQrquLDsiKDsl7DqtazshowgICAgICAgICAgICAgICAgICBNb2JpbGUgOiAwMTAt
+NDc2Mi0wNTE5DQoNCirrsJUg6rK9IOuvvCDssKjsnqUqICAgICAgICAgICAgICBrbXBha0BtYW50
+ZWNoLmNvLmtyDQoNCuyEnOyauO2KueuzhOyLnCDshLHrj5nqtawg7ISx7IiY7J2866GcNOq4uCAy
+NSDshJzsmrjsiLLsvZTsmKTrobHrlJTsp4DthLjtg4Dsm4wgMTLsuLUNCg0KRmF4IDogMDItNTc1
+LTQ4NTggLyBUZWwgOiAoMDIpIDIxMzYtNjk3OCAoOTc4KQ0K
+--001a11428100bd36c2052c78f303
 Content-Type: text/html; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 
-<div dir=3D"ltr">It&#39;s my mistake.<div><br></div><div>After updating, sy=
-sconfigdir was mismatched (./configure .... --sysconfigdir), which was occu=
-rred parse error</div><div><br></div><div>Thanks for your reply.</div></div=
-><div class=3D"gmail_extra"><br><div class=3D"gmail_quote">2016-02-23 17:44=
- GMT+09:00 Lars Ellenberg <span dir=3D"ltr">&lt;<a href=3D"mailto:lars.elle=
-nberg@linbit.com" target=3D"_blank">lars.ellenberg@linbit.com</a>&gt;</span=
->:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-l=
-eft:1px #ccc solid;padding-left:1ex"><span class=3D"">On Tue, Feb 23, 2016 =
-at 11:20:26AM +0900, =EB=B0=95=EA=B2=BD=EB=AF=BC wrote:<br>
-&gt; Hello<br>
-&gt;<br>
-&gt; Lately, I have updated drbd-utils 8.9.3 to 8.9.6 (with drbd-header).<b=
-r>
-&gt;<br>
-</span>&gt; I did not tested all command yet, no problem except *adjust* op=
-tion.<br>
-<span class=3D"">&gt;<br>
-&gt; At a glance in documents, in v8.9.6, there are some changes about &#39=
-;path&#39; in<br>
-&gt; connection, but I don&#39;t know how to use and what kind of parse err=
-or.<br>
-<br>
-</span>&quot;adjust&quot; parses both drbd config files,<br>
-and the output of &quot;drbdsetup show&quot;.<br>
-<br>
-My guess is that the parse error is with the &quot;drbdsetup show&quot; out=
-put.<br>
-<br>
-And that an adjust while nothing is configured yet would succeed,<br>
-because then the output would be empty.<br>
-<br>
-Please post &quot;drbdsetup show&quot; when adjust fails.<br>
-<br>
-Also, please double check that all used binaries (drbdadm, drbdsetup)<br>
-are in fact from the new 8.9.6 build.<br>
-<span class=3D"HOEnZb"><font color=3D"#888888"><br>
-<br>
---<br>
-: Lars Ellenberg<br>
-: <a href=3D"http://www.LINBIT.com" rel=3D"noreferrer" target=3D"_blank">ht=
-tp://www.LINBIT.com</a> | Your Way to High Availability<br>
-: DRBD, Linux-HA=C2=A0 and=C2=A0 Pacemaker support and consulting<br>
-<br>
-DRBD=C2=AE and LINBIT=C2=AE are registered trademarks of LINBIT, Austria.<b=
-r>
-</font></span></blockquote></div><br><br clear=3D"all"><div><br></div>-- <b=
-r><div class=3D"gmail_signature"><div dir=3D"ltr"><div><div dir=3D"ltr"><di=
-v><div dir=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"ltr"><img src=3D"=
-cid:image001.png@01D0F522.B2A586F0"><br><div><p style=3D"margin:0cm 0cm 0.0=
-001pt;background-image:initial;background-repeat:initial"><font face=3D"ver=
-dana, sans-serif"><span style=3D"font-size:10pt;color:black"><span lang=3D"=
-EN-US">=EA=B8=B0=EC=88=A0=EC=97=B0=EA=B5=AC=EC=86=8C=C2=A0</span><span lang=
-=3D"EN-US">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Mo=
-bile=C2=A0: 010-4762-0519</span></span><span lang=3D"EN-US" style=3D"font-s=
-ize:10.5pt;color:rgb(136,136,136)"></span></font></p><p style=3D"margin:0cm=
- 0cm 0pt"></p><p style=3D"margin:0cm 0cm 0.0001pt;background-image:initial;=
-background-repeat:initial"><font face=3D"verdana, sans-serif"><b><span styl=
-e=3D"font-size:10.5pt;color:black">=EB=B0=95 =EA=B2=BD =EB=AF=BC<span lang=
-=3D"EN-US">=C2=A0=EC=B0=A8=EC=9E=A5</span></span></b><span style=3D"font-si=
-ze:10pt;color:black"><span lang=3D"EN-US">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 kmpak</span></span><span lang=3D"EN-US" style=3D"font-siz=
-e:10pt;color:black">@<a href=3D"http://mantech.co.kr/" style=3D"color:rgb(1=
-7,85,204)" target=3D"_blank">mantech.co.kr</a></span><span lang=3D"EN-US" s=
-tyle=3D"font-size:10.5pt;color:rgb(136,136,136)"></span></font></p><p style=
+<div dir=3D"ltr">Hello.<div><br></div><div>In case, 1:1 nodes, Primary/Seco=
+ndary status...</div><div>There is a difference thing between 8.4.7 and 9.0=
+.1=C2=A0</div><div><br></div><div>After=C2=A0<i>drbdadm disconnect, </i>ds =
+will be</div><div>1) 8.4.7 -=C2=A0UpToDate/UpToDate</div><div>2) 9.0.1 - Up=
+ToDate/Outdate</div><div><br></div><div>I don&#39;t understand why is diffe=
+rrent in same environment.</div><div><br></div><div><br></div><div>Thanks.=
+=C2=A0</div><div><div><br></div>-- <br><div class=3D"gmail_signature"><div =
+dir=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"lt=
+r"><div><div dir=3D"ltr"><img src=3D"cid:image001.png@01D0F522.B2A586F0"><b=
+r><div><p style=3D"margin:0cm 0cm 0.0001pt;background-image:initial;backgro=
+und-repeat:initial"><font face=3D"verdana, sans-serif"><span style=3D"font-=
+size:10pt;color:black"><span lang=3D"EN-US">=EA=B8=B0=EC=88=A0=EC=97=B0=EA=
+=B5=AC=EC=86=8C=C2=A0</span><span lang=3D"EN-US">=C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Mobile=C2=A0: 010-4762-0519</span></s=
+pan><span lang=3D"EN-US" style=3D"font-size:10.5pt;color:rgb(136,136,136)">=
+</span></font></p><p style=3D"margin:0cm 0cm 0pt"></p><p style=3D"margin:0c=
+m 0cm 0.0001pt;background-image:initial;background-repeat:initial"><font fa=
+ce=3D"verdana, sans-serif"><b><span style=3D"font-size:10.5pt;color:black">=
+=EB=B0=95 =EA=B2=BD =EB=AF=BC<span lang=3D"EN-US">=C2=A0=EC=B0=A8=EC=9E=A5<=
+/span></span></b><span style=3D"font-size:10pt;color:black"><span lang=3D"E=
+N-US">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 kmpak</span></span><=
+span lang=3D"EN-US" style=3D"font-size:10pt;color:black">@<a href=3D"http:/=
+/mantech.co.kr/" style=3D"color:rgb(17,85,204)" target=3D"_blank">mantech.c=
+o.kr</a></span><span lang=3D"EN-US" style=3D"font-size:10.5pt;color:rgb(136=
+,136,136)"></span></font></p><p style=3D"margin:0cm 0cm 0.0001pt;line-heigh=
+t:21px"><font color=3D"#000000" face=3D"verdana, sans-serif"><span style=3D=
+"font-size:8pt;line-height:16px">=EC=84=9C=EC=9A=B8=ED=8A=B9=EB=B3=84=EC=8B=
+=9C =EC=84=B1=EB=8F=99=EA=B5=AC =EC=84=B1=EC=88=98=EC=9D=BC=EB=A1=9C<span l=
+ang=3D"EN-US">4</span>=EA=B8=B8<span lang=3D"EN-US">=C2=A025=C2=A0</span>=
+=EC=84=9C=EC=9A=B8=EC=88=B2=EC=BD=94=EC=98=A4=EB=A1=B1=EB=94=94=EC=A7=80=ED=
+=84=B8=ED=83=80=EC=9B=8C<span lang=3D"EN-US">=C2=A012</span>=EC=B8=B5<span =
+lang=3D"EN-US">=C2=A0</span></span><span lang=3D"EN-US" style=3D"font-size:=
+8pt;line-height:16px">=C2=A0 =C2=A0 =C2=A0=C2=A0</span></font></p><p style=
 =3D"margin:0cm 0cm 0.0001pt;line-height:21px"><font color=3D"#000000" face=
-=3D"verdana, sans-serif"><span style=3D"font-size:8pt;line-height:16px">=EC=
-=84=9C=EC=9A=B8=ED=8A=B9=EB=B3=84=EC=8B=9C =EC=84=B1=EB=8F=99=EA=B5=AC =EC=
-=84=B1=EC=88=98=EC=9D=BC=EB=A1=9C<span lang=3D"EN-US">4</span>=EA=B8=B8<spa=
-n lang=3D"EN-US">=C2=A025=C2=A0</span>=EC=84=9C=EC=9A=B8=EC=88=B2=EC=BD=94=
-=EC=98=A4=EB=A1=B1=EB=94=94=EC=A7=80=ED=84=B8=ED=83=80=EC=9B=8C<span lang=
-=3D"EN-US">=C2=A012</span>=EC=B8=B5<span lang=3D"EN-US">=C2=A0</span></span=
-><span lang=3D"EN-US" style=3D"font-size:8pt;line-height:16px">=C2=A0 =C2=
-=A0 =C2=A0=C2=A0</span></font></p><p style=3D"margin:0cm 0cm 0.0001pt;line-=
-height:21px"><font color=3D"#000000" face=3D"verdana, sans-serif"><span lan=
-g=3D"EN-US" style=3D"font-size:8pt;line-height:16px">Fax : 02-575-4858 / Te=
-l : (02) 2136-6978 (978)</span></font></p><p style=3D"margin:0cm 0cm 0.0001=
-pt;line-height:21px"><font color=3D"#000000" face=3D"verdana, sans-serif"><=
-span lang=3D"EN-US" style=3D"font-size:8pt;line-height:16px"><span></span><=
-span></span><img src=3D"cid:image002.png@01D126A1.B8986400"><br></span></fo=
-nt></p></div></div></div></div></div></div></div></div></div></div></div>
-</div>
+=3D"verdana, sans-serif"><span lang=3D"EN-US" style=3D"font-size:8pt;line-h=
+eight:16px">Fax : 02-575-4858 / Tel : (02) 2136-6978 (978)</span></font></p=
+><p style=3D"margin:0cm 0cm 0.0001pt;line-height:21px"><font color=3D"#0000=
+00" face=3D"verdana, sans-serif"><span lang=3D"EN-US" style=3D"font-size:8p=
+t;line-height:16px"><span></span><span></span><img src=3D"cid:image002.png@=
+01D126A1.B8986400"><br></span></font></p></div></div></div></div></div></di=
+v></div></div></div></div></div>
+</div></div>
 
---94eb2c0bccd8a3a6e2052c78b207--
+--001a11428100bd36c2052c78f303--
 
---94eb2c0bccd8a3a6e7052c78b208
+--001a11428100bd36c9052c78f304
 Content-Type: image/png; name="image002.png"
 Content-Disposition: inline; filename="image002.png"
 Content-Transfer-Encoding: base64
@@ -477,7 +383,7 @@ gCAgCNQhIJ1NHU6SShAQBAQBQWAPBKSz2QM8ySoICAKCgCBQh4B0NnU4SSpBQBAQBASBPRCQzmYP
 AwHpbPYAT7IKAoKAICAI1CEgnU0dTpJKEBAEBAFBYA8EpLPZAzzJKggIAoKAIFCHgHQ2dThJKkFA
 EBAEBIE9EBid/e+/d3vkl6yCgCAgCAgCgkCAwH/953/A//3PfwfXhPU5gENOBAFBQBAQBIZAQJbR
 hkBVZAoCgoAgIAgECPw/AI7wUxJc/rwAAAAASUVORK5CYII=
---94eb2c0bccd8a3a6e7052c78b208
+--001a11428100bd36c9052c78f304
 Content-Type: image/png; name="image001.png"
 Content-Disposition: inline; filename="image001.png"
 Content-Transfer-Encoding: base64
@@ -564,4 +470,4 @@ Js9pdWU57YpNGfJPqIWUzASdjaczWrb/gGaK+1osqepdC7zS5W1RF5/uilWGFxY8oUk+hee/o2EM
 VYLBt1u9YPXC+k5CjEmCNhz5MIDzlbNXw5exSrdolvgelTHoSI/yi5QpC9rhH12J+TwEU3cv/g4z
 PL/QlZeRqaJToOQ/qTVAA1LpxAAgaR6hBuW3Ldkw/JbO3vKidk+YyswmlFBCCSWUUEIJJZRQQgkl
 lFBCCSWUUEIJJZRQQgkllNBRRP8PImss4+czVsIAAAAASUVORK5CYII=
---94eb2c0bccd8a3a6e7052c78b208--
+--001a11428100bd36c9052c78f304--
