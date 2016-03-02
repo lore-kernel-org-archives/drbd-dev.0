@@ -1,29 +1,18 @@
-Return-Path: <BATV+8bed3f455c6e4e509871+4572+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
-	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <jhkim@mantech.co.kr>
+Received: from mail-vk0-f53.google.com (mail-vk0-f53.google.com
+	[209.85.213.53]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 670F9105633A
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Feb 2016 18:35:05 +0100 (CET)
-Date: Mon, 29 Feb 2016 09:13:39 -0800
-From: Christoph Hellwig <hch@infradead.org>
-To: mchristi@redhat.com
-Message-ID: <20160229171339.GA17755@infradead.org>
-References: <1456343292-14535-1-git-send-email-mchristi@redhat.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E77351056330
+	for <drbd-dev@lists.linbit.com>; Wed,  2 Mar 2016 10:30:18 +0100 (CET)
+Received: by mail-vk0-f53.google.com with SMTP id e185so195582684vkb.1
+	for <drbd-dev@lists.linbit.com>; Wed, 02 Mar 2016 01:30:18 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1456343292-14535-1-git-send-email-mchristi@redhat.com>
-Cc: linux-bcache@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com,
-	ocfs2-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
-	konrad.wilk@oracle.com, linux-kernel@vger.kernel.org,
-	philipp.reisner@linbit.com, linux-f2fs-devel@lists.sourceforge.net,
-	linux-raid@vger.kernel.org, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	osd-dev@open-osd.org, linux-fsdevel@vger.kernel.org,
-	lars.ellenberg@linbit.com, linux-ext4@vger.kernel.org,
-	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/35 v4] separate operations from flags in
- the bio/request structs
+Date: Wed, 2 Mar 2016 18:30:17 +0900
+Message-ID: <CAF6H8oH2bWZBWQYL3ei9MuS4sXCVML5r3j_yfDutU7jo129DmQ@mail.gmail.com>
+From: Jaeheon Kim <jhkim@mantech.co.kr>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative; boundary=001a11438eaaa9ff01052d0d872d
+Subject: [Drbd-dev] [CASE-28] Pause-SyncS color?
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,12 +24,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Any reason you've dropped my ACK for the previous version?
+--001a11438eaaa9ff01052d0d872d
+Content-Type: text/plain; charset=UTF-8
 
-Jens, is this something you're fine with?  Would be great to figure
-out a way to get this into 4.6.  There's probably going to be
-plenty of conflicts, so having some sort of stable base tree
-would be nice..
+Hi,
 
-(Talking about conflicts, seems like the block for-linus and for-next
-trees already conflict quite a bit..)
+It's trivial.
+
+On CLI, Pause-SyncT is red color but Pause-SyncS is none.
+We think L_PAUSED_SYNC_S is  COLOR_BAD, maybe.
+Please check drbd-utils/user/v9/drbdsetup_colors.c
+
++#ifdef _WIN32_V9
++ [L_PAUSED_SYNC_S] = COLOR_BAD,
++#else
+  [L_PAUSED_SYNC_S] = COLOR_NORMAL,
++#endif
+
+
+Thanks.
+
+--001a11438eaaa9ff01052d0d872d
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Hi,</div><div><br></div><div>It&#39;s trivial.</div><=
+div><br></div><div>On CLI, Pause-SyncT is red color but Pause-SyncS is none=
+.</div><div>We think L_PAUSED_SYNC_S is =C2=A0COLOR_BAD, maybe.</div><div>P=
+lease check drbd-utils/user/v9/drbdsetup_colors.c</div><div><br></div><div>=
++#ifdef _WIN32_V9</div><div>+<span class=3D"" style=3D"white-space:pre">	</=
+span>[L_PAUSED_SYNC_S] =3D COLOR_BAD,</div><div>+#else</div><div>=C2=A0<spa=
+n class=3D"" style=3D"white-space:pre">	</span>[L_PAUSED_SYNC_S] =3D COLOR_=
+NORMAL,</div><div>+#endif</div><div><br></div><div><br></div><div>Thanks.</=
+div><div><br></div><div><br></div>
+</div>
+
+--001a11438eaaa9ff01052d0d872d--
