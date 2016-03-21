@@ -1,39 +1,26 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <m@sys4.de>
+Received: from mail.sys4.de (mail.sys4.de [194.126.158.132])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9F66E1056330
-	for <drbd-dev@lists.linbit.com>; Mon, 14 Mar 2016 11:23:17 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 8DDC64003AD
-	for <drbd-dev@lists.linbit.com>; Mon, 14 Mar 2016 11:23:17 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id uoA0s5fZjtcL for <drbd-dev@lists.linbit.com>;
-	Mon, 14 Mar 2016 11:23:17 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 70B8140051D
-	for <drbd-dev@lists.linbit.com>; Mon, 14 Mar 2016 11:23:17 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id SGdO2FxvO5nX for <drbd-dev@lists.linbit.com>;
-	Mon, 14 Mar 2016 11:23:17 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 46F0E4003AD
-	for <drbd-dev@lists.linbit.com>; Mon, 14 Mar 2016 11:23:17 +0100 (CET)
-Date: Mon, 14 Mar 2016 11:23:16 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 774671051881
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 00:26:16 +0100 (CET)
+Received: from localhost (echo.sys4.de [127.0.0.1])
+	by mail.sys4.de (Postfix) with ESMTP id 3qTWwC4YYjz1JGJ
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 00:18:19 +0100 (CET)
+Received: from localhost (port-1764.pppoe.wtnet.de [84.46.6.234])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.sys4.de (Postfix) with ESMTPSA id 3qTWwC2SQVz1HZf
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 00:18:19 +0100 (CET)
+Date: Tue, 22 Mar 2016 00:18:17 +0100
+From: Marc Schiffbauer <m@sys4.de>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20160314102316.GI17669@soda.linbit>
-References: <mailman.3.1457694002.12272.drbd-dev@lists.linbit.com>
-	<CALLFrTQcN6N34wW2VCTmnPpExoe+3Jgh4wckTqZ_SVzb4UOobA@mail.gmail.com>
+Message-ID: <20160321231817.GI30157@schiffbauer.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: multipart/signed; micalg=pgp-sha512;
+	protocol="application/pgp-signature"; boundary="cpvLTH7QU4gwfq3S"
 Content-Disposition: inline
-In-Reply-To: <CALLFrTQcN6N34wW2VCTmnPpExoe+3Jgh4wckTqZ_SVzb4UOobA@mail.gmail.com>
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] request_timer continuous loop if there is
-	disk-timeout
+Subject: [Drbd-dev] integer signedness mixup problem in drbd_main.c
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,58 +32,66 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Mar 14, 2016 at 02:37:21PM +0900, =EB=B0=95=EA=B2=BD=EB=AF=BC wro=
-te:
-> I have known more request_timer_fn(). Thanks
->=20
-> I think helper function *time_min_in_future() *function will return the
-> nearest future time, right?
-> And, next_trigger_time is initialize now value, so always is same.
-> void request_timer_fn(unsigned long data)
-> {
->     if (dt) {
-> ...
->         if (device->disk_state[NOW] > D_FAILED) {
->             next_trigger_time =3D *time_min_in_future*(now,
->                     next_trigger_time, oldest_submit_jif + dt);        =
- //
-> 1st assign
->             restart_timer =3D true;
->         }
-> ...
->     }
->     for_each_connection(connection, device->resource) {
-> ...
->         next_trigger_time =3D *time_min_in_future*(now,
->                 next_trigger_time, pre_send_jif + ent);                =
- //
-> 2nd assign
-> ...
->     }
-> ...
->     if (restart_timer) {
->         next_trigger_time =3D *time_min_in_future*(now, next_trigger_ti=
-me,
-> now + et);       // 3rd assign
-> ...
->     }
-> }
-> Maybe, 3 assignments are always same, because now =3D=3D next_trigger_t=
-ime,
-> which is the nearest.  So, if restart_timer 's value is true, then
-> loop continuously even dt or ent exists.
 
-No.
+--cpvLTH7QU4gwfq3S
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> I don't know how to put the different thing.
+hi all,
 
-Me neither.
+using a kernel hardened with grsecurity/PaX we discovered a problem=20
+where PaX detects a size overflow after a quite large uptime:
 
+PAX: size overflow detected in function drbd_send_dblock=20
+drivers/block/drbd/drbd_main.c:1625 cicus.964_133 max, count: 1
 
+this was in kernel 3.14.19, but 4.4.5 still seems to have that problem. =20
+The line triggering this is:
 
-Also, you have seen this?
+p->seq_num =3D cpu_to_be32(atomic_inc_return_unchecked(&mdev->packet_seq));
 
-> > When replying, please edit your Subject line so it is more specific
-> > than "Re: Contents of drbd-dev digest..."
+(line 1625 in linux 3.14.19 and 1637 in linux 4.4.5)
 
+please see [1] for more details.
 
+Please can you tell whether this should be fixed in drbd? Or might this=20
+be some false positive in PaX?
+
+regards
+-Marc
+
+[1] https://forums.grsecurity.net/viewtopic.php?f=3D3&t=3D4425
+
+--=20
+[*] sys4 AG
+
+http://sys4.de, +49 (89) 30 90 46 64
+Franziskanerstra=DFe 15, 81669 M=FCnchen
+
+Sitz der Gesellschaft: M=FCnchen, Amtsgericht M=FCnchen: HRB 199263
+Vorstand: Patrick Ben Koetter, Marc Schiffbauer
+Aufsichtsratsvorsitzender: Florian Kirstein
+
+--cpvLTH7QU4gwfq3S
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAABCgAGBQJW8IE1AAoJEDsr1ZJngzeolvYP/3y+GSurIztZsSHhH51hsSGK
+AYZ5VCMdjJhLSbdIhf2BDnfiEyScfygiHsJ7Sc3tw67Ljf3E+02xOq94EiZzzDz0
+Sy3oP7RcQBE/7Bp3F9zKVubUHIPeSzlNlpUhXJjKQb8mztfpCpu3fKtGY2afyphe
+AnfbTQOul5DXHqRdYltauMKzU18841y5FLk+g2SjymAAQk0Goe73g8kZzzKxIZpu
+EUbkR9tLdawxLbczhXSOEaXtb6rP1kA3Ug7relUXzOqhPVDA4YxgsNVjuy5D4Rr7
+opilbWBhVsu9WiZuWOrFBvl+cvChd+EN3OGgvEgXeRsiTaIu3O2gptVmkzXsB2+I
+SaoaFGn0sLSu8ppScIOAKcQdsyPpYANBV/9Q/N3rmW8U8AIIrtHJ02SVizNFM7kR
+62BXch5fakjWK8aGGzC50cZ+jeNMg3d6S3HxzZVtqreIoPYPpkoNE71CgKDQ+qYr
+9t4UqEBNdaSBS4cOl2QES3INlsETtcRDhQohEGdVosYqbF4zxJvlZqm4fr7rfOnW
+r4AwLXIloxLqzlswTtXEK8wBjaDus78I1vvEWomM2GJDAhG3xjvghZyEXRW/EmmV
+2IiXpGo6bo1dpJ2yJiE2yrHKvZxip269dAACOwyit9v9DYCX3tezVHJitTXWSwoS
+ZgqLUqoyBlyKcN6urFgX
+=PGUi
+-----END PGP SIGNATURE-----
+
+--cpvLTH7QU4gwfq3S--
