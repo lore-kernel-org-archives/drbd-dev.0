@@ -1,49 +1,29 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <m@sys4.de>
+Received: from mail.sys4.de (mail.sys4.de [194.126.158.132])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 37B0E1056433
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 11:52:52 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 32A97406FF6
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 11:52:52 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id Ym9yJndNRJKF for <drbd-dev@lists.linbit.com>;
-	Tue, 22 Mar 2016 11:52:52 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 1728A406FAB
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 11:52:52 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id O4ne_Wev8QIk for <drbd-dev@lists.linbit.com>;
-	Tue, 22 Mar 2016 11:52:52 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id E5FBA406FBD
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 11:52:51 +0100 (CET)
-Resent-Message-ID: <20160322105251.GP4437@soda.linbit>
-Received: from mail-pf0-f194.google.com (mail-pf0-f194.google.com
-	[209.85.192.194]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 45C521056332
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 07:31:10 +0100 (CET)
-Received: by mail-pf0-f194.google.com with SMTP id n5so33987815pfn.1
-	for <drbd-dev@lists.linbit.com>; Mon, 21 Mar 2016 23:31:10 -0700 (PDT)
-From: Ming Lei <ming.lei@canonical.com>
-To: Jens Axboe <axboe@kernel.dk>,
-	linux-kernel@vger.kernel.org
-Date: Tue, 22 Mar 2016 14:12:24 +0800
-Message-Id: <1458627149-12988-4-git-send-email-ming.lei@canonical.com>
-In-Reply-To: <1458627149-12988-1-git-send-email-ming.lei@canonical.com>
-References: <1458627149-12988-1-git-send-email-ming.lei@canonical.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Boaz Harrosh <boaz@plexistor.com>,
-	Ming Lei <ming.lei@canonical.com>, Dave Chinner <david@fromorbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, xfs@oss.sgi.com,
-	linux-block@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Anton Altaparmakov <anton@tuxera.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 3/8] block: mark 1st parameter of
-	bvec_iter_advance as const
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C8AF31051881
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 13:32:11 +0100 (CET)
+Received: from localhost (echo.sys4.de [127.0.0.1])
+	by mail.sys4.de (Postfix) with ESMTP id 3qTsXB4dB8z1JRk
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 13:32:10 +0100 (CET)
+Received: from localhost (tmo-113-80.customers.d1-online.com [80.187.113.80])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mail.sys4.de (Postfix) with ESMTPSA id 3qTsX96tw8z1JRf
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 13:32:09 +0100 (CET)
+Date: Tue, 22 Mar 2016 13:32:07 +0100
+From: Marc Schiffbauer <m@sys4.de>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20160322123207.GJ30157@schiffbauer.net>
+References: <20160321231817.GI30157@schiffbauer.net>
+	<20160322102517.GG4437@soda.linbit>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160322102517.GG4437@soda.linbit>
+Subject: Re: [Drbd-dev] integer signedness mixup problem in drbd_main.c
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -55,32 +35,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-bvec_iter_advance() only writes the parameter of iterator,
-so the base address of bvec can be marked as const safely.
+* Lars Ellenberg schrieb am 22.03.16 um 11:25 Uhr:
+> On Tue, Mar 22, 2016 at 12:18:17AM +0100, Marc Schiffbauer wrote:
+> > hi all,
+> > 
+> > using a kernel hardened with grsecurity/PaX we discovered a problem 
+> > where PaX detects a size overflow after a quite large uptime:
+> > 
+> > PAX: size overflow detected in function drbd_send_dblock 
+> > drivers/block/drbd/drbd_main.c:1625 cicus.964_133 max, count: 1
+> > 
+> > this was in kernel 3.14.19, but 4.4.5 still seems to have that problem.  
+> > The line triggering this is:
+> > 
+> > p->seq_num = cpu_to_be32(atomic_inc_return_unchecked(&mdev->packet_seq));
+> 
+> Boring.
+> seq_num should give it away: it is a sequence number.
+> it wraps. that's what sequence numbers do, eventually.
+> 
+> haven't we been here before?
 
-Without the change, we can see compiling warning in the
-following patch for implementing iterate_bvec(): lib/iov_iter.c
-with bvec iterator.
+We had another case that had been fixed.
 
-Signed-off-by: Ming Lei <ming.lei@canonical.com>
----
- include/linux/bvec_iter.h | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Thanks Lars for the Feedback.
 
-diff --git a/include/linux/bvec_iter.h b/include/linux/bvec_iter.h
-index cc43055..5798c21 100644
---- a/include/linux/bvec_iter.h
-+++ b/include/linux/bvec_iter.h
-@@ -49,7 +49,8 @@
- 	.bv_offset	= bvec_iter_offset((bvec), (iter)),	\
- })
- 
--static inline void bvec_iter_advance(struct bio_vec *bv, struct bvec_iter *iter,
-+static inline void bvec_iter_advance(const struct bio_vec *bv,
-+				     struct bvec_iter *iter,
- 				     unsigned bytes)
- {
- 	WARN_ONCE(bytes > iter->bi_size,
+-Marc
+
 -- 
-1.9.1
+[*] sys4 AG
 
+http://sys4.de, +49 (89) 30 90 46 64
+Franziskanerstraße 15, 81669 München
+
+Sitz der Gesellschaft: München, Amtsgericht München: HRB 199263
+Vorstand: Patrick Ben Koetter, Marc Schiffbauer
+Aufsichtsratsvorsitzender: Florian Kirstein
