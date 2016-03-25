@@ -1,29 +1,19 @@
-Return-Path: <m@sys4.de>
-Received: from mail.sys4.de (mail.sys4.de [194.126.158.132])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <jhkim@mantech.co.kr>
+Received: from mail-vk0-f54.google.com (mail-vk0-f54.google.com
+	[209.85.213.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C8AF31051881
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 13:32:11 +0100 (CET)
-Received: from localhost (echo.sys4.de [127.0.0.1])
-	by mail.sys4.de (Postfix) with ESMTP id 3qTsXB4dB8z1JRk
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 13:32:10 +0100 (CET)
-Received: from localhost (tmo-113-80.customers.d1-online.com [80.187.113.80])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
-	bits)) (No client certificate requested)
-	by mail.sys4.de (Postfix) with ESMTPSA id 3qTsX96tw8z1JRf
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Mar 2016 13:32:09 +0100 (CET)
-Date: Tue, 22 Mar 2016 13:32:07 +0100
-From: Marc Schiffbauer <m@sys4.de>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20160322123207.GJ30157@schiffbauer.net>
-References: <20160321231817.GI30157@schiffbauer.net>
-	<20160322102517.GG4437@soda.linbit>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8E1951056332
+	for <drbd-dev@lists.linbit.com>; Fri, 25 Mar 2016 11:30:30 +0100 (CET)
+Received: by mail-vk0-f54.google.com with SMTP id e185so87678103vkb.1
+	for <drbd-dev@lists.linbit.com>; Fri, 25 Mar 2016 03:30:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20160322102517.GG4437@soda.linbit>
-Subject: Re: [Drbd-dev] integer signedness mixup problem in drbd_main.c
+Date: Fri, 25 Mar 2016 19:30:29 +0900
+Message-ID: <CAF6H8oGVdkia=A4eHTnHtR3FeBkQbhWL8C7j3_4a=w42Ghvifg@mail.gmail.com>
+From: Jaeheon Kim <jhkim@mantech.co.kr>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative; boundary=001a114408da4e48a3052edd0d84
+Subject: [Drbd-dev] [CASE-35] Please check double auto-increment on
+	history_uuids[i++].
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,39 +25,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-* Lars Ellenberg schrieb am 22.03.16 um 11:25 Uhr:
-> On Tue, Mar 22, 2016 at 12:18:17AM +0100, Marc Schiffbauer wrote:
-> > hi all,
-> > 
-> > using a kernel hardened with grsecurity/PaX we discovered a problem 
-> > where PaX detects a size overflow after a quite large uptime:
-> > 
-> > PAX: size overflow detected in function drbd_send_dblock 
-> > drivers/block/drbd/drbd_main.c:1625 cicus.964_133 max, count: 1
-> > 
-> > this was in kernel 3.14.19, but 4.4.5 still seems to have that problem.  
-> > The line triggering this is:
-> > 
-> > p->seq_num = cpu_to_be32(atomic_inc_return_unchecked(&mdev->packet_seq));
-> 
-> Boring.
-> seq_num should give it away: it is a sequence number.
-> it wraps. that's what sequence numbers do, eventually.
-> 
-> haven't we been here before?
+--001a114408da4e48a3052edd0d84
+Content-Type: text/plain; charset=UTF-8
 
-We had another case that had been fixed.
+Hi,
 
-Thanks Lars for the Feedback.
+According to the following code, local i variable be incremented by twice
+in one loop.
+Is this auto-increment operation no problem?
 
--Marc
 
--- 
-[*] sys4 AG
+receive_uuids110()
+{
+    ...
+    for (i = 0; i < history_uuids; i++)
+         peer_device->history_uuids[i++] =
+be64_to_cpu(p->other_uuids[pos++]);
+    ...
+}
 
-http://sys4.de, +49 (89) 30 90 46 64
-Franziskanerstraße 15, 81669 München
+Thanks.
 
-Sitz der Gesellschaft: München, Amtsgericht München: HRB 199263
-Vorstand: Patrick Ben Koetter, Marc Schiffbauer
-Aufsichtsratsvorsitzender: Florian Kirstein
+--001a114408da4e48a3052edd0d84
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hi,<br><br>According to the following code, local i variab=
+le be incremented by twice in one loop.<div>Is this auto-increment operatio=
+n no problem?<br><br><br>receive_uuids110()<br>{<br>=C2=A0 =C2=A0 ...<br>=
+=C2=A0 =C2=A0 for (i =3D 0; i &lt; history_uuids; i++)<br>=C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0peer_device-&gt;history_uuids[i++] =3D be64_to_cpu(p-&gt;o=
+ther_uuids[pos++]);</div><div>=C2=A0 =C2=A0 ...<br>}
+<div><br></div><div>Thanks.</div><div><br></div><div><br></div></div></div>
+
+--001a114408da4e48a3052edd0d84--
