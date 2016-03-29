@@ -1,38 +1,29 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <BATV+6cc4c2ca6091f98ba507+4601+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
+	(using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BA45A1051881
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Mar 2016 12:02:32 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id A9B9C3EBFF0
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Mar 2016 12:02:32 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 0_mD3dFVwQxE for <drbd-dev@lists.linbit.com>;
-	Fri, 25 Mar 2016 12:02:32 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 892293EC1E3
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Mar 2016 12:02:32 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id ZV3eaXNNjEu4 for <drbd-dev@lists.linbit.com>;
-	Fri, 25 Mar 2016 12:02:32 +0100 (CET)
-Received: from localhost (chello213047144126.1.15.vie.surfer.at
-	[213.47.144.126])
-	by zimbra13.linbit.com (Postfix) with ESMTPSA id 5B5033EBFF0
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Mar 2016 12:02:32 +0100 (CET)
-Date: Fri, 25 Mar 2016 12:02:31 +0100
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20160325110231.GA15462@rck.sh>
-References: <CAF6H8oGVdkia=A4eHTnHtR3FeBkQbhWL8C7j3_4a=w42Ghvifg@mail.gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B05CF1056332
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Mar 2016 09:26:26 +0200 (CEST)
+Date: Tue, 29 Mar 2016 00:26:17 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Ming Lei <ming.lei@canonical.com>
+Message-ID: <20160329072617.GB18920@infradead.org>
+References: <1458627149-12988-1-git-send-email-ming.lei@canonical.com>
+	<1458627149-12988-2-git-send-email-ming.lei@canonical.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAF6H8oGVdkia=A4eHTnHtR3FeBkQbhWL8C7j3_4a=w42Ghvifg@mail.gmail.com>
-Subject: Re: [Drbd-dev] [CASE-35] Please check double auto-increment on
- history_uuids[i++].
+In-Reply-To: <1458627149-12988-2-git-send-email-ming.lei@canonical.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>,
+	Boaz Harrosh <boaz@plexistor.com>,
+	Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org,
+	xfs@oss.sgi.com, linux-block@vger.kernel.org,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Anton Altaparmakov <anton@tuxera.com>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 1/8] block: move bvec iterator into
+ include/linux/bvec_iter.h
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,26 +35,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Mar 25, 2016 at 07:30:29PM +0900, Jaeheon Kim wrote:
-> Hi,
-> 
-> According to the following code, local i variable be incremented by twice
-> in one loop.
-> Is this auto-increment operation no problem?
-> 
-> 
-> receive_uuids110()
-> {
->     ...
->     for (i = 0; i < history_uuids; i++)
->          peer_device->history_uuids[i++] =
-> be64_to_cpu(p->other_uuids[pos++]);
->     ...
-> }
-> 
+> --- a/include/linux/bio.h
+> +++ b/include/linux/bio.h
+> @@ -31,6 +31,7 @@
+>  
+>  /* struct bio, bio_vec and BIO_* flags are defined in blk_types.h */
+>  #include <linux/blk_types.h>
+> +#include <linux/bvec_iter.h>
+>  
+>  #define BIO_DEBUG
+>  
+> @@ -40,10 +41,6 @@
+>  #define BIO_BUG_ON
+>  #endif
+>  
+> -#define BIO_MAX_PAGES		256
+> -#define BIO_MAX_SIZE		(BIO_MAX_PAGES << PAGE_CACHE_SHIFT)
+> -#define BIO_MAX_SECTORS		(BIO_MAX_SIZE >> 9)
 
-Thanks for reporting,
+I see no reason why these should be moved out of bio.h.
 
-yes, the double increment seems wrong to me.
-
-Regards, rck
+Otherwise this looks fine to me.
