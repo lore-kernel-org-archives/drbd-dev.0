@@ -1,19 +1,37 @@
-Return-Path: <jhkim@mantech.co.kr>
-Received: from mail-vk0-f52.google.com (mail-vk0-f52.google.com
-	[209.85.213.52]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 676F21011BA2
-	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 11:18:52 +0200 (CEST)
-Received: by mail-vk0-f52.google.com with SMTP id e185so52683016vkb.1
-	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 02:18:52 -0700 (PDT)
-MIME-Version: 1.0
-Date: Wed, 30 Mar 2016 18:18:50 +0900
-Message-ID: <CAF6H8oGE3dsx89dD_z7gM=h4HuOeHQbSt9ET-6BpV5Hvows7RQ@mail.gmail.com>
-From: Jaeheon Kim <jhkim@mantech.co.kr>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 74B1A1011BA2
+	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 14:00:51 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 6268B3F1956
+	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 14:00:51 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id vrpT__PmAChk for <drbd-dev@lists.linbit.com>;
+	Wed, 30 Mar 2016 14:00:51 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 45E9B3F1DAB
+	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 14:00:51 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id SrhdKk0Bxhuj for <drbd-dev@lists.linbit.com>;
+	Wed, 30 Mar 2016 14:00:51 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 1ED2F3F1956
+	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 14:00:51 +0200 (CEST)
+Date: Wed, 30 Mar 2016 14:00:50 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary=94eb2c1239944e45f5052f40a235
-Subject: [Drbd-dev] [CASE-38] self uuid may be crashed beacuse of garbage
-	bitmap_index value.
+Message-ID: <20160330120050.GO15579@soda.linbit>
+References: <alpine.LRH.2.11.1603300137590.2225@mail.ewheeler.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.11.1603300137590.2225@mail.ewheeler.net>
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [Drbd-dev] NULL pointer derefernce in 8.4.7-1
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,75 +43,114 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---94eb2c1239944e45f5052f40a235
-Content-Type: text/plain; charset=UTF-8
+On Wed, Mar 30, 2016 at 02:19:07AM +0000, Eric Wheeler wrote:
+> Hello all,
+>=20
+> We are getting kernel crashes in linux 4.1.20 with the drbd-8.4.git tre=
+e=20
+> at commit 3a6a769340ef93b1ba2792c6461250790795db49 . =20
+>=20
+> I don't see anything in the newer commits that addresses this issue so=20
+> I'm posting---but I'll try the latest commit in master, too, just in ca=
+se.
+>=20
+> Please see the backtrace below.  I also included our global_common.conf=
+=20
+> further down.  This is protocol A and the link is quite slow.  This NUL=
+L=20
+> ptr dereference appears to show up when the drbd kernel thread is block=
+ed=20
+> for a long time.  It might happen at reconnect time because the BUG did=
+n't=20
+> show up until 13 seconds after the P_BARRIER error.
+>=20
+> The problem is pretty reproducable, so I can probably test patches. =20
+> Please let me know what I can do to help test.
 
-Hi,
+DRBD logs of both peers leading up to the incident may be useful.
 
-There is some suspicious code.
-Please check following code in drbd_uuid_compare.
+check if older kernel versions are ok?
+as in 2.6.32, 3.10, ...
+if older seems to be ok, figure out which version breaks.
 
- --- code snip start ---
-*rule_nr = 70;
-self = drbd_bitmap_uuid(peer_device) & ~UUID_PRIMARY;
-peer = peer_device->current_uuid & ~UUID_PRIMARY;
-if (self == peer)
-return 2;
+maybe check if older DRBD is still ok (maybe this is a more recent regres=
+sion?)
 
-*rule_nr = 72;
-for (i = 0; i < DRBD_NODE_ID_MAX; i++) {
-    if (i == peer_device->node_id)
-          continue;
-    if (i == device->ldev->md.node_id)
-          continue;
+try to resolve addresses to source code lines.
 
-#ifdef
-_WIN32_V9_INSERT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-/* Skip bitmap indexes which are not assigned to a peer. */
-      if (device->ldev->md.peers[i].bitmap_index == -1)
-           continue;
-#endif //
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+> [ 2480.751713]  [<ffffffffa06b0f26>] drbd_send+0xe6/0x200 [drbd]
+> [ 2480.753608]  [<ffffffffa06b2b81>] _drbd_no_send_page.isra.40+0x71/0x=
+b0 [drbd]
+> [ 2480.755463]  [<ffffffffa06b3178>] drbd_send_dblock+0x3e8/0x7a0 [drbd=
+]
+> [ 2480.757263]  [<ffffffffa06a5874>] ? complete_master_bio+0x94/0x170 [=
+drbd]
+> [ 2480.759073]  [<ffffffffa06935cf>] w_send_dblock+0xaf/0x1e0 [drbd]
+> [ 2480.760844]  [<ffffffffa06949a9>] drbd_worker+0xf9/0x3a0 [drbd]
+> [ 2480.762567]  [<ffffffffa06aed00>] ? drbd_destroy_connection+0x190/0x=
+190 [drbd]
+> [ 2480.764181]  [<ffffffffa06aed1d>] drbd_thread_setup+0x1d/0x110 [drbd=
+]
+> [ 2480.765777]  [<ffffffffa06aed00>] ? drbd_destroy_connection+0x190/0x=
+190 [drbd]
+> [ 2480.767337]  [<ffffffff810c0b08>] kthread+0xd8/0xf0
+> [ 2480.768873]  [<ffffffff810c0a30>] ? kthread_create_on_node+0x1b0/0x1=
+b0
+> [ 2480.770409]  [<ffffffff816e94e2>] ret_from_fork+0x42/0x70
+> [ 2480.771868]  [<ffffffff810c0a30>] ? kthread_create_on_node+0x1b0/0x1=
+b0
+>=20
+>=20
+> =3D=3D=3D> /etc/drbd.d/global_common.conf <=3D=3D=3D
+> common {
+> 	startup {
+> 		wfc-timeout 30;
+> 		outdated-wfc-timeout 20;
+> 		degr-wfc-timeout 30;
+> 	}
+> 	options {
+> 		on-no-data-accessible suspend-io;
+> 	}
+> 	syncer {
+> 		rate 500M;
+> 	}
+> 	disk {
+> 		al-extents 3389;
+> 		c-fill-target 10240;
+> 		c-delay-target 100;
+> 		c-plan-ahead 70;
+> 		c-min-rate 1024;
+> 		c-max-rate 400M;
+> 		on-io-error pass_on;
+> 		read-balancing when-congested-remote;
+> 	}
+> 	net {
+> 		after-sb-0pri discard-zero-changes;
+> 		after-sb-1pri call-pri-lost-after-sb;
+> 		after-sb-2pri disconnect;
+> 		allow-two-primaries no;
+> 		protocol A;
+> 		cram-hmac-alg sha1;
+> 		verify-alg crc32c;
+> 		csums-alg crc32c;
+> 		max-buffers 8192;
+> 		max-epoch-size 8192;
+> 		tcp-cork yes;
+> 		sndbuf-size 1M;
+> 		rcvbuf-size 2M;
+> 		unplug-watermark 128;=20
+> 		ko-count 3;
+> 		timeout 90;
+> 	=09
+> 		ping-int 10;
+> 		ping-timeout 30;
+> 	}
+> }
 
-     self = device->ldev->md.peers[i].bitmap_uuid & ~UUID_PRIMARY;
-     if (self == peer) {
-          *peer_node_id = i;
-           return 4;
-      }
-}
------- code done --------
+--=20
+: Lars Ellenberg
+: LINBIT | Keeping the Digital World Running
+: DRBD -- Heartbeat -- Corosync -- Pacemaker
+: R&D, Integration, Ops, Consulting, Support
 
-If you don't skip undefnded bitmap_index, self uuid will get crashed data.
-So, we insert this skip logic.
-What do you think about it?
-
-Thanks.
-
---94eb2c1239944e45f5052f40a235
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">Hi,<br><br>There is some suspicious code.<br>Please check =
-following code in drbd_uuid_compare.<br><br>=C2=A0--- code snip start ---<b=
-r>*rule_nr =3D 70;<br>self =3D drbd_bitmap_uuid(peer_device) &amp; ~UUID_PR=
-IMARY;<br>peer =3D peer_device-&gt;current_uuid &amp; ~UUID_PRIMARY;<br>if =
-(self =3D=3D peer)<br>return 2;<br><br>*rule_nr =3D 72;<br>for (i =3D 0; i =
-&lt; DRBD_NODE_ID_MAX; i++) {<br>=C2=A0 =C2=A0 if (i =3D=3D peer_device-&gt=
-;node_id)<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 continue;<br>=C2=A0 =C2=A0 =
-if (i =3D=3D device-&gt;ldev-&gt;md.node_id)<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 continue;<br><br><div>#ifdef _WIN32_V9_INSERT!!!!!!!!!!!!!!!!!!!!!!=
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!<br>/* Skip bitmap indexes which are n=
-ot assigned to a peer. */<br>=C2=A0 =C2=A0 =C2=A0 if (device-&gt;ldev-&gt;m=
-d.peers[i].bitmap_index =3D=3D -1)<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0continue;<br>#endif // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!=
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!<div><br>=C2=A0 =C2=A0 =C2=A0self =
-=3D device-&gt;ldev-&gt;md.peers[i].bitmap_uuid &amp; ~UUID_PRIMARY;<br>=C2=
-=A0 =C2=A0 =C2=A0if (self =3D=3D peer) {<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 *peer_node_id =3D i;<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return=
- 4;<br>=C2=A0 =C2=A0 =C2=A0 }<br>}<div>------ code done --------<div><br></=
-div></div></div></div><div>If you don&#39;t skip undefnded bitmap_index, se=
-lf uuid will get crashed data.</div><div>So, we insert this skip logic.</di=
-v><div>What do you think about it?</div><div><br></div><div>Thanks.</div><d=
-iv><br></div></div>
-
---94eb2c1239944e45f5052f40a235--
+DRBD=AE and LINBIT=AE are registered trademarks of LINBIT
