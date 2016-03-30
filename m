@@ -1,38 +1,28 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <BATV+ce0ae62d478fb9371428+4602+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
+	(using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C2C281056421
-	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 14:15:20 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B0D13361705
-	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 14:15:20 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id I8IAvCywDq6j for <drbd-dev@lists.linbit.com>;
-	Wed, 30 Mar 2016 14:15:20 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 8CF40361765
-	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 14:15:20 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id wZ_-c1-RlJEX for <drbd-dev@lists.linbit.com>;
-	Wed, 30 Mar 2016 14:15:20 +0200 (CEST)
-Received: from localhost (chello213047144126.1.15.vie.surfer.at
-	[213.47.144.126])
-	by zimbra13.linbit.com (Postfix) with ESMTPSA id 47648361705
-	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 14:15:20 +0200 (CEST)
-Date: Wed, 30 Mar 2016 14:15:19 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20160330121519.GG15462@rck.sh>
-References: <CAF6H8oGE3dsx89dD_z7gM=h4HuOeHQbSt9ET-6BpV5Hvows7RQ@mail.gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B47D11056421
+	for <drbd-dev@lists.linbit.com>; Wed, 30 Mar 2016 19:19:42 +0200 (CEST)
+Date: Wed, 30 Mar 2016 10:19:27 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Ming Lei <ming.lei@canonical.com>
+Message-ID: <20160330171927.GA13320@infradead.org>
+References: <1459354637-17415-1-git-send-email-ming.lei@canonical.com>
+	<1459354637-17415-3-git-send-email-ming.lei@canonical.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAF6H8oGE3dsx89dD_z7gM=h4HuOeHQbSt9ET-6BpV5Hvows7RQ@mail.gmail.com>
-Subject: Re: [Drbd-dev] [CASE-38] self uuid may be crashed beacuse of
- garbage bitmap_index value.
+In-Reply-To: <1459354637-17415-3-git-send-email-ming.lei@canonical.com>
+Cc: linux-block@vger.kernel.org, Christoph Hellwig <hch@infradead.org>,
+	Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org,
+	xfs@oss.sgi.com, Jens Axboe <axboe@fb.com>,
+	Boaz Harrosh <boaz@plexistor.com>, Al Viro <viro@zeniv.linux.org.uk>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Anton Altaparmakov <anton@tuxera.com>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v1 2/8] block: make 'struct bvec_iter' not
+ depend on CONFIG_BLOCK
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,50 +34,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 30, 2016 at 06:18:50PM +0900, Jaeheon Kim wrote:
-> Hi,
+On Thu, Mar 31, 2016 at 12:17:11AM +0800, Ming Lei wrote:
+> We will use bvec iterator to implement iterate_bvec(): lib/iov_iter.c.
 > 
-> There is some suspicious code.
-> Please check following code in drbd_uuid_compare.
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> Signed-off-by: Ming Lei <ming.lei@canonical.com>
+> ---
+>  include/linux/blk_types.h | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
->  --- code snip start ---
-> *rule_nr = 70;
-> self = drbd_bitmap_uuid(peer_device) & ~UUID_PRIMARY;
-> peer = peer_device->current_uuid & ~UUID_PRIMARY;
-> if (self == peer)
-> return 2;
-> 
-> *rule_nr = 72;
-> for (i = 0; i < DRBD_NODE_ID_MAX; i++) {
->     if (i == peer_device->node_id)
->           continue;
->     if (i == device->ldev->md.node_id)
->           continue;
-> 
-> #ifdef
-> _WIN32_V9_INSERT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-> /* Skip bitmap indexes which are not assigned to a peer. */
->       if (device->ldev->md.peers[i].bitmap_index == -1)
->            continue;
-> #endif //
-> !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-> 
->      self = device->ldev->md.peers[i].bitmap_uuid & ~UUID_PRIMARY;
->      if (self == peer) {
->           *peer_node_id = i;
->            return 4;
->       }
-> }
-> ------ code done --------
-> 
-> If you don't skip undefnded bitmap_index, self uuid will get crashed data.
-> So, we insert this skip logic.
-> What do you think about it?
+> diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+> index 86a38ea..fd8527b 100644
+> --- a/include/linux/blk_types.h
+> +++ b/include/linux/blk_types.h
+> @@ -26,8 +26,6 @@ struct bio_vec {
+>  	unsigned int	bv_offset;
+>  };
+>  
+> -#ifdef CONFIG_BLOCK
+> -
+>  struct bvec_iter {
+>  	sector_t		bi_sector;	/* device address in 512 byte
+>  						   sectors */
+> @@ -39,6 +37,8 @@ struct bvec_iter {
+>  						   current bvec */
+>  };
 
-on a first look this seems reasonable, but I have to further think about
-it and discuss it with my colleagues.
-
-Would be great if you could provide the steps how to trigger that
-specific scenario.
-
-Regards, rck
+I didn't catch this earlier, but shouldn't this also move to
+bvec_iter.h? Or maybe just create a linux/bvec.h for the bvec, bvec_iter
+and bvec iter macros given that those are the types used outside the
+block layer as well.
