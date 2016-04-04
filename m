@@ -2,38 +2,38 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1B3751056453
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 11:19:36 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B63B31056454
+	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 11:19:37 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 1571736CCD8
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 11:19:36 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id ABE2636CCE9
+	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 11:19:37 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id in_8nqWROt7c for <drbd-dev@lists.linbit.com>;
-	Mon,  4 Apr 2016 11:19:36 +0200 (CEST)
+	with ESMTP id E_l2SgNhE4HG for <drbd-dev@lists.linbit.com>;
+	Mon,  4 Apr 2016 11:19:37 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id EC07A36CCF5
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 11:19:35 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 590B736CCF5
+	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 11:19:37 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id mgB7wVFQxhSI for <drbd-dev@lists.linbit.com>;
-	Mon,  4 Apr 2016 11:19:35 +0200 (CEST)
+	with ESMTP id u-p-z1o-ccIY for <drbd-dev@lists.linbit.com>;
+	Mon,  4 Apr 2016 11:19:37 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id C448536CCD8
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 11:19:35 +0200 (CEST)
-Resent-Message-ID: <20160404091935.GR3078@soda.linbit>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com
-	[209.85.192.170]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	by zimbra13.linbit.com (Postfix) with ESMTPS id F012436CCE9
+	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 11:19:36 +0200 (CEST)
+Resent-Message-ID: <20160404091936.GS3078@soda.linbit>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com
+	[209.85.220.51]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9B27E1056443
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 08:57:09 +0200 (CEST)
-Received: by mail-pf0-f170.google.com with SMTP id e128so116179302pfe.3
-	for <drbd-dev@lists.linbit.com>; Sun, 03 Apr 2016 23:57:09 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9B9F01056444
+	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2016 08:57:14 +0200 (CEST)
+Received: by mail-pa0-f51.google.com with SMTP id fe3so137833641pab.1
+	for <drbd-dev@lists.linbit.com>; Sun, 03 Apr 2016 23:57:14 -0700 (PDT)
 From: Ming Lei <ming.lei@canonical.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Mon,  4 Apr 2016 14:56:31 +0800
-Message-Id: <1459752994-2205-6-git-send-email-ming.lei@canonical.com>
+Date: Mon,  4 Apr 2016 14:56:32 +0800
+Message-Id: <1459752994-2205-7-git-send-email-ming.lei@canonical.com>
 In-Reply-To: <1459752994-2205-1-git-send-email-ming.lei@canonical.com>
 References: <1459752994-2205-1-git-send-email-ming.lei@canonical.com>
 Cc: Christoph Hellwig <hch@infradead.org>, Boaz Harrosh <boaz@plexistor.com>,
@@ -42,8 +42,7 @@ Cc: Christoph Hellwig <hch@infradead.org>, Boaz Harrosh <boaz@plexistor.com>,
 	linux-block@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Anton Altaparmakov <anton@tuxera.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v3 5/8] fs: xfs: replace BIO_MAX_SECTORS with
-	BIO_MAX_PAGES
+Subject: [Drbd-dev] [PATCH v3 6/8] block: bio: remove BIO_MAX_SECTORS
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -55,30 +54,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-BIO_MAX_PAGES is used as maximum count of bvecs, so
-replace BIO_MAX_SECTORS with BIO_MAX_PAGES since
-BIO_MAX_SECTORS is to be removed.
+No one need this macro, so remove it. The motivation is
+for supporting multipage bvecs, in which we only know
+what the max count of bvecs is supported in the bio,
+instead of max size or max sectors.
 
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Ming Lei <ming.lei@canonical.com>
 ---
- fs/xfs/xfs_buf.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ include/linux/bio.h | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index 9a2191b..b9ecb2d 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -1161,9 +1161,7 @@ xfs_buf_ioapply_map(
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 7f998ac..f7e1c27 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -42,7 +42,6 @@
  
- next_chunk:
- 	atomic_inc(&bp->b_io_remaining);
--	nr_pages = BIO_MAX_SECTORS >> (PAGE_SHIFT - BBSHIFT);
--	if (nr_pages > total_nr_pages)
--		nr_pages = total_nr_pages;
-+	nr_pages = min(total_nr_pages, BIO_MAX_PAGES);
+ #define BIO_MAX_PAGES		256
+ #define BIO_MAX_SIZE		(BIO_MAX_PAGES << PAGE_CACHE_SHIFT)
+-#define BIO_MAX_SECTORS		(BIO_MAX_SIZE >> 9)
  
- 	bio = bio_alloc(GFP_NOIO, nr_pages);
- 	bio->bi_bdev = bp->b_target->bt_bdev;
+ /*
+  * upper 16 bits of bi_rw define the io priority of this bio
 -- 
 1.9.1
 
