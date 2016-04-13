@@ -2,30 +2,30 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1436F1056465
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6A8FF1056466
 	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:37 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 0585C40A598
+	by zimbra13.linbit.com (Postfix) with ESMTP id 6310E40A59B
 	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:37 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 1ivtCwmS8smm for <drbd-dev@lists.linbit.com>;
-	Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
+	with ESMTP id esddKU9of5TH for <drbd-dev@lists.linbit.com>;
+	Thu, 14 Apr 2016 13:26:37 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id A14F740A59B
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 4238340A598
+	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:37 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id cOF3GKW2VbP9 for <drbd-dev@lists.linbit.com>;
-	Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
+	with ESMTP id NIpu2RUn15On for <drbd-dev@lists.linbit.com>;
+	Thu, 14 Apr 2016 13:26:37 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 7638D40A52E
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
-Resent-Message-ID: <20160414112636.GA3078@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 11AF040A59B
+	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:37 +0200 (CEST)
+Resent-Message-ID: <20160414112636.GB3078@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3CC421056453
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 337FE1056452
 	for <drbd-dev@lists.linbit.com>; Wed, 13 Apr 2016 21:45:01 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Wed, 13 Apr 2016 14:36:03 -0500
-Message-Id: <1460576188-5751-18-git-send-email-mchristi@redhat.com>
+Date: Wed, 13 Apr 2016 14:36:04 -0500
+Message-Id: <1460576188-5751-19-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1460576188-5751-1-git-send-email-mchristi@redhat.com>
 References: <1460576188-5751-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 17/42] ocfs2: set bi_op to REQ_OP
+Subject: [Drbd-dev] [PATCH 18/42] pm: set bi_op to REQ_OP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,58 +56,122 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-This patch has ocfs2 use bio->bi_op for REQ_OPs and rq_flag_bits
+This patch has the pm code use bio->bi_op for REQ_OPs and rq_flag_bits
 to bio->bi_rw.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/ocfs2/cluster/heartbeat.c | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ kernel/power/swap.c | 31 +++++++++++++++++++------------
+ 1 file changed, 19 insertions(+), 12 deletions(-)
 
-diff --git a/fs/ocfs2/cluster/heartbeat.c b/fs/ocfs2/cluster/heartbeat.c
-index e37373d..0619a20 100644
---- a/fs/ocfs2/cluster/heartbeat.c
-+++ b/fs/ocfs2/cluster/heartbeat.c
-@@ -530,7 +530,8 @@ static void o2hb_bio_end_io(struct bio *bio)
- static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
- 				      struct o2hb_bio_wait_ctxt *wc,
- 				      unsigned int *current_slot,
--				      unsigned int max_slots, int rw)
-+				      unsigned int max_slots, int op,
-+				      int op_flags)
+diff --git a/kernel/power/swap.c b/kernel/power/swap.c
+index 4d050eb..adbcb1b 100644
+--- a/kernel/power/swap.c
++++ b/kernel/power/swap.c
+@@ -250,7 +250,7 @@ static void hib_end_io(struct bio *bio)
+ 	bio_put(bio);
+ }
+ 
+-static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
++static int hib_submit_io(int op, int op_flags, pgoff_t page_off, void *addr,
+ 		struct hib_bio_batch *hb)
  {
- 	int len, current_page;
- 	unsigned int vec_len, vec_start;
-@@ -556,7 +557,8 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
- 	bio->bi_bdev = reg->hr_bdev;
- 	bio->bi_private = wc;
- 	bio->bi_end_io = o2hb_bio_end_io;
+ 	struct page *page = virt_to_page(addr);
+@@ -260,7 +260,8 @@ static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
+ 	bio = bio_alloc(__GFP_RECLAIM | __GFP_HIGH, 1);
+ 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
+ 	bio->bi_bdev = hib_resume_bdev;
 -	bio->bi_rw = rw;
 +	bio->bi_op = op;
 +	bio->bi_rw = op_flags;
  
- 	vec_start = (cs << bits) % PAGE_SIZE;
- 	while(cs < max_slots) {
-@@ -593,7 +595,7 @@ static int o2hb_read_slots(struct o2hb_region *reg,
+ 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
+ 		printk(KERN_ERR "PM: Adding page to bio failed at %llu\n",
+@@ -296,7 +297,8 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
+ {
+ 	int error;
  
- 	while(current_slot < max_slots) {
- 		bio = o2hb_setup_one_bio(reg, &wc, &current_slot, max_slots,
--					 READ);
-+					 REQ_OP_READ, 0);
- 		if (IS_ERR(bio)) {
- 			status = PTR_ERR(bio);
- 			mlog_errno(status);
-@@ -625,7 +627,8 @@ static int o2hb_issue_node_write(struct o2hb_region *reg,
+-	hib_submit_io(READ_SYNC, swsusp_resume_block, swsusp_header, NULL);
++	hib_submit_io(REQ_OP_READ, READ_SYNC, swsusp_resume_block,
++		      swsusp_header, NULL);
+ 	if (!memcmp("SWAP-SPACE",swsusp_header->sig, 10) ||
+ 	    !memcmp("SWAPSPACE2",swsusp_header->sig, 10)) {
+ 		memcpy(swsusp_header->orig_sig,swsusp_header->sig, 10);
+@@ -305,8 +307,8 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
+ 		swsusp_header->flags = flags;
+ 		if (flags & SF_CRC32_MODE)
+ 			swsusp_header->crc32 = handle->crc32;
+-		error = hib_submit_io(WRITE_SYNC, swsusp_resume_block,
+-					swsusp_header, NULL);
++		error = hib_submit_io(REQ_OP_WRITE, WRITE_SYNC,
++				      swsusp_resume_block, swsusp_header, NULL);
+ 	} else {
+ 		printk(KERN_ERR "PM: Swap header not found!\n");
+ 		error = -ENODEV;
+@@ -379,7 +381,7 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
+ 	} else {
+ 		src = buf;
+ 	}
+-	return hib_submit_io(WRITE_SYNC, offset, src, hb);
++	return hib_submit_io(REQ_OP_WRITE, WRITE_SYNC, offset, src, hb);
+ }
  
- 	slot = o2nm_this_node();
+ static void release_swap_writer(struct swap_map_handle *handle)
+@@ -982,7 +984,8 @@ static int get_swap_reader(struct swap_map_handle *handle,
+ 			return -ENOMEM;
+ 		}
  
--	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1, WRITE_SYNC);
-+	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1, REQ_OP_WRITE,
-+				 WRITE_SYNC);
- 	if (IS_ERR(bio)) {
- 		status = PTR_ERR(bio);
- 		mlog_errno(status);
+-		error = hib_submit_io(READ_SYNC, offset, tmp->map, NULL);
++		error = hib_submit_io(REQ_OP_READ, READ_SYNC, offset,
++				      tmp->map, NULL);
+ 		if (error) {
+ 			release_swap_reader(handle);
+ 			return error;
+@@ -1006,7 +1009,7 @@ static int swap_read_page(struct swap_map_handle *handle, void *buf,
+ 	offset = handle->cur->entries[handle->k];
+ 	if (!offset)
+ 		return -EFAULT;
+-	error = hib_submit_io(READ_SYNC, offset, buf, hb);
++	error = hib_submit_io(REQ_OP_READ, READ_SYNC, offset, buf, hb);
+ 	if (error)
+ 		return error;
+ 	if (++handle->k >= MAP_PAGE_ENTRIES) {
+@@ -1508,7 +1511,8 @@ int swsusp_check(void)
+ 	if (!IS_ERR(hib_resume_bdev)) {
+ 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
+ 		clear_page(swsusp_header);
+-		error = hib_submit_io(READ_SYNC, swsusp_resume_block,
++		error = hib_submit_io(REQ_OP_READ, READ_SYNC,
++					swsusp_resume_block,
+ 					swsusp_header, NULL);
+ 		if (error)
+ 			goto put;
+@@ -1516,7 +1520,8 @@ int swsusp_check(void)
+ 		if (!memcmp(HIBERNATE_SIG, swsusp_header->sig, 10)) {
+ 			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
+ 			/* Reset swap signature now */
+-			error = hib_submit_io(WRITE_SYNC, swsusp_resume_block,
++			error = hib_submit_io(REQ_OP_WRITE, WRITE_SYNC,
++						swsusp_resume_block,
+ 						swsusp_header, NULL);
+ 		} else {
+ 			error = -EINVAL;
+@@ -1560,10 +1565,12 @@ int swsusp_unmark(void)
+ {
+ 	int error;
+ 
+-	hib_submit_io(READ_SYNC, swsusp_resume_block, swsusp_header, NULL);
++	hib_submit_io(REQ_OP_READ, READ_SYNC, swsusp_resume_block,
++		      swsusp_header, NULL);
+ 	if (!memcmp(HIBERNATE_SIG,swsusp_header->sig, 10)) {
+ 		memcpy(swsusp_header->sig,swsusp_header->orig_sig, 10);
+-		error = hib_submit_io(WRITE_SYNC, swsusp_resume_block,
++		error = hib_submit_io(REQ_OP_WRITE, WRITE_SYNC,
++					swsusp_resume_block,
+ 					swsusp_header, NULL);
+ 	} else {
+ 		printk(KERN_ERR "PM: Cannot find swsusp signature!\n");
 -- 
 2.7.2
 
