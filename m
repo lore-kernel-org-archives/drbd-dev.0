@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 661531056464
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1436F1056465
+	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:37 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 5F38940A52E
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 0585C40A598
+	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:37 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id oFAcz8H2-oBr for <drbd-dev@lists.linbit.com>;
+	with ESMTP id 1ivtCwmS8smm for <drbd-dev@lists.linbit.com>;
 	Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 0FB3340A598
+	by zimbra13.linbit.com (Postfix) with ESMTP id A14F740A59B
 	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id K9b-A2SdZXds for <drbd-dev@lists.linbit.com>;
-	Thu, 14 Apr 2016 13:26:35 +0200 (CEST)
+	with ESMTP id cOF3GKW2VbP9 for <drbd-dev@lists.linbit.com>;
+	Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id DAAE340A52E
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:35 +0200 (CEST)
-Resent-Message-ID: <20160414112635.GZ3078@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 7638D40A52E
+	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 13:26:36 +0200 (CEST)
+Resent-Message-ID: <20160414112636.GA3078@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3BFCA1056456
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Apr 2016 21:45:14 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3CC421056453
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Apr 2016 21:45:01 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Wed, 13 Apr 2016 14:36:02 -0500
-Message-Id: <1460576188-5751-17-git-send-email-mchristi@redhat.com>
+Date: Wed, 13 Apr 2016 14:36:03 -0500
+Message-Id: <1460576188-5751-18-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1460576188-5751-1-git-send-email-mchristi@redhat.com>
 References: <1460576188-5751-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 16/42] nilfs: set bi_op to REQ_OP
+Subject: [Drbd-dev] [PATCH 17/42] ocfs2: set bi_op to REQ_OP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,82 +56,58 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-This patch has nilfs use bio->bi_op for REQ_OPs and rq_flag_bits
+This patch has ocfs2 use bio->bi_op for REQ_OPs and rq_flag_bits
 to bio->bi_rw.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/nilfs2/segbuf.c | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ fs/ocfs2/cluster/heartbeat.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
 
-diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
-index 7666f1d..7b13e14 100644
---- a/fs/nilfs2/segbuf.c
-+++ b/fs/nilfs2/segbuf.c
-@@ -350,7 +350,8 @@ static void nilfs_end_bio_write(struct bio *bio)
- }
- 
- static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
--				   struct nilfs_write_info *wi, int mode)
-+				   struct nilfs_write_info *wi, int mode,
-+				   int mode_flags)
+diff --git a/fs/ocfs2/cluster/heartbeat.c b/fs/ocfs2/cluster/heartbeat.c
+index e37373d..0619a20 100644
+--- a/fs/ocfs2/cluster/heartbeat.c
++++ b/fs/ocfs2/cluster/heartbeat.c
+@@ -530,7 +530,8 @@ static void o2hb_bio_end_io(struct bio *bio)
+ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
+ 				      struct o2hb_bio_wait_ctxt *wc,
+ 				      unsigned int *current_slot,
+-				      unsigned int max_slots, int rw)
++				      unsigned int max_slots, int op,
++				      int op_flags)
  {
- 	struct bio *bio = wi->bio;
- 	int err;
-@@ -368,7 +369,8 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
+ 	int len, current_page;
+ 	unsigned int vec_len, vec_start;
+@@ -556,7 +557,8 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
+ 	bio->bi_bdev = reg->hr_bdev;
+ 	bio->bi_private = wc;
+ 	bio->bi_end_io = o2hb_bio_end_io;
+-	bio->bi_rw = rw;
++	bio->bi_op = op;
++	bio->bi_rw = op_flags;
  
- 	bio->bi_end_io = nilfs_end_bio_write;
- 	bio->bi_private = segbuf;
--	bio->bi_rw = mode;
-+	bio->bi_op = mode;
-+	bio->bi_rw = mode_flags;
- 	submit_bio(bio);
- 	segbuf->sb_nbio++;
+ 	vec_start = (cs << bits) % PAGE_SIZE;
+ 	while(cs < max_slots) {
+@@ -593,7 +595,7 @@ static int o2hb_read_slots(struct o2hb_region *reg,
  
-@@ -442,7 +444,7 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
- 		return 0;
- 	}
- 	/* bio is FULL */
--	err = nilfs_segbuf_submit_bio(segbuf, wi, mode);
-+	err = nilfs_segbuf_submit_bio(segbuf, wi, mode, 0);
- 	/* never submit current bh */
- 	if (likely(!err))
- 		goto repeat;
-@@ -466,19 +468,19 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
- {
- 	struct nilfs_write_info wi;
- 	struct buffer_head *bh;
--	int res = 0, rw = WRITE;
-+	int res = 0;
+ 	while(current_slot < max_slots) {
+ 		bio = o2hb_setup_one_bio(reg, &wc, &current_slot, max_slots,
+-					 READ);
++					 REQ_OP_READ, 0);
+ 		if (IS_ERR(bio)) {
+ 			status = PTR_ERR(bio);
+ 			mlog_errno(status);
+@@ -625,7 +627,8 @@ static int o2hb_issue_node_write(struct o2hb_region *reg,
  
- 	wi.nilfs = nilfs;
- 	nilfs_segbuf_prepare_write(segbuf, &wi);
+ 	slot = o2nm_this_node();
  
- 	list_for_each_entry(bh, &segbuf->sb_segsum_buffers, b_assoc_buffers) {
--		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
-+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
- 		if (unlikely(res))
- 			goto failed_bio;
- 	}
- 
- 	list_for_each_entry(bh, &segbuf->sb_payload_buffers, b_assoc_buffers) {
--		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
-+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
- 		if (unlikely(res))
- 			goto failed_bio;
- 	}
-@@ -488,8 +490,8 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
- 		 * Last BIO is always sent through the following
- 		 * submission.
- 		 */
--		rw |= REQ_SYNC;
--		res = nilfs_segbuf_submit_bio(segbuf, &wi, rw);
-+		res = nilfs_segbuf_submit_bio(segbuf, &wi, REQ_OP_WRITE,
-+					      REQ_SYNC);
- 	}
- 
-  failed_bio:
+-	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1, WRITE_SYNC);
++	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1, REQ_OP_WRITE,
++				 WRITE_SYNC);
+ 	if (IS_ERR(bio)) {
+ 		status = PTR_ERR(bio);
+ 		mlog_errno(status);
 -- 
 2.7.2
 
