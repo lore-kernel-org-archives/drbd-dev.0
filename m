@@ -1,51 +1,24 @@
 Return-Path: <tom.leiming@gmail.com>
-Received: from mail-oi0-f67.google.com (mail-oi0-f67.google.com
-	[209.85.218.67]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Received: from mail-ob0-f193.google.com (mail-ob0-f193.google.com
+	[209.85.214.193]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 488D51056446
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 14:03:11 +0200 (CEST)
-Received: by mail-oi0-f67.google.com with SMTP id w18so9553945oie.2
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 05:03:11 -0700 (PDT)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9FFB21051881
+	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 14:18:40 +0200 (CEST)
+Received: by mail-ob0-f193.google.com with SMTP id js7so4913574obc.0
+	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 05:18:40 -0700 (PDT)
 From: Ming Lei <tom.leiming@gmail.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Thu, 14 Apr 2016 20:02:18 +0800
-Message-Id: <1460635375-28282-1-git-send-email-tom.leiming@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
-	NeilBrown <neilb@suse.de>, Ming Lei <tom.leiming@gmail.com>,
-	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
-	Oleg Drokin <green@linuxhacker.ru>, Keith Busch <keith.busch@intel.com>,
-	Julia Lawall <Julia.Lawall@lip6.fr>,
-	"open list:DEVICE-MAPPER  LVM" <dm-devel@redhat.com>,
-	"open list:TARGET SUBSYSTEM" <target-devel@vger.kernel.org>,
-	Miklos Szeredi <mszeredi@suse.cz>,
-	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>,
-	"open list:STAGING SUBSYSTEM" <devel@driverdev.osuosl.org>,
-	"open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>,
-	Minchan Kim <minchan@kernel.org>, Jarod Wilson <jarod@redhat.com>,
-	Christoph Hellwig <hch@infradead.org>, Swee Hua Law <sweehua81@gmail.com>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	James Simmons <jsimmons@infradead.org>,
-	"open list:HIBERNATION aka Software Suspend,
-	aka swsusp" <linux-pm@vger.kernel.org>,
-	"moderated list:STAGING - LUSTRE PARALLEL FILESYSTEM"
-	<lustre-devel@lists.lustre.org>, linux-block@vger.kernel.org,
-	Tejun Heo <tj@kernel.org>,
-	"open list:BCACHE BLOCK LAYER CACHE" <linux-bcache@vger.kernel.org>,
-	Hannes Reinecke <hare@suse.de>, "John L. Hammond" <john.hammond@intel.com>,
-	"open list:SOFTWARE RAID Multiple Disks SUPPORT"
-	<linux-raid@vger.kernel.org>, Andreas Dilger <andreas.dilger@intel.com>,
-	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
-	Jiri Kosina <jkosina@suse.cz>, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
-	NeilBrown <neilb@suse.com>, "open list:LogFS" <logfs@logfs.org>,
-	Mike Rapoport <mike.rapoport@gmail.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>,
-	Frank Zago <fzago@cray.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Al Viro <viro@zeniv.linux.org.uk>
-Subject: [Drbd-dev] [PATCH v1 00/27] block: cleanup direct access to
-	.bi_vcnt & .bi_io_vec
+Date: Thu, 14 Apr 2016 20:02:20 +0800
+Message-Id: <1460635375-28282-3-git-send-email-tom.leiming@gmail.com>
+In-Reply-To: <1460635375-28282-1-git-send-email-tom.leiming@gmail.com>
+References: <1460635375-28282-1-git-send-email-tom.leiming@gmail.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Ming Lei <tom.leiming@gmail.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>
+Subject: [Drbd-dev] [PATCH v1 02/27] block: drbd: use bio_get_base_vec() to
+	retrieve the 1st bvec
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -57,114 +30,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Guys,
+Signed-off-by: Ming Lei <tom.leiming@gmail.com>
+---
+ drivers/block/drbd/drbd_bitmap.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-It is always not a good practice to access bio->bi_vcnt and
-bio->bi_io_vec from drivers directly. Also this kind of direct
-access will cause trouble when converting to multipage bvecs
-because currently drivers may suppose one bvec always include
-one page, and use the two fields to figure out how to handle
-pages.
-
-Even the actual meaning of the two fields arn't change from
-block subsystem's view, but it may change from driver or fs's
-view, so this patchset takes a conservative approach to cleanup
-direct access to the two fields for avoiding regressions.
-
-The 1st patch introduces the following 3 bio helpers which can be
-used inside drivers for avoiding direct access to .bi_vcnt and .bi_io_vec.
-
-        bio_pages()
-        bio_get_base_vec()
-        bio_set_vec_table()
-
-bio_pages() can be easy to convert to multipage bvecs.
-
-For bio_get_base_vec() and bio_set_vec_table(), they are often used
-during initializing a new bio or in case of single bvec bio. With the
-two new helpers, it becomes quite easy to audit access to .bi_io_vec
-and .bi_vcnt.
-
-Most of the other patches use the 3 helpers to clean up most of direct
-access to .bi_vcnt and .bi_io_vec from drivers, except for MD and btrfs,
-which two subsystems will be handled with different way in future.
-
-For btrfs, its direct access to .bi_vcnt & .bi_io_vec need to be cleanuped
-and audited that there isn't issue once converting to multipage bvecs.
-
-For raid(md), given its usage is quite complicated, we can just
-not enable multipage bvecs for raid queue until all its usage
-are cleaned up and audited. So it won't be a blocker for multipage
-bvecs.
-
-Also bio_add_page() is used in floppy, dm-crypt and fs/logfs to
-avoiding direct access to .bi_vcnt & .bi_io_vec.
-
-The patchset can be found in the following tree:
-
-https://github.com/ming1/linux/tree/v4.6-rc-block-next-mpbvecs-cleanup.v1
-
-V1:
-	- add Reviewed-by
-	- remove bio_is_full() helper because target can find it
-	via the return value of bio_add_pc_page() (9/27)
-	- add comment on another two uses of bio_get_base_vec() (16/27)
-	- rebased on latest for-next branch of block tree
-
-Ming Lei (27):
-  block: bio: introduce 3 helpers for cleanup
-  block: drbd: use bio_get_base_vec() to retrieve the 1st bvec
-  block: drbd: remove impossible failure handling
-  block: loop: use bio_get_base_vec() to retrive bvec table
-  block: pktcdvd: use bio_get_base_vec() to retrive bvec table
-  block: floppy: use bio_set_vec_table()
-  block: floppy: use bio_add_page()
-  staging: lustre: avoid to use bio->bi_vcnt directly
-  target: avoid to access .bi_vcnt directly
-  bcache: debug: avoid to access .bi_io_vec directly
-  bcache: io.c: use bio_set_vec_table
-  bcache: journal.c: use bio_set_vec_table()
-  bcache: movinggc: use bio_set_vec_table()
-  bcache: writeback: use bio_set_vec_table()
-  bcache: super: use bio_set_vec_table()
-  bcache: super: use bio_get_base_vec
-  dm: crypt: use bio_add_page()
-  dm: dm-io.c: use bio_get_base_vec()
-  dm: dm.c: replace 'bio->bi_vcnt == 1' with !bio_multiple_segments
-  dm: dm-bufio.c: use bio_set_vec_table()
-  fs: logfs: use bio_set_vec_table()
-  fs: logfs: convert to bio_add_page() in sync_request()
-  fs: logfs: use bio_add_page() in __bdev_writeseg()
-  fs: logfs: use bio_add_page() in do_erase()
-  fs: logfs: remove unnecesary check
-  kernel/power/swap.c: use bio_get_base_vec()
-  mm: page_io.c: use bio_get_base_vec()
-
- drivers/block/drbd/drbd_bitmap.c            |   4 +-
- drivers/block/drbd/drbd_receiver.c          |  14 +---
- drivers/block/floppy.c                      |   9 +--
- drivers/block/loop.c                        |   5 +-
- drivers/block/pktcdvd.c                     |   3 +-
- drivers/md/bcache/debug.c                   |  11 ++-
- drivers/md/bcache/io.c                      |   3 +-
- drivers/md/bcache/journal.c                 |   3 +-
- drivers/md/bcache/movinggc.c                |   6 +-
- drivers/md/bcache/super.c                   |  33 ++++++---
- drivers/md/bcache/writeback.c               |   4 +-
- drivers/md/dm-bufio.c                       |   3 +-
- drivers/md/dm-crypt.c                       |   8 +--
- drivers/md/dm-io.c                          |   7 +-
- drivers/md/dm.c                             |   3 +-
- drivers/staging/lustre/lustre/llite/lloop.c |   9 +--
- drivers/target/target_core_pscsi.c          |   8 +--
- fs/logfs/dev_bdev.c                         | 107 +++++++++++-----------------
- include/linux/bio.h                         |  21 ++++++
- kernel/power/swap.c                         |  10 ++-
- mm/page_io.c                                |  18 ++++-
- 21 files changed, 155 insertions(+), 134 deletions(-)
-
-Thanks,
-Ming
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index 92d6fc0..ccbd1e0 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -938,7 +938,9 @@ static void drbd_bm_endio(struct bio *bio)
+ 	struct drbd_bm_aio_ctx *ctx = bio->bi_private;
+ 	struct drbd_device *device = ctx->device;
+ 	struct drbd_bitmap *b = device->bitmap;
+-	unsigned int idx = bm_page_to_idx(bio->bi_io_vec[0].bv_page);
++	/* single bvec bio */
++	const struct bio_vec *bvec = bio_get_base_vec(bio);
++	unsigned int idx = bm_page_to_idx(bvec->bv_page);
+ 
+ 	if ((ctx->flags & BM_AIO_COPY_PAGES) == 0 &&
+ 	    !bm_test_page_unchanged(b->bm_pages[idx]))
 -- 
 1.9.1
 
