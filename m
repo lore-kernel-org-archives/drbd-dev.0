@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 259D8105645E
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id F23691056463
 	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 15CA940C568
+	by zimbra13.linbit.com (Postfix) with ESMTP id E754D40C567
 	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id ne8ARL5CY8lp for <drbd-dev@lists.linbit.com>;
+	with ESMTP id jATOQOX8sT8H for <drbd-dev@lists.linbit.com>;
 	Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id E951F40C569
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:16 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id C751040C568
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id Wyuh9XgrWEVn for <drbd-dev@lists.linbit.com>;
-	Thu, 21 Apr 2016 10:35:16 +0200 (CEST)
+	with ESMTP id zG-CppSRpcmR for <drbd-dev@lists.linbit.com>;
+	Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 943D740C566
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:16 +0200 (CEST)
-Resent-Message-ID: <20160421083516.GO3078@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 8CD0540C567
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
+Resent-Message-ID: <20160421083517.GP3078@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C64941051881
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2016 21:16:25 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DF23F1056446
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2016 21:27:52 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,13 +37,13 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Fri, 15 Apr 2016 14:15:36 -0500
-Message-Id: <1460747777-8479-2-git-send-email-mchristi@redhat.com>
+Date: Fri, 15 Apr 2016 14:16:12 -0500
+Message-Id: <1460747777-8479-38-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
 References: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 01/42] block/fs/drivers: remove rw argument from
-	submit_bio
+Subject: [Drbd-dev] [PATCH 37/42] block, fs,
+	drivers: do use bi_rw/cmd_flags for REQ_OPs.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -57,1810 +57,902 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-This has callers of submit_bio/submit_bio_wait set the bio->bi_rw
-instead of passing it in. This makes that use the same as
-generic_make_request and how we set the other bio fields.
-
-v5:
-1. Missed crypto fs submit_bio_wait call.
+We no longer use the bio->bi_rw and request->cmd_flags field for REQ_OPs:
+REQ_WRITE, REQ_DISCARD, REQ_WRITE_SAME, so this patch stops checking
+for them in bi_rw/cmd_flags and also removes the related compat code.
 
 v2:
 
-1. Set bi_rw instead of ORing it. For cloned bios, I still OR it
-to keep the old behavior incase there bits we wanted to keep.
+1. Remove compat code in __get_request.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
-Reviewed-by: Bart Van Assche <bart.vanassche@sandisk.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- block/bio.c                         |  7 +++----
- block/blk-core.c                    | 11 ++++-------
- block/blk-flush.c                   |  3 ++-
- block/blk-lib.c                     |  9 ++++++---
- drivers/block/drbd/drbd_actlog.c    |  2 +-
- drivers/block/drbd/drbd_bitmap.c    |  4 ++--
- drivers/block/floppy.c              |  3 ++-
- drivers/block/xen-blkback/blkback.c |  4 +++-
- drivers/block/xen-blkfront.c        |  4 ++--
- drivers/md/bcache/debug.c           |  6 ++++--
- drivers/md/bcache/journal.c         |  2 +-
- drivers/md/bcache/super.c           |  4 ++--
- drivers/md/dm-bufio.c               |  3 ++-
- drivers/md/dm-io.c                  |  3 ++-
- drivers/md/dm-log-writes.c          |  9 ++++++---
- drivers/md/dm-thin.c                |  3 ++-
- drivers/md/md.c                     | 10 +++++++---
- drivers/md/raid1.c                  |  3 ++-
- drivers/md/raid10.c                 |  4 +++-
- drivers/md/raid5-cache.c            |  7 ++++---
- drivers/target/target_core_iblock.c | 24 +++++++++++++-----------
- fs/btrfs/check-integrity.c          | 18 ++++++++++--------
- fs/btrfs/check-integrity.h          |  4 ++--
- fs/btrfs/disk-io.c                  |  3 ++-
- fs/btrfs/extent_io.c                |  7 ++++---
- fs/btrfs/raid56.c                   | 17 ++++++++++++-----
- fs/btrfs/scrub.c                    | 15 ++++++++++-----
- fs/btrfs/volumes.c                  | 14 +++++++-------
- fs/buffer.c                         |  3 ++-
- fs/crypto/crypto.c                  |  3 ++-
- fs/direct-io.c                      |  3 ++-
- fs/ext4/crypto.c                    |  3 ++-
- fs/ext4/page-io.c                   |  3 ++-
- fs/ext4/readpage.c                  |  9 +++++----
- fs/f2fs/data.c                      | 13 ++++++++-----
- fs/f2fs/segment.c                   |  6 ++++--
- fs/gfs2/lops.c                      |  3 ++-
- fs/gfs2/meta_io.c                   |  3 ++-
- fs/gfs2/ops_fstype.c                |  3 ++-
- fs/hfsplus/wrapper.c                |  3 ++-
- fs/jfs/jfs_logmgr.c                 |  6 ++++--
- fs/jfs/jfs_metapage.c               | 10 ++++++----
- fs/logfs/dev_bdev.c                 | 15 ++++++++++-----
- fs/mpage.c                          |  3 ++-
- fs/nfs/blocklayout/blocklayout.c    | 22 ++++++++++++----------
- fs/nilfs2/segbuf.c                  |  3 ++-
- fs/ocfs2/cluster/heartbeat.c        | 12 +++++++-----
- fs/xfs/xfs_aops.c                   | 15 ++++++++++-----
- fs/xfs/xfs_buf.c                    |  4 ++--
- include/linux/bio.h                 |  2 +-
- include/linux/fs.h                  |  2 +-
- kernel/power/swap.c                 |  5 +++--
- mm/page_io.c                        | 10 ++++++----
- 53 files changed, 221 insertions(+), 146 deletions(-)
+ block/bio.c                                 |  6 ++---
+ block/blk-core.c                            | 34 ++++++++---------------------
+ block/blk-merge.c                           | 14 ++++++------
+ block/blk-mq.c                              |  3 +--
+ drivers/ata/libata-scsi.c                   |  2 +-
+ drivers/block/brd.c                         |  2 +-
+ drivers/block/drbd/drbd_main.c              | 15 +++++++------
+ drivers/block/drbd/drbd_worker.c            |  4 ++--
+ drivers/block/loop.c                        |  6 ++---
+ drivers/block/rbd.c                         |  2 +-
+ drivers/block/rsxx/dma.c                    |  2 +-
+ drivers/block/umem.c                        |  2 +-
+ drivers/block/zram/zram_drv.c               |  2 +-
+ drivers/ide/ide-floppy.c                    |  2 +-
+ drivers/lightnvm/rrpc.c                     |  2 +-
+ drivers/md/bcache/request.c                 | 10 ++++-----
+ drivers/md/dm-cache-target.c                | 10 +++++----
+ drivers/md/dm-crypt.c                       |  2 +-
+ drivers/md/dm-log-writes.c                  |  2 +-
+ drivers/md/dm-raid1.c                       |  8 +++----
+ drivers/md/dm-region-hash.c                 |  4 ++--
+ drivers/md/dm-stripe.c                      |  4 ++--
+ drivers/md/dm-thin.c                        | 15 ++++++++-----
+ drivers/md/dm.c                             |  6 ++---
+ drivers/md/linear.c                         |  2 +-
+ drivers/md/raid0.c                          |  2 +-
+ drivers/scsi/osd/osd_initiator.c            |  4 ++--
+ drivers/staging/lustre/lustre/llite/lloop.c |  6 ++---
+ include/linux/bio.h                         | 15 ++++++++-----
+ include/linux/fs.h                          | 25 +++++++--------------
+ 30 files changed, 99 insertions(+), 114 deletions(-)
 
 diff --git a/block/bio.c b/block/bio.c
-index 807d25e..f319b78 100644
+index 921de2e..bec5b54 100644
 --- a/block/bio.c
 +++ b/block/bio.c
-@@ -865,21 +865,20 @@ static void submit_bio_wait_endio(struct bio *bio)
+@@ -675,10 +675,10 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
+ 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
+ 	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
  
- /**
-  * submit_bio_wait - submit a bio, and wait until it completes
-- * @rw: whether to %READ or %WRITE, or maybe to %READA (read ahead)
-  * @bio: The &struct bio which describes the I/O
-  *
-  * Simple wrapper around submit_bio(). Returns 0 on success, or the error from
-  * bio_endio() on failure.
-  */
--int submit_bio_wait(int rw, struct bio *bio)
-+int submit_bio_wait(struct bio *bio)
- {
- 	struct submit_bio_ret ret;
+-	if (bio->bi_rw & REQ_DISCARD)
++	if (bio->bi_op == REQ_OP_DISCARD)
+ 		goto integrity_clone;
  
--	rw |= REQ_SYNC;
- 	init_completion(&ret.event);
- 	bio->bi_private = &ret;
- 	bio->bi_end_io = submit_bio_wait_endio;
--	submit_bio(rw, bio);
-+	bio->bi_rw |= REQ_SYNC;
-+	submit_bio(bio);
- 	wait_for_completion_io(&ret.event);
- 
- 	return ret.error;
+-	if (bio->bi_rw & REQ_WRITE_SAME) {
++	if (bio->bi_op == REQ_OP_WRITE_SAME) {
+ 		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
+ 		goto integrity_clone;
+ 	}
+@@ -1797,7 +1797,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
+ 	 * Discards need a mutable bio_vec to accommodate the payload
+ 	 * required by the DSM TRIM and UNMAP commands.
+ 	 */
+-	if (bio->bi_rw & REQ_DISCARD)
++	if (bio->bi_op == REQ_OP_DISCARD)
+ 		split = bio_clone_bioset(bio, gfp, bs);
+ 	else
+ 		split = bio_clone_fast(bio, gfp, bs);
 diff --git a/block/blk-core.c b/block/blk-core.c
-index 2475b1c7..e953407 100644
+index e2f7b0a..ccf2056 100644
 --- a/block/blk-core.c
 +++ b/block/blk-core.c
-@@ -2094,7 +2094,6 @@ EXPORT_SYMBOL(generic_make_request);
+@@ -1151,8 +1151,7 @@ static struct request *__get_request(struct request_list *rl, int op,
  
- /**
-  * submit_bio - submit a bio to the block device layer for I/O
-- * @rw: whether to %READ or %WRITE, or maybe to %READA (read ahead)
-  * @bio: The &struct bio which describes the I/O
-  *
-  * submit_bio() is very similar in purpose to generic_make_request(), and
-@@ -2102,10 +2101,8 @@ EXPORT_SYMBOL(generic_make_request);
-  * interfaces; @bio must be presetup and ready for I/O.
-  *
-  */
--blk_qc_t submit_bio(int rw, struct bio *bio)
-+blk_qc_t submit_bio(struct bio *bio)
+ 	blk_rq_init(q, rq);
+ 	blk_rq_set_rl(rq, rl);
+-	/* tmp compat - allow users to check either one for the op */
+-	rq->cmd_flags = op | op_flags | REQ_ALLOCED;
++	rq->cmd_flags = op_flags | REQ_ALLOCED;
+ 	rq->op = op;
+ 
+ 	/* init elvpriv */
+@@ -1705,8 +1704,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
  {
--	bio->bi_rw |= rw;
+ 	req->cmd_type = REQ_TYPE_FS;
+ 
+-	/* tmp compat. Allow users to set bi_op or bi_rw */
+-	req->cmd_flags |= (bio->bi_rw | bio->bi_op) & REQ_COMMON_MASK;
++	req->cmd_flags |= bio->bi_rw & REQ_COMMON_MASK;
+ 	if (bio->bi_rw & REQ_RAHEAD)
+ 		req->cmd_flags |= REQ_FAILFAST_MASK;
+ 
+@@ -1856,9 +1854,9 @@ static void handle_bad_sector(struct bio *bio)
+ 	char b[BDEVNAME_SIZE];
+ 
+ 	printk(KERN_INFO "attempt to access beyond end of device\n");
+-	printk(KERN_INFO "%s: rw=%ld, want=%Lu, limit=%Lu\n",
++	printk(KERN_INFO "%s: rw=%d,%ld, want=%Lu, limit=%Lu\n",
+ 			bdevname(bio->bi_bdev, b),
+-			bio->bi_rw,
++			bio->bi_op, bio->bi_rw,
+ 			(unsigned long long)bio_end_sector(bio),
+ 			(long long)(i_size_read(bio->bi_bdev->bd_inode) >> 9));
+ }
+@@ -1980,14 +1978,14 @@ generic_make_request_checks(struct bio *bio)
+ 		}
+ 	}
+ 
+-	if ((bio->bi_rw & REQ_DISCARD) &&
++	if ((bio->bi_op == REQ_OP_DISCARD) &&
+ 	    (!blk_queue_discard(q) ||
+ 	     ((bio->bi_rw & REQ_SECURE) && !blk_queue_secdiscard(q)))) {
+ 		err = -EOPNOTSUPP;
+ 		goto end_io;
+ 	}
+ 
+-	if (bio->bi_rw & REQ_WRITE_SAME && !bdev_write_same(bio->bi_bdev)) {
++	if (bio->bi_op == REQ_OP_WRITE_SAME && !bdev_write_same(bio->bi_bdev)) {
+ 		err = -EOPNOTSUPP;
+ 		goto end_io;
+ 	}
+@@ -2041,12 +2039,6 @@ blk_qc_t generic_make_request(struct bio *bio)
+ 	struct bio_list bio_list_on_stack;
+ 	blk_qc_t ret = BLK_QC_T_NONE;
+ 
+-	/* tmp compat. Allow users to set either one or both.
+-	 * This will be removed when we have converted
+-	 * everyone in the next patches.
+-	 */
+-	bio->bi_rw |= bio->bi_op;
+-
+ 	if (!generic_make_request_checks(bio))
+ 		goto out;
+ 
+@@ -2116,12 +2108,6 @@ EXPORT_SYMBOL(generic_make_request);
+  */
+ blk_qc_t submit_bio(struct bio *bio)
+ {
+-	/* tmp compat. Allow users to set either one or both.
+-	 * This will be removed when we have converted
+-	 * everyone in the next patches.
+-	 */
+-	bio->bi_rw |= bio->bi_op;
 -
  	/*
  	 * If it's a regular read/write or a barrier with data attached,
  	 * go through the normal accounting stuff before submission.
-@@ -2113,12 +2110,12 @@ blk_qc_t submit_bio(int rw, struct bio *bio)
+@@ -2129,12 +2115,12 @@ blk_qc_t submit_bio(struct bio *bio)
  	if (bio_has_data(bio)) {
  		unsigned int count;
  
--		if (unlikely(rw & REQ_WRITE_SAME))
-+		if (unlikely(bio->bi_rw & REQ_WRITE_SAME))
+-		if (unlikely(bio->bi_rw & REQ_WRITE_SAME))
++		if (unlikely(bio->bi_op == REQ_OP_WRITE_SAME))
  			count = bdev_logical_block_size(bio->bi_bdev) >> 9;
  		else
  			count = bio_sectors(bio);
  
--		if (rw & WRITE) {
-+		if (bio->bi_rw & WRITE) {
+-		if (bio->bi_rw & WRITE) {
++		if (op_is_write(bio->bi_op)) {
  			count_vm_events(PGPGOUT, count);
  		} else {
  			task_io_account_read(bio->bi_iter.bi_size);
-@@ -2129,7 +2126,7 @@ blk_qc_t submit_bio(int rw, struct bio *bio)
+@@ -2145,7 +2131,7 @@ blk_qc_t submit_bio(struct bio *bio)
  			char b[BDEVNAME_SIZE];
  			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
  			current->comm, task_pid_nr(current),
--				(rw & WRITE) ? "WRITE" : "READ",
-+				(bio->bi_rw & WRITE) ? "WRITE" : "READ",
+-				(bio->bi_rw & WRITE) ? "WRITE" : "READ",
++				op_is_write(bio->bi_op) ? "WRITE" : "READ",
  				(unsigned long long)bio->bi_iter.bi_sector,
  				bdevname(bio->bi_bdev, b),
  				count);
-diff --git a/block/blk-flush.c b/block/blk-flush.c
-index b1c91d2..3af4a5a 100644
---- a/block/blk-flush.c
-+++ b/block/blk-flush.c
-@@ -485,8 +485,9 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
+@@ -2995,8 +2981,6 @@ EXPORT_SYMBOL_GPL(__blk_end_request_err);
+ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
+ 		     struct bio *bio)
+ {
+-	/* tmp compat. Allow users to set bi_op or bi_rw */
+-	rq->cmd_flags |= bio_data_dir(bio);
+ 	rq->op = bio->bi_op;
  
- 	bio = bio_alloc(gfp_mask, 0);
- 	bio->bi_bdev = bdev;
-+	bio->bi_rw = WRITE_FLUSH;
+ 	if (bio_has_data(bio))
+diff --git a/block/blk-merge.c b/block/blk-merge.c
+index c02371f..31dc0c0 100644
+--- a/block/blk-merge.c
++++ b/block/blk-merge.c
+@@ -172,9 +172,9 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
+ 	struct bio *split, *res;
+ 	unsigned nsegs;
  
--	ret = submit_bio_wait(WRITE_FLUSH, bio);
-+	ret = submit_bio_wait(bio);
- 
- 	/*
- 	 * The driver must store the error location in ->bi_sector, if
-diff --git a/block/blk-lib.c b/block/blk-lib.c
-index 9ebf653..87e3de4 100644
---- a/block/blk-lib.c
-+++ b/block/blk-lib.c
-@@ -102,13 +102,14 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
- 		bio->bi_end_io = bio_batch_end_io;
- 		bio->bi_bdev = bdev;
- 		bio->bi_private = &bb;
-+		bio->bi_rw = type;
- 
- 		bio->bi_iter.bi_size = req_sects << 9;
- 		nr_sects -= req_sects;
- 		sector = end_sect;
- 
- 		atomic_inc(&bb.done);
--		submit_bio(type, bio);
-+		submit_bio(bio);
- 
- 		/*
- 		 * We can loop for a long time in here, if someone does
-@@ -177,6 +178,7 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
- 		bio->bi_io_vec->bv_page = page;
- 		bio->bi_io_vec->bv_offset = 0;
- 		bio->bi_io_vec->bv_len = bdev_logical_block_size(bdev);
-+		bio->bi_rw = REQ_WRITE | REQ_WRITE_SAME;
- 
- 		if (nr_sects > max_write_same_sectors) {
- 			bio->bi_iter.bi_size = max_write_same_sectors << 9;
-@@ -188,7 +190,7 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
- 		}
- 
- 		atomic_inc(&bb.done);
--		submit_bio(REQ_WRITE | REQ_WRITE_SAME, bio);
-+		submit_bio(bio);
- 	}
- 
- 	/* Wait for bios in-flight */
-@@ -238,6 +240,7 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
- 		bio->bi_bdev   = bdev;
- 		bio->bi_end_io = bio_batch_end_io;
- 		bio->bi_private = &bb;
-+		bio->bi_rw = WRITE;
- 
- 		while (nr_sects != 0) {
- 			sz = min((sector_t) PAGE_SIZE >> 9 , nr_sects);
-@@ -249,7 +252,7 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
- 		}
- 		ret = 0;
- 		atomic_inc(&bb.done);
--		submit_bio(WRITE, bio);
-+		submit_bio(bio);
- 	}
- 
- 	/* Wait for bios in-flight */
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 10459a1..6069e15 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -177,7 +177,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
- 	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
- 		bio_io_error(bio);
+-	if ((*bio)->bi_rw & REQ_DISCARD)
++	if ((*bio)->bi_op == REQ_OP_DISCARD)
+ 		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
+-	else if ((*bio)->bi_rw & REQ_WRITE_SAME)
++	else if ((*bio)->bi_op == REQ_OP_WRITE_SAME)
+ 		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
  	else
--		submit_bio(rw, bio);
-+		submit_bio(bio);
- 	wait_until_done_or_force_detached(device, bdev, &device->md_io.done);
- 	if (!bio->bi_error)
- 		err = device->md_io.error;
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index 92d6fc0..e8959fe 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -1011,12 +1011,12 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
- 	bio_add_page(bio, page, len, 0);
- 	bio->bi_private = ctx;
- 	bio->bi_end_io = drbd_bm_endio;
-+	bio->bi_rw = rw;
- 
- 	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
--		bio->bi_rw |= rw;
- 		bio_io_error(bio);
- 	} else {
--		submit_bio(rw, bio);
-+		submit_bio(bio);
- 		/* this should not count as user activity and cause the
- 		 * resync to throttle -- see drbd_rs_should_slow_down(). */
- 		atomic_add(len >> 9, &device->rs_sect_ev);
-diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
-index 84708a5..73ded25 100644
---- a/drivers/block/floppy.c
-+++ b/drivers/block/floppy.c
-@@ -3822,8 +3822,9 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
- 	bio.bi_flags |= (1 << BIO_QUIET);
- 	bio.bi_private = &cbdata;
- 	bio.bi_end_io = floppy_rb0_cb;
-+	bio.bi_rw = READ;
- 
--	submit_bio(READ, &bio);
-+	submit_bio(&bio);
- 	process_fd_request();
- 
- 	init_completion(&cbdata.complete);
-diff --git a/drivers/block/xen-blkback/blkback.c b/drivers/block/xen-blkback/blkback.c
-index 4809c150..79fe493 100644
---- a/drivers/block/xen-blkback/blkback.c
-+++ b/drivers/block/xen-blkback/blkback.c
-@@ -1369,6 +1369,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
- 			bio->bi_private = pending_req;
- 			bio->bi_end_io  = end_block_io_op;
- 			bio->bi_iter.bi_sector  = preq.sector_number;
-+			bio->bi_rw	= operation;
- 		}
- 
- 		preq.sector_number += seg[i].nsec;
-@@ -1386,13 +1387,14 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
- 		bio->bi_bdev    = preq.bdev;
- 		bio->bi_private = pending_req;
- 		bio->bi_end_io  = end_block_io_op;
-+		bio->bi_rw	= operation;
- 	}
- 
- 	atomic_set(&pending_req->pendcnt, nbio);
- 	blk_start_plug(&plug);
- 
- 	for (i = 0; i < nbio; i++)
--		submit_bio(operation, biolist[i]);
-+		submit_bio(biolist[i]);
- 
- 	/* Let the I/Os go.. */
- 	blk_finish_plug(&plug);
-diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
-index ca13df8..52963a2 100644
---- a/drivers/block/xen-blkfront.c
-+++ b/drivers/block/xen-blkfront.c
-@@ -2114,7 +2114,7 @@ static int blkif_recover(struct blkfront_info *info)
- 				bio_trim(cloned_bio, offset, size);
- 				cloned_bio->bi_private = split_bio;
- 				cloned_bio->bi_end_io = split_bio_end;
--				submit_bio(cloned_bio->bi_rw, cloned_bio);
-+				submit_bio(cloned_bio);
- 			}
- 			/*
- 			 * Now we have to wait for all those smaller bios to
-@@ -2123,7 +2123,7 @@ static int blkif_recover(struct blkfront_info *info)
- 			continue;
- 		}
- 		/* We don't need to split this bio */
--		submit_bio(bio->bi_rw, bio);
-+		submit_bio(bio);
- 	}
- 
- 	return 0;
-diff --git a/drivers/md/bcache/debug.c b/drivers/md/bcache/debug.c
-index 8b1f1d5..52b6bcf 100644
---- a/drivers/md/bcache/debug.c
-+++ b/drivers/md/bcache/debug.c
-@@ -52,9 +52,10 @@ void bch_btree_verify(struct btree *b)
- 	bio->bi_bdev		= PTR_CACHE(b->c, &b->key, 0)->bdev;
- 	bio->bi_iter.bi_sector	= PTR_OFFSET(&b->key, 0);
- 	bio->bi_iter.bi_size	= KEY_SIZE(&v->key) << 9;
-+	bio->bi_rw		= REQ_META|READ_SYNC;
- 	bch_bio_map(bio, sorted);
- 
--	submit_bio_wait(REQ_META|READ_SYNC, bio);
-+	submit_bio_wait(bio);
- 	bch_bbio_free(bio, b->c);
- 
- 	memcpy(ondisk, sorted, KEY_SIZE(&v->key) << 9);
-@@ -113,11 +114,12 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
- 	check = bio_clone(bio, GFP_NOIO);
- 	if (!check)
- 		return;
-+	check->bi_rw |= READ_SYNC;
- 
- 	if (bio_alloc_pages(check, GFP_NOIO))
- 		goto out_put;
- 
--	submit_bio_wait(READ_SYNC, check);
-+	submit_bio_wait(check);
- 
- 	bio_for_each_segment(bv, bio, iter) {
- 		void *p1 = kmap_atomic(bv.bv_page);
-diff --git a/drivers/md/bcache/journal.c b/drivers/md/bcache/journal.c
-index 29eba72..af3f9f7 100644
---- a/drivers/md/bcache/journal.c
-+++ b/drivers/md/bcache/journal.c
-@@ -418,7 +418,7 @@ static void journal_discard_work(struct work_struct *work)
- 	struct journal_device *ja =
- 		container_of(work, struct journal_device, discard_work);
- 
--	submit_bio(0, &ja->discard_bio);
-+	submit_bio(&ja->discard_bio);
- }
- 
- static void do_journal_discard(struct cache *ca)
-diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
-index f5dbb4e..1eb526a7 100644
---- a/drivers/md/bcache/super.c
-+++ b/drivers/md/bcache/super.c
-@@ -212,7 +212,7 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
- 	unsigned i;
- 
- 	bio->bi_iter.bi_sector	= SB_SECTOR;
--	bio->bi_rw		= REQ_SYNC|REQ_META;
-+	bio->bi_rw		= REQ_WRITE|REQ_SYNC|REQ_META;
- 	bio->bi_iter.bi_size	= SB_SIZE;
- 	bch_bio_map(bio, NULL);
- 
-@@ -238,7 +238,7 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
- 	pr_debug("ver %llu, flags %llu, seq %llu",
- 		 sb->version, sb->flags, sb->seq);
- 
--	submit_bio(REQ_WRITE, bio);
-+	submit_bio(bio);
- }
- 
- static void bch_write_bdev_super_unlock(struct closure *cl)
-diff --git a/drivers/md/dm-bufio.c b/drivers/md/dm-bufio.c
-index cd77216..9d3ee7f 100644
---- a/drivers/md/dm-bufio.c
-+++ b/drivers/md/dm-bufio.c
-@@ -634,6 +634,7 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t block,
- 	 * the dm_buffer's inline bio is local to bufio.
+ 		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
+@@ -213,10 +213,10 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+ 	 * This should probably be returning 0, but blk_add_request_payload()
+ 	 * (Christoph!!!!)
  	 */
- 	b->bio.bi_private = end_io;
-+	b->bio.bi_rw = rw;
+-	if (bio->bi_rw & REQ_DISCARD)
++	if (bio->bi_op == REQ_OP_DISCARD)
+ 		return 1;
  
- 	/*
- 	 * We assume that if len >= PAGE_SIZE ptr is page-aligned.
-@@ -660,7 +661,7 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t block,
- 		ptr += PAGE_SIZE;
- 	} while (len > 0);
+-	if (bio->bi_rw & REQ_WRITE_SAME)
++	if (bio->bi_op == REQ_OP_WRITE_SAME)
+ 		return 1;
  
--	submit_bio(rw, &b->bio);
-+	submit_bio(&b->bio);
- }
+ 	fbio = bio;
+@@ -385,7 +385,7 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
+ 	nsegs = 0;
+ 	cluster = blk_queue_cluster(q);
  
- static void submit_io(struct dm_buffer *b, int rw, sector_t block,
-diff --git a/drivers/md/dm-io.c b/drivers/md/dm-io.c
-index 06d426e..50f17e3 100644
---- a/drivers/md/dm-io.c
-+++ b/drivers/md/dm-io.c
-@@ -322,6 +322,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
- 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
- 		bio->bi_bdev = where->bdev;
- 		bio->bi_end_io = endio;
-+		bio->bi_rw = rw;
- 		store_io_and_region_in_bio(bio, io, region);
- 
- 		if (rw & REQ_DISCARD) {
-@@ -355,7 +356,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
- 		}
- 
- 		atomic_inc(&io->count);
--		submit_bio(rw, bio);
-+		submit_bio(bio);
- 	} while (remaining);
- }
- 
-diff --git a/drivers/md/dm-log-writes.c b/drivers/md/dm-log-writes.c
-index 608302e..addcc4b 100644
---- a/drivers/md/dm-log-writes.c
-+++ b/drivers/md/dm-log-writes.c
-@@ -205,6 +205,7 @@ static int write_metadata(struct log_writes_c *lc, void *entry,
- 	bio->bi_bdev = lc->logdev->bdev;
- 	bio->bi_end_io = log_end_io;
- 	bio->bi_private = lc;
-+	bio->bi_rw = WRITE;
- 
- 	page = alloc_page(GFP_KERNEL);
- 	if (!page) {
-@@ -226,7 +227,7 @@ static int write_metadata(struct log_writes_c *lc, void *entry,
- 		DMERR("Couldn't add page to the log block");
- 		goto error_bio;
- 	}
--	submit_bio(WRITE, bio);
-+	submit_bio(bio);
- 	return 0;
- error_bio:
- 	bio_put(bio);
-@@ -269,6 +270,7 @@ static int log_one_block(struct log_writes_c *lc,
- 	bio->bi_bdev = lc->logdev->bdev;
- 	bio->bi_end_io = log_end_io;
- 	bio->bi_private = lc;
-+	bio->bi_rw = WRITE;
- 
- 	for (i = 0; i < block->vec_cnt; i++) {
+-	if (bio->bi_rw & REQ_DISCARD) {
++	if (bio->bi_op == REQ_OP_DISCARD) {
  		/*
-@@ -279,7 +281,7 @@ static int log_one_block(struct log_writes_c *lc,
- 				   block->vecs[i].bv_len, 0);
- 		if (ret != block->vecs[i].bv_len) {
- 			atomic_inc(&lc->io_blocks);
--			submit_bio(WRITE, bio);
-+			submit_bio(bio);
- 			bio = bio_alloc(GFP_KERNEL, block->vec_cnt - i);
- 			if (!bio) {
- 				DMERR("Couldn't alloc log bio");
-@@ -290,6 +292,7 @@ static int log_one_block(struct log_writes_c *lc,
- 			bio->bi_bdev = lc->logdev->bdev;
- 			bio->bi_end_io = log_end_io;
- 			bio->bi_private = lc;
-+			bio->bi_rw = WRITE;
- 
- 			ret = bio_add_page(bio, block->vecs[i].bv_page,
- 					   block->vecs[i].bv_len, 0);
-@@ -301,7 +304,7 @@ static int log_one_block(struct log_writes_c *lc,
- 		}
- 		sector += block->vecs[i].bv_len >> SECTOR_SHIFT;
- 	}
--	submit_bio(WRITE, bio);
-+	submit_bio(bio);
- out:
- 	kfree(block->data);
- 	kfree(block);
-diff --git a/drivers/md/dm-thin.c b/drivers/md/dm-thin.c
-index 04e7f3b..69d86e1 100644
---- a/drivers/md/dm-thin.c
-+++ b/drivers/md/dm-thin.c
-@@ -366,8 +366,9 @@ static int __blkdev_issue_discard_async(struct block_device *bdev, sector_t sect
- 	bio->bi_iter.bi_sector = sector;
- 	bio->bi_bdev = bdev;
- 	bio->bi_iter.bi_size = nr_sects << 9;
-+	bio->bi_rw = type;
- 
--	submit_bio(type, bio);
-+	submit_bio(bio);
- 
- 	return 0;
- }
-diff --git a/drivers/md/md.c b/drivers/md/md.c
-index 5d61e76..ec3c98d 100644
---- a/drivers/md/md.c
-+++ b/drivers/md/md.c
-@@ -392,8 +392,9 @@ static void submit_flushes(struct work_struct *ws)
- 			bi->bi_end_io = md_end_flush;
- 			bi->bi_private = rdev;
- 			bi->bi_bdev = rdev->bdev;
-+			bi->bi_rw = WRITE_FLUSH;
- 			atomic_inc(&mddev->flush_pending);
--			submit_bio(WRITE_FLUSH, bi);
-+			submit_bio(bi);
- 			rcu_read_lock();
- 			rdev_dec_pending(rdev, mddev);
- 		}
-@@ -740,9 +741,10 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
- 	bio_add_page(bio, page, size, 0);
- 	bio->bi_private = rdev;
- 	bio->bi_end_io = super_written;
-+	bio->bi_rw = WRITE_FLUSH_FUA;
- 
- 	atomic_inc(&mddev->pending_writes);
--	submit_bio(WRITE_FLUSH_FUA, bio);
-+	submit_bio(bio);
- }
- 
- void md_super_wait(struct mddev *mddev)
-@@ -759,6 +761,7 @@ int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
- 
- 	bio->bi_bdev = (metadata_op && rdev->meta_bdev) ?
- 		rdev->meta_bdev : rdev->bdev;
-+	bio->bi_rw = rw;
- 	if (metadata_op)
- 		bio->bi_iter.bi_sector = sector + rdev->sb_start;
- 	else if (rdev->mddev->reshape_position != MaxSector &&
-@@ -768,7 +771,8 @@ int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
- 	else
- 		bio->bi_iter.bi_sector = sector + rdev->data_offset;
- 	bio_add_page(bio, page, size, 0);
--	submit_bio_wait(rw, bio);
-+
-+	submit_bio_wait(bio);
- 
- 	ret = !bio->bi_error;
- 	bio_put(bio);
-diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-index a7f2b9c..424df7e 100644
---- a/drivers/md/raid1.c
-+++ b/drivers/md/raid1.c
-@@ -2208,7 +2208,8 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
- 		bio_trim(wbio, sector - r1_bio->sector, sectors);
- 		wbio->bi_iter.bi_sector += rdev->data_offset;
- 		wbio->bi_bdev = rdev->bdev;
--		if (submit_bio_wait(WRITE, wbio) < 0)
-+
-+		if (submit_bio_wait(wbio) < 0)
- 			/* failure! */
- 			ok = rdev_set_badblocks(rdev, sector,
- 						sectors, 0)
-diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-index e3fd725..4736be8 100644
---- a/drivers/md/raid10.c
-+++ b/drivers/md/raid10.c
-@@ -2474,7 +2474,9 @@ static int narrow_write_error(struct r10bio *r10_bio, int i)
- 				   choose_data_offset(r10_bio, rdev) +
- 				   (sector - r10_bio->sector));
- 		wbio->bi_bdev = rdev->bdev;
--		if (submit_bio_wait(WRITE, wbio) < 0)
-+		wbio->bi_rw = WRITE;
-+
-+		if (submit_bio_wait(wbio) < 0)
- 			/* Failure! */
- 			ok = rdev_set_badblocks(rdev, sector,
- 						sectors, 0)
-diff --git a/drivers/md/raid5-cache.c b/drivers/md/raid5-cache.c
-index 26f1497..90c2618 100644
---- a/drivers/md/raid5-cache.c
-+++ b/drivers/md/raid5-cache.c
-@@ -254,7 +254,7 @@ static void r5l_submit_current_io(struct r5l_log *log)
- 	__r5l_set_io_unit_state(io, IO_UNIT_IO_START);
- 	spin_unlock_irqrestore(&log->io_list_lock, flags);
- 
--	submit_bio(WRITE, io->current_bio);
-+	submit_bio(io->current_bio);
- }
- 
- static struct bio *r5l_bio_alloc(struct r5l_log *log)
-@@ -373,7 +373,7 @@ static void r5l_append_payload_page(struct r5l_log *log, struct page *page)
- 		io->current_bio = r5l_bio_alloc(log);
- 		bio_chain(io->current_bio, prev);
- 
--		submit_bio(WRITE, prev);
-+		submit_bio(prev);
- 	}
- 
- 	if (!bio_add_page(io->current_bio, page, PAGE_SIZE, 0))
-@@ -686,7 +686,8 @@ void r5l_flush_stripe_to_raid(struct r5l_log *log)
- 	bio_reset(&log->flush_bio);
- 	log->flush_bio.bi_bdev = log->rdev->bdev;
- 	log->flush_bio.bi_end_io = r5l_log_flush_endio;
--	submit_bio(WRITE_FLUSH, &log->flush_bio);
-+	log->flush_bio.bi_rw = WRITE_FLUSH;
-+	submit_bio(&log->flush_bio);
- }
- 
- static void r5l_write_super(struct r5l_log *log, sector_t cp);
-diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
-index 7c4efb4..c25109c 100644
---- a/drivers/target/target_core_iblock.c
-+++ b/drivers/target/target_core_iblock.c
-@@ -312,7 +312,7 @@ static void iblock_bio_done(struct bio *bio)
- }
- 
- static struct bio *
--iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
-+iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int rw)
- {
- 	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
- 	struct bio *bio;
-@@ -334,18 +334,19 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
- 	bio->bi_private = cmd;
- 	bio->bi_end_io = &iblock_bio_done;
- 	bio->bi_iter.bi_sector = lba;
-+	bio->bi_rw = rw;
- 
- 	return bio;
- }
- 
--static void iblock_submit_bios(struct bio_list *list, int rw)
-+static void iblock_submit_bios(struct bio_list *list)
- {
- 	struct blk_plug plug;
- 	struct bio *bio;
- 
- 	blk_start_plug(&plug);
- 	while ((bio = bio_list_pop(list)))
--		submit_bio(rw, bio);
-+		submit_bio(bio);
- 	blk_finish_plug(&plug);
- }
- 
-@@ -387,9 +388,10 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
- 	bio = bio_alloc(GFP_KERNEL, 0);
- 	bio->bi_end_io = iblock_end_io_flush;
- 	bio->bi_bdev = ib_dev->ibd_bd;
-+	bio->bi_rw = WRITE_FLUSH;
- 	if (!immed)
- 		bio->bi_private = cmd;
--	submit_bio(WRITE_FLUSH, bio);
-+	submit_bio(bio);
- 	return 0;
- }
- 
-@@ -478,7 +480,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
- 		goto fail;
- 	cmd->priv = ibr;
- 
--	bio = iblock_get_bio(cmd, block_lba, 1);
-+	bio = iblock_get_bio(cmd, block_lba, 1, WRITE);
- 	if (!bio)
- 		goto fail_free_ibr;
- 
-@@ -491,7 +493,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
- 		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
- 				!= sg->length) {
- 
--			bio = iblock_get_bio(cmd, block_lba, 1);
-+			bio = iblock_get_bio(cmd, block_lba, 1, WRITE);
- 			if (!bio)
- 				goto fail_put_bios;
- 
-@@ -504,7 +506,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
- 		sectors -= 1;
- 	}
- 
--	iblock_submit_bios(&list, WRITE);
-+	iblock_submit_bios(&list);
- 	return 0;
- 
- fail_put_bios:
-@@ -712,7 +714,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+ 		 * This is a hack - drivers should be neither modifying the
+ 		 * biovec, nor relying on bi_vcnt - but because of
+@@ -400,7 +400,7 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
  		return 0;
  	}
  
--	bio = iblock_get_bio(cmd, block_lba, sgl_nents);
-+	bio = iblock_get_bio(cmd, block_lba, sgl_nents, rw);
- 	if (!bio)
- 		goto fail_free_ibr;
+-	if (bio->bi_rw & REQ_WRITE_SAME) {
++	if (bio->bi_op == REQ_OP_WRITE_SAME) {
+ single_segment:
+ 		*sg = sglist;
+ 		bvec = bio_iovec(bio);
+@@ -439,7 +439,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
+ 	}
  
-@@ -732,11 +734,11 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
- 		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
- 				!= sg->length) {
- 			if (bio_cnt >= IBLOCK_MAX_BIO_PER_TASK) {
--				iblock_submit_bios(&list, rw);
-+				iblock_submit_bios(&list);
- 				bio_cnt = 0;
+ 	if (q->dma_drain_size && q->dma_drain_needed(rq)) {
+-		if (rq->cmd_flags & REQ_WRITE)
++		if (op_is_write(rq->op))
+ 			memset(q->dma_drain_buffer, 0, q->dma_drain_size);
+ 
+ 		sg_unmark_end(sg);
+diff --git a/block/blk-mq.c b/block/blk-mq.c
+index 64d61be..840f57a 100644
+--- a/block/blk-mq.c
++++ b/block/blk-mq.c
+@@ -170,8 +170,7 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
+ 	rq->q = q;
+ 	rq->mq_ctx = ctx;
+ 	rq->op = op;
+-	/* tmp compat - allow users to check either one for the op */
+-	rq->cmd_flags |= op | op_flags;
++	rq->cmd_flags |= op_flags;
+ 	/* do not touch atomic flags, it needs atomic ops against the timer */
+ 	rq->cpu = -1;
+ 	INIT_HLIST_NODE(&rq->hash);
+diff --git a/drivers/ata/libata-scsi.c b/drivers/ata/libata-scsi.c
+index c7d0fc1..c6086c1 100644
+--- a/drivers/ata/libata-scsi.c
++++ b/drivers/ata/libata-scsi.c
+@@ -1184,7 +1184,7 @@ static int atapi_drain_needed(struct request *rq)
+ 	if (likely(rq->cmd_type != REQ_TYPE_BLOCK_PC))
+ 		return 0;
+ 
+-	if (!blk_rq_bytes(rq) || (rq->cmd_flags & REQ_WRITE))
++	if (!blk_rq_bytes(rq) || op_is_write(rq->op))
+ 		return 0;
+ 
+ 	return atapi_cmd_type(rq->cmd[0]) == ATAPI_MISC;
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index 51a071e..eaefb8c 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -339,7 +339,7 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
+ 	if (bio_end_sector(bio) > get_capacity(bdev->bd_disk))
+ 		goto io_error;
+ 
+-	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
++	if (unlikely(bio->bi_op == REQ_OP_DISCARD)) {
+ 		if (sector & ((PAGE_SIZE >> SECTOR_SHIFT) - 1) ||
+ 		    bio->bi_iter.bi_size & ~PAGE_MASK)
+ 			goto io_error;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 30c93d6..ace906f 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1603,15 +1603,16 @@ static int _drbd_send_zc_ee(struct drbd_peer_device *peer_device,
+ 	return 0;
+ }
+ 
+-static u32 bio_flags_to_wire(struct drbd_connection *connection, unsigned long bi_rw)
++static u32 bio_flags_to_wire(struct drbd_connection *connection,
++			     struct bio *bio)
+ {
+ 	if (connection->agreed_pro_version >= 95)
+-		return  (bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
+-			(bi_rw & REQ_FUA ? DP_FUA : 0) |
+-			(bi_rw & REQ_FLUSH ? DP_FLUSH : 0) |
+-			(bi_rw & REQ_DISCARD ? DP_DISCARD : 0);
++		return  (bio->bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
++			(bio->bi_rw & REQ_FUA ? DP_FUA : 0) |
++			(bio->bi_rw & REQ_FLUSH ? DP_FLUSH : 0) |
++			(bio->bi_op == REQ_OP_DISCARD ? DP_DISCARD : 0);
+ 	else
+-		return bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
++		return bio->bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
+ }
+ 
+ /* Used to send write or TRIM aka REQ_DISCARD requests
+@@ -1636,7 +1637,7 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
+ 	p->sector = cpu_to_be64(req->i.sector);
+ 	p->block_id = (unsigned long)req;
+ 	p->seq_num = cpu_to_be32(atomic_inc_return(&device->packet_seq));
+-	dp_flags = bio_flags_to_wire(peer_device->connection, req->master_bio->bi_rw);
++	dp_flags = bio_flags_to_wire(peer_device->connection, req->master_bio);
+ 	if (device->state.conn >= C_SYNC_SOURCE &&
+ 	    device->state.conn <= C_PAUSED_SYNC_T)
+ 		dp_flags |= DP_MAY_SET_IN_SYNC;
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 2a04b43..0949961 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -174,7 +174,7 @@ void drbd_peer_request_endio(struct bio *bio)
+ 	struct drbd_peer_request *peer_req = bio->bi_private;
+ 	struct drbd_device *device = peer_req->peer_device->device;
+ 	int is_write = bio_data_dir(bio) == WRITE;
+-	int is_discard = !!(bio->bi_rw & REQ_DISCARD);
++	int is_discard = !!(bio->bi_op == REQ_OP_DISCARD);
+ 
+ 	if (bio->bi_error && __ratelimit(&drbd_ratelimit_state))
+ 		drbd_warn(device, "%s: error=%d s=%llus\n",
+@@ -248,7 +248,7 @@ void drbd_request_endio(struct bio *bio)
+ 
+ 	/* to avoid recursion in __req_mod */
+ 	if (unlikely(bio->bi_error)) {
+-		if (bio->bi_rw & REQ_DISCARD)
++		if (bio->bi_op == REQ_OP_DISCARD)
+ 			what = (bio->bi_error == -EOPNOTSUPP)
+ 				? DISCARD_COMPLETED_NOTSUPP
+ 				: DISCARD_COMPLETED_WITH_ERROR;
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index 0e80c9b..f1f7a25 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -447,7 +447,7 @@ static int lo_req_flush(struct loop_device *lo, struct request *rq)
+ 
+ static inline void handle_partial_read(struct loop_cmd *cmd, long bytes)
+ {
+-	if (bytes < 0 || (cmd->rq->cmd_flags & REQ_WRITE))
++	if (bytes < 0 || op_is_write(cmd->rq->op))
+ 		return;
+ 
+ 	if (unlikely(bytes < blk_rq_bytes(cmd->rq))) {
+@@ -535,7 +535,7 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
+ 
+ 	pos = ((loff_t) blk_rq_pos(rq) << 9) + lo->lo_offset;
+ 
+-	if (rq->cmd_flags & REQ_WRITE) {
++	if (op_is_write(rq->op)) {
+ 		if (rq->cmd_flags & REQ_FLUSH)
+ 			ret = lo_req_flush(lo, rq);
+ 		else if (rq->op == REQ_OP_DISCARD)
+@@ -1666,7 +1666,7 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
+ 
+ static void loop_handle_cmd(struct loop_cmd *cmd)
+ {
+-	const bool write = cmd->rq->cmd_flags & REQ_WRITE;
++	const bool write = op_is_write(cmd->rq->op);
+ 	struct loop_device *lo = cmd->rq->q->queuedata;
+ 	int ret = 0;
+ 
+diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
+index e8935af..4c0c057 100644
+--- a/drivers/block/rbd.c
++++ b/drivers/block/rbd.c
+@@ -3373,7 +3373,7 @@ static void rbd_queue_workfn(struct work_struct *work)
+ 
+ 	if (rq->op == REQ_OP_DISCARD)
+ 		op_type = OBJ_OP_DISCARD;
+-	else if (rq->cmd_flags & REQ_WRITE)
++	else if (rq->op == REQ_OP_WRITE)
+ 		op_type = OBJ_OP_WRITE;
+ 	else
+ 		op_type = OBJ_OP_READ;
+diff --git a/drivers/block/rsxx/dma.c b/drivers/block/rsxx/dma.c
+index cf8cd29..dfc189e 100644
+--- a/drivers/block/rsxx/dma.c
++++ b/drivers/block/rsxx/dma.c
+@@ -705,7 +705,7 @@ int rsxx_dma_queue_bio(struct rsxx_cardinfo *card,
+ 		dma_cnt[i] = 0;
+ 	}
+ 
+-	if (bio->bi_rw & REQ_DISCARD) {
++	if (bio->bi_op == REQ_OP_DISCARD) {
+ 		bv_len = bio->bi_iter.bi_size;
+ 
+ 		while (bv_len > 0) {
+diff --git a/drivers/block/umem.c b/drivers/block/umem.c
+index 7939b9f..a24ccbc 100644
+--- a/drivers/block/umem.c
++++ b/drivers/block/umem.c
+@@ -462,7 +462,7 @@ static void process_page(unsigned long data)
+ 				le32_to_cpu(desc->local_addr)>>9,
+ 				le32_to_cpu(desc->transfer_size));
+ 			dump_dmastat(card, control);
+-		} else if ((bio->bi_rw & REQ_WRITE) &&
++		} else if (op_is_write(bio->bi_op) &&
+ 			   le32_to_cpu(desc->local_addr) >> 9 ==
+ 				card->init_size) {
+ 			card->init_size += le32_to_cpu(desc->transfer_size) >> 9;
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 370c2f7..3c7ef31 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -849,7 +849,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
+ 	offset = (bio->bi_iter.bi_sector &
+ 		  (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
+ 
+-	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
++	if (unlikely(bio->bi_op == REQ_OP_DISCARD)) {
+ 		zram_bio_discard(zram, index, offset, bio);
+ 		bio_endio(bio);
+ 		return;
+diff --git a/drivers/ide/ide-floppy.c b/drivers/ide/ide-floppy.c
+index 2fb5350..f079d8d 100644
+--- a/drivers/ide/ide-floppy.c
++++ b/drivers/ide/ide-floppy.c
+@@ -206,7 +206,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
+ 	memcpy(rq->cmd, pc->c, 12);
+ 
+ 	pc->rq = rq;
+-	if (rq->cmd_flags & REQ_WRITE)
++	if (cmd == WRITE)
+ 		pc->flags |= PC_FLAG_WRITING;
+ 
+ 	pc->flags |= PC_FLAG_DMA_OK;
+diff --git a/drivers/lightnvm/rrpc.c b/drivers/lightnvm/rrpc.c
+index fd9b629..9b1a74e 100644
+--- a/drivers/lightnvm/rrpc.c
++++ b/drivers/lightnvm/rrpc.c
+@@ -911,7 +911,7 @@ static blk_qc_t rrpc_make_rq(struct request_queue *q, struct bio *bio)
+ 	struct nvm_rq *rqd;
+ 	int err;
+ 
+-	if (bio->bi_rw & REQ_DISCARD) {
++	if (bio->bi_op == REQ_OP_DISCARD) {
+ 		rrpc_discard(rrpc, bio);
+ 		return BLK_QC_T_NONE;
+ 	}
+diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
+index cd6837c..be8cd63f 100644
+--- a/drivers/md/bcache/request.c
++++ b/drivers/md/bcache/request.c
+@@ -378,7 +378,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
+ 
+ 	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
+ 	    c->gc_stats.in_use > CUTOFF_CACHE_ADD ||
+-	    (bio->bi_rw & REQ_DISCARD))
++	    (bio->bi_op == REQ_OP_DISCARD))
+ 		goto skip;
+ 
+ 	if (mode == CACHE_MODE_NONE ||
+@@ -899,7 +899,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
+ 	 * But check_overlapping drops dirty keys for which io hasn't started,
+ 	 * so we still want to call it.
+ 	 */
+-	if (bio->bi_rw & REQ_DISCARD)
++	if (bio->bi_op == REQ_OP_DISCARD)
+ 		s->iop.bypass = true;
+ 
+ 	if (should_writeback(dc, s->orig_bio,
+@@ -913,7 +913,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
+ 		s->iop.bio = s->orig_bio;
+ 		bio_get(s->iop.bio);
+ 
+-		if (!(bio->bi_rw & REQ_DISCARD) ||
++		if (!(bio->bi_op == REQ_OP_DISCARD) ||
+ 		    blk_queue_discard(bdev_get_queue(dc->bdev)))
+ 			closure_bio_submit(bio, cl);
+ 	} else if (s->iop.writeback) {
+@@ -993,7 +993,7 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
+ 				cached_dev_read(dc, s);
+ 		}
+ 	} else {
+-		if ((bio->bi_rw & REQ_DISCARD) &&
++		if ((bio->bi_op == REQ_OP_DISCARD) &&
+ 		    !blk_queue_discard(bdev_get_queue(dc->bdev)))
+ 			bio_endio(bio);
+ 		else
+@@ -1104,7 +1104,7 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
+ 					&KEY(d->id, bio->bi_iter.bi_sector, 0),
+ 					&KEY(d->id, bio_end_sector(bio), 0));
+ 
+-		s->iop.bypass		= (bio->bi_rw & REQ_DISCARD) != 0;
++		s->iop.bypass		= (bio->bi_op == REQ_OP_DISCARD) != 0;
+ 		s->iop.writeback	= true;
+ 		s->iop.bio		= bio;
+ 
+diff --git a/drivers/md/dm-cache-target.c b/drivers/md/dm-cache-target.c
+index ee0510f..838f784 100644
+--- a/drivers/md/dm-cache-target.c
++++ b/drivers/md/dm-cache-target.c
+@@ -788,7 +788,8 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
+ 
+ 	spin_lock_irqsave(&cache->lock, flags);
+ 	if (cache->need_tick_bio &&
+-	    !(bio->bi_rw & (REQ_FUA | REQ_FLUSH | REQ_DISCARD))) {
++	    !(bio->bi_rw & (REQ_FUA | REQ_FLUSH)) &&
++	    bio->bi_op != REQ_OP_DISCARD) {
+ 		pb->tick = true;
+ 		cache->need_tick_bio = false;
+ 	}
+@@ -851,7 +852,7 @@ static void inc_ds(struct cache *cache, struct bio *bio,
+ static bool accountable_bio(struct cache *cache, struct bio *bio)
+ {
+ 	return ((bio->bi_bdev == cache->origin_dev->bdev) &&
+-		!(bio->bi_rw & REQ_DISCARD));
++		bio->bi_op != REQ_OP_DISCARD);
+ }
+ 
+ static void accounted_begin(struct cache *cache, struct bio *bio)
+@@ -1067,7 +1068,8 @@ static void dec_io_migrations(struct cache *cache)
+ 
+ static bool discard_or_flush(struct bio *bio)
+ {
+-	return bio->bi_rw & (REQ_FLUSH | REQ_FUA | REQ_DISCARD);
++	return bio->bi_op == REQ_OP_DISCARD ||
++	       bio->bi_rw & (REQ_FLUSH | REQ_FUA);
+ }
+ 
+ static void __cell_defer(struct cache *cache, struct dm_bio_prison_cell *cell)
+@@ -1980,7 +1982,7 @@ static void process_deferred_bios(struct cache *cache)
+ 
+ 		if (bio->bi_rw & REQ_FLUSH)
+ 			process_flush_bio(cache, bio);
+-		else if (bio->bi_rw & REQ_DISCARD)
++		else if (bio->bi_op == REQ_OP_DISCARD)
+ 			process_discard_bio(cache, &structs, bio);
+ 		else
+ 			process_bio(cache, &structs, bio);
+diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+index 70fbf11..3a4ddad 100644
+--- a/drivers/md/dm-crypt.c
++++ b/drivers/md/dm-crypt.c
+@@ -1916,7 +1916,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
+ 	 * - for REQ_FLUSH device-mapper core ensures that no IO is in-flight
+ 	 * - for REQ_DISCARD caller must use flush if IO ordering matters
+ 	 */
+-	if (unlikely(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD))) {
++	if (unlikely(bio->bi_rw & REQ_FLUSH || bio->bi_op == REQ_OP_DISCARD)) {
+ 		bio->bi_bdev = cc->dev->bdev;
+ 		if (bio_sectors(bio))
+ 			bio->bi_iter.bi_sector = cc->start +
+diff --git a/drivers/md/dm-log-writes.c b/drivers/md/dm-log-writes.c
+index 27630c5..e991405 100644
+--- a/drivers/md/dm-log-writes.c
++++ b/drivers/md/dm-log-writes.c
+@@ -557,7 +557,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
+ 	int i = 0;
+ 	bool flush_bio = (bio->bi_rw & REQ_FLUSH);
+ 	bool fua_bio = (bio->bi_rw & REQ_FUA);
+-	bool discard_bio = (bio->bi_rw & REQ_DISCARD);
++	bool discard_bio = (bio->bi_op == REQ_OP_DISCARD);
+ 
+ 	pb->block = NULL;
+ 
+diff --git a/drivers/md/dm-raid1.c b/drivers/md/dm-raid1.c
+index 8a86bc3..c4d23da 100644
+--- a/drivers/md/dm-raid1.c
++++ b/drivers/md/dm-raid1.c
+@@ -626,7 +626,7 @@ static void write_callback(unsigned long error, void *context)
+ 	 * If the bio is discard, return an error, but do not
+ 	 * degrade the array.
+ 	 */
+-	if (bio->bi_rw & REQ_DISCARD) {
++	if (bio->bi_op == REQ_OP_DISCARD) {
+ 		bio->bi_error = -EOPNOTSUPP;
+ 		bio_endio(bio);
+ 		return;
+@@ -665,7 +665,7 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
+ 		.client = ms->io_client,
+ 	};
+ 
+-	if (bio->bi_rw & REQ_DISCARD) {
++	if (bio->bi_op == REQ_OP_DISCARD) {
+ 		io_req.bi_op = REQ_OP_DISCARD;
+ 		io_req.mem.type = DM_IO_KMEM;
+ 		io_req.mem.ptr.addr = NULL;
+@@ -705,7 +705,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
+ 
+ 	while ((bio = bio_list_pop(writes))) {
+ 		if ((bio->bi_rw & REQ_FLUSH) ||
+-		    (bio->bi_rw & REQ_DISCARD)) {
++		    (bio->bi_op == REQ_OP_DISCARD)) {
+ 			bio_list_add(&sync, bio);
+ 			continue;
+ 		}
+@@ -1253,7 +1253,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
+ 	 * We need to dec pending if this was a write.
+ 	 */
+ 	if (rw == WRITE) {
+-		if (!(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD)))
++		if (!(bio->bi_rw & REQ_FLUSH) && bio->bi_op != REQ_OP_DISCARD)
+ 			dm_rh_dec(ms->rh, bio_record->write_region);
+ 		return error;
+ 	}
+diff --git a/drivers/md/dm-region-hash.c b/drivers/md/dm-region-hash.c
+index 74cb7b9..ce4af57 100644
+--- a/drivers/md/dm-region-hash.c
++++ b/drivers/md/dm-region-hash.c
+@@ -403,7 +403,7 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
+ 		return;
+ 	}
+ 
+-	if (bio->bi_rw & REQ_DISCARD)
++	if (bio->bi_op == REQ_OP_DISCARD)
+ 		return;
+ 
+ 	/* We must inform the log that the sync count has changed. */
+@@ -526,7 +526,7 @@ void dm_rh_inc_pending(struct dm_region_hash *rh, struct bio_list *bios)
+ 	struct bio *bio;
+ 
+ 	for (bio = bios->head; bio; bio = bio->bi_next) {
+-		if (bio->bi_rw & (REQ_FLUSH | REQ_DISCARD))
++		if (bio->bi_rw & REQ_FLUSH || bio->bi_op == REQ_OP_DISCARD)
+ 			continue;
+ 		rh_inc(rh, dm_rh_bio_to_region(rh, bio));
+ 	}
+diff --git a/drivers/md/dm-stripe.c b/drivers/md/dm-stripe.c
+index 797ddb9..12b1630 100644
+--- a/drivers/md/dm-stripe.c
++++ b/drivers/md/dm-stripe.c
+@@ -292,8 +292,8 @@ static int stripe_map(struct dm_target *ti, struct bio *bio)
+ 		bio->bi_bdev = sc->stripe[target_bio_nr].dev->bdev;
+ 		return DM_MAPIO_REMAPPED;
+ 	}
+-	if (unlikely(bio->bi_rw & REQ_DISCARD) ||
+-	    unlikely(bio->bi_rw & REQ_WRITE_SAME)) {
++	if (unlikely(bio->bi_op == REQ_OP_DISCARD) ||
++	    unlikely(bio->bi_op == REQ_OP_WRITE_SAME)) {
+ 		target_bio_nr = dm_bio_get_target_bio_nr(bio);
+ 		BUG_ON(target_bio_nr >= sc->stripes);
+ 		return stripe_map_range(sc, bio, target_bio_nr);
+diff --git a/drivers/md/dm-thin.c b/drivers/md/dm-thin.c
+index 6049078..85688b7 100644
+--- a/drivers/md/dm-thin.c
++++ b/drivers/md/dm-thin.c
+@@ -715,7 +715,7 @@ static void inc_all_io_entry(struct pool *pool, struct bio *bio)
+ {
+ 	struct dm_thin_endio_hook *h;
+ 
+-	if (bio->bi_rw & REQ_DISCARD)
++	if (bio->bi_op == REQ_OP_DISCARD)
+ 		return;
+ 
+ 	h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
+@@ -878,7 +878,8 @@ static void __inc_remap_and_issue_cell(void *context,
+ 	struct bio *bio;
+ 
+ 	while ((bio = bio_list_pop(&cell->bios))) {
+-		if (bio->bi_rw & (REQ_DISCARD | REQ_FLUSH | REQ_FUA))
++		if (bio->bi_rw & (REQ_FLUSH | REQ_FUA) ||
++		    bio->bi_op == REQ_OP_DISCARD)
+ 			bio_list_add(&info->defer_bios, bio);
+ 		else {
+ 			inc_all_io_entry(info->tc->pool, bio);
+@@ -1656,7 +1657,8 @@ static void __remap_and_issue_shared_cell(void *context,
+ 
+ 	while ((bio = bio_list_pop(&cell->bios))) {
+ 		if ((bio_data_dir(bio) == WRITE) ||
+-		    (bio->bi_rw & (REQ_DISCARD | REQ_FLUSH | REQ_FUA)))
++		    (bio->bi_rw & (REQ_FLUSH | REQ_FUA) ||
++		     bio->bi_op == REQ_OP_DISCARD))
+ 			bio_list_add(&info->defer_bios, bio);
+ 		else {
+ 			struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));;
+@@ -2045,7 +2047,7 @@ static void process_thin_deferred_bios(struct thin_c *tc)
+ 			break;
+ 		}
+ 
+-		if (bio->bi_rw & REQ_DISCARD)
++		if (bio->bi_op == REQ_OP_DISCARD)
+ 			pool->process_discard(tc, bio);
+ 		else
+ 			pool->process_bio(tc, bio);
+@@ -2132,7 +2134,7 @@ static void process_thin_deferred_cells(struct thin_c *tc)
+ 				return;
  			}
  
--			bio = iblock_get_bio(cmd, block_lba, sg_num);
-+			bio = iblock_get_bio(cmd, block_lba, sg_num, rw);
- 			if (!bio)
- 				goto fail_put_bios;
- 
-@@ -756,7 +758,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
- 			goto fail_put_bios;
+-			if (cell->holder->bi_rw & REQ_DISCARD)
++			if (cell->holder->bi_op == REQ_OP_DISCARD)
+ 				pool->process_discard_cell(tc, cell);
+ 			else
+ 				pool->process_cell(tc, cell);
+@@ -2570,7 +2572,8 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
+ 		return DM_MAPIO_SUBMITTED;
  	}
  
--	iblock_submit_bios(&list, rw);
-+	iblock_submit_bios(&list);
- 	iblock_complete_cmd(cmd);
- 	return 0;
- 
-diff --git a/fs/btrfs/check-integrity.c b/fs/btrfs/check-integrity.c
-index 516e19d..9400acd 100644
---- a/fs/btrfs/check-integrity.c
-+++ b/fs/btrfs/check-integrity.c
-@@ -1673,6 +1673,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
+-	if (bio->bi_rw & (REQ_DISCARD | REQ_FLUSH | REQ_FUA)) {
++	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA) ||
++	    bio->bi_op == REQ_OP_DISCARD) {
+ 		thin_defer_bio_with_throttle(tc, bio);
+ 		return DM_MAPIO_SUBMITTED;
+ 	}
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index 13c869c..4ee7d5c 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -1053,7 +1053,7 @@ static void clone_endio(struct bio *bio)
  		}
- 		bio->bi_bdev = block_ctx->dev->bdev;
- 		bio->bi_iter.bi_sector = dev_bytenr >> 9;
-+		bio->bi_rw = READ;
+ 	}
  
- 		for (j = i; j < num_pages; j++) {
- 			ret = bio_add_page(bio, block_ctx->pagev[j],
-@@ -1685,7 +1686,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
- 			       "btrfsic: error, failed to add a single page!\n");
- 			return -1;
- 		}
--		if (submit_bio_wait(READ, bio)) {
-+		if (submit_bio_wait(bio)) {
- 			printk(KERN_INFO
- 			       "btrfsic: read error at logical %llu dev %s!\n",
- 			       block_ctx->start, block_ctx->dev->name);
-@@ -2918,9 +2919,10 @@ int btrfsic_submit_bh(int rw, struct buffer_head *bh)
- 	return submit_bh(rw, bh);
- }
+-	if (unlikely(r == -EREMOTEIO && (bio->bi_rw & REQ_WRITE_SAME) &&
++	if (unlikely(r == -EREMOTEIO && (bio->bi_op == REQ_OP_WRITE_SAME) &&
+ 		     !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors))
+ 		disable_write_same(md);
  
--static void __btrfsic_submit_bio(int rw, struct bio *bio)
-+static void __btrfsic_submit_bio(struct bio *bio)
+@@ -1748,9 +1748,9 @@ static int __split_and_process_non_flush(struct clone_info *ci)
+ 	unsigned len;
+ 	int r;
+ 
+-	if (unlikely(bio->bi_rw & REQ_DISCARD))
++	if (unlikely(bio->bi_op == REQ_OP_DISCARD))
+ 		return __send_discard(ci);
+-	else if (unlikely(bio->bi_rw & REQ_WRITE_SAME))
++	else if (unlikely(bio->bi_op == REQ_OP_WRITE_SAME))
+ 		return __send_write_same(ci);
+ 
+ 	ti = dm_table_find_target(ci->map, ci->sector);
+diff --git a/drivers/md/linear.c b/drivers/md/linear.c
+index b7fe7e9..aad82c7 100644
+--- a/drivers/md/linear.c
++++ b/drivers/md/linear.c
+@@ -252,7 +252,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
+ 		split->bi_iter.bi_sector = split->bi_iter.bi_sector -
+ 			start_sector + data_offset;
+ 
+-		if (unlikely((split->bi_rw & REQ_DISCARD) &&
++		if (unlikely((split->bi_op == REQ_OP_DISCARD) &&
+ 			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
+ 			/* Just ignore it */
+ 			bio_endio(split);
+diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
+index f63dbb6..58ff1ff 100644
+--- a/drivers/md/raid0.c
++++ b/drivers/md/raid0.c
+@@ -489,7 +489,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
+ 		split->bi_iter.bi_sector = sector + zone->dev_start +
+ 			tmp_dev->data_offset;
+ 
+-		if (unlikely((split->bi_rw & REQ_DISCARD) &&
++		if (unlikely((split->bi_op == REQ_OP_DISCARD) &&
+ 			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
+ 			/* Just ignore it */
+ 			bio_endio(split);
+diff --git a/drivers/scsi/osd/osd_initiator.c b/drivers/scsi/osd/osd_initiator.c
+index edcba56..f6572e6 100644
+--- a/drivers/scsi/osd/osd_initiator.c
++++ b/drivers/scsi/osd/osd_initiator.c
+@@ -824,7 +824,7 @@ void osd_req_write(struct osd_request *or,
  {
- 	struct btrfsic_dev_state *dev_state;
-+	int rw = bio->bi_rw;
- 
- 	if (!btrfsic_is_initialized)
- 		return;
-@@ -3016,16 +3018,16 @@ leave:
- 	mutex_unlock(&btrfsic_mutex);
+ 	_osd_req_encode_common(or, OSD_ACT_WRITE, obj, offset, len);
+ 	WARN_ON(or->out.bio || or->out.total_bytes);
+-	WARN_ON(0 == (bio->bi_rw & REQ_WRITE));
++	WARN_ON(!op_is_write(bio->bi_op));
+ 	or->out.bio = bio;
+ 	or->out.total_bytes = len;
  }
- 
--void btrfsic_submit_bio(int rw, struct bio *bio)
-+void btrfsic_submit_bio(struct bio *bio)
+@@ -875,7 +875,7 @@ void osd_req_read(struct osd_request *or,
  {
--	__btrfsic_submit_bio(rw, bio);
--	submit_bio(rw, bio);
-+	__btrfsic_submit_bio(bio);
-+	submit_bio(bio);
+ 	_osd_req_encode_common(or, OSD_ACT_READ, obj, offset, len);
+ 	WARN_ON(or->in.bio || or->in.total_bytes);
+-	WARN_ON(bio->bi_rw & REQ_WRITE);
++	WARN_ON(op_is_write(bio->bi_op));
+ 	or->in.bio = bio;
+ 	or->in.total_bytes = len;
  }
- 
--int btrfsic_submit_bio_wait(int rw, struct bio *bio)
-+int btrfsic_submit_bio_wait(struct bio *bio)
- {
--	__btrfsic_submit_bio(rw, bio);
--	return submit_bio_wait(rw, bio);
-+	__btrfsic_submit_bio(bio);
-+	return submit_bio_wait(bio);
- }
- 
- int btrfsic_mount(struct btrfs_root *root,
-diff --git a/fs/btrfs/check-integrity.h b/fs/btrfs/check-integrity.h
-index 13b8566..c04e249 100644
---- a/fs/btrfs/check-integrity.h
-+++ b/fs/btrfs/check-integrity.h
-@@ -21,8 +21,8 @@
- 
- #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
- int btrfsic_submit_bh(int rw, struct buffer_head *bh);
--void btrfsic_submit_bio(int rw, struct bio *bio);
--int btrfsic_submit_bio_wait(int rw, struct bio *bio);
-+void btrfsic_submit_bio(struct bio *bio);
-+int btrfsic_submit_bio_wait(struct bio *bio);
- #else
- #define btrfsic_submit_bh submit_bh
- #define btrfsic_submit_bio submit_bio
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index aeb0905..0bd25e4 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -3476,12 +3476,13 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
- 
- 	bio->bi_end_io = btrfs_end_empty_barrier;
- 	bio->bi_bdev = device->bdev;
-+	bio->bi_rw = WRITE_FLUSH;
- 	init_completion(&device->flush_wait);
- 	bio->bi_private = &device->flush_wait;
- 	device->flush_bio = bio;
- 
- 	bio_get(bio);
--	btrfsic_submit_bio(WRITE_FLUSH, bio);
-+	btrfsic_submit_bio(bio);
- 
- 	return 0;
- }
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index b67d6d2..fdeb8fa 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -2040,9 +2040,10 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
- 		return -EIO;
- 	}
- 	bio->bi_bdev = dev->bdev;
-+	bio->bi_rw = WRITE_SYNC;
- 	bio_add_page(bio, page, length, pg_offset);
- 
--	if (btrfsic_submit_bio_wait(WRITE_SYNC, bio)) {
-+	if (btrfsic_submit_bio_wait(bio)) {
- 		/* try to remap that extent elsewhere? */
- 		bio_put(bio);
- 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_WRITE_ERRS);
-@@ -2725,14 +2726,14 @@ static int __must_check submit_one_bio(int rw, struct bio *bio,
- 	start = page_offset(page) + bvec->bv_offset;
- 
- 	bio->bi_private = NULL;
--
-+	bio->bi_rw = rw;
- 	bio_get(bio);
- 
- 	if (tree->ops && tree->ops->submit_bio_hook)
- 		ret = tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
- 					   mirror_num, bio_flags, start);
- 	else
--		btrfsic_submit_bio(rw, bio);
-+		btrfsic_submit_bio(bio);
- 
- 	bio_put(bio);
- 	return ret;
-diff --git a/fs/btrfs/raid56.c b/fs/btrfs/raid56.c
-index 0b7792e..439d7eb 100644
---- a/fs/btrfs/raid56.c
-+++ b/fs/btrfs/raid56.c
-@@ -1320,7 +1320,9 @@ write_data:
- 
- 		bio->bi_private = rbio;
- 		bio->bi_end_io = raid_write_end_io;
--		submit_bio(WRITE, bio);
-+		bio->bi_rw = WRITE;
-+
-+		submit_bio(bio);
- 	}
- 	return;
- 
-@@ -1573,11 +1575,12 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
- 
- 		bio->bi_private = rbio;
- 		bio->bi_end_io = raid_rmw_end_io;
-+		bio->bi_rw = READ;
- 
- 		btrfs_bio_wq_end_io(rbio->fs_info, bio,
- 				    BTRFS_WQ_ENDIO_RAID56);
- 
--		submit_bio(READ, bio);
-+		submit_bio(bio);
- 	}
- 	/* the actual write will happen once the reads are done */
- 	return 0;
-@@ -2097,11 +2100,12 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
- 
- 		bio->bi_private = rbio;
- 		bio->bi_end_io = raid_recover_end_io;
-+		bio->bi_rw = READ;
- 
- 		btrfs_bio_wq_end_io(rbio->fs_info, bio,
- 				    BTRFS_WQ_ENDIO_RAID56);
- 
--		submit_bio(READ, bio);
-+		submit_bio(bio);
- 	}
- out:
- 	return 0;
-@@ -2433,7 +2437,9 @@ submit_write:
- 
- 		bio->bi_private = rbio;
- 		bio->bi_end_io = raid_write_end_io;
--		submit_bio(WRITE, bio);
-+		bio->bi_rw = WRITE;
-+
-+		submit_bio(bio);
- 	}
- 	return;
- 
-@@ -2610,11 +2616,12 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
- 
- 		bio->bi_private = rbio;
- 		bio->bi_end_io = raid56_parity_scrub_end_io;
-+		bio->bi_rw = READ;
- 
- 		btrfs_bio_wq_end_io(rbio->fs_info, bio,
- 				    BTRFS_WQ_ENDIO_RAID56);
- 
--		submit_bio(READ, bio);
-+		submit_bio(bio);
- 	}
- 	/* the actual write will happen once the reads are done */
- 	return;
-diff --git a/fs/btrfs/scrub.c b/fs/btrfs/scrub.c
-index 2ff2876..184cb57 100644
---- a/fs/btrfs/scrub.c
-+++ b/fs/btrfs/scrub.c
-@@ -1504,8 +1504,9 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
- 				sblock->no_io_error_seen = 0;
- 		} else {
- 			bio->bi_iter.bi_sector = page->physical >> 9;
-+			bio->bi_rw = READ;
- 
--			if (btrfsic_submit_bio_wait(READ, bio))
-+			if (btrfsic_submit_bio_wait(bio))
- 				sblock->no_io_error_seen = 0;
- 		}
- 
-@@ -1583,6 +1584,7 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
- 			return -EIO;
- 		bio->bi_bdev = page_bad->dev->bdev;
- 		bio->bi_iter.bi_sector = page_bad->physical >> 9;
-+		bio->bi_rw = WRITE;
- 
- 		ret = bio_add_page(bio, page_good->page, PAGE_SIZE, 0);
- 		if (PAGE_SIZE != ret) {
-@@ -1590,7 +1592,7 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
- 			return -EIO;
- 		}
- 
--		if (btrfsic_submit_bio_wait(WRITE, bio)) {
-+		if (btrfsic_submit_bio_wait(bio)) {
- 			btrfs_dev_stat_inc_and_print(page_bad->dev,
- 				BTRFS_DEV_STAT_WRITE_ERRS);
- 			btrfs_dev_replace_stats_inc(
-@@ -1684,6 +1686,7 @@ again:
- 		bio->bi_end_io = scrub_wr_bio_end_io;
- 		bio->bi_bdev = sbio->dev->bdev;
- 		bio->bi_iter.bi_sector = sbio->physical >> 9;
-+		bio->bi_rw = WRITE;
- 		sbio->err = 0;
- 	} else if (sbio->physical + sbio->page_count * PAGE_SIZE !=
- 		   spage->physical_for_dev_replace ||
-@@ -1731,7 +1734,7 @@ static void scrub_wr_submit(struct scrub_ctx *sctx)
- 	 * orders the requests before sending them to the driver which
- 	 * doubled the write performance on spinning disks when measured
- 	 * with Linux 3.5 */
--	btrfsic_submit_bio(WRITE, sbio->bio);
-+	btrfsic_submit_bio(sbio->bio);
- }
- 
- static void scrub_wr_bio_end_io(struct bio *bio)
-@@ -2041,7 +2044,7 @@ static void scrub_submit(struct scrub_ctx *sctx)
- 	sbio = sctx->bios[sctx->curr];
- 	sctx->curr = -1;
- 	scrub_pending_bio_inc(sctx);
--	btrfsic_submit_bio(READ, sbio->bio);
-+	btrfsic_submit_bio(sbio->bio);
- }
- 
- static int scrub_add_page_to_rd_bio(struct scrub_ctx *sctx,
-@@ -2088,6 +2091,7 @@ again:
- 		bio->bi_end_io = scrub_bio_end_io;
- 		bio->bi_bdev = sbio->dev->bdev;
- 		bio->bi_iter.bi_sector = sbio->physical >> 9;
-+		bio->bi_rw = READ;
- 		sbio->err = 0;
- 	} else if (sbio->physical + sbio->page_count * PAGE_SIZE !=
- 		   spage->physical ||
-@@ -4389,6 +4393,7 @@ static int write_page_nocow(struct scrub_ctx *sctx,
- 	bio->bi_iter.bi_size = 0;
- 	bio->bi_iter.bi_sector = physical_for_dev_replace >> 9;
- 	bio->bi_bdev = dev->bdev;
-+	bio->bi_rw = WRITE_SYNC;
- 	ret = bio_add_page(bio, page, PAGE_SIZE, 0);
- 	if (ret != PAGE_SIZE) {
- leave_with_eio:
-@@ -4397,7 +4402,7 @@ leave_with_eio:
- 		return -EIO;
- 	}
- 
--	if (btrfsic_submit_bio_wait(WRITE_SYNC, bio))
-+	if (btrfsic_submit_bio_wait(bio))
- 		goto leave_with_eio;
- 
- 	bio_put(bio);
-diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
-index 4dc66e6..318215d 100644
---- a/fs/btrfs/volumes.c
-+++ b/fs/btrfs/volumes.c
-@@ -462,7 +462,7 @@ loop_lock:
- 			sync_pending = 0;
- 		}
- 
--		btrfsic_submit_bio(cur->bi_rw, cur);
-+		btrfsic_submit_bio(cur);
- 		num_run++;
- 		batch_run++;
- 
-@@ -5938,7 +5938,7 @@ static void btrfs_end_bio(struct bio *bio)
-  */
- static noinline void btrfs_schedule_bio(struct btrfs_root *root,
- 					struct btrfs_device *device,
--					int rw, struct bio *bio)
-+					struct bio *bio)
- {
- 	int should_queue = 1;
- 	struct btrfs_pending_bios *pending_bios;
-@@ -5949,9 +5949,9 @@ static noinline void btrfs_schedule_bio(struct btrfs_root *root,
- 	}
- 
- 	/* don't bother with additional async steps for reads, right now */
--	if (!(rw & REQ_WRITE)) {
-+	if (!(bio->bi_rw & REQ_WRITE)) {
- 		bio_get(bio);
--		btrfsic_submit_bio(rw, bio);
-+		btrfsic_submit_bio(bio);
- 		bio_put(bio);
- 		return;
- 	}
-@@ -5965,7 +5965,6 @@ static noinline void btrfs_schedule_bio(struct btrfs_root *root,
- 	atomic_inc(&root->fs_info->nr_async_bios);
- 	WARN_ON(bio->bi_next);
- 	bio->bi_next = NULL;
--	bio->bi_rw |= rw;
- 
- 	spin_lock(&device->io_lock);
- 	if (bio->bi_rw & REQ_SYNC)
-@@ -5999,6 +5998,7 @@ static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
- 	btrfs_io_bio(bio)->stripe_index = dev_nr;
- 	bio->bi_end_io = btrfs_end_bio;
- 	bio->bi_iter.bi_sector = physical >> 9;
-+	bio->bi_rw |= rw;
- #ifdef DEBUG
- 	{
- 		struct rcu_string *name;
-@@ -6017,9 +6017,9 @@ static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
- 	btrfs_bio_counter_inc_noblocked(root->fs_info);
- 
- 	if (async)
--		btrfs_schedule_bio(root, dev, rw, bio);
-+		btrfs_schedule_bio(root, dev, bio);
- 	else
--		btrfsic_submit_bio(rw, bio);
-+		btrfsic_submit_bio(bio);
- }
- 
- static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
-diff --git a/fs/buffer.c b/fs/buffer.c
-index af0d9a8..7ed7869 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -3030,8 +3030,9 @@ static int submit_bh_wbc(int rw, struct buffer_head *bh,
- 		rw |= REQ_META;
- 	if (buffer_prio(bh))
- 		rw |= REQ_PRIO;
-+	bio->bi_rw = rw;
- 
--	submit_bio(rw, bio);
-+	submit_bio(bio);
- 	return 0;
- }
- 
-diff --git a/fs/crypto/crypto.c b/fs/crypto/crypto.c
-index 2fc8c43..5b75856 100644
---- a/fs/crypto/crypto.c
-+++ b/fs/crypto/crypto.c
-@@ -318,6 +318,7 @@ int fscrypt_zeroout_range(struct inode *inode, pgoff_t lblk,
- 		bio->bi_bdev = inode->i_sb->s_bdev;
- 		bio->bi_iter.bi_sector =
- 			pblk << (inode->i_sb->s_blocksize_bits - 9);
-+		bio->bi_rw = WRITE;
- 		ret = bio_add_page(bio, ciphertext_page,
- 					inode->i_sb->s_blocksize, 0);
- 		if (ret != inode->i_sb->s_blocksize) {
-@@ -327,7 +328,7 @@ int fscrypt_zeroout_range(struct inode *inode, pgoff_t lblk,
- 			err = -EIO;
- 			goto errout;
- 		}
--		err = submit_bio_wait(WRITE, bio);
-+		err = submit_bio_wait(bio);
- 		if ((err == 0) && bio->bi_error)
- 			err = -EIO;
- 		bio_put(bio);
-diff --git a/fs/direct-io.c b/fs/direct-io.c
-index 4720377..1890ad2 100644
---- a/fs/direct-io.c
-+++ b/fs/direct-io.c
-@@ -374,6 +374,7 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
- 
- 	bio->bi_bdev = bdev;
- 	bio->bi_iter.bi_sector = first_sector;
-+	bio->bi_rw = dio->rw;
- 	if (dio->is_async)
- 		bio->bi_end_io = dio_bio_end_aio;
- 	else
-@@ -411,7 +412,7 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
- 			       sdio->logical_offset_in_bio);
- 		dio->bio_cookie = BLK_QC_T_NONE;
- 	} else
--		dio->bio_cookie = submit_bio(dio->rw, bio);
-+		dio->bio_cookie = submit_bio(bio);
- 
- 	sdio->bio = NULL;
- 	sdio->boundary = 0;
-diff --git a/fs/ext4/crypto.c b/fs/ext4/crypto.c
-index 6a6c273..811bd5d 100644
---- a/fs/ext4/crypto.c
-+++ b/fs/ext4/crypto.c
-@@ -428,6 +428,7 @@ int ext4_encrypted_zeroout(struct inode *inode, ext4_lblk_t lblk,
- 		bio->bi_bdev = inode->i_sb->s_bdev;
- 		bio->bi_iter.bi_sector =
- 			pblk << (inode->i_sb->s_blocksize_bits - 9);
-+		bio->bi_rw = WRITE;
- 		ret = bio_add_page(bio, ciphertext_page,
- 				   inode->i_sb->s_blocksize, 0);
- 		if (ret != inode->i_sb->s_blocksize) {
-@@ -439,7 +440,7 @@ int ext4_encrypted_zeroout(struct inode *inode, ext4_lblk_t lblk,
- 			err = -EIO;
- 			goto errout;
- 		}
--		err = submit_bio_wait(WRITE, bio);
-+		err = submit_bio_wait(bio);
- 		if ((err == 0) && bio->bi_error)
- 			err = -EIO;
- 		bio_put(bio);
-diff --git a/fs/ext4/page-io.c b/fs/ext4/page-io.c
-index e4fc8ea..e945b31 100644
---- a/fs/ext4/page-io.c
-+++ b/fs/ext4/page-io.c
-@@ -343,7 +343,8 @@ void ext4_io_submit(struct ext4_io_submit *io)
- 		int io_op = io->io_wbc->sync_mode == WB_SYNC_ALL ?
- 			    WRITE_SYNC : WRITE;
- 		bio_get(io->io_bio);
--		submit_bio(io_op, io->io_bio);
-+		io->io_bio->bi_rw = io_op;
-+		submit_bio(io->io_bio);
- 		bio_put(io->io_bio);
- 	}
- 	io->io_bio = NULL;
-diff --git a/fs/ext4/readpage.c b/fs/ext4/readpage.c
-index dc54a4b..130bd45 100644
---- a/fs/ext4/readpage.c
-+++ b/fs/ext4/readpage.c
-@@ -271,7 +271,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
- 		 */
- 		if (bio && (last_block_in_bio != blocks[0] - 1)) {
- 		submit_and_realloc:
--			submit_bio(READ, bio);
-+			submit_bio(bio);
- 			bio = NULL;
- 		}
- 		if (bio == NULL) {
-@@ -294,6 +294,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
- 			bio->bi_iter.bi_sector = blocks[0] << (blkbits - 9);
- 			bio->bi_end_io = mpage_end_io;
- 			bio->bi_private = ctx;
-+			bio->bi_rw = READ;
- 		}
- 
- 		length = first_hole << blkbits;
-@@ -303,14 +304,14 @@ int ext4_mpage_readpages(struct address_space *mapping,
- 		if (((map.m_flags & EXT4_MAP_BOUNDARY) &&
- 		     (relative_block == map.m_len)) ||
- 		    (first_hole != blocks_per_page)) {
--			submit_bio(READ, bio);
-+			submit_bio(bio);
- 			bio = NULL;
- 		} else
- 			last_block_in_bio = blocks[blocks_per_page - 1];
- 		goto next_page;
- 	confused:
- 		if (bio) {
--			submit_bio(READ, bio);
-+			submit_bio(bio);
- 			bio = NULL;
- 		}
- 		if (!PageUptodate(page))
-@@ -323,6 +324,6 @@ int ext4_mpage_readpages(struct address_space *mapping,
- 	}
- 	BUG_ON(pages && !list_empty(pages));
- 	if (bio)
--		submit_bio(READ, bio);
-+		submit_bio(bio);
- 	return 0;
- }
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index c29bcf4..74cf5cb 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -109,8 +109,9 @@ static void __submit_merged_bio(struct f2fs_bio_info *io)
- 		trace_f2fs_submit_read_bio(io->sbi->sb, fio, io->bio);
- 	else
- 		trace_f2fs_submit_write_bio(io->sbi->sb, fio, io->bio);
-+	io->bio->bi_rw = fio->rw;
- 
--	submit_bio(fio->rw, io->bio);
-+	submit_bio(io->bio);
- 	io->bio = NULL;
- }
- 
-@@ -227,8 +228,9 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
- 		bio_put(bio);
- 		return -EFAULT;
- 	}
-+	bio->bi_rw = fio->rw;
- 
--	submit_bio(fio->rw, bio);
-+	submit_bio(bio);
- 	return 0;
- }
- 
-@@ -983,7 +985,7 @@ got_it:
- 		 */
- 		if (bio && (last_block_in_bio != block_nr - 1)) {
- submit_and_realloc:
--			submit_bio(READ, bio);
-+			submit_bio(bio);
- 			bio = NULL;
- 		}
- 		if (bio == NULL) {
-@@ -1012,6 +1014,7 @@ submit_and_realloc:
- 			bio->bi_iter.bi_sector = SECTOR_FROM_BLOCK(block_nr);
- 			bio->bi_end_io = f2fs_read_end_io;
- 			bio->bi_private = ctx;
-+			bio->bi_rw = READ;
- 		}
- 
- 		if (bio_add_page(bio, page, blocksize, 0) < blocksize)
-@@ -1026,7 +1029,7 @@ set_error_page:
- 		goto next_page;
- confused:
- 		if (bio) {
--			submit_bio(READ, bio);
-+			submit_bio(bio);
- 			bio = NULL;
- 		}
- 		unlock_page(page);
-@@ -1036,7 +1039,7 @@ next_page:
- 	}
- 	BUG_ON(pages && !list_empty(pages));
- 	if (bio)
--		submit_bio(READ, bio);
-+		submit_bio(bio);
- 	return 0;
- }
- 
-diff --git a/fs/f2fs/segment.c b/fs/f2fs/segment.c
-index 299c784..0928d57 100644
---- a/fs/f2fs/segment.c
-+++ b/fs/f2fs/segment.c
-@@ -404,7 +404,8 @@ repeat:
- 		fcc->dispatch_list = llist_reverse_order(fcc->dispatch_list);
- 
- 		bio->bi_bdev = sbi->sb->s_bdev;
--		ret = submit_bio_wait(WRITE_FLUSH, bio);
-+		bio->bi_rw = WRITE_FLUSH;
-+		ret = submit_bio_wait(bio);
- 
- 		llist_for_each_entry_safe(cmd, next,
- 					  fcc->dispatch_list, llnode) {
-@@ -436,7 +437,8 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
- 		int ret;
- 
- 		bio->bi_bdev = sbi->sb->s_bdev;
--		ret = submit_bio_wait(WRITE_FLUSH, bio);
-+		bio->bi_rw = WRITE_FLUSH;
-+		ret = submit_bio_wait(bio);
- 		bio_put(bio);
- 		return ret;
- 	}
-diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
-index d5369a1..ce28242 100644
---- a/fs/gfs2/lops.c
-+++ b/fs/gfs2/lops.c
-@@ -240,7 +240,8 @@ void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw)
- {
- 	if (sdp->sd_log_bio) {
- 		atomic_inc(&sdp->sd_log_in_flight);
--		submit_bio(rw, sdp->sd_log_bio);
-+		sdp->sd_log_bio->bi_rw = rw;
-+		submit_bio(sdp->sd_log_bio);
- 		sdp->sd_log_bio = NULL;
- 	}
- }
-diff --git a/fs/gfs2/meta_io.c b/fs/gfs2/meta_io.c
-index 0448524..f8d33e8 100644
---- a/fs/gfs2/meta_io.c
-+++ b/fs/gfs2/meta_io.c
-@@ -230,7 +230,8 @@ static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
- 		bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
- 	}
- 	bio->bi_end_io = gfs2_meta_read_endio;
--	submit_bio(rw, bio);
-+	bio->bi_rw = rw;
-+	submit_bio(bio);
- }
- 
- /**
-diff --git a/fs/gfs2/ops_fstype.c b/fs/gfs2/ops_fstype.c
-index 49b0bff..141b560 100644
---- a/fs/gfs2/ops_fstype.c
-+++ b/fs/gfs2/ops_fstype.c
-@@ -246,7 +246,8 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
- 
- 	bio->bi_end_io = end_bio_io_page;
- 	bio->bi_private = page;
--	submit_bio(READ_SYNC | REQ_META, bio);
-+	bio->bi_rw = READ_SYNC | REQ_META;
-+	submit_bio(bio);
- 	wait_on_page_locked(page);
- 	bio_put(bio);
- 	if (!PageUptodate(page)) {
-diff --git a/fs/hfsplus/wrapper.c b/fs/hfsplus/wrapper.c
-index cc62356..d026bb3 100644
---- a/fs/hfsplus/wrapper.c
-+++ b/fs/hfsplus/wrapper.c
-@@ -65,6 +65,7 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
- 	bio = bio_alloc(GFP_NOIO, 1);
- 	bio->bi_iter.bi_sector = sector;
- 	bio->bi_bdev = sb->s_bdev;
-+	bio->bi_rw = rw;
- 
- 	if (!(rw & WRITE) && data)
- 		*data = (u8 *)buf + offset;
-@@ -83,7 +84,7 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
- 		buf = (u8 *)buf + len;
- 	}
- 
--	ret = submit_bio_wait(rw, bio);
-+	ret = submit_bio_wait(bio);
- out:
- 	bio_put(bio);
- 	return ret < 0 ? ret : 0;
-diff --git a/fs/jfs/jfs_logmgr.c b/fs/jfs/jfs_logmgr.c
-index 63759d7..3ee3f32 100644
---- a/fs/jfs/jfs_logmgr.c
-+++ b/fs/jfs/jfs_logmgr.c
-@@ -2002,12 +2002,13 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
- 
- 	bio->bi_end_io = lbmIODone;
- 	bio->bi_private = bp;
-+	bio->bi_rw = READ_SYNC;
- 	/*check if journaling to disk has been disabled*/
- 	if (log->no_integrity) {
- 		bio->bi_iter.bi_size = 0;
- 		lbmIODone(bio);
- 	} else {
--		submit_bio(READ_SYNC, bio);
-+		submit_bio(bio);
- 	}
- 
- 	wait_event(bp->l_ioevent, (bp->l_flag != lbmREAD));
-@@ -2145,13 +2146,14 @@ static void lbmStartIO(struct lbuf * bp)
- 
- 	bio->bi_end_io = lbmIODone;
- 	bio->bi_private = bp;
-+	bio->bi_rw = WRITE_SYNC;
- 
- 	/* check if journaling to disk has been disabled */
- 	if (log->no_integrity) {
- 		bio->bi_iter.bi_size = 0;
- 		lbmIODone(bio);
- 	} else {
--		submit_bio(WRITE_SYNC, bio);
-+		submit_bio(bio);
- 		INCREMENT(lmStat.submitted);
- 	}
- }
-diff --git a/fs/jfs/jfs_metapage.c b/fs/jfs/jfs_metapage.c
-index b60e015..9725443 100644
---- a/fs/jfs/jfs_metapage.c
-+++ b/fs/jfs/jfs_metapage.c
-@@ -411,7 +411,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
- 			inc_io(page);
- 			if (!bio->bi_iter.bi_size)
- 				goto dump_bio;
--			submit_bio(WRITE, bio);
-+			submit_bio(bio);
- 			nr_underway++;
- 			bio = NULL;
- 		} else
-@@ -434,6 +434,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
- 		bio->bi_iter.bi_sector = pblock << (inode->i_blkbits - 9);
- 		bio->bi_end_io = metapage_write_end_io;
- 		bio->bi_private = page;
-+		bio->bi_rw = WRITE;
- 
- 		/* Don't call bio_add_page yet, we may add to this vec */
- 		bio_offset = offset;
-@@ -448,7 +449,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
- 		if (!bio->bi_iter.bi_size)
- 			goto dump_bio;
- 
--		submit_bio(WRITE, bio);
-+		submit_bio(bio);
- 		nr_underway++;
- 	}
- 	if (redirty)
-@@ -506,7 +507,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
- 				insert_metapage(page, NULL);
- 			inc_io(page);
- 			if (bio)
--				submit_bio(READ, bio);
-+				submit_bio(bio);
- 
- 			bio = bio_alloc(GFP_NOFS, 1);
- 			bio->bi_bdev = inode->i_sb->s_bdev;
-@@ -514,6 +515,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
- 				pblock << (inode->i_blkbits - 9);
- 			bio->bi_end_io = metapage_read_end_io;
- 			bio->bi_private = page;
-+			bio->bi_rw = READ;
- 			len = xlen << inode->i_blkbits;
- 			offset = block_offset << inode->i_blkbits;
- 			if (bio_add_page(bio, page, len, offset) < len)
-@@ -523,7 +525,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
- 			block_offset++;
- 	}
- 	if (bio)
--		submit_bio(READ, bio);
-+		submit_bio(bio);
- 	else
- 		unlock_page(page);
- 
-diff --git a/fs/logfs/dev_bdev.c b/fs/logfs/dev_bdev.c
-index cc26f8f..29704bd 100644
---- a/fs/logfs/dev_bdev.c
-+++ b/fs/logfs/dev_bdev.c
-@@ -29,8 +29,9 @@ static int sync_request(struct page *page, struct block_device *bdev, int rw)
- 	bio.bi_bdev = bdev;
- 	bio.bi_iter.bi_sector = page->index * (PAGE_SIZE >> 9);
- 	bio.bi_iter.bi_size = PAGE_SIZE;
-+	bio.bi_rw = rw;
- 
--	return submit_bio_wait(rw, &bio);
-+	return submit_bio_wait(&bio);
- }
- 
- static int bdev_readpage(void *_sb, struct page *page)
-@@ -95,8 +96,9 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
- 			bio->bi_iter.bi_sector = ofs >> 9;
- 			bio->bi_private = sb;
- 			bio->bi_end_io = writeseg_end_io;
-+			bio->bi_rw = WRITE;
- 			atomic_inc(&super->s_pending_writes);
--			submit_bio(WRITE, bio);
-+			submit_bio(bio);
- 
- 			ofs += i * PAGE_SIZE;
- 			index += i;
-@@ -122,8 +124,9 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
- 	bio->bi_iter.bi_sector = ofs >> 9;
- 	bio->bi_private = sb;
- 	bio->bi_end_io = writeseg_end_io;
-+	bio->bi_rw = WRITE;
- 	atomic_inc(&super->s_pending_writes);
--	submit_bio(WRITE, bio);
-+	submit_bio(bio);
- 	return 0;
- }
- 
-@@ -185,8 +188,9 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
- 			bio->bi_iter.bi_sector = ofs >> 9;
- 			bio->bi_private = sb;
- 			bio->bi_end_io = erase_end_io;
-+			bio->bi_rw = WRITE;
- 			atomic_inc(&super->s_pending_writes);
--			submit_bio(WRITE, bio);
-+			submit_bio(bio);
- 
- 			ofs += i * PAGE_SIZE;
- 			index += i;
-@@ -206,8 +210,9 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
- 	bio->bi_iter.bi_sector = ofs >> 9;
- 	bio->bi_private = sb;
- 	bio->bi_end_io = erase_end_io;
-+	bio->bi_rw = WRITE;
- 	atomic_inc(&super->s_pending_writes);
--	submit_bio(WRITE, bio);
-+	submit_bio(bio);
- 	return 0;
- }
- 
-diff --git a/fs/mpage.c b/fs/mpage.c
-index eedc644..2c251ec 100644
---- a/fs/mpage.c
-+++ b/fs/mpage.c
-@@ -59,8 +59,9 @@ static void mpage_end_io(struct bio *bio)
- static struct bio *mpage_bio_submit(int rw, struct bio *bio)
- {
- 	bio->bi_end_io = mpage_end_io;
-+	bio->bi_rw = rw;
- 	guard_bio_eod(rw, bio);
--	submit_bio(rw, bio);
-+	submit_bio(bio);
- 	return NULL;
- }
- 
-diff --git a/fs/nfs/blocklayout/blocklayout.c b/fs/nfs/blocklayout/blocklayout.c
-index 17a42e4..4c79f4d 100644
---- a/fs/nfs/blocklayout/blocklayout.c
-+++ b/fs/nfs/blocklayout/blocklayout.c
-@@ -102,14 +102,15 @@ static inline void put_parallel(struct parallel_io *p)
- }
- 
- static struct bio *
--bl_submit_bio(int rw, struct bio *bio)
-+bl_submit_bio(struct bio *bio)
- {
- 	if (bio) {
- 		get_parallel(bio->bi_private);
- 		dprintk("%s submitting %s bio %u@%llu\n", __func__,
--			rw == READ ? "read" : "write", bio->bi_iter.bi_size,
-+			bio->bi_rw == READ ? "read" : "write",
-+			bio->bi_iter.bi_size,
- 			(unsigned long long)bio->bi_iter.bi_sector);
--		submit_bio(rw, bio);
-+		submit_bio(bio);
- 	}
- 	return NULL;
- }
-@@ -158,7 +159,7 @@ do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
- 	if (disk_addr < map->start || disk_addr >= map->start + map->len) {
- 		if (!dev->map(dev, disk_addr, map))
- 			return ERR_PTR(-EIO);
--		bio = bl_submit_bio(rw, bio);
-+		bio = bl_submit_bio(bio);
- 	}
- 	disk_addr += map->disk_offset;
- 	disk_addr -= map->start;
-@@ -174,9 +175,10 @@ retry:
- 				disk_addr >> SECTOR_SHIFT, end_io, par);
- 		if (!bio)
- 			return ERR_PTR(-ENOMEM);
-+		bio->bi_rw = rw;
- 	}
- 	if (bio_add_page(bio, page, *len, offset) < *len) {
--		bio = bl_submit_bio(rw, bio);
-+		bio = bl_submit_bio(bio);
- 		goto retry;
- 	}
- 	return bio;
-@@ -252,7 +254,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
- 	for (i = pg_index; i < header->page_array.npages; i++) {
- 		if (extent_length <= 0) {
- 			/* We've used up the previous extent */
--			bio = bl_submit_bio(READ, bio);
-+			bio = bl_submit_bio(bio);
- 
- 			/* Get the next one */
- 			if (!ext_tree_lookup(bl, isect, &be, false)) {
-@@ -273,7 +275,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
- 		}
- 
- 		if (is_hole(&be)) {
--			bio = bl_submit_bio(READ, bio);
-+			bio = bl_submit_bio(bio);
- 			/* Fill hole w/ zeroes w/o accessing device */
- 			dprintk("%s Zeroing page for hole\n", __func__);
- 			zero_user_segment(pages[i], pg_offset, pg_len);
-@@ -306,7 +308,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
- 		header->res.count = (isect << SECTOR_SHIFT) - header->args.offset;
- 	}
- out:
--	bl_submit_bio(READ, bio);
-+	bl_submit_bio(bio);
- 	blk_finish_plug(&plug);
- 	put_parallel(par);
- 	return PNFS_ATTEMPTED;
-@@ -398,7 +400,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
- 	for (i = pg_index; i < header->page_array.npages; i++) {
- 		if (extent_length <= 0) {
- 			/* We've used up the previous extent */
--			bio = bl_submit_bio(WRITE, bio);
-+			bio = bl_submit_bio(bio);
- 			/* Get the next one */
- 			if (!ext_tree_lookup(bl, isect, &be, true)) {
- 				header->pnfs_error = -EINVAL;
-@@ -427,7 +429,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
- 
- 	header->res.count = header->args.count;
- out:
--	bl_submit_bio(WRITE, bio);
-+	bl_submit_bio(bio);
- 	blk_finish_plug(&plug);
- 	put_parallel(par);
- 	return PNFS_ATTEMPTED;
-diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
-index f63620c..7666f1d 100644
---- a/fs/nilfs2/segbuf.c
-+++ b/fs/nilfs2/segbuf.c
-@@ -368,7 +368,8 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
- 
- 	bio->bi_end_io = nilfs_end_bio_write;
- 	bio->bi_private = segbuf;
--	submit_bio(mode, bio);
-+	bio->bi_rw = mode;
-+	submit_bio(bio);
- 	segbuf->sb_nbio++;
- 
- 	wi->bio = NULL;
-diff --git a/fs/ocfs2/cluster/heartbeat.c b/fs/ocfs2/cluster/heartbeat.c
-index 6e04b1a..e37373d 100644
---- a/fs/ocfs2/cluster/heartbeat.c
-+++ b/fs/ocfs2/cluster/heartbeat.c
-@@ -530,7 +530,7 @@ static void o2hb_bio_end_io(struct bio *bio)
- static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
- 				      struct o2hb_bio_wait_ctxt *wc,
- 				      unsigned int *current_slot,
--				      unsigned int max_slots)
-+				      unsigned int max_slots, int rw)
- {
- 	int len, current_page;
- 	unsigned int vec_len, vec_start;
-@@ -556,6 +556,7 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
- 	bio->bi_bdev = reg->hr_bdev;
- 	bio->bi_private = wc;
- 	bio->bi_end_io = o2hb_bio_end_io;
-+	bio->bi_rw = rw;
- 
- 	vec_start = (cs << bits) % PAGE_SIZE;
- 	while(cs < max_slots) {
-@@ -591,7 +592,8 @@ static int o2hb_read_slots(struct o2hb_region *reg,
- 	o2hb_bio_wait_init(&wc);
- 
- 	while(current_slot < max_slots) {
--		bio = o2hb_setup_one_bio(reg, &wc, &current_slot, max_slots);
-+		bio = o2hb_setup_one_bio(reg, &wc, &current_slot, max_slots,
-+					 READ);
- 		if (IS_ERR(bio)) {
- 			status = PTR_ERR(bio);
- 			mlog_errno(status);
-@@ -599,7 +601,7 @@ static int o2hb_read_slots(struct o2hb_region *reg,
- 		}
- 
- 		atomic_inc(&wc.wc_num_reqs);
--		submit_bio(READ, bio);
-+		submit_bio(bio);
- 	}
- 
- 	status = 0;
-@@ -623,7 +625,7 @@ static int o2hb_issue_node_write(struct o2hb_region *reg,
- 
- 	slot = o2nm_this_node();
- 
--	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1);
-+	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1, WRITE_SYNC);
- 	if (IS_ERR(bio)) {
- 		status = PTR_ERR(bio);
- 		mlog_errno(status);
-@@ -631,7 +633,7 @@ static int o2hb_issue_node_write(struct o2hb_region *reg,
- 	}
- 
- 	atomic_inc(&write_wc->wc_num_reqs);
--	submit_bio(WRITE_SYNC, bio);
-+	submit_bio(bio);
- 
- 	status = 0;
- bail:
-diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index e5c3a45..5852c5a 100644
---- a/fs/xfs/xfs_aops.c
-+++ b/fs/xfs/xfs_aops.c
-@@ -439,7 +439,10 @@ xfs_submit_ioend(
- 
- 	ioend->io_bio->bi_private = ioend;
- 	ioend->io_bio->bi_end_io = xfs_end_bio;
--
-+	if (wbc->sync_mode)
-+		ioend->io_bio->bi_rw = WRITE_SYNC;
-+	else
-+		ioend->io_bio->bi_rw = WRITE;
- 	/*
- 	 * If we are failing the IO now, just mark the ioend with an
- 	 * error and finish it. This will run IO completion immediately
-@@ -452,8 +455,7 @@ xfs_submit_ioend(
- 		return status;
- 	}
- 
--	submit_bio(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE,
--		   ioend->io_bio);
-+	submit_bio(ioend->io_bio);
- 	return 0;
- }
- 
-@@ -511,8 +513,11 @@ xfs_chain_bio(
- 
- 	bio_chain(ioend->io_bio, new);
- 	bio_get(ioend->io_bio);		/* for xfs_destroy_ioend */
--	submit_bio(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE,
--		   ioend->io_bio);
-+	if (wbc->sync_mode)
-+		ioend->io_bio->bi_rw = WRITE_SYNC;
-+	else
-+		ioend->io_bio->bi_rw = WRITE;
-+	submit_bio(ioend->io_bio);
- 	ioend->io_bio = new;
- }
- 
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index 9a2191b..079bb77 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -1170,7 +1170,7 @@ next_chunk:
- 	bio->bi_iter.bi_sector = sector;
- 	bio->bi_end_io = xfs_buf_bio_end_io;
- 	bio->bi_private = bp;
--
-+	bio->bi_rw = rw;
- 
- 	for (; size && nr_pages; nr_pages--, page_index++) {
- 		int	rbytes, nbytes = PAGE_SIZE - offset;
-@@ -1194,7 +1194,7 @@ next_chunk:
- 			flush_kernel_vmap_range(bp->b_addr,
- 						xfs_buf_vmap_len(bp));
- 		}
--		submit_bio(rw, bio);
-+		submit_bio(bio);
- 		if (size)
- 			goto next_chunk;
- 	} else {
+diff --git a/drivers/staging/lustre/lustre/llite/lloop.c b/drivers/staging/lustre/lustre/llite/lloop.c
+index f169c0d..e602389 100644
+--- a/drivers/staging/lustre/lustre/llite/lloop.c
++++ b/drivers/staging/lustre/lustre/llite/lloop.c
+@@ -211,9 +211,9 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
+ 		return io->ci_result;
+ 	io->ci_lockreq = CILR_NEVER;
+ 
+-	rw = head->bi_rw;
++	rw = bio_data_dir(head);
+ 	for (bio = head; bio ; bio = bio->bi_next) {
+-		LASSERT(rw == bio->bi_rw);
++		LASSERT(rw == bio_data_dir(bio));
+ 
+ 		offset = (pgoff_t)(bio->bi_iter.bi_sector << 9) + lo->lo_offset;
+ 		bio_for_each_segment(bvec, bio, iter) {
+@@ -304,7 +304,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
+ 	/* TODO: need to split the bio, too bad. */
+ 	LASSERT(first->bi_vcnt <= LLOOP_MAX_SEGMENTS);
+ 
+-	rw = first->bi_rw;
++	rw = bio_data_dir(first);
+ 	bio = &lo->lo_bio;
+ 	while (*bio && (*bio)->bi_rw == rw) {
+ 		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u\n",
 diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 6b7481f..4724810 100644
+index 4724810..9e7b18b 100644
 --- a/include/linux/bio.h
 +++ b/include/linux/bio.h
-@@ -473,7 +473,7 @@ static inline void bio_io_error(struct bio *bio)
- struct request_queue;
- extern int bio_phys_segments(struct request_queue *, struct bio *);
+@@ -106,18 +106,23 @@ static inline bool bio_has_data(struct bio *bio)
+ {
+ 	if (bio &&
+ 	    bio->bi_iter.bi_size &&
+-	    !(bio->bi_rw & REQ_DISCARD))
++	    !(bio->bi_op == REQ_OP_DISCARD))
+ 		return true;
  
--extern int submit_bio_wait(int rw, struct bio *bio);
-+extern int submit_bio_wait(struct bio *bio);
- extern void bio_advance(struct bio *, unsigned);
+ 	return false;
+ }
  
- extern void bio_init(struct bio *);
++static inline bool bio_no_advance_iter(struct bio *bio)
++{
++	return bio->bi_op == REQ_OP_DISCARD || bio->bi_op == REQ_OP_WRITE_SAME;
++}
++
+ static inline bool bio_is_rw(struct bio *bio)
+ {
+ 	if (!bio_has_data(bio))
+ 		return false;
+ 
+-	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
++	if (bio_no_advance_iter(bio))
+ 		return false;
+ 
+ 	return true;
+@@ -225,7 +230,7 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+ {
+ 	iter->bi_sector += bytes >> 9;
+ 
+-	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
++	if (bio_no_advance_iter(bio))
+ 		iter->bi_size -= bytes;
+ 	else
+ 		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
+@@ -253,10 +258,10 @@ static inline unsigned bio_segments(struct bio *bio)
+ 	 * differently:
+ 	 */
+ 
+-	if (bio->bi_rw & REQ_DISCARD)
++	if (bio->bi_op == REQ_OP_DISCARD)
+ 		return 1;
+ 
+-	if (bio->bi_rw & REQ_WRITE_SAME)
++	if (bio->bi_op == REQ_OP_WRITE_SAME)
+ 		return 1;
+ 
+ 	bio_for_each_segment(bv, bio, iter)
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index e3c0b7e..69bdd03 100644
+index f3f2f66..9becf20 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -2704,7 +2704,7 @@ static inline void remove_inode_hash(struct inode *inode)
- extern void inode_sb_list_add(struct inode *inode);
+@@ -2466,33 +2466,24 @@ static inline bool op_is_write(int op)
+ }
  
- #ifdef CONFIG_BLOCK
--extern blk_qc_t submit_bio(int, struct bio *);
-+extern blk_qc_t submit_bio(struct bio *);
- extern int bdev_read_only(struct block_device *);
- #endif
- extern int set_blocksize(struct block_device *, int);
-diff --git a/kernel/power/swap.c b/kernel/power/swap.c
-index 12cd989..4d050eb 100644
---- a/kernel/power/swap.c
-+++ b/kernel/power/swap.c
-@@ -260,6 +260,7 @@ static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
- 	bio = bio_alloc(__GFP_RECLAIM | __GFP_HIGH, 1);
- 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
- 	bio->bi_bdev = hib_resume_bdev;
-+	bio->bi_rw = rw;
- 
- 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
- 		printk(KERN_ERR "PM: Adding page to bio failed at %llu\n",
-@@ -272,9 +273,9 @@ static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
- 		bio->bi_end_io = hib_end_io;
- 		bio->bi_private = hb;
- 		atomic_inc(&hb->count);
--		submit_bio(rw, bio);
-+		submit_bio(bio);
- 	} else {
--		error = submit_bio_wait(rw, bio);
-+		error = submit_bio_wait(bio);
- 		bio_put(bio);
- 	}
- 
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 985f23c..85cc7e1 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -259,7 +259,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
- 		bio_end_io_t end_write_func)
+ /*
+- * return READ, READA, or WRITE
++ * return data direction, READ or WRITE
+  */
+-static inline int bio_rw(struct bio *bio)
++static inline int bio_data_dir(struct bio *bio)
  {
- 	struct bio *bio;
--	int ret, rw = WRITE;
-+	int ret;
- 	struct swap_info_struct *sis = page_swap_info(page);
+-	/*
+-	 * tmp cpmpat. Allow users to set either op or rw, until
+-	 * all code is converted in the next patches.
+-	 */
+ 	if (op_is_write(bio->bi_op))
+ 		return WRITE;
+-
+-	return bio->bi_rw & (RW_MASK | RWA_MASK);
++	return READ;
+ }
  
- 	if (sis->flags & SWP_FILE) {
-@@ -317,12 +317,13 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
- 		ret = -ENOMEM;
- 		goto out;
- 	}
-+	bio->bi_rw = WRITE;
- 	if (wbc->sync_mode == WB_SYNC_ALL)
--		rw |= REQ_SYNC;
-+		bio->bi_rw |= REQ_SYNC;
- 	count_vm_event(PSWPOUT);
- 	set_page_writeback(page);
- 	unlock_page(page);
--	submit_bio(rw, bio);
-+	submit_bio(bio);
- out:
- 	return ret;
+ /*
+- * return data direction, READ or WRITE
++ * return READ, READA, or WRITE
+  */
+-static inline int bio_data_dir(struct bio *bio)
++static inline int bio_rw(struct bio *bio)
+ {
+-	/*
+-	 * tmp cpmpat. Allow users to set either op or rw, until
+-	 * all code is converted in the next patches.
+-	 */
+-	if (op_is_write(bio->bi_op))
+-		return WRITE;
++	if (bio->bi_rw & RWA_MASK)
++		return READA;
+ 
+-	return bio->bi_rw & 1;
++	return bio_data_dir(bio);
  }
-@@ -369,8 +370,9 @@ int swap_readpage(struct page *page)
- 		ret = -ENOMEM;
- 		goto out;
- 	}
-+	bio->bi_rw = READ;
- 	count_vm_event(PSWPIN);
--	submit_bio(READ, bio);
-+	submit_bio(bio);
- out:
- 	return ret;
- }
+ 
+ extern void check_disk_size_change(struct gendisk *disk,
 -- 
 2.7.2
 
