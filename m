@@ -1,31 +1,29 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com
-	[209.85.213.169]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Return-Path: <msnitzer@redhat.com>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 481831056446
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 16:16:59 +0200 (CEST)
-Received: by mail-ig0-f169.google.com with SMTP id f1so148942733igr.1
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Apr 2016 07:16:59 -0700 (PDT)
-To: Ming Lei <ming.lei@canonical.com>, Jens Axboe <axboe@fb.com>,
-	linux-kernel@vger.kernel.org
-References: <1460634438-26530-1-git-send-email-ming.lei@canonical.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <570FA4F7.6020301@kernel.dk>
-Date: Thu, 14 Apr 2016 08:11:03 -0600
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B77011056446
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2016 21:44:35 +0200 (CEST)
+Date: Fri, 15 Apr 2016 15:44:32 -0400
+From: Mike Snitzer <snitzer@redhat.com>
+To: mchristi@redhat.com
+Message-ID: <20160415194432.GA30077@redhat.com>
+References: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1460634438-26530-1-git-send-email-ming.lei@canonical.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
-Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>,
-	Mike Snitzer <snitzer@redhat.com>,
-	"open list:XFS FILESYSTEM" <xfs@oss.sgi.com>,
-	linux-block@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>,
-	Shaohua Li <shli@fb.com>, Tejun Heo <tj@kernel.org>,
-	Keith Busch <keith.busch@intel.com>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH v4 0/8] block: prepare for multipage bvecs
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
+Cc: linux-bcache@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com,
+	ocfs2-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
+	konrad.wilk@oracle.com, linux-kernel@vger.kernel.org,
+	philipp.reisner@linbit.com, linux-f2fs-devel@lists.sourceforge.net,
+	linux-raid@vger.kernel.org, dm-devel@redhat.com,
+	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	osd-dev@open-osd.org, linux-fsdevel@vger.kernel.org,
+	lars.ellenberg@linbit.com, linux-ext4@vger.kernel.org,
+	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 00/42] v7: separate operations from flags in
+ the bio/request structs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,32 +35,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 04/14/2016 05:46 AM, Ming Lei wrote:
-> Hi,
->
-> Interests[1] have been shown in multipage bvecs, so this patchset
-> try to prepare for the support and do two things:
->
-> 1) the 1st 4 patches use bvec iterator to implement iterate_bvec(),
-> then we can drop the non-standard way for iterating bvec, which
-> can be thought as a good cleanup for lib/iov_iter.c
->
-> 2) remove BIO_MAX_SECTORS & BIO_MAX_SIZE, and now there is only
-> one user for each. Once multipage bvecs is introduced, one bio
-> may hold lots of sectors, and we should always use sort of BIO_MAX_VECS
-> which should be introduced in future and is similiar with current
-> BIO_MAX_PAGES.
->
-> xfstests(-a auto) have been run over ext4/xfs and no regression found
-> by this patchset.
+On Fri, Apr 15 2016 at  3:15pm -0400,
+mchristi@redhat.com <mchristi@redhat.com> wrote:
 
-We've had too many disasters in the block layer the last few series, I'm 
-making the 4.7 round a nice and small one. I don't mind taking prep 
-patches for the multipage bvecs, if they are simple and clean, but 
-that's about the extent of it.
+> The following patches begin to cleanup the request->cmd_flags and
+> bio->bi_rw mess. We currently use cmd_flags to specify the operation,
+> attributes and state of the request. For bi_rw we use it for similar
+> info and also the priority but then also have another bi_flags field
+> for state. At some point, we abused them so much we just made cmd_flags
+> 64 bits, so we could add more.
+> 
+> The following patches seperate the operation (read, write discard,
+> flush, etc) from cmd_flags/bi_rw.
+> 
+> This patchset was made against linux-next from today April 15
+> (git tag next-20160415).
+> 
+> I put a git tree here:
+> https://github.com/mikechristie/linux-kernel.git
+> The patches are in the op branch.
+> 
+> v7:
+> 1. Fix broken feature_flush/fua use.
+> 
+> v6 and maybe hopfully the last version:
+> 1. Adapt patch 41 to Jens's QUEUE_FLAG_WC/FUA patchset.
 
-Just a heads up.
+Why are you blasting out the entire patchset for updates to individual
+patches at the end of the series?
 
--- 
-Jens Axboe
+Mail is cheap but look at how wide you're repeatedly spamming this
+series.
 
+Also, look at what you've done to the dm-devel patchwork:
+https://patchwork.kernel.org/project/dm-devel/list/?state=*
+
+Just sayin'... ;)
