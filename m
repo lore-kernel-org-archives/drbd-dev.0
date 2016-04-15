@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id F23691056463
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3A2C31056464
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:20 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id E754D40C567
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 1E34940C567
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:20 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id jATOQOX8sT8H for <drbd-dev@lists.linbit.com>;
-	Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
+	with ESMTP id SYFjwvFGJ4tQ for <drbd-dev@lists.linbit.com>;
+	Thu, 21 Apr 2016 10:35:20 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id C751040C568
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id CAC8940C568
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:19 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id zG-CppSRpcmR for <drbd-dev@lists.linbit.com>;
-	Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
+	with ESMTP id k9WosoNl9Wkg for <drbd-dev@lists.linbit.com>;
+	Thu, 21 Apr 2016 10:35:19 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 8CD0540C567
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:17 +0200 (CEST)
-Resent-Message-ID: <20160421083517.GP3078@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 1D71140C567
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 10:35:19 +0200 (CEST)
+Resent-Message-ID: <20160421083518.GQ3078@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DF23F1056446
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2016 21:27:52 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3F8521056453
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2016 21:24:11 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,13 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Fri, 15 Apr 2016 14:16:12 -0500
-Message-Id: <1460747777-8479-38-git-send-email-mchristi@redhat.com>
+Date: Fri, 15 Apr 2016 14:15:57 -0500
+Message-Id: <1460747777-8479-23-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
 References: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 37/42] block, fs,
-	drivers: do use bi_rw/cmd_flags for REQ_OPs.
+Subject: [Drbd-dev] [PATCH 22/42] drbd: set bi_op to REQ_OP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -57,902 +56,313 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-We no longer use the bio->bi_rw and request->cmd_flags field for REQ_OPs:
-REQ_WRITE, REQ_DISCARD, REQ_WRITE_SAME, so this patch stops checking
-for them in bi_rw/cmd_flags and also removes the related compat code.
+This patch has drbd use bio->bi_op for REQ_OPs and rq_flag_bits
+to bio->bi_rw.
 
-v2:
+Lars and Philip, I might have split this patch up a little weird.
+The block layer has compat so you can set either bi_rw or bi_op.
+This patch handles setting up the bio in drbd. I then converted
+all the block device drivers and in
+0037-block-fs-drivers-do-not-test-bi_rw-for-REQ_OPs.patch I modified
+the bi_rw checks so they use bi_op.
 
-1. Remove compat code in __get_request.
+This patch is compile tested only.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- block/bio.c                                 |  6 ++---
- block/blk-core.c                            | 34 ++++++++---------------------
- block/blk-merge.c                           | 14 ++++++------
- block/blk-mq.c                              |  3 +--
- drivers/ata/libata-scsi.c                   |  2 +-
- drivers/block/brd.c                         |  2 +-
- drivers/block/drbd/drbd_main.c              | 15 +++++++------
- drivers/block/drbd/drbd_worker.c            |  4 ++--
- drivers/block/loop.c                        |  6 ++---
- drivers/block/rbd.c                         |  2 +-
- drivers/block/rsxx/dma.c                    |  2 +-
- drivers/block/umem.c                        |  2 +-
- drivers/block/zram/zram_drv.c               |  2 +-
- drivers/ide/ide-floppy.c                    |  2 +-
- drivers/lightnvm/rrpc.c                     |  2 +-
- drivers/md/bcache/request.c                 | 10 ++++-----
- drivers/md/dm-cache-target.c                | 10 +++++----
- drivers/md/dm-crypt.c                       |  2 +-
- drivers/md/dm-log-writes.c                  |  2 +-
- drivers/md/dm-raid1.c                       |  8 +++----
- drivers/md/dm-region-hash.c                 |  4 ++--
- drivers/md/dm-stripe.c                      |  4 ++--
- drivers/md/dm-thin.c                        | 15 ++++++++-----
- drivers/md/dm.c                             |  6 ++---
- drivers/md/linear.c                         |  2 +-
- drivers/md/raid0.c                          |  2 +-
- drivers/scsi/osd/osd_initiator.c            |  4 ++--
- drivers/staging/lustre/lustre/llite/lloop.c |  6 ++---
- include/linux/bio.h                         | 15 ++++++++-----
- include/linux/fs.h                          | 25 +++++++--------------
- 30 files changed, 99 insertions(+), 114 deletions(-)
+ drivers/block/drbd/drbd_actlog.c   | 29 ++++++++++++++++-------------
+ drivers/block/drbd/drbd_bitmap.c   |  6 +++---
+ drivers/block/drbd/drbd_int.h      |  4 ++--
+ drivers/block/drbd/drbd_main.c     |  5 +++--
+ drivers/block/drbd/drbd_receiver.c | 37 +++++++++++++++++++++++++------------
+ drivers/block/drbd/drbd_worker.c   |  3 ++-
+ 6 files changed, 51 insertions(+), 33 deletions(-)
 
-diff --git a/block/bio.c b/block/bio.c
-index 921de2e..bec5b54 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -675,10 +675,10 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
- 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
- 	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index 6069e15..2fa8534 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -137,19 +137,19 @@ void wait_until_done_or_force_detached(struct drbd_device *device, struct drbd_b
  
--	if (bio->bi_rw & REQ_DISCARD)
-+	if (bio->bi_op == REQ_OP_DISCARD)
- 		goto integrity_clone;
- 
--	if (bio->bi_rw & REQ_WRITE_SAME) {
-+	if (bio->bi_op == REQ_OP_WRITE_SAME) {
- 		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
- 		goto integrity_clone;
- 	}
-@@ -1797,7 +1797,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
- 	 * Discards need a mutable bio_vec to accommodate the payload
- 	 * required by the DSM TRIM and UNMAP commands.
- 	 */
--	if (bio->bi_rw & REQ_DISCARD)
-+	if (bio->bi_op == REQ_OP_DISCARD)
- 		split = bio_clone_bioset(bio, gfp, bs);
- 	else
- 		split = bio_clone_fast(bio, gfp, bs);
-diff --git a/block/blk-core.c b/block/blk-core.c
-index e2f7b0a..ccf2056 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -1151,8 +1151,7 @@ static struct request *__get_request(struct request_list *rl, int op,
- 
- 	blk_rq_init(q, rq);
- 	blk_rq_set_rl(rq, rl);
--	/* tmp compat - allow users to check either one for the op */
--	rq->cmd_flags = op | op_flags | REQ_ALLOCED;
-+	rq->cmd_flags = op_flags | REQ_ALLOCED;
- 	rq->op = op;
- 
- 	/* init elvpriv */
-@@ -1705,8 +1704,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
+ static int _drbd_md_sync_page_io(struct drbd_device *device,
+ 				 struct drbd_backing_dev *bdev,
+-				 sector_t sector, int rw)
++				 sector_t sector, int op)
  {
- 	req->cmd_type = REQ_TYPE_FS;
+ 	struct bio *bio;
+ 	/* we do all our meta data IO in aligned 4k blocks. */
+ 	const int size = 4096;
+-	int err;
++	int err, op_flags = 0;
  
--	/* tmp compat. Allow users to set bi_op or bi_rw */
--	req->cmd_flags |= (bio->bi_rw | bio->bi_op) & REQ_COMMON_MASK;
-+	req->cmd_flags |= bio->bi_rw & REQ_COMMON_MASK;
- 	if (bio->bi_rw & REQ_RAHEAD)
- 		req->cmd_flags |= REQ_FAILFAST_MASK;
+ 	device->md_io.done = 0;
+ 	device->md_io.error = -ENODEV;
  
-@@ -1856,9 +1854,9 @@ static void handle_bad_sector(struct bio *bio)
- 	char b[BDEVNAME_SIZE];
+-	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &device->flags))
+-		rw |= REQ_FUA | REQ_FLUSH;
+-	rw |= REQ_SYNC | REQ_NOIDLE;
++	if ((op == REQ_OP_WRITE) && !test_bit(MD_NO_FUA, &device->flags))
++		op_flags |= REQ_FUA | REQ_FLUSH;
++	op_flags |= REQ_SYNC | REQ_NOIDLE;
  
- 	printk(KERN_INFO "attempt to access beyond end of device\n");
--	printk(KERN_INFO "%s: rw=%ld, want=%Lu, limit=%Lu\n",
-+	printk(KERN_INFO "%s: rw=%d,%ld, want=%Lu, limit=%Lu\n",
- 			bdevname(bio->bi_bdev, b),
--			bio->bi_rw,
-+			bio->bi_op, bio->bi_rw,
- 			(unsigned long long)bio_end_sector(bio),
- 			(long long)(i_size_read(bio->bi_bdev->bd_inode) >> 9));
- }
-@@ -1980,14 +1978,14 @@ generic_make_request_checks(struct bio *bio)
- 		}
- 	}
- 
--	if ((bio->bi_rw & REQ_DISCARD) &&
-+	if ((bio->bi_op == REQ_OP_DISCARD) &&
- 	    (!blk_queue_discard(q) ||
- 	     ((bio->bi_rw & REQ_SECURE) && !blk_queue_secdiscard(q)))) {
- 		err = -EOPNOTSUPP;
- 		goto end_io;
- 	}
- 
--	if (bio->bi_rw & REQ_WRITE_SAME && !bdev_write_same(bio->bi_bdev)) {
-+	if (bio->bi_op == REQ_OP_WRITE_SAME && !bdev_write_same(bio->bi_bdev)) {
- 		err = -EOPNOTSUPP;
- 		goto end_io;
- 	}
-@@ -2041,12 +2039,6 @@ blk_qc_t generic_make_request(struct bio *bio)
- 	struct bio_list bio_list_on_stack;
- 	blk_qc_t ret = BLK_QC_T_NONE;
- 
--	/* tmp compat. Allow users to set either one or both.
--	 * This will be removed when we have converted
--	 * everyone in the next patches.
--	 */
--	bio->bi_rw |= bio->bi_op;
--
- 	if (!generic_make_request_checks(bio))
+ 	bio = bio_alloc_drbd(GFP_NOIO);
+ 	bio->bi_bdev = bdev->md_bdev;
+@@ -159,9 +159,10 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
  		goto out;
+ 	bio->bi_private = device;
+ 	bio->bi_end_io = drbd_md_endio;
+-	bio->bi_rw = rw;
++	bio->bi_op = op;
++	bio->bi_rw = op_flags;
  
-@@ -2116,12 +2108,6 @@ EXPORT_SYMBOL(generic_make_request);
-  */
- blk_qc_t submit_bio(struct bio *bio)
- {
--	/* tmp compat. Allow users to set either one or both.
--	 * This will be removed when we have converted
--	 * everyone in the next patches.
--	 */
--	bio->bi_rw |= bio->bi_op;
--
- 	/*
- 	 * If it's a regular read/write or a barrier with data attached,
- 	 * go through the normal accounting stuff before submission.
-@@ -2129,12 +2115,12 @@ blk_qc_t submit_bio(struct bio *bio)
- 	if (bio_has_data(bio)) {
- 		unsigned int count;
- 
--		if (unlikely(bio->bi_rw & REQ_WRITE_SAME))
-+		if (unlikely(bio->bi_op == REQ_OP_WRITE_SAME))
- 			count = bdev_logical_block_size(bio->bi_bdev) >> 9;
- 		else
- 			count = bio_sectors(bio);
- 
--		if (bio->bi_rw & WRITE) {
-+		if (op_is_write(bio->bi_op)) {
- 			count_vm_events(PGPGOUT, count);
- 		} else {
- 			task_io_account_read(bio->bi_iter.bi_size);
-@@ -2145,7 +2131,7 @@ blk_qc_t submit_bio(struct bio *bio)
- 			char b[BDEVNAME_SIZE];
- 			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
- 			current->comm, task_pid_nr(current),
--				(bio->bi_rw & WRITE) ? "WRITE" : "READ",
-+				op_is_write(bio->bi_op) ? "WRITE" : "READ",
- 				(unsigned long long)bio->bi_iter.bi_sector,
- 				bdevname(bio->bi_bdev, b),
- 				count);
-@@ -2995,8 +2981,6 @@ EXPORT_SYMBOL_GPL(__blk_end_request_err);
- void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
- 		     struct bio *bio)
- {
--	/* tmp compat. Allow users to set bi_op or bi_rw */
--	rq->cmd_flags |= bio_data_dir(bio);
- 	rq->op = bio->bi_op;
- 
- 	if (bio_has_data(bio))
-diff --git a/block/blk-merge.c b/block/blk-merge.c
-index c02371f..31dc0c0 100644
---- a/block/blk-merge.c
-+++ b/block/blk-merge.c
-@@ -172,9 +172,9 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
- 	struct bio *split, *res;
- 	unsigned nsegs;
- 
--	if ((*bio)->bi_rw & REQ_DISCARD)
-+	if ((*bio)->bi_op == REQ_OP_DISCARD)
- 		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
--	else if ((*bio)->bi_rw & REQ_WRITE_SAME)
-+	else if ((*bio)->bi_op == REQ_OP_WRITE_SAME)
- 		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
+-	if (!(rw & WRITE) && device->state.disk == D_DISKLESS && device->ldev == NULL)
++	if (op != REQ_OP_WRITE && device->state.disk == D_DISKLESS && device->ldev == NULL)
+ 		/* special case, drbd_md_read() during drbd_adm_attach(): no get_ldev */
+ 		;
+ 	else if (!get_ldev_if_state(device, D_ATTACHING)) {
+@@ -174,7 +175,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
+ 	bio_get(bio); /* one bio_put() is in the completion handler */
+ 	atomic_inc(&device->md_io.in_use); /* drbd_md_put_buffer() is in the completion handler */
+ 	device->md_io.submit_jif = jiffies;
+-	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
++	if (drbd_insert_fault(device, (op == REQ_OP_WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
+ 		bio_io_error(bio);
  	else
- 		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
-@@ -213,10 +213,10 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
- 	 * This should probably be returning 0, but blk_add_request_payload()
- 	 * (Christoph!!!!)
- 	 */
--	if (bio->bi_rw & REQ_DISCARD)
-+	if (bio->bi_op == REQ_OP_DISCARD)
- 		return 1;
+ 		submit_bio(bio);
+@@ -188,7 +189,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
+ }
  
--	if (bio->bi_rw & REQ_WRITE_SAME)
-+	if (bio->bi_op == REQ_OP_WRITE_SAME)
- 		return 1;
+ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bdev,
+-			 sector_t sector, int rw)
++			 sector_t sector, int op)
+ {
+ 	int err;
+ 	D_ASSERT(device, atomic_read(&device->md_io.in_use) == 1);
+@@ -197,19 +198,21 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
  
- 	fbio = bio;
-@@ -385,7 +385,7 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
- 	nsegs = 0;
- 	cluster = blk_queue_cluster(q);
+ 	dynamic_drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
+ 	     current->comm, current->pid, __func__,
+-	     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ",
++	     (unsigned long long)sector, (op == REQ_OP_WRITE) ? "WRITE" : "READ",
+ 	     (void*)_RET_IP_ );
  
--	if (bio->bi_rw & REQ_DISCARD) {
-+	if (bio->bi_op == REQ_OP_DISCARD) {
- 		/*
- 		 * This is a hack - drivers should be neither modifying the
- 		 * biovec, nor relying on bi_vcnt - but because of
-@@ -400,7 +400,7 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
- 		return 0;
+ 	if (sector < drbd_md_first_sector(bdev) ||
+ 	    sector + 7 > drbd_md_last_sector(bdev))
+ 		drbd_alert(device, "%s [%d]:%s(,%llus,%s) out of range md access!\n",
+ 		     current->comm, current->pid, __func__,
+-		     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
++		     (unsigned long long)sector,
++		     (op == REQ_OP_WRITE) ? "WRITE" : "READ");
+ 
+-	err = _drbd_md_sync_page_io(device, bdev, sector, rw);
++	err = _drbd_md_sync_page_io(device, bdev, sector, op);
+ 	if (err) {
+ 		drbd_err(device, "drbd_md_sync_page_io(,%llus,%s) failed with error %d\n",
+-		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ", err);
++		    (unsigned long long)sector,
++		    (op == REQ_OP_WRITE) ? "WRITE" : "READ", err);
  	}
+ 	return err;
+ }
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index e8959fe..126bf4a 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -980,7 +980,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
+ 	struct drbd_bitmap *b = device->bitmap;
+ 	struct page *page;
+ 	unsigned int len;
+-	unsigned int rw = (ctx->flags & BM_AIO_READ) ? READ : WRITE;
++	unsigned int op = (ctx->flags & BM_AIO_READ) ? REQ_OP_READ : REQ_OP_WRITE;
  
--	if (bio->bi_rw & REQ_WRITE_SAME) {
-+	if (bio->bi_op == REQ_OP_WRITE_SAME) {
- single_segment:
- 		*sg = sglist;
- 		bvec = bio_iovec(bio);
-@@ -439,7 +439,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
- 	}
+ 	sector_t on_disk_sector =
+ 		device->ldev->md.md_offset + device->ldev->md.bm_offset;
+@@ -1011,9 +1011,9 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
+ 	bio_add_page(bio, page, len, 0);
+ 	bio->bi_private = ctx;
+ 	bio->bi_end_io = drbd_bm_endio;
+-	bio->bi_rw = rw;
++	bio->bi_op = op;
  
- 	if (q->dma_drain_size && q->dma_drain_needed(rq)) {
--		if (rq->cmd_flags & REQ_WRITE)
-+		if (op_is_write(rq->op))
- 			memset(q->dma_drain_buffer, 0, q->dma_drain_size);
- 
- 		sg_unmark_end(sg);
-diff --git a/block/blk-mq.c b/block/blk-mq.c
-index 64d61be..840f57a 100644
---- a/block/blk-mq.c
-+++ b/block/blk-mq.c
-@@ -170,8 +170,7 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
- 	rq->q = q;
- 	rq->mq_ctx = ctx;
- 	rq->op = op;
--	/* tmp compat - allow users to check either one for the op */
--	rq->cmd_flags |= op | op_flags;
-+	rq->cmd_flags |= op_flags;
- 	/* do not touch atomic flags, it needs atomic ops against the timer */
- 	rq->cpu = -1;
- 	INIT_HLIST_NODE(&rq->hash);
-diff --git a/drivers/ata/libata-scsi.c b/drivers/ata/libata-scsi.c
-index c7d0fc1..c6086c1 100644
---- a/drivers/ata/libata-scsi.c
-+++ b/drivers/ata/libata-scsi.c
-@@ -1184,7 +1184,7 @@ static int atapi_drain_needed(struct request *rq)
- 	if (likely(rq->cmd_type != REQ_TYPE_BLOCK_PC))
- 		return 0;
- 
--	if (!blk_rq_bytes(rq) || (rq->cmd_flags & REQ_WRITE))
-+	if (!blk_rq_bytes(rq) || op_is_write(rq->op))
- 		return 0;
- 
- 	return atapi_cmd_type(rq->cmd[0]) == ATAPI_MISC;
-diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-index 51a071e..eaefb8c 100644
---- a/drivers/block/brd.c
-+++ b/drivers/block/brd.c
-@@ -339,7 +339,7 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
- 	if (bio_end_sector(bio) > get_capacity(bdev->bd_disk))
- 		goto io_error;
- 
--	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
-+	if (unlikely(bio->bi_op == REQ_OP_DISCARD)) {
- 		if (sector & ((PAGE_SIZE >> SECTOR_SHIFT) - 1) ||
- 		    bio->bi_iter.bi_size & ~PAGE_MASK)
- 			goto io_error;
+-	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
++	if (drbd_insert_fault(device, (op == REQ_OP_WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
+ 		bio_io_error(bio);
+ 	} else {
+ 		submit_bio(bio);
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 7a1cf7e..33f0b82 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1507,7 +1507,7 @@ extern int drbd_resync_finished(struct drbd_device *device);
+ extern void *drbd_md_get_buffer(struct drbd_device *device, const char *intent);
+ extern void drbd_md_put_buffer(struct drbd_device *device);
+ extern int drbd_md_sync_page_io(struct drbd_device *device,
+-		struct drbd_backing_dev *bdev, sector_t sector, int rw);
++		struct drbd_backing_dev *bdev, sector_t sector, int op);
+ extern void drbd_ov_out_of_sync_found(struct drbd_device *, sector_t, int);
+ extern void wait_until_done_or_force_detached(struct drbd_device *device,
+ 		struct drbd_backing_dev *bdev, unsigned int *done);
+@@ -1557,7 +1557,7 @@ extern bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector
+ 		bool throttle_if_app_is_waiting);
+ extern int drbd_submit_peer_request(struct drbd_device *,
+ 				    struct drbd_peer_request *, const unsigned,
+-				    const int);
++				    const unsigned, const int);
+ extern int drbd_free_peer_reqs(struct drbd_device *, struct list_head *);
+ extern struct drbd_peer_request *drbd_alloc_peer_req(struct drbd_peer_device *, u64,
+ 						     sector_t, unsigned int,
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 30c93d6..ace906f 100644
+index 2ba1494..30c93d6 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -1603,15 +1603,16 @@ static int _drbd_send_zc_ee(struct drbd_peer_device *peer_device,
- 	return 0;
- }
+@@ -3061,7 +3061,7 @@ void drbd_md_write(struct drbd_device *device, void *b)
+ 	D_ASSERT(device, drbd_md_ss(device->ldev) == device->ldev->md.md_offset);
+ 	sector = device->ldev->md.md_offset;
  
--static u32 bio_flags_to_wire(struct drbd_connection *connection, unsigned long bi_rw)
-+static u32 bio_flags_to_wire(struct drbd_connection *connection,
-+			     struct bio *bio)
+-	if (drbd_md_sync_page_io(device, device->ldev, sector, WRITE)) {
++	if (drbd_md_sync_page_io(device, device->ldev, sector, REQ_OP_WRITE)) {
+ 		/* this was a try anyways ... */
+ 		drbd_err(device, "meta data update failed!\n");
+ 		drbd_chk_io_error(device, 1, DRBD_META_IO_ERROR);
+@@ -3263,7 +3263,8 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
+ 	 * Affects the paranoia out-of-range access check in drbd_md_sync_page_io(). */
+ 	bdev->md.md_size_sect = 8;
+ 
+-	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset, READ)) {
++	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset,
++				 REQ_OP_READ)) {
+ 		/* NOTE: can't do normal error processing here as this is
+ 		   called BEFORE disk is attached */
+ 		drbd_err(device, "Error while reading metadata.\n");
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 050aaa1..a0b95da 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1398,7 +1398,8 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
+ /* TODO allocate from our own bio_set. */
+ int drbd_submit_peer_request(struct drbd_device *device,
+ 			     struct drbd_peer_request *peer_req,
+-			     const unsigned rw, const int fault_type)
++			     const unsigned op, const unsigned op_flags,
++			     const int fault_type)
  {
- 	if (connection->agreed_pro_version >= 95)
--		return  (bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
--			(bi_rw & REQ_FUA ? DP_FUA : 0) |
--			(bi_rw & REQ_FLUSH ? DP_FLUSH : 0) |
--			(bi_rw & REQ_DISCARD ? DP_DISCARD : 0);
-+		return  (bio->bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
-+			(bio->bi_rw & REQ_FUA ? DP_FUA : 0) |
-+			(bio->bi_rw & REQ_FLUSH ? DP_FLUSH : 0) |
-+			(bio->bi_op == REQ_OP_DISCARD ? DP_DISCARD : 0);
- 	else
--		return bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
-+		return bio->bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
- }
- 
- /* Used to send write or TRIM aka REQ_DISCARD requests
-@@ -1636,7 +1637,7 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
- 	p->sector = cpu_to_be64(req->i.sector);
- 	p->block_id = (unsigned long)req;
- 	p->seq_num = cpu_to_be32(atomic_inc_return(&device->packet_seq));
--	dp_flags = bio_flags_to_wire(peer_device->connection, req->master_bio->bi_rw);
-+	dp_flags = bio_flags_to_wire(peer_device->connection, req->master_bio);
- 	if (device->state.conn >= C_SYNC_SOURCE &&
- 	    device->state.conn <= C_PAUSED_SYNC_T)
- 		dp_flags |= DP_MAY_SET_IN_SYNC;
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 2a04b43..0949961 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -174,7 +174,7 @@ void drbd_peer_request_endio(struct bio *bio)
- 	struct drbd_peer_request *peer_req = bio->bi_private;
- 	struct drbd_device *device = peer_req->peer_device->device;
- 	int is_write = bio_data_dir(bio) == WRITE;
--	int is_discard = !!(bio->bi_rw & REQ_DISCARD);
-+	int is_discard = !!(bio->bi_op == REQ_OP_DISCARD);
- 
- 	if (bio->bi_error && __ratelimit(&drbd_ratelimit_state))
- 		drbd_warn(device, "%s: error=%d s=%llus\n",
-@@ -248,7 +248,7 @@ void drbd_request_endio(struct bio *bio)
- 
- 	/* to avoid recursion in __req_mod */
- 	if (unlikely(bio->bi_error)) {
--		if (bio->bi_rw & REQ_DISCARD)
-+		if (bio->bi_op == REQ_OP_DISCARD)
- 			what = (bio->bi_error == -EOPNOTSUPP)
- 				? DISCARD_COMPLETED_NOTSUPP
- 				: DISCARD_COMPLETED_WITH_ERROR;
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index 0e80c9b..f1f7a25 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -447,7 +447,7 @@ static int lo_req_flush(struct loop_device *lo, struct request *rq)
- 
- static inline void handle_partial_read(struct loop_cmd *cmd, long bytes)
- {
--	if (bytes < 0 || (cmd->rq->cmd_flags & REQ_WRITE))
-+	if (bytes < 0 || op_is_write(cmd->rq->op))
- 		return;
- 
- 	if (unlikely(bytes < blk_rq_bytes(cmd->rq))) {
-@@ -535,7 +535,7 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
- 
- 	pos = ((loff_t) blk_rq_pos(rq) << 9) + lo->lo_offset;
- 
--	if (rq->cmd_flags & REQ_WRITE) {
-+	if (op_is_write(rq->op)) {
- 		if (rq->cmd_flags & REQ_FLUSH)
- 			ret = lo_req_flush(lo, rq);
- 		else if (rq->op == REQ_OP_DISCARD)
-@@ -1666,7 +1666,7 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
- 
- static void loop_handle_cmd(struct loop_cmd *cmd)
- {
--	const bool write = cmd->rq->cmd_flags & REQ_WRITE;
-+	const bool write = op_is_write(cmd->rq->op);
- 	struct loop_device *lo = cmd->rq->q->queuedata;
- 	int ret = 0;
- 
-diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
-index e8935af..4c0c057 100644
---- a/drivers/block/rbd.c
-+++ b/drivers/block/rbd.c
-@@ -3373,7 +3373,7 @@ static void rbd_queue_workfn(struct work_struct *work)
- 
- 	if (rq->op == REQ_OP_DISCARD)
- 		op_type = OBJ_OP_DISCARD;
--	else if (rq->cmd_flags & REQ_WRITE)
-+	else if (rq->op == REQ_OP_WRITE)
- 		op_type = OBJ_OP_WRITE;
- 	else
- 		op_type = OBJ_OP_READ;
-diff --git a/drivers/block/rsxx/dma.c b/drivers/block/rsxx/dma.c
-index cf8cd29..dfc189e 100644
---- a/drivers/block/rsxx/dma.c
-+++ b/drivers/block/rsxx/dma.c
-@@ -705,7 +705,7 @@ int rsxx_dma_queue_bio(struct rsxx_cardinfo *card,
- 		dma_cnt[i] = 0;
- 	}
- 
--	if (bio->bi_rw & REQ_DISCARD) {
-+	if (bio->bi_op == REQ_OP_DISCARD) {
- 		bv_len = bio->bi_iter.bi_size;
- 
- 		while (bv_len > 0) {
-diff --git a/drivers/block/umem.c b/drivers/block/umem.c
-index 7939b9f..a24ccbc 100644
---- a/drivers/block/umem.c
-+++ b/drivers/block/umem.c
-@@ -462,7 +462,7 @@ static void process_page(unsigned long data)
- 				le32_to_cpu(desc->local_addr)>>9,
- 				le32_to_cpu(desc->transfer_size));
- 			dump_dmastat(card, control);
--		} else if ((bio->bi_rw & REQ_WRITE) &&
-+		} else if (op_is_write(bio->bi_op) &&
- 			   le32_to_cpu(desc->local_addr) >> 9 ==
- 				card->init_size) {
- 			card->init_size += le32_to_cpu(desc->transfer_size) >> 9;
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 370c2f7..3c7ef31 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -849,7 +849,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
- 	offset = (bio->bi_iter.bi_sector &
- 		  (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
- 
--	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
-+	if (unlikely(bio->bi_op == REQ_OP_DISCARD)) {
- 		zram_bio_discard(zram, index, offset, bio);
- 		bio_endio(bio);
- 		return;
-diff --git a/drivers/ide/ide-floppy.c b/drivers/ide/ide-floppy.c
-index 2fb5350..f079d8d 100644
---- a/drivers/ide/ide-floppy.c
-+++ b/drivers/ide/ide-floppy.c
-@@ -206,7 +206,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
- 	memcpy(rq->cmd, pc->c, 12);
- 
- 	pc->rq = rq;
--	if (rq->cmd_flags & REQ_WRITE)
-+	if (cmd == WRITE)
- 		pc->flags |= PC_FLAG_WRITING;
- 
- 	pc->flags |= PC_FLAG_DMA_OK;
-diff --git a/drivers/lightnvm/rrpc.c b/drivers/lightnvm/rrpc.c
-index fd9b629..9b1a74e 100644
---- a/drivers/lightnvm/rrpc.c
-+++ b/drivers/lightnvm/rrpc.c
-@@ -911,7 +911,7 @@ static blk_qc_t rrpc_make_rq(struct request_queue *q, struct bio *bio)
- 	struct nvm_rq *rqd;
- 	int err;
- 
--	if (bio->bi_rw & REQ_DISCARD) {
-+	if (bio->bi_op == REQ_OP_DISCARD) {
- 		rrpc_discard(rrpc, bio);
- 		return BLK_QC_T_NONE;
- 	}
-diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
-index cd6837c..be8cd63f 100644
---- a/drivers/md/bcache/request.c
-+++ b/drivers/md/bcache/request.c
-@@ -378,7 +378,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
- 
- 	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
- 	    c->gc_stats.in_use > CUTOFF_CACHE_ADD ||
--	    (bio->bi_rw & REQ_DISCARD))
-+	    (bio->bi_op == REQ_OP_DISCARD))
- 		goto skip;
- 
- 	if (mode == CACHE_MODE_NONE ||
-@@ -899,7 +899,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
- 	 * But check_overlapping drops dirty keys for which io hasn't started,
- 	 * so we still want to call it.
- 	 */
--	if (bio->bi_rw & REQ_DISCARD)
-+	if (bio->bi_op == REQ_OP_DISCARD)
- 		s->iop.bypass = true;
- 
- 	if (should_writeback(dc, s->orig_bio,
-@@ -913,7 +913,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
- 		s->iop.bio = s->orig_bio;
- 		bio_get(s->iop.bio);
- 
--		if (!(bio->bi_rw & REQ_DISCARD) ||
-+		if (!(bio->bi_op == REQ_OP_DISCARD) ||
- 		    blk_queue_discard(bdev_get_queue(dc->bdev)))
- 			closure_bio_submit(bio, cl);
- 	} else if (s->iop.writeback) {
-@@ -993,7 +993,7 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
- 				cached_dev_read(dc, s);
- 		}
- 	} else {
--		if ((bio->bi_rw & REQ_DISCARD) &&
-+		if ((bio->bi_op == REQ_OP_DISCARD) &&
- 		    !blk_queue_discard(bdev_get_queue(dc->bdev)))
- 			bio_endio(bio);
- 		else
-@@ -1104,7 +1104,7 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
- 					&KEY(d->id, bio->bi_iter.bi_sector, 0),
- 					&KEY(d->id, bio_end_sector(bio), 0));
- 
--		s->iop.bypass		= (bio->bi_rw & REQ_DISCARD) != 0;
-+		s->iop.bypass		= (bio->bi_op == REQ_OP_DISCARD) != 0;
- 		s->iop.writeback	= true;
- 		s->iop.bio		= bio;
- 
-diff --git a/drivers/md/dm-cache-target.c b/drivers/md/dm-cache-target.c
-index ee0510f..838f784 100644
---- a/drivers/md/dm-cache-target.c
-+++ b/drivers/md/dm-cache-target.c
-@@ -788,7 +788,8 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
- 
- 	spin_lock_irqsave(&cache->lock, flags);
- 	if (cache->need_tick_bio &&
--	    !(bio->bi_rw & (REQ_FUA | REQ_FLUSH | REQ_DISCARD))) {
-+	    !(bio->bi_rw & (REQ_FUA | REQ_FLUSH)) &&
-+	    bio->bi_op != REQ_OP_DISCARD) {
- 		pb->tick = true;
- 		cache->need_tick_bio = false;
- 	}
-@@ -851,7 +852,7 @@ static void inc_ds(struct cache *cache, struct bio *bio,
- static bool accountable_bio(struct cache *cache, struct bio *bio)
- {
- 	return ((bio->bi_bdev == cache->origin_dev->bdev) &&
--		!(bio->bi_rw & REQ_DISCARD));
-+		bio->bi_op != REQ_OP_DISCARD);
- }
- 
- static void accounted_begin(struct cache *cache, struct bio *bio)
-@@ -1067,7 +1068,8 @@ static void dec_io_migrations(struct cache *cache)
- 
- static bool discard_or_flush(struct bio *bio)
- {
--	return bio->bi_rw & (REQ_FLUSH | REQ_FUA | REQ_DISCARD);
-+	return bio->bi_op == REQ_OP_DISCARD ||
-+	       bio->bi_rw & (REQ_FLUSH | REQ_FUA);
- }
- 
- static void __cell_defer(struct cache *cache, struct dm_bio_prison_cell *cell)
-@@ -1980,7 +1982,7 @@ static void process_deferred_bios(struct cache *cache)
- 
- 		if (bio->bi_rw & REQ_FLUSH)
- 			process_flush_bio(cache, bio);
--		else if (bio->bi_rw & REQ_DISCARD)
-+		else if (bio->bi_op == REQ_OP_DISCARD)
- 			process_discard_bio(cache, &structs, bio);
- 		else
- 			process_bio(cache, &structs, bio);
-diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index 70fbf11..3a4ddad 100644
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -1916,7 +1916,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
- 	 * - for REQ_FLUSH device-mapper core ensures that no IO is in-flight
- 	 * - for REQ_DISCARD caller must use flush if IO ordering matters
- 	 */
--	if (unlikely(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD))) {
-+	if (unlikely(bio->bi_rw & REQ_FLUSH || bio->bi_op == REQ_OP_DISCARD)) {
- 		bio->bi_bdev = cc->dev->bdev;
- 		if (bio_sectors(bio))
- 			bio->bi_iter.bi_sector = cc->start +
-diff --git a/drivers/md/dm-log-writes.c b/drivers/md/dm-log-writes.c
-index 27630c5..e991405 100644
---- a/drivers/md/dm-log-writes.c
-+++ b/drivers/md/dm-log-writes.c
-@@ -557,7 +557,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
- 	int i = 0;
- 	bool flush_bio = (bio->bi_rw & REQ_FLUSH);
- 	bool fua_bio = (bio->bi_rw & REQ_FUA);
--	bool discard_bio = (bio->bi_rw & REQ_DISCARD);
-+	bool discard_bio = (bio->bi_op == REQ_OP_DISCARD);
- 
- 	pb->block = NULL;
- 
-diff --git a/drivers/md/dm-raid1.c b/drivers/md/dm-raid1.c
-index 8a86bc3..c4d23da 100644
---- a/drivers/md/dm-raid1.c
-+++ b/drivers/md/dm-raid1.c
-@@ -626,7 +626,7 @@ static void write_callback(unsigned long error, void *context)
- 	 * If the bio is discard, return an error, but do not
- 	 * degrade the array.
- 	 */
--	if (bio->bi_rw & REQ_DISCARD) {
-+	if (bio->bi_op == REQ_OP_DISCARD) {
- 		bio->bi_error = -EOPNOTSUPP;
- 		bio_endio(bio);
- 		return;
-@@ -665,7 +665,7 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
- 		.client = ms->io_client,
- 	};
- 
--	if (bio->bi_rw & REQ_DISCARD) {
-+	if (bio->bi_op == REQ_OP_DISCARD) {
- 		io_req.bi_op = REQ_OP_DISCARD;
- 		io_req.mem.type = DM_IO_KMEM;
- 		io_req.mem.ptr.addr = NULL;
-@@ -705,7 +705,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
- 
- 	while ((bio = bio_list_pop(writes))) {
- 		if ((bio->bi_rw & REQ_FLUSH) ||
--		    (bio->bi_rw & REQ_DISCARD)) {
-+		    (bio->bi_op == REQ_OP_DISCARD)) {
- 			bio_list_add(&sync, bio);
- 			continue;
- 		}
-@@ -1253,7 +1253,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
- 	 * We need to dec pending if this was a write.
- 	 */
- 	if (rw == WRITE) {
--		if (!(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD)))
-+		if (!(bio->bi_rw & REQ_FLUSH) && bio->bi_op != REQ_OP_DISCARD)
- 			dm_rh_dec(ms->rh, bio_record->write_region);
- 		return error;
- 	}
-diff --git a/drivers/md/dm-region-hash.c b/drivers/md/dm-region-hash.c
-index 74cb7b9..ce4af57 100644
---- a/drivers/md/dm-region-hash.c
-+++ b/drivers/md/dm-region-hash.c
-@@ -403,7 +403,7 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
- 		return;
- 	}
- 
--	if (bio->bi_rw & REQ_DISCARD)
-+	if (bio->bi_op == REQ_OP_DISCARD)
- 		return;
- 
- 	/* We must inform the log that the sync count has changed. */
-@@ -526,7 +526,7 @@ void dm_rh_inc_pending(struct dm_region_hash *rh, struct bio_list *bios)
+ 	struct bio *bios = NULL;
  	struct bio *bio;
+@@ -1450,7 +1451,8 @@ next_bio:
+ 	/* > peer_req->i.sector, unless this is the first bio */
+ 	bio->bi_iter.bi_sector = sector;
+ 	bio->bi_bdev = device->ldev->backing_bdev;
+-	bio->bi_rw = rw;
++	bio->bi_op = op;
++	bio->bi_rw = op_flags;
+ 	bio->bi_private = peer_req;
+ 	bio->bi_end_io = drbd_peer_request_endio;
  
- 	for (bio = bios->head; bio; bio = bio->bi_next) {
--		if (bio->bi_rw & (REQ_FLUSH | REQ_DISCARD))
-+		if (bio->bi_rw & REQ_FLUSH || bio->bi_op == REQ_OP_DISCARD)
- 			continue;
- 		rh_inc(rh, dm_rh_bio_to_region(rh, bio));
+@@ -1458,7 +1460,7 @@ next_bio:
+ 	bios = bio;
+ 	++n_bios;
+ 
+-	if (rw & REQ_DISCARD) {
++	if (op == REQ_OP_DISCARD) {
+ 		bio->bi_iter.bi_size = data_size;
+ 		goto submit;
  	}
-diff --git a/drivers/md/dm-stripe.c b/drivers/md/dm-stripe.c
-index 797ddb9..12b1630 100644
---- a/drivers/md/dm-stripe.c
-+++ b/drivers/md/dm-stripe.c
-@@ -292,8 +292,8 @@ static int stripe_map(struct dm_target *ti, struct bio *bio)
- 		bio->bi_bdev = sc->stripe[target_bio_nr].dev->bdev;
- 		return DM_MAPIO_REMAPPED;
- 	}
--	if (unlikely(bio->bi_rw & REQ_DISCARD) ||
--	    unlikely(bio->bi_rw & REQ_WRITE_SAME)) {
-+	if (unlikely(bio->bi_op == REQ_OP_DISCARD) ||
-+	    unlikely(bio->bi_op == REQ_OP_WRITE_SAME)) {
- 		target_bio_nr = dm_bio_get_target_bio_nr(bio);
- 		BUG_ON(target_bio_nr >= sc->stripes);
- 		return stripe_map_range(sc, bio, target_bio_nr);
-diff --git a/drivers/md/dm-thin.c b/drivers/md/dm-thin.c
-index 6049078..85688b7 100644
---- a/drivers/md/dm-thin.c
-+++ b/drivers/md/dm-thin.c
-@@ -715,7 +715,7 @@ static void inc_all_io_entry(struct pool *pool, struct bio *bio)
+@@ -1830,7 +1832,8 @@ static int recv_resync_read(struct drbd_peer_device *peer_device, sector_t secto
+ 	spin_unlock_irq(&device->resource->req_lock);
+ 
+ 	atomic_add(pi->size >> 9, &device->rs_sect_ev);
+-	if (drbd_submit_peer_request(device, peer_req, WRITE, DRBD_FAULT_RS_WR) == 0)
++	if (drbd_submit_peer_request(device, peer_req, REQ_OP_WRITE, 0,
++				     DRBD_FAULT_RS_WR) == 0)
+ 		return 0;
+ 
+ 	/* don't care for the reason here */
+@@ -2152,12 +2155,19 @@ static int wait_for_and_update_peer_seq(struct drbd_peer_device *peer_device, co
+ /* see also bio_flags_to_wire()
+  * DRBD_REQ_*, because we need to semantically map the flags to data packet
+  * flags and back. We may replicate to other kernel versions. */
+-static unsigned long wire_flags_to_bio(u32 dpf)
++static unsigned long wire_flags_to_bio_flags(u32 dpf)
  {
- 	struct dm_thin_endio_hook *h;
- 
--	if (bio->bi_rw & REQ_DISCARD)
-+	if (bio->bi_op == REQ_OP_DISCARD)
- 		return;
- 
- 	h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
-@@ -878,7 +878,8 @@ static void __inc_remap_and_issue_cell(void *context,
- 	struct bio *bio;
- 
- 	while ((bio = bio_list_pop(&cell->bios))) {
--		if (bio->bi_rw & (REQ_DISCARD | REQ_FLUSH | REQ_FUA))
-+		if (bio->bi_rw & (REQ_FLUSH | REQ_FUA) ||
-+		    bio->bi_op == REQ_OP_DISCARD)
- 			bio_list_add(&info->defer_bios, bio);
- 		else {
- 			inc_all_io_entry(info->tc->pool, bio);
-@@ -1656,7 +1657,8 @@ static void __remap_and_issue_shared_cell(void *context,
- 
- 	while ((bio = bio_list_pop(&cell->bios))) {
- 		if ((bio_data_dir(bio) == WRITE) ||
--		    (bio->bi_rw & (REQ_DISCARD | REQ_FLUSH | REQ_FUA)))
-+		    (bio->bi_rw & (REQ_FLUSH | REQ_FUA) ||
-+		     bio->bi_op == REQ_OP_DISCARD))
- 			bio_list_add(&info->defer_bios, bio);
- 		else {
- 			struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));;
-@@ -2045,7 +2047,7 @@ static void process_thin_deferred_bios(struct thin_c *tc)
- 			break;
- 		}
- 
--		if (bio->bi_rw & REQ_DISCARD)
-+		if (bio->bi_op == REQ_OP_DISCARD)
- 			pool->process_discard(tc, bio);
- 		else
- 			pool->process_bio(tc, bio);
-@@ -2132,7 +2134,7 @@ static void process_thin_deferred_cells(struct thin_c *tc)
- 				return;
- 			}
- 
--			if (cell->holder->bi_rw & REQ_DISCARD)
-+			if (cell->holder->bi_op == REQ_OP_DISCARD)
- 				pool->process_discard_cell(tc, cell);
- 			else
- 				pool->process_cell(tc, cell);
-@@ -2570,7 +2572,8 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
- 		return DM_MAPIO_SUBMITTED;
- 	}
- 
--	if (bio->bi_rw & (REQ_DISCARD | REQ_FLUSH | REQ_FUA)) {
-+	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA) ||
-+	    bio->bi_op == REQ_OP_DISCARD) {
- 		thin_defer_bio_with_throttle(tc, bio);
- 		return DM_MAPIO_SUBMITTED;
- 	}
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index 13c869c..4ee7d5c 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -1053,7 +1053,7 @@ static void clone_endio(struct bio *bio)
- 		}
- 	}
- 
--	if (unlikely(r == -EREMOTEIO && (bio->bi_rw & REQ_WRITE_SAME) &&
-+	if (unlikely(r == -EREMOTEIO && (bio->bi_op == REQ_OP_WRITE_SAME) &&
- 		     !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors))
- 		disable_write_same(md);
- 
-@@ -1748,9 +1748,9 @@ static int __split_and_process_non_flush(struct clone_info *ci)
- 	unsigned len;
- 	int r;
- 
--	if (unlikely(bio->bi_rw & REQ_DISCARD))
-+	if (unlikely(bio->bi_op == REQ_OP_DISCARD))
- 		return __send_discard(ci);
--	else if (unlikely(bio->bi_rw & REQ_WRITE_SAME))
-+	else if (unlikely(bio->bi_op == REQ_OP_WRITE_SAME))
- 		return __send_write_same(ci);
- 
- 	ti = dm_table_find_target(ci->map, ci->sector);
-diff --git a/drivers/md/linear.c b/drivers/md/linear.c
-index b7fe7e9..aad82c7 100644
---- a/drivers/md/linear.c
-+++ b/drivers/md/linear.c
-@@ -252,7 +252,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
- 		split->bi_iter.bi_sector = split->bi_iter.bi_sector -
- 			start_sector + data_offset;
- 
--		if (unlikely((split->bi_rw & REQ_DISCARD) &&
-+		if (unlikely((split->bi_op == REQ_OP_DISCARD) &&
- 			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
- 			/* Just ignore it */
- 			bio_endio(split);
-diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
-index f63dbb6..58ff1ff 100644
---- a/drivers/md/raid0.c
-+++ b/drivers/md/raid0.c
-@@ -489,7 +489,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
- 		split->bi_iter.bi_sector = sector + zone->dev_start +
- 			tmp_dev->data_offset;
- 
--		if (unlikely((split->bi_rw & REQ_DISCARD) &&
-+		if (unlikely((split->bi_op == REQ_OP_DISCARD) &&
- 			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
- 			/* Just ignore it */
- 			bio_endio(split);
-diff --git a/drivers/scsi/osd/osd_initiator.c b/drivers/scsi/osd/osd_initiator.c
-index edcba56..f6572e6 100644
---- a/drivers/scsi/osd/osd_initiator.c
-+++ b/drivers/scsi/osd/osd_initiator.c
-@@ -824,7 +824,7 @@ void osd_req_write(struct osd_request *or,
- {
- 	_osd_req_encode_common(or, OSD_ACT_WRITE, obj, offset, len);
- 	WARN_ON(or->out.bio || or->out.total_bytes);
--	WARN_ON(0 == (bio->bi_rw & REQ_WRITE));
-+	WARN_ON(!op_is_write(bio->bi_op));
- 	or->out.bio = bio;
- 	or->out.total_bytes = len;
- }
-@@ -875,7 +875,7 @@ void osd_req_read(struct osd_request *or,
- {
- 	_osd_req_encode_common(or, OSD_ACT_READ, obj, offset, len);
- 	WARN_ON(or->in.bio || or->in.total_bytes);
--	WARN_ON(bio->bi_rw & REQ_WRITE);
-+	WARN_ON(op_is_write(bio->bi_op));
- 	or->in.bio = bio;
- 	or->in.total_bytes = len;
- }
-diff --git a/drivers/staging/lustre/lustre/llite/lloop.c b/drivers/staging/lustre/lustre/llite/lloop.c
-index f169c0d..e602389 100644
---- a/drivers/staging/lustre/lustre/llite/lloop.c
-+++ b/drivers/staging/lustre/lustre/llite/lloop.c
-@@ -211,9 +211,9 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
- 		return io->ci_result;
- 	io->ci_lockreq = CILR_NEVER;
- 
--	rw = head->bi_rw;
-+	rw = bio_data_dir(head);
- 	for (bio = head; bio ; bio = bio->bi_next) {
--		LASSERT(rw == bio->bi_rw);
-+		LASSERT(rw == bio_data_dir(bio));
- 
- 		offset = (pgoff_t)(bio->bi_iter.bi_sector << 9) + lo->lo_offset;
- 		bio_for_each_segment(bvec, bio, iter) {
-@@ -304,7 +304,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
- 	/* TODO: need to split the bio, too bad. */
- 	LASSERT(first->bi_vcnt <= LLOOP_MAX_SEGMENTS);
- 
--	rw = first->bi_rw;
-+	rw = bio_data_dir(first);
- 	bio = &lo->lo_bio;
- 	while (*bio && (*bio)->bi_rw == rw) {
- 		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u\n",
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 4724810..9e7b18b 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -106,18 +106,23 @@ static inline bool bio_has_data(struct bio *bio)
- {
- 	if (bio &&
- 	    bio->bi_iter.bi_size &&
--	    !(bio->bi_rw & REQ_DISCARD))
-+	    !(bio->bi_op == REQ_OP_DISCARD))
- 		return true;
- 
- 	return false;
- }
- 
-+static inline bool bio_no_advance_iter(struct bio *bio)
-+{
-+	return bio->bi_op == REQ_OP_DISCARD || bio->bi_op == REQ_OP_WRITE_SAME;
+ 	return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
+ 		(dpf & DP_FUA ? REQ_FUA : 0) |
+-		(dpf & DP_FLUSH ? REQ_FLUSH : 0) |
+-		(dpf & DP_DISCARD ? REQ_DISCARD : 0);
++		(dpf & DP_FLUSH ? REQ_FLUSH : 0);
 +}
 +
- static inline bool bio_is_rw(struct bio *bio)
- {
- 	if (!bio_has_data(bio))
- 		return false;
- 
--	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
-+	if (bio_no_advance_iter(bio))
- 		return false;
- 
- 	return true;
-@@ -225,7 +230,7 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
- {
- 	iter->bi_sector += bytes >> 9;
- 
--	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
-+	if (bio_no_advance_iter(bio))
- 		iter->bi_size -= bytes;
- 	else
- 		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
-@@ -253,10 +258,10 @@ static inline unsigned bio_segments(struct bio *bio)
- 	 * differently:
- 	 */
- 
--	if (bio->bi_rw & REQ_DISCARD)
-+	if (bio->bi_op == REQ_OP_DISCARD)
- 		return 1;
- 
--	if (bio->bi_rw & REQ_WRITE_SAME)
-+	if (bio->bi_op == REQ_OP_WRITE_SAME)
- 		return 1;
- 
- 	bio_for_each_segment(bv, bio, iter)
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index f3f2f66..9becf20 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2466,33 +2466,24 @@ static inline bool op_is_write(int op)
++static unsigned long wire_flags_to_bio_op(u32 dpf)
++{
++	if (dpf & DP_DISCARD)
++		return REQ_OP_DISCARD;
++	else
++		return REQ_OP_WRITE;
  }
  
- /*
-- * return READ, READA, or WRITE
-+ * return data direction, READ or WRITE
-  */
--static inline int bio_rw(struct bio *bio)
-+static inline int bio_data_dir(struct bio *bio)
- {
--	/*
--	 * tmp cpmpat. Allow users to set either op or rw, until
--	 * all code is converted in the next patches.
--	 */
- 	if (op_is_write(bio->bi_op))
- 		return WRITE;
--
--	return bio->bi_rw & (RW_MASK | RWA_MASK);
-+	return READ;
- }
+ static void fail_postponed_requests(struct drbd_device *device, sector_t sector,
+@@ -2303,7 +2313,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
+ 	struct drbd_peer_request *peer_req;
+ 	struct p_data *p = pi->data;
+ 	u32 peer_seq = be32_to_cpu(p->seq_num);
+-	int rw = WRITE;
++	int op, op_flags;
+ 	u32 dp_flags;
+ 	int err, tp;
  
- /*
-- * return data direction, READ or WRITE
-+ * return READ, READA, or WRITE
-  */
--static inline int bio_data_dir(struct bio *bio)
-+static inline int bio_rw(struct bio *bio)
- {
--	/*
--	 * tmp cpmpat. Allow users to set either op or rw, until
--	 * all code is converted in the next patches.
--	 */
--	if (op_is_write(bio->bi_op))
--		return WRITE;
-+	if (bio->bi_rw & RWA_MASK)
-+		return READA;
+@@ -2342,14 +2352,15 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
+ 	peer_req->flags |= EE_APPLICATION;
  
--	return bio->bi_rw & 1;
-+	return bio_data_dir(bio);
- }
+ 	dp_flags = be32_to_cpu(p->dp_flags);
+-	rw |= wire_flags_to_bio(dp_flags);
++	op = wire_flags_to_bio_op(dp_flags);
++	op_flags = wire_flags_to_bio_flags(dp_flags);
+ 	if (pi->cmd == P_TRIM) {
+ 		struct request_queue *q = bdev_get_queue(device->ldev->backing_bdev);
+ 		peer_req->flags |= EE_IS_TRIM;
+ 		if (!blk_queue_discard(q))
+ 			peer_req->flags |= EE_IS_TRIM_USE_ZEROOUT;
+ 		D_ASSERT(peer_device, peer_req->i.size > 0);
+-		D_ASSERT(peer_device, rw & REQ_DISCARD);
++		D_ASSERT(peer_device, op == REQ_OP_DISCARD);
+ 		D_ASSERT(peer_device, peer_req->pages == NULL);
+ 	} else if (peer_req->pages == NULL) {
+ 		D_ASSERT(device, peer_req->i.size == 0);
+@@ -2433,7 +2444,8 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
+ 		peer_req->flags |= EE_CALL_AL_COMPLETE_IO;
+ 	}
  
- extern void check_disk_size_change(struct gendisk *disk,
+-	err = drbd_submit_peer_request(device, peer_req, rw, DRBD_FAULT_DT_WR);
++	err = drbd_submit_peer_request(device, peer_req, op, op_flags,
++				       DRBD_FAULT_DT_WR);
+ 	if (!err)
+ 		return 0;
+ 
+@@ -2723,7 +2735,8 @@ submit_for_resync:
+ submit:
+ 	update_receiver_timing_details(connection, drbd_submit_peer_request);
+ 	inc_unacked(device);
+-	if (drbd_submit_peer_request(device, peer_req, READ, fault_type) == 0)
++	if (drbd_submit_peer_request(device, peer_req, REQ_OP_READ, 0,
++				     fault_type) == 0)
+ 		return 0;
+ 
+ 	/* don't care for the reason here */
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 4d87499..2a04b43 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -397,7 +397,8 @@ static int read_for_csum(struct drbd_peer_device *peer_device, sector_t sector,
+ 	spin_unlock_irq(&device->resource->req_lock);
+ 
+ 	atomic_add(size >> 9, &device->rs_sect_ev);
+-	if (drbd_submit_peer_request(device, peer_req, READ, DRBD_FAULT_RS_RD) == 0)
++	if (drbd_submit_peer_request(device, peer_req, REQ_OP_READ, 0,
++				     DRBD_FAULT_RS_RD) == 0)
+ 		return 0;
+ 
+ 	/* If it failed because of ENOMEM, retry should help.  If it failed
 -- 
 2.7.2
 
