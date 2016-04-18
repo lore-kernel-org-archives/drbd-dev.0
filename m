@@ -1,29 +1,20 @@
-Return-Path: <msnitzer@redhat.com>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <jhkim@mantech.co.kr>
+Received: from mail-vk0-f51.google.com (mail-vk0-f51.google.com
+	[209.85.213.51]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B77011056446
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2016 21:44:35 +0200 (CEST)
-Date: Fri, 15 Apr 2016 15:44:32 -0400
-From: Mike Snitzer <snitzer@redhat.com>
-To: mchristi@redhat.com
-Message-ID: <20160415194432.GA30077@redhat.com>
-References: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 82BA81051881
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Apr 2016 15:41:57 +0200 (CEST)
+Received: by mail-vk0-f51.google.com with SMTP id c4so220204805vkb.3
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Apr 2016 06:41:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
-Cc: linux-bcache@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com,
-	ocfs2-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
-	konrad.wilk@oracle.com, linux-kernel@vger.kernel.org,
-	philipp.reisner@linbit.com, linux-f2fs-devel@lists.sourceforge.net,
-	linux-raid@vger.kernel.org, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	osd-dev@open-osd.org, linux-fsdevel@vger.kernel.org,
-	lars.ellenberg@linbit.com, linux-ext4@vger.kernel.org,
-	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/42] v7: separate operations from flags in
- the bio/request structs
+Date: Mon, 18 Apr 2016 22:41:55 +0900
+Message-ID: <CAF6H8oFsPGK2Bts6M564Dn-B6LzSx5bFjNMko5Ez6waAjnqPHw@mail.gmail.com>
+From: Jaeheon Kim <jhkim@mantech.co.kr>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative; boundary=001a11436aae227ab70530c28609
+Subject: Re: [Drbd-dev] [CASE-29] After re-connect,
+ WFBitMapS-WFBitMapT status has sustained continuously and copy
+ command hangs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,39 +26,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Apr 15 2016 at  3:15pm -0400,
-mchristi@redhat.com <mchristi@redhat.com> wrote:
+--001a11436aae227ab70530c28609
+Content-Type: text/plain; charset=UTF-8
 
-> The following patches begin to cleanup the request->cmd_flags and
-> bio->bi_rw mess. We currently use cmd_flags to specify the operation,
-> attributes and state of the request. For bi_rw we use it for similar
-> info and also the priority but then also have another bi_flags field
-> for state. At some point, we abused them so much we just made cmd_flags
-> 64 bits, so we could add more.
-> 
-> The following patches seperate the operation (read, write discard,
-> flush, etc) from cmd_flags/bi_rw.
-> 
-> This patchset was made against linux-next from today April 15
-> (git tag next-20160415).
-> 
-> I put a git tree here:
-> https://github.com/mikechristie/linux-kernel.git
-> The patches are in the op branch.
-> 
-> v7:
-> 1. Fix broken feature_flush/fua use.
-> 
-> v6 and maybe hopfully the last version:
-> 1. Adapt patch 41 to Jens's QUEUE_FLAG_WC/FUA patchset.
+Dear Phil,
 
-Why are you blasting out the entire patchset for updates to individual
-patches at the end of the series?
+We think it's some kind of deadlock situation.
 
-Mail is cheap but look at how wide you're repeatedly spamming this
-series.
+During reconnecting, first BIO sets pending_bitmap_work.n to 1 and waits
+for status until changing from WFBitMapS to SyncSource.
+At this time, If another BIO exists, this second BIO waits until
+pending_bitmap_work.n to zero at inc_ap_bio().
+Because status is unchanged in WFBitMapS, pending_bitmap_work.n can not be
+zero forever.
 
-Also, look at what you've done to the dm-devel patchwork:
-https://patchwork.kernel.org/project/dm-devel/list/?state=*
+Why doesn't the status change from WFBitMapS to SyncSource for the first
+BIO?
 
-Just sayin'... ;)
+Thanks.
+
+--001a11436aae227ab70530c28609
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Dear Phil,<div><br></div><div>We think it&#39;s some kind =
+of deadlock situation.</div><div><br>During reconnecting, first BIO sets pe=
+nding_bitmap_work.n to 1 and waits for status until changing from WFBitMapS=
+ to SyncSource.<br>At this time, If another BIO exists, this second BIO wai=
+ts until pending_bitmap_work.n to zero at inc_ap_bio().<br>Because status i=
+s unchanged in WFBitMapS, pending_bitmap_work.n can not be zero forever.</d=
+iv><div><br>Why doesn&#39;t the status change from WFBitMapS to SyncSource =
+for the first BIO?
+</div><div><br></div><div>Thanks.</div><div><br></div><div><br></div></div>
+
+--001a11436aae227ab70530c28609--
