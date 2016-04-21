@@ -1,18 +1,37 @@
-Return-Path: <jhkim@mantech.co.kr>
-Received: from mail-vk0-f42.google.com (mail-vk0-f42.google.com
-	[209.85.213.42]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 099F51056453
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 15:48:12 +0200 (CEST)
-Received: by mail-vk0-f42.google.com with SMTP id n62so98639101vkb.0
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 06:48:12 -0700 (PDT)
-MIME-Version: 1.0
-Date: Thu, 21 Apr 2016 22:48:11 +0900
-Message-ID: <CAF6H8oFWgKL3W5eeBeisDhk9Ldjm5YKUpKR0jUL-xtOmVbmS4Q@mail.gmail.com>
-From: Jaeheon Kim <jhkim@mantech.co.kr>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 97D2F1056463
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 8893B40C6AD
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id Gg6HHA7nqJ0h for <drbd-dev@lists.linbit.com>;
+	Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 6ADF240C6B0
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id w4QBqzT9GtsG for <drbd-dev@lists.linbit.com>;
+	Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 4148D40C6AD
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
+Date: Thu, 21 Apr 2016 15:57:36 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary=001a114364fe0819550530fef6a3
-Subject: [Drbd-dev]  [CASE-29] After re-connect,
+Message-ID: <20160421135736.GW3078@soda.linbit>
+References: <CAF6H8oFWgKL3W5eeBeisDhk9Ldjm5YKUpKR0jUL-xtOmVbmS4Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <CAF6H8oFWgKL3W5eeBeisDhk9Ldjm5YKUpKR0jUL-xtOmVbmS4Q@mail.gmail.com>
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [Drbd-dev] [CASE-29] After re-connect,
  WFBitMapS-WFBitMapT status has sustained continuously and copy
  command hangs
 List-Id: "*Coordination* of development, patches,
@@ -26,61 +45,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---001a114364fe0819550530fef6a3
-Content-Type: text/plain; charset=UTF-8
+On Thu, Apr 21, 2016 at 10:48:11PM +0900, Jaeheon Kim wrote:
+> Hi,
+>=20
+> We wrote some temporary solution to avoid file copy hang problem.
+> We inserted wake_up function for sender_work queue after  _req_mod(req,
+> QUEUE_FOR_SEND_OOS, peer_device).
+> Please check following code in drbd_process_write_request function.
 
-Hi,
+Please try to send unified diffs.
+maybe git diff, even.
 
-We wrote some temporary solution to avoid file copy hang problem.
-We inserted wake_up function for sender_work queue after  _req_mod(req,
-QUEUE_FOR_SEND_OOS, peer_device).
-Please check following code in drbd_process_write_request function.
+>=20
+> drbd_process_write_request ()
+> {
+>=20
+>   ........
+>=20
+>=20
+> } else if (drbd_set_out_of_sync(peer_device, req->i.sector, req->i.size=
+))
+>=20
+> #ifdef _WIN32_V9 // Windows DRBD
+> {
+>     _req_mod(req, QUEUE_FOR_SEND_OOS, peer_device);
+>     if(peer_device->repl_state[NOW] =3D=3D L_WF_BITMAP_S)
+>     {
+>         wake_up(&peer_device->connection->sender_work.q_wait);
+>     }
+> }
+> #else
+>     _req_mod(req, QUEUE_FOR_SEND_OOS, peer_device); // Linux Org
+> #endif
+>=20
+> }
+>=20
+> What do you think about this idea?
 
-drbd_process_write_request ()
-{
+You are correct,
+if all established replication links are "ahead",
+and not a single link actually gets the data,
+we may miss the wake up of the sender.
 
-  ........
+better fix is probably
+diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
+index 3159de8..ae4bbd6 100644
+--- a/drbd/drbd_req.c
++++ b/drbd/drbd_req.c
+@@ -1666,8 +1666,7 @@ static void drbd_send_and_submit(struct drbd_device=
+ *device, struct drbd_request
+ 		}
+ 		if (!drbd_process_write_request(req))
+ 			no_remote =3D true;
+-		else
+-			wake_all_senders(resource);
++		wake_all_senders(resource);
+ 	} else {
+ 		if (peer_device) {
+ 			_req_mod(req, TO_BE_SENT, peer_device);
 
+--=20
+: Lars Ellenberg
+: LINBIT | Keeping the Digital World Running
+: DRBD -- Heartbeat -- Corosync -- Pacemaker
+: R&D, Integration, Ops, Consulting, Support
 
-} else if (drbd_set_out_of_sync(peer_device, req->i.sector, req->i.size))
-
-#ifdef _WIN32_V9 // Windows DRBD
-{
-    _req_mod(req, QUEUE_FOR_SEND_OOS, peer_device);
-    if(peer_device->repl_state[NOW] == L_WF_BITMAP_S)
-    {
-        wake_up(&peer_device->connection->sender_work.q_wait);
-    }
-}
-#else
-    _req_mod(req, QUEUE_FOR_SEND_OOS, peer_device); // Linux Org
-#endif
-
-}
-
-What do you think about this idea?
-
-Thanks.
-
---001a114364fe0819550530fef6a3
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">Hi,
-<div><br></div><div>We wrote some temporary solution to avoid file copy han=
-g problem.</div><div>We inserted wake_up function for sender_work queue aft=
-er =C2=A0_req_mod(req, QUEUE_FOR_SEND_OOS, peer_device).</div><div>Please c=
-heck following code in drbd_process_write_request function.<br><br>drbd_pro=
-cess_write_request ()</div><div>{</div><div><br></div><div>=C2=A0 ........<=
-/div><div><br></div><div><br>} else if (drbd_set_out_of_sync(peer_device, r=
-eq-&gt;i.sector, req-&gt;i.size))<div><br>#ifdef _WIN32_V9 // Windows DRBD<=
-br>{<br>=C2=A0 =C2=A0 _req_mod(req, QUEUE_FOR_SEND_OOS, peer_device);<br>=
-=C2=A0 =C2=A0 if(peer_device-&gt;repl_state[NOW] =3D=3D L_WF_BITMAP_S)<br>=
-=C2=A0 =C2=A0 {<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 wake_up(&amp;peer_device-&gt=
-;connection-&gt;sender_work.q_wait);<br>=C2=A0 =C2=A0 }<br>}<br>#else<br>=
-=C2=A0 =C2=A0 _req_mod(req, QUEUE_FOR_SEND_OOS, peer_device); // Linux Org<=
-br>#endif<br></div></div><div><br></div><div>}</div><div><br></div><div>Wha=
-t do you think about this idea?</div><div><br></div><div>Thanks.</div><div>=
-<br></div><div><br></div></div>
-
---001a114364fe0819550530fef6a3--
+DRBD=AE and LINBIT=AE are registered trademarks of LINBIT
