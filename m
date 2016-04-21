@@ -1,39 +1,20 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <jhkim@mantech.co.kr>
+Received: from mail-vk0-f54.google.com (mail-vk0-f54.google.com
+	[209.85.213.54]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 97D2F1056463
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 8893B40C6AD
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id Gg6HHA7nqJ0h for <drbd-dev@lists.linbit.com>;
-	Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 6ADF240C6B0
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id w4QBqzT9GtsG for <drbd-dev@lists.linbit.com>;
-	Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 4148D40C6AD
-	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 15:57:37 +0200 (CEST)
-Date: Thu, 21 Apr 2016 15:57:36 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20160421135736.GW3078@soda.linbit>
-References: <CAF6H8oFWgKL3W5eeBeisDhk9Ldjm5YKUpKR0jUL-xtOmVbmS4Q@mail.gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6303D1056456
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 16:01:57 +0200 (CEST)
+Received: by mail-vk0-f54.google.com with SMTP id t129so99173852vkg.2
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Apr 2016 07:01:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <CAF6H8oFWgKL3W5eeBeisDhk9Ldjm5YKUpKR0jUL-xtOmVbmS4Q@mail.gmail.com>
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] [CASE-29] After re-connect,
- WFBitMapS-WFBitMapT status has sustained continuously and copy
- command hangs
+Date: Thu, 21 Apr 2016 23:01:56 +0900
+Message-ID: <CAF6H8oFVMK8vNg9jTBwZRThPtkBBb83jLXcej99whLC92+uO7A@mail.gmail.com>
+From: Jaeheon Kim <jhkim@mantech.co.kr>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative; boundary=001a114325ec350c8d0530ff27b5
+Subject: [Drbd-dev]  [CASE-41] After re-connected,
+ despite of OOS remaining primary does not start re-synchronization
+ or continues AHEAD mode.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,69 +26,94 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Apr 21, 2016 at 10:48:11PM +0900, Jaeheon Kim wrote:
-> Hi,
->=20
-> We wrote some temporary solution to avoid file copy hang problem.
-> We inserted wake_up function for sender_work queue after  _req_mod(req,
-> QUEUE_FOR_SEND_OOS, peer_device).
-> Please check following code in drbd_process_write_request function.
+--001a114325ec350c8d0530ff27b5
+Content-Type: text/plain; charset=UTF-8
 
-Please try to send unified diffs.
-maybe git diff, even.
+Hi,
 
->=20
-> drbd_process_write_request ()
-> {
->=20
->   ........
->=20
->=20
-> } else if (drbd_set_out_of_sync(peer_device, req->i.sector, req->i.size=
-))
->=20
-> #ifdef _WIN32_V9 // Windows DRBD
-> {
->     _req_mod(req, QUEUE_FOR_SEND_OOS, peer_device);
->     if(peer_device->repl_state[NOW] =3D=3D L_WF_BITMAP_S)
->     {
->         wake_up(&peer_device->connection->sender_work.q_wait);
->     }
-> }
-> #else
->     _req_mod(req, QUEUE_FOR_SEND_OOS, peer_device); // Linux Org
-> #endif
->=20
-> }
->=20
-> What do you think about this idea?
+We wrote some temporary solution to avoid "continues AHEAD mode problem".
+We cleared AHEAD_TO_SYNC_SOURCE and forced drbd_uuid_new_current
+at conn_disconnect.
 
-You are correct,
-if all established replication links are "ahead",
-and not a single link actually gets the data,
-we may miss the wake up of the sender.
+Please check following codes;
 
-better fix is probably
-diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
-index 3159de8..ae4bbd6 100644
---- a/drbd/drbd_req.c
-+++ b/drbd/drbd_req.c
-@@ -1666,8 +1666,7 @@ static void drbd_send_and_submit(struct drbd_device=
- *device, struct drbd_request
- 		}
- 		if (!drbd_process_write_request(req))
- 			no_remote =3D true;
--		else
--			wake_all_senders(resource);
-+		wake_all_senders(resource);
- 	} else {
- 		if (peer_device) {
- 			_req_mod(req, TO_BE_SENT, peer_device);
 
---=20
-: Lars Ellenberg
-: LINBIT | Keeping the Digital World Running
-: DRBD -- Heartbeat -- Corosync -- Pacemaker
-: R&D, Integration, Ops, Consulting, Support
+1. drbd_disconnected()
+{
 
-DRBD=AE and LINBIT=AE are registered trademarks of LINBIT
+ .....
+
+drbd_md_sync(device);
+
+if (get_ldev(device)) {
+    drbd_bitmap_io(device, &drbd_bm_write_copy_pages, "write from
+disconnected",
+                 BM_LOCK_BULK | BM_LOCK_SINGLE_SLOT, peer_device);
+    put_ldev(device);
+}
+
+#ifdef _WIN32_V9 // temporary patch (clear AHEAD_TO_SYNC_SOURCE flag)
+clear_bit(AHEAD_TO_SYNC_SOURCE, &device->flags); //  Windows DRBD
+#endif
+
+}
+
+
+
+2. conn_disconnect()
+{
+
+... at the end of this function.
+
+#ifdef _WIN32_V9 // (don't create uuid when primary is
+drbdadm-disconnected) temporary patch
+
+ if( (resource->role[NOW] == R_PRIMARY)
+ {
+        test_and_clear_bit(NEW_CUR_UUID, &device->flags);
+        mutex_lock(&resource->conf_update);
+        drbd_uuid_new_current(device, false);
+        mutex_unlock(&resource->conf_update);
+ }
+#endif
+
+}
+
+What do you think about this idea?
+
+But we have no idea to resolve "OOS remaining problem" yet.
+Please check "despite of OOS remaining primary does not start
+re-synchronization" problem.
+
+Thanks.
+
+--001a114325ec350c8d0530ff27b5
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hi,<br><br>We wrote some temporary solution to avoid &quot=
+;continues AHEAD mode problem&quot;.<br>We cleared AHEAD_TO_SYNC_SOURCE and=
+ forced drbd_uuid_new_current at=C2=A0conn_disconnect.<div><br>Please check=
+ following codes;<br><br><br>1. drbd_disconnected()<br>{</div><div><br>=C2=
+=A0.....=C2=A0</div><div><br>drbd_md_sync(device);<br><br>if (get_ldev(devi=
+ce)) {<br>=C2=A0 =C2=A0 drbd_bitmap_io(device, &amp;drbd_bm_write_copy_page=
+s, &quot;write from disconnected&quot;,<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0BM_LOCK_BULK | BM_LOCK_SINGLE_SLOT, peer_dev=
+ice);<br>=C2=A0 =C2=A0 put_ldev(device);<br>}<br><br>#ifdef _WIN32_V9 // te=
+mporary patch (clear AHEAD_TO_SYNC_SOURCE flag)<br>clear_bit(AHEAD_TO_SYNC_=
+SOURCE, &amp;device-&gt;flags); // =C2=A0Windows DRBD<br>#endif<br><br>}</d=
+iv><div><br></div><div><br><br>2. conn_disconnect()</div><div>{<br><br>... =
+at the end of this function.</div><div><br>#ifdef _WIN32_V9 // (don&#39;t c=
+reate uuid when primary is drbdadm-disconnected) temporary patch<br><br>=C2=
+=A0if( (resource-&gt;role[NOW] =3D=3D R_PRIMARY) <br>=C2=A0{<br>=C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 test_and_clear_bit(NEW_CUR_UUID, &amp;device-&gt;flags);<=
+br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 mutex_lock(&amp;resource-&gt;conf_update);<b=
+r>=C2=A0 =C2=A0 =C2=A0 =C2=A0 drbd_uuid_new_current(device, false);<br>=C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 mutex_unlock(&amp;resource-&gt;conf_update);<br>=
+=C2=A0}<br>#endif <br><br>}</div><br>What do you think about this idea?<div=
+><br><div>But we have no idea to resolve &quot;OOS remaining problem&quot; =
+yet.<br>Please check &quot;despite of OOS remaining primary does not start =
+re-synchronization&quot; problem.<br><br>Thanks.
+</div></div><div><br></div></div>
+
+--001a114325ec350c8d0530ff27b5--
