@@ -1,20 +1,24 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <Bart.VanAssche@sandisk.com>
+Received: from na01-by2-obe.outbound.protection.outlook.com
+	(mail-by2on0056.outbound.protection.outlook.com [207.46.100.56])
+	(using TLSv1 with cipher AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1A3211056466
-	for <drbd-dev@lists.linbit.com>; Mon, 25 Apr 2016 14:08:32 +0200 (CEST)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: Jens Axboe <axboe@fb.com>,
-	linux-kernel@vger.kernel.org
-Date: Mon, 25 Apr 2016 14:07:57 +0200
-Message-Id: <1461586077-11581-31-git-send-email-philipp.reisner@linbit.com>
-In-Reply-To: <1461586077-11581-1-git-send-email-philipp.reisner@linbit.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D13471056332
+	for <drbd-dev@lists.linbit.com>; Mon, 25 Apr 2016 17:51:05 +0200 (CEST)
+To: Philipp Reisner <philipp.reisner@linbit.com>, Jens Axboe <axboe@fb.com>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 References: <1461586077-11581-1-git-send-email-philipp.reisner@linbit.com>
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 30/30] drbd: correctly handle failed
-	crypto_alloc_hash
+	<1461586077-11581-6-git-send-email-philipp.reisner@linbit.com>
+From: Bart Van Assche <bart.vanassche@sandisk.com>
+Message-ID: <571E393E.1010003@sandisk.com>
+Date: Mon, 25 Apr 2016 08:35:26 -0700
+MIME-Version: 1.0
+In-Reply-To: <1461586077-11581-6-git-send-email-philipp.reisner@linbit.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
+Cc: "drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH 05/30] drbd: Introduce new disk config option
+ rs-discard-granularity
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,49 +30,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+On 04/25/2016 05:10 AM, Philipp Reisner wrote:
+> As long as the value is 0 the feature is disabled. With setting
+> it to a positive value, DRBD limits and aligns its resync requests
+> to the rs-discard-granularity setting. If the sync source detects
+> all zeros in such a block, the resync target discards the range
+> on disk.
 
-crypto_alloc_hash returns an ERR_PTR(), not NULL.
+Hello Phil,
 
-Also reset peer_integrity_tfm to NULL, to not call crypto_free_hash()
-on an errno in the cleanup path.
+Can you explain why rs-discard-granularity is configurable instead of 
+e.g. setting it to the least common multiple of the discard 
+granularities of the underlying block devices at both sides?
 
-Reported-by: Insu Yun <wuninsu@gmail.com>
+Thanks,
 
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_receiver.c | 3 ++-
- include/linux/drbd.h               | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 5c06286..80a6aff 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3668,7 +3668,8 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
- 		 */
- 
- 		peer_integrity_tfm = crypto_alloc_ahash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
--		if (!peer_integrity_tfm) {
-+		if (IS_ERR(peer_integrity_tfm)) {
-+			peer_integrity_tfm = NULL;
- 			drbd_err(connection, "peer data-integrity-alg %s not supported\n",
- 				 integrity_alg);
- 			goto disconnect;
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 2b26156..002611c 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -51,7 +51,7 @@
- #endif
- 
- extern const char *drbd_buildtag(void);
--#define REL_VERSION "8.4.6"
-+#define REL_VERSION "8.4.7"
- #define API_VERSION 1
- #define PRO_VERSION_MIN 86
- #define PRO_VERSION_MAX 101
--- 
-1.9.1
+Bart.
 
