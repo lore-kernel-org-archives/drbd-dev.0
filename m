@@ -2,18 +2,19 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3324E1056463
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7874B1056464
 	for <drbd-dev@lists.linbit.com>; Mon, 25 Apr 2016 14:08:31 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Mon, 25 Apr 2016 14:07:54 +0200
-Message-Id: <1461586077-11581-28-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 25 Apr 2016 14:07:55 +0200
+Message-Id: <1461586077-11581-29-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1461586077-11581-1-git-send-email-philipp.reisner@linbit.com>
 References: <1461586077-11581-1-git-send-email-philipp.reisner@linbit.com>
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 27/30] drbd: get rid of empty statement in
-	is_valid_state
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 28/30] drbd: finally report ms, not jiffies,
+	in log message
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,39 +26,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Roland Kammerer <roland.kammerer@linbit.com>
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-This should silence a warning about an empty statement. Thanks to Fabian
-Frederick <fabf@skynet.be> who sent a patch I modified to be smaller and
-avoids an additional indent level.
+Also skip the message unless bitmap IO took longer than 5 ms.
 
-Signed-off-by: Roland Kammerer <roland.kammerer@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_state.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ drivers/block/drbd/drbd_bitmap.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index aca68a5..eea0c4a 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -814,7 +814,7 @@ is_valid_state(struct drbd_device *device, union drbd_state ns)
- 	}
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index 17e5e60..801b8f3 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -1121,10 +1121,14 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned
+ 		kref_put(&ctx->kref, &drbd_bm_aio_ctx_destroy);
  
- 	if (rv <= 0)
--		/* already found a reason to abort */;
-+		goto out; /* already found a reason to abort */
- 	else if (ns.role == R_SECONDARY && device->open_cnt)
- 		rv = SS_DEVICE_IN_USE;
+ 	/* summary for global bitmap IO */
+-	if (flags == 0)
+-		drbd_info(device, "bitmap %s of %u pages took %lu jiffies\n",
+-			 (flags & BM_AIO_READ) ? "READ" : "WRITE",
+-			 count, jiffies - now);
++	if (flags == 0) {
++		unsigned int ms = jiffies_to_msecs(jiffies - now);
++		if (ms > 5) {
++			drbd_info(device, "bitmap %s of %u pages took %u ms\n",
++				 (flags & BM_AIO_READ) ? "READ" : "WRITE",
++				 count, ms);
++		}
++	}
  
-@@ -862,6 +862,7 @@ is_valid_state(struct drbd_device *device, union drbd_state ns)
- 	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
- 		rv = SS_CONNECTED_OUTDATES;
- 
-+out:
- 	rcu_read_unlock();
- 
- 	return rv;
+ 	if (ctx->error) {
+ 		drbd_alert(device, "we had at least one MD IO ERROR during bitmap IO\n");
 -- 
 1.9.1
 
