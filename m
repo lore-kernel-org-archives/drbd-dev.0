@@ -2,53 +2,47 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 49C561056446
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Apr 2016 14:47:50 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 96F8B1051881
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Apr 2016 10:34:07 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 3739B3F79D6
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Apr 2016 14:47:50 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 8738840541E
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Apr 2016 10:34:07 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 2UpeyI5K3O6O for <drbd-dev@lists.linbit.com>;
-	Tue, 26 Apr 2016 14:47:50 +0200 (CEST)
+	with ESMTP id L5HVXKogQ1X7 for <drbd-dev@lists.linbit.com>;
+	Wed, 27 Apr 2016 10:34:07 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 158A83F79D5
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Apr 2016 14:47:50 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 6522F405425
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Apr 2016 10:34:07 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 8umvd2HblySn for <drbd-dev@lists.linbit.com>;
-	Tue, 26 Apr 2016 14:47:49 +0200 (CEST)
+	with ESMTP id kav4JbZE9kjz for <drbd-dev@lists.linbit.com>;
+	Wed, 27 Apr 2016 10:34:07 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id CCFD53F79D3
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Apr 2016 14:47:49 +0200 (CEST)
-Resent-Message-ID: <20160426124749.GM20950@soda.linbit>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	(using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A61C91056460
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Apr 2016 14:39:46 +0200 (CEST)
-Received: by mail-wm0-f46.google.com with SMTP id u206so5123466wme.1
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Apr 2016 05:39:46 -0700 (PDT)
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 38F3140541E
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Apr 2016 10:34:07 +0200 (CEST)
+Resent-Message-ID: <20160427083406.GN20950@soda.linbit>
+Received: from shards.monkeyblade.net (shards.monkeyblade.net [149.20.54.216])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EC5C71056332
+	for <drbd-dev@lists.linbit.com>;
+	Tue, 26 Apr 2016 18:25:17 +0200 (CEST)
+Date: Tue, 26 Apr 2016 12:25:15 -0400 (EDT)
+Message-Id: <20160426.122515.1389035390419695445.davem@davemloft.net>
+To: lars.ellenberg@linbit.com
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20160426115427.GB20950@soda.linbit>
 References: <1461657978-13360-1-git-send-email-nicolas.dichtel@6wind.com>
-	<1461657978-13360-4-git-send-email-nicolas.dichtel@6wind.com>
-	<20160426110848.GD27612@quack2.suse.cz>
-To: Jan Kara <jack@suse.cz>
-From: Nicolas Dichtel <nicolas.dichtel@6wind.com>
-Message-ID: <571F5FBE.8050900@6wind.com>
-Date: Tue, 26 Apr 2016 14:31:58 +0200
-MIME-Version: 1.0
-In-Reply-To: <20160426110848.GD27612@quack2.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+	<20160426115427.GB20950@soda.linbit>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Cc: dev@openvswitch.org, sd@queasysnail.net, netdev@vger.kernel.org,
 	linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
-	jhs@mojatatu.com, pshelar@nicira.com, lars.ellenberg@linbit.com,
-	jack@suse.com, johannes@sipsolutions.net,
-	philipp.reisner@linbit.com, davem@davemloft.net,
-	kvalo@codeaurora.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH net-next 3/8] fs/quota: use
-	nla_put_u64_64bit()
-Reply-To: nicolas.dichtel@6wind.com
+	jhs@mojatatu.com, pshelar@nicira.com, jack@suse.com,
+	nicolas.dichtel@6wind.com, philipp.reisner@linbit.com,
+	johannes@sipsolutions.net, kvalo@codeaurora.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH net-next 0/8] netlink: align attributes when
+ needed (patchset #3)
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -60,25 +54,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Le 26/04/2016 13:08, Jan Kara a =E9crit :
-> On Tue 26-04-16 10:06:13, Nicolas Dichtel wrote:
->> Signed-off-by: Nicolas Dichtel <nicolas.dichtel@6wind.com>
->=20
-> OK, so I somewhat miss a description of what will this do to the netlin=
-k
-> message so that I can judge whether the change is fine for the userspac=
-e
-> counterpart parsing these messages. AFAIU this changes the message form=
-at
-> by adding a QUOTA_NL_A_PAD field before each 64-bit field which needs a=
-n
-> alignment, am I guessing right? Thus when the userspace counterpart use=
-s
-> genlmsg_parse() it should just silently ignore these attributes if I re=
-ad
-> the documentation right. Did I understand this correctly?
-Yes, that's it.
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+Date: Tue, 26 Apr 2016 13:54:27 +0200
 
+> On Tue, Apr 26, 2016 at 10:06:10AM +0200, Nicolas Dichtel wrote:
+>> 
+>> This is the continuation (series #3) of the work done to align netlink
+>> attributes when these attributes contain some 64-bit fields.
+>> 
+>> It's the last patchset from what I've seen.
+>> 
+>> The last user of nla_put_u64() is block/drbd. This module does not use
+>> standard netlink API (see all the stuff in include/linux/genl_magic_struct.h
+>> and include/linux/genl_magic_func.h). I didn't modify it because it's seems
+>> hard to do it whithout testing and fully understanding the context
+> 
+> Something like this should just work.
 
-Regards,
-Nicolas
+Unfortunately we had problems using unspec, that's why an explicit new
+padding attribute is added for each netlink attribute set.
