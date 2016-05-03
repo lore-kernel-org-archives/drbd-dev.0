@@ -2,25 +2,48 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id AA7271056445
-	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 11:05:31 +0200 (CEST)
-Date: Wed, 4 May 2016 11:05:30 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: David Miller <davem@davemloft.net>
-Message-ID: <20160504090529.GJ16459@soda.linbit>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 99A481051881
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:09 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 886F23743BD
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:09 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id j4sp1Pfic-Hj for <drbd-dev@lists.linbit.com>;
+	Wed,  4 May 2016 14:34:09 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 650DD3743BF
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:09 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id I2zgbg4ZgpB7 for <drbd-dev@lists.linbit.com>;
+	Wed,  4 May 2016 14:34:09 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 13C923743BD
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:09 +0200 (CEST)
+Resent-Message-ID: <20160504123408.GL16459@soda.linbit>
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	(using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 604371051881
+	for <drbd-dev@lists.linbit.com>; Tue,  3 May 2016 14:07:06 +0200 (CEST)
+Received: by mail-wm0-f45.google.com with SMTP id g17so35044802wme.1
+	for <drbd-dev@lists.linbit.com>; Tue, 03 May 2016 05:07:06 -0700 (PDT)
 References: <57286F49.8050107@6wind.com>
 	<1462268358-19044-1-git-send-email-nicolas.dichtel@6wind.com>
 	<20160503100644.GE16459@soda.linbit>
-	<20160503.120556.1317913903199470646.davem@davemloft.net>
+To: netdev@vger.kernel.org, davem@davemloft.net, philipp.reisner@linbit.com,
+	drbd-dev@lists.linbit.com, linux-kernel@vger.kernel.org
+From: Nicolas Dichtel <nicolas.dichtel@6wind.com>
+Message-ID: <57289468.5090401@6wind.com>
+Date: Tue, 3 May 2016 14:07:04 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160503.120556.1317913903199470646.davem@davemloft.net>
-Cc: netdev@vger.kernel.org, nicolas.dichtel@6wind.com,
-	philipp.reisner@linbit.com, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
+In-Reply-To: <20160503100644.GE16459@soda.linbit>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 Subject: Re: [Drbd-dev] [PATCH net-next v2] block/drbd: use
 	nla_put_u64_64bit()
+Reply-To: nicolas.dichtel@6wind.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,48 +55,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, May 03, 2016 at 12:05:56PM -0400, David Miller wrote:
-> From: Lars Ellenberg <lars.ellenberg@linbit.com>
-> Date: Tue, 3 May 2016 12:06:44 +0200
-> 
-> > Please just NOT use an additional "field",
-> > but always use 0 to pad.
-> 
-> You can't, it doesn't work.
+Le 03/05/2016 12:06, Lars Ellenberg a =E9crit :
+> On Tue, May 03, 2016 at 11:39:18AM +0200, Nicolas Dichtel wrote:
+>> Two new handlers have been defined in genl_magic_ headers:
+>>  - __field2: the corresponding nla_put() function (nla_put_flag()) tak=
+es
+>>              only two args
+>>  - __field4: the corresponding nla_put() function (nla_put_u64_64bit()=
+)
+>>              takes four args
+>>
+>> __field2 allows us to define __unspec_field for padding attribute.
+>> __field4 allows us to update the definition of __u64_field: the pad
+>> attribute should now be specified.
+>=20
+> Please just NOT use an additional "field",
+> but always use 0 to pad.
+>=20
+> Patch is much shorter as well, see below.
+I don't think that the goal is to make the shortest patch...
+But frankly, I don't care. The goal was to use the new interface in a pro=
+per
+way, like every other subsystem.
 
-I did, and it *did* work.
-At least, it appeared to.
+>=20
+> Attribute type "0" is not used,
+> and will never be of semantic value,
+> but always be ignored in the DRBD netlink family.
+>=20
+> Whereas using some arbitrary value will be wrong,
+> and will needlessly break userland.
+An application should always ignore unknown attribute, this is a golden r=
+ule.
+Now if you know that this patch will break applications (which one exactl=
+y?), we
+can use your proposal.
 
-I'm not talking about every user of netlink out there.
-That I don't know. But specifically for DRBD netlink,
-from what my experiments tell me, it works just fine.
 
-> We are adding a new field to every netlink protocol family that has
-> this alignment problem.
-
-We don't have an "alignment problem" there, btw.
-Last time I checked, we did work fine without this alignment magic,
-we already take care of that, yes, even on affected architectures.
-
-On Tue, May 03, 2016 at 12:06:52PM -0400, David Miller wrote:
-> From: Lars Ellenberg <lars.ellenberg@linbit.com>
-> Date: Tue, 3 May 2016 12:06:44 +0200
-> 
-> > Whereas using some arbitrary value will be wrong,
-> > and will needlessly break userland.
-> 
-> It cannot break userland.
-
-It can, if those tags have been used already.
-There is DRBD out-of-tree as well,
-it usually is ahead of in-tree DRBD.
-
-But yes, I could obviously check and assign and reserve some
-not-yet-used tag to all of them.
-
-I don't see why, though, given that 0 (appearently) works fine.
-
-Can you elaborate why and how that does not work?
-
-	Lars
-
+Regards,
+Nicolas
