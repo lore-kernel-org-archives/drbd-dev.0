@@ -2,32 +2,32 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9FCD5105644F
-	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:13 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 37E641056450
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:14 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 831CE3743BD
-	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:13 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 130913743C0
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:14 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id Uqy9X-zYmDBy for <drbd-dev@lists.linbit.com>;
-	Wed,  4 May 2016 14:34:13 +0200 (CEST)
+	with ESMTP id Q-hZf-ZRfRum for <drbd-dev@lists.linbit.com>;
+	Wed,  4 May 2016 14:34:14 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 849563743C0
-	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:12 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id C24FE3743BD
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:13 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id zpamKr5DyrYW for <drbd-dev@lists.linbit.com>;
-	Wed,  4 May 2016 14:34:12 +0200 (CEST)
+	with ESMTP id H_WepJ8dvSOg for <drbd-dev@lists.linbit.com>;
+	Wed,  4 May 2016 14:34:13 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 5EE483743BD
-	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:12 +0200 (CEST)
-Resent-Message-ID: <20160504123412.GM16459@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 9AECD3743C3
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:34:13 +0200 (CEST)
+Resent-Message-ID: <20160504123413.GN16459@soda.linbit>
 Received: from shards.monkeyblade.net (shards.monkeyblade.net [149.20.54.216])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8E43E1056445
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 13C491056445
 	for <drbd-dev@lists.linbit.com>;
-	Tue,  3 May 2016 18:05:59 +0200 (CEST)
-Date: Tue, 03 May 2016 12:05:56 -0400 (EDT)
-Message-Id: <20160503.120556.1317913903199470646.davem@davemloft.net>
+	Tue,  3 May 2016 18:06:54 +0200 (CEST)
+Date: Tue, 03 May 2016 12:06:52 -0400 (EDT)
+Message-Id: <20160503.120652.1961585632822010448.davem@davemloft.net>
 To: lars.ellenberg@linbit.com
 From: David Miller <davem@davemloft.net>
 In-Reply-To: <20160503100644.GE16459@soda.linbit>
@@ -56,10 +56,14 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 Date: Tue, 3 May 2016 12:06:44 +0200
 
-> Please just NOT use an additional "field",
-> but always use 0 to pad.
+> Whereas using some arbitrary value will be wrong,
+> and will needlessly break userland.
 
-You can't, it doesn't work.
+It cannot break userland.
 
-We are adding a new field to every netlink protocol family that has this
-alignment problem.
+A fundamental property of netlink is that all code must silently
+ignore netlink attributes it does not understand.
+
+This is why netlink is easily extensible.
+
+If code isn't doing that, it is broken and must be fixed.
