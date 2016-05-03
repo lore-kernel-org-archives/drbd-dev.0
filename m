@@ -2,22 +2,56 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 142E41056447
-	for <drbd-dev@lists.linbit.com>; Tue,  3 May 2016 12:06:45 +0200 (CEST)
-Date: Tue, 3 May 2016 12:06:44 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Nicolas Dichtel <nicolas.dichtel@6wind.com>
-Message-ID: <20160503100644.GE16459@soda.linbit>
-References: <57286F49.8050107@6wind.com>
-	<1462268358-19044-1-git-send-email-nicolas.dichtel@6wind.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 341A31056446
+	for <drbd-dev@lists.linbit.com>; Tue,  3 May 2016 12:50:02 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 1CD2540F006
+	for <drbd-dev@lists.linbit.com>; Tue,  3 May 2016 12:50:02 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id YLPPqYiKWf4O for <drbd-dev@lists.linbit.com>;
+	Tue,  3 May 2016 12:50:01 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id D92E340F008
+	for <drbd-dev@lists.linbit.com>; Tue,  3 May 2016 12:50:01 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id OY7FBm9fT-0T for <drbd-dev@lists.linbit.com>;
+	Tue,  3 May 2016 12:50:01 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id AAA3740F006
+	for <drbd-dev@lists.linbit.com>; Tue,  3 May 2016 12:50:01 +0200 (CEST)
+Resent-Message-ID: <20160503105001.GF16459@soda.linbit>
+Received: from youngberry.canonical.com (youngberry.canonical.com
+	[91.189.89.112])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3586A1056312
+	for <drbd-dev@lists.linbit.com>; Tue,  3 May 2016 03:04:00 +0200 (CEST)
+Received: from mail-yw0-f182.google.com ([209.85.161.182])
+	by youngberry.canonical.com with esmtpsa
+	(TLS1.0:RSA_AES_128_CBC_SHA1:16) (Exim 4.76)
+	(envelope-from <ming.lei@canonical.com>) id 1axOkp-0002f5-OU
+	for drbd-dev@lists.linbit.com; Tue, 03 May 2016 01:03:59 +0000
+Received: by mail-yw0-f182.google.com with SMTP id t10so5720156ywa.0
+	for <drbd-dev@lists.linbit.com>; Mon, 02 May 2016 18:03:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1462268358-19044-1-git-send-email-nicolas.dichtel@6wind.com>
-Cc: netdev@vger.kernel.org, drbd-dev@lists.linbit.com, davem@davemloft.net,
-	linux-kernel@vger.kernel.org, philipp.reisner@linbit.com
-Subject: Re: [Drbd-dev] [PATCH net-next v2] block/drbd: use
-	nla_put_u64_64bit()
+In-Reply-To: <1460928615-20894-1-git-send-email-ming.lei@canonical.com>
+References: <1460928615-20894-1-git-send-email-ming.lei@canonical.com>
+Date: Tue, 3 May 2016 09:03:58 +0800
+Message-ID: <CACVXFVOw2dnO0tw5n2dPXUQh_tkGLCo742AXpJ8mMQG6LQZVUA@mail.gmail.com>
+From: Ming Lei <ming.lei@canonical.com>
+To: Jens Axboe <axboe@fb.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>,
+	Mike Snitzer <snitzer@redhat.com>, Ming Lei <ming.lei@canonical.com>,
+	"open list:XFS FILESYSTEM" <xfs@oss.sgi.com>,
+	linux-block@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>,
+	Shaohua Li <shli@fb.com>, Tejun Heo <tj@kernel.org>,
+	Keith Busch <keith.busch@intel.com>,
+	Kent Overstreet <kent.overstreet@gmail.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH v5 0/8] block: prepare for multipage bvecs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,100 +63,89 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, May 03, 2016 at 11:39:18AM +0200, Nicolas Dichtel wrote:
-> Two new handlers have been defined in genl_magic_ headers:
->  - __field2: the corresponding nla_put() function (nla_put_flag()) takes
->              only two args
->  - __field4: the corresponding nla_put() function (nla_put_u64_64bit())
->              takes four args
-> 
-> __field2 allows us to define __unspec_field for padding attribute.
-> __field4 allows us to update the definition of __u64_field: the pad
-> attribute should now be specified.
+On Mon, Apr 18, 2016 at 5:29 AM, Ming Lei <ming.lei@canonical.com> wrote:
+> Hi,
+>
+> Interests[1] have been shown in multipage bvecs, so this patchset
+> try to prepare for the support and do two things:
+>
+> 1) the 1st 4 patches use bvec iterator to implement iterate_bvec(),
+> then we can drop the non-standard way for iterating bvec, which
+> can be thought as a good cleanup for lib/iov_iter.c
+>
+> 2) remove BIO_MAX_SECTORS & BIO_MAX_SIZE, and now there is only
+> one user for each. Once multipage bvecs is introduced, one bio
+> may hold lots of sectors, and we should always use sort of BIO_MAX_VECS
+> which should be introduced in future and is similiar with current
+> BIO_MAX_PAGES.
+>
+> The only functional change is iterate_bvec():lib/iov_iter.c
+>
+> xfstests(-a auto) over loop aio is run for ext4/xfs to verify
+> the change and no regression found with this patchset.
+>
+> Jens, I am confidant this time, so please give it a go if no one
+> objects. I appreciate someone(AI? or anyone) can give a review on
+> the patch 4/8 about iterate_bvec() change.
+>
+> V5:
+>         - use bvec's iterator to figure new base vec address and
+>         update 'skip' correctly
+>         - run xfstests(-a auto) on loop aio/dio for verifying
+>         the change in iterate_bvec(), and no regression reported
+>         - use stree-ng to trigger heavy swap over swapfile to verify
+>         change in iterate_bvec() too, looks everything is fine
 
-Please just NOT use an additional "field",
-but always use 0 to pad.
+Hi Jens,
 
-Patch is much shorter as well, see below.
+Any possibility to make v5 into v4.7 so that we can move on about
+multipage bvecs?
 
-Attribute type "0" is not used,
-and will never be of semantic value,
-but always be ignored in the DRBD netlink family.
+BTW, even though not considering mp bvecs, this patchset is still a
+good cleanup.
 
-Whereas using some arbitrary value will be wrong,
-and will needlessly break userland.
+thanks,
+Ming
 
-Thanks,
-
-    Lars Ellenberg
-
-diff --git a/include/linux/genl_magic_struct.h b/include/linux/genl_magic_struct.h
-index eecd19b..6270a56 100644
---- a/include/linux/genl_magic_struct.h
-+++ b/include/linux/genl_magic_struct.h
-@@ -62,6 +62,11 @@ extern void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void);
- 
- /* MAGIC helpers							{{{2 */
- 
-+static inline int nla_put_u64_0pad(struct sk_buff *skb, int attrtype, u64 value)
-+{
-+	return nla_put_64bit(skb, attrtype, sizeof(u64), &value, 0);
-+}
-+
- /* possible field types */
- #define __flg_field(attr_nr, attr_flag, name) \
- 	__field(attr_nr, attr_flag, name, NLA_U8, char, \
-@@ -80,7 +85,7 @@ extern void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void);
- 			nla_get_u32, nla_put_u32, true)
- #define __u64_field(attr_nr, attr_flag, name)	\
- 	__field(attr_nr, attr_flag, name, NLA_U64, __u64, \
--			nla_get_u64, nla_put_u64, false)
-+			nla_get_u64, nla_put_u64_0pad, false)
- #define __str_field(attr_nr, attr_flag, name, maxlen) \
- 	__array(attr_nr, attr_flag, name, NLA_NUL_STRING, char, maxlen, \
- 			nla_strlcpy, nla_put, false)
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 1fd1dcc..206cc76 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -3633,14 +3633,14 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
- 		goto nla_put_failure;
- 	if (nla_put_u32(skb, T_sib_reason, sib ? sib->sib_reason : SIB_GET_STATUS_REPLY) ||
- 	    nla_put_u32(skb, T_current_state, device->state.i) ||
--	    nla_put_u64(skb, T_ed_uuid, device->ed_uuid) ||
--	    nla_put_u64(skb, T_capacity, drbd_get_capacity(device->this_bdev)) ||
--	    nla_put_u64(skb, T_send_cnt, device->send_cnt) ||
--	    nla_put_u64(skb, T_recv_cnt, device->recv_cnt) ||
--	    nla_put_u64(skb, T_read_cnt, device->read_cnt) ||
--	    nla_put_u64(skb, T_writ_cnt, device->writ_cnt) ||
--	    nla_put_u64(skb, T_al_writ_cnt, device->al_writ_cnt) ||
--	    nla_put_u64(skb, T_bm_writ_cnt, device->bm_writ_cnt) ||
-+	    nla_put_u64_0pad(skb, T_ed_uuid, device->ed_uuid) ||
-+	    nla_put_u64_0pad(skb, T_capacity, drbd_get_capacity(device->this_bdev)) ||
-+	    nla_put_u64_0pad(skb, T_send_cnt, device->send_cnt) ||
-+	    nla_put_u64_0pad(skb, T_recv_cnt, device->recv_cnt) ||
-+	    nla_put_u64_0pad(skb, T_read_cnt, device->read_cnt) ||
-+	    nla_put_u64_0pad(skb, T_writ_cnt, device->writ_cnt) ||
-+	    nla_put_u64_0pad(skb, T_al_writ_cnt, device->al_writ_cnt) ||
-+	    nla_put_u64_0pad(skb, T_bm_writ_cnt, device->bm_writ_cnt) ||
- 	    nla_put_u32(skb, T_ap_bio_cnt, atomic_read(&device->ap_bio_cnt)) ||
- 	    nla_put_u32(skb, T_ap_pending_cnt, atomic_read(&device->ap_pending_cnt)) ||
- 	    nla_put_u32(skb, T_rs_pending_cnt, atomic_read(&device->rs_pending_cnt)))
-@@ -3657,13 +3657,13 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
- 			goto nla_put_failure;
- 
- 		if (nla_put_u32(skb, T_disk_flags, device->ldev->md.flags) ||
--		    nla_put_u64(skb, T_bits_total, drbd_bm_bits(device)) ||
--		    nla_put_u64(skb, T_bits_oos, drbd_bm_total_weight(device)))
-+		    nla_put_u64_0pad(skb, T_bits_total, drbd_bm_bits(device)) ||
-+		    nla_put_u64_0pad(skb, T_bits_oos, drbd_bm_total_weight(device)))
- 			goto nla_put_failure;
- 		if (C_SYNC_SOURCE <= device->state.conn &&
- 		    C_PAUSED_SYNC_T >= device->state.conn) {
--			if (nla_put_u64(skb, T_bits_rs_total, device->rs_total) ||
--			    nla_put_u64(skb, T_bits_rs_failed, device->rs_failed))
-+			if (nla_put_u64_0pad(skb, T_bits_rs_total, device->rs_total) ||
-+			    nla_put_u64_0pad(skb, T_bits_rs_failed, device->rs_failed))
- 				goto nla_put_failure;
- 		}
- 	}
+> V4:
+>         - make xfstests cover xfs
+>         - rebase on for-next of block tree
+> V3:
+>         - include kenrel.h & bug.h in bvec.h for fix comiling failure on arm
+>         as reported by 0day ktest
+>         - build test on arm & arm64
+>
+> V2:
+>         - rename bvec_iter.h as bvec.h
+>         - always include bvec.h into blk_types.h as suggested by Christoph
+>
+> V1:
+>         - don't move BIO_MAX_* to bvec_iter.h as pointed out by Christoph
+>         - run xfstests against v4.6-rc1-next-20160329
+>         - add Reviewed-by
+>         - for 1,4 and 5, Reviewd-by not added, Christoph still expressed
+>         'this looks fine to me.'
+>
+>
+> Ming Lei (8):
+>   block: move bvec iterator into include/linux/bvec.h
+>   block: move two bvec structure into bvec.h
+>   block: mark 1st parameter of bvec_iter_advance as const
+>   iov_iter: use bvec iterator to implement iterate_bvec()
+>   fs: xfs: replace BIO_MAX_SECTORS with BIO_MAX_PAGES
+>   block: bio: remove BIO_MAX_SECTORS
+>   block: drbd: avoid to use BIO_MAX_SIZE
+>   block: bio: remove BIO_MAX_SIZE
+>
+>  drivers/block/drbd/drbd_int.h |  4 +-
+>  fs/xfs/xfs_buf.c              |  4 +-
+>  include/linux/bio.h           | 52 -----------------------
+>  include/linux/blk_types.h     | 22 +---------
+>  include/linux/bvec.h          | 96 +++++++++++++++++++++++++++++++++++++++++++
+>  lib/iov_iter.c                | 45 +++++++-------------
+>  6 files changed, 115 insertions(+), 108 deletions(-)
+>  create mode 100644 include/linux/bvec.h
+>
+> --
+> 1.9.1
+>
