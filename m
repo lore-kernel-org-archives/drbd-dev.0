@@ -1,23 +1,23 @@
-Return-Path: <Ludovic.Beliveau@windriver.com>
-Received: from mail.windriver.com (mail.windriver.com [147.11.1.11])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 834F61056453
-	for <drbd-dev@lists.linbit.com>; Fri, 29 Apr 2016 17:15:11 +0200 (CEST)
-Received: from ALA-HCA.corp.ad.wrs.com (ala-hca.corp.ad.wrs.com
-	[147.11.189.40])
-	by mail.windriver.com (8.15.2/8.15.1) with ESMTPS id u3TEmlTQ023301
-	(version=TLSv1 cipher=AES128-SHA bits=128 verify=FAIL)
-	for <drbd-dev@lists.linbit.com>; Fri, 29 Apr 2016 07:48:48 -0700 (PDT)
-From: "Beliveau, Ludovic" <Ludovic.Beliveau@windriver.com>
-To: "drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Date: Fri, 29 Apr 2016 14:48:47 +0000
-Message-ID: <0ABA934FAB0ECA4C8903465033D3FFC73C176E5B@ALA-MBA.corp.ad.wrs.com>
-Content-Language: en-US
-Content-Type: multipart/alternative;
-	boundary="_000_0ABA934FAB0ECA4C8903465033D3FFC73C176E5BALAMBAcorpadwrs_"
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 142E41056447
+	for <drbd-dev@lists.linbit.com>; Tue,  3 May 2016 12:06:45 +0200 (CEST)
+Date: Tue, 3 May 2016 12:06:44 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Nicolas Dichtel <nicolas.dichtel@6wind.com>
+Message-ID: <20160503100644.GE16459@soda.linbit>
+References: <57286F49.8050107@6wind.com>
+	<1462268358-19044-1-git-send-email-nicolas.dichtel@6wind.com>
 MIME-Version: 1.0
-Subject: [Drbd-dev] OCF script in drbd-utils-8.9.6
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1462268358-19044-1-git-send-email-nicolas.dichtel@6wind.com>
+Cc: netdev@vger.kernel.org, drbd-dev@lists.linbit.com, davem@davemloft.net,
+	linux-kernel@vger.kernel.org, philipp.reisner@linbit.com
+Subject: Re: [Drbd-dev] [PATCH net-next v2] block/drbd: use
+	nla_put_u64_64bit()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,102 +29,100 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---_000_0ABA934FAB0ECA4C8903465033D3FFC73C176E5BALAMBAcorpadwrs_
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+On Tue, May 03, 2016 at 11:39:18AM +0200, Nicolas Dichtel wrote:
+> Two new handlers have been defined in genl_magic_ headers:
+>  - __field2: the corresponding nla_put() function (nla_put_flag()) takes
+>              only two args
+>  - __field4: the corresponding nla_put() function (nla_put_u64_64bit())
+>              takes four args
+> 
+> __field2 allows us to define __unspec_field for padding attribute.
+> __field4 allows us to update the definition of __u64_field: the pad
+> attribute should now be specified.
 
-Hi,
+Please just NOT use an additional "field",
+but always use 0 to pad.
 
-The OCF script in drbd-utils-8.9.6 seems to be outdated since it's referrin=
-g to commands that are no longer supported (in our case "sh-status").
+Patch is much shorter as well, see below.
 
-In more details: scripts/drbd.ocf uses '$DRBDSETUP sh-status "$DRBD_RESOURC=
-E"' (or '$DRBDSETUP "$DRBD_DEVICES" sh-status' - depending on the config).
+Attribute type "0" is not used,
+and will never be of semantic value,
+but always be ignored in the DRBD netlink family.
 
-But we are getting "invalid command" when trying to execute those commands =
-manually.  According to the help text, those commands are indeed not existe=
-nt.
+Whereas using some arbitrary value will be wrong,
+and will needlessly break userland.
 
-Has anybody also ran into this situation ?  I'm not sure what is the proper=
- fix.
+Thanks,
 
-Regards,
-/ludovic
+    Lars Ellenberg
 
---_000_0ABA934FAB0ECA4C8903465033D3FFC73C176E5BALAMBAcorpadwrs_
-Content-Type: text/html; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
-osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" xmlns=3D"http:=
-//www.w3.org/TR/REC-html40">
-<head>
-<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dus-ascii"=
->
-<meta name=3D"Generator" content=3D"Microsoft Word 14 (filtered medium)">
-<style><!--
-/* Font Definitions */
-@font-face
-	{font-family:Calibri;
-	panose-1:2 15 5 2 2 2 4 3 2 4;}
-/* Style Definitions */
-p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{margin:0in;
-	margin-bottom:.0001pt;
-	font-size:11.0pt;
-	font-family:"Calibri","sans-serif";}
-a:link, span.MsoHyperlink
-	{mso-style-priority:99;
-	color:blue;
-	text-decoration:underline;}
-a:visited, span.MsoHyperlinkFollowed
-	{mso-style-priority:99;
-	color:purple;
-	text-decoration:underline;}
-span.EmailStyle17
-	{mso-style-type:personal-compose;
-	font-family:"Calibri","sans-serif";
-	color:windowtext;}
-.MsoChpDefault
-	{mso-style-type:export-only;
-	font-family:"Calibri","sans-serif";}
-@page WordSection1
-	{size:8.5in 11.0in;
-	margin:1.0in 1.0in 1.0in 1.0in;}
-div.WordSection1
-	{page:WordSection1;}
---></style><!--[if gte mso 9]><xml>
-<o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
-</xml><![endif]--><!--[if gte mso 9]><xml>
-<o:shapelayout v:ext=3D"edit">
-<o:idmap v:ext=3D"edit" data=3D"1" />
-</o:shapelayout></xml><![endif]-->
-</head>
-<body lang=3D"EN-US" link=3D"blue" vlink=3D"purple">
-<div class=3D"WordSection1">
-<p class=3D"MsoNormal">Hi,<o:p></o:p></p>
-<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
-<p class=3D"MsoNormal">The OCF script in drbd-utils-8.9.6 seems to be outda=
-ted since it&#8217;s referring to commands that are no longer supported (in=
- our case &#8220;sh-status&#8221;).<o:p></o:p></p>
-<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
-<p class=3D"MsoNormal">In more details: scripts/drbd.ocf uses &#8216;$DRBDS=
-ETUP sh-status &quot;$DRBD_RESOURCE&quot;&#8217; (or &#8216;$DRBDSETUP &quo=
-t;$DRBD_DEVICES&quot; sh-status&#8217; &#8211; depending on the config).<o:=
-p></o:p></p>
-<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
-<p class=3D"MsoNormal">But we are getting &#8220;invalid command&#8221; whe=
-n trying to execute those commands manually.&nbsp; According to the help te=
-xt, those commands are indeed not existent.<o:p></o:p></p>
-<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
-<p class=3D"MsoNormal">Has anybody also ran into this situation ?&nbsp; I&#=
-8217;m not sure what is the proper fix.<o:p></o:p></p>
-<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
-<p class=3D"MsoNormal">Regards,<o:p></o:p></p>
-<p class=3D"MsoNormal">/ludovic<o:p></o:p></p>
-</div>
-</body>
-</html>
-
---_000_0ABA934FAB0ECA4C8903465033D3FFC73C176E5BALAMBAcorpadwrs_--
+diff --git a/include/linux/genl_magic_struct.h b/include/linux/genl_magic_struct.h
+index eecd19b..6270a56 100644
+--- a/include/linux/genl_magic_struct.h
++++ b/include/linux/genl_magic_struct.h
+@@ -62,6 +62,11 @@ extern void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void);
+ 
+ /* MAGIC helpers							{{{2 */
+ 
++static inline int nla_put_u64_0pad(struct sk_buff *skb, int attrtype, u64 value)
++{
++	return nla_put_64bit(skb, attrtype, sizeof(u64), &value, 0);
++}
++
+ /* possible field types */
+ #define __flg_field(attr_nr, attr_flag, name) \
+ 	__field(attr_nr, attr_flag, name, NLA_U8, char, \
+@@ -80,7 +85,7 @@ extern void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void);
+ 			nla_get_u32, nla_put_u32, true)
+ #define __u64_field(attr_nr, attr_flag, name)	\
+ 	__field(attr_nr, attr_flag, name, NLA_U64, __u64, \
+-			nla_get_u64, nla_put_u64, false)
++			nla_get_u64, nla_put_u64_0pad, false)
+ #define __str_field(attr_nr, attr_flag, name, maxlen) \
+ 	__array(attr_nr, attr_flag, name, NLA_NUL_STRING, char, maxlen, \
+ 			nla_strlcpy, nla_put, false)
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 1fd1dcc..206cc76 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -3633,14 +3633,14 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
+ 		goto nla_put_failure;
+ 	if (nla_put_u32(skb, T_sib_reason, sib ? sib->sib_reason : SIB_GET_STATUS_REPLY) ||
+ 	    nla_put_u32(skb, T_current_state, device->state.i) ||
+-	    nla_put_u64(skb, T_ed_uuid, device->ed_uuid) ||
+-	    nla_put_u64(skb, T_capacity, drbd_get_capacity(device->this_bdev)) ||
+-	    nla_put_u64(skb, T_send_cnt, device->send_cnt) ||
+-	    nla_put_u64(skb, T_recv_cnt, device->recv_cnt) ||
+-	    nla_put_u64(skb, T_read_cnt, device->read_cnt) ||
+-	    nla_put_u64(skb, T_writ_cnt, device->writ_cnt) ||
+-	    nla_put_u64(skb, T_al_writ_cnt, device->al_writ_cnt) ||
+-	    nla_put_u64(skb, T_bm_writ_cnt, device->bm_writ_cnt) ||
++	    nla_put_u64_0pad(skb, T_ed_uuid, device->ed_uuid) ||
++	    nla_put_u64_0pad(skb, T_capacity, drbd_get_capacity(device->this_bdev)) ||
++	    nla_put_u64_0pad(skb, T_send_cnt, device->send_cnt) ||
++	    nla_put_u64_0pad(skb, T_recv_cnt, device->recv_cnt) ||
++	    nla_put_u64_0pad(skb, T_read_cnt, device->read_cnt) ||
++	    nla_put_u64_0pad(skb, T_writ_cnt, device->writ_cnt) ||
++	    nla_put_u64_0pad(skb, T_al_writ_cnt, device->al_writ_cnt) ||
++	    nla_put_u64_0pad(skb, T_bm_writ_cnt, device->bm_writ_cnt) ||
+ 	    nla_put_u32(skb, T_ap_bio_cnt, atomic_read(&device->ap_bio_cnt)) ||
+ 	    nla_put_u32(skb, T_ap_pending_cnt, atomic_read(&device->ap_pending_cnt)) ||
+ 	    nla_put_u32(skb, T_rs_pending_cnt, atomic_read(&device->rs_pending_cnt)))
+@@ -3657,13 +3657,13 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
+ 			goto nla_put_failure;
+ 
+ 		if (nla_put_u32(skb, T_disk_flags, device->ldev->md.flags) ||
+-		    nla_put_u64(skb, T_bits_total, drbd_bm_bits(device)) ||
+-		    nla_put_u64(skb, T_bits_oos, drbd_bm_total_weight(device)))
++		    nla_put_u64_0pad(skb, T_bits_total, drbd_bm_bits(device)) ||
++		    nla_put_u64_0pad(skb, T_bits_oos, drbd_bm_total_weight(device)))
+ 			goto nla_put_failure;
+ 		if (C_SYNC_SOURCE <= device->state.conn &&
+ 		    C_PAUSED_SYNC_T >= device->state.conn) {
+-			if (nla_put_u64(skb, T_bits_rs_total, device->rs_total) ||
+-			    nla_put_u64(skb, T_bits_rs_failed, device->rs_failed))
++			if (nla_put_u64_0pad(skb, T_bits_rs_total, device->rs_total) ||
++			    nla_put_u64_0pad(skb, T_bits_rs_failed, device->rs_failed))
+ 				goto nla_put_failure;
+ 		}
+ 	}
