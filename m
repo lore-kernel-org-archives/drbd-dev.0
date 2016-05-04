@@ -2,49 +2,52 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 58CCE1056447
-	for <drbd-dev@lists.linbit.com>; Fri,  6 May 2016 10:41:18 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C1DBD1056457
+	for <drbd-dev@lists.linbit.com>; Fri,  6 May 2016 10:41:24 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 505D03EFD03
-	for <drbd-dev@lists.linbit.com>; Fri,  6 May 2016 10:41:18 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id B9E2E3EFDEF
+	for <drbd-dev@lists.linbit.com>; Fri,  6 May 2016 10:41:24 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id bMQWj2B6K4Cg for <drbd-dev@lists.linbit.com>;
-	Fri,  6 May 2016 10:41:18 +0200 (CEST)
+	with ESMTP id 7S5DzRG6bDgo for <drbd-dev@lists.linbit.com>;
+	Fri,  6 May 2016 10:41:24 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 30E763EFD4A
-	for <drbd-dev@lists.linbit.com>; Fri,  6 May 2016 10:41:18 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 97D173EFD4A
+	for <drbd-dev@lists.linbit.com>; Fri,  6 May 2016 10:41:24 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id mP_x5Y6BIGNL for <drbd-dev@lists.linbit.com>;
-	Fri,  6 May 2016 10:41:18 +0200 (CEST)
+	with ESMTP id Bpqgz67JLv0P for <drbd-dev@lists.linbit.com>;
+	Fri,  6 May 2016 10:41:24 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 07C2A3EFD03
-	for <drbd-dev@lists.linbit.com>; Fri,  6 May 2016 10:41:17 +0200 (CEST)
-Resent-Message-ID: <20160506084117.GT16459@soda.linbit>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com
-	[209.85.192.169]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 6CBEE3EFD03
+	for <drbd-dev@lists.linbit.com>; Fri,  6 May 2016 10:41:24 +0200 (CEST)
+Resent-Message-ID: <20160506084124.GU16459@soda.linbit>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E96201051881
-	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 19:13:39 +0200 (CEST)
-Received: by mail-pf0-f169.google.com with SMTP id c189so28412311pfb.3
-	for <drbd-dev@lists.linbit.com>; Wed, 04 May 2016 10:13:39 -0700 (PDT)
-Message-ID: <1462382016.5535.348.camel@edumazet-glaptop3.roam.corp.google.com>
-From: Eric Dumazet <eric.dumazet@gmail.com>
-To: David Miller <davem@davemloft.net>
-Date: Wed, 04 May 2016 10:13:36 -0700
-In-Reply-To: <20160504.125057.1606520320212390037.davem@davemloft.net>
-References: <20160504090529.GJ16459@soda.linbit> <5729EFBC.7040002@6wind.com>
-	<1462372026.5535.344.camel@edumazet-glaptop3.roam.corp.google.com>
-	<20160504.125057.1606520320212390037.davem@davemloft.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3F793105644E
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 19:52:05 +0200 (CEST)
+To: Jeff Moyer <jmoyer@redhat.com>
+References: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
+	<x49d1p2c1nx.fsf@segfault.boston.devel.redhat.com>
+From: Mike Christie <mchristi@redhat.com>
+Message-ID: <572A36BF.3070208@redhat.com>
+Date: Wed, 4 May 2016 12:51:59 -0500
+MIME-Version: 1.0
+In-Reply-To: <x49d1p2c1nx.fsf@segfault.boston.devel.redhat.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
-Cc: netdev@vger.kernel.org, nicolas.dichtel@6wind.com,
-	philipp.reisner@linbit.com, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH net-next v2] block/drbd: use
-	nla_put_u64_64bit()
+Cc: linux-bcache@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com,
+	ocfs2-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
+	konrad.wilk@oracle.com, linux-kernel@vger.kernel.org,
+	philipp.reisner@linbit.com, linux-f2fs-devel@lists.sourceforge.net,
+	linux-raid@vger.kernel.org, dm-devel@redhat.com,
+	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	osd-dev@open-osd.org, linux-fsdevel@vger.kernel.org,
+	lars.ellenberg@linbit.com, linux-ext4@vger.kernel.org,
+	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 00/42] v7: separate operations from flags in
+ the bio/request structs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,27 +59,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, 2016-05-04 at 12:50 -0400, David Miller wrote:
-> From: Eric Dumazet <eric.dumazet@gmail.com>
-> Date: Wed, 04 May 2016 07:27:06 -0700
+On 05/03/2016 03:44 PM, Jeff Moyer wrote:
+> mchristi@redhat.com writes:
 > 
-> > kernel was fine, and most user land apps were fine as well.
+>> The following patches begin to cleanup the request->cmd_flags and
+>> bio->bi_rw mess. We currently use cmd_flags to specify the operation,
+>> attributes and state of the request. For bi_rw we use it for similar
+>> info and also the priority but then also have another bi_flags field
+>> for state. At some point, we abused them so much we just made cmd_flags
+>> 64 bits, so we could add more.
+>>
+>> The following patches seperate the operation (read, write discard,
+>> flush, etc) from cmd_flags/bi_rw.
+>>
+>> This patchset was made against linux-next from today April 15
+>> (git tag next-20160415).
+>>
+>> I put a git tree here:
+>> https://github.com/mikechristie/linux-kernel.git
+>> The patches are in the op branch.
 > 
-> Userland should really not have to deal with garbage like this.
+> Hi, Mike,
 > 
-> And because it quietly works just fine on x86-64, nothing makes
-> sure that applications will universally get this right anyways.
+> That git tree doesn't seem to exist.  I did manage to apply your patch
+> set on top of next-20160415, though.
 > 
-> Better to align things properly and magically all of these issues
-> simply disappear.
+> So... what testing did you do? ;-) I ran into the following problems
 
-Sure, but in practice we end up consuming 16 bytes (instead of 12) per
-u64 attribute, only on some arches. 33 % space overhead.
+I normally run xfstests and run it on my daily workstation and laptop. I
+did not do this for every FS this time and hit a regression.
 
-So maybe some dumps will abort on those arches, while on x86 the size of
-skb might be below some magic limit.
+What FS were you using?
 
-I guess this is fine, we do not break ABI in any way.
-
+> - git clone fails
+> - yum segfaults
 
 
+In v7/v6, I missed a new submit_bio call, so I hit issues like the two
+above. I have this fixed in the next version.
+
+> - many blktrace/blkparse issues, including incorrect cpu recorded in
+>   traces, null task names, and blkparse outputting nothing for a trace
+>   file several gigabytes in size.
+
+I will double check for these issues.
