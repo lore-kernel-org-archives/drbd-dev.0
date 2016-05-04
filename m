@@ -1,28 +1,31 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+Return-Path: <jmoyer@redhat.com>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 703C11056444
-	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 14:52:54 +0200 (CEST)
-Date: Wed, 4 May 2016 14:52:53 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Nicolas Dichtel <nicolas.dichtel@6wind.com>
-Message-ID: <20160504125253.GP16459@soda.linbit>
-References: <57286F49.8050107@6wind.com>
-	<1462268358-19044-1-git-send-email-nicolas.dichtel@6wind.com>
-	<20160503100644.GE16459@soda.linbit>
-	<20160503.120556.1317913903199470646.davem@davemloft.net>
-	<20160504090529.GJ16459@soda.linbit> <5729EFBC.7040002@6wind.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1B016105644E
+	for <drbd-dev@lists.linbit.com>; Wed,  4 May 2016 19:59:02 +0200 (CEST)
+From: Jeff Moyer <jmoyer@redhat.com>
+To: Mike Christie <mchristi@redhat.com>
+References: <1460747777-8479-1-git-send-email-mchristi@redhat.com>
+	<x49d1p2c1nx.fsf@segfault.boston.devel.redhat.com>
+	<572A36BF.3070208@redhat.com>
+Date: Wed, 04 May 2016 13:58:57 -0400
+In-Reply-To: <572A36BF.3070208@redhat.com> (Mike Christie's message of "Wed, 4
+	May 2016 12:51:59 -0500")
+Message-ID: <x49a8k5aen2.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <5729EFBC.7040002@6wind.com>
-Content-Transfer-Encoding: quoted-printable
-Cc: netdev@vger.kernel.org, drbd-dev@lists.linbit.com,
-	David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org,
-	philipp.reisner@linbit.com
-Subject: Re: [Drbd-dev] [PATCH net-next v2] block/drbd: use
- nla_put_u64_64bit()
+Content-Type: text/plain
+Cc: linux-bcache@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com,
+	ocfs2-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
+	konrad.wilk@oracle.com, linux-kernel@vger.kernel.org,
+	philipp.reisner@linbit.com, linux-f2fs-devel@lists.sourceforge.net,
+	linux-raid@vger.kernel.org, dm-devel@redhat.com,
+	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	osd-dev@open-osd.org, linux-fsdevel@vger.kernel.org,
+	lars.ellenberg@linbit.com, linux-ext4@vger.kernel.org,
+	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 00/42] v7: separate operations from flags in
+	the bio/request structs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,25 +37,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, May 04, 2016 at 02:49:00PM +0200, Nicolas Dichtel wrote:
-> Le 04/05/2016 11:05, Lars Ellenberg a =E9crit :
-> [snip]
-> > We don't have an "alignment problem" there, btw.
-> > Last time I checked, we did work fine without this alignment magic,
-> > we already take care of that, yes, even on affected architectures.
-> The code adds several consecutive u64 attributes. The nl attribute head=
-er is 4
-> bytes, thus the full attribute length is 12 bytes. If the first u64 is =
-aligned
-> on 8 (nla_data()), the next one is not aligned on 8: it starts 12 bytes=
- (8 (u64)
-> + 4 (nl attr hdr)) after the previous u64.
+Mike Christie <mchristi@redhat.com> writes:
 
-Yes.  Which in our case is not a problem.
-But I don't object to the padding per se,
-if that is how things "should be".
+> On 05/03/2016 03:44 PM, Jeff Moyer wrote:
+>> Hi, Mike,
+>> 
+>> That git tree doesn't seem to exist.  I did manage to apply your patch
+>> set on top of next-20160415, though.
+>> 
+>> So... what testing did you do? ;-) I ran into the following problems
+>
+> I normally run xfstests and run it on my daily workstation and laptop. I
+> did not do this for every FS this time and hit a regression.
+>
+> What FS were you using?
 
-I try to understand why you so much object to using 0 as pad.
+I'm using xfs, scsi disk, no blk-mq, no dm.
 
-    Lars
+>> - git clone fails
+>> - yum segfaults
+>
+> In v7/v6, I missed a new submit_bio call, so I hit issues like the two
+> above. I have this fixed in the next version.
 
+OK, does this mean you're posting another version, or you already did
+and I somehow missed it?
+
+>> - many blktrace/blkparse issues, including incorrect cpu recorded in
+>>   traces, null task names, and blkparse outputting nothing for a trace
+>>   file several gigabytes in size.
+>
+> I will double check for these issues.
+
+Thanks.  I'll stop digging for now, then.
+
+Cheers,
+Jeff
