@@ -2,19 +2,40 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BADE91051881
-	for <drbd-dev@lists.linbit.com>; Tue, 10 May 2016 21:09:04 +0200 (CEST)
-Date: Tue, 10 May 2016 21:09:03 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: David Miller <davem@davemloft.net>
-Message-ID: <20160510190902.GF16459@soda.linbit>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 450BD1051881
+	for <drbd-dev@lists.linbit.com>; Fri, 13 May 2016 14:48:52 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 03B1E40476C
+	for <drbd-dev@lists.linbit.com>; Fri, 13 May 2016 14:48:52 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id 1UuMKfsQAp6U for <drbd-dev@lists.linbit.com>;
+	Fri, 13 May 2016 14:48:51 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id D8D634054C6
+	for <drbd-dev@lists.linbit.com>; Fri, 13 May 2016 14:48:51 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id KzkaN2Wl4AKS for <drbd-dev@lists.linbit.com>;
+	Fri, 13 May 2016 14:48:51 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id A966140476C
+	for <drbd-dev@lists.linbit.com>; Fri, 13 May 2016 14:48:51 +0200 (CEST)
+Resent-Message-ID: <20160513124851.GI16459@soda.linbit>
+Received: from shards.monkeyblade.net (shards.monkeyblade.net [149.20.54.216])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8E45B1056443
+	for <drbd-dev@lists.linbit.com>;
+	Tue, 10 May 2016 17:39:55 +0200 (CEST)
+Date: Tue, 10 May 2016 11:39:49 -0400 (EDT)
+Message-Id: <20160510.113949.2077250222547175741.davem@davemloft.net>
+To: lars.ellenberg@linbit.com
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20160510094023.GC16459@soda.linbit>
 References: <20160509131547.GX16459@soda.linbit> <5731A561.6090509@6wind.com>
 	<20160510094023.GC16459@soda.linbit>
-	<20160510.113949.2077250222547175741.davem@davemloft.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160510.113949.2077250222547175741.davem@davemloft.net>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Cc: netdev@vger.kernel.org, nicolas.dichtel@6wind.com,
 	philipp.reisner@linbit.com, linux-kernel@vger.kernel.org,
 	drbd-dev@lists.linbit.com
@@ -31,72 +52,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, May 10, 2016 at 11:39:49AM -0400, David Miller wrote:
-> From: Lars Ellenberg <lars.ellenberg@linbit.com>
-> Date: Tue, 10 May 2016 11:40:23 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+Date: Tue, 10 May 2016 11:40:23 +0200
 
-excuse me for reordering the original:
+> If we introduce a new config option,
+> we have to add it to the config scanner (one line),
+> define min, max, default and scale (four short defines),
+> and add it to the netlink definition here (one line).
+> Done, rest of the code is generated,
+> both on the kernel side,
+> and on the drbd-utils side used to talk to the kernel.
+> We found that to be very convenient.
 
-> Anyways, back to the topic, can you please just relent and come to
-> some kind of agreement about the fix for this alignment bug?
+But it entirely misses the core design point of netlink.
 
-I thought we did?  I'm fine with the "v3",
-it even carries my signed-of-by.
+Sender and receive _DO NOT_ need to coordinate at all.  That's the
+whole point.  So tightly coupling such coordination is going to run
+you into all kinds of problems.
 
-Whether or not Nicholas wants to prefix those headers with drbd_,
-I don't really care.
+When implemented properly, the sender can emit whatever attributes it
+knows about and can generate, and the receive scans the attributes one
+by one and picks out the ones it understands and processes them.
 
-> This is taking a very long time and patches are just rotting in
-> patchwork with no resolution.  Why would 
+If you go against this model then you have no clean way to extend
+things whilst allowing existing software to continue working.
 
-Nicholas asked how to go about DRBD,
-I suggested to use 0 as a padding attribute,
-and after taking a detour, he did. All good.
+If the drbd stuff had been posting to the networking list, we really
+would have screamed loudly about these auto-generates structs and
+macros and whatnot.
 
+Anyways, back to the topic, can you please just relent and come to some
+kind of agreement about the fix for this alignment bug?  This is taking
+a very long time and patches are just rotting in patchwork with no
+resolution.
 
-Rest of original:
-
-> > If we introduce a new config option,
-> > we have to add it to the config scanner (one line),
-> > define min, max, default and scale (four short defines),
-> > and add it to the netlink definition here (one line).
-> > Done, rest of the code is generated,
-> > both on the kernel side,
-> > and on the drbd-utils side used to talk to the kernel.
-> > We found that to be very convenient.
-> 
-> But it entirely misses the core design point of netlink.
-> 
-> Sender and receive _DO NOT_ need to coordinate at all.  That's the
-> whole point.  So tightly coupling such coordination is going to run
-> you into all kinds of problems.
-> 
-> When implemented properly, the sender can emit whatever attributes it
-> knows about and can generate, and the receive scans the attributes one
-> by one and picks out the ones it understands and processes them.
-> 
-> If you go against this model
-> then you have no clean way to
-
-We don't.
-We extend (not violate) that model, so the sender *may* indicate
-to the recipient that for some particular attribute, the sender would
-rather have an "I don't understand this" return than a silent ignore.
-And that we can indicate in the definition of the attributes which ones
-are required to make a message meaningful.
-
-> extend things whilst allowing existing software to continue working.
-
-*that* is exactly why we use netlink,
-and why we do things with it the way we do.
-Actually I think what we are doing there is, comparatively, "elegant".
-You obviously don't have to agree.
-
-I could discuss this in more detail,
-but I assume you are not really interested,
-at least not here and now.
-
-Thanks,
-
-    Lars
-
+Thanks.
