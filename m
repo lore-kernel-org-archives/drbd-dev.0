@@ -1,46 +1,32 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+Return-Path: <msnitzer@redhat.com>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0F39C1056450
-	for <drbd-dev@lists.linbit.com>; Tue, 31 May 2016 11:47:58 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 0AE5E3EB2B4
-	for <drbd-dev@lists.linbit.com>; Tue, 31 May 2016 11:47:58 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id WQ6FvS2vIf2i for <drbd-dev@lists.linbit.com>;
-	Tue, 31 May 2016 11:47:57 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id CDE653F68C0
-	for <drbd-dev@lists.linbit.com>; Tue, 31 May 2016 11:47:57 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 7Y0gou19pvOD for <drbd-dev@lists.linbit.com>;
-	Tue, 31 May 2016 11:47:57 +0200 (CEST)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 967CE3EB2B4
-	for <drbd-dev@lists.linbit.com>; Tue, 31 May 2016 11:47:57 +0200 (CEST)
-Resent-Message-ID: <20160531094757.GF3235@soda.linbit>
-Received: from mail-pf0-f194.google.com (mail-pf0-f194.google.com
-	[209.85.192.194]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id EE5C91056444
-	for <drbd-dev@lists.linbit.com>; Mon, 30 May 2016 15:50:37 +0200 (CEST)
-Received: by mail-pf0-f194.google.com with SMTP id b124so21894672pfb.0
-	for <drbd-dev@lists.linbit.com>; Mon, 30 May 2016 06:50:37 -0700 (PDT)
-From: Ming Lei <ming.lei@canonical.com>
-To: Jens Axboe <axboe@fb.com>,
-	linux-kernel@vger.kernel.org
-Date: Mon, 30 May 2016 21:34:35 +0800
-Message-Id: <1464615294-9946-8-git-send-email-ming.lei@canonical.com>
-In-Reply-To: <1464615294-9946-1-git-send-email-ming.lei@canonical.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 721D51056332
+	for <drbd-dev@lists.linbit.com>; Tue, 31 May 2016 17:53:52 +0200 (CEST)
+Date: Tue, 31 May 2016 11:53:49 -0400
+From: Mike Snitzer <snitzer@redhat.com>
+To: Ming Lei <ming.lei@canonical.com>
+Message-ID: <20160531155348.GA24840@redhat.com>
 References: <1464615294-9946-1-git-send-email-ming.lei@canonical.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Ming Lei <ming.lei@canonical.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1464615294-9946-1-git-send-email-ming.lei@canonical.com>
+Cc: linux-block@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
+	Jan Kara <jack@suse.cz>, "Martin K. Petersen" <martin.petersen@oracle.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Steven Whitehouse <swhiteho@redhat.com>,
+	linux-kernel@vger.kernel.org, Sagi Grimberg <sagig@mellanox.com>,
+	NeilBrown <neilb@suse.com>, Jens Axboe <axboe@fb.com>,
+	Joe Thornber <ejt@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>,
+	Shaohua Li <shli@fb.com>, Tejun Heo <tj@kernel.org>,
+	Keith Busch <keith.busch@intel.com>,
+	"open list:XFS FILESYSTEM" <xfs@oss.sgi.com>,
+	Kent Overstreet <kent.overstreet@gmail.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
 	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [PATCH v6 7/8] block: drbd: avoid to use BIO_MAX_SIZE
+Subject: Re: [Drbd-dev] [PATCH v6 0/8] block: prepare for multipage bvecs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -52,35 +38,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use BIO_MAX_PAGES instead and we will remove BIO_MAX_SIZE.
+On Mon, May 30 2016 at  9:34am -0400,
+Ming Lei <ming.lei@canonical.com> wrote:
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Ming Lei <ming.lei@canonical.com>
----
- drivers/block/drbd/drbd_int.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> Hi,
+> 
+> Interests[1] have been shown in multipage bvecs, so this patchset
+> try to prepare for the support and do two things:
+> 
+> 1) the 1st 4 patches use bvec iterator to implement iterate_bvec(),
+> then we can drop the non-standard way for iterating bvec, which
+> can be thought as a good cleanup for lib/iov_iter.c
+> 
+> 2) remove BIO_MAX_SECTORS and makre BIO_MAX_SIZE as obsolete, and
+> now there is only one user for each. Once multipage bvecs is introduced,
+> one bio may hold lots of sectors, and we should always use sort of
+> BIO_MAX_VECS which should be introduced in future and is similiar
+> with current BIO_MAX_PAGES.
+> 
+> The only functional change is iterate_bvec():lib/iov_iter.c
+> 
+> xfstests(-a auto) over loop aio is run for ext4/xfs to verify 
+> the change and no regression found with this patchset.
+> 
+> V6:
+> 	- rebased on v4.7-rc1
+> 	- add reviewed-by tag
+> 	- mark BIO_MAX_SIZE as obsolete instead of removing because
+> 	dm-tree adds one usage now
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 7a1cf7e..e6e4b08 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1327,14 +1327,14 @@ struct bm_extent {
- #endif
- #endif
- 
--/* BIO_MAX_SIZE is 256 * PAGE_SIZE,
-+/* Estimate max bio size as 256 * PAGE_SIZE,
-  * so for typical PAGE_SIZE of 4k, that is (1<<20) Byte.
-  * Since we may live in a mixed-platform cluster,
-  * we limit us to a platform agnostic constant here for now.
-  * A followup commit may allow even bigger BIO sizes,
-  * once we thought that through. */
- #define DRBD_MAX_BIO_SIZE (1U << 20)
--#if DRBD_MAX_BIO_SIZE > BIO_MAX_SIZE
-+#if DRBD_MAX_BIO_SIZE > (BIO_MAX_PAGES << PAGE_SHIFT)
- #error Architecture not supported: DRBD_MAX_BIO_SIZE > BIO_MAX_SIZE
- #endif
- #define DRBD_MAX_BIO_SIZE_SAFE (1U << 12)       /* Works always = 4k */
--- 
-1.9.1
-
+Not sure what you're referring to here with "dm-tree" (since "dm-tree"
+doesn't exist).  But only direct user of "BIO_MAX_SIZE" in DM appears to
+be dm-crypt.c.  Maybe you've identified some indirect use of
+BIO_MAX_SIZE?
