@@ -2,49 +2,48 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A982B1056446
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:45:46 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3309D1056446
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:15 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 9C8584202FF
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:45:46 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 213F14202FF
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:15 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id G1yMLcmvFMvF for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:45:46 +0200 (CEST)
+	with ESMTP id ClTeyt8j7fab for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:46:15 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 7ADFF420301
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:45:46 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id F1978420305
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:14 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id CvicJFi6sdCm for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:45:46 +0200 (CEST)
+	with ESMTP id K7AmZVrbeeYR for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:46:14 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 4FFE74202FF
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:45:46 +0200 (CEST)
-Resent-Message-ID: <20160610114545.GO3235@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id CA46B4202FF
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:14 +0200 (CEST)
+Resent-Message-ID: <20160610114614.GP3235@soda.linbit>
 Received: from youngberry.canonical.com (youngberry.canonical.com
 	[91.189.89.112])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 834291056445
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 04:44:37 +0200 (CEST)
-Received: from mail-yw0-f170.google.com ([209.85.161.170])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 919731056445
+	for <drbd-dev@lists.linbit.com>; Wed,  1 Jun 2016 14:38:43 +0200 (CEST)
+Received: from mail-yw0-f180.google.com ([209.85.161.180])
 	by youngberry.canonical.com with esmtpsa
 	(TLS1.0:RSA_AES_128_CBC_SHA1:16) (Exim 4.76)
-	(envelope-from <ming.lei@canonical.com>) id 1bBCR2-00075G-97
-	for drbd-dev@lists.linbit.com; Fri, 10 Jun 2016 02:44:36 +0000
-Received: by mail-yw0-f170.google.com with SMTP id z186so36952794ywd.2
-	for <drbd-dev@lists.linbit.com>; Thu, 09 Jun 2016 19:44:36 -0700 (PDT)
+	(envelope-from <ming.lei@canonical.com>) id 1b85Q2-0003h7-K5
+	for drbd-dev@lists.linbit.com; Wed, 01 Jun 2016 12:38:42 +0000
+Received: by mail-yw0-f180.google.com with SMTP id o16so16589524ywd.2
+	for <drbd-dev@lists.linbit.com>; Wed, 01 Jun 2016 05:38:42 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <575993EA.3010005@kernel.dk>
+In-Reply-To: <20160531155348.GA24840@redhat.com>
 References: <1464615294-9946-1-git-send-email-ming.lei@canonical.com>
-	<575993EA.3010005@kernel.dk>
+	<20160531155348.GA24840@redhat.com>
+Date: Wed, 1 Jun 2016 20:38:41 +0800
+Message-ID: <CACVXFVM9FqZFkMat_4ysJ8_vFd1FFnf6Bd9sHDDoCK=v93wViQ@mail.gmail.com>
 From: Ming Lei <ming.lei@canonical.com>
-Date: Fri, 10 Jun 2016 10:44:34 +0800
-Message-ID: <CACVXFVMbvqyEeX4NsuZLANCCQyxwr2_cjLrLT8tR9LUZkwejdg@mail.gmail.com>
-To: Jens Axboe <axboe@kernel.dk>
+To: Mike Snitzer <snitzer@redhat.com>
 Content-Type: text/plain; charset=UTF-8
 Cc: linux-block@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
-	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	Jan Kara <jack@suse.cz>, "Martin K. Petersen" <martin.petersen@oracle.com>,
 	Christoph Hellwig <hch@infradead.org>,
 	Steven Whitehouse <swhiteho@redhat.com>,
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
@@ -68,8 +67,10 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Jun 10, 2016 at 12:06 AM, Jens Axboe <axboe@kernel.dk> wrote:
-> On 05/30/2016 07:34 AM, Ming Lei wrote:
+On Tue, May 31, 2016 at 11:53 PM, Mike Snitzer <snitzer@redhat.com> wrote:
+> On Mon, May 30 2016 at  9:34am -0400,
+> Ming Lei <ming.lei@canonical.com> wrote:
+>
 >>
 >> Hi,
 >>
@@ -90,24 +91,27 @@ On Fri, Jun 10, 2016 at 12:06 AM, Jens Axboe <axboe@kernel.dk> wrote:
 >>
 >> xfstests(-a auto) over loop aio is run for ext4/xfs to verify
 >> the change and no regression found with this patchset.
+>>
+>> V6:
+>>       - rebased on v4.7-rc1
+>>       - add reviewed-by tag
+>>       - mark BIO_MAX_SIZE as obsolete instead of removing because
+>>       dm-tree adds one usage now
 >
->
-> Added patches 1-7, still waiting for an answer on my reply to #8.
+> Not sure what you're referring to here with "dm-tree" (since "dm-tree"
+> doesn't exist).  But only direct user of "BIO_MAX_SIZE" in DM appears to
 
-Thanks for adding patches 1-7, and now I just found the added
-BIO_MAX_SIZE usage in dm-crypt.c is droped from next, so it is
-safe to kill it now.
+Looks it is from crypto tree:
 
-I will send a new patch #8 against for-4.8/core.
+   git://git.kernel.org/pub/scm/linux/kernel/git/herbert/crypto-2.6
 
-Thanks,
-Ming
+> be dm-crypt.c.  Maybe you've identified some indirect use of
+> BIO_MAX_SIZE?
 
->
-> --
-> Jens Axboe
->
->
+I mean the recently introduced BIO_MAX_SIZE in -next tree:
+
+https://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/drivers/md/dm-crypt.c?id=4ed89c97b0706477b822ea2182827640c0cec486
+
 > --
 > To unsubscribe from this list: send the line "unsubscribe linux-block" in
 > the body of a message to majordomo@vger.kernel.org
