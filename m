@@ -2,50 +2,58 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BB3D61056446
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:16 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DE4511056469
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:17 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B3DAA4202FF
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:16 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id D52B54202FF
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:17 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 3vqzhLI210sU for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:46:16 +0200 (CEST)
+	with ESMTP id Guydzb8FtJ8N for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:46:17 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 8B1C1420305
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:16 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id B56FB420305
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:17 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 8IBMwwfiH4OG for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:46:16 +0200 (CEST)
+	with ESMTP id ed_4oiYjkvAb for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:46:17 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 3A9A24202FF
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:16 +0200 (CEST)
-Resent-Message-ID: <20160610114615.GQ3235@soda.linbit>
-Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E04731056445
-	for <drbd-dev@lists.linbit.com>; Wed,  1 Jun 2016 16:13:44 +0200 (CEST)
-To: Christoph Hellwig <hch@infradead.org>, Ming Lei <ming.lei@canonical.com>
-References: <1464615294-9946-1-git-send-email-ming.lei@canonical.com>
-	<20160601134300.GA15656@infradead.org>
-From: Hannes Reinecke <hare@suse.de>
-Message-ID: <574EE8F7.4050509@suse.de>
-Date: Wed, 1 Jun 2016 15:53:59 +0200
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 8ADE14202FF
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:17 +0200 (CEST)
+Resent-Message-ID: <20160610114617.GR3235@soda.linbit>
+Received: from youngberry.canonical.com (youngberry.canonical.com
+	[91.189.89.112])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C495F1056445
+	for <drbd-dev@lists.linbit.com>; Thu,  2 Jun 2016 04:13:20 +0200 (CEST)
+Received: from mail-yw0-f171.google.com ([209.85.161.171])
+	by youngberry.canonical.com with esmtpsa
+	(TLS1.0:RSA_AES_128_CBC_SHA1:16) (Exim 4.76)
+	(envelope-from <ming.lei@canonical.com>) id 1b8I8N-0005Be-8x
+	for drbd-dev@lists.linbit.com; Thu, 02 Jun 2016 02:13:19 +0000
+Received: by mail-yw0-f171.google.com with SMTP id o16so36833889ywd.2
+	for <drbd-dev@lists.linbit.com>; Wed, 01 Jun 2016 19:13:19 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160601134300.GA15656@infradead.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
-Cc: linux-block@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
-	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
+In-Reply-To: <20160601135150.GA30759@redhat.com>
+References: <1464615294-9946-1-git-send-email-ming.lei@canonical.com>
+	<20160531155348.GA24840@redhat.com>
+	<CACVXFVM9FqZFkMat_4ysJ8_vFd1FFnf6Bd9sHDDoCK=v93wViQ@mail.gmail.com>
+	<20160601134427.GA15888@infradead.org>
+	<20160601135150.GA30759@redhat.com>
+Date: Thu, 2 Jun 2016 10:13:18 +0800
+Message-ID: <CACVXFVNFH7zYOG+RsCNEXuxLE+ybq1qbLk6h=keN19LWsKT2mw@mail.gmail.com>
+From: Ming Lei <ming.lei@canonical.com>
+To: Mike Snitzer <snitzer@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Cc: Jens Axboe <axboe@fb.com>, Michal Hocko <mhocko@suse.com>,
+	Jan Kara <jack@suse.cz>, "Martin K. Petersen" <martin.petersen@oracle.com>,
 	Steven Whitehouse <swhiteho@redhat.com>,
-	linux-kernel@vger.kernel.org, Sagi Grimberg <sagig@mellanox.com>,
-	NeilBrown <neilb@suse.com>, Jens Axboe <axboe@fb.com>,
-	Joe Thornber <ejt@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>,
-	Shaohua Li <shli@fb.com>, Tejun Heo <tj@kernel.org>,
-	Keith Busch <keith.busch@intel.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Sagi Grimberg <sagig@mellanox.com>, NeilBrown <neilb@suse.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Joe Thornber <ejt@redhat.com>, linux-block@vger.kernel.org,
+	Al Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shli@fb.com>,
+	Tejun Heo <tj@kernel.org>, Keith Busch <keith.busch@intel.com>,
 	"open list:XFS FILESYSTEM" <xfs@oss.sgi.com>,
 	Kent Overstreet <kent.overstreet@gmail.com>,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
@@ -62,23 +70,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 06/01/2016 03:43 PM, Christoph Hellwig wrote:
-> These patches look good on their own.  They might be an easier sell
-> just as bio cleanups :)
+On Wed, Jun 1, 2016 at 9:51 PM, Mike Snitzer <snitzer@redhat.com> wrote:
+> On Wed, Jun 01 2016 at  9:44am -0400,
+> Christoph Hellwig <hch@infradead.org> wrote:
+>
+>> On Wed, Jun 01, 2016 at 08:38:41PM +0800, Ming Lei wrote:
+>> > > be dm-crypt.c.  Maybe you've identified some indirect use of
+>> > > BIO_MAX_SIZE?
+>> >
+>> > I mean the recently introduced BIO_MAX_SIZE in -next tree:
+>> >
+>> > https://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/drivers/md/dm-crypt.c?id=4ed89c97b0706477b822ea2182827640c0cec486
+>>
+>> The crazy bcache bios striking back once again.  I really think it's
+>> harmful having a _MAX value and then having a minor driver
+>> reinterpreting it and sending larger ones.  Until we can lift the
+>> maximum limit in general nad have common code exercise it we really need
+>> to stop bcache from sending these instead of littering the tree with
+>> workarounds.
+>
+> So should I not push this type of fix to Linus now?  I was going to send
+> the above commit and this one to him this week:
+> https://git.kernel.org/cgit/linux/kernel/git/device-mapper/linux-dm.git/commit/?h=dm-4.7&id=57b3001b240629ecc5266d28c845e23ca5f11719
 
-Fully agree. I've seen (some) improvements with those patches, so
-I'd prefer to have them.
+I don't suggest this kind of fix.
 
-You can add:
+That fix should be in bcache or blk-core instead of other places.
+Last time, I sent out the following fix([PATCH v1] block: make sure big bio is
+splitted into at most 256 bvecs):
 
-Tested-by: Hannes Reinecke <hare@suse.com>
+     https://lkml.org/lkml/2016/4/5/1046
 
-Cheers,
+But forget to clear the flag of REQ_NOMERGE for this case.
 
-Hannes
---=20
-Dr. Hannes Reinecke		   Teamlead Storage & Networking
-hare@suse.de			               +49 911 74053 688
-SUSE LINUX GmbH, Maxfeldstr. 5, 90409 N=FCrnberg
-GF: F. Imend=F6rffer, J. Smithard, J. Guild, D. Upmanyu, G. Norton
-HRB 21284 (AG N=FCrnberg)
+If Jens doesn't mind doing such thing in block-core, I can post v2
+for this issue.
+
+>
+> Instead, should bcache be made to not do what it is doing?
+
+It depends on if bcache is the only user of this kind of usage.
+In theory, any driver can use external bvec table.
+
+Thanks,
+Ming
