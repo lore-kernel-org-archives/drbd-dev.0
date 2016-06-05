@@ -2,30 +2,30 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A02511056467
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BD6AA105649A
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:22 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 9A50A420315
+	by zimbra13.linbit.com (Postfix) with ESMTP id B6FFE420313
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:22 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id OodzzzXo9369 for <drbd-dev@lists.linbit.com>;
+	with ESMTP id 9MP878TFbcaS for <drbd-dev@lists.linbit.com>;
 	Fri, 10 Jun 2016 13:47:22 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 65CD8420311
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:21 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 990A2420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:22 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id WM0_PUm1w_y7 for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:21 +0200 (CEST)
+	with ESMTP id QUNi4qY75osG for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:22 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 349B3420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:21 +0200 (CEST)
-Resent-Message-ID: <20160610114720.GJ3235@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 1684A420313
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:22 +0200 (CEST)
+Resent-Message-ID: <20160610114721.GK3235@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id CD02E1056460
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D51DC1056469
 	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:51:52 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
@@ -37,12 +37,13 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Sun,  5 Jun 2016 14:32:05 -0500
-Message-Id: <1465155145-10812-26-git-send-email-mchristi@redhat.com>
+Date: Sun,  5 Jun 2016 14:31:53 -0500
+Message-Id: <1465155145-10812-14-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 25/45] bcache: use bio op accessors
+Subject: [Drbd-dev] [PATCH 13/45] btrfs: update __btrfs_map_block for REQ_OP
+	transition
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,327 +57,252 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-Separate the op from the rq_flag_bits and have bcache
-set/get the bio using bio_set_op_attrs/bio_op.
+We no longer pass in a bitmap of rq_flag_bits bits to __btrfs_map_block.
+It will always be a REQ_OP, or the btrfs specific REQ_GET_READ_MIRRORS,
+so this drops the bit tests.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- drivers/md/bcache/btree.c     |  4 ++--
- drivers/md/bcache/debug.c     |  4 ++--
- drivers/md/bcache/journal.c   |  7 ++++---
- drivers/md/bcache/movinggc.c  |  2 +-
- drivers/md/bcache/request.c   | 14 +++++++-------
- drivers/md/bcache/super.c     | 24 +++++++++++++-----------
- drivers/md/bcache/writeback.c |  4 ++--
- 7 files changed, 31 insertions(+), 28 deletions(-)
+ fs/btrfs/extent-tree.c |  2 +-
+ fs/btrfs/inode.c       |  2 +-
+ fs/btrfs/volumes.c     | 55 +++++++++++++++++++++++++++-----------------------
+ fs/btrfs/volumes.h     |  4 ++--
+ 4 files changed, 34 insertions(+), 29 deletions(-)
 
-diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
-index eab505e..76f7534 100644
---- a/drivers/md/bcache/btree.c
-+++ b/drivers/md/bcache/btree.c
-@@ -294,10 +294,10 @@ static void bch_btree_node_read(struct btree *b)
- 	closure_init_stack(&cl);
+diff --git a/fs/btrfs/extent-tree.c b/fs/btrfs/extent-tree.c
+index a400951..70af591 100644
+--- a/fs/btrfs/extent-tree.c
++++ b/fs/btrfs/extent-tree.c
+@@ -2043,7 +2043,7 @@ int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
  
- 	bio = bch_bbio_alloc(b->c);
--	bio->bi_rw	= REQ_META|READ_SYNC;
- 	bio->bi_iter.bi_size = KEY_SIZE(&b->key) << 9;
- 	bio->bi_end_io	= btree_node_read_endio;
- 	bio->bi_private	= &cl;
-+	bio_set_op_attrs(bio, REQ_OP_READ, REQ_META|READ_SYNC);
  
- 	bch_bio_map(bio, b->keys.set[0].data);
+ 	/* Tell the block device(s) that the sectors can be discarded */
+-	ret = btrfs_map_block(root->fs_info, REQ_DISCARD,
++	ret = btrfs_map_block(root->fs_info, REQ_OP_DISCARD,
+ 			      bytenr, &num_bytes, &bbio, 0);
+ 	/* Error condition is -ENOMEM */
+ 	if (!ret) {
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index b07e1d9..1575944 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -1838,7 +1838,7 @@ int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
  
-@@ -396,8 +396,8 @@ static void do_btree_node_write(struct btree *b)
- 
- 	b->bio->bi_end_io	= btree_node_write_endio;
- 	b->bio->bi_private	= cl;
--	b->bio->bi_rw		= REQ_META|WRITE_SYNC|REQ_FUA;
- 	b->bio->bi_iter.bi_size	= roundup(set_bytes(i), block_bytes(b->c));
-+	bio_set_op_attrs(b->bio, REQ_OP_WRITE, REQ_META|WRITE_SYNC|REQ_FUA);
- 	bch_bio_map(b->bio, i);
- 
- 	/*
-diff --git a/drivers/md/bcache/debug.c b/drivers/md/bcache/debug.c
-index 52b6bcf..c28df164 100644
---- a/drivers/md/bcache/debug.c
-+++ b/drivers/md/bcache/debug.c
-@@ -52,7 +52,7 @@ void bch_btree_verify(struct btree *b)
- 	bio->bi_bdev		= PTR_CACHE(b->c, &b->key, 0)->bdev;
- 	bio->bi_iter.bi_sector	= PTR_OFFSET(&b->key, 0);
- 	bio->bi_iter.bi_size	= KEY_SIZE(&v->key) << 9;
--	bio->bi_rw		= REQ_META|READ_SYNC;
-+	bio_set_op_attrs(bio, REQ_OP_READ, REQ_META|READ_SYNC);
- 	bch_bio_map(bio, sorted);
- 
- 	submit_bio_wait(bio);
-@@ -114,7 +114,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
- 	check = bio_clone(bio, GFP_NOIO);
- 	if (!check)
- 		return;
--	check->bi_rw |= READ_SYNC;
-+	bio_set_op_attrs(check, REQ_OP_READ, READ_SYNC);
- 
- 	if (bio_alloc_pages(check, GFP_NOIO))
- 		goto out_put;
-diff --git a/drivers/md/bcache/journal.c b/drivers/md/bcache/journal.c
-index af3f9f7..a3c3b30 100644
---- a/drivers/md/bcache/journal.c
-+++ b/drivers/md/bcache/journal.c
-@@ -54,11 +54,11 @@ reread:		left = ca->sb.bucket_size - offset;
- 		bio_reset(bio);
- 		bio->bi_iter.bi_sector	= bucket + offset;
- 		bio->bi_bdev	= ca->bdev;
--		bio->bi_rw	= READ;
- 		bio->bi_iter.bi_size	= len << 9;
- 
- 		bio->bi_end_io	= journal_read_endio;
- 		bio->bi_private = &cl;
-+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
- 		bch_bio_map(bio, data);
- 
- 		closure_bio_submit(bio, &cl);
-@@ -449,10 +449,10 @@ static void do_journal_discard(struct cache *ca)
- 		atomic_set(&ja->discard_in_flight, DISCARD_IN_FLIGHT);
- 
- 		bio_init(bio);
-+		bio_set_op_attrs(bio, REQ_OP_DISCARD, 0);
- 		bio->bi_iter.bi_sector	= bucket_to_sector(ca->set,
- 						ca->sb.d[ja->discard_idx]);
- 		bio->bi_bdev		= ca->bdev;
--		bio->bi_rw		= REQ_WRITE|REQ_DISCARD;
- 		bio->bi_max_vecs	= 1;
- 		bio->bi_io_vec		= bio->bi_inline_vecs;
- 		bio->bi_iter.bi_size	= bucket_bytes(ca);
-@@ -626,11 +626,12 @@ static void journal_write_unlocked(struct closure *cl)
- 		bio_reset(bio);
- 		bio->bi_iter.bi_sector	= PTR_OFFSET(k, i);
- 		bio->bi_bdev	= ca->bdev;
--		bio->bi_rw	= REQ_WRITE|REQ_SYNC|REQ_META|REQ_FLUSH|REQ_FUA;
- 		bio->bi_iter.bi_size = sectors << 9;
- 
- 		bio->bi_end_io	= journal_write_endio;
- 		bio->bi_private = w;
-+		bio_set_op_attrs(bio, REQ_OP_WRITE,
-+				 REQ_SYNC|REQ_META|REQ_FLUSH|REQ_FUA);
- 		bch_bio_map(bio, w->data);
- 
- 		trace_bcache_journal_write(bio);
-diff --git a/drivers/md/bcache/movinggc.c b/drivers/md/bcache/movinggc.c
-index b929fc9..1881319 100644
---- a/drivers/md/bcache/movinggc.c
-+++ b/drivers/md/bcache/movinggc.c
-@@ -163,7 +163,7 @@ static void read_moving(struct cache_set *c)
- 		moving_init(io);
- 		bio = &io->bio.bio;
- 
--		bio->bi_rw	= READ;
-+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
- 		bio->bi_end_io	= read_moving_endio;
- 
- 		if (bio_alloc_pages(bio, GFP_KERNEL))
-diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
-index 6b85a23..016b0aa 100644
---- a/drivers/md/bcache/request.c
-+++ b/drivers/md/bcache/request.c
-@@ -253,7 +253,7 @@ static void bch_data_insert_start(struct closure *cl)
- 		trace_bcache_cache_insert(k);
- 		bch_keylist_push(&op->insert_keys);
- 
--		n->bi_rw |= REQ_WRITE;
-+		bio_set_op_attrs(n, REQ_OP_WRITE, 0);
- 		bch_submit_bbio(n, op->c, k, 0);
- 	} while (n != bio);
- 
-@@ -378,7 +378,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
- 
- 	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
- 	    c->gc_stats.in_use > CUTOFF_CACHE_ADD ||
--	    (bio->bi_rw & REQ_DISCARD))
-+	    (bio_op(bio) == REQ_OP_DISCARD))
- 		goto skip;
- 
- 	if (mode == CACHE_MODE_NONE ||
-@@ -899,7 +899,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
- 	 * But check_overlapping drops dirty keys for which io hasn't started,
- 	 * so we still want to call it.
- 	 */
--	if (bio->bi_rw & REQ_DISCARD)
-+	if (bio_op(bio) == REQ_OP_DISCARD)
- 		s->iop.bypass = true;
- 
- 	if (should_writeback(dc, s->orig_bio,
-@@ -913,7 +913,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
- 		s->iop.bio = s->orig_bio;
- 		bio_get(s->iop.bio);
- 
--		if (!(bio->bi_rw & REQ_DISCARD) ||
-+		if ((bio_op(bio) != REQ_OP_DISCARD) ||
- 		    blk_queue_discard(bdev_get_queue(dc->bdev)))
- 			closure_bio_submit(bio, cl);
- 	} else if (s->iop.writeback) {
-@@ -925,10 +925,10 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
- 			struct bio *flush = bio_alloc_bioset(GFP_NOIO, 0,
- 							     dc->disk.bio_split);
- 
--			flush->bi_rw	= WRITE_FLUSH;
- 			flush->bi_bdev	= bio->bi_bdev;
- 			flush->bi_end_io = request_endio;
- 			flush->bi_private = cl;
-+			bio_set_op_attrs(flush, REQ_OP_WRITE, WRITE_FLUSH);
- 
- 			closure_bio_submit(flush, cl);
- 		}
-@@ -992,7 +992,7 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
- 				cached_dev_read(dc, s);
- 		}
- 	} else {
--		if ((bio->bi_rw & REQ_DISCARD) &&
-+		if ((bio_op(bio) == REQ_OP_DISCARD) &&
- 		    !blk_queue_discard(bdev_get_queue(dc->bdev)))
- 			bio_endio(bio);
- 		else
-@@ -1103,7 +1103,7 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
- 					&KEY(d->id, bio->bi_iter.bi_sector, 0),
- 					&KEY(d->id, bio_end_sector(bio), 0));
- 
--		s->iop.bypass		= (bio->bi_rw & REQ_DISCARD) != 0;
-+		s->iop.bypass		= (bio_op(bio) == REQ_OP_DISCARD) != 0;
- 		s->iop.writeback	= true;
- 		s->iop.bio		= bio;
- 
-diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
-index 1eb526a7..c944daf7 100644
---- a/drivers/md/bcache/super.c
-+++ b/drivers/md/bcache/super.c
-@@ -212,8 +212,8 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
- 	unsigned i;
- 
- 	bio->bi_iter.bi_sector	= SB_SECTOR;
--	bio->bi_rw		= REQ_WRITE|REQ_SYNC|REQ_META;
- 	bio->bi_iter.bi_size	= SB_SIZE;
-+	bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_SYNC|REQ_META);
- 	bch_bio_map(bio, NULL);
- 
- 	out->offset		= cpu_to_le64(sb->offset);
-@@ -333,7 +333,7 @@ static void uuid_io_unlock(struct closure *cl)
- 	up(&c->uuid_write_mutex);
+ 	length = bio->bi_iter.bi_size;
+ 	map_length = length;
+-	ret = btrfs_map_block(root->fs_info, rw, logical,
++	ret = btrfs_map_block(root->fs_info, bio_op(bio), logical,
+ 			      &map_length, NULL, 0);
+ 	/* Will always return 0 with map_multi == NULL */
+ 	BUG_ON(ret < 0);
+diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
+index 4dc2249..345b183 100644
+--- a/fs/btrfs/volumes.c
++++ b/fs/btrfs/volumes.c
+@@ -5248,7 +5248,7 @@ void btrfs_put_bbio(struct btrfs_bio *bbio)
+ 		kfree(bbio);
  }
  
--static void uuid_io(struct cache_set *c, unsigned long rw,
-+static void uuid_io(struct cache_set *c, int op, unsigned long op_flags,
- 		    struct bkey *k, struct closure *parent)
- {
- 	struct closure *cl = &c->uuid_write;
-@@ -348,21 +348,22 @@ static void uuid_io(struct cache_set *c, unsigned long rw,
- 	for (i = 0; i < KEY_PTRS(k); i++) {
- 		struct bio *bio = bch_bbio_alloc(c);
- 
--		bio->bi_rw	= REQ_SYNC|REQ_META|rw;
-+		bio->bi_rw	= REQ_SYNC|REQ_META|op_flags;
- 		bio->bi_iter.bi_size = KEY_SIZE(k) << 9;
- 
- 		bio->bi_end_io	= uuid_endio;
- 		bio->bi_private = cl;
-+		bio_set_op_attrs(bio, op, REQ_SYNC|REQ_META|op_flags);
- 		bch_bio_map(bio, c->uuids);
- 
- 		bch_submit_bbio(bio, c, k, i);
- 
--		if (!(rw & WRITE))
-+		if (op != REQ_OP_WRITE)
- 			break;
+-static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
++static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
+ 			     u64 logical, u64 *length,
+ 			     struct btrfs_bio **bbio_ret,
+ 			     int mirror_num, int need_raid_map)
+@@ -5334,7 +5334,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 		raid56_full_stripe_start *= full_stripe_len;
  	}
  
- 	bch_extent_to_text(buf, sizeof(buf), k);
--	pr_debug("%s UUIDs at %s", rw & REQ_WRITE ? "wrote" : "read", buf);
-+	pr_debug("%s UUIDs at %s", op == REQ_OP_WRITE ? "wrote" : "read", buf);
+-	if (rw & REQ_DISCARD) {
++	if (op == REQ_OP_DISCARD) {
+ 		/* we don't discard raid56 yet */
+ 		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+ 			ret = -EOPNOTSUPP;
+@@ -5347,7 +5347,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 		   For other RAID types and for RAID[56] reads, just allow a single
+ 		   stripe (on a single disk). */
+ 		if ((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) &&
+-		    (rw & REQ_WRITE)) {
++		    (op == REQ_OP_WRITE)) {
+ 			max_len = stripe_len * nr_data_stripes(map) -
+ 				(offset - raid56_full_stripe_start);
+ 		} else {
+@@ -5372,8 +5372,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 		btrfs_dev_replace_set_lock_blocking(dev_replace);
  
- 	for (u = c->uuids; u < c->uuids + c->nr_uuids; u++)
- 		if (!bch_is_zero(u->uuid, 16))
-@@ -381,7 +382,7 @@ static char *uuid_read(struct cache_set *c, struct jset *j, struct closure *cl)
- 		return "bad uuid pointer";
+ 	if (dev_replace_is_ongoing && mirror_num == map->num_stripes + 1 &&
+-	    !(rw & (REQ_WRITE | REQ_DISCARD | REQ_GET_READ_MIRRORS)) &&
+-	    dev_replace->tgtdev != NULL) {
++	    op != REQ_OP_WRITE && op != REQ_OP_DISCARD &&
++	    op != REQ_GET_READ_MIRRORS && dev_replace->tgtdev != NULL) {
+ 		/*
+ 		 * in dev-replace case, for repair case (that's the only
+ 		 * case where the mirror is selected explicitly when
+@@ -5460,15 +5460,17 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 			    (offset + *length);
  
- 	bkey_copy(&c->uuid_bucket, k);
--	uuid_io(c, READ_SYNC, k, cl);
-+	uuid_io(c, REQ_OP_READ, READ_SYNC, k, cl);
+ 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
+-		if (rw & REQ_DISCARD)
++		if (op == REQ_OP_DISCARD)
+ 			num_stripes = min_t(u64, map->num_stripes,
+ 					    stripe_nr_end - stripe_nr_orig);
+ 		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes,
+ 				&stripe_index);
+-		if (!(rw & (REQ_WRITE | REQ_DISCARD | REQ_GET_READ_MIRRORS)))
++		if (op != REQ_OP_WRITE && op != REQ_OP_DISCARD &&
++		    op != REQ_GET_READ_MIRRORS)
+ 			mirror_num = 1;
+ 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
+-		if (rw & (REQ_WRITE | REQ_DISCARD | REQ_GET_READ_MIRRORS))
++		if (op == REQ_OP_WRITE || op == REQ_OP_DISCARD ||
++		    op == REQ_GET_READ_MIRRORS)
+ 			num_stripes = map->num_stripes;
+ 		else if (mirror_num)
+ 			stripe_index = mirror_num - 1;
+@@ -5481,7 +5483,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 		}
  
- 	if (j->version < BCACHE_JSET_VERSION_UUIDv1) {
- 		struct uuid_entry_v0	*u0 = (void *) c->uuids;
-@@ -426,7 +427,7 @@ static int __uuid_write(struct cache_set *c)
- 		return 1;
+ 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
+-		if (rw & (REQ_WRITE | REQ_DISCARD | REQ_GET_READ_MIRRORS)) {
++		if (op == REQ_OP_WRITE || REQ_OP_DISCARD ||
++		    op == REQ_GET_READ_MIRRORS) {
+ 			num_stripes = map->num_stripes;
+ 		} else if (mirror_num) {
+ 			stripe_index = mirror_num - 1;
+@@ -5495,9 +5498,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 		stripe_nr = div_u64_rem(stripe_nr, factor, &stripe_index);
+ 		stripe_index *= map->sub_stripes;
  
- 	SET_KEY_SIZE(&k.key, c->sb.bucket_size);
--	uuid_io(c, REQ_WRITE, &k.key, &cl);
-+	uuid_io(c, REQ_OP_WRITE, 0, &k.key, &cl);
- 	closure_sync(&cl);
+-		if (rw & (REQ_WRITE | REQ_GET_READ_MIRRORS))
++		if (op == REQ_OP_WRITE || op == REQ_GET_READ_MIRRORS)
+ 			num_stripes = map->sub_stripes;
+-		else if (rw & REQ_DISCARD)
++		else if (op == REQ_OP_DISCARD)
+ 			num_stripes = min_t(u64, map->sub_stripes *
+ 					    (stripe_nr_end - stripe_nr_orig),
+ 					    map->num_stripes);
+@@ -5515,7 +5518,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
  
- 	bkey_copy(&c->uuid_bucket, &k.key);
-@@ -498,7 +499,8 @@ static void prio_endio(struct bio *bio)
- 	closure_put(&ca->prio);
+ 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+ 		if (need_raid_map &&
+-		    ((rw & (REQ_WRITE | REQ_GET_READ_MIRRORS)) ||
++		    (op == REQ_OP_WRITE || op == REQ_GET_READ_MIRRORS ||
+ 		     mirror_num > 1)) {
+ 			/* push stripe_nr back to the start of the full stripe */
+ 			stripe_nr = div_u64(raid56_full_stripe_start,
+@@ -5543,8 +5546,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 			/* We distribute the parity blocks across stripes */
+ 			div_u64_rem(stripe_nr + stripe_index, map->num_stripes,
+ 					&stripe_index);
+-			if (!(rw & (REQ_WRITE | REQ_DISCARD |
+-				    REQ_GET_READ_MIRRORS)) && mirror_num <= 1)
++			if ((op != REQ_OP_WRITE && op != REQ_OP_DISCARD &&
++			    op != REQ_GET_READ_MIRRORS) && mirror_num <= 1)
+ 				mirror_num = 1;
+ 		}
+ 	} else {
+@@ -5567,9 +5570,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 
+ 	num_alloc_stripes = num_stripes;
+ 	if (dev_replace_is_ongoing) {
+-		if (rw & (REQ_WRITE | REQ_DISCARD))
++		if (op == REQ_OP_WRITE || op == REQ_OP_DISCARD)
+ 			num_alloc_stripes <<= 1;
+-		if (rw & REQ_GET_READ_MIRRORS)
++		if (op == REQ_GET_READ_MIRRORS)
+ 			num_alloc_stripes++;
+ 		tgtdev_indexes = num_stripes;
+ 	}
+@@ -5584,7 +5587,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 
+ 	/* build raid_map */
+ 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK &&
+-	    need_raid_map && ((rw & (REQ_WRITE | REQ_GET_READ_MIRRORS)) ||
++	    need_raid_map &&
++	    ((op == REQ_OP_WRITE || op == REQ_GET_READ_MIRRORS) ||
+ 	    mirror_num > 1)) {
+ 		u64 tmp;
+ 		unsigned rot;
+@@ -5609,7 +5613,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 				RAID6_Q_STRIPE;
+ 	}
+ 
+-	if (rw & REQ_DISCARD) {
++	if (op == REQ_OP_DISCARD) {
+ 		u32 factor = 0;
+ 		u32 sub_stripes = 0;
+ 		u64 stripes_per_dev = 0;
+@@ -5689,14 +5693,15 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 		}
+ 	}
+ 
+-	if (rw & (REQ_WRITE | REQ_GET_READ_MIRRORS))
++	if (op == REQ_OP_WRITE || op == REQ_GET_READ_MIRRORS)
+ 		max_errors = btrfs_chunk_max_errors(map);
+ 
+ 	if (bbio->raid_map)
+ 		sort_parity_stripes(bbio, num_stripes);
+ 
+ 	tgtdev_indexes = 0;
+-	if (dev_replace_is_ongoing && (rw & (REQ_WRITE | REQ_DISCARD)) &&
++	if (dev_replace_is_ongoing &&
++	   (op == REQ_OP_WRITE || op == REQ_OP_DISCARD) &&
+ 	    dev_replace->tgtdev != NULL) {
+ 		int index_where_to_add;
+ 		u64 srcdev_devid = dev_replace->srcdev->devid;
+@@ -5731,7 +5736,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+ 			}
+ 		}
+ 		num_stripes = index_where_to_add;
+-	} else if (dev_replace_is_ongoing && (rw & REQ_GET_READ_MIRRORS) &&
++	} else if (dev_replace_is_ongoing && (op == REQ_GET_READ_MIRRORS) &&
+ 		   dev_replace->tgtdev != NULL) {
+ 		u64 srcdev_devid = dev_replace->srcdev->devid;
+ 		int index_srcdev = 0;
+@@ -5806,21 +5811,21 @@ out:
+ 	return ret;
  }
  
--static void prio_io(struct cache *ca, uint64_t bucket, unsigned long rw)
-+static void prio_io(struct cache *ca, uint64_t bucket, int op,
-+		    unsigned long op_flags)
+-int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
++int btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
+ 		      u64 logical, u64 *length,
+ 		      struct btrfs_bio **bbio_ret, int mirror_num)
  {
- 	struct closure *cl = &ca->prio;
- 	struct bio *bio = bch_bbio_alloc(ca->set);
-@@ -507,11 +509,11 @@ static void prio_io(struct cache *ca, uint64_t bucket, unsigned long rw)
+-	return __btrfs_map_block(fs_info, rw, logical, length, bbio_ret,
++	return __btrfs_map_block(fs_info, op, logical, length, bbio_ret,
+ 				 mirror_num, 0);
+ }
  
- 	bio->bi_iter.bi_sector	= bucket * ca->sb.bucket_size;
- 	bio->bi_bdev		= ca->bdev;
--	bio->bi_rw		= REQ_SYNC|REQ_META|rw;
- 	bio->bi_iter.bi_size	= bucket_bytes(ca);
+ /* For Scrub/replace */
+-int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int rw,
++int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int op,
+ 		     u64 logical, u64 *length,
+ 		     struct btrfs_bio **bbio_ret, int mirror_num,
+ 		     int need_raid_map)
+ {
+-	return __btrfs_map_block(fs_info, rw, logical, length, bbio_ret,
++	return __btrfs_map_block(fs_info, op, logical, length, bbio_ret,
+ 				 mirror_num, need_raid_map);
+ }
  
- 	bio->bi_end_io	= prio_endio;
- 	bio->bi_private = ca;
-+	bio_set_op_attrs(bio, op, REQ_SYNC|REQ_META|op_flags);
- 	bch_bio_map(bio, ca->disk_buckets);
- 
- 	closure_bio_submit(bio, &ca->prio);
-@@ -557,7 +559,7 @@ void bch_prio_write(struct cache *ca)
- 		BUG_ON(bucket == -1);
- 
- 		mutex_unlock(&ca->set->bucket_lock);
--		prio_io(ca, bucket, REQ_WRITE);
-+		prio_io(ca, bucket, REQ_OP_WRITE, 0);
- 		mutex_lock(&ca->set->bucket_lock);
- 
- 		ca->prio_buckets[i] = bucket;
-@@ -599,7 +601,7 @@ static void prio_read(struct cache *ca, uint64_t bucket)
- 			ca->prio_last_buckets[bucket_nr] = bucket;
- 			bucket_nr++;
- 
--			prio_io(ca, bucket, READ_SYNC);
-+			prio_io(ca, bucket, REQ_OP_READ, READ_SYNC);
- 
- 			if (p->csum != bch_crc64(&p->magic, bucket_bytes(ca) - 8))
- 				pr_warn("bad csum reading priorities");
-diff --git a/drivers/md/bcache/writeback.c b/drivers/md/bcache/writeback.c
-index 6012367..d9fd2a6 100644
---- a/drivers/md/bcache/writeback.c
-+++ b/drivers/md/bcache/writeback.c
-@@ -182,7 +182,7 @@ static void write_dirty(struct closure *cl)
- 	struct keybuf_key *w = io->bio.bi_private;
- 
- 	dirty_init(w);
--	io->bio.bi_rw		= WRITE;
-+	bio_set_op_attrs(&io->bio, REQ_OP_WRITE, 0);
- 	io->bio.bi_iter.bi_sector = KEY_START(&w->key);
- 	io->bio.bi_bdev		= io->dc->bdev;
- 	io->bio.bi_end_io	= dirty_endio;
-@@ -251,10 +251,10 @@ static void read_dirty(struct cached_dev *dc)
- 		io->dc		= dc;
- 
- 		dirty_init(w);
-+		bio_set_op_attrs(&io->bio, REQ_OP_READ, 0);
- 		io->bio.bi_iter.bi_sector = PTR_OFFSET(&w->key, 0);
- 		io->bio.bi_bdev		= PTR_CACHE(dc->disk.c,
- 						    &w->key, 0)->bdev;
--		io->bio.bi_rw		= READ;
- 		io->bio.bi_end_io	= read_dirty_endio;
- 
- 		if (bio_alloc_pages(&io->bio, GFP_KERNEL))
+diff --git a/fs/btrfs/volumes.h b/fs/btrfs/volumes.h
+index 0ac90f8..3b78700 100644
+--- a/fs/btrfs/volumes.h
++++ b/fs/btrfs/volumes.h
+@@ -375,10 +375,10 @@ int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
+ 				   u64 end, u64 *length);
+ void btrfs_get_bbio(struct btrfs_bio *bbio);
+ void btrfs_put_bbio(struct btrfs_bio *bbio);
+-int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
++int btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
+ 		    u64 logical, u64 *length,
+ 		    struct btrfs_bio **bbio_ret, int mirror_num);
+-int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int rw,
++int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int op,
+ 		     u64 logical, u64 *length,
+ 		     struct btrfs_bio **bbio_ret, int mirror_num,
+ 		     int need_raid_map);
 -- 
 2.7.2
 
