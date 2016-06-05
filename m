@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 31E87105648C
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C9A0C105648D
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 2BDD1420308
+	by zimbra13.linbit.com (Postfix) with ESMTP id C4901420308
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id hFcZHmrwlEPy for <drbd-dev@lists.linbit.com>;
+	with ESMTP id ILnu6DX3JxWD for <drbd-dev@lists.linbit.com>;
 	Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 09BEF42030E
+	by zimbra13.linbit.com (Postfix) with ESMTP id A6AC742030E
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id w-zx2xK6DAn9 for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:10 +0200 (CEST)
+	with ESMTP id gvwI6FADo-AT for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id D43DA420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:10 +0200 (CEST)
-Resent-Message-ID: <20160610114710.GX3235@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 73B10420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
+Resent-Message-ID: <20160610114711.GY3235@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0AE2C1056470
-	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:42:01 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DC0141056465
+	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:42:58 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Sun,  5 Jun 2016 14:31:50 -0500
-Message-Id: <1465155145-10812-11-git-send-email-mchristi@redhat.com>
+Date: Sun,  5 Jun 2016 14:31:59 -0500
+Message-Id: <1465155145-10812-20-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 10/45] direct-io: use bio set/get op accessors
+Subject: [Drbd-dev] [PATCH 19/45] mpage: use bio op accessors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,193 +56,160 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-This patch has the dio code use a REQ_OP for the op and rq_flag_bits
-for bi_rw flags. To set/get the op it uses the bio_set_op_attrs/bio_op
-accssors.
-
-It also begins to convert btrfs's dio_submit_t because of the dio
-submit_io callout use. The next patches will completely convert
-this code and the reset of the btrfs code paths.
+Separate the op from the rq_flag_bits and have the mpage code
+set/get the bio using bio_set_op_attrs/bio_op.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- fs/btrfs/inode.c   |  8 ++++----
- fs/direct-io.c     | 34 ++++++++++++++++++++--------------
- include/linux/fs.h |  2 +-
- 3 files changed, 25 insertions(+), 19 deletions(-)
+ fs/mpage.c | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)
 
-diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index 2704995..96f9192 100644
---- a/fs/btrfs/inode.c
-+++ b/fs/btrfs/inode.c
-@@ -8422,14 +8422,14 @@ out_err:
- 	return 0;
+diff --git a/fs/mpage.c b/fs/mpage.c
+index 2c251ec..37b2828 100644
+--- a/fs/mpage.c
++++ b/fs/mpage.c
+@@ -56,11 +56,11 @@ static void mpage_end_io(struct bio *bio)
+ 	bio_put(bio);
  }
  
--static void btrfs_submit_direct(int rw, struct bio *dio_bio,
--				struct inode *inode, loff_t file_offset)
-+static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
-+				loff_t file_offset)
+-static struct bio *mpage_bio_submit(int rw, struct bio *bio)
++static struct bio *mpage_bio_submit(int op, int op_flags, struct bio *bio)
  {
- 	struct btrfs_dio_private *dip = NULL;
- 	struct bio *io_bio = NULL;
- 	struct btrfs_io_bio *btrfs_bio;
- 	int skip_sum;
--	int write = rw & REQ_WRITE;
-+	bool write = (bio_op(dio_bio) == REQ_OP_WRITE);
- 	int ret = 0;
+ 	bio->bi_end_io = mpage_end_io;
+-	bio->bi_rw = rw;
+-	guard_bio_eod(rw, bio);
++	bio_set_op_attrs(bio, op, op_flags);
++	guard_bio_eod(op, bio);
+ 	submit_bio(bio);
+ 	return NULL;
+ }
+@@ -270,7 +270,7 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
+ 	 * This page will go to BIO.  Do we need to send this BIO off first?
+ 	 */
+ 	if (bio && (*last_block_in_bio != blocks[0] - 1))
+-		bio = mpage_bio_submit(READ, bio);
++		bio = mpage_bio_submit(REQ_OP_READ, 0, bio);
  
- 	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
-@@ -8480,7 +8480,7 @@ static void btrfs_submit_direct(int rw, struct bio *dio_bio,
- 			dio_data->unsubmitted_oe_range_end;
+ alloc_new:
+ 	if (bio == NULL) {
+@@ -287,7 +287,7 @@ alloc_new:
+ 
+ 	length = first_hole << blkbits;
+ 	if (bio_add_page(bio, page, length, 0) < length) {
+-		bio = mpage_bio_submit(READ, bio);
++		bio = mpage_bio_submit(REQ_OP_READ, 0, bio);
+ 		goto alloc_new;
  	}
  
--	ret = btrfs_submit_direct_hook(rw, dip, skip_sum);
-+	ret = btrfs_submit_direct_hook(dio_bio->bi_rw, dip, skip_sum);
- 	if (!ret)
- 		return;
- 
-diff --git a/fs/direct-io.c b/fs/direct-io.c
-index 1bcdd5d..7c3ce73 100644
---- a/fs/direct-io.c
-+++ b/fs/direct-io.c
-@@ -108,7 +108,8 @@ struct dio_submit {
- /* dio_state communicated between submission path and end_io */
- struct dio {
- 	int flags;			/* doesn't change */
--	int rw;
-+	int op;
-+	int op_flags;
- 	blk_qc_t bio_cookie;
- 	struct block_device *bio_bdev;
- 	struct inode *inode;
-@@ -163,7 +164,7 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
- 	ret = iov_iter_get_pages(sdio->iter, dio->pages, LONG_MAX, DIO_PAGES,
- 				&sdio->from);
- 
--	if (ret < 0 && sdio->blocks_available && (dio->rw & WRITE)) {
-+	if (ret < 0 && sdio->blocks_available && (dio->op == REQ_OP_WRITE)) {
- 		struct page *page = ZERO_PAGE(0);
- 		/*
- 		 * A memory fault, but the filesystem has some outstanding
-@@ -242,7 +243,8 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
- 		transferred = dio->result;
- 
- 		/* Check for short read case */
--		if ((dio->rw == READ) && ((offset + transferred) > dio->i_size))
-+		if ((dio->op == REQ_OP_READ) &&
-+		    ((offset + transferred) > dio->i_size))
- 			transferred = dio->i_size - offset;
- 	}
- 
-@@ -273,7 +275,7 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
- 		 */
- 		dio->iocb->ki_pos += transferred;
- 
--		if (dio->rw & WRITE)
-+		if (dio->op == REQ_OP_WRITE)
- 			ret = generic_write_sync(dio->iocb,  transferred);
- 		dio->iocb->ki_complete(dio->iocb, ret, 0);
- 	}
-@@ -375,7 +377,7 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
- 
- 	bio->bi_bdev = bdev;
- 	bio->bi_iter.bi_sector = first_sector;
--	bio->bi_rw = dio->rw;
-+	bio_set_op_attrs(bio, dio->op, dio->op_flags);
- 	if (dio->is_async)
- 		bio->bi_end_io = dio_bio_end_aio;
+@@ -295,7 +295,7 @@ alloc_new:
+ 	nblocks = map_bh->b_size >> blkbits;
+ 	if ((buffer_boundary(map_bh) && relative_block == nblocks) ||
+ 	    (first_hole != blocks_per_page))
+-		bio = mpage_bio_submit(READ, bio);
++		bio = mpage_bio_submit(REQ_OP_READ, 0, bio);
  	else
-@@ -403,14 +405,13 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
- 	dio->refcount++;
- 	spin_unlock_irqrestore(&dio->bio_lock, flags);
+ 		*last_block_in_bio = blocks[blocks_per_page - 1];
+ out:
+@@ -303,7 +303,7 @@ out:
  
--	if (dio->is_async && dio->rw == READ && dio->should_dirty)
-+	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty)
- 		bio_set_pages_dirty(bio);
- 
- 	dio->bio_bdev = bio->bi_bdev;
- 
- 	if (sdio->submit_io) {
--		sdio->submit_io(dio->rw, bio, dio->inode,
--			       sdio->logical_offset_in_bio);
-+		sdio->submit_io(bio, dio->inode, sdio->logical_offset_in_bio);
- 		dio->bio_cookie = BLK_QC_T_NONE;
- 	} else
- 		dio->bio_cookie = submit_bio(bio);
-@@ -479,14 +480,14 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
- 	if (bio->bi_error)
- 		dio->io_error = -EIO;
- 
--	if (dio->is_async && dio->rw == READ && dio->should_dirty) {
-+	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty) {
- 		err = bio->bi_error;
- 		bio_check_pages_dirty(bio);	/* transfers ownership */
- 	} else {
- 		bio_for_each_segment_all(bvec, bio, i) {
- 			struct page *page = bvec->bv_page;
- 
--			if (dio->rw == READ && !PageCompound(page) &&
-+			if (dio->op == REQ_OP_READ && !PageCompound(page) &&
- 					dio->should_dirty)
- 				set_page_dirty_lock(page);
- 			put_page(page);
-@@ -639,7 +640,7 @@ static int get_more_blocks(struct dio *dio, struct dio_submit *sdio,
- 		 * which may decide to handle it or also return an unmapped
- 		 * buffer head.
- 		 */
--		create = dio->rw & WRITE;
-+		create = dio->op == REQ_OP_WRITE;
- 		if (dio->flags & DIO_SKIP_HOLES) {
- 			if (fs_startblk <= ((i_size_read(dio->inode) - 1) >>
- 							i_blkbits))
-@@ -789,7 +790,7 @@ submit_page_section(struct dio *dio, struct dio_submit *sdio, struct page *page,
- {
+ confused:
+ 	if (bio)
+-		bio = mpage_bio_submit(READ, bio);
++		bio = mpage_bio_submit(REQ_OP_READ, 0, bio);
+ 	if (!PageUptodate(page))
+ 	        block_read_full_page(page, get_block);
+ 	else
+@@ -385,7 +385,7 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
+ 	}
+ 	BUG_ON(!list_empty(pages));
+ 	if (bio)
+-		mpage_bio_submit(READ, bio);
++		mpage_bio_submit(REQ_OP_READ, 0, bio);
+ 	return 0;
+ }
+ EXPORT_SYMBOL(mpage_readpages);
+@@ -406,7 +406,7 @@ int mpage_readpage(struct page *page, get_block_t get_block)
+ 	bio = do_mpage_readpage(bio, page, 1, &last_block_in_bio,
+ 			&map_bh, &first_logical_block, get_block, gfp);
+ 	if (bio)
+-		mpage_bio_submit(READ, bio);
++		mpage_bio_submit(REQ_OP_READ, 0, bio);
+ 	return 0;
+ }
+ EXPORT_SYMBOL(mpage_readpage);
+@@ -487,7 +487,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
+ 	struct buffer_head map_bh;
+ 	loff_t i_size = i_size_read(inode);
  	int ret = 0;
+-	int wr = (wbc->sync_mode == WB_SYNC_ALL ?  WRITE_SYNC : WRITE);
++	int op_flags = (wbc->sync_mode == WB_SYNC_ALL ?  WRITE_SYNC : 0);
  
--	if (dio->rw & WRITE) {
-+	if (dio->op == REQ_OP_WRITE) {
- 		/*
- 		 * Read accounting is performed in submit_bio()
- 		 */
-@@ -989,7 +990,7 @@ do_holes:
- 				loff_t i_size_aligned;
+ 	if (page_has_buffers(page)) {
+ 		struct buffer_head *head = page_buffers(page);
+@@ -596,7 +596,7 @@ page_is_mapped:
+ 	 * This page will go to BIO.  Do we need to send this BIO off first?
+ 	 */
+ 	if (bio && mpd->last_block_in_bio != blocks[0] - 1)
+-		bio = mpage_bio_submit(wr, bio);
++		bio = mpage_bio_submit(REQ_OP_WRITE, op_flags, bio);
  
- 				/* AKPM: eargh, -ENOTBLK is a hack */
--				if (dio->rw & WRITE) {
-+				if (dio->op == REQ_OP_WRITE) {
- 					put_page(page);
- 					return -ENOTBLK;
- 				}
-@@ -1203,7 +1204,12 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
- 		dio->is_async = true;
+ alloc_new:
+ 	if (bio == NULL) {
+@@ -623,7 +623,7 @@ alloc_new:
+ 	wbc_account_io(wbc, page, PAGE_SIZE);
+ 	length = first_unmapped << blkbits;
+ 	if (bio_add_page(bio, page, length, 0) < length) {
+-		bio = mpage_bio_submit(wr, bio);
++		bio = mpage_bio_submit(REQ_OP_WRITE, op_flags, bio);
+ 		goto alloc_new;
+ 	}
  
- 	dio->inode = inode;
--	dio->rw = iov_iter_rw(iter) == WRITE ? WRITE_ODIRECT : READ;
-+	if (iov_iter_rw(iter) == WRITE) {
-+		dio->op = REQ_OP_WRITE;
-+		dio->op_flags = WRITE_ODIRECT;
-+	} else {
-+		dio->op = REQ_OP_READ;
-+	}
+@@ -633,7 +633,7 @@ alloc_new:
+ 	set_page_writeback(page);
+ 	unlock_page(page);
+ 	if (boundary || (first_unmapped != blocks_per_page)) {
+-		bio = mpage_bio_submit(wr, bio);
++		bio = mpage_bio_submit(REQ_OP_WRITE, op_flags, bio);
+ 		if (boundary_block) {
+ 			write_boundary_block(boundary_bdev,
+ 					boundary_block, 1 << blkbits);
+@@ -645,7 +645,7 @@ alloc_new:
  
- 	/*
- 	 * For AIO O_(D)SYNC writes we need to defer completions to a workqueue
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 62ca2f9..af6f3c7 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2824,7 +2824,7 @@ extern int generic_file_open(struct inode * inode, struct file * filp);
- extern int nonseekable_open(struct inode * inode, struct file * filp);
+ confused:
+ 	if (bio)
+-		bio = mpage_bio_submit(wr, bio);
++		bio = mpage_bio_submit(REQ_OP_WRITE, op_flags, bio);
  
- #ifdef CONFIG_BLOCK
--typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
-+typedef void (dio_submit_t)(struct bio *bio, struct inode *inode,
- 			    loff_t file_offset);
+ 	if (mpd->use_writepage) {
+ 		ret = mapping->a_ops->writepage(page, wbc);
+@@ -702,9 +702,9 @@ mpage_writepages(struct address_space *mapping,
  
- enum {
+ 		ret = write_cache_pages(mapping, wbc, __mpage_writepage, &mpd);
+ 		if (mpd.bio) {
+-			int wr = (wbc->sync_mode == WB_SYNC_ALL ?
+-				  WRITE_SYNC : WRITE);
+-			mpage_bio_submit(wr, mpd.bio);
++			int op_flags = (wbc->sync_mode == WB_SYNC_ALL ?
++				  WRITE_SYNC : 0);
++			mpage_bio_submit(REQ_OP_WRITE, op_flags, mpd.bio);
+ 		}
+ 	}
+ 	blk_finish_plug(&plug);
+@@ -723,9 +723,9 @@ int mpage_writepage(struct page *page, get_block_t get_block,
+ 	};
+ 	int ret = __mpage_writepage(page, wbc, &mpd);
+ 	if (mpd.bio) {
+-		int wr = (wbc->sync_mode == WB_SYNC_ALL ?
+-			  WRITE_SYNC : WRITE);
+-		mpage_bio_submit(wr, mpd.bio);
++		int op_flags = (wbc->sync_mode == WB_SYNC_ALL ?
++			  WRITE_SYNC : 0);
++		mpage_bio_submit(REQ_OP_WRITE, op_flags, mpd.bio);
+ 	}
+ 	return ret;
+ }
 -- 
 2.7.2
 
