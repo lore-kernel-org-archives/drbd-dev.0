@@ -2,30 +2,30 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B6BEB1056492
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:19 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4E90F1056498
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:20 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id AC7D4420313
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:19 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 49BE7420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:20 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id q9k8YrXOlBGj for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:19 +0200 (CEST)
+	with ESMTP id 7fXApu--ROMJ for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:20 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 7CC58420311
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:19 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 2E2BD420311
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:20 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id cos8_p3yoEYs for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:19 +0200 (CEST)
+	with ESMTP id AS8EMPMu_0wr for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:20 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 50C1C420308
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 03596420308
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:19 +0200 (CEST)
-Resent-Message-ID: <20160610114718.GG3235@soda.linbit>
+Resent-Message-ID: <20160610114719.GH3235@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3BBCE1056465
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3FF061056466
 	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:51:36 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Sun,  5 Jun 2016 14:32:02 -0500
-Message-Id: <1465155145-10812-23-git-send-email-mchristi@redhat.com>
+Date: Sun,  5 Jun 2016 14:31:58 -0500
+Message-Id: <1465155145-10812-19-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 22/45] pm: use bio op accessors
+Subject: [Drbd-dev] [PATCH 18/45] hfsplus: use bio op accessors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,122 +56,133 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-Separate the op from the rq_flag_bits and have the pm code
+Separate the op from the rq_flag_bits and have gfs2
 set/get the bio using bio_set_op_attrs/bio_op.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- kernel/power/swap.c | 30 ++++++++++++++++++------------
- 1 file changed, 18 insertions(+), 12 deletions(-)
+ fs/hfsplus/hfsplus_fs.h |  2 +-
+ fs/hfsplus/part_tbl.c   |  5 +++--
+ fs/hfsplus/super.c      |  6 ++++--
+ fs/hfsplus/wrapper.c    | 14 ++++++++------
+ 4 files changed, 16 insertions(+), 11 deletions(-)
 
-diff --git a/kernel/power/swap.c b/kernel/power/swap.c
-index be227f5..c1aaac4 100644
---- a/kernel/power/swap.c
-+++ b/kernel/power/swap.c
-@@ -261,7 +261,7 @@ static void hib_end_io(struct bio *bio)
- 	bio_put(bio);
- }
+diff --git a/fs/hfsplus/hfsplus_fs.h b/fs/hfsplus/hfsplus_fs.h
+index fdc3446..047245b 100644
+--- a/fs/hfsplus/hfsplus_fs.h
++++ b/fs/hfsplus/hfsplus_fs.h
+@@ -526,7 +526,7 @@ int hfsplus_compare_dentry(const struct dentry *parent,
  
--static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
-+static int hib_submit_io(int op, int op_flags, pgoff_t page_off, void *addr,
- 		struct hib_bio_batch *hb)
+ /* wrapper.c */
+ int hfsplus_submit_bio(struct super_block *sb, sector_t sector, void *buf,
+-		       void **data, int rw);
++		       void **data, int op, int op_flags);
+ int hfsplus_read_wrapper(struct super_block *sb);
+ 
+ /* time macros */
+diff --git a/fs/hfsplus/part_tbl.c b/fs/hfsplus/part_tbl.c
+index eb355d8..63164eb 100644
+--- a/fs/hfsplus/part_tbl.c
++++ b/fs/hfsplus/part_tbl.c
+@@ -112,7 +112,8 @@ static int hfs_parse_new_pmap(struct super_block *sb, void *buf,
+ 		if ((u8 *)pm - (u8 *)buf >= buf_size) {
+ 			res = hfsplus_submit_bio(sb,
+ 						 *part_start + HFS_PMAP_BLK + i,
+-						 buf, (void **)&pm, READ);
++						 buf, (void **)&pm, REQ_OP_READ,
++						 0);
+ 			if (res)
+ 				return res;
+ 		}
+@@ -136,7 +137,7 @@ int hfs_part_find(struct super_block *sb,
+ 		return -ENOMEM;
+ 
+ 	res = hfsplus_submit_bio(sb, *part_start + HFS_PMAP_BLK,
+-				 buf, &data, READ);
++				 buf, &data, REQ_OP_READ, 0);
+ 	if (res)
+ 		goto out;
+ 
+diff --git a/fs/hfsplus/super.c b/fs/hfsplus/super.c
+index 755bf30..11854dd 100644
+--- a/fs/hfsplus/super.c
++++ b/fs/hfsplus/super.c
+@@ -220,7 +220,8 @@ static int hfsplus_sync_fs(struct super_block *sb, int wait)
+ 
+ 	error2 = hfsplus_submit_bio(sb,
+ 				   sbi->part_start + HFSPLUS_VOLHEAD_SECTOR,
+-				   sbi->s_vhdr_buf, NULL, WRITE_SYNC);
++				   sbi->s_vhdr_buf, NULL, REQ_OP_WRITE,
++				   WRITE_SYNC);
+ 	if (!error)
+ 		error = error2;
+ 	if (!write_backup)
+@@ -228,7 +229,8 @@ static int hfsplus_sync_fs(struct super_block *sb, int wait)
+ 
+ 	error2 = hfsplus_submit_bio(sb,
+ 				  sbi->part_start + sbi->sect_count - 2,
+-				  sbi->s_backup_vhdr_buf, NULL, WRITE_SYNC);
++				  sbi->s_backup_vhdr_buf, NULL, REQ_OP_WRITE,
++				  WRITE_SYNC);
+ 	if (!error)
+ 		error2 = error;
+ out:
+diff --git a/fs/hfsplus/wrapper.c b/fs/hfsplus/wrapper.c
+index d026bb3..ebb85e5 100644
+--- a/fs/hfsplus/wrapper.c
++++ b/fs/hfsplus/wrapper.c
+@@ -30,7 +30,8 @@ struct hfsplus_wd {
+  * @sector: block to read or write, for blocks of HFSPLUS_SECTOR_SIZE bytes
+  * @buf: buffer for I/O
+  * @data: output pointer for location of requested data
+- * @rw: direction of I/O
++ * @op: direction of I/O
++ * @op_flags: request op flags
+  *
+  * The unit of I/O is hfsplus_min_io_size(sb), which may be bigger than
+  * HFSPLUS_SECTOR_SIZE, and @buf must be sized accordingly. On reads
+@@ -44,7 +45,7 @@ struct hfsplus_wd {
+  * will work correctly.
+  */
+ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
+-		void *buf, void **data, int rw)
++		       void *buf, void **data, int op, int op_flags)
  {
- 	struct page *page = virt_to_page(addr);
-@@ -271,7 +271,7 @@ static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
- 	bio = bio_alloc(__GFP_RECLAIM | __GFP_HIGH, 1);
- 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
- 	bio->bi_bdev = hib_resume_bdev;
+ 	struct bio *bio;
+ 	int ret = 0;
+@@ -65,9 +66,9 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
+ 	bio = bio_alloc(GFP_NOIO, 1);
+ 	bio->bi_iter.bi_sector = sector;
+ 	bio->bi_bdev = sb->s_bdev;
 -	bio->bi_rw = rw;
 +	bio_set_op_attrs(bio, op, op_flags);
  
- 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
- 		printk(KERN_ERR "PM: Adding page to bio failed at %llu\n",
-@@ -307,7 +307,8 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
- {
- 	int error;
+-	if (!(rw & WRITE) && data)
++	if (op != WRITE && data)
+ 		*data = (u8 *)buf + offset;
  
--	hib_submit_io(READ_SYNC, swsusp_resume_block, swsusp_header, NULL);
-+	hib_submit_io(REQ_OP_READ, READ_SYNC, swsusp_resume_block,
-+		      swsusp_header, NULL);
- 	if (!memcmp("SWAP-SPACE",swsusp_header->sig, 10) ||
- 	    !memcmp("SWAPSPACE2",swsusp_header->sig, 10)) {
- 		memcpy(swsusp_header->orig_sig,swsusp_header->sig, 10);
-@@ -316,8 +317,8 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
- 		swsusp_header->flags = flags;
- 		if (flags & SF_CRC32_MODE)
- 			swsusp_header->crc32 = handle->crc32;
--		error = hib_submit_io(WRITE_SYNC, swsusp_resume_block,
--					swsusp_header, NULL);
-+		error = hib_submit_io(REQ_OP_WRITE, WRITE_SYNC,
-+				      swsusp_resume_block, swsusp_header, NULL);
- 	} else {
- 		printk(KERN_ERR "PM: Swap header not found!\n");
- 		error = -ENODEV;
-@@ -390,7 +391,7 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
- 	} else {
- 		src = buf;
- 	}
--	return hib_submit_io(WRITE_SYNC, offset, src, hb);
-+	return hib_submit_io(REQ_OP_WRITE, WRITE_SYNC, offset, src, hb);
- }
- 
- static void release_swap_writer(struct swap_map_handle *handle)
-@@ -993,7 +994,8 @@ static int get_swap_reader(struct swap_map_handle *handle,
- 			return -ENOMEM;
- 		}
- 
--		error = hib_submit_io(READ_SYNC, offset, tmp->map, NULL);
-+		error = hib_submit_io(REQ_OP_READ, READ_SYNC, offset,
-+				      tmp->map, NULL);
- 		if (error) {
- 			release_swap_reader(handle);
- 			return error;
-@@ -1017,7 +1019,7 @@ static int swap_read_page(struct swap_map_handle *handle, void *buf,
- 	offset = handle->cur->entries[handle->k];
- 	if (!offset)
- 		return -EFAULT;
--	error = hib_submit_io(READ_SYNC, offset, buf, hb);
-+	error = hib_submit_io(REQ_OP_READ, READ_SYNC, offset, buf, hb);
+ 	while (io_size > 0) {
+@@ -182,7 +183,7 @@ int hfsplus_read_wrapper(struct super_block *sb)
+ reread:
+ 	error = hfsplus_submit_bio(sb, part_start + HFSPLUS_VOLHEAD_SECTOR,
+ 				   sbi->s_vhdr_buf, (void **)&sbi->s_vhdr,
+-				   READ);
++				   REQ_OP_READ, 0);
  	if (error)
- 		return error;
- 	if (++handle->k >= MAP_PAGE_ENTRIES) {
-@@ -1526,7 +1528,8 @@ int swsusp_check(void)
- 	if (!IS_ERR(hib_resume_bdev)) {
- 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
- 		clear_page(swsusp_header);
--		error = hib_submit_io(READ_SYNC, swsusp_resume_block,
-+		error = hib_submit_io(REQ_OP_READ, READ_SYNC,
-+					swsusp_resume_block,
- 					swsusp_header, NULL);
- 		if (error)
- 			goto put;
-@@ -1534,7 +1537,8 @@ int swsusp_check(void)
- 		if (!memcmp(HIBERNATE_SIG, swsusp_header->sig, 10)) {
- 			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
- 			/* Reset swap signature now */
--			error = hib_submit_io(WRITE_SYNC, swsusp_resume_block,
-+			error = hib_submit_io(REQ_OP_WRITE, WRITE_SYNC,
-+						swsusp_resume_block,
- 						swsusp_header, NULL);
- 		} else {
- 			error = -EINVAL;
-@@ -1578,10 +1582,12 @@ int swsusp_unmark(void)
- {
- 	int error;
+ 		goto out_free_backup_vhdr;
  
--	hib_submit_io(READ_SYNC, swsusp_resume_block, swsusp_header, NULL);
-+	hib_submit_io(REQ_OP_READ, READ_SYNC, swsusp_resume_block,
-+		      swsusp_header, NULL);
- 	if (!memcmp(HIBERNATE_SIG,swsusp_header->sig, 10)) {
- 		memcpy(swsusp_header->sig,swsusp_header->orig_sig, 10);
--		error = hib_submit_io(WRITE_SYNC, swsusp_resume_block,
-+		error = hib_submit_io(REQ_OP_WRITE, WRITE_SYNC,
-+					swsusp_resume_block,
- 					swsusp_header, NULL);
- 	} else {
- 		printk(KERN_ERR "PM: Cannot find swsusp signature!\n");
+@@ -214,7 +215,8 @@ reread:
+ 
+ 	error = hfsplus_submit_bio(sb, part_start + part_size - 2,
+ 				   sbi->s_backup_vhdr_buf,
+-				   (void **)&sbi->s_backup_vhdr, READ);
++				   (void **)&sbi->s_backup_vhdr, REQ_OP_READ,
++				   0);
+ 	if (error)
+ 		goto out_free_backup_vhdr;
+ 
 -- 
 2.7.2
 
