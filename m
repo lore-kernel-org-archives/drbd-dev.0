@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 561731056480
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:00 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 53D3B1056481
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:01 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 410FE420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:00 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 4EBE4420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:01 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 2kyFweKeRtG5 for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:00 +0200 (CEST)
+	with ESMTP id pNjxg7YRLlQd for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:01 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 2319C42030E
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:00 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 327E742030E
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:01 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id nyS70-U_gyb0 for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:00 +0200 (CEST)
+	with ESMTP id IQasjnlHIPJp for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:01 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id E139A420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:59 +0200 (CEST)
-Resent-Message-ID: <20160610114659.GL3235@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 04C96420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:00 +0200 (CEST)
+Resent-Message-ID: <20160610114700.GM3235@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 836AC1056464
-	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:33:58 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4F7B71056465
+	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:40:53 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Sun,  5 Jun 2016 14:32:17 -0500
-Message-Id: <1465155145-10812-38-git-send-email-mchristi@redhat.com>
+Date: Sun,  5 Jun 2016 14:31:56 -0500
+Message-Id: <1465155145-10812-17-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 37/45] drivers: use req op accessor
+Subject: [Drbd-dev] [PATCH 16/45] gfs2: use bio op accessors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,338 +56,159 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-The req operation REQ_OP is separated from the rq_flag_bits
-definition. This converts the block layer drivers to
-use req_op to get the op from the request struct.
+Separate the op from the rq_flag_bits and have gfs2
+set/get the bio using bio_set_op_attrs/bio_op.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- drivers/block/loop.c              |  6 +++---
- drivers/block/mtip32xx/mtip32xx.c |  2 +-
- drivers/block/nbd.c               |  2 +-
- drivers/block/rbd.c               |  4 ++--
- drivers/block/xen-blkfront.c      |  8 +++++---
- drivers/ide/ide-floppy.c          |  2 +-
- drivers/md/dm.c                   |  2 +-
- drivers/mmc/card/block.c          |  7 +++----
- drivers/mmc/card/queue.c          |  6 ++----
- drivers/mmc/card/queue.h          |  5 ++++-
- drivers/mtd/mtd_blkdevs.c         |  2 +-
- drivers/nvme/host/core.c          |  2 +-
- drivers/nvme/host/nvme.h          |  4 ++--
- drivers/scsi/sd.c                 | 25 ++++++++++++++++---------
- 14 files changed, 43 insertions(+), 34 deletions(-)
+ fs/gfs2/log.c        |  8 ++++----
+ fs/gfs2/lops.c       | 11 ++++++-----
+ fs/gfs2/lops.h       |  2 +-
+ fs/gfs2/meta_io.c    |  7 ++++---
+ fs/gfs2/ops_fstype.c |  2 +-
+ 5 files changed, 16 insertions(+), 14 deletions(-)
 
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index e9f1701..b9b737c 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -544,7 +544,7 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
- 	if (op_is_write(req_op(rq))) {
- 		if (rq->cmd_flags & REQ_FLUSH)
- 			ret = lo_req_flush(lo, rq);
--		else if (rq->cmd_flags & REQ_DISCARD)
-+		else if (req_op(rq) == REQ_OP_DISCARD)
- 			ret = lo_discard(lo, rq, pos);
- 		else if (lo->transfer)
- 			ret = lo_write_transfer(lo, rq, pos);
-@@ -1659,8 +1659,8 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
- 	if (lo->lo_state != Lo_bound)
- 		return -EIO;
- 
--	if (lo->use_dio && !(cmd->rq->cmd_flags & (REQ_FLUSH |
--					REQ_DISCARD)))
-+	if (lo->use_dio && (!(cmd->rq->cmd_flags & REQ_FLUSH) ||
-+	    req_op(cmd->rq) == REQ_OP_DISCARD))
- 		cmd->use_aio = true;
- 	else
- 		cmd->use_aio = false;
-diff --git a/drivers/block/mtip32xx/mtip32xx.c b/drivers/block/mtip32xx/mtip32xx.c
-index 6053e46..8e3e708 100644
---- a/drivers/block/mtip32xx/mtip32xx.c
-+++ b/drivers/block/mtip32xx/mtip32xx.c
-@@ -3765,7 +3765,7 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
- 			return -ENODATA;
+diff --git a/fs/gfs2/log.c b/fs/gfs2/log.c
+index 0ff028c..e58ccef0 100644
+--- a/fs/gfs2/log.c
++++ b/fs/gfs2/log.c
+@@ -657,7 +657,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
+ 	struct gfs2_log_header *lh;
+ 	unsigned int tail;
+ 	u32 hash;
+-	int rw = WRITE_FLUSH_FUA | REQ_META;
++	int op_flags = WRITE_FLUSH_FUA | REQ_META;
+ 	struct page *page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
+ 	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
+ 	lh = page_address(page);
+@@ -682,12 +682,12 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
+ 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags)) {
+ 		gfs2_ordered_wait(sdp);
+ 		log_flush_wait(sdp);
+-		rw = WRITE_SYNC | REQ_META | REQ_PRIO;
++		op_flags = WRITE_SYNC | REQ_META | REQ_PRIO;
  	}
  
--	if (rq->cmd_flags & REQ_DISCARD) {
-+	if (req_op(rq) == REQ_OP_DISCARD) {
- 		int err;
+ 	sdp->sd_log_idle = (tail == sdp->sd_log_flush_head);
+ 	gfs2_log_write_page(sdp, page);
+-	gfs2_log_flush_bio(sdp, rw);
++	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, op_flags);
+ 	log_flush_wait(sdp);
  
- 		err = mtip_send_trim(dd, blk_rq_pos(rq), blk_rq_sectors(rq));
-diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-index 31e73a7..6c2c28d 100644
---- a/drivers/block/nbd.c
-+++ b/drivers/block/nbd.c
-@@ -282,7 +282,7 @@ static int nbd_send_req(struct nbd_device *nbd, struct request *req)
+ 	if (sdp->sd_log_tail != tail)
+@@ -738,7 +738,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
  
- 	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
- 		type = NBD_CMD_DISC;
--	else if (req->cmd_flags & REQ_DISCARD)
-+	else if (req_op(req) == REQ_OP_DISCARD)
- 		type = NBD_CMD_TRIM;
- 	else if (req->cmd_flags & REQ_FLUSH)
- 		type = NBD_CMD_FLUSH;
-diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
-index 81666a5..4506620 100644
---- a/drivers/block/rbd.c
-+++ b/drivers/block/rbd.c
-@@ -3286,9 +3286,9 @@ static void rbd_queue_workfn(struct work_struct *work)
- 		goto err;
- 	}
+ 	gfs2_ordered_write(sdp);
+ 	lops_before_commit(sdp, tr);
+-	gfs2_log_flush_bio(sdp, WRITE);
++	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
  
--	if (rq->cmd_flags & REQ_DISCARD)
-+	if (req_op(rq) == REQ_OP_DISCARD)
- 		op_type = OBJ_OP_DISCARD;
--	else if (rq->cmd_flags & REQ_WRITE)
-+	else if (req_op(rq) == REQ_OP_WRITE)
- 		op_type = OBJ_OP_WRITE;
- 	else
- 		op_type = OBJ_OP_READ;
-diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
-index 52963a2..6fd1601 100644
---- a/drivers/block/xen-blkfront.c
-+++ b/drivers/block/xen-blkfront.c
-@@ -844,7 +844,8 @@ static int blkif_queue_request(struct request *req, struct blkfront_ring_info *r
- 	if (unlikely(rinfo->dev_info->connected != BLKIF_STATE_CONNECTED))
- 		return 1;
+ 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
+ 		log_flush_wait(sdp);
+diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
+index ce28242..58d1c98 100644
+--- a/fs/gfs2/lops.c
++++ b/fs/gfs2/lops.c
+@@ -230,17 +230,18 @@ static void gfs2_end_log_write(struct bio *bio)
+ /**
+  * gfs2_log_flush_bio - Submit any pending log bio
+  * @sdp: The superblock
+- * @rw: The rw flags
++ * @op: REQ_OP
++ * @op_flags: rq_flag_bits
+  *
+  * Submit any pending part-built or full bio to the block device. If
+  * there is no pending bio, then this is a no-op.
+  */
  
--	if (unlikely(req->cmd_flags & (REQ_DISCARD | REQ_SECURE)))
-+	if (unlikely(req_op(req) == REQ_OP_DISCARD ||
-+		     req->cmd_flags & REQ_SECURE))
- 		return blkif_queue_discard_req(req, rinfo);
- 	else
- 		return blkif_queue_rw_req(req, rinfo);
-@@ -2054,8 +2055,9 @@ static int blkif_recover(struct blkfront_info *info)
- 			/*
- 			 * Get the bios in the request so we can re-queue them.
- 			 */
--			if (copy[i].request->cmd_flags &
--			    (REQ_FLUSH | REQ_FUA | REQ_DISCARD | REQ_SECURE)) {
-+			if (copy[i].request->cmd_flags & REQ_FLUSH ||
-+			    req_op(copy[i].request) == REQ_OP_DISCARD ||
-+			    copy[i].request->cmd_flags & (REQ_FUA | REQ_SECURE)) {
- 				/*
- 				 * Flush operations don't contain bios, so
- 				 * we need to requeue the whole request
-diff --git a/drivers/ide/ide-floppy.c b/drivers/ide/ide-floppy.c
-index 2fb5350..f079d8d 100644
---- a/drivers/ide/ide-floppy.c
-+++ b/drivers/ide/ide-floppy.c
-@@ -206,7 +206,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
- 	memcpy(rq->cmd, pc->c, 12);
- 
- 	pc->rq = rq;
--	if (rq->cmd_flags & REQ_WRITE)
-+	if (cmd == WRITE)
- 		pc->flags |= PC_FLAG_WRITING;
- 
- 	pc->flags |= PC_FLAG_DMA_OK;
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index 9204a2d..f6b104c 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -1322,7 +1322,7 @@ static void dm_done(struct request *clone, int error, bool mapped)
- 			r = rq_end_io(tio->ti, clone, error, &tio->info);
- 	}
- 
--	if (unlikely(r == -EREMOTEIO && (clone->cmd_flags & REQ_WRITE_SAME) &&
-+	if (unlikely(r == -EREMOTEIO && (req_op(clone) == REQ_OP_WRITE_SAME) &&
- 		     !clone->q->limits.max_write_same_sectors))
- 		disable_write_same(tio->md);
- 
-diff --git a/drivers/mmc/card/block.c b/drivers/mmc/card/block.c
-index e62fde3..201a871 100644
---- a/drivers/mmc/card/block.c
-+++ b/drivers/mmc/card/block.c
-@@ -1722,8 +1722,7 @@ static u8 mmc_blk_prep_packed_list(struct mmc_queue *mq, struct request *req)
- 		    !IS_ALIGNED(blk_rq_sectors(next), 8))
- 			break;
- 
--		if (next->cmd_flags & REQ_DISCARD ||
--		    next->cmd_flags & REQ_FLUSH)
-+		if (req_op(next) == REQ_OP_DISCARD || next->cmd_flags & REQ_FLUSH)
- 			break;
- 
- 		if (rq_data_dir(cur) != rq_data_dir(next))
-@@ -2164,7 +2163,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
- 	}
- 
- 	mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
--	if (cmd_flags & REQ_DISCARD) {
-+	if (req && req_op(req) == REQ_OP_DISCARD) {
- 		/* complete ongoing async transfer before issuing discard */
- 		if (card->host->areq)
- 			mmc_blk_issue_rw_rq(mq, NULL);
-@@ -2188,7 +2187,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
- 
- out:
- 	if ((!req && !(mq->flags & MMC_QUEUE_NEW_REQUEST)) ||
--	     (cmd_flags & MMC_REQ_SPECIAL_MASK))
-+	    mmc_req_is_special(req))
- 		/*
- 		 * Release host when there are no more requests
- 		 * and after special request(discard, flush) is done.
-diff --git a/drivers/mmc/card/queue.c b/drivers/mmc/card/queue.c
-index 6f4323c..c2d5f6f 100644
---- a/drivers/mmc/card/queue.c
-+++ b/drivers/mmc/card/queue.c
-@@ -33,7 +33,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
- 	/*
- 	 * We only like normal block requests and discards.
- 	 */
--	if (req->cmd_type != REQ_TYPE_FS && !(req->cmd_flags & REQ_DISCARD)) {
-+	if (req->cmd_type != REQ_TYPE_FS && req_op(req) != REQ_OP_DISCARD) {
- 		blk_dump_rq_flags(req, "MMC bad request");
- 		return BLKPREP_KILL;
- 	}
-@@ -56,7 +56,6 @@ static int mmc_queue_thread(void *d)
- 	down(&mq->thread_sem);
- 	do {
- 		struct request *req = NULL;
--		unsigned int cmd_flags = 0;
- 
- 		spin_lock_irq(q->queue_lock);
- 		set_current_state(TASK_INTERRUPTIBLE);
-@@ -66,7 +65,6 @@ static int mmc_queue_thread(void *d)
- 
- 		if (req || mq->mqrq_prev->req) {
- 			set_current_state(TASK_RUNNING);
--			cmd_flags = req ? req->cmd_flags : 0;
- 			mq->issue_fn(mq, req);
- 			cond_resched();
- 			if (mq->flags & MMC_QUEUE_NEW_REQUEST) {
-@@ -81,7 +79,7 @@ static int mmc_queue_thread(void *d)
- 			 * has been finished. Do not assign it to previous
- 			 * request.
- 			 */
--			if (cmd_flags & MMC_REQ_SPECIAL_MASK)
-+			if (mmc_req_is_special(req))
- 				mq->mqrq_cur->req = NULL;
- 
- 			mq->mqrq_prev->brq.mrq.data = NULL;
-diff --git a/drivers/mmc/card/queue.h b/drivers/mmc/card/queue.h
-index 36cddab..9fb26f2 100644
---- a/drivers/mmc/card/queue.h
-+++ b/drivers/mmc/card/queue.h
-@@ -1,7 +1,10 @@
- #ifndef MMC_QUEUE_H
- #define MMC_QUEUE_H
- 
--#define MMC_REQ_SPECIAL_MASK	(REQ_DISCARD | REQ_FLUSH)
-+static inline bool mmc_req_is_special(struct request *req)
-+{
-+	return req && (req->cmd_flags & REQ_FLUSH || req_op(req) == REQ_OP_DISCARD);
-+}
- 
- struct request;
- struct task_struct;
-diff --git a/drivers/mtd/mtd_blkdevs.c b/drivers/mtd/mtd_blkdevs.c
-index 74ae243..4eb9a5f 100644
---- a/drivers/mtd/mtd_blkdevs.c
-+++ b/drivers/mtd/mtd_blkdevs.c
-@@ -94,7 +94,7 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
- 	    get_capacity(req->rq_disk))
- 		return -EIO;
- 
--	if (req->cmd_flags & REQ_DISCARD)
-+	if (req_op(req) == REQ_OP_DISCARD)
- 		return tr->discard(dev, block, nsect);
- 
- 	if (rq_data_dir(req) == READ) {
-diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
-index 1a51584..089b8b8 100644
---- a/drivers/nvme/host/core.c
-+++ b/drivers/nvme/host/core.c
-@@ -292,7 +292,7 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
- 		memcpy(cmd, req->cmd, sizeof(*cmd));
- 	else if (req->cmd_flags & REQ_FLUSH)
- 		nvme_setup_flush(ns, cmd);
--	else if (req->cmd_flags & REQ_DISCARD)
-+	else if (req_op(req) == REQ_OP_DISCARD)
- 		ret = nvme_setup_discard(ns, req, cmd);
- 	else
- 		nvme_setup_rw(ns, req, cmd);
-diff --git a/drivers/nvme/host/nvme.h b/drivers/nvme/host/nvme.h
-index 1daa048..4d196d2 100644
---- a/drivers/nvme/host/nvme.h
-+++ b/drivers/nvme/host/nvme.h
-@@ -177,7 +177,7 @@ static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
- 
- static inline unsigned nvme_map_len(struct request *rq)
+-void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw)
++void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int op, int op_flags)
  {
--	if (rq->cmd_flags & REQ_DISCARD)
-+	if (req_op(rq) == REQ_OP_DISCARD)
- 		return sizeof(struct nvme_dsm_range);
- 	else
- 		return blk_rq_bytes(rq);
-@@ -185,7 +185,7 @@ static inline unsigned nvme_map_len(struct request *rq)
+ 	if (sdp->sd_log_bio) {
+ 		atomic_inc(&sdp->sd_log_in_flight);
+-		sdp->sd_log_bio->bi_rw = rw;
++		bio_set_op_attrs(sdp->sd_log_bio, op, op_flags);
+ 		submit_bio(sdp->sd_log_bio);
+ 		sdp->sd_log_bio = NULL;
+ 	}
+@@ -300,7 +301,7 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno)
+ 		nblk >>= sdp->sd_fsb2bb_shift;
+ 		if (blkno == nblk)
+ 			return bio;
+-		gfs2_log_flush_bio(sdp, WRITE);
++		gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
+ 	}
  
- static inline void nvme_cleanup_cmd(struct request *req)
+ 	return gfs2_log_alloc_bio(sdp, blkno);
+@@ -329,7 +330,7 @@ static void gfs2_log_write(struct gfs2_sbd *sdp, struct page *page,
+ 	bio = gfs2_log_get_bio(sdp, blkno);
+ 	ret = bio_add_page(bio, page, size, offset);
+ 	if (ret == 0) {
+-		gfs2_log_flush_bio(sdp, WRITE);
++		gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
+ 		bio = gfs2_log_alloc_bio(sdp, blkno);
+ 		ret = bio_add_page(bio, page, size, offset);
+ 		WARN_ON(ret == 0);
+diff --git a/fs/gfs2/lops.h b/fs/gfs2/lops.h
+index a65a7ba..e529f53 100644
+--- a/fs/gfs2/lops.h
++++ b/fs/gfs2/lops.h
+@@ -27,7 +27,7 @@ extern const struct gfs2_log_operations gfs2_databuf_lops;
+ 
+ extern const struct gfs2_log_operations *gfs2_log_ops[];
+ extern void gfs2_log_write_page(struct gfs2_sbd *sdp, struct page *page);
+-extern void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw);
++extern void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int op, int op_flags);
+ extern void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh);
+ 
+ static inline unsigned int buf_limit(struct gfs2_sbd *sdp)
+diff --git a/fs/gfs2/meta_io.c b/fs/gfs2/meta_io.c
+index b718447..052c113 100644
+--- a/fs/gfs2/meta_io.c
++++ b/fs/gfs2/meta_io.c
+@@ -213,7 +213,8 @@ static void gfs2_meta_read_endio(struct bio *bio)
+  * Submit several consecutive buffer head I/O requests as a single bio I/O
+  * request.  (See submit_bh_wbc.)
+  */
+-static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
++static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
++			    int num)
  {
--	if (req->cmd_flags & REQ_DISCARD)
-+	if (req_op(req) == REQ_OP_DISCARD)
- 		kfree(req->completion_data);
+ 	struct buffer_head *bh = bhs[0];
+ 	struct bio *bio;
+@@ -230,7 +231,7 @@ static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
+ 		bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
+ 	}
+ 	bio->bi_end_io = gfs2_meta_read_endio;
+-	bio->bi_rw = rw;
++	bio_set_op_attrs(bio, op, op_flags);
+ 	submit_bio(bio);
  }
  
-diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
-index f459dff..c8dc221 100644
---- a/drivers/scsi/sd.c
-+++ b/drivers/scsi/sd.c
-@@ -1012,7 +1012,8 @@ static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
- 	} else if (rq_data_dir(rq) == READ) {
- 		SCpnt->cmnd[0] = READ_6;
- 	} else {
--		scmd_printk(KERN_ERR, SCpnt, "Unknown command %llx\n", (unsigned long long) rq->cmd_flags);
-+		scmd_printk(KERN_ERR, SCpnt, "Unknown command %d,%llx\n",
-+			    req_op(rq), (unsigned long long) rq->cmd_flags);
- 		goto out;
+@@ -281,7 +282,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
+ 		}
  	}
  
-@@ -1137,21 +1138,27 @@ static int sd_init_command(struct scsi_cmnd *cmd)
- {
- 	struct request *rq = cmd->request;
+-	gfs2_submit_bhs(READ_SYNC | REQ_META | REQ_PRIO, bhs, num);
++	gfs2_submit_bhs(REQ_OP_READ, READ_SYNC | REQ_META | REQ_PRIO, bhs, num);
+ 	if (!(flags & DIO_WAIT))
+ 		return 0;
  
--	if (rq->cmd_flags & REQ_DISCARD)
-+	switch (req_op(rq)) {
-+	case REQ_OP_DISCARD:
- 		return sd_setup_discard_cmnd(cmd);
--	else if (rq->cmd_flags & REQ_WRITE_SAME)
-+	case REQ_OP_WRITE_SAME:
- 		return sd_setup_write_same_cmnd(cmd);
--	else if (rq->cmd_flags & REQ_FLUSH)
--		return sd_setup_flush_cmnd(cmd);
--	else
--		return sd_setup_read_write_cmnd(cmd);
-+	case REQ_OP_READ:
-+	case REQ_OP_WRITE:
-+		if (rq->cmd_flags & REQ_FLUSH)
-+			return sd_setup_flush_cmnd(cmd);
-+		else
-+			return sd_setup_read_write_cmnd(cmd);
-+	default:
-+		BUG();
-+	}
- }
+diff --git a/fs/gfs2/ops_fstype.c b/fs/gfs2/ops_fstype.c
+index d9e19f6..f423c68 100644
+--- a/fs/gfs2/ops_fstype.c
++++ b/fs/gfs2/ops_fstype.c
+@@ -246,7 +246,7 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
  
- static void sd_uninit_command(struct scsi_cmnd *SCpnt)
- {
- 	struct request *rq = SCpnt->request;
- 
--	if (rq->cmd_flags & REQ_DISCARD)
-+	if (req_op(rq) == REQ_OP_DISCARD)
- 		__free_page(rq->completion_data);
- 
- 	if (SCpnt->cmnd != rq->cmd) {
-@@ -1774,7 +1781,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
- 	unsigned char op = SCpnt->cmnd[0];
- 	unsigned char unmap = SCpnt->cmnd[1] & 8;
- 
--	if (req->cmd_flags & REQ_DISCARD || req->cmd_flags & REQ_WRITE_SAME) {
-+	if (req_op(req) == REQ_OP_DISCARD || req_op(req) == REQ_OP_WRITE_SAME) {
- 		if (!result) {
- 			good_bytes = blk_rq_bytes(req);
- 			scsi_set_resid(SCpnt, 0);
+ 	bio->bi_end_io = end_bio_io_page;
+ 	bio->bi_private = page;
+-	bio->bi_rw = READ_SYNC | REQ_META;
++	bio_set_op_attrs(bio, REQ_OP_READ, READ_SYNC | REQ_META);
+ 	submit_bio(bio);
+ 	wait_on_page_locked(page);
+ 	bio_put(bio);
 -- 
 2.7.2
 
