@@ -2,30 +2,30 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BDB951056469
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:16 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6654A1056494
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:17 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B4FFA420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:16 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 617BB420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:17 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id nwp8q58elokt for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:16 +0200 (CEST)
+	with ESMTP id EJUf18xXYYSy for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:17 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 9745942030E
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:16 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 42B8542030E
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:17 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id YsHXuX2ihXRg for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:16 +0200 (CEST)
+	with ESMTP id d2OQcu1ZE2r8 for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:17 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 66DB2420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:16 +0200 (CEST)
-Resent-Message-ID: <20160610114716.GD3235@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 0F375420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:17 +0200 (CEST)
+Resent-Message-ID: <20160610114716.GE3235@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 510811056473
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 545331056474
 	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:43:19 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Sun,  5 Jun 2016 14:32:06 -0500
-Message-Id: <1465155145-10812-27-git-send-email-mchristi@redhat.com>
+Date: Sun,  5 Jun 2016 14:31:54 -0500
+Message-Id: <1465155145-10812-15-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 26/45] drbd: use bio op accessors
+Subject: [Drbd-dev] [PATCH 14/45] btrfs: use bio fields for op and flags
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,358 +56,521 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-Separate the op from the rq_flag_bits and have drbd
-set/get the bio using bio_set_op_attrs/bio_op.
+The bio REQ_OP and bi_rw rq_flag_bits are now always setup, so there is
+no need to pass around the rq_flag_bits bits too. btrfs users should
+should access the bio insead.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
+v2:
 
-v8:
-1. Combined this patch with what was the cleanup/completion
-path handling patch so all bio op drbd changes are now only
-in this patch.
+1. Fix merge_bio issue where instead of removing rw/op argument
+I passed it in again to the merge_bio related functions.
 
- drivers/block/drbd/drbd_actlog.c   | 28 +++++++++++++++-------------
- drivers/block/drbd/drbd_bitmap.c   |  6 +++---
- drivers/block/drbd/drbd_int.h      |  4 ++--
- drivers/block/drbd/drbd_main.c     | 20 +++++++++++---------
- drivers/block/drbd/drbd_receiver.c | 36 ++++++++++++++++++++++++------------
- drivers/block/drbd/drbd_worker.c   |  7 ++++---
- 6 files changed, 59 insertions(+), 42 deletions(-)
+ fs/btrfs/compression.c | 13 ++++++-------
+ fs/btrfs/ctree.h       |  2 +-
+ fs/btrfs/disk-io.c     | 30 ++++++++++++------------------
+ fs/btrfs/disk-io.h     |  2 +-
+ fs/btrfs/extent_io.c   | 12 +++++-------
+ fs/btrfs/extent_io.h   |  8 ++++----
+ fs/btrfs/inode.c       | 41 +++++++++++++++++++----------------------
+ fs/btrfs/volumes.c     | 11 +++++------
+ fs/btrfs/volumes.h     |  2 +-
+ 9 files changed, 54 insertions(+), 67 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-index 6069e15..f236a31 100644
---- a/drivers/block/drbd/drbd_actlog.c
-+++ b/drivers/block/drbd/drbd_actlog.c
-@@ -137,19 +137,19 @@ void wait_until_done_or_force_detached(struct drbd_device *device, struct drbd_b
+diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
+index 029bd79..cefedab 100644
+--- a/fs/btrfs/compression.c
++++ b/fs/btrfs/compression.c
+@@ -374,7 +374,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
+ 		page = compressed_pages[pg_index];
+ 		page->mapping = inode->i_mapping;
+ 		if (bio->bi_iter.bi_size)
+-			ret = io_tree->ops->merge_bio_hook(WRITE, page, 0,
++			ret = io_tree->ops->merge_bio_hook(page, 0,
+ 							   PAGE_SIZE,
+ 							   bio, 0);
+ 		else
+@@ -402,7 +402,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
+ 				BUG_ON(ret); /* -ENOMEM */
+ 			}
  
- static int _drbd_md_sync_page_io(struct drbd_device *device,
- 				 struct drbd_backing_dev *bdev,
--				 sector_t sector, int rw)
-+				 sector_t sector, int op)
- {
- 	struct bio *bio;
- 	/* we do all our meta data IO in aligned 4k blocks. */
- 	const int size = 4096;
--	int err;
-+	int err, op_flags = 0;
+-			ret = btrfs_map_bio(root, WRITE, bio, 0, 1);
++			ret = btrfs_map_bio(root, bio, 0, 1);
+ 			BUG_ON(ret); /* -ENOMEM */
  
- 	device->md_io.done = 0;
- 	device->md_io.error = -ENODEV;
- 
--	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &device->flags))
--		rw |= REQ_FUA | REQ_FLUSH;
--	rw |= REQ_SYNC | REQ_NOIDLE;
-+	if ((op == REQ_OP_WRITE) && !test_bit(MD_NO_FUA, &device->flags))
-+		op_flags |= REQ_FUA | REQ_FLUSH;
-+	op_flags |= REQ_SYNC | REQ_NOIDLE;
- 
- 	bio = bio_alloc_drbd(GFP_NOIO);
- 	bio->bi_bdev = bdev->md_bdev;
-@@ -159,9 +159,9 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
- 		goto out;
- 	bio->bi_private = device;
- 	bio->bi_end_io = drbd_md_endio;
--	bio->bi_rw = rw;
-+	bio_set_op_attrs(bio, op, op_flags);
- 
--	if (!(rw & WRITE) && device->state.disk == D_DISKLESS && device->ldev == NULL)
-+	if (op != REQ_OP_WRITE && device->state.disk == D_DISKLESS && device->ldev == NULL)
- 		/* special case, drbd_md_read() during drbd_adm_attach(): no get_ldev */
- 		;
- 	else if (!get_ldev_if_state(device, D_ATTACHING)) {
-@@ -174,7 +174,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
- 	bio_get(bio); /* one bio_put() is in the completion handler */
- 	atomic_inc(&device->md_io.in_use); /* drbd_md_put_buffer() is in the completion handler */
- 	device->md_io.submit_jif = jiffies;
--	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
-+	if (drbd_insert_fault(device, (op == REQ_OP_WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
- 		bio_io_error(bio);
- 	else
- 		submit_bio(bio);
-@@ -188,7 +188,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
- }
- 
- int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bdev,
--			 sector_t sector, int rw)
-+			 sector_t sector, int op)
- {
- 	int err;
- 	D_ASSERT(device, atomic_read(&device->md_io.in_use) == 1);
-@@ -197,19 +197,21 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
- 
- 	dynamic_drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
- 	     current->comm, current->pid, __func__,
--	     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ",
-+	     (unsigned long long)sector, (op == REQ_OP_WRITE) ? "WRITE" : "READ",
- 	     (void*)_RET_IP_ );
- 
- 	if (sector < drbd_md_first_sector(bdev) ||
- 	    sector + 7 > drbd_md_last_sector(bdev))
- 		drbd_alert(device, "%s [%d]:%s(,%llus,%s) out of range md access!\n",
- 		     current->comm, current->pid, __func__,
--		     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
-+		     (unsigned long long)sector,
-+		     (op == REQ_OP_WRITE) ? "WRITE" : "READ");
- 
--	err = _drbd_md_sync_page_io(device, bdev, sector, rw);
-+	err = _drbd_md_sync_page_io(device, bdev, sector, op);
- 	if (err) {
- 		drbd_err(device, "drbd_md_sync_page_io(,%llus,%s) failed with error %d\n",
--		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ", err);
-+		    (unsigned long long)sector,
-+		    (op == REQ_OP_WRITE) ? "WRITE" : "READ", err);
+ 			bio_put(bio);
+@@ -433,7 +433,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
+ 		BUG_ON(ret); /* -ENOMEM */
  	}
- 	return err;
+ 
+-	ret = btrfs_map_bio(root, WRITE, bio, 0, 1);
++	ret = btrfs_map_bio(root, bio, 0, 1);
+ 	BUG_ON(ret); /* -ENOMEM */
+ 
+ 	bio_put(bio);
+@@ -659,7 +659,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+ 		page->index = em_start >> PAGE_SHIFT;
+ 
+ 		if (comp_bio->bi_iter.bi_size)
+-			ret = tree->ops->merge_bio_hook(READ, page, 0,
++			ret = tree->ops->merge_bio_hook(page, 0,
+ 							PAGE_SIZE,
+ 							comp_bio, 0);
+ 		else
+@@ -690,8 +690,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+ 			sums += DIV_ROUND_UP(comp_bio->bi_iter.bi_size,
+ 					     root->sectorsize);
+ 
+-			ret = btrfs_map_bio(root, READ, comp_bio,
+-					    mirror_num, 0);
++			ret = btrfs_map_bio(root, comp_bio, mirror_num, 0);
+ 			if (ret) {
+ 				bio->bi_error = ret;
+ 				bio_endio(comp_bio);
+@@ -721,7 +720,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+ 		BUG_ON(ret); /* -ENOMEM */
+ 	}
+ 
+-	ret = btrfs_map_bio(root, READ, comp_bio, mirror_num, 0);
++	ret = btrfs_map_bio(root, comp_bio, mirror_num, 0);
+ 	if (ret) {
+ 		bio->bi_error = ret;
+ 		bio_endio(comp_bio);
+diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
+index 101c3cf..4088d7f 100644
+--- a/fs/btrfs/ctree.h
++++ b/fs/btrfs/ctree.h
+@@ -3091,7 +3091,7 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
+ 			     struct btrfs_root *new_root,
+ 			     struct btrfs_root *parent_root,
+ 			     u64 new_dirid);
+-int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
++int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
+ 			 size_t size, struct bio *bio,
+ 			 unsigned long bio_flags);
+ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
+diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+index 93278c2..e80ef6e 100644
+--- a/fs/btrfs/disk-io.c
++++ b/fs/btrfs/disk-io.c
+@@ -124,7 +124,6 @@ struct async_submit_bio {
+ 	struct list_head list;
+ 	extent_submit_bio_hook_t *submit_bio_start;
+ 	extent_submit_bio_hook_t *submit_bio_done;
+-	int rw;
+ 	int mirror_num;
+ 	unsigned long bio_flags;
+ 	/*
+@@ -797,7 +796,7 @@ static void run_one_async_start(struct btrfs_work *work)
+ 	int ret;
+ 
+ 	async = container_of(work, struct  async_submit_bio, work);
+-	ret = async->submit_bio_start(async->inode, async->rw, async->bio,
++	ret = async->submit_bio_start(async->inode, async->bio,
+ 				      async->mirror_num, async->bio_flags,
+ 				      async->bio_offset);
+ 	if (ret)
+@@ -830,9 +829,8 @@ static void run_one_async_done(struct btrfs_work *work)
+ 		return;
+ 	}
+ 
+-	async->submit_bio_done(async->inode, async->rw, async->bio,
+-			       async->mirror_num, async->bio_flags,
+-			       async->bio_offset);
++	async->submit_bio_done(async->inode, async->bio, async->mirror_num,
++			       async->bio_flags, async->bio_offset);
  }
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index e8959fe..e5d89f6 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -980,7 +980,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
- 	struct drbd_bitmap *b = device->bitmap;
- 	struct page *page;
- 	unsigned int len;
--	unsigned int rw = (ctx->flags & BM_AIO_READ) ? READ : WRITE;
-+	unsigned int op = (ctx->flags & BM_AIO_READ) ? REQ_OP_READ : REQ_OP_WRITE;
  
- 	sector_t on_disk_sector =
- 		device->ldev->md.md_offset + device->ldev->md.bm_offset;
-@@ -1011,9 +1011,9 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
- 	bio_add_page(bio, page, len, 0);
- 	bio->bi_private = ctx;
- 	bio->bi_end_io = drbd_bm_endio;
--	bio->bi_rw = rw;
-+	bio_set_op_attrs(bio, op, 0);
+ static void run_one_async_free(struct btrfs_work *work)
+@@ -844,7 +842,7 @@ static void run_one_async_free(struct btrfs_work *work)
+ }
  
--	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
-+	if (drbd_insert_fault(device, (op == REQ_OP_WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
- 		bio_io_error(bio);
+ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
+-			int rw, struct bio *bio, int mirror_num,
++			struct bio *bio, int mirror_num,
+ 			unsigned long bio_flags,
+ 			u64 bio_offset,
+ 			extent_submit_bio_hook_t *submit_bio_start,
+@@ -857,7 +855,6 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
+ 		return -ENOMEM;
+ 
+ 	async->inode = inode;
+-	async->rw = rw;
+ 	async->bio = bio;
+ 	async->mirror_num = mirror_num;
+ 	async->submit_bio_start = submit_bio_start;
+@@ -903,9 +900,8 @@ static int btree_csum_one_bio(struct bio *bio)
+ 	return ret;
+ }
+ 
+-static int __btree_submit_bio_start(struct inode *inode, int rw,
+-				    struct bio *bio, int mirror_num,
+-				    unsigned long bio_flags,
++static int __btree_submit_bio_start(struct inode *inode, struct bio *bio,
++				    int mirror_num, unsigned long bio_flags,
+ 				    u64 bio_offset)
+ {
+ 	/*
+@@ -915,7 +911,7 @@ static int __btree_submit_bio_start(struct inode *inode, int rw,
+ 	return btree_csum_one_bio(bio);
+ }
+ 
+-static int __btree_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
++static int __btree_submit_bio_done(struct inode *inode, struct bio *bio,
+ 				 int mirror_num, unsigned long bio_flags,
+ 				 u64 bio_offset)
+ {
+@@ -925,7 +921,7 @@ static int __btree_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
+ 	 * when we're called for a write, we're already in the async
+ 	 * submission context.  Just jump into btrfs_map_bio
+ 	 */
+-	ret = btrfs_map_bio(BTRFS_I(inode)->root, rw, bio, mirror_num, 1);
++	ret = btrfs_map_bio(BTRFS_I(inode)->root, bio, mirror_num, 1);
+ 	if (ret) {
+ 		bio->bi_error = ret;
+ 		bio_endio(bio);
+@@ -944,7 +940,7 @@ static int check_async_write(struct inode *inode, unsigned long bio_flags)
+ 	return 1;
+ }
+ 
+-static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
++static int btree_submit_bio_hook(struct inode *inode, struct bio *bio,
+ 				 int mirror_num, unsigned long bio_flags,
+ 				 u64 bio_offset)
+ {
+@@ -960,21 +956,19 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+ 					  bio, BTRFS_WQ_ENDIO_METADATA);
+ 		if (ret)
+ 			goto out_w_error;
+-		ret = btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
+-				    mirror_num, 0);
++		ret = btrfs_map_bio(BTRFS_I(inode)->root, bio, mirror_num, 0);
+ 	} else if (!async) {
+ 		ret = btree_csum_one_bio(bio);
+ 		if (ret)
+ 			goto out_w_error;
+-		ret = btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
+-				    mirror_num, 0);
++		ret = btrfs_map_bio(BTRFS_I(inode)->root, bio, mirror_num, 0);
  	} else {
- 		submit_bio(bio);
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 7a1cf7e..33f0b82 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1507,7 +1507,7 @@ extern int drbd_resync_finished(struct drbd_device *device);
- extern void *drbd_md_get_buffer(struct drbd_device *device, const char *intent);
- extern void drbd_md_put_buffer(struct drbd_device *device);
- extern int drbd_md_sync_page_io(struct drbd_device *device,
--		struct drbd_backing_dev *bdev, sector_t sector, int rw);
-+		struct drbd_backing_dev *bdev, sector_t sector, int op);
- extern void drbd_ov_out_of_sync_found(struct drbd_device *, sector_t, int);
- extern void wait_until_done_or_force_detached(struct drbd_device *device,
- 		struct drbd_backing_dev *bdev, unsigned int *done);
-@@ -1557,7 +1557,7 @@ extern bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector
- 		bool throttle_if_app_is_waiting);
- extern int drbd_submit_peer_request(struct drbd_device *,
- 				    struct drbd_peer_request *, const unsigned,
--				    const int);
-+				    const unsigned, const int);
- extern int drbd_free_peer_reqs(struct drbd_device *, struct list_head *);
- extern struct drbd_peer_request *drbd_alloc_peer_req(struct drbd_peer_device *, u64,
- 						     sector_t, unsigned int,
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 2ba1494..d55febc 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -1603,15 +1603,16 @@ static int _drbd_send_zc_ee(struct drbd_peer_device *peer_device,
- 	return 0;
- }
+ 		/*
+ 		 * kthread helpers are used to submit writes so that
+ 		 * checksumming can happen in parallel across all CPUs
+ 		 */
+ 		ret = btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
+-					  inode, rw, bio, mirror_num, 0,
++					  inode, bio, mirror_num, 0,
+ 					  bio_offset,
+ 					  __btree_submit_bio_start,
+ 					  __btree_submit_bio_done);
+diff --git a/fs/btrfs/disk-io.h b/fs/btrfs/disk-io.h
+index 8e79d00..73c21a2 100644
+--- a/fs/btrfs/disk-io.h
++++ b/fs/btrfs/disk-io.h
+@@ -122,7 +122,7 @@ void btrfs_csum_final(u32 crc, char *result);
+ int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
+ 			enum btrfs_wq_endio_type metadata);
+ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
+-			int rw, struct bio *bio, int mirror_num,
++			struct bio *bio, int mirror_num,
+ 			unsigned long bio_flags, u64 bio_offset,
+ 			extent_submit_bio_hook_t *submit_bio_start,
+ 			extent_submit_bio_hook_t *submit_bio_done);
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 48f0302..cbaf305 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -2408,8 +2408,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
+ 	pr_debug("Repair Read Error: submitting new read[%#x] to this_mirror=%d, in_validation=%d\n",
+ 		 read_mode, failrec->this_mirror, failrec->in_validation);
  
--static u32 bio_flags_to_wire(struct drbd_connection *connection, unsigned long bi_rw)
-+static u32 bio_flags_to_wire(struct drbd_connection *connection,
-+			     struct bio *bio)
- {
- 	if (connection->agreed_pro_version >= 95)
--		return  (bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
--			(bi_rw & REQ_FUA ? DP_FUA : 0) |
--			(bi_rw & REQ_FLUSH ? DP_FLUSH : 0) |
--			(bi_rw & REQ_DISCARD ? DP_DISCARD : 0);
-+		return  (bio->bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
-+			(bio->bi_rw & REQ_FUA ? DP_FUA : 0) |
-+			(bio->bi_rw & REQ_FLUSH ? DP_FLUSH : 0) |
-+			(bio_op(bio) == REQ_OP_DISCARD ? DP_DISCARD : 0);
+-	ret = tree->ops->submit_bio_hook(inode, read_mode, bio,
+-					 failrec->this_mirror,
++	ret = tree->ops->submit_bio_hook(inode, bio, failrec->this_mirror,
+ 					 failrec->bio_flags, 0);
+ 	if (ret) {
+ 		free_io_failure(inode, failrec);
+@@ -2730,9 +2729,8 @@ static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
+ 	bio_get(bio);
+ 
+ 	if (tree->ops && tree->ops->submit_bio_hook)
+-		ret = tree->ops->submit_bio_hook(page->mapping->host,
+-						 bio->bi_rw, bio, mirror_num,
+-						 bio_flags, start);
++		ret = tree->ops->submit_bio_hook(page->mapping->host, bio,
++					   mirror_num, bio_flags, start);
  	else
--		return bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
-+		return bio->bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
- }
+ 		btrfsic_submit_bio(bio);
  
- /* Used to send write or TRIM aka REQ_DISCARD requests
-@@ -1636,7 +1637,7 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
- 	p->sector = cpu_to_be64(req->i.sector);
- 	p->block_id = (unsigned long)req;
- 	p->seq_num = cpu_to_be32(atomic_inc_return(&device->packet_seq));
--	dp_flags = bio_flags_to_wire(peer_device->connection, req->master_bio->bi_rw);
-+	dp_flags = bio_flags_to_wire(peer_device->connection, req->master_bio);
- 	if (device->state.conn >= C_SYNC_SOURCE &&
- 	    device->state.conn <= C_PAUSED_SYNC_T)
- 		dp_flags |= DP_MAY_SET_IN_SYNC;
-@@ -3061,7 +3062,7 @@ void drbd_md_write(struct drbd_device *device, void *b)
- 	D_ASSERT(device, drbd_md_ss(device->ldev) == device->ldev->md.md_offset);
- 	sector = device->ldev->md.md_offset;
- 
--	if (drbd_md_sync_page_io(device, device->ldev, sector, WRITE)) {
-+	if (drbd_md_sync_page_io(device, device->ldev, sector, REQ_OP_WRITE)) {
- 		/* this was a try anyways ... */
- 		drbd_err(device, "meta data update failed!\n");
- 		drbd_chk_io_error(device, 1, DRBD_META_IO_ERROR);
-@@ -3263,7 +3264,8 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
- 	 * Affects the paranoia out-of-range access check in drbd_md_sync_page_io(). */
- 	bdev->md.md_size_sect = 8;
- 
--	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset, READ)) {
-+	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset,
-+				 REQ_OP_READ)) {
- 		/* NOTE: can't do normal error processing here as this is
- 		   called BEFORE disk is attached */
- 		drbd_err(device, "Error while reading metadata.\n");
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 050aaa1..6c59978 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1398,7 +1398,8 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
- /* TODO allocate from our own bio_set. */
- int drbd_submit_peer_request(struct drbd_device *device,
- 			     struct drbd_peer_request *peer_req,
--			     const unsigned rw, const int fault_type)
-+			     const unsigned op, const unsigned op_flags,
-+			     const int fault_type)
+@@ -2746,8 +2744,8 @@ static int merge_bio(struct extent_io_tree *tree, struct page *page,
  {
- 	struct bio *bios = NULL;
- 	struct bio *bio;
-@@ -1450,7 +1451,7 @@ next_bio:
- 	/* > peer_req->i.sector, unless this is the first bio */
- 	bio->bi_iter.bi_sector = sector;
- 	bio->bi_bdev = device->ldev->backing_bdev;
--	bio->bi_rw = rw;
-+	bio_set_op_attrs(bio, op, op_flags);
- 	bio->bi_private = peer_req;
- 	bio->bi_end_io = drbd_peer_request_endio;
+ 	int ret = 0;
+ 	if (tree->ops && tree->ops->merge_bio_hook)
+-		ret = tree->ops->merge_bio_hook(bio_op(bio), page, offset, size,
+-						bio, bio_flags);
++		ret = tree->ops->merge_bio_hook(page, offset, size, bio,
++						bio_flags);
+ 	BUG_ON(ret < 0);
+ 	return ret;
  
-@@ -1458,7 +1459,7 @@ next_bio:
- 	bios = bio;
- 	++n_bios;
+diff --git a/fs/btrfs/extent_io.h b/fs/btrfs/extent_io.h
+index 1baf19c..fb9dcc9 100644
+--- a/fs/btrfs/extent_io.h
++++ b/fs/btrfs/extent_io.h
+@@ -63,16 +63,16 @@ struct btrfs_root;
+ struct btrfs_io_bio;
+ struct io_failure_record;
  
--	if (rw & REQ_DISCARD) {
-+	if (op == REQ_OP_DISCARD) {
- 		bio->bi_iter.bi_size = data_size;
- 		goto submit;
- 	}
-@@ -1830,7 +1831,8 @@ static int recv_resync_read(struct drbd_peer_device *peer_device, sector_t secto
- 	spin_unlock_irq(&device->resource->req_lock);
- 
- 	atomic_add(pi->size >> 9, &device->rs_sect_ev);
--	if (drbd_submit_peer_request(device, peer_req, WRITE, DRBD_FAULT_RS_WR) == 0)
-+	if (drbd_submit_peer_request(device, peer_req, REQ_OP_WRITE, 0,
-+				     DRBD_FAULT_RS_WR) == 0)
- 		return 0;
- 
- 	/* don't care for the reason here */
-@@ -2152,12 +2154,19 @@ static int wait_for_and_update_peer_seq(struct drbd_peer_device *peer_device, co
- /* see also bio_flags_to_wire()
-  * DRBD_REQ_*, because we need to semantically map the flags to data packet
-  * flags and back. We may replicate to other kernel versions. */
--static unsigned long wire_flags_to_bio(u32 dpf)
-+static unsigned long wire_flags_to_bio_flags(u32 dpf)
+-typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
+-				       struct bio *bio, int mirror_num,
+-				       unsigned long bio_flags, u64 bio_offset);
++typedef	int (extent_submit_bio_hook_t)(struct inode *inode, struct bio *bio,
++				       int mirror_num, unsigned long bio_flags,
++				       u64 bio_offset);
+ struct extent_io_ops {
+ 	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
+ 			     u64 start, u64 end, int *page_started,
+ 			     unsigned long *nr_written);
+ 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
+ 	extent_submit_bio_hook_t *submit_bio_hook;
+-	int (*merge_bio_hook)(int rw, struct page *page, unsigned long offset,
++	int (*merge_bio_hook)(struct page *page, unsigned long offset,
+ 			      size_t size, struct bio *bio,
+ 			      unsigned long bio_flags);
+ 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index 1575944..128b02b 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -1823,7 +1823,7 @@ static void btrfs_clear_bit_hook(struct inode *inode,
+  * extent_io.c merge_bio_hook, this must check the chunk tree to make sure
+  * we don't create bios that span stripes or chunks
+  */
+-int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
++int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
+ 			 size_t size, struct bio *bio,
+ 			 unsigned long bio_flags)
  {
- 	return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
- 		(dpf & DP_FUA ? REQ_FUA : 0) |
--		(dpf & DP_FLUSH ? REQ_FLUSH : 0) |
--		(dpf & DP_DISCARD ? REQ_DISCARD : 0);
-+		(dpf & DP_FLUSH ? REQ_FLUSH : 0);
-+}
-+
-+static unsigned long wire_flags_to_bio_op(u32 dpf)
-+{
-+	if (dpf & DP_DISCARD)
-+		return REQ_OP_DISCARD;
-+	else
-+		return REQ_OP_WRITE;
- }
+@@ -1855,9 +1855,8 @@ int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
+  * At IO completion time the cums attached on the ordered extent record
+  * are inserted into the btree
+  */
+-static int __btrfs_submit_bio_start(struct inode *inode, int rw,
+-				    struct bio *bio, int mirror_num,
+-				    unsigned long bio_flags,
++static int __btrfs_submit_bio_start(struct inode *inode, struct bio *bio,
++				    int mirror_num, unsigned long bio_flags,
+ 				    u64 bio_offset)
+ {
+ 	struct btrfs_root *root = BTRFS_I(inode)->root;
+@@ -1876,14 +1875,14 @@ static int __btrfs_submit_bio_start(struct inode *inode, int rw,
+  * At IO completion time the cums attached on the ordered extent record
+  * are inserted into the btree
+  */
+-static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
++static int __btrfs_submit_bio_done(struct inode *inode, struct bio *bio,
+ 			  int mirror_num, unsigned long bio_flags,
+ 			  u64 bio_offset)
+ {
+ 	struct btrfs_root *root = BTRFS_I(inode)->root;
+ 	int ret;
  
- static void fail_postponed_requests(struct drbd_device *device, sector_t sector,
-@@ -2303,7 +2312,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
- 	struct drbd_peer_request *peer_req;
- 	struct p_data *p = pi->data;
- 	u32 peer_seq = be32_to_cpu(p->seq_num);
--	int rw = WRITE;
-+	int op, op_flags;
- 	u32 dp_flags;
- 	int err, tp;
- 
-@@ -2342,14 +2351,15 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
- 	peer_req->flags |= EE_APPLICATION;
- 
- 	dp_flags = be32_to_cpu(p->dp_flags);
--	rw |= wire_flags_to_bio(dp_flags);
-+	op = wire_flags_to_bio_op(dp_flags);
-+	op_flags = wire_flags_to_bio_flags(dp_flags);
- 	if (pi->cmd == P_TRIM) {
- 		struct request_queue *q = bdev_get_queue(device->ldev->backing_bdev);
- 		peer_req->flags |= EE_IS_TRIM;
- 		if (!blk_queue_discard(q))
- 			peer_req->flags |= EE_IS_TRIM_USE_ZEROOUT;
- 		D_ASSERT(peer_device, peer_req->i.size > 0);
--		D_ASSERT(peer_device, rw & REQ_DISCARD);
-+		D_ASSERT(peer_device, op == REQ_OP_DISCARD);
- 		D_ASSERT(peer_device, peer_req->pages == NULL);
- 	} else if (peer_req->pages == NULL) {
- 		D_ASSERT(device, peer_req->i.size == 0);
-@@ -2433,7 +2443,8 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
- 		peer_req->flags |= EE_CALL_AL_COMPLETE_IO;
+-	ret = btrfs_map_bio(root, rw, bio, mirror_num, 1);
++	ret = btrfs_map_bio(root, bio, mirror_num, 1);
+ 	if (ret) {
+ 		bio->bi_error = ret;
+ 		bio_endio(bio);
+@@ -1895,7 +1894,7 @@ static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
+  * extent_io.c submission hook. This does the right thing for csum calculation
+  * on write, or reading the csums from the tree before a read
+  */
+-static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
++static int btrfs_submit_bio_hook(struct inode *inode, struct bio *bio,
+ 			  int mirror_num, unsigned long bio_flags,
+ 			  u64 bio_offset)
+ {
+@@ -1932,7 +1931,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+ 			goto mapit;
+ 		/* we're doing a write, do the async checksumming */
+ 		ret = btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
+-				   inode, rw, bio, mirror_num,
++				   inode, bio, mirror_num,
+ 				   bio_flags, bio_offset,
+ 				   __btrfs_submit_bio_start,
+ 				   __btrfs_submit_bio_done);
+@@ -1944,7 +1943,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
  	}
  
--	err = drbd_submit_peer_request(device, peer_req, rw, DRBD_FAULT_DT_WR);
-+	err = drbd_submit_peer_request(device, peer_req, op, op_flags,
-+				       DRBD_FAULT_DT_WR);
- 	if (!err)
- 		return 0;
+ mapit:
+-	ret = btrfs_map_bio(root, rw, bio, mirror_num, 0);
++	ret = btrfs_map_bio(root, bio, mirror_num, 0);
  
-@@ -2723,7 +2734,8 @@ submit_for_resync:
+ out:
+ 	if (ret < 0) {
+@@ -7767,7 +7766,7 @@ err:
+ }
+ 
+ static inline int submit_dio_repair_bio(struct inode *inode, struct bio *bio,
+-					int rw, int mirror_num)
++					int mirror_num)
+ {
+ 	struct btrfs_root *root = BTRFS_I(inode)->root;
+ 	int ret;
+@@ -7781,7 +7780,7 @@ static inline int submit_dio_repair_bio(struct inode *inode, struct bio *bio,
+ 	if (ret)
+ 		goto err;
+ 
+-	ret = btrfs_map_bio(root, rw, bio, mirror_num, 0);
++	ret = btrfs_map_bio(root, bio, mirror_num, 0);
+ err:
+ 	bio_put(bio);
+ 	return ret;
+@@ -7866,8 +7865,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
+ 		    "Repair DIO Read Error: submitting new dio read[%#x] to this_mirror=%d, in_validation=%d\n",
+ 		    read_mode, failrec->this_mirror, failrec->in_validation);
+ 
+-	ret = submit_dio_repair_bio(inode, bio, read_mode,
+-				    failrec->this_mirror);
++	ret = submit_dio_repair_bio(inode, bio, failrec->this_mirror);
+ 	if (ret) {
+ 		free_io_failure(inode, failrec);
+ 		bio_put(bio);
+@@ -8157,7 +8155,7 @@ static void btrfs_endio_direct_write(struct bio *bio)
+ 	bio_put(bio);
+ }
+ 
+-static int __btrfs_submit_bio_start_direct_io(struct inode *inode, int rw,
++static int __btrfs_submit_bio_start_direct_io(struct inode *inode,
+ 				    struct bio *bio, int mirror_num,
+ 				    unsigned long bio_flags, u64 offset)
+ {
+@@ -8250,7 +8248,7 @@ static inline int btrfs_lookup_and_bind_dio_csum(struct btrfs_root *root,
+ }
+ 
+ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
+-					 int rw, u64 file_offset, int skip_sum,
++					 u64 file_offset, int skip_sum,
+ 					 int async_submit)
+ {
+ 	struct btrfs_dio_private *dip = bio->bi_private;
+@@ -8275,8 +8273,7 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
+ 
+ 	if (write && async_submit) {
+ 		ret = btrfs_wq_submit_bio(root->fs_info,
+-				   inode, rw, bio, 0, 0,
+-				   file_offset,
++				   inode, bio, 0, 0, file_offset,
+ 				   __btrfs_submit_bio_start_direct_io,
+ 				   __btrfs_submit_bio_done);
+ 		goto err;
+@@ -8295,13 +8292,13 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
+ 			goto err;
+ 	}
+ map:
+-	ret = btrfs_map_bio(root, rw, bio, 0, async_submit);
++	ret = btrfs_map_bio(root, bio, 0, async_submit);
+ err:
+ 	bio_put(bio);
+ 	return ret;
+ }
+ 
+-static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
++static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
+ 				    int skip_sum)
+ {
+ 	struct inode *inode = dip->inode;
+@@ -8361,7 +8358,7 @@ next_block:
+ 			 * before we're done setting it up
+ 			 */
+ 			atomic_inc(&dip->pending_bios);
+-			ret = __btrfs_submit_dio_bio(bio, inode, rw,
++			ret = __btrfs_submit_dio_bio(bio, inode,
+ 						     file_offset, skip_sum,
+ 						     async_submit);
+ 			if (ret) {
+@@ -8405,7 +8402,7 @@ next_block:
+ 	}
+ 
  submit:
- 	update_receiver_timing_details(connection, drbd_submit_peer_request);
- 	inc_unacked(device);
--	if (drbd_submit_peer_request(device, peer_req, READ, fault_type) == 0)
-+	if (drbd_submit_peer_request(device, peer_req, REQ_OP_READ, 0,
-+				     fault_type) == 0)
+-	ret = __btrfs_submit_dio_bio(bio, inode, rw, file_offset, skip_sum,
++	ret = __btrfs_submit_dio_bio(bio, inode, file_offset, skip_sum,
+ 				     async_submit);
+ 	if (!ret)
  		return 0;
+@@ -8483,7 +8480,7 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
+ 			dio_data->unsubmitted_oe_range_end;
+ 	}
  
- 	/* don't care for the reason here */
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 4d87499..51fab97 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -174,7 +174,7 @@ void drbd_peer_request_endio(struct bio *bio)
- 	struct drbd_peer_request *peer_req = bio->bi_private;
- 	struct drbd_device *device = peer_req->peer_device->device;
- 	int is_write = bio_data_dir(bio) == WRITE;
--	int is_discard = !!(bio->bi_rw & REQ_DISCARD);
-+	int is_discard = !!(bio_op(bio) == REQ_OP_DISCARD);
+-	ret = btrfs_submit_direct_hook(dio_bio->bi_rw, dip, skip_sum);
++	ret = btrfs_submit_direct_hook(dip, skip_sum);
+ 	if (!ret)
+ 		return;
  
- 	if (bio->bi_error && __ratelimit(&drbd_ratelimit_state))
- 		drbd_warn(device, "%s: error=%d s=%llus\n",
-@@ -248,7 +248,7 @@ void drbd_request_endio(struct bio *bio)
+diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
+index 345b183..125d13b 100644
+--- a/fs/btrfs/volumes.c
++++ b/fs/btrfs/volumes.c
+@@ -6045,7 +6045,7 @@ static noinline void btrfs_schedule_bio(struct btrfs_root *root,
  
- 	/* to avoid recursion in __req_mod */
- 	if (unlikely(bio->bi_error)) {
--		if (bio->bi_rw & REQ_DISCARD)
-+		if (bio_op(bio) == REQ_OP_DISCARD)
- 			what = (bio->bi_error == -EOPNOTSUPP)
- 				? DISCARD_COMPLETED_NOTSUPP
- 				: DISCARD_COMPLETED_WITH_ERROR;
-@@ -397,7 +397,8 @@ static int read_for_csum(struct drbd_peer_device *peer_device, sector_t sector,
- 	spin_unlock_irq(&device->resource->req_lock);
+ static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
+ 			      struct bio *bio, u64 physical, int dev_nr,
+-			      int rw, int async)
++			      int async)
+ {
+ 	struct btrfs_device *dev = bbio->stripes[dev_nr].dev;
  
- 	atomic_add(size >> 9, &device->rs_sect_ev);
--	if (drbd_submit_peer_request(device, peer_req, READ, DRBD_FAULT_RS_RD) == 0)
-+	if (drbd_submit_peer_request(device, peer_req, REQ_OP_READ, 0,
-+				     DRBD_FAULT_RS_RD) == 0)
- 		return 0;
+@@ -6053,15 +6053,14 @@ static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
+ 	btrfs_io_bio(bio)->stripe_index = dev_nr;
+ 	bio->bi_end_io = btrfs_end_bio;
+ 	bio->bi_iter.bi_sector = physical >> 9;
+-	bio->bi_rw |= rw;
+ #ifdef DEBUG
+ 	{
+ 		struct rcu_string *name;
  
- 	/* If it failed because of ENOMEM, retry should help.  If it failed
+ 		rcu_read_lock();
+ 		name = rcu_dereference(dev->name);
+-		pr_debug("btrfs_map_bio: rw %d, sector=%llu, dev=%lu "
+-			 "(%s id %llu), size=%u\n", rw,
++		pr_debug("btrfs_map_bio: rw %d 0x%x, sector=%llu, dev=%lu "
++			 "(%s id %llu), size=%u\n", bio_op(bio), bio->bi_rw,
+ 			 (u64)bio->bi_iter.bi_sector, (u_long)dev->bdev->bd_dev,
+ 			 name->str, dev->devid, bio->bi_iter.bi_size);
+ 		rcu_read_unlock();
+@@ -6091,7 +6090,7 @@ static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
+ 	}
+ }
+ 
+-int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
++int btrfs_map_bio(struct btrfs_root *root, struct bio *bio,
+ 		  int mirror_num, int async_submit)
+ {
+ 	struct btrfs_device *dev;
+@@ -6158,7 +6157,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
+ 			bio = first_bio;
+ 
+ 		submit_stripe_bio(root, bbio, bio,
+-				  bbio->stripes[dev_nr].physical, dev_nr, rw,
++				  bbio->stripes[dev_nr].physical, dev_nr,
+ 				  async_submit);
+ 	}
+ 	btrfs_bio_counter_dec(root->fs_info);
+diff --git a/fs/btrfs/volumes.h b/fs/btrfs/volumes.h
+index 3b78700..6613e63 100644
+--- a/fs/btrfs/volumes.h
++++ b/fs/btrfs/volumes.h
+@@ -391,7 +391,7 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
+ 		      struct btrfs_root *extent_root, u64 type);
+ void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
+ void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
+-int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
++int btrfs_map_bio(struct btrfs_root *root, struct bio *bio,
+ 		  int mirror_num, int async_submit);
+ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
+ 		       fmode_t flags, void *holder);
 -- 
 2.7.2
 
