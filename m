@@ -2,30 +2,30 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 936AA105648B
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:10 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 31E87105648C
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 8D80C420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:10 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 2BDD1420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id PsDCQ8fBIxmw for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:10 +0200 (CEST)
+	with ESMTP id hFcZHmrwlEPy for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 6C39C42030E
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:10 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 09BEF42030E
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:11 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id HHAMYickymbB for <drbd-dev@lists.linbit.com>;
+	with ESMTP id w-zx2xK6DAn9 for <drbd-dev@lists.linbit.com>;
 	Fri, 10 Jun 2016 13:47:10 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 3A380420308
+	by zimbra13.linbit.com (Postfix) with ESMTPS id D43DA420308
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:10 +0200 (CEST)
-Resent-Message-ID: <20160610114709.GW3235@soda.linbit>
+Resent-Message-ID: <20160610114710.GX3235@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0AB681056466
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0AE2C1056470
 	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:42:01 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Sun,  5 Jun 2016 14:32:00 -0500
-Message-Id: <1465155145-10812-21-git-send-email-mchristi@redhat.com>
+Date: Sun,  5 Jun 2016 14:31:50 -0500
+Message-Id: <1465155145-10812-11-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 20/45] nilfs: use bio op accessors
+Subject: [Drbd-dev] [PATCH 10/45] direct-io: use bio set/get op accessors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,83 +56,193 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-Separate the op from the rq_flag_bits and have nilfs
-set/get the bio using bio_set_op_attrs/bio_op.
+This patch has the dio code use a REQ_OP for the op and rq_flag_bits
+for bi_rw flags. To set/get the op it uses the bio_set_op_attrs/bio_op
+accssors.
+
+It also begins to convert btrfs's dio_submit_t because of the dio
+submit_io callout use. The next patches will completely convert
+this code and the reset of the btrfs code paths.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
-Acked-by: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
 ---
- fs/nilfs2/segbuf.c | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ fs/btrfs/inode.c   |  8 ++++----
+ fs/direct-io.c     | 34 ++++++++++++++++++++--------------
+ include/linux/fs.h |  2 +-
+ 3 files changed, 25 insertions(+), 19 deletions(-)
 
-diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
-index 0f62909..a962d7d 100644
---- a/fs/nilfs2/segbuf.c
-+++ b/fs/nilfs2/segbuf.c
-@@ -346,7 +346,8 @@ static void nilfs_end_bio_write(struct bio *bio)
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index 2704995..96f9192 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -8422,14 +8422,14 @@ out_err:
+ 	return 0;
  }
  
- static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
--				   struct nilfs_write_info *wi, int mode)
-+				   struct nilfs_write_info *wi, int mode,
-+				   int mode_flags)
+-static void btrfs_submit_direct(int rw, struct bio *dio_bio,
+-				struct inode *inode, loff_t file_offset)
++static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
++				loff_t file_offset)
  {
- 	struct bio *bio = wi->bio;
- 	int err;
-@@ -364,7 +365,7 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
+ 	struct btrfs_dio_private *dip = NULL;
+ 	struct bio *io_bio = NULL;
+ 	struct btrfs_io_bio *btrfs_bio;
+ 	int skip_sum;
+-	int write = rw & REQ_WRITE;
++	bool write = (bio_op(dio_bio) == REQ_OP_WRITE);
+ 	int ret = 0;
  
- 	bio->bi_end_io = nilfs_end_bio_write;
- 	bio->bi_private = segbuf;
--	bio->bi_rw = mode;
-+	bio_set_op_attrs(bio, mode, mode_flags);
- 	submit_bio(bio);
- 	segbuf->sb_nbio++;
- 
-@@ -438,7 +439,7 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
- 		return 0;
- 	}
- 	/* bio is FULL */
--	err = nilfs_segbuf_submit_bio(segbuf, wi, mode);
-+	err = nilfs_segbuf_submit_bio(segbuf, wi, mode, 0);
- 	/* never submit current bh */
- 	if (likely(!err))
- 		goto repeat;
-@@ -462,19 +463,19 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
- {
- 	struct nilfs_write_info wi;
- 	struct buffer_head *bh;
--	int res = 0, rw = WRITE;
-+	int res = 0;
- 
- 	wi.nilfs = nilfs;
- 	nilfs_segbuf_prepare_write(segbuf, &wi);
- 
- 	list_for_each_entry(bh, &segbuf->sb_segsum_buffers, b_assoc_buffers) {
--		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
-+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
- 		if (unlikely(res))
- 			goto failed_bio;
+ 	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
+@@ -8480,7 +8480,7 @@ static void btrfs_submit_direct(int rw, struct bio *dio_bio,
+ 			dio_data->unsubmitted_oe_range_end;
  	}
  
- 	list_for_each_entry(bh, &segbuf->sb_payload_buffers, b_assoc_buffers) {
--		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
-+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
- 		if (unlikely(res))
- 			goto failed_bio;
+-	ret = btrfs_submit_direct_hook(rw, dip, skip_sum);
++	ret = btrfs_submit_direct_hook(dio_bio->bi_rw, dip, skip_sum);
+ 	if (!ret)
+ 		return;
+ 
+diff --git a/fs/direct-io.c b/fs/direct-io.c
+index 1bcdd5d..7c3ce73 100644
+--- a/fs/direct-io.c
++++ b/fs/direct-io.c
+@@ -108,7 +108,8 @@ struct dio_submit {
+ /* dio_state communicated between submission path and end_io */
+ struct dio {
+ 	int flags;			/* doesn't change */
+-	int rw;
++	int op;
++	int op_flags;
+ 	blk_qc_t bio_cookie;
+ 	struct block_device *bio_bdev;
+ 	struct inode *inode;
+@@ -163,7 +164,7 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
+ 	ret = iov_iter_get_pages(sdio->iter, dio->pages, LONG_MAX, DIO_PAGES,
+ 				&sdio->from);
+ 
+-	if (ret < 0 && sdio->blocks_available && (dio->rw & WRITE)) {
++	if (ret < 0 && sdio->blocks_available && (dio->op == REQ_OP_WRITE)) {
+ 		struct page *page = ZERO_PAGE(0);
+ 		/*
+ 		 * A memory fault, but the filesystem has some outstanding
+@@ -242,7 +243,8 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
+ 		transferred = dio->result;
+ 
+ 		/* Check for short read case */
+-		if ((dio->rw == READ) && ((offset + transferred) > dio->i_size))
++		if ((dio->op == REQ_OP_READ) &&
++		    ((offset + transferred) > dio->i_size))
+ 			transferred = dio->i_size - offset;
  	}
-@@ -484,8 +485,8 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
- 		 * Last BIO is always sent through the following
- 		 * submission.
+ 
+@@ -273,7 +275,7 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
  		 */
--		rw |= REQ_SYNC;
--		res = nilfs_segbuf_submit_bio(segbuf, &wi, rw);
-+		res = nilfs_segbuf_submit_bio(segbuf, &wi, REQ_OP_WRITE,
-+					      REQ_SYNC);
- 	}
+ 		dio->iocb->ki_pos += transferred;
  
-  failed_bio:
+-		if (dio->rw & WRITE)
++		if (dio->op == REQ_OP_WRITE)
+ 			ret = generic_write_sync(dio->iocb,  transferred);
+ 		dio->iocb->ki_complete(dio->iocb, ret, 0);
+ 	}
+@@ -375,7 +377,7 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
+ 
+ 	bio->bi_bdev = bdev;
+ 	bio->bi_iter.bi_sector = first_sector;
+-	bio->bi_rw = dio->rw;
++	bio_set_op_attrs(bio, dio->op, dio->op_flags);
+ 	if (dio->is_async)
+ 		bio->bi_end_io = dio_bio_end_aio;
+ 	else
+@@ -403,14 +405,13 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
+ 	dio->refcount++;
+ 	spin_unlock_irqrestore(&dio->bio_lock, flags);
+ 
+-	if (dio->is_async && dio->rw == READ && dio->should_dirty)
++	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty)
+ 		bio_set_pages_dirty(bio);
+ 
+ 	dio->bio_bdev = bio->bi_bdev;
+ 
+ 	if (sdio->submit_io) {
+-		sdio->submit_io(dio->rw, bio, dio->inode,
+-			       sdio->logical_offset_in_bio);
++		sdio->submit_io(bio, dio->inode, sdio->logical_offset_in_bio);
+ 		dio->bio_cookie = BLK_QC_T_NONE;
+ 	} else
+ 		dio->bio_cookie = submit_bio(bio);
+@@ -479,14 +480,14 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
+ 	if (bio->bi_error)
+ 		dio->io_error = -EIO;
+ 
+-	if (dio->is_async && dio->rw == READ && dio->should_dirty) {
++	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty) {
+ 		err = bio->bi_error;
+ 		bio_check_pages_dirty(bio);	/* transfers ownership */
+ 	} else {
+ 		bio_for_each_segment_all(bvec, bio, i) {
+ 			struct page *page = bvec->bv_page;
+ 
+-			if (dio->rw == READ && !PageCompound(page) &&
++			if (dio->op == REQ_OP_READ && !PageCompound(page) &&
+ 					dio->should_dirty)
+ 				set_page_dirty_lock(page);
+ 			put_page(page);
+@@ -639,7 +640,7 @@ static int get_more_blocks(struct dio *dio, struct dio_submit *sdio,
+ 		 * which may decide to handle it or also return an unmapped
+ 		 * buffer head.
+ 		 */
+-		create = dio->rw & WRITE;
++		create = dio->op == REQ_OP_WRITE;
+ 		if (dio->flags & DIO_SKIP_HOLES) {
+ 			if (fs_startblk <= ((i_size_read(dio->inode) - 1) >>
+ 							i_blkbits))
+@@ -789,7 +790,7 @@ submit_page_section(struct dio *dio, struct dio_submit *sdio, struct page *page,
+ {
+ 	int ret = 0;
+ 
+-	if (dio->rw & WRITE) {
++	if (dio->op == REQ_OP_WRITE) {
+ 		/*
+ 		 * Read accounting is performed in submit_bio()
+ 		 */
+@@ -989,7 +990,7 @@ do_holes:
+ 				loff_t i_size_aligned;
+ 
+ 				/* AKPM: eargh, -ENOTBLK is a hack */
+-				if (dio->rw & WRITE) {
++				if (dio->op == REQ_OP_WRITE) {
+ 					put_page(page);
+ 					return -ENOTBLK;
+ 				}
+@@ -1203,7 +1204,12 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
+ 		dio->is_async = true;
+ 
+ 	dio->inode = inode;
+-	dio->rw = iov_iter_rw(iter) == WRITE ? WRITE_ODIRECT : READ;
++	if (iov_iter_rw(iter) == WRITE) {
++		dio->op = REQ_OP_WRITE;
++		dio->op_flags = WRITE_ODIRECT;
++	} else {
++		dio->op = REQ_OP_READ;
++	}
+ 
+ 	/*
+ 	 * For AIO O_(D)SYNC writes we need to defer completions to a workqueue
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 62ca2f9..af6f3c7 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2824,7 +2824,7 @@ extern int generic_file_open(struct inode * inode, struct file * filp);
+ extern int nonseekable_open(struct inode * inode, struct file * filp);
+ 
+ #ifdef CONFIG_BLOCK
+-typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
++typedef void (dio_submit_t)(struct bio *bio, struct inode *inode,
+ 			    loff_t file_offset);
+ 
+ enum {
 -- 
 2.7.2
 
