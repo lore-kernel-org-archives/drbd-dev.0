@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D22331056475
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:52 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 937521056476
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:54 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id CD12942024A
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:52 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 8C8F642030E
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:54 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 8HVecXhfAj0C for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:46:52 +0200 (CEST)
+	with ESMTP id CkfWvTl3Y-a2 for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:46:54 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B0288420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:52 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 6C1ED420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:54 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 15pkOX5gC_XO for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:46:52 +0200 (CEST)
+	with ESMTP id LjVjK6DyoU1I for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:46:54 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 85A5B42024A
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:52 +0200 (CEST)
-Resent-Message-ID: <20160610114652.GB3235@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 4487142024A
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:46:54 +0200 (CEST)
+Resent-Message-ID: <20160610114653.GC3235@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C3C881056459
-	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:32:54 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 027AC1056448
+	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:33:37 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,12 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Sun,  5 Jun 2016 14:31:49 -0500
-Message-Id: <1465155145-10812-10-git-send-email-mchristi@redhat.com>
+Date: Sun,  5 Jun 2016 14:32:08 -0500
+Message-Id: <1465155145-10812-29-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 Cc: Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 09/45] block discard: use bio set op accessor
+Subject: [Drbd-dev] [PATCH 28/45] target: use bio op accessors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,96 +56,122 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-This converts the block issue discard helper and users to use
-the bio_set_op_attrs accessor and only pass in the operation flags
-like REQ_SEQURE.
+Separate the op from the rq_flag_bits and have the target layer
+set/get the bio using bio_set_op_attrs/bio_op.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
 ---
- block/blk-lib.c        | 13 +++++++------
- drivers/md/dm-thin.c   |  2 +-
- include/linux/blkdev.h |  3 ++-
- 3 files changed, 10 insertions(+), 8 deletions(-)
+ drivers/target/target_core_iblock.c | 29 ++++++++++++++---------------
+ drivers/target/target_core_pscsi.c  |  2 +-
+ 2 files changed, 15 insertions(+), 16 deletions(-)
 
-diff --git a/block/blk-lib.c b/block/blk-lib.c
-index c614eaa..ff2a7f0 100644
---- a/block/blk-lib.c
-+++ b/block/blk-lib.c
-@@ -23,7 +23,8 @@ static struct bio *next_bio(struct bio *bio, unsigned int nr_pages,
+diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+index c25109c..22af12f 100644
+--- a/drivers/target/target_core_iblock.c
++++ b/drivers/target/target_core_iblock.c
+@@ -312,7 +312,8 @@ static void iblock_bio_done(struct bio *bio)
  }
  
- int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
--		sector_t nr_sects, gfp_t gfp_mask, int type, struct bio **biop)
-+		sector_t nr_sects, gfp_t gfp_mask, int op_flags,
-+		struct bio **biop)
+ static struct bio *
+-iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int rw)
++iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int op,
++	       int op_flags)
  {
- 	struct request_queue *q = bdev_get_queue(bdev);
- 	struct bio *bio = *biop;
-@@ -34,7 +35,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
- 		return -ENXIO;
- 	if (!blk_queue_discard(q))
- 		return -EOPNOTSUPP;
--	if ((type & REQ_SECURE) && !blk_queue_secdiscard(q))
-+	if ((op_flags & REQ_SECURE) && !blk_queue_secdiscard(q))
- 		return -EOPNOTSUPP;
+ 	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
+ 	struct bio *bio;
+@@ -334,7 +335,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int rw)
+ 	bio->bi_private = cmd;
+ 	bio->bi_end_io = &iblock_bio_done;
+ 	bio->bi_iter.bi_sector = lba;
+-	bio->bi_rw = rw;
++	bio_set_op_attrs(bio, op, op_flags);
  
- 	/* Zero-sector (unknown) and one-sector granularities are the same.  */
-@@ -65,7 +66,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
- 		bio = next_bio(bio, 1, gfp_mask);
- 		bio->bi_iter.bi_sector = sector;
- 		bio->bi_bdev = bdev;
--		bio->bi_rw = type;
-+		bio_set_op_attrs(bio, REQ_OP_DISCARD, op_flags);
- 
- 		bio->bi_iter.bi_size = req_sects << 9;
- 		nr_sects -= req_sects;
-@@ -99,16 +100,16 @@ EXPORT_SYMBOL(__blkdev_issue_discard);
- int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
- 		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
- {
--	int type = REQ_WRITE | REQ_DISCARD;
-+	int op_flags = 0;
- 	struct bio *bio = NULL;
- 	struct blk_plug plug;
- 	int ret;
- 
- 	if (flags & BLKDEV_DISCARD_SECURE)
--		type |= REQ_SECURE;
-+		op_flags |= REQ_SECURE;
- 
- 	blk_start_plug(&plug);
--	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, type,
-+	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, op_flags,
- 			&bio);
- 	if (!ret && bio) {
- 		ret = submit_bio_wait(bio);
-diff --git a/drivers/md/dm-thin.c b/drivers/md/dm-thin.c
-index 8c070ee..e8661c2 100644
---- a/drivers/md/dm-thin.c
-+++ b/drivers/md/dm-thin.c
-@@ -360,7 +360,7 @@ static int issue_discard(struct discard_op *op, dm_block_t data_b, dm_block_t da
- 	sector_t len = block_to_sectors(tc->pool, data_e - data_b);
- 
- 	return __blkdev_issue_discard(tc->pool_dev->bdev, s, len,
--				      GFP_NOWAIT, REQ_WRITE | REQ_DISCARD, &op->bio);
-+				      GFP_NOWAIT, 0, &op->bio);
+ 	return bio;
  }
+@@ -480,7 +481,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
+ 		goto fail;
+ 	cmd->priv = ibr;
  
- static void end_discard(struct discard_op *op, int r)
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 49c2dbc..8c78aca 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1149,7 +1149,8 @@ extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *);
- extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
- 		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
- extern int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
--		sector_t nr_sects, gfp_t gfp_mask, int type, struct bio **biop);
-+		sector_t nr_sects, gfp_t gfp_mask, int op_flags,
-+		struct bio **biop);
- extern int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
- 		sector_t nr_sects, gfp_t gfp_mask, struct page *page);
- extern int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
+-	bio = iblock_get_bio(cmd, block_lba, 1, WRITE);
++	bio = iblock_get_bio(cmd, block_lba, 1, REQ_OP_WRITE, 0);
+ 	if (!bio)
+ 		goto fail_free_ibr;
+ 
+@@ -493,7 +494,8 @@ iblock_execute_write_same(struct se_cmd *cmd)
+ 		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
+ 				!= sg->length) {
+ 
+-			bio = iblock_get_bio(cmd, block_lba, 1, WRITE);
++			bio = iblock_get_bio(cmd, block_lba, 1, REQ_OP_WRITE,
++					     0);
+ 			if (!bio)
+ 				goto fail_put_bios;
+ 
+@@ -679,8 +681,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+ 	struct scatterlist *sg;
+ 	u32 sg_num = sgl_nents;
+ 	unsigned bio_cnt;
+-	int rw = 0;
+-	int i;
++	int i, op, op_flags = 0;
+ 
+ 	if (data_direction == DMA_TO_DEVICE) {
+ 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+@@ -689,18 +690,15 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+ 		 * Force writethrough using WRITE_FUA if a volatile write cache
+ 		 * is not enabled, or if initiator set the Force Unit Access bit.
+ 		 */
++		op = REQ_OP_WRITE;
+ 		if (test_bit(QUEUE_FLAG_FUA, &q->queue_flags)) {
+ 			if (cmd->se_cmd_flags & SCF_FUA)
+-				rw = WRITE_FUA;
++				op_flags = WRITE_FUA;
+ 			else if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags))
+-				rw = WRITE_FUA;
+-			else
+-				rw = WRITE;
+-		} else {
+-			rw = WRITE;
++				op_flags = WRITE_FUA;
+ 		}
+ 	} else {
+-		rw = READ;
++		op = REQ_OP_READ;
+ 	}
+ 
+ 	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
+@@ -714,7 +712,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+ 		return 0;
+ 	}
+ 
+-	bio = iblock_get_bio(cmd, block_lba, sgl_nents, rw);
++	bio = iblock_get_bio(cmd, block_lba, sgl_nents, op, op_flags);
+ 	if (!bio)
+ 		goto fail_free_ibr;
+ 
+@@ -738,7 +736,8 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+ 				bio_cnt = 0;
+ 			}
+ 
+-			bio = iblock_get_bio(cmd, block_lba, sg_num, rw);
++			bio = iblock_get_bio(cmd, block_lba, sg_num, op,
++					     op_flags);
+ 			if (!bio)
+ 				goto fail_put_bios;
+ 
+diff --git a/drivers/target/target_core_pscsi.c b/drivers/target/target_core_pscsi.c
+index de18790..81564c8 100644
+--- a/drivers/target/target_core_pscsi.c
++++ b/drivers/target/target_core_pscsi.c
+@@ -922,7 +922,7 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+ 					goto fail;
+ 
+ 				if (rw)
+-					bio->bi_rw |= REQ_WRITE;
++					bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+ 
+ 				pr_debug("PSCSI: Allocated bio: %p,"
+ 					" dir: %s nr_vecs: %d\n", bio,
 -- 
 2.7.2
 
