@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5C8F21056488
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:06 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1129E1056489
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:07 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 56818420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:06 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 0C70C420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:07 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id uc-5xWJj_7bt for <drbd-dev@lists.linbit.com>;
+	with ESMTP id WvI0bEwxvFoy for <drbd-dev@lists.linbit.com>;
 	Fri, 10 Jun 2016 13:47:06 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 392DE42030E
+	by zimbra13.linbit.com (Postfix) with ESMTP id E0AB942030E
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:06 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 1lc-z8EYRDNi for <drbd-dev@lists.linbit.com>;
+	with ESMTP id GqFRcBCcgn2x for <drbd-dev@lists.linbit.com>;
 	Fri, 10 Jun 2016 13:47:06 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id BFE72420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:05 +0200 (CEST)
-Resent-Message-ID: <20160610114705.GT3235@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id B36B5420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:06 +0200 (CEST)
+Resent-Message-ID: <20160610114706.GU3235@soda.linbit>
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3B26B105646E
-	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:40:58 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 61A26105646F
+	for <drbd-dev@lists.linbit.com>; Sun,  5 Jun 2016 21:41:22 +0200 (CEST)
 From: mchristi@redhat.com
 To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	konrad.wilk@oracle.com, drbd-dev@lists.linbit.com,
@@ -37,13 +37,12 @@ To: linux-f2fs-devel@lists.sourceforge.net, linux-ext4@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-mtd@lists.infradead.org,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
-Date: Sun,  5 Jun 2016 14:32:24 -0500
-Message-Id: <1465155145-10812-45-git-send-email-mchristi@redhat.com>
+Date: Sun,  5 Jun 2016 14:32:01 -0500
+Message-Id: <1465155145-10812-22-git-send-email-mchristi@redhat.com>
 In-Reply-To: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
-Cc: Juergen Gross <kernel@pfupf.net>, Mike Christie <mchristi@redhat.com>
-Subject: [Drbd-dev] [PATCH 44/45] block: do not use REQ_FLUSH for tracking
-	flush support
+Cc: Mike Christie <mchristi@redhat.com>
+Subject: [Drbd-dev] [PATCH 21/45] ocfs2: use bio op accessors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -57,151 +56,58 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Mike Christie <mchristi@redhat.com>
 
-The last patch added a REQ_OP_FLUSH for request_fn drivers
-and the next patch renames REQ_FLUSH to REQ_PREFLUSH which
-will be used by file systems and make_request_fn drivers so
-they can send a write/flush combo.
-
-This patch drops xen's use of REQ_FLUSH to track if it supports
-REQ_OP_FLUSH requests, so REQ_FLUSH can be deleted.
+Separate the op from the rq_flag_bits and have ocfs2
+set/get the bio using bio_set_op_attrs/bio_op.
 
 Signed-off-by: Mike Christie <mchristi@redhat.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
-Signed-off-by: Juergen Gross <kernel@pfupf.net>
 ---
+ fs/ocfs2/cluster/heartbeat.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-v7:
-- Fix feature_flush/fua use.
-
-v6:
-- Dropped parts of patch handled by Jens's QUEUE_FLAG_WC/FUA
-patches and modified patch to check feature_flush/fua bits.
-
- drivers/block/xen-blkfront.c | 47 ++++++++++++++++++++++----------------------
- 1 file changed, 24 insertions(+), 23 deletions(-)
-
-diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
-index 3aeb25b..343ef7a 100644
---- a/drivers/block/xen-blkfront.c
-+++ b/drivers/block/xen-blkfront.c
-@@ -196,6 +196,7 @@ struct blkfront_info
- 	unsigned int nr_ring_pages;
- 	struct request_queue *rq;
- 	unsigned int feature_flush;
-+	unsigned int feature_fua;
- 	unsigned int feature_discard:1;
- 	unsigned int feature_secdiscard:1;
- 	unsigned int discard_granularity;
-@@ -763,19 +764,14 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
- 			 * implement it the same way.  (It's also a FLUSH+FUA,
- 			 * since it is guaranteed ordered WRT previous writes.)
- 			 */
--			switch (info->feature_flush &
--				((REQ_FLUSH|REQ_FUA))) {
--			case REQ_FLUSH|REQ_FUA:
-+			if (info->feature_flush && info->feature_fua)
- 				ring_req->operation =
- 					BLKIF_OP_WRITE_BARRIER;
--				break;
--			case REQ_FLUSH:
-+			else if (info->feature_flush)
- 				ring_req->operation =
- 					BLKIF_OP_FLUSH_DISKCACHE;
--				break;
--			default:
-+			else
- 				ring_req->operation = 0;
--			}
- 		}
- 		ring_req->u.rw.nr_segments = num_grant;
- 		if (unlikely(require_extra_req)) {
-@@ -866,9 +862,9 @@ static inline bool blkif_request_flush_invalid(struct request *req,
+diff --git a/fs/ocfs2/cluster/heartbeat.c b/fs/ocfs2/cluster/heartbeat.c
+index 8b1d86e..636abcb 100644
+--- a/fs/ocfs2/cluster/heartbeat.c
++++ b/fs/ocfs2/cluster/heartbeat.c
+@@ -530,7 +530,8 @@ static void o2hb_bio_end_io(struct bio *bio)
+ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
+ 				      struct o2hb_bio_wait_ctxt *wc,
+ 				      unsigned int *current_slot,
+-				      unsigned int max_slots, int rw)
++				      unsigned int max_slots, int op,
++				      int op_flags)
  {
- 	return ((req->cmd_type != REQ_TYPE_FS) ||
- 		((req_op(req) == REQ_OP_FLUSH) &&
--		 !(info->feature_flush & REQ_FLUSH)) ||
-+		 !info->feature_flush) ||
- 		((req->cmd_flags & REQ_FUA) &&
--		 !(info->feature_flush & REQ_FUA)));
-+		 !info->feature_fua));
- }
+ 	int len, current_page;
+ 	unsigned int vec_len, vec_start;
+@@ -556,7 +557,7 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
+ 	bio->bi_bdev = reg->hr_bdev;
+ 	bio->bi_private = wc;
+ 	bio->bi_end_io = o2hb_bio_end_io;
+-	bio->bi_rw = rw;
++	bio_set_op_attrs(bio, op, op_flags);
  
- static int blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
-@@ -985,24 +981,22 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
- 	return 0;
- }
+ 	vec_start = (cs << bits) % PAGE_SIZE;
+ 	while(cs < max_slots) {
+@@ -593,7 +594,7 @@ static int o2hb_read_slots(struct o2hb_region *reg,
  
--static const char *flush_info(unsigned int feature_flush)
-+static const char *flush_info(struct blkfront_info *info)
- {
--	switch (feature_flush & ((REQ_FLUSH | REQ_FUA))) {
--	case REQ_FLUSH|REQ_FUA:
-+	if (info->feature_flush && info->feature_fua)
- 		return "barrier: enabled;";
--	case REQ_FLUSH:
-+	else if (info->feature_flush)
- 		return "flush diskcache: enabled;";
--	default:
-+	else
- 		return "barrier or flush: disabled;";
--	}
- }
+ 	while(current_slot < max_slots) {
+ 		bio = o2hb_setup_one_bio(reg, &wc, &current_slot, max_slots,
+-					 READ);
++					 REQ_OP_READ, 0);
+ 		if (IS_ERR(bio)) {
+ 			status = PTR_ERR(bio);
+ 			mlog_errno(status);
+@@ -625,7 +626,8 @@ static int o2hb_issue_node_write(struct o2hb_region *reg,
  
- static void xlvbd_flush(struct blkfront_info *info)
- {
--	blk_queue_write_cache(info->rq, info->feature_flush & REQ_FLUSH,
--				info->feature_flush & REQ_FUA);
-+	blk_queue_write_cache(info->rq, info->feature_flush ? true : false,
-+			      info->feature_fua ? true : false);
- 	pr_info("blkfront: %s: %s %s %s %s %s\n",
--		info->gd->disk_name, flush_info(info->feature_flush),
-+		info->gd->disk_name, flush_info(info),
- 		"persistent grants:", info->feature_persistent ?
- 		"enabled;" : "disabled;", "indirect descriptors:",
- 		info->max_indirect_segments ? "enabled;" : "disabled;");
-@@ -1621,6 +1615,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
- 			if (unlikely(error)) {
- 				if (error == -EOPNOTSUPP)
- 					error = 0;
-+				info->feature_fua = 0;
- 				info->feature_flush = 0;
- 				xlvbd_flush(info);
- 			}
-@@ -2315,6 +2310,7 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
- 	unsigned int indirect_segments;
+ 	slot = o2nm_this_node();
  
- 	info->feature_flush = 0;
-+	info->feature_fua = 0;
- 
- 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
- 			"feature-barrier", "%d", &barrier,
-@@ -2327,8 +2323,11 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
- 	 *
- 	 * If there are barriers, then we use flush.
- 	 */
--	if (!err && barrier)
--		info->feature_flush = REQ_FLUSH | REQ_FUA;
-+	if (!err && barrier) {
-+		info->feature_flush = 1;
-+		info->feature_fua = 1;
-+	}
-+
- 	/*
- 	 * And if there is "feature-flush-cache" use that above
- 	 * barriers.
-@@ -2337,8 +2336,10 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
- 			"feature-flush-cache", "%d", &flush,
- 			NULL);
- 
--	if (!err && flush)
--		info->feature_flush = REQ_FLUSH;
-+	if (!err && flush) {
-+		info->feature_flush = 1;
-+		info->feature_fua = 0;
-+	}
- 
- 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
- 			"feature-discard", "%d", &discard,
+-	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1, WRITE_SYNC);
++	bio = o2hb_setup_one_bio(reg, write_wc, &slot, slot+1, REQ_OP_WRITE,
++				 WRITE_SYNC);
+ 	if (IS_ERR(bio)) {
+ 		status = PTR_ERR(bio);
+ 		mlog_errno(status);
 -- 
 2.7.2
 
