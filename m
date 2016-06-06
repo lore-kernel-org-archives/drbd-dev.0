@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8F4FC10564AA
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:46 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4CADB10564AB
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 8910D420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:46 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 47440420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id S0qHA83q6j24 for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:46 +0200 (CEST)
+	with ESMTP id 4n3L9RHKEexN for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 6BA2A420313
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:46 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 23ACB420311
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id n8f5j9IeR8mS for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:46 +0200 (CEST)
+	with ESMTP id Syqzko3_oMf8 for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 427A1420308
+	by zimbra13.linbit.com (Postfix) with ESMTPS id D8E8B420308
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:46 +0200 (CEST)
-Resent-Message-ID: <20160610114745.GZ3235@soda.linbit>
+Resent-Message-ID: <20160610114746.GA3235@soda.linbit>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8EE941056445
-	for <drbd-dev@lists.linbit.com>; Mon,  6 Jun 2016 08:44:02 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 97C5D1056445
+	for <drbd-dev@lists.linbit.com>; Mon,  6 Jun 2016 08:45:39 +0200 (CEST)
 To: mchristi@redhat.com, linux-f2fs-devel@lists.sourceforge.net,
 	linux-ext4@vger.kernel.org, konrad.wilk@oracle.com,
 	drbd-dev@lists.linbit.com, philipp.reisner@linbit.com,
@@ -38,15 +38,15 @@ To: mchristi@redhat.com, linux-f2fs-devel@lists.sourceforge.net,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
-	<1465155145-10812-25-git-send-email-mchristi@redhat.com>
+	<1465155145-10812-26-git-send-email-mchristi@redhat.com>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <57551BA7.8080102@suse.de>
-Date: Mon, 6 Jun 2016 08:43:51 +0200
+Message-ID: <57551BF2.6060000@suse.de>
+Date: Mon, 6 Jun 2016 08:45:06 +0200
 MIME-Version: 1.0
-In-Reply-To: <1465155145-10812-25-git-send-email-mchristi@redhat.com>
+In-Reply-To: <1465155145-10812-26-git-send-email-mchristi@redhat.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] [PATCH 24/45] dm: use bio op accessors
+Subject: Re: [Drbd-dev] [PATCH 25/45] bcache: use bio op accessors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -61,10 +61,19 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 On 06/05/2016 09:32 PM, mchristi@redhat.com wrote:
 > From: Mike Christie <mchristi@redhat.com>
 >=20
-> Separate the op from the rq_flag_bits and have dm
+> Separate the op from the rq_flag_bits and have bcache
 > set/get the bio using bio_set_op_attrs/bio_op.
 >=20
 > Signed-off-by: Mike Christie <mchristi@redhat.com>
+> ---
+>  drivers/md/bcache/btree.c     |  4 ++--
+>  drivers/md/bcache/debug.c     |  4 ++--
+>  drivers/md/bcache/journal.c   |  7 ++++---
+>  drivers/md/bcache/movinggc.c  |  2 +-
+>  drivers/md/bcache/request.c   | 14 +++++++-------
+>  drivers/md/bcache/super.c     | 24 +++++++++++++-----------
+>  drivers/md/bcache/writeback.c |  4 ++--
+>  7 files changed, 31 insertions(+), 28 deletions(-)
 >=20
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 
