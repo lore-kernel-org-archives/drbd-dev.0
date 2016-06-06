@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E00C410564B0
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7CCA910564B5
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:48 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id DA9C6420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 76F2E420313
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:48 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id aF0kakhjBL1G for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
+	with ESMTP id In1ilZNhdfiP for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:48 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B5DDB420311
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 5723A420311
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:48 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id QOw0XlfYXc0B for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
+	with ESMTP id m3rn_Cvk2maa for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:48 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 8F223420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:47 +0200 (CEST)
-Resent-Message-ID: <20160610114747.GB3235@soda.linbit>
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 2FFED420313
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:48 +0200 (CEST)
+Resent-Message-ID: <20160610114747.GC3235@soda.linbit>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7DBB81056445
-	for <drbd-dev@lists.linbit.com>; Mon,  6 Jun 2016 08:46:48 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 23BCF1056447
+	for <drbd-dev@lists.linbit.com>; Mon,  6 Jun 2016 08:50:20 +0200 (CEST)
 To: mchristi@redhat.com, linux-f2fs-devel@lists.sourceforge.net,
 	linux-ext4@vger.kernel.org, konrad.wilk@oracle.com,
 	drbd-dev@lists.linbit.com, philipp.reisner@linbit.com,
@@ -38,15 +38,15 @@ To: mchristi@redhat.com, linux-f2fs-devel@lists.sourceforge.net,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
-	<1465155145-10812-29-git-send-email-mchristi@redhat.com>
+	<1465155145-10812-38-git-send-email-mchristi@redhat.com>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <57551C57.5090507@suse.de>
-Date: Mon, 6 Jun 2016 08:46:47 +0200
+Message-ID: <57551D2B.1090707@suse.de>
+Date: Mon, 6 Jun 2016 08:50:19 +0200
 MIME-Version: 1.0
-In-Reply-To: <1465155145-10812-29-git-send-email-mchristi@redhat.com>
+In-Reply-To: <1465155145-10812-38-git-send-email-mchristi@redhat.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] [PATCH 28/45] target: use bio op accessors
+Subject: Re: [Drbd-dev] [PATCH 37/45] drivers: use req op accessor
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -61,84 +61,30 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 On 06/05/2016 09:32 PM, mchristi@redhat.com wrote:
 > From: Mike Christie <mchristi@redhat.com>
 >=20
-> Separate the op from the rq_flag_bits and have the target layer
-> set/get the bio using bio_set_op_attrs/bio_op.
+> The req operation REQ_OP is separated from the rq_flag_bits
+> definition. This converts the block layer drivers to
+> use req_op to get the op from the request struct.
 >=20
 > Signed-off-by: Mike Christie <mchristi@redhat.com>
 > ---
->  drivers/target/target_core_iblock.c | 29 ++++++++++++++---------------
->  drivers/target/target_core_pscsi.c  |  2 +-
->  2 files changed, 15 insertions(+), 16 deletions(-)
+>  drivers/block/loop.c              |  6 +++---
+>  drivers/block/mtip32xx/mtip32xx.c |  2 +-
+>  drivers/block/nbd.c               |  2 +-
+>  drivers/block/rbd.c               |  4 ++--
+>  drivers/block/xen-blkfront.c      |  8 +++++---
+>  drivers/ide/ide-floppy.c          |  2 +-
+>  drivers/md/dm.c                   |  2 +-
+>  drivers/mmc/card/block.c          |  7 +++----
+>  drivers/mmc/card/queue.c          |  6 ++----
+>  drivers/mmc/card/queue.h          |  5 ++++-
+>  drivers/mtd/mtd_blkdevs.c         |  2 +-
+>  drivers/nvme/host/core.c          |  2 +-
+>  drivers/nvme/host/nvme.h          |  4 ++--
+>  drivers/scsi/sd.c                 | 25 ++++++++++++++++---------
+>  14 files changed, 43 insertions(+), 34 deletions(-)
 >=20
-> diff --git a/drivers/target/target_core_iblock.c b/drivers/target/targe=
-t_core_iblock.c
-> index c25109c..22af12f 100644
-> --- a/drivers/target/target_core_iblock.c
-> +++ b/drivers/target/target_core_iblock.c
-[ .. ]
-> @@ -689,18 +690,15 @@ iblock_execute_rw(struct se_cmd *cmd, struct scat=
-terlist *sgl, u32 sgl_nents,
->  		 * Force writethrough using WRITE_FUA if a volatile write cache
->  		 * is not enabled, or if initiator set the Force Unit Access bit.
->  		 */
-> +		op =3D REQ_OP_WRITE;
->  		if (test_bit(QUEUE_FLAG_FUA, &q->queue_flags)) {
->  			if (cmd->se_cmd_flags & SCF_FUA)
-> -				rw =3D WRITE_FUA;
-> +				op_flags =3D WRITE_FUA;
->  			else if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags))
-> -				rw =3D WRITE_FUA;
-> -			else
-> -				rw =3D WRITE;
-> -		} else {
-> -			rw =3D WRITE;
-> +				op_flags =3D WRITE_FUA;
->  		}
-Wrong intendation.
+Reviewed-by: Hannes Reinecke <hare@suse.com>
 
->  	} else {
-> -		rw =3D READ;
-> +		op =3D REQ_OP_READ;
->  	}
-> =20
->  	ibr =3D kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
-> @@ -714,7 +712,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatte=
-rlist *sgl, u32 sgl_nents,
->  		return 0;
->  	}
-> =20
-> -	bio =3D iblock_get_bio(cmd, block_lba, sgl_nents, rw);
-> +	bio =3D iblock_get_bio(cmd, block_lba, sgl_nents, op, op_flags);
->  	if (!bio)
->  		goto fail_free_ibr;
-> =20
-> @@ -738,7 +736,8 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatte=
-rlist *sgl, u32 sgl_nents,
->  				bio_cnt =3D 0;
->  			}
-> =20
-> -			bio =3D iblock_get_bio(cmd, block_lba, sg_num, rw);
-> +			bio =3D iblock_get_bio(cmd, block_lba, sg_num, op,
-> +					     op_flags);
->  			if (!bio)
->  				goto fail_put_bios;
-> =20
-> diff --git a/drivers/target/target_core_pscsi.c b/drivers/target/target=
-_core_pscsi.c
-> index de18790..81564c8 100644
-> --- a/drivers/target/target_core_pscsi.c
-> +++ b/drivers/target/target_core_pscsi.c
-> @@ -922,7 +922,7 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist=
- *sgl, u32 sgl_nents,
->  					goto fail;
-> =20
->  				if (rw)
-> -					bio->bi_rw |=3D REQ_WRITE;
-> +					bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-> =20
->  				pr_debug("PSCSI: Allocated bio: %p,"
->  					" dir: %s nr_vecs: %d\n", bio,
->=20
 Cheers,
 
 Hannes
