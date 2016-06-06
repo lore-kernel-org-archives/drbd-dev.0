@@ -2,31 +2,31 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5933210564A6
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:44 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 48B7C10564A7
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:45 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 52E86420308
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:44 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 42284420308
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:45 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id gDwT4SdUGnwi for <drbd-dev@lists.linbit.com>;
-	Fri, 10 Jun 2016 13:47:44 +0200 (CEST)
+	with ESMTP id iYyWxuQVPnIE for <drbd-dev@lists.linbit.com>;
+	Fri, 10 Jun 2016 13:47:45 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 36776420311
+	by zimbra13.linbit.com (Postfix) with ESMTP id EDB3F420311
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:44 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 9jNzcaCBlxTo for <drbd-dev@lists.linbit.com>;
+	with ESMTP id 7v2p5QCqmI7S for <drbd-dev@lists.linbit.com>;
 	Fri, 10 Jun 2016 13:47:44 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 0E04C420308
+	by zimbra13.linbit.com (Postfix) with ESMTPS id A81C5420308
 	for <drbd-dev@lists.linbit.com>; Fri, 10 Jun 2016 13:47:44 +0200 (CEST)
-Resent-Message-ID: <20160610114743.GW3235@soda.linbit>
+Resent-Message-ID: <20160610114744.GX3235@soda.linbit>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 313FC1056445
-	for <drbd-dev@lists.linbit.com>; Mon,  6 Jun 2016 08:16:45 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id CDAAB1056445
+	for <drbd-dev@lists.linbit.com>; Mon,  6 Jun 2016 08:20:17 +0200 (CEST)
 To: mchristi@redhat.com, linux-f2fs-devel@lists.sourceforge.net,
 	linux-ext4@vger.kernel.org, konrad.wilk@oracle.com,
 	drbd-dev@lists.linbit.com, philipp.reisner@linbit.com,
@@ -38,16 +38,16 @@ To: mchristi@redhat.com, linux-f2fs-devel@lists.sourceforge.net,
 	target-devel@vger.kernel.org, linux-btrfs@vger.kernel.org,
 	osd-dev@open-osd.org, xfs@oss.sgi.com, ocfs2-devel@oss.oracle.com
 References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
-	<1465155145-10812-8-git-send-email-mchristi@redhat.com>
+	<1465155145-10812-9-git-send-email-mchristi@redhat.com>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <5755154C.7030007@suse.de>
-Date: Mon, 6 Jun 2016 08:16:44 +0200
+Message-ID: <57551620.3070801@suse.de>
+Date: Mon, 6 Jun 2016 08:20:16 +0200
 MIME-Version: 1.0
-In-Reply-To: <1465155145-10812-8-git-send-email-mchristi@redhat.com>
+In-Reply-To: <1465155145-10812-9-git-send-email-mchristi@redhat.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] [PATCH 07/45] bcache: use op_is_write instead of
- checking for REQ_WRITE
+Subject: Re: [Drbd-dev] [PATCH 08/45] block, fs, mm,
+ drivers: use bio set/get op accessors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -62,23 +62,129 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 On 06/05/2016 09:31 PM, mchristi@redhat.com wrote:
 > From: Mike Christie <mchristi@redhat.com>
 >=20
-> We currently set REQ_WRITE/WRITE for all non READ IOs
-> like discard, flush, writesame, etc. In the next patches where we
-> no longer set up the op as a bitmap, we will not be able to
-> detect a operation direction like writesame by testing if REQ_WRITE is
-> set.
+> This patch converts the simple bi_rw use cases in the block,
+> drivers, mm and fs code to set/get the bio operation using
+> bio_set_op_attrs/bio_op
 >=20
-> This has bcache use the op_is_write helper which will do the right
-> thing.
+> These should be simple one or two liner cases, so I just did them
+> in one patch. The next patches handle the more complicated
+> cases in a module per patch.
 >=20
 > Signed-off-by: Mike Christie <mchristi@redhat.com>
 > ---
->  drivers/md/bcache/io.c      | 2 +-
->  drivers/md/bcache/request.c | 6 +++---
->  2 files changed, 4 insertions(+), 4 deletions(-)
 >=20
-(Could probably folded together with the two previous patches)
+> v5:
+> 1. Add missed crypto call.
+> 2. Change nfs bi_rw check to bi_op.
+>=20
+>  block/bio.c                                 | 13 ++++++-------
+>  block/blk-core.c                            |  6 +++---
+>  block/blk-flush.c                           |  2 +-
+>  block/blk-lib.c                             |  4 ++--
+>  block/blk-map.c                             |  2 +-
+>  block/blk-merge.c                           | 12 ++++++------
+>  drivers/block/brd.c                         |  2 +-
+>  drivers/block/floppy.c                      |  2 +-
+>  drivers/block/pktcdvd.c                     |  4 ++--
+>  drivers/block/rsxx/dma.c                    |  2 +-
+>  drivers/block/zram/zram_drv.c               |  2 +-
+>  drivers/lightnvm/rrpc.c                     |  6 +++---
+>  drivers/scsi/osd/osd_initiator.c            |  8 ++++----
+>  drivers/staging/lustre/lustre/llite/lloop.c |  6 +++---
+>  fs/crypto/crypto.c                          |  2 +-
+>  fs/exofs/ore.c                              |  2 +-
+>  fs/ext4/page-io.c                           |  6 +++---
+>  fs/ext4/readpage.c                          |  2 +-
+>  fs/jfs/jfs_logmgr.c                         |  4 ++--
+>  fs/jfs/jfs_metapage.c                       |  4 ++--
+>  fs/logfs/dev_bdev.c                         | 12 ++++++------
+>  fs/nfs/blocklayout/blocklayout.c            |  4 ++--
+>  include/linux/bio.h                         | 15 ++++++++++-----
+>  mm/page_io.c                                |  4 ++--
+>  24 files changed, 65 insertions(+), 61 deletions(-)
+>=20
+[ .. ]
+> diff --git a/include/linux/bio.h b/include/linux/bio.h
+> index 09c5308..4568647 100644
+> --- a/include/linux/bio.h
+> +++ b/include/linux/bio.h
+> @@ -109,18 +109,23 @@ static inline bool bio_has_data(struct bio *bio)
+>  {
+>  	if (bio &&
+>  	    bio->bi_iter.bi_size &&
+> -	    !(bio->bi_rw & REQ_DISCARD))
+> +	    bio_op(bio) !=3D REQ_OP_DISCARD)
+>  		return true;
+> =20
+>  	return false;
+>  }
+> =20
+> +static inline bool bio_no_advance_iter(struct bio *bio)
+> +{
+> +	return bio_op(bio) =3D=3D REQ_OP_DISCARD || bio_op(bio) =3D=3D REQ_OP=
+_WRITE_SAME;
+> +}
+> +
+>  static inline bool bio_is_rw(struct bio *bio)
+>  {
+>  	if (!bio_has_data(bio))
+>  		return false;
+> =20
+> -	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
+> +	if (bio_no_advance_iter(bio))
+>  		return false;
+> =20
+>  	return true;
+> @@ -228,7 +233,7 @@ static inline void bio_advance_iter(struct bio *bio=
+, struct bvec_iter *iter,
+>  {
+>  	iter->bi_sector +=3D bytes >> 9;
+> =20
+> -	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
+> +	if (bio_no_advance_iter(bio))
+>  		iter->bi_size -=3D bytes;
+>  	else
+>  		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
+Hmm. Can't you drop 'BIO_NO_ADVANCE_ITER_MASK' after this patch?
 
+> @@ -256,10 +261,10 @@ static inline unsigned bio_segments(struct bio *b=
+io)
+>  	 * differently:
+>  	 */
+> =20
+> -	if (bio->bi_rw & REQ_DISCARD)
+> +	if (bio_op(bio) =3D=3D REQ_OP_DISCARD)
+>  		return 1;
+> =20
+> -	if (bio->bi_rw & REQ_WRITE_SAME)
+> +	if (bio_op(bio) =3D=3D REQ_OP_WRITE_SAME)
+>  		return 1;
+> =20
+>  	bio_for_each_segment(bv, bio, iter)
+> diff --git a/mm/page_io.c b/mm/page_io.c
+> index 5a5fd66..dcc5d37 100644
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
+> @@ -317,7 +317,7 @@ int __swap_writepage(struct page *page, struct writ=
+eback_control *wbc,
+>  		ret =3D -ENOMEM;
+>  		goto out;
+>  	}
+> -	bio->bi_rw =3D WRITE;
+> +	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+>  	if (wbc->sync_mode =3D=3D WB_SYNC_ALL)
+>  		bio->bi_rw |=3D REQ_SYNC;
+>  	count_vm_event(PSWPOUT);
+> @@ -370,7 +370,7 @@ int swap_readpage(struct page *page)
+>  		ret =3D -ENOMEM;
+>  		goto out;
+>  	}
+> -	bio->bi_rw =3D READ;
+> +	bio_set_op_attrs(bio, REQ_OP_READ, 0);
+>  	count_vm_event(PSWPIN);
+>  	submit_bio(bio);
+>  out:
+>=20
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 
 Cheers,
