@@ -1,36 +1,17 @@
-Return-Path: <BATV+56f34be8dd15322694df+4665+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
-	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <nwang@suse.com>
+Received: from prv3-mh.provo.novell.com (prv3-mh.provo.novell.com
+	[137.65.250.26])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 09F281056445
-	for <drbd-dev@lists.linbit.com>; Wed,  1 Jun 2016 16:05:28 +0200 (CEST)
-Date: Wed, 1 Jun 2016 07:05:22 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Message-ID: <20160601140522.GA16228@infradead.org>
-References: <1464615294-9946-1-git-send-email-ming.lei@canonical.com>
-	<20160531155348.GA24840@redhat.com>
-	<CACVXFVM9FqZFkMat_4ysJ8_vFd1FFnf6Bd9sHDDoCK=v93wViQ@mail.gmail.com>
-	<20160601134427.GA15888@infradead.org>
-	<20160601135150.GA30759@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160601135150.GA30759@redhat.com>
-Cc: Jens Axboe <axboe@fb.com>, Michal Hocko <mhocko@suse.com>,
-	Jan Kara <jack@suse.cz>, "Martin K. Petersen" <martin.petersen@oracle.com>,
-	Steven Whitehouse <swhiteho@redhat.com>, Ming Lei <ming.lei@canonical.com>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Sagi Grimberg <sagig@mellanox.com>, NeilBrown <neilb@suse.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Joe Thornber <ejt@redhat.com>, linux-block@vger.kernel.org,
-	Al Viro <viro@zeniv.linux.org.uk>, Shaohua Li <shli@fb.com>,
-	Tejun Heo <tj@kernel.org>, Keith Busch <keith.busch@intel.com>,
-	"open list:XFS FILESYSTEM" <xfs@oss.sgi.com>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH v6 0/8] block: prepare for multipage bvecs
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C81891056446
+	for <drbd-dev@lists.linbit.com>; Thu,  9 Jun 2016 16:40:03 +0200 (CEST)
+From: Nick Wang <nwang@suse.com>
+To: drbd-dev@lists.linbit.com
+Date: Thu,  9 Jun 2016 22:39:46 +0800
+Message-Id: <1465483189-22696-1-git-send-email-nwang@suse.com>
+Cc: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>
+Subject: [Drbd-dev] [PATCH-drbd9] compat: i_mutex is replaced by i_rwsem
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,13 +23,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Jun 01, 2016 at 09:51:51AM -0400, Mike Snitzer wrote:
-> So should I not push this type of fix to Linus now?  I was going to send
-> the above commit and this one to him this week:
-> https://git.kernel.org/cgit/linux/kernel/git/device-mapper/linux-dm.git/commit/?h=dm-4.7&id=57b3001b240629ecc5266d28c845e23ca5f11719
-> 
-> Instead, should bcache be made to not do what it is doing?
+In v4.7(commit 9902af79), i_mutex is replaced by i_rwsem,
+while inode_lock() work as usual.
 
-I think that's much preferably.  Otherwise we'll get a constant trickles
-of patches like that whenever someone tries bcache on top of another
-stacking driver.
+This patch is for drbd-9.0.
+
+Signed-off-by: Nick Wang <nwang@suse.com>
+
+CC: Philipp Reisner <philipp.reisner@linbit.com>
+CC: Lars Ellenberg <lars.ellenberg@linbit.com>
+CC: drbd-dev@lists.linbit.com
+---
+ drbd/drbd_debugfs.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drbd/drbd_debugfs.c b/drbd/drbd_debugfs.c
+index 91292c3..959a576 100644
+--- a/drbd/drbd_debugfs.c
++++ b/drbd/drbd_debugfs.c
+@@ -1074,7 +1074,7 @@ static int drbd_single_open_peer_device(struct file *file,
+ 	parent = file->f_path.dentry->d_parent;
+ 	if (!parent || !parent->d_inode)
+ 		goto out;
+-	mutex_lock(&parent->d_inode->i_mutex);
++	inode_lock(d_inode(parent));
+ 	if (!simple_positive(file->f_path.dentry))
+ 		goto out_unlock;
+ 
+@@ -1083,7 +1083,7 @@ static int drbd_single_open_peer_device(struct file *file,
+ 
+ 	if (got_connection && got_device) {
+ 		int ret;
+-		mutex_unlock(&parent->d_inode->i_mutex);
++		inode_unlock(d_inode(parent));
+ 		ret = single_open(file, show, peer_device);
+ 		if (ret) {
+ 			kref_put(&connection->kref, drbd_destroy_connection);
+@@ -1097,7 +1097,7 @@ static int drbd_single_open_peer_device(struct file *file,
+ 	if (got_device)
+ 		kref_put(&device->kref, drbd_destroy_device);
+ out_unlock:
+-	mutex_unlock(&parent->d_inode->i_mutex);
++	inode_unlock(d_inode(parent));
+ out:
+ 	return -ESTALE;
+ }
+-- 
+1.8.5.6
+
