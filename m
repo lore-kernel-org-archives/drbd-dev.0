@@ -2,20 +2,20 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 39A8C1056475
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 72F831056476
 	for <drbd-dev@lists.linbit.com>; Tue, 14 Jun 2016 00:26:48 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Tue, 14 Jun 2016 00:26:32 +0200
-Message-Id: <1465856799-2151-24-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 14 Jun 2016 00:26:33 +0200
+Message-Id: <1465856799-2151-25-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 23/30] drbd: sync_handshake: handle identical
-	uuids with current (frozen) Primary
+Subject: [Drbd-dev] [PATCH 24/30] drbd: disallow promotion during resync
+	handshake, avoid deadlock and hard reset
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,108 +29,85 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-If in a two-primary scenario, we lost our peer, freeze IO,
-and are still frozen (no UUID rotation) when the peer comes back
-as Secondary after a hard crash, we will see identical UUIDs.
+We already serialize connection state changes,
+and other, non-connection state changes (role changes)
+while we are establishing a connection.
 
-The "rule_nr = 40" chose to use the "CRASHED_PRIMARY" bit as
-arbitration, but that would cause the still running (but frozen) Primary
-to become SyncTarget (which it typically refuses), and the handshake is
-declined.
+But if we have an established connection,
+then trigger a resync handshake (by primary --force or similar),
+until now we just had to be "lucky".
 
-Fix: check current roles.
-If we have *one* current primary, the Primary wins.
-(rule_nr = 41)
+Consider this sequence (e.g. deployment scenario):
+create-md; up;
+  -> Connected Secondary/Secondary Inconsistent/Inconsistent
+then do a racy primary --force on both peers.
 
-Since that is a protocol change, use the newly introduced DRBD_FF_WSAME
-to determine if rule_nr = 41 can be applied.
+ block drbd0: drbd_sync_handshake:
+ block drbd0: self 0000000000000004:0000000000000000:0000000000000000:0000000000000000 bits:25590 flags:0
+ block drbd0: peer 0000000000000004:0000000000000000:0000000000000000:0000000000000000 bits:25590 flags:0
+ block drbd0: peer( Unknown -> Secondary ) conn( WFReportParams -> Connected ) pdsk( DUnknown -> Inconsistent )
+ block drbd0: peer( Secondary -> Primary ) pdsk( Inconsistent -> UpToDate )
+  *** HERE things go wrong. ***
+ block drbd0: role( Secondary -> Primary )
+ block drbd0: drbd_sync_handshake:
+ block drbd0: self 0000000000000005:0000000000000000:0000000000000000:0000000000000000 bits:25590 flags:0
+ block drbd0: peer C90D2FC716D232AB:0000000000000004:0000000000000000:0000000000000000 bits:25590 flags:0
+ block drbd0: Becoming sync target due to disk states.
+ block drbd0: Writing the whole bitmap, full sync required after drbd_sync_handshake.
+ block drbd0: Remote failed to finish a request within 6007ms > ko-count (2) * timeout (30 * 0.1s)
+ drbd s0: peer( Primary -> Unknown ) conn( Connected -> Timeout ) pdsk( UpToDate -> DUnknown )
+
+The problem here is that the local promotion happens before the sync handshake
+triggered by the remote promotion was completed.  Some assumptions elsewhere
+become wrong, and when the expected resync handshake is then received and
+processed, we get stuck in a deadlock, which can only be recovered by reboot :-(
+
+Fix: if we know the peer has good data,
+and our own disk is present, but NOT good,
+and there is no resync going on yet,
+we expect a sync handshake to happen "soon".
+So reject a racy promotion with SS_IN_TRANSIENT_STATE.
+
+Result:
+ ... as above ...
+ block drbd0: peer( Secondary -> Primary ) pdsk( Inconsistent -> UpToDate )
+  *** local promotion being postponed until ... ***
+ block drbd0: drbd_sync_handshake:
+ block drbd0: self 0000000000000004:0000000000000000:0000000000000000:0000000000000000 bits:25590 flags:0
+ block drbd0: peer 77868BDA836E12A5:0000000000000004:0000000000000000:0000000000000000 bits:25590 flags:0
+  ...
+ block drbd0: conn( WFBitMapT -> WFSyncUUID )
+ block drbd0: updated sync uuid 85D06D0E8887AD44:0000000000000000:0000000000000000:0000000000000000
+ block drbd0: conn( WFSyncUUID -> SyncTarget )
+  *** ... after the resync handshake ***
+ block drbd0: role( Secondary -> Primary )
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 47 +++++++++++++++++++++++++++++++++++---
- 1 file changed, 44 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_state.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index b25600e..577a187 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3194,7 +3194,8 @@ static void drbd_uuid_dump(struct drbd_device *device, char *text, u64 *uuid,
- -1091   requires proto 91
- -1096   requires proto 96
-  */
--static int drbd_uuid_compare(struct drbd_device *const device, int *rule_nr) __must_hold(local)
-+
-+static int drbd_uuid_compare(struct drbd_device *const device, enum drbd_role const peer_role, int *rule_nr) __must_hold(local)
- {
- 	struct drbd_peer_device *const peer_device = first_peer_device(device);
- 	struct drbd_connection *const connection = peer_device ? peer_device->connection : NULL;
-@@ -3274,8 +3275,39 @@ static int drbd_uuid_compare(struct drbd_device *const device, int *rule_nr) __m
- 		 * next bit (weight 2) is set when peer was primary */
- 		*rule_nr = 40;
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 24422e8..7562c5c 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -906,6 +906,15 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_c
+ 	      (ns.conn >= C_CONNECTED && os.conn == C_WF_REPORT_PARAMS)))
+ 		rv = SS_IN_TRANSIENT_STATE;
  
-+		/* Neither has the "crashed primary" flag set,
-+		 * only a replication link hickup. */
-+		if (rct == 0)
-+			return 0;
++	/* Do not promote during resync handshake triggered by "force primary".
++	 * This is a hack. It should really be rejected by the peer during the
++	 * cluster wide state change request. */
++	if (os.role != R_PRIMARY && ns.role == R_PRIMARY
++		&& ns.pdsk == D_UP_TO_DATE
++		&& ns.disk != D_UP_TO_DATE && ns.disk != D_DISKLESS
++		&& (ns.conn <= C_WF_SYNC_UUID || ns.conn != os.conn))
++			rv = SS_IN_TRANSIENT_STATE;
 +
-+		/* Current UUID equal and no bitmap uuid; does not necessarily
-+		 * mean this was a "simultaneous hard crash", maybe IO was
-+		 * frozen, so no UUID-bump happened.
-+		 * This is a protocol change, overload DRBD_FF_WSAME as flag
-+		 * for "new-enough" peer DRBD version. */
-+		if (device->state.role == R_PRIMARY || peer_role == R_PRIMARY) {
-+			*rule_nr = 41;
-+			if (!(connection->agreed_features & DRBD_FF_WSAME)) {
-+				drbd_warn(peer_device, "Equivalent unrotated UUIDs, but current primary present.\n");
-+				return -(0x10000 | PRO_VERSION_MAX | (DRBD_FF_WSAME << 8));
-+			}
-+			if (device->state.role == R_PRIMARY && peer_role == R_PRIMARY) {
-+				/* At least one has the "crashed primary" bit set,
-+				 * both are primary now, but neither has rotated its UUIDs?
-+				 * "Can not happen." */
-+				drbd_err(peer_device, "Equivalent unrotated UUIDs, but both are primary. Can not resolve this.\n");
-+				return -100;
-+			}
-+			if (device->state.role == R_PRIMARY)
-+				return 1;
-+			return -1;
-+		}
-+
-+		/* Both are secondary.
-+		 * Really looks like recovery from simultaneous hard crash.
-+		 * Check which had been primary before, and arbitrate. */
- 		switch (rct) {
--		case 0: /* !self_pri && !peer_pri */ return 0;
-+		case 0: /* !self_pri && !peer_pri */ return 0; /* already handled */
- 		case 1: /*  self_pri && !peer_pri */ return 1;
- 		case 2: /* !self_pri &&  peer_pri */ return -1;
- 		case 3: /*  self_pri &&  peer_pri */
-@@ -3402,7 +3434,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_peer_device *peer_device,
- 	drbd_uuid_dump(device, "peer", device->p_uuid,
- 		       device->p_uuid[UI_SIZE], device->p_uuid[UI_FLAGS]);
+ 	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
+ 		rv = SS_NEED_CONNECTION;
  
--	hg = drbd_uuid_compare(device, &rule_nr);
-+	hg = drbd_uuid_compare(device, peer_role, &rule_nr);
- 	spin_unlock_irq(&device->ldev->md.uuid_lock);
- 
- 	drbd_info(device, "uuid_compare()=%d by rule %d\n", hg, rule_nr);
-@@ -3411,6 +3443,15 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_peer_device *peer_device,
- 		drbd_alert(device, "Unrelated data, aborting!\n");
- 		return C_MASK;
- 	}
-+	if (hg < -0x10000) {
-+		int proto, fflags;
-+		hg = -hg;
-+		proto = hg & 0xff;
-+		fflags = (hg >> 8) & 0xff;
-+		drbd_alert(device, "To resolve this both sides have to support at least protocol %d and feature flags 0x%x\n",
-+					proto, fflags);
-+		return C_MASK;
-+	}
- 	if (hg < -1000) {
- 		drbd_alert(device, "To resolve this both sides have to support at least protocol %d\n", -hg - 1000);
- 		return C_MASK;
 -- 
 2.7.4
 
