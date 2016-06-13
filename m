@@ -2,20 +2,19 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2E05D105646B
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 718D8105646C
 	for <drbd-dev@lists.linbit.com>; Tue, 14 Jun 2016 00:26:44 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Tue, 14 Jun 2016 00:26:22 +0200
-Message-Id: <1465856799-2151-14-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 14 Jun 2016 00:26:23 +0200
+Message-Id: <1465856799-2151-15-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 13/30] drbd: zero-out partial unaligned discards
-	on local backend
+Subject: [Drbd-dev] [PATCH 14/30] drbd: allow larger max_discard_sectors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,89 +28,64 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-For consistency, also zero-out partial unaligned chunks of discard
-requests on the local backend.
+Make sure we have at least 67 (> AL_UPDATES_PER_TRANSACTION)
+al-extents available, and allow up to half of that to be
+discarded in one bio.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h |  2 ++
- drivers/block/drbd/drbd_req.c | 29 +++++++++++++++++++++++------
- 2 files changed, 25 insertions(+), 6 deletions(-)
+ drivers/block/drbd/drbd_actlog.c | 2 +-
+ drivers/block/drbd/drbd_int.h    | 8 ++++----
+ include/linux/drbd_limits.h      | 3 +--
+ 3 files changed, 6 insertions(+), 7 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index d524973..265b2b6 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -258,7 +258,7 @@ bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval
+ 	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
+ 	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
+ 
+-	D_ASSERT(device, (unsigned)(last - first) <= 1);
++	D_ASSERT(device, first <= last);
+ 	D_ASSERT(device, atomic_read(&device->local_cnt) > 0);
+ 
+ 	/* FIXME figure out a fast path for bios crossing AL extent boundaries */
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index f49ff86..0b5a658 100644
+index 0b5a658..9c68ec5 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1553,6 +1553,8 @@ extern void start_resync_timer_fn(unsigned long data);
- extern void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req);
+@@ -1347,10 +1347,10 @@ struct bm_extent {
+ #define DRBD_MAX_SIZE_H80_PACKET (1U << 15) /* Header 80 only allows packets up to 32KiB data */
+ #define DRBD_MAX_BIO_SIZE_P95    (1U << 17) /* Protocol 95 to 99 allows bios up to 128KiB */
  
- /* drbd_receiver.c */
-+extern int drbd_issue_discard_or_zero_out(struct drbd_device *device,
-+		sector_t start, unsigned int nr_sectors, bool discard);
- extern int drbd_receiver(struct drbd_thread *thi);
- extern int drbd_ack_receiver(struct drbd_thread *thi);
- extern void drbd_send_ping_wf(struct work_struct *ws);
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 74903ab..355cf10 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1156,6 +1156,16 @@ static int drbd_process_write_request(struct drbd_request *req)
- 	return remote;
- }
+-/* For now, don't allow more than one activity log extent worth of data
+- * to be discarded in one go. We may need to rework drbd_al_begin_io()
+- * to allow for even larger discard ranges */
+-#define DRBD_MAX_DISCARD_SIZE	AL_EXTENT_SIZE
++/* For now, don't allow more than half of what we can "activate" in one
++ * activity log transaction to be discarded in one go. We may need to rework
++ * drbd_al_begin_io() to allow for even larger discard ranges */
++#define DRBD_MAX_DISCARD_SIZE	(AL_UPDATES_PER_TRANSACTION/2*AL_EXTENT_SIZE)
+ #define DRBD_MAX_DISCARD_SECTORS (DRBD_MAX_DISCARD_SIZE >> 9)
  
-+static void drbd_process_discard_req(struct drbd_request *req)
-+{
-+	int err = drbd_issue_discard_or_zero_out(req->device,
-+				req->i.sector, req->i.size >> 9, true);
-+
-+	if (err)
-+		req->private_bio->bi_error = -EIO;
-+	bio_endio(req->private_bio);
-+}
-+
- static void
- drbd_submit_req_private_bio(struct drbd_request *req)
- {
-@@ -1176,6 +1186,8 @@ drbd_submit_req_private_bio(struct drbd_request *req)
- 				    : rw == READ  ? DRBD_FAULT_DT_RD
- 				    :               DRBD_FAULT_DT_RA))
- 			bio_io_error(bio);
-+		else if (bio_op(bio) == REQ_OP_DISCARD)
-+			drbd_process_discard_req(req);
- 		else
- 			generic_make_request(bio);
- 		put_ldev(device);
-@@ -1227,18 +1239,23 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long
- 	/* Update disk stats */
- 	_drbd_start_io_acct(device, req);
+ extern int  drbd_bm_init(struct drbd_device *device);
+diff --git a/include/linux/drbd_limits.h b/include/linux/drbd_limits.h
+index a351c40..ddac684 100644
+--- a/include/linux/drbd_limits.h
++++ b/include/linux/drbd_limits.h
+@@ -126,8 +126,7 @@
+ #define DRBD_RESYNC_RATE_DEF 250
+ #define DRBD_RESYNC_RATE_SCALE 'k'  /* kilobytes */
  
-+	/* process discards always from our submitter thread */
-+	if (bio_op(bio) & REQ_OP_DISCARD)
-+		goto queue_for_submitter_thread;
-+
- 	if (rw == WRITE && req->private_bio && req->i.size
- 	&& !test_bit(AL_SUSPENDED, &device->flags)) {
--		if (!drbd_al_begin_io_fastpath(device, &req->i)) {
--			atomic_inc(&device->ap_actlog_cnt);
--			drbd_queue_write(device, req);
--			return NULL;
--		}
-+		if (!drbd_al_begin_io_fastpath(device, &req->i))
-+			goto queue_for_submitter_thread;
- 		req->rq_state |= RQ_IN_ACT_LOG;
- 		req->in_actlog_jif = jiffies;
- 	}
--
- 	return req;
-+
-+ queue_for_submitter_thread:
-+	atomic_inc(&device->ap_actlog_cnt);
-+	drbd_queue_write(device, req);
-+	return NULL;
- }
- 
- static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request *req)
+-  /* less than 7 would hit performance unnecessarily. */
+-#define DRBD_AL_EXTENTS_MIN  7
++#define DRBD_AL_EXTENTS_MIN  67
+   /* we use u16 as "slot number", (u16)~0 is "FREE".
+    * If you use >= 292 kB on-disk ring buffer,
+    * this is the maximum you can use: */
 -- 
 2.7.4
 
