@@ -2,20 +2,20 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B307E1056456
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id F41A01056466
 	for <drbd-dev@lists.linbit.com>; Tue, 14 Jun 2016 00:26:42 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Tue, 14 Jun 2016 00:26:17 +0200
-Message-Id: <1465856799-2151-9-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 14 Jun 2016 00:26:18 +0200
+Message-Id: <1465856799-2151-10-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/30] drbd: fix regression: protocol A sometimes
-	synchronous, C sometimes double-latency
+Subject: [Drbd-dev] [PATCH 09/30] drbd: fix for truncated minor number in
+	callback command line
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,66 +29,43 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Regression introduced with 8.4.5
- drbd: application writes may set-in-sync in protocol != C
+The command line parameter the kernel module uses to communicate the
+device minor to userland helper is flawed in a way that the device
+indentifier "minor-%d" is being truncated to minors with a maximum
+of 5 digits.
 
-Overwriting the same block (LBA) while a former version is still
-"in-flight" to the peer (to be exact: we did not receive the
-P_BARRIER_ACK for its epoch yet) would wait for the full epoch of that
-former version to be acknowledged by the peer.
+But DRBD 8.4 allows 2^20 == 1048576 minors,
+thus a minimum of 7 digits must be supported.
 
-In synchronous and quasi-synchronous protocols C and B,
-this may double the latency on overwrites.
+Reported by Veit Wahlich on drbd-dev.
 
-With protocol A, which is supposed to be asynchronous and only wait for
-local completion, it is even worse: it would make overwrites
-quasi-synchronous, they would be hit by the full RTT, which protocol A
-was specifically meant to avoid, and possibly the additional time it
-takes to drain the buffers first.
-
-Particularly bad for databases, or anything else that
-does frequent updates to the same blocks (various file system meta data).
-
-No impact if >= rtt passes between updates to the same block.
-
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_req.c | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index eef6e95..74903ab 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -977,16 +977,20 @@ static void complete_conflicting_writes(struct drbd_request *req)
- 	sector_t sector = req->i.sector;
- 	int size = req->i.size;
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 99339df..3643f9c 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -343,7 +343,7 @@ int drbd_khelper(struct drbd_device *device, char *cmd)
+ 			 (char[20]) { }, /* address family */
+ 			 (char[60]) { }, /* address */
+ 			NULL };
+-	char mb[12];
++	char mb[14];
+ 	char *argv[] = {usermode_helper, cmd, mb, NULL };
+ 	struct drbd_connection *connection = first_peer_device(device)->connection;
+ 	struct sib_info sib;
+@@ -352,7 +352,7 @@ int drbd_khelper(struct drbd_device *device, char *cmd)
+ 	if (current == connection->worker.task)
+ 		set_bit(CALLBACK_PENDING, &connection->flags);
  
--	i = drbd_find_overlap(&device->write_requests, sector, size);
--	if (!i)
--		return;
--
- 	for (;;) {
--		prepare_to_wait(&device->misc_wait, &wait, TASK_UNINTERRUPTIBLE);
--		i = drbd_find_overlap(&device->write_requests, sector, size);
--		if (!i)
-+		drbd_for_each_overlap(i, &device->write_requests, sector, size) {
-+			/* Ignore, if already completed to upper layers. */
-+			if (i->completed)
-+				continue;
-+			/* Handle the first found overlap.  After the schedule
-+			 * we have to restart the tree walk. */
- 			break;
-+		}
-+		if (!i)	/* if any */
-+			break;
-+
- 		/* Indicate to wake up device->misc_wait on progress.  */
-+		prepare_to_wait(&device->misc_wait, &wait, TASK_UNINTERRUPTIBLE);
- 		i->waiting = true;
- 		spin_unlock_irq(&device->resource->req_lock);
- 		schedule();
+-	snprintf(mb, 12, "minor-%d", device_to_minor(device));
++	snprintf(mb, 14, "minor-%d", device_to_minor(device));
+ 	setup_khelper_env(connection, envp);
+ 
+ 	/* The helper may take some time.
 -- 
 2.7.4
 
