@@ -2,18 +2,18 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 284E11056468
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 877881056469
 	for <drbd-dev@lists.linbit.com>; Mon, 13 Jun 2016 16:09:21 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Mon, 13 Jun 2016 16:08:54 +0200
-Message-Id: <1465826958-19398-7-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 13 Jun 2016 16:08:55 +0200
+Message-Id: <1465826958-19398-8-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1465826958-19398-1-git-send-email-philipp.reisner@linbit.com>
 References: <1465826958-19398-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/30] drbd: Create the protocol feature
-	THIN_RESYNC
+Subject: [Drbd-dev] [PATCH 07/30] drbd: adjust assert in w_bitmap_io to
+	account for BM_LOCKED_CHANGE_ALLOWED
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,99 +25,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-If thinly provisioned volumes are used, during a resync the sync source
-tries to find out if a block is deallocated. If it is deallocated, then
-the resync target uses block_dev_issue_zeroout() on the range in
-question.
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_protocol.h |  1 +
- drivers/block/drbd/drbd_receiver.c |  5 ++++-
- drivers/block/drbd/drbd_worker.c   | 13 ++++++++++++-
- 3 files changed, 17 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_main.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_protocol.h b/drivers/block/drbd/drbd_protocol.h
-index e5e74e3..7acc2e0 100644
---- a/drivers/block/drbd/drbd_protocol.h
-+++ b/drivers/block/drbd/drbd_protocol.h
-@@ -165,6 +165,7 @@ struct p_block_req {
-  */
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index dd2432e..782e430 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3521,7 +3521,12 @@ static int w_bitmap_io(struct drbd_work *w, int unused)
+ 	struct bm_io_work *work = &device->bm_io_work;
+ 	int rv = -EIO;
  
- #define FF_TRIM      1
-+#define FF_THIN_RESYNC 2
- 
- struct p_connection_features {
- 	u32 protocol_min;
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 3a6c2ec..4cfc721 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -48,7 +48,7 @@
- #include "drbd_req.h"
- #include "drbd_vli.h"
- 
--#define PRO_FEATURES (FF_TRIM)
-+#define PRO_FEATURES (FF_TRIM | FF_THIN_RESYNC)
- 
- struct packet_info {
- 	enum drbd_packet cmd;
-@@ -4979,6 +4979,9 @@ static int drbd_do_features(struct drbd_connection *connection)
- 	drbd_info(connection, "Agreed to%ssupport TRIM on protocol level\n",
- 		  connection->agreed_features & FF_TRIM ? " " : " not ");
- 
-+	drbd_info(connection, "Agreed to%ssupport THIN_RESYNC on protocol level\n",
-+		  connection->agreed_features & FF_THIN_RESYNC ? " " : " not ");
-+
- 	return 1;
- 
-  incompat:
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 01d74ee2..fa63c22 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -582,6 +582,7 @@ static int make_resync_request(struct drbd_device *const device, int cancel)
- 	int number, rollback_i, size;
- 	int align, requeue = 0;
- 	int i = 0;
-+	int discard_granularity = 0;
- 
- 	if (unlikely(cancel))
- 		return 0;
-@@ -601,6 +602,12 @@ static int make_resync_request(struct drbd_device *const device, int cancel)
- 		return 0;
- 	}
- 
-+	if (connection->agreed_features & FF_THIN_RESYNC) {
-+		rcu_read_lock();
-+		discard_granularity = rcu_dereference(device->ldev->disk_conf)->rs_discard_granularity;
-+		rcu_read_unlock();
+-	D_ASSERT(device, atomic_read(&device->ap_bio_cnt) == 0);
++	if (work->flags != BM_LOCKED_CHANGE_ALLOWED) {
++		int cnt = atomic_read(&device->ap_bio_cnt);
++		if (cnt)
++			drbd_err(device, "FIXME: ap_bio_cnt %d, expected 0; queued for '%s'\n",
++					cnt, work->why);
 +	}
-+
- 	max_bio_size = queue_max_hw_sectors(device->rq_queue) << 9;
- 	number = drbd_rs_number_requests(device);
- 	if (number <= 0)
-@@ -665,6 +672,9 @@ next_sector:
- 			if (sector & ((1<<(align+3))-1))
- 				break;
  
-+			if (discard_granularity && size == discard_granularity)
-+				break;
-+
- 			/* do not cross extent boundaries */
- 			if (((bit+1) & BM_BLOCKS_PER_BM_EXT_MASK) == 0)
- 				break;
-@@ -711,7 +721,8 @@ next_sector:
- 			int err;
- 
- 			inc_rs_pending(device);
--			err = drbd_send_drequest(peer_device, P_RS_DATA_REQUEST,
-+			err = drbd_send_drequest(peer_device,
-+						 size == discard_granularity ? P_RS_THIN_REQ : P_RS_DATA_REQUEST,
- 						 sector, size, ID_SYNCER);
- 			if (err) {
- 				drbd_err(device, "drbd_send_drequest() failed, aborting...\n");
+ 	if (get_ldev(device)) {
+ 		drbd_bm_lock(device, work->why, work->flags);
 -- 
 2.7.4
 
