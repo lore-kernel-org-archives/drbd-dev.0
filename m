@@ -2,18 +2,18 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id EC8E1105646E
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Jun 2016 16:09:22 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 471BB105646F
+	for <drbd-dev@lists.linbit.com>; Mon, 13 Jun 2016 16:09:23 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Mon, 13 Jun 2016 16:09:00 +0200
-Message-Id: <1465826958-19398-13-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 13 Jun 2016 16:09:01 +0200
+Message-Id: <1465826958-19398-14-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1465826958-19398-1-git-send-email-philipp.reisner@linbit.com>
 References: <1465826958-19398-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 12/30] drbd: possibly disable discard support,
-	if backend has discard_zeroes_data=0
+Subject: [Drbd-dev] [PATCH 13/30] drbd: zero-out partial unaligned discards
+	on local backend
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,132 +27,89 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Now that we have the discard_zeroes_if_aligned setting, we should also
-check it when setting up our queue parameters on the primary,
-not only on the receiving side.
-
-We announce discard support,
-UNLESS
-
- * we are connected to a peer that does not support TRIM
-   on the DRBD protocol level.  Otherwise, it would either discard, or
-   do a fallback to zero-out, depending on its backend and configuration.
-
- * our local backend does not support discards,
-   or (discard_zeroes_data=0 AND discard_zeroes_if_aligned=no).
+For consistency, also zero-out partial unaligned chunks of discard
+requests on the local backend.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c | 80 ++++++++++++++++++++++++++++++--------------
- 1 file changed, 55 insertions(+), 25 deletions(-)
+ drivers/block/drbd/drbd_int.h |  2 ++
+ drivers/block/drbd/drbd_req.c | 29 +++++++++++++++++++++++------
+ 2 files changed, 25 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 8d757d6..12e9b31 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1154,6 +1154,59 @@ static int drbd_check_al_size(struct drbd_device *device, struct disk_conf *dc)
- 	return 0;
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 8cc2955..d818e7d 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1553,6 +1553,8 @@ extern void start_resync_timer_fn(unsigned long data);
+ extern void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req);
+ 
+ /* drbd_receiver.c */
++extern int drbd_issue_discard_or_zero_out(struct drbd_device *device,
++		sector_t start, unsigned int nr_sectors, bool discard);
+ extern int drbd_receiver(struct drbd_thread *thi);
+ extern int drbd_ack_receiver(struct drbd_thread *thi);
+ extern void drbd_send_ping_wf(struct work_struct *ws);
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 6dbf1f1..7e441ff 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1156,6 +1156,16 @@ static int drbd_process_write_request(struct drbd_request *req)
+ 	return remote;
  }
  
-+static void blk_queue_discard_granularity(struct request_queue *q, unsigned int granularity)
++static void drbd_process_discard_req(struct drbd_request *req)
 +{
-+	q->limits.discard_granularity = granularity;
-+}
-+static void decide_on_discard_support(struct drbd_device *device,
-+			struct request_queue *q,
-+			struct request_queue *b,
-+			bool discard_zeroes_if_aligned)
-+{
-+	/* q = drbd device queue (device->rq_queue)
-+	 * b = backing device queue (device->ldev->backing_bdev->bd_disk->queue),
-+	 *     or NULL if diskless
-+	 */
-+	struct drbd_connection *connection = first_peer_device(device)->connection;
-+	bool can_do = b ? blk_queue_discard(b) : true;
++	int err = drbd_issue_discard_or_zero_out(req->device,
++				req->i.sector, req->i.size >> 9, true);
 +
-+	if (can_do && b && !b->limits.discard_zeroes_data && !discard_zeroes_if_aligned) {
-+		can_do = false;
-+		drbd_info(device, "discard_zeroes_data=0 and discard_zeroes_if_aligned=no: disabling discards\n");
-+	}
-+	if (can_do && connection->cstate >= C_CONNECTED && !(connection->agreed_features & FF_TRIM)) {
-+		can_do = false;
-+		drbd_info(connection, "peer DRBD too old, does not support TRIM: disabling discards\n");
-+	}
-+	if (can_do) {
-+		/* We don't care for the granularity, really.
-+		 * Stacking limits below should fix it for the local
-+		 * device.  Whether or not it is a suitable granularity
-+		 * on the remote device is not our problem, really. If
-+		 * you care, you need to use devices with similar
-+		 * topology on all peers. */
-+		blk_queue_discard_granularity(q, 512);
-+		q->limits.max_discard_sectors = DRBD_MAX_DISCARD_SECTORS;
-+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
-+	} else {
-+		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
-+		blk_queue_discard_granularity(q, 0);
-+		q->limits.max_discard_sectors = 0;
-+	}
++	if (err)
++		req->private_bio->bi_error = -EIO;
++	bio_endio(req->private_bio);
 +}
 +
-+static void fixup_discard_if_not_supported(struct request_queue *q)
-+{
-+	/* To avoid confusion, if this queue does not support discard, clear
-+	 * max_discard_sectors, which is what lsblk -D reports to the user.
-+	 * Older kernels got this wrong in "stack limits".
-+	 * */
-+	if (!blk_queue_discard(q)) {
-+		blk_queue_max_discard_sectors(q, 0);
-+		blk_queue_discard_granularity(q, 0);
-+	}
-+}
-+
- static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backing_dev *bdev,
- 				   unsigned int max_bio_size)
+ static void
+ drbd_submit_req_private_bio(struct drbd_request *req)
  {
-@@ -1183,26 +1236,8 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
- 	/* This is the workaround for "bio would need to, but cannot, be split" */
- 	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
- 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
--
-+	decide_on_discard_support(device, q, b, discard_zeroes_if_aligned);
- 	if (b) {
--		struct drbd_connection *connection = first_peer_device(device)->connection;
--
--		blk_queue_max_discard_sectors(q, DRBD_MAX_DISCARD_SECTORS);
--
--		if (blk_queue_discard(b) && (b->limits.discard_zeroes_data || discard_zeroes_if_aligned) &&
--		    (connection->cstate < C_CONNECTED || connection->agreed_features & FF_TRIM)) {
--			/* We don't care, stacking below should fix it for the local device.
--			 * Whether or not it is a suitable granularity on the remote device
--			 * is not our problem, really. If you care, you need to
--			 * use devices with similar topology on all peers. */
--			q->limits.discard_granularity = 512;
--			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
--		} else {
--			blk_queue_max_discard_sectors(q, 0);
--			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
--			q->limits.discard_granularity = 0;
--		}
--
- 		blk_queue_stack_limits(q, b);
+@@ -1176,6 +1186,8 @@ drbd_submit_req_private_bio(struct drbd_request *req)
+ 				    : rw == READ  ? DRBD_FAULT_DT_RD
+ 				    :               DRBD_FAULT_DT_RA))
+ 			bio_io_error(bio);
++		else if (bio->bi_rw & REQ_DISCARD)
++			drbd_process_discard_req(req);
+ 		else
+ 			generic_make_request(bio);
+ 		put_ldev(device);
+@@ -1227,18 +1239,23 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long
+ 	/* Update disk stats */
+ 	_drbd_start_io_acct(device, req);
  
- 		if (q->backing_dev_info.ra_pages != b->backing_dev_info.ra_pages) {
-@@ -1212,12 +1247,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
- 			q->backing_dev_info.ra_pages = b->backing_dev_info.ra_pages;
- 		}
++	/* process discards always from our submitter thread */
++	if (bio->bi_rw & REQ_DISCARD)
++		goto queue_for_submitter_thread;
++
+ 	if (rw == WRITE && req->private_bio && req->i.size
+ 	&& !test_bit(AL_SUSPENDED, &device->flags)) {
+-		if (!drbd_al_begin_io_fastpath(device, &req->i)) {
+-			atomic_inc(&device->ap_actlog_cnt);
+-			drbd_queue_write(device, req);
+-			return NULL;
+-		}
++		if (!drbd_al_begin_io_fastpath(device, &req->i))
++			goto queue_for_submitter_thread;
+ 		req->rq_state |= RQ_IN_ACT_LOG;
+ 		req->in_actlog_jif = jiffies;
  	}
--	/* To avoid confusion, if this queue does not support discard, clear
--	 * max_discard_sectors, which is what lsblk -D reports to the user.  */
--	if (!blk_queue_discard(q)) {
--		blk_queue_max_discard_sectors(q, 0);
--		q->limits.discard_granularity = 0;
--	}
-+	fixup_discard_if_not_supported(q);
+-
+ 	return req;
++
++ queue_for_submitter_thread:
++	atomic_inc(&device->ap_actlog_cnt);
++	drbd_queue_write(device, req);
++	return NULL;
  }
  
- void drbd_reconsider_queue_parameters(struct drbd_device *device, struct drbd_backing_dev *bdev)
+ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request *req)
 -- 
 2.7.4
 
