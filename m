@@ -2,20 +2,20 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 4654E105646F
-	for <drbd-dev@lists.linbit.com>; Tue, 14 Jun 2016 00:26:45 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 81AB41056470
+	for <drbd-dev@lists.linbit.com>; Tue, 14 Jun 2016 00:26:46 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Tue, 14 Jun 2016 00:26:26 +0200
-Message-Id: <1465856799-2151-18-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 14 Jun 2016 00:26:27 +0200
+Message-Id: <1465856799-2151-19-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 17/30] drbd: don't forget error completion when
-	"unsuspending" IO
+Subject: [Drbd-dev] [PATCH 18/30] drbd: if there is no good data accessible,
+	writes should be IO errors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,130 +29,80 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Possibly sequence of events:
-SyncTarget is made Primary, then loses replication link
-(only path to good data on SyncSource).
+If DRBD lost all path to good data,
+and the on-no-data-accessible policy is OND_SUSPEND_IO,
+all pending and new IO requests are suspended (will block).
 
-Behavior is then controlled by the on-no-data-accessible policy,
-which defaults to OND_IO_ERROR (may be set to OND_SUSPEND_IO).
+If that setting is OND_IO_ERROR, IO will still be completed.
+READ to "clean" areas (e.g. on an D_INCONSISTENT device,
+and bitmap indicates a block is already in sync) will succeed.
+READ to "unclean" areas (bitmap indicates block is out-of-sync),
+will return EIO.
 
-If OND_IO_ERROR is in fact the current policy, we clear the susp_fen
-(IO suspended due to fencing policy) flag, do NOT set the susp_nod
-(IO suspended due to no data) flag.
+If we are already D_DISKLESS (or D_FAILED), we also return EIO.
 
-But we forgot to call the IO error completion for all pending,
-suspended, requests.
+Unfortunately, on a former R_PRIMARY C_SYNC_TARGET D_INCONSISTENT,
+after replication link loss, new WRITE requests still went through OK.
 
-While at it, also add a race check for a theoretically possible
-race with a new handshake (network hickup), we may be able to
-re-send requests, and can avoid passing IO errors up the stack.
+The would also set the "out-of-sync" bit on their way, so READ after
+WRITE would still return EIO. Also, the data generation UUIDs had not
+been bumped, we would cause data divergence, without being able to
+detect it on the next sync handshake, given the right sequence of events
+in a multiple error scenario and "improper" order of recovery actions.
+
+The right thing to do is to return EIO for all new writes,
+unless we have access to good, current, D_UP_TO_DATE data.
+
+The "established best practices" way to avoid these situations in the
+first place is to set OND_SUSPEND_IO, or even do a hard-reset from
+the pri-on-incon-degr policy helper hook.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c | 48 +++++++++++++++++++++++++++++---------------
- 1 file changed, 32 insertions(+), 16 deletions(-)
+ drivers/block/drbd/drbd_req.c | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 4a4eb80..e5fdcc6 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -442,19 +442,17 @@ static enum drbd_fencing_p highest_fencing_policy(struct drbd_connection *connec
- 	}
- 	rcu_read_unlock();
- 
--	if (fp == FP_NOT_AVAIL) {
--		/* IO Suspending works on the whole resource.
--		   Do it only for one device. */
--		vnr = 0;
--		peer_device = idr_get_next(&connection->peer_devices, &vnr);
--		drbd_change_state(peer_device->device, CS_VERBOSE | CS_HARD, NS(susp_fen, 0));
--	}
--
- 	return fp;
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 355cf10..68151271f 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1258,6 +1258,22 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long
+ 	return NULL;
  }
  
-+static bool resource_is_supended(struct drbd_resource *resource)
++/* Require at least one path to current data.
++ * We don't want to allow writes on C_STANDALONE D_INCONSISTENT:
++ * We would not allow to read what was written,
++ * we would not have bumped the data generation uuids,
++ * we would cause data divergence for all the wrong reasons.
++ *
++ * If we don't see at least one D_UP_TO_DATE, we will fail this request,
++ * which either returns EIO, or, if OND_SUSPEND_IO is set, suspends IO,
++ * and queues for retry later.
++ */
++static bool may_do_writes(struct drbd_device *device)
 +{
-+	return resource->susp || resource->susp_fen || resource->susp_nod;
++	const union drbd_dev_state s = device->state;
++	return s.disk == D_UP_TO_DATE || s.pdsk == D_UP_TO_DATE;
 +}
 +
- bool conn_try_outdate_peer(struct drbd_connection *connection)
+ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request *req)
  {
-+	struct drbd_resource * const resource = connection->resource;
- 	unsigned int connect_cnt;
- 	union drbd_state mask = { };
- 	union drbd_state val = { };
-@@ -462,21 +460,41 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
- 	char *ex_to_string;
- 	int r;
- 
--	spin_lock_irq(&connection->resource->req_lock);
-+	spin_lock_irq(&resource->req_lock);
- 	if (connection->cstate >= C_WF_REPORT_PARAMS) {
- 		drbd_err(connection, "Expected cstate < C_WF_REPORT_PARAMS\n");
--		spin_unlock_irq(&connection->resource->req_lock);
-+		spin_unlock_irq(&resource->req_lock);
- 		return false;
+ 	struct drbd_resource *resource = device->resource;
+@@ -1312,6 +1328,12 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
  	}
  
- 	connect_cnt = connection->connect_cnt;
--	spin_unlock_irq(&connection->resource->req_lock);
-+	spin_unlock_irq(&resource->req_lock);
- 
- 	fp = highest_fencing_policy(connection);
- 	switch (fp) {
- 	case FP_NOT_AVAIL:
- 		drbd_warn(connection, "Not fencing peer, I'm not even Consistent myself.\n");
--		goto out;
-+		spin_lock_irq(&resource->req_lock);
-+		if (connection->cstate < C_WF_REPORT_PARAMS) {
-+			_conn_request_state(connection,
-+					    (union drbd_state) { { .susp_fen = 1 } },
-+					    (union drbd_state) { { .susp_fen = 0 } },
-+					    CS_VERBOSE | CS_HARD | CS_DC_SUSP);
-+			/* We are no longer suspended due to the fencing policy.
-+			 * We may still be suspended due to the on-no-data-accessible policy.
-+			 * If that was OND_IO_ERROR, fail pending requests. */
-+			if (!resource_is_supended(resource))
-+				_tl_restart(connection, CONNECTION_LOST_WHILE_PENDING);
+ 	if (rw == WRITE) {
++		if (req->private_bio && !may_do_writes(device)) {
++			bio_put(req->private_bio);
++			req->private_bio = NULL;
++			put_ldev(device);
++			goto nodata;
 +		}
-+		/* Else: in case we raced with a connection handshake,
-+		 * let the handshake figure out if we maybe can RESEND,
-+		 * and do not resume/fail pending requests here.
-+		 * Worst case is we stay suspended for now, which may be
-+		 * resolved by either re-establishing the replication link, or
-+		 * the next link failure, or eventually the administrator.  */
-+		spin_unlock_irq(&resource->req_lock);
-+		return false;
-+
- 	case FP_DONT_CARE:
- 		return true;
- 	default: ;
-@@ -529,13 +547,11 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
- 	drbd_info(connection, "fence-peer helper returned %d (%s)\n",
- 		  (r>>8) & 0xff, ex_to_string);
- 
-- out:
--
- 	/* Not using
- 	   conn_request_state(connection, mask, val, CS_VERBOSE);
- 	   here, because we might were able to re-establish the connection in the
- 	   meantime. */
--	spin_lock_irq(&connection->resource->req_lock);
-+	spin_lock_irq(&resource->req_lock);
- 	if (connection->cstate < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &connection->flags)) {
- 		if (connection->connect_cnt != connect_cnt)
- 			/* In case the connection was established and droped
-@@ -544,7 +560,7 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
- 		else
- 			_conn_request_state(connection, mask, val, CS_VERBOSE);
- 	}
--	spin_unlock_irq(&connection->resource->req_lock);
-+	spin_unlock_irq(&resource->req_lock);
- 
- 	return conn_highest_pdsk(connection) <= D_OUTDATED;
- }
+ 		if (!drbd_process_write_request(req))
+ 			no_remote = true;
+ 	} else {
 -- 
 2.7.4
 
