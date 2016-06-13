@@ -2,18 +2,18 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B31CC1056476
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Jun 2016 16:09:25 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 022A61056477
+	for <drbd-dev@lists.linbit.com>; Mon, 13 Jun 2016 16:09:26 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Mon, 13 Jun 2016 16:09:08 +0200
-Message-Id: <1465826958-19398-21-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 13 Jun 2016 16:09:09 +0200
+Message-Id: <1465826958-19398-22-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1465826958-19398-1-git-send-email-philipp.reisner@linbit.com>
 References: <1465826958-19398-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 20/30] drbd: discard_zeroes_if_aligned allows
-	"thin" resync for discard_zeroes_data=0
+Subject: [Drbd-dev] [PATCH 21/30] drbd: report sizes if rejecting too small
+	peer disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,38 +25,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars@linbit.com>
-
-Even if discard_zeroes_data != 0,
-if discard_zeroes_if_aligned is set, we assume we can reliably
-zero-out/discard using the drbd_issue_peer_discard() helper.
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c | 9 ++++++---
+ drivers/block/drbd/drbd_receiver.c | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index e5fdcc6..169e3e1 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1408,9 +1408,12 @@ static void sanitize_disk_conf(struct drbd_device *device, struct disk_conf *dis
- 	if (disk_conf->al_extents > drbd_al_extents_max(nbc))
- 		disk_conf->al_extents = drbd_al_extents_max(nbc);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 078c4d98..99f4519 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -3939,6 +3939,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
+ 	device->p_size = p_size;
  
--	if (!blk_queue_discard(q) || !q->limits.discard_zeroes_data) {
--		disk_conf->rs_discard_granularity = 0; /* disable feature */
--		drbd_info(device, "rs_discard_granularity feature disabled\n");
-+	if (!blk_queue_discard(q)
-+	    || (!q->limits.discard_zeroes_data && !disk_conf->discard_zeroes_if_aligned)) {
-+		if (disk_conf->rs_discard_granularity) {
-+			disk_conf->rs_discard_granularity = 0; /* disable feature */
-+			drbd_info(device, "rs_discard_granularity feature disabled\n");
-+		}
- 	}
+ 	if (get_ldev(device)) {
++		sector_t new_size, cur_size;
+ 		rcu_read_lock();
+ 		my_usize = rcu_dereference(device->ldev->disk_conf)->disk_size;
+ 		rcu_read_unlock();
+@@ -3955,11 +3956,13 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
  
- 	if (disk_conf->rs_discard_granularity) {
+ 		/* Never shrink a device with usable data during connect.
+ 		   But allow online shrinking if we are connected. */
+-		if (drbd_new_dev_size(device, device->ldev, p_usize, 0) <
+-		    drbd_get_capacity(device->this_bdev) &&
++		new_size = drbd_new_dev_size(device, device->ldev, p_usize, 0);
++		cur_size = drbd_get_capacity(device->this_bdev);
++		if (new_size < cur_size &&
+ 		    device->state.disk >= D_OUTDATED &&
+ 		    device->state.conn < C_CONNECTED) {
+-			drbd_err(device, "The peer's disk size is too small!\n");
++			drbd_err(device, "The peer's disk size is too small! (%llu < %llu sectors)\n",
++					(unsigned long long)new_size, (unsigned long long)cur_size);
+ 			conn_request_state(peer_device->connection, NS(conn, C_DISCONNECTING), CS_HARD);
+ 			put_ldev(device);
+ 			return -EIO;
 -- 
 2.7.4
 
