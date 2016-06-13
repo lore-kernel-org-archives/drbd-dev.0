@@ -2,18 +2,17 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 214731056457
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 56FCB1056465
 	for <drbd-dev@lists.linbit.com>; Mon, 13 Jun 2016 16:09:20 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Mon, 13 Jun 2016 16:08:50 +0200
-Message-Id: <1465826958-19398-3-git-send-email-philipp.reisner@linbit.com>
+Date: Mon, 13 Jun 2016 16:08:51 +0200
+Message-Id: <1465826958-19398-4-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1465826958-19398-1-git-send-email-philipp.reisner@linbit.com>
 References: <1465826958-19398-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/30] drbd: change bitmap write-out when leaving
-	resync states
+Subject: [Drbd-dev] [PATCH 03/30] drbd: Kill code duplication
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,70 +24,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-
-When leaving resync states because of disconnect,
-do the bitmap write-out synchronously in the drbd_disconnected() path.
-
-When leaving resync states because we go back to AHEAD/BEHIND, or
-because resync actually finished, or some disk was lost during resync,
-trigger the write-out from after_state_ch().
-
-The bitmap write-out for resync -> ahead/behind was missing completely before.
-
-Note that this is all only an optimization to avoid double-resyncs of
-already completed blocks in case this node crashes.
-
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 8 +++++---
- drivers/block/drbd/drbd_state.c    | 9 +++++++--
- 2 files changed, 12 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 050aaa1..8b30ab5 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4783,9 +4783,11 @@ static int drbd_disconnected(struct drbd_peer_device *peer_device)
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 0bac9c8..fad03e4 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1348,6 +1348,14 @@ static bool write_ordering_changed(struct disk_conf *a, struct disk_conf *b)
+ 		a->disk_drain != b->disk_drain;
+ }
  
- 	drbd_md_sync(device);
++static void sanitize_disk_conf(struct disk_conf *disk_conf, struct drbd_backing_dev *nbc)
++{
++	if (disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
++		disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
++	if (disk_conf->al_extents > drbd_al_extents_max(nbc))
++		disk_conf->al_extents = drbd_al_extents_max(nbc);
++}
++
+ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct drbd_config_context adm_ctx;
+@@ -1395,10 +1403,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
+ 	if (!expect(new_disk_conf->resync_rate >= 1))
+ 		new_disk_conf->resync_rate = 1;
  
--	/* serialize with bitmap writeout triggered by the state change,
--	 * if any. */
--	wait_event(device->misc_wait, !test_bit(BITMAP_IO, &device->flags));
-+	if (get_ldev(device)) {
-+		drbd_bitmap_io(device, &drbd_bm_write_copy_pages,
-+				"write from disconnected", BM_LOCKED_CHANGE_ALLOWED);
-+		put_ldev(device);
-+	}
+-	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
+-		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
+-	if (new_disk_conf->al_extents > drbd_al_extents_max(device->ldev))
+-		new_disk_conf->al_extents = drbd_al_extents_max(device->ldev);
++	sanitize_disk_conf(new_disk_conf, device->ldev);
  
- 	/* tcp_close and release of sendpage pages can be deferred.  I don't
- 	 * want to use SO_LINGER, because apparently it can be deferred for
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 5a7ef78..59c6467 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1934,12 +1934,17 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
+ 	if (new_disk_conf->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
+ 		new_disk_conf->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
+@@ -1693,10 +1698,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	if (retcode != NO_ERROR)
+ 		goto fail;
  
- 	/* This triggers bitmap writeout of potentially still unwritten pages
- 	 * if the resync finished cleanly, or aborted because of peer disk
--	 * failure, or because of connection loss.
-+	 * failure, or on transition from resync back to AHEAD/BEHIND.
-+	 *
-+	 * Connection loss is handled in drbd_disconnected() by the receiver.
-+	 *
- 	 * For resync aborted because of local disk failure, we cannot do
- 	 * any bitmap writeout anymore.
-+	 *
- 	 * No harm done if some bits change during this phase.
- 	 */
--	if (os.conn > C_CONNECTED && ns.conn <= C_CONNECTED && get_ldev(device)) {
-+	if ((os.conn > C_CONNECTED && os.conn < C_AHEAD) &&
-+	    (ns.conn == C_CONNECTED || ns.conn >= C_AHEAD) && get_ldev(device)) {
- 		drbd_queue_bitmap_io(device, &drbd_bm_write_copy_pages, NULL,
- 			"write from resync_finished", BM_LOCKED_CHANGE_ALLOWED);
- 		put_ldev(device);
+-	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
+-		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
+-	if (new_disk_conf->al_extents > drbd_al_extents_max(nbc))
+-		new_disk_conf->al_extents = drbd_al_extents_max(nbc);
++	sanitize_disk_conf(new_disk_conf, nbc);
+ 
+ 	if (drbd_get_max_capacity(nbc) < new_disk_conf->disk_size) {
+ 		drbd_err(device, "max capacity %llu smaller than disk size %llu\n",
 -- 
 2.7.4
 
