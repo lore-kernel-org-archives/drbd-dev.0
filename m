@@ -1,26 +1,16 @@
-Return-Path: <nwang@suse.com>
-Received: from prv-mh.provo.novell.com (prv-mh.provo.novell.com
-	[137.65.248.74])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 66DBE1056447
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Jun 2016 11:58:28 +0200 (CEST)
-Message-Id: <575EF34A0200007000091BC1@prv-mh.provo.novell.com>
-Date: Mon, 13 Jun 2016 03:54:18 -0600
-From: "Nick Wang" <nwang@suse.com>
-To: "Lars Ellenberg" <lars.ellenberg@linbit.com>
-References: <1465483189-22696-4-git-send-email-nwang@suse.com>
-	<1465483189-22696-3-git-send-email-nwang@suse.com>
-	<1465483189-22696-2-git-send-email-nwang@suse.com>
-	<1465483189-22696-1-git-send-email-nwang@suse.com>
-	<20160613091906.GI3235@soda.linbit>
-In-Reply-To: <20160613091906.GI3235@soda.linbit>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH-drbd9] compat patches
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A13D81056447
+	for <drbd-dev@lists.linbit.com>; Mon, 13 Jun 2016 16:09:19 +0200 (CEST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@fb.com>,
+	linux-kernel@vger.kernel.org
+Date: Mon, 13 Jun 2016 16:08:48 +0200
+Message-Id: <1465826958-19398-1-git-send-email-philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 00/30] DRBD updates
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,34 +22,99 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Lars,
+Hi Jens,
 
-Thanks for your review:)
+I have sent this already on April 25, I guess it was too late in the cycle
+at that time. Apart from the usual maintenance and bug fixes this time comes
+support for WRITE_SAME and lots of improvements for DISCARD.
 
->>> On 2016-6-13 at 17:19, in message <20160613091906.GI3235@soda.linbit>, =
-Lars
-Ellenberg <lars.ellenberg@linbit.com> wrote:
-> On Thu, Jun 09, 2016 at 10:39:46PM +0800, Nick Wang wrote:
-> > [PATCH-drbd9] compat: i_mutex is replaced by i_rwsem
->=20
-> trivial, taken as is, though we need some backwards compat
-> for some older kernels (anyways), due to
->    avoid error: 'inode_lock' redeclared as different kind of symbol
->
-I thought have_inode_lock.c have already considering the old kernels, and =
-inode_lock have already used in DRBD9.
+At that time we had a discussion about (1) the all_zero() heuristic introduced
+with [PATCH 04/30] drbd: Implement handling of thinly provisioned storage...
+not being efficient, and about the (2) rs-discard-granularity configuration
+parameter.
 
-> > [PATCH-drbd9] compat: blk_queue_flush() is replaced
-> > [PATCH-drbd9] compat: nla_put_u64() is removed
-> > [PATCH-drbd9] compat: align nla_put_u64
->=20
-> All solved in a slightly different way.
-I learnt a lot from your code and can keep learning :)
+Regarding (1): I intend to work on block-devices being able to export their
+allocation map by either FIEMAP or SEEK_HOLE/SEEK_DATA or both for the next
+cycle. The I will change DRBD to use that as well.
 
-> Still thank you for using v9 on "bleeding upstream" kernels :-)
-lol, sorry for the early try. Just thought it need to compatible sooner or =
-later, hoping my work can do little help in any cases.
+Regarding (2): We need to announce the discard granularity when we create the
+device/minor. At might it might be that there is no connection to the peer
+node. So we are left with information about the discard granularity of the
+local backing device only. Therefore we decided to delegate it to the
+user/admin to provide the discard granularity for the resync process.
 
-Best regards,
-Nick
+
+Please add it to your for-4.8/drivers branch.
+Thanks!
+
+Fabian Frederick (1):
+  drbd: code cleanups without semantic changes
+
+Lars Ellenberg (24):
+  drbd: bitmap bulk IO: do not always suspend IO
+  drbd: change bitmap write-out when leaving resync states
+  drbd: adjust assert in w_bitmap_io to account for
+    BM_LOCKED_CHANGE_ALLOWED
+  drbd: fix regression: protocol A sometimes synchronous, C sometimes
+    double-latency
+  drbd: fix for truncated minor number in callback command line
+  drbd: allow parallel flushes for multi-volume resources
+  drbd: when receiving P_TRIM, zero-out partial unaligned chunks
+  drbd: possibly disable discard support, if backend has
+    discard_zeroes_data=0
+  drbd: zero-out partial unaligned discards on local backend
+  drbd: allow larger max_discard_sectors
+  drbd: finish resync on sync source only by notification from sync
+    target
+  drbd: introduce unfence-peer handler
+  drbd: don't forget error completion when "unsuspending" IO
+  drbd: if there is no good data accessible, writes should be IO errors
+  drbd: only restart frozen disk io when D_UP_TO_DATE
+  drbd: discard_zeroes_if_aligned allows "thin" resync for
+    discard_zeroes_data=0
+  drbd: report sizes if rejecting too small peer disk
+  drbd: introduce WRITE_SAME support
+  drbd: sync_handshake: handle identical uuids with current (frozen)
+    Primary
+  drbd: disallow promotion during resync handshake, avoid deadlock and
+    hard reset
+  drbd: bump current uuid when resuming IO with diskless peer
+  drbd: finally report ms, not jiffies, in log message
+  drbd: al_write_transaction: skip re-scanning of bitmap page pointer
+    array
+  drbd: correctly handle failed crypto_alloc_hash
+
+Philipp Reisner (4):
+  drbd: Kill code duplication
+  drbd: Implement handling of thinly provisioned storage on resync
+    target nodes
+  drbd: Introduce new disk config option rs-discard-granularity
+  drbd: Create the protocol feature THIN_RESYNC
+
+Roland Kammerer (1):
+  drbd: get rid of empty statement in is_valid_state
+
+ drivers/block/drbd/drbd_actlog.c   |  29 +-
+ drivers/block/drbd/drbd_bitmap.c   |  84 ++++--
+ drivers/block/drbd/drbd_debugfs.c  |  13 +-
+ drivers/block/drbd/drbd_int.h      |  49 +++-
+ drivers/block/drbd/drbd_interval.h |  14 +-
+ drivers/block/drbd/drbd_main.c     | 115 +++++++-
+ drivers/block/drbd/drbd_nl.c       | 282 +++++++++++++++-----
+ drivers/block/drbd/drbd_proc.c     |  30 +--
+ drivers/block/drbd/drbd_protocol.h |  77 +++++-
+ drivers/block/drbd/drbd_receiver.c | 534 ++++++++++++++++++++++++++++++-------
+ drivers/block/drbd/drbd_req.c      |  84 ++++--
+ drivers/block/drbd/drbd_req.h      |   5 +-
+ drivers/block/drbd/drbd_state.c    |  61 ++++-
+ drivers/block/drbd/drbd_state.h    |   2 +-
+ drivers/block/drbd/drbd_strings.c  |   8 +-
+ drivers/block/drbd/drbd_worker.c   |  85 +++++-
+ include/linux/drbd.h               |  10 +-
+ include/linux/drbd_genl.h          |   7 +-
+ include/linux/drbd_limits.h        |  15 +-
+ 19 files changed, 1205 insertions(+), 299 deletions(-)
+
+-- 
+2.7.4
 
