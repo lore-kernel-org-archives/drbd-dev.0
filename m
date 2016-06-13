@@ -2,20 +2,20 @@ Return-Path: <philipp.reisner@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 10A8C1056471
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 69DEF1056472
 	for <drbd-dev@lists.linbit.com>; Tue, 14 Jun 2016 00:26:47 +0200 (CEST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Tue, 14 Jun 2016 00:26:28 +0200
-Message-Id: <1465856799-2151-20-git-send-email-philipp.reisner@linbit.com>
+Date: Tue, 14 Jun 2016 00:26:29 +0200
+Message-Id: <1465856799-2151-21-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 In-Reply-To: <575ECD32.2080700@fb.com>
 References: <575ECD32.2080700@fb.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 19/30] drbd: only restart frozen disk io when
-	D_UP_TO_DATE
+Subject: [Drbd-dev] [PATCH 20/30] drbd: discard_zeroes_if_aligned allows
+	"thin" resync for discard_zeroes_data=0
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,31 +27,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+From: Lars Ellenberg <lars@linbit.com>
 
-When re-attaching the local backend device to a C_STANDALONE D_DISKLESS
-R_PRIMARY with OND_SUSPEND_IO, we may only resume IO if we recognize the
-backend that is being attached as D_UP_TO_DATE.
+Even if discard_zeroes_data != 0,
+if discard_zeroes_if_aligned is set, we assume we can reliably
+zero-out/discard using the drbd_issue_peer_discard() helper.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_state.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/block/drbd/drbd_nl.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 59c6467..24422e8 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1675,7 +1675,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
- 			what = RESEND;
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index e5fdcc6..169e3e1 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1408,9 +1408,12 @@ static void sanitize_disk_conf(struct drbd_device *device, struct disk_conf *dis
+ 	if (disk_conf->al_extents > drbd_al_extents_max(nbc))
+ 		disk_conf->al_extents = drbd_al_extents_max(nbc);
  
- 		if ((os.disk == D_ATTACHING || os.disk == D_NEGOTIATING) &&
--		    conn_lowest_disk(connection) > D_NEGOTIATING)
-+		    conn_lowest_disk(connection) == D_UP_TO_DATE)
- 			what = RESTART_FROZEN_DISK_IO;
+-	if (!blk_queue_discard(q) || !q->limits.discard_zeroes_data) {
+-		disk_conf->rs_discard_granularity = 0; /* disable feature */
+-		drbd_info(device, "rs_discard_granularity feature disabled\n");
++	if (!blk_queue_discard(q)
++	    || (!q->limits.discard_zeroes_data && !disk_conf->discard_zeroes_if_aligned)) {
++		if (disk_conf->rs_discard_granularity) {
++			disk_conf->rs_discard_granularity = 0; /* disable feature */
++			drbd_info(device, "rs_discard_granularity feature disabled\n");
++		}
+ 	}
  
- 		if (resource->susp_nod && what != NOTHING) {
+ 	if (disk_conf->rs_discard_granularity) {
 -- 
 2.7.4
 
