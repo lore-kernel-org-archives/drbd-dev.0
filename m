@@ -1,37 +1,16 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <nwang@suse.com>
+Received: from prv3-mh.provo.novell.com (prv3-mh.provo.novell.com
+	[137.65.250.26])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 37DAF1056445
-	for <drbd-dev@lists.linbit.com>; Thu, 16 Jun 2016 11:16:22 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id EDE6C409625
-	for <drbd-dev@lists.linbit.com>; Thu, 16 Jun 2016 11:16:21 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id cEKJqDmYIeGZ for <drbd-dev@lists.linbit.com>;
-	Thu, 16 Jun 2016 11:16:21 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id D07AF40969C
-	for <drbd-dev@lists.linbit.com>; Thu, 16 Jun 2016 11:16:21 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id qH1mpdiHBLdn for <drbd-dev@lists.linbit.com>;
-	Thu, 16 Jun 2016 11:16:21 +0200 (CEST)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id A6DA4409625
-	for <drbd-dev@lists.linbit.com>; Thu, 16 Jun 2016 11:16:21 +0200 (CEST)
-Date: Thu, 16 Jun 2016 11:16:21 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 113D91051881
+	for <drbd-dev@lists.linbit.com>; Tue, 28 Jun 2016 12:24:49 +0200 (CEST)
+From: Nick Wang <nwang@suse.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20160616091621.GN3235@soda.linbit>
-References: <HE1PR07MB1196F106848ADFD1C7B62EAFB0560@HE1PR07MB1196.eurprd07.prod.outlook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <HE1PR07MB1196F106848ADFD1C7B62EAFB0560@HE1PR07MB1196.eurprd07.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] ASSERT log from drbd_al_read_log() in drbd_actlog.c
+Date: Tue, 28 Jun 2016 18:24:31 +0800
+Message-Id: <1467109471-16112-1-git-send-email-nwang@suse.com>
+Subject: [Drbd-dev] [PATCH] drbdadm: Fix segfault while starting stacked
+	resource in DRBD9
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,31 +22,78 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jun 16, 2016 at 07:56:14AM +0000, K, Manoj K. (Nokia - IN/Bangalo=
-re) wrote:
-> Hi,
->=20
-> Below ASSERT log is seen in my machine . Recent change was one of the d=
-rbd device is resized.
->=20
-> kernel: [   49.584540] block drbd7: ASSERT( from_tnr - cnr + i - from =3D=
-=3D mx+1 ) in /data/osci-builds/fpt/build-5348-r5486-x86_64_acpi5/x86_64_=
-acpi5/build/drbd-8.3.16/drbd/drbd_actlog.c:558
->=20
-> Please let me know in which case this ASSERT is triggered.
->=20
-> BTW,  I am using drbd-tools -8.3.16
+  Happens in:
+    adm_new_peer()
+      argv[NA(argc)] = ssprintf("%s", conn->peer->node_id);
+      conn->peer == 0x0
 
-You do realize that you have a ticket open with LINBIT,
-and that you have been asked to provide more information?
+  Example config:
+    resource r0-U {
+      stacked-on-top-of r0 {
+        address    192.168.122.5:7788;
+      }
+    }
 
-Broadcasting "HELP" on all channels
-will not magically provide the missing information, though.
+The name of stacked host_info is set as all hosts's
+name concatenate by '_'. Fail to find the fake hostname
+in on_hosts list, which make peer of conn set to 0x0.
 
---=20
-: Lars Ellenberg
-: LINBIT | Keeping the Digital World Running
-: DRBD -- Heartbeat -- Corosync -- Pacemaker
-: R&D, Integration, Ops, Consulting, Support
+Signed-off-by: Nick Wang <nwang@suse.com>
+---
+ user/v9/drbdadm.h           |  1 +
+ user/v9/drbdadm_postparse.c | 20 +++++++++++++++++++-
+ 2 files changed, 20 insertions(+), 1 deletion(-)
 
-DRBD=AE and LINBIT=AE are registered trademarks of LINBIT
+diff --git a/user/v9/drbdadm.h b/user/v9/drbdadm.h
+index 7b43417..a96bf68 100644
+--- a/user/v9/drbdadm.h
++++ b/user/v9/drbdadm.h
+@@ -388,6 +388,7 @@ extern void expand_common(void);
+ extern void global_validate_maybe_expand_die_if_invalid(int expand, enum pp_flags flags);
+ extern struct d_option *new_opt(char *name, char *value);
+ extern int hostname_in_list(const char *name, struct names *names);
++extern bool hostnames_equal(const char *a, const char *b);
+ extern char *_names_to_str(char* buffer, struct names *names);
+ extern char *_names_to_str_c(char* buffer, struct names *names, char c);
+ #define NAMES_STR_SIZE 255
+diff --git a/user/v9/drbdadm_postparse.c b/user/v9/drbdadm_postparse.c
+index 2bb1230..3beddca 100644
+--- a/user/v9/drbdadm_postparse.c
++++ b/user/v9/drbdadm_postparse.c
+@@ -98,6 +98,20 @@ void set_on_hosts_in_res(struct d_resource *res)
+ 	}
+ }
+ 
++struct d_host_info *find_host_info_by_fakename(struct d_resource* res, char *name)
++{
++    struct d_host_info *host;
++    char *concat_name;
++
++    for_each_host(host, &res->all_hosts) {
++        concat_name = strdup(names_to_str_c(&host->on_hosts, '_'));
++        if (hostnames_equal(name, concat_name))
++            return host;
++    }
++
++    return NULL;
++}
++
+ struct d_host_info *find_host_info_by_name(struct d_resource* res, char *name)
+ {
+ 	struct d_host_info *host;
+@@ -403,7 +417,11 @@ static void set_peer_in_connection(struct d_resource* res, struct connection *co
+ 			if (conn->peer) {
+ 				host_info = conn->peer;
+ 			} else {
+-				host_info = find_host_info_by_name(res, candidate->name);
++				if (candidate->faked_hostname) {
++					host_info = find_host_info_by_fakename(res, candidate->name);
++				} else {
++					host_info = find_host_info_by_name(res, candidate->name);
++				}
+ 				conn->peer = host_info;
+ 			}
+ 			path->peer_address = candidate->address.addr ? &candidate->address : &host_info->address;
+-- 
+1.8.5.6
+
