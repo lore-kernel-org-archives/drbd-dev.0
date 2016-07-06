@@ -1,23 +1,30 @@
-Return-Path: <nwang@suse.com>
-Received: from prv-mh.provo.novell.com (prv-mh.provo.novell.com
-	[137.65.248.74])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <P.Miedzik@gsi.de>
+Received: from lxmtout2.gsi.de (lxmtout2.gsi.de [140.181.3.112])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1A8D41051881
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Jul 2016 05:34:27 +0200 (CEST)
-Message-Id: <577CED1402000070000948D5@prv-mh.provo.novell.com>
-Date: Tue, 05 Jul 2016 21:35:48 -0600
-From: "Nick Wang" <nwang@suse.com>
-To: "Roland Kammerer" <roland.kammerer@linbit.com>, <drbd-dev@lists.linbit.com>
-References: <1467109471-16112-1-git-send-email-nwang@suse.com>
-	<20160704093004.GK1324@rck.sh>
-In-Reply-To: <20160704093004.GK1324@rck.sh>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 765981051881
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Jul 2016 10:07:03 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by lxmtout2.gsi.de (Postfix) with ESMTP id 246155D4
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Jul 2016 09:58:48 +0200 (CEST)
+Received: from lxmtout2.gsi.de ([127.0.0.1])
+	by localhost (lxmtout2.gsi.de [127.0.0.1]) (amavisd-new, port 10024)
+	with LMTP id qTpsVJ4JVVEy for <drbd-dev@lists.linbit.com>;
+	Wed,  6 Jul 2016 09:58:48 +0200 (CEST)
+Received: from W2k053.campus.gsi.de (w2k053.gsi.de [10.10.4.27])
+	(using TLSv1 with cipher ECDHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by lxmtout2.gsi.de (Postfix) with ESMTPS id C3A6139C
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Jul 2016 09:58:47 +0200 (CEST)
+From: "Miedzik, Piotr Bogdan" <P.Miedzik@gsi.de>
+To: "'drbd-dev@lists.linbit.com'" <drbd-dev@lists.linbit.com>
+Date: Wed, 6 Jul 2016 07:58:46 +0000
+Message-ID: <B7D370631C221640AE09F705C57A14F37329FAF0@W2K050.campus.gsi.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Subject: Re: [Drbd-dev] [PATCH] drbdadm: Fix segfault while starting stacked
- resource in DRBD9
+MIME-Version: 1.0
+Subject: [Drbd-dev] [PATCH] drbd.ocf: drbdsetup v9 has no sh-status command
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,99 +36,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Roland,
+https://github.com/qermit/drbd-utils
 
->>> On 2016-7-4 at 17:30, in message <20160704093004.GK1324@rck.sh>, =
-Roland
-Kammerer <roland.kammerer@linbit.com> wrote:
-> The segfault happens because conn->peer is NULL? It could still be NULL
-> with your patch. I need a real/complete configuration and please provide
-> more information how and why you think this fixes anything. As is, I can
-> not apply this patch, the intention is unclear to me and it looks =
-broken.
+---
+ scripts/drbd.ocf | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
 
-Sorry for didn't describe clearly, information is list below:
-# DRBD version:
-drbd: 9.0.1-1 (GIT-hash: 86e443973082570aeb651848db89e0c7b995c306)
-drbd-utils: 8.9.6
+diff --git a/scripts/drbd.ocf b/scripts/drbd.ocf
+index eee8d62..3995a24 100755
+--- a/scripts/drbd.ocf
++++ b/scripts/drbd.ocf
+@@ -359,13 +359,19 @@ drbd_set_status_variables() {
+        DRBD_DSTATE_LOCAL=3D()
+        DRBD_DSTATE_REMOTE=3D()
 
-# Steps to reproduce this issue:
-Launch "drbdadm up r0-U" on node "siteB-node1"(can be reproduced as long =
-as the peer node is stacked) to start stached resource, segment fault =
-happend.
+-       if $DRBD_HAS_MULTI_VOLUME ; then
+-               out=3D"$($DRBDSETUP sh-status "$DRBD_RESOURCE")" && eval "$=
+out"
+-       else
+-               # without "MULTI_VOLUME", the DRBD_DEVICES array
+-               # should contain exactly one value
+-               out=3D"$($DRBDSETUP "$DRBD_DEVICES" sh-status)" && eval "$o=
+ut"
+-       fi
++       while : ; do
++               read -r tmp_resource tmp_nodeid tmp_role tmp_suspended
++               DRBD_ROLE_LOCAL[0]=3D${tmp_role#role:}
++               read -r tmp_volume tmp_minor tmp_dstate tmp_blocked
++               DRBD_DSTATE_LOCAL[0]=3D${tmp_dstate#disk:}
++               read -r tmp_remotenode tmp_remotenodeid tmp_remoteconnected=
+ tmp_remoterole tmp_remotecongested
++               DRBD_CSTATE[0]=3D${tmp_remoteconnected#connection:}
++               DRBD_ROLE_REMOTE[0]=3D${tmp_remoterole#role:}
++               read -r tmp_remotevolume tmp_replication tmp_remotedstate t=
+mp_resync
++               DRBD_DSTATE_REMOTE[0]=3D${tmp_remotedstate#peer-disk:}
++               break
++       done < <($DRBDSETUP status $DRBD_RESOURCE --verbose)
++
 
-# r0.res=20
-resource r0 {
-  protocol C;
-  device    /dev/drbd2;
-  disk      /dev/vdb3;
-  meta-disk internal;
-
-  on siteA-node1 {
-    address    192.168.122.57:7900;
-  }
-
-  on siteA-node2 {
-    address    192.168.122.29:7900;
-  }
-}
-
-resource r0-U {
-  protocol A;
-  device     /dev/drbd5;
-
-  stacked-on-top-of r0 {
-    address    10.0.0.1:7910;
-  }
-
-  on siteB-node1 {
-    disk       /dev/vdb3;
-    address    10.0.0.2:7910; # Public IP of the backup node
-    meta-disk  internal;
-  }
-}
-
-# Coredump file:
-#0  0x000000000040c547 in adm_new_peer (ctx=3D<optimized out>) at =
-drbdadm_main.c:1617
-1617		argv[NA(argc)] =3D ssprintf("%s", conn->peer->node_id);
-(gdb) bt
-#0  0x000000000040c547 in adm_new_peer (ctx=3D<optimized out>) at =
-drbdadm_main.c:1617
-#1  0x000000000040ba23 in __call_cmd_fn (ctx=3Dctx@entry=3D0x2478800, =
-on_error=3Don_error@entry=3DKEEP_RUNNING) at drbdadm_main.c:607
-#2  0x000000000040e078 in _run_deferred_cmds (stage=3Dstage@entry=3DCFG_NET=
-_PREP_UP) at drbdadm_main.c:722
-#3  0x000000000040e15f in run_deferred_cmds () at drbdadm_main.c:758
-#4  0x0000000000403368 in main (argc=3D3, argv=3D0x7ffdc0b4dcc8) at =
-drbdadm_main.c:3339
-(gdb) p *conn
-$3 =3D {name =3D 0x0, paths =3D {stqh_first =3D 0x2478550, stqh_last =3D =
-0x2478598}, config_line =3D 0, peer_devices =3D {stqh_first =3D 0x2473750,=
-=20
-    stqh_last =3D 0x2473780}, peer =3D 0x0, net_options =3D {stqh_first =
-=3D 0x2478790, stqh_last =3D 0x2478790}, pd_options =3D {stqh_first =3D =
-0x0,=20
-    stqh_last =3D 0x2478528}, ignore =3D 0, ignore_tmp =3D 0, implicit =3D =
-1, is_standalone =3D 0, link =3D {stqe_next =3D 0x0}}
-
-The conn->peer was set to 0x0, which cause this segment fault.
-
-# Debug:
-In create_implicit_connections() of post_parse, the name of struct =
-hostname address for stacked peer is a fakename, which is concatenated by =
-the lower nodes, in this case is "siteA-node1_siteA-node2". However, in =
-set_peer_in_connection(), no matter stacked peer or not hostinfo is =
-finding by compare to the on_hosts list, but "siteA-node1_siteA-node2" is =
-not in this list. Result in fail to find the corresponding peer,so =
-conn->peer is set to NULL.
-
-The patch sent in last thread " [PATCH] drbdadm: Fix segfault while =
-starting stacked resource in DRBD9" only change the behavior of finding =
-host info of stacked peer. I tested against regular/stacked resource, the =
-network connection can be find and establish successfully after apply the =
-patch.
-
-Best regards,
-Nick
-
+        # if there was no output at all, or a weird output
+        # make sure the status arrays won't be empty.
+--
+1.8.3.1
