@@ -1,37 +1,22 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+Return-Path: <P.Miedzik@gsi.de>
+Received: from lxmtout2.gsi.de (lxmtout2.gsi.de [140.181.3.112])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 547CD1056469
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Jul 2016 18:27:35 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 4ABDA429C32
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Jul 2016 18:27:35 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id u2hkonuwkWoB for <drbd-dev@lists.linbit.com>;
-	Mon, 11 Jul 2016 18:27:35 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 0DC4C429C37
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Jul 2016 18:27:35 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id i3kOTUGDlZZs for <drbd-dev@lists.linbit.com>;
-	Mon, 11 Jul 2016 18:27:34 +0200 (CEST)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id DB4DD429C32
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Jul 2016 18:27:34 +0200 (CEST)
-Date: Mon, 11 Jul 2016 18:27:34 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20160711162734.GC13335@soda.linbit>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BECAF105633A
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Jul 2016 10:53:12 +0200 (CEST)
+From: "Miedzik, Piotr Bogdan" <P.Miedzik@gsi.de>
+To: 'Lars Ellenberg' <lars.ellenberg@linbit.com>, "drbd-dev@lists.linbit.com"
+	<drbd-dev@lists.linbit.com>
+Date: Tue, 12 Jul 2016 08:53:10 +0000
+Message-ID: <B7D370631C221640AE09F705C57A14F3732A2327@W2K050.campus.gsi.de>
 References: <B7D370631C221640AE09F705C57A14F37329FAF0@W2K050.campus.gsi.de>
 	<B7D370631C221640AE09F705C57A14F3732A0E50@W2K050.campus.gsi.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <B7D370631C221640AE09F705C57A14F3732A0E50@W2K050.campus.gsi.de>
+	<20160711162734.GC13335@soda.linbit>
+In-Reply-To: <20160711162734.GC13335@soda.linbit>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Subject: Re: [Drbd-dev] [PATCH] drbd.ocf: drbdsetup v9 has no sh-status
  command
 List-Id: "*Coordination* of development, patches,
@@ -45,21 +30,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Jul 08, 2016 at 11:26:52AM +0000, Miedzik, Piotr Bogdan wrote:
-> I've found mistake in drbd.ocf in line 1045 anyway.
-> Kernel module version should be checked in opposite order.
+I realized that so I've written new script (https://github.com/qermit/drbd-=
+utils/blob/master/scripts/drbd9.ocf) based on stateful OCF example, Filesys=
+tem and drbd.ocf=20
 
-That's not the only thing missing wrt drbd 9 and pacemaker integration.
+The main difference to an original drbd.ocf is:
+- it should not fail (or become unmanaged) when it's defined as a normal re=
+source.
+- each resource has its own debug level and debug file
+- does not relay on drbdsetup sh-status
+- creates .enable.${resourcename} file to cope with drbdmanage
+- allows to have more than 2 clones
 
-I have some unfinished work around, which eventually will find its way
-into the repositories and packages "soon".
+I find drbdmanage very nice tool but it causes some problems with pcs start=
+/stop actions. It would be nice to have something like promotion type param=
+eter (auto/manual/disabled).
 
-But for now, it's unfinished :-|
+Regards
 
---=20
-: Lars Ellenberg
-: LINBIT | Keeping the Digital World Running
-: DRBD -- Heartbeat -- Corosync -- Pacemaker
-: R&D, Integration, Ops, Consulting, Support
-
-DRBD=AE and LINBIT=AE are registered trademarks of LINBIT
+> -----Original Message-----
+> From: drbd-dev-bounces@lists.linbit.com [mailto:drbd-dev-
+> bounces@lists.linbit.com] On Behalf Of Lars Ellenberg
+> Sent: 11 lipca 2016 18:28
+> To: drbd-dev@lists.linbit.com
+> Subject: Re: [Drbd-dev] [PATCH] drbd.ocf: drbdsetup v9 has no sh-status
+> command
+>=20
+> On Fri, Jul 08, 2016 at 11:26:52AM +0000, Miedzik, Piotr Bogdan wrote:
+> > I've found mistake in drbd.ocf in line 1045 anyway.
+> > Kernel module version should be checked in opposite order.
+>=20
+> That's not the only thing missing wrt drbd 9 and pacemaker integration.
+>=20
+> I have some unfinished work around, which eventually will find its way
+> into the repositories and packages "soon".
+>=20
+> But for now, it's unfinished :-|
+>=20
+> --
+> : Lars Ellenberg
+> : LINBIT | Keeping the Digital World Running
+> : DRBD -- Heartbeat -- Corosync -- Pacemaker
+> : R&D, Integration, Ops, Consulting, Support
+>=20
+> DRBD(r) and LINBIT(r) are registered trademarks of LINBIT
+> _______________________________________________
+> drbd-dev mailing list
+> drbd-dev@lists.linbit.com
+> http://lists.linbit.com/mailman/listinfo/drbd-dev
