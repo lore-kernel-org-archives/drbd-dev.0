@@ -1,38 +1,42 @@
-Return-Path: <lars.ellenberg@linbit.com>
+Return-Path: <roland.kammerer@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BE8F21056468
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2016 12:17:34 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 145B31028A59
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jul 2016 15:43:16 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B40DF2AB5D5
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2016 12:17:34 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id 027B242C194
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jul 2016 15:43:16 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id bzS99jJQcsKE for <drbd-dev@lists.linbit.com>;
-	Wed, 13 Jul 2016 12:17:34 +0200 (CEST)
+	with ESMTP id MVVL8bD3F0E4 for <drbd-dev@lists.linbit.com>;
+	Tue, 19 Jul 2016 15:43:15 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 9725442C03F
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2016 12:17:34 +0200 (CEST)
+	by zimbra13.linbit.com (Postfix) with ESMTP id D718B42C193
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jul 2016 15:43:15 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id fqTLbLlpGMH3 for <drbd-dev@lists.linbit.com>;
-	Wed, 13 Jul 2016 12:17:34 +0200 (CEST)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 703AA2AB5D5
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2016 12:17:34 +0200 (CEST)
-Resent-Message-ID: <20160713101734.GF29779@soda.linbit>
-Received: from mailrelay113.isp.belgacom.be (mailrelay113.isp.belgacom.be
-	[195.238.20.140]) (using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 51A861056444
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Jul 2016 20:28:05 +0200 (CEST)
-From: Fabian Frederick <fabf@skynet.be>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Tue, 12 Jul 2016 20:28:00 +0200
-Message-Id: <1468348080-7196-1-git-send-email-fabf@skynet.be>
-Cc: fabf@skynet.be, linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/1 linux-next] drbd: remove __packed definition
+	with ESMTP id 2JM1Y9Uyg3fI for <drbd-dev@lists.linbit.com>;
+	Tue, 19 Jul 2016 15:43:15 +0200 (CEST)
+Received: from localhost (chello213047144126.1.15.vie.surfer.at
+	[213.47.144.126])
+	by zimbra13.linbit.com (Postfix) with ESMTPSA id A98E542C192
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jul 2016 15:43:15 +0200 (CEST)
+Date: Tue, 19 Jul 2016 15:43:15 +0200
+From: Roland Kammerer <roland.kammerer@linbit.com>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20160719134314.GS51653@rck.sh>
+References: <OF37515991.295CA5F9-ON80257FF3.004587D1-80257FF3.0046342D@notes.na.collabserv.com>
+	<20160719080608.GN51653@rck.sh>
+	<OF2611A83C.1682D95B-ON80257FF5.003062EF-80257FF5.003263CF@notes.na.collabserv.com>
+	<20160719115816.GP51653@rck.sh>
+	<OFCB153B85.CEBDDD88-ON80257FF5.00497DB6-80257FF5.0049A628@notes.na.collabserv.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <OFCB153B85.CEBDDD88-ON80257FF5.00497DB6-80257FF5.0049A628@notes.na.collabserv.com>
+Subject: Re: [Drbd-dev] [DRBD-user] Dependency on "docker" in
+	drbdmanage-docker-volume
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,29 +48,13 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-__packed is already defined in compiler-gcc.h under __GNUC__
-(see include/linux/compiler.h)
+On Tue, Jul 19, 2016 at 02:24:27PM +0100, John Colgrave wrote:
+> That package installed on one of my systems that has docker-engine 
+> installed.
 
-Signed-off-by: Fabian Frederick <fabf@skynet.be>
----
- drivers/block/drbd/drbd_protocol.h | 4 ----
- 1 file changed, 4 deletions(-)
+Thanks, updated rpm is now in our customer rpm repos as version 0.7-2.
 
-diff --git a/drivers/block/drbd/drbd_protocol.h b/drivers/block/drbd/drbd_protocol.h
-index 4d29680..0fc0172 100644
---- a/drivers/block/drbd/drbd_protocol.h
-+++ b/drivers/block/drbd/drbd_protocol.h
-@@ -80,10 +80,6 @@ enum drbd_packet {
- 	P_CONNECTION_FEATURES = 0xfffe	/* FIXED for the next century! */
- };
- 
--#ifndef __packed
--#define __packed __attribute__((packed))
--#endif
--
- /* This is the layout for a packet on the wire.
-  * The byteorder is the network byte order.
-  *     (except block_id and barrier fields.
--- 
-2.8.1
+and in the git:
+http://git.drbd.org/drbdmanage-docker-volume.git/commit/9a55c0c24103930193ce0e3f67a4ff6a97c129d8
 
+Regards, rck
