@@ -1,19 +1,38 @@
-Return-Path: <kmpak@mantech.co.kr>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com
-	[209.85.218.48]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 31A8B1056312
-	for <drbd-dev@lists.linbit.com>; Thu, 11 Aug 2016 07:48:40 +0200 (CEST)
-Received: by mail-oi0-f48.google.com with SMTP id l203so88217104oib.1
-	for <drbd-dev@lists.linbit.com>; Wed, 10 Aug 2016 22:48:40 -0700 (PDT)
-MIME-Version: 1.0
-From: =?UTF-8?B?67CV6rK966+8?= <kmpak@mantech.co.kr>
-Date: Thu, 11 Aug 2016 14:48:38 +0900
-Message-ID: <CALLFrTQW43=D8kJ4Z+rJV=+Dk4BBOA_0hT1rOxFRcqrBAa0K2A@mail.gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 94FB31028A59
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Aug 2016 15:53:12 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 6FD644481F6
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Aug 2016 15:53:12 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id xFxYKSNIKuR9 for <drbd-dev@lists.linbit.com>;
+	Thu, 11 Aug 2016 15:53:12 +0200 (CEST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 5107E448205
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Aug 2016 15:53:12 +0200 (CEST)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id PbvcZA4JwPW5 for <drbd-dev@lists.linbit.com>;
+	Thu, 11 Aug 2016 15:53:12 +0200 (CEST)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 2ACEB4481F6
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Aug 2016 15:53:12 +0200 (CEST)
+Date: Thu, 11 Aug 2016 15:53:11 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary=001a113d13805114600539c551af
-Subject: [Drbd-dev] Failed to reconnect in different volume's size over the
-	3 nodes
+Message-ID: <20160811135311.GC8765@soda.linbit>
+References: <CALLFrTQW43=D8kJ4Z+rJV=+Dk4BBOA_0hT1rOxFRcqrBAa0K2A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CALLFrTQW43=D8kJ4Z+rJV=+Dk4BBOA_0hT1rOxFRcqrBAa0K2A@mail.gmail.com>
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [Drbd-dev] Failed to reconnect in different volume's size over
+ the 3 nodes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,66 +44,62 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---001a113d13805114600539c551af
-Content-Type: text/plain; charset=UTF-8
+On Thu, Aug 11, 2016 at 02:48:38PM +0900, =EB=B0=95=EA=B2=BD=EB=AF=BC wro=
+te:
+> Hello
+>=20
+> After 2 commit below
+> 585554e drbd: resize: reduce own sanity checks, trust peer
+> c09ce4b drbd: resize loop avoidance band-aid
+>=20
+> It can't reconnect  just in case different volume's size.
+> That was only occurred over the 3 nodes configuration.
+>=20
+> The scenario is below
+>=20
+> A(100mb) - B(100mb) - C(90mb)
+> 1. Success to connect at Inconsistent state
+> 2. C node does "Primary --force "
+> 3. All nodes agree 90mb size
+> 4. C node does down
+> 5. A node does down
+> 6. A node does up
+> 7. A and b agree 100mb size
+> 8. C node can't connect because of lower size
+>=20
+>=20
+>=20
+> I was looking for the code,and I think it was recalculated forcibly bec=
+ause
+> below
+>=20
+> in receive_sizes()
+> /* Maybe the peer knows something about peers I cannot currently see. *=
+/
+> if (is_handshake)
+> ddsf |=3D DDSF_FORCED;
+>=20
 
-Hello
+Maybe. Maybe not.
+That "force" may not do what you think it does,
+or what the name of the flag seems to imply.
 
-After 2 commit below
-585554e drbd: resize: reduce own sanity checks, trust peer
-c09ce4b drbd: resize loop avoidance band-aid
+Size handshake, and resize, with DRBD 9 and "flaky connections",
+is very erratic still. We will have to eventually fix that properly,
+maybe by using some extension of the cluster wide transactions we
+already have.
 
-It can't reconnect  just in case different volume's size.
-That was only occurred over the 3 nodes configuration.
+ * don't do that, then
+ * maybe you want to explicitly set a size limit in the config
+ * please send logs of the connection attempts,
+   always from all nodes, always time synced.
 
-The scenario is below
+Thanks,
 
-A(100mb) - B(100mb) - C(90mb)
-1. Success to connect at Inconsistent state
-2. C node does "Primary --force "
-3. All nodes agree 90mb size
-4. C node does down
-5. A node does down
-6. A node does up
-7. A and b agree 100mb size
-8. C node can't connect because of lower size
+--=20
+: Lars Ellenberg
+: LINBIT | Keeping the Digital World Running
+: DRBD -- Heartbeat -- Corosync -- Pacemaker
+: R&D, Integration, Ops, Consulting, Support
 
-
-
-I was looking for the code,and I think it was recalculated forcibly because
-below
-
-in receive_sizes()
-/* Maybe the peer knows something about peers I cannot currently see. */
-if (is_handshake)
-ddsf |= DDSF_FORCED;
-
-
-Thank you,
-
---001a113d13805114600539c551af
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><br clear=3D"all"><div>Hello</div><div><br></div><div>Afte=
-r 2 commit below</div><div>585554e drbd: resize: reduce own sanity checks, =
-trust peer</div><div>c09ce4b drbd: resize loop avoidance band-aid</div><div=
-><br></div><div>It can&#39;t reconnect =C2=A0just in case different volume&=
-#39;s size.<br></div><div>That was only occurred over the 3 nodes configura=
-tion.</div><div><br></div><div>The scenario is below</div><div><br></div><d=
-iv>A(100mb) - B(100mb) - C(90mb)</div><div>1. Success to connect at Inconsi=
-stent state</div><div>2. C node does &quot;Primary --force &quot;</div><div=
->3. All nodes agree 90mb size</div><div>4. C node does down</div><div>5. A =
-node does down</div><div>6. A node does up</div><div>7. A and b agree 100mb=
- size</div><div>8. C node can&#39;t connect because of lower size</div><div=
-><br></div><div><br></div><div><br></div><div><div>I was looking for the co=
-de,and I think it was recalculated forcibly because below</div><div><br></d=
-iv><div>in=C2=A0receive_sizes()</div><div><div><span class=3D"" style=3D"wh=
-ite-space:pre">	</span>/* Maybe the peer knows something about peers I cann=
-ot currently see. */</div><div><span class=3D"" style=3D"white-space:pre">	=
-</span>if (is_handshake)</div><div><span class=3D"" style=3D"white-space:pr=
-e">		</span>ddsf |=3D DDSF_FORCED;</div></div></div><div><br></div><div><br=
-></div><div>Thank you,</div><div><br></div>
-</div>
-
---001a113d13805114600539c551af--
+DRBD=C2=AE and LINBIT=C2=AE are registered trademarks of LINBIT
