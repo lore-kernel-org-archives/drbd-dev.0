@@ -1,36 +1,19 @@
-Return-Path: <BATV+b244dc37f40e53d0e5a9+4729+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
-	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <kmpak@mantech.co.kr>
+Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com
+	[209.85.218.48]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id F17CB1056446
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Aug 2016 18:29:07 +0200 (CEST)
-Date: Thu, 4 Aug 2016 08:46:22 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Shaun Tancheff <shaun.tancheff@seagate.com>
-Message-ID: <20160804154622.GB15656@infradead.org>
-References: <1465155145-10812-1-git-send-email-mchristi@redhat.com>
-	<1465155145-10812-38-git-send-email-mchristi@redhat.com>
-	<CAOxpaSUMsgfTYsL0bL6VCnwxz7bpgpKO-ZfC5J8dFG9PN-hzvg@mail.gmail.com>
-	<87fbe31f-27b3-ff7a-e381-34fc1aad337e@redhat.com>
-	<CAJVOszAd9Eu88P2=QoNVArd0jwDH7KRe=OB82tCNMpjfv9B4KA@mail.gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 31A8B1056312
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Aug 2016 07:48:40 +0200 (CEST)
+Received: by mail-oi0-f48.google.com with SMTP id l203so88217104oib.1
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Aug 2016 22:48:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJVOszAd9Eu88P2=QoNVArd0jwDH7KRe=OB82tCNMpjfv9B4KA@mail.gmail.com>
-Cc: philipp.reisner@linbit.com, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	drbd-dev@lists.linbit.com, linux-scsi@vger.kernel.org,
-	Mike Christie <mchristi@redhat.com>,
-	Ross Zwisler <ross.zwisler@linux.intel.com>,
-	linux-ext4 <linux-ext4@vger.kernel.org>, konrad.wilk@oracle.com,
-	XFS Developers <xfs@oss.sgi.com>, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, osd-dev@open-osd.org,
-	Ross Zwisler <zwisler@gmail.com>, Jens Axboe <axboe@fb.com>,
-	linux-raid@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
-	linux-f2fs-devel@lists.sourceforge.net, linux-btrfs@vger.kernel.org,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	lars.ellenberg@linbit.com, ocfs2-devel@oss.oracle.com
-Subject: Re: [Drbd-dev] [PATCH 37/45] drivers: use req op accessor
+From: =?UTF-8?B?67CV6rK966+8?= <kmpak@mantech.co.kr>
+Date: Thu, 11 Aug 2016 14:48:38 +0900
+Message-ID: <CALLFrTQW43=D8kJ4Z+rJV=+Dk4BBOA_0hT1rOxFRcqrBAa0K2A@mail.gmail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative; boundary=001a113d13805114600539c551af
+Subject: [Drbd-dev] Failed to reconnect in different volume's size over the
+	3 nodes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,18 +25,66 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Aug 03, 2016 at 07:30:29PM -0500, Shaun Tancheff wrote:
-> I think the translation in loop.c is suspicious here:
-> 
->     "if use DIO && not (a flush_flag or discard_flag)"
-> should translate to:
->     "if use DIO && not ((a flush_flag) || op == discard)"
-> 
-> But in the patch I read:
->     "if use DIO && ((not a flush_flag) || op == discard)
-> 
-> Which would have DIO && discards follow the AIO path?
+--001a113d13805114600539c551af
+Content-Type: text/plain; charset=UTF-8
 
-Indeed.  Sorry for missing out on your patch, I just sent a fix
-in reply to Dave's other report earlier which is pretty similar to
-yours.
+Hello
+
+After 2 commit below
+585554e drbd: resize: reduce own sanity checks, trust peer
+c09ce4b drbd: resize loop avoidance band-aid
+
+It can't reconnect  just in case different volume's size.
+That was only occurred over the 3 nodes configuration.
+
+The scenario is below
+
+A(100mb) - B(100mb) - C(90mb)
+1. Success to connect at Inconsistent state
+2. C node does "Primary --force "
+3. All nodes agree 90mb size
+4. C node does down
+5. A node does down
+6. A node does up
+7. A and b agree 100mb size
+8. C node can't connect because of lower size
+
+
+
+I was looking for the code,and I think it was recalculated forcibly because
+below
+
+in receive_sizes()
+/* Maybe the peer knows something about peers I cannot currently see. */
+if (is_handshake)
+ddsf |= DDSF_FORCED;
+
+
+Thank you,
+
+--001a113d13805114600539c551af
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br clear=3D"all"><div>Hello</div><div><br></div><div>Afte=
+r 2 commit below</div><div>585554e drbd: resize: reduce own sanity checks, =
+trust peer</div><div>c09ce4b drbd: resize loop avoidance band-aid</div><div=
+><br></div><div>It can&#39;t reconnect =C2=A0just in case different volume&=
+#39;s size.<br></div><div>That was only occurred over the 3 nodes configura=
+tion.</div><div><br></div><div>The scenario is below</div><div><br></div><d=
+iv>A(100mb) - B(100mb) - C(90mb)</div><div>1. Success to connect at Inconsi=
+stent state</div><div>2. C node does &quot;Primary --force &quot;</div><div=
+>3. All nodes agree 90mb size</div><div>4. C node does down</div><div>5. A =
+node does down</div><div>6. A node does up</div><div>7. A and b agree 100mb=
+ size</div><div>8. C node can&#39;t connect because of lower size</div><div=
+><br></div><div><br></div><div><br></div><div><div>I was looking for the co=
+de,and I think it was recalculated forcibly because below</div><div><br></d=
+iv><div>in=C2=A0receive_sizes()</div><div><div><span class=3D"" style=3D"wh=
+ite-space:pre">	</span>/* Maybe the peer knows something about peers I cann=
+ot currently see. */</div><div><span class=3D"" style=3D"white-space:pre">	=
+</span>if (is_handshake)</div><div><span class=3D"" style=3D"white-space:pr=
+e">		</span>ddsf |=3D DDSF_FORCED;</div></div></div><div><br></div><div><br=
+></div><div>Thank you,</div><div><br></div>
+</div>
+
+--001a113d13805114600539c551af--
