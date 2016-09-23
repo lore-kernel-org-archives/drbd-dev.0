@@ -1,18 +1,20 @@
-Return-Path: <kmpak@mantech.co.kr>
-Received: from mail-it0-f42.google.com (mail-it0-f42.google.com
-	[209.85.214.42]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C11B4105645E
-	for <drbd-dev@lists.linbit.com>; Wed, 21 Sep 2016 10:19:50 +0200 (CEST)
-Received: by mail-it0-f42.google.com with SMTP id n143so43265462ita.1
-	for <drbd-dev@lists.linbit.com>; Wed, 21 Sep 2016 01:19:50 -0700 (PDT)
+Return-Path: <drbd-dev@lists.ewheeler.net>
+Received: from mail.ewheeler.net (mx.ewheeler.net [66.155.3.69])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 41ADD1051881
+	for <drbd-dev@lists.linbit.com>; Sat, 24 Sep 2016 00:01:14 +0200 (CEST)
+Date: Fri, 23 Sep 2016 15:01:11 -0700 (PDT)
+From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
+To: Lars Ellenberg <lars.ellenberg@linbit.com>
+In-Reply-To: <20160920075709.GL3302@soda.linbit>
+Message-ID: <alpine.LRH.2.11.1609231457310.29933@mail.ewheeler.net>
+References: <alpine.LRH.2.11.1609191155210.21602@mail.ewheeler.net>
+	<20160920075709.GL3302@soda.linbit>
 MIME-Version: 1.0
-From: =?UTF-8?B?67CV6rK966+8?= <kmpak@mantech.co.kr>
-Date: Wed, 21 Sep 2016 17:12:43 +0900
-Message-ID: <CALLFrTR38BGCxBgD5mXWFYfuCZxaj-iHyB_K6QtwW=QNnoGAhQ@mail.gmail.com>
-To: drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary=001a113acda017d830053d001ccc
-Subject: [Drbd-dev] About cleanup unprocessed requests
+Content-Type: MULTIPART/MIXED;
+	BOUNDARY="1641074820-2026619825-1474667856=:29933"
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] ASSERT( drbd_md_ss(device->ldev) ==
+ device->ldev->md.md_offset )
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,118 +26,86 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---001a113acda017d830053d001ccc
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Hello
+--1641074820-2026619825-1474667856=:29933
+Content-Type: TEXT/PLAIN; charset=ISO-8859-15
+Content-Transfer-Encoding: 8BIT
 
-I have a question in DRBD9.
+On Tue, 20 Sep 2016, Lars Ellenberg wrote:
 
-In sender thread, if there are some unprocessed requests, then process
-through SEND_CANCELED mod. In a code
+> On Mon, Sep 19, 2016 at 12:09:12PM -0700, Eric Wheeler wrote:
+> > Hello all,
+> > 
+> > We noticed after resizing one backing device and not the other, that the 
+> > side with the larger device issued the following assertion:
+> > 
+> > ASSERT( drbd_md_ss(device->ldev) == device->ldev->md.md_offset ) in drbd/obj/default/drbd_main.c:3257
+> >
+> > We were issuing a drbdadm resize --assume-clean, but for "reasons", the 
+> > far-end did not resize. Below you can see the trace of the side issuing 
+> > assertions. Is this a bug that should be hanadled intelligent way?
+> > 
+> > What does the failed assertion indicate? It appears to assert shortly 
+> > after role change to-or-from Primary-or-Secondary.
+> 
+> DRBD is configured for "internal" meta data,
+> for some reason does some meta data IO, and realizes that someone
+> resized the backing device under it, without telling it to.
+> 
+> Should not do further harm.
 
-int drbd_sender(struct drbd_thread *thi)
-{
-...
-/* cleanup all currently unprocessed requests */
-if (!connection->todo.req) {
-spin_lock_irq(&connection->resource->req_lock);
-tl_next_request_for_connection(connection);
-spin_unlock_irq(&connection->resource->req_lock);
-}
-while (connection->todo.req) {
-struct bio_and_error m;
-struct drbd_request *req =3D connection->todo.req;
-struct drbd_device *device =3D req->device;
-peer_device =3D conn_peer_device(connection, device->vnr);
+"Further" ?  Was there any harm (corruption) in the first place?
 
-spin_lock_irq(&connection->resource->req_lock);
-tl_next_request_for_connection(connection);
-__req_mod(req, SEND_CANCELED, peer_device, &m);
-spin_unlock_irq(&connection->resource->req_lock);
-if (m.bio)
-complete_master_bio(device, &m);
-}
-...
-}
+> On the box that is logging these asserts,
+> do a "drbdadm check-resize".
+> 
+> Preferably, you should follow a backend resize immediately
+> with a drbdadm check-resize (or resize).
 
-I think two functions might be exchanged like below
-__req_mod(req, SEND_CANCELED, peer_device, &m);
-tl_next_request_for_connection(connection);
+Is `drbdadm check-resize` a node-local operation?  Does it move metadata 
+to the end on both sides, or only on the side invoking check-resize?
 
-Because some case(peer's rq_state with RQ_NET_QUEUE)
- __req_mod(SEND_CANCELED) would call the advance_conn_req_next() function
-and then connection->todo.req_next could be changed to next request.
+Thanks for your help!
 
-__req_mod() ---> changed next request
-tl_next_request_for_connection --> adjust the current request
-
-
-But in original case,
-tl_next_request_for_connection  -> current req is same next request
-__req_mod() ->  changed next request but can't adjust current request
-
-
-
-Thanks
 --
-=E1=90=A7
+Eric Wheeler
 
---001a113acda017d830053d001ccc
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 
-<div dir=3D"ltr">Hello<div><br></div><div>I have a question in DRBD9.</div>=
-<div><br clear=3D"all"><div>In sender thread, if there are some unprocessed=
- requests, then process through SEND_CANCELED mod. In a code</div><div><br>=
-</div><div><div>int drbd_sender(struct drbd_thread *thi)</div><div>{</div><=
-/div><div>...</div><div><div>/* cleanup all currently unprocessed requests =
-*/</div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre"=
->	</span>if (!connection-&gt;todo.req) {</div><div><span class=3D"gmail-App=
-le-tab-span" style=3D"white-space:pre">		</span>spin_lock_irq(&amp;connecti=
-on-&gt;resource-&gt;req_lock);</div><div><span class=3D"gmail-Apple-tab-spa=
-n" style=3D"white-space:pre">		</span>tl_next_request_for_connection(connec=
-tion);</div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:=
-pre">		</span>spin_unlock_irq(&amp;connection-&gt;resource-&gt;req_lock);</=
-div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</=
-span>}</div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:=
-pre">	</span>while (connection-&gt;todo.req) {</div><div><span class=3D"gma=
-il-Apple-tab-span" style=3D"white-space:pre">		</span>struct bio_and_error =
-m;</div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre"=
->		</span>struct drbd_request *req =3D connection-&gt;todo.req;</div><div><=
-span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">		</span>stru=
-ct drbd_device *device =3D req-&gt;device;</div><div><span class=3D"gmail-A=
-pple-tab-span" style=3D"white-space:pre">		</span>peer_device =3D conn_peer=
-_device(connection, device-&gt;vnr);</div><div><br></div><div><span class=
-=3D"gmail-Apple-tab-span" style=3D"white-space:pre">		</span>spin_lock_irq(=
-&amp;connection-&gt;resource-&gt;req_lock);</div><div><span class=3D"gmail-=
-Apple-tab-span" style=3D"white-space:pre">		</span>tl_next_request_for_conn=
-ection(connection);<br></div><div><span class=3D"gmail-Apple-tab-span" styl=
-e=3D"white-space:pre">		</span>__req_mod(req, SEND_CANCELED, peer_device, &=
-amp;m);</div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space=
-:pre">		</span>spin_unlock_irq(&amp;connection-&gt;resource-&gt;req_lock);<=
-br></div><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre=
-">		</span>if (m.bio)</div><div><span class=3D"gmail-Apple-tab-span" style=
-=3D"white-space:pre">			</span>complete_master_bio(device, &amp;m);<br></di=
-v><div><span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</sp=
-an>}<br></div></div><div>...</div><div>}</div><div><br></div><div>I think t=
-wo functions might be exchanged like below</div><div>__req_mod(req, SEND_CA=
-NCELED, peer_device, &amp;m);<br></div><div>tl_next_request_for_connection(=
-connection);<br></div><div><br></div><div>Because some case(peer&#39;s rq_s=
-tate with RQ_NET_QUEUE)=C2=A0</div><div>=C2=A0__req_mod(SEND_CANCELED) woul=
-d call the advance_conn_req_next() function and then connection-&gt;todo.re=
-q_next could be changed to next request.</div><div><br></div><div>__req_mod=
-() ---&gt; changed next request</div><div>tl_next_request_for_connection --=
-&gt; adjust the current request<br></div><div><br></div><div><br></div><div=
->But in original case,</div><div>tl_next_request_for_connection =C2=A0-&gt;=
- current req is same next request<br></div><div>__req_mod() -&gt; =C2=A0cha=
-nged next request but can&#39;t adjust current request<br></div><div><br></=
-div><div><br></div><div><br></div><div>Thanks</div><div>--</div></div></div=
-><div hspace=3D"streak-pt-mark" style=3D"max-height:1px"><img style=3D"widt=
-h:0px;max-height:0px;overflow:hidden" src=3D"https://mailfoogae.appspot.com=
-/t?sender=3Daa21wYWtAbWFudGVjaC5jby5rcg%3D%3D&amp;type=3Dzerocontent&amp;gu=
-id=3D0da268b7-abca-4cec-930e-38b14d08ce5b"><font color=3D"#ffffff" size=3D"=
-1">=E1=90=A7</font></div>
-
---001a113acda017d830053d001ccc--
+> 
+> > We are using DRBD 8.4.7-2 from git.
+> > 
+> > [576057.341024] block drbd8033: logical block size of local backend does not match (drbd:512, backend:4096); was this a late attach?
+> > [576057.343299] block drbd8033: drbd_bm_resize called with capacity == 21854808
+> > [576057.344366] block drbd8033: resync bitmap: bits=2731851 words=42686 pages=84
+> > [576057.345395] block drbd8033: size = 10 GB (10927404 KB)
+> > [576057.381838] block drbd8033: Writing the whole bitmap, size changed
+> > [576057.382865] block drbd8033: 0 KB (0 bits) marked out-of-sync by on disk bit-map.
+> > [576057.384064] block drbd8033: Resync of new storage suppressed with --assume-clean
+> > [576061.509044] block drbd8033: logical block size of local backend does not match (drbd:512, backend:4096); was this a late attach?
+> > [576911.559399] block drbd8033: role( Primary -> Secondary ) 
+> > [576911.560677] block drbd8033: 0 KB (0 bits) marked out-of-sync by on disk bit-map.
+> > [662435.411830] block drbd8033: role( Secondary -> Primary ) 
+> > [663204.542351] block drbd8033: role( Primary -> Secondary ) 
+> > [663204.543515] block drbd8033: 0 KB (0 bits) marked out-of-sync by on disk bit-map.
+> > [748834.185982] block drbd8033: role( Secondary -> Primary ) 
+> > [750155.916752] block drbd8033: role( Primary -> Secondary ) 
+> > [750155.918007] block drbd8033: 0 KB (0 bits) marked out-of-sync by on disk bit-map.
+> > [750155.918768] block drbd8033: ASSERT( drbd_md_ss(device->ldev) == device->ldev->md.md_offset ) in /root/rpmbuild/BUILD/drbd-8.4.7-2-e4242d818e66301920ef28733f533053e924717f/obj/default/drbd_main.c:3257
+> > [835228.859747] block drbd8033: role( Secondary -> Primary ) 
+> > [835228.860996] block drbd8033: ASSERT( drbd_md_ss(device->ldev) == device->ldev->md.md_offset ) in /root/rpmbuild/BUILD/drbd-8.4.7-2-e4242d818e66301920ef28733f533053e924717f/obj/default/drbd_main.c:3257
+> 
+> -- 
+> : Lars Ellenberg
+> : LINBIT | Keeping the Digital World Running
+> : DRBD -- Heartbeat -- Corosync -- Pacemaker
+> : R&D, Integration, Ops, Consulting, Support
+> 
+> DRBD® and LINBIT® are registered trademarks of LINBIT
+> _______________________________________________
+> drbd-dev mailing list
+> drbd-dev@lists.linbit.com
+> http://lists.linbit.com/mailman/listinfo/drbd-dev
+> 
+--1641074820-2026619825-1474667856=:29933--
