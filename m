@@ -2,54 +2,55 @@ Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E1C091056476
-	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1BD301056477
+	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:43 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id B1F5746E983
+	by zimbra13.linbit.com (Postfix) with ESMTP id E2EBB46E978
 	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id KIhWmTJ_1Z5r for <drbd-dev@lists.linbit.com>;
+	with ESMTP id R8CHiT7gdWj2 for <drbd-dev@lists.linbit.com>;
 	Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
 Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 92F8246E978
+	by zimbra13.linbit.com (Postfix) with ESMTP id BF2DB46E972
 	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
 Received: from zimbra13.linbit.com ([127.0.0.1])
 	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id lRHT2pbNCrgV for <drbd-dev@lists.linbit.com>;
-	Fri,  7 Oct 2016 14:07:41 +0200 (CEST)
+	with ESMTP id Jc-3qJQBq2Km for <drbd-dev@lists.linbit.com>;
+	Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
 Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id BD45146E972
-	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:41 +0200 (CEST)
-Resent-Message-ID: <20161007120741.GT3302@soda.linbit>
-Received: from smtp2.goneo.de (smtp2.goneo.de [85.220.129.33])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 9822746E97B
+	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
+Resent-Message-ID: <20161007120742.GU3302@soda.linbit>
+Received: from mail2-relais-roc.national.inria.fr
+	(mail2-relais-roc.national.inria.fr [192.134.164.83])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9F0E31056445
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2016 19:34:35 +0200 (CEST)
-Content-Type: text/plain; charset=iso-8859-1
-Mime-Version: 1.0 (Mac OS X Mail 6.6 \(1510\))
-From: Markus Heiser <markus.heiser@darmarit.de>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 022071056332
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2016 22:25:50 +0200 (CEST)
+Date: Wed, 5 Oct 2016 22:25:35 +0200 (CEST)
+From: Julia Lawall <julia.lawall@lip6.fr>
+To: Jani Nikula <jani.nikula@linux.intel.com>
 In-Reply-To: <87h98quc1w.fsf@intel.com>
-Date: Wed, 5 Oct 2016 19:27:12 +0200
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <0311F11C-D5CB-4A90-86BD-4DDAD1103685@darmarit.de>
+Message-ID: <alpine.DEB.2.10.1610052224240.3130@hadrien>
 References: <1475351192-27079-1-git-send-email-Julia.Lawall@lip6.fr>
 	<CAKMK7uHT3FutHQuQQ3iwXmYbidB3AOs7AxnpaJD4MTqy0-QehQ@mail.gmail.com>
 	<87h98quc1w.fsf@intel.com>
-To: Julia Lawall <Julia.Lawall@lip6.fr>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323329-1882111399-1475699148=:3130"
 Cc: Linux PM list <linux-pm@vger.kernel.org>, linux-doc@vger.kernel.org,
 	kernel-janitors@vger.kernel.org,
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	dri-devel <dri-devel@lists.freedesktop.org>,
-	linux-metag@vger.kernel.org, linaro-mm-sig@lists.linaro.org,
-	linux-mtd@lists.infradead.org, Jani Nikula <jani.nikula@linux.intel.com>,
-	Daniel Vetter <daniel@ffwll.ch>, linux-tegra@vger.kernel.org,
-	"linux-media@vger.kernel.org Mailing List"
-	<linux-media@vger.kernel.org>, linux-clk@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, drbd-dev@lists.linbit.com
+	dri-devel <dri-devel@lists.freedesktop.org>, linux-metag@vger.kernel.org,
+	"linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>,
+	Julia Lawall <Julia.Lawall@lip6.fr>,
+	linux-mtd@lists.infradead.org, Daniel Vetter <daniel@ffwll.ch>,
+	"linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>,
+	"linux-media@vger.kernel.org" <linux-media@vger.kernel.org>,
+	linux-clk@vger.kernel.org, "linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] kernel-doc-rst-lint (was: Re: [PATCH 00/15] improve
-	function-level documentation)
+ function-level documentation)
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -61,91 +62,82 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Am 05.10.2016 um 16:04 schrieb Jani Nikula =
-<jani.nikula@linux.intel.com>:
+--8323329-1882111399-1475699148=:3130
+Content-Type: TEXT/PLAIN; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+
+
+On Wed, 5 Oct 2016, Jani Nikula wrote:
 
 > On Wed, 05 Oct 2016, Daniel Vetter <daniel@ffwll.ch> wrote:
->> Jani Nikula has a patch with a scrip to make the one kernel-doc =
-parser
->> into a lint/checker pass over the entire kernel. I think that'd would
->> be more robust instead of trying to approximate the real kerneldoc
->> parser. Otoh that parser is a horror show of a perl/regex driven =
-state
->> machine ;-)
->>=20
->> Jani, can you pls digg out these patches? Can't find them right now =
-...
->=20
+> > Jani Nikula has a patch with a scrip to make the one kernel-doc parse=
+r
+> > into a lint/checker pass over the entire kernel. I think that'd would
+> > be more robust instead of trying to approximate the real kerneldoc
+> > parser. Otoh that parser is a horror show of a perl/regex driven stat=
+e
+> > machine ;-)
+> >
+> > Jani, can you pls digg out these patches? Can't find them right now .=
+..
+>
 > Expanding the massive Cc: with linux-doc list...
->=20
+>
 > Here goes. It's a quick hack from months ago, but still seems to
 > somewhat work. At least for the kernel-doc parts. The reStructuredText
-> lint part isn't all that great, and doesn't have mapping to line =
-numbers
+> lint part isn't all that great, and doesn't have mapping to line number=
+s
 > like the Sphinx kernel-doc extension does. Anyway I'm happy how this
 > integrates with kernel build CHECK and C=3D1/C=3D2.
->=20
+>
 > I guess Julia's goal is to automate the *fixing* of some of the error
 > classes from kernel-doc. Not sure how well this could be made to
 > integrate with any of that.
->=20
+
+No, my work doesn't fix anything.  Coccinelle can't actually process
+comments.  I just correlated the parsed comment with the function header.
+
+julia
+
+>
 > BR,
 > Jani.
-
-Another lint alternative:=20
-
- use the lint from the linuxdoc project=20
-
-install the linuxdoc package:
-
-*  https://return42.github.io/linuxdoc/install.html
-
-e.g.::
-
- pip install --user git+http://github.com/return42/linuxdoc.git
-
-and run kernel-lintdoc with the file/folder to lint as argument / e.g.::
-
- kernel-lintdoc include/media/
-
--- Markus --
-
-
->=20
->=20
-> =46rom 1244efa0f63a7b13795e8c37f81733a3c8bfc56a Mon Sep 17 00:00:00 =
-2001
+>
+>
+> From 1244efa0f63a7b13795e8c37f81733a3c8bfc56a Mon Sep 17 00:00:00 2001
 > From: Jani Nikula <jani.nikula@intel.com>
 > Date: Tue, 31 May 2016 18:11:33 +0300
 > Subject: [PATCH] kernel-doc-rst-lint: add tool to check kernel-doc and =
 rst
-> correctness
-> Organization: Intel Finland Oy - BIC 0357606-4 - Westendinkatu 7, =
-02160 Espoo
+>  correctness
+> Organization: Intel Finland Oy - BIC 0357606-4 - Westendinkatu 7, 02160=
+ Espoo
 > Cc: Jani Nikula <jani.nikula@intel.com>
->=20
+>
 > Simple kernel-doc and reStructuredText lint tool that can be used
 > independently and as a kernel build CHECK tool to validate kernel-doc
 > comments.
->=20
+>
 > Independent usage:
 > $ kernel-doc-rst-lint FILE
->=20
+>
 > Kernel CHECK usage:
-> $ make CHECK=3Dscripts/kernel-doc-rst-lint C=3D1		# (or =
-C=3D2)
->=20
+> $ make CHECK=3Dscripts/kernel-doc-rst-lint C=3D1		# (or C=3D2)
+>
 > Depends on docutils and the rst-lint package
 > https://pypi.python.org/pypi/restructuredtext_lint
->=20
+>
 > Signed-off-by: Jani Nikula <jani.nikula@intel.com>
 > ---
-> scripts/kernel-doc-rst-lint | 106 =
-++++++++++++++++++++++++++++++++++++++++++++
-> 1 file changed, 106 insertions(+)
-> create mode 100755 scripts/kernel-doc-rst-lint
->=20
+>  scripts/kernel-doc-rst-lint | 106 ++++++++++++++++++++++++++++++++++++=
+++++++++
+>  1 file changed, 106 insertions(+)
+>  create mode 100755 scripts/kernel-doc-rst-lint
+>
 > diff --git a/scripts/kernel-doc-rst-lint b/scripts/kernel-doc-rst-lint
 > new file mode 100755
 > index 000000000000..7e0157679f83
@@ -155,37 +147,36 @@ C=3D2)
 > +#!/usr/bin/env python
 > +# coding=3Dutf-8
 > +#
-> +# Copyright =A9 2016 Intel Corporation
+> +# Copyright =C2=A9 2016 Intel Corporation
 > +#
-> +# Permission is hereby granted, free of charge, to any person =
-obtaining a
-> +# copy of this software and associated documentation files (the =
-"Software"),
-> +# to deal in the Software without restriction, including without =
-limitation
-> +# the rights to use, copy, modify, merge, publish, distribute, =
-sublicense,
-> +# and/or sell copies of the Software, and to permit persons to whom =
-the
-> +# Software is furnished to do so, subject to the following =
-conditions:
+> +# Permission is hereby granted, free of charge, to any person obtainin=
+g a
+> +# copy of this software and associated documentation files (the "Softw=
+are"),
+> +# to deal in the Software without restriction, including without limit=
+ation
+> +# the rights to use, copy, modify, merge, publish, distribute, sublice=
+nse,
+> +# and/or sell copies of the Software, and to permit persons to whom th=
+e
+> +# Software is furnished to do so, subject to the following conditions:
 > +#
-> +# The above copyright notice and this permission notice (including =
-the next
-> +# paragraph) shall be included in all copies or substantial portions =
-of the
+> +# The above copyright notice and this permission notice (including the=
+ next
+> +# paragraph) shall be included in all copies or substantial portions o=
+f the
 > +# Software.
 > +#
-> +# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, =
-EXPRESS OR
-> +# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF =
-MERCHANTABILITY,
-> +# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT =
-SHALL
-> +# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES =
-OR OTHER
-> +# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, =
-ARISING
+> +# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPR=
+ESS OR
+> +# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABIL=
+ITY,
+> +# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT S=
+HALL
+> +# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR=
+ OTHER
+> +# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARIS=
+ING
 > +# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER =
 DEALINGS
 > +# IN THE SOFTWARE.
@@ -194,16 +185,15 @@ DEALINGS
 > +#    Jani Nikula <jani.nikula@intel.com>
 > +#
 > +# Simple kernel-doc and reStructuredText lint tool that can be used
-> +# independently and as a kernel build CHECK tool to validate =
-kernel-doc
+> +# independently and as a kernel build CHECK tool to validate kernel-do=
+c
 > +# comments.
 > +#
 > +# Independent usage:
 > +# $ kernel-doc-rst-lint FILE
 > +#
 > +# Kernel CHECK usage:
-> +# $ make CHECK=3Dscripts/kernel-doc-rst-lint C=3D1		# (or =
-C=3D2)
+> +# $ make CHECK=3Dscripts/kernel-doc-rst-lint C=3D1		# (or C=3D2)
 > +#
 > +# Depends on docutils and the rst-lint package
 > +# https://pypi.python.org/pypi/restructuredtext_lint
@@ -234,20 +224,20 @@ C=3D2)
 > +roles.register_generic_role('c:func', nodes.emphasis)
 > +roles.register_generic_role('c:type', nodes.emphasis)
 > +
-> +# We accept but ignore parameters to be compatible with how the =
-kernel build
+> +# We accept but ignore parameters to be compatible with how the kernel=
+ build
 > +# invokes CHECK.
 > +if len(sys.argv) < 2:
-> +    sys.stderr.write('usage: kernel-doc-rst-lint [IGNORED OPTIONS] =
-FILE\n');
+> +    sys.stderr.write('usage: kernel-doc-rst-lint [IGNORED OPTIONS] FIL=
+E\n');
 > +    sys.exit(1)
 > +
 > +infile =3D sys.argv[len(sys.argv) - 1]
 > +cmd =3D ['scripts/kernel-doc', '-rst', infile]
 > +
 > +try:
-> +    p =3D subprocess.Popen(cmd, stdout=3Dsubprocess.PIPE, =
-stderr=3Dsubprocess.PIPE, universal_newlines=3DTrue)
+> +    p =3D subprocess.Popen(cmd, stdout=3Dsubprocess.PIPE, stderr=3Dsub=
+process.PIPE, universal_newlines=3DTrue)
 > +    out, err =3D p.communicate()
 > +
 > +    # python2 needs conversion to unicode.
@@ -261,16 +251,16 @@ stderr=3Dsubprocess.PIPE, universal_newlines=3DTrue)
 > +        sys.exit(p.returncode)
 > +
 > +    # restructured text errors
-> +    lines =3D statemachine.string2lines(out, 8, =
-convert_whitespace=3DTrue)
+> +    lines =3D statemachine.string2lines(out, 8, convert_whitespace=3DT=
+rue)
 > +    lint_errors =3D restructuredtext_lint.lint(out, infile)
 > +    for error in lint_errors:
 > +        # Ignore INFO
 > +        if error.level <=3D 1:
 > +            continue
 > +
-> +        print(error.source + ': ' + error.type + ': ' + =
-error.full_message)
+> +        print(error.source + ': ' + error.type + ': ' + error.full_mes=
+sage)
 > +        if error.line is not None:
 > +            print('Context:')
 > +            print('\t' + lines[error.line - 1])
@@ -279,15 +269,16 @@ error.full_message)
 > +except Exception as e:
 > +    sys.stderr.write(str(e) + '\n')
 > +    sys.exit(1)
-> --=20
+> --
 > 2.1.4
->=20
->=20
-> --=20
+>
+>
+> --
 > Jani Nikula, Intel Open Source Technology Center
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-media" =
-in
+> To unsubscribe from this list: send the line "unsubscribe kernel-janito=
+rs" in
 > the body of a message to majordomo@vger.kernel.org
 > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
+>
+--8323329-1882111399-1475699148=:3130--
