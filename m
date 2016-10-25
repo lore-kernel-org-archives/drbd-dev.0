@@ -1,56 +1,19 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1BD301056477
-	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:43 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id E2EBB46E978
-	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id R8CHiT7gdWj2 for <drbd-dev@lists.linbit.com>;
-	Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id BF2DB46E972
-	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id Jc-3qJQBq2Km for <drbd-dev@lists.linbit.com>;
-	Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 9822746E97B
-	for <drbd-dev@lists.linbit.com>; Fri,  7 Oct 2016 14:07:42 +0200 (CEST)
-Resent-Message-ID: <20161007120742.GU3302@soda.linbit>
-Received: from mail2-relais-roc.national.inria.fr
-	(mail2-relais-roc.national.inria.fr [192.134.164.83])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 022071056332
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2016 22:25:50 +0200 (CEST)
-Date: Wed, 5 Oct 2016 22:25:35 +0200 (CEST)
-From: Julia Lawall <julia.lawall@lip6.fr>
-To: Jani Nikula <jani.nikula@linux.intel.com>
-In-Reply-To: <87h98quc1w.fsf@intel.com>
-Message-ID: <alpine.DEB.2.10.1610052224240.3130@hadrien>
-References: <1475351192-27079-1-git-send-email-Julia.Lawall@lip6.fr>
-	<CAKMK7uHT3FutHQuQQ3iwXmYbidB3AOs7AxnpaJD4MTqy0-QehQ@mail.gmail.com>
-	<87h98quc1w.fsf@intel.com>
+Return-Path: <guol-fnst@cn.fujitsu.com>
+Received: from heian.cn.fujitsu.com (unknown [59.151.112.132])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F3A5D105646A
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Oct 2016 03:34:07 +0200 (CEST)
+Received: from G08CNEXCHPEKD01.g08.fujitsu.local (unknown [10.167.33.80])
+	by cn.fujitsu.com (Postfix) with ESMTP id 24BD3466F750
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Oct 2016 09:23:44 +0800 (CST)
+From: "Guo, Lei" <guol-fnst@cn.fujitsu.com>
+To: "drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Date: Tue, 25 Oct 2016 01:23:42 +0000
+Message-ID: <36D1AB4E1AAC4541A1C88167C7231D0B01409F69FA@G08CNEXMBPEKD02.g08.fujitsu.local>
+Content-Language: zh-CN
+Content-Type: multipart/alternative;
+	boundary="_000_36D1AB4E1AAC4541A1C88167C7231D0B01409F69FAG08CNEXMBPEKD_"
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323329-1882111399-1475699148=:3130"
-Cc: Linux PM list <linux-pm@vger.kernel.org>, linux-doc@vger.kernel.org,
-	kernel-janitors@vger.kernel.org,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	dri-devel <dri-devel@lists.freedesktop.org>, linux-metag@vger.kernel.org,
-	"linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>,
-	Julia Lawall <Julia.Lawall@lip6.fr>,
-	linux-mtd@lists.infradead.org, Daniel Vetter <daniel@ffwll.ch>,
-	"linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>,
-	"linux-media@vger.kernel.org" <linux-media@vger.kernel.org>,
-	linux-clk@vger.kernel.org, "linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] kernel-doc-rst-lint (was: Re: [PATCH 00/15] improve
- function-level documentation)
+Subject: [Drbd-dev] DRBD Bug Report
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -62,223 +25,209 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+--_000_36D1AB4E1AAC4541A1C88167C7231D0B01409F69FAG08CNEXMBPEKD_
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 
---8323329-1882111399-1475699148=:3130
-Content-Type: TEXT/PLAIN; charset=utf-8
+VmVyc2lvbqO6OS4wLjUvOS4wLjQNCkZpbGWjumRyYmRfc3RhdGUuYw0KDQpU
+d28gbm9kZXMgYXJlIHNldHVwLCBOb2RlIDEgaXMgcHJpbWFyeSwgbm9kZSAy
+IGlzIHNlY29uZGFyeS4NCk9uIG5vZGUgMiAsIGNvbW1hbmQgobBkcmJkYWRt
+IGRvd24gcjChsSByZXR1cm5zIGVycm9yLg0KDQpbZXJyb3JdIEZhaWxlZCB0
+byBkaXNjb25uZWN0ZWQgb3IgZGV0YWNoIHRoZSByMC4NCiAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBjbWRfcmVz
+dWx0PVsxMV0sIGNtZF9vdXRwdXQ9W3IwOiBTdGF0ZSBjaGFuZ2UgZmFpbGVk
+OiAoLTEwKSBTdGF0ZSBjaGFuZ2Ugd2FzIHJlZnVzZWQgYnkgcGVlciBub2Rl
+DQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgYWRkaXRpb25hbCBpbmZvIGZyb20ga2VybmVsOmZhaWxlZCB0byBk
+aXNjb25uZWN0DQoNCg0KVGhlIHBvc3NpYmxlIGJ1ZyBpcyBhcyBmb2xsb3dz
+Lg0Kc3RhdGljIGVudW0gb3V0ZGF0ZV93aGF0IG91dGRhdGVfb25fZGlzY29u
+bmVjdChzdHJ1Y3QgZHJiZF9jb25uZWN0aW9uICpjb25uZWN0aW9uKQ0Kew0K
+ICAgICAgICBzdHJ1Y3QgZHJiZF9yZXNvdXJjZSAqcmVzb3VyY2UgPSBjb25u
+ZWN0aW9uLT5yZXNvdXJjZTsNCg0KICAgICAgICBpZiAoY29ubmVjdGlvbi0+
+ZmVuY2luZ19wb2xpY3kgPj0gRlBfUkVTT1VSQ0UgJiYNCiAgICAgICAgICAg
+IHJlc291cmNlLT5yb2xlW05PV10gIT0gY29ubmVjdGlvbi0+cGVlcl9yb2xl
+W05PV10pIHsNCiAgICAgICAgICAgICAgICBpZiAocmVzb3VyY2UtPnJvbGVb
+Tk9XXSA9PSBSX1BSSU1BUlkpDQogICAgICAgICAgICAgICAgICAgICAgICBy
+ZXR1cm4gT1VUREFURV9QRUVSX0RJU0tTOw0KICAgICAgICAgICAgICAgIGlm
+IChjb25uZWN0aW9uLT5wZWVyX3JvbGVbTk9XXSAhPSBSX1BSSU1BUlkpICAg
+ICAgICAgICA8LS0tLS0tLS0tIHNob3VsZCBiZSChsGlmIChjb25uZWN0aW9u
+LT5wZWVyX3JvbGVbTk9XXSA9PSBSX1BSSU1BUlkpobENCiAgICAgICAgICAg
+ICAgICAgICAgICAgIHJldHVybiBPVVREQVRFX0RJU0tTOw0KICAgICAgICB9
+DQogICAgICAgIHJldHVybiBPVVREQVRFX05PVEhJTkc7DQp9DQoNCg0K0tTJ
+z6GipOik7aS3pK+kqu6KpKSkt6TepLmhow0KLS0tLS0tLQ0KufnA2iBHdW8g
+TGVpDQpEZXZlbG9wbWVudCBEZXB0LklJSSAoMy0yLTMpDQpOYW5qaW5nIEZ1
+aml0c3UgTmFuZGEgU29mdHdhcmUgVGVjaC4gQ28uLCBMdGQuKEZOU1QpDQpU
+RUw6ICs4NisyNS04NjYzMDU2Ni05NDM3DQpFLW1haWw6IGd1b2wtZm5zdEBj
+bi5mdWppc3R1LmNvbTxtYWlsdG86Z3VvbC1mbnN0QGNuLmZ1amlzdHUuY29t
+Pg0KDQoKCg==
+
+--_000_36D1AB4E1AAC4541A1C88167C7231D0B01409F69FAG08CNEXMBPEKD_
+Content-Type: text/html; charset="gb2312"
 Content-Transfer-Encoding: quoted-printable
 
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" xmlns=3D"http:=
+//www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dgb2312">
+<meta name=3D"Generator" content=3D"Microsoft Word 15 (filtered medium)">
+<style><!--
+/* Font Definitions */
+@font-face
+	{font-family:Wingdings;
+	panose-1:5 0 0 0 0 0 0 0 0 0;}
+@font-face
+	{font-family:=CB=CE=CC=E5;
+	panose-1:2 1 6 0 3 1 1 1 1 1;}
+@font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+@font-face
+	{font-family:"\@=CB=CE=CC=E5";
+	panose-1:2 1 6 0 3 1 1 1 1 1;}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0cm;
+	margin-bottom:.0001pt;
+	text-align:justify;
+	text-justify:inter-ideograph;
+	font-size:10.5pt;
+	font-family:"Calibri",sans-serif;}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:#0563C1;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:#954F72;
+	text-decoration:underline;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	font-family:"Calibri",sans-serif;
+	color:windowtext;}
+.MsoChpDefault
+	{mso-style-type:export-only;
+	font-family:"Calibri",sans-serif;}
+/* Page Definitions */
+@page WordSection1
+	{size:612.0pt 792.0pt;
+	margin:72.0pt 90.0pt 72.0pt 90.0pt;}
+div.WordSection1
+	{page:WordSection1;}
+--></style><!--[if gte mso 9]><xml>
+<o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+<o:shapelayout v:ext=3D"edit">
+<o:idmap v:ext=3D"edit" data=3D"1" />
+</o:shapelayout></xml><![endif]-->
+</head>
+<body lang=3D"ZH-CN" link=3D"#0563C1" vlink=3D"#954F72" style=3D"text-justi=
+fy-trim:punctuation">
+<div class=3D"WordSection1">
+<p class=3D"MsoNormal"><span lang=3D"EN-US">Version</span><span style=3D"fo=
+nt-family:=CB=CE=CC=E5">=A3=BA</span><span lang=3D"EN-US">9.0.5/9.0.4
+</span><span lang=3D"EN-US"><o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">File</span><span style=3D"font-=
+family:=CB=CE=CC=E5">=A3=BA</span><span lang=3D"EN-US">drbd_state.c<o:p></o=
+:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">Two nodes are setup, Node 1 is =
+primary, node 2 is secondary.
+<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">On node 2 , command =A1=B0drbda=
+dm down r0=A1=B1 returns error.<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class=3D"MsoNormal"><i><span lang=3D"EN-US">[error] Failed to disconnect=
+ed or detach the r0.
+<o:p></o:p></span></i></p>
+<p class=3D"MsoNormal"><i><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;cmd_result=3D[11], cmd_output=3D[r0: St=
+ate change failed: (-10) State change was refused by peer node<o:p></o:p></=
+span></i></p>
+<p class=3D"MsoNormal"><i><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp; &nbsp; additional info from kernel:failed to discon=
+nect<o:p></o:p></span></i></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">The possible bug is as follows.=
+<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">static enum outdate_what outdat=
+e_on_disconnect(struct drbd_connection *connection)<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">{<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp; struct drbd_resource *resource =3D connection-&gt;resource;<o:p=
+></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp; if (connection-&gt;fencing_policy &gt;=3D FP_RESOURCE &amp;&amp=
+;<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;resource-&gt;role[NOW] !=3D connection-=
+&gt;peer_role[NOW]) {<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (resource-&g=
+t;role[NOW] =3D=3D R_PRIMARY)<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return OUTDATE_PEER_DISKS;<o:p></o:p></spa=
+n></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (connection-=
+&gt;peer_role[NOW]
+<span style=3D"color:red">!=3D</span> R_PRIMARY)&nbsp;&nbsp;&nbsp;&nbsp;&nb=
+sp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span lang=3D"EN-US" style=3D"font=
+-family:Wingdings">&szlig;</span><span lang=3D"EN-US">------- should be =A1=
+=B0if (connection-&gt;peer_role[NOW]
+<span style=3D"color:red">=3D=3D</span> R_PRIMARY)=A1=B1 <o:p></o:p></span>=
+</p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return OUTDATE_DISKS;<o:p></o:p></spa=
+n></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp; }<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp; return OUTDATE_NOTHING;<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US" style=3D"mso-fareast-language:J=
+A">}<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US" style=3D"mso-fareast-language:J=
+A"><o:p>&nbsp;</o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US" style=3D"mso-fareast-language:J=
+A"><o:p>&nbsp;</o:p></span></p>
+<p class=3D"MsoNormal" align=3D"left" style=3D"text-align:left"><span lang=
+=3D"JA" style=3D"font-family:=CB=CE=CC=E5;mso-fareast-language:JA">=D2=D4=
+=C9=CF=A1=A2=A4=E8=A4=ED=A4=B7=A4=AF=A4=AA=EE=8A=A4=A4=A4=B7=A4=DE=A4=B9=A1=
+=A3</span><span lang=3D"EN-US" style=3D"mso-fareast-language:JA"><o:p></o:p=
+></span></p>
+<p class=3D"MsoNormal" align=3D"left" style=3D"text-align:left"><span lang=
+=3D"EN-US">-------<o:p></o:p></span></p>
+<p class=3D"MsoNormal" align=3D"left" style=3D"text-align:left"><span style=
+=3D"font-family:=CB=CE=CC=E5">=B9=F9=C0=DA</span><span lang=3D"EN-US"> Guo =
+Lei<o:p></o:p></span></p>
+<p class=3D"MsoNormal" align=3D"left" style=3D"text-align:left"><span lang=
+=3D"EN-US">Development Dept.III (3-2-3)<o:p></o:p></span></p>
+<p class=3D"MsoNormal" align=3D"left" style=3D"text-align:left"><span lang=
+=3D"EN-US">Nanjing Fujitsu Nanda Software Tech. Co., Ltd.(FNST)<o:p></o:p><=
+/span></p>
+<p class=3D"MsoNormal" align=3D"left" style=3D"text-align:left"><span lang=
+=3D"EN-US">TEL: &#43;86&#43;25-86630566-9437<o:p></o:p></span></p>
+<p class=3D"MsoNormal" align=3D"left" style=3D"text-align:left"><span lang=
+=3D"EN-US">E-mail:
+<a href=3D"mailto:guol-fnst@cn.fujistu.com"><span style=3D"color:#0563C1">g=
+uol-fnst@cn.fujistu.com</span></a><o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span lang=3D"EN-US"><o:p>&nbsp;</o:p></span></p>
+</div>
+</body>
+</html>
 
-
-On Wed, 5 Oct 2016, Jani Nikula wrote:
-
-> On Wed, 05 Oct 2016, Daniel Vetter <daniel@ffwll.ch> wrote:
-> > Jani Nikula has a patch with a scrip to make the one kernel-doc parse=
-r
-> > into a lint/checker pass over the entire kernel. I think that'd would
-> > be more robust instead of trying to approximate the real kerneldoc
-> > parser. Otoh that parser is a horror show of a perl/regex driven stat=
-e
-> > machine ;-)
-> >
-> > Jani, can you pls digg out these patches? Can't find them right now .=
-..
->
-> Expanding the massive Cc: with linux-doc list...
->
-> Here goes. It's a quick hack from months ago, but still seems to
-> somewhat work. At least for the kernel-doc parts. The reStructuredText
-> lint part isn't all that great, and doesn't have mapping to line number=
-s
-> like the Sphinx kernel-doc extension does. Anyway I'm happy how this
-> integrates with kernel build CHECK and C=3D1/C=3D2.
->
-> I guess Julia's goal is to automate the *fixing* of some of the error
-> classes from kernel-doc. Not sure how well this could be made to
-> integrate with any of that.
-
-No, my work doesn't fix anything.  Coccinelle can't actually process
-comments.  I just correlated the parsed comment with the function header.
-
-julia
-
->
-> BR,
-> Jani.
->
->
-> From 1244efa0f63a7b13795e8c37f81733a3c8bfc56a Mon Sep 17 00:00:00 2001
-> From: Jani Nikula <jani.nikula@intel.com>
-> Date: Tue, 31 May 2016 18:11:33 +0300
-> Subject: [PATCH] kernel-doc-rst-lint: add tool to check kernel-doc and =
-rst
->  correctness
-> Organization: Intel Finland Oy - BIC 0357606-4 - Westendinkatu 7, 02160=
- Espoo
-> Cc: Jani Nikula <jani.nikula@intel.com>
->
-> Simple kernel-doc and reStructuredText lint tool that can be used
-> independently and as a kernel build CHECK tool to validate kernel-doc
-> comments.
->
-> Independent usage:
-> $ kernel-doc-rst-lint FILE
->
-> Kernel CHECK usage:
-> $ make CHECK=3Dscripts/kernel-doc-rst-lint C=3D1		# (or C=3D2)
->
-> Depends on docutils and the rst-lint package
-> https://pypi.python.org/pypi/restructuredtext_lint
->
-> Signed-off-by: Jani Nikula <jani.nikula@intel.com>
-> ---
->  scripts/kernel-doc-rst-lint | 106 ++++++++++++++++++++++++++++++++++++=
-++++++++
->  1 file changed, 106 insertions(+)
->  create mode 100755 scripts/kernel-doc-rst-lint
->
-> diff --git a/scripts/kernel-doc-rst-lint b/scripts/kernel-doc-rst-lint
-> new file mode 100755
-> index 000000000000..7e0157679f83
-> --- /dev/null
-> +++ b/scripts/kernel-doc-rst-lint
-> @@ -0,0 +1,106 @@
-> +#!/usr/bin/env python
-> +# coding=3Dutf-8
-> +#
-> +# Copyright =C2=A9 2016 Intel Corporation
-> +#
-> +# Permission is hereby granted, free of charge, to any person obtainin=
-g a
-> +# copy of this software and associated documentation files (the "Softw=
-are"),
-> +# to deal in the Software without restriction, including without limit=
-ation
-> +# the rights to use, copy, modify, merge, publish, distribute, sublice=
-nse,
-> +# and/or sell copies of the Software, and to permit persons to whom th=
-e
-> +# Software is furnished to do so, subject to the following conditions:
-> +#
-> +# The above copyright notice and this permission notice (including the=
- next
-> +# paragraph) shall be included in all copies or substantial portions o=
-f the
-> +# Software.
-> +#
-> +# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPR=
-ESS OR
-> +# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABIL=
-ITY,
-> +# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT S=
-HALL
-> +# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR=
- OTHER
-> +# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARIS=
-ING
-> +# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER =
-DEALINGS
-> +# IN THE SOFTWARE.
-> +#
-> +# Authors:
-> +#    Jani Nikula <jani.nikula@intel.com>
-> +#
-> +# Simple kernel-doc and reStructuredText lint tool that can be used
-> +# independently and as a kernel build CHECK tool to validate kernel-do=
-c
-> +# comments.
-> +#
-> +# Independent usage:
-> +# $ kernel-doc-rst-lint FILE
-> +#
-> +# Kernel CHECK usage:
-> +# $ make CHECK=3Dscripts/kernel-doc-rst-lint C=3D1		# (or C=3D2)
-> +#
-> +# Depends on docutils and the rst-lint package
-> +# https://pypi.python.org/pypi/restructuredtext_lint
-> +#
-> +
-> +import os
-> +import subprocess
-> +import sys
-> +
-> +from docutils.parsers.rst import directives
-> +from docutils.parsers.rst import Directive
-> +from docutils.parsers.rst import roles
-> +from docutils import nodes, statemachine
-> +import restructuredtext_lint
-> +
-> +class DummyDirective(Directive):
-> +    required_argument =3D 1
-> +    optional_arguments =3D 0
-> +    option_spec =3D { }
-> +    has_content =3D True
-> +
-> +    def run(self):
-> +        return []
-> +
-> +# Fake the Sphinx C Domain directives and roles
-> +directives.register_directive('c:function', DummyDirective)
-> +directives.register_directive('c:type', DummyDirective)
-> +roles.register_generic_role('c:func', nodes.emphasis)
-> +roles.register_generic_role('c:type', nodes.emphasis)
-> +
-> +# We accept but ignore parameters to be compatible with how the kernel=
- build
-> +# invokes CHECK.
-> +if len(sys.argv) < 2:
-> +    sys.stderr.write('usage: kernel-doc-rst-lint [IGNORED OPTIONS] FIL=
-E\n');
-> +    sys.exit(1)
-> +
-> +infile =3D sys.argv[len(sys.argv) - 1]
-> +cmd =3D ['scripts/kernel-doc', '-rst', infile]
-> +
-> +try:
-> +    p =3D subprocess.Popen(cmd, stdout=3Dsubprocess.PIPE, stderr=3Dsub=
-process.PIPE, universal_newlines=3DTrue)
-> +    out, err =3D p.communicate()
-> +
-> +    # python2 needs conversion to unicode.
-> +    # python3 with universal_newlines=3DTrue returns strings.
-> +    if sys.version_info.major < 3:
-> +        out, err =3D unicode(out, 'utf-8'), unicode(err, 'utf-8')
-> +
-> +    # kernel-doc errors
-> +    sys.stderr.write(err)
-> +    if p.returncode !=3D 0:
-> +        sys.exit(p.returncode)
-> +
-> +    # restructured text errors
-> +    lines =3D statemachine.string2lines(out, 8, convert_whitespace=3DT=
-rue)
-> +    lint_errors =3D restructuredtext_lint.lint(out, infile)
-> +    for error in lint_errors:
-> +        # Ignore INFO
-> +        if error.level <=3D 1:
-> +            continue
-> +
-> +        print(error.source + ': ' + error.type + ': ' + error.full_mes=
-sage)
-> +        if error.line is not None:
-> +            print('Context:')
-> +            print('\t' + lines[error.line - 1])
-> +            print('\t' + lines[error.line])
-> +
-> +except Exception as e:
-> +    sys.stderr.write(str(e) + '\n')
-> +    sys.exit(1)
-> --
-> 2.1.4
->
->
-> --
-> Jani Nikula, Intel Open Source Technology Center
-> --
-> To unsubscribe from this list: send the line "unsubscribe kernel-janito=
-rs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
---8323329-1882111399-1475699148=:3130--
+--_000_36D1AB4E1AAC4541A1C88167C7231D0B01409F69FAG08CNEXMBPEKD_--
