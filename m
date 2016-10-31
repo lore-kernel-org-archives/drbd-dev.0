@@ -1,37 +1,27 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <BATV+d7add8a7bef99f8e6f52+4817+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.9])
+	(using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id ED3B61056471
-	for <drbd-dev@lists.linbit.com>; Mon, 31 Oct 2016 11:58:52 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id AB188482933
-	for <drbd-dev@lists.linbit.com>; Mon, 31 Oct 2016 11:58:52 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id OVKqUsKpyrh1 for <drbd-dev@lists.linbit.com>;
-	Mon, 31 Oct 2016 11:58:52 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 89FE7482934
-	for <drbd-dev@lists.linbit.com>; Mon, 31 Oct 2016 11:58:52 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id HrlbSfSsdbbH for <drbd-dev@lists.linbit.com>;
-	Mon, 31 Oct 2016 11:58:52 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id 61E55482933
-	for <drbd-dev@lists.linbit.com>; Mon, 31 Oct 2016 11:58:52 +0100 (CET)
-Date: Mon, 31 Oct 2016 11:58:52 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20161031105852.GC1382@soda.linbit>
-References: <36D1AB4E1AAC4541A1C88167C7231D0B01409F69FA@G08CNEXMBPEKD02.g08.fujitsu.local>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E7CA21056474
+	for <drbd-dev@lists.linbit.com>; Mon, 31 Oct 2016 16:54:18 +0100 (CET)
+Date: Mon, 31 Oct 2016 08:25:49 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Ming Lei <tom.leiming@gmail.com>
+Message-ID: <20161031152549.GA30919@infradead.org>
+References: <1477728600-12938-1-git-send-email-tom.leiming@gmail.com>
+	<1477728600-12938-4-git-send-email-tom.leiming@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <36D1AB4E1AAC4541A1C88167C7231D0B01409F69FA@G08CNEXMBPEKD02.g08.fujitsu.local>
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [Drbd-dev] DRBD Bug Report
+In-Reply-To: <1477728600-12938-4-git-send-email-tom.leiming@gmail.com>
+Cc: linux-block@vger.kernel.org, Christoph Hellwig <hch@infradead.org>,
+	linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
+	Jens Axboe <axboe@fb.com>, linux-fsdevel@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH 03/60] block: drbd: remove impossible failure
+	handling
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,53 +33,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Oct 25, 2016 at 01:23:42AM +0000, Guo, Lei wrote:
-> Version=EF=BC=9A9.0.5/9.0.4
-> File=EF=BC=9Adrbd_state.c
->=20
-> Two nodes are setup, Node 1 is primary, node 2 is secondary.
-> On node 2 , command =E2=80=9Cdrbdadm down r0=E2=80=9D returns error.
->=20
-> [error] Failed to disconnected or detach the r0.
->                                                  cmd_result=3D[11], cmd=
-_output=3D[r0: State change failed: (-10) State change was refused by pee=
-r node
->                                                  additional info from k=
-ernel:failed to disconnect
->=20
->=20
-> The possible bug is as follows.
-> static enum outdate_what outdate_on_disconnect(struct drbd_connection *=
-connection)
-> {
->         struct drbd_resource *resource =3D connection->resource;
->=20
->         if (connection->fencing_policy >=3D FP_RESOURCE &&
->             resource->role[NOW] !=3D connection->peer_role[NOW]) {
->                 if (resource->role[NOW] =3D=3D R_PRIMARY)
->                         return OUTDATE_PEER_DISKS;
->                 if (connection->peer_role[NOW] !=3D R_PRIMARY)         =
-  <--------- should be =E2=80=9Cif (connection->peer_role[NOW] =3D=3D R_P=
-RIMARY)=E2=80=9D
+On Sat, Oct 29, 2016 at 04:08:02PM +0800, Ming Lei wrote:
+> For a non-cloned bio, bio_add_page() only returns failure when
+> the io vec table is full, but in that case, bio->bi_vcnt can't
+> be zero at all.
+> 
+> So remove the impossible failure handling.
+> 
+> Acked-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+> Signed-off-by: Ming Lei <tom.leiming@gmail.com>
 
-Yes.
-And I thought I fixed that some weeks ago.
-But apparently I did not push a test case,
-and it got lost during the last merge/release cycle.
-Pushed now.
+Looks good,
 
-Note though that this is by far not the only thing
-that is broken with enabled fencing-policies on DRBD 9.
-
-I was operating on the assumption that there had been only a few missing
-missing parts regarding pacemaker (and other) integration.  Turned out I
-was wrong, and DRBD 9 + fencing policies is pretty much completely
-broken in the module itself still.  We are working on it.
-
---=20
-: Lars Ellenberg
-: LINBIT | Keeping the Digital World Running
-: DRBD -- Heartbeat -- Corosync -- Pacemaker
-: R&D, Integration, Ops, Consulting, Support
-
-DRBD=C2=AE and LINBIT=C2=AE are registered trademarks of LINBIT
+Reviewed-by: Christoph Hellwig <hch@lst.de>
