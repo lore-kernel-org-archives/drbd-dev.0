@@ -1,25 +1,27 @@
-Return-Path: <philipp.reisner@linbit.com>
+Return-Path: <lars.ellenberg@linbit.com>
 Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8210A1056478
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Nov 2016 16:22:14 +0100 (CET)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: "Kim, Sung-eun" <sekim@mantech.co.kr>
-Date: Wed, 09 Nov 2016 16:22:13 +0100
-Message-ID: <1565484.NMKH8Jh5PJ@fat-tyre>
-In-Reply-To: <CAHRYDji-LUDdvOhzSfQi=kPzR9mS+xcRM4Juz8LWb7RZnAo41w@mail.gmail.com>
-References: <CAHRYDji-LUDdvOhzSfQi=kPzR9mS+xcRM4Juz8LWb7RZnAo41w@mail.gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 418E91056478
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Nov 2016 16:32:10 +0100 (CET)
+Date: Wed, 9 Nov 2016 16:32:09 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Message-ID: <20161109153209.GK1382@soda.linbit>
+References: <1478601789-15060-1-git-send-email-richard@nod.at>
+	<1478601789-15060-1-git-send-email-richard@nod.at>
+	<497abc52-093f-17ea-5fb5-645030a23a01@nod.at>
+	<20161108165204.GC2834@kernel.dk>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
-Cc: =?utf-8?B?Si5ILiwgSmluIExlZSAo7J207KeE7ZiEKQ==?= <jhlee@mantech.co.kr>,
-	Windows DRBD <wdrbd@mantech.co.kr>,
-	=?utf-8?B?67CV7ZiE7ISd?= <hspark@mantech.co.kr>,
-	=?utf-8?B?67CV7ISx7ZmY?= <shpark@mantech.co.kr>,
-	Philipp Marek <philipp.marek@linbit.com>, drbd-dev@lists.linbit.com,
-	=?utf-8?B?67Cw7KKF66y0?= <jmbae@mantech.co.kr>
-Subject: Re: [Drbd-dev] WDRBD 1.3.5 released (drbd9 modified by mantech)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20161108165204.GC2834@kernel.dk>
+Content-Transfer-Encoding: quoted-printable
+Cc: wolfgang.glas@iteg.at, Richard Weinberger <richard@nod.at>,
+	christoph.lechleitner@iteg.at, linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org, philipp.reisner@linbit.com,
+	viro@zeniv.linux.org.uk, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd: Fix kernel_sendmsg() usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,63 +33,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am Dienstag, 8. November 2016, 14:35:08 CET schrieb Kim, Sung-eun:
-> Hi, Philipp
-> 
-> WDRBD 1.3.5 is released.
-> 
-> https://github.com/mantechnology/wdrbd/releases
-> 
-> 
-> we have test and debugging wdrbd for a long time, and finally met WDRBD
-> 1.3.5.
-> 
-> We have modified a drbd9 original source code, and a one big thing was
-> changed from origin code. that is,
-> 
-> *- A Only Primary node can be SyncSource.*
-> 
-> we have met a many situation for a 1:N node test, in those there were
-> problems. If sync direction is different with replication direction from
-> each nodes, OOS remaining and replication Consistency issues was happened,
-> and we cannot solve these.
-> 
+On Tue, Nov 08, 2016 at 09:52:04AM -0700, Jens Axboe wrote:
+> > > This should go into 4.9,
+> > > and into all stable branches since and including v4.0,
+> > > which is the first to contain the exposing change.
+> > >=20
+> > > It is correct for all stable branches older than that as well
+> > > (which contain the DRBD driver; which is 2.6.33 and up).
+> > >=20
+> > > It requires a small "conflict" resolution for v4.4 and earlier, wit=
+h v4.5
+> > > we dropped the comment block immediately preceding the kernel_sendm=
+sg().
+> > >=20
+> > > Cc: stable@vger.kernel.org
+> > > Cc: viro@zeniv.linux.org.uk
+> > > Cc: christoph.lechleitner@iteg.at
+> > > Cc: wolfgang.glas@iteg.at
+> > > Reported-by: Christoph Lechleitner <christoph.lechleitner@iteg.at>
+> > > Tested-by: Christoph Lechleitner <christoph.lechleitner@iteg.at>
+> > > Signed-off-by: Richard Weinberger <richard@nod.at>
+> > > Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+> >=20
+> > Changing my patch is perfectly fine, but please clearly state it.
+> > I.e. by adding something like that before your S-o-b.
+> > [Lars: Massaged patch to match my personal taste...]
+>=20
 
-I see.
-Would help if you could describe such a case, step by step.
+> Lars, are you sending a new one? If you do, add the stable tag as well.
 
-> and we decided to restrict a sync direction.
-> 
-> you can check this below link,
-> 
-> https://github.com/mantechnology/wdrbd/commit/7cc1f27f915d604b0ebcd10761a722
-> f5b6c7701c
-> 
+So my "change" against his original patch was
+- rv =3D kernel_sendmsg(sock, &msg, &iov, 1, size - sent);
++ rv =3D kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
+to make it "more obviously correct" from looking just at the one line
+without even having to read the context.  And a more verbose commit messa=
+ge.
 
+If that requires yet additional noise, sure, so be it :)
 
+Should I sent two patches, one that applies to 4.5 and later,
+and one that applies to 2.6.33 ... 4.4, or are you or stable
+willing to resolve the trivial "missing comment block" conflict yourself?
 
-> 
-> 
-> Another things is Fast Sync(we call it).
-> 
-> Do you remember that we talks about a Fast initial Sync on a way to airport
-> in Seoul?
-> 
-> finally, we make it this. (
-> https://github.com/mantechnology/wdrbd/commit/28a484b2259002c92e578e2f84ee5a
-> 88c72c1ac5 )
+--=20
+: Lars Ellenberg
+: LINBIT | Keeping the Digital World Running
+: DRBD -- Heartbeat -- Corosync -- Pacemaker
+: R&D, Integration, Ops, Consulting, Support
 
-Interesting. I do not know if it possible to do a comparable thing
-in Linux... We will have a look.
-
- 
-> and, you can check a source code modified by mantech in a below contents.
-> we will wait for your opinion about MODIFIED_BY_MANTECH.
-> 
-
-It will take a bit. I try to do it somwhen next week
-I.e. bevor November 18.
-
-best regards,
- Phil
-
+DRBD=AE and LINBIT=AE are registered trademarks of LINBIT
