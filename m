@@ -1,27 +1,25 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-yw0-f173.google.com (mail-yw0-f173.google.com
-	[209.85.161.173]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <philipp.reisner@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 90B5D1056482
-	for <drbd-dev@lists.linbit.com>; Tue,  8 Nov 2016 17:58:47 +0100 (CET)
-Received: by mail-yw0-f173.google.com with SMTP id l124so182374870ywb.3
-	for <drbd-dev@lists.linbit.com>; Tue, 08 Nov 2016 08:58:47 -0800 (PST)
-Date: Tue, 8 Nov 2016 09:52:04 -0700
-From: Jens Axboe <axboe@kernel.dk>
-To: Richard Weinberger <richard@nod.at>
-Message-ID: <20161108165204.GC2834@kernel.dk>
-References: <1478601789-15060-1-git-send-email-richard@nod.at>
-	<1478601789-15060-1-git-send-email-richard@nod.at>
-	<497abc52-093f-17ea-5fb5-645030a23a01@nod.at>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8210A1056478
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Nov 2016 16:22:14 +0100 (CET)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: "Kim, Sung-eun" <sekim@mantech.co.kr>
+Date: Wed, 09 Nov 2016 16:22:13 +0100
+Message-ID: <1565484.NMKH8Jh5PJ@fat-tyre>
+In-Reply-To: <CAHRYDji-LUDdvOhzSfQi=kPzR9mS+xcRM4Juz8LWb7RZnAo41w@mail.gmail.com>
+References: <CAHRYDji-LUDdvOhzSfQi=kPzR9mS+xcRM4Juz8LWb7RZnAo41w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <497abc52-093f-17ea-5fb5-645030a23a01@nod.at>
-Cc: wolfgang.glas@iteg.at, christoph.lechleitner@iteg.at,
-	philipp.reisner@linbit.com, stable@vger.kernel.org,
-	linux-kernel@vger.kernel.org, viro@zeniv.linux.org.uk,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: Fix kernel_sendmsg() usage
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Cc: =?utf-8?B?Si5ILiwgSmluIExlZSAo7J207KeE7ZiEKQ==?= <jhlee@mantech.co.kr>,
+	Windows DRBD <wdrbd@mantech.co.kr>,
+	=?utf-8?B?67CV7ZiE7ISd?= <hspark@mantech.co.kr>,
+	=?utf-8?B?67CV7ISx7ZmY?= <shpark@mantech.co.kr>,
+	Philipp Marek <philipp.marek@linbit.com>, drbd-dev@lists.linbit.com,
+	=?utf-8?B?67Cw7KKF66y0?= <jmbae@mantech.co.kr>
+Subject: Re: [Drbd-dev] WDRBD 1.3.5 released (drbd9 modified by mantech)
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,70 +31,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Nov 08 2016, Richard Weinberger wrote:
-> On 08.11.2016 14:43, Lars Ellenberg wrote:
-> > From 3a5859e696178e31a25e65de58c461046fc52beb Mon Sep 17 00:00:00 2001
-> > From: Richard Weinberger <richard@nod.at>
-> > Date: Tue, 8 Nov 2016 11:43:09 +0100
-> > Subject: [PATCH] drbd: Fix kernel_sendmsg() usage - potential NULL deref
-> > drbd: Fix kernel_sendmsg() usage - potential NULL deref
-> > 
-> > Don't pass a size larger than iov_len to kernel_sendmsg().
-> > Otherwise it will cause a NULL pointer deref when kernel_sendmsg()
-> > returns with rv < size.
-> > 
-> > DRBD as external module has been around in the kernel 2.4 days already.
-> > We used to be compatible to 2.4 and very early 2.6 kernels,
-> > we used to use
-> >  rv = sock_sendmsg(sock, &msg, iov.iov_len);
-> > then later changed to
-> >  rv = kernel_sendmsg(sock, &msg, &iov, 1, size);
-> > when we should have used
-> >  rv = kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
-> > 
-> > tcp_sendmsg() used to totally ignore the size parameter.
-> >  57be5bd ip: convert tcp_sendmsg() to iov_iter primitives
-> > changes that, and exposes our long standing error.
-> > 
-> > Even with this error exposed, to trigger the bug, we would need to have
-> > an environment (config or otherwise) causing us to not use sendpage()
-> > for larger transfers, a flaky connection, and have it fail "just at the
-> > right time".  Apparently that was unlikely enough for most, so this went
-> > unnoticed for years.
-> > 
-> > Still, it is known to trigger at least some of these,
-> > and suspected for the others:
-> > [0] http://lists.linbit.com/pipermail/drbd-user/2016-July/023112.html
-> > [1] http://lists.linbit.com/pipermail/drbd-dev/2016-March/003362.html
-> > [2] https://forums.grsecurity.net/viewtopic.php?f=3&t=4546
-> > [3] https://ubuntuforums.org/showthread.php?t=2336150
-> > [4] http://e2.howsolveproblem.com/i/1175162/
-> > 
-> > This should go into 4.9,
-> > and into all stable branches since and including v4.0,
-> > which is the first to contain the exposing change.
-> > 
-> > It is correct for all stable branches older than that as well
-> > (which contain the DRBD driver; which is 2.6.33 and up).
-> > 
-> > It requires a small "conflict" resolution for v4.4 and earlier, with v4.5
-> > we dropped the comment block immediately preceding the kernel_sendmsg().
-> > 
-> > Cc: stable@vger.kernel.org
-> > Cc: viro@zeniv.linux.org.uk
-> > Cc: christoph.lechleitner@iteg.at
-> > Cc: wolfgang.glas@iteg.at
-> > Reported-by: Christoph Lechleitner <christoph.lechleitner@iteg.at>
-> > Tested-by: Christoph Lechleitner <christoph.lechleitner@iteg.at>
-> > Signed-off-by: Richard Weinberger <richard@nod.at>
-> > Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+Am Dienstag, 8. November 2016, 14:35:08 CET schrieb Kim, Sung-eun:
+> Hi, Philipp
 > 
-> Changing my patch is perfectly fine, but please clearly state it.
-> I.e. by adding something like that before your S-o-b.
-> [Lars: Massaged patch to match my personal taste...]
+> WDRBD 1.3.5 is released.
+> 
+> https://github.com/mantechnology/wdrbd/releases
+> 
+> 
+> we have test and debugging wdrbd for a long time, and finally met WDRBD
+> 1.3.5.
+> 
+> We have modified a drbd9 original source code, and a one big thing was
+> changed from origin code. that is,
+> 
+> *- A Only Primary node can be SyncSource.*
+> 
+> we have met a many situation for a 1:N node test, in those there were
+> problems. If sync direction is different with replication direction from
+> each nodes, OOS remaining and replication Consistency issues was happened,
+> and we cannot solve these.
+> 
 
-Lars, are you sending a new one? If you do, add the stable tag as well.
+I see.
+Would help if you could describe such a case, step by step.
 
--- 
-Jens Axboe
+> and we decided to restrict a sync direction.
+> 
+> you can check this below link,
+> 
+> https://github.com/mantechnology/wdrbd/commit/7cc1f27f915d604b0ebcd10761a722
+> f5b6c7701c
+> 
+
+
+
+> 
+> 
+> Another things is Fast Sync(we call it).
+> 
+> Do you remember that we talks about a Fast initial Sync on a way to airport
+> in Seoul?
+> 
+> finally, we make it this. (
+> https://github.com/mantechnology/wdrbd/commit/28a484b2259002c92e578e2f84ee5a
+> 88c72c1ac5 )
+
+Interesting. I do not know if it possible to do a comparable thing
+in Linux... We will have a look.
+
+ 
+> and, you can check a source code modified by mantech in a below contents.
+> we will wait for your opinion about MODIFIED_BY_MANTECH.
+> 
+
+It will take a bit. I try to do it somwhen next week
+I.e. bevor November 18.
+
+best regards,
+ Phil
 
