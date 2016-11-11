@@ -1,25 +1,40 @@
-Return-Path: <tom.leiming@gmail.com>
-Received: from mail-pf0-f194.google.com (mail-pf0-f194.google.com
-	[209.85.192.194]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 200EA1056480
-	for <drbd-dev@lists.linbit.com>; Fri, 11 Nov 2016 13:06:35 +0100 (CET)
-Received: by mail-pf0-f194.google.com with SMTP id n85so2395978pfi.3
-	for <drbd-dev@lists.linbit.com>; Fri, 11 Nov 2016 04:06:35 -0800 (PST)
-From: Ming Lei <tom.leiming@gmail.com>
-To: Jens Axboe <axboe@fb.com>,
-	linux-kernel@vger.kernel.org
-Date: Fri, 11 Nov 2016 20:05:30 +0800
-Message-Id: <1478865957-25252-3-git-send-email-tom.leiming@gmail.com>
-In-Reply-To: <1478865957-25252-1-git-send-email-tom.leiming@gmail.com>
-References: <1478865957-25252-1-git-send-email-tom.leiming@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Ming Lei <tom.leiming@gmail.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>
-Subject: [Drbd-dev] [PATCH 02/12] block: drbd: remove impossible failure
-	handling
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 7321D1056471
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Nov 2016 10:48:39 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 3984F2AD767
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Nov 2016 10:48:39 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id 80KjEs-z766L for <drbd-dev@lists.linbit.com>;
+	Mon, 14 Nov 2016 10:48:39 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 183EB48617D
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Nov 2016 10:48:39 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id yhxGLoiF2rfk for <drbd-dev@lists.linbit.com>;
+	Mon, 14 Nov 2016 10:48:39 +0100 (CET)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id E67F42AD767
+	for <drbd-dev@lists.linbit.com>; Mon, 14 Nov 2016 10:48:38 +0100 (CET)
+Resent-Message-ID: <20161114094838.GV1382@soda.linbit>
+Received: from email.studentenwerk.mhn.de (mailin.studentenwerk.mhn.de
+	[141.84.225.229])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8C1181056469
+	for <drbd-dev@lists.linbit.com>; Fri, 11 Nov 2016 18:53:32 +0100 (CET)
+From: Wolfgang Walter <linux@stwm.de>
+To: drbd-dev@lists.linbit.com
+Date: Fri, 11 Nov 2016 18:45:18 +0100
+Message-ID: <6098334.rfGYZxPirJ@stwm.de>
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="iso-8859-1"
+Cc: linux-kernel@vger.kernel.org
+Subject: [Drbd-dev] DRBD: ASSERT in drbd_actlog.c:259
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,45 +46,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-For a non-cloned bio, bio_add_page() only returns failure when
-the io vec table is full, but in that case, bio->bi_vcnt can't
-be zero at all.
+Hello,
 
-So remove the impossible failure handling.
+when I execute
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Acked-by: Lars Ellenberg <lars.ellenberg@linbit.com>
-Signed-off-by: Ming Lei <tom.leiming@gmail.com>
----
- drivers/block/drbd/drbd_receiver.c | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+mkfs.ext4 -J device=3DUUID=3D625d871f-c278-4acb-916d-774dc78dbd8a -v -b=
+ 4096 -E stride=3D$((512/4)),stripe_width=3D$((512/4*3)),lazy_itable_in=
+it=3D0 -O inline_data,mmp -L dyn -m .01 /dev/test/big
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index a89538cb3eaa..c7728dd77230 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1648,20 +1648,8 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 
- 	page_chain_for_each(page) {
- 		unsigned len = min_t(unsigned, data_size, PAGE_SIZE);
--		if (!bio_add_page(bio, page, len, 0)) {
--			/* A single page must always be possible!
--			 * But in case it fails anyways,
--			 * we deal with it, and complain (below). */
--			if (bio->bi_vcnt == 0) {
--				drbd_err(device,
--					"bio_add_page failed for len=%u, "
--					"bi_vcnt=0 (bi_sector=%llu)\n",
--					len, (uint64_t)bio->bi_iter.bi_sector);
--				err = -ENOSPC;
--				goto fail;
--			}
-+		if (!bio_add_page(bio, page, len, 0))
- 			goto next_bio;
--		}
- 		data_size -= len;
- 		sector += len >> 9;
- 		--nr_pages;
--- 
-2.7.4
+the command hangs and the kernel (4.4.30) complains:
 
+block drbd1: ASSERT( (unsigned)(last - first) <=3D 1 ) in drivers/block=
+/drbd/drbd_actlog.c:259
+block drbd2: ASSERT( (unsigned)(last - first) <=3D 1 ) in drivers/block=
+/drbd/drbd_actlog.c:259
+block drbd1: ASSERT( (unsigned)(last - first) <=3D 1 ) in drivers/block=
+/drbd/drbd_actlog.c:259
+block drbd3: ASSERT( (unsigned)(last - first) <=3D 1 ) in drivers/block=
+/drbd/drbd_actlog.c:259
+block drbd2: ASSERT( (unsigned)(last - first) <=3D 1 ) in drivers/block=
+/drbd/drbd_actlog.c:259
+block drbd3: ASSERT( (unsigned)(last - first) <=3D 1 ) in drivers/block=
+/drbd/drbd_actlog.c:259
+
+This does _not_ happen if I use
+
+mkfs.ext4 -J device=3DUUID=3D625d871f-c278-4acb-916d-774dc78dbd8a -v -b=
+ 4096 -E stride=3D$((512/4)),stripe_width=3D$((512/4*3)),lazy_itable_in=
+it=3D0, nodiscard -O inline_data,mmp -L dyn -m .01 /dev/export/dyn
+
+drbd1, drbd2 and drbd3 are three volumes of one resource. These three d=
+rbd devices are physical volumes of a volume group test with an LV big.=
+ test/big uses drbd1 ... drbd3 as backing devices (striped; stripesize =
+ist 512k.
+
+
+Regards,
+--=20
+Wolfgang Walter
+Studentenwerk M=FCnchen
+Anstalt des =F6ffentlichen Rechts
