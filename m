@@ -1,66 +1,24 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <david.syzdek@acsalaska.net>
+Received: from smtp22.nwc.acsalaska.net (smtp22.nwc.acsalaska.net
+	[209.112.142.67])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E984B105645E
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Nov 2016 17:20:03 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id A3A0D465B9A
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Nov 2016 17:20:03 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id OvZ9BsRjp3Vo for <drbd-dev@lists.linbit.com>;
-	Fri, 25 Nov 2016 17:20:03 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra13.linbit.com (Postfix) with ESMTP id 1ED5F4659B5
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Nov 2016 17:20:03 +0100 (CET)
-Received: from zimbra13.linbit.com ([127.0.0.1])
-	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id 56u8XC1xMFwG for <drbd-dev@lists.linbit.com>;
-	Fri, 25 Nov 2016 17:20:02 +0100 (CET)
-Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
-	by zimbra13.linbit.com (Postfix) with ESMTPS id A8368465929
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Nov 2016 17:20:02 +0100 (CET)
-Resent-Message-ID: <20161125162002.GI22026@soda.linbit>
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com
-	[67.231.153.30]) (using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 203621051881
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Nov 2016 17:29:12 +0100 (CET)
-To: Ming Lei <tom.leiming@gmail.com>, <linux-kernel@vger.kernel.org>
-References: <1478865957-25252-1-git-send-email-tom.leiming@gmail.com>
-From: Jens Axboe <axboe@fb.com>
-Message-ID: <167c2511-349f-a8e6-17d1-f7ce438b2f14@fb.com>
-Date: Tue, 22 Nov 2016 08:53:00 -0700
-MIME-Version: 1.0
-In-Reply-To: <1478865957-25252-1-git-send-email-tom.leiming@gmail.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
-Cc: Mike Snitzer <snitzer@redhat.com>,
-	Rasmus Villemoes <linux@rasmusvillemoes.dk>, "open
-	list:NVM EXPRESS TARGET DRIVER" <linux-nvme@lists.infradead.org>,
-	Keith Busch <keith.busch@intel.com>, "open
-	list:DEVICE-MAPPER \(LVM\)" <dm-devel@redhat.com>, "open
-	list:TARGET SUBSYSTEM" <target-devel@vger.kernel.org>,
-	Yijing Wang <wangyijing@huawei.com>,
-	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>,
-	Hannes Reinecke <hare@suse.com>,
-	"open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>,
-	Guoqing, Christoph Hellwig <hch@infradead.org>,
-	Mike Christie <mchristi@redhat.com>, Jiang <gqjiang@suse.com>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Coly Li <colyli@suse.de>, "open
-	list:SOFTWARE RAID \(Multiple Disks\) SUPPORT"
-	<linux-raid@vger.kernel.org>, "open
-	list:BCACHE \(BLOCK LAYER CACHE\)" <linux-bcache@vger.kernel.org>,
-	linux-block@vger.kernel.org, Jiri Kosina <jkosina@suse.cz>,
-	Adrian Hunter <adrian.hunter@intel.com>,
-	"open list:LogFS" <logfs@logfs.org>,
-	Zheng Liu <wenqing.lz@taobao.com>, linux-fsdevel@vger.kernel.org,
-	Eric Wheeler <git@linux.ewheeler.net>
-Subject: Re: [Drbd-dev] [PATCH 00/12] block: cleanup direct access to bvec
-	table
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5E53F1056332
+	for <drbd-dev@lists.linbit.com>; Sat, 10 Dec 2016 01:11:26 +0100 (CET)
+Received: from 10-0-10-68.prv.acsalaska.net (10-0-10-68.prv.acsalaska.net
+	[10.0.10.68])
+	by smtp22.nwc.acsalaska.net (8.14.9/8.14.9) with ESMTP id
+	uB9Nvnvu009349
+	for <drbd-dev@lists.linbit.com>; Fri, 9 Dec 2016 14:57:49 -0900
+From: "David M. Syzdek" <david.syzdek@acsalaska.net>
+Content-Type: multipart/mixed;
+	boundary="Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940"
+Message-Id: <B9A4DA4C-C940-46CF-B971-E84C01CA3AEB@acsalaska.net>
+Date: Fri, 9 Dec 2016 14:57:49 -0900
+To: drbd-dev@lists.linbit.com
+Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
+Subject: [Drbd-dev] drbd-overview misreports volume status if the resource
+	contains multiple volumes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -72,28 +30,300 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 11/11/2016 05:05 AM, Ming Lei wrote:
-> Hi,
->
-> This patchset cleans up direct access to bvec table.
->
-> The 1st patch passes bvec table to bio_init(), so that
-> direct access to bvec table in bio initialization is avoided.
->
-> For other patches, most of them uses bio_add_page()
-> to replace hardcode style of adding page to bvec,
-> and others avoids to access bio->bi_vcnt.
->
-> The most special one is to use bvec iterator helpers
-> to implement .get_page/.next_page for dm-io.c
->
-> One big motivation is to prepare for supporting multipage
-> bvec, but this patchset is one good cleanup too even not
-> for that purpose.
 
-I've added the series, except 6-8, the dm parts. I updated some of the
-descriptions/subjects to read a little better.
+--Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=utf-8
 
--- 
-Jens Axboe
+DRBD Devs,
 
+
+DRBD Utilities:	8.9.9
+DRBD Module:	9.0.5-1
+Linux Kernel:	4.4.35
+Perl:		5.18.1
+
+
+The utility =E2=80=9Cdrbd-overview=E2=80=9D does not appear to proper =
+track the status of volumes in a multi-volume resource.  The status of =
+the last volume is displayed as the status for all volumes in a =
+resource.  For example, if a resource has three volumes; volume 0 and =
+volume 1 are inconsistent; and volume 2 is UpToDate, then drbd-overview =
+will report all three volumes as UpToDate.
+
+I=E2=80=99ve was able to duplicate the error on multiple DRBD nodes.
+
+I=E2=80=99ve included two examples which use a DRBD resource backed by =
+the following LVM volumes:
+
+	root@xen66.prv.nwc# lvdisplay -C |grep ' test'
+	test100g	vg_nwc.prv.xen66_drbd -wi-ao---- 100.00g         =
+                                  =20
+	test100m	vg_nwc.prv.xen66_drbd -wi-ao---- 100.00m         =
+                                  =20
+	test10g		vg_nwc.prv.xen66_drbd -wi-ao----  10.00g         =
+                                  =20
+	root@xen66.prv.nwc#
+
+	root@xen67.prv.nwc# lvdisplay -C |grep ' test'
+	test100g	vg_nwc.prv.xen67_drbd -wi-a----- 100.00g         =
+                                  =20
+	test100m	vg_nwc.prv.xen67_drbd -wi-a----- 100.00m         =
+                                  =20
+	test10g		vg_nwc.prv.xen67_drbd -wi-a-----  10.00g         =
+                                  =20
+	root@xen67.prv.nwc#=20
+
+Example 1:
+
+	root@xen66.prv.nwc# drbd-overview  |grep :test; drbdsetup =
+events2  --now test
+	40:test/0                      Connected(2*) Primar/Second =
+UpToDate(2*) =20
+	41:test/1                      Connected(2*) Primar/Second =
+UpToDate(2*) =20
+	42:test/2                      Connected(2*) Primar/Second =
+UpToDate(2*) =20
+	exists resource name:test role:Primary suspended:no
+	exists connection name:test peer-node-id:1 conn-name:xen67 =
+connection:Connected role:Secondary
+	exists device name:test volume:0 minor:40 disk:UpToDate
+	exists device name:test volume:1 minor:41 disk:UpToDate
+	exists device name:test volume:2 minor:42 disk:UpToDate
+	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
+volume:0 replication:SyncSource peer-disk:Inconsistent =
+resync-suspended:no
+	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
+volume:1 replication:SyncSource peer-disk:Inconsistent =
+resync-suspended:no
+	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
+volume:2 replication:Established peer-disk:UpToDate resync-suspended:no
+	exists -
+	root@xen66.prv.nwc#
+
+
+	root@xen67.prv.nwc# drbd-overview  |grep :test; drbdsetup =
+events2  --now test
+	40:test/0                      Connected(2*) Second/Primar =
+UpToDate(2*)=20
+	41:test/1                      Connected(2*) Second/Primar =
+UpToDate(2*)=20
+	42:test/2                      Connected(2*) Second/Primar =
+UpToDate(2*)=20
+	exists resource name:test role:Secondary suspended:no
+	exists connection name:test peer-node-id:0 conn-name:xen66 =
+connection:Connected role:Primary
+	exists device name:test volume:0 minor:40 disk:Inconsistent
+	exists device name:test volume:1 minor:41 disk:Inconsistent
+	exists device name:test volume:2 minor:42 disk:UpToDate
+	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
+volume:0 replication:SyncTarget peer-disk:UpToDate resync-suspended:no
+	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
+volume:1 replication:SyncTarget peer-disk:UpToDate resync-suspended:no
+	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
+volume:2 replication:Established peer-disk:UpToDate resync-suspended:no
+	exists -
+	root@xen67.prv.nwc#
+
+
+
+Example 2:
+
+	root@xen66.prv.nwc# drbd-overview  |grep :test; drbdsetup =
+events2  --now test
+	40:test/0                      Connected(2*) Secondary(2*) =
+UpToDa/Incons=20
+	41:test/1                      Connected(2*) Secondary(2*) =
+UpToDa/Incons=20
+	42:test/2                      Connected(2*) Secondary(2*) =
+UpToDa/Incons=20
+	exists resource name:test role:Secondary suspended:no
+	exists connection name:test peer-node-id:1 conn-name:xen67 =
+connection:Connected role:Secondary
+	exists device name:test volume:0 minor:40 disk:UpToDate
+	exists device name:test volume:1 minor:41 disk:UpToDate
+	exists device name:test volume:2 minor:42 disk:UpToDate
+	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
+volume:0 replication:SyncSource peer-disk:Inconsistent =
+resync-suspended:no
+	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
+volume:1 replication:Established peer-disk:UpToDate resync-suspended:no
+	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
+volume:2 replication:SyncSource peer-disk:Inconsistent =
+resync-suspended:no
+	exists -
+	root@xen66.prv.nwc#
+
+	root@xen67.prv.nwc# drbd-overview  |grep :test; drbdsetup =
+events2  --now test
+	40:test/0                      Connected(2*) Secondary(2*) =
+Incons/UpToDa=20
+	41:test/1                      Connected(2*) Secondary(2*) =
+Incons/UpToDa=20
+	42:test/2                      Connected(2*) Secondary(2*) =
+Incons/UpToDa=20
+	exists resource name:test role:Secondary suspended:no
+	exists connection name:test peer-node-id:0 conn-name:xen66 =
+connection:Connected role:Secondary
+	exists device name:test volume:0 minor:40 disk:Inconsistent
+	exists device name:test volume:1 minor:41 disk:UpToDate
+	exists device name:test volume:2 minor:42 disk:Inconsistent
+	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
+volume:0 replication:SyncTarget peer-disk:UpToDate resync-suspended:no
+	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
+volume:1 replication:Established peer-disk:UpToDate resync-suspended:no
+	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
+volume:2 replication:SyncTarget peer-disk:UpToDate resync-suspended:no
+	exists -
+	root@xen67.prv.nwc#
+
+=E2=80=94David M. Syzdek
+
+----------------------------------------------------------------------
+David M. Syzdek                             david.syzdek@acsalaska.com
+IP Engineering                                   Work: +1 907 550 8389
+                                                 Cell: +1 907 980 1151
+Alaska Communications Systems, Inc
+MS #53
+600 Telephone Avenue
+Anchorage, Alaska  99503
+----------------------------------------------------------------------
+
+
+--Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940
+Content-Disposition: attachment;
+	filename=test-example1.res
+Content-Type: application/octet-stream;
+	name="test-example1.res"
+Content-Transfer-Encoding: 7bit
+
+resource test {
+   net {
+      # authentication
+      cram-hmac-alg       sha1;
+      shared-secret       "test: xen66.prv.nwc/xen67.prv.nwc";
+   }
+   disk {
+      #c-min-rate         10M;
+      #c-max-rate         41M;
+      #resync-rate        82M;
+   }
+   on xen66 {
+      address   10.0.109.66:7740;
+      node-id   0;
+      volume 0 {
+         device    /dev/drbd40;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen66_drbd/test10g;
+      }
+      volume 1 {
+         device    /dev/drbd41;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen66_drbd/test100g;
+      }
+      volume 2 {
+         device    /dev/drbd42;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen66_drbd/test100m;
+      }
+   }
+   on xen67 {
+      address   10.0.109.67:7740;
+      node-id   1;
+      volume 0 {
+         device    /dev/drbd40;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen67_drbd/test10g;
+      }
+      volume 1 {
+         device    /dev/drbd41;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen67_drbd/test100g;
+      }
+      volume 2 {
+         device    /dev/drbd42;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen67_drbd/test100m;
+      }
+   }
+   connection-mesh {
+      hosts xen66 xen67;
+      net {
+         use-rle no;
+      }
+  }
+}
+
+--Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940
+Content-Disposition: attachment;
+	filename=test-example2.res
+Content-Type: application/octet-stream;
+	name="test-example2.res"
+Content-Transfer-Encoding: 7bit
+
+resource test {
+   net {
+      # authentication
+      cram-hmac-alg       sha1;
+      shared-secret       "test: xen66.prv.nwc/xen67.prv.nwc";
+   }
+   disk {
+      #c-min-rate         10M;
+      #c-max-rate         41M;
+      #resync-rate        82M;
+   }
+   on xen66 {
+      address   10.0.109.66:7740;
+      node-id   0;
+      volume 0 {
+         device    /dev/drbd40;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen66_drbd/test10g;
+      }
+      volume 1 {
+         device    /dev/drbd41;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen66_drbd/test100m;
+      }
+      volume 2 {
+         device    /dev/drbd42;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen66_drbd/test100g;
+      }
+   }
+   on xen67 {
+      address   10.0.109.67:7740;
+      node-id   1;
+      volume 0 {
+         device    /dev/drbd40;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen67_drbd/test10g;
+      }
+      volume 1 {
+         device    /dev/drbd41;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen67_drbd/test100m;
+      }
+      volume 2 {
+         device    /dev/drbd42;
+         meta-disk internal;
+         disk      /dev/vg_nwc.prv.xen67_drbd/test100g;
+      }
+   }
+   connection-mesh {
+      hosts xen66 xen67;
+      net {
+         use-rle no;
+      }
+  }
+}
+
+--Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset=us-ascii
+
+
+
+--Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940--
