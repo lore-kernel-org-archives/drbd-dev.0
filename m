@@ -1,24 +1,22 @@
-Return-Path: <david.syzdek@acsalaska.net>
-Received: from smtp22.nwc.acsalaska.net (smtp22.nwc.acsalaska.net
-	[209.112.142.67])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <philipp.marek@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 5E53F1056332
-	for <drbd-dev@lists.linbit.com>; Sat, 10 Dec 2016 01:11:26 +0100 (CET)
-Received: from 10-0-10-68.prv.acsalaska.net (10-0-10-68.prv.acsalaska.net
-	[10.0.10.68])
-	by smtp22.nwc.acsalaska.net (8.14.9/8.14.9) with ESMTP id
-	uB9Nvnvu009349
-	for <drbd-dev@lists.linbit.com>; Fri, 9 Dec 2016 14:57:49 -0900
-From: "David M. Syzdek" <david.syzdek@acsalaska.net>
-Content-Type: multipart/mixed;
-	boundary="Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940"
-Message-Id: <B9A4DA4C-C940-46CF-B971-E84C01CA3AEB@acsalaska.net>
-Date: Fri, 9 Dec 2016 14:57:49 -0900
-To: drbd-dev@lists.linbit.com
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: [Drbd-dev] drbd-overview misreports volume status if the resource
-	contains multiple volumes
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0FC2D1056469
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Dec 2016 07:32:00 +0100 (CET)
+Date: Mon, 12 Dec 2016 07:31:56 +0100
+From: Philipp Marek <philipp.marek@linbit.com>
+To: "David M. Syzdek" <david.syzdek@acsalaska.net>
+Message-ID: <20161212063155.qulxytpx67ywnqe3@cacao.linbit>
+References: <B9A4DA4C-C940-46CF-B971-E84C01CA3AEB@acsalaska.net>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="7bttugq4alldsu6t"
+Content-Disposition: inline
+In-Reply-To: <B9A4DA4C-C940-46CF-B971-E84C01CA3AEB@acsalaska.net>
+Content-Transfer-Encoding: 7bit
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] drbd-overview misreports volume status if the
+ resource contains multiple volumes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,299 +29,75 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 
---Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940
+--7bttugq4alldsu6t
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset=utf-8
 
-DRBD Devs,
+Hi David,
 
-
-DRBD Utilities:	8.9.9
-DRBD Module:	9.0.5-1
-Linux Kernel:	4.4.35
-Perl:		5.18.1
-
-
-The utility =E2=80=9Cdrbd-overview=E2=80=9D does not appear to proper =
-track the status of volumes in a multi-volume resource.  The status of =
-the last volume is displayed as the status for all volumes in a =
-resource.  For example, if a resource has three volumes; volume 0 and =
-volume 1 are inconsistent; and volume 2 is UpToDate, then drbd-overview =
-will report all three volumes as UpToDate.
-
-I=E2=80=99ve was able to duplicate the error on multiple DRBD nodes.
-
-I=E2=80=99ve included two examples which use a DRBD resource backed by =
-the following LVM volumes:
-
-	root@xen66.prv.nwc# lvdisplay -C |grep ' test'
-	test100g	vg_nwc.prv.xen66_drbd -wi-ao---- 100.00g         =
-                                  =20
-	test100m	vg_nwc.prv.xen66_drbd -wi-ao---- 100.00m         =
-                                  =20
-	test10g		vg_nwc.prv.xen66_drbd -wi-ao----  10.00g         =
-                                  =20
-	root@xen66.prv.nwc#
-
-	root@xen67.prv.nwc# lvdisplay -C |grep ' test'
-	test100g	vg_nwc.prv.xen67_drbd -wi-a----- 100.00g         =
-                                  =20
-	test100m	vg_nwc.prv.xen67_drbd -wi-a----- 100.00m         =
-                                  =20
-	test10g		vg_nwc.prv.xen67_drbd -wi-a-----  10.00g         =
-                                  =20
-	root@xen67.prv.nwc#=20
-
-Example 1:
-
-	root@xen66.prv.nwc# drbd-overview  |grep :test; drbdsetup =
-events2  --now test
-	40:test/0                      Connected(2*) Primar/Second =
-UpToDate(2*) =20
-	41:test/1                      Connected(2*) Primar/Second =
-UpToDate(2*) =20
-	42:test/2                      Connected(2*) Primar/Second =
-UpToDate(2*) =20
-	exists resource name:test role:Primary suspended:no
-	exists connection name:test peer-node-id:1 conn-name:xen67 =
-connection:Connected role:Secondary
-	exists device name:test volume:0 minor:40 disk:UpToDate
-	exists device name:test volume:1 minor:41 disk:UpToDate
-	exists device name:test volume:2 minor:42 disk:UpToDate
-	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
-volume:0 replication:SyncSource peer-disk:Inconsistent =
-resync-suspended:no
-	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
-volume:1 replication:SyncSource peer-disk:Inconsistent =
-resync-suspended:no
-	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
-volume:2 replication:Established peer-disk:UpToDate resync-suspended:no
-	exists -
-	root@xen66.prv.nwc#
-
-
-	root@xen67.prv.nwc# drbd-overview  |grep :test; drbdsetup =
-events2  --now test
-	40:test/0                      Connected(2*) Second/Primar =
-UpToDate(2*)=20
-	41:test/1                      Connected(2*) Second/Primar =
-UpToDate(2*)=20
-	42:test/2                      Connected(2*) Second/Primar =
-UpToDate(2*)=20
-	exists resource name:test role:Secondary suspended:no
-	exists connection name:test peer-node-id:0 conn-name:xen66 =
-connection:Connected role:Primary
-	exists device name:test volume:0 minor:40 disk:Inconsistent
-	exists device name:test volume:1 minor:41 disk:Inconsistent
-	exists device name:test volume:2 minor:42 disk:UpToDate
-	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
-volume:0 replication:SyncTarget peer-disk:UpToDate resync-suspended:no
-	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
-volume:1 replication:SyncTarget peer-disk:UpToDate resync-suspended:no
-	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
-volume:2 replication:Established peer-disk:UpToDate resync-suspended:no
-	exists -
-	root@xen67.prv.nwc#
+=20
+> The utility =E2=80=9Cdrbd-overview=E2=80=9D does not appear to proper t=
+rack the status of=20
+> volumes in a multi-volume resource.  The status of the last volume is=20
+> displayed as the status for all volumes in a resource.  For example, if=
+=20
+> a resource has three volumes; volume 0 and volume 1 are inconsistent; a=
+nd=20
+> volume 2 is UpToDate, then drbd-overview will report all three volumes =
+as=20
+> UpToDate.
+thank you very much for the report; the fix is committed.
 
 
 
-Example 2:
+--7bttugq4alldsu6t
+Content-Type: text/x-diff; charset=utf-8
+Content-Disposition: attachment; filename="0001-drbd-overview-We-need-to-track-disk-states-per-volum.patch"
 
-	root@xen66.prv.nwc# drbd-overview  |grep :test; drbdsetup =
-events2  --now test
-	40:test/0                      Connected(2*) Secondary(2*) =
-UpToDa/Incons=20
-	41:test/1                      Connected(2*) Secondary(2*) =
-UpToDa/Incons=20
-	42:test/2                      Connected(2*) Secondary(2*) =
-UpToDa/Incons=20
-	exists resource name:test role:Secondary suspended:no
-	exists connection name:test peer-node-id:1 conn-name:xen67 =
-connection:Connected role:Secondary
-	exists device name:test volume:0 minor:40 disk:UpToDate
-	exists device name:test volume:1 minor:41 disk:UpToDate
-	exists device name:test volume:2 minor:42 disk:UpToDate
-	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
-volume:0 replication:SyncSource peer-disk:Inconsistent =
-resync-suspended:no
-	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
-volume:1 replication:Established peer-disk:UpToDate resync-suspended:no
-	exists peer-device name:test peer-node-id:1 conn-name:xen67 =
-volume:2 replication:SyncSource peer-disk:Inconsistent =
-resync-suspended:no
-	exists -
-	root@xen66.prv.nwc#
+From cd731d9a344b0008fef5639673d568f7db895193 Mon Sep 17 00:00:00 2001
+From: Philipp Marek <philipp.marek@linbit.com>
+Date: Mon, 12 Dec 2016 07:25:00 +0100
+Subject: [PATCH] drbd-overview: We need to track disk states per volume.
 
-	root@xen67.prv.nwc# drbd-overview  |grep :test; drbdsetup =
-events2  --now test
-	40:test/0                      Connected(2*) Secondary(2*) =
-Incons/UpToDa=20
-	41:test/1                      Connected(2*) Secondary(2*) =
-Incons/UpToDa=20
-	42:test/2                      Connected(2*) Secondary(2*) =
-Incons/UpToDa=20
-	exists resource name:test role:Secondary suspended:no
-	exists connection name:test peer-node-id:0 conn-name:xen66 =
-connection:Connected role:Secondary
-	exists device name:test volume:0 minor:40 disk:Inconsistent
-	exists device name:test volume:1 minor:41 disk:UpToDate
-	exists device name:test volume:2 minor:42 disk:Inconsistent
-	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
-volume:0 replication:SyncTarget peer-disk:UpToDate resync-suspended:no
-	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
-volume:1 replication:Established peer-disk:UpToDate resync-suspended:no
-	exists peer-device name:test peer-node-id:0 conn-name:xen66 =
-volume:2 replication:SyncTarget peer-disk:UpToDate resync-suspended:no
-	exists -
-	root@xen67.prv.nwc#
+As reported by David on -user (Thank you!), the drbd-overview output
+was wrong if volumes within a resource had different states (eg. one
+"UpToDate", the other "Inconsistent").
 
-=E2=80=94David M. Syzdek
+Fix that by tracking disk state per volume.
+---
+ scripts/drbd-overview.pl | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-----------------------------------------------------------------------
-David M. Syzdek                             david.syzdek@acsalaska.com
-IP Engineering                                   Work: +1 907 550 8389
-                                                 Cell: +1 907 980 1151
-Alaska Communications Systems, Inc
-MS #53
-600 Telephone Avenue
-Anchorage, Alaska  99503
-----------------------------------------------------------------------
+diff --git a/scripts/drbd-overview.pl b/scripts/drbd-overview.pl
+index c2802a2..22abdf4 100755
+--- a/scripts/drbd-overview.pl
++++ b/scripts/drbd-overview.pl
+@@ -228,10 +228,11 @@ sub slurp_drbdsetup() {
+             my $minor = $f{minor};
+             my $vol = $f{volume};
+             $later{$res}{vol_minor}{$vol} = $minor;
+-            $later{$res}{peers}{dstates}{$HOSTNAME}  = $f{disk};
++            $later{$res}{peers}{dstates}{$vol}{$HOSTNAME} = $f{disk};
+         } elsif ($what eq "peer-device") {
+             my $n = $f{"conn-name"};
+-            $later{$res}{peers}{dstates}{$n} = $f{"peer-disk"};
++            my $vol = $f{volume};
++            $later{$res}{peers}{dstates}{$vol}{$n} = $f{"peer-disk"};
+         } else {
+             warn("unknown key $what\n");
+         }
+@@ -259,7 +260,7 @@ sub slurp_drbdsetup() {
+ # role with all mixed together
+             $v->{role} = shorten_list(\@h_incl, $peers->{states});
+ 
+-            $v->{dstate} = shorten_list(\@h_incl, $peers->{dstates});
++            $v->{dstate} = shorten_list(\@h_incl, $peers->{dstates}{$vol2});
+             $v->{conn} = shorten_list(\@h_incl, $peers->{conns});
+         }
+     }
+-- 
+2.10.2
 
 
---Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940
-Content-Disposition: attachment;
-	filename=test-example1.res
-Content-Type: application/octet-stream;
-	name="test-example1.res"
-Content-Transfer-Encoding: 7bit
-
-resource test {
-   net {
-      # authentication
-      cram-hmac-alg       sha1;
-      shared-secret       "test: xen66.prv.nwc/xen67.prv.nwc";
-   }
-   disk {
-      #c-min-rate         10M;
-      #c-max-rate         41M;
-      #resync-rate        82M;
-   }
-   on xen66 {
-      address   10.0.109.66:7740;
-      node-id   0;
-      volume 0 {
-         device    /dev/drbd40;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen66_drbd/test10g;
-      }
-      volume 1 {
-         device    /dev/drbd41;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen66_drbd/test100g;
-      }
-      volume 2 {
-         device    /dev/drbd42;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen66_drbd/test100m;
-      }
-   }
-   on xen67 {
-      address   10.0.109.67:7740;
-      node-id   1;
-      volume 0 {
-         device    /dev/drbd40;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen67_drbd/test10g;
-      }
-      volume 1 {
-         device    /dev/drbd41;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen67_drbd/test100g;
-      }
-      volume 2 {
-         device    /dev/drbd42;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen67_drbd/test100m;
-      }
-   }
-   connection-mesh {
-      hosts xen66 xen67;
-      net {
-         use-rle no;
-      }
-  }
-}
-
---Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940
-Content-Disposition: attachment;
-	filename=test-example2.res
-Content-Type: application/octet-stream;
-	name="test-example2.res"
-Content-Transfer-Encoding: 7bit
-
-resource test {
-   net {
-      # authentication
-      cram-hmac-alg       sha1;
-      shared-secret       "test: xen66.prv.nwc/xen67.prv.nwc";
-   }
-   disk {
-      #c-min-rate         10M;
-      #c-max-rate         41M;
-      #resync-rate        82M;
-   }
-   on xen66 {
-      address   10.0.109.66:7740;
-      node-id   0;
-      volume 0 {
-         device    /dev/drbd40;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen66_drbd/test10g;
-      }
-      volume 1 {
-         device    /dev/drbd41;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen66_drbd/test100m;
-      }
-      volume 2 {
-         device    /dev/drbd42;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen66_drbd/test100g;
-      }
-   }
-   on xen67 {
-      address   10.0.109.67:7740;
-      node-id   1;
-      volume 0 {
-         device    /dev/drbd40;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen67_drbd/test10g;
-      }
-      volume 1 {
-         device    /dev/drbd41;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen67_drbd/test100m;
-      }
-      volume 2 {
-         device    /dev/drbd42;
-         meta-disk internal;
-         disk      /dev/vg_nwc.prv.xen67_drbd/test100g;
-      }
-   }
-   connection-mesh {
-      hosts xen66 xen67;
-      net {
-         use-rle no;
-      }
-  }
-}
-
---Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain;
-	charset=us-ascii
-
-
-
---Apple-Mail=_DF181DE8-41CB-4571-BDEC-C711EE90B940--
+--7bttugq4alldsu6t--
