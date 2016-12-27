@@ -1,19 +1,38 @@
-Return-Path: <loyou85@gmail.com>
-Received: from mail-it0-f68.google.com (mail-it0-f68.google.com
-	[209.85.214.68]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from zimbra13.linbit.com (zimbra.linbit.com [212.69.161.123])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 3B0D6105630C
-	for <drbd-dev@lists.linbit.com>; Sun, 25 Dec 2016 17:04:59 +0100 (CET)
-Received: by mail-it0-f68.google.com with SMTP id n68so29183055itn.3
-	for <drbd-dev@lists.linbit.com>; Sun, 25 Dec 2016 08:04:59 -0800 (PST)
-MIME-Version: 1.0
-From: Feng Sun <loyou85@gmail.com>
-Date: Sun, 25 Dec 2016 23:58:32 +0800
-Message-ID: <CAAiCvkj-Z=vcp7MpOCRZwhrv_CLd2EmyvM=z=-6n54Ks1at8KQ@mail.gmail.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C4A181056446
+	for <drbd-dev@lists.linbit.com>; Tue, 27 Dec 2016 16:54:05 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 7C08A463429
+	for <drbd-dev@lists.linbit.com>; Tue, 27 Dec 2016 16:54:05 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id 93Y8_AXLUXeY for <drbd-dev@lists.linbit.com>;
+	Tue, 27 Dec 2016 16:54:05 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra13.linbit.com (Postfix) with ESMTP id 5BCBE46343C
+	for <drbd-dev@lists.linbit.com>; Tue, 27 Dec 2016 16:54:05 +0100 (CET)
+Received: from zimbra13.linbit.com ([127.0.0.1])
+	by localhost (zimbra13.linbit.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id g9-7WkzgstTA for <drbd-dev@lists.linbit.com>;
+	Tue, 27 Dec 2016 16:54:05 +0100 (CET)
+Received: from soda.linbit (tuerlsteher.linbit.com [86.59.100.100])
+	by zimbra13.linbit.com (Postfix) with ESMTPS id 0C8E7463424
+	for <drbd-dev@lists.linbit.com>; Tue, 27 Dec 2016 16:54:04 +0100 (CET)
+Date: Tue, 27 Dec 2016 16:54:04 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary=94eb2c08da883f91c405447db3d8
+Message-ID: <20161227155404.GQ4138@soda.linbit>
+References: <CAAiCvkj-Z=vcp7MpOCRZwhrv_CLd2EmyvM=z=-6n54Ks1at8KQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <CAAiCvkj-Z=vcp7MpOCRZwhrv_CLd2EmyvM=z=-6n54Ks1at8KQ@mail.gmail.com>
+Content-Transfer-Encoding: quoted-printable
 Subject: Re: [Drbd-dev] NULL pointer derefernce in 8.4.7-1 during
-	drbd_destroy_connection()
+ drbd_destroy_connection()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,76 +44,65 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---94eb2c08da883f91c405447db3d8
-Content-Type: text/plain; charset=UTF-8
+On Sun, Dec 25, 2016 at 11:58:32PM +0800, Feng Sun wrote:
+> On Wed, 30 Mar 2016, Lars Ellenberg wrote:
+>=20
+> >* On Wed, Mar 30, 2016 at 02:19:07AM +0000, Eric Wheeler wrote:
+> *>* > Hello all,
+> *>* >
+> *>* > We are getting kernel crashes in linux 4.1.20 with the drbd-8.4.g=
+it tree
+> *>* > at commit 3a6a769340ef93b1ba2792c6461250790795db49 .
+> *>* >
+> *>* > I don't see anything in the newer commits that addresses this iss=
+ue so
+> *>* > I'm posting---but I'll try the latest commit in master, too, just=
+ in case.
+> *>* >
+> *>* > Please see the backtrace below.  I also included our global_commo=
+n.conf
+> *>* > further down.  This is protocol A and the link is quite slow.  Th=
+is NULL
+> *>* > ptr dereference appears to show up when the drbd kernel thread is=
+ blocked
+> *>* > for a long time.  It might happen at reconnect time because the
+> BUG didn't
+> *>* > show up until 13 seconds after the P_BARRIER error.
+> *>* >
+> *>* > The problem is pretty reproducable, so I can probably test patche=
+s.
+> *>* > Please let me know what I can do to help test.
+> *> >* DRBD logs of both peers leading up to the incident may be useful.=
+*
+>=20
+>=20
+> *I have met same issue with 8.4.9, but I cannot reproduce this easily.c=
+an
 
-On Wed, 30 Mar 2016, Lars Ellenberg wrote:
+You likely want to apply this:
+http://git.linbit.com/drbd-8.4.git/commitdiff/e0645836e870346cafe688cbdd8=
+ec29092f6cdb5
 
->* On Wed, Mar 30, 2016 at 02:19:07AM +0000, Eric Wheeler wrote:
-*>* > Hello all,
-*>* >
-*>* > We are getting kernel crashes in linux 4.1.20 with the drbd-8.4.git tree
-*>* > at commit 3a6a769340ef93b1ba2792c6461250790795db49 .
-*>* >
-*>* > I don't see anything in the newer commits that addresses this issue so
-*>* > I'm posting---but I'll try the latest commit in master, too, just in case.
-*>* >
-*>* > Please see the backtrace below.  I also included our global_common.conf
-*>* > further down.  This is protocol A and the link is quite slow.  This NULL
-*>* > ptr dereference appears to show up when the drbd kernel thread is blocked
-*>* > for a long time.  It might happen at reconnect time because the
-BUG didn't
-*>* > show up until 13 seconds after the P_BARRIER error.
-*>* >
-*>* > The problem is pretty reproducable, so I can probably test patches.
-*>* > Please let me know what I can do to help test.
-*> >* DRBD logs of both peers leading up to the incident may be useful.*
+> you help to share about the reproduce steps? *
 
+Provoke:
+you need a kernel >=3D 4.0,
+you need to to hit congestion, but have "ko-count" set "high enough",
+and DRBD pings on our meta socket need to still "feel" responsive
+(ping-timeout is high enough).
 
-*I have met same issue with 8.4.9, but I cannot reproduce this easily.can
-you help to share about the reproduce steps? *
+It helps if DRBD does not use sendpage, which means you use protocol A,
+or have "data-integrity-alg" enabled,
+or have explicitly disabled sendpage (drbd module parameter)
+or have some file system or other user that keeps submitting slab pages
+or other pages with a reference count of zero.
 
--- 
+Thanks,
 
-Neil
+--=20
+: Lars Ellenberg
+: LINBIT | Keeping the Digital World Running
+: DRBD -- Heartbeat -- Corosync -- Pacemaker
+: R&D, Integration, Ops, Consulting, Support
 
---94eb2c08da883f91c405447db3d8
-Content-Type: text/html; charset=UTF-8
-
-<div dir="ltr">
-  
-
-    
-  
-  <div bgcolor="#FFFFFF">
-    <pre><blockquote type="cite"><pre>On Wed, 30 Mar 2016, Lars Ellenberg wrote:
-
-&gt;<i> On Wed, Mar 30, 2016 at 02:19:07AM +0000, Eric Wheeler wrote:
-</i>&gt;<i> &gt; Hello all,
-</i>&gt;<i> &gt; 
-</i>&gt;<i> &gt; We are getting kernel crashes in linux 4.1.20 with the drbd-8.4.git tree 
-</i>&gt;<i> &gt; at commit 3a6a769340ef93b1ba2792c6461250<wbr>790795db49 .  
-</i>&gt;<i> &gt; 
-</i>&gt;<i> &gt; I don&#39;t see anything in the newer commits that addresses this issue so 
-</i>&gt;<i> &gt; I&#39;m posting---but I&#39;ll try the latest commit in master, too, just in case.
-</i>&gt;<i> &gt; 
-</i>&gt;<i> &gt; Please see the backtrace below.  I also included our global_common.conf 
-</i>&gt;<i> &gt; further down.  This is protocol A and the link is quite slow.  This NULL 
-</i>&gt;<i> &gt; ptr dereference appears to show up when the drbd kernel thread is blocked 
-</i>&gt;<i> &gt; for a long time.  It might happen at reconnect time because the BUG didn&#39;t 
-</i>&gt;<i> &gt; show up until 13 seconds after the P_BARRIER error.
-</i>&gt;<i> &gt; 
-</i>&gt;<i> &gt; The problem is pretty reproducable, so I can probably test patches.  
-</i>&gt;<i> &gt; Please let me know what I can do to help test.
-</i>&gt;<i> 
-</i>&gt;<i> DRBD logs of both peers leading up to the incident may be useful.</i></pre></blockquote><i><i>I have met same issue with 8.4.9, but I cannot reproduce this easily.<br>can you help to share about the reproduce steps? </i>
-
-</i></pre>
-    <pre class="gmail-m_4197581587400105513moz-signature" cols="72">-- 
-
-Neil</pre>
-  </div>
-
-</div>
-
---94eb2c08da883f91c405447db3d8--
+DRBD=AE and LINBIT=AE are registered trademarks of LINBIT
