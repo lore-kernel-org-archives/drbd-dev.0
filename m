@@ -1,25 +1,32 @@
-Return-Path: <nwang@suse.com>
-Received: from prv-mh.provo.novell.com (prv-mh.provo.novell.com
-	[137.65.248.74])
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 781131056320
+	for <drbd-dev@lists.linbit.com>; Fri,  3 Feb 2017 15:06:38 +0100 (CET)
+Received: by mail-wm0-f52.google.com with SMTP id b65so30696961wmf.0
+	for <drbd-dev@lists.linbit.com>; Fri, 03 Feb 2017 06:06:38 -0800 (PST)
+Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
+	i73sm3171469wmd.11.2017.02.03.05.59.46
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Fri, 03 Feb 2017 05:59:47 -0800 (PST)
+Resent-Message-ID: <20170203135946.GA27111@soda.linbit>
+Received: from mout.kundenserver.de (mout.kundenserver.de [217.72.192.73])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 32AFB1056332
-	for <drbd-dev@lists.linbit.com>; Wed, 18 Jan 2017 04:12:34 +0100 (CET)
-Message-Id: <587F4E0202000070000AC43C@prv-mh.provo.novell.com>
-Date: Tue, 17 Jan 2017 20:14:10 -0700
-From: "Nick Wang" <nwang@suse.com>
-To: <drbd-dev@lists.linbit.com>
-References: <1484288158-25952-1-git-send-email-nwang@suse.com>
-	<20170113110345.GA9172@soda.linbit>
-	<F749D893-B652-4BA8-AA15-AD88344EE2F9@acsalaska.com>
-	<20170116103502.GF9172@soda.linbit>
-In-Reply-To: <20170116103502.GF9172@soda.linbit>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Content-Disposition: inline
-Subject: Re: [Drbd-dev] [PATCH] drbd-utils: Fix the default node id
- initialization when upgrade v8 to v9
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 8419E105630C
+	for <drbd-dev@lists.linbit.com>; Wed,  1 Feb 2017 18:09:05 +0100 (CET)
+From: Arnd Bergmann <arnd@arndb.de>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>
+Date: Wed,  1 Feb 2017 17:55:02 +0100
+Message-Id: <20170201165532.2605534-1-arnd@arndb.de>
+Cc: linux-kernel@vger.kernel.org, Nicolas Dichtel <nicolas.dichtel@6wind.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Arnd Bergmann <arnd@arndb.de>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: avoid clang warning about pointless switch
+	statement
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,41 +38,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
->>> On 1/16/2017 at  6:35 下午, in message <20170116103502.GF9172@soda.linbit>,
-Lars Ellenberg <lars.ellenberg@linbit.com> wrote:
-> > > Also, IMO, in virtually all 8 -> 9 upgrade scenarios, you are better off
-> > > creating new DRBD 9 meta data instead of trying to "convert”.
-> > 
-> > Is there a technical reason
-> 
-> There are two basic scenarios, "rolling" upgrade,
-> and "stop, replace, and restart the world". 
-> 
-> "stop the world" obviously means downtime.
-> But for the "rolling" upgrade,
-> you need more steps and at least a switchover,
-> which typically also implies a downtime.
-> 
-> My preferred upgrade procedure would be "replace the world"
->  * make sure all data is "stable" and in sync
->  * stop all services (yes, that means a short down time)
->  * upgrade modules
->  * recreate meta data, and prepare to skip the initial sync,
->    because we know everything is in sync (see first step)
->    potentially allocating more bitmap slots in preparation for N > 2.
->  * bring it all online.
-> 
-> If that is not acceptable, or you think the rolling upgrade incurs less
-> service interruption, you go with the "upgrade meta data in place"
-> procedure, and hope we got that right :-)
-> 
-The rolling upgrade as long as the network protocol support can 
-shorten the downtime to the switch-over time. If all data is in sync, 
-i think the md(activity log and bitmaps) is safe to be replaced.
+The drbd code causes warnings that we cannot easily disable when building with clang:
 
-So far, for all the scenarios i tried, both "convert meta data" for still 
-2 nodes and "replace meta data with a new one" for adding more nodes
-works for a rolling upgrade on secondary node when all data is in sync:)
+In file included from drivers/block/drbd/drbd_debugfs.c:10:
+In file included from drivers/block/drbd/drbd_int.h:48:
+In file included from include/linux/drbd_genl_api.h:53:
+In file included from include/linux/genl_magic_struct.h:237:
+include/linux/drbd_genl.h:300:1: warning: no case matching constant switch condition '0'
 
-Best regards,
-Nick
+There is nothing wrong with the code, and adding 'default:' labels
+in the right place is enough to let clang shut up about the warning.
+
+Fixes: ec2c35ac1ea2 ("drbd: prepare the transition from connector to genetlink")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ include/linux/genl_magic_struct.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/include/linux/genl_magic_struct.h b/include/linux/genl_magic_struct.h
+index 6270a56e5edc..c6fbafb834f1 100644
+--- a/include/linux/genl_magic_struct.h
++++ b/include/linux/genl_magic_struct.h
+@@ -190,6 +190,7 @@ static inline void ct_assert_unique_operations(void)
+ {
+ 	switch (0) {
+ #include GENL_MAGIC_INCLUDE_FILE
++	default:
+ 		;
+ 	}
+ }
+@@ -208,6 +209,7 @@ static inline void ct_assert_unique_top_level_attributes(void)
+ {
+ 	switch (0) {
+ #include GENL_MAGIC_INCLUDE_FILE
++	default:
+ 		;
+ 	}
+ }
+@@ -218,6 +220,7 @@ static inline void ct_assert_unique_ ## s_name ## _attributes(void)	\
+ {									\
+ 	switch (0) {							\
+ 		s_fields						\
++		default:						\
+ 			;						\
+ 	}								\
+ }
+-- 
+2.9.0
+
