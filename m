@@ -1,36 +1,51 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+Received: from mail-wr0-f181.google.com (mail-wr0-f181.google.com
+	[209.85.128.181]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 0562D105631C
-	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2017 09:42:20 +0100 (CET)
-Received: by mail-wm0-f43.google.com with SMTP id v77so5005386wmv.0
-	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2017 00:42:20 -0800 (PST)
-Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	n18sm11939298wra.64.2017.02.17.00.42.19
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id C6A34105646A
+	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2017 09:50:19 +0100 (CET)
+Received: by mail-wr0-f181.google.com with SMTP id z61so25841246wrc.1
+	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2017 00:50:19 -0800 (PST)
+Received: from soda.linbit ([86.59.100.100])
+	by smtp.gmail.com with ESMTPSA id 136sm789795wms.32.2017.02.17.00.42.11
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Fri, 17 Feb 2017 00:42:19 -0800 (PST)
-Resent-Message-ID: <20170217084218.GD21236@soda.linbit>
-Received: from smtprelay.hostedemail.com (smtprelay0078.hostedemail.com
-	[216.40.44.78])
+	Fri, 17 Feb 2017 00:42:11 -0800 (PST)
+Resent-Message-ID: <20170217084209.GC21236@soda.linbit>
+Received: from smtprelay.hostedemail.com (smtprelay0024.hostedemail.com
+	[216.40.44.24])
 	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id E37CD1056473
-	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2017 08:18:38 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 66E871056473
+	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2017 08:18:04 +0100 (CET)
 Received: from smtprelay.hostedemail.com (10.5.19.251.rfc1918.com
 	[10.5.19.251])
-	by smtpgrave01.hostedemail.com (Postfix) with ESMTP id F098C5E9FF
-	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2017 07:12:38 +0000 (UTC)
+	by smtpgrave03.hostedemail.com (Postfix) with ESMTP id 43822290DAB
+	for <drbd-dev@lists.linbit.com>; Fri, 17 Feb 2017 07:12:17 +0000 (UTC)
 From: Joe Perches <joe@perches.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>
-Date: Thu, 16 Feb 2017 23:11:24 -0800
-Message-Id: <c08a9903ce3ae05e266e164312fac78612e24a4c.1487314667.git.joe@perches.com>
-In-Reply-To: <cover.1487314666.git.joe@perches.com>
-References: <cover.1487314666.git.joe@perches.com>
-Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/35] block/drbd: Convert remaining uses of
+To: Alexander Shishkin <alexander.shishkin@linux.intel.com>,
+	Karol Herbst <karolherbst@gmail.com>, Pekka Paalanen <ppaalanen@gmail.com>,
+	Richard Weinberger <richard@nod.at>, Fabio Estevam <fabio.estevam@nxp.com>,
+	linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+	linuxppc-dev@lists.ozlabs.org, tboot-devel@lists.sourceforge.net,
+	nouveau@lists.freedesktop.org, oprofile-list@lists.sf.net,
+	sfi-devel@simplefirmware.org, xen-devel@lists.xenproject.org,
+	linux-acpi@vger.kernel.org, drbd-dev@lists.linbit.com,
+	virtualization@lists.linux-foundation.org, linux-crypto@vger.kernel.org,
+	linux-ide@vger.kernel.org, gigaset307x-common@lists.sourceforge.net,
+	linux-media@vger.kernel.org, linux-omap@vger.kernel.org,
+	linux-mtd@lists.infradead.org, devicetree@vger.kernel.org,
+	acpi4asus-user@lists.sourceforge.net, platform-driver-x86@vger.kernel.org,
+	linux-scsi@vger.kernel.org, linux-fbdev@vger.kernel.org,
+	alsa-devel@alsa-project.org
+Date: Thu, 16 Feb 2017 23:11:13 -0800
+Message-Id: <cover.1487314666.git.joe@perches.com>
+Cc: linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org,
+	netdev@vger.kernel.org, linux-input@vger.kernel.org,
+	adi-buildroot-devel@lists.sourceforge.net,
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
+	linux-alpha@vger.kernel.org, sparclinux@vger.kernel.org
+Subject: [Drbd-dev] [PATCH 00/35] treewide trivial patches converting
 	pr_warning to pr_warn
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -43,48 +58,184 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-To enable eventual removal of pr_warning
+There are ~4300 uses of pr_warn and ~250 uses of the older
+pr_warning in the kernel source tree.
 
-This makes pr_warn use consistent for drivers/block
+Make the use of pr_warn consistent across all kernel files.
 
-Prior to this patch, there were 2 uses of pr_warning and
-26 uses of pr_warn in drivers/block
+This excludes all files in tools/ as there is a separate
+define pr_warning for that directory tree and pr_warn is
+not used in tools/.
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- drivers/block/drbd/drbd_nl.c | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+Done with 'sed s/\bpr_warning\b/pr_warn/' and some emacsing.
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 908c704e20aa..4a237b4418bb 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -251,19 +251,18 @@ static int drbd_adm_prepare(struct drbd_config_context *adm_ctx,
- 	/* some more paranoia, if the request was over-determined */
- 	if (adm_ctx->device && adm_ctx->resource &&
- 	    adm_ctx->device->resource != adm_ctx->resource) {
--		pr_warning("request: minor=%u, resource=%s; but that minor belongs to resource %s\n",
--				adm_ctx->minor, adm_ctx->resource->name,
--				adm_ctx->device->resource->name);
-+		pr_warn("request: minor=%u, resource=%s; but that minor belongs to resource %s\n",
-+			adm_ctx->minor, adm_ctx->resource->name,
-+			adm_ctx->device->resource->name);
- 		drbd_msg_put_info(adm_ctx->reply_skb, "minor exists in different resource");
- 		return ERR_INVALID_REQUEST;
- 	}
- 	if (adm_ctx->device &&
- 	    adm_ctx->volume != VOLUME_UNSPECIFIED &&
- 	    adm_ctx->volume != adm_ctx->device->vnr) {
--		pr_warning("request: minor=%u, volume=%u; but that minor is volume %u in %s\n",
--				adm_ctx->minor, adm_ctx->volume,
--				adm_ctx->device->vnr,
--				adm_ctx->device->resource->name);
-+		pr_warn("request: minor=%u, volume=%u; but that minor is volume %u in %s\n",
-+			adm_ctx->minor, adm_ctx->volume,
-+			adm_ctx->device->vnr, adm_ctx->device->resource->name);
- 		drbd_msg_put_info(adm_ctx->reply_skb, "minor exists as different volume");
- 		return ERR_INVALID_REQUEST;
- 	}
+Miscellanea:
+
+o Coalesce formats and realign arguments
+
+Some files not compiled - no cross-compilers
+
+Joe Perches (35):
+  alpha: Convert remaining uses of pr_warning to pr_warn
+  ARM: ep93xx: Convert remaining uses of pr_warning to pr_warn
+  arm64: Convert remaining uses of pr_warning to pr_warn
+  arch/blackfin: Convert remaining uses of pr_warning to pr_warn
+  ia64: Convert remaining use of pr_warning to pr_warn
+  powerpc: Convert remaining uses of pr_warning to pr_warn
+  sh: Convert remaining uses of pr_warning to pr_warn
+  sparc: Convert remaining use of pr_warning to pr_warn
+  x86: Convert remaining uses of pr_warning to pr_warn
+  drivers/acpi: Convert remaining uses of pr_warning to pr_warn
+  block/drbd: Convert remaining uses of pr_warning to pr_warn
+  gdrom: Convert remaining uses of pr_warning to pr_warn
+  drivers/char: Convert remaining use of pr_warning to pr_warn
+  clocksource: Convert remaining use of pr_warning to pr_warn
+  drivers/crypto: Convert remaining uses of pr_warning to pr_warn
+  fmc: Convert remaining use of pr_warning to pr_warn
+  drivers/gpu: Convert remaining uses of pr_warning to pr_warn
+  drivers/ide: Convert remaining uses of pr_warning to pr_warn
+  drivers/input: Convert remaining uses of pr_warning to pr_warn
+  drivers/isdn: Convert remaining uses of pr_warning to pr_warn
+  drivers/macintosh: Convert remaining uses of pr_warning to pr_warn
+  drivers/media: Convert remaining use of pr_warning to pr_warn
+  drivers/mfd: Convert remaining uses of pr_warning to pr_warn
+  drivers/mtd: Convert remaining uses of pr_warning to pr_warn
+  drivers/of: Convert remaining uses of pr_warning to pr_warn
+  drivers/oprofile: Convert remaining uses of pr_warning to pr_warn
+  drivers/platform: Convert remaining uses of pr_warning to pr_warn
+  drivers/rapidio: Convert remaining use of pr_warning to pr_warn
+  drivers/scsi: Convert remaining use of pr_warning to pr_warn
+  drivers/sh: Convert remaining use of pr_warning to pr_warn
+  drivers/tty: Convert remaining uses of pr_warning to pr_warn
+  drivers/video: Convert remaining uses of pr_warning to pr_warn
+  kernel/trace: Convert remaining uses of pr_warning to pr_warn
+  lib: Convert remaining uses of pr_warning to pr_warn
+  sound/soc: Convert remaining uses of pr_warning to pr_warn
+
+ arch/alpha/kernel/perf_event.c                     |  4 +-
+ arch/arm/mach-ep93xx/core.c                        |  4 +-
+ arch/arm64/include/asm/syscall.h                   |  8 ++--
+ arch/arm64/kernel/hw_breakpoint.c                  |  8 ++--
+ arch/arm64/kernel/smp.c                            |  4 +-
+ arch/blackfin/kernel/nmi.c                         |  2 +-
+ arch/blackfin/kernel/ptrace.c                      |  2 +-
+ arch/blackfin/mach-bf533/boards/stamp.c            |  2 +-
+ arch/blackfin/mach-bf537/boards/cm_bf537e.c        |  2 +-
+ arch/blackfin/mach-bf537/boards/cm_bf537u.c        |  2 +-
+ arch/blackfin/mach-bf537/boards/stamp.c            |  2 +-
+ arch/blackfin/mach-bf537/boards/tcm_bf537.c        |  2 +-
+ arch/blackfin/mach-bf561/boards/cm_bf561.c         |  2 +-
+ arch/blackfin/mach-bf561/boards/ezkit.c            |  2 +-
+ arch/blackfin/mm/isram-driver.c                    |  4 +-
+ arch/ia64/kernel/setup.c                           |  6 +--
+ arch/powerpc/kernel/pci-common.c                   |  4 +-
+ arch/powerpc/mm/init_64.c                          |  5 +--
+ arch/powerpc/mm/mem.c                              |  3 +-
+ arch/powerpc/platforms/512x/mpc512x_shared.c       |  4 +-
+ arch/powerpc/platforms/85xx/socrates_fpga_pic.c    |  7 ++--
+ arch/powerpc/platforms/86xx/mpc86xx_hpcn.c         |  2 +-
+ arch/powerpc/platforms/pasemi/dma_lib.c            |  4 +-
+ arch/powerpc/platforms/powernv/opal.c              |  8 ++--
+ arch/powerpc/platforms/powernv/pci-ioda.c          | 10 ++---
+ arch/powerpc/platforms/ps3/device-init.c           | 14 +++----
+ arch/powerpc/platforms/ps3/mm.c                    |  4 +-
+ arch/powerpc/platforms/ps3/os-area.c               |  2 +-
+ arch/powerpc/platforms/pseries/iommu.c             |  8 ++--
+ arch/powerpc/platforms/pseries/setup.c             |  4 +-
+ arch/powerpc/sysdev/fsl_pci.c                      |  9 ++---
+ arch/powerpc/sysdev/mpic.c                         | 10 ++---
+ arch/powerpc/sysdev/xics/icp-native.c              | 10 ++---
+ arch/powerpc/sysdev/xics/ics-opal.c                |  4 +-
+ arch/powerpc/sysdev/xics/ics-rtas.c                |  4 +-
+ arch/powerpc/sysdev/xics/xics-common.c             |  8 ++--
+ arch/sh/boards/mach-sdk7786/nmi.c                  |  2 +-
+ arch/sh/drivers/pci/fixups-sdk7786.c               |  2 +-
+ arch/sh/kernel/io_trapped.c                        |  2 +-
+ arch/sh/kernel/setup.c                             |  2 +-
+ arch/sh/mm/consistent.c                            |  5 +--
+ arch/sparc/kernel/smp_64.c                         |  5 +--
+ arch/x86/kernel/amd_gart_64.c                      | 12 ++----
+ arch/x86/kernel/apic/apic.c                        | 46 ++++++++++------------
+ arch/x86/kernel/apic/apic_noop.c                   |  2 +-
+ arch/x86/kernel/setup_percpu.c                     |  4 +-
+ arch/x86/kernel/tboot.c                            | 15 ++++---
+ arch/x86/kernel/tsc_sync.c                         |  8 ++--
+ arch/x86/mm/kmmio.c                                |  8 ++--
+ arch/x86/mm/mmio-mod.c                             |  5 +--
+ arch/x86/mm/numa.c                                 | 12 +++---
+ arch/x86/mm/numa_emulation.c                       |  6 +--
+ arch/x86/mm/testmmiotrace.c                        |  5 +--
+ arch/x86/oprofile/op_x86_model.h                   |  6 +--
+ arch/x86/platform/olpc/olpc-xo15-sci.c             |  2 +-
+ arch/x86/platform/sfi/sfi.c                        |  3 +-
+ arch/x86/xen/debugfs.c                             |  2 +-
+ arch/x86/xen/setup.c                               |  2 +-
+ drivers/acpi/apei/apei-base.c                      | 32 +++++++--------
+ drivers/acpi/apei/einj.c                           |  4 +-
+ drivers/acpi/apei/erst-dbg.c                       |  4 +-
+ drivers/acpi/apei/ghes.c                           | 30 +++++++-------
+ drivers/acpi/apei/hest.c                           | 10 ++---
+ drivers/acpi/resource.c                            |  4 +-
+ drivers/block/drbd/drbd_nl.c                       | 13 +++---
+ drivers/cdrom/gdrom.c                              |  4 +-
+ drivers/char/virtio_console.c                      |  2 +-
+ drivers/clocksource/samsung_pwm_timer.c            |  4 +-
+ drivers/crypto/n2_core.c                           | 12 +++---
+ drivers/fmc/fmc-fakedev.c                          |  2 +-
+ drivers/gpu/drm/amd/powerplay/hwmgr/smu7_hwmgr.c   |  2 +-
+ drivers/gpu/drm/amd/powerplay/inc/pp_debug.h       |  2 +-
+ drivers/gpu/drm/amd/powerplay/smumgr/fiji_smc.c    |  4 +-
+ drivers/gpu/drm/amd/powerplay/smumgr/iceland_smc.c | 14 +++----
+ .../gpu/drm/amd/powerplay/smumgr/polaris10_smc.c   |  4 +-
+ drivers/gpu/drm/amd/powerplay/smumgr/tonga_smc.c   |  4 +-
+ drivers/ide/tx4938ide.c                            |  2 +-
+ drivers/ide/tx4939ide.c                            |  5 +--
+ drivers/input/gameport/gameport.c                  |  4 +-
+ drivers/input/joystick/gamecon.c                   |  3 +-
+ drivers/input/misc/apanel.c                        |  3 +-
+ drivers/input/misc/xen-kbdfront.c                  |  8 ++--
+ drivers/input/serio/serio.c                        |  8 ++--
+ drivers/isdn/gigaset/interface.c                   |  2 +-
+ drivers/isdn/hardware/mISDN/avmfritz.c             | 17 ++++----
+ drivers/isdn/hardware/mISDN/hfcmulti.c             |  8 ++--
+ drivers/isdn/hardware/mISDN/hfcpci.c               |  4 +-
+ drivers/isdn/hardware/mISDN/hfcsusb.c              |  4 +-
+ drivers/isdn/hardware/mISDN/mISDNipac.c            |  4 +-
+ drivers/isdn/hardware/mISDN/mISDNisar.c            | 10 ++---
+ drivers/isdn/hardware/mISDN/netjet.c               |  8 ++--
+ drivers/isdn/hardware/mISDN/w6692.c                | 12 +++---
+ drivers/isdn/mISDN/hwchannel.c                     |  8 ++--
+ drivers/macintosh/windfarm_fcu_controls.c          |  5 +--
+ drivers/macintosh/windfarm_lm87_sensor.c           |  4 +-
+ drivers/macintosh/windfarm_pm72.c                  | 22 +++++------
+ drivers/macintosh/windfarm_rm31.c                  |  6 +--
+ drivers/media/platform/sh_vou.c                    |  4 +-
+ drivers/mfd/db8500-prcmu.c                         |  2 +-
+ drivers/mfd/sta2x11-mfd.c                          |  4 +-
+ drivers/mfd/twl4030-power.c                        |  7 +---
+ drivers/mtd/chips/cfi_cmdset_0002.c                | 12 ++++--
+ drivers/mtd/nand/cmx270_nand.c                     |  4 +-
+ drivers/mtd/ofpart.c                               |  4 +-
+ drivers/of/fdt.c                                   | 20 +++++-----
+ drivers/oprofile/oprofile_perf.c                   |  8 ++--
+ drivers/platform/x86/asus-laptop.c                 |  2 +-
+ drivers/platform/x86/eeepc-laptop.c                |  2 +-
+ drivers/platform/x86/intel_oaktrail.c              | 10 ++---
+ drivers/rapidio/rio-sysfs.c                        |  4 +-
+ drivers/scsi/a3000.c                               |  2 +-
+ drivers/sh/intc/core.c                             |  4 +-
+ drivers/tty/hvc/hvcs.c                             |  2 +-
+ drivers/tty/tty_io.c                               |  4 +-
+ drivers/video/fbdev/aty/radeon_base.c              |  4 +-
+ drivers/video/fbdev/core/fbmon.c                   |  4 +-
+ drivers/video/fbdev/pxafb.c                        |  7 ++--
+ kernel/trace/trace_benchmark.c                     |  4 +-
+ lib/cpu_rmap.c                                     |  2 +-
+ lib/dma-debug.c                                    |  2 +-
+ sound/soc/fsl/imx-audmux.c                         |  6 +--
+ sound/soc/samsung/s3c-i2s-v2.c                     |  6 +--
+ 122 files changed, 367 insertions(+), 397 deletions(-)
+
 -- 
 2.10.0.rc2.1.g053435c
 
