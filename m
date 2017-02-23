@@ -1,31 +1,73 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+Received: from mail-wr0-f172.google.com (mail-wr0-f172.google.com
+	[209.85.128.172]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2AA581051881
-	for <drbd-dev@lists.linbit.com>; Fri, 24 Feb 2017 15:58:53 +0100 (CET)
-Received: by mail-wm0-f51.google.com with SMTP id v77so16433445wmv.0
-	for <drbd-dev@lists.linbit.com>; Fri, 24 Feb 2017 06:58:53 -0800 (PST)
-Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	b10sm2624835wmi.34.2017.02.24.06.58.50
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B41EE1051881
+	for <drbd-dev@lists.linbit.com>; Fri, 24 Feb 2017 15:59:27 +0100 (CET)
+Received: by mail-wr0-f172.google.com with SMTP id 89so14713158wrr.3
+	for <drbd-dev@lists.linbit.com>; Fri, 24 Feb 2017 06:59:27 -0800 (PST)
+Received: from soda.linbit ([86.59.100.100])
+	by smtp.gmail.com with ESMTPSA id g6sm2632466wmc.30.2017.02.24.06.59.25
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Fri, 24 Feb 2017 06:58:51 -0800 (PST)
-Resent-Message-ID: <20170224145849.GT21236@soda.linbit>
-Received: from userp1040.oracle.com (userp1040.oracle.com [156.151.31.81])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	Fri, 24 Feb 2017 06:59:25 -0800 (PST)
+Resent-Message-ID: <20170224145920.GU21236@soda.linbit>
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 112C41051881
-	for <drbd-dev@lists.linbit.com>; Thu, 23 Feb 2017 16:55:44 +0100 (CET)
-Date: Thu, 23 Feb 2017 18:55:08 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-To: agruen@linbit.com
-Message-ID: <20170223155508.GA12798@mwanda>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id EE6361051881
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Feb 2017 16:36:13 +0100 (CET)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 9187D20256
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Feb 2017 15:28:47 +0000 (UTC)
+Received: from mail-yw0-f179.google.com (mail-yw0-f179.google.com
+	[209.85.161.179])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id BF036201BB
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Feb 2017 15:28:44 +0000 (UTC)
+Received: by mail-yw0-f179.google.com with SMTP id p77so18182979ywg.1
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Feb 2017 07:28:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [bug report] drbd: Backport the "events2" command
+In-Reply-To: <cover.1487314666.git.joe@perches.com>
+References: <cover.1487314666.git.joe@perches.com>
+From: Rob Herring <robh@kernel.org>
+Date: Thu, 23 Feb 2017 09:28:23 -0600
+Message-ID: <CAL_JsqLTaq-QLTqfyDO8EVJYpgeUx1e4J0Fo2NvfFWqVoiVedQ@mail.gmail.com>
+To: Joe Perches <joe@perches.com>
+Content-Type: text/plain; charset=UTF-8
+Cc: "linux-fbdev@vger.kernel.org" <linux-fbdev@vger.kernel.org>,
+	linux-ia64@vger.kernel.org, SH-Linux <linux-sh@vger.kernel.org>,
+	Alexander Shishkin <alexander.shishkin@linux.intel.com>,
+	nouveau@lists.freedesktop.org, Linux-ALSA <alsa-devel@alsa-project.org>,
+	dri-devel <dri-devel@lists.freedesktop.org>,
+	virtualization@lists.linux-foundation.org,
+	"linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>,
+	"linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>,
+	sparclinux@vger.kernel.org, drbd-dev@lists.linbit.com,
+	linux-scsi@vger.kernel.org, Richard Weinberger <richard@nod.at>,
+	sfi-devel@simplefirmware.org, amd-gfx@lists.freedesktop.org,
+	"linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>,
+	tboot-devel@lists.sourceforge.net, oprofile-list@lists.sf.net,
+	"linux-input@vger.kernel.org" <linux-input@vger.kernel.org>,
+	xen-devel@lists.xenproject.org,
+	"linux-media@vger.kernel.org" <linux-media@vger.kernel.org>,
+	platform-driver-x86@vger.kernel.org,
+	"devicetree@vger.kernel.org" <devicetree@vger.kernel.org>,
+	gigaset307x-common@lists.sourceforge.net,
+	acpi4asus-user@lists.sourceforge.net,
+	adi-buildroot-devel@lists.sourceforge.net,
+	Pekka Paalanen <ppaalanen@gmail.com>,
+	linux-omap <linux-omap@vger.kernel.org>,
+	"linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>, netdev <netdev@vger.kernel.org>,
+	Karol Herbst <karolherbst@gmail.com>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	linux-crypto@vger.kernel.org, linux-alpha@vger.kernel.org,
+	Fabio Estevam <fabio.estevam@nxp.com>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+Subject: Re: [Drbd-dev] [PATCH 00/35] treewide trivial patches converting
+	pr_warning to pr_warn
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,77 +79,61 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello Andreas Gruenbacher,
+On Fri, Feb 17, 2017 at 1:11 AM, Joe Perches <joe@perches.com> wrote:
+> There are ~4300 uses of pr_warn and ~250 uses of the older
+> pr_warning in the kernel source tree.
+>
+> Make the use of pr_warn consistent across all kernel files.
+>
+> This excludes all files in tools/ as there is a separate
+> define pr_warning for that directory tree and pr_warn is
+> not used in tools/.
+>
+> Done with 'sed s/\bpr_warning\b/pr_warn/' and some emacsing.
+>
+> Miscellanea:
+>
+> o Coalesce formats and realign arguments
+>
+> Some files not compiled - no cross-compilers
+>
+> Joe Perches (35):
+>   alpha: Convert remaining uses of pr_warning to pr_warn
+>   ARM: ep93xx: Convert remaining uses of pr_warning to pr_warn
+>   arm64: Convert remaining uses of pr_warning to pr_warn
+>   arch/blackfin: Convert remaining uses of pr_warning to pr_warn
+>   ia64: Convert remaining use of pr_warning to pr_warn
+>   powerpc: Convert remaining uses of pr_warning to pr_warn
+>   sh: Convert remaining uses of pr_warning to pr_warn
+>   sparc: Convert remaining use of pr_warning to pr_warn
+>   x86: Convert remaining uses of pr_warning to pr_warn
+>   drivers/acpi: Convert remaining uses of pr_warning to pr_warn
+>   block/drbd: Convert remaining uses of pr_warning to pr_warn
+>   gdrom: Convert remaining uses of pr_warning to pr_warn
+>   drivers/char: Convert remaining use of pr_warning to pr_warn
+>   clocksource: Convert remaining use of pr_warning to pr_warn
+>   drivers/crypto: Convert remaining uses of pr_warning to pr_warn
+>   fmc: Convert remaining use of pr_warning to pr_warn
+>   drivers/gpu: Convert remaining uses of pr_warning to pr_warn
+>   drivers/ide: Convert remaining uses of pr_warning to pr_warn
+>   drivers/input: Convert remaining uses of pr_warning to pr_warn
+>   drivers/isdn: Convert remaining uses of pr_warning to pr_warn
+>   drivers/macintosh: Convert remaining uses of pr_warning to pr_warn
+>   drivers/media: Convert remaining use of pr_warning to pr_warn
+>   drivers/mfd: Convert remaining uses of pr_warning to pr_warn
+>   drivers/mtd: Convert remaining uses of pr_warning to pr_warn
+>   drivers/of: Convert remaining uses of pr_warning to pr_warn
+>   drivers/oprofile: Convert remaining uses of pr_warning to pr_warn
+>   drivers/platform: Convert remaining uses of pr_warning to pr_warn
+>   drivers/rapidio: Convert remaining use of pr_warning to pr_warn
+>   drivers/scsi: Convert remaining use of pr_warning to pr_warn
+>   drivers/sh: Convert remaining use of pr_warning to pr_warn
+>   drivers/tty: Convert remaining uses of pr_warning to pr_warn
+>   drivers/video: Convert remaining uses of pr_warning to pr_warn
+>   kernel/trace: Convert remaining uses of pr_warning to pr_warn
+>   lib: Convert remaining uses of pr_warning to pr_warn
+>   sound/soc: Convert remaining uses of pr_warning to pr_warn
 
-The patch a29728463b25: "drbd: Backport the "events2" command" from
-Jul 31, 2014, leads to the following static checker warning:
+Where's the removal of pr_warning so we don't have more sneak in?
 
-	drivers/block/drbd/drbd_nl.c:4934 get_initial_state()
-	error: dereferencing freed memory 'skb'
-
-drivers/block/drbd/drbd_nl.c
-  4880  static int get_initial_state(struct sk_buff *skb, struct netlink_callback *cb)
-  4881  {
-  4882          struct drbd_state_change *state_change = (struct drbd_state_change *)cb->args[0];
-  4883          unsigned int seq = cb->args[2];
-  4884          unsigned int n;
-  4885          enum drbd_notification_type flags = 0;
-  4886  
-  4887          /* There is no need for taking notification_mutex here: it doesn't
-  4888             matter if the initial state events mix with later state chage
-  4889             events; we can always tell the events apart by the NOTIFY_EXISTS
-  4890             flag. */
-  4891  
-  4892          cb->args[5]--;
-  4893          if (cb->args[5] == 1) {
-  4894                  notify_initial_state_done(skb, seq);
-                                                  ^^^
-skb is freed on error inside notify_initial_state_done().
-
-  4895                  goto out;
-  4896          }
-  4897          n = cb->args[4]++;
-  4898          if (cb->args[4] < cb->args[3])
-  4899                  flags |= NOTIFY_CONTINUES;
-  4900          if (n < 1) {
-  4901                  notify_resource_state_change(skb, seq, state_change->resource,
-  4902                                               NOTIFY_EXISTS | flags);
-  4903                  goto next;
-  4904          }
-  4905          n--;
-  4906          if (n < state_change->n_connections) {
-  4907                  notify_connection_state_change(skb, seq, &state_change->connections[n],
-  4908                                                 NOTIFY_EXISTS | flags);
-  4909                  goto next;
-  4910          }
-  4911          n -= state_change->n_connections;
-  4912          if (n < state_change->n_devices) {
-  4913                  notify_device_state_change(skb, seq, &state_change->devices[n],
-  4914                                             NOTIFY_EXISTS | flags);
-  4915                  goto next;
-  4916          }
-  4917          n -= state_change->n_devices;
-  4918          if (n < state_change->n_devices * state_change->n_connections) {
-  4919                  notify_peer_device_state_change(skb, seq, &state_change->peer_devices[n],
-  4920                                                  NOTIFY_EXISTS | flags);
-  4921                  goto next;
-  4922          }
-  4923  
-  4924  next:
-  4925          if (cb->args[4] == cb->args[3]) {
-  4926                  struct drbd_state_change *next_state_change =
-  4927                          list_entry(state_change->list.next,
-  4928                                     struct drbd_state_change, list);
-  4929                  cb->args[0] = (long)next_state_change;
-  4930                  cb->args[3] = notifications_for_state_change(next_state_change);
-  4931                  cb->args[4] = 0;
-  4932          }
-  4933  out:
-  4934          return skb->len;
-                       ^^^^^^^^
-Dereference.
-
-  4935  }
-
-regards,
-dan carpenter
+Rob
