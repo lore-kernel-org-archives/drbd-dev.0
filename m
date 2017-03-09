@@ -1,28 +1,29 @@
 Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
 	(using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 63093105631C
-	for <drbd-dev@lists.linbit.com>; Thu,  9 Mar 2017 11:30:13 +0100 (CET)
-Received: by mail-wm0-f43.google.com with SMTP id v186so135742824wmd.0
-	for <drbd-dev@lists.linbit.com>; Thu, 09 Mar 2017 02:30:13 -0800 (PST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id DA1B0105633D
+	for <drbd-dev@lists.linbit.com>; Thu,  9 Mar 2017 11:33:36 +0100 (CET)
+Received: by mail-wm0-f47.google.com with SMTP id n11so135932505wma.1
+	for <drbd-dev@lists.linbit.com>; Thu, 09 Mar 2017 02:33:36 -0800 (PST)
 Received: from localhost (213-47-144-126.static.upcbusiness.at.
 	[213.47.144.126]) by smtp.gmail.com with ESMTPSA id
-	k76sm7647724wrc.12.2017.03.09.02.22.31
+	f48sm7645151wrf.17.2017.03.09.02.27.08
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Thu, 09 Mar 2017 02:22:31 -0800 (PST)
-Date: Thu, 9 Mar 2017 11:22:30 +0100
+	Thu, 09 Mar 2017 02:27:08 -0800 (PST)
+Date: Thu, 9 Mar 2017 11:27:07 +0100
 From: Roland Kammerer <roland.kammerer@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20170309102230.GA18615@rck.sh>
+Message-ID: <20170309102707.GB18615@rck.sh>
 References: <1488857279-29079-1-git-send-email-nwang@suse.com>
+	<1488857279-29079-3-git-send-email-nwang@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1488857279-29079-1-git-send-email-nwang@suse.com>
-Subject: Re: [Drbd-dev] [Patch v0 0/8] Patches for compat drbd9 to kernel
- v4.10
+In-Reply-To: <1488857279-29079-3-git-send-email-nwang@suse.com>
+Subject: Re: [Drbd-dev] [Patch v0 2/8] Adapt pointer backing_dev_info in
+ struct request_queue
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,20 +35,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Mar 07, 2017 at 11:27:51AM +0800, Nick Wang wrote:
-> Patches for drbd9 compatible to kernel4.10, including drbd,
-> drbd-kernel-compat and drbd-headers repos. Ordered as 
-> functionality, so may mix the three repos in one patch set.
+On Tue, Mar 07, 2017 at 11:27:53AM +0800, Nick Wang wrote:
+> In dc3b17cc, struct request_queue use pointer to backing_dev_info,
+> so all related call should be converted.
+> 
+> This patch is for drbd-kernel-compat
+> 
+> Signed-off-by: Nick Wang <nwang@suse.com>
+> CC: Philipp Reisner <philipp.reisner@linbit.com>
+> CC: Lars Ellenberg <lars.ellenberg@linbit.com>
+> CC: drbd-dev@lists.linbit.com 
+> 
+> ---
+>  drbd_wrappers.h                       | 5 +++++
+>  tests/have_pointer_backing_dev_info.c | 7 +++++++
+>  2 files changed, 12 insertions(+)
+>  create mode 100644 tests/have_pointer_backing_dev_info.c
+> 
+> diff --git a/drbd_wrappers.h b/drbd_wrappers.h
+> index 0489e7f..778a6fd 100644
+> --- a/drbd_wrappers.h
+> +++ b/drbd_wrappers.h
+> @@ -888,6 +888,11 @@ static inline void blk_queue_write_cache(struct request_queue *q, bool enabled,
+>  #endif
+>  #endif
+>  
+> +#ifdef COMPAT_HAVE_POINTER_BACKING_DEV_INFO
+> +#define bdi_rw_congested(B) bdi_rw_congested(*(B))
+> +#define bdi_congested(B, C) bdi_congested(*(B), C)
+> +#endif
+> +
 
-Hi Nick,
+We do compat work the other way round. The goal is to have our
+out-of-tree code as close as possible to linux upstream. Otherwise we
+would "get stuck" at the old paradigms.
 
-thanks again for the time spent, it's highly appreciated.
-
-There are some things that need to change before I can apply the series.
-I will answer to some patch mails (2 and 5) that exemplify how we do
-compat work.
-
-It would then be great if you resend your series. If not, just let
-me know, then I will do the compat work.
+In that specific case it actually means to change drbd_debugfs.c in a
+way that it looks like linux upstream (basically removing the '&') and
+provide compat #defines for older kernels.
 
 Regards, rck
