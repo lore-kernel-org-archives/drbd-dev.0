@@ -1,22 +1,27 @@
-Return-Path: <nwang@suse.com>
-Received: from prv-mh.provo.novell.com (prv-mh.provo.novell.com
-	[137.65.248.74])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	(using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 111ED1056484
-	for <drbd-dev@lists.linbit.com>; Tue,  7 Mar 2017 04:37:34 +0100 (CET)
-Message-Id: <58BE9B8A02000070000B26A9@prv-mh.provo.novell.com>
-Date: Mon, 06 Mar 2017 20:37:46 -0700
-From: "Nick Wang" <nwang@suse.com>
-To: <drbd-dev@lists.linbit.com>,"Nick Wang" <NWang@suse.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id BFCCB105631C
+	for <drbd-dev@lists.linbit.com>; Thu,  9 Mar 2017 10:21:50 +0100 (CET)
+Received: by mail-wm0-f46.google.com with SMTP id t189so50826350wmt.1
+	for <drbd-dev@lists.linbit.com>; Thu, 09 Mar 2017 01:21:50 -0800 (PST)
+Received: from soda.linbit ([86.59.100.100])
+	by smtp.gmail.com with ESMTPSA id 61sm7451855wrs.29.2017.03.09.01.21.49
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Thu, 09 Mar 2017 01:21:49 -0800 (PST)
+Date: Thu, 9 Mar 2017 10:21:42 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: drbd-dev@lists.linbit.com
+Message-ID: <20170309092142.GU10667@soda.linbit>
 References: <1488857279-29079-1-git-send-email-nwang@suse.com>
-	<1488857279-29079-2-git-send-email-nwang@suse.com>
-In-Reply-To: <1488857279-29079-2-git-send-email-nwang@suse.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Subject: Re: [Drbd-dev] [Patch v0 1/8] Remove bio_set_op_attrs
+In-Reply-To: <1488857279-29079-1-git-send-email-nwang@suse.com>
+Subject: Re: [Drbd-dev] [Patch v0 0/8] Patches for compat drbd9 to kernel
+	v4.10
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,21 +33,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
->>> On 2017-3-7 at 11:27, in message
-<1488857279-29079-2-git-send-email-nwang@suse.com>, Nick Wang <nwang@suse.c=
-om>
-wrote:
->  #ifndef WRITE_FLUSH
->  #ifndef WRITE_SYNC
->  #error  FIXME WRITE_SYNC undefined??
-    Maybe can define WRITE_SYNC to 0 in this case?
-    #define WRITE_SYNC 0
->  #endif
->  #define WRITE_FLUSH       (WRITE_SYNC | DRBD_REQ_PREFLUSH)
->  #endif
-> +#endif
+On Tue, Mar 07, 2017 at 11:27:51AM +0800, Nick Wang wrote:
+> Patches for drbd9 compatible to kernel4.10, including drbd,
+> drbd-kernel-compat and drbd-headers repos. Ordered as 
+> functionality, so may mix the three repos in one patch set.
+> 
+> block layer API and genetlink API have many changes in kernel v4.10.
+> 93c5bdf7 and 70fd7614, bio_set_op_attrs change to inline 
+>     then obsolete by use flag directly.
+> dc3b17cc, use pointer to backing_dev_info in struct request_queue.
+> 10383aea, use refcount_t for struct kref.
+> a07ea4d9 and 489111e5, statically initialize genetlink family.
+> 
+> Signed-off-by: Nick Wang <nwang@suse.com>
+> CC: Philipp Reisner <philipp.reisner@linbit.com>
+> CC: Lars Ellenberg <lars.ellenberg@linbit.com>
+> CC: drbd-dev@lists.linbit.com 
 
-Best regards,
-Nick
+Thanks,
+We'll find time review them "soon", I hope.
 
+    Lars
 
