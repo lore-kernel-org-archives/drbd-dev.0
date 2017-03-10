@@ -1,29 +1,23 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wr0-f179.google.com (mail-wr0-f179.google.com
-	[209.85.128.179]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
+Return-Path: <nwang@suse.com>
+Received: from prv-mh.provo.novell.com (prv-mh.provo.novell.com
+	[137.65.248.74])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 76A8D105647D
-	for <drbd-dev@lists.linbit.com>; Thu,  9 Mar 2017 11:39:57 +0100 (CET)
-Received: by mail-wr0-f179.google.com with SMTP id l37so42068756wrc.1
-	for <drbd-dev@lists.linbit.com>; Thu, 09 Mar 2017 02:39:57 -0800 (PST)
-Received: from localhost (213-47-144-126.static.upcbusiness.at.
-	[213.47.144.126]) by smtp.gmail.com with ESMTPSA id
-	o15sm7655512wra.61.2017.03.09.02.33.18
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Thu, 09 Mar 2017 02:33:18 -0800 (PST)
-Date: Thu, 9 Mar 2017 11:33:17 +0100
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20170309103317.GC18615@rck.sh>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 431A71056332
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Mar 2017 04:48:04 +0100 (CET)
+Message-Id: <58C2928502000070000B2E7D@prv-mh.provo.novell.com>
+Date: Thu, 09 Mar 2017 20:48:21 -0700
+From: "Nick Wang" <nwang@suse.com>
+To: "Roland Kammerer" <roland.kammerer@linbit.com>, <drbd-dev@lists.linbit.com>
 References: <1488857279-29079-1-git-send-email-nwang@suse.com>
-	<1488857279-29079-6-git-send-email-nwang@suse.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	<20170309102230.GA18615@rck.sh>
+In-Reply-To: <20170309102230.GA18615@rck.sh>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <1488857279-29079-6-git-send-email-nwang@suse.com>
-Subject: Re: [Drbd-dev] [Patch v0 5/8] Use refcount_t 'atomic' type to
- implement structref
+Subject: Re: [Drbd-dev] [Patch v0 0/8] Patches for compat drbd9 to kernel
+ v4.10
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,23 +29,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Mar 07, 2017 at 11:27:56AM +0800, Nick Wang wrote:
-> diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
-> index d6d9dc1..467549a 100644
-> --- a/drbd/drbd_req.c
-> +++ b/drbd/drbd_req.c
-> @@ -124,7 +124,11 @@ void drbd_queue_peer_ack(struct drbd_resource *resource, struct drbd_request *re
->  		    connection->cstate[NOW] != C_CONNECTED ||
->  		    !(req->rq_state[1 + node_id] & RQ_NET_SENT))
->  			continue;
-> +#ifdef COMPAT_HAVE_REFCOUNT_INC
-> +		refcount_inc(&req->kref.refcount); /* was 0, instead of kref_get() */
-> +#else
->  		atomic_inc(&req->kref.refcount); /* was 0, instead of kref_get() */
-> +#endif
 
-We want to avoid #ifdef hell as much as possible in the code itself. In
-that case use the new refcount_inc() and if it does not exist, fall back
-to atomic_inc() via defining refcount_inc() to atomic_inc.
 
-Regards, rck
+>>> On 2017-3-9 at 18:22, in message <20170309102230.GA18615@rck.sh>, =
+Roland
+Kammerer <roland.kammerer@linbit.com> wrote:
+> There are some things that need to change before I can apply the series.
+> I will answer to some patch mails (2 and 5) that exemplify how we do
+> compat work.
+>
+ Thanks for your opinion, that is much better and valuable. I do struggling=
+=20
+to find a better idea to compat old version and avoid too many #ifdef=20
+branches in code.
+
+> It would then be great if you resend your series. If not, just let
+> me know, then I will do the compat work.
+  I will polish them based on your idea and resend later.
+
+Best regards,
+Nick
+
