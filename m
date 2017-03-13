@@ -1,17 +1,20 @@
 Return-Path: <nwang@suse.com>
-Received: from prv3-mh.provo.novell.com (prv3-mh.provo.novell.com
+Received: from prv3-mh.provo.novell.com (victor.provo.novell.com
 	[137.65.250.26])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 2650C1056484
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D0C001056486
 	for <drbd-dev@lists.linbit.com>; Mon, 13 Mar 2017 08:23:58 +0100 (CET)
 From: Nick Wang <nwang@suse.com>
 To: drbd-dev@lists.linbit.com
-Date: Mon, 13 Mar 2017 15:23:23 +0800
-Message-Id: <1489389811-31234-1-git-send-email-nwang@suse.com>
+Date: Mon, 13 Mar 2017 15:23:25 +0800
+Message-Id: <1489389811-31234-3-git-send-email-nwang@suse.com>
+In-Reply-To: <1489389811-31234-1-git-send-email-nwang@suse.com>
+References: <1489389811-31234-1-git-send-email-nwang@suse.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Roland Kammerer <roland.kammerer@linbit.com>
-Subject: [Drbd-dev] [Patch v1 0/8] Patches for compat drbd9 to kernel v4.10
+Subject: [Drbd-dev] [Patch v1 2/8] Adapt pointer backing_dev_info in struct
+	request_queue
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,30 +26,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Changelog of v1 compare to v0:
-patch1: Remove the "error FIXME WRITE_SYNC undefined", since
-        for the new kernels without WRITE_SYNC, can savely
-        ignore it.
-patch2 and patch3: Remove the wrapper of bdi_congested in v1,
-        by removing the '&' directly.
-patch4 and patch5: Use a warpper of refcount_* function,
-        fallback to atomic_ when kernel not support.
-
-Patches for drbd9 compatible to kernel4.10, including drbd,
-drbd-kernel-compat and drbd-headers repos. Ordered as 
-functionality, so may mix the three repos in one patch set.
-
-block layer API and genetlink API have many changes in kernel v4.10.
-93c5bdf7 and 70fd7614, bio_set_op_attrs change to inline 
-    then obsolete by use flag directly.
-dc3b17cc, use pointer to backing_dev_info in struct request_queue.
-10383aea, use refcount_t for struct kref.
-a07ea4d9 and 489111e5, statically initialize genetlink family.
+In dc3b17cc, struct request_queue use pointer to backing_dev_info,
+so all related call should be converted.
 
 Signed-off-by: Nick Wang <nwang@suse.com>
 CC: Lars Ellenberg <lars.ellenberg@linbit.com>
 CC: Roland Kammerer <roland.kammerer@linbit.com>
 CC: drbd-dev@lists.linbit.com 
+---
+ tests/have_pointer_backing_dev_info.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+ create mode 100644 tests/have_pointer_backing_dev_info.c
+
+diff --git a/tests/have_pointer_backing_dev_info.c b/tests/have_pointer_backing_dev_info.c
+new file mode 100644
+index 0000000..e9999ce
+--- /dev/null
++++ b/tests/have_pointer_backing_dev_info.c
+@@ -0,0 +1,7 @@
++#include <linux/blkdev.h>
++
++void test(void)
++{
++	struct request_queue q = {};
++	q.backing_dev_info = NULL;
++}
 -- 
 1.8.5.6
 
