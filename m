@@ -1,19 +1,19 @@
 Return-Path: <nwang@suse.com>
-Received: from prv3-mh.provo.novell.com (prv3-mh.provo.novell.com
+Received: from prv3-mh.provo.novell.com (victor.provo.novell.com
 	[137.65.250.26])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B234B1056492
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Mar 2017 08:24:15 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 62D991056493
+	for <drbd-dev@lists.linbit.com>; Mon, 13 Mar 2017 08:24:16 +0100 (CET)
 From: Nick Wang <nwang@suse.com>
 To: drbd-dev@lists.linbit.com
-Date: Mon, 13 Mar 2017 15:23:29 +0800
-Message-Id: <1489389811-31234-7-git-send-email-nwang@suse.com>
+Date: Mon, 13 Mar 2017 15:23:30 +0800
+Message-Id: <1489389811-31234-8-git-send-email-nwang@suse.com>
 In-Reply-To: <1489389811-31234-1-git-send-email-nwang@suse.com>
 References: <1489389811-31234-1-git-send-email-nwang@suse.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Roland Kammerer <roland.kammerer@linbit.com>
-Subject: [Drbd-dev] [Patch v1 6/8] Statically initialize families
+Subject: [Drbd-dev] [Patch v1 7/8] Statically initialize families
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,39 +35,27 @@ CC: Lars Ellenberg <lars.ellenberg@linbit.com>
 CC: Roland Kammerer <roland.kammerer@linbit.com>
 CC: drbd-dev@lists.linbit.com 
 ---
- tests/have_genl_family_in_genlmsg_multicast.c | 9 +++++++++
- tests/have_genl_id_generate.c                 | 6 ++++++
- 2 files changed, 15 insertions(+)
- create mode 100644 tests/have_genl_family_in_genlmsg_multicast.c
- create mode 100644 tests/have_genl_id_generate.c
+ drbd/linux/genl_magic_func-genl_register_family_with_ops_groups.h | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/tests/have_genl_family_in_genlmsg_multicast.c b/tests/have_genl_family_in_genlmsg_multicast.c
-new file mode 100644
-index 0000000..6d44faa
---- /dev/null
-+++ b/tests/have_genl_family_in_genlmsg_multicast.c
-@@ -0,0 +1,9 @@
-+#include <net/genetlink.h>
-+
-+void test(void)
-+{
-+	struct genl_family family = { };
-+	struct sk_buff *skb = NULL;
-+
-+	genlmsg_multicast(&family, skb, 0, 0, GFP_KERNEL);
-+}
-diff --git a/tests/have_genl_id_generate.c b/tests/have_genl_id_generate.c
-new file mode 100644
-index 0000000..4ef0e8e
---- /dev/null
-+++ b/tests/have_genl_id_generate.c
-@@ -0,0 +1,6 @@
-+#include <linux/genetlink.h>
-+
-+void test(void)
-+{
-+	int i = GENL_ID_GENERATE;
-+}
+diff --git a/drbd/linux/genl_magic_func-genl_register_family_with_ops_groups.h b/drbd/linux/genl_magic_func-genl_register_family_with_ops_groups.h
+index 27d8f73..cbd776e 100644
+--- a/drbd/linux/genl_magic_func-genl_register_family_with_ops_groups.h
++++ b/drbd/linux/genl_magic_func-genl_register_family_with_ops_groups.h
+@@ -29,9 +29,13 @@ static int CONCAT_(GENL_MAGIC_FAMILY, _genl_multicast_ ## group)(	\
+ 
+ int CONCAT_(GENL_MAGIC_FAMILY, _genl_register)(void)
+ {
++#ifdef genl_register_family_with_ops_groups
+ 	return genl_register_family_with_ops_groups(&ZZZ_genl_family,	\
+ 						    ZZZ_genl_ops,	\
+ 						    ZZZ_genl_mcgrps);
++#else
++	return genl_register_family(&ZZZ_genl_family);
++#endif
+ }
+ 
+ void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void)
 -- 
 1.8.5.6
 
