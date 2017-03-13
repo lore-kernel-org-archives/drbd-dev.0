@@ -1,19 +1,19 @@
 Return-Path: <nwang@suse.com>
-Received: from prv3-mh.provo.novell.com (victor.provo.novell.com
+Received: from prv3-mh.provo.novell.com (prv3-mh.provo.novell.com
 	[137.65.250.26])
 	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id D0C001056486
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id CAB8D105647D
 	for <drbd-dev@lists.linbit.com>; Mon, 13 Mar 2017 08:23:58 +0100 (CET)
 From: Nick Wang <nwang@suse.com>
 To: drbd-dev@lists.linbit.com
-Date: Mon, 13 Mar 2017 15:23:25 +0800
-Message-Id: <1489389811-31234-3-git-send-email-nwang@suse.com>
+Date: Mon, 13 Mar 2017 15:23:26 +0800
+Message-Id: <1489389811-31234-4-git-send-email-nwang@suse.com>
 In-Reply-To: <1489389811-31234-1-git-send-email-nwang@suse.com>
 References: <1489389811-31234-1-git-send-email-nwang@suse.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Roland Kammerer <roland.kammerer@linbit.com>
-Subject: [Drbd-dev] [Patch v1 2/8] Adapt pointer backing_dev_info in struct
+Subject: [Drbd-dev] [Patch v1 3/8] Adapt pointer backing_dev_info in struct
 	request_queue
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -34,23 +34,112 @@ CC: Lars Ellenberg <lars.ellenberg@linbit.com>
 CC: Roland Kammerer <roland.kammerer@linbit.com>
 CC: drbd-dev@lists.linbit.com 
 ---
- tests/have_pointer_backing_dev_info.c | 7 +++++++
- 1 file changed, 7 insertions(+)
- create mode 100644 tests/have_pointer_backing_dev_info.c
+ drbd/drbd_debugfs.c     |  4 ++++
+ drbd/drbd_main.c        |  9 +++++++++
+ drbd/drbd_nl.c          | 13 +++++++++++++
+ drbd/drbd_req.c         |  4 ++++
+ 4 files changed, 30 insertions(+)
 
-diff --git a/tests/have_pointer_backing_dev_info.c b/tests/have_pointer_backing_dev_info.c
-new file mode 100644
-index 0000000..e9999ce
---- /dev/null
-+++ b/tests/have_pointer_backing_dev_info.c
-@@ -0,0 +1,7 @@
-+#include <linux/blkdev.h>
-+
-+void test(void)
-+{
-+	struct request_queue q = {};
-+	q.backing_dev_info = NULL;
-+}
+diff --git a/drbd/drbd_debugfs.c b/drbd/drbd_debugfs.c
+index 96c78fb..0bf2c96 100644
+--- a/drbd/drbd_debugfs.c
++++ b/drbd/drbd_debugfs.c
+@@ -1431,7 +1431,11 @@ static int peer_device_proc_drbd_show(struct seq_file *m, void *ignored)
+ 	rcu_read_lock();
+ 	{
+ 		/* reset device->congestion_reason */
++#ifdef COMPAT_HAVE_POINTER_BACKING_DEV_INFO
++		bdi_rw_congested(device->rq_queue->backing_dev_info);
++#else
+ 		bdi_rw_congested(&device->rq_queue->backing_dev_info);
++#endif
+ 
+ 		nc = rcu_dereference(peer_device->connection->transport.net_conf);
+ 		wp = nc ? nc->wire_protocol - DRBD_PROT_A + 'A' : ' ';
+diff --git a/drbd/drbd_main.c b/drbd/drbd_main.c
+index b2f839e..40c65ee 100644
+--- a/drbd/drbd_main.c
++++ b/drbd/drbd_main.c
+@@ -3009,7 +3009,11 @@ static int drbd_congested(void *congested_data, int bdi_bits)
+ 
+ 	if (get_ldev(device)) {
+ 		q = bdev_get_queue(device->ldev->backing_bdev);
++#ifdef COMPAT_HAVE_POINTER_BACKING_DEV_INFO
++		r = bdi_congested(q->backing_dev_info, bdi_bits);
++#else
+ 		r = bdi_congested(&q->backing_dev_info, bdi_bits);
++#endif
+ 		put_ldev(device);
+ 	}
+ 
+@@ -3583,8 +3587,13 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 	/* we have no partitions. we contain only ourselves. */
+ 	device->this_bdev->bd_contains = device->this_bdev;
+ 
++#ifdef COMPAT_HAVE_POINTER_BACKING_DEV_INFO
++	q->backing_dev_info->congested_fn = drbd_congested;
++	q->backing_dev_info->congested_data = device;
++#else
+ 	q->backing_dev_info.congested_fn = drbd_congested;
+ 	q->backing_dev_info.congested_data = device;
++#endif
+ 
+ 	blk_queue_make_request(q, drbd_make_request);
+ 	blk_queue_write_cache(q, true, true);
+diff --git a/drbd/drbd_nl.c b/drbd/drbd_nl.c
+index 22044ab..41a59a8 100644
+--- a/drbd/drbd_nl.c
++++ b/drbd/drbd_nl.c
+@@ -1882,12 +1882,21 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
+ 	if (b) {
+ 		blk_queue_stack_limits(q, b);
+ 
++#ifdef COMPAT_HAVE_POINTER_BACKING_DEV_INFO
++		if (q->backing_dev_info->ra_pages != b->backing_dev_info->ra_pages) {
++			drbd_info(device, "Adjusting my ra_pages to backing device's (%lu -> %lu)\n",
++				 q->backing_dev_info->ra_pages,
++				 b->backing_dev_info->ra_pages);
++			q->backing_dev_info->ra_pages = b->backing_dev_info->ra_pages;
++		}
++#else
+ 		if (q->backing_dev_info.ra_pages != b->backing_dev_info.ra_pages) {
+ 			drbd_info(device, "Adjusting my ra_pages to backing device's (%lu -> %lu)\n",
+ 				 q->backing_dev_info.ra_pages,
+ 				 b->backing_dev_info.ra_pages);
+ 			q->backing_dev_info.ra_pages = b->backing_dev_info.ra_pages;
+ 		}
++#endif
+ 	}
+ 	fixup_discard_if_not_supported(q);
+ }
+@@ -4601,7 +4610,11 @@ static void device_to_statistics(struct device_statistics *s,
+ 		s->dev_disk_flags = md->flags;
+ 		q = bdev_get_queue(device->ldev->backing_bdev);
+ 		s->dev_lower_blocked =
++#ifdef COMPAT_HAVE_POINTER_BACKING_DEV_INFO
++			bdi_congested(q->backing_dev_info,
++#else
+ 			bdi_congested(&q->backing_dev_info,
++#endif
+ 				      (1 << WB_async_congested) |
+ 				      (1 << WB_sync_congested));
+ 		put_ldev(device);
+diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
+index e1e9595..d6d9dc1 100644
+--- a/drbd/drbd_req.c
++++ b/drbd/drbd_req.c
+@@ -1155,7 +1155,11 @@ static bool remote_due_to_read_balancing(struct drbd_device *device,
+ 
+ 	switch (rbm) {
+ 	case RB_CONGESTED_REMOTE:
++#ifdef COMPAT_HAVE_POINTER_BACKING_DEV_INFO
++		bdi = device->ldev->backing_bdev->bd_disk->queue->backing_dev_info;
++#else
+ 		bdi = &device->ldev->backing_bdev->bd_disk->queue->backing_dev_info;
++#endif
+ 		return bdi_read_congested(bdi);
+ 	case RB_LEAST_PENDING:
+ 		return atomic_read(&device->local_cnt) >
 -- 
 1.8.5.6
 
