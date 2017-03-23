@@ -2,19 +2,19 @@ Return-Path: <BATV+f1fc5bea56d51e2fc981+4960+infradead.org+hch@bombadil.srs.infr
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
 	(using TLSv1 with cipher AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 26A981057FFC
-	for <drbd-dev@lists.linbit.com>; Thu, 23 Mar 2017 15:59:44 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 348D51057FFD
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Mar 2017 15:59:53 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Thu, 23 Mar 2017 10:33:33 -0400
-Message-Id: <20170323143341.31549-16-hch@lst.de>
+Date: Thu, 23 Mar 2017 10:33:34 -0400
+Message-Id: <20170323143341.31549-17-hch@lst.de>
 In-Reply-To: <20170323143341.31549-1-hch@lst.de>
 References: <20170323143341.31549-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 15/23] loop: implement REQ_OP_WRITE_ZEROES
+Subject: [Drbd-dev] [PATCH 16/23] brd: remove discard support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,50 +26,109 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-It's identical to discard as hole punches will always leave us with
-zeroes on reads.
+It's just a in-driver reimplementation of writing zeroes to the pages,
+which fails if the discards aren't page aligned.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/loop.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ drivers/block/brd.c | 56 -----------------------------------------------------
+ 1 file changed, 56 deletions(-)
 
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index 0ecb6461ed81..265cd2e33ff0 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -528,6 +528,7 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
- 	case REQ_OP_FLUSH:
- 		return lo_req_flush(lo, rq);
- 	case REQ_OP_DISCARD:
-+	case REQ_OP_WRITE_ZEROES:
- 		return lo_discard(lo, rq, pos);
- 	case REQ_OP_WRITE:
- 		if (lo->transfer)
-@@ -826,6 +827,7 @@ static void loop_config_discard(struct loop_device *lo)
- 		q->limits.discard_granularity = 0;
- 		q->limits.discard_alignment = 0;
- 		blk_queue_max_discard_sectors(q, 0);
-+		blk_queue_max_write_zeroes_sectors(q, 0);
- 		q->limits.discard_zeroes_data = 0;
- 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
- 		return;
-@@ -834,6 +836,7 @@ static void loop_config_discard(struct loop_device *lo)
- 	q->limits.discard_granularity = inode->i_sb->s_blocksize;
- 	q->limits.discard_alignment = 0;
- 	blk_queue_max_discard_sectors(q, UINT_MAX >> 9);
-+	blk_queue_max_write_zeroes_sectors(q, UINT_MAX >> 9);
- 	q->limits.discard_zeroes_data = 1;
- 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index 3adc32a3153b..c15d0581531f 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -134,28 +134,6 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
+ 	return page;
  }
-@@ -1660,6 +1663,7 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
- 	switch (req_op(cmd->rq)) {
- 	case REQ_OP_FLUSH:
- 	case REQ_OP_DISCARD:
-+	case REQ_OP_WRITE_ZEROES:
- 		cmd->use_aio = false;
- 		break;
- 	default:
+ 
+-static void brd_free_page(struct brd_device *brd, sector_t sector)
+-{
+-	struct page *page;
+-	pgoff_t idx;
+-
+-	spin_lock(&brd->brd_lock);
+-	idx = sector >> PAGE_SECTORS_SHIFT;
+-	page = radix_tree_delete(&brd->brd_pages, idx);
+-	spin_unlock(&brd->brd_lock);
+-	if (page)
+-		__free_page(page);
+-}
+-
+-static void brd_zero_page(struct brd_device *brd, sector_t sector)
+-{
+-	struct page *page;
+-
+-	page = brd_lookup_page(brd, sector);
+-	if (page)
+-		clear_highpage(page);
+-}
+-
+ /*
+  * Free all backing store pages and radix tree. This must only be called when
+  * there are no other users of the device.
+@@ -212,24 +190,6 @@ static int copy_to_brd_setup(struct brd_device *brd, sector_t sector, size_t n)
+ 	return 0;
+ }
+ 
+-static void discard_from_brd(struct brd_device *brd,
+-			sector_t sector, size_t n)
+-{
+-	while (n >= PAGE_SIZE) {
+-		/*
+-		 * Don't want to actually discard pages here because
+-		 * re-allocating the pages can result in writeback
+-		 * deadlocks under heavy load.
+-		 */
+-		if (0)
+-			brd_free_page(brd, sector);
+-		else
+-			brd_zero_page(brd, sector);
+-		sector += PAGE_SIZE >> SECTOR_SHIFT;
+-		n -= PAGE_SIZE;
+-	}
+-}
+-
+ /*
+  * Copy n bytes from src to the brd starting at sector. Does not sleep.
+  */
+@@ -338,14 +298,6 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
+ 	if (bio_end_sector(bio) > get_capacity(bdev->bd_disk))
+ 		goto io_error;
+ 
+-	if (unlikely(bio_op(bio) == REQ_OP_DISCARD)) {
+-		if (sector & ((PAGE_SIZE >> SECTOR_SHIFT) - 1) ||
+-		    bio->bi_iter.bi_size & ~PAGE_MASK)
+-			goto io_error;
+-		discard_from_brd(brd, sector, bio->bi_iter.bi_size);
+-		goto out;
+-	}
+-
+ 	bio_for_each_segment(bvec, bio, iter) {
+ 		unsigned int len = bvec.bv_len;
+ 		int err;
+@@ -357,9 +309,6 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
+ 		sector += len >> SECTOR_SHIFT;
+ 	}
+ 
+-out:
+-	bio_endio(bio);
+-	return BLK_QC_T_NONE;
+ io_error:
+ 	bio_io_error(bio);
+ 	return BLK_QC_T_NONE;
+@@ -464,11 +413,6 @@ static struct brd_device *brd_alloc(int i)
+ 	 *  is harmless)
+ 	 */
+ 	blk_queue_physical_block_size(brd->brd_queue, PAGE_SIZE);
+-
+-	brd->brd_queue->limits.discard_granularity = PAGE_SIZE;
+-	blk_queue_max_discard_sectors(brd->brd_queue, UINT_MAX);
+-	brd->brd_queue->limits.discard_zeroes_data = 1;
+-	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, brd->brd_queue);
+ #ifdef CONFIG_BLK_DEV_RAM_DAX
+ 	queue_flag_set_unlocked(QUEUE_FLAG_DAX, brd->brd_queue);
+ #endif
 -- 
 2.11.0
 
