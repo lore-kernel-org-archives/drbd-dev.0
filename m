@@ -1,18 +1,27 @@
-Return-Path: <BATV+f1fc5bea56d51e2fc981+4960+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
+Return-Path: <hch@lst.de>
+Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B05C31058000
-	for <drbd-dev@lists.linbit.com>; Thu, 23 Mar 2017 16:01:14 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B2DA81057FFA
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Mar 2017 16:03:20 +0100 (CET)
+Date: Thu, 23 Mar 2017 15:56:51 +0100
 From: Christoph Hellwig <hch@lst.de>
-To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
-	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
-	lars.ellenberg@linbit.com
-Date: Thu, 23 Mar 2017 10:33:18 -0400
-Message-Id: <20170323143341.31549-1-hch@lst.de>
-Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
-	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] RFC: always use REQ_OP_WRITE_ZEROES for zeroing offload
+To: Mike Snitzer <snitzer@redhat.com>
+Message-ID: <20170323145651.GA31771@lst.de>
+References: <20170323143341.31549-1-hch@lst.de>
+	<20170323143341.31549-7-hch@lst.de>
+	<20170323145522.GB17127@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170323145522.GB17127@redhat.com>
+Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
+	martin.petersen@oracle.com, philipp.reisner@linbit.com,
+	linux-block@vger.kernel.org, dm-devel@redhat.com,
+	lars.ellenberg@linbit.com, shli@kernel.org,
+	Christoph Hellwig <hch@lst.de>, agk@redhat.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 06/23] dm-kcopyd: switch to use
+	REQ_OP_WRITE_ZEROES
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,31 +33,13 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This series makes REQ_OP_WRITE_ZEROES the only zeroing offload
-supported by the block layer, and switches existing implementations
-of REQ_OP_DISCARD that correctly set discard_zeroes_data to it,
-removes incorrect discard_zeroes_data, and also switches WRITE SAME
-based zeroing in SCSI to this new method.
+On Thu, Mar 23, 2017 at 10:55:22AM -0400, Mike Snitzer wrote:
+> See commit 70d6c400a ("dm kcopyd: add WRITE SAME support to dm_kcopyd_zero")
+> drivers/md/dm-io.c:do_region() adjusts the WRITE SAME payload to be a
+> single page.
+> 
+> So you'd want to tweak dm-io.c accordingly for WRITE ZEROES (presummably
+> no payload?)
 
-I've done testing with ATA, SCSI and NVMe setups, but there are
-a few things that will need more attention:
-
- - what is dm-kcopyd doing with the current WRITE SAME usage
-   that gets multiple biovecs?  Can we fix it up in any way.
- - what are we going to do with discards through parity raid?
-   I suspect we should either just disable it for now entirely
-   or modify raid5.c to issue REQ_OP_WRITE_ZEROES to the underlying
-   devices.  But I need someone with such a setup to test it.
- - The DRBD code in this area was very odd, and will need an
-   audit from the maintainers.
-
-Note that this series needs to be applied on top of the
-"support ranges TRIM for libata" series.
-
-A git tree is also avaiable at:
-
-    git://git.infradead.org/users/hch/block.git discard-rework
-
-Gitweb:
-
-    http://git.infradead.org/users/hch/block.git/shortlog/refs/heads/discard-rework
+Yeah, I'll look into it.  Any good test case for verifying this code
+while I've got your attention?
