@@ -1,26 +1,20 @@
-Return-Path: <msnitzer@redhat.com>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <BATV+f1fc5bea56d51e2fc981+4960+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
+	(using TLSv1 with cipher AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id A9BAA1057FD9
-	for <drbd-dev@lists.linbit.com>; Thu, 23 Mar 2017 15:55:27 +0100 (CET)
-Date: Thu, 23 Mar 2017 10:55:22 -0400
-From: Mike Snitzer <snitzer@redhat.com>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20170323145522.GB17127@redhat.com>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 9C7EC1057FD9
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Mar 2017 15:55:44 +0100 (CET)
+From: Christoph Hellwig <hch@lst.de>
+To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
+	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
+	lars.ellenberg@linbit.com
+Date: Thu, 23 Mar 2017 10:33:31 -0400
+Message-Id: <20170323143341.31549-14-hch@lst.de>
+In-Reply-To: <20170323143341.31549-1-hch@lst.de>
 References: <20170323143341.31549-1-hch@lst.de>
-	<20170323143341.31549-7-hch@lst.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170323143341.31549-7-hch@lst.de>
-Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
-	martin.petersen@oracle.com, philipp.reisner@linbit.com,
-	linux-block@vger.kernel.org, dm-devel@redhat.com,
-	lars.ellenberg@linbit.com, shli@kernel.org, agk@redhat.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 06/23] dm-kcopyd: switch to use
-	REQ_OP_WRITE_ZEROES
+Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
+	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 13/23] nvme: implement REQ_OP_WRITE_ZEROES
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,50 +26,89 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Mar 23 2017 at 10:33am -0400,
-Christoph Hellwig <hch@lst.de> wrote:
+But now for the real NVMe Write Zeroes yet, just to get rid of the
+discard abuse for zeroing.  Also rename the quirk flag to be a bit
+more self-explanatory.
 
-> It seems like the code currently passes whatever it was using for writes
-> to WRITE SAME.  Just switch it to WRITE ZEROES, although that doesn't
-> need any payload.
-> 
-> Untested, and confused by the code, maybe someone who understands it
-> better than me can help..
-> 
-> Not-yet-signed-off-by: Christoph Hellwig <hch@lst.de>
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/nvme/host/core.c | 10 +++++-----
+ drivers/nvme/host/nvme.h |  6 +++---
+ drivers/nvme/host/pci.c  |  6 +++---
+ 3 files changed, 11 insertions(+), 11 deletions(-)
 
-See commit 70d6c400a ("dm kcopyd: add WRITE SAME support to dm_kcopyd_zero")
-drivers/md/dm-io.c:do_region() adjusts the WRITE SAME payload to be a
-single page.
+diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+index 9b3b57fef446..bfa0595dc767 100644
+--- a/drivers/nvme/host/core.c
++++ b/drivers/nvme/host/core.c
+@@ -335,6 +335,8 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
+ 	case REQ_OP_FLUSH:
+ 		nvme_setup_flush(ns, cmd);
+ 		break;
++	case REQ_OP_WRITE_ZEROES:
++		/* currently only aliased to deallocate for a few ctrls: */
+ 	case REQ_OP_DISCARD:
+ 		ret = nvme_setup_discard(ns, req, cmd);
+ 		break;
+@@ -900,16 +902,14 @@ static void nvme_config_discard(struct nvme_ns *ns)
+ 	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
+ 			NVME_DSM_MAX_RANGES);
+ 
+-	if (ctrl->quirks & NVME_QUIRK_DISCARD_ZEROES)
+-		ns->queue->limits.discard_zeroes_data = 1;
+-	else
+-		ns->queue->limits.discard_zeroes_data = 0;
+-
+ 	ns->queue->limits.discard_alignment = logical_block_size;
+ 	ns->queue->limits.discard_granularity = logical_block_size;
+ 	blk_queue_max_discard_sectors(ns->queue, UINT_MAX);
+ 	blk_queue_max_discard_segments(ns->queue, NVME_DSM_MAX_RANGES);
+ 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
++
++	if (ctrl->quirks & NVME_QUIRK_DEALLOCATE_ZEROES)
++		blk_queue_max_write_zeroes_sectors(ns->queue, UINT_MAX);
+ }
+ 
+ static int nvme_revalidate_ns(struct nvme_ns *ns, struct nvme_id_ns **id)
+diff --git a/drivers/nvme/host/nvme.h b/drivers/nvme/host/nvme.h
+index 2aa20e3e5675..07ebc4a1c8fc 100644
+--- a/drivers/nvme/host/nvme.h
++++ b/drivers/nvme/host/nvme.h
+@@ -68,10 +68,10 @@ enum nvme_quirks {
+ 	NVME_QUIRK_IDENTIFY_CNS			= (1 << 1),
+ 
+ 	/*
+-	 * The controller deterministically returns O's on reads to discarded
+-	 * logical blocks.
++	 * The controller deterministically returns O's on reads to
++	 * logical blocks that deallocate was called on.
+ 	 */
+-	NVME_QUIRK_DISCARD_ZEROES		= (1 << 2),
++	NVME_QUIRK_DEALLOCATE_ZEROES		= (1 << 2),
+ 
+ 	/*
+ 	 * The controller needs a delay before starts checking the device
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index 26a5fd05fe88..0a28787267f0 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -2135,13 +2135,13 @@ static const struct pci_error_handlers nvme_err_handler = {
+ static const struct pci_device_id nvme_id_table[] = {
+ 	{ PCI_VDEVICE(INTEL, 0x0953),
+ 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
+-				NVME_QUIRK_DISCARD_ZEROES, },
++				NVME_QUIRK_DEALLOCATE_ZEROES, },
+ 	{ PCI_VDEVICE(INTEL, 0x0a53),
+ 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
+-				NVME_QUIRK_DISCARD_ZEROES, },
++				NVME_QUIRK_DEALLOCATE_ZEROES, },
+ 	{ PCI_VDEVICE(INTEL, 0x0a54),
+ 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
+-				NVME_QUIRK_DISCARD_ZEROES, },
++				NVME_QUIRK_DEALLOCATE_ZEROES, },
+ 	{ PCI_VDEVICE(INTEL, 0x5845),	/* Qemu emulated controller */
+ 		.driver_data = NVME_QUIRK_IDENTIFY_CNS, },
+ 	{ PCI_DEVICE(0x1c58, 0x0003),	/* HGST adapter */
+-- 
+2.11.0
 
-So you'd want to tweak dm-io.c accordingly for WRITE ZEROES (presummably
-no payload?)
-
-Mike
-
-> ---
->  drivers/md/dm-kcopyd.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/drivers/md/dm-kcopyd.c b/drivers/md/dm-kcopyd.c
-> index 9e9d04cb7d51..f85846741d50 100644
-> --- a/drivers/md/dm-kcopyd.c
-> +++ b/drivers/md/dm-kcopyd.c
-> @@ -733,11 +733,11 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
->  		job->pages = &zero_page_list;
->  
->  		/*
-> -		 * Use WRITE SAME to optimize zeroing if all dests support it.
-> +		 * Use WRITE ZEROES to optimize zeroing if all dests support it.
->  		 */
-> -		job->rw = REQ_OP_WRITE_SAME;
-> +		job->rw = REQ_OP_WRITE_ZEROES;
->  		for (i = 0; i < job->num_dests; i++)
-> -			if (!bdev_write_same(job->dests[i].bdev)) {
-> +			if (!bdev_write_zeroes_sectors(job->dests[i].bdev)) {
->  				job->rw = WRITE;
->  				break;
->  			}
-> -- 
-> 2.11.0
-> 
