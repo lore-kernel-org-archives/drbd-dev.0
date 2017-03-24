@@ -1,29 +1,34 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	(using TLSv1 with cipher AES128-SHA (128/128 bits))
+Received: from mail-wr0-f182.google.com (mail-wr0-f182.google.com
+	[209.85.128.182]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 684B7105647D
-	for <drbd-dev@lists.linbit.com>; Thu, 23 Mar 2017 23:53:11 +0100 (CET)
-Received: by mail-wm0-f49.google.com with SMTP id u132so506062wmg.0
-	for <drbd-dev@lists.linbit.com>; Thu, 23 Mar 2017 15:53:11 -0700 (PDT)
-Date: Thu, 23 Mar 2017 23:53:09 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Mike Snitzer <snitzer@redhat.com>
-Message-ID: <20170323225256.GK1138@soda.linbit>
-References: <20170323143341.31549-1-hch@lst.de>
-	<20170323155410.GD1138@soda.linbit>
-	<20170323170221.GA20854@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170323170221.GA20854@redhat.com>
-Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
-	martin.petersen@oracle.com, philipp.reisner@linbit.com,
-	linux-block@vger.kernel.org, dm-devel@redhat.com,
-	shli@kernel.org, Christoph Hellwig <hch@lst.de>, agk@redhat.com,
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 1B32C1056320
+	for <drbd-dev@lists.linbit.com>; Fri, 24 Mar 2017 15:27:45 +0100 (CET)
+Received: by mail-wr0-f182.google.com with SMTP id u108so2831089wrb.3
+	for <drbd-dev@lists.linbit.com>; Fri, 24 Mar 2017 07:27:45 -0700 (PDT)
+Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
+	m14sm3104928wrb.22.2017.03.24.07.27.43
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Fri, 24 Mar 2017 07:27:44 -0700 (PDT)
+Resent-Message-ID: <20170324142739.GO1138@soda.linbit>
+Received: from mail-pf0-f196.google.com (mail-pf0-f196.google.com
+	[209.85.192.196]) (using TLSv1 with cipher AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 670081056320
+	for <drbd-dev@lists.linbit.com>; Fri, 24 Mar 2017 15:22:41 +0100 (CET)
+Received: by mail-pf0-f196.google.com with SMTP id r137so642829pfr.3
+	for <drbd-dev@lists.linbit.com>; Fri, 24 Mar 2017 07:22:41 -0700 (PDT)
+From: Geliang Tang <geliangtang@gmail.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>
+Date: Fri, 24 Mar 2017 22:15:11 +0800
+Message-Id: <88d743591c2bd5e0c46009f7ec33fa326bf2db5e.1490341364.git.geliangtang@gmail.com>
+In-Reply-To: <4841d2c2936addc27a2e774041d04ec16885ba03.1490341208.git.geliangtang@gmail.com>
+References: <4841d2c2936addc27a2e774041d04ec16885ba03.1490341208.git.geliangtang@gmail.com>
+Cc: Geliang Tang <geliangtang@gmail.com>, linux-kernel@vger.kernel.org,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] RFC: always use REQ_OP_WRITE_ZEROES for zeroing
-	offload
+Subject: [Drbd-dev] [PATCH] drbd: use setup_timer
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,80 +40,44 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Mar 23, 2017 at 01:02:22PM -0400, Mike Snitzer wrote:
-> On Thu, Mar 23 2017 at 11:54am -0400,
-> Lars Ellenberg <lars.ellenberg@linbit.com> wrote:
-> 
-> > On Thu, Mar 23, 2017 at 10:33:18AM -0400, Christoph Hellwig wrote:
-> > > This series makes REQ_OP_WRITE_ZEROES the only zeroing offload
-> > > supported by the block layer, and switches existing implementations
-> > > of REQ_OP_DISCARD that correctly set discard_zeroes_data to it,
-> > > removes incorrect discard_zeroes_data, and also switches WRITE SAME
-> > > based zeroing in SCSI to this new method.
-> > > 
-> > > I've done testing with ATA, SCSI and NVMe setups, but there are
-> > > a few things that will need more attention:
-> > > 
-> > 
-> > >  - The DRBD code in this area was very odd,
-> > 
-> > DRBD wants all replicas to give back identical data.
-> > If what comes back after a discard is "undefined",
-> > we cannot really use that.
-> > 
-> > We used to "stack" discard only if our local backend claimed
-> > "discard_zeroes_data". We replicate that IO request to the peer
-> > as discard, and if the peer cannot do discards itself, or has
-> > discard_zeroes_data == 0, the peer will use zeroout instead.
-> > 
-> > One use-case for this is the device mapper "thin provisioning".
-> > At the time I wrote those "odd" hacks, dm thin targets
-> > would set discard_zeroes_data=0, NOT change discard granularity,
-> > but only actually discard (drop from the tree) whole "chunks",
-> > leaving partial start/end chunks in the mapping tree unchanged.
-> > 
-> > The logic of "only stack discard, if backend discard_zeroes_data"
+Use setup_timer() instead of init_timer() to simplify the code.
 
-That is DRBDs logic I just explained above.
-And the "backend" (to DRBD) in that sentence would be thin, and not
-the "real" hardware below thin, which may not even support discard.
+Signed-off-by: Geliang Tang <geliangtang@gmail.com>
+---
+ drivers/block/drbd/drbd_main.c | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)
 
-> > would mean that we would not be able to accept and pass down discards
-> > to dm-thin targets. But with data on dm-thin, you would really like
-> > to do the occasional fstrim.
-> 
-> Are you sure you aren't thinking of MD raid?
-
-Yes.
-
-> To this day, dm-thin.c has: ti->discard_zeroes_data_unsupported = true
-
-That is exactly what I was saying.
-
-Thin does not claim to zero data on discard.  which is ok, and correct,
-because it only punches holes on full chunks (or whatever you call
-them), and leaves the rest in the mapping tree as is.
-
-And that behaviour would prevent DRBD from exposing discards if
-configured on top of thin. (see above)
-
-But thin *could* easily guarantee zeroing, by simply punching holes
-where it can, and zeroing out the not fully-aligned partial start and
-end of the range.
-
-Which is what I added as an option between DRBD and whatever is below,
-with the use-case of dm-thin in mind.
-
-And that made it possible for DRBD to
- a) expose "discard" to upper layers, even if we would usually only do
-    if the DRBD Primary sits on top of a device that guarantees discard
-    zeros data,
- b) still use discards on a secondary, without falling back to zero-out,
-    which would unexpectedly fully allocate, instead of trim, a thinly
-    provisioned device-mapper target.
-
-
-Thanks,
-
-    Lars
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 92c60cb..09846fc 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2011,18 +2011,14 @@ void drbd_init_set_defaults(struct drbd_device *device)
+ 	device->unplug_work.cb  = w_send_write_hint;
+ 	device->bm_io_work.w.cb = w_bitmap_io;
+ 
+-	init_timer(&device->resync_timer);
+-	init_timer(&device->md_sync_timer);
+-	init_timer(&device->start_resync_timer);
+-	init_timer(&device->request_timer);
+-	device->resync_timer.function = resync_timer_fn;
+-	device->resync_timer.data = (unsigned long) device;
+-	device->md_sync_timer.function = md_sync_timer_fn;
+-	device->md_sync_timer.data = (unsigned long) device;
+-	device->start_resync_timer.function = start_resync_timer_fn;
+-	device->start_resync_timer.data = (unsigned long) device;
+-	device->request_timer.function = request_timer_fn;
+-	device->request_timer.data = (unsigned long) device;
++	setup_timer(&device->resync_timer, resync_timer_fn,
++		    (unsigned long)device);
++	setup_timer(&device->md_sync_timer, md_sync_timer_fn,
++		    (unsigned long)device);
++	setup_timer(&device->start_resync_timer, start_resync_timer_fn,
++		    (unsigned long)device);
++	setup_timer(&device->request_timer, request_timer_fn,
++		    (unsigned long)device);
+ 
+ 	init_waitqueue_head(&device->misc_wait);
+ 	init_waitqueue_head(&device->state_wait);
+-- 
+2.9.3
 
