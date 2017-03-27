@@ -1,29 +1,36 @@
-Return-Path: <hch@lst.de>
-Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
-	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
+Return-Path: <Bart.VanAssche@sandisk.com>
+Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com [216.71.153.144])
+	(using TLSv1 with cipher RC4-SHA (128/128 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 71216105645E
-	for <drbd-dev@lists.linbit.com>; Mon, 27 Mar 2017 16:57:40 +0200 (CEST)
-Date: Mon, 27 Mar 2017 16:57:40 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Mike Snitzer <snitzer@redhat.com>
-Message-ID: <20170327145740.GB24952@lst.de>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 48345105645E
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Mar 2017 17:18:38 +0200 (CEST)
+From: Bart Van Assche <Bart.VanAssche@sandisk.com>
+To: "hch@infradead.org" <hch@infradead.org>, "snitzer@redhat.com"
+	<snitzer@redhat.com>
+Date: Mon, 27 Mar 2017 15:08:16 +0000
+Message-ID: <1490627281.2461.4.camel@sandisk.com>
 References: <20170323143341.31549-1-hch@lst.de>
 	<20170323155410.GD1138@soda.linbit>
 	<20170327091056.GB6879@infradead.org>
 	<20170327140307.GA13020@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <20170327140307.GA13020@redhat.com>
-Cc: axboe@kernel.dk, linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
-	linux-scsi@vger.kernel.org, martin.petersen@oracle.com,
-	philipp.reisner@linbit.com,
-	Christoph Hellwig <hch@infradead.org>, dm-devel@redhat.com,
-	shli@kernel.org, Christoph Hellwig <hch@lst.de>, agk@redhat.com,
-	drbd-dev@lists.linbit.com
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <631697B4B3796943B829130DF7C39672@sandisk.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
+	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
+	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
+	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"dm-devel@redhat.com" <dm-devel@redhat.com>,
+	"shli@kernel.org" <shli@kernel.org>, "hch@lst.de" <hch@lst.de>,
+	"agk@redhat.com" <agk@redhat.com>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
 Subject: Re: [Drbd-dev] RFC: always use REQ_OP_WRITE_ZEROES for zeroing
-	offload
+ offload
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,22 +42,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Mar 27, 2017 at 10:03:07AM -0400, Mike Snitzer wrote:
-> By "you" I assume you're referring to Lars?
-
-Yes.
-
-> Lars' approach for discard,
-> when drbd is layered on dm-thinp, feels over-engineered.  Not his fault,
-> the way discard and zeroing got conflated certainly lends itself to
-> these ugly hacks.  SO I do appreciate that for anything to leverage
-> discard_zeroes_data it needs to be reliable.  Which runs counter to how
-> discard was implemented (discard may get silently dropped!)  But that is
-> why dm-thinp doesn't advertise dzd.  Anyway...
-
-That's exactly what this series does - remove discard_zeroes_data and
-use the new REQ_OP_WRITE_ZEROES for anything that wants zeroing offload.
-
+On Mon, 2017-03-27 at 10:03 -0400, Mike Snitzer wrote:
 > As for the blkdev_issue_zeroout() resorting to manually zeroing the
 > range, if the discard fails or dzd not supported, that certainly
 > requires DM thinp to implement manual zeroing of the head and tail of
@@ -58,4 +50,9 @@ use the new REQ_OP_WRITE_ZEROES for anything that wants zeroing offload.
 > there.  It is probably something that is best left to Joe or myself to
 > tackle.  But I'll gladly accept patches ;)
 
-Ok, I'll happily leave this to the two of you..
+Some time ago I posted a patch series for the block layer that zeroes
+start and tail for nonaligned discard requests if dzd has been set. See
+also "[PATCH v3 0/5] Make blkdev_issue_discard() submit aligned discard
+requests" (https://www.spinics.net/lists/linux-block/msg02360.html).
+
+Bart.=
