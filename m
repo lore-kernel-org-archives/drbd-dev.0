@@ -1,28 +1,27 @@
-Return-Path: <BATV+c09a500acd4738b53c4f+4964+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
+Return-Path: <msnitzer@redhat.com>
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	(using TLSv1 with cipher ADH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id B16761057FBB
-	for <drbd-dev@lists.linbit.com>; Mon, 27 Mar 2017 11:12:44 +0200 (CEST)
-Date: Mon, 27 Mar 2017 02:12:39 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Message-ID: <20170327091239.GC6879@infradead.org>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTPS id 6C73A105633D
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Mar 2017 16:03:14 +0200 (CEST)
+Date: Mon, 27 Mar 2017 10:03:07 -0400
+From: Mike Snitzer <snitzer@redhat.com>
+To: Christoph Hellwig <hch@infradead.org>
+Message-ID: <20170327140307.GA13020@redhat.com>
 References: <20170323143341.31549-1-hch@lst.de>
-	<20170323143341.31549-7-hch@lst.de>
-	<20170323145522.GB17127@redhat.com> <20170323145651.GA31771@lst.de>
-	<20170323151037.GC17127@redhat.com>
+	<20170323155410.GD1138@soda.linbit>
+	<20170327091056.GB6879@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170323151037.GC17127@redhat.com>
+In-Reply-To: <20170327091056.GB6879@infradead.org>
 Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
 	martin.petersen@oracle.com, philipp.reisner@linbit.com,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
-	lars.ellenberg@linbit.com, shli@kernel.org,
-	Christoph Hellwig <hch@lst.de>, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 06/23] dm-kcopyd: switch to use
-	REQ_OP_WRITE_ZEROES
+	shli@kernel.org, Christoph Hellwig <hch@lst.de>, agk@redhat.com,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] RFC: always use REQ_OP_WRITE_ZEROES for zeroing
+	offload
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,11 +33,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Mar 23, 2017 at 11:10:38AM -0400, Mike Snitzer wrote:
-> Not sure why you've split out the dm-kcopyd patch, likely best to just
-> fold it into the previous dm support patch.
+On Mon, Mar 27 2017 at  5:10am -0400,
+Christoph Hellwig <hch@infradead.org> wrote:
 
-The dm-kcopyd patch switches to using WRITE_ZEROES instead of write
-same for dm as user of these interfaces.  The one before just adds
-WRITE_ZEROES support to dm.
+> It sounds like you don't want to support traditional discard at all,
+> but only WRITE ZEROES.  So in many ways this series is the right way
+> forward.  It would be nice if we could do a full blown
+> REQ_OP_WRITE_ZEROES for dm_think that zeroes out partial blocks,
+> similar to what hardware that implements WRITE SAME of zeroes
+> or WRITE ZEROES would do.  I'll see if I could include that in my
+> series.
 
+By "you" I assume you're referring to Lars?  Lars' approach for discard,
+when drbd is layered on dm-thinp, feels over-engineered.  Not his fault,
+the way discard and zeroing got conflated certainly lends itself to
+these ugly hacks.  SO I do appreciate that for anything to leverage
+discard_zeroes_data it needs to be reliable.  Which runs counter to how
+discard was implemented (discard may get silently dropped!)  But that is
+why dm-thinp doesn't advertise dzd.  Anyway...
+
+As for the blkdev_issue_zeroout() resorting to manually zeroing the
+range, if the discard fails or dzd not supported, that certainly
+requires DM thinp to implement manual zeroing of the head and tail of
+the range if partial blocks are being zeroed.  So I welcome any advances
+there.  It is probably something that is best left to Joe or myself to
+tackle.  But I'll gladly accept patches ;)
