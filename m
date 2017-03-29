@@ -1,28 +1,31 @@
-Return-Path: <msnitzer@redhat.com>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 985E11056320
-	for <drbd-dev@lists.linbit.com>; Tue, 28 Mar 2017 21:33:59 +0200 (CEST)
-Date: Tue, 28 Mar 2017 15:33:54 -0400
-From: Mike Snitzer <snitzer@redhat.com>
-To: Bart Van Assche <Bart.VanAssche@sandisk.com>
-Message-ID: <20170328193354.GB21445@redhat.com>
+Return-Path: <Bart.VanAssche@sandisk.com>
+Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BD7EC105633D
+	for <drbd-dev@lists.linbit.com>; Wed, 29 Mar 2017 18:28:13 +0200 (CEST)
+From: Bart Van Assche <Bart.VanAssche@sandisk.com>
+To: "agk@redhat.com" <agk@redhat.com>, "lars.ellenberg@linbit.com"
+	<lars.ellenberg@linbit.com>, "snitzer@redhat.com" <snitzer@redhat.com>,
+	"hch@lst.de" <hch@lst.de>, "martin.petersen@oracle.com"
+	<martin.petersen@oracle.com>, "philipp.reisner@linbit.com"
+	<philipp.reisner@linbit.com>, "axboe@kernel.dk" <axboe@kernel.dk>,
+	"pbonzini@redhat.com" <pbonzini@redhat.com>, "shli@kernel.org"
+	<shli@kernel.org>
+Date: Wed, 29 Mar 2017 16:28:01 +0000
+Message-ID: <1490804856.3551.3.camel@sandisk.com>
 References: <20170323143341.31549-1-hch@lst.de>
 	<20170323143341.31549-4-hch@lst.de>
 	<1490726988.2573.16.camel@sandisk.com>
+	<e19ca1bf-0908-1eb0-cb04-cd306692f216@redhat.com>
+In-Reply-To: <e19ca1bf-0908-1eb0-cb04-cd306692f216@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <7F521760D57C1746ACD169C42D3C2D16@sandisk.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1490726988.2573.16.camel@sandisk.com>
-Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
+Cc: "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
-	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
-	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
-	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
 	"dm-devel@redhat.com" <dm-devel@redhat.com>,
-	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
-	"shli@kernel.org" <shli@kernel.org>, "hch@lst.de" <hch@lst.de>,
-	"agk@redhat.com" <agk@redhat.com>,
+	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
 Subject: Re: [Drbd-dev] [PATCH 03/23] sd: implement REQ_OP_WRITE_ZEROES
 List-Id: "*Coordination* of development, patches,
@@ -36,47 +39,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Mar 28 2017 at  2:50pm -0400,
-Bart Van Assche <Bart.VanAssche@sandisk.com> wrote:
+On Wed, 2017-03-29 at 16:51 +0200, Paolo Bonzini wrote:
+> On 28/03/2017 20:50, Bart Van Assche wrote:
+> > This means that just like the start and end of a discard must be aligne=
+d on a
+> > discard_granularity boundary, WRITE SAME commands with the UNMAP bit se=
+t must
+> > also respect that granularity. I think this means that either
+> > __blkdev_issue_zeroout() has to be modified such that it rejects unalig=
+ned
+> > REQ_OP_WRITE_ZEROES operations or that blk_bio_write_same_split() has t=
+o be
+> > modified such that it generates REQ_OP_WRITEs for the unaligned start a=
+nd tail.
+>=20
+> I don't think this is the case.
 
-> On Thu, 2017-03-23 at 10:33 -0400, Christoph Hellwig wrote:
-> > diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
-> > index af632e350ab4..b6f70a09a301 100644
-> > --- a/drivers/scsi/sd.c
-> > +++ b/drivers/scsi/sd.c
-> > @@ -748,7 +748,7 @@ static int sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
-> >  	return scsi_init_io(cmd);
-> >  }
-> >  
-> > -static int sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd)
-> > +static int sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd, bool unmap)
-> >  {
-> >  	struct scsi_device *sdp = cmd->device;
-> >  	struct request *rq = cmd->request;
-> > @@ -765,13 +765,14 @@ static int sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd)
-> >  
-> >  	cmd->cmd_len = 16;
-> >  	cmd->cmnd[0] = WRITE_SAME_16;
-> > -	cmd->cmnd[1] = 0x8; /* UNMAP */
-> > +	if (unmap)
-> > +		cmd->cmnd[1] = 0x8; /* UNMAP */
-> >  	put_unaligned_be64(sector, &cmd->cmnd[2]);
-> >  	put_unaligned_be32(nr_sectors, &cmd->cmnd[10]);
-> 
-> Hello Christoph,
-> 
-> A quote from SBC: "An OPTIMAL UNMAP GRANULARITY field set to a non-zero value
-> indicates the optimal granularity in logical blocks for unmap requests (e.g.,
-> an UNMAP command or a WRITE SAME (16) command with the UNMAP bit set to one).
-> An unmap request with a number of logical blocks that is not a multiple of
-> this value may result in unmap operations on fewer LBAs than requested."
-> 
-> This means that just like the start and end of a discard must be aligned on a
-> discard_granularity boundary, WRITE SAME commands with the UNMAP bit set must
-> also respect that granularity. I think this means that either
-> __blkdev_issue_zeroout() has to be modified such that it rejects unaligned
-> REQ_OP_WRITE_ZEROES operations or that blk_bio_write_same_split() has to be
-> modified such that it generates REQ_OP_WRITEs for the unaligned start and tail.
+Hello Paolo,
 
-That'd get DM thinp off the hook from having to zero the unaligned start
-and tail...
+Can you cite the section(s) from the SCSI specs that support your view? I
+reread the "5.49 WRITE SAME (10) command" and "4.7.3.4.4 WRITE SAME command
+and unmap operations" sections but I have not found any explicit statement
+that specifies the behavior for unaligned WRITE SAME commands with the UNMA=
+P
+bit set. It seems to me like=A0the OPTIMAL UNMAP GRANULARITY parameter was
+overlooked when both sections were written. Should we ask the T10 committee
+for a clarification?
+
+Another question is, if the specification of WRITE SAME + UNMAP would be
+made unambiguous in the SBC document, whether or not we should take the ris=
+k
+to trigger behavior that is not what we expect by sending unaligned WRITE
+SAME + UNMAP commands to SCSI devices?
+
+Thanks,
+
+Bart.=
