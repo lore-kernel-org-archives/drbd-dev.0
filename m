@@ -1,31 +1,29 @@
-Return-Path: <Bart.VanAssche@sandisk.com>
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BD7EC105633D
-	for <drbd-dev@lists.linbit.com>; Wed, 29 Mar 2017 18:28:13 +0200 (CEST)
-From: Bart Van Assche <Bart.VanAssche@sandisk.com>
-To: "agk@redhat.com" <agk@redhat.com>, "lars.ellenberg@linbit.com"
-	<lars.ellenberg@linbit.com>, "snitzer@redhat.com" <snitzer@redhat.com>,
-	"hch@lst.de" <hch@lst.de>, "martin.petersen@oracle.com"
-	<martin.petersen@oracle.com>, "philipp.reisner@linbit.com"
-	<philipp.reisner@linbit.com>, "axboe@kernel.dk" <axboe@kernel.dk>,
-	"pbonzini@redhat.com" <pbonzini@redhat.com>, "shli@kernel.org"
-	<shli@kernel.org>
-Date: Wed, 29 Mar 2017 16:28:01 +0000
-Message-ID: <1490804856.3551.3.camel@sandisk.com>
+Return-Path: <martin.petersen@oracle.com>
+Received: from userp1040.oracle.com (userp1040.oracle.com [156.151.31.81])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 63E71105647D
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 04:25:51 +0200 (CEST)
+To: Bart Van Assche <Bart.VanAssche@sandisk.com>
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
 References: <20170323143341.31549-1-hch@lst.de>
 	<20170323143341.31549-4-hch@lst.de>
 	<1490726988.2573.16.camel@sandisk.com>
-	<e19ca1bf-0908-1eb0-cb04-cd306692f216@redhat.com>
-In-Reply-To: <e19ca1bf-0908-1eb0-cb04-cd306692f216@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <7F521760D57C1746ACD169C42D3C2D16@sandisk.com>
-Content-Transfer-Encoding: quoted-printable
+Date: Wed, 29 Mar 2017 22:25:33 -0400
+In-Reply-To: <1490726988.2573.16.camel@sandisk.com> (Bart Van Assche's message
+	of "Tue, 28 Mar 2017 18:50:01 +0000")
+Message-ID: <yq1o9wj4i1u.fsf@oracle.com>
 MIME-Version: 1.0
-Cc: "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+Content-Type: text/plain
+Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	"snitzer@redhat.com" <snitzer@redhat.com>,
+	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
+	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
 	"dm-devel@redhat.com" <dm-devel@redhat.com>,
 	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
+	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
+	"shli@kernel.org" <shli@kernel.org>, "hch@lst.de" <hch@lst.de>,
+	"agk@redhat.com" <agk@redhat.com>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
 Subject: Re: [Drbd-dev] [PATCH 03/23] sd: implement REQ_OP_WRITE_ZEROES
 List-Id: "*Coordination* of development, patches,
@@ -39,39 +37,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, 2017-03-29 at 16:51 +0200, Paolo Bonzini wrote:
-> On 28/03/2017 20:50, Bart Van Assche wrote:
-> > This means that just like the start and end of a discard must be aligne=
-d on a
-> > discard_granularity boundary, WRITE SAME commands with the UNMAP bit se=
-t must
-> > also respect that granularity. I think this means that either
-> > __blkdev_issue_zeroout() has to be modified such that it rejects unalig=
-ned
-> > REQ_OP_WRITE_ZEROES operations or that blk_bio_write_same_split() has t=
-o be
-> > modified such that it generates REQ_OP_WRITEs for the unaligned start a=
-nd tail.
->=20
-> I don't think this is the case.
+Bart Van Assche <Bart.VanAssche@sandisk.com> writes:
 
-Hello Paolo,
+Hi Bart,
 
-Can you cite the section(s) from the SCSI specs that support your view? I
-reread the "5.49 WRITE SAME (10) command" and "4.7.3.4.4 WRITE SAME command
-and unmap operations" sections but I have not found any explicit statement
-that specifies the behavior for unaligned WRITE SAME commands with the UNMA=
-P
-bit set. It seems to me like=A0the OPTIMAL UNMAP GRANULARITY parameter was
-overlooked when both sections were written. Should we ask the T10 committee
-for a clarification?
+> A quote from SBC: "An OPTIMAL UNMAP GRANULARITY field set to a
+> non-zero value indicates the optimal granularity in logical blocks for
+> unmap requests (e.g., an UNMAP command or a WRITE SAME (16) command
+> with the UNMAP bit set to one).  An unmap request with a number of
+> logical blocks that is not a multiple of this value may result in
+> unmap operations on fewer LBAs than requested."
 
-Another question is, if the specification of WRITE SAME + UNMAP would be
-made unambiguous in the SBC document, whether or not we should take the ris=
-k
-to trigger behavior that is not what we expect by sending unaligned WRITE
-SAME + UNMAP commands to SCSI devices?
+Indeed. Fewer LBAs than requested may be *unmapped*. That does not imply
+that they are not *written*.
 
-Thanks,
+> This means that just like the start and end of a discard must be
+> aligned on a discard_granularity boundary, WRITE SAME commands with
+> the UNMAP bit set must also respect that granularity. I think this
+> means that either __blkdev_issue_zeroout() has to be modified such
+> that it rejects unaligned REQ_OP_WRITE_ZEROES operations or that
+> blk_bio_write_same_split() has to be modified such that it generates
+> REQ_OP_WRITEs for the unaligned start and tail.
 
-Bart.=
+No, that's not correct. SBC states:
+
+"a) if the Data-Out Buffer of the WRITE SAME command is the same as the
+   logical block data returned by a read operation from that LBA while
+   in the unmapped state, then:
+
+   1) the device server performs the actions described in table 6
+      [unmap]; and
+
+   2) if an unmap operation is not performed in step 1), then the device
+      server shall perform the specified write operation to that LBA;"
+
+I.e. With WRITE SAME it is the responsibility of the device server to
+write any LBAs described by the command that were not successfully
+unmapped.
+
+-- 
+Martin K. Petersen	Oracle Linux Engineering
