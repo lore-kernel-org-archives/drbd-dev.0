@@ -1,32 +1,23 @@
 Return-Path: <hch@lst.de>
 Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B408E1056446
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 11:02:01 +0200 (CEST)
-Date: Thu, 30 Mar 2017 11:02:01 +0200
-From: "hch@lst.de" <hch@lst.de>
-To: Bart Van Assche <Bart.VanAssche@sandisk.com>
-Message-ID: <20170330090201.GD12015@lst.de>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DBFA21056446
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 11:04:59 +0200 (CEST)
+Date: Thu, 30 Mar 2017 11:04:59 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Christoph Hellwig <hch@lst.de>, axboe@kernel.dk,
+	martin.petersen@oracle.com, agk@redhat.com, snitzer@redhat.com,
+	shli@kernel.org, philipp.reisner@linbit.com,
+	linux-block@vger.kernel.org, linux-scsi@vger.kernel.org,
+	drbd-dev@lists.linbit.com, dm-devel@redhat.com, linux-raid@vger.kernel.org
+Message-ID: <20170330090459.GE12015@lst.de>
 References: <20170323143341.31549-1-hch@lst.de>
-	<20170323143341.31549-13-hch@lst.de>
-	<1490719722.2573.8.camel@sandisk.com>
+	<20170323155410.GD1138@soda.linbit>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1490719722.2573.8.camel@sandisk.com>
-Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
-	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
-	"snitzer@redhat.com" <snitzer@redhat.com>,
-	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
-	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"dm-devel@redhat.com" <dm-devel@redhat.com>,
-	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
-	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
-	"shli@kernel.org" <shli@kernel.org>, "hch@lst.de" <hch@lst.de>,
-	"agk@redhat.com" <agk@redhat.com>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH 12/23] sd: handle REQ_UNMAP
+In-Reply-To: <20170323155410.GD1138@soda.linbit>
+Subject: Re: [Drbd-dev] RFC: always use REQ_OP_WRITE_ZEROES for zeroing
+	offload
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,17 +29,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Mar 28, 2017 at 04:48:55PM +0000, Bart Van Assche wrote:
-> >  	if (sdp->no_write_same)
-> >  		return BLKPREP_INVALID;
-> >  	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
-> 
-> Users can change the provisioning mode from user space from SD_LBP_WS16 into
-> SD_LBP_WS10 so I'm not sure it's safe to skip the (sdkp->ws16 || sector >
-> 0xffffffff || nr_sectors > 0xffff) check if REQ_UNMAP is set.
+Lars, can you please take a look a patch 22 and check if it's safe?
 
-They can, and if the device has too many sectors that will already cause
-discard to fail, and in this case it will cause write zeroes to fail as
-well.  The intent behind this patch is to keep the behavior the same
-as the old path that uses discards for zeroing.  The logic looks a bit
-clumsy, but I'd rather keep it as-is.
+That's the big thing I want to know before posting the next version
+of the series.  If it's not safe I'd like to drop that patch.
