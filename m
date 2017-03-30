@@ -1,18 +1,19 @@
 Return-Path: <hch@lst.de>
 Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0B1071056320
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 10:59:52 +0200 (CEST)
-Date: Thu, 30 Mar 2017 10:59:52 +0200
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B408E1056446
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 11:02:01 +0200 (CEST)
+Date: Thu, 30 Mar 2017 11:02:01 +0200
 From: "hch@lst.de" <hch@lst.de>
 To: Bart Van Assche <Bart.VanAssche@sandisk.com>
-Message-ID: <20170330085952.GC12015@lst.de>
+Message-ID: <20170330090201.GD12015@lst.de>
 References: <20170323143341.31549-1-hch@lst.de>
-	<20170323143341.31549-12-hch@lst.de>
-	<1490719834.2573.9.camel@sandisk.com>
+	<20170323143341.31549-13-hch@lst.de>
+	<1490719722.2573.8.camel@sandisk.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1490719834.2573.9.camel@sandisk.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1490719722.2573.8.camel@sandisk.com>
 Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
 	"snitzer@redhat.com" <snitzer@redhat.com>,
@@ -25,8 +26,7 @@ Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
 	"shli@kernel.org" <shli@kernel.org>, "hch@lst.de" <hch@lst.de>,
 	"agk@redhat.com" <agk@redhat.com>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH 11/23] block_dev: use blkdev_issue_zerout for
-	hole	punches
+Subject: Re: [Drbd-dev] [PATCH 12/23] sd: handle REQ_UNMAP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,13 +38,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Mar 28, 2017 at 04:50:47PM +0000, Bart Van Assche wrote:
-> On Thu, 2017-03-23 at 10:33 -0400, Christoph Hellwig wrote:
-> > This gets us support for non-discard efficient write of zeroes (e.g. NVMe)
-> > and preparse for removing the discard_zeroes_data flag.
+On Tue, Mar 28, 2017 at 04:48:55PM +0000, Bart Van Assche wrote:
+> >  	if (sdp->no_write_same)
+> >  		return BLKPREP_INVALID;
+> >  	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
 > 
-> Hello Christoph,
-> 
-> "preparse" probably should have been "prepare"?
+> Users can change the provisioning mode from user space from SD_LBP_WS16 into
+> SD_LBP_WS10 so I'm not sure it's safe to skip the (sdkp->ws16 || sector >
+> 0xffffffff || nr_sectors > 0xffff) check if REQ_UNMAP is set.
 
-Yes, fixed.
+They can, and if the device has too many sectors that will already cause
+discard to fail, and in this case it will cause write zeroes to fail as
+well.  The intent behind this patch is to keep the behavior the same
+as the old path that uses discards for zeroing.  The logic looks a bit
+clumsy, but I'd rather keep it as-is.
