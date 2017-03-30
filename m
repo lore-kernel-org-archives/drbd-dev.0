@@ -1,19 +1,20 @@
 Return-Path: <hch@lst.de>
 Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0AA8D1056320
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 19:29:16 +0200 (CEST)
-Date: Thu, 30 Mar 2017 19:29:15 +0200
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0FEE81056320
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 19:30:20 +0200 (CEST)
+Date: Thu, 30 Mar 2017 19:30:20 +0200
 From: "hch@lst.de" <hch@lst.de>
 To: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-ID: <20170330172915.GA24229@lst.de>
+Message-ID: <20170330173020.GB24229@lst.de>
 References: <20170323143341.31549-1-hch@lst.de>
-	<20170323143341.31549-24-hch@lst.de>
-	<1490720411.2573.11.camel@sandisk.com>
-	<20170330090655.GF12015@lst.de> <yq1d1cy3hra.fsf@oracle.com>
+	<20170323143341.31549-13-hch@lst.de>
+	<1490719722.2573.8.camel@sandisk.com>
+	<20170330090201.GD12015@lst.de> <yq1h92a3hsv.fsf@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <yq1d1cy3hra.fsf@oracle.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <yq1h92a3hsv.fsf@oracle.com>
 Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
 	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
@@ -26,8 +27,7 @@ Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
 	"shli@kernel.org" <shli@kernel.org>, "hch@lst.de" <hch@lst.de>,
 	"agk@redhat.com" <agk@redhat.com>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH 23/23] block: remove the discard_zeroes_data
-	flag
+Subject: Re: [Drbd-dev] [PATCH 12/23] sd: handle REQ_UNMAP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,14 +39,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Mar 30, 2017 at 11:29:29AM -0400, Martin K. Petersen wrote:
+On Thu, Mar 30, 2017 at 11:28:32AM -0400, Martin K. Petersen wrote:
 > "hch@lst.de" <hch@lst.de> writes:
 > 
-> > Jens, any opinion?  I'd like to remove it too, but I fear it might
-> > break things.  We could deprecate it first with a warning when read
-> > and then remove it a few releases down the road.
+> Christoph,
 > 
-> I know of several apps that check this variable (as opposed to the
-> ioctl).
+> > On Tue, Mar 28, 2017 at 04:48:55PM +0000, Bart Van Assche wrote:
+> >> >  	if (sdp->no_write_same)
+> >> >  		return BLKPREP_INVALID;
+> >> >  	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
+> >> 
+> >> Users can change the provisioning mode from user space from SD_LBP_WS16 into
+> >> SD_LBP_WS10 so I'm not sure it's safe to skip the (sdkp->ws16 || sector >
+> >> 0xffffffff || nr_sectors > 0xffff) check if REQ_UNMAP is set.
+> >
+> > They can, and if the device has too many sectors that will already cause
+> > discard to fail,
+> 
+> I'm not sure I understand what you mean by that?
 
-The above was in reference to both methods..
+If you manually change the provisioning mode to WS10 on a device that
+must use WRITE SAME (16) to be able to address all blocks you're already
+screwed right now, and with this patch you can screw yourself through
+the WRITE_ZEROES path in addition to the DISCARD path.
