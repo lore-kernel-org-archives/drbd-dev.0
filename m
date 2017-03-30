@@ -1,19 +1,18 @@
 Return-Path: <martin.petersen@oracle.com>
-Received: from aserp1040.oracle.com (aserp1040.oracle.com [141.146.126.69])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E07101056320
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 17:28:43 +0200 (CEST)
+Received: from userp1040.oracle.com (userp1040.oracle.com [156.151.31.81])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 16DE51056320
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 17:29:38 +0200 (CEST)
 To: "hch\@lst.de" <hch@lst.de>
 From: "Martin K. Petersen" <martin.petersen@oracle.com>
 References: <20170323143341.31549-1-hch@lst.de>
-	<20170323143341.31549-13-hch@lst.de>
-	<1490719722.2573.8.camel@sandisk.com> <20170330090201.GD12015@lst.de>
-Date: Thu, 30 Mar 2017 11:28:32 -0400
-In-Reply-To: <20170330090201.GD12015@lst.de> (hch@lst.de's message of "Thu, 30
-	Mar 2017 11:02:01 +0200")
-Message-ID: <yq1h92a3hsv.fsf@oracle.com>
+	<20170323143341.31549-24-hch@lst.de>
+	<1490720411.2573.11.camel@sandisk.com> <20170330090655.GF12015@lst.de>
+Date: Thu, 30 Mar 2017 11:29:29 -0400
+In-Reply-To: <20170330090655.GF12015@lst.de> (hch@lst.de's message of "Thu, 30
+	Mar 2017 11:06:55 +0200")
+Message-ID: <yq1d1cy3hra.fsf@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
 Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
 	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
@@ -26,7 +25,8 @@ Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
 	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
 	"shli@kernel.org" <shli@kernel.org>, "agk@redhat.com" <agk@redhat.com>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH 12/23] sd: handle REQ_UNMAP
+Subject: Re: [Drbd-dev] [PATCH 23/23] block: remove the discard_zeroes_data
+	flag
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,22 +40,12 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 "hch@lst.de" <hch@lst.de> writes:
 
-Christoph,
+> Jens, any opinion?  I'd like to remove it too, but I fear it might
+> break things.  We could deprecate it first with a warning when read
+> and then remove it a few releases down the road.
 
-> On Tue, Mar 28, 2017 at 04:48:55PM +0000, Bart Van Assche wrote:
->> >  	if (sdp->no_write_same)
->> >  		return BLKPREP_INVALID;
->> >  	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
->>=20
->> Users can change the provisioning mode from user space from=C2=A0SD_LBP_=
-WS16 into
->> SD_LBP_WS10 so I'm not sure it's safe to skip the (sdkp->ws16 || sector >
->> 0xffffffff || nr_sectors > 0xffff) check if REQ_UNMAP is set.
->
-> They can, and if the device has too many sectors that will already cause
-> discard to fail,
+I know of several apps that check this variable (as opposed to the
+ioctl).
 
-I'm not sure I understand what you mean by that?
-
---=20
+-- 
 Martin K. Petersen	Oracle Linux Engineering
