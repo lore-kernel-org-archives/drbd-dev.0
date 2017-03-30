@@ -1,23 +1,32 @@
 Return-Path: <hch@lst.de>
 Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DBFA21056446
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 11:04:59 +0200 (CEST)
-Date: Thu, 30 Mar 2017 11:04:59 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Christoph Hellwig <hch@lst.de>, axboe@kernel.dk,
-	martin.petersen@oracle.com, agk@redhat.com, snitzer@redhat.com,
-	shli@kernel.org, philipp.reisner@linbit.com,
-	linux-block@vger.kernel.org, linux-scsi@vger.kernel.org,
-	drbd-dev@lists.linbit.com, dm-devel@redhat.com, linux-raid@vger.kernel.org
-Message-ID: <20170330090459.GE12015@lst.de>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3542B1057FCB
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2017 11:06:55 +0200 (CEST)
+Date: Thu, 30 Mar 2017 11:06:55 +0200
+From: "hch@lst.de" <hch@lst.de>
+To: Bart Van Assche <Bart.VanAssche@sandisk.com>
+Message-ID: <20170330090655.GF12015@lst.de>
 References: <20170323143341.31549-1-hch@lst.de>
-	<20170323155410.GD1138@soda.linbit>
+	<20170323143341.31549-24-hch@lst.de>
+	<1490720411.2573.11.camel@sandisk.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170323155410.GD1138@soda.linbit>
-Subject: Re: [Drbd-dev] RFC: always use REQ_OP_WRITE_ZEROES for zeroing
-	offload
+In-Reply-To: <1490720411.2573.11.camel@sandisk.com>
+Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
+	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	"snitzer@redhat.com" <snitzer@redhat.com>,
+	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
+	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"dm-devel@redhat.com" <dm-devel@redhat.com>,
+	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
+	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
+	"shli@kernel.org" <shli@kernel.org>, "hch@lst.de" <hch@lst.de>,
+	"agk@redhat.com" <agk@redhat.com>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH 23/23] block: remove the discard_zeroes_data
+	flag
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,7 +38,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Lars, can you please take a look a patch 22 and check if it's safe?
+On Tue, Mar 28, 2017 at 05:00:48PM +0000, Bart Van Assche wrote:
+> 
+> It seems to me like the documentation in Documentation/ABI/testing/sysfs-block
+> and the above code are not in sync. I think the above code will cause reading
+> from the discard_zeroes_data attribute to return an empty string ("") instead
+> of "0\n".
 
-That's the big thing I want to know before posting the next version
-of the series.  If it's not safe I'd like to drop that patch.
+Thanks, fine with me.
+
+> 
+> BTW, my personal preference is to remove this attribute entirely because keeping
+> it will cause confusion, no matter how well we document the behavior of this
+> attribute.
+
+Jens, any opinion?  I'd like to remove it too, but I fear it might
+break things.  We could deprecate it first with a warning when read
+and then remove it a few releases down the road.
