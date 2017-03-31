@@ -1,26 +1,33 @@
 Return-Path: <hch@lst.de>
 Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D6148105647D
-	for <drbd-dev@lists.linbit.com>; Fri, 31 Mar 2017 09:17:54 +0200 (CEST)
-Date: Fri, 31 Mar 2017 09:17:53 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Mike Snitzer <snitzer@redhat.com>
-Message-ID: <20170331071753.GA3308@lst.de>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 56B751056320
+	for <drbd-dev@lists.linbit.com>; Fri, 31 Mar 2017 09:18:45 +0200 (CEST)
+Date: Fri, 31 Mar 2017 09:18:44 +0200
+From: "hch@lst.de" <hch@lst.de>
+To: "Martin K. Petersen" <martin.petersen@oracle.com>
+Message-ID: <20170331071844.GB3308@lst.de>
 References: <20170323143341.31549-1-hch@lst.de>
-	<20170323143341.31549-23-hch@lst.de>
-	<20170330100641.GI5939@soda.linbit> <20170330114408.GA15777@lst.de>
-	<20170330134957.GA508@redhat.com> <yq1pogy3i6u.fsf@oracle.com>
-	<20170330231550.GA3102@redhat.com>
+	<20170323143341.31549-13-hch@lst.de>
+	<1490719722.2573.8.camel@sandisk.com>
+	<20170330090201.GD12015@lst.de> <yq1h92a3hsv.fsf@oracle.com>
+	<20170330173020.GB24229@lst.de> <yq17f36yypg.fsf@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170330231550.GA3102@redhat.com>
-Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
-	dm-devel@redhat.com, shli@kernel.org,
-	Christoph Hellwig <hch@lst.de>, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 22/23] drbd: implement REQ_OP_WRITE_ZEROES
+In-Reply-To: <yq17f36yypg.fsf@oracle.com>
+Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
+	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
+	"snitzer@redhat.com" <snitzer@redhat.com>,
+	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"dm-devel@redhat.com" <dm-devel@redhat.com>,
+	Bart Van Assche <Bart.VanAssche@sandisk.com>,
+	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
+	"shli@kernel.org" <shli@kernel.org>, "hch@lst.de" <hch@lst.de>,
+	"agk@redhat.com" <agk@redhat.com>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH 12/23] sd: handle REQ_UNMAP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,20 +39,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Mar 30, 2017 at 07:15:50PM -0400, Mike Snitzer wrote:
-> I got pretty far along with implementing the DM thinp support for
-> WRITE_ZEROES in terms of thinp's DISCARD support (more of an
-> implementation detail.. or so I thought).
+On Thu, Mar 30, 2017 at 10:19:55PM -0400, Martin K. Petersen wrote:
+> > If you manually change the provisioning mode to WS10 on a device that
+> > must use WRITE SAME (16) to be able to address all blocks you're already
+> > screwed right now, and with this patch you can screw yourself through
+> > the WRITE_ZEROES path in addition to the DISCARD path.
 > 
-> But while discussing this effort with Jeff Moyer he asked: shouldn't the
-> zeroed blocks be provisioned?  This is a fairly embarassing question not
-> to be able to answer in the moment.  So I clearly need to learn what the
-> overall intent of WRITE_ZEROES actually is.
+> Oh, I see. We only had the LBA sanity check in place for write same, not
+> for discard.
 
-It is to ensure the that the block range it's called on returns zeroes
-on future reads.  Currently if REQ_UNMAP is set you may free the space
-allocation, else not.
-
-After looking at the callers I think this is the wrong way around, so
-I'm going to invert the flag, so that the two callers that care that
-blocks are allocated will set it instead.
+And btw, I'd be happy to add such a check, I'd just rather keep it out
+of this patch.  It might be a good idea if you give it a turn after
+this series given that you have all the devices that have weird
+provisioning modes while I don't..
