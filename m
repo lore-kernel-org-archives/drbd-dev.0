@@ -1,19 +1,19 @@
 Return-Path: <BATV+2133f6211fed31f2c605+4968+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 616B71057FD6
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BA6BE1057FE2
 	for <drbd-dev@lists.linbit.com>;
-	Fri, 31 Mar 2017 18:59:47 +0200 (CEST)
+	Fri, 31 Mar 2017 19:05:16 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Fri, 31 Mar 2017 18:33:05 +0200
-Message-Id: <20170331163313.31821-18-hch@lst.de>
+Date: Fri, 31 Mar 2017 18:33:02 +0200
+Message-Id: <20170331163313.31821-15-hch@lst.de>
 In-Reply-To: <20170331163313.31821-1-hch@lst.de>
 References: <20170331163313.31821-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 17/25] loop: implement REQ_OP_WRITE_ZEROES
+Subject: [Drbd-dev] [PATCH 14/25] sd: implement unmapping Write Zeroes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,50 +25,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-It's identical to discard as hole punches will always leave us with
-zeroes on reads.
+Try to use a write same with unmap bit variant if the device supports it
+and the caller allows for it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/loop.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ drivers/scsi/sd.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index 0ecb6461ed81..265cd2e33ff0 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -528,6 +528,7 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
- 	case REQ_OP_FLUSH:
- 		return lo_req_flush(lo, rq);
- 	case REQ_OP_DISCARD:
-+	case REQ_OP_WRITE_ZEROES:
- 		return lo_discard(lo, rq, pos);
- 	case REQ_OP_WRITE:
- 		if (lo->transfer)
-@@ -826,6 +827,7 @@ static void loop_config_discard(struct loop_device *lo)
- 		q->limits.discard_granularity = 0;
- 		q->limits.discard_alignment = 0;
- 		blk_queue_max_discard_sectors(q, 0);
-+		blk_queue_max_write_zeroes_sectors(q, 0);
- 		q->limits.discard_zeroes_data = 0;
- 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
- 		return;
-@@ -834,6 +836,7 @@ static void loop_config_discard(struct loop_device *lo)
- 	q->limits.discard_granularity = inode->i_sb->s_blocksize;
- 	q->limits.discard_alignment = 0;
- 	blk_queue_max_discard_sectors(q, UINT_MAX >> 9);
-+	blk_queue_max_write_zeroes_sectors(q, UINT_MAX >> 9);
- 	q->limits.discard_zeroes_data = 1;
- 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
- }
-@@ -1660,6 +1663,7 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
- 	switch (req_op(cmd->rq)) {
- 	case REQ_OP_FLUSH:
- 	case REQ_OP_DISCARD:
-+	case REQ_OP_WRITE_ZEROES:
- 		cmd->use_aio = false;
- 		break;
- 	default:
+diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
+index d8d9c0bdd93c..001593ed0444 100644
+--- a/drivers/scsi/sd.c
++++ b/drivers/scsi/sd.c
+@@ -803,6 +803,15 @@ static int sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
+ 	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
+ 	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
+ 
++	if (!(rq->cmd_flags & REQ_NOUNMAP)) {
++		switch (sdkp->provisioning_mode) {
++		case SD_LBP_WS16:
++			return sd_setup_write_same16_cmnd(cmd, true);
++		case SD_LBP_WS10:
++			return sd_setup_write_same10_cmnd(cmd, true);
++		}
++	}
++
+ 	if (sdp->no_write_same)
+ 		return BLKPREP_INVALID;
+ 	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
 -- 
 2.11.0
 
