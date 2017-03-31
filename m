@@ -1,19 +1,20 @@
 Return-Path: <BATV+2133f6211fed31f2c605+4968+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4CCE41057FE2
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DA2191057FFC
 	for <drbd-dev@lists.linbit.com>;
 	Fri, 31 Mar 2017 19:05:17 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Fri, 31 Mar 2017 18:33:03 +0200
-Message-Id: <20170331163313.31821-16-hch@lst.de>
+Date: Fri, 31 Mar 2017 18:33:01 +0200
+Message-Id: <20170331163313.31821-14-hch@lst.de>
 In-Reply-To: <20170331163313.31821-1-hch@lst.de>
 References: <20170331163313.31821-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 15/25] nvme: implement REQ_OP_WRITE_ZEROES
+Subject: [Drbd-dev] [PATCH 13/25] block_dev: use blkdev_issue_zerout for
+	hole punches
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,89 +26,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-But now for the real NVMe Write Zeroes yet, just to get rid of the
-discard abuse for zeroing.  Also rename the quirk flag to be a bit
-more self-explanatory.
+This gets us support for non-discard efficient write of zeroes (e.g. NVMe)
+and prepare for removing the discard_zeroes_data flag.
+
+Also remove a pointless discard support check, which is done in
+blkdev_issue_discard already.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/nvme/host/core.c | 10 +++++-----
- drivers/nvme/host/nvme.h |  6 +++---
- drivers/nvme/host/pci.c  |  6 +++---
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ fs/block_dev.c | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
-index 4a6d7f408769..94b41d847b01 100644
---- a/drivers/nvme/host/core.c
-+++ b/drivers/nvme/host/core.c
-@@ -335,6 +335,8 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
- 	case REQ_OP_FLUSH:
- 		nvme_setup_flush(ns, cmd);
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 2f704c3a816f..e405d8e58e31 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -2069,7 +2069,6 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
+ 			     loff_t len)
+ {
+ 	struct block_device *bdev = I_BDEV(bdev_file_inode(file));
+-	struct request_queue *q = bdev_get_queue(bdev);
+ 	struct address_space *mapping;
+ 	loff_t end = start + len - 1;
+ 	loff_t isize;
+@@ -2108,15 +2107,10 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
+ 					    GFP_KERNEL, BLKDEV_ZERO_NOUNMAP);
  		break;
-+	case REQ_OP_WRITE_ZEROES:
-+		/* currently only aliased to deallocate for a few ctrls: */
- 	case REQ_OP_DISCARD:
- 		ret = nvme_setup_discard(ns, req, cmd);
+ 	case FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE:
+-		/* Only punch if the device can do zeroing discard. */
+-		if (!blk_queue_discard(q) || !q->limits.discard_zeroes_data)
+-			return -EOPNOTSUPP;
+-		error = blkdev_issue_discard(bdev, start >> 9, len >> 9,
+-					     GFP_KERNEL, 0);
++		error = blkdev_issue_zeroout(bdev, start >> 9, len >> 9,
++					     GFP_KERNEL, BLKDEV_ZERO_NOFALLBACK);
  		break;
-@@ -900,16 +902,14 @@ static void nvme_config_discard(struct nvme_ns *ns)
- 	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
- 			NVME_DSM_MAX_RANGES);
- 
--	if (ctrl->quirks & NVME_QUIRK_DISCARD_ZEROES)
--		ns->queue->limits.discard_zeroes_data = 1;
--	else
--		ns->queue->limits.discard_zeroes_data = 0;
--
- 	ns->queue->limits.discard_alignment = logical_block_size;
- 	ns->queue->limits.discard_granularity = logical_block_size;
- 	blk_queue_max_discard_sectors(ns->queue, UINT_MAX);
- 	blk_queue_max_discard_segments(ns->queue, NVME_DSM_MAX_RANGES);
- 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
-+
-+	if (ctrl->quirks & NVME_QUIRK_DEALLOCATE_ZEROES)
-+		blk_queue_max_write_zeroes_sectors(ns->queue, UINT_MAX);
- }
- 
- static int nvme_revalidate_ns(struct nvme_ns *ns, struct nvme_id_ns **id)
-diff --git a/drivers/nvme/host/nvme.h b/drivers/nvme/host/nvme.h
-index 2aa20e3e5675..07ebc4a1c8fc 100644
---- a/drivers/nvme/host/nvme.h
-+++ b/drivers/nvme/host/nvme.h
-@@ -68,10 +68,10 @@ enum nvme_quirks {
- 	NVME_QUIRK_IDENTIFY_CNS			= (1 << 1),
- 
- 	/*
--	 * The controller deterministically returns O's on reads to discarded
--	 * logical blocks.
-+	 * The controller deterministically returns O's on reads to
-+	 * logical blocks that deallocate was called on.
- 	 */
--	NVME_QUIRK_DISCARD_ZEROES		= (1 << 2),
-+	NVME_QUIRK_DEALLOCATE_ZEROES		= (1 << 2),
- 
- 	/*
- 	 * The controller needs a delay before starts checking the device
-diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
-index 26a5fd05fe88..0a28787267f0 100644
---- a/drivers/nvme/host/pci.c
-+++ b/drivers/nvme/host/pci.c
-@@ -2135,13 +2135,13 @@ static const struct pci_error_handlers nvme_err_handler = {
- static const struct pci_device_id nvme_id_table[] = {
- 	{ PCI_VDEVICE(INTEL, 0x0953),
- 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
--				NVME_QUIRK_DISCARD_ZEROES, },
-+				NVME_QUIRK_DEALLOCATE_ZEROES, },
- 	{ PCI_VDEVICE(INTEL, 0x0a53),
- 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
--				NVME_QUIRK_DISCARD_ZEROES, },
-+				NVME_QUIRK_DEALLOCATE_ZEROES, },
- 	{ PCI_VDEVICE(INTEL, 0x0a54),
- 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
--				NVME_QUIRK_DISCARD_ZEROES, },
-+				NVME_QUIRK_DEALLOCATE_ZEROES, },
- 	{ PCI_VDEVICE(INTEL, 0x5845),	/* Qemu emulated controller */
- 		.driver_data = NVME_QUIRK_IDENTIFY_CNS, },
- 	{ PCI_DEVICE(0x1c58, 0x0003),	/* HGST adapter */
+ 	case FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE | FALLOC_FL_NO_HIDE_STALE:
+-		if (!blk_queue_discard(q))
+-			return -EOPNOTSUPP;
+ 		error = blkdev_issue_discard(bdev, start >> 9, len >> 9,
+ 					     GFP_KERNEL, 0);
+ 		break;
 -- 
 2.11.0
 
