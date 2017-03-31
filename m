@@ -1,24 +1,32 @@
-Return-Path: <msnitzer@redhat.com>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EC03B1056446
-	for <drbd-dev@lists.linbit.com>; Fri, 31 Mar 2017 01:16:03 +0200 (CEST)
-Date: Thu, 30 Mar 2017 19:15:50 -0400
-From: Mike Snitzer <snitzer@redhat.com>
-To: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-ID: <20170330231550.GA3102@redhat.com>
+Return-Path: <martin.petersen@oracle.com>
+Received: from userp1040.oracle.com (userp1040.oracle.com [156.151.31.81])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 54C45105645E
+	for <drbd-dev@lists.linbit.com>; Fri, 31 Mar 2017 04:20:09 +0200 (CEST)
+To: "hch\@lst.de" <hch@lst.de>
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
 References: <20170323143341.31549-1-hch@lst.de>
-	<20170323143341.31549-23-hch@lst.de>
-	<20170330100641.GI5939@soda.linbit> <20170330114408.GA15777@lst.de>
-	<20170330134957.GA508@redhat.com> <yq1pogy3i6u.fsf@oracle.com>
+	<20170323143341.31549-13-hch@lst.de>
+	<1490719722.2573.8.camel@sandisk.com> <20170330090201.GD12015@lst.de>
+	<yq1h92a3hsv.fsf@oracle.com> <20170330173020.GB24229@lst.de>
+Date: Thu, 30 Mar 2017 22:19:55 -0400
+In-Reply-To: <20170330173020.GB24229@lst.de> (hch@lst.de's message of "Thu, 30
+	Mar 2017 19:30:20 +0200")
+Message-ID: <yq17f36yypg.fsf@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <yq1pogy3i6u.fsf@oracle.com>
-Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
-	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
-	dm-devel@redhat.com, shli@kernel.org,
-	Christoph Hellwig <hch@lst.de>, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 22/23] drbd: implement REQ_OP_WRITE_ZEROES
+Content-Type: text/plain
+Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
+	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	"snitzer@redhat.com" <snitzer@redhat.com>,
+	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"dm-devel@redhat.com" <dm-devel@redhat.com>,
+	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
+	Bart Van Assche <Bart.VanAssche@sandisk.com>,
+	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
+	"shli@kernel.org" <shli@kernel.org>, "agk@redhat.com" <agk@redhat.com>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH 12/23] sd: handle REQ_UNMAP
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,43 +38,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Mar 30 2017 at 11:20am -0400,
-Martin K. Petersen <martin.petersen@oracle.com> wrote:
+"hch@lst.de" <hch@lst.de> writes:
 
-> Mike Snitzer <snitzer@redhat.com> writes:
-> 
-> > I can work on this now.  Only question I have is: should DM thinp take
-> > care to zero any misaligned head and tail?  (I assume so but with all
-> > the back and forth between Bart, Paolo and Martin I figured I'd ask
-> > explicitly).
-> 
-> Yep, let's make sure our semantics match the hardware ditto.
-> 
->  - So write zeroes should behave deterministically and explicitly handle
->    any blocks that can't be cleared via deprovisioning.
-> 
->  - And discard can work at the discard granularity in a
->    non-deterministic fashion.
+> If you manually change the provisioning mode to WS10 on a device that
+> must use WRITE SAME (16) to be able to address all blocks you're already
+> screwed right now, and with this patch you can screw yourself through
+> the WRITE_ZEROES path in addition to the DISCARD path.
 
-I got pretty far along with implementing the DM thinp support for
-WRITE_ZEROES in terms of thinp's DISCARD support (more of an
-implementation detail.. or so I thought).
+Oh, I see. We only had the LBA sanity check in place for write same, not
+for discard.
 
-But while discussing this effort with Jeff Moyer he asked: shouldn't the
-zeroed blocks be provisioned?  This is a fairly embarassing question not
-to be able to answer in the moment.  So I clearly need to learn what the
-overall intent of WRITE_ZEROES actually is.
-
-If it is meant as a replacement for WRITE_SAME (as hch switched dm-io
-over from WRITE_SAME with a payload of 0 to WRITE_ZEROES) and for the
-backing mechanism for blkdev_issue_zeroout() then I guess I have my
-answer.  Unless DM thinp can guarantee that the discarded blocks will
-always return zeroes (by zeroing before all partial block writes) my
-discard based dm-thinp implementation of WRITE_ZEROES is a complete
-throw-away (unless block zeroing is enabled.. which it never is because
-performance sucks with it).  So if an upper-level of the IO stack
-(e.g. ext4) were to assume that a block will _definitely_ have zeroes
-then DM thinp would fall short.
-
-This is all to say: I don't see a quick way forward on implementing
-performant WRITE_ZEROES support for DM thinp.
+-- 
+Martin K. Petersen	Oracle Linux Engineering
