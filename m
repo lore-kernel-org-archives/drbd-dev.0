@@ -1,17 +1,20 @@
 Return-Path: <BATV+9cf0d970ddff402c2c33+4973+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8FA801056320
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EA32E1057FCE
 	for <drbd-dev@lists.linbit.com>;
-	Wed,  5 Apr 2017 19:21:34 +0200 (CEST)
+	Wed,  5 Apr 2017 19:21:41 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Wed,  5 Apr 2017 19:20:58 +0200
-Message-Id: <20170405172125.22600-1-hch@lst.de>
+Date: Wed,  5 Apr 2017 19:21:01 +0200
+Message-Id: <20170405172125.22600-4-hch@lst.de>
+In-Reply-To: <20170405172125.22600-1-hch@lst.de>
+References: <20170405172125.22600-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] always use REQ_OP_WRITE_ZEROES for zeroing offload V2
+Subject: [Drbd-dev] [PATCH 03/27] block: implement splitting of
+	REQ_OP_WRITE_ZEROES bios
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,23 +26,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This series makes REQ_OP_WRITE_ZEROES the only zeroing offload
-supported by the block layer, and switches existing implementations
-of REQ_OP_DISCARD that correctly set discard_zeroes_data to it,
-removes incorrect discard_zeroes_data, and also switches WRITE SAME
-based zeroing in SCSI to this new method.
+Copy and past the REQ_OP_WRITE_SAME code to prepare to implementations
+that limit the write zeroes size.
 
-The series is against the block for-next tree.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
+Reviewed-by: Hannes Reinecke <hare@suse.com>
+---
+ block/blk-merge.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
 
-A git tree is also avaiable at:
+diff --git a/block/blk-merge.c b/block/blk-merge.c
+index 2afa262425d1..3990ae406341 100644
+--- a/block/blk-merge.c
++++ b/block/blk-merge.c
+@@ -54,6 +54,20 @@ static struct bio *blk_bio_discard_split(struct request_queue *q,
+ 	return bio_split(bio, split_sectors, GFP_NOIO, bs);
+ }
+ 
++static struct bio *blk_bio_write_zeroes_split(struct request_queue *q,
++		struct bio *bio, struct bio_set *bs, unsigned *nsegs)
++{
++	*nsegs = 1;
++
++	if (!q->limits.max_write_zeroes_sectors)
++		return NULL;
++
++	if (bio_sectors(bio) <= q->limits.max_write_zeroes_sectors)
++		return NULL;
++
++	return bio_split(bio, q->limits.max_write_zeroes_sectors, GFP_NOIO, bs);
++}
++
+ static struct bio *blk_bio_write_same_split(struct request_queue *q,
+ 					    struct bio *bio,
+ 					    struct bio_set *bs,
+@@ -200,8 +214,7 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
+ 		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
+ 		break;
+ 	case REQ_OP_WRITE_ZEROES:
+-		split = NULL;
+-		nsegs = (*bio)->bi_phys_segments;
++		split = blk_bio_write_zeroes_split(q, *bio, bs, &nsegs);
+ 		break;
+ 	case REQ_OP_WRITE_SAME:
+ 		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
+-- 
+2.11.0
 
-    git://git.infradead.org/users/hch/block.git discard-rework.2
-
-Gitweb:
-
-    http://git.infradead.org/users/hch/block.git/shortlog/refs/heads/discard-rework.2
-
-Changes since V2:
- - various spelling fixes
- - various reviews captured
- - two new patches from Martin at the end
