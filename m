@@ -1,19 +1,20 @@
 Return-Path: <BATV+9cf0d970ddff402c2c33+4973+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2D0921057FCE
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E422B1057FCF
 	for <drbd-dev@lists.linbit.com>;
-	Wed,  5 Apr 2017 16:54:53 +0200 (CEST)
+	Wed,  5 Apr 2017 16:54:57 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Wed,  5 Apr 2017 16:21:52 +0200
-Message-Id: <20170405142205.6477-15-hch@lst.de>
+Date: Wed,  5 Apr 2017 16:21:50 +0200
+Message-Id: <20170405142205.6477-13-hch@lst.de>
 In-Reply-To: <20170405142205.6477-1-hch@lst.de>
 References: <20170405142205.6477-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 14/27] sd: implement unmapping Write Zeroes
+Subject: [Drbd-dev] [PATCH 12/27] block: add a new BLKDEV_ZERO_NOFALLBACK
+	flag
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,36 +26,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Try to use a write same with unmap bit variant if the device supports it
-and the caller allows for it.
+This avoids fallbacks to explicit zeroing in (__)blkdev_issue_zeroout if
+the caller doesn't want them.
+
+Also clean up the convoluted check for the return condition that this
+new flag is added to.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- drivers/scsi/sd.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ block/blk-lib.c        | 5 ++++-
+ include/linux/blkdev.h | 1 +
+ 2 files changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
-index d8d9c0bdd93c..001593ed0444 100644
---- a/drivers/scsi/sd.c
-+++ b/drivers/scsi/sd.c
-@@ -803,6 +803,15 @@ static int sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
- 	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
- 	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
+diff --git a/block/blk-lib.c b/block/blk-lib.c
+index 2f6d2cb2e1a2..2f882e22890b 100644
+--- a/block/blk-lib.c
++++ b/block/blk-lib.c
+@@ -281,6 +281,9 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
+  *
+  *  If a device is using logical block provisioning, the underlying space will
+  *  not be released if %flags contains BLKDEV_ZERO_NOUNMAP.
++ *
++ *  If %flags contains BLKDEV_ZERO_NOFALLBACK, the function will return
++ *  -EOPNOTSUPP if no explicit hardware offload for zeroing is provided.
+  */
+ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
+ 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
+@@ -298,7 +301,7 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
  
-+	if (!(rq->cmd_flags & REQ_NOUNMAP)) {
-+		switch (sdkp->provisioning_mode) {
-+		case SD_LBP_WS16:
-+			return sd_setup_write_same16_cmnd(cmd, true);
-+		case SD_LBP_WS10:
-+			return sd_setup_write_same10_cmnd(cmd, true);
-+		}
-+	}
-+
- 	if (sdp->no_write_same)
- 		return BLKPREP_INVALID;
- 	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
+ 	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
+ 			biop, flags);
+-	if (ret == 0 || (ret && ret != -EOPNOTSUPP))
++	if (ret != -EOPNOTSUPP || (flags & BLKDEV_ZERO_NOFALLBACK))
+ 		goto out;
+ 
+ 	ret = 0;
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index e7513ce3dbde..a5055d760661 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1351,6 +1351,7 @@ extern int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+ 		struct bio **biop);
+ 
+ #define BLKDEV_ZERO_NOUNMAP	(1 << 0)  /* do not free blocks */
++#define BLKDEV_ZERO_NOFALLBACK	(1 << 1)  /* don't write explicit zeroes */
+ 
+ extern int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
+ 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
 -- 
 2.11.0
 
