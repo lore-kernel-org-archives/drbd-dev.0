@@ -1,19 +1,19 @@
 Return-Path: <BATV+9cf0d970ddff402c2c33+4973+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CED1B105633D
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EF69D1057FCC
 	for <drbd-dev@lists.linbit.com>;
-	Wed,  5 Apr 2017 16:22:29 +0200 (CEST)
+	Wed,  5 Apr 2017 16:22:26 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Wed,  5 Apr 2017 16:21:43 +0200
-Message-Id: <20170405142205.6477-6-hch@lst.de>
+Date: Wed,  5 Apr 2017 16:21:42 +0200
+Message-Id: <20170405142205.6477-5-hch@lst.de>
 In-Reply-To: <20170405142205.6477-1-hch@lst.de>
 References: <20170405142205.6477-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/27] md: support REQ_OP_WRITE_ZEROES
+Subject: [Drbd-dev] [PATCH 04/27] sd: implement REQ_OP_WRITE_ZEROES
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,120 +25,120 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Copy & paste from the REQ_OP_WRITE_SAME code.
-
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- drivers/md/linear.c    | 1 +
- drivers/md/md.h        | 7 +++++++
- drivers/md/multipath.c | 1 +
- drivers/md/raid0.c     | 2 ++
- drivers/md/raid1.c     | 4 +++-
- drivers/md/raid10.c    | 1 +
- drivers/md/raid5.c     | 1 +
- 7 files changed, 16 insertions(+), 1 deletion(-)
+ drivers/scsi/sd.c     | 31 ++++++++++++++++++++++++++-----
+ drivers/scsi/sd_zbc.c |  1 +
+ 2 files changed, 27 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/md/linear.c b/drivers/md/linear.c
-index 3e38e0207a3e..377a8a3672e3 100644
---- a/drivers/md/linear.c
-+++ b/drivers/md/linear.c
-@@ -293,6 +293,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
- 						      split, disk_devt(mddev->gendisk),
- 						      bio_sector);
- 			mddev_check_writesame(mddev, split);
-+			mddev_check_write_zeroes(mddev, split);
- 			generic_make_request(split);
- 		}
- 	} while (split != bio);
-diff --git a/drivers/md/md.h b/drivers/md/md.h
-index dde8ecb760c8..1e76d64ce180 100644
---- a/drivers/md/md.h
-+++ b/drivers/md/md.h
-@@ -709,4 +709,11 @@ static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
- 	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
- 		mddev->queue->limits.max_write_same_sectors = 0;
+diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
+index b853f91fb3da..d8d9c0bdd93c 100644
+--- a/drivers/scsi/sd.c
++++ b/drivers/scsi/sd.c
+@@ -735,7 +735,7 @@ static int sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
+ 	return scsi_init_io(cmd);
  }
-+
-+static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio)
+ 
+-static int sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd)
++static int sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd, bool unmap)
+ {
+ 	struct scsi_device *sdp = cmd->device;
+ 	struct request *rq = cmd->request;
+@@ -752,13 +752,14 @@ static int sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd)
+ 
+ 	cmd->cmd_len = 16;
+ 	cmd->cmnd[0] = WRITE_SAME_16;
+-	cmd->cmnd[1] = 0x8; /* UNMAP */
++	if (unmap)
++		cmd->cmnd[1] = 0x8; /* UNMAP */
+ 	put_unaligned_be64(sector, &cmd->cmnd[2]);
+ 	put_unaligned_be32(nr_sectors, &cmd->cmnd[10]);
+ 
+ 	cmd->allowed = SD_MAX_RETRIES;
+ 	cmd->transfersize = data_len;
+-	rq->timeout = SD_TIMEOUT;
++	rq->timeout = unmap ? SD_TIMEOUT : SD_WRITE_SAME_TIMEOUT;
+ 	scsi_req(rq)->resid_len = data_len;
+ 
+ 	return scsi_init_io(cmd);
+@@ -788,12 +789,27 @@ static int sd_setup_write_same10_cmnd(struct scsi_cmnd *cmd, bool unmap)
+ 
+ 	cmd->allowed = SD_MAX_RETRIES;
+ 	cmd->transfersize = data_len;
+-	rq->timeout = SD_TIMEOUT;
++	rq->timeout = unmap ? SD_TIMEOUT : SD_WRITE_SAME_TIMEOUT;
+ 	scsi_req(rq)->resid_len = data_len;
+ 
+ 	return scsi_init_io(cmd);
+ }
+ 
++static int sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
 +{
-+	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-+	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
-+		mddev->queue->limits.max_write_zeroes_sectors = 0;
++	struct request *rq = cmd->request;
++	struct scsi_device *sdp = cmd->device;
++	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
++	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
++	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
++
++	if (sdp->no_write_same)
++		return BLKPREP_INVALID;
++	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
++		return sd_setup_write_same16_cmnd(cmd, false);
++	return sd_setup_write_same10_cmnd(cmd, false);
 +}
- #endif /* _MD_MD_H */
-diff --git a/drivers/md/multipath.c b/drivers/md/multipath.c
-index 79a12b59250b..e95d521d93e9 100644
---- a/drivers/md/multipath.c
-+++ b/drivers/md/multipath.c
-@@ -139,6 +139,7 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
- 	mp_bh->bio.bi_end_io = multipath_end_request;
- 	mp_bh->bio.bi_private = mp_bh;
- 	mddev_check_writesame(mddev, &mp_bh->bio);
-+	mddev_check_write_zeroes(mddev, &mp_bh->bio);
- 	generic_make_request(&mp_bh->bio);
- 	return;
++
+ static void sd_config_write_same(struct scsi_disk *sdkp)
+ {
+ 	struct request_queue *q = sdkp->disk->queue;
+@@ -823,6 +839,8 @@ static void sd_config_write_same(struct scsi_disk *sdkp)
+ out:
+ 	blk_queue_max_write_same_sectors(q, sdkp->max_ws_blocks *
+ 					 (logical_block_size >> 9));
++	blk_queue_max_write_zeroes_sectors(q, sdkp->max_ws_blocks *
++					 (logical_block_size >> 9));
  }
-diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
-index 93347ca7c7a6..ce7a6a56cf73 100644
---- a/drivers/md/raid0.c
-+++ b/drivers/md/raid0.c
-@@ -383,6 +383,7 @@ static int raid0_run(struct mddev *mddev)
  
- 		blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
- 		blk_queue_max_write_same_sectors(mddev->queue, mddev->chunk_sectors);
-+		blk_queue_max_write_zeroes_sectors(mddev->queue, mddev->chunk_sectors);
- 		blk_queue_max_discard_sectors(mddev->queue, mddev->chunk_sectors);
- 
- 		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
-@@ -504,6 +505,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
- 						      split, disk_devt(mddev->gendisk),
- 						      bio_sector);
- 			mddev_check_writesame(mddev, split);
-+			mddev_check_write_zeroes(mddev, split);
- 			generic_make_request(split);
+ /**
+@@ -1163,7 +1181,7 @@ static int sd_init_command(struct scsi_cmnd *cmd)
+ 		case SD_LBP_UNMAP:
+ 			return sd_setup_unmap_cmnd(cmd);
+ 		case SD_LBP_WS16:
+-			return sd_setup_write_same16_cmnd(cmd);
++			return sd_setup_write_same16_cmnd(cmd, true);
+ 		case SD_LBP_WS10:
+ 			return sd_setup_write_same10_cmnd(cmd, true);
+ 		case SD_LBP_ZERO:
+@@ -1171,6 +1189,8 @@ static int sd_init_command(struct scsi_cmnd *cmd)
+ 		default:
+ 			return BLKPREP_INVALID;
  		}
- 	} while (split != bio);
-diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-index a34f58772022..b59cc100320a 100644
---- a/drivers/md/raid1.c
-+++ b/drivers/md/raid1.c
-@@ -3177,8 +3177,10 @@ static int raid1_run(struct mddev *mddev)
- 	if (IS_ERR(conf))
- 		return PTR_ERR(conf);
++	case REQ_OP_WRITE_ZEROES:
++		return sd_setup_write_zeroes_cmnd(cmd);
+ 	case REQ_OP_WRITE_SAME:
+ 		return sd_setup_write_same_cmnd(cmd);
+ 	case REQ_OP_FLUSH:
+@@ -1810,6 +1830,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
  
--	if (mddev->queue)
-+	if (mddev->queue) {
- 		blk_queue_max_write_same_sectors(mddev->queue, 0);
-+		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
-+	}
+ 	switch (req_op(req)) {
+ 	case REQ_OP_DISCARD:
++	case REQ_OP_WRITE_ZEROES:
+ 	case REQ_OP_WRITE_SAME:
+ 	case REQ_OP_ZONE_RESET:
+ 		if (!result) {
+diff --git a/drivers/scsi/sd_zbc.c b/drivers/scsi/sd_zbc.c
+index 92620c8ea8ad..1994f7799fce 100644
+--- a/drivers/scsi/sd_zbc.c
++++ b/drivers/scsi/sd_zbc.c
+@@ -329,6 +329,7 @@ void sd_zbc_complete(struct scsi_cmnd *cmd,
  
- 	rdev_for_each(rdev, mddev) {
- 		if (!mddev->gendisk)
-diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-index e89a8d78a9ed..28ec3a93acee 100644
---- a/drivers/md/raid10.c
-+++ b/drivers/md/raid10.c
-@@ -3749,6 +3749,7 @@ static int raid10_run(struct mddev *mddev)
- 		blk_queue_max_discard_sectors(mddev->queue,
- 					      mddev->chunk_sectors);
- 		blk_queue_max_write_same_sectors(mddev->queue, 0);
-+		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
- 		blk_queue_io_min(mddev->queue, chunk_size);
- 		if (conf->geo.raid_disks % conf->geo.near_copies)
- 			blk_queue_io_opt(mddev->queue, chunk_size * conf->geo.raid_disks);
-diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-index ed5cd705b985..8cf1f86dcd05 100644
---- a/drivers/md/raid5.c
-+++ b/drivers/md/raid5.c
-@@ -7272,6 +7272,7 @@ static int raid5_run(struct mddev *mddev)
- 		mddev->queue->limits.discard_zeroes_data = 0;
+ 	switch (req_op(rq)) {
+ 	case REQ_OP_WRITE:
++	case REQ_OP_WRITE_ZEROES:
+ 	case REQ_OP_WRITE_SAME:
+ 	case REQ_OP_ZONE_RESET:
  
- 		blk_queue_max_write_same_sectors(mddev->queue, 0);
-+		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
- 
- 		rdev_for_each(rdev, mddev) {
- 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 -- 
 2.11.0
 
