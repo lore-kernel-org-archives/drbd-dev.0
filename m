@@ -1,19 +1,20 @@
 Return-Path: <BATV+9cf0d970ddff402c2c33+4973+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CBEED1058000
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 68AF41058001
 	for <drbd-dev@lists.linbit.com>;
-	Wed,  5 Apr 2017 19:39:38 +0200 (CEST)
+	Wed,  5 Apr 2017 19:39:39 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Wed,  5 Apr 2017 19:21:12 +0200
-Message-Id: <20170405172125.22600-15-hch@lst.de>
+Date: Wed,  5 Apr 2017 19:21:11 +0200
+Message-Id: <20170405172125.22600-14-hch@lst.de>
 In-Reply-To: <20170405172125.22600-1-hch@lst.de>
 References: <20170405172125.22600-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 14/27] sd: implement unmapping Write Zeroes
+Subject: [Drbd-dev] [PATCH 13/27] block_dev: use blkdev_issue_zerout for
+	hole punches
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,36 +26,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Try to use a write same with unmap bit variant if the device supports it
-and the caller allows for it.
+This gets us support for non-discard efficient write of zeroes (e.g. NVMe)
+and prepares for removing the discard_zeroes_data flag.
+
+Also remove a pointless discard support check, which is done in
+blkdev_issue_discard already.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
+
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- drivers/scsi/sd.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ fs/block_dev.c | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
-index d8d9c0bdd93c..001593ed0444 100644
---- a/drivers/scsi/sd.c
-+++ b/drivers/scsi/sd.c
-@@ -803,6 +803,15 @@ static int sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
- 	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
- 	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
- 
-+	if (!(rq->cmd_flags & REQ_NOUNMAP)) {
-+		switch (sdkp->provisioning_mode) {
-+		case SD_LBP_WS16:
-+			return sd_setup_write_same16_cmnd(cmd, true);
-+		case SD_LBP_WS10:
-+			return sd_setup_write_same10_cmnd(cmd, true);
-+		}
-+	}
-+
- 	if (sdp->no_write_same)
- 		return BLKPREP_INVALID;
- 	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 2f704c3a816f..e405d8e58e31 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -2069,7 +2069,6 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
+ 			     loff_t len)
+ {
+ 	struct block_device *bdev = I_BDEV(bdev_file_inode(file));
+-	struct request_queue *q = bdev_get_queue(bdev);
+ 	struct address_space *mapping;
+ 	loff_t end = start + len - 1;
+ 	loff_t isize;
+@@ -2108,15 +2107,10 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
+ 					    GFP_KERNEL, BLKDEV_ZERO_NOUNMAP);
+ 		break;
+ 	case FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE:
+-		/* Only punch if the device can do zeroing discard. */
+-		if (!blk_queue_discard(q) || !q->limits.discard_zeroes_data)
+-			return -EOPNOTSUPP;
+-		error = blkdev_issue_discard(bdev, start >> 9, len >> 9,
+-					     GFP_KERNEL, 0);
++		error = blkdev_issue_zeroout(bdev, start >> 9, len >> 9,
++					     GFP_KERNEL, BLKDEV_ZERO_NOFALLBACK);
+ 		break;
+ 	case FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE | FALLOC_FL_NO_HIDE_STALE:
+-		if (!blk_queue_discard(q))
+-			return -EOPNOTSUPP;
+ 		error = blkdev_issue_discard(bdev, start >> 9, len >> 9,
+ 					     GFP_KERNEL, 0);
+ 		break;
 -- 
 2.11.0
 
