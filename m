@@ -1,22 +1,17 @@
-Return-Path: <hch@lst.de>
-Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4476C105647D
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Apr 2017 14:08:26 +0200 (CEST)
-Date: Wed, 5 Apr 2017 14:08:26 +0200
+Return-Path: <BATV+9cf0d970ddff402c2c33+4973+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 44184105633D
+	for <drbd-dev@lists.linbit.com>;
+	Wed,  5 Apr 2017 16:22:14 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
-To: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-ID: <20170405120826.GA2275@lst.de>
-References: <20170331163313.31821-1-hch@lst.de> <yq1vaqjt74b.fsf@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <yq1vaqjt74b.fsf@oracle.com>
-Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
-	snitzer@redhat.com, philipp.reisner@linbit.com,
-	linux-block@vger.kernel.org, dm-devel@redhat.com,
-	lars.ellenberg@linbit.com, shli@kernel.org,
-	Christoph Hellwig <hch@lst.de>, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] always use REQ_OP_WRITE_ZEROES for zeroing offload
+To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
+	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
+	lars.ellenberg@linbit.com
+Date: Wed,  5 Apr 2017 16:21:38 +0200
+Message-Id: <20170405142205.6477-1-hch@lst.de>
+Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
+	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] always use REQ_OP_WRITE_ZEROES for zeroing offload V2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,18 +23,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Apr 05, 2017 at 07:40:36AM -0400, Martin K. Petersen wrote:
-> > This series makes REQ_OP_WRITE_ZEROES the only zeroing offload
-> > supported by the block layer, and switches existing implementations
-> > of REQ_OP_DISCARD that correctly set discard_zeroes_data to it,
-> > removes incorrect discard_zeroes_data, and also switches WRITE SAME
-> > based zeroing in SCSI to this new method.
-> 
-> Very, very nice. I think this is the correct approach.
-> 
-> I'm going to send two follow-up patches that allow us to use UNMAP for
-> discards and WRITE SAME w/ UNMAP for zeroout. That appears to be the
-> preferred configuration for most storage devices.
+This series makes REQ_OP_WRITE_ZEROES the only zeroing offload
+supported by the block layer, and switches existing implementations
+of REQ_OP_DISCARD that correctly set discard_zeroes_data to it,
+removes incorrect discard_zeroes_data, and also switches WRITE SAME
+based zeroing in SCSI to this new method.
 
-Thanks, I'll resend it with your nitpicks fixed, your follow on
-patches tacked on and the various reviewed-by tags in a bit.
+The series is against the block for-next tree.
+
+A git tree is also avaiable at:
+
+    git://git.infradead.org/users/hch/block.git discard-rework.2
+
+Gitweb:
+
+    http://git.infradead.org/users/hch/block.git/shortlog/refs/heads/discard-rework.2
+
+Changes since V2:
+ - various spelling fixes
+ - various reviews captured
+ - two new patches from Martin at the end
