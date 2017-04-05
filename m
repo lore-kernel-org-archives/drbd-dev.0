@@ -1,15 +1,15 @@
 Return-Path: <martin.petersen@oracle.com>
 Received: from aserp1040.oracle.com (aserp1040.oracle.com [141.146.126.69])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 047AD105647D
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Apr 2017 13:49:00 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 42AEC1057FAD
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Apr 2017 13:49:41 +0200 (CEST)
 To: Christoph Hellwig <hch@lst.de>
 From: "Martin K. Petersen" <martin.petersen@oracle.com>
 References: <20170331163313.31821-1-hch@lst.de>
-	<20170331163313.31821-15-hch@lst.de>
-Date: Wed, 05 Apr 2017 07:48:51 -0400
-In-Reply-To: <20170331163313.31821-15-hch@lst.de> (Christoph Hellwig's message
-	of "Fri, 31 Mar 2017 18:33:02 +0200")
-Message-ID: <yq1o9wbrs64.fsf@oracle.com>
+	<20170331163313.31821-16-hch@lst.de>
+Date: Wed, 05 Apr 2017 07:49:31 -0400
+In-Reply-To: <20170331163313.31821-16-hch@lst.de> (Christoph Hellwig's message
+	of "Fri, 31 Mar 2017 18:33:03 +0200")
+Message-ID: <yq1k26zrs50.fsf@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, martin.petersen@oracle.com,
@@ -17,7 +17,7 @@ Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, martin.petersen@oracle.com,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linux-scsi@vger.kernel.org, lars.ellenberg@linbit.com,
 	shli@kernel.org, agk@redhat.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 14/25] sd: implement unmapping Write Zeroes
+Subject: Re: [Drbd-dev] [PATCH 15/25] nvme: implement REQ_OP_WRITE_ZEROES
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,8 +31,9 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Christoph Hellwig <hch@lst.de> writes:
 
-> Try to use a write same with unmap bit variant if the device supports it
-> and the caller allows for it.
+> But now for the real NVMe Write Zeroes yet, just to get rid of the
+> discard abuse for zeroing.  Also rename the quirk flag to be a bit
+> more self-explanatory.
 
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 
