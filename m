@@ -1,19 +1,19 @@
 Return-Path: <BATV+9cf0d970ddff402c2c33+4973+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C96291057FD5
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9E5961057FE5
 	for <drbd-dev@lists.linbit.com>;
-	Wed,  5 Apr 2017 19:37:20 +0200 (CEST)
+	Wed,  5 Apr 2017 19:39:36 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Wed,  5 Apr 2017 19:21:18 +0200
-Message-Id: <20170405172125.22600-21-hch@lst.de>
+Date: Wed,  5 Apr 2017 19:21:14 +0200
+Message-Id: <20170405172125.22600-17-hch@lst.de>
 In-Reply-To: <20170405172125.22600-1-hch@lst.de>
 References: <20170405172125.22600-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 20/27] rsxx: remove the discard_zeroes_data flag
+Subject: [Drbd-dev] [PATCH 16/27] zram: implement REQ_OP_WRITE_ZEROES
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,27 +25,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-rsxx only supports discarding on large alignments, so the zeroing code
-would always fall back to explicit writings of zeroes.
+Just the same as discard if the block size equals the system page size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- drivers/block/rsxx/dev.c | 1 -
- 1 file changed, 1 deletion(-)
+ drivers/block/zram/zram_drv.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/block/rsxx/dev.c b/drivers/block/rsxx/dev.c
-index f81d70b39d10..9c566364ac9c 100644
---- a/drivers/block/rsxx/dev.c
-+++ b/drivers/block/rsxx/dev.c
-@@ -300,7 +300,6 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
- 						RSXX_HW_BLK_SIZE >> 9);
- 		card->queue->limits.discard_granularity = RSXX_HW_BLK_SIZE;
- 		card->queue->limits.discard_alignment   = RSXX_HW_BLK_SIZE;
--		card->queue->limits.discard_zeroes_data = 1;
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index dceb5edd1e54..1710b06f04a7 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -829,10 +829,14 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
+ 	offset = (bio->bi_iter.bi_sector &
+ 		  (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
+ 
+-	if (unlikely(bio_op(bio) == REQ_OP_DISCARD)) {
++	switch (bio_op(bio)) {
++	case REQ_OP_DISCARD:
++	case REQ_OP_WRITE_ZEROES:
+ 		zram_bio_discard(zram, index, offset, bio);
+ 		bio_endio(bio);
+ 		return;
++	default:
++		break;
  	}
  
- 	card->queue->queuedata = card;
+ 	bio_for_each_segment(bvec, bio, iter) {
+@@ -1192,6 +1196,8 @@ static int zram_add(void)
+ 	zram->disk->queue->limits.max_sectors = SECTORS_PER_PAGE;
+ 	zram->disk->queue->limits.chunk_sectors = 0;
+ 	blk_queue_max_discard_sectors(zram->disk->queue, UINT_MAX);
++	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, zram->disk->queue);
++
+ 	/*
+ 	 * zram_bio_discard() will clear all logical blocks if logical block
+ 	 * size is identical with physical block size(PAGE_SIZE). But if it is
+@@ -1201,10 +1207,7 @@ static int zram_add(void)
+ 	 * zeroed.
+ 	 */
+ 	if (ZRAM_LOGICAL_BLOCK_SIZE == PAGE_SIZE)
+-		zram->disk->queue->limits.discard_zeroes_data = 1;
+-	else
+-		zram->disk->queue->limits.discard_zeroes_data = 0;
+-	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, zram->disk->queue);
++		blk_queue_max_write_zeroes_sectors(zram->disk->queue, UINT_MAX);
+ 
+ 	add_disk(zram->disk);
+ 
 -- 
 2.11.0
 
