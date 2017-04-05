@@ -1,19 +1,19 @@
 Return-Path: <BATV+9cf0d970ddff402c2c33+4973+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3B98C1057FFE
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CBEED1058000
 	for <drbd-dev@lists.linbit.com>;
 	Wed,  5 Apr 2017 19:39:38 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Wed,  5 Apr 2017 19:21:13 +0200
-Message-Id: <20170405172125.22600-16-hch@lst.de>
+Date: Wed,  5 Apr 2017 19:21:12 +0200
+Message-Id: <20170405172125.22600-15-hch@lst.de>
 In-Reply-To: <20170405172125.22600-1-hch@lst.de>
 References: <20170405172125.22600-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 15/27] nvme: implement REQ_OP_WRITE_ZEROES
+Subject: [Drbd-dev] [PATCH 14/27] sd: implement unmapping Write Zeroes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,91 +25,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-But now for the real NVMe Write Zeroes yet, just to get rid of the
-discard abuse for zeroing.  Also rename the quirk flag to be a bit
-more self-explanatory.
+Try to use a write same with unmap bit variant if the device supports it
+and the caller allows for it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- drivers/nvme/host/core.c | 10 +++++-----
- drivers/nvme/host/nvme.h |  6 +++---
- drivers/nvme/host/pci.c  |  6 +++---
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ drivers/scsi/sd.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
-index 3c908e1bc903..26d5129a640a 100644
---- a/drivers/nvme/host/core.c
-+++ b/drivers/nvme/host/core.c
-@@ -358,6 +358,8 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
- 	case REQ_OP_FLUSH:
- 		nvme_setup_flush(ns, cmd);
- 		break;
-+	case REQ_OP_WRITE_ZEROES:
-+		/* currently only aliased to deallocate for a few ctrls: */
- 	case REQ_OP_DISCARD:
- 		ret = nvme_setup_discard(ns, req, cmd);
- 		break;
-@@ -923,16 +925,14 @@ static void nvme_config_discard(struct nvme_ns *ns)
- 	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
- 			NVME_DSM_MAX_RANGES);
+diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
+index d8d9c0bdd93c..001593ed0444 100644
+--- a/drivers/scsi/sd.c
++++ b/drivers/scsi/sd.c
+@@ -803,6 +803,15 @@ static int sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
+ 	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
+ 	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
  
--	if (ctrl->quirks & NVME_QUIRK_DISCARD_ZEROES)
--		ns->queue->limits.discard_zeroes_data = 1;
--	else
--		ns->queue->limits.discard_zeroes_data = 0;
--
- 	ns->queue->limits.discard_alignment = logical_block_size;
- 	ns->queue->limits.discard_granularity = logical_block_size;
- 	blk_queue_max_discard_sectors(ns->queue, UINT_MAX);
- 	blk_queue_max_discard_segments(ns->queue, NVME_DSM_MAX_RANGES);
- 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
++	if (!(rq->cmd_flags & REQ_NOUNMAP)) {
++		switch (sdkp->provisioning_mode) {
++		case SD_LBP_WS16:
++			return sd_setup_write_same16_cmnd(cmd, true);
++		case SD_LBP_WS10:
++			return sd_setup_write_same10_cmnd(cmd, true);
++		}
++	}
 +
-+	if (ctrl->quirks & NVME_QUIRK_DEALLOCATE_ZEROES)
-+		blk_queue_max_write_zeroes_sectors(ns->queue, UINT_MAX);
- }
- 
- static int nvme_revalidate_ns(struct nvme_ns *ns, struct nvme_id_ns **id)
-diff --git a/drivers/nvme/host/nvme.h b/drivers/nvme/host/nvme.h
-index 227f281482db..f903726eeb68 100644
---- a/drivers/nvme/host/nvme.h
-+++ b/drivers/nvme/host/nvme.h
-@@ -68,10 +68,10 @@ enum nvme_quirks {
- 	NVME_QUIRK_IDENTIFY_CNS			= (1 << 1),
- 
- 	/*
--	 * The controller deterministically returns O's on reads to discarded
--	 * logical blocks.
-+	 * The controller deterministically returns O's on reads to
-+	 * logical blocks that deallocate was called on.
- 	 */
--	NVME_QUIRK_DISCARD_ZEROES		= (1 << 2),
-+	NVME_QUIRK_DEALLOCATE_ZEROES		= (1 << 2),
- 
- 	/*
- 	 * The controller needs a delay before starts checking the device
-diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
-index 9e686a67d93b..cb530a6bef3f 100644
---- a/drivers/nvme/host/pci.c
-+++ b/drivers/nvme/host/pci.c
-@@ -2113,13 +2113,13 @@ static const struct pci_error_handlers nvme_err_handler = {
- static const struct pci_device_id nvme_id_table[] = {
- 	{ PCI_VDEVICE(INTEL, 0x0953),
- 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
--				NVME_QUIRK_DISCARD_ZEROES, },
-+				NVME_QUIRK_DEALLOCATE_ZEROES, },
- 	{ PCI_VDEVICE(INTEL, 0x0a53),
- 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
--				NVME_QUIRK_DISCARD_ZEROES, },
-+				NVME_QUIRK_DEALLOCATE_ZEROES, },
- 	{ PCI_VDEVICE(INTEL, 0x0a54),
- 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
--				NVME_QUIRK_DISCARD_ZEROES, },
-+				NVME_QUIRK_DEALLOCATE_ZEROES, },
- 	{ PCI_VDEVICE(INTEL, 0x5845),	/* Qemu emulated controller */
- 		.driver_data = NVME_QUIRK_IDENTIFY_CNS, },
- 	{ PCI_DEVICE(0x1c58, 0x0003),	/* HGST adapter */
+ 	if (sdp->no_write_same)
+ 		return BLKPREP_INVALID;
+ 	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
 -- 
 2.11.0
 
