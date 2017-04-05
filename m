@@ -1,19 +1,20 @@
 Return-Path: <BATV+9cf0d970ddff402c2c33+4973+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B1EFE1057FD4
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 850BE1057FD5
 	for <drbd-dev@lists.linbit.com>;
-	Wed,  5 Apr 2017 19:21:49 +0200 (CEST)
+	Wed,  5 Apr 2017 19:21:58 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
 	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com
-Date: Wed,  5 Apr 2017 19:21:04 +0200
-Message-Id: <20170405172125.22600-7-hch@lst.de>
+Date: Wed,  5 Apr 2017 19:21:06 +0200
+Message-Id: <20170405172125.22600-9-hch@lst.de>
 In-Reply-To: <20170405172125.22600-1-hch@lst.de>
 References: <20170405172125.22600-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/27] dm io: discards don't take a payload
+Subject: [Drbd-dev] [PATCH 08/27] dm kcopyd: switch to use
+	REQ_OP_WRITE_ZEROES
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,42 +26,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Fix up do_region to not allocate a bio_vec for discards.  We've
-got rid of the discard payload allocated by the caller years ago.
+It seems like the code currently passes whatever it was using for writes
+to WRITE SAME.  Just switch it to WRITE ZEROES, although that doesn't
+need any payload.
 
-Obviously this wasn't actually harmful given how long it's been
-there, but it's still good to avoid the pointless allocation.
+Untested, and confused by the code, maybe someone who understands it
+better than me can help..
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.com>
 ---
- drivers/md/dm-io.c | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ drivers/md/dm-kcopyd.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/md/dm-io.c b/drivers/md/dm-io.c
-index 03940bf36f6c..b808cbe22678 100644
---- a/drivers/md/dm-io.c
-+++ b/drivers/md/dm-io.c
-@@ -328,11 +328,17 @@ static void do_region(int op, int op_flags, unsigned region,
- 		/*
- 		 * Allocate a suitably sized-bio.
- 		 */
--		if ((op == REQ_OP_DISCARD) || (op == REQ_OP_WRITE_SAME))
-+		switch (op) {
-+		case REQ_OP_DISCARD:
-+			num_bvecs = 0;
-+			break;
-+		case REQ_OP_WRITE_SAME:
- 			num_bvecs = 1;
--		else
-+			break;
-+		default:
- 			num_bvecs = min_t(int, BIO_MAX_PAGES,
- 					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
-+		}
+diff --git a/drivers/md/dm-kcopyd.c b/drivers/md/dm-kcopyd.c
+index 9e9d04cb7d51..f85846741d50 100644
+--- a/drivers/md/dm-kcopyd.c
++++ b/drivers/md/dm-kcopyd.c
+@@ -733,11 +733,11 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
+ 		job->pages = &zero_page_list;
  
- 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);
- 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
+ 		/*
+-		 * Use WRITE SAME to optimize zeroing if all dests support it.
++		 * Use WRITE ZEROES to optimize zeroing if all dests support it.
+ 		 */
+-		job->rw = REQ_OP_WRITE_SAME;
++		job->rw = REQ_OP_WRITE_ZEROES;
+ 		for (i = 0; i < job->num_dests; i++)
+-			if (!bdev_write_same(job->dests[i].bdev)) {
++			if (!bdev_write_zeroes_sectors(job->dests[i].bdev)) {
+ 				job->rw = WRITE;
+ 				break;
+ 			}
 -- 
 2.11.0
 
