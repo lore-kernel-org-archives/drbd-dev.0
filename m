@@ -1,19 +1,25 @@
-Return-Path: <BATV+9cf0d970ddff402c2c33+4973+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0C3271057FCB
-	for <drbd-dev@lists.linbit.com>;
-	Wed,  5 Apr 2017 20:04:08 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: axboe@kernel.dk, martin.petersen@oracle.com, agk@redhat.com,
-	snitzer@redhat.com, shli@kernel.org, philipp.reisner@linbit.com,
-	lars.ellenberg@linbit.com
-Date: Wed,  5 Apr 2017 19:21:17 +0200
-Message-Id: <20170405172125.22600-20-hch@lst.de>
-In-Reply-To: <20170405172125.22600-1-hch@lst.de>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com
+	[209.85.192.180])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id AB623105630C
+	for <drbd-dev@lists.linbit.com>; Sat,  8 Apr 2017 19:33:37 +0200 (CEST)
+Received: by mail-pf0-f180.google.com with SMTP id i5so16851661pfc.2
+	for <drbd-dev@lists.linbit.com>; Sat, 08 Apr 2017 10:33:37 -0700 (PDT)
+Date: Sat, 8 Apr 2017 11:26:18 -0600
+From: Jens Axboe <axboe@kernel.dk>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <20170408172617.GA16784@kernel.dk>
 References: <20170405172125.22600-1-hch@lst.de>
-Cc: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
-	dm-devel@redhat.com, linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 19/27] rbd: remove the discard_zeroes_data flag
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170405172125.22600-1-hch@lst.de>
+Cc: linux-raid@vger.kernel.org, martin.petersen@oracle.com, snitzer@redhat.com,
+	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
+	dm-devel@redhat.com, linux-scsi@vger.kernel.org,
+	lars.ellenberg@linbit.com, shli@kernel.org, agk@redhat.com,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] always use REQ_OP_WRITE_ZEROES for zeroing offload V2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,27 +31,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-rbd only supports discarding on large alignments, so the zeroing code
-would always fall back to explicit writings of zeroes.
+On Wed, Apr 05 2017, Christoph Hellwig wrote:
+> This series makes REQ_OP_WRITE_ZEROES the only zeroing offload
+> supported by the block layer, and switches existing implementations
+> of REQ_OP_DISCARD that correctly set discard_zeroes_data to it,
+> removes incorrect discard_zeroes_data, and also switches WRITE SAME
+> based zeroing in SCSI to this new method.
+> 
+> The series is against the block for-next tree.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Hannes Reinecke <hare@suse.com>
----
- drivers/block/rbd.c | 1 -
- 1 file changed, 1 deletion(-)
+Added for 4.12, thanks Christoph.
 
-diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
-index f24ade333e0c..089ac4179919 100644
---- a/drivers/block/rbd.c
-+++ b/drivers/block/rbd.c
-@@ -4380,7 +4380,6 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
- 	q->limits.discard_granularity = segment_size;
- 	q->limits.discard_alignment = segment_size;
- 	blk_queue_max_discard_sectors(q, segment_size / SECTOR_SIZE);
--	q->limits.discard_zeroes_data = 1;
- 
- 	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
- 		q->backing_dev_info->capabilities |= BDI_CAP_STABLE_WRITES;
 -- 
-2.11.0
+Jens Axboe
 
