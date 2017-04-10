@@ -1,19 +1,18 @@
 Return-Path: <BATV+d06792d33419b921eada+4978+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 073201057FCE
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A59BA1057FCF
 	for <drbd-dev@lists.linbit.com>;
-	Mon, 10 Apr 2017 18:08:26 +0200 (CEST)
+	Mon, 10 Apr 2017 18:08:31 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com, target-devel@vger.kernel.org
-Date: Mon, 10 Apr 2017 18:08:01 +0200
-Message-Id: <20170410160807.23674-3-hch@lst.de>
+Date: Mon, 10 Apr 2017 18:08:06 +0200
+Message-Id: <20170410160807.23674-8-hch@lst.de>
 In-Reply-To: <20170410160807.23674-1-hch@lst.de>
 References: <20170410160807.23674-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 2/8] target: remove iblock WRITE_SAME passthrough
-	support
+Subject: [Drbd-dev] [PATCH 7/8] block: remove bio_no_advance_iter
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,68 +24,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the pscsi driver to support arbitrary command passthrough
-instead.
+Now that we don't have to support the odd Write Same special case
+we can simply increment the iter if the bio has data, else just
+manipulate bi_size directly.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/target/target_core_iblock.c | 34 ----------------------------------
- 1 file changed, 34 deletions(-)
+ include/linux/bio.h | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)
 
-diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
-index d316ed537d59..9da31970a004 100644
---- a/drivers/target/target_core_iblock.c
-+++ b/drivers/target/target_core_iblock.c
-@@ -415,39 +415,8 @@ iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 96a20afb8575..7a24a1a24967 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -83,13 +83,6 @@ static inline bool bio_has_data(struct bio *bio)
+ 	return false;
  }
  
- static sense_reason_t
--iblock_execute_write_same_direct(struct block_device *bdev, struct se_cmd *cmd)
+-static inline bool bio_no_advance_iter(struct bio *bio)
 -{
--	struct se_device *dev = cmd->se_dev;
--	struct scatterlist *sg = &cmd->t_data_sg[0];
--	struct page *page = NULL;
--	int ret;
--
--	if (sg->offset) {
--		page = alloc_page(GFP_KERNEL);
--		if (!page)
--			return TCM_OUT_OF_RESOURCES;
--		sg_copy_to_buffer(sg, cmd->t_data_nents, page_address(page),
--				  dev->dev_attrib.block_size);
--	}
--
--	ret = blkdev_issue_write_same(bdev,
--				target_to_linux_sector(dev, cmd->t_task_lba),
--				target_to_linux_sector(dev,
--					sbc_get_write_same_sectors(cmd)),
--				GFP_KERNEL, page ? page : sg_page(sg));
--	if (page)
--		__free_page(page);
--	if (ret)
--		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
--
--	target_complete_cmd(cmd, GOOD);
--	return 0;
+-	return bio_op(bio) == REQ_OP_DISCARD ||
+-	       bio_op(bio) == REQ_OP_SECURE_ERASE ||
+-	       bio_op(bio) == REQ_OP_WRITE_ZEROES;
 -}
 -
--static sense_reason_t
- iblock_execute_write_same(struct se_cmd *cmd)
+ static inline bool bio_mergeable(struct bio *bio)
  {
--	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
- 	struct iblock_req *ibr;
- 	struct scatterlist *sg;
- 	struct bio *bio;
-@@ -472,9 +441,6 @@ iblock_execute_write_same(struct se_cmd *cmd)
- 		return TCM_INVALID_CDB_FIELD;
- 	}
+ 	if (bio->bi_opf & REQ_NOMERGE_FLAGS)
+@@ -165,10 +158,10 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+ {
+ 	iter->bi_sector += bytes >> 9;
  
--	if (bdev_write_same(bdev))
--		return iblock_execute_write_same_direct(bdev, cmd);
--
- 	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
- 	if (!ibr)
- 		goto fail;
+-	if (bio_no_advance_iter(bio))
+-		iter->bi_size -= bytes;
+-	else
++	if (bio_has_data(bio))
+ 		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
++	else
++		iter->bi_size -= bytes;
+ }
+ 
+ #define __bio_for_each_segment(bvl, bio, iter, start)			\
 -- 
 2.11.0
 
