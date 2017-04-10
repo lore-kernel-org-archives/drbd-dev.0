@@ -1,18 +1,18 @@
 Return-Path: <BATV+d06792d33419b921eada+4978+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A5C9C105647D
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EB3A91057FAD
 	for <drbd-dev@lists.linbit.com>;
-	Mon, 10 Apr 2017 18:08:15 +0200 (CEST)
+	Mon, 10 Apr 2017 18:08:23 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com, target-devel@vger.kernel.org
-Date: Mon, 10 Apr 2017 18:08:00 +0200
-Message-Id: <20170410160807.23674-2-hch@lst.de>
+Date: Mon, 10 Apr 2017 18:08:02 +0200
+Message-Id: <20170410160807.23674-4-hch@lst.de>
 In-Reply-To: <20170410160807.23674-1-hch@lst.de>
 References: <20170410160807.23674-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/8] drbd: drop REQ_OP_WRITE_SAME support
+Subject: [Drbd-dev] [PATCH 3/8] sd: remove write same support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,308 +24,126 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Linux only used it for zeroing, for which we have better methods now.
+There are no more end-users of REQ_OP_WRITE_SAME left, so we can start
+deleting it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_main.c     | 28 ++----------------
- drivers/block/drbd/drbd_nl.c       | 60 --------------------------------------
- drivers/block/drbd/drbd_receiver.c | 38 +++---------------------
- drivers/block/drbd/drbd_req.c      |  1 -
- drivers/block/drbd/drbd_worker.c   |  4 ---
- 5 files changed, 7 insertions(+), 124 deletions(-)
+ drivers/scsi/sd.c     | 70 ---------------------------------------------------
+ drivers/scsi/sd_zbc.c |  1 -
+ 2 files changed, 71 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 84455c365f57..183468e0b959 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -931,7 +931,7 @@ void assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p, struct r
- 		p->qlim->io_min = cpu_to_be32(queue_io_min(q));
- 		p->qlim->io_opt = cpu_to_be32(queue_io_opt(q));
- 		p->qlim->discard_enabled = blk_queue_discard(q);
--		p->qlim->write_same_capable = !!q->limits.max_write_same_sectors;
-+		p->qlim->write_same_capable = 0;
- 	} else {
- 		q = device->rq_queue;
- 		p->qlim->physical_block_size = cpu_to_be32(queue_physical_block_size(q));
-@@ -1610,9 +1610,6 @@ static int _drbd_send_bio(struct drbd_peer_device *peer_device, struct bio *bio)
- 					 ? 0 : MSG_MORE);
- 		if (err)
- 			return err;
--		/* REQ_OP_WRITE_SAME has only one segment */
--		if (bio_op(bio) == REQ_OP_WRITE_SAME)
--			break;
- 	}
- 	return 0;
- }
-@@ -1631,9 +1628,6 @@ static int _drbd_send_zc_bio(struct drbd_peer_device *peer_device, struct bio *b
- 				      bio_iter_last(bvec, iter) ? 0 : MSG_MORE);
- 		if (err)
- 			return err;
--		/* REQ_OP_WRITE_SAME has only one segment */
--		if (bio_op(bio) == REQ_OP_WRITE_SAME)
--			break;
- 	}
- 	return 0;
- }
-@@ -1665,7 +1659,6 @@ static u32 bio_flags_to_wire(struct drbd_connection *connection,
- 		return  (bio->bi_opf & REQ_SYNC ? DP_RW_SYNC : 0) |
- 			(bio->bi_opf & REQ_FUA ? DP_FUA : 0) |
- 			(bio->bi_opf & REQ_PREFLUSH ? DP_FLUSH : 0) |
--			(bio_op(bio) == REQ_OP_WRITE_SAME ? DP_WSAME : 0) |
- 			(bio_op(bio) == REQ_OP_DISCARD ? DP_DISCARD : 0) |
- 			(bio_op(bio) == REQ_OP_WRITE_ZEROES ? DP_DISCARD : 0);
- 	else
-@@ -1680,7 +1673,6 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
- 	struct drbd_device *device = peer_device->device;
- 	struct drbd_socket *sock;
- 	struct p_data *p;
--	struct p_wsame *wsame = NULL;
- 	void *digest_out;
- 	unsigned int dp_flags = 0;
- 	int digest_size;
-@@ -1717,27 +1709,13 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
- 		err = __send_command(peer_device->connection, device->vnr, sock, P_TRIM, sizeof(*t), NULL, 0);
- 		goto out;
- 	}
--	if (dp_flags & DP_WSAME) {
--		/* this will only work if DRBD_FF_WSAME is set AND the
--		 * handshake agreed that all nodes and backend devices are
--		 * WRITE_SAME capable and agree on logical_block_size */
--		wsame = (struct p_wsame*)p;
--		digest_out = wsame + 1;
--		wsame->size = cpu_to_be32(req->i.size);
--	} else
--		digest_out = p + 1;
-+	digest_out = p + 1;
+diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
+index 8cf34a8e3eea..a905802e927e 100644
+--- a/drivers/scsi/sd.c
++++ b/drivers/scsi/sd.c
+@@ -878,77 +878,10 @@ static void sd_config_write_same(struct scsi_disk *sdkp)
+ 		sdkp->zeroing_mode = SD_ZERO_WRITE;
  
- 	/* our digest is still only over the payload.
- 	 * TRIM does not carry any payload. */
- 	if (digest_size)
- 		drbd_csum_bio(peer_device->connection->integrity_tfm, req->master_bio, digest_out);
--	if (wsame) {
--		err =
--		    __send_command(peer_device->connection, device->vnr, sock, P_WSAME,
--				   sizeof(*wsame) + digest_size, NULL,
--				   bio_iovec(req->master_bio).bv_len);
--	} else
--		err =
-+	err =
- 		    __send_command(peer_device->connection, device->vnr, sock, P_DATA,
- 				   sizeof(*p) + digest_size, NULL, req->i.size);
- 	if (!err) {
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 02255a0d68b9..53aeed040eb4 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1234,65 +1234,6 @@ static void fixup_discard_if_not_supported(struct request_queue *q)
- 	}
+ out:
+-	blk_queue_max_write_same_sectors(q, sdkp->max_ws_blocks *
+-					 (logical_block_size >> 9));
+ 	blk_queue_max_write_zeroes_sectors(q, sdkp->max_ws_blocks *
+ 					 (logical_block_size >> 9));
  }
  
--static void decide_on_write_same_support(struct drbd_device *device,
--			struct request_queue *q,
--			struct request_queue *b, struct o_qlim *o)
+-/**
+- * sd_setup_write_same_cmnd - write the same data to multiple blocks
+- * @cmd: command to prepare
+- *
+- * Will issue either WRITE SAME(10) or WRITE SAME(16) depending on
+- * preference indicated by target device.
+- **/
+-static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 -{
--	struct drbd_peer_device *peer_device = first_peer_device(device);
--	struct drbd_connection *connection = peer_device->connection;
--	bool can_do = b ? b->limits.max_write_same_sectors : true;
+-	struct request *rq = cmd->request;
+-	struct scsi_device *sdp = cmd->device;
+-	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
+-	struct bio *bio = rq->bio;
+-	sector_t sector = blk_rq_pos(rq);
+-	unsigned int nr_sectors = blk_rq_sectors(rq);
+-	unsigned int nr_bytes = blk_rq_bytes(rq);
+-	int ret;
 -
--	if (can_do && connection->cstate >= C_CONNECTED && !(connection->agreed_features & DRBD_FF_WSAME)) {
--		can_do = false;
--		drbd_info(peer_device, "peer does not support WRITE_SAME\n");
+-	if (sdkp->device->no_write_same)
+-		return BLKPREP_INVALID;
+-
+-	BUG_ON(bio_offset(bio) || bio_iovec(bio).bv_len != sdp->sector_size);
+-
+-	if (sd_is_zoned(sdkp)) {
+-		ret = sd_zbc_setup_write_cmnd(cmd);
+-		if (ret != BLKPREP_OK)
+-			return ret;
 -	}
 -
--	if (o) {
--		/* logical block size; queue_logical_block_size(NULL) is 512 */
--		unsigned int peer_lbs = be32_to_cpu(o->logical_block_size);
--		unsigned int me_lbs_b = queue_logical_block_size(b);
--		unsigned int me_lbs = queue_logical_block_size(q);
+-	sector >>= ilog2(sdp->sector_size) - 9;
+-	nr_sectors >>= ilog2(sdp->sector_size) - 9;
 -
--		if (me_lbs_b != me_lbs) {
--			drbd_warn(device,
--				"logical block size of local backend does not match (drbd:%u, backend:%u); was this a late attach?\n",
--				me_lbs, me_lbs_b);
--			/* rather disable write same than trigger some BUG_ON later in the scsi layer. */
--			can_do = false;
--		}
--		if (me_lbs_b != peer_lbs) {
--			drbd_warn(peer_device, "logical block sizes do not match (me:%u, peer:%u); this may cause problems.\n",
--				me_lbs, peer_lbs);
--			if (can_do) {
--				drbd_dbg(peer_device, "logical block size mismatch: WRITE_SAME disabled.\n");
--				can_do = false;
--			}
--			me_lbs = max(me_lbs, me_lbs_b);
--			/* We cannot change the logical block size of an in-use queue.
--			 * We can only hope that access happens to be properly aligned.
--			 * If not, the peer will likely produce an IO error, and detach. */
--			if (peer_lbs > me_lbs) {
--				if (device->state.role != R_PRIMARY) {
--					blk_queue_logical_block_size(q, peer_lbs);
--					drbd_warn(peer_device, "logical block size set to %u\n", peer_lbs);
--				} else {
--					drbd_warn(peer_device,
--						"current Primary must NOT adjust logical block size (%u -> %u); hope for the best.\n",
--						me_lbs, peer_lbs);
--				}
--			}
--		}
--		if (can_do && !o->write_same_capable) {
--			/* If we introduce an open-coded write-same loop on the receiving side,
--			 * the peer would present itself as "capable". */
--			drbd_dbg(peer_device, "WRITE_SAME disabled (peer device not capable)\n");
--			can_do = false;
--		}
+-	rq->timeout = SD_WRITE_SAME_TIMEOUT;
+-
+-	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff) {
+-		cmd->cmd_len = 16;
+-		cmd->cmnd[0] = WRITE_SAME_16;
+-		put_unaligned_be64(sector, &cmd->cmnd[2]);
+-		put_unaligned_be32(nr_sectors, &cmd->cmnd[10]);
+-	} else {
+-		cmd->cmd_len = 10;
+-		cmd->cmnd[0] = WRITE_SAME;
+-		put_unaligned_be32(sector, &cmd->cmnd[2]);
+-		put_unaligned_be16(nr_sectors, &cmd->cmnd[7]);
 -	}
 -
--	blk_queue_max_write_same_sectors(q, can_do ? DRBD_MAX_BBIO_SECTORS : 0);
+-	cmd->transfersize = sdp->sector_size;
+-	cmd->allowed = SD_MAX_RETRIES;
+-
+-	/*
+-	 * For WRITE SAME the data transferred via the DATA OUT buffer is
+-	 * different from the amount of data actually written to the target.
+-	 *
+-	 * We set up __data_len to the amount of data transferred via the
+-	 * DATA OUT buffer so that blk_rq_map_sg sets up the proper S/G list
+-	 * to transfer a single sector of data first, but then reset it to
+-	 * the amount of data to be written right after so that the I/O path
+-	 * knows how much to actually write.
+-	 */
+-	rq->__data_len = sdp->sector_size;
+-	ret = scsi_init_io(cmd);
+-	rq->__data_len = nr_bytes;
+-	return ret;
 -}
 -
- static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backing_dev *bdev,
- 				   unsigned int max_bio_size, struct o_qlim *o)
+ static int sd_setup_flush_cmnd(struct scsi_cmnd *cmd)
  {
-@@ -1321,7 +1262,6 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
- 	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
- 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
- 	decide_on_discard_support(device, q, b, discard_zeroes_if_aligned);
--	decide_on_write_same_support(device, q, b, o);
+ 	struct request *rq = cmd->request;
+@@ -1232,8 +1165,6 @@ static int sd_init_command(struct scsi_cmnd *cmd)
+ 		}
+ 	case REQ_OP_WRITE_ZEROES:
+ 		return sd_setup_write_zeroes_cmnd(cmd);
+-	case REQ_OP_WRITE_SAME:
+-		return sd_setup_write_same_cmnd(cmd);
+ 	case REQ_OP_FLUSH:
+ 		return sd_setup_flush_cmnd(cmd);
+ 	case REQ_OP_READ:
+@@ -1872,7 +1803,6 @@ static int sd_done(struct scsi_cmnd *SCpnt)
+ 	switch (req_op(req)) {
+ 	case REQ_OP_DISCARD:
+ 	case REQ_OP_WRITE_ZEROES:
+-	case REQ_OP_WRITE_SAME:
+ 	case REQ_OP_ZONE_RESET:
+ 		if (!result) {
+ 			good_bytes = blk_rq_bytes(req);
+diff --git a/drivers/scsi/sd_zbc.c b/drivers/scsi/sd_zbc.c
+index 1994f7799fce..8af6c9cd30ca 100644
+--- a/drivers/scsi/sd_zbc.c
++++ b/drivers/scsi/sd_zbc.c
+@@ -330,7 +330,6 @@ void sd_zbc_complete(struct scsi_cmnd *cmd,
+ 	switch (req_op(rq)) {
+ 	case REQ_OP_WRITE:
+ 	case REQ_OP_WRITE_ZEROES:
+-	case REQ_OP_WRITE_SAME:
+ 	case REQ_OP_ZONE_RESET:
  
- 	if (b) {
- 		blk_queue_stack_limits(q, b);
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 1b0a2be24f39..980d53793007 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1459,18 +1459,6 @@ static void drbd_issue_peer_discard(struct drbd_device *device, struct drbd_peer
- 	drbd_endio_write_sec_final(peer_req);
- }
- 
--static void drbd_issue_peer_wsame(struct drbd_device *device,
--				  struct drbd_peer_request *peer_req)
--{
--	struct block_device *bdev = device->ldev->backing_bdev;
--	sector_t s = peer_req->i.sector;
--	sector_t nr = peer_req->i.size >> 9;
--	if (blkdev_issue_write_same(bdev, s, nr, GFP_NOIO, peer_req->pages))
--		peer_req->flags |= EE_WAS_ERROR;
--	drbd_endio_write_sec_final(peer_req);
--}
--
--
- /**
-  * drbd_submit_peer_request()
-  * @device:	DRBD device.
-@@ -1508,7 +1496,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 	 * Correctness first, performance later.  Next step is to code an
- 	 * asynchronous variant of the same.
- 	 */
--	if (peer_req->flags & (EE_IS_TRIM|EE_WRITE_SAME)) {
-+	if (peer_req->flags & EE_IS_TRIM) {
- 		/* wait for all pending IO completions, before we start
- 		 * zeroing things out. */
- 		conn_wait_active_ee_empty(peer_req->peer_device->connection);
-@@ -1527,8 +1515,6 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 
- 		if (peer_req->flags & EE_IS_TRIM)
- 			drbd_issue_peer_discard(device, peer_req);
--		else /* EE_WRITE_SAME */
--			drbd_issue_peer_wsame(device, peer_req);
- 		return 0;
- 	}
- 
-@@ -1723,7 +1709,6 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
- 	void *dig_vv = peer_device->connection->int_dig_vv;
- 	unsigned long *data;
- 	struct p_trim *trim = (pi->cmd == P_TRIM) ? pi->data : NULL;
--	struct p_trim *wsame = (pi->cmd == P_WSAME) ? pi->data : NULL;
- 
- 	digest_size = 0;
- 	if (!trim && peer_device->connection->peer_integrity_tfm) {
-@@ -1738,29 +1723,17 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
- 		data_size -= digest_size;
- 	}
- 
--	/* assume request_size == data_size, but special case trim and wsame. */
-+	/* assume request_size == data_size, but special case trim. */
- 	ds = data_size;
- 	if (trim) {
- 		if (!expect(data_size == 0))
- 			return NULL;
- 		ds = be32_to_cpu(trim->size);
--	} else if (wsame) {
--		if (data_size != queue_logical_block_size(device->rq_queue)) {
--			drbd_err(peer_device, "data size (%u) != drbd logical block size (%u)\n",
--				data_size, queue_logical_block_size(device->rq_queue));
--			return NULL;
--		}
--		if (data_size != bdev_logical_block_size(device->ldev->backing_bdev)) {
--			drbd_err(peer_device, "data size (%u) != backend logical block size (%u)\n",
--				data_size, bdev_logical_block_size(device->ldev->backing_bdev));
--			return NULL;
--		}
--		ds = be32_to_cpu(wsame->size);
- 	}
- 
- 	if (!expect(IS_ALIGNED(ds, 512)))
- 		return NULL;
--	if (trim || wsame) {
-+	if (trim) {
- 		if (!expect(ds <= (DRBD_MAX_BBIO_SECTORS << 9)))
- 			return NULL;
- 	} else if (!expect(ds <= DRBD_MAX_BIO_SIZE))
-@@ -1788,8 +1761,6 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
- 		peer_req->flags |= EE_IS_TRIM;
- 		return peer_req;
- 	}
--	if (wsame)
--		peer_req->flags |= EE_WRITE_SAME;
- 
- 	/* receive payload size bytes into page chain */
- 	ds = data_size;
-@@ -2545,7 +2516,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
- 	 * we wait for all pending requests, respectively wait for
- 	 * active_ee to become empty in drbd_submit_peer_request();
- 	 * better not add ourselves here. */
--	if ((peer_req->flags & (EE_IS_TRIM|EE_WRITE_SAME)) == 0)
-+	if ((peer_req->flags & EE_IS_TRIM) == 0)
- 		list_add_tail(&peer_req->w.list, &device->active_ee);
- 	spin_unlock_irq(&device->resource->req_lock);
- 
-@@ -4869,7 +4840,6 @@ static struct data_cmd drbd_cmd_handler[] = {
- 	[P_PROTOCOL_UPDATE] = { 1, sizeof(struct p_protocol), receive_protocol },
- 	[P_TRIM]	    = { 0, sizeof(struct p_trim), receive_Data },
- 	[P_RS_DEALLOCATED]  = { 0, sizeof(struct p_block_desc), receive_rs_deallocated },
--	[P_WSAME]	    = { 1, sizeof(struct p_wsame), receive_Data },
- };
- 
- static void drbdd(struct drbd_connection *connection)
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index b5730e17b455..3d3fba937a92 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -58,7 +58,6 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio
- 
- 	drbd_req_make_private_bio(req, bio_src);
- 	req->rq_state = (bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0)
--		      | (bio_op(bio_src) == REQ_OP_WRITE_SAME ? RQ_WSAME : 0)
- 		      | (bio_op(bio_src) == REQ_OP_WRITE_ZEROES ? RQ_UNMAP : 0)
- 		      | (bio_op(bio_src) == REQ_OP_DISCARD ? RQ_UNMAP : 0);
- 	req->device = device;
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 1afcb4e02d8d..9fad03491250 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -330,10 +330,6 @@ void drbd_csum_bio(struct crypto_ahash *tfm, struct bio *bio, void *digest)
- 		sg_set_page(&sg, bvec.bv_page, bvec.bv_len, bvec.bv_offset);
- 		ahash_request_set_crypt(req, &sg, NULL, sg.length);
- 		crypto_ahash_update(req);
--		/* REQ_OP_WRITE_SAME has only one segment,
--		 * checksum the payload only once. */
--		if (bio_op(bio) == REQ_OP_WRITE_SAME)
--			break;
- 	}
- 	ahash_request_set_crypt(req, NULL, digest, 0);
- 	crypto_ahash_final(req);
+ 		/* Unlock the zone */
 -- 
 2.11.0
 
