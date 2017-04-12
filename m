@@ -1,18 +1,18 @@
 Return-Path: <BATV+4e9b246676c62bade7ff+4980+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B3FCE1057FB2
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 920151057FD4
 	for <drbd-dev@lists.linbit.com>;
-	Wed, 12 Apr 2017 10:48:26 +0200 (CEST)
+	Wed, 12 Apr 2017 10:48:29 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com, target-devel@vger.kernel.org
-Date: Wed, 12 Apr 2017 10:48:05 +0200
-Message-Id: <20170412084809.8245-5-hch@lst.de>
+Date: Wed, 12 Apr 2017 10:48:06 +0200
+Message-Id: <20170412084809.8245-6-hch@lst.de>
 In-Reply-To: <20170412084809.8245-1-hch@lst.de>
 References: <20170412084809.8245-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 4/8] md: drop WRITE_SAME support
+Subject: [Drbd-dev] [PATCH 5/8] dm: remove write same support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,117 +26,268 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/linear.c    | 1 -
- drivers/md/md.h        | 7 -------
- drivers/md/multipath.c | 1 -
- drivers/md/raid0.c     | 2 --
- drivers/md/raid1.c     | 4 +---
- drivers/md/raid10.c    | 1 -
- drivers/md/raid5.c     | 1 -
- 7 files changed, 1 insertion(+), 16 deletions(-)
+ drivers/md/dm-core.h          |  1 -
+ drivers/md/dm-io.c            | 21 +--------------------
+ drivers/md/dm-linear.c        |  1 -
+ drivers/md/dm-mpath.c         |  1 -
+ drivers/md/dm-rq.c            |  3 ---
+ drivers/md/dm-stripe.c        |  4 +---
+ drivers/md/dm-table.c         | 29 -----------------------------
+ drivers/md/dm.c               | 23 -----------------------
+ include/linux/device-mapper.h |  6 ------
+ 9 files changed, 2 insertions(+), 87 deletions(-)
 
-diff --git a/drivers/md/linear.c b/drivers/md/linear.c
-index 377a8a3672e3..da363f5d54b0 100644
---- a/drivers/md/linear.c
-+++ b/drivers/md/linear.c
-@@ -292,7 +292,6 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
- 				trace_block_bio_remap(bdev_get_queue(split->bi_bdev),
- 						      split, disk_devt(mddev->gendisk),
- 						      bio_sector);
--			mddev_check_writesame(mddev, split);
- 			mddev_check_write_zeroes(mddev, split);
- 			generic_make_request(split);
- 		}
-diff --git a/drivers/md/md.h b/drivers/md/md.h
-index 1e76d64ce180..d82b11b5ae5a 100644
---- a/drivers/md/md.h
-+++ b/drivers/md/md.h
-@@ -703,13 +703,6 @@ static inline void mddev_clear_unsupported_flags(struct mddev *mddev,
- 	mddev->flags &= ~unsupported_flags;
+diff --git a/drivers/md/dm-core.h b/drivers/md/dm-core.h
+index fea5bd52ada8..d661801d72e7 100644
+--- a/drivers/md/dm-core.h
++++ b/drivers/md/dm-core.h
+@@ -131,7 +131,6 @@ struct mapped_device {
+ void dm_init_md_queue(struct mapped_device *md);
+ void dm_init_normal_md_queue(struct mapped_device *md);
+ int md_in_flight(struct mapped_device *md);
+-void disable_write_same(struct mapped_device *md);
+ void disable_write_zeroes(struct mapped_device *md);
+ 
+ static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
+diff --git a/drivers/md/dm-io.c b/drivers/md/dm-io.c
+index 3702e502466d..105e68dabd3e 100644
+--- a/drivers/md/dm-io.c
++++ b/drivers/md/dm-io.c
+@@ -303,7 +303,6 @@ static void do_region(int op, int op_flags, unsigned region,
+ 	unsigned num_bvecs;
+ 	sector_t remaining = where->count;
+ 	struct request_queue *q = bdev_get_queue(where->bdev);
+-	unsigned short logical_block_size = queue_logical_block_size(q);
+ 	sector_t num_sectors;
+ 	unsigned int uninitialized_var(special_cmd_max_sectors);
+ 
+@@ -314,10 +313,7 @@ static void do_region(int op, int op_flags, unsigned region,
+ 		special_cmd_max_sectors = q->limits.max_discard_sectors;
+ 	else if (op == REQ_OP_WRITE_ZEROES)
+ 		special_cmd_max_sectors = q->limits.max_write_zeroes_sectors;
+-	else if (op == REQ_OP_WRITE_SAME)
+-		special_cmd_max_sectors = q->limits.max_write_same_sectors;
+-	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES ||
+-	     op == REQ_OP_WRITE_SAME)  &&
++	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES) &&
+ 	    special_cmd_max_sectors == 0) {
+ 		dec_count(io, region, -EOPNOTSUPP);
+ 		return;
+@@ -336,9 +332,6 @@ static void do_region(int op, int op_flags, unsigned region,
+ 		case REQ_OP_WRITE_ZEROES:
+ 			num_bvecs = 0;
+ 			break;
+-		case REQ_OP_WRITE_SAME:
+-			num_bvecs = 1;
+-			break;
+ 		default:
+ 			num_bvecs = min_t(int, BIO_MAX_PAGES,
+ 					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
+@@ -355,18 +348,6 @@ static void do_region(int op, int op_flags, unsigned region,
+ 			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
+ 			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
+ 			remaining -= num_sectors;
+-		} else if (op == REQ_OP_WRITE_SAME) {
+-			/*
+-			 * WRITE SAME only uses a single page.
+-			 */
+-			dp->get_page(dp, &page, &len, &offset);
+-			bio_add_page(bio, page, logical_block_size, offset);
+-			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
+-			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
+-
+-			offset = 0;
+-			remaining -= num_sectors;
+-			dp->next_page(dp);
+ 		} else while (remaining) {
+ 			/*
+ 			 * Try and add as many pages as possible.
+diff --git a/drivers/md/dm-linear.c b/drivers/md/dm-linear.c
+index e17fd44ceef5..f928f7e9ee4a 100644
+--- a/drivers/md/dm-linear.c
++++ b/drivers/md/dm-linear.c
+@@ -58,7 +58,6 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 
+ 	ti->num_flush_bios = 1;
+ 	ti->num_discard_bios = 1;
+-	ti->num_write_same_bios = 1;
+ 	ti->num_write_zeroes_bios = 1;
+ 	ti->private = lc;
+ 	return 0;
+diff --git a/drivers/md/dm-mpath.c b/drivers/md/dm-mpath.c
+index ab55955ed704..ece53947b99d 100644
+--- a/drivers/md/dm-mpath.c
++++ b/drivers/md/dm-mpath.c
+@@ -1102,7 +1102,6 @@ static int multipath_ctr(struct dm_target *ti, unsigned argc, char **argv)
+ 
+ 	ti->num_flush_bios = 1;
+ 	ti->num_discard_bios = 1;
+-	ti->num_write_same_bios = 1;
+ 	ti->num_write_zeroes_bios = 1;
+ 	if (m->queue_mode == DM_TYPE_BIO_BASED)
+ 		ti->per_io_data_size = multipath_per_bio_data_size();
+diff --git a/drivers/md/dm-rq.c b/drivers/md/dm-rq.c
+index e60f1b6845be..6f8dc99685f2 100644
+--- a/drivers/md/dm-rq.c
++++ b/drivers/md/dm-rq.c
+@@ -299,9 +299,6 @@ static void dm_done(struct request *clone, int error, bool mapped)
+ 	}
+ 
+ 	if (unlikely(r == -EREMOTEIO)) {
+-		if (req_op(clone) == REQ_OP_WRITE_SAME &&
+-		    !clone->q->limits.max_write_same_sectors)
+-			disable_write_same(tio->md);
+ 		if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
+ 		    !clone->q->limits.max_write_zeroes_sectors)
+ 			disable_write_zeroes(tio->md);
+diff --git a/drivers/md/dm-stripe.c b/drivers/md/dm-stripe.c
+index 5ef49c121d99..cc5a00f2e2de 100644
+--- a/drivers/md/dm-stripe.c
++++ b/drivers/md/dm-stripe.c
+@@ -168,7 +168,6 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 
+ 	ti->num_flush_bios = stripes;
+ 	ti->num_discard_bios = stripes;
+-	ti->num_write_same_bios = stripes;
+ 	ti->num_write_zeroes_bios = stripes;
+ 
+ 	sc->chunk_size = chunk_size;
+@@ -294,8 +293,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio)
+ 		return DM_MAPIO_REMAPPED;
+ 	}
+ 	if (unlikely(bio_op(bio) == REQ_OP_DISCARD) ||
+-	    unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES) ||
+-	    unlikely(bio_op(bio) == REQ_OP_WRITE_SAME)) {
++	    unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES)) {
+ 		target_bio_nr = dm_bio_get_target_bio_nr(bio);
+ 		BUG_ON(target_bio_nr >= sc->stripes);
+ 		return stripe_map_range(sc, bio, target_bio_nr);
+diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
+index 958275aca008..8bbc3d57fcc7 100644
+--- a/drivers/md/dm-table.c
++++ b/drivers/md/dm-table.c
+@@ -1490,33 +1490,6 @@ static bool dm_table_all_devices_attribute(struct dm_table *t,
+ 	return true;
  }
  
--static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
+-static int device_not_write_same_capable(struct dm_target *ti, struct dm_dev *dev,
+-					 sector_t start, sector_t len, void *data)
 -{
--	if (bio_op(bio) == REQ_OP_WRITE_SAME &&
--	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
--		mddev->queue->limits.max_write_same_sectors = 0;
+-	struct request_queue *q = bdev_get_queue(dev->bdev);
+-
+-	return q && !q->limits.max_write_same_sectors;
 -}
 -
- static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio)
- {
- 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-diff --git a/drivers/md/multipath.c b/drivers/md/multipath.c
-index e95d521d93e9..68d67a404aab 100644
---- a/drivers/md/multipath.c
-+++ b/drivers/md/multipath.c
-@@ -138,7 +138,6 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
- 	mp_bh->bio.bi_opf |= REQ_FAILFAST_TRANSPORT;
- 	mp_bh->bio.bi_end_io = multipath_end_request;
- 	mp_bh->bio.bi_private = mp_bh;
--	mddev_check_writesame(mddev, &mp_bh->bio);
- 	mddev_check_write_zeroes(mddev, &mp_bh->bio);
- 	generic_make_request(&mp_bh->bio);
- 	return;
-diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
-index ce7a6a56cf73..c094749c11e5 100644
---- a/drivers/md/raid0.c
-+++ b/drivers/md/raid0.c
-@@ -382,7 +382,6 @@ static int raid0_run(struct mddev *mddev)
- 		bool discard_supported = false;
- 
- 		blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
--		blk_queue_max_write_same_sectors(mddev->queue, mddev->chunk_sectors);
- 		blk_queue_max_write_zeroes_sectors(mddev->queue, mddev->chunk_sectors);
- 		blk_queue_max_discard_sectors(mddev->queue, mddev->chunk_sectors);
- 
-@@ -504,7 +503,6 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
- 				trace_block_bio_remap(bdev_get_queue(split->bi_bdev),
- 						      split, disk_devt(mddev->gendisk),
- 						      bio_sector);
--			mddev_check_writesame(mddev, split);
- 			mddev_check_write_zeroes(mddev, split);
- 			generic_make_request(split);
- 		}
-diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-index b59cc100320a..ac9ef686e625 100644
---- a/drivers/md/raid1.c
-+++ b/drivers/md/raid1.c
-@@ -3177,10 +3177,8 @@ static int raid1_run(struct mddev *mddev)
- 	if (IS_ERR(conf))
- 		return PTR_ERR(conf);
- 
--	if (mddev->queue) {
--		blk_queue_max_write_same_sectors(mddev->queue, 0);
-+	if (mddev->queue)
- 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
+-static bool dm_table_supports_write_same(struct dm_table *t)
+-{
+-	struct dm_target *ti;
+-	unsigned i = 0;
+-
+-	while (i < dm_table_get_num_targets(t)) {
+-		ti = dm_table_get_target(t, i++);
+-
+-		if (!ti->num_write_same_bios)
+-			return false;
+-
+-		if (!ti->type->iterate_devices ||
+-		    ti->type->iterate_devices(ti, device_not_write_same_capable, NULL))
+-			return false;
 -	}
+-
+-	return true;
+-}
+-
+ static int device_not_write_zeroes_capable(struct dm_target *ti, struct dm_dev *dev,
+ 					   sector_t start, sector_t len, void *data)
+ {
+@@ -1610,8 +1583,6 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+ 	else
+ 		queue_flag_clear_unlocked(QUEUE_FLAG_NONROT, q);
  
- 	rdev_for_each(rdev, mddev) {
- 		if (!mddev->gendisk)
-diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-index 28ec3a93acee..79988908f862 100644
---- a/drivers/md/raid10.c
-+++ b/drivers/md/raid10.c
-@@ -3748,7 +3748,6 @@ static int raid10_run(struct mddev *mddev)
- 	if (mddev->queue) {
- 		blk_queue_max_discard_sectors(mddev->queue,
- 					      mddev->chunk_sectors);
--		blk_queue_max_write_same_sectors(mddev->queue, 0);
- 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
- 		blk_queue_io_min(mddev->queue, chunk_size);
- 		if (conf->geo.raid_disks % conf->geo.near_copies)
-diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-index 2efdb0d67460..04fd6a946825 100644
---- a/drivers/md/raid5.c
-+++ b/drivers/md/raid5.c
-@@ -7262,7 +7262,6 @@ static int raid5_run(struct mddev *mddev)
- 		blk_queue_max_discard_sectors(mddev->queue,
- 					      0xfffe * STRIPE_SECTORS);
+-	if (!dm_table_supports_write_same(t))
+-		q->limits.max_write_same_sectors = 0;
+ 	if (!dm_table_supports_write_zeroes(t))
+ 		q->limits.max_write_zeroes_sectors = 0;
  
--		blk_queue_max_write_same_sectors(mddev->queue, 0);
- 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index 8bf397729bbd..8259aa76839e 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -816,14 +816,6 @@ static void dec_pending(struct dm_io *io, int error)
+ 	}
+ }
  
- 		rdev_for_each(rdev, mddev) {
+-void disable_write_same(struct mapped_device *md)
+-{
+-	struct queue_limits *limits = dm_get_queue_limits(md);
+-
+-	/* device doesn't really support WRITE SAME, disable it */
+-	limits->max_write_same_sectors = 0;
+-}
+-
+ void disable_write_zeroes(struct mapped_device *md)
+ {
+ 	struct queue_limits *limits = dm_get_queue_limits(md);
+@@ -859,9 +851,6 @@ static void clone_endio(struct bio *bio)
+ 	}
+ 
+ 	if (unlikely(r == -EREMOTEIO)) {
+-		if (bio_op(bio) == REQ_OP_WRITE_SAME &&
+-		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
+-			disable_write_same(md);
+ 		if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
+ 		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
+ 			disable_write_zeroes(md);
+@@ -1209,11 +1198,6 @@ static unsigned get_num_discard_bios(struct dm_target *ti)
+ 	return ti->num_discard_bios;
+ }
+ 
+-static unsigned get_num_write_same_bios(struct dm_target *ti)
+-{
+-	return ti->num_write_same_bios;
+-}
+-
+ static unsigned get_num_write_zeroes_bios(struct dm_target *ti)
+ {
+ 	return ti->num_write_zeroes_bios;
+@@ -1268,11 +1252,6 @@ static int __send_discard(struct clone_info *ci)
+ 					   is_split_required_for_discard);
+ }
+ 
+-static int __send_write_same(struct clone_info *ci)
+-{
+-	return __send_changing_extent_only(ci, get_num_write_same_bios, NULL);
+-}
+-
+ static int __send_write_zeroes(struct clone_info *ci)
+ {
+ 	return __send_changing_extent_only(ci, get_num_write_zeroes_bios, NULL);
+@@ -1290,8 +1269,6 @@ static int __split_and_process_non_flush(struct clone_info *ci)
+ 
+ 	if (unlikely(bio_op(bio) == REQ_OP_DISCARD))
+ 		return __send_discard(ci);
+-	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
+-		return __send_write_same(ci);
+ 	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES))
+ 		return __send_write_zeroes(ci);
+ 
+diff --git a/include/linux/device-mapper.h b/include/linux/device-mapper.h
+index c7ea33e38fb9..58f451ba9b75 100644
+--- a/include/linux/device-mapper.h
++++ b/include/linux/device-mapper.h
+@@ -249,12 +249,6 @@ struct dm_target {
+ 	unsigned num_discard_bios;
+ 
+ 	/*
+-	 * The number of WRITE SAME bios that will be submitted to the target.
+-	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
+-	 */
+-	unsigned num_write_same_bios;
+-
+-	/*
+ 	 * The number of WRITE ZEROES bios that will be submitted to the target.
+ 	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
+ 	 */
 -- 
 2.11.0
 
