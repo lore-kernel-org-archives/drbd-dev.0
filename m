@@ -1,18 +1,18 @@
 Return-Path: <BATV+4e9b246676c62bade7ff+4980+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 920151057FD4
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F21CC1057FD5
 	for <drbd-dev@lists.linbit.com>;
-	Wed, 12 Apr 2017 10:48:29 +0200 (CEST)
+	Wed, 12 Apr 2017 10:48:31 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com, target-devel@vger.kernel.org
-Date: Wed, 12 Apr 2017 10:48:06 +0200
-Message-Id: <20170412084809.8245-6-hch@lst.de>
+Date: Wed, 12 Apr 2017 10:48:07 +0200
+Message-Id: <20170412084809.8245-7-hch@lst.de>
 In-Reply-To: <20170412084809.8245-1-hch@lst.de>
 References: <20170412084809.8245-1-hch@lst.de>
 Cc: linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 5/8] dm: remove write same support
+Subject: [Drbd-dev] [PATCH 6/8] block: remove REQ_OP_WRITE_SAME support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,268 +26,459 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/dm-core.h          |  1 -
- drivers/md/dm-io.c            | 21 +--------------------
- drivers/md/dm-linear.c        |  1 -
- drivers/md/dm-mpath.c         |  1 -
- drivers/md/dm-rq.c            |  3 ---
- drivers/md/dm-stripe.c        |  4 +---
- drivers/md/dm-table.c         | 29 -----------------------------
- drivers/md/dm.c               | 23 -----------------------
- include/linux/device-mapper.h |  6 ------
- 9 files changed, 2 insertions(+), 87 deletions(-)
+ block/bio.c                 |  3 --
+ block/blk-core.c            | 11 +-----
+ block/blk-lib.c             | 90 ---------------------------------------------
+ block/blk-merge.c           | 32 ----------------
+ block/blk-settings.c        | 16 --------
+ block/blk-sysfs.c           | 12 ------
+ include/linux/bio.h         |  3 --
+ include/linux/blk_types.h   |  4 +-
+ include/linux/blkdev.h      | 26 -------------
+ include/trace/events/f2fs.h |  1 -
+ kernel/trace/blktrace.c     |  1 -
+ 11 files changed, 2 insertions(+), 197 deletions(-)
 
-diff --git a/drivers/md/dm-core.h b/drivers/md/dm-core.h
-index fea5bd52ada8..d661801d72e7 100644
---- a/drivers/md/dm-core.h
-+++ b/drivers/md/dm-core.h
-@@ -131,7 +131,6 @@ struct mapped_device {
- void dm_init_md_queue(struct mapped_device *md);
- void dm_init_normal_md_queue(struct mapped_device *md);
- int md_in_flight(struct mapped_device *md);
--void disable_write_same(struct mapped_device *md);
- void disable_write_zeroes(struct mapped_device *md);
- 
- static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
-diff --git a/drivers/md/dm-io.c b/drivers/md/dm-io.c
-index 3702e502466d..105e68dabd3e 100644
---- a/drivers/md/dm-io.c
-+++ b/drivers/md/dm-io.c
-@@ -303,7 +303,6 @@ static void do_region(int op, int op_flags, unsigned region,
- 	unsigned num_bvecs;
- 	sector_t remaining = where->count;
- 	struct request_queue *q = bdev_get_queue(where->bdev);
--	unsigned short logical_block_size = queue_logical_block_size(q);
- 	sector_t num_sectors;
- 	unsigned int uninitialized_var(special_cmd_max_sectors);
- 
-@@ -314,10 +313,7 @@ static void do_region(int op, int op_flags, unsigned region,
- 		special_cmd_max_sectors = q->limits.max_discard_sectors;
- 	else if (op == REQ_OP_WRITE_ZEROES)
- 		special_cmd_max_sectors = q->limits.max_write_zeroes_sectors;
--	else if (op == REQ_OP_WRITE_SAME)
--		special_cmd_max_sectors = q->limits.max_write_same_sectors;
--	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES ||
--	     op == REQ_OP_WRITE_SAME)  &&
-+	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES) &&
- 	    special_cmd_max_sectors == 0) {
- 		dec_count(io, region, -EOPNOTSUPP);
- 		return;
-@@ -336,9 +332,6 @@ static void do_region(int op, int op_flags, unsigned region,
- 		case REQ_OP_WRITE_ZEROES:
- 			num_bvecs = 0;
- 			break;
--		case REQ_OP_WRITE_SAME:
--			num_bvecs = 1;
--			break;
- 		default:
- 			num_bvecs = min_t(int, BIO_MAX_PAGES,
- 					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
-@@ -355,18 +348,6 @@ static void do_region(int op, int op_flags, unsigned region,
- 			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
- 			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
- 			remaining -= num_sectors;
--		} else if (op == REQ_OP_WRITE_SAME) {
--			/*
--			 * WRITE SAME only uses a single page.
--			 */
--			dp->get_page(dp, &page, &len, &offset);
--			bio_add_page(bio, page, logical_block_size, offset);
--			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
--			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
+diff --git a/block/bio.c b/block/bio.c
+index f4d207180266..b310e7ef3fbf 100644
+--- a/block/bio.c
++++ b/block/bio.c
+@@ -684,9 +684,6 @@ static struct bio *__bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
+ 	case REQ_OP_SECURE_ERASE:
+ 	case REQ_OP_WRITE_ZEROES:
+ 		break;
+-	case REQ_OP_WRITE_SAME:
+-		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
+-		break;
+ 	default:
+ 		__bio_for_each_segment(bv, bio_src, iter, iter_src)
+ 			bio->bi_io_vec[bio->bi_vcnt++] = bv;
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 8654aa0cef6d..92336bc8495c 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -1929,10 +1929,6 @@ generic_make_request_checks(struct bio *bio)
+ 		if (!blk_queue_secure_erase(q))
+ 			goto not_supported;
+ 		break;
+-	case REQ_OP_WRITE_SAME:
+-		if (!bdev_write_same(bio->bi_bdev))
+-			goto not_supported;
+-		break;
+ 	case REQ_OP_ZONE_REPORT:
+ 	case REQ_OP_ZONE_RESET:
+ 		if (!bdev_is_zoned(bio->bi_bdev))
+@@ -2100,12 +2096,7 @@ blk_qc_t submit_bio(struct bio *bio)
+ 	 * go through the normal accounting stuff before submission.
+ 	 */
+ 	if (bio_has_data(bio)) {
+-		unsigned int count;
 -
--			offset = 0;
--			remaining -= num_sectors;
--			dp->next_page(dp);
- 		} else while (remaining) {
- 			/*
- 			 * Try and add as many pages as possible.
-diff --git a/drivers/md/dm-linear.c b/drivers/md/dm-linear.c
-index e17fd44ceef5..f928f7e9ee4a 100644
---- a/drivers/md/dm-linear.c
-+++ b/drivers/md/dm-linear.c
-@@ -58,7 +58,6 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+-		if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
+-			count = bdev_logical_block_size(bio->bi_bdev) >> 9;
+-		else
+-			count = bio_sectors(bio);
++		unsigned int count = bio_sectors(bio);
  
- 	ti->num_flush_bios = 1;
- 	ti->num_discard_bios = 1;
--	ti->num_write_same_bios = 1;
- 	ti->num_write_zeroes_bios = 1;
- 	ti->private = lc;
- 	return 0;
-diff --git a/drivers/md/dm-mpath.c b/drivers/md/dm-mpath.c
-index ab55955ed704..ece53947b99d 100644
---- a/drivers/md/dm-mpath.c
-+++ b/drivers/md/dm-mpath.c
-@@ -1102,7 +1102,6 @@ static int multipath_ctr(struct dm_target *ti, unsigned argc, char **argv)
+ 		if (op_is_write(bio_op(bio))) {
+ 			count_vm_events(PGPGOUT, count);
+diff --git a/block/blk-lib.c b/block/blk-lib.c
+index e8caecd71688..57c99b9b3b78 100644
+--- a/block/blk-lib.c
++++ b/block/blk-lib.c
+@@ -131,96 +131,6 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+ }
+ EXPORT_SYMBOL(blkdev_issue_discard);
  
- 	ti->num_flush_bios = 1;
- 	ti->num_discard_bios = 1;
--	ti->num_write_same_bios = 1;
- 	ti->num_write_zeroes_bios = 1;
- 	if (m->queue_mode == DM_TYPE_BIO_BASED)
- 		ti->per_io_data_size = multipath_per_bio_data_size();
-diff --git a/drivers/md/dm-rq.c b/drivers/md/dm-rq.c
-index e60f1b6845be..6f8dc99685f2 100644
---- a/drivers/md/dm-rq.c
-+++ b/drivers/md/dm-rq.c
-@@ -299,9 +299,6 @@ static void dm_done(struct request *clone, int error, bool mapped)
+-/**
+- * __blkdev_issue_write_same - generate number of bios with same page
+- * @bdev:	target blockdev
+- * @sector:	start sector
+- * @nr_sects:	number of sectors to write
+- * @gfp_mask:	memory allocation flags (for bio_alloc)
+- * @page:	page containing data to write
+- * @biop:	pointer to anchor bio
+- *
+- * Description:
+- *  Generate and issue number of bios(REQ_OP_WRITE_SAME) with same page.
+- */
+-static int __blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
+-		sector_t nr_sects, gfp_t gfp_mask, struct page *page,
+-		struct bio **biop)
+-{
+-	struct request_queue *q = bdev_get_queue(bdev);
+-	unsigned int max_write_same_sectors;
+-	struct bio *bio = *biop;
+-	sector_t bs_mask;
+-
+-	if (!q)
+-		return -ENXIO;
+-
+-	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
+-	if ((sector | nr_sects) & bs_mask)
+-		return -EINVAL;
+-
+-	if (!bdev_write_same(bdev))
+-		return -EOPNOTSUPP;
+-
+-	/* Ensure that max_write_same_sectors doesn't overflow bi_size */
+-	max_write_same_sectors = UINT_MAX >> 9;
+-
+-	while (nr_sects) {
+-		bio = next_bio(bio, 1, gfp_mask);
+-		bio->bi_iter.bi_sector = sector;
+-		bio->bi_bdev = bdev;
+-		bio->bi_vcnt = 1;
+-		bio->bi_io_vec->bv_page = page;
+-		bio->bi_io_vec->bv_offset = 0;
+-		bio->bi_io_vec->bv_len = bdev_logical_block_size(bdev);
+-		bio_set_op_attrs(bio, REQ_OP_WRITE_SAME, 0);
+-
+-		if (nr_sects > max_write_same_sectors) {
+-			bio->bi_iter.bi_size = max_write_same_sectors << 9;
+-			nr_sects -= max_write_same_sectors;
+-			sector += max_write_same_sectors;
+-		} else {
+-			bio->bi_iter.bi_size = nr_sects << 9;
+-			nr_sects = 0;
+-		}
+-		cond_resched();
+-	}
+-
+-	*biop = bio;
+-	return 0;
+-}
+-
+-/**
+- * blkdev_issue_write_same - queue a write same operation
+- * @bdev:	target blockdev
+- * @sector:	start sector
+- * @nr_sects:	number of sectors to write
+- * @gfp_mask:	memory allocation flags (for bio_alloc)
+- * @page:	page containing data
+- *
+- * Description:
+- *    Issue a write same request for the sectors in question.
+- */
+-int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
+-				sector_t nr_sects, gfp_t gfp_mask,
+-				struct page *page)
+-{
+-	struct bio *bio = NULL;
+-	struct blk_plug plug;
+-	int ret;
+-
+-	blk_start_plug(&plug);
+-	ret = __blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask, page,
+-			&bio);
+-	if (ret == 0 && bio) {
+-		ret = submit_bio_wait(bio);
+-		bio_put(bio);
+-	}
+-	blk_finish_plug(&plug);
+-	return ret;
+-}
+-EXPORT_SYMBOL(blkdev_issue_write_same);
+-
+ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
+ 		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
+ 		struct bio **biop, unsigned flags)
+diff --git a/block/blk-merge.c b/block/blk-merge.c
+index 3990ae406341..d6c86bfc5722 100644
+--- a/block/blk-merge.c
++++ b/block/blk-merge.c
+@@ -68,22 +68,6 @@ static struct bio *blk_bio_write_zeroes_split(struct request_queue *q,
+ 	return bio_split(bio, q->limits.max_write_zeroes_sectors, GFP_NOIO, bs);
+ }
+ 
+-static struct bio *blk_bio_write_same_split(struct request_queue *q,
+-					    struct bio *bio,
+-					    struct bio_set *bs,
+-					    unsigned *nsegs)
+-{
+-	*nsegs = 1;
+-
+-	if (!q->limits.max_write_same_sectors)
+-		return NULL;
+-
+-	if (bio_sectors(bio) <= q->limits.max_write_same_sectors)
+-		return NULL;
+-
+-	return bio_split(bio, q->limits.max_write_same_sectors, GFP_NOIO, bs);
+-}
+-
+ static inline unsigned get_max_io_size(struct request_queue *q,
+ 				       struct bio *bio)
+ {
+@@ -216,9 +200,6 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
+ 	case REQ_OP_WRITE_ZEROES:
+ 		split = blk_bio_write_zeroes_split(q, *bio, bs, &nsegs);
+ 		break;
+-	case REQ_OP_WRITE_SAME:
+-		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
+-		break;
+ 	default:
+ 		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
+ 		break;
+@@ -259,8 +240,6 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+ 	case REQ_OP_SECURE_ERASE:
+ 	case REQ_OP_WRITE_ZEROES:
+ 		return 0;
+-	case REQ_OP_WRITE_SAME:
+-		return 1;
  	}
  
- 	if (unlikely(r == -EREMOTEIO)) {
--		if (req_op(clone) == REQ_OP_WRITE_SAME &&
--		    !clone->q->limits.max_write_same_sectors)
--			disable_write_same(tio->md);
- 		if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
- 		    !clone->q->limits.max_write_zeroes_sectors)
- 			disable_write_zeroes(tio->md);
-diff --git a/drivers/md/dm-stripe.c b/drivers/md/dm-stripe.c
-index 5ef49c121d99..cc5a00f2e2de 100644
---- a/drivers/md/dm-stripe.c
-+++ b/drivers/md/dm-stripe.c
-@@ -168,7 +168,6 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 	fbio = bio;
+@@ -454,8 +433,6 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
  
- 	ti->num_flush_bios = stripes;
- 	ti->num_discard_bios = stripes;
--	ti->num_write_same_bios = stripes;
- 	ti->num_write_zeroes_bios = stripes;
+ 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
+ 		nsegs = __blk_bvec_map_sg(q, rq->special_vec, sglist, &sg);
+-	else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME)
+-		nsegs = __blk_bvec_map_sg(q, bio_iovec(rq->bio), sglist, &sg);
+ 	else if (rq->bio)
+ 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, &sg);
  
- 	sc->chunk_size = chunk_size;
-@@ -294,8 +293,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio)
- 		return DM_MAPIO_REMAPPED;
- 	}
- 	if (unlikely(bio_op(bio) == REQ_OP_DISCARD) ||
--	    unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES) ||
--	    unlikely(bio_op(bio) == REQ_OP_WRITE_SAME)) {
-+	    unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES)) {
- 		target_bio_nr = dm_bio_get_target_bio_nr(bio);
- 		BUG_ON(target_bio_nr >= sc->stripes);
- 		return stripe_map_range(sc, bio, target_bio_nr);
-diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
-index 958275aca008..8bbc3d57fcc7 100644
---- a/drivers/md/dm-table.c
-+++ b/drivers/md/dm-table.c
-@@ -1490,33 +1490,6 @@ static bool dm_table_all_devices_attribute(struct dm_table *t,
+@@ -688,10 +665,6 @@ static struct request *attempt_merge(struct request_queue *q,
+ 	    || req_no_special_merge(next))
+ 		return NULL;
+ 
+-	if (req_op(req) == REQ_OP_WRITE_SAME &&
+-	    !blk_write_same_mergeable(req->bio, next->bio))
+-		return NULL;
+-
+ 	/*
+ 	 * If we are allowed to merge, then append bio list
+ 	 * from next to rq and release next. merge_requests_fn
+@@ -806,11 +779,6 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
+ 	if (blk_integrity_merge_bio(rq->q, rq, bio) == false)
+ 		return false;
+ 
+-	/* must be using the same buffer */
+-	if (req_op(rq) == REQ_OP_WRITE_SAME &&
+-	    !blk_write_same_mergeable(rq->bio, bio))
+-		return false;
+-
  	return true;
  }
  
--static int device_not_write_same_capable(struct dm_target *ti, struct dm_dev *dev,
--					 sector_t start, sector_t len, void *data)
+diff --git a/block/blk-settings.c b/block/blk-settings.c
+index 4fa81ed383ca..aea05adfd6b4 100644
+--- a/block/blk-settings.c
++++ b/block/blk-settings.c
+@@ -96,7 +96,6 @@ void blk_set_default_limits(struct queue_limits *lim)
+ 	lim->max_sectors = lim->max_hw_sectors = BLK_SAFE_MAX_SECTORS;
+ 	lim->max_dev_sectors = 0;
+ 	lim->chunk_sectors = 0;
+-	lim->max_write_same_sectors = 0;
+ 	lim->max_write_zeroes_sectors = 0;
+ 	lim->max_discard_sectors = 0;
+ 	lim->max_hw_discard_sectors = 0;
+@@ -132,7 +131,6 @@ void blk_set_stacking_limits(struct queue_limits *lim)
+ 	lim->max_segment_size = UINT_MAX;
+ 	lim->max_sectors = UINT_MAX;
+ 	lim->max_dev_sectors = UINT_MAX;
+-	lim->max_write_same_sectors = UINT_MAX;
+ 	lim->max_write_zeroes_sectors = UINT_MAX;
+ }
+ EXPORT_SYMBOL(blk_set_stacking_limits);
+@@ -291,18 +289,6 @@ void blk_queue_max_discard_sectors(struct request_queue *q,
+ EXPORT_SYMBOL(blk_queue_max_discard_sectors);
+ 
+ /**
+- * blk_queue_max_write_same_sectors - set max sectors for a single write same
+- * @q:  the request queue for the device
+- * @max_write_same_sectors: maximum number of sectors to write per command
+- **/
+-void blk_queue_max_write_same_sectors(struct request_queue *q,
+-				      unsigned int max_write_same_sectors)
 -{
--	struct request_queue *q = bdev_get_queue(dev->bdev);
+-	q->limits.max_write_same_sectors = max_write_same_sectors;
+-}
+-EXPORT_SYMBOL(blk_queue_max_write_same_sectors);
 -
--	return q && !q->limits.max_write_same_sectors;
+-/**
+  * blk_queue_max_write_zeroes_sectors - set max sectors for a single
+  *                                      write zeroes
+  * @q:  the request queue for the device
+@@ -557,8 +543,6 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
+ 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
+ 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
+ 	t->max_dev_sectors = min_not_zero(t->max_dev_sectors, b->max_dev_sectors);
+-	t->max_write_same_sectors = min(t->max_write_same_sectors,
+-					b->max_write_same_sectors);
+ 	t->max_write_zeroes_sectors = min(t->max_write_zeroes_sectors,
+ 					b->max_write_zeroes_sectors);
+ 	t->bounce_pfn = min_not_zero(t->bounce_pfn, b->bounce_pfn);
+diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
+index fc20489f0d2b..2ea4aca4ec1c 100644
+--- a/block/blk-sysfs.c
++++ b/block/blk-sysfs.c
+@@ -211,12 +211,6 @@ static ssize_t queue_discard_zeroes_data_show(struct request_queue *q, char *pag
+ 	return queue_var_show(0, page);
+ }
+ 
+-static ssize_t queue_write_same_max_show(struct request_queue *q, char *page)
+-{
+-	return sprintf(page, "%llu\n",
+-		(unsigned long long)q->limits.max_write_same_sectors << 9);
 -}
 -
--static bool dm_table_supports_write_same(struct dm_table *t)
--{
--	struct dm_target *ti;
--	unsigned i = 0;
--
--	while (i < dm_table_get_num_targets(t)) {
--		ti = dm_table_get_target(t, i++);
--
--		if (!ti->num_write_same_bios)
--			return false;
--
--		if (!ti->type->iterate_devices ||
--		    ti->type->iterate_devices(ti, device_not_write_same_capable, NULL))
--			return false;
--	}
--
--	return true;
--}
--
- static int device_not_write_zeroes_capable(struct dm_target *ti, struct dm_dev *dev,
- 					   sector_t start, sector_t len, void *data)
+ static ssize_t queue_write_zeroes_max_show(struct request_queue *q, char *page)
  {
-@@ -1610,8 +1583,6 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
- 	else
- 		queue_flag_clear_unlocked(QUEUE_FLAG_NONROT, q);
+ 	return sprintf(page, "%llu\n",
+@@ -603,11 +597,6 @@ static struct queue_sysfs_entry queue_discard_zeroes_data_entry = {
+ 	.show = queue_discard_zeroes_data_show,
+ };
  
--	if (!dm_table_supports_write_same(t))
--		q->limits.max_write_same_sectors = 0;
- 	if (!dm_table_supports_write_zeroes(t))
- 		q->limits.max_write_zeroes_sectors = 0;
+-static struct queue_sysfs_entry queue_write_same_max_entry = {
+-	.attr = {.name = "write_same_max_bytes", .mode = S_IRUGO },
+-	.show = queue_write_same_max_show,
+-};
+-
+ static struct queue_sysfs_entry queue_write_zeroes_max_entry = {
+ 	.attr = {.name = "write_zeroes_max_bytes", .mode = S_IRUGO },
+ 	.show = queue_write_zeroes_max_show,
+@@ -705,7 +694,6 @@ static struct attribute *default_attrs[] = {
+ 	&queue_discard_max_entry.attr,
+ 	&queue_discard_max_hw_entry.attr,
+ 	&queue_discard_zeroes_data_entry.attr,
+-	&queue_write_same_max_entry.attr,
+ 	&queue_write_zeroes_max_entry.attr,
+ 	&queue_nonrot_entry.attr,
+ 	&queue_zoned_entry.attr,
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 4931756d86d9..96a20afb8575 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -87,7 +87,6 @@ static inline bool bio_no_advance_iter(struct bio *bio)
+ {
+ 	return bio_op(bio) == REQ_OP_DISCARD ||
+ 	       bio_op(bio) == REQ_OP_SECURE_ERASE ||
+-	       bio_op(bio) == REQ_OP_WRITE_SAME ||
+ 	       bio_op(bio) == REQ_OP_WRITE_ZEROES;
+ }
  
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index 8bf397729bbd..8259aa76839e 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -816,14 +816,6 @@ static void dec_pending(struct dm_io *io, int error)
+@@ -199,8 +198,6 @@ static inline unsigned __bio_segments(struct bio *bio, struct bvec_iter *bvec)
+ 	case REQ_OP_SECURE_ERASE:
+ 	case REQ_OP_WRITE_ZEROES:
+ 		return 0;
+-	case REQ_OP_WRITE_SAME:
+-		return 1;
+ 	default:
+ 		break;
  	}
+diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+index 61339bc44400..fc4fc927dcc4 100644
+--- a/include/linux/blk_types.h
++++ b/include/linux/blk_types.h
+@@ -171,10 +171,8 @@ enum req_opf {
+ 	REQ_OP_SECURE_ERASE	= 5,
+ 	/* seset a zone write pointer */
+ 	REQ_OP_ZONE_RESET	= 6,
+-	/* write the same sector many times */
+-	REQ_OP_WRITE_SAME	= 7,
+ 	/* write the zero filled sector many times */
+-	REQ_OP_WRITE_ZEROES	= 9,
++	REQ_OP_WRITE_ZEROES	= 7,
+ 
+ 	/* SCSI passthrough using struct scsi_request */
+ 	REQ_OP_SCSI_IN		= 32,
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index ec993573e0a8..1f066f246dd7 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -326,7 +326,6 @@ struct queue_limits {
+ 	unsigned int		io_opt;
+ 	unsigned int		max_discard_sectors;
+ 	unsigned int		max_hw_discard_sectors;
+-	unsigned int		max_write_same_sectors;
+ 	unsigned int		max_write_zeroes_sectors;
+ 	unsigned int		discard_granularity;
+ 	unsigned int		discard_alignment;
+@@ -806,14 +805,6 @@ static inline bool rq_mergeable(struct request *rq)
+ 	return true;
  }
  
--void disable_write_same(struct mapped_device *md)
+-static inline bool blk_write_same_mergeable(struct bio *a, struct bio *b)
 -{
--	struct queue_limits *limits = dm_get_queue_limits(md);
+-	if (bio_data(a) == bio_data(b))
+-		return true;
 -
--	/* device doesn't really support WRITE SAME, disable it */
--	limits->max_write_same_sectors = 0;
+-	return false;
 -}
 -
- void disable_write_zeroes(struct mapped_device *md)
+ static inline unsigned int blk_queue_depth(struct request_queue *q)
  {
- 	struct queue_limits *limits = dm_get_queue_limits(md);
-@@ -859,9 +851,6 @@ static void clone_endio(struct bio *bio)
- 	}
+ 	if (q->queue_depth)
+@@ -1035,9 +1026,6 @@ static inline unsigned int blk_queue_get_max_sectors(struct request_queue *q,
+ 	if (unlikely(op == REQ_OP_DISCARD || op == REQ_OP_SECURE_ERASE))
+ 		return min(q->limits.max_discard_sectors, UINT_MAX >> 9);
  
- 	if (unlikely(r == -EREMOTEIO)) {
--		if (bio_op(bio) == REQ_OP_WRITE_SAME &&
--		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
--			disable_write_same(md);
- 		if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
- 		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
- 			disable_write_zeroes(md);
-@@ -1209,11 +1198,6 @@ static unsigned get_num_discard_bios(struct dm_target *ti)
- 	return ti->num_discard_bios;
+-	if (unlikely(op == REQ_OP_WRITE_SAME))
+-		return q->limits.max_write_same_sectors;
+-
+ 	if (unlikely(op == REQ_OP_WRITE_ZEROES))
+ 		return q->limits.max_write_zeroes_sectors;
+ 
+@@ -1157,8 +1145,6 @@ extern void blk_queue_max_discard_segments(struct request_queue *,
+ extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
+ extern void blk_queue_max_discard_sectors(struct request_queue *q,
+ 		unsigned int max_discard_sectors);
+-extern void blk_queue_max_write_same_sectors(struct request_queue *q,
+-		unsigned int max_write_same_sectors);
+ extern void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
+ 		unsigned int max_write_same_sectors);
+ extern void blk_queue_logical_block_size(struct request_queue *, unsigned short);
+@@ -1336,8 +1322,6 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
  }
  
--static unsigned get_num_write_same_bios(struct dm_target *ti)
--{
--	return ti->num_write_same_bios;
--}
--
- static unsigned get_num_write_zeroes_bios(struct dm_target *ti)
- {
- 	return ti->num_write_zeroes_bios;
-@@ -1268,11 +1252,6 @@ static int __send_discard(struct clone_info *ci)
- 					   is_split_required_for_discard);
+ extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *);
+-extern int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
+-		sector_t nr_sects, gfp_t gfp_mask, struct page *page);
+ 
+ #define BLKDEV_DISCARD_SECURE	(1 << 0)	/* issue a secure erase */
+ 
+@@ -1539,16 +1523,6 @@ static inline int bdev_discard_alignment(struct block_device *bdev)
+ 	return q->limits.discard_alignment;
  }
  
--static int __send_write_same(struct clone_info *ci)
+-static inline unsigned int bdev_write_same(struct block_device *bdev)
 -{
--	return __send_changing_extent_only(ci, get_num_write_same_bios, NULL);
+-	struct request_queue *q = bdev_get_queue(bdev);
+-
+-	if (q)
+-		return q->limits.max_write_same_sectors;
+-
+-	return 0;
 -}
 -
- static int __send_write_zeroes(struct clone_info *ci)
+ static inline unsigned int bdev_write_zeroes_sectors(struct block_device *bdev)
  {
- 	return __send_changing_extent_only(ci, get_num_write_zeroes_bios, NULL);
-@@ -1290,8 +1269,6 @@ static int __split_and_process_non_flush(struct clone_info *ci)
+ 	struct request_queue *q = bdev_get_queue(bdev);
+diff --git a/include/trace/events/f2fs.h b/include/trace/events/f2fs.h
+index c80fcad0a6c9..da1b542ef8d6 100644
+--- a/include/trace/events/f2fs.h
++++ b/include/trace/events/f2fs.h
+@@ -71,7 +71,6 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
+ 		{ REQ_OP_ZONE_REPORT,		"ZONE_REPORT" },	\
+ 		{ REQ_OP_SECURE_ERASE,		"SECURE_ERASE" },	\
+ 		{ REQ_OP_ZONE_RESET,		"ZONE_RESET" },		\
+-		{ REQ_OP_WRITE_SAME,		"WRITE_SAME" },		\
+ 		{ REQ_OP_WRITE_ZEROES,		"WRITE_ZEROES" })
  
- 	if (unlikely(bio_op(bio) == REQ_OP_DISCARD))
- 		return __send_discard(ci);
--	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
--		return __send_write_same(ci);
- 	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES))
- 		return __send_write_zeroes(ci);
+ #define show_bio_op_flags(flags)					\
+diff --git a/kernel/trace/blktrace.c b/kernel/trace/blktrace.c
+index b2058a7f94bd..99060c96a4bd 100644
+--- a/kernel/trace/blktrace.c
++++ b/kernel/trace/blktrace.c
+@@ -1750,7 +1750,6 @@ void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes)
  
-diff --git a/include/linux/device-mapper.h b/include/linux/device-mapper.h
-index c7ea33e38fb9..58f451ba9b75 100644
---- a/include/linux/device-mapper.h
-+++ b/include/linux/device-mapper.h
-@@ -249,12 +249,6 @@ struct dm_target {
- 	unsigned num_discard_bios;
- 
- 	/*
--	 * The number of WRITE SAME bios that will be submitted to the target.
--	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
--	 */
--	unsigned num_write_same_bios;
--
--	/*
- 	 * The number of WRITE ZEROES bios that will be submitted to the target.
- 	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
- 	 */
+ 	switch (op & REQ_OP_MASK) {
+ 	case REQ_OP_WRITE:
+-	case REQ_OP_WRITE_SAME:
+ 		rwbs[i++] = 'W';
+ 		break;
+ 	case REQ_OP_DISCARD:
 -- 
 2.11.0
 
