@@ -1,28 +1,33 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 33FE51057FB2
-	for <drbd-dev@lists.linbit.com>; Thu, 20 Apr 2017 17:20:44 +0200 (CEST)
-Received: by mail-wm0-f46.google.com with SMTP id m123so40678045wma.0
-	for <drbd-dev@lists.linbit.com>; Thu, 20 Apr 2017 08:20:44 -0700 (PDT)
+Received: from mail-wr0-f181.google.com (mail-wr0-f181.google.com
+	[209.85.128.181])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EC0161057FB2
+	for <drbd-dev@lists.linbit.com>; Thu, 20 Apr 2017 17:20:51 +0200 (CEST)
+Received: by mail-wr0-f181.google.com with SMTP id w50so14633636wrc.0
+	for <drbd-dev@lists.linbit.com>; Thu, 20 Apr 2017 08:20:51 -0700 (PDT)
 Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	p60sm8000240wrc.66.2017.04.20.08.20.43
+	o77sm8014276wrc.38.2017.04.20.08.20.50
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Thu, 20 Apr 2017 08:20:43 -0700 (PDT)
-Resent-Message-ID: <20170420152038.GB10794@soda.linbit>
+	Thu, 20 Apr 2017 08:20:50 -0700 (PDT)
+Resent-Message-ID: <20170420152049.GC10794@soda.linbit>
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3162A1057FCC
-	for <drbd-dev@lists.linbit.com>; Thu, 20 Apr 2017 07:44:55 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 52BBA1057FCC
+	for <drbd-dev@lists.linbit.com>; Thu, 20 Apr 2017 07:45:35 +0200 (CEST)
 From: NeilBrown <neilb@suse.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu, 20 Apr 2017 15:38:48 +1000
-Message-ID: <149266645258.27388.14083229348123176454.stgit@noble>
+Date: Thu, 20 Apr 2017 15:38:49 +1000
+Message-ID: <149266672944.27388.18032655582081459017.stgit@noble>
+In-Reply-To: <149266645258.27388.14083229348123176454.stgit@noble>
+References: <149266645258.27388.14083229348123176454.stgit@noble>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Cc: Alex Elder <elder@kernel.org>, Sage Weil <sage@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org, linux-bcache@vger.kernel.org, Kent Overstreet <kent.overstreet@gmail.com>, Lars Ellenberg <lars.ellenberg@linbit.com>, xen-devel@lists.xenproject.org, Ilya Dryomov <idryomov@gmail.com>, Roger Pau Monné <roger.pau@citrix.com>, ceph-devel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 00/10] block: assorted cleanup for bio splitting
-	and cloning.
+Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com, linux-kernel@vger.kernel.org,
+	Philipp Reisner <philipp.reisner@linbit.com>
+Subject: [Drbd-dev] [PATCH 06/11] drbd: use bio_clone_fast() instead of
+	bio_clone()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,74 +39,98 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This series contains more work towards getting rid of the bioset work
-queues and generally improving the splitting and cloning of bios.
+drbd does not modify the bi_io_vec of the cloned bio,
+so there is no need to clone that part.  So bio_clone_fast()
+is the better choice.
+For bio_clone_fast() we need to specify a bio_set.
+We could use fs_bio_set, which bio_clone() uses, or
+drbd_md_io_bio_set, which drbd uses for metadata, but it is
+generally best to avoid sharing bio_sets unless you can
+be certain that there are no interdependencies.
 
-The first three patches are similar to ones that I sent previously.
-They have been rebased on the current block for-next tree and improved
-a little.  Specifically I no longer change all instances of
-bioset_create() to bioset_create_rescued().  Instead I only change
-those which cannot easily be shown to not need changing.
+So create a new bio_set, drbd_io_bio_set, and use bio_clone_fast().
 
-The next patch fixes some issues with bounce.c.  Most significantly it
-used to be called after blk_queue_split(), but now it is called
-before.  This means that it can no longer assume that the
-bio has been split if it contained more than BIO_MAX_PAGES.
-
-Most of the rest change a number of bio_clone() calls to
-bio_clone_fast() as that is often what is needed.  bio_clone() does
-not work with bios larger than BIO_MAX_PAGES, bio_clone_fast() does.
-
-Finally we remove bio_clone() (which is no longer used) and stop
-blk_bio_segment_split() from splitting after BIO_MAX_PAGES, as that
-is no longer necessary.
-
+Signed-off-by: NeilBrown <neilb@suse.com>
 ---
+ drivers/block/drbd/drbd_int.h  |    3 +++
+ drivers/block/drbd/drbd_main.c |    9 +++++++++
+ drivers/block/drbd/drbd_req.h  |    2 +-
+ 3 files changed, 13 insertions(+), 1 deletion(-)
 
-NeilBrown (11):
-      blk: remove bio_set arg from blk_queue_split()
-      blk: make the bioset rescue_workqueue optional.
-      blk: use non-rescuing bioset for q->bio_split.
-      block: Improvements to bounce-buffer handling
-      rbd: use bio_clone_fast() instead of bio_clone()
-      drbd: use bio_clone_fast() instead of bio_clone()
-      pktcdvd: use bio_clone_fast() instead of bio_clone()
-      xen-blkfront: remove bio splitting.
-      bcache: use kmalloc to allocate bio in bch_data_verify()
-      block: remove bio_clone() and all references.
-      block: don't check for BIO_MAX_PAGES in blk_bio_segment_split()
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index d5da45bb03a6..f91982515a6b 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1441,6 +1441,9 @@ extern struct bio_set *drbd_md_io_bio_set;
+ /* to allocate from that set */
+ extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
+ 
++/* And a bio_set for cloning */
++extern struct bio_set *drbd_io_bio_set;
++
+ extern struct mutex resources_mutex;
+ 
+ extern int conn_lowest_minor(struct drbd_connection *connection);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 84455c365f57..0cc50a7ca1c8 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -128,6 +128,7 @@ mempool_t *drbd_request_mempool;
+ mempool_t *drbd_ee_mempool;
+ mempool_t *drbd_md_io_page_pool;
+ struct bio_set *drbd_md_io_bio_set;
++struct bio_set *drbd_io_bio_set;
+ 
+ /* I do not use a standard mempool, because:
+    1) I want to hand out the pre-allocated objects first.
+@@ -2098,6 +2099,8 @@ static void drbd_destroy_mempools(void)
+ 
+ 	/* D_ASSERT(device, atomic_read(&drbd_pp_vacant)==0); */
+ 
++	if (drbd_io_bio_set)
++		bioset_free(drbd_io_bio_set);
+ 	if (drbd_md_io_bio_set)
+ 		bioset_free(drbd_md_io_bio_set);
+ 	if (drbd_md_io_page_pool)
+@@ -2115,6 +2118,7 @@ static void drbd_destroy_mempools(void)
+ 	if (drbd_al_ext_cache)
+ 		kmem_cache_destroy(drbd_al_ext_cache);
+ 
++	drbd_io_bio_set      = NULL;
+ 	drbd_md_io_bio_set   = NULL;
+ 	drbd_md_io_page_pool = NULL;
+ 	drbd_ee_mempool      = NULL;
+@@ -2142,6 +2146,7 @@ static int drbd_create_mempools(void)
+ 	drbd_pp_pool         = NULL;
+ 	drbd_md_io_page_pool = NULL;
+ 	drbd_md_io_bio_set   = NULL;
++	drbd_io_bio_set      = NULL;
+ 
+ 	/* caches */
+ 	drbd_request_cache = kmem_cache_create(
+@@ -2165,6 +2170,10 @@ static int drbd_create_mempools(void)
+ 		goto Enomem;
+ 
+ 	/* mempools */
++	drbd_io_bio_set = bioset_create(BIO_POOL_SIZE, 0);
++	if (drbd_io_bio_set == NULL)
++		goto Enomem;
++
+ 	drbd_md_io_bio_set = bioset_create(DRBD_MIN_POOL_PAGES, 0);
+ 	if (drbd_md_io_bio_set == NULL)
+ 		goto Enomem;
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
+index eb49e7f2da91..a24e870853eb 100644
+--- a/drivers/block/drbd/drbd_req.h
++++ b/drivers/block/drbd/drbd_req.h
+@@ -263,7 +263,7 @@ enum drbd_req_state_bits {
+ static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
+ {
+ 	struct bio *bio;
+-	bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
++	bio = bio_clone_fast(bio_src, GFP_NOIO, drbd_io_bio_set); /* XXX cannot fail!! */
+ 
+ 	req->private_bio = bio;
+ 
 
-
- Documentation/block/biodoc.txt |    2 +
- block/bio.c                    |   30 +++++++++++++++++++---
- block/blk-core.c               |    2 +
- block/blk-merge.c              |   31 +++--------------------
- block/blk-mq.c                 |    2 +
- block/bounce.c                 |   27 +++++++++++++++++++-
- drivers/block/drbd/drbd_int.h  |    3 ++
- drivers/block/drbd/drbd_main.c |    9 +++++++
- drivers/block/drbd/drbd_req.c  |    2 +
- drivers/block/drbd/drbd_req.h  |    2 +
- drivers/block/pktcdvd.c        |   14 ++++++++--
- drivers/block/ps3vram.c        |    2 +
- drivers/block/rbd.c            |   16 +++++++++++-
- drivers/block/rsxx/dev.c       |    2 +
- drivers/block/umem.c           |    2 +
- drivers/block/xen-blkfront.c   |   54 ++--------------------------------------
- drivers/block/zram/zram_drv.c  |    2 +
- drivers/lightnvm/rrpc.c        |    2 +
- drivers/md/bcache/debug.c      |    2 +
- drivers/md/bcache/super.c      |    4 +--
- drivers/md/dm-crypt.c          |    2 +
- drivers/md/dm-io.c             |    2 +
- drivers/md/dm.c                |    5 ++--
- drivers/md/md.c                |    4 +--
- drivers/s390/block/dcssblk.c   |    2 +
- drivers/s390/block/xpram.c     |    2 +
- include/linux/bio.h            |    7 +----
- include/linux/blkdev.h         |    3 +-
- 28 files changed, 121 insertions(+), 116 deletions(-)
-
---
-Signature
 
