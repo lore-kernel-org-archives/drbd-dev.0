@@ -1,23 +1,22 @@
-Return-Path: <BATV+ec6d521f801fb612d965+4989+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org [65.50.211.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E8CB41056446
-	for <drbd-dev@lists.linbit.com>;
-	Fri, 21 Apr 2017 13:30:46 +0200 (CEST)
-Date: Fri, 21 Apr 2017 04:30:43 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: NeilBrown <neilb@suse.com>
-Message-ID: <20170421113043.GF12523@infradead.org>
-References: <149266645258.27388.14083229348123176454.stgit@noble>
-	<149266672944.27388.18032655582081459017.stgit@noble>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D7A8D1057FCB
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Apr 2017 09:06:04 +0200 (CEST)
+Received: by mail-wm0-f54.google.com with SMTP id u65so14359780wmu.1
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Apr 2017 00:06:04 -0700 (PDT)
+Date: Tue, 25 Apr 2017 09:06:02 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Heloise <os@iscas.ac.cn>
+Message-ID: <20170425070602.GA3987@soda.linbit>
+References: <1493102118-8086-1-git-send-email-os@iscas.ac.cn>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <149266672944.27388.18032655582081459017.stgit@noble>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 06/11] drbd: use bio_clone_fast() instead of
-	bio_clone()
+In-Reply-To: <1493102118-8086-1-git-send-email-os@iscas.ac.cn>
+Cc: linux-kernel@vger.kernel.org, philipp.reisner@linbit.com,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drivers:block:drbd:drbd_state:fix
+ null-pointer dereference
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,26 +28,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Apr 20, 2017 at 03:38:49PM +1000, NeilBrown wrote:
-> drbd does not modify the bi_io_vec of the cloned bio,
-> so there is no need to clone that part.  So bio_clone_fast()
-> is the better choice.
-> For bio_clone_fast() we need to specify a bio_set.
-> We could use fs_bio_set, which bio_clone() uses, or
-> drbd_md_io_bio_set, which drbd uses for metadata, but it is
-> generally best to avoid sharing bio_sets unless you can
-> be certain that there are no interdependencies.
+On Mon, Apr 24, 2017 at 11:35:18PM -0700, Heloise wrote:
+> Signed-off-by: Heloise <os@iscas.ac.cn>
 > 
-> So create a new bio_set, drbd_io_bio_set, and use bio_clone_fast().
+> In is_valid_state(), there is NULL validation for the variable nc
+> "if (nc)". However,the code will continue to execute when nc is NULL.
+> nc->verify_alg[0] is used in subsequent code, which may cause
+> null-pointer dereference, fix it.
+> ---
+>  drivers/block/drbd/drbd_state.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> Signed-off-by: NeilBrown <neilb@suse.com>
+> diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+> index eea0c4a..1963b83 100644
+> --- a/drivers/block/drbd/drbd_state.c
+> +++ b/drivers/block/drbd/drbd_state.c
+> @@ -845,7 +845,7 @@ is_valid_state(struct drbd_device *device, union drbd_state ns)
+>  		rv = SS_CONNECTED_OUTDATES;
+>  
+>  	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
+> -		 (nc->verify_alg[0] == 0))
+> +		 (nc != NULL && nc->verify_alg[0] == 0))
 
-All the zeroing of the gblobal variable looks unessecary / stupid.
 
-But given that the surrounding code already does it:
+What the static checker cannot know:
+ns.conn != C_STANDALONE implies nc != NULL.
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+But if you feel like it, the additional check won't hurt.
 
-> +	bio = bio_clone_fast(bio_src, GFP_NOIO, drbd_io_bio_set); /* XXX cannot fail!! */
+Thanks,
 
-but maybe I'd drop this comment..
+    Lars
+
