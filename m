@@ -1,22 +1,32 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1F9591057FB2
-	for <drbd-dev@lists.linbit.com>; Wed, 26 Apr 2017 15:24:38 +0200 (CEST)
-Received: by mail-wm0-f42.google.com with SMTP id m123so4277613wma.0
-	for <drbd-dev@lists.linbit.com>; Wed, 26 Apr 2017 06:24:38 -0700 (PDT)
-Date: Wed, 26 Apr 2017 15:24:36 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Heloise <os@iscas.ac.cn>
-Message-ID: <20170426132436.GA15697@soda.linbit>
-References: <1493200177-10699-1-git-send-email-os@iscas.ac.cn>
+Return-Path: <Bart.VanAssche@sandisk.com>
+Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com [68.232.143.124])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E30771057FCB
+	for <drbd-dev@lists.linbit.com>; Mon,  1 May 2017 22:45:28 +0200 (CEST)
+From: Bart Van Assche <Bart.VanAssche@sandisk.com>
+To: "agk@redhat.com" <agk@redhat.com>, "lars.ellenberg@linbit.com"
+	<lars.ellenberg@linbit.com>, "snitzer@redhat.com" <snitzer@redhat.com>,
+	"hch@lst.de" <hch@lst.de>, "martin.petersen@oracle.com"
+	<martin.petersen@oracle.com>, "philipp.reisner@linbit.com"
+	<philipp.reisner@linbit.com>, "axboe@kernel.dk" <axboe@kernel.dk>,
+	"shli@kernel.org" <shli@kernel.org>
+Date: Mon, 1 May 2017 20:45:21 +0000
+Message-ID: <1493671519.2665.15.camel@sandisk.com>
+References: <20170405172125.22600-1-hch@lst.de>
+	<20170405172125.22600-26-hch@lst.de>
+In-Reply-To: <20170405172125.22600-26-hch@lst.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <6057828B6A69B94887FF6CB79814747D@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1493200177-10699-1-git-send-email-os@iscas.ac.cn>
-Cc: linux-kernel@vger.kernel.org, philipp.reisner@linbit.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd:fix null pointer deref in
-	_drbd_md_sync_page_io
+Cc: "linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"dm-devel@redhat.com" <dm-devel@redhat.com>,
+	"target-devel@vger.kernel.org" <target-devel@vger.kernel.org>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH 25/27] block: remove the discard_zeroes_data
+	flag
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,64 +38,64 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Apr 26, 2017 at 02:49:37AM -0700, Heloise wrote:
-> The return value of bio_alloc_drbd can be NULL and is used without
+On Wed, 2017-04-05 at 19:21 +0200, Christoph Hellwig wrote:
+> Now that we use the proper REQ_OP_WRITE_ZEROES operation everywhere we ca=
+n
+> kill this hack.
+>=20
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
+> Reviewed-by: Hannes Reinecke <hare@suse.com>
+> [ ... ]
+> diff --git a/drivers/target/target_core_device.c b/drivers/target/target_=
+core_device.c
+> index c754ae33bf7b..d2f089cfa9ae 100644
+> --- a/drivers/target/target_core_device.c
+> +++ b/drivers/target/target_core_device.c
+> @@ -851,7 +851,7 @@ bool target_configure_unmap_from_queue(struct se_dev_=
+attrib *attrib,
+>  	attrib->unmap_granularity =3D q->limits.discard_granularity / block_siz=
+e;
+>  	attrib->unmap_granularity_alignment =3D q->limits.discard_alignment /
+>  								block_size;
+> -	attrib->unmap_zeroes_data =3D q->limits.discard_zeroes_data;
+> +	attrib->unmap_zeroes_data =3D 0;
+>  	return true;
+>  }
+>  EXPORT_SYMBOL(target_configure_unmap_from_queue);
 
-No, apparently it cannot, because it is basically a mempool_alloc()
-with GFP_NOIO, it may sleep, but it will loop "forever" and not return NULL.
+Hello Christoph,
 
-So rather fix that nonsense in bio_alloc_drbd, see below:
+Sorry that I hadn't noticed this before but I think that this patch
+introduces a significant performance regressions for LIO users. Before
+this patch the LBPRZ flag was reported correctly to initiator systems
+through the thin provisioning VPD. With this patch applied that flag
+will always be reported as zero, forcing initiators to submit WRITE
+commands with zeroed data buffers instead of submitting the SCSI UNMAP
+command to block devices for which=A0discard_zeroes_data was set. From
+target_core_spc.c:
+
+/* Thin Provisioning VPD */
+static sense_reason_t spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char=
+ *buf)
+{
+	[ ... ]
+	/*
+	 * The unmap_zeroes_data set means that the underlying device supports
+	 * REQ_DISCARD and has the discard_zeroes_data bit set. This satisfies
+	 * the SBC requirements for LBPRZ, meaning that a subsequent read
+	 * will return zeroes after an UNMAP or WRITE SAME (16) to an LBA
+	 * See sbc4r36 6.6.4.
+	 */
+	if (((dev->dev_attrib.emulate_tpu !=3D 0) ||
+	=A0=A0=A0=A0=A0(dev->dev_attrib.emulate_tpws !=3D 0)) &&
+	=A0=A0=A0=A0=A0(dev->dev_attrib.unmap_zeroes_data !=3D 0))
+		buf[5] |=3D 0x04;
+	[ ... ]
+}
+
+Please advise how to proceed.
 
 Thanks,
 
-    Lars
-
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 92c60cb..9ffd940 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -150,15 +150,10 @@ static const struct block_device_operations drbd_ops = {
- 
- struct bio *bio_alloc_drbd(gfp_t gfp_mask)
- {
--	struct bio *bio;
--
- 	if (!drbd_md_io_bio_set)
- 		return bio_alloc(gfp_mask, 1);
- 
--	bio = bio_alloc_bioset(gfp_mask, 1, drbd_md_io_bio_set);
--	if (!bio)
--		return NULL;
--	return bio;
-+	return bio_alloc_bioset(gfp_mask, 1, drbd_md_io_bio_set);
- }
- 
- #ifdef __CHECKER__
-
-
-> validation, which may cause null-pointer dereference, fix it.
-> 
-> Signed-off-by: Heloise <os@iscas.ac.cn>
-> ---
->  drivers/block/drbd/drbd_actlog.c | 4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
-> index 8d7bcfa..d6bb30e 100644
-> --- a/drivers/block/drbd/drbd_actlog.c
-> +++ b/drivers/block/drbd/drbd_actlog.c
-> @@ -151,6 +151,10 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
->  	op_flags |= REQ_SYNC;
->  
->  	bio = bio_alloc_drbd(GFP_NOIO);
-> +	if (!bio) {
-> +		err = -ENOMEM;
-> +		return err;
-> +	}
->  	bio->bi_bdev = bdev->md_bdev;
->  	bio->bi_iter.bi_sector = sector;
->  	err = -EIO;
-> -- 
-> 2.1.0
-
-
+Bart.=
