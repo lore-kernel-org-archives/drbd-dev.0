@@ -1,41 +1,19 @@
-Return-Path: <nab@linux-iscsi.org>
-Received: from linux-iscsi.org (mail.linux-iscsi.org [67.23.28.174])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 933F11056320
-	for <drbd-dev@lists.linbit.com>; Thu, 11 May 2017 08:36:25 +0200 (CEST)
-Message-ID: <1494484582.16894.156.camel@haakon3.risingtidesystems.com>
-From: "Nicholas A. Bellinger" <nab@linux-iscsi.org>
-To: "hch@lst.de" <hch@lst.de>
-Date: Wed, 10 May 2017 23:36:22 -0700
-In-Reply-To: <20170511062630.GA18517@lst.de>
-References: <20170405172125.22600-26-hch@lst.de>
-	<1493671519.2665.15.camel@sandisk.com>
-	<1493707425.23202.77.camel@haakon3.risingtidesystems.com>
-	<1493709373.23202.79.camel@haakon3.risingtidesystems.com>
-	<20170502072328.GA11522@lst.de>
-	<1493782395.23202.84.camel@haakon3.risingtidesystems.com>
-	<20170507092209.GA27370@lst.de>
-	<1494312374.16894.36.camel@haakon3.risingtidesystems.com>
-	<20170510140627.GA23759@lst.de>
-	<1494478235.16894.115.camel@haakon3.risingtidesystems.com>
-	<20170511062630.GA18517@lst.de>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Cc: "axboe@kernel.dk" <axboe@kernel.dk>,
-	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
-	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
-	"snitzer@redhat.com" <snitzer@redhat.com>,
-	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"dm-devel@redhat.com" <dm-devel@redhat.com>,
-	"target-devel@vger.kernel.org" <target-devel@vger.kernel.org>,
-	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
-	Bart Van Assche <Bart.VanAssche@sandisk.com>,
-	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
-	"shli@kernel.org" <shli@kernel.org>, "agk@redhat.com" <agk@redhat.com>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH 25/27] block: remove the discard_zeroes_data
-	flag
+Return-Path: <lars.ellenberg@linbit.com>
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>,
+	linux-kernel@vger.kernel.org
+Date: Thu, 11 May 2017 10:21:46 +0200
+Message-Id: <1494490906-19582-1-git-send-email-lars.ellenberg@linbit.com>
+Cc: Peter Zijlstra <peterz@infradead.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Ingo Molnar <mingo@kernel.org>, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Thomas Gleixner <tglx@linutronix.de>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: fix request leak introduced by
+	locking/atomic, kref: Kill kref_sub()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,25 +25,86 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 2017-05-11 at 08:26 +0200, hch@lst.de wrote:
-> On Wed, May 10, 2017 at 09:50:35PM -0700, Nicholas A. Bellinger wrote:
-> > 1) Expose a block_device or request_queue bit to signal 'real LBPRZ'
-> > support up to IBLOCK, in order to maintain SCSI target feature
-> > compatibility.
-> 
-> No way.  If you want to zero use REQ_OP_WRITE_ZEROES..
+Regression fix for 4.11, which totally broke DRBD
 
-Yes, I understand that part and it's what the earlier conversion of
-IBLOCK to use blkdev_issue_zeroout() already does.
+When killing kref_sub(), the unconditional additional kref_get()
+was not properly paired with the necessary kref_put(), causing
+a leak of struct drbd_requests (~ 224 Bytes) per submitted bio,
+and breaking DRBD in general, as the destructor of those "drbd_requests"
+does more than just the mempoll_free().
 
-Once the blkdev_issue_zeroout() conversion is in place then LBPRZ can
-always be set to one for IBLOCK using blkdev_issue_zeroout().
+Fixes: bdfafc4ffdd2 ("locking/atomic, kref: Kill kref_sub()")
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+---
+ drivers/block/drbd/drbd_req.c | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)
 
-The point is this is not in -rc1, which as-is breaks LBPRZ compat for a
-release.
-
-
-
-
-
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 652114a..1fc8a67 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -314,24 +314,32 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
+ }
+ 
+ /* still holds resource->req_lock */
+-static int drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_error *m, int put)
++static void drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_error *m, int put)
+ {
+ 	struct drbd_device *device = req->device;
+ 	D_ASSERT(device, m || (req->rq_state & RQ_POSTPONED));
+ 
++	if (!put)
++		return;
++
+ 	if (!atomic_sub_and_test(put, &req->completion_ref))
+-		return 0;
++		return;
+ 
+ 	drbd_req_complete(req, m);
+ 
++	/* local completion may still come in later,
++	 * we need to keep the req object around. */
++	if (req->rq_state & RQ_LOCAL_ABORTED)
++		return;
++
+ 	if (req->rq_state & RQ_POSTPONED) {
+ 		/* don't destroy the req object just yet,
+ 		 * but queue it for retry */
+ 		drbd_restart_request(req);
+-		return 0;
++		return;
+ 	}
+ 
+-	return 1;
++	kref_put(&req->kref, drbd_req_destroy);
+ }
+ 
+ static void set_if_null_req_next(struct drbd_peer_device *peer_device, struct drbd_request *req)
+@@ -518,12 +526,8 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
+ 	if (req->i.waiting)
+ 		wake_up(&device->misc_wait);
+ 
+-	if (c_put) {
+-		if (drbd_req_put_completion_ref(req, m, c_put))
+-			kref_put(&req->kref, drbd_req_destroy);
+-	} else {
+-		kref_put(&req->kref, drbd_req_destroy);
+-	}
++	drbd_req_put_completion_ref(req, m, c_put);
++	kref_put(&req->kref, drbd_req_destroy);
+ }
+ 
+ static void drbd_report_io_error(struct drbd_device *device, struct drbd_request *req)
+@@ -1363,8 +1367,7 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
+ 	}
+ 
+ out:
+-	if (drbd_req_put_completion_ref(req, &m, 1))
+-		kref_put(&req->kref, drbd_req_destroy);
++	drbd_req_put_completion_ref(req, &m, 1);
+ 	spin_unlock_irq(&resource->req_lock);
+ 
+ 	/* Even though above is a kref_put(), this is safe.
+-- 
+2.7.4
 
