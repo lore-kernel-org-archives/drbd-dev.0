@@ -1,28 +1,15 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com
-	[209.85.223.172])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0FEA5105633D
-	for <drbd-dev@lists.linbit.com>; Thu, 11 May 2017 18:09:16 +0200 (CEST)
-Received: by mail-io0-f172.google.com with SMTP id o12so24491439iod.3
-	for <drbd-dev@lists.linbit.com>; Thu, 11 May 2017 09:09:16 -0700 (PDT)
-To: Lars Ellenberg <lars.ellenberg@linbit.com>, linux-kernel@vger.kernel.org
-References: <1494490906-19582-1-git-send-email-lars.ellenberg@linbit.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <6f667fb4-f536-6b1f-fc7a-aa846830294c@kernel.dk>
-Date: Thu, 11 May 2017 10:03:14 -0600
-MIME-Version: 1.0
-In-Reply-To: <1494490906-19582-1-git-send-email-lars.ellenberg@linbit.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Cc: Peter Zijlstra <peterz@infradead.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
-	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Thomas Gleixner <tglx@linutronix.de>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: fix request leak introduced by
- locking/atomic, kref: Kill kref_sub()
+Return-Path: <nwang@suse.com>
+Received: from prv3-mh.provo.novell.com (victor.provo.novell.com
+	[137.65.250.26])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id AD85A105630C
+	for <drbd-dev@lists.linbit.com>; Wed, 24 May 2017 12:02:57 +0200 (CEST)
+From: Nick Wang <nwang@suse.com>
+To: drbd-dev@lists.linbit.com
+Date: Wed, 24 May 2017 18:02:35 +0800
+Message-Id: <20170524100235.22887-1-nwang@suse.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+Subject: [Drbd-dev] [PATCH] drbd: Fix expression to check new replication
+	state
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,17 +21,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 05/11/2017 02:21 AM, Lars Ellenberg wrote:
-> Regression fix for 4.11, which totally broke DRBD
-> 
-> When killing kref_sub(), the unconditional additional kref_get()
-> was not properly paired with the necessary kref_put(), causing
-> a leak of struct drbd_requests (~ 224 Bytes) per submitted bio,
-> and breaking DRBD in general, as the destructor of those "drbd_requests"
-> does more than just the mempoll_free().
+Only tell peers when replication link is established.
 
-Ugh... Applied for this series. I'll mark it stable for 4.11.
+Signed-off-by: Nick Wang <nwang@suse.com>
 
+CC: Lars Ellenberg <lars.ellenberg@linbit.com>
+CC: drbd-dev@lists.linbit.com
+
+---
+ drbd/drbd-kernel-compat | 2 +-
+ drbd/drbd_state.c       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drbd/drbd-kernel-compat b/drbd/drbd-kernel-compat
+index bd3fb0d9..bca18431 160000
+--- a/drbd/drbd-kernel-compat
++++ b/drbd/drbd-kernel-compat
+@@ -1 +1 @@
+-Subproject commit bd3fb0d970e496c9d374101888b15ecf3618fc8a
++Subproject commit bca18431a58fc53485d969f8745d886dd9537755
+diff --git a/drbd/drbd_state.c b/drbd/drbd_state.c
+index 9829d94f..816b8ffe 100644
+--- a/drbd/drbd_state.c
++++ b/drbd/drbd_state.c
+@@ -3040,7 +3040,7 @@ static int w_after_state_change(struct drbd_work *w, int unused)
+ 
+ 			/* Outdated myself, or became D_UP_TO_DATE tell peers */
+ 			if (disk_state[NEW] >= D_INCONSISTENT && disk_state[NEW] != disk_state[OLD] &&
+-			    repl_state[OLD] >= L_ESTABLISHED && repl_state[OLD] >= L_ESTABLISHED)
++			    repl_state[OLD] >= L_ESTABLISHED && repl_state[NEW] >= L_ESTABLISHED)
+ 				send_state = true;
+ 
+ 			/* Skipped resync with peer_device, tell others... */
 -- 
-Jens Axboe
+2.12.0
 
