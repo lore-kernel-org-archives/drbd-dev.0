@@ -1,13 +1,13 @@
 Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EF2DD1056320
-	for <drbd-dev@lists.linbit.com>; Wed, 24 May 2017 12:45:50 +0200 (CEST)
-Received: by mail-wm0-f48.google.com with SMTP id b84so60021809wmh.0
-	for <drbd-dev@lists.linbit.com>; Wed, 24 May 2017 03:45:50 -0700 (PDT)
-Date: Wed, 24 May 2017 12:45:48 +0200
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CA2901056320
+	for <drbd-dev@lists.linbit.com>; Wed, 24 May 2017 12:47:43 +0200 (CEST)
+Received: by mail-wm0-f51.google.com with SMTP id e127so69171678wmg.1
+	for <drbd-dev@lists.linbit.com>; Wed, 24 May 2017 03:47:43 -0700 (PDT)
+Date: Wed, 24 May 2017 12:47:41 +0200
 From: Roland Kammerer <roland.kammerer@linbit.com>
 To: Nick Wang <nwang@suse.com>
-Message-ID: <20170524104548.GA48382@rck.sh>
+Message-ID: <20170524104741.GB48382@rck.sh>
 References: <20170524100235.22887-1-nwang@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
@@ -64,14 +64,17 @@ On Wed, May 24, 2017 at 06:02:35PM +0800, Nick Wang wrote:
 > -- 
 > 2.12.0
 > 
+> _______________________________________________
+> drbd-dev mailing list
+> drbd-dev@lists.linbit.com
+> http://lists.linbit.com/mailman/listinfo/drbd-dev
 
-Correct. In that case Phil was faster, I pushed the current state to
-public.
 
-http://git.linbit.com/drbd-9.0.git/commit/c654bbe36bcba33ab40a43f730d86bad97804879
+Sorry, refernced the wrong commit, that was it:
 
-Thanks, rck
+http://git.linbit.com/drbd-9.0.git/commit/11660a06ccf98128d305d11668d10d38987b5bba
 
+Regards, rck
 -- 
 Roland Kammerer
 +43 1 817 82 92 - 70
