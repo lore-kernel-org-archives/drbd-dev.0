@@ -1,22 +1,24 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CA2901056320
-	for <drbd-dev@lists.linbit.com>; Wed, 24 May 2017 12:47:43 +0200 (CEST)
-Received: by mail-wm0-f51.google.com with SMTP id e127so69171678wmg.1
-	for <drbd-dev@lists.linbit.com>; Wed, 24 May 2017 03:47:43 -0700 (PDT)
-Date: Wed, 24 May 2017 12:47:41 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: Nick Wang <nwang@suse.com>
-Message-ID: <20170524104741.GB48382@rck.sh>
-References: <20170524100235.22887-1-nwang@suse.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170524100235.22887-1-nwang@suse.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: Fix expression to check new
- replication state
+Return-Path: <nab@linux-iscsi.org>
+Received: from linux-iscsi.org (mail.linux-iscsi.org [67.23.28.174])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0FB5A105633D
+	for <drbd-dev@lists.linbit.com>; Thu,  1 Jun 2017 08:27:04 +0200 (CEST)
+Message-ID: <1496298421.27407.206.camel@haakon3.risingtidesystems.com>
+From: "Nicholas A. Bellinger" <nab@linux-iscsi.org>
+To: Christoph Hellwig <hch@lst.de>
+Date: Wed, 31 May 2017 23:27:01 -0700
+In-Reply-To: <1491975041.8231.131.camel@haakon3.risingtidesystems.com>
+References: <20170410160807.23674-1-hch@lst.de>
+	<20170410160807.23674-3-hch@lst.de>
+	<1491975041.8231.131.camel@haakon3.risingtidesystems.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Cc: axboe@kernel.dk, linux-scsi@vger.kernel.org, martin.petersen@oracle.com,
+	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
+	dm-devel@redhat.com, target-devel@vger.kernel.org,
+	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 2/8] target: remove iblock WRITE_SAME
+	passthrough support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,58 +30,150 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, May 24, 2017 at 06:02:35PM +0800, Nick Wang wrote:
-> Only tell peers when replication link is established.
+Hey HCH & Jens,
+
+Is this already queued up for v4.13 to address the missing LBPRZ feature
+bit..?
+
+If not, I'll happy to take it via target-pending along with the
+following to re-enable it via max_write_zeroes_sectors.
+
+diff --git a/drivers/target/target_core_device.c b/drivers/target/target_core_device.c
+index d2f089c..e7caf78 100644
+--- a/drivers/target/target_core_device.c
++++ b/drivers/target/target_core_device.c
+@@ -851,7 +851,7 @@ bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
+        attrib->unmap_granularity = q->limits.discard_granularity / block_size;
+        attrib->unmap_granularity_alignment = q->limits.discard_alignment /
+                                                                block_size;
+-       attrib->unmap_zeroes_data = 0;
++       attrib->unmap_zeroes_data = (q->limits.max_write_zeroes_sectors);
+        return true;
+ }
+ EXPORT_SYMBOL(target_configure_unmap_from_queue);
+
+Any objections..?
+
+On Tue, 2017-04-11 at 22:30 -0700, Nicholas A. Bellinger wrote:
+> On Mon, 2017-04-10 at 18:08 +0200, Christoph Hellwig wrote:
+> > Use the pscsi driver to support arbitrary command passthrough
+> > instead.
+> > 
 > 
-> Signed-off-by: Nick Wang <nwang@suse.com>
+> The people who are actively using iblock_execute_write_same_direct() are
+> doing so in the context of ESX VAAI BlockZero, together with
+> EXTENDED_COPY and COMPARE_AND_WRITE primitives.  Just using PSCSI is not
+> an option for them.
 > 
-> CC: Lars Ellenberg <lars.ellenberg@linbit.com>
-> CC: drbd-dev@lists.linbit.com
+> In practice though I've not seen any users of IBLOCK WRITE_SAME for
+> anything other than VAAI BlockZero, so just using blkdev_issue_zeroout()
+> when available, and falling back to iblock_execute_write_same() if the
+> WRITE_SAME buffer contains anything other than zeros should be OK.
 > 
+> How about something like the following below..?
+> 
+> This would bring parity to how blkdev_issue_write_same() works atm wrt
+> to synchronous bio completions.  However, most folks with a raw
+> make_request or blk-mq backend driver that supports multiple GB/sec of
+> zero bandwidth end up changing IBLOCK to support asynchronous
+> REQ_WRITE_SAME completions anyways.
+> 
+> I'd be happy to add support for that using __blkdev_issue_zeroout() once
+> the basic conversion is in place.
+> 
+> From ff74012eaff38f9fa0d74aca60507b9964f484ce Mon Sep 17 00:00:00 2001
+> From: Nicholas Bellinger <nab@linux-iscsi.org>
+> Date: Tue, 11 Apr 2017 22:21:47 -0700
+> Subject: [PATCH] target/iblock: Convert WRITE_SAME to blkdev_issue_zeroout
+> 
+> Signed-off-by: Nicholas Bellinger <nab@linux-iscsi.org>
 > ---
->  drbd/drbd-kernel-compat | 2 +-
->  drbd/drbd_state.c       | 2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
+>  drivers/target/target_core_iblock.c | 44 +++++++++++++++++++++++--------------
+>  1 file changed, 27 insertions(+), 17 deletions(-)
 > 
-> diff --git a/drbd/drbd-kernel-compat b/drbd/drbd-kernel-compat
-> index bd3fb0d9..bca18431 160000
-> --- a/drbd/drbd-kernel-compat
-> +++ b/drbd/drbd-kernel-compat
-> @@ -1 +1 @@
-> -Subproject commit bd3fb0d970e496c9d374101888b15ecf3618fc8a
-> +Subproject commit bca18431a58fc53485d969f8745d886dd9537755
-> diff --git a/drbd/drbd_state.c b/drbd/drbd_state.c
-> index 9829d94f..816b8ffe 100644
-> --- a/drbd/drbd_state.c
-> +++ b/drbd/drbd_state.c
-> @@ -3040,7 +3040,7 @@ static int w_after_state_change(struct drbd_work *w, int unused)
+> diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+> index d316ed5..5bfde20 100644
+> --- a/drivers/target/target_core_iblock.c
+> +++ b/drivers/target/target_core_iblock.c
+> @@ -86,6 +86,7 @@ static int iblock_configure_device(struct se_device *dev)
+>  	struct block_device *bd = NULL;
+>  	struct blk_integrity *bi;
+>  	fmode_t mode;
+> +	unsigned int max_write_zeroes_sectors;
+>  	int ret = -ENOMEM;
 >  
->  			/* Outdated myself, or became D_UP_TO_DATE tell peers */
->  			if (disk_state[NEW] >= D_INCONSISTENT && disk_state[NEW] != disk_state[OLD] &&
-> -			    repl_state[OLD] >= L_ESTABLISHED && repl_state[OLD] >= L_ESTABLISHED)
-> +			    repl_state[OLD] >= L_ESTABLISHED && repl_state[NEW] >= L_ESTABLISHED)
->  				send_state = true;
+>  	if (!(ib_dev->ibd_flags & IBDF_HAS_UDEV_PATH)) {
+> @@ -129,7 +130,11 @@ static int iblock_configure_device(struct se_device *dev)
+>  	 * Enable write same emulation for IBLOCK and use 0xFFFF as
+>  	 * the smaller WRITE_SAME(10) only has a two-byte block count.
+>  	 */
+> -	dev->dev_attrib.max_write_same_len = 0xFFFF;
+> +	max_write_zeroes_sectors = bdev_write_zeroes_sectors(bd);
+> +	if (max_write_zeroes_sectors)
+> +		dev->dev_attrib.max_write_same_len = max_write_zeroes_sectors;
+> +	else
+> +		dev->dev_attrib.max_write_same_len = 0xFFFF;
 >  
->  			/* Skipped resync with peer_device, tell others... */
-> -- 
-> 2.12.0
-> 
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
+>  	if (blk_queue_nonrot(q))
+>  		dev->dev_attrib.is_nonrot = 1;
+> @@ -415,28 +420,31 @@ static void iblock_end_io_flush(struct bio *bio)
+>  }
+>  
+>  static sense_reason_t
+> -iblock_execute_write_same_direct(struct block_device *bdev, struct se_cmd *cmd)
+> +iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
+>  {
+>  	struct se_device *dev = cmd->se_dev;
+>  	struct scatterlist *sg = &cmd->t_data_sg[0];
+> -	struct page *page = NULL;
+> -	int ret;
+> +	unsigned char *buf, zero = 0x00, *p = &zero;
+> +	int rc, ret;
+>  
+> -	if (sg->offset) {
+> -		page = alloc_page(GFP_KERNEL);
+> -		if (!page)
+> -			return TCM_OUT_OF_RESOURCES;
+> -		sg_copy_to_buffer(sg, cmd->t_data_nents, page_address(page),
+> -				  dev->dev_attrib.block_size);
+> -	}
+> +	buf = kmap(sg_page(sg)) + sg->offset;
+> +	if (!buf)
+> +		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+> +	/*
+> +	 * Fall back to block_execute_write_same() slow-path if
+> +	 * incoming WRITE_SAME payload does not contain zeros.
+> +	 */
+> +	rc = memcmp(buf, p, cmd->data_length);
+> +	kunmap(sg_page(sg));
+> +
+> +	if (rc)
+> +		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+>  
+> -	ret = blkdev_issue_write_same(bdev,
+> +	ret = blkdev_issue_zeroout(bdev,
+>  				target_to_linux_sector(dev, cmd->t_task_lba),
+>  				target_to_linux_sector(dev,
+>  					sbc_get_write_same_sectors(cmd)),
+> -				GFP_KERNEL, page ? page : sg_page(sg));
+> -	if (page)
+> -		__free_page(page);
+> +				GFP_KERNEL, false);
+>  	if (ret)
+>  		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+>  
+> @@ -472,8 +480,10 @@ static void iblock_end_io_flush(struct bio *bio)
+>  		return TCM_INVALID_CDB_FIELD;
+>  	}
+>  
+> -	if (bdev_write_same(bdev))
+> -		return iblock_execute_write_same_direct(bdev, cmd);
+> +	if (bdev_write_zeroes_sectors(bdev)) {
+> +		if (!iblock_execute_zero_out(bdev, cmd))
+> +			return 0;
+> +	}
+>  
+>  	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
+>  	if (!ibr)
 
-
-Sorry, refernced the wrong commit, that was it:
-
-http://git.linbit.com/drbd-9.0.git/commit/11660a06ccf98128d305d11668d10d38987b5bba
-
-Regards, rck
--- 
-Roland Kammerer
-+43 1 817 82 92 - 70
-roland.kammerer@linbit.com
-
-LINBIT | Keeping the Digital World Running
-DRBD – Corosync – Pacemaker
 
