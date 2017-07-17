@@ -1,15 +1,15 @@
-Return-Path: <nwang@suse.com>
-Received: from prv3-mh.provo.novell.com (victor.provo.novell.com
-	[137.65.250.26])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B1B4C1057FE2
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 05:16:35 +0200 (CEST)
-From: Nick Wang <nwang@suse.com>
+Return-Path: <bwiedemann@suse.de>
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 312171057FD4
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jul 2017 21:43:49 +0200 (CEST)
+Received: from relay1.suse.de (charybdis-ext.suse.de [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 58E1CAAB9
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jul 2017 19:29:34 +0000 (UTC)
+From: "Bernhard M. Wiedemann" <bwiedemann@suse.de>
 To: drbd-dev@lists.linbit.com
-Date: Tue, 18 Jul 2017 11:16:15 +0800
-Message-Id: <20170718031615.18985-1-nwang@suse.com>
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-Subject: [Drbd-dev] [PATCH] drbdadm: Fix handler called from kernel always
-	invalid for stacking resource
+Date: Mon, 17 Jul 2017 21:29:30 +0200
+Message-Id: <20170717192930.21694-1-bwiedemann@suse.de>
+Subject: [Drbd-dev] [PATCH] drbd: sort file list
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,35 +21,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Handler like "before-resync-target" called from kernel
-space does not have "-S" option for stacking resource, it
-always return as invalid usage for stacking resource in
-normal mode, then the connection will be dropped. Add "-S"
-option for stacking resource automatically if the handler
-is called from kernel.
+because it influences the ordering of entries in compat.h
+which influences srcversion= checksum
+which prevents drbd.ko from building reproducibly.
 
-Signed-off-by: Nick Wang <nwang@suse.com>
-CC: Lars Ellenberg <lars.ellenberg@linbit.com>
-CC: drbd-dev@lists.linbit.com
-
+See https://reproducible-builds.org/ for why this matters.
 ---
- user/v9/drbdadm_main.c | 3 +++
- 1 file changed, 3 insertions(+)
+ drbd/Kbuild | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/user/v9/drbdadm_main.c b/user/v9/drbdadm_main.c
-index 3c6e2263..f6cd8b74 100644
---- a/user/v9/drbdadm_main.c
-+++ b/user/v9/drbdadm_main.c
-@@ -3472,6 +3472,9 @@ int main(int argc, char **argv)
- 					       rv = E_USAGE;
- 					continue;
- 				}
-+				if (3 == cmd->show_in_usage && ctx.res->stacked) {
-+					is_drbd_top = 1;
-+				}
- 				if (is_drbd_top != ctx.res->stacked && !is_dump) {
- 					err("'%s' is a %s resource, and not available in %s mode.\n",
- 					    ctx.res->name,
+diff --git a/drbd/Kbuild b/drbd/Kbuild
+index 2d1b4d0..c5787a6 100644
+--- a/drbd/Kbuild
++++ b/drbd/Kbuild
+@@ -70,7 +70,7 @@ COMPAT_FORCE := FORCE
+ endif
+ 
+ ifneq ($(KBUILD_STAGE),modpost)
+-TEST_C := $(wildcard $(src)/drbd-kernel-compat/tests/*.c)
++TEST_C := $(sort $(wildcard $(src)/drbd-kernel-compat/tests/*.c))
+ TEST_R := $(TEST_C:$(src)/drbd-kernel-compat/tests/%.c=$(obj)/.compat_test.%.result)
+ $(obj)/.compat_test.%.result: $(src)/drbd-kernel-compat/tests/%.c $(COMPAT_FORCE)
+ 	$(call cmd,compat_test_result)
 -- 
-2.12.0
+2.12.3
 
