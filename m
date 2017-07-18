@@ -1,25 +1,15 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wr0-f180.google.com (mail-wr0-f180.google.com
-	[209.85.128.180])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3E4D71057FCF
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Jul 2017 21:19:46 +0200 (CEST)
-Received: by mail-wr0-f180.google.com with SMTP id c11so16027633wrc.3
-	for <drbd-dev@lists.linbit.com>; Thu, 06 Jul 2017 12:19:46 -0700 (PDT)
-Date: Thu, 6 Jul 2017 21:19:44 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: Greg KH <gregkh@linuxfoundation.org>
-Message-ID: <20170706191943.GF1453@rck.sh>
-References: <20170605092623.GA20170@kroah.com> <20170706175607.GE1453@rck.sh>
-	<20170706180241.GA15474@kroah.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170706180241.GA15474@kroah.com>
-Cc: linux-kernel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com, Philipp Reisner <philipp.reisner@linbit.com>,
-	Roland Kammerer <roland.kammerer@linbit.com>
-Subject: Re: [Drbd-dev] [PATCH] drbd: rename "usermode_helper" to
- "drbd_usermode_helper"
+Return-Path: <nwang@suse.com>
+Received: from prv3-mh.provo.novell.com (victor.provo.novell.com
+	[137.65.250.26])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B1B4C1057FE2
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 05:16:35 +0200 (CEST)
+From: Nick Wang <nwang@suse.com>
+To: drbd-dev@lists.linbit.com
+Date: Tue, 18 Jul 2017 11:16:15 +0800
+Message-Id: <20170718031615.18985-1-nwang@suse.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+Subject: [Drbd-dev] [PATCH] drbdadm: Fix handler called from kernel always
+	invalid for stacking resource
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,19 +21,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jul 06, 2017 at 08:02:41PM +0200, Greg KH wrote:
-> On Thu, Jul 06, 2017 at 07:56:07PM +0200, Roland Kammerer wrote:
-> > On Mon, Jun 05, 2017 at 11:26:23AM +0200, Greg KH wrote:
-> > > From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > > 
-> > > Nothing like having a very generic global variable in a tiny driver
-> > > subsystem to make a mess of the global namespace...
-> > 
-> > Thanks for the patch. As this did not happen magically in mainline, I
-> > queued it up in our out-of-tree repo.
-> 
-> What does that mean, will it get sent to Linus for 4.14-rc1?
+Handler like "before-resync-target" called from kernel
+space does not have "-S" option for stacking resource, it
+always return as invalid usage for stacking resource in
+normal mode, then the connection will be dropped. Add "-S"
+option for stacking resource automatically if the handler
+is called from kernel.
 
-Yes. 
+Signed-off-by: Nick Wang <nwang@suse.com>
+CC: Lars Ellenberg <lars.ellenberg@linbit.com>
+CC: drbd-dev@lists.linbit.com
 
-Cheers, rck
+---
+ user/v9/drbdadm_main.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/user/v9/drbdadm_main.c b/user/v9/drbdadm_main.c
+index 3c6e2263..f6cd8b74 100644
+--- a/user/v9/drbdadm_main.c
++++ b/user/v9/drbdadm_main.c
+@@ -3472,6 +3472,9 @@ int main(int argc, char **argv)
+ 					       rv = E_USAGE;
+ 					continue;
+ 				}
++				if (3 == cmd->show_in_usage && ctx.res->stacked) {
++					is_drbd_top = 1;
++				}
+ 				if (is_drbd_top != ctx.res->stacked && !is_dump) {
+ 					err("'%s' is a %s resource, and not available in %s mode.\n",
+ 					    ctx.res->name,
+-- 
+2.12.0
+
