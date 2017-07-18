@@ -1,22 +1,24 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wr0-f181.google.com (mail-wr0-f181.google.com
-	[209.85.128.181])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 922711057FF0
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 16:45:54 +0200 (CEST)
-Received: by mail-wr0-f181.google.com with SMTP id v105so2432191wrb.0
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 07:45:54 -0700 (PDT)
-Date: Tue, 18 Jul 2017 16:45:51 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
+Return-Path: <bwiedemann@suse.de>
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 24DD21057FF0
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 16:59:04 +0200 (CEST)
+Received: from relay1.suse.de (charybdis-ext.suse.de [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 2C491AC41
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 14:59:04 +0000 (UTC)
 To: drbd-dev@lists.linbit.com
-Message-ID: <20170718144551.GE1453@rck.sh>
 References: <20170718083536.13668-1-bwiedemann@suse.de>
 	<20170718091350.16310-1-bwiedemann@suse.de>
 	<20170718123532.GD1453@rck.sh>
 	<ce35732f-d0c4-cd8d-66f9-e5785d0bdbe2@suse.de>
+	<20170718144551.GE1453@rck.sh>
+From: "Bernhard M. Wiedemann" <bwiedemann@suse.de>
+Message-ID: <37f3d2a2-803f-e7ba-9606-8c7f62305711@suse.de>
+Date: Tue, 18 Jul 2017 14:59:02 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ce35732f-d0c4-cd8d-66f9-e5785d0bdbe2@suse.de>
+In-Reply-To: <20170718144551.GE1453@rck.sh>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Subject: Re: [Drbd-dev] [PATCH] drbd: Allow to override build date (v2)
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -29,25 +31,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jul 18, 2017 at 02:47:54PM +0200, Bernhard M. Wiedemann wrote:
-> 
-> > No. What if setting SOURCE_DATE_EPOCH becomes the default in the future?
-> > Maybe it already is for some of the distributions we as LINBIT build
-> > packages for. Sorry for being the spoilsport here, but as it stands I
-> > only see the potential of breaking the way we want it .
-> 
-> It already _is_ the default for openSUSE Tumbleweed (aka Factory)...
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-See, then it was good not taking it as it was, as it would have changed
-the behavior from what *we intentionally* want to what *you* want.
+On 2017-07-18 14:45, Roland Kammerer wrote:
+> I'm insistent on one simple thing: Don't break our existing
+> code/builds with something you want.
 
-> If you are that reliant/insistent on this date, we could add another
+I was just proposing these changes (the first one even with an
+explicit 'RFC' (Request For Comment) tag), because I did not know what
+you want.
 
-I'm insistent on one simple thing: Don't break our existing code/builds
-with something you want.
+> Looks good, merged your v3 patch.
 
-> [ -z "${WANT_DRBD_REPRODUCIBLE_BUILD}" ] ||
+Thank you
 
-Looks good, merged your v3 patch.
+Bernhard M.
+-----BEGIN PGP SIGNATURE-----
 
-Thanks, rck
+iHEEARECADEWIQRk4KvQEtfG32NHprVJNgs7HfuhZAUCWW4iKxMcYndpZWRlbWFu
+bkBzdXNlLmRlAAoJEEk2Czsd+6FkFhMAoItA1atgijyLyu8T2XwgfIl1CVC7AJ4u
+RlRSukcP80AYxRpgpeKG1s54sg==
+=AWDI
+-----END PGP SIGNATURE-----
