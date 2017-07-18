@@ -1,17 +1,23 @@
-Return-Path: <bwiedemann@suse.de>
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 931501057FE8
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 14:48:23 +0200 (CEST)
-Received: from relay1.suse.de (charybdis-ext.suse.de [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 65A73ABB8
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 12:48:23 +0000 (UTC)
-From: "Bernhard M. Wiedemann" <bwiedemann@suse.de>
+Return-Path: <roland.kammerer@linbit.com>
+Received: from mail-wr0-f181.google.com (mail-wr0-f181.google.com
+	[209.85.128.181])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 922711057FF0
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 16:45:54 +0200 (CEST)
+Received: by mail-wr0-f181.google.com with SMTP id v105so2432191wrb.0
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 07:45:54 -0700 (PDT)
+Date: Tue, 18 Jul 2017 16:45:51 +0200
+From: Roland Kammerer <roland.kammerer@linbit.com>
 To: drbd-dev@lists.linbit.com
-Date: Tue, 18 Jul 2017 14:48:13 +0200
-Message-Id: <20170718124813.31529-1-bwiedemann@suse.de>
+Message-ID: <20170718144551.GE1453@rck.sh>
+References: <20170718083536.13668-1-bwiedemann@suse.de>
+	<20170718091350.16310-1-bwiedemann@suse.de>
+	<20170718123532.GD1453@rck.sh>
+	<ce35732f-d0c4-cd8d-66f9-e5785d0bdbe2@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <ce35732f-d0c4-cd8d-66f9-e5785d0bdbe2@suse.de>
-References: <ce35732f-d0c4-cd8d-66f9-e5785d0bdbe2@suse.de>
-Subject: [Drbd-dev] [PATCH] drbd: Allow to override build date (v3)
+Subject: Re: [Drbd-dev] [PATCH] drbd: Allow to override build date (v2)
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,31 +29,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-and to not record build user and hostname if requested
-in order to allow for reproducible builds.
-See https://reproducible-builds.org/ for why this is good
-and https://reproducible-builds.org/specs/source-date-epoch/
-for the definition of this variable.
----
- drbd/Kbuild | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+On Tue, Jul 18, 2017 at 02:47:54PM +0200, Bernhard M. Wiedemann wrote:
+> 
+> > No. What if setting SOURCE_DATE_EPOCH becomes the default in the future?
+> > Maybe it already is for some of the distributions we as LINBIT build
+> > packages for. Sorry for being the spoilsport here, but as it stands I
+> > only see the potential of breaking the way we want it .
+> 
+> It already _is_ the default for openSUSE Tumbleweed (aka Factory)...
 
-diff --git a/drbd/Kbuild b/drbd/Kbuild
-index 2d1b4d0..80b8099 100644
---- a/drbd/Kbuild
-+++ b/drbd/Kbuild
-@@ -134,5 +134,10 @@ $(obj)/drbd_buildtag.c: $(filter-out drbd_buildtag.o,$(drbd-y))
- 		echo >&2 "Your DRBD source tree is broken. Unpack again.";      \
- 		exit 1;								\
- 	fi ;									\
--	echo -e "\t\t\" build by $$USER@$$HOSTNAME, `date "+%F %T"`\";\n}";	\
-+	if [ -z "${WANT_DRBD_REPRODUCIBLE_BUILD}" ] || [ -z "${SOURCE_DATE_EPOCH}" ] ; then \
-+		buildinfo="build by $$USER@$$HOSTNAME, `date "+%F %T"`" ; \
-+	else \
-+		buildinfo="reproducible build, `date -u -d@${SOURCE_DATE_EPOCH} "+%F %T"`" ; \
-+	fi ; \
-+	echo -e "\t\t\" $$buildinfo\";\n}";	\
- 	mv -f $@.new $@
--- 
-2.12.3
+See, then it was good not taking it as it was, as it would have changed
+the behavior from what *we intentionally* want to what *you* want.
 
+> If you are that reliant/insistent on this date, we could add another
+
+I'm insistent on one simple thing: Don't break our existing code/builds
+with something you want.
+
+> [ -z "${WANT_DRBD_REPRODUCIBLE_BUILD}" ] ||
+
+Looks good, merged your v3 patch.
+
+Thanks, rck
