@@ -1,25 +1,30 @@
-Return-Path: <bwiedemann@suse.de>
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 24DD21057FF0
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 16:59:04 +0200 (CEST)
-Received: from relay1.suse.de (charybdis-ext.suse.de [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2C491AC41
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jul 2017 14:59:04 +0000 (UTC)
-To: drbd-dev@lists.linbit.com
-References: <20170718083536.13668-1-bwiedemann@suse.de>
-	<20170718091350.16310-1-bwiedemann@suse.de>
-	<20170718123532.GD1453@rck.sh>
-	<ce35732f-d0c4-cd8d-66f9-e5785d0bdbe2@suse.de>
-	<20170718144551.GE1453@rck.sh>
-From: "Bernhard M. Wiedemann" <bwiedemann@suse.de>
-Message-ID: <37f3d2a2-803f-e7ba-9606-8c7f62305711@suse.de>
-Date: Tue, 18 Jul 2017 14:59:02 +0000
+Return-Path: <roland.kammerer@linbit.com>
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1810E1057FE7
+	for <drbd-dev@lists.linbit.com>; Thu, 20 Jul 2017 13:35:05 +0200 (CEST)
+Received: by mail-wm0-f47.google.com with SMTP id g127so24201885wmd.0
+	for <drbd-dev@lists.linbit.com>; Thu, 20 Jul 2017 04:35:05 -0700 (PDT)
+Received: from localhost (213-47-144-126.static.upcbusiness.at.
+	[213.47.144.126]) by smtp.gmail.com with ESMTPSA id
+	g18sm11029633wrg.69.2017.07.20.04.27.51
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Thu, 20 Jul 2017 04:27:51 -0700 (PDT)
+From: Shaobo <roland.kammerer@linbit.com>
+Resent-Message-ID: <20170720112751.GS1453@rck.sh>
+Received: from mail-svr1.cs.utah.edu (rio.cs.utah.edu [155.98.64.241])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8EB651057FE2
+	for <drbd-dev@lists.linbit.com>; Thu, 20 Jul 2017 06:57:50 +0200 (CEST)
 MIME-Version: 1.0
-In-Reply-To: <20170718144551.GE1453@rck.sh>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
 Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] [PATCH] drbd: Allow to override build date (v2)
+Date: Wed, 19 Jul 2017 22:50:47 -0600
+To: drbd-dev@lists.linbit.com
+Message-ID: <6863677bb21b5adb672d850983d5f8d1@cs.utah.edu>
+Cc: lars.ellenberg@linbit.com, philipp.reisner@linbit.com
+Subject: [Drbd-dev] Potentially invalid memory accesses in file
+ drivers/block/drbd/drbd_worker.c
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,26 +36,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+Hi there,
 
-On 2017-07-18 14:45, Roland Kammerer wrote:
-> I'm insistent on one simple thing: Don't break our existing
-> code/builds with something you want.
+My name is Shaobo He and I am a graduate student at University of Utah. 
+I am using a static analysis tool to search for null pointer 
+dereferences and came across a couple of potentially invalid memory 
+accesses in the file drivers/block/drbd/drbd_worker.c: in function 
+`drbd_start_resync`, pointer variable `connection` in line 1727 can be 
+NULL while is dereferenced at line 1767 (```if (current == 
+connection->worker.task) {```).
 
-I was just proposing these changes (the first one even with an
-explicit 'RFC' (Request For Comment) tag), because I did not know what
-you want.
+Please let me know if it makes sense. I am looking forward to your 
+reply.
 
-> Looks good, merged your v3 patch.
-
-Thank you
-
-Bernhard M.
------BEGIN PGP SIGNATURE-----
-
-iHEEARECADEWIQRk4KvQEtfG32NHprVJNgs7HfuhZAUCWW4iKxMcYndpZWRlbWFu
-bkBzdXNlLmRlAAoJEEk2Czsd+6FkFhMAoItA1atgijyLyu8T2XwgfIl1CVC7AJ4u
-RlRSukcP80AYxRpgpeKG1s54sg==
-=AWDI
------END PGP SIGNATURE-----
+Best,
+Shaobo
