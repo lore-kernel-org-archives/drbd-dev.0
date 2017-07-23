@@ -1,20 +1,18 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DC489105633D
-	for <drbd-dev@lists.linbit.com>; Thu, 20 Jul 2017 14:10:33 +0200 (CEST)
-Received: by mail-wm0-f47.google.com with SMTP id k69so22630080wmc.1
-	for <drbd-dev@lists.linbit.com>; Thu, 20 Jul 2017 05:10:33 -0700 (PDT)
-Date: Thu, 20 Jul 2017 14:10:31 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
+Return-Path: <bwiedemann@suse.de>
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1777C1057FD4
+	for <drbd-dev@lists.linbit.com>; Sun, 23 Jul 2017 17:58:19 +0200 (CEST)
+Received: from relay2.suse.de (charybdis-ext.suse.de [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 41B6DAAB6
+	for <drbd-dev@lists.linbit.com>; Sun, 23 Jul 2017 15:58:18 +0000 (UTC)
+From: "Bernhard M. Wiedemann" <bwiedemann@suse.de>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20170720121030.GT1453@rck.sh>
-References: <6863677bb21b5adb672d850983d5f8d1@cs.utah.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6863677bb21b5adb672d850983d5f8d1@cs.utah.edu>
-Subject: Re: [Drbd-dev] Potentially invalid memory accesses in file
- drivers/block/drbd/drbd_worker.c
+Date: Sun, 23 Jul 2017 17:57:51 +0200
+Message-Id: <20170723155751.16226-1-bwiedemann@suse.de>
+In-Reply-To: <20170718124813.31529-1-bwiedemann@suse.de>
+References: <20170718124813.31529-1-bwiedemann@suse.de>
+Cc: "Bernhard M. Wiedemann" <bwiedemann@suse.de>
+Subject: [Drbd-dev] [PATCH] drbd-utils: Allow to override build date
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,21 +24,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Jul 19, 2017 at 10:50:47PM -0600, Shaobo wrote:
-> Hi there,
-> 
-> My name is Shaobo He and I am a graduate student at University of Utah. I am
-> using a static analysis tool to search for null pointer dereferences and
-> came across a couple of potentially invalid memory accesses in the file
-> drivers/block/drbd/drbd_worker.c: in function `drbd_start_resync`, pointer
-> variable `connection` in line 1727 can be NULL while is dereferenced at line
-> 1767 (```if (current == connection->worker.task) {```).
-> 
-> Please let me know if it makes sense. I am looking forward to your reply.
+and to not record build user and hostname if requested
+in order to allow for reproducible builds.
+See https://reproducible-builds.org/ for why this is good
+and https://reproducible-builds.org/specs/source-date-epoch/
+for the definition of this variable.
+---
+ user/shared/Makefile.in | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-Hi Shaobo,
+diff --git a/user/shared/Makefile.in b/user/shared/Makefile.in
+index cce7c1bc..596bcf81 100644
+--- a/user/shared/Makefile.in
++++ b/user/shared/Makefile.in
+@@ -84,7 +84,12 @@ drbd_buildtag.c:
+ 	else									\
+ 		grep return $@ ;						\
+ 	fi ;									\
+-	echo -e "\t\t\" build by $$USER@$$HOSTNAME, `date "+%F %T"`\";\n}";	\
++	if [ -z "${WANT_DRBD_REPRODUCIBLE_BUILD}" ] || [ -z "${SOURCE_DATE_EPOCH}" ] ; then \
++		buildinfo="build by $$USER@$$HOSTNAME, `date "+%F %T"`" ; \
++	else \
++		buildinfo="reproducible build, `date -u -d@${SOURCE_DATE_EPOCH} "+%F %T"`" ; \
++	fi ; \
++	echo -e "\t\t\" $$buildinfo\";\n}";	\
+ 	mv -f $@.new $@
+ 
+ drbdmeta_scanner.c: drbdmeta_scanner.fl drbdmeta_parser.h
+-- 
+2.12.3
 
-While highly theoretical and unlikely, better be safe than sorry. Fixed
-and we will send that to mainline Linux soon.
-
-Regards, rck
