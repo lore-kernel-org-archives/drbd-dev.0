@@ -1,21 +1,15 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8A7641057FF0
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Aug 2017 14:21:05 +0200 (CEST)
-Received: by mail-wm0-f54.google.com with SMTP id t201so18327022wmt.1
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Aug 2017 05:21:05 -0700 (PDT)
-Date: Thu, 10 Aug 2017 14:21:01 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: Nick Wang <nwang@suse.com>
-Message-ID: <20170810122100.GC15992@rck.sh>
-References: <20170810081957.18681-1-nwang@suse.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170810081957.18681-1-nwang@suse.com>
-Cc: jfehlig@suse.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] block-drbd: Update block-drbd script to
- support modern Xen
+Return-Path: <nwang@suse.com>
+Received: from prv3-mh.provo.novell.com (prv3-mh.provo.novell.com
+	[137.65.250.26])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EE44F105647D
+	for <drbd-dev@lists.linbit.com>; Fri, 11 Aug 2017 06:26:30 +0200 (CEST)
+From: Nick Wang <nwang@suse.com>
+To: drbd-dev@lists.linbit.com
+Date: Fri, 11 Aug 2017 12:26:10 +0800
+Message-Id: <20170811042610.3956-1-nwang@suse.com>
+Cc: lars.ellenberg@linbit.com, jfehlig@suse.com,
+	Roland Kammerer <roland.kammerer@linbit.com>
+Subject: [Drbd-dev] [PATCH] block-drbd: Fix block-drbd remove command
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,18 +21,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Aug 10, 2017 at 04:19:57PM +0800, Nick Wang wrote:
-> The xm/xend toolstack has long been removed from Xen and replaced
-> with xl/libxl. The legacy xmdomain.cfg(5) configuration format is
-> still supported for backward compatibility, but xl.cfg(5) format
-> is preferred. Update the script documenation to reflect this.
-> 
-> When the legacy format is used, libxl places the entire target
-> string in $XENBUS_PATH/params, e.g. 'drbd:myresource'. To ensure
-> the script continues to work with the legacy configuration format,
-> strip any 'drbd:' prefix from the resource identifier read from
-> xenstore.
+Similar to a previous fix for the add command, strip any 'drbd:'
+prefix from the resource identifier read from xenstore. Otherwise
+the remove command can fail, leaving the resource in Primary role.
+This presents a data hazard if a VM is migrated to another host,
+where the resource will also be placed in Primary role.
 
-Merged.
+Signed-off-by: Jim Fehlig <jfehlig@suse.com>
+Signed-off-by: Nick Wang <nwang@suse.com>
+CC: Lars Ellenberg <lars.ellenberg@linbit.com>
+CC: Roland Kammerer <roland.kammerer@linbit.com>
+CC: drbd-dev@lists.linbit.com
 
-Thanks, rck
+---
+ scripts/block-drbd | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scripts/block-drbd b/scripts/block-drbd
+index 11ec057f..23364cd6 100755
+--- a/scripts/block-drbd
++++ b/scripts/block-drbd
+@@ -284,7 +284,7 @@ case "$command" in
+     case $t in 
+       drbd|phy)
+         p=$(xenstore_read "$XENBUS_PATH/params")
+-        drbd_resource=$p
++        drbd_resource=${p#drbd:}
+         drbd_role="$(drbdadm role $drbd_resource)"
+         drbd_lrole="${drbd_role%%/*}"
+         drbd_dev="$(drbdadm sh-dev $drbd_resource)"
+-- 
+2.12.0
+
