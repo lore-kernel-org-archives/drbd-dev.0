@@ -1,20 +1,19 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-wr0-f171.google.com (mail-wr0-f171.google.com
-	[209.85.128.171])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E41661058015
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:30:11 +0200 (CEST)
-Received: by mail-wr0-f171.google.com with SMTP id z91so2131849wrc.1
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:30:11 -0700 (PDT)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 644B51058017
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:30:46 +0200 (CEST)
+Received: by mail-wm0-f47.google.com with SMTP id b189so4738505wmd.0
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:30:46 -0700 (PDT)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Thu, 24 Aug 2017 23:22:59 +0200
-Message-Id: <1503609794-13233-3-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 24 Aug 2017 23:23:10 +0200
+Message-Id: <1503609794-13233-14-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 References: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/17] drbd: change list_for_each_safe to
-	while(list_first_entry_or_null)
+Subject: [Drbd-dev] [PATCH 13/17] drbd: fix race between handshake and admin
+	disconnect/down
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,43 +27,35 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Two instances of list_for_each_safe can drop their tmp element, they
-really just peel off each element in turn from the start of the list.
+conn_try_disconnect() could potentialy hit the BUG_ON()
+in _conn_set_state() where it iterates over _drbd_set_state()
+and "asserts" via BUG_ON() that the latter was successful.
+
+If the STATE_SENT bit was not yet visible to conn_is_valid_transition()
+early in _conn_request_state(), but became visible before conn_set_state()
+later in that call path, we could hit the BUG_ON() after _drbd_set_state(),
+because it returned SS_IN_TRANSIENT_STATE.
+
+To avoid that race, we better protect set_bit(SENT_STATE) with the spinlock.
 
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 5955ab8..85e05ee 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1485,12 +1485,12 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
- 					    struct list_head *pending,
- 					    struct list_head *later)
- {
--	struct drbd_request *req, *tmp;
-+	struct drbd_request *req;
- 	int wake = 0;
- 	int err;
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 2489667..5e090a1 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1100,7 +1100,10 @@ static int conn_connect(struct drbd_connection *connection)
+ 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
+ 		mutex_lock(peer_device->device->state_mutex);
  
- 	spin_lock_irq(&device->al_lock);
--	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
-+	while ((req = list_first_entry_or_null(incoming, struct drbd_request, tl_requests))) {
- 		err = drbd_al_begin_io_nonblock(device, &req->i);
- 		if (err == -ENOBUFS)
- 			break;
-@@ -1509,9 +1509,9 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
++	/* avoid a race with conn_request_state( C_DISCONNECTING ) */
++	spin_lock_irq(&connection->resource->req_lock);
+ 	set_bit(STATE_SENT, &connection->flags);
++	spin_unlock_irq(&connection->resource->req_lock);
  
- void send_and_submit_pending(struct drbd_device *device, struct list_head *pending)
- {
--	struct drbd_request *req, *tmp;
-+	struct drbd_request *req;
- 
--	list_for_each_entry_safe(req, tmp, pending, tl_requests) {
-+	while ((req = list_first_entry_or_null(pending, struct drbd_request, tl_requests))) {
- 		req->rq_state |= RQ_IN_ACT_LOG;
- 		req->in_actlog_jif = jiffies;
- 		atomic_dec(&device->ap_actlog_cnt);
+ 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
+ 		mutex_unlock(peer_device->device->state_mutex);
 -- 
 2.7.4
 
