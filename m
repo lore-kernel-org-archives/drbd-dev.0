@@ -1,19 +1,20 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 644B51058017
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:30:46 +0200 (CEST)
-Received: by mail-wm0-f47.google.com with SMTP id b189so4738505wmd.0
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:30:46 -0700 (PDT)
+Received: from mail-wr0-f173.google.com (mail-wr0-f173.google.com
+	[209.85.128.173])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8D634105801B
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:30:49 +0200 (CEST)
+Received: by mail-wr0-f173.google.com with SMTP id a47so2079811wra.4
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:30:49 -0700 (PDT)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Thu, 24 Aug 2017 23:23:10 +0200
-Message-Id: <1503609794-13233-14-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 24 Aug 2017 23:23:13 +0200
+Message-Id: <1503609794-13233-17-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 References: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 13/17] drbd: fix race between handshake and admin
-	disconnect/down
+Subject: [Drbd-dev] [PATCH 16/17] drbd: abort drbd_start_resync if there is
+	no connection
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,37 +26,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+From: Roland Kammerer <roland.kammerer@linbit.com>
 
-conn_try_disconnect() could potentialy hit the BUG_ON()
-in _conn_set_state() where it iterates over _drbd_set_state()
-and "asserts" via BUG_ON() that the latter was successful.
+This was found by a static analysis tool. While highly unlikely, be sure
+to return without dereferencing the NULL pointer.
 
-If the STATE_SENT bit was not yet visible to conn_is_valid_transition()
-early in _conn_request_state(), but became visible before conn_set_state()
-later in that call path, we could hit the BUG_ON() after _drbd_set_state(),
-because it returned SS_IN_TRANSIENT_STATE.
-
-To avoid that race, we better protect set_bit(SENT_STATE) with the spinlock.
-
+Reported-by: Shaobo <shaobo@cs.utah.edu>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 2489667..5e090a1 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1100,7 +1100,10 @@ static int conn_connect(struct drbd_connection *connection)
- 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
- 		mutex_lock(peer_device->device->state_mutex);
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index f0717a9..03471b3 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1756,6 +1756,11 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
+ 		return;
+ 	}
  
-+	/* avoid a race with conn_request_state( C_DISCONNECTING ) */
-+	spin_lock_irq(&connection->resource->req_lock);
- 	set_bit(STATE_SENT, &connection->flags);
-+	spin_unlock_irq(&connection->resource->req_lock);
- 
- 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
- 		mutex_unlock(peer_device->device->state_mutex);
++	if (!connection) {
++		drbd_err(device, "No connection to peer, aborting!\n");
++		return;
++	}
++
+ 	if (!test_bit(B_RS_H_DONE, &device->flags)) {
+ 		if (side == C_SYNC_TARGET) {
+ 			/* Since application IO was locked out during C_WF_BITMAP_T and
 -- 
 2.7.4
 
