@@ -1,16 +1,19 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 748901057FFE
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:29:26 +0200 (CEST)
-Received: by mail-wm0-f53.google.com with SMTP id z132so4671214wmg.1
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:29:26 -0700 (PDT)
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EBB43105800A
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:29:29 +0200 (CEST)
+Received: by mail-wm0-f48.google.com with SMTP id b189so4721698wmd.0
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:29:29 -0700 (PDT)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Thu, 24 Aug 2017 23:22:57 +0200
-Message-Id: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 24 Aug 2017 23:23:09 +0200
+Message-Id: <1503609794-13233-13-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
+References: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 00/17] DRBD updates
+Subject: [Drbd-dev] [PATCH 12/17] drbd: fix potential deadlock when trying
+	to detach during handshake
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,62 +25,172 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Please consider these patches for your for-4.14 branch.
+When requesting a detach, we first suspend IO, and also inhibit meta-data IO
+by means of drbd_md_get_buffer(), because we don't want to "fail" the disk
+while there is IO in-flight: the transition into D_FAILED for detach purposes
+may get misinterpreted as actual IO error in a confused endio function.
 
-The first and third patch help with request merging on DRBD's secondary side.
-That can improves performance for some workloads.
+We wrap it all into wait_event(), to retry in case the drbd_req_state()
+returns SS_IN_TRANSIENT_STATE, as it does for example during an ongoing
+connection handshake.
 
-The other patches are fixes and random mentenance.
+In that example, the receiver thread may need to grab drbd_md_get_buffer()
+during the handshake to make progress.  To avoid potential deadlock with
+detach, detach needs to grab and release the meta data buffer inside of
+that wait_event retry loop. To avoid lock inversion between
+mutex_lock(&device->state_mutex) and drbd_md_get_buffer(device),
+introduce a new enum chg_state_flag CS_INHIBIT_MD_IO, and move the
+call to drbd_md_get_buffer() inside the state_mutex grabbed in
+drbd_req_state().
 
+Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Baoyou Xie (1):
-  drbd: mark symbols static where possible
-
-Geliang Tang (1):
-  drbd: Use setup_timer() instead of init_timer() to simplify the code.
-
-Greg Kroah-Hartman (1):
-  drbd: rename "usermode_helper" to "drbd_usermode_helper"
-
-Lars Ellenberg (9):
-  drbd: introduce drbd_recv_header_maybe_unplug
-  drbd: change list_for_each_safe to while(list_first_entry_or_null)
-  drbd: add explicit plugging when submitting batches
-  drbd: Send P_NEG_ACK upon write error in protocol != C
-  drbd: new disk-option disable-write-same
-  drbd: fix potential get_ldev/put_ldev refcount imbalance during attach
-  drbd: fix rmmod cleanup, remove _all_ debugfs entries
-  drbd: fix potential deadlock when trying to detach during handshake
-  drbd: fix race between handshake and admin disconnect/down
-
-Markus Elfring (1):
-  drbd: A single dot should be put into a sequence.
-
-Philipp Reisner (1):
-  drbd: Fix resource role for newly created resources in events2
-
-Roland Kammerer (3):
-  drbd: move global variables to drbd namespace and make some static
-  drbd: abort drbd_start_resync if there is no connection
-  drbd: switch from kmalloc() to kmalloc_array()
-
- drivers/block/drbd/drbd_int.h      |  27 +++++-----
- drivers/block/drbd/drbd_main.c     | 106 +++++++++++++++++++++----------------
- drivers/block/drbd/drbd_nl.c       |  60 +++++++++------------
- drivers/block/drbd/drbd_proc.c     |  10 ++--
- drivers/block/drbd/drbd_receiver.c |  56 +++++++++++++++++---
- drivers/block/drbd/drbd_req.c      |  80 ++++++++++++++++++++++++++--
- drivers/block/drbd/drbd_req.h      |   6 +++
- drivers/block/drbd/drbd_state.c    |  48 ++++++++++++++++-
- drivers/block/drbd/drbd_state.h    |   8 +++
- drivers/block/drbd/drbd_worker.c   |  46 ++++++++++++----
- include/linux/drbd.h               |   2 +-
- include/linux/drbd_genl.h          |   3 +-
- include/linux/drbd_limits.h        |   8 ++-
- 13 files changed, 333 insertions(+), 127 deletions(-)
-
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index c383b6c..6bb58a6 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -2149,34 +2149,13 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 
+ static int adm_detach(struct drbd_device *device, int force)
+ {
+-	enum drbd_state_rv retcode;
+-	void *buffer;
+-	int ret;
+-
+ 	if (force) {
+ 		set_bit(FORCE_DETACH, &device->flags);
+ 		drbd_force_state(device, NS(disk, D_FAILED));
+-		retcode = SS_SUCCESS;
+-		goto out;
++		return SS_SUCCESS;
+ 	}
+ 
+-	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
+-	buffer = drbd_md_get_buffer(device, __func__); /* make sure there is no in-flight meta-data IO */
+-	if (buffer) {
+-		retcode = drbd_request_state(device, NS(disk, D_FAILED));
+-		drbd_md_put_buffer(device);
+-	} else /* already <= D_FAILED */
+-		retcode = SS_NOTHING_TO_DO;
+-	/* D_FAILED will transition to DISKLESS. */
+-	drbd_resume_io(device);
+-	ret = wait_event_interruptible(device->misc_wait,
+-			device->state.disk != D_FAILED);
+-	if ((int)retcode == (int)SS_IS_DISKLESS)
+-		retcode = SS_NOTHING_TO_DO;
+-	if (ret)
+-		retcode = ERR_INTR;
+-out:
+-	return retcode;
++	return drbd_request_detach_interruptible(device);
+ }
+ 
+ /* Detaching the disk is a process in multiple stages.  First we need to lock
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 306f116..0813c65 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -579,11 +579,14 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
+ 	unsigned long flags;
+ 	union drbd_state os, ns;
+ 	enum drbd_state_rv rv;
++	void *buffer = NULL;
+ 
+ 	init_completion(&done);
+ 
+ 	if (f & CS_SERIALIZE)
+ 		mutex_lock(device->state_mutex);
++	if (f & CS_INHIBIT_MD_IO)
++		buffer = drbd_md_get_buffer(device, __func__);
+ 
+ 	spin_lock_irqsave(&device->resource->req_lock, flags);
+ 	os = drbd_read_state(device);
+@@ -636,6 +639,8 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
+ 	}
+ 
+ abort:
++	if (buffer)
++		drbd_md_put_buffer(device);
+ 	if (f & CS_SERIALIZE)
+ 		mutex_unlock(device->state_mutex);
+ 
+@@ -664,6 +669,47 @@ _drbd_request_state(struct drbd_device *device, union drbd_state mask,
+ 	return rv;
+ }
+ 
++/*
++ * We grab drbd_md_get_buffer(), because we don't want to "fail" the disk while
++ * there is IO in-flight: the transition into D_FAILED for detach purposes
++ * may get misinterpreted as actual IO error in a confused endio function.
++ *
++ * We wrap it all into wait_event(), to retry in case the drbd_req_state()
++ * returns SS_IN_TRANSIENT_STATE.
++ *
++ * To avoid potential deadlock with e.g. the receiver thread trying to grab
++ * drbd_md_get_buffer() while trying to get out of the "transient state", we
++ * need to grab and release the meta data buffer inside of that wait_event loop.
++ */
++static enum drbd_state_rv
++request_detach(struct drbd_device *device)
++{
++	return drbd_req_state(device, NS(disk, D_FAILED),
++			CS_VERBOSE | CS_ORDERED | CS_INHIBIT_MD_IO);
++}
++
++enum drbd_state_rv
++drbd_request_detach_interruptible(struct drbd_device *device)
++{
++	enum drbd_state_rv rv;
++	int ret;
++
++	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
++	wait_event_interruptible(device->state_wait,
++		(rv = request_detach(device)) != SS_IN_TRANSIENT_STATE);
++	drbd_resume_io(device);
++
++	ret = wait_event_interruptible(device->misc_wait,
++			device->state.disk != D_FAILED);
++
++	if (rv == SS_IS_DISKLESS)
++		rv = SS_NOTHING_TO_DO;
++	if (ret)
++		rv = ERR_INTR;
++
++	return rv;
++}
++
+ enum drbd_state_rv
+ _drbd_request_state_holding_state_mutex(struct drbd_device *device, union drbd_state mask,
+ 		    union drbd_state val, enum chg_state_flags f)
+diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
+index 6c9d5d4..0276c98 100644
+--- a/drivers/block/drbd/drbd_state.h
++++ b/drivers/block/drbd/drbd_state.h
+@@ -71,6 +71,10 @@ enum chg_state_flags {
+ 	CS_DC_SUSP       = 1 << 10,
+ 	CS_DC_MASK       = CS_DC_ROLE + CS_DC_PEER + CS_DC_CONN + CS_DC_DISK + CS_DC_PDSK,
+ 	CS_IGN_OUTD_FAIL = 1 << 11,
++
++	/* Make sure no meta data IO is in flight, by calling
++	 * drbd_md_get_buffer().  Used for graceful detach. */
++	CS_INHIBIT_MD_IO = 1 << 12,
+ };
+ 
+ /* drbd_dev_state and drbd_state are different types. This is to stress the
+@@ -156,6 +160,10 @@ static inline int drbd_request_state(struct drbd_device *device,
+ 	return _drbd_request_state(device, mask, val, CS_VERBOSE + CS_ORDERED);
+ }
+ 
++/* for use in adm_detach() (drbd_adm_detach(), drbd_adm_down()) */
++enum drbd_state_rv
++drbd_request_detach_interruptible(struct drbd_device *device);
++
+ enum drbd_role conn_highest_role(struct drbd_connection *connection);
+ enum drbd_role conn_highest_peer(struct drbd_connection *connection);
+ enum drbd_disk_state conn_highest_disk(struct drbd_connection *connection);
 -- 
 2.7.4
 
