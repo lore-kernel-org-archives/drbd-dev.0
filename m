@@ -1,19 +1,19 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2A63C1057FFE
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:31:10 +0200 (CEST)
-Received: by mail-wm0-f53.google.com with SMTP id z132so4694847wmg.1
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:31:10 -0700 (PDT)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 29A48105801E
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:31:17 +0200 (CEST)
+Received: by mail-wm0-f41.google.com with SMTP id l19so649740wmi.0
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:31:16 -0700 (PDT)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Thu, 24 Aug 2017 23:22:58 +0200
-Message-Id: <1503609794-13233-2-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 24 Aug 2017 23:23:12 +0200
+Message-Id: <1503609794-13233-16-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 References: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/17] drbd: introduce
-	drbd_recv_header_maybe_unplug
+Subject: [Drbd-dev] [PATCH 15/17] drbd: move global variables to drbd
+	namespace and make some static
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,340 +25,239 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+From: Roland Kammerer <roland.kammerer@linbit.com>
 
-Recently, drbd_recv_header() was changed to potentially
-implicitly "unplug" the backend device(s), in case there
-is currently nothing to receive.
+This is a follow-up to Gregs complaints that drbd clutteres the global
+namespace.
+Some of DRBD's module parameters are only used within one compilation
+unit. Make these static.
 
-Be more explicit about it: re-introduce the original drbd_recv_header(),
-and introduce a new drbd_recv_header_maybe_unplug() for use by the
-receiver "main loop".
-
-Using explicit plugging via blk_start_plug(); blk_finish_plug();
-really helps the io-scheduler of the backend with merging requests.
-
-Wrap the receiver "main loop" with such a plug.
-Also catch unplug events on the Primary,
-and try to propagate.
-
-This is performance relevant.  Without this, if the receiving side does
-not merge requests, number of IOPS on the peer can me significantly
-higher than IOPS on the Primary, and can easily become the bottleneck.
-
-Together, both changes should help to reduce the number of IOPS
-as seen on the backend of the receiving side, by increasing
-the chance of merging mergable requests, without trading latency
-for more throughput.
-
+Signed-off-by: Roland Kammerer <roland.kammerer@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 819f9d0..74a7d0b 100644
+index 61596af..7e8589c 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -745,6 +745,8 @@ struct drbd_connection {
- 	unsigned current_tle_writes;	/* writes seen within this tl epoch */
+@@ -63,19 +63,15 @@
+ # define __must_hold(x)
+ #endif
  
- 	unsigned long last_reconnect_jif;
-+	/* empty member on older kernels without blk_start_plug() */
-+	struct blk_plug receiver_plug;
- 	struct drbd_thread receiver;
- 	struct drbd_thread worker;
- 	struct drbd_thread ack_receiver;
-@@ -1131,7 +1133,8 @@ extern void conn_send_sr_reply(struct drbd_connection *connection, enum drbd_sta
- extern int drbd_send_rs_deallocated(struct drbd_peer_device *, struct drbd_peer_request *);
- extern void drbd_backing_dev_free(struct drbd_device *device, struct drbd_backing_dev *ldev);
- extern void drbd_device_cleanup(struct drbd_device *device);
--void drbd_print_uuids(struct drbd_device *device, const char *text);
-+extern void drbd_print_uuids(struct drbd_device *device, const char *text);
-+extern void drbd_queue_unplug(struct drbd_device *device);
+-/* module parameter, defined in drbd_main.c */
+-extern unsigned int minor_count;
+-extern bool disable_sendpage;
+-extern bool allow_oos;
+-void tl_abort_disk_io(struct drbd_device *device);
+-
++/* shared module parameters, defined in drbd_main.c */
+ #ifdef CONFIG_DRBD_FAULT_INJECTION
+-extern int enable_faults;
+-extern int fault_rate;
+-extern int fault_devs;
++extern int drbd_enable_faults;
++extern int drbd_fault_rate;
+ #endif
  
- extern void conn_md_sync(struct drbd_connection *connection);
- extern void drbd_md_write(struct drbd_device *device, void *buffer);
++extern unsigned int drbd_minor_count;
+ extern char drbd_usermode_helper[];
++extern int drbd_proc_details;
+ 
+ 
+ /* This is used to stop/restart our threads.
+@@ -181,8 +177,8 @@ _drbd_insert_fault(struct drbd_device *device, unsigned int type);
+ static inline int
+ drbd_insert_fault(struct drbd_device *device, unsigned int type) {
+ #ifdef CONFIG_DRBD_FAULT_INJECTION
+-	return fault_rate &&
+-		(enable_faults & (1<<type)) &&
++	return drbd_fault_rate &&
++		(drbd_enable_faults & (1<<type)) &&
+ 		_drbd_insert_fault(device, type);
+ #else
+ 	return 0;
+@@ -1466,8 +1462,6 @@ extern struct drbd_resource *drbd_find_resource(const char *name);
+ extern void drbd_destroy_resource(struct kref *kref);
+ extern void conn_free_crypto(struct drbd_connection *connection);
+ 
+-extern int proc_details;
+-
+ /* drbd_req */
+ extern void do_submit(struct work_struct *ws);
+ extern void __drbd_make_request(struct drbd_device *, struct bio *, unsigned long);
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index e2ed28d..a3b2ee7 100644
+index bdd9ab2..56a5436 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -1952,6 +1952,19 @@ static void drbd_release(struct gendisk *gd, fmode_t mode)
- 	mutex_unlock(&drbd_main_mutex);
- }
+@@ -77,40 +77,40 @@ MODULE_PARM_DESC(minor_count, "Approximate number of drbd devices ("
+ MODULE_ALIAS_BLOCKDEV_MAJOR(DRBD_MAJOR);
  
-+/* need to hold resource->req_lock */
-+void drbd_queue_unplug(struct drbd_device *device)
-+{
-+	if (device->state.pdsk >= D_INCONSISTENT && device->state.conn >= C_CONNECTED) {
-+		D_ASSERT(device, device->state.role == R_PRIMARY);
-+		if (test_and_clear_bit(UNPLUG_REMOTE, &device->flags)) {
-+			drbd_queue_work_if_unqueued(
-+				&first_peer_device(device)->connection->sender_work,
-+				&device->unplug_work);
-+		}
-+	}
-+}
-+
- static void drbd_set_defaults(struct drbd_device *device)
- {
- 	/* Beware! The actual layout differs
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index ece6e5d..1b3f439 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1194,6 +1194,14 @@ static int decode_header(struct drbd_connection *connection, void *header, struc
- 	return 0;
- }
+ #include <linux/moduleparam.h>
+-/* allow_open_on_secondary */
+-MODULE_PARM_DESC(allow_oos, "DONT USE!");
+ /* thanks to these macros, if compiled into the kernel (not-module),
+- * this becomes the boot parameter drbd.minor_count */
+-module_param(minor_count, uint, 0444);
+-module_param(disable_sendpage, bool, 0644);
+-module_param(allow_oos, bool, 0);
+-module_param(proc_details, int, 0644);
++ * these become boot parameters (e.g., drbd.minor_count) */
  
-+static void drbd_unplug_all_devices(struct drbd_connection *connection)
-+{
-+	if (current->plug == &connection->receiver_plug) {
-+		blk_finish_plug(&connection->receiver_plug);
-+		blk_start_plug(&connection->receiver_plug);
-+	} /* else: maybe just schedule() ?? */
-+}
-+
- static int drbd_recv_header(struct drbd_connection *connection, struct packet_info *pi)
- {
- 	void *buffer = connection->data.rbuf;
-@@ -1209,6 +1217,36 @@ static int drbd_recv_header(struct drbd_connection *connection, struct packet_in
- 	return err;
- }
+ #ifdef CONFIG_DRBD_FAULT_INJECTION
+-int enable_faults;
+-int fault_rate;
+-static int fault_count;
+-int fault_devs;
++int drbd_enable_faults;
++int drbd_fault_rate;
++static int drbd_fault_count;
++static int drbd_fault_devs;
+ /* bitmap of enabled faults */
+-module_param(enable_faults, int, 0664);
++module_param_named(enable_faults, drbd_enable_faults, int, 0664);
+ /* fault rate % value - applies to all enabled faults */
+-module_param(fault_rate, int, 0664);
++module_param_named(fault_rate, drbd_fault_rate, int, 0664);
+ /* count of faults inserted */
+-module_param(fault_count, int, 0664);
++module_param_named(fault_count, drbd_fault_count, int, 0664);
+ /* bitmap of devices to insert faults on */
+-module_param(fault_devs, int, 0644);
++module_param_named(fault_devs, drbd_fault_devs, int, 0644);
+ #endif
  
-+static int drbd_recv_header_maybe_unplug(struct drbd_connection *connection, struct packet_info *pi)
-+{
-+	void *buffer = connection->data.rbuf;
-+	unsigned int size = drbd_header_size(connection);
-+	int err;
+-/* module parameter, defined */
+-unsigned int minor_count = DRBD_MINOR_COUNT_DEF;
+-bool disable_sendpage;
+-bool allow_oos;
+-int proc_details;       /* Detail level in proc drbd*/
+-
++/* module parameters we can keep static */
++static bool drbd_allow_oos; /* allow_open_on_secondary */
++static bool drbd_disable_sendpage;
++MODULE_PARM_DESC(allow_oos, "DONT USE!");
++module_param_named(allow_oos, drbd_allow_oos, bool, 0);
++module_param_named(disable_sendpage, drbd_disable_sendpage, bool, 0644);
 +
-+	err = drbd_recv_short(connection->data.socket, buffer, size, MSG_NOSIGNAL|MSG_DONTWAIT);
-+	if (err != size) {
-+		/* If we have nothing in the receive buffer now, to reduce
-+		 * application latency, try to drain the backend queues as
-+		 * quickly as possible, and let remote TCP know what we have
-+		 * received so far. */
-+		if (err == -EAGAIN) {
-+			drbd_tcp_quickack(connection->data.socket);
-+			drbd_unplug_all_devices(connection);
-+		}
-+		if (err > 0) {
-+			buffer += err;
-+			size -= err;
-+		}
-+		err = drbd_recv_all_warn(connection, buffer, size);
-+		if (err)
-+			return err;
-+	}
-+
-+	err = decode_header(connection, connection->data.rbuf, pi);
-+	connection->last_received = jiffies;
-+
-+	return err;
-+}
- /* This is blkdev_issue_flush, but asynchronous.
-  * We want to submit to all component volumes in parallel,
-  * then wait for all completions.
-@@ -4882,8 +4920,8 @@ static void drbdd(struct drbd_connection *connection)
- 		struct data_cmd const *cmd;
++/* module parameters we share */
++int drbd_proc_details; /* Detail level in proc drbd*/
++module_param_named(proc_details, drbd_proc_details, int, 0644);
++/* module parameters shared with defaults */
++unsigned int drbd_minor_count = DRBD_MINOR_COUNT_DEF;
+ /* Module parameter for setting the user mode helper program
+  * to run. Default is /sbin/drbdadm */
+ char drbd_usermode_helper[80] = "/sbin/drbdadm";
+-
++module_param_named(minor_count, drbd_minor_count, uint, 0444);
+ module_param_string(usermode_helper, drbd_usermode_helper, sizeof(drbd_usermode_helper), 0644);
  
- 		drbd_thread_current_set_cpu(&connection->receiver);
--		update_receiver_timing_details(connection, drbd_recv_header);
--		if (drbd_recv_header(connection, &pi))
-+		update_receiver_timing_details(connection, drbd_recv_header_maybe_unplug);
-+		if (drbd_recv_header_maybe_unplug(connection, &pi))
- 			goto err_out;
+ /* in 2.6.x, our device mapping and config info contains our virtual gendisks
+@@ -1562,7 +1562,7 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
+ 	 * put_page(); and would cause either a VM_BUG directly, or
+ 	 * __page_cache_release a page that would actually still be referenced
+ 	 * by someone, leading to some obscure delayed Oops somewhere else. */
+-	if (disable_sendpage || (page_count(page) < 1) || PageSlab(page))
++	if (drbd_disable_sendpage || (page_count(page) < 1) || PageSlab(page))
+ 		return _drbd_no_send_page(peer_device, page, offset, size, msg_flags);
  
- 		cmd = &drbd_cmd_handler[pi.cmd];
-@@ -5375,8 +5413,11 @@ int drbd_receiver(struct drbd_thread *thi)
- 		}
- 	} while (h == 0);
- 
--	if (h > 0)
-+	if (h > 0) {
-+		blk_start_plug(&connection->receiver_plug);
- 		drbdd(connection);
-+		blk_finish_plug(&connection->receiver_plug);
-+	}
- 
- 	conn_disconnect(connection);
- 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 447c975..5955ab8 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1279,6 +1279,62 @@ static bool may_do_writes(struct drbd_device *device)
- 	return s.disk == D_UP_TO_DATE || s.pdsk == D_UP_TO_DATE;
- }
- 
-+#ifndef blk_queue_plugged
-+struct drbd_plug_cb {
-+	struct blk_plug_cb cb;
-+	struct drbd_request *most_recent_req;
-+	/* do we need more? */
-+};
-+
-+static void drbd_unplug(struct blk_plug_cb *cb, bool from_schedule)
-+{
-+	struct drbd_plug_cb *plug = container_of(cb, struct drbd_plug_cb, cb);
-+	struct drbd_resource *resource = plug->cb.data;
-+	struct drbd_request *req = plug->most_recent_req;
-+
-+	if (!req)
-+		return;
-+
-+	spin_lock_irq(&resource->req_lock);
-+	/* In case the sender did not process it yet, raise the flag to
-+	 * have it followed with P_UNPLUG_REMOTE just after. */
-+	req->rq_state |= RQ_UNPLUG;
-+	/* but also queue a generic unplug */
-+	drbd_queue_unplug(req->device);
-+	spin_unlock_irq(&resource->req_lock);
-+	kref_put(&req->kref, drbd_req_destroy);
-+}
-+
-+static struct drbd_plug_cb* drbd_check_plugged(struct drbd_resource *resource)
-+{
-+	/* A lot of text to say
-+	 * return (struct drbd_plug_cb*)blk_check_plugged(); */
-+	struct drbd_plug_cb *plug;
-+	struct blk_plug_cb *cb = blk_check_plugged(drbd_unplug, resource, sizeof(*plug));
-+
-+	if (cb)
-+		plug = container_of(cb, struct drbd_plug_cb, cb);
-+	else
-+		plug = NULL;
-+	return plug;
-+}
-+
-+static void drbd_update_plug(struct drbd_plug_cb *plug, struct drbd_request *req)
-+{
-+	struct drbd_request *tmp = plug->most_recent_req;
-+	/* Will be sent to some peer.
-+	 * Remember to tag it with UNPLUG_REMOTE on unplug */
-+	kref_get(&req->kref);
-+	plug->most_recent_req = req;
-+	if (tmp)
-+		kref_put(&tmp->kref, drbd_req_destroy);
-+}
-+#else
-+struct drbd_plug_cb { };
-+static void * drbd_check_plugged(struct drbd_resource *resource) { return NULL; };
-+static void drbd_update_plug(struct drbd_plug_cb *plug, struct drbd_request *req) { };
-+#endif
-+
- static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request *req)
- {
- 	struct drbd_resource *resource = device->resource;
-@@ -1287,6 +1343,8 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
- 	bool no_remote = false;
- 	bool submit_private_bio = false;
- 
-+	struct drbd_plug_cb *plug = drbd_check_plugged(resource);
-+
- 	spin_lock_irq(&resource->req_lock);
- 	if (rw == WRITE) {
- 		/* This may temporarily give up the req_lock,
-@@ -1351,6 +1409,9 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
- 			no_remote = true;
+ 	msg_flags |= MSG_NOSIGNAL;
+@@ -1934,7 +1934,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
+ 	if (device->state.role != R_PRIMARY) {
+ 		if (mode & FMODE_WRITE)
+ 			rv = -EROFS;
+-		else if (!allow_oos)
++		else if (!drbd_allow_oos)
+ 			rv = -EMEDIUMTYPE;
  	}
  
-+	if (plug != NULL && no_remote == false)
-+		drbd_update_plug(plug, req);
-+
- 	/* If it took the fast path in drbd_request_prepare, add it here.
- 	 * The slow path has added it already. */
- 	if (list_empty(&req->req_pending_master_completion))
-diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
-index 9e1866a..a2254f8 100644
---- a/drivers/block/drbd/drbd_req.h
-+++ b/drivers/block/drbd/drbd_req.h
-@@ -212,6 +212,11 @@ enum drbd_req_state_bits {
- 	/* Should call drbd_al_complete_io() for this request... */
- 	__RQ_IN_ACT_LOG,
- 
-+	/* This was the most recent request during some blk_finish_plug()
-+	 * or its implicit from-schedule equivalent.
-+	 * We may use it as hint to send a P_UNPLUG_REMOTE */
-+	__RQ_UNPLUG,
-+
- 	/* The peer has sent a retry ACK */
- 	__RQ_POSTPONED,
- 
-@@ -249,6 +254,7 @@ enum drbd_req_state_bits {
- #define RQ_WSAME           (1UL << __RQ_WSAME)
- #define RQ_UNMAP           (1UL << __RQ_UNMAP)
- #define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
-+#define RQ_UNPLUG          (1UL << __RQ_UNPLUG)
- #define RQ_POSTPONED	   (1UL << __RQ_POSTPONED)
- #define RQ_COMPLETION_SUSP (1UL << __RQ_COMPLETION_SUSP)
- #define RQ_EXP_RECEIVE_ACK (1UL << __RQ_EXP_RECEIVE_ACK)
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index c268d88..2745db2 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1382,18 +1382,22 @@ static int drbd_send_barrier(struct drbd_connection *connection)
- 	return conn_send_command(connection, sock, P_BARRIER, sizeof(*p), NULL, 0);
- }
- 
-+static int pd_send_unplug_remote(struct drbd_peer_device *pd)
-+{
-+	struct drbd_socket *sock = &pd->connection->data;
-+	if (!drbd_prepare_command(pd, sock))
-+		return -EIO;
-+	return drbd_send_command(pd, sock, P_UNPLUG_REMOTE, 0, NULL, 0);
-+}
-+
- int w_send_write_hint(struct drbd_work *w, int cancel)
+@@ -2142,7 +2142,7 @@ static void drbd_destroy_mempools(void)
+ static int drbd_create_mempools(void)
  {
- 	struct drbd_device *device =
- 		container_of(w, struct drbd_device, unplug_work);
--	struct drbd_socket *sock;
+ 	struct page *page;
+-	const int number = (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count;
++	const int number = (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * drbd_minor_count;
+ 	int i;
  
- 	if (cancel)
- 		return 0;
--	sock = &first_peer_device(device)->connection->data;
--	if (!drbd_prepare_command(first_peer_device(device), sock))
--		return -EIO;
--	return drbd_send_command(first_peer_device(device), sock, P_UNPLUG_REMOTE, 0, NULL, 0);
-+	return pd_send_unplug_remote(first_peer_device(device));
- }
- 
- static void re_init_if_first_write(struct drbd_connection *connection, unsigned int epoch)
-@@ -1455,6 +1459,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
- 	struct drbd_device *device = req->device;
- 	struct drbd_peer_device *const peer_device = first_peer_device(device);
- 	struct drbd_connection *connection = peer_device->connection;
-+	bool do_send_unplug = req->rq_state & RQ_UNPLUG;
+ 	/* prepare our caches and mempools */
+@@ -2984,8 +2984,8 @@ static int __init drbd_init(void)
+ {
  	int err;
  
- 	if (unlikely(cancel)) {
-@@ -1470,6 +1475,9 @@ int w_send_dblock(struct drbd_work *w, int cancel)
- 	err = drbd_send_dblock(peer_device, req);
- 	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
+-	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
+-		pr_err("invalid minor_count (%d)\n", minor_count);
++	if (drbd_minor_count < DRBD_MINOR_COUNT_MIN || drbd_minor_count > DRBD_MINOR_COUNT_MAX) {
++		pr_err("invalid minor_count (%d)\n", drbd_minor_count);
+ #ifdef MODULE
+ 		return -EINVAL;
+ #else
+@@ -3912,12 +3912,12 @@ _drbd_insert_fault(struct drbd_device *device, unsigned int type)
+ 	static struct fault_random_state rrs = {0, 0};
  
-+	if (do_send_unplug && !err)
-+		pd_send_unplug_remote(peer_device);
-+
- 	return err;
- }
+ 	unsigned int ret = (
+-		(fault_devs == 0 ||
+-			((1 << device_to_minor(device)) & fault_devs) != 0) &&
+-		(((_drbd_fault_random(&rrs) % 100) + 1) <= fault_rate));
++		(drbd_fault_devs == 0 ||
++			((1 << device_to_minor(device)) & drbd_fault_devs) != 0) &&
++		(((_drbd_fault_random(&rrs) % 100) + 1) <= drbd_fault_rate));
  
-@@ -1484,6 +1492,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
- 	struct drbd_device *device = req->device;
- 	struct drbd_peer_device *const peer_device = first_peer_device(device);
- 	struct drbd_connection *connection = peer_device->connection;
-+	bool do_send_unplug = req->rq_state & RQ_UNPLUG;
- 	int err;
+ 	if (ret) {
+-		fault_count++;
++		drbd_fault_count++;
  
- 	if (unlikely(cancel)) {
-@@ -1501,6 +1510,9 @@ int w_send_read_req(struct drbd_work *w, int cancel)
+ 		if (__ratelimit(&drbd_ratelimit_state))
+ 			drbd_warn(device, "***Simulating %s failure\n",
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index fc0f627..582caeb 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -179,7 +179,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
+ 	seq_printf_with_thousands_grouping(seq, dbdt);
+ 	seq_puts(seq, " (");
+ 	/* ------------------------- ~3s average ------------------------ */
+-	if (proc_details >= 1) {
++	if (drbd_proc_details >= 1) {
+ 		/* this is what drbd_rs_should_slow_down() uses */
+ 		i = (device->rs_last_mark + DRBD_SYNC_MARKS-1) % DRBD_SYNC_MARKS;
+ 		dt = (jiffies - device->rs_mark_time[i]) / HZ;
+@@ -209,7 +209,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
+ 	}
+ 	seq_printf(seq, " K/sec%s\n", stalled ? " (stalled)" : "");
  
- 	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
+-	if (proc_details >= 1) {
++	if (drbd_proc_details >= 1) {
+ 		/* 64 bit:
+ 		 * we convert to sectors in the display below. */
+ 		unsigned long bm_bits = drbd_bm_bits(device);
+@@ -332,13 +332,13 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
+ 		    state.conn == C_VERIFY_T)
+ 			drbd_syncer_progress(device, seq, state);
  
-+	if (do_send_unplug && !err)
-+		pd_send_unplug_remote(peer_device);
-+
- 	return err;
- }
+-		if (proc_details >= 1 && get_ldev_if_state(device, D_FAILED)) {
++		if (drbd_proc_details >= 1 && get_ldev_if_state(device, D_FAILED)) {
+ 			lc_seq_printf_stats(seq, device->resync);
+ 			lc_seq_printf_stats(seq, device->act_log);
+ 			put_ldev(device);
+ 		}
  
+-		if (proc_details >= 2)
++		if (drbd_proc_details >= 2)
+ 			seq_printf(seq, "\tblocked on activity log: %d\n", atomic_read(&device->ap_actlog_cnt));
+ 	}
+ 	rcu_read_unlock();
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 5e090a1..4e8a543 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -332,7 +332,7 @@ static void drbd_free_pages(struct drbd_device *device, struct page *page, int i
+ 	if (page == NULL)
+ 		return;
+ 
+-	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count)
++	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * drbd_minor_count)
+ 		i = page_chain_free(page);
+ 	else {
+ 		struct page *tmp;
 -- 
 2.7.4
 
