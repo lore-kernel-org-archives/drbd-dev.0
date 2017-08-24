@@ -1,19 +1,19 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 29A48105801E
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:31:17 +0200 (CEST)
-Received: by mail-wm0-f41.google.com with SMTP id l19so649740wmi.0
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:31:16 -0700 (PDT)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2FB541058022
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:31:27 +0200 (CEST)
+Received: by mail-wm0-f50.google.com with SMTP id z132so4534890wmg.1
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:31:27 -0700 (PDT)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Thu, 24 Aug 2017 23:23:12 +0200
-Message-Id: <1503609794-13233-16-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 24 Aug 2017 23:23:00 +0200
+Message-Id: <1503609794-13233-4-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 References: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 15/17] drbd: move global variables to drbd
-	namespace and make some static
+Subject: [Drbd-dev] [PATCH 03/17] drbd: add explicit plugging when
+	submitting batches
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,239 +25,102 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Roland Kammerer <roland.kammerer@linbit.com>
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-This is a follow-up to Gregs complaints that drbd clutteres the global
-namespace.
-Some of DRBD's module parameters are only used within one compilation
-unit. Make these static.
+When submitting batches of requests which had been queued on the
+submitter thread, typically because they needed to wait for an
+activity log transactions, use explicit plugging to help potential
+merging of requests in the backend io-scheduler.
 
-Signed-off-by: Roland Kammerer <roland.kammerer@linbit.com>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 61596af..7e8589c 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -63,19 +63,15 @@
- # define __must_hold(x)
- #endif
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 85e05ee..2c82330 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1292,6 +1292,7 @@ static void drbd_unplug(struct blk_plug_cb *cb, bool from_schedule)
+ 	struct drbd_resource *resource = plug->cb.data;
+ 	struct drbd_request *req = plug->most_recent_req;
  
--/* module parameter, defined in drbd_main.c */
--extern unsigned int minor_count;
--extern bool disable_sendpage;
--extern bool allow_oos;
--void tl_abort_disk_io(struct drbd_device *device);
--
-+/* shared module parameters, defined in drbd_main.c */
- #ifdef CONFIG_DRBD_FAULT_INJECTION
--extern int enable_faults;
--extern int fault_rate;
--extern int fault_devs;
-+extern int drbd_enable_faults;
-+extern int drbd_fault_rate;
- #endif
- 
-+extern unsigned int drbd_minor_count;
- extern char drbd_usermode_helper[];
-+extern int drbd_proc_details;
- 
- 
- /* This is used to stop/restart our threads.
-@@ -181,8 +177,8 @@ _drbd_insert_fault(struct drbd_device *device, unsigned int type);
- static inline int
- drbd_insert_fault(struct drbd_device *device, unsigned int type) {
- #ifdef CONFIG_DRBD_FAULT_INJECTION
--	return fault_rate &&
--		(enable_faults & (1<<type)) &&
-+	return drbd_fault_rate &&
-+		(drbd_enable_faults & (1<<type)) &&
- 		_drbd_insert_fault(device, type);
- #else
- 	return 0;
-@@ -1466,8 +1462,6 @@ extern struct drbd_resource *drbd_find_resource(const char *name);
- extern void drbd_destroy_resource(struct kref *kref);
- extern void conn_free_crypto(struct drbd_connection *connection);
- 
--extern int proc_details;
--
- /* drbd_req */
- extern void do_submit(struct work_struct *ws);
- extern void __drbd_make_request(struct drbd_device *, struct bio *, unsigned long);
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index bdd9ab2..56a5436 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -77,40 +77,40 @@ MODULE_PARM_DESC(minor_count, "Approximate number of drbd devices ("
- MODULE_ALIAS_BLOCKDEV_MAJOR(DRBD_MAJOR);
- 
- #include <linux/moduleparam.h>
--/* allow_open_on_secondary */
--MODULE_PARM_DESC(allow_oos, "DONT USE!");
- /* thanks to these macros, if compiled into the kernel (not-module),
-- * this becomes the boot parameter drbd.minor_count */
--module_param(minor_count, uint, 0444);
--module_param(disable_sendpage, bool, 0644);
--module_param(allow_oos, bool, 0);
--module_param(proc_details, int, 0644);
-+ * these become boot parameters (e.g., drbd.minor_count) */
- 
- #ifdef CONFIG_DRBD_FAULT_INJECTION
--int enable_faults;
--int fault_rate;
--static int fault_count;
--int fault_devs;
-+int drbd_enable_faults;
-+int drbd_fault_rate;
-+static int drbd_fault_count;
-+static int drbd_fault_devs;
- /* bitmap of enabled faults */
--module_param(enable_faults, int, 0664);
-+module_param_named(enable_faults, drbd_enable_faults, int, 0664);
- /* fault rate % value - applies to all enabled faults */
--module_param(fault_rate, int, 0664);
-+module_param_named(fault_rate, drbd_fault_rate, int, 0664);
- /* count of faults inserted */
--module_param(fault_count, int, 0664);
-+module_param_named(fault_count, drbd_fault_count, int, 0664);
- /* bitmap of devices to insert faults on */
--module_param(fault_devs, int, 0644);
-+module_param_named(fault_devs, drbd_fault_devs, int, 0644);
- #endif
- 
--/* module parameter, defined */
--unsigned int minor_count = DRBD_MINOR_COUNT_DEF;
--bool disable_sendpage;
--bool allow_oos;
--int proc_details;       /* Detail level in proc drbd*/
--
-+/* module parameters we can keep static */
-+static bool drbd_allow_oos; /* allow_open_on_secondary */
-+static bool drbd_disable_sendpage;
-+MODULE_PARM_DESC(allow_oos, "DONT USE!");
-+module_param_named(allow_oos, drbd_allow_oos, bool, 0);
-+module_param_named(disable_sendpage, drbd_disable_sendpage, bool, 0644);
-+
-+/* module parameters we share */
-+int drbd_proc_details; /* Detail level in proc drbd*/
-+module_param_named(proc_details, drbd_proc_details, int, 0644);
-+/* module parameters shared with defaults */
-+unsigned int drbd_minor_count = DRBD_MINOR_COUNT_DEF;
- /* Module parameter for setting the user mode helper program
-  * to run. Default is /sbin/drbdadm */
- char drbd_usermode_helper[80] = "/sbin/drbdadm";
--
-+module_param_named(minor_count, drbd_minor_count, uint, 0444);
- module_param_string(usermode_helper, drbd_usermode_helper, sizeof(drbd_usermode_helper), 0644);
- 
- /* in 2.6.x, our device mapping and config info contains our virtual gendisks
-@@ -1562,7 +1562,7 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
- 	 * put_page(); and would cause either a VM_BUG directly, or
- 	 * __page_cache_release a page that would actually still be referenced
- 	 * by someone, leading to some obscure delayed Oops somewhere else. */
--	if (disable_sendpage || (page_count(page) < 1) || PageSlab(page))
-+	if (drbd_disable_sendpage || (page_count(page) < 1) || PageSlab(page))
- 		return _drbd_no_send_page(peer_device, page, offset, size, msg_flags);
- 
- 	msg_flags |= MSG_NOSIGNAL;
-@@ -1934,7 +1934,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
- 	if (device->state.role != R_PRIMARY) {
- 		if (mode & FMODE_WRITE)
- 			rv = -EROFS;
--		else if (!allow_oos)
-+		else if (!drbd_allow_oos)
- 			rv = -EMEDIUMTYPE;
- 	}
- 
-@@ -2142,7 +2142,7 @@ static void drbd_destroy_mempools(void)
- static int drbd_create_mempools(void)
- {
- 	struct page *page;
--	const int number = (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count;
-+	const int number = (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * drbd_minor_count;
- 	int i;
- 
- 	/* prepare our caches and mempools */
-@@ -2984,8 +2984,8 @@ static int __init drbd_init(void)
- {
- 	int err;
- 
--	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
--		pr_err("invalid minor_count (%d)\n", minor_count);
-+	if (drbd_minor_count < DRBD_MINOR_COUNT_MIN || drbd_minor_count > DRBD_MINOR_COUNT_MAX) {
-+		pr_err("invalid minor_count (%d)\n", drbd_minor_count);
- #ifdef MODULE
- 		return -EINVAL;
- #else
-@@ -3912,12 +3912,12 @@ _drbd_insert_fault(struct drbd_device *device, unsigned int type)
- 	static struct fault_random_state rrs = {0, 0};
- 
- 	unsigned int ret = (
--		(fault_devs == 0 ||
--			((1 << device_to_minor(device)) & fault_devs) != 0) &&
--		(((_drbd_fault_random(&rrs) % 100) + 1) <= fault_rate));
-+		(drbd_fault_devs == 0 ||
-+			((1 << device_to_minor(device)) & drbd_fault_devs) != 0) &&
-+		(((_drbd_fault_random(&rrs) % 100) + 1) <= drbd_fault_rate));
- 
- 	if (ret) {
--		fault_count++;
-+		drbd_fault_count++;
- 
- 		if (__ratelimit(&drbd_ratelimit_state))
- 			drbd_warn(device, "***Simulating %s failure\n",
-diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
-index fc0f627..582caeb 100644
---- a/drivers/block/drbd/drbd_proc.c
-+++ b/drivers/block/drbd/drbd_proc.c
-@@ -179,7 +179,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
- 	seq_printf_with_thousands_grouping(seq, dbdt);
- 	seq_puts(seq, " (");
- 	/* ------------------------- ~3s average ------------------------ */
--	if (proc_details >= 1) {
-+	if (drbd_proc_details >= 1) {
- 		/* this is what drbd_rs_should_slow_down() uses */
- 		i = (device->rs_last_mark + DRBD_SYNC_MARKS-1) % DRBD_SYNC_MARKS;
- 		dt = (jiffies - device->rs_mark_time[i]) / HZ;
-@@ -209,7 +209,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
- 	}
- 	seq_printf(seq, " K/sec%s\n", stalled ? " (stalled)" : "");
- 
--	if (proc_details >= 1) {
-+	if (drbd_proc_details >= 1) {
- 		/* 64 bit:
- 		 * we convert to sectors in the display below. */
- 		unsigned long bm_bits = drbd_bm_bits(device);
-@@ -332,13 +332,13 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
- 		    state.conn == C_VERIFY_T)
- 			drbd_syncer_progress(device, seq, state);
- 
--		if (proc_details >= 1 && get_ldev_if_state(device, D_FAILED)) {
-+		if (drbd_proc_details >= 1 && get_ldev_if_state(device, D_FAILED)) {
- 			lc_seq_printf_stats(seq, device->resync);
- 			lc_seq_printf_stats(seq, device->act_log);
- 			put_ldev(device);
- 		}
- 
--		if (proc_details >= 2)
-+		if (drbd_proc_details >= 2)
- 			seq_printf(seq, "\tblocked on activity log: %d\n", atomic_read(&device->ap_actlog_cnt));
- 	}
- 	rcu_read_unlock();
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 5e090a1..4e8a543 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -332,7 +332,7 @@ static void drbd_free_pages(struct drbd_device *device, struct page *page, int i
- 	if (page == NULL)
++	kfree(cb);
+ 	if (!req)
  		return;
  
--	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count)
-+	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * drbd_minor_count)
- 		i = page_chain_free(page);
- 	else {
- 		struct page *tmp;
+@@ -1301,8 +1302,8 @@ static void drbd_unplug(struct blk_plug_cb *cb, bool from_schedule)
+ 	req->rq_state |= RQ_UNPLUG;
+ 	/* but also queue a generic unplug */
+ 	drbd_queue_unplug(req->device);
+-	spin_unlock_irq(&resource->req_lock);
+ 	kref_put(&req->kref, drbd_req_destroy);
++	spin_unlock_irq(&resource->req_lock);
+ }
+ 
+ static struct drbd_plug_cb* drbd_check_plugged(struct drbd_resource *resource)
+@@ -1343,8 +1344,6 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
+ 	bool no_remote = false;
+ 	bool submit_private_bio = false;
+ 
+-	struct drbd_plug_cb *plug = drbd_check_plugged(resource);
+-
+ 	spin_lock_irq(&resource->req_lock);
+ 	if (rw == WRITE) {
+ 		/* This may temporarily give up the req_lock,
+@@ -1409,8 +1408,11 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
+ 			no_remote = true;
+ 	}
+ 
+-	if (plug != NULL && no_remote == false)
+-		drbd_update_plug(plug, req);
++	if (no_remote == false) {
++		struct drbd_plug_cb *plug = drbd_check_plugged(resource);
++		if (plug)
++			drbd_update_plug(plug, req);
++	}
+ 
+ 	/* If it took the fast path in drbd_request_prepare, add it here.
+ 	 * The slow path has added it already. */
+@@ -1460,7 +1462,10 @@ void __drbd_make_request(struct drbd_device *device, struct bio *bio, unsigned l
+ 
+ static void submit_fast_path(struct drbd_device *device, struct list_head *incoming)
+ {
++	struct blk_plug plug;
+ 	struct drbd_request *req, *tmp;
++
++	blk_start_plug(&plug);
+ 	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
+ 		const int rw = bio_data_dir(req->master_bio);
+ 
+@@ -1478,6 +1483,7 @@ static void submit_fast_path(struct drbd_device *device, struct list_head *incom
+ 		list_del_init(&req->tl_requests);
+ 		drbd_send_and_submit(device, req);
+ 	}
++	blk_finish_plug(&plug);
+ }
+ 
+ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
+@@ -1507,10 +1513,12 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
+ 	return !list_empty(pending);
+ }
+ 
+-void send_and_submit_pending(struct drbd_device *device, struct list_head *pending)
++static void send_and_submit_pending(struct drbd_device *device, struct list_head *pending)
+ {
++	struct blk_plug plug;
+ 	struct drbd_request *req;
+ 
++	blk_start_plug(&plug);
+ 	while ((req = list_first_entry_or_null(pending, struct drbd_request, tl_requests))) {
+ 		req->rq_state |= RQ_IN_ACT_LOG;
+ 		req->in_actlog_jif = jiffies;
+@@ -1518,6 +1526,7 @@ void send_and_submit_pending(struct drbd_device *device, struct list_head *pendi
+ 		list_del_init(&req->tl_requests);
+ 		drbd_send_and_submit(device, req);
+ 	}
++	blk_finish_plug(&plug);
+ }
+ 
+ void do_submit(struct work_struct *ws)
 -- 
 2.7.4
 
