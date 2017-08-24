@@ -1,20 +1,18 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-wr0-f178.google.com (mail-wr0-f178.google.com
-	[209.85.128.178])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 86F261058012
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8E46E1058013
 	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:30:11 +0200 (CEST)
-Received: by mail-wr0-f178.google.com with SMTP id p8so2130963wrf.2
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:30:10 -0700 (PDT)
+Received: by mail-wm0-f44.google.com with SMTP id b189so4589460wmd.0
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:30:11 -0700 (PDT)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@fb.com>,
 	linux-kernel@vger.kernel.org
-Date: Thu, 24 Aug 2017 23:23:14 +0200
-Message-Id: <1503609794-13233-18-git-send-email-philipp.reisner@linbit.com>
+Date: Thu, 24 Aug 2017 23:23:02 +0200
+Message-Id: <1503609794-13233-6-git-send-email-philipp.reisner@linbit.com>
 In-Reply-To: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 References: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 17/17] drbd: switch from kmalloc() to
-	kmalloc_array()
+Subject: [Drbd-dev] [PATCH 05/17] drbd: mark symbols static where possible
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,40 +24,64 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Roland Kammerer <roland.kammerer@linbit.com>
+From: Baoyou Xie <baoyou.xie@linaro.org>
 
-We had one call to kmalloc that actually allocates an array. Switch that
-one to the kmalloc_array() function.
+We get a few warnings when building kernel with W=1:
+drbd/drbd_receiver.c:1224:6: warning: no previous prototype for 'one_flush_endio' [-Wmissing-prototypes]
+drbd/drbd_req.c:1450:6: warning: no previous prototype for 'send_and_submit_pending' [-Wmissing-prototypes]
+drbd/drbd_main.c:924:6: warning: no previous prototype for 'assign_p_sizes_qlim' [-Wmissing-prototypes]
+....
 
+In fact, these functions are only used in the file in which they are
+declared and don't need a declaration, but can be made static.
+So this patch marks these functions with 'static'.
+
+Signed-off-by: Baoyou Xie <baoyou.xie@linaro.org>
 Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index a3b2ee7..11f3852 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -923,7 +923,9 @@ void drbd_gen_and_send_sync_uuid(struct drbd_peer_device *peer_device)
+ }
+ 
+ /* communicated if (agreed_features & DRBD_FF_WSAME) */
+-void assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p, struct request_queue *q)
++static void
++assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p,
++					struct request_queue *q)
+ {
+ 	if (q) {
+ 		p->qlim->physical_block_size = cpu_to_be32(queue_physical_block_size(q));
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 4e8a543..796eaf3 100644
+index 1b3f439..2489667 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4126,7 +4126,7 @@ static int receive_uuids(struct drbd_connection *connection, struct packet_info
- 		return config_unknown_volume(connection, pi);
- 	device = peer_device->device;
+@@ -1261,7 +1261,7 @@ struct one_flush_context {
+ 	struct issue_flush_context *ctx;
+ };
  
--	p_uuid = kmalloc(sizeof(u64)*UI_EXTENDED_SIZE, GFP_NOIO);
-+	p_uuid = kmalloc_array(UI_EXTENDED_SIZE, sizeof(*p_uuid), GFP_NOIO);
- 	if (!p_uuid) {
- 		drbd_err(device, "kmalloc of p_uuid failed\n");
- 		return false;
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index 002611c..2d02593 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -51,7 +51,7 @@
- #endif
+-void one_flush_endio(struct bio *bio)
++static void one_flush_endio(struct bio *bio)
+ {
+ 	struct one_flush_context *octx = bio->bi_private;
+ 	struct drbd_device *device = octx->device;
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 72cb0bd..e48012d 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -203,7 +203,8 @@ void drbd_peer_request_endio(struct bio *bio)
+ 	}
+ }
  
- extern const char *drbd_buildtag(void);
--#define REL_VERSION "8.4.7"
-+#define REL_VERSION "8.4.10"
- #define API_VERSION 1
- #define PRO_VERSION_MIN 86
- #define PRO_VERSION_MAX 101
+-void drbd_panic_after_delayed_completion_of_aborted_request(struct drbd_device *device)
++static void
++drbd_panic_after_delayed_completion_of_aborted_request(struct drbd_device *device)
+ {
+ 	panic("drbd%u %s/%u potential random memory corruption caused by delayed completion of aborted local request\n",
+ 		device->minor, device->resource->name, device->vnr);
 -- 
 2.7.4
 
