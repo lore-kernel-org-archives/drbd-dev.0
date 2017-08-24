@@ -1,25 +1,20 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr0-f179.google.com (mail-wr0-f179.google.com
-	[209.85.128.179])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id AB7141058001
-	for <drbd-dev@lists.linbit.com>; Thu, 17 Aug 2017 11:59:27 +0200 (CEST)
-Received: by mail-wr0-f179.google.com with SMTP id z91so29582188wrc.4
-	for <drbd-dev@lists.linbit.com>; Thu, 17 Aug 2017 02:59:27 -0700 (PDT)
-Received: from soda.linbit ([86.59.100.100])
-	by smtp.gmail.com with ESMTPSA id p4sm2407611wrd.50.2017.08.17.02.59.26
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Thu, 17 Aug 2017 02:59:26 -0700 (PDT)
-Date: Thu, 17 Aug 2017 11:59:25 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20170817095925.GD3587@soda.linbit>
-References: <a1c1b596-8259-a2cf-3b1b-6461761bbca4@activecloud.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a1c1b596-8259-a2cf-3b1b-6461761bbca4@activecloud.com>
-Subject: Re: [Drbd-dev] [PATCH] drbdmeta: Fix drbdmeta to support old kernels
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mail-wr0-f180.google.com (mail-wr0-f180.google.com
+	[209.85.128.180])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5349C105647D
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 23:28:47 +0200 (CEST)
+Received: by mail-wr0-f180.google.com with SMTP id p8so2123189wrf.2
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Aug 2017 14:28:47 -0700 (PDT)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Jens Axboe <axboe@fb.com>,
+	linux-kernel@vger.kernel.org
+Date: Thu, 24 Aug 2017 23:23:01 +0200
+Message-Id: <1503609794-13233-5-git-send-email-philipp.reisner@linbit.com>
+In-Reply-To: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
+References: <1503609794-13233-1-git-send-email-philipp.reisner@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 04/17] drbd: Send P_NEG_ACK upon write error in
+	protocol != C
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,79 +26,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Aug 17, 2017 at 04:57:12AM +0300, Artem Pogartsev wrote:
-> Hello,
-> 
-> RedHat 6.9
-> kernel-2.6.32-431.11.2
-> drbd-utils-9.0.0
-> drbd-8.4.10
-> 
-> Problem:
-> 
-> drbdmeta 0 v08 /dev/sda internal create-md
-> initializing activity log
-> initializing bitmap (30524 KB) to all zero
-> ioctl(/dev/sda) failed: Invalid argument
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Thanks for pointing this out.
+In protocol != C, we forgot to send the P_NEG_ACK for failing writes.
 
-I'm about to commit this instead:
+Once we no longer submit to local disk, because we already "detached",
+due to the typical "on-io-error detach;" config setting,
+we already send the neg acks right away.
 
-    drbdmeta compat: fixup fallback path for BLKZEROOUT for older kernels
-    
-    Based on a suggestion on drbd-dev by
-     From: Artem Pogartsev <artem.pogartsev@activecloud.com>
-     Date: Thu, 17 Aug 2017 04:57:12 +0300
-     To: drbd-dev@lists.linbit.com
-     Subject: [PATCH] drbdmeta: Fix drbdmeta to support old kernels
-     Message-ID: <a1c1b596-8259-a2cf-3b1b-6461761bbca4@activecloud.com>
-    
-    Though I chose to always execute the fallback code
-    if the ioctl BLKZEROOUT fails, regardless of errno.
-    
-    As a side note,
-    just because the define BLKZEROOUT is not in the (userland) headers
-    (yet) does not necessarily mean the kernel does not know it.
+Only those requests that have been submitted,
+and have been error-completed by the local disk,
+would forget to send the neg-ack,
+and only in asynchronous replication (protocol != C).
+Unless this happened during resync,
+where we already always send acks, regardless of protocol.
 
-diff --git a/user/shared/drbdmeta.c b/user/shared/drbdmeta.c
-index 6ff877a..86f32ed 100644
---- a/user/shared/drbdmeta.c
-+++ b/user/shared/drbdmeta.c
-@@ -60,7 +60,12 @@
+The primary side needs the P_NEG_ACK in order to mark
+the affected block(s) for resync in its out-of-sync bitmap.
+
+If the blocks in question are not re-written again,
+we may miss to resync them later, causing data inconsistencies.
+
+This patch will always send the neg-acks, and also at least try to
+persist the out-of-sync status on the local node already.
+
+Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
+Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 2745db2..72cb0bd 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -128,6 +128,14 @@ void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(l
+ 	block_id = peer_req->block_id;
+ 	peer_req->flags &= ~EE_CALL_AL_COMPLETE_IO;
  
- #include "config.h"
- 
--/* BLKZEROOUT, available on linux-3.6 and later. */
-+/* BLKZEROOUT, available on linux-3.6 and later,
-+ * and maybe backported to distribution kernels,
-+ * even if they pretend to be older.
-+ * Yes, we encountered a number of systems that already had it in their
-+ * kernels, but not yet in the headers used to build userland stuff like this.
-+ */
- #ifndef BLKZEROOUT
- # define BLKZEROOUT	_IO(0x12,127)
- #endif
-@@ -1716,7 +1721,11 @@ static void zeroout_bitmap(struct format *cfg)
- 	if (!err)
- 		return;
- 
--	if (errno == ENOTTY) {
-+	PERROR("ioctl(%s, BLKZEROOUT, [%llu, %llu]) failed", cfg->md_device_name,
-+			(unsigned long long)range[0], (unsigned long long)range[1]);
-+	fprintf(stderr, "Using slow(er) fallback.\n");
++	if (peer_req->flags & EE_WAS_ERROR) {
++		/* In protocol != C, we usually do not send write acks.
++		 * In case of a write error, send the neg ack anyways. */
++		if (!__test_and_set_bit(__EE_SEND_WRITE_ACK, &peer_req->flags))
++			inc_unacked(device);
++		drbd_set_out_of_sync(device, peer_req->i.sector, peer_req->i.size);
++	}
 +
-+	{
- 		/* need to sector-align this for O_DIRECT.
- 		 * "sector" here means hard-sect size, which may be != 512.
- 		 * Note that even though ALIGN does round up, for sector sizes
-@@ -1744,9 +1753,6 @@ static void zeroout_bitmap(struct format *cfg)
- 			}
- 		}
- 		fprintf(stderr,"\r100%%\n");
--	} else {
--		PERROR("ioctl(%s) failed", cfg->md_device_name);
--		exit(10);
- 	}
- }
- 
+ 	spin_lock_irqsave(&device->resource->req_lock, flags);
+ 	device->writ_cnt += peer_req->i.size >> 9;
+ 	list_move_tail(&peer_req->w.list, &device->done_ee);
+-- 
+2.7.4
+
