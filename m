@@ -1,17 +1,17 @@
 Return-Path: <me@tobin.cc>
 Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com
 	[66.111.4.25])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4CD3D1058012
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4F2491058013
 	for <drbd-dev@lists.linbit.com>; Mon,  2 Oct 2017 00:41:44 +0200 (CEST)
 From: "Tobin C. Harding" <me@tobin.cc>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>
-Date: Mon,  2 Oct 2017 09:34:01 +1100
-Message-Id: <1506897256-14072-3-git-send-email-me@tobin.cc>
+Date: Mon,  2 Oct 2017 09:34:08 +1100
+Message-Id: <1506897256-14072-10-git-send-email-me@tobin.cc>
 In-Reply-To: <1506897256-14072-1-git-send-email-me@tobin.cc>
 References: <1506897256-14072-1-git-send-email-me@tobin.cc>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/17] lru_cache: fix licence comment format
+Subject: [Drbd-dev] [PATCH 09/17] lru_cache: remove space after function name
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,58 +23,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-checkpatch emits WARNING: Block comments use * on subsequent lines
+checkpatch emits WARNING: space prohibited between function name and
+open parenthesis '('.
 
-Add '*' to each subsequent line of licence comment.
+Remove space between function name and open parenthesis.
 
 Signed-off-by: Tobin C. Harding <me@tobin.cc>
 ---
- lib/lru_cache.c | 34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+ lib/lru_cache.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index 44d7ab0..273af4b 100644
+index 34af31e..8a5ef8c 100644
 --- a/lib/lru_cache.c
 +++ b/lib/lru_cache.c
-@@ -1,21 +1,21 @@
- /*
--   lru_cache.c
--
--   This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
--
--   Copyright (C) 2003-2008, LINBIT Information Technologies GmbH.
--   Copyright (C) 2003-2008, Philipp Reisner <philipp.reisner@linbit.com>.
--   Copyright (C) 2003-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
--
--   drbd is free software; you can redistribute it and/or modify
--   it under the terms of the GNU General Public License as published by
--   the Free Software Foundation; either version 2, or (at your option)
--   any later version.
--
--   drbd is distributed in the hope that it will be useful,
--   but WITHOUT ANY WARRANTY; without even the implied warranty of
--   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--   GNU General Public License for more details.
-+ *   lru_cache.c
-+ *
-+ *   This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
-+ *
-+ *   Copyright (C) 2003-2008, LINBIT Information Technologies GmbH.
-+ *   Copyright (C) 2003-2008, Philipp Reisner <philipp.reisner@linbit.com>.
-+ *   Copyright (C) 2003-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
-+ *
-+ *   drbd is free software; you can redistribute it and/or modify
-+ *   it under the terms of the GNU General Public License as published by
-+ *   the Free Software Foundation; either version 2, or (at your option)
-+ *   any later version.
-+ *
-+ *   drbd is distributed in the hope that it will be useful,
-+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ *   GNU General Public License for more details.
-  */
+@@ -67,7 +67,7 @@ int lc_try_lock(struct lru_cache *lc)
  
- #include <linux/module.h>
+ 	do {
+ 		val = cmpxchg(&lc->flags, 0, LC_LOCKED);
+-	} while (unlikely (val == LC_PARANOIA));
++	} while (unlikely(val == LC_PARANOIA));
+ 	/* Spin until no-one is inside a PARANOIA_ENTRY()/RETURN() section. */
+ 	return 0 == val;
+ #if 0
+@@ -80,7 +80,7 @@ int lc_try_lock(struct lru_cache *lc)
+ 		old = lc->flags & LC_PARANOIA;
+ 		new = old | LC_LOCKED;
+ 		val = cmpxchg(&lc->flags, old, new);
+-	} while (unlikely (val == (old ^ LC_PARANOIA)));
++	} while (unlikely(val == (old ^ LC_PARANOIA)));
+ 	return old == val;
+ #endif
+ }
 -- 
 2.7.4
 
