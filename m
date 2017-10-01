@@ -1,18 +1,17 @@
 Return-Path: <me@tobin.cc>
 Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com
 	[66.111.4.25])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 11AF71058011
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 10AFA1058010
 	for <drbd-dev@lists.linbit.com>; Mon,  2 Oct 2017 00:51:43 +0200 (CEST)
 From: "Tobin C. Harding" <me@tobin.cc>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>
-Date: Mon,  2 Oct 2017 09:34:03 +1100
-Message-Id: <1506897256-14072-5-git-send-email-me@tobin.cc>
+Date: Mon,  2 Oct 2017 09:34:00 +1100
+Message-Id: <1506897256-14072-2-git-send-email-me@tobin.cc>
 In-Reply-To: <1506897256-14072-1-git-send-email-me@tobin.cc>
 References: <1506897256-14072-1-git-send-email-me@tobin.cc>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/17] lru_cache: remove quoted string across
-	lines
+Subject: [Drbd-dev] [PATCH 01/17] lru_cache: remove FSF address from licence
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,33 +23,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-checkpatch emits WARNING: quoted string split across lines. This is
-caused by the MODULE_AUTHOR string for multiple authors. We can call
-the MODULE_AUTHOR macro multiple times instead.
+checkpatch emits warning 'Do not include the paragraph about writing to the Free Software
+Foundation's mailing address from the sample GPL notice. The FSF has changed addresses in the past,
+and may do so again. Linux already includes a copy of the GPL.'
 
-Remove quoted string across lines. Replace with second call to
-MODULE_AUTHOR macro.
+Remove paragraph containing FSF address from licence.
 
 Signed-off-by: Tobin C. Harding <me@tobin.cc>
 ---
- lib/lru_cache.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ lib/lru_cache.c | 5 -----
+ 1 file changed, 5 deletions(-)
 
 diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index 898feb9..0d3c3bb 100644
+index 28ba40b..44d7ab0 100644
 --- a/lib/lru_cache.c
 +++ b/lib/lru_cache.c
-@@ -25,8 +25,8 @@
- #include <linux/seq_file.h> /* for seq_printf */
- #include <linux/lru_cache.h>
+@@ -16,11 +16,6 @@
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+-
+-   You should have received a copy of the GNU General Public License
+-   along with drbd; see the file COPYING.  If not, write to
+-   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+-
+  */
  
--MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
--	      "Lars Ellenberg <lars@linbit.com>");
-+MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>");
-+MODULE_AUTHOR("Lars Ellenberg <lars@linbit.com>");
- MODULE_DESCRIPTION("lru_cache - Track sets of hot objects");
- MODULE_LICENSE("GPL");
- 
+ #include <linux/module.h>
 -- 
 2.7.4
 
