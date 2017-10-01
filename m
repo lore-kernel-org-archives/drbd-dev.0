@@ -1,21 +1,18 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wr0-f177.google.com (mail-wr0-f177.google.com
-	[209.85.128.177])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EBEBF1057FF0
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Sep 2017 11:52:43 +0200 (CEST)
-Received: by mail-wr0-f177.google.com with SMTP id z39so5726290wrb.8
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Sep 2017 02:52:43 -0700 (PDT)
-Date: Mon, 18 Sep 2017 11:47:05 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-user@lists.linbit.com, drbd-dev@lists.linbit.com,
-	drbd-announce@lists.linbit.com
-Message-ID: <20170918094705.GO62978@rck.sh>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-Subject: [Drbd-dev] git.linbit.com/git.drbd.org are moving to
-	github.com/LINBIT
+Return-Path: <me@tobin.cc>
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com
+	[66.111.4.25])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B0A18105800A
+	for <drbd-dev@lists.linbit.com>; Mon,  2 Oct 2017 00:41:43 +0200 (CEST)
+From: "Tobin C. Harding" <me@tobin.cc>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>
+Date: Mon,  2 Oct 2017 09:34:12 +1100
+Message-Id: <1506897256-14072-14-git-send-email-me@tobin.cc>
+In-Reply-To: <1506897256-14072-1-git-send-email-me@tobin.cc>
+References: <1506897256-14072-1-git-send-email-me@tobin.cc>
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 13/17] lru_cache: move constant to the right side
+	of test
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,24 +24,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Dear all,
+checkpatch emits WARNING: Comparisons should place the constant on the
+right side of the test.
 
-please note that we are moving our public repositories to
-github.com/LINBIT.
+Move constant to the right hand side of the test.
 
-Fresh checkouts will work as expected (we already switched the
-submodules). Old checkouts that use submodules (drbd-utils, drbd-9.0,
-wdrbd9) will require a "git submodule sync".
+Signed-off-by: Tobin C. Harding <me@tobin.cc>
+---
+ lib/lru_cache.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-The old repositories will be gone in 14 days from now, so please update
-ASAP and report any problems, preferably on the drbd-user ML.
-
-Regards, rck
+diff --git a/lib/lru_cache.c b/lib/lru_cache.c
+index 9eed675..a581b33 100644
+--- a/lib/lru_cache.c
++++ b/lib/lru_cache.c
+@@ -69,7 +69,7 @@ int lc_try_lock(struct lru_cache *lc)
+ 		val = cmpxchg(&lc->flags, 0, LC_LOCKED);
+ 	} while (unlikely(val == LC_PARANOIA));
+ 	/* Spin until no-one is inside a PARANOIA_ENTRY()/RETURN() section. */
+-	return 0 == val;
++	return val == 0;
+ #if 0
+ 	/* Alternative approach, spin in case someone enters or leaves a
+ 	 * PARANOIA_ENTRY()/RETURN() section.
 -- 
-Roland Kammerer
-+43 1 817 82 92 - 70
-roland.kammerer@linbit.com
-
-LINBIT | Keeping the Digital World Running
-DRBD – Corosync – Pacemaker
+2.7.4
 
