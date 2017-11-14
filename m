@@ -1,21 +1,22 @@
 Return-Path: <sekim@mantech.co.kr>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com
-	[209.85.223.172])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E2C621057593
-	for <drbd-dev@lists.linbit.com>; Tue, 14 Nov 2017 05:22:01 +0100 (CET)
-Received: by mail-io0-f172.google.com with SMTP id n79so12158147ion.3
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Nov 2017 20:22:01 -0800 (PST)
+Received: from mail-it0-f49.google.com (mail-it0-f49.google.com
+	[209.85.214.49])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B9F0D1057593
+	for <drbd-dev@lists.linbit.com>; Tue, 14 Nov 2017 06:02:23 +0100 (CET)
+Received: by mail-it0-f49.google.com with SMTP id x28so6477422ita.0
+	for <drbd-dev@lists.linbit.com>; Mon, 13 Nov 2017 21:02:23 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <CAHRYDjiH4awgMW-+h_N6WZhXV=DAKc01ddexZFjhKdwcRehC9w@mail.gmail.com>
+References: <CAHRYDjiH4awgMW-+h_N6WZhXV=DAKc01ddexZFjhKdwcRehC9w@mail.gmail.com>
 From: "Kim, SungEun" <sekim@mantech.co.kr>
-Date: Tue, 14 Nov 2017 13:21:59 +0900
-Message-ID: <CAHRYDjiH4awgMW-+h_N6WZhXV=DAKc01ddexZFjhKdwcRehC9w@mail.gmail.com>
-To: drbd-dev@lists.linbit.com
-Content-Type: multipart/related; boundary="94eb2c0556806c4b71055de9ba2a"
-Cc: lars Ellenberg <lars.ellenberg@linbit.com>,
+Date: Tue, 14 Nov 2017 13:54:53 +0900
+Message-ID: <CAHRYDjhYDyFzQT0XOROH6dS-16BB9_7k=G0X=b00_xFkMbTO8Q@mail.gmail.com>
+To: drbd-dev@lists.linbit.com,
 	=?UTF-8?B?7Jew6rWs7IaM7YyA7J6l?= <devmanager@mantech.co.kr>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Windows DRBD <wdrbd@mantech.co.kr>
-Subject: [Drbd-dev] volume I/O hang on Ahead mode
+	Windows DRBD <wdrbd@mantech.co.kr>,
+	=?UTF-8?B?7J207KCV66qp?= <jmlee@mantech.co.kr>
+Content-Type: multipart/related; boundary="94eb2c05737e13ce59055dea309d"
+Subject: Re: [Drbd-dev] volume I/O hang on Ahead mode
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,166 +28,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---94eb2c0556806c4b71055de9ba2a
-Content-Type: multipart/alternative; boundary="94eb2c0556806c4b6f055de9ba29"
+--94eb2c05737e13ce59055dea309d
+Content-Type: multipart/alternative; boundary="94eb2c05737e13ce56055dea309c"
 
---94eb2c0556806c4b6f055de9ba29
+--94eb2c05737e13ce56055dea309c
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-Hi,
+Send the wrong message again.
 
-We tested the asynchronous replication Ahead mode of drbd9(9.0.9) at low
-bandwidth (1 ~ 10 Mbps Network) and found that the I/O response time rate
-slowed down during replication and eventually I/O of the volume hang
-occurred.
-Tests according to the following configuration and procedure will reproduce
-well.
-
-
-<drbd.conf>
-
-global {
-
-        disable-ip-verification;
-
-                usage-count     no;
-
-}
-
-common {
-
-        startup {
-
-                wfc-timeout     1;
-
-        }
-
-        disk {
-
-                resync-rate     100M;
-
-        }
-
-        net {
-
-                on-congestion pull-ahead;
-
-                congestion-fill 480M;
-
-                verify-alg      md5;
-
-        }
-
-        proxy {
-
-                memlimit 500M;
-
-        }
-
-}
-
-resource r0 {
-
-        protocol        A;
-
-        disk {
-
-                on-io-error     detach;
-
-        }
-
-        device  /dev/drbd0;
-
-        floating 200.200.2.10:7788 {
-
-                disk    /dev/sdd1;
-
-                meta-disk internal;
-
-                proxy on pm1 {
-
-                        inside 127.0.0.1:7789;
-
-                        outside 200.200.2.10:7790;
-
-                }
-
-        }
-
-
-
-        floating 200.200.2.11:7788 {
-
-                disk    /dev/sdc1;
-
-                meta-disk internal;
-
-                proxy on pm2 {
-
-                        inside 127.0.0.1:7789;
-
-                        outside 200.200.2.11:7790;
-
-                }
-
-
-
-        }
-
-}
-
-
-<Test procedure>
-1. Proxy Buffer Size: 500M, congestion-fill: 480M;
-2. Replication network bandwidth limit of 10Mbps (using VMware's network
-bandwidth limiting feature)
-3. Mount the /data on the pm1 node
-4. dd if=3D/dev/zero of=3D/data/test.out bs=3D100M count=3D40
-5. Enter pm1 ahead mode
-6. When ls -l is executed in pm1 node /data directory, the result is not
-output and it is almost hang status.
-
-
-The purpose of this test was to measure the behavior of the drbd9
-asynchronous Ahead mode and the I/O response rate of the volume, regardless
-of the network bandwidth.
-
-In my opinion, If the number of drbd_req in drbd9 becomes considerably
-large (more than tens of drbd_req accumulated in trasfer_log in this test),
-the execution time of drbd_sender increases. Especially, it takes much time
-to traverse transfer_log in the following code,finally It seems that the
-completion time has increased.
-
-// Only the execution time of this logic is measured more than 5 ms
-
-static struct drbd_request *__next_request_for_connection(
-struct drbd_connection *connection, struct drbd_request *r)
-{
-r =3D list_prepare_entry(r, &connection->resource->transfer_log, tl_request=
-s);
-
-list_for_each_entry_continue(r, &connection->resource->transfer_log,
-tl_requests) {
-int vnr =3D r->device->vnr;
-struct drbd_peer_device *peer_device =3D conn_peer_device(connection, vnr);
-unsigned s =3D drbd_req_state_by_peer_device(r, peer_device);
-if (!(s & RQ_NET_QUEUED))
-continue;
-return r;
-}
-return NULL;
-}
-
-
-Please check this issue and hope that the performance of asynchronous
-replication of drbd9 will improve.
-
-Thanks.
-
-
-Best Regards
-from SungEun Kim
+"more than tens of drbd_req accumulated in trasfer_log"
+=3D=3D> more than 10,000 drbd_req in transfer_log
 
 [image: =EC=84=A4=EB=AA=85: logo]
 
@@ -205,41 +57,271 @@ http://www.mantech.co.kr
 
 [image: =EB=B3=B8=EB=AC=B8 =EC=9D=B4=EB=AF=B8=EC=A7=80 1]
 
---94eb2c0556806c4b6f055de9ba29
+2017-11-14 13:21 GMT+09:00 Kim, SungEun <sekim@mantech.co.kr>:
+
+> Hi,
+>
+> We tested the asynchronous replication Ahead mode of drbd9(9.0.9) at low
+> bandwidth (1 ~ 10 Mbps Network) and found that the I/O response time rate
+> slowed down during replication and eventually I/O of the volume hang
+> occurred.
+> Tests according to the following configuration and procedure will
+> reproduce well.
+>
+>
+> <drbd.conf>
+>
+> global {
+>
+>         disable-ip-verification;
+>
+>                 usage-count     no;
+>
+> }
+>
+> common {
+>
+>         startup {
+>
+>                 wfc-timeout     1;
+>
+>         }
+>
+>         disk {
+>
+>                 resync-rate     100M;
+>
+>         }
+>
+>         net {
+>
+>                 on-congestion pull-ahead;
+>
+>                 congestion-fill 480M;
+>
+>                 verify-alg      md5;
+>
+>         }
+>
+>         proxy {
+>
+>                 memlimit 500M;
+>
+>         }
+>
+> }
+>
+> resource r0 {
+>
+>         protocol        A;
+>
+>         disk {
+>
+>                 on-io-error     detach;
+>
+>         }
+>
+>         device  /dev/drbd0;
+>
+>         floating 200.200.2.10:7788 {
+>
+>                 disk    /dev/sdd1;
+>
+>                 meta-disk internal;
+>
+>                 proxy on pm1 {
+>
+>                         inside 127.0.0.1:7789;
+>
+>                         outside 200.200.2.10:7790;
+>
+>                 }
+>
+>         }
+>
+>
+>
+>         floating 200.200.2.11:7788 {
+>
+>                 disk    /dev/sdc1;
+>
+>                 meta-disk internal;
+>
+>                 proxy on pm2 {
+>
+>                         inside 127.0.0.1:7789;
+>
+>                         outside 200.200.2.11:7790;
+>
+>                 }
+>
+>
+>
+>         }
+>
+> }
+>
+>
+> <Test procedure>
+> 1. Proxy Buffer Size: 500M, congestion-fill: 480M;
+> 2. Replication network bandwidth limit of 10Mbps (using VMware's network
+> bandwidth limiting feature)
+> 3. Mount the /data on the pm1 node
+> 4. dd if=3D/dev/zero of=3D/data/test.out bs=3D100M count=3D40
+> 5. Enter pm1 ahead mode
+> 6. When ls -l is executed in pm1 node /data directory, the result is not
+> output and it is almost hang status.
+>
+>
+> The purpose of this test was to measure the behavior of the drbd9
+> asynchronous Ahead mode and the I/O response rate of the volume, regardle=
+ss
+> of the network bandwidth.
+>
+> In my opinion, If the number of drbd_req in drbd9 becomes considerably
+> large (more than tens of drbd_req accumulated in trasfer_log in this test=
+),
+> the execution time of drbd_sender increases. Especially, it takes much ti=
+me
+> to traverse transfer_log in the following code,finally It seems that the
+> completion time has increased.
+>
+> // Only the execution time of this logic is measured more than 5 ms
+>
+> static struct drbd_request *__next_request_for_connection(
+> struct drbd_connection *connection, struct drbd_request *r)
+> {
+> r =3D list_prepare_entry(r, &connection->resource->transfer_log,
+> tl_requests);
+>
+> list_for_each_entry_continue(r, &connection->resource->transfer_log,
+> tl_requests) {
+> int vnr =3D r->device->vnr;
+> struct drbd_peer_device *peer_device =3D conn_peer_device(connection, vnr=
+);
+> unsigned s =3D drbd_req_state_by_peer_device(r, peer_device);
+> if (!(s & RQ_NET_QUEUED))
+> continue;
+> return r;
+> }
+> return NULL;
+> }
+>
+>
+> Please check this issue and hope that the performance of asynchronous
+> replication of drbd9 will improve.
+>
+> Thanks.
+>
+>
+> Best Regards
+> from SungEun Kim
+>
+> [image: =EC=84=A4=EB=AA=85: logo]
+>
+> Technical Research Center / Dev3 Team
+>
+> Principal Research Engineer
+>
+> *SungEun Kim               sekim@mantech.co.kr <sekim@mantech.co.kr>*
+>
+> 12F, Seoulforest Kolon digital Tower, 308-4, Seongsudong 2ga,
+> Seongdong-gu, Seoul, Korea
+>
+> Tel : 02-2136-6913 / Fax : 02-575-4858 / Call Center : 1833-7790
+>
+> http://www.mantech.co.kr
+>
+> [image: =EB=B3=B8=EB=AC=B8 =EC=9D=B4=EB=AF=B8=EC=A7=80 1]
+>
+
+--94eb2c05737e13ce56055dea309c
 Content-Type: text/html; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-<div dir=3D"ltr"><div>Hi,=C2=A0<br></div><div><div><br></div><div>We tested=
- the asynchronous replication Ahead mode of drbd9(9.0.9) at low bandwidth (=
-1 ~ 10 Mbps Network) and found that the I/O response time rate slowed down =
-during replication and eventually I/O of the volume hang occurred.</div><di=
-v>Tests according to the following configuration and procedure will reprodu=
-ce well.</div></div><div><br></div><div><br></div><div><p class=3D"MsoNorma=
-l" style=3D"font-size:14px"><span lang=3D"EN-US">&lt;drbd.conf&gt;<u></u><u=
-></u></span></p><p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=
-=3D"EN-US">global {<u></u><u></u></span></p><p class=3D"MsoNormal" style=3D=
-"font-size:14px"><span lang=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 disable-ip-verification;<u></u><u></u></span></p><p class=3D"MsoNorm=
-al" style=3D"font-size:14px"><span lang=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 usage-co=
-unt=C2=A0=C2=A0=C2=A0=C2=A0 no;<u></u><u></u></span></p><p class=3D"MsoNorm=
-al" style=3D"font-size:14px"><span lang=3D"EN-US">}<u></u><u></u></span></p=
-><p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-US">commo=
-n {<u></u><u></u></span></p><p class=3D"MsoNormal" style=3D"font-size:14px"=
-><span lang=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 startup {<=
-u></u><u></u></span></p><p class=3D"MsoNormal" style=3D"font-size:14px"><sp=
-an lang=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 wfc-timeout=C2=A0=C2=A0=C2=A0=C2=A0 1;<u>=
+<div dir=3D"ltr"><div>Send the wrong message again.</div><div><br></div><di=
+v>&quot;more than tens of drbd_req accumulated in trasfer_log&quot;</div><d=
+iv>=3D=3D&gt; more than 10,000 drbd_req in transfer_log</div></div><div cla=
+ss=3D"gmail_extra"><br clear=3D"all"><div><div class=3D"gmail_signature" da=
+ta-smartmail=3D"gmail_signature"><div dir=3D"ltr"><div><div dir=3D"ltr"><di=
+v><div dir=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"ltr"><div><div di=
+r=3D"ltr"><div><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=
+=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr=
+"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div =
+dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"=
+ltr"><p style=3D"margin:0cm 0cm 0pt"><img src=3D"cid:image001.png@01D0F522.=
+B2A586F0" alt=3D"=EC=84=A4=EB=AA=85: logo"></p><p style=3D"font-size:small;=
+margin:0cm 0cm 0.0001pt;background-image:initial;background-repeat:initial"=
+><font face=3D"verdana, sans-serif"><span style=3D"font-size:10pt;color:bla=
+ck">Technical Research Center<span lang=3D"EN-US">=C2=A0</span><span lang=
+=3D"EN-US">/=C2=A0</span>Dev3 Team</span><span lang=3D"EN-US" style=3D"font=
+-size:10.5pt;color:rgb(136,136,136)"></span></font></p><p style=3D"font-siz=
+e:small;margin:0cm 0cm 0.0001pt;background-image:initial;background-repeat:=
+initial"><font face=3D"verdana, sans-serif"><span style=3D"font-size:10pt;c=
+olor:black"><span lang=3D"EN-US">Principal Research Engineer</span></span><=
+/font></p><p style=3D"font-size:small;margin:0cm 0cm 0pt"></p><p style=3D"f=
+ont-size:small;margin:0cm 0cm 0.0001pt;background-image:initial;background-=
+repeat:initial"><font face=3D"verdana, sans-serif"><b><span style=3D"color:=
+black"><span lang=3D"EN-US"><span style=3D"font-size:14px">SungEun Kim</spa=
+n><span style=3D"font-size:10pt">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0</span><a href=3D"mailto:sekim@mantech.co.kr" style=3D"color:r=
+gb(17,85,204);font-size:10pt" target=3D"_blank">sekim@mantech.co.kr</a></sp=
+an></span></b><span lang=3D"EN-US" style=3D"font-size:10.5pt;color:rgb(136,=
+136,136)"></span></font></p><p style=3D"font-size:small;margin:0cm 0cm 0.00=
+01pt;line-height:21px"><font color=3D"#000000" face=3D"verdana, sans-serif"=
+><span style=3D"font-size:8pt;line-height:16px">12F, Seoulforest Kolon digi=
+tal Tower, 308-4, Seongsudong 2ga, Seongdong-gu, Seoul, Korea</span></font>=
+</p><p style=3D"font-size:small;margin:0cm 0cm 0.0001pt;line-height:21px"><=
+span style=3D"font-size:8pt;line-height:16px;color:rgb(0,0,0);font-family:v=
+erdana,sans-serif">Tel : 02-2136-6913 / Fax : 02-575-4858 / Call Center : 1=
+833-7790</span></p><p style=3D"margin:0cm 0cm 0.0001pt;line-height:21px"><s=
+pan lang=3D"EN-US" style=3D"color:rgb(0,0,0);font-family:verdana,sans-serif=
+;font-size:8pt;line-height:16px"><a href=3D"http://www.mantech.co.kr/" styl=
+e=3D"color:rgb(17,85,204)" target=3D"_blank">http://www.mantech.co.kr</a></=
+span><span lang=3D"EN-US" style=3D"color:rgb(0,0,0);font-family:verdana,san=
+s-serif;font-size:8pt;line-height:16px">=C2=A0</span><font color=3D"#000000=
+" face=3D"verdana, sans-serif"><span lang=3D"EN-US" style=3D"font-size:8pt;=
+line-height:16px"><br></span></font></p><p style=3D"margin:0cm 0cm 0.0001pt=
+;line-height:21px"><img src=3D"cid:ii_150a68c3811acf54" alt=3D"=EB=B3=B8=EB=
+=AC=B8 =EC=9D=B4=EB=AF=B8=EC=A7=80 1" width=3D"400" height=3D"160" style=3D=
+"line-height:normal"><br></p></div></div></div></div></div></div></div></di=
+v></div></div></div></div></div></div></div></div></div></div></div></div><=
+/div></div></div></div></div></div></div></div></div></div></div>
+<br><div class=3D"gmail_quote">2017-11-14 13:21 GMT+09:00 Kim, SungEun <spa=
+n dir=3D"ltr">&lt;<a href=3D"mailto:sekim@mantech.co.kr" target=3D"_blank">=
+sekim@mantech.co.kr</a>&gt;</span>:<br><blockquote class=3D"gmail_quote" st=
+yle=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div =
+dir=3D"ltr"><div>Hi,=C2=A0<br></div><div><div><br></div><div>We tested the =
+asynchronous replication Ahead mode of drbd9(9.0.9) at low bandwidth (1 ~ 1=
+0 Mbps Network) and found that the I/O response time rate slowed down durin=
+g replication and eventually I/O of the volume hang occurred.</div><div>Tes=
+ts according to the following configuration and procedure will reproduce we=
+ll.</div></div><div><br></div><div><br></div><div><p class=3D"MsoNormal" st=
+yle=3D"font-size:14px"><span lang=3D"EN-US">&lt;drbd.conf&gt;<u></u><u></u>=
+</span></p><p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN=
+-US">global {<u></u><u></u></span></p><p class=3D"MsoNormal" style=3D"font-=
+size:14px"><span lang=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 =
+disable-ip-verification;<u></u><u></u></span></p><p class=3D"MsoNormal" sty=
+le=3D"font-size:14px"><span lang=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 usage-count=C2=
+=A0=C2=A0=C2=A0=C2=A0 no;<u></u><u></u></span></p><p class=3D"MsoNormal" st=
+yle=3D"font-size:14px"><span lang=3D"EN-US">}<u></u><u></u></span></p><p cl=
+ass=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-US">common {<u>=
 </u><u></u></span></p><p class=3D"MsoNormal" style=3D"font-size:14px"><span=
- lang=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 }<u></u><u></u><=
-/span></p><p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-=
-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 disk {<u></u><u></u></span><=
-/p><p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-US">=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0 resync-rate=C2=A0=C2=A0=C2=A0=C2=A0 100M;<u></u><u></u></span>=
-</p><p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-US">=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 }<u></u><u></u></span></p><p cla=
-ss=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-US">=C2=A0=C2=A0=
+ lang=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 startup {<u></u>=
+<u></u></span></p><p class=3D"MsoNormal" style=3D"font-size:14px"><span lan=
+g=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0 wfc-timeout=C2=A0=C2=A0=C2=A0=C2=A0 1;<u></u><u=
+></u></span></p><p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=
+=3D"EN-US">=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 }<u></u><u></u></span=
+></p><p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-US">=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 disk {<u></u><u></u></span></p><=
+p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-US">=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0 resync-rate=C2=A0=C2=A0=C2=A0=C2=A0 100M;<u></u><u></u></span></p=
+><p class=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-US">=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 }<u></u><u></u></span></p><p class=
+=3D"MsoNormal" style=3D"font-size:14px"><span lang=3D"EN-US">=C2=A0=C2=A0=
 =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 net {<u></u><u></u></span></p><p class=3D"Ms=
 oNormal" style=3D"font-size:14px"><span lang=3D"EN-US">=C2=A0=C2=A0=C2=A0=
 =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 on=
@@ -341,74 +423,164 @@ accumulated in trasfer_log in this test), the execution time of drbd_sender=
 following code,finally It seems that the completion time has increased.=C2=
 =A0</div><div><br></div><div>//=C2=A0Only the execution time of this logic =
 is measured more than 5 ms</div><div><br></div><div><div>static struct drbd=
-_request *__next_request_for_connection(</div><div><span style=3D"white-spa=
-ce:pre">		</span>struct drbd_connection *connection, struct drbd_request *r=
-)</div><div>{</div><div><span style=3D"white-space:pre">	</span>r =3D list_=
-prepare_entry(r, &amp;connection-&gt;resource-&gt;transfer_log, tl_requests=
-);</div><div><br></div><div><span style=3D"white-space:pre">	</span>list_fo=
-r_each_entry_continue(r, &amp;connection-&gt;resource-&gt;transfer_log, tl_=
-requests) {</div><div><span style=3D"white-space:pre">		</span>int vnr =3D =
-r-&gt;device-&gt;vnr;</div><div><span style=3D"white-space:pre">		</span>st=
-ruct drbd_peer_device *peer_device =3D conn_peer_device(connection, vnr);</=
-div><div><span style=3D"white-space:pre">		</span>unsigned s =3D drbd_req_s=
-tate_by_peer_device(r, peer_device);</div><div><span style=3D"white-space:p=
-re">		</span>if (!(s &amp; RQ_NET_QUEUED))</div><div><span style=3D"white-s=
-pace:pre">			</span>continue;</div><div><span style=3D"white-space:pre">		<=
-/span>return r;</div><div><span style=3D"white-space:pre">	</span>}</div><d=
-iv><span style=3D"white-space:pre">	</span>return NULL;</div><div>}</div></=
-div><div><br></div><div><br></div><div>Please check this issue and hope tha=
-t the performance of asynchronous replication of drbd9 will improve.<br></d=
-iv><div><br></div><div>Thanks.</div><div><br></div><div><br></div><div>Best=
- Regards</div><div>from SungEun Kim</div><br clear=3D"all"><div><div class=
-=3D"gmail_signature"><div dir=3D"ltr"><div><div dir=3D"ltr"><div><div dir=
-=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"ltr">=
-<div><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><d=
+_request *__next_request_for_<wbr>connection(</div><div><span style=3D"whit=
+e-space:pre-wrap">		</span>struct drbd_connection *connection, struct drbd_=
+request *r)</div><div>{</div><div><span style=3D"white-space:pre-wrap">	</s=
+pan>r =3D list_prepare_entry(r, &amp;connection-&gt;resource-&gt;<wbr>trans=
+fer_log, tl_requests);</div><div><br></div><div><span style=3D"white-space:=
+pre-wrap">	</span>list_for_each_entry_continue(<wbr>r, &amp;connection-&gt;=
+resource-&gt;<wbr>transfer_log, tl_requests) {</div><div><span style=3D"whi=
+te-space:pre-wrap">		</span>int vnr =3D r-&gt;device-&gt;vnr;</div><div><sp=
+an style=3D"white-space:pre-wrap">		</span>struct drbd_peer_device *peer_de=
+vice =3D conn_peer_device(connection, vnr);</div><div><span style=3D"white-=
+space:pre-wrap">		</span>unsigned s =3D drbd_req_state_by_peer_device(<wbr>=
+r, peer_device);</div><div><span style=3D"white-space:pre-wrap">		</span>if=
+ (!(s &amp; RQ_NET_QUEUED))</div><div><span style=3D"white-space:pre-wrap">=
+			</span>continue;</div><div><span style=3D"white-space:pre-wrap">		</span=
+>return r;</div><div><span style=3D"white-space:pre-wrap">	</span>}</div><d=
+iv><span style=3D"white-space:pre-wrap">	</span>return NULL;</div><div>}</d=
+iv></div><div><br></div><div><br></div><div>Please check this issue and hop=
+e that the performance of asynchronous replication of drbd9 will improve.<b=
+r></div><div><br></div><div>Thanks.</div><div><br></div><div><br></div><div=
+>Best Regards</div><div>from SungEun Kim</div><br clear=3D"all"><div><div c=
+lass=3D"m_-8783580667954799945gmail_signature"><div dir=3D"ltr"><div><div d=
+ir=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"ltr=
+"><div><div dir=3D"ltr"><div><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"=
+ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><d=
 iv dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=
 =3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr=
-"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><p st=
-yle=3D"margin:0cm 0cm 0pt"><img src=3D"cid:image001.png@01D0F522.B2A586F0" =
-alt=3D"=EC=84=A4=EB=AA=85: logo"></p><p style=3D"font-size:small;margin:0cm=
- 0cm 0.0001pt;background-image:initial;background-repeat:initial"><font fac=
-e=3D"verdana, sans-serif"><span style=3D"font-size:10pt;color:black">Techni=
-cal Research Center<span lang=3D"EN-US">=C2=A0</span><span lang=3D"EN-US">/=
-=C2=A0</span>Dev3 Team</span><span lang=3D"EN-US" style=3D"font-size:10.5pt=
-;color:rgb(136,136,136)"></span></font></p><p style=3D"font-size:small;marg=
-in:0cm 0cm 0.0001pt;background-image:initial;background-repeat:initial"><fo=
-nt face=3D"verdana, sans-serif"><span style=3D"font-size:10pt;color:black">=
-<span lang=3D"EN-US">Principal Research Engineer</span></span></font></p><p=
- style=3D"font-size:small;margin:0cm 0cm 0pt"></p><p style=3D"font-size:sma=
-ll;margin:0cm 0cm 0.0001pt;background-image:initial;background-repeat:initi=
-al"><font face=3D"verdana, sans-serif"><b><span style=3D"color:black"><span=
- lang=3D"EN-US"><span style=3D"font-size:14px">SungEun Kim</span><span styl=
-e=3D"font-size:10pt">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0</span><a href=3D"mailto:sekim@mantech.co.kr" style=3D"color:rgb(17,85,2=
-04);font-size:10pt" target=3D"_blank">sekim@mantech.co.kr</a></span></span>=
-</b><span lang=3D"EN-US" style=3D"font-size:10.5pt;color:rgb(136,136,136)">=
+"><div dir=3D"ltr"><p style=3D"margin:0cm 0cm 0pt"><img src=3D"cid:image001=
+.png@01D0F522.B2A586F0" alt=3D"=EC=84=A4=EB=AA=85: logo"></p><p style=3D"fo=
+nt-size:small;margin:0cm 0cm 0.0001pt;background-image:initial;background-r=
+epeat:initial"><font face=3D"verdana, sans-serif"><span style=3D"font-size:=
+10pt;color:black">Technical Research Center<span lang=3D"EN-US">=C2=A0</spa=
+n><span lang=3D"EN-US">/=C2=A0</span>Dev3 Team</span><span lang=3D"EN-US" s=
+tyle=3D"font-size:10.5pt;color:rgb(136,136,136)"></span></font></p><p style=
+=3D"font-size:small;margin:0cm 0cm 0.0001pt;background-image:initial;backgr=
+ound-repeat:initial"><font face=3D"verdana, sans-serif"><span style=3D"font=
+-size:10pt;color:black"><span lang=3D"EN-US">Principal Research Engineer</s=
+pan></span></font></p><p style=3D"font-size:small;margin:0cm 0cm 0pt"></p><=
+p style=3D"font-size:small;margin:0cm 0cm 0.0001pt;background-image:initial=
+;background-repeat:initial"><font face=3D"verdana, sans-serif"><b><span sty=
+le=3D"color:black"><span lang=3D"EN-US"><span style=3D"font-size:14px">Sung=
+Eun Kim</span><span style=3D"font-size:10pt">=C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0</span><a href=3D"mailto:sekim@mantech.co.kr" st=
+yle=3D"color:rgb(17,85,204);font-size:10pt" target=3D"_blank">sekim@mantech=
+.co.kr</a></span></span></b><span lang=3D"EN-US" style=3D"font-size:10.5pt;=
+color:rgb(136,136,136)"></span></font></p><p style=3D"font-size:small;margi=
+n:0cm 0cm 0.0001pt;line-height:21px"><font color=3D"#000000" face=3D"verdan=
+a, sans-serif"><span style=3D"font-size:8pt;line-height:16px">12F, Seoulfor=
+est Kolon digital Tower, 308-4, Seongsudong 2ga, Seongdong-gu, Seoul, Korea=
 </span></font></p><p style=3D"font-size:small;margin:0cm 0cm 0.0001pt;line-=
-height:21px"><font color=3D"#000000" face=3D"verdana, sans-serif"><span sty=
-le=3D"font-size:8pt;line-height:16px">12F, Seoulforest Kolon digital Tower,=
- 308-4, Seongsudong 2ga, Seongdong-gu, Seoul, Korea</span></font></p><p sty=
-le=3D"font-size:small;margin:0cm 0cm 0.0001pt;line-height:21px"><span style=
-=3D"font-size:8pt;line-height:16px;color:rgb(0,0,0);font-family:verdana,san=
-s-serif">Tel : 02-2136-6913 / Fax : 02-575-4858 / Call Center : 1833-7790</=
-span></p><p style=3D"margin:0cm 0cm 0.0001pt;line-height:21px"><span lang=
-=3D"EN-US" style=3D"color:rgb(0,0,0);font-family:verdana,sans-serif;font-si=
-ze:8pt;line-height:16px"><a href=3D"http://www.mantech.co.kr/" style=3D"col=
-or:rgb(17,85,204)" target=3D"_blank">http://www.mantech.co.kr</a></span><sp=
-an lang=3D"EN-US" style=3D"color:rgb(0,0,0);font-family:verdana,sans-serif;=
-font-size:8pt;line-height:16px">=C2=A0</span><font color=3D"#000000" face=
-=3D"verdana, sans-serif"><span lang=3D"EN-US" style=3D"font-size:8pt;line-h=
-eight:16px"><br></span></font></p><p style=3D"margin:0cm 0cm 0.0001pt;line-=
-height:21px"><img src=3D"cid:ii_150a68c3811acf54" alt=3D"=EB=B3=B8=EB=AC=B8=
- =EC=9D=B4=EB=AF=B8=EC=A7=80 1" width=3D"400" height=3D"160" style=3D"line-=
-height: normal;"><br></p></div></div></div></div></div></div></div></div></=
+height:21px"><span style=3D"font-size:8pt;line-height:16px;color:rgb(0,0,0)=
+;font-family:verdana,sans-serif">Tel : 02-2136-6913 / Fax : 02-575-4858 / C=
+all Center : 1833-7790</span></p><p style=3D"margin:0cm 0cm 0.0001pt;line-h=
+eight:21px"><span lang=3D"EN-US" style=3D"color:rgb(0,0,0);font-family:verd=
+ana,sans-serif;font-size:8pt;line-height:16px"><a href=3D"http://www.mantec=
+h.co.kr/" style=3D"color:rgb(17,85,204)" target=3D"_blank">http://www.mante=
+ch.co.kr</a></span><span lang=3D"EN-US" style=3D"color:rgb(0,0,0);font-fami=
+ly:verdana,sans-serif;font-size:8pt;line-height:16px">=C2=A0</span><font co=
+lor=3D"#000000" face=3D"verdana, sans-serif"><span lang=3D"EN-US" style=3D"=
+font-size:8pt;line-height:16px"><br></span></font></p><p style=3D"margin:0c=
+m 0cm 0.0001pt;line-height:21px"><img src=3D"cid:ii_150a68c3811acf54" alt=
+=3D"=EB=B3=B8=EB=AC=B8 =EC=9D=B4=EB=AF=B8=EC=A7=80 1" width=3D"400" height=
+=3D"160" style=3D"line-height:normal"><br></p></div></div></div></div></div=
+></div></div></div></div></div></div></div></div></div></div></div></div></=
 div></div></div></div></div></div></div></div></div></div></div></div></div=
-></div></div></div></div></div></div></div></div></div></div>
+></div>
 </div>
+</blockquote></div><br></div>
 
---94eb2c0556806c4b6f055de9ba29--
+--94eb2c05737e13ce56055dea309c--
 
---94eb2c0556806c4b71055de9ba2a
+--94eb2c05737e13ce59055dea309d
+Content-Type: image/png; name="image001.png"
+Content-Disposition: inline; filename="image001.png"
+Content-Transfer-Encoding: base64
+Content-ID: <image001.png@01D0F522.B2A586F0>
+X-Attachment-Id: 1b04d787799a09e8_0.0.1
+
+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
+--94eb2c05737e13ce59055dea309d
 Content-Type: image/png; name="image.png"
 Content-Disposition: inline; filename="image.png"
 Content-Transfer-Encoding: base64
@@ -700,91 +872,4 @@ IqAIfEYEtAP5jKWqPikCioAisAcEtAPZA8iqQhFQBBSBz4iAdiCfsVTVJ0VAEVAE9oCAdiB7AFlV
 KAKKgCLwGRHQDuQzlqr6pAgoAorAHhDQDmQPIKsKRUARUAQ+IwLagXzGUlWfFAFFQBHYAwIHp//v
 /zZ70KMqFAFFQBFQBD4ZAsrG+8kKVN1RBBQBRWBfCOgS1r6QVj2KgCKgCHwyBLQD+WQFqu4oAoqA
 IrAvBLQD2RfSqkcRUAQUgU+GwP8HQkgPhRfXn/0AAAAASUVORK5CYII=
---94eb2c0556806c4b71055de9ba2a
-Content-Type: image/png; name="image001.png"
-Content-Disposition: inline; filename="image001.png"
-Content-Transfer-Encoding: base64
-Content-ID: <image001.png@01D0F522.B2A586F0>
-X-Attachment-Id: 1b04d787799a09e8_0.0.1
-
-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
---94eb2c0556806c4b71055de9ba2a--
+--94eb2c05737e13ce59055dea309d--
