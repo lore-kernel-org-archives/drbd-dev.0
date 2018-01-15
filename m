@@ -1,27 +1,18 @@
-Return-Path: <msnitzer@redhat.com>
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4BF8A105759C
-	for <drbd-dev@lists.linbit.com>; Mon, 15 Jan 2018 16:07:55 +0100 (CET)
-Date: Mon, 15 Jan 2018 10:07:38 -0500
-From: Mike Snitzer <snitzer@redhat.com>
-To: Eric Wheeler <drbd-dev@lists.ewheeler.net>,
-	Christoph Hellwig <hch@lst.de>, axboe@kernel.dk,
-	martin.petersen@oracle.com, agk@redhat.com, shli@kernel.org,
-	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
-	linux-raid@vger.kernel.org, dm-devel@redhat.com,
-	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Message-ID: <20180115150738.GA20967@redhat.com>
-References: <20170405172125.22600-1-hch@lst.de>
-	<20170405172125.22600-24-hch@lst.de>
-	<alpine.LRH.2.11.1801130035010.13147@mail.ewheeler.net>
-	<20180115124635.GA4107@soda.linbit>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180115124635.GA4107@soda.linbit>
-Cc: ejt@redhat.com
-Subject: Re: [Drbd-dev] [PATCH 23/27] drbd: make intelligent use of
-	blkdev_issue_zeroout
+Return-Path: <drbd-dev@lists.ewheeler.net>
+Received: from mail.ewheeler.net (mx.ewheeler.net [66.155.3.69])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1B7631057584
+	for <drbd-dev@lists.linbit.com>; Tue, 16 Jan 2018 00:00:56 +0100 (CET)
+From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
+To: drbd-dev@lists.linbit.com
+Date: Mon, 15 Jan 2018 15:00:31 -0800
+Message-Id: <1516057231-21756-1-git-send-email-drbd-dev@lists.ewheeler.net>
+In-Reply-To: <15124635.GA4107@soda.linbit>
+References: <15124635.GA4107@soda.linbit>
+Cc: Eric Wheeler <drbd@linux.ewheeler.net>, linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Eric Wheeler <git@linux.ewheeler.net>
+Subject: [Drbd-dev] [PATCH] drbd: fix discard_zeroes_if_aligned regression
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,96 +24,97 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jan 15 2018 at  7:46am -0500,
-Lars Ellenberg <lars.ellenberg@linbit.com> wrote:
+From: Eric Wheeler <git@linux.ewheeler.net>
+
+According to drbd.conf documentation, "To not break established and
+expected behaviour, and suddenly cause fstrim on thin-provisioned LVs to
+run out-of-space instead of freeing up space, the default value is yes."
+
+This behavior regressed in the REQ_OP_WRITE_ZEROES refactor near
+	45c21793 drbd: implement REQ_OP_WRITE_ZEROES
+    0dbed96  drbd: make intelligent use of blkdev_issue_zeroout
+which caused dm-thin backed DRBD volumes to zero blocks and run out of
+space instead of passing discard to the backing device as defined by the
+discard_zeroes_if_aligned option.
+
+A helper function could reduce code duplication.
+
+Signed-off-by: Eric Wheeler <drbd@linux.ewheeler.net>
+Cc: <stable@vger.kernel.org> # 4.14
+---
+ drivers/block/drbd/drbd_receiver.c | 22 ++++++++++++++++++++--
+ drivers/block/drbd/drbd_req.c      | 23 +++++++++++++++++++++--
+ 2 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 62a902f..58f0e43 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1507,9 +1507,27 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
+ static void drbd_issue_peer_discard(struct drbd_device *device, struct drbd_peer_request *peer_req)
+ {
+ 	struct block_device *bdev = device->ldev->backing_bdev;
++	struct disk_conf *dc;
++	bool discard_zeroes_if_aligned, zeroout;
  
-> As I understood it,
-> blkdev_issue_zeroout() was supposed to "always try to unmap",
-> deprovision, the relevant region, and zero-out any unaligned
-> head or tail, just like my work around above was doing.
-> 
-> And that device mapper thin was "about to" learn this, "soon",
-> or maybe block core would do the equivalent of my workaround
-> described above.
-> 
-> But it then did not.
-> 
-> See also:
-> https://www.redhat.com/archives/dm-devel/2017-March/msg00213.html
-> https://www.redhat.com/archives/dm-devel/2017-March/msg00226.html
+-	if (blkdev_issue_zeroout(bdev, peer_req->i.sector, peer_req->i.size >> 9,
+-			GFP_NOIO, 0))
++	rcu_read_lock();
++	dc = rcu_dereference(device->ldev->disk_conf);
++	discard_zeroes_if_aligned = dc->discard_zeroes_if_aligned;
++	rcu_read_unlock();
++
++	/* Use zeroout unless discard_zeroes_if_aligned is set.
++	 * If blkdev_issue_discard fails, then retry with blkdev_issue_zeroout.
++	 * See also drbd_process_discard_req() in drbd_req.c.
++	 */
++	zeroout = true;
++	if (discard_zeroes_if_aligned &&
++	    blkdev_issue_discard(bdev, peer_req->i.sector,
++		peer_req->i.size >> 9, GFP_NOIO, 0) == 0)
++		zeroout = false;
++
++	if (zeroout &&
++	    blkdev_issue_zeroout(bdev, peer_req->i.sector,
++		peer_req->i.size >> 9, GFP_NOIO, 0) != 0)
+ 		peer_req->flags |= EE_WAS_ERROR;
+ 
+ 	drbd_endio_write_sec_final(peer_req);
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index de8566e..070b5e7 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1158,9 +1158,28 @@ static int drbd_process_write_request(struct drbd_request *req)
+ static void drbd_process_discard_req(struct drbd_request *req)
+ {
+ 	struct block_device *bdev = req->device->ldev->backing_bdev;
++	struct drbd_device *device = req->device;
++	struct disk_conf *dc;
++	bool discard_zeroes_if_aligned, zeroout;
+ 
+-	if (blkdev_issue_zeroout(bdev, req->i.sector, req->i.size >> 9,
+-			GFP_NOIO, 0))
++	rcu_read_lock();
++	dc = rcu_dereference(device->ldev->disk_conf);
++	discard_zeroes_if_aligned = dc->discard_zeroes_if_aligned;
++	rcu_read_unlock();
++
++	/* Use zeroout unless discard_zeroes_if_aligned is set.
++	 * If blkdev_issue_discard fails, then retry with blkdev_issue_zeroout.
++	 * See also drbd_issue_peer_discard() in drbd_receiver.c.
++	 */
++	zeroout = true;
++	if (discard_zeroes_if_aligned &&
++	    blkdev_issue_discard(bdev, req->i.sector, req->i.size >> 9,
++			GFP_NOIO, 0) == 0)
++		zeroout = false;
++
++	if (zeroout &&
++	    blkdev_issue_zeroout(bdev, req->i.sector, req->i.size >> 9,
++			GFP_NOIO, 0) != 0)
+ 		req->private_bio->bi_status = BLK_STS_IOERR;
+ 	bio_endio(req->private_bio);
+ }
+-- 
+1.8.3.1
 
-Right, now that you mention it it is starting to ring a bell (especially
-after I read your 2nd dm-devel archive url above).
-
-> I then did not follow this closely enough anymore,
-> and I missed that with recent enough kernel,
-> discard on DRBD on dm-thin would fully allocate.
-> 
-> In our out-of-tree module, we had to keep the older code for
-> compat reasons, anyways. I will just re-enable our zeroout
-> workaround there again.
-> 
-> In tree, either dm-thin learns to do REQ_OP_WRITE_ZEROES "properly",
-> so the result in this scenario is what we expect:
-> 
->   _: unprovisioned, not allocated, returns zero on read anyways
->   *: provisioned, some arbitrary data
->   0: explicitly zeroed:
-> 
->   |gran|ular|ity |    |    |    |
->   |****|****|____|****|
->      to|-be-|zero|ed
->   |**00|____|____|00**|
-> 
-> (leave unallocated blocks alone,
->  de-allocate full blocks just like with discard,
->  explicitly zero unaligned head and tail)
-
-"de-allocate full blocks just like with discard" is an interesting take
-what it means for dm-thin to handle REQ_OP_WRITE_ZEROES "properly".
-
-> Or DRBD will have to resurrect that reinvented zeroout again,
-> with exactly those semantics. I did reinvent it for a reason ;)
-
-Yeah, I now recall dropping that line of development because it
-became "hard" (or at least harder than originally thought).
-
-Don't people use REQ_OP_WRITE_ZEROES to initialize a portion of the
-disk?  E.g. zeroing superblocks, metadata areas, or whatever?
-
-If we just discarded the logical extent and then a user did a partial
-write to the block, areas that a user might expect to be zeroed wouldn't
-be (at least in the case of dm-thinp if "skip_block_zeroing" is
-enabled).  And yes if discard passdown is enabled and the device's
-discard implementation does "discard_zeroes_data" then it'd be
-fine.. but there are a lot of things that need to line up for drbd's
-REQ_OP_WRITE_ZEROES to "just work" (as it expects).
-
-(now I'm just echoing the kinds of concerns I had in that 2nd dm-devel
-post above).
-
-This post from mkp is interesting:
-https://www.redhat.com/archives/dm-devel/2017-March/msg00228.html
-
-Specifically:
-"You don't have a way to mark those blocks as being full of zeroes
-without actually writing them?
-
-Note that the fallback to a zeroout command is to do a regular write. So
-if DM doesn't zero the blocks, the block layer is going to it."
-
-No, dm-thinp doesn't have an easy way to mark an allocated block as
-containing zeroes (without actually zeroing).  I toyed with adding that
-but then realized that even if we had it it'd still require block
-zeroing be enabled.  But block zeroing is done at allocation time.  So
-we'd need to interpret the "this block is zeroes" flag to mean "on first
-write or read to this block it needs to first zero it".  Fugly to say
-the least...
-
-I've been quite busy with other things but I can revisit all this with
-Joe Thornber and see what we come up with after a 2nd discussion.
-
-But sadly, in general, this is a low priority for me, so you might do
-well to reintroduce your drbd workaround.. sorry about that :(
-
-Mike
