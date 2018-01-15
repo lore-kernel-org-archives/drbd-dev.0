@@ -1,21 +1,27 @@
-Return-Path: <drbd-dev@lists.ewheeler.net>
-Received: from mail.ewheeler.net (mx.ewheeler.net [66.155.3.69])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 33EB51057582
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jan 2018 01:53:13 +0100 (CET)
-Date: Sat, 13 Jan 2018 00:46:40 +0000 (UTC)
-From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
-To: Christoph Hellwig <hch@lst.de>
-In-Reply-To: <20170405172125.22600-24-hch@lst.de>
-Message-ID: <alpine.LRH.2.11.1801130035010.13147@mail.ewheeler.net>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wr0-f196.google.com (mail-wr0-f196.google.com
+	[209.85.128.196])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BB3FC10575A3
+	for <drbd-dev@lists.linbit.com>; Mon, 15 Jan 2018 13:52:17 +0100 (CET)
+Received: by mail-wr0-f196.google.com with SMTP id 36so11571316wrh.1
+	for <drbd-dev@lists.linbit.com>; Mon, 15 Jan 2018 04:52:17 -0800 (PST)
+Date: Mon, 15 Jan 2018 13:46:35 +0100
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Eric Wheeler <drbd-dev@lists.ewheeler.net>
+Message-ID: <20180115124635.GA4107@soda.linbit>
 References: <20170405172125.22600-1-hch@lst.de>
 	<20170405172125.22600-24-hch@lst.de>
+	<alpine.LRH.2.11.1801130035010.13147@mail.ewheeler.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.LRH.2.11.1801130035010.13147@mail.ewheeler.net>
 Cc: axboe@kernel.dk, linux-raid@vger.kernel.org, martin.petersen@oracle.com,
 	snitzer@redhat.com, philipp.reisner@linbit.com,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
-	linux-scsi@vger.kernel.org, lars.ellenberg@linbit.com,
-	shli@kernel.org, agk@redhat.com, drbd-dev@lists.linbit.com
+	linux-scsi@vger.kernel.org, shli@kernel.org,
+	Christoph Hellwig <hch@lst.de>, agk@redhat.com, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH 23/27] drbd: make intelligent use of
  blkdev_issue_zeroout
 List-Id: "*Coordination* of development, patches,
@@ -29,239 +35,113 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello All,
-
-We just noticed that discards to DRBD devices backed by dm-thin devices 
-are fully allocating the thin blocks.
-
-This behavior does not exist before 
-ee472d83 block: add a flags argument to (__)blkdev_issue_zeroout
-
-The problem exists somewhere between
-[working] c20cfc27 block: stop using blkdev_issue_write_same for zeroing
-  and
-[broken]  45c21793 drbd: implement REQ_OP_WRITE_ZEROES
-
-Note that c20cfc27 works as expected, but 45c21793 discards blocks 
-being zeroed on the dm-thin backing device. All commits between those two 
-produce the following error:
-
-blkdiscard: /dev/drbd/by-res/test: BLKDISCARD ioctl failed: Input/output error
-
-Also note that issuing a blkdiscard to the backing device directly 
-discards as you would expect. This is just a problem when sending discards 
-through DRBD.
-
-Is there an easy way to solve this in the short term, even if the ultimate 
-fix is more involved?
-
-Thank you for your help!
-
--Eric
-
---
-Eric Wheeler
-
-On Wed, 5 Apr 2017, Christoph Hellwig wrote:
-
-> drbd always wants its discard wire operations to zero the blocks, so
-> use blkdev_issue_zeroout with the BLKDEV_ZERO_UNMAP flag instead of
-> reinventing it poorly.
+On Sat, Jan 13, 2018 at 12:46:40AM +0000, Eric Wheeler wrote:
+> Hello All,
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> Reviewed-by: Hannes Reinecke <hare@suse.com>
-> ---
->  drivers/block/drbd/drbd_debugfs.c  |   3 --
->  drivers/block/drbd/drbd_int.h      |   6 ---
->  drivers/block/drbd/drbd_receiver.c | 102 ++-----------------------------------
->  drivers/block/drbd/drbd_req.c      |   6 +--
->  4 files changed, 7 insertions(+), 110 deletions(-)
+> We just noticed that discards to DRBD devices backed by dm-thin devices 
+> are fully allocating the thin blocks.
 > 
-> diff --git a/drivers/block/drbd/drbd_debugfs.c b/drivers/block/drbd/drbd_debugfs.c
-> index de5c3ee8a790..494837e59f23 100644
-> --- a/drivers/block/drbd/drbd_debugfs.c
-> +++ b/drivers/block/drbd/drbd_debugfs.c
-> @@ -236,9 +236,6 @@ static void seq_print_peer_request_flags(struct seq_file *m, struct drbd_peer_re
->  	seq_print_rq_state_bit(m, f & EE_CALL_AL_COMPLETE_IO, &sep, "in-AL");
->  	seq_print_rq_state_bit(m, f & EE_SEND_WRITE_ACK, &sep, "C");
->  	seq_print_rq_state_bit(m, f & EE_MAY_SET_IN_SYNC, &sep, "set-in-sync");
-> -
-> -	if (f & EE_IS_TRIM)
-> -		__seq_print_rq_state_bit(m, f & EE_IS_TRIM_USE_ZEROOUT, &sep, "zero-out", "trim");
->  	seq_print_rq_state_bit(m, f & EE_WRITE_SAME, &sep, "write-same");
->  	seq_putc(m, '\n');
->  }
-> diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-> index 724d1c50fc52..d5da45bb03a6 100644
-> --- a/drivers/block/drbd/drbd_int.h
-> +++ b/drivers/block/drbd/drbd_int.h
-> @@ -437,9 +437,6 @@ enum {
->  
->  	/* is this a TRIM aka REQ_DISCARD? */
->  	__EE_IS_TRIM,
-> -	/* our lower level cannot handle trim,
-> -	 * and we want to fall back to zeroout instead */
-> -	__EE_IS_TRIM_USE_ZEROOUT,
->  
->  	/* In case a barrier failed,
->  	 * we need to resubmit without the barrier flag. */
-> @@ -482,7 +479,6 @@ enum {
->  #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
->  #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
->  #define EE_IS_TRIM             (1<<__EE_IS_TRIM)
-> -#define EE_IS_TRIM_USE_ZEROOUT (1<<__EE_IS_TRIM_USE_ZEROOUT)
->  #define EE_RESUBMITTED         (1<<__EE_RESUBMITTED)
->  #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
->  #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
-> @@ -1561,8 +1557,6 @@ extern void start_resync_timer_fn(unsigned long data);
->  extern void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req);
->  
->  /* drbd_receiver.c */
-> -extern int drbd_issue_discard_or_zero_out(struct drbd_device *device,
-> -		sector_t start, unsigned int nr_sectors, bool discard);
->  extern int drbd_receiver(struct drbd_thread *thi);
->  extern int drbd_ack_receiver(struct drbd_thread *thi);
->  extern void drbd_send_ping_wf(struct work_struct *ws);
-> diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-> index dc9a6dcd431c..bc1d296581f9 100644
-> --- a/drivers/block/drbd/drbd_receiver.c
-> +++ b/drivers/block/drbd/drbd_receiver.c
-> @@ -1448,108 +1448,14 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
->  		drbd_info(resource, "Method to ensure write ordering: %s\n", write_ordering_str[resource->write_ordering]);
->  }
->  
-> -/*
-> - * We *may* ignore the discard-zeroes-data setting, if so configured.
-> - *
-> - * Assumption is that it "discard_zeroes_data=0" is only because the backend
-> - * may ignore partial unaligned discards.
-> - *
-> - * LVM/DM thin as of at least
-> - *   LVM version:     2.02.115(2)-RHEL7 (2015-01-28)
-> - *   Library version: 1.02.93-RHEL7 (2015-01-28)
-> - *   Driver version:  4.29.0
-> - * still behaves this way.
-> - *
-> - * For unaligned (wrt. alignment and granularity) or too small discards,
-> - * we zero-out the initial (and/or) trailing unaligned partial chunks,
-> - * but discard all the aligned full chunks.
-> - *
-> - * At least for LVM/DM thin, the result is effectively "discard_zeroes_data=1".
-> - */
-> -int drbd_issue_discard_or_zero_out(struct drbd_device *device, sector_t start, unsigned int nr_sectors, bool discard)
-> -{
-> -	struct block_device *bdev = device->ldev->backing_bdev;
-> -	struct request_queue *q = bdev_get_queue(bdev);
-> -	sector_t tmp, nr;
-> -	unsigned int max_discard_sectors, granularity;
-> -	int alignment;
-> -	int err = 0;
-> -
-> -	if (!discard)
-> -		goto zero_out;
-> -
-> -	/* Zero-sector (unknown) and one-sector granularities are the same.  */
-> -	granularity = max(q->limits.discard_granularity >> 9, 1U);
-> -	alignment = (bdev_discard_alignment(bdev) >> 9) % granularity;
-> -
-> -	max_discard_sectors = min(q->limits.max_discard_sectors, (1U << 22));
-> -	max_discard_sectors -= max_discard_sectors % granularity;
-> -	if (unlikely(!max_discard_sectors))
-> -		goto zero_out;
-> -
-> -	if (nr_sectors < granularity)
-> -		goto zero_out;
-> -
-> -	tmp = start;
-> -	if (sector_div(tmp, granularity) != alignment) {
-> -		if (nr_sectors < 2*granularity)
-> -			goto zero_out;
-> -		/* start + gran - (start + gran - align) % gran */
-> -		tmp = start + granularity - alignment;
-> -		tmp = start + granularity - sector_div(tmp, granularity);
-> -
-> -		nr = tmp - start;
-> -		err |= blkdev_issue_zeroout(bdev, start, nr, GFP_NOIO,
-> -				BLKDEV_ZERO_NOUNMAP);
-> -		nr_sectors -= nr;
-> -		start = tmp;
-> -	}
-> -	while (nr_sectors >= granularity) {
-> -		nr = min_t(sector_t, nr_sectors, max_discard_sectors);
-> -		err |= blkdev_issue_discard(bdev, start, nr, GFP_NOIO,
-> -				BLKDEV_ZERO_NOUNMAP);
-> -		nr_sectors -= nr;
-> -		start += nr;
-> -	}
-> - zero_out:
-> -	if (nr_sectors) {
-> -		err |= blkdev_issue_zeroout(bdev, start, nr_sectors, GFP_NOIO,
-> -				BLKDEV_ZERO_NOUNMAP);
-> -	}
-> -	return err != 0;
-> -}
-> -
-> -static bool can_do_reliable_discards(struct drbd_device *device)
-> -{
-> -	struct request_queue *q = bdev_get_queue(device->ldev->backing_bdev);
-> -	struct disk_conf *dc;
-> -	bool can_do;
-> -
-> -	if (!blk_queue_discard(q))
-> -		return false;
-> -
-> -	if (q->limits.discard_zeroes_data)
-> -		return true;
-> -
-> -	rcu_read_lock();
-> -	dc = rcu_dereference(device->ldev->disk_conf);
-> -	can_do = dc->discard_zeroes_if_aligned;
-> -	rcu_read_unlock();
-> -	return can_do;
-> -}
-> -
->  static void drbd_issue_peer_discard(struct drbd_device *device, struct drbd_peer_request *peer_req)
->  {
-> -	/* If the backend cannot discard, or does not guarantee
-> -	 * read-back zeroes in discarded ranges, we fall back to
-> -	 * zero-out.  Unless configuration specifically requested
-> -	 * otherwise. */
-> -	if (!can_do_reliable_discards(device))
-> -		peer_req->flags |= EE_IS_TRIM_USE_ZEROOUT;
-> +	struct block_device *bdev = device->ldev->backing_bdev;
->  
-> -	if (drbd_issue_discard_or_zero_out(device, peer_req->i.sector,
-> -	    peer_req->i.size >> 9, !(peer_req->flags & EE_IS_TRIM_USE_ZEROOUT)))
-> +	if (blkdev_issue_zeroout(bdev, peer_req->i.sector, peer_req->i.size >> 9,
-> +			GFP_NOIO, 0))
->  		peer_req->flags |= EE_WAS_ERROR;
-> +
->  	drbd_endio_write_sec_final(peer_req);
->  }
->  
-> diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-> index 652114ae1a8a..6da9ea8c48b6 100644
-> --- a/drivers/block/drbd/drbd_req.c
-> +++ b/drivers/block/drbd/drbd_req.c
-> @@ -1148,10 +1148,10 @@ static int drbd_process_write_request(struct drbd_request *req)
->  
->  static void drbd_process_discard_req(struct drbd_request *req)
->  {
-> -	int err = drbd_issue_discard_or_zero_out(req->device,
-> -				req->i.sector, req->i.size >> 9, true);
-> +	struct block_device *bdev = req->device->ldev->backing_bdev;
->  
-> -	if (err)
-> +	if (blkdev_issue_zeroout(bdev, req->i.sector, req->i.size >> 9,
-> +			GFP_NOIO, 0))
->  		req->private_bio->bi_error = -EIO;
->  	bio_endio(req->private_bio);
->  }
-> -- 
-> 2.11.0
+> This behavior does not exist before 
+> ee472d83 block: add a flags argument to (__)blkdev_issue_zeroout
 > 
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
+> The problem exists somewhere between
+> [working] c20cfc27 block: stop using blkdev_issue_write_same for zeroing
+>   and
+> [broken]  45c21793 drbd: implement REQ_OP_WRITE_ZEROES
 > 
+> Note that c20cfc27 works as expected, but 45c21793 discards blocks 
+> being zeroed on the dm-thin backing device. All commits between those two 
+> produce the following error:
+> 
+> blkdiscard: /dev/drbd/by-res/test: BLKDISCARD ioctl failed: Input/output error
+> 
+> Also note that issuing a blkdiscard to the backing device directly 
+> discards as you would expect. This is just a problem when sending discards 
+> through DRBD.
+> 
+> Is there an easy way to solve this in the short term, even if the ultimate 
+> fix is more involved?
+
+> On Wed, 5 Apr 2017, Christoph Hellwig wrote:
+> 
+
+commit 0dbed96a3cc9786bc4814dab98a7218753bde934
+Author: Christoph Hellwig <hch@lst.de>
+Date:   Wed Apr 5 19:21:21 2017 +0200
+
+    drbd: make intelligent use of blkdev_issue_zeroout
+
+> > drbd always wants its discard wire operations to zero the blocks, so
+> > use blkdev_issue_zeroout with the BLKDEV_ZERO_UNMAP flag instead of
+> > reinventing it poorly.
+
+> > -/*
+> > - * We *may* ignore the discard-zeroes-data setting, if so configured.
+> > - *
+> > - * Assumption is that it "discard_zeroes_data=0" is only because the backend
+> > - * may ignore partial unaligned discards.
+> > - *
+> > - * LVM/DM thin as of at least
+> > - *   LVM version:     2.02.115(2)-RHEL7 (2015-01-28)
+> > - *   Library version: 1.02.93-RHEL7 (2015-01-28)
+> > - *   Driver version:  4.29.0
+> > - * still behaves this way.
+> > - *
+> > - * For unaligned (wrt. alignment and granularity) or too small discards,
+> > - * we zero-out the initial (and/or) trailing unaligned partial chunks,
+> > - * but discard all the aligned full chunks.
+> > - *
+> > - * At least for LVM/DM thin, the result is effectively "discard_zeroes_data=1".
+> > - */
+> > -int drbd_issue_discard_or_zero_out(struct drbd_device *device, sector_t start, unsigned int nr_sectors, bool discard)
+
+
+As I understood it,
+blkdev_issue_zeroout() was supposed to "always try to unmap",
+deprovision, the relevant region, and zero-out any unaligned
+head or tail, just like my work around above was doing.
+
+And that device mapper thin was "about to" learn this, "soon",
+or maybe block core would do the equivalent of my workaround
+described above.
+
+But it then did not.
+
+See also:
+https://www.redhat.com/archives/dm-devel/2017-March/msg00213.html
+https://www.redhat.com/archives/dm-devel/2017-March/msg00226.html
+
+I then did not follow this closely enough anymore,
+and I missed that with recent enough kernel,
+discard on DRBD on dm-thin would fully allocate.
+
+In our out-of-tree module, we had to keep the older code for
+compat reasons, anyways. I will just re-enable our zeroout
+workaround there again.
+
+In tree, either dm-thin learns to do REQ_OP_WRITE_ZEROES "properly",
+so the result in this scenario is what we expect:
+
+  _: unprovisioned, not allocated, returns zero on read anyways
+  *: provisioned, some arbitrary data
+  0: explicitly zeroed:
+
+  |gran|ular|ity |    |    |    |
+  |****|****|____|****|
+     to|-be-|zero|ed
+  |**00|____|____|00**|
+
+(leave unallocated blocks alone,
+ de-allocate full blocks just like with discard,
+ explicitly zero unaligned head and tail)
+
+Or DRBD will have to resurrect that reinvented zeroout again,
+with exactly those semantics. I did reinvent it for a reason ;)
+
+-- 
+: Lars Ellenberg
+: LINBIT | Keeping the Digital World Running
+: DRBD -- Heartbeat -- Corosync -- Pacemaker
+: R&D, Integration, Ops, Consulting, Support
+
+DRBD® and LINBIT® are registered trademarks of LINBIT
