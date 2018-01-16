@@ -1,23 +1,26 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com [74.125.82.65])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 343401057623
-	for <drbd-dev@lists.linbit.com>; Tue, 16 Jan 2018 10:08:12 +0100 (CET)
-Received: by mail-wm0-f65.google.com with SMTP id f3so7009001wmc.1
-	for <drbd-dev@lists.linbit.com>; Tue, 16 Jan 2018 01:08:12 -0800 (PST)
-Date: Tue, 16 Jan 2018 10:08:09 +0100
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com [74.125.82.68])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B556610575B7
+	for <drbd-dev@lists.linbit.com>; Tue, 16 Jan 2018 10:49:10 +0100 (CET)
+Received: by mail-wm0-f68.google.com with SMTP id 143so6958093wma.5
+	for <drbd-dev@lists.linbit.com>; Tue, 16 Jan 2018 01:49:10 -0800 (PST)
+Date: Tue, 16 Jan 2018 10:49:07 +0100
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Eric Wheeler <drbd-dev@lists.ewheeler.net>
-Message-ID: <20180116090809.GC4107@soda.linbit>
-References: <1516060335-27029-1-git-send-email-drbd-dev@lists.ewheeler.net>
+To: Christoph Hellwig <hch@infradead.org>
+Message-ID: <20180116094907.GD4107@soda.linbit>
+References: <15124635.GA4107@soda.linbit>
+	<1516057231-21756-1-git-send-email-drbd-dev@lists.ewheeler.net>
+	<20180116072615.GA3940@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1516060335-27029-1-git-send-email-drbd-dev@lists.ewheeler.net>
-Cc: linux-kernel@vger.kernel.org, Eric Wheeler <drbd@linux.ewheeler.net>,
+In-Reply-To: <20180116072615.GA3940@infradead.org>
+Cc: Eric Wheeler <drbd@linux.ewheeler.net>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
+	stable@vger.kernel.org, linux-kernel@vger.kernel.org,
 	Eric Wheeler <git@linux.ewheeler.net>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: standardize kthread/workqueue thread
- naming to include drbd minor number
+Subject: Re: [Drbd-dev] [PATCH] drbd: fix discard_zeroes_if_aligned
+	regression
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,24 +32,65 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jan 15, 2018 at 03:52:15PM -0800, Eric Wheeler wrote:
-> From: Eric Wheeler <git@linux.ewheeler.net>
-> 
-> For DRBD resources with long names that start with the same prefix,
-> it was difficult to find all process pids for that minor since names
-> are truncated to the task_struct's comm field (16 bytes).
-> 
-> This patch names all processes associated with a DRBD device as drbdN_*
-> where N is the DRBD minor in the same ways that the drbdN_submit workqueue
-> is named.  Userspace tools can then lookup the name=>minor=>pid mapping
-> and for all pids and use tools like chrt, ioprio, nice, add pids to
-> cgroups, or for other useful purpose.
+On Mon, Jan 15, 2018 at 11:26:15PM -0800, Christoph Hellwig wrote:
+> NAK.  Calling a discard and expecting zeroing is simply buggy.
 
+What he said.
 
-DRBD can do "multi volume" resources, which means most threads
-are associated not with one, but with many minors.
+The bug/misunderstanding was that we now use zeroout even for discards,
+with the assumption that it would try to do discards where it can.
 
-"does not work just like that"
+Which is even true.
+
+But our expectations of when zeroout "should" use unmap,
+and where it actually can do that safely
+based on the information it has,
+don't really match:
+our expectations where wrong, we assumed too much.
+(in the general case).
+
+Which means in DRBD we have to stop use zeroout for discards,
+and again pass down normal discard for discards.
+
+In the specific case where the backend to DRBD is lvm-thin,
+AND it does de-alloc blocks on discard,
+AND it does NOT have skip_block_zeroing set or it's backend
+does zero on discard and it does discard passdown, and we tell
+DRBD about all of that (using the discard_zeroes_if_aligned flag)
+then we can do this "zero head and tail, discard full blocks",
+and expect them to be zero.
+
+If skip_block_zeroing is set however, and there is no discard
+passdown in thin, or the backend of thin does not zero on discard,
+DRBD can still pass down discards to thin, and expect them do be
+de-allocated, but can not expect discarded ranges to remain
+"zero", any later partial write to an unallocated area could pull
+in different "undefined" garbage on different replicas for the
+not-written-to part of a new allocated block.
+
+The end result is that you have areas of the block device
+that return different data depending on which replica you
+read from.
+
+But that is the case even eithout discard in that setup,
+don't do that then or live with it.
+
+"undefined data" is undefined, you have that directly on thin
+in that setup already, with DRBD on top you now have several
+versions of "undefined".
+
+Anything on top of such a setup must not do "read-modify-write"
+of "undefined" data and expect a defined result, adding DRBD
+on top does not change that.
+
+DRBD can deal with that just fine, but our "online verify" will
+report loads of boring "mismatches" for those areas.
+
+TL;DR: we'll stop doing "discard-is-zeroout"
+(our assumptions were wrong).
+We still won't do exactly "discard-is-discard", but re-enable our
+"discard-is-discard plus zeroout on head and tail", because in
+some relevant setups, this gives us the best result, and avoids
+the false positives in our online-verify.
 
     Lars
-
