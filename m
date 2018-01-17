@@ -1,24 +1,20 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com [74.125.82.68])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B556610575B7
-	for <drbd-dev@lists.linbit.com>; Tue, 16 Jan 2018 10:49:10 +0100 (CET)
-Received: by mail-wm0-f68.google.com with SMTP id 143so6958093wma.5
-	for <drbd-dev@lists.linbit.com>; Tue, 16 Jan 2018 01:49:10 -0800 (PST)
-Date: Tue, 16 Jan 2018 10:49:07 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
+Return-Path: <drbd-dev@lists.ewheeler.net>
+Received: from mail.ewheeler.net (mx.ewheeler.net [66.155.3.69])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8D3A910575A4
+	for <drbd-dev@lists.linbit.com>; Wed, 17 Jan 2018 01:43:41 +0100 (CET)
+Date: Wed, 17 Jan 2018 00:43:35 +0000 (UTC)
+From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
 To: Christoph Hellwig <hch@infradead.org>
-Message-ID: <20180116094907.GD4107@soda.linbit>
+In-Reply-To: <20180116072615.GA3940@infradead.org>
+Message-ID: <alpine.LRH.2.11.1801170041330.27949@mail.ewheeler.net>
 References: <15124635.GA4107@soda.linbit>
 	<1516057231-21756-1-git-send-email-drbd-dev@lists.ewheeler.net>
 	<20180116072615.GA3940@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180116072615.GA3940@infradead.org>
-Cc: Eric Wheeler <drbd@linux.ewheeler.net>,
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Cc: linux-kernel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	stable@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Eric Wheeler <git@linux.ewheeler.net>, drbd-dev@lists.linbit.com
+	stable@vger.kernel.org, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH] drbd: fix discard_zeroes_if_aligned
 	regression
 List-Id: "*Coordination* of development, patches,
@@ -32,65 +28,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jan 15, 2018 at 11:26:15PM -0800, Christoph Hellwig wrote:
+On Mon, 15 Jan 2018, Christoph Hellwig wrote:
+
 > NAK.  Calling a discard and expecting zeroing is simply buggy.
 
-What he said.
+But of course, that would be silly.
 
-The bug/misunderstanding was that we now use zeroout even for discards,
-with the assumption that it would try to do discards where it can.
+We don't expect discard to zero---but we do expect discard to discard!
 
-Which is even true.
+> And double NAK for patches like this without a linux-block Cc.
 
-But our expectations of when zeroout "should" use unmap,
-and where it actually can do that safely
-based on the information it has,
-don't really match:
-our expectations where wrong, we assumed too much.
-(in the general case).
+My appologies, I thought this was internal to DRBD.  
 
-Which means in DRBD we have to stop use zeroout for discards,
-and again pass down normal discard for discards.
+What is the general rule here?
 
-In the specific case where the backend to DRBD is lvm-thin,
-AND it does de-alloc blocks on discard,
-AND it does NOT have skip_block_zeroing set or it's backend
-does zero on discard and it does discard passdown, and we tell
-DRBD about all of that (using the discard_zeroes_if_aligned flag)
-then we can do this "zero head and tail, discard full blocks",
-and expect them to be zero.
+Should linux-block always be Cc'ed with a patch?
 
-If skip_block_zeroing is set however, and there is no discard
-passdown in thin, or the backend of thin does not zero on discard,
-DRBD can still pass down discards to thin, and expect them do be
-de-allocated, but can not expect discarded ranges to remain
-"zero", any later partial write to an unallocated area could pull
-in different "undefined" garbage on different replicas for the
-not-written-to part of a new allocated block.
+--
+Eric Wheeler
 
-The end result is that you have areas of the block device
-that return different data depending on which replica you
-read from.
-
-But that is the case even eithout discard in that setup,
-don't do that then or live with it.
-
-"undefined data" is undefined, you have that directly on thin
-in that setup already, with DRBD on top you now have several
-versions of "undefined".
-
-Anything on top of such a setup must not do "read-modify-write"
-of "undefined" data and expect a defined result, adding DRBD
-on top does not change that.
-
-DRBD can deal with that just fine, but our "online verify" will
-report loads of boring "mismatches" for those areas.
-
-TL;DR: we'll stop doing "discard-is-zeroout"
-(our assumptions were wrong).
-We still won't do exactly "discard-is-discard", but re-enable our
-"discard-is-discard plus zeroout on head and tail", because in
-some relevant setups, this gives us the best result, and avoids
-the false positives in our online-verify.
-
-    Lars
