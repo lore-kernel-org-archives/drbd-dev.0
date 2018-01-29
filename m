@@ -1,21 +1,26 @@
-Return-Path: <nwang@suse.com>
-Received: from prv-mh.provo.novell.com (prv-mh.provo.novell.com
-	[137.65.248.74])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7019D1056F9D
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Jan 2018 06:03:00 +0100 (CET)
-Message-Id: <5A6F1B3402000070000DBB3A@prv-mh.provo.novell.com>
-Date: Sun, 28 Jan 2018 22:01:40 -0700
-From: "Nick Wang" <nwang@suse.com>
-To: "Philipp Reisner" <philipp.reisner@linbit.com>, <drbd-dev@lists.linbit.com>
-References: <20180125062729.4142-1-nwang@suse.com>
-	<1621611.JSGMFM0nhf@fat-tyre>
-In-Reply-To: <1621611.JSGMFM0nhf@fat-tyre>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Content-Disposition: inline
-Subject: Re: [Drbd-dev] [PATCH] drbdadm: Fix does not allocate bitmap for
- stacked res
+Return-Path: <drbd-dev@lists.ewheeler.net>
+Received: from mail.ewheeler.net (mx.ewheeler.net [66.155.3.69])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CE4041056F9D
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Jan 2018 21:33:28 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by mail.ewheeler.net (Postfix) with ESMTP id 3B973A0674
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Jan 2018 20:33:27 +0000 (UTC)
+Received: from mail.ewheeler.net ([127.0.0.1])
+	by localhost (mail.ewheeler.net [127.0.0.1]) (amavisd-new, port 10024)
+	with LMTP id SOinKlVuBw8y for <drbd-dev@lists.linbit.com>;
+	Mon, 29 Jan 2018 20:33:26 +0000 (UTC)
+Received: from mx.ewheeler.net (mx.ewheeler.net [66.155.3.69])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mail.ewheeler.net (Postfix) with ESMTPSA id 8BA6AA066F
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Jan 2018 20:33:26 +0000 (UTC)
+Date: Mon, 29 Jan 2018 20:33:24 +0000 (UTC)
+From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
+To: drbd-dev@lists.linbit.com
+Message-ID: <alpine.LRH.2.11.1801292023200.10022@mail.ewheeler.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [Drbd-dev] DRBD in Linux v4.14.15 deadlock during disconnect
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,145 +32,113 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Philipp,
+Hello all,
 
-Your fix working perfectly in my test scenario.
+We noticed one of our DRBDs went into a NetworkFailure status. We issued a 
+drbdadm disconnect and now I cannot get it out of the 'Disconnecting' 
+state.
 
-Best regards,
-Nick
+Here are the details on the host that is stuck:
 
->>> On 1/26/2018 at 11:26 下午, in message <1621611.JSGMFM0nhf@fat-tyre>, Philipp
-Reisner <philipp.reisner@linbit.com> wrote:
-> Hi Nick,
-> 
-> regarding you proposed patch, instead of special casing
-> the code we should rather fix the data structure.
-> 
-> I will give it a bit more testing before I push it to the master.
-> Please let me know if that works for your test-cases.
-> 
-> best regards,
->  Phil
-> 
-> From b5eab810ded459792c24a4bc5db5ce272ea1ee15 Mon Sep 17 00:00:00 2001
-> From: Philipp Reisner <philipp.reisner@linbit.com>
-> Date: Fri, 26 Jan 2018 16:09:01 +0100
-> Subject: [PATCH] v9,drbdadm,stacking: Fix setting the disk in stacked host
->  sections
-> 
-> This got broken on the long way from drbd-8.4 to 9.
-> ---
->  user/v9/drbdadm_postparse.c | 73 ++++++++++++++++++++++-----------------------
->  1 file changed, 36 insertions(+), 37 deletions(-)
-> 
-> diff --git a/user/v9/drbdadm_postparse.c b/user/v9/drbdadm_postparse.c
-> index dde0a5e..f223dbe 100644
-> --- a/user/v9/drbdadm_postparse.c
-> +++ b/user/v9/drbdadm_postparse.c
-> @@ -514,9 +514,9 @@ void set_peer_in_resource(struct d_resource* res, int 
-> peer_required)
->                 add_no_bitmap_opt(res);
->  }
->  
-> -void set_disk_in_res(struct d_resource *res)
-> +void set_stacked_disk_in_res(struct d_resource *res)
->  {
-> -       struct d_host_info *host;
-> +       struct d_host_info *host, *lower_host;
->         struct d_volume *a, *b;
->  
->         if (res->ignore)
-> @@ -526,41 +526,40 @@ void set_disk_in_res(struct d_resource *res)
->                 if (!host->lower)
->                         continue;
->  
-> -               if (host->lower->ignore)
-> -                       continue;
-> -
-> -               check_volume_sets_equal(res, host, host->lower->me);
-> -               if (!config_valid)
-> -                       /* don't even bother for broken config. */
-> -                       continue;
-> +               for_each_host(lower_host, &host->lower->all_hosts) {
-> +                       check_volume_sets_equal(res, host, lower_host);
-> +                       if (!config_valid)
-> +                               /* don't even bother for broken config. */
-> +                               continue;
->  
-> -               /* volume lists are sorted on vnr */
-> -               a = STAILQ_FIRST(&host->volumes);
-> -               b = STAILQ_FIRST(&host->lower->me->volumes);
-> -               while (a) {
-> -                       while (b && a->vnr > b->vnr) {
-> -                               /* Lower resource has more volumes.
-> -                                * Probably unusual, but we decided
-> -                                * that it should be legal.
-> -                                * Skip those that do not match */
-> -                               b = STAILQ_NEXT(b, link);
-> -                       }
-> -                       if (a && b && a->vnr == b->vnr) {
-> -                               if (b->device)
-> -                                       m_asprintf(&a->disk, "%s", b->device);
-> -                               else
-> -                                       m_asprintf(&a->disk, "/dev/drbd%u", 
-> b->device_minor);
-> -                               /* stacked implicit volumes need internal 
-> meta data, too */
-> -                               if (!a->meta_disk)
-> -                                       m_asprintf(&a->meta_disk, "internal");
-> -                               if (!a->meta_index)
-> -                                       m_asprintf(&a->meta_index, "internal");
-> -                               a = STAILQ_NEXT(a, link);
-> -                               b = STAILQ_NEXT(b, link);
-> -                       } else {
-> -                               /* config_invalid should have been set
-> -                                * by check_volume_sets_equal */
-> -                               assert(0);
-> +                       /* volume lists are sorted on vnr */
-> +                       a = STAILQ_FIRST(&host->volumes);
-> +                       b = STAILQ_FIRST(&lower_host->volumes);
-> +                       while (a) {
-> +                               while (b && a->vnr > b->vnr) {
-> +                                       /* Lower resource has more volumes.
-> +                                        * Probably unusual, but we decided
-> +                                        * that it should be legal.
-> +                                        * Skip those that do not match */
-> +                                       b = STAILQ_NEXT(b, link);
-> +                               }
-> +                               if (a && b && a->vnr == b->vnr) {
-> +                                       if (b->device)
-> +                                               m_asprintf(&a->disk, "%s", 
-> b->device);
-> +                                       else
-> +                                               m_asprintf(&a->disk, 
-> "/dev/drbd%u", b->device_minor);
-> +                                       /* stacked implicit volumes need 
-> internal meta data, too */
-> +                                       if (!a->meta_disk)
-> +                                               m_asprintf(&a->meta_disk, 
-> "internal");
-> +                                       if (!a->meta_index)
-> +                                               m_asprintf(&a->meta_index, 
-> "internal");
-> +                                       a = STAILQ_NEXT(a, link);
-> +                                       b = STAILQ_NEXT(b, link);
-> +                               } else {
-> +                                       /* config_invalid should have been 
-> set
-> +                                        * by check_volume_sets_equal */
-> +                                       assert(0);
-> +                               }
->                         }
->                 }
->         }
-> @@ -1161,7 +1160,7 @@ void post_parse(struct resources *resources, enum 
-> pp_flags flags)
->         // Needs "me" set already
->         for_each_resource(res, resources)
->                 if (res->stacked_on_one)
-> -                       set_disk_in_res(res);
-> +                       set_stacked_disk_in_res(res);
->  
->         for_each_resource(res, resources)
->                 fixup_peer_devices(res);
- 
+  PID                  STARTED CMD                         STAT
+ 6842 Tue Jan 23 16:41:52 2018 [drbd_r_acd.]               D
+11504 Sun Jan 28 11:06:38 2018 [drbd_a_acd.]               D
+21252 Mon Jan 29 12:10:06 2018 drbdsetup-84 disconnect ipv D
+
+
+These are the contents of /proc/[pid]/stack
+
+=== 6842 ===
+[<ffffffff8b0cd0d2>] io_schedule+0x12/0x40
+[<ffffffffc0ac042e>] _drbd_wait_ee_list_empty+0x8e/0xd0 [drbd]
+[<ffffffffc0ac08fb>] conn_wait_active_ee_empty+0x5b/0xc0 [drbd]
+[<ffffffffc0ac9b04>] receive_Barrier+0x74/0x580 [drbd]
+[<ffffffffc0acb189>] drbd_receiver+0x139/0x330 [drbd]
+[<ffffffffc0ad3860>] drbd_thread_setup+0xa0/0x1c0 [drbd]
+[<ffffffff8b0bfe9c>] kthread+0xfc/0x130
+[<ffffffff8b800365>] ret_from_fork+0x35/0x40
+[<ffffffffffffffff>] 0xffffffffffffffff
+
+=== 11504 ===
+[<ffffffffc0ad0629>] wait_until_done_or_force_detached+0xa9/0x210 [drbd]
+[<ffffffffc0ad09a1>] drbd_md_sync_page_io+0x211/0x430 [drbd]
+[<ffffffffc0ad9d99>] drbd_md_write+0x1a9/0x310 [drbd]
+[<ffffffffc0ad9f5d>] drbd_md_sync+0x5d/0x190 [drbd]
+[<ffffffffc0ada0d5>] conn_md_sync+0x45/0xa0 [drbd]
+[<ffffffffc0acb67a>] drbd_ack_receiver+0x2fa/0x540 [drbd]
+[<ffffffffc0ad3860>] drbd_thread_setup+0xa0/0x1c0 [drbd]
+[<ffffffff8b0bfe9c>] kthread+0xfc/0x130
+[<ffffffff8b800365>] ret_from_fork+0x35/0x40
+[<ffffffffffffffff>] 0xffffffffffffffff
+
+=== 21252 ===
+[<ffffffffc0adc1eb>] conn_try_disconnect+0x4b/0x100 [drbd]
+[<ffffffffc0ae0908>] drbd_adm_disconnect+0xd8/0x150 [drbd]
+[<ffffffff8b66912f>] genl_family_rcv_msg+0x1ef/0x3a0
+[<ffffffff8b669327>] genl_rcv_msg+0x47/0x90
+[<ffffffff8b668502>] netlink_rcv_skb+0xe2/0x110
+[<ffffffff8b668d34>] genl_rcv+0x24/0x40
+[<ffffffff8b667c6e>] netlink_unicast+0x17e/0x250
+[<ffffffff8b66800d>] netlink_sendmsg+0x2cd/0x3c0
+[<ffffffff8b60cd80>] sock_sendmsg+0x30/0x40
+[<ffffffff8b60ce17>] sock_write_iter+0x87/0x100
+[<ffffffff8b24e466>] __vfs_write+0xf6/0x150
+[<ffffffff8b24e65d>] vfs_write+0xad/0x1a0
+[<ffffffff8b24e8a2>] SyS_write+0x52/0xc0
+[<ffffffff8b003831>] do_syscall_64+0x61/0x1a0
+[<ffffffff8b80012c>] entry_SYSCALL64_slow_path+0x25/0x25
+[<ffffffffffffffff>] 0xffffffffffffffff
+
+
+[501568.817936] drbd acd.: meta connection shut down by peer.
+[501568.824466] drbd acd.: peer( Primary -> Unknown ) conn( Connected -> NetworkFailure ) pdsk( UpToDate -> DUnknown ) 
+
+
+This is where I issued a disconnect and drbdsetup hung:
+
+[502141.512122] drbd acd.: conn( NetworkFailure -> Disconnecting ) 
+
+
+7737: cs:Disconnecting ro:Secondary/Unknown ds:UpToDate/DUnknown B r---b-
+    ns:0 nr:20999640 dw:20999624 dr:17532 al:0 bm:0 lo:6 pe:0 ua:0 ap:0 ep:1 wo:f oos:0
+
+================
+
+On the peer node that is not stuck, these are its details:
+
+7737: cs:StandAlone ro:Primary/Unknown ds:UpToDate/DUnknown   r-----
+    ns:36287872 nr:189036 dw:36573040 dr:41806048 al:661 bm:0 lo:0 pe:0 ua:0 ap:0 ep:1 wo:f oos:74888
+
+
+[1122622.430869] drbd acd.: peer( Secondary -> Unknown ) conn( Connected -> Timeout ) pdsk( UpToDate -> DUnknown ) 
+[1122622.433721] block drbd7737: new current UUID DCD2BADDEC63176F:8DA7D6114056CFE9:BD3B26ED28251CA1:BD3A26ED28251CA1
+[1122622.435434] drbd acd.: ack_receiver terminated
+[1122622.437149] drbd acd.: Terminating drbd7737_a_acd.
+[1122622.467753] drbd acd.: Connection closed
+[1122622.473915] drbd acd.: conn( Timeout -> Unconnected ) 
+[1122622.479376] drbd acd.: receiver terminated
+[1122622.484620] drbd acd.: Restarting receiver thread
+[1122622.489570] drbd acd.: receiver (re)started
+[1122622.494739] drbd acd.: conn( Unconnected -> WFConnection ) 
+
+
+This is where we disconnected on the peer node that is not stuck:
+
+[1123338.139536] drbd acd.: conn( WFConnection -> Disconnecting ) 
+[1123338.139544] drbd acd.: Discarding network configuration.
+[1123338.167479] drbd acd.: Connection closed
+[1123338.171652] drbd acd.: conn( Disconnecting -> StandAlone ) 
+[1123338.175511] drbd acd.: receiver terminated
+[1123338.179242] drbd acd.: Terminating drbd7737_r_acd.
+
+
+
+Is there any way I can get it out of this state?
+
+Would you like any additional information to troubleshoot if this is a bug 
+that needs to be fixed?
+
+-Eric
+
+--
+Eric Wheeler
