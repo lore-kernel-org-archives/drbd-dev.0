@@ -1,27 +1,25 @@
-Return-Path: <drbd-dev@lists.ewheeler.net>
-Received: from mail.ewheeler.net (mx.ewheeler.net [66.155.3.69])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5754D1057315
-	for <drbd-dev@lists.linbit.com>; Sat,  7 Apr 2018 01:13:12 +0200 (CEST)
-Received: from localhost (localhost [127.0.0.1])
-	by mail.ewheeler.net (Postfix) with ESMTP id D4D4CA0414
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Apr 2018 23:07:49 +0000 (UTC)
-Received: from mail.ewheeler.net ([127.0.0.1])
-	by localhost (mail.ewheeler.net [127.0.0.1]) (amavisd-new, port 10024)
-	with LMTP id nThxMyLxHWci for <drbd-dev@lists.linbit.com>;
-	Fri,  6 Apr 2018 23:07:49 +0000 (UTC)
-Received: from mx.ewheeler.net (mx.ewheeler.net [66.155.3.69])
-	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mail.ewheeler.net (Postfix) with ESMTPSA id 512AEA03B0
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Apr 2018 23:07:49 +0000 (UTC)
-Date: Fri, 6 Apr 2018 23:07:44 +0000 (UTC)
-From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7D0651057315
+	for <drbd-dev@lists.linbit.com>; Sat,  7 Apr 2018 23:35:10 +0200 (CEST)
+Received: by mail-wm0-f44.google.com with SMTP id b127so9747229wmf.5
+	for <drbd-dev@lists.linbit.com>; Sat, 07 Apr 2018 14:35:09 -0700 (PDT)
+Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
+	g75sm11615154wmc.47.2018.04.07.14.35.08
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Sat, 07 Apr 2018 14:35:08 -0700 (PDT)
+Date: Sat, 7 Apr 2018 23:35:08 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <alpine.LRH.2.11.1804062306340.7784@mail.ewheeler.net>
+Message-ID: <20180407213457.GG16420@soda.linbit>
+References: <alpine.LRH.2.11.1804062306340.7784@mail.ewheeler.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Subject: [Drbd-dev] [PATCH] drbd-utils: Add disable-write-same as a
-	drbd.conf option
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.11.1804062306340.7784@mail.ewheeler.net>
+Subject: Re: [Drbd-dev] [PATCH] drbd-utils: Add disable-write-same as a
+ drbd.conf option
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,26 +31,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+On Fri, Apr 06, 2018 at 11:07:44PM +0000, Eric Wheeler wrote:
+> 
+> Author: Eric Wheeler <drbd@linux.ewheeler.net>
+> Date:   Fri Apr 6 16:04:26 2018 -0700
+> 
+>     drbd-utils: Add disable-write-same as a drbd.conf option
+>     
+>     This patch updates the grammar parser so that disable-write-same can be
+>     used in drbd.conf
 
-Author: Eric Wheeler <drbd@linux.ewheeler.net>
-Date:   Fri Apr 6 16:04:26 2018 -0700
-
-    drbd-utils: Add disable-write-same as a drbd.conf option
-    
-    This patch updates the grammar parser so that disable-write-same can be
-    used in drbd.conf
-    
-    Signed-off-by: Eric Wheeler <drbd@linux.ewheeler.net>
-
-diff --git a/user/v84/drbdadm_scanner.fl b/user/v84/drbdadm_scanner.fl
-index 633b1bc..541e754 100644
---- a/user/v84/drbdadm_scanner.fl
-+++ b/user/v84/drbdadm_scanner.fl
-@@ -145,6 +145,7 @@ csums-after-crash-only  { DP; CP; return TK_NET_FLAG; }
- al-extents		{ DP; CP; RC(AL_EXTENTS); return TK_SYNCER_OLD_OPT | TK_DISK_OPTION;}
- al-updates		{ DP; CP; return TK_DISK_FLAG; 	}
- discard-zeroes-if-aligned { DP; CP; return TK_DISK_FLAG; 	}
-+disable-write-same { DP; CP; return TK_DISK_FLAG; 	}
- cpu-mask		{ DP; CP; return TK_SYNCER_OLD_OPT | TK_RES_OPTION;	}
- use-rle			{ DP; CP; return TK_SYNCER_OLD_OPT | TK_NET_FLAG;	}
- delay-probe-volume	{ DP; CP; return TK_DEPRECATED_OPTION;  }
+Thanks, but already done:
+https://github.com/LINBIT/drbd-utils/commit/5a522dd6e4b3
