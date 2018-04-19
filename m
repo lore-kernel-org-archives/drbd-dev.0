@@ -1,18 +1,27 @@
-Return-Path: <yannis.milios@gmail.com>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com
-	[209.85.218.41])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EB5B61057315
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Apr 2018 22:36:18 +0200 (CEST)
-Received: by mail-oi0-f41.google.com with SMTP id f63-v6so2239630oic.4
-	for <drbd-dev@lists.linbit.com>; Fri, 06 Apr 2018 13:36:18 -0700 (PDT)
-MIME-Version: 1.0
-From: Yannis Milios <yannis.milios@gmail.com>
-Date: Fri, 6 Apr 2018 21:29:56 +0100
-Message-ID: <CAFiF2OrzSO1DHLEqibK=mpid_Xfx3hdkmMjWEf=pgo4NYA=jkA@mail.gmail.com>
-To: drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary="0000000000006c1ac6056933eb27"
-Subject: [Drbd-dev] [drbdmanage-proxmox] cannot create/restore lxc container
- on non-leader nodes
+Return-Path: <BATV+e1a5265bff2368ff7229+5352+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0F2A71057311
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:06:40 +0200 (CEST)
+From: Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>
+Date: Thu, 19 Apr 2018 14:41:21 +0200
+Message-Id: <20180419124140.9309-21-hch@lst.de>
+In-Reply-To: <20180419124140.9309-1-hch@lst.de>
+References: <20180419124140.9309-1-hch@lst.de>
+Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
+	Alexandre Belloni <alexandre.belloni@bootlin.com>,
+	devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org,
+	linux-scsi@vger.kernel.org, Corey Minyard <minyard@acm.org>,
+	linux-ide@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	jfs-discussion@lists.sourceforge.net,
+	linux-afs@lists.infradead.org, linux-acpi@vger.kernel.org,
+	netdev@vger.kernel.org, netfilter-devel@vger.kernel.org,
+	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 20/39] afs: simplify procfs code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,164 +33,276 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---0000000000006c1ac6056933eb27
-Content-Type: text/plain; charset="UTF-8"
+Use remove_proc_subtree to remove the whole subtree on cleanup, and
+unwind the registration loop into individual calls.  Switch to use
+proc_create_seq where applicable.
 
-Hello,
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ fs/afs/proc.c | 134 ++++++--------------------------------------------
+ 1 file changed, 15 insertions(+), 119 deletions(-)
 
-Sorry if this is not the right ML to report this, but thought it might good
-to report it just in case that you are not already aware of it.
+diff --git a/fs/afs/proc.c b/fs/afs/proc.c
+index 839a22280606..3aad32762989 100644
+--- a/fs/afs/proc.c
++++ b/fs/afs/proc.c
+@@ -62,7 +62,6 @@ static const struct file_operations afs_proc_rootcell_fops = {
+ 	.llseek		= no_llseek,
+ };
+ 
+-static int afs_proc_cell_volumes_open(struct inode *inode, struct file *file);
+ static void *afs_proc_cell_volumes_start(struct seq_file *p, loff_t *pos);
+ static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
+ 					loff_t *pos);
+@@ -76,15 +75,6 @@ static const struct seq_operations afs_proc_cell_volumes_ops = {
+ 	.show	= afs_proc_cell_volumes_show,
+ };
+ 
+-static const struct file_operations afs_proc_cell_volumes_fops = {
+-	.open		= afs_proc_cell_volumes_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= seq_release,
+-};
+-
+-static int afs_proc_cell_vlservers_open(struct inode *inode,
+-					struct file *file);
+ static void *afs_proc_cell_vlservers_start(struct seq_file *p, loff_t *pos);
+ static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
+ 					  loff_t *pos);
+@@ -98,14 +88,6 @@ static const struct seq_operations afs_proc_cell_vlservers_ops = {
+ 	.show	= afs_proc_cell_vlservers_show,
+ };
+ 
+-static const struct file_operations afs_proc_cell_vlservers_fops = {
+-	.open		= afs_proc_cell_vlservers_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= seq_release,
+-};
+-
+-static int afs_proc_servers_open(struct inode *inode, struct file *file);
+ static void *afs_proc_servers_start(struct seq_file *p, loff_t *pos);
+ static void *afs_proc_servers_next(struct seq_file *p, void *v,
+ 					loff_t *pos);
+@@ -119,13 +101,6 @@ static const struct seq_operations afs_proc_servers_ops = {
+ 	.show	= afs_proc_servers_show,
+ };
+ 
+-static const struct file_operations afs_proc_servers_fops = {
+-	.open		= afs_proc_servers_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= seq_release,
+-};
+-
+ static int afs_proc_sysname_open(struct inode *inode, struct file *file);
+ static int afs_proc_sysname_release(struct inode *inode, struct file *file);
+ static void *afs_proc_sysname_start(struct seq_file *p, loff_t *pos);
+@@ -152,7 +127,7 @@ static const struct file_operations afs_proc_sysname_fops = {
+ 	.write		= afs_proc_sysname_write,
+ };
+ 
+-static const struct file_operations afs_proc_stats_fops;
++static int afs_proc_stats_show(struct seq_file *m, void *v);
+ 
+ /*
+  * initialise the /proc/fs/afs/ directory
+@@ -167,8 +142,8 @@ int afs_proc_init(struct afs_net *net)
+ 
+ 	if (!proc_create("cells", 0644, net->proc_afs, &afs_proc_cells_fops) ||
+ 	    !proc_create("rootcell", 0644, net->proc_afs, &afs_proc_rootcell_fops) ||
+-	    !proc_create("servers", 0644, net->proc_afs, &afs_proc_servers_fops) ||
+-	    !proc_create("stats", 0644, net->proc_afs, &afs_proc_stats_fops) ||
++	    !proc_create_seq("servers", 0644, net->proc_afs, &afs_proc_servers_ops) ||
++	    !proc_create_single("stats", 0644, net->proc_afs, afs_proc_stats_show) ||
+ 	    !proc_create("sysname", 0644, net->proc_afs, &afs_proc_sysname_fops))
+ 		goto error_tree;
+ 
+@@ -196,16 +171,7 @@ void afs_proc_cleanup(struct afs_net *net)
+  */
+ static int afs_proc_cells_open(struct inode *inode, struct file *file)
+ {
+-	struct seq_file *m;
+-	int ret;
+-
+-	ret = seq_open(file, &afs_proc_cells_ops);
+-	if (ret < 0)
+-		return ret;
+-
+-	m = file->private_data;
+-	m->private = PDE_DATA(inode);
+-	return 0;
++	return seq_open(file, &afs_proc_cells_ops);
+ }
+ 
+ /*
+@@ -430,10 +396,11 @@ int afs_proc_cell_setup(struct afs_net *net, struct afs_cell *cell)
+ 	if (!dir)
+ 		goto error_dir;
+ 
+-	if (!proc_create_data("vlservers", 0, dir,
+-			      &afs_proc_cell_vlservers_fops, cell) ||
+-	    !proc_create_data("volumes", 0, dir,
+-			      &afs_proc_cell_volumes_fops, cell))
++	if (!proc_create_seq_data("vlservers", 0, dir,
++			&afs_proc_cell_vlservers_ops, cell))
++		goto error_tree;
++	if (!proc_create_seq_data("volumes", 0, dir, &afs_proc_cell_volumes_ops,
++			cell))
+ 		goto error_tree;
+ 
+ 	_leave(" = 0");
+@@ -458,29 +425,6 @@ void afs_proc_cell_remove(struct afs_net *net, struct afs_cell *cell)
+ 	_leave("");
+ }
+ 
+-/*
+- * open "/proc/fs/afs/<cell>/volumes" which provides a summary of extant cells
+- */
+-static int afs_proc_cell_volumes_open(struct inode *inode, struct file *file)
+-{
+-	struct afs_cell *cell;
+-	struct seq_file *m;
+-	int ret;
+-
+-	cell = PDE_DATA(inode);
+-	if (!cell)
+-		return -ENOENT;
+-
+-	ret = seq_open(file, &afs_proc_cell_volumes_ops);
+-	if (ret < 0)
+-		return ret;
+-
+-	m = file->private_data;
+-	m->private = cell;
+-
+-	return 0;
+-}
+-
+ /*
+  * set up the iterator to start reading from the cells list and return the
+  * first item
+@@ -488,7 +432,7 @@ static int afs_proc_cell_volumes_open(struct inode *inode, struct file *file)
+ static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
+ 	__acquires(cell->proc_lock)
+ {
+-	struct afs_cell *cell = m->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+ 
+ 	_enter("cell=%p pos=%Ld", cell, *_pos);
+ 
+@@ -502,7 +446,7 @@ static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
+ static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
+ 					loff_t *_pos)
+ {
+-	struct afs_cell *cell = p->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
+ 
+ 	_enter("cell=%p pos=%Ld", cell, *_pos);
+ 	return seq_list_next(v, &cell->proc_volumes, _pos);
+@@ -514,7 +458,7 @@ static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
+ static void afs_proc_cell_volumes_stop(struct seq_file *p, void *v)
+ 	__releases(cell->proc_lock)
+ {
+-	struct afs_cell *cell = p->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
+ 
+ 	read_unlock(&cell->proc_lock);
+ }
+@@ -530,7 +474,7 @@ static const char afs_vol_types[3][3] = {
+  */
+ static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
+ {
+-	struct afs_cell *cell = m->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+ 	struct afs_volume *vol = list_entry(v, struct afs_volume, proc_link);
+ 
+ 	/* Display header on line 1 */
+@@ -546,30 +490,6 @@ static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
+ 	return 0;
+ }
+ 
+-/*
+- * open "/proc/fs/afs/<cell>/vlservers" which provides a list of volume
+- * location server
+- */
+-static int afs_proc_cell_vlservers_open(struct inode *inode, struct file *file)
+-{
+-	struct afs_cell *cell;
+-	struct seq_file *m;
+-	int ret;
+-
+-	cell = PDE_DATA(inode);
+-	if (!cell)
+-		return -ENOENT;
+-
+-	ret = seq_open(file, &afs_proc_cell_vlservers_ops);
+-	if (ret<0)
+-		return ret;
+-
+-	m = file->private_data;
+-	m->private = cell;
+-
+-	return 0;
+-}
+-
+ /*
+  * set up the iterator to start reading from the cells list and return the
+  * first item
+@@ -578,7 +498,7 @@ static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
+ 	__acquires(rcu)
+ {
+ 	struct afs_addr_list *alist;
+-	struct afs_cell *cell = m->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+ 	loff_t pos = *_pos;
+ 
+ 	rcu_read_lock();
+@@ -603,7 +523,7 @@ static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
+ 					  loff_t *_pos)
+ {
+ 	struct afs_addr_list *alist;
+-	struct afs_cell *cell = p->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
+ 	loff_t pos;
+ 
+ 	alist = rcu_dereference(cell->vl_addrs);
+@@ -643,15 +563,6 @@ static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
+ 	return 0;
+ }
+ 
+-/*
+- * open "/proc/fs/afs/servers" which provides a summary of active
+- * servers
+- */
+-static int afs_proc_servers_open(struct inode *inode, struct file *file)
+-{
+-	return seq_open(file, &afs_proc_servers_ops);
+-}
+-
+ /*
+  * Set up the iterator to start reading from the server list and return the
+  * first item.
+@@ -931,18 +842,3 @@ static int afs_proc_stats_show(struct seq_file *m, void *v)
+ 		   atomic_long_read(&net->n_store_bytes));
+ 	return 0;
+ }
+-
+-/*
+- * Open "/proc/fs/afs/stats" to allow reading of the stat counters.
+- */
+-static int afs_proc_stats_open(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, afs_proc_stats_show, NULL);
+-}
+-
+-static const struct file_operations afs_proc_stats_fops = {
+-	.open		= afs_proc_stats_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release        = single_release,
+-};
+-- 
+2.17.0
 
-I'm using a 3 node Proxmox cluster backed by DRBD9 over ZFS.
-All seem to work pretty well, apart from an issue with LXC containers.
-
-The facts:
-====================
-cat /proc/drbd
-version: 9.0.12-1 (api:2/proto:86-112)
-GIT-hash: 7eb4aef4abbfba8ebb1afbcc30574df74db0063e build by root@pve2,
-2018-03-14 08:23:43
-Transports (api:16): tcp (9.0.12-1)
-
-drbdmanage --version
-drbdmanage 0.99.16; GIT-hash: a51c4e7858da69c4f56fc5b945c0ef586aae318b
-
-drbdmanage-proxmox        2.1-1
-
-drbd-utils                9.3.0-1
-
-pveversion
-pve-manager/5.1-46/ae8241d4 (running kernel: 4.13.13-6-pve
-======================
-
-
-The issue:
-====================
-
-When creating a new LXC container (or restoring from a LXC backup) on a
-*non-leader* DRBD9 node, the process is failing with the following error:
-
-
-
-> pong
-> Operation completed successfully
-> Operation completed successfully
-> pong
-> Operation completed successfully
-> Operation completed successfully
-> pong
-> Operation completed successfully
-> pong
-> Operation completed successfully
-> Operation completed successfully
-> Waiting for server: ..
-> mke2fs 1.43.4 (31-Jan-2017)
-> Discarding device blocks:    4096/3932160 528384/3932160 1052672/3932160
-> 1576960/3932160 2101248/3932160 2625536/3932160 3149824/3932160
-> 3674112/3932160                 done
-> Creating filesystem with 3932160 4k blocks and 983040 inodes
-> Filesystem UUID: e2255445-4aca-4bfc-b130-c0f2d1324b17
-> Superblock backups stored on blocks:
-> 32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208
-> Allocating group tables:   0/120         done
-> Writing inode tables:   0/120         done
-> Creating journal (16384 blocks): done
-> Multiple mount protection is enabled with update interval 5 seconds.
-> Writing superblocks and filesystem accounting information:   0/120
-> done
-> pong
-> Operation completed successfully
-> Operation completed successfully
-> pong
-> Operation completed successfully
-> Operation completed successfully
-> pong
-> Operation completed successfully
-> pong
-> Operation completed successfully
-> Operation completed successfully
-> Waiting for server: .
-> mke2fs 1.43.4 (31-Jan-2017)
-> The file /dev/drbd/by-res/vm-100-disk-2/0 does not exist and no size was
-> specified.
-> pong
-> Operation completed successfully
-> Operation completed successfully
-> TASK ERROR: command 'mkfs.ext4 -O mmp -E 'root_owner=0:0'
-> /dev/drbd/by-res/vm-100-disk-2/0' failed: exit code 1
-
-
-When executing the same task on a leader node, everything works perfectly.
-
-I remember this same issue when creating qemu vms in the past, but
-eventually it was fixed. Would it be possible to do the same for LXCs
-please?
-
-Regards,
-Yannis
-
---0000000000006c1ac6056933eb27
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">Hello,<div><br></div><div>Sorry if this is not the right M=
-L to report this, but thought it might good to report it just in case that =
-you are not already aware of it.</div><div><br></div><div>I&#39;m using a 3=
- node Proxmox cluster backed by DRBD9 over ZFS.=C2=A0</div><div>All seem to=
- work pretty well, apart from an issue with LXC containers.</div><div><br><=
-/div><div>The facts:</div><div>=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D</div><div><div>cat /proc/drbd</div><div>version: 9.0.12-=
-1 (api:2/proto:86-112)</div><div>GIT-hash: 7eb4aef4abbfba8ebb1afbcc30574df7=
-4db0063e build by root@pve2, 2018-03-14 08:23:43</div><div>Transports (api:=
-16): tcp (9.0.12-1)</div><div><br></div><div>drbdmanage --version</div><div=
->drbdmanage 0.99.16; GIT-hash: a51c4e7858da69c4f56fc5b945c0ef586aae318b</di=
-v></div><div><br></div><div>drbdmanage-proxmox=C2=A0 =C2=A0 =C2=A0 =C2=A0 2=
-.1-1=C2=A0=C2=A0<br></div><div><br></div><div>drbd-utils=C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 9.3.0-1=C2=A0<br></div><div><br></di=
-v><div><div>pveversion</div><div>pve-manager/5.1-46/ae8241d4 (running kerne=
-l: 4.13.13-6-pve</div></div><div>=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D</div><div><br></div><div><br></div><div>The issue:=
-</div><div>=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D</di=
-v><div><br></div><div>When creating a new LXC container (or restoring from =
-a LXC backup) on a *non-leader* DRBD9 node, the process is failing with the=
- following error:</div><div><br></div><div><br></div><blockquote class=3D"g=
-mail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204=
-,204,204);padding-left:1ex"><br>pong<br>Operation completed successfully<br=
->Operation completed successfully<br>pong<br>Operation completed successful=
-ly<br>Operation completed successfully<br>pong<br>Operation completed succe=
-ssfully<br>pong<br>Operation completed successfully<br>Operation completed =
-successfully<br>Waiting for server: ..<br>mke2fs 1.43.4 (31-Jan-2017)<br>Di=
-scarding device blocks:=C2=A0 =C2=A0 4096/3932160                528384/393=
-2160               1052672/3932160               1576960/3932160           =
-    2101248/3932160               2625536/3932160               3149824/393=
-2160               3674112/3932160               =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0               done=C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
-=C2=A0<br>Creating filesystem with 3932160 4k blocks and 983040 inodes<br>F=
-ilesystem UUID: e2255445-4aca-4bfc-b130-c0f2d1324b17<br>Superblock backups =
-stored on blocks:=C2=A0<br><span style=3D"white-space:pre">	</span>32768, 9=
-8304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208<br>Allocatin=
-g group tables:=C2=A0 =C2=A00/120       =C2=A0 =C2=A0 =C2=A0 =C2=A0       d=
-one=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0=C2=A0<br>Writing inode tables:=C2=A0 =C2=A00/12=
-0       =C2=A0 =C2=A0 =C2=A0 =C2=A0       done=C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=C2=A0=
-<br>Creating journal (16384 blocks): done<br>Multiple mount protection is e=
-nabled with update interval 5 seconds.<br>Writing superblocks and filesyste=
-m accounting information:=C2=A0 =C2=A00/120       =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0       done<br>pong<br>Operation completed successfully<br>Operation com=
-pleted successfully<br>pong<br>Operation completed successfully<br>Operatio=
-n completed successfully<br>pong<br>Operation completed successfully<br>pon=
-g<br>Operation completed successfully<br>Operation completed successfully<b=
-r>Waiting for server: .<br>mke2fs 1.43.4 (31-Jan-2017)<br>The file /dev/drb=
-d/by-res/vm-100-disk-2/0 does not exist and no size was specified.<br>pong<=
-br>Operation completed successfully<br>Operation completed successfully<br>=
-TASK ERROR: command &#39;mkfs.ext4 -O mmp -E &#39;root_owner=3D0:0&#39; /de=
-v/drbd/by-res/vm-100-disk-2/0&#39; failed: exit code 1</blockquote><div><br=
-></div><div>When executing the same task on a leader node, everything works=
- perfectly.</div><div><br></div><div>I remember this same issue when creati=
-ng qemu vms in the past, but eventually it was fixed. Would it be possible =
-to do the same for LXCs please?</div><div><br></div><div>Regards,</div><div=
->Yannis=C2=A0</div></div>
-
---0000000000006c1ac6056933eb27--
