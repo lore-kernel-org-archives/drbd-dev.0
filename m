@@ -1,43 +1,47 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr0-f196.google.com (mail-wr0-f196.google.com
-	[209.85.128.196])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 47CD11057335
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Apr 2018 00:38:14 +0200 (CEST)
-Received: by mail-wr0-f196.google.com with SMTP id m26-v6so166806wrb.3
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:38:14 -0700 (PDT)
+Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com
+	[209.85.128.195])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E20E81057318
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Apr 2018 00:38:43 +0200 (CEST)
+Received: by mail-wr0-f195.google.com with SMTP id s18-v6so18006043wrg.9
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:38:43 -0700 (PDT)
 Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	n23-v6sm1287787wra.39.2018.04.19.15.38.12
+	j1-v6sm5016010wre.25.2018.04.19.15.38.41
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Thu, 19 Apr 2018 15:38:13 -0700 (PDT)
-Resent-Message-ID: <20180419223812.GE3821@soda.linbit>
-Received: from aserp2120.oracle.com (aserp2120.oracle.com [141.146.126.78])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 59F2F1057314
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 16:19:01 +0200 (CEST)
-Date: Thu, 19 Apr 2018 17:18:18 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20180419141818.pjys7at4xmz2h6ho@mwanda>
+	Thu, 19 Apr 2018 15:38:42 -0700 (PDT)
+Resent-Message-ID: <20180419223841.GF3821@soda.linbit>
+Received: from mail-ot0-f194.google.com (mail-ot0-f194.google.com
+	[74.125.82.194])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F283A1057880
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 17:36:50 +0200 (CEST)
+Received: by mail-ot0-f194.google.com with SMTP id 77-v6so211475otd.4
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 08:36:50 -0700 (PDT)
+To: Christoph Hellwig <hch@lst.de>, Andrew Morton
+	<akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
 References: <20180419124140.9309-1-hch@lst.de>
-	<20180419124140.9309-4-hch@lst.de>
+	<20180419124140.9309-17-hch@lst.de>
+From: Corey Minyard <minyard@acm.org>
+Message-ID: <f322f243-9ab1-7e9f-00a4-9652cd288ca2@acm.org>
+Date: Thu, 19 Apr 2018 10:29:29 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180419124140.9309-4-hch@lst.de>
+In-Reply-To: <20180419124140.9309-17-hch@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-GB
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Alexandre Belloni <alexandre.belloni@bootlin.com>,
-	devel@driverdev.osuosl.org, Corey Minyard <minyard@acm.org>,
-	linux-scsi@vger.kernel.org, linux-acpi@vger.kernel.org,
+	devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org,
+	linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Jiri Slaby <jslaby@suse.com>, megaraidlinux.pdl@broadcom.com,
-	linux-kernel@vger.kernel.org,
-	Alexey Dobriyan <adobriyan@gmail.com>, linux-ide@vger.kernel.org,
-	netfilter-devel@vger.kernel.org,
-	Alexander Viro <viro@zeniv.linux.org.uk>, netdev@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org,
-	jfs-discussion@lists.sourceforge.net, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 03/39] proc: introduce proc_create_seq_private
+	jfs-discussion@lists.sourceforge.net,
+	linux-afs@lists.infradead.org, linux-acpi@vger.kernel.org,
+	netdev@vger.kernel.org, netfilter-devel@vger.kernel.org,
+	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 16/39] ipmi: simplify procfs code
+Reply-To: minyard@acm.org
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,49 +53,462 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Apr 19, 2018 at 02:41:04PM +0200, Christoph Hellwig wrote:
-> diff --git a/drivers/s390/cio/blacklist.c b/drivers/s390/cio/blacklist.c
-> index 2a3f874a21d5..ad35cddcf6af 100644
-> --- a/drivers/s390/cio/blacklist.c
-> +++ b/drivers/s390/cio/blacklist.c
-> @@ -391,28 +391,15 @@ static const struct seq_operations cio_ignore_proc_seq_ops = {
->  	.show  = cio_ignore_proc_seq_show,
->  };
->  
-> -static int
-> -cio_ignore_proc_open(struct inode *inode, struct file *file)
+On 04/19/2018 07:41 AM, Christoph Hellwig wrote:
+> Use remove_proc_subtree to remove the whole subtree on cleanup instead
+> of a hand rolled list of proc entries, unwind the registration loop into
+> individual calls.  Switch to use proc_create_single to further simplify
+> the code.
+
+I'm yanking all the proc code out of the IPMI driver in 3.18.  So this 
+is probably
+not necessary.
+
+Thanks,
+
+-corey
+
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   drivers/char/ipmi/ipmi_msghandler.c | 150 +++++-----------------------
+>   drivers/char/ipmi/ipmi_si_intf.c    |  47 +--------
+>   drivers/char/ipmi/ipmi_ssif.c       |  34 +------
+>   include/linux/ipmi_smi.h            |   8 +-
+>   4 files changed, 33 insertions(+), 206 deletions(-)
+>
+> diff --git a/drivers/char/ipmi/ipmi_msghandler.c b/drivers/char/ipmi/ipmi_msghandler.c
+> index 361148938801..c18db313e4c4 100644
+> --- a/drivers/char/ipmi/ipmi_msghandler.c
+> +++ b/drivers/char/ipmi/ipmi_msghandler.c
+> @@ -247,13 +247,6 @@ struct ipmi_my_addrinfo {
+>   	unsigned char lun;
+>   };
+>   
+> -#ifdef CONFIG_IPMI_PROC_INTERFACE
+> -struct ipmi_proc_entry {
+> -	char                   *name;
+> -	struct ipmi_proc_entry *next;
+> -};
+> -#endif
+> -
+>   /*
+>    * Note that the product id, manufacturer id, guid, and device id are
+>    * immutable in this structure, so dyn_mutex is not required for
+> @@ -430,10 +423,6 @@ struct ipmi_smi {
+>   	void                     *send_info;
+>   
+>   #ifdef CONFIG_IPMI_PROC_INTERFACE
+> -	/* A list of proc entries for this interface. */
+> -	struct mutex           proc_entry_lock;
+> -	struct ipmi_proc_entry *proc_entries;
+> -
+>   	struct proc_dir_entry *proc_dir;
+>   	char                  proc_dir_name[10];
+>   #endif
+> @@ -2358,18 +2347,6 @@ static int smi_ipmb_proc_show(struct seq_file *m, void *v)
+>   	return 0;
+>   }
+>   
+> -static int smi_ipmb_proc_open(struct inode *inode, struct file *file)
 > -{
-> -	return seq_open_private(file, &cio_ignore_proc_seq_ops,
-> -				sizeof(struct ccwdev_iter));
+> -	return single_open(file, smi_ipmb_proc_show, PDE_DATA(inode));
 > -}
 > -
-> -static const struct file_operations cio_ignore_proc_fops = {
-> -	.open    = cio_ignore_proc_open,
-> -	.read    = seq_read,
-> -	.llseek  = seq_lseek,
-> -	.release = seq_release_private,
-> -	.write   = cio_ignore_write,
-                   ^^^^^^^^^^^^^^^^
-The cio_ignore_write() function isn't used any more so compilers will
-complain.
-
+> -static const struct file_operations smi_ipmb_proc_ops = {
+> -	.open		= smi_ipmb_proc_open,
+> -	.read		= seq_read,
+> -	.llseek		= seq_lseek,
+> -	.release	= single_release,
 > -};
 > -
->  static int
->  cio_ignore_proc_init (void)
->  {
->  	struct proc_dir_entry *entry;
->  
-> -	entry = proc_create("cio_ignore", S_IFREG | S_IRUGO | S_IWUSR, NULL,
-> -			    &cio_ignore_proc_fops);
-> +	entry = proc_create_seq_private("cio_ignore",
-> +			S_IFREG | S_IRUGO | S_IWUSR, NULL,
-> +			&cio_ignore_proc_seq_ops, sizeof(struct ccwdev_iter),
-> +			NULL);
->  	if (!entry)
->  		return -ENOENT;
->  	return 0;
+>   static int smi_version_proc_show(struct seq_file *m, void *v)
+>   {
+>   	ipmi_smi_t intf = m->private;
+> @@ -2387,18 +2364,6 @@ static int smi_version_proc_show(struct seq_file *m, void *v)
+>   	return 0;
+>   }
+>   
+> -static int smi_version_proc_open(struct inode *inode, struct file *file)
+> -{
+> -	return single_open(file, smi_version_proc_show, PDE_DATA(inode));
+> -}
+> -
+> -static const struct file_operations smi_version_proc_ops = {
+> -	.open		= smi_version_proc_open,
+> -	.read		= seq_read,
+> -	.llseek		= seq_lseek,
+> -	.release	= single_release,
+> -};
+> -
+>   static int smi_stats_proc_show(struct seq_file *m, void *v)
+>   {
+>   	ipmi_smi_t intf = m->private;
+> @@ -2462,95 +2427,45 @@ static int smi_stats_proc_show(struct seq_file *m, void *v)
+>   	return 0;
+>   }
+>   
+> -static int smi_stats_proc_open(struct inode *inode, struct file *file)
+> -{
+> -	return single_open(file, smi_stats_proc_show, PDE_DATA(inode));
+> -}
+> -
+> -static const struct file_operations smi_stats_proc_ops = {
+> -	.open		= smi_stats_proc_open,
+> -	.read		= seq_read,
+> -	.llseek		= seq_lseek,
+> -	.release	= single_release,
+> -};
+> -
+>   int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
+> -			    const struct file_operations *proc_ops,
+> -			    void *data)
+> +		int (*show)(struct seq_file *, void *), void *data)
+>   {
+> -	int                    rv = 0;
+> -	struct proc_dir_entry  *file;
+> -	struct ipmi_proc_entry *entry;
+> -
+> -	/* Create a list element. */
+> -	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+> -	if (!entry)
+> +	if (!proc_create_single_data(name, 0, smi->proc_dir, show, data))
+>   		return -ENOMEM;
+> -	entry->name = kstrdup(name, GFP_KERNEL);
+> -	if (!entry->name) {
+> -		kfree(entry);
+> -		return -ENOMEM;
+> -	}
+> -
+> -	file = proc_create_data(name, 0, smi->proc_dir, proc_ops, data);
+> -	if (!file) {
+> -		kfree(entry->name);
+> -		kfree(entry);
+> -		rv = -ENOMEM;
+> -	} else {
+> -		mutex_lock(&smi->proc_entry_lock);
+> -		/* Stick it on the list. */
+> -		entry->next = smi->proc_entries;
+> -		smi->proc_entries = entry;
+> -		mutex_unlock(&smi->proc_entry_lock);
+> -	}
+> -
+> -	return rv;
+> +	return 0;
+>   }
+>   EXPORT_SYMBOL(ipmi_smi_add_proc_entry);
+>   
+>   static int add_proc_entries(ipmi_smi_t smi, int num)
+>   {
+> -	int rv = 0;
+> -
+>   	sprintf(smi->proc_dir_name, "%d", num);
+>   	smi->proc_dir = proc_mkdir(smi->proc_dir_name, proc_ipmi_root);
+>   	if (!smi->proc_dir)
+> -		rv = -ENOMEM;
+> -
+> -	if (rv == 0)
+> -		rv = ipmi_smi_add_proc_entry(smi, "stats",
+> -					     &smi_stats_proc_ops,
+> -					     smi);
+> -
+> -	if (rv == 0)
+> -		rv = ipmi_smi_add_proc_entry(smi, "ipmb",
+> -					     &smi_ipmb_proc_ops,
+> -					     smi);
+> -
+> -	if (rv == 0)
+> -		rv = ipmi_smi_add_proc_entry(smi, "version",
+> -					     &smi_version_proc_ops,
+> -					     smi);
+> -
+> -	return rv;
+> +		return -ENOMEM;
+> +	if (!proc_create_single_data("stats", 0, smi->proc_dir,
+> +			smi_stats_proc_show, smi))
+> +		return -ENOMEM;
+> +	if (!proc_create_single_data("ipmb", 0, smi->proc_dir,
+> +			smi_ipmb_proc_show, smi))
+> +		return -ENOMEM;
+> +	if (!proc_create_single_data("version", 0, smi->proc_dir,
+> +			smi_version_proc_show, smi))
+> +		return -ENOMEM;
+> +	return 0;
+>   }
+>   
+>   static void remove_proc_entries(ipmi_smi_t smi)
+>   {
+> -	struct ipmi_proc_entry *entry;
+> -
+> -	mutex_lock(&smi->proc_entry_lock);
+> -	while (smi->proc_entries) {
+> -		entry = smi->proc_entries;
+> -		smi->proc_entries = entry->next;
+> -
+> -		remove_proc_entry(entry->name, smi->proc_dir);
+> -		kfree(entry->name);
+> -		kfree(entry);
+> -	}
+> -	mutex_unlock(&smi->proc_entry_lock);
+> -	remove_proc_entry(smi->proc_dir_name, proc_ipmi_root);
+> +	if (smi->proc_dir)
+> +		remove_proc_subtree(smi->proc_dir_name, proc_ipmi_root);
+> +}
+> +#else
+> +static int add_proc_entries(ipmi_smi_t smi, int num)
+> +{
+> +	return 0;
+> +}
+> +static void remove_proc_entries(ipmi_smi_t smi)
+> +{
+>   }
+>   #endif /* CONFIG_IPMI_PROC_INTERFACE */
+>   
+> @@ -3386,9 +3301,6 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
+>   		intf->seq_table[j].seqid = 0;
+>   	}
+>   	intf->curr_seq = 0;
+> -#ifdef CONFIG_IPMI_PROC_INTERFACE
+> -	mutex_init(&intf->proc_entry_lock);
+> -#endif
+>   	spin_lock_init(&intf->waiting_rcv_msgs_lock);
+>   	INIT_LIST_HEAD(&intf->waiting_rcv_msgs);
+>   	tasklet_init(&intf->recv_tasklet,
+> @@ -3410,10 +3322,6 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
+>   	for (i = 0; i < IPMI_NUM_STATS; i++)
+>   		atomic_set(&intf->stats[i], 0);
+>   
+> -#ifdef CONFIG_IPMI_PROC_INTERFACE
+> -	intf->proc_dir = NULL;
+> -#endif
+> -
+>   	mutex_lock(&smi_watchers_mutex);
+>   	mutex_lock(&ipmi_interfaces_mutex);
+>   	/* Look for a hole in the numbers. */
+> @@ -3448,17 +3356,11 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
+>   	if (rv)
+>   		goto out;
+>   
+> -#ifdef CONFIG_IPMI_PROC_INTERFACE
+>   	rv = add_proc_entries(intf, i);
+> -#endif
+> -
+>    out:
+>   	if (rv) {
+>   		ipmi_bmc_unregister(intf);
+> -#ifdef CONFIG_IPMI_PROC_INTERFACE
+> -		if (intf->proc_dir)
+> -			remove_proc_entries(intf);
+> -#endif
+> +		remove_proc_entries(intf);
+>   		intf->handlers = NULL;
+>   		list_del_rcu(&intf->link);
+>   		mutex_unlock(&ipmi_interfaces_mutex);
+> @@ -3563,9 +3465,7 @@ int ipmi_unregister_smi(ipmi_smi_t intf)
+>   	intf->handlers = NULL;
+>   	mutex_unlock(&ipmi_interfaces_mutex);
+>   
+> -#ifdef CONFIG_IPMI_PROC_INTERFACE
+>   	remove_proc_entries(intf);
+> -#endif
+>   	ipmi_bmc_unregister(intf);
+>   
+>   	/*
+> diff --git a/drivers/char/ipmi/ipmi_si_intf.c b/drivers/char/ipmi/ipmi_si_intf.c
+> index ff870aa91cfe..7acc8cbf8d6f 100644
+> --- a/drivers/char/ipmi/ipmi_si_intf.c
+> +++ b/drivers/char/ipmi/ipmi_si_intf.c
+> @@ -1602,18 +1602,6 @@ static int smi_type_proc_show(struct seq_file *m, void *v)
+>   	return 0;
+>   }
+>   
+> -static int smi_type_proc_open(struct inode *inode, struct file *file)
+> -{
+> -	return single_open(file, smi_type_proc_show, PDE_DATA(inode));
+> -}
+> -
+> -static const struct file_operations smi_type_proc_ops = {
+> -	.open		= smi_type_proc_open,
+> -	.read		= seq_read,
+> -	.llseek		= seq_lseek,
+> -	.release	= single_release,
+> -};
+> -
+>   static int smi_si_stats_proc_show(struct seq_file *m, void *v)
+>   {
+>   	struct smi_info *smi = m->private;
+> @@ -1645,18 +1633,6 @@ static int smi_si_stats_proc_show(struct seq_file *m, void *v)
+>   	return 0;
+>   }
+>   
+> -static int smi_si_stats_proc_open(struct inode *inode, struct file *file)
+> -{
+> -	return single_open(file, smi_si_stats_proc_show, PDE_DATA(inode));
+> -}
+> -
+> -static const struct file_operations smi_si_stats_proc_ops = {
+> -	.open		= smi_si_stats_proc_open,
+> -	.read		= seq_read,
+> -	.llseek		= seq_lseek,
+> -	.release	= single_release,
+> -};
+> -
+>   static int smi_params_proc_show(struct seq_file *m, void *v)
+>   {
+>   	struct smi_info *smi = m->private;
+> @@ -1674,18 +1650,6 @@ static int smi_params_proc_show(struct seq_file *m, void *v)
+>   
+>   	return 0;
+>   }
+> -
+> -static int smi_params_proc_open(struct inode *inode, struct file *file)
+> -{
+> -	return single_open(file, smi_params_proc_show, PDE_DATA(inode));
+> -}
+> -
+> -static const struct file_operations smi_params_proc_ops = {
+> -	.open		= smi_params_proc_open,
+> -	.read		= seq_read,
+> -	.llseek		= seq_lseek,
+> -	.release	= single_release,
+> -};
+>   #endif
+>   
+>   #define IPMI_SI_ATTR(name) \
+> @@ -2182,10 +2146,8 @@ static int try_smi_init(struct smi_info *new_smi)
+>   		goto out_err;
+>   	}
+>   
+> -#ifdef CONFIG_IPMI_PROC_INTERFACE
+>   	rv = ipmi_smi_add_proc_entry(new_smi->intf, "type",
+> -				     &smi_type_proc_ops,
+> -				     new_smi);
+> +				     smi_type_proc_show, new_smi);
+>   	if (rv) {
+>   		dev_err(new_smi->io.dev,
+>   			"Unable to create proc entry: %d\n", rv);
+> @@ -2193,8 +2155,7 @@ static int try_smi_init(struct smi_info *new_smi)
+>   	}
+>   
+>   	rv = ipmi_smi_add_proc_entry(new_smi->intf, "si_stats",
+> -				     &smi_si_stats_proc_ops,
+> -				     new_smi);
+> +				     smi_si_stats_proc_show, new_smi);
+>   	if (rv) {
+>   		dev_err(new_smi->io.dev,
+>   			"Unable to create proc entry: %d\n", rv);
+> @@ -2202,14 +2163,12 @@ static int try_smi_init(struct smi_info *new_smi)
+>   	}
+>   
+>   	rv = ipmi_smi_add_proc_entry(new_smi->intf, "params",
+> -				     &smi_params_proc_ops,
+> -				     new_smi);
+> +				     smi_params_proc_show, new_smi);
+>   	if (rv) {
+>   		dev_err(new_smi->io.dev,
+>   			"Unable to create proc entry: %d\n", rv);
+>   		goto out_err;
+>   	}
+> -#endif
+>   
+>   	/* Don't increment till we know we have succeeded. */
+>   	smi_num++;
+> diff --git a/drivers/char/ipmi/ipmi_ssif.c b/drivers/char/ipmi/ipmi_ssif.c
+> index 35a82f4bfd78..57f6116a17b2 100644
+> --- a/drivers/char/ipmi/ipmi_ssif.c
+> +++ b/drivers/char/ipmi/ipmi_ssif.c
+> @@ -1349,18 +1349,6 @@ static int smi_type_proc_show(struct seq_file *m, void *v)
+>   	return 0;
+>   }
+>   
+> -static int smi_type_proc_open(struct inode *inode, struct file *file)
+> -{
+> -	return single_open(file, smi_type_proc_show, inode->i_private);
+> -}
+> -
+> -static const struct file_operations smi_type_proc_ops = {
+> -	.open		= smi_type_proc_open,
+> -	.read		= seq_read,
+> -	.llseek		= seq_lseek,
+> -	.release	= single_release,
+> -};
+> -
+>   static int smi_stats_proc_show(struct seq_file *m, void *v)
+>   {
+>   	struct ssif_info *ssif_info = m->private;
+> @@ -1393,18 +1381,6 @@ static int smi_stats_proc_show(struct seq_file *m, void *v)
+>   		   ssif_get_stat(ssif_info, alerts));
+>   	return 0;
+>   }
+> -
+> -static int smi_stats_proc_open(struct inode *inode, struct file *file)
+> -{
+> -	return single_open(file, smi_stats_proc_show, PDE_DATA(inode));
+> -}
+> -
+> -static const struct file_operations smi_stats_proc_ops = {
+> -	.open		= smi_stats_proc_open,
+> -	.read		= seq_read,
+> -	.llseek		= seq_lseek,
+> -	.release	= single_release,
+> -};
+>   #endif
+>   
+>   static int strcmp_nospace(char *s1, char *s2)
+> @@ -1740,23 +1716,19 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
+>   		goto out_remove_attr;
+>   	}
+>   
+> -#ifdef CONFIG_IPMI_PROC_INTERFACE
+>   	rv = ipmi_smi_add_proc_entry(ssif_info->intf, "type",
+> -				     &smi_type_proc_ops,
+> -				     ssif_info);
+> +				     smi_type_proc_show, ssif_info);
+>   	if (rv) {
+>   		pr_err(PFX "Unable to create proc entry: %d\n", rv);
+>   		goto out_err_unreg;
+>   	}
+>   
+>   	rv = ipmi_smi_add_proc_entry(ssif_info->intf, "ssif_stats",
+> -				     &smi_stats_proc_ops,
+> -				     ssif_info);
+> +				     smi_stats_proc_show, ssif_info);
+>   	if (rv) {
+>   		pr_err(PFX "Unable to create proc entry: %d\n", rv);
+>   		goto out_err_unreg;
+>   	}
+> -#endif
+>   
+>    out:
+>   	if (rv) {
+> @@ -1775,10 +1747,8 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
+>   	kfree(resp);
+>   	return rv;
+>   
+> -#ifdef CONFIG_IPMI_PROC_INTERFACE
+>   out_err_unreg:
+>   	ipmi_unregister_smi(ssif_info->intf);
+> -#endif
+>   
+>   out_remove_attr:
+>   	device_remove_group(&ssif_info->client->dev, &ipmi_ssif_dev_attr_group);
+> diff --git a/include/linux/ipmi_smi.h b/include/linux/ipmi_smi.h
+> index af457b5a689e..78d9fd480fe8 100644
+> --- a/include/linux/ipmi_smi.h
+> +++ b/include/linux/ipmi_smi.h
+> @@ -223,12 +223,10 @@ static inline void ipmi_free_smi_msg(struct ipmi_smi_msg *msg)
+>   }
+>   
+>   #ifdef CONFIG_IPMI_PROC_INTERFACE
+> -/* Allow the lower layer to add things to the proc filesystem
+> -   directory for this interface.  Note that the entry will
+> -   automatically be dstroyed when the interface is destroyed. */
+>   int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
+> -			    const struct file_operations *proc_ops,
+> -			    void *data);
+> +		int (*show)(struct seq_file *, void *), void *data);
+> +#else
+> +#define ipmi_smi_add_proc_entry(smi, name, show, data)	0
+>   #endif
+>   
+>   #endif /* __LINUX_IPMI_SMI_H */
 
-regards,
-dan carpenter
 
