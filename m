@@ -1,13 +1,13 @@
 Return-Path: <BATV+e1a5265bff2368ff7229+5352+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8E0351057332
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:40:21 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 19EFF105733D
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:40:25 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Thu, 19 Apr 2018 14:41:19 +0200
-Message-Id: <20180419124140.9309-19-hch@lst.de>
+Date: Thu, 19 Apr 2018 14:41:16 +0200
+Message-Id: <20180419124140.9309-16-hch@lst.de>
 In-Reply-To: <20180419124140.9309-1-hch@lst.de>
 References: <20180419124140.9309-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 18/39] megaraid: simplify procfs code
+Subject: [Drbd-dev] [PATCH 15/39] acpi/battery: simplify procfs code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,215 +35,200 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Use remove_proc_subtree to remove the whole subtree on cleanup, and
 unwind the registration loop into individual calls.  Switch to use
-proc_create_single.
+proc_create_seq where applicable.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/scsi/megaraid.c | 140 +++++++++++-----------------------------
- drivers/scsi/megaraid.h |  12 ----
- 2 files changed, 36 insertions(+), 116 deletions(-)
+ drivers/acpi/battery.c | 121 +++++++++--------------------------------
+ 1 file changed, 26 insertions(+), 95 deletions(-)
 
-diff --git a/drivers/scsi/megaraid.c b/drivers/scsi/megaraid.c
-index 7195cff51d4c..91f5e2c68dbc 100644
---- a/drivers/scsi/megaraid.c
-+++ b/drivers/scsi/megaraid.c
-@@ -2731,53 +2731,6 @@ proc_show_rdrv_40(struct seq_file *m, void *v)
- 	return proc_show_rdrv(m, m->private, 30, 39);
- }
- 
+diff --git a/drivers/acpi/battery.c b/drivers/acpi/battery.c
+index bdb24d636d9a..76550689ce10 100644
+--- a/drivers/acpi/battery.c
++++ b/drivers/acpi/battery.c
+@@ -81,14 +81,6 @@ MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
+ #ifdef CONFIG_ACPI_PROCFS_POWER
+ extern struct proc_dir_entry *acpi_lock_battery_dir(void);
+ extern void *acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
 -
--/*
-- * seq_file wrappers for procfile show routines.
-- */
--static int mega_proc_open(struct inode *inode, struct file *file)
--{
--	adapter_t *adapter = proc_get_parent_data(inode);
--	int (*show)(struct seq_file *, void *) = PDE_DATA(inode);
--
--	return single_open(file, show, adapter);
--}
--
--static const struct file_operations mega_proc_fops = {
--	.open		= mega_proc_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= single_release,
+-enum acpi_battery_files {
+-	info_tag = 0,
+-	state_tag,
+-	alarm_tag,
+-	ACPI_BATTERY_NUMFILES,
 -};
--
--/*
-- * Table of proc files we need to create.
-- */
--struct mega_proc_file {
--	const char *name;
--	unsigned short ptr_offset;
--	int (*show) (struct seq_file *m, void *v);
--};
--
--static const struct mega_proc_file mega_proc_files[] = {
--	{ "config",	      offsetof(adapter_t, proc_read), proc_show_config },
--	{ "stat",	      offsetof(adapter_t, proc_stat), proc_show_stat },
--	{ "mailbox",	      offsetof(adapter_t, proc_mbox), proc_show_mbox },
--#if MEGA_HAVE_ENH_PROC
--	{ "rebuild-rate",     offsetof(adapter_t, proc_rr), proc_show_rebuild_rate },
--	{ "battery-status",   offsetof(adapter_t, proc_battery), proc_show_battery },
--	{ "diskdrives-ch0",   offsetof(adapter_t, proc_pdrvstat[0]), proc_show_pdrv_ch0 },
--	{ "diskdrives-ch1",   offsetof(adapter_t, proc_pdrvstat[1]), proc_show_pdrv_ch1 },
--	{ "diskdrives-ch2",   offsetof(adapter_t, proc_pdrvstat[2]), proc_show_pdrv_ch2 },
--	{ "diskdrives-ch3",   offsetof(adapter_t, proc_pdrvstat[3]), proc_show_pdrv_ch3 },
--	{ "raiddrives-0-9",   offsetof(adapter_t, proc_rdrvstat[0]), proc_show_rdrv_10 },
--	{ "raiddrives-10-19", offsetof(adapter_t, proc_rdrvstat[1]), proc_show_rdrv_20 },
--	{ "raiddrives-20-29", offsetof(adapter_t, proc_rdrvstat[2]), proc_show_rdrv_30 },
--	{ "raiddrives-30-39", offsetof(adapter_t, proc_rdrvstat[3]), proc_show_rdrv_40 },
--#endif
--	{ NULL }
--};
--
- /**
-  * mega_create_proc_entry()
-  * @index - index in soft state array
-@@ -2788,31 +2741,45 @@ static const struct mega_proc_file mega_proc_files[] = {
- static void
- mega_create_proc_entry(int index, struct proc_dir_entry *parent)
- {
--	const struct mega_proc_file *f;
--	adapter_t	*adapter = hba_soft_state[index];
--	struct proc_dir_entry	*dir, *de, **ppde;
--	u8		string[16];
-+	adapter_t *adapter = hba_soft_state[index];
-+	struct proc_dir_entry *dir;
-+	u8 string[16];
- 
- 	sprintf(string, "hba%d", adapter->host->host_no);
--
--	dir = adapter->controller_proc_dir_entry =
--		proc_mkdir_data(string, 0, parent, adapter);
--	if(!dir) {
-+	dir = proc_mkdir_data(string, 0, parent, adapter);
-+	if (!dir) {
- 		dev_warn(&adapter->dev->dev, "proc_mkdir failed\n");
- 		return;
- 	}
- 
--	for (f = mega_proc_files; f->name; f++) {
--		de = proc_create_data(f->name, S_IRUSR, dir, &mega_proc_fops,
--				      f->show);
--		if (!de) {
--			dev_warn(&adapter->dev->dev, "proc_create failed\n");
--			return;
--		}
--
--		ppde = (void *)adapter + f->ptr_offset;
--		*ppde = de;
--	}
-+	proc_create_single_data("config", S_IRUSR, dir,
-+			proc_show_config, adapter);
-+	proc_create_single_data("stat", S_IRUSR, dir,
-+			proc_show_stat, adapter);
-+	proc_create_single_data("mailbox", S_IRUSR, dir,
-+			proc_show_mbox, adapter);
-+#if MEGA_HAVE_ENH_PROC
-+	proc_create_single_data("rebuild-rate", S_IRUSR, dir,
-+			proc_show_rebuild_rate, adapter);
-+	proc_create_single_data("battery-status", S_IRUSR, dir,
-+			proc_show_battery, adapter);
-+	proc_create_single_data("diskdrives-ch0", S_IRUSR, dir,
-+			proc_show_pdrv_ch0, adapter);
-+	proc_create_single_data("diskdrives-ch1", S_IRUSR, dir,
-+			proc_show_pdrv_ch1, adapter);
-+	proc_create_single_data("diskdrives-ch2", S_IRUSR, dir,
-+			proc_show_pdrv_ch2, adapter);
-+	proc_create_single_data("diskdrives-ch3", S_IRUSR, dir,
-+			proc_show_pdrv_ch3, adapter);
-+	proc_create_single_data("raiddrives-0-9", S_IRUSR, dir,
-+			proc_show_rdrv_10, adapter);
-+	proc_create_single_data("raiddrives-10-19", S_IRUSR, dir,
-+			proc_show_rdrv_20, adapter);
-+	proc_create_single_data("raiddrives-20-29", S_IRUSR, dir,
-+			proc_show_rdrv_30, adapter);
-+	proc_create_single_data("raiddrives-30-39", S_IRUSR, dir,
-+			proc_show_rdrv_40, adapter);
-+#endif
- }
- 
- #else
-@@ -4580,6 +4547,7 @@ megaraid_remove_one(struct pci_dev *pdev)
- {
- 	struct Scsi_Host *host = pci_get_drvdata(pdev);
- 	adapter_t *adapter = (adapter_t *)host->hostdata;
-+	char buf[12] = { 0 };
- 
- 	scsi_remove_host(host);
- 
-@@ -4594,44 +4562,8 @@ megaraid_remove_one(struct pci_dev *pdev)
- 
- 	mega_free_sgl(adapter);
- 
--#ifdef CONFIG_PROC_FS
--	if (adapter->controller_proc_dir_entry) {
--		remove_proc_entry("stat", adapter->controller_proc_dir_entry);
--		remove_proc_entry("config",
--				adapter->controller_proc_dir_entry);
--		remove_proc_entry("mailbox",
--				adapter->controller_proc_dir_entry);
--#if MEGA_HAVE_ENH_PROC
--		remove_proc_entry("rebuild-rate",
--				adapter->controller_proc_dir_entry);
--		remove_proc_entry("battery-status",
--				adapter->controller_proc_dir_entry);
--
--		remove_proc_entry("diskdrives-ch0",
--				adapter->controller_proc_dir_entry);
--		remove_proc_entry("diskdrives-ch1",
--				adapter->controller_proc_dir_entry);
--		remove_proc_entry("diskdrives-ch2",
--				adapter->controller_proc_dir_entry);
--		remove_proc_entry("diskdrives-ch3",
--				adapter->controller_proc_dir_entry);
--
--		remove_proc_entry("raiddrives-0-9",
--				adapter->controller_proc_dir_entry);
--		remove_proc_entry("raiddrives-10-19",
--				adapter->controller_proc_dir_entry);
--		remove_proc_entry("raiddrives-20-29",
--				adapter->controller_proc_dir_entry);
--		remove_proc_entry("raiddrives-30-39",
--				adapter->controller_proc_dir_entry);
--#endif
--		{
--			char	buf[12] = { 0 };
--			sprintf(buf, "hba%d", adapter->host->host_no);
--			remove_proc_entry(buf, mega_proc_dir_entry);
--		}
--	}
--#endif
-+	sprintf(buf, "hba%d", adapter->host->host_no);
-+	remove_proc_subtree(buf, mega_proc_dir_entry);
- 
- 	pci_free_consistent(adapter->dev, MEGA_BUFFER_SIZE,
- 			adapter->mega_buffer, adapter->buf_dma_handle);
-diff --git a/drivers/scsi/megaraid.h b/drivers/scsi/megaraid.h
-index 21eba2fd465a..18e85d9267ff 100644
---- a/drivers/scsi/megaraid.h
-+++ b/drivers/scsi/megaraid.h
-@@ -814,18 +814,6 @@ typedef struct {
- 
- #ifdef CONFIG_PROC_FS
- 	struct proc_dir_entry	*controller_proc_dir_entry;
--	struct proc_dir_entry	*proc_read;
--	struct proc_dir_entry	*proc_stat;
--	struct proc_dir_entry	*proc_mbox;
--
--#if MEGA_HAVE_ENH_PROC
--	struct proc_dir_entry	*proc_rr;
--	struct proc_dir_entry	*proc_battery;
--#define MAX_PROC_CHANNELS	4
--	struct proc_dir_entry	*proc_pdrvstat[MAX_PROC_CHANNELS];
--	struct proc_dir_entry	*proc_rdrvstat[MAX_PROC_CHANNELS];
--#endif
 -
  #endif
  
- 	int	has_64bit_addr;		/* are we using 64-bit addressing */
+ static const struct acpi_device_id battery_device_ids[] = {
+@@ -985,9 +977,10 @@ static const char *acpi_battery_units(const struct acpi_battery *battery)
+ 		"mA" : "mW";
+ }
+ 
+-static int acpi_battery_print_info(struct seq_file *seq, int result)
++static int acpi_battery_info_proc_show(struct seq_file *seq, void *offset)
+ {
+ 	struct acpi_battery *battery = seq->private;
++	int result = acpi_battery_update(battery, false);
+ 
+ 	if (result)
+ 		goto end;
+@@ -1041,9 +1034,10 @@ static int acpi_battery_print_info(struct seq_file *seq, int result)
+ 	return result;
+ }
+ 
+-static int acpi_battery_print_state(struct seq_file *seq, int result)
++static int acpi_battery_state_proc_show(struct seq_file *seq, void *offset)
+ {
+ 	struct acpi_battery *battery = seq->private;
++	int result = acpi_battery_update(battery, false);
+ 
+ 	if (result)
+ 		goto end;
+@@ -1088,9 +1082,10 @@ static int acpi_battery_print_state(struct seq_file *seq, int result)
+ 	return result;
+ }
+ 
+-static int acpi_battery_print_alarm(struct seq_file *seq, int result)
++static int acpi_battery_alarm_proc_show(struct seq_file *seq, void *offset)
+ {
+ 	struct acpi_battery *battery = seq->private;
++	int result = acpi_battery_update(battery, false);
+ 
+ 	if (result)
+ 		goto end;
+@@ -1142,82 +1137,22 @@ static ssize_t acpi_battery_write_alarm(struct file *file,
+ 	return result;
+ }
+ 
+-typedef int(*print_func)(struct seq_file *seq, int result);
+-
+-static print_func acpi_print_funcs[ACPI_BATTERY_NUMFILES] = {
+-	acpi_battery_print_info,
+-	acpi_battery_print_state,
+-	acpi_battery_print_alarm,
+-};
+-
+-static int acpi_battery_read(int fid, struct seq_file *seq)
++static int acpi_battery_alarm_proc_open(struct inode *inode, struct file *file)
+ {
+-	struct acpi_battery *battery = seq->private;
+-	int result = acpi_battery_update(battery, false);
+-	return acpi_print_funcs[fid](seq, result);
++	return single_open(file, acpi_battery_alarm_proc_show, PDE_DATA(inode));
+ }
+ 
+-#define DECLARE_FILE_FUNCTIONS(_name) \
+-static int acpi_battery_read_##_name(struct seq_file *seq, void *offset) \
+-{ \
+-	return acpi_battery_read(_name##_tag, seq); \
+-} \
+-static int acpi_battery_##_name##_open_fs(struct inode *inode, struct file *file) \
+-{ \
+-	return single_open(file, acpi_battery_read_##_name, PDE_DATA(inode)); \
+-}
+-
+-DECLARE_FILE_FUNCTIONS(info);
+-DECLARE_FILE_FUNCTIONS(state);
+-DECLARE_FILE_FUNCTIONS(alarm);
+-
+-#undef DECLARE_FILE_FUNCTIONS
+-
+-#define FILE_DESCRIPTION_RO(_name) \
+-	{ \
+-	.name = __stringify(_name), \
+-	.mode = S_IRUGO, \
+-	.ops = { \
+-		.open = acpi_battery_##_name##_open_fs, \
+-		.read = seq_read, \
+-		.llseek = seq_lseek, \
+-		.release = single_release, \
+-		.owner = THIS_MODULE, \
+-		}, \
+-	}
+-
+-#define FILE_DESCRIPTION_RW(_name) \
+-	{ \
+-	.name = __stringify(_name), \
+-	.mode = S_IFREG | S_IRUGO | S_IWUSR, \
+-	.ops = { \
+-		.open = acpi_battery_##_name##_open_fs, \
+-		.read = seq_read, \
+-		.llseek = seq_lseek, \
+-		.write = acpi_battery_write_##_name, \
+-		.release = single_release, \
+-		.owner = THIS_MODULE, \
+-		}, \
+-	}
+-
+-static const struct battery_file {
+-	struct file_operations ops;
+-	umode_t mode;
+-	const char *name;
+-} acpi_battery_file[] = {
+-	FILE_DESCRIPTION_RO(info),
+-	FILE_DESCRIPTION_RO(state),
+-	FILE_DESCRIPTION_RW(alarm),
++static const struct file_operations acpi_battery_alarm_fops = {
++	.owner		= THIS_MODULE,
++	.open		= acpi_battery_alarm_proc_open,
++	.read		= seq_read,
++	.write		= acpi_battery_write_alarm,
++	.llseek		= seq_lseek,
++	.release	= single_release,
+ };
+ 
+-#undef FILE_DESCRIPTION_RO
+-#undef FILE_DESCRIPTION_RW
+-
+ static int acpi_battery_add_fs(struct acpi_device *device)
+ {
+-	struct proc_dir_entry *entry = NULL;
+-	int i;
+-
+ 	printk(KERN_WARNING PREFIX "Deprecated procfs I/F for battery is loaded,"
+ 			" please retry with CONFIG_ACPI_PROCFS_POWER cleared\n");
+ 	if (!acpi_device_dir(device)) {
+@@ -1227,28 +1162,24 @@ static int acpi_battery_add_fs(struct acpi_device *device)
+ 			return -ENODEV;
+ 	}
+ 
+-	for (i = 0; i < ACPI_BATTERY_NUMFILES; ++i) {
+-		entry = proc_create_data(acpi_battery_file[i].name,
+-					 acpi_battery_file[i].mode,
+-					 acpi_device_dir(device),
+-					 &acpi_battery_file[i].ops,
+-					 acpi_driver_data(device));
+-		if (!entry)
+-			return -ENODEV;
+-	}
++	if (!proc_create_single_data("info", S_IRUGO, acpi_device_dir(device),
++			acpi_battery_info_proc_show, acpi_driver_data(device)))
++		return -ENODEV;
++	if (!proc_create_single_data("state", S_IRUGO, acpi_device_dir(device),
++			acpi_battery_state_proc_show, acpi_driver_data(device)))
++		return -ENODEV;
++	if (!proc_create_data("alarm", S_IFREG | S_IRUGO | S_IWUSR,
++			acpi_device_dir(device), &acpi_battery_alarm_fops,
++			acpi_driver_data(device)))
++		return -ENODEV;
+ 	return 0;
+ }
+ 
+ static void acpi_battery_remove_fs(struct acpi_device *device)
+ {
+-	int i;
+ 	if (!acpi_device_dir(device))
+ 		return;
+-	for (i = 0; i < ACPI_BATTERY_NUMFILES; ++i)
+-		remove_proc_entry(acpi_battery_file[i].name,
+-				  acpi_device_dir(device));
+-
+-	remove_proc_entry(acpi_device_bid(device), acpi_battery_dir);
++	remove_proc_subtree(acpi_device_bid(device), acpi_battery_dir);
+ 	acpi_device_dir(device) = NULL;
+ }
+ 
 -- 
 2.17.0
 
