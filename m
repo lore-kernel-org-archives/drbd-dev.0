@@ -1,32 +1,32 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr0-f193.google.com (mail-wr0-f193.google.com
-	[209.85.128.193])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8A4411057328
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Apr 2018 00:38:56 +0200 (CEST)
-Received: by mail-wr0-f193.google.com with SMTP id d19-v6so18041631wre.1
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:38:56 -0700 (PDT)
+Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com
+	[209.85.128.195])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 368B91057589
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Apr 2018 00:39:04 +0200 (CEST)
+Received: by mail-wr0-f195.google.com with SMTP id h3-v6so18031738wrh.5
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:39:04 -0700 (PDT)
 Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	n23-v6sm1293647wra.39.2018.04.19.15.38.55
+	c124sm102434wmd.36.2018.04.19.15.39.02
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Thu, 19 Apr 2018 15:38:55 -0700 (PDT)
-Resent-Message-ID: <20180419223855.GH3821@soda.linbit>
-Received: from mail-wr0-f169.google.com (mail-wr0-f169.google.com
-	[209.85.128.169])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A4EDA1057335
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 20:50:31 +0200 (CEST)
-Received: by mail-wr0-f169.google.com with SMTP id z73-v6so16715474wrb.0
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 11:50:31 -0700 (PDT)
-Date: Thu, 19 Apr 2018 21:50:27 +0300
+	Thu, 19 Apr 2018 15:39:03 -0700 (PDT)
+Resent-Message-ID: <20180419223902.GI3821@soda.linbit>
+Received: from mail-wr0-f170.google.com (mail-wr0-f170.google.com
+	[209.85.128.170])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id ACBA31057335
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 20:51:24 +0200 (CEST)
+Received: by mail-wr0-f170.google.com with SMTP id w3-v6so16698292wrg.2
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 11:51:24 -0700 (PDT)
+Date: Thu, 19 Apr 2018 21:44:04 +0300
 From: Alexey Dobriyan <adobriyan@gmail.com>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20180419185027.GC2066@avx2>
+Message-ID: <20180419184404.GB2066@avx2>
 References: <20180419124140.9309-1-hch@lst.de>
-	<20180419124140.9309-4-hch@lst.de>
+	<20180419124140.9309-15-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180419124140.9309-4-hch@lst.de>
+In-Reply-To: <20180419124140.9309-15-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Alexandre Belloni <alexandre.belloni@bootlin.com>,
 	devel@driverdev.osuosl.org, linux-scsi@vger.kernel.org,
@@ -39,7 +39,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 03/39] proc: introduce proc_create_seq_private
+Subject: Re: [Drbd-dev] [PATCH 14/39] proc: introduce proc_create_net_single
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -51,17 +51,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Apr 19, 2018 at 02:41:04PM +0200, Christoph Hellwig wrote:
-> Variant of proc_create_data that directly take a struct seq_operations
+On Thu, Apr 19, 2018 at 02:41:15PM +0200, Christoph Hellwig wrote:
+> Variant of proc_create_data that directly take a seq_file show
 
-> --- a/fs/proc/internal.h
-> +++ b/fs/proc/internal.h
-> @@ -45,6 +45,7 @@ struct proc_dir_entry {
->  	const struct inode_operations *proc_iops;
->  	const struct file_operations *proc_fops;
->  	const struct seq_operations *seq_ops;
-> +	size_t state_size;
+> +struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
+> +		struct proc_dir_entry *parent,
+> +		int (*show)(struct seq_file *, void *), void *data)
+> +{
+> +	struct proc_dir_entry *p;
+> +
+> +	p = proc_create_data(name, mode, parent, &proc_net_single_fops, data);
+> +	if (p)
+> +		p->single_show = show;
+> +	return p;
+> +}
 
-"unsigned int" please.
-
-Where have you seen 4GB priv states?
+Ditto, should be oopsable.
