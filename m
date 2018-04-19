@@ -1,18 +1,15 @@
 Return-Path: <BATV+e1a5265bff2368ff7229+5352+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C88AA1057886
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:40:38 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 429E71057882
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:40:43 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Thu, 19 Apr 2018 14:41:12 +0200
-Message-Id: <20180419124140.9309-12-hch@lst.de>
+Date: Thu, 19 Apr 2018 14:41:08 +0200
+Message-Id: <20180419124140.9309-8-hch@lst.de>
 In-Reply-To: <20180419124140.9309-1-hch@lst.de>
 References: <20180419124140.9309-1-hch@lst.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Alexandre Belloni <alexandre.belloni@bootlin.com>,
 	devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org,
@@ -24,8 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] =?utf-8?q?=5BPATCH_11/39=5D_netfilter/x=5Ftables=3A_si?=
-	=?utf-8?q?mplify_=D1=95eq=5Ffile_code?=
+Subject: [Drbd-dev] [PATCH 07/39] ipv{4, 6}/ping: simplify proc file creation
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,138 +33,179 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Just use the address family from the proc private data instead of copying
-it into per-file data.
+Remove the pointless ping_seq_afinfo indirection and make the code look
+like most other protocols.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- net/netfilter/x_tables.c | 39 +++++++++++----------------------------
- 1 file changed, 11 insertions(+), 28 deletions(-)
+ include/net/ping.h | 11 ----------
+ net/ipv4/ping.c    | 50 +++++++++++++---------------------------------
+ net/ipv6/ping.c    | 35 +++++++++++++++++++++-----------
+ 3 files changed, 37 insertions(+), 59 deletions(-)
 
-diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
-index 71325fef647d..3704101af27f 100644
---- a/net/netfilter/x_tables.c
-+++ b/net/netfilter/x_tables.c
-@@ -1489,15 +1489,10 @@ void *xt_unregister_table(struct xt_table *table)
- EXPORT_SYMBOL_GPL(xt_unregister_table);
+diff --git a/include/net/ping.h b/include/net/ping.h
+index 4cd90d6b5c25..fd080e043a6e 100644
+--- a/include/net/ping.h
++++ b/include/net/ping.h
+@@ -83,20 +83,9 @@ int  ping_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
+ bool ping_rcv(struct sk_buff *skb);
  
  #ifdef CONFIG_PROC_FS
--struct xt_names_priv {
--	struct seq_net_private p;
--	u_int8_t af;
+-struct ping_seq_afinfo {
+-	char				*name;
+-	sa_family_t			family;
+-	const struct file_operations	*seq_fops;
+-	const struct seq_operations	seq_ops;
 -};
- static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
- {
--	struct xt_names_priv *priv = seq->private;
- 	struct net *net = seq_file_net(seq);
--	u_int8_t af = priv->af;
-+	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
- 
- 	mutex_lock(&xt[af].mutex);
- 	return seq_list_start(&net->xt.tables[af], *pos);
-@@ -1505,17 +1500,15 @@ static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
- 
- static void *xt_table_seq_next(struct seq_file *seq, void *v, loff_t *pos)
- {
--	struct xt_names_priv *priv = seq->private;
- 	struct net *net = seq_file_net(seq);
--	u_int8_t af = priv->af;
-+	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
- 
- 	return seq_list_next(v, &net->xt.tables[af], pos);
- }
- 
- static void xt_table_seq_stop(struct seq_file *seq, void *v)
- {
--	struct xt_names_priv *priv = seq->private;
--	u_int8_t af = priv->af;
-+	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
- 
- 	mutex_unlock(&xt[af].mutex);
- }
-@@ -1538,16 +1531,8 @@ static const struct seq_operations xt_table_seq_ops = {
- 
- static int xt_table_open(struct inode *inode, struct file *file)
- {
--	int ret;
--	struct xt_names_priv *priv;
 -
--	ret = seq_open_net(inode, file, &xt_table_seq_ops,
--			   sizeof(struct xt_names_priv));
--	if (!ret) {
--		priv = ((struct seq_file *)file->private_data)->private;
--		priv->af = (unsigned long)PDE_DATA(inode);
--	}
--	return ret;
-+	return seq_open_net(inode, file, &xt_table_seq_ops,
-+			sizeof(struct seq_net_private));
+-extern const struct file_operations ping_seq_fops;
+-
+ void *ping_seq_start(struct seq_file *seq, loff_t *pos, sa_family_t family);
+ void *ping_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+ void ping_seq_stop(struct seq_file *seq, void *v);
+-int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo);
+-void ping_proc_unregister(struct net *net, struct ping_seq_afinfo *afinfo);
+ 
+ int __init ping_proc_init(void);
+ void ping_proc_exit(void);
+diff --git a/net/ipv4/ping.c b/net/ipv4/ping.c
+index 05e47d777009..83170ebf5dfc 100644
+--- a/net/ipv4/ping.c
++++ b/net/ipv4/ping.c
+@@ -1147,58 +1147,36 @@ static int ping_v4_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
  }
  
- static const struct file_operations xt_table_ops = {
-@@ -1563,7 +1548,7 @@ static const struct file_operations xt_table_ops = {
-  */
- struct nf_mttg_trav {
- 	struct list_head *head, *curr;
--	uint8_t class, nfproto;
-+	uint8_t class;
+-static int ping_seq_open(struct inode *inode, struct file *file)
++static const struct seq_operations ping_v4_seq_ops = {
++	.start		= ping_v4_seq_start,
++	.show		= ping_v4_seq_show,
++	.next		= ping_seq_next,
++	.stop		= ping_seq_stop,
++};
++
++static int ping_v4_seq_open(struct inode *inode, struct file *file)
+ {
+-	struct ping_seq_afinfo *afinfo = PDE_DATA(inode);
+-	return seq_open_net(inode, file, &afinfo->seq_ops,
++	return seq_open_net(inode, file, &ping_v4_seq_ops,
+ 			   sizeof(struct ping_iter_state));
+ }
+ 
+-const struct file_operations ping_seq_fops = {
+-	.open		= ping_seq_open,
++const struct file_operations ping_v4_seq_fops = {
++	.open		= ping_v4_seq_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+ 	.release	= seq_release_net,
+ };
+-EXPORT_SYMBOL_GPL(ping_seq_fops);
+-
+-static struct ping_seq_afinfo ping_v4_seq_afinfo = {
+-	.name		= "icmp",
+-	.family		= AF_INET,
+-	.seq_fops	= &ping_seq_fops,
+-	.seq_ops	= {
+-		.start		= ping_v4_seq_start,
+-		.show		= ping_v4_seq_show,
+-		.next		= ping_seq_next,
+-		.stop		= ping_seq_stop,
+-	},
+-};
+ 
+-int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo)
++static int __net_init ping_v4_proc_init_net(struct net *net)
+ {
+-	struct proc_dir_entry *p;
+-	p = proc_create_data(afinfo->name, 0444, net->proc_net,
+-			     afinfo->seq_fops, afinfo);
+-	if (!p)
++	if (!proc_create("icmp", 0444, net->proc_net, &ping_v4_seq_fops))
+ 		return -ENOMEM;
+ 	return 0;
+ }
+-EXPORT_SYMBOL_GPL(ping_proc_register);
+-
+-void ping_proc_unregister(struct net *net, struct ping_seq_afinfo *afinfo)
+-{
+-	remove_proc_entry(afinfo->name, net->proc_net);
+-}
+-EXPORT_SYMBOL_GPL(ping_proc_unregister);
+-
+-static int __net_init ping_v4_proc_init_net(struct net *net)
+-{
+-	return ping_proc_register(net, &ping_v4_seq_afinfo);
+-}
+ 
+ static void __net_exit ping_v4_proc_exit_net(struct net *net)
+ {
+-	ping_proc_unregister(net, &ping_v4_seq_afinfo);
++	remove_proc_entry("icmp", net->proc_net);
+ }
+ 
+ static struct pernet_operations ping_v4_net_ops = {
+diff --git a/net/ipv6/ping.c b/net/ipv6/ping.c
+index 746eeae7f581..45d5c8e0f2bf 100644
+--- a/net/ipv6/ping.c
++++ b/net/ipv6/ping.c
+@@ -24,6 +24,7 @@
+ #include <net/protocol.h>
+ #include <net/udp.h>
+ #include <net/transp_v6.h>
++#include <linux/proc_fs.h>
+ #include <net/ping.h>
+ 
+ /* Compatibility glue so we can support IPv6 when it's compiled as a module */
+@@ -215,26 +216,36 @@ static int ping_v6_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static struct ping_seq_afinfo ping_v6_seq_afinfo = {
+-	.name		= "icmp6",
+-	.family		= AF_INET6,
+-	.seq_fops       = &ping_seq_fops,
+-	.seq_ops	= {
+-		.start		= ping_v6_seq_start,
+-		.show		= ping_v6_seq_show,
+-		.next		= ping_seq_next,
+-		.stop		= ping_seq_stop,
+-	},
++static const struct seq_operations ping_v6_seq_ops = {
++	.start		= ping_v6_seq_start,
++	.show		= ping_v6_seq_show,
++	.next		= ping_seq_next,
++	.stop		= ping_seq_stop,
++};
++
++static int ping_v6_seq_open(struct inode *inode, struct file *file)
++{
++	return seq_open_net(inode, file, &ping_v6_seq_ops,
++			   sizeof(struct ping_iter_state));
++}
++
++const struct file_operations ping_v6_seq_fops = {
++	.open		= ping_v6_seq_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= seq_release_net,
  };
  
- enum {
-@@ -1580,6 +1565,7 @@ static void *xt_mttg_seq_next(struct seq_file *seq, void *v, loff_t *ppos,
- 		[MTTG_TRAV_NFP_UNSPEC] = MTTG_TRAV_NFP_SPEC,
- 		[MTTG_TRAV_NFP_SPEC]   = MTTG_TRAV_DONE,
- 	};
-+	uint8_t nfproto = (unsigned long)PDE_DATA(file_inode(seq->file));
- 	struct nf_mttg_trav *trav = seq->private;
- 
- 	switch (trav->class) {
-@@ -1594,9 +1580,9 @@ static void *xt_mttg_seq_next(struct seq_file *seq, void *v, loff_t *ppos,
- 		if (trav->curr != trav->head)
- 			break;
- 		mutex_unlock(&xt[NFPROTO_UNSPEC].mutex);
--		mutex_lock(&xt[trav->nfproto].mutex);
-+		mutex_lock(&xt[nfproto].mutex);
- 		trav->head = trav->curr = is_target ?
--			&xt[trav->nfproto].target : &xt[trav->nfproto].match;
-+			&xt[nfproto].target : &xt[nfproto].match;
- 		trav->class = next_class[trav->class];
- 		break;
- 	case MTTG_TRAV_NFP_SPEC:
-@@ -1628,6 +1614,7 @@ static void *xt_mttg_seq_start(struct seq_file *seq, loff_t *pos,
- 
- static void xt_mttg_seq_stop(struct seq_file *seq, void *v)
+ static int __net_init ping_v6_proc_init_net(struct net *net)
  {
-+	uint8_t nfproto = (unsigned long)PDE_DATA(file_inode(seq->file));
- 	struct nf_mttg_trav *trav = seq->private;
- 
- 	switch (trav->class) {
-@@ -1635,7 +1622,7 @@ static void xt_mttg_seq_stop(struct seq_file *seq, void *v)
- 		mutex_unlock(&xt[NFPROTO_UNSPEC].mutex);
- 		break;
- 	case MTTG_TRAV_NFP_SPEC:
--		mutex_unlock(&xt[trav->nfproto].mutex);
-+		mutex_unlock(&xt[nfproto].mutex);
- 		break;
- 	}
- }
-@@ -1680,8 +1667,6 @@ static int xt_match_open(struct inode *inode, struct file *file)
- 	trav = __seq_open_private(file, &xt_match_seq_ops, sizeof(*trav));
- 	if (!trav)
- 		return -ENOMEM;
--
--	trav->nfproto = (unsigned long)PDE_DATA(inode);
- 	return 0;
+-	return ping_proc_register(net, &ping_v6_seq_afinfo);
++	if (!proc_create("icmp6", 0444, net->proc_net, &ping_v6_seq_fops))
++		return -ENOMEM;
++	return 0;
  }
  
-@@ -1732,8 +1717,6 @@ static int xt_target_open(struct inode *inode, struct file *file)
- 	trav = __seq_open_private(file, &xt_target_seq_ops, sizeof(*trav));
- 	if (!trav)
- 		return -ENOMEM;
--
--	trav->nfproto = (unsigned long)PDE_DATA(inode);
- 	return 0;
+ static void __net_init ping_v6_proc_exit_net(struct net *net)
+ {
+-	return ping_proc_unregister(net, &ping_v6_seq_afinfo);
++	remove_proc_entry("icmp6", net->proc_net);
  }
  
+ static struct pernet_operations ping_v6_net_ops = {
 -- 
 2.17.0
 
