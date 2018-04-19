@@ -1,13 +1,13 @@
 Return-Path: <BATV+e1a5265bff2368ff7229+5352+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 429E71057882
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:40:43 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C65F51057318
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 16:06:56 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Thu, 19 Apr 2018 14:41:08 +0200
-Message-Id: <20180419124140.9309-8-hch@lst.de>
+Date: Thu, 19 Apr 2018 14:41:22 +0200
+Message-Id: <20180419124140.9309-22-hch@lst.de>
 In-Reply-To: <20180419124140.9309-1-hch@lst.de>
 References: <20180419124140.9309-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/39] ipv{4, 6}/ping: simplify proc file creation
+Subject: [Drbd-dev] [PATCH 21/39] ext4: simplify procfs code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,179 +33,176 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Remove the pointless ping_seq_afinfo indirection and make the code look
-like most other protocols.
+Use remove_proc_subtree to remove the whole subtree on cleanup, and
+unwind the registration loop into individual calls.  Switch to use
+proc_create_seq where applicable.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/net/ping.h | 11 ----------
- net/ipv4/ping.c    | 50 +++++++++++++---------------------------------
- net/ipv6/ping.c    | 35 +++++++++++++++++++++-----------
- 3 files changed, 37 insertions(+), 59 deletions(-)
+ fs/ext4/ext4.h    |  2 +-
+ fs/ext4/mballoc.c | 29 ++++------------------------
+ fs/ext4/sysfs.c   | 49 +++++++++--------------------------------------
+ 3 files changed, 14 insertions(+), 66 deletions(-)
 
-diff --git a/include/net/ping.h b/include/net/ping.h
-index 4cd90d6b5c25..fd080e043a6e 100644
---- a/include/net/ping.h
-+++ b/include/net/ping.h
-@@ -83,20 +83,9 @@ int  ping_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
- bool ping_rcv(struct sk_buff *skb);
+diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
+index a42e71203e53..229ea4da6785 100644
+--- a/fs/ext4/ext4.h
++++ b/fs/ext4/ext4.h
+@@ -2390,7 +2390,7 @@ extern int ext4_init_inode_table(struct super_block *sb,
+ extern void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate);
  
- #ifdef CONFIG_PROC_FS
--struct ping_seq_afinfo {
--	char				*name;
--	sa_family_t			family;
--	const struct file_operations	*seq_fops;
--	const struct seq_operations	seq_ops;
--};
--
--extern const struct file_operations ping_seq_fops;
--
- void *ping_seq_start(struct seq_file *seq, loff_t *pos, sa_family_t family);
- void *ping_seq_next(struct seq_file *seq, void *v, loff_t *pos);
- void ping_seq_stop(struct seq_file *seq, void *v);
--int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo);
--void ping_proc_unregister(struct net *net, struct ping_seq_afinfo *afinfo);
+ /* mballoc.c */
+-extern const struct file_operations ext4_seq_mb_groups_fops;
++extern const struct seq_operations ext4_mb_seq_groups_ops;
+ extern long ext4_mb_stats;
+ extern long ext4_mb_max_to_scan;
+ extern int ext4_mb_init(struct super_block *);
+diff --git a/fs/ext4/mballoc.c b/fs/ext4/mballoc.c
+index 769a62708b1c..6884e81c1465 100644
+--- a/fs/ext4/mballoc.c
++++ b/fs/ext4/mballoc.c
+@@ -2254,7 +2254,7 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
  
- int __init ping_proc_init(void);
- void ping_proc_exit(void);
-diff --git a/net/ipv4/ping.c b/net/ipv4/ping.c
-index 05e47d777009..83170ebf5dfc 100644
---- a/net/ipv4/ping.c
-+++ b/net/ipv4/ping.c
-@@ -1147,58 +1147,36 @@ static int ping_v4_seq_show(struct seq_file *seq, void *v)
- 	return 0;
- }
- 
--static int ping_seq_open(struct inode *inode, struct file *file)
-+static const struct seq_operations ping_v4_seq_ops = {
-+	.start		= ping_v4_seq_start,
-+	.show		= ping_v4_seq_show,
-+	.next		= ping_seq_next,
-+	.stop		= ping_seq_stop,
-+};
-+
-+static int ping_v4_seq_open(struct inode *inode, struct file *file)
+ static void *ext4_mb_seq_groups_start(struct seq_file *seq, loff_t *pos)
  {
--	struct ping_seq_afinfo *afinfo = PDE_DATA(inode);
--	return seq_open_net(inode, file, &afinfo->seq_ops,
-+	return seq_open_net(inode, file, &ping_v4_seq_ops,
- 			   sizeof(struct ping_iter_state));
- }
+-	struct super_block *sb = seq->private;
++	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+ 	ext4_group_t group;
  
--const struct file_operations ping_seq_fops = {
--	.open		= ping_seq_open,
-+const struct file_operations ping_v4_seq_fops = {
-+	.open		= ping_v4_seq_open,
- 	.read		= seq_read,
- 	.llseek		= seq_lseek,
- 	.release	= seq_release_net,
- };
--EXPORT_SYMBOL_GPL(ping_seq_fops);
--
--static struct ping_seq_afinfo ping_v4_seq_afinfo = {
--	.name		= "icmp",
--	.family		= AF_INET,
--	.seq_fops	= &ping_seq_fops,
--	.seq_ops	= {
--		.start		= ping_v4_seq_start,
--		.show		= ping_v4_seq_show,
--		.next		= ping_seq_next,
--		.stop		= ping_seq_stop,
--	},
--};
+ 	if (*pos < 0 || *pos >= ext4_get_groups_count(sb))
+@@ -2265,7 +2265,7 @@ static void *ext4_mb_seq_groups_start(struct seq_file *seq, loff_t *pos)
  
--int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo)
-+static int __net_init ping_v4_proc_init_net(struct net *net)
+ static void *ext4_mb_seq_groups_next(struct seq_file *seq, void *v, loff_t *pos)
  {
--	struct proc_dir_entry *p;
--	p = proc_create_data(afinfo->name, 0444, net->proc_net,
--			     afinfo->seq_fops, afinfo);
--	if (!p)
-+	if (!proc_create("icmp", 0444, net->proc_net, &ping_v4_seq_fops))
- 		return -ENOMEM;
- 	return 0;
- }
--EXPORT_SYMBOL_GPL(ping_proc_register);
--
--void ping_proc_unregister(struct net *net, struct ping_seq_afinfo *afinfo)
--{
--	remove_proc_entry(afinfo->name, net->proc_net);
--}
--EXPORT_SYMBOL_GPL(ping_proc_unregister);
--
--static int __net_init ping_v4_proc_init_net(struct net *net)
--{
--	return ping_proc_register(net, &ping_v4_seq_afinfo);
--}
+-	struct super_block *sb = seq->private;
++	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+ 	ext4_group_t group;
  
- static void __net_exit ping_v4_proc_exit_net(struct net *net)
+ 	++*pos;
+@@ -2277,7 +2277,7 @@ static void *ext4_mb_seq_groups_next(struct seq_file *seq, void *v, loff_t *pos)
+ 
+ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
  {
--	ping_proc_unregister(net, &ping_v4_seq_afinfo);
-+	remove_proc_entry("icmp", net->proc_net);
+-	struct super_block *sb = seq->private;
++	struct super_block *sb = PDE_DATA(file_inode(seq->file));
+ 	ext4_group_t group = (ext4_group_t) ((unsigned long) v);
+ 	int i;
+ 	int err, buddy_loaded = 0;
+@@ -2330,34 +2330,13 @@ static void ext4_mb_seq_groups_stop(struct seq_file *seq, void *v)
+ {
  }
  
- static struct pernet_operations ping_v4_net_ops = {
-diff --git a/net/ipv6/ping.c b/net/ipv6/ping.c
-index 746eeae7f581..45d5c8e0f2bf 100644
---- a/net/ipv6/ping.c
-+++ b/net/ipv6/ping.c
-@@ -24,6 +24,7 @@
- #include <net/protocol.h>
- #include <net/udp.h>
- #include <net/transp_v6.h>
-+#include <linux/proc_fs.h>
- #include <net/ping.h>
- 
- /* Compatibility glue so we can support IPv6 when it's compiled as a module */
-@@ -215,26 +216,36 @@ static int ping_v6_seq_show(struct seq_file *seq, void *v)
- 	return 0;
- }
- 
--static struct ping_seq_afinfo ping_v6_seq_afinfo = {
--	.name		= "icmp6",
--	.family		= AF_INET6,
--	.seq_fops       = &ping_seq_fops,
--	.seq_ops	= {
--		.start		= ping_v6_seq_start,
--		.show		= ping_v6_seq_show,
--		.next		= ping_seq_next,
--		.stop		= ping_seq_stop,
--	},
-+static const struct seq_operations ping_v6_seq_ops = {
-+	.start		= ping_v6_seq_start,
-+	.show		= ping_v6_seq_show,
-+	.next		= ping_seq_next,
-+	.stop		= ping_seq_stop,
-+};
-+
-+static int ping_v6_seq_open(struct inode *inode, struct file *file)
-+{
-+	return seq_open_net(inode, file, &ping_v6_seq_ops,
-+			   sizeof(struct ping_iter_state));
-+}
-+
-+const struct file_operations ping_v6_seq_fops = {
-+	.open		= ping_v6_seq_open,
-+	.read		= seq_read,
-+	.llseek		= seq_lseek,
-+	.release	= seq_release_net,
+-static const struct seq_operations ext4_mb_seq_groups_ops = {
++const struct seq_operations ext4_mb_seq_groups_ops = {
+ 	.start  = ext4_mb_seq_groups_start,
+ 	.next   = ext4_mb_seq_groups_next,
+ 	.stop   = ext4_mb_seq_groups_stop,
+ 	.show   = ext4_mb_seq_groups_show,
  };
  
- static int __net_init ping_v6_proc_init_net(struct net *net)
+-static int ext4_mb_seq_groups_open(struct inode *inode, struct file *file)
+-{
+-	struct super_block *sb = PDE_DATA(inode);
+-	int rc;
+-
+-	rc = seq_open(file, &ext4_mb_seq_groups_ops);
+-	if (rc == 0) {
+-		struct seq_file *m = file->private_data;
+-		m->private = sb;
+-	}
+-	return rc;
+-
+-}
+-
+-const struct file_operations ext4_seq_mb_groups_fops = {
+-	.open		= ext4_mb_seq_groups_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= seq_release,
+-};
+-
+ static struct kmem_cache *get_groupinfo_cache(int blocksize_bits)
  {
--	return ping_proc_register(net, &ping_v6_seq_afinfo);
-+	if (!proc_create("icmp6", 0444, net->proc_net, &ping_v6_seq_fops))
-+		return -ENOMEM;
-+	return 0;
+ 	int cache_index = blocksize_bits - EXT4_MIN_BLOCK_LOG_SIZE;
+diff --git a/fs/ext4/sysfs.c b/fs/ext4/sysfs.c
+index 9ebd26c957c2..f34da0bb8f17 100644
+--- a/fs/ext4/sysfs.c
++++ b/fs/ext4/sysfs.c
+@@ -346,39 +346,9 @@ static struct kobject *ext4_root;
+ 
+ static struct kobject *ext4_feat;
+ 
+-#define PROC_FILE_SHOW_DEFN(name) \
+-static int name##_open(struct inode *inode, struct file *file) \
+-{ \
+-	return single_open(file, ext4_seq_##name##_show, PDE_DATA(inode)); \
+-} \
+-\
+-static const struct file_operations ext4_seq_##name##_fops = { \
+-	.open		= name##_open, \
+-	.read		= seq_read, \
+-	.llseek		= seq_lseek, \
+-	.release	= single_release, \
+-}
+-
+-#define PROC_FILE_LIST(name) \
+-	{ __stringify(name), &ext4_seq_##name##_fops }
+-
+-PROC_FILE_SHOW_DEFN(es_shrinker_info);
+-PROC_FILE_SHOW_DEFN(options);
+-
+-static const struct ext4_proc_files {
+-	const char *name;
+-	const struct file_operations *fops;
+-} proc_files[] = {
+-	PROC_FILE_LIST(options),
+-	PROC_FILE_LIST(es_shrinker_info),
+-	PROC_FILE_LIST(mb_groups),
+-	{ NULL, NULL },
+-};
+-
+ int ext4_register_sysfs(struct super_block *sb)
+ {
+ 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+-	const struct ext4_proc_files *p;
+ 	int err;
+ 
+ 	init_completion(&sbi->s_kobj_unregister);
+@@ -392,11 +362,14 @@ int ext4_register_sysfs(struct super_block *sb)
+ 
+ 	if (ext4_proc_root)
+ 		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
+-
+ 	if (sbi->s_proc) {
+-		for (p = proc_files; p->name; p++)
+-			proc_create_data(p->name, S_IRUGO, sbi->s_proc,
+-					 p->fops, sb);
++		proc_create_single_data("options", S_IRUGO, sbi->s_proc,
++				ext4_seq_options_show, sb);
++		proc_create_single_data("es_shrinker_info", S_IRUGO,
++				sbi->s_proc, ext4_seq_es_shrinker_info_show,
++				sb);
++		proc_create_seq_data("mb_groups", S_IRUGO, sbi->s_proc,
++				&ext4_mb_seq_groups_ops, sb);
+ 	}
+ 	return 0;
+ }
+@@ -404,13 +377,9 @@ int ext4_register_sysfs(struct super_block *sb)
+ void ext4_unregister_sysfs(struct super_block *sb)
+ {
+ 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+-	const struct ext4_proc_files *p;
+ 
+-	if (sbi->s_proc) {
+-		for (p = proc_files; p->name; p++)
+-			remove_proc_entry(p->name, sbi->s_proc);
+-		remove_proc_entry(sb->s_id, ext4_proc_root);
+-	}
++	if (sbi->s_proc)
++		remove_proc_subtree(sb->s_id, ext4_proc_root);
+ 	kobject_del(&sbi->s_kobj);
  }
  
- static void __net_init ping_v6_proc_exit_net(struct net *net)
- {
--	return ping_proc_unregister(net, &ping_v6_seq_afinfo);
-+	remove_proc_entry("icmp6", net->proc_net);
- }
- 
- static struct pernet_operations ping_v6_net_ops = {
 -- 
 2.17.0
 
