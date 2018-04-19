@@ -1,41 +1,43 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from mail-wr0-f196.google.com (mail-wr0-f196.google.com
 	[209.85.128.196])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 982381057318
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Apr 2018 00:38:07 +0200 (CEST)
-Received: by mail-wr0-f196.google.com with SMTP id d1-v6so18013683wrj.13
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:38:07 -0700 (PDT)
-Received: from soda.linbit ([86.59.100.100])
-	by smtp.gmail.com with ESMTPSA id c124sm95971wmd.36.2018.04.19.15.38.06
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 47CD11057335
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Apr 2018 00:38:14 +0200 (CEST)
+Received: by mail-wr0-f196.google.com with SMTP id m26-v6so166806wrb.3
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:38:14 -0700 (PDT)
+Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
+	n23-v6sm1287787wra.39.2018.04.19.15.38.12
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Thu, 19 Apr 2018 15:38:06 -0700 (PDT)
-Resent-Message-ID: <20180419223805.GD3821@soda.linbit>
-Received: from mail.bootlin.com (mail.bootlin.com [62.4.15.54])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 949E11057311
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:16:55 +0200 (CEST)
-Date: Thu, 19 Apr 2018 15:10:27 +0200
-From: Alexandre Belloni <alexandre.belloni@bootlin.com>
+	Thu, 19 Apr 2018 15:38:13 -0700 (PDT)
+Resent-Message-ID: <20180419223812.GE3821@soda.linbit>
+Received: from aserp2120.oracle.com (aserp2120.oracle.com [141.146.126.78])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 59F2F1057314
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 16:19:01 +0200 (CEST)
+Date: Thu, 19 Apr 2018 17:18:18 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20180419131027.GC7369@piout.net>
+Message-ID: <20180419141818.pjys7at4xmz2h6ho@mwanda>
 References: <20180419124140.9309-1-hch@lst.de>
-	<20180419124140.9309-27-hch@lst.de>
+	<20180419124140.9309-4-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180419124140.9309-27-hch@lst.de>
+In-Reply-To: <20180419124140.9309-4-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
-	jfs-discussion@lists.sourceforge.net, devel@driverdev.osuosl.org,
-	linux-scsi@vger.kernel.org, Corey Minyard <minyard@acm.org>,
-	linux-ide@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	linux-kernel@vger.kernel.org, linux-afs@lists.infradead.org,
-	linux-acpi@vger.kernel.org, netdev@vger.kernel.org,
-	netfilter-devel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>,
-	Jiri Slaby <jslaby@suse.com>, Andrew Morton <akpm@linux-foundation.org>,
-	linux-ext4@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
-	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 26/39] rtc/proc: switch to
-	proc_create_single_data
+	Alexandre Belloni <alexandre.belloni@bootlin.com>,
+	devel@driverdev.osuosl.org, Corey Minyard <minyard@acm.org>,
+	linux-scsi@vger.kernel.org, linux-acpi@vger.kernel.org,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Jiri Slaby <jslaby@suse.com>, megaraidlinux.pdl@broadcom.com,
+	linux-kernel@vger.kernel.org,
+	Alexey Dobriyan <adobriyan@gmail.com>, linux-ide@vger.kernel.org,
+	netfilter-devel@vger.kernel.org,
+	Alexander Viro <viro@zeniv.linux.org.uk>, netdev@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org,
+	jfs-discussion@lists.sourceforge.net, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 03/39] proc: introduce proc_create_seq_private
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,71 +49,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 19/04/2018 14:41:27+0200, Christoph Hellwig wrote:
-> And stop trying to get a reference on the submodule, procfs code deals
-> with release after and unloaded module and thus removed proc entry.
-> 
-
-Are you sure about that? The rtc module is not the one adding the procfs
-file so I'm not sure how the procfs code can handle it.
-
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  drivers/rtc/rtc-proc.c | 33 ++-------------------------------
->  1 file changed, 2 insertions(+), 31 deletions(-)
-> 
-> diff --git a/drivers/rtc/rtc-proc.c b/drivers/rtc/rtc-proc.c
-> index 31e7e23cc5be..a9dd9218fae2 100644
-> --- a/drivers/rtc/rtc-proc.c
-> +++ b/drivers/rtc/rtc-proc.c
-> @@ -107,40 +107,11 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
->  	return 0;
->  }
+On Thu, Apr 19, 2018 at 02:41:04PM +0200, Christoph Hellwig wrote:
+> diff --git a/drivers/s390/cio/blacklist.c b/drivers/s390/cio/blacklist.c
+> index 2a3f874a21d5..ad35cddcf6af 100644
+> --- a/drivers/s390/cio/blacklist.c
+> +++ b/drivers/s390/cio/blacklist.c
+> @@ -391,28 +391,15 @@ static const struct seq_operations cio_ignore_proc_seq_ops = {
+>  	.show  = cio_ignore_proc_seq_show,
+>  };
 >  
-> -static int rtc_proc_open(struct inode *inode, struct file *file)
+> -static int
+> -cio_ignore_proc_open(struct inode *inode, struct file *file)
 > -{
-> -	int ret;
-> -	struct rtc_device *rtc = PDE_DATA(inode);
-> -
-> -	if (!try_module_get(rtc->owner))
-> -		return -ENODEV;
-> -
-> -	ret = single_open(file, rtc_proc_show, rtc);
-> -	if (ret)
-> -		module_put(rtc->owner);
-> -	return ret;
+> -	return seq_open_private(file, &cio_ignore_proc_seq_ops,
+> -				sizeof(struct ccwdev_iter));
 > -}
 > -
-> -static int rtc_proc_release(struct inode *inode, struct file *file)
-> -{
-> -	int res = single_release(inode, file);
-> -	struct rtc_device *rtc = PDE_DATA(inode);
-> -
-> -	module_put(rtc->owner);
-> -	return res;
-> -}
-> -
-> -static const struct file_operations rtc_proc_fops = {
-> -	.open		= rtc_proc_open,
-> -	.read		= seq_read,
-> -	.llseek		= seq_lseek,
-> -	.release	= rtc_proc_release,
+> -static const struct file_operations cio_ignore_proc_fops = {
+> -	.open    = cio_ignore_proc_open,
+> -	.read    = seq_read,
+> -	.llseek  = seq_lseek,
+> -	.release = seq_release_private,
+> -	.write   = cio_ignore_write,
+                   ^^^^^^^^^^^^^^^^
+The cio_ignore_write() function isn't used any more so compilers will
+complain.
+
 > -};
 > -
->  void rtc_proc_add_device(struct rtc_device *rtc)
+>  static int
+>  cio_ignore_proc_init (void)
 >  {
->  	if (is_rtc_hctosys(rtc))
-> -		proc_create_data("driver/rtc", 0, NULL, &rtc_proc_fops, rtc);
-> +		proc_create_single_data("driver/rtc", 0, NULL, rtc_proc_show,
-> +				rtc);
->  }
+>  	struct proc_dir_entry *entry;
 >  
->  void rtc_proc_del_device(struct rtc_device *rtc)
-> -- 
-> 2.17.0
-> 
+> -	entry = proc_create("cio_ignore", S_IFREG | S_IRUGO | S_IWUSR, NULL,
+> -			    &cio_ignore_proc_fops);
+> +	entry = proc_create_seq_private("cio_ignore",
+> +			S_IFREG | S_IRUGO | S_IWUSR, NULL,
+> +			&cio_ignore_proc_seq_ops, sizeof(struct ccwdev_iter),
+> +			NULL);
+>  	if (!entry)
+>  		return -ENOENT;
+>  	return 0;
 
--- 
-Alexandre Belloni, Bootlin (formerly Free Electrons)
-Embedded Linux and Kernel engineering
-https://bootlin.com
+regards,
+dan carpenter
+
