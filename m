@@ -1,13 +1,13 @@
 Return-Path: <BATV+e1a5265bff2368ff7229+5352+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0AE681057327
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:37:49 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6B63C105732D
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:37:53 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Thu, 19 Apr 2018 14:41:30 +0200
-Message-Id: <20180419124140.9309-30-hch@lst.de>
+Date: Thu, 19 Apr 2018 14:41:35 +0200
+Message-Id: <20180419124140.9309-35-hch@lst.de>
 In-Reply-To: <20180419124140.9309-1-hch@lst.de>
 References: <20180419124140.9309-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 29/39] neigh: switch to proc_create_seq_data
+Subject: [Drbd-dev] [PATCH 34/39] atm: switch to proc_create_seq_private
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,91 +33,147 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-And use proc private data directly instead of doing a detour
-through seq->private.
+And remove proc boilerplate code.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- net/core/neighbour.c | 31 ++++++-------------------------
- 1 file changed, 6 insertions(+), 25 deletions(-)
+ net/atm/proc.c | 72 +++++++++-----------------------------------------
+ 1 file changed, 13 insertions(+), 59 deletions(-)
 
-diff --git a/net/core/neighbour.c b/net/core/neighbour.c
-index 7b7a14abba28..cbfb6d71b8be 100644
---- a/net/core/neighbour.c
-+++ b/net/core/neighbour.c
-@@ -58,7 +58,7 @@ static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid);
- static int pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
- 
- #ifdef CONFIG_PROC_FS
--static const struct file_operations neigh_stat_seq_fops;
-+static const struct seq_operations neigh_stat_seq_ops;
- #endif
- 
- /*
-@@ -1550,8 +1550,8 @@ void neigh_table_init(int index, struct neigh_table *tbl)
- 		panic("cannot create neighbour cache statistics");
- 
- #ifdef CONFIG_PROC_FS
--	if (!proc_create_data(tbl->id, 0, init_net.proc_net_stat,
--			      &neigh_stat_seq_fops, tbl))
-+	if (!proc_create_seq_data(tbl->id, 0, init_net.proc_net_stat,
-+			      &neigh_stat_seq_ops, tbl))
- 		panic("cannot create neighbour proc dir entry");
- #endif
- 
-@@ -2774,7 +2774,7 @@ EXPORT_SYMBOL(neigh_seq_stop);
- 
- static void *neigh_stat_seq_start(struct seq_file *seq, loff_t *pos)
- {
--	struct neigh_table *tbl = seq->private;
-+	struct neigh_table *tbl = PDE_DATA(file_inode(seq->file));
- 	int cpu;
- 
- 	if (*pos == 0)
-@@ -2791,7 +2791,7 @@ static void *neigh_stat_seq_start(struct seq_file *seq, loff_t *pos)
- 
- static void *neigh_stat_seq_next(struct seq_file *seq, void *v, loff_t *pos)
- {
--	struct neigh_table *tbl = seq->private;
-+	struct neigh_table *tbl = PDE_DATA(file_inode(seq->file));
- 	int cpu;
- 
- 	for (cpu = *pos; cpu < nr_cpu_ids; ++cpu) {
-@@ -2810,7 +2810,7 @@ static void neigh_stat_seq_stop(struct seq_file *seq, void *v)
- 
- static int neigh_stat_seq_show(struct seq_file *seq, void *v)
- {
--	struct neigh_table *tbl = seq->private;
-+	struct neigh_table *tbl = PDE_DATA(file_inode(seq->file));
- 	struct neigh_statistics *st = v;
- 
- 	if (v == SEQ_START_TOKEN) {
-@@ -2849,25 +2849,6 @@ static const struct seq_operations neigh_stat_seq_ops = {
- 	.stop	= neigh_stat_seq_stop,
- 	.show	= neigh_stat_seq_show,
+diff --git a/net/atm/proc.c b/net/atm/proc.c
+index f272b0f59d82..0b0495a41bbe 100644
+--- a/net/atm/proc.c
++++ b/net/atm/proc.c
+@@ -68,7 +68,6 @@ static void atm_dev_info(struct seq_file *seq, const struct atm_dev *dev)
+ struct vcc_state {
+ 	int bucket;
+ 	struct sock *sk;
+-	int family;
  };
--
--static int neigh_stat_seq_open(struct inode *inode, struct file *file)
--{
--	int ret = seq_open(file, &neigh_stat_seq_ops);
--
--	if (!ret) {
--		struct seq_file *sf = file->private_data;
--		sf->private = PDE_DATA(inode);
--	}
--	return ret;
--};
--
--static const struct file_operations neigh_stat_seq_fops = {
--	.open 	 = neigh_stat_seq_open,
--	.read	 = seq_read,
--	.llseek	 = seq_lseek,
--	.release = seq_release,
--};
--
- #endif /* CONFIG_PROC_FS */
  
- static inline size_t neigh_nlmsg_size(void)
+ static inline int compare_family(struct sock *sk, int family)
+@@ -106,23 +105,13 @@ static int __vcc_walk(struct sock **sock, int family, int *bucket, loff_t l)
+ 	return (l < 0);
+ }
+ 
+-static inline void *vcc_walk(struct vcc_state *state, loff_t l)
++static inline void *vcc_walk(struct seq_file *seq, loff_t l)
+ {
+-	return __vcc_walk(&state->sk, state->family, &state->bucket, l) ?
+-	       state : NULL;
+-}
+-
+-static int __vcc_seq_open(struct inode *inode, struct file *file,
+-	int family, const struct seq_operations *ops)
+-{
+-	struct vcc_state *state;
+-
+-	state = __seq_open_private(file, ops, sizeof(*state));
+-	if (state == NULL)
+-		return -ENOMEM;
++	struct vcc_state *state = seq->private;
++	int family = (uintptr_t)(PDE_DATA(file_inode(seq->file)));
+ 
+-	state->family = family;
+-	return 0;
++	return __vcc_walk(&state->sk, family, &state->bucket, l) ?
++	       state : NULL;
+ }
+ 
+ static void *vcc_seq_start(struct seq_file *seq, loff_t *pos)
+@@ -133,7 +122,7 @@ static void *vcc_seq_start(struct seq_file *seq, loff_t *pos)
+ 
+ 	read_lock(&vcc_sklist_lock);
+ 	state->sk = SEQ_START_TOKEN;
+-	return left ? vcc_walk(state, left) : SEQ_START_TOKEN;
++	return left ? vcc_walk(seq, left) : SEQ_START_TOKEN;
+ }
+ 
+ static void vcc_seq_stop(struct seq_file *seq, void *v)
+@@ -144,9 +133,7 @@ static void vcc_seq_stop(struct seq_file *seq, void *v)
+ 
+ static void *vcc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+ {
+-	struct vcc_state *state = seq->private;
+-
+-	v = vcc_walk(state, 1);
++	v = vcc_walk(seq, 1);
+ 	*pos += !!PTR_ERR(v);
+ 	return v;
+ }
+@@ -280,18 +267,6 @@ static const struct seq_operations pvc_seq_ops = {
+ 	.show	= pvc_seq_show,
+ };
+ 
+-static int pvc_seq_open(struct inode *inode, struct file *file)
+-{
+-	return __vcc_seq_open(inode, file, PF_ATMPVC, &pvc_seq_ops);
+-}
+-
+-static const struct file_operations pvc_seq_fops = {
+-	.open		= pvc_seq_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= seq_release_private,
+-};
+-
+ static int vcc_seq_show(struct seq_file *seq, void *v)
+ {
+ 	if (v == SEQ_START_TOKEN) {
+@@ -314,18 +289,6 @@ static const struct seq_operations vcc_seq_ops = {
+ 	.show	= vcc_seq_show,
+ };
+ 
+-static int vcc_seq_open(struct inode *inode, struct file *file)
+-{
+-	return __vcc_seq_open(inode, file, 0, &vcc_seq_ops);
+-}
+-
+-static const struct file_operations vcc_seq_fops = {
+-	.open		= vcc_seq_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= seq_release_private,
+-};
+-
+ static int svc_seq_show(struct seq_file *seq, void *v)
+ {
+ 	static const char atm_svc_banner[] =
+@@ -349,18 +312,6 @@ static const struct seq_operations svc_seq_ops = {
+ 	.show	= svc_seq_show,
+ };
+ 
+-static int svc_seq_open(struct inode *inode, struct file *file)
+-{
+-	return __vcc_seq_open(inode, file, PF_ATMSVC, &svc_seq_ops);
+-}
+-
+-static const struct file_operations svc_seq_fops = {
+-	.open		= svc_seq_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= seq_release_private,
+-};
+-
+ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
+ 				 size_t count, loff_t *pos)
+ {
+@@ -434,9 +385,12 @@ int __init atm_proc_init(void)
+ 	if (!atm_proc_root)
+ 		return -ENOMEM;
+ 	proc_create_seq("devices", 0444, atm_proc_root, &atm_dev_seq_ops);
+-	proc_create("pvc", 0444, atm_proc_root, &pvc_seq_fops);
+-	proc_create("svc", 0444, atm_proc_root, &svc_seq_fops);
+-	proc_create("vc", 0444, atm_proc_root, &vcc_seq_fops);
++	proc_create_seq_private("pvc", 0444, atm_proc_root, &pvc_seq_ops,
++			sizeof(struct vcc_state), (void *)(uintptr_t)PF_ATMPVC);
++	proc_create_seq_private("svc", 0444, atm_proc_root, &svc_seq_ops,
++			sizeof(struct vcc_state), (void *)(uintptr_t)PF_ATMSVC);
++	proc_create_seq_private("vc", 0444, atm_proc_root, &vcc_seq_ops,
++			sizeof(struct vcc_state), NULL);
+ 	return 0;
+ }
+ 
 -- 
 2.17.0
 
