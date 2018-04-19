@@ -1,13 +1,13 @@
 Return-Path: <BATV+e1a5265bff2368ff7229+5352+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D29801057334
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:38:58 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8778A1057339
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:39:05 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Thu, 19 Apr 2018 14:41:27 +0200
-Message-Id: <20180419124140.9309-27-hch@lst.de>
+Date: Thu, 19 Apr 2018 14:41:23 +0200
+Message-Id: <20180419124140.9309-23-hch@lst.de>
 In-Reply-To: <20180419124140.9309-1-hch@lst.de>
 References: <20180419124140.9309-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 26/39] rtc/proc: switch to proc_create_single_data
+Subject: [Drbd-dev] [PATCH 22/39] jfs: simplify procfs code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,61 +33,262 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-And stop trying to get a reference on the submodule, procfs code deals
-with release after and unloaded module and thus removed proc entry.
+Use remove_proc_subtree to remove the whole subtree on cleanup, and
+unwind the registration loop into individual calls.  Switch to use
+proc_create_seq where applicable.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/rtc/rtc-proc.c | 33 ++-------------------------------
- 1 file changed, 2 insertions(+), 31 deletions(-)
+ fs/jfs/jfs_debug.c    | 43 ++++++++++++++-----------------------------
+ fs/jfs/jfs_debug.h    | 10 +++++-----
+ fs/jfs/jfs_logmgr.c   | 14 +-------------
+ fs/jfs/jfs_metapage.c | 14 +-------------
+ fs/jfs/jfs_txnmgr.c   | 28 ++--------------------------
+ fs/jfs/jfs_xtree.c    | 14 +-------------
+ 6 files changed, 24 insertions(+), 99 deletions(-)
 
-diff --git a/drivers/rtc/rtc-proc.c b/drivers/rtc/rtc-proc.c
-index 31e7e23cc5be..a9dd9218fae2 100644
---- a/drivers/rtc/rtc-proc.c
-+++ b/drivers/rtc/rtc-proc.c
-@@ -107,40 +107,11 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
+diff --git a/fs/jfs/jfs_debug.c b/fs/jfs/jfs_debug.c
+index a70907606025..35a5b2a81ae0 100644
+--- a/fs/jfs/jfs_debug.c
++++ b/fs/jfs/jfs_debug.c
+@@ -29,7 +29,6 @@
+ 
+ #ifdef PROC_FS_JFS /* see jfs_debug.h */
+ 
+-static struct proc_dir_entry *base;
+ #ifdef CONFIG_JFS_DEBUG
+ static int jfs_loglevel_proc_show(struct seq_file *m, void *v)
+ {
+@@ -66,43 +65,29 @@ static const struct file_operations jfs_loglevel_proc_fops = {
+ };
+ #endif
+ 
+-static struct {
+-	const char	*name;
+-	const struct file_operations *proc_fops;
+-} Entries[] = {
+-#ifdef CONFIG_JFS_STATISTICS
+-	{ "lmstats",	&jfs_lmstats_proc_fops, },
+-	{ "txstats",	&jfs_txstats_proc_fops, },
+-	{ "xtstat",	&jfs_xtstat_proc_fops, },
+-	{ "mpstat",	&jfs_mpstat_proc_fops, },
+-#endif
+-#ifdef CONFIG_JFS_DEBUG
+-	{ "TxAnchor",	&jfs_txanchor_proc_fops, },
+-	{ "loglevel",	&jfs_loglevel_proc_fops }
+-#endif
+-};
+-#define NPROCENT	ARRAY_SIZE(Entries)
+-
+ void jfs_proc_init(void)
+ {
+-	int i;
++	struct proc_dir_entry *base;
+ 
+-	if (!(base = proc_mkdir("fs/jfs", NULL)))
++	base = proc_mkdir("fs/jfs", NULL);
++	if (!base)
+ 		return;
+ 
+-	for (i = 0; i < NPROCENT; i++)
+-		proc_create(Entries[i].name, 0, base, Entries[i].proc_fops);
++#ifdef CONFIG_JFS_STATISTICS
++	proc_create_single("lmstats", 0, base, jfs_lmstats_proc_show);
++	proc_create_single("txstats", 0, base, jfs_txstats_proc_show);
++	proc_create_single("xtstat", 0, base, jfs_xtstat_proc_show);
++	proc_create_single("mpstat", 0, base, jfs_mpstat_proc_show);
++#endif
++#ifdef CONFIG_JFS_DEBUG
++	proc_create_single("TxAnchor", 0, base, jfs_txanchor_proc_show);
++	proc_create("loglevel", 0, base, &jfs_loglevel_proc_fops);
++#endif
+ }
+ 
+ void jfs_proc_clean(void)
+ {
+-	int i;
+-
+-	if (base) {
+-		for (i = 0; i < NPROCENT; i++)
+-			remove_proc_entry(Entries[i].name, base);
+-		remove_proc_entry("fs/jfs", NULL);
+-	}
++	remove_proc_subtree("fs/jfs", NULL);
+ }
+ 
+ #endif /* PROC_FS_JFS */
+diff --git a/fs/jfs/jfs_debug.h b/fs/jfs/jfs_debug.h
+index eafd1300a00b..0d9e35da8462 100644
+--- a/fs/jfs/jfs_debug.h
++++ b/fs/jfs/jfs_debug.h
+@@ -62,7 +62,7 @@ extern void jfs_proc_clean(void);
+ 
+ extern int jfsloglevel;
+ 
+-extern const struct file_operations jfs_txanchor_proc_fops;
++int jfs_txanchor_proc_show(struct seq_file *m, void *v);
+ 
+ /* information message: e.g., configuration, major event */
+ #define jfs_info(fmt, arg...) do {			\
+@@ -105,10 +105,10 @@ extern const struct file_operations jfs_txanchor_proc_fops;
+  *	----------
+  */
+ #ifdef	CONFIG_JFS_STATISTICS
+-extern const struct file_operations jfs_lmstats_proc_fops;
+-extern const struct file_operations jfs_txstats_proc_fops;
+-extern const struct file_operations jfs_mpstat_proc_fops;
+-extern const struct file_operations jfs_xtstat_proc_fops;
++int jfs_lmstats_proc_show(struct seq_file *m, void *v);
++int jfs_txstats_proc_show(struct seq_file *m, void *v);
++int jfs_mpstat_proc_show(struct seq_file *m, void *v);
++int jfs_xtstat_proc_show(struct seq_file *m, void *v);
+ 
+ #define	INCREMENT(x)		((x)++)
+ #define	DECREMENT(x)		((x)--)
+diff --git a/fs/jfs/jfs_logmgr.c b/fs/jfs/jfs_logmgr.c
+index 0e5d412c0b01..6b68df395892 100644
+--- a/fs/jfs/jfs_logmgr.c
++++ b/fs/jfs/jfs_logmgr.c
+@@ -2493,7 +2493,7 @@ int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize)
+ }
+ 
+ #ifdef CONFIG_JFS_STATISTICS
+-static int jfs_lmstats_proc_show(struct seq_file *m, void *v)
++int jfs_lmstats_proc_show(struct seq_file *m, void *v)
+ {
+ 	seq_printf(m,
+ 		       "JFS Logmgr stats\n"
+@@ -2510,16 +2510,4 @@ static int jfs_lmstats_proc_show(struct seq_file *m, void *v)
+ 		       lmStat.partial_page);
  	return 0;
  }
- 
--static int rtc_proc_open(struct inode *inode, struct file *file)
+-
+-static int jfs_lmstats_proc_open(struct inode *inode, struct file *file)
 -{
--	int ret;
--	struct rtc_device *rtc = PDE_DATA(inode);
--
--	if (!try_module_get(rtc->owner))
--		return -ENODEV;
--
--	ret = single_open(file, rtc_proc_show, rtc);
--	if (ret)
--		module_put(rtc->owner);
--	return ret;
+-	return single_open(file, jfs_lmstats_proc_show, NULL);
 -}
 -
--static int rtc_proc_release(struct inode *inode, struct file *file)
--{
--	int res = single_release(inode, file);
--	struct rtc_device *rtc = PDE_DATA(inode);
--
--	module_put(rtc->owner);
--	return res;
--}
--
--static const struct file_operations rtc_proc_fops = {
--	.open		= rtc_proc_open,
+-const struct file_operations jfs_lmstats_proc_fops = {
+-	.open		= jfs_lmstats_proc_open,
 -	.read		= seq_read,
 -	.llseek		= seq_lseek,
--	.release	= rtc_proc_release,
+-	.release	= single_release,
 -};
--
- void rtc_proc_add_device(struct rtc_device *rtc)
- {
- 	if (is_rtc_hctosys(rtc))
--		proc_create_data("driver/rtc", 0, NULL, &rtc_proc_fops, rtc);
-+		proc_create_single_data("driver/rtc", 0, NULL, rtc_proc_show,
-+				rtc);
+ #endif /* CONFIG_JFS_STATISTICS */
+diff --git a/fs/jfs/jfs_metapage.c b/fs/jfs/jfs_metapage.c
+index 1a3b0cc22ad3..fa2c6824c7f2 100644
+--- a/fs/jfs/jfs_metapage.c
++++ b/fs/jfs/jfs_metapage.c
+@@ -815,7 +815,7 @@ void __invalidate_metapages(struct inode *ip, s64 addr, int len)
  }
  
- void rtc_proc_del_device(struct rtc_device *rtc)
+ #ifdef CONFIG_JFS_STATISTICS
+-static int jfs_mpstat_proc_show(struct seq_file *m, void *v)
++int jfs_mpstat_proc_show(struct seq_file *m, void *v)
+ {
+ 	seq_printf(m,
+ 		       "JFS Metapage statistics\n"
+@@ -828,16 +828,4 @@ static int jfs_mpstat_proc_show(struct seq_file *m, void *v)
+ 		       mpStat.lockwait);
+ 	return 0;
+ }
+-
+-static int jfs_mpstat_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, jfs_mpstat_proc_show, NULL);
+-}
+-
+-const struct file_operations jfs_mpstat_proc_fops = {
+-	.open		= jfs_mpstat_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+ #endif
+diff --git a/fs/jfs/jfs_txnmgr.c b/fs/jfs/jfs_txnmgr.c
+index 4d973524c887..a5663cb621d8 100644
+--- a/fs/jfs/jfs_txnmgr.c
++++ b/fs/jfs/jfs_txnmgr.c
+@@ -2998,7 +2998,7 @@ int jfs_sync(void *arg)
+ }
+ 
+ #if defined(CONFIG_PROC_FS) && defined(CONFIG_JFS_DEBUG)
+-static int jfs_txanchor_proc_show(struct seq_file *m, void *v)
++int jfs_txanchor_proc_show(struct seq_file *m, void *v)
+ {
+ 	char *freewait;
+ 	char *freelockwait;
+@@ -3032,22 +3032,10 @@ static int jfs_txanchor_proc_show(struct seq_file *m, void *v)
+ 		       list_empty(&TxAnchor.unlock_queue) ? "" : "not ");
+ 	return 0;
+ }
+-
+-static int jfs_txanchor_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, jfs_txanchor_proc_show, NULL);
+-}
+-
+-const struct file_operations jfs_txanchor_proc_fops = {
+-	.open		= jfs_txanchor_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+ #endif
+ 
+ #if defined(CONFIG_PROC_FS) && defined(CONFIG_JFS_STATISTICS)
+-static int jfs_txstats_proc_show(struct seq_file *m, void *v)
++int jfs_txstats_proc_show(struct seq_file *m, void *v)
+ {
+ 	seq_printf(m,
+ 		       "JFS TxStats\n"
+@@ -3072,16 +3060,4 @@ static int jfs_txstats_proc_show(struct seq_file *m, void *v)
+ 		       TxStat.txLockAlloc_freelock);
+ 	return 0;
+ }
+-
+-static int jfs_txstats_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, jfs_txstats_proc_show, NULL);
+-}
+-
+-const struct file_operations jfs_txstats_proc_fops = {
+-	.open		= jfs_txstats_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+ #endif
+diff --git a/fs/jfs/jfs_xtree.c b/fs/jfs/jfs_xtree.c
+index 5cde6d2fcfca..2c200b5256a6 100644
+--- a/fs/jfs/jfs_xtree.c
++++ b/fs/jfs/jfs_xtree.c
+@@ -3874,7 +3874,7 @@ s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size)
+ }
+ 
+ #ifdef CONFIG_JFS_STATISTICS
+-static int jfs_xtstat_proc_show(struct seq_file *m, void *v)
++int jfs_xtstat_proc_show(struct seq_file *m, void *v)
+ {
+ 	seq_printf(m,
+ 		       "JFS Xtree statistics\n"
+@@ -3887,16 +3887,4 @@ static int jfs_xtstat_proc_show(struct seq_file *m, void *v)
+ 		       xtStat.split);
+ 	return 0;
+ }
+-
+-static int jfs_xtstat_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, jfs_xtstat_proc_show, NULL);
+-}
+-
+-const struct file_operations jfs_xtstat_proc_fops = {
+-	.open		= jfs_xtstat_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+ #endif
 -- 
 2.17.0
 
