@@ -1,13 +1,13 @@
 Return-Path: <BATV+e1a5265bff2368ff7229+5352+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CC0401057314
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:38:43 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 69164105732F
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:38:48 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Thu, 19 Apr 2018 14:41:25 +0200
-Message-Id: <20180419124140.9309-25-hch@lst.de>
+Date: Thu, 19 Apr 2018 14:41:24 +0200
+Message-Id: <20180419124140.9309-24-hch@lst.de>
 In-Reply-To: <20180419124140.9309-1-hch@lst.de>
 References: <20180419124140.9309-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 24/39] resource: switch to proc_create_seq_data
+Subject: [Drbd-dev] [PATCH 23/39] staging/rtl8192u: simplify procfs code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,83 +33,97 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-And use the root resource directly from the proc private data.
+Unwind the registration loop into individual calls.  Switch to use
+proc_create_single where applicable.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- kernel/resource.c | 43 +++++--------------------------------------
- 1 file changed, 5 insertions(+), 38 deletions(-)
+ drivers/staging/rtl8192u/r8192U_core.c | 67 ++++++--------------------
+ 1 file changed, 14 insertions(+), 53 deletions(-)
 
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 2af6c03858b9..b589dda910b3 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -87,7 +87,7 @@ enum { MAX_IORES_LEVEL = 5 };
- static void *r_start(struct seq_file *m, loff_t *pos)
- 	__acquires(resource_lock)
- {
--	struct resource *p = m->private;
-+	struct resource *p = PDE_DATA(file_inode(m->file));
- 	loff_t l = 0;
- 	read_lock(&resource_lock);
- 	for (p = p->child; p && l < *pos; p = r_next(m, p, &l))
-@@ -103,7 +103,7 @@ static void r_stop(struct seq_file *m, void *v)
- 
- static int r_show(struct seq_file *m, void *v)
- {
--	struct resource *root = m->private;
-+	struct resource *root = PDE_DATA(file_inode(m->file));
- 	struct resource *r = v, *p;
- 	unsigned long long start, end;
- 	int width = root->end < 0x10000 ? 4 : 8;
-@@ -135,44 +135,11 @@ static const struct seq_operations resource_op = {
- 	.show	= r_show,
- };
- 
--static int ioports_open(struct inode *inode, struct file *file)
--{
--	int res = seq_open(file, &resource_op);
--	if (!res) {
--		struct seq_file *m = file->private_data;
--		m->private = &ioport_resource;
--	}
--	return res;
--}
--
--static int iomem_open(struct inode *inode, struct file *file)
--{
--	int res = seq_open(file, &resource_op);
--	if (!res) {
--		struct seq_file *m = file->private_data;
--		m->private = &iomem_resource;
--	}
--	return res;
--}
--
--static const struct file_operations proc_ioports_operations = {
--	.open		= ioports_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= seq_release,
--};
--
--static const struct file_operations proc_iomem_operations = {
--	.open		= iomem_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= seq_release,
--};
--
- static int __init ioresources_init(void)
- {
--	proc_create("ioports", 0, NULL, &proc_ioports_operations);
--	proc_create("iomem", 0, NULL, &proc_iomem_operations);
-+	proc_create_seq_data("ioports", 0, NULL, &resource_op,
-+			&ioport_resource);
-+	proc_create_seq_data("iomem", 0, NULL, &resource_op, &iomem_resource);
- 	return 0;
+diff --git a/drivers/staging/rtl8192u/r8192U_core.c b/drivers/staging/rtl8192u/r8192U_core.c
+index d607c59761cf..7a0dbc0fa18e 100644
+--- a/drivers/staging/rtl8192u/r8192U_core.c
++++ b/drivers/staging/rtl8192u/r8192U_core.c
+@@ -646,64 +646,25 @@ static void rtl8192_proc_module_init(void)
+ 	rtl8192_proc = proc_mkdir(RTL819xU_MODULE_NAME, init_net.proc_net);
  }
- __initcall(ioresources_init);
+ 
+-/*
+- * seq_file wrappers for procfile show routines.
+- */
+-static int rtl8192_proc_open(struct inode *inode, struct file *file)
+-{
+-	struct net_device *dev = proc_get_parent_data(inode);
+-	int (*show)(struct seq_file *, void *) = PDE_DATA(inode);
+-
+-	return single_open(file, show, dev);
+-}
+-
+-static const struct file_operations rtl8192_proc_fops = {
+-	.open		= rtl8192_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+-
+-/*
+- * Table of proc files we need to create.
+- */
+-struct rtl8192_proc_file {
+-	char name[12];
+-	int (*show)(struct seq_file *, void *);
+-};
+-
+-static const struct rtl8192_proc_file rtl8192_proc_files[] = {
+-	{ "stats-rx",	&proc_get_stats_rx },
+-	{ "stats-tx",	&proc_get_stats_tx },
+-	{ "stats-ap",	&proc_get_stats_ap },
+-	{ "registers",	&proc_get_registers },
+-	{ "" }
+-};
+-
+ static void rtl8192_proc_init_one(struct net_device *dev)
+ {
+-	const struct rtl8192_proc_file *f;
+ 	struct proc_dir_entry *dir;
+ 
+-	if (rtl8192_proc) {
+-		dir = proc_mkdir_data(dev->name, 0, rtl8192_proc, dev);
+-		if (!dir) {
+-			RT_TRACE(COMP_ERR,
+-				 "Unable to initialize /proc/net/rtl8192/%s\n",
+-				 dev->name);
+-			return;
+-		}
++	if (!rtl8192_proc)
++		return;
+ 
+-		for (f = rtl8192_proc_files; f->name[0]; f++) {
+-			if (!proc_create_data(f->name, S_IFREG | S_IRUGO, dir,
+-					      &rtl8192_proc_fops, f->show)) {
+-				RT_TRACE(COMP_ERR,
+-					 "Unable to initialize /proc/net/rtl8192/%s/%s\n",
+-					 dev->name, f->name);
+-				return;
+-			}
+-		}
+-	}
++	dir = proc_mkdir_data(dev->name, 0, rtl8192_proc, dev);
++	if (!dir)
++		return;
++
++	proc_create_single("stats-rx", S_IFREG | S_IRUGO, dir,
++			proc_get_stats_rx);
++	proc_create_single("stats-tx", S_IFREG | S_IRUGO, dir,
++			proc_get_stats_tx);
++	proc_create_single("stats-ap", S_IFREG | S_IRUGO, dir,
++			proc_get_stats_ap);
++	proc_create_single("registers", S_IFREG | S_IRUGO, dir,
++			proc_get_registers);
+ }
+ 
+ static void rtl8192_proc_remove_one(struct net_device *dev)
 -- 
 2.17.0
 
