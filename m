@@ -1,13 +1,13 @@
 Return-Path: <BATV+e1a5265bff2368ff7229+5352+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6B63C105732D
-	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:37:53 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EA4571057318
+	for <drbd-dev@lists.linbit.com>; Thu, 19 Apr 2018 15:38:26 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Thu, 19 Apr 2018 14:41:35 +0200
-Message-Id: <20180419124140.9309-35-hch@lst.de>
+Date: Thu, 19 Apr 2018 14:41:26 +0200
+Message-Id: <20180419124140.9309-26-hch@lst.de>
 In-Reply-To: <20180419124140.9309-1-hch@lst.de>
 References: <20180419124140.9309-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 34/39] atm: switch to proc_create_seq_private
+Subject: [Drbd-dev] [PATCH 25/39] drbd: switch to proc_create_single
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,147 +33,100 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-And remove proc boilerplate code.
+And stop messing with try_module_get on THIS_MODULE, which doesn't make
+any sense here.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- net/atm/proc.c | 72 +++++++++-----------------------------------------
- 1 file changed, 13 insertions(+), 59 deletions(-)
+ drivers/block/drbd/drbd_int.h  |  2 +-
+ drivers/block/drbd/drbd_main.c |  3 ++-
+ drivers/block/drbd/drbd_proc.c | 34 +---------------------------------
+ 3 files changed, 4 insertions(+), 35 deletions(-)
 
-diff --git a/net/atm/proc.c b/net/atm/proc.c
-index f272b0f59d82..0b0495a41bbe 100644
---- a/net/atm/proc.c
-+++ b/net/atm/proc.c
-@@ -68,7 +68,6 @@ static void atm_dev_info(struct seq_file *seq, const struct atm_dev *dev)
- struct vcc_state {
- 	int bucket;
- 	struct sock *sk;
--	int family;
- };
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 06ecee1b528e..461ddec04e7c 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1643,7 +1643,7 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
  
- static inline int compare_family(struct sock *sk, int family)
-@@ -106,23 +105,13 @@ static int __vcc_walk(struct sock **sock, int family, int *bucket, loff_t l)
- 	return (l < 0);
- }
+ /* drbd_proc.c */
+ extern struct proc_dir_entry *drbd_proc;
+-extern const struct file_operations drbd_proc_fops;
++int drbd_seq_show(struct seq_file *seq, void *v);
  
--static inline void *vcc_walk(struct vcc_state *state, loff_t l)
-+static inline void *vcc_walk(struct seq_file *seq, loff_t l)
- {
--	return __vcc_walk(&state->sk, state->family, &state->bucket, l) ?
--	       state : NULL;
--}
+ /* drbd_actlog.c */
+ extern bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 185f1ef00a7c..c2d154faac02 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3010,7 +3010,8 @@ static int __init drbd_init(void)
+ 		goto fail;
+ 
+ 	err = -ENOMEM;
+-	drbd_proc = proc_create_data("drbd", S_IFREG | S_IRUGO , NULL, &drbd_proc_fops, NULL);
++	drbd_proc = proc_create_single("drbd", S_IFREG | S_IRUGO , NULL,
++			drbd_seq_show);
+ 	if (!drbd_proc)	{
+ 		pr_err("unable to register proc file\n");
+ 		goto fail;
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index 582caeb0de86..74ef29247bb5 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -33,18 +33,7 @@
+ #include <linux/drbd.h>
+ #include "drbd_int.h"
+ 
+-static int drbd_proc_open(struct inode *inode, struct file *file);
+-static int drbd_proc_release(struct inode *inode, struct file *file);
 -
--static int __vcc_seq_open(struct inode *inode, struct file *file,
--	int family, const struct seq_operations *ops)
--{
--	struct vcc_state *state;
 -
--	state = __seq_open_private(file, ops, sizeof(*state));
--	if (state == NULL)
--		return -ENOMEM;
-+	struct vcc_state *state = seq->private;
-+	int family = (uintptr_t)(PDE_DATA(file_inode(seq->file)));
- 
--	state->family = family;
--	return 0;
-+	return __vcc_walk(&state->sk, family, &state->bucket, l) ?
-+	       state : NULL;
- }
- 
- static void *vcc_seq_start(struct seq_file *seq, loff_t *pos)
-@@ -133,7 +122,7 @@ static void *vcc_seq_start(struct seq_file *seq, loff_t *pos)
- 
- 	read_lock(&vcc_sklist_lock);
- 	state->sk = SEQ_START_TOKEN;
--	return left ? vcc_walk(state, left) : SEQ_START_TOKEN;
-+	return left ? vcc_walk(seq, left) : SEQ_START_TOKEN;
- }
- 
- static void vcc_seq_stop(struct seq_file *seq, void *v)
-@@ -144,9 +133,7 @@ static void vcc_seq_stop(struct seq_file *seq, void *v)
- 
- static void *vcc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
- {
--	struct vcc_state *state = seq->private;
--
--	v = vcc_walk(state, 1);
-+	v = vcc_walk(seq, 1);
- 	*pos += !!PTR_ERR(v);
- 	return v;
- }
-@@ -280,18 +267,6 @@ static const struct seq_operations pvc_seq_ops = {
- 	.show	= pvc_seq_show,
- };
- 
--static int pvc_seq_open(struct inode *inode, struct file *file)
--{
--	return __vcc_seq_open(inode, file, PF_ATMPVC, &pvc_seq_ops);
--}
--
--static const struct file_operations pvc_seq_fops = {
--	.open		= pvc_seq_open,
+ struct proc_dir_entry *drbd_proc;
+-const struct file_operations drbd_proc_fops = {
+-	.owner		= THIS_MODULE,
+-	.open		= drbd_proc_open,
 -	.read		= seq_read,
 -	.llseek		= seq_lseek,
--	.release	= seq_release_private,
+-	.release	= drbd_proc_release,
 -};
--
- static int vcc_seq_show(struct seq_file *seq, void *v)
- {
- 	if (v == SEQ_START_TOKEN) {
-@@ -314,18 +289,6 @@ static const struct seq_operations vcc_seq_ops = {
- 	.show	= vcc_seq_show,
- };
  
--static int vcc_seq_open(struct inode *inode, struct file *file)
--{
--	return __vcc_seq_open(inode, file, 0, &vcc_seq_ops);
--}
--
--static const struct file_operations vcc_seq_fops = {
--	.open		= vcc_seq_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= seq_release_private,
--};
--
- static int svc_seq_show(struct seq_file *seq, void *v)
+ static void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
  {
- 	static const char atm_svc_banner[] =
-@@ -349,18 +312,6 @@ static const struct seq_operations svc_seq_ops = {
- 	.show	= svc_seq_show,
- };
+@@ -235,7 +224,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
+ 	}
+ }
  
--static int svc_seq_open(struct inode *inode, struct file *file)
--{
--	return __vcc_seq_open(inode, file, PF_ATMSVC, &svc_seq_ops);
--}
--
--static const struct file_operations svc_seq_fops = {
--	.open		= svc_seq_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= seq_release_private,
--};
--
- static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
- 				 size_t count, loff_t *pos)
+-static int drbd_seq_show(struct seq_file *seq, void *v)
++int drbd_seq_show(struct seq_file *seq, void *v)
  {
-@@ -434,9 +385,12 @@ int __init atm_proc_init(void)
- 	if (!atm_proc_root)
- 		return -ENOMEM;
- 	proc_create_seq("devices", 0444, atm_proc_root, &atm_dev_seq_ops);
--	proc_create("pvc", 0444, atm_proc_root, &pvc_seq_fops);
--	proc_create("svc", 0444, atm_proc_root, &svc_seq_fops);
--	proc_create("vc", 0444, atm_proc_root, &vcc_seq_fops);
-+	proc_create_seq_private("pvc", 0444, atm_proc_root, &pvc_seq_ops,
-+			sizeof(struct vcc_state), (void *)(uintptr_t)PF_ATMPVC);
-+	proc_create_seq_private("svc", 0444, atm_proc_root, &svc_seq_ops,
-+			sizeof(struct vcc_state), (void *)(uintptr_t)PF_ATMSVC);
-+	proc_create_seq_private("vc", 0444, atm_proc_root, &vcc_seq_ops,
-+			sizeof(struct vcc_state), NULL);
+ 	int i, prev_i = -1;
+ 	const char *sn;
+@@ -345,24 +334,3 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
+ 
  	return 0;
  }
- 
+-
+-static int drbd_proc_open(struct inode *inode, struct file *file)
+-{
+-	int err;
+-
+-	if (try_module_get(THIS_MODULE)) {
+-		err = single_open(file, drbd_seq_show, NULL);
+-		if (err)
+-			module_put(THIS_MODULE);
+-		return err;
+-	}
+-	return -ENODEV;
+-}
+-
+-static int drbd_proc_release(struct inode *inode, struct file *file)
+-{
+-	module_put(THIS_MODULE);
+-	return single_release(inode, file);
+-}
+-
+-/* PROC FS stuff end */
 -- 
 2.17.0
 
