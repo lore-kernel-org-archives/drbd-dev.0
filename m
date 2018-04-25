@@ -1,13 +1,13 @@
 Return-Path: <BATV+8b59ddf2a3dd4691ec7e+5358+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D0CB3105732C
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:06:43 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 50EED105732D
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:06:44 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 25 Apr 2018 17:48:25 +0200
-Message-Id: <20180425154827.32251-39-hch@lst.de>
+Date: Wed, 25 Apr 2018 17:48:24 +0200
+Message-Id: <20180425154827.32251-38-hch@lst.de>
 In-Reply-To: <20180425154827.32251-1-hch@lst.de>
 References: <20180425154827.32251-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,8 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 38/40] ide: remove ide_driver_proc_write
+Subject: [Drbd-dev] [PATCH 37/40] proc: don't detour through seq->private to
+	get the inode
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,77 +34,60 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The driver proc file hasn't been writeable for a long time, so this is
-just dead code.
-
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/ide/ide-proc.c | 46 ------------------------------------------
- 1 file changed, 46 deletions(-)
+ fs/proc/array.c | 18 ++++--------------
+ 1 file changed, 4 insertions(+), 14 deletions(-)
 
-diff --git a/drivers/ide/ide-proc.c b/drivers/ide/ide-proc.c
-index 863db44c7916..b3b8b8822d6a 100644
---- a/drivers/ide/ide-proc.c
-+++ b/drivers/ide/ide-proc.c
-@@ -528,58 +528,12 @@ static int ide_driver_proc_open(struct inode *inode, struct file *file)
- 	return single_open(file, ide_driver_proc_show, PDE_DATA(inode));
+diff --git a/fs/proc/array.c b/fs/proc/array.c
+index ae2c807fd719..b34796b562ef 100644
+--- a/fs/proc/array.c
++++ b/fs/proc/array.c
+@@ -677,7 +677,7 @@ get_children_pid(struct inode *inode, struct pid *pid_prev, loff_t pos)
+ 
+ static int children_seq_show(struct seq_file *seq, void *v)
+ {
+-	struct inode *inode = seq->private;
++	struct inode *inode = file_inode(seq->file);
+ 	pid_t pid;
+ 
+ 	pid = pid_nr_ns(v, inode->i_sb->s_fs_info);
+@@ -688,14 +688,14 @@ static int children_seq_show(struct seq_file *seq, void *v)
+ 
+ static void *children_seq_start(struct seq_file *seq, loff_t *pos)
+ {
+-	return get_children_pid(seq->private, NULL, *pos);
++	return get_children_pid(file_inode(seq->file), NULL, *pos);
  }
  
--static int ide_replace_subdriver(ide_drive_t *drive, const char *driver)
--{
--	struct device *dev = &drive->gendev;
--	int ret = 1;
--	int err;
+ static void *children_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+ {
+ 	struct pid *pid;
+ 
+-	pid = get_children_pid(seq->private, v, *pos + 1);
++	pid = get_children_pid(file_inode(seq->file), v, *pos + 1);
+ 	put_pid(v);
+ 
+ 	++*pos;
+@@ -716,17 +716,7 @@ static const struct seq_operations children_seq_ops = {
+ 
+ static int children_seq_open(struct inode *inode, struct file *file)
+ {
+-	struct seq_file *m;
+-	int ret;
 -
--	device_release_driver(dev);
--	/* FIXME: device can still be in use by previous driver */
--	strlcpy(drive->driver_req, driver, sizeof(drive->driver_req));
--	err = device_attach(dev);
--	if (err < 0)
--		printk(KERN_WARNING "IDE: %s: device_attach error: %d\n",
--			__func__, err);
--	drive->driver_req[0] = 0;
--	if (dev->driver == NULL) {
--		err = device_attach(dev);
--		if (err < 0)
--			printk(KERN_WARNING
--				"IDE: %s: device_attach(2) error: %d\n",
--				__func__, err);
--	}
--	if (dev->driver && !strcmp(dev->driver->name, driver))
--		ret = 0;
+-	ret = seq_open(file, &children_seq_ops);
+-	if (ret)
+-		return ret;
+-
+-	m = file->private_data;
+-	m->private = inode;
 -
 -	return ret;
--}
--
--static ssize_t ide_driver_proc_write(struct file *file, const char __user *buffer,
--				     size_t count, loff_t *pos)
--{
--	ide_drive_t	*drive = PDE_DATA(file_inode(file));
--	char name[32];
--
--	if (!capable(CAP_SYS_ADMIN))
--		return -EACCES;
--	if (count > 31)
--		count = 31;
--	if (copy_from_user(name, buffer, count))
--		return -EFAULT;
--	name[count] = '\0';
--	if (ide_replace_subdriver(drive, name))
--		return -EINVAL;
--	return count;
--}
--
- static const struct file_operations ide_driver_proc_fops = {
- 	.owner		= THIS_MODULE,
- 	.open		= ide_driver_proc_open,
- 	.read		= seq_read,
- 	.llseek		= seq_lseek,
- 	.release	= single_release,
--	.write		= ide_driver_proc_write,
- };
++	return seq_open(file, &children_seq_ops);
+ }
  
- static int ide_media_proc_show(struct seq_file *m, void *v)
+ const struct file_operations proc_tid_children_operations = {
 -- 
 2.17.0
 
