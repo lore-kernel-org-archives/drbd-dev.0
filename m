@@ -1,13 +1,13 @@
 Return-Path: <BATV+8b59ddf2a3dd4691ec7e+5358+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C45C9105732E
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:06:44 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 437D5105732F
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:06:45 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 25 Apr 2018 17:48:21 +0200
-Message-Id: <20180425154827.32251-35-hch@lst.de>
+Date: Wed, 25 Apr 2018 17:48:20 +0200
+Message-Id: <20180425154827.32251-34-hch@lst.de>
 In-Reply-To: <20180425154827.32251-1-hch@lst.de>
 References: <20180425154827.32251-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 34/40] atm: simplify procfs code
+Subject: [Drbd-dev] [PATCH 33/40] bluetooth: switch to proc_create_seq_data
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,103 +33,100 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use remove_proc_subtree to remove the whole subtree on cleanup, and
-unwind the registration loop into individual calls.  Switch to use
-proc_create_seq where applicable.
+And use proc private data directly instead of doing a detour
+through seq->private and private state.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- net/atm/proc.c | 65 ++++++--------------------------------------------
- 1 file changed, 7 insertions(+), 58 deletions(-)
+ net/bluetooth/af_bluetooth.c | 40 +++++-------------------------------
+ 1 file changed, 5 insertions(+), 35 deletions(-)
 
-diff --git a/net/atm/proc.c b/net/atm/proc.c
-index 55410c00c7e2..f272b0f59d82 100644
---- a/net/atm/proc.c
-+++ b/net/atm/proc.c
-@@ -257,18 +257,6 @@ static const struct seq_operations atm_dev_seq_ops = {
- 	.show	= atm_dev_seq_show,
+diff --git a/net/bluetooth/af_bluetooth.c b/net/bluetooth/af_bluetooth.c
+index 84d92a077834..3264e1873219 100644
+--- a/net/bluetooth/af_bluetooth.c
++++ b/net/bluetooth/af_bluetooth.c
+@@ -605,15 +605,10 @@ int bt_sock_wait_ready(struct sock *sk, unsigned long flags)
+ EXPORT_SYMBOL(bt_sock_wait_ready);
+ 
+ #ifdef CONFIG_PROC_FS
+-struct bt_seq_state {
+-	struct bt_sock_list *l;
+-};
+-
+ static void *bt_seq_start(struct seq_file *seq, loff_t *pos)
+ 	__acquires(seq->private->l->lock)
+ {
+-	struct bt_seq_state *s = seq->private;
+-	struct bt_sock_list *l = s->l;
++	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+ 
+ 	read_lock(&l->lock);
+ 	return seq_hlist_start_head(&l->head, *pos);
+@@ -621,8 +616,7 @@ static void *bt_seq_start(struct seq_file *seq, loff_t *pos)
+ 
+ static void *bt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+ {
+-	struct bt_seq_state *s = seq->private;
+-	struct bt_sock_list *l = s->l;
++	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+ 
+ 	return seq_hlist_next(v, &l->head, pos);
+ }
+@@ -630,16 +624,14 @@ static void *bt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+ static void bt_seq_stop(struct seq_file *seq, void *v)
+ 	__releases(seq->private->l->lock)
+ {
+-	struct bt_seq_state *s = seq->private;
+-	struct bt_sock_list *l = s->l;
++	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+ 
+ 	read_unlock(&l->lock);
+ }
+ 
+ static int bt_seq_show(struct seq_file *seq, void *v)
+ {
+-	struct bt_seq_state *s = seq->private;
+-	struct bt_sock_list *l = s->l;
++	struct bt_sock_list *l = PDE_DATA(file_inode(seq->file));
+ 
+ 	if (v == SEQ_START_TOKEN) {
+ 		seq_puts(seq ,"sk               RefCnt Rmem   Wmem   User   Inode  Parent");
+@@ -681,35 +673,13 @@ static const struct seq_operations bt_seq_ops = {
+ 	.show  = bt_seq_show,
  };
  
--static int atm_dev_seq_open(struct inode *inode, struct file *file)
+-static int bt_seq_open(struct inode *inode, struct file *file)
 -{
--	return seq_open(file, &atm_dev_seq_ops);
+-	struct bt_sock_list *sk_list;
+-	struct bt_seq_state *s;
+-
+-	sk_list = PDE_DATA(inode);
+-	s = __seq_open_private(file, &bt_seq_ops,
+-			       sizeof(struct bt_seq_state));
+-	if (!s)
+-		return -ENOMEM;
+-
+-	s->l = sk_list;
+-	return 0;
 -}
 -
--static const struct file_operations devices_seq_fops = {
--	.open		= atm_dev_seq_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= seq_release,
+-static const struct file_operations bt_fops = {
+-	.open = bt_seq_open,
+-	.read = seq_read,
+-	.llseek = seq_lseek,
+-	.release = seq_release_private
 -};
 -
- static int pvc_seq_show(struct seq_file *seq, void *v)
+ int bt_procfs_init(struct net *net, const char *name,
+ 		   struct bt_sock_list *sk_list,
+ 		   int (* seq_show)(struct seq_file *, void *))
  {
- 	static char atm_pvc_banner[] =
-@@ -440,58 +428,19 @@ void atm_proc_dev_deregister(struct atm_dev *dev)
- 	kfree(dev->proc_name);
- }
+ 	sk_list->custom_seq_show = seq_show;
  
--static struct atm_proc_entry {
--	char *name;
--	const struct file_operations *proc_fops;
--	struct proc_dir_entry *dirent;
--} atm_proc_ents[] = {
--	{ .name = "devices",	.proc_fops = &devices_seq_fops },
--	{ .name = "pvc",	.proc_fops = &pvc_seq_fops },
--	{ .name = "svc",	.proc_fops = &svc_seq_fops },
--	{ .name = "vc",		.proc_fops = &vcc_seq_fops },
--	{ .name = NULL,		.proc_fops = NULL }
--};
--
--static void atm_proc_dirs_remove(void)
--{
--	static struct atm_proc_entry *e;
--
--	for (e = atm_proc_ents; e->name; e++) {
--		if (e->dirent)
--			remove_proc_entry(e->name, atm_proc_root);
--	}
--	remove_proc_entry("atm", init_net.proc_net);
--}
--
- int __init atm_proc_init(void)
- {
--	static struct atm_proc_entry *e;
--	int ret;
--
- 	atm_proc_root = proc_net_mkdir(&init_net, "atm", init_net.proc_net);
- 	if (!atm_proc_root)
--		goto err_out;
--	for (e = atm_proc_ents; e->name; e++) {
--		struct proc_dir_entry *dirent;
--
--		dirent = proc_create(e->name, 0444,
--				     atm_proc_root, e->proc_fops);
--		if (!dirent)
--			goto err_out_remove;
--		e->dirent = dirent;
--	}
--	ret = 0;
--out:
--	return ret;
--
--err_out_remove:
--	atm_proc_dirs_remove();
--err_out:
--	ret = -ENOMEM;
--	goto out;
-+		return -ENOMEM;
-+	proc_create_seq("devices", 0444, atm_proc_root, &atm_dev_seq_ops);
-+	proc_create("pvc", 0444, atm_proc_root, &pvc_seq_fops);
-+	proc_create("svc", 0444, atm_proc_root, &svc_seq_fops);
-+	proc_create("vc", 0444, atm_proc_root, &vcc_seq_fops);
-+	return 0;
- }
- 
- void atm_proc_exit(void)
- {
--	atm_proc_dirs_remove();
-+	remove_proc_subtree("atm", init_net.proc_net);
+-	if (!proc_create_data(name, 0, net->proc_net, &bt_fops, sk_list))
++	if (!proc_create_seq_data(name, 0, net->proc_net, &bt_seq_ops, sk_list))
+ 		return -ENOMEM;
+ 	return 0;
  }
 -- 
 2.17.0
