@@ -1,26 +1,41 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr0-f196.google.com (mail-wr0-f196.google.com
-	[209.85.128.196])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E85E11057321
-	for <drbd-dev@lists.linbit.com>; Wed,  2 May 2018 17:35:57 +0200 (CEST)
-Received: by mail-wr0-f196.google.com with SMTP id 94-v6so13183476wrf.5
-	for <drbd-dev@lists.linbit.com>; Wed, 02 May 2018 08:35:57 -0700 (PDT)
+Received: from mail-wr0-f194.google.com (mail-wr0-f194.google.com
+	[209.85.128.194])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1A5B81057321
+	for <drbd-dev@lists.linbit.com>; Wed,  2 May 2018 17:38:07 +0200 (CEST)
+Received: by mail-wr0-f194.google.com with SMTP id c14-v6so14510794wrd.4
+	for <drbd-dev@lists.linbit.com>; Wed, 02 May 2018 08:38:07 -0700 (PDT)
 Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	194sm6014426wml.20.2018.05.02.08.35.56
+	12sm17674428wmn.27.2018.05.02.08.38.06
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Wed, 02 May 2018 08:35:57 -0700 (PDT)
-Resent-Message-ID: <20180502153556.GP10032@soda.linbit>
-Received: from mail.xen.prgmr.com (mail.prgmr.com [71.19.149.6])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E1BCB1057321
-	for <drbd-dev@lists.linbit.com>; Mon, 30 Apr 2018 03:20:47 +0200 (CEST)
-From: Sarah Newman <srn@prgmr.com>
-To: philipp.reisner@linbit.com,
-	lars.ellenberg@linbit.com
-Date: Sun, 29 Apr 2018 18:19:18 -0700
-Message-Id: <1525051158-18696-1-git-send-email-srn@prgmr.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] drbd: avoid use-after-free in drbd_request_endio
+	Wed, 02 May 2018 08:38:06 -0700 (PDT)
+Resent-Message-ID: <20180502153805.GQ10032@soda.linbit>
+Received: from mail.bootlin.com (mail.bootlin.com [62.4.15.54])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 783FA1057322
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 20:25:48 +0200 (CEST)
+Date: Wed, 25 Apr 2018 20:25:37 +0200
+From: Alexandre Belloni <alexandre.belloni@bootlin.com>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <20180425182537.GG4813@piout.net>
+References: <20180425154827.32251-1-hch@lst.de>
+	<20180425154827.32251-28-hch@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180425154827.32251-28-hch@lst.de>
+Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
+	jfs-discussion@lists.sourceforge.net, devel@driverdev.osuosl.org,
+	linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	linux-kernel@vger.kernel.org, linux-afs@lists.infradead.org,
+	linux-acpi@vger.kernel.org, netdev@vger.kernel.org,
+	netfilter-devel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>,
+	Jiri Slaby <jslaby@suse.com>, Andrew Morton <akpm@linux-foundation.org>,
+	linux-ext4@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
+	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 27/40] rtc/proc: switch to
+	proc_create_single_data
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,66 +47,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-It appears that bio_put(req->private_bio) may put the bio being
-passed in, after which point accessing bio will no longer be
-valid. Make a local copy of bio->bi_error before then.
+On 25/04/2018 17:48:14+0200, Christoph Hellwig wrote:
+> And stop trying to get a reference on the submodule, procfs code deals
+> with release after and unloaded module and thus removed proc entry.
+small typo here        ^
 
-Without this patch, with CONFIG_DEBUG_PAGEALLOC the debug message
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-"role( Secondary -> Primary )"
+Acked-by: Alexandre Belloni <alexandre.belloni@bootlin.com>
 
-is followed by
 
-"BUG: unable to handle kernel paging request"
+> ---
+>  drivers/rtc/rtc-proc.c | 33 ++-------------------------------
+>  1 file changed, 2 insertions(+), 31 deletions(-)
+> 
+> diff --git a/drivers/rtc/rtc-proc.c b/drivers/rtc/rtc-proc.c
+> index 31e7e23cc5be..a9dd9218fae2 100644
+> --- a/drivers/rtc/rtc-proc.c
+> +++ b/drivers/rtc/rtc-proc.c
+> @@ -107,40 +107,11 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
+>  	return 0;
+>  }
+>  
+> -static int rtc_proc_open(struct inode *inode, struct file *file)
+> -{
+> -	int ret;
+> -	struct rtc_device *rtc = PDE_DATA(inode);
+> -
+> -	if (!try_module_get(rtc->owner))
+> -		return -ENODEV;
+> -
+> -	ret = single_open(file, rtc_proc_show, rtc);
+> -	if (ret)
+> -		module_put(rtc->owner);
+> -	return ret;
+> -}
+> -
+> -static int rtc_proc_release(struct inode *inode, struct file *file)
+> -{
+> -	int res = single_release(inode, file);
+> -	struct rtc_device *rtc = PDE_DATA(inode);
+> -
+> -	module_put(rtc->owner);
+> -	return res;
+> -}
+> -
+> -static const struct file_operations rtc_proc_fops = {
+> -	.open		= rtc_proc_open,
+> -	.read		= seq_read,
+> -	.llseek		= seq_lseek,
+> -	.release	= rtc_proc_release,
+> -};
+> -
+>  void rtc_proc_add_device(struct rtc_device *rtc)
+>  {
+>  	if (is_rtc_hctosys(rtc))
+> -		proc_create_data("driver/rtc", 0, NULL, &rtc_proc_fops, rtc);
+> +		proc_create_single_data("driver/rtc", 0, NULL, rtc_proc_show,
+> +				rtc);
+>  }
+>  
+>  void rtc_proc_del_device(struct rtc_device *rtc)
+> -- 
+> 2.17.0
+> 
 
-This applies to versions before 4e4cbee93d561, first released
-in v4.13. v4.13+ appears to have a similar bug.
-
-Signed-off-by: Sarah Newman <srn@prgmr.com>
----
- drivers/block/drbd/drbd_worker.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index c6755c9..e9992b8 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -209,6 +209,7 @@ void drbd_request_endio(struct bio *bio)
- 	struct drbd_device *device = req->device;
- 	struct bio_and_error m;
- 	enum drbd_req_event what;
-+	int bi_error = bio->bi_error;
- 
- 	/* If this request was aborted locally before,
- 	 * but now was completed "successfully",
-@@ -242,15 +243,15 @@ void drbd_request_endio(struct bio *bio)
- 		if (__ratelimit(&drbd_ratelimit_state))
- 			drbd_emerg(device, "delayed completion of aborted local request; disk-timeout may be too aggressive\n");
- 
--		if (!bio->bi_error)
-+		if (!bi_error)
- 			drbd_panic_after_delayed_completion_of_aborted_request(device);
- 	}
- 
- 	/* to avoid recursion in __req_mod */
--	if (unlikely(bio->bi_error)) {
-+	if (unlikely(bi_error)) {
- 		switch (bio_op(bio)) {
- 		case REQ_OP_DISCARD:
--			if (bio->bi_error == -EOPNOTSUPP)
-+			if (bi_error == -EOPNOTSUPP)
- 				what = DISCARD_COMPLETED_NOTSUPP;
- 			else
- 				what = DISCARD_COMPLETED_WITH_ERROR;
-@@ -270,7 +271,7 @@ void drbd_request_endio(struct bio *bio)
- 	}
- 
- 	bio_put(req->private_bio);
--	req->private_bio = ERR_PTR(bio->bi_error);
-+	req->private_bio = ERR_PTR(bi_error);
- 
- 	/* not req_mod(), we need irqsave here! */
- 	spin_lock_irqsave(&device->resource->req_lock, flags);
 -- 
-1.9.1
-
+Alexandre Belloni, Bootlin (formerly Free Electrons)
+Embedded Linux and Kernel engineering
+https://bootlin.com
