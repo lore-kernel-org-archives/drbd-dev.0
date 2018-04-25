@@ -1,13 +1,13 @@
 Return-Path: <BATV+8b59ddf2a3dd4691ec7e+5358+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 313261057339
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 17:50:28 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BA72F1057314
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:06:41 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 25 Apr 2018 17:48:05 +0200
-Message-Id: <20180425154827.32251-19-hch@lst.de>
+Date: Wed, 25 Apr 2018 17:48:19 +0200
+Message-Id: <20180425154827.32251-33-hch@lst.de>
 In-Reply-To: <20180425154827.32251-1-hch@lst.de>
 References: <20180425154827.32251-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,8 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 18/40] sgi-gru: simplify procfs code
+Subject: [Drbd-dev] [PATCH 32/40] netfilter/x_tables: switch to
+	proc_create_seq_private
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,124 +34,87 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use remove_proc_subtree to remove the whole subtree on cleanup, and
-unwind the registration loop into individual calls.  Switch to use
-proc_create_seq where applicable.
+And remove proc boilerplate code.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/misc/sgi-gru/gruprocfs.c | 81 ++++++--------------------------
- 1 file changed, 14 insertions(+), 67 deletions(-)
+ net/netfilter/x_tables.c | 42 ++++++----------------------------------
+ 1 file changed, 6 insertions(+), 36 deletions(-)
 
-diff --git a/drivers/misc/sgi-gru/gruprocfs.c b/drivers/misc/sgi-gru/gruprocfs.c
-index 4f7635922394..42ea2eccaee9 100644
---- a/drivers/misc/sgi-gru/gruprocfs.c
-+++ b/drivers/misc/sgi-gru/gruprocfs.c
-@@ -270,16 +270,6 @@ static int options_open(struct inode *inode, struct file *file)
- 	return single_open(file, options_show, NULL);
- }
- 
--static int cch_open(struct inode *inode, struct file *file)
--{
--	return seq_open(file, &cch_seq_ops);
--}
--
--static int gru_open(struct inode *inode, struct file *file)
--{
--	return seq_open(file, &gru_seq_ops);
--}
--
- /* *INDENT-OFF* */
- static const struct file_operations statistics_fops = {
- 	.open 		= statistics_open,
-@@ -305,73 +295,30 @@ static const struct file_operations options_fops = {
- 	.release 	= single_release,
+diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
+index 344dd01a5027..0e314f95a4a3 100644
+--- a/net/netfilter/x_tables.c
++++ b/net/netfilter/x_tables.c
+@@ -1648,22 +1648,6 @@ static const struct seq_operations xt_match_seq_ops = {
+ 	.show	= xt_match_seq_show,
  };
  
--static const struct file_operations cch_fops = {
--	.open 		= cch_open,
--	.read 		= seq_read,
--	.llseek 	= seq_lseek,
--	.release 	= seq_release,
--};
--static const struct file_operations gru_fops = {
--	.open 		= gru_open,
--	.read 		= seq_read,
--	.llseek 	= seq_lseek,
--	.release 	= seq_release,
--};
--
--static struct proc_entry {
--	char *name;
--	umode_t mode;
--	const struct file_operations *fops;
--	struct proc_dir_entry *entry;
--} proc_files[] = {
--	{"statistics", 0644, &statistics_fops},
--	{"mcs_statistics", 0644, &mcs_statistics_fops},
--	{"debug_options", 0644, &options_fops},
--	{"cch_status", 0444, &cch_fops},
--	{"gru_status", 0444, &gru_fops},
--	{NULL}
--};
--/* *INDENT-ON* */
--
- static struct proc_dir_entry *proc_gru __read_mostly;
- 
--static int create_proc_file(struct proc_entry *p)
+-static int xt_match_open(struct inode *inode, struct file *file)
 -{
--	p->entry = proc_create(p->name, p->mode, proc_gru, p->fops);
--	if (!p->entry)
--		return -1;
+-	struct nf_mttg_trav *trav;
+-	trav = __seq_open_private(file, &xt_match_seq_ops, sizeof(*trav));
+-	if (!trav)
+-		return -ENOMEM;
 -	return 0;
 -}
 -
--static void delete_proc_files(void)
--{
--	struct proc_entry *p;
+-static const struct file_operations xt_match_ops = {
+-	.open	 = xt_match_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = seq_release_private,
+-};
 -
--	if (proc_gru) {
--		for (p = proc_files; p->name; p++)
--			if (p->entry)
--				remove_proc_entry(p->name, proc_gru);
--		proc_remove(proc_gru);
--	}
+ static void *xt_target_seq_start(struct seq_file *seq, loff_t *pos)
+ {
+ 	return xt_mttg_seq_start(seq, pos, true);
+@@ -1698,22 +1682,6 @@ static const struct seq_operations xt_target_seq_ops = {
+ 	.show	= xt_target_seq_show,
+ };
+ 
+-static int xt_target_open(struct inode *inode, struct file *file)
+-{
+-	struct nf_mttg_trav *trav;
+-	trav = __seq_open_private(file, &xt_target_seq_ops, sizeof(*trav));
+-	if (!trav)
+-		return -ENOMEM;
+-	return 0;
 -}
 -
- int gru_proc_init(void)
- {
--	struct proc_entry *p;
+-static const struct file_operations xt_target_ops = {
+-	.open	 = xt_target_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = seq_release_private,
+-};
 -
- 	proc_gru = proc_mkdir("sgi_uv/gru", NULL);
--
--	for (p = proc_files; p->name; p++)
--		if (create_proc_file(p))
--			goto err;
-+	if (!proc_gru)
-+		return -1;
-+	if (!proc_create("statistics", 0644, proc_gru, &statistics_fops))
-+		goto err;
-+	if (!proc_create("mcs_statistics", 0644, proc_gru, &mcs_statistics_fops))
-+		goto err;
-+	if (!proc_create("debug_options", 0644, proc_gru, &options_fops))
-+		goto err;
-+	if (!proc_create_seq("cch_status", 0444, proc_gru, &cch_seq_ops))
-+		goto err;
-+	if (!proc_create_seq("gru_status", 0444, proc_gru, &gru_seq_ops))
-+		goto err;
- 	return 0;
--
- err:
--	delete_proc_files();
-+	remove_proc_subtree("sgi_uv/gru", NULL);
- 	return -1;
- }
+ #define FORMAT_TABLES	"_tables_names"
+ #define	FORMAT_MATCHES	"_tables_matches"
+ #define FORMAT_TARGETS 	"_tables_targets"
+@@ -1787,8 +1755,9 @@ int xt_proto_init(struct net *net, u_int8_t af)
  
- void gru_proc_exit(void)
- {
--	delete_proc_files();
-+	remove_proc_subtree("sgi_uv/gru", NULL);
- }
+ 	strlcpy(buf, xt_prefix[af], sizeof(buf));
+ 	strlcat(buf, FORMAT_MATCHES, sizeof(buf));
+-	proc = proc_create_data(buf, 0440, net->proc_net, &xt_match_ops,
+-				(void *)(unsigned long)af);
++	proc = proc_create_seq_private(buf, 0440, net->proc_net,
++			&xt_match_seq_ops, sizeof(struct nf_mttg_trav),
++			(void *)(unsigned long)af);
+ 	if (!proc)
+ 		goto out_remove_tables;
+ 	if (uid_valid(root_uid) && gid_valid(root_gid))
+@@ -1796,8 +1765,9 @@ int xt_proto_init(struct net *net, u_int8_t af)
+ 
+ 	strlcpy(buf, xt_prefix[af], sizeof(buf));
+ 	strlcat(buf, FORMAT_TARGETS, sizeof(buf));
+-	proc = proc_create_data(buf, 0440, net->proc_net, &xt_target_ops,
+-				(void *)(unsigned long)af);
++	proc = proc_create_seq_private(buf, 0440, net->proc_net,
++			 &xt_target_seq_ops, sizeof(struct nf_mttg_trav),
++			 (void *)(unsigned long)af);
+ 	if (!proc)
+ 		goto out_remove_matches;
+ 	if (uid_valid(root_uid) && gid_valid(root_gid))
 -- 
 2.17.0
 
