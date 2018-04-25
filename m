@@ -1,13 +1,13 @@
 Return-Path: <BATV+8b59ddf2a3dd4691ec7e+5358+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 083CB105733B
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8EB9410575A3
 	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:22:08 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 25 Apr 2018 17:48:12 +0200
-Message-Id: <20180425154827.32251-26-hch@lst.de>
+Date: Wed, 25 Apr 2018 17:48:17 +0200
+Message-Id: <20180425154827.32251-31-hch@lst.de>
 In-Reply-To: <20180425154827.32251-1-hch@lst.de>
 References: <20180425154827.32251-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 25/40] resource: switch to proc_create_seq_data
+Subject: [Drbd-dev] [PATCH 30/40] neigh: switch to proc_create_seq_data
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,83 +33,91 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-And use the root resource directly from the proc private data.
+And use proc private data directly instead of doing a detour
+through seq->private.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- kernel/resource.c | 43 +++++--------------------------------------
- 1 file changed, 5 insertions(+), 38 deletions(-)
+ net/core/neighbour.c | 31 ++++++-------------------------
+ 1 file changed, 6 insertions(+), 25 deletions(-)
 
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 2af6c03858b9..b589dda910b3 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -87,7 +87,7 @@ enum { MAX_IORES_LEVEL = 5 };
- static void *r_start(struct seq_file *m, loff_t *pos)
- 	__acquires(resource_lock)
- {
--	struct resource *p = m->private;
-+	struct resource *p = PDE_DATA(file_inode(m->file));
- 	loff_t l = 0;
- 	read_lock(&resource_lock);
- 	for (p = p->child; p && l < *pos; p = r_next(m, p, &l))
-@@ -103,7 +103,7 @@ static void r_stop(struct seq_file *m, void *v)
+diff --git a/net/core/neighbour.c b/net/core/neighbour.c
+index ce519861be59..1fb43bff417d 100644
+--- a/net/core/neighbour.c
++++ b/net/core/neighbour.c
+@@ -59,7 +59,7 @@ static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
+ 				    struct net_device *dev);
  
- static int r_show(struct seq_file *m, void *v)
+ #ifdef CONFIG_PROC_FS
+-static const struct file_operations neigh_stat_seq_fops;
++static const struct seq_operations neigh_stat_seq_ops;
+ #endif
+ 
+ /*
+@@ -1558,8 +1558,8 @@ void neigh_table_init(int index, struct neigh_table *tbl)
+ 		panic("cannot create neighbour cache statistics");
+ 
+ #ifdef CONFIG_PROC_FS
+-	if (!proc_create_data(tbl->id, 0, init_net.proc_net_stat,
+-			      &neigh_stat_seq_fops, tbl))
++	if (!proc_create_seq_data(tbl->id, 0, init_net.proc_net_stat,
++			      &neigh_stat_seq_ops, tbl))
+ 		panic("cannot create neighbour proc dir entry");
+ #endif
+ 
+@@ -2786,7 +2786,7 @@ EXPORT_SYMBOL(neigh_seq_stop);
+ 
+ static void *neigh_stat_seq_start(struct seq_file *seq, loff_t *pos)
  {
--	struct resource *root = m->private;
-+	struct resource *root = PDE_DATA(file_inode(m->file));
- 	struct resource *r = v, *p;
- 	unsigned long long start, end;
- 	int width = root->end < 0x10000 ? 4 : 8;
-@@ -135,44 +135,11 @@ static const struct seq_operations resource_op = {
- 	.show	= r_show,
+-	struct neigh_table *tbl = seq->private;
++	struct neigh_table *tbl = PDE_DATA(file_inode(seq->file));
+ 	int cpu;
+ 
+ 	if (*pos == 0)
+@@ -2803,7 +2803,7 @@ static void *neigh_stat_seq_start(struct seq_file *seq, loff_t *pos)
+ 
+ static void *neigh_stat_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+ {
+-	struct neigh_table *tbl = seq->private;
++	struct neigh_table *tbl = PDE_DATA(file_inode(seq->file));
+ 	int cpu;
+ 
+ 	for (cpu = *pos; cpu < nr_cpu_ids; ++cpu) {
+@@ -2822,7 +2822,7 @@ static void neigh_stat_seq_stop(struct seq_file *seq, void *v)
+ 
+ static int neigh_stat_seq_show(struct seq_file *seq, void *v)
+ {
+-	struct neigh_table *tbl = seq->private;
++	struct neigh_table *tbl = PDE_DATA(file_inode(seq->file));
+ 	struct neigh_statistics *st = v;
+ 
+ 	if (v == SEQ_START_TOKEN) {
+@@ -2861,25 +2861,6 @@ static const struct seq_operations neigh_stat_seq_ops = {
+ 	.stop	= neigh_stat_seq_stop,
+ 	.show	= neigh_stat_seq_show,
  };
+-
+-static int neigh_stat_seq_open(struct inode *inode, struct file *file)
+-{
+-	int ret = seq_open(file, &neigh_stat_seq_ops);
+-
+-	if (!ret) {
+-		struct seq_file *sf = file->private_data;
+-		sf->private = PDE_DATA(inode);
+-	}
+-	return ret;
+-};
+-
+-static const struct file_operations neigh_stat_seq_fops = {
+-	.open 	 = neigh_stat_seq_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = seq_release,
+-};
+-
+ #endif /* CONFIG_PROC_FS */
  
--static int ioports_open(struct inode *inode, struct file *file)
--{
--	int res = seq_open(file, &resource_op);
--	if (!res) {
--		struct seq_file *m = file->private_data;
--		m->private = &ioport_resource;
--	}
--	return res;
--}
--
--static int iomem_open(struct inode *inode, struct file *file)
--{
--	int res = seq_open(file, &resource_op);
--	if (!res) {
--		struct seq_file *m = file->private_data;
--		m->private = &iomem_resource;
--	}
--	return res;
--}
--
--static const struct file_operations proc_ioports_operations = {
--	.open		= ioports_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= seq_release,
--};
--
--static const struct file_operations proc_iomem_operations = {
--	.open		= iomem_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= seq_release,
--};
--
- static int __init ioresources_init(void)
- {
--	proc_create("ioports", 0, NULL, &proc_ioports_operations);
--	proc_create("iomem", 0, NULL, &proc_iomem_operations);
-+	proc_create_seq_data("ioports", 0, NULL, &resource_op,
-+			&ioport_resource);
-+	proc_create_seq_data("iomem", 0, NULL, &resource_op, &iomem_resource);
- 	return 0;
- }
- __initcall(ioresources_init);
+ static inline size_t neigh_nlmsg_size(void)
 -- 
 2.17.0
 
