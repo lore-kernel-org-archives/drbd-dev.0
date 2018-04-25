@@ -1,22 +1,28 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com [74.125.82.65])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 01C451057315
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 13:02:24 +0200 (CEST)
-Received: by mail-wm0-f65.google.com with SMTP id x12so4091199wmc.0
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 04:02:24 -0700 (PDT)
-Date: Wed, 25 Apr 2018 12:54:36 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Message-ID: <20180425105436.5ko6imz66hfsxwk3@rck.sh>
-References: <20180424131410.1603-1-luc.vanoostenryck@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180424131410.1603-1-luc.vanoostenryck@gmail.com>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drdb: fix print_st_err()'s prototype
+Return-Path: <BATV+8b59ddf2a3dd4691ec7e+5358+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 08EF61057314
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 17:48:57 +0200 (CEST)
+From: Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>
+Date: Wed, 25 Apr 2018 17:47:48 +0200
+Message-Id: <20180425154827.32251-2-hch@lst.de>
+In-Reply-To: <20180425154827.32251-1-hch@lst.de>
+References: <20180425154827.32251-1-hch@lst.de>
+Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
+	Alexandre Belloni <alexandre.belloni@bootlin.com>,
+	devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org,
+	linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	jfs-discussion@lists.sourceforge.net,
+	linux-afs@lists.infradead.org, linux-acpi@vger.kernel.org,
+	netdev@vger.kernel.org, netfilter-devel@vger.kernel.org,
+	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 01/40] net/can: single_open_net needs to be
+	paired with single_release_net
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,36 +34,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Apr 24, 2018 at 03:14:10PM +0200, Luc Van Oostenryck wrote:
-> print_st_err() is defined with its 4th argument taking an
-> 'enum drbd_state_rv' but its prototype use an int for it.
-> 
-> Fix this by using 'enum drbd_state_rv' in the prototype too.
-> 
-> Signed-off-by: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-> ---
->  drivers/block/drbd/drbd_state.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
-> index ea58301d0..b2a390ba7 100644
-> --- a/drivers/block/drbd/drbd_state.h
-> +++ b/drivers/block/drbd/drbd_state.h
-> @@ -131,7 +131,7 @@ extern enum drbd_state_rv _drbd_set_state(struct drbd_device *, union drbd_state
->  					  enum chg_state_flags,
->  					  struct completion *done);
->  extern void print_st_err(struct drbd_device *, union drbd_state,
-> -			union drbd_state, int);
-> +			union drbd_state, enum drbd_state_rv);
->  
->  enum drbd_state_rv
->  _conn_request_state(struct drbd_connection *connection, union drbd_state mask, union drbd_state val,
-> -- 
-> 2.17.0
+Otherwise we will leak a reference to the network namespace.
 
-Thanks, looks good.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ net/can/bcm.c  | 2 +-
+ net/can/proc.c | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
-Applied to our internal tree. As usual, we send it mainline bundled with
-other pending changes.
+diff --git a/net/can/bcm.c b/net/can/bcm.c
+index ac5e5e34fee3..8073fa14e143 100644
+--- a/net/can/bcm.c
++++ b/net/can/bcm.c
+@@ -249,7 +249,7 @@ static const struct file_operations bcm_proc_fops = {
+ 	.open		= bcm_proc_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+-	.release	= single_release,
++	.release	= single_release_net,
+ };
+ #endif /* CONFIG_PROC_FS */
+ 
+diff --git a/net/can/proc.c b/net/can/proc.c
+index fdf704e9bb8c..fde2fd55b826 100644
+--- a/net/can/proc.c
++++ b/net/can/proc.c
+@@ -279,7 +279,7 @@ static const struct file_operations can_stats_proc_fops = {
+ 	.open		= can_stats_proc_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+-	.release	= single_release,
++	.release	= single_release_net,
+ };
+ 
+ static int can_reset_stats_proc_show(struct seq_file *m, void *v)
+@@ -449,7 +449,7 @@ static const struct file_operations can_rcvlist_sff_proc_fops = {
+ 	.open		= can_rcvlist_sff_proc_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+-	.release	= single_release,
++	.release	= single_release_net,
+ };
+ 
+ 
+@@ -492,7 +492,7 @@ static const struct file_operations can_rcvlist_eff_proc_fops = {
+ 	.open		= can_rcvlist_eff_proc_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+-	.release	= single_release,
++	.release	= single_release_net,
+ };
+ 
+ /*
+-- 
+2.17.0
 
-Regards, rck
