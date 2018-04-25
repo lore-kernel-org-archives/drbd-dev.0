@@ -1,13 +1,13 @@
 Return-Path: <BATV+8b59ddf2a3dd4691ec7e+5358+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 374791057331
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:06:46 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 349BF1057322
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:22:05 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 25 Apr 2018 17:48:18 +0200
-Message-Id: <20180425154827.32251-32-hch@lst.de>
+Date: Wed, 25 Apr 2018 17:48:06 +0200
+Message-Id: <20180425154827.32251-20-hch@lst.de>
 In-Reply-To: <20180425154827.32251-1-hch@lst.de>
 References: <20180425154827.32251-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,8 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 31/40] netfilter/xt_hashlimit: switch to
-	proc_create_{seq, single}_data
+Subject: [Drbd-dev] [PATCH 19/40] megaraid: simplify procfs code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,209 +33,217 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-And use proc private data directly instead of doing a detour
-through seq->private.
+Use remove_proc_subtree to remove the whole subtree on cleanup, and
+unwind the registration loop into individual calls.  Switch to use
+proc_create_single.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- net/netfilter/xt_hashlimit.c | 92 +++++++-----------------------------
- 1 file changed, 18 insertions(+), 74 deletions(-)
+ drivers/scsi/megaraid.c | 140 +++++++++++-----------------------------
+ drivers/scsi/megaraid.h |  12 ----
+ 2 files changed, 36 insertions(+), 116 deletions(-)
 
-diff --git a/net/netfilter/xt_hashlimit.c b/net/netfilter/xt_hashlimit.c
-index 0cd73567e7ff..9b16402f29af 100644
---- a/net/netfilter/xt_hashlimit.c
-+++ b/net/netfilter/xt_hashlimit.c
-@@ -57,9 +57,9 @@ static inline struct hashlimit_net *hashlimit_pernet(struct net *net)
+diff --git a/drivers/scsi/megaraid.c b/drivers/scsi/megaraid.c
+index 7195cff51d4c..91f5e2c68dbc 100644
+--- a/drivers/scsi/megaraid.c
++++ b/drivers/scsi/megaraid.c
+@@ -2731,53 +2731,6 @@ proc_show_rdrv_40(struct seq_file *m, void *v)
+ 	return proc_show_rdrv(m, m->private, 30, 39);
  }
  
- /* need to declare this at the top */
--static const struct file_operations dl_file_ops_v2;
--static const struct file_operations dl_file_ops_v1;
--static const struct file_operations dl_file_ops;
-+static const struct seq_operations dl_seq_ops_v2;
-+static const struct seq_operations dl_seq_ops_v1;
-+static const struct seq_operations dl_seq_ops;
- 
- /* hash table crap */
- struct dsthash_dst {
-@@ -272,7 +272,7 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
+-
+-/*
+- * seq_file wrappers for procfile show routines.
+- */
+-static int mega_proc_open(struct inode *inode, struct file *file)
+-{
+-	adapter_t *adapter = proc_get_parent_data(inode);
+-	int (*show)(struct seq_file *, void *) = PDE_DATA(inode);
+-
+-	return single_open(file, show, adapter);
+-}
+-
+-static const struct file_operations mega_proc_fops = {
+-	.open		= mega_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+-
+-/*
+- * Table of proc files we need to create.
+- */
+-struct mega_proc_file {
+-	const char *name;
+-	unsigned short ptr_offset;
+-	int (*show) (struct seq_file *m, void *v);
+-};
+-
+-static const struct mega_proc_file mega_proc_files[] = {
+-	{ "config",	      offsetof(adapter_t, proc_read), proc_show_config },
+-	{ "stat",	      offsetof(adapter_t, proc_stat), proc_show_stat },
+-	{ "mailbox",	      offsetof(adapter_t, proc_mbox), proc_show_mbox },
+-#if MEGA_HAVE_ENH_PROC
+-	{ "rebuild-rate",     offsetof(adapter_t, proc_rr), proc_show_rebuild_rate },
+-	{ "battery-status",   offsetof(adapter_t, proc_battery), proc_show_battery },
+-	{ "diskdrives-ch0",   offsetof(adapter_t, proc_pdrvstat[0]), proc_show_pdrv_ch0 },
+-	{ "diskdrives-ch1",   offsetof(adapter_t, proc_pdrvstat[1]), proc_show_pdrv_ch1 },
+-	{ "diskdrives-ch2",   offsetof(adapter_t, proc_pdrvstat[2]), proc_show_pdrv_ch2 },
+-	{ "diskdrives-ch3",   offsetof(adapter_t, proc_pdrvstat[3]), proc_show_pdrv_ch3 },
+-	{ "raiddrives-0-9",   offsetof(adapter_t, proc_rdrvstat[0]), proc_show_rdrv_10 },
+-	{ "raiddrives-10-19", offsetof(adapter_t, proc_rdrvstat[1]), proc_show_rdrv_20 },
+-	{ "raiddrives-20-29", offsetof(adapter_t, proc_rdrvstat[2]), proc_show_rdrv_30 },
+-	{ "raiddrives-30-39", offsetof(adapter_t, proc_rdrvstat[3]), proc_show_rdrv_40 },
+-#endif
+-	{ NULL }
+-};
+-
+ /**
+  * mega_create_proc_entry()
+  * @index - index in soft state array
+@@ -2788,31 +2741,45 @@ static const struct mega_proc_file mega_proc_files[] = {
+ static void
+ mega_create_proc_entry(int index, struct proc_dir_entry *parent)
  {
- 	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
- 	struct xt_hashlimit_htable *hinfo;
--	const struct file_operations *fops;
-+	const struct seq_operations *ops;
- 	unsigned int size, i;
- 	int ret;
+-	const struct mega_proc_file *f;
+-	adapter_t	*adapter = hba_soft_state[index];
+-	struct proc_dir_entry	*dir, *de, **ppde;
+-	u8		string[16];
++	adapter_t *adapter = hba_soft_state[index];
++	struct proc_dir_entry *dir;
++	u8 string[16];
  
-@@ -321,19 +321,19 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
- 
- 	switch (revision) {
- 	case 1:
--		fops = &dl_file_ops_v1;
-+		ops = &dl_seq_ops_v1;
- 		break;
- 	case 2:
--		fops = &dl_file_ops_v2;
-+		ops = &dl_seq_ops_v2;
- 		break;
- 	default:
--		fops = &dl_file_ops;
-+		ops = &dl_seq_ops;
+ 	sprintf(string, "hba%d", adapter->host->host_no);
+-
+-	dir = adapter->controller_proc_dir_entry =
+-		proc_mkdir_data(string, 0, parent, adapter);
+-	if(!dir) {
++	dir = proc_mkdir_data(string, 0, parent, adapter);
++	if (!dir) {
+ 		dev_warn(&adapter->dev->dev, "proc_mkdir failed\n");
+ 		return;
  	}
  
--	hinfo->pde = proc_create_data(name, 0,
-+	hinfo->pde = proc_create_seq_data(name, 0,
- 		(family == NFPROTO_IPV4) ?
- 		hashlimit_net->ipt_hashlimit : hashlimit_net->ip6t_hashlimit,
--		fops, hinfo);
-+		ops, hinfo);
- 	if (hinfo->pde == NULL) {
- 		kfree(hinfo->name);
- 		vfree(hinfo);
-@@ -1057,7 +1057,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
- static void *dl_seq_start(struct seq_file *s, loff_t *pos)
- 	__acquires(htable->lock)
- {
--	struct xt_hashlimit_htable *htable = s->private;
-+	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->private));
- 	unsigned int *bucket;
- 
- 	spin_lock_bh(&htable->lock);
-@@ -1074,7 +1074,7 @@ static void *dl_seq_start(struct seq_file *s, loff_t *pos)
- 
- static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
- {
--	struct xt_hashlimit_htable *htable = s->private;
-+	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->private));
- 	unsigned int *bucket = v;
- 
- 	*pos = ++(*bucket);
-@@ -1088,7 +1088,7 @@ static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
- static void dl_seq_stop(struct seq_file *s, void *v)
- 	__releases(htable->lock)
- {
--	struct xt_hashlimit_htable *htable = s->private;
-+	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->private));
- 	unsigned int *bucket = v;
- 
- 	if (!IS_ERR(bucket))
-@@ -1130,7 +1130,7 @@ static void dl_seq_print(struct dsthash_ent *ent, u_int8_t family,
- static int dl_seq_real_show_v2(struct dsthash_ent *ent, u_int8_t family,
- 			       struct seq_file *s)
- {
--	const struct xt_hashlimit_htable *ht = s->private;
-+	struct xt_hashlimit_htable *ht = PDE_DATA(file_inode(s->private));
- 
- 	spin_lock(&ent->lock);
- 	/* recalculate to show accurate numbers */
-@@ -1145,7 +1145,7 @@ static int dl_seq_real_show_v2(struct dsthash_ent *ent, u_int8_t family,
- static int dl_seq_real_show_v1(struct dsthash_ent *ent, u_int8_t family,
- 			       struct seq_file *s)
- {
--	const struct xt_hashlimit_htable *ht = s->private;
-+	struct xt_hashlimit_htable *ht = PDE_DATA(file_inode(s->private));
- 
- 	spin_lock(&ent->lock);
- 	/* recalculate to show accurate numbers */
-@@ -1160,7 +1160,7 @@ static int dl_seq_real_show_v1(struct dsthash_ent *ent, u_int8_t family,
- static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
- 			    struct seq_file *s)
- {
--	const struct xt_hashlimit_htable *ht = s->private;
-+	struct xt_hashlimit_htable *ht = PDE_DATA(file_inode(s->private));
- 
- 	spin_lock(&ent->lock);
- 	/* recalculate to show accurate numbers */
-@@ -1174,7 +1174,7 @@ static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
- 
- static int dl_seq_show_v2(struct seq_file *s, void *v)
- {
--	struct xt_hashlimit_htable *htable = s->private;
-+	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->private));
- 	unsigned int *bucket = (unsigned int *)v;
- 	struct dsthash_ent *ent;
- 
-@@ -1188,7 +1188,7 @@ static int dl_seq_show_v2(struct seq_file *s, void *v)
- 
- static int dl_seq_show_v1(struct seq_file *s, void *v)
- {
--	struct xt_hashlimit_htable *htable = s->private;
-+	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->private));
- 	unsigned int *bucket = v;
- 	struct dsthash_ent *ent;
- 
-@@ -1202,7 +1202,7 @@ static int dl_seq_show_v1(struct seq_file *s, void *v)
- 
- static int dl_seq_show(struct seq_file *s, void *v)
- {
--	struct xt_hashlimit_htable *htable = s->private;
-+	struct xt_hashlimit_htable *htable = PDE_DATA(file_inode(s->private));
- 	unsigned int *bucket = v;
- 	struct dsthash_ent *ent;
- 
-@@ -1235,62 +1235,6 @@ static const struct seq_operations dl_seq_ops = {
- 	.show  = dl_seq_show
- };
- 
--static int dl_proc_open_v2(struct inode *inode, struct file *file)
--{
--	int ret = seq_open(file, &dl_seq_ops_v2);
+-	for (f = mega_proc_files; f->name; f++) {
+-		de = proc_create_data(f->name, S_IRUSR, dir, &mega_proc_fops,
+-				      f->show);
+-		if (!de) {
+-			dev_warn(&adapter->dev->dev, "proc_create failed\n");
+-			return;
+-		}
 -
--	if (!ret) {
--		struct seq_file *sf = file->private_data;
--
--		sf->private = PDE_DATA(inode);
+-		ppde = (void *)adapter + f->ptr_offset;
+-		*ppde = de;
 -	}
--	return ret;
--}
--
--static int dl_proc_open_v1(struct inode *inode, struct file *file)
--{
--	int ret = seq_open(file, &dl_seq_ops_v1);
--
--	if (!ret) {
--		struct seq_file *sf = file->private_data;
--		sf->private = PDE_DATA(inode);
--	}
--	return ret;
--}
--
--static int dl_proc_open(struct inode *inode, struct file *file)
--{
--	int ret = seq_open(file, &dl_seq_ops);
--
--	if (!ret) {
--		struct seq_file *sf = file->private_data;
--
--		sf->private = PDE_DATA(inode);
--	}
--	return ret;
--}
--
--static const struct file_operations dl_file_ops_v2 = {
--	.open    = dl_proc_open_v2,
--	.read    = seq_read,
--	.llseek  = seq_lseek,
--	.release = seq_release
--};
--
--static const struct file_operations dl_file_ops_v1 = {
--	.open    = dl_proc_open_v1,
--	.read    = seq_read,
--	.llseek  = seq_lseek,
--	.release = seq_release
--};
--
--static const struct file_operations dl_file_ops = {
--	.open    = dl_proc_open,
--	.read    = seq_read,
--	.llseek  = seq_lseek,
--	.release = seq_release
--};
--
- static int __net_init hashlimit_proc_net_init(struct net *net)
++	proc_create_single_data("config", S_IRUSR, dir,
++			proc_show_config, adapter);
++	proc_create_single_data("stat", S_IRUSR, dir,
++			proc_show_stat, adapter);
++	proc_create_single_data("mailbox", S_IRUSR, dir,
++			proc_show_mbox, adapter);
++#if MEGA_HAVE_ENH_PROC
++	proc_create_single_data("rebuild-rate", S_IRUSR, dir,
++			proc_show_rebuild_rate, adapter);
++	proc_create_single_data("battery-status", S_IRUSR, dir,
++			proc_show_battery, adapter);
++	proc_create_single_data("diskdrives-ch0", S_IRUSR, dir,
++			proc_show_pdrv_ch0, adapter);
++	proc_create_single_data("diskdrives-ch1", S_IRUSR, dir,
++			proc_show_pdrv_ch1, adapter);
++	proc_create_single_data("diskdrives-ch2", S_IRUSR, dir,
++			proc_show_pdrv_ch2, adapter);
++	proc_create_single_data("diskdrives-ch3", S_IRUSR, dir,
++			proc_show_pdrv_ch3, adapter);
++	proc_create_single_data("raiddrives-0-9", S_IRUSR, dir,
++			proc_show_rdrv_10, adapter);
++	proc_create_single_data("raiddrives-10-19", S_IRUSR, dir,
++			proc_show_rdrv_20, adapter);
++	proc_create_single_data("raiddrives-20-29", S_IRUSR, dir,
++			proc_show_rdrv_30, adapter);
++	proc_create_single_data("raiddrives-30-39", S_IRUSR, dir,
++			proc_show_rdrv_40, adapter);
++#endif
+ }
+ 
+ #else
+@@ -4580,6 +4547,7 @@ megaraid_remove_one(struct pci_dev *pdev)
  {
- 	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
+ 	struct Scsi_Host *host = pci_get_drvdata(pdev);
+ 	adapter_t *adapter = (adapter_t *)host->hostdata;
++	char buf[12] = { 0 };
+ 
+ 	scsi_remove_host(host);
+ 
+@@ -4594,44 +4562,8 @@ megaraid_remove_one(struct pci_dev *pdev)
+ 
+ 	mega_free_sgl(adapter);
+ 
+-#ifdef CONFIG_PROC_FS
+-	if (adapter->controller_proc_dir_entry) {
+-		remove_proc_entry("stat", adapter->controller_proc_dir_entry);
+-		remove_proc_entry("config",
+-				adapter->controller_proc_dir_entry);
+-		remove_proc_entry("mailbox",
+-				adapter->controller_proc_dir_entry);
+-#if MEGA_HAVE_ENH_PROC
+-		remove_proc_entry("rebuild-rate",
+-				adapter->controller_proc_dir_entry);
+-		remove_proc_entry("battery-status",
+-				adapter->controller_proc_dir_entry);
+-
+-		remove_proc_entry("diskdrives-ch0",
+-				adapter->controller_proc_dir_entry);
+-		remove_proc_entry("diskdrives-ch1",
+-				adapter->controller_proc_dir_entry);
+-		remove_proc_entry("diskdrives-ch2",
+-				adapter->controller_proc_dir_entry);
+-		remove_proc_entry("diskdrives-ch3",
+-				adapter->controller_proc_dir_entry);
+-
+-		remove_proc_entry("raiddrives-0-9",
+-				adapter->controller_proc_dir_entry);
+-		remove_proc_entry("raiddrives-10-19",
+-				adapter->controller_proc_dir_entry);
+-		remove_proc_entry("raiddrives-20-29",
+-				adapter->controller_proc_dir_entry);
+-		remove_proc_entry("raiddrives-30-39",
+-				adapter->controller_proc_dir_entry);
+-#endif
+-		{
+-			char	buf[12] = { 0 };
+-			sprintf(buf, "hba%d", adapter->host->host_no);
+-			remove_proc_entry(buf, mega_proc_dir_entry);
+-		}
+-	}
+-#endif
++	sprintf(buf, "hba%d", adapter->host->host_no);
++	remove_proc_subtree(buf, mega_proc_dir_entry);
+ 
+ 	pci_free_consistent(adapter->dev, MEGA_BUFFER_SIZE,
+ 			adapter->mega_buffer, adapter->buf_dma_handle);
+diff --git a/drivers/scsi/megaraid.h b/drivers/scsi/megaraid.h
+index 21eba2fd465a..18e85d9267ff 100644
+--- a/drivers/scsi/megaraid.h
++++ b/drivers/scsi/megaraid.h
+@@ -814,18 +814,6 @@ typedef struct {
+ 
+ #ifdef CONFIG_PROC_FS
+ 	struct proc_dir_entry	*controller_proc_dir_entry;
+-	struct proc_dir_entry	*proc_read;
+-	struct proc_dir_entry	*proc_stat;
+-	struct proc_dir_entry	*proc_mbox;
+-
+-#if MEGA_HAVE_ENH_PROC
+-	struct proc_dir_entry	*proc_rr;
+-	struct proc_dir_entry	*proc_battery;
+-#define MAX_PROC_CHANNELS	4
+-	struct proc_dir_entry	*proc_pdrvstat[MAX_PROC_CHANNELS];
+-	struct proc_dir_entry	*proc_rdrvstat[MAX_PROC_CHANNELS];
+-#endif
+-
+ #endif
+ 
+ 	int	has_64bit_addr;		/* are we using 64-bit addressing */
 -- 
 2.17.0
 
