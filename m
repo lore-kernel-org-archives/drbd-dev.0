@@ -1,13 +1,13 @@
 Return-Path: <BATV+8b59ddf2a3dd4691ec7e+5358+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 664C61057886
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:22:21 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 07F761057326
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Apr 2018 18:37:19 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 25 Apr 2018 17:48:09 +0200
-Message-Id: <20180425154827.32251-23-hch@lst.de>
+Date: Wed, 25 Apr 2018 17:48:07 +0200
+Message-Id: <20180425154827.32251-21-hch@lst.de>
 In-Reply-To: <20180425154827.32251-1-hch@lst.de>
 References: <20180425154827.32251-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 22/40] ext4: simplify procfs code
+Subject: [Drbd-dev] [PATCH 20/40] sg: simplify procfs code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,170 +39,231 @@ proc_create_seq where applicable.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/ext4/ext4.h    |  2 +-
- fs/ext4/mballoc.c | 29 ++++------------------------
- fs/ext4/sysfs.c   | 49 +++++++++--------------------------------------
- 3 files changed, 14 insertions(+), 66 deletions(-)
+ drivers/scsi/sg.c | 124 +++++-----------------------------------------
+ 1 file changed, 12 insertions(+), 112 deletions(-)
 
-diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index a42e71203e53..229ea4da6785 100644
---- a/fs/ext4/ext4.h
-+++ b/fs/ext4/ext4.h
-@@ -2390,7 +2390,7 @@ extern int ext4_init_inode_table(struct super_block *sb,
- extern void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate);
+diff --git a/drivers/scsi/sg.c b/drivers/scsi/sg.c
+index c198b96368dd..8ff687158704 100644
+--- a/drivers/scsi/sg.c
++++ b/drivers/scsi/sg.c
+@@ -66,7 +66,6 @@ static int sg_version_num = 30536;	/* 2 digits for each component */
+ static char *sg_version_date = "20140603";
  
- /* mballoc.c */
--extern const struct file_operations ext4_seq_mb_groups_fops;
-+extern const struct seq_operations ext4_mb_seq_groups_ops;
- extern long ext4_mb_stats;
- extern long ext4_mb_max_to_scan;
- extern int ext4_mb_init(struct super_block *);
-diff --git a/fs/ext4/mballoc.c b/fs/ext4/mballoc.c
-index 769a62708b1c..6884e81c1465 100644
---- a/fs/ext4/mballoc.c
-+++ b/fs/ext4/mballoc.c
-@@ -2254,7 +2254,7 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
+ static int sg_proc_init(void);
+-static void sg_proc_cleanup(void);
+ #endif
  
- static void *ext4_mb_seq_groups_start(struct seq_file *seq, loff_t *pos)
+ #define SG_ALLOW_DIO_DEF 0
+@@ -1661,7 +1660,7 @@ static void __exit
+ exit_sg(void)
  {
--	struct super_block *sb = seq->private;
-+	struct super_block *sb = PDE_DATA(file_inode(seq->file));
- 	ext4_group_t group;
- 
- 	if (*pos < 0 || *pos >= ext4_get_groups_count(sb))
-@@ -2265,7 +2265,7 @@ static void *ext4_mb_seq_groups_start(struct seq_file *seq, loff_t *pos)
- 
- static void *ext4_mb_seq_groups_next(struct seq_file *seq, void *v, loff_t *pos)
- {
--	struct super_block *sb = seq->private;
-+	struct super_block *sb = PDE_DATA(file_inode(seq->file));
- 	ext4_group_t group;
- 
- 	++*pos;
-@@ -2277,7 +2277,7 @@ static void *ext4_mb_seq_groups_next(struct seq_file *seq, void *v, loff_t *pos)
- 
- static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
- {
--	struct super_block *sb = seq->private;
-+	struct super_block *sb = PDE_DATA(file_inode(seq->file));
- 	ext4_group_t group = (ext4_group_t) ((unsigned long) v);
- 	int i;
- 	int err, buddy_loaded = 0;
-@@ -2330,34 +2330,13 @@ static void ext4_mb_seq_groups_stop(struct seq_file *seq, void *v)
- {
+ #ifdef CONFIG_SCSI_PROC_FS
+-	sg_proc_cleanup();
++	remove_proc_subtree("scsi/sg", NULL);
+ #endif				/* CONFIG_SCSI_PROC_FS */
+ 	scsi_unregister_interface(&sg_interface);
+ 	class_destroy(sg_sysfs_class);
+@@ -2274,11 +2273,6 @@ sg_get_dev(int dev)
  }
  
--static const struct seq_operations ext4_mb_seq_groups_ops = {
-+const struct seq_operations ext4_mb_seq_groups_ops = {
- 	.start  = ext4_mb_seq_groups_start,
- 	.next   = ext4_mb_seq_groups_next,
- 	.stop   = ext4_mb_seq_groups_stop,
- 	.show   = ext4_mb_seq_groups_show,
+ #ifdef CONFIG_SCSI_PROC_FS
+-
+-static struct proc_dir_entry *sg_proc_sgp = NULL;
+-
+-static char sg_proc_sg_dirname[] = "scsi/sg";
+-
+ static int sg_proc_seq_show_int(struct seq_file *s, void *v);
+ 
+ static int sg_proc_single_open_adio(struct inode *inode, struct file *file);
+@@ -2306,37 +2300,11 @@ static const struct file_operations dressz_fops = {
  };
  
--static int ext4_mb_seq_groups_open(struct inode *inode, struct file *file)
--{
--	struct super_block *sb = PDE_DATA(inode);
--	int rc;
+ static int sg_proc_seq_show_version(struct seq_file *s, void *v);
+-static int sg_proc_single_open_version(struct inode *inode, struct file *file);
+-static const struct file_operations version_fops = {
+-	.owner = THIS_MODULE,
+-	.open = sg_proc_single_open_version,
+-	.read = seq_read,
+-	.llseek = seq_lseek,
+-	.release = single_release,
+-};
 -
--	rc = seq_open(file, &ext4_mb_seq_groups_ops);
--	if (rc == 0) {
--		struct seq_file *m = file->private_data;
--		m->private = sb;
+ static int sg_proc_seq_show_devhdr(struct seq_file *s, void *v);
+-static int sg_proc_single_open_devhdr(struct inode *inode, struct file *file);
+-static const struct file_operations devhdr_fops = {
+-	.owner = THIS_MODULE,
+-	.open = sg_proc_single_open_devhdr,
+-	.read = seq_read,
+-	.llseek = seq_lseek,
+-	.release = single_release,
+-};
+-
+ static int sg_proc_seq_show_dev(struct seq_file *s, void *v);
+-static int sg_proc_open_dev(struct inode *inode, struct file *file);
+ static void * dev_seq_start(struct seq_file *s, loff_t *pos);
+ static void * dev_seq_next(struct seq_file *s, void *v, loff_t *pos);
+ static void dev_seq_stop(struct seq_file *s, void *v);
+-static const struct file_operations dev_fops = {
+-	.owner = THIS_MODULE,
+-	.open = sg_proc_open_dev,
+-	.read = seq_read,
+-	.llseek = seq_lseek,
+-	.release = seq_release,
+-};
+ static const struct seq_operations dev_seq_ops = {
+ 	.start = dev_seq_start,
+ 	.next  = dev_seq_next,
+@@ -2345,14 +2313,6 @@ static const struct seq_operations dev_seq_ops = {
+ };
+ 
+ static int sg_proc_seq_show_devstrs(struct seq_file *s, void *v);
+-static int sg_proc_open_devstrs(struct inode *inode, struct file *file);
+-static const struct file_operations devstrs_fops = {
+-	.owner = THIS_MODULE,
+-	.open = sg_proc_open_devstrs,
+-	.read = seq_read,
+-	.llseek = seq_lseek,
+-	.release = seq_release,
+-};
+ static const struct seq_operations devstrs_seq_ops = {
+ 	.start = dev_seq_start,
+ 	.next  = dev_seq_next,
+@@ -2361,14 +2321,6 @@ static const struct seq_operations devstrs_seq_ops = {
+ };
+ 
+ static int sg_proc_seq_show_debug(struct seq_file *s, void *v);
+-static int sg_proc_open_debug(struct inode *inode, struct file *file);
+-static const struct file_operations debug_fops = {
+-	.owner = THIS_MODULE,
+-	.open = sg_proc_open_debug,
+-	.read = seq_read,
+-	.llseek = seq_lseek,
+-	.release = seq_release,
+-};
+ static const struct seq_operations debug_seq_ops = {
+ 	.start = dev_seq_start,
+ 	.next  = dev_seq_next,
+@@ -2376,50 +2328,23 @@ static const struct seq_operations debug_seq_ops = {
+ 	.show  = sg_proc_seq_show_debug,
+ };
+ 
+-
+-struct sg_proc_leaf {
+-	const char * name;
+-	const struct file_operations * fops;
+-};
+-
+-static const struct sg_proc_leaf sg_proc_leaf_arr[] = {
+-	{"allow_dio", &adio_fops},
+-	{"debug", &debug_fops},
+-	{"def_reserved_size", &dressz_fops},
+-	{"device_hdr", &devhdr_fops},
+-	{"devices", &dev_fops},
+-	{"device_strs", &devstrs_fops},
+-	{"version", &version_fops}
+-};
+-
+ static int
+ sg_proc_init(void)
+ {
+-	int num_leaves = ARRAY_SIZE(sg_proc_leaf_arr);
+-	int k;
++	struct proc_dir_entry *p;
+ 
+-	sg_proc_sgp = proc_mkdir(sg_proc_sg_dirname, NULL);
+-	if (!sg_proc_sgp)
++	p = proc_mkdir("scsi/sg", NULL);
++	if (!p)
+ 		return 1;
+-	for (k = 0; k < num_leaves; ++k) {
+-		const struct sg_proc_leaf *leaf = &sg_proc_leaf_arr[k];
+-		umode_t mask = leaf->fops->write ? S_IRUGO | S_IWUSR : S_IRUGO;
+-		proc_create(leaf->name, mask, sg_proc_sgp, leaf->fops);
 -	}
--	return rc;
--
+-	return 0;
 -}
--
--const struct file_operations ext4_seq_mb_groups_fops = {
--	.open		= ext4_mb_seq_groups_open,
--	.read		= seq_read,
--	.llseek		= seq_lseek,
--	.release	= seq_release,
--};
--
- static struct kmem_cache *get_groupinfo_cache(int blocksize_bits)
- {
- 	int cache_index = blocksize_bits - EXT4_MIN_BLOCK_LOG_SIZE;
-diff --git a/fs/ext4/sysfs.c b/fs/ext4/sysfs.c
-index 9ebd26c957c2..f34da0bb8f17 100644
---- a/fs/ext4/sysfs.c
-+++ b/fs/ext4/sysfs.c
-@@ -346,39 +346,9 @@ static struct kobject *ext4_root;
  
- static struct kobject *ext4_feat;
+-static void
+-sg_proc_cleanup(void)
+-{
+-	int k;
+-	int num_leaves = ARRAY_SIZE(sg_proc_leaf_arr);
+-
+-	if (!sg_proc_sgp)
+-		return;
+-	for (k = 0; k < num_leaves; ++k)
+-		remove_proc_entry(sg_proc_leaf_arr[k].name, sg_proc_sgp);
+-	remove_proc_entry(sg_proc_sg_dirname, NULL);
++	proc_create("allow_dio", S_IRUGO | S_IWUSR, p, &adio_fops);
++	proc_create_seq("debug", S_IRUGO, p, &debug_seq_ops);
++	proc_create("def_reserved_size", S_IRUGO | S_IWUSR, p, &dressz_fops);
++	proc_create_single("device_hdr", S_IRUGO, p, sg_proc_seq_show_devhdr);
++	proc_create_seq("devices", S_IRUGO, p, &dev_seq_ops);
++	proc_create_seq("device_strs", S_IRUGO, p, &devstrs_seq_ops);
++	proc_create_single("version", S_IRUGO, p, sg_proc_seq_show_version);
++	return 0;
+ }
  
--#define PROC_FILE_SHOW_DEFN(name) \
--static int name##_open(struct inode *inode, struct file *file) \
--{ \
--	return single_open(file, ext4_seq_##name##_show, PDE_DATA(inode)); \
--} \
--\
--static const struct file_operations ext4_seq_##name##_fops = { \
--	.open		= name##_open, \
--	.read		= seq_read, \
--	.llseek		= seq_lseek, \
--	.release	= single_release, \
--}
--
--#define PROC_FILE_LIST(name) \
--	{ __stringify(name), &ext4_seq_##name##_fops }
--
--PROC_FILE_SHOW_DEFN(es_shrinker_info);
--PROC_FILE_SHOW_DEFN(options);
--
--static const struct ext4_proc_files {
--	const char *name;
--	const struct file_operations *fops;
--} proc_files[] = {
--	PROC_FILE_LIST(options),
--	PROC_FILE_LIST(es_shrinker_info),
--	PROC_FILE_LIST(mb_groups),
--	{ NULL, NULL },
--};
--
- int ext4_register_sysfs(struct super_block *sb)
- {
- 	struct ext4_sb_info *sbi = EXT4_SB(sb);
--	const struct ext4_proc_files *p;
- 	int err;
  
- 	init_completion(&sbi->s_kobj_unregister);
-@@ -392,11 +362,14 @@ int ext4_register_sysfs(struct super_block *sb)
- 
- 	if (ext4_proc_root)
- 		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
--
- 	if (sbi->s_proc) {
--		for (p = proc_files; p->name; p++)
--			proc_create_data(p->name, S_IRUGO, sbi->s_proc,
--					 p->fops, sb);
-+		proc_create_single_data("options", S_IRUGO, sbi->s_proc,
-+				ext4_seq_options_show, sb);
-+		proc_create_single_data("es_shrinker_info", S_IRUGO,
-+				sbi->s_proc, ext4_seq_es_shrinker_info_show,
-+				sb);
-+		proc_create_seq_data("mb_groups", S_IRUGO, sbi->s_proc,
-+				&ext4_mb_seq_groups_ops, sb);
- 	}
+@@ -2482,22 +2407,12 @@ static int sg_proc_seq_show_version(struct seq_file *s, void *v)
  	return 0;
  }
-@@ -404,13 +377,9 @@ int ext4_register_sysfs(struct super_block *sb)
- void ext4_unregister_sysfs(struct super_block *sb)
- {
- 	struct ext4_sb_info *sbi = EXT4_SB(sb);
--	const struct ext4_proc_files *p;
  
--	if (sbi->s_proc) {
--		for (p = proc_files; p->name; p++)
--			remove_proc_entry(p->name, sbi->s_proc);
--		remove_proc_entry(sb->s_id, ext4_proc_root);
--	}
-+	if (sbi->s_proc)
-+		remove_proc_subtree(sb->s_id, ext4_proc_root);
- 	kobject_del(&sbi->s_kobj);
+-static int sg_proc_single_open_version(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, sg_proc_seq_show_version, NULL);
+-}
+-
+ static int sg_proc_seq_show_devhdr(struct seq_file *s, void *v)
+ {
+ 	seq_puts(s, "host\tchan\tid\tlun\ttype\topens\tqdepth\tbusy\tonline\n");
+ 	return 0;
  }
  
+-static int sg_proc_single_open_devhdr(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, sg_proc_seq_show_devhdr, NULL);
+-}
+-
+ struct sg_proc_deviter {
+ 	loff_t	index;
+ 	size_t	max;
+@@ -2531,11 +2446,6 @@ static void dev_seq_stop(struct seq_file *s, void *v)
+ 	kfree(s->private);
+ }
+ 
+-static int sg_proc_open_dev(struct inode *inode, struct file *file)
+-{
+-        return seq_open(file, &dev_seq_ops);
+-}
+-
+ static int sg_proc_seq_show_dev(struct seq_file *s, void *v)
+ {
+ 	struct sg_proc_deviter * it = (struct sg_proc_deviter *) v;
+@@ -2562,11 +2472,6 @@ static int sg_proc_seq_show_dev(struct seq_file *s, void *v)
+ 	return 0;
+ }
+ 
+-static int sg_proc_open_devstrs(struct inode *inode, struct file *file)
+-{
+-        return seq_open(file, &devstrs_seq_ops);
+-}
+-
+ static int sg_proc_seq_show_devstrs(struct seq_file *s, void *v)
+ {
+ 	struct sg_proc_deviter * it = (struct sg_proc_deviter *) v;
+@@ -2650,11 +2555,6 @@ static void sg_proc_debug_helper(struct seq_file *s, Sg_device * sdp)
+ 	}
+ }
+ 
+-static int sg_proc_open_debug(struct inode *inode, struct file *file)
+-{
+-        return seq_open(file, &debug_seq_ops);
+-}
+-
+ static int sg_proc_seq_show_debug(struct seq_file *s, void *v)
+ {
+ 	struct sg_proc_deviter * it = (struct sg_proc_deviter *) v;
 -- 
 2.17.0
 
