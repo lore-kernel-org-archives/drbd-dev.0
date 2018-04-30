@@ -1,42 +1,43 @@
 Return-Path: <lars.ellenberg@linbit.com>
 Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com
 	[209.85.128.195])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4640E1057321
-	for <drbd-dev@lists.linbit.com>; Wed,  2 May 2018 17:38:20 +0200 (CEST)
-Received: by mail-wr0-f195.google.com with SMTP id o4-v6so14511429wrm.0
-	for <drbd-dev@lists.linbit.com>; Wed, 02 May 2018 08:38:20 -0700 (PDT)
-Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	131sm8642799wms.34.2018.05.02.08.38.19
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 121471057329
+	for <drbd-dev@lists.linbit.com>; Wed,  2 May 2018 17:38:31 +0200 (CEST)
+Received: by mail-wr0-f195.google.com with SMTP id y15-v6so2789759wrg.11
+	for <drbd-dev@lists.linbit.com>; Wed, 02 May 2018 08:38:31 -0700 (PDT)
+Received: from soda.linbit ([86.59.100.100])
+	by smtp.gmail.com with ESMTPSA id r3sm12795467wmg.5.2018.05.02.08.38.30
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Wed, 02 May 2018 08:38:19 -0700 (PDT)
-Resent-Message-ID: <20180502153819.GS10032@soda.linbit>
-Received: from kvm5.telegraphics.com.au (kvm5.telegraphics.com.au
-	[98.124.60.144])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EC49A105731F
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Apr 2018 03:54:12 +0200 (CEST)
-Date: Thu, 26 Apr 2018 11:45:50 +1000 (AEST)
-From: Finn Thain <fthain@telegraphics.com.au>
+	Wed, 02 May 2018 08:38:30 -0700 (PDT)
+Resent-Message-ID: <20180502153830.GT10032@soda.linbit>
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com [66.187.233.73])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9BABC105732C
+	for <drbd-dev@lists.linbit.com>; Mon, 30 Apr 2018 15:19:30 +0200 (CEST)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20180425154827.32251-5-hch@lst.de>
+References: <20180425154827.32251-5-hch@lst.de>
+	<20180425154827.32251-1-hch@lst.de>
 To: Christoph Hellwig <hch@lst.de>
-In-Reply-To: <20180425154827.32251-7-hch@lst.de>
-Message-ID: <alpine.LNX.2.21.1804261118050.8@nippy.intranet>
-References: <20180425154827.32251-1-hch@lst.de>
-	<20180425154827.32251-7-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <26539.1525094365.1@warthog.procyon.org.uk>
+Date: Mon, 30 Apr 2018 14:19:25 +0100
+Message-ID: <26540.1525094365@warthog.procyon.org.uk>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Alexandre Belloni <alexandre.belloni@bootlin.com>,
-	devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org,
-	linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org,
+	devel@driverdev.osuosl.org, linux-scsi@vger.kernel.org,
+	linux-acpi@vger.kernel.org,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	jfs-discussion@lists.sourceforge.net,
-	linux-afs@lists.infradead.org, linux-acpi@vger.kernel.org,
-	netdev@vger.kernel.org, netfilter-devel@vger.kernel.org,
-	Alexander Viro <viro@zeniv.linux.org.uk>, Jiri Slaby <jslaby@suse.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-ext4@vger.kernel.org,
-	Alexey Dobriyan <adobriyan@gmail.com>,
-	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 06/40] proc: introduce proc_create_single{,
+	Jiri Slaby <jslaby@suse.com>, megaraidlinux.pdl@broadcom.com,
+	linux-kernel@vger.kernel.org,
+	Alexey Dobriyan <adobriyan@gmail.com>, dhowells@redhat.com,
+	linux-ide@vger.kernel.org, netfilter-devel@vger.kernel.org,
+	Alexander Viro <viro@zeniv.linux.org.uk>, netdev@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org,
+	jfs-discussion@lists.sourceforge.net, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 04/40] proc: introduce proc_create_seq{,
 	_data}
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -49,18 +50,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, 25 Apr 2018, Christoph Hellwig wrote:
+Christoph Hellwig <hch@lst.de> wrote:
 
->  
-> -/*
-> - * /proc/nubus stuff
-> - */
-> -
+> +
+> +struct proc_dir_entry *proc_create_seq_data(const char *name, umode_t mode,
+> +		struct proc_dir_entry *parent, const struct seq_operations *ops,
+> +		void *data)
+> +{
+> ...
+> +EXPORT_SYMBOL(proc_create_seq_data);
 
-I don't think that the introduction of proc_create_single{,_data} alters 
-the value of that comment. That comment and similar comments in the same 
-file do have a purpose, which is to keep separate the /proc/nubus 
-implementation is kept separate from the /proc/bus/nubus/devices 
-implementation and so on.
+Please add documentation comments to exported functions when you add them.
 
--- 
+David
