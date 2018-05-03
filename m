@@ -1,42 +1,22 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com
-	[209.85.128.195])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5FA51105732C
-	for <drbd-dev@lists.linbit.com>; Wed,  2 May 2018 17:38:37 +0200 (CEST)
-Received: by mail-wr0-f195.google.com with SMTP id v15-v6so14514147wrm.10
-	for <drbd-dev@lists.linbit.com>; Wed, 02 May 2018 08:38:37 -0700 (PDT)
-Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	44-v6sm10493079wrv.47.2018.05.02.08.38.36
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Wed, 02 May 2018 08:38:36 -0700 (PDT)
-Resent-Message-ID: <20180502153835.GU10032@soda.linbit>
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com [66.187.233.73])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2063B1057315
-	for <drbd-dev@lists.linbit.com>; Mon, 30 Apr 2018 17:38:24 +0200 (CEST)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20180425154827.32251-1-hch@lst.de>
-References: <20180425154827.32251-1-hch@lst.de>
-To: Christoph Hellwig <hch@lst.de>
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com [74.125.82.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9A28B1056F9D
+	for <drbd-dev@lists.linbit.com>; Thu,  3 May 2018 16:33:23 +0200 (CEST)
+Received: by mail-wm0-f65.google.com with SMTP id w194so6690609wmf.2
+	for <drbd-dev@lists.linbit.com>; Thu, 03 May 2018 07:33:23 -0700 (PDT)
+Date: Thu, 3 May 2018 16:33:21 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Sarah Newman <srn@prgmr.com>
+Message-ID: <20180503143321.GW10032@soda.linbit>
+References: <1525051158-18696-1-git-send-email-srn@prgmr.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <15621.1525102698.1@warthog.procyon.org.uk>
-Date: Mon, 30 Apr 2018 16:38:18 +0100
-Message-ID: <15622.1525102698@warthog.procyon.org.uk>
-Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
-	Alexandre Belloni <alexandre.belloni@bootlin.com>,
-	devel@driverdev.osuosl.org, linux-scsi@vger.kernel.org,
-	linux-acpi@vger.kernel.org,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Jiri Slaby <jslaby@suse.com>, megaraidlinux.pdl@broadcom.com,
-	linux-kernel@vger.kernel.org,
-	Alexey Dobriyan <adobriyan@gmail.com>, dhowells@redhat.com,
-	linux-ide@vger.kernel.org, netfilter-devel@vger.kernel.org,
-	Alexander Viro <viro@zeniv.linux.org.uk>, netdev@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org,
-	jfs-discussion@lists.sourceforge.net, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] simplify procfs code for seq_file instances V2
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1525051158-18696-1-git-send-email-srn@prgmr.com>
+Cc: philipp.reisner@linbit.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd: avoid use-after-free in
+	drbd_request_endio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,23 +28,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Note that your kernel hits the:
+On Sun, Apr 29, 2018 at 06:19:18PM -0700, Sarah Newman wrote:
+> It appears that bio_put(req->private_bio) may put the bio being
+> passed in, after which point accessing bio will no longer be
+> valid. Make a local copy of bio->bi_error before then.
+> 
+> Without this patch, with CONFIG_DEBUG_PAGEALLOC the debug message
+> 
+> "role( Secondary -> Primary )"
+> 
+> is followed by
+> 
+> "BUG: unable to handle kernel paging request"
+> 
+> This applies to versions before 4e4cbee93d561, first released
+> in v4.13. v4.13+ appears to have a similar bug.
+> 
+> Signed-off-by: Sarah Newman <srn@prgmr.com>
 
-	inconsistent {HARDIRQ-ON-W} -> {IN-HARDIRQ-W} usage.
-	swapper/0/0 [HC1[1]:SC0[0]:HE0:SE1] takes:
-		(ptrval) (fs_reclaim){?.+.}, at: fs_reclaim_acquire+0x12/0x35
-	{HARDIRQ-ON-W} state was registered at:
-	  fs_reclaim_acquire+0x32/0x35
-	  kmem_cache_alloc_node_trace+0x49/0x2cf
-	  alloc_worker+0x1d/0x49
-	  init_rescuer.part.7+0x19/0x8f
-	  workqueue_init+0xc0/0x1fe
-	  kernel_init_freeable+0xdc/0x433
-	  kernel_init+0xa/0xf5
-	  ret_from_fork+0x24/0x30
+Acked-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-bug, as described here:
+The original (out-of-tree) code
+is just like the result of your patch,
+though obfuscated by compatibility macros.
+This was apparently an "upstreaming mishap"
+when removing that obfuscation :-(
 
-	https://groups.google.com/forum/#!msg/syzkaller-bugs/sJC3Y3hOM08/aO3z9JXoAgAJ
+I think minimal in-tree change would have been:
+   req->private_bio = ERR_PTR(bio->bi_error);
+   bio_put(bio);
 
-David
+-- 
+: Lars Ellenberg
+: LINBIT | Keeping the Digital World Running
+: DRBD -- Heartbeat -- Corosync -- Pacemaker
+: R&D, Integration, Ops, Consulting, Support
+
+DRBD® and LINBIT® are registered trademarks of LINBIT
