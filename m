@@ -1,32 +1,29 @@
 Return-Path: <hch@lst.de>
 Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 61D8A1057315
-	for <drbd-dev@lists.linbit.com>; Tue, 15 May 2018 15:54:29 +0200 (CEST)
-Date: Tue, 15 May 2018 15:58:49 +0200
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 721FD1057315
+	for <drbd-dev@lists.linbit.com>; Tue, 15 May 2018 15:59:06 +0200 (CEST)
+Date: Tue, 15 May 2018 16:03:26 +0200
 From: Christoph Hellwig <hch@lst.de>
-To: Finn Thain <fthain@telegraphics.com.au>
-Message-ID: <20180515135849.GB31296@lst.de>
-References: <20180425154827.32251-1-hch@lst.de>
-	<20180425154827.32251-7-hch@lst.de>
-	<alpine.LNX.2.21.1804261118050.8@nippy.intranet>
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Message-ID: <20180515140326.GC31296@lst.de>
+References: <20180425154827.32251-1-hch@lst.de> <20180506171948.GA769@avx2>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.21.1804261118050.8@nippy.intranet>
+In-Reply-To: <20180506171948.GA769@avx2>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Alexandre Belloni <alexandre.belloni@bootlin.com>,
-	devel@driverdev.osuosl.org, linux-afs@lists.infradead.org,
+	devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	linux-kernel@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
-	Christoph Hellwig <hch@lst.de>, linux-acpi@vger.kernel.org,
+	jfs-discussion@lists.sourceforge.net,
+	linux-afs@lists.infradead.org, linux-acpi@vger.kernel.org,
 	netdev@vger.kernel.org, netfilter-devel@vger.kernel.org,
 	Alexander Viro <viro@zeniv.linux.org.uk>, Jiri Slaby <jslaby@suse.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-ext4@vger.kernel.org,
-	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-ext4@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 06/40] proc: introduce proc_create_single{,
-	_data}
+Subject: Re: [Drbd-dev] simplify procfs code for seq_file instances V2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,17 +35,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Apr 26, 2018 at 11:45:50AM +1000, Finn Thain wrote:
-> >  
-> > -/*
-> > - * /proc/nubus stuff
-> > - */
-> > -
+On Sun, May 06, 2018 at 08:19:49PM +0300, Alexey Dobriyan wrote:
+> On Wed, Apr 25, 2018 at 05:47:47PM +0200, Christoph Hellwig wrote:
+> > Changes since V1:
+> >  - open code proc_create_data to avoid setting not fully initialized
+> >    entries live
+> >  - use unsigned int for state_size
 > 
-> I don't think that the introduction of proc_create_single{,_data} alters 
-> the value of that comment. That comment and similar comments in the same 
-> file do have a purpose, which is to keep separate the /proc/nubus 
-> implementation is kept separate from the /proc/bus/nubus/devices 
-> implementation and so on.
+> Need this to maintain sizeof(struct proc_dir_entry):
 
-Added back.
+I'll fold your changes into the relevant patches.
+
+> Otherwise ACK fs/proc/ part.
+
+I'll take this as a formal ACK-ed by for all patches touching
+procfs.  If I was wrong please scream.
