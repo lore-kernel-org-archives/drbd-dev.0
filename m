@@ -1,13 +1,13 @@
 Return-Path: <BATV+8c5add14d4fec8f33fc9+5379+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 05738105733C
-	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 11:44:55 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 78C921057886
+	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 11:45:29 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 16 May 2018 11:43:14 +0200
-Message-Id: <20180516094346.20506-11-hch@lst.de>
+Date: Wed, 16 May 2018 11:43:22 +0200
+Message-Id: <20180516094346.20506-19-hch@lst.de>
 In-Reply-To: <20180516094346.20506-1-hch@lst.de>
 References: <20180516094346.20506-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 10/42] ipv{4, 6}/tcp: simplify procfs registration
+Subject: [Drbd-dev] [PATCH 18/42] proc: introduce proc_create_net_single
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,289 +33,713 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Avoid most of the afinfo indirections and just call the proc helpers
-directly.
+Variant of proc_create_data that directly take a seq_file show
+callback and deals with network namespaces in ->open and ->release.
+All callers of proc_create + single_open_net converted over, and
+single_{open,release}_net are removed entirely.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/net/tcp.h   | 11 ++----
- net/ipv4/tcp_ipv4.c | 85 +++++++++++++++++----------------------------
- net/ipv6/tcp_ipv6.c | 27 +++++++++-----
- 3 files changed, 53 insertions(+), 70 deletions(-)
+ fs/proc/proc_net.c             |  49 ++++++++-----
+ include/linux/proc_fs.h        |   4 ++
+ include/linux/seq_file_net.h   |   7 +-
+ net/can/bcm.c                  |  16 +----
+ net/can/proc.c                 | 127 ++++++---------------------------
+ net/ipv4/fib_trie.c            |  16 +----
+ net/ipv4/proc.c                |  48 ++-----------
+ net/ipv6/proc.c                |  31 ++------
+ net/ipv6/route.c               |  15 +---
+ net/kcm/kcmproc.c              |  16 +----
+ net/netfilter/ipvs/ip_vs_ctl.c |  31 ++------
+ net/sctp/proc.c                |  17 +----
+ net/xfrm/xfrm_proc.c           |  16 +----
+ 13 files changed, 86 insertions(+), 307 deletions(-)
 
-diff --git a/include/net/tcp.h b/include/net/tcp.h
-index 9c9b3768b350..51dc7a26a2fa 100644
---- a/include/net/tcp.h
-+++ b/include/net/tcp.h
-@@ -1747,27 +1747,22 @@ enum tcp_seq_states {
- 	TCP_SEQ_STATE_ESTABLISHED,
- };
- 
--int tcp_seq_open(struct inode *inode, struct file *file);
-+void *tcp_seq_start(struct seq_file *seq, loff_t *pos);
-+void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos);
-+void tcp_seq_stop(struct seq_file *seq, void *v);
- 
- struct tcp_seq_afinfo {
--	char				*name;
- 	sa_family_t			family;
--	const struct file_operations	*seq_fops;
--	struct seq_operations		seq_ops;
- };
- 
- struct tcp_iter_state {
- 	struct seq_net_private	p;
--	sa_family_t		family;
- 	enum tcp_seq_states	state;
- 	struct sock		*syn_wait_sk;
- 	int			bucket, offset, sbucket, num;
- 	loff_t			last_pos;
- };
- 
--int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo);
--void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo);
--
- extern struct request_sock_ops tcp_request_sock_ops;
- extern struct request_sock_ops tcp6_request_sock_ops;
- 
-diff --git a/net/ipv4/tcp_ipv4.c b/net/ipv4/tcp_ipv4.c
-index f70586b50838..645f259d0972 100644
---- a/net/ipv4/tcp_ipv4.c
-+++ b/net/ipv4/tcp_ipv4.c
-@@ -1961,6 +1961,7 @@ EXPORT_SYMBOL(tcp_v4_destroy_sock);
-  */
- static void *listening_get_next(struct seq_file *seq, void *cur)
- {
-+	struct tcp_seq_afinfo *afinfo = PDE_DATA(file_inode(seq->file));
- 	struct tcp_iter_state *st = seq->private;
- 	struct net *net = seq_file_net(seq);
- 	struct inet_listen_hashbucket *ilb;
-@@ -1983,7 +1984,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
- 	sk_for_each_from(sk) {
- 		if (!net_eq(sock_net(sk), net))
- 			continue;
--		if (sk->sk_family == st->family)
-+		if (sk->sk_family == afinfo->family)
- 			return sk;
- 	}
- 	spin_unlock(&ilb->lock);
-@@ -2020,6 +2021,7 @@ static inline bool empty_bucket(const struct tcp_iter_state *st)
-  */
- static void *established_get_first(struct seq_file *seq)
- {
-+	struct tcp_seq_afinfo *afinfo = PDE_DATA(file_inode(seq->file));
- 	struct tcp_iter_state *st = seq->private;
- 	struct net *net = seq_file_net(seq);
- 	void *rc = NULL;
-@@ -2036,7 +2038,7 @@ static void *established_get_first(struct seq_file *seq)
- 
- 		spin_lock_bh(lock);
- 		sk_nulls_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
--			if (sk->sk_family != st->family ||
-+			if (sk->sk_family != afinfo->family ||
- 			    !net_eq(sock_net(sk), net)) {
- 				continue;
- 			}
-@@ -2051,6 +2053,7 @@ static void *established_get_first(struct seq_file *seq)
- 
- static void *established_get_next(struct seq_file *seq, void *cur)
- {
-+	struct tcp_seq_afinfo *afinfo = PDE_DATA(file_inode(seq->file));
- 	struct sock *sk = cur;
- 	struct hlist_nulls_node *node;
- 	struct tcp_iter_state *st = seq->private;
-@@ -2062,7 +2065,8 @@ static void *established_get_next(struct seq_file *seq, void *cur)
- 	sk = sk_nulls_next(sk);
- 
- 	sk_nulls_for_each_from(sk, node) {
--		if (sk->sk_family == st->family && net_eq(sock_net(sk), net))
-+		if (sk->sk_family == afinfo->family &&
-+		    net_eq(sock_net(sk), net))
- 			return sk;
- 	}
- 
-@@ -2135,7 +2139,7 @@ static void *tcp_seek_last_pos(struct seq_file *seq)
- 	return rc;
+diff --git a/fs/proc/proc_net.c b/fs/proc/proc_net.c
+index c99fd183f034..7d94fa005b0d 100644
+--- a/fs/proc/proc_net.c
++++ b/fs/proc/proc_net.c
+@@ -93,37 +93,50 @@ struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
  }
+ EXPORT_SYMBOL_GPL(proc_create_net_data);
  
--static void *tcp_seq_start(struct seq_file *seq, loff_t *pos)
-+void *tcp_seq_start(struct seq_file *seq, loff_t *pos)
+-int single_open_net(struct inode *inode, struct file *file,
+-		int (*show)(struct seq_file *, void *))
++static int single_open_net(struct inode *inode, struct file *file)
  {
- 	struct tcp_iter_state *st = seq->private;
- 	void *rc;
-@@ -2156,8 +2160,9 @@ static void *tcp_seq_start(struct seq_file *seq, loff_t *pos)
- 	st->last_pos = *pos;
- 	return rc;
- }
-+EXPORT_SYMBOL(tcp_seq_start);
- 
--static void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-+void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
- {
- 	struct tcp_iter_state *st = seq->private;
- 	void *rc = NULL;
-@@ -2186,8 +2191,9 @@ static void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
- 	st->last_pos = *pos;
- 	return rc;
- }
-+EXPORT_SYMBOL(tcp_seq_next);
- 
--static void tcp_seq_stop(struct seq_file *seq, void *v)
-+void tcp_seq_stop(struct seq_file *seq, void *v)
- {
- 	struct tcp_iter_state *st = seq->private;
- 
-@@ -2202,47 +2208,7 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
- 		break;
- 	}
- }
--
--int tcp_seq_open(struct inode *inode, struct file *file)
--{
--	struct tcp_seq_afinfo *afinfo = PDE_DATA(inode);
--	struct tcp_iter_state *s;
 -	int err;
++	struct proc_dir_entry *de = PDE(inode);
+ 	struct net *net;
++	int err;
+ 
+-	err = -ENXIO;
+ 	net = get_proc_net(inode);
+-	if (net == NULL)
+-		goto err_net;
 -
--	err = seq_open_net(inode, file, &afinfo->seq_ops,
--			  sizeof(struct tcp_iter_state));
+-	err = single_open(file, show, net);
 -	if (err < 0)
--		return err;
+-		goto err_open;
 -
--	s = ((struct seq_file *)file->private_data)->private;
--	s->family		= afinfo->family;
--	s->last_pos		= 0;
 -	return 0;
--}
--EXPORT_SYMBOL(tcp_seq_open);
--
--int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo)
--{
--	int rc = 0;
--	struct proc_dir_entry *p;
--
--	afinfo->seq_ops.start		= tcp_seq_start;
--	afinfo->seq_ops.next		= tcp_seq_next;
--	afinfo->seq_ops.stop		= tcp_seq_stop;
--
--	p = proc_create_data(afinfo->name, 0444, net->proc_net,
--			     afinfo->seq_fops, afinfo);
--	if (!p)
--		rc = -ENOMEM;
--	return rc;
--}
--EXPORT_SYMBOL(tcp_proc_register);
--
--void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo)
--{
--	remove_proc_entry(afinfo->name, net->proc_net);
--}
--EXPORT_SYMBOL(tcp_proc_unregister);
-+EXPORT_SYMBOL(tcp_seq_stop);
++	if (!net)
++		return -ENXIO;
  
- static void get_openreq4(const struct request_sock *req,
- 			 struct seq_file *f, int i)
-@@ -2377,6 +2343,19 @@ static int tcp4_seq_show(struct seq_file *seq, void *v)
+-err_open:
+-	put_net(net);
+-err_net:
++	err = single_open(file, de->single_show, net);
++	if (err)
++		put_net(net);
+ 	return err;
+ }
+-EXPORT_SYMBOL_GPL(single_open_net);
+ 
+-int single_release_net(struct inode *ino, struct file *f)
++static int single_release_net(struct inode *ino, struct file *f)
+ {
+ 	struct seq_file *seq = f->private_data;
+ 	put_net(seq->private);
+ 	return single_release(ino, f);
+ }
+-EXPORT_SYMBOL_GPL(single_release_net);
++
++static const struct file_operations proc_net_single_fops = {
++	.open		= single_open_net,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release_net,
++};
++
++struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
++		struct proc_dir_entry *parent,
++		int (*show)(struct seq_file *, void *), void *data)
++{
++	struct proc_dir_entry *p;
++
++	p = proc_create_reg(name, mode, &parent, data);
++	if (!p)
++		return NULL;
++	p->proc_fops = &proc_net_single_fops;
++	p->single_show = show;
++	return proc_register(parent, p);
++}
++EXPORT_SYMBOL_GPL(proc_create_net_single);
+ 
+ static struct net *get_proc_task_net(struct inode *dir)
+ {
+diff --git a/include/linux/proc_fs.h b/include/linux/proc_fs.h
+index 9dcde9644253..e518352137e7 100644
+--- a/include/linux/proc_fs.h
++++ b/include/linux/proc_fs.h
+@@ -58,6 +58,9 @@ struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
+ 		unsigned int state_size, void *data);
+ #define proc_create_net(name, mode, parent, state_size, ops) \
+ 	proc_create_net_data(name, mode, parent, state_size, ops, NULL)
++struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
++		struct proc_dir_entry *parent,
++		int (*show)(struct seq_file *, void *), void *data);
+ 
+ #else /* CONFIG_PROC_FS */
+ 
+@@ -97,6 +100,7 @@ static inline int remove_proc_subtree(const char *name, struct proc_dir_entry *p
+ 
+ #define proc_create_net_data(name, mode, parent, ops, state_size, data) ({NULL;})
+ #define proc_create_net(name, mode, parent, state_size, ops) ({NULL;})
++#define proc_create_net_single(name, mode, parent, show, data) ({NULL;})
+ 
+ #endif /* CONFIG_PROC_FS */
+ 
+diff --git a/include/linux/seq_file_net.h b/include/linux/seq_file_net.h
+index 5ea18a16291a..0fdbe1ddd8d1 100644
+--- a/include/linux/seq_file_net.h
++++ b/include/linux/seq_file_net.h
+@@ -13,9 +13,6 @@ struct seq_net_private {
+ #endif
+ };
+ 
+-int single_open_net(struct inode *, struct file *file,
+-		int (*show)(struct seq_file *, void *));
+-int single_release_net(struct inode *, struct file *);
+ static inline struct net *seq_file_net(struct seq_file *seq)
+ {
+ #ifdef CONFIG_NET_NS
+@@ -26,8 +23,8 @@ static inline struct net *seq_file_net(struct seq_file *seq)
+ }
+ 
+ /*
+- * This one is needed for single_open_net since net is stored directly in
+- * private not as a struct i.e. seq_file_net can't be used.
++ * This one is needed for proc_create_net_single since net is stored directly
++ * in private not as a struct i.e. seq_file_net can't be used.
+  */
+ static inline struct net *seq_file_single_net(struct seq_file *seq)
+ {
+diff --git a/net/can/bcm.c b/net/can/bcm.c
+index 8073fa14e143..6ad89f49b341 100644
+--- a/net/can/bcm.c
++++ b/net/can/bcm.c
+@@ -239,18 +239,6 @@ static int bcm_proc_show(struct seq_file *m, void *v)
+ 	seq_putc(m, '\n');
+ 	return 0;
+ }
+-
+-static int bcm_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, bcm_proc_show);
+-}
+-
+-static const struct file_operations bcm_proc_fops = {
+-	.open		= bcm_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release_net,
+-};
+ #endif /* CONFIG_PROC_FS */
+ 
+ /*
+@@ -1606,9 +1594,9 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
+ 	if (net->can.bcmproc_dir) {
+ 		/* unique socket address as filename */
+ 		sprintf(bo->procname, "%lu", sock_i_ino(sk));
+-		bo->bcm_proc_read = proc_create_data(bo->procname, 0644,
++		bo->bcm_proc_read = proc_create_net_single(bo->procname, 0644,
+ 						     net->can.bcmproc_dir,
+-						     &bcm_proc_fops, sk);
++						     bcm_proc_show, sk);
+ 		if (!bo->bcm_proc_read) {
+ 			ret = -ENOMEM;
+ 			goto fail;
+diff --git a/net/can/proc.c b/net/can/proc.c
+index fde2fd55b826..70fea17bb04c 100644
+--- a/net/can/proc.c
++++ b/net/can/proc.c
+@@ -270,18 +270,6 @@ static int can_stats_proc_show(struct seq_file *m, void *v)
  	return 0;
  }
  
-+static const struct seq_operations tcp4_seq_ops = {
-+	.show		= tcp4_seq_show,
-+	.start		= tcp_seq_start,
-+	.next		= tcp_seq_next,
-+	.stop		= tcp_seq_stop,
-+};
-+
-+static int tcp_seq_open(struct inode *inode, struct file *file)
-+{
-+	return seq_open_net(inode, file, &tcp4_seq_ops,
-+			  sizeof(struct tcp_iter_state));
-+}
-+
- static const struct file_operations tcp_afinfo_seq_fops = {
- 	.open    = tcp_seq_open,
- 	.read    = seq_read,
-@@ -2385,22 +2364,20 @@ static const struct file_operations tcp_afinfo_seq_fops = {
- };
- 
- static struct tcp_seq_afinfo tcp4_seq_afinfo = {
--	.name		= "tcp",
- 	.family		= AF_INET,
--	.seq_fops	= &tcp_afinfo_seq_fops,
--	.seq_ops	= {
--		.show		= tcp4_seq_show,
--	},
- };
- 
- static int __net_init tcp4_proc_init_net(struct net *net)
+-static int can_stats_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, can_stats_proc_show);
+-}
+-
+-static const struct file_operations can_stats_proc_fops = {
+-	.open		= can_stats_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release_net,
+-};
+-
+ static int can_reset_stats_proc_show(struct seq_file *m, void *v)
  {
--	return tcp_proc_register(net, &tcp4_seq_afinfo);
-+	if (!proc_create_data("tcp", 0444, net->proc_net,
-+			&tcp_afinfo_seq_fops, &tcp4_seq_afinfo))
-+		return -ENOMEM;
-+	return 0;
- }
- 
- static void __net_exit tcp4_proc_exit_net(struct net *net)
- {
--	tcp_proc_unregister(net, &tcp4_seq_afinfo);
-+	remove_proc_entry("tcp", net->proc_net);
- }
- 
- static struct pernet_operations tcp4_net_ops = {
-diff --git a/net/ipv6/tcp_ipv6.c b/net/ipv6/tcp_ipv6.c
-index 6d664d83cd16..c0329bb1692f 100644
---- a/net/ipv6/tcp_ipv6.c
-+++ b/net/ipv6/tcp_ipv6.c
-@@ -1909,30 +1909,41 @@ static int tcp6_seq_show(struct seq_file *seq, void *v)
+ 	struct net *net = m->private;
+@@ -303,36 +291,12 @@ static int can_reset_stats_proc_show(struct seq_file *m, void *v)
  	return 0;
  }
  
-+static const struct seq_operations tcp6_seq_ops = {
-+	.show		= tcp6_seq_show,
-+	.start		= tcp_seq_start,
-+	.next		= tcp_seq_next,
-+	.stop		= tcp_seq_stop,
-+};
-+
-+static int tcp6_seq_open(struct inode *inode, struct file *file)
-+{
-+	return seq_open_net(inode, file, &tcp6_seq_ops,
-+			  sizeof(struct tcp_iter_state));
-+}
-+
- static const struct file_operations tcp6_afinfo_seq_fops = {
--	.open    = tcp_seq_open,
-+	.open    = tcp6_seq_open,
- 	.read    = seq_read,
- 	.llseek  = seq_lseek,
- 	.release = seq_release_net
- };
- 
- static struct tcp_seq_afinfo tcp6_seq_afinfo = {
--	.name		= "tcp6",
- 	.family		= AF_INET6,
--	.seq_fops	= &tcp6_afinfo_seq_fops,
--	.seq_ops	= {
--		.show		= tcp6_seq_show,
--	},
- };
- 
- int __net_init tcp6_proc_init(struct net *net)
+-static int can_reset_stats_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, can_reset_stats_proc_show);
+-}
+-
+-static const struct file_operations can_reset_stats_proc_fops = {
+-	.open		= can_reset_stats_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+-
+ static int can_version_proc_show(struct seq_file *m, void *v)
  {
--	return tcp_proc_register(net, &tcp6_seq_afinfo);
-+	if (!proc_create_data("tcp6", 0444, net->proc_net,
-+			&tcp6_afinfo_seq_fops, &tcp6_seq_afinfo))
-+		return -ENOMEM;
-+	return 0;
+ 	seq_printf(m, "%s\n", CAN_VERSION_STRING);
+ 	return 0;
  }
  
- void tcp6_proc_exit(struct net *net)
- {
--	tcp_proc_unregister(net, &tcp6_seq_afinfo);
-+	remove_proc_entry("tcp6", net->proc_net);
+-static int can_version_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, can_version_proc_show);
+-}
+-
+-static const struct file_operations can_version_proc_fops = {
+-	.open		= can_version_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+-
+ static inline void can_rcvlist_proc_show_one(struct seq_file *m, int idx,
+ 					     struct net_device *dev,
+ 					     struct can_dev_rcv_lists *d)
+@@ -373,18 +337,6 @@ static int can_rcvlist_proc_show(struct seq_file *m, void *v)
+ 	return 0;
  }
+ 
+-static int can_rcvlist_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, can_rcvlist_proc_show);
+-}
+-
+-static const struct file_operations can_rcvlist_proc_fops = {
+-	.open		= can_rcvlist_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+-
+ static inline void can_rcvlist_proc_show_array(struct seq_file *m,
+ 					       struct net_device *dev,
+ 					       struct hlist_head *rcv_array,
+@@ -440,19 +392,6 @@ static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
+ 	return 0;
+ }
+ 
+-static int can_rcvlist_sff_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, can_rcvlist_sff_proc_show);
+-}
+-
+-static const struct file_operations can_rcvlist_sff_proc_fops = {
+-	.open		= can_rcvlist_sff_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release_net,
+-};
+-
+-
+ static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
+ {
+ 	struct net_device *dev;
+@@ -483,18 +422,6 @@ static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
+ 	return 0;
+ }
+ 
+-static int can_rcvlist_eff_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, can_rcvlist_eff_proc_show);
+-}
+-
+-static const struct file_operations can_rcvlist_eff_proc_fops = {
+-	.open		= can_rcvlist_eff_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release_net,
+-};
+-
+ /*
+  * can_init_proc - create main CAN proc directory and procfs entries
+  */
+@@ -510,37 +437,29 @@ void can_init_proc(struct net *net)
+ 	}
+ 
+ 	/* own procfs entries from the AF_CAN core */
+-	net->can.pde_version     = proc_create(CAN_PROC_VERSION, 0644,
+-					       net->can.proc_dir,
+-					       &can_version_proc_fops);
+-	net->can.pde_stats       = proc_create(CAN_PROC_STATS, 0644,
+-					       net->can.proc_dir,
+-					       &can_stats_proc_fops);
+-	net->can.pde_reset_stats = proc_create(CAN_PROC_RESET_STATS, 0644,
+-					       net->can.proc_dir,
+-					       &can_reset_stats_proc_fops);
+-	net->can.pde_rcvlist_err = proc_create_data(CAN_PROC_RCVLIST_ERR, 0644,
+-						    net->can.proc_dir,
+-						    &can_rcvlist_proc_fops,
+-						    (void *)RX_ERR);
+-	net->can.pde_rcvlist_all = proc_create_data(CAN_PROC_RCVLIST_ALL, 0644,
+-						    net->can.proc_dir,
+-						    &can_rcvlist_proc_fops,
+-						    (void *)RX_ALL);
+-	net->can.pde_rcvlist_fil = proc_create_data(CAN_PROC_RCVLIST_FIL, 0644,
+-						    net->can.proc_dir,
+-						    &can_rcvlist_proc_fops,
+-						    (void *)RX_FIL);
+-	net->can.pde_rcvlist_inv = proc_create_data(CAN_PROC_RCVLIST_INV, 0644,
+-						    net->can.proc_dir,
+-						    &can_rcvlist_proc_fops,
+-						    (void *)RX_INV);
+-	net->can.pde_rcvlist_eff = proc_create(CAN_PROC_RCVLIST_EFF, 0644,
+-					       net->can.proc_dir,
+-					       &can_rcvlist_eff_proc_fops);
+-	net->can.pde_rcvlist_sff = proc_create(CAN_PROC_RCVLIST_SFF, 0644,
+-					       net->can.proc_dir,
+-					       &can_rcvlist_sff_proc_fops);
++	net->can.pde_version = proc_create_net_single(CAN_PROC_VERSION, 0644,
++			net->can.proc_dir, can_version_proc_show, NULL);
++	net->can.pde_stats = proc_create_net_single(CAN_PROC_STATS, 0644,
++			net->can.proc_dir, can_stats_proc_show, NULL);
++	net->can.pde_reset_stats = proc_create_net_single(CAN_PROC_RESET_STATS,
++			0644, net->can.proc_dir, can_reset_stats_proc_show,
++			NULL);
++	net->can.pde_rcvlist_err = proc_create_net_single(CAN_PROC_RCVLIST_ERR,
++			0644, net->can.proc_dir, can_rcvlist_proc_show,
++			(void *)RX_ERR);
++	net->can.pde_rcvlist_all = proc_create_net_single(CAN_PROC_RCVLIST_ALL,
++			0644, net->can.proc_dir, can_rcvlist_proc_show,
++			(void *)RX_ALL);
++	net->can.pde_rcvlist_fil = proc_create_net_single(CAN_PROC_RCVLIST_FIL,
++			0644, net->can.proc_dir, can_rcvlist_proc_show,
++			(void *)RX_FIL);
++	net->can.pde_rcvlist_inv = proc_create_net_single(CAN_PROC_RCVLIST_INV,
++			0644, net->can.proc_dir, can_rcvlist_proc_show,
++			(void *)RX_INV);
++	net->can.pde_rcvlist_eff = proc_create_net_single(CAN_PROC_RCVLIST_EFF,
++			0644, net->can.proc_dir, can_rcvlist_eff_proc_show, NULL);
++	net->can.pde_rcvlist_sff = proc_create_net_single(CAN_PROC_RCVLIST_SFF,
++			0644, net->can.proc_dir, can_rcvlist_sff_proc_show, NULL);
+ }
+ 
+ /*
+diff --git a/net/ipv4/fib_trie.c b/net/ipv4/fib_trie.c
+index 3293f04b941d..99c23a0cb8ca 100644
+--- a/net/ipv4/fib_trie.c
++++ b/net/ipv4/fib_trie.c
+@@ -2348,18 +2348,6 @@ static int fib_triestat_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static int fib_triestat_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, fib_triestat_seq_show);
+-}
+-
+-static const struct file_operations fib_triestat_fops = {
+-	.open	= fib_triestat_seq_open,
+-	.read	= seq_read,
+-	.llseek	= seq_lseek,
+-	.release = single_release_net,
+-};
+-
+ static struct key_vector *fib_trie_get_idx(struct seq_file *seq, loff_t pos)
+ {
+ 	struct fib_trie_iter *iter = seq->private;
+@@ -2719,8 +2707,8 @@ int __net_init fib_proc_init(struct net *net)
+ 			sizeof(struct fib_trie_iter)))
+ 		goto out1;
+ 
+-	if (!proc_create("fib_triestat", 0444, net->proc_net,
+-			 &fib_triestat_fops))
++	if (!proc_create_net_single("fib_triestat", 0444, net->proc_net,
++			fib_triestat_seq_show, NULL))
+ 		goto out2;
+ 
+ 	if (!proc_create_net("route", 0444, net->proc_net, &fib_route_seq_ops,
+diff --git a/net/ipv4/proc.c b/net/ipv4/proc.c
+index a058de677e94..573e43c8ed87 100644
+--- a/net/ipv4/proc.c
++++ b/net/ipv4/proc.c
+@@ -77,18 +77,6 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static int sockstat_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, sockstat_seq_show);
+-}
+-
+-static const struct file_operations sockstat_seq_fops = {
+-	.open	 = sockstat_seq_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = single_release_net,
+-};
+-
+ /* snmp items */
+ static const struct snmp_mib snmp4_ipstats_list[] = {
+ 	SNMP_MIB_ITEM("InReceives", IPSTATS_MIB_INPKTS),
+@@ -460,20 +448,6 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static int snmp_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, snmp_seq_show);
+-}
+-
+-static const struct file_operations snmp_seq_fops = {
+-	.open	 = snmp_seq_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = single_release_net,
+-};
+-
+-
+-
+ /*
+  *	Output /proc/net/netstat
+  */
+@@ -507,26 +481,16 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static int netstat_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, netstat_seq_show);
+-}
+-
+-static const struct file_operations netstat_seq_fops = {
+-	.open	 = netstat_seq_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = single_release_net,
+-};
+-
+ static __net_init int ip_proc_init_net(struct net *net)
+ {
+-	if (!proc_create("sockstat", 0444, net->proc_net,
+-			 &sockstat_seq_fops))
++	if (!proc_create_net_single("sockstat", 0444, net->proc_net,
++			sockstat_seq_show, NULL))
+ 		goto out_sockstat;
+-	if (!proc_create("netstat", 0444, net->proc_net, &netstat_seq_fops))
++	if (!proc_create_net_single("netstat", 0444, net->proc_net,
++			netstat_seq_show, NULL))
+ 		goto out_netstat;
+-	if (!proc_create("snmp", 0444, net->proc_net, &snmp_seq_fops))
++	if (!proc_create_net_single("snmp", 0444, net->proc_net, snmp_seq_show,
++			NULL))
+ 		goto out_snmp;
+ 
+ 	return 0;
+diff --git a/net/ipv6/proc.c b/net/ipv6/proc.c
+index a0edf194822a..2356b4af7309 100644
+--- a/net/ipv6/proc.c
++++ b/net/ipv6/proc.c
+@@ -53,18 +53,6 @@ static int sockstat6_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static int sockstat6_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, sockstat6_seq_show);
+-}
+-
+-static const struct file_operations sockstat6_seq_fops = {
+-	.open	 = sockstat6_seq_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = single_release_net,
+-};
+-
+ static const struct snmp_mib snmp6_ipstats_list[] = {
+ /* ipv6 mib according to RFC 2465 */
+ 	SNMP_MIB_ITEM("Ip6InReceives", IPSTATS_MIB_INPKTS),
+@@ -242,18 +230,6 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static int snmp6_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, snmp6_seq_show);
+-}
+-
+-static const struct file_operations snmp6_seq_fops = {
+-	.open	 = snmp6_seq_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = single_release_net,
+-};
+-
+ static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
+ {
+ 	struct inet6_dev *idev = (struct inet6_dev *)seq->private;
+@@ -302,11 +278,12 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
+ 
+ static int __net_init ipv6_proc_init_net(struct net *net)
+ {
+-	if (!proc_create("sockstat6", 0444, net->proc_net,
+-			 &sockstat6_seq_fops))
++	if (!proc_create_net_single("sockstat6", 0444, net->proc_net,
++			sockstat6_seq_show, NULL))
+ 		return -ENOMEM;
+ 
+-	if (!proc_create("snmp6", 0444, net->proc_net, &snmp6_seq_fops))
++	if (!proc_create_net_single("snmp6", 0444, net->proc_net,
++			snmp6_seq_show, NULL))
+ 		goto proc_snmp6_fail;
+ 
+ 	net->mib.proc_net_devsnmp6 = proc_mkdir("dev_snmp6", net->proc_net);
+diff --git a/net/ipv6/route.c b/net/ipv6/route.c
+index 527b9b644f5a..a6598762d2c1 100644
+--- a/net/ipv6/route.c
++++ b/net/ipv6/route.c
+@@ -4876,18 +4876,6 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
+ 
+ 	return 0;
+ }
+-
+-static int rt6_stats_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, rt6_stats_seq_show);
+-}
+-
+-static const struct file_operations rt6_stats_seq_fops = {
+-	.open	 = rt6_stats_seq_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = single_release_net,
+-};
+ #endif	/* CONFIG_PROC_FS */
+ 
+ #ifdef CONFIG_SYSCTL
+@@ -5094,7 +5082,8 @@ static int __net_init ip6_route_net_init_late(struct net *net)
+ #ifdef CONFIG_PROC_FS
+ 	proc_create_net("ipv6_route", 0, net->proc_net, &ipv6_route_seq_ops,
+ 			sizeof(struct ipv6_route_iter));
+-	proc_create("rt6_stats", 0444, net->proc_net, &rt6_stats_seq_fops);
++	proc_create_net_single("rt6_stats", 0444, net->proc_net,
++			rt6_stats_seq_show, NULL);
+ #endif
+ 	return 0;
+ }
+diff --git a/net/kcm/kcmproc.c b/net/kcm/kcmproc.c
+index 6283ed2f43b2..370da2f80e3c 100644
+--- a/net/kcm/kcmproc.c
++++ b/net/kcm/kcmproc.c
+@@ -345,22 +345,10 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static int kcm_stats_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, kcm_stats_seq_show);
+-}
+-
+-static const struct file_operations kcm_stats_seq_fops = {
+-	.open    = kcm_stats_seq_open,
+-	.read    = seq_read,
+-	.llseek  = seq_lseek,
+-	.release = single_release_net,
+-};
+-
+ static int kcm_proc_init_net(struct net *net)
+ {
+-	if (!proc_create("kcm_stats", 0444, net->proc_net,
+-			 &kcm_stats_seq_fops))
++	if (!proc_create_net_single("kcm_stats", 0444, net->proc_net,
++			 kcm_stats_seq_show, NULL))
+ 		goto out_kcm_stats;
+ 
+ 	if (!proc_create_net("kcm", 0444, net->proc_net, &kcm_seq_ops,
+diff --git a/net/netfilter/ipvs/ip_vs_ctl.c b/net/netfilter/ipvs/ip_vs_ctl.c
+index 6221016e554a..c983dea67e3a 100644
+--- a/net/netfilter/ipvs/ip_vs_ctl.c
++++ b/net/netfilter/ipvs/ip_vs_ctl.c
+@@ -2141,18 +2141,6 @@ static int ip_vs_stats_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static int ip_vs_stats_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, ip_vs_stats_show);
+-}
+-
+-static const struct file_operations ip_vs_stats_fops = {
+-	.open = ip_vs_stats_seq_open,
+-	.read = seq_read,
+-	.llseek = seq_lseek,
+-	.release = single_release_net,
+-};
+-
+ static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
+ {
+ 	struct net *net = seq_file_single_net(seq);
+@@ -2208,18 +2196,6 @@ static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
+ 
+ 	return 0;
+ }
+-
+-static int ip_vs_stats_percpu_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, ip_vs_stats_percpu_show);
+-}
+-
+-static const struct file_operations ip_vs_stats_percpu_fops = {
+-	.open = ip_vs_stats_percpu_seq_open,
+-	.read = seq_read,
+-	.llseek = seq_lseek,
+-	.release = single_release_net,
+-};
  #endif
  
+ /*
+@@ -4019,9 +3995,10 @@ int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
+ 
+ 	proc_create_net("ip_vs", 0, ipvs->net->proc_net, &ip_vs_info_seq_ops,
+ 			sizeof(struct ip_vs_iter));
+-	proc_create("ip_vs_stats", 0, ipvs->net->proc_net, &ip_vs_stats_fops);
+-	proc_create("ip_vs_stats_percpu", 0, ipvs->net->proc_net,
+-		    &ip_vs_stats_percpu_fops);
++	proc_create_net_single("ip_vs_stats", 0, ipvs->net->proc_net,
++			ip_vs_stats_show, NULL);
++	proc_create_net_single("ip_vs_stats_percpu", 0, ipvs->net->proc_net,
++			ip_vs_stats_percpu_show, NULL);
+ 
+ 	if (ip_vs_control_net_init_sysctl(ipvs))
+ 		goto err;
+diff --git a/net/sctp/proc.c b/net/sctp/proc.c
+index 009c185b71eb..ef5c9a82d4e8 100644
+--- a/net/sctp/proc.c
++++ b/net/sctp/proc.c
+@@ -88,19 +88,6 @@ static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-/* Initialize the seq file operations for 'snmp' object. */
+-static int sctp_snmp_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, sctp_snmp_seq_show);
+-}
+-
+-static const struct file_operations sctp_snmp_seq_fops = {
+-	.open	 = sctp_snmp_seq_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = single_release_net,
+-};
+-
+ /* Dump local addresses of an association/endpoint. */
+ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_common *epb)
+ {
+@@ -408,8 +395,8 @@ int __net_init sctp_proc_init(struct net *net)
+ 	net->sctp.proc_net_sctp = proc_net_mkdir(net, "sctp", net->proc_net);
+ 	if (!net->sctp.proc_net_sctp)
+ 		return -ENOMEM;
+-	if (!proc_create("snmp", 0444, net->sctp.proc_net_sctp,
+-			 &sctp_snmp_seq_fops))
++	if (!proc_create_net_single("snmp", 0444, net->sctp.proc_net_sctp,
++			 sctp_snmp_seq_show, NULL))
+ 		goto cleanup;
+ 	if (!proc_create_net("eps", 0444, net->sctp.proc_net_sctp,
+ 			&sctp_eps_ops, sizeof(struct seq_net_private)))
+diff --git a/net/xfrm/xfrm_proc.c b/net/xfrm/xfrm_proc.c
+index ed06903cd84d..178318d2e120 100644
+--- a/net/xfrm/xfrm_proc.c
++++ b/net/xfrm/xfrm_proc.c
+@@ -65,22 +65,10 @@ static int xfrm_statistics_seq_show(struct seq_file *seq, void *v)
+ 	return 0;
+ }
+ 
+-static int xfrm_statistics_seq_open(struct inode *inode, struct file *file)
+-{
+-	return single_open_net(inode, file, xfrm_statistics_seq_show);
+-}
+-
+-static const struct file_operations xfrm_statistics_seq_fops = {
+-	.open	 = xfrm_statistics_seq_open,
+-	.read	 = seq_read,
+-	.llseek	 = seq_lseek,
+-	.release = single_release_net,
+-};
+-
+ int __net_init xfrm_proc_init(struct net *net)
+ {
+-	if (!proc_create("xfrm_stat", 0444, net->proc_net,
+-			 &xfrm_statistics_seq_fops))
++	if (!proc_create_net_single("xfrm_stat", 0444, net->proc_net,
++			 xfrm_statistics_seq_show, NULL))
+ 		return -ENOMEM;
+ 	return 0;
+ }
 -- 
 2.17.0
 
