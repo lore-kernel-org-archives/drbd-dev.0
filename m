@@ -1,31 +1,28 @@
-Return-Path: <hch@lst.de>
-Received: from newverein.lst.de (verein.lst.de [213.95.11.211])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0FE1A1057315
-	for <drbd-dev@lists.linbit.com>; Tue, 15 May 2018 16:52:23 +0200 (CEST)
-Date: Tue, 15 May 2018 16:56:43 +0200
+Return-Path: <BATV+8c5add14d4fec8f33fc9+5379+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F3B131057315
+	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 11:44:24 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Message-ID: <20180515145643.GA661@lst.de>
-References: <20180425154827.32251-1-hch@lst.de>
-	<20180425154827.32251-12-hch@lst.de> <878t8y46sy.fsf@xmission.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <878t8y46sy.fsf@xmission.com>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>
+Date: Wed, 16 May 2018 11:43:05 +0200
+Message-Id: <20180516094346.20506-2-hch@lst.de>
+In-Reply-To: <20180516094346.20506-1-hch@lst.de>
+References: <20180516094346.20506-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Alexandre Belloni <alexandre.belloni@bootlin.com>,
-	devel@driverdev.osuosl.org, linux-afs@lists.infradead.org,
+	devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org,
 	linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	linux-kernel@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
-	Christoph Hellwig <hch@lst.de>, linux-acpi@vger.kernel.org,
+	jfs-discussion@lists.sourceforge.net,
+	linux-afs@lists.infradead.org, linux-acpi@vger.kernel.org,
 	netdev@vger.kernel.org, netfilter-devel@vger.kernel.org,
-	Alexander Viro <viro@zeniv.linux.org.uk>, Jiri Slaby <jslaby@suse.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-ext4@vger.kernel.org,
+	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 11/40] ipv6/flowlabel: simplify pid namespace
-	lookup
+Subject: [Drbd-dev] [PATCH 01/42] net/can: single_open_net needs to be
+	paired with single_release_net
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,39 +34,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, May 05, 2018 at 07:37:33AM -0500, Eric W. Biederman wrote:
-> Christoph Hellwig <hch@lst.de> writes:
-> 
-> > The shole seq_file sequence already operates under a single RCU lock pair,
-> > so move the pid namespace lookup into it, and stop grabbing a reference
-> > and remove all kinds of boilerplate code.
-> 
-> This is wrong.
-> 
-> Move task_active_pid_ns(current) from open to seq_start actually means
-> that the results if you pass this proc file between callers the results
-> will change.  So this breaks file descriptor passing.
-> 
-> Open is a bad place to access current.  In the middle of read/write is
-> broken.
-> 
-> 
-> In this particular instance looking up the pid namespace with
-> task_active_pid_ns was a personal brain fart.  What the code should be
-> doing (with an appropriate helper) is:
-> 
-> struct pid_namespace *pid_ns = inode->i_sb->s_fs_info;
-> 
-> Because each mount of proc is bound to a pid namespace.  Looking up the
-> pid namespace from the super_block is a much better way to go.
+Otherwise we will leak a reference to the network namespace.
 
-What do you have in mind for the helper?  For now I've thrown it in
-opencoded into my working tree, but I'd be glad to add a helper.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ net/can/bcm.c  | 2 +-
+ net/can/proc.c | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
-struct pid_namespace *proc_pid_namespace(struct inode *inode)
-{
-	// maybe warn on for s_magic not on procfs??
-	return inode->i_sb->s_fs_info;
-}
+diff --git a/net/can/bcm.c b/net/can/bcm.c
+index ac5e5e34fee3..8073fa14e143 100644
+--- a/net/can/bcm.c
++++ b/net/can/bcm.c
+@@ -249,7 +249,7 @@ static const struct file_operations bcm_proc_fops = {
+ 	.open		= bcm_proc_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+-	.release	= single_release,
++	.release	= single_release_net,
+ };
+ #endif /* CONFIG_PROC_FS */
+ 
+diff --git a/net/can/proc.c b/net/can/proc.c
+index fdf704e9bb8c..fde2fd55b826 100644
+--- a/net/can/proc.c
++++ b/net/can/proc.c
+@@ -279,7 +279,7 @@ static const struct file_operations can_stats_proc_fops = {
+ 	.open		= can_stats_proc_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+-	.release	= single_release,
++	.release	= single_release_net,
+ };
+ 
+ static int can_reset_stats_proc_show(struct seq_file *m, void *v)
+@@ -449,7 +449,7 @@ static const struct file_operations can_rcvlist_sff_proc_fops = {
+ 	.open		= can_rcvlist_sff_proc_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+-	.release	= single_release,
++	.release	= single_release_net,
+ };
+ 
+ 
+@@ -492,7 +492,7 @@ static const struct file_operations can_rcvlist_eff_proc_fops = {
+ 	.open		= can_rcvlist_eff_proc_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+-	.release	= single_release,
++	.release	= single_release_net,
+ };
+ 
+ /*
+-- 
+2.17.0
 
-?
