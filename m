@@ -1,13 +1,13 @@
 Return-Path: <BATV+8c5add14d4fec8f33fc9+5379+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6E1F61057899
-	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 11:46:09 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 46EDB10578A2
+	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 11:46:22 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 16 May 2018 11:43:32 +0200
-Message-Id: <20180516094346.20506-29-hch@lst.de>
+Date: Wed, 16 May 2018 11:43:27 +0200
+Message-Id: <20180516094346.20506-24-hch@lst.de>
 In-Reply-To: <20180516094346.20506-1-hch@lst.de>
 References: <20180516094346.20506-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 28/42] drbd: switch to proc_create_single
+Subject: [Drbd-dev] [PATCH 23/42] afs: simplify procfs code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,100 +33,276 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-And stop messing with try_module_get on THIS_MODULE, which doesn't make
-any sense here.
+Use remove_proc_subtree to remove the whole subtree on cleanup, and
+unwind the registration loop into individual calls.  Switch to use
+proc_create_seq where applicable.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_int.h  |  2 +-
- drivers/block/drbd/drbd_main.c |  3 ++-
- drivers/block/drbd/drbd_proc.c | 34 +---------------------------------
- 3 files changed, 4 insertions(+), 35 deletions(-)
+ fs/afs/proc.c | 134 ++++++--------------------------------------------
+ 1 file changed, 15 insertions(+), 119 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 06ecee1b528e..461ddec04e7c 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1643,7 +1643,7 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
+diff --git a/fs/afs/proc.c b/fs/afs/proc.c
+index 839a22280606..3aad32762989 100644
+--- a/fs/afs/proc.c
++++ b/fs/afs/proc.c
+@@ -62,7 +62,6 @@ static const struct file_operations afs_proc_rootcell_fops = {
+ 	.llseek		= no_llseek,
+ };
  
- /* drbd_proc.c */
- extern struct proc_dir_entry *drbd_proc;
--extern const struct file_operations drbd_proc_fops;
-+int drbd_seq_show(struct seq_file *seq, void *v);
+-static int afs_proc_cell_volumes_open(struct inode *inode, struct file *file);
+ static void *afs_proc_cell_volumes_start(struct seq_file *p, loff_t *pos);
+ static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
+ 					loff_t *pos);
+@@ -76,15 +75,6 @@ static const struct seq_operations afs_proc_cell_volumes_ops = {
+ 	.show	= afs_proc_cell_volumes_show,
+ };
  
- /* drbd_actlog.c */
- extern bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *i);
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 185f1ef00a7c..c2d154faac02 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -3010,7 +3010,8 @@ static int __init drbd_init(void)
- 		goto fail;
- 
- 	err = -ENOMEM;
--	drbd_proc = proc_create_data("drbd", S_IFREG | S_IRUGO , NULL, &drbd_proc_fops, NULL);
-+	drbd_proc = proc_create_single("drbd", S_IFREG | S_IRUGO , NULL,
-+			drbd_seq_show);
- 	if (!drbd_proc)	{
- 		pr_err("unable to register proc file\n");
- 		goto fail;
-diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
-index 582caeb0de86..74ef29247bb5 100644
---- a/drivers/block/drbd/drbd_proc.c
-+++ b/drivers/block/drbd/drbd_proc.c
-@@ -33,18 +33,7 @@
- #include <linux/drbd.h>
- #include "drbd_int.h"
- 
--static int drbd_proc_open(struct inode *inode, struct file *file);
--static int drbd_proc_release(struct inode *inode, struct file *file);
--
--
- struct proc_dir_entry *drbd_proc;
--const struct file_operations drbd_proc_fops = {
--	.owner		= THIS_MODULE,
--	.open		= drbd_proc_open,
+-static const struct file_operations afs_proc_cell_volumes_fops = {
+-	.open		= afs_proc_cell_volumes_open,
 -	.read		= seq_read,
 -	.llseek		= seq_lseek,
--	.release	= drbd_proc_release,
+-	.release	= seq_release,
 -};
+-
+-static int afs_proc_cell_vlservers_open(struct inode *inode,
+-					struct file *file);
+ static void *afs_proc_cell_vlservers_start(struct seq_file *p, loff_t *pos);
+ static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
+ 					  loff_t *pos);
+@@ -98,14 +88,6 @@ static const struct seq_operations afs_proc_cell_vlservers_ops = {
+ 	.show	= afs_proc_cell_vlservers_show,
+ };
  
- static void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
+-static const struct file_operations afs_proc_cell_vlservers_fops = {
+-	.open		= afs_proc_cell_vlservers_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= seq_release,
+-};
+-
+-static int afs_proc_servers_open(struct inode *inode, struct file *file);
+ static void *afs_proc_servers_start(struct seq_file *p, loff_t *pos);
+ static void *afs_proc_servers_next(struct seq_file *p, void *v,
+ 					loff_t *pos);
+@@ -119,13 +101,6 @@ static const struct seq_operations afs_proc_servers_ops = {
+ 	.show	= afs_proc_servers_show,
+ };
+ 
+-static const struct file_operations afs_proc_servers_fops = {
+-	.open		= afs_proc_servers_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= seq_release,
+-};
+-
+ static int afs_proc_sysname_open(struct inode *inode, struct file *file);
+ static int afs_proc_sysname_release(struct inode *inode, struct file *file);
+ static void *afs_proc_sysname_start(struct seq_file *p, loff_t *pos);
+@@ -152,7 +127,7 @@ static const struct file_operations afs_proc_sysname_fops = {
+ 	.write		= afs_proc_sysname_write,
+ };
+ 
+-static const struct file_operations afs_proc_stats_fops;
++static int afs_proc_stats_show(struct seq_file *m, void *v);
+ 
+ /*
+  * initialise the /proc/fs/afs/ directory
+@@ -167,8 +142,8 @@ int afs_proc_init(struct afs_net *net)
+ 
+ 	if (!proc_create("cells", 0644, net->proc_afs, &afs_proc_cells_fops) ||
+ 	    !proc_create("rootcell", 0644, net->proc_afs, &afs_proc_rootcell_fops) ||
+-	    !proc_create("servers", 0644, net->proc_afs, &afs_proc_servers_fops) ||
+-	    !proc_create("stats", 0644, net->proc_afs, &afs_proc_stats_fops) ||
++	    !proc_create_seq("servers", 0644, net->proc_afs, &afs_proc_servers_ops) ||
++	    !proc_create_single("stats", 0644, net->proc_afs, afs_proc_stats_show) ||
+ 	    !proc_create("sysname", 0644, net->proc_afs, &afs_proc_sysname_fops))
+ 		goto error_tree;
+ 
+@@ -196,16 +171,7 @@ void afs_proc_cleanup(struct afs_net *net)
+  */
+ static int afs_proc_cells_open(struct inode *inode, struct file *file)
  {
-@@ -235,7 +224,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
- 	}
+-	struct seq_file *m;
+-	int ret;
+-
+-	ret = seq_open(file, &afs_proc_cells_ops);
+-	if (ret < 0)
+-		return ret;
+-
+-	m = file->private_data;
+-	m->private = PDE_DATA(inode);
+-	return 0;
++	return seq_open(file, &afs_proc_cells_ops);
  }
  
--static int drbd_seq_show(struct seq_file *seq, void *v)
-+int drbd_seq_show(struct seq_file *seq, void *v)
- {
- 	int i, prev_i = -1;
- 	const char *sn;
-@@ -345,24 +334,3 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
+ /*
+@@ -430,10 +396,11 @@ int afs_proc_cell_setup(struct afs_net *net, struct afs_cell *cell)
+ 	if (!dir)
+ 		goto error_dir;
  
+-	if (!proc_create_data("vlservers", 0, dir,
+-			      &afs_proc_cell_vlservers_fops, cell) ||
+-	    !proc_create_data("volumes", 0, dir,
+-			      &afs_proc_cell_volumes_fops, cell))
++	if (!proc_create_seq_data("vlservers", 0, dir,
++			&afs_proc_cell_vlservers_ops, cell))
++		goto error_tree;
++	if (!proc_create_seq_data("volumes", 0, dir, &afs_proc_cell_volumes_ops,
++			cell))
+ 		goto error_tree;
+ 
+ 	_leave(" = 0");
+@@ -458,29 +425,6 @@ void afs_proc_cell_remove(struct afs_net *net, struct afs_cell *cell)
+ 	_leave("");
+ }
+ 
+-/*
+- * open "/proc/fs/afs/<cell>/volumes" which provides a summary of extant cells
+- */
+-static int afs_proc_cell_volumes_open(struct inode *inode, struct file *file)
+-{
+-	struct afs_cell *cell;
+-	struct seq_file *m;
+-	int ret;
+-
+-	cell = PDE_DATA(inode);
+-	if (!cell)
+-		return -ENOENT;
+-
+-	ret = seq_open(file, &afs_proc_cell_volumes_ops);
+-	if (ret < 0)
+-		return ret;
+-
+-	m = file->private_data;
+-	m->private = cell;
+-
+-	return 0;
+-}
+-
+ /*
+  * set up the iterator to start reading from the cells list and return the
+  * first item
+@@ -488,7 +432,7 @@ static int afs_proc_cell_volumes_open(struct inode *inode, struct file *file)
+ static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
+ 	__acquires(cell->proc_lock)
+ {
+-	struct afs_cell *cell = m->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+ 
+ 	_enter("cell=%p pos=%Ld", cell, *_pos);
+ 
+@@ -502,7 +446,7 @@ static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
+ static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
+ 					loff_t *_pos)
+ {
+-	struct afs_cell *cell = p->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
+ 
+ 	_enter("cell=%p pos=%Ld", cell, *_pos);
+ 	return seq_list_next(v, &cell->proc_volumes, _pos);
+@@ -514,7 +458,7 @@ static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
+ static void afs_proc_cell_volumes_stop(struct seq_file *p, void *v)
+ 	__releases(cell->proc_lock)
+ {
+-	struct afs_cell *cell = p->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
+ 
+ 	read_unlock(&cell->proc_lock);
+ }
+@@ -530,7 +474,7 @@ static const char afs_vol_types[3][3] = {
+  */
+ static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
+ {
+-	struct afs_cell *cell = m->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+ 	struct afs_volume *vol = list_entry(v, struct afs_volume, proc_link);
+ 
+ 	/* Display header on line 1 */
+@@ -546,30 +490,6 @@ static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
+ 	return 0;
+ }
+ 
+-/*
+- * open "/proc/fs/afs/<cell>/vlservers" which provides a list of volume
+- * location server
+- */
+-static int afs_proc_cell_vlservers_open(struct inode *inode, struct file *file)
+-{
+-	struct afs_cell *cell;
+-	struct seq_file *m;
+-	int ret;
+-
+-	cell = PDE_DATA(inode);
+-	if (!cell)
+-		return -ENOENT;
+-
+-	ret = seq_open(file, &afs_proc_cell_vlservers_ops);
+-	if (ret<0)
+-		return ret;
+-
+-	m = file->private_data;
+-	m->private = cell;
+-
+-	return 0;
+-}
+-
+ /*
+  * set up the iterator to start reading from the cells list and return the
+  * first item
+@@ -578,7 +498,7 @@ static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
+ 	__acquires(rcu)
+ {
+ 	struct afs_addr_list *alist;
+-	struct afs_cell *cell = m->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+ 	loff_t pos = *_pos;
+ 
+ 	rcu_read_lock();
+@@ -603,7 +523,7 @@ static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
+ 					  loff_t *_pos)
+ {
+ 	struct afs_addr_list *alist;
+-	struct afs_cell *cell = p->private;
++	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
+ 	loff_t pos;
+ 
+ 	alist = rcu_dereference(cell->vl_addrs);
+@@ -643,15 +563,6 @@ static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
+ 	return 0;
+ }
+ 
+-/*
+- * open "/proc/fs/afs/servers" which provides a summary of active
+- * servers
+- */
+-static int afs_proc_servers_open(struct inode *inode, struct file *file)
+-{
+-	return seq_open(file, &afs_proc_servers_ops);
+-}
+-
+ /*
+  * Set up the iterator to start reading from the server list and return the
+  * first item.
+@@ -931,18 +842,3 @@ static int afs_proc_stats_show(struct seq_file *m, void *v)
+ 		   atomic_long_read(&net->n_store_bytes));
  	return 0;
  }
 -
--static int drbd_proc_open(struct inode *inode, struct file *file)
+-/*
+- * Open "/proc/fs/afs/stats" to allow reading of the stat counters.
+- */
+-static int afs_proc_stats_open(struct inode *inode, struct file *file)
 -{
--	int err;
--
--	if (try_module_get(THIS_MODULE)) {
--		err = single_open(file, drbd_seq_show, NULL);
--		if (err)
--			module_put(THIS_MODULE);
--		return err;
--	}
--	return -ENODEV;
+-	return single_open(file, afs_proc_stats_show, NULL);
 -}
 -
--static int drbd_proc_release(struct inode *inode, struct file *file)
--{
--	module_put(THIS_MODULE);
--	return single_release(inode, file);
--}
--
--/* PROC FS stuff end */
+-static const struct file_operations afs_proc_stats_fops = {
+-	.open		= afs_proc_stats_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release        = single_release,
+-};
 -- 
 2.17.0
 
