@@ -1,13 +1,13 @@
 Return-Path: <BATV+8c5add14d4fec8f33fc9+5379+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6CD241057A2F
-	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 11:46:45 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B9D2B1057A30
+	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 11:46:47 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 16 May 2018 11:43:09 +0200
-Message-Id: <20180516094346.20506-6-hch@lst.de>
+Date: Wed, 16 May 2018 11:43:34 +0200
+Message-Id: <20180516094346.20506-31-hch@lst.de>
 In-Reply-To: <20180516094346.20506-1-hch@lst.de>
 References: <20180516094346.20506-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,7 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/42] proc: add a proc_create_reg helper
+Subject: [Drbd-dev] [PATCH 30/42] bonding: switch to proc_create_seq_data
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,91 +33,95 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Common code for creating a regular file.  Factor out of proc_create_data, to
-be reused by other functions soon.
+And use proc private data directly instead of doing a detour
+through seq->private.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/proc/generic.c  | 44 +++++++++++++++++++++++++-------------------
- fs/proc/internal.h |  2 ++
- 2 files changed, 27 insertions(+), 19 deletions(-)
+ drivers/net/bonding/bond_procfs.c | 36 ++++++-------------------------
+ 1 file changed, 6 insertions(+), 30 deletions(-)
 
-diff --git a/fs/proc/generic.c b/fs/proc/generic.c
-index bd8480ff0d35..ab6a321076b8 100644
---- a/fs/proc/generic.c
-+++ b/fs/proc/generic.c
-@@ -511,33 +511,39 @@ struct proc_dir_entry *proc_create_mount_point(const char *name)
- }
- EXPORT_SYMBOL(proc_create_mount_point);
- 
--struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
--					struct proc_dir_entry *parent,
--					const struct file_operations *proc_fops,
--					void *data)
-+struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
-+		struct proc_dir_entry **parent, void *data)
+diff --git a/drivers/net/bonding/bond_procfs.c b/drivers/net/bonding/bond_procfs.c
+index 01059f1a7bca..9f7d83e827c3 100644
+--- a/drivers/net/bonding/bond_procfs.c
++++ b/drivers/net/bonding/bond_procfs.c
+@@ -10,7 +10,7 @@
+ static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
+ 	__acquires(RCU)
  {
--	struct proc_dir_entry *pde;
-+	struct proc_dir_entry *p;
-+
- 	if ((mode & S_IFMT) == 0)
- 		mode |= S_IFREG;
+-	struct bonding *bond = seq->private;
++	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+ 	struct list_head *iter;
+ 	struct slave *slave;
+ 	loff_t off = 0;
+@@ -29,7 +29,7 @@ static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
+ 
+ static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+ {
+-	struct bonding *bond = seq->private;
++	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+ 	struct list_head *iter;
+ 	struct slave *slave;
+ 	bool found = false;
+@@ -56,7 +56,7 @@ static void bond_info_seq_stop(struct seq_file *seq, void *v)
+ 
+ static void bond_info_show_master(struct seq_file *seq)
+ {
+-	struct bonding *bond = seq->private;
++	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+ 	const struct bond_opt_value *optval;
+ 	struct slave *curr, *primary;
+ 	int i;
+@@ -167,7 +167,7 @@ static void bond_info_show_master(struct seq_file *seq)
+ static void bond_info_show_slave(struct seq_file *seq,
+ 				 const struct slave *slave)
+ {
+-	struct bonding *bond = seq->private;
++	struct bonding *bond = PDE_DATA(file_inode(seq->file));
+ 
+ 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
+ 	seq_printf(seq, "MII Status: %s\n", bond_slave_link_status(slave->link));
+@@ -257,38 +257,14 @@ static const struct seq_operations bond_info_seq_ops = {
+ 	.show  = bond_info_seq_show,
+ };
+ 
+-static int bond_info_open(struct inode *inode, struct file *file)
+-{
+-	struct seq_file *seq;
+-	int res;
 -
--	if (!S_ISREG(mode)) {
--		WARN_ON(1);	/* use proc_mkdir() */
-+	if ((mode & S_IALLUGO) == 0)
-+		mode |= S_IRUGO;
-+	if (WARN_ON_ONCE(!S_ISREG(mode)))
- 		return NULL;
-+
-+	p = __proc_create(parent, name, mode, 1);
-+	if (p) {
-+		p->proc_iops = &proc_file_inode_operations;
-+		p->data = data;
- 	}
-+	return p;
-+}
-+
-+struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
-+		struct proc_dir_entry *parent,
-+		const struct file_operations *proc_fops, void *data)
-+{
-+	struct proc_dir_entry *p;
+-	res = seq_open(file, &bond_info_seq_ops);
+-	if (!res) {
+-		/* recover the pointer buried in proc_dir_entry data */
+-		seq = file->private_data;
+-		seq->private = PDE_DATA(inode);
+-	}
+-
+-	return res;
+-}
+-
+-static const struct file_operations bond_info_fops = {
+-	.owner   = THIS_MODULE,
+-	.open    = bond_info_open,
+-	.read    = seq_read,
+-	.llseek  = seq_lseek,
+-	.release = seq_release,
+-};
+-
+ void bond_create_proc_entry(struct bonding *bond)
+ {
+ 	struct net_device *bond_dev = bond->dev;
+ 	struct bond_net *bn = net_generic(dev_net(bond_dev), bond_net_id);
  
- 	BUG_ON(proc_fops == NULL);
- 
--	if ((mode & S_IALLUGO) == 0)
--		mode |= S_IRUGO;
--	pde = __proc_create(&parent, name, mode, 1);
--	if (!pde)
--		goto out;
--	pde->proc_fops = proc_fops;
--	pde->data = data;
--	pde->proc_iops = &proc_file_inode_operations;
--	return proc_register(parent, pde);
--out:
--	return NULL;
-+	p = proc_create_reg(name, mode, &parent, data);
-+	if (!p)
-+		return NULL;
-+	p->proc_fops = proc_fops;
-+	return proc_register(parent, p);
- }
- EXPORT_SYMBOL(proc_create_data);
-  
-diff --git a/fs/proc/internal.h b/fs/proc/internal.h
-index 488e67490312..dd1e11400b97 100644
---- a/fs/proc/internal.h
-+++ b/fs/proc/internal.h
-@@ -162,6 +162,8 @@ extern bool proc_fill_cache(struct file *, struct dir_context *, const char *, i
- /*
-  * generic.c
-  */
-+struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
-+		struct proc_dir_entry **parent, void *data);
- struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
- 		struct proc_dir_entry *dp);
- extern struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
+ 	if (bn->proc_dir) {
+-		bond->proc_entry = proc_create_data(bond_dev->name,
+-						    0444, bn->proc_dir,
+-						    &bond_info_fops, bond);
++		bond->proc_entry = proc_create_seq_data(bond_dev->name, 0444,
++				bn->proc_dir, &bond_info_seq_ops, bond);
+ 		if (bond->proc_entry == NULL)
+ 			netdev_warn(bond_dev, "Cannot create /proc/net/%s/%s\n",
+ 				    DRV_NAME, bond_dev->name);
 -- 
 2.17.0
 
