@@ -1,13 +1,13 @@
 Return-Path: <BATV+8c5add14d4fec8f33fc9+5379+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D35521057890
-	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 11:45:34 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C11231057891
+	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 11:45:39 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 16 May 2018 11:43:17 +0200
-Message-Id: <20180516094346.20506-14-hch@lst.de>
+Date: Wed, 16 May 2018 11:43:24 +0200
+Message-Id: <20180516094346.20506-21-hch@lst.de>
 In-Reply-To: <20180516094346.20506-1-hch@lst.de>
 References: <20180516094346.20506-1-hch@lst.de>
 Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
@@ -21,8 +21,7 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 13/42] ipv6/flowlabel: simplify pid namespace
-	lookup
+Subject: [Drbd-dev] [PATCH 20/42] sgi-gru: simplify procfs code
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,69 +33,124 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The code should be using the pid namespace from the procfs mount
-instead of trying to look it up during open.
+Use remove_proc_subtree to remove the whole subtree on cleanup, and
+unwind the registration loop into individual calls.  Switch to use
+proc_create_seq where applicable.
 
-Suggested-by: Eric W. Biederman <ebiederm@xmission.com>
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- net/ipv6/ip6_flowlabel.c | 29 ++++++-----------------------
- 1 file changed, 6 insertions(+), 23 deletions(-)
+ drivers/misc/sgi-gru/gruprocfs.c | 81 ++++++--------------------------
+ 1 file changed, 14 insertions(+), 67 deletions(-)
 
-diff --git a/net/ipv6/ip6_flowlabel.c b/net/ipv6/ip6_flowlabel.c
-index c05c4e82a7ca..2fbd9bed764a 100644
---- a/net/ipv6/ip6_flowlabel.c
-+++ b/net/ipv6/ip6_flowlabel.c
-@@ -754,6 +754,10 @@ static struct ip6_flowlabel *ip6fl_get_idx(struct seq_file *seq, loff_t pos)
- static void *ip6fl_seq_start(struct seq_file *seq, loff_t *pos)
- 	__acquires(RCU)
- {
-+	struct ip6fl_iter_state *state = ip6fl_seq_private(seq);
-+
-+	state->pid_ns = proc_pid_ns(file_inode(seq->file));
-+
- 	rcu_read_lock_bh();
- 	return *pos ? ip6fl_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
+diff --git a/drivers/misc/sgi-gru/gruprocfs.c b/drivers/misc/sgi-gru/gruprocfs.c
+index 4f7635922394..42ea2eccaee9 100644
+--- a/drivers/misc/sgi-gru/gruprocfs.c
++++ b/drivers/misc/sgi-gru/gruprocfs.c
+@@ -270,16 +270,6 @@ static int options_open(struct inode *inode, struct file *file)
+ 	return single_open(file, options_show, NULL);
  }
-@@ -810,36 +814,15 @@ static const struct seq_operations ip6fl_seq_ops = {
  
- static int ip6fl_seq_open(struct inode *inode, struct file *file)
- {
--	struct seq_file *seq;
--	struct ip6fl_iter_state *state;
--	int err;
--
--	err = seq_open_net(inode, file, &ip6fl_seq_ops,
-+	return seq_open_net(inode, file, &ip6fl_seq_ops,
- 			   sizeof(struct ip6fl_iter_state));
--
--	if (!err) {
--		seq = file->private_data;
--		state = ip6fl_seq_private(seq);
--		rcu_read_lock();
--		state->pid_ns = get_pid_ns(task_active_pid_ns(current));
--		rcu_read_unlock();
--	}
--	return err;
+-static int cch_open(struct inode *inode, struct file *file)
+-{
+-	return seq_open(file, &cch_seq_ops);
 -}
 -
--static int ip6fl_seq_release(struct inode *inode, struct file *file)
+-static int gru_open(struct inode *inode, struct file *file)
 -{
--	struct seq_file *seq = file->private_data;
--	struct ip6fl_iter_state *state = ip6fl_seq_private(seq);
--	put_pid_ns(state->pid_ns);
--	return seq_release_net(inode, file);
- }
- 
- static const struct file_operations ip6fl_seq_fops = {
- 	.open		=	ip6fl_seq_open,
- 	.read		=	seq_read,
- 	.llseek		=	seq_lseek,
--	.release	=	ip6fl_seq_release,
-+	.release	=	seq_release_net,
+-	return seq_open(file, &gru_seq_ops);
+-}
+-
+ /* *INDENT-OFF* */
+ static const struct file_operations statistics_fops = {
+ 	.open 		= statistics_open,
+@@ -305,73 +295,30 @@ static const struct file_operations options_fops = {
+ 	.release 	= single_release,
  };
  
- static int __net_init ip6_flowlabel_proc_init(struct net *net)
+-static const struct file_operations cch_fops = {
+-	.open 		= cch_open,
+-	.read 		= seq_read,
+-	.llseek 	= seq_lseek,
+-	.release 	= seq_release,
+-};
+-static const struct file_operations gru_fops = {
+-	.open 		= gru_open,
+-	.read 		= seq_read,
+-	.llseek 	= seq_lseek,
+-	.release 	= seq_release,
+-};
+-
+-static struct proc_entry {
+-	char *name;
+-	umode_t mode;
+-	const struct file_operations *fops;
+-	struct proc_dir_entry *entry;
+-} proc_files[] = {
+-	{"statistics", 0644, &statistics_fops},
+-	{"mcs_statistics", 0644, &mcs_statistics_fops},
+-	{"debug_options", 0644, &options_fops},
+-	{"cch_status", 0444, &cch_fops},
+-	{"gru_status", 0444, &gru_fops},
+-	{NULL}
+-};
+-/* *INDENT-ON* */
+-
+ static struct proc_dir_entry *proc_gru __read_mostly;
+ 
+-static int create_proc_file(struct proc_entry *p)
+-{
+-	p->entry = proc_create(p->name, p->mode, proc_gru, p->fops);
+-	if (!p->entry)
+-		return -1;
+-	return 0;
+-}
+-
+-static void delete_proc_files(void)
+-{
+-	struct proc_entry *p;
+-
+-	if (proc_gru) {
+-		for (p = proc_files; p->name; p++)
+-			if (p->entry)
+-				remove_proc_entry(p->name, proc_gru);
+-		proc_remove(proc_gru);
+-	}
+-}
+-
+ int gru_proc_init(void)
+ {
+-	struct proc_entry *p;
+-
+ 	proc_gru = proc_mkdir("sgi_uv/gru", NULL);
+-
+-	for (p = proc_files; p->name; p++)
+-		if (create_proc_file(p))
+-			goto err;
++	if (!proc_gru)
++		return -1;
++	if (!proc_create("statistics", 0644, proc_gru, &statistics_fops))
++		goto err;
++	if (!proc_create("mcs_statistics", 0644, proc_gru, &mcs_statistics_fops))
++		goto err;
++	if (!proc_create("debug_options", 0644, proc_gru, &options_fops))
++		goto err;
++	if (!proc_create_seq("cch_status", 0444, proc_gru, &cch_seq_ops))
++		goto err;
++	if (!proc_create_seq("gru_status", 0444, proc_gru, &gru_seq_ops))
++		goto err;
+ 	return 0;
+-
+ err:
+-	delete_proc_files();
++	remove_proc_subtree("sgi_uv/gru", NULL);
+ 	return -1;
+ }
+ 
+ void gru_proc_exit(void)
+ {
+-	delete_proc_files();
++	remove_proc_subtree("sgi_uv/gru", NULL);
+ }
 -- 
 2.17.0
 
