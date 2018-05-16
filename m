@@ -1,13 +1,13 @@
 Return-Path: <BATV+8c5add14d4fec8f33fc9+5379+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D2BA51057891
-	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 12:06:50 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 697751057886
+	for <drbd-dev@lists.linbit.com>; Wed, 16 May 2018 12:12:55 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Alexander Viro <viro@zeniv.linux.org.uk>
-Date: Wed, 16 May 2018 11:43:19 +0200
-Message-Id: <20180516094346.20506-16-hch@lst.de>
+Date: Wed, 16 May 2018 11:43:16 +0200
+Message-Id: <20180516094346.20506-13-hch@lst.de>
 In-Reply-To: <20180516094346.20506-1-hch@lst.de>
 References: <20180516094346.20506-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,8 +24,8 @@ Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
 	Jiri Slaby <jslaby@suse.com>, linux-ext4@vger.kernel.org,
 	Alexey Dobriyan <adobriyan@gmail.com>,
 	megaraidlinux.pdl@broadcom.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] =?utf-8?q?=5BPATCH_15/42=5D_netfilter/x=5Ftables=3A_si?=
-	=?utf-8?q?mplify_=D1=95eq=5Ffile_code?=
+Subject: [Drbd-dev] =?utf-8?b?W1BBVENIIDEyLzQyXSBpcHZ7NCw2fS9yYXc6IHNpbXBs?=
+	=?utf-8?q?ify_=D1=95eq=5Ffile_code?=
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,138 +37,159 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Just use the address family from the proc private data instead of copying
-it into per-file data.
+Pass the hashtable to the proc private data instead of copying
+it into the per-file private data.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- net/netfilter/x_tables.c | 39 +++++++++++----------------------------
- 1 file changed, 11 insertions(+), 28 deletions(-)
+ include/net/raw.h |  4 ----
+ net/ipv4/raw.c    | 36 ++++++++++++------------------------
+ net/ipv6/raw.c    |  6 ++++--
+ 3 files changed, 16 insertions(+), 30 deletions(-)
 
-diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
-index 71325fef647d..3704101af27f 100644
---- a/net/netfilter/x_tables.c
-+++ b/net/netfilter/x_tables.c
-@@ -1489,15 +1489,10 @@ void *xt_unregister_table(struct xt_table *table)
- EXPORT_SYMBOL_GPL(xt_unregister_table);
- 
- #ifdef CONFIG_PROC_FS
--struct xt_names_priv {
--	struct seq_net_private p;
--	u_int8_t af;
--};
- static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
- {
--	struct xt_names_priv *priv = seq->private;
- 	struct net *net = seq_file_net(seq);
--	u_int8_t af = priv->af;
-+	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
- 
- 	mutex_lock(&xt[af].mutex);
- 	return seq_list_start(&net->xt.tables[af], *pos);
-@@ -1505,17 +1500,15 @@ static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
- 
- static void *xt_table_seq_next(struct seq_file *seq, void *v, loff_t *pos)
- {
--	struct xt_names_priv *priv = seq->private;
- 	struct net *net = seq_file_net(seq);
--	u_int8_t af = priv->af;
-+	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
- 
- 	return seq_list_next(v, &net->xt.tables[af], pos);
- }
- 
- static void xt_table_seq_stop(struct seq_file *seq, void *v)
- {
--	struct xt_names_priv *priv = seq->private;
--	u_int8_t af = priv->af;
-+	u_int8_t af = (unsigned long)PDE_DATA(file_inode(seq->file));
- 
- 	mutex_unlock(&xt[af].mutex);
- }
-@@ -1538,16 +1531,8 @@ static const struct seq_operations xt_table_seq_ops = {
- 
- static int xt_table_open(struct inode *inode, struct file *file)
- {
--	int ret;
--	struct xt_names_priv *priv;
--
--	ret = seq_open_net(inode, file, &xt_table_seq_ops,
--			   sizeof(struct xt_names_priv));
--	if (!ret) {
--		priv = ((struct seq_file *)file->private_data)->private;
--		priv->af = (unsigned long)PDE_DATA(inode);
--	}
--	return ret;
-+	return seq_open_net(inode, file, &xt_table_seq_ops,
-+			sizeof(struct seq_net_private));
- }
- 
- static const struct file_operations xt_table_ops = {
-@@ -1563,7 +1548,7 @@ static const struct file_operations xt_table_ops = {
-  */
- struct nf_mttg_trav {
- 	struct list_head *head, *curr;
--	uint8_t class, nfproto;
-+	uint8_t class;
+diff --git a/include/net/raw.h b/include/net/raw.h
+index 99d26d0c4a19..9c9fa98a91a4 100644
+--- a/include/net/raw.h
++++ b/include/net/raw.h
+@@ -48,7 +48,6 @@ void raw_proc_exit(void);
+ struct raw_iter_state {
+ 	struct seq_net_private p;
+ 	int bucket;
+-	struct raw_hashinfo *h;
  };
  
- enum {
-@@ -1580,6 +1565,7 @@ static void *xt_mttg_seq_next(struct seq_file *seq, void *v, loff_t *ppos,
- 		[MTTG_TRAV_NFP_UNSPEC] = MTTG_TRAV_NFP_SPEC,
- 		[MTTG_TRAV_NFP_SPEC]   = MTTG_TRAV_DONE,
- 	};
-+	uint8_t nfproto = (unsigned long)PDE_DATA(file_inode(seq->file));
- 	struct nf_mttg_trav *trav = seq->private;
+ static inline struct raw_iter_state *raw_seq_private(struct seq_file *seq)
+@@ -58,9 +57,6 @@ static inline struct raw_iter_state *raw_seq_private(struct seq_file *seq)
+ void *raw_seq_start(struct seq_file *seq, loff_t *pos);
+ void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+ void raw_seq_stop(struct seq_file *seq, void *v);
+-int raw_seq_open(struct inode *ino, struct file *file,
+-		 struct raw_hashinfo *h, const struct seq_operations *ops);
+-
+ #endif
  
- 	switch (trav->class) {
-@@ -1594,9 +1580,9 @@ static void *xt_mttg_seq_next(struct seq_file *seq, void *v, loff_t *ppos,
- 		if (trav->curr != trav->head)
- 			break;
- 		mutex_unlock(&xt[NFPROTO_UNSPEC].mutex);
--		mutex_lock(&xt[trav->nfproto].mutex);
-+		mutex_lock(&xt[nfproto].mutex);
- 		trav->head = trav->curr = is_target ?
--			&xt[trav->nfproto].target : &xt[trav->nfproto].match;
-+			&xt[nfproto].target : &xt[nfproto].match;
- 		trav->class = next_class[trav->class];
- 		break;
- 	case MTTG_TRAV_NFP_SPEC:
-@@ -1628,6 +1614,7 @@ static void *xt_mttg_seq_start(struct seq_file *seq, loff_t *pos,
- 
- static void xt_mttg_seq_stop(struct seq_file *seq, void *v)
+ int raw_hash_sk(struct sock *sk);
+diff --git a/net/ipv4/raw.c b/net/ipv4/raw.c
+index 1b4d3355624a..ae57962b31e3 100644
+--- a/net/ipv4/raw.c
++++ b/net/ipv4/raw.c
+@@ -1003,11 +1003,12 @@ struct proto raw_prot = {
+ static struct sock *raw_get_first(struct seq_file *seq)
  {
-+	uint8_t nfproto = (unsigned long)PDE_DATA(file_inode(seq->file));
- 	struct nf_mttg_trav *trav = seq->private;
+ 	struct sock *sk;
++	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+ 	struct raw_iter_state *state = raw_seq_private(seq);
  
- 	switch (trav->class) {
-@@ -1635,7 +1622,7 @@ static void xt_mttg_seq_stop(struct seq_file *seq, void *v)
- 		mutex_unlock(&xt[NFPROTO_UNSPEC].mutex);
- 		break;
- 	case MTTG_TRAV_NFP_SPEC:
--		mutex_unlock(&xt[trav->nfproto].mutex);
-+		mutex_unlock(&xt[nfproto].mutex);
- 		break;
+ 	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
+ 			++state->bucket) {
+-		sk_for_each(sk, &state->h->ht[state->bucket])
++		sk_for_each(sk, &h->ht[state->bucket])
+ 			if (sock_net(sk) == seq_file_net(seq))
+ 				goto found;
  	}
+@@ -1018,6 +1019,7 @@ static struct sock *raw_get_first(struct seq_file *seq)
+ 
+ static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
+ {
++	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+ 	struct raw_iter_state *state = raw_seq_private(seq);
+ 
+ 	do {
+@@ -1027,7 +1029,7 @@ static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
+ 	} while (sk && sock_net(sk) != seq_file_net(seq));
+ 
+ 	if (!sk && ++state->bucket < RAW_HTABLE_SIZE) {
+-		sk = sk_head(&state->h->ht[state->bucket]);
++		sk = sk_head(&h->ht[state->bucket]);
+ 		goto try_again;
+ 	}
+ 	return sk;
+@@ -1045,9 +1047,9 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
+ 
+ void *raw_seq_start(struct seq_file *seq, loff_t *pos)
+ {
+-	struct raw_iter_state *state = raw_seq_private(seq);
++	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+ 
+-	read_lock(&state->h->lock);
++	read_lock(&h->lock);
+ 	return *pos ? raw_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
  }
-@@ -1680,8 +1667,6 @@ static int xt_match_open(struct inode *inode, struct file *file)
- 	trav = __seq_open_private(file, &xt_match_seq_ops, sizeof(*trav));
- 	if (!trav)
- 		return -ENOMEM;
+ EXPORT_SYMBOL_GPL(raw_seq_start);
+@@ -1067,9 +1069,9 @@ EXPORT_SYMBOL_GPL(raw_seq_next);
+ 
+ void raw_seq_stop(struct seq_file *seq, void *v)
+ {
+-	struct raw_iter_state *state = raw_seq_private(seq);
++	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+ 
+-	read_unlock(&state->h->lock);
++	read_unlock(&h->lock);
+ }
+ EXPORT_SYMBOL_GPL(raw_seq_stop);
+ 
+@@ -1110,25 +1112,10 @@ static const struct seq_operations raw_seq_ops = {
+ 	.show  = raw_seq_show,
+ };
+ 
+-int raw_seq_open(struct inode *ino, struct file *file,
+-		 struct raw_hashinfo *h, const struct seq_operations *ops)
+-{
+-	int err;
+-	struct raw_iter_state *i;
 -
--	trav->nfproto = (unsigned long)PDE_DATA(inode);
- 	return 0;
+-	err = seq_open_net(ino, file, ops, sizeof(struct raw_iter_state));
+-	if (err < 0)
+-		return err;
+-
+-	i = raw_seq_private((struct seq_file *)file->private_data);
+-	i->h = h;
+-	return 0;
+-}
+-EXPORT_SYMBOL_GPL(raw_seq_open);
+-
+ static int raw_v4_seq_open(struct inode *inode, struct file *file)
+ {
+-	return raw_seq_open(inode, file, &raw_v4_hashinfo, &raw_seq_ops);
++	return seq_open_net(inode, file, &raw_seq_ops,
++			sizeof(struct raw_iter_state));
  }
  
-@@ -1732,8 +1717,6 @@ static int xt_target_open(struct inode *inode, struct file *file)
- 	trav = __seq_open_private(file, &xt_target_seq_ops, sizeof(*trav));
- 	if (!trav)
+ static const struct file_operations raw_seq_fops = {
+@@ -1140,7 +1127,8 @@ static const struct file_operations raw_seq_fops = {
+ 
+ static __net_init int raw_init_net(struct net *net)
+ {
+-	if (!proc_create("raw", 0444, net->proc_net, &raw_seq_fops))
++	if (!proc_create_data("raw", 0444, net->proc_net, &raw_seq_fops,
++			&raw_v4_hashinfo))
  		return -ENOMEM;
--
--	trav->nfproto = (unsigned long)PDE_DATA(inode);
+ 
  	return 0;
+diff --git a/net/ipv6/raw.c b/net/ipv6/raw.c
+index 5eb9b08947ed..dade69bf61e6 100644
+--- a/net/ipv6/raw.c
++++ b/net/ipv6/raw.c
+@@ -1306,7 +1306,8 @@ static const struct seq_operations raw6_seq_ops = {
+ 
+ static int raw6_seq_open(struct inode *inode, struct file *file)
+ {
+-	return raw_seq_open(inode, file, &raw_v6_hashinfo, &raw6_seq_ops);
++	return seq_open_net(inode, file, &raw6_seq_ops,
++			sizeof(struct raw_iter_state));
  }
  
+ static const struct file_operations raw6_seq_fops = {
+@@ -1318,7 +1319,8 @@ static const struct file_operations raw6_seq_fops = {
+ 
+ static int __net_init raw6_init_net(struct net *net)
+ {
+-	if (!proc_create("raw6", 0444, net->proc_net, &raw6_seq_fops))
++	if (!proc_create_data("raw6", 0444, net->proc_net, &raw6_seq_fops,
++			&raw_v6_hashinfo))
+ 		return -ENOMEM;
+ 
+ 	return 0;
 -- 
 2.17.0
 
