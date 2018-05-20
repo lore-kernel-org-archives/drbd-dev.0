@@ -1,33 +1,33 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BB362101286D
-	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 15:38:48 +0200 (CEST)
-Received: by mail-wm0-f49.google.com with SMTP id l1-v6so9384934wmb.2
-	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 06:38:48 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com [74.125.82.68])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 769A7101286B
+	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 15:38:55 +0200 (CEST)
+Received: by mail-wm0-f68.google.com with SMTP id a8-v6so9076402wmg.5
+	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 06:38:55 -0700 (PDT)
 Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	m25-v6sm10230963edf.76.2018.05.23.06.38.46
+	y53-v6sm10362634edb.17.2018.05.23.06.38.53
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Wed, 23 May 2018 06:38:46 -0700 (PDT)
-Resent-Message-ID: <20180523133846.GF499@soda.linbit>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com
-	[209.85.220.175])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 536561013806
-	for <drbd-dev@lists.linbit.com>; Mon, 21 May 2018 00:31:52 +0200 (CEST)
-Received: by mail-qk0-f175.google.com with SMTP id r28-v6so8222901qkk.4
-	for <drbd-dev@lists.linbit.com>; Sun, 20 May 2018 15:31:52 -0700 (PDT)
+	Wed, 23 May 2018 06:38:54 -0700 (PDT)
+Resent-Message-ID: <20180523133853.GG499@soda.linbit>
+Received: from mail-qt0-f195.google.com (mail-qt0-f195.google.com
+	[209.85.216.195])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 644161013836
+	for <drbd-dev@lists.linbit.com>; Mon, 21 May 2018 00:31:54 +0200 (CEST)
+Received: by mail-qt0-f195.google.com with SMTP id m5-v6so16850954qti.1
+	for <drbd-dev@lists.linbit.com>; Sun, 20 May 2018 15:31:54 -0700 (PDT)
 From: Kent Overstreet <kent.overstreet@gmail.com>
 To: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, axboe@kernel.dk,
 	hch@infradead.org, colyli@suse.de, snitzer@redhat.com,
 	darrick.wong@oracle.com, clm@fb.com, bacik@fb.com,
 	linux-xfs@vger.kernel.org, drbd-dev@lists.linbit.com,
 	linux-btrfs@vger.kernel.org, linux-raid@vger.kernel.org, neilb@suse.com
-Date: Sun, 20 May 2018 18:25:49 -0400
-Message-Id: <20180520222558.7053-4-kent.overstreet@gmail.com>
+Date: Sun, 20 May 2018 18:25:50 -0400
+Message-Id: <20180520222558.7053-5-kent.overstreet@gmail.com>
 In-Reply-To: <20180520222558.7053-1-kent.overstreet@gmail.com>
 References: <20180520222558.7053-1-kent.overstreet@gmail.com>
 Cc: Kent Overstreet <kent.overstreet@gmail.com>
-Subject: [Drbd-dev] [PATCH 03/12] pktcdvd: convert to
+Subject: [Drbd-dev] [PATCH 04/12] lightnvm: convert to
 	bioset_init()/mempool_init()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -42,159 +42,379 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Kent Overstreet <kent.overstreet@gmail.com>
 ---
- drivers/block/pktcdvd.c | 50 ++++++++++++++++++++---------------------
- include/linux/pktcdvd.h |  2 +-
- 2 files changed, 26 insertions(+), 26 deletions(-)
+ drivers/lightnvm/pblk-core.c     | 30 ++++++-------
+ drivers/lightnvm/pblk-init.c     | 72 ++++++++++++++++----------------
+ drivers/lightnvm/pblk-read.c     |  4 +-
+ drivers/lightnvm/pblk-recovery.c |  2 +-
+ drivers/lightnvm/pblk-write.c    |  8 ++--
+ drivers/lightnvm/pblk.h          | 14 +++----
+ 6 files changed, 65 insertions(+), 65 deletions(-)
 
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index d8aff7f325..69875f5580 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -97,8 +97,8 @@ static int pktdev_major;
- static int write_congestion_on  = PKT_WRITE_CONGESTION_ON;
- static int write_congestion_off = PKT_WRITE_CONGESTION_OFF;
- static struct mutex ctl_mutex;	/* Serialize open/close/setup/teardown */
--static mempool_t *psd_pool;
--static struct bio_set *pkt_bio_set;
-+static mempool_t psd_pool;
-+static struct bio_set pkt_bio_set;
- 
- static struct class	*class_pktcdvd = NULL;    /* /sys/class/pktcdvd */
- static struct dentry	*pkt_debugfs_root = NULL; /* /sys/kernel/debug/pktcdvd */
-@@ -631,7 +631,7 @@ static inline struct pkt_rb_node *pkt_rbtree_next(struct pkt_rb_node *node)
- static void pkt_rbtree_erase(struct pktcdvd_device *pd, struct pkt_rb_node *node)
- {
- 	rb_erase(&node->rb_node, &pd->bio_queue);
--	mempool_free(node, pd->rb_pool);
-+	mempool_free(node, &pd->rb_pool);
- 	pd->bio_queue_size--;
- 	BUG_ON(pd->bio_queue_size < 0);
- }
-@@ -2303,14 +2303,14 @@ static void pkt_end_io_read_cloned(struct bio *bio)
- 	psd->bio->bi_status = bio->bi_status;
- 	bio_put(bio);
- 	bio_endio(psd->bio);
--	mempool_free(psd, psd_pool);
-+	mempool_free(psd, &psd_pool);
- 	pkt_bio_finished(pd);
- }
- 
- static void pkt_make_request_read(struct pktcdvd_device *pd, struct bio *bio)
- {
--	struct bio *cloned_bio = bio_clone_fast(bio, GFP_NOIO, pkt_bio_set);
--	struct packet_stacked_data *psd = mempool_alloc(psd_pool, GFP_NOIO);
-+	struct bio *cloned_bio = bio_clone_fast(bio, GFP_NOIO, &pkt_bio_set);
-+	struct packet_stacked_data *psd = mempool_alloc(&psd_pool, GFP_NOIO);
- 
- 	psd->pd = pd;
- 	psd->bio = bio;
-@@ -2381,7 +2381,7 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
- 	/*
- 	 * No matching packet found. Store the bio in the work queue.
- 	 */
--	node = mempool_alloc(pd->rb_pool, GFP_NOIO);
-+	node = mempool_alloc(&pd->rb_pool, GFP_NOIO);
- 	node->bio = bio;
- 	spin_lock(&pd->lock);
- 	BUG_ON(pd->bio_queue_size < 0);
-@@ -2451,7 +2451,7 @@ static blk_qc_t pkt_make_request(struct request_queue *q, struct bio *bio)
- 
- 			split = bio_split(bio, last_zone -
- 					  bio->bi_iter.bi_sector,
--					  GFP_NOIO, pkt_bio_set);
-+					  GFP_NOIO, &pkt_bio_set);
- 			bio_chain(split, bio);
- 		} else {
- 			split = bio;
-@@ -2707,9 +2707,9 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
- 	if (!pd)
- 		goto out_mutex;
- 
--	pd->rb_pool = mempool_create_kmalloc_pool(PKT_RB_POOL_SIZE,
--						  sizeof(struct pkt_rb_node));
--	if (!pd->rb_pool)
-+	ret = mempool_init_kmalloc_pool(&pd->rb_pool, PKT_RB_POOL_SIZE,
-+					sizeof(struct pkt_rb_node));
-+	if (ret)
- 		goto out_mem;
- 
- 	INIT_LIST_HEAD(&pd->cdrw.pkt_free_list);
-@@ -2766,7 +2766,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
- out_mem2:
- 	put_disk(disk);
- out_mem:
--	mempool_destroy(pd->rb_pool);
-+	mempool_exit(&pd->rb_pool);
- 	kfree(pd);
- out_mutex:
- 	mutex_unlock(&ctl_mutex);
-@@ -2817,7 +2817,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
- 	blk_cleanup_queue(pd->disk->queue);
- 	put_disk(pd->disk);
- 
--	mempool_destroy(pd->rb_pool);
-+	mempool_exit(&pd->rb_pool);
- 	kfree(pd);
- 
- 	/* This is safe: open() is still holding a reference. */
-@@ -2914,14 +2914,14 @@ static int __init pkt_init(void)
- 
- 	mutex_init(&ctl_mutex);
- 
--	psd_pool = mempool_create_kmalloc_pool(PSD_POOL_SIZE,
--					sizeof(struct packet_stacked_data));
--	if (!psd_pool)
--		return -ENOMEM;
--	pkt_bio_set = bioset_create(BIO_POOL_SIZE, 0, 0);
--	if (!pkt_bio_set) {
--		mempool_destroy(psd_pool);
--		return -ENOMEM;
-+	ret = mempool_init_kmalloc_pool(&psd_pool, PSD_POOL_SIZE,
-+				    sizeof(struct packet_stacked_data));
-+	if (ret)
-+		return ret;
-+	ret = bioset_init(&pkt_bio_set, BIO_POOL_SIZE, 0, 0);
-+	if (ret) {
-+		mempool_exit(&psd_pool);
-+		return ret;
+diff --git a/drivers/lightnvm/pblk-core.c b/drivers/lightnvm/pblk-core.c
+index 94d5d97c9d..934341b104 100644
+--- a/drivers/lightnvm/pblk-core.c
++++ b/drivers/lightnvm/pblk-core.c
+@@ -40,7 +40,7 @@ static void pblk_line_mark_bb(struct work_struct *work)
  	}
  
- 	ret = register_blkdev(pktdev_major, DRIVER_NAME);
-@@ -2954,8 +2954,8 @@ static int __init pkt_init(void)
- out:
- 	unregister_blkdev(pktdev_major, DRIVER_NAME);
- out2:
--	mempool_destroy(psd_pool);
--	bioset_free(pkt_bio_set);
-+	mempool_exit(&psd_pool);
-+	bioset_exit(&pkt_bio_set);
+ 	kfree(ppa);
+-	mempool_free(line_ws, pblk->gen_ws_pool);
++	mempool_free(line_ws, &pblk->gen_ws_pool);
+ }
+ 
+ static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
+@@ -102,7 +102,7 @@ static void pblk_end_io_erase(struct nvm_rq *rqd)
+ 	struct pblk *pblk = rqd->private;
+ 
+ 	__pblk_end_io_erase(pblk, rqd);
+-	mempool_free(rqd, pblk->e_rq_pool);
++	mempool_free(rqd, &pblk->e_rq_pool);
+ }
+ 
+ /*
+@@ -237,15 +237,15 @@ struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int type)
+ 	switch (type) {
+ 	case PBLK_WRITE:
+ 	case PBLK_WRITE_INT:
+-		pool = pblk->w_rq_pool;
++		pool = &pblk->w_rq_pool;
+ 		rq_size = pblk_w_rq_size;
+ 		break;
+ 	case PBLK_READ:
+-		pool = pblk->r_rq_pool;
++		pool = &pblk->r_rq_pool;
+ 		rq_size = pblk_g_rq_size;
+ 		break;
+ 	default:
+-		pool = pblk->e_rq_pool;
++		pool = &pblk->e_rq_pool;
+ 		rq_size = pblk_g_rq_size;
+ 	}
+ 
+@@ -265,13 +265,13 @@ void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type)
+ 	case PBLK_WRITE:
+ 		kfree(((struct pblk_c_ctx *)nvm_rq_to_pdu(rqd))->lun_bitmap);
+ 	case PBLK_WRITE_INT:
+-		pool = pblk->w_rq_pool;
++		pool = &pblk->w_rq_pool;
+ 		break;
+ 	case PBLK_READ:
+-		pool = pblk->r_rq_pool;
++		pool = &pblk->r_rq_pool;
+ 		break;
+ 	case PBLK_ERASE:
+-		pool = pblk->e_rq_pool;
++		pool = &pblk->e_rq_pool;
+ 		break;
+ 	default:
+ 		pr_err("pblk: trying to free unknown rqd type\n");
+@@ -292,7 +292,7 @@ void pblk_bio_free_pages(struct pblk *pblk, struct bio *bio, int off,
+ 
+ 	for (i = off; i < nr_pages + off; i++) {
+ 		bv = bio->bi_io_vec[i];
+-		mempool_free(bv.bv_page, pblk->page_bio_pool);
++		mempool_free(bv.bv_page, &pblk->page_bio_pool);
+ 	}
+ }
+ 
+@@ -304,12 +304,12 @@ int pblk_bio_add_pages(struct pblk *pblk, struct bio *bio, gfp_t flags,
+ 	int i, ret;
+ 
+ 	for (i = 0; i < nr_pages; i++) {
+-		page = mempool_alloc(pblk->page_bio_pool, flags);
++		page = mempool_alloc(&pblk->page_bio_pool, flags);
+ 
+ 		ret = bio_add_pc_page(q, bio, page, PBLK_EXPOSED_PAGE_SIZE, 0);
+ 		if (ret != PBLK_EXPOSED_PAGE_SIZE) {
+ 			pr_err("pblk: could not add page to bio\n");
+-			mempool_free(page, pblk->page_bio_pool);
++			mempool_free(page, &pblk->page_bio_pool);
+ 			goto err;
+ 		}
+ 	}
+@@ -1593,7 +1593,7 @@ static void pblk_line_put_ws(struct work_struct *work)
+ 	struct pblk_line *line = line_put_ws->line;
+ 
+ 	__pblk_line_put(pblk, line);
+-	mempool_free(line_put_ws, pblk->gen_ws_pool);
++	mempool_free(line_put_ws, &pblk->gen_ws_pool);
+ }
+ 
+ void pblk_line_put(struct kref *ref)
+@@ -1610,7 +1610,7 @@ void pblk_line_put_wq(struct kref *ref)
+ 	struct pblk *pblk = line->pblk;
+ 	struct pblk_line_ws *line_put_ws;
+ 
+-	line_put_ws = mempool_alloc(pblk->gen_ws_pool, GFP_ATOMIC);
++	line_put_ws = mempool_alloc(&pblk->gen_ws_pool, GFP_ATOMIC);
+ 	if (!line_put_ws)
+ 		return;
+ 
+@@ -1752,7 +1752,7 @@ void pblk_line_close_ws(struct work_struct *work)
+ 	struct pblk_line *line = line_ws->line;
+ 
+ 	pblk_line_close(pblk, line);
+-	mempool_free(line_ws, pblk->gen_ws_pool);
++	mempool_free(line_ws, &pblk->gen_ws_pool);
+ }
+ 
+ void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
+@@ -1761,7 +1761,7 @@ void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
+ {
+ 	struct pblk_line_ws *line_ws;
+ 
+-	line_ws = mempool_alloc(pblk->gen_ws_pool, gfp_mask);
++	line_ws = mempool_alloc(&pblk->gen_ws_pool, gfp_mask);
+ 
+ 	line_ws->pblk = pblk;
+ 	line_ws->line = line;
+diff --git a/drivers/lightnvm/pblk-init.c b/drivers/lightnvm/pblk-init.c
+index 91a5bc2556..9a984abd3d 100644
+--- a/drivers/lightnvm/pblk-init.c
++++ b/drivers/lightnvm/pblk-init.c
+@@ -23,7 +23,7 @@
+ static struct kmem_cache *pblk_ws_cache, *pblk_rec_cache, *pblk_g_rq_cache,
+ 				*pblk_w_rq_cache;
+ static DECLARE_RWSEM(pblk_lock);
+-struct bio_set *pblk_bio_set;
++struct bio_set pblk_bio_set;
+ 
+ static int pblk_rw_io(struct request_queue *q, struct pblk *pblk,
+ 			  struct bio *bio)
+@@ -341,7 +341,7 @@ static int pblk_core_init(struct pblk *pblk)
+ {
+ 	struct nvm_tgt_dev *dev = pblk->dev;
+ 	struct nvm_geo *geo = &dev->geo;
+-	int max_write_ppas;
++	int ret, max_write_ppas;
+ 
+ 	atomic64_set(&pblk->user_wa, 0);
+ 	atomic64_set(&pblk->pad_wa, 0);
+@@ -375,33 +375,33 @@ static int pblk_core_init(struct pblk *pblk)
+ 		goto fail_free_pad_dist;
+ 
+ 	/* Internal bios can be at most the sectors signaled by the device. */
+-	pblk->page_bio_pool = mempool_create_page_pool(NVM_MAX_VLBA, 0);
+-	if (!pblk->page_bio_pool)
++	ret = mempool_init_page_pool(&pblk->page_bio_pool, NVM_MAX_VLBA, 0);
++	if (ret)
+ 		goto free_global_caches;
+ 
+-	pblk->gen_ws_pool = mempool_create_slab_pool(PBLK_GEN_WS_POOL_SIZE,
+-							pblk_ws_cache);
+-	if (!pblk->gen_ws_pool)
++	ret = mempool_init_slab_pool(&pblk->gen_ws_pool, PBLK_GEN_WS_POOL_SIZE,
++				     pblk_ws_cache);
++	if (ret)
+ 		goto free_page_bio_pool;
+ 
+-	pblk->rec_pool = mempool_create_slab_pool(geo->all_luns,
+-							pblk_rec_cache);
+-	if (!pblk->rec_pool)
++	ret = mempool_init_slab_pool(&pblk->rec_pool, geo->all_luns,
++				     pblk_rec_cache);
++	if (ret)
+ 		goto free_gen_ws_pool;
+ 
+-	pblk->r_rq_pool = mempool_create_slab_pool(geo->all_luns,
+-							pblk_g_rq_cache);
+-	if (!pblk->r_rq_pool)
++	ret = mempool_init_slab_pool(&pblk->r_rq_pool, geo->all_luns,
++				     pblk_g_rq_cache);
++	if (ret)
+ 		goto free_rec_pool;
+ 
+-	pblk->e_rq_pool = mempool_create_slab_pool(geo->all_luns,
+-							pblk_g_rq_cache);
+-	if (!pblk->e_rq_pool)
++	ret = mempool_init_slab_pool(&pblk->e_rq_pool, geo->all_luns,
++				     pblk_g_rq_cache);
++	if (ret)
+ 		goto free_r_rq_pool;
+ 
+-	pblk->w_rq_pool = mempool_create_slab_pool(geo->all_luns,
+-							pblk_w_rq_cache);
+-	if (!pblk->w_rq_pool)
++	ret = mempool_init_slab_pool(&pblk->w_rq_pool, geo->all_luns,
++				     pblk_w_rq_cache);
++	if (ret)
+ 		goto free_e_rq_pool;
+ 
+ 	pblk->close_wq = alloc_workqueue("pblk-close-wq",
+@@ -433,17 +433,17 @@ static int pblk_core_init(struct pblk *pblk)
+ free_close_wq:
+ 	destroy_workqueue(pblk->close_wq);
+ free_w_rq_pool:
+-	mempool_destroy(pblk->w_rq_pool);
++	mempool_exit(&pblk->w_rq_pool);
+ free_e_rq_pool:
+-	mempool_destroy(pblk->e_rq_pool);
++	mempool_exit(&pblk->e_rq_pool);
+ free_r_rq_pool:
+-	mempool_destroy(pblk->r_rq_pool);
++	mempool_exit(&pblk->r_rq_pool);
+ free_rec_pool:
+-	mempool_destroy(pblk->rec_pool);
++	mempool_exit(&pblk->rec_pool);
+ free_gen_ws_pool:
+-	mempool_destroy(pblk->gen_ws_pool);
++	mempool_exit(&pblk->gen_ws_pool);
+ free_page_bio_pool:
+-	mempool_destroy(pblk->page_bio_pool);
++	mempool_exit(&pblk->page_bio_pool);
+ free_global_caches:
+ 	pblk_free_global_caches(pblk);
+ fail_free_pad_dist:
+@@ -462,12 +462,12 @@ static void pblk_core_free(struct pblk *pblk)
+ 	if (pblk->bb_wq)
+ 		destroy_workqueue(pblk->bb_wq);
+ 
+-	mempool_destroy(pblk->page_bio_pool);
+-	mempool_destroy(pblk->gen_ws_pool);
+-	mempool_destroy(pblk->rec_pool);
+-	mempool_destroy(pblk->r_rq_pool);
+-	mempool_destroy(pblk->e_rq_pool);
+-	mempool_destroy(pblk->w_rq_pool);
++	mempool_exit(&pblk->page_bio_pool);
++	mempool_exit(&pblk->gen_ws_pool);
++	mempool_exit(&pblk->rec_pool);
++	mempool_exit(&pblk->r_rq_pool);
++	mempool_exit(&pblk->e_rq_pool);
++	mempool_exit(&pblk->w_rq_pool);
+ 
+ 	pblk_free_global_caches(pblk);
+ 	kfree(pblk->pad_dist);
+@@ -1297,18 +1297,18 @@ static int __init pblk_module_init(void)
+ {
+ 	int ret;
+ 
+-	pblk_bio_set = bioset_create(BIO_POOL_SIZE, 0, 0);
+-	if (!pblk_bio_set)
+-		return -ENOMEM;
++	ret = bioset_init(&pblk_bio_set, BIO_POOL_SIZE, 0, 0);
++	if (ret)
++		return ret;
+ 	ret = nvm_register_tgt_type(&tt_pblk);
+ 	if (ret)
+-		bioset_free(pblk_bio_set);
++		bioset_exit(&pblk_bio_set);
  	return ret;
  }
  
-@@ -2968,8 +2968,8 @@ static void __exit pkt_exit(void)
- 	pkt_sysfs_cleanup();
- 
- 	unregister_blkdev(pktdev_major, DRIVER_NAME);
--	mempool_destroy(psd_pool);
--	bioset_free(pkt_bio_set);
-+	mempool_exit(&psd_pool);
-+	bioset_exit(&pkt_bio_set);
+ static void pblk_module_exit(void)
+ {
+-	bioset_free(pblk_bio_set);
++	bioset_exit(&pblk_bio_set);
+ 	nvm_unregister_tgt_type(&tt_pblk);
  }
  
- MODULE_DESCRIPTION("Packet writing layer for CD/DVD drives");
-diff --git a/include/linux/pktcdvd.h b/include/linux/pktcdvd.h
-index 93d142ad15..174601554b 100644
---- a/include/linux/pktcdvd.h
-+++ b/include/linux/pktcdvd.h
-@@ -186,7 +186,7 @@ struct pktcdvd_device
- 	sector_t		current_sector;	/* Keep track of where the elevator is */
- 	atomic_t		scan_queue;	/* Set to non-zero when pkt_handle_queue */
- 						/* needs to be run. */
--	mempool_t		*rb_pool;	/* mempool for pkt_rb_node allocations */
-+	mempool_t		rb_pool;	/* mempool for pkt_rb_node allocations */
+diff --git a/drivers/lightnvm/pblk-read.c b/drivers/lightnvm/pblk-read.c
+index 9eee10f69d..c844ffb6ae 100644
+--- a/drivers/lightnvm/pblk-read.c
++++ b/drivers/lightnvm/pblk-read.c
+@@ -294,7 +294,7 @@ static int pblk_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
+ 		kunmap_atomic(src_p);
+ 		kunmap_atomic(dst_p);
  
- 	struct packet_iosched   iosched;
- 	struct gendisk		*disk;
+-		mempool_free(src_bv.bv_page, pblk->page_bio_pool);
++		mempool_free(src_bv.bv_page, &pblk->page_bio_pool);
+ 
+ 		hole = find_next_zero_bit(read_bitmap, nr_secs, hole + 1);
+ 	} while (hole < nr_secs);
+@@ -429,7 +429,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
+ 		struct bio *int_bio = NULL;
+ 
+ 		/* Clone read bio to deal with read errors internally */
+-		int_bio = bio_clone_fast(bio, GFP_KERNEL, pblk_bio_set);
++		int_bio = bio_clone_fast(bio, GFP_KERNEL, &pblk_bio_set);
+ 		if (!int_bio) {
+ 			pr_err("pblk: could not clone read bio\n");
+ 			goto fail_end_io;
+diff --git a/drivers/lightnvm/pblk-recovery.c b/drivers/lightnvm/pblk-recovery.c
+index 3e079c2afa..364ad52a5b 100644
+--- a/drivers/lightnvm/pblk-recovery.c
++++ b/drivers/lightnvm/pblk-recovery.c
+@@ -60,7 +60,7 @@ void pblk_submit_rec(struct work_struct *work)
+ 		goto err;
+ 	}
+ 
+-	mempool_free(recovery, pblk->rec_pool);
++	mempool_free(recovery, &pblk->rec_pool);
+ 	return;
+ 
+ err:
+diff --git a/drivers/lightnvm/pblk-write.c b/drivers/lightnvm/pblk-write.c
+index 3e6f1ebd74..aef7fa2d40 100644
+--- a/drivers/lightnvm/pblk-write.c
++++ b/drivers/lightnvm/pblk-write.c
+@@ -122,7 +122,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
+ 	if (unlikely(nr_ppas == 1))
+ 		ppa_list = &rqd->ppa_addr;
+ 
+-	recovery = mempool_alloc(pblk->rec_pool, GFP_ATOMIC);
++	recovery = mempool_alloc(&pblk->rec_pool, GFP_ATOMIC);
+ 
+ 	INIT_LIST_HEAD(&recovery->failed);
+ 
+@@ -134,7 +134,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
+ 		/* Logic error */
+ 		if (bit > c_ctx->nr_valid) {
+ 			WARN_ONCE(1, "pblk: corrupted write request\n");
+-			mempool_free(recovery, pblk->rec_pool);
++			mempool_free(recovery, &pblk->rec_pool);
+ 			goto out;
+ 		}
+ 
+@@ -142,7 +142,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
+ 		entry = pblk_rb_sync_scan_entry(&pblk->rwb, &ppa);
+ 		if (!entry) {
+ 			pr_err("pblk: could not scan entry on write failure\n");
+-			mempool_free(recovery, pblk->rec_pool);
++			mempool_free(recovery, &pblk->rec_pool);
+ 			goto out;
+ 		}
+ 
+@@ -156,7 +156,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
+ 	ret = pblk_recov_setup_rq(pblk, c_ctx, recovery, comp_bits, c_entries);
+ 	if (ret) {
+ 		pr_err("pblk: could not recover from write failure\n");
+-		mempool_free(recovery, pblk->rec_pool);
++		mempool_free(recovery, &pblk->rec_pool);
+ 		goto out;
+ 	}
+ 
+diff --git a/drivers/lightnvm/pblk.h b/drivers/lightnvm/pblk.h
+index 9c682acfc5..feafa4de26 100644
+--- a/drivers/lightnvm/pblk.h
++++ b/drivers/lightnvm/pblk.h
+@@ -664,12 +664,12 @@ struct pblk {
+ 
+ 	struct list_head compl_list;
+ 
+-	mempool_t *page_bio_pool;
+-	mempool_t *gen_ws_pool;
+-	mempool_t *rec_pool;
+-	mempool_t *r_rq_pool;
+-	mempool_t *w_rq_pool;
+-	mempool_t *e_rq_pool;
++	mempool_t page_bio_pool;
++	mempool_t gen_ws_pool;
++	mempool_t rec_pool;
++	mempool_t r_rq_pool;
++	mempool_t w_rq_pool;
++	mempool_t e_rq_pool;
+ 
+ 	struct workqueue_struct *close_wq;
+ 	struct workqueue_struct *bb_wq;
+@@ -841,7 +841,7 @@ void pblk_write_should_kick(struct pblk *pblk);
+ /*
+  * pblk read path
+  */
+-extern struct bio_set *pblk_bio_set;
++extern struct bio_set pblk_bio_set;
+ int pblk_submit_read(struct pblk *pblk, struct bio *bio);
+ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
+ /*
 -- 
 2.17.0
 
