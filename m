@@ -1,32 +1,31 @@
-Return-Path: <msnitzer@redhat.com>
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com [66.187.233.73])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 586A1101AC56
-	for <drbd-dev@lists.linbit.com>; Tue, 22 May 2018 21:09:36 +0200 (CEST)
-Date: Tue, 22 May 2018 15:09:34 -0400
-From: Mike Snitzer <snitzer@redhat.com>
-To: Christoph Hellwig <hch@infradead.org>
-Message-ID: <20180522190933.GA25904@redhat.com>
-References: <4b343aef-e11c-73ba-1d88-7e73ca838cad@kernel.dk>
-	<20180521150439.GA19379@redhat.com>
-	<61e30dcf-a01c-f47d-087a-12930caf9aef@kernel.dk>
-	<20180521151817.GA19454@redhat.com>
-	<d01a150a-7752-f6ce-78f2-17a65c1e6fa5@kernel.dk>
-	<20180521160907.GA19553@redhat.com>
-	<20180521173724.GG11495@kmo-pixel>
-	<20180521182427.GA20013@redhat.com>
-	<20180521233855.GI11495@kmo-pixel>
-	<20180522064118.GA18704@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180522064118.GA18704@infradead.org>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-xfs@vger.kernel.org,
-	linux-raid@vger.kernel.org, darrick.wong@oracle.com,
-	linux-kernel@vger.kernel.org, colyli@suse.de,
-	linux-block@vger.kernel.org, clm@fb.com, neilb@suse.com,
-	bacik@fb.com, Kent Overstreet <kent.overstreet@gmail.com>,
-	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/13] convert block layer to
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com [74.125.82.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8F77D101AC7B
+	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 15:36:48 +0200 (CEST)
+Received: by mail-wm0-f67.google.com with SMTP id f6-v6so9076975wmc.4
+	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 06:36:48 -0700 (PDT)
+Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
+	d8-v6sm10395773edk.50.2018.05.23.06.36.46
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Wed, 23 May 2018 06:36:47 -0700 (PDT)
+Resent-Message-ID: <20180523133643.GC499@soda.linbit>
+Received: from mail-qt0-f175.google.com (mail-qt0-f175.google.com
+	[209.85.216.175])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EF828101AC56
+	for <drbd-dev@lists.linbit.com>; Mon, 21 May 2018 00:31:35 +0200 (CEST)
+Received: by mail-qt0-f175.google.com with SMTP id f5-v6so16833727qth.2
+	for <drbd-dev@lists.linbit.com>; Sun, 20 May 2018 15:31:35 -0700 (PDT)
+From: Kent Overstreet <kent.overstreet@gmail.com>
+To: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, axboe@kernel.dk,
+	hch@infradead.org, colyli@suse.de, snitzer@redhat.com,
+	darrick.wong@oracle.com, clm@fb.com, bacik@fb.com,
+	linux-xfs@vger.kernel.org, drbd-dev@lists.linbit.com,
+	linux-btrfs@vger.kernel.org, linux-raid@vger.kernel.org, neilb@suse.com
+Date: Sun, 20 May 2018 18:25:46 -0400
+Message-Id: <20180520222558.7053-1-kent.overstreet@gmail.com>
+Cc: Kent Overstreet <kent.overstreet@gmail.com>
+Subject: [Drbd-dev] [PATCH 00/13] convert block layer to
 	bioset_init()/mempool_init()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -39,75 +38,97 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, May 22 2018 at  2:41am -0400,
-Christoph Hellwig <hch@infradead.org> wrote:
+Jens - this series does the rest of the conversions that Christoph wanted, and
+drops bioset_create().
 
-> On Mon, May 21, 2018 at 07:38:55PM -0400, Kent Overstreet wrote:
-> > On Mon, May 21, 2018 at 02:24:32PM -0400, Mike Snitzer wrote:
-> > > Every single data structure change in this series should be reviewed for
-> > > unforeseen alignment consequences.  Jens seemed to say that is
-> > > worthwhile.  Not sure if he'll do it or we divide it up.  If we divide
-> > > it up a temp topic branch should be published for others to inspect.
-> > > 
-> > > Could be alignment hasn't been a historic concern for a bunch of the
-> > > data structures changed in this series.. if so then all we can do is fix
-> > > up any obvious potential for false sharing.
-> > 
-> > Honestly, I almost never worry about alignment... the very few times I do care,
-> > I use __cacheline_aligned_in_smp.
-> 
-> And that generally is the right stratgey.  If Mike really doesn't want
-> a change we can just open code the kmalloc for the bio set there, the
-> important point is that we should not keep the old API around for no
-> good reason.
+Only lightly tested, but the changes are pretty mechanical. Based on your
+for-next tree.
 
-Again, I never said I didn't want these changes.  I just thought it
-worthwhile to mention the potential for alignment quirks arising.
+It's also in the for-jens branch at https://evilpiepirate.org/git/bcachefs.git
 
-Reality is false sharing is quite uncommon.  So my concern was/is pretty
-niche and unlikely to be applicable.
+Kent Overstreet (12):
+  block: convert bounce, q->bio_split to bioset_init()/mempool_init()
+  drbd: convert to bioset_init()/mempool_init()
+  pktcdvd: convert to bioset_init()/mempool_init()
+  lightnvm: convert to bioset_init()/mempool_init()
+  bcache: convert to bioset_init()/mempool_init()
+  md: convert to bioset_init()/mempool_init()
+  dm: convert to bioset_init()/mempool_init()
+  target: convert to bioset_init()/mempool_init()
+  fs: convert block_dev.c to bioset_init()
+  btrfs: convert to bioset_init()/mempool_init()
+  xfs: convert to bioset_init()/mempool_init()
+  block: Drop bioset_create()
 
-That said, I did take the opportunity to look at all the DM structures
-that were modified.  The bio_set and mempool_t structs are so large that
-they span multiple cachelines as is.  So I focused on eliminating
-unnecessary spanning of cachelines (by non-bio_set and non-mempool_t
-members) and eliminated most holes in DM structs.  This is the result:
-http://people.redhat.com/msnitzer/dm-4.18-struct-reorg/
+ block/bio.c                         | 61 +++++------------------
+ block/blk-core.c                    |  7 +--
+ block/blk-merge.c                   |  8 +--
+ block/blk-sysfs.c                   |  3 +-
+ block/bounce.c                      | 47 +++++++++---------
+ drivers/block/drbd/drbd_bitmap.c    |  4 +-
+ drivers/block/drbd/drbd_int.h       | 10 ++--
+ drivers/block/drbd/drbd_main.c      | 71 ++++++++++-----------------
+ drivers/block/drbd/drbd_receiver.c  |  6 +--
+ drivers/block/drbd/drbd_req.c       |  4 +-
+ drivers/block/drbd/drbd_req.h       |  2 +-
+ drivers/block/pktcdvd.c             | 50 +++++++++----------
+ drivers/lightnvm/pblk-core.c        | 30 ++++++------
+ drivers/lightnvm/pblk-init.c        | 72 +++++++++++++--------------
+ drivers/lightnvm/pblk-read.c        |  4 +-
+ drivers/lightnvm/pblk-recovery.c    |  2 +-
+ drivers/lightnvm/pblk-write.c       |  8 +--
+ drivers/lightnvm/pblk.h             | 14 +++---
+ drivers/md/bcache/bcache.h          | 10 ++--
+ drivers/md/bcache/bset.c            | 13 ++---
+ drivers/md/bcache/bset.h            |  2 +-
+ drivers/md/bcache/btree.c           |  4 +-
+ drivers/md/bcache/io.c              |  4 +-
+ drivers/md/bcache/request.c         | 18 +++----
+ drivers/md/bcache/super.c           | 38 ++++++---------
+ drivers/md/dm-bio-prison-v1.c       | 13 ++---
+ drivers/md/dm-bio-prison-v2.c       | 13 ++---
+ drivers/md/dm-cache-target.c        | 25 +++++-----
+ drivers/md/dm-core.h                |  4 +-
+ drivers/md/dm-crypt.c               | 60 +++++++++++------------
+ drivers/md/dm-integrity.c           | 15 +++---
+ drivers/md/dm-io.c                  | 29 +++++------
+ drivers/md/dm-kcopyd.c              | 22 +++++----
+ drivers/md/dm-log-userspace-base.c  | 19 ++++----
+ drivers/md/dm-region-hash.c         | 23 ++++-----
+ drivers/md/dm-rq.c                  |  2 +-
+ drivers/md/dm-snap.c                | 17 +++----
+ drivers/md/dm-thin.c                | 32 ++++++------
+ drivers/md/dm-verity-fec.c          | 55 +++++++++++----------
+ drivers/md/dm-verity-fec.h          |  8 +--
+ drivers/md/dm-zoned-target.c        | 13 +++--
+ drivers/md/dm.c                     | 55 +++++++++------------
+ drivers/md/md-faulty.c              |  2 +-
+ drivers/md/md-linear.c              |  2 +-
+ drivers/md/md-multipath.c           | 17 ++++---
+ drivers/md/md-multipath.h           |  2 +-
+ drivers/md/md.c                     | 61 +++++++++--------------
+ drivers/md/md.h                     |  4 +-
+ drivers/md/raid0.c                  |  5 +-
+ drivers/md/raid1.c                  | 76 ++++++++++++++---------------
+ drivers/md/raid1.h                  |  6 +--
+ drivers/md/raid10.c                 | 60 +++++++++++------------
+ drivers/md/raid10.h                 |  6 +--
+ drivers/md/raid5-cache.c            | 43 ++++++++--------
+ drivers/md/raid5-ppl.c              | 42 +++++++---------
+ drivers/md/raid5.c                  | 12 ++---
+ drivers/md/raid5.h                  |  2 +-
+ drivers/target/target_core_iblock.c | 14 +++---
+ drivers/target/target_core_iblock.h |  2 +-
+ fs/block_dev.c                      |  9 ++--
+ fs/btrfs/extent_io.c                | 25 +++++-----
+ fs/xfs/xfs_aops.c                   |  2 +-
+ fs/xfs/xfs_aops.h                   |  2 +-
+ fs/xfs/xfs_super.c                  | 11 ++---
+ include/linux/bio.h                 | 11 +++--
+ include/linux/blkdev.h              |  2 +-
+ include/linux/pktcdvd.h             |  2 +-
+ 67 files changed, 606 insertions(+), 711 deletions(-)
 
-Compare before.txt vs after_kent.txt vs after_mike.txt
-
-Nothing staggering or special.  Just something I'll add once Kent's
-latest changes land.
-
-But, I also eliminated 2 4-byte holes in struct bio_set, Jens please
-feel free to pick this up (if you think it useful):
-
-From: Mike Snitzer <snitzer@redhat.com>
-Subject: [PATCH] block: eliminate 2 4-byte holes in bio_set structure
-
-Signed-off-by: Mike Snitzer <snitzer@redhat.com>
----
- include/linux/bio.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 5e472fc..e6fc692 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -735,7 +735,6 @@ static inline void bio_inc_remaining(struct bio *bio)
- 
- struct bio_set {
- 	struct kmem_cache *bio_slab;
--	unsigned int front_pad;
- 
- 	mempool_t bio_pool;
- 	mempool_t bvec_pool;
-@@ -743,6 +742,7 @@ struct bio_set {
- 	mempool_t bio_integrity_pool;
- 	mempool_t bvec_integrity_pool;
- #endif
-+	unsigned int front_pad;
- 
- 	/*
- 	 * Deadlock avoidance for stacking block drivers: see comments in
+-- 
+2.17.0
 
