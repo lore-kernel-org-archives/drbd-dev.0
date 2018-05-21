@@ -1,33 +1,23 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com [74.125.82.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2974C100542B
-	for <drbd-dev@lists.linbit.com>; Fri, 18 May 2018 14:56:01 +0200 (CEST)
-Received: by mail-wm0-f66.google.com with SMTP id o78-v6so15082413wmg.0
-	for <drbd-dev@lists.linbit.com>; Fri, 18 May 2018 05:56:01 -0700 (PDT)
-Date: Fri, 18 May 2018 14:55:54 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20180518125554.GA9238@soda.linbit>
-References: <20180516094346.20506-1-hch@lst.de>
-	<20180516094346.20506-29-hch@lst.de>
+Return-Path: <msnitzer@redhat.com>
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com [66.187.233.73])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 39AAB1011BEC
+	for <drbd-dev@lists.linbit.com>; Mon, 21 May 2018 16:03:58 +0200 (CEST)
+Date: Mon, 21 May 2018 10:03:56 -0400
+From: Mike Snitzer <snitzer@redhat.com>
+To: Kent Overstreet <kent.overstreet@gmail.com>
+Message-ID: <20180521140348.GA19069@redhat.com>
+References: <20180520222558.7053-1-kent.overstreet@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180516094346.20506-29-hch@lst.de>
-Cc: linux-rtc@vger.kernel.org, Alessandro Zummo <a.zummo@towertech.it>,
-	Alexandre Belloni <alexandre.belloni@bootlin.com>,
-	devel@driverdev.osuosl.org, linux-scsi@vger.kernel.org,
-	linux-acpi@vger.kernel.org,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Jiri Slaby <jslaby@suse.com>, megaraidlinux.pdl@broadcom.com,
-	linux-kernel@vger.kernel.org,
-	Alexey Dobriyan <adobriyan@gmail.com>, linux-ide@vger.kernel.org,
-	netfilter-devel@vger.kernel.org,
-	Alexander Viro <viro@zeniv.linux.org.uk>, netdev@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org,
-	jfs-discussion@lists.sourceforge.net, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 28/42] drbd: switch to proc_create_single
+In-Reply-To: <20180520222558.7053-1-kent.overstreet@gmail.com>
+Cc: axboe@kernel.dk, hch@infradead.org, linux-raid@vger.kernel.org,
+	darrick.wong@oracle.com, linux-kernel@vger.kernel.org,
+	colyli@suse.de, linux-block@vger.kernel.org, clm@fb.com,
+	neilb@suse.com, bacik@fb.com, linux-xfs@vger.kernel.org,
+	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 00/13] convert block layer to
+	bioset_init()/mempool_init()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,19 +29,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, May 16, 2018 at 11:43:32AM +0200, Christoph Hellwig wrote:
-> And stop messing with try_module_get on THIS_MODULE, which doesn't make
-> any sense here.
+On Sun, May 20 2018 at  6:25pm -0400,
+Kent Overstreet <kent.overstreet@gmail.com> wrote:
 
-The idea was to increase module count on /proc/drbd access.
+> Jens - this series does the rest of the conversions that Christoph wanted, and
+> drops bioset_create().
+> 
+> Only lightly tested, but the changes are pretty mechanical. Based on your
+> for-next tree.
 
-If someone holds /proc/drbd open, previously rmmod would
-"succeed" in starting the unload, but then block on remove_proc_entry,
-leading to a situation where the lsmod does not show drbd anymore,
-but /proc/drbd being still there (but no longer accessible).
+By switching 'mempool_t *' to 'mempool_t' and 'bio_set *' to 'bio_set'
+you've altered the alignment of members in data structures.  So I'll
+need to audit all the data structures you've modified in DM.
 
-I'd rather have rmmod fail up front in this case.
-And try_module_get() seemed most appropriate.
+Could we get the backstory on _why_ you're making this change?
+Would go a long way to helping me appreciate why this is a good use of
+anyone's time.
 
-    Lars
-
+Thanks,
+Mike
