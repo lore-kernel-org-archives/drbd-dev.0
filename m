@@ -1,45 +1,34 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com [74.125.82.68])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 669D31005428
-	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 15:40:46 +0200 (CEST)
-Received: by mail-wm0-f68.google.com with SMTP id j5-v6so9317547wme.5
-	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 06:40:46 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com [74.125.82.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 719571005433
+	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 15:40:49 +0200 (CEST)
+Received: by mail-wm0-f65.google.com with SMTP id j4-v6so9160942wme.1
+	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 06:40:49 -0700 (PDT)
 Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
-	g13-v6sm9904758edq.57.2018.05.23.06.40.44
+	y63-v6sm10233990edy.63.2018.05.23.06.40.47
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Wed, 23 May 2018 06:40:45 -0700 (PDT)
-Resent-Message-ID: <20180523134043.GU499@soda.linbit>
-Received: from mail-qt0-f173.google.com (mail-qt0-f173.google.com
-	[209.85.216.173])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CC654101AC56
-	for <drbd-dev@lists.linbit.com>; Mon, 21 May 2018 19:37:29 +0200 (CEST)
-Received: by mail-qt0-f173.google.com with SMTP id g13-v6so19914473qth.8
-	for <drbd-dev@lists.linbit.com>; Mon, 21 May 2018 10:37:29 -0700 (PDT)
-Date: Mon, 21 May 2018 13:37:24 -0400
-From: Kent Overstreet <kent.overstreet@gmail.com>
-To: Mike Snitzer <snitzer@redhat.com>
-Message-ID: <20180521173724.GG11495@kmo-pixel>
-References: <686d7df6-c7d1-48a6-b7ff-48dc8aff6a62@kernel.dk>
-	<20180521143132.GB19194@redhat.com>
-	<2bbeeb1a-8b99-b06a-eb9b-eb8523c16460@kernel.dk>
-	<20180521144703.GA19303@redhat.com>
-	<4b343aef-e11c-73ba-1d88-7e73ca838cad@kernel.dk>
-	<20180521150439.GA19379@redhat.com>
-	<61e30dcf-a01c-f47d-087a-12930caf9aef@kernel.dk>
-	<20180521151817.GA19454@redhat.com>
-	<d01a150a-7752-f6ce-78f2-17a65c1e6fa5@kernel.dk>
-	<20180521160907.GA19553@redhat.com>
+	Wed, 23 May 2018 06:40:48 -0700 (PDT)
+Resent-Message-ID: <20180523134047.GV499@soda.linbit>
+Received: from userp2120.oracle.com (userp2120.oracle.com [156.151.31.85])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B8D01018D73
+	for <drbd-dev@lists.linbit.com>; Mon, 21 May 2018 20:40:04 +0200 (CEST)
+Date: Mon, 21 May 2018 11:39:36 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Kent Overstreet <kent.overstreet@gmail.com>
+Message-ID: <20180521183936.GJ23858@magnolia>
+References: <20180520222558.7053-1-kent.overstreet@gmail.com>
+	<20180520222558.7053-12-kent.overstreet@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180521160907.GA19553@redhat.com>
-Cc: Jens Axboe <axboe@kernel.dk>, hch@infradead.org, linux-raid@vger.kernel.org,
-	darrick.wong@oracle.com, linux-kernel@vger.kernel.org,
-	colyli@suse.de, linux-block@vger.kernel.org, clm@fb.com,
-	neilb@suse.com, bacik@fb.com, linux-xfs@vger.kernel.org,
+In-Reply-To: <20180520222558.7053-12-kent.overstreet@gmail.com>
+Cc: axboe@kernel.dk, hch@infradead.org, linux-raid@vger.kernel.org,
+	snitzer@redhat.com, linux-kernel@vger.kernel.org, colyli@suse.de,
+	linux-block@vger.kernel.org, clm@fb.com, neilb@suse.com,
+	bacik@fb.com, linux-xfs@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/13] convert block layer to
+Subject: Re: [Drbd-dev] [PATCH 11/12] xfs: convert to
 	bioset_init()/mempool_init()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -52,66 +41,94 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, May 21, 2018 at 12:09:14PM -0400, Mike Snitzer wrote:
-> On Mon, May 21 2018 at 11:36am -0400,
-> Jens Axboe <axboe@kernel.dk> wrote:
-> 
-> > On 5/21/18 9:18 AM, Mike Snitzer wrote:
-> > > On Mon, May 21 2018 at 11:09am -0400,
-> > > Jens Axboe <axboe@kernel.dk> wrote:
-> > > 
-> > >> On 5/21/18 9:04 AM, Mike Snitzer wrote:
-> > >>> On Mon, May 21 2018 at 10:52am -0400,
-> > >>> Jens Axboe <axboe@kernel.dk> wrote:
-> > >>>
-> ...
-> > >>>> IMHO you're making a big deal out of something that should not be.
-> > >>>
-> > >>> I raised an issue that had seemingly not been considered at all.  Not
-> > >>> making a big deal.  Raising it for others' benefit.
-> > >>>
-> > >>>> If the dm bits are that sensitive and cache line honed to perfection
-> > >>>> already due to previous regressions in that area, then it might
-> > >>>> not be a bad idea to have some compile checks for false cacheline
-> > >>>> sharing between sensitive members, or spilling of a sub-struct
-> > >>>> into multiple cachelines.
-> > >>>>
-> > >>>> It's not like this was pushed behind your back. It's posted for
-> > >>>> review. It's quite possible the net change is a win for dm. Let's
-> > >>>> focus on getting it reviewed, rather than pontificate on what
-> > >>>> could potentially go all wrong with this.
-> > >>>
-> > >>> Why are you making this personal?  Or purely about DM?  I'm merely
-> > >>> pointing out this change isn't something that can be given a quick
-> > >>> blanket "looks good".
-> > >>
-> > >> I'm not making this personal at all?! You raised a (valid) concern,
-> > >> I'm merely stating why I don't think it's a high risk issue. I'm
-> > >> assuming your worry is related to dm, as those are the reports
-> > >> that would ultimately land on your desk.
-> > > 
-> > > Then we'll just agree to disagree with what this implies: "It's not like
-> > > this was pushed behind your back."
-> > 
-> > I'm afraid you've lost me now - it was not pushed behind your back,
-> > it was posted for review, with you on the CC list. Not trying to
-> > be deliberately dense here, I just don't see what our disagreement is.
-> 
-> You're having an off day ;)  Mondays and all?
-> 
-> I just raised an alignment concern that needs to be considered during
-> review by all stakeholders.  Wasn't upset at all.  Maybe my email tone
-> came off otherwise?
-> 
-> And then you got confused by me pointing out how it was weird for you to
-> suggest I felt this stuff was pushed behind my back.. and went on to
-> think I really think that.  It's almost like you're a confused hypnotist
-> seeding me with paranoid dilutions. ;)
+On Sun, May 20, 2018 at 06:25:57PM -0400, Kent Overstreet wrote:
+> Signed-off-by: Kent Overstreet <kent.overstreet@gmail.com>
 
-Uh, you came across as upset and paranoid to me too. Chalk it up to email? :)
+Looks ok, I guess...
+Acked-by: Darrick J. Wong <darrick.wong@oracle.com>
 
-I personally don't care, I have no horse in this race. This particular patch
-series wasn't my idea, Christoph wanted all these conversions done so
-bioset_create() could be deleted. If you want us to hold off on the dm patch for
-awhile until someone can get around to testing it or whatever (since I don't
-have tests for everything I pushed) that would be perfectly fine by me.
+--D
+
+> ---
+>  fs/xfs/xfs_aops.c  |  2 +-
+>  fs/xfs/xfs_aops.h  |  2 +-
+>  fs/xfs/xfs_super.c | 11 +++++------
+>  3 files changed, 7 insertions(+), 8 deletions(-)
+> 
+> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> index 0ab824f574..102463543d 100644
+> --- a/fs/xfs/xfs_aops.c
+> +++ b/fs/xfs/xfs_aops.c
+> @@ -594,7 +594,7 @@ xfs_alloc_ioend(
+>  	struct xfs_ioend	*ioend;
+>  	struct bio		*bio;
+>  
+> -	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, xfs_ioend_bioset);
+> +	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, &xfs_ioend_bioset);
+>  	xfs_init_bio_from_bh(bio, bh);
+>  
+>  	ioend = container_of(bio, struct xfs_ioend, io_inline_bio);
+> diff --git a/fs/xfs/xfs_aops.h b/fs/xfs/xfs_aops.h
+> index 69346d460d..694c85b038 100644
+> --- a/fs/xfs/xfs_aops.h
+> +++ b/fs/xfs/xfs_aops.h
+> @@ -18,7 +18,7 @@
+>  #ifndef __XFS_AOPS_H__
+>  #define __XFS_AOPS_H__
+>  
+> -extern struct bio_set *xfs_ioend_bioset;
+> +extern struct bio_set xfs_ioend_bioset;
+>  
+>  /*
+>   * Types of I/O for bmap clustering and I/O completion tracking.
+> diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
+> index d714240529..f643d76db5 100644
+> --- a/fs/xfs/xfs_super.c
+> +++ b/fs/xfs/xfs_super.c
+> @@ -63,7 +63,7 @@
+>  #include <linux/parser.h>
+>  
+>  static const struct super_operations xfs_super_operations;
+> -struct bio_set *xfs_ioend_bioset;
+> +struct bio_set xfs_ioend_bioset;
+>  
+>  static struct kset *xfs_kset;		/* top-level xfs sysfs dir */
+>  #ifdef DEBUG
+> @@ -1845,10 +1845,9 @@ MODULE_ALIAS_FS("xfs");
+>  STATIC int __init
+>  xfs_init_zones(void)
+>  {
+> -	xfs_ioend_bioset = bioset_create(4 * MAX_BUF_PER_PAGE,
+> +	if (bioset_init(&xfs_ioend_bioset, 4 * MAX_BUF_PER_PAGE,
+>  			offsetof(struct xfs_ioend, io_inline_bio),
+> -			BIOSET_NEED_BVECS);
+> -	if (!xfs_ioend_bioset)
+> +			BIOSET_NEED_BVECS))
+>  		goto out;
+>  
+>  	xfs_log_ticket_zone = kmem_zone_init(sizeof(xlog_ticket_t),
+> @@ -1997,7 +1996,7 @@ xfs_init_zones(void)
+>   out_destroy_log_ticket_zone:
+>  	kmem_zone_destroy(xfs_log_ticket_zone);
+>   out_free_ioend_bioset:
+> -	bioset_free(xfs_ioend_bioset);
+> +	bioset_exit(&xfs_ioend_bioset);
+>   out:
+>  	return -ENOMEM;
+>  }
+> @@ -2029,7 +2028,7 @@ xfs_destroy_zones(void)
+>  	kmem_zone_destroy(xfs_btree_cur_zone);
+>  	kmem_zone_destroy(xfs_bmap_free_item_zone);
+>  	kmem_zone_destroy(xfs_log_ticket_zone);
+> -	bioset_free(xfs_ioend_bioset);
+> +	bioset_exit(&xfs_ioend_bioset);
+>  }
+>  
+>  STATIC int __init
+> -- 
+> 2.17.0
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
