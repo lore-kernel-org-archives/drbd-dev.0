@@ -1,25 +1,13 @@
-Return-Path: <BATV+a8c6d037863aa87ae187+5385+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 33336101AC56
-	for <drbd-dev@lists.linbit.com>; Tue, 22 May 2018 12:10:53 +0200 (CEST)
-Date: Tue, 22 May 2018 03:10:44 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Kent Overstreet <kent.overstreet@gmail.com>
-Message-ID: <20180522101044.GE4477@infradead.org>
-References: <20180520222558.7053-1-kent.overstreet@gmail.com>
-	<20180520222558.7053-13-kent.overstreet@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180520222558.7053-13-kent.overstreet@gmail.com>
-Cc: axboe@kernel.dk, hch@infradead.org, linux-raid@vger.kernel.org,
-	snitzer@redhat.com, darrick.wong@oracle.com,
-	linux-kernel@vger.kernel.org, colyli@suse.de,
-	linux-block@vger.kernel.org, clm@fb.com, neilb@suse.com,
-	bacik@fb.com, linux-xfs@vger.kernel.org,
-	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 12/12] block: Drop bioset_create()
+Return-Path: <johannes@johannesthoma.com>
+Received: from mout.kundenserver.de (mout.kundenserver.de [212.227.126.187])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6D19B1011B93
+	for <drbd-dev@lists.linbit.com>; Tue, 22 May 2018 18:46:26 +0200 (CEST)
+From: johannes@johannesthoma.com
+To: drbd-dev@lists.linbit.com
+Date: Tue, 22 May 2018 18:40:39 +0200
+Message-Id: <1527007239-2887-1-git-send-email-johannes@johannesthoma.com>
+Subject: [Drbd-dev] [PATCH] drbd_create_device: also remove device from
+	resource idr on failure.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,6 +19,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Looks good,
+From: Johannes Thoma <johannes@johannesthoma.com>
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+On failure, a drbdadm status may OOPS when the already freed
+device is still on this idr, should we fail late in
+drbd_create_device(). This patch does the cleanup.
+---
+ drbd/drbd_main.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drbd/drbd_main.c b/drbd/drbd_main.c
+index 300b684..04ec052 100644
+--- a/drbd/drbd_main.c
++++ b/drbd/drbd_main.c
+@@ -3763,6 +3763,7 @@ out_remove_peer_device:
+ 		kref_debug_put(&connection->kref_debug, 3);
+ 		kref_put(&connection->kref, drbd_destroy_connection);
+ 	}
++	idr_remove(&resource->devices, vnr);
+ 
+ out_idr_remove_minor:
+ 	idr_remove(&drbd_devices, minor);
+-- 
+2.7.4
+
