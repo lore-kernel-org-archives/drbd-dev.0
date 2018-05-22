@@ -1,26 +1,26 @@
 Return-Path: <BATV+a8c6d037863aa87ae187+5385+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 29EB1101AC56
-	for <drbd-dev@lists.linbit.com>; Tue, 22 May 2018 12:09:46 +0200 (CEST)
-Date: Tue, 22 May 2018 03:09:38 -0700
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CC78B101AC56
+	for <drbd-dev@lists.linbit.com>; Tue, 22 May 2018 12:10:26 +0200 (CEST)
+Date: Tue, 22 May 2018 03:10:16 -0700
 From: Christoph Hellwig <hch@infradead.org>
 To: Kent Overstreet <kent.overstreet@gmail.com>
-Message-ID: <20180522100938.GC4477@infradead.org>
+Message-ID: <20180522101016.GD4477@infradead.org>
 References: <20180520222558.7053-1-kent.overstreet@gmail.com>
-	<20180520222558.7053-10-kent.overstreet@gmail.com>
+	<20180520222558.7053-12-kent.overstreet@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180520222558.7053-10-kent.overstreet@gmail.com>
+In-Reply-To: <20180520222558.7053-12-kent.overstreet@gmail.com>
 Cc: axboe@kernel.dk, hch@infradead.org, linux-raid@vger.kernel.org,
 	snitzer@redhat.com, darrick.wong@oracle.com,
 	linux-kernel@vger.kernel.org, colyli@suse.de,
 	linux-block@vger.kernel.org, clm@fb.com, neilb@suse.com,
 	bacik@fb.com, linux-xfs@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 09/12] fs: convert block_dev.c to
-	bioset_init()
+Subject: Re: [Drbd-dev] [PATCH 11/12] xfs: convert to
+	bioset_init()/mempool_init()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,6 +32,9 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Looks good,
+This creates a minor conflict with my iomap series, but that should
+be easy to merge if needed.
+
+Otherwise looks good:
 
 Reviewed-by: Christoph Hellwig <hch@lst.de>
