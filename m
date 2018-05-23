@@ -1,40 +1,42 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-io0-f193.google.com (mail-io0-f193.google.com
-	[209.85.223.193])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 75124101AC7B
-	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2018 21:40:08 +0200 (CEST)
-Received: by mail-io0-f193.google.com with SMTP id o185-v6so3727687iod.0
-	for <drbd-dev@lists.linbit.com>; Thu, 24 May 2018 12:40:08 -0700 (PDT)
-To: Joe Perches <joe@perches.com>, "Ed L. Cashin" <ed.cashin@acm.org>,
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com [74.125.82.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E90C21018D73
+	for <drbd-dev@lists.linbit.com>; Mon, 28 May 2018 17:57:00 +0200 (CEST)
+Received: by mail-wm0-f65.google.com with SMTP id v131-v6so14057978wma.1
+	for <drbd-dev@lists.linbit.com>; Mon, 28 May 2018 08:57:00 -0700 (PDT)
+Received: from soda.linbit ([86.59.100.100]) by smtp.gmail.com with ESMTPSA id
+	f25-v6sm1262194edd.87.2018.05.28.08.56.58
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Mon, 28 May 2018 08:56:58 -0700 (PDT)
+Resent-Message-ID: <20180528155649.GA20485@soda.linbit>
+Received: from smtprelay.hostedemail.com (smtprelay0131.hostedemail.com
+	[216.40.44.131])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2069C101AC7B
+	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 22:10:53 +0200 (CEST)
+Received: from smtprelay.hostedemail.com (10.5.19.251.rfc1918.com
+	[10.5.19.251])
+	by smtpgrave02.hostedemail.com (Postfix) with ESMTP id 34A601803C951
+	for <drbd-dev@lists.linbit.com>; Wed, 23 May 2018 20:05:15 +0000 (UTC)
+From: Joe Perches <joe@perches.com>
+To: Jens Axboe <axboe@kernel.dk>, "Ed L. Cashin" <ed.cashin@acm.org>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Jiri Kosina <jikos@kernel.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jiri Kosina <jikos@kernel.org>,
 	Josef Bacik <josef@toxicpanda.com>, linux-block@vger.kernel.org,
 	Ilya Dryomov <idryomov@gmail.com>, Sage Weil <sage@redhat.com>,
-	Alex Elder <elder@kernel.org>,
+	Alex Elder <elder@kernel.org>, Joshua Morris <josh.h.morris@us.ibm.com>,
 	Philip Kelleher <pjk1939@linux.vnet.ibm.com>,
 	"Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>,
+	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>,
 	Boris Ostrovsky <boris.ostrovsky@oracle.com>,
 	Juergen Gross <jgross@suse.com>
-References: <5e97a292c1ba38a6b5a0caa271d85dc3de1b2aa7.1527105857.git.joe@perches.com>
-	<6bf44255-145f-bf14-e254-860731ff9296@kernel.dk>
-	<56ee8810463b6c537ca0c10c9f82e6d922acd1f1.camel@perches.com>
-	<539cc400-28d7-66df-eb24-77fe95d617a2@kernel.dk>
-	<e64c2846b1b9102a52eba7b242f746e7bfff1464.camel@perches.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <501407b0-ae9b-7943-0789-fb1c9959f7fe@kernel.dk>
-Date: Thu, 24 May 2018 13:40:04 -0600
-MIME-Version: 1.0
-In-Reply-To: <e64c2846b1b9102a52eba7b242f746e7bfff1464.camel@perches.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Date: Wed, 23 May 2018 13:05:04 -0700
+Message-Id: <5e97a292c1ba38a6b5a0caa271d85dc3de1b2aa7.1527105857.git.joe@perches.com>
 Cc: linux-kernel@vger.kernel.org, nbd@other.debian.org,
 	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
 	virtualization@lists.linux-foundation.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] block drivers/block: Use octal not symbolic
+Subject: [Drbd-dev] [PATCH] block drivers/block: Use octal not symbolic
 	permissions
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -47,50 +49,990 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 5/24/18 7:01 AM, Joe Perches wrote:
-> On Thu, 2018-05-24 at 06:47 -0600, Jens Axboe wrote:
->> On 5/23/18 4:35 PM, Joe Perches wrote:
->>> On Wed, 2018-05-23 at 15:27 -0600, Jens Axboe wrote:
->>>> On 5/23/18 2:05 PM, Joe Perches wrote:
->>>>> Convert the S_<FOO> symbolic permissions to their octal equivalents as
->>>>> using octal and not symbolic permissions is preferred by many as more
->>>>> readable.
->>>>>
->>>>> see: https://lkml.org/lkml/2016/8/2/1945
->>>>>
->>>>> Done with automated conversion via:
->>>>> $ ./scripts/checkpatch.pl -f --types=SYMBOLIC_PERMS --fix-inplace <files...>
->>>>>
->>>>> Miscellanea:
->>>>>
->>>>> o Wrapped modified multi-line calls to a single line where appropriate
->>>>> o Realign modified multi-line calls to open parenthesis
->>>>
->>>> Honestly, I see this as pretty needless churn.
->>>
->>> btw:
->>>
->>> There is currently a mixture of symbolic and octal
->>> permissions uses in block and drivers/block
->>>
->>> ie: 94 octal and 146 symbolic uses.
->>>
->>> If this is applied, all would become octal.
->>
->> That does help justify the change. My main worry here is creating
->> unnecessary conflicts, which is always annoying. But it's even more
->> annoying when the change creating the conflict isn't really that
->> important at all. Case in point, the patch doesn't apply to the
->> for-4.18/block branch that it should go into...
-> 
-> Done against most recent -next as it's basically impossible
-> to do anything against multiple private trees.
-> 
-> Also, the script that generated the patch is in the changelog
-> so it's simple to rerun.
+Convert the S_<FOO> symbolic permissions to their octal equivalents as
+using octal and not symbolic permissions is preferred by many as more
+readable.
 
-Alright, applied, thanks.
+see: https://lkml.org/lkml/2016/8/2/1945
 
+Done with automated conversion via:
+$ ./scripts/checkpatch.pl -f --types=SYMBOLIC_PERMS --fix-inplace <files...>
+
+Miscellanea:
+
+o Wrapped modified multi-line calls to a single line where appropriate
+o Realign modified multi-line calls to open parenthesis
+
+Signed-off-by: Joe Perches <joe@perches.com>
+---
+ block/blk-integrity.c               | 12 +++----
+ block/blk-mq-sysfs.c                |  6 ++--
+ block/blk-sysfs.c                   | 68 ++++++++++++++++++-------------------
+ block/cfq-iosched.c                 |  2 +-
+ block/deadline-iosched.c            |  3 +-
+ block/genhd.c                       | 37 ++++++++++----------
+ block/mq-deadline.c                 |  3 +-
+ block/partition-generic.c           | 22 ++++++------
+ drivers/block/DAC960.c              |  3 +-
+ drivers/block/aoe/aoeblk.c          | 10 +++---
+ drivers/block/brd.c                 |  6 ++--
+ drivers/block/drbd/drbd_debugfs.c   | 20 +++++------
+ drivers/block/drbd/drbd_main.c      |  4 +--
+ drivers/block/floppy.c              |  2 +-
+ drivers/block/loop.c                |  6 ++--
+ drivers/block/mtip32xx/mtip32xx.c   | 11 +++---
+ drivers/block/nbd.c                 |  2 +-
+ drivers/block/null_blk.c            | 30 ++++++++--------
+ drivers/block/pktcdvd.c             |  4 +--
+ drivers/block/rbd.c                 | 44 ++++++++++++------------
+ drivers/block/rsxx/core.c           |  6 ++--
+ drivers/block/virtio_blk.c          |  6 ++--
+ drivers/block/xen-blkback/blkback.c |  2 +-
+ drivers/block/xen-blkback/xenbus.c  |  4 +--
+ drivers/block/xen-blkfront.c        |  7 ++--
+ 25 files changed, 156 insertions(+), 164 deletions(-)
+
+diff --git a/block/blk-integrity.c b/block/blk-integrity.c
+index feb30570eaf5..6121611e1316 100644
+--- a/block/blk-integrity.c
++++ b/block/blk-integrity.c
+@@ -333,34 +333,34 @@ static ssize_t integrity_device_show(struct blk_integrity *bi, char *page)
+ }
+ 
+ static struct integrity_sysfs_entry integrity_format_entry = {
+-	.attr = { .name = "format", .mode = S_IRUGO },
++	.attr = { .name = "format", .mode = 0444 },
+ 	.show = integrity_format_show,
+ };
+ 
+ static struct integrity_sysfs_entry integrity_tag_size_entry = {
+-	.attr = { .name = "tag_size", .mode = S_IRUGO },
++	.attr = { .name = "tag_size", .mode = 0444 },
+ 	.show = integrity_tag_size_show,
+ };
+ 
+ static struct integrity_sysfs_entry integrity_interval_entry = {
+-	.attr = { .name = "protection_interval_bytes", .mode = S_IRUGO },
++	.attr = { .name = "protection_interval_bytes", .mode = 0444 },
+ 	.show = integrity_interval_show,
+ };
+ 
+ static struct integrity_sysfs_entry integrity_verify_entry = {
+-	.attr = { .name = "read_verify", .mode = S_IRUGO | S_IWUSR },
++	.attr = { .name = "read_verify", .mode = 0644 },
+ 	.show = integrity_verify_show,
+ 	.store = integrity_verify_store,
+ };
+ 
+ static struct integrity_sysfs_entry integrity_generate_entry = {
+-	.attr = { .name = "write_generate", .mode = S_IRUGO | S_IWUSR },
++	.attr = { .name = "write_generate", .mode = 0644 },
+ 	.show = integrity_generate_show,
+ 	.store = integrity_generate_store,
+ };
+ 
+ static struct integrity_sysfs_entry integrity_device_entry = {
+-	.attr = { .name = "device_is_integrity_capable", .mode = S_IRUGO },
++	.attr = { .name = "device_is_integrity_capable", .mode = 0444 },
+ 	.show = integrity_device_show,
+ };
+ 
+diff --git a/block/blk-mq-sysfs.c b/block/blk-mq-sysfs.c
+index a54b4b070f1c..aafb44224c89 100644
+--- a/block/blk-mq-sysfs.c
++++ b/block/blk-mq-sysfs.c
+@@ -166,15 +166,15 @@ static struct attribute *default_ctx_attrs[] = {
+ };
+ 
+ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_nr_tags = {
+-	.attr = {.name = "nr_tags", .mode = S_IRUGO },
++	.attr = {.name = "nr_tags", .mode = 0444 },
+ 	.show = blk_mq_hw_sysfs_nr_tags_show,
+ };
+ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_nr_reserved_tags = {
+-	.attr = {.name = "nr_reserved_tags", .mode = S_IRUGO },
++	.attr = {.name = "nr_reserved_tags", .mode = 0444 },
+ 	.show = blk_mq_hw_sysfs_nr_reserved_tags_show,
+ };
+ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_cpus = {
+-	.attr = {.name = "cpu_list", .mode = S_IRUGO },
++	.attr = {.name = "cpu_list", .mode = 0444 },
+ 	.show = blk_mq_hw_sysfs_cpus_show,
+ };
+ 
+diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
+index cae525b7aae6..31347e31daa3 100644
+--- a/block/blk-sysfs.c
++++ b/block/blk-sysfs.c
+@@ -502,187 +502,187 @@ static ssize_t queue_dax_show(struct request_queue *q, char *page)
+ }
+ 
+ static struct queue_sysfs_entry queue_requests_entry = {
+-	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "nr_requests", .mode = 0644 },
+ 	.show = queue_requests_show,
+ 	.store = queue_requests_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_ra_entry = {
+-	.attr = {.name = "read_ahead_kb", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "read_ahead_kb", .mode = 0644 },
+ 	.show = queue_ra_show,
+ 	.store = queue_ra_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_max_sectors_entry = {
+-	.attr = {.name = "max_sectors_kb", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "max_sectors_kb", .mode = 0644 },
+ 	.show = queue_max_sectors_show,
+ 	.store = queue_max_sectors_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_max_hw_sectors_entry = {
+-	.attr = {.name = "max_hw_sectors_kb", .mode = S_IRUGO },
++	.attr = {.name = "max_hw_sectors_kb", .mode = 0444 },
+ 	.show = queue_max_hw_sectors_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_max_segments_entry = {
+-	.attr = {.name = "max_segments", .mode = S_IRUGO },
++	.attr = {.name = "max_segments", .mode = 0444 },
+ 	.show = queue_max_segments_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_max_discard_segments_entry = {
+-	.attr = {.name = "max_discard_segments", .mode = S_IRUGO },
++	.attr = {.name = "max_discard_segments", .mode = 0444 },
+ 	.show = queue_max_discard_segments_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_max_integrity_segments_entry = {
+-	.attr = {.name = "max_integrity_segments", .mode = S_IRUGO },
++	.attr = {.name = "max_integrity_segments", .mode = 0444 },
+ 	.show = queue_max_integrity_segments_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_max_segment_size_entry = {
+-	.attr = {.name = "max_segment_size", .mode = S_IRUGO },
++	.attr = {.name = "max_segment_size", .mode = 0444 },
+ 	.show = queue_max_segment_size_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_iosched_entry = {
+-	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "scheduler", .mode = 0644 },
+ 	.show = elv_iosched_show,
+ 	.store = elv_iosched_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_hw_sector_size_entry = {
+-	.attr = {.name = "hw_sector_size", .mode = S_IRUGO },
++	.attr = {.name = "hw_sector_size", .mode = 0444 },
+ 	.show = queue_logical_block_size_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_logical_block_size_entry = {
+-	.attr = {.name = "logical_block_size", .mode = S_IRUGO },
++	.attr = {.name = "logical_block_size", .mode = 0444 },
+ 	.show = queue_logical_block_size_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_physical_block_size_entry = {
+-	.attr = {.name = "physical_block_size", .mode = S_IRUGO },
++	.attr = {.name = "physical_block_size", .mode = 0444 },
+ 	.show = queue_physical_block_size_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_chunk_sectors_entry = {
+-	.attr = {.name = "chunk_sectors", .mode = S_IRUGO },
++	.attr = {.name = "chunk_sectors", .mode = 0444 },
+ 	.show = queue_chunk_sectors_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_io_min_entry = {
+-	.attr = {.name = "minimum_io_size", .mode = S_IRUGO },
++	.attr = {.name = "minimum_io_size", .mode = 0444 },
+ 	.show = queue_io_min_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_io_opt_entry = {
+-	.attr = {.name = "optimal_io_size", .mode = S_IRUGO },
++	.attr = {.name = "optimal_io_size", .mode = 0444 },
+ 	.show = queue_io_opt_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_discard_granularity_entry = {
+-	.attr = {.name = "discard_granularity", .mode = S_IRUGO },
++	.attr = {.name = "discard_granularity", .mode = 0444 },
+ 	.show = queue_discard_granularity_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_discard_max_hw_entry = {
+-	.attr = {.name = "discard_max_hw_bytes", .mode = S_IRUGO },
++	.attr = {.name = "discard_max_hw_bytes", .mode = 0444 },
+ 	.show = queue_discard_max_hw_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_discard_max_entry = {
+-	.attr = {.name = "discard_max_bytes", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "discard_max_bytes", .mode = 0644 },
+ 	.show = queue_discard_max_show,
+ 	.store = queue_discard_max_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_discard_zeroes_data_entry = {
+-	.attr = {.name = "discard_zeroes_data", .mode = S_IRUGO },
++	.attr = {.name = "discard_zeroes_data", .mode = 0444 },
+ 	.show = queue_discard_zeroes_data_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_write_same_max_entry = {
+-	.attr = {.name = "write_same_max_bytes", .mode = S_IRUGO },
++	.attr = {.name = "write_same_max_bytes", .mode = 0444 },
+ 	.show = queue_write_same_max_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_write_zeroes_max_entry = {
+-	.attr = {.name = "write_zeroes_max_bytes", .mode = S_IRUGO },
++	.attr = {.name = "write_zeroes_max_bytes", .mode = 0444 },
+ 	.show = queue_write_zeroes_max_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_nonrot_entry = {
+-	.attr = {.name = "rotational", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "rotational", .mode = 0644 },
+ 	.show = queue_show_nonrot,
+ 	.store = queue_store_nonrot,
+ };
+ 
+ static struct queue_sysfs_entry queue_zoned_entry = {
+-	.attr = {.name = "zoned", .mode = S_IRUGO },
++	.attr = {.name = "zoned", .mode = 0444 },
+ 	.show = queue_zoned_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_nomerges_entry = {
+-	.attr = {.name = "nomerges", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "nomerges", .mode = 0644 },
+ 	.show = queue_nomerges_show,
+ 	.store = queue_nomerges_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_rq_affinity_entry = {
+-	.attr = {.name = "rq_affinity", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "rq_affinity", .mode = 0644 },
+ 	.show = queue_rq_affinity_show,
+ 	.store = queue_rq_affinity_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_iostats_entry = {
+-	.attr = {.name = "iostats", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "iostats", .mode = 0644 },
+ 	.show = queue_show_iostats,
+ 	.store = queue_store_iostats,
+ };
+ 
+ static struct queue_sysfs_entry queue_random_entry = {
+-	.attr = {.name = "add_random", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "add_random", .mode = 0644 },
+ 	.show = queue_show_random,
+ 	.store = queue_store_random,
+ };
+ 
+ static struct queue_sysfs_entry queue_poll_entry = {
+-	.attr = {.name = "io_poll", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "io_poll", .mode = 0644 },
+ 	.show = queue_poll_show,
+ 	.store = queue_poll_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_poll_delay_entry = {
+-	.attr = {.name = "io_poll_delay", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "io_poll_delay", .mode = 0644 },
+ 	.show = queue_poll_delay_show,
+ 	.store = queue_poll_delay_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_wc_entry = {
+-	.attr = {.name = "write_cache", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "write_cache", .mode = 0644 },
+ 	.show = queue_wc_show,
+ 	.store = queue_wc_store,
+ };
+ 
+ static struct queue_sysfs_entry queue_fua_entry = {
+-	.attr = {.name = "fua", .mode = S_IRUGO },
++	.attr = {.name = "fua", .mode = 0444 },
+ 	.show = queue_fua_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_dax_entry = {
+-	.attr = {.name = "dax", .mode = S_IRUGO },
++	.attr = {.name = "dax", .mode = 0444 },
+ 	.show = queue_dax_show,
+ };
+ 
+ static struct queue_sysfs_entry queue_wb_lat_entry = {
+-	.attr = {.name = "wbt_lat_usec", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "wbt_lat_usec", .mode = 0644 },
+ 	.show = queue_wb_lat_show,
+ 	.store = queue_wb_lat_store,
+ };
+ 
+ #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+ static struct queue_sysfs_entry throtl_sample_time_entry = {
+-	.attr = {.name = "throttle_sample_time", .mode = S_IRUGO | S_IWUSR },
++	.attr = {.name = "throttle_sample_time", .mode = 0644 },
+ 	.show = blk_throtl_sample_time_show,
+ 	.store = blk_throtl_sample_time_store,
+ };
+diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
+index 6b9f6b1cd33b..82b6c27b3245 100644
+--- a/block/cfq-iosched.c
++++ b/block/cfq-iosched.c
+@@ -4786,7 +4786,7 @@ USEC_STORE_FUNCTION(cfq_target_latency_us_store, &cfqd->cfq_target_latency, 1, U
+ #undef USEC_STORE_FUNCTION
+ 
+ #define CFQ_ATTR(name) \
+-	__ATTR(name, S_IRUGO|S_IWUSR, cfq_##name##_show, cfq_##name##_store)
++	__ATTR(name, 0644, cfq_##name##_show, cfq_##name##_store)
+ 
+ static struct elv_fs_entry cfq_attrs[] = {
+ 	CFQ_ATTR(quantum),
+diff --git a/block/deadline-iosched.c b/block/deadline-iosched.c
+index 9de9f156e203..ef2f1f09e9b3 100644
+--- a/block/deadline-iosched.c
++++ b/block/deadline-iosched.c
+@@ -512,8 +512,7 @@ STORE_FUNCTION(deadline_fifo_batch_store, &dd->fifo_batch, 0, INT_MAX, 0);
+ #undef STORE_FUNCTION
+ 
+ #define DD_ATTR(name) \
+-	__ATTR(name, S_IRUGO|S_IWUSR, deadline_##name##_show, \
+-				      deadline_##name##_store)
++	__ATTR(name, 0644, deadline_##name##_show, deadline_##name##_store)
+ 
+ static struct elv_fs_entry deadline_attrs[] = {
+ 	DD_ATTR(read_expire),
+diff --git a/block/genhd.c b/block/genhd.c
+index 066de6d321c7..cb65a3013480 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -1127,28 +1127,25 @@ static ssize_t disk_discard_alignment_show(struct device *dev,
+ 	return sprintf(buf, "%d\n", queue_discard_alignment(disk->queue));
+ }
+ 
+-static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);
+-static DEVICE_ATTR(ext_range, S_IRUGO, disk_ext_range_show, NULL);
+-static DEVICE_ATTR(removable, S_IRUGO, disk_removable_show, NULL);
+-static DEVICE_ATTR(hidden, S_IRUGO, disk_hidden_show, NULL);
+-static DEVICE_ATTR(ro, S_IRUGO, disk_ro_show, NULL);
+-static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
+-static DEVICE_ATTR(alignment_offset, S_IRUGO, disk_alignment_offset_show, NULL);
+-static DEVICE_ATTR(discard_alignment, S_IRUGO, disk_discard_alignment_show,
+-		   NULL);
+-static DEVICE_ATTR(capability, S_IRUGO, disk_capability_show, NULL);
+-static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
+-static DEVICE_ATTR(inflight, S_IRUGO, part_inflight_show, NULL);
+-static DEVICE_ATTR(badblocks, S_IRUGO | S_IWUSR, disk_badblocks_show,
+-		disk_badblocks_store);
++static DEVICE_ATTR(range, 0444, disk_range_show, NULL);
++static DEVICE_ATTR(ext_range, 0444, disk_ext_range_show, NULL);
++static DEVICE_ATTR(removable, 0444, disk_removable_show, NULL);
++static DEVICE_ATTR(hidden, 0444, disk_hidden_show, NULL);
++static DEVICE_ATTR(ro, 0444, disk_ro_show, NULL);
++static DEVICE_ATTR(size, 0444, part_size_show, NULL);
++static DEVICE_ATTR(alignment_offset, 0444, disk_alignment_offset_show, NULL);
++static DEVICE_ATTR(discard_alignment, 0444, disk_discard_alignment_show, NULL);
++static DEVICE_ATTR(capability, 0444, disk_capability_show, NULL);
++static DEVICE_ATTR(stat, 0444, part_stat_show, NULL);
++static DEVICE_ATTR(inflight, 0444, part_inflight_show, NULL);
++static DEVICE_ATTR(badblocks, 0644, disk_badblocks_show, disk_badblocks_store);
+ #ifdef CONFIG_FAIL_MAKE_REQUEST
+ static struct device_attribute dev_attr_fail =
+-	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
++	__ATTR(make-it-fail, 0644, part_fail_show, part_fail_store);
+ #endif
+ #ifdef CONFIG_FAIL_IO_TIMEOUT
+ static struct device_attribute dev_attr_fail_timeout =
+-	__ATTR(io-timeout-fail,  S_IRUGO|S_IWUSR, part_timeout_show,
+-		part_timeout_store);
++	__ATTR(io-timeout-fail, 0644, part_timeout_show, part_timeout_store);
+ #endif
+ 
+ static struct attribute *disk_attrs[] = {
+@@ -1900,9 +1897,9 @@ static ssize_t disk_events_poll_msecs_store(struct device *dev,
+ 	return count;
+ }
+ 
+-static const DEVICE_ATTR(events, S_IRUGO, disk_events_show, NULL);
+-static const DEVICE_ATTR(events_async, S_IRUGO, disk_events_async_show, NULL);
+-static const DEVICE_ATTR(events_poll_msecs, S_IRUGO|S_IWUSR,
++static const DEVICE_ATTR(events, 0444, disk_events_show, NULL);
++static const DEVICE_ATTR(events_async, 0444, disk_events_async_show, NULL);
++static const DEVICE_ATTR(events_poll_msecs, 0644,
+ 			 disk_events_poll_msecs_show,
+ 			 disk_events_poll_msecs_store);
+ 
+diff --git a/block/mq-deadline.c b/block/mq-deadline.c
+index 8ec0ba9f5386..099a9e05854c 100644
+--- a/block/mq-deadline.c
++++ b/block/mq-deadline.c
+@@ -630,8 +630,7 @@ STORE_FUNCTION(deadline_fifo_batch_store, &dd->fifo_batch, 0, INT_MAX, 0);
+ #undef STORE_FUNCTION
+ 
+ #define DD_ATTR(name) \
+-	__ATTR(name, S_IRUGO|S_IWUSR, deadline_##name##_show, \
+-				      deadline_##name##_store)
++	__ATTR(name, 0644, deadline_##name##_show, deadline_##name##_store)
+ 
+ static struct elv_fs_entry deadline_attrs[] = {
+ 	DD_ATTR(read_expire),
+diff --git a/block/partition-generic.c b/block/partition-generic.c
+index db57cced9b98..93ef8ce568a1 100644
+--- a/block/partition-generic.c
++++ b/block/partition-generic.c
+@@ -179,18 +179,17 @@ ssize_t part_fail_store(struct device *dev,
+ }
+ #endif
+ 
+-static DEVICE_ATTR(partition, S_IRUGO, part_partition_show, NULL);
+-static DEVICE_ATTR(start, S_IRUGO, part_start_show, NULL);
+-static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
+-static DEVICE_ATTR(ro, S_IRUGO, part_ro_show, NULL);
+-static DEVICE_ATTR(alignment_offset, S_IRUGO, part_alignment_offset_show, NULL);
+-static DEVICE_ATTR(discard_alignment, S_IRUGO, part_discard_alignment_show,
+-		   NULL);
+-static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
+-static DEVICE_ATTR(inflight, S_IRUGO, part_inflight_show, NULL);
++static DEVICE_ATTR(partition, 0444, part_partition_show, NULL);
++static DEVICE_ATTR(start, 0444, part_start_show, NULL);
++static DEVICE_ATTR(size, 0444, part_size_show, NULL);
++static DEVICE_ATTR(ro, 0444, part_ro_show, NULL);
++static DEVICE_ATTR(alignment_offset, 0444, part_alignment_offset_show, NULL);
++static DEVICE_ATTR(discard_alignment, 0444, part_discard_alignment_show, NULL);
++static DEVICE_ATTR(stat, 0444, part_stat_show, NULL);
++static DEVICE_ATTR(inflight, 0444, part_inflight_show, NULL);
+ #ifdef CONFIG_FAIL_MAKE_REQUEST
+ static struct device_attribute dev_attr_fail =
+-	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
++	__ATTR(make-it-fail, 0644, part_fail_show, part_fail_store);
+ #endif
+ 
+ static struct attribute *part_attrs[] = {
+@@ -291,8 +290,7 @@ static ssize_t whole_disk_show(struct device *dev,
+ {
+ 	return 0;
+ }
+-static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
+-		   whole_disk_show, NULL);
++static DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
+ 
+ /*
+  * Must be called either with bd_mutex held, before a disk can be opened or
+diff --git a/drivers/block/DAC960.c b/drivers/block/DAC960.c
+index 55d9ff54ce15..b7e4aa624667 100644
+--- a/drivers/block/DAC960.c
++++ b/drivers/block/DAC960.c
+@@ -6552,7 +6552,8 @@ static void DAC960_CreateProcEntries(DAC960_Controller_T *Controller)
+ 			dac960_initial_status_proc_show, Controller);
+ 	proc_create_single_data("current_status", 0, ControllerProcEntry,
+ 			dac960_current_status_proc_show, Controller);
+-	proc_create_data("user_command", S_IWUSR | S_IRUSR, ControllerProcEntry, &dac960_user_command_proc_fops, Controller);
++	proc_create_data("user_command", 0600, ControllerProcEntry,
++			 &dac960_user_command_proc_fops, Controller);
+ 	Controller->ControllerProcEntry = ControllerProcEntry;
+ }
+ 
+diff --git a/drivers/block/aoe/aoeblk.c b/drivers/block/aoe/aoeblk.c
+index 027b876370bc..429ebb84b592 100644
+--- a/drivers/block/aoe/aoeblk.c
++++ b/drivers/block/aoe/aoeblk.c
+@@ -159,14 +159,14 @@ static int aoe_debugfs_open(struct inode *inode, struct file *file)
+ 	return single_open(file, aoedisk_debugfs_show, inode->i_private);
+ }
+ 
+-static DEVICE_ATTR(state, S_IRUGO, aoedisk_show_state, NULL);
+-static DEVICE_ATTR(mac, S_IRUGO, aoedisk_show_mac, NULL);
+-static DEVICE_ATTR(netif, S_IRUGO, aoedisk_show_netif, NULL);
++static DEVICE_ATTR(state, 0444, aoedisk_show_state, NULL);
++static DEVICE_ATTR(mac, 0444, aoedisk_show_mac, NULL);
++static DEVICE_ATTR(netif, 0444, aoedisk_show_netif, NULL);
+ static struct device_attribute dev_attr_firmware_version = {
+-	.attr = { .name = "firmware-version", .mode = S_IRUGO },
++	.attr = { .name = "firmware-version", .mode = 0444 },
+ 	.show = aoedisk_show_fwver,
+ };
+-static DEVICE_ATTR(payload, S_IRUGO, aoedisk_show_payload, NULL);
++static DEVICE_ATTR(payload, 0444, aoedisk_show_payload, NULL);
+ 
+ static struct attribute *aoe_attrs[] = {
+ 	&dev_attr_state.attr,
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index 39c5b90cc187..bb976598ee43 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -331,15 +331,15 @@ static const struct block_device_operations brd_fops = {
+  * And now the modules code and kernel interface.
+  */
+ static int rd_nr = CONFIG_BLK_DEV_RAM_COUNT;
+-module_param(rd_nr, int, S_IRUGO);
++module_param(rd_nr, int, 0444);
+ MODULE_PARM_DESC(rd_nr, "Maximum number of brd devices");
+ 
+ unsigned long rd_size = CONFIG_BLK_DEV_RAM_SIZE;
+-module_param(rd_size, ulong, S_IRUGO);
++module_param(rd_size, ulong, 0444);
+ MODULE_PARM_DESC(rd_size, "Size of each RAM disk in kbytes.");
+ 
+ static int max_part = 1;
+-module_param(max_part, int, S_IRUGO);
++module_param(max_part, int, 0444);
+ MODULE_PARM_DESC(max_part, "Num Minors to reserve between devices");
+ 
+ MODULE_LICENSE("GPL");
+diff --git a/drivers/block/drbd/drbd_debugfs.c b/drivers/block/drbd/drbd_debugfs.c
+index ab21976a87b2..5d5e8d6a8a56 100644
+--- a/drivers/block/drbd/drbd_debugfs.c
++++ b/drivers/block/drbd/drbd_debugfs.c
+@@ -481,9 +481,9 @@ void drbd_debugfs_resource_add(struct drbd_resource *resource)
+ 		goto fail;
+ 	resource->debugfs_res_connections = dentry;
+ 
+-	dentry = debugfs_create_file("in_flight_summary", S_IRUSR|S_IRGRP,
+-			resource->debugfs_res, resource,
+-			&in_flight_summary_fops);
++	dentry = debugfs_create_file("in_flight_summary", 0440,
++				     resource->debugfs_res, resource,
++				     &in_flight_summary_fops);
+ 	if (IS_ERR_OR_NULL(dentry))
+ 		goto fail;
+ 	resource->debugfs_res_in_flight_summary = dentry;
+@@ -645,16 +645,16 @@ void drbd_debugfs_connection_add(struct drbd_connection *connection)
+ 		goto fail;
+ 	connection->debugfs_conn = dentry;
+ 
+-	dentry = debugfs_create_file("callback_history", S_IRUSR|S_IRGRP,
+-			connection->debugfs_conn, connection,
+-			&connection_callback_history_fops);
++	dentry = debugfs_create_file("callback_history", 0440,
++				     connection->debugfs_conn, connection,
++				     &connection_callback_history_fops);
+ 	if (IS_ERR_OR_NULL(dentry))
+ 		goto fail;
+ 	connection->debugfs_conn_callback_history = dentry;
+ 
+-	dentry = debugfs_create_file("oldest_requests", S_IRUSR|S_IRGRP,
+-			connection->debugfs_conn, connection,
+-			&connection_oldest_requests_fops);
++	dentry = debugfs_create_file("oldest_requests", 0440,
++				     connection->debugfs_conn, connection,
++				     &connection_oldest_requests_fops);
+ 	if (IS_ERR_OR_NULL(dentry))
+ 		goto fail;
+ 	connection->debugfs_conn_oldest_requests = dentry;
+@@ -824,7 +824,7 @@ void drbd_debugfs_device_add(struct drbd_device *device)
+ 	device->debugfs_minor = dentry;
+ 
+ #define DCF(name)	do {					\
+-	dentry = debugfs_create_file(#name, S_IRUSR|S_IRGRP,	\
++	dentry = debugfs_create_file(#name, 0440,	\
+ 			device->debugfs_vol, device,		\
+ 			&device_ ## name ## _fops);		\
+ 	if (IS_ERR_OR_NULL(dentry))				\
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index c2d154faac02..7916e0af25ec 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3010,8 +3010,8 @@ static int __init drbd_init(void)
+ 		goto fail;
+ 
+ 	err = -ENOMEM;
+-	drbd_proc = proc_create_single("drbd", S_IFREG | S_IRUGO , NULL,
+-			drbd_seq_show);
++	drbd_proc = proc_create_single("drbd", S_IFREG | 0444, NULL,
++				       drbd_seq_show);
+ 	if (!drbd_proc)	{
+ 		pr_err("unable to register proc file\n");
+ 		goto fail;
+diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
+index 8ec7235fc93b..8871b5044d9e 100644
+--- a/drivers/block/floppy.c
++++ b/drivers/block/floppy.c
+@@ -4450,7 +4450,7 @@ static ssize_t floppy_cmos_show(struct device *dev,
+ 	return sprintf(buf, "%X\n", UDP->cmos);
+ }
+ 
+-static DEVICE_ATTR(cmos, S_IRUGO, floppy_cmos_show, NULL);
++static DEVICE_ATTR(cmos, 0444, floppy_cmos_show, NULL);
+ 
+ static struct attribute *floppy_dev_attrs[] = {
+ 	&dev_attr_cmos.attr,
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index 5f0df2efc26c..66c1f0786ae8 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -732,7 +732,7 @@ static ssize_t loop_attr_do_show_##_name(struct device *d,		\
+ 	return loop_attr_show(d, b, loop_attr_##_name##_show);		\
+ }									\
+ static struct device_attribute loop_attr_##_name =			\
+-	__ATTR(_name, S_IRUGO, loop_attr_do_show_##_name, NULL);
++	__ATTR(_name, 0444, loop_attr_do_show_##_name, NULL);
+ 
+ static ssize_t loop_attr_backing_file_show(struct loop_device *lo, char *buf)
+ {
+@@ -1677,9 +1677,9 @@ static const struct block_device_operations lo_fops = {
+  * And now the modules code and kernel interface.
+  */
+ static int max_loop;
+-module_param(max_loop, int, S_IRUGO);
++module_param(max_loop, int, 0444);
+ MODULE_PARM_DESC(max_loop, "Maximum number of loop devices");
+-module_param(max_part, int, S_IRUGO);
++module_param(max_part, int, 0444);
+ MODULE_PARM_DESC(max_part, "Maximum number of partitions per loop device");
+ MODULE_LICENSE("GPL");
+ MODULE_ALIAS_BLOCKDEV_MAJOR(LOOP_MAJOR);
+diff --git a/drivers/block/mtip32xx/mtip32xx.c b/drivers/block/mtip32xx/mtip32xx.c
+index 6df5b0b1517a..e873daca9d13 100644
+--- a/drivers/block/mtip32xx/mtip32xx.c
++++ b/drivers/block/mtip32xx/mtip32xx.c
+@@ -2285,7 +2285,7 @@ static ssize_t mtip_hw_show_status(struct device *dev,
+ 	return size;
+ }
+ 
+-static DEVICE_ATTR(status, S_IRUGO, mtip_hw_show_status, NULL);
++static DEVICE_ATTR(status, 0444, mtip_hw_show_status, NULL);
+ 
+ /* debugsfs entries */
+ 
+@@ -2566,10 +2566,9 @@ static int mtip_hw_debugfs_init(struct driver_data *dd)
+ 		return -1;
+ 	}
+ 
+-	debugfs_create_file("flags", S_IRUGO, dd->dfs_node, dd,
+-							&mtip_flags_fops);
+-	debugfs_create_file("registers", S_IRUGO, dd->dfs_node, dd,
+-							&mtip_regs_fops);
++	debugfs_create_file("flags", 0444, dd->dfs_node, dd, &mtip_flags_fops);
++	debugfs_create_file("registers", 0444, dd->dfs_node, dd,
++			    &mtip_regs_fops);
+ 
+ 	return 0;
+ }
+@@ -4613,7 +4612,7 @@ static int __init mtip_init(void)
+ 	}
+ 	if (dfs_parent) {
+ 		dfs_device_status = debugfs_create_file("device_status",
+-					S_IRUGO, dfs_parent, NULL,
++					0444, dfs_parent, NULL,
+ 					&mtip_device_status_fops);
+ 		if (IS_ERR_OR_NULL(dfs_device_status)) {
+ 			pr_err("Error creating device_status node\n");
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index abc0a815354f..54dd91a67e03 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -166,7 +166,7 @@ static ssize_t pid_show(struct device *dev,
+ }
+ 
+ static const struct device_attribute pid_attr = {
+-	.attr = { .name = "pid", .mode = S_IRUGO},
++	.attr = { .name = "pid", .mode = 0444},
+ 	.show = pid_show,
+ };
+ 
+diff --git a/drivers/block/null_blk.c b/drivers/block/null_blk.c
+index a76553293a31..b4d368e3ddcd 100644
+--- a/drivers/block/null_blk.c
++++ b/drivers/block/null_blk.c
+@@ -157,23 +157,23 @@ enum {
+ };
+ 
+ static int g_no_sched;
+-module_param_named(no_sched, g_no_sched, int, S_IRUGO);
++module_param_named(no_sched, g_no_sched, int, 0444);
+ MODULE_PARM_DESC(no_sched, "No io scheduler");
+ 
+ static int g_submit_queues = 1;
+-module_param_named(submit_queues, g_submit_queues, int, S_IRUGO);
++module_param_named(submit_queues, g_submit_queues, int, 0444);
+ MODULE_PARM_DESC(submit_queues, "Number of submission queues");
+ 
+ static int g_home_node = NUMA_NO_NODE;
+-module_param_named(home_node, g_home_node, int, S_IRUGO);
++module_param_named(home_node, g_home_node, int, 0444);
+ MODULE_PARM_DESC(home_node, "Home node for the device");
+ 
+ #ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
+ static char g_timeout_str[80];
+-module_param_string(timeout, g_timeout_str, sizeof(g_timeout_str), S_IRUGO);
++module_param_string(timeout, g_timeout_str, sizeof(g_timeout_str), 0444);
+ 
+ static char g_requeue_str[80];
+-module_param_string(requeue, g_requeue_str, sizeof(g_requeue_str), S_IRUGO);
++module_param_string(requeue, g_requeue_str, sizeof(g_requeue_str), 0444);
+ #endif
+ 
+ static int g_queue_mode = NULL_Q_MQ;
+@@ -203,27 +203,27 @@ static const struct kernel_param_ops null_queue_mode_param_ops = {
+ 	.get	= param_get_int,
+ };
+ 
+-device_param_cb(queue_mode, &null_queue_mode_param_ops, &g_queue_mode, S_IRUGO);
++device_param_cb(queue_mode, &null_queue_mode_param_ops, &g_queue_mode, 0444);
+ MODULE_PARM_DESC(queue_mode, "Block interface to use (0=bio,1=rq,2=multiqueue)");
+ 
+ static int g_gb = 250;
+-module_param_named(gb, g_gb, int, S_IRUGO);
++module_param_named(gb, g_gb, int, 0444);
+ MODULE_PARM_DESC(gb, "Size in GB");
+ 
+ static int g_bs = 512;
+-module_param_named(bs, g_bs, int, S_IRUGO);
++module_param_named(bs, g_bs, int, 0444);
+ MODULE_PARM_DESC(bs, "Block size (in bytes)");
+ 
+ static int nr_devices = 1;
+-module_param(nr_devices, int, S_IRUGO);
++module_param(nr_devices, int, 0444);
+ MODULE_PARM_DESC(nr_devices, "Number of devices to register");
+ 
+ static bool g_blocking;
+-module_param_named(blocking, g_blocking, bool, S_IRUGO);
++module_param_named(blocking, g_blocking, bool, 0444);
+ MODULE_PARM_DESC(blocking, "Register as a blocking blk-mq driver device");
+ 
+ static bool shared_tags;
+-module_param(shared_tags, bool, S_IRUGO);
++module_param(shared_tags, bool, 0444);
+ MODULE_PARM_DESC(shared_tags, "Share tag set between devices for blk-mq");
+ 
+ static int g_irqmode = NULL_IRQ_SOFTIRQ;
+@@ -239,19 +239,19 @@ static const struct kernel_param_ops null_irqmode_param_ops = {
+ 	.get	= param_get_int,
+ };
+ 
+-device_param_cb(irqmode, &null_irqmode_param_ops, &g_irqmode, S_IRUGO);
++device_param_cb(irqmode, &null_irqmode_param_ops, &g_irqmode, 0444);
+ MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-none, 1-softirq, 2-timer");
+ 
+ static unsigned long g_completion_nsec = 10000;
+-module_param_named(completion_nsec, g_completion_nsec, ulong, S_IRUGO);
++module_param_named(completion_nsec, g_completion_nsec, ulong, 0444);
+ MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware. Default: 10,000ns");
+ 
+ static int g_hw_queue_depth = 64;
+-module_param_named(hw_queue_depth, g_hw_queue_depth, int, S_IRUGO);
++module_param_named(hw_queue_depth, g_hw_queue_depth, int, 0444);
+ MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 64");
+ 
+ static bool g_use_per_node_hctx;
+-module_param_named(use_per_node_hctx, g_use_per_node_hctx, bool, S_IRUGO);
++module_param_named(use_per_node_hctx, g_use_per_node_hctx, bool, 0444);
+ MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: false");
+ 
+ static struct nullb_device *null_alloc_dev(void);
+diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
+index 3c1a49545e06..949a648fe560 100644
+--- a/drivers/block/pktcdvd.c
++++ b/drivers/block/pktcdvd.c
+@@ -478,8 +478,8 @@ static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
+ 	if (!pd->dfs_d_root)
+ 		return;
+ 
+-	pd->dfs_f_info = debugfs_create_file("info", S_IRUGO,
+-				pd->dfs_d_root, pd, &debug_fops);
++	pd->dfs_f_info = debugfs_create_file("info", 0444,
++					     pd->dfs_d_root, pd, &debug_fops);
+ }
+ 
+ static void pkt_debugfs_dev_remove(struct pktcdvd_device *pd)
+diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
+index 33b36fea1d73..af354047ac4b 100644
+--- a/drivers/block/rbd.c
++++ b/drivers/block/rbd.c
+@@ -424,7 +424,7 @@ static struct workqueue_struct *rbd_wq;
+  * single-major requires >= 0.75 version of userspace rbd utility.
+  */
+ static bool single_major = true;
+-module_param(single_major, bool, S_IRUGO);
++module_param(single_major, bool, 0444);
+ MODULE_PARM_DESC(single_major, "Use a single major number for all rbd devices (default: true)");
+ 
+ static ssize_t rbd_add(struct bus_type *bus, const char *buf,
+@@ -468,11 +468,11 @@ static ssize_t rbd_supported_features_show(struct bus_type *bus, char *buf)
+ 	return sprintf(buf, "0x%llx\n", RBD_FEATURES_SUPPORTED);
+ }
+ 
+-static BUS_ATTR(add, S_IWUSR, NULL, rbd_add);
+-static BUS_ATTR(remove, S_IWUSR, NULL, rbd_remove);
+-static BUS_ATTR(add_single_major, S_IWUSR, NULL, rbd_add_single_major);
+-static BUS_ATTR(remove_single_major, S_IWUSR, NULL, rbd_remove_single_major);
+-static BUS_ATTR(supported_features, S_IRUGO, rbd_supported_features_show, NULL);
++static BUS_ATTR(add, 0200, NULL, rbd_add);
++static BUS_ATTR(remove, 0200, NULL, rbd_remove);
++static BUS_ATTR(add_single_major, 0200, NULL, rbd_add_single_major);
++static BUS_ATTR(remove_single_major, 0200, NULL, rbd_remove_single_major);
++static BUS_ATTR(supported_features, 0444, rbd_supported_features_show, NULL);
+ 
+ static struct attribute *rbd_bus_attrs[] = {
+ 	&bus_attr_add.attr,
+@@ -4204,22 +4204,22 @@ static ssize_t rbd_image_refresh(struct device *dev,
+ 	return size;
+ }
+ 
+-static DEVICE_ATTR(size, S_IRUGO, rbd_size_show, NULL);
+-static DEVICE_ATTR(features, S_IRUGO, rbd_features_show, NULL);
+-static DEVICE_ATTR(major, S_IRUGO, rbd_major_show, NULL);
+-static DEVICE_ATTR(minor, S_IRUGO, rbd_minor_show, NULL);
+-static DEVICE_ATTR(client_addr, S_IRUGO, rbd_client_addr_show, NULL);
+-static DEVICE_ATTR(client_id, S_IRUGO, rbd_client_id_show, NULL);
+-static DEVICE_ATTR(cluster_fsid, S_IRUGO, rbd_cluster_fsid_show, NULL);
+-static DEVICE_ATTR(config_info, S_IRUSR, rbd_config_info_show, NULL);
+-static DEVICE_ATTR(pool, S_IRUGO, rbd_pool_show, NULL);
+-static DEVICE_ATTR(pool_id, S_IRUGO, rbd_pool_id_show, NULL);
+-static DEVICE_ATTR(name, S_IRUGO, rbd_name_show, NULL);
+-static DEVICE_ATTR(image_id, S_IRUGO, rbd_image_id_show, NULL);
+-static DEVICE_ATTR(refresh, S_IWUSR, NULL, rbd_image_refresh);
+-static DEVICE_ATTR(current_snap, S_IRUGO, rbd_snap_show, NULL);
+-static DEVICE_ATTR(snap_id, S_IRUGO, rbd_snap_id_show, NULL);
+-static DEVICE_ATTR(parent, S_IRUGO, rbd_parent_show, NULL);
++static DEVICE_ATTR(size, 0444, rbd_size_show, NULL);
++static DEVICE_ATTR(features, 0444, rbd_features_show, NULL);
++static DEVICE_ATTR(major, 0444, rbd_major_show, NULL);
++static DEVICE_ATTR(minor, 0444, rbd_minor_show, NULL);
++static DEVICE_ATTR(client_addr, 0444, rbd_client_addr_show, NULL);
++static DEVICE_ATTR(client_id, 0444, rbd_client_id_show, NULL);
++static DEVICE_ATTR(cluster_fsid, 0444, rbd_cluster_fsid_show, NULL);
++static DEVICE_ATTR(config_info, 0400, rbd_config_info_show, NULL);
++static DEVICE_ATTR(pool, 0444, rbd_pool_show, NULL);
++static DEVICE_ATTR(pool_id, 0444, rbd_pool_id_show, NULL);
++static DEVICE_ATTR(name, 0444, rbd_name_show, NULL);
++static DEVICE_ATTR(image_id, 0444, rbd_image_id_show, NULL);
++static DEVICE_ATTR(refresh, 0200, NULL, rbd_image_refresh);
++static DEVICE_ATTR(current_snap, 0444, rbd_snap_show, NULL);
++static DEVICE_ATTR(snap_id, 0444, rbd_snap_id_show, NULL);
++static DEVICE_ATTR(parent, 0444, rbd_parent_show, NULL);
+ 
+ static struct attribute *rbd_attrs[] = {
+ 	&dev_attr_size.attr,
+diff --git a/drivers/block/rsxx/core.c b/drivers/block/rsxx/core.c
+index 34997df132e2..09537bee387f 100644
+--- a/drivers/block/rsxx/core.c
++++ b/drivers/block/rsxx/core.c
+@@ -247,19 +247,19 @@ static void rsxx_debugfs_dev_new(struct rsxx_cardinfo *card)
+ 	if (IS_ERR_OR_NULL(card->debugfs_dir))
+ 		goto failed_debugfs_dir;
+ 
+-	debugfs_stats = debugfs_create_file("stats", S_IRUGO,
++	debugfs_stats = debugfs_create_file("stats", 0444,
+ 					    card->debugfs_dir, card,
+ 					    &debugfs_stats_fops);
+ 	if (IS_ERR_OR_NULL(debugfs_stats))
+ 		goto failed_debugfs_stats;
+ 
+-	debugfs_pci_regs = debugfs_create_file("pci_regs", S_IRUGO,
++	debugfs_pci_regs = debugfs_create_file("pci_regs", 0444,
+ 					       card->debugfs_dir, card,
+ 					       &debugfs_pci_regs_fops);
+ 	if (IS_ERR_OR_NULL(debugfs_pci_regs))
+ 		goto failed_debugfs_pci_regs;
+ 
+-	debugfs_cram = debugfs_create_file("cram", S_IRUGO | S_IWUSR,
++	debugfs_cram = debugfs_create_file("cram", 0644,
+ 					   card->debugfs_dir, card,
+ 					   &debugfs_cram_fops);
+ 	if (IS_ERR_OR_NULL(debugfs_cram))
+diff --git a/drivers/block/virtio_blk.c b/drivers/block/virtio_blk.c
+index 0617b9922d59..23752dc99b00 100644
+--- a/drivers/block/virtio_blk.c
++++ b/drivers/block/virtio_blk.c
+@@ -371,7 +371,7 @@ static ssize_t virtblk_serial_show(struct device *dev,
+ 	return err;
+ }
+ 
+-static DEVICE_ATTR(serial, S_IRUGO, virtblk_serial_show, NULL);
++static DEVICE_ATTR(serial, 0444, virtblk_serial_show, NULL);
+ 
+ /* The queue's logical block size must be set before calling this */
+ static void virtblk_update_capacity(struct virtio_blk *vblk, bool resize)
+@@ -576,10 +576,10 @@ virtblk_cache_type_show(struct device *dev, struct device_attribute *attr,
+ }
+ 
+ static const struct device_attribute dev_attr_cache_type_ro =
+-	__ATTR(cache_type, S_IRUGO,
++	__ATTR(cache_type, 0444,
+ 	       virtblk_cache_type_show, NULL);
+ static const struct device_attribute dev_attr_cache_type_rw =
+-	__ATTR(cache_type, S_IRUGO|S_IWUSR,
++	__ATTR(cache_type, 0644,
+ 	       virtblk_cache_type_show, virtblk_cache_type_store);
+ 
+ static int virtblk_init_request(struct blk_mq_tag_set *set, struct request *rq,
+diff --git a/drivers/block/xen-blkback/blkback.c b/drivers/block/xen-blkback/blkback.c
+index 987d665e82de..b55b245e8052 100644
+--- a/drivers/block/xen-blkback/blkback.c
++++ b/drivers/block/xen-blkback/blkback.c
+@@ -98,7 +98,7 @@ MODULE_PARM_DESC(max_queues,
+  * backend, 4KB page granularity is used.
+  */
+ unsigned int xen_blkif_max_ring_order = XENBUS_MAX_RING_GRANT_ORDER;
+-module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, S_IRUGO);
++module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, 0444);
+ MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the shared ring");
+ /*
+  * The LRU mechanism to clean the lists of persistent grants needs to
+diff --git a/drivers/block/xen-blkback/xenbus.c b/drivers/block/xen-blkback/xenbus.c
+index 21c1be1eb226..66412eededda 100644
+--- a/drivers/block/xen-blkback/xenbus.c
++++ b/drivers/block/xen-blkback/xenbus.c
+@@ -367,7 +367,7 @@ int __init xen_blkif_interface_init(void)
+ out:									\
+ 		return sprintf(buf, format, result);			\
+ 	}								\
+-	static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
++	static DEVICE_ATTR(name, 0444, show_##name, NULL)
+ 
+ VBD_SHOW_ALLRING(oo_req,  "%llu\n");
+ VBD_SHOW_ALLRING(rd_req,  "%llu\n");
+@@ -403,7 +403,7 @@ static const struct attribute_group xen_vbdstat_group = {
+ 									\
+ 		return sprintf(buf, format, ##args);			\
+ 	}								\
+-	static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
++	static DEVICE_ATTR(name, 0444, show_##name, NULL)
+ 
+ VBD_SHOW(physical_device, "%x:%x\n", be->major, be->minor);
+ VBD_SHOW(mode, "%s\n", be->mode);
+diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
+index 2a8e7813bd1a..ae00a82f350b 100644
+--- a/drivers/block/xen-blkfront.c
++++ b/drivers/block/xen-blkfront.c
+@@ -129,13 +129,12 @@ static const struct block_device_operations xlvbd_block_fops;
+  */
+ 
+ static unsigned int xen_blkif_max_segments = 32;
+-module_param_named(max_indirect_segments, xen_blkif_max_segments, uint,
+-		   S_IRUGO);
++module_param_named(max_indirect_segments, xen_blkif_max_segments, uint, 0444);
+ MODULE_PARM_DESC(max_indirect_segments,
+ 		 "Maximum amount of segments in indirect requests (default is 32)");
+ 
+ static unsigned int xen_blkif_max_queues = 4;
+-module_param_named(max_queues, xen_blkif_max_queues, uint, S_IRUGO);
++module_param_named(max_queues, xen_blkif_max_queues, uint, 0444);
+ MODULE_PARM_DESC(max_queues, "Maximum number of hardware queues/rings used per virtual disk");
+ 
+ /*
+@@ -143,7 +142,7 @@ MODULE_PARM_DESC(max_queues, "Maximum number of hardware queues/rings used per v
+  * backend, 4KB page granularity is used.
+  */
+ static unsigned int xen_blkif_max_ring_order;
+-module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, S_IRUGO);
++module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, 0444);
+ MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the shared ring");
+ 
+ #define BLK_RING_SIZE(info)	\
 -- 
-Jens Axboe
+2.15.0
 
