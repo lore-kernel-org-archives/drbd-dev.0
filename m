@@ -1,13 +1,37 @@
-Return-Path: <johannes@johannesthoma.com>
-Received: from mout.kundenserver.de (mout.kundenserver.de [212.227.17.13])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C2109101AC56
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2018 17:42:57 +0200 (CEST)
-From: johannes@johannesthoma.com
-To: drbd-dev@lists.linbit.com
-Date: Wed, 30 May 2018 17:37:27 +0200
-Message-Id: <20180530153727.2334-1-johannes@johannesthoma.com>
-Subject: [Drbd-dev] [PATCH] Added missing kref_debug_put()'s on failure path
-	of drbd_create_device().
+Return-Path: <axboe@kernel.dk>
+Received: from mail-it0-f43.google.com (mail-it0-f43.google.com
+	[209.85.214.43])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BFBD3101AC56
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2018 20:55:51 +0200 (CEST)
+Received: by mail-it0-f43.google.com with SMTP id 76-v6so9267621itx.4
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2018 11:55:51 -0700 (PDT)
+To: Mike Snitzer <snitzer@redhat.com>
+References: <20180521143132.GB19194@redhat.com>
+	<2bbeeb1a-8b99-b06a-eb9b-eb8523c16460@kernel.dk>
+	<20180521144703.GA19303@redhat.com>
+	<4b343aef-e11c-73ba-1d88-7e73ca838cad@kernel.dk>
+	<20180521150439.GA19379@redhat.com>
+	<61e30dcf-a01c-f47d-087a-12930caf9aef@kernel.dk>
+	<20180521151817.GA19454@redhat.com>
+	<d01a150a-7752-f6ce-78f2-17a65c1e6fa5@kernel.dk>
+	<20180521160907.GA19553@redhat.com>
+	<f9e3714c-b7c9-d5f6-4018-2a87dd5babb2@kernel.dk>
+	<20180530133629.GC5157@redhat.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <f654ad69-aa90-9580-4731-a05d0604f353@kernel.dk>
+Date: Wed, 30 May 2018 12:55:48 -0600
+MIME-Version: 1.0
+In-Reply-To: <20180530133629.GC5157@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Cc: hch@infradead.org, linux-raid@vger.kernel.org, linux-xfs@vger.kernel.org,
+	darrick.wong@oracle.com, linux-kernel@vger.kernel.org,
+	colyli@suse.de, linux-block@vger.kernel.org, clm@fb.com,
+	neilb@suse.com, bacik@fb.com, Kent Overstreet <kent.overstreet@gmail.com>,
+	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 00/13] convert block layer to
+	bioset_init()/mempool_init()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -19,47 +43,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Johannes Thoma <johannes@johannesthoma.com>
+On 5/30/18 7:36 AM, Mike Snitzer wrote:
+> So revisiting this patchset: are you inclined to take these changes (I
+> assume yes)?  If so, what would you need in order to get them staged for
+> 4.18?  I'll start with offering my review in reply to the DM patch.  I'd
+> much prefer to see this level of change go in sooner rather than later.
 
-On failing late in drbd_create_device() some kref_debug_put()'s
-were missing, which lead to false positives on kref_debug_destroy().
+Yeah I'd like to take the changes, but we might have to wait for
+4.19 at this point. It'd certainly help to have the dm bits reviewed,
+as they are some of the larger ones. The grunt of the others are mostly
+trivial and smaller in scope.
 
-This patch adds the missing calls.
-
-Signed-off-by: Johannes Thoma <johannes@johannesthoma.com>
----
- drbd/drbd_main.c | 6 ++++++
- 1 file changed, 6 insertions(+)
-
-diff --git a/drbd/drbd_main.c b/drbd/drbd_main.c
-index 04ec052..ba60e3b 100644
---- a/drbd/drbd_main.c
-+++ b/drbd/drbd_main.c
-@@ -3762,11 +3762,14 @@ out_remove_peer_device:
- 		kfree(peer_device);
- 		kref_debug_put(&connection->kref_debug, 3);
- 		kref_put(&connection->kref, drbd_destroy_connection);
-+		kref_debug_put(&device->kref_debug, 1);
- 	}
- 	idr_remove(&resource->devices, vnr);
-+	kref_debug_put(&device->kref_debug, 1);
- 
- out_idr_remove_minor:
- 	idr_remove(&drbd_devices, minor);
-+	kref_debug_put(&device->kref_debug, 1);
- out_no_minor_idr:
- 	if (locked)
- 		spin_unlock_irq(&resource->req_lock);
-@@ -3787,6 +3790,9 @@ out_no_disk:
- 	blk_cleanup_queue(q);
- out_no_q:
- 	kref_put(&resource->kref, drbd_destroy_resource);
-+	kref_debug_put(&resource->kref_debug, 4);
-+		/* kref debugging wants an extra put, see has_refs() */
-+	kref_debug_put(&device->kref_debug, 4);
- 	kref_debug_destroy(&device->kref_debug);
- 	kfree(device);
- 	return err;
 -- 
-2.7.4
+Jens Axboe
 
