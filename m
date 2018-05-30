@@ -1,35 +1,25 @@
 Return-Path: <axboe@kernel.dk>
-Received: from mail-it0-f68.google.com (mail-it0-f68.google.com
-	[209.85.214.68])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3D446101AC56
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2018 21:38:52 +0200 (CEST)
-Received: by mail-it0-f68.google.com with SMTP id 144-v6so24614583iti.5
-	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2018 12:38:52 -0700 (PDT)
-To: Mike Snitzer <snitzer@redhat.com>
-References: <20180521144703.GA19303@redhat.com>
-	<4b343aef-e11c-73ba-1d88-7e73ca838cad@kernel.dk>
-	<20180521150439.GA19379@redhat.com>
-	<61e30dcf-a01c-f47d-087a-12930caf9aef@kernel.dk>
-	<20180521151817.GA19454@redhat.com>
-	<d01a150a-7752-f6ce-78f2-17a65c1e6fa5@kernel.dk>
-	<20180521160907.GA19553@redhat.com>
-	<f9e3714c-b7c9-d5f6-4018-2a87dd5babb2@kernel.dk>
-	<20180530133629.GC5157@redhat.com>
-	<f654ad69-aa90-9580-4731-a05d0604f353@kernel.dk>
-	<20180530193707.GB6568@redhat.com>
+Received: from mail-pl0-f68.google.com (mail-pl0-f68.google.com
+	[209.85.160.68])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EDC47101AC56
+	for <drbd-dev@lists.linbit.com>; Thu, 31 May 2018 00:30:45 +0200 (CEST)
+Received: by mail-pl0-f68.google.com with SMTP id n10-v6so11934879plp.0
+	for <drbd-dev@lists.linbit.com>; Wed, 30 May 2018 15:30:45 -0700 (PDT)
 From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <5f32b2e7-859b-42f9-c726-115ba5ff22a9@kernel.dk>
-Date: Wed, 30 May 2018 13:38:49 -0600
+To: Kent Overstreet <kent.overstreet@gmail.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	hch@infradead.org, colyli@suse.de, snitzer@redhat.com,
+	darrick.wong@oracle.com, clm@fb.com, bacik@fb.com,
+	linux-xfs@vger.kernel.org, drbd-dev@lists.linbit.com,
+	linux-btrfs@vger.kernel.org, linux-raid@vger.kernel.org, neilb@suse.com
+References: <20180520222558.7053-1-kent.overstreet@gmail.com>
+Message-ID: <234774e0-38d8-77ea-ca40-88da8b3c5ec6@kernel.dk>
+Date: Wed, 30 May 2018 16:24:03 -0600
 MIME-Version: 1.0
-In-Reply-To: <20180530193707.GB6568@redhat.com>
+In-Reply-To: <20180520222558.7053-1-kent.overstreet@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Cc: hch@infradead.org, linux-raid@vger.kernel.org, linux-xfs@vger.kernel.org,
-	darrick.wong@oracle.com, linux-kernel@vger.kernel.org,
-	colyli@suse.de, linux-block@vger.kernel.org, clm@fb.com,
-	neilb@suse.com, bacik@fb.com, Kent Overstreet <kent.overstreet@gmail.com>,
-	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH 00/13] convert block layer to
 	bioset_init()/mempool_init()
 List-Id: "*Coordination* of development, patches,
@@ -43,35 +33,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 5/30/18 1:37 PM, Mike Snitzer wrote:
-> On Wed, May 30 2018 at  2:55pm -0400,
-> Jens Axboe <axboe@kernel.dk> wrote:
+On 5/20/18 4:25 PM, Kent Overstreet wrote:
+> Jens - this series does the rest of the conversions that Christoph wanted, and
+> drops bioset_create().
 > 
->> On 5/30/18 7:36 AM, Mike Snitzer wrote:
->>> So revisiting this patchset: are you inclined to take these changes (I
->>> assume yes)?  If so, what would you need in order to get them staged for
->>> 4.18?  I'll start with offering my review in reply to the DM patch.  I'd
->>> much prefer to see this level of change go in sooner rather than later.
->>
->> Yeah I'd like to take the changes, but we might have to wait for
->> 4.19 at this point. It'd certainly help to have the dm bits reviewed,
->> as they are some of the larger ones. The grunt of the others are mostly
->> trivial and smaller in scope.
+> Only lightly tested, but the changes are pretty mechanical. Based on your
+> for-next tree.
 > 
-> I _really_ would like to see this land for 4.18.  It'll avoid downstream
-> backport problems (due to all the churn in this patchset).
+> It's also in the for-jens branch at https://evilpiepirate.org/git/bcachefs.git
 > 
-> As I'm sure you've seen I reviewed and Acked-by the DM patch.
-> 
-> I mentioned I've been chatting with Kent, he is available if anything
-> needs a v2 for whatever reason.
-> 
-> Would you be OK adding a single sentence description to each driver's
-> patch header (rather than leaving empty like how Kent submitted)?  Or
-> should Kent resubmit the entire set with that boilerplate header for
-> each patch?
+> Kent Overstreet (12):
+>   block: convert bounce, q->bio_split to bioset_init()/mempool_init()
+>   drbd: convert to bioset_init()/mempool_init()
+>   pktcdvd: convert to bioset_init()/mempool_init()
+>   lightnvm: convert to bioset_init()/mempool_init()
+>   bcache: convert to bioset_init()/mempool_init()
+>   md: convert to bioset_init()/mempool_init()
+>   dm: convert to bioset_init()/mempool_init()
+>   target: convert to bioset_init()/mempool_init()
+>   fs: convert block_dev.c to bioset_init()
+>   btrfs: convert to bioset_init()/mempool_init()
+>   xfs: convert to bioset_init()/mempool_init()
+>   block: Drop bioset_create()
 
-See previous email for both questions :)
+With the reviews, I've queued this up for 4.18.
 
 -- 
 Jens Axboe
