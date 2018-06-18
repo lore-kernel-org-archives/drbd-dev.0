@@ -1,22 +1,22 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com [74.125.82.67])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 07FBD1011B93
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Jun 2018 16:23:00 +0200 (CEST)
-Received: by mail-wm0-f67.google.com with SMTP id 69-v6so16894464wmf.3
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Jun 2018 07:23:00 -0700 (PDT)
-Date: Mon, 11 Jun 2018 16:22:58 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20180611142258.GA24736@soda.linbit>
-References: <2527777.WaVWHdIFCo@stwm.de>
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mail-wr0-f196.google.com (mail-wr0-f196.google.com
+	[209.85.128.196])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5484C1018D52
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Jun 2018 11:34:14 +0200 (CEST)
+Received: by mail-wr0-f196.google.com with SMTP id k16-v6so16054149wro.0
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Jun 2018 02:34:14 -0700 (PDT)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: johannes@johannesthoma.com
+Date: Mon, 18 Jun 2018 11:26:34 +0200
+Message-ID: <3455189.oDu6CKLEq0@fat-tyre>
+In-Reply-To: <20180530153727.2334-1-johannes@johannesthoma.com>
+References: <20180530153727.2334-1-johannes@johannesthoma.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2527777.WaVWHdIFCo@stwm.de>
-Cc: lars.ellenberg@linbit.com, philipp.reisner@linbit.com
-Subject: Re: [Drbd-dev] WARNING: CPU: 5 PID: 8321 at block/blk-core.c:172
- blk_status_to_errno+0x1a/0x30
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="iso-8859-1"
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] Added missing kref_debug_put()'s on failure
+	path of drbd_create_device().
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,70 +28,62 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jun 11, 2018 at 01:02:26PM +0200, Wolfgang Walter wrote:
-> After switching from 4.9.102 to 4.14.48 I got the following warning:
-> 
-> 
-> [204738.619214] ------------[ cut here ]------------
-> [204738.619225] WARNING: CPU: 5 PID: 8321 at block/blk-core.c:172 blk_status_to_errno+0x1a/0x30
-> [204738.619354] Call Trace:
-> [204738.619366]  drbd_request_endio+0x5d/0x280 [drbd]
+Hi Johannes,
+
+the patch does not apply to the current master. Can you find out why, or
+find out against which version/Git Hash this patch was created?
+
+best regards,
+ Phil
+
+Am Mittwoch, 30. Mai 2018, 17:37:27 CEST schrieb johannes@johannesthoma.com:
+> From: Johannes Thoma <johannes@johannesthoma.com>
+>=20
+> On failing late in drbd_create_device() some kref_debug_put()'s
+> were missing, which lead to false positives on kref_debug_destroy().
+>=20
+> This patch adds the missing calls.
+>=20
+> Signed-off-by: Johannes Thoma <johannes@johannesthoma.com>
+> ---
+>  drbd/drbd_main.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+>=20
+> diff --git a/drbd/drbd_main.c b/drbd/drbd_main.c
+> index 04ec052..ba60e3b 100644
+> --- a/drbd/drbd_main.c
+> +++ b/drbd/drbd_main.c
+> @@ -3762,11 +3762,14 @@ out_remove_peer_device:
+>  		kfree(peer_device);
+>  		kref_debug_put(&connection->kref_debug, 3);
+>  		kref_put(&connection->kref, drbd_destroy_connection);
+> +		kref_debug_put(&device->kref_debug, 1);
+>  	}
+>  	idr_remove(&resource->devices, vnr);
+> +	kref_debug_put(&device->kref_debug, 1);
+>=20
+>  out_idr_remove_minor:
+>  	idr_remove(&drbd_devices, minor);
+> +	kref_debug_put(&device->kref_debug, 1);
+>  out_no_minor_idr:
+>  	if (locked)
+>  		spin_unlock_irq(&resource->req_lock);
+> @@ -3787,6 +3790,9 @@ out_no_disk:
+>  	blk_cleanup_queue(q);
+>  out_no_q:
+>  	kref_put(&resource->kref, drbd_destroy_resource);
+> +	kref_debug_put(&resource->kref_debug, 4);
+> +		/* kref debugging wants an extra put, see has_refs() */
+> +	kref_debug_put(&device->kref_debug, 4);
+>  	kref_debug_destroy(&device->kref_debug);
+>  	kfree(device);
+>  	return err;
 
 
-This is the same issue as was found and reported on 30 April 2018 by
-Sarah Newman [PATCH] drbd: avoid use-after-free in drbd_request_endio
-I was under the impression that she'd push for upstream inclusion of the fix.
-Apparently not, so we'll have to followup with upstream ourselves.
+=2D-=20
+LINBIT | Keeping The Digital World Running
 
-It is broken since 4246a0b 2015-07 (during the v4.3 release cycle),
-which changed:
-        bio_put(req->private_bio);
--       req->private_bio = ERR_PTR(error);
-+       req->private_bio = ERR_PTR(bio->bi_error);
-
-which is an access after (potential) free,
-because req->private_bio == bio (before the assignment).
-
-That later changed to
- req->private_bio = ERR_PTR(blk_status_to_errno(bio->bi_status));
-
-Which now "sometimes" catches the access-after-free
-with its WARN_ON_ONCE(idx >= ARRAY_SIZE(blk_errors));
-
-In the DRBD driver upstream (our development happens out-of-tree),
-we don't have this, but still use an on-stack "status" variable.
-The effect of this (potential) access-after-free is invisible,
-unless you run your kernel with "CONFIG_DEBUG_PAGEALLOC".
-This is why this was never catched.
-
-I think the correct fix would be:
-
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 1476cb3439f4..5e793dd7adfb 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -282,8 +282,8 @@ void drbd_request_endio(struct bio *bio)
- 		what = COMPLETED_OK;
- 	}
- 
--	bio_put(req->private_bio);
- 	req->private_bio = ERR_PTR(blk_status_to_errno(bio->bi_status));
-+	bio_put(bio);
- 
- 	/* not req_mod(), we need irqsave here! */
- 	spin_lock_irqsave(&device->resource->req_lock, flags);
+DRBD=AE and LINBIT=AE are registered trademarks of LINBIT, Austria.
 
 
-The behaviour without that patch is effectively identical to the
-behaviour with this patch, though sometimes in multiple failure
-scenarios (both local disk failure AND replication / remote IO errors)
-we might give back an "EIO" instead of a more specific error, if such
-more specific error had been handed to us in the first place.
 
--- 
-: Lars Ellenberg
-: LINBIT | Keeping the Digital World Running
-: DRBD -- Heartbeat -- Corosync -- Pacemaker
-: R&D, Integration, Ops, Consulting, Support
-
-DRBD® and LINBIT® are registered trademarks of LINBIT
