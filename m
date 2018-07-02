@@ -1,12 +1,21 @@
 Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com [74.125.82.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7D282101AC7B
+	for <drbd-dev@lists.linbit.com>; Mon,  2 Jul 2018 13:27:23 +0200 (CEST)
+Received: by mail-wm0-f65.google.com with SMTP id z13-v6so8335889wma.5
+	for <drbd-dev@lists.linbit.com>; Mon, 02 Jul 2018 04:27:23 -0700 (PDT)
+Date: Mon, 2 Jul 2018 13:27:21 +0200
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 25 Jun 2018 11:39:52 +0200
-Message-Id: <20180625093952.20220-1-lars.ellenberg@linbit.com>
-Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
+Message-ID: <20180702112703.GA10994@soda.linbit>
+References: <20180625093952.20220-1-lars.ellenberg@linbit.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180625093952.20220-1-lars.ellenberg@linbit.com>
+Cc: linux-block@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] drbd: fix access after free
+Subject: Re: [Drbd-dev] [PATCH] drbd: fix access after free
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -18,69 +27,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-We have
-  struct drbd_requests { ... struct bio *private_bio;  ... }
-to hold a bio clone for local submission.
+Jens, I had hoped you'd apply this "oneliner" into 4.18 already?
+Did you miss it?
 
-On local IO completion, we put that bio, and in case we want to use the
-result later, we overload that member to hold the ERR_PTR() of the
-completion result,
+Cheers,
 
-Which, before v4.3, used to be the passed in "int error",
-so we could first bio_put(), then assign.
+	Lars
 
-v4.3-rc1~100^2~21 4246a0b63bd8 block: add a bi_error field to struct bio
-changed that:
-  	bio_put(req->private_bio);
- -	req->private_bio = ERR_PTR(error);
- +	req->private_bio = ERR_PTR(bio->bi_error);
 
-Which introduces an access after free,
-because it was non obvious that req->private_bio == bio.
+On Mon, Jun 25, 2018 at 11:39:52AM +0200, Lars Ellenberg wrote:
+>   	bio_put(req->private_bio);
+>  -	req->private_bio = ERR_PTR(error);
+>  +	req->private_bio = ERR_PTR(bio->bi_error);
+> 
+> Which introduces an access after free,
+> because it was non obvious that req->private_bio == bio.
 
-Impact of that was mostly unnoticable, because we only use that value
-in a multiple-failure case, and even then map any "unexpected" error
-code to EIO, so worst case we could potentially mask a more specific
-error with EIO in a multiple failure case.
+>   	bio_put(req->private_bio);
+>   	req->private_bio = ERR_PTR(blk_status_to_errno(bio->bi_status));
 
-Unless the pointed to memory region was unmapped, as is the case with
-CONFIG_DEBUG_PAGEALLOC, in which case this results in
-
-  BUG: unable to handle kernel paging request
-
-v4.13-rc1~70^2~75 4e4cbee93d56 block: switch bios to blk_status_t
-changes it further to
-  	bio_put(req->private_bio);
-  	req->private_bio = ERR_PTR(blk_status_to_errno(bio->bi_status));
-
-And blk_status_to_errno() now contains a WARN_ON_ONCE() for unexpected
-values, which catches this "sometimes", if the memory has been reused
-quickly enough for other things.
-
-Should also go into stable since 4.3, with the trivial change around 4.13.
-
-Cc: stable@vger.kernel.org
-Fixes: 4246a0b63bd8 block: add a bi_error field to struct bio
-Reported-by: Sarah Newman <srn@prgmr.com>
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
----
- drivers/block/drbd/drbd_worker.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 1476cb3439f4..5e793dd7adfb 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -282,8 +282,8 @@ void drbd_request_endio(struct bio *bio)
- 		what = COMPLETED_OK;
- 	}
- 
--	bio_put(req->private_bio);
- 	req->private_bio = ERR_PTR(blk_status_to_errno(bio->bi_status));
-+	bio_put(bio);
- 
- 	/* not req_mod(), we need irqsave here! */
- 	spin_lock_irqsave(&device->resource->req_lock, flags);
--- 
-2.17.1
-
+> Should also go into stable since 4.3, with the trivial change around 4.13.
+> 
+> Cc: stable@vger.kernel.org
+> Fixes: 4246a0b63bd8 block: add a bi_error field to struct bio
+> Reported-by: Sarah Newman <srn@prgmr.com>
+> Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+> ---
+>  drivers/block/drbd/drbd_worker.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+> index 1476cb3439f4..5e793dd7adfb 100644
+> --- a/drivers/block/drbd/drbd_worker.c
+> +++ b/drivers/block/drbd/drbd_worker.c
+> @@ -282,8 +282,8 @@ void drbd_request_endio(struct bio *bio)
+>  		what = COMPLETED_OK;
+>  	}
+>  
+> -	bio_put(req->private_bio);
+>  	req->private_bio = ERR_PTR(blk_status_to_errno(bio->bi_status));
+> +	bio_put(bio);
+>  
+>  	/* not req_mod(), we need irqsave here! */
+>  	spin_lock_irqsave(&device->resource->req_lock, flags);
+> -- 
+> 2.17.1
