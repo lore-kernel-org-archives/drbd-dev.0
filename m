@@ -1,25 +1,20 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-io0-f194.google.com (mail-io0-f194.google.com
-	[209.85.223.194])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5723B1013806
-	for <drbd-dev@lists.linbit.com>; Mon,  2 Jul 2018 23:11:07 +0200 (CEST)
-Received: by mail-io0-f194.google.com with SMTP id q19-v6so8583246ioh.11
-	for <drbd-dev@lists.linbit.com>; Mon, 02 Jul 2018 14:11:07 -0700 (PDT)
-To: "Gustavo A. R. Silva" <gustavo@embeddedor.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>
-References: <20180702174902.GA18713@embeddedor.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <d776672f-3173-037e-81fc-5c2619177682@kernel.dk>
-Date: Mon, 2 Jul 2018 15:11:03 -0600
+Return-Path: <lists@alteeve.ca>
+Received: from mail.alteeve.ca (mail.alteeve.ca [65.39.153.71])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EB4311013806
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 01:26:58 +0200 (CEST)
+Received: from pulsar.alteeve.com (ip-104-193-58-76.user.start.ca
+	[104.193.58.76])
+	by mail.alteeve.ca (Postfix) with ESMTPSA id 5985EE011B
+	for <drbd-dev@lists.linbit.com>; Mon, 23 Jul 2018 19:19:38 -0400 (EDT)
+To: drbd-dev@lists.linbit.com
+From: Digimer <lists@alteeve.ca>
+Message-ID: <225e8fd1-fc2e-287a-63cb-00ce31fa79b5@alteeve.ca>
+Date: Mon, 23 Jul 2018 19:19:38 -0400
 MIME-Version: 1.0
-In-Reply-To: <20180702174902.GA18713@embeddedor.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: mark expected switch fall-throughs
+Content-Transfer-Encoding: 8bit
+Subject: [Drbd-dev] BuildRequires for drbd-utils
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,14 +26,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 7/2/18 11:49 AM, Gustavo A. R. Silva wrote:
-> In preparation to enabling -Wimplicit-fallthrough, mark switch cases
-> where we are expecting to fall through.
-> 
-> Warning level 2 was used in this case: -Wimplicit-fallthrough=2
+Hi all,
 
-Applied, thanks.
+  I'm working on RPMs for Fedora, and noticed two missing build
+dependencies in drbd-utils-9.5.0;
+
+BuildRequires: automake
+BuildRequires: libxslt
+
+Cheers
 
 -- 
-Jens Axboe
-
+Digimer
+Papers and Projects: https://alteeve.com/w/
+"I am, somehow, less interested in the weight and convolutions of
+Einstein’s brain than in the near certainty that people of equal talent
+have lived and died in cotton fields and sweatshops." - Stephen Jay Gould
