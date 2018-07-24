@@ -1,20 +1,20 @@
 Return-Path: <lists@alteeve.ca>
 Received: from mail.alteeve.ca (mail.alteeve.ca [65.39.153.71])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EB4311013806
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 01:26:58 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 664571019AC6
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 06:40:46 +0200 (CEST)
 Received: from pulsar.alteeve.com (ip-104-193-58-76.user.start.ca
 	[104.193.58.76])
-	by mail.alteeve.ca (Postfix) with ESMTPSA id 5985EE011B
-	for <drbd-dev@lists.linbit.com>; Mon, 23 Jul 2018 19:19:38 -0400 (EDT)
+	by mail.alteeve.ca (Postfix) with ESMTPSA id 22FE8E011B
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 00:40:45 -0400 (EDT)
 To: drbd-dev@lists.linbit.com
 From: Digimer <lists@alteeve.ca>
-Message-ID: <225e8fd1-fc2e-287a-63cb-00ce31fa79b5@alteeve.ca>
-Date: Mon, 23 Jul 2018 19:19:38 -0400
+Message-ID: <cb6d86c4-acbb-f299-00fe-e83f6c4e69ba@alteeve.ca>
+Date: Tue, 24 Jul 2018 00:40:45 -0400
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-Subject: [Drbd-dev] BuildRequires for drbd-utils
+Subject: [Drbd-dev] DRBD 9 on Fedora 28
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,13 +28,20 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hi all,
 
-  I'm working on RPMs for Fedora, and noticed two missing build
-dependencies in drbd-utils-9.5.0;
+  I'm trying to get DRBD 9 on Fedora 28 (which I'm using as a dev
+platform ahead of RHEL 8 beta). The DRBD that ships with the kernel is
+8.4.10.
 
-BuildRequires: automake
-BuildRequires: libxslt
+  I've been struggling to build the 9.0.15rc1 RPM without luck. I've
+made a few progressions (ie: added kernel-rpm-macros, kernel-devel and
+elfutils-devel to BuildRequires).
 
-Cheers
+  Has anyone managed to build DRBD9 on Fedora 27+? If so, would you mind
+sharing the src.rpm or .spec?
+
+Thanks!
+
+digimer
 
 -- 
 Digimer
