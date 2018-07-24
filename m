@@ -1,26 +1,26 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com [74.125.82.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7B6D2103B4DF
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:17:14 +0200 (CEST)
-Received: by mail-wm0-f66.google.com with SMTP id s14-v6so1805681wmc.1
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:17:14 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com [74.125.82.68])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BC41B1045C23
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:17:18 +0200 (CEST)
+Received: by mail-wm0-f68.google.com with SMTP id h20-v6so1767898wmb.4
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:17:18 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	t69-v6sm2275912wmt.40.2018.07.26.05.17.13
+	x7-v6sm2516191wrr.95.2018.07.26.05.17.17
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Thu, 26 Jul 2018 05:17:13 -0700 (PDT)
-Resent-Message-ID: <20180726121713.GL25507@soda.linbit>
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com
-	[209.85.215.195])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 392331011B93
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 18:56:35 +0200 (CEST)
-Received: by mail-pg1-f195.google.com with SMTP id k3-v6so3310491pgq.5
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 09:56:35 -0700 (PDT)
+	Thu, 26 Jul 2018 05:17:17 -0700 (PDT)
+Resent-Message-ID: <20180726121717.GN25507@soda.linbit>
+Received: from mail-pg1-f194.google.com (mail-pg1-f194.google.com
+	[209.85.215.194])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B03641011B9A
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 18:57:02 +0200 (CEST)
+Received: by mail-pg1-f194.google.com with SMTP id p23-v6so3298978pgv.13
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 09:57:02 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
 To: Herbert Xu <herbert@gondor.apana.org.au>
-Date: Tue, 24 Jul 2018 09:49:32 -0700
-Message-Id: <20180724164936.37477-15-keescook@chromium.org>
+Date: Tue, 24 Jul 2018 09:49:27 -0700
+Message-Id: <20180724164936.37477-10-keescook@chromium.org>
 In-Reply-To: <20180724164936.37477-1-keescook@chromium.org>
 References: <20180724164936.37477-1-keescook@chromium.org>
 Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
@@ -51,8 +51,7 @@ Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
 	Johannes Berg <johannes@sipsolutions.net>,
 	Tim Chen <tim.c.chen@linux.intel.com>, netdev@vger.kernel.org,
 	David Woodhouse <dwmw@amazon.co.uk>
-Subject: [Drbd-dev] [PATCH v6 14/18] staging: rtl8192u: ieee80211: Convert
-	from ahash to shash
+Subject: [Drbd-dev] [PATCH v6 09/18] ppp: mppe: Remove VLA usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -64,142 +63,124 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is an identical change to the wireless/lib80211 of the same name.
-In preparing to remove all stack VLA usage from the kernel[1], this
-removes the discouraged use of AHASH_REQUEST_ON_STACK in favor of
-the smaller SHASH_DESC_ON_STACK by converting from ahash-wrapped-shash
-to direct shash. By removing a layer of indirection this both improves
-performance and reduces stack usage. The stack allocation will be made
-a fixed size in a later patch to the crypto subsystem.
+In the quest to remove all stack VLA usage from the kernel[1], this
+removes the discouraged use of AHASH_REQUEST_ON_STACK (and associated
+VLA) by switching to shash directly and keeping the associated descriptor
+allocated with the regular state on the heap.
 
 [1] https://lkml.kernel.org/r/CA+55aFzCG-zNmZwX4A2FQpadafLfEzK6CC=qPXydAacU1RqZWA@mail.gmail.com
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 ---
- .../rtl8192u/ieee80211/ieee80211_crypt_tkip.c | 57 +++++++++----------
- 1 file changed, 28 insertions(+), 29 deletions(-)
+ drivers/net/ppp/ppp_mppe.c | 56 ++++++++++++++++++++------------------
+ 1 file changed, 30 insertions(+), 26 deletions(-)
 
-diff --git a/drivers/staging/rtl8192u/ieee80211/ieee80211_crypt_tkip.c b/drivers/staging/rtl8192u/ieee80211/ieee80211_crypt_tkip.c
-index a7efaae4e25a..1088fa0aee0e 100644
---- a/drivers/staging/rtl8192u/ieee80211/ieee80211_crypt_tkip.c
-+++ b/drivers/staging/rtl8192u/ieee80211/ieee80211_crypt_tkip.c
-@@ -54,9 +54,9 @@ struct ieee80211_tkip_data {
- 	int key_idx;
- 
- 	struct crypto_skcipher *rx_tfm_arc4;
--	struct crypto_ahash *rx_tfm_michael;
-+	struct crypto_shash *rx_tfm_michael;
- 	struct crypto_skcipher *tx_tfm_arc4;
--	struct crypto_ahash *tx_tfm_michael;
-+	struct crypto_shash *tx_tfm_michael;
- 
- 	/* scratch buffers for virt_to_page() (crypto API) */
- 	u8 rx_hdr[16], tx_hdr[16];
-@@ -80,8 +80,7 @@ static void *ieee80211_tkip_init(int key_idx)
- 		goto fail;
- 	}
- 
--	priv->tx_tfm_michael = crypto_alloc_ahash("michael_mic", 0,
--			CRYPTO_ALG_ASYNC);
-+	priv->tx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
- 	if (IS_ERR(priv->tx_tfm_michael)) {
- 		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
- 				"crypto API michael_mic\n");
-@@ -98,8 +97,7 @@ static void *ieee80211_tkip_init(int key_idx)
- 		goto fail;
- 	}
- 
--	priv->rx_tfm_michael = crypto_alloc_ahash("michael_mic", 0,
--			CRYPTO_ALG_ASYNC);
-+	priv->rx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
- 	if (IS_ERR(priv->rx_tfm_michael)) {
- 		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
- 				"crypto API michael_mic\n");
-@@ -111,9 +109,9 @@ static void *ieee80211_tkip_init(int key_idx)
- 
- fail:
- 	if (priv) {
--		crypto_free_ahash(priv->tx_tfm_michael);
-+		crypto_free_shash(priv->tx_tfm_michael);
- 		crypto_free_skcipher(priv->tx_tfm_arc4);
--		crypto_free_ahash(priv->rx_tfm_michael);
-+		crypto_free_shash(priv->rx_tfm_michael);
- 		crypto_free_skcipher(priv->rx_tfm_arc4);
- 		kfree(priv);
- 	}
-@@ -127,9 +125,9 @@ static void ieee80211_tkip_deinit(void *priv)
- 	struct ieee80211_tkip_data *_priv = priv;
- 
- 	if (_priv) {
--		crypto_free_ahash(_priv->tx_tfm_michael);
-+		crypto_free_shash(_priv->tx_tfm_michael);
- 		crypto_free_skcipher(_priv->tx_tfm_arc4);
--		crypto_free_ahash(_priv->rx_tfm_michael);
-+		crypto_free_shash(_priv->rx_tfm_michael);
- 		crypto_free_skcipher(_priv->rx_tfm_arc4);
- 	}
- 	kfree(priv);
-@@ -500,30 +498,31 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
- 	return keyidx;
- }
- 
--static int michael_mic(struct crypto_ahash *tfm_michael, u8 *key, u8 *hdr,
-+static int michael_mic(struct crypto_shash *tfm_michael, u8 *key, u8 *hdr,
- 		       u8 *data, size_t data_len, u8 *mic)
+diff --git a/drivers/net/ppp/ppp_mppe.c b/drivers/net/ppp/ppp_mppe.c
+index 6c7fd98cb00a..a205750b431b 100644
+--- a/drivers/net/ppp/ppp_mppe.c
++++ b/drivers/net/ppp/ppp_mppe.c
+@@ -96,7 +96,7 @@ static inline void sha_pad_init(struct sha_pad *shapad)
+  */
+ struct ppp_mppe_state {
+ 	struct crypto_skcipher *arc4;
+-	struct crypto_ahash *sha1;
++	struct shash_desc *sha1;
+ 	unsigned char *sha1_digest;
+ 	unsigned char master_key[MPPE_MAX_KEY_LEN];
+ 	unsigned char session_key[MPPE_MAX_KEY_LEN];
+@@ -136,25 +136,16 @@ struct ppp_mppe_state {
+  */
+ static void get_new_key_from_sha(struct ppp_mppe_state * state)
  {
--	AHASH_REQUEST_ON_STACK(req, tfm_michael);
--	struct scatterlist sg[2];
-+	SHASH_DESC_ON_STACK(desc, tfm_michael);
- 	int err;
- 
--	if (tfm_michael == NULL) {
--		printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
--		return -1;
--	}
+-	AHASH_REQUEST_ON_STACK(req, state->sha1);
+-	struct scatterlist sg[4];
+-	unsigned int nbytes;
 -
--	sg_init_table(sg, 2);
--	sg_set_buf(&sg[0], hdr, 16);
--	sg_set_buf(&sg[1], data, data_len);
-+	desc->tfm = tfm_michael;
-+	desc->flags = 0;
- 
--	if (crypto_ahash_setkey(tfm_michael, key, 8))
-+	if (crypto_shash_setkey(tfm_michael, key, 8))
- 		return -1;
- 
--	ahash_request_set_tfm(req, tfm_michael);
+-	sg_init_table(sg, 4);
+-
+-	nbytes = setup_sg(&sg[0], state->master_key, state->keylen);
+-	nbytes += setup_sg(&sg[1], sha_pad->sha_pad1,
+-			   sizeof(sha_pad->sha_pad1));
+-	nbytes += setup_sg(&sg[2], state->session_key, state->keylen);
+-	nbytes += setup_sg(&sg[3], sha_pad->sha_pad2,
+-			   sizeof(sha_pad->sha_pad2));
+-
+-	ahash_request_set_tfm(req, state->sha1);
 -	ahash_request_set_callback(req, 0, NULL, NULL);
--	ahash_request_set_crypt(req, sg, mic, data_len + 16);
--	err = crypto_ahash_digest(req);
+-	ahash_request_set_crypt(req, sg, state->sha1_digest, nbytes);
+-
+-	crypto_ahash_digest(req);
 -	ahash_request_zero(req);
-+	err = crypto_shash_init(desc);
-+	if (err)
-+		goto out;
-+	err = crypto_shash_update(desc, hdr, 16);
-+	if (err)
-+		goto out;
-+	err = crypto_shash_update(desc, data, data_len);
-+	if (err)
-+		goto out;
-+	err = crypto_shash_final(desc, mic);
-+
-+out:
-+	shash_desc_zero(desc);
- 	return err;
++	crypto_shash_init(state->sha1);
++	crypto_shash_update(state->sha1, state->master_key,
++			    state->keylen);
++	crypto_shash_update(state->sha1, sha_pad->sha_pad1,
++			    sizeof(sha_pad->sha_pad1));
++	crypto_shash_update(state->sha1, state->session_key,
++			    state->keylen);
++	crypto_shash_update(state->sha1, sha_pad->sha_pad2,
++			    sizeof(sha_pad->sha_pad2));
++	crypto_shash_final(state->sha1, state->sha1_digest);
  }
  
-@@ -663,9 +662,9 @@ static int ieee80211_tkip_set_key(void *key, int len, u8 *seq, void *priv)
+ /*
+@@ -200,6 +191,7 @@ static void mppe_rekey(struct ppp_mppe_state * state, int initial_key)
+ static void *mppe_alloc(unsigned char *options, int optlen)
  {
- 	struct ieee80211_tkip_data *tkey = priv;
- 	int keyidx;
--	struct crypto_ahash *tfm = tkey->tx_tfm_michael;
-+	struct crypto_shash *tfm = tkey->tx_tfm_michael;
- 	struct crypto_skcipher *tfm2 = tkey->tx_tfm_arc4;
--	struct crypto_ahash *tfm3 = tkey->rx_tfm_michael;
-+	struct crypto_shash *tfm3 = tkey->rx_tfm_michael;
- 	struct crypto_skcipher *tfm4 = tkey->rx_tfm_arc4;
+ 	struct ppp_mppe_state *state;
++	struct crypto_shash *shash;
+ 	unsigned int digestsize;
  
- 	keyidx = tkey->key_idx;
+ 	if (optlen != CILEN_MPPE + sizeof(state->master_key) ||
+@@ -217,13 +209,21 @@ static void *mppe_alloc(unsigned char *options, int optlen)
+ 		goto out_free;
+ 	}
+ 
+-	state->sha1 = crypto_alloc_ahash("sha1", 0, CRYPTO_ALG_ASYNC);
+-	if (IS_ERR(state->sha1)) {
+-		state->sha1 = NULL;
++	shash = crypto_alloc_shash("sha1", 0, 0);
++	if (IS_ERR(shash))
++		goto out_free;
++
++	state->sha1 = kmalloc(sizeof(*state->sha1) +
++				     crypto_shash_descsize(shash),
++			      GFP_KERNEL);
++	if (!state->sha1) {
++		crypto_free_shash(shash);
+ 		goto out_free;
+ 	}
++	state->sha1->tfm = shash;
++	state->sha1->flags = 0;
+ 
+-	digestsize = crypto_ahash_digestsize(state->sha1);
++	digestsize = crypto_shash_digestsize(shash);
+ 	if (digestsize < MPPE_MAX_KEY_LEN)
+ 		goto out_free;
+ 
+@@ -246,7 +246,10 @@ static void *mppe_alloc(unsigned char *options, int optlen)
+ 
+ out_free:
+ 	kfree(state->sha1_digest);
+-	crypto_free_ahash(state->sha1);
++	if (state->sha1) {
++		crypto_free_shash(state->sha1->tfm);
++		kzfree(state->sha1);
++	}
+ 	crypto_free_skcipher(state->arc4);
+ 	kfree(state);
+ out:
+@@ -261,7 +264,8 @@ static void mppe_free(void *arg)
+ 	struct ppp_mppe_state *state = (struct ppp_mppe_state *) arg;
+ 	if (state) {
+ 		kfree(state->sha1_digest);
+-		crypto_free_ahash(state->sha1);
++		crypto_free_shash(state->sha1->tfm);
++		kzfree(state->sha1);
+ 		crypto_free_skcipher(state->arc4);
+ 		kfree(state);
+ 	}
 -- 
 2.17.1
 
