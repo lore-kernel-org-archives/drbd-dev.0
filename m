@@ -1,27 +1,27 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f66.google.com (mail-wr1-f66.google.com
-	[209.85.221.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 483D71045C31
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:23:21 +0200 (CEST)
-Received: by mail-wr1-f66.google.com with SMTP id b15-v6so1504126wrv.10
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:23:21 -0700 (PDT)
+Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
+	[209.85.221.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 44E401045C25
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:23:29 +0200 (CEST)
+Received: by mail-wr1-f67.google.com with SMTP id h15-v6so1514882wrs.7
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:23:29 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	y102-v6sm2355269wmh.9.2018.07.26.05.15.29
+	y102-v6sm2360622wmh.9.2018.07.26.05.16.54
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Thu, 26 Jul 2018 05:15:29 -0700 (PDT)
-Resent-Message-ID: <20180726121528.GC25507@soda.linbit>
-Received: from mail-pf1-f194.google.com (mail-pf1-f194.google.com
-	[209.85.210.194])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 99A99101AC7B
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 18:55:08 +0200 (CEST)
-Received: by mail-pf1-f194.google.com with SMTP id x17-v6so987832pfh.5
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 09:55:08 -0700 (PDT)
+	Thu, 26 Jul 2018 05:16:54 -0700 (PDT)
+Resent-Message-ID: <20180726121653.GF25507@soda.linbit>
+Received: from mail-pl0-f65.google.com (mail-pl0-f65.google.com
+	[209.85.160.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 26067101286D
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 18:56:11 +0200 (CEST)
+Received: by mail-pl0-f65.google.com with SMTP id 31-v6so2026865plc.4
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 09:56:11 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
 To: Herbert Xu <herbert@gondor.apana.org.au>
-Date: Tue, 24 Jul 2018 09:49:29 -0700
-Message-Id: <20180724164936.37477-12-keescook@chromium.org>
+Date: Tue, 24 Jul 2018 09:49:19 -0700
+Message-Id: <20180724164936.37477-2-keescook@chromium.org>
 In-Reply-To: <20180724164936.37477-1-keescook@chromium.org>
 References: <20180724164936.37477-1-keescook@chromium.org>
 Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
@@ -52,8 +52,7 @@ Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
 	Johannes Berg <johannes@sipsolutions.net>,
 	Tim Chen <tim.c.chen@linux.intel.com>, netdev@vger.kernel.org,
 	David Woodhouse <dwmw@amazon.co.uk>
-Subject: [Drbd-dev] [PATCH v6 11/18] dm crypt: Convert essiv from ahash to
-	shash
+Subject: [Drbd-dev] [PATCH v6 01/18] crypto: xcbc: Remove VLA usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -65,128 +64,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In preparing to remove all stack VLA usage from the kernel[1], this
-removes the discouraged use of AHASH_REQUEST_ON_STACK in favor of the
-smaller SHASH_DESC_ON_STACK by converting from ahash-wrapped-shash to
-direct shash. By removing a layer of indirection this both improves
-performance and reduces stack usage. The stack allocation will be made
-a fixed size in a later patch to the crypto subsystem.
+In the quest to remove all stack VLA usage from the kernel[1], this uses
+the maximum blocksize and adds a sanity check. For xcbc, the blocksize
+must always be 16, so use that, since it's already being enforced during
+instantiation.
 
 [1] https://lkml.kernel.org/r/CA+55aFzCG-zNmZwX4A2FQpadafLfEzK6CC=qPXydAacU1RqZWA@mail.gmail.com
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: Eric Biggers <ebiggers@google.com>
 ---
- drivers/md/dm-crypt.c | 31 ++++++++++++++-----------------
- 1 file changed, 14 insertions(+), 17 deletions(-)
+ crypto/xcbc.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index b61b069c33af..c4c922990090 100644
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -99,7 +99,7 @@ struct crypt_iv_operations {
+diff --git a/crypto/xcbc.c b/crypto/xcbc.c
+index 25c75af50d3f..c055f57fab11 100644
+--- a/crypto/xcbc.c
++++ b/crypto/xcbc.c
+@@ -57,15 +57,17 @@ struct xcbc_desc_ctx {
+ 	u8 ctx[];
  };
  
- struct iv_essiv_private {
--	struct crypto_ahash *hash_tfm;
-+	struct crypto_shash *hash_tfm;
- 	u8 *salt;
- };
- 
-@@ -327,25 +327,22 @@ static int crypt_iv_plain64be_gen(struct crypt_config *cc, u8 *iv,
- static int crypt_iv_essiv_init(struct crypt_config *cc)
++#define XCBC_BLOCKSIZE	16
++
+ static int crypto_xcbc_digest_setkey(struct crypto_shash *parent,
+ 				     const u8 *inkey, unsigned int keylen)
  {
- 	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
--	AHASH_REQUEST_ON_STACK(req, essiv->hash_tfm);
--	struct scatterlist sg;
-+	SHASH_DESC_ON_STACK(desc, essiv->hash_tfm);
- 	struct crypto_cipher *essiv_tfm;
- 	int err;
+ 	unsigned long alignmask = crypto_shash_alignmask(parent);
+ 	struct xcbc_tfm_ctx *ctx = crypto_shash_ctx(parent);
+-	int bs = crypto_shash_blocksize(parent);
+ 	u8 *consts = PTR_ALIGN(&ctx->ctx[0], alignmask + 1);
+ 	int err = 0;
+-	u8 key1[bs];
++	u8 key1[XCBC_BLOCKSIZE];
++	int bs = sizeof(key1);
  
--	sg_init_one(&sg, cc->key, cc->key_size);
--	ahash_request_set_tfm(req, essiv->hash_tfm);
--	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
--	ahash_request_set_crypt(req, &sg, essiv->salt, cc->key_size);
-+	desc->tfm = essiv->hash_tfm;
-+	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
- 
--	err = crypto_ahash_digest(req);
--	ahash_request_zero(req);
-+	err = crypto_shash_digest(desc, cc->key, cc->key_size, essiv->salt);
-+	shash_desc_zero(desc);
- 	if (err)
+ 	if ((err = crypto_cipher_setkey(ctx->child, inkey, keylen)))
  		return err;
+@@ -212,7 +214,7 @@ static int xcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
+ 		return PTR_ERR(alg);
  
- 	essiv_tfm = cc->iv_private;
- 
- 	err = crypto_cipher_setkey(essiv_tfm, essiv->salt,
--			    crypto_ahash_digestsize(essiv->hash_tfm));
-+			    crypto_shash_digestsize(essiv->hash_tfm));
- 	if (err)
- 		return err;
- 
-@@ -356,7 +353,7 @@ static int crypt_iv_essiv_init(struct crypt_config *cc)
- static int crypt_iv_essiv_wipe(struct crypt_config *cc)
- {
- 	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
--	unsigned salt_size = crypto_ahash_digestsize(essiv->hash_tfm);
-+	unsigned salt_size = crypto_shash_digestsize(essiv->hash_tfm);
- 	struct crypto_cipher *essiv_tfm;
- 	int r, err = 0;
- 
-@@ -408,7 +405,7 @@ static void crypt_iv_essiv_dtr(struct crypt_config *cc)
- 	struct crypto_cipher *essiv_tfm;
- 	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
- 
--	crypto_free_ahash(essiv->hash_tfm);
-+	crypto_free_shash(essiv->hash_tfm);
- 	essiv->hash_tfm = NULL;
- 
- 	kzfree(essiv->salt);
-@@ -426,7 +423,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
- 			      const char *opts)
- {
- 	struct crypto_cipher *essiv_tfm = NULL;
--	struct crypto_ahash *hash_tfm = NULL;
-+	struct crypto_shash *hash_tfm = NULL;
- 	u8 *salt = NULL;
- 	int err;
- 
-@@ -436,14 +433,14 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
- 	}
- 
- 	/* Allocate hash algorithm */
--	hash_tfm = crypto_alloc_ahash(opts, 0, CRYPTO_ALG_ASYNC);
-+	hash_tfm = crypto_alloc_shash(opts, 0, 0);
- 	if (IS_ERR(hash_tfm)) {
- 		ti->error = "Error initializing ESSIV hash";
- 		err = PTR_ERR(hash_tfm);
- 		goto bad;
- 	}
- 
--	salt = kzalloc(crypto_ahash_digestsize(hash_tfm), GFP_KERNEL);
-+	salt = kzalloc(crypto_shash_digestsize(hash_tfm), GFP_KERNEL);
- 	if (!salt) {
- 		ti->error = "Error kmallocing salt storage in ESSIV";
- 		err = -ENOMEM;
-@@ -454,7 +451,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
- 	cc->iv_gen_private.essiv.hash_tfm = hash_tfm;
- 
- 	essiv_tfm = alloc_essiv_cipher(cc, ti, salt,
--				       crypto_ahash_digestsize(hash_tfm));
-+				       crypto_shash_digestsize(hash_tfm));
- 	if (IS_ERR(essiv_tfm)) {
- 		crypt_iv_essiv_dtr(cc);
- 		return PTR_ERR(essiv_tfm);
-@@ -465,7 +462,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
- 
- bad:
- 	if (hash_tfm && !IS_ERR(hash_tfm))
--		crypto_free_ahash(hash_tfm);
-+		crypto_free_shash(hash_tfm);
- 	kfree(salt);
- 	return err;
- }
+ 	switch(alg->cra_blocksize) {
+-	case 16:
++	case XCBC_BLOCKSIZE:
+ 		break;
+ 	default:
+ 		goto out_put_alg;
 -- 
 2.17.1
 
