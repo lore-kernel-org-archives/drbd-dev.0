@@ -1,27 +1,27 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
-	[209.85.221.67])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 44E401045C25
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:23:29 +0200 (CEST)
-Received: by mail-wr1-f67.google.com with SMTP id h15-v6so1514882wrs.7
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:23:29 -0700 (PDT)
+Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com
+	[209.85.221.68])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 874E61045C23
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:24:06 +0200 (CEST)
+Received: by mail-wr1-f68.google.com with SMTP id h9-v6so1525758wro.3
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:24:06 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	y102-v6sm2360622wmh.9.2018.07.26.05.16.54
+	u71-v6sm1969942wmd.12.2018.07.26.05.17.12
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Thu, 26 Jul 2018 05:16:54 -0700 (PDT)
-Resent-Message-ID: <20180726121653.GF25507@soda.linbit>
-Received: from mail-pl0-f65.google.com (mail-pl0-f65.google.com
-	[209.85.160.65])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 26067101286D
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 18:56:11 +0200 (CEST)
-Received: by mail-pl0-f65.google.com with SMTP id 31-v6so2026865plc.4
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 09:56:11 -0700 (PDT)
+	Thu, 26 Jul 2018 05:17:12 -0700 (PDT)
+Resent-Message-ID: <20180726121712.GK25507@soda.linbit>
+Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com
+	[209.85.215.195])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7406E1011C08
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 18:56:20 +0200 (CEST)
+Received: by mail-pg1-f195.google.com with SMTP id y5-v6so3319375pgv.1
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 09:56:19 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
 To: Herbert Xu <herbert@gondor.apana.org.au>
-Date: Tue, 24 Jul 2018 09:49:19 -0700
-Message-Id: <20180724164936.37477-2-keescook@chromium.org>
+Date: Tue, 24 Jul 2018 09:49:34 -0700
+Message-Id: <20180724164936.37477-17-keescook@chromium.org>
 In-Reply-To: <20180724164936.37477-1-keescook@chromium.org>
 References: <20180724164936.37477-1-keescook@chromium.org>
 Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
@@ -52,7 +52,8 @@ Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
 	Johannes Berg <johannes@sipsolutions.net>,
 	Tim Chen <tim.c.chen@linux.intel.com>, netdev@vger.kernel.org,
 	David Woodhouse <dwmw@amazon.co.uk>
-Subject: [Drbd-dev] [PATCH v6 01/18] crypto: xcbc: Remove VLA usage
+Subject: [Drbd-dev] [PATCH v6 16/18] rxrpc: Reuse SKCIPHER_REQUEST_ON_STACK
+	buffer
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -64,51 +65,108 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In the quest to remove all stack VLA usage from the kernel[1], this uses
-the maximum blocksize and adds a sanity check. For xcbc, the blocksize
-must always be 16, so use that, since it's already being enforced during
-instantiation.
+The use of SKCIPHER_REQUEST_ON_STACK() will trigger FRAME_WARN warnings
+(when less than 2048) once the VLA is no longer hidden from the check:
 
-[1] https://lkml.kernel.org/r/CA+55aFzCG-zNmZwX4A2FQpadafLfEzK6CC=qPXydAacU1RqZWA@mail.gmail.com
+net/rxrpc/rxkad.c:398:1: warning: the frame size of 1152 bytes is larger than 1024 bytes [-Wframe-larger-than=]
+net/rxrpc/rxkad.c:242:1: warning: the frame size of 1152 bytes is larger than 1024 bytes [-Wframe-larger-than=]
+
+This passes the initial SKCIPHER_REQUEST_ON_STACK allocation to the leaf
+functions for reuse. Two requests allocated on the stack is not needed
+when only one is used at a time.
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 ---
- crypto/xcbc.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ net/rxrpc/rxkad.c | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
 
-diff --git a/crypto/xcbc.c b/crypto/xcbc.c
-index 25c75af50d3f..c055f57fab11 100644
---- a/crypto/xcbc.c
-+++ b/crypto/xcbc.c
-@@ -57,15 +57,17 @@ struct xcbc_desc_ctx {
- 	u8 ctx[];
- };
- 
-+#define XCBC_BLOCKSIZE	16
-+
- static int crypto_xcbc_digest_setkey(struct crypto_shash *parent,
- 				     const u8 *inkey, unsigned int keylen)
+diff --git a/net/rxrpc/rxkad.c b/net/rxrpc/rxkad.c
+index 278ac0807a60..6393391fac86 100644
+--- a/net/rxrpc/rxkad.c
++++ b/net/rxrpc/rxkad.c
+@@ -146,10 +146,10 @@ static int rxkad_prime_packet_security(struct rxrpc_connection *conn)
+ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
+ 				    struct sk_buff *skb,
+ 				    u32 data_size,
+-				    void *sechdr)
++				    void *sechdr,
++				    struct skcipher_request *req)
  {
- 	unsigned long alignmask = crypto_shash_alignmask(parent);
- 	struct xcbc_tfm_ctx *ctx = crypto_shash_ctx(parent);
--	int bs = crypto_shash_blocksize(parent);
- 	u8 *consts = PTR_ALIGN(&ctx->ctx[0], alignmask + 1);
- 	int err = 0;
--	u8 key1[bs];
-+	u8 key1[XCBC_BLOCKSIZE];
-+	int bs = sizeof(key1);
- 
- 	if ((err = crypto_cipher_setkey(ctx->child, inkey, keylen)))
- 		return err;
-@@ -212,7 +214,7 @@ static int xcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
- 		return PTR_ERR(alg);
- 
- 	switch(alg->cra_blocksize) {
--	case 16:
-+	case XCBC_BLOCKSIZE:
+ 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+-	SKCIPHER_REQUEST_ON_STACK(req, call->conn->cipher);
+ 	struct rxkad_level1_hdr hdr;
+ 	struct rxrpc_crypt iv;
+ 	struct scatterlist sg;
+@@ -183,12 +183,12 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
+ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
+ 				       struct sk_buff *skb,
+ 				       u32 data_size,
+-				       void *sechdr)
++				       void *sechdr,
++				       struct skcipher_request *req)
+ {
+ 	const struct rxrpc_key_token *token;
+ 	struct rxkad_level2_hdr rxkhdr;
+ 	struct rxrpc_skb_priv *sp;
+-	SKCIPHER_REQUEST_ON_STACK(req, call->conn->cipher);
+ 	struct rxrpc_crypt iv;
+ 	struct scatterlist sg[16];
+ 	struct sk_buff *trailer;
+@@ -296,11 +296,12 @@ static int rxkad_secure_packet(struct rxrpc_call *call,
+ 		ret = 0;
+ 		break;
+ 	case RXRPC_SECURITY_AUTH:
+-		ret = rxkad_secure_packet_auth(call, skb, data_size, sechdr);
++		ret = rxkad_secure_packet_auth(call, skb, data_size, sechdr,
++					       req);
+ 		break;
+ 	case RXRPC_SECURITY_ENCRYPT:
+ 		ret = rxkad_secure_packet_encrypt(call, skb, data_size,
+-						  sechdr);
++						  sechdr, req);
  		break;
  	default:
- 		goto out_put_alg;
+ 		ret = -EPERM;
+@@ -316,10 +317,10 @@ static int rxkad_secure_packet(struct rxrpc_call *call,
+  */
+ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
+ 				 unsigned int offset, unsigned int len,
+-				 rxrpc_seq_t seq)
++				 rxrpc_seq_t seq,
++				 struct skcipher_request *req)
+ {
+ 	struct rxkad_level1_hdr sechdr;
+-	SKCIPHER_REQUEST_ON_STACK(req, call->conn->cipher);
+ 	struct rxrpc_crypt iv;
+ 	struct scatterlist sg[16];
+ 	struct sk_buff *trailer;
+@@ -402,11 +403,11 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
+  */
+ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
+ 				 unsigned int offset, unsigned int len,
+-				 rxrpc_seq_t seq)
++				 rxrpc_seq_t seq,
++				 struct skcipher_request *req)
+ {
+ 	const struct rxrpc_key_token *token;
+ 	struct rxkad_level2_hdr sechdr;
+-	SKCIPHER_REQUEST_ON_STACK(req, call->conn->cipher);
+ 	struct rxrpc_crypt iv;
+ 	struct scatterlist _sg[4], *sg;
+ 	struct sk_buff *trailer;
+@@ -549,9 +550,9 @@ static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
+ 	case RXRPC_SECURITY_PLAIN:
+ 		return 0;
+ 	case RXRPC_SECURITY_AUTH:
+-		return rxkad_verify_packet_1(call, skb, offset, len, seq);
++		return rxkad_verify_packet_1(call, skb, offset, len, seq, req);
+ 	case RXRPC_SECURITY_ENCRYPT:
+-		return rxkad_verify_packet_2(call, skb, offset, len, seq);
++		return rxkad_verify_packet_2(call, skb, offset, len, seq, req);
+ 	default:
+ 		return -ENOANO;
+ 	}
 -- 
 2.17.1
 
