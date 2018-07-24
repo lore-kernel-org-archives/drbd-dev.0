@@ -1,22 +1,22 @@
 Return-Path: <lists@alteeve.ca>
 Received: from mail.alteeve.ca (mail.alteeve.ca [65.39.153.71])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D344A1012A37
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 17:31:33 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 328E8101AC67
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 17:55:25 +0200 (CEST)
 Received: from pulsar.alteeve.com (ip-104-193-58-76.user.start.ca
 	[104.193.58.76])
-	by mail.alteeve.ca (Postfix) with ESMTPSA id 34058E00C7
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 11:31:32 -0400 (EDT)
+	by mail.alteeve.ca (Postfix) with ESMTPSA id 6219EE00C7
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 11:55:23 -0400 (EDT)
 From: Digimer <lists@alteeve.ca>
 To: drbd-dev@lists.linbit.com
 References: <cb6d86c4-acbb-f299-00fe-e83f6c4e69ba@alteeve.ca>
 	<58525792-e53d-55a6-379e-5afe963cbae7@alteeve.ca>
-Message-ID: <26442f3d-0a5c-cea3-3d8b-e4d888ebffd3@alteeve.ca>
-Date: Tue, 24 Jul 2018 11:31:31 -0400
+	<26442f3d-0a5c-cea3-3d8b-e4d888ebffd3@alteeve.ca>
+Message-ID: <437fd238-e310-80a1-22af-04d3a8783981@alteeve.ca>
+Date: Tue, 24 Jul 2018 11:55:23 -0400
 MIME-Version: 1.0
-In-Reply-To: <58525792-e53d-55a6-379e-5afe963cbae7@alteeve.ca>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <26442f3d-0a5c-cea3-3d8b-e4d888ebffd3@alteeve.ca>
+Content-Type: multipart/mixed; boundary="------------A23C0DF36D7586A57CF14AE1"
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
 Subject: Re: [Drbd-dev] DRBD 9 on Fedora 28
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -29,47 +29,84 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2018-07-24 11:23 AM, Digimer wrote:
-> On 2018-07-24 12:40 AM, Digimer wrote:
->> Hi all,
->>
->>   I'm trying to get DRBD 9 on Fedora 28 (which I'm using as a dev
->> platform ahead of RHEL 8 beta). The DRBD that ships with the kernel is
->> 8.4.10.
->>
->>   I've been struggling to build the 9.0.15rc1 RPM without luck. I've
->> made a few progressions (ie: added kernel-rpm-macros, kernel-devel and
->> elfutils-devel to BuildRequires).
->>
->>   Has anyone managed to build DRBD9 on Fedora 27+? If so, would you mind
->> sharing the src.rpm or .spec?
->>
->> Thanks!
->>
->> digimer
-> 
-> Following up with additional info;
-> 
-> The problem is in this loop;
-> 
-> https://github.com/LINBIT/drbd-9.0/blob/master/drbd-kernel.spec#L84
-> 
-> It causes the arch to be appended twice;
-> 
-> ====
-> + for flavor in default
-> ++ '[' default = default ']'
-> + make -C /usr/src/kernels/4.17.7-200.fc28.x86_64.x86_64 modules_install
-> M=/home/digimer/rpmbuild/BUILD/drbd-9.0.15rc1/obj/default
-> make: *** /usr/src/kernels/4.17.7-200.fc28.x86_64.x86_64: No such file
-> or directory.  Stop.
-> ====
-> 
-> I've been trying to figure out how to fix it, but it seems my ignorance
-> of RPM .spec is getting the better of me...
+This is a multi-part message in MIME format.
+--------------A23C0DF36D7586A57CF14AE1
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 
-I should mention; This same src.rpm builds fine on RHEL 7.5. So it seems
-to be specifically a Fedora issue (tried on 27 and 28).
+On 2018-07-24 11:31 AM, Digimer wrote:
+> On 2018-07-24 11:23 AM, Digimer wrote:
+>> On 2018-07-24 12:40 AM, Digimer wrote:
+>>> Hi all,
+>>>
+>>>   I'm trying to get DRBD 9 on Fedora 28 (which I'm using as a dev
+>>> platform ahead of RHEL 8 beta). The DRBD that ships with the kernel is
+>>> 8.4.10.
+>>>
+>>>   I've been struggling to build the 9.0.15rc1 RPM without luck. I've
+>>> made a few progressions (ie: added kernel-rpm-macros, kernel-devel and
+>>> elfutils-devel to BuildRequires).
+>>>
+>>>   Has anyone managed to build DRBD9 on Fedora 27+? If so, would you mind
+>>> sharing the src.rpm or .spec?
+>>>
+>>> Thanks!
+>>>
+>>> digimer
+>>
+>> Following up with additional info;
+>>
+>> The problem is in this loop;
+>>
+>> https://github.com/LINBIT/drbd-9.0/blob/master/drbd-kernel.spec#L84
+>>
+>> It causes the arch to be appended twice;
+>>
+>> ====
+>> + for flavor in default
+>> ++ '[' default = default ']'
+>> + make -C /usr/src/kernels/4.17.7-200.fc28.x86_64.x86_64 modules_install
+>> M=/home/digimer/rpmbuild/BUILD/drbd-9.0.15rc1/obj/default
+>> make: *** /usr/src/kernels/4.17.7-200.fc28.x86_64.x86_64: No such file
+>> or directory.  Stop.
+>> ====
+>>
+>> I've been trying to figure out how to fix it, but it seems my ignorance
+>> of RPM .spec is getting the better of me...
+> 
+> I should mention; This same src.rpm builds fine on RHEL 7.5. So it seems
+> to be specifically a Fedora issue (tried on 27 and 28).
+> 
+
+Adding again; When I created a symlink (4.17.7-200.fc28.x86_64.x86_64 ->
+4.17.7-200.fc28.x86_64) to test, the build got further but still failed.
+I'm attaching the spec I am currently using. It's modified somewhat from
+the spec generated by building from git (mainly to remove suse checks
+and simplify things).
+
+====
+Finding  Recommends:
+Finding  Suggests:
+Finding  Supplements:
+Finding  Enhances:
+Provides: drbd-kernel = 9.0.15rc1-0.fc28 drbd-kernel(x86-64) =
+9.0.15rc1-0.fc28
+Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1
+rpmlib(FileDigests) <= 4.6.0-1 rpmlib(PayloadFilesHavePrefix) <= 4.0-1
+Processing files: kmod-drbd-9.0.15rc1-0.fc28.x86_64
+Processing files: drbd-kernel-debugsource-9.0.15rc1-0.fc28.x86_64
+error: Empty %files file
+/home/digimer/rpmbuild/BUILD/drbd-9.0.15rc1/debugsourcefiles.list
+
+
+RPM build errors:
+    Macro %kmp_release defined but not used within scope
+    Macro %kmp_version defined but not used within scope
+    Macro %latest_kernel defined but not used within scope
+    Deprecated external dependency generator is used!
+    Empty %files file
+/home/digimer/rpmbuild/BUILD/drbd-9.0.15rc1/debugsourcefiles.list
+====
 
 -- 
 Digimer
@@ -77,3 +114,162 @@ Papers and Projects: https://alteeve.com/w/
 "I am, somehow, less interested in the weight and convolutions of
 Einstein’s brain than in the near certainty that people of equal talent
 have lived and died in cotton fields and sweatshops." - Stephen Jay Gould
+
+--------------A23C0DF36D7586A57CF14AE1
+Content-Type: text/x-rpm-spec;
+ name="drbd-kernel.spec"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="drbd-kernel.spec"
+
+Name: drbd-kernel
+Summary: Kernel driver for DRBD
+Version: 9.0.15rc1
+Release: 0%{?dist}
+
+# always require a suitable userland
+Requires: drbd-utils >= 9.2.0
+
+%global tarball_version %(echo "%{version}" | sed -e "s,%{?dist}$,,")
+Source: http://oss.linbit.com/drbd/drbd-%{tarball_version}.tar.gz
+License: GPLv2+
+URL: http://www.drbd.org
+BuildRequires: kernel-rpm-macros
+BuildRequires: kernel-devel
+BuildRequires: elfutils-devel
+
+%description
+This module is the kernel-dependent driver for DRBD.  This is split out so
+that multiple kernel driver versions can be installed, one for each
+installed kernel.
+
+Rebuilt for the Anvil! Intelligent Availability platform.
+
+%prep
+%setup -q -n drbd-%{tarball_version}
+
+# Concept stolen from sles kernel-module-subpackage:
+# include the kernel version in the package version,
+# so we can have more than one kmod-drbd.
+# Needed, because even though kABI is still "compatible" in RHEL 6.0 to 6.1,
+# the actual functionality differs very much: 6.1 does no longer do BARRIERS,
+# but wants FLUSH/FUA instead.
+# For convenience, we want both 6.0 and 6.1 in the same repository,
+# and have yum/rpm figure out via dependencies, which kmod version should be installed.
+# This is a dirty hack, non generic, and should probably be enclosed in some "if-on-rhel6".
+%define kernel_version %(uname -r | sed -r 'y/-/_/;' | sed -r 'y/-/_/; s/\.el.\.(x86_64|i.86)$//;)
+%define kdir /usr/src/kernels/%(uname -r)
+%define _this_kmp_version %{version}_%{kernel_version}
+%kernel_module_package -v %_this_kmp_version -n drbd -f filelist-redhat
+%files
+/etc/depmod.d/drbd.conf
+
+%build
+rm -rf obj
+mkdir obj
+ln -s ../drbd-headers obj/
+
+for flavor in %flavors_to_build; do
+    cp -r drbd obj/$flavor
+    #make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
+    make -C obj/$flavor %{_smp_mflags} all KDIR=%{kdir $flavor}
+done
+
+%install
+export INSTALL_MOD_PATH=$RPM_BUILD_ROOT
+
+%if %{defined kernel_module_package_moddir}
+export INSTALL_MOD_DIR=%{kernel_module_package_moddir drbd}
+%else
+export INSTALL_MOD_DIR=extra/drbd
+%endif
+
+# Very likely kernel_module_package_moddir did ignore the parameter,
+# so we just append it here. The weak-modules magic expects that location.
+[ $INSTALL_MOD_DIR = extra ] && INSTALL_MOD_DIR=extra/drbd
+
+for flavor in %flavors_to_build ; do
+    make -C %{kernel_source $flavor} modules_install \
+	M=$PWD/obj/$flavor
+    kernelrelease=$(cat %{kernel_source $flavor}/include/config/kernel.release || make -s -C %{kernel_source $flavor} kernelrelease)
+    mv obj/$flavor/.kernel.config.gz obj/k-config-$kernelrelease.gz
+    mv obj/$flavor/Module.symvers ../../RPMS/Module.symvers.$kernelrelease.$flavor.%{_arch}
+done
+
+mkdir -p $RPM_BUILD_ROOT/etc/depmod.d
+echo "override drbd * weak-updates" \
+    > $RPM_BUILD_ROOT/etc/depmod.d/drbd.conf
+
+%clean
+rm -rf %{buildroot}
+
+%changelog
+* Mon Jul 23 2018 Madison Kelly <mkelly@alteeve.ca> - 9.0.15rc1-0
+- First build for the Anvil! m3 platform.
+
+* Fri Jul 20 2018 Philipp Reisner <phil@linbit.com> - 9.0.15-0rc1
+- New upstream release.
+
+* Tue May 01 2018 Lars Ellenberg <lars@linbit.com> - 9.0.14-1
+- New upstream release.
+
+* Tue Apr 17 2018 Philipp Reisner <phil@linbit.com> - 9.0.13-1
+- New upstream release.
+
+* Fri Feb 02 2018 Madison Kelly <mkelly@alteeve.ca> - 9.0.12-2
+- First build for the Anvil! m3 platform.
+
+* Mon Jan 22 2018 Philipp Reisner <phil@linbit.com> - 9.0.12-1
+- New upstream release.
+
+* Tue Jan 09 2018 Roland Kammerer <roland.kammerer@linbit.com> - 9.0.11-1
+- New upstream release.
+
+* Fri Dec 22 2017 Roland Kammerer <roland.kammerer@linbit.com> - 9.0.10-1
+- New upstream release.
+
+* Thu Aug 31 2017 Philipp Reisner <phil@linbit.com> - 9.0.9-1
+- New upstream release.
+
+* Mon Jun 19 2017 Philipp Reisner <phil@linbit.com> - 9.0.8-1
+- New upstream release.
+
+* Fri Mar 31 2017 Philipp Reisner <phil@linbit.com> - 9.0.7-1
+- New upstream release.
+
+* Fri Dec 23 2016 Philipp Reisner <phil@linbit.com> - 9.0.6-1
+- New upstream release.
+
+* Thu Oct 20 2016 Philipp Reisner <phil@linbit.com> - 9.0.5-1
+- New upstream release.
+
+* Tue Sep 06 2016 Philipp Reisner <phil@linbit.com> - 9.0.4-1
+- New upstream release.
+
+* Thu Jul 14 2016 Philipp Reisner <phil@linbit.com> - 9.0.3-1
+- New upstream release.
+
+* Tue Apr 19 2016 Philipp Reisner <phil@linbit.com> - 9.0.2-1
+- New upstream release.
+
+* Tue Feb 02 2016 Philipp Reisner <phil@linbit.com> - 9.0.1-1
+- New upstream release.
+
+* Tue Jul 28 2015 Lars Ellenberg <lars@linbit.com> - 9.0.0-3
+- Fixes for the RDMA transport
+- Fixes for 8.4 compatibility
+- Rebuild after compat and build system fixes
+
+* Tue Jun 16 2015 Philipp Reisner <phil@linbit.com> - 9.0.0-1
+- New upstream release.
+
+* Mon Jul 18 2011 Philipp Reisner <phil@linbit.com> - 8.4.0-1
+- New upstream release.
+
+* Fri Jan 28 2011 Philipp Reisner <phil@linbit.com> - 8.3.10-1
+- New upstream release.
+
+* Thu Nov 25 2010 Andreas Gruenbacher <agruen@linbit.com> - 8.3.9-1
+- Convert to a Kernel Module Package.
+
+--------------A23C0DF36D7586A57CF14AE1--
