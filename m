@@ -1,26 +1,26 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com [74.125.82.68])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BC41B1045C23
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:17:18 +0200 (CEST)
-Received: by mail-wm0-f68.google.com with SMTP id h20-v6so1767898wmb.4
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:17:18 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com [74.125.82.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 81B3B1045C25
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:17:21 +0200 (CEST)
+Received: by mail-wm0-f67.google.com with SMTP id s12-v6so1774108wmc.0
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:17:21 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	x7-v6sm2516191wrr.95.2018.07.26.05.17.17
+	p184-v6sm1493064wmp.31.2018.07.26.05.17.20
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Thu, 26 Jul 2018 05:17:17 -0700 (PDT)
-Resent-Message-ID: <20180726121717.GN25507@soda.linbit>
-Received: from mail-pg1-f194.google.com (mail-pg1-f194.google.com
-	[209.85.215.194])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B03641011B9A
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 18:57:02 +0200 (CEST)
-Received: by mail-pg1-f194.google.com with SMTP id p23-v6so3298978pgv.13
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 09:57:02 -0700 (PDT)
+	Thu, 26 Jul 2018 05:17:20 -0700 (PDT)
+Resent-Message-ID: <20180726121720.GQ25507@soda.linbit>
+Received: from mail-pg1-f196.google.com (mail-pg1-f196.google.com
+	[209.85.215.196])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 35E611011BA6
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 18:57:30 +0200 (CEST)
+Received: by mail-pg1-f196.google.com with SMTP id r1-v6so3306434pgp.11
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 09:57:30 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
 To: Herbert Xu <herbert@gondor.apana.org.au>
-Date: Tue, 24 Jul 2018 09:49:27 -0700
-Message-Id: <20180724164936.37477-10-keescook@chromium.org>
+Date: Tue, 24 Jul 2018 09:49:23 -0700
+Message-Id: <20180724164936.37477-6-keescook@chromium.org>
 In-Reply-To: <20180724164936.37477-1-keescook@chromium.org>
 References: <20180724164936.37477-1-keescook@chromium.org>
 Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
@@ -51,7 +51,8 @@ Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
 	Johannes Berg <johannes@sipsolutions.net>,
 	Tim Chen <tim.c.chen@linux.intel.com>, netdev@vger.kernel.org,
 	David Woodhouse <dwmw@amazon.co.uk>
-Subject: [Drbd-dev] [PATCH v6 09/18] ppp: mppe: Remove VLA usage
+Subject: [Drbd-dev] [PATCH v6 05/18] crypto alg: Introduce generic max
+	blocksize and alignmask
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -64,123 +65,58 @@ List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 In the quest to remove all stack VLA usage from the kernel[1], this
-removes the discouraged use of AHASH_REQUEST_ON_STACK (and associated
-VLA) by switching to shash directly and keeping the associated descriptor
-allocated with the regular state on the heap.
+exposes a new general upper bound on crypto blocksize and alignmask
+(higher than for the existing cipher limits) for VLA removal,
+and introduces new checks.
+
+At present, the highest cra_alignmask in the kernel is 63. The highest
+cra_blocksize is 144 (SHA3_224_BLOCK_SIZE, 18 8-byte words). For the
+new blocksize limit, I went with 160 (20 8-byte words).
 
 [1] https://lkml.kernel.org/r/CA+55aFzCG-zNmZwX4A2FQpadafLfEzK6CC=qPXydAacU1RqZWA@mail.gmail.com
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
-Acked-by: Arnd Bergmann <arnd@arndb.de>
 ---
- drivers/net/ppp/ppp_mppe.c | 56 ++++++++++++++++++++------------------
- 1 file changed, 30 insertions(+), 26 deletions(-)
+ crypto/algapi.c         | 7 ++++++-
+ include/crypto/algapi.h | 4 +++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/net/ppp/ppp_mppe.c b/drivers/net/ppp/ppp_mppe.c
-index 6c7fd98cb00a..a205750b431b 100644
---- a/drivers/net/ppp/ppp_mppe.c
-+++ b/drivers/net/ppp/ppp_mppe.c
-@@ -96,7 +96,7 @@ static inline void sha_pad_init(struct sha_pad *shapad)
-  */
- struct ppp_mppe_state {
- 	struct crypto_skcipher *arc4;
--	struct crypto_ahash *sha1;
-+	struct shash_desc *sha1;
- 	unsigned char *sha1_digest;
- 	unsigned char master_key[MPPE_MAX_KEY_LEN];
- 	unsigned char session_key[MPPE_MAX_KEY_LEN];
-@@ -136,25 +136,16 @@ struct ppp_mppe_state {
-  */
- static void get_new_key_from_sha(struct ppp_mppe_state * state)
- {
--	AHASH_REQUEST_ON_STACK(req, state->sha1);
--	struct scatterlist sg[4];
--	unsigned int nbytes;
--
--	sg_init_table(sg, 4);
--
--	nbytes = setup_sg(&sg[0], state->master_key, state->keylen);
--	nbytes += setup_sg(&sg[1], sha_pad->sha_pad1,
--			   sizeof(sha_pad->sha_pad1));
--	nbytes += setup_sg(&sg[2], state->session_key, state->keylen);
--	nbytes += setup_sg(&sg[3], sha_pad->sha_pad2,
--			   sizeof(sha_pad->sha_pad2));
--
--	ahash_request_set_tfm(req, state->sha1);
--	ahash_request_set_callback(req, 0, NULL, NULL);
--	ahash_request_set_crypt(req, sg, state->sha1_digest, nbytes);
--
--	crypto_ahash_digest(req);
--	ahash_request_zero(req);
-+	crypto_shash_init(state->sha1);
-+	crypto_shash_update(state->sha1, state->master_key,
-+			    state->keylen);
-+	crypto_shash_update(state->sha1, sha_pad->sha_pad1,
-+			    sizeof(sha_pad->sha_pad1));
-+	crypto_shash_update(state->sha1, state->session_key,
-+			    state->keylen);
-+	crypto_shash_update(state->sha1, sha_pad->sha_pad2,
-+			    sizeof(sha_pad->sha_pad2));
-+	crypto_shash_final(state->sha1, state->sha1_digest);
- }
+diff --git a/crypto/algapi.c b/crypto/algapi.c
+index c0755cf4f53f..496fc51bf215 100644
+--- a/crypto/algapi.c
++++ b/crypto/algapi.c
+@@ -57,9 +57,14 @@ static int crypto_check_alg(struct crypto_alg *alg)
+ 	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
+ 		return -EINVAL;
  
- /*
-@@ -200,6 +191,7 @@ static void mppe_rekey(struct ppp_mppe_state * state, int initial_key)
- static void *mppe_alloc(unsigned char *options, int optlen)
- {
- 	struct ppp_mppe_state *state;
-+	struct crypto_shash *shash;
- 	unsigned int digestsize;
+-	if (alg->cra_blocksize > PAGE_SIZE / 8)
++	/* General maximums for all algs. */
++	if (alg->cra_alignmask > MAX_ALGAPI_ALIGNMASK)
+ 		return -EINVAL;
  
- 	if (optlen != CILEN_MPPE + sizeof(state->master_key) ||
-@@ -217,13 +209,21 @@ static void *mppe_alloc(unsigned char *options, int optlen)
- 		goto out_free;
- 	}
- 
--	state->sha1 = crypto_alloc_ahash("sha1", 0, CRYPTO_ALG_ASYNC);
--	if (IS_ERR(state->sha1)) {
--		state->sha1 = NULL;
-+	shash = crypto_alloc_shash("sha1", 0, 0);
-+	if (IS_ERR(shash))
-+		goto out_free;
++	if (alg->cra_blocksize > MAX_ALGAPI_BLOCKSIZE)
++		return -EINVAL;
 +
-+	state->sha1 = kmalloc(sizeof(*state->sha1) +
-+				     crypto_shash_descsize(shash),
-+			      GFP_KERNEL);
-+	if (!state->sha1) {
-+		crypto_free_shash(shash);
- 		goto out_free;
- 	}
-+	state->sha1->tfm = shash;
-+	state->sha1->flags = 0;
++	/* Lower maximums for specific alg types. */
+ 	if (!alg->cra_type && (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+ 			       CRYPTO_ALG_TYPE_CIPHER) {
+ 		if (alg->cra_alignmask > MAX_CIPHER_ALIGNMASK)
+diff --git a/include/crypto/algapi.h b/include/crypto/algapi.h
+index bd5e8ccf1687..21371ac8f355 100644
+--- a/include/crypto/algapi.h
++++ b/include/crypto/algapi.h
+@@ -20,8 +20,10 @@
+ /*
+  * Maximum values for blocksize and alignmask, used to allocate
+  * static buffers that are big enough for any combination of
+- * ciphers and architectures.
++ * algs and architectures. Ciphers have a lower maximum size.
+  */
++#define MAX_ALGAPI_BLOCKSIZE		160
++#define MAX_ALGAPI_ALIGNMASK		63
+ #define MAX_CIPHER_BLOCKSIZE		16
+ #define MAX_CIPHER_ALIGNMASK		15
  
--	digestsize = crypto_ahash_digestsize(state->sha1);
-+	digestsize = crypto_shash_digestsize(shash);
- 	if (digestsize < MPPE_MAX_KEY_LEN)
- 		goto out_free;
- 
-@@ -246,7 +246,10 @@ static void *mppe_alloc(unsigned char *options, int optlen)
- 
- out_free:
- 	kfree(state->sha1_digest);
--	crypto_free_ahash(state->sha1);
-+	if (state->sha1) {
-+		crypto_free_shash(state->sha1->tfm);
-+		kzfree(state->sha1);
-+	}
- 	crypto_free_skcipher(state->arc4);
- 	kfree(state);
- out:
-@@ -261,7 +264,8 @@ static void mppe_free(void *arg)
- 	struct ppp_mppe_state *state = (struct ppp_mppe_state *) arg;
- 	if (state) {
- 		kfree(state->sha1_digest);
--		crypto_free_ahash(state->sha1);
-+		crypto_free_shash(state->sha1->tfm);
-+		kzfree(state->sha1);
- 		crypto_free_skcipher(state->arc4);
- 		kfree(state);
- 	}
 -- 
 2.17.1
 
