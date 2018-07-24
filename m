@@ -1,33 +1,32 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f65.google.com (mail-wr1-f65.google.com
-	[209.85.221.65])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 1C63D1045C32
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:24:17 +0200 (CEST)
-Received: by mail-wr1-f65.google.com with SMTP id j5-v6so1516468wrr.8
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:24:17 -0700 (PDT)
+Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
+	[209.85.221.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 35C7B1045C33
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:24:20 +0200 (CEST)
+Received: by mail-wr1-f67.google.com with SMTP id g6-v6so1528921wrp.0
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:24:20 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	u14-v6sm1445915wrs.57.2018.07.26.05.17.42
+	i1-v6sm1295060wrq.69.2018.07.26.05.17.06
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Thu, 26 Jul 2018 05:17:42 -0700 (PDT)
-Resent-Message-ID: <20180726121741.GA25507@soda.linbit>
-Received: from smtp.codeaurora.org (smtp.codeaurora.org [198.145.29.96])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D645D100542C
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Jul 2018 10:15:25 +0200 (CEST)
-From: Kalle Valo <kvalo@codeaurora.org>
-To: Johannes Berg <johannes@sipsolutions.net>
+	Thu, 26 Jul 2018 05:17:06 -0700 (PDT)
+Resent-Message-ID: <20180726121706.GG25507@soda.linbit>
+Received: from mail-pl0-f65.google.com (mail-pl0-f65.google.com
+	[209.85.160.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 33D6A101AC7B
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 18:56:18 +0200 (CEST)
+Received: by mail-pl0-f65.google.com with SMTP id s17-v6so2028010plp.7
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 09:56:17 -0700 (PDT)
+From: Kees Cook <keescook@chromium.org>
+To: Herbert Xu <herbert@gondor.apana.org.au>
+Date: Tue, 24 Jul 2018 09:49:36 -0700
+Message-Id: <20180724164936.37477-19-keescook@chromium.org>
+In-Reply-To: <20180724164936.37477-1-keescook@chromium.org>
 References: <20180724164936.37477-1-keescook@chromium.org>
-	<20180724164936.37477-14-keescook@chromium.org>
-	<1532503493.3223.0.camel@sipsolutions.net>
-Date: Wed, 25 Jul 2018 11:05:42 +0300
-In-Reply-To: <1532503493.3223.0.camel@sipsolutions.net> (Johannes Berg's
-	message of "Wed, 25 Jul 2018 09:24:53 +0200")
-Message-ID: <87tvong2p5.fsf@purkki.adurom.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
-	Mike Snitzer <snitzer@redhat.com>, Eric Biggers <ebiggers@google.com>,
+	Mike Snitzer <snitzer@redhat.com>,
+	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
 	linux-wireless@vger.kernel.org,
 	Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
 	David Howells <dhowells@redhat.com>, dm-devel@redhat.com,
@@ -35,26 +34,25 @@ Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
 	Paul Mackerras <paulus@samba.org>, Pavel Machek <pavel@ucw.cz>,
 	"H. Peter Anvin" <hpa@zytor.com>, linux-afs@lists.infradead.org,
 	Alasdair Kergon <agk@redhat.com>,
-	Rabin Vincent <rabinv@axis.com>, devel@driverdev.osuosl.org,
-	Herbert Xu <herbert@gondor.apana.org.au>, x86@kernel.org,
-	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
-	qat-linux@intel.com, Ingo Molnar <mingo@redhat.com>,
-	drbd-dev@lists.linbit.com, Kees Cook <keescook@chromium.org>,
+	Kees Cook <keescook@chromium.org>, devel@driverdev.osuosl.org,
+	x86@kernel.org, qat-linux@intel.com, Ingo Molnar <mingo@redhat.com>,
+	Eric Biggers <ebiggers@google.com>,
+	Geert Uytterhoeven <geert@linux-m68k.org>,
+	drbd-dev@lists.linbit.com, Rabin Vincent <rabinv@axis.com>,
 	Arnd Bergmann <arnd@arndb.de>,
 	Tudor-Dan Ambarus <tudor.ambarus@microchip.com>,
 	linux-block@vger.kernel.org, Josh Poimboeuf <jpoimboe@redhat.com>,
 	Thomas Gleixner <tglx@linutronix.de>,
-	Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>,
-	Geert Uytterhoeven <"g eert"@linux-m68k.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>,
+	Andrew Morton <akpm@linux-foundation.org>,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-pm@vger.kernel.org,
 	"Rafael J. Wysocki" <rjw@rjwysocki.net>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-crypto@vger.kernel.org, linux-ppp@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Johannes Berg <johannes@sipsolutions.net>,
 	Tim Chen <tim.c.chen@linux.intel.com>, netdev@vger.kernel.org,
 	David Woodhouse <dwmw@amazon.co.uk>
-Subject: Re: [Drbd-dev] [PATCH v6 13/18] wireless/lib80211: Convert from
-	ahash to shash
+Subject: [Drbd-dev] [PATCH v6 18/18] crypto: Remove AHASH_REQUEST_ON_STACK
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -66,21 +64,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Johannes Berg <johannes@sipsolutions.net> writes:
+All users of AHASH_REQUEST_ON_STACK have been removed from the kernel, so
+drop it entirely so no VLAs get reintroduced by future users.
 
-> On Tue, 2018-07-24 at 09:49 -0700, Kees Cook wrote:
->> In preparing to remove all stack VLA usage from the kernel[1], this
->> removes the discouraged use of AHASH_REQUEST_ON_STACK in favor of
->> the smaller SHASH_DESC_ON_STACK by converting from ahash-wrapped-shash
->> to direct shash. By removing a layer of indirection this both improves
->> performance and reduces stack usage. The stack allocation will be made
->> a fixed size in a later patch to the crypto subsystem.
->
-> I think you sent this before - it should be in net-next now.
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+ include/crypto/hash.h | 5 -----
+ 1 file changed, 5 deletions(-)
 
-Yup, I see it in net-next:
-
-d17504b16ea2 wireless/lib80211: Convert from ahash to shash
-
+diff --git a/include/crypto/hash.h b/include/crypto/hash.h
+index 21587011ab0f..fca3e28c77a4 100644
+--- a/include/crypto/hash.h
++++ b/include/crypto/hash.h
+@@ -64,11 +64,6 @@ struct ahash_request {
+ 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
+ };
+ 
+-#define AHASH_REQUEST_ON_STACK(name, ahash) \
+-	char __##name##_desc[sizeof(struct ahash_request) + \
+-		crypto_ahash_reqsize(ahash)] CRYPTO_MINALIGN_ATTR; \
+-	struct ahash_request *name = (void *)__##name##_desc
+-
+ /**
+  * struct ahash_alg - asynchronous message digest definition
+  * @init: **[mandatory]** Initialize the transformation context. Intended only to initialize the
 -- 
-Kalle Valo
+2.17.1
+
