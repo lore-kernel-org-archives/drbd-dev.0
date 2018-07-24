@@ -1,18 +1,18 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com [74.125.82.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 860321018D73
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 10:13:38 +0200 (CEST)
-Received: by mail-wm0-f66.google.com with SMTP id h20-v6so1562341wmb.4
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 01:13:38 -0700 (PDT)
-Date: Tue, 24 Jul 2018 10:08:07 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <20180724080806.nbfo3akwtxdx5qsi@rck.sh>
+Return-Path: <lists@alteeve.ca>
+Received: from mail.alteeve.ca (mail.alteeve.ca [65.39.153.71])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BCBD8101AC67
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 17:17:11 +0200 (CEST)
+To: Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
 References: <225e8fd1-fc2e-287a-63cb-00ce31fa79b5@alteeve.ca>
+	<20180724080806.nbfo3akwtxdx5qsi@rck.sh>
+From: Digimer <lists@alteeve.ca>
+Message-ID: <fa2eeac3-6d32-c78e-d6d1-96f33cbcd903@alteeve.ca>
+Date: Tue, 24 Jul 2018 11:17:09 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <225e8fd1-fc2e-287a-63cb-00ce31fa79b5@alteeve.ca>
+In-Reply-To: <20180724080806.nbfo3akwtxdx5qsi@rck.sh>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Subject: Re: [Drbd-dev] BuildRequires for drbd-utils
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -25,26 +25,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jul 23, 2018 at 07:19:38PM -0400, Digimer wrote:
-> Hi all,
+On 2018-07-24 04:08 AM, Roland Kammerer wrote:
+> On Mon, Jul 23, 2018 at 07:19:38PM -0400, Digimer wrote:
+>> Hi all,
+>>
+>>   I'm working on RPMs for Fedora, and noticed two missing build
+>> dependencies in drbd-utils-9.5.0;
+>>
+>> BuildRequires: automake
+>> BuildRequires: libxslt
 > 
->   I'm working on RPMs for Fedora, and noticed two missing build
-> dependencies in drbd-utils-9.5.0;
+> Hi Digimer,
 > 
-> BuildRequires: automake
-> BuildRequires: libxslt
+> I will look into it (and if RHEL/SLES name them differently and what
+> not).
+> 
+> Same for the kernel part you mentioned in the other thread. Others might
+> be faster, currently can't promise anything, a bit too busy at the
+> moment.
+> 
+> In general I think that is more appropriate for drbd-user, drbd-dev is
+> basically "kernel patch coordination only", drbd-user is "everything
+> else".
+> 
+> Thanks, rck
 
-Hi Digimer,
+Thanks for the reply.
 
-I will look into it (and if RHEL/SLES name them differently and what
-not).
+  I've got drbd-utils building fine now
+(https://www.alteeve.com/an-repo/f28/SRPMS/drbd-9.5.0-2.fc28.src.rpm).
+My issue is being unable to build drbd-kernel.
 
-Same for the kernel part you mentioned in the other thread. Others might
-be faster, currently can't promise anything, a bit too busy at the
-moment.
+  Let me reply to that thread to keep it more on topic for the archives. :)
 
-In general I think that is more appropriate for drbd-user, drbd-dev is
-basically "kernel patch coordination only", drbd-user is "everything
-else".
-
-Thanks, rck
+-- 
+Digimer
+Papers and Projects: https://alteeve.com/w/
+"I am, somehow, less interested in the weight and convolutions of
+Einstein’s brain than in the near certainty that people of equal talent
+have lived and died in cotton fields and sweatshops." - Stephen Jay Gould
