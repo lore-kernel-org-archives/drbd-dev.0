@@ -1,19 +1,22 @@
 Return-Path: <lists@alteeve.ca>
 Received: from mail.alteeve.ca (mail.alteeve.ca [65.39.153.71])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BCBD8101AC67
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 17:17:11 +0200 (CEST)
-To: Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
-References: <225e8fd1-fc2e-287a-63cb-00ce31fa79b5@alteeve.ca>
-	<20180724080806.nbfo3akwtxdx5qsi@rck.sh>
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 42297101AC67
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 17:23:08 +0200 (CEST)
+Received: from pulsar.alteeve.com (ip-104-193-58-76.user.start.ca
+	[104.193.58.76])
+	by mail.alteeve.ca (Postfix) with ESMTPSA id D6514E00C7
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 11:23:06 -0400 (EDT)
 From: Digimer <lists@alteeve.ca>
-Message-ID: <fa2eeac3-6d32-c78e-d6d1-96f33cbcd903@alteeve.ca>
-Date: Tue, 24 Jul 2018 11:17:09 -0400
+To: drbd-dev@lists.linbit.com
+References: <cb6d86c4-acbb-f299-00fe-e83f6c4e69ba@alteeve.ca>
+Message-ID: <58525792-e53d-55a6-379e-5afe963cbae7@alteeve.ca>
+Date: Tue, 24 Jul 2018 11:23:07 -0400
 MIME-Version: 1.0
-In-Reply-To: <20180724080806.nbfo3akwtxdx5qsi@rck.sh>
+In-Reply-To: <cb6d86c4-acbb-f299-00fe-e83f6c4e69ba@alteeve.ca>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-Subject: Re: [Drbd-dev] BuildRequires for drbd-utils
+Subject: Re: [Drbd-dev] DRBD 9 on Fedora 28
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,38 +28,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2018-07-24 04:08 AM, Roland Kammerer wrote:
-> On Mon, Jul 23, 2018 at 07:19:38PM -0400, Digimer wrote:
->> Hi all,
->>
->>   I'm working on RPMs for Fedora, and noticed two missing build
->> dependencies in drbd-utils-9.5.0;
->>
->> BuildRequires: automake
->> BuildRequires: libxslt
+On 2018-07-24 12:40 AM, Digimer wrote:
+> Hi all,
 > 
-> Hi Digimer,
+>   I'm trying to get DRBD 9 on Fedora 28 (which I'm using as a dev
+> platform ahead of RHEL 8 beta). The DRBD that ships with the kernel is
+> 8.4.10.
 > 
-> I will look into it (and if RHEL/SLES name them differently and what
-> not).
+>   I've been struggling to build the 9.0.15rc1 RPM without luck. I've
+> made a few progressions (ie: added kernel-rpm-macros, kernel-devel and
+> elfutils-devel to BuildRequires).
 > 
-> Same for the kernel part you mentioned in the other thread. Others might
-> be faster, currently can't promise anything, a bit too busy at the
-> moment.
+>   Has anyone managed to build DRBD9 on Fedora 27+? If so, would you mind
+> sharing the src.rpm or .spec?
 > 
-> In general I think that is more appropriate for drbd-user, drbd-dev is
-> basically "kernel patch coordination only", drbd-user is "everything
-> else".
+> Thanks!
 > 
-> Thanks, rck
+> digimer
 
-Thanks for the reply.
+Following up with additional info;
 
-  I've got drbd-utils building fine now
-(https://www.alteeve.com/an-repo/f28/SRPMS/drbd-9.5.0-2.fc28.src.rpm).
-My issue is being unable to build drbd-kernel.
+The problem is in this loop;
 
-  Let me reply to that thread to keep it more on topic for the archives. :)
+https://github.com/LINBIT/drbd-9.0/blob/master/drbd-kernel.spec#L84
+
+It causes the arch to be appended twice;
+
+====
++ for flavor in default
+++ '[' default = default ']'
++ make -C /usr/src/kernels/4.17.7-200.fc28.x86_64.x86_64 modules_install
+M=/home/digimer/rpmbuild/BUILD/drbd-9.0.15rc1/obj/default
+make: *** /usr/src/kernels/4.17.7-200.fc28.x86_64.x86_64: No such file
+or directory.  Stop.
+====
+
+I've been trying to figure out how to fix it, but it seems my ignorance
+of RPM .spec is getting the better of me...
 
 -- 
 Digimer
