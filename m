@@ -1,66 +1,27 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f66.google.com (mail-wr1-f66.google.com
-	[209.85.221.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id DED7F1045C34
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 14:25:40 +0200 (CEST)
-Received: by mail-wr1-f66.google.com with SMTP id h10-v6so1522546wre.6
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 05:25:40 -0700 (PDT)
-Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
-	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	w9-v6sm1539622wrk.28.2018.07.26.05.17.29
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Thu, 26 Jul 2018 05:17:29 -0700 (PDT)
-Resent-Message-ID: <20180726121729.GY25507@soda.linbit>
-Received: from mail-yw0-f195.google.com (mail-yw0-f195.google.com
-	[209.85.161.195])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 370F6101AC7B
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 20:00:03 +0200 (CEST)
-Received: by mail-yw0-f195.google.com with SMTP id v197-v6so1864721ywg.3
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Jul 2018 11:00:03 -0700 (PDT)
+Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com
+	[209.85.221.51])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9476A103B4DF
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 18:02:01 +0200 (CEST)
+Received: by mail-wr1-f51.google.com with SMTP id h9-v6so2241673wro.3
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Jul 2018 09:02:01 -0700 (PDT)
+Date: Thu, 26 Jul 2018 18:01:59 +0200
+From: Lars Ellenberg <lars.ellenberg@linbit.com>
+To: Digimer <lists@alteeve.ca>
+Message-ID: <20180726160159.GJ25507@soda.linbit>
+References: <cb6d86c4-acbb-f299-00fe-e83f6c4e69ba@alteeve.ca>
+	<58525792-e53d-55a6-379e-5afe963cbae7@alteeve.ca>
+	<26442f3d-0a5c-cea3-3d8b-e4d888ebffd3@alteeve.ca>
+	<437fd238-e310-80a1-22af-04d3a8783981@alteeve.ca>
+	<a48cbd5f-1030-4449-3603-9716ae38cb3b@prgmr.com>
+	<3bbddc4f-6337-594b-9fcc-eec9b6e5de4d@alteeve.ca>
 MIME-Version: 1.0
-In-Reply-To: <1bdc706ae86039c4ffcff39698251424d54af116.camel@perches.com>
-References: <20180724164936.37477-1-keescook@chromium.org>
-	<20180724164936.37477-19-keescook@chromium.org>
-	<1bdc706ae86039c4ffcff39698251424d54af116.camel@perches.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 24 Jul 2018 10:53:26 -0700
-Message-ID: <CAGXu5j+gTpZFkXE8XSNgYPEpBT4+hCb1kzv8s8KrSTerHyKp6w@mail.gmail.com>
-To: Joe Perches <joe@perches.com>
-Content-Type: text/plain; charset="UTF-8"
-Cc: Giovanni Cabiddu <giovanni.cabiddu@intel.com>,
-	Mike Snitzer <snitzer@redhat.com>,
-	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
-	linux-wireless <linux-wireless@vger.kernel.org>,
-	Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>,
-	David Howells <dhowells@redhat.com>,
-	device-mapper development <dm-devel@redhat.com>,
-	Jia-Ju Bai <baijiaju1990@gmail.com>,
-	Paul Mackerras <paulus@samba.org>, Pavel Machek <pavel@ucw.cz>,
-	"H. Peter Anvin" <hpa@zytor.com>, linux-afs@lists.infradead.org,
-	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	Herbert Xu <herbert@gondor.apana.org.au>,
-	X86 ML <x86@kernel.org>, qat-linux@intel.com,
-	Ingo Molnar <mingo@redhat.com>, Eric Biggers <ebiggers@google.com>,
-	Geert Uytterhoeven <geert@linux-m68k.org>,
-	Rabin Vincent <rabinv@axis.com>, Arnd Bergmann <arnd@arndb.de>,
-	Tudor-Dan Ambarus <tudor.ambarus@microchip.com>,
-	linux-block <linux-block@vger.kernel.org>,
-	Josh Poimboeuf <jpoimboe@redhat.com>, Thomas Gleixner <tglx@linutronix.de>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Linux PM list <linux-pm@vger.kernel.org>,
-	"Rafael J. Wysocki" <rjw@rjwysocki.net>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-crypto <linux-crypto@vger.kernel.org>, linux-ppp@vger.kernel.org,
-	Johannes Berg <johannes@sipsolutions.net>,
-	Tim Chen <tim.c.chen@linux.intel.com>,
-	Network Development <netdev@vger.kernel.org>,
-	David Woodhouse <dwmw@amazon.co.uk>
-Subject: Re: [Drbd-dev] [PATCH v6 18/18] crypto: Remove
-	AHASH_REQUEST_ON_STACK
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <3bbddc4f-6337-594b-9fcc-eec9b6e5de4d@alteeve.ca>
+Cc: drbd-dev@lists.linbit.com, Nick Bebout <nb@prgmr.com>
+Subject: Re: [Drbd-dev] DRBD 9 on Fedora 28
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -72,30 +33,121 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jul 24, 2018 at 10:31 AM, Joe Perches <joe@perches.com> wrote:
-> On Tue, 2018-07-24 at 09:49 -0700, Kees Cook wrote:
->> All users of AHASH_REQUEST_ON_STACK have been removed from the kernel, so
->> drop it entirely so no VLAs get reintroduced by future users.
->
-> checkpatch has a test for that.
-> It could now be removed as well.
-> ---
-> diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-> index 34e4683de7a3..a3517334d661 100755
-> --- a/scripts/checkpatch.pl
-> +++ b/scripts/checkpatch.pl
-> @@ -796,7 +796,7 @@ our $declaration_macros = qr{(?x:
->         (?:$Storage\s+)?(?:[A-Z_][A-Z0-9]*_){0,2}(?:DEFINE|DECLARE)(?:_[A-Z0-9]+){1,6}\s*\(|
->         (?:$Storage\s+)?[HLP]?LIST_HEAD\s*\(|
->         (?:$Storage\s+)?${Type}\s+uninitialized_var\s*\(|
-> -       (?:SKCIPHER_REQUEST|SHASH_DESC|AHASH_REQUEST)_ON_STACK\s*\(
-> +       (?:SKCIPHER_REQUEST|SHASH_DESC)_ON_STACK\s*\(
->  )};
+On Tue, Jul 24, 2018 at 02:52:25PM -0400, Digimer wrote:
+> On 2018-07-24 02:01 PM, Sarah Newman wrote:
+> > On 07/24/2018 08:55 AM, Digimer wrote:
+> >> On 2018-07-24 11:31 AM, Digimer wrote:
+> >>> On 2018-07-24 11:23 AM, Digimer wrote:
+> >>>> On 2018-07-24 12:40 AM, Digimer wrote:
 
-Ah! Cool. I've added this now.
+"making progress" ;-)
 
--Kees
+> >>>>> Hi all,
+> >>>>>
+> >>>>>   I'm trying to get DRBD 9 on Fedora 28 (which I'm using as a dev
+> >>>>> platform ahead of RHEL 8 beta). The DRBD that ships with the kernel is
+> >>>>> 8.4.10.
+> >>>>>
+> >>>>>   I've been struggling to build the 9.0.15rc1 RPM without luck. I've
+> >>>>> made a few progressions (ie: added kernel-rpm-macros, kernel-devel and
+> >>>>> elfutils-devel to BuildRequires).
+> >>>>>
+> >>>>>   Has anyone managed to build DRBD9 on Fedora 27+? If so, would you mind
+> >>>>> sharing the src.rpm or .spec?
+> >>>>>
+> >>>>> Thanks!
+> >>>>>
+> >>>>> digimer
+> >>>>
+> >>>> Following up with additional info;
+> >>>>
+> >>>> The problem is in this loop;
+> >>>>
+> >>>> https://github.com/LINBIT/drbd-9.0/blob/master/drbd-kernel.spec#L84
+> >>>>
+> >>>> It causes the arch to be appended twice;
+
+The "kernel_source" macro is the offender here,
+and is defined by the "%kernel_module_package" macro.
+The "flavors_to_build" macro may play a role as well,
+also defined by that same macro, likely just a line before.
+
+the kernel_source macro on rhel used to expect a "default" flavor,
+and would "filter that out", but append a .$flavor for any other flavor.
+
+possibly the "verrel" subcommand of the kmodtool script is an other
+place to apply a fix, to strip out the first .x86_64 there,
+maybe by adding it to the "known variants" list.
+
+or maybe you could just tell rpmbuild or the top level spec
+that the kernel source directory is /usr/src/kernels/4.17.7-200.fc28
+and have the macro append the .x86_64 just that once.
+
+that would be, or at least used to be in rhel,
+usr/lib/rpm/redhat/macros and usr/lib/rpm/redhat/kmodtool
+
+if you really want to dig into it, you could compare
+the kernel_module_package macro and kmodtool scripts
+between rhel (where it apprently still works?) and current fedora
+(where it does not/no longer work).
+
+I had a lot of "fun" in the past fighting those magic scripts and macros
+to get them to actually do what they where supposed to do in the first
+place, on various occasions, more than I can recount the details on,
+but I remember that rhel5, 6, 7, suse, and some other rpm based distros
+have all been broken differently at one time or the other
+in kernel_module_package and/or kmodtool.
+
+> >>>> ====
+> >>>> + for flavor in default
+> >>>> ++ '[' default = default ']'
+> >>>> + make -C /usr/src/kernels/4.17.7-200.fc28.x86_64.x86_64 modules_install
+> >>>> M=/home/digimer/rpmbuild/BUILD/drbd-9.0.15rc1/obj/default
+> >>>> make: *** /usr/src/kernels/4.17.7-200.fc28.x86_64.x86_64: No such file
+> >>>> or directory.  Stop.
+> >>>> ====
+> >>>>
+> >>>> I've been trying to figure out how to fix it, but it seems my ignorance
+> >>>> of RPM .spec is getting the better of me...
+> >>>
+> >>> I should mention; This same src.rpm builds fine on RHEL 7.5. So it seems
+> >>> to be specifically a Fedora issue (tried on 27 and 28).
+> > 
+> > Digimer, you might be better off asking the Fedora folks rather than
+> > the DRBD folks, since they may have had to fix similar issues in
+> > other packages.
+> > 
+> > Nick, since you're a Fedora ambassador do you have any suggestions
+> > on where or who to ask? I don't know if
+> > https://lists.fedoraproject.org/archives/list/devel@lists.fedoraproject.org/
+> > is appropriate unless Digimer is planning on submitting his work to
+
+her.
+just saying ;-)
+
+> > Fedora.
+> > 
+> > Thanks, Sarah
+> 
+> Thanks Sarah!
+> 
+>   I asked on the #fedora IRC channel and a few folks did help (that's
+> how I narrows it down to that loop), the general feeling was to talk to
+> LINBIT folks. Personally, I am happy working with either, though I want
+> to admit straight up that I am fairly new to RPM packaging.
+> 
+>   If Nick has advice, I'll be happy to follow it, too. :)
+> 
+> digimer
+
+Cheers,
+
+    Lars
 
 -- 
-Kees Cook
-Pixel Security
+: Lars Ellenberg
+: LINBIT | Keeping the Digital World Running
+: DRBD -- Heartbeat -- Corosync -- Pacemaker
+: R&D, Integration, Ops, Consulting, Support
+
+DRBD® and LINBIT® are registered trademarks of LINBIT
