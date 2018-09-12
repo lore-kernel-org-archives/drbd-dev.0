@@ -1,28 +1,37 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-io0-f193.google.com (mail-io0-f193.google.com
-	[209.85.223.193])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A80641011B9A
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Sep 2018 18:18:12 +0200 (CEST)
-Received: by mail-io0-f193.google.com with SMTP id y12-v6so6387582ioj.13
-	for <drbd-dev@lists.linbit.com>; Wed, 05 Sep 2018 09:18:12 -0700 (PDT)
-To: Kees Cook <keescook@chromium.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-block <linux-block@vger.kernel.org>, drbd-dev@lists.linbit.com,
-	LKML <linux-kernel@vger.kernel.org>
-References: <20180806233216.GA6037@beast>
-	<CAGXu5jKA6_aZpDXB2UurmW5cEGEC7aMcq=qvJGPVAifjnk17ug@mail.gmail.com>
-	<CAGXu5jLyynGbnuhwabbViwzvRFzn-Vj5ktYOrypRGj_qk8UvQw@mail.gmail.com>
-	<20180905083320.GA28462@soda.linbit>
-	<CAGXu5jL3Pw3s0r1kebQy_9xVDrtNnCqbRTAEqsa_GwK-eAWMkg@mail.gmail.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <7a643254-cc1d-0a27-17a7-40651b503256@kernel.dk>
-Date: Wed, 5 Sep 2018 10:10:24 -0600
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wr1-f65.google.com (mail-wr1-f65.google.com
+	[209.85.221.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8CEF61018D73
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 10:56:25 +0200 (CEST)
+Received: by mail-wr1-f65.google.com with SMTP id g33-v6so16413805wrd.1
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 01:56:25 -0700 (PDT)
+Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
+	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
+	n5-v6sm5356763wmh.1.2018.09.17.01.56.23
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Mon, 17 Sep 2018 01:56:24 -0700 (PDT)
+Resent-Message-ID: <20180917085623.GB24385@soda.linbit>
+Received: from mail-qt0-f194.google.com (mail-qt0-f194.google.com
+	[209.85.216.194])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F0B8F101AC67
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2018 12:29:57 +0200 (CEST)
+Received: by mail-qt0-f194.google.com with SMTP id m13-v6so1279030qth.1
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2018 03:29:57 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jL3Pw3s0r1kebQy_9xVDrtNnCqbRTAEqsa_GwK-eAWMkg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] [PATCH v7] drbd: Convert from ahash to shash
+References: <4853c5b7-fc65-5499-a129-52bfc6c2851f@gmx.de>
+In-Reply-To: <4853c5b7-fc65-5499-a129-52bfc6c2851f@gmx.de>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Wed, 12 Sep 2018 12:24:20 +0200
+Message-ID: <CAK8P3a0KE+OEW2aSXd0Xgjd-1JeQC3+G+k6EdCdZQPRm+nFWmQ@mail.gmail.com>
+To: 20170201165532.2605534-1-arnd@arndb.de
+Content-Type: text/plain; charset="UTF-8"
+Cc: Nicolas Dichtel <nicolas.dichtel@6wind.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
+	David Miller <davem@davemloft.net>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd: avoid clang warning about pointless
+	switch statement
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,35 +43,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 9/5/18 10:04 AM, Kees Cook wrote:
-> On Wed, Sep 5, 2018 at 1:33 AM, Lars Ellenberg
-> <lars.ellenberg@linbit.com> wrote:
->> On Tue, Sep 04, 2018 at 08:04:18PM -0700, Kees Cook wrote:
->>> On Mon, Sep 3, 2018 at 11:04 PM, Kees Cook <keescook@chromium.org> wrote:
->>>> On Mon, Aug 6, 2018 at 4:32 PM, Kees Cook <keescook@chromium.org> wrote:
->>>>> In preparing to remove all stack VLA usage from the kernel[1], this
->>>>> removes the discouraged use of AHASH_REQUEST_ON_STACK in favor of
->>>>> the smaller SHASH_DESC_ON_STACK by converting from ahash-wrapped-shash
->>>>> to direct shash. By removing a layer of indirection this both improves
->>>>> performance and reduces stack usage. The stack allocation will be made
->>>>> a fixed size in a later patch to the crypto subsystem.
->>>>>
->>>>> The bulk of the lines in this change are simple s/ahash/shash/, but the
->>>>> main logic differences are in drbd_csum_ee() and drbd_csum_bio(), which
->>>>> externalizes the page walking with k(un)map_atomic() instead of using
->>>>> scattergather.
->>>>
->>>> Hi Lars! How does this look to you? If you can Ack I assume Jens would
->>>> be able to take this.
->>
->> Sure, I should have ACKed it a month ago already.  As I said, I believe
->> you the crypto. And you added the kmap_atomic as I pointed out.
->> All good.
-> 
-> Great, thanks! Jens, can you take this?
+On Wed, Sep 12, 2018 at 12:01 PM Philipp Klocke <Phil_K97@gmx.de> wrote:
+>
+> Hello,
+>
+> I've also stumbled across the "warning: no case matching constant switch
+> condition '0'" and wanted to fix it.
+> As your suggestion is probably the best way, I wanted to ask why it
+> didn't get merged yet.
+>
+> Maybe the patch got lost?
 
-Done, queued up for 4.20.
+I think I never followed up on the patch when it didn't get merged the
+first time around. If you have a copy at hand, could you add your
+Signed-off-by and send a version that applies to the current kernel?
 
--- 
-Jens Axboe
-
+    Arnd
