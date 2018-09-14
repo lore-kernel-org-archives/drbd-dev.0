@@ -1,37 +1,33 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f65.google.com (mail-wr1-f65.google.com
-	[209.85.221.65])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8CEF61018D73
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 10:56:25 +0200 (CEST)
-Received: by mail-wr1-f65.google.com with SMTP id g33-v6so16413805wrd.1
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 01:56:25 -0700 (PDT)
+Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com
+	[209.85.221.68])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 48DED1011BAE
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 10:56:42 +0200 (CEST)
+Received: by mail-wr1-f68.google.com with SMTP id 20-v6so16343018wrb.12
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 01:56:42 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	n5-v6sm5356763wmh.1.2018.09.17.01.56.23
+	b10-v6sm6444999wmc.28.2018.09.17.01.56.41
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 17 Sep 2018 01:56:24 -0700 (PDT)
-Resent-Message-ID: <20180917085623.GB24385@soda.linbit>
-Received: from mail-qt0-f194.google.com (mail-qt0-f194.google.com
-	[209.85.216.194])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F0B8F101AC67
-	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2018 12:29:57 +0200 (CEST)
-Received: by mail-qt0-f194.google.com with SMTP id m13-v6so1279030qth.1
-	for <drbd-dev@lists.linbit.com>; Wed, 12 Sep 2018 03:29:57 -0700 (PDT)
-MIME-Version: 1.0
-References: <4853c5b7-fc65-5499-a129-52bfc6c2851f@gmx.de>
-In-Reply-To: <4853c5b7-fc65-5499-a129-52bfc6c2851f@gmx.de>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Wed, 12 Sep 2018 12:24:20 +0200
-Message-ID: <CAK8P3a0KE+OEW2aSXd0Xgjd-1JeQC3+G+k6EdCdZQPRm+nFWmQ@mail.gmail.com>
-To: 20170201165532.2605534-1-arnd@arndb.de
-Content-Type: text/plain; charset="UTF-8"
-Cc: Nicolas Dichtel <nicolas.dichtel@6wind.com>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
-	David Miller <davem@davemloft.net>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: avoid clang warning about pointless
-	switch statement
+	Mon, 17 Sep 2018 01:56:41 -0700 (PDT)
+Resent-Message-ID: <20180917085641.GC24385@soda.linbit>
+Received: from mail-wm1-f67.google.com (mail-wm1-f67.google.com
+	[209.85.128.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 861E2101AC7B
+	for <drbd-dev@lists.linbit.com>; Fri, 14 Sep 2018 07:07:28 +0200 (CEST)
+Received: by mail-wm1-f67.google.com with SMTP id n11-v6so640311wmc.2
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Sep 2018 22:07:28 -0700 (PDT)
+From: Nathan Chancellor <natechancellor@gmail.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
+Date: Thu, 13 Sep 2018 22:00:47 -0700
+Message-Id: <20180914050047.7079-1-natechancellor@gmail.com>
+Cc: Nathan Chancellor <natechancellor@gmail.com>,
+	Nick Desaulniers <ndesaulniers@google.com>,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: Change drbd_request_detach_interruptible's
+	return type to int
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,19 +39,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Sep 12, 2018 at 12:01 PM Philipp Klocke <Phil_K97@gmx.de> wrote:
->
-> Hello,
->
-> I've also stumbled across the "warning: no case matching constant switch
-> condition '0'" and wanted to fix it.
-> As your suggestion is probably the best way, I wanted to ask why it
-> didn't get merged yet.
->
-> Maybe the patch got lost?
+Clang warns when an implicit conversion is done between enumerated
+types:
 
-I think I never followed up on the patch when it didn't get merged the
-first time around. If you have a copy at hand, could you add your
-Signed-off-by and send a version that applies to the current kernel?
+drivers/block/drbd/drbd_state.c:708:8: warning: implicit conversion from
+enumeration type 'enum drbd_ret_code' to different enumeration type
+'enum drbd_state_rv' [-Wenum-conversion]
+                rv = ERR_INTR;
+                   ~ ^~~~~~~~
 
-    Arnd
+drbd_request_detach_interruptible's only call site is in the return
+statement of adm_detach, which returns an int. Change the return type of
+drbd_request_detach_interruptible to match, silencing Clang's warning.
+
+Reported-by: Nick Desaulniers <ndesaulniers@google.com>
+Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+---
+ drivers/block/drbd/drbd_state.c | 6 ++----
+ drivers/block/drbd/drbd_state.h | 3 +--
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 0813c654c893..b452359b6aae 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -688,11 +688,9 @@ request_detach(struct drbd_device *device)
+ 			CS_VERBOSE | CS_ORDERED | CS_INHIBIT_MD_IO);
+ }
+ 
+-enum drbd_state_rv
+-drbd_request_detach_interruptible(struct drbd_device *device)
++int drbd_request_detach_interruptible(struct drbd_device *device)
+ {
+-	enum drbd_state_rv rv;
+-	int ret;
++	int ret, rv;
+ 
+ 	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
+ 	wait_event_interruptible(device->state_wait,
+diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
+index ea58301d0895..cff0a34c150b 100644
+--- a/drivers/block/drbd/drbd_state.h
++++ b/drivers/block/drbd/drbd_state.h
+@@ -162,8 +162,7 @@ static inline int drbd_request_state(struct drbd_device *device,
+ }
+ 
+ /* for use in adm_detach() (drbd_adm_detach(), drbd_adm_down()) */
+-enum drbd_state_rv
+-drbd_request_detach_interruptible(struct drbd_device *device);
++int drbd_request_detach_interruptible(struct drbd_device *device);
+ 
+ enum drbd_role conn_highest_role(struct drbd_connection *connection);
+ enum drbd_role conn_highest_peer(struct drbd_connection *connection);
+-- 
+2.18.0
+
