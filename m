@@ -1,36 +1,32 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f66.google.com (mail-wr1-f66.google.com
-	[209.85.221.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 652BD1011BAE
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 10:58:10 +0200 (CEST)
-Received: by mail-wr1-f66.google.com with SMTP id w11-v6so16400871wrc.5
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 01:58:10 -0700 (PDT)
+Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com
+	[209.85.221.68])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B5D51103B4AE
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 15:02:40 +0200 (CEST)
+Received: by mail-wr1-f68.google.com with SMTP id e1-v6so17239204wrt.3
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 06:02:40 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	g129-v6sm10981994wmf.42.2018.09.17.01.58.09
+	h8-v6sm14559697wre.15.2018.09.17.06.02.38
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 17 Sep 2018 01:58:10 -0700 (PDT)
-Resent-Message-ID: <20180917085809.GD24385@soda.linbit>
-Received: from mail-pl1-f195.google.com (mail-pl1-f195.google.com
-	[209.85.214.195])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 236C31013836
-	for <drbd-dev@lists.linbit.com>; Fri, 14 Sep 2018 19:43:00 +0200 (CEST)
-Received: by mail-pl1-f195.google.com with SMTP id f6-v6so4531844plo.1
-	for <drbd-dev@lists.linbit.com>; Fri, 14 Sep 2018 10:43:00 -0700 (PDT)
+	Mon, 17 Sep 2018 06:02:38 -0700 (PDT)
+Resent-Message-ID: <20180917130236.GC5481@soda.linbit>
+Received: from mout.gmx.net (mout.gmx.net [212.227.15.19])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F2331103B4AE
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 14:54:39 +0200 (CEST)
+From: Philipp Klocke <Phil_K97@gmx.de>
+To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com, arnd@arndb.de
+Message-ID: <4ffc2255-2ae2-60d4-703e-151979efe7ab@gmx.de>
+Date: Mon, 17 Sep 2018 14:54:34 +0200
 MIME-Version: 1.0
-References: <20180914050047.7079-1-natechancellor@gmail.com>
-In-Reply-To: <20180914050047.7079-1-natechancellor@gmail.com>
-From: Nick Desaulniers <ndesaulniers@google.com>
-Date: Fri, 14 Sep 2018 10:34:56 -0700
-Message-ID: <CAKwvOdn_nNzStndVu3efLrv6x1wQTC4+A2bW5fEn37NGrWtqLg@mail.gmail.com>
-To: Nathan Chancellor <natechancellor@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Cc: axboe@kernel.dk, LKML <linux-kernel@vger.kernel.org>,
-	lars.ellenberg@linbit.com, philipp.reisner@linbit.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: Change
- drbd_request_detach_interruptible's return type to int
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: base64
+Content-Language: en-HK
+Cc: lukas.bulwahn@gmail.com, linux-kernel@vger.kernel.org,
+	nicolas.dichtel@6wind.com, davem@davemloft.net, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [RESEND] drbd: avoid clang warning about pointless
+	switch statement
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,71 +38,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Sep 13, 2018 at 10:01 PM Nathan Chancellor
-<natechancellor@gmail.com> wrote:
->
-> Clang warns when an implicit conversion is done between enumerated
-> types:
->
-> drivers/block/drbd/drbd_state.c:708:8: warning: implicit conversion from
-> enumeration type 'enum drbd_ret_code' to different enumeration type
-> 'enum drbd_state_rv' [-Wenum-conversion]
->                 rv = ERR_INTR;
->                    ~ ^~~~~~~~
->
-> drbd_request_detach_interruptible's only call site is in the return
-> statement of adm_detach, which returns an int. Change the return type of
-> drbd_request_detach_interruptible to match, silencing Clang's warning.
-
-Yeah with one call site that passes along the return value, that's the
-right fix to IMO.
-Reviewed-by: Nick Desaulniers <ndesaulniers@google.com>
-
->
-> Reported-by: Nick Desaulniers <ndesaulniers@google.com>
-> Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
-> ---
->  drivers/block/drbd/drbd_state.c | 6 ++----
->  drivers/block/drbd/drbd_state.h | 3 +--
->  2 files changed, 3 insertions(+), 6 deletions(-)
->
-> diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-> index 0813c654c893..b452359b6aae 100644
-> --- a/drivers/block/drbd/drbd_state.c
-> +++ b/drivers/block/drbd/drbd_state.c
-> @@ -688,11 +688,9 @@ request_detach(struct drbd_device *device)
->                         CS_VERBOSE | CS_ORDERED | CS_INHIBIT_MD_IO);
->  }
->
-> -enum drbd_state_rv
-> -drbd_request_detach_interruptible(struct drbd_device *device)
-> +int drbd_request_detach_interruptible(struct drbd_device *device)
->  {
-> -       enum drbd_state_rv rv;
-> -       int ret;
-> +       int ret, rv;
->
->         drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
->         wait_event_interruptible(device->state_wait,
-> diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
-> index ea58301d0895..cff0a34c150b 100644
-> --- a/drivers/block/drbd/drbd_state.h
-> +++ b/drivers/block/drbd/drbd_state.h
-> @@ -162,8 +162,7 @@ static inline int drbd_request_state(struct drbd_device *device,
->  }
->
->  /* for use in adm_detach() (drbd_adm_detach(), drbd_adm_down()) */
-> -enum drbd_state_rv
-> -drbd_request_detach_interruptible(struct drbd_device *device);
-> +int drbd_request_detach_interruptible(struct drbd_device *device);
->
->  enum drbd_role conn_highest_role(struct drbd_connection *connection);
->  enum drbd_role conn_highest_peer(struct drbd_connection *connection);
-> --
-> 2.18.0
->
-
-
--- 
-Thanks,
-~Nick Desaulniers
+VGhlIGRyYmQgY29kZSBjYXVzZXMgd2FybmluZ3MgdGhhdCB3ZSBjYW5ub3QgZWFzaWx5IGRp
+c2FibGUgd2hlbgpidWlsZGluZyB3aXRoIGNsYW5nOgoKSW4gZmlsZSBpbmNsdWRlZCBmcm9t
+IGRyaXZlcnMvYmxvY2svZHJiZC9kcmJkX2RlYnVnZnMuYzoxMDoKSW4gZmlsZSBpbmNsdWRl
+ZCBmcm9tIGRyaXZlcnMvYmxvY2svZHJiZC9kcmJkX2ludC5oOjQ4OgpJbiBmaWxlIGluY2x1
+ZGVkIGZyb20gaW5jbHVkZS9saW51eC9kcmJkX2dlbmxfYXBpLmg6NTM6CkluIGZpbGUgaW5j
+bHVkZWQgZnJvbSBpbmNsdWRlL2xpbnV4L2dlbmxfbWFnaWNfc3RydWN0Lmg6MjM3OgppbmNs
+dWRlL2xpbnV4L2RyYmRfZ2VubC5oOjMwMDoxOiB3YXJuaW5nOiBubyBjYXNlIG1hdGNoaW5n
+IGNvbnN0YW50CnN3aXRjaCBjb25kaXRpb24gJzAnCgpUaGVyZSBpcyBub3RoaW5nIHdyb25n
+IHdpdGggdGhlIGNvZGUsIGFuZCBhZGRpbmcgJ2RlZmF1bHQ6JyBsYWJlbHMKaW4gdGhlIHJp
+Z2h0IHBsYWNlIGlzIGVub3VnaCB0byBsZXQgY2xhbmcgc2h1dCB1cCBhYm91dCB0aGUgd2Fy
+bmluZy4KCkZpeGVzOiBlYzJjMzVhYzFlYTIgKCJkcmJkOiBwcmVwYXJlIHRoZSB0cmFuc2l0
+aW9uIGZyb20gY29ubmVjdG9yIHRvCmdlbmV0bGluayIpClNpZ25lZC1vZmYtYnk6IEFybmQg
+QmVyZ21hbm4gPGFybmRAYXJuZGIuZGU+Ci0tCndhcyBzZW50IG9uIEZlYi4gMSwgMjAxNywg
+NDo1NSBwLm0uIFVUQyBieSBBcm5kIEJlcmdtYW5uCndhcyBhY2tlZCBidXQgbm90IG1lcmdl
+ZApyZXNlbmQKLS0tCsKgaW5jbHVkZS9saW51eC9nZW5sX21hZ2ljX3N0cnVjdC5oIHwgMyAr
+KysKwqAxIGZpbGUgY2hhbmdlZCwgMyBpbnNlcnRpb25zKCspCgpkaWZmIC0tZ2l0IGEvaW5j
+bHVkZS9saW51eC9nZW5sX21hZ2ljX3N0cnVjdC5oCmIvaW5jbHVkZS9saW51eC9nZW5sX21h
+Z2ljX3N0cnVjdC5oCmluZGV4IDYyNzBhNTZlNWVkYy4uYzZmYmFmYjgzNGYxIDEwMDY0NAot
+LS0gYS9pbmNsdWRlL2xpbnV4L2dlbmxfbWFnaWNfc3RydWN0LmgKKysrIGIvaW5jbHVkZS9s
+aW51eC9nZW5sX21hZ2ljX3N0cnVjdC5oCkBAIC0xOTAsNiArMTkwLDcgQEAgc3RhdGljIGlu
+bGluZSB2b2lkIGN0X2Fzc2VydF91bmlxdWVfb3BlcmF0aW9ucyh2b2lkKQrCoHsKwqDCoMKg
+wqAgc3dpdGNoICgwKSB7CsKgI2luY2x1ZGUgR0VOTF9NQUdJQ19JTkNMVURFX0ZJTEUKK8Kg
+wqDCoCBkZWZhdWx0OgrCoMKgwqDCoCDCoMKgwqAgOwrCoMKgwqDCoCB9CsKgfQpAQCAtMjA4
+LDYgKzIwOSw3IEBAIHN0YXRpYyBpbmxpbmUgdm9pZApjdF9hc3NlcnRfdW5pcXVlX3RvcF9s
+ZXZlbF9hdHRyaWJ1dGVzKHZvaWQpCsKgewrCoMKgwqDCoCBzd2l0Y2ggKDApIHsKwqAjaW5j
+bHVkZSBHRU5MX01BR0lDX0lOQ0xVREVfRklMRQorwqDCoMKgIGRlZmF1bHQ6CsKgwqDCoMKg
+IMKgwqDCoCA7CsKgwqDCoMKgIH0KwqB9CkBAIC0yMTgsNiArMjIwLDcgQEAgc3RhdGljIGlu
+bGluZSB2b2lkIGN0X2Fzc2VydF91bmlxdWVfICMjIHNfbmFtZSAjIwpfYXR0cmlidXRlcyh2
+b2lkKcKgwqDCoCBcCsKge8KgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKgwqAgwqDC
+oMKgIMKgwqDCoCDCoMKgwqAgwqDCoMKgIFwKwqDCoMKgwqAgc3dpdGNoICgwKSB7wqDCoMKg
+IMKgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKgwqAgwqDCoMKgIFwKwqDCoMKgwqAg
+wqDCoMKgIHNfZmllbGRzwqDCoMKgIMKgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKg
+wqAgXAorwqDCoMKgIMKgwqDCoCBkZWZhdWx0OsKgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDC
+oCDCoMKgwqAgwqDCoMKgIFwKwqDCoMKgwqAgwqDCoMKgIMKgwqDCoCA7wqDCoMKgIMKgwqDC
+oCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKgwqAgXArCoMKgwqDCoCB9wqDCoMKgIMKgwqDC
+oCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDCoCBcCsKgfQoK
