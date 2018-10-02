@@ -1,32 +1,34 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com
-	[209.85.221.68])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B5D51103B4AE
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 15:02:40 +0200 (CEST)
-Received: by mail-wr1-f68.google.com with SMTP id e1-v6so17239204wrt.3
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 06:02:40 -0700 (PDT)
+Received: from mail-wr1-f66.google.com (mail-wr1-f66.google.com
+	[209.85.221.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 66137101E041
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Oct 2018 21:03:53 +0200 (CEST)
+Received: by mail-wr1-f66.google.com with SMTP id n1-v6so11069603wrt.10
+	for <drbd-dev@lists.linbit.com>; Thu, 04 Oct 2018 12:03:53 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	h8-v6sm14559697wre.15.2018.09.17.06.02.38
+	b143-v6sm10115690wma.28.2018.10.04.12.03.52
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 17 Sep 2018 06:02:38 -0700 (PDT)
-Resent-Message-ID: <20180917130236.GC5481@soda.linbit>
-Received: from mout.gmx.net (mout.gmx.net [212.227.15.19])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id F2331103B4AE
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Sep 2018 14:54:39 +0200 (CEST)
-From: Philipp Klocke <Phil_K97@gmx.de>
-To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com, arnd@arndb.de
-Message-ID: <4ffc2255-2ae2-60d4-703e-151979efe7ab@gmx.de>
-Date: Mon, 17 Sep 2018 14:54:34 +0200
+	Thu, 04 Oct 2018 12:03:52 -0700 (PDT)
+Resent-Message-ID: <20181004190351.GB10984@soda.linbit>
+Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
+	[209.85.221.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id ECE7E1013836
+	for <drbd-dev@lists.linbit.com>; Tue,  2 Oct 2018 19:19:34 +0200 (CEST)
+Received: by mail-wr1-f67.google.com with SMTP id u12-v6so3118248wrr.4
+	for <drbd-dev@lists.linbit.com>; Tue, 02 Oct 2018 10:19:34 -0700 (PDT)
+From: Nathan Chancellor <natechancellor@gmail.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
+Date: Tue,  2 Oct 2018 10:12:49 -0700
+Message-Id: <20181002171248.9853-1-natechancellor@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: base64
-Content-Language: en-HK
-Cc: lukas.bulwahn@gmail.com, linux-kernel@vger.kernel.org,
-	nicolas.dichtel@6wind.com, davem@davemloft.net, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [RESEND] drbd: avoid clang warning about pointless
-	switch statement
+Content-Transfer-Encoding: 8bit
+Cc: linux-block@vger.kernel.org, Nathan Chancellor <natechancellor@gmail.com>,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH RESEND] drbd: Change
+	drbd_request_detach_interruptible's return type to int
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,39 +40,59 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-VGhlIGRyYmQgY29kZSBjYXVzZXMgd2FybmluZ3MgdGhhdCB3ZSBjYW5ub3QgZWFzaWx5IGRp
-c2FibGUgd2hlbgpidWlsZGluZyB3aXRoIGNsYW5nOgoKSW4gZmlsZSBpbmNsdWRlZCBmcm9t
-IGRyaXZlcnMvYmxvY2svZHJiZC9kcmJkX2RlYnVnZnMuYzoxMDoKSW4gZmlsZSBpbmNsdWRl
-ZCBmcm9tIGRyaXZlcnMvYmxvY2svZHJiZC9kcmJkX2ludC5oOjQ4OgpJbiBmaWxlIGluY2x1
-ZGVkIGZyb20gaW5jbHVkZS9saW51eC9kcmJkX2dlbmxfYXBpLmg6NTM6CkluIGZpbGUgaW5j
-bHVkZWQgZnJvbSBpbmNsdWRlL2xpbnV4L2dlbmxfbWFnaWNfc3RydWN0Lmg6MjM3OgppbmNs
-dWRlL2xpbnV4L2RyYmRfZ2VubC5oOjMwMDoxOiB3YXJuaW5nOiBubyBjYXNlIG1hdGNoaW5n
-IGNvbnN0YW50CnN3aXRjaCBjb25kaXRpb24gJzAnCgpUaGVyZSBpcyBub3RoaW5nIHdyb25n
-IHdpdGggdGhlIGNvZGUsIGFuZCBhZGRpbmcgJ2RlZmF1bHQ6JyBsYWJlbHMKaW4gdGhlIHJp
-Z2h0IHBsYWNlIGlzIGVub3VnaCB0byBsZXQgY2xhbmcgc2h1dCB1cCBhYm91dCB0aGUgd2Fy
-bmluZy4KCkZpeGVzOiBlYzJjMzVhYzFlYTIgKCJkcmJkOiBwcmVwYXJlIHRoZSB0cmFuc2l0
-aW9uIGZyb20gY29ubmVjdG9yIHRvCmdlbmV0bGluayIpClNpZ25lZC1vZmYtYnk6IEFybmQg
-QmVyZ21hbm4gPGFybmRAYXJuZGIuZGU+Ci0tCndhcyBzZW50IG9uIEZlYi4gMSwgMjAxNywg
-NDo1NSBwLm0uIFVUQyBieSBBcm5kIEJlcmdtYW5uCndhcyBhY2tlZCBidXQgbm90IG1lcmdl
-ZApyZXNlbmQKLS0tCsKgaW5jbHVkZS9saW51eC9nZW5sX21hZ2ljX3N0cnVjdC5oIHwgMyAr
-KysKwqAxIGZpbGUgY2hhbmdlZCwgMyBpbnNlcnRpb25zKCspCgpkaWZmIC0tZ2l0IGEvaW5j
-bHVkZS9saW51eC9nZW5sX21hZ2ljX3N0cnVjdC5oCmIvaW5jbHVkZS9saW51eC9nZW5sX21h
-Z2ljX3N0cnVjdC5oCmluZGV4IDYyNzBhNTZlNWVkYy4uYzZmYmFmYjgzNGYxIDEwMDY0NAot
-LS0gYS9pbmNsdWRlL2xpbnV4L2dlbmxfbWFnaWNfc3RydWN0LmgKKysrIGIvaW5jbHVkZS9s
-aW51eC9nZW5sX21hZ2ljX3N0cnVjdC5oCkBAIC0xOTAsNiArMTkwLDcgQEAgc3RhdGljIGlu
-bGluZSB2b2lkIGN0X2Fzc2VydF91bmlxdWVfb3BlcmF0aW9ucyh2b2lkKQrCoHsKwqDCoMKg
-wqAgc3dpdGNoICgwKSB7CsKgI2luY2x1ZGUgR0VOTF9NQUdJQ19JTkNMVURFX0ZJTEUKK8Kg
-wqDCoCBkZWZhdWx0OgrCoMKgwqDCoCDCoMKgwqAgOwrCoMKgwqDCoCB9CsKgfQpAQCAtMjA4
-LDYgKzIwOSw3IEBAIHN0YXRpYyBpbmxpbmUgdm9pZApjdF9hc3NlcnRfdW5pcXVlX3RvcF9s
-ZXZlbF9hdHRyaWJ1dGVzKHZvaWQpCsKgewrCoMKgwqDCoCBzd2l0Y2ggKDApIHsKwqAjaW5j
-bHVkZSBHRU5MX01BR0lDX0lOQ0xVREVfRklMRQorwqDCoMKgIGRlZmF1bHQ6CsKgwqDCoMKg
-IMKgwqDCoCA7CsKgwqDCoMKgIH0KwqB9CkBAIC0yMTgsNiArMjIwLDcgQEAgc3RhdGljIGlu
-bGluZSB2b2lkIGN0X2Fzc2VydF91bmlxdWVfICMjIHNfbmFtZSAjIwpfYXR0cmlidXRlcyh2
-b2lkKcKgwqDCoCBcCsKge8KgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKgwqAgwqDC
-oMKgIMKgwqDCoCDCoMKgwqAgwqDCoMKgIFwKwqDCoMKgwqAgc3dpdGNoICgwKSB7wqDCoMKg
-IMKgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKgwqAgwqDCoMKgIFwKwqDCoMKgwqAg
-wqDCoMKgIHNfZmllbGRzwqDCoMKgIMKgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKg
-wqAgXAorwqDCoMKgIMKgwqDCoCBkZWZhdWx0OsKgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDC
-oCDCoMKgwqAgwqDCoMKgIFwKwqDCoMKgwqAgwqDCoMKgIMKgwqDCoCA7wqDCoMKgIMKgwqDC
-oCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKgwqAgXArCoMKgwqDCoCB9wqDCoMKgIMKgwqDC
-oCDCoMKgwqAgwqDCoMKgIMKgwqDCoCDCoMKgwqAgwqDCoMKgIMKgwqDCoCBcCsKgfQoK
+Clang warns when an implicit conversion is done between enumerated
+types:
+
+drivers/block/drbd/drbd_state.c:708:8: warning: implicit conversion from
+enumeration type 'enum drbd_ret_code' to different enumeration type
+'enum drbd_state_rv' [-Wenum-conversion]
+                rv = ERR_INTR;
+                   ~ ^~~~~~~~
+
+drbd_request_detach_interruptible's only call site is in the return
+statement of adm_detach, which returns an int. Change the return type of
+drbd_request_detach_interruptible to match, silencing Clang's warning.
+
+Reported-by: Nick Desaulniers <ndesaulniers@google.com>
+Reviewed-by: Nick Desaulniers <ndesaulniers@google.com>
+Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+---
+ drivers/block/drbd/drbd_state.c | 6 ++----
+ drivers/block/drbd/drbd_state.h | 3 +--
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 0813c654c893..b452359b6aae 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -688,11 +688,9 @@ request_detach(struct drbd_device *device)
+ 			CS_VERBOSE | CS_ORDERED | CS_INHIBIT_MD_IO);
+ }
+ 
+-enum drbd_state_rv
+-drbd_request_detach_interruptible(struct drbd_device *device)
++int drbd_request_detach_interruptible(struct drbd_device *device)
+ {
+-	enum drbd_state_rv rv;
+-	int ret;
++	int ret, rv;
+ 
+ 	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
+ 	wait_event_interruptible(device->state_wait,
+diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
+index ea58301d0895..cff0a34c150b 100644
+--- a/drivers/block/drbd/drbd_state.h
++++ b/drivers/block/drbd/drbd_state.h
+@@ -162,8 +162,7 @@ static inline int drbd_request_state(struct drbd_device *device,
+ }
+ 
+ /* for use in adm_detach() (drbd_adm_detach(), drbd_adm_down()) */
+-enum drbd_state_rv
+-drbd_request_detach_interruptible(struct drbd_device *device);
++int drbd_request_detach_interruptible(struct drbd_device *device);
+ 
+ enum drbd_role conn_highest_role(struct drbd_connection *connection);
+ enum drbd_role conn_highest_peer(struct drbd_connection *connection);
+-- 
+2.19.0
+
