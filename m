@@ -1,39 +1,37 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
-	[209.85.221.67])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0CFBE1011B93
-	for <drbd-dev@lists.linbit.com>; Thu, 11 Oct 2018 11:02:30 +0200 (CEST)
-Received: by mail-wr1-f67.google.com with SMTP id d2-v6so8757688wro.7
-	for <drbd-dev@lists.linbit.com>; Thu, 11 Oct 2018 02:02:30 -0700 (PDT)
+Received: from mail-wm1-f66.google.com (mail-wm1-f66.google.com
+	[209.85.128.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 7AFC11011B93
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Oct 2018 11:02:42 +0200 (CEST)
+Received: by mail-wm1-f66.google.com with SMTP id y11-v6so8142425wma.3
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Oct 2018 02:02:42 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	b5-v6sm16258759wrs.62.2018.10.11.02.02.29
+	q17-v6sm16058610wrw.19.2018.10.11.02.02.40
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Thu, 11 Oct 2018 02:02:29 -0700 (PDT)
-Resent-Message-ID: <20181011090227.GC5528@soda.linbit>
-Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com
-	[209.85.214.194])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 078131011BEC
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Oct 2018 21:30:39 +0200 (CEST)
-Received: by mail-pl1-f194.google.com with SMTP id w14-v6so5654536plp.6
-	for <drbd-dev@lists.linbit.com>; Thu, 04 Oct 2018 12:30:39 -0700 (PDT)
-Date: Thu, 4 Oct 2018 12:22:31 -0700
+	Thu, 11 Oct 2018 02:02:41 -0700 (PDT)
+Resent-Message-ID: <20181011090240.GD5528@soda.linbit>
+Received: from mail-wm1-f65.google.com (mail-wm1-f65.google.com
+	[209.85.128.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 80E401011BEC
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Oct 2018 22:10:03 +0200 (CEST)
+Received: by mail-wm1-f65.google.com with SMTP id 143-v6so10136360wmf.1
+	for <drbd-dev@lists.linbit.com>; Thu, 04 Oct 2018 13:10:03 -0700 (PDT)
 From: Nathan Chancellor <natechancellor@gmail.com>
-To: Lars Ellenberg <lars.ellenberg@linbit.com>
-Message-ID: <20181004192231.GA29744@localhost>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
+Date: Thu,  4 Oct 2018 13:09:13 -0700
+Message-Id: <20181004200912.32348-1-natechancellor@gmail.com>
+In-Reply-To: <20181002171447.10765-1-natechancellor@gmail.com>
 References: <20181002171447.10765-1-natechancellor@gmail.com>
-	<20181004191854.GD10984@soda.linbit>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181004191854.GD10984@soda.linbit>
-Cc: Jens Axboe <axboe@kernel.dk>, Arnd Bergmann <arnd@arndb.de>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+Content-Transfer-Encoding: 8bit
+Cc: linux-block@vger.kernel.org, Nathan Chancellor <natechancellor@gmail.com>,
+	linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH RESEND] drbd: avoid clang warning about
- pointless switch statement
+Subject: [Drbd-dev] [PATCH v2] drbd: Avoid Clang warning about pointless
+	switch statment
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,39 +43,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Oct 04, 2018 at 09:18:54PM +0200, Lars Ellenberg wrote:
-> On Tue, Oct 02, 2018 at 10:14:48AM -0700, Nathan Chancellor wrote:
-> > From: Arnd Bergmann <arnd@arndb.de>
-> > 
-> > The drbd code causes warnings that we cannot easily disable when building with clang:
-> > 
-> > In file included from drivers/block/drbd/drbd_debugfs.c:10:
-> > In file included from drivers/block/drbd/drbd_int.h:48:
-> > In file included from include/linux/drbd_genl_api.h:53:
-> > In file included from include/linux/genl_magic_struct.h:237:
-> > include/linux/drbd_genl.h:300:1: warning: no case matching constant switch condition '0'
-> > 
-> > There is nothing wrong with the code, and adding 'default:' labels
-> > in the right place is enough to let clang shut up about the warning.
-> 
-> Actually, I think I'd prefer a "case 0:" instead of the "default:",
-> because that would assert that we don't use a 0 for op or field numbers.
-> 
-> As at least some people seem to care, I suggest we bundle up
-> this and the other clang warning you just resent the patch for
-> with whatever else we may come up with for the next merge window
-> and send a pull request to Jens then.
-> In case we forget, please send a friendly reminder.
-> 
-> Thanks,
-> 
->     Lars
-> 
+There are several warnings from Clang about no case statement matching
+the constant 0:
 
-Hi Lars,
+In file included from drivers/block/drbd/drbd_receiver.c:48:
+In file included from drivers/block/drbd/drbd_int.h:48:
+In file included from ./include/linux/drbd_genl_api.h:54:
+In file included from ./include/linux/genl_magic_struct.h:236:
+./include/linux/drbd_genl.h:321:1: warning: no case matching constant
+switch condition '0'
+GENL_struct(DRBD_NLA_HELPER, 24, drbd_helper_info,
+^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+./include/linux/genl_magic_struct.h:220:10: note: expanded from macro
+'GENL_struct'
+        switch (0) {
+                ^
 
-I will go ahead and test that change shortly and send it over for
-review.
+Silence this warning by adding a 'case 0:' statement. Additionally,
+adjust the alignment of the statements in the ct_assert_unique macro to
+avoid a checkpatch warning.
 
-Thanks for the quick reply!
-Nathan
+This solution was originally sent by Arnd Bergmann with a default case
+statement: https://lore.kernel.org/patchwork/patch/756723/
+
+Link: https://github.com/ClangBuiltLinux/linux/issues/43
+Suggested-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+---
+
+Since this is not the same as Arnd's patch, I took authorship for it
+while leaving a link to the original patch in the commit message. If
+this is not how it should have been done, please let me know.
+
+ include/linux/genl_magic_struct.h | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/genl_magic_struct.h b/include/linux/genl_magic_struct.h
+index 5972e4969197..eeae59d3ceb7 100644
+--- a/include/linux/genl_magic_struct.h
++++ b/include/linux/genl_magic_struct.h
+@@ -191,6 +191,7 @@ static inline void ct_assert_unique_operations(void)
+ {
+ 	switch (0) {
+ #include GENL_MAGIC_INCLUDE_FILE
++	case 0:
+ 		;
+ 	}
+ }
+@@ -209,6 +210,7 @@ static inline void ct_assert_unique_top_level_attributes(void)
+ {
+ 	switch (0) {
+ #include GENL_MAGIC_INCLUDE_FILE
++	case 0:
+ 		;
+ 	}
+ }
+@@ -218,7 +220,8 @@ static inline void ct_assert_unique_top_level_attributes(void)
+ static inline void ct_assert_unique_ ## s_name ## _attributes(void)	\
+ {									\
+ 	switch (0) {							\
+-		s_fields						\
++	s_fields							\
++	case 0:								\
+ 			;						\
+ 	}								\
+ }
+-- 
+2.19.0
+
