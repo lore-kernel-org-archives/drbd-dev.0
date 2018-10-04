@@ -1,29 +1,39 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-it1-f196.google.com (mail-it1-f196.google.com
-	[209.85.166.196])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3C5511013836
-	for <drbd-dev@lists.linbit.com>; Wed, 10 Oct 2018 22:19:57 +0200 (CEST)
-Received: by mail-it1-f196.google.com with SMTP id l127-v6so16954293ith.1
-	for <drbd-dev@lists.linbit.com>; Wed, 10 Oct 2018 13:19:57 -0700 (PDT)
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-References: <CGME20181009144103eucas1p1dbf48b04c923877cdbdcf2197725ccd1@eucas1p1.samsung.com>
-	<20181009144103eucas1p1dbf48b04c923877cdbdcf2197725ccd1~b97cjWjY10058900589eucas1p1n@eucas1p1.samsung.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <e8e215f7-5ab3-9293-3a86-7a935ff78a3b@kernel.dk>
-Date: Wed, 10 Oct 2018 14:12:02 -0600
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
+	[209.85.221.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 0CFBE1011B93
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Oct 2018 11:02:30 +0200 (CEST)
+Received: by mail-wr1-f67.google.com with SMTP id d2-v6so8757688wro.7
+	for <drbd-dev@lists.linbit.com>; Thu, 11 Oct 2018 02:02:30 -0700 (PDT)
+Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
+	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
+	b5-v6sm16258759wrs.62.2018.10.11.02.02.29
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Thu, 11 Oct 2018 02:02:29 -0700 (PDT)
+Resent-Message-ID: <20181011090227.GC5528@soda.linbit>
+Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com
+	[209.85.214.194])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 078131011BEC
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Oct 2018 21:30:39 +0200 (CEST)
+Received: by mail-pl1-f194.google.com with SMTP id w14-v6so5654536plp.6
+	for <drbd-dev@lists.linbit.com>; Thu, 04 Oct 2018 12:30:39 -0700 (PDT)
+Date: Thu, 4 Oct 2018 12:22:31 -0700
+From: Nathan Chancellor <natechancellor@gmail.com>
+To: Lars Ellenberg <lars.ellenberg@linbit.com>
+Message-ID: <20181004192231.GA29744@localhost>
+References: <20181002171447.10765-1-natechancellor@gmail.com>
+	<20181004191854.GD10984@soda.linbit>
 MIME-Version: 1.0
-In-Reply-To: <20181009144103eucas1p1dbf48b04c923877cdbdcf2197725ccd1~b97cjWjY10058900589eucas1p1n@eucas1p1.samsung.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181004191854.GD10984@soda.linbit>
+Cc: Jens Axboe <axboe@kernel.dk>, Arnd Bergmann <arnd@arndb.de>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	Minchan Kim <minchan@kernel.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drivers/block: remove redundant 'default n'
- from Kconfig-s
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH RESEND] drbd: avoid clang warning about
+ pointless switch statement
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,33 +45,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 10/9/18 8:41 AM, Bartlomiej Zolnierkiewicz wrote:
-> 'default n' is the default value for any bool or tristate Kconfig
-> setting so there is no need to write it explicitly.
+On Thu, Oct 04, 2018 at 09:18:54PM +0200, Lars Ellenberg wrote:
+> On Tue, Oct 02, 2018 at 10:14:48AM -0700, Nathan Chancellor wrote:
+> > From: Arnd Bergmann <arnd@arndb.de>
+> > 
+> > The drbd code causes warnings that we cannot easily disable when building with clang:
+> > 
+> > In file included from drivers/block/drbd/drbd_debugfs.c:10:
+> > In file included from drivers/block/drbd/drbd_int.h:48:
+> > In file included from include/linux/drbd_genl_api.h:53:
+> > In file included from include/linux/genl_magic_struct.h:237:
+> > include/linux/drbd_genl.h:300:1: warning: no case matching constant switch condition '0'
+> > 
+> > There is nothing wrong with the code, and adding 'default:' labels
+> > in the right place is enough to let clang shut up about the warning.
 > 
-> Also since commit f467c5640c29 ("kconfig: only write '# CONFIG_FOO
-> is not set' for visible symbols") the Kconfig behavior is the same
-> regardless of 'default n' being present or not:
+> Actually, I think I'd prefer a "case 0:" instead of the "default:",
+> because that would assert that we don't use a 0 for op or field numbers.
 > 
->     ...
->     One side effect of (and the main motivation for) this change is making
->     the following two definitions behave exactly the same:
->     
->         config FOO
->                 bool
->     
->         config FOO
->                 bool
->                 default n
->     
->     With this change, neither of these will generate a
->     '# CONFIG_FOO is not set' line (assuming FOO isn't selected/implied).
->     That might make it clearer to people that a bare 'default n' is
->     redundant.
->     ...
+> As at least some people seem to care, I suggest we bundle up
+> this and the other clang warning you just resent the patch for
+> with whatever else we may come up with for the next merge window
+> and send a pull request to Jens then.
+> In case we forget, please send a friendly reminder.
+> 
+> Thanks,
+> 
+>     Lars
+> 
 
-Applied, thanks.
+Hi Lars,
 
--- 
-Jens Axboe
+I will go ahead and test that change shortly and send it over for
+review.
 
+Thanks for the quick reply!
+Nathan
