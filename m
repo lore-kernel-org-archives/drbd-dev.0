@@ -1,25 +1,29 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com
-	[209.85.221.68])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 451D5101E042
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Oct 2018 21:18:56 +0200 (CEST)
-Received: by mail-wr1-f68.google.com with SMTP id e4-v6so11148755wrs.0
-	for <drbd-dev@lists.linbit.com>; Thu, 04 Oct 2018 12:18:56 -0700 (PDT)
-Date: Thu, 4 Oct 2018 21:18:54 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Nathan Chancellor <natechancellor@gmail.com>
-Message-ID: <20181004191854.GD10984@soda.linbit>
-References: <20181002171447.10765-1-natechancellor@gmail.com>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-it1-f196.google.com (mail-it1-f196.google.com
+	[209.85.166.196])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3C5511013836
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Oct 2018 22:19:57 +0200 (CEST)
+Received: by mail-it1-f196.google.com with SMTP id l127-v6so16954293ith.1
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Oct 2018 13:19:57 -0700 (PDT)
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+References: <CGME20181009144103eucas1p1dbf48b04c923877cdbdcf2197725ccd1@eucas1p1.samsung.com>
+	<20181009144103eucas1p1dbf48b04c923877cdbdcf2197725ccd1~b97cjWjY10058900589eucas1p1n@eucas1p1.samsung.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <e8e215f7-5ab3-9293-3a86-7a935ff78a3b@kernel.dk>
+Date: Wed, 10 Oct 2018 14:12:02 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181002171447.10765-1-natechancellor@gmail.com>
-Cc: Jens Axboe <axboe@kernel.dk>, Arnd Bergmann <arnd@arndb.de>,
+In-Reply-To: <20181009144103eucas1p1dbf48b04c923877cdbdcf2197725ccd1~b97cjWjY10058900589eucas1p1n@eucas1p1.samsung.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH RESEND] drbd: avoid clang warning about
- pointless switch statement
+	Minchan Kim <minchan@kernel.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drivers/block: remove redundant 'default n'
+ from Kconfig-s
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,30 +35,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Oct 02, 2018 at 10:14:48AM -0700, Nathan Chancellor wrote:
-> From: Arnd Bergmann <arnd@arndb.de>
+On 10/9/18 8:41 AM, Bartlomiej Zolnierkiewicz wrote:
+> 'default n' is the default value for any bool or tristate Kconfig
+> setting so there is no need to write it explicitly.
 > 
-> The drbd code causes warnings that we cannot easily disable when building with clang:
+> Also since commit f467c5640c29 ("kconfig: only write '# CONFIG_FOO
+> is not set' for visible symbols") the Kconfig behavior is the same
+> regardless of 'default n' being present or not:
 > 
-> In file included from drivers/block/drbd/drbd_debugfs.c:10:
-> In file included from drivers/block/drbd/drbd_int.h:48:
-> In file included from include/linux/drbd_genl_api.h:53:
-> In file included from include/linux/genl_magic_struct.h:237:
-> include/linux/drbd_genl.h:300:1: warning: no case matching constant switch condition '0'
-> 
-> There is nothing wrong with the code, and adding 'default:' labels
-> in the right place is enough to let clang shut up about the warning.
+>     ...
+>     One side effect of (and the main motivation for) this change is making
+>     the following two definitions behave exactly the same:
+>     
+>         config FOO
+>                 bool
+>     
+>         config FOO
+>                 bool
+>                 default n
+>     
+>     With this change, neither of these will generate a
+>     '# CONFIG_FOO is not set' line (assuming FOO isn't selected/implied).
+>     That might make it clearer to people that a bare 'default n' is
+>     redundant.
+>     ...
 
-Actually, I think I'd prefer a "case 0:" instead of the "default:",
-because that would assert that we don't use a 0 for op or field numbers.
+Applied, thanks.
 
-As at least some people seem to care, I suggest we bundle up
-this and the other clang warning you just resent the patch for
-with whatever else we may come up with for the next merge window
-and send a pull request to Jens then.
-In case we forget, please send a friendly reminder.
-
-Thanks,
-
-    Lars
+-- 
+Jens Axboe
 
