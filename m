@@ -1,20 +1,19 @@
 Return-Path: <BATV+ddbc6e1cf1a82b64ebec+5561+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C365F1013806
-	for <drbd-dev@lists.linbit.com>; Wed, 14 Nov 2018 17:19:27 +0100 (CET)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 445B41011BAD
+	for <drbd-dev@lists.linbit.com>; Wed, 14 Nov 2018 17:19:28 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 14 Nov 2018 17:02:04 +0100
-Message-Id: <20181114160219.28328-2-hch@lst.de>
+Date: Wed, 14 Nov 2018 17:02:07 +0100
+Message-Id: <20181114160219.28328-5-hch@lst.de>
 In-Reply-To: <20181114160219.28328-1-hch@lst.de>
 References: <20181114160219.28328-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-block@vger.kernel.org, linux-mmc@vger.kernel.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/16] block: remove QUEUE_FLAG_BYPASS and
-	->bypass
+Subject: [Drbd-dev] [PATCH 04/16] block: use atomic bitops for ->queue_flags
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,166 +25,301 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Unused since the removal of the legacy request code.
+->queue_flags is generally not set or cleared in the fast path, and also
+generally set or cleared one flag at a time.  Make use of the normal
+atomic bitops for it so that we don't need to take the queue_lock,
+which is otherwise mostly unused in the core block layer now.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/blk-cgroup.c         | 15 ---------------
- block/blk-core.c           | 21 ---------------------
- block/blk-mq-debugfs.c     |  1 -
- block/blk-throttle.c       |  3 ---
- include/linux/blk-cgroup.h |  6 +-----
- include/linux/blkdev.h     |  3 ---
- 6 files changed, 1 insertion(+), 48 deletions(-)
+ block/blk-core.c       | 54 ++++++----------------------------------
+ block/blk-mq.c         |  2 +-
+ block/blk-settings.c   | 10 +++-----
+ block/blk-sysfs.c      | 28 +++++++++------------
+ block/blk.h            | 56 ------------------------------------------
+ include/linux/blkdev.h |  1 -
+ 6 files changed, 24 insertions(+), 127 deletions(-)
 
-diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
-index 6c65791bc3fe..a95cddb39f1c 100644
---- a/block/blk-cgroup.c
-+++ b/block/blk-cgroup.c
-@@ -270,13 +270,6 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
- 	WARN_ON_ONCE(!rcu_read_lock_held());
- 	lockdep_assert_held(q->queue_lock);
- 
--	/*
--	 * This could be the first entry point of blkcg implementation and
--	 * we shouldn't allow anything to go through for a bypassing queue.
--	 */
--	if (unlikely(blk_queue_bypass(q)))
--		return ERR_PTR(blk_queue_dying(q) ? -ENODEV : -EBUSY);
--
- 	blkg = __blkg_lookup(blkcg, q, true);
- 	if (blkg)
- 		return blkg;
-@@ -741,14 +734,6 @@ static struct blkcg_gq *blkg_lookup_check(struct blkcg *blkcg,
- 
- 	if (!blkcg_policy_enabled(q, pol))
- 		return ERR_PTR(-EOPNOTSUPP);
--
--	/*
--	 * This could be the first entry point of blkcg implementation and
--	 * we shouldn't allow anything to go through for a bypassing queue.
--	 */
--	if (unlikely(blk_queue_bypass(q)))
--		return ERR_PTR(blk_queue_dying(q) ? -ENODEV : -EBUSY);
--
- 	return __blkg_lookup(blkcg, q, true /* update_hint */);
- }
- 
 diff --git a/block/blk-core.c b/block/blk-core.c
-index fdc0ad2686c4..1c9b6975cf0a 100644
+index 1c9b6975cf0a..5c8e66a09d82 100644
 --- a/block/blk-core.c
 +++ b/block/blk-core.c
-@@ -370,18 +370,6 @@ void blk_cleanup_queue(struct request_queue *q)
+@@ -74,11 +74,7 @@ static struct workqueue_struct *kblockd_workqueue;
+  */
+ void blk_queue_flag_set(unsigned int flag, struct request_queue *q)
+ {
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(q->queue_lock, flags);
+-	queue_flag_set(flag, q);
+-	spin_unlock_irqrestore(q->queue_lock, flags);
++	set_bit(flag, &q->queue_flags);
+ }
+ EXPORT_SYMBOL(blk_queue_flag_set);
+ 
+@@ -89,11 +85,7 @@ EXPORT_SYMBOL(blk_queue_flag_set);
+  */
+ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q)
+ {
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(q->queue_lock, flags);
+-	queue_flag_clear(flag, q);
+-	spin_unlock_irqrestore(q->queue_lock, flags);
++	clear_bit(flag, &q->queue_flags);
+ }
+ EXPORT_SYMBOL(blk_queue_flag_clear);
+ 
+@@ -107,38 +99,10 @@ EXPORT_SYMBOL(blk_queue_flag_clear);
+  */
+ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q)
+ {
+-	unsigned long flags;
+-	bool res;
+-
+-	spin_lock_irqsave(q->queue_lock, flags);
+-	res = queue_flag_test_and_set(flag, q);
+-	spin_unlock_irqrestore(q->queue_lock, flags);
+-
+-	return res;
++	return test_and_set_bit(flag, &q->queue_flags);
+ }
+ EXPORT_SYMBOL_GPL(blk_queue_flag_test_and_set);
+ 
+-/**
+- * blk_queue_flag_test_and_clear - atomically test and clear a queue flag
+- * @flag: flag to be cleared
+- * @q: request queue
+- *
+- * Returns the previous value of @flag - 0 if the flag was not set and 1 if
+- * the flag was set.
+- */
+-bool blk_queue_flag_test_and_clear(unsigned int flag, struct request_queue *q)
+-{
+-	unsigned long flags;
+-	bool res;
+-
+-	spin_lock_irqsave(q->queue_lock, flags);
+-	res = queue_flag_test_and_clear(flag, q);
+-	spin_unlock_irqrestore(q->queue_lock, flags);
+-
+-	return res;
+-}
+-EXPORT_SYMBOL_GPL(blk_queue_flag_test_and_clear);
+-
+ void blk_rq_init(struct request_queue *q, struct request *rq)
+ {
+ 	memset(rq, 0, sizeof(*rq));
+@@ -368,12 +332,10 @@ void blk_cleanup_queue(struct request_queue *q)
+ 	/* mark @q DYING, no new request or merges will be allowed afterwards */
+ 	mutex_lock(&q->sysfs_lock);
  	blk_set_queue_dying(q);
- 	spin_lock_irq(lock);
+-	spin_lock_irq(lock);
  
--	/*
--	 * A dying queue is permanently in bypass mode till released.  Note
--	 * that, unlike blk_queue_bypass_start(), we aren't performing
--	 * synchronize_rcu() after entering bypass mode to avoid the delay
--	 * as some drivers create and destroy a lot of queues while
--	 * probing.  This is still safe because blk_release_queue() will be
--	 * called only after the queue refcnt drops to zero and nothing,
--	 * RCU or not, would be traversing the queue by then.
--	 */
--	q->bypass_depth++;
--	queue_flag_set(QUEUE_FLAG_BYPASS, q);
--
- 	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
- 	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
- 	queue_flag_set(QUEUE_FLAG_DYING, q);
-@@ -589,15 +577,6 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
- 
- 	q->queue_lock = lock ? : &q->__queue_lock;
- 
--	/*
--	 * A queue starts its life with bypass turned on to avoid
--	 * unnecessary bypass on/off overhead and nasty surprises during
--	 * init.  The initial bypass will be finished when the queue is
--	 * registered by blk_register_queue().
--	 */
--	q->bypass_depth = 1;
--	queue_flag_set_unlocked(QUEUE_FLAG_BYPASS, q);
--
- 	init_waitqueue_head(&q->mq_freeze_wq);
+-	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
+-	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
+-	queue_flag_set(QUEUE_FLAG_DYING, q);
+-	spin_unlock_irq(lock);
++	blk_queue_flag_set(QUEUE_FLAG_NOMERGES, q);
++	blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
++	blk_queue_flag_set(QUEUE_FLAG_DYING, q);
+ 	mutex_unlock(&q->sysfs_lock);
  
  	/*
-diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
-index f021f4817b80..a32bb79d6c95 100644
---- a/block/blk-mq-debugfs.c
-+++ b/block/blk-mq-debugfs.c
-@@ -114,7 +114,6 @@ static int queue_pm_only_show(void *data, struct seq_file *m)
- static const char *const blk_queue_flag_name[] = {
- 	QUEUE_FLAG_NAME(STOPPED),
- 	QUEUE_FLAG_NAME(DYING),
--	QUEUE_FLAG_NAME(BYPASS),
- 	QUEUE_FLAG_NAME(BIDI),
- 	QUEUE_FLAG_NAME(NOMERGES),
- 	QUEUE_FLAG_NAME(SAME_COMP),
-diff --git a/block/blk-throttle.c b/block/blk-throttle.c
-index db1a3a2ae006..8e6f3c9821c2 100644
---- a/block/blk-throttle.c
-+++ b/block/blk-throttle.c
-@@ -2145,9 +2145,6 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
+@@ -384,9 +346,7 @@ void blk_cleanup_queue(struct request_queue *q)
  
- 	throtl_update_latency_buckets(td);
+ 	rq_qos_exit(q);
  
--	if (unlikely(blk_queue_bypass(q)))
--		goto out_unlock;
--
- 	blk_throtl_assoc_bio(tg, bio);
- 	blk_throtl_update_idletime(tg);
+-	spin_lock_irq(lock);
+-	queue_flag_set(QUEUE_FLAG_DEAD, q);
+-	spin_unlock_irq(lock);
++	blk_queue_flag_set(QUEUE_FLAG_DEAD, q);
  
-diff --git a/include/linux/blk-cgroup.h b/include/linux/blk-cgroup.h
-index 1b299e025e83..2c68efc603bd 100644
---- a/include/linux/blk-cgroup.h
-+++ b/include/linux/blk-cgroup.h
-@@ -325,16 +325,12 @@ static inline struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
-  * @q: request_queue of interest
-  *
-  * Lookup blkg for the @blkcg - @q pair.  This function should be called
-- * under RCU read lock and is guaranteed to return %NULL if @q is bypassing
-- * - see blk_queue_bypass_start() for details.
-+ * under RCU read loc.
+ 	/*
+ 	 * make sure all in-progress dispatch are completed because
+diff --git a/block/blk-mq.c b/block/blk-mq.c
+index 4c82b4b4fa3e..e2717e843727 100644
+--- a/block/blk-mq.c
++++ b/block/blk-mq.c
+@@ -2756,7 +2756,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
+ 	q->queue_flags |= QUEUE_FLAG_MQ_DEFAULT;
+ 
+ 	if (!(set->flags & BLK_MQ_F_SG_MERGE))
+-		queue_flag_set_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
++		blk_queue_flag_set(QUEUE_FLAG_NO_SG_MERGE, q);
+ 
+ 	q->sg_reserved_size = INT_MAX;
+ 
+diff --git a/block/blk-settings.c b/block/blk-settings.c
+index cca83590a1dc..3abe831e92c8 100644
+--- a/block/blk-settings.c
++++ b/block/blk-settings.c
+@@ -834,16 +834,14 @@ EXPORT_SYMBOL(blk_set_queue_depth);
   */
- static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
- 					   struct request_queue *q)
+ void blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
  {
- 	WARN_ON_ONCE(!rcu_read_lock_held());
--
--	if (unlikely(blk_queue_bypass(q)))
--		return NULL;
- 	return __blkg_lookup(blkcg, q, false);
+-	spin_lock_irq(q->queue_lock);
+ 	if (wc)
+-		queue_flag_set(QUEUE_FLAG_WC, q);
++		blk_queue_flag_set(QUEUE_FLAG_WC, q);
+ 	else
+-		queue_flag_clear(QUEUE_FLAG_WC, q);
++		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
+ 	if (fua)
+-		queue_flag_set(QUEUE_FLAG_FUA, q);
++		blk_queue_flag_set(QUEUE_FLAG_FUA, q);
+ 	else
+-		queue_flag_clear(QUEUE_FLAG_FUA, q);
+-	spin_unlock_irq(q->queue_lock);
++		blk_queue_flag_clear(QUEUE_FLAG_FUA, q);
+ 
+ 	wbt_set_write_cache(q, test_bit(QUEUE_FLAG_WC, &q->queue_flags));
+ }
+diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
+index d4b1b84ba8ca..22fd086eba9f 100644
+--- a/block/blk-sysfs.c
++++ b/block/blk-sysfs.c
+@@ -316,14 +316,12 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	spin_lock_irq(q->queue_lock);
+-	queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
+-	queue_flag_clear(QUEUE_FLAG_NOXMERGES, q);
++	blk_queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
++	blk_queue_flag_clear(QUEUE_FLAG_NOXMERGES, q);
+ 	if (nm == 2)
+-		queue_flag_set(QUEUE_FLAG_NOMERGES, q);
++		blk_queue_flag_set(QUEUE_FLAG_NOMERGES, q);
+ 	else if (nm)
+-		queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
+-	spin_unlock_irq(q->queue_lock);
++		blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
+ 
+ 	return ret;
+ }
+@@ -347,18 +345,16 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	spin_lock_irq(q->queue_lock);
+ 	if (val == 2) {
+-		queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
+-		queue_flag_set(QUEUE_FLAG_SAME_FORCE, q);
++		blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
++		blk_queue_flag_set(QUEUE_FLAG_SAME_FORCE, q);
+ 	} else if (val == 1) {
+-		queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
+-		queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
++		blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
++		blk_queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
+ 	} else if (val == 0) {
+-		queue_flag_clear(QUEUE_FLAG_SAME_COMP, q);
+-		queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
++		blk_queue_flag_clear(QUEUE_FLAG_SAME_COMP, q);
++		blk_queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
+ 	}
+-	spin_unlock_irq(q->queue_lock);
+ #endif
+ 	return ret;
+ }
+@@ -889,7 +885,7 @@ int blk_register_queue(struct gendisk *disk)
+ 	WARN_ONCE(test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags),
+ 		  "%s is registering an already registered queue\n",
+ 		  kobject_name(&dev->kobj));
+-	queue_flag_set_unlocked(QUEUE_FLAG_REGISTERED, q);
++	blk_queue_flag_set(QUEUE_FLAG_REGISTERED, q);
+ 
+ 	/*
+ 	 * SCSI probing may synchronously create and destroy a lot of
+@@ -901,7 +897,7 @@ int blk_register_queue(struct gendisk *disk)
+ 	 * request_queues for non-existent devices never get registered.
+ 	 */
+ 	if (!blk_queue_init_done(q)) {
+-		queue_flag_set_unlocked(QUEUE_FLAG_INIT_DONE, q);
++		blk_queue_flag_set(QUEUE_FLAG_INIT_DONE, q);
+ 		percpu_ref_switch_to_percpu(&q->q_usage_counter);
+ 	}
+ 
+diff --git a/block/blk.h b/block/blk.h
+index 08a5845b03ba..f2ddc71e93da 100644
+--- a/block/blk.h
++++ b/block/blk.h
+@@ -48,62 +48,6 @@ static inline void queue_lockdep_assert_held(struct request_queue *q)
+ 		lockdep_assert_held(q->queue_lock);
  }
  
+-static inline void queue_flag_set_unlocked(unsigned int flag,
+-					   struct request_queue *q)
+-{
+-	if (test_bit(QUEUE_FLAG_INIT_DONE, &q->queue_flags) &&
+-	    kref_read(&q->kobj.kref))
+-		lockdep_assert_held(q->queue_lock);
+-	__set_bit(flag, &q->queue_flags);
+-}
+-
+-static inline void queue_flag_clear_unlocked(unsigned int flag,
+-					     struct request_queue *q)
+-{
+-	if (test_bit(QUEUE_FLAG_INIT_DONE, &q->queue_flags) &&
+-	    kref_read(&q->kobj.kref))
+-		lockdep_assert_held(q->queue_lock);
+-	__clear_bit(flag, &q->queue_flags);
+-}
+-
+-static inline int queue_flag_test_and_clear(unsigned int flag,
+-					    struct request_queue *q)
+-{
+-	queue_lockdep_assert_held(q);
+-
+-	if (test_bit(flag, &q->queue_flags)) {
+-		__clear_bit(flag, &q->queue_flags);
+-		return 1;
+-	}
+-
+-	return 0;
+-}
+-
+-static inline int queue_flag_test_and_set(unsigned int flag,
+-					  struct request_queue *q)
+-{
+-	queue_lockdep_assert_held(q);
+-
+-	if (!test_bit(flag, &q->queue_flags)) {
+-		__set_bit(flag, &q->queue_flags);
+-		return 0;
+-	}
+-
+-	return 1;
+-}
+-
+-static inline void queue_flag_set(unsigned int flag, struct request_queue *q)
+-{
+-	queue_lockdep_assert_held(q);
+-	__set_bit(flag, &q->queue_flags);
+-}
+-
+-static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
+-{
+-	queue_lockdep_assert_held(q);
+-	__clear_bit(flag, &q->queue_flags);
+-}
+-
+ static inline struct blk_flush_queue *
+ blk_get_flush_queue(struct request_queue *q, struct blk_mq_ctx *ctx)
+ {
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index e67ad2dd025e..c92aafcde0b8 100644
+index 1aa94759d219..2b887e24837e 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -551,7 +551,6 @@ struct request_queue {
+@@ -624,7 +624,6 @@ struct request_queue {
+ void blk_queue_flag_set(unsigned int flag, struct request_queue *q);
+ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
+ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
+-bool blk_queue_flag_test_and_clear(unsigned int flag, struct request_queue *q);
  
- 	struct mutex		sysfs_lock;
- 
--	int			bypass_depth;
- 	atomic_t		mq_freeze_depth;
- 
- #if defined(CONFIG_BLK_DEV_BSG)
-@@ -589,7 +588,6 @@ struct request_queue {
- 
- #define QUEUE_FLAG_STOPPED	1	/* queue is stopped */
- #define QUEUE_FLAG_DYING	2	/* queue being torn down */
--#define QUEUE_FLAG_BYPASS	3	/* act as dumb FIFO queue */
- #define QUEUE_FLAG_BIDI		4	/* queue supports bidi requests */
- #define QUEUE_FLAG_NOMERGES     5	/* disable merge attempts */
- #define QUEUE_FLAG_SAME_COMP	6	/* complete on same CPU-group */
-@@ -633,7 +631,6 @@ bool blk_queue_flag_test_and_clear(unsigned int flag, struct request_queue *q);
  #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
  #define blk_queue_dying(q)	test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
- #define blk_queue_dead(q)	test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
--#define blk_queue_bypass(q)	test_bit(QUEUE_FLAG_BYPASS, &(q)->queue_flags)
- #define blk_queue_init_done(q)	test_bit(QUEUE_FLAG_INIT_DONE, &(q)->queue_flags)
- #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
- #define blk_queue_noxmerges(q)	\
 -- 
 2.19.1
 
