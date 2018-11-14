@@ -1,20 +1,20 @@
 Return-Path: <BATV+ddbc6e1cf1a82b64ebec+5561+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4FE63101E042
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C365F1013806
 	for <drbd-dev@lists.linbit.com>; Wed, 14 Nov 2018 17:19:27 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 14 Nov 2018 17:02:09 +0100
-Message-Id: <20181114160219.28328-7-hch@lst.de>
+Date: Wed, 14 Nov 2018 17:02:04 +0100
+Message-Id: <20181114160219.28328-2-hch@lst.de>
 In-Reply-To: <20181114160219.28328-1-hch@lst.de>
 References: <20181114160219.28328-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-block@vger.kernel.org, linux-mmc@vger.kernel.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/16] block-iolatency: remove the unused lock
-	argument to rq_qos_throttle
+Subject: [Drbd-dev] [PATCH 01/16] block: remove QUEUE_FLAG_BYPASS and
+	->bypass
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,188 +26,166 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Unused now that the legacy request path is gone.
+Unused since the removal of the legacy request code.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/blk-iolatency.c | 24 ++++++------------------
- block/blk-mq.c        |  2 +-
- block/blk-rq-qos.c    |  5 ++---
- block/blk-rq-qos.h    |  4 ++--
- block/blk-wbt.c       | 16 ++++------------
- 5 files changed, 15 insertions(+), 36 deletions(-)
+ block/blk-cgroup.c         | 15 ---------------
+ block/blk-core.c           | 21 ---------------------
+ block/blk-mq-debugfs.c     |  1 -
+ block/blk-throttle.c       |  3 ---
+ include/linux/blk-cgroup.h |  6 +-----
+ include/linux/blkdev.h     |  3 ---
+ 6 files changed, 1 insertion(+), 48 deletions(-)
 
-diff --git a/block/blk-iolatency.c b/block/blk-iolatency.c
-index 38c35c32aff2..8edf1b353ad1 100644
---- a/block/blk-iolatency.c
-+++ b/block/blk-iolatency.c
-@@ -276,10 +276,8 @@ static inline bool iolatency_may_queue(struct iolatency_grp *iolat,
+diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
+index 6c65791bc3fe..a95cddb39f1c 100644
+--- a/block/blk-cgroup.c
++++ b/block/blk-cgroup.c
+@@ -270,13 +270,6 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
+ 	WARN_ON_ONCE(!rcu_read_lock_held());
+ 	lockdep_assert_held(q->queue_lock);
  
- static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
- 				       struct iolatency_grp *iolat,
--				       spinlock_t *lock, bool issue_as_root,
-+				       bool issue_as_root,
- 				       bool use_memdelay)
--	__releases(lock)
--	__acquires(lock)
- {
- 	struct rq_wait *rqw = &iolat->rq_wait;
- 	unsigned use_delay = atomic_read(&lat_to_blkg(iolat)->use_delay);
-@@ -311,14 +309,7 @@ static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
- 		if (iolatency_may_queue(iolat, &wait, first_block))
- 			break;
- 		first_block = false;
+-	/*
+-	 * This could be the first entry point of blkcg implementation and
+-	 * we shouldn't allow anything to go through for a bypassing queue.
+-	 */
+-	if (unlikely(blk_queue_bypass(q)))
+-		return ERR_PTR(blk_queue_dying(q) ? -ENODEV : -EBUSY);
 -
--		if (lock) {
--			spin_unlock_irq(lock);
--			io_schedule();
--			spin_lock_irq(lock);
--		} else {
--			io_schedule();
--		}
-+		io_schedule();
- 	} while (1);
+ 	blkg = __blkg_lookup(blkcg, q, true);
+ 	if (blkg)
+ 		return blkg;
+@@ -741,14 +734,6 @@ static struct blkcg_gq *blkg_lookup_check(struct blkcg *blkcg,
  
- 	finish_wait(&rqw->wait, &wait);
-@@ -478,8 +469,7 @@ static void check_scale_change(struct iolatency_grp *iolat)
- 	scale_change(iolat, direction > 0);
- }
- 
--static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio,
--				     spinlock_t *lock)
-+static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio)
- {
- 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
- 	struct blkcg *blkcg;
-@@ -495,13 +485,11 @@ static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio,
- 	bio_associate_blkcg(bio, &blkcg->css);
- 	blkg = blkg_lookup(blkcg, q);
- 	if (unlikely(!blkg)) {
--		if (!lock)
--			spin_lock_irq(q->queue_lock);
-+		spin_lock_irq(q->queue_lock);
- 		blkg = blkg_lookup_create(blkcg, q);
- 		if (IS_ERR(blkg))
- 			blkg = NULL;
--		if (!lock)
--			spin_unlock_irq(q->queue_lock);
-+		spin_unlock_irq(q->queue_lock);
- 	}
- 	if (!blkg)
- 		goto out;
-@@ -518,7 +506,7 @@ static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio,
- 		}
- 
- 		check_scale_change(iolat);
--		__blkcg_iolatency_throttle(rqos, iolat, lock, issue_as_root,
-+		__blkcg_iolatency_throttle(rqos, iolat, issue_as_root,
- 				     (bio->bi_opf & REQ_SWAP) == REQ_SWAP);
- 		blkg = blkg->parent;
- 	}
-diff --git a/block/blk-mq.c b/block/blk-mq.c
-index e2717e843727..a3f057fdd045 100644
---- a/block/blk-mq.c
-+++ b/block/blk-mq.c
-@@ -1886,7 +1886,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
- 	if (blk_mq_sched_bio_merge(q, bio))
- 		return BLK_QC_T_NONE;
- 
--	rq_qos_throttle(q, bio, NULL);
-+	rq_qos_throttle(q, bio);
- 
- 	rq = blk_mq_get_request(q, bio, &data);
- 	if (unlikely(!rq)) {
-diff --git a/block/blk-rq-qos.c b/block/blk-rq-qos.c
-index 0005dfd568dd..f8a4d3fbb98c 100644
---- a/block/blk-rq-qos.c
-+++ b/block/blk-rq-qos.c
-@@ -67,14 +67,13 @@ void rq_qos_requeue(struct request_queue *q, struct request *rq)
- 	}
- }
- 
--void rq_qos_throttle(struct request_queue *q, struct bio *bio,
--		     spinlock_t *lock)
-+void rq_qos_throttle(struct request_queue *q, struct bio *bio)
- {
- 	struct rq_qos *rqos;
- 
- 	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
- 		if (rqos->ops->throttle)
--			rqos->ops->throttle(rqos, bio, lock);
-+			rqos->ops->throttle(rqos, bio);
- 	}
- }
- 
-diff --git a/block/blk-rq-qos.h b/block/blk-rq-qos.h
-index 32b02efbfa66..b6b11d496007 100644
---- a/block/blk-rq-qos.h
-+++ b/block/blk-rq-qos.h
-@@ -25,7 +25,7 @@ struct rq_qos {
- };
- 
- struct rq_qos_ops {
--	void (*throttle)(struct rq_qos *, struct bio *, spinlock_t *);
-+	void (*throttle)(struct rq_qos *, struct bio *);
- 	void (*track)(struct rq_qos *, struct request *, struct bio *);
- 	void (*issue)(struct rq_qos *, struct request *);
- 	void (*requeue)(struct rq_qos *, struct request *);
-@@ -103,7 +103,7 @@ void rq_qos_done(struct request_queue *, struct request *);
- void rq_qos_issue(struct request_queue *, struct request *);
- void rq_qos_requeue(struct request_queue *, struct request *);
- void rq_qos_done_bio(struct request_queue *q, struct bio *bio);
--void rq_qos_throttle(struct request_queue *, struct bio *, spinlock_t *);
-+void rq_qos_throttle(struct request_queue *, struct bio *);
- void rq_qos_track(struct request_queue *q, struct request *, struct bio *);
- void rq_qos_exit(struct request_queue *);
- #endif
-diff --git a/block/blk-wbt.c b/block/blk-wbt.c
-index 0fc222d4194b..e5a66c574683 100644
---- a/block/blk-wbt.c
-+++ b/block/blk-wbt.c
-@@ -521,9 +521,7 @@ static int wbt_wake_function(struct wait_queue_entry *curr, unsigned int mode,
-  * the timer to kick off queuing again.
-  */
- static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
--		       unsigned long rw, spinlock_t *lock)
--	__releases(lock)
--	__acquires(lock)
-+		       unsigned long rw)
- {
- 	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
- 	struct wbt_wait_data data = {
-@@ -561,13 +559,7 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
- 			break;
- 		}
- 
--		if (lock) {
--			spin_unlock_irq(lock);
--			io_schedule();
--			spin_lock_irq(lock);
--		} else
--			io_schedule();
+ 	if (!blkcg_policy_enabled(q, pol))
+ 		return ERR_PTR(-EOPNOTSUPP);
 -
-+		io_schedule();
- 		has_sleeper = false;
- 	} while (1);
+-	/*
+-	 * This could be the first entry point of blkcg implementation and
+-	 * we shouldn't allow anything to go through for a bypassing queue.
+-	 */
+-	if (unlikely(blk_queue_bypass(q)))
+-		return ERR_PTR(blk_queue_dying(q) ? -ENODEV : -EBUSY);
+-
+ 	return __blkg_lookup(blkcg, q, true /* update_hint */);
+ }
  
-@@ -624,7 +616,7 @@ static void wbt_cleanup(struct rq_qos *rqos, struct bio *bio)
-  * in an irq held spinlock, if it holds one when calling this function.
-  * If we do sleep, we'll release and re-grab it.
+diff --git a/block/blk-core.c b/block/blk-core.c
+index fdc0ad2686c4..1c9b6975cf0a 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -370,18 +370,6 @@ void blk_cleanup_queue(struct request_queue *q)
+ 	blk_set_queue_dying(q);
+ 	spin_lock_irq(lock);
+ 
+-	/*
+-	 * A dying queue is permanently in bypass mode till released.  Note
+-	 * that, unlike blk_queue_bypass_start(), we aren't performing
+-	 * synchronize_rcu() after entering bypass mode to avoid the delay
+-	 * as some drivers create and destroy a lot of queues while
+-	 * probing.  This is still safe because blk_release_queue() will be
+-	 * called only after the queue refcnt drops to zero and nothing,
+-	 * RCU or not, would be traversing the queue by then.
+-	 */
+-	q->bypass_depth++;
+-	queue_flag_set(QUEUE_FLAG_BYPASS, q);
+-
+ 	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
+ 	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
+ 	queue_flag_set(QUEUE_FLAG_DYING, q);
+@@ -589,15 +577,6 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
+ 
+ 	q->queue_lock = lock ? : &q->__queue_lock;
+ 
+-	/*
+-	 * A queue starts its life with bypass turned on to avoid
+-	 * unnecessary bypass on/off overhead and nasty surprises during
+-	 * init.  The initial bypass will be finished when the queue is
+-	 * registered by blk_register_queue().
+-	 */
+-	q->bypass_depth = 1;
+-	queue_flag_set_unlocked(QUEUE_FLAG_BYPASS, q);
+-
+ 	init_waitqueue_head(&q->mq_freeze_wq);
+ 
+ 	/*
+diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
+index f021f4817b80..a32bb79d6c95 100644
+--- a/block/blk-mq-debugfs.c
++++ b/block/blk-mq-debugfs.c
+@@ -114,7 +114,6 @@ static int queue_pm_only_show(void *data, struct seq_file *m)
+ static const char *const blk_queue_flag_name[] = {
+ 	QUEUE_FLAG_NAME(STOPPED),
+ 	QUEUE_FLAG_NAME(DYING),
+-	QUEUE_FLAG_NAME(BYPASS),
+ 	QUEUE_FLAG_NAME(BIDI),
+ 	QUEUE_FLAG_NAME(NOMERGES),
+ 	QUEUE_FLAG_NAME(SAME_COMP),
+diff --git a/block/blk-throttle.c b/block/blk-throttle.c
+index db1a3a2ae006..8e6f3c9821c2 100644
+--- a/block/blk-throttle.c
++++ b/block/blk-throttle.c
+@@ -2145,9 +2145,6 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
+ 
+ 	throtl_update_latency_buckets(td);
+ 
+-	if (unlikely(blk_queue_bypass(q)))
+-		goto out_unlock;
+-
+ 	blk_throtl_assoc_bio(tg, bio);
+ 	blk_throtl_update_idletime(tg);
+ 
+diff --git a/include/linux/blk-cgroup.h b/include/linux/blk-cgroup.h
+index 1b299e025e83..2c68efc603bd 100644
+--- a/include/linux/blk-cgroup.h
++++ b/include/linux/blk-cgroup.h
+@@ -325,16 +325,12 @@ static inline struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
+  * @q: request_queue of interest
+  *
+  * Lookup blkg for the @blkcg - @q pair.  This function should be called
+- * under RCU read lock and is guaranteed to return %NULL if @q is bypassing
+- * - see blk_queue_bypass_start() for details.
++ * under RCU read loc.
   */
--static void wbt_wait(struct rq_qos *rqos, struct bio *bio, spinlock_t *lock)
-+static void wbt_wait(struct rq_qos *rqos, struct bio *bio)
+ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
+ 					   struct request_queue *q)
  {
- 	struct rq_wb *rwb = RQWB(rqos);
- 	enum wbt_flags flags;
-@@ -636,7 +628,7 @@ static void wbt_wait(struct rq_qos *rqos, struct bio *bio, spinlock_t *lock)
- 		return;
- 	}
+ 	WARN_ON_ONCE(!rcu_read_lock_held());
+-
+-	if (unlikely(blk_queue_bypass(q)))
+-		return NULL;
+ 	return __blkg_lookup(blkcg, q, false);
+ }
  
--	__wbt_wait(rwb, flags, bio->bi_opf, lock);
-+	__wbt_wait(rwb, flags, bio->bi_opf);
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index e67ad2dd025e..c92aafcde0b8 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -551,7 +551,6 @@ struct request_queue {
  
- 	if (!blk_stat_is_active(rwb->cb))
- 		rwb_arm_timer(rwb);
+ 	struct mutex		sysfs_lock;
+ 
+-	int			bypass_depth;
+ 	atomic_t		mq_freeze_depth;
+ 
+ #if defined(CONFIG_BLK_DEV_BSG)
+@@ -589,7 +588,6 @@ struct request_queue {
+ 
+ #define QUEUE_FLAG_STOPPED	1	/* queue is stopped */
+ #define QUEUE_FLAG_DYING	2	/* queue being torn down */
+-#define QUEUE_FLAG_BYPASS	3	/* act as dumb FIFO queue */
+ #define QUEUE_FLAG_BIDI		4	/* queue supports bidi requests */
+ #define QUEUE_FLAG_NOMERGES     5	/* disable merge attempts */
+ #define QUEUE_FLAG_SAME_COMP	6	/* complete on same CPU-group */
+@@ -633,7 +631,6 @@ bool blk_queue_flag_test_and_clear(unsigned int flag, struct request_queue *q);
+ #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
+ #define blk_queue_dying(q)	test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
+ #define blk_queue_dead(q)	test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
+-#define blk_queue_bypass(q)	test_bit(QUEUE_FLAG_BYPASS, &(q)->queue_flags)
+ #define blk_queue_init_done(q)	test_bit(QUEUE_FLAG_INIT_DONE, &(q)->queue_flags)
+ #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
+ #define blk_queue_noxmerges(q)	\
 -- 
 2.19.1
 
