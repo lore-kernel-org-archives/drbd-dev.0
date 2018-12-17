@@ -1,29 +1,29 @@
 Return-Path: <axboe@kernel.dk>
-Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com
-	[209.85.210.193])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D6E18101AC56
-	for <drbd-dev@lists.linbit.com>; Sat,  1 Dec 2018 19:38:52 +0100 (CET)
-Received: by mail-pf1-f193.google.com with SMTP id z9so4399273pfi.2
-	for <drbd-dev@lists.linbit.com>; Sat, 01 Dec 2018 10:38:52 -0800 (PST)
-To: Frank Lee <tiny.windzz@gmail.com>
-References: <20181201142414.7766-1-tiny.windzz@gmail.com>
-	<5682c419-9e44-10ed-6a2e-286e6f5c5def@kernel.dk>
-	<CAEExFWtJEJwgGR3gqfHDXw-c4nyA7dkQTd9fkzVsht=ROmfgMQ@mail.gmail.com>
+Received: from mail-io1-f66.google.com (mail-io1-f66.google.com
+	[209.85.166.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 951A8103B4AA
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Dec 2018 18:29:42 +0100 (CET)
+Received: by mail-io1-f66.google.com with SMTP id t24so10622013ioi.0
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Dec 2018 09:29:42 -0800 (PST)
+To: Nathan Chancellor <natechancellor@gmail.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>
+References: <20181002171447.10765-1-natechancellor@gmail.com>
+	<20181004200912.32348-1-natechancellor@gmail.com>
+	<20181217172401.GA30635@flashbox>
 From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <92334639-9d34-5e6a-2c43-945a20077394@kernel.dk>
-Date: Sat, 1 Dec 2018 11:38:48 -0700
+Message-ID: <0110d874-7595-1786-77e3-e2b0daec2327@kernel.dk>
+Date: Mon, 17 Dec 2018 10:29:38 -0700
 MIME-Version: 1.0
-In-Reply-To: <CAEExFWtJEJwgGR3gqfHDXw-c4nyA7dkQTd9fkzVsht=ROmfgMQ@mail.gmail.com>
+In-Reply-To: <20181217172401.GA30635@flashbox>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Cc: linux-kernel@vger.kernel.org, Josef Bacik <josef@toxicpanda.com>,
-	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
-	pjk1939@linux.vnet.ibm.com, nbd@other.debian.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, ed.cashin@acm.org,
-	josh.h.morris@us.ibm.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v2] block: Change to use
-	DEFINE_SHOW_ATTRIBUTE macro
+Cc: linux-block@vger.kernel.org, Nick Desaulniers <ndesaulniers@google.com>,
+	linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v2] drbd: Avoid Clang warning about pointless
+ switch statment
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,37 +35,89 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 12/1/18 11:31 AM, Frank Lee wrote:
-> On Sun, Dec 2, 2018 at 2:11 AM Jens Axboe <axboe@kernel.dk> wrote:
+On 12/17/18 10:24 AM, Nathan Chancellor wrote:
+> On Thu, Oct 04, 2018 at 01:09:13PM -0700, Nathan Chancellor wrote:
+>> There are several warnings from Clang about no case statement matching
+>> the constant 0:
 >>
->> On 12/1/18 7:24 AM, Yangtao Li wrote:
->>> Use DEFINE_SHOW_ATTRIBUTE macro to simplify the code.
->>>
->>> Signed-off-by: Yangtao Li <tiny.windzz@gmail.com>
->>> ---
->>> changes in v2:
->>> -Modify some function names to avoid compilation errors
+>> In file included from drivers/block/drbd/drbd_receiver.c:48:
+>> In file included from drivers/block/drbd/drbd_int.h:48:
+>> In file included from ./include/linux/drbd_genl_api.h:54:
+>> In file included from ./include/linux/genl_magic_struct.h:236:
+>> ./include/linux/drbd_genl.h:321:1: warning: no case matching constant
+>> switch condition '0'
+>> GENL_struct(DRBD_NLA_HELPER, 24, drbd_helper_info,
+>> ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+>> ./include/linux/genl_magic_struct.h:220:10: note: expanded from macro
+>> 'GENL_struct'
+>>         switch (0) {
+>>                 ^
 >>
->> The fact that your previous patch didn't even compile doesn't fill me
->> with a lot of confidence in the amount of diligence and testing
->> you apply to your patches.
+>> Silence this warning by adding a 'case 0:' statement. Additionally,
+>> adjust the alignment of the statements in the ct_assert_unique macro to
+>> avoid a checkpatch warning.
 >>
->> Why would you send something out that you didn't even compile?
+>> This solution was originally sent by Arnd Bergmann with a default case
+>> statement: https://lore.kernel.org/patchwork/patch/756723/
 >>
->> --
->> Jens Axboe
+>> Link: https://github.com/ClangBuiltLinux/linux/issues/43
+>> Suggested-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+>> Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+>> ---
 >>
-> These changes are the same and only require a small change.
-> Most of the changes are fine, so it's a bit negligent.
+>> Since this is not the same as Arnd's patch, I took authorship for it
+>> while leaving a link to the original patch in the commit message. If
+>> this is not how it should have been done, please let me know.
+>>
+>>  include/linux/genl_magic_struct.h | 5 ++++-
+>>  1 file changed, 4 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/include/linux/genl_magic_struct.h b/include/linux/genl_magic_struct.h
+>> index 5972e4969197..eeae59d3ceb7 100644
+>> --- a/include/linux/genl_magic_struct.h
+>> +++ b/include/linux/genl_magic_struct.h
+>> @@ -191,6 +191,7 @@ static inline void ct_assert_unique_operations(void)
+>>  {
+>>  	switch (0) {
+>>  #include GENL_MAGIC_INCLUDE_FILE
+>> +	case 0:
+>>  		;
+>>  	}
+>>  }
+>> @@ -209,6 +210,7 @@ static inline void ct_assert_unique_top_level_attributes(void)
+>>  {
+>>  	switch (0) {
+>>  #include GENL_MAGIC_INCLUDE_FILE
+>> +	case 0:
+>>  		;
+>>  	}
+>>  }
+>> @@ -218,7 +220,8 @@ static inline void ct_assert_unique_top_level_attributes(void)
+>>  static inline void ct_assert_unique_ ## s_name ## _attributes(void)	\
+>>  {									\
+>>  	switch (0) {							\
+>> -		s_fields						\
+>> +	s_fields							\
+>> +	case 0:								\
+>>  			;						\
+>>  	}								\
+>>  }
+>> -- 
+>> 2.19.0
+>>
+> 
+> Hi Lars and Philipp,
+> 
+> Could you please make sure that this patch and the other one I sent make
+> it into 4.21/5.0? I am not sure when you were planning on sending the
+> pull request to Jens that you mentioned in the other thread but I've
+> noticed most maintainers typically send their requests for the impending
+> merge window around -rc7 or so and I wanted to make sure it was on your
+> radar.
 
-When someone is sending a patch for inclusion, at the very minimum
-I expect it to have been compiled, and preferably tested too. Doesn't
-matter how small the change is, even a one-liner should go through that.
-
-That said, I'm not a huge fan of changes like this. It completely
-hides what is going on for someone reading the code, and it's not
-like there's a win on code size for example. The only win seems to
-be that driver writes can't mess it up, which is a nice benefit.
+It needs to get here now, but drbd hasn't really sent anything in for
+about a year, so I'm starting to doubt how maintained it is at this
+point.
 
 -- 
 Jens Axboe
