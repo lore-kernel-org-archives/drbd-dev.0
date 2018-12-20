@@ -2,12 +2,13 @@ Return-Path: <lars.ellenberg@linbit.com>
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org
-Date: Thu, 20 Dec 2018 17:23:36 +0100
-Message-Id: <20181220162344.8430-10-lars.ellenberg@linbit.com>
+Date: Thu, 20 Dec 2018 17:23:37 +0100
+Message-Id: <20181220162344.8430-11-lars.ellenberg@linbit.com>
 In-Reply-To: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 References: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 09/17] drbd: fix comment typos
+Subject: [Drbd-dev] [PATCH 10/17] drbd: do not block when adjusting
+	"disk-options" while IO is frozen
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -19,38 +20,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+"suspending" IO is overloaded.
+It can mean "do not allow new requests" (obviously),
+but it also may mean "must not complete pending IO",
+for example while the fencing handlers do their arbitration.
+
+When adjusting disk options, we suspend io (disallow new requests), then
+wait for the activity-log to become unused (drain all IO completions),
+and possibly replace it with a new activity log of different size.
+
+If the other "suspend IO" aspect is active, pending IO completions won't
+happen, and we would block forever (unkillable drbdsetup process).
+
+Fix this by skipping the activity log adjustment if the "al-extents"
+setting did not change. Also, in case it did change, fail early without
+blocking if it looks like we would block forever.
+
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 2 +-
- drivers/block/drbd/drbd_state.c    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 37 ++++++++++++++++++++++++++++--------
+ 1 file changed, 29 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 76d74b2122d6..3a0fe357b68b 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4428,7 +4428,7 @@ static int receive_state(struct drbd_connection *connection, struct packet_info
- 		       (peer_state.disk == D_NEGOTIATING ||
- 			os.disk == D_NEGOTIATING));
- 		/* if we have both been inconsistent, and the peer has been
--		 * forced to be UpToDate with --overwrite-data */
-+		 * forced to be UpToDate with --force */
- 		cr |= test_bit(CONSIDER_RESYNC, &device->flags);
- 		/* if we had been plain connected, and the admin requested to
- 		 * start a sync by "invalidate" or "invalidate-remote" */
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 18d53fe60d1d..883155657273 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1124,7 +1124,7 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
- 			ns.pdsk = D_UP_TO_DATE;
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 4b934e543e2d..1958eb33b643 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1540,6 +1540,30 @@ static void sanitize_disk_conf(struct drbd_device *device, struct disk_conf *dis
+ 	}
+ }
+ 
++static int disk_opts_check_al_size(struct drbd_device *device, struct disk_conf *dc)
++{
++	int err = -EBUSY;
++
++	if (device->act_log &&
++	    device->act_log->nr_elements == dc->al_extents)
++		return 0;
++
++	drbd_suspend_io(device);
++	/* If IO completion is currently blocked, we would likely wait
++	 * "forever" for the activity log to become unused. So we don't. */
++	if (atomic_read(&device->ap_bio_cnt))
++		goto out;
++
++	wait_event(device->al_wait, lc_try_lock(device->act_log));
++	drbd_al_shrink(device);
++	err = drbd_check_al_size(device, dc);
++	lc_unlock(device->act_log);
++	wake_up(&device->al_wait);
++out:
++	drbd_resume_io(device);
++	return err;
++}
++
+ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct drbd_config_context adm_ctx;
+@@ -1602,15 +1626,12 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
+ 		}
  	}
  
--	/* Implications of the connection stat on the disk states */
-+	/* Implications of the connection state on the disk states */
- 	disk_min = D_DISKLESS;
- 	disk_max = D_UP_TO_DATE;
- 	pdsk_min = D_INCONSISTENT;
+-	drbd_suspend_io(device);
+-	wait_event(device->al_wait, lc_try_lock(device->act_log));
+-	drbd_al_shrink(device);
+-	err = drbd_check_al_size(device, new_disk_conf);
+-	lc_unlock(device->act_log);
+-	wake_up(&device->al_wait);
+-	drbd_resume_io(device);
+-
++	err = disk_opts_check_al_size(device, new_disk_conf);
+ 	if (err) {
++		/* Could be just "busy". Ignore?
++		 * Introduce dedicated error code? */
++		drbd_msg_put_info(adm_ctx.reply_skb,
++			"Try again without changing current al-extents setting");
+ 		retcode = ERR_NOMEM;
+ 		goto fail_unlock;
+ 	}
 -- 
 2.17.1
 
