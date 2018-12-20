@@ -2,13 +2,12 @@ Return-Path: <lars.ellenberg@linbit.com>
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org
-Date: Thu, 20 Dec 2018 17:23:35 +0100
-Message-Id: <20181220162344.8430-9-lars.ellenberg@linbit.com>
+Date: Thu, 20 Dec 2018 17:23:36 +0100
+Message-Id: <20181220162344.8430-10-lars.ellenberg@linbit.com>
 In-Reply-To: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 References: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/17] drbd: reject attach of unsuitable uuids
-	even if connected
+Subject: [Drbd-dev] [PATCH 09/17] drbd: fix comment typos
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,94 +19,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Multiple failure scenario:
-a) all good
-   Connected Primary/Secondary UpToDate/UpToDate
-b) lose disk on Primary,
-   Connected Primary/Secondary Diskless/UpToDate
-c) continue to write to the device,
-   changes only make it to the Secondary storage.
-d) lose disk on Secondary,
-   Connected Primary/Secondary Diskless/Diskless
-e) now try to re-attach on Primary
-
-This would have succeeded before, even though that is clearly the
-wrong data set to attach to (missing the modifications from c).
-Because we only compared our "effective" and the "to-be-attached"
-data generation uuid tags if (device->state.conn < C_CONNECTED).
-
-Fix: change that constraint to (device->state.pdsk != D_UP_TO_DATE)
-compare the uuids, and reject the attach.
-
-This patch also tries to improve the reverse scenario:
-first lose Secondary, then Primary disk,
-then try to attach the disk on Secondary.
-
-Before this patch, the attach on the Secondary succeeds, but since commit
-drbd: disconnect, if the wrong UUIDs are attached on a connected peer
-the Primary will notice unsuitable data, and drop the connection hard.
-
-Though unfortunately at a point in time during the handshake where
-we cannot easily abort the attach on the peer without more
-refactoring of the handshake.
-
-We now reject any attach to "unsuitable" uuids,
-as long as we can see a Primary role,
-unless we already have access to "good" data.
-
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c       |  6 +++---
- drivers/block/drbd/drbd_receiver.c | 19 +++++++++++++++++++
- 2 files changed, 22 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_receiver.c | 2 +-
+ drivers/block/drbd/drbd_state.c    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index e4774f720de5..4b934e543e2d 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1960,9 +1960,9 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 		}
- 	}
- 
--	if (device->state.conn < C_CONNECTED &&
--	    device->state.role == R_PRIMARY && device->ed_uuid &&
--	    (device->ed_uuid & ~((u64)1)) != (nbc->md.uuid[UI_CURRENT] & ~((u64)1))) {
-+	if (device->state.pdsk != D_UP_TO_DATE && device->ed_uuid &&
-+	    (device->state.role == R_PRIMARY || device->state.peer == R_PRIMARY) &&
-+            (device->ed_uuid & ~((u64)1)) != (nbc->md.uuid[UI_CURRENT] & ~((u64)1))) {
- 		drbd_err(device, "Can only attach to data with current UUID=%016llX\n",
- 		    (unsigned long long)device->ed_uuid);
- 		retcode = ERR_DATA_NOT_CURRENT;
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 85e3d846a23a..76d74b2122d6 100644
+index 76d74b2122d6..3a0fe357b68b 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4397,6 +4397,25 @@ static int receive_state(struct drbd_connection *connection, struct packet_info
- 	if (peer_state.conn == C_AHEAD)
- 		ns.conn = C_BEHIND;
+@@ -4428,7 +4428,7 @@ static int receive_state(struct drbd_connection *connection, struct packet_info
+ 		       (peer_state.disk == D_NEGOTIATING ||
+ 			os.disk == D_NEGOTIATING));
+ 		/* if we have both been inconsistent, and the peer has been
+-		 * forced to be UpToDate with --overwrite-data */
++		 * forced to be UpToDate with --force */
+ 		cr |= test_bit(CONSIDER_RESYNC, &device->flags);
+ 		/* if we had been plain connected, and the admin requested to
+ 		 * start a sync by "invalidate" or "invalidate-remote" */
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index 18d53fe60d1d..883155657273 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -1124,7 +1124,7 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
+ 			ns.pdsk = D_UP_TO_DATE;
+ 	}
  
-+	/* TODO:
-+	 * if (primary and diskless and peer uuid != effective uuid)
-+	 *     abort attach on peer;
-+	 *
-+	 * If this node does not have good data, was already connected, but
-+	 * the peer did a late attach only now, trying to "negotiate" with me,
-+	 * AND I am currently Primary, possibly frozen, with some specific
-+	 * "effective" uuid, this should never be reached, really, because
-+	 * we first send the uuids, then the current state.
-+	 *
-+	 * In this scenario, we already dropped the connection hard
-+	 * when we received the unsuitable uuids (receive_uuids().
-+	 *
-+	 * Should we want to change this, that is: not drop the connection in
-+	 * receive_uuids() already, then we would need to add a branch here
-+	 * that aborts the attach of "unsuitable uuids" on the peer in case
-+	 * this node is currently Diskless Primary.
-+	 */
-+
- 	if (device->p_uuid && peer_state.disk >= D_NEGOTIATING &&
- 	    get_ldev_if_state(device, D_NEGOTIATING)) {
- 		int cr; /* consider resync */
+-	/* Implications of the connection stat on the disk states */
++	/* Implications of the connection state on the disk states */
+ 	disk_min = D_DISKLESS;
+ 	disk_max = D_UP_TO_DATE;
+ 	pdsk_min = D_INCONSISTENT;
 -- 
 2.17.1
 
