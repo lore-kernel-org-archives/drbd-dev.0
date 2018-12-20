@@ -2,13 +2,13 @@ Return-Path: <lars.ellenberg@linbit.com>
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org
-Date: Thu, 20 Dec 2018 17:23:40 +0100
-Message-Id: <20181220162344.8430-14-lars.ellenberg@linbit.com>
+Date: Thu, 20 Dec 2018 17:23:41 +0100
+Message-Id: <20181220162344.8430-15-lars.ellenberg@linbit.com>
 In-Reply-To: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 References: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 13/17] drbd: don't retry connection if peers do
-	not agree on "authentication" settings
+Subject: [Drbd-dev] [PATCH 14/17] drbd: skip spurious timeout (ping-timeo)
+	when failing promote
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,34 +20,54 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-emma: "Unexpected data packet AuthChallenge (0x0010)"
- ava: "expected AuthChallenge packet, received: ReportProtocol (0x000b)"
-      "Authentication of peer failed, trying again."
+If you try to promote a Secondary while connected to a Primary
+and allow-two-primaries is NOT set, we will wait for "ping-timeout"
+to give this node a chance to detect a dead primary,
+in case the cluster manager noticed faster than we did.
 
-Pattern repeats.
+But if we then are *still* connected to a Primary,
+we fail (after an additional timeout of ping-timout).
 
-There is no point in retrying the handshake,
-if we expect to receive an AuthChallenge,
-but the peer is not even configured to expect or use a shared secret.
+This change skips the spurious second timeout.
+
+Most people won't notice really,
+since "ping-timeout" by default is half a second.
+
+But in some installations, ping-timeout may be 10 or 20 seconds or more,
+and spuriously delaying the error return becomes annoying.
 
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/block/drbd/drbd_nl.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 3a0fe357b68b..02a327891568 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -5332,7 +5332,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 	if (pi.cmd != P_AUTH_CHALLENGE) {
- 		drbd_err(connection, "expected AuthChallenge packet, received: %s (0x%04x)\n",
- 			 cmdname(pi.cmd), pi.cmd);
--		rv = 0;
-+		rv = -1;
- 		goto fail;
- 	}
- 
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 82915880c5e9..bfe1b0062d62 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -697,14 +697,15 @@ drbd_set_role(struct drbd_device *const device, enum drbd_role new_role, int for
+ 		if (rv == SS_TWO_PRIMARIES) {
+ 			/* Maybe the peer is detected as dead very soon...
+ 			   retry at most once more in this case. */
+-			int timeo;
+-			rcu_read_lock();
+-			nc = rcu_dereference(connection->net_conf);
+-			timeo = nc ? (nc->ping_timeo + 1) * HZ / 10 : 1;
+-			rcu_read_unlock();
+-			schedule_timeout_interruptible(timeo);
+-			if (try < max_tries)
++			if (try < max_tries) {
++				int timeo;
+ 				try = max_tries - 1;
++				rcu_read_lock();
++				nc = rcu_dereference(connection->net_conf);
++				timeo = nc ? (nc->ping_timeo + 1) * HZ / 10 : 1;
++				rcu_read_unlock();
++				schedule_timeout_interruptible(timeo);
++			}
+ 			continue;
+ 		}
+ 		if (rv < SS_SUCCESS) {
 -- 
 2.17.1
 
