@@ -2,13 +2,13 @@ Return-Path: <lars.ellenberg@linbit.com>
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org
-Date: Thu, 20 Dec 2018 17:23:37 +0100
-Message-Id: <20181220162344.8430-11-lars.ellenberg@linbit.com>
+Date: Thu, 20 Dec 2018 17:23:38 +0100
+Message-Id: <20181220162344.8430-12-lars.ellenberg@linbit.com>
 In-Reply-To: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 References: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 10/17] drbd: do not block when adjusting
-	"disk-options" while IO is frozen
+Subject: [Drbd-dev] [PATCH 11/17] drbd: avoid spurious self-outdating with
+	concurrent disconnect / down
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,83 +20,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-"suspending" IO is overloaded.
-It can mean "do not allow new requests" (obviously),
-but it also may mean "must not complete pending IO",
-for example while the fencing handlers do their arbitration.
+If peers are "simultaneously" told to disconnect from each other,
+either explicitly, or implicitly by taking down the resource,
+with bad timing, one side may see its disconnect "fail" with
+a result of "state change failed by peer", and interpret this as
+"please oudate yourself".
 
-When adjusting disk options, we suspend io (disallow new requests), then
-wait for the activity-log to become unused (drain all IO completions),
-and possibly replace it with a new activity log of different size.
-
-If the other "suspend IO" aspect is active, pending IO completions won't
-happen, and we would block forever (unkillable drbdsetup process).
-
-Fix this by skipping the activity log adjustment if the "al-extents"
-setting did not change. Also, in case it did change, fail early without
-blocking if it looks like we would block forever.
+Try to catch this by checking for current connection status,
+and possibly retry as local-only state change instead.
 
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c | 37 ++++++++++++++++++++++++++++--------
- 1 file changed, 29 insertions(+), 8 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 4b934e543e2d..1958eb33b643 100644
+index 1958eb33b643..82915880c5e9 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1540,6 +1540,30 @@ static void sanitize_disk_conf(struct drbd_device *device, struct disk_conf *dis
- 	}
- }
+@@ -2711,8 +2711,10 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
  
-+static int disk_opts_check_al_size(struct drbd_device *device, struct disk_conf *dc)
-+{
-+	int err = -EBUSY;
-+
-+	if (device->act_log &&
-+	    device->act_log->nr_elements == dc->al_extents)
-+		return 0;
-+
-+	drbd_suspend_io(device);
-+	/* If IO completion is currently blocked, we would likely wait
-+	 * "forever" for the activity log to become unused. So we don't. */
-+	if (atomic_read(&device->ap_bio_cnt))
-+		goto out;
-+
-+	wait_event(device->al_wait, lc_try_lock(device->act_log));
-+	drbd_al_shrink(device);
-+	err = drbd_check_al_size(device, dc);
-+	lc_unlock(device->act_log);
-+	wake_up(&device->al_wait);
-+out:
-+	drbd_resume_io(device);
-+	return err;
-+}
-+
- int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
+ static enum drbd_state_rv conn_try_disconnect(struct drbd_connection *connection, bool force)
  {
- 	struct drbd_config_context adm_ctx;
-@@ -1602,15 +1626,12 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 		}
- 	}
++	enum drbd_conns cstate;
+ 	enum drbd_state_rv rv;
  
--	drbd_suspend_io(device);
--	wait_event(device->al_wait, lc_try_lock(device->act_log));
--	drbd_al_shrink(device);
--	err = drbd_check_al_size(device, new_disk_conf);
--	lc_unlock(device->act_log);
--	wake_up(&device->al_wait);
--	drbd_resume_io(device);
--
-+	err = disk_opts_check_al_size(device, new_disk_conf);
- 	if (err) {
-+		/* Could be just "busy". Ignore?
-+		 * Introduce dedicated error code? */
-+		drbd_msg_put_info(adm_ctx.reply_skb,
-+			"Try again without changing current al-extents setting");
- 		retcode = ERR_NOMEM;
- 		goto fail_unlock;
- 	}
++repeat:
+ 	rv = conn_request_state(connection, NS(conn, C_DISCONNECTING),
+ 			force ? CS_HARD : 0);
+ 
+@@ -2730,6 +2732,11 @@ static enum drbd_state_rv conn_try_disconnect(struct drbd_connection *connection
+ 
+ 		break;
+ 	case SS_CW_FAILED_BY_PEER:
++		spin_lock_irq(&connection->resource->req_lock);
++		cstate = connection->cstate;
++		spin_unlock_irq(&connection->resource->req_lock);
++		if (cstate <= C_WF_CONNECTION)
++			goto repeat;
+ 		/* The peer probably wants to see us outdated. */
+ 		rv = conn_request_state(connection, NS2(conn, C_DISCONNECTING,
+ 							disk, D_OUTDATED), 0);
 -- 
 2.17.1
 
