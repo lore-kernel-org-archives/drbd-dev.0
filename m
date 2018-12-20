@@ -2,13 +2,13 @@ Return-Path: <lars.ellenberg@linbit.com>
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org
-Date: Thu, 20 Dec 2018 17:23:39 +0100
-Message-Id: <20181220162344.8430-13-lars.ellenberg@linbit.com>
+Date: Thu, 20 Dec 2018 17:23:40 +0100
+Message-Id: <20181220162344.8430-14-lars.ellenberg@linbit.com>
 In-Reply-To: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 References: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 12/17] drbd: fix print_st_err()'s prototype to
-	match the definition
+Subject: [Drbd-dev] [PATCH 13/17] drbd: don't retry connection if peers do
+	not agree on "authentication" settings
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -20,33 +20,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+emma: "Unexpected data packet AuthChallenge (0x0010)"
+ ava: "expected AuthChallenge packet, received: ReportProtocol (0x000b)"
+      "Authentication of peer failed, trying again."
 
-print_st_err() is defined with its 4th argument taking an
-'enum drbd_state_rv' but its prototype use an int for it.
+Pattern repeats.
 
-Fix this by using 'enum drbd_state_rv' in the prototype too.
+There is no point in retrying the handshake,
+if we expect to receive an AuthChallenge,
+but the peer is not even configured to expect or use a shared secret.
 
-Signed-off-by: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Signed-off-by: Roland Kammerer <roland.kammerer@linbit.com>
 Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 ---
- drivers/block/drbd/drbd_state.h | 2 +-
+ drivers/block/drbd/drbd_receiver.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
-index ea58301d0895..b2a390ba73a0 100644
---- a/drivers/block/drbd/drbd_state.h
-+++ b/drivers/block/drbd/drbd_state.h
-@@ -131,7 +131,7 @@ extern enum drbd_state_rv _drbd_set_state(struct drbd_device *, union drbd_state
- 					  enum chg_state_flags,
- 					  struct completion *done);
- extern void print_st_err(struct drbd_device *, union drbd_state,
--			union drbd_state, int);
-+			union drbd_state, enum drbd_state_rv);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 3a0fe357b68b..02a327891568 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -5332,7 +5332,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
+ 	if (pi.cmd != P_AUTH_CHALLENGE) {
+ 		drbd_err(connection, "expected AuthChallenge packet, received: %s (0x%04x)\n",
+ 			 cmdname(pi.cmd), pi.cmd);
+-		rv = 0;
++		rv = -1;
+ 		goto fail;
+ 	}
  
- enum drbd_state_rv
- _conn_request_state(struct drbd_connection *connection, union drbd_state mask, union drbd_state val,
 -- 
 2.17.1
 
