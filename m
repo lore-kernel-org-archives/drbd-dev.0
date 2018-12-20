@@ -2,10 +2,13 @@ Return-Path: <lars.ellenberg@linbit.com>
 From: Lars Ellenberg <lars.ellenberg@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org
-Date: Thu, 20 Dec 2018 17:23:27 +0100
-Message-Id: <20181220162344.8430-1-lars.ellenberg@linbit.com>
+Date: Thu, 20 Dec 2018 17:23:28 +0100
+Message-Id: <20181220162344.8430-2-lars.ellenberg@linbit.com>
+In-Reply-To: <20181220162344.8430-1-lars.ellenberg@linbit.com>
+References: <20181220162344.8430-1-lars.ellenberg@linbit.com>
 Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 00/17] DRBD updates for 4.21
+Subject: [Drbd-dev] [PATCH 01/17] drbd: narrow rcu_read_lock in
+	drbd_sync_handshake
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -17,66 +20,78 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+From: Roland Kammerer <roland.kammerer@linbit.com>
 
-Hi Jens,
+So far there was the possibility that we called
+genlmsg_new(GFP_NOIO)/mutex_lock() while holding an rcu_read_lock().
 
-I hope this is not too late for your for-4.21 branch.
+This included cases like:
 
-These are all from last April or even older,
-I was convinced we sent these for 4.19 already.
-But we didn't :-(
+drbd_sync_handshake (acquire the RCU lock)
+  drbd_asb_recover_1p
+    drbd_khelper
+      drbd_bcast_event
+        genlmsg_new(GFP_NOIO) --> may sleep
 
-The interesting new feature is "introduce P_ZEROES", which is replacing
-45c21793a660 drbd: implement REQ_OP_WRITE_ZEROES
-because that led to "full allocation" for fstrim on dm-thin or similar,
-which is certainly not the intended behavior.
+drbd_sync_handshake (acquire the RCU lock)
+  drbd_asb_recover_1p
+    drbd_khelper
+      notify_helper
+        genlmsg_new(GFP_NOIO) --> may sleep
 
-Patch 3 to 8 help with recovery from odd corner cases in
-multiple error scenarios in a cluster, potentially after some admin
-already "tried things".
+drbd_sync_handshake (acquire the RCU lock)
+  drbd_asb_recover_1p
+    drbd_khelper
+      notify_helper
+        mutex_lock --> may sleep
 
-All others are sufficiently simple and supposedly "obvious".
+While using GFP_ATOMIC whould have been possible in the first two cases,
+the real fix is to narrow the rcu_read_lock.
 
-Lars Ellenberg (13):
-  drbd: must not use connection after kref_put(&connection->kref)
-  drbd: centralize printk reporting of new size into drbd_set_my_capacity()
-  drbd: ignore "all zero" peer volume sizes in handshake
-  drbd: disconnect, if the wrong UUIDs are attached on a connected peer
-  drbd: fix confusing error message during attach
-  drbd: attach on connected diskless peer must not shrink a consistent device
-  drbd: reject attach of unsuitable uuids even if connected
-  drbd: fix comment typos
-  drbd: do not block when adjusting "disk-options" while IO is frozen
-  drbd: avoid spurious self-outdating with concurrent disconnect / down
-  drbd: don't retry connection if peers do not agree on "authentication" settings
-  drbd: skip spurious timeout (ping-timeo) when failing promote
-  drbd: introduce P_ZEROES (REQ_OP_WRITE_ZEROES on the "wire")
+Reported-by: Jia-Ju Bai <baijiaju1990@163.com>
+Reviewed-by: Lars Ellenberg <lars.ellenberg@linbit.com>
+Signed-off-by: Roland Kammerer <roland.kammerer@linbit.com>
+---
+ drivers/block/drbd/drbd_receiver.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
 
-Luc Van Oostenryck (1):
-  drbd: fix print_st_err()'s prototype to match the definition
-
-Nathan Chancellor (2):
-  drbd: Avoid Clang warning about pointless switch statment
-  drbd: Change drbd_request_detach_interruptible's return type to int
-
-Roland Kammerer (1):
-  drbd: narrow rcu_read_lock in drbd_sync_handshake
-
- drivers/block/drbd/drbd_debugfs.c  |   2 +
- drivers/block/drbd/drbd_int.h      |  19 +--
- drivers/block/drbd/drbd_main.c     |  28 +++-
- drivers/block/drbd/drbd_nl.c       | 133 ++++++++++++---
- drivers/block/drbd/drbd_protocol.h |  47 ++++++
- drivers/block/drbd/drbd_receiver.c | 251 +++++++++++++++++++++++++----
- drivers/block/drbd/drbd_req.c      |  19 +--
- drivers/block/drbd/drbd_req.h      |   2 +
- drivers/block/drbd/drbd_state.c    |  11 +-
- drivers/block/drbd/drbd_state.h    |   5 +-
- drivers/block/drbd/drbd_worker.c   |   2 +-
- include/linux/drbd.h               |   2 +-
- include/linux/genl_magic_struct.h  |   5 +-
- 13 files changed, 434 insertions(+), 92 deletions(-)
-
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 61c392752fe4..1b9822f264d2 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -3364,7 +3364,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_peer_device *peer_device,
+ 	enum drbd_conns rv = C_MASK;
+ 	enum drbd_disk_state mydisk;
+ 	struct net_conf *nc;
+-	int hg, rule_nr, rr_conflict, tentative;
++	int hg, rule_nr, rr_conflict, tentative, always_asbp;
+ 
+ 	mydisk = device->state.disk;
+ 	if (mydisk == D_NEGOTIATING)
+@@ -3415,8 +3415,12 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_peer_device *peer_device,
+ 
+ 	rcu_read_lock();
+ 	nc = rcu_dereference(peer_device->connection->net_conf);
++	always_asbp = nc->always_asbp;
++	rr_conflict = nc->rr_conflict;
++	tentative = nc->tentative;
++	rcu_read_unlock();
+ 
+-	if (hg == 100 || (hg == -100 && nc->always_asbp)) {
++	if (hg == 100 || (hg == -100 && always_asbp)) {
+ 		int pcount = (device->state.role == R_PRIMARY)
+ 			   + (peer_role == R_PRIMARY);
+ 		int forced = (hg == -100);
+@@ -3455,9 +3459,6 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_peer_device *peer_device,
+ 			     "Sync from %s node\n",
+ 			     (hg < 0) ? "peer" : "this");
+ 	}
+-	rr_conflict = nc->rr_conflict;
+-	tentative = nc->tentative;
+-	rcu_read_unlock();
+ 
+ 	if (hg == -100) {
+ 		/* FIXME this log message is not correct if we end up here
 -- 
 2.17.1
 
