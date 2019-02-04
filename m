@@ -1,13 +1,14 @@
 Return-Path: <johannes@johannesthoma.com>
-Received: from mout.kundenserver.de (mout.kundenserver.de [212.227.126.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 2E943101AC7B
-	for <drbd-dev@lists.linbit.com>; Mon,  4 Feb 2019 22:00:20 +0100 (CET)
+Received: from mout.kundenserver.de (mout.kundenserver.de [212.227.126.131])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C5B17103B4D0
+	for <drbd-dev@lists.linbit.com>; Mon,  4 Feb 2019 22:00:22 +0100 (CET)
 From: Johannes Thoma <johannes@johannesthoma.com>
 To: drbd-dev@lists.linbit.com
-Date: Mon,  4 Feb 2019 22:00:14 +0100
-Message-Id: <20190204210015.7457-1-johannes@johannesthoma.com>
-Subject: [Drbd-dev] [PATCH 1/2] WinDRBD compat headers: might also be
-	defined in windrbd_ioctl.h
+Date: Mon,  4 Feb 2019 22:00:15 +0100
+Message-Id: <20190204210015.7457-2-johannes@johannesthoma.com>
+In-Reply-To: <20190204210015.7457-1-johannes@johannesthoma.com>
+References: <20190204210015.7457-1-johannes@johannesthoma.com>
+Subject: [Drbd-dev] [PATCH 2/2] windrbd: Include stdbool.h for bool type.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -19,41 +20,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-We made windrbd_ioctl.h usable outside drbd-utils: Hence we define
-GENL_NAMSIZ where it does not exist. Check in the compat headers
-if it is defined already.
-
-This commit only touches WinDRBD specific headers and hence should
-not break Linux builds.
+It seems that windrbd tool didn't compile before.
 
 Signed-off-by: Johannes Thoma <johannes@johannesthoma.com>
 ---
- drbd-headers                                | 2 +-
- user/windrbd-compat-headers/linux/netlink.h | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ user/windrbd/windrbd.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/drbd-headers b/drbd-headers
-index b5db4408..da78b84c 160000
---- a/drbd-headers
-+++ b/drbd-headers
-@@ -1 +1 @@
--Subproject commit b5db4408c02da6ad65e72edd7b254fd6c5ac3dd4
-+Subproject commit da78b84ccdd438c21c44c2332040d31f37a77a76
-diff --git a/user/windrbd-compat-headers/linux/netlink.h b/user/windrbd-compat-headers/linux/netlink.h
-index 0ce1d255..98ec271d 100644
---- a/user/windrbd-compat-headers/linux/netlink.h
-+++ b/user/windrbd-compat-headers/linux/netlink.h
-@@ -121,7 +121,10 @@ struct nlattr
- /////////////////////////////////////////////////////////////
- // Genetlink.h
- /////////////////////////////////////////////////////////////
-+
-+#ifndef GENL_NAMSIZ
- #define GENL_NAMSIZ			    16      /* length of family name */
-+#endif
+diff --git a/user/windrbd/windrbd.c b/user/windrbd/windrbd.c
+index 28385cf5..2602f599 100644
+--- a/user/windrbd/windrbd.c
++++ b/user/windrbd/windrbd.c
+@@ -18,6 +18,7 @@
+ #include <ctype.h>
+ #include <sys/queue.h>
+ #include <assert.h>
++#include <stdbool.h>
  
- struct genlmsghdr
- {
+ #include <winioctl.h>
+ #include <shellapi.h>
 -- 
 2.17.0
 
