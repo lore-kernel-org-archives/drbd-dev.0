@@ -1,26 +1,42 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com
-	[209.85.215.195])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id EE25B103B4AE
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Feb 2019 23:01:06 +0100 (CET)
-Received: by mail-pg1-f195.google.com with SMTP id r11so107937pgp.6
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Feb 2019 14:01:06 -0800 (PST)
-To: "Gustavo A. R. Silva" <gustavo@embeddedor.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>
-References: <20190212212820.GA15942@embeddedor>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <4a4429a8-56d4-b349-444c-282246537121@kernel.dk>
-Date: Tue, 12 Feb 2019 14:36:20 -0700
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
+	[209.85.221.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 38C0E101E043
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Mar 2019 11:37:45 +0100 (CET)
+Received: by mail-wr1-f67.google.com with SMTP id g12so20804194wrm.5
+	for <drbd-dev@lists.linbit.com>; Fri, 08 Mar 2019 02:37:45 -0800 (PST)
+Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
+	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
+	c17sm11517488wrs.17.2019.03.08.02.32.39
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Fri, 08 Mar 2019 02:32:39 -0800 (PST)
+Resent-Message-ID: <20190308103236.GM31741@soda.linbit>
+Received: from gateway23.websitewelcome.com (gateway23.websitewelcome.com
+	[192.185.49.124])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CF1591011B9A
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Feb 2019 20:52:58 +0100 (CET)
+Received: from cm10.websitewelcome.com (cm10.websitewelcome.com [100.42.49.4])
+	by gateway23.websitewelcome.com (Postfix) with ESMTP id 10B0522CFA
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Feb 2019 13:31:24 -0600 (CST)
+To: Roland Kammerer <roland.kammerer@linbit.com>
+References: <20190123064501.GA26147@embeddedor>
+	<20190129094230.ezjzpfwf5xx47luu@rck.sh>
+From: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
+Message-ID: <577904a8-2882-1895-007b-55e92cfdf918@embeddedor.com>
+Date: Tue, 26 Feb 2019 13:31:22 -0600
 MIME-Version: 1.0
-In-Reply-To: <20190212212820.GA15942@embeddedor>
+In-Reply-To: <20190129094230.ezjzpfwf5xx47luu@rck.sh>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Kees Cook <keescook@chromium.org>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd_receiver: mark expected switch
-	fall-throughs
+Content-Transfer-Encoding: 7bit
+Cc: Jens Axboe <axboe@kernel.dk>, Kees Cook <keescook@chromium.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Philip Kelleher <pjk1939@linux.ibm.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] block: Mark expected switch fall-throughs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,65 +48,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2/12/19 2:28 PM, Gustavo A. R. Silva wrote:
-> In preparation to enabling -Wimplicit-fallthrough, mark switch
-> cases where we are expecting to fall through.
-> 
-> This patch fixes the following warnings:
-> 
-> drivers/block/drbd/drbd_receiver.c: In function ‘drbd_asb_recover_0p’:
-> drivers/block/drbd/drbd_receiver.c:3093:6: warning: this statement may fall through [-Wimplicit-fallthrough=]
->    if (self == 1 && peer == 0) {
->       ^
-> drivers/block/drbd/drbd_receiver.c:3098:2: note: here
->   case ASB_DISCARD_OLDER_PRI:
->   ^~~~
-> drivers/block/drbd/drbd_receiver.c:3120:6: warning: this statement may fall through [-Wimplicit-fallthrough=]
->    if (after_sb_0p == ASB_DISCARD_ZERO_CHG)
->       ^
-> drivers/block/drbd/drbd_receiver.c:3123:2: note: here
->   case ASB_DISCARD_LEAST_CHG:
->   ^~~~
-> 
-> Warning level 3 was used: -Wimplicit-fallthrough=3
-> 
-> Notice that in some cases, the code comment is modified in
-> accordance with what GCC is expecting to find.
-> 
-> This patch is part of the ongoing efforts to enable
-> -Wimplicit-fallthrough.
-> 
-> Signed-off-by: Gustavo A. R. Silva <gustavo@embeddedor.com>
-> ---
->  drivers/block/drbd/drbd_receiver.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-> index c7ad88d91a09..78bb763a367d 100644
-> --- a/drivers/block/drbd/drbd_receiver.c
-> +++ b/drivers/block/drbd/drbd_receiver.c
-> @@ -3094,7 +3094,7 @@ static int drbd_asb_recover_0p(struct drbd_peer_device *peer_device) __must_hold
->  			rv =  1;
->  			break;
->  		}
-> -		/* Else fall through to one of the other strategies... */
-> +		/* Else fall through - to one of the other strategies... */
->  	case ASB_DISCARD_OLDER_PRI:
->  		if (self == 0 && peer == 1) {
->  			rv = 1;
-> @@ -3119,7 +3119,7 @@ static int drbd_asb_recover_0p(struct drbd_peer_device *peer_device) __must_hold
->  		}
->  		if (after_sb_0p == ASB_DISCARD_ZERO_CHG)
->  			break;
-> -		/* else: fall through */
-> +		/* Else fall through */
 
-This is getting really silly, as these two hunks both aptly demonstrate. Can
-we please inject some sanity into this fall through witch hunt?
 
-The last hunk is updating ANOTHER patch that also attempted to silence this
-stuff.
+On 1/29/19 3:42 AM, Roland Kammerer wrote:
+> On Wed, Jan 23, 2019 at 12:45:01AM -0600, Gustavo A. R. Silva wrote:
+>> In preparation to enabling -Wimplicit-fallthrough, mark switch cases
+>> where we are expecting to fall through.
+>>
+>> Warning level 3 was used: -Wimplicit-fallthrough=3
+>>
+>> This patch is part of the ongoing efforts to enabling
+>> -Wimplicit-fallthrough
+>>
+>> Signed-off-by: Gustavo A. R. Silva <gustavo@embeddedor.com>
+>> ---
+>>  drivers/block/drbd/drbd_int.h      | 2 +-
+>>  drivers/block/drbd/drbd_receiver.c | 4 ++--
+>>  drivers/block/drbd/drbd_req.c      | 2 +-
+>>  drivers/block/rsxx/core.c          | 1 +
+>>  4 files changed, 5 insertions(+), 4 deletions(-)
+>>
+> 
+> Hi Gustavo,
+> 
+> as also discussed with Lars in person, obviously OK for the DRBD part.
+> 
+> Acked-by: Roland Kammerer <roland.kammerer@linbit.com>
+> 
 
--- 
-Jens Axboe
+Thank you, Roland.
 
+Friendly ping:
+
+Who can take this, please?
+
+Thanks
+--
+Gustavo
