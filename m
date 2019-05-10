@@ -1,23 +1,23 @@
-Return-Path: <penguin-kernel@i-love.sakura.ne.jp>
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp [202.181.97.72])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 91BE81028A61
-	for <drbd-dev@lists.linbit.com>; Fri, 26 Apr 2019 12:07:12 +0200 (CEST)
-To: Philipp Reisner <philipp.reisner@linbit.com>
-References: <00660ec7-ef62-e376-2e2c-71e42f2f649b@i-love.sakura.ne.jp>
-	<3329030.LK3q2FzS93@fat-tyre>
-	<95efb6b1-4f0c-e965-2977-5c8c85e04567@i-love.sakura.ne.jp>
-	<4867162.iqFBJbCNh0@fat-tyre>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <a16907b9-1363-e6b1-d61b-f4903f524908@i-love.sakura.ne.jp>
-Date: Fri, 26 Apr 2019 19:07:03 +0900
+Return-Path: <drbd-dev@lists.ewheeler.net>
+Received: from mx.ewheeler.net (mx.ewheeler.net [66.155.3.69])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B7D1101E043
+	for <drbd-dev@lists.linbit.com>; Fri, 10 May 2019 19:43:13 +0200 (CEST)
+Date: Fri, 10 May 2019 17:36:32 +0000 (UTC)
+From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
+To: Lars Ellenberg <lars.ellenberg@linbit.com>
+In-Reply-To: <20180116094907.GD4107@soda.linbit>
+Message-ID: <alpine.LRH.2.11.1905101728280.1835@mx.ewheeler.net>
+References: <15124635.GA4107@soda.linbit>
+	<1516057231-21756-1-git-send-email-drbd-dev@lists.ewheeler.net>
+	<20180116072615.GA3940@infradead.org>
+	<20180116094907.GD4107@soda.linbit>
 MIME-Version: 1.0
-In-Reply-To: <4867162.iqFBJbCNh0@fat-tyre>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Cc: Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: Avoid GFP_KERNEL allocation from
- alloc_send_buffer()
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	stable@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd: fix discard_zeroes_if_aligned
+	regression
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,19 +29,89 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2019/04/26 18:29, Philipp Reisner wrote:
->> If you guarantee that page count drops to 1 by waiting for the previous
->> send_page() to finish, GFP_NOWAIT | __GFP_NOWARN or GFP_NOIO |
->> __GFP_NORETRY | __GFP_NOWARN should be used instead of GFP_NOIO |
->> __GFP_NOWARN.
+On Tue, 16 Jan 2018, Lars Ellenberg wrote:
+
+> On Mon, Jan 15, 2018 at 11:26:15PM -0800, Christoph Hellwig wrote:
+> > NAK.  Calling a discard and expecting zeroing is simply buggy.
 > 
-> Ack. Do you want to send a patch that turns the current master into
-> GFP_NOIO | __GFP_NORETRY | __GFP_NOWARN
-> ?
+> What he said.
 > 
-> I will ack and apply it.
+> The bug/misunderstanding was that we now use zeroout even for discards,
+> with the assumption that it would try to do discards where it can.
 > 
-> cheers.
+> Which is even true.
+> 
+> But our expectations of when zeroout "should" use unmap,
+> and where it actually can do that safely
+> based on the information it has,
+> don't really match:
+> our expectations where wrong, we assumed too much.
+> (in the general case).
+> 
+> Which means in DRBD we have to stop use zeroout for discards,
+> and again pass down normal discard for discards.
+> 
+> In the specific case where the backend to DRBD is lvm-thin,
+> AND it does de-alloc blocks on discard,
+> AND it does NOT have skip_block_zeroing set or it's backend
+> does zero on discard and it does discard passdown, and we tell
+> DRBD about all of that (using the discard_zeroes_if_aligned flag)
+> then we can do this "zero head and tail, discard full blocks",
+> and expect them to be zero.
+> 
+> If skip_block_zeroing is set however, and there is no discard
+> passdown in thin, or the backend of thin does not zero on discard,
+> DRBD can still pass down discards to thin, and expect them do be
+> de-allocated, but can not expect discarded ranges to remain
+> "zero", any later partial write to an unallocated area could pull
+> in different "undefined" garbage on different replicas for the
+> not-written-to part of a new allocated block.
+> 
+> The end result is that you have areas of the block device
+> that return different data depending on which replica you
+> read from.
+> 
+> But that is the case even eithout discard in that setup,
+> don't do that then or live with it.
+> 
+> "undefined data" is undefined, you have that directly on thin
+> in that setup already, with DRBD on top you now have several
+> versions of "undefined".
+> 
+> Anything on top of such a setup must not do "read-modify-write"
+> of "undefined" data and expect a defined result, adding DRBD
+> on top does not change that.
+> 
+> DRBD can deal with that just fine, but our "online verify" will
+> report loads of boring "mismatches" for those areas.
+> 
+> TL;DR: we'll stop doing "discard-is-zeroout"
+> (our assumptions were wrong).
+> We still won't do exactly "discard-is-discard", but re-enable our
+> "discard-is-discard plus zeroout on head and tail", because in
+> some relevant setups, this gives us the best result, and avoids
+> the false positives in our online-verify.
+> 
+>     Lars
 > 
 
-You can write that patch. Thank you for responding.
+Hi Lars,
+
+We just tried 4.19.x and this bugs still exists. We applied the patch 
+which was originally submitted to this thread and it still applies cleanly 
+and seems to work for our use case. You mentioned that you had some older 
+code which zeroed out unaligned discard requests (or perhaps it was for a 
+different purpose) that you may be able to use to patch this. Could you 
+dig those up and see if we can get this solved?
+
+It would be nice to be able to use drbd with thin backing volumes from the 
+vanilla kernel. If this has already been fixed in something newer than 
+4.19, then please point me to the commit.
+
+Thank you for your help!
+
+ 
+--
+Eric Wheeler
+
+
