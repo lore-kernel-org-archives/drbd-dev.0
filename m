@@ -1,26 +1,30 @@
-Return-Path: <drbd-dev@lists.ewheeler.net>
-Received: from mx.ewheeler.net (mx.ewheeler.net [66.155.3.69])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id C04E81028A65
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Jun 2019 21:50:54 +0200 (CEST)
-Date: Thu, 6 Jun 2019 19:50:52 +0000 (UTC)
-From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
-To: Lars Ellenberg <lars.ellenberg@linbit.com>
-In-Reply-To: <20190603124804.GI5803@soda.linbit>
-Message-ID: <alpine.LRH.2.11.1906061949230.27699@mx.ewheeler.net>
-References: <15124635.GA4107@soda.linbit>
-	<1516057231-21756-1-git-send-email-drbd-dev@lists.ewheeler.net>
-	<20180116072615.GA3940@infradead.org>
-	<20180116094907.GD4107@soda.linbit>
-	<alpine.LRH.2.11.1905101728280.1835@mx.ewheeler.net>
-	<20190528131823.GD5803@soda.linbit>
-	<alpine.LRH.2.11.1906012121470.27699@mx.ewheeler.net>
-	<20190603124804.GI5803@soda.linbit>
+Return-Path: <dab21774@gmail.com>
+Received: from mail-it1-f178.google.com (mail-it1-f178.google.com
+	[209.85.166.178])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 382D61028A61
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Jun 2019 17:57:35 +0200 (CEST)
+Received: by mail-it1-f178.google.com with SMTP id l21so4277116ita.2
+	for <drbd-dev@lists.linbit.com>; Wed, 05 Jun 2019 08:57:35 -0700 (PDT)
+Received: from [192.168.1.9] (c-73-78-150-191.hsd1.co.comcast.net.
+	[73.78.150.191])
+	by smtp.gmail.com with ESMTPSA id j9sm661519itk.23.2019.06.05.08.57.33
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Wed, 05 Jun 2019 08:57:33 -0700 (PDT)
+From: David Butterfield <dab21774@gmail.com>
+To: drbd-dev@lists.linbit.com
+References: <f5c1cf53-0eb7-35ab-7fbb-cb64e5f16305@gmail.com>
+	<cf05cd9c-687f-6264-0bc3-aefa90c91b3a@gmail.com>
+	<CANr6vz8kxacCYSb38G464Y2c1xw1ZqZAddN45LTwEcnE_Y2dsA@mail.gmail.com>
+	<7b015341-f9f7-e207-84d7-61ab8f0d5a7b@gmail.com>
+Message-ID: <74882b72-57a9-bc45-76af-0be4b11a5327@gmail.com>
+Date: Wed, 5 Jun 2019 09:57:32 -0600
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED;
-	BOUNDARY="-1690155773-1939501972-1559850608=:27699"
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: fix discard_zeroes_if_aligned
- regression
+In-Reply-To: <7b015341-f9f7-e207-84d7-61ab8f0d5a7b@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] history uuids misaligned within device_statistics
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,98 +36,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+While playing with DRBD I've noticed a few things I'll mention here.
+I already pointed out the problem that was most clearly a bug (indexing drbd_genl_ops by command number).
+I'll put most of these comments into separate e-mail messages to facilitate their separate dispositions.
 
----1690155773-1939501972-1559850608=:27699
-Content-Type: TEXT/PLAIN; CHARSET=ISO-8859-15
-Content-Transfer-Encoding: 8BIT
+Regards,
+David Butterfield
+-----
 
-On Mon, 3 Jun 2019, Lars Ellenberg wrote:
-> On Sun, Jun 02, 2019 at 12:28:31AM +0000, Eric Wheeler wrote:
-> > On Tue, 28 May 2019, Lars Ellenberg wrote:
-> > 
-> > > On Fri, May 10, 2019 at 05:36:32PM +0000, Eric Wheeler wrote:
-> > > > Hi Lars,
-> > > > 
-> > > > We just tried 4.19.x and this bugs still exists. We applied the patch 
-> > > > which was originally submitted to this thread and it still applies cleanly 
-> > > > and seems to work for our use case. You mentioned that you had some older 
-> > > > code which zeroed out unaligned discard requests (or perhaps it was for a 
-> > > > different purpose) that you may be able to use to patch this. Could you 
-> > > > dig those up and see if we can get this solved?
-> > > > 
-> > > > It would be nice to be able to use drbd with thin backing volumes from the 
-> > > > vanilla kernel. If this has already been fixed in something newer than 
-> > > > 4.19, then please point me to the commit.
-> > > 
-> > > I think it was merged upstream in 5.0
-> > > f31e583aa2c2 drbd: introduce P_ZEROES (REQ_OP_WRITE_ZEROES on the "wire")
-> > 
-> > Thanks Lars, I appreciate your patch.  
-> > 
-> > Your unaligned zerout code in drbd_issue_discard_or_zero_out() looks 
-> > great.  I particulary like how you adjusted max_discard_sectors to the 
-> > granularity, as well as alignment handling.  Well thought out.
-> > 
-> > Your commit notes that "for backward compatibility, P_TRIM means zero-out, 
-> > unless the DRBD_FF_WZEROES feature flag is agreed upon during handshake."
-> > 
-> > We test our environment by deploying the newer kernel on one of the DRBD 
-> > servers and checking for regressions---but this will cause a zero-out on 
-> > the new server because the old server doesn't yet support DRBD_FF_WZEROES.
-> > 
-> > For our purpose, can you think of any reason that it would be unsafe to 
-> > hack the following into drbd_do_features() so the newer version will not 
-> > zero-out while we test and get both nodes up to the newer version?
-> 
-> If you "fake" agreed_features to include DRBD_FF_WZEROES,
-> that may start to send the P_ZEROES command,
-> which the older peer does not understand yet,
-> triggering a protocol error and disconnect...
+The history_uuids in the device_statistics are 64 bits wide, but they are defined as a
+__bin_field which does not align to a 64-bit boundary.  The history_uuids field follows a 32-bit
+field and is always 64-bit MIS-aligned.
 
-Good point.
+This leads to a misaligned access at runtime during a "drbdsetup attach" command.  On x86 the 
+misaligned access will work (for non-atomic operations), but not as fast as an aligned access.
+Other architectures may produce a runtime fault.
 
-> You can always use a newer DRBD module with the older kernel,
-> until you are prepared to upgrade the kernel...
-> 
-> But you knew that.
+In drbd_nl.c:
+257 GENL_struct(DRBD_NLA_DEVICE_STATISTICS, 20, device_statistics,
+258         __u64_field(1, 0, dev_size)  /* (sectors) */
+259         __u64_field(2, 0, dev_read)  /* (sectors) */
+260         __u64_field(3, 0, dev_write)  /* (sectors) */
+261         __u64_field(4, 0, dev_al_writes)  /* activity log writes (count) */
+262         __u64_field(5, 0, dev_bm_writes)  /*  bitmap writes  (count) */
+263         __u32_field(6, 0, dev_upper_pending)  /* application requests in progress */
+264         __u32_field(7, 0, dev_lower_pending)  /* backing device requests in progress */
+265         __flg_field(8, 0, dev_upper_blocked)
+266         __flg_field(9, 0, dev_lower_blocked)
+267         __flg_field(10, 0, dev_al_suspended)  /* activity log suspended */
+268         __u64_field(11, 0, dev_exposed_data_uuid)
+269         __u64_field(12, 0, dev_current_uuid)
+270         __u32_field(13, 0, dev_disk_flags)
+271         //XXX This misaligns the 64-bit history_uuids, leading to misaligned CPU access
+272         __bin_field(14, 0, history_uuids, HISTORY_UUIDS * sizeof(__u64))
+273 )
 
-True.  I was hoping for a way to test without making any changes to the 
-first node, but I'll give it a shot.  At least we can stay on the older 
-kernel version and only upgrade the drbd module.
-
-Thanks for the feedback!
-
---
-Eric Wheeler
-
-
-
-> 
-> > diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-> > index c7ad88d..76191e6 100644
-> > --- a/drivers/block/drbd/drbd_receiver.c
-> > +++ b/drivers/block/drbd/drbd_receiver.c
-> > @@ -5382,6 +5382,8 @@ static int drbd_do_features(struct drbd_connection *connection)
-> >  	connection->agreed_pro_version = min_t(int, PRO_VERSION_MAX, p->protocol_max);
-> >  	connection->agreed_features = PRO_FEATURES & be32_to_cpu(p->feature_flags);
-> >  
-> > +	connection->agreed_features |= DRBD_FF_WZEROES;
-> > +
-> >  	drbd_info(connection, "Handshake successful: "
-> >  	     "Agreed network protocol version %d\n", connection->agreed_pro_version);
-> 
-> -- 
-> : Lars Ellenberg
-> : LINBIT | Keeping the Digital World Running
-> : DRBD -- Heartbeat -- Corosync -- Pacemaker
-> : R&D, Integration, Ops, Consulting, Support
-> 
-> DRBD® and LINBIT® are registered trademarks of LINBIT
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
-> 
----1690155773-1939501972-1559850608=:27699--
+drbd_nl.c:5089:21: runtime error: store to misaligned address 0x7f82417efffc for type 'u64', which requires 8 byte alignment
+0x7f82417efffc: note: pointer points here
+  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00
+              ^
