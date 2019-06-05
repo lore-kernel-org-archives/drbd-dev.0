@@ -1,25 +1,26 @@
 Return-Path: <dab21774@gmail.com>
-Received: from mail-io1-f47.google.com (mail-io1-f47.google.com
-	[209.85.166.47])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 94DC61028A61
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Jun 2019 18:05:32 +0200 (CEST)
-Received: by mail-io1-f47.google.com with SMTP id e5so1639262iok.4
-	for <drbd-dev@lists.linbit.com>; Wed, 05 Jun 2019 09:05:32 -0700 (PDT)
+Received: from mail-it1-f171.google.com (mail-it1-f171.google.com
+	[209.85.166.171])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E50711028A61
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Jun 2019 18:07:55 +0200 (CEST)
+Received: by mail-it1-f171.google.com with SMTP id i21so4301321ita.5
+	for <drbd-dev@lists.linbit.com>; Wed, 05 Jun 2019 09:07:55 -0700 (PDT)
 Received: from [192.168.1.9] (c-73-78-150-191.hsd1.co.comcast.net.
 	[73.78.150.191]) by smtp.gmail.com with ESMTPSA id
-	e130sm4865273ita.2.2019.06.05.09.05.30
+	x78sm1349607ita.44.2019.06.05.09.07.52
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Wed, 05 Jun 2019 09:05:31 -0700 (PDT)
+	Wed, 05 Jun 2019 09:07:54 -0700 (PDT)
 To: drbd-dev@lists.linbit.com
 From: David Butterfield <dab21774@gmail.com>
-Message-ID: <9ddd5d91-affe-4a82-b563-45ea6082f5df@gmail.com>
-Date: Wed, 5 Jun 2019 10:05:29 -0600
+Message-ID: <456e2172-20fa-7b9d-47db-466f41123571@gmail.com>
+Date: Wed, 5 Jun 2019 10:07:51 -0600
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] avoid compiler warning about redefined macro
+Content-Transfer-Encoding: 8bit
+Subject: [Drbd-dev] Avoid compiler warning about non-bool in logical
+	expression
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,10 +32,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In drbd_dax_pmem.h:35:
--#define arch_wb_cache_pmem(A, L) do { } while (0)
-+#define arch_wb_cache_pmem(A, S) do { } while (0)
+Avoid a compiler warning:
+    drbd_receiver.c:1693:12: warning: logical ‘and’ applied to non-boolean constant [-Wlogical-op]
 
-Avoid compiler warning by making the macro definition exactly match the one in
-linux/libnvdimm.h:
-    drbd_dax_pmem.h:35: warning: "arch_wb_cache_pmem" redefined
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+@@ -1690,7 +1690,7 @@ next_bio:
+                bio->bi_next = NULL;
+
+                /* strip off REQ_UNPLUG unless it is the last bio */
+-               if (bios && DRBD_REQ_UNPLUG)
++               if (bios && (DRBD_REQ_UNPLUG != 0))
+                        bio->bi_opf &= ~DRBD_REQ_UNPLUG;
+                drbd_generic_make_request(device, fault_type, bio);
+
