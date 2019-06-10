@@ -1,25 +1,17 @@
-Return-Path: <dab21774@gmail.com>
-Received: from mail-it1-f195.google.com (mail-it1-f195.google.com
-	[209.85.166.195])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 520591028A61
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Jun 2019 18:15:29 +0200 (CEST)
-Received: by mail-it1-f195.google.com with SMTP id l21so4377509ita.2
-	for <drbd-dev@lists.linbit.com>; Wed, 05 Jun 2019 09:15:29 -0700 (PDT)
-Received: from [192.168.1.9] (c-73-78-150-191.hsd1.co.comcast.net.
-	[73.78.150.191]) by smtp.gmail.com with ESMTPSA id
-	l11sm1385633ioj.32.2019.06.05.09.15.28
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Wed, 05 Jun 2019 09:15:28 -0700 (PDT)
-To: drbd-dev@lists.linbit.com
-From: David Butterfield <dab21774@gmail.com>
-Message-ID: <28397d5c-72ca-e4b5-fb00-7b55466e7441@gmail.com>
-Date: Wed, 5 Jun 2019 10:15:23 -0600
+Return-Path: <kcchuang.white@gmail.com>
+Received: from mail-lj1-f180.google.com (mail-lj1-f180.google.com
+	[209.85.208.180])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 045481011BFC
+	for <drbd-dev@lists.linbit.com>; Mon, 10 Jun 2019 14:26:58 +0200 (CEST)
+Received: by mail-lj1-f180.google.com with SMTP id 131so7758383ljf.4
+	for <drbd-dev@lists.linbit.com>; Mon, 10 Jun 2019 05:26:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] main.c comments
+From: =?UTF-8?B?6I6K5Yex5YKR?= <kcchuang.white@gmail.com>
+Date: Mon, 10 Jun 2019 20:20:22 +0800
+Message-ID: <CAFsC7=cjKn2XKdOrQHsB8XMUnRQom7wd8yxHbp2s0afZLZRqkA@mail.gmail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/mixed; boundary="000000000000127d56058af7352d"
+Subject: [Drbd-dev] drbd local replication usage problem
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,48 +23,231 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-These three comments about main.c are the end of what I have on DRBD for now.
+--000000000000127d56058af7352d
+Content-Type: multipart/alternative; boundary="000000000000127d53058af7352b"
 
-Three more things I noticed in drbd_main.c:
+--000000000000127d53058af7352b
+Content-Type: text/plain; charset="UTF-8"
 
-(1) Isn't the third argument to module_param_named() supposed to be the type of
-    the second argument?  (But seems to require it as a single token??)
+Hi drbd-dev,
 
-(2) The cast avoids a compiler warning about signed/unsigned comparison.
+It will be appreciated if you can give me some advice.
+I'm try to do local block device replication(vda vdb), in the very
+beginning I use drbdsetup to create a local replication connection with the
+same ip + different port, and it works(as attached
+drbdsetup-to-create-local-replication.sh). It seems like drbd kernel module
+support this kind of usage(local replication).
 
-(3) q->queue_lock is needed by blk_queue_flag_set(), even if !defined(blk_queue_plugged),
-    so I would move its initialization outside the #ifdef blk_queue_plugged.
+Then I try to make it as /etc/drbd.d/*.res formats, I create r0.res and
+r0-local.res. When I execute drbdadm up r0, drbdadm report error(as
+attached drbdadm_up_error.log) something like "address conflict". And I
+found it was caused by the function 'check_addr_conflict' in
+$drbd-utils/user/v9/drbdadm_postparse.c Line 1171~1173, I can see the
+comments of check_addr_conflict(below), but I don't get it ^^" :
+/* An AF/IP/addr triple might be used by multiple connections within one
+resource,  but may not be mentioned in any other resource... */. As my
+understanding the function check_addr_conflict is checking all resources if
+there's any AF/IP/addr triple mentioned in any other resources.
 
-diff --git a/drbd/drbd_main.c b/drbd/drbd_main.c
-index 4204deff..69245c57 100644
---- a/drbd/drbd_main.c
-+++ b/drbd/drbd_main.c
-@@ -146,7 +153,7 @@ const struct kernel_param_ops param_ops_drbd_protocol_version = {
- #endif
+*My questions are:*
+*Q1. why an AF/IP/addr triple may not be mentioned in any other resource?*
+*Q2. I mark off Line 1171~1173, make drbdadm skip 'check_addr_conflict' and
+it works. Do you have any concerns? *
+*Do you have any idea to do local replication with drbdadm and configured
+/etc/drbd.d/*.res ?*
 
- unsigned int drbd_protocol_version_min = PRO_VERSION_MIN;
--module_param_named(protocol_version_min, drbd_protocol_version_min, drbd_protocol_version, 0644);
-+module_param_named(protocol_version_min, drbd_protocol_version_min, uint, 0644);
+== attached files contents ==
+1. drbdsetup-to-create-local-replication.sh:
+# create r0 resource
+drbdmeta 1 v09 /dev/vda internal create-md 3 --force
+drbdsetup new-resource r0 1
+drbdsetup new-minor r0 1 0
+drbdsetup attach 1 /dev/vda /dev/vda internal
+drbdsetup new-peer r0 2 --_name=local --protocol=C
+drbdsetup primary r0 --force
+drbdsetup  connect r0 2
+
+# create r0-local resource
+drbdmeta 2 v09 /dev/vdb internal create-md 3 --force
+drbdsetup new-resource r0-local 2
+drbdsetup new-minor r0-local 2 0
+drbdsetup attach 2 /dev/vdb /dev/vdb internal
+drbdsetup new-peer r0-local 0 --_name=local --protocol=C
+drbdsetup connect r0-local 1
+
+# start syncing vda to vdb ...
+
+2. drbdadm_up_error.log:
+[root@k80 ~]# /usr/sbin/drbdadm.org up r0
+/etc/drbd.d/r0.res:0: in resource r0
+    ipv4:192.168.122.80:7789 is also used /etc/drbd.d/r0-hot.res:0
+(resource r0-local)
+/etc/drbd.d/r0.res:0: in resource r0
+    ipv4:192.168.122.80:7790 is also used /etc/drbd.d/r0-hot.res:0
+(resource r0-local)
+
+3. /etc/drbd.d/r0.res(as attached):
+resource r0 {
+  device /dev/drbd1;
+  meta-disk internal;
+  disk "/dev/vda";
+  on k80 {
+    node-id 1;
+    address 192.168.122.80:7789;
+  }
+  on local {
+    node-id 2;
+    address 192.168.122.80:7790;
+  }
+
+  connection-mesh {
+    hosts k80 local;
+  }
+}
+
+4. /etc/drbd.d/r0-local.res:
+resource r0-local {
+  disk "/dev/vdb";
+  device /dev/drbd2;
+  meta-disk internal;
+  on k80 {
+    node-id 2;
+    address 192.168.122.80:7790;
+  }
+  on local {
+    node-id 1;
+    address 192.168.122.80:7789;
+  }
+
+  connection-mesh {
+    hosts  k80 local;
+  }
+}
 
 
- /* in 2.6.x, our device mapping and config info contains our virtual gendisks
-@@ -1831,7 +1840,7 @@ static void dcbp_set_start(struct p_compressed_bm *p, int set)
- static void dcbp_set_pad_bits(struct p_compressed_bm *p, int n)
- {
-        BUG_ON(n & ~0x7);
--       p->encoding = (p->encoding & (~0x7 << 4)) | (n << 4);
-+       p->encoding = (p->encoding & ((unsigned)~0x7 << 4)) | (n << 4);
- }
+-- 
+Thanks,
+Kevin
 
- static int fill_bitmap_rle_bits(struct drbd_peer_device *peer_device,
-@@ -3760,8 +3769,9 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- #ifdef COMPAT_HAVE_BLK_QUEUE_MERGE_BVEC
-        blk_queue_merge_bvec(q, drbd_merge_bvec);
- #endif
-+       q->queue_lock = &resource->req_lock; /* used by blk_queue_flag_set() */
- #ifdef blk_queue_plugged
--       q->queue_lock = &resource->req_lock; /* needed since we use */
-+       /* needed since we use */
-        /* plugging on a queue, that actually has no requests! */
-        q->unplug_fn = drbd_unplug_fn;
- #endif
+--000000000000127d53058af7352b
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hi drbd-dev,<div><br>It will be appreciated if you can giv=
+e me some advice.</div><div>I&#39;m try to do local block device replicatio=
+n(vda vdb), in the very beginning I use drbdsetup to create a local replica=
+tion connection with the same ip + different port, and it works(as attached=
+ drbdsetup-to-create-local-replication.sh). It seems like drbd kernel modul=
+e support this kind of usage(local replication).</div><div><br></div><div>T=
+hen I try to make it as /etc/drbd.d/*.res formats, I create r0.res and r0-l=
+ocal.res. When I execute drbdadm up r0, drbdadm report error(as attached dr=
+bdadm_up_error.log) something like &quot;address conflict&quot;. And I foun=
+d it was caused by the function &#39;check_addr_conflict&#39; in $drbd-util=
+s/user/v9/drbdadm_postparse.c Line 1171~1173, I can see the comments of che=
+ck_addr_conflict(below), but I don&#39;t get it ^^&quot; :</div><div>/* An =
+AF/IP/addr triple might be used by multiple connections within one resource=
+,=C2=A0 but may not be mentioned in any other resource... */. As my underst=
+anding the function check_addr_conflict is checking all resources if there&=
+#39;s any AF/IP/addr triple mentioned in any other resources.</div><div><br=
+></div><div><b><font size=3D"4">My questions are:</font></b></div><div><b><=
+font size=3D"4">Q1. why an AF/IP/addr triple may not be mentioned in any ot=
+her resource?</font></b></div><div><b><font size=3D"4">Q2. I mark off Line =
+1171~1173, make drbdadm skip &#39;check_addr_conflict&#39; and it works. Do=
+ you have any concerns?=C2=A0</font></b></div><div><b><font size=3D"4">Do y=
+ou have any idea to do local replication with drbdadm and configured /etc/d=
+rbd.d/*.res ?</font></b></div><div><br>=3D=3D attached files contents =3D=
+=3D</div><div>1. drbdsetup-to-create-local-replication.sh:</div># create r0=
+ resource<br>drbdmeta 1 v09 /dev/vda internal create-md 3 --force<br>drbdse=
+tup new-resource r0 1<br>drbdsetup new-minor r0 1 0<br>drbdsetup attach 1 /=
+dev/vda /dev/vda internal<br>drbdsetup new-peer r0 2 --_name=3Dlocal --prot=
+ocol=3DC<br>drbdsetup primary r0 --force<br>drbdsetup =C2=A0connect r0 2<br=
+><br># create r0-local resource<br>drbdmeta 2 v09 /dev/vdb internal create-=
+md 3 --force<br>drbdsetup new-resource r0-local 2<br>drbdsetup new-minor r0=
+-local 2 0<br>drbdsetup attach 2 /dev/vdb /dev/vdb internal<br>drbdsetup ne=
+w-peer r0-local 0 --_name=3Dlocal --protocol=3DC<br>drbdsetup connect r0-lo=
+cal 1<br><br><div># start syncing vda to vdb ...</div><div><br></div><div>2=
+. drbdadm_up_error.log:</div><div>[root@k80 ~]# /usr/sbin/<a href=3D"http:/=
+/drbdadm.org">drbdadm.org</a> up r0<br>/etc/drbd.d/r0.res:0: in resource r0=
+<br>=C2=A0 =C2=A0 ipv4:<a href=3D"http://192.168.122.80:7789">192.168.122.8=
+0:7789</a> is also used /etc/drbd.d/r0-hot.res:0 (resource r0-local)<br>/et=
+c/drbd.d/r0.res:0: in resource r0<br>=C2=A0 =C2=A0 ipv4:<a href=3D"http://1=
+92.168.122.80:7790">192.168.122.80:7790</a> is also used /etc/drbd.d/r0-hot=
+.res:0 (resource r0-local)<br></div><div><br></div><div>3. /etc/drbd.d/r0.r=
+es(as attached):</div><div>resource r0 {<br>=C2=A0 device /dev/drbd1;<br>=
+=C2=A0 meta-disk internal;<br>=C2=A0 disk &quot;/dev/vda&quot;;<br>=C2=A0 o=
+n k80 {<br>=C2=A0 =C2=A0 node-id 1;<br>=C2=A0 =C2=A0 address <a href=3D"htt=
+p://192.168.122.80:7789">192.168.122.80:7789</a>;<br>=C2=A0 }<br>=C2=A0 on =
+local {<br>=C2=A0 =C2=A0 node-id 2;<br>=C2=A0 =C2=A0 address <a href=3D"htt=
+p://192.168.122.80:7790">192.168.122.80:7790</a>;<br>=C2=A0 }<br><br>=C2=A0=
+ connection-mesh {<br>=C2=A0 =C2=A0 hosts k80 local;<br>=C2=A0 }<br>}<br></=
+div><div><br></div><div>4. /etc/drbd.d/r0-local.res:</div><div>resource r0-=
+local {<br>=C2=A0 disk &quot;/dev/vdb&quot;;<br>=C2=A0 device /dev/drbd2;<b=
+r>=C2=A0 meta-disk internal;<br>=C2=A0 on k80 {<br>=C2=A0 =C2=A0 node-id 2;=
+<br>=C2=A0 =C2=A0 address <a href=3D"http://192.168.122.80:7790">192.168.12=
+2.80:7790</a>;<br>=C2=A0 }<br>=C2=A0 on local {<br>=C2=A0 =C2=A0 node-id 1;=
+<br>=C2=A0 =C2=A0 address <a href=3D"http://192.168.122.80:7789">192.168.12=
+2.80:7789</a>;<br>=C2=A0 }<br><br>=C2=A0 connection-mesh {<br>=C2=A0 =C2=A0=
+ hosts =C2=A0k80 local;<br>=C2=A0 }<br>}<br></div><div><br></div><div><div>=
+<br></div>-- <br><div dir=3D"ltr" class=3D"gmail_signature" data-smartmail=
+=3D"gmail_signature"><div dir=3D"ltr">Thanks,<div>Kevin</div></div></div></=
+div></div>
+
+--000000000000127d53058af7352b--
+
+--000000000000127d56058af7352d
+Content-Type: text/plain; charset="US-ASCII"; name="r0-local.res"
+Content-Disposition: attachment; filename="r0-local.res"
+Content-Transfer-Encoding: base64
+Content-ID: <f_jwq4zd9l1>
+X-Attachment-Id: f_jwq4zd9l1
+
+cmVzb3VyY2UgcjAtbG9jYWwgew0KICBkaXNrICIvZGV2L3ZkYiI7DQogIGRldmljZSAvZGV2L2Ry
+YmQyOw0KICBtZXRhLWRpc2sgaW50ZXJuYWw7DQogIG9uIGs4MCB7DQogICAgbm9kZS1pZCAyOw0K
+ICAgIGFkZHJlc3MgMTkyLjE2OC4xMjIuODA6Nzc5MDsNCiAgfQ0KICBvbiBsb2NhbCB7DQogICAg
+bm9kZS1pZCAxOw0KICAgIGFkZHJlc3MgMTkyLjE2OC4xMjIuODA6Nzc4OTsNCiAgfQ0KDQogIGNv
+bm5lY3Rpb24tbWVzaCB7DQogICAgaG9zdHMgIGs4MCBsb2NhbDsNCiAgfQ0KfQ==
+--000000000000127d56058af7352d
+Content-Type: text/plain; charset="US-ASCII"; name="r0.res"
+Content-Disposition: attachment; filename="r0.res"
+Content-Transfer-Encoding: base64
+Content-ID: <f_jwq4zd870>
+X-Attachment-Id: f_jwq4zd870
+
+cmVzb3VyY2UgcjAgew0KICBkZXZpY2UgL2Rldi9kcmJkMTsNCiAgbWV0YS1kaXNrIGludGVybmFs
+Ow0KICBkaXNrICIvZGV2L3ZkYSI7DQogIG9uIGs4MCB7DQogICAgbm9kZS1pZCAxOw0KICAgIGFk
+ZHJlc3MgMTkyLjE2OC4xMjIuODA6Nzc4OTsNCiAgfQ0KICBvbiBsb2NhbCB7DQogICAgbm9kZS1p
+ZCAyOw0KICAgIGFkZHJlc3MgMTkyLjE2OC4xMjIuODA6Nzc5MDsNCiAgfQ0KDQogIGNvbm5lY3Rp
+b24tbWVzaCB7DQogICAgaG9zdHMgazgwIGxvY2FsOw0KICB9DQp9
+--000000000000127d56058af7352d
+Content-Type: text/x-sh; charset="US-ASCII"; name="drbdsetup-to-create-local-replication.sh"
+Content-Disposition: attachment;
+	filename="drbdsetup-to-create-local-replication.sh"
+Content-Transfer-Encoding: base64
+Content-ID: <f_jwq9ni612>
+X-Attachment-Id: f_jwq9ni612
+
+IyBjcmVhdGUgcjAgcmVzb3VyY2UNCmRyYmRtZXRhIDEgdjA5IC9kZXYvdmRhIGludGVybmFsIGNy
+ZWF0ZS1tZCAzIC0tZm9yY2UNCmRyYmRzZXR1cCBuZXctcmVzb3VyY2UgcjAgMQ0KZHJiZHNldHVw
+IG5ldy1taW5vciByMCAxIDANCmRyYmRzZXR1cCBhdHRhY2ggMSAvZGV2L3ZkYSAvZGV2L3ZkYSBp
+bnRlcm5hbA0KZHJiZHNldHVwIG5ldy1wZWVyIHIwIDIgLS1fbmFtZT1sb2NhbCAtLXByb3RvY29s
+PUMNCmRyYmRzZXR1cCBwcmltYXJ5IHIwIC0tZm9yY2UNCmRyYmRzZXR1cCAgY29ubmVjdCByMCAy
+DQoNCiMgY3JlYXRlIHIwLWxvY2FsIHJlc291cmNlDQpkcmJkbWV0YSAyIHYwOSAvZGV2L3ZkYiBp
+bnRlcm5hbCBjcmVhdGUtbWQgMyAtLWZvcmNlDQpkcmJkc2V0dXAgbmV3LXJlc291cmNlIHIwLWxv
+Y2FsIDINCmRyYmRzZXR1cCBuZXctbWlub3IgcjAtbG9jYWwgMiAwDQpkcmJkc2V0dXAgYXR0YWNo
+IDIgL2Rldi92ZGIgL2Rldi92ZGIgaW50ZXJuYWwNCmRyYmRzZXR1cCBuZXctcGVlciByMC1sb2Nh
+bCAwIC0tX25hbWU9bG9jYWwgLS1wcm90b2NvbD1DDQpkcmJkc2V0dXAgY29ubmVjdCByMC1sb2Nh
+bCAxDQoNCiMgc3RhcnQgc3luY2luZy4uLg==
+--000000000000127d56058af7352d
+Content-Type: application/octet-stream; name="drbdadm_up_error.log"
+Content-Disposition: attachment; filename="drbdadm_up_error.log"
+Content-Transfer-Encoding: base64
+Content-ID: <f_jwq9nyur3>
+X-Attachment-Id: f_jwq9nyur3
+
+W3Jvb3RAazgwIH5dIyAvdXNyL3NiaW4vZHJiZGFkbS5vcmcgdXAgcjANCi9ldGMvZHJiZC5kL3Iw
+LnJlczowOiBpbiByZXNvdXJjZSByMA0KICAgIGlwdjQ6MTkyLjE2OC4xMjIuODA6Nzc4OSBpcyBh
+bHNvIHVzZWQgL2V0Yy9kcmJkLmQvcjAtaG90LnJlczowIChyZXNvdXJjZSByMC1sb2NhbCkNCi9l
+dGMvZHJiZC5kL3IwLnJlczowOiBpbiByZXNvdXJjZSByMA0KICAgIGlwdjQ6MTkyLjE2OC4xMjIu
+ODA6Nzc5MCBpcyBhbHNvIHVzZWQgL2V0Yy9kcmJkLmQvcjAtaG90LnJlczowIChyZXNvdXJjZSBy
+MC1sb2NhbCk=
+--000000000000127d56058af7352d--
