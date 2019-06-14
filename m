@@ -1,22 +1,28 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wr1-f49.google.com (mail-wr1-f49.google.com
-	[209.85.221.49])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3FD0B101AC67
-	for <drbd-dev@lists.linbit.com>; Fri, 14 Jun 2019 12:02:01 +0200 (CEST)
-Received: by mail-wr1-f49.google.com with SMTP id r16so1834705wrl.11
-	for <drbd-dev@lists.linbit.com>; Fri, 14 Jun 2019 03:02:01 -0700 (PDT)
-Date: Fri, 14 Jun 2019 11:56:19 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
+Return-Path: <robert.altnoeder@linbit.com>
+Received: from mail-wm1-f65.google.com (mail-wm1-f65.google.com
+	[209.85.128.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A856B1011BFC
+	for <drbd-dev@lists.linbit.com>; Fri, 14 Jun 2019 11:56:15 +0200 (CEST)
+Received: by mail-wm1-f65.google.com with SMTP id c6so1679552wml.0
+	for <drbd-dev@lists.linbit.com>; Fri, 14 Jun 2019 02:56:15 -0700 (PDT)
+Received: from ?IPv6:2001:858:107:1:2d96:e1e8:3a99:3414?
+	([2001:858:107:1:2d96:e1e8:3a99:3414])
+	by smtp.gmail.com with ESMTPSA id x8sm3425737wmc.5.2019.06.14.02.49.39
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Fri, 14 Jun 2019 02:49:39 -0700 (PDT)
 To: drbd-dev@lists.linbit.com
-Message-ID: <20190614095619.fwnu54aralozc3xv@rck.sh>
-References: <CAFsC7=cjKn2XKdOrQHsB8XMUnRQom7wd8yxHbp2s0afZLZRqkA@mail.gmail.com>
+References: <e9d5ec6e-30e9-9af1-06c3-bcf8b1d92068@gmail.com>
+	<20190612141149.GA5803@soda.linbit>
+From: Robert Altnoeder <robert.altnoeder@linbit.com>
+Message-ID: <83e97127-9511-7899-e9e4-2b44a7932661@linbit.com>
+Date: Fri, 14 Jun 2019 11:49:39 +0200
 MIME-Version: 1.0
+In-Reply-To: <20190612141149.GA5803@soda.linbit>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAFsC7=cjKn2XKdOrQHsB8XMUnRQom7wd8yxHbp2s0afZLZRqkA@mail.gmail.com>
-Cc: =?utf-8?B?6I6K5Yex5YKR?= <kcchuang.white@gmail.com>
-Subject: Re: [Drbd-dev] drbd local replication usage problem
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+Subject: Re: [Drbd-dev] avoid use of errno as a function parameter name
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,17 +34,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jun 10, 2019 at 08:20:22PM +0800, 莊凱傑 wrote:
-> Hi drbd-dev,
-> 
-> It will be appreciated if you can give me some advice.
-> I'm try to do local block device replication(vda vdb)
+On 6/12/19 4:11 PM, Lars Ellenberg wrote:
+> On Wed, Jun 05, 2019 at 10:14:19AM -0600, David Butterfield wrote:
+>> Avoid use of errno as an argument name because it is allowed to be a macro such as
+>>     # define errno (*__errno_location ())
+> You do realize that we are kernel code...
 
-Great. That already exists, it is called RAID. If you try to do local
-replication with DRBD, the answer is sorry, but no, you are doing it
-wrong.
+I guess that's a request related to his fork of DRBD which was modified
+to run in user mode.
 
-If you have any questions in the future, please send them to the
-drbd-user ML. drbd-dev is for patch coordination only.
+@David:
+Only changing errno to _errno to fix this is probaby not the best idea,
+so if we're going to change this, then I'd rather use a new variable
+name that does not even suggest being related to errno, otherwise
+whoever sees it the next time might be tempted to change it back to errno.
 
-Regards, rck
+While I'm at it, I am wondering a bit about the modification of DRBD to
+run in usermode. It's not that I couldn't see a whole lot of reasons why
+you'd want to do this, quite the opposite, but I believe it would make a
+lot more sense if you did that on top of a true microkernel OS such as
+e.g. Minix, seL4, Integrity or QNX. That might even turn the whole thing
+into a very useful project, as such a port of DRBD might be interesting
+for use in e.g. embedded systems running those OSs.
+
+Cheers,
+Robert
+
