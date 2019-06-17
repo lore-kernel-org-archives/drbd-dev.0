@@ -1,28 +1,34 @@
-Return-Path: <robert.altnoeder@linbit.com>
-Received: from mail-wm1-f65.google.com (mail-wm1-f65.google.com
-	[209.85.128.65])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A856B1011BFC
-	for <drbd-dev@lists.linbit.com>; Fri, 14 Jun 2019 11:56:15 +0200 (CEST)
-Received: by mail-wm1-f65.google.com with SMTP id c6so1679552wml.0
-	for <drbd-dev@lists.linbit.com>; Fri, 14 Jun 2019 02:56:15 -0700 (PDT)
-Received: from ?IPv6:2001:858:107:1:2d96:e1e8:3a99:3414?
-	([2001:858:107:1:2d96:e1e8:3a99:3414])
-	by smtp.gmail.com with ESMTPSA id x8sm3425737wmc.5.2019.06.14.02.49.39
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com
+	[209.85.221.68])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B842E1011BF7
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2019 16:23:33 +0200 (CEST)
+Received: by mail-wr1-f68.google.com with SMTP id d18so10196381wrs.5
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2019 07:23:33 -0700 (PDT)
+Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
+	[212.186.191.219])
+	by smtp.gmail.com with ESMTPSA id 72sm4470284wrk.22.2019.06.17.07.23.32
 	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Fri, 14 Jun 2019 02:49:39 -0700 (PDT)
-To: drbd-dev@lists.linbit.com
-References: <e9d5ec6e-30e9-9af1-06c3-bcf8b1d92068@gmail.com>
-	<20190612141149.GA5803@soda.linbit>
-From: Robert Altnoeder <robert.altnoeder@linbit.com>
-Message-ID: <83e97127-9511-7899-e9e4-2b44a7932661@linbit.com>
-Date: Fri, 14 Jun 2019 11:49:39 +0200
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Mon, 17 Jun 2019 07:23:32 -0700 (PDT)
+Resent-Message-ID: <20190617142330.GF30528@soda.linbit>
+Received: from mout.kundenserver.de (mout.kundenserver.de [212.227.126.187])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 26A251011BF7
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2019 15:30:19 +0200 (CEST)
+From: Arnd Bergmann <arnd@arndb.de>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
+Date: Mon, 17 Jun 2019 15:24:13 +0200
+Message-Id: <20190617132440.2721536-1-arnd@arndb.de>
 MIME-Version: 1.0
-In-Reply-To: <20190612141149.GA5803@soda.linbit>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-Subject: Re: [Drbd-dev] avoid use of errno as a function parameter name
+Content-Transfer-Encoding: 8bit
+Cc: Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>,
+	Eric Biggers <ebiggers@google.com>,
+	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com,
+	Herbert Xu <herbert@gondor.apana.org.au>
+Subject: [Drbd-dev] [PATCH] drbd: dynamically allocate shash descriptor
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,29 +40,56 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/12/19 4:11 PM, Lars Ellenberg wrote:
-> On Wed, Jun 05, 2019 at 10:14:19AM -0600, David Butterfield wrote:
->> Avoid use of errno as an argument name because it is allowed to be a macro such as
->>     # define errno (*__errno_location ())
-> You do realize that we are kernel code...
+Building with clang and KASAN, we get a warning about an overly large
+stack frame on 32-bit architectures:
 
-I guess that's a request related to his fork of DRBD which was modified
-to run in user mode.
+drivers/block/drbd/drbd_receiver.c:921:31: error: stack frame size of 1280 bytes in function 'conn_connect'
+      [-Werror,-Wframe-larger-than=]
 
-@David:
-Only changing errno to _errno to fix this is probaby not the best idea,
-so if we're going to change this, then I'd rather use a new variable
-name that does not even suggest being related to errno, otherwise
-whoever sees it the next time might be tempted to change it back to errno.
+We already allocate other data dynamically in this function, so
+just do the same for the shash descriptor, which makes up most of
+this memory.
 
-While I'm at it, I am wondering a bit about the modification of DRBD to
-run in usermode. It's not that I couldn't see a whole lot of reasons why
-you'd want to do this, quite the opposite, but I believe it would make a
-lot more sense if you did that on top of a true microkernel OS such as
-e.g. Minix, seL4, Integrity or QNX. That might even turn the whole thing
-into a very useful project, as such a port of DRBD might be interesting
-for use in e.g. embedded systems running those OSs.
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ drivers/block/drbd/drbd_receiver.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
-Cheers,
-Robert
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 90ebfcae0ce6..10fb26e862d7 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -5417,7 +5417,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
+ 	unsigned int key_len;
+ 	char secret[SHARED_SECRET_MAX]; /* 64 byte */
+ 	unsigned int resp_size;
+-	SHASH_DESC_ON_STACK(desc, connection->cram_hmac_tfm);
++	struct shash_desc *desc;
+ 	struct packet_info pi;
+ 	struct net_conf *nc;
+ 	int err, rv;
+@@ -5430,6 +5430,13 @@ static int drbd_do_auth(struct drbd_connection *connection)
+ 	memcpy(secret, nc->shared_secret, key_len);
+ 	rcu_read_unlock();
+ 
++	desc = kmalloc(sizeof(struct shash_desc) +
++			crypto_shash_descsize(connection->cram_hmac_tfm),
++		       GFP_KERNEL);
++	if (!desc) {
++		rv = -1;
++		goto fail;
++	}
+ 	desc->tfm = connection->cram_hmac_tfm;
+ 
+ 	rv = crypto_shash_setkey(connection->cram_hmac_tfm, (u8 *)secret, key_len);
+@@ -5572,6 +5579,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
+ 	kfree(response);
+ 	kfree(right_response);
+ 	shash_desc_zero(desc);
++	kfree(desc);
+ 
+ 	return rv;
+ }
+-- 
+2.20.0
 
