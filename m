@@ -1,22 +1,23 @@
 Return-Path: <dab21774@gmail.com>
-Received: from mail-io1-f54.google.com (mail-io1-f54.google.com
-	[209.85.166.54])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CB1C11028A66
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2019 09:29:21 +0200 (CEST)
-Received: by mail-io1-f54.google.com with SMTP id n5so27447665ioc.7
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2019 00:29:21 -0700 (PDT)
-To: drbd-dev@lists.linbit.com, Lars Ellenberg <lars.ellenberg@linbit.com>
-References: <8ceba717-542f-5898-d5d4-890945a022fb@gmail.com>
-	<20190612140615.GX5803@soda.linbit>
+Received: from mail-io1-f67.google.com (mail-io1-f67.google.com
+	[209.85.166.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4A47C1028A66
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2019 10:47:14 +0200 (CEST)
+Received: by mail-io1-f67.google.com with SMTP id u13so28039786iop.0
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2019 01:47:14 -0700 (PDT)
+To: Robert Altnoeder <robert.altnoeder@linbit.com>, drbd-dev@lists.linbit.com
+References: <e9d5ec6e-30e9-9af1-06c3-bcf8b1d92068@gmail.com>
+	<20190612141149.GA5803@soda.linbit>
+	<83e97127-9511-7899-e9e4-2b44a7932661@linbit.com>
 From: David Butterfield <dab21774@gmail.com>
-Message-ID: <dc406c3e-a45b-a3d2-20ef-652736d7615d@gmail.com>
-Date: Tue, 18 Jun 2019 01:29:17 -0600
+Message-ID: <f1bbf160-8496-dea5-3257-45859b20dfac@gmail.com>
+Date: Tue, 18 Jun 2019 02:47:07 -0600
 MIME-Version: 1.0
-In-Reply-To: <20190612140615.GX5803@soda.linbit>
+In-Reply-To: <83e97127-9511-7899-e9e4-2b44a7932661@linbit.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] integer overflow in dagtag_newer_eq(0, 1ULL<<63)
+Subject: Re: [Drbd-dev] running DRBD in usermode
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,52 +29,56 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/12/19 8:06 AM, Lars Ellenberg wrote:
-> On Wed, Jun 05, 2019 at 10:01:27AM -0600, David Butterfield wrote:
->> drbd_sender.c:maybe_send_unplug_remote() can assign (1ULL << 63) to unplug_dagtag_sector[i]:
->>
->> 1674                 connection->todo.unplug_dagtag_sector[connection->todo.unplug_slot] =
->> 1675                         connection->send.current_dagtag_sector + (1ULL << 63);
->>
->> Later it reaches dagtag_newer_eq(0, unplug_dagtag_sector[i]) which converts its arguments to
->> signed before subtracting.
->>
->> 272 #define dagtag_newer_eq(a,b)      \
->> 273         (typecheck(u64, a) && \
->> 274          typecheck(u64, b) && \
->> 275         ((s64)(a) - (s64)(b) >= 0))
->>
->> But (signed)(1ULL << 63) is the maximum negative integer, and the value of
->> (0 - (signed)(1ULL << 63)) cannot be represented.  So the subtraction ends in integer overflow.
->>
->> drbd_sender.c:1660:9: runtime error: signed integer overflow: 0 - -9223372036854775808 cannot be represented in type 'long i
-> 
-> I don't care ;-)
-> but we can add in a -1, if it makes the world a better place
+On 6/14/19 3:49 AM, Robert Altnoeder wrote:
+> Only changing errno to _errno to fix this is probaby not the best idea,
+> so if we're going to change this, then I'd rather use a new variable
+> name that does not even suggest being related to errno, otherwise
+> whoever sees it the next time might be tempted to change it back to errno.
 
-Or maybe start the dagtags out at one instead of zero.  This might appear as a
-"low probability occurrence" due to requiring such specific numbers, but it always
-happens because the two numbers are initialized that way.  I can observe the
-overflow happen, but I don't understand well enough the meanings of the numbers
-involved to know if it is harmful.
+Sure.  I just thought I'd point out the few things I noticed along the way.
+How (or if) they should be fixed isn't my aim.  There was remarkably little
+trouble getting 50,000 lines of DRBD kernel code running in usermode (using
+as a base the project I did a few years ago bringing SCST to usermode).
 
-The question I haven't analyzed is whether the intent of the code gets carried
-out properly when this overflow happens (which it does -- this was another libubsan
-discovery).  I guess I'll try to do that now:
+I compile the DRBD source nearly unmodified, providing a simulated 2.6.32
+environment around it so it feels at home (using its kernel_compat stuff).
+The only changes to DRBD source code are temporary #ifndef around rb_augment,
+netlink multicast, and nested spinlocking, which I haven't written
+emulations for yet, plus maybe another dozen places with 1-2 lines of
+change, most of which I hope to eventually be able to clean out.
 
-The (1<<63) appears intended to mean "larger than any other dagtag".  If that's
-correct, then the plain meaning of "dagtag_newer_eq(0, 1<<63)" should lead to a
-desired return of "false".  So if the dagtag_newer_eq() comparison returns false,
-despite the overflow, then the overflow cannot be harmful.
+> While I'm at it, I am wondering a bit about the modification of DRBD to
+> run in usermode. It's not that I couldn't see a whole lot of reasons why
+> you'd want to do this, quite the opposite, but I believe it would make a
+> lot more sense if you did that on top of a true microkernel OS such as
+> e.g. Minix, seL4, Integrity or QNX. That might even turn the whole thing
+> into a very useful project, as such a port of DRBD might be interesting
+> for use in e.g. embedded systems running those OSs.
 
-What is actually returned by the comparison?  I think: the cast to signed changes
-the meaning of (1<<63) from a big positive number to INT_MIN (-9223372036854775808).
-Then the signed subtraction (0 - INT_MIN) overflows from INT_MAX+1 back to INT_MIN
-again.  That leaves the result negative, which will cause the macro to return false.
+Any of that could be done.  The "platform" I ported to was "POSIX system
+calls along with a few libraries like pthreads and libfuse and my multi-
+threaded event engine".  (I probably use a couple of Linux-specific system
+calls or options, but those should be isolated and easily replaceable.)
 
-So I think the macro will return the correct answer despite the overflow, and this
-is one of those cases where the modulo arithmetic works out the right answer.
-So probably nothing but libubsan will ever notice this.
+The "usermode_compat" ("UMC") code that (partially) emulates the Linux
+kernel environment is in a separate layer (separate repository) from the
+"Multithreaded Engine" ("MTE") layer that provides basic system services
+(memory, timers, threads, socket event polling, debugging, etc), with MTE
+services accessed through a "sys_service" ops vector (which was designed
+*without* having in mind using it as a base to run Linux kernel code).
+(I wrote MTE first, then got the idea to write UMC using MTE services and
+use it to port SCST to usermode.)
+
+The UMC "Linux kernel emulation" layer should be able to operate with any
+"sys_service provider" that implements the functions behind the sys_service
+ops vector.  The MTE is about 7500 lines of code that could probably be
+re-implemented as a smaller shim to an alternative mem/time/threading
+provider such as a microkernel, without disturbing the Linux kernel
+emulation layer too much.
+
+These are a couple of diagrams from the SCST project that show the layering:
+https://davidbutterfield.github.io/SCST-Usermode-Adaptation/docs/SCST_usermode_service_map.pdf
+https://davidbutterfield.github.io/SCST-Usermode-Adaptation/docs/SCST_usermode_includes.pdf
 
 Regards,
 David Butterfield
