@@ -1,23 +1,22 @@
 Return-Path: <dab21774@gmail.com>
-Received: from mail-io1-f67.google.com (mail-io1-f67.google.com
-	[209.85.166.67])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 4A47C1028A66
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2019 10:47:14 +0200 (CEST)
-Received: by mail-io1-f67.google.com with SMTP id u13so28039786iop.0
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2019 01:47:14 -0700 (PDT)
-To: Robert Altnoeder <robert.altnoeder@linbit.com>, drbd-dev@lists.linbit.com
-References: <e9d5ec6e-30e9-9af1-06c3-bcf8b1d92068@gmail.com>
-	<20190612141149.GA5803@soda.linbit>
-	<83e97127-9511-7899-e9e4-2b44a7932661@linbit.com>
+Received: from mail-io1-f65.google.com (mail-io1-f65.google.com
+	[209.85.166.65])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 55E781019AC6
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2019 19:58:57 +0200 (CEST)
+Received: by mail-io1-f65.google.com with SMTP id r185so25943102iod.6
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2019 10:58:57 -0700 (PDT)
+To: drbd-dev@lists.linbit.com, Lars Ellenberg <lars.ellenberg@linbit.com>
+References: <28397d5c-72ca-e4b5-fb00-7b55466e7441@gmail.com>
+	<20190612142612.GB5803@soda.linbit>
 From: David Butterfield <dab21774@gmail.com>
-Message-ID: <f1bbf160-8496-dea5-3257-45859b20dfac@gmail.com>
-Date: Tue, 18 Jun 2019 02:47:07 -0600
+Message-ID: <c60379e8-7117-0c80-3371-2a6f0e93fd41@gmail.com>
+Date: Tue, 18 Jun 2019 11:58:54 -0600
 MIME-Version: 1.0
-In-Reply-To: <83e97127-9511-7899-e9e4-2b44a7932661@linbit.com>
+In-Reply-To: <20190612142612.GB5803@soda.linbit>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] running DRBD in usermode
+Subject: Re: [Drbd-dev] main.c comments
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,56 +28,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/14/19 3:49 AM, Robert Altnoeder wrote:
-> Only changing errno to _errno to fix this is probaby not the best idea,
-> so if we're going to change this, then I'd rather use a new variable
-> name that does not even suggest being related to errno, otherwise
-> whoever sees it the next time might be tempted to change it back to errno.
+>> (1) Isn't the third argument to module_param_named() supposed to be the type of
+>>     the second argument?  (But seems to require it as a single token??)
+> 
+> Yes and no ;-)
+> the type of the second argument in this case is a drbd_protocol_version,
+> so by naming that as third argument, we point to the "conversion and
+> validation functions" for that type.
 
-Sure.  I just thought I'd point out the few things I noticed along the way.
-How (or if) they should be fixed isn't my aim.  There was remarkably little
-trouble getting 50,000 lines of DRBD kernel code running in usermode (using
-as a base the project I did a few years ago bringing SCST to usermode).
+Aha!  Thanks.  All I was doing was comparing the types at compile-time
+and not finding a match.
 
-I compile the DRBD source nearly unmodified, providing a simulated 2.6.32
-environment around it so it feels at home (using its kernel_compat stuff).
-The only changes to DRBD source code are temporary #ifndef around rb_augment,
-netlink multicast, and nested spinlocking, which I haven't written
-emulations for yet, plus maybe another dozen places with 1-2 lines of
-change, most of which I hope to eventually be able to clean out.
+> again, "details depend on the kernel version"...
 
-> While I'm at it, I am wondering a bit about the modification of DRBD to
-> run in usermode. It's not that I couldn't see a whole lot of reasons why
-> you'd want to do this, quite the opposite, but I believe it would make a
-> lot more sense if you did that on top of a true microkernel OS such as
-> e.g. Minix, seL4, Integrity or QNX. That might even turn the whole thing
-> into a very useful project, as such a port of DRBD might be interesting
-> for use in e.g. embedded systems running those OSs.
+Yeah, I'm pretending to be 2.6.32, the minimum supported by DRBD's kernel
+compatibility, to minimize the amount of kernel function I have to emulate.
 
-Any of that could be done.  The "platform" I ported to was "POSIX system
-calls along with a few libraries like pthreads and libfuse and my multi-
-threaded event engine".  (I probably use a couple of Linux-specific system
-calls or options, but those should be isolated and easily replaceable.)
+>> (2) The cast avoids a compiler warning about signed/unsigned comparison.
+> 
+> As long as our kernel compiles complete without warnings, "boring".
 
-The "usermode_compat" ("UMC") code that (partially) emulates the Linux
-kernel environment is in a separate layer (separate repository) from the
-"Multithreaded Engine" ("MTE") layer that provides basic system services
-(memory, timers, threads, socket event polling, debugging, etc), with MTE
-services accessed through a "sys_service" ops vector (which was designed
-*without* having in mind using it as a base to run Linux kernel code).
-(I wrote MTE first, then got the idea to write UMC using MTE services and
-use it to port SCST to usermode.)
+OK, I'll set my own warnings back down to the same ones the kernel enables.
 
-The UMC "Linux kernel emulation" layer should be able to operate with any
-"sys_service provider" that implements the functions behind the sys_service
-ops vector.  The MTE is about 7500 lines of code that could probably be
-re-implemented as a smaller shim to an alternative mem/time/threading
-provider such as a microkernel, without disturbing the Linux kernel
-emulation layer too much.
+For warnings that happen a lot I already disabled them, but there were
+three warnings that each was reported only once in 51,444 lines of DRBD
+code -- I had figured those conditions were being maintained and not
+supposed to be there, so those are the ones I mentioned.
 
-These are a couple of diagrams from the SCST project that show the layering:
-https://davidbutterfield.github.io/SCST-Usermode-Adaptation/docs/SCST_usermode_service_map.pdf
-https://davidbutterfield.github.io/SCST-Usermode-Adaptation/docs/SCST_usermode_includes.pdf
-
-Regards,
 David Butterfield
