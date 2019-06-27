@@ -1,18 +1,28 @@
-Return-Path: <drbd-dev@lists.ewheeler.net>
-Received: from mx.ewheeler.net (mx.ewheeler.net [66.155.3.69])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 716C11011C03
-	for <drbd-dev@lists.linbit.com>; Wed, 26 Jun 2019 21:20:33 +0200 (CEST)
-Date: Wed, 26 Jun 2019 19:20:31 +0000 (UTC)
-From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
-To: Lars Ellenberg <lars.ellenberg@linbit.com>
-In-Reply-To: <20190624154946.GU30528@soda.linbit>
-Message-ID: <alpine.LRH.2.11.1906261914150.1114@mx.ewheeler.net>
+Return-Path: <robert.altnoeder@linbit.com>
+Received: from mail-wm1-f52.google.com (mail-wm1-f52.google.com
+	[209.85.128.52])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 467971011B9A
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jun 2019 12:22:13 +0200 (CEST)
+Received: by mail-wm1-f52.google.com with SMTP id v19so5086688wmj.5
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jun 2019 03:22:13 -0700 (PDT)
+Received: from ?IPv6:2001:858:107:1:b121:699b:66ac:c10?
+	([2001:858:107:1:b121:699b:66ac:c10])
+	by smtp.gmail.com with ESMTPSA id x6sm2355968wru.0.2019.06.27.03.22.12
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Thu, 27 Jun 2019 03:22:12 -0700 (PDT)
+To: drbd-dev@lists.linbit.com
 References: <alpine.LRH.2.11.1906210638010.3326@mx.ewheeler.net>
 	<20190624154946.GU30528@soda.linbit>
+	<alpine.LRH.2.11.1906261914150.1114@mx.ewheeler.net>
+From: Robert Altnoeder <robert.altnoeder@linbit.com>
+Message-ID: <27d9a6d5-6ee7-be44-8d46-2dc15d466307@linbit.com>
+Date: Thu, 27 Jun 2019 12:22:11 +0200
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED;
-	BOUNDARY="-1690155773-1867630225-1561576831=:1114"
-Cc: drbd-dev@lists.linbit.com
+In-Reply-To: <alpine.LRH.2.11.1906261914150.1114@mx.ewheeler.net>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Subject: Re: [Drbd-dev] Checksum based resync block size
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -25,61 +35,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On 6/26/19 9:20 PM, Eric Wheeler wrote:
+> On Mon, 24 Jun 2019, Lars Ellenberg wrote:
+>
+>> As our in-sync/out-of-sync bitmap tracks 4k blocks,
+>> we want to compare 4k checkesums.
+>>
+>> Yes, that generates "a lot" of requests, and if these are not merged by
+>> some IO scheduler on the lower layers, that may seriously suck.
+>>
+>> make_ov_request() is what generates the online-verify requests.
+>>
+>> What we potentially could do is issue the requests in larger chunks,
+>> like (1 MiB) to the backends, then calculate and communicate the
+>> checksum per each 4k, as well as the result.
+> What if it were to calculate 1MiB chunks (configurable) and then 
+> invalidate all 4k bitmap entries in that 1MiB range if the hash 
+> mismatches?
 
----1690155773-1867630225-1561576831=:1114
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
+Is your intention to reduce the number of packets with checksums that
+are being sent, and/or the number of checksum comparisons for the same
+amount of data?
 
-On Mon, 24 Jun 2019, Lars Ellenberg wrote:
+Both could have a positive impact on performance, but the question is,
+whether the difference is big enough to be relevant. On the other hand,
+hashing more data per checksum increases the chance of hash collisions.
 
-> On Sat, Jun 22, 2019 at 12:03:55AM +0000, Eric Wheeler wrote:
-> > Hello all,
-> > 
-> > Can someone help explain how checksum-based sync and verify are 
-> > implemented in the sender and receive side?  It looks like the hashes are 
-> > per-sector (looking at read_for_csum?) and I am interested in making the 
-> > csum chunk size configurable, or at least hack in some test code to see if 
-> > it would provide a performance benefit to csum multiple sectors.
-> > 
-> > I'm also trying to understand what iterates over the lldev and understand 
-> > where the csum takes place foreach chunk of data.
-> > 
-> > Any direction would be helpful.  Thank you.
-> 
-> As our in-sync/out-of-sync bitmap tracks 4k blocks,
-> we want to compare 4k checkesums.
-> 
-> Yes, that generates "a lot" of requests, and if these are not merged by
-> some IO scheduler on the lower layers, that may seriously suck.
-> 
-> make_ov_request() is what generates the online-verify requests.
-> 
-> What we potentially could do is issue the requests in larger chunks,
-> like (1 MiB) to the backends, then calculate and communicate the
-> checksum per each 4k, as well as the result.
+br,
+Robert
 
-What if it were to calculate 1MiB chunks (configurable) and then 
-invalidate all 4k bitmap entries in that 1MiB range if the hash 
-mismatches?
-
-
---
-Eric Wheeler
-
-
-> 
-> -- 
-> : Lars Ellenberg
-> : LINBIT | Keeping the Digital World Running
-> : DRBD -- Heartbeat -- Corosync -- Pacemaker
-> : R&D, Integration, Ops, Consulting, Support
-> 
-> DRBD® and LINBIT® are registered trademarks of LINBIT
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
-> 
----1690155773-1867630225-1561576831=:1114--
