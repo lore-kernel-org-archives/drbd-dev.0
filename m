@@ -1,28 +1,19 @@
-Return-Path: <robert.altnoeder@linbit.com>
-Received: from mail-wm1-f52.google.com (mail-wm1-f52.google.com
-	[209.85.128.52])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 467971011B9A
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jun 2019 12:22:13 +0200 (CEST)
-Received: by mail-wm1-f52.google.com with SMTP id v19so5086688wmj.5
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jun 2019 03:22:13 -0700 (PDT)
-Received: from ?IPv6:2001:858:107:1:b121:699b:66ac:c10?
-	([2001:858:107:1:b121:699b:66ac:c10])
-	by smtp.gmail.com with ESMTPSA id x6sm2355968wru.0.2019.06.27.03.22.12
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Thu, 27 Jun 2019 03:22:12 -0700 (PDT)
-To: drbd-dev@lists.linbit.com
+Return-Path: <drbd-dev@lists.ewheeler.net>
+Received: from mx.ewheeler.net (mx.ewheeler.net [66.155.3.69])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 635A61011BFF
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jun 2019 19:59:42 +0200 (CEST)
+Date: Thu, 27 Jun 2019 17:59:40 +0000 (UTC)
+From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
+To: Robert Altnoeder <robert.altnoeder@linbit.com>
+In-Reply-To: <27d9a6d5-6ee7-be44-8d46-2dc15d466307@linbit.com>
+Message-ID: <alpine.LRH.2.11.1906271737510.1114@mx.ewheeler.net>
 References: <alpine.LRH.2.11.1906210638010.3326@mx.ewheeler.net>
 	<20190624154946.GU30528@soda.linbit>
 	<alpine.LRH.2.11.1906261914150.1114@mx.ewheeler.net>
-From: Robert Altnoeder <robert.altnoeder@linbit.com>
-Message-ID: <27d9a6d5-6ee7-be44-8d46-2dc15d466307@linbit.com>
-Date: Thu, 27 Jun 2019 12:22:11 +0200
+	<27d9a6d5-6ee7-be44-8d46-2dc15d466307@linbit.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.11.1906261914150.1114@mx.ewheeler.net>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Cc: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] Checksum based resync block size
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -35,32 +26,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/26/19 9:20 PM, Eric Wheeler wrote:
-> On Mon, 24 Jun 2019, Lars Ellenberg wrote:
+On Thu, 27 Jun 2019, Robert Altnoeder wrote:
+
+> On 6/26/19 9:20 PM, Eric Wheeler wrote:
+> > On Mon, 24 Jun 2019, Lars Ellenberg wrote:
+> >
+> >> As our in-sync/out-of-sync bitmap tracks 4k blocks,
+> >> we want to compare 4k checkesums.
+> >>
+> >> Yes, that generates "a lot" of requests, and if these are not merged by
+> >> some IO scheduler on the lower layers, that may seriously suck.
+> >>
+> >> make_ov_request() is what generates the online-verify requests.
+> >>
+> >> What we potentially could do is issue the requests in larger chunks,
+> >> like (1 MiB) to the backends, then calculate and communicate the
+> >> checksum per each 4k, as well as the result.
 >
->> As our in-sync/out-of-sync bitmap tracks 4k blocks,
->> we want to compare 4k checkesums.
->>
->> Yes, that generates "a lot" of requests, and if these are not merged by
->> some IO scheduler on the lower layers, that may seriously suck.
->>
->> make_ov_request() is what generates the online-verify requests.
->>
->> What we potentially could do is issue the requests in larger chunks,
->> like (1 MiB) to the backends, then calculate and communicate the
->> checksum per each 4k, as well as the result.
-> What if it were to calculate 1MiB chunks (configurable) and then 
-> invalidate all 4k bitmap entries in that 1MiB range if the hash 
-> mismatches?
+> > What if it were to calculate 1MiB chunks (configurable) and then 
+> > invalidate all 4k bitmap entries in that 1MiB range if the hash 
+> > mismatches?
 
-Is your intention to reduce the number of packets with checksums that
-are being sent, and/or the number of checksum comparisons for the same
-amount of data?
+This could also help resync by checksuming contiguous dirty bitmap entries 
+(up to a chunk size limit) and resyncing the whole series instead of each 
+4k block.
+ 
+> Is your intention to reduce the number of packets with checksums that
+> are being sent, and/or the number of checksum comparisons for the same
+> amount of data?
 
-Both could have a positive impact on performance, but the question is,
-whether the difference is big enough to be relevant. On the other hand,
-hashing more data per checksum increases the chance of hash collisions.
+Reduce the number of packets, but also, crypto transforms perform better 
+on larger data chunks. You make another good point: fewer hash comparisons 
+will help too.
 
-br,
-Robert
+> Both could have a positive impact on performance, but the question is,
+> whether the difference is big enough to be relevant. On the other hand,
+> hashing more data per checksum increases the chance of hash collisions.
 
+I'm not too concerned about hash collisions.  That might be a problem with 
+small CRC32-based sums, but assuming crypto hashes with a hash size of 
+2^128, then the birthday paradox gives us a collision betwen some two 
+hashes after 2^64 hashes---that is, any 2 hashes---not specifically the 
+two being compared.  The probability of two chosen hashes colliding is 
+even lower than 1/(2^64).
+
+-Eric
+
+> 
+> br,
+> Robert
+> 
+> _______________________________________________
+> drbd-dev mailing list
+> drbd-dev@lists.linbit.com
+> http://lists.linbit.com/mailman/listinfo/drbd-dev
+> 
