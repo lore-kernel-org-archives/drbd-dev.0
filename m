@@ -1,43 +1,39 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f65.google.com (mail-wr1-f65.google.com
-	[209.85.221.65])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B22911011BF7
-	for <drbd-dev@lists.linbit.com>; Mon,  1 Jul 2019 13:39:21 +0200 (CEST)
-Received: by mail-wr1-f65.google.com with SMTP id f9so13419043wre.12
-	for <drbd-dev@lists.linbit.com>; Mon, 01 Jul 2019 04:39:21 -0700 (PDT)
+Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com
+	[209.85.221.68])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 348191011BF7
+	for <drbd-dev@lists.linbit.com>; Mon,  1 Jul 2019 13:39:27 +0200 (CEST)
+Received: by mail-wr1-f68.google.com with SMTP id e3so3919837wrs.11
+	for <drbd-dev@lists.linbit.com>; Mon, 01 Jul 2019 04:39:27 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
-	[212.186.191.219])
-	by smtp.gmail.com with ESMTPSA id e4sm9399930wme.16.2019.07.01.04.39.19
+	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
+	v15sm9461026wrt.25.2019.07.01.04.39.26
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 01 Jul 2019 04:39:20 -0700 (PDT)
-Resent-Message-ID: <20190701113918.GC6950@soda.linbit>
+	Mon, 01 Jul 2019 04:39:26 -0700 (PDT)
+Resent-Message-ID: <20190701113925.GD6950@soda.linbit>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 759E51028A6B
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2019 15:00:08 +0200 (CEST)
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 8B56B1028A7C
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2019 15:00:13 +0200 (CEST)
 From: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
 To: Linux Doc Mailing List <linux-doc@vger.kernel.org>
-Date: Fri, 28 Jun 2019 09:30:12 -0300
-Message-Id: <a4437f5438f2ce9e220d0910a4d98a832810479b.1561724493.git.mchehab+samsung@kernel.org>
+Date: Fri, 28 Jun 2019 09:30:29 -0300
+Message-Id: <d3cd5d1309647bd16b3590419e7a2387eaf24bad.1561724493.git.mchehab+samsung@kernel.org>
 In-Reply-To: <cover.1561724493.git.mchehab+samsung@kernel.org>
 References: <cover.1561724493.git.mchehab+samsung@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>,
-	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
-	Jonathan Corbet <corbet@lwn.net>, Shuah Khan <shuah@kernel.org>,
-	Jiri Kosina <jikos@kernel.org>, linux-kernel@vger.kernel.org,
+Cc: linux-samsung-soc@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>,
+	linux-kernel@vger.kernel.org, Krzysztof Kozlowski <krzk@kernel.org>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-block@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
-	nbd@other.debian.org, Nitin Gupta <ngupta@vflare.org>,
-	linux-kselftest@vger.kernel.org,
+	Kukjin Kim <kgene@kernel.org>,
 	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Mauro Carvalho Chehab <mchehab@infradead.org>,
-	Josef Bacik <josef@toxicpanda.com>, Tim Waugh <tim@cyberelk.net>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 19/39] docs: blockdev: add it to the admin-guide
+	linux-arm-kernel@lists.infradead.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 36/39] docs: add SPDX tags to new index files
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,358 +45,255 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The blockdev book basically contains user-faced documentation.
+All those new files I added are under GPL v2.0 license.
+
+Add the corresponding SPDX headers to them.
 
 Signed-off-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
 ---
- .../blockdev/drbd/DRBD-8.3-data-packets.svg    |  0
- .../blockdev/drbd/DRBD-data-packets.svg        |  0
- .../blockdev/drbd/conn-states-8.dot            |  0
- .../blockdev/drbd/data-structure-v9.rst        |  0
- .../blockdev/drbd/disk-states-8.dot            |  0
- .../drbd/drbd-connection-state-overview.dot    |  0
- .../blockdev/drbd/figures.rst                  |  0
- .../{ => admin-guide}/blockdev/drbd/index.rst  |  0
- .../blockdev/drbd/node-states-8.dot            |  1 -
- .../{ => admin-guide}/blockdev/floppy.rst      |  0
- .../{ => admin-guide}/blockdev/index.rst       |  2 --
- .../{ => admin-guide}/blockdev/nbd.rst         |  0
- .../{ => admin-guide}/blockdev/paride.rst      |  0
- .../{ => admin-guide}/blockdev/ramdisk.rst     |  0
- .../{ => admin-guide}/blockdev/zram.rst        |  0
- Documentation/admin-guide/index.rst            |  1 +
- .../admin-guide/kernel-parameters.txt          | 18 +++++++++---------
- MAINTAINERS                                    | 10 +++++-----
- drivers/block/Kconfig                          |  8 ++++----
- drivers/block/floppy.c                         |  2 +-
- drivers/block/zram/Kconfig                     |  6 +++---
- tools/testing/selftests/zram/README            |  2 +-
- 22 files changed, 24 insertions(+), 26 deletions(-)
- rename Documentation/{ => admin-guide}/blockdev/drbd/DRBD-8.3-data-packets.svg (100%)
- rename Documentation/{ => admin-guide}/blockdev/drbd/DRBD-data-packets.svg (100%)
- rename Documentation/{ => admin-guide}/blockdev/drbd/conn-states-8.dot (100%)
- rename Documentation/{ => admin-guide}/blockdev/drbd/data-structure-v9.rst (100%)
- rename Documentation/{ => admin-guide}/blockdev/drbd/disk-states-8.dot (100%)
- rename Documentation/{ => admin-guide}/blockdev/drbd/drbd-connection-state-overview.dot (100%)
- rename Documentation/{ => admin-guide}/blockdev/drbd/figures.rst (100%)
- rename Documentation/{ => admin-guide}/blockdev/drbd/index.rst (100%)
- rename Documentation/{ => admin-guide}/blockdev/drbd/node-states-8.dot (99%)
- rename Documentation/{ => admin-guide}/blockdev/floppy.rst (100%)
- rename Documentation/{ => admin-guide}/blockdev/index.rst (94%)
- rename Documentation/{ => admin-guide}/blockdev/nbd.rst (100%)
- rename Documentation/{ => admin-guide}/blockdev/paride.rst (100%)
- rename Documentation/{ => admin-guide}/blockdev/ramdisk.rst (100%)
- rename Documentation/{ => admin-guide}/blockdev/zram.rst (100%)
+ Documentation/admin-guide/blockdev/drbd/figures.rst | 2 ++
+ Documentation/admin-guide/blockdev/index.rst        | 2 ++
+ Documentation/admin-guide/laptops/index.rst         | 1 +
+ Documentation/admin-guide/namespaces/index.rst      | 2 ++
+ Documentation/admin-guide/perf/index.rst            | 2 ++
+ Documentation/arm/index.rst                         | 2 ++
+ Documentation/arm/nwfpe/index.rst                   | 2 ++
+ Documentation/arm/omap/index.rst                    | 2 ++
+ Documentation/arm/sa1100/index.rst                  | 2 ++
+ Documentation/arm/samsung-s3c24xx/index.rst         | 2 ++
+ Documentation/arm/samsung/index.rst                 | 2 ++
+ Documentation/driver-api/early-userspace/index.rst  | 2 ++
+ Documentation/driver-api/md/index.rst               | 2 ++
+ Documentation/driver-api/memory-devices/index.rst   | 2 ++
+ Documentation/driver-api/mmc/index.rst              | 2 ++
+ Documentation/driver-api/mtd/index.rst              | 2 ++
+ Documentation/driver-api/nfc/index.rst              | 2 ++
+ Documentation/driver-api/nvdimm/index.rst           | 2 ++
+ Documentation/driver-api/phy/index.rst              | 2 ++
+ Documentation/driver-api/rapidio/index.rst          | 2 ++
+ Documentation/driver-api/thermal/index.rst          | 2 ++
+ Documentation/ia64/index.rst                        | 2 ++
+ 22 files changed, 43 insertions(+)
 
-diff --git a/Documentation/blockdev/drbd/DRBD-8.3-data-packets.svg b/Documentation/admin-guide/blockdev/drbd/DRBD-8.3-data-packets.svg
-similarity index 100%
-rename from Documentation/blockdev/drbd/DRBD-8.3-data-packets.svg
-rename to Documentation/admin-guide/blockdev/drbd/DRBD-8.3-data-packets.svg
-diff --git a/Documentation/blockdev/drbd/DRBD-data-packets.svg b/Documentation/admin-guide/blockdev/drbd/DRBD-data-packets.svg
-similarity index 100%
-rename from Documentation/blockdev/drbd/DRBD-data-packets.svg
-rename to Documentation/admin-guide/blockdev/drbd/DRBD-data-packets.svg
-diff --git a/Documentation/blockdev/drbd/conn-states-8.dot b/Documentation/admin-guide/blockdev/drbd/conn-states-8.dot
-similarity index 100%
-rename from Documentation/blockdev/drbd/conn-states-8.dot
-rename to Documentation/admin-guide/blockdev/drbd/conn-states-8.dot
-diff --git a/Documentation/blockdev/drbd/data-structure-v9.rst b/Documentation/admin-guide/blockdev/drbd/data-structure-v9.rst
-similarity index 100%
-rename from Documentation/blockdev/drbd/data-structure-v9.rst
-rename to Documentation/admin-guide/blockdev/drbd/data-structure-v9.rst
-diff --git a/Documentation/blockdev/drbd/disk-states-8.dot b/Documentation/admin-guide/blockdev/drbd/disk-states-8.dot
-similarity index 100%
-rename from Documentation/blockdev/drbd/disk-states-8.dot
-rename to Documentation/admin-guide/blockdev/drbd/disk-states-8.dot
-diff --git a/Documentation/blockdev/drbd/drbd-connection-state-overview.dot b/Documentation/admin-guide/blockdev/drbd/drbd-connection-state-overview.dot
-similarity index 100%
-rename from Documentation/blockdev/drbd/drbd-connection-state-overview.dot
-rename to Documentation/admin-guide/blockdev/drbd/drbd-connection-state-overview.dot
-diff --git a/Documentation/blockdev/drbd/figures.rst b/Documentation/admin-guide/blockdev/drbd/figures.rst
-similarity index 100%
-rename from Documentation/blockdev/drbd/figures.rst
-rename to Documentation/admin-guide/blockdev/drbd/figures.rst
-diff --git a/Documentation/blockdev/drbd/index.rst b/Documentation/admin-guide/blockdev/drbd/index.rst
-similarity index 100%
-rename from Documentation/blockdev/drbd/index.rst
-rename to Documentation/admin-guide/blockdev/drbd/index.rst
-diff --git a/Documentation/blockdev/drbd/node-states-8.dot b/Documentation/admin-guide/blockdev/drbd/node-states-8.dot
-similarity index 99%
-rename from Documentation/blockdev/drbd/node-states-8.dot
-rename to Documentation/admin-guide/blockdev/drbd/node-states-8.dot
-index 4a2b00c23547..bfa54e1f8016 100644
---- a/Documentation/blockdev/drbd/node-states-8.dot
-+++ b/Documentation/admin-guide/blockdev/drbd/node-states-8.dot
-@@ -11,4 +11,3 @@ digraph peer_states {
- 	Unknown   -> Primary           [ label = "connected" ]
- 	Unknown   -> Secondary         [ label = "connected" ]
- }
--
-diff --git a/Documentation/blockdev/floppy.rst b/Documentation/admin-guide/blockdev/floppy.rst
-similarity index 100%
-rename from Documentation/blockdev/floppy.rst
-rename to Documentation/admin-guide/blockdev/floppy.rst
-diff --git a/Documentation/blockdev/index.rst b/Documentation/admin-guide/blockdev/index.rst
-similarity index 94%
-rename from Documentation/blockdev/index.rst
-rename to Documentation/admin-guide/blockdev/index.rst
-index a9af6ed8b4aa..20a738d9d047 100644
---- a/Documentation/blockdev/index.rst
+diff --git a/Documentation/admin-guide/blockdev/drbd/figures.rst b/Documentation/admin-guide/blockdev/drbd/figures.rst
+index 3e3fd4b8a478..bd9a4901fe46 100644
+--- a/Documentation/admin-guide/blockdev/drbd/figures.rst
++++ b/Documentation/admin-guide/blockdev/drbd/figures.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ .. The here included files are intended to help understand the implementation
+ 
+ Data flows that Relate some functions, and write packets
+diff --git a/Documentation/admin-guide/blockdev/index.rst b/Documentation/admin-guide/blockdev/index.rst
+index 20a738d9d047..b903cf152091 100644
+--- a/Documentation/admin-guide/blockdev/index.rst
 +++ b/Documentation/admin-guide/blockdev/index.rst
-@@ -1,5 +1,3 @@
--:orphan:
--
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
  ===========================
  The Linux RapidIO Subsystem
  ===========================
-diff --git a/Documentation/blockdev/nbd.rst b/Documentation/admin-guide/blockdev/nbd.rst
-similarity index 100%
-rename from Documentation/blockdev/nbd.rst
-rename to Documentation/admin-guide/blockdev/nbd.rst
-diff --git a/Documentation/blockdev/paride.rst b/Documentation/admin-guide/blockdev/paride.rst
-similarity index 100%
-rename from Documentation/blockdev/paride.rst
-rename to Documentation/admin-guide/blockdev/paride.rst
-diff --git a/Documentation/blockdev/ramdisk.rst b/Documentation/admin-guide/blockdev/ramdisk.rst
-similarity index 100%
-rename from Documentation/blockdev/ramdisk.rst
-rename to Documentation/admin-guide/blockdev/ramdisk.rst
-diff --git a/Documentation/blockdev/zram.rst b/Documentation/admin-guide/blockdev/zram.rst
-similarity index 100%
-rename from Documentation/blockdev/zram.rst
-rename to Documentation/admin-guide/blockdev/zram.rst
-diff --git a/Documentation/admin-guide/index.rst b/Documentation/admin-guide/index.rst
-index 65e821a03aca..c073af461cdf 100644
---- a/Documentation/admin-guide/index.rst
-+++ b/Documentation/admin-guide/index.rst
-@@ -73,6 +73,7 @@ configure specific aspects of kernel behavior to your liking.
-    java
-    ras
-    bcache
-+   blockdev/index
-    ext4
-    pm/index
-    thunderbolt
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 9b535c0e22f3..49ad034c4675 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -1249,7 +1249,7 @@
- 			See also Documentation/fault-injection/.
+diff --git a/Documentation/admin-guide/laptops/index.rst b/Documentation/admin-guide/laptops/index.rst
+index 6b554e39863b..cd9a1c2695fd 100644
+--- a/Documentation/admin-guide/laptops/index.rst
++++ b/Documentation/admin-guide/laptops/index.rst
+@@ -1,3 +1,4 @@
++.. SPDX-License-Identifier: GPL-2.0
  
- 	floppy=		[HW]
--			See Documentation/blockdev/floppy.rst.
-+			See Documentation/admin-guide/blockdev/floppy.rst.
- 
- 	force_pal_cache_flush
- 			[IA-64] Avoid check_sal_cache_flush which may hang on
-@@ -2247,7 +2247,7 @@
- 	memblock=debug	[KNL] Enable memblock debug messages.
- 
- 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
--			See Documentation/blockdev/ramdisk.rst.
-+			See Documentation/admin-guide/blockdev/ramdisk.rst.
- 
- 	lockd.nlm_grace_period=P  [NFS] Assign grace period.
- 			Format: <integer>
-@@ -3294,7 +3294,7 @@
- 
- 	pcd.		[PARIDE]
- 			See header of drivers/block/paride/pcd.c.
--			See also Documentation/blockdev/paride.rst.
-+			See also Documentation/admin-guide/blockdev/paride.rst.
- 
- 	pci=option[,option...]	[PCI] various PCI subsystem options.
- 
-@@ -3538,7 +3538,7 @@
- 			needed on a platform with proper driver support.
- 
- 	pd.		[PARIDE]
--			See Documentation/blockdev/paride.rst.
-+			See Documentation/admin-guide/blockdev/paride.rst.
- 
- 	pdcchassis=	[PARISC,HW] Disable/Enable PDC Chassis Status codes at
- 			boot time.
-@@ -3553,10 +3553,10 @@
- 			and performance comparison.
- 
- 	pf.		[PARIDE]
--			See Documentation/blockdev/paride.rst.
-+			See Documentation/admin-guide/blockdev/paride.rst.
- 
- 	pg.		[PARIDE]
--			See Documentation/blockdev/paride.rst.
-+			See Documentation/admin-guide/blockdev/paride.rst.
- 
- 	pirq=		[SMP,APIC] Manual mp-table setup
- 			See Documentation/x86/i386/IO-APIC.rst.
-@@ -3668,7 +3668,7 @@
- 
- 	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
- 			before loading.
--			See Documentation/blockdev/ramdisk.rst.
-+			See Documentation/admin-guide/blockdev/ramdisk.rst.
- 
- 	psi=		[KNL] Enable or disable pressure stall information
- 			tracking.
-@@ -3690,7 +3690,7 @@
- 	pstore.backend=	Specify the name of the pstore backend to use
- 
- 	pt.		[PARIDE]
--			See Documentation/blockdev/paride.rst.
-+			See Documentation/admin-guide/blockdev/paride.rst.
- 
- 	pti=		[X86_64] Control Page Table Isolation of user and
- 			kernel address spaces.  Disabling this feature
-@@ -3719,7 +3719,7 @@
- 			See Documentation/admin-guide/md.rst.
- 
- 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
--			See Documentation/blockdev/ramdisk.rst.
-+			See Documentation/admin-guide/blockdev/ramdisk.rst.
- 
- 	random.trust_cpu={on,off}
- 			[KNL] Enable or disable trusting the use of the
-diff --git a/MAINTAINERS b/MAINTAINERS
-index 4c622a19ab7d..3f0f654d1166 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -4974,7 +4974,7 @@ T:	git git://git.linbit.com/drbd-8.4.git
- S:	Supported
- F:	drivers/block/drbd/
- F:	lib/lru_cache.c
--F:	Documentation/blockdev/drbd/
-+F:	Documentation/admin-guide/blockdev/
- 
- DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
- M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-@@ -11024,7 +11024,7 @@ M:	Josef Bacik <josef@toxicpanda.com>
- S:	Maintained
- L:	linux-block@vger.kernel.org
- L:	nbd@other.debian.org
--F:	Documentation/blockdev/nbd.rst
-+F:	Documentation/admin-guide/blockdev/nbd.rst
- F:	drivers/block/nbd.c
- F:	include/trace/events/nbd.h
- F:	include/uapi/linux/nbd.h
-@@ -12028,7 +12028,7 @@ PARIDE DRIVERS FOR PARALLEL PORT IDE DEVICES
- M:	Tim Waugh <tim@cyberelk.net>
- L:	linux-parport@lists.infradead.org (subscribers-only)
- S:	Maintained
--F:	Documentation/blockdev/paride.rst
-+F:	Documentation/admin-guide/blockdev/paride.rst
- F:	drivers/block/paride/
- 
- PARISC ARCHITECTURE
-@@ -13310,7 +13310,7 @@ F:	drivers/net/wireless/ralink/rt2x00/
- RAMDISK RAM BLOCK DEVICE DRIVER
- M:	Jens Axboe <axboe@kernel.dk>
- S:	Maintained
--F:	Documentation/blockdev/ramdisk.rst
-+F:	Documentation/admin-guide/blockdev/ramdisk.rst
- F:	drivers/block/brd.c
- 
- RANCHU VIRTUAL BOARD FOR MIPS
-@@ -17672,7 +17672,7 @@ R:	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
- L:	linux-kernel@vger.kernel.org
- S:	Maintained
- F:	drivers/block/zram/
--F:	Documentation/blockdev/zram.rst
-+F:	Documentation/admin-guide/blockdev/zram.rst
- 
- ZS DECSTATION Z85C30 SERIAL DRIVER
- M:	"Maciej W. Rozycki" <macro@linux-mips.org>
-diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
-index c43690b973d8..1bb8ec575352 100644
---- a/drivers/block/Kconfig
-+++ b/drivers/block/Kconfig
-@@ -31,7 +31,7 @@ config BLK_DEV_FD
- 	  If you want to use the floppy disk drive(s) of your PC under Linux,
- 	  say Y. Information about this driver, especially important for IBM
- 	  Thinkpad users, is contained in
--	  <file:Documentation/blockdev/floppy.rst>.
-+	  <file:Documentation/admin-guide/blockdev/floppy.rst>.
- 	  That file also contains the location of the Floppy driver FAQ as
- 	  well as location of the fdutils package used to configure additional
- 	  parameters of the driver at run time.
-@@ -96,7 +96,7 @@ config PARIDE
- 	  your computer's parallel port. Most of them are actually IDE devices
- 	  using a parallel port IDE adapter. This option enables the PARIDE
- 	  subsystem which contains drivers for many of these external drives.
--	  Read <file:Documentation/blockdev/paride.rst> for more information.
-+	  Read <file:Documentation/admin-guide/blockdev/paride.rst> for more information.
- 
- 	  If you have said Y to the "Parallel-port support" configuration
- 	  option, you may share a single port between your printer and other
-@@ -261,7 +261,7 @@ config BLK_DEV_NBD
- 	  userland (making server and client physically the same computer,
- 	  communicating using the loopback network device).
- 
--	  Read <file:Documentation/blockdev/nbd.rst> for more information,
-+	  Read <file:Documentation/admin-guide/blockdev/nbd.rst> for more information,
- 	  especially about where to find the server code, which runs in user
- 	  space and does not need special kernel support.
- 
-@@ -303,7 +303,7 @@ config BLK_DEV_RAM
- 	  during the initial install of Linux.
- 
- 	  Note that the kernel command line option "ramdisk=XX" is now obsolete.
--	  For details, read <file:Documentation/blockdev/ramdisk.rst>.
-+	  For details, read <file:Documentation/admin-guide/blockdev/ramdisk.rst>.
- 
- 	  To compile this driver as a module, choose M here: the
- 	  module will be called brd. An alias "rd" has been defined
-diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
-index 5c99e52f9dc1..f652c1ac3ae9 100644
---- a/drivers/block/floppy.c
-+++ b/drivers/block/floppy.c
-@@ -4424,7 +4424,7 @@ static int __init floppy_setup(char *str)
- 		pr_cont("\n");
- 	} else
- 		DPRINT("botched floppy option\n");
--	DPRINT("Read Documentation/blockdev/floppy.rst\n");
-+	DPRINT("Read Documentation/admin-guide/blockdev/floppy.rst\n");
- 	return 0;
- }
- 
-diff --git a/drivers/block/zram/Kconfig b/drivers/block/zram/Kconfig
-index e06b99d54816..fe7a4b7d30cf 100644
---- a/drivers/block/zram/Kconfig
-+++ b/drivers/block/zram/Kconfig
-@@ -12,7 +12,7 @@ config ZRAM
- 	  It has several use cases, for example: /tmp storage, use as swap
- 	  disks and maybe many more.
- 
--	  See Documentation/blockdev/zram.rst for more information.
-+	  See Documentation/admin-guide/blockdev/zram.rst for more information.
- 
- config ZRAM_WRITEBACK
-        bool "Write back incompressible or idle page to backing device"
-@@ -26,7 +26,7 @@ config ZRAM_WRITEBACK
- 	 With /sys/block/zramX/{idle,writeback}, application could ask
- 	 idle page's writeback to the backing device to save in memory.
- 
--	 See Documentation/blockdev/zram.rst for more information.
-+	 See Documentation/admin-guide/blockdev/zram.rst for more information.
- 
- config ZRAM_MEMORY_TRACKING
- 	bool "Track zRam block status"
-@@ -36,4 +36,4 @@ config ZRAM_MEMORY_TRACKING
- 	  of zRAM. Admin could see the information via
- 	  /sys/kernel/debug/zram/zramX/block_state.
- 
--	  See Documentation/blockdev/zram.rst for more information.
-+	  See Documentation/admin-guide/blockdev/zram.rst for more information.
-diff --git a/tools/testing/selftests/zram/README b/tools/testing/selftests/zram/README
-index 5fa378391d3b..110b34834a6f 100644
---- a/tools/testing/selftests/zram/README
-+++ b/tools/testing/selftests/zram/README
-@@ -37,4 +37,4 @@ Commands required for testing:
-  - mkfs/ mkfs.ext4
- 
- For more information please refer:
--kernel-source-tree/Documentation/blockdev/zram.rst
-+kernel-source-tree/Documentation/admin-guide/blockdev/zram.rst
+ ==============
+ Laptop Drivers
+diff --git a/Documentation/admin-guide/namespaces/index.rst b/Documentation/admin-guide/namespaces/index.rst
+index 713ec4949fa7..384f2e0f33d2 100644
+--- a/Documentation/admin-guide/namespaces/index.rst
++++ b/Documentation/admin-guide/namespaces/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ==========
+ Namespaces
+ ==========
+diff --git a/Documentation/admin-guide/perf/index.rst b/Documentation/admin-guide/perf/index.rst
+index 9d445451ea18..ee4bfd2a740f 100644
+--- a/Documentation/admin-guide/perf/index.rst
++++ b/Documentation/admin-guide/perf/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ===========================
+ Performance monitor support
+ ===========================
+diff --git a/Documentation/arm/index.rst b/Documentation/arm/index.rst
+index 9c2f781f4685..5fc072dd0c5e 100644
+--- a/Documentation/arm/index.rst
++++ b/Documentation/arm/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ================
+ ARM Architecture
+ ================
+diff --git a/Documentation/arm/nwfpe/index.rst b/Documentation/arm/nwfpe/index.rst
+index 21fa8ce192ae..3c4d2f9aa10e 100644
+--- a/Documentation/arm/nwfpe/index.rst
++++ b/Documentation/arm/nwfpe/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ===================================
+ NetWinder's floating point emulator
+ ===================================
+diff --git a/Documentation/arm/omap/index.rst b/Documentation/arm/omap/index.rst
+index f1e9c11d9f9b..8b365b212e49 100644
+--- a/Documentation/arm/omap/index.rst
++++ b/Documentation/arm/omap/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ =======
+ TI OMAP
+ =======
+diff --git a/Documentation/arm/sa1100/index.rst b/Documentation/arm/sa1100/index.rst
+index fb2385b3accf..68c2a280a745 100644
+--- a/Documentation/arm/sa1100/index.rst
++++ b/Documentation/arm/sa1100/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ====================
+ Intel StrongARM 1100
+ ====================
+diff --git a/Documentation/arm/samsung-s3c24xx/index.rst b/Documentation/arm/samsung-s3c24xx/index.rst
+index 6c7b241cbf37..5b8a7f9398d8 100644
+--- a/Documentation/arm/samsung-s3c24xx/index.rst
++++ b/Documentation/arm/samsung-s3c24xx/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ﻿==========================
+ Samsung S3C24XX SoC Family
+ ==========================
+diff --git a/Documentation/arm/samsung/index.rst b/Documentation/arm/samsung/index.rst
+index f54d95734362..8142cce3d23e 100644
+--- a/Documentation/arm/samsung/index.rst
++++ b/Documentation/arm/samsung/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ===========
+ Samsung SoC
+ ===========
+diff --git a/Documentation/driver-api/early-userspace/index.rst b/Documentation/driver-api/early-userspace/index.rst
+index 6f20c3c560d8..149c1822f06d 100644
+--- a/Documentation/driver-api/early-userspace/index.rst
++++ b/Documentation/driver-api/early-userspace/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ===============
+ Early Userspace
+ ===============
+diff --git a/Documentation/driver-api/md/index.rst b/Documentation/driver-api/md/index.rst
+index 205080891a1a..18f54a7d7d6e 100644
+--- a/Documentation/driver-api/md/index.rst
++++ b/Documentation/driver-api/md/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ====
+ RAID
+ ====
+diff --git a/Documentation/driver-api/memory-devices/index.rst b/Documentation/driver-api/memory-devices/index.rst
+index 87549828f6ab..28101458cda5 100644
+--- a/Documentation/driver-api/memory-devices/index.rst
++++ b/Documentation/driver-api/memory-devices/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ =========================
+ Memory Controller drivers
+ =========================
+diff --git a/Documentation/driver-api/mmc/index.rst b/Documentation/driver-api/mmc/index.rst
+index 9aaf64951a8c..7339736ac774 100644
+--- a/Documentation/driver-api/mmc/index.rst
++++ b/Documentation/driver-api/mmc/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ========================
+ MMC/SD/SDIO card support
+ ========================
+diff --git a/Documentation/driver-api/mtd/index.rst b/Documentation/driver-api/mtd/index.rst
+index 2e0e7cc4055e..436ba5a851d7 100644
+--- a/Documentation/driver-api/mtd/index.rst
++++ b/Documentation/driver-api/mtd/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ==============================
+ Memory Technology Device (MTD)
+ ==============================
+diff --git a/Documentation/driver-api/nfc/index.rst b/Documentation/driver-api/nfc/index.rst
+index 3afb2c0c2e3c..b6e9eedbff29 100644
+--- a/Documentation/driver-api/nfc/index.rst
++++ b/Documentation/driver-api/nfc/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ========================
+ Near Field Communication
+ ========================
+diff --git a/Documentation/driver-api/nvdimm/index.rst b/Documentation/driver-api/nvdimm/index.rst
+index 19dc8ee371dc..a4f8f98aeb94 100644
+--- a/Documentation/driver-api/nvdimm/index.rst
++++ b/Documentation/driver-api/nvdimm/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ===================================
+ Non-Volatile Memory Device (NVDIMM)
+ ===================================
+diff --git a/Documentation/driver-api/phy/index.rst b/Documentation/driver-api/phy/index.rst
+index fce9ffae2812..69ba1216de72 100644
+--- a/Documentation/driver-api/phy/index.rst
++++ b/Documentation/driver-api/phy/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ =====================
+ Generic PHY Framework
+ =====================
+diff --git a/Documentation/driver-api/rapidio/index.rst b/Documentation/driver-api/rapidio/index.rst
+index 4c5e51a05134..a41b4242d16f 100644
+--- a/Documentation/driver-api/rapidio/index.rst
++++ b/Documentation/driver-api/rapidio/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ===========================
+ The Linux RapidIO Subsystem
+ ===========================
+diff --git a/Documentation/driver-api/thermal/index.rst b/Documentation/driver-api/thermal/index.rst
+index 68ceb6886561..5ba61d19c6ae 100644
+--- a/Documentation/driver-api/thermal/index.rst
++++ b/Documentation/driver-api/thermal/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ =======
+ Thermal
+ =======
+diff --git a/Documentation/ia64/index.rst b/Documentation/ia64/index.rst
+index ef99475f672b..0436e1034115 100644
+--- a/Documentation/ia64/index.rst
++++ b/Documentation/ia64/index.rst
+@@ -1,3 +1,5 @@
++.. SPDX-License-Identifier: GPL-2.0
++
+ ==================
+ IA-64 Architecture
+ ==================
 -- 
 2.21.0
 
