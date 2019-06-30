@@ -1,20 +1,25 @@
-Return-Path: <drbd-dev@lists.ewheeler.net>
-Received: from mx.ewheeler.net (mx.ewheeler.net [66.155.3.69])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 635A61011BFF
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jun 2019 19:59:42 +0200 (CEST)
-Date: Thu, 27 Jun 2019 17:59:40 +0000 (UTC)
-From: Eric Wheeler <drbd-dev@lists.ewheeler.net>
-To: Robert Altnoeder <robert.altnoeder@linbit.com>
-In-Reply-To: <27d9a6d5-6ee7-be44-8d46-2dc15d466307@linbit.com>
-Message-ID: <alpine.LRH.2.11.1906271737510.1114@mx.ewheeler.net>
-References: <alpine.LRH.2.11.1906210638010.3326@mx.ewheeler.net>
-	<20190624154946.GU30528@soda.linbit>
-	<alpine.LRH.2.11.1906261914150.1114@mx.ewheeler.net>
-	<27d9a6d5-6ee7-be44-8d46-2dc15d466307@linbit.com>
+Return-Path: <dab21774@gmail.com>
+Received: from mail-io1-f66.google.com (mail-io1-f66.google.com
+	[209.85.166.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B99681028A76
+	for <drbd-dev@lists.linbit.com>; Mon,  1 Jul 2019 00:46:54 +0200 (CEST)
+Received: by mail-io1-f66.google.com with SMTP id e5so24463987iok.4
+	for <drbd-dev@lists.linbit.com>; Sun, 30 Jun 2019 15:46:54 -0700 (PDT)
+Received: from [192.168.1.20] (c-73-78-150-191.hsd1.co.comcast.net.
+	[73.78.150.191]) by smtp.gmail.com with ESMTPSA id
+	z17sm13910808iol.73.2019.06.30.15.46.52
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Sun, 30 Jun 2019 15:46:52 -0700 (PDT)
+To: drbd-dev@lists.linbit.com
+From: David Butterfield <dab21774@gmail.com>
+Message-ID: <44599673-cf74-7e79-3672-af9feea537d2@gmail.com>
+Date: Sun, 30 Jun 2019 16:46:51 -0600
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Checksum based resync block size
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Subject: [Drbd-dev] How to leak a peer_devices idr instance
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,58 +31,53 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 27 Jun 2019, Robert Altnoeder wrote:
+I've been valgrinding the SCST/DRBD usermode server to look for bugs in my kernel function
+emulation.  Once in a while it points me at a problem in DRBD.  I mentioned in a message last
+week about the "resync_fifo" leak (which appears consistently in the valgrind output).
 
-> On 6/26/19 9:20 PM, Eric Wheeler wrote:
-> > On Mon, 24 Jun 2019, Lars Ellenberg wrote:
-> >
-> >> As our in-sync/out-of-sync bitmap tracks 4k blocks,
-> >> we want to compare 4k checkesums.
-> >>
-> >> Yes, that generates "a lot" of requests, and if these are not merged by
-> >> some IO scheduler on the lower layers, that may seriously suck.
-> >>
-> >> make_ov_request() is what generates the online-verify requests.
-> >>
-> >> What we potentially could do is issue the requests in larger chunks,
-> >> like (1 MiB) to the backends, then calculate and communicate the
-> >> checksum per each 4k, as well as the result.
->
-> > What if it were to calculate 1MiB chunks (configurable) and then 
-> > invalidate all 4k bitmap entries in that 1MiB range if the hash 
-> > mismatches?
+Ideally I could get a clean valgrind run, with all allocations having been freed before exit.
+After deleting objects using drbdsetup and then running the server's exit handlers, it is very
+close, with a couple of "usual suspects", plus whatever I discover from time to time as I try 
+different operations.
 
-This could also help resync by checksuming contiguous dirty bitmap entries 
-(up to a chunk size limit) and resyncing the whole series instead of each 
-4k block.
- 
-> Is your intention to reduce the number of packets with checksums that
-> are being sent, and/or the number of checksum comparisons for the same
-> amount of data?
+Today's discovery is the ability to leak a peer_devices idr instance by a sequence of six
+drbdsetup create and delete steps.  Whether or not it leaks depends on the order of the delete
+steps.  After a fresh restart of the server the first sequence below leaks, but not the second.
 
-Reduce the number of packets, but also, crypto transforms perform better 
-on larger data chunks. You make another good point: fewer hash comparisons 
-will help too.
+If I delete the peer before the minor it leaks the peer_devices idr.
+    sudo drbdsetup new-resource r0 0
+    sudo drbdsetup new-minor r0 1 0 
+    sudo drbdsetup new-peer r0 1 --_name=vagrant
+    sudo drbdsetup del-peer r0 1                # delete peer first leaks peer_devices idr 
+    sudo drbdsetup del-minor 1
+    sudo drbdsetup del-resource r0
 
-> Both could have a positive impact on performance, but the question is,
-> whether the difference is big enough to be relevant. On the other hand,
-> hashing more data per checksum increases the chance of hash collisions.
+If I delete the minor before the peer it doesn't leak.
+    sudo drbdsetup new-resource r0 0
+    sudo drbdsetup new-minor r0 1 0 
+    sudo drbdsetup new-peer r0 1 --_name=vagrant
+    sudo drbdsetup del-minor 1                  # delete minor first doesn't leak
+    sudo drbdsetup del-peer r0 1
+    sudo drbdsetup del-resource r0
 
-I'm not too concerned about hash collisions.  That might be a problem with 
-small CRC32-based sums, but assuming crypto hashes with a hash size of 
-2^128, then the birthday paradox gives us a collision betwen some two 
-hashes after 2^64 hashes---that is, any 2 hashes---not specifically the 
-two being compared.  The probability of two chosen hashes colliding is 
-even lower than 1/(2^64).
+What appears to be happening:
 
--Eric
+    During del-minor, the peer_devices idr gets removed in drbd_unregister_device(), for each
+    connection it finds.  That appears to be the only place that idr gets removed after use.
 
-> 
-> br,
-> Robert
-> 
-> _______________________________________________
-> drbd-dev mailing list
-> drbd-dev@lists.linbit.com
-> http://lists.linbit.com/mailman/listinfo/drbd-dev
-> 
+    But in the leaking sequence, the connection has already been removed by the del-peer command
+    before the later del-minor command runs.  So the connection loop in drbd_unregister_device()
+    (line 3935 below) iterates zero times and does not free any peer_devices idr.
+
+    3928 void drbd_unregister_device(struct drbd_device *device)
+    ... 
+    3934         spin_lock_irq(&resource->req_lock);
+    3935         for_each_connection(connection, resource) {
+    3936                 idr_remove(&connection->peer_devices, device->vnr);
+    3937         }
+    3938         idr_remove(&resource->devices, device->vnr);
+    3939         idr_remove(&drbd_devices, device_to_minor(device));
+    3940         spin_unlock_irq(&resource->req_lock);
+
+Regards,
+David Butterfield
