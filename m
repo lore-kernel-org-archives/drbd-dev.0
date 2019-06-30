@@ -1,25 +1,25 @@
 Return-Path: <dab21774@gmail.com>
-Received: from mail-io1-f66.google.com (mail-io1-f66.google.com
-	[209.85.166.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id B99681028A76
-	for <drbd-dev@lists.linbit.com>; Mon,  1 Jul 2019 00:46:54 +0200 (CEST)
-Received: by mail-io1-f66.google.com with SMTP id e5so24463987iok.4
-	for <drbd-dev@lists.linbit.com>; Sun, 30 Jun 2019 15:46:54 -0700 (PDT)
+Received: from mail-io1-f53.google.com (mail-io1-f53.google.com
+	[209.85.166.53])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A9AF71028A76
+	for <drbd-dev@lists.linbit.com>; Mon,  1 Jul 2019 00:58:36 +0200 (CEST)
+Received: by mail-io1-f53.google.com with SMTP id j6so24489523ioa.5
+	for <drbd-dev@lists.linbit.com>; Sun, 30 Jun 2019 15:58:36 -0700 (PDT)
 Received: from [192.168.1.20] (c-73-78-150-191.hsd1.co.comcast.net.
 	[73.78.150.191]) by smtp.gmail.com with ESMTPSA id
-	z17sm13910808iol.73.2019.06.30.15.46.52
+	e188sm10538897ioa.3.2019.06.30.15.58.34
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Sun, 30 Jun 2019 15:46:52 -0700 (PDT)
-To: drbd-dev@lists.linbit.com
+	Sun, 30 Jun 2019 15:58:34 -0700 (PDT)
 From: David Butterfield <dab21774@gmail.com>
-Message-ID: <44599673-cf74-7e79-3672-af9feea537d2@gmail.com>
-Date: Sun, 30 Jun 2019 16:46:51 -0600
+To: drbd-dev@lists.linbit.com
+Message-ID: <3b7dbdb2-3440-5b15-6da5-56e929afe1ff@gmail.com>
+Date: Sun, 30 Jun 2019 16:58:34 -0600
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] How to leak a peer_devices idr instance
+Subject: [Drbd-dev] netlink transmit padding contains uninitialized bytes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,53 +31,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-I've been valgrinding the SCST/DRBD usermode server to look for bugs in my kernel function
-emulation.  Once in a while it points me at a problem in DRBD.  I mentioned in a message last
-week about the "resync_fifo" leak (which appears consistently in the valgrind output).
+Valgrind reported uninitialized bytes being sent to a system call when transmitting a netlink
+response generated using drbd_msg_sprintf_info() (formatting opener_info()).  (Valgrind catches
+this when the emulated kernel transmit function makes a real system call to do the transmit.)
 
-Ideally I could get a clean valgrind run, with all allocations having been freed before exit.
-After deleting objects using drbdsetup and then running the server's exit handlers, it is very
-close, with a couple of "usual suspects", plus whatever I discover from time to time as I try 
-different operations.
+When sending a text reply over netlink, the string is formatted directly into an skb area which
+is reserved "big enough", then gets "trimmed" back down after the length of the string is known.
+The "trim" is to an "aligned" size, possibly leaving up to three "alignment padding" bytes in
+the skb data after the end of the string. 
 
-Today's discovery is the ability to leak a peer_devices idr instance by a sequence of six
-drbdsetup create and delete steps.  Whether or not it leaks depends on the order of the delete
-steps.  After a fresh restart of the server the first sequence below leaks, but not the second.
+Those "alignment padding" bytes were never initialized after the skb space was allocated,
+leading to a complaint from valgrind when the uninitialized bytes were passed to a system call
+for transmission over the netlink.  
 
-If I delete the peer before the minor it leaks the peer_devices idr.
-    sudo drbdsetup new-resource r0 0
-    sudo drbdsetup new-minor r0 1 0 
-    sudo drbdsetup new-peer r0 1 --_name=vagrant
-    sudo drbdsetup del-peer r0 1                # delete peer first leaks peer_devices idr 
-    sudo drbdsetup del-minor 1
-    sudo drbdsetup del-resource r0
+The change below initializes any "alignment padding" bytes to zero, and makes the valgrind
+complaint go away.  (It could be rewritten to use fewer CPU cycles!)
+    
+diff --git a/drbd/drbd_nl.c b/drbd/drbd_nl.c
+index 7c4f3654..6a66528e 100644
+--- a/drbd/drbd_nl.c
++++ b/drbd/drbd_nl.c
+@@ -163,6 +163,12 @@ static int drbd_msg_sprintf_info(struct sk_buff *skb, const char *fmt, ...)
 
-If I delete the minor before the peer it doesn't leak.
-    sudo drbdsetup new-resource r0 0
-    sudo drbdsetup new-minor r0 1 0 
-    sudo drbdsetup new-peer r0 1 --_name=vagrant
-    sudo drbdsetup del-minor 1                  # delete minor first doesn't leak
-    sudo drbdsetup del-peer r0 1
-    sudo drbdsetup del-resource r0
-
-What appears to be happening:
-
-    During del-minor, the peer_devices idr gets removed in drbd_unregister_device(), for each
-    connection it finds.  That appears to be the only place that idr gets removed after use.
-
-    But in the leaking sequence, the connection has already been removed by the del-peer command
-    before the later del-minor command runs.  So the connection loop in drbd_unregister_device()
-    (line 3935 below) iterates zero times and does not free any peer_devices idr.
-
-    3928 void drbd_unregister_device(struct drbd_device *device)
-    ... 
-    3934         spin_lock_irq(&resource->req_lock);
-    3935         for_each_connection(connection, resource) {
-    3936                 idr_remove(&connection->peer_devices, device->vnr);
-    3937         }
-    3938         idr_remove(&resource->devices, device->vnr);
-    3939         idr_remove(&drbd_devices, device_to_minor(device));
-    3940         spin_unlock_irq(&resource->req_lock);
-
-Regards,
-David Butterfield
+        /* maybe: retry with larger reserve, if truncated */
+        txt->nla_len = nla_attr_size(len+1);
++   
++       /* avoid transmitting uninitialized bytes */
++       ++len;
++       while (len < NLA_ALIGN(len))
++               *((char *)nla_data(txt) + len++) = '\0';
++
+        nlmsg_trim(skb, (char*)txt + NLA_ALIGN(txt->nla_len));
+        nla_nest_end(skb, nla);
