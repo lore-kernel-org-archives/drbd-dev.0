@@ -1,25 +1,26 @@
 Return-Path: <dab21774@gmail.com>
-Received: from mail-io1-f45.google.com (mail-io1-f45.google.com
-	[209.85.166.45])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 3494F103B4B8
-	for <drbd-dev@lists.linbit.com>; Mon,  8 Jul 2019 20:09:53 +0200 (CEST)
-Received: by mail-io1-f45.google.com with SMTP id j5so17996859ioj.8
-	for <drbd-dev@lists.linbit.com>; Mon, 08 Jul 2019 11:09:53 -0700 (PDT)
+Received: from mail-io1-f50.google.com (mail-io1-f50.google.com
+	[209.85.166.50])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id D8F95103B4B8
+	for <drbd-dev@lists.linbit.com>; Mon,  8 Jul 2019 20:16:46 +0200 (CEST)
+Received: by mail-io1-f50.google.com with SMTP id g20so16295585ioc.12
+	for <drbd-dev@lists.linbit.com>; Mon, 08 Jul 2019 11:16:46 -0700 (PDT)
 Received: from [192.168.1.20] (c-73-78-150-191.hsd1.co.comcast.net.
-	[73.78.150.191])
-	by smtp.gmail.com with ESMTPSA id v3sm9027145iom.53.2019.07.08.11.09.51
+	[73.78.150.191]) by smtp.gmail.com with ESMTPSA id
+	t19sm15767775iog.41.2019.07.08.11.16.44
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-	Mon, 08 Jul 2019 11:09:51 -0700 (PDT)
+	Mon, 08 Jul 2019 11:16:45 -0700 (PDT)
 From: David Butterfield <dab21774@gmail.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <d3164ad9-e05e-5c46-aa91-9166ebe732e2@gmail.com>
-Date: Mon, 8 Jul 2019 12:09:50 -0600
+Message-ID: <ef9fab02-3129-d733-2316-1c11a246c572@gmail.com>
+Date: Mon, 8 Jul 2019 12:16:43 -0600
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Subject: [Drbd-dev] left shift of negative value in dcbp_set_pad_bits()
+Content-Transfer-Encoding: 8bit
+Subject: [Drbd-dev] "missing-prototypes" warning under standard kernel
+	compile options
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,23 +32,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This fixes a C undefined-behavior runtime error encountered by libubsan after gcc -fsanitize=undefined:
-left shift of negative value in dcbp_set_pad_bits()
+This fixes a "missing-prototypes" compiler warning under the standard kernel compile
+warning options.  It wants to see a prior declaration for externally-visible functions.
+The function at issue does not need to be externally-visible, so make it static.
 
-I mentioned this one before, but in the context of a boring compiler warning.
-The runtime undefined-behavior may make it more interesting.
+drbd_actlog.c:239:1: warning: no previous prototype for ‘set_bme_priority’ [-Wmissing-prototypes]
+ set_bme_priority(struct get_activity_log_ref_ctx *al_ctx)
 
 
-diff --git a/drbd/drbd_main.c b/drbd/drbd_main.c
-index 062c5ca1..16b4f02d 100644
---- a/drbd/drbd_main.c
-+++ b/drbd/drbd_main.c
-@@ -1832,7 +1840,7 @@ static void dcbp_set_start(struct p_compressed_bm *p, int set)
- static void dcbp_set_pad_bits(struct p_compressed_bm *p, int n)
- {
-	BUG_ON(n & ~0x7);
--	p->encoding = (p->encoding & (~0x7 << 4)) | (n << 4);
-+	p->encoding = (p->encoding & (~0x7u << 4)) | (n << 4);
+
+diff --git a/drbd/drbd_actlog.c b/drbd/drbd_actlog.c
+index 44c5b2cc..20b72d5f 100644
+--- a/drbd/drbd_actlog.c
++++ b/drbd/drbd_actlog.c
+@@ -235,7 +235,7 @@ find_active_resync_extent(struct get_activity_log_ref_ctx *al_ctx)
+ 	return NULL;
  }
  
- static int fill_bitmap_rle_bits(struct drbd_peer_device *peer_device,
+-void
++static void
+ set_bme_priority(struct get_activity_log_ref_ctx *al_ctx)
+ {
+ 	struct drbd_peer_device *peer_device;
