@@ -1,33 +1,33 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm1-f67.google.com (mail-wm1-f67.google.com
-	[209.85.128.67])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id A3FED101AC47
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Jul 2019 13:19:15 +0200 (CEST)
-Received: by mail-wm1-f67.google.com with SMTP id v19so41283706wmj.5
-	for <drbd-dev@lists.linbit.com>; Wed, 24 Jul 2019 04:19:15 -0700 (PDT)
+Received: from mail-wr1-f66.google.com (mail-wr1-f66.google.com
+	[209.85.221.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E8310101AC47
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Jul 2019 13:19:43 +0200 (CEST)
+Received: by mail-wr1-f66.google.com with SMTP id c2so43332551wrm.8
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Jul 2019 04:19:43 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
-	[212.186.191.219])
-	by smtp.gmail.com with ESMTPSA id 2sm59237224wrn.29.2019.07.24.04.19.14
+	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
+	h16sm46109183wrv.88.2019.07.24.04.19.42
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Wed, 24 Jul 2019 04:19:14 -0700 (PDT)
-Resent-Message-ID: <20190724111912.GE6697@soda.linbit>
-Received: from mout.kundenserver.de (mout.kundenserver.de [217.72.192.73])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id E947D101AC44
-	for <drbd-dev@lists.linbit.com>; Mon, 22 Jul 2019 14:32:09 +0200 (CEST)
-From: Arnd Bergmann <arnd@arndb.de>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Date: Mon, 22 Jul 2019 14:26:34 +0200
-Message-Id: <20190722122647.351002-1-arnd@arndb.de>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>,
-	Eric Biggers <ebiggers@google.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, clang-built-linux@googlegroups.com,
-	Herbert Xu <herbert@gondor.apana.org.au>,
-	Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] [v2] drbd: dynamically allocate shash descriptor
+	Wed, 24 Jul 2019 04:19:43 -0700 (PDT)
+Resent-Message-ID: <20190724111941.GF6697@soda.linbit>
+Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com
+	[209.85.215.195])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 950EB101AC44
+	for <drbd-dev@lists.linbit.com>; Wed, 24 Jul 2019 05:55:45 +0200 (CEST)
+Received: by mail-pg1-f195.google.com with SMTP id f20so11240321pgj.0
+	for <drbd-dev@lists.linbit.com>; Tue, 23 Jul 2019 20:55:45 -0700 (PDT)
+From: Jia-Ju Bai <baijiaju1990@gmail.com>
+To: philipp.reisner@linbit.com,
+	lars.ellenberg@linbit.com,
+	axboe@kernel.dk
+Date: Wed, 24 Jul 2019 11:49:16 +0800
+Message-Id: <20190724034916.28703-1-baijiaju1990@gmail.com>
+Cc: linux-block@vger.kernel.org, Jia-Ju Bai <baijiaju1990@gmail.com>,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 1/2] block: drbd: Fix a possible null-pointer
+	dereference in receive_protocol()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,65 +39,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Building with clang and KASAN, we get a warning about an overly large
-stack frame on 32-bit architectures:
+In receive_protocol(), when crypto_alloc_shash() on line 3754 fails,
+peer_integrity_tfm is NULL, and error handling code is executed.
+In this code, crypto_free_shash() is called with NULL, which can cause a
+null-pointer dereference, because:
+crypto_free_shash(NULL)
+    crypto_ahash_tfm(NULL)
+        "return &NULL->base"
 
-drivers/block/drbd/drbd_receiver.c:921:31: error: stack frame size of 1280 bytes in function 'conn_connect'
-      [-Werror,-Wframe-larger-than=]
+To fix this bug, peer_integrity_tfm is checked before calling
+crypto_free_shash().
 
-We already allocate other data dynamically in this function, so
-just do the same for the shash descriptor, which makes up most of
-this memory.
+This bug is found by a static analysis tool STCheck written by us.
 
-Link: https://lore.kernel.org/lkml/20190617132440.2721536-1-arnd@arndb.de/
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Signed-off-by: Jia-Ju Bai <baijiaju1990@gmail.com>
 ---
-v2:
-- don't try to zero a NULL descriptor pointer,
-  based on review from Roland Kammerer.
----
- drivers/block/drbd/drbd_receiver.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_receiver.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 90ebfcae0ce6..2b3103c30857 100644
+index 90ebfcae0ce6..a4df2b8291f6 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -5417,7 +5417,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 	unsigned int key_len;
- 	char secret[SHARED_SECRET_MAX]; /* 64 byte */
- 	unsigned int resp_size;
--	SHASH_DESC_ON_STACK(desc, connection->cram_hmac_tfm);
-+	struct shash_desc *desc;
- 	struct packet_info pi;
- 	struct net_conf *nc;
- 	int err, rv;
-@@ -5430,6 +5430,13 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 	memcpy(secret, nc->shared_secret, key_len);
+@@ -3807,7 +3807,8 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
+ disconnect_rcu_unlock:
  	rcu_read_unlock();
- 
-+	desc = kmalloc(sizeof(struct shash_desc) +
-+		       crypto_shash_descsize(connection->cram_hmac_tfm),
-+		       GFP_KERNEL);
-+	if (!desc) {
-+		rv = -1;
-+		goto fail;
-+	}
- 	desc->tfm = connection->cram_hmac_tfm;
- 
- 	rv = crypto_shash_setkey(connection->cram_hmac_tfm, (u8 *)secret, key_len);
-@@ -5571,7 +5578,10 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 	kfree(peers_ch);
- 	kfree(response);
- 	kfree(right_response);
--	shash_desc_zero(desc);
-+	if (desc) {
-+		shash_desc_zero(desc);
-+		kfree(desc);
-+	}
- 
- 	return rv;
- }
+ disconnect:
+-	crypto_free_shash(peer_integrity_tfm);
++	if (peer_integrity_tfm)
++		crypto_free_shash(peer_integrity_tfm);
+ 	kfree(int_dig_in);
+ 	kfree(int_dig_vv);
+ 	conn_request_state(connection, NS(conn, C_DISCONNECTING), CS_HARD);
 -- 
-2.20.0
+2.17.0
 
