@@ -1,34 +1,34 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm1-f68.google.com (mail-wm1-f68.google.com
-	[209.85.128.68])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 9FE91101AC42
-	for <drbd-dev@lists.linbit.com>; Mon,  5 Aug 2019 11:55:56 +0200 (CEST)
-Received: by mail-wm1-f68.google.com with SMTP id w9so6283931wmd.1
-	for <drbd-dev@lists.linbit.com>; Mon, 05 Aug 2019 02:55:56 -0700 (PDT)
+Received: from mail-wr1-f66.google.com (mail-wr1-f66.google.com
+	[209.85.221.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6B9D9101AC4C
+	for <drbd-dev@lists.linbit.com>; Mon,  5 Aug 2019 11:56:05 +0200 (CEST)
+Received: by mail-wr1-f66.google.com with SMTP id n9so83863890wru.0
+	for <drbd-dev@lists.linbit.com>; Mon, 05 Aug 2019 02:56:04 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	a81sm90428194wmh.3.2019.08.05.02.55.54
+	n12sm87670962wmc.24.2019.08.05.02.56.03
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 05 Aug 2019 02:55:55 -0700 (PDT)
-Resent-Message-ID: <20190805095553.GB17295@soda.linbit>
+	Mon, 05 Aug 2019 02:56:03 -0700 (PDT)
+Resent-Message-ID: <20190805095601.GC17295@soda.linbit>
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CC006101AC45
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CD613101AC46
 	for <drbd-dev@lists.linbit.com>; Fri,  2 Aug 2019 15:31:24 +0200 (CEST)
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Date: Fri,  2 Aug 2019 09:24:13 -0400
-Message-Id: <20190802132422.13963-21-sashal@kernel.org>
-In-Reply-To: <20190802132422.13963-1-sashal@kernel.org>
-References: <20190802132422.13963-1-sashal@kernel.org>
+Date: Fri,  2 Aug 2019 09:25:39 -0400
+Message-Id: <20190802132547.14517-15-sashal@kernel.org>
+In-Reply-To: <20190802132547.14517-1-sashal@kernel.org>
+References: <20190802132547.14517-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Jens Axboe <axboe@kernel.dk>, Sasha Levin <sashal@kernel.org>,
 	Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>,
 	linux-block@vger.kernel.org, clang-built-linux@googlegroups.com,
 	Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH AUTOSEL 4.14 21/30] drbd: dynamically allocate
+Subject: [Drbd-dev] [PATCH AUTOSEL 4.9 15/22] drbd: dynamically allocate
 	shash descriptor
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -66,10 +66,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 1aad373da50e2..8fbdfaacc2226 100644
+index 83957a1e15ed7..8e8e4ccb128f3 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -5237,7 +5237,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
+@@ -5297,7 +5297,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
  	unsigned int key_len;
  	char secret[SHARED_SECRET_MAX]; /* 64 byte */
  	unsigned int resp_size;
@@ -78,7 +78,7 @@ index 1aad373da50e2..8fbdfaacc2226 100644
  	struct packet_info pi;
  	struct net_conf *nc;
  	int err, rv;
-@@ -5250,6 +5250,13 @@ static int drbd_do_auth(struct drbd_connection *connection)
+@@ -5310,6 +5310,13 @@ static int drbd_do_auth(struct drbd_connection *connection)
  	memcpy(secret, nc->shared_secret, key_len);
  	rcu_read_unlock();
  
@@ -92,7 +92,7 @@ index 1aad373da50e2..8fbdfaacc2226 100644
  	desc->tfm = connection->cram_hmac_tfm;
  	desc->flags = 0;
  
-@@ -5392,7 +5399,10 @@ static int drbd_do_auth(struct drbd_connection *connection)
+@@ -5452,7 +5459,10 @@ static int drbd_do_auth(struct drbd_connection *connection)
  	kfree(peers_ch);
  	kfree(response);
  	kfree(right_response);
