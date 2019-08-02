@@ -1,34 +1,34 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f66.google.com (mail-wr1-f66.google.com
-	[209.85.221.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 6B9D9101AC4C
-	for <drbd-dev@lists.linbit.com>; Mon,  5 Aug 2019 11:56:05 +0200 (CEST)
-Received: by mail-wr1-f66.google.com with SMTP id n9so83863890wru.0
-	for <drbd-dev@lists.linbit.com>; Mon, 05 Aug 2019 02:56:04 -0700 (PDT)
+Received: from mail-wm1-f66.google.com (mail-wm1-f66.google.com
+	[209.85.128.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 52708101AC4D
+	for <drbd-dev@lists.linbit.com>; Mon,  5 Aug 2019 11:56:11 +0200 (CEST)
+Received: by mail-wm1-f66.google.com with SMTP id u25so62011046wmc.4
+	for <drbd-dev@lists.linbit.com>; Mon, 05 Aug 2019 02:56:11 -0700 (PDT)
 Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
 	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	n12sm87670962wmc.24.2019.08.05.02.56.03
+	b15sm102236260wrt.77.2019.08.05.02.56.10
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 05 Aug 2019 02:56:03 -0700 (PDT)
-Resent-Message-ID: <20190805095601.GC17295@soda.linbit>
+	Mon, 05 Aug 2019 02:56:10 -0700 (PDT)
+Resent-Message-ID: <20190805095609.GD17295@soda.linbit>
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CD613101AC46
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CEB2F101AC47
 	for <drbd-dev@lists.linbit.com>; Fri,  2 Aug 2019 15:31:24 +0200 (CEST)
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Date: Fri,  2 Aug 2019 09:25:39 -0400
-Message-Id: <20190802132547.14517-15-sashal@kernel.org>
-In-Reply-To: <20190802132547.14517-1-sashal@kernel.org>
-References: <20190802132547.14517-1-sashal@kernel.org>
+Date: Fri,  2 Aug 2019 09:19:31 -0400
+Message-Id: <20190802131951.11600-57-sashal@kernel.org>
+In-Reply-To: <20190802131951.11600-1-sashal@kernel.org>
+References: <20190802131951.11600-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Jens Axboe <axboe@kernel.dk>, Sasha Levin <sashal@kernel.org>,
 	Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>,
 	linux-block@vger.kernel.org, clang-built-linux@googlegroups.com,
 	Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH AUTOSEL 4.9 15/22] drbd: dynamically allocate
+Subject: [Drbd-dev] [PATCH AUTOSEL 5.2 57/76] drbd: dynamically allocate
 	shash descriptor
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -66,10 +66,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 83957a1e15ed7..8e8e4ccb128f3 100644
+index 90ebfcae0ce6e..2b3103c308573 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -5297,7 +5297,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
+@@ -5417,7 +5417,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
  	unsigned int key_len;
  	char secret[SHARED_SECRET_MAX]; /* 64 byte */
  	unsigned int resp_size;
@@ -78,7 +78,7 @@ index 83957a1e15ed7..8e8e4ccb128f3 100644
  	struct packet_info pi;
  	struct net_conf *nc;
  	int err, rv;
-@@ -5310,6 +5310,13 @@ static int drbd_do_auth(struct drbd_connection *connection)
+@@ -5430,6 +5430,13 @@ static int drbd_do_auth(struct drbd_connection *connection)
  	memcpy(secret, nc->shared_secret, key_len);
  	rcu_read_unlock();
  
@@ -90,9 +90,9 @@ index 83957a1e15ed7..8e8e4ccb128f3 100644
 +		goto fail;
 +	}
  	desc->tfm = connection->cram_hmac_tfm;
- 	desc->flags = 0;
  
-@@ -5452,7 +5459,10 @@ static int drbd_do_auth(struct drbd_connection *connection)
+ 	rv = crypto_shash_setkey(connection->cram_hmac_tfm, (u8 *)secret, key_len);
+@@ -5571,7 +5578,10 @@ static int drbd_do_auth(struct drbd_connection *connection)
  	kfree(peers_ch);
  	kfree(response);
  	kfree(right_response);
