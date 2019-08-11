@@ -1,35 +1,19 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm1-f66.google.com (mail-wm1-f66.google.com
-	[209.85.128.66])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 52708101AC4D
-	for <drbd-dev@lists.linbit.com>; Mon,  5 Aug 2019 11:56:11 +0200 (CEST)
-Received: by mail-wm1-f66.google.com with SMTP id u25so62011046wmc.4
-	for <drbd-dev@lists.linbit.com>; Mon, 05 Aug 2019 02:56:11 -0700 (PDT)
-Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
-	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	b15sm102236260wrt.77.2019.08.05.02.56.10
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 05 Aug 2019 02:56:10 -0700 (PDT)
-Resent-Message-ID: <20190805095609.GD17295@soda.linbit>
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id CEB2F101AC47
-	for <drbd-dev@lists.linbit.com>; Fri,  2 Aug 2019 15:31:24 +0200 (CEST)
-From: Sasha Levin <sashal@kernel.org>
-To: linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org
-Date: Fri,  2 Aug 2019 09:19:31 -0400
-Message-Id: <20190802131951.11600-57-sashal@kernel.org>
-In-Reply-To: <20190802131951.11600-1-sashal@kernel.org>
-References: <20190802131951.11600-1-sashal@kernel.org>
+Return-Path: <dab21774@gmail.com>
+Received: from mail-ot1-f66.google.com (mail-ot1-f66.google.com
+	[209.85.210.66])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 32E9E101AC43
+	for <drbd-dev@lists.linbit.com>; Sun, 11 Aug 2019 19:27:23 +0200 (CEST)
+Received: by mail-ot1-f66.google.com with SMTP id f17so15700697otq.4
+	for <drbd-dev@lists.linbit.com>; Sun, 11 Aug 2019 10:27:23 -0700 (PDT)
+To: drbd-dev@lists.linbit.com, christoph.boehmwalder@linbit.com
+From: David Butterfield <dab21774@gmail.com>
+Message-ID: <1bc428a7-2cab-fba7-f521-d96ba1f6c7df@gmail.com>
+Date: Sun, 11 Aug 2019 11:20:04 -0600
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, Sasha Levin <sashal@kernel.org>,
-	Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>,
-	linux-block@vger.kernel.org, clang-built-linux@googlegroups.com,
-	Roland Kammerer <roland.kammerer@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH AUTOSEL 5.2 57/76] drbd: dynamically allocate
-	shash descriptor
+Subject: [Drbd-dev] using new cocci config on older kernels
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,69 +25,109 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <http://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Arnd Bergmann <arnd@arndb.de>
+In drbd-9.0/drbd, using the August 2 checkin "Prepare 10.0.0a1":
+I tried building with a few different kernel versions, using commands of the form (e.g.):
+    wget https://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.4.113.tar.gz
+    ...
+    make clean; make -i KDIR=linux-3.4.113
 
-[ Upstream commit 77ce56e2bfaa64127ae5e23ef136c0168b818777 ]
+First question is whether I should be expecting that to work all the way back to the
+expected DRBD limit of 2.6.32, or if the limit has (intentionally) been changed?
 
-Building with clang and KASAN, we get a warning about an overly large
-stack frame on 32-bit architectures:
+Builds with these KDIRs show no errors:
+		   linux-4.20.17
+		   linux-3.19.8
 
-drivers/block/drbd/drbd_receiver.c:921:31: error: stack frame size of 1280 bytes in function 'conn_connect'
-      [-Werror,-Wframe-larger-than=]
+Back as far as linux-2.6.39.4, the first six errors below accumulate.  That jumps to
+33 errors when reaching all the way to the 2.6.32 DRBD limit (though most of them are
+concentrated in a few groups of functions).
 
-We already allocate other data dynamically in this function, so
-just do the same for the shash descriptor, which makes up most of
-this memory.
+The first two errors listed (check/update plugged) go away by adding braces to the
+source code so that it matches one of the cocci patterns (detail at end of message).
 
-Link: https://lore.kernel.org/lkml/20190617132440.2721536-1-arnd@arndb.de/
-Reviewed-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: Roland Kammerer <roland.kammerer@linbit.com>
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-Signed-off-by: Jens Axboe <axboe@kernel.dk>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- drivers/block/drbd/drbd_receiver.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+The third one is that drbd_interval.c appears to unconditionally #include
+linux/rbtree_augmented.h (and use rb_insert_augmented/rb_erase_augmented), whether or
+not the selected KDIR has that file and those functions.  2.6.32 does not have them.
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 90ebfcae0ce6e..2b3103c308573 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -5417,7 +5417,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 	unsigned int key_len;
- 	char secret[SHARED_SECRET_MAX]; /* 64 byte */
- 	unsigned int resp_size;
--	SHASH_DESC_ON_STACK(desc, connection->cram_hmac_tfm);
-+	struct shash_desc *desc;
- 	struct packet_info pi;
- 	struct net_conf *nc;
- 	int err, rv;
-@@ -5430,6 +5430,13 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 	memcpy(secret, nc->shared_secret, key_len);
- 	rcu_read_unlock();
+drbd_req.c:1809:31: error: implicit declaration of function ‘drbd_check_plugged’ (FIX BELOW)
+drbd_req.c:1811:4: error: implicit declaration of function ‘drbd_update_plug’	 (FIX BELOW)
+drbd_interval.c:2:10: fatal error: linux/rbtree_augmented.h: No such file or directory
+drbd_receiver.c:1319:15: error: implicit declaration of function ‘bdev_discard_alignment’
+
+		    linux-3.4.113	4 errors shown above appear in this build
+
+drbd_debugfs.c:439:22: error: implicit declaration of function ‘kref_get_unless_zero’
+
+		    linux-3.3.8		5 errors shown above appear in this build
+
+drbd_nl.c:2027:3: error: implicit declaration of function ‘blk_set_stacking_limits’
+
+		    1inux-3.0.1		6 errors shown above appear in this build
+		    linux-2.6.39.4	6 errors shown above appear in this build
+
+drbd_nl.c:1921:11: error: ‘struct queue_limits’ has no member named ‘discard_granularity’
+drbd_receiver.c:1318:29: error: ‘struct queue_limits’ has no member named ‘discard_granularity’
+
+drbd_bitmap.c:500:3: error: ‘kunmap_atomic’ undeclared (first use in this function)
+drbd_main.c:1983:2: error: ‘kunmap_atomic’ undeclared (first use in this function)
+drbd_sender.c:1345:5: error: ‘kunmap_atomic’ undeclared (first use in this function)
+drbd_bitmap.c:500:21: error: macro "kunmap_atomic" requires 2 arguments, but only 1 given
+drbd_main.c:1983:25: error: macro "kunmap_atomic" requires 2 arguments, but only 1 given
+drbd_sender.c:1345:20: error: macro "kunmap_atomic" requires 2 arguments, but only 1 given
+drbd_receiver.c:844:13: error: ‘struct task_struct’ has no member named ‘plug’
+drbd_bitmap.c:492:10: error: too few arguments to function ‘kmap_atomic’
+drbd_main.c:1981:14: error: too few arguments to function ‘kmap_atomic’
+drbd_sender.c:1342:7: error: too few arguments to function ‘kmap_atomic’
+
+drbd_debugfs.c:672:6: error: implicit declaration of function ‘IS_ERR_OR_NULL’
+drbd_req.c:1912:6: error: implicit declaration of function ‘IS_ERR_OR_NULL’
+
+drbd_main.c:123:7: error: implicit declaration of function ‘kstrtoull’
+
+drbd_debugfs.c:1057:4: error: implicit declaration of function ‘ktime_to_ms’
+
+drbd_main.c:1424:3: error: implicit declaration of function ‘lockdep_is_held’
+drbd_nl.c:3444:9: error: implicit declaration of function ‘lockdep_is_held’
+drbd_receiver.c:4335:5: error: implicit declaration of function ‘lockdep_is_held’
+
+drbd_main.c:1423:8: error: implicit declaration of function ‘rcu_dereference_protected’
+drbd_nl.c:3443:13: error: implicit declaration of function ‘rcu_dereference_protected’
+drbd_receiver.c:4334:14: error: implicit declaration of function ‘rcu_dereference_protected’
+
+drbd_bitmap.c:533:11: error: implicit declaration of function ‘__test_and_clear_bit_le’
+drbd_bitmap.c:537:12: error: implicit declaration of function ‘__test_and_set_bit_le’
+drbd_bitmap.c:541:11: error: implicit declaration of function ‘test_bit_le’
+drbd_bitmap.c:559:13: error: implicit declaration of function ‘find_next_bit_le’
+drbd_bitmap.c:565:13: error: implicit declaration of function ‘find_next_zero_bit_le’
+
+		  linux-2.6.32.27       33 errors shown above appear in this build
+
+=========================================
+Add braces in drbd_req.c to match the cocci rule in blk_check_plugged__no_present.cocci, right?
+Otherwise the references to drbd_check_plugged and drbd_update_plug don't get removed by the patch.
+
+diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
+@@ -1860,8 +1860,9 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
  
-+	desc = kmalloc(sizeof(struct shash_desc) +
-+		       crypto_shash_descsize(connection->cram_hmac_tfm),
-+		       GFP_KERNEL);
-+	if (!desc) {
-+		rv = -1;
-+		goto fail;
-+	}
- 	desc->tfm = connection->cram_hmac_tfm;
+        if (no_remote == false) {
+                struct drbd_plug_cb *plug = drbd_check_plugged(resource);
+-               if (plug)
++               if (plug) {
+                        drbd_update_plug(plug, req);
++               }
+        }
  
- 	rv = crypto_shash_setkey(connection->cram_hmac_tfm, (u8 *)secret, key_len);
-@@ -5571,7 +5578,10 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 	kfree(peers_ch);
- 	kfree(response);
- 	kfree(right_response);
--	shash_desc_zero(desc);
-+	if (desc) {
-+		shash_desc_zero(desc);
-+		kfree(desc);
-+	}
- 
- 	return rv;
- }
--- 
-2.20.1
+        /* If it took the fast path in drbd_request_prepare, add it here.
 
+=========================================
+cocci/blk_check_plugged__no_present.cocci
+@@
+identifier pl;
+@@
+-if(...) {
+-	struct drbd_plug_cb *pl = ...;
+-	if(pl) {
+-		...
+-	}
+-}
+=========================================
