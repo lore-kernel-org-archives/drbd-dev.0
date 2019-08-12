@@ -1,14 +1,14 @@
 Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wr1-f65.google.com (mail-wr1-f65.google.com
-	[209.85.221.65])
-	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id BB22E101AC44
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Aug 2019 07:18:05 +0200 (CEST)
-Received: by mail-wr1-f65.google.com with SMTP id 31so103481213wrm.1
-	for <drbd-dev@lists.linbit.com>; Sun, 11 Aug 2019 22:18:05 -0700 (PDT)
-Date: Mon, 12 Aug 2019 07:18:03 +0200
+Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
+	[209.85.221.67])
+	by mail09.linbit.com (LINBIT Mail Daemon) with ESMTP id 691F7101AC43
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Aug 2019 07:22:05 +0200 (CEST)
+Received: by mail-wr1-f67.google.com with SMTP id j16so1183536wrr.8
+	for <drbd-dev@lists.linbit.com>; Sun, 11 Aug 2019 22:22:05 -0700 (PDT)
+Date: Mon, 12 Aug 2019 07:22:02 +0200
 From: Roland Kammerer <roland.kammerer@linbit.com>
 To: drbd-dev@lists.linbit.com
-Message-ID: <20190812051803.pkmmm5ize2f2plki@rck.sh>
+Message-ID: <20190812052202.ats3cq4xy2tjimjq@rck.sh>
 References: <1bc428a7-2cab-fba7-f521-d96ba1f6c7df@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -36,13 +36,7 @@ On Sun, Aug 11, 2019 at 11:20:04AM -0600, David Butterfield wrote:
 > First question is whether I should be expecting that to work all the way back to the
 > expected DRBD limit of 2.6.32, or if the limit has (intentionally) been changed?
 
-No. With DRBD10 we will give up RHEL6 kernels. From a quick look at the
-build matrix, RHEL7 then has the oldest kernel we will support.
-
-All in all the build magic/compat, especially for HEAD (which is the dev
-branch for 10; there is also a stable one for 9.0.X) needs some love.
-
-So yeah, thanks, but for now play with something else, it will make you
-happier :D
+And FWIW, the "expected guarantee" was always for the RHEL(6) kernel with
+its gazillion of patches and backports, never for that upstream version.
 
 Regards, rck
