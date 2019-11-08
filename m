@@ -1,71 +1,24 @@
-Return-Path: <joe@perches.com>
-Received: from smtprelay.hostedemail.com (smtprelay0149.hostedemail.com
-	[216.40.44.149])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8036F42033D
-	for <drbd-dev@lists.linbit.com>; Fri, 18 Oct 2019 17:43:43 +0200 (CEST)
-Received: from smtprelay.hostedemail.com (10.5.19.251.rfc1918.com
-	[10.5.19.251])
-	by smtpgrave02.hostedemail.com (Postfix) with ESMTP id 3B1B518113653
-	for <drbd-dev@lists.linbit.com>; Fri, 18 Oct 2019 15:36:57 +0000 (UTC)
-Message-ID: <86695bdf8e8e7425b680dcbcb23acec5e58853da.camel@perches.com>
-From: Joe Perches <joe@perches.com>
-To: Christoph Hellwig <hch@lst.de>, Petr Mladek <pmladek@suse.com>, Stephen
-	Rothwell <sfr@canb.auug.org.au>
-In-Reply-To: <20191018152226.GA32150@lst.de>
-References: <20191018031710.41052-1-wangkefeng.wang@huawei.com>
-	<20191018142626.vmbgclelw23h5pdn@pathway.suse.cz>
-	<20191018152226.GA32150@lst.de>
-Content-Type: text/plain; charset="ISO-8859-1"
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mail-wm1-f65.google.com (mail-wm1-f65.google.com
+	[209.85.128.65])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 01D3C420342
+	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2019 11:51:41 +0100 (CET)
+Received: by mail-wm1-f65.google.com with SMTP id z19so5709267wmk.3
+	for <drbd-dev@lists.linbit.com>; Fri, 08 Nov 2019 02:51:41 -0800 (PST)
+From: Philipp Reisner <philipp.reisner@linbit.com>
+To: Dan Carpenter <dan.carpenter@oracle.com>, Jens Axboe <axboe@kernel.dk>
+Date: Fri, 08 Nov 2019 11:46:00 +0100
+Message-ID: <6906816.cRlsrm7Sor@fat-tyre>
+In-Reply-To: <20191107074847.GA11695@mwanda>
+References: <20191107074847.GA11695@mwanda>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Cc: Lars, Mark Rutland <mark.rutland@arm.com>,
-	Kefeng Wang <wangkefeng.wang@huawei.com>, Ingo,
-	Sylwester Nawrocki <s.nawrocki@samsung.com>,
-	Alexander Shishkin <alexander.shishkin@linux.intel.com>,
-	Herrenschmidt <benh@kernel.crashing.org>,
-	Palmer Dabbelt <palmer@sifive.com>, Corentin,
-	Jaroslav Kysela <perex@perex.cz>,
-	David Howells <dhowells@redhat.com>, Felker <dalias@libc.org>,
-	Andy, Rich, "H. Peter Anvin" <hpa@zytor.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Frank Rowand <frowand.list@gmail.com>,
-	linux-afs@lists.infradead.org, drbd-dev@lists.linbit.com,
-	Benjamin, Stephen Rothwell <sfr@canb.auug.org.au>,
-	Herbert Xu <herbert@gondor.apana.org.au>,
-	Daniel Borkmann <daniel@iogearbox.net>, Jiri Olsa <jolsa@redhat.com>,
-	Daniel Lezcano <daniel.lezcano@linaro.org>,
-	Krzysztof Kozlowski <krzk@kernel.org>, Zijlstra <peterz@infradead.org>,
-	Andy Shevchenko <andy.shevchenko@gmail.com>, Molnar <mingo@redhat.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Darren Hart <dvhart@infradead.org>,
-	Marek Szyprowski <m.szyprowski@samsung.com>,
-	Len Brown <lenb@kernel.org>, Fenghua Yu <fenghua.yu@intel.com>,
-	Song Liu <songliubraving@fb.com>, Albert Ou <aou@eecs.berkeley.edu>,
-	Robert Richter <rric@kernel.org>, Will Deacon <will@kernel.org>,
-	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
-	"James E.J. Bottomley" <jejb@linux.ibm.com>,
-	Steven Rostedt <rostedt@goodmis.org>, Alexei Starovoitov <ast@kernel.org>,
-	Arnaldo Carvalho de Melo <acme@redhat.com>,
-	Rob Herring <robh+dt@kernel.org>, Borislav Petkov <bp@alien8.de>,
-	Ellenberg <lars.ellenberg@linbit.com>, linux-fbdev@vger.kernel.org,
-	Paul Walmsley <paul.walmsley@sifive.com>,
-	Whitcroft <apw@canonical.com>, Takashi Iwai <tiwai@suse.com>,
-	bpf@vger.kernel.org, Axboe <axboe@kernel.dk>,
-	Karsten Keil <isdn@linux-pingi.de>, Tony Luck <tony.luck@intel.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	Sangbeom Kim <sbkim73@samsung.com>,
-	Robin Murphy <robin.murphy@arm.com>, Jens,
-	"Rafael J. Wysocki" <rjw@rjwysocki.net>,
-	linux-kernel@vger.kernel.org, Martin KaFai Lau <kafai@fb.com>,
-	Yonghong Song <yhs@fb.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	James Morse <james.morse@arm.com>, Chary <corentin.chary@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>, Peter,
-	linuxppc-dev@lists.ozlabs.org, "David S.
-	Miller" <davem@davemloft.net>, Andy Shevchenko <andy@infradead.org>
-Subject: Re: [Drbd-dev] [PATCH v2 00/33] Kill pr_warning in the whole linux
-	code
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="iso-8859-1"
+Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] block: drbd: remove a stay unlock in
+	__drbd_send_protocol()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -76,16 +29,74 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Fri, 18 Oct 2019 15:43:43 -0000
 
-(Adding Stephen Rothwell)
+Hi Dan,
 
-On Fri, 2019-10-18 at 17:22 +0200, Christoph Hellwig wrote:
-> As I said before: please just send Linus a scripted conversion after
-> the next -rc1.  There is no point in creating all this churn.	
+yes, your patch it obviously correct. The comment you are
+referring to is badly worded. We will remove it.
 
-I again ask for a scripted mechanism to be added to
--next to allow these types of scriptable patches to get
-compilation coverage testing.
+Jens,
+
+are you taking this patch as it is?
+
+best regards,
+ Phil
+
+Am Donnerstag, 7. November 2019, 08:48:47 CET schrieb Dan Carpenter:
+> There are two callers of this function and they both unlock the mutex so
+> this ends up being a double unlock.
+>=20
+> Fixes: 44ed167da748 ("drbd: rcu_read_lock() and rcu_dereference() for
+> tconn->net_conf") Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
+> ---
+> Static analisys.  Not tested.  There is a comment about the lock next to
+> the caller in drbd_nl.c that I didn't understand:
+>=20
+> drivers/block/drbd/drbd_nl.c
+>   2509          crypto_free_shash(connection->integrity_tfm);
+>   2510          connection->integrity_tfm =3D crypto.integrity_tfm;
+>   2511          if (connection->cstate >=3D C_WF_REPORT_PARAMS &&
+> connection->agreed_pro_version >=3D 100) 2512                  /* Do this
+> without trying to take connection->data.mutex again.  */
+> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ What does th=
+is
+> mean?  We're already holding that lock.  We took it near the start of the
+> function.
+>=20
+>   2513                  __drbd_send_protocol(connection, P_PROTOCOL_UPDAT=
+E);
+> 2514
+>   2515          crypto_free_shash(connection->cram_hmac_tfm);
+>   2516          connection->cram_hmac_tfm =3D crypto.cram_hmac_tfm;
+>   2517
+>   2518          mutex_unlock(&connection->resource->conf_update);
+>   2519          mutex_unlock(&connection->data.mutex);
+>                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> Unlocked here.
+>=20
+>  drivers/block/drbd/drbd_main.c | 1 -
+>  1 file changed, 1 deletion(-)
+>=20
+> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_mai=
+n.c
+> index 5b248763a672..a18155cdce41 100644
+> --- a/drivers/block/drbd/drbd_main.c
+> +++ b/drivers/block/drbd/drbd_main.c
+> @@ -786,7 +786,6 @@ int __drbd_send_protocol(struct drbd_connection
+> *connection, enum drbd_packet cm
+>=20
+>  	if (nc->tentative && connection->agreed_pro_version < 92) {
+>  		rcu_read_unlock();
+> -		mutex_unlock(&sock->mutex);
+>  		drbd_err(connection, "--dry-run is not supported by peer");
+>  		return -EOPNOTSUPP;
+>  	}
+
+
+=2D-=20
+LINBIT | Keeping The Digital World Running
+
+DRBD=AE and LINBIT=AE are registered trademarks of LINBIT, Austria.
+
 
 
