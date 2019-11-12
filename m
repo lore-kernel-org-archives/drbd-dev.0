@@ -1,26 +1,22 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-io1-f68.google.com (mail-io1-f68.google.com
-	[209.85.166.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 306B5420347
-	for <drbd-dev@lists.linbit.com>; Fri,  8 Nov 2019 15:04:24 +0100 (CET)
-Received: by mail-io1-f68.google.com with SMTP id g15so6457416iob.9
-	for <drbd-dev@lists.linbit.com>; Fri, 08 Nov 2019 06:04:24 -0800 (PST)
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>
-References: <20191107074847.GA11695@mwanda> <6906816.cRlsrm7Sor@fat-tyre>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <17fea9d1-39f8-1d91-5509-5f520009b9c9@kernel.dk>
-Date: Fri, 8 Nov 2019 06:54:43 -0700
+Return-Path: <BATV+6e156d946156a2f7d1de+5924+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2FC7B420381
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Nov 2019 16:10:14 +0100 (CET)
+Date: Tue, 12 Nov 2019 06:50:43 -0800
+From: Christoph Hellwig <hch@infradead.org>
+To: jgq516@gmail.com
+Message-ID: <20191112145043.GA31295@infradead.org>
+References: <20191112090139.16092-1-guoqing.jiang@cloud.ionos.com>
 MIME-Version: 1.0
-In-Reply-To: <6906816.cRlsrm7Sor@fat-tyre>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] block: drbd: remove a stay unlock in
- __drbd_send_protocol()
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20191112090139.16092-1-guoqing.jiang@cloud.ionos.com>
+Cc: axboe@kernel.dk, Guoqing Jiang <guoqing.jiang@cloud.ionos.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [RFC PATCH] block: move rb interval tree from drbd
+	to block
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,18 +28,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 11/8/19 3:46 AM, Philipp Reisner wrote:
-> Hi Dan,
+On Tue, Nov 12, 2019 at 10:01:39AM +0100, jgq516@gmail.com wrote:
+> From: Guoqing Jiang <guoqing.jiang@cloud.ionos.com>
 > 
-> yes, your patch it obviously correct. The comment you are
-> referring to is badly worded. We will remove it.
-> 
-> Jens,
-> 
-> are you taking this patch as it is?
+> Currently, drbd has the implementation of rb interval tree.
+> And we would like to reuse it for raid1 io serialization [1],
+> so move it to a common place, rename to block_interval, export
+> those symbols and make necessary changes to drbd.
 
-Yep, I'll queue it up.
+This should not be built unconditonally, but be selected by the two
+users.  And lib/ seems like a better place than block.
 
--- 
-Jens Axboe
-
+Also please fix up any > 80 char lines that your naming changes
+introduce.
