@@ -1,22 +1,23 @@
-Return-Path: <BATV+6e156d946156a2f7d1de+5924+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2FC7B420381
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Nov 2019 16:10:14 +0100 (CET)
-Date: Tue, 12 Nov 2019 06:50:43 -0800
-From: Christoph Hellwig <hch@infradead.org>
-To: jgq516@gmail.com
-Message-ID: <20191112145043.GA31295@infradead.org>
-References: <20191112090139.16092-1-guoqing.jiang@cloud.ionos.com>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com
+	[209.85.215.195])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4584F4202F6
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Nov 2019 18:49:16 +0100 (CET)
+Received: by mail-pg1-f195.google.com with SMTP id e6so13176514pgi.11
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Nov 2019 09:49:16 -0800 (PST)
+To: zhengbin <zhengbin13@huawei.com>, philipp.reisner@linbit.com,
+	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com,
+	linux-block@vger.kernel.org
+References: <1574910572-42062-1-git-send-email-zhengbin13@huawei.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <32174dcc-ada8-ba8e-b000-47ed8e4c725e@kernel.dk>
+Date: Thu, 28 Nov 2019 09:41:43 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20191112090139.16092-1-guoqing.jiang@cloud.ionos.com>
-Cc: axboe@kernel.dk, Guoqing Jiang <guoqing.jiang@cloud.ionos.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [RFC PATCH] block: move rb interval tree from drbd
-	to block
+In-Reply-To: <1574910572-42062-1-git-send-email-zhengbin13@huawei.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Subject: Re: [Drbd-dev] [PATCH 0/3] drivers/block: Remove unneeded semicolon
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,16 +29,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Nov 12, 2019 at 10:01:39AM +0100, jgq516@gmail.com wrote:
-> From: Guoqing Jiang <guoqing.jiang@cloud.ionos.com>
+On 11/27/19 7:09 PM, zhengbin wrote:
+> zhengbin (3):
+>    drbd: Remove unneeded semicolon
+>    block: sunvdc: Remove unneeded semicolon
+>    ataflop: Remove unneeded semicolon
 > 
-> Currently, drbd has the implementation of rb interval tree.
-> And we would like to reuse it for raid1 io serialization [1],
-> so move it to a common place, rename to block_interval, export
-> those symbols and make necessary changes to drbd.
+>   drivers/block/ataflop.c       | 2 +-
+>   drivers/block/drbd/drbd_req.c | 2 +-
+>   drivers/block/sunvdc.c        | 2 +-
+>   3 files changed, 3 insertions(+), 3 deletions(-)
 
-This should not be built unconditonally, but be selected by the two
-users.  And lib/ seems like a better place than block.
+Applied, thanks.
 
-Also please fix up any > 80 char lines that your naming changes
-introduce.
+-- 
+Jens Axboe
+
