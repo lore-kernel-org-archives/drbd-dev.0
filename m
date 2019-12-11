@@ -1,23 +1,22 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com
-	[209.85.215.195])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4584F4202F6
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Nov 2019 18:49:16 +0100 (CET)
-Received: by mail-pg1-f195.google.com with SMTP id e6so13176514pgi.11
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Nov 2019 09:49:16 -0800 (PST)
-To: zhengbin <zhengbin13@huawei.com>, philipp.reisner@linbit.com,
-	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com,
-	linux-block@vger.kernel.org
-References: <1574910572-42062-1-git-send-email-zhengbin13@huawei.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <32174dcc-ada8-ba8e-b000-47ed8e4c725e@kernel.dk>
-Date: Thu, 28 Nov 2019 09:41:43 -0800
-MIME-Version: 1.0
-In-Reply-To: <1574910572-42062-1-git-send-email-zhengbin13@huawei.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Return-Path: <NWang@suse.com>
+Received: from m9a0014g.houston.softwaregrp.com
+	(m9a0014g.houston.softwaregrp.com [15.124.64.90])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C6E7A420120
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Dec 2019 09:25:58 +0100 (CET)
+Received: FROM m9a0014g.houston.softwaregrp.com (15.121.0.190) BY
+	m9a0014g.houston.softwaregrp.com WITH ESMTP
+	FOR drbd-dev@lists.linbit.com; Wed, 11 Dec 2019 08:25:16 +0000
+From: Nick Wang <NWang@suse.com>
+To: "drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Date: Wed, 11 Dec 2019 08:06:23 +0000
+Message-ID: <20191211080601.32276-1-nwang@suse.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Subject: Re: [Drbd-dev] [PATCH 0/3] drivers/block: Remove unneeded semicolon
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+Cc: Nick Wang <NWang@suse.com>
+Subject: [Drbd-dev] [PATCH] drbd: fix zero metadata limit by misaligned with
+	page size
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,19 +28,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 11/27/19 7:09 PM, zhengbin wrote:
-> zhengbin (3):
->    drbd: Remove unneeded semicolon
->    block: sunvdc: Remove unneeded semicolon
->    ataflop: Remove unneeded semicolon
-> 
->   drivers/block/ataflop.c       | 2 +-
->   drivers/block/drbd/drbd_req.c | 2 +-
->   drivers/block/sunvdc.c        | 2 +-
->   3 files changed, 3 insertions(+), 3 deletions(-)
+Metadata is aligned on 4k blocks, which is ok for x86 platform.
+But may cause a result of zero page with PPC64LE or ARM with
+64k page size.
 
-Applied, thanks.
+And calculate effective bytes directly from sector size.
 
--- 
-Jens Axboe
+Error log:
+...
+drbd0: Device size clipped from 2097016s to 0s due to metadata size
+...
+
+Signed-off-by: Nick Wang <nwang@suse.com>
+
+CC: drbd-dev@lists.linbit.com
+
+---
+ drbd/drbd_main.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drbd/drbd_main.c b/drbd/drbd_main.c
+index a7294639..336a4177 100644
+--- a/drbd/drbd_main.c
++++ b/drbd/drbd_main.c
+@@ -5589,8 +5589,7 @@ u64 directly_connected_nodes(struct drbd_resource *re=
+source, enum which_state wh
+=20
+ static sector_t bm_sect_to_max_capacity(unsigned int bm_max_peers, sector_=
+t bm_sect)
+ {
+-	u64 bm_pages =3D bm_sect >> (PAGE_SHIFT - SECTOR_SHIFT);
+-	u64 bm_bytes =3D bm_pages << PAGE_SHIFT;
++	u64 bm_bytes =3D bm_sect << SECTOR_SHIFT;
+ 	u64 bm_bytes_per_peer =3D div_u64(bm_bytes, bm_max_peers);
+ 	u64 bm_bits_per_peer =3D bm_bytes_per_peer * BITS_PER_BYTE;
+ 	return BM_BIT_TO_SECT(bm_bits_per_peer);
+--=20
+2.16.4
 
