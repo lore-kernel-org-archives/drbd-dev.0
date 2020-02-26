@@ -1,16 +1,43 @@
-Return-Path: <monasinha194@gmail.com>
-Received: from mail-io1-f43.google.com (mail-io1-f43.google.com
-	[209.85.166.43])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 64C9C4203C2
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Feb 2020 11:32:21 +0100 (CET)
-Received: by mail-io1-f43.google.com with SMTP id m25so5723460ioo.8
-	for <drbd-dev@lists.linbit.com>; Thu, 06 Feb 2020 02:32:20 -0800 (PST)
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com
+	[209.85.208.68])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3C93042011A
+	for <drbd-dev@lists.linbit.com>; Mon,  2 Mar 2020 14:47:30 +0100 (CET)
+Received: by mail-ed1-f68.google.com with SMTP id h62so11441608edd.12
+	for <drbd-dev@lists.linbit.com>; Mon, 02 Mar 2020 05:47:30 -0800 (PST)
+Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
+	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
+	a9sm15781707wmm.15.2020.03.02.05.40.04
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Mon, 02 Mar 2020 05:40:05 -0800 (PST)
+Resent-Message-ID: <20200302134003.GC19467@soda.linbit>
+Received: from mail-il1-f196.google.com (mail-il1-f196.google.com
+	[209.85.166.196])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3F77A420005
+	for <drbd-dev@lists.linbit.com>; Wed, 26 Feb 2020 15:24:05 +0100 (CET)
+Received: by mail-il1-f196.google.com with SMTP id f10so2505726ils.8
+	for <drbd-dev@lists.linbit.com>; Wed, 26 Feb 2020 06:24:05 -0800 (PST)
 MIME-Version: 1.0
-From: Mona Sinha <monasinha194@gmail.com>
-Message-ID: <CABf4PgnpksYvoadxKtYfG4Nek=s6ZaYUWhyXWNO_fJj_vswwpw@mail.gmail.com>
-To: drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary="000000000000edcf02059de57758"
-Subject: [Drbd-dev] DRBD full resync scanario
+References: <20200225234836.GA31741@embeddedor>
+In-Reply-To: <20200225234836.GA31741@embeddedor>
+From: Ilya Dryomov <idryomov@gmail.com>
+Date: Wed, 26 Feb 2020 14:56:34 +0100
+Message-ID: <CAOi1vP_2+G+0=-a0uqLMYisp+EtHhiVrkWFLFch5JygYVNWvdA@mail.gmail.com>
+To: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
+Content-Type: text/plain; charset="UTF-8"
+Cc: Jens Axboe <axboe@kernel.dk>, Sage Weil <sage@redhat.com>,
+	linux-ntfs-dev@lists.sourceforge.net,
+	"Richard Russon \(FlatCap\)" <ldm@flatcap.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Dongsheng Yang <dongsheng.yang@easystack.cn>,
+	LKML <linux-kernel@vger.kernel.org>,
+	linux-block <linux-block@vger.kernel.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Ceph Development <ceph-devel@vger.kernel.org>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH][next] block: Replace zero-length array with
+ flexible-array member
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,30 +48,50 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Thu, 06 Feb 2020 10:32:21 -0000
 
---000000000000edcf02059de57758
-Content-Type: text/plain; charset="UTF-8"
+On Wed, Feb 26, 2020 at 12:45 AM Gustavo A. R. Silva
+<gustavo@embeddedor.com> wrote:
+>
+> The current codebase makes use of the zero-length array language
+> extension to the C90 standard, but the preferred mechanism to declare
+> variable-length types such as these ones is a flexible array member[1][2],
+> introduced in C99:
+>
+> struct foo {
+>         int stuff;
+>         struct boo array[];
+> };
+>
+> By making use of the mechanism above, we will get a compiler warning
+> in case the flexible array does not occur last in the structure, which
+> will help us prevent some kind of undefined behavior bugs from being
+> inadvertently introduced[3] to the codebase from now on.
+>
+> Also, notice that, dynamic memory allocations won't be affected by
+> this change:
+>
+> "Flexible array members have incomplete type, and so the sizeof operator
+> may not be applied. As a quirk of the original implementation of
+> zero-length arrays, sizeof evaluates to zero."[1]
+>
+> This issue was found with the help of Coccinelle.
+>
+> [1] https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html
+> [2] https://github.com/KSPP/linux/issues/21
+> [3] commit 76497732932f ("cxgb3/l2t: Fix undefined behaviour")
+>
+> Signed-off-by: Gustavo A. R. Silva <gustavo@embeddedor.com>
+> ---
+>  block/partitions/ldm.h             | 2 +-
+>  drivers/block/drbd/drbd_int.h      | 2 +-
+>  drivers/block/drbd/drbd_protocol.h | 8 ++++----
 
-Hello,
+For rbd
 
-I am interested to know that in case of a primary-secondary server with
-single primary drbd mode undergoing full resync, what will happen in case
-of failover?
-Will the secondary server get promoted to primary or not? If not, will it
-send any error?
+>  drivers/block/rbd_types.h          | 2 +-
 
-Regards,
-Mona
+Acked-by: Ilya Dryomov <idryomov@gmail.com>
 
---000000000000edcf02059de57758
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Thanks,
 
-<div dir=3D"ltr">Hello,<div><br></div><div>I am interested to know that in =
-case of a primary-secondary server with single primary drbd mode undergoing=
- full resync, what will happen in case of failover?</div><div>Will the seco=
-ndary server get promoted to primary or not? If not, will it send any error=
-?</div><div><br></div><div>Regards,</div><div>Mona</div></div>
-
---000000000000edcf02059de57758--
+                Ilya
