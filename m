@@ -1,43 +1,18 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com
-	[209.85.208.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3C93042011A
-	for <drbd-dev@lists.linbit.com>; Mon,  2 Mar 2020 14:47:30 +0100 (CET)
-Received: by mail-ed1-f68.google.com with SMTP id h62so11441608edd.12
-	for <drbd-dev@lists.linbit.com>; Mon, 02 Mar 2020 05:47:30 -0800 (PST)
-Received: from soda.linbit (212-186-191-219.static.upcbusiness.at.
-	[212.186.191.219]) by smtp.gmail.com with ESMTPSA id
-	a9sm15781707wmm.15.2020.03.02.05.40.04
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 02 Mar 2020 05:40:05 -0800 (PST)
-Resent-Message-ID: <20200302134003.GC19467@soda.linbit>
-Received: from mail-il1-f196.google.com (mail-il1-f196.google.com
-	[209.85.166.196])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3F77A420005
-	for <drbd-dev@lists.linbit.com>; Wed, 26 Feb 2020 15:24:05 +0100 (CET)
-Received: by mail-il1-f196.google.com with SMTP id f10so2505726ils.8
-	for <drbd-dev@lists.linbit.com>; Wed, 26 Feb 2020 06:24:05 -0800 (PST)
+Return-Path: <duan.zhang@easystack.cn>
+Received: from m97134.mail.qiye.163.com (m97134.mail.qiye.163.com
+	[220.181.97.134])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4460D420177
+	for <drbd-dev@lists.linbit.com>; Mon,  2 Mar 2020 13:32:54 +0100 (CET)
+From: Zhang Duan <duan.zhang@easystack.cn>
+To: drbd-dev@lists.linbit.com
+Message-ID: <76806ec7-77fd-56b9-96f5-954cfcb24eee@easystack.cn>
+Date: Mon, 2 Mar 2020 20:31:59 +0800
 MIME-Version: 1.0
-References: <20200225234836.GA31741@embeddedor>
-In-Reply-To: <20200225234836.GA31741@embeddedor>
-From: Ilya Dryomov <idryomov@gmail.com>
-Date: Wed, 26 Feb 2020 14:56:34 +0100
-Message-ID: <CAOi1vP_2+G+0=-a0uqLMYisp+EtHhiVrkWFLFch5JygYVNWvdA@mail.gmail.com>
-To: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
-Content-Type: text/plain; charset="UTF-8"
-Cc: Jens Axboe <axboe@kernel.dk>, Sage Weil <sage@redhat.com>,
-	linux-ntfs-dev@lists.sourceforge.net,
-	"Richard Russon \(FlatCap\)" <ldm@flatcap.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Dongsheng Yang <dongsheng.yang@easystack.cn>,
-	LKML <linux-kernel@vger.kernel.org>,
-	linux-block <linux-block@vger.kernel.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Ceph Development <ceph-devel@vger.kernel.org>,
-	Lars Ellenberg <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH][next] block: Replace zero-length array with
- flexible-array member
+Content-Type: multipart/alternative;
+	boundary="------------A2B9B3EB9981DF692CBF92DA"
+Cc: "dongsheng.yang" <dongsheng.yang@easystack.cn>
+Subject: [Drbd-dev] [PATCH] drbd: Ignore negotiation result with the peer
+ who is also negotiating
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,49 +24,115 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Feb 26, 2020 at 12:45 AM Gustavo A. R. Silva
-<gustavo@embeddedor.com> wrote:
->
-> The current codebase makes use of the zero-length array language
-> extension to the C90 standard, but the preferred mechanism to declare
-> variable-length types such as these ones is a flexible array member[1][2],
-> introduced in C99:
->
-> struct foo {
->         int stuff;
->         struct boo array[];
-> };
->
-> By making use of the mechanism above, we will get a compiler warning
-> in case the flexible array does not occur last in the structure, which
-> will help us prevent some kind of undefined behavior bugs from being
-> inadvertently introduced[3] to the codebase from now on.
->
-> Also, notice that, dynamic memory allocations won't be affected by
-> this change:
->
-> "Flexible array members have incomplete type, and so the sizeof operator
-> may not be applied. As a quirk of the original implementation of
-> zero-length arrays, sizeof evaluates to zero."[1]
->
-> This issue was found with the help of Coccinelle.
->
-> [1] https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html
-> [2] https://github.com/KSPP/linux/issues/21
-> [3] commit 76497732932f ("cxgb3/l2t: Fix undefined behaviour")
->
-> Signed-off-by: Gustavo A. R. Silva <gustavo@embeddedor.com>
-> ---
->  block/partitions/ldm.h             | 2 +-
->  drivers/block/drbd/drbd_int.h      | 2 +-
->  drivers/block/drbd/drbd_protocol.h | 8 ++++----
+This is a multi-part message in MIME format.
+--------------A2B9B3EB9981DF692CBF92DA
+Content-Type: text/plain; charset=gbk; format=flowed
+Content-Transfer-Encoding: 7bit
 
-For rbd
 
->  drivers/block/rbd_types.h          | 2 +-
+We have a test on 3 nodes cluster in which the primary is uptodate and 
+the other two secondary
+is diskless by doing drbdadm detach. Then after doing drbdadm attach on 
+the two secondary at
+the same time, one status hangs at NEGOTIATING while another hangs at 
+ATTACHING.
 
-Acked-by: Ilya Dryomov <idryomov@gmail.com>
+That is because if a negotiating peer receives another's 
+wide-cluster-change from DISKLESS to
+NEGOTIATING, it will reject it due to more than one negotiation 
+throughout the cluster, but the
+new disk state of that node remains NEGOTIATING after a failed state 
+change. Then neither of
+two peers can get a negotiating result what they want.
 
-Thanks,
+Signed-off-by: ZhangDuan
+---
+drbd/drbd_state.c | 4 +++-
+1 file changed, 3 insertions(+), 1 deletion(-)
 
-                Ilya
+diff --git a/drbd/drbd_state.c b/drbd/drbd_state.c
+index c919d759..85910f1e 100644
+--- a/drbd/drbd_state.c
++++ b/drbd/drbd_state.c
+@@ -1835,8 +1835,10 @@ static void sanitize_state(struct drbd_resource 
+*resource)
+for_each_peer_device_rcu(peer_device, device) {
+enum drbd_repl_state nr = peer_device->negotiation_result;
+enum drbd_disk_state pdsk = peer_device->disk_state[NEW];
++ enum drbd_disk_state pdsk_old = peer_device->disk_state[OLD];
+
+- if (pdsk == D_UNKNOWN || pdsk < D_NEGOTIATING)
++ if ((pdsk == D_UNKNOWN || pdsk < D_NEGOTIATING) ||
++ (pdsk_old < D_NEGOTIATING && pdsk == D_NEGOTIATING))
+continue;
+
+if (pdsk == D_UP_TO_DATE)
+-- 
+2.24.0.windows.2
+
+-- 
+Sincerely Yours,
+Zhang Duan
+
+
+--------------A2B9B3EB9981DF692CBF92DA
+Content-Type: text/html; charset=gbk
+Content-Transfer-Encoding: 7bit
+
+<html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=GBK">
+  </head>
+  <body>
+    <p><br>
+    </p>
+    We have a test on 3 nodes cluster in which the primary is uptodate
+    and the other two secondary<br>
+    is diskless by doing drbdadm detach. Then after doing drbdadm attach
+    on the two secondary at<br>
+    the same time, one status hangs at NEGOTIATING while another hangs
+    at ATTACHING.<br>
+    <br>
+    That is because if a negotiating peer receives another's
+    wide-cluster-change from DISKLESS to<br>
+    NEGOTIATING, it will reject it due to more than one negotiation
+    throughout the cluster, but the<br>
+    new disk state of that node remains NEGOTIATING after a failed state
+    change. Then neither of<br>
+    two peers can get a negotiating result what they want.<br>
+    <br>
+    Signed-off-by: ZhangDuan <duan.zhang@easystack.cn><br>
+      ---<br>
+      drbd/drbd_state.c | 4 +++-<br>
+      1 file changed, 3 insertions(+), 1 deletion(-)<br>
+      <br>
+      diff --git a/drbd/drbd_state.c b/drbd/drbd_state.c<br>
+      index c919d759..85910f1e 100644<br>
+      --- a/drbd/drbd_state.c<br>
+      +++ b/drbd/drbd_state.c<br>
+      @@ -1835,8 +1835,10 @@ static void sanitize_state(struct
+      drbd_resource *resource)<br>
+      for_each_peer_device_rcu(peer_device, device) {<br>
+      enum drbd_repl_state nr = peer_device-&gt;negotiation_result;<br>
+      enum drbd_disk_state pdsk = peer_device-&gt;disk_state[NEW];<br>
+      + enum drbd_disk_state pdsk_old = peer_device-&gt;disk_state[OLD];<br>
+      <br>
+      - if (pdsk == D_UNKNOWN || pdsk &lt; D_NEGOTIATING)<br>
+      + if ((pdsk == D_UNKNOWN || pdsk &lt; D_NEGOTIATING) ||<br>
+      + (pdsk_old &lt; D_NEGOTIATING &amp;&amp; pdsk == D_NEGOTIATING))<br>
+      continue;<br>
+      <br>
+      if (pdsk == D_UP_TO_DATE)<br>
+      -- <br>
+      2.24.0.windows.2<br>
+      <br>
+    </duan.zhang@easystack.cn>
+    <pre class="moz-signature" cols="72">-- 
+Sincerely Yours,
+Zhang Duan</pre>
+  </body>
+</html>
+
+--------------A2B9B3EB9981DF692CBF92DA--
+
