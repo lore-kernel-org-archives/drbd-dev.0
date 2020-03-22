@@ -1,16 +1,16 @@
 Return-Path: <tjyang2001@gmail.com>
-Received: from mail-ed1-f43.google.com (mail-ed1-f43.google.com
-	[209.85.208.43])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 41EDB420005
-	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2020 17:33:21 +0100 (CET)
-Received: by mail-ed1-f43.google.com with SMTP id v6so13528729edw.8
-	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2020 09:33:21 -0700 (PDT)
+Received: from mail-ed1-f48.google.com (mail-ed1-f48.google.com
+	[209.85.208.48])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 990DE420005
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2020 17:34:22 +0100 (CET)
+Received: by mail-ed1-f48.google.com with SMTP id a43so13545125edf.6
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Mar 2020 09:34:22 -0700 (PDT)
 MIME-Version: 1.0
 From: "T.J. Yang" <tjyang2001@gmail.com>
-Message-ID: <CAD2GW8rEcO0rYaFbi3y8FC3ps7koyyN_ihvHZ8iRGrps_=-TFQ@mail.gmail.com>
+Message-ID: <CAD2GW8q5meBoNG+ewcWNLZKA7zS6-C2Ubzw9O5_n=p3fgZ83jQ@mail.gmail.com>
 To: drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary="0000000000009e484905a174134b"
-Subject: [Drbd-dev] Lower MIN_SPATCH_VERSION to 1.0.7 ?
+Content-Type: multipart/alternative; boundary="00000000000057eb6a05a173f4e1"
+Subject: [Drbd-dev] spatch error message is not accurate
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,56 +21,63 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Sun, 22 Mar 2020 16:33:22 -0000
+Date: Sun, 22 Mar 2020 16:34:22 -0000
 
---0000000000009e484905a174134b
+--00000000000057eb6a05a173f4e1
 Content-Type: text/plain; charset="UTF-8"
 
 Hi
 
-Can MIN_SPATCH_VERSION be set to 1.0.7 in upstream code base ?
+I tried to compile drbd9 master branch  on centos 8 which come with spatch
+1.0.7 only.
 
-CentOS 8 only have rpm package(coccinelle) for version 1.0.7.
-With version 1.0.7 set, I was able to make drbd.
+following is one-liner patch to make error message match the checks(if hash
+spatch && spatch_is_recent; then)  in drbd-kernel-compat/gen_compat_patch.sh
 
-[me@centos8t01 drbd]$ grep MIN_SPATCH_VERSION=
- drbd-kernel-compat/gen_compat_patch.sh
-MIN_SPATCH_VERSION=1.0.7
-[me@centos8t01 drbd]$ make
+diff --git a/drbd/drbd-kernel-compat/gen_compat_patch.sh
+b/drbd/drbd-kernel-compat/gen_compat_patch.sh
+index 19466081..d6f34286 100644
+--- a/drbd/drbd-kernel-compat/gen_compat_patch.sh
++++ b/drbd/drbd-kernel-compat/gen_compat_patch.sh
+@@ -105,6 +105,6 @@ elif test ! -e ../.git && [[ $SPAAS = true ]]; then
+     echo "  You can create a new .tgz including this pre-computed compat
+patch"
+     echo "  by calling \"echo drbd-$REL_VERSION/drbd/$compat_patch
+>>.filelist ; make tgz\""
+ else
+-   echo "ERROR: spatch not found in \$PATH. Install package 'coccinelle'!"
++   echo "ERROR: spatch is older than version $MIN_SPATCH_VERSION OR spatch
+not found in \$PATH. Install package 'coccinelle'!"
+    exit 1
+ fi
 
-    Calling toplevel makefile of kernel source tree, which I believe is in
-    KDIR=/lib/modules/4.18.0-187.el8.x86_64/source
-
-make -C /lib/modules/4.18.0-187.el8.x86_64/source
- O=/lib/modules/4.18.0-187.el8.x86_64/build M=/build/me/github/drbd/drbd
- modules
-  Building modules, stage 2.
-  MODPOST 2 modules
-mv .drbd_kernelrelease.new .drbd_kernelrelease
-Memorizing module configuration ... done.
-[me@centos8t01 drbd]$
+Regards
 
 -- 
 T.J. Yang
 
---0000000000009e484905a174134b
+--00000000000057eb6a05a173f4e1
 Content-Type: text/html; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-<div dir=3D"ltr">Hi=C2=A0<div><br></div><div>Can=C2=A0MIN_SPATCH_VERSION be=
- set to 1.0.7 in upstream code base ?=C2=A0</div><div><br></div><div>CentOS=
- 8 only have rpm package(coccinelle) for version 1.0.7.</div><div>With vers=
-ion 1.0.7 set, I was able to make drbd.=C2=A0</div><div><br></div><div>[me@=
-centos8t01 drbd]$ grep MIN_SPATCH_VERSION=3D =C2=A0 =C2=A0drbd-kernel-compa=
-t/gen_compat_patch.sh<br>MIN_SPATCH_VERSION=3D1.0.7<br></div><div>[me@cento=
-s8t01 drbd]$ make<br><br>=C2=A0 =C2=A0 Calling toplevel makefile of kernel =
-source tree, which I believe is in<br>=C2=A0 =C2=A0 KDIR=3D/lib/modules/4.1=
-8.0-187.el8.x86_64/source<br><br>make -C /lib/modules/4.18.0-187.el8.x86_64=
-/source =C2=A0O=3D/lib/modules/4.18.0-187.el8.x86_64/build M=3D/build/me/gi=
-thub/drbd/drbd =C2=A0modules<br>=C2=A0 Building modules, stage 2.<br>=C2=A0=
- MODPOST 2 modules<br>mv .drbd_kernelrelease.new .drbd_kernelrelease<br>Mem=
-orizing module configuration ... done.<br>[me@centos8t01 drbd]$<br><div><br=
-></div>-- <br><div dir=3D"ltr" class=3D"gmail_signature" data-smartmail=3D"=
-gmail_signature">T.J. Yang</div></div></div>
+<div dir=3D"ltr"><div>Hi</div><div><br></div><div>I tried to compile drbd9 =
+master branch=C2=A0 on centos 8 which come with spatch 1.0.7 only.</div><di=
+v><br></div><div>following is one-liner patch to make error message match t=
+he checks(if hash spatch &amp;&amp; spatch_is_recent; then)=C2=A0 in=C2=A0d=
+rbd-kernel-compat/gen_compat_patch.sh</div><div><br></div>diff --git a/drbd=
+/drbd-kernel-compat/gen_compat_patch.sh b/drbd/drbd-kernel-compat/gen_compa=
+t_patch.sh<br>index 19466081..d6f34286 100644<br>--- a/drbd/drbd-kernel-com=
+pat/gen_compat_patch.sh<br>+++ b/drbd/drbd-kernel-compat/gen_compat_patch.s=
+h<br>@@ -105,6 +105,6 @@ elif test ! -e ../.git &amp;&amp; [[ $SPAAS =3D tr=
+ue ]]; then<br>=C2=A0 =C2=A0 =C2=A0echo &quot; =C2=A0You can create a new .=
+tgz including this pre-computed compat patch&quot;<br>=C2=A0 =C2=A0 =C2=A0e=
+cho &quot; =C2=A0by calling \&quot;echo drbd-$REL_VERSION/drbd/$compat_patc=
+h &gt;&gt;.filelist ; make tgz\&quot;&quot;<br>=C2=A0else<br>- =C2=A0 echo =
+&quot;ERROR: spatch not found in \$PATH. Install package &#39;coccinelle&#3=
+9;!&quot;<br>+ =C2=A0 echo &quot;ERROR: spatch is older than version $MIN_S=
+PATCH_VERSION OR spatch not found in \$PATH. Install package &#39;coccinell=
+e&#39;!&quot;<br>=C2=A0 =C2=A0 exit 1<br>=C2=A0fi<br><div><br></div><div>Re=
+gards</div><div><br></div>-- <br><div dir=3D"ltr" class=3D"gmail_signature"=
+ data-smartmail=3D"gmail_signature">T.J. Yang</div></div>
 
---0000000000009e484905a174134b--
+--00000000000057eb6a05a173f4e1--
