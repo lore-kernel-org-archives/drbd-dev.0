@@ -1,12 +1,12 @@
 Return-Path: <BATV+ade674efe42abf9194a0+6102+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 66277420308
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BC6FF420383
 	for <drbd-dev@lists.linbit.com>; Fri,  8 May 2020 18:44:35 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  8 May 2020 18:15:07 +0200
-Message-Id: <20200508161517.252308-6-hch@lst.de>
+Date: Fri,  8 May 2020 18:15:03 +0200
+Message-Id: <20200508161517.252308-2-hch@lst.de>
 In-Reply-To: <20200508161517.252308-1-hch@lst.de>
 References: <20200508161517.252308-1-hch@lst.de>
 MIME-Version: 1.0
@@ -20,7 +20,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, Philip Kelleher <pjk1939@linux.ibm.com>,
 	linuxppc-dev@lists.ozlabs.org, Joshua Morris <josh.h.morris@us.ibm.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/15] ps3vram: stop using ->queuedata
+Subject: [Drbd-dev] [PATCH 01/15] nfblock: use gendisk private_data
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,30 +34,38 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/ps3vram.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ arch/m68k/emu/nfblock.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/ps3vram.c b/drivers/block/ps3vram.c
-index 821d4d8b1d763..5a1d1d137c724 100644
---- a/drivers/block/ps3vram.c
-+++ b/drivers/block/ps3vram.c
-@@ -587,7 +587,7 @@ static struct bio *ps3vram_do_bio(struct ps3_system_bus_device *dev,
+diff --git a/arch/m68k/emu/nfblock.c b/arch/m68k/emu/nfblock.c
+index c3a630440512e..5c6f04b00e866 100644
+--- a/arch/m68k/emu/nfblock.c
++++ b/arch/m68k/emu/nfblock.c
+@@ -61,7 +61,7 @@ struct nfhd_device {
  
- static blk_qc_t ps3vram_make_request(struct request_queue *q, struct bio *bio)
+ static blk_qc_t nfhd_make_request(struct request_queue *queue, struct bio *bio)
  {
--	struct ps3_system_bus_device *dev = q->queuedata;
-+	struct ps3_system_bus_device *dev = bio->bi_disk->private_data;
- 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
- 	int busy;
+-	struct nfhd_device *dev = queue->queuedata;
++	struct nfhd_device *dev = bio->bi_disk->private_data;
+ 	struct bio_vec bvec;
+ 	struct bvec_iter iter;
+ 	int dir, len, shift;
+@@ -122,7 +122,6 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
+ 	if (dev->queue == NULL)
+ 		goto free_dev;
  
-@@ -745,7 +745,6 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
- 	}
+-	dev->queue->queuedata = dev;
+ 	blk_queue_logical_block_size(dev->queue, bsize);
  
- 	priv->queue = queue;
--	queue->queuedata = dev;
- 	blk_queue_max_segments(queue, BLK_MAX_SEGMENTS);
- 	blk_queue_max_segment_size(queue, BLK_MAX_SEGMENT_SIZE);
- 	blk_queue_max_hw_sectors(queue, BLK_SAFE_MAX_SECTORS);
+ 	dev->disk = alloc_disk(16);
+@@ -136,6 +135,7 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
+ 	sprintf(dev->disk->disk_name, "nfhd%u", dev_id);
+ 	set_capacity(dev->disk, (sector_t)blocks * (bsize / 512));
+ 	dev->disk->queue = dev->queue;
++	dev->disk->private_data = dev;
+ 
+ 	add_disk(dev->disk);
+ 
 -- 
 2.26.2
 
