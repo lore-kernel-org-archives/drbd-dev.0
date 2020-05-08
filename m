@@ -1,12 +1,12 @@
 Return-Path: <BATV+ade674efe42abf9194a0+6102+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B1E124203E7
-	for <drbd-dev@lists.linbit.com>; Fri,  8 May 2020 18:44:37 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 13F624203EC
+	for <drbd-dev@lists.linbit.com>; Fri,  8 May 2020 18:44:38 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  8 May 2020 18:15:16 +0200
-Message-Id: <20200508161517.252308-15-hch@lst.de>
+Date: Fri,  8 May 2020 18:15:15 +0200
+Message-Id: <20200508161517.252308-14-hch@lst.de>
 In-Reply-To: <20200508161517.252308-1-hch@lst.de>
 References: <20200508161517.252308-1-hch@lst.de>
 MIME-Version: 1.0
@@ -20,7 +20,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, Philip Kelleher <pjk1939@linux.ibm.com>,
 	linuxppc-dev@lists.ozlabs.org, Joshua Morris <josh.h.morris@us.ibm.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 14/15] nvdimm/btt: stop using ->queuedata
+Subject: [Drbd-dev] [PATCH 13/15] nvdimm/blk: stop using ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,30 +34,46 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/nvdimm/btt.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/nvdimm/blk.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
-index 3b09419218d6f..eca3e48fefda1 100644
---- a/drivers/nvdimm/btt.c
-+++ b/drivers/nvdimm/btt.c
-@@ -1442,7 +1442,7 @@ static int btt_do_bvec(struct btt *btt, struct bio_integrity_payload *bip,
- static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
+diff --git a/drivers/nvdimm/blk.c b/drivers/nvdimm/blk.c
+index 43751fab9d36a..ffe4728bad8b1 100644
+--- a/drivers/nvdimm/blk.c
++++ b/drivers/nvdimm/blk.c
+@@ -165,7 +165,7 @@ static int nsblk_do_bvec(struct nd_namespace_blk *nsblk,
+ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
  {
- 	struct bio_integrity_payload *bip = bio_integrity(bio);
--	struct btt *btt = q->queuedata;
-+	struct btt *btt = bio->bi_disk->private_data;
+ 	struct bio_integrity_payload *bip;
+-	struct nd_namespace_blk *nsblk;
++	struct nd_namespace_blk *nsblk = bio->bi_disk->private_data;
  	struct bvec_iter iter;
  	unsigned long start;
  	struct bio_vec bvec;
-@@ -1543,7 +1543,6 @@ static int btt_blk_init(struct btt *btt)
- 	blk_queue_logical_block_size(btt->btt_queue, btt->sector_size);
- 	blk_queue_max_hw_sectors(btt->btt_queue, UINT_MAX);
- 	blk_queue_flag_set(QUEUE_FLAG_NONROT, btt->btt_queue);
--	btt->btt_queue->queuedata = btt;
+@@ -176,7 +176,6 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
+ 		return BLK_QC_T_NONE;
  
- 	if (btt_meta_size(btt)) {
- 		int rc = nd_integrity_init(btt->btt_disk, btt_meta_size(btt));
+ 	bip = bio_integrity(bio);
+-	nsblk = q->queuedata;
+ 	rw = bio_data_dir(bio);
+ 	do_acct = nd_iostat_start(bio, &start);
+ 	bio_for_each_segment(bvec, bio, iter) {
+@@ -258,7 +257,6 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
+ 	blk_queue_max_hw_sectors(q, UINT_MAX);
+ 	blk_queue_logical_block_size(q, nsblk_sector_size(nsblk));
+ 	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+-	q->queuedata = nsblk;
+ 
+ 	disk = alloc_disk(0);
+ 	if (!disk)
+@@ -268,6 +266,7 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
+ 	disk->fops		= &nd_blk_fops;
+ 	disk->queue		= q;
+ 	disk->flags		= GENHD_FL_EXT_DEVT;
++	disk->private_data	= nsblk;
+ 	nvdimm_namespace_disk_name(&nsblk->common, disk->disk_name);
+ 
+ 	if (devm_add_action_or_reset(dev, nd_blk_release_disk, disk))
 -- 
 2.26.2
 
