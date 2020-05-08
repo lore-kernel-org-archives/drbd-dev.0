@@ -1,12 +1,12 @@
 Return-Path: <BATV+ade674efe42abf9194a0+6102+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 777624203D2
-	for <drbd-dev@lists.linbit.com>; Fri,  8 May 2020 18:44:36 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 058C14203E2
+	for <drbd-dev@lists.linbit.com>; Fri,  8 May 2020 18:44:37 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  8 May 2020 18:15:04 +0200
-Message-Id: <20200508161517.252308-3-hch@lst.de>
+Date: Fri,  8 May 2020 18:15:05 +0200
+Message-Id: <20200508161517.252308-4-hch@lst.de>
 In-Reply-To: <20200508161517.252308-1-hch@lst.de>
 References: <20200508161517.252308-1-hch@lst.de>
 MIME-Version: 1.0
@@ -20,7 +20,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, Philip Kelleher <pjk1939@linux.ibm.com>,
 	linuxppc-dev@lists.ozlabs.org, Joshua Morris <josh.h.morris@us.ibm.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/15] simdisk: stop using ->queuedata
+Subject: [Drbd-dev] [PATCH 03/15] drbd: stop using ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,31 +34,35 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/xtensa/platforms/iss/simdisk.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ drivers/block/drbd/drbd_main.c | 1 -
+ drivers/block/drbd/drbd_req.c  | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/arch/xtensa/platforms/iss/simdisk.c b/arch/xtensa/platforms/iss/simdisk.c
-index 49322b66cda93..31b5020077a05 100644
---- a/arch/xtensa/platforms/iss/simdisk.c
-+++ b/arch/xtensa/platforms/iss/simdisk.c
-@@ -103,7 +103,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index c094c3c2c5d4d..be787b268f044 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2805,7 +2805,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 	if (!q)
+ 		goto out_no_q;
+ 	device->rq_queue = q;
+-	q->queuedata   = device;
  
- static blk_qc_t simdisk_make_request(struct request_queue *q, struct bio *bio)
+ 	disk = alloc_disk(1);
+ 	if (!disk)
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 840c3aef3c5c9..02c104a0c45e0 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1614,7 +1614,7 @@ void do_submit(struct work_struct *ws)
+ 
+ blk_qc_t drbd_make_request(struct request_queue *q, struct bio *bio)
  {
--	struct simdisk *dev = q->queuedata;
-+	struct simdisk *dev = bio->bi_disk->private_data;
- 	struct bio_vec bvec;
- 	struct bvec_iter iter;
- 	sector_t sector = bio->bi_iter.bi_sector;
-@@ -273,8 +273,6 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
- 		goto out_alloc_queue;
- 	}
+-	struct drbd_device *device = (struct drbd_device *) q->queuedata;
++	struct drbd_device *device = bio->bi_disk->private_data;
+ 	unsigned long start_jif;
  
--	dev->queue->queuedata = dev;
--
- 	dev->gd = alloc_disk(SIMDISK_MINORS);
- 	if (dev->gd == NULL) {
- 		pr_err("alloc_disk failed\n");
+ 	blk_queue_split(q, &bio);
 -- 
 2.26.2
 
