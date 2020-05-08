@@ -1,12 +1,12 @@
 Return-Path: <BATV+ade674efe42abf9194a0+6102+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 731F24203DB
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CF4C14203E2
 	for <drbd-dev@lists.linbit.com>; Fri,  8 May 2020 19:00:09 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  8 May 2020 18:15:11 +0200
-Message-Id: <20200508161517.252308-10-hch@lst.de>
+Date: Fri,  8 May 2020 18:15:09 +0200
+Message-Id: <20200508161517.252308-8-hch@lst.de>
 In-Reply-To: <20200508161517.252308-1-hch@lst.de>
 References: <20200508161517.252308-1-hch@lst.de>
 MIME-Version: 1.0
@@ -20,7 +20,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, Philip Kelleher <pjk1939@linux.ibm.com>,
 	linuxppc-dev@lists.ozlabs.org, Joshua Morris <josh.h.morris@us.ibm.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 09/15] lightnvm: stop using ->queuedata
+Subject: [Drbd-dev] [PATCH 07/15] umem: stop using ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,49 +34,31 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/lightnvm/core.c      | 1 -
- drivers/lightnvm/pblk-init.c | 2 +-
- drivers/lightnvm/pblk.h      | 2 +-
- 3 files changed, 2 insertions(+), 3 deletions(-)
+ drivers/block/umem.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/lightnvm/core.c b/drivers/lightnvm/core.c
-index db38a68abb6c0..85c5490cdfd2e 100644
---- a/drivers/lightnvm/core.c
-+++ b/drivers/lightnvm/core.c
-@@ -400,7 +400,6 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
- 	}
+diff --git a/drivers/block/umem.c b/drivers/block/umem.c
+index d84e8a878df24..e59bff24e02cf 100644
+--- a/drivers/block/umem.c
++++ b/drivers/block/umem.c
+@@ -521,7 +521,8 @@ static int mm_check_plugged(struct cardinfo *card)
  
- 	tdisk->private_data = targetdata;
--	tqueue->queuedata = targetdata;
- 
- 	mdts = (dev->geo.csecs >> 9) * NVM_MAX_VLBA;
- 	if (dev->geo.mdts) {
-diff --git a/drivers/lightnvm/pblk-init.c b/drivers/lightnvm/pblk-init.c
-index 9a967a2e83dd7..bec904ec0f7c0 100644
---- a/drivers/lightnvm/pblk-init.c
-+++ b/drivers/lightnvm/pblk-init.c
-@@ -49,7 +49,7 @@ struct bio_set pblk_bio_set;
- 
- static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
+ static blk_qc_t mm_make_request(struct request_queue *q, struct bio *bio)
  {
--	struct pblk *pblk = q->queuedata;
-+	struct pblk *pblk = bio->bi_disk->private_data;
+-	struct cardinfo *card = q->queuedata;
++	struct cardinfo *card = bio->bi_disk->private_data;
++
+ 	pr_debug("mm_make_request %llu %u\n",
+ 		 (unsigned long long)bio->bi_iter.bi_sector,
+ 		 bio->bi_iter.bi_size);
+@@ -888,7 +889,6 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+ 	card->queue = blk_alloc_queue(mm_make_request, NUMA_NO_NODE);
+ 	if (!card->queue)
+ 		goto failed_alloc;
+-	card->queue->queuedata = card;
  
- 	if (bio_op(bio) == REQ_OP_DISCARD) {
- 		pblk_discard(pblk, bio);
-diff --git a/drivers/lightnvm/pblk.h b/drivers/lightnvm/pblk.h
-index 86ffa875bfe16..ed364afaed0d8 100644
---- a/drivers/lightnvm/pblk.h
-+++ b/drivers/lightnvm/pblk.h
-@@ -1255,7 +1255,7 @@ static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
- 				continue;
- 		}
+ 	tasklet_init(&card->tasklet, process_page, (unsigned long)card);
  
--		print_ppa(tgt_dev->q->queuedata, ppa, "boundary", i);
-+		print_ppa(tgt_dev->disk->private_data, ppa, "boundary", i);
- 
- 		return 1;
- 	}
 -- 
 2.26.2
 
