@@ -1,12 +1,12 @@
 Return-Path: <BATV+0881196e8d815fc0828c+6107+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3B683420411
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 36725420407
 	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:30:05 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 08:26:23 +0200
-Message-Id: <20200513062649.2100053-9-hch@lst.de>
+Date: Wed, 13 May 2020 08:26:21 +0200
+Message-Id: <20200513062649.2100053-7-hch@lst.de>
 In-Reply-To: <20200513062649.2100053-1-hch@lst.de>
 References: <20200513062649.2100053-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 08/33] net: add sock_set_rcvbuf
+Subject: [Drbd-dev] [PATCH 06/33] net: add sock_set_timestamps
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,137 +36,115 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the SO_RCVBUFFORCE sockopt from kernel space
+Add a helper to directly set the SO_TIMESTAMP* sockopts from kernel space
 without going through a fake uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/dlm/lowcomms.c  |  7 +-----
- include/net/sock.h |  1 +
- net/core/sock.c    | 59 +++++++++++++++++++++++++---------------------
- 3 files changed, 34 insertions(+), 33 deletions(-)
+ include/net/sock.h       |  1 +
+ net/core/sock.c          | 47 +++++++++++++++++++++++++---------------
+ net/rxrpc/local_object.c |  8 +------
+ 3 files changed, 31 insertions(+), 25 deletions(-)
 
-diff --git a/fs/dlm/lowcomms.c b/fs/dlm/lowcomms.c
-index 16d616c180613..223c185ecd0c7 100644
---- a/fs/dlm/lowcomms.c
-+++ b/fs/dlm/lowcomms.c
-@@ -1297,7 +1297,6 @@ static int sctp_listen_for_all(void)
- 	struct socket *sock = NULL;
- 	int result = -EINVAL;
- 	struct connection *con = nodeid2con(0, GFP_NOFS);
--	int bufsize = NEEDED_RMEM;
- 	int one = 1;
- 
- 	if (!con)
-@@ -1312,11 +1311,7 @@ static int sctp_listen_for_all(void)
- 		goto out;
- 	}
- 
--	result = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE,
--				 (char *)&bufsize, sizeof(bufsize));
--	if (result)
--		log_print("Error increasing buffer space on socket %d", result);
--
-+	sock_set_rcvbuf(sock->sk, NEEDED_RMEM);
- 	result = kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
- 				   sizeof(one));
- 	if (result < 0)
 diff --git a/include/net/sock.h b/include/net/sock.h
-index 4cedde585424f..e1ed40ff01312 100644
+index b63ea15362065..cf8a30e0168de 100644
 --- a/include/net/sock.h
 +++ b/include/net/sock.h
-@@ -2692,6 +2692,7 @@ void sock_set_linger(struct sock *sk, bool onoff, unsigned int linger);
+@@ -2692,5 +2692,6 @@ void sock_set_linger(struct sock *sk, bool onoff, unsigned int linger);
  void sock_set_priority(struct sock *sk, u32 priority);
  void sock_set_sndtimeo(struct sock *sk, unsigned int secs);
- void sock_set_keepalive(struct sock *sk, bool keepalive);
-+void sock_set_rcvbuf(struct sock *sk, int val);
  int sock_bindtoindex(struct sock *sk, int ifindex);
- void sock_set_timestamps(struct sock *sk, bool val, bool new, bool ns);
++void sock_set_timestamps(struct sock *sk, bool val, bool new, bool ns);
  
+ #endif	/* _SOCK_H */
 diff --git a/net/core/sock.c b/net/core/sock.c
-index dfd2b839f88bb..6af01b757cf24 100644
+index 4b7439308caec..1589f242ecc7e 100644
 --- a/net/core/sock.c
 +++ b/net/core/sock.c
-@@ -804,6 +804,35 @@ void sock_set_keepalive(struct sock *sk, bool keepalive)
+@@ -772,6 +772,28 @@ void sock_set_sndtimeo(struct sock *sk, unsigned int secs)
  }
- EXPORT_SYMBOL(sock_set_keepalive);
+ EXPORT_SYMBOL(sock_set_sndtimeo);
  
-+void __sock_set_rcvbuf(struct sock *sk, int val)
++static void __sock_set_timestamps(struct sock *sk, bool val, bool new, bool ns)
 +{
-+	/* Ensure val * 2 fits into an int, to prevent max_t() from treating it
-+	 * as a negative value.
-+	 */
-+	val = min_t(int, val, INT_MAX / 2);
-+	sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
-+
-+	/* We double it on the way in to account for "struct sk_buff" etc.
-+	 * overhead.   Applications assume that the SO_RCVBUF setting they make
-+	 * will allow that much actual data to be received on that socket.
-+	 *
-+	 * Applications are unaware that "struct sk_buff" and other overheads
-+	 * allocate from the receive buffer during socket buffer allocation.
-+	 *
-+	 * And after considering the possible alternatives, returning the value
-+	 * we actually used in getsockopt is the most desirable behavior.
-+	 */
-+	WRITE_ONCE(sk->sk_rcvbuf, max_t(int, val * 2, SOCK_MIN_RCVBUF));
++	if (val)  {
++		sock_valbool_flag(sk, SOCK_TSTAMP_NEW, new);
++		sock_valbool_flag(sk, SOCK_RCVTSTAMPNS, ns);
++		sock_set_flag(sk, SOCK_RCVTSTAMP);
++		sock_enable_timestamp(sk, SOCK_TIMESTAMP);
++	} else {
++		sock_reset_flag(sk, SOCK_RCVTSTAMP);
++		sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
++		sock_reset_flag(sk, SOCK_TSTAMP_NEW);
++	}
 +}
 +
-+void sock_set_rcvbuf(struct sock *sk, int val)
++void sock_set_timestamps(struct sock *sk, bool val, bool new, bool ns)
 +{
 +	lock_sock(sk);
-+	__sock_set_rcvbuf(sk, val);
++	__sock_set_timestamps(sk, val, new, ns);
 +	release_sock(sk);
 +}
-+EXPORT_SYMBOL(sock_set_rcvbuf);
++EXPORT_SYMBOL(sock_set_timestamps);
 +
  /*
   *	This is meant for all protocols to use and covers goings on
   *	at the socket level. Everything here is generic.
-@@ -900,30 +929,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
- 		 * play 'guess the biggest size' games. RCVBUF/SNDBUF
- 		 * are treated in BSD as hints
- 		 */
--		val = min_t(u32, val, sysctl_rmem_max);
--set_rcvbuf:
--		/* Ensure val * 2 fits into an int, to prevent max_t()
--		 * from treating it as a negative value.
--		 */
--		val = min_t(int, val, INT_MAX / 2);
--		sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
--		/*
--		 * We double it on the way in to account for
--		 * "struct sk_buff" etc. overhead.   Applications
--		 * assume that the SO_RCVBUF setting they make will
--		 * allow that much actual data to be received on that
--		 * socket.
--		 *
--		 * Applications are unaware that "struct sk_buff" and
--		 * other overheads allocate from the receive buffer
--		 * during socket buffer allocation.
--		 *
--		 * And after considering the possible alternatives,
--		 * returning the value we actually used in getsockopt
--		 * is the most desirable behavior.
--		 */
--		WRITE_ONCE(sk->sk_rcvbuf,
--			   max_t(int, val * 2, SOCK_MIN_RCVBUF));
-+		__sock_set_rcvbuf(sk, min_t(u32, val, sysctl_rmem_max));
+@@ -953,28 +975,17 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
  		break;
  
- 	case SO_RCVBUFFORCE:
-@@ -935,9 +941,8 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
- 		/* No negative values (to prevent underflow, as val will be
- 		 * multiplied by 2).
- 		 */
--		if (val < 0)
--			val = 0;
--		goto set_rcvbuf;
-+		__sock_set_rcvbuf(sk, max(val, 0));
+ 	case SO_TIMESTAMP_OLD:
++		__sock_set_timestamps(sk, valbool, false, false);
 +		break;
+ 	case SO_TIMESTAMP_NEW:
++		__sock_set_timestamps(sk, valbool, true, false);
++		break;
+ 	case SO_TIMESTAMPNS_OLD:
++		__sock_set_timestamps(sk, valbool, false, true);
++		break;
+ 	case SO_TIMESTAMPNS_NEW:
+-		if (valbool)  {
+-			if (optname == SO_TIMESTAMP_NEW || optname == SO_TIMESTAMPNS_NEW)
+-				sock_set_flag(sk, SOCK_TSTAMP_NEW);
+-			else
+-				sock_reset_flag(sk, SOCK_TSTAMP_NEW);
+-
+-			if (optname == SO_TIMESTAMP_OLD || optname == SO_TIMESTAMP_NEW)
+-				sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
+-			else
+-				sock_set_flag(sk, SOCK_RCVTSTAMPNS);
+-			sock_set_flag(sk, SOCK_RCVTSTAMP);
+-			sock_enable_timestamp(sk, SOCK_TIMESTAMP);
+-		} else {
+-			sock_reset_flag(sk, SOCK_RCVTSTAMP);
+-			sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
+-			sock_reset_flag(sk, SOCK_TSTAMP_NEW);
+-		}
++		__sock_set_timestamps(sk, valbool, true, true);
+ 		break;
+-
+ 	case SO_TIMESTAMPING_NEW:
+ 		sock_set_flag(sk, SOCK_TSTAMP_NEW);
+ 		/* fall through */
+diff --git a/net/rxrpc/local_object.c b/net/rxrpc/local_object.c
+index 01135e54d95d2..562ea36c96b0f 100644
+--- a/net/rxrpc/local_object.c
++++ b/net/rxrpc/local_object.c
+@@ -189,13 +189,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
+ 		}
  
- 	case SO_KEEPALIVE:
- 		if (sk->sk_prot->keepalive)
+ 		/* We want receive timestamps. */
+-		opt = 1;
+-		ret = kernel_setsockopt(local->socket, SOL_SOCKET, SO_TIMESTAMPNS_OLD,
+-					(char *)&opt, sizeof(opt));
+-		if (ret < 0) {
+-			_debug("setsockopt failed");
+-			goto error;
+-		}
++		sock_set_timestamps(local->socket->sk, true, false, true);
+ 		break;
+ 
+ 	default:
 -- 
 2.26.2
 
