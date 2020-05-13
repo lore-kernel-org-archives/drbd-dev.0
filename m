@@ -1,30 +1,37 @@
-Return-Path: <BATV+0881196e8d815fc0828c+6107+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EC15F420414
-	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:45:52 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 08:26:37 +0200
-Message-Id: <20200513062649.2100053-23-hch@lst.de>
+Return-Path: <joe@perches.com>
+Received: from smtprelay.hostedemail.com (smtprelay0142.hostedemail.com
+	[216.40.44.142])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A92694202F0
+	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 19:49:03 +0200 (CEST)
+Received: from smtprelay.hostedemail.com (10.5.19.251.rfc1918.com
+	[10.5.19.251])
+	by smtpgrave05.hostedemail.com (Postfix) with ESMTP id A6295180220CF
+	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 17:39:36 +0000 (UTC)
+Message-ID: <ecc165c33962d964d518c80de605af632eee0474.camel@perches.com>
+From: Joe Perches <joe@perches.com>
+To: Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>,
+	Jakub Kicinski <kuba@kernel.org>
+Date: Wed, 13 May 2020 10:38:59 -0700
 In-Reply-To: <20200513062649.2100053-1-hch@lst.de>
 References: <20200513062649.2100053-1-hch@lst.de>
+Content-Type: text/plain; charset="ISO-8859-1"
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	Eric Dumazet <edumazet@google.com>,
 	linux-nvme@lists.infradead.org, linux-sctp@vger.kernel.org,
 	target-devel@vger.kernel.org, linux-afs@lists.infradead.org,
-	drbd-dev@lists.linbit.com, linux-cifs@vger.kernel.org,
-	rds-devel@oss.oracle.com, linux-rdma@vger.kernel.org,
-	cluster-devel@redhat.com, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
-	linux-block@vger.kernel.org, ceph-devel@vger.kernel.org,
-	linux-nfs@vger.kernel.org, Neil Horman <nhorman@tuxdriver.com>,
+	drbd-dev@lists.linbit.com, Vlad, rds-devel@oss.oracle.com,
+	linux-rdma@vger.kernel.org, cluster-devel@redhat.com,
+	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
+	linux-cifs@vger.kernel.org, linux-block@vger.kernel.org,
+	ceph-devel@vger.kernel.org, linux-nfs@vger.kernel.org,
+	Neil Horman <nhorman@tuxdriver.com>,
 	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
-	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
+	netdev@vger.kernel.org, Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 22/33] ipv6: add ip6_sock_set_v6only
+Subject: Re: [Drbd-dev] remove kernel_setsockopt and kernel_getsockopt
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,93 +43,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the IPV6_V6ONLY sockopt from kernel space
-without going through a fake uaccess.
+On Wed, 2020-05-13 at 08:26 +0200, Christoph Hellwig wrote:
+> this series removes the kernel_setsockopt and kernel_getsockopt
+> functions, and instead switches their users to small functions that
+> implement setting (or in one case getting) a sockopt directly using
+> a normal kernel function call with type safety and all the other
+> benefits of not having a function call.
+> 
+> In some cases these functions seem pretty heavy handed as they do
+> a lock_sock even for just setting a single variable, but this mirrors
+> the real setsockopt implementation - counter to that a few kernel
+> drivers just set the fields directly already.
+> 
+> Nevertheless the diffstat looks quite promising:
+> 
+>  42 files changed, 721 insertions(+), 799 deletions(-)
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- include/net/ipv6.h        |  3 +++
- net/ipv6/ip6_udp_tunnel.c |  5 +----
- net/ipv6/ipv6_sockglue.c  | 11 +++++++++++
- net/sunrpc/svcsock.c      |  8 ++------
- 4 files changed, 17 insertions(+), 10 deletions(-)
+trivia:
 
-diff --git a/include/net/ipv6.h b/include/net/ipv6.h
-index 955badd1e8ffc..e24b59201a00d 100644
---- a/include/net/ipv6.h
-+++ b/include/net/ipv6.h
-@@ -1174,4 +1174,7 @@ int ipv6_sock_mc_join_ssm(struct sock *sk, int ifindex,
- 			  const struct in6_addr *addr, unsigned int mode);
- int ipv6_sock_mc_drop(struct sock *sk, int ifindex,
- 		      const struct in6_addr *addr);
-+
-+int ip6_sock_set_v6only(struct sock *sk, bool val);
-+
- #endif /* _NET_IPV6_H */
-diff --git a/net/ipv6/ip6_udp_tunnel.c b/net/ipv6/ip6_udp_tunnel.c
-index 6523609516d25..bc4ee5cb14c8b 100644
---- a/net/ipv6/ip6_udp_tunnel.c
-+++ b/net/ipv6/ip6_udp_tunnel.c
-@@ -25,10 +25,7 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
- 		goto error;
- 
- 	if (cfg->ipv6_v6only) {
--		int val = 1;
--
--		err = kernel_setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
--					(char *) &val, sizeof(val));
-+		err = ip6_sock_set_v6only(sock->sk, true);
- 		if (err < 0)
- 			goto error;
- 	}
-diff --git a/net/ipv6/ipv6_sockglue.c b/net/ipv6/ipv6_sockglue.c
-index 18d05403d3b52..f26224bb3e098 100644
---- a/net/ipv6/ipv6_sockglue.c
-+++ b/net/ipv6/ipv6_sockglue.c
-@@ -136,6 +136,17 @@ static bool setsockopt_needs_rtnl(int optname)
- 	return false;
- }
- 
-+int ip6_sock_set_v6only(struct sock *sk, bool val)
-+{
-+	if (inet_sk(sk)->inet_num)
-+		return -EINVAL;
-+	lock_sock(sk);
-+	sk->sk_ipv6only = val;
-+	release_sock(sk);
-+	return 0;
-+}
-+EXPORT_SYMBOL(ip6_sock_set_v6only);
-+
- static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
- 		    char __user *optval, unsigned int optlen)
- {
-diff --git a/net/sunrpc/svcsock.c b/net/sunrpc/svcsock.c
-index 7a4f01c79e0f1..7fa7fedec3c5a 100644
---- a/net/sunrpc/svcsock.c
-+++ b/net/sunrpc/svcsock.c
-@@ -1328,7 +1328,6 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
- 	struct sockaddr *newsin = (struct sockaddr *)&addr;
- 	int		newlen;
- 	int		family;
--	int		val;
- 	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
- 
- 	dprintk("svc: svc_create_socket(%s, %d, %s)\n",
-@@ -1364,11 +1363,8 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
- 	 * getting requests from IPv4 remotes.  Those should
- 	 * be shunted to a PF_INET listener via rpcbind.
- 	 */
--	val = 1;
--	if (family == PF_INET6)
--		kernel_setsockopt(sock, SOL_IPV6, IPV6_V6ONLY,
--					(char *)&val, sizeof(val));
--
-+	if (family == PF_INET6 && IS_REACHABLE(CONFIG_IPV6))
-+		ip6_sock_set_v6only(sock->sk, true);
- 	if (type == SOCK_STREAM)
- 		sock->sk->sk_reuse = SK_CAN_REUSE; /* allow address reuse */
- 	error = kernel_bind(sock, sin, len);
--- 
-2.26.2
+It might be useful to show overall object size change.
+
+More EXPORT_SYMBOL uses increase object size a little.
+
+And not sure it matters much except it reduces overall object
+size, but these patches remove (unnecessary) logging on error
+and that could be mentioned in the cover letter too.
+
+e.g.:
+
+-       ret = kernel_setsockopt(queue->sock, SOL_SOCKET, SO_LINGER,
+-                       (char *)&sol, sizeof(sol));
+-       if (ret) {
+-               dev_err(nctrl->device,
+-                       "failed to set SO_LINGER sock opt %d\n", ret);
+-               goto err_sock;
+-       }
++       sock_set_linger(queue->sock->sk, true, 0);
+
+
 
