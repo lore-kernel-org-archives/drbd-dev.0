@@ -1,12 +1,12 @@
 Return-Path: <BATV+0881196e8d815fc0828c+6107+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5E7974203FF
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B6D9D420401
 	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:45:50 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 08:26:47 +0200
-Message-Id: <20200513062649.2100053-33-hch@lst.de>
+Date: Wed, 13 May 2020 08:26:41 +0200
+Message-Id: <20200513062649.2100053-27-hch@lst.de>
 In-Reply-To: <20200513062649.2100053-1-hch@lst.de>
 References: <20200513062649.2100053-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,8 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 32/33] sctp: add sctp_sock_get_primary_addr
+Subject: [Drbd-dev] [PATCH 26/33] sctp: lift copying in addrs into
+	sctp_setsockopt
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,137 +37,173 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly get the SCTP_PRIMARY_ADDR sockopt from kernel
-space without going through a fake uaccess.
+Prepare for additional kernel-space callers of sctp_setsockopt_bindx.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/dlm/lowcomms.c       | 11 +++-----
- include/net/sctp/sctp.h |  1 +
- net/sctp/socket.c       | 57 +++++++++++++++++++++++++----------------
- 3 files changed, 39 insertions(+), 30 deletions(-)
+ net/sctp/socket.c | 71 ++++++++++++++++++-----------------------------
+ 1 file changed, 27 insertions(+), 44 deletions(-)
 
-diff --git a/fs/dlm/lowcomms.c b/fs/dlm/lowcomms.c
-index 6fa45365666a8..46d2d71b62c57 100644
---- a/fs/dlm/lowcomms.c
-+++ b/fs/dlm/lowcomms.c
-@@ -855,10 +855,9 @@ static int tcp_accept_from_sock(struct connection *con)
- static int sctp_accept_from_sock(struct connection *con)
- {
- 	/* Check that the new node is in the lockspace */
--	struct sctp_prim prim;
-+	struct sctp_prim prim = { };
- 	int nodeid;
--	int prim_len, ret;
--	int addr_len;
-+	int addr_len, ret;
- 	struct connection *newcon;
- 	struct connection *addcon;
- 	struct socket *newsock;
-@@ -876,11 +875,7 @@ static int sctp_accept_from_sock(struct connection *con)
- 	if (ret < 0)
- 		goto accept_err;
- 
--	memset(&prim, 0, sizeof(struct sctp_prim));
--	prim_len = sizeof(struct sctp_prim);
--
--	ret = kernel_getsockopt(newsock, IPPROTO_SCTP, SCTP_PRIMARY_ADDR,
--				(char *)&prim, &prim_len);
-+	ret = sctp_sock_get_primary_addr(con->sock->sk, &prim);
- 	if (ret < 0) {
- 		log_print("getsockopt/sctp_primary_addr failed: %d", ret);
- 		goto accept_err;
-diff --git a/include/net/sctp/sctp.h b/include/net/sctp/sctp.h
-index b505fa082f254..c98b1d14db853 100644
---- a/include/net/sctp/sctp.h
-+++ b/include/net/sctp/sctp.h
-@@ -618,5 +618,6 @@ static inline bool sctp_newsk_ready(const struct sock *sk)
- int sctp_setsockopt_bindx(struct sock *sk, struct sockaddr *kaddrs,
- 		int addrs_size, int op);
- void sctp_sock_set_nodelay(struct sock *sk, bool val);
-+int sctp_sock_get_primary_addr(struct sock *sk, struct sctp_prim *prim);
- 
- #endif /* __net_sctp_h__ */
 diff --git a/net/sctp/socket.c b/net/sctp/socket.c
-index 64c395f7a86d5..39bf8090dbe1e 100644
+index 827a9903ee288..1c96b52c4aa28 100644
 --- a/net/sctp/socket.c
 +++ b/net/sctp/socket.c
-@@ -6411,6 +6411,35 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
- 	return err;
+@@ -972,18 +972,16 @@ int sctp_asconf_mgmt(struct sctp_sock *sp, struct sctp_sockaddr_entry *addrw)
+  * it.
+  *
+  * sk        The sk of the socket
+- * addrs     The pointer to the addresses in user land
++ * addrs     The pointer to the addresses
+  * addrssize Size of the addrs buffer
+  * op        Operation to perform (add or remove, see the flags of
+  *           sctp_bindx)
+  *
+  * Returns 0 if ok, <0 errno code on error.
+  */
+-static int sctp_setsockopt_bindx(struct sock *sk,
+-				 struct sockaddr __user *addrs,
++static int sctp_setsockopt_bindx(struct sock *sk, struct sockaddr *kaddrs,
+ 				 int addrs_size, int op)
+ {
+-	struct sockaddr *kaddrs;
+ 	int err;
+ 	int addrcnt = 0;
+ 	int walk_size = 0;
+@@ -991,23 +989,13 @@ static int sctp_setsockopt_bindx(struct sock *sk,
+ 	void *addr_buf;
+ 	struct sctp_af *af;
+ 
+-	pr_debug("%s: sk:%p addrs:%p addrs_size:%d opt:%d\n",
+-		 __func__, sk, addrs, addrs_size, op);
+-
+-	if (unlikely(addrs_size <= 0))
+-		return -EINVAL;
++	pr_debug("%s: sk:%p kaddrs:%p addrs_size:%d opt:%d\n",
++		 __func__, sk, kaddrs, addrs_size, op);
+ 
+-	kaddrs = memdup_user(addrs, addrs_size);
+-	if (IS_ERR(kaddrs))
+-		return PTR_ERR(kaddrs);
+-
+-	/* Walk through the addrs buffer and count the number of addresses. */
+ 	addr_buf = kaddrs;
+ 	while (walk_size < addrs_size) {
+-		if (walk_size + sizeof(sa_family_t) > addrs_size) {
+-			kfree(kaddrs);
++		if (walk_size + sizeof(sa_family_t) > addrs_size)
+ 			return -EINVAL;
+-		}
+ 
+ 		sa_addr = addr_buf;
+ 		af = sctp_get_af_specific(sa_addr->sa_family);
+@@ -1015,10 +1003,8 @@ static int sctp_setsockopt_bindx(struct sock *sk,
+ 		/* If the address family is not supported or if this address
+ 		 * causes the address buffer to overflow return EINVAL.
+ 		 */
+-		if (!af || (walk_size + af->sockaddr_len) > addrs_size) {
+-			kfree(kaddrs);
++		if (!af || (walk_size + af->sockaddr_len) > addrs_size)
+ 			return -EINVAL;
+-		}
+ 		addrcnt++;
+ 		addr_buf += af->sockaddr_len;
+ 		walk_size += af->sockaddr_len;
+@@ -1032,29 +1018,19 @@ static int sctp_setsockopt_bindx(struct sock *sk,
+ 						 (struct sockaddr *)kaddrs,
+ 						 addrs_size);
+ 		if (err)
+-			goto out;
++			return err;
+ 		err = sctp_bindx_add(sk, kaddrs, addrcnt);
+ 		if (err)
+-			goto out;
+-		err = sctp_send_asconf_add_ip(sk, kaddrs, addrcnt);
+-		break;
+-
++			return err;
++		return sctp_send_asconf_add_ip(sk, kaddrs, addrcnt);
+ 	case SCTP_BINDX_REM_ADDR:
+ 		err = sctp_bindx_rem(sk, kaddrs, addrcnt);
+ 		if (err)
+-			goto out;
+-		err = sctp_send_asconf_del_ip(sk, kaddrs, addrcnt);
+-		break;
+-
++			return err;
++		return sctp_send_asconf_del_ip(sk, kaddrs, addrcnt);
+ 	default:
+-		err = -EINVAL;
+-		break;
++		return -EINVAL;
+ 	}
+-
+-out:
+-	kfree(kaddrs);
+-
+-	return err;
  }
  
-+static int __sctp_sock_get_primary_addr(struct sock *sk, struct sctp_prim *prim)
-+{
-+	struct sctp_association *asoc;
-+
-+	asoc = sctp_id2assoc(sk, prim->ssp_assoc_id);
-+	if (!asoc)
-+		return -EINVAL;
-+	if (!asoc->peer.primary_path)
-+		return -ENOTCONN;
-+
-+	memcpy(&prim->ssp_addr, &asoc->peer.primary_path->ipaddr,
-+		asoc->peer.primary_path->af_specific->sockaddr_len);
-+
-+	sctp_get_pf_specific(sk->sk_family)->addr_to_user(sctp_sk(sk),
-+			(union sctp_addr *)&prim->ssp_addr);
-+	return 0;
-+}
-+
-+int sctp_sock_get_primary_addr(struct sock *sk, struct sctp_prim *prim)
-+{
-+	int ret;
-+
-+	lock_sock(sk);
-+	ret = __sctp_sock_get_primary_addr(sk, prim);
-+	release_sock(sk);
-+	return ret;
-+}
-+EXPORT_SYMBOL(sctp_sock_get_primary_addr);
-+
- /* 7.1.10 Set Primary Address (SCTP_PRIMARY_ADDR)
-  *
-  * Requests that the local SCTP stack use the enclosed peer address as
-@@ -6421,35 +6450,19 @@ static int sctp_getsockopt_primary_addr(struct sock *sk, int len,
- 					char __user *optval, int __user *optlen)
+ static int sctp_connect_new_asoc(struct sctp_endpoint *ep,
+@@ -4670,6 +4646,7 @@ static int sctp_setsockopt_pf_expose(struct sock *sk,
+ static int sctp_setsockopt(struct sock *sk, int level, int optname,
+ 			   char __user *optval, unsigned int optlen)
  {
- 	struct sctp_prim prim;
--	struct sctp_association *asoc;
--	struct sctp_sock *sp = sctp_sk(sk);
-+	int ret;
++	struct sockaddr *kaddrs;
+ 	int retval = 0;
  
- 	if (len < sizeof(struct sctp_prim))
- 		return -EINVAL;
--
--	len = sizeof(struct sctp_prim);
--
--	if (copy_from_user(&prim, optval, len))
-+	if (copy_from_user(&prim, optval, sizeof(struct sctp_prim)))
- 		return -EFAULT;
+ 	pr_debug("%s: sk:%p, optname:%d\n", __func__, sk, optname);
+@@ -4682,30 +4659,37 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
+ 	 */
+ 	if (level != SOL_SCTP) {
+ 		struct sctp_af *af = sctp_sk(sk)->pf->af;
+-		retval = af->setsockopt(sk, level, optname, optval, optlen);
+-		goto out_nounlock;
++		return af->setsockopt(sk, level, optname, optval, optlen);
+ 	}
  
--	asoc = sctp_id2assoc(sk, prim.ssp_assoc_id);
--	if (!asoc)
--		return -EINVAL;
--
--	if (!asoc->peer.primary_path)
--		return -ENOTCONN;
--
--	memcpy(&prim.ssp_addr, &asoc->peer.primary_path->ipaddr,
--		asoc->peer.primary_path->af_specific->sockaddr_len);
--
--	sctp_get_pf_specific(sk->sk_family)->addr_to_user(sp,
--			(union sctp_addr *)&prim.ssp_addr);
-+	ret = __sctp_sock_get_primary_addr(sk, &prim);
-+	if (ret)
-+		return ret;
++	if (unlikely(optlen <= 0))
++		return -EINVAL;
++
++	kaddrs = memdup_user(optval, optlen);
++	if (IS_ERR(kaddrs))
++		return PTR_ERR(kaddrs);
++
++	/* Walk through the addrs buffer and count the number of addresses. */
++
+ 	lock_sock(sk);
  
--	if (put_user(len, optlen))
-+	if (put_user(len, optlen) || copy_to_user(optval, &prim, len))
- 		return -EFAULT;
--	if (copy_to_user(optval, &prim, len))
--		return -EFAULT;
+ 	switch (optname) {
+ 	case SCTP_SOCKOPT_BINDX_ADD:
+ 		/* 'optlen' is the size of the addresses buffer. */
+-		retval = sctp_setsockopt_bindx(sk, (struct sockaddr __user *)optval,
++		retval = sctp_setsockopt_bindx(sk, (struct sockaddr *)optval,
+ 					       optlen, SCTP_BINDX_ADD_ADDR);
+ 		break;
+ 
+ 	case SCTP_SOCKOPT_BINDX_REM:
+ 		/* 'optlen' is the size of the addresses buffer. */
+-		retval = sctp_setsockopt_bindx(sk, (struct sockaddr __user *)optval,
++		retval = sctp_setsockopt_bindx(sk, (struct sockaddr *)optval,
+ 					       optlen, SCTP_BINDX_REM_ADDR);
+ 		break;
+ 
+ 	case SCTP_SOCKOPT_CONNECTX_OLD:
+ 		/* 'optlen' is the size of the addresses buffer. */
+ 		retval = sctp_setsockopt_connectx_old(sk,
+-					    (struct sockaddr __user *)optval,
+-					    optlen);
++					    (struct sockaddr *)optval, optlen);
+ 		break;
+ 
+ 	case SCTP_SOCKOPT_CONNECTX:
+@@ -4871,8 +4855,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
+ 	}
+ 
+ 	release_sock(sk);
 -
- 	return 0;
+-out_nounlock:
++	kfree(kaddrs);
+ 	return retval;
  }
  
 -- 
