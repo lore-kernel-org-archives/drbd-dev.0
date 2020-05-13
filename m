@@ -1,12 +1,12 @@
 Return-Path: <BATV+0881196e8d815fc0828c+6107+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3FF874203F5
-	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:28:25 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 924E74203F6
+	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:28:27 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 08:26:34 +0200
-Message-Id: <20200513062649.2100053-20-hch@lst.de>
+Date: Wed, 13 May 2020 08:26:35 +0200
+Message-Id: <20200513062649.2100053-21-hch@lst.de>
 In-Reply-To: <20200513062649.2100053-1-hch@lst.de>
 References: <20200513062649.2100053-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 19/33] ipv4: add ip_sock_set_freebind
+Subject: [Drbd-dev] [PATCH 20/33] ipv4: add ip_sock_set_recverr
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,84 +36,67 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the IP_FREEBIND sockopt from kernel space
+Add a helper to directly set the IP_RECVERR sockopt from kernel space
 without going through a fake uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/target/iscsi/iscsi_target_login.c | 13 +++----------
- include/net/ip.h                          |  1 +
- net/ipv4/ip_sockglue.c                    |  8 ++++++++
- 3 files changed, 12 insertions(+), 10 deletions(-)
+ include/net/ip.h         |  1 +
+ net/ipv4/ip_sockglue.c   | 10 ++++++++++
+ net/rxrpc/local_object.c |  8 +-------
+ 3 files changed, 12 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/target/iscsi/iscsi_target_login.c b/drivers/target/iscsi/iscsi_target_login.c
-index 165fa573bcb29..9f69e16cfef5f 100644
---- a/drivers/target/iscsi/iscsi_target_login.c
-+++ b/drivers/target/iscsi/iscsi_target_login.c
-@@ -15,6 +15,7 @@
- #include <linux/sched/signal.h>
- #include <linux/idr.h>
- #include <linux/tcp.h>        /* TCP_NODELAY */
-+#include <net/ip.h>
- #include <net/ipv6.h>         /* ipv6_addr_v4mapped() */
- #include <scsi/iscsi_proto.h>
- #include <target/target_core_base.h>
-@@ -855,7 +856,7 @@ int iscsit_setup_np(
- 	struct sockaddr_storage *sockaddr)
- {
- 	struct socket *sock = NULL;
--	int backlog = ISCSIT_TCP_BACKLOG, ret, opt = 0, len;
-+	int backlog = ISCSIT_TCP_BACKLOG, ret, len;
- 
- 	switch (np->np_network_transport) {
- 	case ISCSI_TCP:
-@@ -900,15 +901,7 @@ int iscsit_setup_np(
- 	if (np->np_network_transport == ISCSI_TCP)
- 		tcp_sock_set_nodelay(sock->sk, true);
- 	sock_set_reuseaddr(sock->sk, SK_CAN_REUSE);
--
--	opt = 1;
--	ret = kernel_setsockopt(sock, IPPROTO_IP, IP_FREEBIND,
--			(char *)&opt, sizeof(opt));
--	if (ret < 0) {
--		pr_err("kernel_setsockopt() for IP_FREEBIND"
--			" failed\n");
--		goto fail;
--	}
-+	ip_sock_set_freebind(sock->sk, true);
- 
- 	ret = kernel_bind(sock, (struct sockaddr *)&np->np_sockaddr, len);
- 	if (ret < 0) {
 diff --git a/include/net/ip.h b/include/net/ip.h
-index 2fc52e26fa88b..1e2feca8630d0 100644
+index 1e2feca8630d0..7ab8140b54429 100644
 --- a/include/net/ip.h
 +++ b/include/net/ip.h
-@@ -766,5 +766,6 @@ static inline bool inetdev_valid_mtu(unsigned int mtu)
- }
+@@ -767,5 +767,6 @@ static inline bool inetdev_valid_mtu(unsigned int mtu)
  
  void ip_sock_set_tos(struct sock *sk, int val);
-+void ip_sock_set_freebind(struct sock *sk, bool val);
+ void ip_sock_set_freebind(struct sock *sk, bool val);
++void ip_sock_set_recverr(struct sock *sk, bool val);
  
  #endif	/* _IP_H */
 diff --git a/net/ipv4/ip_sockglue.c b/net/ipv4/ip_sockglue.c
-index 1733ac78c21aa..0c40887a817f8 100644
+index 0c40887a817f8..9abecc3195520 100644
 --- a/net/ipv4/ip_sockglue.c
 +++ b/net/ipv4/ip_sockglue.c
-@@ -581,6 +581,14 @@ void ip_sock_set_tos(struct sock *sk, int val)
+@@ -589,6 +589,16 @@ void ip_sock_set_freebind(struct sock *sk, bool val)
  }
- EXPORT_SYMBOL(ip_sock_set_tos);
+ EXPORT_SYMBOL(ip_sock_set_freebind);
  
-+void ip_sock_set_freebind(struct sock *sk, bool val)
++void ip_sock_set_recverr(struct sock *sk, bool val)
 +{
 +	lock_sock(sk);
-+	inet_sk(sk)->freebind = val;
++	inet_sk(sk)->recverr = val;
++	if (!val)
++		skb_queue_purge(&sk->sk_error_queue);
 +	release_sock(sk);
 +}
-+EXPORT_SYMBOL(ip_sock_set_freebind);
++EXPORT_SYMBOL(ip_sock_set_recverr);
 +
  /*
   *	Socket option code for IP. This is the end of the line after any
   *	TCP,UDP etc options on an IP socket.
+diff --git a/net/rxrpc/local_object.c b/net/rxrpc/local_object.c
+index 562ea36c96b0f..1b87b8a9ff725 100644
+--- a/net/rxrpc/local_object.c
++++ b/net/rxrpc/local_object.c
+@@ -171,13 +171,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
+ 		/* Fall through */
+ 	case AF_INET:
+ 		/* we want to receive ICMP errors */
+-		opt = 1;
+-		ret = kernel_setsockopt(local->socket, SOL_IP, IP_RECVERR,
+-					(char *) &opt, sizeof(opt));
+-		if (ret < 0) {
+-			_debug("setsockopt failed");
+-			goto error;
+-		}
++		ip_sock_set_recverr(local->socket->sk, true);
+ 
+ 		/* we want to set the don't fragment bit */
+ 		opt = IP_PMTUDISC_DO;
 -- 
 2.26.2
 
