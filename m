@@ -1,37 +1,30 @@
-Return-Path: <joe@perches.com>
-Received: from smtprelay.hostedemail.com (smtprelay0142.hostedemail.com
-	[216.40.44.142])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A92694202F0
-	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 19:49:03 +0200 (CEST)
-Received: from smtprelay.hostedemail.com (10.5.19.251.rfc1918.com
-	[10.5.19.251])
-	by smtpgrave05.hostedemail.com (Postfix) with ESMTP id A6295180220CF
-	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 17:39:36 +0000 (UTC)
-Message-ID: <ecc165c33962d964d518c80de605af632eee0474.camel@perches.com>
-From: Joe Perches <joe@perches.com>
-To: Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>,
-	Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 10:38:59 -0700
-In-Reply-To: <20200513062649.2100053-1-hch@lst.de>
-References: <20200513062649.2100053-1-hch@lst.de>
-Content-Type: text/plain; charset="ISO-8859-1"
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 265CD4202F0
+	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 20:33:38 +0200 (CEST)
+Date: Wed, 13 May 2020 20:33:04 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Song Liu <song@kernel.org>
+Message-ID: <20200513183304.GA29895@lst.de>
+References: <20200508161517.252308-1-hch@lst.de>
+	<20200508161517.252308-13-hch@lst.de>
+	<CAPhsuW6_Y53_XLFeVxhTDpTi_PKNLqqnrXLn+M2fJW268eE6_w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
-	Eric Dumazet <edumazet@google.com>,
-	linux-nvme@lists.infradead.org, linux-sctp@vger.kernel.org,
-	target-devel@vger.kernel.org, linux-afs@lists.infradead.org,
-	drbd-dev@lists.linbit.com, Vlad, rds-devel@oss.oracle.com,
-	linux-rdma@vger.kernel.org, cluster-devel@redhat.com,
-	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
-	linux-cifs@vger.kernel.org, linux-block@vger.kernel.org,
-	ceph-devel@vger.kernel.org, linux-nfs@vger.kernel.org,
-	Neil Horman <nhorman@tuxdriver.com>,
-	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
-	netdev@vger.kernel.org, Yasevich <vyasevich@gmail.com>,
-	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
-	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: Re: [Drbd-dev] remove kernel_setsockopt and kernel_getsockopt
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPhsuW6_Y53_XLFeVxhTDpTi_PKNLqqnrXLn+M2fJW268eE6_w@mail.gmail.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-xtensa@linux-xtensa.org,
+	linux-raid <linux-raid@vger.kernel.org>,
+	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
+	linux-nvdimm@lists.01.org, Geoff Levand <geoff@infradead.org>,
+	open list <linux-kernel@vger.kernel.org>, Jim Paris <jim@jtan.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>,
+	linux-block@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
+	linux-m68k@lists.linux-m68k.org, Philip Kelleher <pjk1939@linux.ibm.com>,
+	linux-bcache@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+	Christoph Hellwig <hch@lst.de>, Nitin Gupta <ngupta@vflare.org>,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 12/15] md: stop using ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,42 +36,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, 2020-05-13 at 08:26 +0200, Christoph Hellwig wrote:
-> this series removes the kernel_setsockopt and kernel_getsockopt
-> functions, and instead switches their users to small functions that
-> implement setting (or in one case getting) a sockopt directly using
-> a normal kernel function call with type safety and all the other
-> benefits of not having a function call.
+On Wed, May 13, 2020 at 11:29:17AM -0700, Song Liu wrote:
+> On Fri, May 8, 2020 at 9:17 AM Christoph Hellwig <hch@lst.de> wrote:
+> >
+> > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > 
-> In some cases these functions seem pretty heavy handed as they do
-> a lock_sock even for just setting a single variable, but this mirrors
-> the real setsockopt implementation - counter to that a few kernel
-> drivers just set the fields directly already.
-> 
-> Nevertheless the diffstat looks quite promising:
-> 
->  42 files changed, 721 insertions(+), 799 deletions(-)
+> Thanks for the cleanup. IIUC, you want this go through md tree?
 
-trivia:
-
-It might be useful to show overall object size change.
-
-More EXPORT_SYMBOL uses increase object size a little.
-
-And not sure it matters much except it reduces overall object
-size, but these patches remove (unnecessary) logging on error
-and that could be mentioned in the cover letter too.
-
-e.g.:
-
--       ret = kernel_setsockopt(queue->sock, SOL_SOCKET, SO_LINGER,
--                       (char *)&sol, sizeof(sol));
--       if (ret) {
--               dev_err(nctrl->device,
--                       "failed to set SO_LINGER sock opt %d\n", ret);
--               goto err_sock;
--       }
-+       sock_set_linger(queue->sock->sk, true, 0);
-
-
-
+Yes, please pick it up though the md tree.
