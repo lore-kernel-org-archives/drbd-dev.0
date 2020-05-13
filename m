@@ -1,12 +1,12 @@
 Return-Path: <BATV+0881196e8d815fc0828c+6107+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DDACF4202F0
-	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:27:31 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BBE194202BF
+	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:27:50 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 08:26:16 +0200
-Message-Id: <20200513062649.2100053-2-hch@lst.de>
+Date: Wed, 13 May 2020 08:26:20 +0200
+Message-Id: <20200513062649.2100053-6-hch@lst.de>
 In-Reply-To: <20200513062649.2100053-1-hch@lst.de>
 References: <20200513062649.2100053-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 01/33] net: add sock_set_reuseaddr
+Subject: [Drbd-dev] [PATCH 05/33] net: add sock_bindtoindex
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,180 +36,111 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the SO_REUSEADDR sockopt from kernel space
-without going through a fake uaccess.
-
-For this the iscsi target now has to formally depend on inet to avoid
-a mostly theoretical compile failure.  For actual operation it already
-did depend on having ipv4 or ipv6 support.
+Add a helper to directly set the SO_BINDTOIFINDEX sockopt from kernel
+space without going through a fake uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/infiniband/sw/siw/siw_cm.c        | 18 +++++-------------
- drivers/nvme/target/tcp.c                 |  8 +-------
- drivers/target/iscsi/Kconfig              |  2 +-
- drivers/target/iscsi/iscsi_target_login.c |  9 +--------
- fs/dlm/lowcomms.c                         |  6 +-----
- include/net/sock.h                        |  1 +
- net/core/sock.c                           |  8 ++++++++
- 7 files changed, 18 insertions(+), 34 deletions(-)
+ include/net/sock.h        |  1 +
+ net/core/sock.c           | 21 +++++++++++++++------
+ net/ipv4/udp_tunnel.c     |  4 +---
+ net/ipv6/ip6_udp_tunnel.c |  4 +---
+ 4 files changed, 18 insertions(+), 12 deletions(-)
 
-diff --git a/drivers/infiniband/sw/siw/siw_cm.c b/drivers/infiniband/sw/siw/siw_cm.c
-index 559e5fd3bad8b..6d7c8c933736c 100644
---- a/drivers/infiniband/sw/siw/siw_cm.c
-+++ b/drivers/infiniband/sw/siw/siw_cm.c
-@@ -1312,17 +1312,14 @@ static void siw_cm_llp_state_change(struct sock *sk)
- static int kernel_bindconnect(struct socket *s, struct sockaddr *laddr,
- 			      struct sockaddr *raddr)
- {
--	int rv, flags = 0, s_val = 1;
-+	int rv, flags = 0;
- 	size_t size = laddr->sa_family == AF_INET ?
- 		sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
- 
- 	/*
- 	 * Make address available again asap.
- 	 */
--	rv = kernel_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&s_val,
--			       sizeof(s_val));
--	if (rv < 0)
--		return rv;
-+	sock_set_reuseaddr(s->sk, SK_CAN_REUSE);
- 
- 	rv = s->ops->bind(s, laddr, size);
- 	if (rv < 0)
-@@ -1781,7 +1778,7 @@ int siw_create_listen(struct iw_cm_id *id, int backlog)
- 	struct siw_cep *cep = NULL;
- 	struct siw_device *sdev = to_siw_dev(id->device);
- 	int addr_family = id->local_addr.ss_family;
--	int rv = 0, s_val;
-+	int rv = 0;
- 
- 	if (addr_family != AF_INET && addr_family != AF_INET6)
- 		return -EAFNOSUPPORT;
-@@ -1793,13 +1790,8 @@ int siw_create_listen(struct iw_cm_id *id, int backlog)
- 	/*
- 	 * Allow binding local port when still in TIME_WAIT from last close.
- 	 */
--	s_val = 1;
--	rv = kernel_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&s_val,
--			       sizeof(s_val));
--	if (rv) {
--		siw_dbg(id->device, "setsockopt error: %d\n", rv);
--		goto error;
--	}
-+	sock_set_reuseaddr(s->sk, SK_CAN_REUSE);
-+
- 	if (addr_family == AF_INET) {
- 		struct sockaddr_in *laddr = &to_sockaddr_in(id->local_addr);
- 
-diff --git a/drivers/nvme/target/tcp.c b/drivers/nvme/target/tcp.c
-index f0da04e960f40..791aa32beeb98 100644
---- a/drivers/nvme/target/tcp.c
-+++ b/drivers/nvme/target/tcp.c
-@@ -1632,6 +1632,7 @@ static int nvmet_tcp_add_port(struct nvmet_port *nport)
- 	port->sock->sk->sk_user_data = port;
- 	port->data_ready = port->sock->sk->sk_data_ready;
- 	port->sock->sk->sk_data_ready = nvmet_tcp_listen_data_ready;
-+	sock_set_reuseaddr(port->sock->sk, SK_CAN_REUSE);
- 
- 	opt = 1;
- 	ret = kernel_setsockopt(port->sock, IPPROTO_TCP,
-@@ -1641,13 +1642,6 @@ static int nvmet_tcp_add_port(struct nvmet_port *nport)
- 		goto err_sock;
- 	}
- 
--	ret = kernel_setsockopt(port->sock, SOL_SOCKET, SO_REUSEADDR,
--			(char *)&opt, sizeof(opt));
--	if (ret) {
--		pr_err("failed to set SO_REUSEADDR sock opt %d\n", ret);
--		goto err_sock;
--	}
--
- 	if (so_priority > 0) {
- 		ret = kernel_setsockopt(port->sock, SOL_SOCKET, SO_PRIORITY,
- 				(char *)&so_priority, sizeof(so_priority));
-diff --git a/drivers/target/iscsi/Kconfig b/drivers/target/iscsi/Kconfig
-index 1f93ea3813536..922484ea4e304 100644
---- a/drivers/target/iscsi/Kconfig
-+++ b/drivers/target/iscsi/Kconfig
-@@ -1,7 +1,7 @@
- # SPDX-License-Identifier: GPL-2.0-only
- config ISCSI_TARGET
- 	tristate "Linux-iSCSI.org iSCSI Target Mode Stack"
--	depends on NET
-+	depends on INET
- 	select CRYPTO
- 	select CRYPTO_CRC32C
- 	select CRYPTO_CRC32C_INTEL if X86
-diff --git a/drivers/target/iscsi/iscsi_target_login.c b/drivers/target/iscsi/iscsi_target_login.c
-index 731ee67fe914b..7da59ece3eb99 100644
---- a/drivers/target/iscsi/iscsi_target_login.c
-+++ b/drivers/target/iscsi/iscsi_target_login.c
-@@ -909,14 +909,7 @@ int iscsit_setup_np(
- 		}
- 	}
- 
--	/* FIXME: Someone please explain why this is endian-safe */
--	ret = kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
--			(char *)&opt, sizeof(opt));
--	if (ret < 0) {
--		pr_err("kernel_setsockopt() for SO_REUSEADDR"
--			" failed\n");
--		goto fail;
--	}
-+	sock_set_reuseaddr(sock->sk, SK_CAN_REUSE);
- 
- 	ret = kernel_setsockopt(sock, IPPROTO_IP, IP_FREEBIND,
- 			(char *)&opt, sizeof(opt));
-diff --git a/fs/dlm/lowcomms.c b/fs/dlm/lowcomms.c
-index cdfaf4f0e11a0..48e7ba796c6fb 100644
---- a/fs/dlm/lowcomms.c
-+++ b/fs/dlm/lowcomms.c
-@@ -1244,12 +1244,8 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
- 	kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY, (char *)&one,
- 			  sizeof(one));
- 
--	result = kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
--				   (char *)&one, sizeof(one));
-+	sock_set_reuseaddr(sock->sk, SK_CAN_REUSE);
- 
--	if (result < 0) {
--		log_print("Failed to set SO_REUSEADDR on socket: %d", result);
--	}
- 	write_lock_bh(&sock->sk->sk_callback_lock);
- 	sock->sk->sk_user_data = con;
- 	save_listen_callbacks(sock);
 diff --git a/include/net/sock.h b/include/net/sock.h
-index 3e8c6d4b4b59f..e801a147ad746 100644
+index 809596ffd32d2..b63ea15362065 100644
 --- a/include/net/sock.h
 +++ b/include/net/sock.h
-@@ -2687,5 +2687,6 @@ static inline bool sk_dev_equal_l3scope(struct sock *sk, int dif)
- }
- 
- void sock_def_readable(struct sock *sk);
-+void sock_set_reuseaddr(struct sock *sk, unsigned char reuse);
+@@ -2691,5 +2691,6 @@ void sock_set_reuseaddr(struct sock *sk, unsigned char reuse);
+ void sock_set_linger(struct sock *sk, bool onoff, unsigned int linger);
+ void sock_set_priority(struct sock *sk, u32 priority);
+ void sock_set_sndtimeo(struct sock *sk, unsigned int secs);
++int sock_bindtoindex(struct sock *sk, int ifindex);
  
  #endif	/* _SOCK_H */
 diff --git a/net/core/sock.c b/net/core/sock.c
-index fd85e651ce284..ff4faa3e68ac4 100644
+index 76527681e50b9..4b7439308caec 100644
 --- a/net/core/sock.c
 +++ b/net/core/sock.c
-@@ -712,6 +712,14 @@ bool sk_mc_loop(struct sock *sk)
+@@ -566,7 +566,7 @@ struct dst_entry *sk_dst_check(struct sock *sk, u32 cookie)
  }
- EXPORT_SYMBOL(sk_mc_loop);
+ EXPORT_SYMBOL(sk_dst_check);
  
-+void sock_set_reuseaddr(struct sock *sk, unsigned char reuse)
+-static int sock_setbindtodevice_locked(struct sock *sk, int ifindex)
++static int sock_bindtoindex_locked(struct sock *sk, int ifindex)
+ {
+ 	int ret = -ENOPROTOOPT;
+ #ifdef CONFIG_NETDEVICES
+@@ -594,6 +594,18 @@ static int sock_setbindtodevice_locked(struct sock *sk, int ifindex)
+ 	return ret;
+ }
+ 
++int sock_bindtoindex(struct sock *sk, int ifindex)
 +{
-+	lock_sock(sk);
-+	sk->sk_reuse = reuse;
-+	release_sock(sk);
-+}
-+EXPORT_SYMBOL(sock_set_reuseaddr);
++	int ret;
 +
- /*
-  *	This is meant for all protocols to use and covers goings on
-  *	at the socket level. Everything here is generic.
++	lock_sock(sk);
++	ret = sock_bindtoindex_locked(sk, ifindex);
++	release_sock(sk);
++
++	return ret;
++}
++EXPORT_SYMBOL(sock_bindtoindex);
++
+ static int sock_setbindtodevice(struct sock *sk, char __user *optval,
+ 				int optlen)
+ {
+@@ -634,10 +646,7 @@ static int sock_setbindtodevice(struct sock *sk, char __user *optval,
+ 			goto out;
+ 	}
+ 
+-	lock_sock(sk);
+-	ret = sock_setbindtodevice_locked(sk, index);
+-	release_sock(sk);
+-
++	return sock_bindtoindex(sk, index);
+ out:
+ #endif
+ 
+@@ -1221,7 +1230,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
+ 		break;
+ 
+ 	case SO_BINDTOIFINDEX:
+-		ret = sock_setbindtodevice_locked(sk, val);
++		ret = sock_bindtoindex_locked(sk, val);
+ 		break;
+ 
+ 	default:
+diff --git a/net/ipv4/udp_tunnel.c b/net/ipv4/udp_tunnel.c
+index 150e6f0fdbf59..2158e8bddf41c 100644
+--- a/net/ipv4/udp_tunnel.c
++++ b/net/ipv4/udp_tunnel.c
+@@ -22,9 +22,7 @@ int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
+ 		goto error;
+ 
+ 	if (cfg->bind_ifindex) {
+-		err = kernel_setsockopt(sock, SOL_SOCKET, SO_BINDTOIFINDEX,
+-					(void *)&cfg->bind_ifindex,
+-					sizeof(cfg->bind_ifindex));
++		err = sock_bindtoindex(sock->sk, cfg->bind_ifindex);
+ 		if (err < 0)
+ 			goto error;
+ 	}
+diff --git a/net/ipv6/ip6_udp_tunnel.c b/net/ipv6/ip6_udp_tunnel.c
+index 58956a6b66a21..6523609516d25 100644
+--- a/net/ipv6/ip6_udp_tunnel.c
++++ b/net/ipv6/ip6_udp_tunnel.c
+@@ -33,9 +33,7 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
+ 			goto error;
+ 	}
+ 	if (cfg->bind_ifindex) {
+-		err = kernel_setsockopt(sock, SOL_SOCKET, SO_BINDTOIFINDEX,
+-					(void *)&cfg->bind_ifindex,
+-					sizeof(cfg->bind_ifindex));
++		err = sock_bindtoindex(sock->sk, cfg->bind_ifindex);
+ 		if (err < 0)
+ 			goto error;
+ 	}
 -- 
 2.26.2
 
