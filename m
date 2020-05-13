@@ -1,12 +1,12 @@
 Return-Path: <BATV+0881196e8d815fc0828c+6107+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 924E74203F6
-	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:28:27 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D2DE14203E2
+	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:28:42 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 08:26:35 +0200
-Message-Id: <20200513062649.2100053-21-hch@lst.de>
+Date: Wed, 13 May 2020 08:26:46 +0200
+Message-Id: <20200513062649.2100053-32-hch@lst.de>
 In-Reply-To: <20200513062649.2100053-1-hch@lst.de>
 References: <20200513062649.2100053-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 20/33] ipv4: add ip_sock_set_recverr
+Subject: [Drbd-dev] [PATCH 31/33] net: remove kernel_setsockopt
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,67 +36,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the IP_RECVERR sockopt from kernel space
-without going through a fake uaccess.
+No users left.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/net/ip.h         |  1 +
- net/ipv4/ip_sockglue.c   | 10 ++++++++++
- net/rxrpc/local_object.c |  8 +-------
- 3 files changed, 12 insertions(+), 7 deletions(-)
+ include/linux/net.h |  2 --
+ net/socket.c        | 31 -------------------------------
+ 2 files changed, 33 deletions(-)
 
-diff --git a/include/net/ip.h b/include/net/ip.h
-index 1e2feca8630d0..7ab8140b54429 100644
---- a/include/net/ip.h
-+++ b/include/net/ip.h
-@@ -767,5 +767,6 @@ static inline bool inetdev_valid_mtu(unsigned int mtu)
- 
- void ip_sock_set_tos(struct sock *sk, int val);
- void ip_sock_set_freebind(struct sock *sk, bool val);
-+void ip_sock_set_recverr(struct sock *sk, bool val);
- 
- #endif	/* _IP_H */
-diff --git a/net/ipv4/ip_sockglue.c b/net/ipv4/ip_sockglue.c
-index 0c40887a817f8..9abecc3195520 100644
---- a/net/ipv4/ip_sockglue.c
-+++ b/net/ipv4/ip_sockglue.c
-@@ -589,6 +589,16 @@ void ip_sock_set_freebind(struct sock *sk, bool val)
+diff --git a/include/linux/net.h b/include/linux/net.h
+index 6451425e828f5..ece7513326293 100644
+--- a/include/linux/net.h
++++ b/include/linux/net.h
+@@ -305,8 +305,6 @@ int kernel_getsockname(struct socket *sock, struct sockaddr *addr);
+ int kernel_getpeername(struct socket *sock, struct sockaddr *addr);
+ int kernel_getsockopt(struct socket *sock, int level, int optname, char *optval,
+ 		      int *optlen);
+-int kernel_setsockopt(struct socket *sock, int level, int optname, char *optval,
+-		      unsigned int optlen);
+ int kernel_sendpage(struct socket *sock, struct page *page, int offset,
+ 		    size_t size, int flags);
+ int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
+diff --git a/net/socket.c b/net/socket.c
+index 1c9a7260a41de..f37c3ef508691 100644
+--- a/net/socket.c
++++ b/net/socket.c
+@@ -3749,37 +3749,6 @@ int kernel_getsockopt(struct socket *sock, int level, int optname,
  }
- EXPORT_SYMBOL(ip_sock_set_freebind);
+ EXPORT_SYMBOL(kernel_getsockopt);
  
-+void ip_sock_set_recverr(struct sock *sk, bool val)
-+{
-+	lock_sock(sk);
-+	inet_sk(sk)->recverr = val;
-+	if (!val)
-+		skb_queue_purge(&sk->sk_error_queue);
-+	release_sock(sk);
-+}
-+EXPORT_SYMBOL(ip_sock_set_recverr);
-+
- /*
-  *	Socket option code for IP. This is the end of the line after any
-  *	TCP,UDP etc options on an IP socket.
-diff --git a/net/rxrpc/local_object.c b/net/rxrpc/local_object.c
-index 562ea36c96b0f..1b87b8a9ff725 100644
---- a/net/rxrpc/local_object.c
-+++ b/net/rxrpc/local_object.c
-@@ -171,13 +171,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
- 		/* Fall through */
- 	case AF_INET:
- 		/* we want to receive ICMP errors */
--		opt = 1;
--		ret = kernel_setsockopt(local->socket, SOL_IP, IP_RECVERR,
--					(char *) &opt, sizeof(opt));
--		if (ret < 0) {
--			_debug("setsockopt failed");
--			goto error;
--		}
-+		ip_sock_set_recverr(local->socket->sk, true);
- 
- 		/* we want to set the don't fragment bit */
- 		opt = IP_PMTUDISC_DO;
+-/**
+- *	kernel_setsockopt - set a socket option (kernel space)
+- *	@sock: socket
+- *	@level: API level (SOL_SOCKET, ...)
+- *	@optname: option tag
+- *	@optval: option value
+- *	@optlen: option length
+- *
+- *	Returns 0 or an error.
+- */
+-
+-int kernel_setsockopt(struct socket *sock, int level, int optname,
+-			char *optval, unsigned int optlen)
+-{
+-	mm_segment_t oldfs = get_fs();
+-	char __user *uoptval;
+-	int err;
+-
+-	uoptval = (char __user __force *) optval;
+-
+-	set_fs(KERNEL_DS);
+-	if (level == SOL_SOCKET)
+-		err = sock_setsockopt(sock, level, optname, uoptval, optlen);
+-	else
+-		err = sock->ops->setsockopt(sock, level, optname, uoptval,
+-					    optlen);
+-	set_fs(oldfs);
+-	return err;
+-}
+-EXPORT_SYMBOL(kernel_setsockopt);
+-
+ /**
+  *	kernel_sendpage - send a &page through a socket (kernel space)
+  *	@sock: socket
 -- 
 2.26.2
 
