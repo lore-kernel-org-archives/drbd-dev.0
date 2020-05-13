@@ -1,12 +1,12 @@
 Return-Path: <BATV+0881196e8d815fc0828c+6107+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D5CB420402
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7489D420404
 	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:45:51 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 08:26:40 +0200
-Message-Id: <20200513062649.2100053-26-hch@lst.de>
+Date: Wed, 13 May 2020 08:26:42 +0200
+Message-Id: <20200513062649.2100053-28-hch@lst.de>
 In-Reply-To: <20200513062649.2100053-1-hch@lst.de>
 References: <20200513062649.2100053-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 25/33] ipv6: add ip6_sock_set_recvpktinfo
+Subject: [Drbd-dev] [PATCH 27/33] sctp: export sctp_setsockopt_bindx
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,80 +36,77 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the IPV6_RECVPKTINFO sockopt from kernel
-space without going through a fake uaccess.
+And call it directly from dlm instead of going through kernel_setsockopt.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/net/ipv6.h       |  1 +
- net/ipv6/ipv6_sockglue.c |  8 ++++++++
- net/sunrpc/svcsock.c     | 11 +++--------
- 3 files changed, 12 insertions(+), 8 deletions(-)
+ fs/dlm/lowcomms.c       | 13 ++++++++-----
+ include/net/sctp/sctp.h |  3 +++
+ net/sctp/socket.c       |  5 +++--
+ 3 files changed, 14 insertions(+), 7 deletions(-)
 
-diff --git a/include/net/ipv6.h b/include/net/ipv6.h
-index 04b2bc1935054..170872bc4e960 100644
---- a/include/net/ipv6.h
-+++ b/include/net/ipv6.h
-@@ -1178,5 +1178,6 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex,
- int ip6_sock_set_v6only(struct sock *sk, bool val);
- void ip6_sock_set_recverr(struct sock *sk, bool val);
- int ip6_sock_set_addr_preferences(struct sock *sk, bool val);
-+void ip6_sock_set_recvpktinfo(struct sock *sk, bool val);
+diff --git a/fs/dlm/lowcomms.c b/fs/dlm/lowcomms.c
+index b722a09a7ca05..e4939d770df53 100644
+--- a/fs/dlm/lowcomms.c
++++ b/fs/dlm/lowcomms.c
+@@ -1005,14 +1005,17 @@ static int sctp_bind_addrs(struct connection *con, uint16_t port)
+ 		memcpy(&localaddr, dlm_local_addr[i], sizeof(localaddr));
+ 		make_sockaddr(&localaddr, port, &addr_len);
  
- #endif /* _NET_IPV6_H */
-diff --git a/net/ipv6/ipv6_sockglue.c b/net/ipv6/ipv6_sockglue.c
-index c23d42e809d7e..d60adb018d71c 100644
---- a/net/ipv6/ipv6_sockglue.c
-+++ b/net/ipv6/ipv6_sockglue.c
-@@ -225,6 +225,14 @@ int ip6_sock_set_addr_preferences(struct sock *sk, bool val)
+-		if (!i)
++		if (!i) {
+ 			result = kernel_bind(con->sock,
+ 					     (struct sockaddr *)&localaddr,
+ 					     addr_len);
+-		else
+-			result = kernel_setsockopt(con->sock, SOL_SCTP,
+-						   SCTP_SOCKOPT_BINDX_ADD,
+-						   (char *)&localaddr, addr_len);
++		} else {
++			lock_sock(con->sock->sk);
++			result = sctp_setsockopt_bindx(con->sock->sk,
++					(struct sockaddr *)&localaddr, addr_len,
++					SCTP_BINDX_ADD_ADDR);
++			release_sock(con->sock->sk);
++		}
+ 
+ 		if (result < 0) {
+ 			log_print("Can't bind to %d addr number %d, %d.\n",
+diff --git a/include/net/sctp/sctp.h b/include/net/sctp/sctp.h
+index 3ab5c6bbb90bd..f702b14d768ba 100644
+--- a/include/net/sctp/sctp.h
++++ b/include/net/sctp/sctp.h
+@@ -615,4 +615,7 @@ static inline bool sctp_newsk_ready(const struct sock *sk)
+ 	return sock_flag(sk, SOCK_DEAD) || sk->sk_socket;
  }
- EXPORT_SYMBOL(ip6_sock_set_addr_preferences);
  
-+void ip6_sock_set_recvpktinfo(struct sock *sk, bool val)
-+{
-+	lock_sock(sk);
-+	inet6_sk(sk)->rxopt.bits.rxinfo = val;
-+	release_sock(sk);
-+}
-+EXPORT_SYMBOL(ip6_sock_set_recvpktinfo);
++int sctp_setsockopt_bindx(struct sock *sk, struct sockaddr *kaddrs,
++		int addrs_size, int op);
 +
- static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
- 		    char __user *optval, unsigned int optlen)
+ #endif /* __net_sctp_h__ */
+diff --git a/net/sctp/socket.c b/net/sctp/socket.c
+index 1c96b52c4aa28..30c981d9f6158 100644
+--- a/net/sctp/socket.c
++++ b/net/sctp/socket.c
+@@ -979,8 +979,8 @@ int sctp_asconf_mgmt(struct sctp_sock *sp, struct sctp_sockaddr_entry *addrw)
+  *
+  * Returns 0 if ok, <0 errno code on error.
+  */
+-static int sctp_setsockopt_bindx(struct sock *sk, struct sockaddr *kaddrs,
+-				 int addrs_size, int op)
++int sctp_setsockopt_bindx(struct sock *sk, struct sockaddr *kaddrs,
++		int addrs_size, int op)
  {
-diff --git a/net/sunrpc/svcsock.c b/net/sunrpc/svcsock.c
-index 7fa7fedec3c5a..7cf8389b6f46f 100644
---- a/net/sunrpc/svcsock.c
-+++ b/net/sunrpc/svcsock.c
-@@ -595,8 +595,6 @@ static struct svc_xprt_class svc_udp_class = {
- 
- static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
- {
--	int err, level, optname, one = 1;
--
- 	svc_xprt_init(sock_net(svsk->sk_sock->sk), &svc_udp_class,
- 		      &svsk->sk_xprt, serv);
- 	clear_bit(XPT_CACHE_AUTH, &svsk->sk_xprt.xpt_flags);
-@@ -617,17 +615,14 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
- 	switch (svsk->sk_sk->sk_family) {
- 	case AF_INET:
- 		ip_sock_set_pktinfo(svsk->sk_sock->sk, true);
--		return;
-+		break;
- 	case AF_INET6:
--		level = SOL_IPV6;
--		optname = IPV6_RECVPKTINFO;
-+		if (IS_REACHABLE(CONFIG_IPV6))
-+			ip6_sock_set_recvpktinfo(svsk->sk_sock->sk, true);
- 		break;
- 	default:
- 		BUG();
+ 	int err;
+ 	int addrcnt = 0;
+@@ -1032,6 +1032,7 @@ static int sctp_setsockopt_bindx(struct sock *sk, struct sockaddr *kaddrs,
+ 		return -EINVAL;
  	}
--	err = kernel_setsockopt(svsk->sk_sock, level, optname,
--					(char *)&one, sizeof(one));
--	dprintk("svc: kernel_setsockopt returned %d\n", err);
  }
++EXPORT_SYMBOL(sctp_setsockopt_bindx);
  
- /*
+ static int sctp_connect_new_asoc(struct sctp_endpoint *ep,
+ 				 const union sctp_addr *daddr,
 -- 
 2.26.2
 
