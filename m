@@ -1,34 +1,35 @@
-Return-Path: <joe@perches.com>
-Received: from smtprelay.hostedemail.com (smtprelay0005.hostedemail.com
-	[216.40.44.5])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E9EB6420317
-	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 23:01:19 +0200 (CEST)
-Message-ID: <0ee5acfaca4cf32d4efad162046b858981a4dae3.camel@perches.com>
-From: Joe Perches <joe@perches.com>
-To: Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>,
-	Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 14:00:43 -0700
-In-Reply-To: <20200513062649.2100053-21-hch@lst.de>
-References: <20200513062649.2100053-1-hch@lst.de>
-	<20200513062649.2100053-21-hch@lst.de>
-Content-Type: text/plain; charset="ISO-8859-1"
+Return-Path: <dan.j.williams@intel.com>
+Received: from mail-ej1-f45.google.com (mail-ej1-f45.google.com
+	[209.85.218.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3415E420317
+	for <drbd-dev@lists.linbit.com>; Thu, 14 May 2020 00:26:57 +0200 (CEST)
+Received: by mail-ej1-f45.google.com with SMTP id n17so983980ejh.7
+	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 15:26:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
-	Eric Dumazet <edumazet@google.com>,
-	linux-nvme@lists.infradead.org, linux-sctp@vger.kernel.org,
-	target-devel@vger.kernel.org, linux-afs@lists.infradead.org,
-	drbd-dev@lists.linbit.com, Vlad, rds-devel@oss.oracle.com,
-	linux-rdma@vger.kernel.org, cluster-devel@redhat.com,
-	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
-	linux-cifs@vger.kernel.org, linux-block@vger.kernel.org,
-	ceph-devel@vger.kernel.org, linux-nfs@vger.kernel.org,
-	Neil Horman <nhorman@tuxdriver.com>,
-	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
-	netdev@vger.kernel.org, Yasevich <vyasevich@gmail.com>,
-	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
-	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: Re: [Drbd-dev] [PATCH 20/33] ipv4: add ip_sock_set_recverr
+References: <20200508161517.252308-1-hch@lst.de>
+	<CAPcyv4j3gVqrZWCCc2Q-6JizGAQXW0b+R1BcvWCZOvzaukGLQg@mail.gmail.com>
+	<20200509082352.GB21834@lst.de>
+	<CAPcyv4ggb7_rwzGbhHNXSHd+jjSpZC=+DMEztY6Cu8Bc=ZNzag@mail.gmail.com>
+	<20200512080820.GA2336@lst.de>
+In-Reply-To: <20200512080820.GA2336@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 13 May 2020 15:26:45 -0700
+Message-ID: <CAPcyv4iWB=ZMmpc1aWfpJabSbCdvB28dCeSp_xj7AZMfbF_rjg@mail.gmail.com>
+To: Christoph Hellwig <hch@lst.de>
+Content-Type: text/plain; charset="UTF-8"
+Cc: Jens Axboe <axboe@kernel.dk>, linux-xtensa@linux-xtensa.org,
+	linux-raid <linux-raid@vger.kernel.org>,
+	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>,
+	Geoff Levand <geoff@infradead.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Jim Paris <jim@jtan.com>, linux-block@vger.kernel.org,
+	Minchan Kim <minchan@kernel.org>, linux-m68k@lists.linux-m68k.org,
+	Philip Kelleher <pjk1939@linux.ibm.com>, linux-bcache@vger.kernel.org,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	Joshua Morris <josh.h.morris@us.ibm.com>,
+	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] remove a few uses of ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,60 +41,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, 2020-05-13 at 08:26 +0200, Christoph Hellwig wrote:
-> Add a helper to directly set the IP_RECVERR sockopt from kernel space
-> without going through a fake uaccess.
+On Tue, May 12, 2020 at 1:08 AM Christoph Hellwig <hch@lst.de> wrote:
+>
+> On Sat, May 09, 2020 at 08:07:14AM -0700, Dan Williams wrote:
+> > > which are all used in the I/O submission path (generic_make_request /
+> > > generic_make_request_checks).  This is mostly a prep cleanup patch to
+> > > also remove the pointless queue argument from ->make_request - then
+> > > ->queue is an extra dereference and extra churn.
+> >
+> > Ah ok. If the changelogs had been filled in with something like "In
+> > preparation for removing @q from make_request_fn, stop using
+> > ->queuedata", I probably wouldn't have looked twice.
+> >
+> > For the nvdimm/ driver updates you can add:
+> >
+> >     Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+> >
+> > ...or just let me know if you want me to pick those up through the nvdimm tree.
+>
+> I'd love you to pick them up through the nvdimm tree.  Do you want
+> to fix up the commit message yourself?
 
-This seems used only with true as the second arg.
-Is there reason to have that argument at all?
-
-> diff --git a/include/net/ip.h b/include/net/ip.h
-[]
-> @@ -767,5 +767,6 @@ static inline bool inetdev_valid_mtu(unsigned int mtu)
->  
->  void ip_sock_set_tos(struct sock *sk, int val);
->  void ip_sock_set_freebind(struct sock *sk, bool val);
-> +void ip_sock_set_recverr(struct sock *sk, bool val);
->  
->  #endif	/* _IP_H */
-> diff --git a/net/ipv4/ip_sockglue.c b/net/ipv4/ip_sockglue.c
-> index 0c40887a817f8..9abecc3195520 100644
-> --- a/net/ipv4/ip_sockglue.c
-> +++ b/net/ipv4/ip_sockglue.c
-> @@ -589,6 +589,16 @@ void ip_sock_set_freebind(struct sock *sk, bool val)
->  }
->  EXPORT_SYMBOL(ip_sock_set_freebind);
->  
-> +void ip_sock_set_recverr(struct sock *sk, bool val)
-> +{
-> +	lock_sock(sk);
-> +	inet_sk(sk)->recverr = val;
-> +	if (!val)
-> +		skb_queue_purge(&sk->sk_error_queue);
-> +	release_sock(sk);
-> +}
-> +EXPORT_SYMBOL(ip_sock_set_recverr);
-> +
->  /*
->   *	Socket option code for IP. This is the end of the line after any
->   *	TCP,UDP etc options on an IP socket.
-> diff --git a/net/rxrpc/local_object.c b/net/rxrpc/local_object.c
-> index 562ea36c96b0f..1b87b8a9ff725 100644
-> --- a/net/rxrpc/local_object.c
-> +++ b/net/rxrpc/local_object.c
-> @@ -171,13 +171,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
->  		/* Fall through */
->  	case AF_INET:
->  		/* we want to receive ICMP errors */
-> -		opt = 1;
-> -		ret = kernel_setsockopt(local->socket, SOL_IP, IP_RECVERR,
-> -					(char *) &opt, sizeof(opt));
-> -		if (ret < 0) {
-> -			_debug("setsockopt failed");
-> -			goto error;
-> -		}
-> +		ip_sock_set_recverr(local->socket->sk, true);
->  
->  		/* we want to set the don't fragment bit */
->  		opt = IP_PMTUDISC_DO;
-
+Will do, thanks.
