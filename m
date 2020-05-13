@@ -1,12 +1,12 @@
 Return-Path: <BATV+0881196e8d815fc0828c+6107+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1F4D54203F2
-	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:28:09 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A0CB84203E4
+	for <drbd-dev@lists.linbit.com>; Wed, 13 May 2020 08:28:13 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 13 May 2020 08:26:28 +0200
-Message-Id: <20200513062649.2100053-14-hch@lst.de>
+Date: Wed, 13 May 2020 08:26:30 +0200
+Message-Id: <20200513062649.2100053-16-hch@lst.de>
 In-Reply-To: <20200513062649.2100053-1-hch@lst.de>
 References: <20200513062649.2100053-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 13/33] tcp: add tcp_sock_set_syncnt
+Subject: [Drbd-dev] [PATCH 15/33] tcp: add tcp_sock_set_keepidle
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,70 +36,125 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the TCP_SYNCNT sockopt from kernel space
-without going through a fake uaccess.
+Add a helper to directly set the TCP_KEEP_IDLE sockopt from kernel
+space without going through a fake uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/nvme/host/tcp.c |  9 +--------
- include/linux/tcp.h     |  1 +
- net/ipv4/tcp.c          | 12 ++++++++++++
- 3 files changed, 14 insertions(+), 8 deletions(-)
+ include/linux/tcp.h   |  1 +
+ net/ipv4/tcp.c        | 49 ++++++++++++++++++++++++++++++-------------
+ net/rds/tcp_listen.c  |  5 +----
+ net/sunrpc/xprtsock.c |  3 +--
+ 4 files changed, 37 insertions(+), 21 deletions(-)
 
-diff --git a/drivers/nvme/host/tcp.c b/drivers/nvme/host/tcp.c
-index a8070f93fd0a0..8417eeb83fcd2 100644
---- a/drivers/nvme/host/tcp.c
-+++ b/drivers/nvme/host/tcp.c
-@@ -1336,14 +1336,7 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
- 	}
- 
- 	/* Single syn retry */
--	opt = 1;
--	ret = kernel_setsockopt(queue->sock, IPPROTO_TCP, TCP_SYNCNT,
--			(char *)&opt, sizeof(opt));
--	if (ret) {
--		dev_err(nctrl->device,
--			"failed to set TCP_SYNCNT sock opt %d\n", ret);
--		goto err_sock;
--	}
-+	tcp_sock_set_syncnt(queue->sock->sk, 1);
- 
- 	/* Set TCP no delay */
- 	tcp_sock_set_nodelay(queue->sock->sk, true);
 diff --git a/include/linux/tcp.h b/include/linux/tcp.h
-index e7ab6da5111b5..77b832acf3398 100644
+index 69c988f84a184..4d3a3e959e45b 100644
 --- a/include/linux/tcp.h
 +++ b/include/linux/tcp.h
-@@ -497,5 +497,6 @@ int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
- void tcp_sock_set_cork(struct sock *sk, bool on);
- void tcp_sock_set_nodelay(struct sock *sk, bool on);
+@@ -499,5 +499,6 @@ void tcp_sock_set_nodelay(struct sock *sk, bool on);
  void tcp_sock_set_quickack(struct sock *sk, int val);
-+int tcp_sock_set_syncnt(struct sock *sk, int val);
+ int tcp_sock_set_syncnt(struct sock *sk, int val);
+ void tcp_sock_set_user_timeout(struct sock *sk, u32 val);
++int tcp_sock_set_keepidle(struct sock *sk, int val);
  
  #endif	/* _LINUX_TCP_H */
 diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index c681f43f0bb85..773b5cd366ab7 100644
+index 9a8d062b17a48..22eb9159c7d05 100644
 --- a/net/ipv4/tcp.c
 +++ b/net/ipv4/tcp.c
-@@ -2870,6 +2870,18 @@ void tcp_sock_set_quickack(struct sock *sk, int val)
+@@ -2890,6 +2890,39 @@ void tcp_sock_set_user_timeout(struct sock *sk, u32 val)
  }
- EXPORT_SYMBOL(tcp_sock_set_quickack);
+ EXPORT_SYMBOL(tcp_sock_set_user_timeout);
  
-+int tcp_sock_set_syncnt(struct sock *sk, int val)
++static int __tcp_sock_set_keepidle(struct sock *sk, int val)
 +{
-+	if (val < 1 || val > MAX_TCP_SYNCNT)
++	struct tcp_sock *tp = tcp_sk(sk);
++
++	if (val < 1 || val > MAX_TCP_KEEPIDLE)
 +		return -EINVAL;
 +
-+	lock_sock(sk);
-+	inet_csk(sk)->icsk_syn_retries = val;
-+	release_sock(sk);
++	tp->keepalive_time = val * HZ;
++	if (sock_flag(sk, SOCK_KEEPOPEN) &&
++	    !((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))) {
++		u32 elapsed = keepalive_time_elapsed(tp);
++
++		if (tp->keepalive_time > elapsed)
++			elapsed = tp->keepalive_time - elapsed;
++		else
++			elapsed = 0;
++		inet_csk_reset_keepalive_timer(sk, elapsed);
++	}
++
 +	return 0;
 +}
-+EXPORT_SYMBOL(tcp_sock_set_syncnt);
++
++int tcp_sock_set_keepidle(struct sock *sk, int val)
++{
++	int err;
++
++	lock_sock(sk);
++	err = __tcp_sock_set_keepidle(sk, val);
++	release_sock(sk);
++	return err;
++}
++EXPORT_SYMBOL(tcp_sock_set_keepidle);
 +
  /*
   *	Socket option code for TCP.
   */
+@@ -3059,21 +3092,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
+ 		break;
+ 
+ 	case TCP_KEEPIDLE:
+-		if (val < 1 || val > MAX_TCP_KEEPIDLE)
+-			err = -EINVAL;
+-		else {
+-			tp->keepalive_time = val * HZ;
+-			if (sock_flag(sk, SOCK_KEEPOPEN) &&
+-			    !((1 << sk->sk_state) &
+-			      (TCPF_CLOSE | TCPF_LISTEN))) {
+-				u32 elapsed = keepalive_time_elapsed(tp);
+-				if (tp->keepalive_time > elapsed)
+-					elapsed = tp->keepalive_time - elapsed;
+-				else
+-					elapsed = 0;
+-				inet_csk_reset_keepalive_timer(sk, elapsed);
+-			}
+-		}
++		err = __tcp_sock_set_keepidle(sk, val);
+ 		break;
+ 	case TCP_KEEPINTVL:
+ 		if (val < 1 || val > MAX_TCP_KEEPINTVL)
+diff --git a/net/rds/tcp_listen.c b/net/rds/tcp_listen.c
+index e76ec64b43fe7..8c76969d8c878 100644
+--- a/net/rds/tcp_listen.c
++++ b/net/rds/tcp_listen.c
+@@ -52,10 +52,7 @@ int rds_tcp_keepalive(struct socket *sock)
+ 	if (ret < 0)
+ 		goto bail;
+ 
+-	ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE,
+-				(char *)&keepidle, sizeof(keepidle));
+-	if (ret < 0)
+-		goto bail;
++	tcp_sock_set_keepidle(sock->sk, keepidle);
+ 
+ 	/* KEEPINTVL is the interval between successive probes. We follow
+ 	 * the model in xs_tcp_finish_connecting() and re-use keepidle.
+diff --git a/net/sunrpc/xprtsock.c b/net/sunrpc/xprtsock.c
+index 30d4c4fcd3e38..ea79446789c69 100644
+--- a/net/sunrpc/xprtsock.c
++++ b/net/sunrpc/xprtsock.c
+@@ -2107,8 +2107,7 @@ static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
+ 
+ 	/* TCP Keepalive options */
+ 	sock_set_keepalive(sock->sk, 1);
+-	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPIDLE,
+-			(char *)&keepidle, sizeof(keepidle));
++	tcp_sock_set_keepidle(sock->sk, keepidle);
+ 	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPINTVL,
+ 			(char *)&keepidle, sizeof(keepidle));
+ 	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPCNT,
 -- 
 2.26.2
 
