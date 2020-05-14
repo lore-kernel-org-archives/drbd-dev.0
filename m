@@ -1,34 +1,46 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3B0BD4202B5
-	for <drbd-dev@lists.linbit.com>; Thu, 14 May 2020 12:30:57 +0200 (CEST)
-Date: Thu, 14 May 2020 12:30:25 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Joe Perches <joe@perches.com>
-Message-ID: <20200514103025.GB12680@lst.de>
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B972C4202B5
+	for <drbd-dev@lists.linbit.com>; Thu, 14 May 2020 12:35:22 +0200 (CEST)
+Date: Thu, 14 May 2020 12:34:50 +0200
+From: 'Christoph Hellwig' <hch@lst.de>
+To: David Laight <David.Laight@ACULAB.COM>
+Message-ID: <20200514103450.GA12901@lst.de>
 References: <20200513062649.2100053-1-hch@lst.de>
-	<20200513062649.2100053-21-hch@lst.de>
-	<0ee5acfaca4cf32d4efad162046b858981a4dae3.camel@perches.com>
+	<ecc165c33962d964d518c80de605af632eee0474.camel@perches.com>
+	<756758e8f0e34e2e97db470609f5fbba@AcuMS.aculab.com>
+	<20200514101838.GA12548@lst.de>
+	<a76440f7305c4653877ff2abff499f4e@AcuMS.aculab.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0ee5acfaca4cf32d4efad162046b858981a4dae3.camel@perches.com>
+In-Reply-To: <a76440f7305c4653877ff2abff499f4e@AcuMS.aculab.com>
 Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
-	linux-nvme@lists.infradead.org,
-	Eric Dumazet <edumazet@google.com>, target-devel@vger.kernel.org,
-	linux-afs@lists.infradead.org, drbd-dev@lists.linbit.com,
-	linux-cifs@vger.kernel.org, rds-devel@oss.oracle.com,
-	linux-rdma@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
-	cluster-devel@redhat.com, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
-	linux-block@vger.kernel.org, Jakub Kicinski <kuba@kernel.org>,
-	ceph-devel@vger.kernel.org, linux-nfs@vger.kernel.org,
+	"linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>,
+	Eric Dumazet <edumazet@google.com>,
+	"target-devel@vger.kernel.org" <target-devel@vger.kernel.org>,
+	"linux-afs@lists.infradead.org" <linux-afs@lists.infradead.org>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
+	"linux-cifs@vger.kernel.org" <linux-cifs@vger.kernel.org>,
+	"rds-devel@oss.oracle.com" <rds-devel@oss.oracle.com>,
+	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
+	'Christoph Hellwig' <hch@lst.de>,
+	"cluster-devel@redhat.com" <cluster-devel@redhat.com>,
+	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	'Joe Perches' <joe@perches.com>, Jakub Kicinski <kuba@kernel.org>,
+	"ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>,
+	"linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>,
 	Neil Horman <nhorman@tuxdriver.com>,
 	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
-	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
-	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
-	linux-sctp@vger.kernel.org, Ying Xue <ying.xue@windriver.com>,
-	"David S. Miller" <davem@davemloft.net>, ocfs2-devel@oss.oracle.com
-Subject: Re: [Drbd-dev] [PATCH 20/33] ipv4: add ip_sock_set_recverr
+	"netdev@vger.kernel.org" <netdev@vger.kernel.org>,
+	Vlad Yasevich <vyasevich@gmail.com>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Jon Maloy <jmaloy@redhat.com>,
+	"linux-sctp@vger.kernel.org" <linux-sctp@vger.kernel.org>,
+	Ying Xue <ying.xue@windriver.com>, "David S. Miller" <davem@davemloft.net>,
+	"ocfs2-devel@oss.oracle.com" <ocfs2-devel@oss.oracle.com>
+Subject: Re: [Drbd-dev] remove kernel_setsockopt and kernel_getsockopt
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,13 +52,12 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, May 13, 2020 at 02:00:43PM -0700, Joe Perches wrote:
-> On Wed, 2020-05-13 at 08:26 +0200, Christoph Hellwig wrote:
-> > Add a helper to directly set the IP_RECVERR sockopt from kernel space
-> > without going through a fake uaccess.
+On Thu, May 14, 2020 at 10:26:41AM +0000, David Laight wrote:
+> From: Christoph Hellwig
+> > Only for those were we have users, and all those are covered.
 > 
-> This seems used only with true as the second arg.
-> Is there reason to have that argument at all?
+> What do we tell all our users when our kernel SCTP code
+> no longer works?
 
-Mostly to keep it symmetric with the sockopt.  I could probably remove
-a few arguments in the series if we want to be strict.
+We only care about in-tree modules, just like for every other interface
+in the kernel.
