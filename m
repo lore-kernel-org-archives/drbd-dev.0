@@ -1,35 +1,36 @@
-Return-Path: <joe@perches.com>
-Received: from smtprelay.hostedemail.com (smtprelay0200.hostedemail.com
-	[216.40.44.200])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C3561420229
-	for <drbd-dev@lists.linbit.com>; Thu, 14 May 2020 13:52:02 +0200 (CEST)
-Message-ID: <9992a1fe768a0b1e9bb9470d2728ba25dbe042db.camel@perches.com>
-From: Joe Perches <joe@perches.com>
-To: Christoph Hellwig <hch@lst.de>
-Date: Thu, 14 May 2020 04:51:26 -0700
-In-Reply-To: <20200514103025.GB12680@lst.de>
-References: <20200513062649.2100053-1-hch@lst.de>
-	<20200513062649.2100053-21-hch@lst.de>
-	<0ee5acfaca4cf32d4efad162046b858981a4dae3.camel@perches.com>
-	<20200514103025.GB12680@lst.de>
-Content-Type: text/plain; charset="ISO-8859-1"
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A7FC5420105
+	for <drbd-dev@lists.linbit.com>; Fri, 15 May 2020 17:25:32 +0200 (CEST)
+Date: Fri, 15 May 2020 17:24:59 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: David Howells <dhowells@redhat.com>
+Message-ID: <20200515152459.GA28995@lst.de>
+References: <20200514062820.GC8564@lst.de>
+	<20200513062649.2100053-1-hch@lst.de>
+	<20200513062649.2100053-28-hch@lst.de>
+	<20200513180058.GB2491@localhost.localdomain>
+	<129070.1589556002@warthog.procyon.org.uk>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <129070.1589556002@warthog.procyon.org.uk>
 Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
-	linux-nvme@lists.infradead.org,
-	Eric Dumazet <edumazet@google.com>, target-devel@vger.kernel.org,
-	linux-afs@lists.infradead.org, drbd-dev@lists.linbit.com, Vlad,
-	rds-devel@oss.oracle.com, linux-rdma@vger.kernel.org,
-	cluster-devel@redhat.com, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
-	linux-cifs@vger.kernel.org, linux-block@vger.kernel.org,
-	Jakub Kicinski <kuba@kernel.org>, ceph-devel@vger.kernel.org,
-	linux-nfs@vger.kernel.org, Neil Horman <nhorman@tuxdriver.com>,
+	linux-nvme@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-sctp@vger.kernel.org, target-devel@vger.kernel.org,
+	linux-afs@lists.infradead.org, drbd-dev@lists.linbit.com,
+	linux-cifs@vger.kernel.org, rds-devel@oss.oracle.com,
+	linux-rdma@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
+	cluster-devel@redhat.com, Jakub Kicinski <kuba@kernel.org>,
+	linux-block@vger.kernel.org, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
+	ceph-devel@vger.kernel.org, linux-nfs@vger.kernel.org,
+	Neil Horman <nhorman@tuxdriver.com>,
 	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
-	netdev@vger.kernel.org, Yasevich <vyasevich@gmail.com>,
-	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
-	linux-sctp@vger.kernel.org, Ying Xue <ying.xue@windriver.com>,
+	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
+	Eric Dumazet <edumazet@google.com>,
+	Jon Maloy <jmaloy@redhat.com>, Ying Xue <ying.xue@windriver.com>,
 	"David S. Miller" <davem@davemloft.net>, ocfs2-devel@oss.oracle.com
-Subject: Re: [Drbd-dev] [PATCH 20/33] ipv4: add ip_sock_set_recverr
+Subject: Re: [Drbd-dev] [PATCH 27/33] sctp: export sctp_setsockopt_bindx
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,19 +42,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 2020-05-14 at 12:30 +0200, Christoph Hellwig wrote:
-> On Wed, May 13, 2020 at 02:00:43PM -0700, Joe Perches wrote:
-> > On Wed, 2020-05-13 at 08:26 +0200, Christoph Hellwig wrote:
-> > > Add a helper to directly set the IP_RECVERR sockopt from kernel space
-> > > without going through a fake uaccess.
-> > 
-> > This seems used only with true as the second arg.
-> > Is there reason to have that argument at all?
+On Fri, May 15, 2020 at 04:20:02PM +0100, David Howells wrote:
+> Christoph Hellwig <hch@lst.de> wrote:
 > 
-> Mostly to keep it symmetric with the sockopt.  I could probably remove
-> a few arguments in the series if we want to be strict.
+> > > The advantage on using kernel_setsockopt here is that sctp module will
+> > > only be loaded if dlm actually creates a SCTP socket.  With this
+> > > change, sctp will be loaded on setups that may not be actually using
+> > > it. It's a quite big module and might expose the system.
+> > 
+> > True.  Not that the intent is to kill kernel space callers of setsockopt,
+> > as I plan to remove the set_fs address space override used for it.
+> 
+> For getsockopt, does it make sense to have the core kernel load optval/optlen
+> into a buffer before calling the protocol driver?  Then the driver need not
+> see the userspace pointer at all.
+> 
+> Similar could be done for setsockopt - allocate a buffer of the size requested
+> by the user inside the kernel and pass it into the driver, then copy the data
+> back afterwards.
 
-My preference would use strict and add
-arguments only when necessary.
-
-
+I did look into that initially.  The problem is that tons of sockopts
+entirely ignore optlen and just use a fixed size.  So I fear that there
+could be tons of breakage if we suddently respect it.  Otherwise that
+would be a pretty nice way to handle the situation.
