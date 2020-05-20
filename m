@@ -1,12 +1,12 @@
 Return-Path: <BATV+9495f3cb3d3d1d0fc876+6114+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F365420410
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B5A4B420414
 	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:39:23 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 20 May 2020 21:54:48 +0200
-Message-Id: <20200520195509.2215098-13-hch@lst.de>
+Date: Wed, 20 May 2020 21:54:46 +0200
+Message-Id: <20200520195509.2215098-11-hch@lst.de>
 In-Reply-To: <20200520195509.2215098-1-hch@lst.de>
 References: <20200520195509.2215098-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 12/33] tcp: add tcp_sock_set_cork
+Subject: [Drbd-dev] [PATCH 10/33] net: add sock_set_rcvbuf
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,236 +36,137 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the TCP_CORK sockopt from kernel space
-without going through a fake uaccess.  Cleanup the callers to avoid
-pointless wrappers now that this is a simple function call.
+Add a helper to directly set the SO_RCVBUFFORCE sockopt from kernel space
+without going through a fake uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_int.h      | 14 --------
- drivers/block/drbd/drbd_receiver.c |  4 +--
- drivers/block/drbd/drbd_worker.c   |  6 ++--
- fs/cifs/transport.c                |  8 ++---
- include/linux/tcp.h                |  2 ++
- net/ipv4/tcp.c                     | 51 +++++++++++++++++++-----------
- net/rds/tcp_send.c                 |  9 ++----
- 7 files changed, 43 insertions(+), 51 deletions(-)
+ fs/dlm/lowcomms.c  |  7 +-----
+ include/net/sock.h |  1 +
+ net/core/sock.c    | 59 +++++++++++++++++++++++++---------------------
+ 3 files changed, 34 insertions(+), 33 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index aae99a2d7bd40..3550adc93c68b 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1570,20 +1570,6 @@ extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
- extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
- extern int drbd_connected(struct drbd_peer_device *);
+diff --git a/fs/dlm/lowcomms.c b/fs/dlm/lowcomms.c
+index b6e6dba281547..2822a430a2b49 100644
+--- a/fs/dlm/lowcomms.c
++++ b/fs/dlm/lowcomms.c
+@@ -1180,7 +1180,6 @@ static int sctp_listen_for_all(void)
+ 	struct socket *sock = NULL;
+ 	int result = -EINVAL;
+ 	struct connection *con = nodeid2con(0, GFP_NOFS);
+-	int bufsize = NEEDED_RMEM;
+ 	int one = 1;
  
--static inline void drbd_tcp_cork(struct socket *sock)
--{
--	int val = 1;
--	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
--			(char*)&val, sizeof(val));
--}
+ 	if (!con)
+@@ -1195,11 +1194,7 @@ static int sctp_listen_for_all(void)
+ 		goto out;
+ 	}
+ 
+-	result = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE,
+-				 (char *)&bufsize, sizeof(bufsize));
+-	if (result)
+-		log_print("Error increasing buffer space on socket %d", result);
 -
--static inline void drbd_tcp_uncork(struct socket *sock)
--{
--	int val = 0;
--	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
--			(char*)&val, sizeof(val));
--}
--
- static inline void drbd_tcp_nodelay(struct socket *sock)
- {
- 	int val = 1;
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index c15e7083b13a6..55ea907ad33cb 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -6162,7 +6162,7 @@ void drbd_send_acks_wf(struct work_struct *ws)
- 	rcu_read_unlock();
++	sock_set_rcvbuf(sock->sk, NEEDED_RMEM);
+ 	result = kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
+ 				   sizeof(one));
+ 	if (result < 0)
+diff --git a/include/net/sock.h b/include/net/sock.h
+index dc08c176238fd..c997289aabbf9 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -2693,6 +2693,7 @@ void sock_enable_timestamps(struct sock *sk);
+ void sock_no_linger(struct sock *sk);
+ void sock_set_keepalive(struct sock *sk);
+ void sock_set_priority(struct sock *sk, u32 priority);
++void sock_set_rcvbuf(struct sock *sk, int val);
+ void sock_set_reuseaddr(struct sock *sk);
+ void sock_set_sndtimeo(struct sock *sk, s64 secs);
  
- 	if (tcp_cork)
--		drbd_tcp_cork(connection->meta.socket);
-+		tcp_sock_set_cork(connection->meta.socket->sk, true);
- 
- 	err = drbd_finish_peer_reqs(device);
- 	kref_put(&device->kref, drbd_destroy_device);
-@@ -6175,7 +6175,7 @@ void drbd_send_acks_wf(struct work_struct *ws)
- 	}
- 
- 	if (tcp_cork)
--		drbd_tcp_uncork(connection->meta.socket);
-+		tcp_sock_set_cork(connection->meta.socket->sk, false);
- 
- 	return;
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 728f5fb156a0c..3c6ebf952e9ad 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -789,6 +789,35 @@ void sock_set_keepalive(struct sock *sk)
  }
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 0dc019da1f8d0..2b89c9f2ca707 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -2098,7 +2098,7 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
- 	if (uncork) {
- 		mutex_lock(&connection->data.mutex);
- 		if (connection->data.socket)
--			drbd_tcp_uncork(connection->data.socket);
-+			tcp_sock_set_cork(connection->data.socket->sk, false);
- 		mutex_unlock(&connection->data.mutex);
- 	}
+ EXPORT_SYMBOL(sock_set_keepalive);
  
-@@ -2153,9 +2153,9 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
- 	mutex_lock(&connection->data.mutex);
- 	if (connection->data.socket) {
- 		if (cork)
--			drbd_tcp_cork(connection->data.socket);
-+			tcp_sock_set_cork(connection->data.socket->sk, true);
- 		else if (!uncork)
--			drbd_tcp_uncork(connection->data.socket);
-+			tcp_sock_set_cork(connection->data.socket->sk, false);
- 	}
- 	mutex_unlock(&connection->data.mutex);
- }
-diff --git a/fs/cifs/transport.c b/fs/cifs/transport.c
-index c97570eb2c180..99760063e0006 100644
---- a/fs/cifs/transport.c
-+++ b/fs/cifs/transport.c
-@@ -325,7 +325,6 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
- 	size_t total_len = 0, sent, size;
- 	struct socket *ssocket = server->ssocket;
- 	struct msghdr smb_msg;
--	int val = 1;
- 	__be32 rfc1002_marker;
- 
- 	if (cifs_rdma_enabled(server)) {
-@@ -345,8 +344,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
- 	}
- 
- 	/* cork the socket */
--	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
--				(char *)&val, sizeof(val));
-+	tcp_sock_set_cork(ssocket->sk, true);
- 
- 	for (j = 0; j < num_rqst; j++)
- 		send_length += smb_rqst_len(server, &rqst[j]);
-@@ -435,9 +433,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
- 	}
- 
- 	/* uncork it */
--	val = 0;
--	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
--				(char *)&val, sizeof(val));
-+	tcp_sock_set_cork(ssocket->sk, false);
- 
- 	if ((total_len > 0) && (total_len != send_length)) {
- 		cifs_dbg(FYI, "partial send (wanted=%u sent=%zu): terminating session\n",
-diff --git a/include/linux/tcp.h b/include/linux/tcp.h
-index bf44e85d709dc..889eeb2256c2d 100644
---- a/include/linux/tcp.h
-+++ b/include/linux/tcp.h
-@@ -497,4 +497,6 @@ static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
- int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
- 		  int shiftlen);
- 
-+void tcp_sock_set_cork(struct sock *sk, bool on);
-+
- #endif	/* _LINUX_TCP_H */
-diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index 9700649963773..e6cf702e16d66 100644
---- a/net/ipv4/tcp.c
-+++ b/net/ipv4/tcp.c
-@@ -2801,6 +2801,37 @@ static void tcp_enable_tx_delay(void)
- 	}
- }
- 
-+/* When set indicates to always queue non-full frames.  Later the user clears
-+ * this option and we transmit any pending partial frames in the queue.  This is
-+ * meant to be used alongside sendfile() to get properly filled frames when the
-+ * user (for example) must write out headers with a write() call first and then
-+ * use sendfile to send out the data parts.
-+ *
-+ * TCP_CORK can be set together with TCP_NODELAY and it is stronger than
-+ * TCP_NODELAY.
-+ */
-+static void __tcp_sock_set_cork(struct sock *sk, bool on)
++static void __sock_set_rcvbuf(struct sock *sk, int val)
 +{
-+	struct tcp_sock *tp = tcp_sk(sk);
++	/* Ensure val * 2 fits into an int, to prevent max_t() from treating it
++	 * as a negative value.
++	 */
++	val = min_t(int, val, INT_MAX / 2);
++	sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
 +
-+	if (on) {
-+		tp->nonagle |= TCP_NAGLE_CORK;
-+	} else {
-+		tp->nonagle &= ~TCP_NAGLE_CORK;
-+		if (tp->nonagle & TCP_NAGLE_OFF)
-+			tp->nonagle |= TCP_NAGLE_PUSH;
-+		tcp_push_pending_frames(sk);
-+	}
++	/* We double it on the way in to account for "struct sk_buff" etc.
++	 * overhead.   Applications assume that the SO_RCVBUF setting they make
++	 * will allow that much actual data to be received on that socket.
++	 *
++	 * Applications are unaware that "struct sk_buff" and other overheads
++	 * allocate from the receive buffer during socket buffer allocation.
++	 *
++	 * And after considering the possible alternatives, returning the value
++	 * we actually used in getsockopt is the most desirable behavior.
++	 */
++	WRITE_ONCE(sk->sk_rcvbuf, max_t(int, val * 2, SOCK_MIN_RCVBUF));
 +}
 +
-+void tcp_sock_set_cork(struct sock *sk, bool on)
++void sock_set_rcvbuf(struct sock *sk, int val)
 +{
 +	lock_sock(sk);
-+	__tcp_sock_set_cork(sk, on);
++	__sock_set_rcvbuf(sk, val);
 +	release_sock(sk);
 +}
-+EXPORT_SYMBOL(tcp_sock_set_cork);
++EXPORT_SYMBOL(sock_set_rcvbuf);
 +
  /*
-  *	Socket option code for TCP.
-  */
-@@ -2979,25 +3010,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
- 		break;
- 
- 	case TCP_CORK:
--		/* When set indicates to always queue non-full frames.
--		 * Later the user clears this option and we transmit
--		 * any pending partial frames in the queue.  This is
--		 * meant to be used alongside sendfile() to get properly
--		 * filled frames when the user (for example) must write
--		 * out headers with a write() call first and then use
--		 * sendfile to send out the data parts.
--		 *
--		 * TCP_CORK can be set together with TCP_NODELAY and it is
--		 * stronger than TCP_NODELAY.
+  *	This is meant for all protocols to use and covers goings on
+  *	at the socket level. Everything here is generic.
+@@ -885,30 +914,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
+ 		 * play 'guess the biggest size' games. RCVBUF/SNDBUF
+ 		 * are treated in BSD as hints
+ 		 */
+-		val = min_t(u32, val, sysctl_rmem_max);
+-set_rcvbuf:
+-		/* Ensure val * 2 fits into an int, to prevent max_t()
+-		 * from treating it as a negative value.
 -		 */
--		if (val) {
--			tp->nonagle |= TCP_NAGLE_CORK;
--		} else {
--			tp->nonagle &= ~TCP_NAGLE_CORK;
--			if (tp->nonagle&TCP_NAGLE_OFF)
--				tp->nonagle |= TCP_NAGLE_PUSH;
--			tcp_push_pending_frames(sk);
--		}
-+		__tcp_sock_set_cork(sk, val);
+-		val = min_t(int, val, INT_MAX / 2);
+-		sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
+-		/*
+-		 * We double it on the way in to account for
+-		 * "struct sk_buff" etc. overhead.   Applications
+-		 * assume that the SO_RCVBUF setting they make will
+-		 * allow that much actual data to be received on that
+-		 * socket.
+-		 *
+-		 * Applications are unaware that "struct sk_buff" and
+-		 * other overheads allocate from the receive buffer
+-		 * during socket buffer allocation.
+-		 *
+-		 * And after considering the possible alternatives,
+-		 * returning the value we actually used in getsockopt
+-		 * is the most desirable behavior.
+-		 */
+-		WRITE_ONCE(sk->sk_rcvbuf,
+-			   max_t(int, val * 2, SOCK_MIN_RCVBUF));
++		__sock_set_rcvbuf(sk, min_t(u32, val, sysctl_rmem_max));
  		break;
  
- 	case TCP_KEEPIDLE:
-diff --git a/net/rds/tcp_send.c b/net/rds/tcp_send.c
-index 78a2554a44979..8c4d1d6e9249d 100644
---- a/net/rds/tcp_send.c
-+++ b/net/rds/tcp_send.c
-@@ -38,23 +38,18 @@
- #include "rds.h"
- #include "tcp.h"
+ 	case SO_RCVBUFFORCE:
+@@ -920,9 +926,8 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
+ 		/* No negative values (to prevent underflow, as val will be
+ 		 * multiplied by 2).
+ 		 */
+-		if (val < 0)
+-			val = 0;
+-		goto set_rcvbuf;
++		__sock_set_rcvbuf(sk, max(val, 0));
++		break;
  
--static void rds_tcp_cork(struct socket *sock, int val)
--{
--	kernel_setsockopt(sock, SOL_TCP, TCP_CORK, (void *)&val, sizeof(val));
--}
--
- void rds_tcp_xmit_path_prepare(struct rds_conn_path *cp)
- {
- 	struct rds_tcp_connection *tc = cp->cp_transport_data;
- 
--	rds_tcp_cork(tc->t_sock, 1);
-+	tcp_sock_set_cork(tc->t_sock->sk, true);
- }
- 
- void rds_tcp_xmit_path_complete(struct rds_conn_path *cp)
- {
- 	struct rds_tcp_connection *tc = cp->cp_transport_data;
- 
--	rds_tcp_cork(tc->t_sock, 0);
-+	tcp_sock_set_cork(tc->t_sock->sk, false);
- }
- 
- /* the core send_sem serializes this with other xmit and shutdown */
+ 	case SO_KEEPALIVE:
+ 		if (sk->sk_prot->keepalive)
 -- 
 2.26.2
 
