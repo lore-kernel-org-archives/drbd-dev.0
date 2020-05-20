@@ -1,12 +1,12 @@
 Return-Path: <BATV+9495f3cb3d3d1d0fc876+6114+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 141FD420403
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:24:38 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 25F8B42040C
+	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:33:55 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 20 May 2020 21:55:00 +0200
-Message-Id: <20200520195509.2215098-25-hch@lst.de>
+Date: Wed, 20 May 2020 21:54:50 +0200
+Message-Id: <20200520195509.2215098-15-hch@lst.de>
 In-Reply-To: <20200520195509.2215098-1-hch@lst.de>
 References: <20200520195509.2215098-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 24/33] ipv4: add ip_sock_set_pktinfo
+Subject: [Drbd-dev] [PATCH 14/33] tcp: add tcp_sock_set_quickack
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,63 +36,127 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the IP_PKTINFO sockopt from kernel
-space without going through a fake uaccess.
+Add a helper to directly set the TCP_QUICKACK sockopt from kernel space
+without going through a fake uaccess.  Cleanup the callers to avoid
+pointless wrappers now that this is a simple function call.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/net/ip.h       | 1 +
- net/ipv4/ip_sockglue.c | 8 ++++++++
- net/sunrpc/svcsock.c   | 5 ++---
- 3 files changed, 11 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_int.h      |  7 ------
+ drivers/block/drbd/drbd_receiver.c |  5 ++--
+ include/linux/tcp.h                |  1 +
+ net/ipv4/tcp.c                     | 39 ++++++++++++++++++++----------
+ 4 files changed, 29 insertions(+), 23 deletions(-)
 
-diff --git a/include/net/ip.h b/include/net/ip.h
-index d3649c49dd333..04ebe7bf54c6a 100644
---- a/include/net/ip.h
-+++ b/include/net/ip.h
-@@ -767,6 +767,7 @@ static inline bool inetdev_valid_mtu(unsigned int mtu)
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index e24bba87c8e02..14345a87c7cc5 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1570,13 +1570,6 @@ extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
+ extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
+ extern int drbd_connected(struct drbd_peer_device *);
  
- void ip_sock_set_freebind(struct sock *sk);
- int ip_sock_set_mtu_discover(struct sock *sk, int val);
-+void ip_sock_set_pktinfo(struct sock *sk);
- void ip_sock_set_recverr(struct sock *sk);
- void ip_sock_set_tos(struct sock *sk, int val);
+-static inline void drbd_tcp_quickack(struct socket *sock)
+-{
+-	int val = 2;
+-	(void) kernel_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
+-			(char*)&val, sizeof(val));
+-}
+-
+ /* sets the number of 512 byte sectors of our virtual device */
+ void drbd_set_my_capacity(struct drbd_device *device, sector_t size);
  
-diff --git a/net/ipv4/ip_sockglue.c b/net/ipv4/ip_sockglue.c
-index a3c46ec95a756..55fd4794a7975 100644
---- a/net/ipv4/ip_sockglue.c
-+++ b/net/ipv4/ip_sockglue.c
-@@ -608,6 +608,14 @@ int ip_sock_set_mtu_discover(struct sock *sk, int val)
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 20a5e94494acd..3a3f2b6a821f3 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1223,7 +1223,7 @@ static int drbd_recv_header_maybe_unplug(struct drbd_connection *connection, str
+ 		 * quickly as possible, and let remote TCP know what we have
+ 		 * received so far. */
+ 		if (err == -EAGAIN) {
+-			drbd_tcp_quickack(connection->data.socket);
++			tcp_sock_set_quickack(connection->data.socket->sk, 2);
+ 			drbd_unplug_all_devices(connection);
+ 		}
+ 		if (err > 0) {
+@@ -4959,8 +4959,7 @@ static int receive_UnplugRemote(struct drbd_connection *connection, struct packe
+ {
+ 	/* Make sure we've acked all the TCP data associated
+ 	 * with the data requests being unplugged */
+-	drbd_tcp_quickack(connection->data.socket);
+-
++	tcp_sock_set_quickack(connection->data.socket->sk, 2);
+ 	return 0;
  }
- EXPORT_SYMBOL(ip_sock_set_mtu_discover);
  
-+void ip_sock_set_pktinfo(struct sock *sk)
+diff --git a/include/linux/tcp.h b/include/linux/tcp.h
+index 9e42c7fe50a8b..2eaf8320b9db0 100644
+--- a/include/linux/tcp.h
++++ b/include/linux/tcp.h
+@@ -499,5 +499,6 @@ int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
+ 
+ void tcp_sock_set_cork(struct sock *sk, bool on);
+ void tcp_sock_set_nodelay(struct sock *sk);
++void tcp_sock_set_quickack(struct sock *sk, int val);
+ 
+ #endif	/* _LINUX_TCP_H */
+diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
+index a65f293a19fac..27b5e7a4e2ef9 100644
+--- a/net/ipv4/tcp.c
++++ b/net/ipv4/tcp.c
+@@ -2856,6 +2856,31 @@ void tcp_sock_set_nodelay(struct sock *sk)
+ }
+ EXPORT_SYMBOL(tcp_sock_set_nodelay);
+ 
++static void __tcp_sock_set_quickack(struct sock *sk, int val)
++{
++	if (!val) {
++		inet_csk_enter_pingpong_mode(sk);
++		return;
++	}
++
++	inet_csk_exit_pingpong_mode(sk);
++	if ((1 << sk->sk_state) & (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT) &&
++	    inet_csk_ack_scheduled(sk)) {
++		inet_csk(sk)->icsk_ack.pending |= ICSK_ACK_PUSHED;
++		tcp_cleanup_rbuf(sk, 1);
++		if (!(val & 1))
++			inet_csk_enter_pingpong_mode(sk);
++	}
++}
++
++void tcp_sock_set_quickack(struct sock *sk, int val)
 +{
 +	lock_sock(sk);
-+	inet_sk(sk)->cmsg_flags |= IP_CMSG_PKTINFO;
++	__tcp_sock_set_quickack(sk, val);
 +	release_sock(sk);
 +}
-+EXPORT_SYMBOL(ip_sock_set_pktinfo);
++EXPORT_SYMBOL(tcp_sock_set_quickack);
 +
  /*
-  *	Socket option code for IP. This is the end of the line after any
-  *	TCP,UDP etc options on an IP socket.
-diff --git a/net/sunrpc/svcsock.c b/net/sunrpc/svcsock.c
-index 6773dacc64d8e..7a805d165689c 100644
---- a/net/sunrpc/svcsock.c
-+++ b/net/sunrpc/svcsock.c
-@@ -616,9 +616,8 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
- 	/* make sure we get destination address info */
- 	switch (svsk->sk_sk->sk_family) {
- 	case AF_INET:
--		level = SOL_IP;
--		optname = IP_PKTINFO;
--		break;
-+		ip_sock_set_pktinfo(svsk->sk_sock->sk);
-+		return;
- 	case AF_INET6:
- 		level = SOL_IPV6;
- 		optname = IPV6_RECVPKTINFO;
+  *	Socket option code for TCP.
+  */
+@@ -3096,19 +3121,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
+ 		break;
+ 
+ 	case TCP_QUICKACK:
+-		if (!val) {
+-			inet_csk_enter_pingpong_mode(sk);
+-		} else {
+-			inet_csk_exit_pingpong_mode(sk);
+-			if ((1 << sk->sk_state) &
+-			    (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT) &&
+-			    inet_csk_ack_scheduled(sk)) {
+-				icsk->icsk_ack.pending |= ICSK_ACK_PUSHED;
+-				tcp_cleanup_rbuf(sk, 1);
+-				if (!(val & 1))
+-					inet_csk_enter_pingpong_mode(sk);
+-			}
+-		}
++		__tcp_sock_set_quickack(sk, val);
+ 		break;
+ 
+ #ifdef CONFIG_TCP_MD5SIG
 -- 
 2.26.2
 
