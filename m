@@ -1,12 +1,12 @@
 Return-Path: <BATV+9495f3cb3d3d1d0fc876+6114+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F07D4203E8
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 21:55:57 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CBEAE4203F1
+	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 21:56:08 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 20 May 2020 21:54:37 +0200
-Message-Id: <20200520195509.2215098-2-hch@lst.de>
+Date: Wed, 20 May 2020 21:54:44 +0200
+Message-Id: <20200520195509.2215098-9-hch@lst.de>
 In-Reply-To: <20200520195509.2215098-1-hch@lst.de>
 References: <20200520195509.2215098-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,8 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 01/33] dlm: use the tcp version of
-	accept_from_sock for sctp as well
+Subject: [Drbd-dev] [PATCH 08/33] net: add sock_enable_timestamps
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,173 +36,117 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The only difference between a few missing fixes applied to the SCTP
-one is that TCP uses ->getpeername to get the remote address, while
-SCTP uses kernel_getsockopt(.. SCTP_PRIMARY_ADDR).  But given that
-getpeername is defined to return the primary address for sctp, there
-doesn't seem to be any reason for the different way of quering the
-peername, or all the code duplication.
+Add a helper to directly enable timestamps instead of setting the
+SO_TIMESTAMP* sockopts from kernel space and going through a fake
+uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/dlm/lowcomms.c | 123 ++--------------------------------------------
- 1 file changed, 3 insertions(+), 120 deletions(-)
+ include/net/sock.h       |  1 +
+ net/core/sock.c          | 47 +++++++++++++++++++++++++---------------
+ net/rxrpc/local_object.c |  8 +------
+ 3 files changed, 31 insertions(+), 25 deletions(-)
 
-diff --git a/fs/dlm/lowcomms.c b/fs/dlm/lowcomms.c
-index cdfaf4f0e11a0..f13dad0fd9ef3 100644
---- a/fs/dlm/lowcomms.c
-+++ b/fs/dlm/lowcomms.c
-@@ -724,7 +724,7 @@ static int receive_from_sock(struct connection *con)
- }
+diff --git a/include/net/sock.h b/include/net/sock.h
+index cdec7bc055d5b..99ef43508d2b5 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -2689,6 +2689,7 @@ static inline bool sk_dev_equal_l3scope(struct sock *sk, int dif)
+ void sock_def_readable(struct sock *sk);
  
- /* Listening socket is busy, accept a connection */
--static int tcp_accept_from_sock(struct connection *con)
-+static int accept_from_sock(struct connection *con)
- {
- 	int result;
- 	struct sockaddr_storage peeraddr;
-@@ -852,123 +852,6 @@ static int tcp_accept_from_sock(struct connection *con)
- 	return result;
+ int sock_bindtoindex(struct sock *sk, int ifindex);
++void sock_enable_timestamps(struct sock *sk);
+ void sock_no_linger(struct sock *sk);
+ void sock_set_priority(struct sock *sk, u32 priority);
+ void sock_set_reuseaddr(struct sock *sk);
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 23f80880fbb2c..e4a4dd2b3d8b3 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -757,6 +757,28 @@ void sock_set_sndtimeo(struct sock *sk, s64 secs)
  }
+ EXPORT_SYMBOL(sock_set_sndtimeo);
  
--static int sctp_accept_from_sock(struct connection *con)
--{
--	/* Check that the new node is in the lockspace */
--	struct sctp_prim prim;
--	int nodeid;
--	int prim_len, ret;
--	int addr_len;
--	struct connection *newcon;
--	struct connection *addcon;
--	struct socket *newsock;
++static void __sock_set_timestamps(struct sock *sk, bool val, bool new, bool ns)
++{
++	if (val)  {
++		sock_valbool_flag(sk, SOCK_TSTAMP_NEW, new);
++		sock_valbool_flag(sk, SOCK_RCVTSTAMPNS, ns);
++		sock_set_flag(sk, SOCK_RCVTSTAMP);
++		sock_enable_timestamp(sk, SOCK_TIMESTAMP);
++	} else {
++		sock_reset_flag(sk, SOCK_RCVTSTAMP);
++		sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
++		sock_reset_flag(sk, SOCK_TSTAMP_NEW);
++	}
++}
++
++void sock_enable_timestamps(struct sock *sk)
++{
++	lock_sock(sk);
++	__sock_set_timestamps(sk, true, false, true);
++	release_sock(sk);
++}
++EXPORT_SYMBOL(sock_enable_timestamps);
++
+ /*
+  *	This is meant for all protocols to use and covers goings on
+  *	at the socket level. Everything here is generic.
+@@ -948,28 +970,17 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
+ 		break;
+ 
+ 	case SO_TIMESTAMP_OLD:
++		__sock_set_timestamps(sk, valbool, false, false);
++		break;
+ 	case SO_TIMESTAMP_NEW:
++		__sock_set_timestamps(sk, valbool, true, false);
++		break;
+ 	case SO_TIMESTAMPNS_OLD:
++		__sock_set_timestamps(sk, valbool, false, true);
++		break;
+ 	case SO_TIMESTAMPNS_NEW:
+-		if (valbool)  {
+-			if (optname == SO_TIMESTAMP_NEW || optname == SO_TIMESTAMPNS_NEW)
+-				sock_set_flag(sk, SOCK_TSTAMP_NEW);
+-			else
+-				sock_reset_flag(sk, SOCK_TSTAMP_NEW);
 -
--	mutex_lock(&connections_lock);
--	if (!dlm_allow_conn) {
--		mutex_unlock(&connections_lock);
--		return -1;
--	}
--	mutex_unlock(&connections_lock);
--
--	mutex_lock_nested(&con->sock_mutex, 0);
--
--	ret = kernel_accept(con->sock, &newsock, O_NONBLOCK);
--	if (ret < 0)
--		goto accept_err;
--
--	memset(&prim, 0, sizeof(struct sctp_prim));
--	prim_len = sizeof(struct sctp_prim);
--
--	ret = kernel_getsockopt(newsock, IPPROTO_SCTP, SCTP_PRIMARY_ADDR,
--				(char *)&prim, &prim_len);
--	if (ret < 0) {
--		log_print("getsockopt/sctp_primary_addr failed: %d", ret);
--		goto accept_err;
--	}
--
--	make_sockaddr(&prim.ssp_addr, 0, &addr_len);
--	ret = addr_to_nodeid(&prim.ssp_addr, &nodeid);
--	if (ret) {
--		unsigned char *b = (unsigned char *)&prim.ssp_addr;
--
--		log_print("reject connect from unknown addr");
--		print_hex_dump_bytes("ss: ", DUMP_PREFIX_NONE,
--				     b, sizeof(struct sockaddr_storage));
--		goto accept_err;
--	}
--
--	newcon = nodeid2con(nodeid, GFP_NOFS);
--	if (!newcon) {
--		ret = -ENOMEM;
--		goto accept_err;
--	}
--
--	mutex_lock_nested(&newcon->sock_mutex, 1);
--
--	if (newcon->sock) {
--		struct connection *othercon = newcon->othercon;
--
--		if (!othercon) {
--			othercon = kmem_cache_zalloc(con_cache, GFP_NOFS);
--			if (!othercon) {
--				log_print("failed to allocate incoming socket");
--				mutex_unlock(&newcon->sock_mutex);
--				ret = -ENOMEM;
--				goto accept_err;
--			}
--			othercon->nodeid = nodeid;
--			othercon->rx_action = receive_from_sock;
--			mutex_init(&othercon->sock_mutex);
--			INIT_LIST_HEAD(&othercon->writequeue);
--			spin_lock_init(&othercon->writequeue_lock);
--			INIT_WORK(&othercon->swork, process_send_sockets);
--			INIT_WORK(&othercon->rwork, process_recv_sockets);
--			set_bit(CF_IS_OTHERCON, &othercon->flags);
--		}
--		mutex_lock_nested(&othercon->sock_mutex, 2);
--		if (!othercon->sock) {
--			newcon->othercon = othercon;
--			add_sock(newsock, othercon);
--			addcon = othercon;
--			mutex_unlock(&othercon->sock_mutex);
+-			if (optname == SO_TIMESTAMP_OLD || optname == SO_TIMESTAMP_NEW)
+-				sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
+-			else
+-				sock_set_flag(sk, SOCK_RCVTSTAMPNS);
+-			sock_set_flag(sk, SOCK_RCVTSTAMP);
+-			sock_enable_timestamp(sk, SOCK_TIMESTAMP);
 -		} else {
--			printk("Extra connection from node %d attempted\n", nodeid);
--			ret = -EAGAIN;
--			mutex_unlock(&othercon->sock_mutex);
--			mutex_unlock(&newcon->sock_mutex);
--			goto accept_err;
+-			sock_reset_flag(sk, SOCK_RCVTSTAMP);
+-			sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
+-			sock_reset_flag(sk, SOCK_TSTAMP_NEW);
 -		}
--	} else {
--		newcon->rx_action = receive_from_sock;
--		add_sock(newsock, newcon);
--		addcon = newcon;
--	}
++		__sock_set_timestamps(sk, valbool, true, true);
+ 		break;
 -
--	log_print("connected to %d", nodeid);
--
--	mutex_unlock(&newcon->sock_mutex);
--
--	/*
--	 * Add it to the active queue in case we got data
--	 * between processing the accept adding the socket
--	 * to the read_sockets list
--	 */
--	if (!test_and_set_bit(CF_READ_PENDING, &addcon->flags))
--		queue_work(recv_workqueue, &addcon->rwork);
--	mutex_unlock(&con->sock_mutex);
--
--	return 0;
--
--accept_err:
--	mutex_unlock(&con->sock_mutex);
--	if (newsock)
--		sock_release(newsock);
--	if (ret != -EAGAIN)
--		log_print("error accepting connection from node: %d", ret);
--
--	return ret;
--}
--
- static void free_entry(struct writequeue_entry *e)
- {
- 	__free_page(e->page);
-@@ -1253,7 +1136,7 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
- 	write_lock_bh(&sock->sk->sk_callback_lock);
- 	sock->sk->sk_user_data = con;
- 	save_listen_callbacks(sock);
--	con->rx_action = tcp_accept_from_sock;
-+	con->rx_action = accept_from_sock;
- 	con->connect_action = tcp_connect_to_sock;
- 	write_unlock_bh(&sock->sk->sk_callback_lock);
+ 	case SO_TIMESTAMPING_NEW:
+ 		sock_set_flag(sk, SOCK_TSTAMP_NEW);
+ 		/* fall through */
+diff --git a/net/rxrpc/local_object.c b/net/rxrpc/local_object.c
+index 01135e54d95d2..5ea2bd01fdd59 100644
+--- a/net/rxrpc/local_object.c
++++ b/net/rxrpc/local_object.c
+@@ -189,13 +189,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
+ 		}
  
-@@ -1340,7 +1223,7 @@ static int sctp_listen_for_all(void)
- 	save_listen_callbacks(sock);
- 	con->sock = sock;
- 	con->sock->sk->sk_data_ready = lowcomms_data_ready;
--	con->rx_action = sctp_accept_from_sock;
-+	con->rx_action = accept_from_sock;
- 	con->connect_action = sctp_connect_to_sock;
+ 		/* We want receive timestamps. */
+-		opt = 1;
+-		ret = kernel_setsockopt(local->socket, SOL_SOCKET, SO_TIMESTAMPNS_OLD,
+-					(char *)&opt, sizeof(opt));
+-		if (ret < 0) {
+-			_debug("setsockopt failed");
+-			goto error;
+-		}
++		sock_enable_timestamps(local->socket->sk);
+ 		break;
  
- 	write_unlock_bh(&sock->sk->sk_callback_lock);
+ 	default:
 -- 
 2.26.2
 
