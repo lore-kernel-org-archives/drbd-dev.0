@@ -1,12 +1,12 @@
 Return-Path: <BATV+9495f3cb3d3d1d0fc876+6114+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BC79B420424
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:33:59 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C840C42040D
+	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:39:22 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 20 May 2020 21:54:51 +0200
-Message-Id: <20200520195509.2215098-16-hch@lst.de>
+Date: Wed, 20 May 2020 21:55:01 +0200
+Message-Id: <20200520195509.2215098-26-hch@lst.de>
 In-Reply-To: <20200520195509.2215098-1-hch@lst.de>
 References: <20200520195509.2215098-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,16 +16,15 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	linux-nvme@lists.infradead.org, linux-sctp@vger.kernel.org,
 	target-devel@vger.kernel.org, linux-afs@lists.infradead.org,
 	drbd-dev@lists.linbit.com, linux-cifs@vger.kernel.org,
-	rds-devel@oss.oracle.com, Sagi Grimberg <sagi@grimberg.me>,
-	linux-rdma@vger.kernel.org, cluster-devel@redhat.com,
-	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
+	rds-devel@oss.oracle.com, linux-rdma@vger.kernel.org,
+	cluster-devel@redhat.com, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
 	ceph-devel@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Neil Horman <nhorman@tuxdriver.com>,
 	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 15/33] tcp: add tcp_sock_set_syncnt
+Subject: [Drbd-dev] [PATCH 25/33] ipv6: add ip6_sock_set_v6only
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,71 +36,77 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the TCP_SYNCNT sockopt from kernel space
+Add a helper to directly set the IPV6_V6ONLY sockopt from kernel space
 without going through a fake uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Acked-by: Sagi Grimberg <sagi@grimberg.me>
 ---
- drivers/nvme/host/tcp.c |  9 +--------
- include/linux/tcp.h     |  1 +
- net/ipv4/tcp.c          | 12 ++++++++++++
- 3 files changed, 14 insertions(+), 8 deletions(-)
+ include/net/ipv6.h        | 11 +++++++++++
+ net/ipv6/ip6_udp_tunnel.c |  5 +----
+ net/sunrpc/svcsock.c      |  6 +-----
+ 3 files changed, 13 insertions(+), 9 deletions(-)
 
-diff --git a/drivers/nvme/host/tcp.c b/drivers/nvme/host/tcp.c
-index 4e4a750ecdb97..2872584f52f63 100644
---- a/drivers/nvme/host/tcp.c
-+++ b/drivers/nvme/host/tcp.c
-@@ -1336,14 +1336,7 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
- 	}
- 
- 	/* Single syn retry */
--	opt = 1;
--	ret = kernel_setsockopt(queue->sock, IPPROTO_TCP, TCP_SYNCNT,
--			(char *)&opt, sizeof(opt));
--	if (ret) {
--		dev_err(nctrl->device,
--			"failed to set TCP_SYNCNT sock opt %d\n", ret);
--		goto err_sock;
--	}
-+	tcp_sock_set_syncnt(queue->sock->sk, 1);
- 
- 	/* Set TCP no delay */
- 	tcp_sock_set_nodelay(queue->sock->sk);
-diff --git a/include/linux/tcp.h b/include/linux/tcp.h
-index 2eaf8320b9db0..6aa4ae5ebf3d5 100644
---- a/include/linux/tcp.h
-+++ b/include/linux/tcp.h
-@@ -500,5 +500,6 @@ int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
- void tcp_sock_set_cork(struct sock *sk, bool on);
- void tcp_sock_set_nodelay(struct sock *sk);
- void tcp_sock_set_quickack(struct sock *sk, int val);
-+int tcp_sock_set_syncnt(struct sock *sk, int val);
- 
- #endif	/* _LINUX_TCP_H */
-diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index 27b5e7a4e2ef9..d2c67ae1da07a 100644
---- a/net/ipv4/tcp.c
-+++ b/net/ipv4/tcp.c
-@@ -2881,6 +2881,18 @@ void tcp_sock_set_quickack(struct sock *sk, int val)
- }
- EXPORT_SYMBOL(tcp_sock_set_quickack);
- 
-+int tcp_sock_set_syncnt(struct sock *sk, int val)
-+{
-+	if (val < 1 || val > MAX_TCP_SYNCNT)
-+		return -EINVAL;
+diff --git a/include/net/ipv6.h b/include/net/ipv6.h
+index 5fc3a9d7b053e..7d1cb9f0f5388 100644
+--- a/include/net/ipv6.h
++++ b/include/net/ipv6.h
+@@ -1176,4 +1176,15 @@ int ipv6_sock_mc_join_ssm(struct sock *sk, int ifindex,
+ 			  const struct in6_addr *addr, unsigned int mode);
+ int ipv6_sock_mc_drop(struct sock *sk, int ifindex,
+ 		      const struct in6_addr *addr);
 +
++static inline int ip6_sock_set_v6only(struct sock *sk)
++{
++	if (inet_sk(sk)->inet_num)
++		return -EINVAL;
 +	lock_sock(sk);
-+	inet_csk(sk)->icsk_syn_retries = val;
++	sk->sk_ipv6only = true;
 +	release_sock(sk);
 +	return 0;
 +}
-+EXPORT_SYMBOL(tcp_sock_set_syncnt);
 +
- /*
-  *	Socket option code for TCP.
-  */
+ #endif /* _NET_IPV6_H */
+diff --git a/net/ipv6/ip6_udp_tunnel.c b/net/ipv6/ip6_udp_tunnel.c
+index 6523609516d25..2e0ad1bc84a83 100644
+--- a/net/ipv6/ip6_udp_tunnel.c
++++ b/net/ipv6/ip6_udp_tunnel.c
+@@ -25,10 +25,7 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
+ 		goto error;
+ 
+ 	if (cfg->ipv6_v6only) {
+-		int val = 1;
+-
+-		err = kernel_setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+-					(char *) &val, sizeof(val));
++		err = ip6_sock_set_v6only(sock->sk);
+ 		if (err < 0)
+ 			goto error;
+ 	}
+diff --git a/net/sunrpc/svcsock.c b/net/sunrpc/svcsock.c
+index 7a805d165689c..a391892977cd2 100644
+--- a/net/sunrpc/svcsock.c
++++ b/net/sunrpc/svcsock.c
+@@ -1328,7 +1328,6 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
+ 	struct sockaddr *newsin = (struct sockaddr *)&addr;
+ 	int		newlen;
+ 	int		family;
+-	int		val;
+ 	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+ 
+ 	dprintk("svc: svc_create_socket(%s, %d, %s)\n",
+@@ -1364,11 +1363,8 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
+ 	 * getting requests from IPv4 remotes.  Those should
+ 	 * be shunted to a PF_INET listener via rpcbind.
+ 	 */
+-	val = 1;
+ 	if (family == PF_INET6)
+-		kernel_setsockopt(sock, SOL_IPV6, IPV6_V6ONLY,
+-					(char *)&val, sizeof(val));
+-
++		ip6_sock_set_v6only(sock->sk);
+ 	if (type == SOCK_STREAM)
+ 		sock->sk->sk_reuse = SK_CAN_REUSE; /* allow address reuse */
+ 	error = kernel_bind(sock, sin, len);
 -- 
 2.26.2
 
