@@ -1,12 +1,12 @@
 Return-Path: <BATV+9495f3cb3d3d1d0fc876+6114+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9DB294203F2
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 21:56:09 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A52F84203F3
+	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 21:56:12 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 20 May 2020 21:54:43 +0200
-Message-Id: <20200520195509.2215098-8-hch@lst.de>
+Date: Wed, 20 May 2020 21:54:45 +0200
+Message-Id: <20200520195509.2215098-10-hch@lst.de>
 In-Reply-To: <20200520195509.2215098-1-hch@lst.de>
 References: <20200520195509.2215098-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 07/33] net: add sock_bindtoindex
+Subject: [Drbd-dev] [PATCH 09/33] net: add sock_set_keepalive
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,112 +36,109 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the SO_BINDTOIFINDEX sockopt from kernel
-space without going through a fake uaccess.
+Add a helper to directly set the SO_KEEPALIVE sockopt from kernel space
+without going through a fake uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/net/sock.h        |  1 +
- net/core/sock.c           | 21 +++++++++++++++------
- net/ipv4/udp_tunnel.c     |  4 +---
- net/ipv6/ip6_udp_tunnel.c |  4 +---
- 4 files changed, 18 insertions(+), 12 deletions(-)
+ fs/dlm/lowcomms.c     |  6 +-----
+ include/net/sock.h    |  1 +
+ net/core/sock.c       | 10 ++++++++++
+ net/rds/tcp_listen.c  |  6 +-----
+ net/sunrpc/xprtsock.c |  4 +---
+ 5 files changed, 14 insertions(+), 13 deletions(-)
 
+diff --git a/fs/dlm/lowcomms.c b/fs/dlm/lowcomms.c
+index b79711d0aac72..b6e6dba281547 100644
+--- a/fs/dlm/lowcomms.c
++++ b/fs/dlm/lowcomms.c
+@@ -1142,11 +1142,7 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
+ 		con->sock = NULL;
+ 		goto create_out;
+ 	}
+-	result = kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+-				 (char *)&one, sizeof(one));
+-	if (result < 0) {
+-		log_print("Set keepalive failed: %d", result);
+-	}
++	sock_set_keepalive(sock->sk);
+ 
+ 	result = sock->ops->listen(sock, 5);
+ 	if (result < 0) {
 diff --git a/include/net/sock.h b/include/net/sock.h
-index 9a7b9e98685ac..cdec7bc055d5b 100644
+index 99ef43508d2b5..dc08c176238fd 100644
 --- a/include/net/sock.h
 +++ b/include/net/sock.h
-@@ -2688,6 +2688,7 @@ static inline bool sk_dev_equal_l3scope(struct sock *sk, int dif)
- 
- void sock_def_readable(struct sock *sk);
- 
-+int sock_bindtoindex(struct sock *sk, int ifindex);
+@@ -2691,6 +2691,7 @@ void sock_def_readable(struct sock *sk);
+ int sock_bindtoindex(struct sock *sk, int ifindex);
+ void sock_enable_timestamps(struct sock *sk);
  void sock_no_linger(struct sock *sk);
++void sock_set_keepalive(struct sock *sk);
  void sock_set_priority(struct sock *sk, u32 priority);
  void sock_set_reuseaddr(struct sock *sk);
+ void sock_set_sndtimeo(struct sock *sk, s64 secs);
 diff --git a/net/core/sock.c b/net/core/sock.c
-index d3b1d61e4f768..23f80880fbb2c 100644
+index e4a4dd2b3d8b3..728f5fb156a0c 100644
 --- a/net/core/sock.c
 +++ b/net/core/sock.c
-@@ -566,7 +566,7 @@ struct dst_entry *sk_dst_check(struct sock *sk, u32 cookie)
+@@ -779,6 +779,16 @@ void sock_enable_timestamps(struct sock *sk)
  }
- EXPORT_SYMBOL(sk_dst_check);
+ EXPORT_SYMBOL(sock_enable_timestamps);
  
--static int sock_setbindtodevice_locked(struct sock *sk, int ifindex)
-+static int sock_bindtoindex_locked(struct sock *sk, int ifindex)
- {
- 	int ret = -ENOPROTOOPT;
- #ifdef CONFIG_NETDEVICES
-@@ -594,6 +594,18 @@ static int sock_setbindtodevice_locked(struct sock *sk, int ifindex)
- 	return ret;
- }
- 
-+int sock_bindtoindex(struct sock *sk, int ifindex)
++void sock_set_keepalive(struct sock *sk)
 +{
-+	int ret;
-+
 +	lock_sock(sk);
-+	ret = sock_bindtoindex_locked(sk, ifindex);
++	if (sk->sk_prot->keepalive)
++		sk->sk_prot->keepalive(sk, true);
++	sock_valbool_flag(sk, SOCK_KEEPOPEN, true);
 +	release_sock(sk);
-+
-+	return ret;
 +}
-+EXPORT_SYMBOL(sock_bindtoindex);
++EXPORT_SYMBOL(sock_set_keepalive);
 +
- static int sock_setbindtodevice(struct sock *sk, char __user *optval,
- 				int optlen)
- {
-@@ -634,10 +646,7 @@ static int sock_setbindtodevice(struct sock *sk, char __user *optval,
- 			goto out;
- 	}
+ /*
+  *	This is meant for all protocols to use and covers goings on
+  *	at the socket level. Everything here is generic.
+diff --git a/net/rds/tcp_listen.c b/net/rds/tcp_listen.c
+index bbb31b9c0b391..d8bd132769594 100644
+--- a/net/rds/tcp_listen.c
++++ b/net/rds/tcp_listen.c
+@@ -43,13 +43,9 @@ int rds_tcp_keepalive(struct socket *sock)
+ 	/* values below based on xs_udp_default_timeout */
+ 	int keepidle = 5; /* send a probe 'keepidle' secs after last data */
+ 	int keepcnt = 5; /* number of unack'ed probes before declaring dead */
+-	int keepalive = 1;
+ 	int ret = 0;
  
--	lock_sock(sk);
--	ret = sock_setbindtodevice_locked(sk, index);
--	release_sock(sk);
--
-+	return sock_bindtoindex(sk, index);
- out:
- #endif
+-	ret = kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+-				(char *)&keepalive, sizeof(keepalive));
+-	if (ret < 0)
+-		goto bail;
++	sock_set_keepalive(sock->sk);
  
-@@ -1216,7 +1225,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
- 		break;
+ 	ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT,
+ 				(char *)&keepcnt, sizeof(keepcnt));
+diff --git a/net/sunrpc/xprtsock.c b/net/sunrpc/xprtsock.c
+index 845d0be805ece..30082cd039960 100644
+--- a/net/sunrpc/xprtsock.c
++++ b/net/sunrpc/xprtsock.c
+@@ -2110,7 +2110,6 @@ static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
+ 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+ 	unsigned int keepidle;
+ 	unsigned int keepcnt;
+-	unsigned int opt_on = 1;
+ 	unsigned int timeo;
  
- 	case SO_BINDTOIFINDEX:
--		ret = sock_setbindtodevice_locked(sk, val);
-+		ret = sock_bindtoindex_locked(sk, val);
- 		break;
+ 	spin_lock(&xprt->transport_lock);
+@@ -2122,8 +2121,7 @@ static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
+ 	spin_unlock(&xprt->transport_lock);
  
- 	default:
-diff --git a/net/ipv4/udp_tunnel.c b/net/ipv4/udp_tunnel.c
-index 150e6f0fdbf59..2158e8bddf41c 100644
---- a/net/ipv4/udp_tunnel.c
-+++ b/net/ipv4/udp_tunnel.c
-@@ -22,9 +22,7 @@ int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
- 		goto error;
- 
- 	if (cfg->bind_ifindex) {
--		err = kernel_setsockopt(sock, SOL_SOCKET, SO_BINDTOIFINDEX,
--					(void *)&cfg->bind_ifindex,
--					sizeof(cfg->bind_ifindex));
-+		err = sock_bindtoindex(sock->sk, cfg->bind_ifindex);
- 		if (err < 0)
- 			goto error;
- 	}
-diff --git a/net/ipv6/ip6_udp_tunnel.c b/net/ipv6/ip6_udp_tunnel.c
-index 58956a6b66a21..6523609516d25 100644
---- a/net/ipv6/ip6_udp_tunnel.c
-+++ b/net/ipv6/ip6_udp_tunnel.c
-@@ -33,9 +33,7 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
- 			goto error;
- 	}
- 	if (cfg->bind_ifindex) {
--		err = kernel_setsockopt(sock, SOL_SOCKET, SO_BINDTOIFINDEX,
--					(void *)&cfg->bind_ifindex,
--					sizeof(cfg->bind_ifindex));
-+		err = sock_bindtoindex(sock->sk, cfg->bind_ifindex);
- 		if (err < 0)
- 			goto error;
- 	}
+ 	/* TCP Keepalive options */
+-	kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+-			(char *)&opt_on, sizeof(opt_on));
++	sock_set_keepalive(sock->sk);
+ 	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPIDLE,
+ 			(char *)&keepidle, sizeof(keepidle));
+ 	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPINTVL,
 -- 
 2.26.2
 
