@@ -1,12 +1,12 @@
 Return-Path: <BATV+9495f3cb3d3d1d0fc876+6114+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CDA834203F9
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:24:35 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 350964203FB
+	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:24:36 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 20 May 2020 21:55:07 +0200
-Message-Id: <20200520195509.2215098-32-hch@lst.de>
+Date: Wed, 20 May 2020 21:55:04 +0200
+Message-Id: <20200520195509.2215098-29-hch@lst.de>
 In-Reply-To: <20200520195509.2215098-1-hch@lst.de>
 References: <20200520195509.2215098-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 31/33] sctp: add sctp_sock_set_nodelay
+Subject: [Drbd-dev] [PATCH 28/33] ipv6: add ip6_sock_set_recvpktinfo
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,73 +36,64 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the SCTP_NODELAY sockopt from kernel space
-without going through a fake uaccess.
+Add a helper to directly set the IPV6_RECVPKTINFO sockopt from kernel
+space without going through a fake uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/dlm/lowcomms.c       | 10 ++--------
- include/net/sctp/sctp.h |  7 +++++++
+ include/net/ipv6.h   |  7 +++++++
+ net/sunrpc/svcsock.c | 10 ++--------
  2 files changed, 9 insertions(+), 8 deletions(-)
 
-diff --git a/fs/dlm/lowcomms.c b/fs/dlm/lowcomms.c
-index 69333728d871b..9f1c3cdc9d653 100644
---- a/fs/dlm/lowcomms.c
-+++ b/fs/dlm/lowcomms.c
-@@ -914,7 +914,6 @@ static int sctp_bind_addrs(struct connection *con, uint16_t port)
- static void sctp_connect_to_sock(struct connection *con)
- {
- 	struct sockaddr_storage daddr;
--	int one = 1;
- 	int result;
- 	int addr_len;
- 	struct socket *sock;
-@@ -961,8 +960,7 @@ static void sctp_connect_to_sock(struct connection *con)
- 	log_print("connecting to %d", con->nodeid);
- 
- 	/* Turn off Nagle's algorithm */
--	kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
--			  sizeof(one));
-+	sctp_sock_set_nodelay(sock->sk);
- 
- 	/*
- 	 * Make sock->ops->connect() function return in specified time,
-@@ -1176,7 +1174,6 @@ static int sctp_listen_for_all(void)
- 	struct socket *sock = NULL;
- 	int result = -EINVAL;
- 	struct connection *con = nodeid2con(0, GFP_NOFS);
--	int one = 1;
- 
- 	if (!con)
- 		return -ENOMEM;
-@@ -1191,10 +1188,7 @@ static int sctp_listen_for_all(void)
- 	}
- 
- 	sock_set_rcvbuf(sock->sk, NEEDED_RMEM);
--	result = kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
--				   sizeof(one));
--	if (result < 0)
--		log_print("Could not set SCTP NODELAY error %d\n", result);
-+	sctp_sock_set_nodelay(sock->sk);
- 
- 	write_lock_bh(&sock->sk->sk_callback_lock);
- 	/* Init con struct */
-diff --git a/include/net/sctp/sctp.h b/include/net/sctp/sctp.h
-index 3ab5c6bbb90bd..f8bcb75bb0448 100644
---- a/include/net/sctp/sctp.h
-+++ b/include/net/sctp/sctp.h
-@@ -615,4 +615,11 @@ static inline bool sctp_newsk_ready(const struct sock *sk)
- 	return sock_flag(sk, SOCK_DEAD) || sk->sk_socket;
+diff --git a/include/net/ipv6.h b/include/net/ipv6.h
+index 80260cff7e0c0..79b68ee3820e7 100644
+--- a/include/net/ipv6.h
++++ b/include/net/ipv6.h
+@@ -1261,4 +1261,11 @@ static inline int ip6_sock_set_addr_preferences(struct sock *sk, bool val)
+ 	return ret;
  }
  
-+static inline void sctp_sock_set_nodelay(struct sock *sk)
++static inline void ip6_sock_set_recvpktinfo(struct sock *sk)
 +{
 +	lock_sock(sk);
-+	sctp_sk(sk)->nodelay = true;
++	inet6_sk(sk)->rxopt.bits.rxinfo = true;
 +	release_sock(sk);
 +}
 +
- #endif /* __net_sctp_h__ */
+ #endif /* _NET_IPV6_H */
+diff --git a/net/sunrpc/svcsock.c b/net/sunrpc/svcsock.c
+index a391892977cd2..e7a0037d9b56c 100644
+--- a/net/sunrpc/svcsock.c
++++ b/net/sunrpc/svcsock.c
+@@ -595,8 +595,6 @@ static struct svc_xprt_class svc_udp_class = {
+ 
+ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
+ {
+-	int err, level, optname, one = 1;
+-
+ 	svc_xprt_init(sock_net(svsk->sk_sock->sk), &svc_udp_class,
+ 		      &svsk->sk_xprt, serv);
+ 	clear_bit(XPT_CACHE_AUTH, &svsk->sk_xprt.xpt_flags);
+@@ -617,17 +615,13 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
+ 	switch (svsk->sk_sk->sk_family) {
+ 	case AF_INET:
+ 		ip_sock_set_pktinfo(svsk->sk_sock->sk);
+-		return;
++		break;
+ 	case AF_INET6:
+-		level = SOL_IPV6;
+-		optname = IPV6_RECVPKTINFO;
++		ip6_sock_set_recvpktinfo(svsk->sk_sock->sk);
+ 		break;
+ 	default:
+ 		BUG();
+ 	}
+-	err = kernel_setsockopt(svsk->sk_sock, level, optname,
+-					(char *)&one, sizeof(one));
+-	dprintk("svc: kernel_setsockopt returned %d\n", err);
+ }
+ 
+ /*
 -- 
 2.26.2
 
