@@ -1,12 +1,12 @@
 Return-Path: <BATV+9495f3cb3d3d1d0fc876+6114+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C840C42040D
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:39:22 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F365420410
+	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:39:23 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 20 May 2020 21:55:01 +0200
-Message-Id: <20200520195509.2215098-26-hch@lst.de>
+Date: Wed, 20 May 2020 21:54:48 +0200
+Message-Id: <20200520195509.2215098-13-hch@lst.de>
 In-Reply-To: <20200520195509.2215098-1-hch@lst.de>
 References: <20200520195509.2215098-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
 	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
 	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
 	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 25/33] ipv6: add ip6_sock_set_v6only
+Subject: [Drbd-dev] [PATCH 12/33] tcp: add tcp_sock_set_cork
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,77 +36,236 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the IPV6_V6ONLY sockopt from kernel space
-without going through a fake uaccess.
+Add a helper to directly set the TCP_CORK sockopt from kernel space
+without going through a fake uaccess.  Cleanup the callers to avoid
+pointless wrappers now that this is a simple function call.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/net/ipv6.h        | 11 +++++++++++
- net/ipv6/ip6_udp_tunnel.c |  5 +----
- net/sunrpc/svcsock.c      |  6 +-----
- 3 files changed, 13 insertions(+), 9 deletions(-)
+ drivers/block/drbd/drbd_int.h      | 14 --------
+ drivers/block/drbd/drbd_receiver.c |  4 +--
+ drivers/block/drbd/drbd_worker.c   |  6 ++--
+ fs/cifs/transport.c                |  8 ++---
+ include/linux/tcp.h                |  2 ++
+ net/ipv4/tcp.c                     | 51 +++++++++++++++++++-----------
+ net/rds/tcp_send.c                 |  9 ++----
+ 7 files changed, 43 insertions(+), 51 deletions(-)
 
-diff --git a/include/net/ipv6.h b/include/net/ipv6.h
-index 5fc3a9d7b053e..7d1cb9f0f5388 100644
---- a/include/net/ipv6.h
-+++ b/include/net/ipv6.h
-@@ -1176,4 +1176,15 @@ int ipv6_sock_mc_join_ssm(struct sock *sk, int ifindex,
- 			  const struct in6_addr *addr, unsigned int mode);
- int ipv6_sock_mc_drop(struct sock *sk, int ifindex,
- 		      const struct in6_addr *addr);
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index aae99a2d7bd40..3550adc93c68b 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1570,20 +1570,6 @@ extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
+ extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
+ extern int drbd_connected(struct drbd_peer_device *);
+ 
+-static inline void drbd_tcp_cork(struct socket *sock)
+-{
+-	int val = 1;
+-	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
+-			(char*)&val, sizeof(val));
+-}
+-
+-static inline void drbd_tcp_uncork(struct socket *sock)
+-{
+-	int val = 0;
+-	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
+-			(char*)&val, sizeof(val));
+-}
+-
+ static inline void drbd_tcp_nodelay(struct socket *sock)
+ {
+ 	int val = 1;
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index c15e7083b13a6..55ea907ad33cb 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -6162,7 +6162,7 @@ void drbd_send_acks_wf(struct work_struct *ws)
+ 	rcu_read_unlock();
+ 
+ 	if (tcp_cork)
+-		drbd_tcp_cork(connection->meta.socket);
++		tcp_sock_set_cork(connection->meta.socket->sk, true);
+ 
+ 	err = drbd_finish_peer_reqs(device);
+ 	kref_put(&device->kref, drbd_destroy_device);
+@@ -6175,7 +6175,7 @@ void drbd_send_acks_wf(struct work_struct *ws)
+ 	}
+ 
+ 	if (tcp_cork)
+-		drbd_tcp_uncork(connection->meta.socket);
++		tcp_sock_set_cork(connection->meta.socket->sk, false);
+ 
+ 	return;
+ }
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 0dc019da1f8d0..2b89c9f2ca707 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -2098,7 +2098,7 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
+ 	if (uncork) {
+ 		mutex_lock(&connection->data.mutex);
+ 		if (connection->data.socket)
+-			drbd_tcp_uncork(connection->data.socket);
++			tcp_sock_set_cork(connection->data.socket->sk, false);
+ 		mutex_unlock(&connection->data.mutex);
+ 	}
+ 
+@@ -2153,9 +2153,9 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
+ 	mutex_lock(&connection->data.mutex);
+ 	if (connection->data.socket) {
+ 		if (cork)
+-			drbd_tcp_cork(connection->data.socket);
++			tcp_sock_set_cork(connection->data.socket->sk, true);
+ 		else if (!uncork)
+-			drbd_tcp_uncork(connection->data.socket);
++			tcp_sock_set_cork(connection->data.socket->sk, false);
+ 	}
+ 	mutex_unlock(&connection->data.mutex);
+ }
+diff --git a/fs/cifs/transport.c b/fs/cifs/transport.c
+index c97570eb2c180..99760063e0006 100644
+--- a/fs/cifs/transport.c
++++ b/fs/cifs/transport.c
+@@ -325,7 +325,6 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
+ 	size_t total_len = 0, sent, size;
+ 	struct socket *ssocket = server->ssocket;
+ 	struct msghdr smb_msg;
+-	int val = 1;
+ 	__be32 rfc1002_marker;
+ 
+ 	if (cifs_rdma_enabled(server)) {
+@@ -345,8 +344,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
+ 	}
+ 
+ 	/* cork the socket */
+-	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
+-				(char *)&val, sizeof(val));
++	tcp_sock_set_cork(ssocket->sk, true);
+ 
+ 	for (j = 0; j < num_rqst; j++)
+ 		send_length += smb_rqst_len(server, &rqst[j]);
+@@ -435,9 +433,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
+ 	}
+ 
+ 	/* uncork it */
+-	val = 0;
+-	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
+-				(char *)&val, sizeof(val));
++	tcp_sock_set_cork(ssocket->sk, false);
+ 
+ 	if ((total_len > 0) && (total_len != send_length)) {
+ 		cifs_dbg(FYI, "partial send (wanted=%u sent=%zu): terminating session\n",
+diff --git a/include/linux/tcp.h b/include/linux/tcp.h
+index bf44e85d709dc..889eeb2256c2d 100644
+--- a/include/linux/tcp.h
++++ b/include/linux/tcp.h
+@@ -497,4 +497,6 @@ static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
+ int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
+ 		  int shiftlen);
+ 
++void tcp_sock_set_cork(struct sock *sk, bool on);
 +
-+static inline int ip6_sock_set_v6only(struct sock *sk)
+ #endif	/* _LINUX_TCP_H */
+diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
+index 9700649963773..e6cf702e16d66 100644
+--- a/net/ipv4/tcp.c
++++ b/net/ipv4/tcp.c
+@@ -2801,6 +2801,37 @@ static void tcp_enable_tx_delay(void)
+ 	}
+ }
+ 
++/* When set indicates to always queue non-full frames.  Later the user clears
++ * this option and we transmit any pending partial frames in the queue.  This is
++ * meant to be used alongside sendfile() to get properly filled frames when the
++ * user (for example) must write out headers with a write() call first and then
++ * use sendfile to send out the data parts.
++ *
++ * TCP_CORK can be set together with TCP_NODELAY and it is stronger than
++ * TCP_NODELAY.
++ */
++static void __tcp_sock_set_cork(struct sock *sk, bool on)
 +{
-+	if (inet_sk(sk)->inet_num)
-+		return -EINVAL;
-+	lock_sock(sk);
-+	sk->sk_ipv6only = true;
-+	release_sock(sk);
-+	return 0;
++	struct tcp_sock *tp = tcp_sk(sk);
++
++	if (on) {
++		tp->nonagle |= TCP_NAGLE_CORK;
++	} else {
++		tp->nonagle &= ~TCP_NAGLE_CORK;
++		if (tp->nonagle & TCP_NAGLE_OFF)
++			tp->nonagle |= TCP_NAGLE_PUSH;
++		tcp_push_pending_frames(sk);
++	}
 +}
 +
- #endif /* _NET_IPV6_H */
-diff --git a/net/ipv6/ip6_udp_tunnel.c b/net/ipv6/ip6_udp_tunnel.c
-index 6523609516d25..2e0ad1bc84a83 100644
---- a/net/ipv6/ip6_udp_tunnel.c
-+++ b/net/ipv6/ip6_udp_tunnel.c
-@@ -25,10 +25,7 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
- 		goto error;
++void tcp_sock_set_cork(struct sock *sk, bool on)
++{
++	lock_sock(sk);
++	__tcp_sock_set_cork(sk, on);
++	release_sock(sk);
++}
++EXPORT_SYMBOL(tcp_sock_set_cork);
++
+ /*
+  *	Socket option code for TCP.
+  */
+@@ -2979,25 +3010,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
+ 		break;
  
- 	if (cfg->ipv6_v6only) {
--		int val = 1;
--
--		err = kernel_setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
--					(char *) &val, sizeof(val));
-+		err = ip6_sock_set_v6only(sock->sk);
- 		if (err < 0)
- 			goto error;
- 	}
-diff --git a/net/sunrpc/svcsock.c b/net/sunrpc/svcsock.c
-index 7a805d165689c..a391892977cd2 100644
---- a/net/sunrpc/svcsock.c
-+++ b/net/sunrpc/svcsock.c
-@@ -1328,7 +1328,6 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
- 	struct sockaddr *newsin = (struct sockaddr *)&addr;
- 	int		newlen;
- 	int		family;
--	int		val;
- 	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+ 	case TCP_CORK:
+-		/* When set indicates to always queue non-full frames.
+-		 * Later the user clears this option and we transmit
+-		 * any pending partial frames in the queue.  This is
+-		 * meant to be used alongside sendfile() to get properly
+-		 * filled frames when the user (for example) must write
+-		 * out headers with a write() call first and then use
+-		 * sendfile to send out the data parts.
+-		 *
+-		 * TCP_CORK can be set together with TCP_NODELAY and it is
+-		 * stronger than TCP_NODELAY.
+-		 */
+-		if (val) {
+-			tp->nonagle |= TCP_NAGLE_CORK;
+-		} else {
+-			tp->nonagle &= ~TCP_NAGLE_CORK;
+-			if (tp->nonagle&TCP_NAGLE_OFF)
+-				tp->nonagle |= TCP_NAGLE_PUSH;
+-			tcp_push_pending_frames(sk);
+-		}
++		__tcp_sock_set_cork(sk, val);
+ 		break;
  
- 	dprintk("svc: svc_create_socket(%s, %d, %s)\n",
-@@ -1364,11 +1363,8 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
- 	 * getting requests from IPv4 remotes.  Those should
- 	 * be shunted to a PF_INET listener via rpcbind.
- 	 */
--	val = 1;
- 	if (family == PF_INET6)
--		kernel_setsockopt(sock, SOL_IPV6, IPV6_V6ONLY,
--					(char *)&val, sizeof(val));
+ 	case TCP_KEEPIDLE:
+diff --git a/net/rds/tcp_send.c b/net/rds/tcp_send.c
+index 78a2554a44979..8c4d1d6e9249d 100644
+--- a/net/rds/tcp_send.c
++++ b/net/rds/tcp_send.c
+@@ -38,23 +38,18 @@
+ #include "rds.h"
+ #include "tcp.h"
+ 
+-static void rds_tcp_cork(struct socket *sock, int val)
+-{
+-	kernel_setsockopt(sock, SOL_TCP, TCP_CORK, (void *)&val, sizeof(val));
+-}
 -
-+		ip6_sock_set_v6only(sock->sk);
- 	if (type == SOCK_STREAM)
- 		sock->sk->sk_reuse = SK_CAN_REUSE; /* allow address reuse */
- 	error = kernel_bind(sock, sin, len);
+ void rds_tcp_xmit_path_prepare(struct rds_conn_path *cp)
+ {
+ 	struct rds_tcp_connection *tc = cp->cp_transport_data;
+ 
+-	rds_tcp_cork(tc->t_sock, 1);
++	tcp_sock_set_cork(tc->t_sock->sk, true);
+ }
+ 
+ void rds_tcp_xmit_path_complete(struct rds_conn_path *cp)
+ {
+ 	struct rds_tcp_connection *tc = cp->cp_transport_data;
+ 
+-	rds_tcp_cork(tc->t_sock, 0);
++	tcp_sock_set_cork(tc->t_sock->sk, false);
+ }
+ 
+ /* the core send_sem serializes this with other xmit and shutdown */
 -- 
 2.26.2
 
