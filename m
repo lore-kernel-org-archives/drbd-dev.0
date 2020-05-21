@@ -1,30 +1,33 @@
-Return-Path: <BATV+9495f3cb3d3d1d0fc876+6114+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9E99042042A
-	for <drbd-dev@lists.linbit.com>; Wed, 20 May 2020 22:54:07 +0200 (CEST)
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 48EE74203D6
+	for <drbd-dev@lists.linbit.com>; Thu, 21 May 2020 10:34:44 +0200 (CEST)
+Date: Thu, 21 May 2020 10:34:42 +0200
 From: Christoph Hellwig <hch@lst.de>
-To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Wed, 20 May 2020 21:54:47 +0200
-Message-Id: <20200520195509.2215098-12-hch@lst.de>
-In-Reply-To: <20200520195509.2215098-1-hch@lst.de>
+To: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
+Message-ID: <20200521083442.GA7771@lst.de>
 References: <20200520195509.2215098-1-hch@lst.de>
+	<20200520195509.2215098-32-hch@lst.de>
+	<20200520231001.GU2491@localhost.localdomain>
+	<20200520.162355.2212209708127373208.davem@davemloft.net>
+	<20200520233913.GV2491@localhost.localdomain>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
-	Eric Dumazet <edumazet@google.com>,
-	linux-nvme@lists.infradead.org, linux-sctp@vger.kernel.org,
-	target-devel@vger.kernel.org, linux-afs@lists.infradead.org,
-	drbd-dev@lists.linbit.com, linux-cifs@vger.kernel.org,
-	rds-devel@oss.oracle.com, linux-rdma@vger.kernel.org,
-	cluster-devel@redhat.com, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20200520233913.GV2491@localhost.localdomain>
+Cc: edumazet@google.com, linux-nvme@lists.infradead.org,
+	linux-sctp@vger.kernel.org, target-devel@vger.kernel.org,
+	linux-afs@lists.infradead.org, drbd-dev@lists.linbit.com,
+	linux-cifs@vger.kernel.org, rds-devel@oss.oracle.com,
+	linux-rdma@vger.kernel.org, hch@lst.de, cluster-devel@redhat.com,
+	kuznet@ms2.inr.ac.ru, kuba@kernel.org,
 	ceph-devel@vger.kernel.org, linux-nfs@vger.kernel.org,
-	Neil Horman <nhorman@tuxdriver.com>,
-	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
-	netdev@vger.kernel.org, Vlad Yasevich <vyasevich@gmail.com>,
-	linux-kernel@vger.kernel.org, Jon Maloy <jmaloy@redhat.com>,
-	Ying Xue <ying.xue@windriver.com>, ocfs2-devel@oss.oracle.com
-Subject: [Drbd-dev] [PATCH 11/33] net: add sock_set_reuseport
+	nhorman@tuxdriver.com, yoshfuji@linux-ipv6.org,
+	netdev@vger.kernel.org, vyasevich@gmail.com,
+	linux-kernel@vger.kernel.org, jmaloy@redhat.com,
+	ying.xue@windriver.com, David Miller <davem@davemloft.net>,
+	ocfs2-devel@oss.oracle.com
+Subject: Re: [Drbd-dev] [PATCH 31/33] sctp: add sctp_sock_set_nodelay
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,82 +39,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the SO_REUSEPORT sockopt from kernel space
-without going through a fake uaccess.
+On Wed, May 20, 2020 at 08:39:13PM -0300, Marcelo Ricardo Leitner wrote:
+> On Wed, May 20, 2020 at 04:23:55PM -0700, David Miller wrote:
+> > From: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
+> > Date: Wed, 20 May 2020 20:10:01 -0300
+> > 
+> > > The duplication with sctp_setsockopt_nodelay() is quite silly/bad.
+> > > Also, why have the 'true' hardcoded? It's what dlm uses, yes, but the
+> > > API could be a bit more complete than that.
+> > 
+> > The APIs are being designed based upon what in-tree users actually
+> > make use of.  We can expand things later if necessary.
+> 
+> Sometimes expanding things later can be though, thus why the worry.
+> But ok, I get it. Thanks.
+> 
+> The comment still applies, though. (re the duplication)
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- include/net/sock.h    |  1 +
- net/core/sock.c       |  8 ++++++++
- net/sunrpc/xprtsock.c | 17 +----------------
- 3 files changed, 10 insertions(+), 16 deletions(-)
+Where do you see duplication?
 
-diff --git a/include/net/sock.h b/include/net/sock.h
-index c997289aabbf9..d994daa418ec2 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -2695,6 +2695,7 @@ void sock_set_keepalive(struct sock *sk);
- void sock_set_priority(struct sock *sk, u32 priority);
- void sock_set_rcvbuf(struct sock *sk, int val);
- void sock_set_reuseaddr(struct sock *sk);
-+void sock_set_reuseport(struct sock *sk);
- void sock_set_sndtimeo(struct sock *sk, s64 secs);
- 
- #endif	/* _SOCK_H */
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 3c6ebf952e9ad..2ca3425b519c0 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -729,6 +729,14 @@ void sock_set_reuseaddr(struct sock *sk)
- }
- EXPORT_SYMBOL(sock_set_reuseaddr);
- 
-+void sock_set_reuseport(struct sock *sk)
-+{
-+	lock_sock(sk);
-+	sk->sk_reuseport = true;
-+	release_sock(sk);
-+}
-+EXPORT_SYMBOL(sock_set_reuseport);
-+
- void sock_no_linger(struct sock *sk)
- {
- 	lock_sock(sk);
-diff --git a/net/sunrpc/xprtsock.c b/net/sunrpc/xprtsock.c
-index 30082cd039960..399848c2bcb29 100644
---- a/net/sunrpc/xprtsock.c
-+++ b/net/sunrpc/xprtsock.c
-@@ -1594,21 +1594,6 @@ static int xs_get_random_port(void)
- 	return rand + min;
- }
- 
--/**
-- * xs_set_reuseaddr_port - set the socket's port and address reuse options
-- * @sock: socket
-- *
-- * Note that this function has to be called on all sockets that share the
-- * same port, and it must be called before binding.
-- */
--static void xs_sock_set_reuseport(struct socket *sock)
--{
--	int opt = 1;
--
--	kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,
--			(char *)&opt, sizeof(opt));
--}
--
- static unsigned short xs_sock_getport(struct socket *sock)
- {
- 	struct sockaddr_storage buf;
-@@ -1801,7 +1786,7 @@ static struct socket *xs_create_sock(struct rpc_xprt *xprt,
- 	xs_reclassify_socket(family, sock);
- 
- 	if (reuseport)
--		xs_sock_set_reuseport(sock);
-+		sock_set_reuseport(sock->sk);
- 
- 	err = xs_bind(transport, sock);
- 	if (err) {
--- 
-2.26.2
+sctp_setsockopt_nodelay does the following things:
 
+ - verifies optlen, returns -EINVAL if it doesn't match
+ - calls get_user, returns -EFAULT on error
+ - converts the value from get_user to a boolean and assigns it
+   to sctp_sk(sk)->nodelay
+ - returns 0.
+
+sctp_sock_set_nodelay does:
+
+ - call lock_sock
+ - assign true to sctp_sk(sk)->nodelay
+ - call release_sock
+ - does not return an error code
