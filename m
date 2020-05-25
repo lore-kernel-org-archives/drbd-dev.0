@@ -1,12 +1,12 @@
 Return-Path: <BATV+ab9bb8b38cf50d3a9241+6119+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 58A6F4203C9
-	for <drbd-dev@lists.linbit.com>; Mon, 25 May 2020 13:30:36 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2E6414203D6
+	for <drbd-dev@lists.linbit.com>; Mon, 25 May 2020 13:30:28 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 25 May 2020 13:30:03 +0200
-Message-Id: <20200525113014.345997-6-hch@lst.de>
+Date: Mon, 25 May 2020 13:30:00 +0200
+Message-Id: <20200525113014.345997-3-hch@lst.de>
 In-Reply-To: <20200525113014.345997-1-hch@lst.de>
 References: <20200525113014.345997-1-hch@lst.de>
 MIME-Version: 1.0
@@ -17,7 +17,7 @@ Cc: linux-nvdimm@lists.01.org,
 	linux-block@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
 	dm-devel@redhat.com, Nitin Gupta <ngupta@vflare.org>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/16] bcache: use bio_{start,end}_io_acct
+Subject: [Drbd-dev] [PATCH 02/16] drbd: use bio_{start,end}_io_acct
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,79 +29,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Switch bcache to use the nicer bio accounting helpers, and call the
-routines where we also sample the start time to give coherent accounting
-results.
+Switch drbd to use the nicer bio accounting helpers.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/bcache/request.c | 18 ++++--------------
- 1 file changed, 4 insertions(+), 14 deletions(-)
+ drivers/block/drbd/drbd_req.c | 27 ++++-----------------------
+ 1 file changed, 4 insertions(+), 23 deletions(-)
 
-diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
-index 77d1a26975174..22b483527176b 100644
---- a/drivers/md/bcache/request.c
-+++ b/drivers/md/bcache/request.c
-@@ -668,9 +668,7 @@ static void backing_request_endio(struct bio *bio)
- static void bio_complete(struct search *s)
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 840c3aef3c5c9..c80a2f1c3c2a7 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -21,24 +21,6 @@
+ 
+ static bool drbd_may_do_local_read(struct drbd_device *device, sector_t sector, int size);
+ 
+-/* Update disk stats at start of I/O request */
+-static void _drbd_start_io_acct(struct drbd_device *device, struct drbd_request *req)
+-{
+-	struct request_queue *q = device->rq_queue;
+-
+-	generic_start_io_acct(q, bio_op(req->master_bio),
+-				req->i.size >> 9, &device->vdisk->part0);
+-}
+-
+-/* Update disk stats when completing request upwards */
+-static void _drbd_end_io_acct(struct drbd_device *device, struct drbd_request *req)
+-{
+-	struct request_queue *q = device->rq_queue;
+-
+-	generic_end_io_acct(q, bio_op(req->master_bio),
+-			    &device->vdisk->part0, req->start_jif);
+-}
+-
+ static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio *bio_src)
  {
- 	if (s->orig_bio) {
--		generic_end_io_acct(s->d->disk->queue, bio_op(s->orig_bio),
--				    &s->d->disk->part0, s->start_time);
--
-+		bio_end_io_acct(s->orig_bio, s->start_time);
- 		trace_bcache_request_end(s->d, s->orig_bio);
- 		s->orig_bio->bi_status = s->iop.status;
- 		bio_endio(s->orig_bio);
-@@ -730,7 +728,7 @@ static inline struct search *search_alloc(struct bio *bio,
- 	s->recoverable		= 1;
- 	s->write		= op_is_write(bio_op(bio));
- 	s->read_dirty_data	= 0;
--	s->start_time		= jiffies;
-+	s->start_time		= bio_start_io_acct(bio);
+ 	struct drbd_request *req;
+@@ -263,7 +245,7 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
+ 		start_new_tl_epoch(first_peer_device(device)->connection);
  
- 	s->iop.c		= d->c;
- 	s->iop.bio		= NULL;
-@@ -1082,8 +1080,7 @@ static void detached_dev_end_io(struct bio *bio)
- 	bio->bi_end_io = ddip->bi_end_io;
- 	bio->bi_private = ddip->bi_private;
+ 	/* Update disk stats */
+-	_drbd_end_io_acct(device, req);
++	bio_end_io_acct(req->master_bio, req->start_jif);
  
--	generic_end_io_acct(ddip->d->disk->queue, bio_op(bio),
--			    &ddip->d->disk->part0, ddip->start_time);
-+	bio_end_io_acct(bio, ddip->start_time);
+ 	/* If READ failed,
+ 	 * have it be pushed back to the retry work queue,
+@@ -1222,16 +1204,15 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long
+ 		bio_endio(bio);
+ 		return ERR_PTR(-ENOMEM);
+ 	}
+-	req->start_jif = start_jif;
++
++	/* Update disk stats */
++	req->start_jif = bio_start_io_acct(req->master_bio);
  
- 	if (bio->bi_status) {
- 		struct cached_dev *dc = container_of(ddip->d,
-@@ -1108,7 +1105,7 @@ static void detached_dev_do_request(struct bcache_device *d, struct bio *bio)
- 	 */
- 	ddip = kzalloc(sizeof(struct detached_dev_io_private), GFP_NOIO);
- 	ddip->d = d;
--	ddip->start_time = jiffies;
-+	ddip->start_time = bio_start_io_acct(bio);
- 	ddip->bi_end_io = bio->bi_end_io;
- 	ddip->bi_private = bio->bi_private;
- 	bio->bi_end_io = detached_dev_end_io;
-@@ -1190,11 +1187,6 @@ blk_qc_t cached_dev_make_request(struct request_queue *q, struct bio *bio)
- 		}
+ 	if (!get_ldev(device)) {
+ 		bio_put(req->private_bio);
+ 		req->private_bio = NULL;
  	}
  
--	generic_start_io_acct(q,
--			      bio_op(bio),
--			      bio_sectors(bio),
--			      &d->disk->part0);
+-	/* Update disk stats */
+-	_drbd_start_io_acct(device, req);
 -
- 	bio_set_dev(bio, dc->bdev);
- 	bio->bi_iter.bi_sector += dc->sb.data_offset;
- 
-@@ -1311,8 +1303,6 @@ blk_qc_t flash_dev_make_request(struct request_queue *q, struct bio *bio)
- 		return BLK_QC_T_NONE;
- 	}
- 
--	generic_start_io_acct(q, bio_op(bio), bio_sectors(bio), &d->disk->part0);
--
- 	s = search_alloc(bio, d);
- 	cl = &s->cl;
- 	bio = &s->bio.bio;
+ 	/* process discards always from our submitter thread */
+ 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES ||
+ 	    bio_op(bio) == REQ_OP_DISCARD)
 -- 
 2.26.2
 
