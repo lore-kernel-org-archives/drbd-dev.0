@@ -1,24 +1,27 @@
-Return-Path: <BATV+2c76b185713af36e7087+6121+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 17FF342038C
-	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2020 07:54:09 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 27 May 2020 07:24:14 +0200
-Message-Id: <20200527052419.403583-12-hch@lst.de>
-In-Reply-To: <20200527052419.403583-1-hch@lst.de>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pl1-f173.google.com (mail-pl1-f173.google.com
+	[209.85.214.173])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C25F342000B
+	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2020 13:22:07 +0200 (CEST)
+Received: by mail-pl1-f173.google.com with SMTP id x11so9038290plv.9
+	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2020 04:22:07 -0700 (PDT)
+To: Christoph Hellwig <hch@lst.de>
 References: <20200527052419.403583-1-hch@lst.de>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <e807976c-4a6a-ac93-17b4-a6a7dfc438be@kernel.dk>
+Date: Wed, 27 May 2020 05:22:03 -0600
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20200527052419.403583-1-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Cc: linux-nvdimm@lists.01.org,
 	Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
 	linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
 	dm-devel@redhat.com, Nitin Gupta <ngupta@vflare.org>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/16] block: always use a percpu variable for
-	disk stats
+Subject: Re: [Drbd-dev] block I/O accounting improvements v2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,209 +33,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-percpu variables have a perfectly fine working stub implementation
-for UP kernels, so use that.
+On 5/26/20 11:24 PM, Christoph Hellwig wrote:
+> Hi Jens,
+> 
+> they series contains various improvement for block I/O accounting.  The
+> first bunch of patches switch the bio based drivers to better accounting
+> helpers compared to the current mess.  The end contains a fix and various
+> performanc improvements.  Most of this comes from a series Konstantin
+> sent a few weeks ago, rebased on changes that landed in your tree since
+> and my change to always use the percpu version of the disk stats.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
----
- block/blk.h               |  2 +-
- block/genhd.c             | 12 +++------
- block/partitions/core.c   |  5 ++--
- include/linux/genhd.h     | 13 ---------
- include/linux/part_stat.h | 55 ++++++++-------------------------------
- 5 files changed, 18 insertions(+), 69 deletions(-)
+Applied, thanks.
 
-diff --git a/block/blk.h b/block/blk.h
-index bdf5e94467aa2..0ecba2ab383d6 100644
---- a/block/blk.h
-+++ b/block/blk.h
-@@ -378,7 +378,7 @@ static inline void hd_struct_put(struct hd_struct *part)
- 
- static inline void hd_free_part(struct hd_struct *part)
- {
--	free_part_stats(part);
-+	free_percpu(part->dkstats);
- 	kfree(part->info);
- 	percpu_ref_exit(&part->ref);
- }
-diff --git a/block/genhd.c b/block/genhd.c
-index 094ed90964964..3e7df0a3e6bb0 100644
---- a/block/genhd.c
-+++ b/block/genhd.c
-@@ -92,7 +92,6 @@ const char *bdevname(struct block_device *bdev, char *buf)
- }
- EXPORT_SYMBOL(bdevname);
- 
--#ifdef CONFIG_SMP
- static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
- {
- 	int cpu;
-@@ -112,12 +111,6 @@ static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
- 		stat->io_ticks += ptr->io_ticks;
- 	}
- }
--#else /* CONFIG_SMP */
--static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
--{
--	memcpy(stat, &part->dkstats, sizeof(struct disk_stats));
--}
--#endif /* CONFIG_SMP */
- 
- static unsigned int part_in_flight(struct request_queue *q,
- 		struct hd_struct *part)
-@@ -1688,14 +1681,15 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
- 
- 	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
- 	if (disk) {
--		if (!init_part_stats(&disk->part0)) {
-+		disk->part0.dkstats = alloc_percpu(struct disk_stats);
-+		if (!disk->part0.dkstats) {
- 			kfree(disk);
- 			return NULL;
- 		}
- 		init_rwsem(&disk->lookup_sem);
- 		disk->node_id = node_id;
- 		if (disk_expand_part_tbl(disk, 0)) {
--			free_part_stats(&disk->part0);
-+			free_percpu(disk->part0.dkstats);
- 			kfree(disk);
- 			return NULL;
- 		}
-diff --git a/block/partitions/core.c b/block/partitions/core.c
-index 297004fd22648..78951e33b2d7c 100644
---- a/block/partitions/core.c
-+++ b/block/partitions/core.c
-@@ -387,7 +387,8 @@ static struct hd_struct *add_partition(struct gendisk *disk, int partno,
- 	if (!p)
- 		return ERR_PTR(-EBUSY);
- 
--	if (!init_part_stats(p)) {
-+	p->dkstats = alloc_percpu(struct disk_stats);
-+	if (!p->dkstats) {
- 		err = -ENOMEM;
- 		goto out_free;
- 	}
-@@ -468,7 +469,7 @@ static struct hd_struct *add_partition(struct gendisk *disk, int partno,
- out_free_info:
- 	kfree(p->info);
- out_free_stats:
--	free_part_stats(p);
-+	free_percpu(p->dkstats);
- out_free:
- 	kfree(p);
- 	return ERR_PTR(err);
-diff --git a/include/linux/genhd.h b/include/linux/genhd.h
-index a9384449465a3..f0d6d77309a54 100644
---- a/include/linux/genhd.h
-+++ b/include/linux/genhd.h
-@@ -39,15 +39,6 @@ extern struct class block_class;
- #include <linux/fs.h>
- #include <linux/workqueue.h>
- 
--struct disk_stats {
--	u64 nsecs[NR_STAT_GROUPS];
--	unsigned long sectors[NR_STAT_GROUPS];
--	unsigned long ios[NR_STAT_GROUPS];
--	unsigned long merges[NR_STAT_GROUPS];
--	unsigned long io_ticks;
--	local_t in_flight[2];
--};
--
- #define PARTITION_META_INFO_VOLNAMELTH	64
- /*
-  * Enough for the string representation of any kind of UUID plus NULL.
-@@ -72,11 +63,7 @@ struct hd_struct {
- 	seqcount_t nr_sects_seq;
- #endif
- 	unsigned long stamp;
--#ifdef	CONFIG_SMP
- 	struct disk_stats __percpu *dkstats;
--#else
--	struct disk_stats dkstats;
--#endif
- 	struct percpu_ref ref;
- 
- 	sector_t alignment_offset;
-diff --git a/include/linux/part_stat.h b/include/linux/part_stat.h
-index ece607607a864..6644197980b92 100644
---- a/include/linux/part_stat.h
-+++ b/include/linux/part_stat.h
-@@ -4,19 +4,23 @@
- 
- #include <linux/genhd.h>
- 
-+struct disk_stats {
-+	u64 nsecs[NR_STAT_GROUPS];
-+	unsigned long sectors[NR_STAT_GROUPS];
-+	unsigned long ios[NR_STAT_GROUPS];
-+	unsigned long merges[NR_STAT_GROUPS];
-+	unsigned long io_ticks;
-+	local_t in_flight[2];
-+};
-+
- /*
-  * Macros to operate on percpu disk statistics:
-  *
-- * {disk|part|all}_stat_{add|sub|inc|dec}() modify the stat counters
-- * and should be called between disk_stat_lock() and
-- * disk_stat_unlock().
-+ * {disk|part|all}_stat_{add|sub|inc|dec}() modify the stat counters and should
-+ * be called between disk_stat_lock() and disk_stat_unlock().
-  *
-  * part_stat_read() can be called at any time.
-- *
-- * part_stat_{add|set_all}() and {init|free}_part_stats are for
-- * internal use only.
-  */
--#ifdef	CONFIG_SMP
- #define part_stat_lock()	({ rcu_read_lock(); get_cpu(); })
- #define part_stat_unlock()	do { put_cpu(); rcu_read_unlock(); } while (0)
- 
-@@ -44,43 +48,6 @@ static inline void part_stat_set_all(struct hd_struct *part, int value)
- 				sizeof(struct disk_stats));
- }
- 
--static inline int init_part_stats(struct hd_struct *part)
--{
--	part->dkstats = alloc_percpu(struct disk_stats);
--	if (!part->dkstats)
--		return 0;
--	return 1;
--}
--
--static inline void free_part_stats(struct hd_struct *part)
--{
--	free_percpu(part->dkstats);
--}
--
--#else /* !CONFIG_SMP */
--#define part_stat_lock()	({ rcu_read_lock(); 0; })
--#define part_stat_unlock()	rcu_read_unlock()
--
--#define part_stat_get(part, field)		((part)->dkstats.field)
--#define part_stat_get_cpu(part, field, cpu)	part_stat_get(part, field)
--#define part_stat_read(part, field)		part_stat_get(part, field)
--
--static inline void part_stat_set_all(struct hd_struct *part, int value)
--{
--	memset(&part->dkstats, value, sizeof(struct disk_stats));
--}
--
--static inline int init_part_stats(struct hd_struct *part)
--{
--	return 1;
--}
--
--static inline void free_part_stats(struct hd_struct *part)
--{
--}
--
--#endif /* CONFIG_SMP */
--
- #define part_stat_read_accum(part, field)				\
- 	(part_stat_read(part, field[STAT_READ]) +			\
- 	 part_stat_read(part, field[STAT_WRITE]) +			\
 -- 
-2.26.2
+Jens Axboe
 
