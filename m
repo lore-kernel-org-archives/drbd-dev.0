@@ -1,12 +1,12 @@
 Return-Path: <BATV+2c76b185713af36e7087+6121+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7BB5F42038C
-	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2020 07:24:42 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0751042000B
+	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2020 07:24:47 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 27 May 2020 07:24:09 +0200
-Message-Id: <20200527052419.403583-7-hch@lst.de>
+Date: Wed, 27 May 2020 07:24:11 +0200
+Message-Id: <20200527052419.403583-9-hch@lst.de>
 In-Reply-To: <20200527052419.403583-1-hch@lst.de>
 References: <20200527052419.403583-1-hch@lst.de>
 MIME-Version: 1.0
@@ -17,7 +17,8 @@ Cc: linux-nvdimm@lists.01.org,
 	linux-block@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
 	dm-devel@redhat.com, Nitin Gupta <ngupta@vflare.org>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/16] dm: use bio_{start,end}_io_acct
+Subject: [Drbd-dev] [PATCH 08/16] zram: nvdimm: use bio_{start,
+	end}_io_acct and disk_{start, end}_io_acct
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,41 +30,103 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Switch dm to use the nicer bio accounting helpers.
+Switch zram to use the nicer bio accounting helpers, and as part of that
+ensure each bio is counted as a single I/O request.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 ---
- drivers/md/dm.c | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ drivers/block/zram/zram_drv.c | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)
 
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index f215b86664484..3f39fa1ac756e 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -681,11 +681,7 @@ static void start_io_acct(struct dm_io *io)
- 	struct mapped_device *md = io->md;
- 	struct bio *bio = io->orig_bio;
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index ebb234f36909c..6e2ad90b17a37 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -1510,13 +1510,8 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+ static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 			int offset, unsigned int op, struct bio *bio)
+ {
+-	unsigned long start_time = jiffies;
+-	struct request_queue *q = zram->disk->queue;
+ 	int ret;
  
--	io->start_time = jiffies;
+-	generic_start_io_acct(q, op, bvec->bv_len >> SECTOR_SHIFT,
+-			&zram->disk->part0);
 -
--	generic_start_io_acct(md->queue, bio_op(bio), bio_sectors(bio),
--			      &dm_disk(md)->part0);
+ 	if (!op_is_write(op)) {
+ 		atomic64_inc(&zram->stats.num_reads);
+ 		ret = zram_bvec_read(zram, bvec, index, offset, bio);
+@@ -1526,8 +1521,6 @@ static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 		ret = zram_bvec_write(zram, bvec, index, offset, bio);
+ 	}
+ 
+-	generic_end_io_acct(q, op, &zram->disk->part0, start_time);
 -
-+	io->start_time = bio_start_io_acct(bio);
- 	if (unlikely(dm_stats_used(&md->stats)))
- 		dm_stats_account_io(&md->stats, bio_data_dir(bio),
- 				    bio->bi_iter.bi_sector, bio_sectors(bio),
-@@ -698,8 +694,7 @@ static void end_io_acct(struct dm_io *io)
- 	struct bio *bio = io->orig_bio;
- 	unsigned long duration = jiffies - io->start_time;
+ 	zram_slot_lock(zram, index);
+ 	zram_accessed(zram, index);
+ 	zram_slot_unlock(zram, index);
+@@ -1548,6 +1541,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
+ 	u32 index;
+ 	struct bio_vec bvec;
+ 	struct bvec_iter iter;
++	unsigned long start_time;
  
--	generic_end_io_acct(md->queue, bio_op(bio), &dm_disk(md)->part0,
--			    io->start_time);
-+	bio_end_io_acct(bio, io->start_time);
+ 	index = bio->bi_iter.bi_sector >> SECTORS_PER_PAGE_SHIFT;
+ 	offset = (bio->bi_iter.bi_sector &
+@@ -1563,6 +1557,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
+ 		break;
+ 	}
  
- 	if (unlikely(dm_stats_used(&md->stats)))
- 		dm_stats_account_io(&md->stats, bio_data_dir(bio),
++	start_time = bio_start_io_acct(bio);
+ 	bio_for_each_segment(bvec, bio, iter) {
+ 		struct bio_vec bv = bvec;
+ 		unsigned int unwritten = bvec.bv_len;
+@@ -1571,8 +1566,10 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
+ 			bv.bv_len = min_t(unsigned int, PAGE_SIZE - offset,
+ 							unwritten);
+ 			if (zram_bvec_rw(zram, &bv, index, offset,
+-					 bio_op(bio), bio) < 0)
+-				goto out;
++					 bio_op(bio), bio) < 0) {
++				bio->bi_status = BLK_STS_IOERR;
++				break;
++			}
+ 
+ 			bv.bv_offset += bv.bv_len;
+ 			unwritten -= bv.bv_len;
+@@ -1580,12 +1577,8 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
+ 			update_position(&index, &offset, &bv);
+ 		} while (unwritten);
+ 	}
+-
++	bio_end_io_acct(bio, start_time);
+ 	bio_endio(bio);
+-	return;
+-
+-out:
+-	bio_io_error(bio);
+ }
+ 
+ /*
+@@ -1633,6 +1626,7 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+ 	u32 index;
+ 	struct zram *zram;
+ 	struct bio_vec bv;
++	unsigned long start_time;
+ 
+ 	if (PageTransHuge(page))
+ 		return -ENOTSUPP;
+@@ -1651,7 +1645,9 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+ 	bv.bv_len = PAGE_SIZE;
+ 	bv.bv_offset = 0;
+ 
++	start_time = disk_start_io_acct(bdev->bd_disk, SECTORS_PER_PAGE, op);
+ 	ret = zram_bvec_rw(zram, &bv, index, offset, op, NULL);
++	disk_end_io_acct(bdev->bd_disk, op, start_time);
+ out:
+ 	/*
+ 	 * If I/O fails, just return error(ie, non-zero) without
 -- 
 2.26.2
 
