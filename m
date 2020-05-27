@@ -1,12 +1,12 @@
 Return-Path: <BATV+2c76b185713af36e7087+6121+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9A1764203B3
-	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2020 07:24:33 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 98C324203D6
+	for <drbd-dev@lists.linbit.com>; Wed, 27 May 2020 07:24:39 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 27 May 2020 07:24:04 +0200
-Message-Id: <20200527052419.403583-2-hch@lst.de>
+Date: Wed, 27 May 2020 07:24:08 +0200
+Message-Id: <20200527052419.403583-6-hch@lst.de>
 In-Reply-To: <20200527052419.403583-1-hch@lst.de>
 References: <20200527052419.403583-1-hch@lst.de>
 MIME-Version: 1.0
@@ -15,10 +15,9 @@ Cc: linux-nvdimm@lists.01.org,
 	Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
 	linux-bcache@vger.kernel.org, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
-	dm-devel@redhat.com, Nitin Gupta <ngupta@vflare.org>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/16] block: add disk/bio-based accounting
-	helpers
+	dm-devel@redhat.com, Coly Li <colyli@suse.de>,
+	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 05/16] bcache: use bio_{start,end}_io_acct
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,107 +29,81 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add two new helpers to simplify I/O accounting for bio based drivers.
-Currently these drivers use the generic_start_io_acct and
-generic_end_io_acct helpers which have very cumbersome calling
-conventions, don't actually return the time they started accounting,
-and try to deal with accounting for partitions, which can't happen
-for bio based drivers.  The new helpers will be used to subsequently
-replace uses of the old helpers.
-
-The main API is the bio based wrappes in blkdev.h, but for zram
-which wants to account rw_page based I/O lower level routines are
-provided as well.
+Switch bcache to use the nicer bio accounting helpers, and call the
+routines where we also sample the start time to give coherent accounting
+results.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Acked-by: Coly Li <colyli@suse.de>
 ---
- block/blk-core.c       | 34 ++++++++++++++++++++++++++++++++++
- include/linux/blkdev.h | 28 ++++++++++++++++++++++++++++
- 2 files changed, 62 insertions(+)
+ drivers/md/bcache/request.c | 18 ++++--------------
+ 1 file changed, 4 insertions(+), 14 deletions(-)
 
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 77e57c2e8d602..8973104f88d90 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -1432,6 +1432,40 @@ void blk_account_io_start(struct request *rq, bool new_io)
- 	part_stat_unlock();
- }
+diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
+index 77d1a26975174..22b483527176b 100644
+--- a/drivers/md/bcache/request.c
++++ b/drivers/md/bcache/request.c
+@@ -668,9 +668,7 @@ static void backing_request_endio(struct bio *bio)
+ static void bio_complete(struct search *s)
+ {
+ 	if (s->orig_bio) {
+-		generic_end_io_acct(s->d->disk->queue, bio_op(s->orig_bio),
+-				    &s->d->disk->part0, s->start_time);
+-
++		bio_end_io_acct(s->orig_bio, s->start_time);
+ 		trace_bcache_request_end(s->d, s->orig_bio);
+ 		s->orig_bio->bi_status = s->iop.status;
+ 		bio_endio(s->orig_bio);
+@@ -730,7 +728,7 @@ static inline struct search *search_alloc(struct bio *bio,
+ 	s->recoverable		= 1;
+ 	s->write		= op_is_write(bio_op(bio));
+ 	s->read_dirty_data	= 0;
+-	s->start_time		= jiffies;
++	s->start_time		= bio_start_io_acct(bio);
  
-+unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
-+		unsigned int op)
-+{
-+	struct hd_struct *part = &disk->part0;
-+	const int sgrp = op_stat_group(op);
-+	unsigned long now = READ_ONCE(jiffies);
-+
-+	part_stat_lock();
-+	update_io_ticks(part, now, false);
-+	part_stat_inc(part, ios[sgrp]);
-+	part_stat_add(part, sectors[sgrp], sectors);
-+	part_stat_local_inc(part, in_flight[op_is_write(op)]);
-+	part_stat_unlock();
-+
-+	return now;
-+}
-+EXPORT_SYMBOL(disk_start_io_acct);
-+
-+void disk_end_io_acct(struct gendisk *disk, unsigned int op,
-+		unsigned long start_time)
-+{
-+	struct hd_struct *part = &disk->part0;
-+	const int sgrp = op_stat_group(op);
-+	unsigned long now = READ_ONCE(jiffies);
-+	unsigned long duration = now - start_time;
-+
-+	part_stat_lock();
-+	update_io_ticks(part, now, true);
-+	part_stat_add(part, nsecs[sgrp], jiffies_to_nsecs(duration));
-+	part_stat_local_dec(part, in_flight[op_is_write(op)]);
-+	part_stat_unlock();
-+}
-+EXPORT_SYMBOL(disk_end_io_acct);
-+
- /*
-  * Steal bios from a request and add them to a bio list.
-  * The request must not have been partially completed before.
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 7d10f4e632325..6f7ff0fa8fcf8 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1892,4 +1892,32 @@ static inline void blk_wake_io_task(struct task_struct *waiter)
- 		wake_up_process(waiter);
- }
+ 	s->iop.c		= d->c;
+ 	s->iop.bio		= NULL;
+@@ -1082,8 +1080,7 @@ static void detached_dev_end_io(struct bio *bio)
+ 	bio->bi_end_io = ddip->bi_end_io;
+ 	bio->bi_private = ddip->bi_private;
  
-+unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
-+		unsigned int op);
-+void disk_end_io_acct(struct gendisk *disk, unsigned int op,
-+		unsigned long start_time);
-+
-+#ifdef CONFIG_BLOCK
-+/**
-+ * bio_start_io_acct - start I/O accounting for bio based drivers
-+ * @bio:	bio to start account for
-+ *
-+ * Returns the start time that should be passed back to bio_end_io_acct().
-+ */
-+static inline unsigned long bio_start_io_acct(struct bio *bio)
-+{
-+	return disk_start_io_acct(bio->bi_disk, bio_sectors(bio), bio_op(bio));
-+}
-+
-+/**
-+ * bio_end_io_acct - end I/O accounting for bio based drivers
-+ * @bio:	bio to end account for
-+ * @start:	start time returned by bio_start_io_acct()
-+ */
-+static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
-+{
-+	return disk_end_io_acct(bio->bi_disk, bio_op(bio), start_time);
-+}
-+#endif /* CONFIG_BLOCK */
-+
- #endif
+-	generic_end_io_acct(ddip->d->disk->queue, bio_op(bio),
+-			    &ddip->d->disk->part0, ddip->start_time);
++	bio_end_io_acct(bio, ddip->start_time);
+ 
+ 	if (bio->bi_status) {
+ 		struct cached_dev *dc = container_of(ddip->d,
+@@ -1108,7 +1105,7 @@ static void detached_dev_do_request(struct bcache_device *d, struct bio *bio)
+ 	 */
+ 	ddip = kzalloc(sizeof(struct detached_dev_io_private), GFP_NOIO);
+ 	ddip->d = d;
+-	ddip->start_time = jiffies;
++	ddip->start_time = bio_start_io_acct(bio);
+ 	ddip->bi_end_io = bio->bi_end_io;
+ 	ddip->bi_private = bio->bi_private;
+ 	bio->bi_end_io = detached_dev_end_io;
+@@ -1190,11 +1187,6 @@ blk_qc_t cached_dev_make_request(struct request_queue *q, struct bio *bio)
+ 		}
+ 	}
+ 
+-	generic_start_io_acct(q,
+-			      bio_op(bio),
+-			      bio_sectors(bio),
+-			      &d->disk->part0);
+-
+ 	bio_set_dev(bio, dc->bdev);
+ 	bio->bi_iter.bi_sector += dc->sb.data_offset;
+ 
+@@ -1311,8 +1303,6 @@ blk_qc_t flash_dev_make_request(struct request_queue *q, struct bio *bio)
+ 		return BLK_QC_T_NONE;
+ 	}
+ 
+-	generic_start_io_acct(q, bio_op(bio), bio_sectors(bio), &d->disk->part0);
+-
+ 	s = search_alloc(bio, d);
+ 	cl = &s->cl;
+ 	bio = &s->bio.bio;
 -- 
 2.26.2
 
