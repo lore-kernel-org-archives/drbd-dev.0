@@ -1,28 +1,28 @@
 Return-Path: <BATV+a231b325d53909937e6f+6122+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 406724203E4
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9B0174203E7
 	for <drbd-dev@lists.linbit.com>; Thu, 28 May 2020 07:39:30 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Thu, 28 May 2020 07:12:29 +0200
-Message-Id: <20200528051236.620353-22-hch@lst.de>
+Date: Thu, 28 May 2020 07:12:26 +0200
+Message-Id: <20200528051236.620353-19-hch@lst.de>
 In-Reply-To: <20200528051236.620353-1-hch@lst.de>
 References: <20200528051236.620353-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-cifs@vger.kernel.org, rds-devel@oss.oracle.com,
-	cluster-devel@redhat.com, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
+	cluster-devel@redhat.com, Sagi Grimberg <sagi@grimberg.me>,
+	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
 	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
 	linux-nvme@lists.infradead.org, Jon Maloy <jmaloy@redhat.com>,
 	linux-rdma@vger.kernel.org, Eric Dumazet <edumazet@google.com>,
 	target-devel@vger.kernel.org,
 	tipc-discussion@lists.sourceforge.net, linux-nfs@vger.kernel.org,
-	David Howells <dhowells@redhat.com>, Ying Xue <ying.xue@windriver.com>,
-	Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
+	Ying Xue <ying.xue@windriver.com>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
 	ceph-devel@vger.kernel.org, linux-afs@lists.infradead.org,
 	ocfs2-devel@oss.oracle.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 21/28] ipv4: add ip_sock_set_mtu_discover
+Subject: [Drbd-dev] [PATCH 18/28] ipv4: add ip_sock_set_tos
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,107 +34,130 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the IP_MTU_DISCOVER sockopt from kernel
-space without going through a fake uaccess.
+Add a helper to directly set the IP_TOS sockopt from kernel space without
+going through a fake uaccess.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: David Howells <dhowells@redhat.com> [rxrpc bits]
+Acked-by: Sagi Grimberg <sagi@grimberg.me>
 ---
- include/net/ip.h         |  1 +
- net/ipv4/ip_sockglue.c   | 11 +++++++++++
- net/rxrpc/local_object.c |  8 +-------
- net/rxrpc/output.c       | 14 +++++---------
- 4 files changed, 18 insertions(+), 16 deletions(-)
+ drivers/nvme/host/tcp.c   | 14 +++-----------
+ drivers/nvme/target/tcp.c | 10 ++--------
+ include/net/ip.h          |  2 ++
+ net/ipv4/ip_sockglue.c    | 30 +++++++++++++++++++++---------
+ 4 files changed, 28 insertions(+), 28 deletions(-)
 
+diff --git a/drivers/nvme/host/tcp.c b/drivers/nvme/host/tcp.c
+index 2872584f52f63..4c972d8abf317 100644
+--- a/drivers/nvme/host/tcp.c
++++ b/drivers/nvme/host/tcp.c
+@@ -1313,7 +1313,7 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
+ {
+ 	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(nctrl);
+ 	struct nvme_tcp_queue *queue = &ctrl->queues[qid];
+-	int ret, opt, rcv_pdu_size;
++	int ret, rcv_pdu_size;
+ 
+ 	queue->ctrl = ctrl;
+ 	INIT_LIST_HEAD(&queue->send_list);
+@@ -1352,16 +1352,8 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl,
+ 		sock_set_priority(queue->sock->sk, so_priority);
+ 
+ 	/* Set socket type of service */
+-	if (nctrl->opts->tos >= 0) {
+-		opt = nctrl->opts->tos;
+-		ret = kernel_setsockopt(queue->sock, SOL_IP, IP_TOS,
+-				(char *)&opt, sizeof(opt));
+-		if (ret) {
+-			dev_err(nctrl->device,
+-				"failed to set IP_TOS sock opt %d\n", ret);
+-			goto err_sock;
+-		}
+-	}
++	if (nctrl->opts->tos >= 0)
++		ip_sock_set_tos(queue->sock->sk, nctrl->opts->tos);
+ 
+ 	queue->sock->sk->sk_allocation = GFP_ATOMIC;
+ 	nvme_tcp_set_queue_io_cpu(queue);
+diff --git a/drivers/nvme/target/tcp.c b/drivers/nvme/target/tcp.c
+index 55bc4c3c0a74a..4546049a96b37 100644
+--- a/drivers/nvme/target/tcp.c
++++ b/drivers/nvme/target/tcp.c
+@@ -1452,14 +1452,8 @@ static int nvmet_tcp_set_queue_sock(struct nvmet_tcp_queue *queue)
+ 		sock_set_priority(sock->sk, so_priority);
+ 
+ 	/* Set socket type of service */
+-	if (inet->rcv_tos > 0) {
+-		int tos = inet->rcv_tos;
+-
+-		ret = kernel_setsockopt(sock, SOL_IP, IP_TOS,
+-				(char *)&tos, sizeof(tos));
+-		if (ret)
+-			return ret;
+-	}
++	if (inet->rcv_tos > 0)
++		ip_sock_set_tos(sock->sk, inet->rcv_tos);
+ 
+ 	write_lock_bh(&sock->sk->sk_callback_lock);
+ 	sock->sk->sk_user_data = queue;
 diff --git a/include/net/ip.h b/include/net/ip.h
-index f063a491b9063..d3649c49dd333 100644
+index 5b317c9f4470a..2fc52e26fa88b 100644
 --- a/include/net/ip.h
 +++ b/include/net/ip.h
-@@ -766,6 +766,7 @@ static inline bool inetdev_valid_mtu(unsigned int mtu)
+@@ -765,4 +765,6 @@ static inline bool inetdev_valid_mtu(unsigned int mtu)
+ 	return likely(mtu >= IPV4_MIN_MTU);
  }
  
- void ip_sock_set_freebind(struct sock *sk);
-+int ip_sock_set_mtu_discover(struct sock *sk, int val);
- void ip_sock_set_recverr(struct sock *sk);
- void ip_sock_set_tos(struct sock *sk, int val);
- 
++void ip_sock_set_tos(struct sock *sk, int val);
++
+ #endif	/* _IP_H */
 diff --git a/net/ipv4/ip_sockglue.c b/net/ipv4/ip_sockglue.c
-index aca6b81da9bae..aa115be11dcfb 100644
+index f43d5f12aa86a..b43a29e11f4a5 100644
 --- a/net/ipv4/ip_sockglue.c
 +++ b/net/ipv4/ip_sockglue.c
-@@ -597,6 +597,17 @@ void ip_sock_set_recverr(struct sock *sk)
+@@ -560,6 +560,26 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
+ 	return err;
  }
- EXPORT_SYMBOL(ip_sock_set_recverr);
  
-+int ip_sock_set_mtu_discover(struct sock *sk, int val)
++static void __ip_sock_set_tos(struct sock *sk, int val)
 +{
-+	if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
-+		return -EINVAL;
-+	lock_sock(sk);
-+	inet_sk(sk)->pmtudisc = val;
-+	release_sock(sk);
-+	return 0;
++	if (sk->sk_type == SOCK_STREAM) {
++		val &= ~INET_ECN_MASK;
++		val |= inet_sk(sk)->tos & INET_ECN_MASK;
++	}
++	if (inet_sk(sk)->tos != val) {
++		inet_sk(sk)->tos = val;
++		sk->sk_priority = rt_tos2priority(val);
++		sk_dst_reset(sk);
++	}
 +}
-+EXPORT_SYMBOL(ip_sock_set_mtu_discover);
 +
++void ip_sock_set_tos(struct sock *sk, int val)
++{
++	lock_sock(sk);
++	__ip_sock_set_tos(sk, val);
++	release_sock(sk);
++}
++EXPORT_SYMBOL(ip_sock_set_tos);
+ 
  /*
   *	Socket option code for IP. This is the end of the line after any
-  *	TCP,UDP etc options on an IP socket.
-diff --git a/net/rxrpc/local_object.c b/net/rxrpc/local_object.c
-index 4c0e8fe5ec1fb..6f4e6b4817cf2 100644
---- a/net/rxrpc/local_object.c
-+++ b/net/rxrpc/local_object.c
-@@ -174,13 +174,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
- 		ip_sock_set_recverr(local->socket->sk);
- 
- 		/* we want to set the don't fragment bit */
--		opt = IP_PMTUDISC_DO;
--		ret = kernel_setsockopt(local->socket, SOL_IP, IP_MTU_DISCOVER,
--					(char *) &opt, sizeof(opt));
--		if (ret < 0) {
--			_debug("setsockopt failed");
--			goto error;
--		}
-+		ip_sock_set_mtu_discover(local->socket->sk, IP_PMTUDISC_DO);
- 
- 		/* We want receive timestamps. */
- 		sock_enable_timestamps(local->socket->sk);
-diff --git a/net/rxrpc/output.c b/net/rxrpc/output.c
-index f8b632a5c6197..1ba43c3df4adb 100644
---- a/net/rxrpc/output.c
-+++ b/net/rxrpc/output.c
-@@ -321,7 +321,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
- 	struct kvec iov[2];
- 	rxrpc_serial_t serial;
- 	size_t len;
--	int ret, opt;
-+	int ret;
- 
- 	_enter(",{%d}", skb->len);
- 
-@@ -473,18 +473,14 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
- 	switch (conn->params.local->srx.transport.family) {
- 	case AF_INET6:
- 	case AF_INET:
--		opt = IP_PMTUDISC_DONT;
--		kernel_setsockopt(conn->params.local->socket,
--				  SOL_IP, IP_MTU_DISCOVER,
--				  (char *)&opt, sizeof(opt));
-+		ip_sock_set_mtu_discover(conn->params.local->socket->sk,
-+				IP_PMTUDISC_DONT);
- 		ret = kernel_sendmsg(conn->params.local->socket, &msg,
- 				     iov, 2, len);
- 		conn->params.peer->last_tx_at = ktime_get_seconds();
- 
--		opt = IP_PMTUDISC_DO;
--		kernel_setsockopt(conn->params.local->socket,
--				  SOL_IP, IP_MTU_DISCOVER,
--				  (char *)&opt, sizeof(opt));
-+		ip_sock_set_mtu_discover(conn->params.local->socket->sk,
-+				IP_PMTUDISC_DO);
+@@ -823,15 +843,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
+ 			inet->cmsg_flags &= ~IP_CMSG_RECVFRAGSIZE;
  		break;
- 
- 	default:
+ 	case IP_TOS:	/* This sets both TOS and Precedence */
+-		if (sk->sk_type == SOCK_STREAM) {
+-			val &= ~INET_ECN_MASK;
+-			val |= inet->tos & INET_ECN_MASK;
+-		}
+-		if (inet->tos != val) {
+-			inet->tos = val;
+-			sk->sk_priority = rt_tos2priority(val);
+-			sk_dst_reset(sk);
+-		}
++		__ip_sock_set_tos(sk, val);
+ 		break;
+ 	case IP_TTL:
+ 		if (optlen < 1)
 -- 
 2.26.2
 
