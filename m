@@ -1,27 +1,30 @@
-Return-Path: <BATV+a231b325d53909937e6f+6122+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 392274203C9
-	for <drbd-dev@lists.linbit.com>; Thu, 28 May 2020 07:47:42 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: "David S. Miller" <davem@davemloft.net>, Jakub Kicinski <kuba@kernel.org>
-Date: Thu, 28 May 2020 07:12:27 +0200
-Message-Id: <20200528051236.620353-20-hch@lst.de>
-In-Reply-To: <20200528051236.620353-1-hch@lst.de>
-References: <20200528051236.620353-1-hch@lst.de>
+Return-Path: <keescook@chromium.org>
+Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com
+	[209.85.210.193])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3B23042030B
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 01:32:14 +0200 (CEST)
+Received: by mail-pf1-f193.google.com with SMTP id z64so2504666pfb.1
+	for <drbd-dev@lists.linbit.com>; Wed, 03 Jun 2020 16:32:14 -0700 (PDT)
+From: Kees Cook <keescook@chromium.org>
+To: linux-kernel@vger.kernel.org
+Date: Wed,  3 Jun 2020 16:31:57 -0700
+Message-Id: <20200603233203.1695403-5-keescook@chromium.org>
+In-Reply-To: <20200603233203.1695403-1-keescook@chromium.org>
+References: <20200603233203.1695403-1-keescook@chromium.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: linux-cifs@vger.kernel.org, rds-devel@oss.oracle.com,
-	cluster-devel@redhat.com, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>,
-	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-nvme@lists.infradead.org, Jon Maloy <jmaloy@redhat.com>,
-	linux-rdma@vger.kernel.org, Eric Dumazet <edumazet@google.com>,
-	target-devel@vger.kernel.org,
-	tipc-discussion@lists.sourceforge.net, linux-nfs@vger.kernel.org,
-	Ying Xue <ying.xue@windriver.com>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>,
-	ceph-devel@vger.kernel.org, linux-afs@lists.infradead.org,
-	ocfs2-devel@oss.oracle.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 19/28] ipv4: add ip_sock_set_freebind
+Cc: Andy Whitcroft <apw@canonical.com>, Kees Cook <keescook@chromium.org>,
+	linux-ide@vger.kernel.org, netdev@vger.kernel.org,
+	x86@kernel.org, linux-wireless@vger.kernel.org,
+	linux-spi@vger.kernel.org, linux-block@vger.kernel.org,
+	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
+	linux-mm@kvack.org, Alexander Potapenko <glider@google.com>,
+	b43-dev@lists.infradead.org, clang-built-linux@googlegroups.com,
+	Joe Perches <joe@perches.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 04/10] rtlwifi: rtl8192cu: Remove
+	uninitialized_var() usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,85 +36,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to directly set the IP_FREEBIND sockopt from kernel space
-without going through a fake uaccess.
+Using uninitialized_var() is dangerous as it papers over real bugs[1]
+(or can in the future), and suppresses unrelated compiler warnings (e.g.
+"unused variable"). If the compiler thinks it is uninitialized, either
+simply initialize the variable or make compiler changes. As a precursor
+to removing[2] this[3] macro[4], just initialize this variable to NULL,
+and avoid sending garbage by returning.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
+[1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
+[2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
+[3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
+[4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
+
+Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- drivers/target/iscsi/iscsi_target_login.c | 13 +++----------
- include/net/ip.h                          |  1 +
- net/ipv4/ip_sockglue.c                    |  8 ++++++++
- 3 files changed, 12 insertions(+), 10 deletions(-)
+ drivers/net/wireless/realtek/rtlwifi/rtl8192cu/hw.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/target/iscsi/iscsi_target_login.c b/drivers/target/iscsi/iscsi_target_login.c
-index b561b07a869a0..85748e3388582 100644
---- a/drivers/target/iscsi/iscsi_target_login.c
-+++ b/drivers/target/iscsi/iscsi_target_login.c
-@@ -15,6 +15,7 @@
- #include <linux/sched/signal.h>
- #include <linux/idr.h>
- #include <linux/tcp.h>        /* TCP_NODELAY */
-+#include <net/ip.h>
- #include <net/ipv6.h>         /* ipv6_addr_v4mapped() */
- #include <scsi/iscsi_proto.h>
- #include <target/target_core_base.h>
-@@ -855,7 +856,7 @@ int iscsit_setup_np(
- 	struct sockaddr_storage *sockaddr)
+diff --git a/drivers/net/wireless/realtek/rtlwifi/rtl8192cu/hw.c b/drivers/net/wireless/realtek/rtlwifi/rtl8192cu/hw.c
+index f070f25bb735..5b071b70bc08 100644
+--- a/drivers/net/wireless/realtek/rtlwifi/rtl8192cu/hw.c
++++ b/drivers/net/wireless/realtek/rtlwifi/rtl8192cu/hw.c
+@@ -592,7 +592,7 @@ static void _rtl92cu_init_chipn_one_out_ep_priority(struct ieee80211_hw *hw,
+ 						    bool wmm_enable,
+ 						    u8 queue_sel)
  {
- 	struct socket *sock = NULL;
--	int backlog = ISCSIT_TCP_BACKLOG, ret, opt = 0, len;
-+	int backlog = ISCSIT_TCP_BACKLOG, ret, len;
+-	u16 uninitialized_var(value);
++	u16 value;
  
- 	switch (np->np_network_transport) {
- 	case ISCSI_TCP:
-@@ -900,15 +901,7 @@ int iscsit_setup_np(
- 	if (np->np_network_transport == ISCSI_TCP)
- 		tcp_sock_set_nodelay(sock->sk);
- 	sock_set_reuseaddr(sock->sk);
--
--	opt = 1;
--	ret = kernel_setsockopt(sock, IPPROTO_IP, IP_FREEBIND,
--			(char *)&opt, sizeof(opt));
--	if (ret < 0) {
--		pr_err("kernel_setsockopt() for IP_FREEBIND"
--			" failed\n");
--		goto fail;
--	}
-+	ip_sock_set_freebind(sock->sk);
- 
- 	ret = kernel_bind(sock, (struct sockaddr *)&np->np_sockaddr, len);
- 	if (ret < 0) {
-diff --git a/include/net/ip.h b/include/net/ip.h
-index 2fc52e26fa88b..5f5d8226b6abc 100644
---- a/include/net/ip.h
-+++ b/include/net/ip.h
-@@ -765,6 +765,7 @@ static inline bool inetdev_valid_mtu(unsigned int mtu)
- 	return likely(mtu >= IPV4_MIN_MTU);
- }
- 
-+void ip_sock_set_freebind(struct sock *sk);
- void ip_sock_set_tos(struct sock *sk, int val);
- 
- #endif	/* _IP_H */
-diff --git a/net/ipv4/ip_sockglue.c b/net/ipv4/ip_sockglue.c
-index b43a29e11f4a5..767838d2030d8 100644
---- a/net/ipv4/ip_sockglue.c
-+++ b/net/ipv4/ip_sockglue.c
-@@ -581,6 +581,14 @@ void ip_sock_set_tos(struct sock *sk, int val)
- }
- EXPORT_SYMBOL(ip_sock_set_tos);
- 
-+void ip_sock_set_freebind(struct sock *sk)
-+{
-+	lock_sock(sk);
-+	inet_sk(sk)->freebind = true;
-+	release_sock(sk);
-+}
-+EXPORT_SYMBOL(ip_sock_set_freebind);
-+
- /*
-  *	Socket option code for IP. This is the end of the line after any
-  *	TCP,UDP etc options on an IP socket.
+ 	switch (queue_sel) {
+ 	case TX_SELE_HQ:
+@@ -606,7 +606,7 @@ static void _rtl92cu_init_chipn_one_out_ep_priority(struct ieee80211_hw *hw,
+ 		break;
+ 	default:
+ 		WARN_ON(1); /* Shall not reach here! */
+-		break;
++		return;
+ 	}
+ 	_rtl92c_init_chipn_reg_priority(hw, value, value, value, value,
+ 					value, value);
 -- 
-2.26.2
+2.25.1
 
