@@ -1,23 +1,21 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pj1-f66.google.com (mail-pj1-f66.google.com
-	[209.85.216.66])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C05F6420235
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 16:27:46 +0200 (CEST)
-Received: by mail-pj1-f66.google.com with SMTP id h95so1252690pje.4
-	for <drbd-dev@lists.linbit.com>; Thu, 04 Jun 2020 07:27:46 -0700 (PDT)
-Date: Thu, 4 Jun 2020 07:27:42 -0700
+Received: from mail-pl1-f195.google.com (mail-pl1-f195.google.com
+	[209.85.214.195])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2CA6D420235
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 16:34:57 +0200 (CEST)
+Received: by mail-pl1-f195.google.com with SMTP id y17so2246788plb.8
+	for <drbd-dev@lists.linbit.com>; Thu, 04 Jun 2020 07:34:57 -0700 (PDT)
+Date: Thu, 4 Jun 2020 07:34:54 -0700
 From: Kees Cook <keescook@chromium.org>
-To: Sedat Dilek <sedat.dilek@gmail.com>
-Message-ID: <202006040727.265B0E586@keescook>
-References: <20200603233203.1695403-1-keescook@chromium.org>
-	<20200604033347.GA3962068@ubuntu-n2-xlarge-x86>
-	<CA+icZUU4Re5g3rRJ=WF3_KiCEc3CUmbH_PibTunuK_E1QskEjQ@mail.gmail.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Message-ID: <202006040728.8797FAA4@keescook>
+References: <20200603233203.1695403-2-keescook@chromium.org>
+	<874krr8dps.fsf@nanos.tec.linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+icZUU4Re5g3rRJ=WF3_KiCEc3CUmbH_PibTunuK_E1QskEjQ@mail.gmail.com>
-Cc: Andy Whitcroft <apw@canonical.com>,
-	Clang-Built-Linux ML <clang-built-linux@googlegroups.com>,
+In-Reply-To: <874krr8dps.fsf@nanos.tec.linutronix.de>
+Cc: Andy Whitcroft <apw@canonical.com>, clang-built-linux@googlegroups.com,
 	linux-ide@vger.kernel.org, netdev@vger.kernel.org,
 	x86@kernel.org, linux-wireless@vger.kernel.org,
 	linux-kernel@vger.kernel.org, linux-spi@vger.kernel.org,
@@ -25,10 +23,10 @@ Cc: Andy Whitcroft <apw@canonical.com>,
 	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
 	linux-mm@kvack.org, Alexander Potapenko <glider@google.com>,
 	b43-dev@lists.infradead.org, Joe Perches <joe@perches.com>,
-	Nathan Chancellor <natechancellor@gmail.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/10] Remove uninitialized_var() macro
+Subject: Re: [Drbd-dev] [PATCH 01/10] x86/mm/numa: Remove
+	uninitialized_var() usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,31 +38,108 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jun 04, 2020 at 09:26:58AM +0200, Sedat Dilek wrote:
-> On Thu, Jun 4, 2020 at 5:33 AM Nathan Chancellor
-> <natechancellor@gmail.com> wrote:
-> >
-> > On Wed, Jun 03, 2020 at 04:31:53PM -0700, Kees Cook wrote:
-> > > Using uninitialized_var() is dangerous as it papers over real bugs[1]
-> > > (or can in the future), and suppresses unrelated compiler warnings
-> > > (e.g. "unused variable"). If the compiler thinks it is uninitialized,
-> > > either simply initialize the variable or make compiler changes.
-> > >
-> > > As recommended[2] by[3] Linus[4], remove the macro.
-> > [...]
-> > For the series, consider it:
-> >
-> > Tested-by: Nathan Chancellor <natechancellor@gmail.com> [build]
-> [...]
+On Thu, Jun 04, 2020 at 09:58:07AM +0200, Thomas Gleixner wrote:
+> Kees Cook <keescook@chromium.org> writes:
+> > -#ifdef NODE_NOT_IN_PAGE_FLAGS
+> > -	pfn_align = node_map_pfn_alignment();
+> > -	if (pfn_align && pfn_align < PAGES_PER_SECTION) {
+> > -		printk(KERN_WARNING "Node alignment %LuMB < min %LuMB, rejecting NUMA config\n",
+> > -		       PFN_PHYS(pfn_align) >> 20,
+> > -		       PFN_PHYS(PAGES_PER_SECTION) >> 20);
+> > -		return -EINVAL;
+> > +	if (IS_ENABLED(NODE_NOT_IN_PAGE_FLAGS)) {
 > 
-> I tried with updated version (checkpatch) of your tree and see no
-> (new) warnings in my build-log.
+> Hrm, clever ...
 > 
-> Feel free to add my...
+> > +		unsigned long pfn_align = node_map_pfn_alignment();
+> > +
+> > +		if (pfn_align && pfn_align < PAGES_PER_SECTION) {
+> > +			pr_warn("Node alignment %LuMB < min %LuMB, rejecting NUMA config\n",
+> > +				PFN_PHYS(pfn_align) >> 20,
+> > +				PFN_PHYS(PAGES_PER_SECTION) >> 20);
+> > +			return -EINVAL;
+> > +		}
+> >  	}
+> > -#endif
+> >  	if (!numa_meminfo_cover_memory(mi))
+> >  		return -EINVAL;
+> >  
+> > diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
+> > index 71283739ffd2..1a4cdec2bd29 100644
+> > --- a/include/linux/page-flags-layout.h
+> > +++ b/include/linux/page-flags-layout.h
+> > @@ -100,7 +100,7 @@
+> >   * there.  This includes the case where there is no node, so it is implicit.
+> >   */
+> >  #if !(NODES_WIDTH > 0 || NODES_SHIFT == 0)
+> > -#define NODE_NOT_IN_PAGE_FLAGS
+> > +#define NODE_NOT_IN_PAGE_FLAGS 1
 > 
-> Tested-by: Sedat Dilek <sedat.dilek@gmail.com>
+> but if we ever lose the 1 then the above will silently compile the code
+> within the IS_ENABLED() section out.
 
-Awesome! Thank you both! :)
+That's true, yes. I considered two other ways to do this:
+
+1) smallest patch, but more #ifdef:
+
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 59ba008504dc..fbf5231a3d35 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -541,7 +541,9 @@ static void __init numa_clear_kernel_node_hotplug(void)
+ 
+ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ {
+-	unsigned long uninitialized_var(pfn_align);
++#ifdef NODE_NOT_IN_PAGE_FLAGS
++	unsigned long pfn_align;
++#endif
+ 	int i, nid;
+ 
+ 	/* Account for nodes with cpus and no memory */
+
+2) medium size, weird style:
+
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 59ba008504dc..0df7ba9b21b2 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -541,7 +541,6 @@ static void __init numa_clear_kernel_node_hotplug(void)
+ 
+ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ {
+-	unsigned long uninitialized_var(pfn_align);
+ 	int i, nid;
+ 
+ 	/* Account for nodes with cpus and no memory */
+@@ -570,12 +569,15 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ 	 * whether its granularity is fine enough.
+ 	 */
+ #ifdef NODE_NOT_IN_PAGE_FLAGS
+-	pfn_align = node_map_pfn_alignment();
+-	if (pfn_align && pfn_align < PAGES_PER_SECTION) {
+-		printk(KERN_WARNING "Node alignment %LuMB < min %LuMB, rejecting NUMA config\n",
+-		       PFN_PHYS(pfn_align) >> 20,
+-		       PFN_PHYS(PAGES_PER_SECTION) >> 20);
+-		return -EINVAL;
++	{
++		unsigned long pfn_align = node_map_pfn_alignment();
++
++		if (pfn_align && pfn_align < PAGES_PER_SECTION) {
++			pr_warn("Node alignment %LuMB < min %LuMB, rejecting NUMA config\n",
++			       PFN_PHYS(pfn_align) >> 20,
++			       PFN_PHYS(PAGES_PER_SECTION) >> 20);
++			return -EINVAL;
++		}
+ 	}
+ #endif
+ 	if (!numa_meminfo_cover_memory(mi))
+
+and 3 is what I sent: biggest, but removes #ifdef
+
+Any preference?
+
+Thanks!
 
 -- 
 Kees Cook
