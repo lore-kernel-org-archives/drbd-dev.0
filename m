@@ -1,41 +1,41 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm1-f65.google.com (mail-wm1-f65.google.com
-	[209.85.128.65])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 69680420440
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:59:53 +0200 (CEST)
-Received: by mail-wm1-f65.google.com with SMTP id l26so10041000wme.3
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:59:53 -0700 (PDT)
+Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com
+	[209.85.221.68])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1A3D0420441
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:59:56 +0200 (CEST)
+Received: by mail-wr1-f68.google.com with SMTP id c3so12245538wru.12
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:59:56 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	c12sm6135323wml.39.2020.06.13.02.59.52
+	y25sm19202814wmi.2.2020.06.13.02.59.54
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Sat, 13 Jun 2020 02:59:52 -0700 (PDT)
-Resent-Message-ID: <20200613095950.GU4222@soda.linbit>
-Received: from mail-pg1-f193.google.com (mail-pg1-f193.google.com
-	[209.85.215.193])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ABE014203B3
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 22:29:57 +0200 (CEST)
-Received: by mail-pg1-f193.google.com with SMTP id p21so3996442pgm.13
-	for <drbd-dev@lists.linbit.com>; Thu, 04 Jun 2020 13:29:57 -0700 (PDT)
+	Sat, 13 Jun 2020 02:59:54 -0700 (PDT)
+Resent-Message-ID: <20200613095953.GV4222@soda.linbit>
+Received: from mail-io1-f66.google.com (mail-io1-f66.google.com
+	[209.85.166.66])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 18B1A420302
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 22:58:14 +0200 (CEST)
+Received: by mail-io1-f66.google.com with SMTP id d5so7929704ios.9
+	for <drbd-dev@lists.linbit.com>; Thu, 04 Jun 2020 13:58:14 -0700 (PDT)
 MIME-Version: 1.0
 References: <20200603233203.1695403-1-keescook@chromium.org>
 	<20200603233203.1695403-6-keescook@chromium.org>
 	<CAKwvOdm5zDide5RuppY_jG=r46=UMdVJBrkBqD5x=dOMTG9cZg@mail.gmail.com>
 	<202006041318.B0EA9059C7@keescook>
 In-Reply-To: <202006041318.B0EA9059C7@keescook>
-From: Nick Desaulniers <ndesaulniers@google.com>
-Date: Thu, 4 Jun 2020 13:29:44 -0700
-Message-ID: <CAKwvOdk3Wc1gC0UMsFZsZqQ8n_bkPjNAJo5u3nfcyXcBaZCMHw@mail.gmail.com>
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Date: Thu, 4 Jun 2020 22:58:02 +0200
+Message-ID: <CA+icZUX7HE6cVoyiKtvOe85F+npUzGy5wmScTNCKRVeCEy8Juw@mail.gmail.com>
 To: Kees Cook <keescook@chromium.org>
 Content-Type: text/plain; charset="UTF-8"
 Cc: Andy Whitcroft <apw@canonical.com>,
+	linux-wireless <linux-wireless@vger.kernel.org>,
 	clang-built-linux <clang-built-linux@googlegroups.com>,
-	Saravana Kannan <saravanak@google.com>, linux-ide@vger.kernel.org,
-	Network Development <netdev@vger.kernel.org>,
+	linux-ide@vger.kernel.org, Network Development <netdev@vger.kernel.org>,
 	Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
 	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>,
-	linux-wireless <linux-wireless@vger.kernel.org>,
+	Nick Desaulniers <ndesaulniers@google.com>,
 	LKML <linux-kernel@vger.kernel.org>, linux-spi@vger.kernel.org,
 	linux-block@vger.kernel.org,
 	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
@@ -45,6 +45,7 @@ Cc: Andy Whitcroft <apw@canonical.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH 05/10] ide: Remove uninitialized_var() usage
+Reply-To: sedat.dilek@gmail.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,7 +57,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jun 4, 2020 at 1:20 PM Kees Cook <keescook@chromium.org> wrote:
+On Thu, Jun 4, 2020 at 10:20 PM Kees Cook <keescook@chromium.org> wrote:
 >
 > On Thu, Jun 04, 2020 at 12:29:17PM -0700, Nick Desaulniers wrote:
 > > On Wed, Jun 3, 2020 at 4:32 PM Kees Cook <keescook@chromium.org> wrote:
@@ -89,15 +90,17 @@ On Thu, Jun 4, 2020 at 1:20 PM Kees Cook <keescook@chromium.org> wrote:
 > changes backported into a -stable without -Wmaybe-uninitialized
 > disabled, but in these cases (variable removal), that actually does make
 > sense. Thanks!
+>
 
-Saravana showed me a cool trick for quickly finding commits that
-removed a particular identifier that I find faster than `git blame` or
-vim-fugitive for the purpose of Fixes tags:
-$ git log -S <string> <file>
-I've added it to our wiki:
-https://github.com/ClangBuiltLinux/linux/wiki/Command-line-tips-and-tricks#for-finding-which-commit-may-have-removed-a-string-try.
-I should update the first tip; what was your suggestion for
-constraining the search to the current remote?
--- 
-Thanks,
-~Nick Desaulniers
+Fixes tag does not automatically mean it is "for-stable".
+
+[1] says:
+
+> Patches that fix a severe bug in a released kernel should be directed
+> toward the stable maintainers by putting a line like this::
+>
+>   Cc: stable@vger.kernel.org
+
+- Sedat -
+
+[1] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/process/submitting-patches.rst#n299
