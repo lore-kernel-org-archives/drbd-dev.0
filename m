@@ -1,38 +1,34 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm1-f68.google.com (mail-wm1-f68.google.com
-	[209.85.128.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6C93A42042E
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:58:57 +0200 (CEST)
-Received: by mail-wm1-f68.google.com with SMTP id l26so10039626wme.3
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:58:57 -0700 (PDT)
+Received: from mail-wm1-f66.google.com (mail-wm1-f66.google.com
+	[209.85.128.66])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 22F9842042F
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:59:00 +0200 (CEST)
+Received: by mail-wm1-f66.google.com with SMTP id y20so10156090wmi.2
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:59:00 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	o10sm14086644wrq.40.2020.06.13.02.58.56
+	b132sm12745096wmh.3.2020.06.13.02.58.58
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Sat, 13 Jun 2020 02:58:56 -0700 (PDT)
-Resent-Message-ID: <20200613095854.GC4222@soda.linbit>
-Received: from mail-io1-f65.google.com (mail-io1-f65.google.com
-	[209.85.166.65])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 548D242030B
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 04:53:47 +0200 (CEST)
-Received: by mail-io1-f65.google.com with SMTP id h4so4658385iob.10
-	for <drbd-dev@lists.linbit.com>; Wed, 03 Jun 2020 19:53:46 -0700 (PDT)
-MIME-Version: 1.0
-References: <20200603233203.1695403-1-keescook@chromium.org>
-	<20200603233203.1695403-9-keescook@chromium.org>
-	<ff9087b0571e1fc499bd8a4c9fd99bfc0357f245.camel@perches.com>
-	<202006031838.55722640DC@keescook>
-	<6f921002478544217903ee4bfbe3c400e169687f.camel@perches.com>
-	<202006031944.9551FAA68E@keescook>
-In-Reply-To: <202006031944.9551FAA68E@keescook>
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Date: Thu, 4 Jun 2020 04:53:34 +0200
-Message-ID: <CA+icZUVg24VrpPgMdfsgPa+Wckci9XkzKUdtwhVB3ZW96uZOWw@mail.gmail.com>
+	Sat, 13 Jun 2020 02:58:58 -0700 (PDT)
+Resent-Message-ID: <20200613095857.GD4222@soda.linbit>
+Received: from mail-oi1-f194.google.com (mail-oi1-f194.google.com
+	[209.85.167.194])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 79F1742030B
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 05:33:20 +0200 (CEST)
+Received: by mail-oi1-f194.google.com with SMTP id t25so3846239oij.7
+	for <drbd-dev@lists.linbit.com>; Wed, 03 Jun 2020 20:33:19 -0700 (PDT)
+Date: Wed, 3 Jun 2020 20:33:15 -0700
+From: Nathan Chancellor <natechancellor@gmail.com>
 To: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset="UTF-8"
-Cc: Andy Whitcroft <apw@canonical.com>,
-	Clang-Built-Linux ML <clang-built-linux@googlegroups.com>,
+Message-ID: <20200604033315.GA1131596@ubuntu-n2-xlarge-x86>
+References: <20200603233203.1695403-1-keescook@chromium.org>
+	<20200603233203.1695403-10-keescook@chromium.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20200603233203.1695403-10-keescook@chromium.org>
+Cc: Andy Whitcroft <apw@canonical.com>, clang-built-linux@googlegroups.com,
 	linux-ide@vger.kernel.org, netdev@vger.kernel.org,
 	x86@kernel.org, linux-wireless@vger.kernel.org,
 	linux-kernel@vger.kernel.org, linux-spi@vger.kernel.org,
@@ -42,9 +38,8 @@ Cc: Andy Whitcroft <apw@canonical.com>,
 	b43-dev@lists.infradead.org, Joe Perches <joe@perches.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 08/10] checkpatch: Remove awareness of
-	uninitialized_var() macro
-Reply-To: sedat.dilek@gmail.com
+Subject: Re: [Drbd-dev] [PATCH 09/10] treewide: Remove uninitialized_var()
+	usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -56,93 +51,62 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Kees,
+On Wed, Jun 03, 2020 at 04:32:02PM -0700, Kees Cook wrote:
+> Using uninitialized_var() is dangerous as it papers over real bugs[1]
+> (or can in the future), and suppresses unrelated compiler warnings
+> (e.g. "unused variable"). If the compiler thinks it is uninitialized,
+> either simply initialize the variable or make compiler changes.
+> 
+> I preparation for removing[2] the[3] macro[4], remove all remaining
+> needless uses with the following script:
+> 
+> git grep '\buninitialized_var\b' | cut -d: -f1 | sort -u | \
+> 	xargs perl -pi -e \
+> 		's/\buninitialized_var\(([^\)]+)\)/\1/g;
+> 		 s:\s*/\* (GCC be quiet|to make compiler happy) \*/$::g;'
+> 
+> drivers/video/fbdev/riva/riva_hw.c was manually tweaked to avoid
+> pathological white-space.
+> 
+> No outstanding warnings were found building allmodconfig with GCC 9.3.0
+> for x86_64, i386, arm64, arm, powerpc, powerpc64le, s390x, mips, sparc64,
+> alpha, and m68k.
+> 
+> [1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
+> [2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
+> [3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
+> [4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
+> 
+> Signed-off-by: Kees Cook <keescook@chromium.org>
 
-can you push that change also to kees/linux.git#kspp/uninit/v5.7/macro ?
+<snip>
 
-Thanks in advance.
+> diff --git a/arch/powerpc/kvm/book3s_pr.c b/arch/powerpc/kvm/book3s_pr.c
+> index a0f6813f4560..a71fa7204882 100644
+> --- a/arch/powerpc/kvm/book3s_pr.c
+> +++ b/arch/powerpc/kvm/book3s_pr.c
+> @@ -1829,7 +1829,7 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
+>  {
+>  	int ret;
+>  #ifdef CONFIG_ALTIVEC
+> -	unsigned long uninitialized_var(vrsave);
+> +	unsigned long vrsave;
+>  #endif
 
-Regards,
-- Sedat -
+This variable is actually unused:
 
-[1] https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/log/?h=kspp/uninit/v5.7/macro
+../arch/powerpc/kvm/book3s_pr.c:1832:16: warning: unused variable 'vrsave' [-Wunused-variable]
+        unsigned long vrsave;
+                      ^
+1 warning generated.
 
-On Thu, Jun 4, 2020 at 4:44 AM Kees Cook <keescook@chromium.org> wrote:
->
-> On Wed, Jun 03, 2020 at 06:47:13PM -0700, Joe Perches wrote:
-> > On Wed, 2020-06-03 at 18:40 -0700, Kees Cook wrote:
-> > > On Wed, Jun 03, 2020 at 05:02:29PM -0700, Joe Perches wrote:
-> > > > On Wed, 2020-06-03 at 16:32 -0700, Kees Cook wrote:
-> > > > > Using uninitialized_var() is dangerous as it papers over real bugs[1]
-> > > > > (or can in the future), and suppresses unrelated compiler warnings
-> > > > > (e.g. "unused variable"). If the compiler thinks it is uninitialized,
-> > > > > either simply initialize the variable or make compiler changes.
-> > > > >
-> > > > > In preparation for removing[2] the[3] macro[4], effectively revert
-> > > > > commit 16b7f3c89907 ("checkpatch: avoid warning about uninitialized_var()")
-> > > > > and remove all remaining mentions of uninitialized_var().
-> > > > >
-> > > > > [1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
-> > > > > [2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
-> > > > > [3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
-> > > > > [4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
-> > > >
-> > > > nack.  see below.
-> > > >
-> > > > I'd prefer a simple revert, but it shouldn't
-> > > > be done here.
-> > >
-> > > What do you mean? (I can't understand this and "fine by me" below?)
-> >
-> > I did write "other than that"...
-> >
-> > I mean that the original commit fixed 2 issues,
-> > one with the uninitialized_var addition, and
-> > another with the missing void function declaration.
-> >
-> > I think I found the missing void function bit because
-> > the uninitialized_var use looked like a function so I
-> > fixed both things at the same time.
-> >
-> > If you change it, please just remove the bit that
-> > checks for uninitialized_var.
->
-> Ah! Gotcha. Thanks; I will update it.
->
-> -Kees
->
-> >
-> > Thanks, Joe
-> >
-> > > > > diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-> > > > []
-> > > > > @@ -4075,7 +4074,7 @@ sub process {
-> > > > >                 }
-> > > > >
-> > > > >  # check for function declarations without arguments like "int foo()"
-> > > > > -               if ($line =~ /(\b$Type\s*$Ident)\s*\(\s*\)/) {
-> > > > > +               if ($line =~ /(\b$Type\s+$Ident)\s*\(\s*\)/) {
-> > > >
-> > > > This isn't right because $Type includes a possible trailing *
-> > > > where there isn't a space between $Type and $Ident
-> > >
-> > > Ah, hm, that was changed in the mentioned commit:
-> > >
-> > > -               if ($line =~ /(\b$Type\s+$Ident)\s*\(\s*\)/) {
-> > > +               if ($line =~ /(\b$Type\s*$Ident)\s*\(\s*\)/) {
-> > >
-> > > > e.g.:     int *bar(void);
-> > > >
-> > > > Other than that, fine by me...
-> > >
-> > > Thanks for looking it over! I'll adjust it however you'd like. :)
-> > >
-> >
->
-> --
-> Kees Cook
->
-> --
-> You received this message because you are subscribed to the Google Groups "Clang Built Linux" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to clang-built-linux+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/clang-built-linux/202006031944.9551FAA68E%40keescook.
+It has been unused since commit 99dae3bad28d ("KVM: PPC: Load/save
+FP/VMX/VSX state directly to/from vcpu struct").
+
+$ git grep vrsave 99dae3bad28d8fdd32b7bfdd5e2ec7bb2d4d019d arch/powerpc/kvm/book3s_pr.c
+99dae3bad28d8fdd32b7bfdd5e2ec7bb2d4d019d:arch/powerpc/kvm/book3s_pr.c:  unsigned long uninitialized_var(vrsave);
+
+I would nuke the whole '#ifdef' block.
+
+Cheers,
+Nathan
