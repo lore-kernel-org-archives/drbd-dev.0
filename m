@@ -1,32 +1,31 @@
-Return-Path: <keescook@chromium.org>
-Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com
-	[209.85.210.195])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 86AEF420325
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 03:44:42 +0200 (CEST)
-Received: by mail-pf1-f195.google.com with SMTP id z64so2634040pfb.1
-	for <drbd-dev@lists.linbit.com>; Wed, 03 Jun 2020 18:44:42 -0700 (PDT)
-Date: Wed, 3 Jun 2020 18:44:39 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Sedat Dilek <sedat.dilek@gmail.com>
-Message-ID: <202006031840.E2F0D15D8B@keescook>
+Return-Path: <joe@perches.com>
+Received: from smtprelay.hostedemail.com (smtprelay0116.hostedemail.com
+	[216.40.44.116])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6A5FF4203DB
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 03:47:17 +0200 (CEST)
+Message-ID: <6f921002478544217903ee4bfbe3c400e169687f.camel@perches.com>
+From: Joe Perches <joe@perches.com>
+To: Kees Cook <keescook@chromium.org>
+Date: Wed, 03 Jun 2020 18:47:13 -0700
+In-Reply-To: <202006031838.55722640DC@keescook>
 References: <20200603233203.1695403-1-keescook@chromium.org>
-	<CA+icZUVZwjM9o7aNXAkYu8K2BQAajw=60varP4g+NizCqu5gRw@mail.gmail.com>
+	<20200603233203.1695403-9-keescook@chromium.org>
+	<ff9087b0571e1fc499bd8a4c9fd99bfc0357f245.camel@perches.com>
+	<202006031838.55722640DC@keescook>
+Content-Type: text/plain; charset="ISO-8859-1"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+icZUVZwjM9o7aNXAkYu8K2BQAajw=60varP4g+NizCqu5gRw@mail.gmail.com>
-Cc: Andy Whitcroft <apw@canonical.com>,
-	Clang-Built-Linux ML <clang-built-linux@googlegroups.com>,
-	linux-ide@vger.kernel.org, netdev@vger.kernel.org,
-	x86@kernel.org, linux-wireless@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-spi@vger.kernel.org,
-	linux-block@vger.kernel.org,
+Content-Transfer-Encoding: 7bit
+Cc: clang-built-linux@googlegroups.com, linux-ide@vger.kernel.org,
+	netdev@vger.kernel.org, x86@kernel.org,
+	linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-spi@vger.kernel.org, linux-block@vger.kernel.org,
 	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
 	linux-mm@kvack.org, Alexander Potapenko <glider@google.com>,
-	b43-dev@lists.infradead.org, Joe Perches <joe@perches.com>,
+	b43-dev@lists.infradead.org, Andy Whitcroft <apw@canonical.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 00/10] Remove uninitialized_var() macro
+Subject: Re: [Drbd-dev] [PATCH 08/10] checkpatch: Remove awareness of
+ uninitialized_var() macro
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,21 +37,66 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jun 04, 2020 at 03:23:28AM +0200, Sedat Dilek wrote:
-> what is the base for your patchset?
-
-Hi! This was actually on Linus's latest tree (which is basically -next),
-mostly because I figured this might be a bit of an RFC but if it was
-clean enough, it might actually make the merge window (I can dream).
-
-> I would like to test on top of Linux v5.7.
+On Wed, 2020-06-03 at 18:40 -0700, Kees Cook wrote:
+> On Wed, Jun 03, 2020 at 05:02:29PM -0700, Joe Perches wrote:
+> > On Wed, 2020-06-03 at 16:32 -0700, Kees Cook wrote:
+> > > Using uninitialized_var() is dangerous as it papers over real bugs[1]
+> > > (or can in the future), and suppresses unrelated compiler warnings
+> > > (e.g. "unused variable"). If the compiler thinks it is uninitialized,
+> > > either simply initialize the variable or make compiler changes.
+> > > 
+> > > In preparation for removing[2] the[3] macro[4], effectively revert
+> > > commit 16b7f3c89907 ("checkpatch: avoid warning about uninitialized_var()")
+> > > and remove all remaining mentions of uninitialized_var().
+> > > 
+> > > [1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
+> > > [2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
+> > > [3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
+> > > [4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
+> > 
+> > nack.  see below.
+> > 
+> > I'd prefer a simple revert, but it shouldn't
+> > be done here.
 > 
-> Can you place the series in your Git tree for easy fetching, please?
+> What do you mean? (I can't understand this and "fine by me" below?)
 
-Sure! https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git in
-the kspp/uninit/v5.7/macro branch. There were three small differences.
-I'm doing the "all my cross compilers allmodconfig" build run now, but
-figured I'd push it for you now so you didn't have to wait.
+I did write "other than that"...
 
--- 
-Kees Cook
+I mean that the original commit fixed 2 issues,
+one with the uninitialized_var addition, and
+another with the missing void function declaration.
+
+I think I found the missing void function bit because
+the uninitialized_var use looked like a function so I
+fixed both things at the same time.
+
+If you change it, please just remove the bit that
+checks for uninitialized_var.
+
+Thanks, Joe
+
+> > > diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+> > []
+> > > @@ -4075,7 +4074,7 @@ sub process {
+> > >  		}
+> > >  
+> > >  # check for function declarations without arguments like "int foo()"
+> > > -		if ($line =~ /(\b$Type\s*$Ident)\s*\(\s*\)/) {
+> > > +		if ($line =~ /(\b$Type\s+$Ident)\s*\(\s*\)/) {
+> > 
+> > This isn't right because $Type includes a possible trailing *
+> > where there isn't a space between $Type and $Ident
+> 
+> Ah, hm, that was changed in the mentioned commit:
+> 
+> -               if ($line =~ /(\b$Type\s+$Ident)\s*\(\s*\)/) {
+> +               if ($line =~ /(\b$Type\s*$Ident)\s*\(\s*\)/) {
+> 
+> > e.g.:	int *bar(void);
+> > 
+> > Other than that, fine by me...
+> 
+> Thanks for looking it over! I'll adjust it however you'd like. :)
+> 
+
