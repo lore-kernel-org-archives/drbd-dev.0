@@ -1,24 +1,25 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com
-	[209.85.210.196])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C830A420302
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 22:18:34 +0200 (CEST)
-Received: by mail-pf1-f196.google.com with SMTP id h185so3794113pfg.2
-	for <drbd-dev@lists.linbit.com>; Thu, 04 Jun 2020 13:18:34 -0700 (PDT)
-Date: Thu, 4 Jun 2020 13:18:31 -0700
+Received: from mail-pj1-f68.google.com (mail-pj1-f68.google.com
+	[209.85.216.68])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 00A0B4203B3
+	for <drbd-dev@lists.linbit.com>; Thu,  4 Jun 2020 22:20:02 +0200 (CEST)
+Received: by mail-pj1-f68.google.com with SMTP id b7so2497381pju.0
+	for <drbd-dev@lists.linbit.com>; Thu, 04 Jun 2020 13:20:02 -0700 (PDT)
+Date: Thu, 4 Jun 2020 13:20:00 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Nick Desaulniers <ndesaulniers@google.com>
-Message-ID: <202006041316.A15D952@keescook>
+Message-ID: <202006041318.B0EA9059C7@keescook>
 References: <20200603233203.1695403-1-keescook@chromium.org>
-	<20200603233203.1695403-4-keescook@chromium.org>
-	<CAKwvOdnNuFySqAMk7s_cXqFM=dPX4JfvqNVLCuj90Gn4tzciAw@mail.gmail.com>
+	<20200603233203.1695403-6-keescook@chromium.org>
+	<CAKwvOdm5zDide5RuppY_jG=r46=UMdVJBrkBqD5x=dOMTG9cZg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKwvOdnNuFySqAMk7s_cXqFM=dPX4JfvqNVLCuj90Gn4tzciAw@mail.gmail.com>
+In-Reply-To: <CAKwvOdm5zDide5RuppY_jG=r46=UMdVJBrkBqD5x=dOMTG9cZg@mail.gmail.com>
 Cc: Andy Whitcroft <apw@canonical.com>,
 	clang-built-linux <clang-built-linux@googlegroups.com>,
 	linux-ide@vger.kernel.org, Network Development <netdev@vger.kernel.org>,
+	Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
 	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>,
 	linux-wireless <linux-wireless@vger.kernel.org>,
 	LKML <linux-kernel@vger.kernel.org>, linux-spi@vger.kernel.org,
@@ -29,7 +30,7 @@ Cc: Andy Whitcroft <apw@canonical.com>,
 	b43-dev@lists.infradead.org, Joe Perches <joe@perches.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 03/10] b43: Remove uninitialized_var() usage
+Subject: Re: [Drbd-dev] [PATCH 05/10] ide: Remove uninitialized_var() usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,15 +42,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jun 04, 2020 at 01:08:44PM -0700, Nick Desaulniers wrote:
+On Thu, Jun 04, 2020 at 12:29:17PM -0700, Nick Desaulniers wrote:
 > On Wed, Jun 3, 2020 at 4:32 PM Kees Cook <keescook@chromium.org> wrote:
 > >
 > > Using uninitialized_var() is dangerous as it papers over real bugs[1]
 > > (or can in the future), and suppresses unrelated compiler warnings (e.g.
 > > "unused variable"). If the compiler thinks it is uninitialized, either
 > > simply initialize the variable or make compiler changes. As a precursor
-> > to removing[2] this[3] macro[4], just initialize this variable to NULL,
-> > and make the (unreachable!) code do a conditional test.
+> > to removing[2] this[3] macro[4], just remove this variable since it was
+> > actually unused:
+> >
+> > drivers/ide/ide-taskfile.c:232:34: warning: unused variable 'flags' [-Wunused-variable]
+> >         unsigned long uninitialized_var(flags);
+> >                                         ^
 > >
 > > [1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
 > > [2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
@@ -57,61 +62,17 @@ On Thu, Jun 04, 2020 at 01:08:44PM -0700, Nick Desaulniers wrote:
 > > [4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
 > >
 > > Signed-off-by: Kees Cook <keescook@chromium.org>
-> > ---
-> >  drivers/net/wireless/broadcom/b43/phy_n.c | 10 +++++++---
-> >  1 file changed, 7 insertions(+), 3 deletions(-)
-> >
-> > diff --git a/drivers/net/wireless/broadcom/b43/phy_n.c b/drivers/net/wireless/broadcom/b43/phy_n.c
-> > index d3c001fa8eb4..88cdcea10d61 100644
-> > --- a/drivers/net/wireless/broadcom/b43/phy_n.c
-> > +++ b/drivers/net/wireless/broadcom/b43/phy_n.c
-> > @@ -4222,7 +4222,7 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
 > 
-> The TODOs and `#if 0` in this function are concerning.  It looks like
-> `rf_pwr_offset_table` is only used when `phy->rev` is >=7 && < 19.
-> 
-> Further, the loop has a case for `phy->rev >= 19` but we would have
-> returned earlier if that was the case.
+> Reviewed-by: Nick Desaulniers <ndesaulniers@google.com>
 
-Yeah, that's why I put the "(unreachable!)" note in the commit log. ;)
+Thanks for the reviews!
 
-> 
-> >         u32 rfpwr_offset;
-> >         u8 pga_gain, pad_gain;
-> >         int i;
-> > -       const s16 *uninitialized_var(rf_pwr_offset_table);
-> > +       const s16 *rf_pwr_offset_table = NULL;
-> >
-> >         table = b43_nphy_get_tx_gain_table(dev);
-> >         if (!table)
-> > @@ -4256,9 +4256,13 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
-> >                         pga_gain = (table[i] >> 24) & 0xf;
-> >                         pad_gain = (table[i] >> 19) & 0x1f;
-> >                         if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
-> > -                               rfpwr_offset = rf_pwr_offset_table[pad_gain];
-> > +                               rfpwr_offset = rf_pwr_offset_table
-> > +                                               ? rf_pwr_offset_table[pad_gain]
-> > +                                               : 0;
-> >                         else
-> > -                               rfpwr_offset = rf_pwr_offset_table[pga_gain];
-> > +                               rfpwr_offset = rf_pwr_offset_table
-> > +                                               ? rf_pwr_offset_table[pga_gain]
-> > +                                               : 0;
-> 
-> 
-> The code is trying to check `phy->rev >= 7 && phy->rev < 19` once
-> before the loop, then set `rf_pwr_offset_table`, so having another
-> conditional on `rf_pwr_offset_table` in the loop is unnecessary. I'm
-> ok with initializing it to `NULL`, but I'm not sure the conditional
-> check is necessary.  Do you get a compiler warning otherwise?
+> Fixes ce1e518190ea ("ide: don't disable interrupts during kmap_atomic()")
 
-I mean, sort of the best thing to do is just remove nearly everything
-here since it's actually unreachable. But it is commented as "when
-supported ..." etc, so I figured I'd leave it. As part of that I didn't
-want to leave any chance of a NULL deref, so I added the explicit tests
-just for robustness.
-
-*shrug*
+I originally avoided adding Fixes tags because I didn't want these
+changes backported into a -stable without -Wmaybe-uninitialized
+disabled, but in these cases (variable removal), that actually does make
+sense. Thanks!
 
 -Kees
 
