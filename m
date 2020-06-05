@@ -1,17 +1,17 @@
 Return-Path: <bounce+218ee0.be9e4a-drbd-dev=lists.linbit.com@mg.codeaurora.org>
 Received: from mail27.static.mailgun.info (mail27.static.mailgun.info
 	[104.130.122.27])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8DB48420311
-	for <drbd-dev@lists.linbit.com>; Fri,  5 Jun 2020 11:26:19 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A081E420311
+	for <drbd-dev@lists.linbit.com>; Fri,  5 Jun 2020 11:30:38 +0200 (CEST)
 Sender: kvalo=codeaurora.org@mg.codeaurora.org
 From: Kalle Valo <kvalo@codeaurora.org>
 To: Kees Cook <keescook@chromium.org>
 References: <20200603233203.1695403-1-keescook@chromium.org>
-	<20200603233203.1695403-4-keescook@chromium.org>
-Date: Fri, 05 Jun 2020 12:20:55 +0300
-In-Reply-To: <20200603233203.1695403-4-keescook@chromium.org> (Kees Cook's
-	message of "Wed, 3 Jun 2020 16:31:56 -0700")
-Message-ID: <87d06dg96w.fsf@tynnyri.adurom.net>
+	<20200603233203.1695403-10-keescook@chromium.org>
+Date: Fri, 05 Jun 2020 12:25:05 +0300
+In-Reply-To: <20200603233203.1695403-10-keescook@chromium.org> (Kees Cook's
+	message of "Wed, 3 Jun 2020 16:32:02 -0700")
+Message-ID: <878sh1g8zy.fsf@tynnyri.adurom.net>
 MIME-Version: 1.0
 Content-Type: text/plain
 Cc: Andy Whitcroft <apw@canonical.com>, clang-built-linux@googlegroups.com,
@@ -24,7 +24,8 @@ Cc: Andy Whitcroft <apw@canonical.com>, clang-built-linux@googlegroups.com,
 	b43-dev@lists.infradead.org, Joe Perches <joe@perches.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 03/10] b43: Remove uninitialized_var() usage
+Subject: Re: [Drbd-dev] [PATCH 09/10] treewide: Remove uninitialized_var()
+	usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,11 +40,24 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Kees Cook <keescook@chromium.org> writes:
 
 > Using uninitialized_var() is dangerous as it papers over real bugs[1]
-> (or can in the future), and suppresses unrelated compiler warnings (e.g.
-> "unused variable"). If the compiler thinks it is uninitialized, either
-> simply initialize the variable or make compiler changes. As a precursor
-> to removing[2] this[3] macro[4], just initialize this variable to NULL,
-> and make the (unreachable!) code do a conditional test.
+> (or can in the future), and suppresses unrelated compiler warnings
+> (e.g. "unused variable"). If the compiler thinks it is uninitialized,
+> either simply initialize the variable or make compiler changes.
+>
+> I preparation for removing[2] the[3] macro[4], remove all remaining
+> needless uses with the following script:
+>
+> git grep '\buninitialized_var\b' | cut -d: -f1 | sort -u | \
+> 	xargs perl -pi -e \
+> 		's/\buninitialized_var\(([^\)]+)\)/\1/g;
+> 		 s:\s*/\* (GCC be quiet|to make compiler happy) \*/$::g;'
+>
+> drivers/video/fbdev/riva/riva_hw.c was manually tweaked to avoid
+> pathological white-space.
+>
+> No outstanding warnings were found building allmodconfig with GCC 9.3.0
+> for x86_64, i386, arm64, arm, powerpc, powerpc64le, s390x, mips, sparc64,
+> alpha, and m68k.
 >
 > [1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
 > [2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
@@ -54,21 +68,23 @@ Kees Cook <keescook@chromium.org> writes:
 
 [...]
 
-> @@ -4256,9 +4256,13 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
->  			pga_gain = (table[i] >> 24) & 0xf;
->  			pad_gain = (table[i] >> 19) & 0x1f;
->  			if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
-> -				rfpwr_offset = rf_pwr_offset_table[pad_gain];
-> +				rfpwr_offset = rf_pwr_offset_table
-> +						? rf_pwr_offset_table[pad_gain]
-> +						: 0;
->  			else
-> -				rfpwr_offset = rf_pwr_offset_table[pga_gain];
-> +				rfpwr_offset = rf_pwr_offset_table
-> +						? rf_pwr_offset_table[pga_gain]
-> +						: 0;
+>  drivers/net/wireless/ath/ath10k/core.c           |  2 +-
+>  drivers/net/wireless/ath/ath6kl/init.c           |  2 +-
+>  drivers/net/wireless/ath/ath9k/init.c            |  2 +-
+>  drivers/net/wireless/broadcom/b43/debugfs.c      |  2 +-
+>  drivers/net/wireless/broadcom/b43/dma.c          |  2 +-
+>  drivers/net/wireless/broadcom/b43/lo.c           |  2 +-
+>  drivers/net/wireless/broadcom/b43/phy_n.c        |  2 +-
+>  drivers/net/wireless/broadcom/b43/xmit.c         | 12 ++++++------
+>  .../net/wireless/broadcom/b43legacy/debugfs.c    |  2 +-
+>  drivers/net/wireless/broadcom/b43legacy/main.c   |  2 +-
+>  drivers/net/wireless/intel/iwlegacy/3945.c       |  2 +-
+>  drivers/net/wireless/intel/iwlegacy/4965-mac.c   |  2 +-
+>  .../net/wireless/realtek/rtlwifi/rtl8192cu/hw.c  |  4 ++--
 
-To me this is ugly, isn't there a better way to fix this?
+For wireless drivers:
+
+Acked-by: Kalle Valo <kvalo@codeaurora.org>
 
 -- 
 https://wireless.wiki.kernel.org/en/developers/documentation/submittingpatches
