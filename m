@@ -1,30 +1,31 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
-	[209.85.221.67])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1B1114203FD
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:57:22 +0200 (CEST)
-Received: by mail-wr1-f67.google.com with SMTP id t18so12294563wru.6
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:57:22 -0700 (PDT)
+Received: from mail-wm1-f66.google.com (mail-wm1-f66.google.com
+	[209.85.128.66])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A83934203FE
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:57:24 +0200 (CEST)
+Received: by mail-wm1-f66.google.com with SMTP id r9so10050191wmh.2
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:57:24 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	a81sm13449773wmd.25.2020.06.13.02.57.20
+	u3sm13108361wmg.38.2020.06.13.02.57.23
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Sat, 13 Jun 2020 02:57:21 -0700 (PDT)
-Resent-Message-ID: <20200613095719.GX4222@soda.linbit>
+	Sat, 13 Jun 2020 02:57:23 -0700 (PDT)
+Resent-Message-ID: <20200613095721.GY4222@soda.linbit>
 Received: from eu-smtp-delivery-151.mimecast.com
-	(eu-smtp-delivery-151.mimecast.com [207.82.80.151])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5C2FE4202B5
-	for <drbd-dev@lists.linbit.com>; Thu, 14 May 2020 14:30:20 +0200 (CEST)
+	(eu-smtp-delivery-151.mimecast.com [146.101.78.151])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 07E524203C1
+	for <drbd-dev@lists.linbit.com>; Thu, 14 May 2020 15:27:49 +0200 (CEST)
 From: David Laight <David.Laight@ACULAB.COM>
 To: 'Marcelo Ricardo Leitner' <marcelo.leitner@gmail.com>, 'Christoph Hellwig'
 	<hch@lst.de>
-Message-ID: <c66e0309572345f5b0f32d078701f2d7@AcuMS.aculab.com>
+Message-ID: <aff8f5ec8d6d44dbace63825af197086@AcuMS.aculab.com>
 References: <20200513062649.2100053-1-hch@lst.de>
 	<20200513062649.2100053-33-hch@lst.de>
 	<20200513180302.GC2491@localhost.localdomain>
 	<d112e18bfbdd40dfb219ed2c1f2082d4@AcuMS.aculab.com>
-In-Reply-To: <d112e18bfbdd40dfb219ed2c1f2082d4@AcuMS.aculab.com>
+	<c66e0309572345f5b0f32d078701f2d7@AcuMS.aculab.com>
+In-Reply-To: <c66e0309572345f5b0f32d078701f2d7@AcuMS.aculab.com>
 Content-Language: en-US
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -63,38 +64,48 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Sat, 13 Jun 2020 10:06:45 -0000
+Date: Sat, 13 Jun 2020 10:07:15 -0000
 
 From: David Laight
-> Sent: 14 May 2020 10:51
-> From: Marcelo Ricardo Leitner
-> > Sent: 13 May 2020 19:03
-> >
-> > On Wed, May 13, 2020 at 08:26:47AM +0200, Christoph Hellwig wrote:
-> > > Add a helper to directly get the SCTP_PRIMARY_ADDR sockopt from kerne=
-l
-> > > space without going through a fake uaccess.
-> >
-> > Same comment as on the other dlm/sctp patch.
+> Sent: 14 May 2020 13:30
+> Subject: RE: [PATCH 32/33] sctp: add sctp_sock_get_primary_addr
 >=20
-> Wouldn't it be best to write sctp_[gs]etsockotp() that
-> use a kernel buffer and then implement the user-space
-> calls using a wrapper that does the copies to an on-stack
-> (or malloced if big) buffer.
+> From: David Laight
+> > Sent: 14 May 2020 10:51
+> > From: Marcelo Ricardo Leitner
+> > > Sent: 13 May 2020 19:03
+> > >
+> > > On Wed, May 13, 2020 at 08:26:47AM +0200, Christoph Hellwig wrote:
+> > > > Add a helper to directly get the SCTP_PRIMARY_ADDR sockopt from ker=
+nel
+> > > > space without going through a fake uaccess.
+> > >
+> > > Same comment as on the other dlm/sctp patch.
+> >
+> > Wouldn't it be best to write sctp_[gs]etsockotp() that
+> > use a kernel buffer and then implement the user-space
+> > calls using a wrapper that does the copies to an on-stack
+> > (or malloced if big) buffer.
+>=20
+> Actually looking at __sys_setsockopt() it calls
+> BPF_CGROUP_RUN_PROG_SETSOCKOPT() which (by the look of it)
+> can copy the user buffer into malloc()ed memory and
+> cause set_fs(KERNEL_DS) be called.
+>=20
+> The only way to get rid of that set_fs() is to always
+> have the buffer in kernel memory when the underlying
+> setsockopt() code is called.
 
-Actually looking at __sys_setsockopt() it calls
-BPF_CGROUP_RUN_PROG_SETSOCKOPT() which (by the look of it)
-can copy the user buffer into malloc()ed memory and
-cause set_fs(KERNEL_DS) be called.
+And having started to try coding __sys_setsockopt()
+and then found the compat code I suspect that would
+be a whole lot more sane if the buffer was in kernel
+and it knew that at least (say) 64 bytes were allocated.
 
-The only way to get rid of that set_fs() is to always
-have the buffer in kernel memory when the underlying
-setsockopt() code is called.
+The whole compat_alloc_user_space() 'crap' could probably go.
 
-The comment above __sys_[sg]etsockopt() about not knowing
-the length is just wrong.
-It probably applied to getsockopt() in the dim and distant
-past before it was made read-update.
+Actually it looks like an application can avoid whatever
+checks BPF_CGROUP_RUN_PROG_SETSOCKOPT() is trying to do
+by using the 32bit compat ioctls.
 
 =09David
 
