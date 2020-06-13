@@ -1,29 +1,31 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm1-f49.google.com (mail-wm1-f49.google.com
-	[209.85.128.49])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 44558420408
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:57:16 +0200 (CEST)
-Received: by mail-wm1-f49.google.com with SMTP id d128so10159028wmc.1
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:57:16 -0700 (PDT)
+Received: from mail-wm1-f50.google.com (mail-wm1-f50.google.com
+	[209.85.128.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EE3D14203FB
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:57:19 +0200 (CEST)
+Received: by mail-wm1-f50.google.com with SMTP id r9so10050077wmh.2
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:57:19 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	c70sm12134011wme.32.2020.06.13.02.57.15
+	f185sm13119009wmf.43.2020.06.13.02.57.18
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Sat, 13 Jun 2020 02:57:15 -0700 (PDT)
-Resent-Message-ID: <20200613095714.GV4222@soda.linbit>
+	Sat, 13 Jun 2020 02:57:18 -0700 (PDT)
+Resent-Message-ID: <20200613095716.GW4222@soda.linbit>
 Received: from eu-smtp-delivery-151.mimecast.com
 	(eu-smtp-delivery-151.mimecast.com [146.101.78.151])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 48DDC4202B5
-	for <drbd-dev@lists.linbit.com>; Thu, 14 May 2020 12:26:44 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A3B58420229
+	for <drbd-dev@lists.linbit.com>; Thu, 14 May 2020 13:11:37 +0200 (CEST)
 From: David Laight <David.Laight@ACULAB.COM>
 To: 'Christoph Hellwig' <hch@lst.de>
-Message-ID: <a76440f7305c4653877ff2abff499f4e@AcuMS.aculab.com>
+Message-ID: <c2034daa0a23454abb5e5c5714807735@AcuMS.aculab.com>
 References: <20200513062649.2100053-1-hch@lst.de>
 	<ecc165c33962d964d518c80de605af632eee0474.camel@perches.com>
 	<756758e8f0e34e2e97db470609f5fbba@AcuMS.aculab.com>
 	<20200514101838.GA12548@lst.de>
-In-Reply-To: <20200514101838.GA12548@lst.de>
+	<a76440f7305c4653877ff2abff499f4e@AcuMS.aculab.com>
+	<20200514103450.GA12901@lst.de>
+In-Reply-To: <20200514103450.GA12901@lst.de>
 Content-Language: en-US
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -63,21 +65,24 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Sat, 13 Jun 2020 10:05:45 -0000
+Date: Sat, 13 Jun 2020 10:06:15 -0000
 
-From: Christoph Hellwig
-> Only for those were we have users, and all those are covered.
+From: 'Christoph Hellwig'
+> Sent: 14 May 2020 11:35
+> On Thu, May 14, 2020 at 10:26:41AM +0000, David Laight wrote:
+> > From: Christoph Hellwig
+> > > Only for those were we have users, and all those are covered.
+> >
+> > What do we tell all our users when our kernel SCTP code
+> > no longer works?
+>=20
+> We only care about in-tree modules, just like for every other interface
+> in the kernel.
 
-What do we tell all our users when our kernel SCTP code
-no longer works?
-
-It uses SO_REUSADDR, SCTP_EVENTS, SCTP_NODELAY,
-SCTP_STATUS, SCTP_INITMSG, IPV6_ONLY, SCTP_SOCKOPT_BINDX_ADD
-and SO_LINGER.
-We should probably use the CONNECTX function as well.
-
-I doubt we are the one company with out-of-tree drivers
-that use the kernel_socket interface.
+Even if our management agreed to release the code and the code
+layout matched the kernel guidelines you still wouldn't want
+two large drivers that implement telephony functionality
+for hardware that very few people actually have.
 
 =09David
 
