@@ -1,36 +1,29 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com
-	[209.85.221.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 96B054203F3
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:56:19 +0200 (CEST)
-Received: by mail-wr1-f68.google.com with SMTP id y17so12253432wrn.11
-	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:56:19 -0700 (PDT)
+Received: from mail-wm1-f66.google.com (mail-wm1-f66.google.com
+	[209.85.128.66])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C40564203EA
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 11:56:22 +0200 (CEST)
+Received: by mail-wm1-f66.google.com with SMTP id q25so10174274wmj.0
+	for <drbd-dev@lists.linbit.com>; Sat, 13 Jun 2020 02:56:22 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	u3sm13104566wmg.38.2020.06.13.02.56.18
+	j16sm16459416wre.21.2020.06.13.02.56.21
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Sat, 13 Jun 2020 02:56:18 -0700 (PDT)
-Resent-Message-ID: <20200613095616.GD4222@soda.linbit>
-Received: from merlin.infradead.org (merlin.infradead.org [205.233.59.134])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 04C2A420313
-	for <drbd-dev@lists.linbit.com>; Thu, 23 Apr 2020 12:06:39 +0200 (CEST)
-Resent-Message-ID: <20200423090828.GV20760@hirez.programming.kicks-ass.net>
-From: Peter Zijlstra <peterz@infradead.org>
-To: mingo@kernel.org, linux-kernel@vger.kernel.org
-Message-ID: <20200423085735.GU20713@hirez.programming.kicks-ass.net>
-References: <20200422112719.826676174@infradead.org>
-	<20200422112831.515522261@infradead.org>
+	Sat, 13 Jun 2020 02:56:21 -0700 (PDT)
+Resent-Message-ID: <20200613095619.GE4222@soda.linbit>
+Received: from mail-il1-f172.google.com (mail-il1-f172.google.com
+	[209.85.166.172])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A533942000B
+	for <drbd-dev@lists.linbit.com>; Fri, 24 Apr 2020 15:23:09 +0200 (CEST)
+Received: by mail-il1-f172.google.com with SMTP id u5so9248875ilb.5
+	for <drbd-dev@lists.linbit.com>; Fri, 24 Apr 2020 06:23:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20200422112831.515522261@infradead.org>
-Cc: juri.lelli@redhat.com, axboe@kernel.dk, vincent.guittot@linaro.org,
-	rostedt@goodmis.org, dietmar.eggemann@arm.com,
-	bsegall@google.com, mgorman@suse.de, tglx@linutronix.de,
-	qais.yousef@arm.com
-Subject: Re: [Drbd-dev] [PATCH 05/23] sched,
-	drbd: Convert to sched_set_fifo*()
+From: Sooth Sayuh <soothsayuh@gmail.com>
+Message-ID: <CAJY+Dk84F0rtQb6tp+MgT_Ch=Scst0dyJYFN1d6Ng3Tn7i_hwA@mail.gmail.com>
+To: drbd-dev@lists.linbit.com
+Content-Type: multipart/alternative; boundary="00000000000022b80a05a4094451"
+Subject: [Drbd-dev] error during ./configure of drbd-utils-9.12.2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,48 +34,78 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Sat, 13 Jun 2020 09:56:45 -0000
+Date: Sat, 13 Jun 2020 09:57:15 -0000
 
-On Wed, Apr 22, 2020 at 01:27:24PM +0200, Peter Zijlstra wrote:
-> Because SCHED_FIFO is a broken scheduler model (see previous patches)
-> take away the priority field, the kernel can't possibly make an
-> informed decision.
-> 
-> In this case, use fifo_low, because it only cares about being above
-> SCHED_NORMAL. Effectively changes prio from 2 to 1.
-> 
-> Cc: axboe@kernel.dk
-> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-> Reviewed-by: Ingo Molnar <mingo@kernel.org>
-> ---
->  drivers/block/drbd/drbd_receiver.c |    3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> --- a/drivers/block/drbd/drbd_receiver.c
-> +++ b/drivers/block/drbd/drbd_receiver.c
-> @@ -6020,9 +6020,8 @@ int drbd_ack_receiver(struct drbd_thread
->  	unsigned int header_size = drbd_header_size(connection);
->  	int expect   = header_size;
->  	bool ping_timeout_active = false;
-> -	struct sched_param param = { .sched_priority = 2 };
->  
-> -	rv = sched_setscheduler(current, SCHED_RR, &param);
-> +	rv = sched_set_fifo_low(current);
+--00000000000022b80a05a4094451
+Content-Type: text/plain; charset="UTF-8"
 
-As noted by Dietmar, I forgot to mention loosing RR in the changelog,
-bad me.
+running ./configure for drbd-utils-9.12.2 i get this:
 
-In this case I'm not actually 100% sure, but there was no comment with
-it that justified it being RR, and RR-SMP is not optimal (in fact it's
-rather buggered).
+checking for stdint.h... yes
+checking for unistd.h... yes
+checking linux/genetlink.h usability... no
+checking linux/genetlink.h presence... yes
+configure: WARNING: linux/genetlink.h: present but cannot be compiled
+configure: WARNING: linux/genetlink.h:     check for missing prerequisite
+headers?
+configure: WARNING: linux/genetlink.h: see the Autoconf documentation
+configure: WARNING: linux/genetlink.h:     section "Present But Cannot Be
+Compiled"
+configure: WARNING: linux/genetlink.h: proceeding with the compiler's result
+configure: WARNING:     ## ---------------------------------------- ##
+configure: WARNING:     ## Report this to drbd-dev@lists.linbit.com ##
+configure: WARNING:     ## ---------------------------------------- ##
+checking for linux/genetlink.h... no
+configure: error: Could not find linux/genetlink.h
 
-In general RR is even more 'interesting' to get right thatn FIFO and
-therefore I figured it probably didn't want to be RR, but given there
-can be multiple of such threads, it might have been an attempt at
-providing some sort of fairness between the multiple threads.
+kernel is 4.1.12-124.26.12.el6uek.x86_64
+---------------------------------------------------------------
+also this is a special system with certain packages installed with hard
+dependencies.  I had to force install libdtrace-ctf-0.8.0-1.el6.x86_64 to
+get drbd to compile.
+---------------------------------------------------------------
+lastly - now when i run most drbdadm commands i see this:
+[root@ct-broom-03 drbd.d]# drbdadm up r0
+API mismatch!
+        API version drbdsetup: 1 kernel: 2
+        header size drbdsetup: 8 kernel: 8
+Command 'drbdsetup new-resource r0 0' terminated with exit code 20
+drbdadm: new-minor r0: skipped due to earlier error
 
-At the same time, if you're running the threads so hard that RR makes a
-difference, it's unlikely there is any actual NORMAL time left and
-things will be unhappy anyway.
+I cannot seem to find a solution to that...could it be my forced rpm
+install?
 
-Therefore, and me being lazy, make it FIFO.
+--00000000000022b80a05a4094451
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">running ./configure for drbd-utils-9.12.2 i get this:<div>=
+<br></div><div>checking for stdint.h... yes<br>checking for unistd.h... yes=
+<br>checking linux/genetlink.h usability... no<br>checking linux/genetlink.=
+h presence... yes<br>configure: WARNING: linux/genetlink.h: present but can=
+not be compiled<br>configure: WARNING: linux/genetlink.h: =C2=A0 =C2=A0 che=
+ck for missing prerequisite headers?<br>configure: WARNING: linux/genetlink=
+.h: see the Autoconf documentation<br>configure: WARNING: linux/genetlink.h=
+: =C2=A0 =C2=A0 section &quot;Present But Cannot Be Compiled&quot;<br>confi=
+gure: WARNING: linux/genetlink.h: proceeding with the compiler&#39;s result=
+<br>configure: WARNING: =C2=A0 =C2=A0 ## ----------------------------------=
+------ ##<br>configure: WARNING: =C2=A0 =C2=A0 ## Report this to <a href=3D=
+"mailto:drbd-dev@lists.linbit.com">drbd-dev@lists.linbit.com</a> ##<br>conf=
+igure: WARNING: =C2=A0 =C2=A0 ## ---------------------------------------- #=
+#<br>checking for linux/genetlink.h... no<br>configure: error: Could not fi=
+nd linux/genetlink.h<br></div><div><br></div><div>kernel is 4.1.12-124.26.1=
+2.el6uek.x86_64</div><div>-------------------------------------------------=
+--------------</div><div>also this is a special system with certain package=
+s installed with hard dependencies.=C2=A0 I had to force install=C2=A0libdt=
+race-ctf-0.8.0-1.el6.x86_64 to get drbd to compile.</div><div><div>--------=
+-------------------------------------------------------</div><div></div></d=
+iv><div>lastly - now when i run most drbdadm commands i see this:</div><div=
+>[root@ct-broom-03 drbd.d]# drbdadm up r0<br>API mismatch!<br>=C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 API version drbdsetup: 1 kernel: 2<br>=C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 header size drbdsetup: 8 kernel: 8<br>Command &#39;drbdsetup new-res=
+ource r0 0&#39; terminated with exit code 20<br>drbdadm: new-minor r0: skip=
+ped due to earlier error<br></div><div><br></div><div>I cannot seem to find=
+ a solution to that...could it be my forced rpm install?</div><div><br></di=
+v></div>
+
+--00000000000022b80a05a4094451--
