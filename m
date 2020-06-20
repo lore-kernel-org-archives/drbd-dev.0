@@ -1,14 +1,14 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com
-	[209.85.214.194])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 560EB42038C
-	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 05:30:20 +0200 (CEST)
-Received: by mail-pl1-f194.google.com with SMTP id 35so4824581ple.0
-	for <drbd-dev@lists.linbit.com>; Fri, 19 Jun 2020 20:30:20 -0700 (PDT)
+Received: from mail-pl1-f195.google.com (mail-pl1-f195.google.com
+	[209.85.214.195])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9069E4203BB
+	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 05:30:21 +0200 (CEST)
+Received: by mail-pl1-f195.google.com with SMTP id k6so4798931pll.9
+	for <drbd-dev@lists.linbit.com>; Fri, 19 Jun 2020 20:30:21 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
 To: linux-kernel@vger.kernel.org
-Date: Fri, 19 Jun 2020 20:29:52 -0700
-Message-Id: <20200620033007.1444705-2-keescook@chromium.org>
+Date: Fri, 19 Jun 2020 20:29:53 -0700
+Message-Id: <20200620033007.1444705-3-keescook@chromium.org>
 In-Reply-To: <20200620033007.1444705-1-keescook@chromium.org>
 References: <20200620033007.1444705-1-keescook@chromium.org>
 MIME-Version: 1.0
@@ -24,8 +24,8 @@ Cc: Andy Whitcroft <apw@canonical.com>, Kees Cook <keescook@chromium.org>,
 	Joe Perches <joe@perches.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 01/16] docs: deprecated.rst: Add
-	uninitialized_var()
+Subject: [Drbd-dev] [PATCH v2 02/16] x86/mm/numa: Remove uninitialized_var()
+	usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,43 +37,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Nothing should be using this macro, and the entire idea of tricking the
-compiler into silencing such warnings is a mistake.
+Using uninitialized_var() is dangerous as it papers over real bugs[1]
+(or can in the future), and suppresses unrelated compiler warnings (e.g.
+"unused variable"). If the compiler thinks it is uninitialized, either
+simply initialize the variable or make compiler changes. As a precursor
+to removing[2] this[3] macro[4], refactor code to avoid its need.
 
+The original reason for its use here was to work around the #ifdef
+being the only place the variable was used. This is better expressed
+using IS_ENABLED() and a new code block where the variable can be used
+unconditionally.
+
+[1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
+[2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
+[3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
+[4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
+
+Fixes: 1e01979c8f50 ("x86, numa: Implement pfn -> nid mapping granularity check")
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- Documentation/process/deprecated.rst | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ arch/x86/mm/numa.c                | 18 +++++++++---------
+ include/linux/page-flags-layout.h |  4 +++-
+ 2 files changed, 12 insertions(+), 10 deletions(-)
 
-diff --git a/Documentation/process/deprecated.rst b/Documentation/process/deprecated.rst
-index 652e2aa02a66..943a926ecbbb 100644
---- a/Documentation/process/deprecated.rst
-+++ b/Documentation/process/deprecated.rst
-@@ -51,6 +51,24 @@ to make sure their systems do not continue running in the face of
- "unreachable" conditions. (For example, see commits like `this one
- <https://git.kernel.org/linus/d4689846881d160a4d12a514e991a740bcb5d65a>`_.)
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 8ee952038c80..b05f45e5e8e2 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -543,7 +543,6 @@ static void __init numa_clear_kernel_node_hotplug(void)
  
-+uninitialized_var()
-+-------------------
-+For any compiler warnings about uninitialized variables, just add
-+an initializer. Using the uninitialized_var() macro (or similar
-+warning-silencing tricks) is dangerous as it papers over `real bugs
-+<https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/>`_
-+(or can in the future), and suppresses unrelated compiler warnings
-+(e.g. "unused variable"). If the compiler thinks it is uninitialized,
-+either simply initialize the variable or make compiler changes. Keep in
-+mind that in most cases, if an initialization is obviously redundant,
-+the compiler's dead-store elimination pass will make sure there are no
-+needless variable writes.
+ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ {
+-	unsigned long uninitialized_var(pfn_align);
+ 	int i, nid;
+ 
+ 	/* Account for nodes with cpus and no memory */
+@@ -571,15 +570,16 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ 	 * If sections array is gonna be used for pfn -> nid mapping, check
+ 	 * whether its granularity is fine enough.
+ 	 */
+-#ifdef NODE_NOT_IN_PAGE_FLAGS
+-	pfn_align = node_map_pfn_alignment();
+-	if (pfn_align && pfn_align < PAGES_PER_SECTION) {
+-		printk(KERN_WARNING "Node alignment %LuMB < min %LuMB, rejecting NUMA config\n",
+-		       PFN_PHYS(pfn_align) >> 20,
+-		       PFN_PHYS(PAGES_PER_SECTION) >> 20);
+-		return -EINVAL;
++	if (IS_ENABLED(NODE_NOT_IN_PAGE_FLAGS)) {
++		unsigned long pfn_align = node_map_pfn_alignment();
 +
-+As Linus has said, this macro
-+`must <https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/>`_
-+`be <https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/>`_
-+`removed <https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/>`_.
-+
- open-coded arithmetic in allocator arguments
- --------------------------------------------
- Dynamic size calculations (especially multiplication) should not be
++		if (pfn_align && pfn_align < PAGES_PER_SECTION) {
++			pr_warn("Node alignment %LuMB < min %LuMB, rejecting NUMA config\n",
++				PFN_PHYS(pfn_align) >> 20,
++				PFN_PHYS(PAGES_PER_SECTION) >> 20);
++			return -EINVAL;
++		}
+ 	}
+-#endif
+ 	if (!numa_meminfo_cover_memory(mi))
+ 		return -EINVAL;
+ 
+diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
+index 71283739ffd2..e200eef6a7fd 100644
+--- a/include/linux/page-flags-layout.h
++++ b/include/linux/page-flags-layout.h
+@@ -98,9 +98,11 @@
+ /*
+  * We are going to use the flags for the page to node mapping if its in
+  * there.  This includes the case where there is no node, so it is implicit.
++ * Note that this #define MUST have a value so that it can be tested with
++ * the IS_ENABLED() macro.
+  */
+ #if !(NODES_WIDTH > 0 || NODES_SHIFT == 0)
+-#define NODE_NOT_IN_PAGE_FLAGS
++#define NODE_NOT_IN_PAGE_FLAGS 1
+ #endif
+ 
+ #if defined(CONFIG_NUMA_BALANCING) && LAST_CPUPID_WIDTH == 0
 -- 
 2.25.1
 
