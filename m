@@ -1,22 +1,21 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pj1-f67.google.com (mail-pj1-f67.google.com
-	[209.85.216.67])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E007B4202D5
-	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 05:30:19 +0200 (CEST)
-Received: by mail-pj1-f67.google.com with SMTP id k2so4994420pjs.2
-	for <drbd-dev@lists.linbit.com>; Fri, 19 Jun 2020 20:30:19 -0700 (PDT)
+Received: from mail-pj1-f68.google.com (mail-pj1-f68.google.com
+	[209.85.216.68])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 63CEE420317
+	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 05:30:20 +0200 (CEST)
+Received: by mail-pj1-f68.google.com with SMTP id h95so5289284pje.4
+	for <drbd-dev@lists.linbit.com>; Fri, 19 Jun 2020 20:30:20 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
 To: linux-kernel@vger.kernel.org
-Date: Fri, 19 Jun 2020 20:29:54 -0700
-Message-Id: <20200620033007.1444705-4-keescook@chromium.org>
+Date: Fri, 19 Jun 2020 20:29:55 -0700
+Message-Id: <20200620033007.1444705-5-keescook@chromium.org>
 In-Reply-To: <20200620033007.1444705-1-keescook@chromium.org>
 References: <20200620033007.1444705-1-keescook@chromium.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: Andy Whitcroft <apw@canonical.com>, linux-wireless@vger.kernel.org,
-	Kees Cook <keescook@chromium.org>, linux-doc@vger.kernel.org,
-	netdev@vger.kernel.org, x86@kernel.org,
-	Nick Desaulniers <ndesaulniers@google.com>,
+Cc: Andy Whitcroft <apw@canonical.com>, Kees Cook <keescook@chromium.org>,
+	linux-doc@vger.kernel.org, netdev@vger.kernel.org,
+	x86@kernel.org, linux-wireless@vger.kernel.org,
 	linux-spi@vger.kernel.org, linux-block@vger.kernel.org,
 	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
 	clang-built-linux@googlegroups.com, linux-mm@kvack.org,
@@ -25,7 +24,7 @@ Cc: Andy Whitcroft <apw@canonical.com>, linux-wireless@vger.kernel.org,
 	Joe Perches <joe@perches.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 03/16] drbd: Remove uninitialized_var() usage
+Subject: [Drbd-dev] [PATCH v2 04/16] b43: Remove uninitialized_var() usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,32 +41,33 @@ Using uninitialized_var() is dangerous as it papers over real bugs[1]
 "unused variable"). If the compiler thinks it is uninitialized, either
 simply initialize the variable or make compiler changes. As a precursor
 to removing[2] this[3] macro[4], just initialize this variable to NULL.
+No later NULL deref is possible due to the early returns outside of the
+(phy->rev >= 7 && phy->rev < 19) case, which explicitly tests for NULL.
 
 [1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
 [2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
 [3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
 [4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
 
-Fixes: a29728463b25 ("drbd: Backport the "events2" command")
-Reviewed-by: Nick Desaulniers <ndesaulniers@google.com>
+Fixes: 58619b14d106 ("b43: move under broadcom vendor directory")
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- drivers/block/drbd/drbd_state.c | 2 +-
+ drivers/net/wireless/broadcom/b43/phy_n.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index eeaa3b49b264..0067d328f0b5 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1604,7 +1604,7 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
- 	unsigned int n_device, n_connection, n_peer_device, n_peer_devices;
- 	void (*last_func)(struct sk_buff *, unsigned int, void *,
- 			  enum drbd_notification_type) = NULL;
--	void *uninitialized_var(last_arg);
-+	void *last_arg = NULL;
+diff --git a/drivers/net/wireless/broadcom/b43/phy_n.c b/drivers/net/wireless/broadcom/b43/phy_n.c
+index c33b4235839d..46db91846007 100644
+--- a/drivers/net/wireless/broadcom/b43/phy_n.c
++++ b/drivers/net/wireless/broadcom/b43/phy_n.c
+@@ -4222,7 +4222,7 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
+ 	u32 rfpwr_offset;
+ 	u8 pga_gain, pad_gain;
+ 	int i;
+-	const s16 *uninitialized_var(rf_pwr_offset_table);
++	const s16 *rf_pwr_offset_table = NULL;
  
- #define HAS_CHANGED(state) ((state)[OLD] != (state)[NEW])
- #define FINAL_STATE_CHANGE(type) \
+ 	table = b43_nphy_get_tx_gain_table(dev);
+ 	if (!table)
 -- 
 2.25.1
 
