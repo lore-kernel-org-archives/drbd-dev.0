@@ -1,23 +1,21 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com
-	[209.85.210.193])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B90DA4203F3
-	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 05:30:23 +0200 (CEST)
-Received: by mail-pf1-f193.google.com with SMTP id j1so5384479pfe.4
-	for <drbd-dev@lists.linbit.com>; Fri, 19 Jun 2020 20:30:23 -0700 (PDT)
+Received: from mail-pj1-f67.google.com (mail-pj1-f67.google.com
+	[209.85.216.67])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 69A104203F4
+	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 05:30:24 +0200 (CEST)
+Received: by mail-pj1-f67.google.com with SMTP id ne5so4984602pjb.5
+	for <drbd-dev@lists.linbit.com>; Fri, 19 Jun 2020 20:30:24 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
 To: linux-kernel@vger.kernel.org
-Date: Fri, 19 Jun 2020 20:29:59 -0700
-Message-Id: <20200620033007.1444705-9-keescook@chromium.org>
+Date: Fri, 19 Jun 2020 20:30:00 -0700
+Message-Id: <20200620033007.1444705-10-keescook@chromium.org>
 In-Reply-To: <20200620033007.1444705-1-keescook@chromium.org>
 References: <20200620033007.1444705-1-keescook@chromium.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Andy Whitcroft <apw@canonical.com>, linux-wireless@vger.kernel.org,
-	Kees Cook <keescook@chromium.org>, linux-doc@vger.kernel.org,
-	netdev@vger.kernel.org, x86@kernel.org,
-	Nick Desaulniers <ndesaulniers@google.com>,
+Cc: Andy Whitcroft <apw@canonical.com>, Kees Cook <keescook@chromium.org>,
+	linux-doc@vger.kernel.org, netdev@vger.kernel.org,
+	x86@kernel.org, linux-wireless@vger.kernel.org,
 	linux-spi@vger.kernel.org, linux-block@vger.kernel.org,
 	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
 	clang-built-linux@googlegroups.com, linux-mm@kvack.org,
@@ -26,8 +24,8 @@ Cc: Andy Whitcroft <apw@canonical.com>, linux-wireless@vger.kernel.org,
 	Joe Perches <joe@perches.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 08/16] spi: davinci: Remove
-	uninitialized_var() usage
+Subject: [Drbd-dev] [PATCH v2 09/16] clk: spear: Remove uninitialized_var()
+	usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,38 +41,35 @@ Using uninitialized_var() is dangerous as it papers over real bugs[1]
 (or can in the future), and suppresses unrelated compiler warnings (e.g.
 "unused variable"). If the compiler thinks it is uninitialized, either
 simply initialize the variable or make compiler changes. As a precursor
-to removing[2] this[3] macro[4], just remove this variable since it was
-actually unused:
-
-drivers/spi/spi-davinci.c: In function ‘davinci_spi_bufs’:
-drivers/spi/spi-davinci.c:579:11: warning: unused variable ‘rx_buf_count’ [-Wunused-variable]
-  579 |  unsigned rx_buf_count;
-      |           ^~~~~~~~~~~~
+to removing[2] this[3] macro[4], initialize "i" to zero. The compiler
+warning was not a false positive, since clk_pll_set_rate()'s call to
+clk_pll_round_rate_index() will always fail (since "prate" is NULL), so
+"i" was never being initialized.
 
 [1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
 [2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
 [3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
 [4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
 
-Fixes: 048177ce3b39 ("spi: spi-davinci: convert to DMA engine API")
-Reviewed-by: Nick Desaulniers <ndesaulniers@google.com>
+Fixes: 7d4998f71b29 ("clk: SPEAr: Vco-pll: Fix compilation warning")
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- drivers/spi/spi-davinci.c | 1 -
- 1 file changed, 1 deletion(-)
+ drivers/clk/spear/clk-vco-pll.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/spi/spi-davinci.c b/drivers/spi/spi-davinci.c
-index f71c497393a6..f50c0c79cbdf 100644
---- a/drivers/spi/spi-davinci.c
-+++ b/drivers/spi/spi-davinci.c
-@@ -576,7 +576,6 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
- 	u32 errors = 0;
- 	struct davinci_spi_config *spicfg;
- 	struct davinci_spi_platform_data *pdata;
--	unsigned uninitialized_var(rx_buf_count);
+diff --git a/drivers/clk/spear/clk-vco-pll.c b/drivers/clk/spear/clk-vco-pll.c
+index c08dec30bfa6..fed194169666 100644
+--- a/drivers/clk/spear/clk-vco-pll.c
++++ b/drivers/clk/spear/clk-vco-pll.c
+@@ -147,7 +147,7 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long drate,
+ 	struct clk_pll *pll = to_clk_pll(hw);
+ 	struct pll_rate_tbl *rtbl = pll->vco->rtbl;
+ 	unsigned long flags = 0, val;
+-	int uninitialized_var(i);
++	int i = 0;
  
- 	dspi = spi_master_get_devdata(spi->master);
- 	pdata = &dspi->pdata;
+ 	clk_pll_round_rate_index(hw, drate, NULL, &i);
+ 
 -- 
 2.25.1
 
