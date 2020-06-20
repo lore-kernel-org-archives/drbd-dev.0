@@ -1,22 +1,21 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pj1-f68.google.com (mail-pj1-f68.google.com
-	[209.85.216.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CFD304203F7
-	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 05:30:26 +0200 (CEST)
-Received: by mail-pj1-f68.google.com with SMTP id m2so5292287pjv.2
-	for <drbd-dev@lists.linbit.com>; Fri, 19 Jun 2020 20:30:26 -0700 (PDT)
+Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com
+	[209.85.210.193])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7E9294203F8
+	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 05:30:28 +0200 (CEST)
+Received: by mail-pf1-f193.google.com with SMTP id 64so5364983pfv.11
+	for <drbd-dev@lists.linbit.com>; Fri, 19 Jun 2020 20:30:28 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
 To: linux-kernel@vger.kernel.org
-Date: Fri, 19 Jun 2020 20:30:03 -0700
-Message-Id: <20200620033007.1444705-13-keescook@chromium.org>
+Date: Fri, 19 Jun 2020 20:30:04 -0700
+Message-Id: <20200620033007.1444705-14-keescook@chromium.org>
 In-Reply-To: <20200620033007.1444705-1-keescook@chromium.org>
 References: <20200620033007.1444705-1-keescook@chromium.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: Andy Whitcroft <apw@canonical.com>, linux-wireless@vger.kernel.org,
-	x86@kernel.org, Kees Cook <keescook@chromium.org>,
-	Jason Yan <yanaijie@huawei.com>, netdev@vger.kernel.org,
-	Chao Yu <yuchao0@huawei.com>, linux-doc@vger.kernel.org,
+Cc: Andy Whitcroft <apw@canonical.com>, Kees Cook <keescook@chromium.org>,
+	linux-doc@vger.kernel.org, netdev@vger.kernel.org,
+	x86@kernel.org, linux-wireless@vger.kernel.org,
 	linux-spi@vger.kernel.org, linux-block@vger.kernel.org,
 	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
 	clang-built-linux@googlegroups.com, linux-mm@kvack.org,
@@ -25,7 +24,7 @@ Cc: Andy Whitcroft <apw@canonical.com>, linux-wireless@vger.kernel.org,
 	Joe Perches <joe@perches.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 12/16] f2fs: Eliminate usage of
+Subject: [Drbd-dev] [PATCH v2 14/16] checkpatch: Remove awareness of
 	uninitialized_var() macro
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -38,56 +37,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Jason Yan <yanaijie@huawei.com>
+Using uninitialized_var() is dangerous as it papers over real bugs[1]
+(or can in the future), and suppresses unrelated compiler warnings
+(e.g. "unused variable"). If the compiler thinks it is uninitialized,
+either simply initialize the variable or make compiler changes.
 
-This is an effort to eliminate the uninitialized_var() macro[1].
+In preparation for removing[2] the[3] macro[4], partially revert
+commit 16b7f3c89907 ("checkpatch: avoid warning about uninitialized_var()")
+and remove all remaining mentions of uninitialized_var().
 
-The use of this macro is the wrong solution because it forces off ANY
-analysis by the compiler for a given variable. It even masks "unused
-variable" warnings.
+[1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
+[2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
+[3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
+[4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
 
-Quoted from Linus[2]:
-
-"It's a horrible thing to use, in that it adds extra cruft to the
-source code, and then shuts up a compiler warning (even the _reliable_
-warnings from gcc)."
-
-Fix it by remove this variable since it is not needed at all.
-
-[1] https://github.com/KSPP/linux/issues/81
-[2] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
-
-Suggested-by: Chao Yu <yuchao0@huawei.com>
-Signed-off-by: Jason Yan <yanaijie@huawei.com>
-Reviewed-by: Chao Yu <yuchao0@huawei.com>
-Link: https://lore.kernel.org/r/20200615085132.166470-1-yanaijie@huawei.com
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- fs/f2fs/data.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ scripts/checkpatch.pl | 16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)
 
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index 326c63879ddc..3753ba06531b 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -2856,7 +2856,6 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
- 	};
- #endif
- 	int nr_pages;
--	pgoff_t uninitialized_var(writeback_index);
- 	pgoff_t index;
- 	pgoff_t end;		/* Inclusive */
- 	pgoff_t done_index;
-@@ -2875,8 +2874,7 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
- 		clear_inode_flag(mapping->host, FI_HOT_DATA);
+diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+index 4c820607540b..60b737e222fe 100755
+--- a/scripts/checkpatch.pl
++++ b/scripts/checkpatch.pl
+@@ -840,7 +840,6 @@ our $FuncArg = qr{$Typecast{0,1}($LvalOrFunc|$Constant|$String)};
+ our $declaration_macros = qr{(?x:
+ 	(?:$Storage\s+)?(?:[A-Z_][A-Z0-9]*_){0,2}(?:DEFINE|DECLARE)(?:_[A-Z0-9]+){1,6}\s*\(|
+ 	(?:$Storage\s+)?[HLP]?LIST_HEAD\s*\(|
+-	(?:$Storage\s+)?${Type}\s+uninitialized_var\s*\(|
+ 	(?:SKCIPHER_REQUEST|SHASH_DESC|AHASH_REQUEST)_ON_STACK\s*\(
+ )};
  
- 	if (wbc->range_cyclic) {
--		writeback_index = mapping->writeback_index; /* prev offset */
--		index = writeback_index;
-+		index = mapping->writeback_index; /* prev offset */
- 		end = -1;
- 	} else {
- 		index = wbc->range_start >> PAGE_SHIFT;
+@@ -6330,8 +6329,7 @@ sub process {
+ 			if (defined $cond) {
+ 				substr($s, 0, length($cond), '');
+ 			}
+-			if ($s =~ /^\s*;/ &&
+-			    $function_name ne 'uninitialized_var')
++			if ($s =~ /^\s*;/)
+ 			{
+ 				WARN("AVOID_EXTERNS",
+ 				     "externs should be avoided in .c files\n" .  $herecurr);
+@@ -6350,17 +6348,13 @@ sub process {
+ 		}
+ 
+ # check for function declarations that have arguments without identifier names
+-# while avoiding uninitialized_var(x)
+ 		if (defined $stat &&
+-		    $stat =~ /^.\s*(?:extern\s+)?$Type\s*(?:($Ident)|\(\s*\*\s*$Ident\s*\))\s*\(\s*([^{]+)\s*\)\s*;/s &&
+-		    (!defined($1) ||
+-		     (defined($1) && $1 ne "uninitialized_var")) &&
+-		     $2 ne "void") {
+-			my $args = trim($2);
++		    $stat =~ /^.\s*(?:extern\s+)?$Type\s*(?:$Ident|\(\s*\*\s*$Ident\s*\))\s*\(\s*([^{]+)\s*\)\s*;/s &&
++		    $1 ne "void") {
++			my $args = trim($1);
+ 			while ($args =~ m/\s*($Type\s*(?:$Ident|\(\s*\*\s*$Ident?\s*\)\s*$balanced_parens)?)/g) {
+ 				my $arg = trim($1);
+-				if ($arg =~ /^$Type$/ &&
+-					$arg !~ /enum\s+$Ident$/) {
++				if ($arg =~ /^$Type$/ && $arg !~ /enum\s+$Ident$/) {
+ 					WARN("FUNCTION_ARGUMENTS",
+ 					     "function definition argument '$arg' should also have an identifier name\n" . $herecurr);
+ 				}
 -- 
 2.25.1
 
