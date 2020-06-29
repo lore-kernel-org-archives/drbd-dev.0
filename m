@@ -1,11 +1,13 @@
 Return-Path: <BATV+0d14f5278154a06d8b22+6154+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 84DA2420325
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Jun 2020 22:04:06 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1427B42032F
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Jun 2020 22:04:07 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 29 Jun 2020 21:39:27 +0200
-Message-Id: <20200629193947.2705954-1-hch@lst.de>
+Date: Mon, 29 Jun 2020 21:39:30 +0200
+Message-Id: <20200629193947.2705954-4-hch@lst.de>
+In-Reply-To: <20200629193947.2705954-1-hch@lst.de>
+References: <20200629193947.2705954-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
@@ -14,8 +16,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] rename ->make_request_fn and move it to the
-	block_device_operations
+Subject: [Drbd-dev] [PATCH 03/20] drbd: stop using ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,84 +28,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+Instead of setting up the queuedata as well just use one private data
+field.
 
-this series moves the make_request_fn method into block_device_operations
-with the much more descriptive ->submit_bio name.  It then also gives
-generic_make_request a more descriptive name, and further optimize the
-path to issue to blk-mq, removing the need for the direct_make_request
-bypass.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/block/drbd/drbd_main.c | 1 -
+ drivers/block/drbd/drbd_req.c  | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)
 
-Diffstat:
- Documentation/block/biodoc.rst                    |    2 
- Documentation/block/writeback_cache_control.rst   |    2 
- Documentation/fault-injection/fault-injection.rst |    2 
- Documentation/trace/ftrace.rst                    |    4 
- arch/m68k/emu/nfblock.c                           |    8 
- arch/xtensa/platforms/iss/simdisk.c               |    9 
- block/bio.c                                       |   14 -
- block/blk-cgroup.c                                |    2 
- block/blk-core.c                                  |  255 +++++++++-------------
- block/blk-crypto-fallback.c                       |    2 
- block/blk-crypto.c                                |    2 
- block/blk-merge.c                                 |   23 -
- block/blk-mq.c                                    |   12 -
- block/blk-throttle.c                              |    4 
- block/blk.h                                       |    5 
- block/bounce.c                                    |    2 
- drivers/block/brd.c                               |    5 
- drivers/block/drbd/drbd_int.h                     |    8 
- drivers/block/drbd/drbd_main.c                    |   12 -
- drivers/block/drbd/drbd_receiver.c                |    2 
- drivers/block/drbd/drbd_req.c                     |    8 
- drivers/block/drbd/drbd_worker.c                  |    2 
- drivers/block/null_blk_main.c                     |   19 +
- drivers/block/pktcdvd.c                           |   15 -
- drivers/block/ps3vram.c                           |   20 -
- drivers/block/rsxx/dev.c                          |   14 -
- drivers/block/umem.c                              |   11 
- drivers/block/zram/zram_drv.c                     |   14 -
- drivers/lightnvm/core.c                           |    8 
- drivers/lightnvm/pblk-init.c                      |   16 -
- drivers/lightnvm/pblk-read.c                      |    2 
- drivers/md/bcache/bcache.h                        |    2 
- drivers/md/bcache/btree.c                         |    2 
- drivers/md/bcache/request.c                       |   11 
- drivers/md/bcache/request.h                       |    4 
- drivers/md/bcache/super.c                         |   24 +-
- drivers/md/dm-cache-target.c                      |    6 
- drivers/md/dm-clone-target.c                      |   10 
- drivers/md/dm-crypt.c                             |    6 
- drivers/md/dm-delay.c                             |    2 
- drivers/md/dm-era-target.c                        |    2 
- drivers/md/dm-integrity.c                         |    4 
- drivers/md/dm-mpath.c                             |    2 
- drivers/md/dm-raid1.c                             |    2 
- drivers/md/dm-snap-persistent.c                   |    2 
- drivers/md/dm-snap.c                              |    6 
- drivers/md/dm-thin.c                              |    4 
- drivers/md/dm-verity-target.c                     |    2 
- drivers/md/dm-writecache.c                        |    2 
- drivers/md/dm-zoned-target.c                      |    2 
- drivers/md/dm.c                                   |   41 +--
- drivers/md/md-faulty.c                            |    4 
- drivers/md/md-linear.c                            |    4 
- drivers/md/md-multipath.c                         |    4 
- drivers/md/md.c                                   |    7 
- drivers/md/raid0.c                                |    8 
- drivers/md/raid1.c                                |   14 -
- drivers/md/raid10.c                               |   28 +-
- drivers/md/raid5.c                                |   10 
- drivers/nvdimm/blk.c                              |    5 
- drivers/nvdimm/btt.c                              |    5 
- drivers/nvdimm/pmem.c                             |    5 
- drivers/nvme/host/core.c                          |    1 
- drivers/nvme/host/multipath.c                     |   18 -
- drivers/nvme/host/nvme.h                          |    1 
- drivers/s390/block/dcssblk.c                      |   11 
- drivers/s390/block/xpram.c                        |    8 
- fs/buffer.c                                       |    5 
- include/linux/blk-mq.h                            |    2 
- include/linux/blkdev.h                            |   12 -
- include/linux/lightnvm.h                          |    3 
- 71 files changed, 387 insertions(+), 408 deletions(-)
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 45fbd526c453bc..26f4e0aa7393b4 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2805,7 +2805,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 	if (!q)
+ 		goto out_no_q;
+ 	device->rq_queue = q;
+-	q->queuedata   = device;
+ 
+ 	disk = alloc_disk(1);
+ 	if (!disk)
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index c80a2f1c3c2a73..3f09b2ab977822 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -1595,7 +1595,7 @@ void do_submit(struct work_struct *ws)
+ 
+ blk_qc_t drbd_make_request(struct request_queue *q, struct bio *bio)
+ {
+-	struct drbd_device *device = (struct drbd_device *) q->queuedata;
++	struct drbd_device *device = bio->bi_disk->private_data;
+ 	unsigned long start_jif;
+ 
+ 	blk_queue_split(q, &bio);
+-- 
+2.26.2
+
