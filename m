@@ -1,11 +1,11 @@
 Return-Path: <BATV+0d14f5278154a06d8b22+6154+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7E15B4203E3
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B83CD4203E4
 	for <drbd-dev@lists.linbit.com>; Mon, 29 Jun 2020 22:23:04 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 29 Jun 2020 21:39:35 +0200
-Message-Id: <20200629193947.2705954-9-hch@lst.de>
+Date: Mon, 29 Jun 2020 21:39:34 +0200
+Message-Id: <20200629193947.2705954-8-hch@lst.de>
 In-Reply-To: <20200629193947.2705954-1-hch@lst.de>
 References: <20200629193947.2705954-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,7 +16,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/20] zram: stop using ->queuedata
+Subject: [Drbd-dev] [PATCH 07/20] umem: stop using ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,29 +33,30 @@ field.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/zram/zram_drv.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/block/umem.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 6e2ad90b17a376..0564e3f384089e 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -1586,7 +1586,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
-  */
- static blk_qc_t zram_make_request(struct request_queue *queue, struct bio *bio)
- {
--	struct zram *zram = queue->queuedata;
-+	struct zram *zram = bio->bi_disk->private_data;
+diff --git a/drivers/block/umem.c b/drivers/block/umem.c
+index 1e2aa5ae27963c..5498f1cf36b3fe 100644
+--- a/drivers/block/umem.c
++++ b/drivers/block/umem.c
+@@ -521,7 +521,8 @@ static int mm_check_plugged(struct cardinfo *card)
  
- 	if (!valid_io_request(zram, bio->bi_iter.bi_sector,
- 					bio->bi_iter.bi_size)) {
-@@ -1912,7 +1912,6 @@ static int zram_add(void)
- 	zram->disk->first_minor = device_id;
- 	zram->disk->fops = &zram_devops;
- 	zram->disk->queue = queue;
--	zram->disk->queue->queuedata = zram;
- 	zram->disk->private_data = zram;
- 	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
+ static blk_qc_t mm_make_request(struct request_queue *q, struct bio *bio)
+ {
+-	struct cardinfo *card = q->queuedata;
++	struct cardinfo *card = bio->bi_disk->private_data;
++
+ 	pr_debug("mm_make_request %llu %u\n",
+ 		 (unsigned long long)bio->bi_iter.bi_sector,
+ 		 bio->bi_iter.bi_size);
+@@ -888,7 +889,6 @@ static int mm_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+ 	card->queue = blk_alloc_queue(mm_make_request, NUMA_NO_NODE);
+ 	if (!card->queue)
+ 		goto failed_alloc;
+-	card->queue->queuedata = card;
+ 
+ 	tasklet_init(&card->tasklet, process_page, (unsigned long)card);
  
 -- 
 2.26.2
