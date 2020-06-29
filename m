@@ -1,11 +1,11 @@
 Return-Path: <BATV+0d14f5278154a06d8b22+6154+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4CF9642011B
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Jun 2020 22:22:59 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BDB5842011B
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Jun 2020 22:23:01 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 29 Jun 2020 21:39:38 +0200
-Message-Id: <20200629193947.2705954-12-hch@lst.de>
+Date: Mon, 29 Jun 2020 21:39:42 +0200
+Message-Id: <20200629193947.2705954-16-hch@lst.de>
 In-Reply-To: <20200629193947.2705954-1-hch@lst.de>
 References: <20200629193947.2705954-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,7 +16,8 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/20] fs: remove a weird comment in submit_bh_wbc
+Subject: [Drbd-dev] [PATCH 15/20] block: remove the nr_sectors variable in
+	generic_make_request_checks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,31 +29,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-All bios can get remapped if submitted to partitions.  No need to
-comment on that.
+The variable is only used once, so just open code the bio_sector()
+there.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/buffer.c | 5 -----
- 1 file changed, 5 deletions(-)
+ block/blk-core.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 64fe82ec65ff1f..2725ebbcfdc246 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -3040,12 +3040,7 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
- 	if (test_set_buffer_req(bh) && (op == REQ_OP_WRITE))
- 		clear_buffer_write_io_error(bh);
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 37435d0d433564..28f60985dc75cc 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -974,7 +974,6 @@ static noinline_for_stack bool
+ generic_make_request_checks(struct bio *bio)
+ {
+ 	struct request_queue *q = bio->bi_disk->queue;
+-	int nr_sectors = bio_sectors(bio);
+ 	blk_status_t status = BLK_STS_IOERR;
  
--	/*
--	 * from here on down, it's all bio -- do the initial mapping,
--	 * submit_bio -> generic_make_request may further map this bio around
--	 */
- 	bio = bio_alloc(GFP_NOIO, 1);
--
- 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
- 	bio_set_dev(bio, bh->b_bdev);
- 	bio->bi_write_hint = write_hint;
+ 	might_sleep();
+@@ -1007,7 +1006,7 @@ generic_make_request_checks(struct bio *bio)
+ 	if (op_is_flush(bio->bi_opf) &&
+ 	    !test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
+ 		bio->bi_opf &= ~(REQ_PREFLUSH | REQ_FUA);
+-		if (!nr_sectors) {
++		if (!bio_sectors(bio)) {
+ 			status = BLK_STS_OK;
+ 			goto end_io;
+ 		}
 -- 
 2.26.2
 
