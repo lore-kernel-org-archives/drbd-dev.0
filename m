@@ -1,11 +1,11 @@
 Return-Path: <BATV+0d14f5278154a06d8b22+6154+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1B11E4203E7
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Jun 2020 22:23:05 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 11F0D4202BD
+	for <drbd-dev@lists.linbit.com>; Mon, 29 Jun 2020 22:43:02 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 29 Jun 2020 21:39:32 +0200
-Message-Id: <20200629193947.2705954-6-hch@lst.de>
+Date: Mon, 29 Jun 2020 21:39:33 +0200
+Message-Id: <20200629193947.2705954-7-hch@lst.de>
 In-Reply-To: <20200629193947.2705954-1-hch@lst.de>
 References: <20200629193947.2705954-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,7 +16,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/20] ps3vram: stop using ->queuedata
+Subject: [Drbd-dev] [PATCH 06/20] rsxx: stop using ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,30 +33,39 @@ field.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/ps3vram.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/block/rsxx/dev.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff --git a/drivers/block/ps3vram.c b/drivers/block/ps3vram.c
-index 821d4d8b1d763e..5a1d1d137c7248 100644
---- a/drivers/block/ps3vram.c
-+++ b/drivers/block/ps3vram.c
-@@ -587,7 +587,7 @@ static struct bio *ps3vram_do_bio(struct ps3_system_bus_device *dev,
+diff --git a/drivers/block/rsxx/dev.c b/drivers/block/rsxx/dev.c
+index 3ba07ab30c84f5..6a4d8d26e32cbd 100644
+--- a/drivers/block/rsxx/dev.c
++++ b/drivers/block/rsxx/dev.c
+@@ -119,7 +119,7 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
  
- static blk_qc_t ps3vram_make_request(struct request_queue *q, struct bio *bio)
+ static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
  {
--	struct ps3_system_bus_device *dev = q->queuedata;
-+	struct ps3_system_bus_device *dev = bio->bi_disk->private_data;
- 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
- 	int busy;
+-	struct rsxx_cardinfo *card = q->queuedata;
++	struct rsxx_cardinfo *card = bio->bi_disk->private_data;
+ 	struct rsxx_bio_meta *bio_meta;
+ 	blk_status_t st = BLK_STS_IOERR;
  
-@@ -745,7 +745,6 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
+@@ -267,8 +267,6 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
+ 		card->queue->limits.discard_alignment   = RSXX_HW_BLK_SIZE;
  	}
  
- 	priv->queue = queue;
--	queue->queuedata = dev;
- 	blk_queue_max_segments(queue, BLK_MAX_SEGMENTS);
- 	blk_queue_max_segment_size(queue, BLK_MAX_SEGMENT_SIZE);
- 	blk_queue_max_hw_sectors(queue, BLK_SAFE_MAX_SECTORS);
+-	card->queue->queuedata = card;
+-
+ 	snprintf(card->gendisk->disk_name, sizeof(card->gendisk->disk_name),
+ 		 "rsxx%d", card->disk_id);
+ 	card->gendisk->major = card->major;
+@@ -289,7 +287,6 @@ void rsxx_destroy_dev(struct rsxx_cardinfo *card)
+ 	card->gendisk = NULL;
+ 
+ 	blk_cleanup_queue(card->queue);
+-	card->queue->queuedata = NULL;
+ 	unregister_blkdev(card->major, DRIVER_NAME);
+ }
+ 
 -- 
 2.26.2
 
