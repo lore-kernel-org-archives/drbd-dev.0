@@ -1,22 +1,29 @@
-Return-Path: <BATV+0d14f5278154a06d8b22+6154+infradead.org+hch@casper.srs.infradead.org>
-Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 11F0D4202BD
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Jun 2020 22:43:02 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 29 Jun 2020 21:39:33 +0200
-Message-Id: <20200629193947.2705954-7-hch@lst.de>
-In-Reply-To: <20200629193947.2705954-1-hch@lst.de>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pl1-f193.google.com (mail-pl1-f193.google.com
+	[209.85.214.193])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 73FCD42032F
+	for <drbd-dev@lists.linbit.com>; Tue, 30 Jun 2020 15:54:50 +0200 (CEST)
+Received: by mail-pl1-f193.google.com with SMTP id u9so4895748pls.13
+	for <drbd-dev@lists.linbit.com>; Tue, 30 Jun 2020 06:54:49 -0700 (PDT)
+To: Christoph Hellwig <hch@lst.de>
 References: <20200629193947.2705954-1-hch@lst.de>
+	<20200629193947.2705954-12-hch@lst.de>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <70e8de25-4e26-9c00-1492-e433ebfdbc90@kernel.dk>
+Date: Tue, 30 Jun 2020 07:54:46 -0600
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20200629193947.2705954-12-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-nvdimm@lists.01.org, linux-s390@vger.kernel.org,
 	dm-devel@redhat.com, linux-nvme@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/20] rsxx: stop using ->queuedata
+Subject: Re: [Drbd-dev] [PATCH 11/20] fs: remove a weird comment in
+	submit_bh_wbc
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,44 +35,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Instead of setting up the queuedata as well just use one private data
-field.
+On 6/29/20 1:39 PM, Christoph Hellwig wrote:
+> All bios can get remapped if submitted to partitions.  No need to
+> comment on that.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- drivers/block/rsxx/dev.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+I'm pretty sure that comment is from me, dating back to when the bio
+code was introduced in 2001. The point wasn't the remapping, just
+that from here on down the IO was purely bio based, not buffer_heads.
+Anyway, totally agree that it should just die, it's not that
+interesting or useful anymore.
 
-diff --git a/drivers/block/rsxx/dev.c b/drivers/block/rsxx/dev.c
-index 3ba07ab30c84f5..6a4d8d26e32cbd 100644
---- a/drivers/block/rsxx/dev.c
-+++ b/drivers/block/rsxx/dev.c
-@@ -119,7 +119,7 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
- 
- static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
- {
--	struct rsxx_cardinfo *card = q->queuedata;
-+	struct rsxx_cardinfo *card = bio->bi_disk->private_data;
- 	struct rsxx_bio_meta *bio_meta;
- 	blk_status_t st = BLK_STS_IOERR;
- 
-@@ -267,8 +267,6 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
- 		card->queue->limits.discard_alignment   = RSXX_HW_BLK_SIZE;
- 	}
- 
--	card->queue->queuedata = card;
--
- 	snprintf(card->gendisk->disk_name, sizeof(card->gendisk->disk_name),
- 		 "rsxx%d", card->disk_id);
- 	card->gendisk->major = card->major;
-@@ -289,7 +287,6 @@ void rsxx_destroy_dev(struct rsxx_cardinfo *card)
- 	card->gendisk = NULL;
- 
- 	blk_cleanup_queue(card->queue);
--	card->queue->queuedata = NULL;
- 	unregister_blkdev(card->major, DRIVER_NAME);
- }
- 
 -- 
-2.26.2
+Jens Axboe
 
