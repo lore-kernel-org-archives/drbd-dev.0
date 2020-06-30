@@ -1,18 +1,17 @@
 Return-Path: <axboe@kernel.dk>
-Received: from mail-pl1-f193.google.com (mail-pl1-f193.google.com
-	[209.85.214.193])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 73FCD42032F
-	for <drbd-dev@lists.linbit.com>; Tue, 30 Jun 2020 15:54:50 +0200 (CEST)
-Received: by mail-pl1-f193.google.com with SMTP id u9so4895748pls.13
-	for <drbd-dev@lists.linbit.com>; Tue, 30 Jun 2020 06:54:49 -0700 (PDT)
+Received: from mail-pl1-f172.google.com (mail-pl1-f172.google.com
+	[209.85.214.172])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 732FA420383
+	for <drbd-dev@lists.linbit.com>; Tue, 30 Jun 2020 15:57:33 +0200 (CEST)
+Received: by mail-pl1-f172.google.com with SMTP id g17so8499654plq.12
+	for <drbd-dev@lists.linbit.com>; Tue, 30 Jun 2020 06:57:33 -0700 (PDT)
 To: Christoph Hellwig <hch@lst.de>
 References: <20200629193947.2705954-1-hch@lst.de>
-	<20200629193947.2705954-12-hch@lst.de>
 From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <70e8de25-4e26-9c00-1492-e433ebfdbc90@kernel.dk>
-Date: Tue, 30 Jun 2020 07:54:46 -0600
+Message-ID: <bd1443c0-be37-115b-1110-df6f0e661a50@kernel.dk>
+Date: Tue, 30 Jun 2020 07:57:29 -0600
 MIME-Version: 1.0
-In-Reply-To: <20200629193947.2705954-12-hch@lst.de>
+In-Reply-To: <20200629193947.2705954-1-hch@lst.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -22,8 +21,8 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 11/20] fs: remove a weird comment in
-	submit_bh_wbc
+Subject: Re: [Drbd-dev] rename ->make_request_fn and move it to the
+ block_device_operations
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,14 +35,15 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/29/20 1:39 PM, Christoph Hellwig wrote:
-> All bios can get remapped if submitted to partitions.  No need to
-> comment on that.
+> Hi Jens,
+> 
+> this series moves the make_request_fn method into block_device_operations
+> with the much more descriptive ->submit_bio name.  It then also gives
+> generic_make_request a more descriptive name, and further optimize the
+> path to issue to blk-mq, removing the need for the direct_make_request
+> bypass.
 
-I'm pretty sure that comment is from me, dating back to when the bio
-code was introduced in 2001. The point wasn't the remapping, just
-that from here on down the IO was purely bio based, not buffer_heads.
-Anyway, totally agree that it should just die, it's not that
-interesting or useful anymore.
+Looks good to me, and it's a nice cleanup as well. Applied.
 
 -- 
 Jens Axboe
