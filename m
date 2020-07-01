@@ -1,23 +1,21 @@
 Return-Path: <BATV+501e1de201b53739768b+6156+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 15AD34203DE
-	for <drbd-dev@lists.linbit.com>; Wed,  1 Jul 2020 11:23:59 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8BBB94203F0
+	for <drbd-dev@lists.linbit.com>; Wed,  1 Jul 2020 11:24:01 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  1 Jul 2020 10:59:44 +0200
-Message-Id: <20200701085947.3354405-18-hch@lst.de>
-In-Reply-To: <20200701085947.3354405-1-hch@lst.de>
-References: <20200701085947.3354405-1-hch@lst.de>
+Date: Wed,  1 Jul 2020 11:06:22 +0200
+Message-Id: <20200701090622.3354860-5-hch@lst.de>
+In-Reply-To: <20200701090622.3354860-1-hch@lst.de>
+References: <20200701090622.3354860-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
-	linux-nvdimm@lists.01.org, linux-s390@vger.kernel.org,
-	dm-devel@redhat.com, linux-nvme@lists.infradead.org,
-	linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org,
-	linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 17/20] block: rename generic_make_request to
-	submit_bio_noacct
+Cc: linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-mm@kvack.org, dm-devel@redhat.com,
+	Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org,
+	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 4/4] writeback: remove bdi->congested_fn
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,1233 +27,992 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-generic_make_request has always been very confusingly misnamed, so rename
-it to submit_bio_noacct to make it clear that it is submit_bio minus
-accounting and a few checks.
+Except for pktdvd, the only places setting congested bits are file
+systems that allocate their own backing_dev_info structures.  And
+pktdvd is a deprecated driver that isn't useful in stack setup
+either.  So remove the dead congested_fn stacking infrastructure.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- Documentation/block/biodoc.rst                |  2 +-
- .../fault-injection/fault-injection.rst       |  2 +-
- Documentation/trace/ftrace.rst                |  4 +--
- block/bio.c                                   | 14 ++++----
- block/blk-core.c                              | 32 +++++++++----------
- block/blk-crypto-fallback.c                   |  2 +-
- block/blk-crypto.c                            |  2 +-
- block/blk-merge.c                             |  2 +-
- block/blk-throttle.c                          |  4 +--
- block/bounce.c                                |  2 +-
- drivers/block/drbd/drbd_int.h                 |  6 ++--
- drivers/block/drbd/drbd_main.c                |  2 +-
- drivers/block/drbd/drbd_receiver.c            |  2 +-
- drivers/block/drbd/drbd_req.c                 |  2 +-
- drivers/block/drbd/drbd_worker.c              |  2 +-
- drivers/block/pktcdvd.c                       |  2 +-
- drivers/lightnvm/pblk-read.c                  |  2 +-
- drivers/md/bcache/bcache.h                    |  2 +-
- drivers/md/bcache/btree.c                     |  2 +-
- drivers/md/bcache/request.c                   |  7 ++--
- drivers/md/dm-cache-target.c                  |  6 ++--
- drivers/md/dm-clone-target.c                  | 10 +++---
- drivers/md/dm-crypt.c                         |  6 ++--
- drivers/md/dm-delay.c                         |  2 +-
- drivers/md/dm-era-target.c                    |  2 +-
- drivers/md/dm-integrity.c                     |  4 +--
- drivers/md/dm-mpath.c                         |  2 +-
- drivers/md/dm-raid1.c                         |  2 +-
- drivers/md/dm-snap-persistent.c               |  2 +-
- drivers/md/dm-snap.c                          |  6 ++--
- drivers/md/dm-thin.c                          |  4 +--
- drivers/md/dm-verity-target.c                 |  2 +-
- drivers/md/dm-writecache.c                    |  2 +-
- drivers/md/dm-zoned-target.c                  |  2 +-
- drivers/md/dm.c                               | 10 +++---
- drivers/md/md-faulty.c                        |  4 +--
- drivers/md/md-linear.c                        |  4 +--
- drivers/md/md-multipath.c                     |  4 +--
- drivers/md/raid0.c                            |  8 ++---
- drivers/md/raid1.c                            | 14 ++++----
- drivers/md/raid10.c                           | 28 ++++++++--------
- drivers/md/raid5.c                            | 10 +++---
- drivers/nvme/host/multipath.c                 |  2 +-
- include/linux/blkdev.h                        |  2 +-
- 44 files changed, 115 insertions(+), 118 deletions(-)
+ drivers/block/drbd/drbd_main.c   | 59 --------------------------------
+ drivers/md/bcache/request.c      | 43 -----------------------
+ drivers/md/bcache/super.c        |  1 -
+ drivers/md/dm-cache-target.c     | 19 ----------
+ drivers/md/dm-clone-target.c     | 15 --------
+ drivers/md/dm-era-target.c       | 15 --------
+ drivers/md/dm-raid.c             | 12 -------
+ drivers/md/dm-table.c            | 37 +-------------------
+ drivers/md/dm-thin.c             | 16 ---------
+ drivers/md/dm.c                  | 33 ------------------
+ drivers/md/dm.h                  |  1 -
+ drivers/md/md-linear.c           | 24 -------------
+ drivers/md/md-multipath.c        | 23 -------------
+ drivers/md/md.c                  | 23 -------------
+ drivers/md/md.h                  |  4 ---
+ drivers/md/raid0.c               | 16 ---------
+ drivers/md/raid1.c               | 31 -----------------
+ drivers/md/raid10.c              | 26 --------------
+ drivers/md/raid5.c               | 25 --------------
+ fs/btrfs/disk-io.c               | 23 -------------
+ include/linux/backing-dev-defs.h |  4 ---
+ include/linux/backing-dev.h      |  4 ---
+ include/linux/device-mapper.h    | 11 ------
+ 23 files changed, 1 insertion(+), 464 deletions(-)
 
-diff --git a/Documentation/block/biodoc.rst b/Documentation/block/biodoc.rst
-index 267384159bf793..afda5e30a82e5a 100644
---- a/Documentation/block/biodoc.rst
-+++ b/Documentation/block/biodoc.rst
-@@ -1036,7 +1036,7 @@ Now the generic block layer performs partition-remapping early and thus
- provides drivers with a sector number relative to whole device, rather than
- having to take partition number into account in order to arrive at the true
- sector number. The routine blk_partition_remap() is invoked by
--generic_make_request even before invoking the queue specific ->submit_bio,
-+submit_bio_noacct even before invoking the queue specific ->submit_bio,
- so the i/o scheduler also gets to operate on whole disk sector numbers. This
- should typically not require changes to block drivers, it just never gets
- to invoke its own partition sector offset calculations since all bios
-diff --git a/Documentation/fault-injection/fault-injection.rst b/Documentation/fault-injection/fault-injection.rst
-index f51bb21d20e44b..f850ad018b70a8 100644
---- a/Documentation/fault-injection/fault-injection.rst
-+++ b/Documentation/fault-injection/fault-injection.rst
-@@ -24,7 +24,7 @@ Available fault injection capabilities
- 
-   injects disk IO errors on devices permitted by setting
-   /sys/block/<device>/make-it-fail or
--  /sys/block/<device>/<partition>/make-it-fail. (generic_make_request())
-+  /sys/block/<device>/<partition>/make-it-fail. (submit_bio_noacct())
- 
- - fail_mmc_request
- 
-diff --git a/Documentation/trace/ftrace.rst b/Documentation/trace/ftrace.rst
-index 430a16283103d4..80ba765a82379e 100644
---- a/Documentation/trace/ftrace.rst
-+++ b/Documentation/trace/ftrace.rst
-@@ -1453,7 +1453,7 @@ function-trace, we get a much larger output::
-    => __blk_run_queue_uncond
-    => __blk_run_queue
-    => blk_queue_bio
--   => generic_make_request
-+   => submit_bio_noacct
-    => submit_bio
-    => submit_bh
-    => __ext3_get_inode_loc
-@@ -1738,7 +1738,7 @@ tracers.
-    => __blk_run_queue_uncond
-    => __blk_run_queue
-    => blk_queue_bio
--   => generic_make_request
-+   => submit_bio_noacct
-    => submit_bio
-    => submit_bh
-    => ext3_bread
-diff --git a/block/bio.c b/block/bio.c
-index fc1299f9d86a24..ef91782fd668ce 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -358,7 +358,7 @@ static void bio_alloc_rescue(struct work_struct *work)
- 		if (!bio)
- 			break;
- 
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 	}
- }
- 
-@@ -416,19 +416,19 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
-  *   submit the previously allocated bio for IO before attempting to allocate
-  *   a new one. Failure to do so can cause deadlocks under memory pressure.
-  *
-- *   Note that when running under generic_make_request() (i.e. any block
-+ *   Note that when running under submit_bio_noacct() (i.e. any block
-  *   driver), bios are not submitted until after you return - see the code in
-- *   generic_make_request() that converts recursion into iteration, to prevent
-+ *   submit_bio_noacct() that converts recursion into iteration, to prevent
-  *   stack overflows.
-  *
-  *   This would normally mean allocating multiple bios under
-- *   generic_make_request() would be susceptible to deadlocks, but we have
-+ *   submit_bio_noacct() would be susceptible to deadlocks, but we have
-  *   deadlock avoidance code that resubmits any blocked bios from a rescuer
-  *   thread.
-  *
-  *   However, we do not guarantee forward progress for allocations from other
-  *   mempools. Doing multiple allocations from the same mempool under
-- *   generic_make_request() should be avoided - instead, use bio_set's front_pad
-+ *   submit_bio_noacct() should be avoided - instead, use bio_set's front_pad
-  *   for per bio allocations.
-  *
-  *   RETURNS:
-@@ -457,14 +457,14 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
- 				 nr_iovecs > 0))
- 			return NULL;
- 		/*
--		 * generic_make_request() converts recursion to iteration; this
-+		 * submit_bio_noacct() converts recursion to iteration; this
- 		 * means if we're running beneath it, any bios we allocate and
- 		 * submit will not be submitted (and thus freed) until after we
- 		 * return.
- 		 *
- 		 * This exposes us to a potential deadlock if we allocate
- 		 * multiple bios from the same bio_set() while running
--		 * underneath generic_make_request(). If we were to allocate
-+		 * underneath submit_bio_noacct(). If we were to allocate
- 		 * multiple bios (say a stacking block driver that was splitting
- 		 * bios), we would deadlock if we exhausted the mempool's
- 		 * reserve.
-diff --git a/block/blk-core.c b/block/blk-core.c
-index cb07a726dd7117..ff9a88d2d244cb 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -956,8 +956,7 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
- 	return BLK_STS_OK;
- }
- 
--static noinline_for_stack bool
--generic_make_request_checks(struct bio *bio)
-+static noinline_for_stack bool submit_bio_checks(struct bio *bio)
- {
- 	struct request_queue *q = bio->bi_disk->queue;
- 	blk_status_t status = BLK_STS_IOERR;
-@@ -985,9 +984,8 @@ generic_make_request_checks(struct bio *bio)
- 	}
- 
- 	/*
--	 * Filter flush bio's early so that make_request based
--	 * drivers without flush support don't have to worry
--	 * about them.
-+	 * Filter flush bio's early so that bio based drivers without flush
-+	 * support don't have to worry about them.
- 	 */
- 	if (op_is_flush(bio->bi_opf) &&
- 	    !test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
-@@ -1072,7 +1070,7 @@ generic_make_request_checks(struct bio *bio)
- 	return false;
- }
- 
--static blk_qc_t do_make_request(struct bio *bio)
-+static blk_qc_t __submit_bio(struct bio *bio)
- {
- 	struct gendisk *disk = bio->bi_disk;
- 	blk_qc_t ret = BLK_QC_T_NONE;
-@@ -1087,7 +1085,7 @@ static blk_qc_t do_make_request(struct bio *bio)
- }
- 
- /**
-- * generic_make_request - re-submit a bio to the block device layer for I/O
-+ * submit_bio_noacct - re-submit a bio to the block device layer for I/O
-  * @bio:  The bio describing the location in memory and on the device.
-  *
-  * This is a version of submit_bio() that shall only be used for I/O that is
-@@ -1095,7 +1093,7 @@ static blk_qc_t do_make_request(struct bio *bio)
-  * systems and other upper level users of the block layer should use
-  * submit_bio() instead.
-  */
--blk_qc_t generic_make_request(struct bio *bio)
-+blk_qc_t submit_bio_noacct(struct bio *bio)
- {
- 	/*
- 	 * bio_list_on_stack[0] contains bios submitted by the current
-@@ -1106,7 +1104,7 @@ blk_qc_t generic_make_request(struct bio *bio)
- 	struct bio_list bio_list_on_stack[2];
- 	blk_qc_t ret = BLK_QC_T_NONE;
- 
--	if (!generic_make_request_checks(bio))
-+	if (!submit_bio_checks(bio))
- 		goto out;
- 
- 	/*
-@@ -1114,7 +1112,7 @@ blk_qc_t generic_make_request(struct bio *bio)
- 	 * stack usage with stacked devices could be a problem.  So use
- 	 * current->bio_list to keep a list of requests submited by a
- 	 * ->submit_bio method.  current->bio_list is also used as a
--	 * flag to say if generic_make_request is currently active in this
-+	 * flag to say if submit_bio_noacct is currently active in this
- 	 * task or not.  If it is NULL, then no make_request is active.  If
- 	 * it is non-NULL, then a make_request is active, and new requests
- 	 * should be added at the tail
-@@ -1132,7 +1130,7 @@ blk_qc_t generic_make_request(struct bio *bio)
- 	 * we assign bio_list to a pointer to the bio_list_on_stack,
- 	 * thus initialising the bio_list of new bios to be
- 	 * added.  ->submit_bio() may indeed add some more bios
--	 * through a recursive call to generic_make_request.  If it
-+	 * through a recursive call to submit_bio_noacct.  If it
- 	 * did, we find a non-NULL value in bio_list and re-enter the loop
- 	 * from the top.  In this case we really did just take the bio
- 	 * of the top of the list (no pretending) and so remove it from
-@@ -1150,7 +1148,7 @@ blk_qc_t generic_make_request(struct bio *bio)
- 			/* Create a fresh bio_list for all subordinate requests */
- 			bio_list_on_stack[1] = bio_list_on_stack[0];
- 			bio_list_init(&bio_list_on_stack[0]);
--			ret = do_make_request(bio);
-+			ret = __submit_bio(bio);
- 
- 			/* sort new bios into those for a lower level
- 			 * and those for the same level
-@@ -1174,13 +1172,13 @@ blk_qc_t generic_make_request(struct bio *bio)
- out:
- 	return ret;
- }
--EXPORT_SYMBOL(generic_make_request);
-+EXPORT_SYMBOL(submit_bio_noacct);
- 
- /**
-  * direct_make_request - hand a buffer directly to its device driver for I/O
-  * @bio:  The bio describing the location in memory and on the device.
-  *
-- * This function behaves like generic_make_request(), but does not protect
-+ * This function behaves like submit_bio_noacct(), but does not protect
-  * against recursion.  Must only be used if the called driver is known
-  * to be blk-mq based.
-  */
-@@ -1192,7 +1190,7 @@ blk_qc_t direct_make_request(struct bio *bio)
- 		bio_io_error(bio);
- 		return BLK_QC_T_NONE;
- 	}
--	if (!generic_make_request_checks(bio))
-+	if (!submit_bio_checks(bio))
- 		return BLK_QC_T_NONE;
- 	if (unlikely(bio_queue_enter(bio)))
- 		return BLK_QC_T_NONE;
-@@ -1263,13 +1261,13 @@ blk_qc_t submit_bio(struct bio *bio)
- 		blk_qc_t ret;
- 
- 		psi_memstall_enter(&pflags);
--		ret = generic_make_request(bio);
-+		ret = submit_bio_noacct(bio);
- 		psi_memstall_leave(&pflags);
- 
- 		return ret;
- 	}
- 
--	return generic_make_request(bio);
-+	return submit_bio_noacct(bio);
- }
- EXPORT_SYMBOL(submit_bio);
- 
-diff --git a/block/blk-crypto-fallback.c b/block/blk-crypto-fallback.c
-index 6e49688a2d8023..c162b754efbd6a 100644
---- a/block/blk-crypto-fallback.c
-+++ b/block/blk-crypto-fallback.c
-@@ -228,7 +228,7 @@ static bool blk_crypto_split_bio_if_needed(struct bio **bio_ptr)
- 			return false;
- 		}
- 		bio_chain(split_bio, bio);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		*bio_ptr = split_bio;
- 	}
- 
-diff --git a/block/blk-crypto.c b/block/blk-crypto.c
-index 6533c9b36ab80a..2d5e60023b08bb 100644
---- a/block/blk-crypto.c
-+++ b/block/blk-crypto.c
-@@ -239,7 +239,7 @@ void __blk_crypto_free_request(struct request *rq)
-  * kernel crypto API. When the crypto API fallback is used for encryption,
-  * blk-crypto may choose to split the bio into 2 - the first one that will
-  * continue to be processed and the second one that will be resubmitted via
-- * generic_make_request. A bounce bio will be allocated to encrypt the contents
-+ * submit_bio_noacct. A bounce bio will be allocated to encrypt the contents
-  * of the aforementioned "first one", and *bio_ptr will be updated to this
-  * bounce bio.
-  *
-diff --git a/block/blk-merge.c b/block/blk-merge.c
-index 20fa2290604105..5196dc14527016 100644
---- a/block/blk-merge.c
-+++ b/block/blk-merge.c
-@@ -338,7 +338,7 @@ void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
- 
- 		bio_chain(split, *bio);
- 		trace_block_split(q, split, (*bio)->bi_iter.bi_sector);
--		generic_make_request(*bio);
-+		submit_bio_noacct(*bio);
- 		*bio = split;
- 	}
- }
-diff --git a/block/blk-throttle.c b/block/blk-throttle.c
-index ad37043297ed58..fee3325edf27b9 100644
---- a/block/blk-throttle.c
-+++ b/block/blk-throttle.c
-@@ -1339,8 +1339,8 @@ static void blk_throtl_dispatch_work_fn(struct work_struct *work)
- 
- 	if (!bio_list_empty(&bio_list_on_stack)) {
- 		blk_start_plug(&plug);
--		while((bio = bio_list_pop(&bio_list_on_stack)))
--			generic_make_request(bio);
-+		while ((bio = bio_list_pop(&bio_list_on_stack)))
-+			submit_bio_noacct(bio);
- 		blk_finish_plug(&plug);
- 	}
- }
-diff --git a/block/bounce.c b/block/bounce.c
-index c3aaed07012467..431be88a024050 100644
---- a/block/bounce.c
-+++ b/block/bounce.c
-@@ -309,7 +309,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
- 	if (!passthrough && sectors < bio_sectors(*bio_orig)) {
- 		bio = bio_split(*bio_orig, sectors, GFP_NOIO, &bounce_bio_split);
- 		bio_chain(bio, *bio_orig);
--		generic_make_request(*bio_orig);
-+		submit_bio_noacct(*bio_orig);
- 		*bio_orig = bio;
- 	}
- 	bio = bounce_clone_bio(*bio_orig, GFP_NOIO, passthrough ? NULL :
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 0327408da79c7a..fe6cb99eb91764 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -1576,12 +1576,12 @@ void drbd_set_my_capacity(struct drbd_device *device, sector_t size);
- /*
-  * used to submit our private bio
-  */
--static inline void drbd_generic_make_request(struct drbd_device *device,
-+static inline void drbd_submit_bio_noacct(struct drbd_device *device,
- 					     int fault_type, struct bio *bio)
- {
- 	__release(local);
- 	if (!bio->bi_disk) {
--		drbd_err(device, "drbd_generic_make_request: bio->bi_disk == NULL\n");
-+		drbd_err(device, "drbd_submit_bio_noacct: bio->bi_disk == NULL\n");
- 		bio->bi_status = BLK_STS_IOERR;
- 		bio_endio(bio);
- 		return;
-@@ -1590,7 +1590,7 @@ static inline void drbd_generic_make_request(struct drbd_device *device,
- 	if (drbd_insert_fault(device, fault_type))
- 		bio_io_error(bio);
- 	else
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- }
- 
- void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backing_dev *bdev,
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 2b05de0896e282..7c34cc0ad8ccdf 100644
+index 45fbd526c453bc..e9c9ac3c520282 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -2325,7 +2325,7 @@ static void do_retry(struct work_struct *ws)
- 		 * workqueues instead.
- 		 */
- 
--		/* We are not just doing generic_make_request(),
-+		/* We are not just doing submit_bio_noacct(),
- 		 * as we want to keep the start_time information. */
- 		inc_ap_bio(device);
- 		__drbd_make_request(device, bio, start_jif);
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 3a3f2b6a821f39..c74f561b4eab51 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1723,7 +1723,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 		bios = bios->bi_next;
- 		bio->bi_next = NULL;
- 
--		drbd_generic_make_request(device, fault_type, bio);
-+		drbd_submit_bio_noacct(device, fault_type, bio);
- 	} while (bios);
- 	return 0;
- 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index c7e14c9a6e5f83..674be09b2da94a 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1164,7 +1164,7 @@ drbd_submit_req_private_bio(struct drbd_request *req)
- 		else if (bio_op(bio) == REQ_OP_DISCARD)
- 			drbd_process_discard_or_zeroes_req(req, EE_TRIM);
- 		else
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 		put_ldev(device);
- 	} else
- 		bio_io_error(bio);
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 2b89c9f2ca7075..7c903de5c4e103 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1525,7 +1525,7 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
- 
- 	drbd_req_make_private_bio(req, req->master_bio);
- 	bio_set_dev(req->private_bio, device->ldev->backing_bdev);
--	generic_make_request(req->private_bio);
-+	submit_bio_noacct(req->private_bio);
- 
- 	return 0;
- }
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index 5588bd4cd267e8..4becc1efe775fc 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -913,7 +913,7 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
- 		}
- 
- 		atomic_inc(&pd->cdrw.pending_bios);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 	}
+@@ -2414,62 +2414,6 @@ static void drbd_cleanup(void)
+ 	pr_info("module cleanup done.\n");
  }
  
-diff --git a/drivers/lightnvm/pblk-read.c b/drivers/lightnvm/pblk-read.c
-index 140927ebf41e9a..c28537a489bc10 100644
---- a/drivers/lightnvm/pblk-read.c
-+++ b/drivers/lightnvm/pblk-read.c
-@@ -320,7 +320,7 @@ void pblk_submit_read(struct pblk *pblk, struct bio *bio)
- 		split_bio = bio_split(bio, nr_secs * NR_PHY_IN_LOG, GFP_KERNEL,
- 					&pblk_bio_set);
- 		bio_chain(split_bio, bio);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
+-/**
+- * drbd_congested() - Callback for the flusher thread
+- * @congested_data:	User data
+- * @bdi_bits:		Bits the BDI flusher thread is currently interested in
+- *
+- * Returns 1<<WB_async_congested and/or 1<<WB_sync_congested if we are congested.
+- */
+-static int drbd_congested(void *congested_data, int bdi_bits)
+-{
+-	struct drbd_device *device = congested_data;
+-	struct request_queue *q;
+-	char reason = '-';
+-	int r = 0;
+-
+-	if (!may_inc_ap_bio(device)) {
+-		/* DRBD has frozen IO */
+-		r = bdi_bits;
+-		reason = 'd';
+-		goto out;
+-	}
+-
+-	if (test_bit(CALLBACK_PENDING, &first_peer_device(device)->connection->flags)) {
+-		r |= (1 << WB_async_congested);
+-		/* Without good local data, we would need to read from remote,
+-		 * and that would need the worker thread as well, which is
+-		 * currently blocked waiting for that usermode helper to
+-		 * finish.
+-		 */
+-		if (!get_ldev_if_state(device, D_UP_TO_DATE))
+-			r |= (1 << WB_sync_congested);
+-		else
+-			put_ldev(device);
+-		r &= bdi_bits;
+-		reason = 'c';
+-		goto out;
+-	}
+-
+-	if (get_ldev(device)) {
+-		q = bdev_get_queue(device->ldev->backing_bdev);
+-		r = bdi_congested(q->backing_dev_info, bdi_bits);
+-		put_ldev(device);
+-		if (r)
+-			reason = 'b';
+-	}
+-
+-	if (bdi_bits & (1 << WB_async_congested) &&
+-	    test_bit(NET_CONGESTED, &first_peer_device(device)->connection->flags)) {
+-		r |= (1 << WB_async_congested);
+-		reason = reason == 'b' ? 'a' : 'n';
+-	}
+-
+-out:
+-	device->congestion_reason = reason;
+-	return r;
+-}
+-
+ static void drbd_init_workqueue(struct drbd_work_queue* wq)
+ {
+ 	spin_lock_init(&wq->q_lock);
+@@ -2825,9 +2769,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 	/* we have no partitions. we contain only ourselves. */
+ 	device->this_bdev->bd_contains = device->this_bdev;
  
- 		/* New bio contains first N sectors of the previous one, so
- 		 * we can continue to use existing rqd, but we need to shrink
-diff --git a/drivers/md/bcache/bcache.h b/drivers/md/bcache/bcache.h
-index 221e0191b6870f..3c708e8b5e2d34 100644
---- a/drivers/md/bcache/bcache.h
-+++ b/drivers/md/bcache/bcache.h
-@@ -929,7 +929,7 @@ static inline void closure_bio_submit(struct cache_set *c,
- 		bio_endio(bio);
- 		return;
- 	}
--	generic_make_request(bio);
-+	submit_bio_noacct(bio);
- }
- 
- /*
-diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
-index 6548a601edf0e4..d5c51e33204679 100644
---- a/drivers/md/bcache/btree.c
-+++ b/drivers/md/bcache/btree.c
-@@ -959,7 +959,7 @@ static struct btree *mca_alloc(struct cache_set *c, struct btree_op *op,
-  * bch_btree_node_get - find a btree node in the cache and lock it, reading it
-  * in from disk if necessary.
-  *
-- * If IO is necessary and running under generic_make_request, returns -EAGAIN.
-+ * If IO is necessary and running under submit_bio_noacct, returns -EAGAIN.
-  *
-  * The btree node will have either a read or a write lock held, depending on
-  * level and op->lock.
+-	q->backing_dev_info->congested_fn = drbd_congested;
+-	q->backing_dev_info->congested_data = device;
+-
+ 	blk_queue_write_cache(q, true, true);
+ 	/* Setting the max_hw_sectors to an odd value of 8kibyte here
+ 	   This triggers a max_bio_size message upon first attach or connect */
 diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
-index fc5702b10074d6..dd012ebface012 100644
+index 7acf024e99f351..cda05fc61c3afa 100644
 --- a/drivers/md/bcache/request.c
 +++ b/drivers/md/bcache/request.c
-@@ -1115,7 +1115,7 @@ static void detached_dev_do_request(struct bcache_device *d, struct bio *bio)
- 	    !blk_queue_discard(bdev_get_queue(dc->bdev)))
- 		bio->bi_end_io(bio);
- 	else
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
+@@ -1228,36 +1228,10 @@ static int cached_dev_ioctl(struct bcache_device *d, fmode_t mode,
+ 	return __blkdev_driver_ioctl(dc->bdev, mode, cmd, arg);
  }
  
- static void quit_max_writeback_rate(struct cache_set *c,
-@@ -1197,7 +1197,7 @@ blk_qc_t cached_dev_submit_bio(struct bio *bio)
- 		if (!bio->bi_iter.bi_size) {
- 			/*
- 			 * can't call bch_journal_meta from under
--			 * generic_make_request
-+			 * submit_bio_noacct
- 			 */
- 			continue_at_nobarrier(&s->cl,
- 					      cached_dev_nodata,
-@@ -1311,8 +1311,7 @@ blk_qc_t flash_dev_submit_bio(struct bio *bio)
+-static int cached_dev_congested(void *data, int bits)
+-{
+-	struct bcache_device *d = data;
+-	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+-	struct request_queue *q = bdev_get_queue(dc->bdev);
+-	int ret = 0;
+-
+-	if (bdi_congested(q->backing_dev_info, bits))
+-		return 1;
+-
+-	if (cached_dev_get(dc)) {
+-		unsigned int i;
+-		struct cache *ca;
+-
+-		for_each_cache(ca, d->c, i) {
+-			q = bdev_get_queue(ca->bdev);
+-			ret |= bdi_congested(q->backing_dev_info, bits);
+-		}
+-
+-		cached_dev_put(dc);
+-	}
+-
+-	return ret;
+-}
+-
+ void bch_cached_dev_request_init(struct cached_dev *dc)
+ {
+ 	struct gendisk *g = dc->disk.disk;
  
- 	if (!bio->bi_iter.bi_size) {
- 		/*
--		 * can't call bch_journal_meta from under
--		 * generic_make_request
-+		 * can't call bch_journal_meta from under submit_bio_noacct
- 		 */
- 		continue_at_nobarrier(&s->cl,
- 				      flash_dev_nodata,
+-	g->queue->backing_dev_info->congested_fn = cached_dev_congested;
+ 	dc->disk.cache_miss			= cached_dev_cache_miss;
+ 	dc->disk.ioctl				= cached_dev_ioctl;
+ }
+@@ -1342,27 +1316,10 @@ static int flash_dev_ioctl(struct bcache_device *d, fmode_t mode,
+ 	return -ENOTTY;
+ }
+ 
+-static int flash_dev_congested(void *data, int bits)
+-{
+-	struct bcache_device *d = data;
+-	struct request_queue *q;
+-	struct cache *ca;
+-	unsigned int i;
+-	int ret = 0;
+-
+-	for_each_cache(ca, d->c, i) {
+-		q = bdev_get_queue(ca->bdev);
+-		ret |= bdi_congested(q->backing_dev_info, bits);
+-	}
+-
+-	return ret;
+-}
+-
+ void bch_flash_dev_request_init(struct bcache_device *d)
+ {
+ 	struct gendisk *g = d->disk;
+ 
+-	g->queue->backing_dev_info->congested_fn = flash_dev_congested;
+ 	d->cache_miss				= flash_dev_cache_miss;
+ 	d->ioctl				= flash_dev_ioctl;
+ }
+diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+index 2014016f9a60d3..1810d7ca2f6653 100644
+--- a/drivers/md/bcache/super.c
++++ b/drivers/md/bcache/super.c
+@@ -877,7 +877,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
+ 
+ 	d->disk->queue			= q;
+ 	q->queuedata			= d;
+-	q->backing_dev_info->congested_data = d;
+ 	q->limits.max_hw_sectors	= UINT_MAX;
+ 	q->limits.max_sectors		= UINT_MAX;
+ 	q->limits.max_segment_size	= UINT_MAX;
 diff --git a/drivers/md/dm-cache-target.c b/drivers/md/dm-cache-target.c
-index d3bb355819a421..9eccced928960a 100644
+index d3bb355819a421..24549dc92eeec5 100644
 --- a/drivers/md/dm-cache-target.c
 +++ b/drivers/md/dm-cache-target.c
-@@ -886,7 +886,7 @@ static void accounted_complete(struct cache *cache, struct bio *bio)
- static void accounted_request(struct cache *cache, struct bio *bio)
- {
- 	accounted_begin(cache, bio);
--	generic_make_request(bio);
-+	submit_bio_noacct(bio);
+@@ -421,8 +421,6 @@ struct cache {
+ 
+ 	struct rw_semaphore quiesce_lock;
+ 
+-	struct dm_target_callbacks callbacks;
+-
+ 	/*
+ 	 * origin_blocks entries, discarded if set.
+ 	 */
+@@ -2423,20 +2421,6 @@ static void set_cache_size(struct cache *cache, dm_cblock_t size)
+ 	cache->cache_size = size;
  }
  
- static void issue_op(struct bio *bio, void *context)
-@@ -1792,7 +1792,7 @@ static bool process_bio(struct cache *cache, struct bio *bio)
- 	bool commit_needed;
+-static int is_congested(struct dm_dev *dev, int bdi_bits)
+-{
+-	struct request_queue *q = bdev_get_queue(dev->bdev);
+-	return bdi_congested(q->backing_dev_info, bdi_bits);
+-}
+-
+-static int cache_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
+-{
+-	struct cache *cache = container_of(cb, struct cache, callbacks);
+-
+-	return is_congested(cache->origin_dev, bdi_bits) ||
+-		is_congested(cache->cache_dev, bdi_bits);
+-}
+-
+ #define DEFAULT_MIGRATION_THRESHOLD 2048
  
- 	if (map_bio(cache, bio, get_bio_block(cache, bio), &commit_needed) == DM_MAPIO_REMAPPED)
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
+ static int cache_create(struct cache_args *ca, struct cache **result)
+@@ -2471,9 +2455,6 @@ static int cache_create(struct cache_args *ca, struct cache **result)
+ 			goto bad;
+ 	}
  
- 	return commit_needed;
- }
-@@ -1858,7 +1858,7 @@ static bool process_discard_bio(struct cache *cache, struct bio *bio)
- 
- 	if (cache->features.discard_passdown) {
- 		remap_to_origin(cache, bio);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 	} else
- 		bio_endio(bio);
- 
+-	cache->callbacks.congested_fn = cache_is_congested;
+-	dm_table_add_target_callbacks(ti->table, &cache->callbacks);
+-
+ 	cache->metadata_dev = ca->metadata_dev;
+ 	cache->origin_dev = ca->origin_dev;
+ 	cache->cache_dev = ca->cache_dev;
 diff --git a/drivers/md/dm-clone-target.c b/drivers/md/dm-clone-target.c
-index 5ce96ddf1ce1eb..59ed8a67c2e34f 100644
+index 5ce96ddf1ce1eb..8e900418d571ff 100644
 --- a/drivers/md/dm-clone-target.c
 +++ b/drivers/md/dm-clone-target.c
-@@ -330,7 +330,7 @@ static void submit_bios(struct bio_list *bios)
- 	blk_start_plug(&plug);
+@@ -68,7 +68,6 @@ struct hash_table_bucket;
  
- 	while ((bio = bio_list_pop(bios)))
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
+ struct clone {
+ 	struct dm_target *ti;
+-	struct dm_target_callbacks callbacks;
  
- 	blk_finish_plug(&plug);
+ 	struct dm_dev *metadata_dev;
+ 	struct dm_dev *dest_dev;
+@@ -1518,18 +1517,6 @@ static void clone_status(struct dm_target *ti, status_type_t type,
+ 	DMEMIT("Error");
  }
-@@ -346,7 +346,7 @@ static void submit_bios(struct bio_list *bios)
- static void issue_bio(struct clone *clone, struct bio *bio)
+ 
+-static int clone_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
+-{
+-	struct request_queue *dest_q, *source_q;
+-	struct clone *clone = container_of(cb, struct clone, callbacks);
+-
+-	source_q = bdev_get_queue(clone->source_dev->bdev);
+-	dest_q = bdev_get_queue(clone->dest_dev->bdev);
+-
+-	return (bdi_congested(dest_q->backing_dev_info, bdi_bits) |
+-		bdi_congested(source_q->backing_dev_info, bdi_bits));
+-}
+-
+ static sector_t get_dev_size(struct dm_dev *dev)
  {
- 	if (!bio_triggers_commit(clone, bio)) {
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		return;
+ 	return i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT;
+@@ -1930,8 +1917,6 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 		goto out_with_mempool;
+ 
+ 	mutex_init(&clone->commit_lock);
+-	clone->callbacks.congested_fn = clone_is_congested;
+-	dm_table_add_target_callbacks(ti->table, &clone->callbacks);
+ 
+ 	/* Enable flushes */
+ 	ti->num_flush_bios = 1;
+diff --git a/drivers/md/dm-era-target.c b/drivers/md/dm-era-target.c
+index bdb84b8e71621d..e8d3b5abc85bd6 100644
+--- a/drivers/md/dm-era-target.c
++++ b/drivers/md/dm-era-target.c
+@@ -1137,7 +1137,6 @@ static int metadata_get_stats(struct era_metadata *md, void *ptr)
+ 
+ struct era {
+ 	struct dm_target *ti;
+-	struct dm_target_callbacks callbacks;
+ 
+ 	struct dm_dev *metadata_dev;
+ 	struct dm_dev *origin_dev;
+@@ -1375,18 +1374,6 @@ static void stop_worker(struct era *era)
+ /*----------------------------------------------------------------
+  * Target methods
+  *--------------------------------------------------------------*/
+-static int dev_is_congested(struct dm_dev *dev, int bdi_bits)
+-{
+-	struct request_queue *q = bdev_get_queue(dev->bdev);
+-	return bdi_congested(q->backing_dev_info, bdi_bits);
+-}
+-
+-static int era_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
+-{
+-	struct era *era = container_of(cb, struct era, callbacks);
+-	return dev_is_congested(era->origin_dev, bdi_bits);
+-}
+-
+ static void era_destroy(struct era *era)
+ {
+ 	if (era->md)
+@@ -1514,8 +1501,6 @@ static int era_ctr(struct dm_target *ti, unsigned argc, char **argv)
+ 	ti->flush_supported = true;
+ 
+ 	ti->num_discard_bios = 1;
+-	era->callbacks.congested_fn = era_is_congested;
+-	dm_table_add_target_callbacks(ti->table, &era->callbacks);
+ 
+ 	return 0;
+ }
+diff --git a/drivers/md/dm-raid.c b/drivers/md/dm-raid.c
+index 10e8b2fe787b56..d9e270957e1840 100644
+--- a/drivers/md/dm-raid.c
++++ b/drivers/md/dm-raid.c
+@@ -242,7 +242,6 @@ struct raid_set {
+ 
+ 	struct mddev md;
+ 	struct raid_type *raid_type;
+-	struct dm_target_callbacks callbacks;
+ 
+ 	sector_t array_sectors;
+ 	sector_t dev_sectors;
+@@ -1705,13 +1704,6 @@ static void do_table_event(struct work_struct *ws)
+ 	dm_table_event(rs->ti->table);
+ }
+ 
+-static int raid_is_congested(struct dm_target_callbacks *cb, int bits)
+-{
+-	struct raid_set *rs = container_of(cb, struct raid_set, callbacks);
+-
+-	return mddev_congested(&rs->md, bits);
+-}
+-
+ /*
+  * Make sure a valid takover (level switch) is being requested on @rs
+  *
+@@ -3248,9 +3240,6 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 		goto bad_md_start;
  	}
  
-@@ -473,7 +473,7 @@ static void complete_discard_bio(struct clone *clone, struct bio *bio, bool succ
- 		bio_region_range(clone, bio, &rs, &nr_regions);
- 		trim_bio(bio, region_to_sector(clone, rs),
- 			 nr_regions << clone->region_shift);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 	} else
- 		bio_endio(bio);
- }
-@@ -865,7 +865,7 @@ static void hydration_overwrite(struct dm_clone_region_hydration *hd, struct bio
- 	bio->bi_private = hd;
+-	rs->callbacks.congested_fn = raid_is_congested;
+-	dm_table_add_target_callbacks(ti->table, &rs->callbacks);
+-
+ 	/* If raid4/5/6 journal mode explicitly requested (only possible with journal dev) -> set it */
+ 	if (test_bit(__CTR_FLAG_JOURNAL_MODE, &rs->ctr_flags)) {
+ 		r = r5c_journal_mode_set(&rs->md, rs->journal_dev.mode);
+@@ -3310,7 +3299,6 @@ static void raid_dtr(struct dm_target *ti)
+ {
+ 	struct raid_set *rs = ti->private;
  
- 	atomic_inc(&hd->clone->hydrations_in_flight);
--	generic_make_request(bio);
-+	submit_bio_noacct(bio);
+-	list_del_init(&rs->callbacks.list);
+ 	md_stop(&rs->md);
+ 	raid_set_free(rs);
  }
+diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
+index 8277b959e00bd6..0ea5b7367179ff 100644
+--- a/drivers/md/dm-table.c
++++ b/drivers/md/dm-table.c
+@@ -64,8 +64,6 @@ struct dm_table {
+ 	void *event_context;
+ 
+ 	struct dm_md_mempools *mempools;
+-
+-	struct list_head target_callbacks;
+ };
  
  /*
-@@ -1281,7 +1281,7 @@ static void process_deferred_flush_bios(struct clone *clone)
- 			 */
- 			bio_endio(bio);
- 		} else {
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 		}
- 	}
- }
-diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index 000ddfab5ba058..ad324abb8c497e 100644
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -1789,7 +1789,7 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
- 		return 1;
- 	}
+@@ -190,7 +188,6 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
+ 		return -ENOMEM;
  
--	generic_make_request(clone);
-+	submit_bio_noacct(clone);
+ 	INIT_LIST_HEAD(&t->devices);
+-	INIT_LIST_HEAD(&t->target_callbacks);
+ 
+ 	if (!num_targets)
+ 		num_targets = KEYS_PER_NODE;
+@@ -361,7 +358,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
+  * This upgrades the mode on an already open dm_dev, being
+  * careful to leave things as they were if we fail to reopen the
+  * device and not to touch the existing bdev field in case
+- * it is accessed concurrently inside dm_table_any_congested().
++ * it is accessed concurrently.
+  */
+ static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
+ 			struct mapped_device *md)
+@@ -2052,38 +2049,6 @@ int dm_table_resume_targets(struct dm_table *t)
  	return 0;
  }
  
-@@ -1815,7 +1815,7 @@ static void kcryptd_io_write(struct dm_crypt_io *io)
+-void dm_table_add_target_callbacks(struct dm_table *t, struct dm_target_callbacks *cb)
+-{
+-	list_add(&cb->list, &t->target_callbacks);
+-}
+-EXPORT_SYMBOL_GPL(dm_table_add_target_callbacks);
+-
+-int dm_table_any_congested(struct dm_table *t, int bdi_bits)
+-{
+-	struct dm_dev_internal *dd;
+-	struct list_head *devices = dm_table_get_devices(t);
+-	struct dm_target_callbacks *cb;
+-	int r = 0;
+-
+-	list_for_each_entry(dd, devices, list) {
+-		struct request_queue *q = bdev_get_queue(dd->dm_dev->bdev);
+-		char b[BDEVNAME_SIZE];
+-
+-		if (likely(q))
+-			r |= bdi_congested(q->backing_dev_info, bdi_bits);
+-		else
+-			DMWARN_LIMIT("%s: any_congested: nonexistent device %s",
+-				     dm_device_name(t->md),
+-				     bdevname(dd->dm_dev->bdev, b));
+-	}
+-
+-	list_for_each_entry(cb, &t->target_callbacks, list)
+-		if (cb->congested_fn)
+-			r |= cb->congested_fn(cb, bdi_bits);
+-
+-	return r;
+-}
+-
+ struct mapped_device *dm_table_get_md(struct dm_table *t)
  {
- 	struct bio *clone = io->ctx.bio_out;
- 
--	generic_make_request(clone);
-+	submit_bio_noacct(clone);
- }
- 
- #define crypt_io_from_node(node) rb_entry((node), struct dm_crypt_io, rb_node)
-@@ -1893,7 +1893,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
- 	clone->bi_iter.bi_sector = cc->start + io->sector;
- 
- 	if (likely(!async) && test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags)) {
--		generic_make_request(clone);
-+		submit_bio_noacct(clone);
- 		return;
- 	}
- 
-diff --git a/drivers/md/dm-delay.c b/drivers/md/dm-delay.c
-index f496213f8b6753..2628a832787b04 100644
---- a/drivers/md/dm-delay.c
-+++ b/drivers/md/dm-delay.c
-@@ -72,7 +72,7 @@ static void flush_bios(struct bio *bio)
- 	while (bio) {
- 		n = bio->bi_next;
- 		bio->bi_next = NULL;
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		bio = n;
- 	}
- }
-diff --git a/drivers/md/dm-era-target.c b/drivers/md/dm-era-target.c
-index bdb84b8e71621d..566ddbdb16a4ef 100644
---- a/drivers/md/dm-era-target.c
-+++ b/drivers/md/dm-era-target.c
-@@ -1265,7 +1265,7 @@ static void process_deferred_bios(struct era *era)
- 			bio_io_error(bio);
- 	else
- 		while ((bio = bio_list_pop(&marked_bios)))
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- }
- 
- static void process_rpc_calls(struct era *era)
-diff --git a/drivers/md/dm-integrity.c b/drivers/md/dm-integrity.c
-index 81dc5ff0890956..ae866e469e1b98 100644
---- a/drivers/md/dm-integrity.c
-+++ b/drivers/md/dm-integrity.c
-@@ -2115,12 +2115,12 @@ static void dm_integrity_map_continue(struct dm_integrity_io *dio, bool from_map
- 		dio->in_flight = (atomic_t)ATOMIC_INIT(1);
- 		dio->completion = NULL;
- 
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 
- 		return;
- 	}
- 
--	generic_make_request(bio);
-+	submit_bio_noacct(bio);
- 
- 	if (need_sync_io) {
- 		wait_for_completion_io(&read_comp);
-diff --git a/drivers/md/dm-mpath.c b/drivers/md/dm-mpath.c
-index 78cff42d987ee5..73bb23de6336f1 100644
---- a/drivers/md/dm-mpath.c
-+++ b/drivers/md/dm-mpath.c
-@@ -677,7 +677,7 @@ static void process_queued_bios(struct work_struct *work)
- 			bio_endio(bio);
- 			break;
- 		case DM_MAPIO_REMAPPED:
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 			break;
- 		case DM_MAPIO_SUBMITTED:
- 			break;
-diff --git a/drivers/md/dm-raid1.c b/drivers/md/dm-raid1.c
-index 2f655d9f420064..fa09bc4e4c54a1 100644
---- a/drivers/md/dm-raid1.c
-+++ b/drivers/md/dm-raid1.c
-@@ -779,7 +779,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
- 			wakeup_mirrord(ms);
- 		} else {
- 			map_bio(get_default_mirror(ms), bio);
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 		}
- 	}
- }
-diff --git a/drivers/md/dm-snap-persistent.c b/drivers/md/dm-snap-persistent.c
-index 963d3774c93e28..2d1d4a4c399cdc 100644
---- a/drivers/md/dm-snap-persistent.c
-+++ b/drivers/md/dm-snap-persistent.c
-@@ -252,7 +252,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int op,
- 
- 	/*
- 	 * Issue the synchronous I/O from a different thread
--	 * to avoid generic_make_request recursion.
-+	 * to avoid submit_bio_noacct recursion.
- 	 */
- 	INIT_WORK_ONSTACK(&req.work, do_metadata);
- 	queue_work(ps->metadata_wq, &req.work);
-diff --git a/drivers/md/dm-snap.c b/drivers/md/dm-snap.c
-index 6b11a266299f14..4668b2cd98f4e2 100644
---- a/drivers/md/dm-snap.c
-+++ b/drivers/md/dm-snap.c
-@@ -1568,7 +1568,7 @@ static void flush_bios(struct bio *bio)
- 	while (bio) {
- 		n = bio->bi_next;
- 		bio->bi_next = NULL;
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		bio = n;
- 	}
- }
-@@ -1588,7 +1588,7 @@ static void retry_origin_bios(struct dm_snapshot *s, struct bio *bio)
- 		bio->bi_next = NULL;
- 		r = do_origin(s->origin, bio, false);
- 		if (r == DM_MAPIO_REMAPPED)
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 		bio = n;
- 	}
- }
-@@ -1829,7 +1829,7 @@ static void start_full_bio(struct dm_snap_pending_exception *pe,
- 	bio->bi_end_io = full_bio_end_io;
- 	bio->bi_private = callback_data;
- 
--	generic_make_request(bio);
-+	submit_bio_noacct(bio);
- }
- 
- static struct dm_snap_pending_exception *
+ 	return t->md;
 diff --git a/drivers/md/dm-thin.c b/drivers/md/dm-thin.c
-index fa8d5464c1fb51..fe2de28887096f 100644
+index fa8d5464c1fb51..e95682e09d5af8 100644
 --- a/drivers/md/dm-thin.c
 +++ b/drivers/md/dm-thin.c
-@@ -758,7 +758,7 @@ static void issue(struct thin_c *tc, struct bio *bio)
- 	struct pool *pool = tc->pool;
+@@ -326,7 +326,6 @@ struct pool_c {
+ 	struct pool *pool;
+ 	struct dm_dev *data_dev;
+ 	struct dm_dev *metadata_dev;
+-	struct dm_target_callbacks callbacks;
  
- 	if (!bio_triggers_commit(tc, bio)) {
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		return;
- 	}
- 
-@@ -2394,7 +2394,7 @@ static void process_deferred_bios(struct pool *pool)
- 		if (bio->bi_opf & REQ_PREFLUSH)
- 			bio_endio(bio);
- 		else
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
+ 	dm_block_t low_water_blocks;
+ 	struct pool_features requested_pf; /* Features requested during table load */
+@@ -2796,18 +2795,6 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
  	}
  }
  
-diff --git a/drivers/md/dm-verity-target.c b/drivers/md/dm-verity-target.c
-index eec9f252e9354b..75fa4d9b761717 100644
---- a/drivers/md/dm-verity-target.c
-+++ b/drivers/md/dm-verity-target.c
-@@ -681,7 +681,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
+-static int pool_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
+-{
+-	struct pool_c *pt = container_of(cb, struct pool_c, callbacks);
+-	struct request_queue *q;
+-
+-	if (get_pool_mode(pt->pool) == PM_OUT_OF_DATA_SPACE)
+-		return 1;
+-
+-	q = bdev_get_queue(pt->data_dev->bdev);
+-	return bdi_congested(q->backing_dev_info, bdi_bits);
+-}
+-
+ static void requeue_bios(struct pool *pool)
+ {
+ 	struct thin_c *tc;
+@@ -3420,9 +3407,6 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
+ 	dm_pool_register_pre_commit_callback(pool->pmd,
+ 					     metadata_pre_commit_callback, pool);
  
- 	verity_submit_prefetch(v, io);
+-	pt->callbacks.congested_fn = pool_is_congested;
+-	dm_table_add_target_callbacks(ti->table, &pt->callbacks);
+-
+ 	mutex_unlock(&dm_thin_pool_table.mutex);
  
--	generic_make_request(bio);
-+	submit_bio_noacct(bio);
- 
- 	return DM_MAPIO_SUBMITTED;
- }
-diff --git a/drivers/md/dm-writecache.c b/drivers/md/dm-writecache.c
-index 74f3c506f08487..62421554b83851 100644
---- a/drivers/md/dm-writecache.c
-+++ b/drivers/md/dm-writecache.c
-@@ -1238,7 +1238,7 @@ static int writecache_flush_thread(void *data)
- 					   bio_end_sector(bio));
- 			wc_unlock(wc);
- 			bio_set_dev(bio, wc->dev->bdev);
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 		} else {
- 			writecache_flush(wc);
- 			wc_unlock(wc);
-diff --git a/drivers/md/dm-zoned-target.c b/drivers/md/dm-zoned-target.c
-index a907a9446c0b5c..05a3cfefe93728 100644
---- a/drivers/md/dm-zoned-target.c
-+++ b/drivers/md/dm-zoned-target.c
-@@ -140,7 +140,7 @@ static int dmz_submit_bio(struct dmz_target *dmz, struct dm_zone *zone,
- 	bio_advance(bio, clone->bi_iter.bi_size);
- 
- 	refcount_inc(&bioctx->ref);
--	generic_make_request(clone);
-+	submit_bio_noacct(clone);
- 
- 	if (bio_op(bio) == REQ_OP_WRITE && dmz_is_seq(zone))
- 		zone->wp_block += nr_blocks;
+ 	return 0;
 diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index 5acfaba3700dfc..b32b539dbace56 100644
+index 97838b6d0b5473..f0fd8822da514f 100644
 --- a/drivers/md/dm.c
 +++ b/drivers/md/dm.c
-@@ -1305,7 +1305,7 @@ static blk_qc_t __map_bio(struct dm_target_io *tio)
- 		if (md->type == DM_TYPE_NVME_BIO_BASED)
- 			ret = direct_make_request(clone);
- 		else
--			ret = generic_make_request(clone);
-+			ret = submit_bio_noacct(clone);
- 		break;
- 	case DM_MAPIO_KILL:
- 		free_tio(tio);
-@@ -1652,7 +1652,7 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
- 			error = __split_and_process_non_flush(&ci);
- 			if (current->bio_list && ci.sector_count && !error) {
- 				/*
--				 * Remainder must be passed to generic_make_request()
-+				 * Remainder must be passed to submit_bio_noacct()
- 				 * so that it gets handled *after* bios already submitted
- 				 * have been completely processed.
- 				 * We take a clone of the original to store in
-@@ -1677,7 +1677,7 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
+@@ -1825,31 +1825,6 @@ static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
+ 	return ret;
+ }
  
- 				bio_chain(b, bio);
- 				trace_block_split(md->queue, b, bio->bi_iter.bi_sector);
--				ret = generic_make_request(bio);
-+				ret = submit_bio_noacct(bio);
- 				break;
- 			}
+-static int dm_any_congested(void *congested_data, int bdi_bits)
+-{
+-	int r = bdi_bits;
+-	struct mapped_device *md = congested_data;
+-	struct dm_table *map;
+-
+-	if (!test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) {
+-		if (dm_request_based(md)) {
+-			/*
+-			 * With request-based DM we only need to check the
+-			 * top-level queue for congestion.
+-			 */
+-			struct backing_dev_info *bdi = md->queue->backing_dev_info;
+-			r = bdi->wb.congested & bdi_bits;
+-		} else {
+-			map = dm_get_live_table_fast(md);
+-			if (map)
+-				r = dm_table_any_congested(map, bdi_bits);
+-			dm_put_live_table_fast(md);
+-		}
+-	}
+-
+-	return r;
+-}
+-
+ /*-----------------------------------------------------------------
+  * An IDR is used to keep track of allocated minor numbers.
+  *---------------------------------------------------------------*/
+@@ -2289,12 +2264,6 @@ struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
+ }
+ EXPORT_SYMBOL_GPL(dm_get_queue_limits);
+ 
+-static void dm_init_congested_fn(struct mapped_device *md)
+-{
+-	md->queue->backing_dev_info->congested_data = md;
+-	md->queue->backing_dev_info->congested_fn = dm_any_congested;
+-}
+-
+ /*
+  * Setup the DM device's queue based on md's type
+  */
+@@ -2311,12 +2280,10 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
+ 			DMERR("Cannot initialize queue for request-based dm-mq mapped device");
+ 			return r;
  		}
-@@ -1745,7 +1745,7 @@ static void dm_queue_split(struct mapped_device *md, struct dm_target *ti, struc
- 
- 		bio_chain(split, *bio);
- 		trace_block_split(md->queue, split, (*bio)->bi_iter.bi_sector);
--		generic_make_request(*bio);
-+		submit_bio_noacct(*bio);
- 		*bio = split;
- 	}
- }
-@@ -2500,7 +2500,7 @@ static void dm_wq_work(struct work_struct *work)
- 			break;
- 
- 		if (dm_request_based(md))
--			(void) generic_make_request(c);
-+			(void) submit_bio_noacct(c);
- 		else
- 			(void) dm_process_bio(md, map, c);
- 	}
-diff --git a/drivers/md/md-faulty.c b/drivers/md/md-faulty.c
-index 50ad4ba86f0e74..fda4cb3f936f39 100644
---- a/drivers/md/md-faulty.c
-+++ b/drivers/md/md-faulty.c
-@@ -169,7 +169,7 @@ static bool faulty_make_request(struct mddev *mddev, struct bio *bio)
- 	if (bio_data_dir(bio) == WRITE) {
- 		/* write request */
- 		if (atomic_read(&conf->counters[WriteAll])) {
--			/* special case - don't decrement, don't generic_make_request,
-+			/* special case - don't decrement, don't submit_bio_noacct,
- 			 * just fail immediately
- 			 */
- 			bio_io_error(bio);
-@@ -214,7 +214,7 @@ static bool faulty_make_request(struct mddev *mddev, struct bio *bio)
- 	} else
- 		bio_set_dev(bio, conf->rdev->bdev);
- 
--	generic_make_request(bio);
-+	submit_bio_noacct(bio);
- 	return true;
- }
- 
+-		dm_init_congested_fn(md);
+ 		break;
+ 	case DM_TYPE_BIO_BASED:
+ 	case DM_TYPE_DAX_BIO_BASED:
+ 	case DM_TYPE_NVME_BIO_BASED:
+-		dm_init_congested_fn(md);
+ 		break;
+ 	case DM_TYPE_NONE:
+ 		WARN_ON_ONCE(true);
+diff --git a/drivers/md/dm.h b/drivers/md/dm.h
+index d7c4f6606b5fca..4f5fe664d05ac7 100644
+--- a/drivers/md/dm.h
++++ b/drivers/md/dm.h
+@@ -63,7 +63,6 @@ void dm_table_presuspend_targets(struct dm_table *t);
+ void dm_table_presuspend_undo_targets(struct dm_table *t);
+ void dm_table_postsuspend_targets(struct dm_table *t);
+ int dm_table_resume_targets(struct dm_table *t);
+-int dm_table_any_congested(struct dm_table *t, int bdi_bits);
+ enum dm_queue_mode dm_table_get_type(struct dm_table *t);
+ struct target_type *dm_table_get_immutable_target_type(struct dm_table *t);
+ struct dm_target *dm_table_get_immutable_target(struct dm_table *t);
 diff --git a/drivers/md/md-linear.c b/drivers/md/md-linear.c
-index 26c75c0199fa1b..8efada3ee16f30 100644
+index 26c75c0199fa1b..e19d1919a753d2 100644
 --- a/drivers/md/md-linear.c
 +++ b/drivers/md/md-linear.c
-@@ -267,7 +267,7 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
- 		struct bio *split = bio_split(bio, end_sector - bio_sector,
- 					      GFP_NOIO, &mddev->bio_set);
- 		bio_chain(split, bio);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		bio = split;
- 	}
+@@ -46,29 +46,6 @@ static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
+ 	return conf->disks + lo;
+ }
  
-@@ -286,7 +286,7 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
- 					      bio_sector);
- 		mddev_check_writesame(mddev, bio);
- 		mddev_check_write_zeroes(mddev, bio);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 	}
- 	return true;
+-/*
+- * In linear_congested() conf->raid_disks is used as a copy of
+- * mddev->raid_disks to iterate conf->disks[], because conf->raid_disks
+- * and conf->disks[] are created in linear_conf(), they are always
+- * consitent with each other, but mddev->raid_disks does not.
+- */
+-static int linear_congested(struct mddev *mddev, int bits)
+-{
+-	struct linear_conf *conf;
+-	int i, ret = 0;
+-
+-	rcu_read_lock();
+-	conf = rcu_dereference(mddev->private);
+-
+-	for (i = 0; i < conf->raid_disks && !ret ; i++) {
+-		struct request_queue *q = bdev_get_queue(conf->disks[i].rdev->bdev);
+-		ret |= bdi_congested(q->backing_dev_info, bits);
+-	}
+-
+-	rcu_read_unlock();
+-	return ret;
+-}
+-
+ static sector_t linear_size(struct mddev *mddev, sector_t sectors, int raid_disks)
+ {
+ 	struct linear_conf *conf;
+@@ -322,7 +299,6 @@ static struct md_personality linear_personality =
+ 	.hot_add_disk	= linear_add,
+ 	.size		= linear_size,
+ 	.quiesce	= linear_quiesce,
+-	.congested	= linear_congested,
+ };
  
+ static int __init linear_init (void)
 diff --git a/drivers/md/md-multipath.c b/drivers/md/md-multipath.c
-index 152f9e65a22665..277fdfd9ee5480 100644
+index 152f9e65a22665..f9c895fa9afc25 100644
 --- a/drivers/md/md-multipath.c
 +++ b/drivers/md/md-multipath.c
-@@ -131,7 +131,7 @@ static bool multipath_make_request(struct mddev *mddev, struct bio * bio)
- 	mp_bh->bio.bi_private = mp_bh;
- 	mddev_check_writesame(mddev, &mp_bh->bio);
- 	mddev_check_write_zeroes(mddev, &mp_bh->bio);
--	generic_make_request(&mp_bh->bio);
-+	submit_bio_noacct(&mp_bh->bio);
- 	return true;
+@@ -151,28 +151,6 @@ static void multipath_status(struct seq_file *seq, struct mddev *mddev)
+ 	seq_putc(seq, ']');
  }
  
-@@ -348,7 +348,7 @@ static void multipathd(struct md_thread *thread)
- 			bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
- 			bio->bi_end_io = multipath_end_request;
- 			bio->bi_private = mp_bh;
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 		}
+-static int multipath_congested(struct mddev *mddev, int bits)
+-{
+-	struct mpconf *conf = mddev->private;
+-	int i, ret = 0;
+-
+-	rcu_read_lock();
+-	for (i = 0; i < mddev->raid_disks ; i++) {
+-		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
+-		if (rdev && !test_bit(Faulty, &rdev->flags)) {
+-			struct request_queue *q = bdev_get_queue(rdev->bdev);
+-
+-			ret |= bdi_congested(q->backing_dev_info, bits);
+-			/* Just like multipath_map, we just check the
+-			 * first available device
+-			 */
+-			break;
+-		}
+-	}
+-	rcu_read_unlock();
+-	return ret;
+-}
+-
+ /*
+  * Careful, this can execute in IRQ contexts as well!
+  */
+@@ -478,7 +456,6 @@ static struct md_personality multipath_personality =
+ 	.hot_add_disk	= multipath_add_disk,
+ 	.hot_remove_disk= multipath_remove_disk,
+ 	.size		= multipath_size,
+-	.congested	= multipath_congested,
+ };
+ 
+ static int __init multipath_init (void)
+diff --git a/drivers/md/md.c b/drivers/md/md.c
+index f567f536b529bd..b27038246bc563 100644
+--- a/drivers/md/md.c
++++ b/drivers/md/md.c
+@@ -549,26 +549,6 @@ void mddev_resume(struct mddev *mddev)
+ }
+ EXPORT_SYMBOL_GPL(mddev_resume);
+ 
+-int mddev_congested(struct mddev *mddev, int bits)
+-{
+-	struct md_personality *pers = mddev->pers;
+-	int ret = 0;
+-
+-	rcu_read_lock();
+-	if (mddev->suspended)
+-		ret = 1;
+-	else if (pers && pers->congested)
+-		ret = pers->congested(mddev, bits);
+-	rcu_read_unlock();
+-	return ret;
+-}
+-EXPORT_SYMBOL_GPL(mddev_congested);
+-static int md_congested(void *data, int bits)
+-{
+-	struct mddev *mddev = data;
+-	return mddev_congested(mddev, bits);
+-}
+-
+ /*
+  * Generic flush handling for md
+  */
+@@ -5964,8 +5944,6 @@ int md_run(struct mddev *mddev)
+ 			blk_queue_flag_set(QUEUE_FLAG_NONROT, mddev->queue);
+ 		else
+ 			blk_queue_flag_clear(QUEUE_FLAG_NONROT, mddev->queue);
+-		mddev->queue->backing_dev_info->congested_data = mddev;
+-		mddev->queue->backing_dev_info->congested_fn = md_congested;
  	}
- 	spin_unlock_irqrestore(&conf->device_lock, flags);
+ 	if (pers->sync_request) {
+ 		if (mddev->kobj.sd &&
+@@ -6350,7 +6328,6 @@ static int do_md_stop(struct mddev *mddev, int mode,
+ 
+ 		__md_stop_writes(mddev);
+ 		__md_stop(mddev);
+-		mddev->queue->backing_dev_info->congested_fn = NULL;
+ 
+ 		/* tell userspace to handle 'inactive' */
+ 		sysfs_notify_dirent_safe(mddev->sysfs_state);
+diff --git a/drivers/md/md.h b/drivers/md/md.h
+index 612814d07d35ab..e2f1ad9afc4885 100644
+--- a/drivers/md/md.h
++++ b/drivers/md/md.h
+@@ -597,9 +597,6 @@ struct md_personality
+ 	 * array.
+ 	 */
+ 	void *(*takeover) (struct mddev *mddev);
+-	/* congested implements bdi.congested_fn().
+-	 * Will not be called while array is 'suspended' */
+-	int (*congested)(struct mddev *mddev, int bits);
+ 	/* Changes the consistency policy of an active array. */
+ 	int (*change_consistency_policy)(struct mddev *mddev, const char *buf);
+ };
+@@ -710,7 +707,6 @@ extern void md_done_sync(struct mddev *mddev, int blocks, int ok);
+ extern void md_error(struct mddev *mddev, struct md_rdev *rdev);
+ extern void md_finish_reshape(struct mddev *mddev);
+ 
+-extern int mddev_congested(struct mddev *mddev, int bits);
+ extern bool __must_check md_flush_request(struct mddev *mddev, struct bio *bio);
+ extern void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
+ 			   sector_t sector, int size, struct page *page);
 diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
-index 322386ff5d225d..e9e91c8d8afcea 100644
+index 322386ff5d225d..d092b88af80a66 100644
 --- a/drivers/md/raid0.c
 +++ b/drivers/md/raid0.c
-@@ -495,7 +495,7 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
- 			zone->zone_end - bio->bi_iter.bi_sector, GFP_NOIO,
- 			&mddev->bio_set);
- 		bio_chain(split, bio);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		bio = split;
- 		end = zone->zone_end;
- 	} else
-@@ -559,7 +559,7 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
- 			trace_block_bio_remap(bdev_get_queue(rdev->bdev),
- 				discard_bio, disk_devt(mddev->gendisk),
- 				bio->bi_iter.bi_sector);
--		generic_make_request(discard_bio);
-+		submit_bio_noacct(discard_bio);
- 	}
- 	bio_endio(bio);
- }
-@@ -600,7 +600,7 @@ static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
- 		struct bio *split = bio_split(bio, sectors, GFP_NOIO,
- 					      &mddev->bio_set);
- 		bio_chain(split, bio);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		bio = split;
- 	}
+@@ -29,21 +29,6 @@ module_param(default_layout, int, 0644);
+ 	 (1L << MD_HAS_PPL) |		\
+ 	 (1L << MD_HAS_MULTIPLE_PPLS))
  
-@@ -633,7 +633,7 @@ static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
- 				disk_devt(mddev->gendisk), bio_sector);
- 	mddev_check_writesame(mddev, bio);
- 	mddev_check_write_zeroes(mddev, bio);
--	generic_make_request(bio);
-+	submit_bio_noacct(bio);
- 	return true;
- }
+-static int raid0_congested(struct mddev *mddev, int bits)
+-{
+-	struct r0conf *conf = mddev->private;
+-	struct md_rdev **devlist = conf->devlist;
+-	int raid_disks = conf->strip_zone[0].nb_dev;
+-	int i, ret = 0;
+-
+-	for (i = 0; i < raid_disks && !ret ; i++) {
+-		struct request_queue *q = bdev_get_queue(devlist[i]->bdev);
+-
+-		ret |= bdi_congested(q->backing_dev_info, bits);
+-	}
+-	return ret;
+-}
+-
+ /*
+  * inform the user of the raid configuration
+ */
+@@ -818,7 +803,6 @@ static struct md_personality raid0_personality=
+ 	.size		= raid0_size,
+ 	.takeover	= raid0_takeover,
+ 	.quiesce	= raid0_quiesce,
+-	.congested	= raid0_congested,
+ };
  
+ static int __init raid0_init (void)
 diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-index dcd27f3da84eca..2aa2649cca660e 100644
+index dcd27f3da84eca..4edc7ff05ed278 100644
 --- a/drivers/md/raid1.c
 +++ b/drivers/md/raid1.c
-@@ -834,7 +834,7 @@ static void flush_bio_list(struct r1conf *conf, struct bio *bio)
- 			/* Just ignore it */
- 			bio_endio(bio);
- 		else
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 		bio = next;
- 		cond_resched();
- 	}
-@@ -1312,7 +1312,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
- 		struct bio *split = bio_split(bio, max_sectors,
- 					      gfp, &conf->bio_split);
- 		bio_chain(split, bio);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		bio = split;
- 		r1_bio->master_bio = bio;
- 		r1_bio->sectors = max_sectors;
-@@ -1338,7 +1338,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
- 	        trace_block_bio_remap(read_bio->bi_disk->queue, read_bio,
- 				disk_devt(mddev->gendisk), r1_bio->sector);
- 
--	generic_make_request(read_bio);
-+	submit_bio_noacct(read_bio);
+@@ -786,36 +786,6 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
+ 	return best_disk;
  }
  
- static void raid1_write_request(struct mddev *mddev, struct bio *bio,
-@@ -1483,7 +1483,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
- 		struct bio *split = bio_split(bio, max_sectors,
- 					      GFP_NOIO, &conf->bio_split);
- 		bio_chain(split, bio);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		bio = split;
- 		r1_bio->master_bio = bio;
- 		r1_bio->sectors = max_sectors;
-@@ -2240,7 +2240,7 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
- 		atomic_inc(&r1_bio->remaining);
- 		md_sync_acct(conf->mirrors[i].rdev->bdev, bio_sectors(wbio));
+-static int raid1_congested(struct mddev *mddev, int bits)
+-{
+-	struct r1conf *conf = mddev->private;
+-	int i, ret = 0;
+-
+-	if ((bits & (1 << WB_async_congested)) &&
+-	    conf->pending_count >= max_queued_requests)
+-		return 1;
+-
+-	rcu_read_lock();
+-	for (i = 0; i < conf->raid_disks * 2; i++) {
+-		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
+-		if (rdev && !test_bit(Faulty, &rdev->flags)) {
+-			struct request_queue *q = bdev_get_queue(rdev->bdev);
+-
+-			BUG_ON(!q);
+-
+-			/* Note the '|| 1' - when read_balance prefers
+-			 * non-congested targets, it can be removed
+-			 */
+-			if ((bits & (1 << WB_async_congested)) || 1)
+-				ret |= bdi_congested(q->backing_dev_info, bits);
+-			else
+-				ret &= bdi_congested(q->backing_dev_info, bits);
+-		}
+-	}
+-	rcu_read_unlock();
+-	return ret;
+-}
+-
+ static void flush_bio_list(struct r1conf *conf, struct bio *bio)
+ {
+ 	/* flush any pending bitmap writes to disk before proceeding w/ I/O */
+@@ -3396,7 +3366,6 @@ static struct md_personality raid1_personality =
+ 	.check_reshape	= raid1_reshape,
+ 	.quiesce	= raid1_quiesce,
+ 	.takeover	= raid1_takeover,
+-	.congested	= raid1_congested,
+ };
  
--		generic_make_request(wbio);
-+		submit_bio_noacct(wbio);
- 	}
- 
- 	put_sync_write_buf(r1_bio, 1);
-@@ -2926,7 +2926,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
- 				md_sync_acct_bio(bio, nr_sectors);
- 				if (read_targets == 1)
- 					bio->bi_opf &= ~MD_FAILFAST;
--				generic_make_request(bio);
-+				submit_bio_noacct(bio);
- 			}
- 		}
- 	} else {
-@@ -2935,7 +2935,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
- 		md_sync_acct_bio(bio, nr_sectors);
- 		if (read_targets == 1)
- 			bio->bi_opf &= ~MD_FAILFAST;
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 	}
- 	return nr_sectors;
- }
+ static int __init raid_init(void)
 diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-index ec136e44aef7f8..e45fd56cf58450 100644
+index ec136e44aef7f8..1768300138b35f 100644
 --- a/drivers/md/raid10.c
 +++ b/drivers/md/raid10.c
-@@ -917,7 +917,7 @@ static void flush_pending_writes(struct r10conf *conf)
- 				/* Just ignore it */
- 				bio_endio(bio);
- 			else
--				generic_make_request(bio);
-+				submit_bio_noacct(bio);
- 			bio = next;
- 		}
- 		blk_finish_plug(&plug);
-@@ -1102,7 +1102,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
- 			/* Just ignore it */
- 			bio_endio(bio);
- 		else
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 		bio = next;
- 	}
- 	kfree(plug);
-@@ -1194,7 +1194,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
- 					      gfp, &conf->bio_split);
- 		bio_chain(split, bio);
- 		allow_barrier(conf);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		wait_barrier(conf);
- 		bio = split;
- 		r10_bio->master_bio = bio;
-@@ -1221,7 +1221,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
- 	        trace_block_bio_remap(read_bio->bi_disk->queue,
- 	                              read_bio, disk_devt(mddev->gendisk),
- 	                              r10_bio->sector);
--	generic_make_request(read_bio);
-+	submit_bio_noacct(read_bio);
- 	return;
+@@ -848,31 +848,6 @@ static struct md_rdev *read_balance(struct r10conf *conf,
+ 	return rdev;
  }
  
-@@ -1479,7 +1479,7 @@ static void raid10_write_request(struct mddev *mddev, struct bio *bio,
- 					      GFP_NOIO, &conf->bio_split);
- 		bio_chain(split, bio);
- 		allow_barrier(conf);
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- 		wait_barrier(conf);
- 		bio = split;
- 		r10_bio->master_bio = bio;
-@@ -2099,7 +2099,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
- 			tbio->bi_opf |= MD_FAILFAST;
- 		tbio->bi_iter.bi_sector += conf->mirrors[d].rdev->data_offset;
- 		bio_set_dev(tbio, conf->mirrors[d].rdev->bdev);
--		generic_make_request(tbio);
-+		submit_bio_noacct(tbio);
- 	}
+-static int raid10_congested(struct mddev *mddev, int bits)
+-{
+-	struct r10conf *conf = mddev->private;
+-	int i, ret = 0;
+-
+-	if ((bits & (1 << WB_async_congested)) &&
+-	    conf->pending_count >= max_queued_requests)
+-		return 1;
+-
+-	rcu_read_lock();
+-	for (i = 0;
+-	     (i < conf->geo.raid_disks || i < conf->prev.raid_disks)
+-		     && ret == 0;
+-	     i++) {
+-		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
+-		if (rdev && !test_bit(Faulty, &rdev->flags)) {
+-			struct request_queue *q = bdev_get_queue(rdev->bdev);
+-
+-			ret |= bdi_congested(q->backing_dev_info, bits);
+-		}
+-	}
+-	rcu_read_unlock();
+-	return ret;
+-}
+-
+ static void flush_pending_writes(struct r10conf *conf)
+ {
+ 	/* Any writes that have been queued but are awaiting
+@@ -4929,7 +4904,6 @@ static struct md_personality raid10_personality =
+ 	.start_reshape	= raid10_start_reshape,
+ 	.finish_reshape	= raid10_finish_reshape,
+ 	.update_reshape_pos = raid10_update_reshape_pos,
+-	.congested	= raid10_congested,
+ };
  
- 	/* Now write out to any replacement devices
-@@ -2118,7 +2118,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
- 		atomic_inc(&r10_bio->remaining);
- 		md_sync_acct(conf->mirrors[d].replacement->bdev,
- 			     bio_sectors(tbio));
--		generic_make_request(tbio);
-+		submit_bio_noacct(tbio);
- 	}
- 
- done:
-@@ -2241,7 +2241,7 @@ static void recovery_request_write(struct mddev *mddev, struct r10bio *r10_bio)
- 	wbio = r10_bio->devs[1].bio;
- 	wbio2 = r10_bio->devs[1].repl_bio;
- 	/* Need to test wbio2->bi_end_io before we call
--	 * generic_make_request as if the former is NULL,
-+	 * submit_bio_noacct as if the former is NULL,
- 	 * the latter is free to free wbio2.
- 	 */
- 	if (wbio2 && !wbio2->bi_end_io)
-@@ -2249,13 +2249,13 @@ static void recovery_request_write(struct mddev *mddev, struct r10bio *r10_bio)
- 	if (wbio->bi_end_io) {
- 		atomic_inc(&conf->mirrors[d].rdev->nr_pending);
- 		md_sync_acct(conf->mirrors[d].rdev->bdev, bio_sectors(wbio));
--		generic_make_request(wbio);
-+		submit_bio_noacct(wbio);
- 	}
- 	if (wbio2) {
- 		atomic_inc(&conf->mirrors[d].replacement->nr_pending);
- 		md_sync_acct(conf->mirrors[d].replacement->bdev,
- 			     bio_sectors(wbio2));
--		generic_make_request(wbio2);
-+		submit_bio_noacct(wbio2);
- 	}
- }
- 
-@@ -2889,7 +2889,7 @@ static void raid10_set_cluster_sync_high(struct r10conf *conf)
-  * a number of r10_bio structures, one for each out-of-sync device.
-  * As we setup these structures, we collect all bio's together into a list
-  * which we then process collectively to add pages, and then process again
-- * to pass to generic_make_request.
-+ * to pass to submit_bio_noacct.
-  *
-  * The r10_bio structures are linked using a borrowed master_bio pointer.
-  * This link is counted in ->remaining.  When the r10_bio that points to NULL
-@@ -3496,7 +3496,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
- 		if (bio->bi_end_io == end_sync_read) {
- 			md_sync_acct_bio(bio, nr_sectors);
- 			bio->bi_status = 0;
--			generic_make_request(bio);
-+			submit_bio_noacct(bio);
- 		}
- 	}
- 
-@@ -4654,7 +4654,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
- 	md_sync_acct_bio(read_bio, r10_bio->sectors);
- 	atomic_inc(&r10_bio->remaining);
- 	read_bio->bi_next = NULL;
--	generic_make_request(read_bio);
-+	submit_bio_noacct(read_bio);
- 	sectors_done += nr_sectors;
- 	if (sector_nr <= last)
- 		goto read_more;
-@@ -4717,7 +4717,7 @@ static void reshape_request_write(struct mddev *mddev, struct r10bio *r10_bio)
- 		md_sync_acct_bio(b, r10_bio->sectors);
- 		atomic_inc(&r10_bio->remaining);
- 		b->bi_next = NULL;
--		generic_make_request(b);
-+		submit_bio_noacct(b);
- 	}
- 	end_reshape_request(r10_bio);
- }
+ static int __init raid_init(void)
 diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-index ab8067f9ce8c68..8dea4398b191ae 100644
+index ab8067f9ce8c68..229a36a8694f28 100644
 --- a/drivers/md/raid5.c
 +++ b/drivers/md/raid5.c
-@@ -873,7 +873,7 @@ static void dispatch_bio_list(struct bio_list *tmp)
- 	struct bio *bio;
- 
- 	while ((bio = bio_list_pop(tmp)))
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
- }
- 
- static int cmp_stripe(void *priv, struct list_head *a, struct list_head *b)
-@@ -1151,7 +1151,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
- 			if (should_defer && op_is_write(op))
- 				bio_list_add(&pending_bios, bi);
- 			else
--				generic_make_request(bi);
-+				submit_bio_noacct(bi);
- 		}
- 		if (rrdev) {
- 			if (s->syncing || s->expanding || s->expanded
-@@ -1201,7 +1201,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
- 			if (should_defer && op_is_write(op))
- 				bio_list_add(&pending_bios, rbi);
- 			else
--				generic_make_request(rbi);
-+				submit_bio_noacct(rbi);
- 		}
- 		if (!rdev && !rrdev) {
- 			if (op_is_write(op))
-@@ -5289,7 +5289,7 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
- 			trace_block_bio_remap(align_bi->bi_disk->queue,
- 					      align_bi, disk_devt(mddev->gendisk),
- 					      raid_bio->bi_iter.bi_sector);
--		generic_make_request(align_bi);
-+		submit_bio_noacct(align_bi);
- 		return 1;
- 	} else {
- 		rcu_read_unlock();
-@@ -5309,7 +5309,7 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
- 		struct r5conf *conf = mddev->private;
- 		split = bio_split(raid_bio, sectors, GFP_NOIO, &conf->bio_split);
- 		bio_chain(split, raid_bio);
--		generic_make_request(raid_bio);
-+		submit_bio_noacct(raid_bio);
- 		raid_bio = split;
- 	}
- 
-diff --git a/drivers/nvme/host/multipath.c b/drivers/nvme/host/multipath.c
-index 89afcf943bf846..f07fa47c251d9d 100644
---- a/drivers/nvme/host/multipath.c
-+++ b/drivers/nvme/host/multipath.c
-@@ -351,7 +351,7 @@ static void nvme_requeue_work(struct work_struct *work)
- 		 * path.
- 		 */
- 		bio->bi_disk = head->disk;
--		generic_make_request(bio);
-+		submit_bio_noacct(bio);
+@@ -5099,28 +5099,6 @@ static void activate_bit_delay(struct r5conf *conf,
  	}
  }
  
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 083ffc5bc51b09..b73cfa6a5141df 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -852,7 +852,7 @@ static inline void rq_flush_dcache_pages(struct request *rq)
+-static int raid5_congested(struct mddev *mddev, int bits)
+-{
+-	struct r5conf *conf = mddev->private;
+-
+-	/* No difference between reads and writes.  Just check
+-	 * how busy the stripe_cache is
+-	 */
+-
+-	if (test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state))
+-		return 1;
+-
+-	/* Also checks whether there is pressure on r5cache log space */
+-	if (test_bit(R5C_LOG_TIGHT, &conf->cache_state))
+-		return 1;
+-	if (conf->quiesce)
+-		return 1;
+-	if (atomic_read(&conf->empty_inactive_list_nr))
+-		return 1;
+-
+-	return 0;
+-}
+-
+ static int in_chunk_boundary(struct mddev *mddev, struct bio *bio)
+ {
+ 	struct r5conf *conf = mddev->private;
+@@ -8427,7 +8405,6 @@ static struct md_personality raid6_personality =
+ 	.finish_reshape = raid5_finish_reshape,
+ 	.quiesce	= raid5_quiesce,
+ 	.takeover	= raid6_takeover,
+-	.congested	= raid5_congested,
+ 	.change_consistency_policy = raid5_change_consistency_policy,
+ };
+ static struct md_personality raid5_personality =
+@@ -8452,7 +8429,6 @@ static struct md_personality raid5_personality =
+ 	.finish_reshape = raid5_finish_reshape,
+ 	.quiesce	= raid5_quiesce,
+ 	.takeover	= raid5_takeover,
+-	.congested	= raid5_congested,
+ 	.change_consistency_policy = raid5_change_consistency_policy,
+ };
  
- extern int blk_register_queue(struct gendisk *disk);
- extern void blk_unregister_queue(struct gendisk *disk);
--extern blk_qc_t generic_make_request(struct bio *bio);
-+blk_qc_t submit_bio_noacct(struct bio *bio);
- extern blk_qc_t direct_make_request(struct bio *bio);
- extern void blk_rq_init(struct request_queue *q, struct request *rq);
- extern void blk_put_request(struct request *);
+@@ -8478,7 +8454,6 @@ static struct md_personality raid4_personality =
+ 	.finish_reshape = raid5_finish_reshape,
+ 	.quiesce	= raid5_quiesce,
+ 	.takeover	= raid4_takeover,
+-	.congested	= raid5_congested,
+ 	.change_consistency_policy = raid5_change_consistency_policy,
+ };
+ 
+diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+index 7c6f0bbb54a5bd..eb5f2506cede72 100644
+--- a/fs/btrfs/disk-io.c
++++ b/fs/btrfs/disk-io.c
+@@ -1616,27 +1616,6 @@ struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
+ 	return ERR_PTR(ret);
+ }
+ 
+-static int btrfs_congested_fn(void *congested_data, int bdi_bits)
+-{
+-	struct btrfs_fs_info *info = (struct btrfs_fs_info *)congested_data;
+-	int ret = 0;
+-	struct btrfs_device *device;
+-	struct backing_dev_info *bdi;
+-
+-	rcu_read_lock();
+-	list_for_each_entry_rcu(device, &info->fs_devices->devices, dev_list) {
+-		if (!device->bdev)
+-			continue;
+-		bdi = device->bdev->bd_bdi;
+-		if (bdi_congested(bdi, bdi_bits)) {
+-			ret = 1;
+-			break;
+-		}
+-	}
+-	rcu_read_unlock();
+-	return ret;
+-}
+-
+ /*
+  * called by the kthread helper functions to finally call the bio end_io
+  * functions.  This is where read checksum verification actually happens
+@@ -3051,8 +3030,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
+ 		goto fail_sb_buffer;
+ 	}
+ 
+-	sb->s_bdi->congested_fn = btrfs_congested_fn;
+-	sb->s_bdi->congested_data = fs_info;
+ 	sb->s_bdi->capabilities |= BDI_CAP_CGROUP_WRITEBACK;
+ 	sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
+ 	sb->s_bdi->ra_pages *= btrfs_super_num_devices(disk_super);
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index 1cec4521e1fbe2..fff9367a634856 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -33,8 +33,6 @@ enum wb_congested_state {
+ 	WB_sync_congested,	/* The sync queue is getting full */
+ };
+ 
+-typedef int (congested_fn)(void *, int);
+-
+ enum wb_stat_item {
+ 	WB_RECLAIMABLE,
+ 	WB_WRITEBACK,
+@@ -170,8 +168,6 @@ struct backing_dev_info {
+ 	struct list_head bdi_list;
+ 	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
+ 	unsigned long io_pages;	/* max allowed IO size */
+-	congested_fn *congested_fn; /* Function pointer if device is md/dm */
+-	void *congested_data;	/* Pointer to aux data for congested func */
+ 
+ 	struct kref refcnt;	/* Reference counter for the structure */
+ 	unsigned int capabilities; /* Device capabilities */
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 9173d2c22b4aa0..0b06b2d26c9aa3 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -169,10 +169,6 @@ static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
+ 
+ static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
+ {
+-	struct backing_dev_info *bdi = wb->bdi;
+-
+-	if (bdi->congested_fn)
+-		return bdi->congested_fn(bdi->congested_data, cong_bits);
+ 	return wb->congested & cong_bits;
+ }
+ 
+diff --git a/include/linux/device-mapper.h b/include/linux/device-mapper.h
+index 8750f2dc5613ab..d5306d9c29c4f2 100644
+--- a/include/linux/device-mapper.h
++++ b/include/linux/device-mapper.h
+@@ -322,12 +322,6 @@ struct dm_target {
+ 	bool discards_supported:1;
+ };
+ 
+-/* Each target can link one of these into the table */
+-struct dm_target_callbacks {
+-	struct list_head list;
+-	int (*congested_fn) (struct dm_target_callbacks *, int);
+-};
+-
+ void *dm_per_bio_data(struct bio *bio, size_t data_size);
+ struct bio *dm_bio_from_per_bio_data(void *data, size_t data_size);
+ unsigned dm_bio_get_target_bio_nr(const struct bio *bio);
+@@ -477,11 +471,6 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
+ int dm_table_add_target(struct dm_table *t, const char *type,
+ 			sector_t start, sector_t len, char *params);
+ 
+-/*
+- * Target_ctr should call this if it needs to add any callbacks.
+- */
+-void dm_table_add_target_callbacks(struct dm_table *t, struct dm_target_callbacks *cb);
+-
+ /*
+  * Target can use this to set the table's type.
+  * Can only ever be called from a target's ctr.
 -- 
 2.26.2
 
