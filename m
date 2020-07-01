@@ -1,13 +1,11 @@
 Return-Path: <BATV+501e1de201b53739768b+6156+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 46FF14203F3
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7EC094203F5
 	for <drbd-dev@lists.linbit.com>; Wed,  1 Jul 2020 11:24:02 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  1 Jul 2020 11:06:19 +0200
-Message-Id: <20200701090622.3354860-2-hch@lst.de>
-In-Reply-To: <20200701090622.3354860-1-hch@lst.de>
-References: <20200701090622.3354860-1-hch@lst.de>
+Date: Wed,  1 Jul 2020 11:06:18 +0200
+Message-Id: <20200701090622.3354860-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
@@ -15,7 +13,7 @@ Cc: linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
 	linux-mm@kvack.org, dm-devel@redhat.com,
 	Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/4] drbd: remove a bogus bdi_rw_congested call
+Subject: [Drbd-dev] remove dead bdi congestion leftovers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,26 +25,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-bdi_rw_congested returns congestion state, so calling it without
-looking at the return value doesn't make much sense.
+Hi Jens,
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- drivers/block/drbd/drbd_proc.c | 1 -
- 1 file changed, 1 deletion(-)
+we have a lot of bdi congestion related code that is left around without
+any use.  This series removes it in preparation of sorting out the bdi
+lifetime rules properly.
 
-diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
-index 1c41cd9982a257..3c0193de249830 100644
---- a/drivers/block/drbd/drbd_proc.c
-+++ b/drivers/block/drbd/drbd_proc.c
-@@ -265,7 +265,6 @@ int drbd_seq_show(struct seq_file *seq, void *v)
- 			seq_printf(seq, "%2d: cs:Unconfigured\n", i);
- 		} else {
- 			/* reset device->congestion_reason */
--			bdi_rw_congested(device->rq_queue->backing_dev_info);
- 
- 			nc = rcu_dereference(first_peer_device(device)->connection->net_conf);
- 			wp = nc ? nc->wire_protocol - DRBD_PROT_A + 'A' : ' ';
--- 
-2.26.2
-
+Diffstat:
+ block/blk-cgroup.c               |   19 ----
+ drivers/block/drbd/drbd_main.c   |   59 --------------
+ drivers/block/drbd/drbd_proc.c   |    1 
+ drivers/md/bcache/request.c      |   43 ----------
+ drivers/md/bcache/super.c        |    1 
+ drivers/md/dm-cache-target.c     |   19 ----
+ drivers/md/dm-clone-target.c     |   15 ---
+ drivers/md/dm-era-target.c       |   15 ---
+ drivers/md/dm-raid.c             |   12 --
+ drivers/md/dm-table.c            |   37 ---------
+ drivers/md/dm-thin.c             |   16 ---
+ drivers/md/dm.c                  |   33 --------
+ drivers/md/dm.h                  |    1 
+ drivers/md/md-linear.c           |   24 -----
+ drivers/md/md-multipath.c        |   23 -----
+ drivers/md/md.c                  |   23 -----
+ drivers/md/md.h                  |    4 
+ drivers/md/raid0.c               |   16 ---
+ drivers/md/raid1.c               |   31 -------
+ drivers/md/raid10.c              |   26 ------
+ drivers/md/raid5.c               |   25 ------
+ fs/btrfs/disk-io.c               |   23 -----
+ include/linux/backing-dev-defs.h |   43 ----------
+ include/linux/backing-dev.h      |   22 -----
+ include/linux/blk-cgroup.h       |    6 -
+ include/linux/device-mapper.h    |   11 --
+ mm/backing-dev.c                 |  157 +++------------------------------------
+ 27 files changed, 20 insertions(+), 685 deletions(-)
