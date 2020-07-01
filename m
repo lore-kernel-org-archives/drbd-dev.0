@@ -1,11 +1,11 @@
 Return-Path: <BATV+501e1de201b53739768b+6156+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0CB3F4203E3
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2EBFC4203F1
 	for <drbd-dev@lists.linbit.com>; Wed,  1 Jul 2020 10:59:56 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  1 Jul 2020 10:59:29 +0200
-Message-Id: <20200701085947.3354405-3-hch@lst.de>
+Date: Wed,  1 Jul 2020 10:59:28 +0200
+Message-Id: <20200701085947.3354405-2-hch@lst.de>
 In-Reply-To: <20200701085947.3354405-1-hch@lst.de>
 References: <20200701085947.3354405-1-hch@lst.de>
 MIME-Version: 1.0
@@ -14,9 +14,9 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-nvdimm@lists.01.org, linux-s390@vger.kernel.org,
 	dm-devel@redhat.com, linux-nvme@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org,
-	linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/20] simdisk: stop using ->queuedata
+	linux-m68k@lists.linux-m68k.org, Geert Uytterhoeven <geert@linux-m68k.org>,
+	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 01/20] nfblock: stop using ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,32 +32,33 @@ Instead of setting up the queuedata as well just use one private data
 field.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Geert Uytterhoeven <geert@linux-m68k.org>
+Acked-by: Geert Uytterhoeven <geert@linux-m68k.org>
 ---
- arch/xtensa/platforms/iss/simdisk.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ arch/m68k/emu/nfblock.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/arch/xtensa/platforms/iss/simdisk.c b/arch/xtensa/platforms/iss/simdisk.c
-index 49322b66cda931..31b5020077a059 100644
---- a/arch/xtensa/platforms/iss/simdisk.c
-+++ b/arch/xtensa/platforms/iss/simdisk.c
-@@ -103,7 +103,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
+diff --git a/arch/m68k/emu/nfblock.c b/arch/m68k/emu/nfblock.c
+index c3a630440512e9..87e8b1700acd28 100644
+--- a/arch/m68k/emu/nfblock.c
++++ b/arch/m68k/emu/nfblock.c
+@@ -61,7 +61,7 @@ struct nfhd_device {
  
- static blk_qc_t simdisk_make_request(struct request_queue *q, struct bio *bio)
+ static blk_qc_t nfhd_make_request(struct request_queue *queue, struct bio *bio)
  {
--	struct simdisk *dev = q->queuedata;
-+	struct simdisk *dev = bio->bi_disk->private_data;
+-	struct nfhd_device *dev = queue->queuedata;
++	struct nfhd_device *dev = bio->bi_disk->private_data;
  	struct bio_vec bvec;
  	struct bvec_iter iter;
- 	sector_t sector = bio->bi_iter.bi_sector;
-@@ -273,8 +273,6 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
- 		goto out_alloc_queue;
- 	}
+ 	int dir, len, shift;
+@@ -122,7 +122,6 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
+ 	if (dev->queue == NULL)
+ 		goto free_dev;
  
 -	dev->queue->queuedata = dev;
--
- 	dev->gd = alloc_disk(SIMDISK_MINORS);
- 	if (dev->gd == NULL) {
- 		pr_err("alloc_disk failed\n");
+ 	blk_queue_logical_block_size(dev->queue, bsize);
+ 
+ 	dev->disk = alloc_disk(16);
 -- 
 2.26.2
 
