@@ -1,11 +1,11 @@
 Return-Path: <BATV+501e1de201b53739768b+6156+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E5C3E4203F4
-	for <drbd-dev@lists.linbit.com>; Wed,  1 Jul 2020 11:00:04 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4AFCC4203F5
+	for <drbd-dev@lists.linbit.com>; Wed,  1 Jul 2020 11:00:07 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  1 Jul 2020 10:59:35 +0200
-Message-Id: <20200701085947.3354405-9-hch@lst.de>
+Date: Wed,  1 Jul 2020 10:59:36 +0200
+Message-Id: <20200701085947.3354405-10-hch@lst.de>
 In-Reply-To: <20200701085947.3354405-1-hch@lst.de>
 References: <20200701085947.3354405-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,7 +16,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/20] zram: stop using ->queuedata
+Subject: [Drbd-dev] [PATCH 09/20] bcache: stop setting ->queuedata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,35 +28,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Instead of setting up the queuedata as well just use one private data
-field.
+Nothing in bcache actually uses the ->queuedata field.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/zram/zram_drv.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/md/bcache/super.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 6e2ad90b17a376..0564e3f384089e 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -1586,7 +1586,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
-  */
- static blk_qc_t zram_make_request(struct request_queue *queue, struct bio *bio)
- {
--	struct zram *zram = queue->queuedata;
-+	struct zram *zram = bio->bi_disk->private_data;
+diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+index 2014016f9a60d3..21aa168113d30b 100644
+--- a/drivers/md/bcache/super.c
++++ b/drivers/md/bcache/super.c
+@@ -876,7 +876,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
+ 		return -ENOMEM;
  
- 	if (!valid_io_request(zram, bio->bi_iter.bi_sector,
- 					bio->bi_iter.bi_size)) {
-@@ -1912,7 +1912,6 @@ static int zram_add(void)
- 	zram->disk->first_minor = device_id;
- 	zram->disk->fops = &zram_devops;
- 	zram->disk->queue = queue;
--	zram->disk->queue->queuedata = zram;
- 	zram->disk->private_data = zram;
- 	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
- 
+ 	d->disk->queue			= q;
+-	q->queuedata			= d;
+ 	q->backing_dev_info->congested_data = d;
+ 	q->limits.max_hw_sectors	= UINT_MAX;
+ 	q->limits.max_sectors		= UINT_MAX;
 -- 
 2.26.2
 
