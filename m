@@ -1,34 +1,26 @@
-Return-Path: <joe@perches.com>
-Received: from smtprelay.hostedemail.com (smtprelay0223.hostedemail.com
-	[216.40.44.223])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C74D14203BB
-	for <drbd-dev@lists.linbit.com>; Thu,  2 Jul 2020 18:23:12 +0200 (CEST)
-Message-ID: <f65392bbd1732eff72d5b24c5ba3ea230ab2a3ae.camel@perches.com>
-From: Joe Perches <joe@perches.com>
-To: Kees Cook <keescook@chromium.org>, Mark Brown <broonie@kernel.org>
-Date: Thu, 02 Jul 2020 09:23:07 -0700
-In-Reply-To: <202007020839.545A571CA4@keescook>
-References: <20200620033007.1444705-1-keescook@chromium.org>
-	<20200620033007.1444705-9-keescook@chromium.org>
-	<20200701203920.GC3776@sirena.org.uk> <202007020819.318824DA@keescook>
-	<20200702152335.GJ4483@sirena.org.uk>
-	<202007020839.545A571CA4@keescook>
-Content-Type: text/plain; charset="ISO-8859-1"
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pf1-f175.google.com (mail-pf1-f175.google.com
+	[209.85.210.175])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4CA714203BA
+	for <drbd-dev@lists.linbit.com>; Thu,  9 Jul 2020 01:14:31 +0200 (CEST)
+Received: by mail-pf1-f175.google.com with SMTP id a14so154529pfi.2
+	for <drbd-dev@lists.linbit.com>; Wed, 08 Jul 2020 16:14:31 -0700 (PDT)
+To: Christoph Hellwig <hch@lst.de>
+References: <20200701090622.3354860-1-hch@lst.de>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <b5d6df17-68af-d535-79e4-f95e16dd5632@kernel.dk>
+Date: Wed, 8 Jul 2020 17:14:29 -0600
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Cc: linux-ide@vger.kernel.org, linux-wireless@vger.kernel.org,
-	clang-built-linux@googlegroups.com, linux-doc@vger.kernel.org,
-	netdev@vger.kernel.org, x86@kernel.org,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	linux-kernel@vger.kernel.org, linux-spi@vger.kernel.org,
-	linux-block@vger.kernel.org,
-	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
-	linux-mm@kvack.org, Alexander Potapenko <glider@google.com>,
-	b43-dev@lists.infradead.org, Andy Whitcroft <apw@canonical.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v2 08/16] spi: davinci: Remove
-	uninitialized_var() usage
+In-Reply-To: <20200701090622.3354860-1-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Cc: linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-mm@kvack.org, dm-devel@redhat.com,
+	Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org,
+	linux-btrfs@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] remove dead bdi congestion leftovers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,44 +32,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 2020-07-02 at 08:42 -0700, Kees Cook wrote:
-> On Thu, Jul 02, 2020 at 04:23:35PM +0100, Mark Brown wrote:
-> > On Thu, Jul 02, 2020 at 08:21:40AM -0700, Kees Cook wrote:
-> > > On Wed, Jul 01, 2020 at 09:39:20PM +0100, Mark Brown wrote:
-> > > > Please copy maintainers on patches :(
-> > > Hi! Sorry about that; the CC list was giant, so I had opted for using
-> > > subsystem mailing lists where possible.
-> > 
-> > If you're going to err in a direction there I'd err in the direction of
-> > CCing the people not the list - I only saw this since I was looking for
-> > something else, I don't normally see stuff in the mailing list folder.
+On 7/1/20 3:06 AM, Christoph Hellwig wrote:
+> Hi Jens,
 > 
-> Yeah, I've gotten conflicting feedback on treewide changes:
-> - please CC me on only the one patch, I don't want to see everything else
-> - please CC me on the whole series, I want the full context for the change
-> 
-> I opted toward "CC me on this series", but then I get stuck when the CC
-> is giant. I think I may switch back to individual CCs for specific
-> patches, and point people to lore if they want greater context. (lore
-> didn't exist before...)
+> we have a lot of bdi congestion related code that is left around without
+> any use.  This series removes it in preparation of sorting out the bdi
+> lifetime rules properly.
 
-IMO:
+Please run series like this through a full compilation, for both this one
+and the previous series I had to fix up issues like this:
 
-For a patch series that spans multiple subsystems,
-each patch should always CC any specific subsystem
-maintainers..
+drivers/md/bcache/request.c: In function ‘bch_cached_dev_request_init’:
+drivers/md/bcache/request.c:1233:18: warning: unused variable ‘g’ [-Wunused-variable]
+ 1233 |  struct gendisk *g = dc->disk.disk;
+      |                  ^
+drivers/md/bcache/request.c: In function ‘bch_flash_dev_request_init’:
+drivers/md/bcache/request.c:1320:18: warning: unused variable ‘g’ [-Wunused-variable]
+ 1320 |  struct gendisk *g = d->disk;
+      |                  ^
 
-A good trick would be to use the cover letter
-message-id: and have each individual patch in the
-series reference the cover letter id below the
---- line so any reviewer doesn't have to find the
-in-reply-to: message id and then reference the
-lore link.
+Did the same here, applied it.
 
-Something like:
-
----
-
-For complete series see: https://lore.kernel.org/r/<cover_letter_message_id>
-
+-- 
+Jens Axboe
 
