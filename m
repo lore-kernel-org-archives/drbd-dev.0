@@ -1,27 +1,32 @@
-Return-Path: <hch@lst.de>
-Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4C6E14203F5
-	for <drbd-dev@lists.linbit.com>; Thu,  9 Jul 2020 16:01:47 +0200 (CEST)
-Date: Thu, 9 Jul 2020 16:01:45 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Message-ID: <20200709140145.GA3068@lst.de>
-References: <20200701090622.3354860-1-hch@lst.de>
-	<b5d6df17-68af-d535-79e4-f95e16dd5632@kernel.dk>
-	<20200709053233.GA3243@lst.de>
-	<82e2785d-2091-1986-0014-3b7cea7cd0d8@kernel.dk>
+Return-Path: <bounce+218ee0.be9e4a-drbd-dev=lists.linbit.com@mg.codeaurora.org>
+Received: from mail29.static.mailgun.info (mail29.static.mailgun.info
+	[104.130.122.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 15CE24200D7
+	for <drbd-dev@lists.linbit.com>; Wed, 15 Jul 2020 12:42:30 +0200 (CEST)
+Sender: kvalo=codeaurora.org@mg.codeaurora.org
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <82e2785d-2091-1986-0014-3b7cea7cd0d8@kernel.dk>
-Cc: linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-mm@kvack.org, dm-devel@redhat.com,
-	Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org,
-	Christoph Hellwig <hch@lst.de>, linux-btrfs@vger.kernel.org,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] remove dead bdi congestion leftovers
+Content-Transfer-Encoding: 7bit
+From: Kalle Valo <kvalo@codeaurora.org>
+In-Reply-To: <20200620033007.1444705-5-keescook@chromium.org>
+References: <20200620033007.1444705-5-keescook@chromium.org>
+To: Kees Cook <keescook@chromium.org>
+Message-Id: <20200715103701.3EE01C433AF@smtp.codeaurora.org>
+Date: Wed, 15 Jul 2020 10:37:01 +0000 (UTC)
+Cc: Andy Whitcroft <apw@canonical.com>, Kees Cook <keescook@chromium.org>,
+	linux-doc@vger.kernel.org, netdev@vger.kernel.org,
+	x86@kernel.org, linux-wireless@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-spi@vger.kernel.org,
+	linux-block@vger.kernel.org,
+	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
+	clang-built-linux@googlegroups.com, linux-mm@kvack.org,
+	Alexander Potapenko <glider@google.com>,
+	b43-dev@lists.infradead.org, linux-ide@vger.kernel.org,
+	Joe Perches <joe@perches.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v2 04/16] b43: Remove uninitialized_var()
+	usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,37 +38,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jul 09, 2020 at 07:58:58AM -0600, Jens Axboe wrote:
-> On 7/8/20 11:32 PM, Christoph Hellwig wrote:
-> > On Wed, Jul 08, 2020 at 05:14:29PM -0600, Jens Axboe wrote:
-> >> On 7/1/20 3:06 AM, Christoph Hellwig wrote:
-> >>> Hi Jens,
-> >>>
-> >>> we have a lot of bdi congestion related code that is left around without
-> >>> any use.  This series removes it in preparation of sorting out the bdi
-> >>> lifetime rules properly.
-> >>
-> >> Please run series like this through a full compilation, for both this one
-> >> and the previous series I had to fix up issues like this:
-> >>
-> >> drivers/md/bcache/request.c: In function ‘bch_cached_dev_request_init’:
-> >> drivers/md/bcache/request.c:1233:18: warning: unused variable ‘g’ [-Wunused-variable]
-> >>  1233 |  struct gendisk *g = dc->disk.disk;
-> >>       |                  ^
-> >> drivers/md/bcache/request.c: In function ‘bch_flash_dev_request_init’:
-> >> drivers/md/bcache/request.c:1320:18: warning: unused variable ‘g’ [-Wunused-variable]
-> >>  1320 |  struct gendisk *g = d->disk;
-> >>       |                  ^
-> >>
-> >> Did the same here, applied it.
-> > 
-> > And just like the previous one I did, and the compiler did not complain.
-> > There must be something about certain gcc versions not warning about
-> > variables that are initialized but not otherwise used.
-> 
-> Are you using gcc-10? It sucks for that. gcc-9 seems to reliably hit
-> these cases for me, not sure why gcc-10 doesn't. And the ones quoted
-> above are about as trivial as they can get.
+Kees Cook <keescook@chromium.org> wrote:
 
-gcc-9.3 from Debian -testing.  And yes, I'm really surprised it didn't
-find those.
+> Using uninitialized_var() is dangerous as it papers over real bugs[1]
+> (or can in the future), and suppresses unrelated compiler warnings (e.g.
+> "unused variable"). If the compiler thinks it is uninitialized, either
+> simply initialize the variable or make compiler changes. As a precursor
+> to removing[2] this[3] macro[4], just initialize this variable to NULL.
+> No later NULL deref is possible due to the early returns outside of the
+> (phy->rev >= 7 && phy->rev < 19) case, which explicitly tests for NULL.
+> 
+> [1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
+> [2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
+> [3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
+> [4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
+> 
+> Fixes: 58619b14d106 ("b43: move under broadcom vendor directory")
+> Signed-off-by: Kees Cook <keescook@chromium.org>
+> Reviewed-by: Nick Desaulniers <ndesaulniers@google.com>
+
+2 patches applied to wireless-drivers-next.git, thanks.
+
+800e7a205a0f b43: Remove uninitialized_var() usage
+f8279dad4e36 rtlwifi: rtl8192cu: Remove uninitialized_var() usage
+
+-- 
+https://patchwork.kernel.org/patch/11615573/
+
+https://wireless.wiki.kernel.org/en/developers/documentation/submittingpatches
+
