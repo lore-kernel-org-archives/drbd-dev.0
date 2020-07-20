@@ -1,11 +1,13 @@
 Return-Path: <BATV+d9f98309abae8ab29895+6175+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B44F44203D2
-	for <drbd-dev@lists.linbit.com>; Mon, 20 Jul 2020 09:52:02 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 08B5B4203F1
+	for <drbd-dev@lists.linbit.com>; Mon, 20 Jul 2020 09:52:08 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 20 Jul 2020 09:51:34 +0200
-Message-Id: <20200720075148.172156-1-hch@lst.de>
+Date: Mon, 20 Jul 2020 09:51:41 +0200
+Message-Id: <20200720075148.172156-8-hch@lst.de>
+In-Reply-To: <20200720075148.172156-1-hch@lst.de>
+References: <20200720075148.172156-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-raid@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>,
@@ -14,7 +16,8 @@ Cc: linux-raid@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org,
 	cgroups@vger.kernel.org, linux-mm@kvack.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] bdi cleanups
+Subject: [Drbd-dev] [PATCH 07/14] block: make QUEUE_SYSFS_BIT_FNS a little
+	more useful
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,59 +29,85 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+Generate the queue_sysfs_entry given that we have all the required
+information for it, and rename the generated show and store methods
+to match the other ones in the file.
 
-this series contains a bunch of different BDI cleanups.  The biggest item
-is to isolate block drivers from the BDI in preparation of changing the
-lifetime of the block device BDI in a follow up series.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ block/blk-sysfs.c | 31 +++++++++----------------------
+ 1 file changed, 9 insertions(+), 22 deletions(-)
 
-Note that this is based on top of the
-"a fix and two cleanups around blk_stack_limits" series sent earlier.
+diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
+index d7cf560efa92e5..358268bb88b700 100644
+--- a/block/blk-sysfs.c
++++ b/block/blk-sysfs.c
+@@ -257,16 +257,16 @@ static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
+ 	return queue_var_show(max_hw_sectors_kb, (page));
+ }
+ 
+-#define QUEUE_SYSFS_BIT_FNS(name, flag, neg)				\
++#define QUEUE_SYSFS_BIT_FNS(_name, flag, neg)				\
+ static ssize_t								\
+-queue_show_##name(struct request_queue *q, char *page)			\
++queue_##_name##_show(struct request_queue *q, char *page)		\
+ {									\
+ 	int bit;							\
+ 	bit = test_bit(QUEUE_FLAG_##flag, &q->queue_flags);		\
+ 	return queue_var_show(neg ? !bit : bit, page);			\
+ }									\
+ static ssize_t								\
+-queue_store_##name(struct request_queue *q, const char *page, size_t count) \
++queue_##_name##_store(struct request_queue *q, const char *page, size_t count) \
+ {									\
+ 	unsigned long val;						\
+ 	ssize_t ret;							\
+@@ -281,7 +281,12 @@ queue_store_##name(struct request_queue *q, const char *page, size_t count) \
+ 	else								\
+ 		blk_queue_flag_clear(QUEUE_FLAG_##flag, q);		\
+ 	return ret;							\
+-}
++}									\
++static struct queue_sysfs_entry queue_##_name##_entry = {		\
++	.attr	= { .name = __stringify(_name), .mode = 0644 },		\
++	.show	= queue_##_name##_show,					\
++	.store	= queue_##_name##_store,				\
++};
+ 
+ QUEUE_SYSFS_BIT_FNS(nonrot, NONROT, 1);
+ QUEUE_SYSFS_BIT_FNS(random, ADD_RANDOM, 0);
+@@ -651,12 +656,6 @@ static struct queue_sysfs_entry queue_zone_append_max_entry = {
+ 	.show = queue_zone_append_max_show,
+ };
+ 
+-static struct queue_sysfs_entry queue_nonrot_entry = {
+-	.attr = {.name = "rotational", .mode = 0644 },
+-	.show = queue_show_nonrot,
+-	.store = queue_store_nonrot,
+-};
+-
+ static struct queue_sysfs_entry queue_zoned_entry = {
+ 	.attr = {.name = "zoned", .mode = 0444 },
+ 	.show = queue_zoned_show,
+@@ -679,18 +678,6 @@ static struct queue_sysfs_entry queue_rq_affinity_entry = {
+ 	.store = queue_rq_affinity_store,
+ };
+ 
+-static struct queue_sysfs_entry queue_iostats_entry = {
+-	.attr = {.name = "iostats", .mode = 0644 },
+-	.show = queue_show_iostats,
+-	.store = queue_store_iostats,
+-};
+-
+-static struct queue_sysfs_entry queue_random_entry = {
+-	.attr = {.name = "add_random", .mode = 0644 },
+-	.show = queue_show_random,
+-	.store = queue_store_random,
+-};
+-
+ static struct queue_sysfs_entry queue_poll_entry = {
+ 	.attr = {.name = "io_poll", .mode = 0644 },
+ 	.show = queue_poll_show,
+-- 
+2.27.0
 
-Diffstat:
- block/blk-core.c              |    2 
- block/blk-integrity.c         |    4 
- block/blk-mq-debugfs.c        |    1 
- block/blk-settings.c          |    5 
- block/blk-sysfs.c             |  270 ++++++++++--------------------------------
- block/genhd.c                 |   13 +-
- drivers/block/aoe/aoeblk.c    |    2 
- drivers/block/brd.c           |    1 
- drivers/block/drbd/drbd_nl.c  |   18 --
- drivers/block/drbd/drbd_req.c |    4 
- drivers/block/rbd.c           |    2 
- drivers/block/zram/zram_drv.c |   17 --
- drivers/md/bcache/super.c     |    4 
- drivers/md/dm-table.c         |    9 -
- drivers/md/raid0.c            |   16 --
- drivers/md/raid10.c           |   46 ++-----
- drivers/md/raid5.c            |   31 ++--
- drivers/mmc/core/queue.c      |    3 
- drivers/nvdimm/btt.c          |    2 
- drivers/nvdimm/pmem.c         |    1 
- drivers/nvme/host/core.c      |    3 
- drivers/nvme/host/multipath.c |    9 -
- drivers/scsi/iscsi_tcp.c      |    4 
- fs/9p/vfs_file.c              |    2 
- fs/9p/vfs_super.c             |    4 
- fs/afs/super.c                |    1 
- fs/btrfs/disk-io.c            |    2 
- fs/fs-writeback.c             |    7 -
- fs/fuse/inode.c               |    4 
- fs/namei.c                    |    4 
- fs/nfs/super.c                |    9 -
- fs/super.c                    |    2 
- include/linux/backing-dev.h   |   76 +----------
- include/linux/blkdev.h        |    3 
- include/linux/drbd.h          |    1 
- include/linux/fs.h            |    2 
- mm/backing-dev.c              |   13 --
- mm/filemap.c                  |    4 
- mm/memcontrol.c               |    2 
- mm/memory-failure.c           |    2 
- mm/migrate.c                  |    2 
- mm/mmap.c                     |    2 
- mm/page-writeback.c           |   18 +-
- mm/page_io.c                  |    7 -
- mm/swapfile.c                 |    4 
- 45 files changed, 180 insertions(+), 458 deletions(-)
