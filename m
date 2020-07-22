@@ -1,32 +1,22 @@
-Return-Path: <hch@lst.de>
-Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 73B96420111
-	for <drbd-dev@lists.linbit.com>; Tue, 21 Jul 2020 07:00:50 +0200 (CEST)
-Date: Tue, 21 Jul 2020 07:00:47 +0200
+Return-Path: <BATV+efb910b7bfc1949baba8+6177+infradead.org+hch@casper.srs.infradead.org>
+Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2FACC4204A7
+	for <drbd-dev@lists.linbit.com>; Wed, 22 Jul 2020 08:26:29 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
-To: Richard Weinberger <richard.weinberger@gmail.com>
-Message-ID: <20200721050047.GA9707@lst.de>
-References: <20200720075148.172156-1-hch@lst.de>
-	<20200720075148.172156-5-hch@lst.de>
-	<CAFLxGvxNHGEOrj6nKTtDeiU+Rx4xv_6asjSQYcFWXhk5m=1cBA@mail.gmail.com>
-	<20200720120734.GA29061@lst.de>
-	<2827a5dbd94bc5c2c1706a6074d9a9a32a590feb.camel@gmail.com>
-	<CAFLxGvyxtYnJ5UdD18uNA97zQaDB8-Wv8MHQn2g9GYD74v7cTg@mail.gmail.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Wed, 22 Jul 2020 08:25:41 +0200
+Message-Id: <20200722062552.212200-4-hch@lst.de>
+In-Reply-To: <20200722062552.212200-1-hch@lst.de>
+References: <20200722062552.212200-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFLxGvyxtYnJ5UdD18uNA97zQaDB8-Wv8MHQn2g9GYD74v7cTg@mail.gmail.com>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-	Artem Bityutskiy <dedekind1@gmail.com>,
-	Song Liu <song@kernel.org>, Richard Weinberger <richard@nod.at>,
-	LKML <linux-kernel@vger.kernel.org>, linux-raid@vger.kernel.org,
-	Hans de Goede <hdegoede@redhat.com>,
-	device-mapper development <dm-devel@redhat.com>,
-	linux-mtd@lists.infradead.org, linux-mm@kvack.org,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	cgroups mailinglist <cgroups@vger.kernel.org>,
-	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 04/14] bdi: initialize ->ra_pages in bdi_init
+Content-Transfer-Encoding: 8bit
+Cc: linux-raid@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>,
+	Minchan Kim <minchan@kernel.org>, Richard Weinberger <richard@nod.at>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Song Liu <song@kernel.org>, dm-devel@redhat.com,
+	linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org,
+	cgroups@vger.kernel.org, linux-mm@kvack.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 03/14] drbd: remove RB_CONGESTED_REMOTE
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,21 +28,44 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jul 20, 2020 at 11:27:57PM +0200, Richard Weinberger wrote:
-> On Mon, Jul 20, 2020 at 2:37 PM Artem Bityutskiy <dedekind1@gmail.com> wrote:
-> >
-> > On Mon, 2020-07-20 at 14:07 +0200, Christoph Hellwig wrote:
-> > > What about jffs2 and blk2mtd raw block devices?
-> 
-> I don't worry much about blk2mtd.
-> 
-> > If my memory serves me correctly JFFS2 did not mind readahead.
-> 
-> This covers my knowledge too.
-> I fear enabling readahead on JFFS2 will cause performance issues, this
-> filesystem
-> is mostly used on small and slow NOR devices.
+This case isn't ever used.
 
-I'm going to wait for Hans for feedback on vboxsf, but in doubt I'll
-ust add a prep patch or fold for this one to explicit set ra_pages to 0
-with a comment then.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/block/drbd/drbd_req.c | 4 ----
+ include/linux/drbd.h          | 1 -
+ 2 files changed, 5 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 674be09b2da94a..4d944f2eb56efa 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -901,13 +901,9 @@ static bool drbd_may_do_local_read(struct drbd_device *device, sector_t sector,
+ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t sector,
+ 		enum drbd_read_balancing rbm)
+ {
+-	struct backing_dev_info *bdi;
+ 	int stripe_shift;
+ 
+ 	switch (rbm) {
+-	case RB_CONGESTED_REMOTE:
+-		bdi = device->ldev->backing_bdev->bd_disk->queue->backing_dev_info;
+-		return bdi_read_congested(bdi);
+ 	case RB_LEAST_PENDING:
+ 		return atomic_read(&device->local_cnt) >
+ 			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index 5755537b51b114..6a8286132751df 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -94,7 +94,6 @@ enum drbd_read_balancing {
+ 	RB_PREFER_REMOTE,
+ 	RB_ROUND_ROBIN,
+ 	RB_LEAST_PENDING,
+-	RB_CONGESTED_REMOTE,
+ 	RB_32K_STRIPING,
+ 	RB_64K_STRIPING,
+ 	RB_128K_STRIPING,
+-- 
+2.27.0
+
