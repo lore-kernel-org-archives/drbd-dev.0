@@ -1,18 +1,18 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0E6394204C3
-	for <drbd-dev@lists.linbit.com>; Wed, 22 Jul 2020 09:07:05 +0200 (CEST)
-Date: Wed, 22 Jul 2020 09:07:03 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3085A4204D2
+	for <drbd-dev@lists.linbit.com>; Wed, 22 Jul 2020 09:18:44 +0200 (CEST)
+Date: Wed, 22 Jul 2020 09:18:09 +0200
 From: Christoph Hellwig <hch@lst.de>
 To: Johannes Thumshirn <Johannes.Thumshirn@wdc.com>
-Message-ID: <20200722070703.GA25590@lst.de>
+Message-ID: <20200722071809.GA25816@lst.de>
 References: <20200722062552.212200-1-hch@lst.de>
-	<20200722062552.212200-3-hch@lst.de>
-	<SN4PR0401MB3598495DA5AF46CAF019BDC69B790@SN4PR0401MB3598.namprd04.prod.outlook.com>
+	<20200722062552.212200-7-hch@lst.de>
+	<SN4PR0401MB3598470B14C754768A2D8F389B790@SN4PR0401MB3598.namprd04.prod.outlook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <SN4PR0401MB3598495DA5AF46CAF019BDC69B790@SN4PR0401MB3598.namprd04.prod.outlook.com>
+In-Reply-To: <SN4PR0401MB3598470B14C754768A2D8F389B790@SN4PR0401MB3598.namprd04.prod.outlook.com>
 Cc: Jens Axboe <axboe@kernel.dk>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
 	Hans de Goede <hdegoede@redhat.com>, Minchan Kim <minchan@kernel.org>,
@@ -26,8 +26,8 @@ Cc: Jens Axboe <axboe@kernel.dk>,
 	"cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
 	Christoph Hellwig <hch@lst.de>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH 02/14] drbd: remove dead code in
-	device_to_statistics
+Subject: Re: [Drbd-dev] [PATCH 06/14] block: lift setting the readahead size
+ into the block layer
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,15 +39,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Jul 22, 2020 at 07:03:21AM +0000, Johannes Thumshirn wrote:
-> On 22/07/2020 08:28, Christoph Hellwig wrote:
-> > Ever since the switch to blk-mq, a lower device not use by VM
->                                            in-use/used? ~^
+On Wed, Jul 22, 2020 at 07:13:54AM +0000, Johannes Thumshirn wrote:
+> On 22/07/2020 08:27, Christoph Hellwig wrote:
+> > +	q->backing_dev_info->ra_pages =
+> > +		max(queue_io_opt(q) * 2 / PAGE_SIZE, VM_READAHEAD_PAGES);
+> 
+> Dumb question, wouldn't a '>> PAGE_SHIFT' be better instead of a potentially 
+> costly division?
+> 
+> Or aren't we caring at all as it's a) not in the fast-path and b) compilers 
+> can optimize it to a shift?
 
-Yeah, this should be used.
-
-> Also this looks like the last user of 'dev_lower_blocked' so it could
-> be removed from device_statistics if it's not an ABI (not sure with this
-> netlink stuff).
-
-As far as I can tell this is a netlink user ABI.
+That's my thinking.  If anyone has a strong preference I can change
+it.
