@@ -1,21 +1,26 @@
-Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-ed1-f54.google.com (mail-ed1-f54.google.com
-	[209.85.208.54])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5CA4B420317
-	for <drbd-dev@lists.linbit.com>; Mon, 27 Jul 2020 09:17:01 +0200 (CEST)
-Received: by mail-ed1-f54.google.com with SMTP id i26so8027032edv.4
-	for <drbd-dev@lists.linbit.com>; Mon, 27 Jul 2020 00:17:01 -0700 (PDT)
-Date: Mon, 27 Jul 2020 09:16:58 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-To: Sarah Newman <srn@prgmr.com>
-Message-ID: <20200727071658.GH4222@soda.linbit>
-References: <308845ca-17a3-43d0-b7ad-80069d9bc17f@prgmr.com>
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A8FED4203D0
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Jul 2020 09:58:54 +0200 (CEST)
+Date: Mon, 27 Jul 2020 09:58:22 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Minchan Kim <minchan@kernel.org>
+Message-ID: <20200727075822.GA5355@lst.de>
+References: <20200726150333.305527-1-hch@lst.de>
+	<20200726150333.305527-11-hch@lst.de>
+	<20200726190639.GA560221@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <308845ca-17a3-43d0-b7ad-80069d9bc17f@prgmr.com>
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] Bug(s) with Linux v5.4.46
+In-Reply-To: <20200726190639.GA560221@google.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
+	Hans de Goede <hdegoede@redhat.com>, Richard Weinberger <richard@nod.at>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Song Liu <song@kernel.org>, dm-devel@redhat.com,
+	linux-mtd@lists.infradead.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
+	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 10/14] bdi: remove BDI_CAP_SYNCHRONOUS_IO
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,56 +32,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Jul 26, 2020 at 08:55:10PM -0700, Sarah Newman wrote:
-
-> 	kref_put(&device->kref, drbd_destroy_device);
-
-At this point we are "sure" to still hold at least one
-additional reference on device.
-
-> 	del_gendisk(device->vdisk);
-> 	synchronize_rcu();
-
-which we put here:
-
-> 	kref_put(&device->kref, drbd_destroy_device);
-
-
-But what you present here shows that in your case that is not true.
-
-There is nothing DRBD specific new in the mentioned kernel version.
-
-> In drbd_destroy_device, there is the line:
+On Sun, Jul 26, 2020 at 12:06:39PM -0700, Minchan Kim wrote:
+> > @@ -528,8 +530,7 @@ static ssize_t backing_dev_store(struct device *dev,
+> >  	 * freely but in fact, IO is going on so finally could cause
+> >  	 * use-after-free when the IO is really done.
+> >  	 */
+> > -	zram->disk->queue->backing_dev_info->capabilities &=
+> > -			~BDI_CAP_SYNCHRONOUS_IO;
+> > +	zram->disk->fops = &zram_wb_devops;
+> >  	up_write(&zram->init_lock);
 > 
-> memset(device, 0xfd, sizeof(*device));
-> 
-> So I think that drbd_destroy_device must have run before del_gendisk,
-> and therefore the reference count for device->kref is unbalanced.
+> For zram, regardless of BDI_CAP_SYNCHRONOUS_IO, it have used rw_page
+> every time on read/write path. This one with next patch will make zram
+> use bio instead of rw_page when it's declared !BDI_CAP_SYNCHRONOUS_IO,
+> which introduce regression for performance.
 
-Looks like it.
+It really should not matter, as the overhead of setting up a bio
+is minimal.  It also is only used in the legacy mpage buffered I/O
+code outside of the swap code, which has so many performance issues on
+its own that even if this made a difference it wouldn't matter.
 
-> I do not know if this is related to the error message:
-> 
->  ASSERTION FAILED: connection->current_epoch->list not empty
-> 
-> or not.
-> 
-> There were no error messages reported on the peer.
-> 
-> FYI, when we've run in debug mode we've seen some ODEBUG errors about
-> freeing active objects around the time that DRBD resources were released.
-> One was a work_struct and the other was a timer_list. I do not know if
-> either of those are related.
-
-You want to show them? Maybe they help in understanding what is going on here.
-
-
-> The system in question is still up and running in an error state; is
-> there any more information you want from it?
-
-No.
-
-But: is this "easily" reproducible? If so: how?
-
-    Lars
-
+If you want magic treatment for your zram swap code you really need
+to integrate it with the swap code instead of burding the block layer
+with all this mess.
