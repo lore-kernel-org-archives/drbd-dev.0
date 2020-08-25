@@ -1,16 +1,25 @@
-Return-Path: <srn@prgmr.com>
-Received: from mail.prgmr.com (mail.prgmr.com [71.19.149.6])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DB23042093E
-	for <drbd-dev@lists.linbit.com>; Wed, 19 Aug 2020 07:53:01 +0200 (CEST)
-From: Sarah Newman <srn@prgmr.com>
-To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
-	drbd-dev@lists.linbit.com
-Date: Tue, 18 Aug 2020 22:52:37 -0700
-Message-Id: <20200819055237.30920-1-srn@prgmr.com>
+Return-Path: <joe@perches.com>
+Received: from smtprelay.hostedemail.com (smtprelay0212.hostedemail.com
+	[216.40.44.212])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 09D7142092A
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Aug 2020 07:03:19 +0200 (CEST)
+Received: from smtprelay.hostedemail.com (10.5.19.251.rfc1918.com
+	[10.5.19.251])
+	by smtpgrave05.hostedemail.com (Postfix) with ESMTP id 218E718019F28
+	for <drbd-dev@lists.linbit.com>; Tue, 25 Aug 2020 04:57:24 +0000 (UTC)
+From: Joe Perches <joe@perches.com>
+To: Jiri Kosina <trivial@kernel.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>
+Date: Mon, 24 Aug 2020 21:56:03 -0700
+Message-Id: <1c8081264d82101d7837220c5ee221c307da5d91.1598331148.git.joe@perches.com>
+In-Reply-To: <cover.1598331148.git.joe@perches.com>
+References: <cover.1598331148.git.joe@perches.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Subject: [Drbd-dev] [PATCH] block: drbd: defer calling kref_put until end of
-	drbd_delete_device
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 06/29] drbd: Avoid comma separated statements
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,107 +31,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-At least once I saw:
+Use semicolons and braces.
 
-drbd resource37: ASSERTION FAILED:
-  connection->current_epoch->list not empty
-drbd resource37: Connection closed
-drbd resource37: conn( Disconnecting -> StandAlone )
-drbd resource37: receiver terminated
-drbd resource37: Terminating drbd_r_resource
-block drbd37: disk( UpToDate -> Failed )
-block drbd37: 0 KB (0 bits) marked out-of-sync by on disk bit-map.
-block drbd37: disk( Failed -> Diskless )
-general protection fault: 0000 [#1] SMP NOPTI
-CPU: 0 PID: 18526 Comm: drbdsetup-84 Not tainted 5.4.46-1.el7.x86_64 #1
-RIP: e030:kobject_uevent_env+0x1d/0x660
-RSP: e02b:ffffc900757a7a10 EFLAGS: 00010246
-RAX: 0000000000000001 RBX: fdfdfdfdfdfe023d RCX: ffff8880606f9870
-RDX: 0000000000000000 RSI: 0000000000000001 RDI: fdfdfdfdfdfe023d
-RBP: ffff8880606f9870 R08: 0000000000000040 R09: ffffffffc01ae500
-R10: ffffc900757a7aa8 R11: ffffffffc01f0b58 R12: ffff8880606f9800
-R13: ffff88800fb5dc00 R14: ffffffff824055e5 R15: ffff88800fb5dc48
-FS:  00007fbbc98e4740(0000) GS:ffff888188a00000(0000)
-     knlGS:0000000000000000
-CS:  e030 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f978b44c000 CR3: 0000000007926000 CR4: 0000000000040660
-Call Trace:
-? error_exit+0x5/0x20
-blk_integrity_del+0x1a/0x2b
-del_gendisk+0x27/0x2f0
-drbd_delete_device+0xcc/0x100 [drbd]
-adm_del_minor+0xc5/0xe0 [drbd]
-drbd_adm_down+0x13f/0x1f0 [drbd]
-genl_family_rcv_msg+0x1d2/0x410
-genl_rcv_msg+0x47/0x90
-? __kmalloc_node_track_caller+0x217/0x2e0
-? genl_family_rcv_msg+0x410/0x410
-netlink_rcv_skb+0x49/0x110
-genl_rcv+0x24/0x40
-netlink_unicast+0x191/0x220
-netlink_sendmsg+0x21d/0x3f0
-sock_sendmsg+0x5b/0x60
-sock_write_iter+0x97/0x100
-new_sync_write+0x12d/0x1d0
-vfs_write+0xa5/0x1a0
-ksys_write+0x59/0xd0
-do_syscall_64+0x5b/0x1a0
-entry_SYSCALL_64_after_hwframe+0x44/0xa9
-RIP: 0033:0x7fbbc93f1a00
-
-Which I traced back to drbd_destroy_device being called early, as
-drbd_destroy_device sets memory to 0xfd and one of the pointers
-observed was an offset from 0xfdfdfdfdfdfdfdfd.
-
-Make it so that the system can be recovered even if we see this bug,
-and call out if we unexpectedly do not free the device at the end
-of drbd_delete_device.
-
-Signed-off-by: Sarah Newman <srn@prgmr.com>
+Signed-off-by: Joe Perches <joe@perches.com>
 ---
- drivers/block/drbd/drbd_main.c | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_receiver.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index a18155cdce41..9148713e8b3b 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2935,6 +2935,7 @@ void drbd_delete_device(struct drbd_device *device)
- 	struct drbd_resource *resource = device->resource;
- 	struct drbd_connection *connection;
- 	struct drbd_peer_device *peer_device;
-+	unsigned int minor = device_to_minor(device);
- 
- 	/* move to free_peer_device() */
- 	for_each_peer_device(peer_device, device)
-@@ -2942,15 +2943,24 @@ void drbd_delete_device(struct drbd_device *device)
- 	drbd_debugfs_device_cleanup(device);
- 	for_each_connection(connection, resource) {
- 		idr_remove(&connection->peer_devices, device->vnr);
--		kref_put(&device->kref, drbd_destroy_device);
- 	}
-+	/* There is a problem somewhere with the reference counting for
-+	 * device->kref, such that at least once we saw the last kref_put before
-+	 * the very last one actually call drbd_destroy_device. Since it should
-+	 * be syntactically equivalent, move all the kref_puts to the end. We'll
-+	 * then get a warning if calling kref_put underflows.
-+	 */
- 	idr_remove(&resource->devices, device->vnr);
--	kref_put(&device->kref, drbd_destroy_device);
- 	idr_remove(&drbd_devices, device_to_minor(device));
--	kref_put(&device->kref, drbd_destroy_device);
- 	del_gendisk(device->vdisk);
- 	synchronize_rcu();
-+	for_each_connection(connection, resource) {
-+		kref_put(&device->kref, drbd_destroy_device);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 422363daa618..87f732fb5456 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -111,8 +111,10 @@ static struct page *page_chain_tail(struct page *page, int *len)
+ {
+ 	struct page *tmp;
+ 	int i = 1;
+-	while ((tmp = page_chain_next(page)))
+-		++i, page = tmp;
++	while ((tmp = page_chain_next(page))) {
++		++i;
++		page = tmp;
 +	}
-+	kref_put(&device->kref, drbd_destroy_device);
- 	kref_put(&device->kref, drbd_destroy_device);
-+	if (!kref_put(&device->kref, drbd_destroy_device))
-+		pr_err("invalid kref for device %d\n", minor);
- }
- 
- static int __init drbd_init(void)
+ 	if (len)
+ 		*len = i;
+ 	return page;
 -- 
-2.17.1
+2.26.0
 
