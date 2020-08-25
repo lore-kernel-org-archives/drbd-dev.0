@@ -1,35 +1,20 @@
-Return-Path: <joe@perches.com>
-Received: from smtprelay.hostedemail.com (smtprelay0043.hostedemail.com
-	[216.40.44.43])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2864A42092F
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Aug 2020 07:03:53 +0200 (CEST)
-Received: from smtprelay.hostedemail.com (10.5.19.251.rfc1918.com
-	[10.5.19.251])
-	by smtpgrave03.hostedemail.com (Postfix) with ESMTP id 79B5E18024DC1
-	for <drbd-dev@lists.linbit.com>; Tue, 25 Aug 2020 04:57:14 +0000 (UTC)
-From: Joe Perches <joe@perches.com>
-To: Jiri Kosina <trivial@kernel.org>, oprofile-list@lists.sf.net,
-	linux-ide@vger.kernel.org, drbd-dev@lists.linbit.com,
-	linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	linaro-mm-sig@lists.linaro.org, intel-gfx@lists.freedesktop.org,
-	linux-hwmon@vger.kernel.org, linux-input@vger.kernel.org,
-	linux-bcache@vger.kernel.org, netdev@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org,
-	linux-fsdevel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
-	linux-nfs@vger.kernel.org
-Date: Mon, 24 Aug 2020 21:55:57 -0700
-Message-Id: <cover.1598331148.git.joe@perches.com>
+Return-Path: <srn@prgmr.com>
+Received: from mail.prgmr.com (mail.prgmr.com [71.19.149.6])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AECE5420D89
+	for <drbd-dev@lists.linbit.com>; Wed, 26 Aug 2020 01:47:05 +0200 (CEST)
+To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com, axboe@kernel.dk
+References: <20200819054926.30758-1-srn@prgmr.com>
+From: Sarah Newman <srn@prgmr.com>
+Message-ID: <71f60e04-8470-ae0d-3bda-17572b569b28@prgmr.com>
+Date: Tue, 25 Aug 2020 16:47:03 -0700
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: devel@driverdev.osuosl.org, linux-s390@vger.kernel.org,
-	linux-fbdev@vger.kernel.org, linux-ia64@vger.kernel.org,
-	linux-scsi@vger.kernel.org, linux-doc@vger.kernel.org,
-	linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, linux-mtd@lists.infradead.org,
-	linux-kselftest@vger.kernel.org, linux-alpha@vger.kernel.org,
-	sparclinux@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 00/29] treewide: Convert comma separated
-	statements
+In-Reply-To: <20200819054926.30758-1-srn@prgmr.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Cc: linux-block@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] block: drbd: add missing kref_get in
+ handle_write_conflicts
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,94 +26,65 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-There are many comma separated statements in the kernel.
-See:https://lore.kernel.org/lkml/alpine.DEB.2.22.394.2008201856110.2524@hadrien/
+On 8/18/20 10:49 PM, Sarah Newman wrote:
+> The other place that drbd_send_acks_wf was called from already
+> calls kref_get.
+> 
+> This can be reproduced with the following for an existing
+> connection:
+> 
+> drbdsetup net-options local_addr remote_addr \
+>    --protocol=C \
+>    --allow-two-primaries
+> 
+> drbsetup primary minor
+> dd if=/dev/drbd<minor> of=sector bs=512 count=1
+> while true; do dd if=sector of=/dev/drbd<minor>; done
+> 
+> During this, if we have function tracing enabled for e_send_superseded, it
+>    triggers:
+> 
+> $ sudo cat /sys/kernel/tracing/trace_pipe
+>      kworker/u4:2-14838 [001] .... 113244.465689: e_send_superseded <-drbd_finish_peer_reqs
+>      kworker/u4:2-14838 [001] .... 113244.468237: e_send_superseded <-drbd_finish_peer_reqs
+>      kworker/u4:2-14838 [001] .... 113244.482757: e_send_superseded <-drbd_finish_peer_reqs
+>      kworker/u4:1-15502 [001] .... 113244.485092: e_send_superseded <-drbd_finish_peer_reqs
+> 
+> This eventually results in behavior like:
+> 
+> [113418.435846] watchdog: BUG: soft lockup - CPU#1 stuck for 23s! [dd:15505]
+> 
+> Or a message similar to
+> 
+> block drbd0: ASSERT( device->open_cnt == 0 )
+>    in drivers/block/drbd/drbd_main.c:2232
+> 
+> Signed-off-by: Sarah Newman <srn@prgmr.com>
+> ---
+>   drivers/block/drbd/drbd_receiver.c | 6 +++++-
+>   1 file changed, 5 insertions(+), 1 deletion(-)
+> 
+> diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+> index 2b3103c30857..1ad693a5aab5 100644
+> --- a/drivers/block/drbd/drbd_receiver.c
+> +++ b/drivers/block/drbd/drbd_receiver.c
+> @@ -2531,7 +2531,11 @@ static int handle_write_conflicts(struct drbd_device *device,
+>   			peer_req->w.cb = superseded ? e_send_superseded :
+>   						   e_send_retry_write;
+>   			list_add_tail(&peer_req->w.list, &device->done_ee);
+> -			queue_work(connection->ack_sender, &peer_req->peer_device->send_acks_work);
+> +			/* put is in drbd_send_acks_wf() */
+> +			kref_get(&device->kref);
+> +			if (!queue_work(connection->ack_sender,
+> +					&peer_req->peer_device->send_acks_work))
+> +				kref_put(&device->kref, drbd_destroy_device);
+>   
+>   			err = -ENOENT;
+>   			goto out;
+> 
 
-Convert the comma separated statements that are in if/do/while blocks
-to use braces and semicolons.
+Added linux-block as a CC. I can resend this patch if necessary.
 
-Many comma separated statements still exist but those are changes for
-another day.
+Checking in to see if any changes or additional testing is required for this patch before it's accepted.
 
-Joe Perches (29):
-  coding-style.rst: Avoid comma statements
-  alpha: Avoid comma separated statements
-  ia64: Avoid comma separated statements
-  sparc: Avoid comma separated statements
-  ata: Avoid comma separated statements
-  drbd: Avoid comma separated statements
-  lp: Avoid comma separated statements
-  dma-buf: Avoid comma separated statements
-  drm/gma500: Avoid comma separated statements
-  drm/i915: Avoid comma separated statements
-  hwmon: (scmi-hwmon): Avoid comma separated statements
-  Input: MT - Avoid comma separated statements
-  bcache: Avoid comma separated statements
-  media: Avoid comma separated statements
-  mtd: Avoid comma separated statements
-  8390: Avoid comma separated statements
-  fs_enet: Avoid comma separated statements
-  wan: sbni: Avoid comma separated statements
-  s390/tty3270: Avoid comma separated statements
-  scai/arm: Avoid comma separated statements
-  media: atomisp: Avoid comma separated statements
-  video: fbdev: Avoid comma separated statements
-  fuse: Avoid comma separated statements
-  reiserfs: Avoid comma separated statements
-  lib/zlib: Avoid comma separated statements
-  lib: zstd: Avoid comma separated statements
-  ipv6: fib6: Avoid comma separated statements
-  sunrpc: Avoid comma separated statements
-  tools: Avoid comma separated statements
-
- Documentation/process/coding-style.rst        |  17 +
- arch/alpha/kernel/pci_iommu.c                 |   8 +-
- arch/alpha/oprofile/op_model_ev4.c            |  22 +-
- arch/alpha/oprofile/op_model_ev5.c            |   8 +-
- arch/ia64/kernel/smpboot.c                    |   7 +-
- arch/sparc/kernel/smp_64.c                    |   7 +-
- drivers/ata/pata_icside.c                     |  21 +-
- drivers/block/drbd/drbd_receiver.c            |   6 +-
- drivers/char/lp.c                             |   6 +-
- drivers/dma-buf/st-dma-fence.c                |   7 +-
- drivers/gpu/drm/gma500/mdfld_intel_display.c  |  44 ++-
- drivers/gpu/drm/i915/gt/gen8_ppgtt.c          |   8 +-
- drivers/gpu/drm/i915/gt/intel_gt_requests.c   |   6 +-
- .../gpu/drm/i915/gt/selftest_workarounds.c    |   6 +-
- drivers/gpu/drm/i915/intel_runtime_pm.c       |   6 +-
- drivers/hwmon/scmi-hwmon.c                    |   6 +-
- drivers/input/input-mt.c                      |  11 +-
- drivers/md/bcache/bset.c                      |  12 +-
- drivers/md/bcache/sysfs.c                     |   6 +-
- drivers/media/i2c/msp3400-kthreads.c          |  12 +-
- drivers/media/pci/bt8xx/bttv-cards.c          |   6 +-
- drivers/media/pci/saa7134/saa7134-video.c     |   7 +-
- drivers/mtd/devices/lart.c                    |  10 +-
- drivers/net/ethernet/8390/axnet_cs.c          |  19 +-
- drivers/net/ethernet/8390/lib8390.c           |  14 +-
- drivers/net/ethernet/8390/pcnet_cs.c          |   6 +-
- .../ethernet/freescale/fs_enet/fs_enet-main.c |  11 +-
- drivers/net/wan/sbni.c                        | 101 +++---
- drivers/s390/char/tty3270.c                   |   6 +-
- drivers/scsi/arm/cumana_2.c                   |  19 +-
- drivers/scsi/arm/eesox.c                      |   9 +-
- drivers/scsi/arm/powertec.c                   |   9 +-
- .../media/atomisp/pci/atomisp_subdev.c        |   6 +-
- drivers/video/fbdev/tgafb.c                   |  12 +-
- fs/fuse/dir.c                                 |  24 +-
- fs/reiserfs/fix_node.c                        |  36 ++-
- lib/zlib_deflate/deftree.c                    |  49 ++-
- lib/zstd/compress.c                           | 120 ++++---
- lib/zstd/fse_compress.c                       |  24 +-
- lib/zstd/huf_compress.c                       |   6 +-
- net/ipv6/ip6_fib.c                            |  12 +-
- net/sunrpc/sysctl.c                           |   6 +-
- tools/lib/subcmd/help.c                       |  10 +-
- tools/power/cpupower/utils/cpufreq-set.c      |  14 +-
- tools/testing/selftests/vm/gup_benchmark.c    |  18 +-
- tools/testing/selftests/vm/userfaultfd.c      | 296 +++++++++++-------
- 46 files changed, 694 insertions(+), 382 deletions(-)
-
--- 
-2.26.0
-
+Thanks, Sarah
