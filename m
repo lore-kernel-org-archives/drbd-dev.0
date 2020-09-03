@@ -1,11 +1,11 @@
 Return-Path: <BATV+0324f78733eae8ed4bec+6220+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E6C6F4250FE
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Sep 2020 08:02:04 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7B8E24250D4
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Sep 2020 08:02:06 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu,  3 Sep 2020 07:41:04 +0200
-Message-Id: <20200903054104.228829-10-hch@lst.de>
+Date: Thu,  3 Sep 2020 07:41:02 +0200
+Message-Id: <20200903054104.228829-8-hch@lst.de>
 In-Reply-To: <20200903054104.228829-1-hch@lst.de>
 References: <20200903054104.228829-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,7 +16,8 @@ Cc: linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-ide@vger.kernel.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 9/9] vsprintf: use bd_partno in bdev_name
+Subject: [Drbd-dev] [PATCH 7/9] target/iblock: fix holder printing in
+	iblock_show_configfs_dev_params
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,33 +29,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-No need to go through the hd_struct to find the partition number.
+bd_contains is never NULL for an open block device.  In addition ibd_bd
+is always set to a block device that was exclusively opened by the
+target code, so the holder is guranteed to be ib_dev as well.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- lib/vsprintf.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/target/target_core_iblock.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-diff --git a/lib/vsprintf.c b/lib/vsprintf.c
-index afb9521ddf9197..14c9a6af1b239a 100644
---- a/lib/vsprintf.c
-+++ b/lib/vsprintf.c
-@@ -940,13 +940,13 @@ char *bdev_name(char *buf, char *end, struct block_device *bdev,
- 
- 	hd = bdev->bd_disk;
- 	buf = string(buf, end, hd->disk_name, spec);
--	if (bdev->bd_part->partno) {
-+	if (bdev->bd_partno) {
- 		if (isdigit(hd->disk_name[strlen(hd->disk_name)-1])) {
- 			if (buf < end)
- 				*buf = 'p';
- 			buf++;
- 		}
--		buf = number(buf, end, bdev->bd_part->partno, spec);
-+		buf = number(buf, end, bdev->bd_partno, spec);
+diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+index 1c181d31f4c872..f2bd2e207e0b36 100644
+--- a/drivers/target/target_core_iblock.c
++++ b/drivers/target/target_core_iblock.c
+@@ -611,9 +611,8 @@ static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
+ 	bl += sprintf(b + bl, "        ");
+ 	if (bd) {
+ 		bl += sprintf(b + bl, "Major: %d Minor: %d  %s\n",
+-			MAJOR(bd->bd_dev), MINOR(bd->bd_dev), (!bd->bd_contains) ?
+-			"" : (bd->bd_holder == ib_dev) ?
+-			"CLAIMED: IBLOCK" : "CLAIMED: OS");
++			MAJOR(bd->bd_dev), MINOR(bd->bd_dev),
++			"CLAIMED: IBLOCK");
+ 	} else {
+ 		bl += sprintf(b + bl, "Major: 0 Minor: 0\n");
  	}
- 	return buf;
- }
 -- 
 2.28.0
 
