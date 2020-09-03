@@ -1,11 +1,11 @@
 Return-Path: <BATV+0324f78733eae8ed4bec+6220+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7B8E24250D4
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Sep 2020 08:02:06 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 57CDD425101
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Sep 2020 08:02:08 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu,  3 Sep 2020 07:41:02 +0200
-Message-Id: <20200903054104.228829-8-hch@lst.de>
+Date: Thu,  3 Sep 2020 07:40:59 +0200
+Message-Id: <20200903054104.228829-5-hch@lst.de>
 In-Reply-To: <20200903054104.228829-1-hch@lst.de>
 References: <20200903054104.228829-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,8 +16,8 @@ Cc: linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-ide@vger.kernel.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 7/9] target/iblock: fix holder printing in
-	iblock_show_configfs_dev_params
+Subject: [Drbd-dev] [PATCH 4/9] md: don't detour through bd_contains for the
+	gendisk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,31 +29,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-bd_contains is never NULL for an open block device.  In addition ibd_bd
-is always set to a block device that was exclusively opened by the
-target code, so the holder is guranteed to be ib_dev as well.
+bd_disk is set on all block devices, including those for partitions.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/target/target_core_iblock.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ drivers/md/md.c | 2 +-
+ drivers/md/md.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
-index 1c181d31f4c872..f2bd2e207e0b36 100644
---- a/drivers/target/target_core_iblock.c
-+++ b/drivers/target/target_core_iblock.c
-@@ -611,9 +611,8 @@ static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
- 	bl += sprintf(b + bl, "        ");
- 	if (bd) {
- 		bl += sprintf(b + bl, "Major: %d Minor: %d  %s\n",
--			MAJOR(bd->bd_dev), MINOR(bd->bd_dev), (!bd->bd_contains) ?
--			"" : (bd->bd_holder == ib_dev) ?
--			"CLAIMED: IBLOCK" : "CLAIMED: OS");
-+			MAJOR(bd->bd_dev), MINOR(bd->bd_dev),
-+			"CLAIMED: IBLOCK");
- 	} else {
- 		bl += sprintf(b + bl, "Major: 0 Minor: 0\n");
- 	}
+diff --git a/drivers/md/md.c b/drivers/md/md.c
+index 3f33562d10d6f5..5a0fd93769a70e 100644
+--- a/drivers/md/md.c
++++ b/drivers/md/md.c
+@@ -8444,7 +8444,7 @@ static int is_mddev_idle(struct mddev *mddev, int init)
+ 	idle = 1;
+ 	rcu_read_lock();
+ 	rdev_for_each_rcu(rdev, mddev) {
+-		struct gendisk *disk = rdev->bdev->bd_contains->bd_disk;
++		struct gendisk *disk = rdev->bdev->bd_disk;
+ 		curr_events = (int)part_stat_read_accum(&disk->part0, sectors) -
+ 			      atomic_read(&disk->sync_io);
+ 		/* sync IO will cause sync_io to increase before the disk_stats
+diff --git a/drivers/md/md.h b/drivers/md/md.h
+index f9e2ccdd22c478..2175a5ac4f7c68 100644
+--- a/drivers/md/md.h
++++ b/drivers/md/md.h
+@@ -551,7 +551,7 @@ extern void mddev_unlock(struct mddev *mddev);
+ 
+ static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sectors)
+ {
+-	atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
++	atomic_add(nr_sectors, &bdev->bd_disk->sync_io);
+ }
+ 
+ static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
 -- 
 2.28.0
 
