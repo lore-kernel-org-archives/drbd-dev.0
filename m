@@ -1,11 +1,11 @@
 Return-Path: <BATV+0324f78733eae8ed4bec+6220+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0BF31425103
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Sep 2020 08:02:13 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CAF5142511B
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Sep 2020 08:02:17 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu,  3 Sep 2020 07:41:01 +0200
-Message-Id: <20200903054104.228829-7-hch@lst.de>
+Date: Thu,  3 Sep 2020 07:41:03 +0200
+Message-Id: <20200903054104.228829-9-hch@lst.de>
 In-Reply-To: <20200903054104.228829-1-hch@lst.de>
 References: <20200903054104.228829-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,7 +16,7 @@ Cc: linux-raid@vger.kernel.org, linux-scsi@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-ide@vger.kernel.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 6/9] drbd: don't set ->bd_contains
+Subject: [Drbd-dev] [PATCH 8/9] block: use bd_partno in bdevname
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,27 +28,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The ->bd_contains field is set by __blkdev_get and drivers have no
-business manipulating it.
+No need to go through the hd_struct to find the partition number.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_main.c | 2 --
- 1 file changed, 2 deletions(-)
+ block/genhd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 04b6bde9419d2a..bd8b129196d49a 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2766,8 +2766,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- 	disk->private_data = device;
+diff --git a/block/genhd.c b/block/genhd.c
+index 081f1039d9367f..771aa56b1a8c3d 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -85,7 +85,7 @@ char *disk_name(struct gendisk *hd, int partno, char *buf)
  
- 	device->this_bdev = bdget(MKDEV(DRBD_MAJOR, minor));
--	/* we have no partitions. we contain only ourselves. */
--	device->this_bdev->bd_contains = device->this_bdev;
+ const char *bdevname(struct block_device *bdev, char *buf)
+ {
+-	return disk_name(bdev->bd_disk, bdev->bd_part->partno, buf);
++	return disk_name(bdev->bd_disk, bdev->bd_partno, buf);
+ }
+ EXPORT_SYMBOL(bdevname);
  
- 	blk_queue_write_cache(q, true, true);
- 	/* Setting the max_hw_sectors to an odd value of 8kibyte here
 -- 
 2.28.0
 
