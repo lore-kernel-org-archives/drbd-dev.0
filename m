@@ -1,29 +1,23 @@
-Return-Path: <hch@lst.de>
-Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3899F423B77
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Sep 2020 10:34:01 +0200 (CEST)
-Date: Thu, 3 Sep 2020 10:26:09 +0200
+Return-Path: <BATV+eb7f8e2ffdbc6cab23f7+6227+infradead.org+hch@casper.srs.infradead.org>
+Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 23C91420FEF
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Sep 2020 16:48:48 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
-To: Ulf Hansson <ulf.hansson@linaro.org>
-Message-ID: <20200903082609.GA23498@lst.de>
-References: <20200903054104.228829-1-hch@lst.de>
-	<20200903054104.228829-3-hch@lst.de>
-	<CAPDyKFrkcpziGFPmSd8Kx4bzhoN6zxF1E8MagLQSa4sBmnicOg@mail.gmail.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Thu, 10 Sep 2020 16:48:22 +0200
+Message-Id: <20200910144833.742260-3-hch@lst.de>
+In-Reply-To: <20200910144833.742260-1-hch@lst.de>
+References: <20200910144833.742260-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPDyKFrkcpziGFPmSd8Kx4bzhoN6zxF1E8MagLQSa4sBmnicOg@mail.gmail.com>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
-	linux-scsi <linux-scsi@vger.kernel.org>,
-	Linux Documentation <linux-doc@vger.kernel.org>,
-	linux-s390@vger.kernel.org,
-	"linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-block <linux-block@vger.kernel.org>,
-	linux-ide@vger.kernel.org, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 2/9] block: add a bdev_is_partition helper
+Content-Transfer-Encoding: 8bit
+Cc: linux-raid@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>,
+	Minchan Kim <minchan@kernel.org>, Richard Weinberger <richard@nod.at>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Song Liu <song@kernel.org>, dm-devel@redhat.com,
+	linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org,
+	cgroups@vger.kernel.org, linux-mm@kvack.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 02/12] drbd: remove dead code in
+	device_to_statistics
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,17 +29,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Sep 03, 2020 at 10:19:34AM +0200, Ulf Hansson wrote:
-> On Thu, 3 Sep 2020 at 07:42, Christoph Hellwig <hch@lst.de> wrote:
-> >
-> > Add a littler helper to make the somewhat arcane bd_contains checks a
-> > little more obvious.
-> >
-> > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> 
-> Not sure why we have both "bd_contains" and "bd_partno", nevertheless,
-> feel free to add:
+Ever since the switch to blk-mq, a lower device not used for VM
+writeback will not be marked congested, so the check will never
+trigger.
 
-Right now both are needed for how blkdev_get/put work.  But I plan to
-eventual kill off bd_contains after some major surgery to that code.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/block/drbd/drbd_nl.c | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 43c8ae4d9fca81..aaff5bde391506 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -3370,7 +3370,6 @@ static void device_to_statistics(struct device_statistics *s,
+ 	if (get_ldev(device)) {
+ 		struct drbd_md *md = &device->ldev->md;
+ 		u64 *history_uuids = (u64 *)s->history_uuids;
+-		struct request_queue *q;
+ 		int n;
+ 
+ 		spin_lock_irq(&md->uuid_lock);
+@@ -3384,11 +3383,6 @@ static void device_to_statistics(struct device_statistics *s,
+ 		spin_unlock_irq(&md->uuid_lock);
+ 
+ 		s->dev_disk_flags = md->flags;
+-		q = bdev_get_queue(device->ldev->backing_bdev);
+-		s->dev_lower_blocked =
+-			bdi_congested(q->backing_dev_info,
+-				      (1 << WB_async_congested) |
+-				      (1 << WB_sync_congested));
+ 		put_ldev(device);
+ 	}
+ 	s->dev_size = drbd_get_capacity(device->this_bdev);
+-- 
+2.28.0
 
