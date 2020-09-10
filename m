@@ -1,24 +1,24 @@
 Return-Path: <BATV+eb7f8e2ffdbc6cab23f7+6227+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 86052420FF5
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Sep 2020 16:48:50 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2884E420FF6
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Sep 2020 16:48:52 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu, 10 Sep 2020 16:48:24 +0200
-Message-Id: <20200910144833.742260-5-hch@lst.de>
+Date: Thu, 10 Sep 2020 16:48:27 +0200
+Message-Id: <20200910144833.742260-8-hch@lst.de>
 In-Reply-To: <20200910144833.742260-1-hch@lst.de>
 References: <20200910144833.742260-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: David Sterba <dsterba@suse.com>, linux-raid@vger.kernel.org,
-	Hans de Goede <hdegoede@redhat.com>, Minchan Kim <minchan@kernel.org>,
-	Richard Weinberger <richard@nod.at>,
+Cc: linux-raid@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>,
+	Minchan Kim <minchan@kernel.org>, Richard Weinberger <richard@nod.at>,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
-	linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-mm@kvack.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/12] bdi: initialize ->ra_pages and ->io_pages
-	in bdi_init
+	linux-mtd@lists.infradead.org,
+	Johannes Thumshirn <johannes.thumshirn@wdc.com>,
+	linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 07/12] bdi: remove BDI_CAP_CGROUP_WRITEBACK
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,170 +30,76 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Set up a readahead size by default, as very few users have a good
-reason to change it.
+Just checking SB_I_CGROUPWB for cgroup writeback support is enough.
+Either the file system allocates its own bdi (e.g. btrfs), in which case
+it is known to support cgroup writeback, or the bdi comes from the block
+layer, which always supports cgroup writeback.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Acked-by: David Sterba <dsterba@suse.com> [btrfs]
-Acked-by: Richard Weinberger <richard@nod.at> [ubifs, mtd]
+Reviewed-by: Johannes Thumshirn <johannes.thumshirn@wdc.com>
 ---
- block/blk-core.c      | 2 --
- drivers/mtd/mtdcore.c | 2 ++
- fs/9p/vfs_super.c     | 6 ++++--
- fs/afs/super.c        | 1 -
- fs/btrfs/disk-io.c    | 1 -
- fs/fuse/inode.c       | 1 -
- fs/nfs/super.c        | 9 +--------
- fs/ubifs/super.c      | 2 ++
- fs/vboxsf/super.c     | 2 ++
- mm/backing-dev.c      | 2 ++
- 10 files changed, 13 insertions(+), 15 deletions(-)
+ block/blk-core.c            | 1 -
+ fs/btrfs/disk-io.c          | 1 -
+ include/linux/backing-dev.h | 8 +++-----
+ 3 files changed, 3 insertions(+), 7 deletions(-)
 
 diff --git a/block/blk-core.c b/block/blk-core.c
-index 093649bd252e71..18c092f8d69175 100644
+index 18c092f8d69175..d81ee511ec8b01 100644
 --- a/block/blk-core.c
 +++ b/block/blk-core.c
-@@ -538,8 +538,6 @@ struct request_queue *blk_alloc_queue(int node_id)
+@@ -538,7 +538,6 @@ struct request_queue *blk_alloc_queue(int node_id)
  	if (!q->stats)
  		goto fail_stats;
  
--	q->backing_dev_info->ra_pages = VM_READAHEAD_PAGES;
--	q->backing_dev_info->io_pages = VM_READAHEAD_PAGES;
- 	q->backing_dev_info->capabilities = BDI_CAP_CGROUP_WRITEBACK;
+-	q->backing_dev_info->capabilities = BDI_CAP_CGROUP_WRITEBACK;
  	q->node = node_id;
  
-diff --git a/drivers/mtd/mtdcore.c b/drivers/mtd/mtdcore.c
-index 7d930569a7dfb7..b5e5d3140f578e 100644
---- a/drivers/mtd/mtdcore.c
-+++ b/drivers/mtd/mtdcore.c
-@@ -2196,6 +2196,8 @@ static struct backing_dev_info * __init mtd_bdi_init(char *name)
- 	bdi = bdi_alloc(NUMA_NO_NODE);
- 	if (!bdi)
- 		return ERR_PTR(-ENOMEM);
-+	bdi->ra_pages = 0;
-+	bdi->io_pages = 0;
- 
- 	/*
- 	 * We put '-0' suffix to the name to get the same name format as we
-diff --git a/fs/9p/vfs_super.c b/fs/9p/vfs_super.c
-index 74df32be4c6a52..e34fa20acf612e 100644
---- a/fs/9p/vfs_super.c
-+++ b/fs/9p/vfs_super.c
-@@ -80,8 +80,10 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
- 	if (ret)
- 		return ret;
- 
--	if (v9ses->cache)
--		sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
-+	if (!v9ses->cache) {
-+		sb->s_bdi->ra_pages = 0;
-+		sb->s_bdi->io_pages = 0;
-+	}
- 
- 	sb->s_flags |= SB_ACTIVE | SB_DIRSYNC;
- 	if (!v9ses->cache)
-diff --git a/fs/afs/super.c b/fs/afs/super.c
-index b552357b1d1379..3a40ee752c1e3f 100644
---- a/fs/afs/super.c
-+++ b/fs/afs/super.c
-@@ -456,7 +456,6 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
- 	ret = super_setup_bdi(sb);
- 	if (ret)
- 		return ret;
--	sb->s_bdi->ra_pages	= VM_READAHEAD_PAGES;
- 
- 	/* allocate the root inode and dentry */
- 	if (as->dyn_root) {
+ 	atomic_set(&q->nr_active_requests_shared_sbitmap, 0);
 diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index f6bba7eb1fa171..047934cea25efa 100644
+index 047934cea25efa..e24927bddd5829 100644
 --- a/fs/btrfs/disk-io.c
 +++ b/fs/btrfs/disk-io.c
-@@ -3092,7 +3092,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
+@@ -3091,7 +3091,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
+ 		goto fail_sb_buffer;
  	}
  
- 	sb->s_bdi->capabilities |= BDI_CAP_CGROUP_WRITEBACK;
--	sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
+-	sb->s_bdi->capabilities |= BDI_CAP_CGROUP_WRITEBACK;
  	sb->s_bdi->ra_pages *= btrfs_super_num_devices(disk_super);
  	sb->s_bdi->ra_pages = max(sb->s_bdi->ra_pages, SZ_4M / PAGE_SIZE);
  
-diff --git a/fs/fuse/inode.c b/fs/fuse/inode.c
-index bba747520e9b08..17b00670fb539e 100644
---- a/fs/fuse/inode.c
-+++ b/fs/fuse/inode.c
-@@ -1049,7 +1049,6 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
- 	if (err)
- 		return err;
- 
--	sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
- 	/* fuse does it's own writeback accounting */
- 	sb->s_bdi->capabilities = BDI_CAP_NO_ACCT_WB | BDI_CAP_STRICTLIMIT;
- 
-diff --git a/fs/nfs/super.c b/fs/nfs/super.c
-index 7a70287f21a2c1..f943e37853fa25 100644
---- a/fs/nfs/super.c
-+++ b/fs/nfs/super.c
-@@ -1200,13 +1200,6 @@ static void nfs_get_cache_cookie(struct super_block *sb,
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 0b06b2d26c9aa3..52583b6f2ea05d 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -123,7 +123,6 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
+  * BDI_CAP_NO_ACCT_WB:     Don't automatically account writeback pages
+  * BDI_CAP_STRICTLIMIT:    Keep number of dirty pages below bdi threshold.
+  *
+- * BDI_CAP_CGROUP_WRITEBACK: Supports cgroup-aware writeback.
+  * BDI_CAP_SYNCHRONOUS_IO: Device is so fast that asynchronous IO would be
+  *			   inefficient.
+  */
+@@ -233,9 +232,9 @@ int inode_congested(struct inode *inode, int cong_bits);
+  * inode_cgwb_enabled - test whether cgroup writeback is enabled on an inode
+  * @inode: inode of interest
+  *
+- * cgroup writeback requires support from both the bdi and filesystem.
+- * Also, both memcg and iocg have to be on the default hierarchy.  Test
+- * whether all conditions are met.
++ * Cgroup writeback requires support from the filesystem.  Also, both memcg and
++ * iocg have to be on the default hierarchy.  Test whether all conditions are
++ * met.
+  *
+  * Note that the test result may change dynamically on the same inode
+  * depending on how memcg and iocg are configured.
+@@ -247,7 +246,6 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
+ 	return cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+ 		cgroup_subsys_on_dfl(io_cgrp_subsys) &&
+ 		bdi_cap_account_dirty(bdi) &&
+-		(bdi->capabilities & BDI_CAP_CGROUP_WRITEBACK) &&
+ 		(inode->i_sb->s_iflags & SB_I_CGROUPWB);
  }
- #endif
  
--static void nfs_set_readahead(struct backing_dev_info *bdi,
--			      unsigned long iomax_pages)
--{
--	bdi->ra_pages = VM_READAHEAD_PAGES;
--	bdi->io_pages = iomax_pages;
--}
--
- int nfs_get_tree_common(struct fs_context *fc)
- {
- 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
-@@ -1251,7 +1244,7 @@ int nfs_get_tree_common(struct fs_context *fc)
- 					     MINOR(server->s_dev));
- 		if (error)
- 			goto error_splat_super;
--		nfs_set_readahead(s->s_bdi, server->rpages);
-+		s->s_bdi->io_pages = server->rpages;
- 		server->super = s;
- 	}
- 
-diff --git a/fs/ubifs/super.c b/fs/ubifs/super.c
-index a2420c900275a8..fbddb2a1c03f5e 100644
---- a/fs/ubifs/super.c
-+++ b/fs/ubifs/super.c
-@@ -2177,6 +2177,8 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
- 				   c->vi.vol_id);
- 	if (err)
- 		goto out_close;
-+	sb->s_bdi->ra_pages = 0;
-+	sb->s_bdi->io_pages = 0;
- 
- 	sb->s_fs_info = c;
- 	sb->s_magic = UBIFS_SUPER_MAGIC;
-diff --git a/fs/vboxsf/super.c b/fs/vboxsf/super.c
-index 8fe03b4a0d2b03..8e3792177a8523 100644
---- a/fs/vboxsf/super.c
-+++ b/fs/vboxsf/super.c
-@@ -167,6 +167,8 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
- 	err = super_setup_bdi_name(sb, "vboxsf-%d", sbi->bdi_id);
- 	if (err)
- 		goto fail_free;
-+	sb->s_bdi->ra_pages = 0;
-+	sb->s_bdi->io_pages = 0;
- 
- 	/* Turn source into a shfl_string and map the folder */
- 	size = strlen(fc->source) + 1;
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 8e8b00627bb2d8..2dac3be6127127 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -746,6 +746,8 @@ struct backing_dev_info *bdi_alloc(int node_id)
- 		kfree(bdi);
- 		return NULL;
- 	}
-+	bdi->ra_pages = VM_READAHEAD_PAGES;
-+	bdi->io_pages = VM_READAHEAD_PAGES;
- 	return bdi;
- }
- EXPORT_SYMBOL(bdi_alloc);
 -- 
 2.28.0
 
