@@ -1,26 +1,27 @@
 Return-Path: <jack@suse.cz>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D2F98420DE4
-	for <drbd-dev@lists.linbit.com>; Thu, 17 Sep 2020 11:46:15 +0200 (CEST)
-Date: Thu, 17 Sep 2020 11:46:15 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AC6FB420DE3
+	for <drbd-dev@lists.linbit.com>; Thu, 17 Sep 2020 11:56:07 +0200 (CEST)
+Date: Thu, 17 Sep 2020 11:55:07 +0200
 From: Jan Kara <jack@suse.cz>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20200917094615.GI7347@quack2.suse.cz>
+Message-ID: <20200917095507.GJ7347@quack2.suse.cz>
 References: <20200910144833.742260-1-hch@lst.de>
-	<20200910144833.742260-3-hch@lst.de>
+	<20200910144833.742260-4-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20200910144833.742260-3-hch@lst.de>
+In-Reply-To: <20200910144833.742260-4-hch@lst.de>
 Cc: Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
 	Hans de Goede <hdegoede@redhat.com>, Minchan Kim <minchan@kernel.org>,
 	Richard Weinberger <richard@nod.at>,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
-	linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-mm@kvack.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 02/12] drbd: remove dead code in
-	device_to_statistics
+	linux-mtd@lists.infradead.org,
+	Johannes Thumshirn <johannes.thumshirn@wdc.com>,
+	linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 03/12] drbd: remove RB_CONGESTED_REMOTE
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,47 +33,54 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu 10-09-20 16:48:22, Christoph Hellwig wrote:
-> Ever since the switch to blk-mq, a lower device not used for VM
-> writeback will not be marked congested, so the check will never
-> trigger.
+On Thu 10-09-20 16:48:23, Christoph Hellwig wrote:
+> This case isn't ever used.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Johannes Thumshirn <johannes.thumshirn@wdc.com>
 
-Looks good to me. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
+Are you sure it's never used? As far as I'm reading drdb code the contents
+of the disk_conf structure seems to be received through netlink (that code
+is really a macro hell) and so read_balancing attribute passed to
+remote_due_to_read_balancing() can have any value userspace passed to it.
 
 								Honza
 
 > ---
->  drivers/block/drbd/drbd_nl.c | 6 ------
->  1 file changed, 6 deletions(-)
+>  drivers/block/drbd/drbd_req.c | 4 ----
+>  include/linux/drbd.h          | 1 -
+>  2 files changed, 5 deletions(-)
 > 
-> diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-> index 43c8ae4d9fca81..aaff5bde391506 100644
-> --- a/drivers/block/drbd/drbd_nl.c
-> +++ b/drivers/block/drbd/drbd_nl.c
-> @@ -3370,7 +3370,6 @@ static void device_to_statistics(struct device_statistics *s,
->  	if (get_ldev(device)) {
->  		struct drbd_md *md = &device->ldev->md;
->  		u64 *history_uuids = (u64 *)s->history_uuids;
-> -		struct request_queue *q;
->  		int n;
+> diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+> index 5c975af9c15fb8..481bc34fcf386a 100644
+> --- a/drivers/block/drbd/drbd_req.c
+> +++ b/drivers/block/drbd/drbd_req.c
+> @@ -901,13 +901,9 @@ static bool drbd_may_do_local_read(struct drbd_device *device, sector_t sector,
+>  static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t sector,
+>  		enum drbd_read_balancing rbm)
+>  {
+> -	struct backing_dev_info *bdi;
+>  	int stripe_shift;
 >  
->  		spin_lock_irq(&md->uuid_lock);
-> @@ -3384,11 +3383,6 @@ static void device_to_statistics(struct device_statistics *s,
->  		spin_unlock_irq(&md->uuid_lock);
->  
->  		s->dev_disk_flags = md->flags;
-> -		q = bdev_get_queue(device->ldev->backing_bdev);
-> -		s->dev_lower_blocked =
-> -			bdi_congested(q->backing_dev_info,
-> -				      (1 << WB_async_congested) |
-> -				      (1 << WB_sync_congested));
->  		put_ldev(device);
->  	}
->  	s->dev_size = drbd_get_capacity(device->this_bdev);
+>  	switch (rbm) {
+> -	case RB_CONGESTED_REMOTE:
+> -		bdi = device->ldev->backing_bdev->bd_disk->queue->backing_dev_info;
+> -		return bdi_read_congested(bdi);
+>  	case RB_LEAST_PENDING:
+>  		return atomic_read(&device->local_cnt) >
+>  			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
+> diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+> index 5755537b51b114..6a8286132751df 100644
+> --- a/include/linux/drbd.h
+> +++ b/include/linux/drbd.h
+> @@ -94,7 +94,6 @@ enum drbd_read_balancing {
+>  	RB_PREFER_REMOTE,
+>  	RB_ROUND_ROBIN,
+>  	RB_LEAST_PENDING,
+> -	RB_CONGESTED_REMOTE,
+>  	RB_32K_STRIPING,
+>  	RB_64K_STRIPING,
+>  	RB_128K_STRIPING,
 > -- 
 > 2.28.0
 > 
