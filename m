@@ -1,25 +1,28 @@
 Return-Path: <BATV+776a1a22abff015854b2+6238+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2CF994203AC
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 58DA64203AD
 	for <drbd-dev@lists.linbit.com>; Mon, 21 Sep 2020 10:07:57 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 21 Sep 2020 10:07:24 +0200
-Message-Id: <20200921080734.452759-4-hch@lst.de>
+Date: Mon, 21 Sep 2020 10:07:31 +0200
+Message-Id: <20200921080734.452759-11-hch@lst.de>
 In-Reply-To: <20200921080734.452759-1-hch@lst.de>
 References: <20200921080734.452759-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-raid@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>,
-	Justin Sanders <justin@coraid.com>, Minchan Kim <minchan@kernel.org>,
+	Justin Sanders <justin@coraid.com>, Jan Kara <jack@suse.cz>,
+	Minchan Kim <minchan@kernel.org>,
 	Johannes Thumshirn <Johannes.Thumshirn@wdc.com>,
 	linux-bcache@vger.kernel.org, Coly Li <colyli@suse.de>,
 	linux-block@vger.kernel.org, Song Liu <song@kernel.org>,
 	dm-devel@redhat.com, linux-mtd@lists.infradead.org,
 	Richard Weinberger <richard@nod.at>,
 	linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
+	Johannes Thumshirn <johannes.thumshirn@wdc.com>,
 	linux-mm@kvack.org, linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/13] bcache: inherit the optimal I/O size
+Subject: [Drbd-dev] [PATCH 10/13] mm: use SWP_SYNCHRONOUS_IO more
+	intelligently
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,27 +34,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Inherit the optimal I/O size setting just like the readahead window,
-as any reason to do larger I/O does not apply to just readahead.
+There is no point in trying to call bdev_read_page if SWP_SYNCHRONOUS_IO
+is not set, as the device won't support it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Reviewed-by: Johannes Thumshirn <johannes.thumshirn@wdc.com>
 ---
- drivers/md/bcache/super.c | 2 ++
- 1 file changed, 2 insertions(+)
+ mm/page_io.c | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
-index 1bbdc410ee3c51..48113005ed86ad 100644
---- a/drivers/md/bcache/super.c
-+++ b/drivers/md/bcache/super.c
-@@ -1430,6 +1430,8 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
- 	dc->disk.disk->queue->backing_dev_info->ra_pages =
- 		max(dc->disk.disk->queue->backing_dev_info->ra_pages,
- 		    q->backing_dev_info->ra_pages);
-+	blk_queue_io_opt(dc->disk.disk->queue,
-+		max(queue_io_opt(dc->disk.disk->queue), queue_io_opt(q)));
+diff --git a/mm/page_io.c b/mm/page_io.c
+index e485a6e8a6cddb..b199b87e0aa92b 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -403,15 +403,17 @@ int swap_readpage(struct page *page, bool synchronous)
+ 		goto out;
+ 	}
  
- 	atomic_set(&dc->io_errors, 0);
- 	dc->io_disable = false;
+-	ret = bdev_read_page(sis->bdev, swap_page_sector(page), page);
+-	if (!ret) {
+-		if (trylock_page(page)) {
+-			swap_slot_free_notify(page);
+-			unlock_page(page);
+-		}
++	if (sis->flags & SWP_SYNCHRONOUS_IO) {
++		ret = bdev_read_page(sis->bdev, swap_page_sector(page), page);
++		if (!ret) {
++			if (trylock_page(page)) {
++				swap_slot_free_notify(page);
++				unlock_page(page);
++			}
+ 
+-		count_vm_event(PSWPIN);
+-		goto out;
++			count_vm_event(PSWPIN);
++			goto out;
++		}
+ 	}
+ 
+ 	ret = 0;
 -- 
 2.28.0
 
