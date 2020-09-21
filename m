@@ -1,11 +1,11 @@
 Return-Path: <BATV+776a1a22abff015854b2+6238+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D7DBC4203A9
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2CF994203AC
 	for <drbd-dev@lists.linbit.com>; Mon, 21 Sep 2020 10:07:57 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 21 Sep 2020 10:07:27 +0200
-Message-Id: <20200921080734.452759-7-hch@lst.de>
+Date: Mon, 21 Sep 2020 10:07:24 +0200
+Message-Id: <20200921080734.452759-4-hch@lst.de>
 In-Reply-To: <20200921080734.452759-1-hch@lst.de>
 References: <20200921080734.452759-1-hch@lst.de>
 MIME-Version: 1.0
@@ -18,9 +18,8 @@ Cc: linux-raid@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>,
 	dm-devel@redhat.com, linux-mtd@lists.infradead.org,
 	Richard Weinberger <richard@nod.at>,
 	linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
-	Johannes Thumshirn <johannes.thumshirn@wdc.com>,
 	linux-mm@kvack.org, linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/13] md: update the optimal I/O size on reshape
+Subject: [Drbd-dev] [PATCH 03/13] bcache: inherit the optimal I/O size
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,109 +31,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The raid5 and raid10 drivers currently update the read-ahead size,
-but not the optimal I/O size on reshape.  To prepare for deriving the
-read-ahead size from the optimal I/O size make sure it is updated
-as well.
+Inherit the optimal I/O size setting just like the readahead window,
+as any reason to do larger I/O does not apply to just readahead.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Acked-by: Song Liu <song@kernel.org>
-Reviewed-by: Johannes Thumshirn <johannes.thumshirn@wdc.com>
 ---
- drivers/md/raid10.c | 22 ++++++++++++++--------
- drivers/md/raid5.c  | 10 ++++++++--
- 2 files changed, 22 insertions(+), 10 deletions(-)
+ drivers/md/bcache/super.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-index e8fa327339171c..9956a04ac13bd6 100644
---- a/drivers/md/raid10.c
-+++ b/drivers/md/raid10.c
-@@ -3703,10 +3703,20 @@ static struct r10conf *setup_conf(struct mddev *mddev)
- 	return ERR_PTR(err);
- }
+diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+index 1bbdc410ee3c51..48113005ed86ad 100644
+--- a/drivers/md/bcache/super.c
++++ b/drivers/md/bcache/super.c
+@@ -1430,6 +1430,8 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
+ 	dc->disk.disk->queue->backing_dev_info->ra_pages =
+ 		max(dc->disk.disk->queue->backing_dev_info->ra_pages,
+ 		    q->backing_dev_info->ra_pages);
++	blk_queue_io_opt(dc->disk.disk->queue,
++		max(queue_io_opt(dc->disk.disk->queue), queue_io_opt(q)));
  
-+static void raid10_set_io_opt(struct r10conf *conf)
-+{
-+	int raid_disks = conf->geo.raid_disks;
-+
-+	if (!(conf->geo.raid_disks % conf->geo.near_copies))
-+		raid_disks /= conf->geo.near_copies;
-+	blk_queue_io_opt(conf->mddev->queue, (conf->mddev->chunk_sectors << 9) *
-+			 raid_disks);
-+}
-+
- static int raid10_run(struct mddev *mddev)
- {
- 	struct r10conf *conf;
--	int i, disk_idx, chunk_size;
-+	int i, disk_idx;
- 	struct raid10_info *disk;
- 	struct md_rdev *rdev;
- 	sector_t size;
-@@ -3742,18 +3752,13 @@ static int raid10_run(struct mddev *mddev)
- 	mddev->thread = conf->thread;
- 	conf->thread = NULL;
- 
--	chunk_size = mddev->chunk_sectors << 9;
- 	if (mddev->queue) {
- 		blk_queue_max_discard_sectors(mddev->queue,
- 					      mddev->chunk_sectors);
- 		blk_queue_max_write_same_sectors(mddev->queue, 0);
- 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
--		blk_queue_io_min(mddev->queue, chunk_size);
--		if (conf->geo.raid_disks % conf->geo.near_copies)
--			blk_queue_io_opt(mddev->queue, chunk_size * conf->geo.raid_disks);
--		else
--			blk_queue_io_opt(mddev->queue, chunk_size *
--					 (conf->geo.raid_disks / conf->geo.near_copies));
-+		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
-+		raid10_set_io_opt(conf);
- 	}
- 
- 	rdev_for_each(rdev, mddev) {
-@@ -4727,6 +4732,7 @@ static void end_reshape(struct r10conf *conf)
- 		stripe /= conf->geo.near_copies;
- 		if (conf->mddev->queue->backing_dev_info->ra_pages < 2 * stripe)
- 			conf->mddev->queue->backing_dev_info->ra_pages = 2 * stripe;
-+		raid10_set_io_opt(conf);
- 	}
- 	conf->fullsync = 0;
- }
-diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-index 225380efd1e24f..9a7d1250894ef1 100644
---- a/drivers/md/raid5.c
-+++ b/drivers/md/raid5.c
-@@ -7232,6 +7232,12 @@ static int only_parity(int raid_disk, int algo, int raid_disks, int max_degraded
- 	return 0;
- }
- 
-+static void raid5_set_io_opt(struct r5conf *conf)
-+{
-+	blk_queue_io_opt(conf->mddev->queue, (conf->chunk_sectors << 9) *
-+			 (conf->raid_disks - conf->max_degraded));
-+}
-+
- static int raid5_run(struct mddev *mddev)
- {
- 	struct r5conf *conf;
-@@ -7521,8 +7527,7 @@ static int raid5_run(struct mddev *mddev)
- 
- 		chunk_size = mddev->chunk_sectors << 9;
- 		blk_queue_io_min(mddev->queue, chunk_size);
--		blk_queue_io_opt(mddev->queue, chunk_size *
--				 (conf->raid_disks - conf->max_degraded));
-+		raid5_set_io_opt(conf);
- 		mddev->queue->limits.raid_partial_stripes_expensive = 1;
- 		/*
- 		 * We can only discard a whole stripe. It doesn't make sense to
-@@ -8115,6 +8120,7 @@ static void end_reshape(struct r5conf *conf)
- 						   / PAGE_SIZE);
- 			if (conf->mddev->queue->backing_dev_info->ra_pages < 2 * stripe)
- 				conf->mddev->queue->backing_dev_info->ra_pages = 2 * stripe;
-+			raid5_set_io_opt(conf);
- 		}
- 	}
- }
+ 	atomic_set(&dc->io_errors, 0);
+ 	dc->io_disable = false;
 -- 
 2.28.0
 
