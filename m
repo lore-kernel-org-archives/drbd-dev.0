@@ -1,18 +1,20 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7BD3442082A
-	for <drbd-dev@lists.linbit.com>; Mon, 21 Sep 2020 16:00:44 +0200 (CEST)
-Date: Mon, 21 Sep 2020 16:00:10 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 52DCF4209BF
+	for <drbd-dev@lists.linbit.com>; Mon, 21 Sep 2020 20:19:12 +0200 (CEST)
+Date: Mon, 21 Sep 2020 20:18:41 +0200
 From: Christoph Hellwig <hch@lst.de>
 To: Coly Li <colyli@suse.de>
-Message-ID: <20200921140010.GA14672@lst.de>
+Message-ID: <20200921181841.GB2067@lst.de>
 References: <20200921080734.452759-1-hch@lst.de>
 	<20200921080734.452759-4-hch@lst.de>
 	<b547a1b6-ab03-0520-012d-86d112c83d92@suse.de>
+	<20200921140010.GA14672@lst.de>
+	<5bcc52dc-ca8f-bbdd-69ef-4b6312e7994a@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b547a1b6-ab03-0520-012d-86d112c83d92@suse.de>
+In-Reply-To: <5bcc52dc-ca8f-bbdd-69ef-4b6312e7994a@suse.de>
 Cc: Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
 	Hans de Goede <hdegoede@redhat.com>, Justin Sanders <justin@coraid.com>,
 	Minchan Kim <minchan@kernel.org>, Richard Weinberger <richard@nod.at>,
@@ -34,21 +36,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Sep 21, 2020 at 05:54:59PM +0800, Coly Li wrote:
-> I am not sure whether virtual bcache device's optimal request size can
-> be simply set like this.
+On Mon, Sep 21, 2020 at 11:09:48PM +0800, Coly Li wrote:
+> I feel this is something should be fixed. Indeed I overlooked it until
+> you point out the issue now.
 > 
-> Most of time inherit backing device's optimal request size is fine, but
-> there are two exceptions,
-> - Read request hits on cache device
-> - User sets sequential_cuttoff as 0, all writing may go into cache
-> device firstly.
-> For the above two conditions, all I/Os goes into cache device, using
-> optimal request size of backing device might be improper.
+> The optimal request size and read ahead pages hint are necessary, but
+> current initialization is simple. A better way might be dynamically
+> setting them depends on the cache mode and some special configuration.
 > 
-> Just a guess, is it OK to set the optimal request size of the virtual
-> bcache device as the least common multiple of cache device's and backing
-> device's optimal request sizes ?
+> By your inspiration, I want to ACK your original patch although it
+> doesn't work fine for all condition. Then we may know these two settings
+> (ra_pages and queue_io_opt) should be improved for more situations. At
+> lease for most part of the situations they provide proper hints.
+> 
+> How do you think of the above idea ?
 
-Well, if the optimal I/O size is wrong, the read ahead size also is
-wrong.  Can we just drop the setting?
+Sounds like a plan.  I'd reall like to get this series in to get
+some soaking before the end of the merge window, but we should still
+have plenty of time for localized bcache updates.
