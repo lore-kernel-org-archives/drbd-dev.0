@@ -1,28 +1,31 @@
-Return-Path: <jack@suse.cz>
-Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 40CA4420B9C
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Sep 2020 11:14:14 +0200 (CEST)
-Date: Tue, 22 Sep 2020 11:13:14 +0200
-From: Jan Kara <jack@suse.cz>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20200922091314.GD16464@quack2.suse.cz>
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8EBD0420CEC
+	for <drbd-dev@lists.linbit.com>; Wed, 23 Sep 2020 17:16:39 +0200 (CEST)
+Date: Wed, 23 Sep 2020 17:16:06 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Jan Kara <jack@suse.cz>
+Message-ID: <20200923151606.GB16073@lst.de>
 References: <20200921080734.452759-1-hch@lst.de>
-	<20200921080734.452759-8-hch@lst.de>
+	<20200921080734.452759-6-hch@lst.de>
+	<20200922084954.GC16464@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20200921080734.452759-8-hch@lst.de>
+In-Reply-To: <20200922084954.GC16464@quack2.suse.cz>
 Cc: Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
-	Hans de Goede <hdegoede@redhat.com>, Justin Sanders <justin@coraid.com>,
-	Minchan Kim <minchan@kernel.org>, Richard Weinberger <richard@nod.at>,
-	linux-bcache@vger.kernel.org, Coly Li <colyli@suse.de>,
-	linux-block@vger.kernel.org, Song Liu <song@kernel.org>,
-	dm-devel@redhat.com, linux-mtd@lists.infradead.org,
+	Justin Sanders <justin@coraid.com>, Hans de Goede <hdegoede@redhat.com>,
+	Richard Weinberger <richard@nod.at>,
+	Minchan Kim <minchan@kernel.org>, linux-bcache@vger.kernel.org,
+	Coly Li <colyli@suse.de>, linux-block@vger.kernel.org,
+	Song Liu <song@kernel.org>, dm-devel@redhat.com,
+	linux-mtd@lists.infradead.org, linux-mm@kvack.org,
 	Johannes Thumshirn <Johannes.Thumshirn@wdc.com>,
 	linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 07/13] block: lift setting the readahead size
- into the block layer
+	David Sterba <dsterba@suse.com>, Christoph Hellwig <hch@lst.de>,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 05/13] bdi: initialize ->ra_pages and
+ ->io_pages in bdi_init
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,75 +37,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon 21-09-20 10:07:28, Christoph Hellwig wrote:
-> Drivers shouldn't really mess with the readahead size, as that is a VM
-> concept.  Instead set it based on the optimal I/O size by lifting the
-> algorithm from the md driver when registering the disk.  Also set
-> bdi->io_pages there as well by applying the same scheme based on
-> max_sectors.
+On Tue, Sep 22, 2020 at 10:49:54AM +0200, Jan Kara wrote:
+> On Mon 21-09-20 10:07:26, Christoph Hellwig wrote:
+> > Set up a readahead size by default, as very few users have a good
+> > reason to change it.
+> > 
+> > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> > Acked-by: David Sterba <dsterba@suse.com> [btrfs]
+> > Acked-by: Richard Weinberger <richard@nod.at> [ubifs, mtd]
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> Reviewed-by: Johannes Thumshirn <johannes.thumshirn@wdc.com>
-...
-> diff --git a/block/blk-settings.c b/block/blk-settings.c
-> index 76a7e03bcd6cac..01049e9b998f1d 100644
-> --- a/block/blk-settings.c
-> +++ b/block/blk-settings.c
-> @@ -452,6 +452,8 @@ EXPORT_SYMBOL(blk_limits_io_opt);
->  void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
->  {
->  	blk_limits_io_opt(&q->limits, opt);
-> +	q->backing_dev_info->ra_pages =
-> +		max(queue_io_opt(q) * 2 / PAGE_SIZE, VM_READAHEAD_PAGES);
->  }
->  EXPORT_SYMBOL(blk_queue_io_opt);
->  
-> @@ -628,9 +630,6 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
->  		printk(KERN_NOTICE "%s: Warning: Device %s is misaligned\n",
->  		       top, bottom);
->  	}
-> -
-> -	t->backing_dev_info->io_pages =
-> -		t->limits.max_sectors >> (PAGE_SHIFT - 9);
->  }
->  EXPORT_SYMBOL(disk_stack_limits);
+> The patch looks good to me. You can add:
+> 
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> 
+> I'd just prefer if the changelog explicitely mentioned that this patch
+> results in enabling readahead for coda, ecryptfs, and orangefs... Just in
+> case someone bisects some issue down to this patch :).
 
-One thing I've noticed is that blk_stack_limits() does not use
-blk_queue_io_opt() to set new optimal limit. That means that ra_pages won't
-be updated for the new queue. E.g. your DRDB change below will result in
-ra_pages not being properly updated AFAICT.
-
-Similarly it isn't clear to me how io_pages would get updated after
-blk_stack_limits() updates max_hw_sectors...
-
-Otherwise the patch looks good.
-
-								Honza
-
-> diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-> index aaff5bde391506..f8fb1c9b1bb6c1 100644
-> --- a/drivers/block/drbd/drbd_nl.c
-> +++ b/drivers/block/drbd/drbd_nl.c
-> @@ -1360,18 +1360,8 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
->  	decide_on_discard_support(device, q, b, discard_zeroes_if_aligned);
->  	decide_on_write_same_support(device, q, b, o, disable_write_same);
->  
-> -	if (b) {
-> +	if (b)
->  		blk_stack_limits(&q->limits, &b->limits, 0);
-> -
-> -		if (q->backing_dev_info->ra_pages !=
-> -		    b->backing_dev_info->ra_pages) {
-> -			drbd_info(device, "Adjusting my ra_pages to backing device's (%lu -> %lu)\n",
-> -				 q->backing_dev_info->ra_pages,
-> -				 b->backing_dev_info->ra_pages);
-> -			q->backing_dev_info->ra_pages =
-> -						b->backing_dev_info->ra_pages;
-> -		}
-> -	}
->  	fixup_discard_if_not_supported(q);
->  	fixup_write_zeroes(device, q);
->  }
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Ok, I've updated the changelog.
