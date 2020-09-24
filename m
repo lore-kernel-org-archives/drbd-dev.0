@@ -1,15 +1,18 @@
 Return-Path: <BATV+004c9619e75dbad284dd+6241+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 99667420DFE
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 907A3420E04
 	for <drbd-dev@lists.linbit.com>; Thu, 24 Sep 2020 08:54:11 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu, 24 Sep 2020 08:51:27 +0200
-Message-Id: <20200924065140.726436-1-hch@lst.de>
+Date: Thu, 24 Sep 2020 08:51:30 +0200
+Message-Id: <20200924065140.726436-4-hch@lst.de>
+In-Reply-To: <20200924065140.726436-1-hch@lst.de>
+References: <20200924065140.726436-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-raid@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>,
-	Justin Sanders <justin@coraid.com>, Minchan Kim <minchan@kernel.org>,
+	Justin Sanders <justin@coraid.com>, Jan Kara <jack@suse.cz>,
+	Minchan Kim <minchan@kernel.org>,
 	Johannes Thumshirn <Johannes.Thumshirn@wdc.com>,
 	linux-bcache@vger.kernel.org, Coly Li <colyli@suse.de>,
 	linux-block@vger.kernel.org, Song Liu <song@kernel.org>,
@@ -17,7 +20,7 @@ Cc: linux-raid@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>,
 	Richard Weinberger <richard@nod.at>,
 	linux-fsdevel@vger.kernel.org, cgroups@vger.kernel.org,
 	linux-mm@kvack.org, linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] bdi cleanups v7
+Subject: [Drbd-dev] [PATCH 03/13] bcache: inherit the optimal I/O size
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,47 +32,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+Inherit the optimal I/O size setting just like the readahead window,
+as any reason to do larger I/O does not apply to just readahead.
 
-this series contains a bunch of different BDI cleanups.  The biggest item
-is to isolate block drivers from the BDI in preparation of changing the
-lifetime of the block device BDI in a follow up series.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Acked-by: Coly Li <colyli@suse.de>
+---
+ drivers/md/bcache/super.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-Changes since v6:
- - add a new blk_queue_update_readahead helper and use it in stacking
-   drivers
- - improve another commit log
+diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+index 1bbdc410ee3c51..48113005ed86ad 100644
+--- a/drivers/md/bcache/super.c
++++ b/drivers/md/bcache/super.c
+@@ -1430,6 +1430,8 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
+ 	dc->disk.disk->queue->backing_dev_info->ra_pages =
+ 		max(dc->disk.disk->queue->backing_dev_info->ra_pages,
+ 		    q->backing_dev_info->ra_pages);
++	blk_queue_io_opt(dc->disk.disk->queue,
++		max(queue_io_opt(dc->disk.disk->queue), queue_io_opt(q)));
+ 
+ 	atomic_set(&dc->io_errors, 0);
+ 	dc->io_disable = false;
+-- 
+2.28.0
 
-Changes since v5:
- - improve a commit message
- - improve the stable_writes deprecation printk
- - drop "drbd: remove RB_CONGESTED_REMOTE"
- - drop a few hunks that add a local variable in a otherwise unchanged
-   file due to changes in the previous revisions
- - keep updating ->io_pages in queue_max_sectors_store
- - set an optimal I/O size in aoe
- - inherit the optimal I/O size in bcache
-
-Changes since v4:
- - add a back a prematurely removed assignment in dm-table.c
- - pick up a few reviews from Johannes that got lost
-
-Changes since v3:
- - rebased on the lasted block tree, which has some of the prep
-   changes merged
- - extend the ->ra_pages changes to ->io_pages
- - move initializing ->ra_pages and ->io_pages for block devices to
-   blk_register_queue
-
-Changes since v2:
- - fix a rw_page return value check
- - fix up various changelogs
-
-Changes since v1:
- - rebased to the for-5.9/block-merge branch
- - explicitly set the readahead to 0 for ubifs, vboxsf and mtd
- - split the zram block_device operations
- - let rw_page users fall back to bios in swap_readpage
-
-
-Diffstat:
