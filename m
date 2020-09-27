@@ -1,40 +1,42 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-ej1-f68.google.com (mail-ej1-f68.google.com
-	[209.85.218.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7B67B420385
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:27:37 +0200 (CEST)
-Received: by mail-ej1-f68.google.com with SMTP id lw21so23759581ejb.6
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:27:37 -0700 (PDT)
+Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com
+	[209.85.208.67])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2A5E84202B6
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:29:19 +0200 (CEST)
+Received: by mail-ed1-f67.google.com with SMTP id dn5so17383079edb.10
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:29:19 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	u24sm1282996edo.92.2020.10.12.08.26.36
+	b25sm10704969eds.66.2020.10.12.08.29.17
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 12 Oct 2020 08:26:36 -0700 (PDT)
-Resent-Message-ID: <20201012152634.GJ2116@soda.linbit>
-Received: from mailout1.hostsharing.net (mailout1.hostsharing.net
-	[83.223.95.204])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 18DF54202E2
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 13:14:40 +0200 (CEST)
-Date: Mon, 12 Oct 2020 13:14:39 +0200
-From: Elimar Riesebieter <riesebie@lxtec.de>
-To: Lukas Wunner <lukas@wunner.de>
-Message-ID: <20201012111439.jyewfvopfsjeyvp3@toy.home.lxtec.de>
-References: <1c700caab1ce71fa144116541471b3f7bb4629fa.1602432204.git.lukas@wunner.de>
-	<20201011183930.veucf6z335njrkwe@toy.home.lxtec.de>
-	<20201011185117.GA18543@wunner.de>
-	<20201011193048.rfe5qvuba2ovrwed@toy.home.lxtec.de>
-	<20201012005410.GA28362@wunner.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20201012005410.GA28362@wunner.de>
-Cc: Michael Hierweck <michael.hierweck@hostsharing.net>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH drbd-9.0] compat: __vmalloc() pgprot argument
- was removed in v5.8
+	Mon, 12 Oct 2020 08:29:18 -0700 (PDT)
+Resent-Message-ID: <20201012152916.GK2116@soda.linbit>
+Received: from mail3-relais-sop.national.inria.fr
+	(mail3-relais-sop.national.inria.fr [192.134.164.104])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D923D420385
+	for <drbd-dev@lists.linbit.com>; Sun, 27 Sep 2020 22:04:18 +0200 (CEST)
+From: Julia Lawall <Julia.Lawall@inria.fr>
+To: linux-iio@vger.kernel.org
+Date: Sun, 27 Sep 2020 21:12:10 +0200
+Message-Id: <1601233948-11629-1-git-send-email-Julia.Lawall@inria.fr>
+Cc: drbd-dev@lists.linbit.com,
+	=?UTF-8?q?Valdis=20Kl=C4=93tnieks?= <valdis.kletnieks@vt.edu>,
+	David Lechner <david@lechnology.com>,
+	Neil Armstrong <narmstrong@baylibre.com>,
+	Martin Blumenstingl <martin.blumenstingl@googlemail.com>,
+	linux-wireless@vger.kernel.org, "Rafael J. Wysocki" <rafael@kernel.org>,
+	kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-stm32@st-md-mailman.stormreply.com,
+	linux-block@vger.kernel.org, linux-ide@vger.kernel.org,
+	linux-crypto@vger.kernel.org, Joe Perches <joe@perches.com>,
+	linux-amlogic@lists.infradead.org,
+	Thomas Gleixner <tglx@linutronix.de>, linux-acpi@vger.kernel.org,
+	openipmi-developer@lists.sourceforge.net,
+	linux-clk@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+	Jerome Brunet <jbrunet@baylibre.com>
+Subject: [Drbd-dev] [PATCH 00/18] use semicolons rather than commas to
+	separate statements
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,23 +48,153 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Lukas,
+These patches replace commas by semicolons.  This was done using the
+Coccinelle semantic patch (http://coccinelle.lip6.fr/) shown below.
 
-* Lukas Wunner <lukas@wunner.de> [2020-10-12 02:54 +0200]:
+This semantic patch ensures that commas inside for loop headers will not be
+transformed.  It also doesn't touch macro definitions.
 
-[...]=20
-> If you're unsuccessful debugging the build failure on your own,
-> maybe you can upload your drbd build directory somewhere so I
-> can take a look.
+Coccinelle ensures that braces are added as needed when a single-statement
+branch turns into a multi-statement one.
 
-https://lxtec.de/drbd/drbd_dkms_buildir_hsh_201012.tar.xz
+This semantic patch has a few false positives, for variable delcarations
+such as:
 
-BTW without your patch the module was build successful with 4.19 and
-5.7 though.
+LIST_HEAD(x), *y;
 
-Thanks for cooperation
-Elimar
---=20
-  Never make anything simple and efficient when a way
-  can be found to make it complex and wonderful ;-)
+The semantic patch could be improved to avoid these, but for the moment
+they have been removed manually (2 occurrences).
 
+// <smpl>
+@initialize:ocaml@
+@@
+
+let infunction p =
+  (* avoid macros *)
+  (List.hd p).current_element <> "something_else"
+
+let combined p1 p2 =
+  (List.hd p1).line_end = (List.hd p2).line ||
+  (((List.hd p1).line_end < (List.hd p2).line) &&
+   ((List.hd p1).col < (List.hd p2).col))
+
+@bad@
+statement S;
+declaration d;
+position p;
+@@
+
+S@p
+d
+
+// special cases where newlines are needed (hope for no more than 5)
+@@
+expression e1,e2;
+statement S;
+position p != bad.p;
+position p1;
+position p2 :
+    script:ocaml(p1) { infunction p1 && combined p1 p2 };
+@@
+
+- e1@p1,@S@p e2@p2;
++ e1; e2;
+
+@@
+expression e1,e2;
+statement S;
+position p != bad.p;
+position p1;
+position p2 :
+    script:ocaml(p1) { infunction p1 && combined p1 p2 };
+@@
+
+- e1@p1,@S@p e2@p2;
++ e1; e2;
+
+@@
+expression e1,e2;
+statement S;
+position p != bad.p;
+position p1;
+position p2 :
+    script:ocaml(p1) { infunction p1 && combined p1 p2 };
+@@
+
+- e1@p1,@S@p e2@p2;
++ e1; e2;
+
+@@
+expression e1,e2;
+statement S;
+position p != bad.p;
+position p1;
+position p2 :
+    script:ocaml(p1) { infunction p1 && combined p1 p2 };
+@@
+
+- e1@p1,@S@p e2@p2;
++ e1; e2;
+
+@@
+expression e1,e2;
+statement S;
+position p != bad.p;
+position p1;
+position p2 :
+    script:ocaml(p1) { infunction p1 && combined p1 p2 };
+@@
+
+- e1@p1,@S@p e2@p2;
++ e1; e2;
+
+@r@
+expression e1,e2;
+statement S;
+position p != bad.p;
+@@
+
+e1 ,@S@p e2;
+
+@@
+expression e1,e2;
+position p1;
+position p2 :
+    script:ocaml(p1) { infunction p1 && not(combined p1 p2) };
+statement S;
+position r.p;
+@@
+
+e1@p1
+-,@S@p
++;
+e2@p2
+... when any
+// </smpl>
+
+---
+
+ drivers/acpi/processor_idle.c               |    4 +++-
+ drivers/ata/pata_icside.c                   |   21 +++++++++++++--------
+ drivers/base/regmap/regmap-debugfs.c        |    2 +-
+ drivers/bcma/driver_pci_host.c              |    4 ++--
+ drivers/block/drbd/drbd_receiver.c          |    6 ++++--
+ drivers/char/agp/amd-k7-agp.c               |    2 +-
+ drivers/char/agp/nvidia-agp.c               |    2 +-
+ drivers/char/agp/sworks-agp.c               |    2 +-
+ drivers/char/hw_random/iproc-rng200.c       |    8 ++++----
+ drivers/char/hw_random/mxc-rnga.c           |    6 +++---
+ drivers/char/hw_random/stm32-rng.c          |    8 ++++----
+ drivers/char/ipmi/bt-bmc.c                  |    6 +++---
+ drivers/clk/meson/meson-aoclk.c             |    2 +-
+ drivers/clk/mvebu/ap-cpu-clk.c              |    2 +-
+ drivers/clk/uniphier/clk-uniphier-cpugear.c |    2 +-
+ drivers/clk/uniphier/clk-uniphier-mux.c     |    2 +-
+ drivers/clocksource/mps2-timer.c            |    6 +++---
+ drivers/clocksource/timer-armada-370-xp.c   |    8 ++++----
+ drivers/counter/ti-eqep.c                   |    2 +-
+ drivers/crypto/amcc/crypto4xx_alg.c         |    2 +-
+ drivers/crypto/atmel-tdes.c                 |    2 +-
+ drivers/crypto/hifn_795x.c                  |    4 ++--
+ drivers/crypto/talitos.c                    |    8 ++++----
+ 23 files changed, 60 insertions(+), 51 deletions(-)
