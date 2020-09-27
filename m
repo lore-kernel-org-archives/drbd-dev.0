@@ -1,19 +1,32 @@
-Return-Path: <BATV+158bd042e2069d5d3a43+6242+infradead.org+hch@casper.srs.infradead.org>
-Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B06C9420F4F
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Sep 2020 18:08:52 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 25 Sep 2020 18:06:18 +0200
-Message-Id: <20200925160618.1481450-3-hch@lst.de>
-In-Reply-To: <20200925160618.1481450-1-hch@lst.de>
-References: <20200925160618.1481450-1-hch@lst.de>
+Return-Path: <joe@perches.com>
+Received: from smtprelay.hostedemail.com (smtprelay0099.hostedemail.com
+	[216.40.44.99])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E7D02420385
+	for <drbd-dev@lists.linbit.com>; Sun, 27 Sep 2020 22:08:30 +0200 (CEST)
+Message-ID: <9f6ebf51253bf420c8f6f8974a82283ae3e9e446.camel@perches.com>
+From: Joe Perches <joe@perches.com>
+To: Julia Lawall <Julia.Lawall@inria.fr>, linux-iio@vger.kernel.org
+Date: Sun, 27 Sep 2020 13:08:25 -0700
+In-Reply-To: <1601233948-11629-1-git-send-email-Julia.Lawall@inria.fr>
+References: <1601233948-11629-1-git-send-email-Julia.Lawall@inria.fr>
+Content-Type: text/plain; charset="ISO-8859-1"
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com, Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 2/2] block: add a bdget_part helper
+Content-Transfer-Encoding: 7bit
+Cc: Neil Armstrong <narmstrong@baylibre.com>, kernel-janitors@vger.kernel.org,
+	linux-ide@vger.kernel.org, linux-stm32@st-md-mailman.stormreply.com,
+	drbd-dev@lists.linbit.com, "Rafael J.
+	Wysocki" <rafael@kernel.org>, linux-clk@vger.kernel.org,
+	linux-acpi@vger.kernel.org, Jerome Brunet <jbrunet@baylibre.com>,
+	Lechner <david@lechnology.com>,
+	Blumenstingl <martin.blumenstingl@googlemail.com>, David,
+	linux-block@vger.kernel.org, Martin,
+	linux-amlogic@lists.infradead.org, Gleixner <tglx@linutronix.de>,
+	linux-arm-kernel@lists.infradead.org, Thomas,
+	Valdis =?UTF-8?Q?Kl=C4=93tnieks?= <valdis.kletnieks@vt.edu>,
+	linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-crypto@vger.kernel.org, openipmi-developer@lists.sourceforge.net
+Subject: Re: [Drbd-dev] [PATCH 00/18] use semicolons rather than commas to
+ separate statements
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,130 +38,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-All remaining callers of bdget() outside of fs/block_dev.c want to get a
-reference to the struct block_device for a given struct hd_struct.  Add
-a helper just for that and then mark bdget static.
+On Sun, 2020-09-27 at 21:12 +0200, Julia Lawall wrote:
+> These patches replace commas by semicolons.  This was done using the
+> Coccinelle semantic patch (http://coccinelle.lip6.fr/) shown below.
+> 
+> This semantic patch ensures that commas inside for loop headers will not be
+> transformed.  It also doesn't touch macro definitions.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- block/genhd.c           | 2 +-
- block/partitions/core.c | 2 +-
- fs/block_dev.c          | 9 ++++++---
- include/linux/blkdev.h  | 2 +-
- kernel/trace/blktrace.c | 9 ++-------
- 5 files changed, 11 insertions(+), 13 deletions(-)
+Thanks.
 
-diff --git a/block/genhd.c b/block/genhd.c
-index e5f17f022ec700..0a273211fec283 100644
---- a/block/genhd.c
-+++ b/block/genhd.c
-@@ -1048,7 +1048,7 @@ struct block_device *bdget_disk(struct gendisk *disk, int partno)
- 
- 	part = disk_get_part(disk, partno);
- 	if (part)
--		bdev = bdget(part_devt(part));
-+		bdev = bdget_part(part);
- 	disk_put_part(part);
- 
- 	return bdev;
-diff --git a/block/partitions/core.c b/block/partitions/core.c
-index dd6811422a87af..5309e0f44ba352 100644
---- a/block/partitions/core.c
-+++ b/block/partitions/core.c
-@@ -580,7 +580,7 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
- 		return -ENXIO;
- 
- 	ret = -ENOMEM;
--	bdevp = bdget(part_devt(part));
-+	bdevp = bdget_part(part);
- 	if (!bdevp)
- 		goto out_put_part;
- 
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index 6b9d19ffa5af7b..9e84b1928b9401 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -891,7 +891,7 @@ static int bdev_set(struct inode *inode, void *data)
- 	return 0;
- }
- 
--struct block_device *bdget(dev_t dev)
-+static struct block_device *bdget(dev_t dev)
- {
- 	struct block_device *bdev;
- 	struct inode *inode;
-@@ -920,8 +920,6 @@ struct block_device *bdget(dev_t dev)
- 	return bdev;
- }
- 
--EXPORT_SYMBOL(bdget);
--
- /**
-  * bdgrab -- Grab a reference to an already referenced block device
-  * @bdev:	Block device to grab a reference to.
-@@ -933,6 +931,11 @@ struct block_device *bdgrab(struct block_device *bdev)
- }
- EXPORT_SYMBOL(bdgrab);
- 
-+struct block_device *bdget_part(struct hd_struct *part)
-+{
-+	return bdget(part_devt(part));
-+}
-+
- long nr_blockdev_pages(void)
- {
- 	struct inode *inode;
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index d5a3e1a4c2f79b..cf80e61b4c5e1a 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -2003,7 +2003,7 @@ void bd_abort_claiming(struct block_device *bdev, struct block_device *whole,
- void blkdev_put(struct block_device *bdev, fmode_t mode);
- 
- struct block_device *I_BDEV(struct inode *inode);
--struct block_device *bdget(dev_t);
-+struct block_device *bdget_part(struct hd_struct *part);
- struct block_device *bdgrab(struct block_device *bdev);
- void bdput(struct block_device *);
- 
-diff --git a/kernel/trace/blktrace.c b/kernel/trace/blktrace.c
-index ec874ea040922a..f1022945e3460b 100644
---- a/kernel/trace/blktrace.c
-+++ b/kernel/trace/blktrace.c
-@@ -1827,13 +1827,11 @@ static ssize_t sysfs_blk_trace_attr_show(struct device *dev,
- 					 struct device_attribute *attr,
- 					 char *buf)
- {
--	struct hd_struct *p = dev_to_part(dev);
-+	struct block_device *bdev = bdget_part(dev_to_part(dev));
- 	struct request_queue *q;
--	struct block_device *bdev;
- 	struct blk_trace *bt;
- 	ssize_t ret = -ENXIO;
- 
--	bdev = bdget(part_devt(p));
- 	if (bdev == NULL)
- 		goto out;
- 
-@@ -1875,7 +1873,6 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
- {
- 	struct block_device *bdev;
- 	struct request_queue *q;
--	struct hd_struct *p;
- 	struct blk_trace *bt;
- 	u64 value;
- 	ssize_t ret = -EINVAL;
-@@ -1895,9 +1892,7 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
- 		goto out;
- 
- 	ret = -ENXIO;
--
--	p = dev_to_part(dev);
--	bdev = bdget(part_devt(p));
-+	bdev = bdget_part(dev_to_part(dev));
- 	if (bdev == NULL)
- 		goto out;
- 
--- 
-2.28.0
+All of these appear to be correct and without effect
+except for __LINE__ number changes where braces are added.
+
+
 
