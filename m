@@ -1,13 +1,13 @@
 Return-Path: <joe@perches.com>
-Received: from smtprelay.hostedemail.com (smtprelay0112.hostedemail.com
-	[216.40.44.112])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5238F420EF8
-	for <drbd-dev@lists.linbit.com>; Sat,  3 Oct 2020 21:27:38 +0200 (CEST)
-Message-ID: <c7fd58ebd81f8731fc03434b2bdd8aa4bf99335a.camel@perches.com>
+Received: from smtprelay.hostedemail.com (smtprelay0075.hostedemail.com
+	[216.40.44.75])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5BAB0420EF1
+	for <drbd-dev@lists.linbit.com>; Sat,  3 Oct 2020 21:36:15 +0200 (CEST)
+Message-ID: <306974234222092651f7497504f8c03e1304926b.camel@perches.com>
 From: Joe Perches <joe@perches.com>
 To: Konstantin Ryabitsev <konstantin@linuxfoundation.org>
-Date: Sat, 03 Oct 2020 12:27:03 -0700
-In-Reply-To: <20201003191501.o56tqq63d2buq5ox@chatter.i7.local>
+Date: Sat, 03 Oct 2020 12:36:10 -0700
+In-Reply-To: <c7fd58ebd81f8731fc03434b2bdd8aa4bf99335a.camel@perches.com>
 References: <1601233948-11629-1-git-send-email-Julia.Lawall@inria.fr>
 	<160132172369.55460.9237357219623604216.b4-ty@kernel.org>
 	<b1174f9be2ce65f6b5ebefcba0b48e792926abbc.camel@perches.com>
@@ -16,6 +16,7 @@ References: <1601233948-11629-1-git-send-email-Julia.Lawall@inria.fr>
 	<20201001110150.GA6715@sirena.org.uk>
 	<f44d19ad596f261c0287c9ab18c45161003efb43.camel@perches.com>
 	<20201003191501.o56tqq63d2buq5ox@chatter.i7.local>
+	<c7fd58ebd81f8731fc03434b2bdd8aa4bf99335a.camel@perches.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -48,28 +49,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, 2020-10-03 at 15:15 -0400, Konstantin Ryabitsev wrote:
-> On Sat, Oct 03, 2020 at 11:40:48AM -0700, Joe Perches wrote:
-> > (Adding tools and Konstantin Ryabitsev)
+On Sat, 2020-10-03 at 12:27 -0700, Joe Perches wrote:
+> On Sat, 2020-10-03 at 15:15 -0400, Konstantin Ryabitsev wrote:
+> > On Sat, Oct 03, 2020 at 11:40:48AM -0700, Joe Perches wrote:
+> > > (Adding tools and Konstantin Ryabitsev)
+> > > 
+> > > There seems to be some mismatch between b4's use of the
+> > > cover letter to a patch series and what maintainers that
+> > > apply a subset of the patches in the patch series.
+> > > 
+> > > The merge description shows the entire patch series as
+> > > applied, but the actual merge is only a subset of the
+> > > series.
+> > > 
+> > > Can this be improved in b4?
 > > 
-> > There seems to be some mismatch between b4's use of the
-> > cover letter to a patch series and what maintainers that
-> > apply a subset of the patches in the patch series.
+> > So, the following logic should be applied:
 > > 
-> > The merge description shows the entire patch series as
-> > applied, but the actual merge is only a subset of the
-> > series.
+> > - if the entire series was applied, reply to 0/n
+> > - if a subset only is applied, reply to each n/n of the patch that was 
+> >   cherry-picked out of the series
 > > 
-> > Can this be improved in b4?
+> > Is that an accurate summary?
 > 
-> So, the following logic should be applied:
-> 
-> - if the entire series was applied, reply to 0/n
-> - if a subset only is applied, reply to each n/n of the patch that was 
->   cherry-picked out of the series
-> 
-> Is that an accurate summary?
+> Exactly so, thanks.
 
-Exactly so, thanks.
+And there's no need to commit the [0/n] cover letter as a
+part of the merge unless the entire series was committed.
 
+Or perhaps trim the cover letter to exclude the files
+modified by the patch series and show only the actual files
+committed.
+
+And I believe b4 inserts this line ahead of the 0/n series
+cover letter description for the merge:
+
+    Merge series "<series>" from <author>:
+
+Perhaps that like could be "partial merge of" when a partial
+merge occurs or left as is if the entire series is applied.
+
+cheers, Joe
 
