@@ -1,28 +1,58 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com
-	[209.85.208.67])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 01302420317
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:33:30 +0200 (CEST)
-Received: by mail-ed1-f67.google.com with SMTP id o18so17433708edq.4
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:33:30 -0700 (PDT)
+Received: from mail-ej1-f65.google.com (mail-ej1-f65.google.com
+	[209.85.218.65])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6B3F2420383
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:33:50 +0200 (CEST)
+Received: by mail-ej1-f65.google.com with SMTP id p15so23771940ejm.7
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:33:50 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	j22sm10705107edp.77.2020.10.12.08.32.29
+	b3sm10640769edx.27.2020.10.12.08.33.48
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 12 Oct 2020 08:32:29 -0700 (PDT)
-Resent-Message-ID: <20201012153228.GM2116@soda.linbit>
-Received: from m97179.mail.qiye.163.com (m97179.mail.qiye.163.com
-	[220.181.97.179])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A3EDF420E62
-	for <drbd-dev@lists.linbit.com>; Fri, 18 Sep 2020 07:33:46 +0200 (CEST)
-From: Dongsheng Yang <dongsheng.yang@easystack.cn>
-To: drbd-dev@lists.linbit.com,
-	philipp.reisner@linbit.com
-Message-Id: <1600406708-15123-1-git-send-email-dongsheng.yang@easystack.cn>
-Cc: Dongsheng Yang <dongsheng.yang@easystack.cn>
-Subject: [Drbd-dev] [PATCH] drbd_state: dont clear NEW_CUR_UUID when
-	re-gained quorum
+	Mon, 12 Oct 2020 08:33:48 -0700 (PDT)
+Resent-Message-ID: <20201012153347.GO2116@soda.linbit>
+Received: from mga04.intel.com (mga04.intel.com [192.55.52.120])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 63385423B3F
+	for <drbd-dev@lists.linbit.com>; Fri,  9 Oct 2020 22:00:21 +0200 (CEST)
+From: ira.weiny@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>
+Date: Fri,  9 Oct 2020 12:49:42 -0700
+Message-Id: <20201009195033.3208459-8-ira.weiny@intel.com>
+In-Reply-To: <20201009195033.3208459-1-ira.weiny@intel.com>
+References: <20201009195033.3208459-1-ira.weiny@intel.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Cc: linux-aio@kvack.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org,
+	linux-doc@vger.kernel.org, kexec@lists.infradead.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
+	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	linux-kselftest@vger.kernel.org, samba-technical@lists.samba.org,
+	Ira Weiny <ira.weiny@intel.com>, ceph-devel@vger.kernel.org,
+	drbd-dev@lists.linbit.com, devel@driverdev.osuosl.org,
+	linux-cifs@vger.kernel.org, linux-nilfs@vger.kernel.org,
+	linux-scsi@vger.kernel.org, linux-nvdimm@lists.01.org,
+	linux-rdma@vger.kernel.org, x86@kernel.org,
+	amd-gfx@lists.freedesktop.org, linux-afs@lists.infradead.org,
+	cluster-devel@redhat.com, linux-cachefs@redhat.com,
+	intel-wired-lan@lists.osuosl.org, xen-devel@lists.xenproject.org,
+	linux-ext4@vger.kernel.org, Fenghua Yu <fenghua.yu@intel.com>,
+	linux-um@lists.infradead.org, intel-gfx@lists.freedesktop.org,
+	ecryptfs@vger.kernel.org, linux-erofs@lists.ozlabs.org,
+	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-bcache@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>,
+	io-uring@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
+	linux-nfs@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net,
+	netdev@vger.kernel.org, linux-mmc@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	linux-fsdevel@vger.kernel.org, bpf@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-btrfs@vger.kernel.org
+Subject: [Drbd-dev] [PATCH RFC PKS/PMEM 07/58] drivers/drbd: Utilize new
+	kmap_thread()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,43 +63,87 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Mon, 12 Oct 2020 15:33:53 -0000
 
-We cant clear NEW_CUR_UUID when we re-gain quorum, because
-there is a secondary offline.
+From: Ira Weiny <ira.weiny@intel.com>
 
-E.g:
-There is a cluster with 3 nodes, 1 primary (node-1), 2 secondary (node-2, node-3)
+The kmap() calls in this driver are localized to a single thread.  To
+avoid the over head of global PKRS updates use the new kmap_thread()
+call.
 
-(1) all uptodate, primary with quorum=2, quorum-minimum-redundancy=2.
-(2) node-1 network error -> node-1 lost quorum
-(3) node-3 down.
-(4) node-1 network recovery -> node-1 regain quorum, clear NEW_CUR_UUID (node-1 uptodate, node-2 uptodate, node-3 offline)
-(5) write data on primary node. -> as NEW_CUR_UUID cleared, the uuid is old.
-(6) node-3 up. -> as the uuid in primary is old, same with what in node-3. there is no-sync.
-
-Then we will loss the new data in node-3.
-
-To fix it, dont clear NEW_CUR_UUID in (4).
-
-Fixes: aaaa257b837a26ac4a38f2e86632d682fc57a2
-Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
+Cc: Jens Axboe <axboe@kernel.dk>
+Signed-off-by: Ira Weiny <ira.weiny@intel.com>
 ---
- drbd/drbd_state.c | 1 -
- 1 file changed, 1 deletion(-)
+ drivers/block/drbd/drbd_main.c     |  4 ++--
+ drivers/block/drbd/drbd_receiver.c | 12 ++++++------
+ 2 files changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/drbd/drbd_state.c b/drbd/drbd_state.c
-index 5b1744a..358bcc0 100644
---- a/drbd/drbd_state.c
-+++ b/drbd/drbd_state.c
-@@ -2592,7 +2592,6 @@ static void finish_state_change(struct drbd_resource *resource, struct completio
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 573dbf6f0c31..f0d0c6b0745e 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1532,9 +1532,9 @@ static int _drbd_no_send_page(struct drbd_peer_device *peer_device, struct page
+ 	int err;
  
- 		if (!device->have_quorum[OLD] && device->have_quorum[NEW]) {
- 			clear_bit(PRIMARY_LOST_QUORUM, &device->flags);
--			clear_bit(NEW_CUR_UUID, &device->flags);
+ 	socket = peer_device->connection->data.socket;
+-	addr = kmap(page) + offset;
++	addr = kmap_thread(page) + offset;
+ 	err = drbd_send_all(peer_device->connection, socket, addr, size, msg_flags);
+-	kunmap(page);
++	kunmap_thread(page);
+ 	if (!err)
+ 		peer_device->device->send_cnt += size >> 9;
+ 	return err;
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 422363daa618..4704bc0564e2 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1951,13 +1951,13 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
+ 	page = peer_req->pages;
+ 	page_chain_for_each(page) {
+ 		unsigned len = min_t(int, ds, PAGE_SIZE);
+-		data = kmap(page);
++		data = kmap_thread(page);
+ 		err = drbd_recv_all_warn(peer_device->connection, data, len);
+ 		if (drbd_insert_fault(device, DRBD_FAULT_RECEIVE)) {
+ 			drbd_err(device, "Fault injection: Corrupting data on receive\n");
+ 			data[0] = data[0] ^ (unsigned long)-1;
  		}
- 	}
+-		kunmap(page);
++		kunmap_thread(page);
+ 		if (err) {
+ 			drbd_free_peer_req(device, peer_req);
+ 			return NULL;
+@@ -1992,7 +1992,7 @@ static int drbd_drain_block(struct drbd_peer_device *peer_device, int data_size)
  
+ 	page = drbd_alloc_pages(peer_device, 1, 1);
+ 
+-	data = kmap(page);
++	data = kmap_thread(page);
+ 	while (data_size) {
+ 		unsigned int len = min_t(int, data_size, PAGE_SIZE);
+ 
+@@ -2001,7 +2001,7 @@ static int drbd_drain_block(struct drbd_peer_device *peer_device, int data_size)
+ 			break;
+ 		data_size -= len;
+ 	}
+-	kunmap(page);
++	kunmap_thread(page);
+ 	drbd_free_pages(peer_device->device, page, 0);
+ 	return err;
+ }
+@@ -2033,10 +2033,10 @@ static int recv_dless_read(struct drbd_peer_device *peer_device, struct drbd_req
+ 	D_ASSERT(peer_device->device, sector == bio->bi_iter.bi_sector);
+ 
+ 	bio_for_each_segment(bvec, bio, iter) {
+-		void *mapped = kmap(bvec.bv_page) + bvec.bv_offset;
++		void *mapped = kmap_thread(bvec.bv_page) + bvec.bv_offset;
+ 		expect = min_t(int, data_size, bvec.bv_len);
+ 		err = drbd_recv_all_warn(peer_device->connection, mapped, expect);
+-		kunmap(bvec.bv_page);
++		kunmap_thread(bvec.bv_page);
+ 		if (err)
+ 			return err;
+ 		data_size -= expect;
 -- 
-1.8.3.1
+2.28.0.rc0.12.gb6a658bd00c9
 
