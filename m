@@ -1,32 +1,32 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-ed1-f65.google.com (mail-ed1-f65.google.com
-	[209.85.208.65])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B6337420347
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:27:14 +0200 (CEST)
-Received: by mail-ed1-f65.google.com with SMTP id v19so17383122edx.9
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:27:14 -0700 (PDT)
+Received: from mail-ej1-f66.google.com (mail-ej1-f66.google.com
+	[209.85.218.66])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C8A494202B6
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:27:25 +0200 (CEST)
+Received: by mail-ej1-f66.google.com with SMTP id dt13so23761020ejb.12
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:27:25 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
-	[62.99.137.214])
-	by smtp.gmail.com with ESMTPSA id m2sm10867204ejo.4.2020.10.12.08.26.13
+	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
+	p15sm5145557eji.40.2020.10.12.08.26.24
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 12 Oct 2020 08:26:13 -0700 (PDT)
-Resent-Message-ID: <20201012152611.GB2116@soda.linbit>
-Received: from mailout3.hostsharing.net (mailout3.hostsharing.net
-	[176.9.242.54])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8720D42022A
-	for <drbd-dev@lists.linbit.com>; Sun, 11 Oct 2020 20:47:43 +0200 (CEST)
-Date: Sun, 11 Oct 2020 20:47:41 +0200
-From: Elimar Riesebieter <riesebie@lxtec.de>
-To: Lukas Wunner <lukas@wunner.de>
-Message-ID: <20201011184741.c766frixh5v7xgyb@toy.home.lxtec.de>
+	Mon, 12 Oct 2020 08:26:25 -0700 (PDT)
+Resent-Message-ID: <20201012152623.GE2116@soda.linbit>
+Received: from bmailout1.hostsharing.net (bmailout1.hostsharing.net
+	[83.223.95.100])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D9ACD42022A
+	for <drbd-dev@lists.linbit.com>; Sun, 11 Oct 2020 21:03:44 +0200 (CEST)
+Date: Sun, 11 Oct 2020 20:55:45 +0200
+From: Lukas Wunner <lukas@wunner.de>
+To: Elimar Riesebieter <riesebie@lxtec.de>
+Message-ID: <20201011185545.GB18543@wunner.de>
 References: <1c700caab1ce71fa144116541471b3f7bb4629fa.1602432204.git.lukas@wunner.de>
 	<20201011183930.veucf6z335njrkwe@toy.home.lxtec.de>
+	<20201011184741.c766frixh5v7xgyb@toy.home.lxtec.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20201011183930.veucf6z335njrkwe@toy.home.lxtec.de>
+In-Reply-To: <20201011184741.c766frixh5v7xgyb@toy.home.lxtec.de>
 Cc: Michael Hierweck <michael.hierweck@hostsharing.net>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
@@ -43,33 +43,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-* Elimar Riesebieter <riesebie@lxtec.de> [2020-10-11 20:39 +0200]:
+On Sun, Oct 11, 2020 at 08:47:41PM +0200, Elimar Riesebieter wrote:
+> * Elimar Riesebieter <riesebie@lxtec.de> [2020-10-11 20:39 +0200]:
+> > /var/lib/dkms/drbd/9.0.25-1hsh2/build/src/drbd/drbd_bitmap.c: In function "bm_realloc_pages":
+> > /var/lib/dkms/drbd/9.0.25-1hsh2/build/src/drbd/drbd_bitmap.c:368:15: error: too few arguments to function "__vmalloc"
+> 
+> This was on 4.19. I think the changes must depend on KVERS as the
+> modules should build from 4.19 upwards. Will try your patch against
+> 5.8 tomorrow.
 
-> Applied that patch to tag 9.0.25-1. Building the module via dkms
-> gives:
->=20
-> /var/lib/dkms/drbd/9.0.25-1hsh2/build/src/drbd/drbd_bitmap.c: In function=
- =E2=80=98bm_realloc_pages=E2=80=99:
-> /var/lib/dkms/drbd/9.0.25-1hsh2/build/src/drbd/drbd_bitmap.c:368:15: erro=
-r: too few arguments to function =E2=80=98__vmalloc=E2=80=99
->    new_pages =3D __vmalloc(bytes,
->                ^~~~~~~~~
-> In file included from /var/lib/dkms/drbd/9.0.25-1hsh2/build/src/drbd/drbd=
-_bitmap.c:16:
-> /usr/src/linux-headers-4.19.0-9-common/include/linux/vmalloc.h:80:14: not=
-e: declared here
->  extern void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot=
-);
->               ^~~~~~~~~
+The patch tests whether __vmalloc() expects 2 arguments and applies
+the coccinelle patch if not.  The coccinelle patch adds the third
+argument to the __vmalloc() invocation.  This works independently
+of the specific kernel version.
 
-This was on 4.19. I think the changes must depend on KVERS as the
-modules should build from 4.19 upwards. Will try your patch against
-5.8 tomorrow.
+Thanks,
 
-Elimar
---=20
-  From The Collaborative International Dictionary of English v.0.48 [gcide]:
-  .
-  arsehole \arse"hole`\ ([aum]rs"h[=3Do]l`), n.
-         1. execretory opening at the end of the alimentary canal.
-
+Lukas
