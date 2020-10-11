@@ -1,32 +1,30 @@
-Return-Path: <hch@lst.de>
-Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 10E14420FF0
-	for <drbd-dev@lists.linbit.com>; Thu,  8 Oct 2020 22:31:00 +0200 (CEST)
-Date: Thu, 8 Oct 2020 22:30:58 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Message-ID: <20201008203058.GA27821@lst.de>
-References: <CA+G9fYtwisRJtN4ht=ApeWc1jWssDok-7y2wee6Z0kzMP-atKg@mail.gmail.com>
-	<CA+G9fYseTYRWoHUNZ=j4mjFs9dDJ-KOD8hDy+RnyDPx75HcVWw@mail.gmail.com>
-	<24c8ee4d-d5f7-e49f-cd0c-7cf50a5fd885@kernel.dk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <24c8ee4d-d5f7-e49f-cd0c-7cf50a5fd885@kernel.dk>
-Cc: linux-raid@vger.kernel.org, Ulf Hansson <ulf.hansson@linaro.org>,
-	martin.petersen@oracle.com, Song Liu <song@kernel.org>,
-	Naresh Kamboju <naresh.kamboju@linaro.org>,
-	linux-mmc <linux-mmc@vger.kernel.org>,
-	open list <linux-kernel@vger.kernel.org>, lkft-triage@lists.linaro.org,
-	linux-block <linux-block@vger.kernel.org>,
-	"open list:LIBATA SUBSYSTEM \(Serial and Parallel ATA drivers\)"
-	<linux-ide@vger.kernel.org>, dm-devel@redhat.com,
-	Linux-Next Mailing List <linux-next@vger.kernel.org>,
-	Hannes Reinecke <hare@suse.de>, Stephen Rothwell <sfr@canb.auug.org.au>,
-	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [ Regressions ] linux next 20201008:
- blk_update_request: I/O error, dev sda,
- sector 0 op 0x1:(WRITE) flags 0x800 phys_seg 0 prio class 0
+Return-Path: <lars.ellenberg@linbit.com>
+Received: from mail-wm1-f67.google.com (mail-wm1-f67.google.com
+	[209.85.128.67])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 584924202B6
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:25:02 +0200 (CEST)
+Received: by mail-wm1-f67.google.com with SMTP id b127so5107194wmb.3
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:25:01 -0700 (PDT)
+Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
+	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
+	c68sm23191432wmd.34.2020.10.12.08.25.00
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
+	Mon, 12 Oct 2020 08:25:00 -0700 (PDT)
+Resent-Message-ID: <20201012152458.GA2116@soda.linbit>
+Received: from bmailout3.hostsharing.net (bmailout3.hostsharing.net
+	[176.9.242.62])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B47CF420067
+	for <drbd-dev@lists.linbit.com>; Sun, 11 Oct 2020 18:13:36 +0200 (CEST)
+Message-Id: <1c700caab1ce71fa144116541471b3f7bb4629fa.1602432204.git.lukas@wunner.de>
+From: Lukas Wunner <lukas@wunner.de>
+Date: Sun, 11 Oct 2020 18:07:36 +0200
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>
+Cc: Michael Hierweck <michael.hierweck@hostsharing.net>,
+	Elimar Riesebieter <riesebie@lxtec.de>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH drbd-9.0] compat: __vmalloc() pgprot argument was
+ removed in v5.8
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,8 +36,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Oct 08, 2020 at 02:17:41PM -0600, Jens Axboe wrote:
-> Just for everyones edification, that would be these 9 patches from the
-> SCSI tree:
+Commit torvalds/linux@88dca4ca5a93 removed the pgprot argument from
+__vmalloc().  There's a single invocation in drbd_bitmap.c.  Drop the
+argument to stay as close as possible to upstream and apply a cocci
+patch for older kernels which reinstates the additional argument.
 
-I sent the fixes out a bit ago and Cced the reporters..
+Reported-by: Michael Hierweck <michael.hierweck@hostsharing.net>
+Signed-off-by: Lukas Wunner <lukas@wunner.de>
+---
+ drbd/drbd-kernel-compat/cocci/__vmalloc__no_has_2_params.cocci | 3 +++
+ drbd/drbd-kernel-compat/gen_patch_names.c                      | 3 +++
+ drbd/drbd-kernel-compat/tests/__vmalloc_has_2_params.c         | 8 ++++++++
+ drbd/drbd_bitmap.c                                             | 3 +--
+ 4 files changed, 15 insertions(+), 2 deletions(-)
+ create mode 100644 drbd/drbd-kernel-compat/cocci/__vmalloc__no_has_2_params.cocci
+ create mode 100644 drbd/drbd-kernel-compat/tests/__vmalloc_has_2_params.c
+
+diff --git a/drbd/drbd-kernel-compat/cocci/__vmalloc__no_has_2_params.cocci b/drbd/drbd-kernel-compat/cocci/__vmalloc__no_has_2_params.cocci
+new file mode 100644
+index 0000000..335581d
+--- /dev/null
++++ b/drbd/drbd-kernel-compat/cocci/__vmalloc__no_has_2_params.cocci
+@@ -0,0 +1,3 @@
++@@ expression S, G; @@
++- __vmalloc(S, G)
+++ __vmalloc(S, G, PAGE_KERNEL)
+diff --git a/drbd/drbd-kernel-compat/gen_patch_names.c b/drbd/drbd-kernel-compat/gen_patch_names.c
+index 8d5af81..86e9d02 100644
+--- a/drbd/drbd-kernel-compat/gen_patch_names.c
++++ b/drbd/drbd-kernel-compat/gen_patch_names.c
+@@ -323,6 +323,9 @@ int main(int argc, char **argv)
+ 	patch(1, "part_stat_h", true, false,
+ 	      COMPAT_HAVE_PART_STAT_H, "present");
+ 
++	patch(1, "__vmalloc", true, false,
++	      COMPAT___VMALLOC_HAS_2_PARAMS, "has_2_params");
++
+ /* #define BLKDEV_ISSUE_ZEROOUT_EXPORTED */
+ /* #define BLKDEV_ZERO_NOUNMAP */
+ 
+diff --git a/drbd/drbd-kernel-compat/tests/__vmalloc_has_2_params.c b/drbd/drbd-kernel-compat/tests/__vmalloc_has_2_params.c
+new file mode 100644
+index 0000000..00e2c28
+--- /dev/null
++++ b/drbd/drbd-kernel-compat/tests/__vmalloc_has_2_params.c
+@@ -0,0 +1,8 @@
++/* { "version": "v5.8-rc1", "commit": "88dca4ca5a93d2c09e5bbc6a62fbfc3af83c4fca", "comment": "pgprot argument to __vmalloc was removed", "author": "Christoph Hellwig <hch@lst.de>", "date": "Mon Jun 1 21:51:40 2020 -0700" } */
++
++#include <linux/vmalloc.h>
++
++void foo(void)
++{
++	__vmalloc(0, 0);
++}
+diff --git a/drbd/drbd_bitmap.c b/drbd/drbd_bitmap.c
+index 4dbed26..e23ed5a 100644
+--- a/drbd/drbd_bitmap.c
++++ b/drbd/drbd_bitmap.c
+@@ -366,9 +366,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
+ 	new_pages = kzalloc(bytes, GFP_NOIO | __GFP_NOWARN);
+ 	if (!new_pages) {
+ 		new_pages = __vmalloc(bytes,
+-				GFP_NOIO | __GFP_HIGHMEM | __GFP_ZERO,
+-				PAGE_KERNEL);
++				      GFP_NOIO | __GFP_HIGHMEM | __GFP_ZERO);
+ 		if (!new_pages)
+ 			return NULL;
+ 	}
+-- 
+2.27.0
+
