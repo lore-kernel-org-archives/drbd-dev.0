@@ -1,56 +1,44 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com
-	[209.85.208.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 429BF420317
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:34:34 +0200 (CEST)
-Received: by mail-ed1-f68.google.com with SMTP id i5so17432734edr.5
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:34:34 -0700 (PDT)
+Received: from mail-ej1-f67.google.com (mail-ej1-f67.google.com
+	[209.85.218.67])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 67024420324
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:37:24 +0200 (CEST)
+Received: by mail-ej1-f67.google.com with SMTP id c22so23850106ejx.0
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:37:24 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	i23sm10857055eja.66.2020.10.12.08.33.33
+	d20sm10769908edt.32.2020.10.12.08.37.22
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 12 Oct 2020 08:33:33 -0700 (PDT)
-Resent-Message-ID: <20201012153331.GN2116@soda.linbit>
-Received: from mga14.intel.com (mga14.intel.com [192.55.52.115])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C0DB1423B32
-	for <drbd-dev@lists.linbit.com>; Fri,  9 Oct 2020 22:00:09 +0200 (CEST)
-From: ira.weiny@intel.com
-To: Andrew Morton <akpm@linux-foundation.org>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
-	Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>
-Date: Fri,  9 Oct 2020 12:49:35 -0700
-Message-Id: <20201009195033.3208459-1-ira.weiny@intel.com>
+	Mon, 12 Oct 2020 08:37:22 -0700 (PDT)
+Resent-Message-ID: <20201012153721.GP2116@soda.linbit>
+Received: from mail-il1-f193.google.com (mail-il1-f193.google.com
+	[209.85.166.193])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 25A6D420112
+	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 09:03:46 +0200 (CEST)
+Received: by mail-il1-f193.google.com with SMTP id z2so11362371ilq.0
+	for <drbd-dev@lists.linbit.com>; Sat, 20 Jun 2020 00:03:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: linux-aio@kvack.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org,
-	linux-doc@vger.kernel.org, linux-mmc@vger.kernel.org,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	linux-kselftest@vger.kernel.org, samba-technical@lists.samba.org,
-	Ira Weiny <ira.weiny@intel.com>, ceph-devel@vger.kernel.org,
-	drbd-dev@lists.linbit.com, devel@driverdev.osuosl.org,
-	linux-cifs@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org, linux-nvdimm@lists.01.org,
-	linux-rdma@vger.kernel.org, x86@kernel.org,
-	amd-gfx@lists.freedesktop.org, linux-afs@lists.infradead.org,
-	cluster-devel@redhat.com, linux-cachefs@redhat.com,
-	intel-wired-lan@lists.osuosl.org, xen-devel@lists.xenproject.org,
-	linux-ext4@vger.kernel.org, Fenghua Yu <fenghua.yu@intel.com>,
-	linux-um@lists.infradead.org, intel-gfx@lists.freedesktop.org,
-	ecryptfs@vger.kernel.org, linux-erofs@lists.ozlabs.org,
-	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>,
-	io-uring@vger.kernel.org, linux-nfs@vger.kernel.org,
-	linux-ntfs-dev@lists.sourceforge.net, netdev@vger.kernel.org,
-	kexec@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-fsdevel@vger.kernel.org, bpf@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH RFC PKS/PMEM 00/58] PMEM: Introduce stray write
-	protection for PMEM
+References: <20200620033007.1444705-1-keescook@chromium.org>
+In-Reply-To: <20200620033007.1444705-1-keescook@chromium.org>
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Message-ID: <CA+icZUWpHRR7ukyepiUH1dR3r4GMi-s2crfwR5vTszdt1SUTQw@mail.gmail.com>
+To: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset="UTF-8"
+Cc: Andy Whitcroft <apw@canonical.com>,
+	Clang-Built-Linux ML <clang-built-linux@googlegroups.com>,
+	linux-doc@vger.kernel.org, netdev@vger.kernel.org,
+	x86@kernel.org, linux-wireless@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-spi@vger.kernel.org,
+	linux-block@vger.kernel.org,
+	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
+	linux-mm@kvack.org, Alexander Potapenko <glider@google.com>,
+	b43-dev@lists.infradead.org, linux-ide@vger.kernel.org,
+	Joe Perches <joe@perches.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	linux-clk@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v2 00/16] Remove uninitialized_var() macro
+Reply-To: sedat.dilek@gmail.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -61,303 +49,279 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
+Date: Mon, 12 Oct 2020 15:37:27 -0000
 
-From: Ira Weiny <ira.weiny@intel.com>
+On Sat, Jun 20, 2020 at 5:30 AM Kees Cook <keescook@chromium.org> wrote:
+>
+> v2:
+> - more special-cased fixes
+> - add reviews
+> v1: https://lore.kernel.org/lkml/20200603233203.1695403-1-keescook@chromium.org
+>
+> Using uninitialized_var() is dangerous as it papers over real bugs[1]
+> (or can in the future), and suppresses unrelated compiler warnings
+> (e.g. "unused variable"). If the compiler thinks it is uninitialized,
+> either simply initialize the variable or make compiler changes.
+>
+> As recommended[2] by[3] Linus[4], remove the macro.
+>
+> Most of the 300 uses don't cause any warnings on gcc 9.3.0, so they're in
+> a single treewide commit in this series. A few others needed to actually
+> get cleaned up, and I broke those out into individual patches.
+>
+> The tree is:
+> https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/log/?h=kspp/uninit/macro
+>
+> -Kees
+>
 
-Should a stray write in the kernel occur persistent memory is affected more
-than regular memory.  A write to the wrong area of memory could result in
-latent data corruption which will will persist after a reboot.  PKS provides a
-nice way to restrict access to persistent memory kernel mappings, while
-providing fast access when needed.
+Hi Kees,
 
-Since the last RFC[1] this patch set has grown quite a bit.  It now depends on
-the core patches submitted separately.
+thanks for doing a v2 of your patchset.
 
-	https://lore.kernel.org/lkml/20201009194258.3207172-1-ira.weiny@intel.com/
+As I saw Jason Yan providing some "uninitialized_var() macro" patches
+to the MLs I pointen him to your tree "v1".
 
-And contained in the git tree here:
+BTW, I have tested your "v1" against Linux v5.7 (see [1]) - just
+yesterday with Linux v5.7.5-rc1.
 
-	https://github.com/weiny2/linux-kernel/tree/pks-rfc-v3
+Is it possible to have a v2 of this patchset on top od Linux v5.7 - if
+you do not mind.
 
-However, functionally there is only 1 major change from the last RFC.
-Specifically, kmap() is most often used within a single thread in a 'map/do
-something/unmap' pattern.  In fact this is the pattern used in ~90% of the
-callers of kmap().  This pattern works very well for the pmem use case and the
-testing which was done.  However, there were another ~20-30 kmap users which do
-not follow this pattern.  Some of them seem to expect the mapping to be
-'global' while others require a detailed audit to be sure.[2][3]
+Thanks.
 
-While we don't anticipate global mappings to pmem there is a danger in
-changing the semantics of kmap().  Effectively, this would cause an unresolved
-page fault with little to no information about why.
+Best regards,
+- Sedat -
 
-There were a number of options considered.
+[1] https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/log/?h=kspp/uninit/v5.7/macro
 
-1) Attempt to change all the thread local kmap() calls to kmap_atomic()
-2) Introduce a flags parameter to kmap() to indicate if the mapping should be
-   global or not
-3) Change ~20-30 call sites to 'kmap_global()' to indicate that they require a
-   global mapping of the pages
-4) Change ~209 call sites to 'kmap_thread()' to indicate that the mapping is to
-   be used within that thread of execution only
-
-Option 1 is simply not feasible kmap_atomic() is not the same semantic as
-kmap() within a single tread.  Option 2 would require all of the call sites of
-kmap() to change.  Option 3 seems like a good minimal change but there is a
-danger that new code may miss the semantic change of kmap() and not get the
-behavior intended for future users.  Therefore, option #4 was chosen.
-
-To handle the global PKRS state in the most efficient manner possible.  We
-lazily override the thread specific PKRS key value only when needed because we
-anticipate PKS to not be needed will not be needed most of the time.  And even
-when it is used 90% of the time it is a thread local call.
-
-
-[1] https://lore.kernel.org/lkml/20200717072056.73134-1-ira.weiny@intel.com/
-
-[2] The following list of callers continue calling kmap() (utilizing the global
-PKRS).  It would be nice if more of them could be converted to kmap_thread()
-
-	drivers/firewire/net.c:         ptr = kmap(dev->broadcast_rcv_buffer.pages[u]);
-	drivers/gpu/drm/i915/gem/i915_gem_pages.c:              return kmap(sg_page(sgt->sgl));
-	drivers/gpu/drm/ttm/ttm_bo_util.c:              map->virtual = kmap(map->page);
-	drivers/infiniband/hw/qib/qib_user_sdma.c:      mpage = kmap(page);
-	drivers/misc/vmw_vmci/vmci_host.c:      context->notify = kmap(context->notify_page) + (uva & (PAGE_SIZE - 1));
-	drivers/misc/xilinx_sdfec.c:            addr = kmap(pages[i]);
-	drivers/mmc/host/usdhi6rol0.c:  host->pg.mapped         = kmap(host->pg.page);
-	drivers/mmc/host/usdhi6rol0.c:  host->pg.mapped = kmap(host->pg.page);
-	drivers/mmc/host/usdhi6rol0.c:  host->pg.mapped = kmap(host->pg.page);
-	drivers/nvme/target/tcp.c:              iov->iov_base = kmap(sg_page(sg)) + sg->offset + sg_offset;
-	drivers/scsi/libiscsi_tcp.c:            segment->sg_mapped = kmap(sg_page(sg));
-	drivers/target/iscsi/iscsi_target.c:            iov[i].iov_base = kmap(sg_page(sg)) + sg->offset + page_off;
-	drivers/target/target_core_transport.c:         return kmap(sg_page(sg)) + sg->offset;
-	fs/btrfs/check-integrity.c:             block_ctx->datav[i] = kmap(block_ctx->pagev[i]);
-	fs/ceph/dir.c:          cache_ctl->dentries = kmap(cache_ctl->page);
-	fs/ceph/inode.c:                ctl->dentries = kmap(ctl->page);
-	fs/erofs/zpvec.h:               kmap_atomic(ctor->curr) : kmap(ctor->curr);
-	lib/scatterlist.c:              miter->addr = kmap(miter->page) + miter->__offset;
-	net/ceph/pagelist.c:    pl->mapped_tail = kmap(page);
-	net/ceph/pagelist.c:            pl->mapped_tail = kmap(page);
-	virt/kvm/kvm_main.c:                    hva = kmap(page);
-
-[3] The following appear to follow the same pattern as ext2 which was converted
-after some code audit.  So I _think_ they too could be converted to
-k[un]map_thread().
-
-	fs/freevxfs/vxfs_subr.c|75| kmap(pp);
-	fs/jfs/jfs_metapage.c|102| kmap(page);
-	fs/jfs/jfs_metapage.c|156| kmap(page);
-	fs/minix/dir.c|72| kmap(page);
-	fs/nilfs2/dir.c|195| kmap(page);
-	fs/nilfs2/ifile.h|24| void *kaddr = kmap(ibh->b_page);
-	fs/ntfs/aops.h|78| kmap(page);
-	fs/ntfs/compress.c|574| kmap(page);
-	fs/qnx6/dir.c|32| kmap(page);
-	fs/qnx6/dir.c|58| kmap(*p = page);
-	fs/qnx6/inode.c|190| kmap(page);
-	fs/qnx6/inode.c|557| kmap(page);
-	fs/reiserfs/inode.c|2397| kmap(bh_result->b_page);
-	fs/reiserfs/xattr.c|444| kmap(page);
-	fs/sysv/dir.c|60| kmap(page);
-	fs/sysv/dir.c|262| kmap(page);
-	fs/ufs/dir.c|194| kmap(page);
-	fs/ufs/dir.c|562| kmap(page);
-
-
-Ira Weiny (58):
-  x86/pks: Add a global pkrs option
-  x86/pks/test: Add testing for global option
-  memremap: Add zone device access protection
-  kmap: Add stray access protection for device pages
-  kmap: Introduce k[un]map_thread
-  kmap: Introduce k[un]map_thread debugging
-  drivers/drbd: Utilize new kmap_thread()
-  drivers/firmware_loader: Utilize new kmap_thread()
-  drivers/gpu: Utilize new kmap_thread()
-  drivers/rdma: Utilize new kmap_thread()
-  drivers/net: Utilize new kmap_thread()
-  fs/afs: Utilize new kmap_thread()
-  fs/btrfs: Utilize new kmap_thread()
-  fs/cifs: Utilize new kmap_thread()
-  fs/ecryptfs: Utilize new kmap_thread()
-  fs/gfs2: Utilize new kmap_thread()
-  fs/nilfs2: Utilize new kmap_thread()
-  fs/hfs: Utilize new kmap_thread()
-  fs/hfsplus: Utilize new kmap_thread()
-  fs/jffs2: Utilize new kmap_thread()
-  fs/nfs: Utilize new kmap_thread()
-  fs/f2fs: Utilize new kmap_thread()
-  fs/fuse: Utilize new kmap_thread()
-  fs/freevxfs: Utilize new kmap_thread()
-  fs/reiserfs: Utilize new kmap_thread()
-  fs/zonefs: Utilize new kmap_thread()
-  fs/ubifs: Utilize new kmap_thread()
-  fs/cachefiles: Utilize new kmap_thread()
-  fs/ntfs: Utilize new kmap_thread()
-  fs/romfs: Utilize new kmap_thread()
-  fs/vboxsf: Utilize new kmap_thread()
-  fs/hostfs: Utilize new kmap_thread()
-  fs/cramfs: Utilize new kmap_thread()
-  fs/erofs: Utilize new kmap_thread()
-  fs: Utilize new kmap_thread()
-  fs/ext2: Use ext2_put_page
-  fs/ext2: Utilize new kmap_thread()
-  fs/isofs: Utilize new kmap_thread()
-  fs/jffs2: Utilize new kmap_thread()
-  net: Utilize new kmap_thread()
-  drivers/target: Utilize new kmap_thread()
-  drivers/scsi: Utilize new kmap_thread()
-  drivers/mmc: Utilize new kmap_thread()
-  drivers/xen: Utilize new kmap_thread()
-  drivers/firmware: Utilize new kmap_thread()
-  drives/staging: Utilize new kmap_thread()
-  drivers/mtd: Utilize new kmap_thread()
-  drivers/md: Utilize new kmap_thread()
-  drivers/misc: Utilize new kmap_thread()
-  drivers/android: Utilize new kmap_thread()
-  kernel: Utilize new kmap_thread()
-  mm: Utilize new kmap_thread()
-  lib: Utilize new kmap_thread()
-  powerpc: Utilize new kmap_thread()
-  samples: Utilize new kmap_thread()
-  dax: Stray access protection for dax_direct_access()
-  nvdimm/pmem: Stray access protection for pmem->virt_addr
-  [dax|pmem]: Enable stray access protection
-
- Documentation/core-api/protection-keys.rst    |  11 +-
- arch/powerpc/mm/mem.c                         |   4 +-
- arch/x86/entry/common.c                       |  28 +++
- arch/x86/include/asm/pkeys.h                  |   6 +-
- arch/x86/include/asm/pkeys_common.h           |   8 +-
- arch/x86/kernel/process.c                     |  74 ++++++-
- arch/x86/mm/fault.c                           | 193 ++++++++++++++----
- arch/x86/mm/pkeys.c                           |  88 ++++++--
- drivers/android/binder_alloc.c                |   4 +-
- drivers/base/firmware_loader/fallback.c       |   4 +-
- drivers/base/firmware_loader/main.c           |   4 +-
- drivers/block/drbd/drbd_main.c                |   4 +-
- drivers/block/drbd/drbd_receiver.c            |  12 +-
- drivers/dax/device.c                          |   2 +
- drivers/dax/super.c                           |   2 +
- drivers/firmware/efi/capsule-loader.c         |   6 +-
- drivers/firmware/efi/capsule.c                |   4 +-
- drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c       |  12 +-
- drivers/gpu/drm/gma500/gma_display.c          |   4 +-
- drivers/gpu/drm/gma500/mmu.c                  |  10 +-
- drivers/gpu/drm/i915/gem/i915_gem_shmem.c     |   4 +-
- .../drm/i915/gem/selftests/i915_gem_context.c |   4 +-
- .../drm/i915/gem/selftests/i915_gem_mman.c    |   8 +-
- drivers/gpu/drm/i915/gt/intel_ggtt_fencing.c  |   4 +-
- drivers/gpu/drm/i915/gt/intel_gtt.c           |   4 +-
- drivers/gpu/drm/i915/gt/shmem_utils.c         |   4 +-
- drivers/gpu/drm/i915/i915_gem.c               |   8 +-
- drivers/gpu/drm/i915/i915_gpu_error.c         |   4 +-
- drivers/gpu/drm/i915/selftests/i915_perf.c    |   4 +-
- drivers/gpu/drm/radeon/radeon_ttm.c           |   4 +-
- drivers/infiniband/hw/hfi1/sdma.c             |   4 +-
- drivers/infiniband/hw/i40iw/i40iw_cm.c        |  10 +-
- drivers/infiniband/sw/siw/siw_qp_tx.c         |  14 +-
- drivers/md/bcache/request.c                   |   4 +-
- drivers/misc/vmw_vmci/vmci_queue_pair.c       |  12 +-
- drivers/mmc/host/mmc_spi.c                    |   4 +-
- drivers/mmc/host/sdricoh_cs.c                 |   4 +-
- drivers/mtd/mtd_blkdevs.c                     |  12 +-
- drivers/net/ethernet/intel/igb/igb_ethtool.c  |   4 +-
- .../net/ethernet/intel/ixgbe/ixgbe_ethtool.c  |   4 +-
- drivers/nvdimm/pmem.c                         |   6 +
- drivers/scsi/ipr.c                            |   8 +-
- drivers/scsi/pmcraid.c                        |   8 +-
- drivers/staging/rts5208/rtsx_transport.c      |   4 +-
- drivers/target/target_core_iblock.c           |   4 +-
- drivers/target/target_core_rd.c               |   4 +-
- drivers/target/target_core_transport.c        |   4 +-
- drivers/xen/gntalloc.c                        |   4 +-
- fs/afs/dir.c                                  |  16 +-
- fs/afs/dir_edit.c                             |  16 +-
- fs/afs/mntpt.c                                |   4 +-
- fs/afs/write.c                                |   4 +-
- fs/aio.c                                      |   4 +-
- fs/binfmt_elf.c                               |   4 +-
- fs/binfmt_elf_fdpic.c                         |   4 +-
- fs/btrfs/check-integrity.c                    |   4 +-
- fs/btrfs/compression.c                        |   4 +-
- fs/btrfs/inode.c                              |  16 +-
- fs/btrfs/lzo.c                                |  24 +--
- fs/btrfs/raid56.c                             |  34 +--
- fs/btrfs/reflink.c                            |   8 +-
- fs/btrfs/send.c                               |   4 +-
- fs/btrfs/zlib.c                               |  32 +--
- fs/btrfs/zstd.c                               |  20 +-
- fs/cachefiles/rdwr.c                          |   4 +-
- fs/cifs/cifsencrypt.c                         |   6 +-
- fs/cifs/file.c                                |  16 +-
- fs/cifs/smb2ops.c                             |   8 +-
- fs/cramfs/inode.c                             |  10 +-
- fs/ecryptfs/crypto.c                          |   8 +-
- fs/ecryptfs/read_write.c                      |   8 +-
- fs/erofs/super.c                              |   4 +-
- fs/erofs/xattr.c                              |   4 +-
- fs/exec.c                                     |  10 +-
- fs/ext2/dir.c                                 |   8 +-
- fs/ext2/ext2.h                                |   8 +
- fs/ext2/namei.c                               |  15 +-
- fs/f2fs/f2fs.h                                |   8 +-
- fs/freevxfs/vxfs_immed.c                      |   4 +-
- fs/fuse/readdir.c                             |   4 +-
- fs/gfs2/bmap.c                                |   4 +-
- fs/gfs2/ops_fstype.c                          |   4 +-
- fs/hfs/bnode.c                                |  14 +-
- fs/hfs/btree.c                                |  20 +-
- fs/hfsplus/bitmap.c                           |  20 +-
- fs/hfsplus/bnode.c                            | 102 ++++-----
- fs/hfsplus/btree.c                            |  18 +-
- fs/hostfs/hostfs_kern.c                       |  12 +-
- fs/io_uring.c                                 |   4 +-
- fs/isofs/compress.c                           |   4 +-
- fs/jffs2/file.c                               |   8 +-
- fs/jffs2/gc.c                                 |   4 +-
- fs/nfs/dir.c                                  |  20 +-
- fs/nilfs2/alloc.c                             |  34 +--
- fs/nilfs2/cpfile.c                            |   4 +-
- fs/ntfs/aops.c                                |   4 +-
- fs/reiserfs/journal.c                         |   4 +-
- fs/romfs/super.c                              |   4 +-
- fs/splice.c                                   |   4 +-
- fs/ubifs/file.c                               |  16 +-
- fs/vboxsf/file.c                              |  12 +-
- fs/zonefs/super.c                             |   4 +-
- include/linux/entry-common.h                  |   3 +
- include/linux/highmem.h                       |  63 +++++-
- include/linux/memremap.h                      |   1 +
- include/linux/mm.h                            |  43 ++++
- include/linux/pkeys.h                         |   6 +-
- include/linux/sched.h                         |   8 +
- include/trace/events/kmap_thread.h            |  56 +++++
- init/init_task.c                              |   6 +
- kernel/fork.c                                 |  18 ++
- kernel/kexec_core.c                           |   8 +-
- lib/Kconfig.debug                             |   8 +
- lib/iov_iter.c                                |  12 +-
- lib/pks/pks_test.c                            | 138 +++++++++++--
- lib/test_bpf.c                                |   4 +-
- lib/test_hmm.c                                |   8 +-
- mm/Kconfig                                    |  13 ++
- mm/debug.c                                    |  23 +++
- mm/memory.c                                   |   8 +-
- mm/memremap.c                                 |  90 ++++++++
- mm/swapfile.c                                 |   4 +-
- mm/userfaultfd.c                              |   4 +-
- net/ceph/messenger.c                          |   4 +-
- net/core/datagram.c                           |   4 +-
- net/core/sock.c                               |   8 +-
- net/ipv4/ip_output.c                          |   4 +-
- net/sunrpc/cache.c                            |   4 +-
- net/sunrpc/xdr.c                              |   8 +-
- net/tls/tls_device.c                          |   4 +-
- samples/vfio-mdev/mbochs.c                    |   4 +-
- 131 files changed, 1284 insertions(+), 565 deletions(-)
- create mode 100644 include/trace/events/kmap_thread.h
-
--- 
-2.28.0.rc0.12.gb6a658bd00c9
-
+> [1] https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/
+> [2] https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/
+> [3] https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/
+> [4] https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/
+>
+> Jason Yan (1):
+>   f2fs: Eliminate usage of uninitialized_var() macro
+>
+> Kees Cook (15):
+>   docs: deprecated.rst: Add uninitialized_var()
+>   x86/mm/numa: Remove uninitialized_var() usage
+>   drbd: Remove uninitialized_var() usage
+>   b43: Remove uninitialized_var() usage
+>   rtlwifi: rtl8192cu: Remove uninitialized_var() usage
+>   ide: Remove uninitialized_var() usage
+>   clk: st: Remove uninitialized_var() usage
+>   spi: davinci: Remove uninitialized_var() usage
+>   clk: spear: Remove uninitialized_var() usage
+>   KVM: PPC: Book3S PR: Remove uninitialized_var() usage
+>   media: sur40: Remove uninitialized_var() usage
+>   checkpatch: Remove awareness of uninitialized_var() macro
+>   treewide: Remove uninitialized_var() usage
+>   compiler: Remove uninitialized_var() macro
+>   mm/debug_vm_pgtable: Remove uninitialized_var() usage
+>
+>  Documentation/process/deprecated.rst           | 18 ++++++++++++++++++
+>  arch/arm/mach-sa1100/assabet.c                 |  2 +-
+>  arch/arm/mm/alignment.c                        |  2 +-
+>  arch/ia64/kernel/process.c                     |  2 +-
+>  arch/ia64/mm/discontig.c                       |  2 +-
+>  arch/ia64/mm/tlb.c                             |  2 +-
+>  arch/mips/lib/dump_tlb.c                       |  2 +-
+>  arch/mips/mm/init.c                            |  2 +-
+>  arch/mips/mm/tlb-r4k.c                         |  6 +++---
+>  arch/powerpc/kvm/book3s_64_mmu_radix.c         |  2 +-
+>  arch/powerpc/kvm/book3s_pr.c                   |  3 ---
+>  arch/powerpc/kvm/powerpc.c                     |  2 +-
+>  arch/powerpc/platforms/52xx/mpc52xx_pic.c      |  2 +-
+>  arch/s390/kernel/smp.c                         |  2 +-
+>  arch/x86/kernel/quirks.c                       | 10 +++++-----
+>  arch/x86/kvm/mmu/mmu.c                         |  2 +-
+>  arch/x86/kvm/mmu/paging_tmpl.h                 |  2 +-
+>  arch/x86/kvm/x86.c                             |  2 +-
+>  arch/x86/mm/numa.c                             | 18 +++++++++---------
+>  block/blk-merge.c                              |  2 +-
+>  drivers/acpi/acpi_pad.c                        |  2 +-
+>  drivers/ata/libata-scsi.c                      |  2 +-
+>  drivers/atm/zatm.c                             |  2 +-
+>  drivers/block/drbd/drbd_nl.c                   |  6 +++---
+>  drivers/block/drbd/drbd_state.c                |  2 +-
+>  drivers/block/rbd.c                            |  2 +-
+>  drivers/clk/clk-gate.c                         |  2 +-
+>  drivers/clk/spear/clk-vco-pll.c                |  2 +-
+>  drivers/clk/st/clkgen-fsyn.c                   |  1 -
+>  drivers/firewire/ohci.c                        | 14 +++++++-------
+>  drivers/gpu/drm/bridge/sil-sii8620.c           |  2 +-
+>  drivers/gpu/drm/drm_edid.c                     |  2 +-
+>  drivers/gpu/drm/exynos/exynos_drm_dsi.c        |  6 +++---
+>  drivers/gpu/drm/i915/display/intel_fbc.c       |  2 +-
+>  drivers/gpu/drm/i915/gt/intel_lrc.c            |  2 +-
+>  drivers/gpu/drm/i915/intel_uncore.c            |  2 +-
+>  .../gpu/drm/rockchip/dw-mipi-dsi-rockchip.c    |  4 ++--
+>  drivers/i2c/busses/i2c-rk3x.c                  |  2 +-
+>  drivers/ide/ide-acpi.c                         |  2 +-
+>  drivers/ide/ide-atapi.c                        |  2 +-
+>  drivers/ide/ide-io-std.c                       |  4 ++--
+>  drivers/ide/ide-io.c                           |  8 ++++----
+>  drivers/ide/ide-sysfs.c                        |  2 +-
+>  drivers/ide/ide-taskfile.c                     |  1 -
+>  drivers/ide/umc8672.c                          |  2 +-
+>  drivers/idle/intel_idle.c                      |  2 +-
+>  drivers/infiniband/core/uverbs_cmd.c           |  4 ++--
+>  drivers/infiniband/hw/cxgb4/cm.c               |  2 +-
+>  drivers/infiniband/hw/cxgb4/cq.c               |  2 +-
+>  drivers/infiniband/hw/mlx4/qp.c                |  6 +++---
+>  drivers/infiniband/hw/mlx5/cq.c                |  6 +++---
+>  drivers/infiniband/hw/mlx5/devx.c              |  2 +-
+>  drivers/infiniband/hw/mlx5/wr.c                |  2 +-
+>  drivers/infiniband/hw/mthca/mthca_qp.c         | 10 +++++-----
+>  drivers/infiniband/sw/siw/siw_qp_rx.c          |  2 +-
+>  drivers/input/serio/serio_raw.c                |  2 +-
+>  drivers/input/touchscreen/sur40.c              |  4 +---
+>  drivers/iommu/intel/iommu.c                    |  2 +-
+>  drivers/md/dm-io.c                             |  2 +-
+>  drivers/md/dm-ioctl.c                          |  2 +-
+>  drivers/md/dm-snap-persistent.c                |  2 +-
+>  drivers/md/dm-table.c                          |  2 +-
+>  drivers/md/dm-writecache.c                     |  2 +-
+>  drivers/md/raid5.c                             |  2 +-
+>  drivers/media/dvb-frontends/rtl2832.c          |  2 +-
+>  drivers/media/tuners/qt1010.c                  |  4 ++--
+>  drivers/media/usb/gspca/vicam.c                |  2 +-
+>  drivers/media/usb/uvc/uvc_video.c              |  8 ++++----
+>  drivers/memstick/host/jmb38x_ms.c              |  2 +-
+>  drivers/memstick/host/tifm_ms.c                |  2 +-
+>  drivers/mmc/host/sdhci.c                       |  2 +-
+>  drivers/mtd/nand/raw/nand_ecc.c                |  2 +-
+>  drivers/mtd/nand/raw/s3c2410.c                 |  2 +-
+>  drivers/mtd/parsers/afs.c                      |  4 ++--
+>  drivers/mtd/ubi/eba.c                          |  2 +-
+>  drivers/net/can/janz-ican3.c                   |  2 +-
+>  drivers/net/ethernet/broadcom/bnx2.c           |  4 ++--
+>  .../ethernet/mellanox/mlx5/core/pagealloc.c    |  4 ++--
+>  drivers/net/ethernet/neterion/s2io.c           |  2 +-
+>  drivers/net/ethernet/qlogic/qla3xxx.c          |  2 +-
+>  drivers/net/ethernet/sun/cassini.c             |  2 +-
+>  drivers/net/ethernet/sun/niu.c                 |  6 +++---
+>  drivers/net/wan/z85230.c                       |  2 +-
+>  drivers/net/wireless/ath/ath10k/core.c         |  2 +-
+>  drivers/net/wireless/ath/ath6kl/init.c         |  2 +-
+>  drivers/net/wireless/ath/ath9k/init.c          |  2 +-
+>  drivers/net/wireless/broadcom/b43/debugfs.c    |  2 +-
+>  drivers/net/wireless/broadcom/b43/dma.c        |  2 +-
+>  drivers/net/wireless/broadcom/b43/lo.c         |  2 +-
+>  drivers/net/wireless/broadcom/b43/phy_n.c      |  4 ++--
+>  drivers/net/wireless/broadcom/b43/xmit.c       | 12 ++++++------
+>  .../net/wireless/broadcom/b43legacy/debugfs.c  |  2 +-
+>  drivers/net/wireless/broadcom/b43legacy/main.c |  2 +-
+>  drivers/net/wireless/intel/iwlegacy/3945.c     |  2 +-
+>  drivers/net/wireless/intel/iwlegacy/4965-mac.c |  2 +-
+>  .../wireless/realtek/rtlwifi/rtl8192cu/hw.c    |  8 ++++----
+>  drivers/pci/pcie/aer.c                         |  2 +-
+>  drivers/platform/x86/hdaps.c                   |  4 ++--
+>  drivers/scsi/dc395x.c                          |  2 +-
+>  drivers/scsi/pm8001/pm8001_hwi.c               |  2 +-
+>  drivers/scsi/pm8001/pm80xx_hwi.c               |  2 +-
+>  drivers/spi/spi-davinci.c                      |  1 -
+>  drivers/ssb/driver_chipcommon.c                |  4 ++--
+>  drivers/tty/cyclades.c                         |  2 +-
+>  drivers/tty/isicom.c                           |  2 +-
+>  drivers/usb/musb/cppi_dma.c                    |  2 +-
+>  drivers/usb/storage/sddr55.c                   |  4 ++--
+>  drivers/vhost/net.c                            |  6 +++---
+>  drivers/video/fbdev/matrox/matroxfb_maven.c    |  6 +++---
+>  drivers/video/fbdev/pm3fb.c                    |  6 +++---
+>  drivers/video/fbdev/riva/riva_hw.c             |  3 +--
+>  drivers/virtio/virtio_ring.c                   |  6 +++---
+>  fs/afs/dir.c                                   |  2 +-
+>  fs/afs/security.c                              |  2 +-
+>  fs/dlm/netlink.c                               |  2 +-
+>  fs/erofs/data.c                                |  4 ++--
+>  fs/erofs/zdata.c                               |  2 +-
+>  fs/f2fs/data.c                                 |  4 +---
+>  fs/fat/dir.c                                   |  2 +-
+>  fs/fuse/control.c                              |  4 ++--
+>  fs/fuse/cuse.c                                 |  2 +-
+>  fs/fuse/file.c                                 |  2 +-
+>  fs/gfs2/aops.c                                 |  2 +-
+>  fs/gfs2/bmap.c                                 |  2 +-
+>  fs/gfs2/lops.c                                 |  2 +-
+>  fs/hfsplus/unicode.c                           |  2 +-
+>  fs/isofs/namei.c                               |  4 ++--
+>  fs/jffs2/erase.c                               |  2 +-
+>  fs/nfsd/nfsctl.c                               |  2 +-
+>  fs/ocfs2/alloc.c                               |  4 ++--
+>  fs/ocfs2/dir.c                                 | 14 +++++++-------
+>  fs/ocfs2/extent_map.c                          |  4 ++--
+>  fs/ocfs2/namei.c                               |  2 +-
+>  fs/ocfs2/refcounttree.c                        |  2 +-
+>  fs/ocfs2/xattr.c                               |  2 +-
+>  fs/omfs/file.c                                 |  2 +-
+>  fs/overlayfs/copy_up.c                         |  2 +-
+>  fs/ubifs/commit.c                              |  6 +++---
+>  fs/ubifs/dir.c                                 |  2 +-
+>  fs/ubifs/file.c                                |  4 ++--
+>  fs/ubifs/journal.c                             |  4 ++--
+>  fs/ubifs/lpt.c                                 |  2 +-
+>  fs/ubifs/tnc.c                                 |  6 +++---
+>  fs/ubifs/tnc_misc.c                            |  4 ++--
+>  fs/udf/balloc.c                                |  2 +-
+>  fs/xfs/xfs_bmap_util.c                         |  2 +-
+>  include/linux/compiler-clang.h                 |  2 --
+>  include/linux/compiler-gcc.h                   |  6 ------
+>  include/linux/page-flags-layout.h              |  4 +++-
+>  include/net/flow_offload.h                     |  2 +-
+>  kernel/async.c                                 |  4 ++--
+>  kernel/audit.c                                 |  2 +-
+>  kernel/debug/kdb/kdb_io.c                      |  2 +-
+>  kernel/dma/debug.c                             |  2 +-
+>  kernel/events/core.c                           |  2 +-
+>  kernel/events/uprobes.c                        |  2 +-
+>  kernel/exit.c                                  |  2 +-
+>  kernel/futex.c                                 | 14 +++++++-------
+>  kernel/locking/lockdep.c                       | 16 ++++++++--------
+>  kernel/trace/ring_buffer.c                     |  2 +-
+>  lib/radix-tree.c                               |  2 +-
+>  lib/test_lockup.c                              |  2 +-
+>  mm/debug_vm_pgtable.c                          |  2 +-
+>  mm/frontswap.c                                 |  2 +-
+>  mm/ksm.c                                       |  2 +-
+>  mm/memcontrol.c                                |  2 +-
+>  mm/memory.c                                    |  2 +-
+>  mm/mempolicy.c                                 |  4 ++--
+>  mm/page_alloc.c                                |  2 +-
+>  mm/percpu.c                                    |  2 +-
+>  mm/slub.c                                      |  4 ++--
+>  mm/swap.c                                      |  4 ++--
+>  net/dccp/options.c                             |  2 +-
+>  net/ipv4/netfilter/nf_socket_ipv4.c            |  6 +++---
+>  net/ipv6/ip6_flowlabel.c                       |  2 +-
+>  net/ipv6/netfilter/nf_socket_ipv6.c            |  2 +-
+>  net/netfilter/nf_conntrack_ftp.c               |  2 +-
+>  net/netfilter/nfnetlink_log.c                  |  2 +-
+>  net/netfilter/nfnetlink_queue.c                |  4 ++--
+>  net/sched/cls_flow.c                           |  2 +-
+>  net/sched/sch_cake.c                           |  2 +-
+>  net/sched/sch_cbq.c                            |  2 +-
+>  net/sched/sch_fq_codel.c                       |  2 +-
+>  net/sched/sch_fq_pie.c                         |  2 +-
+>  net/sched/sch_hfsc.c                           |  2 +-
+>  net/sched/sch_htb.c                            |  2 +-
+>  net/sched/sch_sfq.c                            |  2 +-
+>  net/sunrpc/svcsock.c                           |  4 ++--
+>  net/sunrpc/xprtsock.c                          | 10 +++++-----
+>  net/tls/tls_sw.c                               |  2 +-
+>  scripts/checkpatch.pl                          | 16 +++++-----------
+>  sound/core/control_compat.c                    |  2 +-
+>  sound/isa/sb/sb16_csp.c                        |  2 +-
+>  sound/usb/endpoint.c                           |  2 +-
+>  tools/include/linux/compiler.h                 |  2 --
+>  tools/virtio/linux/kernel.h                    |  2 --
+>  196 files changed, 321 insertions(+), 330 deletions(-)
+>
+> --
+> 2.25.1
+>
+> --
+> You received this message because you are subscribed to the Google Groups "Clang Built Linux" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to clang-built-linux+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/clang-built-linux/20200620033007.1444705-1-keescook%40chromium.org.
