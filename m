@@ -1,35 +1,42 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com
-	[209.85.221.67])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0783B4207AE
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:44:11 +0200 (CEST)
-Received: by mail-wr1-f67.google.com with SMTP id h7so19745707wre.4
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:44:10 -0700 (PDT)
+Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com
+	[209.85.208.66])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 860AD4207B4
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:45:12 +0200 (CEST)
+Received: by mail-ed1-f66.google.com with SMTP id l24so17484949edj.8
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:45:12 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	y10sm19700668wrq.73.2020.10.12.08.43.10
+	le12sm10918688ejb.1.2020.10.12.08.45.11
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 12 Oct 2020 08:43:10 -0700 (PDT)
-Resent-Message-ID: <20201012154308.GX2116@soda.linbit>
-Received: from us-smtp-1.mimecast.com (us-smtp-delivery-1.mimecast.com
-	[205.139.110.120])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2BEBD4203BA
-	for <drbd-dev@lists.linbit.com>; Wed,  8 Jul 2020 15:34:02 +0200 (CEST)
-From: Ming Lei <ming.lei@redhat.com>
-To: Guoqing Jiang <guoqing.jiang@cloud.ionos.com>
-Message-ID: <20200708132704.GB3340386@T590>
-References: <20200708075819.4531-1-guoqing.jiang@cloud.ionos.com>
-	<20200708075819.4531-2-guoqing.jiang@cloud.ionos.com>
+	Mon, 12 Oct 2020 08:45:11 -0700 (PDT)
+Resent-Message-ID: <20201012154509.GB2116@soda.linbit>
+Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com [68.232.143.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6EC354204C3
+	for <drbd-dev@lists.linbit.com>; Wed, 22 Jul 2020 09:09:30 +0200 (CEST)
+From: Johannes Thumshirn <Johannes.Thumshirn@wdc.com>
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+Message-ID: <SN4PR0401MB3598495DA5AF46CAF019BDC69B790@SN4PR0401MB3598.namprd04.prod.outlook.com>
+References: <20200722062552.212200-1-hch@lst.de>
+	<20200722062552.212200-3-hch@lst.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20200708075819.4531-2-guoqing.jiang@cloud.ionos.com>
-Cc: axboe@kernel.dk, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH RFC 1/5] block: return ns precision from
- disk_start_io_acct
+Cc: "linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	Hans de Goede <hdegoede@redhat.com>, Richard,
+	Minchan Kim <minchan@kernel.org>, Weinberger <richard@nod.at>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	Song Liu <song@kernel.org>, "dm-devel@redhat.com" <dm-devel@redhat.com>,
+	"linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+	"cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH 02/14] drbd: remove dead code in
+	device_to_statistics
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,64 +47,12 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Mon, 12 Oct 2020 15:46:15 -0000
+Date: Mon, 12 Oct 2020 15:46:45 -0000
 
-On Wed, Jul 08, 2020 at 09:58:15AM +0200, Guoqing Jiang wrote:
-> Currently the duration accounting of bio based driver is converted from
-> jiffies to ns, means it could be less accurate as request based driver.
-> 
-> So let disk_start_io_acct return from ns precision, instead of convert
-> jiffies to ns in disk_end_io_acct.
-> 
-> Cc: Philipp Reisner <philipp.reisner@linbit.com>
-> Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-> Cc: drbd-dev@lists.linbit.com
-> Signed-off-by: Guoqing Jiang <guoqing.jiang@cloud.ionos.com>
-> ---
->  block/blk-core.c | 7 ++++---
->  1 file changed, 4 insertions(+), 3 deletions(-)
-> 
-> diff --git a/block/blk-core.c b/block/blk-core.c
-> index d9d632639bd1..0e806a8c62fb 100644
-> --- a/block/blk-core.c
-> +++ b/block/blk-core.c
-> @@ -1466,6 +1466,7 @@ unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
->  	struct hd_struct *part = &disk->part0;
->  	const int sgrp = op_stat_group(op);
->  	unsigned long now = READ_ONCE(jiffies);
-> +	unsigned long start_ns = ktime_get_ns();
->  
->  	part_stat_lock();
->  	update_io_ticks(part, now, false);
-> @@ -1474,7 +1475,7 @@ unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
->  	part_stat_local_inc(part, in_flight[op_is_write(op)]);
->  	part_stat_unlock();
->  
-> -	return now;
-> +	return start_ns;
->  }
->  EXPORT_SYMBOL(disk_start_io_acct);
->  
-> @@ -1484,11 +1485,11 @@ void disk_end_io_acct(struct gendisk *disk, unsigned int op,
->  	struct hd_struct *part = &disk->part0;
->  	const int sgrp = op_stat_group(op);
->  	unsigned long now = READ_ONCE(jiffies);
-> -	unsigned long duration = now - start_time;
-> +	unsigned long duration = ktime_get_ns() - start_time;
->  
->  	part_stat_lock();
->  	update_io_ticks(part, now, true);
-> -	part_stat_add(part, nsecs[sgrp], jiffies_to_nsecs(duration));
-> +	part_stat_add(part, nsecs[sgrp], duration);
->  	part_stat_local_dec(part, in_flight[op_is_write(op)]);
->  	part_stat_unlock();
-
-Hi Guoqing,
-
-Cost of ktime_get_ns() can be observed as not cheap in high IOPS device,
-so not sure the conversion is good. Also could you share what benefit we can
-get with this change?
-
-Thanks,
-Ming
-
+On 22/07/2020 08:28, Christoph Hellwig wrote:=0A=
+> Ever since the switch to blk-mq, a lower device not use by VM=0A=
+                                           in-use/used? ~^=0A=
+=0A=
+Also this looks like the last user of 'dev_lower_blocked' so it could=0A=
+be removed from device_statistics if it's not an ABI (not sure with this=0A=
+netlink stuff).=0A=
