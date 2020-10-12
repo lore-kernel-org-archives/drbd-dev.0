@@ -1,33 +1,32 @@
 Return-Path: <lars.ellenberg@linbit.com>
-Received: from mail-wm1-f68.google.com (mail-wm1-f68.google.com
-	[209.85.128.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E6DD1420418
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:42:44 +0200 (CEST)
-Received: by mail-wm1-f68.google.com with SMTP id e2so17993741wme.1
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:42:44 -0700 (PDT)
+Received: from mail-wm1-f66.google.com (mail-wm1-f66.google.com
+	[209.85.128.66])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0F0D54206C7
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 17:43:05 +0200 (CEST)
+Received: by mail-wm1-f66.google.com with SMTP id d3so17980496wma.4
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Oct 2020 08:43:05 -0700 (PDT)
 Received: from soda.linbit (62-99-137-214.static.upcbusiness.at.
 	[62.99.137.214]) by smtp.gmail.com with ESMTPSA id
-	t4sm22028794wra.75.2020.10.12.08.41.43
+	u15sm24909583wrm.77.2020.10.12.08.43.04
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_2 cipher=ECDHE-ECDSA-CHACHA20-POLY1305 bits=256/256);
-	Mon, 12 Oct 2020 08:41:43 -0700 (PDT)
-Resent-Message-ID: <20201012154142.GS2116@soda.linbit>
-Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com
-	[209.85.208.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A3C89420385
-	for <drbd-dev@lists.linbit.com>; Thu,  2 Jul 2020 15:27:20 +0200 (CEST)
-Received: by mail-ed1-f68.google.com with SMTP id g20so23629762edm.4
-	for <drbd-dev@lists.linbit.com>; Thu, 02 Jul 2020 06:27:20 -0700 (PDT)
+	Mon, 12 Oct 2020 08:43:04 -0700 (PDT)
+Resent-Message-ID: <20201012154303.GV2116@soda.linbit>
+Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com
+	[209.85.208.66])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9040A420318
+	for <drbd-dev@lists.linbit.com>; Wed,  8 Jul 2020 09:59:28 +0200 (CEST)
+Received: by mail-ed1-f66.google.com with SMTP id n2so31839583edr.5
+	for <drbd-dev@lists.linbit.com>; Wed, 08 Jul 2020 00:59:28 -0700 (PDT)
 From: Guoqing Jiang <guoqing.jiang@cloud.ionos.com>
-To: philipp.reisner@linbit.com,
-	lars.ellenberg@linbit.com,
-	axboe@kernel.dk
-Message-Id: <20200702132702.6914-1-guoqing.jiang@cloud.ionos.com>
-In-Reply-To: <20200701123832.3868-1-guoqing.jiang@cloud.ionos.com>
-References: <20200701123832.3868-1-guoqing.jiang@cloud.ionos.com>
+To: axboe@kernel.dk
+Message-Id: <20200708075819.4531-3-guoqing.jiang@cloud.ionos.com>
+In-Reply-To: <20200708075819.4531-1-guoqing.jiang@cloud.ionos.com>
+References: <20200708075819.4531-1-guoqing.jiang@cloud.ionos.com>
 Cc: linux-block@vger.kernel.org, Guoqing Jiang <guoqing.jiang@cloud.ionos.com>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH V2] drbd: remove unused argument from
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH RFC 2/5] drbd: remove unused argument from
 	drbd_request_prepare and __drbd_make_request
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -39,15 +38,20 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
-Date: Mon, 12 Oct 2020 15:42:45 -0000
+Date: Mon, 12 Oct 2020 15:43:15 -0000
 
 We can remove start_jif since it is not used by drbd_request_prepare,
 then remove it from __drbd_make_request further.
 
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+Cc: drbd-dev@lists.linbit.com
 Signed-off-by: Guoqing Jiang <guoqing.jiang@cloud.ionos.com>
 ---
-V2:
-1. rebased with latest for-next branch
+This had been sent before, now it is better to include it in the thread.
+
+https://marc.info/?l=linux-block&m=159369644305325&w=2
+
 
  drivers/block/drbd/drbd_int.h  |  2 +-
  drivers/block/drbd/drbd_main.c |  3 +--
