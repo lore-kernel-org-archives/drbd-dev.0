@@ -1,19 +1,20 @@
 Return-Path: <ira.weiny@intel.com>
-Received: from mga14.intel.com (mga14.intel.com [192.55.52.115])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2520F4202FA
-	for <drbd-dev@lists.linbit.com>; Tue, 13 Oct 2020 22:46:40 +0200 (CEST)
-Date: Tue, 13 Oct 2020 13:45:37 -0700
+Received: from mga01.intel.com (mga01.intel.com [192.55.52.88])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CC3A94202FA
+	for <drbd-dev@lists.linbit.com>; Tue, 13 Oct 2020 22:51:15 +0200 (CEST)
+Date: Tue, 13 Oct 2020 13:50:12 -0700
 From: Ira Weiny <ira.weiny@intel.com>
-To: Matthew Wilcox <willy@infradead.org>
-Message-ID: <20201013204537.GH2046448@iweiny-DESK2.sc.intel.com>
+To: Al Viro <viro@zeniv.linux.org.uk>
+Message-ID: <20201013205012.GI2046448@iweiny-DESK2.sc.intel.com>
 References: <20201009195033.3208459-1-ira.weiny@intel.com>
 	<20201009195033.3208459-34-ira.weiny@intel.com>
 	<CAPcyv4gL3jfw4d+SJGPqAD3Dp4F_K=X3domuN4ndAA1FQDGcPg@mail.gmail.com>
 	<20201013193643.GK20115@casper.infradead.org>
+	<20201013200149.GI3576660@ZenIV.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20201013193643.GK20115@casper.infradead.org>
+In-Reply-To: <20201013200149.GI3576660@ZenIV.linux.org.uk>
 Cc: linux-aio@kvack.org, linux-efi <linux-efi@vger.kernel.org>,
 	KVM list <kvm@vger.kernel.org>,
 	Linux Doc Mailing List <linux-doc@vger.kernel.org>,
@@ -21,14 +22,15 @@ Cc: linux-aio@kvack.org, linux-efi <linux-efi@vger.kernel.org>,
 	Dave Hansen <dave.hansen@linux.intel.com>,
 	Maling list - DRI developers <dri-devel@lists.freedesktop.org>,
 	Linux MM <linux-mm@kvack.org>, target-devel@vger.kernel.org,
-	linux-mtd@lists.infradead.org, linux-kselftest@vger.kernel.org,
-	samba-technical@lists.samba.org,
+	linux-mtd@lists.infradead.org,
+	amd-gfx list <amd-gfx@lists.freedesktop.org>,
+	linux-kselftest@vger.kernel.org, samba-technical@lists.samba.org,
 	Thomas Gleixner <tglx@linutronix.de>, drbd-dev@lists.linbit.com,
 	devel@driverdev.osuosl.org, linux-cifs@vger.kernel.org,
 	linux-nilfs@vger.kernel.org, linux-scsi <linux-scsi@vger.kernel.org>,
 	linux-nvdimm <linux-nvdimm@lists.01.org>,
 	linux-rdma <linux-rdma@vger.kernel.org>, X86 ML <x86@kernel.org>,
-	ceph-devel@vger.kernel.org, amd-gfx list <amd-gfx@lists.freedesktop.org>,
+	ceph-devel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>,
 	io-uring@vger.kernel.org, cluster-devel@redhat.com,
 	Ingo Molnar <mingo@redhat.com>, intel-wired-lan@lists.osuosl.org,
 	xen-devel <xen-devel@lists.xenproject.org>,
@@ -63,50 +65,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Oct 13, 2020 at 08:36:43PM +0100, Matthew Wilcox wrote:
-> On Tue, Oct 13, 2020 at 11:44:29AM -0700, Dan Williams wrote:
-> > On Fri, Oct 9, 2020 at 12:52 PM <ira.weiny@intel.com> wrote:
-> > >
-> > > From: Ira Weiny <ira.weiny@intel.com>
-> > >
-> > > The kmap() calls in this FS are localized to a single thread.  To avoid
-> > > the over head of global PKRS updates use the new kmap_thread() call.
-> > >
-> > > Cc: Nicolas Pitre <nico@fluxnic.net>
-> > > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> > > ---
-> > >  fs/cramfs/inode.c | 10 +++++-----
-> > >  1 file changed, 5 insertions(+), 5 deletions(-)
-> > >
-> > > diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
-> > > index 912308600d39..003c014a42ed 100644
-> > > --- a/fs/cramfs/inode.c
-> > > +++ b/fs/cramfs/inode.c
-> > > @@ -247,8 +247,8 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
-> > >                 struct page *page = pages[i];
-> > >
-> > >                 if (page) {
-> > > -                       memcpy(data, kmap(page), PAGE_SIZE);
-> > > -                       kunmap(page);
-> > > +                       memcpy(data, kmap_thread(page), PAGE_SIZE);
-> > > +                       kunmap_thread(page);
+On Tue, Oct 13, 2020 at 09:01:49PM +0100, Al Viro wrote:
+> On Tue, Oct 13, 2020 at 08:36:43PM +0100, Matthew Wilcox wrote:
+> 
+> > static inline void copy_to_highpage(struct page *to, void *vfrom, unsigned int size)
+> > {
+> > 	char *vto = kmap_atomic(to);
 > > 
-> > Why does this need a sleepable kmap? This looks like a textbook
-> > kmap_atomic() use case.
+> > 	memcpy(vto, vfrom, size);
+> > 	kunmap_atomic(vto);
+> > }
+> > 
+> > in linux/highmem.h ?
 > 
-> There's a lot of code of this form.  Could we perhaps have:
-> 
-> static inline void copy_to_highpage(struct page *to, void *vfrom, unsigned int size)
+> You mean, like
+> static void memcpy_from_page(char *to, struct page *page, size_t offset, size_t len)
 > {
-> 	char *vto = kmap_atomic(to);
-> 
-> 	memcpy(vto, vfrom, size);
-> 	kunmap_atomic(vto);
+>         char *from = kmap_atomic(page);
+>         memcpy(to, from + offset, len);
+>         kunmap_atomic(from);
 > }
 > 
-> in linux/highmem.h ?
+> static void memcpy_to_page(struct page *page, size_t offset, const char *from, size_t len)
+> {
+>         char *to = kmap_atomic(page);
+>         memcpy(to + offset, from, len);
+>         kunmap_atomic(to);
+> }
+> 
+> static void memzero_page(struct page *page, size_t offset, size_t len)
+> {
+>         char *addr = kmap_atomic(page);
+>         memset(addr + offset, 0, len);
+>         kunmap_atomic(addr);
+> }
+> 
+> in lib/iov_iter.c?  FWIW, I don't like that "highpage" in the name and
+> highmem.h as location - these make perfect sense regardless of highmem;
+> they are normal memory operations with page + offset used instead of
+> a pointer...
 
-Christoph had the same idea.  I'll work on it.
+I was thinking along those lines as well especially because of the direction
+this patch set takes kmap().
+
+Thanks for pointing these out to me.  How about I lift them to a common header?
+But if not highmem.h where?
 
 Ira
-
