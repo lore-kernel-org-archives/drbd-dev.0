@@ -1,20 +1,22 @@
 Return-Path: <arnd@kernel.org>
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3856B42060F
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Oct 2020 22:57:24 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 19D2F420621
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Oct 2020 22:57:54 +0100 (CET)
 From: Arnd Bergmann <arnd@kernel.org>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Date: Mon, 26 Oct 2020 22:50:33 +0100
-Message-Id: <20201026215043.3893318-1-arnd@kernel.org>
+Date: Mon, 26 Oct 2020 22:50:34 +0100
+Message-Id: <20201026215043.3893318-2-arnd@kernel.org>
+In-Reply-To: <20201026215043.3893318-1-arnd@kernel.org>
+References: <20201026215043.3893318-1-arnd@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: Arnd Bergmann <arnd@arndb.de>, Jackie Liu <liuyun01@kylinos.cn>,
-	linux-kernel@vger.kernel.org, Coly Li <colyli@suse.de>,
-	linux-block@vger.kernel.org, David Sterba <dsterba@suse.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Dan Carpenter <dan.carpenter@oracle.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/2] drbd: fix duplicate array initializer
+Cc: Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>,
+	Johannes Thumshirn <johannes.thumshirn@wdc.com>,
+	"Gustavo A. R. Silva" <gustavoars@kernel.org>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 2/2] drbd: address enum mismatch warnings
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,81 +30,117 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Arnd Bergmann <arnd@arndb.de>
 
-There are two initializers for P_RETRY_WRITE:
+gcc -Wextra warns about mixing drbd_state_rv with drbd_ret_code
+in a couple of places:
 
-drivers/block/drbd/drbd_main.c:3676:22: warning: initialized field overwritten [-Woverride-init]
+drivers/block/drbd/drbd_nl.c: In function 'drbd_adm_set_role':
+drivers/block/drbd/drbd_nl.c:777:14: warning: comparison between 'enum drbd_state_rv' and 'enum drbd_ret_code' [-Wenum-compare]
+  777 |  if (retcode != NO_ERROR)
+      |              ^~
+drivers/block/drbd/drbd_nl.c:784:12: warning: implicit conversion from 'enum drbd_ret_code' to 'enum drbd_state_rv' [-Wenum-conversion]
+  784 |    retcode = ERR_MANDATORY_TAG;
+      |            ^
+drivers/block/drbd/drbd_nl.c: In function 'drbd_adm_attach':
+drivers/block/drbd/drbd_nl.c:1965:10: warning: implicit conversion from 'enum drbd_state_rv' to 'enum drbd_ret_code' [-Wenum-conversion]
+ 1965 |  retcode = rv;  /* FIXME: Type mismatch. */
+      |          ^
+drivers/block/drbd/drbd_nl.c: In function 'drbd_adm_connect':
+drivers/block/drbd/drbd_nl.c:2690:10: warning: implicit conversion from 'enum drbd_state_rv' to 'enum drbd_ret_code' [-Wenum-conversion]
+ 2690 |  retcode = conn_request_state(connection, NS(conn, C_UNCONNECTED), CS_VERBOSE);
+      |          ^
+drivers/block/drbd/drbd_nl.c: In function 'drbd_adm_disconnect':
+drivers/block/drbd/drbd_nl.c:2803:11: warning: implicit conversion from 'enum drbd_state_rv' to 'enum drbd_ret_code' [-Wenum-conversion]
+ 2803 |   retcode = rv;  /* FIXME: Type mismatch. */
+      |           ^
 
-Remove the first one since it was already ignored by the compiler
-and reorder the list to match the enum definition. As P_ZEROES had
-no entry, add that one instead.
+In each case, both are passed into drbd_adm_finish(), which just takes
+a 32-bit integer and is happy with either, presumably intentionally.
 
-Fixes: 036b17eaab93 ("drbd: Receiving part for the PROTOCOL_UPDATE packet")
-Fixes: f31e583aa2c2 ("drbd: introduce P_ZEROES (REQ_OP_WRITE_ZEROES on the "wire")")
+Restructure the code to pass either type directly in there in most
+cases, avoiding the warnings.
+
 Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 ---
- drivers/block/drbd/drbd_main.c | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 65b95aef8dbc..6102efbe57ab 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -3628,9 +3628,8 @@ const char *cmdname(enum drbd_packet cmd)
- 	 * when we want to support more than
- 	 * one PRO_VERSION */
- 	static const char *cmdnames[] = {
-+
- 		[P_DATA]	        = "Data",
--		[P_WSAME]	        = "WriteSame",
--		[P_TRIM]	        = "Trim",
- 		[P_DATA_REPLY]	        = "DataReply",
- 		[P_RS_DATA_REPLY]	= "RSDataReply",
- 		[P_BARRIER]	        = "Barrier",
-@@ -3641,7 +3640,6 @@ const char *cmdname(enum drbd_packet cmd)
- 		[P_DATA_REQUEST]	= "DataRequest",
- 		[P_RS_DATA_REQUEST]     = "RSDataRequest",
- 		[P_SYNC_PARAM]	        = "SyncParam",
--		[P_SYNC_PARAM89]	= "SyncParam89",
- 		[P_PROTOCOL]            = "ReportProtocol",
- 		[P_UUIDS]	        = "ReportUUIDs",
- 		[P_SIZES]	        = "ReportSizes",
-@@ -3649,6 +3647,7 @@ const char *cmdname(enum drbd_packet cmd)
- 		[P_SYNC_UUID]           = "ReportSyncUUID",
- 		[P_AUTH_CHALLENGE]      = "AuthChallenge",
- 		[P_AUTH_RESPONSE]	= "AuthResponse",
-+		[P_STATE_CHG_REQ]       = "StateChgRequest",
- 		[P_PING]		= "Ping",
- 		[P_PING_ACK]	        = "PingAck",
- 		[P_RECV_ACK]	        = "RecvAck",
-@@ -3659,24 +3658,26 @@ const char *cmdname(enum drbd_packet cmd)
- 		[P_NEG_DREPLY]	        = "NegDReply",
- 		[P_NEG_RS_DREPLY]	= "NegRSDReply",
- 		[P_BARRIER_ACK]	        = "BarrierAck",
--		[P_STATE_CHG_REQ]       = "StateChgRequest",
- 		[P_STATE_CHG_REPLY]     = "StateChgReply",
- 		[P_OV_REQUEST]          = "OVRequest",
- 		[P_OV_REPLY]            = "OVReply",
- 		[P_OV_RESULT]           = "OVResult",
- 		[P_CSUM_RS_REQUEST]     = "CsumRSRequest",
- 		[P_RS_IS_IN_SYNC]	= "CsumRSIsInSync",
-+		[P_SYNC_PARAM89]	= "SyncParam89",
- 		[P_COMPRESSED_BITMAP]   = "CBitmap",
- 		[P_DELAY_PROBE]         = "DelayProbe",
- 		[P_OUT_OF_SYNC]		= "OutOfSync",
--		[P_RETRY_WRITE]		= "RetryWrite",
- 		[P_RS_CANCEL]		= "RSCancel",
- 		[P_CONN_ST_CHG_REQ]	= "conn_st_chg_req",
- 		[P_CONN_ST_CHG_REPLY]	= "conn_st_chg_reply",
- 		[P_RETRY_WRITE]		= "retry_write",
- 		[P_PROTOCOL_UPDATE]	= "protocol_update",
-+		[P_TRIM]	        = "Trim",
- 		[P_RS_THIN_REQ]         = "rs_thin_req",
- 		[P_RS_DEALLOCATED]      = "rs_deallocated",
-+		[P_WSAME]	        = "WriteSame",
-+		[P_ZEROES]		= "Zeroes",
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index bf7de4c7b96c..3d6995ee675b 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -770,6 +770,7 @@ int drbd_adm_set_role(struct sk_buff *skb, struct genl_info *info)
+ 	struct set_role_parms parms;
+ 	int err;
+ 	enum drbd_ret_code retcode;
++	enum drbd_state_rv rv;
  
- 		/* enum drbd_packet, but not commands - obsoleted flags:
- 		 *	P_MAY_IGNORE
+ 	retcode = drbd_adm_prepare(&adm_ctx, skb, info, DRBD_ADM_NEED_MINOR);
+ 	if (!adm_ctx.reply_skb)
+@@ -790,12 +791,14 @@ int drbd_adm_set_role(struct sk_buff *skb, struct genl_info *info)
+ 	mutex_lock(&adm_ctx.resource->adm_mutex);
+ 
+ 	if (info->genlhdr->cmd == DRBD_ADM_PRIMARY)
+-		retcode = drbd_set_role(adm_ctx.device, R_PRIMARY, parms.assume_uptodate);
++		rv = drbd_set_role(adm_ctx.device, R_PRIMARY, parms.assume_uptodate);
+ 	else
+-		retcode = drbd_set_role(adm_ctx.device, R_SECONDARY, 0);
++		rv = drbd_set_role(adm_ctx.device, R_SECONDARY, 0);
+ 
+ 	mutex_unlock(&adm_ctx.resource->adm_mutex);
+ 	genl_lock();
++	drbd_adm_finish(&adm_ctx, info, rv);
++	return 0;
+ out:
+ 	drbd_adm_finish(&adm_ctx, info, retcode);
+ 	return 0;
+@@ -1962,7 +1965,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+ 	drbd_flush_workqueue(&connection->sender_work);
+ 
+ 	rv = _drbd_request_state(device, NS(disk, D_ATTACHING), CS_VERBOSE);
+-	retcode = rv;  /* FIXME: Type mismatch. */
++	retcode = (enum drbd_ret_code)(int)rv;  /* FIXME: Type mismatch. */
+ 	drbd_resume_io(device);
+ 	if (rv < SS_SUCCESS)
+ 		goto fail;
+@@ -2568,6 +2571,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
+ 	struct drbd_resource *resource;
+ 	struct drbd_connection *connection;
+ 	enum drbd_ret_code retcode;
++	enum drbd_state_rv rv;
+ 	int i;
+ 	int err;
+ 
+@@ -2687,11 +2691,11 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
+ 	}
+ 	rcu_read_unlock();
+ 
+-	retcode = conn_request_state(connection, NS(conn, C_UNCONNECTED), CS_VERBOSE);
++	rv = conn_request_state(connection, NS(conn, C_UNCONNECTED), CS_VERBOSE);
+ 
+ 	conn_reconfig_done(connection);
+ 	mutex_unlock(&adm_ctx.resource->adm_mutex);
+-	drbd_adm_finish(&adm_ctx, info, retcode);
++	drbd_adm_finish(&adm_ctx, info, rv);
+ 	return 0;
+ 
+ fail:
+@@ -2799,11 +2803,12 @@ int drbd_adm_disconnect(struct sk_buff *skb, struct genl_info *info)
+ 
+ 	mutex_lock(&adm_ctx.resource->adm_mutex);
+ 	rv = conn_try_disconnect(connection, parms.force_disconnect);
+-	if (rv < SS_SUCCESS)
+-		retcode = rv;  /* FIXME: Type mismatch. */
+-	else
+-		retcode = NO_ERROR;
+ 	mutex_unlock(&adm_ctx.resource->adm_mutex);
++	if (rv < SS_SUCCESS) {
++		drbd_adm_finish(&adm_ctx, info, rv);
++		return 0;
++	}
++	retcode = NO_ERROR;
+  fail:
+ 	drbd_adm_finish(&adm_ctx, info, retcode);
+ 	return 0;
 -- 
 2.27.0
 
