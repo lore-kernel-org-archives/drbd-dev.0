@@ -1,27 +1,20 @@
-Return-Path: <foo00@h08.hostsharing.net>
-Received: from bmailout1.hostsharing.net (bmailout1.hostsharing.net
-	[83.223.95.100])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1FFBA4205E6
-	for <drbd-dev@lists.linbit.com>; Fri, 23 Oct 2020 09:23:12 +0200 (CEST)
-Date: Fri, 23 Oct 2020 09:23:12 +0200
-From: Lukas Wunner <lukas@wunner.de>
-To: Elimar Riesebieter <riesebie@lxtec.de>
-Message-ID: <20201023072312.GA14966@wunner.de>
-References: <1c700caab1ce71fa144116541471b3f7bb4629fa.1602432204.git.lukas@wunner.de>
-	<20201011183930.veucf6z335njrkwe@toy.home.lxtec.de>
-	<20201011185117.GA18543@wunner.de>
-	<20201011193048.rfe5qvuba2ovrwed@toy.home.lxtec.de>
-	<20201012005410.GA28362@wunner.de>
-	<20201012111439.jyewfvopfsjeyvp3@toy.home.lxtec.de>
+Return-Path: <arnd@kernel.org>
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3856B42060F
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Oct 2020 22:57:24 +0100 (CET)
+From: Arnd Bergmann <arnd@kernel.org>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
+Date: Mon, 26 Oct 2020 22:50:33 +0100
+Message-Id: <20201026215043.3893318-1-arnd@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20201012111439.jyewfvopfsjeyvp3@toy.home.lxtec.de>
-Cc: Michael Hierweck <michael.hierweck@hostsharing.net>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH drbd-9.0] compat: __vmalloc() pgprot argument
- was removed in v5.8
+Content-Transfer-Encoding: 8bit
+Cc: Arnd Bergmann <arnd@arndb.de>, Jackie Liu <liuyun01@kylinos.cn>,
+	linux-kernel@vger.kernel.org, Coly Li <colyli@suse.de>,
+	linux-block@vger.kernel.org, David Sterba <dsterba@suse.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Dan Carpenter <dan.carpenter@oracle.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 1/2] drbd: fix duplicate array initializer
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,35 +26,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Elimar,
+From: Arnd Bergmann <arnd@arndb.de>
 
-my apologies for the delay.
+There are two initializers for P_RETRY_WRITE:
 
-On Mon, Oct 12, 2020 at 01:14:39PM +0200, Elimar Riesebieter wrote:
-> * Lukas Wunner <lukas@wunner.de> [2020-10-12 02:54 +0200]:
-> > If you're unsuccessful debugging the build failure on your own,
-> > maybe you can upload your drbd build directory somewhere so I
-> > can take a look.
-> 
-> https://lxtec.de/drbd/drbd_dkms_buildir_hsh_201012.tar.xz
+drivers/block/drbd/drbd_main.c:3676:22: warning: initialized field overwritten [-Woverride-init]
 
-If coccinelle is not available, drbd-kernel-compat/gen_compat_patch.sh
-attempts to fetch the coccinelle-generated patch from the cloud by
-sending a POST request to https://drbd.io:2020/api/v1/spatch/9.0.25-1
-with the locally-generated compat.h.
+Remove the first one since it was already ignored by the compiler
+and reorder the list to match the enum definition. As P_ZEROES had
+no entry, add that one instead.
 
-Because the cloud service generates the patch for the release version
-9.0.25-1 and not for your locally-patched source, you end up with a
-patch which doesn't work.
+Fixes: 036b17eaab93 ("drbd: Receiving part for the PROTOCOL_UPDATE packet")
+Fixes: f31e583aa2c2 ("drbd: introduce P_ZEROES (REQ_OP_WRITE_ZEROES on the "wire")")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ drivers/block/drbd/drbd_main.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
 
-The solution is to disable usage of the cloud service by setting the
-environment variable SPAAS=false and adding coccinelle >= 1.0.8 to
-the drbd-dkms package's prerequisites.  It's not safe to use the
-cloud service if you apply custom patches to the source code.
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 65b95aef8dbc..6102efbe57ab 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3628,9 +3628,8 @@ const char *cmdname(enum drbd_packet cmd)
+ 	 * when we want to support more than
+ 	 * one PRO_VERSION */
+ 	static const char *cmdnames[] = {
++
+ 		[P_DATA]	        = "Data",
+-		[P_WSAME]	        = "WriteSame",
+-		[P_TRIM]	        = "Trim",
+ 		[P_DATA_REPLY]	        = "DataReply",
+ 		[P_RS_DATA_REPLY]	= "RSDataReply",
+ 		[P_BARRIER]	        = "Barrier",
+@@ -3641,7 +3640,6 @@ const char *cmdname(enum drbd_packet cmd)
+ 		[P_DATA_REQUEST]	= "DataRequest",
+ 		[P_RS_DATA_REQUEST]     = "RSDataRequest",
+ 		[P_SYNC_PARAM]	        = "SyncParam",
+-		[P_SYNC_PARAM89]	= "SyncParam89",
+ 		[P_PROTOCOL]            = "ReportProtocol",
+ 		[P_UUIDS]	        = "ReportUUIDs",
+ 		[P_SIZES]	        = "ReportSizes",
+@@ -3649,6 +3647,7 @@ const char *cmdname(enum drbd_packet cmd)
+ 		[P_SYNC_UUID]           = "ReportSyncUUID",
+ 		[P_AUTH_CHALLENGE]      = "AuthChallenge",
+ 		[P_AUTH_RESPONSE]	= "AuthResponse",
++		[P_STATE_CHG_REQ]       = "StateChgRequest",
+ 		[P_PING]		= "Ping",
+ 		[P_PING_ACK]	        = "PingAck",
+ 		[P_RECV_ACK]	        = "RecvAck",
+@@ -3659,24 +3658,26 @@ const char *cmdname(enum drbd_packet cmd)
+ 		[P_NEG_DREPLY]	        = "NegDReply",
+ 		[P_NEG_RS_DREPLY]	= "NegRSDReply",
+ 		[P_BARRIER_ACK]	        = "BarrierAck",
+-		[P_STATE_CHG_REQ]       = "StateChgRequest",
+ 		[P_STATE_CHG_REPLY]     = "StateChgReply",
+ 		[P_OV_REQUEST]          = "OVRequest",
+ 		[P_OV_REPLY]            = "OVReply",
+ 		[P_OV_RESULT]           = "OVResult",
+ 		[P_CSUM_RS_REQUEST]     = "CsumRSRequest",
+ 		[P_RS_IS_IN_SYNC]	= "CsumRSIsInSync",
++		[P_SYNC_PARAM89]	= "SyncParam89",
+ 		[P_COMPRESSED_BITMAP]   = "CBitmap",
+ 		[P_DELAY_PROBE]         = "DelayProbe",
+ 		[P_OUT_OF_SYNC]		= "OutOfSync",
+-		[P_RETRY_WRITE]		= "RetryWrite",
+ 		[P_RS_CANCEL]		= "RSCancel",
+ 		[P_CONN_ST_CHG_REQ]	= "conn_st_chg_req",
+ 		[P_CONN_ST_CHG_REPLY]	= "conn_st_chg_reply",
+ 		[P_RETRY_WRITE]		= "retry_write",
+ 		[P_PROTOCOL_UPDATE]	= "protocol_update",
++		[P_TRIM]	        = "Trim",
+ 		[P_RS_THIN_REQ]         = "rs_thin_req",
+ 		[P_RS_DEALLOCATED]      = "rs_deallocated",
++		[P_WSAME]	        = "WriteSame",
++		[P_ZEROES]		= "Zeroes",
+ 
+ 		/* enum drbd_packet, but not commands - obsoleted flags:
+ 		 *	P_MAY_IGNORE
+-- 
+2.27.0
 
-I was unable to reproduce the issue because I built from the git repo
-and gen_compat_patch.sh never uses the cloud service in that case.
-
-HTH,
-
-Lukas
