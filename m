@@ -1,11 +1,11 @@
 Return-Path: <BATV+cc05c5534fc856bb48c0+6284+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C42DA4207A9
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:04:15 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9BC7B4207AA
+	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:04:16 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  6 Nov 2020 20:03:16 +0100
-Message-Id: <20201106190337.1973127-5-hch@lst.de>
+Date: Fri,  6 Nov 2020 20:03:18 +0100
+Message-Id: <20201106190337.1973127-7-hch@lst.de>
 In-Reply-To: <20201106190337.1973127-1-hch@lst.de>
 References: <20201106190337.1973127-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 04/24] sd: update the bdev size in
-	sd_revalidate_disk
+Subject: [Drbd-dev] [PATCH 06/24] block: add a return value to
+	set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,49 +38,54 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This avoids the extra call to revalidate_disk_size in sd_rescan and
-is otherwise a no-op because the size did not change, or we are in
-the probe path.
+Return if the function ended up sending an uevent or not.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/scsi/sd.c | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ block/genhd.c         | 7 +++++--
+ include/linux/genhd.h | 2 +-
+ 2 files changed, 6 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
-index 656bcf4940d6d1..4a34dd5b153196 100644
---- a/drivers/scsi/sd.c
-+++ b/drivers/scsi/sd.c
-@@ -1750,10 +1750,8 @@ static int sd_sync_cache(struct scsi_disk *sdkp, struct scsi_sense_hdr *sshdr)
- static void sd_rescan(struct device *dev)
+diff --git a/block/genhd.c b/block/genhd.c
+index d8d9d6c1c916e1..8c350fecfe8bfe 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -47,9 +47,9 @@ static void disk_release_events(struct gendisk *disk);
+ 
+ /*
+  * Set disk capacity and notify if the size is not currently zero and will not
+- * be set to zero.
++ * be set to zero.  Returns true if a uevent was sent, otherwise false.
+  */
+-void set_capacity_and_notify(struct gendisk *disk, sector_t size)
++bool set_capacity_and_notify(struct gendisk *disk, sector_t size)
  {
- 	struct scsi_disk *sdkp = dev_get_drvdata(dev);
--	int ret;
+ 	sector_t capacity = get_capacity(disk);
  
--	ret = sd_revalidate_disk(sdkp->disk);
--	revalidate_disk_size(sdkp->disk, ret == 0);
-+	sd_revalidate_disk(sdkp->disk);
+@@ -60,7 +60,10 @@ void set_capacity_and_notify(struct gendisk *disk, sector_t size)
+ 		char *envp[] = { "RESIZE=1", NULL };
+ 
+ 		kobject_uevent_env(&disk_to_dev(disk)->kobj, KOBJ_CHANGE, envp);
++		return true;
+ 	}
++
++	return false;
  }
+ EXPORT_SYMBOL_GPL(set_capacity_and_notify);
  
- static int sd_ioctl(struct block_device *bdev, fmode_t mode,
-@@ -3266,7 +3264,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
- 	sdkp->first_scan = 0;
+diff --git a/include/linux/genhd.h b/include/linux/genhd.h
+index 596f31b5a3e133..4b22bfd9336e1a 100644
+--- a/include/linux/genhd.h
++++ b/include/linux/genhd.h
+@@ -315,7 +315,7 @@ static inline int get_disk_ro(struct gendisk *disk)
+ extern void disk_block_events(struct gendisk *disk);
+ extern void disk_unblock_events(struct gendisk *disk);
+ extern void disk_flush_events(struct gendisk *disk, unsigned int mask);
+-void set_capacity_and_notify(struct gendisk *disk, sector_t size);
++bool set_capacity_and_notify(struct gendisk *disk, sector_t size);
  
- 	set_capacity_revalidate_and_notify(disk,
--		logical_to_sectors(sdp, sdkp->capacity), false);
-+		logical_to_sectors(sdp, sdkp->capacity), true);
- 	sd_config_write_same(sdkp);
- 	kfree(buffer);
- 
-@@ -3276,7 +3274,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
- 	 * capacity to 0.
- 	 */
- 	if (sd_zbc_revalidate_zones(sdkp))
--		set_capacity_revalidate_and_notify(disk, 0, false);
-+		set_capacity_revalidate_and_notify(disk, 0, true);
- 
-  out:
- 	return 0;
+ /* drivers/char/random.c */
+ extern void add_disk_randomness(struct gendisk *disk) __latent_entropy;
 -- 
 2.28.0
 
