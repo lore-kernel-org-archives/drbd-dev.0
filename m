@@ -1,11 +1,13 @@
 Return-Path: <BATV+cc05c5534fc856bb48c0+6284+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9FB5A4207A0
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:04:08 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 58DB24207A7
+	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:04:14 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  6 Nov 2020 20:03:12 +0100
-Message-Id: <20201106190337.1973127-1-hch@lst.de>
+Date: Fri,  6 Nov 2020 20:03:15 +0100
+Message-Id: <20201106190337.1973127-4-hch@lst.de>
+In-Reply-To: <20201106190337.1973127-1-hch@lst.de>
+References: <20201106190337.1973127-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
@@ -23,7 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] cleanup updating the size of block devices
+Subject: [Drbd-dev] [PATCH 03/24] nvme: let
+	set_capacity_revalidate_and_notify update the bdev size
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,31 +38,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+There is no good reason to call revalidate_disk_size separately.
 
-this series builds on top of the work that went into the last merge window,
-and make sure we have a single coherent interfac for updating the size of a
-block device.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/nvme/host/core.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-Diffstat:
- block/genhd.c                  |   16 +++----
- drivers/block/aoe/aoecmd.c     |   15 +-----
- drivers/block/drbd/drbd_main.c |    6 --
- drivers/block/loop.c           |   36 ++--------------
- drivers/block/nbd.c            |   88 +++++++++++++----------------------------
- drivers/block/pktcdvd.c        |    3 -
- drivers/block/rbd.c            |    3 -
- drivers/block/rnbd/rnbd-clt.c  |    3 -
- drivers/block/virtio_blk.c     |    3 -
- drivers/block/xen-blkfront.c   |    2 
- drivers/block/zram/zram_drv.c  |    7 ---
- drivers/md/dm-raid.c           |    3 -
- drivers/md/dm.c                |    3 -
- drivers/md/md-cluster.c        |    8 ---
- drivers/md/md-linear.c         |    3 -
- drivers/md/md.c                |   24 ++++-------
- drivers/nvme/host/core.c       |   18 --------
- drivers/scsi/sd.c              |    9 +---
- fs/block_dev.c                 |    7 ---
- include/linux/genhd.h          |    3 -
- 20 files changed, 76 insertions(+), 184 deletions(-)
+diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+index 376096bfc54a83..4e86c9aafd88a7 100644
+--- a/drivers/nvme/host/core.c
++++ b/drivers/nvme/host/core.c
+@@ -2053,7 +2053,7 @@ static void nvme_update_disk_info(struct gendisk *disk,
+ 			capacity = 0;
+ 	}
+ 
+-	set_capacity_revalidate_and_notify(disk, capacity, false);
++	set_capacity_revalidate_and_notify(disk, capacity, true);
+ 
+ 	nvme_config_discard(disk, ns);
+ 	nvme_config_write_zeroes(disk, ns);
+@@ -2136,7 +2136,6 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
+ 		blk_stack_limits(&ns->head->disk->queue->limits,
+ 				 &ns->queue->limits, 0);
+ 		blk_queue_update_readahead(ns->head->disk->queue);
+-		nvme_update_bdev_size(ns->head->disk);
+ 		blk_mq_unfreeze_queue(ns->head->disk->queue);
+ 	}
+ #endif
+@@ -3965,8 +3964,6 @@ static void nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_ids *ids)
+ 	 */
+ 	if (ret && ret != -ENOMEM && !(ret > 0 && !(ret & NVME_SC_DNR)))
+ 		nvme_ns_remove(ns);
+-	else
+-		revalidate_disk_size(ns->disk, true);
+ }
+ 
+ static void nvme_validate_or_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
+-- 
+2.28.0
+
