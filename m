@@ -1,11 +1,11 @@
 Return-Path: <BATV+cc05c5534fc856bb48c0+6284+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 420234207F0
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 938FD4207F6
 	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:41:34 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  6 Nov 2020 20:03:24 +0100
-Message-Id: <20201106190337.1973127-13-hch@lst.de>
+Date: Fri,  6 Nov 2020 20:03:25 +0100
+Message-Id: <20201106190337.1973127-14-hch@lst.de>
 In-Reply-To: <20201106190337.1973127-1-hch@lst.de>
 References: <20201106190337.1973127-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 12/24] aoe: don't call set_capacity from irq
-	context
+Subject: [Drbd-dev] [PATCH 13/24] dm: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,58 +37,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Updating the block device size from irq context can lead to torn
-writes of the 64-bit value, and prevents us from using normal
-process context locking primitives to serialize access to the 64-bit
-nr_sectors value.  Defer the set_capacity to the already existing
-workqueue handler, where it can be merged with the update of the
-block device size by using set_capacity_and_notify.  As an extra
-bonus this also adds proper uevent notifications for the resize.
+Use set_capacity_and_notify to set the size of both the disk and block
+device.  This also gets the uevent notifications for the resize for free.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/aoe/aoecmd.c | 15 ++++-----------
- 1 file changed, 4 insertions(+), 11 deletions(-)
+ drivers/md/dm.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/drivers/block/aoe/aoecmd.c b/drivers/block/aoe/aoecmd.c
-index 313f0b946fe2b3..ac720bdcd983e7 100644
---- a/drivers/block/aoe/aoecmd.c
-+++ b/drivers/block/aoe/aoecmd.c
-@@ -890,19 +890,13 @@ void
- aoecmd_sleepwork(struct work_struct *work)
- {
- 	struct aoedev *d = container_of(work, struct aoedev, work);
--	struct block_device *bd;
--	u64 ssize;
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index c18fc25485186d..62ad44925e73ec 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -1971,8 +1971,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
+ 	if (size != dm_get_size(md))
+ 		memset(&md->geometry, 0, sizeof(md->geometry));
  
- 	if (d->flags & DEVFL_GDALLOC)
- 		aoeblk_gdalloc(d);
+-	set_capacity(md->disk, size);
+-	bd_set_nr_sectors(md->bdev, size);
++	set_capacity_and_notify(md->disk, size);
  
- 	if (d->flags & DEVFL_NEWSIZE) {
--		ssize = get_capacity(d->gd);
--		bd = bdget_disk(d->gd, 0);
--		if (bd) {
--			bd_set_nr_sectors(bd, ssize);
--			bdput(bd);
--		}
-+		set_capacity_and_notify(d->gd, d->ssize);
-+
- 		spin_lock_irq(&d->lock);
- 		d->flags |= DEVFL_UP;
- 		d->flags &= ~DEVFL_NEWSIZE;
-@@ -971,10 +965,9 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
- 	d->geo.start = 0;
- 	if (d->flags & (DEVFL_GDALLOC|DEVFL_NEWSIZE))
- 		return;
--	if (d->gd != NULL) {
--		set_capacity(d->gd, ssize);
-+	if (d->gd != NULL)
- 		d->flags |= DEVFL_NEWSIZE;
--	} else
-+	else
- 		d->flags |= DEVFL_GDALLOC;
- 	schedule_work(&d->work);
- }
+ 	dm_table_event_callback(t, event_callback, md);
+ 
 -- 
 2.28.0
 
