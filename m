@@ -1,13 +1,11 @@
 Return-Path: <BATV+cc05c5534fc856bb48c0+6284+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F127142079F
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:04:09 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9FB5A4207A0
+	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:04:08 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  6 Nov 2020 20:03:13 +0100
-Message-Id: <20201106190337.1973127-2-hch@lst.de>
-In-Reply-To: <20201106190337.1973127-1-hch@lst.de>
-References: <20201106190337.1973127-1-hch@lst.de>
+Date: Fri,  6 Nov 2020 20:03:12 +0100
+Message-Id: <20201106190337.1973127-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
@@ -25,8 +23,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 01/24] block: remove the call to
-	__invalidate_device in check_disk_size_change
+Subject: [Drbd-dev] cleanup updating the size of block devices
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,35 +35,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-__invalidate_device without the kill_dirty parameter just invalidates
-various clean entries in caches, which doesn't really help us with
-anything, but can cause all kinds of horrible lock orders due to how
-it calls into the file system.  The only reason this hasn't been a
-major issue is because so many people use partitions, for which no
-invalidation was performed anyway.
+Hi Jens,
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- fs/block_dev.c | 6 ------
- 1 file changed, 6 deletions(-)
+this series builds on top of the work that went into the last merge window,
+and make sure we have a single coherent interfac for updating the size of a
+block device.
 
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index 9e84b1928b9401..66ebf594c97f47 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -1334,12 +1334,6 @@ static void check_disk_size_change(struct gendisk *disk,
- 		i_size_write(bdev->bd_inode, disk_size);
- 	}
- 	spin_unlock(&bdev->bd_size_lock);
--
--	if (bdev_size > disk_size) {
--		if (__invalidate_device(bdev, false))
--			pr_warn("VFS: busy inodes on resized disk %s\n",
--				disk->disk_name);
--	}
- }
- 
- /**
--- 
-2.28.0
-
+Diffstat:
+ block/genhd.c                  |   16 +++----
+ drivers/block/aoe/aoecmd.c     |   15 +-----
+ drivers/block/drbd/drbd_main.c |    6 --
+ drivers/block/loop.c           |   36 ++--------------
+ drivers/block/nbd.c            |   88 +++++++++++++----------------------------
+ drivers/block/pktcdvd.c        |    3 -
+ drivers/block/rbd.c            |    3 -
+ drivers/block/rnbd/rnbd-clt.c  |    3 -
+ drivers/block/virtio_blk.c     |    3 -
+ drivers/block/xen-blkfront.c   |    2 
+ drivers/block/zram/zram_drv.c  |    7 ---
+ drivers/md/dm-raid.c           |    3 -
+ drivers/md/dm.c                |    3 -
+ drivers/md/md-cluster.c        |    8 ---
+ drivers/md/md-linear.c         |    3 -
+ drivers/md/md.c                |   24 ++++-------
+ drivers/nvme/host/core.c       |   18 --------
+ drivers/scsi/sd.c              |    9 +---
+ fs/block_dev.c                 |    7 ---
+ include/linux/genhd.h          |    3 -
+ 20 files changed, 76 insertions(+), 184 deletions(-)
