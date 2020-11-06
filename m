@@ -1,11 +1,11 @@
 Return-Path: <BATV+cc05c5534fc856bb48c0+6284+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B9E5E4207AE
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:04:18 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 958244207A2
+	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:04:20 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  6 Nov 2020 20:03:19 +0100
-Message-Id: <20201106190337.1973127-8-hch@lst.de>
+Date: Fri,  6 Nov 2020 20:03:20 +0100
+Message-Id: <20201106190337.1973127-9-hch@lst.de>
 In-Reply-To: <20201106190337.1973127-1-hch@lst.de>
 References: <20201106190337.1973127-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 07/24] nbd: remove the call to set_blocksize
+Subject: [Drbd-dev] [PATCH 08/24] nbd: move the task_recv check into
+	nbd_size_update
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,59 +38,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Block driver have no business setting the file system concept of a
-block size.
+nbd_size_update is about to acquire a few more callers, so lift the check
+into the function.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/nbd.c | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ drivers/block/nbd.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-index c4f9ccf5cc2ac5..f618688a196654 100644
+index f618688a196654..58b7090dcbd832 100644
 --- a/drivers/block/nbd.c
 +++ b/drivers/block/nbd.c
-@@ -296,7 +296,7 @@ static void nbd_size_clear(struct nbd_device *nbd)
- 	}
- }
- 
--static void nbd_size_update(struct nbd_device *nbd, bool start)
-+static void nbd_size_update(struct nbd_device *nbd)
+@@ -299,8 +299,11 @@ static void nbd_size_clear(struct nbd_device *nbd)
+ static void nbd_size_update(struct nbd_device *nbd)
  {
  	struct nbd_config *config = nbd->config;
- 	struct block_device *bdev = bdget_disk(nbd->disk, 0);
-@@ -311,11 +311,9 @@ static void nbd_size_update(struct nbd_device *nbd, bool start)
- 	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
- 	set_capacity(nbd->disk, nr_sectors);
- 	if (bdev) {
--		if (bdev->bd_disk) {
-+		if (bdev->bd_disk)
- 			bd_set_nr_sectors(bdev, nr_sectors);
--			if (start)
--				set_blocksize(bdev, config->blksize);
--		} else
-+		else
- 			set_bit(GD_NEED_PART_SCAN, &nbd->disk->state);
- 		bdput(bdev);
+-	struct block_device *bdev = bdget_disk(nbd->disk, 0);
+ 	sector_t nr_sectors = config->bytesize >> 9;
++	struct block_device *bdev;
++
++	if (!nbd->task_recv)
++		return;
+ 
+ 	if (config->flags & NBD_FLAG_SEND_TRIM) {
+ 		nbd->disk->queue->limits.discard_granularity = config->blksize;
+@@ -309,7 +312,9 @@ static void nbd_size_update(struct nbd_device *nbd)
  	}
-@@ -329,7 +327,7 @@ static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
+ 	blk_queue_logical_block_size(nbd->disk->queue, config->blksize);
+ 	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
++
+ 	set_capacity(nbd->disk, nr_sectors);
++	bdev = bdget_disk(nbd->disk, 0);
+ 	if (bdev) {
+ 		if (bdev->bd_disk)
+ 			bd_set_nr_sectors(bdev, nr_sectors);
+@@ -326,8 +331,7 @@ static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
+ 	struct nbd_config *config = nbd->config;
  	config->blksize = blocksize;
  	config->bytesize = blocksize * nr_blocks;
- 	if (nbd->task_recv != NULL)
--		nbd_size_update(nbd, false);
-+		nbd_size_update(nbd);
+-	if (nbd->task_recv != NULL)
+-		nbd_size_update(nbd);
++	nbd_size_update(nbd);
  }
  
  static void nbd_complete_rq(struct request *req)
-@@ -1309,7 +1307,7 @@ static int nbd_start_device(struct nbd_device *nbd)
- 		args->index = i;
- 		queue_work(nbd->recv_workq, &args->work);
- 	}
--	nbd_size_update(nbd, true);
-+	nbd_size_update(nbd);
- 	return error;
- }
- 
 -- 
 2.28.0
 
