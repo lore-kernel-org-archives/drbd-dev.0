@@ -1,11 +1,11 @@
 Return-Path: <BATV+cc05c5534fc856bb48c0+6284+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DAD8B4207FC
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:41:34 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5F4354207FD
+	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:41:37 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  6 Nov 2020 20:03:23 +0100
-Message-Id: <20201106190337.1973127-12-hch@lst.de>
+Date: Fri,  6 Nov 2020 20:03:26 +0100
+Message-Id: <20201106190337.1973127-15-hch@lst.de>
 In-Reply-To: <20201106190337.1973127-1-hch@lst.de>
 References: <20201106190337.1973127-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 11/24] nbd: use set_capacity_and_notify
+Subject: [Drbd-dev] [PATCH 14/24] pktcdvd: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,49 +37,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use set_capacity_and_notify to update the disk and block device sizes and
-send a RESIZE uevent to userspace.  Note that blktests relies on uevents
-being sent also for updates that did not change the device size, so the
-explicit kobject_uevent remains for that case.
+Use set_capacity_and_notify to set the size of both the disk and block
+device.  This also gets the uevent notifications for the resize for free.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/nbd.c | 15 +++------------
- 1 file changed, 3 insertions(+), 12 deletions(-)
+ drivers/block/pktcdvd.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-index 327060e01ad58e..a6f51934391edb 100644
---- a/drivers/block/nbd.c
-+++ b/drivers/block/nbd.c
-@@ -299,8 +299,6 @@ static void nbd_size_clear(struct nbd_device *nbd)
- static int nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
- 		loff_t blksize)
- {
--	struct block_device *bdev;
--
- 	if (!blksize)
- 		blksize = NBD_DEF_BLKSIZE;
- 	if (blksize < 512 || blksize > PAGE_SIZE || !is_power_of_2(blksize))
-@@ -320,16 +318,9 @@ static int nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
- 	blk_queue_logical_block_size(nbd->disk->queue, blksize);
- 	blk_queue_physical_block_size(nbd->disk->queue, blksize);
+diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
+index 467dbd06b7cdb1..4326401cede445 100644
+--- a/drivers/block/pktcdvd.c
++++ b/drivers/block/pktcdvd.c
+@@ -2130,8 +2130,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
+ 	}
  
--	set_capacity(nbd->disk, bytesize >> 9);
--	bdev = bdget_disk(nbd->disk, 0);
--	if (bdev) {
--		if (bdev->bd_disk)
--			bd_set_nr_sectors(bdev, bytesize >> 9);
--		else
--			set_bit(GD_NEED_PART_SCAN, &nbd->disk->state);
--		bdput(bdev);
--	}
--	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
-+	set_bit(GD_NEED_PART_SCAN, &nbd->disk->state);
-+	if (!set_capacity_and_notify(nbd->disk, bytesize >> 9))
-+		kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
- 	return 0;
- }
+ 	set_capacity(pd->disk, lba << 2);
+-	set_capacity(pd->bdev->bd_disk, lba << 2);
+-	bd_set_nr_sectors(pd->bdev, lba << 2);
++	set_capacity_and_notify(pd->bdev->bd_disk, lba << 2);
  
+ 	q = bdev_get_queue(pd->bdev);
+ 	if (write) {
 -- 
 2.28.0
 
