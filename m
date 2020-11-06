@@ -1,11 +1,11 @@
 Return-Path: <BATV+cc05c5534fc856bb48c0+6284+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 091284207CB
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:21:38 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 52F804207CC
+	for <drbd-dev@lists.linbit.com>; Fri,  6 Nov 2020 20:21:39 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  6 Nov 2020 20:03:28 +0100
-Message-Id: <20201106190337.1973127-17-hch@lst.de>
+Date: Fri,  6 Nov 2020 20:03:27 +0100
+Message-Id: <20201106190337.1973127-16-hch@lst.de>
 In-Reply-To: <20201106190337.1973127-1-hch@lst.de>
 References: <20201106190337.1973127-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 16/24] drbd: use set_capacity_and_notify
+Subject: [Drbd-dev] [PATCH 15/24] nvme: use set_capacity_and_notify in
+	nvme_set_queue_dying
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,38 +38,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use set_capacity_and_notify to set the size of both the disk and block
-device.  This also gets the uevent notifications for the resize for free.
+Use the block layer helper to update both the disk and block device
+sizes.  Contrary to the name no notification is sent in this case,
+as a size 0 is special cased.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_main.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ drivers/nvme/host/core.c | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 65b95aef8dbc95..1c8c18b2a25f33 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2036,8 +2036,7 @@ void drbd_set_my_capacity(struct drbd_device *device, sector_t size)
- {
- 	char ppb[10];
+diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+index aa6e27c2eec945..223c681d774a6f 100644
+--- a/drivers/nvme/host/core.c
++++ b/drivers/nvme/host/core.c
+@@ -93,16 +93,6 @@ static void nvme_put_subsystem(struct nvme_subsystem *subsys);
+ static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
+ 					   unsigned nsid);
  
--	set_capacity(device->vdisk, size);
--	revalidate_disk_size(device->vdisk, false);
-+	set_capacity_and_notify(device->vdisk, size);
+-static void nvme_update_bdev_size(struct gendisk *disk)
+-{
+-	struct block_device *bdev = bdget_disk(disk, 0);
+-
+-	if (bdev) {
+-		bd_set_nr_sectors(bdev, get_capacity(disk));
+-		bdput(bdev);
+-	}
+-}
+-
+ /*
+  * Prepare a queue for teardown.
+  *
+@@ -119,8 +109,7 @@ static void nvme_set_queue_dying(struct nvme_ns *ns)
+ 	blk_set_queue_dying(ns->queue);
+ 	blk_mq_unquiesce_queue(ns->queue);
  
- 	drbd_info(device, "size = %s (%llu KB)\n",
- 		ppsize(ppb, size>>1), (unsigned long long)size>>1);
-@@ -2068,8 +2067,7 @@ void drbd_device_cleanup(struct drbd_device *device)
- 	}
- 	D_ASSERT(device, first_peer_device(device)->connection->net_conf == NULL);
+-	set_capacity(ns->disk, 0);
+-	nvme_update_bdev_size(ns->disk);
++	set_capacity_and_notify(ns->disk, 0);
+ }
  
--	set_capacity(device->vdisk, 0);
--	revalidate_disk_size(device->vdisk, false);
-+	set_capacity_and_notify(device->vdisk, 0);
- 	if (device->bitmap) {
- 		/* maybe never allocated. */
- 		drbd_bm_resize(device, 0, 1);
+ static void nvme_queue_scan(struct nvme_ctrl *ctrl)
 -- 
 2.28.0
 
