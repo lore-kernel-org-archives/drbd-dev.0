@@ -1,36 +1,37 @@
-Return-Path: <hch@lst.de>
-Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CF56F420209
-	for <drbd-dev@lists.linbit.com>; Mon,  9 Nov 2020 09:53:42 +0100 (CET)
-Date: Mon, 9 Nov 2020 09:53:40 +0100
-From: Christoph Hellwig <hch@lst.de>
-To: Hannes Reinecke <hare@suse.de>
-Message-ID: <20201109085340.GB27483@lst.de>
-References: <20201106190337.1973127-1-hch@lst.de>
-	<20201106190337.1973127-4-hch@lst.de>
-	<1d06cdfa-a904-30be-f3ec-08ae2fa85cbd@suse.de>
+Return-Path: <jinpu.wang@cloud.ionos.com>
+Received: from mail-ed1-f65.google.com (mail-ed1-f65.google.com
+	[209.85.208.65])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6E5DD4207A7
+	for <drbd-dev@lists.linbit.com>; Mon,  9 Nov 2020 07:56:44 +0100 (CET)
+Received: by mail-ed1-f65.google.com with SMTP id t9so4157446edq.8
+	for <drbd-dev@lists.linbit.com>; Sun, 08 Nov 2020 22:56:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1d06cdfa-a904-30be-f3ec-08ae2fa85cbd@suse.de>
+References: <20201106190337.1973127-1-hch@lst.de>
+	<20201106190337.1973127-19-hch@lst.de>
+In-Reply-To: <20201106190337.1973127-19-hch@lst.de>
+From: Jinpu Wang <jinpu.wang@cloud.ionos.com>
+Date: Mon, 9 Nov 2020 07:56:32 +0100
+Message-ID: <CAMGffEnRgesKniK_X5b2nAoiQ_i6xqL4gnCw7dJxapkD-6Dvwg@mail.gmail.com>
+To: Christoph Hellwig <hch@lst.de>
+Content-Type: text/plain; charset="UTF-8"
 Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	"Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
-	Song Liu <song@kernel.org>, dm-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com,
-	linux-scsi@vger.kernel.org, xen-devel@lists.xenproject.org,
-	Ilya Dryomov <idryomov@gmail.com>, Jack Wang <jinpu.wang@cloud.ionos.com>,
+	Song Liu <song@kernel.org>,
+	device-mapper development <dm-devel@redhat.com>, drbd-dev@lists.linbit.com,
+	Linux SCSI Mailinglist <linux-scsi@vger.kernel.org>,
+	xen-devel@lists.xenproject.org, Ilya Dryomov <idryomov@gmail.com>,
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-block@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
+	linux-raid <linux-raid@vger.kernel.org>,
+	Stefan Hajnoczi <stefanha@redhat.com>,
 	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
-	linux-raid@vger.kernel.org,
+	linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
-	Roger Pau =?iso-8859-1?Q?Monn=E9?= <roger.pau@citrix.com>
-Subject: Re: [Drbd-dev] [PATCH 03/24] nvme: let
- set_capacity_revalidate_and_notify update the bdev size
+	=?UTF-8?Q?Roger_Pau_Monn=C3=A9?= <roger.pau@citrix.com>
+Subject: Re: [Drbd-dev] [PATCH 18/24] rnbd: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,34 +43,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Nov 09, 2020 at 08:53:58AM +0100, Hannes Reinecke wrote:
->> index 376096bfc54a83..4e86c9aafd88a7 100644
->> --- a/drivers/nvme/host/core.c
->> +++ b/drivers/nvme/host/core.c
->> @@ -2053,7 +2053,7 @@ static void nvme_update_disk_info(struct gendisk *disk,
->>   			capacity = 0;
->>   	}
->>   -	set_capacity_revalidate_and_notify(disk, capacity, false);
->> +	set_capacity_revalidate_and_notify(disk, capacity, true);
->>     	nvme_config_discard(disk, ns);
->>   	nvme_config_write_zeroes(disk, ns);
->> @@ -2136,7 +2136,6 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
->>   		blk_stack_limits(&ns->head->disk->queue->limits,
->>   				 &ns->queue->limits, 0);
->>   		blk_queue_update_readahead(ns->head->disk->queue);
->> -		nvme_update_bdev_size(ns->head->disk);
->>   		blk_mq_unfreeze_queue(ns->head->disk->queue);
->>   	}
->>   #endif
+On Fri, Nov 6, 2020 at 8:04 PM Christoph Hellwig <hch@lst.de> wrote:
 >
-> Hold on.
-> This, at the very least, should be a separate patch.
-> With this you are changing the behaviour of nvme multipath.
+> Use set_capacity_and_notify to set the size of both the disk and block
+> device.  This also gets the uevent notifications for the resize for free.
 >
-> Originally nvme multipath would update/change the size of the multipath 
-> device according to the underlying path devices.
-> With this patch the size of the multipath device will _not_ change if there 
-> is a change on the underlying devices.
-
-Yes, it will.  Take a close look at nvme_update_disk_info and how it is
-called.
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+Thanks, Christoph!
+Acked-by: Jack Wang <jinpu.wang@cloud.ionos.com>
+> ---
+>  drivers/block/rnbd/rnbd-clt.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+>
+> diff --git a/drivers/block/rnbd/rnbd-clt.c b/drivers/block/rnbd/rnbd-clt.c
+> index 8b2411ccbda97c..bb13d7dd195a08 100644
+> --- a/drivers/block/rnbd/rnbd-clt.c
+> +++ b/drivers/block/rnbd/rnbd-clt.c
+> @@ -100,8 +100,7 @@ static int rnbd_clt_change_capacity(struct rnbd_clt_dev *dev,
+>         rnbd_clt_info(dev, "Device size changed from %zu to %zu sectors\n",
+>                        dev->nsectors, new_nsectors);
+>         dev->nsectors = new_nsectors;
+> -       set_capacity(dev->gd, dev->nsectors);
+> -       revalidate_disk_size(dev->gd, true);
+> +       set_capacity_and_notify(dev->gd, dev->nsectors);
+>         return 0;
+>  }
+>
+> --
+> 2.28.0
+>
