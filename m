@@ -1,20 +1,35 @@
-Return-Path: <duan.zhang@easystack.cn>
-Received: from m9784.mail.qiye.163.com (m9784.mail.qiye.163.com
-	[220.181.97.84])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8AD5A4207A7
-	for <drbd-dev@lists.linbit.com>; Mon,  9 Nov 2020 07:58:03 +0100 (CET)
-Received: from [192.168.9.105] (unknown [101.207.233.66])
-	by m9784.mail.qiye.163.com (Hmail) with ESMTPA id 1F4D041872
-	for <drbd-dev@lists.linbit.com>; Mon,  9 Nov 2020 14:52:08 +0800 (CST)
-From: Zhang Duan <duan.zhang@easystack.cn>
-To: drbd-dev@lists.linbit.com
-Message-ID: <68d1f053-e293-c7c0-b974-cb47d95bdac5@easystack.cn>
-Date: Mon, 9 Nov 2020 14:52:07 +0800
+Return-Path: <hare@suse.de>
+Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F900420209
+	for <drbd-dev@lists.linbit.com>; Mon,  9 Nov 2020 09:13:40 +0100 (CET)
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+References: <20201106190337.1973127-1-hch@lst.de>
+	<20201106190337.1973127-4-hch@lst.de>
+From: Hannes Reinecke <hare@suse.de>
+Message-ID: <1d06cdfa-a904-30be-f3ec-08ae2fa85cbd@suse.de>
+Date: Mon, 9 Nov 2020 08:53:58 +0100
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="------------DF3B984C51EA3A2A1BB945D5"
-Subject: [Drbd-dev] [PATCH] drbd: reply cancel to source when target of
- verify becomes inconsistent
+In-Reply-To: <20201106190337.1973127-4-hch@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
+	Song Liu <song@kernel.org>, dm-devel@redhat.com,
+	drbd-dev@lists.linbit.com, linux-scsi@vger.kernel.org,
+	xen-devel@lists.xenproject.org, Ilya Dryomov <idryomov@gmail.com>,
+	Jack Wang <jinpu.wang@cloud.ionos.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
+	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
+	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>
+Subject: Re: [Drbd-dev] [PATCH 03/24] nvme: let
+ set_capacity_revalidate_and_notify update the bdev size
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,116 +41,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This is a multi-part message in MIME format.
---------------DF3B984C51EA3A2A1BB945D5
-Content-Type: text/plain; charset=gbk; format=flowed
-Content-Transfer-Encoding: 7bit
+On 11/6/20 8:03 PM, Christoph Hellwig wrote:
+> There is no good reason to call revalidate_disk_size separately.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   drivers/nvme/host/core.c | 5 +----
+>   1 file changed, 1 insertion(+), 4 deletions(-)
+> 
+> diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+> index 376096bfc54a83..4e86c9aafd88a7 100644
+> --- a/drivers/nvme/host/core.c
+> +++ b/drivers/nvme/host/core.c
+> @@ -2053,7 +2053,7 @@ static void nvme_update_disk_info(struct gendisk *disk,
+>   			capacity = 0;
+>   	}
+>   
+> -	set_capacity_revalidate_and_notify(disk, capacity, false);
+> +	set_capacity_revalidate_and_notify(disk, capacity, true);
+>   
+>   	nvme_config_discard(disk, ns);
+>   	nvme_config_write_zeroes(disk, ns);
+> @@ -2136,7 +2136,6 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
+>   		blk_stack_limits(&ns->head->disk->queue->limits,
+>   				 &ns->queue->limits, 0);
+>   		blk_queue_update_readahead(ns->head->disk->queue);
+> -		nvme_update_bdev_size(ns->head->disk);
+>   		blk_mq_unfreeze_queue(ns->head->disk->queue);
+>   	}
+>   #endif
 
-Consider one situation below:
-1. primary A disconnects with secondary B & C both of which are Uptodate
-2. start a verify from B to C
-3. during the verify above, A reconnects and starts a resync to C because of
-primary-lost-quorum
-4. C becomes resync target and Inconsistent, then ignore the verify requests
-from B which are already in its receive buffer
-5. verify from B to C stalls here
+Hold on.
+This, at the very least, should be a separate patch.
+With this you are changing the behaviour of nvme multipath.
 
-To resolve it, at step 4, C should reply a message of P_RS_CANCEL to B
-Here is the result if do that:
-Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: Skipped verify, 
-too busy: start=170208, size=48 (sectors)
-Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: Online verify 
-done but 6 4k blocks skipped (total 314 sec; paused 0 sec; 3336 K/sec)
-Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: repl( VerifyS 
--> Established )
+Originally nvme multipath would update/change the size of the multipath 
+device according to the underlying path devices.
+With this patch the size of the multipath device will _not_ change if 
+there is a change on the underlying devices.
 
-Signed-off-by: ZhangDuan
----
-drbd/drbd_receiver.c | 2 ++
-1 file changed, 2 insertions(+)
+While personally I would _love_ to have this patch, we should at least 
+document this by making it a separate patch.
+And we possibly should check if both sizes are the same, and think of 
+what we should be doing if they are not.
 
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index 268dbf4d..c6d4b7c9 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -3273,6 +3273,8 @@ static int receive_DataRequest(struct 
-drbd_connection *connection, struct packet
-break;
-case P_OV_REQUEST:
-verify_skipped_block(peer_device, sector, size);
-+ drbd_send_ack_rp(peer_device, P_RS_CANCEL, p);
-+ break;
-/* Fall through */
-case P_RS_THIN_REQ:
-case P_RS_DATA_REQUEST:
+Cheers,
+
+Hannes
 -- 
-2.24.0.windows.2
-
--- 
-Sincerely Yours,
-Zhang Duan
-
-
---------------DF3B984C51EA3A2A1BB945D5
-Content-Type: text/html; charset=gbk
-Content-Transfer-Encoding: 7bit
-
-<html>
-  <head>
-
-    <meta http-equiv="content-type" content="text/html; charset=GBK">
-  </head>
-  <body>
-    Consider one situation below:<br>
-    1. primary A disconnects with secondary B &amp; C both of which are
-    Uptodate<br>
-    2. start a verify from B to C<br>
-    3. during the verify above, A reconnects and starts a resync to C
-    because of<br>
-    primary-lost-quorum<br>
-    4. C becomes resync target and Inconsistent, then ignore the verify
-    requests<br>
-    from B which are already in its receive buffer<br>
-    5. verify from B to C stalls here<br>
-    <br>
-    To resolve it, at step 4, C should reply a message of P_RS_CANCEL to
-    B<br>
-    Here is the result if do that:<br>
-    Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: Skipped
-    verify, too busy: start=170208, size=48 (sectors)<br>
-    Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: Online
-    verify done but 6 4k blocks skipped (total 314 sec; paused 0 sec;
-    3336 K/sec)<br>
-    Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: repl(
-    VerifyS -&gt; Established )<br>
-    <br>
-    Signed-off-by: ZhangDuan <duan.zhang@easystack.cn><br>
-      ---<br>
-      drbd/drbd_receiver.c | 2 ++<br>
-      1 file changed, 2 insertions(+)<br>
-      <br>
-      diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c<br>
-      index 268dbf4d..c6d4b7c9 100644<br>
-      --- a/drbd/drbd_receiver.c<br>
-      +++ b/drbd/drbd_receiver.c<br>
-      @@ -3273,6 +3273,8 @@ static int receive_DataRequest(struct
-      drbd_connection *connection, struct packet<br>
-      break;<br>
-      case P_OV_REQUEST:<br>
-      verify_skipped_block(peer_device, sector, size);<br>
-      + drbd_send_ack_rp(peer_device, P_RS_CANCEL, p);<br>
-      + break;<br>
-      /* Fall through */<br>
-      case P_RS_THIN_REQ:<br>
-      case P_RS_DATA_REQUEST:<br>
-      -- <br>
-      2.24.0.windows.2<br>
-      <br>
-    </duan.zhang@easystack.cn>
-    <pre class="moz-signature" cols="72">-- 
-Sincerely Yours,
-Zhang Duan</pre>
-  </body>
-</html>
-
---------------DF3B984C51EA3A2A1BB945D5--
+Dr. Hannes Reinecke                Kernel Storage Architect
+hare@suse.de                              +49 911 74053 688
+SUSE Software Solutions GmbH, Maxfeldstr. 5, 90409 Nürnberg
+HRB 36809 (AG Nürnberg), Geschäftsführer: Felix Imendörffer
