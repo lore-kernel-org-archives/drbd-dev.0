@@ -1,40 +1,47 @@
-Return-Path: <hare@suse.de>
-Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 000A2420372
-	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 08:00:29 +0100 (CET)
-To: Sagi Grimberg <sagi@grimberg.me>, Christoph Hellwig <hch@lst.de>
-References: <20201106190337.1973127-1-hch@lst.de>
-	<20201106190337.1973127-4-hch@lst.de>
-	<1d06cdfa-a904-30be-f3ec-08ae2fa85cbd@suse.de>
-	<20201109085340.GB27483@lst.de>
-	<e79f9a96-ef53-d6ea-f6e7-e141bdd2e2d2@suse.de>
-	<d28042e3-3123-5dfc-d0a2-aab0012150c8@grimberg.me>
-From: Hannes Reinecke <hare@suse.de>
-Message-ID: <c883475d-c154-a123-521e-4723b87534cd@suse.de>
-Date: Tue, 10 Nov 2020 08:00:28 +0100
+Return-Path: <tglx@linutronix.de>
+Received: from galois.linutronix.de (Galois.linutronix.de [193.142.43.55])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3DC7142066A
+	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 09:48:31 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Ira Weiny <ira.weiny@intel.com>
+In-Reply-To: <20201110045954.GL3976735@iweiny-DESK2.sc.intel.com>
+References: <20201009195033.3208459-1-ira.weiny@intel.com>
+	<20201009195033.3208459-6-ira.weiny@intel.com>
+	<87h7pyhv3f.fsf@nanos.tec.linutronix.de>
+	<20201110045954.GL3976735@iweiny-DESK2.sc.intel.com>
+Date: Tue, 10 Nov 2020 09:48:31 +0100
+Message-ID: <87eel1iom8.fsf@nanos.tec.linutronix.de>
 MIME-Version: 1.0
-In-Reply-To: <d28042e3-3123-5dfc-d0a2-aab0012150c8@grimberg.me>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
-	"Michael S. Tsirkin" <mst@redhat.com>,
-	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
-	Song Liu <song@kernel.org>, dm-devel@redhat.com,
-	drbd-dev@lists.linbit.com, linux-scsi@vger.kernel.org,
-	xen-devel@lists.xenproject.org, Ilya Dryomov <idryomov@gmail.com>,
-	Jack Wang <jinpu.wang@cloud.ionos.com>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
-	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
-	linux-block@vger.kernel.org,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>
-Subject: Re: [Drbd-dev] [PATCH 03/24] nvme: let
- set_capacity_revalidate_and_notify update the bdev size
+Content-Type: text/plain
+Cc: linux-aio@kvack.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org,
+	linux-doc@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>,
+	linux-mmc@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
+	dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
+	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	linux-kselftest@vger.kernel.org, samba-technical@lists.samba.org,
+	ceph-devel@vger.kernel.org, drbd-dev@lists.linbit.com,
+	devel@driverdev.osuosl.org, linux-cifs@vger.kernel.org,
+	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-rdma@vger.kernel.org,
+	x86@kernel.org, amd-gfx@lists.freedesktop.org,
+	io-uring@vger.kernel.org, cluster-devel@redhat.com,
+	Ingo Molnar <mingo@redhat.com>, intel-wired-lan@lists.osuosl.org,
+	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
+	Fenghua Yu <fenghua.yu@intel.com>, linux-afs@lists.infradead.org,
+	linux-um@lists.infradead.org, intel-gfx@lists.freedesktop.org,
+	ecryptfs@vger.kernel.org, linux-erofs@lists.ozlabs.org,
+	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-bcache@vger.kernel.org, Borislav Petkov <bp@alien8.de>,
+	Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-cachefs@redhat.com, linux-nfs@vger.kernel.org,
+	linux-ntfs-dev@lists.sourceforge.net, netdev@vger.kernel.org,
+	Randy Dunlap <rdunlap@infradead.org>, kexec@lists.infradead.org,
+	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	linux-fsdevel@vger.kernel.org, bpf@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [PATCH RFC PKS/PMEM 05/58] kmap: Introduce
+	k[un]map_thread
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,53 +53,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 11/10/20 12:28 AM, Sagi Grimberg wrote:
-> 
->> [ .. ]
->>>> Originally nvme multipath would update/change the size of the multipath
->>>> device according to the underlying path devices.
->>>> With this patch the size of the multipath device will _not_ change 
->>>> if there
->>>> is a change on the underlying devices.
->>>
->>> Yes, it will.  Take a close look at nvme_update_disk_info and how it is
->>> called.
->>>
->> Okay, then: What would be the correct way of handling a size update 
->> for NVMe multipath?
->> Assuming we're getting an AEN for each path signalling the size change
->> (or a controller reset leading to a size change).
->> So if we're updating the size of the multipath device together with 
->> the path device at the first AEN/reset we'll end up with the other 
->> paths having a different size than the multipath device (and the path 
->> we've just been updating).
->> - Do we care, or cross fingers and hope for the best?
->> - Shouldn't we detect the case where we won't get a size update for 
->> the other paths, or, indeed, we have a genuine device size mismatch 
->> due to a misconfiguration on the target?
->>
->> IE shouldn't we have a flag 'size update pending' for the other 
->> paths,, to take them out ouf use temporarily until the other 
->> AENs/resets have been processed?
-> 
-> the mpath device will take the minimum size from all the paths, that is
-> what blk_stack_limits does. When the AEN for all the paths will arrive
-> the mpath size will update.
-> 
-But that's precisely my point; there won't be an AEN for _all_ paths, 
-but rather one AEN per path. Which will be processed separately, leading 
-to the issue described above.
+On Mon, Nov 09 2020 at 20:59, Ira Weiny wrote:
+> On Tue, Nov 10, 2020 at 02:13:56AM +0100, Thomas Gleixner wrote:
+> Also, we can convert the new memcpy_*_page() calls to kmap_local() as well.
+> [For now my patch just uses kmap_atomic().]
+>
+> I've not looked at all of the patches in your latest version.  Have you
+> included converting any of the kmap() call sites?  I thought you were more
+> focused on converting the kmap_atomic() to kmap_local()?
 
-> Not sure how this is different than what we have today...
+I did not touch any of those yet, but it's a logical consequence to
+convert all kmap() instances which are _not_ creating a global mapping
+over to it.
 
-Oh, that is a problem even today.
-So we should probably move it to a different thread...
+Thanks,
 
-Cheers,
+        tglx
 
-Hannes
--- 
-Dr. Hannes Reinecke                Kernel Storage Architect
-hare@suse.de                              +49 911 74053 688
-SUSE Software Solutions GmbH, Maxfeldstr. 5, 90409 Nürnberg
-HRB 36809 (AG Nürnberg), Geschäftsführer: Felix Imendörffer
