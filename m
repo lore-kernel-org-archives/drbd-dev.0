@@ -1,21 +1,34 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-io1-f68.google.com (mail-io1-f68.google.com
-	[209.85.166.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 50B1E420668
-	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 14:18:48 +0100 (CET)
-Received: by mail-io1-f68.google.com with SMTP id u19so13976010ion.3
-	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 05:18:48 -0800 (PST)
+Return-Path: <lists@alteeve.ca>
+Received: from zimbra.alteeve.com (mail.alteeve.ca [65.39.153.71])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AFA4742062B
+	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 17:48:08 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra.alteeve.com (Postfix) with ESMTP id E337813FD
+	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 11:41:13 -0500 (EST)
+Received: from zimbra.alteeve.com ([127.0.0.1])
+	by localhost (zimbra.alteeve.com [127.0.0.1]) (amavisd-new, port 10032)
+	with ESMTP id 8ze04s4yqP2S for <drbd-dev@lists.linbit.com>;
+	Tue, 10 Nov 2020 11:41:13 -0500 (EST)
+Received: from localhost (localhost [127.0.0.1])
+	by zimbra.alteeve.com (Postfix) with ESMTP id 4ACD4CC4
+	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 11:41:13 -0500 (EST)
+Received: from zimbra.alteeve.com ([127.0.0.1])
+	by localhost (zimbra.alteeve.com [127.0.0.1]) (amavisd-new, port 10026)
+	with ESMTP id ax1HUV5iAPcf for <drbd-dev@lists.linbit.com>;
+	Tue, 10 Nov 2020 11:41:13 -0500 (EST)
+Received: from pulsar.alteeve.com (dhcp-108-168-17-168.cable.user.start.ca
+	[108.168.17.168])
+	by zimbra.alteeve.com (Postfix) with ESMTPSA id 1BB52589
+	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 11:41:13 -0500 (EST)
+To: drbd-dev@lists.linbit.com
+From: Digimer <lists@alteeve.ca>
+Message-ID: <3e0af4f3-00fd-0aa3-93c6-eea48baccac6@alteeve.ca>
+Date: Tue, 10 Nov 2020 11:41:13 -0500
 MIME-Version: 1.0
-References: <c8a948e4-5bd0-f5e0-363d-7abd2d0a41f1@easystack.cn>
-In-Reply-To: <c8a948e4-5bd0-f5e0-363d-7abd2d0a41f1@easystack.cn>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Tue, 10 Nov 2020 14:18:37 +0100
-Message-ID: <CADGDV=X=H0zoste5SqnT-nhJMS1HE-WQ+W6nWkq5L_2akE-q9A@mail.gmail.com>
-To: Zhang Duan <duan.zhang@easystack.cn>
-Content-Type: multipart/alternative; boundary="000000000000e4697305b3c084c9"
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: reply cancel to source when target of
- verify becomes inconsistent
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+Subject: [Drbd-dev] Possible obscure bug
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,135 +40,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---000000000000e4697305b3c084c9
-Content-Type: text/plain; charset="UTF-8"
+Hi all,
 
-Hi Zhang,
+  DRBD v8.4.11.
 
-Thanks for the patch. I verified it. Everything is as you describe. I
-applied it to the drbd-9.0 branch.
+  We had a case where a client was upgrading from 1Gbps to 10Gbps NICs
+for backing DRBD. The interface was an mode=3D1 (active/passive) bond, tw=
+o
+interfaces. We needed to switch one of the bonded interfaces to a new
+physical NIC port. This is a process I've done countless times before,
+but this was the first time I did it while DRBD was up on one node.
 
-best regards,
- Phil
+  We disconnected the peer that wasn't needed, so DRBD was running alone
+on the active node. We 'ifdown sn_link1' (the name of the interface we
+were about to change, which had been the active link). Confirmed with
+/proc/net/bond/sn_bond1 (bond name) that the sn_link1 (interface) was
+out of the bond and the bond was using 'sn_link2' (interface that was
+not to be changed). We also confirmed that the ethX device that was
+going to be moved over was also down.
 
-On Tue, Nov 10, 2020 at 3:31 AM Zhang Duan <duan.zhang@easystack.cn> wrote:
+  We updated /etc/udev/rules.d/70-persistent-net.rules to swap the MAC,
+then did 'start_udev' to rename the interface. Normally this returns in
+a couple seconds, but in this instance, it took a couple of minutes to
+return. When it did, sn_link1 didn't exist anymore and the bond proc
+file also showed that the interface hadn't come up.
 
-> Consider one situation below:
-> 1. primary A disconnects with secondary B & C both of which are Uptodate
-> 2. start a verify from B to C
-> 3. during the verify above, A reconnects and starts a resync to C because
-> of
-> primary-lost-quorum
-> 4. C becomes resync target and Inconsistent, then ignore the verify
-> requests
-> from B which are already in its receive buffer
-> 5. verify from B to C stalls here
->
-> To resolve it, at step 4, C should reply a message of P_RS_CANCEL to B
-> Here is the result if do that:
-> Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: Skipped verify,
-> too busy: start=170208, size=48 (sectors)
-> Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: Online verify
-> done but 6 4k blocks skipped (total 314 sec; paused 0 sec; 3336 K/sec)
-> Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: repl( VerifyS ->
-> Established )
->
-> Signed-off-by: ZhangDuan
-> ---
-> drbd/drbd_receiver.c | 2 ++
-> 1 file changed, 2 insertions(+)
->
-> diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-> index 268dbf4d..c6d4b7c9 100644
-> --- a/drbd/drbd_receiver.c
-> +++ b/drbd/drbd_receiver.c
-> @@ -3273,6 +3273,8 @@ static int receive_DataRequest(struct
-> drbd_connection *connection, struct packet
-> break;
-> case P_OV_REQUEST:
-> verify_skipped_block(peer_device, sector, size);
-> + drbd_send_ack_rp(peer_device, P_RS_CANCEL, p);
-> + break;
-> /* Fall through */
-> case P_RS_THIN_REQ:
-> case P_RS_DATA_REQUEST:
-> --
-> 2.24.0.windows.2
->
-> --
-> Sincerely Yours,
-> Zhang Duan
->
->
+  OK, so all this so far wasn't a big deal. The real concern was that
+all of the VMs that were on LVs backed by DRBD acted like they lost
+their hard drives. I was tail'ing syslog and there were no entries from
+DRBD at all.
 
---000000000000e4697305b3c084c9
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+  I had to stop DRBD and reboot the node to recover. On reboot, the
+interface (sn_link1) came up properly on the new NIC and DRBD started
+normally.
 
-<div dir=3D"ltr">Hi Zhang,<div><br></div><div>Thanks for the patch. I verif=
-ied it. Everything is as you describe. I applied it to the drbd-9.0=C2=A0br=
-anch.</div><div><br></div><div>best regards,</div><div>=C2=A0Phil</div></di=
-v><br><div class=3D"gmail_quote"><div dir=3D"ltr" class=3D"gmail_attr">On T=
-ue, Nov 10, 2020 at 3:31 AM Zhang Duan &lt;<a href=3D"mailto:duan.zhang@eas=
-ystack.cn">duan.zhang@easystack.cn</a>&gt; wrote:<br></div><blockquote clas=
-s=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left:1px solid r=
-gb(204,204,204);padding-left:1ex">
- =20
+  I fully understand "well don't do that" as a "fix", and I certainly
+will not try this again.
 
-   =20
- =20
-  <div>
-    <p>Consider one situation below:</p>
-    1. primary A disconnects with secondary B &amp; C both of which are
-    Uptodate<br>
-    2. start a verify from B to C<br>
-    3. during the verify above, A reconnects and starts a resync to C
-    because of<br>
-    primary-lost-quorum<br>
-    4. C becomes resync target and Inconsistent, then ignore the verify
-    requests<br>
-    from B which are already in its receive buffer<br>
-    5. verify from B to C stalls here<br>
-    <br>
-    To resolve it, at step 4, C should reply a message of P_RS_CANCEL to
-    B<br>
-    Here is the result if do that:<br>
-    Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: Skipped
-    verify, too busy: start=3D170208, size=3D48 (sectors)<br>
-    Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: Online
-    verify done but 6 4k blocks skipped (total 314 sec; paused 0 sec;
-    3336 K/sec)<br>
-    Nov 6 16:25:46 node-2 kernel: drbd drbd1/0 drbd1 node-3: repl(
-    VerifyS -&gt; Established )<br>
-    <br>
-    Signed-off-by: ZhangDuan <u></u><br>
-      ---<br>
-      drbd/drbd_receiver.c | 2 ++<br>
-      1 file changed, 2 insertions(+)<br>
-      <br>
-      diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c<br>
-      index 268dbf4d..c6d4b7c9 100644<br>
-      --- a/drbd/drbd_receiver.c<br>
-      +++ b/drbd/drbd_receiver.c<br>
-      @@ -3273,6 +3273,8 @@ static int receive_DataRequest(struct
-      drbd_connection *connection, struct packet<br>
-      break;<br>
-      case P_OV_REQUEST:<br>
-      verify_skipped_block(peer_device, sector, size);<br>
-      + drbd_send_ack_rp(peer_device, P_RS_CANCEL, p);<br>
-      + break;<br>
-      /* Fall through */<br>
-      case P_RS_THIN_REQ:<br>
-      case P_RS_DATA_REQUEST:<br>
-      -- <br>
-      2.24.0.windows.2<br>
-      <br>
-    <u></u>
-    <pre cols=3D"72">--=20
-Sincerely Yours,
-Zhang Duan</pre>
-  </div>
+  I'm writing this though as I think it might be an indication of a
+deeper issue that might bite others in the future. It seems like DRBD
+"held open" the interface under the bonded interface, despite the NIC
+being down'ed. That DRBD totally stopped allowing disk access without
+any log messages to indicate it hit a problem makes me thing this is not
+a known failure condition.
 
-</blockquote></div>
+  One more interesting tidbit;
 
---000000000000e4697305b3c084c9--
+  There's a single DRBD resource on this system, acting as a PV for a
+clustered VG. Each VM gets an LV, and there's one additional LV for a
+GFS2 partition. The gfs2 partition was not in use when the rename of the
+interface was requested, and oddly enough, I _could_ write to it after.
+So it seems like only parts that were in use hung, while parts that were
+not.
+
+  Writing this out, I also wonder if this might be an LVM issue, and not
+a drbd issue?
+
+  Any insight/feedback would be much appreciated. It was quite the
+pantaloon soiling event, and I'd like to understand just what happened.
+
+digimer
+
+--=20
+Digimer
+Papers and Projects: https://alteeve.com/w/
+"I am, somehow, less interested in the weight and convolutions of
+Einstein=E2=80=99s brain than in the near certainty that people of equal =
+talent
+have lived and died in cotton fields and sweatshops." - Stephen Jay Gould
