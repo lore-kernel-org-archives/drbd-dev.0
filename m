@@ -1,11 +1,11 @@
 Return-Path: <BATV+33c89f8a75624a8d62ce+6289+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 87ED44207CE
-	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:27:26 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 35EA74207CF
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:27:27 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 11 Nov 2020 09:26:40 +0100
-Message-Id: <20201111082658.3401686-7-hch@lst.de>
+Date: Wed, 11 Nov 2020 09:26:42 +0100
+Message-Id: <20201111082658.3401686-9-hch@lst.de>
 In-Reply-To: <20201111082658.3401686-1-hch@lst.de>
 References: <20201111082658.3401686-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 06/24] block: add a return value to
-	set_capacity_and_notify
+Subject: [Drbd-dev] [PATCH 08/24] nbd: move the task_recv check into
+	nbd_size_update
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,54 +38,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Return if the function ended up sending an uevent or not.
+nbd_size_update is about to acquire a few more callers, so lift the check
+into the function.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Josef Bacik <josef@toxicpanda.com>
 ---
- block/genhd.c         | 7 +++++--
- include/linux/genhd.h | 2 +-
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ drivers/block/nbd.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/block/genhd.c b/block/genhd.c
-index d8d9d6c1c916e1..8c350fecfe8bfe 100644
---- a/block/genhd.c
-+++ b/block/genhd.c
-@@ -47,9 +47,9 @@ static void disk_release_events(struct gendisk *disk);
- 
- /*
-  * Set disk capacity and notify if the size is not currently zero and will not
-- * be set to zero.
-+ * be set to zero.  Returns true if a uevent was sent, otherwise false.
-  */
--void set_capacity_and_notify(struct gendisk *disk, sector_t size)
-+bool set_capacity_and_notify(struct gendisk *disk, sector_t size)
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index f618688a196654..58b7090dcbd832 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -299,8 +299,11 @@ static void nbd_size_clear(struct nbd_device *nbd)
+ static void nbd_size_update(struct nbd_device *nbd)
  {
- 	sector_t capacity = get_capacity(disk);
- 
-@@ -60,7 +60,10 @@ void set_capacity_and_notify(struct gendisk *disk, sector_t size)
- 		char *envp[] = { "RESIZE=1", NULL };
- 
- 		kobject_uevent_env(&disk_to_dev(disk)->kobj, KOBJ_CHANGE, envp);
-+		return true;
- 	}
+ 	struct nbd_config *config = nbd->config;
+-	struct block_device *bdev = bdget_disk(nbd->disk, 0);
+ 	sector_t nr_sectors = config->bytesize >> 9;
++	struct block_device *bdev;
 +
-+	return false;
++	if (!nbd->task_recv)
++		return;
+ 
+ 	if (config->flags & NBD_FLAG_SEND_TRIM) {
+ 		nbd->disk->queue->limits.discard_granularity = config->blksize;
+@@ -309,7 +312,9 @@ static void nbd_size_update(struct nbd_device *nbd)
+ 	}
+ 	blk_queue_logical_block_size(nbd->disk->queue, config->blksize);
+ 	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
++
+ 	set_capacity(nbd->disk, nr_sectors);
++	bdev = bdget_disk(nbd->disk, 0);
+ 	if (bdev) {
+ 		if (bdev->bd_disk)
+ 			bd_set_nr_sectors(bdev, nr_sectors);
+@@ -326,8 +331,7 @@ static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
+ 	struct nbd_config *config = nbd->config;
+ 	config->blksize = blocksize;
+ 	config->bytesize = blocksize * nr_blocks;
+-	if (nbd->task_recv != NULL)
+-		nbd_size_update(nbd);
++	nbd_size_update(nbd);
  }
- EXPORT_SYMBOL_GPL(set_capacity_and_notify);
  
-diff --git a/include/linux/genhd.h b/include/linux/genhd.h
-index 596f31b5a3e133..4b22bfd9336e1a 100644
---- a/include/linux/genhd.h
-+++ b/include/linux/genhd.h
-@@ -315,7 +315,7 @@ static inline int get_disk_ro(struct gendisk *disk)
- extern void disk_block_events(struct gendisk *disk);
- extern void disk_unblock_events(struct gendisk *disk);
- extern void disk_flush_events(struct gendisk *disk, unsigned int mask);
--void set_capacity_and_notify(struct gendisk *disk, sector_t size);
-+bool set_capacity_and_notify(struct gendisk *disk, sector_t size);
- 
- /* drivers/char/random.c */
- extern void add_disk_randomness(struct gendisk *disk) __latent_entropy;
+ static void nbd_complete_rq(struct request *req)
 -- 
 2.28.0
 
