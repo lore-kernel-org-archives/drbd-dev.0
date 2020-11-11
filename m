@@ -1,15 +1,15 @@
 Return-Path: <hare@suse.de>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 064884207FA
-	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 14:08:19 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 84F5C4205A8
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 14:57:46 +0100 (CET)
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20201111082658.3401686-1-hch@lst.de>
-	<20201111082658.3401686-7-hch@lst.de>
+	<20201111082658.3401686-14-hch@lst.de>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <7d892cf3-70bc-7d5d-81f0-07b87e49f6ae@suse.de>
-Date: Wed, 11 Nov 2020 14:08:17 +0100
+Message-ID: <1327a2b4-d912-799d-ac94-4f11bf071e15@suse.de>
+Date: Wed, 11 Nov 2020 14:57:44 +0100
 MIME-Version: 1.0
-In-Reply-To: <20201111082658.3401686-7-hch@lst.de>
+In-Reply-To: <20201111082658.3401686-14-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -28,8 +28,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>
-Subject: Re: [Drbd-dev] [PATCH 06/24] block: add a return value to
- set_capacity_and_notify
+Subject: Re: [Drbd-dev] [PATCH 13/24] dm: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,13 +41,13 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 11/11/20 9:26 AM, Christoph Hellwig wrote:
-> Return if the function ended up sending an uevent or not.
+> Use set_capacity_and_notify to set the size of both the disk and block
+> device.  This also gets the uevent notifications for the resize for free.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   block/genhd.c         | 7 +++++--
->   include/linux/genhd.h | 2 +-
->   2 files changed, 6 insertions(+), 3 deletions(-)
+>   drivers/md/dm.c | 3 +--
+>   1 file changed, 1 insertion(+), 2 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
