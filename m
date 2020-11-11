@@ -1,34 +1,29 @@
-Return-Path: <lists@alteeve.ca>
-Received: from zimbra.alteeve.com (mail.alteeve.ca [65.39.153.71])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AFA4742062B
-	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 17:48:08 +0100 (CET)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra.alteeve.com (Postfix) with ESMTP id E337813FD
-	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 11:41:13 -0500 (EST)
-Received: from zimbra.alteeve.com ([127.0.0.1])
-	by localhost (zimbra.alteeve.com [127.0.0.1]) (amavisd-new, port 10032)
-	with ESMTP id 8ze04s4yqP2S for <drbd-dev@lists.linbit.com>;
-	Tue, 10 Nov 2020 11:41:13 -0500 (EST)
-Received: from localhost (localhost [127.0.0.1])
-	by zimbra.alteeve.com (Postfix) with ESMTP id 4ACD4CC4
-	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 11:41:13 -0500 (EST)
-Received: from zimbra.alteeve.com ([127.0.0.1])
-	by localhost (zimbra.alteeve.com [127.0.0.1]) (amavisd-new, port 10026)
-	with ESMTP id ax1HUV5iAPcf for <drbd-dev@lists.linbit.com>;
-	Tue, 10 Nov 2020 11:41:13 -0500 (EST)
-Received: from pulsar.alteeve.com (dhcp-108-168-17-168.cable.user.start.ca
-	[108.168.17.168])
-	by zimbra.alteeve.com (Postfix) with ESMTPSA id 1BB52589
-	for <drbd-dev@lists.linbit.com>; Tue, 10 Nov 2020 11:41:13 -0500 (EST)
-To: drbd-dev@lists.linbit.com
-From: Digimer <lists@alteeve.ca>
-Message-ID: <3e0af4f3-00fd-0aa3-93c6-eea48baccac6@alteeve.ca>
-Date: Tue, 10 Nov 2020 11:41:13 -0500
+Return-Path: <BATV+33c89f8a75624a8d62ce+6289+infradead.org+hch@casper.srs.infradead.org>
+Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 967794207A1
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:27:22 +0100 (CET)
+From: Christoph Hellwig <hch@lst.de>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Wed, 11 Nov 2020 09:26:34 +0100
+Message-Id: <20201111082658.3401686-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-Subject: [Drbd-dev] Possible obscure bug
+Content-Transfer-Encoding: 8bit
+Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
+	Song Liu <song@kernel.org>, dm-devel@redhat.com,
+	drbd-dev@lists.linbit.com, linux-scsi@vger.kernel.org,
+	xen-devel@lists.xenproject.org, Ilya Dryomov <idryomov@gmail.com>,
+	Jack Wang <jinpu.wang@cloud.ionos.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
+	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
+	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
+Subject: [Drbd-dev] cleanup updating the size of block devices v2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,71 +35,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi all,
+Hi Jens,
 
-  DRBD v8.4.11.
+this series builds on top of the work that went into the last merge window,
+and make sure we have a single coherent interfac for updating the size of a
+block device.
 
-  We had a case where a client was upgrading from 1Gbps to 10Gbps NICs
-for backing DRBD. The interface was an mode=3D1 (active/passive) bond, tw=
-o
-interfaces. We needed to switch one of the bonded interfaces to a new
-physical NIC port. This is a process I've done countless times before,
-but this was the first time I did it while DRBD was up on one node.
+Changes since v1:
+ - minor spelling fixes
 
-  We disconnected the peer that wasn't needed, so DRBD was running alone
-on the active node. We 'ifdown sn_link1' (the name of the interface we
-were about to change, which had been the active link). Confirmed with
-/proc/net/bond/sn_bond1 (bond name) that the sn_link1 (interface) was
-out of the bond and the bond was using 'sn_link2' (interface that was
-not to be changed). We also confirmed that the ethX device that was
-going to be moved over was also down.
-
-  We updated /etc/udev/rules.d/70-persistent-net.rules to swap the MAC,
-then did 'start_udev' to rename the interface. Normally this returns in
-a couple seconds, but in this instance, it took a couple of minutes to
-return. When it did, sn_link1 didn't exist anymore and the bond proc
-file also showed that the interface hadn't come up.
-
-  OK, so all this so far wasn't a big deal. The real concern was that
-all of the VMs that were on LVs backed by DRBD acted like they lost
-their hard drives. I was tail'ing syslog and there were no entries from
-DRBD at all.
-
-  I had to stop DRBD and reboot the node to recover. On reboot, the
-interface (sn_link1) came up properly on the new NIC and DRBD started
-normally.
-
-  I fully understand "well don't do that" as a "fix", and I certainly
-will not try this again.
-
-  I'm writing this though as I think it might be an indication of a
-deeper issue that might bite others in the future. It seems like DRBD
-"held open" the interface under the bonded interface, despite the NIC
-being down'ed. That DRBD totally stopped allowing disk access without
-any log messages to indicate it hit a problem makes me thing this is not
-a known failure condition.
-
-  One more interesting tidbit;
-
-  There's a single DRBD resource on this system, acting as a PV for a
-clustered VG. Each VM gets an LV, and there's one additional LV for a
-GFS2 partition. The gfs2 partition was not in use when the rename of the
-interface was requested, and oddly enough, I _could_ write to it after.
-So it seems like only parts that were in use hung, while parts that were
-not.
-
-  Writing this out, I also wonder if this might be an LVM issue, and not
-a drbd issue?
-
-  Any insight/feedback would be much appreciated. It was quite the
-pantaloon soiling event, and I'd like to understand just what happened.
-
-digimer
-
---=20
-Digimer
-Papers and Projects: https://alteeve.com/w/
-"I am, somehow, less interested in the weight and convolutions of
-Einstein=E2=80=99s brain than in the near certainty that people of equal =
-talent
-have lived and died in cotton fields and sweatshops." - Stephen Jay Gould
+Diffstat:
+ block/genhd.c                  |   16 +++----
+ drivers/block/aoe/aoecmd.c     |   15 +-----
+ drivers/block/drbd/drbd_main.c |    6 --
+ drivers/block/loop.c           |   36 ++--------------
+ drivers/block/nbd.c            |   88 +++++++++++++----------------------------
+ drivers/block/pktcdvd.c        |    3 -
+ drivers/block/rbd.c            |    3 -
+ drivers/block/rnbd/rnbd-clt.c  |    3 -
+ drivers/block/virtio_blk.c     |    3 -
+ drivers/block/xen-blkfront.c   |    2 
+ drivers/block/zram/zram_drv.c  |    7 ---
+ drivers/md/dm-raid.c           |    3 -
+ drivers/md/dm.c                |    3 -
+ drivers/md/md-cluster.c        |    8 ---
+ drivers/md/md-linear.c         |    3 -
+ drivers/md/md.c                |   24 ++++-------
+ drivers/nvme/host/core.c       |   18 --------
+ drivers/scsi/sd.c              |    9 +---
+ fs/block_dev.c                 |    7 ---
+ include/linux/genhd.h          |    3 -
+ 20 files changed, 76 insertions(+), 184 deletions(-)
