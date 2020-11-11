@@ -1,11 +1,11 @@
 Return-Path: <BATV+33c89f8a75624a8d62ce+6289+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A7ED14207F1
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ECA614207F2
 	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:51:36 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 11 Nov 2020 09:26:58 +0100
-Message-Id: <20201111082658.3401686-25-hch@lst.de>
+Date: Wed, 11 Nov 2020 09:26:54 +0100
+Message-Id: <20201111082658.3401686-21-hch@lst.de>
 In-Reply-To: <20201111082658.3401686-1-hch@lst.de>
 References: <20201111082658.3401686-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 24/24] block: unexport revalidate_disk_size
+Subject: [Drbd-dev] [PATCH 20/24] dm-raid: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,26 +37,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-revalidate_disk_size is now only called from set_capacity_and_notify,
-so drop the export.
+Use set_capacity_and_notify to set the size of both the disk and block
+device.  This also gets the uevent notifications for the resize for free.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/block_dev.c | 1 -
- 1 file changed, 1 deletion(-)
+ drivers/md/dm-raid.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index 66ebf594c97f47..d8664f5c1ff669 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -1362,7 +1362,6 @@ void revalidate_disk_size(struct gendisk *disk, bool verbose)
- 		bdput(bdev);
- 	}
- }
--EXPORT_SYMBOL(revalidate_disk_size);
- 
- void bd_set_nr_sectors(struct block_device *bdev, sector_t sectors)
+diff --git a/drivers/md/dm-raid.c b/drivers/md/dm-raid.c
+index 9c1f7c4de65b35..294f34d2d61bae 100644
+--- a/drivers/md/dm-raid.c
++++ b/drivers/md/dm-raid.c
+@@ -700,8 +700,7 @@ static void rs_set_capacity(struct raid_set *rs)
  {
+ 	struct gendisk *gendisk = dm_disk(dm_table_get_md(rs->ti->table));
+ 
+-	set_capacity(gendisk, rs->md.array_sectors);
+-	revalidate_disk_size(gendisk, true);
++	set_capacity_and_notify(gendisk, rs->md.array_sectors);
+ }
+ 
+ /*
 -- 
 2.28.0
 
