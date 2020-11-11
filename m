@@ -1,11 +1,11 @@
 Return-Path: <BATV+33c89f8a75624a8d62ce+6289+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4D1DB4207FE
-	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:51:38 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BF7BF42080A
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 10:11:35 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 11 Nov 2020 09:26:49 +0100
-Message-Id: <20201111082658.3401686-16-hch@lst.de>
+Date: Wed, 11 Nov 2020 09:26:45 +0100
+Message-Id: <20201111082658.3401686-12-hch@lst.de>
 In-Reply-To: <20201111082658.3401686-1-hch@lst.de>
 References: <20201111082658.3401686-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 15/24] nvme: use set_capacity_and_notify in
-	nvme_set_queue_dying
+Subject: [Drbd-dev] [PATCH 11/24] nbd: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,46 +37,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the block layer helper to update both the disk and block device
-sizes.  Contrary to the name no notification is sent in this case,
-as a size 0 is special cased.
+Use set_capacity_and_notify to update the disk and block device sizes and
+send a RESIZE uevent to userspace.  Note that blktests relies on uevents
+being sent also for updates that did not change the device size, so the
+explicit kobject_uevent remains for that case.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Josef Bacik <josef@toxicpanda.com>
 ---
- drivers/nvme/host/core.c | 13 +------------
- 1 file changed, 1 insertion(+), 12 deletions(-)
+ drivers/block/nbd.c | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)
 
-diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
-index 445274b28518fb..cc771c70047a96 100644
---- a/drivers/nvme/host/core.c
-+++ b/drivers/nvme/host/core.c
-@@ -93,16 +93,6 @@ static void nvme_put_subsystem(struct nvme_subsystem *subsys);
- static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
- 					   unsigned nsid);
- 
--static void nvme_update_bdev_size(struct gendisk *disk)
--{
--	struct block_device *bdev = bdget_disk(disk, 0);
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index 327060e01ad58e..a6f51934391edb 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -299,8 +299,6 @@ static void nbd_size_clear(struct nbd_device *nbd)
+ static int nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
+ 		loff_t blksize)
+ {
+-	struct block_device *bdev;
 -
+ 	if (!blksize)
+ 		blksize = NBD_DEF_BLKSIZE;
+ 	if (blksize < 512 || blksize > PAGE_SIZE || !is_power_of_2(blksize))
+@@ -320,16 +318,9 @@ static int nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
+ 	blk_queue_logical_block_size(nbd->disk->queue, blksize);
+ 	blk_queue_physical_block_size(nbd->disk->queue, blksize);
+ 
+-	set_capacity(nbd->disk, bytesize >> 9);
+-	bdev = bdget_disk(nbd->disk, 0);
 -	if (bdev) {
--		bd_set_nr_sectors(bdev, get_capacity(disk));
+-		if (bdev->bd_disk)
+-			bd_set_nr_sectors(bdev, bytesize >> 9);
+-		else
+-			set_bit(GD_NEED_PART_SCAN, &nbd->disk->state);
 -		bdput(bdev);
 -	}
--}
--
- /*
-  * Prepare a queue for teardown.
-  *
-@@ -119,8 +109,7 @@ static void nvme_set_queue_dying(struct nvme_ns *ns)
- 	blk_set_queue_dying(ns->queue);
- 	blk_mq_unquiesce_queue(ns->queue);
- 
--	set_capacity(ns->disk, 0);
--	nvme_update_bdev_size(ns->disk);
-+	set_capacity_and_notify(ns->disk, 0);
+-	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
++	set_bit(GD_NEED_PART_SCAN, &nbd->disk->state);
++	if (!set_capacity_and_notify(nbd->disk, bytesize >> 9))
++		kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
+ 	return 0;
  }
  
- static void nvme_queue_scan(struct nvme_ctrl *ctrl)
 -- 
 2.28.0
 
