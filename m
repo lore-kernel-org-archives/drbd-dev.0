@@ -1,15 +1,15 @@
 Return-Path: <hare@suse.de>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CCEBA4205A8
-	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 14:59:37 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 344BC4205F6
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 15:00:27 +0100 (CET)
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20201111082658.3401686-1-hch@lst.de>
-	<20201111082658.3401686-16-hch@lst.de>
+	<20201111082658.3401686-21-hch@lst.de>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <878d9852-4b8d-c5a7-36d4-0fda80fd74c4@suse.de>
-Date: Wed, 11 Nov 2020 14:59:36 +0100
+Message-ID: <a9b7c6bc-5496-9489-95f9-f86f63ea2b14@suse.de>
+Date: Wed, 11 Nov 2020 15:00:25 +0100
 MIME-Version: 1.0
-In-Reply-To: <20201111082658.3401686-16-hch@lst.de>
+In-Reply-To: <20201111082658.3401686-21-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -28,8 +28,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>
-Subject: Re: [Drbd-dev] [PATCH 15/24] nvme: use set_capacity_and_notify in
- nvme_set_queue_dying
+Subject: Re: [Drbd-dev] [PATCH 20/24] dm-raid: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,14 +41,13 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 11/11/20 9:26 AM, Christoph Hellwig wrote:
-> Use the block layer helper to update both the disk and block device
-> sizes.  Contrary to the name no notification is sent in this case,
-> as a size 0 is special cased.
+> Use set_capacity_and_notify to set the size of both the disk and block
+> device.  This also gets the uevent notifications for the resize for free.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   drivers/nvme/host/core.c | 13 +------------
->   1 file changed, 1 insertion(+), 12 deletions(-)
+>   drivers/md/dm-raid.c | 3 +--
+>   1 file changed, 1 insertion(+), 2 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
