@@ -1,11 +1,11 @@
 Return-Path: <BATV+33c89f8a75624a8d62ce+6289+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E7A514207A1
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EE4AB4207AF
 	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:27:23 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 11 Nov 2020 09:26:41 +0100
-Message-Id: <20201111082658.3401686-8-hch@lst.de>
+Date: Wed, 11 Nov 2020 09:26:37 +0100
+Message-Id: <20201111082658.3401686-4-hch@lst.de>
 In-Reply-To: <20201111082658.3401686-1-hch@lst.de>
 References: <20201111082658.3401686-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 07/24] nbd: remove the call to set_blocksize
+Subject: [Drbd-dev] [PATCH 03/24] nvme: let
+	set_capacity_revalidate_and_notify update the bdev size
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,60 +38,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Block driver have no business setting the file system concept of a
-block size.
+There is no good reason to call revalidate_disk_size separately.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Josef Bacik <josef@toxicpanda.com>
 ---
- drivers/block/nbd.c | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ drivers/nvme/host/core.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-index c4f9ccf5cc2ac5..f618688a196654 100644
---- a/drivers/block/nbd.c
-+++ b/drivers/block/nbd.c
-@@ -296,7 +296,7 @@ static void nbd_size_clear(struct nbd_device *nbd)
+diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+index 40ca71b29bb91a..66129b86e97bed 100644
+--- a/drivers/nvme/host/core.c
++++ b/drivers/nvme/host/core.c
+@@ -2053,7 +2053,7 @@ static void nvme_update_disk_info(struct gendisk *disk,
+ 			capacity = 0;
  	}
+ 
+-	set_capacity_revalidate_and_notify(disk, capacity, false);
++	set_capacity_revalidate_and_notify(disk, capacity, true);
+ 
+ 	nvme_config_discard(disk, ns);
+ 	nvme_config_write_zeroes(disk, ns);
+@@ -2136,7 +2136,6 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
+ 		blk_stack_limits(&ns->head->disk->queue->limits,
+ 				 &ns->queue->limits, 0);
+ 		blk_queue_update_readahead(ns->head->disk->queue);
+-		nvme_update_bdev_size(ns->head->disk);
+ 		blk_mq_unfreeze_queue(ns->head->disk->queue);
+ 	}
+ #endif
+@@ -3965,8 +3964,6 @@ static void nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_ids *ids)
+ 	 */
+ 	if (ret && ret != -ENOMEM && !(ret > 0 && !(ret & NVME_SC_DNR)))
+ 		nvme_ns_remove(ns);
+-	else
+-		revalidate_disk_size(ns->disk, true);
  }
  
--static void nbd_size_update(struct nbd_device *nbd, bool start)
-+static void nbd_size_update(struct nbd_device *nbd)
- {
- 	struct nbd_config *config = nbd->config;
- 	struct block_device *bdev = bdget_disk(nbd->disk, 0);
-@@ -311,11 +311,9 @@ static void nbd_size_update(struct nbd_device *nbd, bool start)
- 	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
- 	set_capacity(nbd->disk, nr_sectors);
- 	if (bdev) {
--		if (bdev->bd_disk) {
-+		if (bdev->bd_disk)
- 			bd_set_nr_sectors(bdev, nr_sectors);
--			if (start)
--				set_blocksize(bdev, config->blksize);
--		} else
-+		else
- 			set_bit(GD_NEED_PART_SCAN, &nbd->disk->state);
- 		bdput(bdev);
- 	}
-@@ -329,7 +327,7 @@ static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
- 	config->blksize = blocksize;
- 	config->bytesize = blocksize * nr_blocks;
- 	if (nbd->task_recv != NULL)
--		nbd_size_update(nbd, false);
-+		nbd_size_update(nbd);
- }
- 
- static void nbd_complete_rq(struct request *req)
-@@ -1309,7 +1307,7 @@ static int nbd_start_device(struct nbd_device *nbd)
- 		args->index = i;
- 		queue_work(nbd->recv_workq, &args->work);
- 	}
--	nbd_size_update(nbd, true);
-+	nbd_size_update(nbd);
- 	return error;
- }
- 
+ static void nvme_validate_or_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 -- 
 2.28.0
 
