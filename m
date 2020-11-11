@@ -1,11 +1,11 @@
 Return-Path: <BATV+33c89f8a75624a8d62ce+6289+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EE4AB4207AF
-	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:27:23 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0305B4207B6
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:27:22 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 11 Nov 2020 09:26:37 +0100
-Message-Id: <20201111082658.3401686-4-hch@lst.de>
+Date: Wed, 11 Nov 2020 09:26:35 +0100
+Message-Id: <20201111082658.3401686-2-hch@lst.de>
 In-Reply-To: <20201111082658.3401686-1-hch@lst.de>
 References: <20201111082658.3401686-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 03/24] nvme: let
-	set_capacity_revalidate_and_notify update the bdev size
+Subject: [Drbd-dev] [PATCH 01/24] block: remove the call to
+	__invalidate_device in check_disk_size_change
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,43 +38,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-There is no good reason to call revalidate_disk_size separately.
+__invalidate_device without the kill_dirty parameter just invalidates
+various clean entries in caches, which doesn't really help us with
+anything, but can cause all kinds of horrible lock orders due to how
+it calls into the file system.  The only reason this hasn't been a
+major issue is because so many people use partitions, for which no
+invalidation was performed anyway.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/nvme/host/core.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ fs/block_dev.c | 6 ------
+ 1 file changed, 6 deletions(-)
 
-diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
-index 40ca71b29bb91a..66129b86e97bed 100644
---- a/drivers/nvme/host/core.c
-+++ b/drivers/nvme/host/core.c
-@@ -2053,7 +2053,7 @@ static void nvme_update_disk_info(struct gendisk *disk,
- 			capacity = 0;
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 9e84b1928b9401..66ebf594c97f47 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -1334,12 +1334,6 @@ static void check_disk_size_change(struct gendisk *disk,
+ 		i_size_write(bdev->bd_inode, disk_size);
  	}
- 
--	set_capacity_revalidate_and_notify(disk, capacity, false);
-+	set_capacity_revalidate_and_notify(disk, capacity, true);
- 
- 	nvme_config_discard(disk, ns);
- 	nvme_config_write_zeroes(disk, ns);
-@@ -2136,7 +2136,6 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
- 		blk_stack_limits(&ns->head->disk->queue->limits,
- 				 &ns->queue->limits, 0);
- 		blk_queue_update_readahead(ns->head->disk->queue);
--		nvme_update_bdev_size(ns->head->disk);
- 		blk_mq_unfreeze_queue(ns->head->disk->queue);
- 	}
- #endif
-@@ -3965,8 +3964,6 @@ static void nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_ids *ids)
- 	 */
- 	if (ret && ret != -ENOMEM && !(ret > 0 && !(ret & NVME_SC_DNR)))
- 		nvme_ns_remove(ns);
--	else
--		revalidate_disk_size(ns->disk, true);
+ 	spin_unlock(&bdev->bd_size_lock);
+-
+-	if (bdev_size > disk_size) {
+-		if (__invalidate_device(bdev, false))
+-			pr_warn("VFS: busy inodes on resized disk %s\n",
+-				disk->disk_name);
+-	}
  }
  
- static void nvme_validate_or_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
+ /**
 -- 
 2.28.0
 
