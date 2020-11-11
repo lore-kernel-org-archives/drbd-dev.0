@@ -1,11 +1,11 @@
 Return-Path: <BATV+33c89f8a75624a8d62ce+6289+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 35EA74207CF
-	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:27:27 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B4EB04207EF
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:51:35 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 11 Nov 2020 09:26:42 +0100
-Message-Id: <20201111082658.3401686-9-hch@lst.de>
+Date: Wed, 11 Nov 2020 09:26:55 +0100
+Message-Id: <20201111082658.3401686-22-hch@lst.de>
 In-Reply-To: <20201111082658.3401686-1-hch@lst.de>
 References: <20201111082658.3401686-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 08/24] nbd: move the task_recv check into
-	nbd_size_update
+Subject: [Drbd-dev] [PATCH 21/24] md: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,52 +37,121 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-nbd_size_update is about to acquire a few more callers, so lift the check
-into the function.
+Use set_capacity_and_notify to set the size of both the disk and block
+device.  This also gets the uevent notifications for the resize for free.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Josef Bacik <josef@toxicpanda.com>
+Acked-by: Song Liu <song@kernel.org>
 ---
- drivers/block/nbd.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ drivers/md/md-cluster.c |  6 ++----
+ drivers/md/md-linear.c  |  3 +--
+ drivers/md/md.c         | 24 ++++++++++--------------
+ 3 files changed, 13 insertions(+), 20 deletions(-)
 
-diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-index f618688a196654..58b7090dcbd832 100644
---- a/drivers/block/nbd.c
-+++ b/drivers/block/nbd.c
-@@ -299,8 +299,11 @@ static void nbd_size_clear(struct nbd_device *nbd)
- static void nbd_size_update(struct nbd_device *nbd)
- {
- 	struct nbd_config *config = nbd->config;
--	struct block_device *bdev = bdget_disk(nbd->disk, 0);
- 	sector_t nr_sectors = config->bytesize >> 9;
-+	struct block_device *bdev;
-+
-+	if (!nbd->task_recv)
-+		return;
- 
- 	if (config->flags & NBD_FLAG_SEND_TRIM) {
- 		nbd->disk->queue->limits.discard_granularity = config->blksize;
-@@ -309,7 +312,9 @@ static void nbd_size_update(struct nbd_device *nbd)
- 	}
- 	blk_queue_logical_block_size(nbd->disk->queue, config->blksize);
- 	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
-+
- 	set_capacity(nbd->disk, nr_sectors);
-+	bdev = bdget_disk(nbd->disk, 0);
- 	if (bdev) {
- 		if (bdev->bd_disk)
- 			bd_set_nr_sectors(bdev, nr_sectors);
-@@ -326,8 +331,7 @@ static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
- 	struct nbd_config *config = nbd->config;
- 	config->blksize = blocksize;
- 	config->bytesize = blocksize * nr_blocks;
--	if (nbd->task_recv != NULL)
--		nbd_size_update(nbd);
-+	nbd_size_update(nbd);
+diff --git a/drivers/md/md-cluster.c b/drivers/md/md-cluster.c
+index 4aaf4820b6f625..87442dc59f6ca3 100644
+--- a/drivers/md/md-cluster.c
++++ b/drivers/md/md-cluster.c
+@@ -581,8 +581,7 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
+ 		process_metadata_update(mddev, msg);
+ 		break;
+ 	case CHANGE_CAPACITY:
+-		set_capacity(mddev->gendisk, mddev->array_sectors);
+-		revalidate_disk_size(mddev->gendisk, true);
++		set_capacity_and_notify(mddev->gendisk, mddev->array_sectors);
+ 		break;
+ 	case RESYNCING:
+ 		set_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
+@@ -1296,8 +1295,7 @@ static void update_size(struct mddev *mddev, sector_t old_dev_sectors)
+ 		if (ret)
+ 			pr_err("%s:%d: failed to send CHANGE_CAPACITY msg\n",
+ 			       __func__, __LINE__);
+-		set_capacity(mddev->gendisk, mddev->array_sectors);
+-		revalidate_disk_size(mddev->gendisk, true);
++		set_capacity_and_notify(mddev->gendisk, mddev->array_sectors);
+ 	} else {
+ 		/* revert to previous sectors */
+ 		ret = mddev->pers->resize(mddev, old_dev_sectors);
+diff --git a/drivers/md/md-linear.c b/drivers/md/md-linear.c
+index 5ab22069b5be9c..98f1b4b2bdcef8 100644
+--- a/drivers/md/md-linear.c
++++ b/drivers/md/md-linear.c
+@@ -200,9 +200,8 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
+ 		"copied raid_disks doesn't match mddev->raid_disks");
+ 	rcu_assign_pointer(mddev->private, newconf);
+ 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
+-	set_capacity(mddev->gendisk, mddev->array_sectors);
++	set_capacity_and_notify(mddev->gendisk, mddev->array_sectors);
+ 	mddev_resume(mddev);
+-	revalidate_disk_size(mddev->gendisk, true);
+ 	kfree_rcu(oldconf, rcu);
+ 	return 0;
  }
+diff --git a/drivers/md/md.c b/drivers/md/md.c
+index 98bac4f304ae26..32e375d50fee17 100644
+--- a/drivers/md/md.c
++++ b/drivers/md/md.c
+@@ -5355,10 +5355,9 @@ array_size_store(struct mddev *mddev, const char *buf, size_t len)
  
- static void nbd_complete_rq(struct request *req)
+ 	if (!err) {
+ 		mddev->array_sectors = sectors;
+-		if (mddev->pers) {
+-			set_capacity(mddev->gendisk, mddev->array_sectors);
+-			revalidate_disk_size(mddev->gendisk, true);
+-		}
++		if (mddev->pers)
++			set_capacity_and_notify(mddev->gendisk,
++						mddev->array_sectors);
+ 	}
+ 	mddev_unlock(mddev);
+ 	return err ?: len;
+@@ -6107,8 +6106,7 @@ int do_md_run(struct mddev *mddev)
+ 	md_wakeup_thread(mddev->thread);
+ 	md_wakeup_thread(mddev->sync_thread); /* possibly kick off a reshape */
+ 
+-	set_capacity(mddev->gendisk, mddev->array_sectors);
+-	revalidate_disk_size(mddev->gendisk, true);
++	set_capacity_and_notify(mddev->gendisk, mddev->array_sectors);
+ 	clear_bit(MD_NOT_READY, &mddev->flags);
+ 	mddev->changed = 1;
+ 	kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
+@@ -6423,10 +6421,9 @@ static int do_md_stop(struct mddev *mddev, int mode,
+ 			if (rdev->raid_disk >= 0)
+ 				sysfs_unlink_rdev(mddev, rdev);
+ 
+-		set_capacity(disk, 0);
++		set_capacity_and_notify(disk, 0);
+ 		mutex_unlock(&mddev->open_mutex);
+ 		mddev->changed = 1;
+-		revalidate_disk_size(disk, true);
+ 
+ 		if (mddev->ro)
+ 			mddev->ro = 0;
+@@ -7257,8 +7254,8 @@ static int update_size(struct mddev *mddev, sector_t num_sectors)
+ 		if (mddev_is_clustered(mddev))
+ 			md_cluster_ops->update_size(mddev, old_dev_sectors);
+ 		else if (mddev->queue) {
+-			set_capacity(mddev->gendisk, mddev->array_sectors);
+-			revalidate_disk_size(mddev->gendisk, true);
++			set_capacity_and_notify(mddev->gendisk,
++						mddev->array_sectors);
+ 		}
+ 	}
+ 	return rv;
+@@ -9035,10 +9032,9 @@ void md_do_sync(struct md_thread *thread)
+ 		mddev_lock_nointr(mddev);
+ 		md_set_array_sectors(mddev, mddev->pers->size(mddev, 0, 0));
+ 		mddev_unlock(mddev);
+-		if (!mddev_is_clustered(mddev)) {
+-			set_capacity(mddev->gendisk, mddev->array_sectors);
+-			revalidate_disk_size(mddev->gendisk, true);
+-		}
++		if (!mddev_is_clustered(mddev))
++			set_capacity_and_notify(mddev->gendisk,
++						mddev->array_sectors);
+ 	}
+ 
+ 	spin_lock(&mddev->lock);
 -- 
 2.28.0
 
