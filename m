@@ -1,11 +1,11 @@
 Return-Path: <BATV+33c89f8a75624a8d62ce+6289+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6F1A84207C2
-	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:27:21 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 019F04207C4
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 09:27:25 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 11 Nov 2020 09:26:36 +0100
-Message-Id: <20201111082658.3401686-3-hch@lst.de>
+Date: Wed, 11 Nov 2020 09:26:43 +0100
+Message-Id: <20201111082658.3401686-10-hch@lst.de>
 In-Reply-To: <20201111082658.3401686-1-hch@lst.de>
 References: <20201111082658.3401686-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 02/24] loop: remove loop_set_size
+Subject: [Drbd-dev] [PATCH 09/24] nbd: refactor size updates
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,90 +37,113 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Just use set_capacity_revalidate_and_notify directly, as this function
-can update the block device size as well when the last parameter is set
-to true.
+Merge nbd_size_set and nbd_size_update into a single function that also
+updates the nbd_config fields.  This new function takes the device size
+in bytes as the first argument, and the blocksize as the second argument,
+simplifying the calculations required in most callers.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Josef Bacik <josef@toxicpanda.com>
 ---
- drivers/block/loop.c | 37 +++++++------------------------------
- 1 file changed, 7 insertions(+), 30 deletions(-)
+ drivers/block/nbd.c | 44 ++++++++++++++++++--------------------------
+ 1 file changed, 18 insertions(+), 26 deletions(-)
 
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index cb1191d6e945f2..86eb7e0691eef5 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -241,23 +241,6 @@ loop_validate_block_size(unsigned short bsize)
- 	return 0;
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index 58b7090dcbd832..eb8a5da48ad75a 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -296,28 +296,30 @@ static void nbd_size_clear(struct nbd_device *nbd)
+ 	}
  }
  
--/**
-- * loop_set_size() - sets device size and notifies userspace
-- * @lo: struct loop_device to set the size for
-- * @size: new size of the loop device
-- *
-- * Callers must validate that the size passed into this function fits into
-- * a sector_t, eg using loop_validate_size()
-- */
--static void loop_set_size(struct loop_device *lo, loff_t size)
+-static void nbd_size_update(struct nbd_device *nbd)
++static void nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
++		loff_t blksize)
+ {
+-	struct nbd_config *config = nbd->config;
+-	sector_t nr_sectors = config->bytesize >> 9;
+ 	struct block_device *bdev;
+ 
++	nbd->config->bytesize = bytesize;
++	nbd->config->blksize = blksize;
++
+ 	if (!nbd->task_recv)
+ 		return;
+ 
+-	if (config->flags & NBD_FLAG_SEND_TRIM) {
+-		nbd->disk->queue->limits.discard_granularity = config->blksize;
+-		nbd->disk->queue->limits.discard_alignment = config->blksize;
++	if (nbd->config->flags & NBD_FLAG_SEND_TRIM) {
++		nbd->disk->queue->limits.discard_granularity = blksize;
++		nbd->disk->queue->limits.discard_alignment = blksize;
+ 		blk_queue_max_discard_sectors(nbd->disk->queue, UINT_MAX);
+ 	}
+-	blk_queue_logical_block_size(nbd->disk->queue, config->blksize);
+-	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
++	blk_queue_logical_block_size(nbd->disk->queue, blksize);
++	blk_queue_physical_block_size(nbd->disk->queue, blksize);
+ 
+-	set_capacity(nbd->disk, nr_sectors);
++	set_capacity(nbd->disk, bytesize >> 9);
+ 	bdev = bdget_disk(nbd->disk, 0);
+ 	if (bdev) {
+ 		if (bdev->bd_disk)
+-			bd_set_nr_sectors(bdev, nr_sectors);
++			bd_set_nr_sectors(bdev, bytesize >> 9);
+ 		else
+ 			set_bit(GD_NEED_PART_SCAN, &nbd->disk->state);
+ 		bdput(bdev);
+@@ -325,15 +327,6 @@ static void nbd_size_update(struct nbd_device *nbd)
+ 	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
+ }
+ 
+-static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
+-			 loff_t nr_blocks)
 -{
--	struct block_device *bdev = lo->lo_device;
--
--	bd_set_nr_sectors(bdev, size);
--
--	set_capacity_revalidate_and_notify(lo->lo_disk, size, false);
+-	struct nbd_config *config = nbd->config;
+-	config->blksize = blocksize;
+-	config->bytesize = blocksize * nr_blocks;
+-	nbd_size_update(nbd);
 -}
 -
- static inline int
- lo_do_transfer(struct loop_device *lo, int cmd,
- 	       struct page *rpage, unsigned roffs,
-@@ -1076,7 +1059,6 @@ static int loop_configure(struct loop_device *lo, fmode_t mode,
- 	struct address_space *mapping;
- 	struct block_device *claimed_bdev = NULL;
- 	int		error;
--	loff_t		size;
- 	bool		partscan;
- 	unsigned short  bsize;
+ static void nbd_complete_rq(struct request *req)
+ {
+ 	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(req);
+@@ -1311,7 +1304,7 @@ static int nbd_start_device(struct nbd_device *nbd)
+ 		args->index = i;
+ 		queue_work(nbd->recv_workq, &args->work);
+ 	}
+-	nbd_size_update(nbd);
++	nbd_set_size(nbd, config->bytesize, config->blksize);
+ 	return error;
+ }
  
-@@ -1164,9 +1146,8 @@ static int loop_configure(struct loop_device *lo, fmode_t mode,
- 	loop_update_dio(lo);
- 	loop_sysfs_init(lo);
- 
--	size = get_loop_size(lo, file);
--	loop_set_size(lo, size);
--
-+	set_capacity_revalidate_and_notify(lo->lo_disk, get_loop_size(lo, file),
-+			true);
- 	set_blocksize(bdev, S_ISBLK(inode->i_mode) ?
- 		      block_size(inode->i_bdev) : PAGE_SIZE);
- 
-@@ -1402,9 +1383,9 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
- 	lo->lo_flags |= prev_lo_flags & ~LOOP_SET_STATUS_CLEARABLE_FLAGS;
- 
- 	if (size_changed) {
--		loff_t new_size = get_size(lo->lo_offset, lo->lo_sizelimit,
--					   lo->lo_backing_file);
--		loop_set_size(lo, new_size);
-+		set_capacity_revalidate_and_notify(lo->lo_disk,
-+				get_size(lo->lo_offset, lo->lo_sizelimit,
-+					 lo->lo_backing_file), true);
+@@ -1390,15 +1383,14 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
+ 			arg = NBD_DEF_BLKSIZE;
+ 		if (!nbd_is_valid_blksize(arg))
+ 			return -EINVAL;
+-		nbd_size_set(nbd, arg,
+-			     div_s64(config->bytesize, arg));
++		nbd_set_size(nbd, config->bytesize, arg);
+ 		return 0;
+ 	case NBD_SET_SIZE:
+-		nbd_size_set(nbd, config->blksize,
+-			     div_s64(arg, config->blksize));
++		nbd_set_size(nbd, arg, config->blksize);
+ 		return 0;
+ 	case NBD_SET_SIZE_BLOCKS:
+-		nbd_size_set(nbd, config->blksize, arg);
++		nbd_set_size(nbd, arg * config->blksize,
++			     config->blksize);
+ 		return 0;
+ 	case NBD_SET_TIMEOUT:
+ 		nbd_set_cmd_timeout(nbd, arg);
+@@ -1827,7 +1819,7 @@ static int nbd_genl_size_set(struct genl_info *info, struct nbd_device *nbd)
  	}
  
- 	loop_config_discard(lo);
-@@ -1580,14 +1561,10 @@ loop_get_status64(struct loop_device *lo, struct loop_info64 __user *arg) {
- 
- static int loop_set_capacity(struct loop_device *lo)
- {
--	loff_t size;
--
- 	if (unlikely(lo->lo_state != Lo_bound))
- 		return -ENXIO;
--
--	size = get_loop_size(lo, lo->lo_backing_file);
--	loop_set_size(lo, size);
--
-+	set_capacity_revalidate_and_notify(lo->lo_disk,
-+			get_loop_size(lo, lo->lo_backing_file), true);
+ 	if (bytes != config->bytesize || bsize != config->blksize)
+-		nbd_size_set(nbd, bsize, div64_u64(bytes, bsize));
++		nbd_set_size(nbd, bytes, bsize);
  	return 0;
  }
  
