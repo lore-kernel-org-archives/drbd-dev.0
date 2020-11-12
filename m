@@ -1,18 +1,17 @@
-Return-Path: <hare@suse.de>
+Return-Path: <pvorel@suse.cz>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 344BC4205F6
-	for <drbd-dev@lists.linbit.com>; Wed, 11 Nov 2020 15:00:27 +0100 (CET)
-To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3209B420356
+	for <drbd-dev@lists.linbit.com>; Thu, 12 Nov 2020 20:33:40 +0100 (CET)
+Date: Thu, 12 Nov 2020 20:22:23 +0100
+From: Petr Vorel <pvorel@suse.cz>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <20201112192223.GA17194@pevik>
 References: <20201111082658.3401686-1-hch@lst.de>
-	<20201111082658.3401686-21-hch@lst.de>
-From: Hannes Reinecke <hare@suse.de>
-Message-ID: <a9b7c6bc-5496-9489-95f9-f86f63ea2b14@suse.de>
-Date: Wed, 11 Nov 2020 15:00:25 +0100
+	<20201111082658.3401686-6-hch@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <20201111082658.3401686-21-hch@lst.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20201111082658.3401686-6-hch@lst.de>
 Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	"Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
@@ -23,12 +22,15 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
 	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
-	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
+	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
+	linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
-	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>
-Subject: Re: [Drbd-dev] [PATCH 20/24] dm-raid: use set_capacity_and_notify
+	Roger Pau =?iso-8859-2?Q?Monn=E9?= <roger.pau@citrix.com>
+Subject: Re: [Drbd-dev] [PATCH 05/24] block: remove the update_bdev
+ parameter from set_capacity_revalidate_and_notify
+Reply-To: Petr Vorel <pvorel@suse.cz>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,22 +42,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 11/11/20 9:26 AM, Christoph Hellwig wrote:
-> Use set_capacity_and_notify to set the size of both the disk and block
-> device.  This also gets the uevent notifications for the resize for free.
-> 
+Hi Christoph,
+
+> The update_bdev argument is always set to true, so remove it.  Also
+> rename the function to the slighly less verbose set_capacity_and_notify,
+> as propagating the disk size to the block device isn't really
+> revalidation.
+
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->   drivers/md/dm-raid.c | 3 +--
->   1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-Reviewed-by: Hannes Reinecke <hare@suse.de>
+Reviewed-by: Petr Vorel <pvorel@suse.cz>
 
-Cheers,
+Nice cleanup.
 
-Hannes
--- 
-Dr. Hannes Reinecke                Kernel Storage Architect
-hare@suse.de                              +49 911 74053 688
-SUSE Software Solutions GmbH, Maxfeldstr. 5, 90409 Nürnberg
-HRB 36809 (AG Nürnberg), Geschäftsführer: Felix Imendörffer
+Kind regards,
+Petr
