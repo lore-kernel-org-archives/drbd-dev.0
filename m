@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3F47442085F
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7DAD1420861
 	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 17:31:44 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:57:26 +0100
-Message-Id: <20201116145809.410558-36-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:57:25 +0100
+Message-Id: <20201116145809.410558-35-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -19,14 +19,13 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Jack Wang <jinpu.wang@cloud.ionos.com>,
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, Hannes Reinecke <hare@suse.de>,
-	Stefan Hajnoczi <stefanha@redhat.com>,
+	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
 	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 35/78] block: cleanup del_gendisk a bit
+Subject: [Drbd-dev] [PATCH 34/78] block: propagate BLKROSET to all partitions
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,54 +37,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Merge three hidden gendisk checks into one.
+When setting the whole device read-only (or clearing the read-only
+state), also update the policy for all partitions.  The s390 dasd
+driver has awlways been doing this and it makes a lot of sense.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Hannes Reinecke <hare@suse.de>
 ---
- block/genhd.c | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ block/ioctl.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/block/genhd.c b/block/genhd.c
-index b0f0b0cac9aa7f..8180195b76634b 100644
---- a/block/genhd.c
-+++ b/block/genhd.c
-@@ -892,6 +892,9 @@ void del_gendisk(struct gendisk *disk)
- 
- 	might_sleep();
- 
-+	if (WARN_ON_ONCE(!disk->queue))
-+		return;
-+
- 	blk_integrity_del(disk);
- 	disk_del_events(disk);
- 
-@@ -914,20 +917,18 @@ void del_gendisk(struct gendisk *disk)
- 	disk->flags &= ~GENHD_FL_UP;
- 	up_write(&disk->lookup_sem);
- 
--	if (!(disk->flags & GENHD_FL_HIDDEN))
-+	if (!(disk->flags & GENHD_FL_HIDDEN)) {
- 		sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
--	if (disk->queue) {
-+
- 		/*
- 		 * Unregister bdi before releasing device numbers (as they can
- 		 * get reused and we'd get clashes in sysfs).
- 		 */
--		if (!(disk->flags & GENHD_FL_HIDDEN))
--			bdi_unregister(disk->queue->backing_dev_info);
--		blk_unregister_queue(disk);
--	} else {
--		WARN_ON(1);
-+		bdi_unregister(disk->queue->backing_dev_info);
+diff --git a/block/ioctl.c b/block/ioctl.c
+index 6b785181344fe1..22f394d118c302 100644
+--- a/block/ioctl.c
++++ b/block/ioctl.c
+@@ -354,7 +354,10 @@ static int blkdev_roset(struct block_device *bdev, fmode_t mode,
+ 		if (ret)
+ 			return ret;
  	}
+-	bdev->bd_part->policy = n;
++	if (bdev_is_partition(bdev))
++		bdev->bd_part->policy = n;
++	else
++		set_disk_ro(bdev->bd_disk, n);
+ 	return 0;
+ }
  
-+	blk_unregister_queue(disk);
-+	
- 	if (!(disk->flags & GENHD_FL_HIDDEN))
- 		blk_unregister_region(disk_devt(disk), disk->minors);
- 	/*
 -- 
 2.29.2
 
