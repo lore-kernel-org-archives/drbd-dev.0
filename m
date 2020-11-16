@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6144A420891
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 17:51:41 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1C9AC420844
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 18:11:37 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:57:13 +0100
-Message-Id: <20201116145809.410558-23-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:57:06 +0100
+Message-Id: <20201116145809.410558-16-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 22/78] virtio-blk: remove a spurious call to
-	revalidate_disk_size
+Subject: [Drbd-dev] [PATCH 15/78] drbd: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,29 +37,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-revalidate_disk_size just updates the block device size from the disk
-size.  Thus calling it from virtblk_update_cache_mode doesn't actually
-do anything.
+Use set_capacity_and_notify to set the size of both the disk and block
+device.  This also gets the uevent notifications for the resize for free.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
-Acked-by: Michael S. Tsirkin <mst@redhat.com>
 ---
- drivers/block/virtio_blk.c | 1 -
- 1 file changed, 1 deletion(-)
+ drivers/block/drbd/drbd_main.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/virtio_blk.c b/drivers/block/virtio_blk.c
-index 3e812b4c32e669..145606dc52db1e 100644
---- a/drivers/block/virtio_blk.c
-+++ b/drivers/block/virtio_blk.c
-@@ -598,7 +598,6 @@ static void virtblk_update_cache_mode(struct virtio_device *vdev)
- 	struct virtio_blk *vblk = vdev->priv;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 65b95aef8dbc95..1c8c18b2a25f33 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2036,8 +2036,7 @@ void drbd_set_my_capacity(struct drbd_device *device, sector_t size)
+ {
+ 	char ppb[10];
  
- 	blk_queue_write_cache(vblk->disk->queue, writeback, false);
--	revalidate_disk_size(vblk->disk, true);
- }
+-	set_capacity(device->vdisk, size);
+-	revalidate_disk_size(device->vdisk, false);
++	set_capacity_and_notify(device->vdisk, size);
  
- static const char *const virtblk_cache_types[] = {
+ 	drbd_info(device, "size = %s (%llu KB)\n",
+ 		ppsize(ppb, size>>1), (unsigned long long)size>>1);
+@@ -2068,8 +2067,7 @@ void drbd_device_cleanup(struct drbd_device *device)
+ 	}
+ 	D_ASSERT(device, first_peer_device(device)->connection->net_conf == NULL);
+ 
+-	set_capacity(device->vdisk, 0);
+-	revalidate_disk_size(device->vdisk, false);
++	set_capacity_and_notify(device->vdisk, 0);
+ 	if (device->bitmap) {
+ 		/* maybe never allocated. */
+ 		drbd_bm_resize(device, 0, 1);
 -- 
 2.29.2
 
