@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9F1A3420846
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E0545420849
 	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 16:46:50 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:57:45 +0100
-Message-Id: <20201116145809.410558-55-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:57:44 +0100
+Message-Id: <20201116145809.410558-54-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 54/78] block: remove a duplicate __disk_get_part
-	prototype
+Subject: [Drbd-dev] [PATCH 53/78] blk-cgroup: fix a hd_struct leak in
+	blkcg_fill_root_iostats
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,23 +38,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+disk_get_part needs to be paired with a disk_put_part.
+
+Fixes: ef45fe470e1 ("blk-cgroup: show global disk stats in root cgroup io.stat")
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/linux/genhd.h | 1 -
- 1 file changed, 1 deletion(-)
+ block/blk-cgroup.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/include/linux/genhd.h b/include/linux/genhd.h
-index 46553d6d602563..22f5b9fd96f8bf 100644
---- a/include/linux/genhd.h
-+++ b/include/linux/genhd.h
-@@ -250,7 +250,6 @@ static inline dev_t part_devt(struct hd_struct *part)
- 	return part_to_dev(part)->devt;
+diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
+index c68bdf58c9a6e1..54fbe1e80cc41a 100644
+--- a/block/blk-cgroup.c
++++ b/block/blk-cgroup.c
+@@ -849,6 +849,7 @@ static void blkcg_fill_root_iostats(void)
+ 			blkg_iostat_set(&blkg->iostat.cur, &tmp);
+ 			u64_stats_update_end(&blkg->iostat.sync);
+ 		}
++		disk_put_part(part);
+ 	}
  }
  
--extern struct hd_struct *__disk_get_part(struct gendisk *disk, int partno);
- extern struct hd_struct *disk_get_part(struct gendisk *disk, int partno);
- 
- static inline void disk_put_part(struct hd_struct *part)
 -- 
 2.29.2
 
