@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 538984205F6
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 979D74207E0
 	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 16:21:41 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:58:04 +0100
-Message-Id: <20201116145809.410558-74-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:58:03 +0100
+Message-Id: <20201116145809.410558-73-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 73/78] block: use put_device in put_disk
+Subject: [Drbd-dev] [PATCH 72/78] block: use disk_part_iter_exit in
+	disk_part_iter_next
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,27 +38,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use put_device to put the device instead of poking into the internals
-and using kobject_put.
+Call disk_part_iter_exit in disk_part_iter_next instead of duplicating
+the functionality.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/genhd.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ block/genhd.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/block/genhd.c b/block/genhd.c
-index 56bc37e98ed852..f1e20ec1b62887 100644
+index 999f7142b04e7d..56bc37e98ed852 100644
 --- a/block/genhd.c
 +++ b/block/genhd.c
-@@ -1659,7 +1659,7 @@ EXPORT_SYMBOL(__alloc_disk_node);
- void put_disk(struct gendisk *disk)
- {
- 	if (disk)
--		kobject_put(&disk_to_dev(disk)->kobj);
-+		put_device(disk_to_dev(disk));
- }
- EXPORT_SYMBOL(put_disk);
+@@ -230,8 +230,7 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
+ 	int inc, end;
  
+ 	/* put the last partition */
+-	disk_put_part(piter->part);
+-	piter->part = NULL;
++	disk_part_iter_exit(piter);
+ 
+ 	/* get part_tbl */
+ 	rcu_read_lock();
 -- 
 2.29.2
 
