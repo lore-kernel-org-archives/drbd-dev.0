@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BA131420866
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 18:11:39 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 27FEC420856
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 18:11:40 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:57:07 +0100
-Message-Id: <20201116145809.410558-17-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:57:05 +0100
+Message-Id: <20201116145809.410558-15-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -19,13 +19,15 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Jack Wang <jinpu.wang@cloud.ionos.com>,
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
+	linux-raid@vger.kernel.org, Hannes Reinecke <hare@suse.de>,
+	Stefan Hajnoczi <stefanha@redhat.com>,
 	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 16/78] rbd: use set_capacity_and_notify
+Subject: [Drbd-dev] [PATCH 14/78] nvme: use set_capacity_and_notify in
+	nvme_set_queue_dying
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,29 +39,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use set_capacity_and_notify to set the size of both the disk and block
-device.  This also gets the uevent notifications for the resize for free.
+Use the block layer helper to update both the disk and block device
+sizes.  Contrary to the name no notification is sent in this case,
+as a size 0 is special cased.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Acked-by: Ilya Dryomov <idryomov@gmail.com>
+Reviewed-by: Hannes Reinecke <hare@suse.de>
 ---
- drivers/block/rbd.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/nvme/host/core.c | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)
 
-diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
-index f84128abade319..b7a194ffda55b4 100644
---- a/drivers/block/rbd.c
-+++ b/drivers/block/rbd.c
-@@ -4920,8 +4920,7 @@ static void rbd_dev_update_size(struct rbd_device *rbd_dev)
- 	    !test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags)) {
- 		size = (sector_t)rbd_dev->mapping.size / SECTOR_SIZE;
- 		dout("setting size to %llu sectors", (unsigned long long)size);
--		set_capacity(rbd_dev->disk, size);
--		revalidate_disk_size(rbd_dev->disk, true);
-+		set_capacity_and_notify(rbd_dev->disk, size);
- 	}
+diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+index 6c144e748f8cae..bc89e8659c403f 100644
+--- a/drivers/nvme/host/core.c
++++ b/drivers/nvme/host/core.c
+@@ -93,16 +93,6 @@ static void nvme_put_subsystem(struct nvme_subsystem *subsys);
+ static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
+ 					   unsigned nsid);
+ 
+-static void nvme_update_bdev_size(struct gendisk *disk)
+-{
+-	struct block_device *bdev = bdget_disk(disk, 0);
+-
+-	if (bdev) {
+-		bd_set_nr_sectors(bdev, get_capacity(disk));
+-		bdput(bdev);
+-	}
+-}
+-
+ /*
+  * Prepare a queue for teardown.
+  *
+@@ -119,8 +109,7 @@ static void nvme_set_queue_dying(struct nvme_ns *ns)
+ 	blk_set_queue_dying(ns->queue);
+ 	blk_mq_unquiesce_queue(ns->queue);
+ 
+-	set_capacity(ns->disk, 0);
+-	nvme_update_bdev_size(ns->disk);
++	set_capacity_and_notify(ns->disk, 0);
  }
  
+ static void nvme_queue_scan(struct nvme_ctrl *ctrl)
 -- 
 2.29.2
 
