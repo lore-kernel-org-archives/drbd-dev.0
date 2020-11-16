@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F43B42088D
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 86663420890
 	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 18:11:41 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:57:03 +0100
-Message-Id: <20201116145809.410558-13-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:56:59 +0100
+Message-Id: <20201116145809.410558-9-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -19,14 +19,13 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Jack Wang <jinpu.wang@cloud.ionos.com>,
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, Hannes Reinecke <hare@suse.de>,
-	Stefan Hajnoczi <stefanha@redhat.com>,
+	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
 	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 12/78] dm: use set_capacity_and_notify
+Subject: [Drbd-dev] [PATCH 08/78] nbd: refactor size updates
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,28 +37,115 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use set_capacity_and_notify to set the size of both the disk and block
-device.  This also gets the uevent notifications for the resize for free.
+Merge nbd_size_set and nbd_size_update into a single function that also
+updates the nbd_config fields.  This new function takes the device size
+in bytes as the first argument, and the blocksize as the second argument,
+simplifying the calculations required in most callers.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Hannes Reinecke <hare@suse.de>
+Reviewed-by: Josef Bacik <josef@toxicpanda.com>
 ---
- drivers/md/dm.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/block/nbd.c | 44 ++++++++++++++++++--------------------------
+ 1 file changed, 18 insertions(+), 26 deletions(-)
 
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index c18fc25485186d..62ad44925e73ec 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -1971,8 +1971,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
- 	if (size != dm_get_size(md))
- 		memset(&md->geometry, 0, sizeof(md->geometry));
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index 48054051e281e6..6e8f2ff715c661 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -296,28 +296,30 @@ static void nbd_size_clear(struct nbd_device *nbd)
+ 	}
+ }
  
--	set_capacity(md->disk, size);
--	bd_set_nr_sectors(md->bdev, size);
-+	set_capacity_and_notify(md->disk, size);
+-static void nbd_size_update(struct nbd_device *nbd)
++static void nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
++		loff_t blksize)
+ {
+-	struct nbd_config *config = nbd->config;
+-	sector_t nr_sectors = config->bytesize >> 9;
+ 	struct block_device *bdev;
  
- 	dm_table_event_callback(t, event_callback, md);
++	nbd->config->bytesize = bytesize;
++	nbd->config->blksize = blksize;
++
+ 	if (!nbd->task_recv)
+ 		return;
+ 
+-	if (config->flags & NBD_FLAG_SEND_TRIM) {
+-		nbd->disk->queue->limits.discard_granularity = config->blksize;
+-		nbd->disk->queue->limits.discard_alignment = config->blksize;
++	if (nbd->config->flags & NBD_FLAG_SEND_TRIM) {
++		nbd->disk->queue->limits.discard_granularity = blksize;
++		nbd->disk->queue->limits.discard_alignment = blksize;
+ 		blk_queue_max_discard_sectors(nbd->disk->queue, UINT_MAX);
+ 	}
+-	blk_queue_logical_block_size(nbd->disk->queue, config->blksize);
+-	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
++	blk_queue_logical_block_size(nbd->disk->queue, blksize);
++	blk_queue_physical_block_size(nbd->disk->queue, blksize);
+ 
+-	set_capacity(nbd->disk, nr_sectors);
++	set_capacity(nbd->disk, bytesize >> 9);
+ 	bdev = bdget_disk(nbd->disk, 0);
+ 	if (bdev) {
+ 		if (bdev->bd_disk)
+-			bd_set_nr_sectors(bdev, nr_sectors);
++			bd_set_nr_sectors(bdev, bytesize >> 9);
+ 		else
+ 			set_bit(GD_NEED_PART_SCAN, &nbd->disk->state);
+ 		bdput(bdev);
+@@ -325,15 +327,6 @@ static void nbd_size_update(struct nbd_device *nbd)
+ 	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
+ }
+ 
+-static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
+-			 loff_t nr_blocks)
+-{
+-	struct nbd_config *config = nbd->config;
+-	config->blksize = blocksize;
+-	config->bytesize = blocksize * nr_blocks;
+-	nbd_size_update(nbd);
+-}
+-
+ static void nbd_complete_rq(struct request *req)
+ {
+ 	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(req);
+@@ -1311,7 +1304,7 @@ static int nbd_start_device(struct nbd_device *nbd)
+ 		args->index = i;
+ 		queue_work(nbd->recv_workq, &args->work);
+ 	}
+-	nbd_size_update(nbd);
++	nbd_set_size(nbd, config->bytesize, config->blksize);
+ 	return error;
+ }
+ 
+@@ -1390,15 +1383,14 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
+ 			arg = NBD_DEF_BLKSIZE;
+ 		if (!nbd_is_valid_blksize(arg))
+ 			return -EINVAL;
+-		nbd_size_set(nbd, arg,
+-			     div_s64(config->bytesize, arg));
++		nbd_set_size(nbd, config->bytesize, arg);
+ 		return 0;
+ 	case NBD_SET_SIZE:
+-		nbd_size_set(nbd, config->blksize,
+-			     div_s64(arg, config->blksize));
++		nbd_set_size(nbd, arg, config->blksize);
+ 		return 0;
+ 	case NBD_SET_SIZE_BLOCKS:
+-		nbd_size_set(nbd, config->blksize, arg);
++		nbd_set_size(nbd, arg * config->blksize,
++			     config->blksize);
+ 		return 0;
+ 	case NBD_SET_TIMEOUT:
+ 		nbd_set_cmd_timeout(nbd, arg);
+@@ -1828,7 +1820,7 @@ static int nbd_genl_size_set(struct genl_info *info, struct nbd_device *nbd)
+ 	}
+ 
+ 	if (bytes != config->bytesize || bsize != config->blksize)
+-		nbd_size_set(nbd, bsize, div64_u64(bytes, bsize));
++		nbd_set_size(nbd, bytes, bsize);
+ 	return 0;
+ }
  
 -- 
 2.29.2
