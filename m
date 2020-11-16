@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0F6A94207DF
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 538984205F6
 	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 16:21:41 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:58:02 +0100
-Message-Id: <20201116145809.410558-72-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:58:04 +0100
+Message-Id: <20201116145809.410558-74-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 71/78] block: add a bdev_kobj helper
+Subject: [Drbd-dev] [PATCH 73/78] block: use put_device in put_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,118 +37,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a little helper to find the kobject for a struct block_device.
+Use put_device to put the device instead of poking into the internals
+and using kobject_put.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/bcache/super.c |  7 ++-----
- drivers/md/md.c           |  4 +---
- fs/btrfs/sysfs.c          | 15 +++------------
- include/linux/blk_types.h |  3 +++
- 4 files changed, 9 insertions(+), 20 deletions(-)
+ block/genhd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
-index ea2b80c3e44c38..f6edacc81527c7 100644
---- a/drivers/md/bcache/super.c
-+++ b/drivers/md/bcache/super.c
-@@ -1447,8 +1447,7 @@ static int register_bdev(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
- 		goto err;
- 
- 	err = "error creating kobject";
--	if (kobject_add(&dc->disk.kobj, &part_to_dev(bdev->bd_part)->kobj,
--			"bcache"))
-+	if (kobject_add(&dc->disk.kobj, bdev_kobj(bdev), "bcache"))
- 		goto err;
- 	if (bch_cache_accounting_add_kobjs(&dc->accounting, &dc->disk.kobj))
- 		goto err;
-@@ -2342,9 +2341,7 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
- 		goto err;
- 	}
- 
--	if (kobject_add(&ca->kobj,
--			&part_to_dev(bdev->bd_part)->kobj,
--			"bcache")) {
-+	if (kobject_add(&ca->kobj, bdev_kobj(bdev), "bcache")) {
- 		err = "error calling kobject_add";
- 		ret = -ENOMEM;
- 		goto out;
-diff --git a/drivers/md/md.c b/drivers/md/md.c
-index b2edf5e0f965b5..7ce6047c856ea2 100644
---- a/drivers/md/md.c
-+++ b/drivers/md/md.c
-@@ -2414,7 +2414,6 @@ EXPORT_SYMBOL(md_integrity_add_rdev);
- static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
+diff --git a/block/genhd.c b/block/genhd.c
+index 56bc37e98ed852..f1e20ec1b62887 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -1659,7 +1659,7 @@ EXPORT_SYMBOL(__alloc_disk_node);
+ void put_disk(struct gendisk *disk)
  {
- 	char b[BDEVNAME_SIZE];
--	struct kobject *ko;
- 	int err;
+ 	if (disk)
+-		kobject_put(&disk_to_dev(disk)->kobj);
++		put_device(disk_to_dev(disk));
+ }
+ EXPORT_SYMBOL(put_disk);
  
- 	/* prevent duplicates */
-@@ -2477,9 +2476,8 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
- 	if ((err = kobject_add(&rdev->kobj, &mddev->kobj, "dev-%s", b)))
- 		goto fail;
- 
--	ko = &part_to_dev(rdev->bdev->bd_part)->kobj;
- 	/* failure here is OK */
--	err = sysfs_create_link(&rdev->kobj, ko, "block");
-+	err = sysfs_create_link(&rdev->kobj, bdev_kobj(rdev->bdev), "block");
- 	rdev->sysfs_state = sysfs_get_dirent_safe(rdev->kobj.sd, "state");
- 	rdev->sysfs_unack_badblocks =
- 		sysfs_get_dirent_safe(rdev->kobj.sd, "unacknowledged_bad_blocks");
-diff --git a/fs/btrfs/sysfs.c b/fs/btrfs/sysfs.c
-index 279d9262b676d4..24b6c6dc69000a 100644
---- a/fs/btrfs/sysfs.c
-+++ b/fs/btrfs/sysfs.c
-@@ -1232,8 +1232,6 @@ int btrfs_sysfs_add_space_info_type(struct btrfs_fs_info *fs_info,
- 
- void btrfs_sysfs_remove_device(struct btrfs_device *device)
- {
--	struct hd_struct *disk;
--	struct kobject *disk_kobj;
- 	struct kobject *devices_kobj;
- 
- 	/*
-@@ -1243,11 +1241,8 @@ void btrfs_sysfs_remove_device(struct btrfs_device *device)
- 	devices_kobj = device->fs_info->fs_devices->devices_kobj;
- 	ASSERT(devices_kobj);
- 
--	if (device->bdev) {
--		disk = device->bdev->bd_part;
--		disk_kobj = &part_to_dev(disk)->kobj;
--		sysfs_remove_link(devices_kobj, disk_kobj->name);
--	}
-+	if (device->bdev)
-+		sysfs_remove_link(devices_kobj, bdev_kobj(device->bdev)->name);
- 
- 	if (device->devid_kobj.state_initialized) {
- 		kobject_del(&device->devid_kobj);
-@@ -1353,11 +1348,7 @@ int btrfs_sysfs_add_device(struct btrfs_device *device)
- 	nofs_flag = memalloc_nofs_save();
- 
- 	if (device->bdev) {
--		struct hd_struct *disk;
--		struct kobject *disk_kobj;
--
--		disk = device->bdev->bd_part;
--		disk_kobj = &part_to_dev(disk)->kobj;
-+		struct kobject *disk_kobj = bdev_kobj(device->bdev);
- 
- 		ret = sysfs_create_link(devices_kobj, disk_kobj, disk_kobj->name);
- 		if (ret) {
-diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
-index 0735e335ca6c0a..5a5ccacb804cdb 100644
---- a/include/linux/blk_types.h
-+++ b/include/linux/blk_types.h
-@@ -49,6 +49,9 @@ struct block_device {
- #define bdev_whole(_bdev) \
- 	((_bdev)->bd_disk->part0.bdev)
- 
-+#define bdev_kobj(_bdev) \
-+	(&part_to_dev((_bdev)->bd_part)->kobj)
-+
- /*
-  * Block error status values.  See block/blk-core:blk_errors for the details.
-  * Alpha cannot write a byte atomically, so we need to use 32-bit value.
 -- 
 2.29.2
 
