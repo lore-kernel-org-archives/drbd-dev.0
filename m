@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 44436420829
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 828DA42082A
 	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 17:11:41 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:57:33 +0100
-Message-Id: <20201116145809.410558-43-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:57:34 +0100
+Message-Id: <20201116145809.410558-44-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -26,8 +26,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 42/78] sd: use __register_blkdev to avoid a
-	modprobe for an unregistered dev_t
+Subject: [Drbd-dev] [PATCH 43/78] brd: use __register_blkdev to allocate
+	devices on demand
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,72 +39,116 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Switch from using blk_register_region to the probe callback passed to
-__register_blkdev to disable the request_module call for an unclaimed
-dev_t in the SD majors.
+Use the simpler mechanism attached to major_name to allocate a brd device
+when a currently unregistered minor is accessed.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 ---
- drivers/scsi/sd.c | 19 +++++--------------
- 1 file changed, 5 insertions(+), 14 deletions(-)
+ drivers/block/brd.c | 39 +++++++++++----------------------------
+ 1 file changed, 11 insertions(+), 28 deletions(-)
 
-diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
-index a2a4f385833d6c..679c2c02504763 100644
---- a/drivers/scsi/sd.c
-+++ b/drivers/scsi/sd.c
-@@ -630,13 +630,11 @@ static struct scsi_driver sd_template = {
- };
- 
- /*
-- * Dummy kobj_map->probe function.
-- * The default ->probe function will call modprobe, which is
-- * pointless as this module is already loaded.
-+ * Don't request a new module, as that could deadlock in multipath
-+ * environment.
-  */
--static struct kobject *sd_default_probe(dev_t devt, int *partno, void *data)
-+static void sd_default_probe(dev_t devt)
- {
--	return NULL;
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index cc49a921339f77..c43a6ab4b1f39f 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -426,14 +426,15 @@ static void brd_free(struct brd_device *brd)
+ 	kfree(brd);
  }
  
- /*
-@@ -3525,9 +3523,6 @@ static int sd_remove(struct device *dev)
+-static struct brd_device *brd_init_one(int i, bool *new)
++static void brd_probe(dev_t dev)
+ {
+ 	struct brd_device *brd;
++	int i = MINOR(dev) / max_part;
  
- 	free_opal_dev(sdkp->opal_dev);
- 
--	blk_register_region(devt, SD_MINORS, NULL,
--			    sd_default_probe, NULL, NULL);
--
- 	mutex_lock(&sd_ref_mutex);
- 	dev_set_drvdata(dev, NULL);
- 	put_device(&sdkp->dev);
-@@ -3717,11 +3712,9 @@ static int __init init_sd(void)
- 	SCSI_LOG_HLQUEUE(3, printk("init_sd: sd driver entry point\n"));
- 
- 	for (i = 0; i < SD_MAJORS; i++) {
--		if (register_blkdev(sd_major(i), "sd") != 0)
-+		if (__register_blkdev(sd_major(i), "sd", sd_default_probe))
- 			continue;
- 		majors++;
--		blk_register_region(sd_major(i), SD_MINORS, NULL,
--				    sd_default_probe, NULL, NULL);
+-	*new = false;
++	mutex_lock(&brd_devices_mutex);
+ 	list_for_each_entry(brd, &brd_devices, brd_list) {
+ 		if (brd->brd_number == i)
+-			goto out;
++			goto out_unlock;
  	}
  
- 	if (!majors)
-@@ -3794,10 +3787,8 @@ static void __exit exit_sd(void)
- 
- 	class_unregister(&sd_disk_class);
- 
--	for (i = 0; i < SD_MAJORS; i++) {
--		blk_unregister_region(sd_major(i), SD_MINORS);
-+	for (i = 0; i < SD_MAJORS; i++)
- 		unregister_blkdev(sd_major(i), "sd");
--	}
+ 	brd = brd_alloc(i);
+@@ -442,9 +443,9 @@ static struct brd_device *brd_init_one(int i, bool *new)
+ 		add_disk(brd->brd_disk);
+ 		list_add_tail(&brd->brd_list, &brd_devices);
+ 	}
+-	*new = true;
+-out:
+-	return brd;
++
++out_unlock:
++	mutex_unlock(&brd_devices_mutex);
  }
  
- module_init(init_sd);
+ static void brd_del_one(struct brd_device *brd)
+@@ -454,23 +455,6 @@ static void brd_del_one(struct brd_device *brd)
+ 	brd_free(brd);
+ }
+ 
+-static struct kobject *brd_probe(dev_t dev, int *part, void *data)
+-{
+-	struct brd_device *brd;
+-	struct kobject *kobj;
+-	bool new;
+-
+-	mutex_lock(&brd_devices_mutex);
+-	brd = brd_init_one(MINOR(dev) / max_part, &new);
+-	kobj = brd ? get_disk_and_module(brd->brd_disk) : NULL;
+-	mutex_unlock(&brd_devices_mutex);
+-
+-	if (new)
+-		*part = 0;
+-
+-	return kobj;
+-}
+-
+ static inline void brd_check_and_reset_par(void)
+ {
+ 	if (unlikely(!max_part))
+@@ -510,11 +494,12 @@ static int __init brd_init(void)
+ 	 *	dynamically.
+ 	 */
+ 
+-	if (register_blkdev(RAMDISK_MAJOR, "ramdisk"))
++	if (__register_blkdev(RAMDISK_MAJOR, "ramdisk", brd_probe))
+ 		return -EIO;
+ 
+ 	brd_check_and_reset_par();
+ 
++	mutex_lock(&brd_devices_mutex);
+ 	for (i = 0; i < rd_nr; i++) {
+ 		brd = brd_alloc(i);
+ 		if (!brd)
+@@ -532,9 +517,7 @@ static int __init brd_init(void)
+ 		brd->brd_disk->queue = brd->brd_queue;
+ 		add_disk(brd->brd_disk);
+ 	}
+-
+-	blk_register_region(MKDEV(RAMDISK_MAJOR, 0), 1UL << MINORBITS,
+-				  THIS_MODULE, brd_probe, NULL, NULL);
++	mutex_unlock(&brd_devices_mutex);
+ 
+ 	pr_info("brd: module loaded\n");
+ 	return 0;
+@@ -544,6 +527,7 @@ static int __init brd_init(void)
+ 		list_del(&brd->brd_list);
+ 		brd_free(brd);
+ 	}
++	mutex_unlock(&brd_devices_mutex);
+ 	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
+ 
+ 	pr_info("brd: module NOT loaded !!!\n");
+@@ -557,7 +541,6 @@ static void __exit brd_exit(void)
+ 	list_for_each_entry_safe(brd, next, &brd_devices, brd_list)
+ 		brd_del_one(brd);
+ 
+-	blk_unregister_region(MKDEV(RAMDISK_MAJOR, 0), 1UL << MINORBITS);
+ 	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
+ 
+ 	pr_info("brd: module unloaded\n");
 -- 
 2.29.2
 
