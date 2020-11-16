@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 291A54207AF
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 15:58:36 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3677A4207B0
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 15:58:37 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:56:58 +0100
-Message-Id: <20201116145809.410558-8-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:57:02 +0100
+Message-Id: <20201116145809.410558-12-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 07/78] nbd: move the task_recv check into
-	nbd_size_update
+Subject: [Drbd-dev] [PATCH 11/78] aoe: don't call set_capacity from irq
+	context
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,52 +38,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-nbd_size_update is about to acquire a few more callers, so lift the check
-into the function.
+Updating the block device size from irq context can lead to torn
+writes of the 64-bit value, and prevents us from using normal
+process context locking primitives to serialize access to the 64-bit
+nr_sectors value.  Defer the set_capacity to the already existing
+workqueue handler, where it can be merged with the update of the
+block device size by using set_capacity_and_notify.  As an extra
+bonus this also adds proper uevent notifications for the resize.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Josef Bacik <josef@toxicpanda.com>
 ---
- drivers/block/nbd.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ drivers/block/aoe/aoecmd.c | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)
 
-diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-index a9a0b49ff16101..48054051e281e6 100644
---- a/drivers/block/nbd.c
-+++ b/drivers/block/nbd.c
-@@ -299,8 +299,11 @@ static void nbd_size_clear(struct nbd_device *nbd)
- static void nbd_size_update(struct nbd_device *nbd)
+diff --git a/drivers/block/aoe/aoecmd.c b/drivers/block/aoe/aoecmd.c
+index 313f0b946fe2b3..ac720bdcd983e7 100644
+--- a/drivers/block/aoe/aoecmd.c
++++ b/drivers/block/aoe/aoecmd.c
+@@ -890,19 +890,13 @@ void
+ aoecmd_sleepwork(struct work_struct *work)
  {
- 	struct nbd_config *config = nbd->config;
--	struct block_device *bdev = bdget_disk(nbd->disk, 0);
- 	sector_t nr_sectors = config->bytesize >> 9;
-+	struct block_device *bdev;
-+
-+	if (!nbd->task_recv)
-+		return;
+ 	struct aoedev *d = container_of(work, struct aoedev, work);
+-	struct block_device *bd;
+-	u64 ssize;
  
- 	if (config->flags & NBD_FLAG_SEND_TRIM) {
- 		nbd->disk->queue->limits.discard_granularity = config->blksize;
-@@ -309,7 +312,9 @@ static void nbd_size_update(struct nbd_device *nbd)
- 	}
- 	blk_queue_logical_block_size(nbd->disk->queue, config->blksize);
- 	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
+ 	if (d->flags & DEVFL_GDALLOC)
+ 		aoeblk_gdalloc(d);
+ 
+ 	if (d->flags & DEVFL_NEWSIZE) {
+-		ssize = get_capacity(d->gd);
+-		bd = bdget_disk(d->gd, 0);
+-		if (bd) {
+-			bd_set_nr_sectors(bd, ssize);
+-			bdput(bd);
+-		}
++		set_capacity_and_notify(d->gd, d->ssize);
 +
- 	set_capacity(nbd->disk, nr_sectors);
-+	bdev = bdget_disk(nbd->disk, 0);
- 	if (bdev) {
- 		if (bdev->bd_disk)
- 			bd_set_nr_sectors(bdev, nr_sectors);
-@@ -326,8 +331,7 @@ static void nbd_size_set(struct nbd_device *nbd, loff_t blocksize,
- 	struct nbd_config *config = nbd->config;
- 	config->blksize = blocksize;
- 	config->bytesize = blocksize * nr_blocks;
--	if (nbd->task_recv != NULL)
--		nbd_size_update(nbd);
-+	nbd_size_update(nbd);
+ 		spin_lock_irq(&d->lock);
+ 		d->flags |= DEVFL_UP;
+ 		d->flags &= ~DEVFL_NEWSIZE;
+@@ -971,10 +965,9 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
+ 	d->geo.start = 0;
+ 	if (d->flags & (DEVFL_GDALLOC|DEVFL_NEWSIZE))
+ 		return;
+-	if (d->gd != NULL) {
+-		set_capacity(d->gd, ssize);
++	if (d->gd != NULL)
+ 		d->flags |= DEVFL_NEWSIZE;
+-	} else
++	else
+ 		d->flags |= DEVFL_GDALLOC;
+ 	schedule_work(&d->work);
  }
- 
- static void nbd_complete_rq(struct request *req)
 -- 
 2.29.2
 
