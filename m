@@ -1,17 +1,15 @@
-Return-Path: <pvorel@suse.cz>
-Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3209B420356
-	for <drbd-dev@lists.linbit.com>; Thu, 12 Nov 2020 20:33:40 +0100 (CET)
-Date: Thu, 12 Nov 2020 20:22:23 +0100
-From: Petr Vorel <pvorel@suse.cz>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20201112192223.GA17194@pevik>
-References: <20201111082658.3401686-1-hch@lst.de>
-	<20201111082658.3401686-6-hch@lst.de>
+Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
+Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0D05B4205F6
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 15:58:31 +0100 (CET)
+From: Christoph Hellwig <hch@lst.de>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Mon, 16 Nov 2020 15:56:52 +0100
+Message-Id: <20201116145809.410558-2-hch@lst.de>
+In-Reply-To: <20201116145809.410558-1-hch@lst.de>
+References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20201111082658.3401686-6-hch@lst.de>
+Content-Transfer-Encoding: 8bit
 Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	"Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
@@ -21,16 +19,15 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Jack Wang <jinpu.wang@cloud.ionos.com>,
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
-	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
-	linux-block@vger.kernel.org,
+	linux-raid@vger.kernel.org, Hannes Reinecke <hare@suse.de>,
+	Stefan Hajnoczi <stefanha@redhat.com>,
+	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
-	Roger Pau =?iso-8859-2?Q?Monn=E9?= <roger.pau@citrix.com>
-Subject: Re: [Drbd-dev] [PATCH 05/24] block: remove the update_bdev
- parameter from set_capacity_revalidate_and_notify
-Reply-To: Petr Vorel <pvorel@suse.cz>
+	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
+Subject: [Drbd-dev] [PATCH 01/78] block: remove the call to
+	__invalidate_device in check_disk_size_change
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,17 +39,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Christoph,
+__invalidate_device without the kill_dirty parameter just invalidates
+various clean entries in caches, which doesn't really help us with
+anything, but can cause all kinds of horrible lock orders due to how
+it calls into the file system.  The only reason this hasn't been a
+major issue is because so many people use partitions, for which no
+invalidation was performed anyway.
 
-> The update_bdev argument is always set to true, so remove it.  Also
-> rename the function to the slighly less verbose set_capacity_and_notify,
-> as propagating the disk size to the block device isn't really
-> revalidation.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Hannes Reinecke <hare@suse.de>
+---
+ fs/block_dev.c | 6 ------
+ 1 file changed, 6 deletions(-)
 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Petr Vorel <pvorel@suse.cz>
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 9e84b1928b9401..66ebf594c97f47 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -1334,12 +1334,6 @@ static void check_disk_size_change(struct gendisk *disk,
+ 		i_size_write(bdev->bd_inode, disk_size);
+ 	}
+ 	spin_unlock(&bdev->bd_size_lock);
+-
+-	if (bdev_size > disk_size) {
+-		if (__invalidate_device(bdev, false))
+-			pr_warn("VFS: busy inodes on resized disk %s\n",
+-				disk->disk_name);
+-	}
+ }
+ 
+ /**
+-- 
+2.29.2
 
-Nice cleanup.
-
-Kind regards,
-Petr
