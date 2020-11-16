@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 298E5420026
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6D45142080A
 	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 16:46:49 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:57:50 +0100
-Message-Id: <20201116145809.410558-60-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:57:49 +0100
+Message-Id: <20201116145809.410558-59-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 59/78] mtip32xx: remove the call to fsync_bdev on
-	removal
+Subject: [Drbd-dev] [PATCH 58/78] init: cleanup match_dev_by_uuid and
+	match_dev_by_label
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,75 +38,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-del_gendisk already calls fsync_bdev for every partition, no need
-to do this twice.
+Avoid a totally pointless goto label, and use the same style of
+comparism for both helpers.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/mtip32xx/mtip32xx.c | 15 ---------------
- drivers/block/mtip32xx/mtip32xx.h |  2 --
- 2 files changed, 17 deletions(-)
+ init/do_mounts.c | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
 
-diff --git a/drivers/block/mtip32xx/mtip32xx.c b/drivers/block/mtip32xx/mtip32xx.c
-index 153e2cdecb4d40..53ac59d19ae530 100644
---- a/drivers/block/mtip32xx/mtip32xx.c
-+++ b/drivers/block/mtip32xx/mtip32xx.c
-@@ -3687,7 +3687,6 @@ static int mtip_block_initialize(struct driver_data *dd)
- 	/* Enable the block device and add it to /dev */
- 	device_add_disk(&dd->pdev->dev, dd->disk, NULL);
+diff --git a/init/do_mounts.c b/init/do_mounts.c
+index afa26a4028d25e..5879edf083b318 100644
+--- a/init/do_mounts.c
++++ b/init/do_mounts.c
+@@ -79,15 +79,10 @@ static int match_dev_by_uuid(struct device *dev, const void *data)
+ 	const struct uuidcmp *cmp = data;
+ 	struct hd_struct *part = dev_to_part(dev);
  
--	dd->bdev = bdget_disk(dd->disk, 0);
- 	/*
- 	 * Now that the disk is active, initialize any sysfs attributes
- 	 * managed by the protocol layer.
-@@ -3721,9 +3720,6 @@ static int mtip_block_initialize(struct driver_data *dd)
- 	return rv;
- 
- kthread_run_error:
--	bdput(dd->bdev);
--	dd->bdev = NULL;
+-	if (!part->info)
+-		goto no_match;
 -
- 	/* Delete our gendisk. This also removes the device from /dev */
- 	del_gendisk(dd->disk);
- 
-@@ -3804,14 +3800,6 @@ static int mtip_block_remove(struct driver_data *dd)
- 	blk_mq_tagset_busy_iter(&dd->tags, mtip_no_dev_cleanup, dd);
- 	blk_mq_unquiesce_queue(dd->queue);
- 
--	/*
--	 * Delete our gendisk structure. This also removes the device
--	 * from /dev
--	 */
--	if (dd->bdev) {
--		bdput(dd->bdev);
--		dd->bdev = NULL;
--	}
- 	if (dd->disk) {
- 		if (test_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag))
- 			del_gendisk(dd->disk);
-@@ -4206,9 +4194,6 @@ static void mtip_pci_remove(struct pci_dev *pdev)
- 	} while (atomic_read(&dd->irq_workers_active) != 0 &&
- 		time_before(jiffies, to));
- 
--	if (!dd->sr)
--		fsync_bdev(dd->bdev);
+-	if (strncasecmp(cmp->uuid, part->info->uuid, cmp->len))
+-		goto no_match;
 -
- 	if (atomic_read(&dd->irq_workers_active) != 0) {
- 		dev_warn(&dd->pdev->dev,
- 			"Completion workers still active!\n");
-diff --git a/drivers/block/mtip32xx/mtip32xx.h b/drivers/block/mtip32xx/mtip32xx.h
-index e22a7f0523bf30..88f4206310e4c8 100644
---- a/drivers/block/mtip32xx/mtip32xx.h
-+++ b/drivers/block/mtip32xx/mtip32xx.h
-@@ -463,8 +463,6 @@ struct driver_data {
++	if (!part->info ||
++	    strncasecmp(cmp->uuid, part->info->uuid, cmp->len))
++		return 0;
+ 	return 1;
+-no_match:
+-	return 0;
+ }
  
- 	int isr_binding;
+ /**
+@@ -174,10 +169,9 @@ static int match_dev_by_label(struct device *dev, const void *data)
+ 	const char *label = data;
+ 	struct hd_struct *part = dev_to_part(dev);
  
--	struct block_device *bdev;
+-	if (part->info && !strcmp(label, part->info->volname))
+-		return 1;
 -
- 	struct list_head online_list; /* linkage for online list */
+-	return 0;
++	if (!part->info || strcmp(label, part->info->volname))
++		return 0;
++	return 1;
+ }
  
- 	struct list_head remove_list; /* linkage for removing list */
+ static dev_t devt_from_partlabel(const char *label)
 -- 
 2.29.2
 
