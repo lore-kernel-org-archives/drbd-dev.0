@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 148BD4207BE
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 16:21:38 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 57ADB4207DB
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 16:21:40 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:58:07 +0100
-Message-Id: <20201116145809.410558-77-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:58:06 +0100
+Message-Id: <20201116145809.410558-76-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,8 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 76/78] filemap: use ->f_mapping over ->i_mapping
-	consistently
+Subject: [Drbd-dev] [PATCH 75/78] block: stop using bdget_disk for partition
+	0
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,56 +38,229 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use file->f_mapping in all functions that have a struct file available
-to properly handle the case where file_inode(file)->i_mapping !=
-inode->i_mapping.
+We can just dereference the point in struct gendisk instead.  Also
+remove the now unused export.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/filemap.c | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ block/genhd.c                   |  1 -
+ drivers/block/nbd.c             |  4 +---
+ drivers/block/xen-blkfront.c    | 20 +++++---------------
+ drivers/block/zram/zram_drv.c   | 25 ++-----------------------
+ drivers/md/dm.c                 | 13 ++-----------
+ drivers/s390/block/dasd_ioctl.c |  5 ++---
+ 6 files changed, 12 insertions(+), 56 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index d5e7c2029d16b4..3e3531a757f8db 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2887,13 +2887,13 @@ EXPORT_SYMBOL(filemap_map_pages);
- vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf)
+diff --git a/block/genhd.c b/block/genhd.c
+index 5dcb8b8902daae..b2a4e68171519a 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -904,7 +904,6 @@ struct block_device *bdget_disk(struct gendisk *disk, int partno)
+ 
+ 	return bdev;
+ }
+-EXPORT_SYMBOL(bdget_disk);
+ 
+ /*
+  * print a full list of all partitions - intended for places where the root
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index 014683968ce174..92f84ed0ba9eb6 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -1488,12 +1488,10 @@ static int nbd_open(struct block_device *bdev, fmode_t mode)
+ static void nbd_release(struct gendisk *disk, fmode_t mode)
  {
- 	struct page *page = vmf->page;
--	struct inode *inode = file_inode(vmf->vma->vm_file);
-+	struct inode *inode = vmf->vma->vm_file->f_mapping->host;
- 	vm_fault_t ret = VM_FAULT_LOCKED;
+ 	struct nbd_device *nbd = disk->private_data;
+-	struct block_device *bdev = bdget_disk(disk, 0);
  
- 	sb_start_pagefault(inode->i_sb);
- 	file_update_time(vmf->vma->vm_file);
- 	lock_page(page);
--	if (page->mapping != inode->i_mapping) {
-+	if (page->mapping != vmf->vma->vm_file->f_mapping) {
- 		unlock_page(page);
- 		ret = VM_FAULT_NOPAGE;
- 		goto out;
-@@ -3149,10 +3149,9 @@ void dio_warn_stale_pagecache(struct file *filp)
+ 	if (test_bit(NBD_RT_DISCONNECT_ON_CLOSE, &nbd->config->runtime_flags) &&
+-			bdev->bd_openers == 0)
++			disk->part0->bd_openers == 0)
+ 		nbd_disconnect_and_put(nbd);
+-	bdput(bdev);
+ 
+ 	nbd_config_put(nbd);
+ 	nbd_put(nbd);
+diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
+index 5b1f99ca77b734..c2721ec73d7291 100644
+--- a/drivers/block/xen-blkfront.c
++++ b/drivers/block/xen-blkfront.c
+@@ -2153,7 +2153,7 @@ static void blkfront_closing(struct blkfront_info *info)
+ 	}
+ 
+ 	if (info->gd)
+-		bdev = bdget_disk(info->gd, 0);
++		bdev = bdgrab(info->gd->part0);
+ 
+ 	mutex_unlock(&info->mutex);
+ 
+@@ -2518,7 +2518,7 @@ static int blkfront_remove(struct xenbus_device *xbdev)
+ 
+ 	disk = info->gd;
+ 	if (disk)
+-		bdev = bdget_disk(disk, 0);
++		bdev = bdgrab(disk->part0);
+ 
+ 	info->xbdev = NULL;
+ 	mutex_unlock(&info->mutex);
+@@ -2595,19 +2595,11 @@ static int blkif_open(struct block_device *bdev, fmode_t mode)
+ static void blkif_release(struct gendisk *disk, fmode_t mode)
  {
- 	static DEFINE_RATELIMIT_STATE(_rs, 86400 * HZ, DEFAULT_RATELIMIT_BURST);
- 	char pathname[128];
--	struct inode *inode = file_inode(filp);
- 	char *path;
+ 	struct blkfront_info *info = disk->private_data;
+-	struct block_device *bdev;
+ 	struct xenbus_device *xbdev;
  
--	errseq_set(&inode->i_mapping->wb_err, -EIO);
-+	errseq_set(&filp->f_mapping->wb_err, -EIO);
- 	if (__ratelimit(&_rs)) {
- 		path = file_path(filp, pathname, sizeof(pathname));
- 		if (IS_ERR(path))
-@@ -3179,7 +3178,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
+ 	mutex_lock(&blkfront_mutex);
+-
+-	bdev = bdget_disk(disk, 0);
+-
+-	if (!bdev) {
+-		WARN(1, "Block device %s yanked out from us!\n", disk->disk_name);
++	if (disk->part0->bd_openers)
+ 		goto out_mutex;
+-	}
+-	if (bdev->bd_openers)
+-		goto out;
  
- 	if (iocb->ki_flags & IOCB_NOWAIT) {
- 		/* If there are pages to writeback, return */
--		if (filemap_range_has_page(inode->i_mapping, pos,
-+		if (filemap_range_has_page(file->f_mapping, pos,
- 					   pos + write_len - 1))
- 			return -EAGAIN;
- 	} else {
+ 	/*
+ 	 * Check if we have been instructed to close. We will have
+@@ -2619,7 +2611,7 @@ static void blkif_release(struct gendisk *disk, fmode_t mode)
+ 
+ 	if (xbdev && xbdev->state == XenbusStateClosing) {
+ 		/* pending switch to state closed */
+-		dev_info(disk_to_dev(bdev->bd_disk), "releasing disk\n");
++		dev_info(disk_to_dev(disk), "releasing disk\n");
+ 		xlvbd_release_gendisk(info);
+ 		xenbus_frontend_closed(info->xbdev);
+  	}
+@@ -2628,14 +2620,12 @@ static void blkif_release(struct gendisk *disk, fmode_t mode)
+ 
+ 	if (!xbdev) {
+ 		/* sudden device removal */
+-		dev_info(disk_to_dev(bdev->bd_disk), "releasing disk\n");
++		dev_info(disk_to_dev(disk), "releasing disk\n");
+ 		xlvbd_release_gendisk(info);
+ 		disk->private_data = NULL;
+ 		free_info(info);
+ 	}
+ 
+-out:
+-	bdput(bdev);
+ out_mutex:
+ 	mutex_unlock(&blkfront_mutex);
+ }
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index e765765263495f..e7a23638e2f181 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -1748,7 +1748,6 @@ static ssize_t reset_store(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t len)
+ {
+ 	struct zram *zram = dev_to_zram(dev);
+-	struct block_device *bdev;
+ 	unsigned short do_reset;
+ 	int ret = 0;
+ 
+@@ -1758,17 +1757,12 @@ static ssize_t reset_store(struct device *dev,
+ 	if (!do_reset)
+ 		return -EINVAL;
+ 
+-	bdev = bdget_disk(zram->disk, 0);
+-	if (!bdev)
+-		return -ENOMEM;
+-
+ 	mutex_lock(&zram->disk->mutex);
+-	if (bdev->bd_openers)
++	if (zram->disk->part0->bd_openers)
+ 		ret = -EBUSY;
+ 	else
+ 		zram_reset_device(zram);
+ 	mutex_unlock(&zram->disk->mutex);
+-	bdput(bdev);
+ 
+ 	return ret ? ret : len;
+ }
+@@ -1931,24 +1925,9 @@ static int zram_add(void)
+ 	return ret;
+ }
+ 
+-static bool zram_busy(struct zram *zram)
+-{
+-	struct block_device *bdev;
+-	bool busy = false;
+-
+-	bdev = bdget_disk(zram->disk, 0);
+-	if (bdev) {
+-		if (bdev->bd_openers)
+-			busy = true;
+-		bdput(bdev);
+-	}
+-
+-	return busy;
+-}
+-
+ static int zram_remove(struct zram *zram)
+ {
+-	if (zram_busy(zram))
++	if (zram->disk->part0->bd_openers)
+ 		return -EBUSY;
+ 
+ 	del_gendisk(zram->disk);
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index ac46f6e41279cc..ec48ccae50dd53 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -2375,17 +2375,12 @@ struct dm_table *dm_swap_table(struct mapped_device *md, struct dm_table *table)
+  */
+ static int lock_fs(struct mapped_device *md)
+ {
+-	struct block_device *bdev;
+ 	int r;
+ 
+ 	WARN_ON(md->frozen_sb);
+ 
+-	bdev = bdget_disk(md->disk, 0);
+-	if (!bdev)
+-		return -ENOMEM;
+-	md->frozen_sb = freeze_bdev(bdev);
++	md->frozen_sb = freeze_bdev(md->disk->part0);
+ 	if (IS_ERR(md->frozen_sb)) {
+-		bdput(bdev);
+ 		r = PTR_ERR(md->frozen_sb);
+ 		md->frozen_sb = NULL;
+ 		return r;
+@@ -2398,14 +2393,10 @@ static int lock_fs(struct mapped_device *md)
+ 
+ static void unlock_fs(struct mapped_device *md)
+ {
+-	struct block_device *bdev;
+-
+ 	if (!test_bit(DMF_FROZEN, &md->flags))
+ 		return;
+ 
+-	bdev = md->frozen_sb->s_bdev;
+-	thaw_bdev(bdev, md->frozen_sb);
+-	bdput(bdev);
++	thaw_bdev(md->frozen_sb->s_bdev, md->frozen_sb);
+ 	md->frozen_sb = NULL;
+ 	clear_bit(DMF_FROZEN, &md->flags);
+ }
+diff --git a/drivers/s390/block/dasd_ioctl.c b/drivers/s390/block/dasd_ioctl.c
+index 304eba1acf163c..9f642440894655 100644
+--- a/drivers/s390/block/dasd_ioctl.c
++++ b/drivers/s390/block/dasd_ioctl.c
+@@ -220,9 +220,8 @@ dasd_format(struct dasd_block *block, struct format_data_t *fdata)
+ 	 * enabling the device later.
+ 	 */
+ 	if (fdata->start_unit == 0) {
+-		struct block_device *bdev = bdget_disk(block->gdp, 0);
+-		bdev->bd_inode->i_blkbits = blksize_bits(fdata->blksize);
+-		bdput(bdev);
++		block->gdp->part0->bd_inode->i_blkbits =
++			blksize_bits(fdata->blksize);
+ 	}
+ 
+ 	rc = base->discipline->format_device(base, fdata, 1);
 -- 
 2.29.2
 
