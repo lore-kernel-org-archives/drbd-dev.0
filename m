@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F1B924207E4
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 17:11:37 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 50A5F4207E4
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 17:11:39 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:57:17 +0100
-Message-Id: <20201116145809.410558-27-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:57:51 +0100
+Message-Id: <20201116145809.410558-61-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 26/78] block: add a new set_read_only method
+Subject: [Drbd-dev] [PATCH 60/78] zram: remove the claim mechanism
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,44 +37,150 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a new method to allow for driver-specific processing when setting or
-clearing the block device read-only state.  This allows to replace the
-cumbersome and error-prone override of the whole ioctl implementation.
+The zram claim mechanism was added to ensure no new opens come in
+during teardown.  But the proper way to archive that is to call
+del_gendisk first, which takes care of all that.  Once del_gendisk
+is called in the right place, the reset side can also be simplified
+as no I/O can be outstanding on a block device that is not open.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/ioctl.c          | 5 +++++
- include/linux/blkdev.h | 1 +
- 2 files changed, 6 insertions(+)
+ drivers/block/zram/zram_drv.c | 76 ++++++++++-------------------------
+ 1 file changed, 21 insertions(+), 55 deletions(-)
 
-diff --git a/block/ioctl.c b/block/ioctl.c
-index c6d8863f040945..a6fa16b9770593 100644
---- a/block/ioctl.c
-+++ b/block/ioctl.c
-@@ -389,6 +389,11 @@ static int blkdev_roset(struct block_device *bdev, fmode_t mode,
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 6d15d51cee2b7e..3641434a9b154d 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -1756,64 +1756,33 @@ static ssize_t disksize_store(struct device *dev,
+ static ssize_t reset_store(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t len)
+ {
+-	int ret;
+-	unsigned short do_reset;
+-	struct zram *zram;
++	struct zram *zram = dev_to_zram(dev);
+ 	struct block_device *bdev;
++	unsigned short do_reset;
++	int ret = 0;
+ 
+ 	ret = kstrtou16(buf, 10, &do_reset);
+ 	if (ret)
  		return ret;
- 	if (get_user(n, (int __user *)arg))
- 		return -EFAULT;
-+	if (bdev->bd_disk->fops->set_read_only) {
-+		ret = bdev->bd_disk->fops->set_read_only(bdev, n);
-+		if (ret)
-+			return ret;
-+	}
- 	set_device_ro(bdev, n);
- 	return 0;
+-
+ 	if (!do_reset)
+ 		return -EINVAL;
+ 
+-	zram = dev_to_zram(dev);
+ 	bdev = bdget_disk(zram->disk, 0);
+ 	if (!bdev)
+ 		return -ENOMEM;
+ 
+ 	mutex_lock(&bdev->bd_mutex);
+-	/* Do not reset an active device or claimed device */
+-	if (bdev->bd_openers || zram->claim) {
+-		mutex_unlock(&bdev->bd_mutex);
+-		bdput(bdev);
+-		return -EBUSY;
+-	}
+-
+-	/* From now on, anyone can't open /dev/zram[0-9] */
+-	zram->claim = true;
++	if (bdev->bd_openers)
++		ret = -EBUSY;
++	else
++		zram_reset_device(zram);
+ 	mutex_unlock(&bdev->bd_mutex);
+-
+-	/* Make sure all the pending I/O are finished */
+-	fsync_bdev(bdev);
+-	zram_reset_device(zram);
+ 	bdput(bdev);
+ 
+-	mutex_lock(&bdev->bd_mutex);
+-	zram->claim = false;
+-	mutex_unlock(&bdev->bd_mutex);
+-
+-	return len;
+-}
+-
+-static int zram_open(struct block_device *bdev, fmode_t mode)
+-{
+-	int ret = 0;
+-	struct zram *zram;
+-
+-	WARN_ON(!mutex_is_locked(&bdev->bd_mutex));
+-
+-	zram = bdev->bd_disk->private_data;
+-	/* zram was claimed to reset so open request fails */
+-	if (zram->claim)
+-		ret = -EBUSY;
+-
+-	return ret;
++	return ret ? ret : len;
  }
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 639cae2c158b59..5c1ba8a8d2bc7e 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1850,6 +1850,7 @@ struct block_device_operations {
- 	void (*unlock_native_capacity) (struct gendisk *);
- 	int (*revalidate_disk) (struct gendisk *);
- 	int (*getgeo)(struct block_device *, struct hd_geometry *);
-+	int (*set_read_only)(struct block_device *bdev, bool ro);
- 	/* this callback is with swap_lock and sometimes page table lock held */
- 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
- 	int (*report_zones)(struct gendisk *, sector_t sector,
+ 
+ static const struct block_device_operations zram_devops = {
+-	.open = zram_open,
+ 	.submit_bio = zram_submit_bio,
+ 	.swap_slot_free_notify = zram_slot_free_notify,
+ 	.rw_page = zram_rw_page,
+@@ -1821,7 +1790,6 @@ static const struct block_device_operations zram_devops = {
+ };
+ 
+ static const struct block_device_operations zram_wb_devops = {
+-	.open = zram_open,
+ 	.submit_bio = zram_submit_bio,
+ 	.swap_slot_free_notify = zram_slot_free_notify,
+ 	.owner = THIS_MODULE
+@@ -1972,34 +1940,32 @@ static int zram_add(void)
+ 	return ret;
+ }
+ 
+-static int zram_remove(struct zram *zram)
++static bool zram_busy(struct zram *zram)
+ {
+ 	struct block_device *bdev;
++	bool busy = false;
+ 
+ 	bdev = bdget_disk(zram->disk, 0);
+-	if (!bdev)
+-		return -ENOMEM;
+-
+-	mutex_lock(&bdev->bd_mutex);
+-	if (bdev->bd_openers || zram->claim) {
+-		mutex_unlock(&bdev->bd_mutex);
++	if (bdev) {
++		if (bdev->bd_openers)
++			busy = true;
+ 		bdput(bdev);
+-		return -EBUSY;
+ 	}
+ 
+-	zram->claim = true;
+-	mutex_unlock(&bdev->bd_mutex);
++	return busy;
++}
+ 
+-	zram_debugfs_unregister(zram);
++static int zram_remove(struct zram *zram)
++{
++	if (zram_busy(zram))
++		return -EBUSY;
+ 
+-	/* Make sure all the pending I/O are finished */
+-	fsync_bdev(bdev);
++	del_gendisk(zram->disk);
++	zram_debugfs_unregister(zram);
+ 	zram_reset_device(zram);
+-	bdput(bdev);
+ 
+ 	pr_info("Removed device: %s\n", zram->disk->disk_name);
+ 
+-	del_gendisk(zram->disk);
+ 	blk_cleanup_queue(zram->disk->queue);
+ 	put_disk(zram->disk);
+ 	kfree(zram);
 -- 
 2.29.2
 
