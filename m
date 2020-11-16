@@ -1,11 +1,11 @@
 Return-Path: <BATV+29a21e8ca386e11a5a78+6294+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 875E5420879
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 18:11:40 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F43B42088D
+	for <drbd-dev@lists.linbit.com>; Mon, 16 Nov 2020 18:11:41 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 16 Nov 2020 15:57:04 +0100
-Message-Id: <20201116145809.410558-14-hch@lst.de>
+Date: Mon, 16 Nov 2020 15:57:03 +0100
+Message-Id: <20201116145809.410558-13-hch@lst.de>
 In-Reply-To: <20201116145809.410558-1-hch@lst.de>
 References: <20201116145809.410558-1-hch@lst.de>
 MIME-Version: 1.0
@@ -19,13 +19,14 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Jack Wang <jinpu.wang@cloud.ionos.com>,
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
+	linux-raid@vger.kernel.org, Hannes Reinecke <hare@suse.de>,
+	Stefan Hajnoczi <stefanha@redhat.com>,
 	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
-Subject: [Drbd-dev] [PATCH 13/78] pktcdvd: use set_capacity_and_notify
+Subject: [Drbd-dev] [PATCH 12/78] dm: use set_capacity_and_notify
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,24 +42,25 @@ Use set_capacity_and_notify to set the size of both the disk and block
 device.  This also gets the uevent notifications for the resize for free.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Hannes Reinecke <hare@suse.de>
 ---
- drivers/block/pktcdvd.c | 3 +--
+ drivers/md/dm.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index 467dbd06b7cdb1..4326401cede445 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -2130,8 +2130,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
- 	}
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index c18fc25485186d..62ad44925e73ec 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -1971,8 +1971,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
+ 	if (size != dm_get_size(md))
+ 		memset(&md->geometry, 0, sizeof(md->geometry));
  
- 	set_capacity(pd->disk, lba << 2);
--	set_capacity(pd->bdev->bd_disk, lba << 2);
--	bd_set_nr_sectors(pd->bdev, lba << 2);
-+	set_capacity_and_notify(pd->bdev->bd_disk, lba << 2);
+-	set_capacity(md->disk, size);
+-	bd_set_nr_sectors(md->bdev, size);
++	set_capacity_and_notify(md->disk, size);
  
- 	q = bdev_get_queue(pd->bdev);
- 	if (write) {
+ 	dm_table_event_callback(t, event_callback, md);
+ 
 -- 
 2.29.2
 
