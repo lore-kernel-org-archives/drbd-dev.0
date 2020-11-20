@@ -1,35 +1,21 @@
-Return-Path: <hare@suse.de>
-Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2BEDC4207DE
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 09:58:42 +0100 (CET)
-To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-References: <20201116145809.410558-1-hch@lst.de>
-	<20201116145809.410558-75-hch@lst.de>
-From: Hannes Reinecke <hare@suse.de>
-Message-ID: <f6e6b948-44c8-50f0-beea-921eb3a268dd@suse.de>
-Date: Fri, 20 Nov 2020 09:58:40 +0100
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mail-io1-f66.google.com (mail-io1-f66.google.com
+	[209.85.166.66])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 670194207E4
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 10:13:34 +0100 (CET)
+Received: by mail-io1-f66.google.com with SMTP id u21so9179079iol.12
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 01:13:34 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20201116145809.410558-75-hch@lst.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
-	"Michael S. Tsirkin" <mst@redhat.com>,
-	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
-	Song Liu <song@kernel.org>, dm-devel@redhat.com,
-	drbd-dev@lists.linbit.com, linux-scsi@vger.kernel.org,
-	xen-devel@lists.xenproject.org, Ilya Dryomov <idryomov@gmail.com>,
-	Jack Wang <jinpu.wang@cloud.ionos.com>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
-	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>
-Subject: Re: [Drbd-dev] [PATCH 74/78] block: merge struct block_device and
- struct hd_struct
+References: <859ad180-0e92-5542-4d52-730589e99682@easystack.cn>
+In-Reply-To: <859ad180-0e92-5542-4d52-730589e99682@easystack.cn>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+Date: Fri, 20 Nov 2020 10:13:22 +0100
+Message-ID: <CADGDV=X9P9A+ig-K-nCcTvTD11jTWE6ai0SH17BDm1MLb+DCzQ@mail.gmail.com>
+To: Zhang Duan <duan.zhang@easystack.cn>
+Content-Type: text/plain; charset="UTF-8"
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 2/2] drbd: delay resync start unless source
+ has transferred to L_SYNC_SOURCE
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,60 +27,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 11/16/20 3:58 PM, Christoph Hellwig wrote:
-> Instead of having two structures that represent each block device with
-> different lift time rules merged them into a single one.  This also
-> greatly simplifies the reference counting rules, as we can use the inode
-> reference count as the main reference count for the new struct
-> block_device, with the device model reference front ending it for device
-> model interaction.  The percpu refcount in struct hd_struct is entirely
-> gone given that struct block_device must be opened and thus valid for
-> the duration of the I/O.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+Hi Zhang,
+
+The explanation is sound, the patch looks good. I am going to apply this.
+
+What I wanted to ask:
+Are you using automated tests to find this kind of defects?
+The tests we maintain are here: https://github.com/LINBIT/drbd9-tests
+We would welcome very much if you contribute your tests to this as well.
+
+best regards,
+ Phil
+
+On Wed, Nov 18, 2020 at 9:46 AM Zhang Duan <duan.zhang@easystack.cn> wrote:
+>
+> drbd_start_resync may be rescheduled due to down_trylock failure, leaves a
+> state of L_WF_BITMAP_S while target state is L_SYNC_TARGET and already has
+> sent its resync request. Then, resync going on while the source is
+> L_WF_BITMAP_S
+> will lead to data lose by time sequence below:
+>
+> L_WF_BITMAP_S                   L_SYNC_TARGET
+>                                  resync request(sector A)
+> reply old data(A)               read & write old data(A)
+> new IO(A)
+> send oos(A)                     set oos(A)
+> A is at new version             resync write A done
+>                                  set in sync(A) but A is at old version
+>
+> Signed-off-by: ZhangDuan <duan.zhang@easystack.cn>
 > ---
->   block/bio.c                        |   6 +-
->   block/blk-cgroup.c                 |   9 +-
->   block/blk-core.c                   |  85 +++++-----
->   block/blk-flush.c                  |   2 +-
->   block/blk-lib.c                    |   2 +-
->   block/blk-merge.c                  |   6 +-
->   block/blk-mq.c                     |  11 +-
->   block/blk-mq.h                     |   5 +-
->   block/blk.h                        |  38 ++---
->   block/genhd.c                      | 242 +++++++++++------------------
->   block/ioctl.c                      |   4 +-
->   block/partitions/core.c            | 221 +++++++-------------------
->   drivers/block/drbd/drbd_receiver.c |   2 +-
->   drivers/block/drbd/drbd_worker.c   |   2 +-
->   drivers/block/zram/zram_drv.c      |   2 +-
->   drivers/md/bcache/request.c        |   4 +-
->   drivers/md/dm.c                    |   8 +-
->   drivers/md/md.c                    |   4 +-
->   drivers/nvme/target/admin-cmd.c    |  20 +--
->   drivers/s390/block/dasd.c          |   8 +-
->   fs/block_dev.c                     |  68 +++-----
->   fs/ext4/super.c                    |  18 +--
->   fs/ext4/sysfs.c                    |  10 +-
->   fs/f2fs/checkpoint.c               |   5 +-
->   fs/f2fs/f2fs.h                     |   2 +-
->   fs/f2fs/super.c                    |   6 +-
->   fs/f2fs/sysfs.c                    |   9 --
->   include/linux/blk_types.h          |  23 ++-
->   include/linux/blkdev.h             |  13 +-
->   include/linux/genhd.h              |  67 ++------
->   include/linux/part_stat.h          |  17 +-
->   init/do_mounts.c                   |  20 +--
->   kernel/trace/blktrace.c            |  54 ++-----
->   33 files changed, 351 insertions(+), 642 deletions(-)
-> 
-Reviewed-by: Hannes Reinecke <hare@suse.de>
-
-Cheers,
-
-Hannes
--- 
-Dr. Hannes Reinecke                Kernel Storage Architect
-hare@suse.de                              +49 911 74053 688
-SUSE Software Solutions GmbH, Maxfeldstr. 5, 90409 Nürnberg
-HRB 36809 (AG Nürnberg), Geschäftsführer: Felix Imendörffer
+>   drbd/drbd_receiver.c | 9 +++++++++
+>   1 file changed, 9 insertions(+)
+>
+> diff --git drbd/drbd_receiver.c drbd/drbd_receiver.c
+> index a31e44b2..7a9ce4d0 100644
+> --- drbd/drbd_receiver.c
+> +++ drbd/drbd_receiver.c
+> @@ -3301,6 +3301,15 @@ static int receive_DataRequest(struct
+> drbd_connection *connection, struct packet
+>                 return ignore_remaining_packet(connection, pi->size);
+>         }
+>   +     /* Tell target to have a retry, waiting for the rescheduled
+> +        * drbd_start_resync to complete. Otherwise the concurrency
+> +        * of send oos and resync may lead to a data lose. */
+> +       if ((pi->cmd == P_RS_DATA_REQUEST || pi->cmd == P_CSUM_RS_REQUEST) &&
+> +                       peer_device->repl_state[NOW] == L_WF_BITMAP_S) {
+> +               drbd_send_ack_rp(peer_device, P_RS_CANCEL, p);
+> +               return ignore_remaining_packet(connection, pi->size);
+> +       }
+> +
+>         peer_req = drbd_alloc_peer_req(peer_device, GFP_TRY);
+>         err = -ENOMEM;
+>         if (!peer_req)
+> --
+> 2.24.0.windows.2
+>
+>
+> --
+> Sincerely Yours,
+> Zhang Duan
