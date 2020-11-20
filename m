@@ -1,18 +1,35 @@
-Return-Path: <duan.zhang@easystack.cn>
-Received: from m9784.mail.qiye.163.com (m9784.mail.qiye.163.com
-	[220.181.97.84])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 029874202DB
-	for <drbd-dev@lists.linbit.com>; Wed, 18 Nov 2020 09:46:22 +0100 (CET)
-From: Zhang Duan <duan.zhang@easystack.cn>
-To: philipp.reisner@linbit.com
-Message-ID: <859ad180-0e92-5542-4d52-730589e99682@easystack.cn>
-Date: Wed, 18 Nov 2020 16:46:21 +0800
+Return-Path: <hare@suse.de>
+Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B4614420639
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 08:19:57 +0100 (CET)
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+References: <20201116145809.410558-1-hch@lst.de>
+	<20201116145809.410558-31-hch@lst.de>
+From: Hannes Reinecke <hare@suse.de>
+Message-ID: <7cad2b6b-cf14-8cbc-9cea-6f0add4a198c@suse.de>
+Date: Fri, 20 Nov 2020 08:19:55 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=gbk; format=flowed
-Content-Transfer-Encoding: 7bit
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 2/2] drbd: delay resync start unless source has
- transferred to L_SYNC_SOURCE
+In-Reply-To: <20201116145809.410558-31-hch@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
+	Song Liu <song@kernel.org>, dm-devel@redhat.com,
+	drbd-dev@lists.linbit.com, linux-scsi@vger.kernel.org,
+	xen-devel@lists.xenproject.org, Ilya Dryomov <idryomov@gmail.com>,
+	Jack Wang <jinpu.wang@cloud.ionos.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
+	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
+	ceph-devel@vger.kernel.org, linux-block@vger.kernel.org,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>
+Subject: Re: [Drbd-dev] [PATCH 30/78] block: don't call into the driver for
+	BLKROSET
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,49 +41,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-drbd_start_resync may be rescheduled due to down_trylock failure, leaves a
-state of L_WF_BITMAP_S while target state is L_SYNC_TARGET and already has
-sent its resync request. Then, resync going on while the source is 
-L_WF_BITMAP_S
-will lead to data lose by time sequence below:
+On 11/16/20 3:57 PM, Christoph Hellwig wrote:
+> Now that all drivers that want to hook into setting or clearing the
+> read-only flag use the set_read_only method, this code can be removed.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   block/ioctl.c | 23 -----------------------
+>   1 file changed, 23 deletions(-)
+> 
+Reviewed-by: Hannes Reinecke <hare@suse.de>
 
-L_WF_BITMAP_S                   L_SYNC_TARGET
-                                 resync request(sector A)
-reply old data(A)               read & write old data(A)
-new IO(A)
-send oos(A)                     set oos(A)
-A is at new version             resync write A done
-                                 set in sync(A) but A is at old version
+Cheers,
 
-Signed-off-by: ZhangDuan <duan.zhang@easystack.cn>
----
-  drbd/drbd_receiver.c | 9 +++++++++
-  1 file changed, 9 insertions(+)
-
-diff --git drbd/drbd_receiver.c drbd/drbd_receiver.c
-index a31e44b2..7a9ce4d0 100644
---- drbd/drbd_receiver.c
-+++ drbd/drbd_receiver.c
-@@ -3301,6 +3301,15 @@ static int receive_DataRequest(struct 
-drbd_connection *connection, struct packet
-  		return ignore_remaining_packet(connection, pi->size);
-  	}
-  +	/* Tell target to have a retry, waiting for the rescheduled
-+	 * drbd_start_resync to complete. Otherwise the concurrency
-+	 * of send oos and resync may lead to a data lose. */
-+	if ((pi->cmd == P_RS_DATA_REQUEST || pi->cmd == P_CSUM_RS_REQUEST) &&
-+			peer_device->repl_state[NOW] == L_WF_BITMAP_S) {
-+		drbd_send_ack_rp(peer_device, P_RS_CANCEL, p);
-+		return ignore_remaining_packet(connection, pi->size);
-+	}
-+	
-  	peer_req = drbd_alloc_peer_req(peer_device, GFP_TRY);
-  	err = -ENOMEM;
-  	if (!peer_req)
+Hannes
 -- 
-2.24.0.windows.2
-
-
--- 
-Sincerely Yours,
-Zhang Duan
+Dr. Hannes Reinecke                Kernel Storage Architect
+hare@suse.de                              +49 911 74053 688
+SUSE Software Solutions GmbH, Maxfeldstr. 5, 90409 Nürnberg
+HRB 36809 (AG Nürnberg), Geschäftsführer: Felix Imendörffer
