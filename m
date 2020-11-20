@@ -1,15 +1,15 @@
 Return-Path: <hare@suse.de>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8BC44420605
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 08:38:04 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 75FFE420605
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 08:38:31 +0100 (CET)
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20201116145809.410558-1-hch@lst.de>
-	<20201116145809.410558-62-hch@lst.de>
+	<20201116145809.410558-63-hch@lst.de>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <e6f89f0b-602b-f297-87f5-86b7c1b353f0@suse.de>
-Date: Fri, 20 Nov 2020 08:38:03 +0100
+Message-ID: <b1703b65-244d-e445-2e81-0b63dd1518f2@suse.de>
+Date: Fri, 20 Nov 2020 08:38:29 +0100
 MIME-Version: 1.0
-In-Reply-To: <20201116145809.410558-62-hch@lst.de>
+In-Reply-To: <20201116145809.410558-63-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -28,7 +28,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>
-Subject: Re: [Drbd-dev] [PATCH 61/78] zram: do not call set_blocksize
+Subject: Re: [Drbd-dev] [PATCH 62/78] loop: do not call set_blocksize
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,9 +46,8 @@ On 11/16/20 3:57 PM, Christoph Hellwig wrote:
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   drivers/block/zram/zram_drv.c | 11 +----------
->   drivers/block/zram/zram_drv.h |  1 -
->   2 files changed, 1 insertion(+), 11 deletions(-)
+>   drivers/block/loop.c | 3 ---
+>   1 file changed, 3 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
