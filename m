@@ -1,20 +1,22 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com
-	[209.85.210.193])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 45604420605
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 20:30:43 +0100 (CET)
-Received: by mail-pf1-f193.google.com with SMTP id g7so8838911pfc.2
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 11:30:43 -0800 (PST)
-Date: Fri, 20 Nov 2020 11:30:40 -0800
+Received: from mail-pl1-f196.google.com (mail-pl1-f196.google.com
+	[209.85.214.196])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 75671420334
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 21:48:03 +0100 (CET)
+Received: by mail-pl1-f196.google.com with SMTP id u2so5458010pls.10
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 12:48:03 -0800 (PST)
+Date: Fri, 20 Nov 2020 12:48:01 -0800
 From: Kees Cook <keescook@chromium.org>
 To: Jakub Kicinski <kuba@kernel.org>
-Message-ID: <202011201129.B13FDB3C@keescook>
+Message-ID: <202011201244.78E002D5@keescook>
 References: <cover.1605896059.git.gustavoars@kernel.org>
 	<20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
+	<202011201129.B13FDB3C@keescook>
+	<20201120115142.292999b2@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
+In-Reply-To: <20201120115142.292999b2@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
 Cc: alsa-devel@alsa-project.org, linux-atm-general@lists.sourceforge.net,
 	reiserfs-devel@vger.kernel.org, linux-iio@vger.kernel.org,
 	linux-wireless@vger.kernel.org, linux-fbdev@vger.kernel.org,
@@ -68,37 +70,54 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Nov 20, 2020 at 10:53:44AM -0800, Jakub Kicinski wrote:
-> On Fri, 20 Nov 2020 12:21:39 -0600 Gustavo A. R. Silva wrote:
-> > This series aims to fix almost all remaining fall-through warnings in
-> > order to enable -Wimplicit-fallthrough for Clang.
+On Fri, Nov 20, 2020 at 11:51:42AM -0800, Jakub Kicinski wrote:
+> On Fri, 20 Nov 2020 11:30:40 -0800 Kees Cook wrote:
+> > On Fri, Nov 20, 2020 at 10:53:44AM -0800, Jakub Kicinski wrote:
+> > > On Fri, 20 Nov 2020 12:21:39 -0600 Gustavo A. R. Silva wrote:  
+> > > > This series aims to fix almost all remaining fall-through warnings in
+> > > > order to enable -Wimplicit-fallthrough for Clang.
+> > > > 
+> > > > In preparation to enable -Wimplicit-fallthrough for Clang, explicitly
+> > > > add multiple break/goto/return/fallthrough statements instead of just
+> > > > letting the code fall through to the next case.
+> > > > 
+> > > > Notice that in order to enable -Wimplicit-fallthrough for Clang, this
+> > > > change[1] is meant to be reverted at some point. So, this patch helps
+> > > > to move in that direction.
+> > > > 
+> > > > Something important to mention is that there is currently a discrepancy
+> > > > between GCC and Clang when dealing with switch fall-through to empty case
+> > > > statements or to cases that only contain a break/continue/return
+> > > > statement[2][3][4].  
+> > > 
+> > > Are we sure we want to make this change? Was it discussed before?
+> > > 
+> > > Are there any bugs Clangs puritanical definition of fallthrough helped
+> > > find?
+> > > 
+> > > IMVHO compiler warnings are supposed to warn about issues that could
+> > > be bugs. Falling through to default: break; can hardly be a bug?!  
 > > 
-> > In preparation to enable -Wimplicit-fallthrough for Clang, explicitly
-> > add multiple break/goto/return/fallthrough statements instead of just
-> > letting the code fall through to the next case.
-> > 
-> > Notice that in order to enable -Wimplicit-fallthrough for Clang, this
-> > change[1] is meant to be reverted at some point. So, this patch helps
-> > to move in that direction.
-> > 
-> > Something important to mention is that there is currently a discrepancy
-> > between GCC and Clang when dealing with switch fall-through to empty case
-> > statements or to cases that only contain a break/continue/return
-> > statement[2][3][4].
+> > It's certainly a place where the intent is not always clear. I think
+> > this makes all the cases unambiguous, and doesn't impact the machine
+> > code, since the compiler will happily optimize away any behavioral
+> > redundancy.
 > 
-> Are we sure we want to make this change? Was it discussed before?
-> 
-> Are there any bugs Clangs puritanical definition of fallthrough helped
-> find?
-> 
-> IMVHO compiler warnings are supposed to warn about issues that could
-> be bugs. Falling through to default: break; can hardly be a bug?!
+> If none of the 140 patches here fix a real bug, and there is no change
+> to machine code then it sounds to me like a W=2 kind of a warning.
 
-It's certainly a place where the intent is not always clear. I think
-this makes all the cases unambiguous, and doesn't impact the machine
-code, since the compiler will happily optimize away any behavioral
-redundancy.
+I'd like to avoid splitting common -W options between default and W=2
+just based on the compiler. Getting -Wimplicit-fallthrough enabled found
+plenty of bugs, so making sure it works correctly for both compilers
+feels justified to me. (This is just a subset of the same C language
+short-coming.)
 
+> I think clang is just being annoying here, but if I'm the only one who
+> feels this way chances are I'm wrong :)
+
+It's being pretty pedantic, but I don't think it's unreasonable to
+explicitly state how every case ends. GCC's silence for the case of
+"fall through to a break" doesn't really seem justified.
 
 -- 
 Kees Cook
