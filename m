@@ -1,15 +1,15 @@
 Return-Path: <hare@suse.de>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EAA0B4207D7
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 08:59:38 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2921D4207AF
+	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 09:02:02 +0100 (CET)
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20201116145809.410558-1-hch@lst.de>
-	<20201116145809.410558-73-hch@lst.de>
+	<20201116145809.410558-74-hch@lst.de>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <aa77ac66-cfdf-a53a-c30d-e44a6fc93b38@suse.de>
-Date: Fri, 20 Nov 2020 08:59:37 +0100
+Message-ID: <a20f546f-6e14-2866-7c50-09fa385fe6f4@suse.de>
+Date: Fri, 20 Nov 2020 09:02:00 +0100
 MIME-Version: 1.0
-In-Reply-To: <20201116145809.410558-73-hch@lst.de>
+In-Reply-To: <20201116145809.410558-74-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -28,8 +28,7 @@ Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
 	Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>
-Subject: Re: [Drbd-dev] [PATCH 72/78] block: use disk_part_iter_exit in
- disk_part_iter_next
+Subject: Re: [Drbd-dev] [PATCH 73/78] block: use put_device in put_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,28 +41,27 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 11/16/20 3:58 PM, Christoph Hellwig wrote:
-> Call disk_part_iter_exit in disk_part_iter_next instead of duplicating
-> the functionality.
+> Use put_device to put the device instead of poking into the internals
+> and using kobject_put.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   block/genhd.c | 3 +--
->   1 file changed, 1 insertion(+), 2 deletions(-)
+>   block/genhd.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
 > 
 > diff --git a/block/genhd.c b/block/genhd.c
-> index 999f7142b04e7d..56bc37e98ed852 100644
+> index 56bc37e98ed852..f1e20ec1b62887 100644
 > --- a/block/genhd.c
 > +++ b/block/genhd.c
-> @@ -230,8 +230,7 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
->   	int inc, end;
+> @@ -1659,7 +1659,7 @@ EXPORT_SYMBOL(__alloc_disk_node);
+>   void put_disk(struct gendisk *disk)
+>   {
+>   	if (disk)
+> -		kobject_put(&disk_to_dev(disk)->kobj);
+> +		put_device(disk_to_dev(disk));
+>   }
+>   EXPORT_SYMBOL(put_disk);
 >   
->   	/* put the last partition */
-> -	disk_put_part(piter->part);
-> -	piter->part = NULL;
-> +	disk_part_iter_exit(piter);
->   
->   	/* get part_tbl */
->   	rcu_read_lock();
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
