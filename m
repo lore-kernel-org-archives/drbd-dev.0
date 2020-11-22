@@ -1,14 +1,14 @@
-Return-Path: <James.Bottomley@HansenPartnership.com>
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com
-	[96.44.175.130])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 08BBE4202AF
-	for <drbd-dev@lists.linbit.com>; Sun, 22 Nov 2020 20:12:35 +0100 (CET)
-Message-ID: <0147972a72bc13f3629de8a32dee6f1f308994b5.camel@HansenPartnership.com>
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-To: Joe Perches <joe@perches.com>, Kees Cook <keescook@chromium.org>, Jakub
-	Kicinski <kuba@kernel.org>
-Date: Sun, 22 Nov 2020 11:12:30 -0800
-In-Reply-To: <ca071decb87cc7e905411423c05a48f9fd2f58d7.camel@perches.com>
+Return-Path: <joe@perches.com>
+Received: from smtprelay.hostedemail.com (smtprelay0193.hostedemail.com
+	[216.40.44.193])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 16DCD4202BE
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Nov 2020 20:23:00 +0100 (CET)
+Message-ID: <d8d1e9add08cdd4158405e77762d4946037208f8.camel@perches.com>
+From: Joe Perches <joe@perches.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>, Kees Cook
+	<keescook@chromium.org>, Jakub Kicinski <kuba@kernel.org>
+Date: Sun, 22 Nov 2020 11:22:47 -0800
+In-Reply-To: <0147972a72bc13f3629de8a32dee6f1f308994b5.camel@HansenPartnership.com>
 References: <cover.1605896059.git.gustavoars@kernel.org>
 	<20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
 	<202011201129.B13FDB3C@keescook>
@@ -16,7 +16,8 @@ References: <cover.1605896059.git.gustavoars@kernel.org>
 	<202011220816.8B6591A@keescook>
 	<9b57fd4914b46f38d54087d75e072d6e947cb56d.camel@HansenPartnership.com>
 	<ca071decb87cc7e905411423c05a48f9fd2f58d7.camel@perches.com>
-Content-Type: text/plain; charset="UTF-8"
+	<0147972a72bc13f3629de8a32dee6f1f308994b5.camel@HansenPartnership.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Cc: alsa-devel@alsa-project.org, linux-atm-general@lists.sourceforge.net,
@@ -71,17 +72,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, 2020-11-22 at 10:25 -0800, Joe Perches wrote:
-> On Sun, 2020-11-22 at 10:21 -0800, James Bottomley wrote:
-> > Please tell me our reward for all this effort isn't a single
-> > missing error print.
+On Sun, 2020-11-22 at 11:12 -0800, James Bottomley wrote:
+> On Sun, 2020-11-22 at 10:25 -0800, Joe Perches wrote:
+> > On Sun, 2020-11-22 at 10:21 -0800, James Bottomley wrote:
+> > > Please tell me our reward for all this effort isn't a single
+> > > missing error print.
+> > 
+> > There were quite literally dozens of logical defects found
+> > by the fallthrough additions.  Very few were logging only.
 > 
-> There were quite literally dozens of logical defects found
-> by the fallthrough additions.  Very few were logging only.
+> So can you give us the best examples (or indeed all of them if someone
+> is keeping score)?  hopefully this isn't a US election situation ...
 
-So can you give us the best examples (or indeed all of them if someone
-is keeping score)?  hopefully this isn't a US election situation ...
+Gustavo?  Are you running for congress now?
 
-James
+https://lwn.net/Articles/794944/
 
 
