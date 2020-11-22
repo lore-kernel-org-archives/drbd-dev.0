@@ -1,14 +1,14 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pl1-f196.google.com (mail-pl1-f196.google.com
-	[209.85.214.196])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 75671420334
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 21:48:03 +0100 (CET)
-Received: by mail-pl1-f196.google.com with SMTP id u2so5458010pls.10
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Nov 2020 12:48:03 -0800 (PST)
-Date: Fri, 20 Nov 2020 12:48:01 -0800
+Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com
+	[209.85.210.193])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CF44E420323
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Nov 2020 17:17:06 +0100 (CET)
+Received: by mail-pf1-f193.google.com with SMTP id 10so12582054pfp.5
+	for <drbd-dev@lists.linbit.com>; Sun, 22 Nov 2020 08:17:06 -0800 (PST)
+Date: Sun, 22 Nov 2020 08:17:03 -0800
 From: Kees Cook <keescook@chromium.org>
 To: Jakub Kicinski <kuba@kernel.org>
-Message-ID: <202011201244.78E002D5@keescook>
+Message-ID: <202011220816.8B6591A@keescook>
 References: <cover.1605896059.git.gustavoars@kernel.org>
 	<20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
 	<202011201129.B13FDB3C@keescook>
@@ -106,18 +106,8 @@ On Fri, Nov 20, 2020 at 11:51:42AM -0800, Jakub Kicinski wrote:
 > If none of the 140 patches here fix a real bug, and there is no change
 > to machine code then it sounds to me like a W=2 kind of a warning.
 
-I'd like to avoid splitting common -W options between default and W=2
-just based on the compiler. Getting -Wimplicit-fallthrough enabled found
-plenty of bugs, so making sure it works correctly for both compilers
-feels justified to me. (This is just a subset of the same C language
-short-coming.)
-
-> I think clang is just being annoying here, but if I'm the only one who
-> feels this way chances are I'm wrong :)
-
-It's being pretty pedantic, but I don't think it's unreasonable to
-explicitly state how every case ends. GCC's silence for the case of
-"fall through to a break" doesn't really seem justified.
+FWIW, this series has found at least one bug so far:
+https://lore.kernel.org/lkml/CAFCwf11izHF=g1mGry1fE5kvFFFrxzhPSM6qKAO8gxSp=Kr_CQ@mail.gmail.com/
 
 -- 
 Kees Cook
