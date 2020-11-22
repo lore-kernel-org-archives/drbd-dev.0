@@ -1,13 +1,13 @@
-Return-Path: <James.Bottomley@HansenPartnership.com>
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com
-	[96.44.175.130])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A5C84420331
-	for <drbd-dev@lists.linbit.com>; Sun, 22 Nov 2020 23:36:06 +0100 (CET)
-Message-ID: <1c7d7fde126bc0acf825766de64bf2f9b888f216.camel@HansenPartnership.com>
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Return-Path: <fthain@telegraphics.com.au>
+Received: from kvm5.telegraphics.com.au (kvm5.telegraphics.com.au
+	[98.124.60.144])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 872CE420331
+	for <drbd-dev@lists.linbit.com>; Mon, 23 Nov 2020 00:02:53 +0100 (CET)
+Date: Mon, 23 Nov 2020 09:54:48 +1100 (AEDT)
+From: Finn Thain <fthain@telegraphics.com.au>
 To: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
-Date: Sun, 22 Nov 2020 14:36:00 -0800
 In-Reply-To: <CANiq72nZrHWTA4_Msg6MP9snTyenC6-eGfD27CyfNSu7QoVZbw@mail.gmail.com>
+Message-ID: <alpine.LNX.2.23.453.2011230938390.7@nippy.intranet>
 References: <cover.1605896059.git.gustavoars@kernel.org>
 	<20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
 	<202011201129.B13FDB3C@keescook>
@@ -15,10 +15,10 @@ References: <cover.1605896059.git.gustavoars@kernel.org>
 	<202011220816.8B6591A@keescook>
 	<9b57fd4914b46f38d54087d75e072d6e947cb56d.camel@HansenPartnership.com>
 	<CANiq72nZrHWTA4_Msg6MP9snTyenC6-eGfD27CyfNSu7QoVZbw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Cc: alsa-devel@alsa-project.org, linux-atm-general@lists.sourceforge.net,
+Content-Type: text/plain; charset=US-ASCII
+Cc: linux-watchdog@vger.kernel.org, alsa-devel@alsa-project.org,
+	linux-atm-general@lists.sourceforge.net,
 	reiserfs-devel@vger.kernel.org, linux-iio@vger.kernel.org,
 	linux-wireless <linux-wireless@vger.kernel.org>,
 	linux-fbdev@vger.kernel.org, dri-devel@lists.freedesktop.org,
@@ -31,7 +31,7 @@ Cc: alsa-devel@alsa-project.org, linux-atm-general@lists.sourceforge.net,
 	linux1394-devel@lists.sourceforge.net, linux-afs@lists.infradead.org,
 	usb-storage@lists.one-eyed-alien.net, drbd-dev@lists.linbit.com,
 	devel@driverdev.osuosl.org, linux-cifs@vger.kernel.org,
-	rds-devel@oss.oracle.com, Desaulniers <ndesaulniers@google.com>,
+	rds-devel@oss.oracle.com, Nick Desaulniers <ndesaulniers@google.com>,
 	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org,
 	oss-drivers@netronome.com, bridge@lists.linux-foundation.org,
 	linux-security-module@vger.kernel.org, amd-gfx@lists.freedesktop.org,
@@ -41,18 +41,19 @@ Cc: alsa-devel@alsa-project.org, linux-atm-general@lists.sourceforge.net,
 	linux-input <linux-input@vger.kernel.org>, Miguel Ojeda <ojeda@kernel.org>,
 	Jakub Kicinski <kuba@kernel.org>,
 	Ext4 Developers List <linux-ext4@vger.kernel.org>,
-	Media Mailing List <linux-media@vger.kernel.org>,
+	Linux Media Mailing List <linux-media@vger.kernel.org>,
 	GR-Linux-NIC-Dev@marvell.com, Kees Cook <keescook@chromium.org>,
 	selinux@vger.kernel.org, linux-arm-msm@vger.kernel.org,
-	intel-gfx@lists.freedesktop.org, Nick,
-	linux-geode@lists.infradead.org, linux-can@vger.kernel.org,
-	linux-block@vger.kernel.org, linux-gpio@vger.kernel.org,
-	op-tee@lists.trustedfirmware.org, linux-mediatek@lists.infradead.org,
+	intel-gfx@lists.freedesktop.org, linux-geode@lists.infradead.org,
+	linux-can@vger.kernel.org,
+	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	linux-gpio@vger.kernel.org, op-tee@lists.trustedfirmware.org,
+	linux-mediatek@lists.infradead.org,
 	GR-everest-linux-l2@marvell.com, xen-devel@lists.xenproject.org,
 	nouveau@lists.freedesktop.org, linux-hams@vger.kernel.org,
 	ceph-devel@vger.kernel.org, virtualization@lists.linux-foundation.org,
 	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	linux-hwmon@vger.kernel.org, linux-watchdog@vger.kernel.org,
+	linux-hwmon@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-nfs@vger.kernel.org, tipc-discussion@lists.sourceforge.net,
 	Linux-MM <linux-mm@kvack.org>,
 	Network Development <netdev@vger.kernel.org>,
@@ -61,9 +62,9 @@ Cc: alsa-devel@alsa-project.org, linux-atm-general@lists.sourceforge.net,
 	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>,
 	linux-renesas-soc@vger.kernel.org, linux-sctp@vger.kernel.org,
 	linux-usb@vger.kernel.org, netfilter-devel@vger.kernel.org,
-	List <linux-crypto@vger.kernel.org>, Linux,
-	Joe Perches <joe@perches.com>, linux-integrity@vger.kernel.org,
-	patches@opensource.cirrus.com, target-devel@vger.kernel.org
+	Linux Crypto Mailing List <linux-crypto@vger.kernel.org>,
+	patches@opensource.cirrus.com, Joe Perches <joe@perches.com>,
+	linux-integrity@vger.kernel.org, target-devel@vger.kernel.org
 Subject: Re: [Drbd-dev] [PATCH 000/141] Fix fall-through warnings for Clang
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -76,55 +77,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, 2020-11-22 at 21:35 +0100, Miguel Ojeda wrote:
-> On Sun, Nov 22, 2020 at 7:22 PM James Bottomley
-> <James.Bottomley@hansenpartnership.com> wrote:
-> > Well, it's a problem in an error leg, sure, but it's not a really
-> > compelling reason for a 141 patch series, is it?  All that fixing
-> > this error will do is get the driver to print "oh dear there's a
-> > problem" under four more conditions than it previously did.
-> > 
-> > We've been at this for three years now with nearly a thousand
-> > patches, firstly marking all the fall throughs with /* fall through
-> > */ and later changing it to fallthrough.  At some point we do have
-> > to ask if the effort is commensurate with the protection
-> > afforded.  Please tell me our reward for all this effort isn't a
-> > single missing error print.
+
+On Sun, 22 Nov 2020, Miguel Ojeda wrote:
+
 > 
-> It isn't that much effort, isn't it?
+> It isn't that much effort, isn't it? Plus we need to take into account 
+> the future mistakes that it might prevent, too.
 
-Well, it seems to be three years of someone's time plus the maintainer
-review time and series disruption of nearly a thousand patches.  Let's
-be conservative and assume the producer worked about 30% on the series
-and it takes about 5-10 minutes per patch to review, merge and for
-others to rework existing series.  So let's say it's cost a person year
-of a relatively junior engineer producing the patches and say 100h of
-review and application time.  The latter is likely the big ticket item
-because it's what we have in least supply in the kernel (even though
-it's 20x vs the producer time).
+We should also take into account optimisim about future improvements in 
+tooling.
 
->  Plus we need to take into account the future mistakes that it might
-> prevent, too. So even if there were zero problems found so far, it is
-> still a positive change.
+> So even if there were zero problems found so far, it is still a positive 
+> change.
+> 
 
-Well, the question I was asking is if it's worth the cost which I've
-tried to outline above.
+It is if you want to spin it that way.
 
-> I would agree if these changes were high risk, though; but they are
+> I would agree if these changes were high risk, though; but they are 
 > almost trivial.
+> 
 
-It's not about the risk of the changes it's about the cost of
-implementing them.  Even if you discount the producer time (which
-someone gets to pay for, and if I were the engineering manager, I'd be
-unhappy about), the review/merge/rework time is pretty significant in
-exchange for six minor bug fixes.  Fine, when a new compiler warning
-comes along it's certainly reasonable to see if we can benefit from it
-and the fact that the compiler people think it's worthwhile is enough
-evidence to assume this initially.  But at some point you have to ask
-whether that assumption is supported by the evidence we've accumulated
-over the time we've been using it.  And if the evidence doesn't support
-it perhaps it is time to stop the experiment.
+This is trivial:
 
-James
+ case 1:
+	this();
++	fallthrough;
+ case 2:
+ 	that();
 
+But what we inevitably get is changes like this:
 
+ case 3:
+        this();
++       break;
+ case 4:
+        hmmm();
+
+Why? Mainly to silence the compiler. Also because the patch author argued 
+successfully that they had found a theoretical bug, often in mature code.
+
+But is anyone keeping score of the regressions? If unreported bugs count, 
+what about unreported regressions?
+
+> Cheers,
+> Miguel
+> 
