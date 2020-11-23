@@ -1,10 +1,10 @@
 Return-Path: <miguel.ojeda.sandonis@gmail.com>
-Received: from mail-yb1-f193.google.com (mail-yb1-f193.google.com
-	[209.85.219.193])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6836A42062F
-	for <drbd-dev@lists.linbit.com>; Mon, 23 Nov 2020 15:05:44 +0100 (CET)
-Received: by mail-yb1-f193.google.com with SMTP id 10so16032889ybx.9
-	for <drbd-dev@lists.linbit.com>; Mon, 23 Nov 2020 06:05:44 -0800 (PST)
+Received: from mail-yb1-f196.google.com (mail-yb1-f196.google.com
+	[209.85.219.196])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A8BA842062F
+	for <drbd-dev@lists.linbit.com>; Mon, 23 Nov 2020 15:20:06 +0100 (CET)
+Received: by mail-yb1-f196.google.com with SMTP id o71so16087691ybc.2
+	for <drbd-dev@lists.linbit.com>; Mon, 23 Nov 2020 06:20:06 -0800 (PST)
 MIME-Version: 1.0
 References: <cover.1605896059.git.gustavoars@kernel.org>
 	<20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
@@ -13,15 +13,14 @@ References: <cover.1605896059.git.gustavoars@kernel.org>
 	<202011220816.8B6591A@keescook>
 	<9b57fd4914b46f38d54087d75e072d6e947cb56d.camel@HansenPartnership.com>
 	<CANiq72nZrHWTA4_Msg6MP9snTyenC6-eGfD27CyfNSu7QoVZbw@mail.gmail.com>
-	<alpine.LNX.2.23.453.2011230938390.7@nippy.intranet>
-In-Reply-To: <alpine.LNX.2.23.453.2011230938390.7@nippy.intranet>
+	<1c7d7fde126bc0acf825766de64bf2f9b888f216.camel@HansenPartnership.com>
+In-Reply-To: <1c7d7fde126bc0acf825766de64bf2f9b888f216.camel@HansenPartnership.com>
 From: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
-Date: Mon, 23 Nov 2020 15:05:31 +0100
-Message-ID: <CANiq72=z+tmuey9wj3Kk7wX5s0hTHpsQdLhAqcOVNrHon6xn5Q@mail.gmail.com>
-To: Finn Thain <fthain@telegraphics.com.au>
+Date: Mon, 23 Nov 2020 15:19:55 +0100
+Message-ID: <CANiq72m22Jb5_+62NnwX8xds2iUdWDMAqD8PZw9cuxdHd95W0A@mail.gmail.com>
+To: James Bottomley <James.Bottomley@hansenpartnership.com>
 Content-Type: text/plain; charset="UTF-8"
-Cc: linux-watchdog@vger.kernel.org, alsa-devel@alsa-project.org,
-	linux-atm-general@lists.sourceforge.net,
+Cc: alsa-devel@alsa-project.org, linux-atm-general@lists.sourceforge.net,
 	reiserfs-devel@vger.kernel.org, linux-iio@vger.kernel.org,
 	linux-wireless <linux-wireless@vger.kernel.org>,
 	linux-fbdev@vger.kernel.org, dri-devel@lists.freedesktop.org,
@@ -48,15 +47,14 @@ Cc: linux-watchdog@vger.kernel.org, alsa-devel@alsa-project.org,
 	GR-Linux-NIC-Dev@marvell.com, Kees Cook <keescook@chromium.org>,
 	selinux@vger.kernel.org, linux-arm-msm@vger.kernel.org,
 	intel-gfx@lists.freedesktop.org, linux-geode@lists.infradead.org,
-	linux-can@vger.kernel.org,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	linux-can@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-gpio@vger.kernel.org, op-tee@lists.trustedfirmware.org,
 	linux-mediatek@lists.infradead.org,
 	GR-everest-linux-l2@marvell.com, xen-devel@lists.xenproject.org,
 	nouveau@lists.freedesktop.org, linux-hams@vger.kernel.org,
 	ceph-devel@vger.kernel.org, virtualization@lists.linux-foundation.org,
 	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	linux-hwmon@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-hwmon@vger.kernel.org, linux-watchdog@vger.kernel.org,
 	linux-nfs@vger.kernel.org, tipc-discussion@lists.sourceforge.net,
 	Linux-MM <linux-mm@kvack.org>,
 	Network Development <netdev@vger.kernel.org>,
@@ -80,41 +78,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, Nov 22, 2020 at 11:54 PM Finn Thain <fthain@telegraphics.com.au> wrote:
+On Sun, Nov 22, 2020 at 11:36 PM James Bottomley
+<James.Bottomley@hansenpartnership.com> wrote:
 >
-> We should also take into account optimisim about future improvements in
-> tooling.
+> Well, it seems to be three years of someone's time plus the maintainer
+> review time and series disruption of nearly a thousand patches.  Let's
+> be conservative and assume the producer worked about 30% on the series
+> and it takes about 5-10 minutes per patch to review, merge and for
+> others to rework existing series.  So let's say it's cost a person year
+> of a relatively junior engineer producing the patches and say 100h of
+> review and application time.  The latter is likely the big ticket item
+> because it's what we have in least supply in the kernel (even though
+> it's 20x vs the producer time).
 
-Not sure what you mean here. There is no reliable way to guess what
-the intention was with a missing fallthrough, even if you parsed
-whitespace and indentation.
+How are you arriving at such numbers? It is a total of ~200 trivial lines.
 
-> It is if you want to spin it that way.
+> It's not about the risk of the changes it's about the cost of
+> implementing them.  Even if you discount the producer time (which
+> someone gets to pay for, and if I were the engineering manager, I'd be
+> unhappy about), the review/merge/rework time is pretty significant in
+> exchange for six minor bug fixes.  Fine, when a new compiler warning
+> comes along it's certainly reasonable to see if we can benefit from it
+> and the fact that the compiler people think it's worthwhile is enough
+> evidence to assume this initially.  But at some point you have to ask
+> whether that assumption is supported by the evidence we've accumulated
+> over the time we've been using it.  And if the evidence doesn't support
+> it perhaps it is time to stop the experiment.
 
-How is that a "spin"? It is a fact that we won't get *implicit*
-fallthrough mistakes anymore (in particular if we make it a hard
-error).
+Maintainers routinely review 1-line trivial patches, not to mention
+internal API changes, etc.
 
-> But what we inevitably get is changes like this:
->
->  case 3:
->         this();
-> +       break;
->  case 4:
->         hmmm();
->
-> Why? Mainly to silence the compiler. Also because the patch author argued
-> successfully that they had found a theoretical bug, often in mature code.
-
-If someone changes control flow, that is on them. Every kernel
-developer knows what `break` does.
-
-> But is anyone keeping score of the regressions? If unreported bugs count,
-> what about unreported regressions?
-
-Introducing `fallthrough` does not change semantics. If you are really
-keen, you can always compare the objects because the generated code
-shouldn't change.
+If some company does not want to pay for that, that's fine, but they
+don't get to be maintainers and claim `Supported`.
 
 Cheers,
 Miguel
