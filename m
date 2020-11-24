@@ -1,14 +1,13 @@
-Return-Path: <keescook@chromium.org>
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com
-	[209.85.215.195])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EF873420168
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Nov 2020 22:32:47 +0100 (CET)
-Received: by mail-pg1-f195.google.com with SMTP id t3so343054pgi.11
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Nov 2020 13:32:47 -0800 (PST)
-Date: Tue, 24 Nov 2020 13:32:44 -0800
-From: Kees Cook <keescook@chromium.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Message-ID: <202011241327.BB28F12F6@keescook>
+Return-Path: <fthain@telegraphics.com.au>
+Received: from kvm5.telegraphics.com.au (kvm5.telegraphics.com.au
+	[98.124.60.144])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 55ED7420100
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Nov 2020 23:24:13 +0100 (CET)
+Date: Wed, 25 Nov 2020 09:24:08 +1100 (AEDT)
+From: Finn Thain <fthain@telegraphics.com.au>
+To: Kees Cook <keescook@chromium.org>
+In-Reply-To: <202011241327.BB28F12F6@keescook>
+Message-ID: <alpine.LNX.2.23.453.2011250859290.15@nippy.intranet>
 References: <202011201129.B13FDB3C@keescook>
 	<20201120115142.292999b2@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
 	<202011220816.8B6591A@keescook>
@@ -19,16 +18,16 @@ References: <202011201129.B13FDB3C@keescook>
 	<dbd2cb703ed9eefa7dde9281ea26ab0f7acc8afe.camel@HansenPartnership.com>
 	<20201123130348.GA3119@embeddedor>
 	<8f5611bb015e044fa1c0a48147293923c2d904e4.camel@HansenPartnership.com>
+	<202011241327.BB28F12F6@keescook>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8f5611bb015e044fa1c0a48147293923c2d904e4.camel@HansenPartnership.com>
+Content-Type: text/plain; charset=US-ASCII
 Cc: alsa-devel@alsa-project.org, bridge@lists.linux-foundation.org,
 	target-devel@vger.kernel.org,
 	Greg KH <gregkh@linuxfoundation.org>, linux-iio@vger.kernel.org,
-	samba-technical@lists.samba.org, linux-fbdev@vger.kernel.org,
+	linux-wireless@vger.kernel.org, linux-fbdev@vger.kernel.org,
 	dri-devel@lists.freedesktop.org,
 	"Gustavo A. R. Silva" <gustavoars@kernel.org>,
+	James Bottomley <James.Bottomley@HansenPartnership.com>,
 	linux-ide@vger.kernel.org, dm-devel@redhat.com,
 	keyrings@vger.kernel.org, linux-mtd@lists.infradead.org,
 	linux-hardening@vger.kernel.org,
@@ -62,7 +61,7 @@ Cc: alsa-devel@alsa-project.org, bridge@lists.linux-foundation.org,
 	linux-hwmon@vger.kernel.org, Nick Desaulniers <ndesaulniers@google.com>,
 	linux-nfs@vger.kernel.org, linux-mm@kvack.org,
 	netdev@vger.kernel.org, linux-decnet-user@lists.sourceforge.net,
-	linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
+	samba-technical@lists.samba.org, linux-kernel@vger.kernel.org,
 	linux-renesas-soc@vger.kernel.org,
 	linux-security-module@vger.kernel.org, linux-usb@vger.kernel.org,
 	tipc-discussion@lists.sourceforge.net,
@@ -82,31 +81,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Nov 23, 2020 at 08:31:30AM -0800, James Bottomley wrote:
-> Really, no ... something which produces no improvement has no value at
-> all ... we really shouldn't be wasting maintainer time with it because
-> it has a cost to merge.  I'm not sure we understand where the balance
-> lies in value vs cost to merge but I am confident in the zero value
-> case.
+On Tue, 24 Nov 2020, Kees Cook wrote:
 
-What? We can't measure how many future bugs aren't introduced because the
-kernel requires explicit case flow-control statements for all new code.
+> On Mon, Nov 23, 2020 at 08:31:30AM -0800, James Bottomley wrote:
+> > Really, no ... something which produces no improvement has no value at 
+> > all ... we really shouldn't be wasting maintainer time with it because 
+> > it has a cost to merge.  I'm not sure we understand where the balance 
+> > lies in value vs cost to merge but I am confident in the zero value 
+> > case.
+> 
+> What? We can't measure how many future bugs aren't introduced because 
+> the kernel requires explicit case flow-control statements for all new 
+> code.
+> 
 
-We already enable -Wimplicit-fallthrough globally, so that's not the
-discussion. The issue is that Clang is (correctly) even more strict
-than GCC for this, so these are the remaining ones to fix for full Clang
-coverage too.
+These statements are not "missing" unless you presume that code written 
+before the latest de facto language spec was written should somehow be 
+held to that spec.
 
-People have spent more time debating this already than it would have
-taken to apply the patches. :)
+If the 'fallthrough' statement is not part of the latest draft spec then 
+we should ask why not before we embrace it. Being that the kernel still 
+prefers -std=gnu89 you might want to consider what has prevented 
+-std=gnu99 or -std=gnu2x etc.
 
-This is about robustness and language wrangling. It's a big code-base,
-and this is the price of our managing technical debt for permanent
-robustness improvements. (The numbers I ran from Gustavo's earlier
-patches were that about 10% of the places adjusted were identified as
-legitimate bugs being fixed. This final series may be lower, but there
-are still bugs being found from it -- we need to finish this and shut
-the door on it for good.)
+> We already enable -Wimplicit-fallthrough globally, so that's not the 
+> discussion. The issue is that Clang is (correctly) even more strict than 
+> GCC for this, so these are the remaining ones to fix for full Clang 
+> coverage too.
+> 
 
--- 
-Kees Cook
+Seems to me you should be patching the compiler.
+
+When you have consensus among the language lawyers you'll have more 
+credibility with those being subjected to enforcement.
