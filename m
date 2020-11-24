@@ -1,33 +1,27 @@
-Return-Path: <joe@perches.com>
-Received: from smtprelay.hostedemail.com (smtprelay0225.hostedemail.com
-	[216.40.44.225])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3214D4207BD
-	for <drbd-dev@lists.linbit.com>; Tue, 24 Nov 2020 02:05:43 +0100 (CET)
-Message-ID: <e72a1aaef8673553a3ee9dfa033d6e893e00abcd.camel@perches.com>
-From: Joe Perches <joe@perches.com>
-To: Finn Thain <fthain@telegraphics.com.au>, Miguel Ojeda
-	<miguel.ojeda.sandonis@gmail.com>
-Date: Mon, 23 Nov 2020 17:05:30 -0800
-In-Reply-To: <alpine.LNX.2.23.453.2011241036520.7@nippy.intranet>
+Return-Path: <ndesaulniers@google.com>
+Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com
+	[209.85.210.195])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7B3EA4202AF
+	for <drbd-dev@lists.linbit.com>; Tue, 24 Nov 2020 02:33:05 +0100 (CET)
+Received: by mail-pf1-f195.google.com with SMTP id b63so16788943pfg.12
+	for <drbd-dev@lists.linbit.com>; Mon, 23 Nov 2020 17:33:05 -0800 (PST)
+MIME-Version: 1.0
 References: <cover.1605896059.git.gustavoars@kernel.org>
 	<20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
 	<202011201129.B13FDB3C@keescook>
 	<20201120115142.292999b2@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
 	<202011220816.8B6591A@keescook>
-	<9b57fd4914b46f38d54087d75e072d6e947cb56d.camel@HansenPartnership.com>
-	<CANiq72nZrHWTA4_Msg6MP9snTyenC6-eGfD27CyfNSu7QoVZbw@mail.gmail.com>
-	<alpine.LNX.2.23.453.2011230938390.7@nippy.intranet>
-	<CANiq72=z+tmuey9wj3Kk7wX5s0hTHpsQdLhAqcOVNrHon6xn5Q@mail.gmail.com>
-	<alpine.LNX.2.23.453.2011241036520.7@nippy.intranet>
-Content-Type: text/plain; charset="ISO-8859-1"
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Cc: linux-watchdog@vger.kernel.org, alsa-devel@alsa-project.org,
-	linux-atm-general@lists.sourceforge.net,
+In-Reply-To: <202011220816.8B6591A@keescook>
+From: Nick Desaulniers <ndesaulniers@google.com>
+Date: Mon, 23 Nov 2020 17:32:51 -0800
+Message-ID: <CAKwvOdntVfXj2WRR5n6Kw7BfG7FdKpTeHeh5nPu5AzwVMhOHTg@mail.gmail.com>
+To: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset="UTF-8"
+Cc: alsa-devel@alsa-project.org, linux-atm-general@lists.sourceforge.net,
 	reiserfs-devel@vger.kernel.org, linux-iio@vger.kernel.org,
 	linux-wireless <linux-wireless@vger.kernel.org>,
-	linux-fbdev@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	"Gustavo A. R. Silva" <gustavoars@kernel.org>,
+	linux-fbdev@vger.kernel.org, dri-devel <dri-devel@lists.freedesktop.org>,
+	LKML <linux-kernel@vger.kernel.org>,
 	Nathan Chancellor <natechancellor@gmail.com>,
 	linux-ide@vger.kernel.org, dm-devel@redhat.com,
 	keyrings@vger.kernel.org, linux-mtd@lists.infradead.org,
@@ -36,39 +30,39 @@ Cc: linux-watchdog@vger.kernel.org, alsa-devel@alsa-project.org,
 	linux1394-devel@lists.sourceforge.net, linux-afs@lists.infradead.org,
 	usb-storage@lists.one-eyed-alien.net, drbd-dev@lists.linbit.com,
 	devel@driverdev.osuosl.org, linux-cifs@vger.kernel.org,
-	rds-devel@oss.oracle.com, Desaulniers <ndesaulniers@google.com>,
-	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org,
-	oss-drivers@netronome.com, bridge@lists.linux-foundation.org,
-	linux-security-module@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	rds-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
+	linux-rdma@vger.kernel.org, oss-drivers@netronome.com,
+	bridge@lists.linux-foundation.org, linux-security-module@vger.kernel.org,
+	amd-gfx list <amd-gfx@lists.freedesktop.org>,
 	linux-stm32@st-md-mailman.stormreply.com,
 	cluster-devel@redhat.com, linux-acpi@vger.kernel.org,
 	coreteam@netfilter.org, intel-wired-lan@lists.osuosl.org,
-	linux-input <linux-input@vger.kernel.org>, Miguel Ojeda <ojeda@kernel.org>,
-	Jakub Kicinski <kuba@kernel.org>,
-	Ext4 Developers List <linux-ext4@vger.kernel.org>,
-	Media Mailing List <linux-media@vger.kernel.org>,
-	GR-Linux-NIC-Dev@marvell.com, Kees Cook <keescook@chromium.org>,
-	selinux@vger.kernel.org, linux-arm-msm@vger.kernel.org,
-	intel-gfx@lists.freedesktop.org, Nick,
-	linux-geode@lists.infradead.org, linux-can@vger.kernel.org,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	linux-input@vger.kernel.org, Miguel Ojeda <ojeda@kernel.org>,
+	Jakub Kicinski <kuba@kernel.org>, linux-ext4@vger.kernel.org,
+	linux-media@vger.kernel.org, GR-Linux-NIC-Dev@marvell.com,
+	linux-watchdog@vger.kernel.org, selinux@vger.kernel.org,
+	linux-arm-msm <linux-arm-msm@vger.kernel.org>,
+	intel-gfx@lists.freedesktop.org, linux-geode@lists.infradead.org,
+	linux-can@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-gpio@vger.kernel.org, op-tee@lists.trustedfirmware.org,
 	linux-mediatek@lists.infradead.org,
 	GR-everest-linux-l2@marvell.com, xen-devel@lists.xenproject.org,
 	nouveau@lists.freedesktop.org, linux-hams@vger.kernel.org,
 	ceph-devel@vger.kernel.org, virtualization@lists.linux-foundation.org,
 	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	linux-hwmon@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-hwmon@vger.kernel.org,
+	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>,
 	linux-nfs@vger.kernel.org, tipc-discussion@lists.sourceforge.net,
-	Linux-MM <linux-mm@kvack.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
 	Network Development <netdev@vger.kernel.org>,
 	linux-decnet-user@lists.sourceforge.net, linux-mmc@vger.kernel.org,
-	linux-kernel <linux-kernel@vger.kernel.org>,
-	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>,
-	linux-renesas-soc@vger.kernel.org, linux-sctp@vger.kernel.org,
-	linux-usb@vger.kernel.org, netfilter-devel@vger.kernel.org,
-	List <linux-crypto@vger.kernel.org>, Linux,
-	linux-integrity@vger.kernel.org, patches@opensource.cirrus.com,
+	"Gustavo A. R. Silva" <gustavoars@kernel.org>,
+	Linux-Renesas <linux-renesas-soc@vger.kernel.org>,
+	linux-sctp@vger.kernel.org, linux-usb@vger.kernel.org,
+	netfilter-devel@vger.kernel.org,
+	"open list:HARDWARE RANDOM NUMBER GENERATOR CORE"
+	<linux-crypto@vger.kernel.org>, patches@opensource.cirrus.com,
+	Joe Perches <joe@perches.com>, linux-integrity@vger.kernel.org,
 	target-devel@vger.kernel.org
 Subject: Re: [Drbd-dev] [PATCH 000/141] Fix fall-through warnings for Clang
 List-Id: "*Coordination* of development, patches,
@@ -82,14 +76,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, 2020-11-24 at 11:58 +1100, Finn Thain wrote:
-> it's not for me to prove that such patches don't affect code 
-> generation. That's for the patch author and (unfortunately) for reviewers.
+On Sun, Nov 22, 2020 at 8:17 AM Kees Cook <keescook@chromium.org> wrote:
+>
+> On Fri, Nov 20, 2020 at 11:51:42AM -0800, Jakub Kicinski wrote:
+> > If none of the 140 patches here fix a real bug, and there is no change
+> > to machine code then it sounds to me like a W=2 kind of a warning.
+>
+> FWIW, this series has found at least one bug so far:
+> https://lore.kernel.org/lkml/CAFCwf11izHF=g1mGry1fE5kvFFFrxzhPSM6qKAO8gxSp=Kr_CQ@mail.gmail.com/
 
-Ideally, that proof would be provided by the compilation system itself
-and not patch authors nor reviewers nor maintainers.
+So looks like the bulk of these are:
+switch (x) {
+  case 0:
+    ++x;
+  default:
+    break;
+}
 
-Unfortunately gcc does not guarantee repeatability or deterministic output.
-To my knowledge, neither does clang.
+I have a patch that fixes those up for clang:
+https://reviews.llvm.org/D91895
 
+There's 3 other cases that don't quite match between GCC and Clang I
+observe in the kernel:
+switch (x) {
+  case 0:
+    ++x;
+  default:
+    goto y;
+}
+y:;
 
+switch (x) {
+  case 0:
+    ++x;
+  default:
+    return;
+}
+
+switch (x) {
+  case 0:
+    ++x;
+  default:
+    ;
+}
+
+Based on your link, and Nathan's comment on my patch, maybe Clang
+should continue to warn for the above (at least the `default: return;`
+case) and GCC should change?  While the last case looks harmless,
+there were only 1 or 2 across the tree in my limited configuration
+testing; I really think we should just add `break`s for those.
+-- 
+Thanks,
+~Nick Desaulniers
