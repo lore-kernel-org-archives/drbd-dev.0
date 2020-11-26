@@ -1,83 +1,38 @@
-Return-Path: <fthain@telegraphics.com.au>
-Received: from kvm5.telegraphics.com.au (kvm5.telegraphics.com.au
-	[98.124.60.144])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C37E4420118
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 01:30:41 +0100 (CET)
-Date: Thu, 26 Nov 2020 11:30:36 +1100 (AEDT)
-From: Finn Thain <fthain@telegraphics.com.au>
-To: Nick Desaulniers <ndesaulniers@google.com>
-In-Reply-To: <CAKwvOdna5Zj_O=sB7Q0jHZX0BJSaakX=ZyftwQ_3=L3-ZB54XQ@mail.gmail.com>
-Message-ID: <alpine.LNX.2.23.453.2011261031290.6@nippy.intranet>
-References: <202011201129.B13FDB3C@keescook>
-	<20201120115142.292999b2@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
-	<202011220816.8B6591A@keescook>
-	<9b57fd4914b46f38d54087d75e072d6e947cb56d.camel@HansenPartnership.com>
-	<ca071decb87cc7e905411423c05a48f9fd2f58d7.camel@perches.com>
-	<0147972a72bc13f3629de8a32dee6f1f308994b5.camel@HansenPartnership.com>
-	<d8d1e9add08cdd4158405e77762d4946037208f8.camel@perches.com>
-	<dbd2cb703ed9eefa7dde9281ea26ab0f7acc8afe.camel@HansenPartnership.com>
-	<20201123130348.GA3119@embeddedor>
-	<8f5611bb015e044fa1c0a48147293923c2d904e4.camel@HansenPartnership.com>
-	<202011241327.BB28F12F6@keescook>
-	<a841536fe65bb33f1c72ce2455a6eb47a0107565.camel@HansenPartnership.com>
-	<CAKwvOdkGBn7nuWTAqrORMeN1G+w3YwBfCqqaRD2nwvoAXKi=Aw@mail.gmail.com>
-	<alpine.LNX.2.23.453.2011260750300.6@nippy.intranet>
-	<CAKwvOdna5Zj_O=sB7Q0jHZX0BJSaakX=ZyftwQ_3=L3-ZB54XQ@mail.gmail.com>
+Return-Path: <minchan.kim@gmail.com>
+Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com
+	[209.85.215.195])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D06DC420118
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 02:11:12 +0100 (CET)
+Received: by mail-pg1-f195.google.com with SMTP id 81so302176pgf.0
+	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2020 17:11:12 -0800 (PST)
+Sender: Minchan Kim <minchan.kim@gmail.com>
+Date: Wed, 25 Nov 2020 17:11:07 -0800
+From: Minchan Kim <minchan@kernel.org>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <20201126011107.GA57352@google.com>
+References: <20201116145809.410558-1-hch@lst.de>
+	<20201116145809.410558-61-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Cc: alsa-devel@alsa-project.org, bridge@lists.linux-foundation.org,
-	target-devel@vger.kernel.org,
-	Greg KH <gregkh@linuxfoundation.org>, linux-iio@vger.kernel.org,
-	linux-wireless <linux-wireless@vger.kernel.org>,
-	linux-fbdev@vger.kernel.org, dri-devel <dri-devel@lists.freedesktop.org>,
-	"Gustavo A. R. Silva" <gustavoars@kernel.org>,
-	linux-ide@vger.kernel.org, dm-devel@redhat.com,
-	keyrings@vger.kernel.org, linux-mtd@lists.infradead.org,
-	linux-hardening@vger.kernel.org,
-	Jonathan Cameron <Jonathan.Cameron@huawei.com>,
-	wcn36xx@lists.infradead.org, linux-i3c@lists.infradead.org,
-	linux1394-devel@lists.sourceforge.net,
-	linux-afs@lists.infradead.org, drbd-dev@lists.linbit.com,
-	devel@driverdev.osuosl.org, linux-cifs@vger.kernel.org,
-	rds-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
-	linux-acpi@vger.kernel.org, linux-rdma@vger.kernel.org,
-	oss-drivers@netronome.com, linux-atm-general@lists.sourceforge.net,
-	ceph-devel@vger.kernel.org, amd-gfx list <amd-gfx@lists.freedesktop.org>,
-	linux-stm32@st-md-mailman.stormreply.com,
-	cluster-devel@redhat.com, usb-storage@lists.one-eyed-alien.net,
-	linux-mmc@vger.kernel.org, coreteam@netfilter.org,
-	intel-wired-lan@lists.osuosl.org, linux-input@vger.kernel.org,
-	Miguel Ojeda <ojeda@kernel.org>,
-	Jakub Kicinski <kuba@kernel.org>, linux-ext4@vger.kernel.org,
-	virtualization@lists.linux-foundation.org,
-	netfilter-devel@vger.kernel.org, linux-media@vger.kernel.org,
-	GR-Linux-NIC-Dev@marvell.com, Kees Cook <keescook@chromium.org>,
-	selinux@vger.kernel.org, linux-arm-msm <linux-arm-msm@vger.kernel.org>,
-	intel-gfx@lists.freedesktop.org, linux-sctp@vger.kernel.org,
-	reiserfs-devel@vger.kernel.org, linux-geode@lists.infradead.org,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	linux-gpio@vger.kernel.org, op-tee@lists.trustedfirmware.org,
-	linux-mediatek@lists.infradead.org,
-	GR-everest-linux-l2@marvell.com, xen-devel@lists.xenproject.org,
-	nouveau@lists.freedesktop.org, linux-hams@vger.kernel.org,
-	Nathan Chancellor <natechancellor@gmail.com>, linux-can@vger.kernel.org,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	linux-hwmon@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-watchdog@vger.kernel.org,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	Network Development <netdev@vger.kernel.org>,
-	linux-decnet-user@lists.sourceforge.net, samba-technical@lists.samba.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	Linux-Renesas <linux-renesas-soc@vger.kernel.org>,
-	linux-security-module@vger.kernel.org, linux-usb@vger.kernel.org,
-	tipc-discussion@lists.sourceforge.net,
-	"open list:HARDWARE RANDOM NUMBER GENERATOR CORE"
-	<linux-crypto@vger.kernel.org>, patches@opensource.cirrus.com,
-	Joe Perches <joe@perches.com>, linux-integrity@vger.kernel.org,
-	linux-nfs@vger.kernel.org,
-	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>
-Subject: Re: [Drbd-dev] [Intel-wired-lan] [PATCH 000/141] Fix fall-through
- warnings for Clang
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20201116145809.410558-61-hch@lst.de>
+Cc: Justin Sanders <justin@coraid.com>, Mike Snitzer <snitzer@redhat.com>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
+	Song Liu <song@kernel.org>, dm-devel@redhat.com,
+	drbd-dev@lists.linbit.com, linux-scsi@vger.kernel.org,
+	xen-devel@lists.xenproject.org, Ilya Dryomov <idryomov@gmail.com>,
+	Jack Wang <jinpu.wang@cloud.ionos.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
+	linux-raid@vger.kernel.org, Stefan Hajnoczi <stefanha@redhat.com>,
+	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
+	linux-block@vger.kernel.org,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
+	linux-fsdevel@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>,
+	Roger Pau =?iso-8859-1?Q?Monn=E9?= <roger.pau@citrix.com>
+Subject: Re: [Drbd-dev] [PATCH 60/78] zram: remove the claim mechanism
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -89,51 +44,168 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+On Mon, Nov 16, 2020 at 03:57:51PM +0100, Christoph Hellwig wrote:
+> The zram claim mechanism was added to ensure no new opens come in
+> during teardown.  But the proper way to archive that is to call
+> del_gendisk first, which takes care of all that.  Once del_gendisk
+> is called in the right place, the reset side can also be simplified
+> as no I/O can be outstanding on a block device that is not open.
 
+It would be great if it makes the mess simple. Let me have a question
+Please see below.
 
-On Wed, 25 Nov 2020, Nick Desaulniers wrote:
-
-> On Wed, Nov 25, 2020 at 1:33 PM Finn Thain <fthain@telegraphics.com.au> wrote:
-> >
-> > Or do you think that a codebase can somehow satisfy multiple checkers 
-> > and their divergent interpretations of the language spec?
 > 
-> Have we found any cases yet that are divergent? I don't think so. 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  drivers/block/zram/zram_drv.c | 76 ++++++++++-------------------------
+>  1 file changed, 21 insertions(+), 55 deletions(-)
+> 
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index 6d15d51cee2b7e..3641434a9b154d 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -1756,64 +1756,33 @@ static ssize_t disksize_store(struct device *dev,
+>  static ssize_t reset_store(struct device *dev,
+>  		struct device_attribute *attr, const char *buf, size_t len)
+>  {
+> -	int ret;
+> -	unsigned short do_reset;
+> -	struct zram *zram;
+> +	struct zram *zram = dev_to_zram(dev);
+>  	struct block_device *bdev;
+> +	unsigned short do_reset;
+> +	int ret = 0;
+>  
+>  	ret = kstrtou16(buf, 10, &do_reset);
+>  	if (ret)
+>  		return ret;
+> -
+>  	if (!do_reset)
+>  		return -EINVAL;
+>  
+> -	zram = dev_to_zram(dev);
+>  	bdev = bdget_disk(zram->disk, 0);
+>  	if (!bdev)
+>  		return -ENOMEM;
+>  
+>  	mutex_lock(&bdev->bd_mutex);
+> -	/* Do not reset an active device or claimed device */
+> -	if (bdev->bd_openers || zram->claim) {
+> -		mutex_unlock(&bdev->bd_mutex);
+> -		bdput(bdev);
+> -		return -EBUSY;
+> -	}
+> -
+> -	/* From now on, anyone can't open /dev/zram[0-9] */
+> -	zram->claim = true;
+> +	if (bdev->bd_openers)
+> +		ret = -EBUSY;
+> +	else
+> +		zram_reset_device(zram);
+>  	mutex_unlock(&bdev->bd_mutex);
+> -
+> -	/* Make sure all the pending I/O are finished */
+> -	fsync_bdev(bdev);
+> -	zram_reset_device(zram);
+>  	bdput(bdev);
+>  
+> -	mutex_lock(&bdev->bd_mutex);
+> -	zram->claim = false;
+> -	mutex_unlock(&bdev->bd_mutex);
+> -
+> -	return len;
+> -}
+> -
+> -static int zram_open(struct block_device *bdev, fmode_t mode)
+> -{
+> -	int ret = 0;
+> -	struct zram *zram;
+> -
+> -	WARN_ON(!mutex_is_locked(&bdev->bd_mutex));
+> -
+> -	zram = bdev->bd_disk->private_data;
+> -	/* zram was claimed to reset so open request fails */
+> -	if (zram->claim)
+> -		ret = -EBUSY;
+> -
+> -	return ret;
+> +	return ret ? ret : len;
+>  }
+>  
+>  static const struct block_device_operations zram_devops = {
+> -	.open = zram_open,
+>  	.submit_bio = zram_submit_bio,
+>  	.swap_slot_free_notify = zram_slot_free_notify,
+>  	.rw_page = zram_rw_page,
+> @@ -1821,7 +1790,6 @@ static const struct block_device_operations zram_devops = {
+>  };
+>  
+>  static const struct block_device_operations zram_wb_devops = {
+> -	.open = zram_open,
+>  	.submit_bio = zram_submit_bio,
+>  	.swap_slot_free_notify = zram_slot_free_notify,
+>  	.owner = THIS_MODULE
+> @@ -1972,34 +1940,32 @@ static int zram_add(void)
+>  	return ret;
+>  }
+>  
+> -static int zram_remove(struct zram *zram)
+> +static bool zram_busy(struct zram *zram)
+>  {
+>  	struct block_device *bdev;
+> +	bool busy = false;
+>  
+>  	bdev = bdget_disk(zram->disk, 0);
+> -	if (!bdev)
+> -		return -ENOMEM;
+> -
+> -	mutex_lock(&bdev->bd_mutex);
+> -	if (bdev->bd_openers || zram->claim) {
+> -		mutex_unlock(&bdev->bd_mutex);
+> +	if (bdev) {
+> +		if (bdev->bd_openers)
+> +			busy = true;
+>  		bdput(bdev);
+> -		return -EBUSY;
+>  	}
+>  
+> -	zram->claim = true;
+> -	mutex_unlock(&bdev->bd_mutex);
+> +	return busy;
+> +}
+>  
+> -	zram_debugfs_unregister(zram);
+> +static int zram_remove(struct zram *zram)
+> +{
+> +	if (zram_busy(zram))
+> +		return -EBUSY;
+>  
+> -	/* Make sure all the pending I/O are finished */
+> -	fsync_bdev(bdev);
+> +	del_gendisk(zram->disk);
+> +	zram_debugfs_unregister(zram);
+>  	zram_reset_device(zram);
+> -	bdput(bdev);
+>  
+>  	pr_info("Removed device: %s\n", zram->disk->disk_name);
+>  
+> -	del_gendisk(zram->disk);
+>  	blk_cleanup_queue(zram->disk->queue);
+>  	put_disk(zram->disk);
+>  	kfree(zram);
+> -- 
+> 2.29.2
+> 
 
-You mean, aside from -Wimplicit-fallthrough? I'm glad you asked. How about 
--Wincompatible-pointer-types and -Wframe-larger-than?
+With this patch, how deal with the race?
 
-All of the following files have been affected by divergent diagnostics 
-produced by clang and gcc.
+CPU 1                                     CPU 2
 
-arch/arm64/include/asm/neon-intrinsics.h
-arch/powerpc/xmon/Makefile
-drivers/gpu/drm/i915/Makefile
-drivers/gpu/drm/i915/i915_utils.h
-drivers/staging/media/atomisp/pci/atomisp_subdev.c
-fs/ext4/super.c
-include/trace/events/qla.h
-net/mac80211/rate.c
-tools/lib/string.c
-tools/perf/util/setup.py
-tools/scripts/Makefile.include
+hot_remove_store
+  zram_remove
+    zram_busy
+      return -EBUSY
+                                         open /dev/zram0
+    del_gendisk
+    zram_reset and destroy
 
-And if I searched for 'smatch' or 'coverity' instead of 'clang' I'd 
-probably find more divergence.
-
-Here are some of the relevant commits.
-
-0738c8b5915c7eaf1e6007b441008e8f3b460443
-9c87156cce5a63735d1218f0096a65c50a7a32aa
-babaab2f473817f173a2d08e410c25abf5ed0f6b
-065e5e559555e2f100bc95792a8ef1b609bbe130
-93f56de259376d7e4fff2b2d104082e1fa66e237
-6c4798d3f08b81c2c52936b10e0fa872590c96ae
-b7a313d84e853049062011d78cb04b6decd12f5c
-093b75ef5995ea35d7f6bdb6c7b32a42a1999813
-
-And before you object, "but -Wconstant-logical-operand is a clang-only 
-warning! it can't be divergent with gcc!", consider that the special cases 
-added to deal with clang-only warnings have to be removed when gcc catches 
-up, which is more churn. Now multiply that by the number of checkers you 
-care about.
