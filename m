@@ -1,10 +1,10 @@
-Return-Path: <geert.uytterhoeven@gmail.com>
-Received: from mail-ot1-f68.google.com (mail-ot1-f68.google.com
-	[209.85.210.68])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 29E914207A7
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 16:28:24 +0100 (CET)
-Received: by mail-ot1-f68.google.com with SMTP id g19so2128903otp.13
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 07:28:24 -0800 (PST)
+Return-Path: <miguel.ojeda.sandonis@gmail.com>
+Received: from mail-yb1-f176.google.com (mail-yb1-f176.google.com
+	[209.85.219.176])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2887542061B
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 18:05:57 +0100 (CET)
+Received: by mail-yb1-f176.google.com with SMTP id t33so2217225ybd.0
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 09:05:57 -0800 (PST)
 MIME-Version: 1.0
 References: <cover.1605896059.git.gustavoars@kernel.org>
 	<20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
@@ -21,11 +21,12 @@ References: <cover.1605896059.git.gustavoars@kernel.org>
 	<CANiq72kqO=bYMJnFS2uYRpgWATJ=uXxZuNUsTXT+3aLtrpnzvQ@mail.gmail.com>
 	<44005bde-f6d4-5eaa-39b8-1a5efeedb2d3@gmail.com>
 	<CANiq72nobq=ptWK-qWxU91JHqkKhMcRtJNnw2XJd5-vSJWZd8Q@mail.gmail.com>
-In-Reply-To: <CANiq72nobq=ptWK-qWxU91JHqkKhMcRtJNnw2XJd5-vSJWZd8Q@mail.gmail.com>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Thu, 26 Nov 2020 16:28:12 +0100
-Message-ID: <CAMuHMdV5kOakvZJMWLxbpigFPS+Xuw6DVYsWCWZy7wGsv3idcw@mail.gmail.com>
-To: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
+	<CAMuHMdV5kOakvZJMWLxbpigFPS+Xuw6DVYsWCWZy7wGsv3idcw@mail.gmail.com>
+In-Reply-To: <CAMuHMdV5kOakvZJMWLxbpigFPS+Xuw6DVYsWCWZy7wGsv3idcw@mail.gmail.com>
+From: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
+Date: Thu, 26 Nov 2020 18:05:45 +0100
+Message-ID: <CANiq72=n4rVvmKt0RCb5aOfQydA8bgDxfntRLDieV8Q2efP8Zg@mail.gmail.com>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
 Content-Type: text/plain; charset="UTF-8"
 Cc: ALSA Development Mailing List <alsa-devel@alsa-project.org>,
 	bridge@lists.linux-foundation.org,
@@ -98,48 +99,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Miguel,
-
-On Thu, Nov 26, 2020 at 3:54 PM Miguel Ojeda
-<miguel.ojeda.sandonis@gmail.com> wrote:
-> On Wed, Nov 25, 2020 at 11:44 PM Edward Cree <ecree.xilinx@gmail.com> wrote:
-> > To make the intent clear, you have to first be certain that you
-> >  understand the intent; otherwise by adding either a break or a
-> >  fallthrough to suppress the warning you are just destroying the
-> >  information that "the intent of this code is unknown".
+On Thu, Nov 26, 2020 at 4:28 PM Geert Uytterhoeven <geert@linux-m68k.org> wrote:
 >
-> If you don't know what the intent of your own code is, then you
-> *already* have a problem in your hands.
+> The maintainer is not necessarily the owner/author of the code, and
+> thus may not know the intent of the code.
 
-The maintainer is not necessarily the owner/author of the code, and
-thus may not know the intent of the code.
+Agreed, I was not blaming maintainers -- just trying to point out that
+the problem is there :-)
 
-> > or does it flag up code
-> >  that can be mindlessly "fixed" (in which case the warning is
-> >  worthless)?  Proponents in this thread seem to be trying to
-> >  have it both ways.
->
-> A warning is not worthless just because you can mindlessly fix it.
-> There are many counterexamples, e.g. many
-> checkpatch/lint/lang-format/indentation warnings, functional ones like
-> the `if (a = b)` warning...
+In those cases, it is still very useful: we add the `fallthrough` and
+a comment saying `FIXME: fallthrough intended? Figure this out...`.
+Thus a previous unknown unknown is now a known unknown. And no new
+unknown unknowns will be introduced since we enabled the warning
+globally.
 
-BTW, you cannot mindlessly fix the latter, as you cannot know if
-"(a == b)" or "((a = b))" was intended, without understanding the code
-(and the (possibly unavailable) data sheet, and the hardware, ...).
+> BTW, you cannot mindlessly fix the latter, as you cannot know if
+> "(a == b)" or "((a = b))" was intended, without understanding the code
+> (and the (possibly unavailable) data sheet, and the hardware, ...).
 
-P.S. So far I've stayed out of this thread, as I like it if the compiler
-     flags possible mistakes.  After all I was the one fixing new
-     "may be used uninitialized" warnings thrown up by gcc-4.1, until
-     (a bit later than) support for that compiler was removed...
+That's right, I was referring to the cases where the compiler saves
+someone time from a typo they just made.
 
-Gr{oetje,eeting}s,
-
-                        Geert
-
--- 
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+Cheers,
+Miguel
