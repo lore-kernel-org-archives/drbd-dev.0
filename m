@@ -1,10 +1,10 @@
-Return-Path: <miguel.ojeda.sandonis@gmail.com>
-Received: from mail-yb1-f195.google.com (mail-yb1-f195.google.com
-	[209.85.219.195])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3C36B4207C2
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 15:53:39 +0100 (CET)
-Received: by mail-yb1-f195.google.com with SMTP id r127so1846424yba.10
-	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 06:53:39 -0800 (PST)
+Return-Path: <geert.uytterhoeven@gmail.com>
+Received: from mail-ot1-f68.google.com (mail-ot1-f68.google.com
+	[209.85.210.68])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 29E914207A7
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 16:28:24 +0100 (CET)
+Received: by mail-ot1-f68.google.com with SMTP id g19so2128903otp.13
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 07:28:24 -0800 (PST)
 MIME-Version: 1.0
 References: <cover.1605896059.git.gustavoars@kernel.org>
 	<20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
@@ -20,63 +20,72 @@ References: <cover.1605896059.git.gustavoars@kernel.org>
 	<4993259d01a0064f8bb22770503490f9252f3659.camel@HansenPartnership.com>
 	<CANiq72kqO=bYMJnFS2uYRpgWATJ=uXxZuNUsTXT+3aLtrpnzvQ@mail.gmail.com>
 	<44005bde-f6d4-5eaa-39b8-1a5efeedb2d3@gmail.com>
-In-Reply-To: <44005bde-f6d4-5eaa-39b8-1a5efeedb2d3@gmail.com>
-From: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
-Date: Thu, 26 Nov 2020 15:53:27 +0100
-Message-ID: <CANiq72nobq=ptWK-qWxU91JHqkKhMcRtJNnw2XJd5-vSJWZd8Q@mail.gmail.com>
-To: Edward Cree <ecree.xilinx@gmail.com>
+	<CANiq72nobq=ptWK-qWxU91JHqkKhMcRtJNnw2XJd5-vSJWZd8Q@mail.gmail.com>
+In-Reply-To: <CANiq72nobq=ptWK-qWxU91JHqkKhMcRtJNnw2XJd5-vSJWZd8Q@mail.gmail.com>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Thu, 26 Nov 2020 16:28:12 +0100
+Message-ID: <CAMuHMdV5kOakvZJMWLxbpigFPS+Xuw6DVYsWCWZy7wGsv3idcw@mail.gmail.com>
+To: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Cc: linux-watchdog@vger.kernel.org, alsa-devel@alsa-project.org,
-	linux-atm-general@lists.sourceforge.net,
-	reiserfs-devel@vger.kernel.org, linux-iio@vger.kernel.org,
+Cc: ALSA Development Mailing List <alsa-devel@alsa-project.org>,
+	bridge@lists.linux-foundation.org,
+	target-devel <target-devel@vger.kernel.org>, linux-iio@vger.kernel.org,
 	linux-wireless <linux-wireless@vger.kernel.org>,
-	linux-fbdev@vger.kernel.org, dri-devel <dri-devel@lists.freedesktop.org>,
-	"Gustavo A. R. Silva" <gustavoars@kernel.org>,
-	Nathan Chancellor <natechancellor@gmail.com>,
-	linux-ide@vger.kernel.org, dm-devel@redhat.com,
-	keyrings@vger.kernel.org, linux-mtd@lists.infradead.org,
+	Linux Fbdev development list <linux-fbdev@vger.kernel.org>,
+	dri-devel <dri-devel@lists.freedesktop.org>,
+	virtualization@lists.linux-foundation.org,
+	linux-ide@vger.kernel.org, dm-devel@redhat.com, keyrings@vger.kernel.org,
+	MTD Maling List <linux-mtd@lists.infradead.org>,
 	linux-hardening@vger.kernel.org, wcn36xx@lists.infradead.org,
-	samba-technical@lists.samba.org, linux-i3c@lists.infradead.org,
-	linux1394-devel@lists.sourceforge.net, linux-afs@lists.infradead.org,
-	usb-storage@lists.one-eyed-alien.net, drbd-dev@lists.linbit.com,
-	devel@driverdev.osuosl.org, linux-cifs@vger.kernel.org,
-	rds-devel@oss.oracle.com, Nick Desaulniers <ndesaulniers@google.com>,
-	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org,
-	oss-drivers@netronome.com, bridge@lists.linux-foundation.org,
-	linux-security-module@vger.kernel.org,
+	linux-i3c@lists.infradead.org, linux1394-devel@lists.sourceforge.net,
+	linux-afs@lists.infradead.org, Lars Ellenberg <drbd-dev@lists.linbit.com>,
+	driverdevel <devel@driverdev.osuosl.org>,
+	linux-cifs@vger.kernel.org, rds-devel@oss.oracle.com,
+	scsi <linux-scsi@vger.kernel.org>,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+	linux-rdma <linux-rdma@vger.kernel.org>, oss-drivers@netronome.com,
+	linux-atm-general@lists.sourceforge.net,
+	ceph-devel <ceph-devel@vger.kernel.org>,
 	amd-gfx list <amd-gfx@lists.freedesktop.org>,
 	linux-stm32@st-md-mailman.stormreply.com,
-	cluster-devel@redhat.com, linux-acpi@vger.kernel.org,
+	cluster-devel@redhat.com, usb-storage@lists.one-eyed-alien.net,
+	Linux MMC List <linux-mmc@vger.kernel.org>,
 	coreteam@netfilter.org, intel-wired-lan@lists.osuosl.org,
 	linux-input <linux-input@vger.kernel.org>, Miguel Ojeda <ojeda@kernel.org>,
 	Jakub Kicinski <kuba@kernel.org>,
 	Ext4 Developers List <linux-ext4@vger.kernel.org>,
+	NetFilter <netfilter-devel@vger.kernel.org>,
 	Linux Media Mailing List <linux-media@vger.kernel.org>,
 	GR-Linux-NIC-Dev@marvell.com, Kees Cook <keescook@chromium.org>,
 	selinux@vger.kernel.org, linux-arm-msm <linux-arm-msm@vger.kernel.org>,
-	intel-gfx@lists.freedesktop.org, linux-geode@lists.infradead.org,
-	linux-can@vger.kernel.org,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	linux-sctp@vger.kernel.org, reiserfs-devel@vger.kernel.org,
+	linux-geode@lists.infradead.org,
 	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	linux-gpio@vger.kernel.org, op-tee@lists.trustedfirmware.org,
-	linux-mediatek@lists.infradead.org,
+	"open list:GPIO SUBSYSTEM" <linux-gpio@vger.kernel.org>,
+	op-tee@lists.trustedfirmware.org, linux-block@vger.kernel.org,
 	GR-everest-linux-l2@marvell.com, xen-devel@lists.xenproject.org,
-	nouveau@lists.freedesktop.org, linux-hams@vger.kernel.org,
-	ceph-devel@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	Nouveau Dev <nouveau@lists.freedesktop.org>, linux-hams@vger.kernel.org,
+	Nathan Chancellor <natechancellor@gmail.com>, linux-can@vger.kernel.org,
 	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	linux-hwmon@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-nfs@vger.kernel.org, tipc-discussion@lists.sourceforge.net,
+	linux-hwmon@vger.kernel.org, Nick Desaulniers <ndesaulniers@google.com>,
+	Linux Watchdog Mailing List <linux-watchdog@vger.kernel.org>,
 	Linux-MM <linux-mm@kvack.org>,
 	Network Development <netdev@vger.kernel.org>,
-	linux-decnet-user@lists.sourceforge.net, linux-mmc@vger.kernel.org,
+	linux-decnet-user@lists.sourceforge.net, samba-technical@lists.samba.org,
+	"Gustavo A. R. Silva" <gustavoars@kernel.org>,
 	linux-kernel <linux-kernel@vger.kernel.org>,
-	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>,
 	Linux-Renesas <linux-renesas-soc@vger.kernel.org>,
-	linux-sctp@vger.kernel.org, linux-usb@vger.kernel.org,
-	netfilter-devel@vger.kernel.org,
+	Edward Cree <ecree.xilinx@gmail.com>,
+	linux-security-module <linux-security-module@vger.kernel.org>,
+	USB list <linux-usb@vger.kernel.org>,
+	tipc-discussion@lists.sourceforge.net,
 	Linux Crypto Mailing List <linux-crypto@vger.kernel.org>,
 	patches@opensource.cirrus.com, Joe Perches <joe@perches.com>,
-	linux-integrity@vger.kernel.org, target-devel@vger.kernel.org
+	linux-mediatek@lists.infradead.org,
+	linux-integrity <linux-integrity@vger.kernel.org>,
+	"open list:NFS, SUNRPC, AND..." <linux-nfs@vger.kernel.org>,
+	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 000/141] Fix fall-through warnings for Clang
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -89,93 +98,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Nov 25, 2020 at 11:44 PM Edward Cree <ecree.xilinx@gmail.com> wrote=
-:
+Hi Miguel,
+
+On Thu, Nov 26, 2020 at 3:54 PM Miguel Ojeda
+<miguel.ojeda.sandonis@gmail.com> wrote:
+> On Wed, Nov 25, 2020 at 11:44 PM Edward Cree <ecree.xilinx@gmail.com> wrote:
+> > To make the intent clear, you have to first be certain that you
+> >  understand the intent; otherwise by adding either a break or a
+> >  fallthrough to suppress the warning you are just destroying the
+> >  information that "the intent of this code is unknown".
 >
-> To make the intent clear, you have to first be certain that you
->  understand the intent; otherwise by adding either a break or a
->  fallthrough to suppress the warning you are just destroying the
->  information that "the intent of this code is unknown".
+> If you don't know what the intent of your own code is, then you
+> *already* have a problem in your hands.
 
-If you don't know what the intent of your own code is, then you
-*already* have a problem in your hands.
+The maintainer is not necessarily the owner/author of the code, and
+thus may not know the intent of the code.
 
-> Figuring out the intent of a piece of unfamiliar code takes more
->  than 1 minute; just because
->     case foo:
->         thing;
->     case bar:
->         break;
->  produces identical code to
->     case foo:
->         thing;
->         break;
->     case bar:
->         break;
->  doesn't mean that *either* is correct =E2=80=94 maybe the author meant
+> > or does it flag up code
+> >  that can be mindlessly "fixed" (in which case the warning is
+> >  worthless)?  Proponents in this thread seem to be trying to
+> >  have it both ways.
+>
+> A warning is not worthless just because you can mindlessly fix it.
+> There are many counterexamples, e.g. many
+> checkpatch/lint/lang-format/indentation warnings, functional ones like
+> the `if (a = b)` warning...
 
-What takes 1 minute is adding it *mechanically* by the author, i.e. so
-that you later compare whether codegen is the same.
+BTW, you cannot mindlessly fix the latter, as you cannot know if
+"(a == b)" or "((a = b))" was intended, without understanding the code
+(and the (possibly unavailable) data sheet, and the hardware, ...).
 
->  to write
->     case foo:
->         return thing;
->     case bar:
->         break;
->  and by inserting that break you've destroyed the marker that
->  would direct someone who knew what the code was about to look
->  at that point in the code and spot the problem.
+P.S. So far I've stayed out of this thread, as I like it if the compiler
+     flags possible mistakes.  After all I was the one fixing new
+     "may be used uninitialized" warnings thrown up by gcc-4.1, until
+     (a bit later than) support for that compiler was removed...
 
-Then it means you already have a bug. This patchset gives the
-maintainer a chance to notice it, which is a good thing. The "you've
-destroyed the market" claim is bogus, because:
-  1. you were not looking into it
-  2. you didn't notice the bug so far
-  3. is implicit -- harder to spot
-  4. is only useful if you explicitly take a look at this kind of bug.
-So why don't you do it now?
+Gr{oetje,eeting}s,
 
-> Thus, you *always* have to look at more than just the immediate
->  mechanical context of the code, to make a proper judgement that
->  yes, this was the intent.
+                        Geert
 
-I find that is the responsibility of the maintainers and reviewers for
-tree-wide patches like this, assuming they want. They can also keep
-the behavior (and the bugs) without spending time. Their choice.
+-- 
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
 
-> If you think that that sort of thing
->  can be done in an *average* time of one minute, then I hope you
->  stay away from code I'm responsible for!
-
-Please don't accuse others of recklessness or incompetence, especially
-if you didn't understand what they said.
-
-> A warning is only useful because it makes you *think* about the
->  code.  If you suppress the warning without doing that thinking,
->  then you made the warning useless; and if the warning made you
->  think about code that didn't *need* it, then the warning was
->  useless from the start.
-
-We are not suppressing the warning. Quite the opposite, in fact.
-
-> So make your mind up: does Clang's stricter -Wimplicit-fallthrough
->  flag up code that needs thought (in which case the fixes take
->  effort both to author and to review)
-
-As I said several times already, it does take time to review if the
-maintainer wants to take the chance to see if they had a bug to begin
-with, but it does not require thought for the author if they just go
-for equivalent codegen.
-
-> or does it flag up code
->  that can be mindlessly "fixed" (in which case the warning is
->  worthless)?  Proponents in this thread seem to be trying to
->  have it both ways.
-
-A warning is not worthless just because you can mindlessly fix it.
-There are many counterexamples, e.g. many
-checkpatch/lint/lang-format/indentation warnings, functional ones like
-the `if (a =3D b)` warning...
-
-Cheers,
-Miguel
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
