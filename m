@@ -1,81 +1,93 @@
-Return-Path: <ndesaulniers@google.com>
-Received: from mail-pg1-f194.google.com (mail-pg1-f194.google.com
-	[209.85.215.194])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AD7E34205FE
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2020 23:09:20 +0100 (CET)
-Received: by mail-pg1-f194.google.com with SMTP id t21so3639961pgl.3
-	for <drbd-dev@lists.linbit.com>; Wed, 25 Nov 2020 14:09:20 -0800 (PST)
+Return-Path: <kherbst@redhat.com>
+Received: from us-smtp-delivery-124.mimecast.com
+	(us-smtp-delivery-124.mimecast.com [216.205.24.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C0218420636
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 17:25:04 +0100 (CET)
+Received: by mail-qt1-f198.google.com with SMTP id t22so1505611qtq.2
+	for <drbd-dev@lists.linbit.com>; Thu, 26 Nov 2020 08:18:25 -0800 (PST)
 MIME-Version: 1.0
-References: <202011201129.B13FDB3C@keescook>
+References: <cover.1605896059.git.gustavoars@kernel.org>
+	<20201120105344.4345c14e@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
+	<202011201129.B13FDB3C@keescook>
 	<20201120115142.292999b2@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
 	<202011220816.8B6591A@keescook>
 	<9b57fd4914b46f38d54087d75e072d6e947cb56d.camel@HansenPartnership.com>
-	<ca071decb87cc7e905411423c05a48f9fd2f58d7.camel@perches.com>
-	<0147972a72bc13f3629de8a32dee6f1f308994b5.camel@HansenPartnership.com>
-	<d8d1e9add08cdd4158405e77762d4946037208f8.camel@perches.com>
-	<dbd2cb703ed9eefa7dde9281ea26ab0f7acc8afe.camel@HansenPartnership.com>
-	<20201123130348.GA3119@embeddedor>
-	<8f5611bb015e044fa1c0a48147293923c2d904e4.camel@HansenPartnership.com>
-	<202011241327.BB28F12F6@keescook>
-	<a841536fe65bb33f1c72ce2455a6eb47a0107565.camel@HansenPartnership.com>
-	<CAKwvOdkGBn7nuWTAqrORMeN1G+w3YwBfCqqaRD2nwvoAXKi=Aw@mail.gmail.com>
-	<20201125082405.1d8c23dc@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
-In-Reply-To: <20201125082405.1d8c23dc@kicinski-fedora-pc1c0hjn.dhcp.thefacebook.com>
-From: Nick Desaulniers <ndesaulniers@google.com>
-Date: Wed, 25 Nov 2020 14:09:08 -0800
-Message-ID: <CAKwvOdkWGE5qdFZUuMzcL63LDOu_iZQJOGbeBNjcPi8sJPMkag@mail.gmail.com>
-To: Jakub Kicinski <kuba@kernel.org>
+	<CANiq72nZrHWTA4_Msg6MP9snTyenC6-eGfD27CyfNSu7QoVZbw@mail.gmail.com>
+	<1c7d7fde126bc0acf825766de64bf2f9b888f216.camel@HansenPartnership.com>
+	<CANiq72m22Jb5_+62NnwX8xds2iUdWDMAqD8PZw9cuxdHd95W0A@mail.gmail.com>
+	<fc45750b6d0277c401015b7aa11e16cd15f32ab2.camel@HansenPartnership.com>
+	<CANiq72k5tpDoDPmJ0ZWc1DGqm+81Gi-uEENAtvEs9v3SZcx6_Q@mail.gmail.com>
+	<4993259d01a0064f8bb22770503490f9252f3659.camel@HansenPartnership.com>
+	<CANiq72kqO=bYMJnFS2uYRpgWATJ=uXxZuNUsTXT+3aLtrpnzvQ@mail.gmail.com>
+	<44005bde-f6d4-5eaa-39b8-1a5efeedb2d3@gmail.com>
+	<CANiq72nobq=ptWK-qWxU91JHqkKhMcRtJNnw2XJd5-vSJWZd8Q@mail.gmail.com>
+	<CAMuHMdV5kOakvZJMWLxbpigFPS+Xuw6DVYsWCWZy7wGsv3idcw@mail.gmail.com>
+In-Reply-To: <CAMuHMdV5kOakvZJMWLxbpigFPS+Xuw6DVYsWCWZy7wGsv3idcw@mail.gmail.com>
+From: Karol Herbst <kherbst@redhat.com>
+Date: Thu, 26 Nov 2020 17:18:13 +0100
+Message-ID: <CACO55tsBj3gLECoMWtViDitd7fVTnW+Cp0LVmqYkR=QFBJkEmQ@mail.gmail.com>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
 Content-Type: text/plain; charset="UTF-8"
-Cc: alsa-devel@alsa-project.org, bridge@lists.linux-foundation.org,
-	=?UTF-8?Q?n=40huawei=2Ecom=3E=2C_Greg_KH?= <gregkh@linuxfoundation.org>,
-	linux-iio@vger.kernel.org, linux-wireless <linux-wireless@vger.kernel.org>,
-	linux-fbdev@vger.kernel.org, dri-devel <dri-devel@lists.freedesktop.org>,
-	"Gustavo A. R. Silva" <gustavoars@kernel.org>,
+Cc: ALSA Development Mailing List <alsa-devel@alsa-project.org>,
+	linux-atm-general@lists.sourceforge.net, linux-iio@vger.kernel.org,
+	linux-wireless <linux-wireless@vger.kernel.org>,
+	Linux Fbdev development list <linux-fbdev@vger.kernel.org>,
+	dri-devel <dri-devel@lists.freedesktop.org>,
+	virtualization@lists.linux-foundation.org,
+	Nathan Chancellor <natechancellor@gmail.com>,
 	linux-ide@vger.kernel.org, dm-devel@redhat.com,
-	keyrings@vger.kernel.org, linux-mtd@lists.infradead.org,
+	target-devel <target-devel@vger.kernel.org>,
+	MTD Maling List <linux-mtd@lists.infradead.org>, "open list:NFS,
+	SUNRPC, AND..." <linux-nfs@vger.kernel.org>,
 	wcn36xx@lists.infradead.org, linux-i3c@lists.infradead.org,
-	linux1394-devel@lists.sourceforge.net,
-	linux-afs@lists.infradead.org, drbd-dev@lists.linbit.com,
-	devel@driverdev.osuosl.org, linux-cifs@vger.kernel.org,
-	rds-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
-	linux-acpi@vger.kernel.org, linux-rdma@vger.kernel.org,
-	oss-drivers@netronome.com, linux-atm-general@lists.sourceforge.net,
-	ceph-devel@vger.kernel.org, amd-gfx list <amd-gfx@lists.freedesktop.org>,
-	linux-stm32@st-md-mailman.stormreply.com,
-	cluster-devel@redhat.com, usb-storage@lists.one-eyed-alien.net,
-	linux-mmc@vger.kernel.org, coreteam@netfilter.org,
-	intel-wired-lan@lists.osuosl.org, linux-input@vger.kernel.org,
-	Miguel Ojeda <ojeda@kernel.org>, xen-devel@lists.xenproject.org,
-	linux-ext4@vger.kernel.org, virtualization@lists.linux-foundation.org,
-	netfilter-devel@vger.kernel.org, linux-media@vger.kernel.org,
-	=?UTF-8?Q?egrity=40vger=2Ekernel=2Eorg=2C_target=2Ddevel=40vger=2Ekernel=2Eorg=2C_linux=2D?=,
-	=?UTF-8?Q?o=40vger=2Ekernel=2Eorg=3E=2C_patches=40opensource=2Ecirrus=2Ecom=2C_linux=2Dint?=,
+	linux1394-devel@lists.sourceforge.net, linux-afs@lists.infradead.org,
+	usb-storage@lists.one-eyed-alien.net,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>,
+	driverdevel <devel@driverdev.osuosl.org>,
+	linux-cifs@vger.kernel.org, rds-devel@oss.oracle.com,
+	Nick Desaulniers <ndesaulniers@google.com>,
+	scsi <linux-scsi@vger.kernel.org>, Edward Cree <ecree.xilinx@gmail.com>,
+	linux-rdma <linux-rdma@vger.kernel.org>,
+	oss-drivers@netronome.com, bridge@lists.linux-foundation.org,
+	amd-gfx list <amd-gfx@lists.freedesktop.org>,
+	linux-stm32@st-md-mailman.stormreply.com, cluster-devel@redhat.com,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+	coreteam@netfilter.org, intel-wired-lan@lists.osuosl.org,
+	"Gustavo A. R. Silva" <gustavoars@kernel.org>,
+	linux-input <linux-input@vger.kernel.org>, Miguel Ojeda <ojeda@kernel.org>,
+	Jakub Kicinski <kuba@kernel.org>,
+	Ext4 Developers List <linux-ext4@vger.kernel.org>,
+	Linux Media Mailing List <linux-media@vger.kernel.org>,
 	GR-Linux-NIC-Dev@marvell.com, Kees Cook <keescook@chromium.org>,
 	selinux@vger.kernel.org, linux-arm-msm <linux-arm-msm@vger.kernel.org>,
-	intel-gfx@lists.freedesktop.org, linux-sctp@vger.kernel.org,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
 	reiserfs-devel@vger.kernel.org, linux-geode@lists.infradead.org,
 	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	linux-gpio@vger.kernel.org, op-tee@lists.trustedfirmware.org,
-	linux-mediatek@lists.infradead.org,
-	GR-everest-linux-l2@marvell.com, nouveau@lists.freedesktop.org,
-	linux-hams@vger.kernel.org, Nathan Chancellor <natechancellor@gmail.com>,
-	linux-can@vger.kernel.org,
+	"open list:GPIO SUBSYSTEM" <linux-gpio@vger.kernel.org>,
+	op-tee@lists.trustedfirmware.org, linux-mediatek@lists.infradead.org,
+	GR-everest-linux-l2@marvell.com, xen-devel@lists.xenproject.org,
+	Nouveau Dev <nouveau@lists.freedesktop.org>, linux-hams@vger.kernel.org,
+	ceph-devel <ceph-devel@vger.kernel.org>, linux-can@vger.kernel.org,
 	Linux ARM <linux-arm-kernel@lists.infradead.org>,
 	linux-hwmon@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-watchdog@vger.kernel.org,
-	Linux Memory Management List <linux-mm@kvack.org>,
+	Linux Watchdog Mailing List <linux-watchdog@vger.kernel.org>,
+	tipc-discussion@lists.sourceforge.net, Linux-MM <linux-mm@kvack.org>,
 	Network Development <netdev@vger.kernel.org>,
-	linux-decnet-user@lists.sourceforge.net, samba-technical@lists.samba.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	=?UTF-8?Q?open_list=3AHARDWARE_RANDOM_NUMBER_GENERATOR_CORE_=3Clinux=2Dcrypt?=,
+	linux-decnet-user@lists.sourceforge.net,
+	Linux MMC List <linux-mmc@vger.kernel.org>, linux-sctp@vger.kernel.org,
+	linux-kernel <linux-kernel@vger.kernel.org>,
+	samba-technical@lists.samba.org,
+	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>,
+	linux-security-module <linux-security-module@vger.kernel.org>,
+	keyrings@vger.kernel.org, NetFilter <netfilter-devel@vger.kernel.org>,
+	Linux Crypto Mailing List <linux-crypto@vger.kernel.org>,
+	patches@opensource.cirrus.com, Joe Perches <joe@perches.com>,
 	Linux-Renesas <linux-renesas-soc@vger.kernel.org>,
-	linux-security-module@vger.kernel.org, linux-usb@vger.kernel.org,
-	tipc-discussion@lists.sourceforge.net,
-	=?UTF-8?Q?hardening=40vger=2Ekernel=2Eorg=2C_Jonathan_Cameron_=3CJonathan=2ECamero?=,
-	Joe Perches <joe@perches.com>, linux-nfs@vger.kernel.org,
-	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>
-Subject: Re: [Drbd-dev] [Intel-wired-lan] [PATCH 000/141] Fix fall-through
-	warnings for Clang
+	linux-integrity <linux-integrity@vger.kernel.org>,
+	USB list <linux-usb@vger.kernel.org>,
+	"maintainer:X86 ARCHITECTURE \(32-BIT AND 64-BIT\)" <x86@kernel.org>,
+	linux-hardening@vger.kernel.org
+Subject: Re: [Drbd-dev] [PATCH 000/141] Fix fall-through warnings for Clang
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -87,23 +99,61 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Nov 25, 2020 at 8:24 AM Jakub Kicinski <kuba@kernel.org> wrote:
+On Thu, Nov 26, 2020 at 4:28 PM Geert Uytterhoeven <geert@linux-m68k.org> wrote:
 >
-> Applying a real patch set and then getting a few follow ups the next day
-> for trivial coding things like fallthrough missing or static missing,
-> just because I didn't have the full range of compilers to check with
-> before applying makes me feel pretty shitty, like I'm not doing a good
-> job. YMMV.
+> Hi Miguel,
+>
+> On Thu, Nov 26, 2020 at 3:54 PM Miguel Ojeda
+> <miguel.ojeda.sandonis@gmail.com> wrote:
+> > On Wed, Nov 25, 2020 at 11:44 PM Edward Cree <ecree.xilinx@gmail.com> wrote:
+> > > To make the intent clear, you have to first be certain that you
+> > >  understand the intent; otherwise by adding either a break or a
+> > >  fallthrough to suppress the warning you are just destroying the
+> > >  information that "the intent of this code is unknown".
+> >
+> > If you don't know what the intent of your own code is, then you
+> > *already* have a problem in your hands.
+>
+> The maintainer is not necessarily the owner/author of the code, and
+> thus may not know the intent of the code.
+>
+> > > or does it flag up code
+> > >  that can be mindlessly "fixed" (in which case the warning is
+> > >  worthless)?  Proponents in this thread seem to be trying to
+> > >  have it both ways.
+> >
+> > A warning is not worthless just because you can mindlessly fix it.
+> > There are many counterexamples, e.g. many
+> > checkpatch/lint/lang-format/indentation warnings, functional ones like
+> > the `if (a = b)` warning...
+>
+> BTW, you cannot mindlessly fix the latter, as you cannot know if
+> "(a == b)" or "((a = b))" was intended, without understanding the code
+> (and the (possibly unavailable) data sheet, and the hardware, ...).
+>
 
-I understand. Everyone feels that way, except maybe Bond villains and
-robots.  My advice in that case is don't take it personally.  We're
-working with a language that's more error prone relative to others.
-While one would like to believe they are flawless, over time they
-can't beat the aggregate statistics.  A balance between Imposter
-Syndrome and Dunning Kruger is walked by all software developers, and
-the fear of making mistakes in public is one of the number one reasons
-folks don't take the plunge contributing to open source software or
-even the kernel.  My advice to them is "don't sweat the small stuff."
--- 
-Thanks,
-~Nick Desaulniers
+to allow assignments in if statements was clearly a mistake and if you
+need outside information to understand the code, your code is the
+issue already.
+
+> P.S. So far I've stayed out of this thread, as I like it if the compiler
+>      flags possible mistakes.  After all I was the one fixing new
+>      "may be used uninitialized" warnings thrown up by gcc-4.1, until
+>      (a bit later than) support for that compiler was removed...
+>
+> Gr{oetje,eeting}s,
+>
+>                         Geert
+>
+> --
+> Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+>
+> In personal conversations with technical people, I call myself a hacker. But
+> when I'm talking to journalists I just say "programmer" or something like that.
+>                                 -- Linus Torvalds
+> _______________________________________________
+> dri-devel mailing list
+> dri-devel@lists.freedesktop.org
+> https://lists.freedesktop.org/mailman/listinfo/dri-devel
+>
+
