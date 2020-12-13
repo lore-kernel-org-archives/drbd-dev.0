@@ -1,17 +1,17 @@
 Return-Path: <michael.d.labriola@gmail.com>
 Received: from mail-il1-f196.google.com (mail-il1-f196.google.com
 	[209.85.166.196])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EAF33420625
-	for <drbd-dev@lists.linbit.com>; Sun, 13 Dec 2020 06:59:09 +0100 (CET)
-Received: by mail-il1-f196.google.com with SMTP id k8so12795837ilr.4
-	for <drbd-dev@lists.linbit.com>; Sat, 12 Dec 2020 21:59:09 -0800 (PST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 414B842062A
+	for <drbd-dev@lists.linbit.com>; Sun, 13 Dec 2020 06:59:10 +0100 (CET)
+Received: by mail-il1-f196.google.com with SMTP id c18so12764196iln.10
+	for <drbd-dev@lists.linbit.com>; Sat, 12 Dec 2020 21:59:10 -0800 (PST)
 From: Michael D Labriola <michael.d.labriola@gmail.com>
 To: drbd-dev@lists.linbit.com
-Date: Sun, 13 Dec 2020 00:58:54 -0500
-Message-Id: <20201213055859.3305-4-michael.d.labriola@gmail.com>
+Date: Sun, 13 Dec 2020 00:58:55 -0500
+Message-Id: <20201213055859.3305-5-michael.d.labriola@gmail.com>
 In-Reply-To: <20201213055859.3305-1-michael.d.labriola@gmail.com>
 References: <20201213055859.3305-1-michael.d.labriola@gmail.com>
-Subject: [Drbd-dev] [PATCH 3/8] drbd: don't include vermagic.h
+Subject: [Drbd-dev] [PATCH 4/8] drbd: fix drbd_submit_bio argument handling
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,26 +23,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Compilation fails because "This header can be included from kernel/module.c
-or *.mod.c only".  Leaving it out seems to work just fine.
+Looks like we changed arguments from q to bio, but left the line that gets
+device from q untouched.  Oopsie.
 
 Signed-off-by: Michael D Labriola <michael.d.labriola@gmail.com>
 ---
- drbd/drbd_main.c | 1 -
- 1 file changed, 1 deletion(-)
+ drbd/drbd_req.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drbd/drbd_main.c b/drbd/drbd_main.c
-index 98a94a16..fe1a0b31 100644
---- a/drbd/drbd_main.c
-+++ b/drbd/drbd_main.c
-@@ -16,7 +16,6 @@
- #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
+index 8db2a0e0..92b3b863 100644
+--- a/drbd/drbd_req.c
++++ b/drbd/drbd_req.c
+@@ -2196,7 +2196,7 @@ static bool drbd_fail_request_early(struct drbd_device *device, struct bio *bio)
  
- #include <linux/module.h>
--#include <linux/vermagic.h>
- #include <linux/jiffies.h>
- #include <linux/drbd.h>
- #include <linux/uaccess.h>
+ blk_qc_t drbd_submit_bio(struct bio *bio)
+ {
+-	struct drbd_device *device = (struct drbd_device *) q->queuedata;
++	struct drbd_device *device = bio->bi_disk->private_data;
+ #ifdef CONFIG_DRBD_TIMING_STATS
+ 	ktime_t start_kt;
+ #endif
 -- 
 2.17.1
 
