@@ -1,18 +1,17 @@
 Return-Path: <michael.d.labriola@gmail.com>
-Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com
-	[209.85.222.196])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5D81942062C
+Received: from mail-qk1-f193.google.com (mail-qk1-f193.google.com
+	[209.85.222.193])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 525B2420634
 	for <drbd-dev@lists.linbit.com>; Sun, 13 Dec 2020 06:07:24 +0100 (CET)
-Received: by mail-qk1-f196.google.com with SMTP id w79so12704839qkb.5
+Received: by mail-qk1-f193.google.com with SMTP id 19so12693433qkm.8
 	for <drbd-dev@lists.linbit.com>; Sat, 12 Dec 2020 21:07:24 -0800 (PST)
 From: Michael D Labriola <michael.d.labriola@gmail.com>
 To: drbd-dev@lists.linbit.com
-Date: Sun, 13 Dec 2020 00:07:01 -0500
-Message-Id: <20201213050704.997-6-michael.d.labriola@gmail.com>
+Date: Sun, 13 Dec 2020 00:07:02 -0500
+Message-Id: <20201213050704.997-7-michael.d.labriola@gmail.com>
 In-Reply-To: <20201213050704.997-1-michael.d.labriola@gmail.com>
 References: <20201213050704.997-1-michael.d.labriola@gmail.com>
-Subject: [Drbd-dev] [PATCH 5/8] drbd: use sock_set_keepalive() instead of
-	kernel_setsockopt()
+Subject: [Drbd-dev] [PATCH 6/8] drbd: get rid of set_fs() usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,37 +23,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Looks like the rest of the code has been updated to use 5.8's sock_set_*
-and tcp_set_* functions, but we've missed this one case.
+5.10 is getting rid of set_fs().  When I went looking through git commits
+to figure out how to properly protect sendpage, what I found was this
+commit from 4.13:
+
+    10428957 drbd: ->sendpage() never needed set_fs()
 
 Signed-off-by: Michael D Labriola <michael.d.labriola@gmail.com>
 ---
- drbd/drbd_transport_tcp.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ drbd/drbd_transport_tcp.c | 3 ---
+ 1 file changed, 3 deletions(-)
 
 diff --git a/drbd/drbd_transport_tcp.c b/drbd/drbd_transport_tcp.c
-index 203dc4e0..3b1d4273 100644
+index 3b1d4273..4e076460 100644
 --- a/drbd/drbd_transport_tcp.c
 +++ b/drbd/drbd_transport_tcp.c
-@@ -883,7 +883,6 @@ static int dtt_connect(struct drbd_transport *transport)
- 	struct socket *dsocket, *csocket;
- 	struct net_conf *nc;
- 	int timeout, err;
--	int one = 1;
- 	bool ok;
+@@ -1138,7 +1138,6 @@ static int dtt_send_page(struct drbd_transport *transport, enum drbd_stream stre
+ 	struct drbd_tcp_transport *tcp_transport =
+ 		container_of(transport, struct drbd_tcp_transport, transport);
+ 	struct socket *socket = tcp_transport->stream[stream];
+-	mm_segment_t oldfs = get_fs();
+ 	int len = size;
+ 	int err = -EIO;
  
- 	dsocket = NULL;
-@@ -1065,9 +1064,7 @@ randomize:
- 	dsocket->sk->sk_sndtimeo = timeout;
- 	csocket->sk->sk_sndtimeo = timeout;
+@@ -1147,7 +1146,6 @@ static int dtt_send_page(struct drbd_transport *transport, enum drbd_stream stre
  
--	err = kernel_setsockopt(dsocket, SOL_SOCKET, SO_KEEPALIVE, (char *)&one, sizeof(one));
--	if (err)
--		tr_warn(transport, "Failed to enable SO_KEEPALIVE %d\n", err);
-+	sock_set_keepalive(dsocket->sk);
+ 	msg_flags |= MSG_NOSIGNAL;
+ 	dtt_update_congested(tcp_transport);
+-	set_fs(KERNEL_DS);
+ 	do {
+ 		int sent;
  
- 	return 0;
+@@ -1173,7 +1171,6 @@ static int dtt_send_page(struct drbd_transport *transport, enum drbd_stream stre
+ 		 * and add that to the while() condition below.
+ 		 */
+ 	} while (len > 0 /* THINK && peer_device->repl_state[NOW] >= L_ESTABLISHED */);
+-	set_fs(oldfs);
+ 	clear_bit(NET_CONGESTED, &tcp_transport->transport.flags);
  
+ 	if (len == 0)
 -- 
 2.17.1
 
