@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
 Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4C86D42061A
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:35 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D5C742038D
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:16:14 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:08 -0800
-Message-Id: <20210119050631.57073-15-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:10 -0800
+Message-Id: <20210119050631.57073-17-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 14/37] drdb: use bio_init_fields in bitmap
+Subject: [Drbd-dev] [RFC PATCH 16/37] floppy: use bio_init_fields
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,28 +43,28 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- drivers/block/drbd/drbd_bitmap.c | 5 +----
+ drivers/block/floppy.c | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index df53dca5d02c..4fd9746af469 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -1006,13 +1006,10 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
- 		bm_store_page_idx(page, page_nr);
- 	} else
- 		page = b->bm_pages[page_nr];
--	bio_set_dev(bio, device->ldev->md_bdev);
--	bio->bi_iter.bi_sector = on_disk_sector;
-+	bio_init_fields(bio, device->ldev->md_bdev, on_disk_sector, ctx, drbd_bm_endio, 0, 0);
- 	/* bio_add_page of a single page to an empty bio will always succeed,
- 	 * according to api.  Do we want to assert that? */
- 	bio_add_page(bio, page, len, 0);
--	bio->bi_private = ctx;
--	bio->bi_end_io = drbd_bm_endio;
- 	bio_set_op_attrs(bio, op, 0);
+diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
+index dfe1dfc901cc..1237b64bb37b 100644
+--- a/drivers/block/floppy.c
++++ b/drivers/block/floppy.c
+@@ -4219,13 +4219,10 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
+ 	cbdata.drive = drive;
  
- 	if (drbd_insert_fault(device, (op == REQ_OP_WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
+ 	bio_init(&bio, &bio_vec, 1);
+-	bio_set_dev(&bio, bdev);
++	bio_init_fields(&bio, bdev, 0, &cbdata, floppy_rb0_cb, 0, 0);
+ 	bio_add_page(&bio, page, block_size(bdev), 0);
+ 
+-	bio.bi_iter.bi_sector = 0;
+ 	bio.bi_flags |= (1 << BIO_QUIET);
+-	bio.bi_private = &cbdata;
+-	bio.bi_end_io = floppy_rb0_cb;
+ 	bio_set_op_attrs(&bio, REQ_OP_READ, 0);
+ 
+ 	init_completion(&cbdata.complete);
 -- 
 2.22.1
 
