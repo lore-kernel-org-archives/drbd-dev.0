@@ -1,6 +1,6 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
 Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com [68.232.143.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 721C2420356
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 16AD642053E
 	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:14:43 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:17 -0800
-Message-Id: <20210119050631.57073-24-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:18 -0800
+Message-Id: <20210119050631.57073-25-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 23/37] dm-zoned: use bio_init_fields metadata
+Subject: [Drbd-dev] [RFC PATCH 24/37] dm-zoned: use bio_init_fields target
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,49 +43,31 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- drivers/md/dm-zoned-metadata.c | 15 +++++----------
- 1 file changed, 5 insertions(+), 10 deletions(-)
+ drivers/md/dm-zoned-target.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/md/dm-zoned-metadata.c b/drivers/md/dm-zoned-metadata.c
-index b298fefb022e..f114d595ce23 100644
---- a/drivers/md/dm-zoned-metadata.c
-+++ b/drivers/md/dm-zoned-metadata.c
-@@ -577,10 +577,8 @@ static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
- 	spin_unlock(&zmd->mblk_lock);
- 
- 	/* Submit read BIO */
--	bio->bi_iter.bi_sector = dmz_blk2sect(block);
--	bio_set_dev(bio, dev->bdev);
--	bio->bi_private = mblk;
--	bio->bi_end_io = dmz_mblock_bio_end_io;
-+	bio_init_fields(bio, dev->bdev, dmz_blk2sect(block), mblk,
-+			dmz_mblock_bio_end_io, 0, 0);
- 	bio_set_op_attrs(bio, REQ_OP_READ, REQ_META | REQ_PRIO);
- 	bio_add_page(bio, mblk->page, DMZ_BLOCK_SIZE, 0);
- 	submit_bio(bio);
-@@ -733,10 +731,8 @@ static int dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
- 
- 	set_bit(DMZ_META_WRITING, &mblk->state);
- 
--	bio->bi_iter.bi_sector = dmz_blk2sect(block);
--	bio_set_dev(bio, dev->bdev);
--	bio->bi_private = mblk;
--	bio->bi_end_io = dmz_mblock_bio_end_io;
-+	bio_init_fields(bio, dev->bdev, dmz_blk2sect(block), mblk,
-+			dmz_mblock_bio_end_io, 0, 0);
- 	bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_META | REQ_PRIO);
- 	bio_add_page(bio, mblk->page, DMZ_BLOCK_SIZE, 0);
- 	submit_bio(bio);
-@@ -763,8 +759,7 @@ static int dmz_rdwr_block(struct dmz_dev *dev, int op,
- 	if (!bio)
+diff --git a/drivers/md/dm-zoned-target.c b/drivers/md/dm-zoned-target.c
+index 697f9de37355..8b232b9e3386 100644
+--- a/drivers/md/dm-zoned-target.c
++++ b/drivers/md/dm-zoned-target.c
+@@ -129,14 +129,11 @@ static int dmz_submit_bio(struct dmz_target *dmz, struct dm_zone *zone,
+ 	if (!clone)
  		return -ENOMEM;
  
--	bio->bi_iter.bi_sector = dmz_blk2sect(block);
--	bio_set_dev(bio, dev->bdev);
-+	bio_init_fields(bio, dev->bdev, dmz_blk2sect(block), NULL, NULL, 0, 0);
- 	bio_set_op_attrs(bio, op, REQ_SYNC | REQ_META | REQ_PRIO);
- 	bio_add_page(bio, page, DMZ_BLOCK_SIZE, 0);
- 	ret = submit_bio_wait(bio);
+-	bio_set_dev(clone, dev->bdev);
+ 	bioctx->dev = dev;
+-	clone->bi_iter.bi_sector =
+-		dmz_start_sect(dmz->metadata, zone) + dmz_blk2sect(chunk_block);
+ 	clone->bi_iter.bi_size = dmz_blk2sect(nr_blocks) << SECTOR_SHIFT;
+-	clone->bi_end_io = dmz_clone_endio;
+-	clone->bi_private = bioctx;
+-
++	bio_init_fields(clone, dev->bdev,
++			dmz_start_sect(dmz->metadata, zone) + dmz, bioctx,
++			dmz_clone_endio, 0, 0);
+ 	bio_advance(bio, clone->bi_iter.bi_size);
+ 
+ 	refcount_inc(&bioctx->ref);
 -- 
 2.22.1
 
