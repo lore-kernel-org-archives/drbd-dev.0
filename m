@@ -1,35 +1,39 @@
-Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 491AC42061D
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:17:23 +0100 (CET)
-From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
-To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com, linux-bcache@vger.kernel.org,
-	linux-raid@vger.kernel.org, linux-nvme@lists.infradead.org,
-	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
-	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
-	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:16 -0800
-Message-Id: <20210119050631.57073-23-chaitanya.kulkarni@wdc.com>
-In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
+Return-Path: <msnitzer@redhat.com>
+Received: from us-smtp-delivery-124.mimecast.com
+	(us-smtp-delivery-124.mimecast.com [216.205.24.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 42D4B42006E
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 15:20:47 +0100 (CET)
+Date: Tue, 19 Jan 2021 09:14:22 -0500
+From: Mike Snitzer <snitzer@redhat.com>
+To: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+Message-ID: <20210119141422.GA23758@redhat.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
-	gustavo@embeddedor.com, clm@fb.com, dm-devel@redhat.com,
-	adilger.kernel@dilger.ca, hch@lst.de, agk@redhat.com,
-	naohiro.aota@wdc.com, sagi@grimberg.me, darrick.wong@oracle.com,
-	osandov@fb.com, kent.overstreet@gmail.com,
-	Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>,
+In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
+Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net,
+	gustavo@embeddedor.com, linux-nvme@lists.infradead.org,
+	philipp.reisner@linbit.com, song@kernel.org, dm-devel@redhat.com,
+	target-devel@vger.kernel.org, adilger.kernel@dilger.ca,
+	hch@lst.de, agk@redhat.com, drbd-dev@lists.linbit.com,
+	naohiro.aota@wdc.com, sagi@grimberg.me,
+	linux-scsi@vger.kernel.org, darrick.wong@oracle.com,
+	osandov@fb.com, cluster-devel@redhat.com,
+	linux-ext4@vger.kernel.org, kent.overstreet@gmail.com,
 	josef@toxicpanda.com, efremov@linux.com, colyli@suse.de,
-	tj@kernel.org, viro@zeniv.linux.org.uk, dsterba@suse.com,
-	bvanassche@acm.org, agruenba@redhat.com, axboe@kernel.dk,
+	linux-raid@vger.kernel.org, rpeterso@redhat.com,
+	linux-bcache@vger.kernel.org, viro@zeniv.linux.org.uk,
+	dsterba@suse.com, bvanassche@acm.org, agruenba@redhat.com,
+	axboe@kernel.dk, linux-block@vger.kernel.org,
 	damien.lemoal@wdc.com, tytso@mit.edu, martin.petersen@oracle.com,
-	song@kernel.org, philipp.reisner@linbit.com,
-	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
-	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 22/37] dm-crypt: use bio_init_fields
+	clm@fb.com, linux-kernel@vger.kernel.org,
+	linux-xfs@vger.kernel.org, jefflexu@linux.alibaba.com,
+	linux-fsdevel@vger.kernel.org, tj@kernel.org,
+	lars.ellenberg@linbit.com, jth@kernel.org,
+	asml.silence@gmail.com, linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [RFC PATCH 00/37] block: introduce bio_init_fields()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,26 +45,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
----
- drivers/md/dm-crypt.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+On Tue, Jan 19 2021 at 12:05am -0500,
+Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com> wrote:
 
-diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index 53791138d78b..b03dbcbff491 100644
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -1764,9 +1764,7 @@ static void clone_init(struct dm_crypt_io *io, struct bio *clone)
- {
- 	struct crypt_config *cc = io->cc;
- 
--	clone->bi_private = io;
--	clone->bi_end_io  = crypt_endio;
--	bio_set_dev(clone, cc->dev->bdev);
-+	bio_init_fields(clone, cc->dev->bdev, 0, io, crypt_endio, 0, 0);
- 	clone->bi_opf	  = io->base_bio->bi_opf;
- }
- 
--- 
-2.22.1
+> Hi,
+> 
+> This is a *compile only RFC* which adds a generic helper to initialize
+> the various fields of the bio that is repeated all the places in
+> file-systems, block layer, and drivers.
+> 
+> The new helper allows callers to initialize various members such as
+> bdev, sector, private, end io callback, io priority, and write hints.
+> 
+> The objective of this RFC is to only start a discussion, this it not 
+> completely tested at all.                                                                                                            
+> Following diff shows code level benefits of this helper :-
+>  38 files changed, 124 insertions(+), 236 deletions(-)
+
+
+Please no... this is just obfuscation.
+
+Adding yet another field to set would create a cascade of churn
+throughout kernel (and invariably many callers won't need the new field
+initialized, so you keep passing 0 for more and more fields).
+
+Nacked-by: Mike Snitzer <snitzer@redhat.com>
 
