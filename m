@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
 Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com [216.71.153.144])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8ECC34205F5
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:05 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3B1A44205FB
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:06 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:05:57 -0800
-Message-Id: <20210119050631.57073-4-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:05 -0800
+Message-Id: <20210119050631.57073-12-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 03/37] btrfs: use bio_init_fields in disk-io
+Subject: [Drbd-dev] [RFC PATCH 11/37] jfs: use bio_init_fields in logmgr
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,40 +43,48 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/btrfs/disk-io.c | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ fs/jfs/jfs_logmgr.c | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)
 
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index 765deefda92b..9a65432fc5e9 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -3637,10 +3637,8 @@ static int write_dev_supers(struct btrfs_device *device,
- 		 * checking.
- 		 */
- 		bio = bio_alloc(GFP_NOFS, 1);
--		bio_set_dev(bio, device->bdev);
--		bio->bi_iter.bi_sector = bytenr >> SECTOR_SHIFT;
--		bio->bi_private = device;
--		bio->bi_end_io = btrfs_end_super_write;
-+		bio_init_fields(bio, device->bdev, bytenr >> SECTOR_SHIFT,
-+				device, btrfs_end_super_write, 0, 0);
- 		__bio_add_page(bio, page, BTRFS_SUPER_INFO_SIZE,
- 			       offset_in_page(bytenr));
+diff --git a/fs/jfs/jfs_logmgr.c b/fs/jfs/jfs_logmgr.c
+index 9330eff210e0..ee7407ca32c0 100644
+--- a/fs/jfs/jfs_logmgr.c
++++ b/fs/jfs/jfs_logmgr.c
+@@ -1980,15 +1980,11 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
+ 	bp->l_flag |= lbmREAD;
  
-@@ -3748,11 +3746,10 @@ static void write_dev_flush(struct btrfs_device *device)
- 		return;
+ 	bio = bio_alloc(GFP_NOFS, 1);
+-
+-	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
+-	bio_set_dev(bio, log->bdev);
+-
++	bio_init_fields(bio, log->bdev, bp->l_blkno << (log->l2bsize - 9),
++			log->bdev, 0, lbmIODone, bp, 0, 0);
+ 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
+ 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
  
- 	bio_reset(bio);
--	bio->bi_end_io = btrfs_end_empty_barrier;
--	bio_set_dev(bio, device->bdev);
- 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH;
- 	init_completion(&device->flush_wait);
--	bio->bi_private = &device->flush_wait;
-+	bio_init_fields(bio, device->bdev, 0, &device->flush_wait,
-+			btrfs_end_empty_barrier, 0, 0);
+-	bio->bi_end_io = lbmIODone;
+-	bio->bi_private = bp;
+ 	bio->bi_opf = REQ_OP_READ;
+ 	/*check if journaling to disk has been disabled*/
+ 	if (log->no_integrity) {
+@@ -2125,14 +2121,10 @@ static void lbmStartIO(struct lbuf * bp)
+ 	jfs_info("lbmStartIO");
  
- 	btrfsic_submit_bio(bio);
- 	set_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state);
+ 	bio = bio_alloc(GFP_NOFS, 1);
+-	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
+-	bio_set_dev(bio, log->bdev);
+-
++	bio_init_fields(bio, log->bdev, bp->l_blkno << (log->l2bsize - 9),
++			log->bdev, 0, lbmIODone, bp, 0, 0);
+ 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
+ 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
+-
+-	bio->bi_end_io = lbmIODone;
+-	bio->bi_private = bp;
+ 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC;
+ 
+ 	/* check if journaling to disk has been disabled */
 -- 
 2.22.1
 
