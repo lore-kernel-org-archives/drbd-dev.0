@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
-Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com [216.71.153.144])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 45B43420231
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:14:53 +0100 (CET)
+Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AFFBF4203D7
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:03 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:27 -0800
-Message-Id: <20210119050631.57073-34-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:25 -0800
+Message-Id: <20210119050631.57073-32-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 33/37] jfs: use bio_init_fields in metadata
+Subject: [Drbd-dev] [RFC PATCH 31/37] eros: use bio_init_fields in data
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,43 +43,26 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/jfs/jfs_metapage.c | 16 +++++++---------
- 1 file changed, 7 insertions(+), 9 deletions(-)
+ fs/erofs/data.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/fs/jfs/jfs_metapage.c b/fs/jfs/jfs_metapage.c
-index 176580f54af9..5cea9c137a48 100644
---- a/fs/jfs/jfs_metapage.c
-+++ b/fs/jfs/jfs_metapage.c
-@@ -417,10 +417,10 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
- 		len = min(xlen, (int)JFS_SBI(inode->i_sb)->nbperpage);
+diff --git a/fs/erofs/data.c b/fs/erofs/data.c
+index ea4f693bee22..15f3a3f01fa3 100644
+--- a/fs/erofs/data.c
++++ b/fs/erofs/data.c
+@@ -220,10 +220,8 @@ static inline struct bio *erofs_read_raw_page(struct bio *bio,
  
- 		bio = bio_alloc(GFP_NOFS, 1);
--		bio_set_dev(bio, inode->i_sb->s_bdev);
--		bio->bi_iter.bi_sector = pblock << (inode->i_blkbits - 9);
--		bio->bi_end_io = metapage_write_end_io;
--		bio->bi_private = page;
-+		bio_init_fields(bio, inode->i_sb->s_bdev,
-+				pblock << (inode->i_blkbits - 9),
-+				page, metapage_write_end_io, 0, 0);
-+
- 		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+ 		bio = bio_alloc(GFP_NOIO, nblocks);
  
- 		/* Don't call bio_add_page yet, we may add to this vec */
-@@ -497,11 +497,9 @@ static int metapage_readpage(struct file *fp, struct page *page)
- 				submit_bio(bio);
+-		bio->bi_end_io = erofs_readendio;
+-		bio_set_dev(bio, sb->s_bdev);
+-		bio->bi_iter.bi_sector = (sector_t)blknr <<
+-			LOG_SECTORS_PER_BLOCK;
++		bio_init_fields(bio, sb->s_bdev, (sector_t)blknr <<
++			LOG_SECTORS_PER_BLOCK, NULL, erofs_readendio, 0, 0);
+ 		bio->bi_opf = REQ_OP_READ | (ra ? REQ_RAHEAD : 0);
+ 	}
  
- 			bio = bio_alloc(GFP_NOFS, 1);
--			bio_set_dev(bio, inode->i_sb->s_bdev);
--			bio->bi_iter.bi_sector =
--				pblock << (inode->i_blkbits - 9);
--			bio->bi_end_io = metapage_read_end_io;
--			bio->bi_private = page;
-+			bio_init_fields(bio, inode->i_sb->s_bdev,
-+					pblock << (inode->i_blkbits - 9,
-+					page, metapage_read_end_io, 0, 0);
- 			bio_set_op_attrs(bio, REQ_OP_READ, 0);
- 			len = xlen << inode->i_blkbits;
- 			offset = block_offset << inode->i_blkbits;
 -- 
 2.22.1
 
