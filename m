@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
-Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com [216.71.153.141])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AE37942061F
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:16:53 +0100 (CET)
+Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AC3F44202DB
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:17:22 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:12 -0800
-Message-Id: <20210119050631.57073-19-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:13 -0800
+Message-Id: <20210119050631.57073-20-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 18/37] bcache: use bio_init_fields in journal
+Subject: [Drbd-dev] [RFC PATCH 19/37] bcache: use bio_init_fields in super
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,67 +43,61 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- drivers/md/bcache/journal.c | 21 ++++++++-------------
- 1 file changed, 8 insertions(+), 13 deletions(-)
+ drivers/md/bcache/super.c | 19 +++++--------------
+ 1 file changed, 5 insertions(+), 14 deletions(-)
 
-diff --git a/drivers/md/bcache/journal.c b/drivers/md/bcache/journal.c
-index aefbdb7e003b..0aabcb5cf2ad 100644
---- a/drivers/md/bcache/journal.c
-+++ b/drivers/md/bcache/journal.c
-@@ -54,12 +54,10 @@ reread:		left = ca->sb.bucket_size - offset;
- 		len = min_t(unsigned int, left, PAGE_SECTORS << JSET_BITS);
+diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+index a4752ac410dc..b4ced138a0c0 100644
+--- a/drivers/md/bcache/super.c
++++ b/drivers/md/bcache/super.c
+@@ -312,9 +312,7 @@ void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent)
+ 	closure_init(cl, parent);
  
- 		bio_reset(bio);
--		bio->bi_iter.bi_sector	= bucket + offset;
--		bio_set_dev(bio, ca->bdev);
-+		bio_init_fields(bio, ca->bdev, bucket + offset,
-+				&cl, journal_read_endio, 0, 0);
- 		bio->bi_iter.bi_size	= len << 9;
+ 	bio_init(bio, dc->sb_bv, 1);
+-	bio_set_dev(bio, dc->bdev);
+-	bio->bi_end_io	= write_bdev_super_endio;
+-	bio->bi_private = dc;
++	bio_init_fields(bio, dc->bdev, 0, dc, write_bdev_super_endio, 0, 0);
  
--		bio->bi_end_io	= journal_read_endio;
--		bio->bi_private = &cl;
- 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
- 		bch_bio_map(bio, data);
+ 	closure_get(cl);
+ 	/* I/O request sent to backing device */
+@@ -356,9 +354,7 @@ void bcache_write_super(struct cache_set *c)
+ 		ca->sb.version = version;
  
-@@ -588,6 +586,7 @@ static void do_journal_discard(struct cache *ca)
- {
- 	struct journal_device *ja = &ca->journal;
- 	struct bio *bio = &ja->discard_bio;
-+	sector_t sect;
+ 	bio_init(bio, ca->sb_bv, 1);
+-	bio_set_dev(bio, ca->bdev);
+-	bio->bi_end_io	= write_super_endio;
+-	bio->bi_private = ca;
++	bio_init_fields(bio, ca->bdev, 0, ca, write_super_endio, 0, 0);
  
- 	if (!ca->discard) {
- 		ja->discard_idx = ja->last_idx;
-@@ -613,12 +612,10 @@ static void do_journal_discard(struct cache *ca)
+ 	closure_get(cl);
+ 	__write_super(&ca->sb, ca->sb_disk, bio);
+@@ -402,9 +398,7 @@ static void uuid_io(struct cache_set *c, int op, unsigned long op_flags,
  
- 		bio_init(bio, bio->bi_inline_vecs, 1);
- 		bio_set_op_attrs(bio, REQ_OP_DISCARD, 0);
--		bio->bi_iter.bi_sector	= bucket_to_sector(ca->set,
--						ca->sb.d[ja->discard_idx]);
--		bio_set_dev(bio, ca->bdev);
- 		bio->bi_iter.bi_size	= bucket_bytes(ca);
--		bio->bi_end_io		= journal_discard_endio;
+ 		bio->bi_opf = REQ_SYNC | REQ_META | op_flags;
+ 		bio->bi_iter.bi_size = KEY_SIZE(k) << 9;
 -
-+		sect = bucket_to_sector(ca->set, ca->sb.d[ja->discard_idx]);
-+		bio_init_fields(bio, ca->bdev, sect, NULL,
-+				journal_discard_endio, 0, 0);
- 		closure_get(&ca->set->cl);
- 		INIT_WORK(&ja->discard_work, journal_discard_work);
- 		queue_work(bch_journal_wq, &ja->discard_work);
-@@ -774,12 +771,10 @@ static void journal_write_unlocked(struct closure *cl)
- 		atomic_long_add(sectors, &ca->meta_sectors_written);
+-		bio->bi_end_io	= uuid_endio;
+-		bio->bi_private = cl;
++		bio_init_fields(bio, NULL, 0, cl, uuid_endio, 0, 0);
+ 		bio_set_op_attrs(bio, op, REQ_SYNC|REQ_META|op_flags);
+ 		bch_bio_map(bio, c->uuids);
  
- 		bio_reset(bio);
--		bio->bi_iter.bi_sector	= PTR_OFFSET(k, i);
--		bio_set_dev(bio, ca->bdev);
- 		bio->bi_iter.bi_size = sectors << 9;
+@@ -566,12 +560,9 @@ static void prio_io(struct cache *ca, uint64_t bucket, int op,
  
--		bio->bi_end_io	= journal_write_endio;
--		bio->bi_private = w;
-+		bio_init_fields(bio, ca->bdev, PTR_OFFSET(k, i), w,
-+				journal_write_endio, 0, 0);
- 		bio_set_op_attrs(bio, REQ_OP_WRITE,
- 				 REQ_SYNC|REQ_META|REQ_PREFLUSH|REQ_FUA);
- 		bch_bio_map(bio, w->data);
+ 	closure_init_stack(cl);
+ 
+-	bio->bi_iter.bi_sector	= bucket * ca->sb.bucket_size;
+-	bio_set_dev(bio, ca->bdev);
+ 	bio->bi_iter.bi_size	= meta_bucket_bytes(&ca->sb);
+-
+-	bio->bi_end_io	= prio_endio;
+-	bio->bi_private = ca;
++	bio_init_fields(bio, ca->bdev, bucket * ca->sb.bucket_size, ca,
++			prio_endio, 0, 0);
+ 	bio_set_op_attrs(bio, op, REQ_SYNC|REQ_META|op_flags);
+ 	bch_bio_map(bio, ca->disk_buckets);
+ 
 -- 
 2.22.1
 
