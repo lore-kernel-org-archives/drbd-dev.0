@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
 Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D5C742038D
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:16:14 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 03B374205E5
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:16:15 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:10 -0800
-Message-Id: <20210119050631.57073-17-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:14 -0800
+Message-Id: <20210119050631.57073-21-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,8 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 16/37] floppy: use bio_init_fields
+Subject: [Drbd-dev] [RFC PATCH 20/37] bcache: use bio_init_fields in
+	writeback
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,28 +44,41 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- drivers/block/floppy.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ drivers/md/bcache/writeback.c | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
-index dfe1dfc901cc..1237b64bb37b 100644
---- a/drivers/block/floppy.c
-+++ b/drivers/block/floppy.c
-@@ -4219,13 +4219,10 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
- 	cbdata.drive = drive;
+diff --git a/drivers/md/bcache/writeback.c b/drivers/md/bcache/writeback.c
+index a129e4d2707c..e2b769bbdb14 100644
+--- a/drivers/md/bcache/writeback.c
++++ b/drivers/md/bcache/writeback.c
+@@ -358,10 +358,8 @@ static void write_dirty(struct closure *cl)
+ 	if (KEY_DIRTY(&w->key)) {
+ 		dirty_init(w);
+ 		bio_set_op_attrs(&io->bio, REQ_OP_WRITE, 0);
+-		io->bio.bi_iter.bi_sector = KEY_START(&w->key);
+-		bio_set_dev(&io->bio, io->dc->bdev);
+-		io->bio.bi_end_io	= dirty_endio;
+-
++		bio_init_fields(&io->bio, io->dc->bdev, KEY_START(&w->key), NULL,
++				dirty_endio, 0, 0);
+ 		/* I/O request sent to backing device */
+ 		closure_bio_submit(io->dc->disk.c, &io->bio, cl);
+ 	}
+@@ -471,10 +469,10 @@ static void read_dirty(struct cached_dev *dc)
  
- 	bio_init(&bio, &bio_vec, 1);
--	bio_set_dev(&bio, bdev);
-+	bio_init_fields(&bio, bdev, 0, &cbdata, floppy_rb0_cb, 0, 0);
- 	bio_add_page(&bio, page, block_size(bdev), 0);
+ 			dirty_init(w);
+ 			bio_set_op_attrs(&io->bio, REQ_OP_READ, 0);
+-			io->bio.bi_iter.bi_sector = PTR_OFFSET(&w->key, 0);
+-			bio_set_dev(&io->bio,
+-				    PTR_CACHE(dc->disk.c, &w->key, 0)->bdev);
+-			io->bio.bi_end_io	= read_dirty_endio;
++			bio_init_fields(&io->bio,
++				PTR_CACHE(dc->disk.c, &w->key, 0)->bdev,
++				PTR_OFFSET(&w->key, 0), NULL,
++				read_dirty_endio, 0, 0);
  
--	bio.bi_iter.bi_sector = 0;
- 	bio.bi_flags |= (1 << BIO_QUIET);
--	bio.bi_private = &cbdata;
--	bio.bi_end_io = floppy_rb0_cb;
- 	bio_set_op_attrs(&bio, REQ_OP_READ, 0);
- 
- 	init_completion(&cbdata.complete);
+ 			if (bch_bio_alloc_pages(&io->bio, GFP_KERNEL))
+ 				goto err_free;
 -- 
 2.22.1
 
