@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
-Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4D93E4205F0
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:03 +0100 (CET)
+Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com [216.71.153.144])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8ECC34205F5
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:05 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:04 -0800
-Message-Id: <20210119050631.57073-11-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:05:57 -0800
+Message-Id: <20210119050631.57073-4-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 10/37] iomap: use bio_init_fields in direct-io
+Subject: [Drbd-dev] [RFC PATCH 03/37] btrfs: use bio_init_fields in disk-io
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,42 +43,40 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/iomap/direct-io.c | 15 +++++----------
- 1 file changed, 5 insertions(+), 10 deletions(-)
+ fs/btrfs/disk-io.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
 
-diff --git a/fs/iomap/direct-io.c b/fs/iomap/direct-io.c
-index 933f234d5bec..3756dbf51909 100644
---- a/fs/iomap/direct-io.c
-+++ b/fs/iomap/direct-io.c
-@@ -190,10 +190,8 @@ iomap_dio_zero(struct iomap_dio *dio, struct iomap *iomap, loff_t pos,
- 	struct bio *bio;
+diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+index 765deefda92b..9a65432fc5e9 100644
+--- a/fs/btrfs/disk-io.c
++++ b/fs/btrfs/disk-io.c
+@@ -3637,10 +3637,8 @@ static int write_dev_supers(struct btrfs_device *device,
+ 		 * checking.
+ 		 */
+ 		bio = bio_alloc(GFP_NOFS, 1);
+-		bio_set_dev(bio, device->bdev);
+-		bio->bi_iter.bi_sector = bytenr >> SECTOR_SHIFT;
+-		bio->bi_private = device;
+-		bio->bi_end_io = btrfs_end_super_write;
++		bio_init_fields(bio, device->bdev, bytenr >> SECTOR_SHIFT,
++				device, btrfs_end_super_write, 0, 0);
+ 		__bio_add_page(bio, page, BTRFS_SUPER_INFO_SIZE,
+ 			       offset_in_page(bytenr));
  
- 	bio = bio_alloc(GFP_KERNEL, 1);
--	bio_set_dev(bio, iomap->bdev);
--	bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
--	bio->bi_private = dio;
--	bio->bi_end_io = iomap_dio_bio_end_io;
-+	bio_init_fields(bio, iomap->bdev, iomap_sector(iomap, pos), dio,
-+			iomap_dio_bio_end_io, 0, 0);
+@@ -3748,11 +3746,10 @@ static void write_dev_flush(struct btrfs_device *device)
+ 		return;
  
- 	get_page(page);
- 	__bio_add_page(bio, page, len, 0);
-@@ -272,12 +270,9 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
- 		}
+ 	bio_reset(bio);
+-	bio->bi_end_io = btrfs_end_empty_barrier;
+-	bio_set_dev(bio, device->bdev);
+ 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH;
+ 	init_completion(&device->flush_wait);
+-	bio->bi_private = &device->flush_wait;
++	bio_init_fields(bio, device->bdev, 0, &device->flush_wait,
++			btrfs_end_empty_barrier, 0, 0);
  
- 		bio = bio_alloc(GFP_KERNEL, nr_pages);
--		bio_set_dev(bio, iomap->bdev);
--		bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
--		bio->bi_write_hint = dio->iocb->ki_hint;
--		bio->bi_ioprio = dio->iocb->ki_ioprio;
--		bio->bi_private = dio;
--		bio->bi_end_io = iomap_dio_bio_end_io;
-+		bio_init_fields(bio, iomap->bdev, iomap_sector(iomap, pos), dio,
-+				iomap_dio_bio_end_io, dio->iocb->ki_ioprio,
-+				dio->iocb->ki_hint);
- 
- 		ret = bio_iov_iter_get_pages(bio, dio->submit.iter);
- 		if (unlikely(ret)) {
+ 	btrfsic_submit_bio(bio);
+ 	set_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state);
 -- 
 2.22.1
 
