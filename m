@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 68FA54203D0
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:16:21 +0100 (CET)
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com [216.71.153.141])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8B1B54203D1
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:16:52 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:05:59 -0800
-Message-Id: <20210119050631.57073-6-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:03 -0800
+Message-Id: <20210119050631.57073-10-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,8 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 05/37] ext4: use bio_init_fields in page_io
+Subject: [Drbd-dev] [RFC PATCH 09/37] iomap: use bio_init_fields in
+	buffered-io
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,26 +44,26 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/ext4/page-io.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ fs/iomap/buffered-io.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-diff --git a/fs/ext4/page-io.c b/fs/ext4/page-io.c
-index 03a44a0de86a..53a79a7aac15 100644
---- a/fs/ext4/page-io.c
-+++ b/fs/ext4/page-io.c
-@@ -400,10 +400,8 @@ static void io_submit_init_bio(struct ext4_io_submit *io,
- 	 */
- 	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
- 	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
--	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
--	bio_set_dev(bio, bh->b_bdev);
--	bio->bi_end_io = ext4_end_bio;
--	bio->bi_private = ext4_get_io_end(io->io_end);
-+	bio_init_fields(bio, bh->b_bdev, bh->b_blocknr * (bh->b_size >> 9),
-+			ext4_get_io_end(io->io_end), ext4_end_bio, 0, 0);
- 	io->io_bio = bio;
- 	io->io_next_block = bh->b_blocknr;
- 	wbc_init_bio(io->io_wbc, bio);
+diff --git a/fs/iomap/buffered-io.c b/fs/iomap/buffered-io.c
+index 16a1e82e3aeb..d256799569cf 100644
+--- a/fs/iomap/buffered-io.c
++++ b/fs/iomap/buffered-io.c
+@@ -1222,10 +1222,9 @@ iomap_alloc_ioend(struct inode *inode, struct iomap_writepage_ctx *wpc,
+ 	struct bio *bio;
+ 
+ 	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, &iomap_ioend_bioset);
+-	bio_set_dev(bio, wpc->iomap.bdev);
+-	bio->bi_iter.bi_sector = sector;
++	bio_init_fields(bio, wpc->iomap.bdev, sector, NULL, NULL, 0,
++			inode->i_write_hint);
+ 	bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
+-	bio->bi_write_hint = inode->i_write_hint;
+ 	wbc_init_bio(wbc, bio);
+ 
+ 	ioend = container_of(bio, struct iomap_ioend, io_inline_bio);
 -- 
 2.22.1
 
