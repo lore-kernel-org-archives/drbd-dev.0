@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
-Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com [68.232.143.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A538B420590
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:14:44 +0100 (CET)
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com [216.71.153.141])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7E98C4205A5
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:14:46 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:22 -0800
-Message-Id: <20210119050631.57073-29-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:01 -0800
+Message-Id: <20210119050631.57073-8-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 28/37] target: use bio_init_fields in iblock
+Subject: [Drbd-dev] [RFC PATCH 07/37] gfs2: use bio_init_fields in meta_io
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,39 +43,32 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- drivers/target/target_core_iblock.c | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ fs/gfs2/meta_io.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
-index 8ed93fd205c7..ec65a9494bee 100644
---- a/drivers/target/target_core_iblock.c
-+++ b/drivers/target/target_core_iblock.c
-@@ -324,10 +324,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int op,
- 		return NULL;
+diff --git a/fs/gfs2/meta_io.c b/fs/gfs2/meta_io.c
+index 2db573e31f78..822489b10aec 100644
+--- a/fs/gfs2/meta_io.c
++++ b/fs/gfs2/meta_io.c
+@@ -217,8 +217,8 @@ static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
+ 		struct bio *bio;
+ 
+ 		bio = bio_alloc(GFP_NOIO, num);
+-		bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
+-		bio_set_dev(bio, bh->b_bdev);
++		bio_init_fields(bio, bh->b_bdev, bh->b_blocknr * (bh->b_size >> 9), NULL,
++				gfs2_meta_read_endio, 0, 0);
+ 		while (num > 0) {
+ 			bh = *bhs;
+ 			if (!bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh))) {
+@@ -228,7 +228,6 @@ static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
+ 			bhs++;
+ 			num--;
+ 		}
+-		bio->bi_end_io = gfs2_meta_read_endio;
+ 		bio_set_op_attrs(bio, op, op_flags);
+ 		submit_bio(bio);
  	}
- 
--	bio_set_dev(bio, ib_dev->ibd_bd);
--	bio->bi_private = cmd;
--	bio->bi_end_io = &iblock_bio_done;
--	bio->bi_iter.bi_sector = lba;
-+	bio_init_fields(bio, ib_dev->ibd_bd, lba, cmd, &iblock_bio_done, 0, 0);
- 	bio_set_op_attrs(bio, op, op_flags);
- 
- 	return bio;
-@@ -380,11 +377,9 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
- 		target_complete_cmd(cmd, SAM_STAT_GOOD);
- 
- 	bio = bio_alloc(GFP_KERNEL, 0);
--	bio->bi_end_io = iblock_end_io_flush;
--	bio_set_dev(bio, ib_dev->ibd_bd);
-+	bio_init_fields(bio, ib_dev->ibd_bd, 0, immed ? NULL : cmd,
-+			iblock_end_io_flush, 0, 0);
- 	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
--	if (!immed)
--		bio->bi_private = cmd;
- 	submit_bio(bio);
- 	return 0;
- }
 -- 
 2.22.1
 
