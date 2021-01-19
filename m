@@ -1,59 +1,39 @@
-Return-Path: <prvs=647182bba=Chaitanya.Kulkarni@wdc.com>
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A2157420641
-	for <drbd-dev@lists.linbit.com>; Wed, 20 Jan 2021 04:35:13 +0100 (CET)
-From: Chaitanya Kulkarni <Chaitanya.Kulkarni@wdc.com>
-To: "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
-	"linux-bcache@vger.kernel.org" <linux-bcache@vger.kernel.org>,
-	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
-	"linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>,
-	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
-	"target-devel@vger.kernel.org" <target-devel@vger.kernel.org>,
-	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>,
-	"linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>,
-	"cluster-devel@redhat.com" <cluster-devel@redhat.com>
-Date: Wed, 20 Jan 2021 03:27:55 +0000
-Message-ID: <BYAPR04MB49652C7B57396757FF064C6686A20@BYAPR04MB4965.namprd04.prod.outlook.com>
+Return-Path: <nborisov@suse.com>
+Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 34BA042053E
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 15:13:33 +0100 (CET)
+To: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>,
+	linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	drbd-dev@lists.linbit.com, linux-bcache@vger.kernel.org,
+	linux-raid@vger.kernel.org, linux-nvme@lists.infradead.org,
+	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
+	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
+	cluster-devel@redhat.com
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+	<20210119050631.57073-5-chaitanya.kulkarni@wdc.com>
+From: Nikolay Borisov <nborisov@suse.com>
+Message-ID: <89feb998-8c60-dbae-92a6-15a9ad4fd594@suse.com>
+Date: Tue, 19 Jan 2021 15:52:28 +0200
 MIME-Version: 1.0
-Cc: "shaggy@kernel.org" <shaggy@kernel.org>,
-	"jfs-discussion@lists.sourceforge.net"
-	<jfs-discussion@lists.sourceforge.net>,
-	"snitzer@redhat.com" <snitzer@redhat.com>,
-	"gustavo@embeddedor.com" <gustavo@embeddedor.com>,
-	Moal <Damien.LeMoal@wdc.com>, "clm@fb.com" <clm@fb.com>,
-	"dm-devel@redhat.com" <dm-devel@redhat.com>,
-	"adilger.kernel@dilger.ca" <adilger.kernel@dilger.ca>,
-	"hch@lst.de" <hch@lst.de>, "agk@redhat.com" <agk@redhat.com>,
-	"sagi@grimberg.me" <sagi@grimberg.me>,
-	"darrick.wong@oracle.com" <darrick.wong@oracle.com>,
-	"osandov@fb.com" <osandov@fb.com>,
-	"kent.overstreet@gmail.com" <kent.overstreet@gmail.com>,
-	Naohiro Aota <Naohiro.Aota@wdc.com>, Damien,
-	"josef@toxicpanda.com" <josef@toxicpanda.com>,
-	"efremov@linux.com" <efremov@linux.com>, "colyli@suse.de" <colyli@suse.de>,
-	"tj@kernel.org" <tj@kernel.org>,
-	"viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>,
-	"dsterba@suse.com" <dsterba@suse.com>,
-	"bvanassche@acm.org" <bvanassche@acm.org>,
-	"agruenba@redhat.com" <agruenba@redhat.com>,
-	"axboe@kernel.dk" <axboe@kernel.dk>, "tytso@mit.edu" <tytso@mit.edu>,
-	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
-	"song@kernel.org" <song@kernel.org>,
-	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
-	"jefflexu@linux.alibaba.com" <jefflexu@linux.alibaba.com>,
-	"rpeterso@redhat.com" <rpeterso@redhat.com>,
-	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
-	"jth@kernel.org" <jth@kernel.org>,
-	"asml.silence@gmail.com" <asml.silence@gmail.com>
-Subject: Re: [Drbd-dev] [RFC PATCH 00/37] block: introduce bio_init_fields()
+In-Reply-To: <20210119050631.57073-5-chaitanya.kulkarni@wdc.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
+	gustavo@embeddedor.com, clm@fb.com, dm-devel@redhat.com,
+	adilger.kernel@dilger.ca, hch@lst.de, agk@redhat.com,
+	naohiro.aota@wdc.com, sagi@grimberg.me, darrick.wong@oracle.com,
+	osandov@fb.com, kent.overstreet@gmail.com, josef@toxicpanda.com,
+	efremov@linux.com, colyli@suse.de, tj@kernel.org,
+	viro@zeniv.linux.org.uk, dsterba@suse.com, bvanassche@acm.org,
+	agruenba@redhat.com, axboe@kernel.dk, damien.lemoal@wdc.com,
+	tytso@mit.edu, martin.petersen@oracle.com, song@kernel.org,
+	philipp.reisner@linbit.com, jefflexu@linux.alibaba.com,
+	rpeterso@redhat.com, lars.ellenberg@linbit.com, jth@kernel.org,
+	asml.silence@gmail.com
+Subject: Re: [Drbd-dev] [RFC PATCH 04/37] btrfs: use bio_init_fields in
+	volumes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -65,24 +45,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 1/18/21 21:06, Chaitanya Kulkarni wrote:=0A=
-> Hi,=0A=
->=0A=
-> This is a *compile only RFC* which adds a generic helper to initialize=0A=
-> the various fields of the bio that is repeated all the places in=0A=
-> file-systems, block layer, and drivers.=0A=
->=0A=
-> The new helper allows callers to initialize various members such as=0A=
-> bdev, sector, private, end io callback, io priority, and write hints.=0A=
->=0A=
-> The objective of this RFC is to only start a discussion, this it not =0A=
-> completely tested at all.                                                =
-                                                            =0A=
-> Following diff shows code level benefits of this helper :-=0A=
->  38 files changed, 124 insertions(+), 236 deletions(-)=0A=
->=0A=
-> -ck=0A=
-Thanks for replying Mike, Josef and Christoph.=0A=
-=0A=
-I'll move forward with Christoph's suggestion and get rid of=0A=
-optional parameters which is making this API hard to use.=0A=
+
+
+On 19.01.21 г. 7:05 ч., Chaitanya Kulkarni wrote:
+> Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+> ---
+>  fs/btrfs/volumes.c | 4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
+> 
+> diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
+> index ee086fc56c30..836167212252 100644
+> --- a/fs/btrfs/volumes.c
+> +++ b/fs/btrfs/volumes.c
+> @@ -6371,14 +6371,12 @@ static void submit_stripe_bio(struct btrfs_bio *bbio, struct bio *bio,
+>  
+>  	bio->bi_private = bbio;
+This line can be removed as ->private is initialized by bio_init_fields.
+
+>  	btrfs_io_bio(bio)->device = dev;
+> -	bio->bi_end_io = btrfs_end_bio;
+> -	bio->bi_iter.bi_sector = physical >> 9;
+> +	bio_init_fields(bio, dev->bdev, physical >> 9, bbio, btrfs_end_bio, 0, 0);
+>  	btrfs_debug_in_rcu(fs_info,
+>  	"btrfs_map_bio: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u",
+>  		bio_op(bio), bio->bi_opf, bio->bi_iter.bi_sector,
+>  		(unsigned long)dev->bdev->bd_dev, rcu_str_deref(dev->name),
+>  		dev->devid, bio->bi_iter.bi_size);
+> -	bio_set_dev(bio, dev->bdev);
+>  
+>  	btrfs_bio_counter_inc_noblocked(fs_info);
+>  
+> 
