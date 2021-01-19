@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
 Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com [68.232.143.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 16AD642053E
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:14:43 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A538B420590
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:14:44 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:18 -0800
-Message-Id: <20210119050631.57073-25-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:22 -0800
+Message-Id: <20210119050631.57073-29-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 24/37] dm-zoned: use bio_init_fields target
+Subject: [Drbd-dev] [RFC PATCH 28/37] target: use bio_init_fields in iblock
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,31 +43,39 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- drivers/md/dm-zoned-target.c | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ drivers/target/target_core_iblock.c | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/md/dm-zoned-target.c b/drivers/md/dm-zoned-target.c
-index 697f9de37355..8b232b9e3386 100644
---- a/drivers/md/dm-zoned-target.c
-+++ b/drivers/md/dm-zoned-target.c
-@@ -129,14 +129,11 @@ static int dmz_submit_bio(struct dmz_target *dmz, struct dm_zone *zone,
- 	if (!clone)
- 		return -ENOMEM;
+diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+index 8ed93fd205c7..ec65a9494bee 100644
+--- a/drivers/target/target_core_iblock.c
++++ b/drivers/target/target_core_iblock.c
+@@ -324,10 +324,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int op,
+ 		return NULL;
+ 	}
  
--	bio_set_dev(clone, dev->bdev);
- 	bioctx->dev = dev;
--	clone->bi_iter.bi_sector =
--		dmz_start_sect(dmz->metadata, zone) + dmz_blk2sect(chunk_block);
- 	clone->bi_iter.bi_size = dmz_blk2sect(nr_blocks) << SECTOR_SHIFT;
--	clone->bi_end_io = dmz_clone_endio;
--	clone->bi_private = bioctx;
--
-+	bio_init_fields(clone, dev->bdev,
-+			dmz_start_sect(dmz->metadata, zone) + dmz, bioctx,
-+			dmz_clone_endio, 0, 0);
- 	bio_advance(bio, clone->bi_iter.bi_size);
+-	bio_set_dev(bio, ib_dev->ibd_bd);
+-	bio->bi_private = cmd;
+-	bio->bi_end_io = &iblock_bio_done;
+-	bio->bi_iter.bi_sector = lba;
++	bio_init_fields(bio, ib_dev->ibd_bd, lba, cmd, &iblock_bio_done, 0, 0);
+ 	bio_set_op_attrs(bio, op, op_flags);
  
- 	refcount_inc(&bioctx->ref);
+ 	return bio;
+@@ -380,11 +377,9 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
+ 		target_complete_cmd(cmd, SAM_STAT_GOOD);
+ 
+ 	bio = bio_alloc(GFP_KERNEL, 0);
+-	bio->bi_end_io = iblock_end_io_flush;
+-	bio_set_dev(bio, ib_dev->ibd_bd);
++	bio_init_fields(bio, ib_dev->ibd_bd, 0, immed ? NULL : cmd,
++			iblock_end_io_flush, 0, 0);
+ 	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
+-	if (!immed)
+-		bio->bi_private = cmd;
+ 	submit_bio(bio);
+ 	return 0;
+ }
 -- 
 2.22.1
 
