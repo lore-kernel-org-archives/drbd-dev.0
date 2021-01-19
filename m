@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
-Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 03B374205E5
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:16:15 +0100 (CET)
+Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 68FA54203D0
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:16:21 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:14 -0800
-Message-Id: <20210119050631.57073-21-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:05:59 -0800
+Message-Id: <20210119050631.57073-6-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,8 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 20/37] bcache: use bio_init_fields in
-	writeback
+Subject: [Drbd-dev] [RFC PATCH 05/37] ext4: use bio_init_fields in page_io
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,41 +43,26 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- drivers/md/bcache/writeback.c | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ fs/ext4/page-io.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/md/bcache/writeback.c b/drivers/md/bcache/writeback.c
-index a129e4d2707c..e2b769bbdb14 100644
---- a/drivers/md/bcache/writeback.c
-+++ b/drivers/md/bcache/writeback.c
-@@ -358,10 +358,8 @@ static void write_dirty(struct closure *cl)
- 	if (KEY_DIRTY(&w->key)) {
- 		dirty_init(w);
- 		bio_set_op_attrs(&io->bio, REQ_OP_WRITE, 0);
--		io->bio.bi_iter.bi_sector = KEY_START(&w->key);
--		bio_set_dev(&io->bio, io->dc->bdev);
--		io->bio.bi_end_io	= dirty_endio;
--
-+		bio_init_fields(&io->bio, io->dc->bdev, KEY_START(&w->key), NULL,
-+				dirty_endio, 0, 0);
- 		/* I/O request sent to backing device */
- 		closure_bio_submit(io->dc->disk.c, &io->bio, cl);
- 	}
-@@ -471,10 +469,10 @@ static void read_dirty(struct cached_dev *dc)
- 
- 			dirty_init(w);
- 			bio_set_op_attrs(&io->bio, REQ_OP_READ, 0);
--			io->bio.bi_iter.bi_sector = PTR_OFFSET(&w->key, 0);
--			bio_set_dev(&io->bio,
--				    PTR_CACHE(dc->disk.c, &w->key, 0)->bdev);
--			io->bio.bi_end_io	= read_dirty_endio;
-+			bio_init_fields(&io->bio,
-+				PTR_CACHE(dc->disk.c, &w->key, 0)->bdev,
-+				PTR_OFFSET(&w->key, 0), NULL,
-+				read_dirty_endio, 0, 0);
- 
- 			if (bch_bio_alloc_pages(&io->bio, GFP_KERNEL))
- 				goto err_free;
+diff --git a/fs/ext4/page-io.c b/fs/ext4/page-io.c
+index 03a44a0de86a..53a79a7aac15 100644
+--- a/fs/ext4/page-io.c
++++ b/fs/ext4/page-io.c
+@@ -400,10 +400,8 @@ static void io_submit_init_bio(struct ext4_io_submit *io,
+ 	 */
+ 	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
+ 	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
+-	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
+-	bio_set_dev(bio, bh->b_bdev);
+-	bio->bi_end_io = ext4_end_bio;
+-	bio->bi_private = ext4_get_io_end(io->io_end);
++	bio_init_fields(bio, bh->b_bdev, bh->b_blocknr * (bh->b_size >> 9),
++			ext4_get_io_end(io->io_end), ext4_end_bio, 0, 0);
+ 	io->io_bio = bio;
+ 	io->io_next_block = bh->b_blocknr;
+ 	wbc_init_bio(io->io_wbc, bio);
 -- 
 2.22.1
 
