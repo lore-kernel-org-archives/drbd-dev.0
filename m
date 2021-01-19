@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
-Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com [216.71.153.144])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AE11D4205FC
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:06 +0100 (CET)
+Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 810264205FF
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:11 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:06 -0800
-Message-Id: <20210119050631.57073-13-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:31 -0800
+Message-Id: <20210119050631.57073-38-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 12/37] zonefs: use bio_init_fields in append
+Subject: [Drbd-dev] [RFC PATCH 37/37] xfs: use bio_init_fields in xfs_log
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,27 +43,26 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/zonefs/super.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ fs/xfs/xfs_log.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/fs/zonefs/super.c b/fs/zonefs/super.c
-index bec47f2d074b..3117a89550f6 100644
---- a/fs/zonefs/super.c
-+++ b/fs/zonefs/super.c
-@@ -682,10 +682,9 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
- 	if (!bio)
- 		return -ENOMEM;
+diff --git a/fs/xfs/xfs_log.c b/fs/xfs/xfs_log.c
+index fa2d05e65ff1..062ee664a910 100644
+--- a/fs/xfs/xfs_log.c
++++ b/fs/xfs/xfs_log.c
+@@ -1702,10 +1702,8 @@ xlog_write_iclog(
+ 	}
  
--	bio_set_dev(bio, bdev);
--	bio->bi_iter.bi_sector = zi->i_zsector;
--	bio->bi_write_hint = iocb->ki_hint;
--	bio->bi_ioprio = iocb->ki_ioprio;
-+	bio_init_fields(bio, bdev, zi->i_zsector, NULL, NULL, iocb->ki_ioprio,
-+			iocb->ki_hint);
-+
- 	bio->bi_opf = REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE;
- 	if (iocb->ki_flags & IOCB_DSYNC)
- 		bio->bi_opf |= REQ_FUA;
+ 	bio_init(&iclog->ic_bio, iclog->ic_bvec, howmany(count, PAGE_SIZE));
+-	bio_set_dev(&iclog->ic_bio, log->l_targ->bt_bdev);
+-	iclog->ic_bio.bi_iter.bi_sector = log->l_logBBstart + bno;
+-	iclog->ic_bio.bi_end_io = xlog_bio_end_io;
+-	iclog->ic_bio.bi_private = iclog;
++	bio_init_fields(&iclog->ic_bio, log->l_targ->bt_bdev,
++			log->l_logBBstart + bno, iclog, xlog_bio_end_io, 0, 0);
+ 
+ 	/*
+ 	 * We use REQ_SYNC | REQ_IDLE here to tell the block layer the are more
 -- 
 2.22.1
 
