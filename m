@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
 Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com [216.71.153.141])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AB91D420356
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:12:49 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B555420231
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:12:50 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:30 -0800
-Message-Id: <20210119050631.57073-37-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:06:15 -0800
+Message-Id: <20210119050631.57073-22-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 36/37] xfs: use bio_init_fields in xfs_buf
+Subject: [Drbd-dev] [RFC PATCH 21/37] dm-bufio: use bio_init_fields
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,26 +43,26 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/xfs/xfs_buf.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ drivers/md/dm-bufio.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index f8400bbd6473..1c157cfc5f8f 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -1508,10 +1508,8 @@ xfs_buf_ioapply_map(
- 	nr_pages = min(total_nr_pages, BIO_MAX_PAGES);
+diff --git a/drivers/md/dm-bufio.c b/drivers/md/dm-bufio.c
+index 9c1a86bde658..1295e7e33e06 100644
+--- a/drivers/md/dm-bufio.c
++++ b/drivers/md/dm-bufio.c
+@@ -633,11 +633,8 @@ static void use_bio(struct dm_buffer *b, int rw, sector_t sector,
+ 		return;
+ 	}
  
- 	bio = bio_alloc(GFP_NOIO, nr_pages);
--	bio_set_dev(bio, bp->b_target->bt_bdev);
 -	bio->bi_iter.bi_sector = sector;
--	bio->bi_end_io = xfs_buf_bio_end_io;
--	bio->bi_private = bp;
-+	bio_init_fields(bio, bp->b_target->bt_bdev, sector, bp,
-+			xfs_buf_bio_end_io, 0, 0);
- 	bio->bi_opf = op;
+-	bio_set_dev(bio, b->c->bdev);
+ 	bio_set_op_attrs(bio, rw, 0);
+-	bio->bi_end_io = bio_complete;
+-	bio->bi_private = b;
++	bio_init_fields(bio, b->c->bdev, sector, b, bio_complete, 0, 0);
  
- 	for (; size && nr_pages; nr_pages--, page_index++) {
+ 	ptr = (char *)b->data + offset;
+ 	len = n_sectors << SECTOR_SHIFT;
 -- 
 2.22.1
 
