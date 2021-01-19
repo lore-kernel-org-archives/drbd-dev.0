@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
 Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com [68.232.143.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C4E80420231
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:12:17 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A91A6420231
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:12:18 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,11 +10,10 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:06:24 -0800
-Message-Id: <20210119050631.57073-31-chaitanya.kulkarni@wdc.com>
-In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
-References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:05:54 -0800
+Message-Id: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=y
 Content-Transfer-Encoding: 8bit
 Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	gustavo@embeddedor.com, clm@fb.com, dm-devel@redhat.com,
@@ -29,7 +28,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 30/37] fs: use bio_init_fields in buffer
+Subject: [Drbd-dev] [RFC PATCH 00/37] block: introduce bio_init_fields()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,34 +40,101 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
----
- fs/buffer.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+Hi,
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 32647d2011df..32e9f780e134 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -3027,16 +3027,13 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
- 
- 	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
- 
--	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
--	bio_set_dev(bio, bh->b_bdev);
-+	bio_init_fields(bio, bh->b_bdev, bh->b_blocknr * (bh->b_size >> 9),
-+			bh, end_bio_bh_io_sync, 0, 0);
- 	bio->bi_write_hint = write_hint;
- 
- 	bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
- 	BUG_ON(bio->bi_iter.bi_size != bh->b_size);
- 
--	bio->bi_end_io = end_bio_bh_io_sync;
--	bio->bi_private = bh;
--
- 	if (buffer_meta(bh))
- 		op_flags |= REQ_META;
- 	if (buffer_prio(bh))
+This is a *compile only RFC* which adds a generic helper to initialize
+the various fields of the bio that is repeated all the places in
+file-systems, block layer, and drivers.
+
+The new helper allows callers to initialize various members such as
+bdev, sector, private, end io callback, io priority, and write hints.
+
+The objective of this RFC is to only start a discussion, this it not 
+completely tested at all.                                                                                                            
+Following diff shows code level benefits of this helper :-
+ 38 files changed, 124 insertions(+), 236 deletions(-)
+
+-ck
+
+Chaitanya Kulkarni (37):
+  block: introduce bio_init_fields() helper
+  fs: use bio_init_fields in block_dev
+  btrfs: use bio_init_fields in disk-io
+  btrfs: use bio_init_fields in volumes
+  ext4: use bio_init_fields in page_io
+  gfs2: use bio_init_fields in lops
+  gfs2: use bio_init_fields in meta_io
+  gfs2: use bio_init_fields in ops_fstype
+  iomap: use bio_init_fields in buffered-io
+  iomap: use bio_init_fields in direct-io
+  jfs: use bio_init_fields in logmgr
+  zonefs: use bio_init_fields in append
+  drdb: use bio_init_fields in actlog
+  drdb: use bio_init_fields in bitmap
+  drdb: use bio_init_fields in receiver
+  floppy: use bio_init_fields
+  pktcdvd: use bio_init_fields
+  bcache: use bio_init_fields in journal
+  bcache: use bio_init_fields in super
+  bcache: use bio_init_fields in writeback
+  dm-bufio: use bio_init_fields
+  dm-crypt: use bio_init_fields
+  dm-zoned: use bio_init_fields metadata
+  dm-zoned: use bio_init_fields target
+  dm-zoned: use bio_init_fields
+  dm log writes: use bio_init_fields
+  nvmet: use bio_init_fields in bdev-ns
+  target: use bio_init_fields in iblock
+  btrfs: use bio_init_fields in scrub
+  fs: use bio_init_fields in buffer
+  eros: use bio_init_fields in data
+  eros: use bio_init_fields in zdata
+  jfs: use bio_init_fields in metadata
+  nfs: use bio_init_fields in blocklayout
+  ocfs: use bio_init_fields in heartbeat
+  xfs: use bio_init_fields in xfs_buf
+  xfs: use bio_init_fields in xfs_log
+
+ block/blk-lib.c                     | 13 +++++--------
+ drivers/block/drbd/drbd_actlog.c    |  5 +----
+ drivers/block/drbd/drbd_bitmap.c    |  5 +----
+ drivers/block/drbd/drbd_receiver.c  | 11 +++--------
+ drivers/block/floppy.c              |  5 +----
+ drivers/block/pktcdvd.c             | 12 ++++--------
+ drivers/md/bcache/journal.c         | 21 ++++++++-------------
+ drivers/md/bcache/super.c           | 19 +++++--------------
+ drivers/md/bcache/writeback.c       | 14 ++++++--------
+ drivers/md/dm-bufio.c               |  5 +----
+ drivers/md/dm-crypt.c               |  4 +---
+ drivers/md/dm-log-writes.c          | 21 ++++++---------------
+ drivers/md/dm-zoned-metadata.c      | 15 +++++----------
+ drivers/md/dm-zoned-target.c        |  9 +++------
+ drivers/md/md.c                     |  6 ++----
+ drivers/nvme/target/io-cmd-bdev.c   |  4 +---
+ drivers/target/target_core_iblock.c | 11 +++--------
+ fs/block_dev.c                      | 17 +++++------------
+ fs/btrfs/disk-io.c                  | 11 ++++-------
+ fs/btrfs/scrub.c                    |  6 ++----
+ fs/btrfs/volumes.c                  |  4 +---
+ fs/buffer.c                         |  7 ++-----
+ fs/erofs/data.c                     |  6 ++----
+ fs/erofs/zdata.c                    |  9 +++------
+ fs/ext4/page-io.c                   |  6 ++----
+ fs/gfs2/lops.c                      |  6 ++----
+ fs/gfs2/meta_io.c                   |  5 ++---
+ fs/gfs2/ops_fstype.c                |  7 ++-----
+ fs/iomap/buffered-io.c              |  5 ++---
+ fs/iomap/direct-io.c                | 15 +++++----------
+ fs/jfs/jfs_logmgr.c                 | 16 ++++------------
+ fs/jfs/jfs_metapage.c               | 16 +++++++---------
+ fs/nfs/blocklayout/blocklayout.c    |  8 ++------
+ fs/ocfs2/cluster/heartbeat.c        |  4 +---
+ fs/xfs/xfs_buf.c                    |  6 ++----
+ fs/xfs/xfs_log.c                    |  6 ++----
+ fs/zonefs/super.c                   |  7 +++----
+ include/linux/bio.h                 | 13 +++++++++++++
+ 38 files changed, 124 insertions(+), 236 deletions(-)
+
 -- 
 2.22.1
 
