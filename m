@@ -1,7 +1,7 @@
 Return-Path: <prvs=646552d04=chaitanya.kulkarni@wdc.com>
 Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A790742060C
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:12 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 423CD42060D
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 06:15:13 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
@@ -10,8 +10,8 @@ To: linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
 	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
 	cluster-devel@redhat.com
-Date: Mon, 18 Jan 2021 21:05:56 -0800
-Message-Id: <20210119050631.57073-3-chaitanya.kulkarni@wdc.com>
+Date: Mon, 18 Jan 2021 21:05:58 -0800
+Message-Id: <20210119050631.57073-5-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -29,7 +29,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
 	song@kernel.org, philipp.reisner@linbit.com,
 	jefflexu@linux.alibaba.com, rpeterso@redhat.com,
 	lars.ellenberg@linbit.com, jth@kernel.org, asml.silence@gmail.com
-Subject: [Drbd-dev] [RFC PATCH 02/37] fs: use bio_init_fields in block_dev
+Subject: [Drbd-dev] [RFC PATCH 04/37] btrfs: use bio_init_fields in volumes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,44 +43,29 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/block_dev.c | 17 +++++------------
- 1 file changed, 5 insertions(+), 12 deletions(-)
+ fs/btrfs/volumes.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index 3e5b02f6606c..44b992976ee5 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -239,12 +239,9 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
- 	}
+diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
+index ee086fc56c30..836167212252 100644
+--- a/fs/btrfs/volumes.c
++++ b/fs/btrfs/volumes.c
+@@ -6371,14 +6371,12 @@ static void submit_stripe_bio(struct btrfs_bio *bbio, struct bio *bio,
  
- 	bio_init(&bio, vecs, nr_pages);
--	bio_set_dev(&bio, bdev);
--	bio.bi_iter.bi_sector = pos >> 9;
--	bio.bi_write_hint = iocb->ki_hint;
--	bio.bi_private = current;
--	bio.bi_end_io = blkdev_bio_end_io_simple;
--	bio.bi_ioprio = iocb->ki_ioprio;
-+	bio_init_fields(&bio, bdev, pos >> 9, current, blkdev_bio_end_io_simple,
-+			iocb->ki_ioprio, iocb->ki_hint);
-+
+ 	bio->bi_private = bbio;
+ 	btrfs_io_bio(bio)->device = dev;
+-	bio->bi_end_io = btrfs_end_bio;
+-	bio->bi_iter.bi_sector = physical >> 9;
++	bio_init_fields(bio, dev->bdev, physical >> 9, bbio, btrfs_end_bio, 0, 0);
+ 	btrfs_debug_in_rcu(fs_info,
+ 	"btrfs_map_bio: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u",
+ 		bio_op(bio), bio->bi_opf, bio->bi_iter.bi_sector,
+ 		(unsigned long)dev->bdev->bd_dev, rcu_str_deref(dev->name),
+ 		dev->devid, bio->bi_iter.bi_size);
+-	bio_set_dev(bio, dev->bdev);
  
- 	ret = bio_iov_iter_get_pages(&bio, iter);
- 	if (unlikely(ret))
-@@ -390,12 +387,8 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
- 		blk_start_plug(&plug);
+ 	btrfs_bio_counter_inc_noblocked(fs_info);
  
- 	for (;;) {
--		bio_set_dev(bio, bdev);
--		bio->bi_iter.bi_sector = pos >> 9;
--		bio->bi_write_hint = iocb->ki_hint;
--		bio->bi_private = dio;
--		bio->bi_end_io = blkdev_bio_end_io;
--		bio->bi_ioprio = iocb->ki_ioprio;
-+		bio_init_fields(bio, bdev, pos >> 9, dio, blkdev_bio_end_io,
-+				iocb->ki_ioprio, iocb->ki_hint);
- 
- 		ret = bio_iov_iter_get_pages(bio, iter);
- 		if (unlikely(ret)) {
 -- 
 2.22.1
 
