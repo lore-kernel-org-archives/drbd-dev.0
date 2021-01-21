@@ -1,39 +1,40 @@
-Return-Path: <nborisov@suse.com>
-Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 34BA042053E
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jan 2021 15:13:33 +0100 (CET)
-To: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>,
-	linux-block@vger.kernel.org, linux-xfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com, linux-bcache@vger.kernel.org,
-	linux-raid@vger.kernel.org, linux-nvme@lists.infradead.org,
-	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
-	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
-	cluster-devel@redhat.com
-References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
-	<20210119050631.57073-5-chaitanya.kulkarni@wdc.com>
-From: Nikolay Borisov <nborisov@suse.com>
-Message-ID: <89feb998-8c60-dbae-92a6-15a9ad4fd594@suse.com>
-Date: Tue, 19 Jan 2021 15:52:28 +0200
+Return-Path: <julian.calaby@gmail.com>
+Received: from mail-ej1-f49.google.com (mail-ej1-f49.google.com
+	[209.85.218.49])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E5F6342063D
+	for <drbd-dev@lists.linbit.com>; Thu, 21 Jan 2021 04:01:50 +0100 (CET)
+Received: by mail-ej1-f49.google.com with SMTP id gx5so558549ejb.7
+	for <drbd-dev@lists.linbit.com>; Wed, 20 Jan 2021 19:01:50 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20210119050631.57073-5-chaitanya.kulkarni@wdc.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
+In-Reply-To: <20210119050631.57073-1-chaitanya.kulkarni@wdc.com>
+From: Julian Calaby <julian.calaby@gmail.com>
+Date: Thu, 21 Jan 2021 14:00:38 +1100
+Message-ID: <CAGRGNgWLspr6M1COgX9cuDDgYdiXvQQjWQb7XYLsmFpfMYt0sA@mail.gmail.com>
+To: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+Content-Type: text/plain; charset="UTF-8"
 Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net, snitzer@redhat.com,
-	gustavo@embeddedor.com, clm@fb.com, dm-devel@redhat.com,
-	adilger.kernel@dilger.ca, hch@lst.de, agk@redhat.com,
-	naohiro.aota@wdc.com, sagi@grimberg.me, darrick.wong@oracle.com,
-	osandov@fb.com, kent.overstreet@gmail.com, josef@toxicpanda.com,
-	efremov@linux.com, colyli@suse.de, tj@kernel.org,
-	viro@zeniv.linux.org.uk, dsterba@suse.com, bvanassche@acm.org,
-	agruenba@redhat.com, axboe@kernel.dk, damien.lemoal@wdc.com,
-	tytso@mit.edu, martin.petersen@oracle.com, song@kernel.org,
-	philipp.reisner@linbit.com, jefflexu@linux.alibaba.com,
-	rpeterso@redhat.com, lars.ellenberg@linbit.com, jth@kernel.org,
-	asml.silence@gmail.com
-Subject: Re: [Drbd-dev] [RFC PATCH 04/37] btrfs: use bio_init_fields in
-	volumes
+	gustavo@embeddedor.com, linux-nvme@lists.infradead.org,
+	philipp.reisner@linbit.com, song@kernel.org, dm-devel@redhat.com,
+	target-devel@vger.kernel.org, adilger.kernel@dilger.ca,
+	Christoph Hellwig <hch@lst.de>, agk@redhat.com,
+	drbd-dev@lists.linbit.com, naohiro.aota@wdc.com,
+	sagi@grimberg.me, Linux SCSI List <linux-scsi@vger.kernel.org>,
+	darrick.wong@oracle.com, osandov@fb.com,
+	cluster-devel@redhat.com, linux-ext4@vger.kernel.org,
+	kent.overstreet@gmail.com, josef@toxicpanda.com,
+	Denis Efremov <efremov@linux.com>, colyli@suse.de,
+	linux-raid@vger.kernel.org, rpeterso@redhat.com,
+	linux-bcache@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>,
+	dsterba@suse.com, bvanassche@acm.org, agruenba@redhat.com,
+	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	damien.lemoal@wdc.com, tytso@mit.edu,
+	"Martin K. Petersen" <martin.petersen@oracle.com>, clm@fb.com,
+	LKML <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org,
+	jefflexu@linux.alibaba.com, linux-fsdevel@vger.kernel.org,
+	Tejun Heo <tj@kernel.org>, lars.ellenberg@linbit.com,
+	jth@kernel.org, asml.silence@gmail.com, linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [RFC PATCH 00/37] block: introduce bio_init_fields()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,34 +46,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hi Chaitanya,
 
+On Tue, Jan 19, 2021 at 5:01 PM Chaitanya Kulkarni
+<chaitanya.kulkarni@wdc.com> wrote:
+>
+> Hi,
+>
+> This is a *compile only RFC* which adds a generic helper to initialize
+> the various fields of the bio that is repeated all the places in
+> file-systems, block layer, and drivers.
+>
+> The new helper allows callers to initialize various members such as
+> bdev, sector, private, end io callback, io priority, and write hints.
+>
+> The objective of this RFC is to only start a discussion, this it not
+> completely tested at all.
+> Following diff shows code level benefits of this helper :-
+>  38 files changed, 124 insertions(+), 236 deletions(-)
 
-On 19.01.21 г. 7:05 ч., Chaitanya Kulkarni wrote:
-> Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
-> ---
->  fs/btrfs/volumes.c | 4 +---
->  1 file changed, 1 insertion(+), 3 deletions(-)
-> 
-> diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
-> index ee086fc56c30..836167212252 100644
-> --- a/fs/btrfs/volumes.c
-> +++ b/fs/btrfs/volumes.c
-> @@ -6371,14 +6371,12 @@ static void submit_stripe_bio(struct btrfs_bio *bbio, struct bio *bio,
->  
->  	bio->bi_private = bbio;
-This line can be removed as ->private is initialized by bio_init_fields.
+On a more abstract note, I don't think this diffstat is actually
+illustrating the benefits of this as much as you think it is.
 
->  	btrfs_io_bio(bio)->device = dev;
-> -	bio->bi_end_io = btrfs_end_bio;
-> -	bio->bi_iter.bi_sector = physical >> 9;
-> +	bio_init_fields(bio, dev->bdev, physical >> 9, bbio, btrfs_end_bio, 0, 0);
->  	btrfs_debug_in_rcu(fs_info,
->  	"btrfs_map_bio: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u",
->  		bio_op(bio), bio->bi_opf, bio->bi_iter.bi_sector,
->  		(unsigned long)dev->bdev->bd_dev, rcu_str_deref(dev->name),
->  		dev->devid, bio->bi_iter.bi_size);
-> -	bio_set_dev(bio, dev->bdev);
->  
->  	btrfs_bio_counter_inc_noblocked(fs_info);
->  
-> 
+Yeah, we've reduced the code by 112 lines, but that's barely half the
+curn here. It looks, from the diffstat, that you've effectively
+reduced 2 lines into 1. That isn't much of a saving.
+
+Thanks,
+
+-- 
+Julian Calaby
+
+Email: julian.calaby@gmail.com
+Profile: http://www.google.com/profiles/julian.calaby/
