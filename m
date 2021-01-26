@@ -1,12 +1,12 @@
 Return-Path: <BATV+b7a2078c382f6036dc0e+6365+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9CE4942053E
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:25:02 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 57B8B42053E
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:26:00 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>,
 	Song Liu <song@kernel.org>
-Date: Tue, 26 Jan 2021 15:52:46 +0100
-Message-Id: <20210126145247.1964410-17-hch@lst.de>
+Date: Tue, 26 Jan 2021 15:52:47 +0100
+Message-Id: <20210126145247.1964410-18-hch@lst.de>
 In-Reply-To: <20210126145247.1964410-1-hch@lst.de>
 References: <20210126145247.1964410-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Mike Snitzer <snitzer@redhat.com>, linux-mm@kvack.org, dm-devel@redhat.com,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 16/17] nilfs2: remove cruft in nilfs_alloc_seg_bio
+Subject: [Drbd-dev] [PATCH 17/17] mm: remove get_swap_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,28 +36,127 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-bio_alloc never returns NULL when it can sleep.
+Just reuse the block_device and sector from the swap_info structure,
+just as used by the SWP_SYNCHRONOUS path.  Also remove the checks for
+NULL returns from bio_alloc as that can't happen for sleeping
+allocations.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/nilfs2/segbuf.c | 4 ----
- 1 file changed, 4 deletions(-)
+ include/linux/swap.h |  1 -
+ mm/page_io.c         | 45 +++++++++++++-------------------------------
+ mm/swapfile.c        | 10 ----------
+ 3 files changed, 13 insertions(+), 43 deletions(-)
 
-diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
-index 1a8729eded8b14..1e75417bfe6e52 100644
---- a/fs/nilfs2/segbuf.c
-+++ b/fs/nilfs2/segbuf.c
-@@ -386,10 +386,6 @@ static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
- 	struct bio *bio;
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 596bc2f4d9b03e..3f1f7ae0fbe9e1 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -468,7 +468,6 @@ extern int free_swap_and_cache(swp_entry_t);
+ int swap_type_of(dev_t device, sector_t offset);
+ int find_first_swap(dev_t *device);
+ extern unsigned int count_swap_pages(int, int);
+-extern sector_t map_swap_page(struct page *, struct block_device **);
+ extern sector_t swapdev_block(int, pgoff_t);
+ extern int page_swapcount(struct page *);
+ extern int __swap_count(swp_entry_t entry);
+diff --git a/mm/page_io.c b/mm/page_io.c
+index a75f35464a4e73..92f7941c6d018b 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -26,25 +26,6 @@
+ #include <linux/uio.h>
+ #include <linux/sched/task.h>
  
- 	bio = bio_alloc(GFP_NOIO, nr_vecs);
--	if (bio == NULL) {
--		while (!bio && (nr_vecs >>= 1))
--			bio = bio_alloc(GFP_NOIO, nr_vecs);
+-static struct bio *get_swap_bio(gfp_t gfp_flags,
+-				struct page *page, bio_end_io_t end_io)
+-{
+-	struct bio *bio;
+-
+-	bio = bio_alloc(gfp_flags, 1);
+-	if (bio) {
+-		struct block_device *bdev;
+-
+-		bio->bi_iter.bi_sector = map_swap_page(page, &bdev);
+-		bio_set_dev(bio, bdev);
+-		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
+-		bio->bi_end_io = end_io;
+-
+-		bio_add_page(bio, page, thp_size(page), 0);
 -	}
- 	if (likely(bio)) {
- 		bio_set_dev(bio, nilfs->ns_bdev);
- 		bio->bi_iter.bi_sector =
+-	return bio;
+-}
+-
+ void end_swap_bio_write(struct bio *bio)
+ {
+ 	struct page *page = bio_first_page_all(bio);
+@@ -361,13 +342,13 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
+ 		return 0;
+ 	}
+ 
+-	bio = get_swap_bio(GFP_NOIO, page, end_write_func);
+-	if (bio == NULL) {
+-		set_page_dirty(page);
+-		unlock_page(page);
+-		return -ENOMEM;
+-	}
++	bio = bio_alloc(GFP_NOIO, 1);
++	bio_set_dev(bio, sis->bdev);
++	bio->bi_iter.bi_sector = swap_page_sector(page);
+ 	bio->bi_opf = REQ_OP_WRITE | REQ_SWAP | wbc_to_write_flags(wbc);
++	bio->bi_end_io = end_write_func;
++	bio_add_page(bio, page, thp_size(page), 0);
++
+ 	bio_associate_blkg_from_page(bio, page);
+ 	count_swpout_vm_event(page);
+ 	set_page_writeback(page);
+@@ -427,18 +408,18 @@ int swap_readpage(struct page *page, bool synchronous)
+ 	}
+ 
+ 	ret = 0;
+-	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
+-	if (bio == NULL) {
+-		unlock_page(page);
+-		ret = -ENOMEM;
+-		goto out;
+-	}
++	bio = bio_alloc(GFP_KERNEL, 1);
++	bio_set_dev(bio, sis->bdev);
++	bio->bi_opf = REQ_OP_READ;
++	bio->bi_iter.bi_sector = swap_page_sector(page);
++	bio->bi_end_io = end_swap_bio_read;
++	bio_add_page(bio, page, thp_size(page), 0);
++
+ 	disk = bio->bi_bdev->bd_disk;
+ 	/*
+ 	 * Keep this task valid during swap readpage because the oom killer may
+ 	 * attempt to access it in the page fault retry time check.
+ 	 */
+-	bio_set_op_attrs(bio, REQ_OP_READ, 0);
+ 	if (synchronous) {
+ 		bio->bi_opf |= REQ_HIPRI;
+ 		get_task_struct(current);
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 9fffc5af29d1b9..bfa9e8b0c2ef61 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2301,16 +2301,6 @@ static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
+ 	return se->start_block + (offset - se->start_page);
+ }
+ 
+-/*
+- * Returns the page offset into bdev for the specified page's swap entry.
+- */
+-sector_t map_swap_page(struct page *page, struct block_device **bdev)
+-{
+-	swp_entry_t entry;
+-	entry.val = page_private(page);
+-	return map_swap_entry(entry, bdev);
+-}
+-
+ /*
+  * Free all of a swapdev's extent information
+  */
 -- 
 2.29.2
 
