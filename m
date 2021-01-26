@@ -1,12 +1,12 @@
 Return-Path: <BATV+b7a2078c382f6036dc0e+6365+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DC24742062B
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:12:56 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 71BBA420618
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:15:20 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>,
 	Song Liu <song@kernel.org>
-Date: Tue, 26 Jan 2021 15:52:33 +0100
-Message-Id: <20210126145247.1964410-4-hch@lst.de>
+Date: Tue, 26 Jan 2021 15:52:40 +0100
+Message-Id: <20210126145247.1964410-11-hch@lst.de>
 In-Reply-To: <20210126145247.1964410-1-hch@lst.de>
 References: <20210126145247.1964410-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,8 +24,7 @@ Cc: Mike Snitzer <snitzer@redhat.com>, linux-mm@kvack.org, dm-devel@redhat.com,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 03/17] blk-crypto: use bio_kmalloc in
-	blk_crypto_clone_bio
+Subject: [Drbd-dev] [PATCH 10/17] drbd: remove drbd_req_make_private_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,26 +36,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use bio_kmalloc instead of open coding it.
+Open code drbd_req_make_private_bio in the two callers to prepare
+for further changes.  Also don't bother to initialize bi_next as the
+bio code already does that that.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/blk-crypto-fallback.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/block/drbd/drbd_req.c    |  5 ++++-
+ drivers/block/drbd/drbd_req.h    | 12 ------------
+ drivers/block/drbd/drbd_worker.c |  5 ++++-
+ 3 files changed, 8 insertions(+), 14 deletions(-)
 
-diff --git a/block/blk-crypto-fallback.c b/block/blk-crypto-fallback.c
-index 50c225398e4d60..e8327c50d7c9f4 100644
---- a/block/blk-crypto-fallback.c
-+++ b/block/blk-crypto-fallback.c
-@@ -164,7 +164,7 @@ static struct bio *blk_crypto_clone_bio(struct bio *bio_src)
- 	struct bio_vec bv;
- 	struct bio *bio;
- 
--	bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src), NULL);
-+	bio = bio_kmalloc(GFP_NOIO, bio_segments(bio_src));
- 	if (!bio)
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index ea0f31ab334361..9dbb660a7d7c8e 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -30,7 +30,10 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio
  		return NULL;
- 	bio->bi_bdev		= bio_src->bi_bdev;
+ 	memset(req, 0, sizeof(*req));
+ 
+-	drbd_req_make_private_bio(req, bio_src);
++	req->private_bio = bio_clone_fast(bio_src, GFP_NOIO, &drbd_io_bio_set);
++	req->private_bio->bi_private = req;
++	req->private_bio->bi_end_io = drbd_request_endio;
++
+ 	req->rq_state = (bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0)
+ 		      | (bio_op(bio_src) == REQ_OP_WRITE_SAME ? RQ_WSAME : 0)
+ 		      | (bio_op(bio_src) == REQ_OP_WRITE_ZEROES ? RQ_ZEROES : 0)
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
+index 55bb0f8721faa3..511f39a08de453 100644
+--- a/drivers/block/drbd/drbd_req.h
++++ b/drivers/block/drbd/drbd_req.h
+@@ -256,18 +256,6 @@ enum drbd_req_state_bits {
+ #define MR_WRITE       1
+ #define MR_READ        2
+ 
+-static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
+-{
+-	struct bio *bio;
+-	bio = bio_clone_fast(bio_src, GFP_NOIO, &drbd_io_bio_set);
+-
+-	req->private_bio = bio;
+-
+-	bio->bi_private  = req;
+-	bio->bi_end_io   = drbd_request_endio;
+-	bio->bi_next     = NULL;
+-}
+-
+ /* Short lived temporary struct on the stack.
+  * We could squirrel the error to be returned into
+  * bio->bi_iter.bi_size, or similar. But that would be too ugly. */
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 02044ab7f767d5..64563bfdf0da02 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -1523,8 +1523,11 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
+ 	if (bio_data_dir(req->master_bio) == WRITE && req->rq_state & RQ_IN_ACT_LOG)
+ 		drbd_al_begin_io(device, &req->i);
+ 
+-	drbd_req_make_private_bio(req, req->master_bio);
++	req->private_bio = bio_clone_fast(req->master_bio, GFP_NOIO,
++					  &drbd_io_bio_set);
+ 	bio_set_dev(req->private_bio, device->ldev->backing_bdev);
++	req->private_bio->bi_private = req;
++	req->private_bio->bi_end_io = drbd_request_endio;
+ 	submit_bio_noacct(req->private_bio);
+ 
+ 	return 0;
 -- 
 2.29.2
 
