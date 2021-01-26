@@ -1,12 +1,12 @@
 Return-Path: <BATV+b7a2078c382f6036dc0e+6365+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 545014202F8
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:06:07 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B811742060C
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:08:32 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>,
 	Song Liu <song@kernel.org>
-Date: Tue, 26 Jan 2021 15:52:32 +0100
-Message-Id: <20210126145247.1964410-3-hch@lst.de>
+Date: Tue, 26 Jan 2021 15:52:36 +0100
+Message-Id: <20210126145247.1964410-7-hch@lst.de>
 In-Reply-To: <20210126145247.1964410-1-hch@lst.de>
 References: <20210126145247.1964410-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,8 @@ Cc: Mike Snitzer <snitzer@redhat.com>, linux-mm@kvack.org, dm-devel@redhat.com,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 02/17] btrfs: use bio_kmalloc in __alloc_device
+Subject: [Drbd-dev] [PATCH 06/17] dm-clone: use blkdev_issue_flush in
+	commit_metadata
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,26 +37,59 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use bio_kmalloc instead of open coding it.
+Use blkdev_issue_flush instead of open coding it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/btrfs/volumes.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/md/dm-clone-target.c | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)
 
-diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
-index 0a6de859eb2226..584ba093cf4966 100644
---- a/fs/btrfs/volumes.c
-+++ b/fs/btrfs/volumes.c
-@@ -421,7 +421,7 @@ static struct btrfs_device *__alloc_device(struct btrfs_fs_info *fs_info)
- 	 * Preallocate a bio that's always going to be used for flushing device
- 	 * barriers and matches the device lifespan
- 	 */
--	dev->flush_bio = bio_alloc_bioset(GFP_KERNEL, 0, NULL);
-+	dev->flush_bio = bio_kmalloc(GFP_KERNEL, 0);
- 	if (!dev->flush_bio) {
- 		kfree(dev);
- 		return ERR_PTR(-ENOMEM);
+diff --git a/drivers/md/dm-clone-target.c b/drivers/md/dm-clone-target.c
+index bdb255edc20043..a90bdf9b2ca6bd 100644
+--- a/drivers/md/dm-clone-target.c
++++ b/drivers/md/dm-clone-target.c
+@@ -85,12 +85,6 @@ struct clone {
+ 
+ 	struct dm_clone_metadata *cmd;
+ 
+-	/*
+-	 * bio used to flush the destination device, before committing the
+-	 * metadata.
+-	 */
+-	struct bio flush_bio;
+-
+ 	/* Region hydration hash table */
+ 	struct hash_table_bucket *ht;
+ 
+@@ -1155,11 +1149,7 @@ static int commit_metadata(struct clone *clone, bool *dest_dev_flushed)
+ 		goto out;
+ 	}
+ 
+-	bio_reset(&clone->flush_bio);
+-	bio_set_dev(&clone->flush_bio, clone->dest_dev->bdev);
+-	clone->flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
+-
+-	r = submit_bio_wait(&clone->flush_bio);
++	r = blkdev_issue_flush(clone->dest_dev->bdev);
+ 	if (unlikely(r)) {
+ 		__metadata_operation_failed(clone, "flush destination device", r);
+ 		goto out;
+@@ -1886,7 +1876,6 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 	bio_list_init(&clone->deferred_flush_completions);
+ 	clone->hydration_offset = 0;
+ 	atomic_set(&clone->hydrations_in_flight, 0);
+-	bio_init(&clone->flush_bio, NULL, 0);
+ 
+ 	clone->wq = alloc_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM, 0);
+ 	if (!clone->wq) {
+@@ -1958,7 +1947,6 @@ static void clone_dtr(struct dm_target *ti)
+ 	struct clone *clone = ti->private;
+ 
+ 	mutex_destroy(&clone->commit_lock);
+-	bio_uninit(&clone->flush_bio);
+ 
+ 	for (i = 0; i < clone->nr_ctr_args; i++)
+ 		kfree(clone->ctr_args[i]);
 -- 
 2.29.2
 
