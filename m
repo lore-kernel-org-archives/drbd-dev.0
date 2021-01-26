@@ -1,12 +1,12 @@
 Return-Path: <BATV+b7a2078c382f6036dc0e+6365+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 61B5042061F
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:11:23 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 19FA8420622
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:12:54 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>,
 	Song Liu <song@kernel.org>
-Date: Tue, 26 Jan 2021 15:52:38 +0100
-Message-Id: <20210126145247.1964410-9-hch@lst.de>
+Date: Tue, 26 Jan 2021 15:52:39 +0100
+Message-Id: <20210126145247.1964410-10-hch@lst.de>
 In-Reply-To: <20210126145247.1964410-1-hch@lst.de>
 References: <20210126145247.1964410-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,7 +24,7 @@ Cc: Mike Snitzer <snitzer@redhat.com>, linux-mm@kvack.org, dm-devel@redhat.com,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 08/17] f2fs: remove FAULT_ALLOC_BIO
+Subject: [Drbd-dev] [PATCH 09/17] drbd: remove bio_alloc_drbd
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,107 +36,81 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Sleeping bio allocations do not fail, which means that injecting an error
-into sleeping bio allocations is a little silly.
+Given that drbd_md_io_bio_set is initialized during module initialization
+and the module fails to load if the initialization fails there is no need
+to fall back to plain bio_alloc.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- Documentation/filesystems/f2fs.rst |  1 -
- fs/f2fs/data.c                     | 29 ++++-------------------------
- fs/f2fs/f2fs.h                     |  1 -
- fs/f2fs/super.c                    |  1 -
- 4 files changed, 4 insertions(+), 28 deletions(-)
+ drivers/block/drbd/drbd_actlog.c |  2 +-
+ drivers/block/drbd/drbd_bitmap.c |  2 +-
+ drivers/block/drbd/drbd_int.h    |  2 --
+ drivers/block/drbd/drbd_main.c   | 13 -------------
+ 4 files changed, 2 insertions(+), 17 deletions(-)
 
-diff --git a/Documentation/filesystems/f2fs.rst b/Documentation/filesystems/f2fs.rst
-index dae15c96e659e2..624f5f3ed93e86 100644
---- a/Documentation/filesystems/f2fs.rst
-+++ b/Documentation/filesystems/f2fs.rst
-@@ -179,7 +179,6 @@ fault_type=%d		 Support configuring fault injection type, should be
- 			 FAULT_KVMALLOC		  0x000000002
- 			 FAULT_PAGE_ALLOC	  0x000000004
- 			 FAULT_PAGE_GET		  0x000000008
--			 FAULT_ALLOC_BIO	  0x000000010
- 			 FAULT_ALLOC_NID	  0x000000020
- 			 FAULT_ORPHAN		  0x000000040
- 			 FAULT_BLOCK		  0x000000080
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index 0cf0c605992431..9fb6be65592b1f 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -50,28 +50,6 @@ void f2fs_destroy_bioset(void)
- 	bioset_exit(&f2fs_bioset);
- }
+diff --git a/drivers/block/drbd/drbd_actlog.c b/drivers/block/drbd/drbd_actlog.c
+index 7227fc7ab8ed1e..72cf7603d51fc7 100644
+--- a/drivers/block/drbd/drbd_actlog.c
++++ b/drivers/block/drbd/drbd_actlog.c
+@@ -138,7 +138,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
+ 		op_flags |= REQ_FUA | REQ_PREFLUSH;
+ 	op_flags |= REQ_SYNC;
  
--static inline struct bio *__f2fs_bio_alloc(gfp_t gfp_mask,
--						unsigned int nr_iovecs)
--{
--	return bio_alloc_bioset(gfp_mask, nr_iovecs, &f2fs_bioset);
--}
--
--static struct bio *f2fs_bio_alloc(struct f2fs_sb_info *sbi, int npages,
--		bool noio)
--{
--	if (noio) {
--		/* No failure on bio allocation */
--		return __f2fs_bio_alloc(GFP_NOIO, npages);
--	}
--
--	if (time_to_inject(sbi, FAULT_ALLOC_BIO)) {
--		f2fs_show_injection_info(sbi, FAULT_ALLOC_BIO);
--		return NULL;
--	}
--
--	return __f2fs_bio_alloc(GFP_KERNEL, npages);
--}
--
- static bool __is_cp_guaranteed(struct page *page)
+-	bio = bio_alloc_drbd(GFP_NOIO);
++	bio = bio_alloc_bioset(GFP_NOIO, 1, &drbd_md_io_bio_set);
+ 	bio_set_dev(bio, bdev->md_bdev);
+ 	bio->bi_iter.bi_sector = sector;
+ 	err = -EIO;
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index df53dca5d02c7e..c1f816f896a89a 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -976,7 +976,7 @@ static void drbd_bm_endio(struct bio *bio)
+ 
+ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_hold(local)
  {
- 	struct address_space *mapping = page->mapping;
-@@ -433,7 +411,7 @@ static struct bio *__bio_alloc(struct f2fs_io_info *fio, int npages)
- 	struct f2fs_sb_info *sbi = fio->sbi;
- 	struct bio *bio;
+-	struct bio *bio = bio_alloc_drbd(GFP_NOIO);
++	struct bio *bio = bio_alloc_bioset(GFP_NOIO, 1, &drbd_md_io_bio_set);
+ 	struct drbd_device *device = ctx->device;
+ 	struct drbd_bitmap *b = device->bitmap;
+ 	struct page *page;
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index b2c93a29c251fd..02db50d7e4c668 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1422,8 +1422,6 @@ extern mempool_t drbd_md_io_page_pool;
+ /* We also need to make sure we get a bio
+  * when we need it for housekeeping purposes */
+ extern struct bio_set drbd_md_io_bio_set;
+-/* to allocate from that set */
+-extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
  
--	bio = f2fs_bio_alloc(sbi, npages, true);
-+	bio = bio_alloc_bioset(GFP_NOIO, npages, &f2fs_bioset);
+ /* And a bio_set for cloning */
+ extern struct bio_set drbd_io_bio_set;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 1c8c18b2a25f33..788dd97e6026b8 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -138,19 +138,6 @@ static const struct block_device_operations drbd_ops = {
+ 	.release	= drbd_release,
+ };
  
- 	f2fs_target_device(sbi, fio->new_blkaddr, bio);
- 	if (is_read_io(fio->op)) {
-@@ -1029,8 +1007,9 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
- 	struct bio_post_read_ctx *ctx;
- 	unsigned int post_read_steps = 0;
- 
--	bio = f2fs_bio_alloc(sbi, min_t(int, nr_pages, BIO_MAX_PAGES),
--								for_write);
-+	bio = bio_alloc_bioset(for_write ? GFP_NOIO : GFP_KERNEL,
-+			       min_t(int, nr_pages, BIO_MAX_PAGES),
-+			       &f2fs_bioset);
- 	if (!bio)
- 		return ERR_PTR(-ENOMEM);
- 
-diff --git a/fs/f2fs/f2fs.h b/fs/f2fs/f2fs.h
-index 902bd3267c03e1..6c78365d80ceb5 100644
---- a/fs/f2fs/f2fs.h
-+++ b/fs/f2fs/f2fs.h
-@@ -43,7 +43,6 @@ enum {
- 	FAULT_KVMALLOC,
- 	FAULT_PAGE_ALLOC,
- 	FAULT_PAGE_GET,
--	FAULT_ALLOC_BIO,
- 	FAULT_ALLOC_NID,
- 	FAULT_ORPHAN,
- 	FAULT_BLOCK,
-diff --git a/fs/f2fs/super.c b/fs/f2fs/super.c
-index b4a07fe62d1a58..3a312642907e86 100644
---- a/fs/f2fs/super.c
-+++ b/fs/f2fs/super.c
-@@ -45,7 +45,6 @@ const char *f2fs_fault_name[FAULT_MAX] = {
- 	[FAULT_KVMALLOC]	= "kvmalloc",
- 	[FAULT_PAGE_ALLOC]	= "page alloc",
- 	[FAULT_PAGE_GET]	= "page get",
--	[FAULT_ALLOC_BIO]	= "alloc bio",
- 	[FAULT_ALLOC_NID]	= "alloc nid",
- 	[FAULT_ORPHAN]		= "orphan",
- 	[FAULT_BLOCK]		= "no more block",
+-struct bio *bio_alloc_drbd(gfp_t gfp_mask)
+-{
+-	struct bio *bio;
+-
+-	if (!bioset_initialized(&drbd_md_io_bio_set))
+-		return bio_alloc(gfp_mask, 1);
+-
+-	bio = bio_alloc_bioset(gfp_mask, 1, &drbd_md_io_bio_set);
+-	if (!bio)
+-		return NULL;
+-	return bio;
+-}
+-
+ #ifdef __CHECKER__
+ /* When checking with sparse, and this is an inline function, sparse will
+    give tons of false positives. When this is a real functions sparse works.
 -- 
 2.29.2
 
