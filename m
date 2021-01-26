@@ -1,12 +1,12 @@
 Return-Path: <BATV+b7a2078c382f6036dc0e+6365+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B811742060C
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:08:32 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 37CBC42061C
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:09:02 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>,
 	Song Liu <song@kernel.org>
-Date: Tue, 26 Jan 2021 15:52:36 +0100
-Message-Id: <20210126145247.1964410-7-hch@lst.de>
+Date: Tue, 26 Jan 2021 15:52:37 +0100
+Message-Id: <20210126145247.1964410-8-hch@lst.de>
 In-Reply-To: <20210126145247.1964410-1-hch@lst.de>
 References: <20210126145247.1964410-1-hch@lst.de>
 MIME-Version: 1.0
@@ -24,8 +24,8 @@ Cc: Mike Snitzer <snitzer@redhat.com>, linux-mm@kvack.org, dm-devel@redhat.com,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 06/17] dm-clone: use blkdev_issue_flush in
-	commit_metadata
+Subject: [Drbd-dev] [PATCH 07/17] f2fs: use blkdev_issue_flush in
+	__submit_flush_wait
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,59 +37,64 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use blkdev_issue_flush instead of open coding it.
+Use the blkdev_issue_flush helper instead of duplicating it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/dm-clone-target.c | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ fs/f2fs/data.c    |  3 ++-
+ fs/f2fs/f2fs.h    |  1 -
+ fs/f2fs/segment.c | 12 +-----------
+ 3 files changed, 3 insertions(+), 13 deletions(-)
 
-diff --git a/drivers/md/dm-clone-target.c b/drivers/md/dm-clone-target.c
-index bdb255edc20043..a90bdf9b2ca6bd 100644
---- a/drivers/md/dm-clone-target.c
-+++ b/drivers/md/dm-clone-target.c
-@@ -85,12 +85,6 @@ struct clone {
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index 8cbf0315975228..0cf0c605992431 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
+@@ -56,7 +56,8 @@ static inline struct bio *__f2fs_bio_alloc(gfp_t gfp_mask,
+ 	return bio_alloc_bioset(gfp_mask, nr_iovecs, &f2fs_bioset);
+ }
  
- 	struct dm_clone_metadata *cmd;
- 
--	/*
--	 * bio used to flush the destination device, before committing the
--	 * metadata.
--	 */
--	struct bio flush_bio;
+-struct bio *f2fs_bio_alloc(struct f2fs_sb_info *sbi, int npages, bool noio)
++static struct bio *f2fs_bio_alloc(struct f2fs_sb_info *sbi, int npages,
++		bool noio)
+ {
+ 	if (noio) {
+ 		/* No failure on bio allocation */
+diff --git a/fs/f2fs/f2fs.h b/fs/f2fs/f2fs.h
+index bb11759191dcc9..902bd3267c03e1 100644
+--- a/fs/f2fs/f2fs.h
++++ b/fs/f2fs/f2fs.h
+@@ -3424,7 +3424,6 @@ void f2fs_destroy_checkpoint_caches(void);
+  */
+ int __init f2fs_init_bioset(void);
+ void f2fs_destroy_bioset(void);
+-struct bio *f2fs_bio_alloc(struct f2fs_sb_info *sbi, int npages, bool noio);
+ int f2fs_init_bio_entry_cache(void);
+ void f2fs_destroy_bio_entry_cache(void);
+ void f2fs_submit_bio(struct f2fs_sb_info *sbi,
+diff --git a/fs/f2fs/segment.c b/fs/f2fs/segment.c
+index deca74cb17dfd8..c495f170ee400b 100644
+--- a/fs/f2fs/segment.c
++++ b/fs/f2fs/segment.c
+@@ -566,17 +566,7 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi, bool from_bg)
+ static int __submit_flush_wait(struct f2fs_sb_info *sbi,
+ 				struct block_device *bdev)
+ {
+-	struct bio *bio;
+-	int ret;
 -
- 	/* Region hydration hash table */
- 	struct hash_table_bucket *ht;
- 
-@@ -1155,11 +1149,7 @@ static int commit_metadata(struct clone *clone, bool *dest_dev_flushed)
- 		goto out;
- 	}
- 
--	bio_reset(&clone->flush_bio);
--	bio_set_dev(&clone->flush_bio, clone->dest_dev->bdev);
--	clone->flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
+-	bio = f2fs_bio_alloc(sbi, 0, false);
+-	if (!bio)
+-		return -ENOMEM;
 -
--	r = submit_bio_wait(&clone->flush_bio);
-+	r = blkdev_issue_flush(clone->dest_dev->bdev);
- 	if (unlikely(r)) {
- 		__metadata_operation_failed(clone, "flush destination device", r);
- 		goto out;
-@@ -1886,7 +1876,6 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
- 	bio_list_init(&clone->deferred_flush_completions);
- 	clone->hydration_offset = 0;
- 	atomic_set(&clone->hydrations_in_flight, 0);
--	bio_init(&clone->flush_bio, NULL, 0);
+-	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH;
+-	bio_set_dev(bio, bdev);
+-	ret = submit_bio_wait(bio);
+-	bio_put(bio);
++	int ret = blkdev_issue_flush(bdev);
  
- 	clone->wq = alloc_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM, 0);
- 	if (!clone->wq) {
-@@ -1958,7 +1947,6 @@ static void clone_dtr(struct dm_target *ti)
- 	struct clone *clone = ti->private;
- 
- 	mutex_destroy(&clone->commit_lock);
--	bio_uninit(&clone->flush_bio);
- 
- 	for (i = 0; i < clone->nr_ctr_args; i++)
- 		kfree(clone->ctr_args[i]);
+ 	trace_f2fs_issue_flush(bdev, test_opt(sbi, NOBARRIER),
+ 				test_opt(sbi, FLUSH_MERGE), ret);
 -- 
 2.29.2
 
