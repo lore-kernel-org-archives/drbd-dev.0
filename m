@@ -1,24 +1,36 @@
-Return-Path: <guoqing.jiang@cloud.ionos.com>
-Received: from mail-pl1-f178.google.com (mail-pl1-f178.google.com
-	[209.85.214.178])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5A93A4205EE
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 01:52:16 +0100 (CET)
-Received: by mail-pl1-f178.google.com with SMTP id d4so8739183plh.5
-	for <drbd-dev@lists.linbit.com>; Mon, 25 Jan 2021 16:52:15 -0800 (PST)
-To: axboe@kernel.dk
-References: <20210121142150.12998-1-guoqing.jiang@cloud.ionos.com>
-From: Guoqing Jiang <guoqing.jiang@cloud.ionos.com>
-Message-ID: <11599fea-e0e8-f6c8-5931-0c37491ee6d7@cloud.ionos.com>
-Date: Tue, 26 Jan 2021 01:52:03 +0100
+Return-Path: <josef@toxicpanda.com>
+Received: from mail-qv1-f47.google.com (mail-qv1-f47.google.com
+	[209.85.219.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AF49D420231
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 16:01:38 +0100 (CET)
+Received: by mail-qv1-f47.google.com with SMTP id 2so7955333qvd.0
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 07:01:38 -0800 (PST)
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
+	Song Liu <song@kernel.org>
+References: <20210126145247.1964410-1-hch@lst.de>
+	<20210126145247.1964410-3-hch@lst.de>
+From: Josef Bacik <josef@toxicpanda.com>
+Message-ID: <d3717e48-9e42-fa7a-12c2-a6c97eaf4a7b@toxicpanda.com>
+Date: Tue, 26 Jan 2021 10:01:34 -0500
 MIME-Version: 1.0
-In-Reply-To: <20210121142150.12998-1-guoqing.jiang@cloud.ionos.com>
+In-Reply-To: <20210126145247.1964410-3-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH RESEND] drbd: remove unused argument from
- drbd_request_prepare and __drbd_make_request
+Cc: Mike Snitzer <snitzer@redhat.com>, linux-mm@kvack.org, dm-devel@redhat.com,
+	drbd-dev@lists.linbit.com, Naohiro Aota <naohiro.aota@wdc.com>,
+	linux-nilfs@vger.kernel.org, Chao Yu <chao@kernel.org>,
+	linux-nfs@vger.kernel.org, Coly Li <colyli@suse.de>,
+	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
+	David Sterba <dsterba@suse.com>, Jaegeuk Kim <jaegeuk@kernel.org>,
+	Ryusuke Konishi <konishi.ryusuke@gmail.com>, linux-block@vger.kernel.org,
+	Damien Le Moal <damien.lemoal@wdc.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [PATCH 02/17] btrfs: use bio_kmalloc in
+	__alloc_device
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,100 +42,13 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Ping
+On 1/26/21 9:52 AM, Christoph Hellwig wrote:
+> Use bio_kmalloc instead of open coding it.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-On 1/21/21 15:21, Guoqing Jiang wrote:
-> We can remove start_jif since it is not used by drbd_request_prepare,
-> then remove it from __drbd_make_request further.
-> 
-> Cc: Philipp Reisner <philipp.reisner@linbit.com>
-> Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-> Cc: drbd-dev@lists.linbit.com
-> Signed-off-by: Guoqing Jiang <guoqing.jiang@cloud.ionos.com>
-> ---
->   drivers/block/drbd/drbd_int.h  |  2 +-
->   drivers/block/drbd/drbd_main.c |  3 +--
->   drivers/block/drbd/drbd_req.c  | 11 ++++-------
->   3 files changed, 6 insertions(+), 10 deletions(-)
-> 
-> diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-> index 8f879e5c2f67..8faa31a17b8f 100644
-> --- a/drivers/block/drbd/drbd_int.h
-> +++ b/drivers/block/drbd/drbd_int.h
-> @@ -1449,7 +1449,7 @@ extern void conn_free_crypto(struct drbd_connection *connection);
->   
->   /* drbd_req */
->   extern void do_submit(struct work_struct *ws);
-> -extern void __drbd_make_request(struct drbd_device *, struct bio *, unsigned long);
-> +extern void __drbd_make_request(struct drbd_device *, struct bio *);
->   extern blk_qc_t drbd_submit_bio(struct bio *bio);
->   extern int drbd_read_remote(struct drbd_device *device, struct drbd_request *req);
->   extern int is_valid_ar_handle(struct drbd_request *, sector_t);
-> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-> index 1c8c18b2a25f..7e5fcce812e1 100644
-> --- a/drivers/block/drbd/drbd_main.c
-> +++ b/drivers/block/drbd/drbd_main.c
-> @@ -2288,7 +2288,6 @@ static void do_retry(struct work_struct *ws)
->   	list_for_each_entry_safe(req, tmp, &writes, tl_requests) {
->   		struct drbd_device *device = req->device;
->   		struct bio *bio = req->master_bio;
-> -		unsigned long start_jif = req->start_jif;
->   		bool expected;
->   
->   		expected =
-> @@ -2323,7 +2322,7 @@ static void do_retry(struct work_struct *ws)
->   		/* We are not just doing submit_bio_noacct(),
->   		 * as we want to keep the start_time information. */
->   		inc_ap_bio(device);
-> -		__drbd_make_request(device, bio, start_jif);
-> +		__drbd_make_request(device, bio);
->   	}
->   }
->   
-> diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-> index 330f851cb8f0..5e5602af9643 100644
-> --- a/drivers/block/drbd/drbd_req.c
-> +++ b/drivers/block/drbd/drbd_req.c
-> @@ -1188,7 +1188,7 @@ static void drbd_queue_write(struct drbd_device *device, struct drbd_request *re
->    * Returns ERR_PTR(-ENOMEM) if we cannot allocate a drbd_request.
->    */
->   static struct drbd_request *
-> -drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long start_jif)
-> +drbd_request_prepare(struct drbd_device *device, struct bio *bio)
->   {
->   	const int rw = bio_data_dir(bio);
->   	struct drbd_request *req;
-> @@ -1416,9 +1416,9 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
->   		complete_master_bio(device, &m);
->   }
->   
-> -void __drbd_make_request(struct drbd_device *device, struct bio *bio, unsigned long start_jif)
-> +void __drbd_make_request(struct drbd_device *device, struct bio *bio)
->   {
-> -	struct drbd_request *req = drbd_request_prepare(device, bio, start_jif);
-> +	struct drbd_request *req = drbd_request_prepare(device, bio);
->   	if (IS_ERR_OR_NULL(req))
->   		return;
->   	drbd_send_and_submit(device, req);
-> @@ -1596,19 +1596,16 @@ void do_submit(struct work_struct *ws)
->   blk_qc_t drbd_submit_bio(struct bio *bio)
->   {
->   	struct drbd_device *device = bio->bi_disk->private_data;
-> -	unsigned long start_jif;
->   
->   	blk_queue_split(&bio);
->   
-> -	start_jif = jiffies;
-> -
->   	/*
->   	 * what we "blindly" assume:
->   	 */
->   	D_ASSERT(device, IS_ALIGNED(bio->bi_iter.bi_size, 512));
->   
->   	inc_ap_bio(device);
-> -	__drbd_make_request(device, bio, start_jif);
-> +	__drbd_make_request(device, bio);
->   	return BLK_QC_T_NONE;
->   }
->   
-> 
+Reviewed-by: Josef Bacik <josef@toxicpanda.com>
+
+yay I contributed,
+
+Josef
