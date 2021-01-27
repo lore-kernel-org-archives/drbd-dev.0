@@ -1,18 +1,18 @@
 Return-Path: <song@kernel.org>
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7C4384205FF
-	for <drbd-dev@lists.linbit.com>; Wed, 27 Jan 2021 08:23:00 +0100 (CET)
-Received: by mail.kernel.org (Postfix) with ESMTPSA id 301BF2072C
-	for <drbd-dev@lists.linbit.com>; Wed, 27 Jan 2021 07:22:59 +0000 (UTC)
-Received: by mail-lj1-f175.google.com with SMTP id c18so892332ljd.9
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 23:22:59 -0800 (PST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9C7BD42060D
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Jan 2021 08:23:03 +0100 (CET)
+Received: by mail.kernel.org (Postfix) with ESMTPSA id BC27020758
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Jan 2021 07:16:05 +0000 (UTC)
+Received: by mail-lf1-f42.google.com with SMTP id i187so1239894lfd.4
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Jan 2021 23:16:05 -0800 (PST)
 MIME-Version: 1.0
 References: <20210126145247.1964410-1-hch@lst.de>
-	<20210126145247.1964410-14-hch@lst.de>
-In-Reply-To: <20210126145247.1964410-14-hch@lst.de>
+	<20210126145247.1964410-15-hch@lst.de>
+In-Reply-To: <20210126145247.1964410-15-hch@lst.de>
 From: Song Liu <song@kernel.org>
-Date: Tue, 26 Jan 2021 23:22:46 -0800
-Message-ID: <CAPhsuW4AViTNjq1mp6zvbEJ8zKdK7__BfXEsvATTBWraK2u1Jg@mail.gmail.com>
+Date: Tue, 26 Jan 2021 23:15:52 -0800
+Message-ID: <CAPhsuW599kbe-YFX0FOOGJy30gy3V2_hMYW3jg3sK_VwaayEBQ@mail.gmail.com>
 To: Christoph Hellwig <hch@lst.de>
 Content-Type: text/plain; charset="UTF-8"
 Cc: Mike Snitzer <snitzer@redhat.com>, Linux-MM <linux-mm@kvack.org>,
@@ -31,7 +31,7 @@ Cc: Mike Snitzer <snitzer@redhat.com>, Linux-MM <linux-mm@kvack.org>,
 	Linux-Fsdevel <linux-fsdevel@vger.kernel.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	linux-nfs@vger.kernel.org, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 13/17] md: remove md_bio_alloc_sync
+Subject: Re: [Drbd-dev] [PATCH 14/17] md/raid6: refactor raid5_read_one_chunk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,48 +43,162 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jan 26, 2021 at 7:17 AM Christoph Hellwig <hch@lst.de> wrote:
+On Tue, Jan 26, 2021 at 7:19 AM Christoph Hellwig <hch@lst.de> wrote:
 >
-> md_bio_alloc_sync is never called with a NULL mddev, and ->sync_set is
-> initialized in md_run, so it always must be initialized as well.  Just
-> open code the remaining call to bio_alloc_bioset.
+> Refactor raid5_read_one_chunk so that all simple checks are done
+> before allocating the bio.
 >
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
 Acked-by: Song Liu <song@kernel.org>
 
+Thanks for the clean-up!
+
+
 > ---
->  drivers/md/md.c | 10 +---------
->  1 file changed, 1 insertion(+), 9 deletions(-)
+>  drivers/md/raid5.c | 108 +++++++++++++++++++--------------------------
+>  1 file changed, 45 insertions(+), 63 deletions(-)
 >
-> diff --git a/drivers/md/md.c b/drivers/md/md.c
-> index 6a27f52007c871..399c81bddc1ae1 100644
-> --- a/drivers/md/md.c
-> +++ b/drivers/md/md.c
-> @@ -340,14 +340,6 @@ static int start_readonly;
->   */
->  static bool create_on_open = true;
+> diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
+> index f411b9e5c332f4..a348b2adf2a9f9 100644
+> --- a/drivers/md/raid5.c
+> +++ b/drivers/md/raid5.c
+> @@ -5393,90 +5393,72 @@ static void raid5_align_endio(struct bio *bi)
+>  static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
+>  {
+>         struct r5conf *conf = mddev->private;
+> -       int dd_idx;
+> -       struct bio* align_bi;
+> +       struct bio *align_bio;
+>         struct md_rdev *rdev;
+> -       sector_t end_sector;
+> +       sector_t sector, end_sector, first_bad;
+> +       int bad_sectors, dd_idx;
 >
-> -static struct bio *md_bio_alloc_sync(struct mddev *mddev)
-> -{
-> -       if (!mddev || !bioset_initialized(&mddev->sync_set))
-> -               return bio_alloc(GFP_NOIO, 1);
+>         if (!in_chunk_boundary(mddev, raid_bio)) {
+>                 pr_debug("%s: non aligned\n", __func__);
+>                 return 0;
+>         }
+> -       /*
+> -        * use bio_clone_fast to make a copy of the bio
+> -        */
+> -       align_bi = bio_clone_fast(raid_bio, GFP_NOIO, &mddev->bio_set);
+> -       if (!align_bi)
+> -               return 0;
+> -       /*
+> -        *   set bi_end_io to a new function, and set bi_private to the
+> -        *     original bio.
+> -        */
+> -       align_bi->bi_end_io  = raid5_align_endio;
+> -       align_bi->bi_private = raid_bio;
+> -       /*
+> -        *      compute position
+> -        */
+> -       align_bi->bi_iter.bi_sector =
+> -               raid5_compute_sector(conf, raid_bio->bi_iter.bi_sector,
+> -                                    0, &dd_idx, NULL);
+>
+> -       end_sector = bio_end_sector(align_bi);
+> +       sector = raid5_compute_sector(conf, raid_bio->bi_iter.bi_sector, 0,
+> +                                     &dd_idx, NULL);
+> +       end_sector = bio_end_sector(raid_bio);
+> +
+>         rcu_read_lock();
+> +       if (r5c_big_stripe_cached(conf, sector))
+> +               goto out_rcu_unlock;
+> +
+>         rdev = rcu_dereference(conf->disks[dd_idx].replacement);
+>         if (!rdev || test_bit(Faulty, &rdev->flags) ||
+>             rdev->recovery_offset < end_sector) {
+>                 rdev = rcu_dereference(conf->disks[dd_idx].rdev);
+> -               if (rdev &&
+> -                   (test_bit(Faulty, &rdev->flags) ||
+> +               if (!rdev)
+> +                       goto out_rcu_unlock;
+> +               if (test_bit(Faulty, &rdev->flags) ||
+>                     !(test_bit(In_sync, &rdev->flags) ||
+> -                     rdev->recovery_offset >= end_sector)))
+> -                       rdev = NULL;
+> +                     rdev->recovery_offset >= end_sector))
+> +                       goto out_rcu_unlock;
+>         }
+>
+> -       if (r5c_big_stripe_cached(conf, align_bi->bi_iter.bi_sector)) {
+> -               rcu_read_unlock();
+> -               bio_put(align_bi);
+> +       atomic_inc(&rdev->nr_pending);
+> +       rcu_read_unlock();
+> +
+> +       align_bio = bio_clone_fast(raid_bio, GFP_NOIO, &mddev->bio_set);
+> +       bio_set_dev(align_bio, rdev->bdev);
+> +       align_bio->bi_end_io = raid5_align_endio;
+> +       align_bio->bi_private = raid_bio;
+> +       align_bio->bi_iter.bi_sector = sector;
+> +
+> +       raid_bio->bi_next = (void *)rdev;
+> +
+> +       if (is_badblock(rdev, sector, bio_sectors(align_bio), &first_bad,
+> +                       &bad_sectors)) {
+> +               bio_put(align_bio);
+> +               rdev_dec_pending(rdev, mddev);
+>                 return 0;
+>         }
+>
+> -       if (rdev) {
+> -               sector_t first_bad;
+> -               int bad_sectors;
 > -
-> -       return bio_alloc_bioset(GFP_NOIO, 1, &mddev->sync_set);
-> -}
+> -               atomic_inc(&rdev->nr_pending);
+> -               rcu_read_unlock();
+> -               raid_bio->bi_next = (void*)rdev;
+> -               bio_set_dev(align_bi, rdev->bdev);
 > -
->  /*
->   * We have a system wide 'event count' that is incremented
->   * on any 'interesting' event, and readers of /proc/mdstat
-> @@ -989,7 +981,7 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
->         if (test_bit(Faulty, &rdev->flags))
->                 return;
+> -               if (is_badblock(rdev, align_bi->bi_iter.bi_sector,
+> -                               bio_sectors(align_bi),
+> -                               &first_bad, &bad_sectors)) {
+> -                       bio_put(align_bi);
+> -                       rdev_dec_pending(rdev, mddev);
+> -                       return 0;
+> -               }
+> +       /* No reshape active, so we can trust rdev->data_offset */
+> +       align_bio->bi_iter.bi_sector += rdev->data_offset;
 >
-> -       bio = md_bio_alloc_sync(mddev);
-> +       bio = bio_alloc_bioset(GFP_NOIO, 1, &mddev->sync_set);
+> -               /* No reshape active, so we can trust rdev->data_offset */
+> -               align_bi->bi_iter.bi_sector += rdev->data_offset;
+> +       spin_lock_irq(&conf->device_lock);
+> +       wait_event_lock_irq(conf->wait_for_quiescent, conf->quiesce == 0,
+> +                           conf->device_lock);
+> +       atomic_inc(&conf->active_aligned_reads);
+> +       spin_unlock_irq(&conf->device_lock);
 >
->         atomic_inc(&rdev->nr_pending);
+> -               spin_lock_irq(&conf->device_lock);
+> -               wait_event_lock_irq(conf->wait_for_quiescent,
+> -                                   conf->quiesce == 0,
+> -                                   conf->device_lock);
+> -               atomic_inc(&conf->active_aligned_reads);
+> -               spin_unlock_irq(&conf->device_lock);
+> +       if (mddev->gendisk)
+> +               trace_block_bio_remap(align_bio, disk_devt(mddev->gendisk),
+> +                                     raid_bio->bi_iter.bi_sector);
+> +       submit_bio_noacct(align_bio);
+> +       return 1;
 >
+> -               if (mddev->gendisk)
+> -                       trace_block_bio_remap(align_bi, disk_devt(mddev->gendisk),
+> -                                             raid_bio->bi_iter.bi_sector);
+> -               submit_bio_noacct(align_bi);
+> -               return 1;
+> -       } else {
+> -               rcu_read_unlock();
+> -               bio_put(align_bi);
+> -               return 0;
+> -       }
+> +out_rcu_unlock:
+> +       rcu_read_unlock();
+> +       return 0;
+>  }
+>
+>  static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
 > --
 > 2.29.2
 >
