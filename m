@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 04AA542062F
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:20:17 +0100 (CET)
+Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D8E6F420665
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:20:33 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:09 -0800
-Message-Id: <20210128071133.60335-11-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:10 -0800
+Message-Id: <20210128071133.60335-12-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,7 +33,8 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 10/34] dm-zoned: use bio_new in dmz_rdwr_block
+Subject: [Drbd-dev] [RFC PATCH 11/34] nvmet: use bio_new in
+	nvmet_bdev_execute_rw
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,29 +48,43 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- drivers/md/dm-zoned-metadata.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ drivers/nvme/target/io-cmd-bdev.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/md/dm-zoned-metadata.c b/drivers/md/dm-zoned-metadata.c
-index fa0ee732c6e9..5b5ed5fce2ed 100644
---- a/drivers/md/dm-zoned-metadata.c
-+++ b/drivers/md/dm-zoned-metadata.c
-@@ -755,13 +755,11 @@ static int dmz_rdwr_block(struct dmz_dev *dev, int op,
- 	if (dmz_bdev_is_dying(dev))
- 		return -EIO;
+diff --git a/drivers/nvme/target/io-cmd-bdev.c b/drivers/nvme/target/io-cmd-bdev.c
+index bf6e0ac9ad28..f5fd93a796a6 100644
+--- a/drivers/nvme/target/io-cmd-bdev.c
++++ b/drivers/nvme/target/io-cmd-bdev.c
+@@ -225,6 +225,7 @@ static int nvmet_bdev_alloc_bip(struct nvmet_req *req, struct bio *bio,
  
--	bio = bio_alloc(GFP_NOIO, 1);
-+	bio = bio_new(dev->bdev, dmz_blk2sect(block), op,
-+		      REQ_SYNC | REQ_META | REQ_PRIO, 1, GFP_NOIO);
- 	if (!bio)
- 		return -ENOMEM;
+ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
+ {
++	struct block_device *bdev = req->ns->bdev;
+ 	int sg_cnt = req->sg_cnt;
+ 	struct bio *bio;
+ 	struct scatterlist *sg;
+@@ -265,7 +266,7 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
+ 	} else {
+ 		bio = bio_alloc(GFP_KERNEL, min(sg_cnt, BIO_MAX_PAGES));
+ 	}
+-	bio_set_dev(bio, req->ns->bdev);
++	bio_set_dev(bio, bdev);
+ 	bio->bi_iter.bi_sector = sector;
+ 	bio->bi_private = req;
+ 	bio->bi_end_io = nvmet_bio_done;
+@@ -290,11 +291,7 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
+ 				}
+ 			}
  
--	bio->bi_iter.bi_sector = dmz_blk2sect(block);
--	bio_set_dev(bio, dev->bdev);
--	bio_set_op_attrs(bio, op, REQ_SYNC | REQ_META | REQ_PRIO);
- 	bio_add_page(bio, page, DMZ_BLOCK_SIZE, 0);
- 	ret = submit_bio_wait(bio);
- 	bio_put(bio);
+-			bio = bio_alloc(GFP_KERNEL, min(sg_cnt, BIO_MAX_PAGES));
+-			bio_set_dev(bio, req->ns->bdev);
+-			bio->bi_iter.bi_sector = sector;
+-			bio->bi_opf = op;
+-
++			bio = bio_new(bdev, sector, op, 0, sg_cnt, GFP_KERNEL);
+ 			bio_chain(bio, prev);
+ 			submit_bio(prev);
+ 		}
 -- 
 2.22.1
 
