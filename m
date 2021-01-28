@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C010742062B
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:19:13 +0100 (CET)
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com [216.71.153.141])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CEC65420621
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:19:25 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:02 -0800
-Message-Id: <20210128071133.60335-4-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:03 -0800
+Message-Id: <20210128071133.60335-5-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,7 +33,7 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 03/34] drdb: use bio_new in drdb
+Subject: [Drbd-dev] [RFC PATCH 04/34] drdb: use bio_new() in submit_one_flush
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,38 +47,36 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_receiver.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 09c86ef3f0fd..e1cd3427b28b 100644
+index e1cd3427b28b..b86bbf725cbd 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1643,6 +1643,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 	struct bio *bio;
- 	struct page *page = peer_req->pages;
- 	sector_t sector = peer_req->i.sector;
-+	struct block_device *bdev = device->ldev->backing_bdev;
- 	unsigned data_size = peer_req->i.size;
- 	unsigned n_bios = 0;
- 	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
-@@ -1687,15 +1688,12 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 	 * generated bio, but a bio allocated on behalf of the peer.
- 	 */
- next_bio:
--	bio = bio_alloc(GFP_NOIO, nr_pages);
-+	bio = bio_new(bdev, sector, op, op_flags, GFP_NOIO, nr_pages);
- 	if (!bio) {
- 		drbd_err(device, "submit_ee: Allocation of a bio failed (nr_pages=%u)\n", nr_pages);
- 		goto fail;
- 	}
- 	/* > peer_req->i.sector, unless this is the first bio */
--	bio->bi_iter.bi_sector = sector;
--	bio_set_dev(bio, device->ldev->backing_bdev);
--	bio_set_op_attrs(bio, op, op_flags);
- 	bio->bi_private = peer_req;
- 	bio->bi_end_io = drbd_peer_request_endio;
+@@ -1277,8 +1277,10 @@ static void one_flush_endio(struct bio *bio)
  
+ static void submit_one_flush(struct drbd_device *device, struct issue_flush_context *ctx)
+ {
+-	struct bio *bio = bio_alloc(GFP_NOIO, 0);
++	struct block_device *bdev = device->ldev->backing_bdev;
++	struct bio *bio = bio_new(bdev, 0, REQ_OP_FLUSH, REQ_PREFLUSH, 0, GFP_NOIO);
+ 	struct one_flush_context *octx = kmalloc(sizeof(*octx), GFP_NOIO);
++
+ 	if (!bio || !octx) {
+ 		drbd_warn(device, "Could not allocate a bio, CANNOT ISSUE FLUSH\n");
+ 		/* FIXME: what else can I do now?  disconnecting or detaching
+@@ -1296,10 +1298,8 @@ static void submit_one_flush(struct drbd_device *device, struct issue_flush_cont
+ 
+ 	octx->device = device;
+ 	octx->ctx = ctx;
+-	bio_set_dev(bio, device->ldev->backing_bdev);
+ 	bio->bi_private = octx;
+ 	bio->bi_end_io = one_flush_endio;
+-	bio->bi_opf = REQ_OP_FLUSH | REQ_PREFLUSH;
+ 
+ 	device->flush_jif = jiffies;
+ 	set_bit(FLUSH_PENDING, &device->flags);
 -- 
 2.22.1
 
