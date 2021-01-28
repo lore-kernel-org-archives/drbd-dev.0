@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4DAF2420341
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:16:42 +0100 (CET)
+Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 83A23420356
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:16:59 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:28 -0800
-Message-Id: <20210128071133.60335-30-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:14 -0800
+Message-Id: <20210128071133.60335-16-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,8 +33,8 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 29/34] power/swap: use bio_new in
-	hib_submit_io
+Subject: [Drbd-dev] [RFC PATCH 15/34] fscrypt: use bio_new in
+	fscrypt_zeroout_range
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,30 +48,28 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- kernel/power/swap.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ fs/crypto/bio.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-diff --git a/kernel/power/swap.c b/kernel/power/swap.c
-index c73f2e295167..e92e36c053a6 100644
---- a/kernel/power/swap.c
-+++ b/kernel/power/swap.c
-@@ -271,13 +271,12 @@ static int hib_submit_io(int op, int op_flags, pgoff_t page_off, void *addr,
- 		struct hib_bio_batch *hb)
- {
- 	struct page *page = virt_to_page(addr);
-+	sector_t sect = page_off * (PAGE_SIZE >> 9);
- 	struct bio *bio;
- 	int error = 0;
+diff --git a/fs/crypto/bio.c b/fs/crypto/bio.c
+index b048a0e38516..20dab9bdf098 100644
+--- a/fs/crypto/bio.c
++++ b/fs/crypto/bio.c
+@@ -148,12 +148,11 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
+ 		return -EINVAL;
  
--	bio = bio_alloc(GFP_NOIO | __GFP_HIGH, 1);
--	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
--	bio_set_dev(bio, hib_resume_bdev);
--	bio_set_op_attrs(bio, op, op_flags);
-+	bio = bio_new(hib_resume_bdev, sect, op, op_flags, 1,
-+		      GFP_NOIO | __GFP_HIGH);
+ 	/* This always succeeds since __GFP_DIRECT_RECLAIM is set. */
+-	bio = bio_alloc(GFP_NOFS, nr_pages);
++	bio = bio_alloc(inode->i_sb->s_bdev, 0, REQ_OP_WRITE, 0, nr_pages,
++			GFP_NOFS);
  
- 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
- 		pr_err("Adding page to bio failed at %llu\n",
+ 	do {
+-		bio_set_dev(bio, inode->i_sb->s_bdev);
+ 		bio->bi_iter.bi_sector = pblk << (blockbits - 9);
+-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+ 
+ 		i = 0;
+ 		offset = 0;
 -- 
 2.22.1
 
