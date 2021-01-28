@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 01B094205E5
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:17:45 +0100 (CET)
+Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B7F96420619
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:17:54 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:20 -0800
-Message-Id: <20210128071133.60335-22-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:21 -0800
+Message-Id: <20210128071133.60335-23-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,8 +33,8 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 21/34] fs/jfs/jfs_metapage.c: use bio_new in
-	metapage_writepage
+Subject: [Drbd-dev] [RFC PATCH 22/34] fs/jfs/jfs_metapage.c: use bio_new in
+	metapage_readpage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,29 +48,30 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/jfs/jfs_metapage.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ fs/jfs/jfs_metapage.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
 diff --git a/fs/jfs/jfs_metapage.c b/fs/jfs/jfs_metapage.c
-index 176580f54af9..3fa09d9a0b94 100644
+index 3fa09d9a0b94..c7be3a2773bf 100644
 --- a/fs/jfs/jfs_metapage.c
 +++ b/fs/jfs/jfs_metapage.c
-@@ -416,12 +416,11 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
- 		}
- 		len = min(xlen, (int)JFS_SBI(inode->i_sb)->nbperpage);
+@@ -495,13 +495,11 @@ static int metapage_readpage(struct file *fp, struct page *page)
+ 			if (bio)
+ 				submit_bio(bio);
  
--		bio = bio_alloc(GFP_NOFS, 1);
--		bio_set_dev(bio, inode->i_sb->s_bdev);
--		bio->bi_iter.bi_sector = pblock << (inode->i_blkbits - 9);
-+		bio = bio_new(inode->i_sb->s_bdev,
-+			      pblock << (inode->i_blkbits - 9), REQ_OP_WRITE,
-+			      0, 1, GFP_NOFS);
- 		bio->bi_end_io = metapage_write_end_io;
- 		bio->bi_private = page;
--		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
- 
- 		/* Don't call bio_add_page yet, we may add to this vec */
- 		bio_offset = offset;
+-			bio = bio_alloc(GFP_NOFS, 1);
+-			bio_set_dev(bio, inode->i_sb->s_bdev);
+-			bio->bi_iter.bi_sector =
+-				pblock << (inode->i_blkbits - 9);
++			bio = bio_new(inode->i_sb->s_bdev,
++					pblock << (inode->i_blkbits - 9),
++					REQ_OP_READ, 0, 1, GFP_NOFS);
+ 			bio->bi_end_io = metapage_read_end_io;
+ 			bio->bi_private = page;
+-			bio_set_op_attrs(bio, REQ_OP_READ, 0);
+ 			len = xlen << inode->i_blkbits;
+ 			offset = block_offset << inode->i_blkbits;
+ 			if (bio_add_page(bio, page, len, offset) < len)
 -- 
 2.22.1
 
