@@ -1,17 +1,17 @@
 Return-Path: <djwong@kernel.org>
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F0BE942006B
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 18:08:15 +0100 (CET)
-Date: Thu, 28 Jan 2021 08:59:46 -0800
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 44A18420341
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 18:21:33 +0100 (CET)
+Date: Thu, 28 Jan 2021 09:21:32 -0800
 From: "Darrick J. Wong" <djwong@kernel.org>
 To: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
-Message-ID: <20210128165946.GL7698@magnolia>
+Message-ID: <20210128172132.GM7698@magnolia>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
-	<20210128071133.60335-18-chaitanya.kulkarni@wdc.com>
+	<20210128071133.60335-27-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20210128071133.60335-18-chaitanya.kulkarni@wdc.com>
+In-Reply-To: <20210128071133.60335-27-chaitanya.kulkarni@wdc.com>
 Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net,
 	gustavoars@kernel.org, sergey.senozhatsky.work@gmail.com,
 	snitzer@redhat.com, tiwai@suse.de,
@@ -37,8 +37,7 @@ Cc: shaggy@kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org, lars.ellenberg@linbit.com,
 	jth@kernel.org, asml.silence@gmail.com,
 	ocfs2-devel@oss.oracle.com, roger.pau@citrix.com
-Subject: Re: [Drbd-dev] [RFC PATCH 17/34] iomap: use bio_new in
-	iomap_dio_zero
+Subject: Re: [Drbd-dev] [RFC PATCH 26/34] xfs: use bio_new in xfs_rw_bdev
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -50,40 +49,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Jan 27, 2021 at 11:11:16PM -0800, Chaitanya Kulkarni wrote:
+On Wed, Jan 27, 2021 at 11:11:25PM -0800, Chaitanya Kulkarni wrote:
 > Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 
-Looks ok to me,
+Seems fine to me...
 Reviewed-by: Darrick J. Wong <djwong@kernel.org>
 
 --D
 
 > ---
->  fs/iomap/direct-io.c | 6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
+>  fs/xfs/xfs_bio_io.c | 7 ++-----
+>  1 file changed, 2 insertions(+), 5 deletions(-)
 > 
-> diff --git a/fs/iomap/direct-io.c b/fs/iomap/direct-io.c
-> index ea1e8f696076..f6c557a1bd25 100644
-> --- a/fs/iomap/direct-io.c
-> +++ b/fs/iomap/direct-io.c
-> @@ -189,15 +189,13 @@ iomap_dio_zero(struct iomap_dio *dio, struct iomap *iomap, loff_t pos,
->  	int flags = REQ_SYNC | REQ_IDLE;
->  	struct bio *bio;
+> diff --git a/fs/xfs/xfs_bio_io.c b/fs/xfs/xfs_bio_io.c
+> index e2148f2d5d6b..e4644f22ebe6 100644
+> --- a/fs/xfs/xfs_bio_io.c
+> +++ b/fs/xfs/xfs_bio_io.c
+> @@ -26,11 +26,8 @@ xfs_rw_bdev(
+>  	if (is_vmalloc && op == REQ_OP_WRITE)
+>  		flush_kernel_vmap_range(data, count);
 >  
-> -	bio = bio_alloc(GFP_KERNEL, 1);
-> -	bio_set_dev(bio, iomap->bdev);
-> -	bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
-> +	bio = bio_new(iomap->bdev, iomap_sector(iomap, pos), REQ_OP_WRITE,
-> +		      flags, 1, GFP_KERNEL);
->  	bio->bi_private = dio;
->  	bio->bi_end_io = iomap_dio_bio_end_io;
->  
->  	get_page(page);
->  	__bio_add_page(bio, page, len, 0);
-> -	bio_set_op_attrs(bio, REQ_OP_WRITE, flags);
->  	iomap_dio_submit_bio(dio, iomap, bio, pos);
->  }
->  
+> -	bio = bio_alloc(GFP_KERNEL, bio_max_vecs(left));
+> -	bio_set_dev(bio, bdev);
+> -	bio->bi_iter.bi_sector = sector;
+> -	bio->bi_opf = op | REQ_META | REQ_SYNC;
+> -
+> +	bio = bio_new(bdev, sector, op, REQ_META | REQ_SYNC, bio_max_vecs(left),
+> +		      GFP_KERNEL);
+>  	do {
+>  		struct page	*page = kmem_to_page(data);
+>  		unsigned int	off = offset_in_page(data);
 > -- 
 > 2.22.1
 > 
