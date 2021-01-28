@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CB1D0420620
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:18:21 +0100 (CET)
+Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com [216.71.153.144])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 185A742060A
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:18:29 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:25 -0800
-Message-Id: <20210128071133.60335-27-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:26 -0800
+Message-Id: <20210128071133.60335-28-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,7 +33,7 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 26/34] xfs: use bio_new in xfs_rw_bdev
+Subject: [Drbd-dev] [RFC PATCH 27/34] xfs: use bio_new in xfs_buf_ioapply_map
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,27 +47,28 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/xfs/xfs_bio_io.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ fs/xfs/xfs_buf.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/fs/xfs/xfs_bio_io.c b/fs/xfs/xfs_bio_io.c
-index e2148f2d5d6b..e4644f22ebe6 100644
---- a/fs/xfs/xfs_bio_io.c
-+++ b/fs/xfs/xfs_bio_io.c
-@@ -26,11 +26,8 @@ xfs_rw_bdev(
- 	if (is_vmalloc && op == REQ_OP_WRITE)
- 		flush_kernel_vmap_range(data, count);
+diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+index f8400bbd6473..3ff6235e4f94 100644
+--- a/fs/xfs/xfs_buf.c
++++ b/fs/xfs/xfs_buf.c
+@@ -1507,12 +1507,10 @@ xfs_buf_ioapply_map(
+ 	atomic_inc(&bp->b_io_remaining);
+ 	nr_pages = min(total_nr_pages, BIO_MAX_PAGES);
  
--	bio = bio_alloc(GFP_KERNEL, bio_max_vecs(left));
--	bio_set_dev(bio, bdev);
+-	bio = bio_alloc(GFP_NOIO, nr_pages);
+-	bio_set_dev(bio, bp->b_target->bt_bdev);
 -	bio->bi_iter.bi_sector = sector;
--	bio->bi_opf = op | REQ_META | REQ_SYNC;
--
-+	bio = bio_new(bdev, sector, op, REQ_META | REQ_SYNC, bio_max_vecs(left),
-+		      GFP_KERNEL);
- 	do {
- 		struct page	*page = kmem_to_page(data);
- 		unsigned int	off = offset_in_page(data);
++	bio = bio_new(bp->b_target->bt_bdev, sector, op, 0, nr_pages,
++		      GFP_NOIO);
+ 	bio->bi_end_io = xfs_buf_bio_end_io;
+ 	bio->bi_private = bp;
+-	bio->bi_opf = op;
+ 
+ 	for (; size && nr_pages; nr_pages--, page_index++) {
+ 		int	rbytes, nbytes = PAGE_SIZE - offset;
 -- 
 2.22.1
 
