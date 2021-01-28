@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com [68.232.143.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9AB9242062E
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:19:09 +0100 (CET)
+Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C010742062B
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:19:13 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:18 -0800
-Message-Id: <20210128071133.60335-20-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:02 -0800
+Message-Id: <20210128071133.60335-4-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,8 +33,7 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 19/34] fs/jfs/jfs_logmgr.c: use bio_new in
-	lbmRead
+Subject: [Drbd-dev] [RFC PATCH 03/34] drdb: use bio_new in drdb
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,33 +47,38 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/jfs/jfs_logmgr.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_receiver.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/fs/jfs/jfs_logmgr.c b/fs/jfs/jfs_logmgr.c
-index 9330eff210e0..4481f3e33a3f 100644
---- a/fs/jfs/jfs_logmgr.c
-+++ b/fs/jfs/jfs_logmgr.c
-@@ -1979,17 +1979,14 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 09c86ef3f0fd..e1cd3427b28b 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1643,6 +1643,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
+ 	struct bio *bio;
+ 	struct page *page = peer_req->pages;
+ 	sector_t sector = peer_req->i.sector;
++	struct block_device *bdev = device->ldev->backing_bdev;
+ 	unsigned data_size = peer_req->i.size;
+ 	unsigned n_bios = 0;
+ 	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
+@@ -1687,15 +1688,12 @@ int drbd_submit_peer_request(struct drbd_device *device,
+ 	 * generated bio, but a bio allocated on behalf of the peer.
+ 	 */
+ next_bio:
+-	bio = bio_alloc(GFP_NOIO, nr_pages);
++	bio = bio_new(bdev, sector, op, op_flags, GFP_NOIO, nr_pages);
+ 	if (!bio) {
+ 		drbd_err(device, "submit_ee: Allocation of a bio failed (nr_pages=%u)\n", nr_pages);
+ 		goto fail;
+ 	}
+ 	/* > peer_req->i.sector, unless this is the first bio */
+-	bio->bi_iter.bi_sector = sector;
+-	bio_set_dev(bio, device->ldev->backing_bdev);
+-	bio_set_op_attrs(bio, op, op_flags);
+ 	bio->bi_private = peer_req;
+ 	bio->bi_end_io = drbd_peer_request_endio;
  
- 	bp->l_flag |= lbmREAD;
- 
--	bio = bio_alloc(GFP_NOFS, 1);
--
--	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
--	bio_set_dev(bio, log->bdev);
-+	bio = bio_new(log->bdev, bp->l_blkno << (log->l2bsize - 9),
-+			REQ_OP_READ, 0, 1, GFP_NOFS);
- 
- 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
- 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
- 
- 	bio->bi_end_io = lbmIODone;
- 	bio->bi_private = bp;
--	bio->bi_opf = REQ_OP_READ;
- 	/*check if journaling to disk has been disabled*/
- 	if (log->no_integrity) {
- 		bio->bi_iter.bi_size = 0;
 -- 
 2.22.1
 
