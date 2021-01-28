@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B29DA4205FF
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:17:21 +0100 (CET)
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com [216.71.153.141])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BDAD7420607
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:17:24 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:33 -0800
-Message-Id: <20210128071133.60335-35-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:17 -0800
+Message-Id: <20210128071133.60335-19-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,7 +33,8 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 34/34] mm: add swap_bio_new common bio helper
+Subject: [Drbd-dev] [RFC PATCH 18/34] iomap: use bio_new in
+	iomap_dio_bio_actor
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,60 +48,25 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- mm/page_io.c | 26 ++++++++++++++++----------
- 1 file changed, 16 insertions(+), 10 deletions(-)
+ fs/iomap/direct-io.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 7579485ccb5e..cc30c9a0b0a7 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -287,6 +287,17 @@ static void bio_associate_blkg_from_page(struct bio *bio, struct page *page)
- #define bio_associate_blkg_from_page(bio, page)		do { } while (0)
- #endif /* CONFIG_MEMCG && CONFIG_BLK_CGROUP */
+diff --git a/fs/iomap/direct-io.c b/fs/iomap/direct-io.c
+index f6c557a1bd25..0737192f7e5c 100644
+--- a/fs/iomap/direct-io.c
++++ b/fs/iomap/direct-io.c
+@@ -267,9 +267,8 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
+ 			goto out;
+ 		}
  
-+static inline struct bio *swap_bio_new(struct block_device *dev,
-+		unsigned op, unsigned opf, gfp_t gfp, struct page *p,
-+		bio_end_io_t *end_io)
-+{
-+	struct bio *bio = bio_new(dev, swap_page_sector(p), op, opf, 1, gfp);
-+
-+	bio->bi_end_io = end_io;
-+	bio_add_page(bio, p, thp_size(p), 0);
-+	return bio;
-+}
-+
- int __swap_writepage(struct page *page, struct writeback_control *wbc,
- 		bio_end_io_t end_write_func)
- {
-@@ -342,11 +353,9 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
- 		return 0;
- 	}
- 
--	bio = bio_new(sis->bdev, swap_page_sector(page), REQ_OP_WRITE,
--			REQ_SWAP | wbc_to_write_flags(wbc), 1, GFP_NOIO);
--	bio->bi_end_io = end_write_func;
--	bio_add_page(bio, page, thp_size(page), 0);
--
-+	bio = swap_bio_new(sis->bdev, REQ_OP_WRITE,
-+			REQ_SWAP | wbc_to_write_flags(wbc), GFP_KERNEL,
-+			page, end_write_func);
- 	bio_associate_blkg_from_page(bio, page);
- 	count_swpout_vm_event(page);
- 	set_page_writeback(page);
-@@ -406,11 +415,8 @@ int swap_readpage(struct page *page, bool synchronous)
- 	}
- 
- 	ret = 0;
--	bio = bio_new(sis->bdev, swap_page_sector(page), REQ_OP_READ, 0, 1,
--			GFP_KERNEL);
--	bio->bi_end_io = end_swap_bio_read;
--	bio_add_page(bio, page, thp_size(page), 0);
--
-+	bio = swap_bio_new(sis->bdev, REQ_OP_READ, 0, GFP_KERNEL, page,
-+			end_swap_bio_read);
- 	disk = bio->bi_bdev->bd_disk;
- 	/*
- 	 * Keep this task valid during swap readpage because the oom killer may
+-		bio = bio_alloc(GFP_KERNEL, nr_pages);
+-		bio_set_dev(bio, iomap->bdev);
+-		bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
++		bio = bio_new(iomap->bdev, iomap_sector(iomap, pos), 0, 0,
++			      nr_pages, GFP_KERNEL);
+ 		bio->bi_write_hint = dio->iocb->ki_hint;
+ 		bio->bi_ioprio = dio->iocb->ki_ioprio;
+ 		bio->bi_private = dio;
 -- 
 2.22.1
 
