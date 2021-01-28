@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 79C874205FC
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:17:08 +0100 (CET)
+Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 83BBF4203D0
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:17:14 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:15 -0800
-Message-Id: <20210128071133.60335-17-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:32 -0800
+Message-Id: <20210128071133.60335-34-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,8 +33,7 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 16/34] fs/direct-io: use bio_new in
-	dio_bio_alloc
+Subject: [Drbd-dev] [RFC PATCH 33/34] mm: use bio_new in swap_readpage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,41 +47,35 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/crypto/bio.c | 2 +-
- fs/direct-io.c  | 6 ++----
- 2 files changed, 3 insertions(+), 5 deletions(-)
+ mm/page_io.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-diff --git a/fs/crypto/bio.c b/fs/crypto/bio.c
-index 20dab9bdf098..28cd62ce853e 100644
---- a/fs/crypto/bio.c
-+++ b/fs/crypto/bio.c
-@@ -148,7 +148,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
- 		return -EINVAL;
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 25b321489703..7579485ccb5e 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -342,7 +342,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
+ 		return 0;
+ 	}
  
- 	/* This always succeeds since __GFP_DIRECT_RECLAIM is set. */
--	bio = bio_alloc(inode->i_sb->s_bdev, 0, REQ_OP_WRITE, 0, nr_pages,
-+	bio = bio_new(inode->i_sb->s_bdev, 0, REQ_OP_WRITE, 0, nr_pages,
- 			GFP_NOFS);
+-	bio = bio_alloc(sis->bdev, swap_page_sector(page), REQ_OP_WRITE,
++	bio = bio_new(sis->bdev, swap_page_sector(page), REQ_OP_WRITE,
+ 			REQ_SWAP | wbc_to_write_flags(wbc), 1, GFP_NOIO);
+ 	bio->bi_end_io = end_write_func;
+ 	bio_add_page(bio, page, thp_size(page), 0);
+@@ -406,10 +406,8 @@ int swap_readpage(struct page *page, bool synchronous)
+ 	}
  
- 	do {
-diff --git a/fs/direct-io.c b/fs/direct-io.c
-index aa1083ecd623..6aab1bd167bc 100644
---- a/fs/direct-io.c
-+++ b/fs/direct-io.c
-@@ -397,11 +397,9 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
- 	 * bio_alloc() is guaranteed to return a bio when allowed to sleep and
- 	 * we request a valid number of vectors.
- 	 */
--	bio = bio_alloc(GFP_KERNEL, nr_vecs);
-+	bio = bio_new(bdev, first_sector, dio->op, dio->op_flags, nr_vecs,
-+		      GFP_KERNEL);
+ 	ret = 0;
+-	bio = bio_alloc(GFP_KERNEL, 1);
+-	bio_set_dev(bio, sis->bdev);
+-	bio->bi_opf = REQ_OP_READ;
+-	bio->bi_iter.bi_sector = swap_page_sector(page);
++	bio = bio_new(sis->bdev, swap_page_sector(page), REQ_OP_READ, 0, 1,
++			GFP_KERNEL);
+ 	bio->bi_end_io = end_swap_bio_read;
+ 	bio_add_page(bio, page, thp_size(page), 0);
  
--	bio_set_dev(bio, bdev);
--	bio->bi_iter.bi_sector = first_sector;
--	bio_set_op_attrs(bio, dio->op, dio->op_flags);
- 	if (dio->is_async)
- 		bio->bi_end_io = dio_bio_end_aio;
- 	else
 -- 
 2.22.1
 
