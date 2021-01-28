@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DD49B42060D
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:18:07 +0100 (CET)
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com [216.71.153.141])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F266142061F
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:18:20 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:23 -0800
-Message-Id: <20210128071133.60335-25-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:24 -0800
+Message-Id: <20210128071133.60335-26-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,8 +33,8 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 24/34] fs/nilfs: use bio_new
-	nilfs_alloc_seg_bio
+Subject: [Drbd-dev] [RFC PATCH 25/34] ocfs/cluster: use bio_new in
+	dm-log-writes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,31 +48,40 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/nilfs2/segbuf.c | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ fs/ocfs2/cluster/heartbeat.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
-index 1e75417bfe6e..df352cab7a93 100644
---- a/fs/nilfs2/segbuf.c
-+++ b/fs/nilfs2/segbuf.c
-@@ -383,15 +383,9 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
- static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
- 				       int nr_vecs)
- {
--	struct bio *bio;
-+	sector_t sect = start << (nilfs->ns_blocksize_bits - 9);
+diff --git a/fs/ocfs2/cluster/heartbeat.c b/fs/ocfs2/cluster/heartbeat.c
+index 0179a73a3fa2..b34518036446 100644
+--- a/fs/ocfs2/cluster/heartbeat.c
++++ b/fs/ocfs2/cluster/heartbeat.c
+@@ -515,12 +515,13 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
+ 	unsigned int cs = *current_slot;
+ 	struct bio *bio;
+ 	struct page *page;
++	sector_t sect = (reg->hr_start_block + cs) << (bits - 9);
  
--	bio = bio_alloc(GFP_NOIO, nr_vecs);
--	if (likely(bio)) {
--		bio_set_dev(bio, nilfs->ns_bdev);
--		bio->bi_iter.bi_sector =
--			start << (nilfs->ns_blocksize_bits - 9);
--	}
--	return bio;
-+	return bio_new(nilfs->ns_bdev, sect, 0, 0, nr_vecs, GFP_NOIO);
- }
+ 	/* Testing has shown this allocation to take long enough under
+ 	 * GFP_KERNEL that the local node can get fenced. It would be
+ 	 * nicest if we could pre-allocate these bios and avoid this
+ 	 * all together. */
+-	bio = bio_alloc(GFP_ATOMIC, 16);
++	bio = bio_new(reg->hr_bdev, sect, op, op_flags, 16, GFP_ATOMIC);
+ 	if (!bio) {
+ 		mlog(ML_ERROR, "Could not alloc slots BIO!\n");
+ 		bio = ERR_PTR(-ENOMEM);
+@@ -528,11 +529,8 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
+ 	}
  
- static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
+ 	/* Must put everything in 512 byte sectors for the bio... */
+-	bio->bi_iter.bi_sector = (reg->hr_start_block + cs) << (bits - 9);
+-	bio_set_dev(bio, reg->hr_bdev);
+ 	bio->bi_private = wc;
+ 	bio->bi_end_io = o2hb_bio_end_io;
+-	bio_set_op_attrs(bio, op, op_flags);
+ 
+ 	vec_start = (cs << bits) % PAGE_SIZE;
+ 	while(cs < max_slots) {
 -- 
 2.22.1
 
