@@ -1,34 +1,40 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pl1-f173.google.com (mail-pl1-f173.google.com
-	[209.85.214.173])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 02CA34202D8
-	for <drbd-dev@lists.linbit.com>; Wed, 27 Jan 2021 17:52:15 +0100 (CET)
-Received: by mail-pl1-f173.google.com with SMTP id u15so1371993plf.1
-	for <drbd-dev@lists.linbit.com>; Wed, 27 Jan 2021 08:52:15 -0800 (PST)
-To: Christoph Hellwig <hch@lst.de>, Song Liu <song@kernel.org>
-References: <20210126145247.1964410-1-hch@lst.de>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <53e9b2e0-7169-f2fe-3c33-5f8a28cbd01b@kernel.dk>
-Date: Wed, 27 Jan 2021 09:52:10 -0700
+Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
+Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4DAF2420341
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:16:42 +0100 (CET)
+From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	dm-devel@redhat.com, linux-block@vger.kernel.org,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com,
+	xen-devel@lists.xenproject.org, linux-nvme@lists.infradead.org,
+	linux-scsi@vger.kernel.org, target-devel@vger.kernel.org,
+	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
+	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
+	linux-pm@vger.kernel.org, linux-mm@kvack.org
+Date: Wed, 27 Jan 2021 23:11:28 -0800
+Message-Id: <20210128071133.60335-30-chaitanya.kulkarni@wdc.com>
+In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
+References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
-In-Reply-To: <20210126145247.1964410-1-hch@lst.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Cc: Mike Snitzer <snitzer@redhat.com>, linux-mm@kvack.org, dm-devel@redhat.com,
-	drbd-dev@lists.linbit.com, Naohiro Aota <naohiro.aota@wdc.com>,
-	linux-nilfs@vger.kernel.org, Josef Bacik <josef@toxicpanda.com>,
-	Chao Yu <chao@kernel.org>, linux-nfs@vger.kernel.org,
-	Coly Li <colyli@suse.de>, linux-raid@vger.kernel.org,
-	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
-	Jaegeuk Kim <jaegeuk@kernel.org>,
-	Ryusuke Konishi <konishi.ryusuke@gmail.com>, linux-block@vger.kernel.org,
-	Damien Le Moal <damien.lemoal@wdc.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] misc bio allocation cleanups
+Content-Transfer-Encoding: 8bit
+Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
+	tiwai@suse.de, djwong@kernel.org, gustavoars@kernel.org,
+	joseph.qi@linux.alibaba.com, pavel@ucw.cz,
+	alex.shi@linux.alibaba.com, hch@lst.de, agk@redhat.com,
+	naohiro.aota@wdc.com, sagi@grimberg.me, mark@fasheh.com,
+	osandov@fb.com, ebiggers@kernel.org, ngupta@vflare.org,
+	len.brown@intel.com, chaitanya.kulkarni@wdc.com,
+	konrad.wilk@oracle.com, hare@suse.de, ming.lei@redhat.com,
+	viro@zeniv.linux.org.uk, jefflexu@linux.alibaba.com,
+	jaegeuk@kernel.org, konishi.ryusuke@gmail.com,
+	bvanassche@acm.org, axboe@kernel.dk, damien.lemoal@wdc.com,
+	tytso@mit.edu, akpm@linux-foundation.org,
+	martin.petersen@oracle.com, rjw@rjwysocki.net,
+	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
+	lars.ellenberg@linbit.com, jth@kernel.org,
+	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
+Subject: [Drbd-dev] [RFC PATCH 29/34] power/swap: use bio_new in
+	hib_submit_io
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,14 +46,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 1/26/21 7:52 AM, Christoph Hellwig wrote:
-> Hi Jens,
-> 
-> this series contains various cleanups for how bios are allocated or
-> initialized plus related fallout.
+Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+---
+ kernel/power/swap.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-Applied, thanks.
-
+diff --git a/kernel/power/swap.c b/kernel/power/swap.c
+index c73f2e295167..e92e36c053a6 100644
+--- a/kernel/power/swap.c
++++ b/kernel/power/swap.c
+@@ -271,13 +271,12 @@ static int hib_submit_io(int op, int op_flags, pgoff_t page_off, void *addr,
+ 		struct hib_bio_batch *hb)
+ {
+ 	struct page *page = virt_to_page(addr);
++	sector_t sect = page_off * (PAGE_SIZE >> 9);
+ 	struct bio *bio;
+ 	int error = 0;
+ 
+-	bio = bio_alloc(GFP_NOIO | __GFP_HIGH, 1);
+-	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
+-	bio_set_dev(bio, hib_resume_bdev);
+-	bio_set_op_attrs(bio, op, op_flags);
++	bio = bio_new(hib_resume_bdev, sect, op, op_flags, 1,
++		      GFP_NOIO | __GFP_HIGH);
+ 
+ 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
+ 		pr_err("Adding page to bio failed at %llu\n",
 -- 
-Jens Axboe
+2.22.1
 
