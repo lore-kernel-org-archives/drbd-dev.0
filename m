@@ -1,7 +1,7 @@
 Return-Path: <prvs=6551138a8=Damien.LeMoal@wdc.com>
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DEF6E42062E
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:28:56 +0100 (CET)
+Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com [68.232.141.245])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B9030420834
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:34:36 +0100 (CET)
 From: Damien Le Moal <Damien.LeMoal@wdc.com>
 To: Chaitanya Kulkarni <Chaitanya.Kulkarni@wdc.com>,
 	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
@@ -19,10 +19,11 @@ To: Chaitanya Kulkarni <Chaitanya.Kulkarni@wdc.com>,
 	<linux-nilfs@vger.kernel.org>, "ocfs2-devel@oss.oracle.com"
 	<ocfs2-devel@oss.oracle.com>, "linux-pm@vger.kernel.org"
 	<linux-pm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Date: Thu, 28 Jan 2021 07:21:42 +0000
-Message-ID: <BL0PR04MB6514C554B4AC96866BC1B16FE7BA9@BL0PR04MB6514.namprd04.prod.outlook.com>
+Date: Thu, 28 Jan 2021 07:27:21 +0000
+Message-ID: <BL0PR04MB6514DBA7EDB8EC87A1C20871E7BA9@BL0PR04MB6514.namprd04.prod.outlook.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 	<20210128071133.60335-3-chaitanya.kulkarni@wdc.com>
+	<BL0PR04MB6514C554B4AC96866BC1B16FE7BA9@BL0PR04MB6514.namprd04.prod.outlook.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -72,89 +73,97 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2021/01/28 16:12, Chaitanya Kulkarni wrote:=0A=
-> Introduce bio_new() helper and use it in blk-lib.c to allocate and=0A=
-> initialize various non-optional or semi-optional members of the bio=0A=
-> along with bio allocation done with bio_alloc(). Here we also calmp the=
+On 2021/01/28 16:21, Damien Le Moal wrote:=0A=
+> On 2021/01/28 16:12, Chaitanya Kulkarni wrote:=0A=
+>> Introduce bio_new() helper and use it in blk-lib.c to allocate and=0A=
+>> initialize various non-optional or semi-optional members of the bio=0A=
+>> along with bio allocation done with bio_alloc(). Here we also calmp the=
 =0A=
-> max_bvecs for bio with BIO_MAX_PAGES before we pass to bio_alloc().=0A=
+>> max_bvecs for bio with BIO_MAX_PAGES before we pass to bio_alloc().=0A=
+>>=0A=
+>> Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>=0A=
+>> ---=0A=
+>>  block/blk-lib.c     |  6 +-----=0A=
+>>  include/linux/bio.h | 25 +++++++++++++++++++++++++=0A=
+>>  2 files changed, 26 insertions(+), 5 deletions(-)=0A=
+>>=0A=
+>> diff --git a/block/blk-lib.c b/block/blk-lib.c=0A=
+>> index fb486a0bdb58..ec29415f00dd 100644=0A=
+>> --- a/block/blk-lib.c=0A=
+>> +++ b/block/blk-lib.c=0A=
+>> @@ -14,17 +14,13 @@ struct bio *blk_next_bio(struct bio *bio, struct blo=
+ck_device *bdev,=0A=
+>>  			sector_t sect, unsigned op, unsigned opf,=0A=
+>>  			unsigned int nr_pages, gfp_t gfp)=0A=
+>>  {=0A=
+>> -	struct bio *new =3D bio_alloc(gfp, nr_pages);=0A=
+>> +	struct bio *new =3D bio_new(bdev, sect, op, opf, gfp, nr_pages);=0A=
+>>  =0A=
+>>  	if (bio) {=0A=
+>>  		bio_chain(bio, new);=0A=
+>>  		submit_bio(bio);=0A=
+>>  	}=0A=
+>>  =0A=
+>> -	new->bi_iter.bi_sector =3D sect;=0A=
+>> -	bio_set_dev(new, bdev);=0A=
+>> -	bio_set_op_attrs(new, op, opf);=0A=
+>> -=0A=
+>>  	return new;=0A=
+>>  }=0A=
+>>  =0A=
+>> diff --git a/include/linux/bio.h b/include/linux/bio.h=0A=
+>> index c74857cf1252..2a09ba100546 100644=0A=
+>> --- a/include/linux/bio.h=0A=
+>> +++ b/include/linux/bio.h=0A=
+>> @@ -826,5 +826,30 @@ static inline void bio_set_polled(struct bio *bio, =
+struct kiocb *kiocb)=0A=
+>>  	if (!is_sync_kiocb(kiocb))=0A=
+>>  		bio->bi_opf |=3D REQ_NOWAIT;=0A=
+>>  }=0A=
+>> +/**=0A=
+>> + * bio_new -	allcate and initialize new bio=0A=
+>> + * @bdev:	blockdev to issue discard for=0A=
+>> + * @sector:	start sector=0A=
+>> + * @op:		REQ_OP_XXX from enum req_opf=0A=
+>> + * @op_flags:	REQ_XXX from enum req_flag_bits=0A=
+>> + * @max_bvecs:	maximum bvec to be allocated for this bio=0A=
+>> + * @gfp_mask:	memory allocation flags (for bio_alloc)=0A=
+>> + *=0A=
+>> + * Description:=0A=
+>> + *    Allocates, initializes common members, and returns a new bio.=0A=
+>> + */=0A=
+>> +static inline struct bio *bio_new(struct block_device *bdev, sector_t s=
+ector,=0A=
+>> +				  unsigned int op, unsigned int op_flags,=0A=
+>> +				  unsigned int max_bvecs, gfp_t gfp_mask)=0A=
+>> +{=0A=
+>> +	unsigned nr_bvec =3D clamp_t(unsigned int, max_bvecs, 0, BIO_MAX_PAGES=
+);=0A=
+>> +	struct bio *bio =3D bio_alloc(gfp_mask, nr_bvec);=0A=
 > =0A=
-> Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>=0A=
-> ---=0A=
->  block/blk-lib.c     |  6 +-----=0A=
->  include/linux/bio.h | 25 +++++++++++++++++++++++++=0A=
->  2 files changed, 26 insertions(+), 5 deletions(-)=0A=
+> I think that depending on the gfp_mask passed, bio can be NULL. So this s=
+hould=0A=
+> be checked.=0A=
 > =0A=
-> diff --git a/block/blk-lib.c b/block/blk-lib.c=0A=
-> index fb486a0bdb58..ec29415f00dd 100644=0A=
-> --- a/block/blk-lib.c=0A=
-> +++ b/block/blk-lib.c=0A=
-> @@ -14,17 +14,13 @@ struct bio *blk_next_bio(struct bio *bio, struct bloc=
-k_device *bdev,=0A=
->  			sector_t sect, unsigned op, unsigned opf,=0A=
->  			unsigned int nr_pages, gfp_t gfp)=0A=
->  {=0A=
-> -	struct bio *new =3D bio_alloc(gfp, nr_pages);=0A=
-> +	struct bio *new =3D bio_new(bdev, sect, op, opf, gfp, nr_pages);=0A=
->  =0A=
->  	if (bio) {=0A=
->  		bio_chain(bio, new);=0A=
->  		submit_bio(bio);=0A=
->  	}=0A=
->  =0A=
-> -	new->bi_iter.bi_sector =3D sect;=0A=
-> -	bio_set_dev(new, bdev);=0A=
-> -	bio_set_op_attrs(new, op, opf);=0A=
-> -=0A=
->  	return new;=0A=
->  }=0A=
->  =0A=
-> diff --git a/include/linux/bio.h b/include/linux/bio.h=0A=
-> index c74857cf1252..2a09ba100546 100644=0A=
-> --- a/include/linux/bio.h=0A=
-> +++ b/include/linux/bio.h=0A=
-> @@ -826,5 +826,30 @@ static inline void bio_set_polled(struct bio *bio, s=
-truct kiocb *kiocb)=0A=
->  	if (!is_sync_kiocb(kiocb))=0A=
->  		bio->bi_opf |=3D REQ_NOWAIT;=0A=
->  }=0A=
-> +/**=0A=
-> + * bio_new -	allcate and initialize new bio=0A=
-> + * @bdev:	blockdev to issue discard for=0A=
-> + * @sector:	start sector=0A=
-> + * @op:		REQ_OP_XXX from enum req_opf=0A=
-> + * @op_flags:	REQ_XXX from enum req_flag_bits=0A=
-> + * @max_bvecs:	maximum bvec to be allocated for this bio=0A=
-> + * @gfp_mask:	memory allocation flags (for bio_alloc)=0A=
-> + *=0A=
-> + * Description:=0A=
-> + *    Allocates, initializes common members, and returns a new bio.=0A=
-> + */=0A=
-> +static inline struct bio *bio_new(struct block_device *bdev, sector_t se=
-ctor,=0A=
-> +				  unsigned int op, unsigned int op_flags,=0A=
-> +				  unsigned int max_bvecs, gfp_t gfp_mask)=0A=
-> +{=0A=
-> +	unsigned nr_bvec =3D clamp_t(unsigned int, max_bvecs, 0, BIO_MAX_PAGES)=
-;=0A=
-> +	struct bio *bio =3D bio_alloc(gfp_mask, nr_bvec);=0A=
+>> +=0A=
+>> +	bio_set_dev(bio, bdev);=0A=
+>> +	bio->bi_iter.bi_sector =3D sector;=0A=
+>> +	bio_set_op_attrs(bio, op, op_flags);=0A=
+> =0A=
+> This function is obsolete. Open code this.=0A=
 =0A=
-I think that depending on the gfp_mask passed, bio can be NULL. So this sho=
-uld=0A=
-be checked.=0A=
+And that also mean that you could remove one argument to bio_new(): combine=
+ op=0A=
+and op_flags into "unsigned int opf"=0A=
 =0A=
-> +=0A=
-> +	bio_set_dev(bio, bdev);=0A=
-> +	bio->bi_iter.bi_sector =3D sector;=0A=
-> +	bio_set_op_attrs(bio, op, op_flags);=0A=
-=0A=
-This function is obsolete. Open code this.=0A=
-=0A=
-> +=0A=
-> +	return bio;=0A=
-> +}=0A=
->  =0A=
->  #endif /* __LINUX_BIO_H */=0A=
+> =0A=
+>> +=0A=
+>> +	return bio;=0A=
+>> +}=0A=
+>>  =0A=
+>>  #endif /* __LINUX_BIO_H */=0A=
+>>=0A=
+> =0A=
 > =0A=
 =0A=
 =0A=
