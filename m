@@ -1,7 +1,7 @@
 Return-Path: <prvs=655a99766=chaitanya.kulkarni@wdc.com>
-Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com [68.232.143.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 988A7420356
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:17:35 +0100 (CET)
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com [216.71.153.141])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BFDDB420618
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 08:17:38 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	dm-devel@redhat.com, linux-block@vger.kernel.org,
@@ -11,8 +11,8 @@ To: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-fscrypt@vger.kernel.org, jfs-discussion@lists.sourceforge.net,
 	linux-nilfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-pm@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 27 Jan 2021 23:11:27 -0800
-Message-Id: <20210128071133.60335-29-chaitanya.kulkarni@wdc.com>
+Date: Wed, 27 Jan 2021 23:11:19 -0800
+Message-Id: <20210128071133.60335-21-chaitanya.kulkarni@wdc.com>
 In-Reply-To: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
 MIME-Version: 1.0
@@ -33,7 +33,8 @@ Cc: shaggy@kernel.org, sergey.senozhatsky.work@gmail.com, snitzer@redhat.com,
 	philipp.reisner@linbit.com, minchan@kernel.org, tj@kernel.org,
 	lars.ellenberg@linbit.com, jth@kernel.org,
 	asml.silence@gmail.com, jlbec@evilplan.org, roger.pau@citrix.com
-Subject: [Drbd-dev] [RFC PATCH 28/34] zonefs: use bio_new
+Subject: [Drbd-dev] [RFC PATCH 20/34] fs/jfs/jfs_logmgr.c: use bio_new in
+	lbmStartIO
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,38 +48,32 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
 ---
- fs/zonefs/super.c | 6 ++----
+ fs/jfs/jfs_logmgr.c | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/fs/zonefs/super.c b/fs/zonefs/super.c
-index ab68e27bb322..620d67965a22 100644
---- a/fs/zonefs/super.c
-+++ b/fs/zonefs/super.c
-@@ -661,6 +661,7 @@ static const struct iomap_dio_ops zonefs_write_dio_ops = {
+diff --git a/fs/jfs/jfs_logmgr.c b/fs/jfs/jfs_logmgr.c
+index 4481f3e33a3f..bb25737d52f6 100644
+--- a/fs/jfs/jfs_logmgr.c
++++ b/fs/jfs/jfs_logmgr.c
+@@ -2121,16 +2121,14 @@ static void lbmStartIO(struct lbuf * bp)
  
- static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
- {
-+	unsigned int op = REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE;
- 	struct inode *inode = file_inode(iocb->ki_filp);
- 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
- 	struct block_device *bdev = inode->i_sb->s_bdev;
-@@ -678,15 +679,12 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
- 	if (!nr_pages)
- 		return 0;
+ 	jfs_info("lbmStartIO");
  
--	bio = bio_alloc(GFP_NOFS, nr_pages);
-+	bio = bio_new(bdev, zi->i_zsector, op, 0, GFP_NOFS, nr_pages);
- 	if (!bio)
- 		return -ENOMEM;
+-	bio = bio_alloc(GFP_NOFS, 1);
+-	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
+-	bio_set_dev(bio, log->bdev);
++	bio = bio_new(log->bdev, bp->l_blkno << (log->l2bsize - 9),
++			REQ_OP_WRITE | REQ_SYNC, 0, 1, GFP_NOFS);
  
--	bio_set_dev(bio, bdev);
--	bio->bi_iter.bi_sector = zi->i_zsector;
- 	bio->bi_write_hint = iocb->ki_hint;
- 	bio->bi_ioprio = iocb->ki_ioprio;
--	bio->bi_opf = REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE;
- 	if (iocb->ki_flags & IOCB_DSYNC)
- 		bio->bi_opf |= REQ_FUA;
+ 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
+ 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
  
+ 	bio->bi_end_io = lbmIODone;
+ 	bio->bi_private = bp;
+-	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC;
+ 
+ 	/* check if journaling to disk has been disabled */
+ 	if (log->no_integrity) {
 -- 
 2.22.1
 
