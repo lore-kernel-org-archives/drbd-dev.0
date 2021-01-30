@@ -1,68 +1,35 @@
 Return-Path: <willy@infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B8AD42002F
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jan 2021 18:17:40 +0100 (CET)
-Date: Thu, 28 Jan 2021 16:47:09 +0000
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 100EE420341
+	for <drbd-dev@lists.linbit.com>; Sat, 30 Jan 2021 04:57:04 +0100 (CET)
+Date: Sat, 30 Jan 2021 03:56:46 +0000
 From: Matthew Wilcox <willy@infradead.org>
-To: Chaitanya Kulkarni <Chaitanya.Kulkarni@wdc.com>
-Message-ID: <20210128164709.GZ308988@casper.infradead.org>
-References: <20210128071133.60335-1-chaitanya.kulkarni@wdc.com>
-	<20210128071133.60335-3-chaitanya.kulkarni@wdc.com>
-	<BL0PR04MB6514C554B4AC96866BC1B16FE7BA9@BL0PR04MB6514.namprd04.prod.outlook.com>
-	<DM6PR04MB4972DA86892CF4531440064F86BA9@DM6PR04MB4972.namprd04.prod.outlook.com>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <20210130035646.GH308988@casper.infradead.org>
+References: <20210126145247.1964410-1-hch@lst.de>
+	<20210126145247.1964410-5-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <DM6PR04MB4972DA86892CF4531440064F86BA9@DM6PR04MB4972.namprd04.prod.outlook.com>
-Cc: "shaggy@kernel.org" <shaggy@kernel.org>,
-	Damien Le Moal <Damien.LeMoal@wdc.com>,
-	"sergey.senozhatsky.work@gmail.com" <sergey.senozhatsky.work@gmail.com>,
-	"snitzer@redhat.com" <snitzer@redhat.com>, "tiwai@suse.de" <tiwai@suse.de>,
-	"djwong@kernel.org" <djwong@kernel.org>,
-	"jfs-discussion@lists.sourceforge.net"
-	<jfs-discussion@lists.sourceforge.net>,
-	"linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>,
-	"gustavoars@kernel.org" <gustavoars@kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"dm-devel@redhat.com" <dm-devel@redhat.com>,
-	"target-devel@vger.kernel.org" <target-devel@vger.kernel.org>,
-	"axboe@kernel.dk" <axboe@kernel.dk>, "pavel@ucw.cz" <pavel@ucw.cz>,
-	"alex.shi@linux.alibaba.com" <alex.shi@linux.alibaba.com>,
-	"osandov@fb.com" <osandov@fb.com>, "agk@redhat.com" <agk@redhat.com>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
-	"linux-nilfs@vger.kernel.org" <linux-nilfs@vger.kernel.org>,
-	"sagi@grimberg.me" <sagi@grimberg.me>,
-	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
-	"konrad.wilk@oracle.com" <konrad.wilk@oracle.com>,
-	"roger.pau@citrix.com" <roger.pau@citrix.com>,
-	"ebiggers@kernel.org" <ebiggers@kernel.org>,
-	"xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>,
-	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
-	"ngupta@vflare.org" <ngupta@vflare.org>,
-	"len.brown@intel.com" <len.brown@intel.com>,
-	"linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>,
-	"ming.lei@redhat.com" <ming.lei@redhat.com>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"tj@kernel.org" <tj@kernel.org>,
-	"linux-fscrypt@vger.kernel.org" <linux-fscrypt@vger.kernel.org>,
-	"hare@suse.de" <hare@suse.de>,
-	"jefflexu@linux.alibaba.com" <jefflexu@linux.alibaba.com>,
-	"jaegeuk@kernel.org" <jaegeuk@kernel.org>,
-	"konishi.ryusuke@gmail.com" <konishi.ryusuke@gmail.com>,
-	"bvanassche@acm.org" <bvanassche@acm.org>,
-	Naohiro Aota <Naohiro.Aota@wdc.com>, "tytso@mit.edu" <tytso@mit.edu>,
-	"rjw@rjwysocki.net" <rjw@rjwysocki.net>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
-	"minchan@kernel.org" <minchan@kernel.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
-	"jth@kernel.org" <jth@kernel.org>,
-	"asml.silence@gmail.com" <asml.silence@gmail.com>,
-	"ocfs2-devel@oss.oracle.com" <ocfs2-devel@oss.oracle.com>,
-	"viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>
-Subject: Re: [Drbd-dev] [Ocfs2-devel] [RFC PATCH 02/34] block: introduce and
-	use bio_new
+Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20210126145247.1964410-5-hch@lst.de>
+Cc: Mike Snitzer <snitzer@redhat.com>, Song Liu <song@kernel.org>,
+	dm-devel@redhat.com, drbd-dev@lists.linbit.com,
+	Naohiro Aota <naohiro.aota@wdc.com>, linux-nilfs@vger.kernel.org,
+	Chao Yu <chao@kernel.org>, Josef Bacik <josef@toxicpanda.com>,
+	Coly Li <colyli@suse.de>, linux-raid@vger.kernel.org,
+	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
+	Jaegeuk Kim <jaegeuk@kernel.org>,
+	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
+	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	Damien Le Moal <damien.lemoal@wdc.com>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	linux-nfs@vger.kernel.org, linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [PATCH 04/17] block: split bio_kmalloc from
+	bio_alloc_bioset
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -74,113 +41,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-
-FYI your email is completely unreadable to those not using html.
-I can't tell what you wrote and what Damien wrote.
-
-On Thu, Jan 28, 2021 at 08:33:10AM +0000, Chaitanya Kulkarni wrote:
-> On 1/27/21 11:21 PM, Damien Le Moal wrote:
-> 
-> On 2021/01/28 16:12, Chaitanya Kulkarni wrote:
-> 
-> 
-> Introduce bio_new() helper and use it in blk-lib.c to allocate and
-> initialize various non-optional or semi-optional members of the bio
-> along with bio allocation done with bio_alloc(). Here we also calmp the
-> max_bvecs for bio with BIO_MAX_PAGES before we pass to bio_alloc().
-> 
-> Signed-off-by: Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com><mailto:chaitanya.kulkarni@wdc.com>
+On Tue, Jan 26, 2021 at 03:52:34PM +0100, Christoph Hellwig wrote:
+> bio_kmalloc shares almost no logic with the bio_set based fast path
+> in bio_alloc_bioset.  Split it into an entirely separate implementation.
+>=20
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  block/blk-lib.c     |  6 +-----
->  include/linux/bio.h | 25 +++++++++++++++++++++++++
->  2 files changed, 26 insertions(+), 5 deletions(-)
-> 
-> diff --git a/block/blk-lib.c b/block/blk-lib.c
-> index fb486a0bdb58..ec29415f00dd 100644
-> --- a/block/blk-lib.c
-> +++ b/block/blk-lib.c
-> @@ -14,17 +14,13 @@ struct bio *blk_next_bio(struct bio *bio, struct block_device *bdev,
->                         sector_t sect, unsigned op, unsigned opf,
->                         unsigned int nr_pages, gfp_t gfp)
->  {
-> -       struct bio *new = bio_alloc(gfp, nr_pages);
-> +       struct bio *new = bio_new(bdev, sect, op, opf, gfp, nr_pages);
-> 
->         if (bio) {
->                 bio_chain(bio, new);
->                 submit_bio(bio);
->         }
-> 
-> -       new->bi_iter.bi_sector = sect;
-> -       bio_set_dev(new, bdev);
-> -       bio_set_op_attrs(new, op, opf);
-> -
->         return new;
->  }
-> 
-> diff --git a/include/linux/bio.h b/include/linux/bio.h
-> index c74857cf1252..2a09ba100546 100644
-> --- a/include/linux/bio.h
-> +++ b/include/linux/bio.h
-> @@ -826,5 +826,30 @@ static inline void bio_set_polled(struct bio *bio, struct kiocb *kiocb)
->         if (!is_sync_kiocb(kiocb))
->                 bio->bi_opf |= REQ_NOWAIT;
->  }
-> +/**
-> + * bio_new -   allcate and initialize new bio
-> + * @bdev:      blockdev to issue discard for
-> + * @sector:    start sector
-> + * @op:                REQ_OP_XXX from enum req_opf
-> + * @op_flags:  REQ_XXX from enum req_flag_bits
-> + * @max_bvecs: maximum bvec to be allocated for this bio
-> + * @gfp_mask:  memory allocation flags (for bio_alloc)
-> + *
-> + * Description:
-> + *    Allocates, initializes common members, and returns a new bio.
-> + */
-> +static inline struct bio *bio_new(struct block_device *bdev, sector_t sector,
-> +                                 unsigned int op, unsigned int op_flags,
-> +                                 unsigned int max_bvecs, gfp_t gfp_mask)
-> +{
-> +       unsigned nr_bvec = clamp_t(unsigned int, max_bvecs, 0, BIO_MAX_PAGES);
-> +       struct bio *bio = bio_alloc(gfp_mask, nr_bvec);
-> 
-> 
-> I think that depending on the gfp_mask passed, bio can be NULL. So this should
-> be checked.
-> 
-> 
-> true, I'll add that check.
-> 
-> 
-> 
-> 
-> +
-> +       bio_set_dev(bio, bdev);
-> +       bio->bi_iter.bi_sector = sector;
-> +       bio_set_op_attrs(bio, op, op_flags);
-> 
-> 
-> This function is obsolete. Open code this.
-> 
-> 
-> true, will do.
-> 
-> 
-> 
-> 
-> +
-> +       return bio;
-> +}
-> 
->  #endif /* __LINUX_BIO_H */
-> 
-> 
-> 
-> Thanks for the comments Damien.
+>  block/bio.c         | 167 ++++++++++++++++++++++----------------------
+>  include/linux/bio.h |   6 +-
+>  2 files changed, 86 insertions(+), 87 deletions(-)
 
-> _______________________________________________
-> Ocfs2-devel mailing list
-> Ocfs2-devel@oss.oracle.com
-> https://oss.oracle.com/mailman/listinfo/ocfs2-devel
+This patch causes current linux-next to OOM for me when running xfstests
+after about ten minutes.  Haven't looked into why yet, this is just the
+results of a git bisect.
+
+The qemu command line is:
+
+qemu-system-x86_64 -nodefaults -nographic -cpu host -machine accel=3Dkvm,nv=
+dimm -m 2G,slots=3D8,maxmem=3D1T -smp 6 -kernel /home/willy/kernel/folio/.b=
+uild_test_kernel-x86_64/kpgk/vmlinuz -append console=3Dhvc0 root=3D/dev/sda=
+ rw log_buf_len=3D8M ktest.dir=3D/home/willy/kernel/ktest ktest.env=3D/tmp/=
+build-test-kernel-nJO6QgxOmo/env quiet systemd.show_status=3D0 systemd.log-=
+target=3Djournal crashkernel=3D128M no_console_suspend -device virtio-seria=
+l -chardev stdio,id=3Dconsole -device virtconsole,chardev=3Dconsole -serial=
+ unix:/tmp/build-test-kernel-nJO6QgxOmo/vm-kgdb,server,nowait -monitor unix=
+:/tmp/build-test-kernel-nJO6QgxOmo/vm-mon,server,nowait -gdb unix:/tmp/buil=
+d-test-kernel-nJO6QgxOmo/vm-gdb,server,nowait -device virtio-rng-pci -virtf=
+s local,path=3D/,mount_tag=3Dhost,security_model=3Dnone -device virtio-scsi=
+-pci,id=3Dhba -nic user,model=3Dvirtio,hostfwd=3Dtcp:127.0.0.1:24674-:22 -d=
+rive if=3Dnone,format=3Draw,id=3Ddisk0,file=3D/var/lib/ktest/root.amd64,sna=
+pshot=3Don -device scsi-hd,bus=3Dhba.0,drive=3Ddisk0 -drive if=3Dnone,forma=
+t=3Draw,id=3Ddisk1,file=3D/tmp/build-test-kernel-nJO6QgxOmo/dev-1,cache=3Du=
+nsafe -device scsi-hd,bus=3Dhba.0,drive=3Ddisk1 -drive if=3Dnone,format=3Dr=
+aw,id=3Ddisk2,file=3D/tmp/build-test-kernel-nJO6QgxOmo/dev-2,cache=3Dunsafe=
+ -device scsi-hd,bus=3Dhba.0,drive=3Ddisk2 -drive if=3Dnone,format=3Draw,id=
+=3Ddisk3,file=3D/tmp/build-test-kernel-nJO6QgxOmo/dev-3,cache=3Dunsafe -dev=
+ice scsi-hd,bus=3Dhba.0,drive=3Ddisk3
 
