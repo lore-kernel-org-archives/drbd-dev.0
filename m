@@ -1,23 +1,24 @@
 Return-Path: <lee.jones@linaro.org>
-Received: from mail-wm1-f49.google.com (mail-wm1-f49.google.com
-	[209.85.128.49])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E6E3642062E
-	for <drbd-dev@lists.linbit.com>; Fri, 12 Mar 2021 11:55:44 +0100 (CET)
-Received: by mail-wm1-f49.google.com with SMTP id o26so3527236wmc.5
-	for <drbd-dev@lists.linbit.com>; Fri, 12 Mar 2021 02:55:44 -0800 (PST)
+Received: from mail-wm1-f44.google.com (mail-wm1-f44.google.com
+	[209.85.128.44])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1594C420F79
+	for <drbd-dev@lists.linbit.com>; Fri, 12 Mar 2021 11:55:46 +0100 (CET)
+Received: by mail-wm1-f44.google.com with SMTP id g20so3530573wmk.3
+	for <drbd-dev@lists.linbit.com>; Fri, 12 Mar 2021 02:55:46 -0800 (PST)
 From: Lee Jones <lee.jones@linaro.org>
 To: lee.jones@linaro.org
-Date: Fri, 12 Mar 2021 10:55:28 +0000
-Message-Id: <20210312105530.2219008-10-lee.jones@linaro.org>
+Date: Fri, 12 Mar 2021 10:55:30 +0000
+Message-Id: <20210312105530.2219008-12-lee.jones@linaro.org>
 In-Reply-To: <20210312105530.2219008-1-lee.jones@linaro.org>
 References: <20210312105530.2219008-1-lee.jones@linaro.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
 	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 09/11] block: drbd: drbd_receiver: Demote less
-	than half complete kernel-doc header
+Subject: [Drbd-dev] [PATCH 11/11] block: drbd: drbd_nl: Demote half-complete
+	kernel-doc headers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,9 +32,12 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Fixes the following W=1 kernel build warning(s):
 
- drivers/block/drbd/drbd_receiver.c:1641: warning: Function parameter or member 'op' not described in 'drbd_submit_peer_request'
- drivers/block/drbd/drbd_receiver.c:1641: warning: Function parameter or member 'op_flags' not described in 'drbd_submit_peer_request'
- drivers/block/drbd/drbd_receiver.c:1641: warning: Function parameter or member 'fault_type' not described in 'drbd_submit_peer_request'
+ from drivers/block/drbd/drbd_nl.c:24:
+ drivers/block/drbd/drbd_nl.c: In function ‘drbd_adm_attach’:
+ drivers/block/drbd/drbd_nl.c:1968:10: warning: implicit conversion from ‘enum drbd_state_rv’ to ‘enum drbd_ret_code’ [-Wenum-conversion]
+ drivers/block/drbd/drbd_nl.c:930: warning: Function parameter or member 'flags' not described in 'drbd_determine_dev_size'
+ drivers/block/drbd/drbd_nl.c:930: warning: Function parameter or member 'rs' not described in 'drbd_determine_dev_size'
+ drivers/block/drbd/drbd_nl.c:1148: warning: Function parameter or member 'dc' not described in 'drbd_check_al_size'
 
 Cc: Philipp Reisner <philipp.reisner@linbit.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
@@ -42,22 +46,31 @@ Cc: drbd-dev@lists.linbit.com
 Cc: linux-block@vger.kernel.org
 Signed-off-by: Lee Jones <lee.jones@linaro.org>
 ---
- drivers/block/drbd/drbd_receiver.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/block/drbd/drbd_nl.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 89818a5e0ac67..7a32185347247 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -1618,7 +1618,7 @@ static void drbd_issue_peer_wsame(struct drbd_device *device,
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 31902304ddac7..e7d0e637e6321 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -918,7 +918,7 @@ void drbd_resume_io(struct drbd_device *device)
+ 		wake_up(&device->misc_wait);
  }
- 
  
 -/**
 +/*
-  * drbd_submit_peer_request()
+  * drbd_determine_dev_size() -  Sets the right device size obeying all constraints
   * @device:	DRBD device.
-  * @peer_req:	peer request
+  *
+@@ -1136,7 +1136,7 @@ drbd_new_dev_size(struct drbd_device *device, struct drbd_backing_dev *bdev,
+ 	return size;
+ }
+ 
+-/**
++/*
+  * drbd_check_al_size() - Ensures that the AL is of the right size
+  * @device:	DRBD device.
+  *
 -- 
 2.27.0
 
