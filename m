@@ -1,24 +1,28 @@
-Return-Path: <lee.jones@linaro.org>
-Received: from mail-wm1-f44.google.com (mail-wm1-f44.google.com
-	[209.85.128.44])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1594C420F79
-	for <drbd-dev@lists.linbit.com>; Fri, 12 Mar 2021 11:55:46 +0100 (CET)
-Received: by mail-wm1-f44.google.com with SMTP id g20so3530573wmk.3
-	for <drbd-dev@lists.linbit.com>; Fri, 12 Mar 2021 02:55:46 -0800 (PST)
-From: Lee Jones <lee.jones@linaro.org>
-To: lee.jones@linaro.org
-Date: Fri, 12 Mar 2021 10:55:30 +0000
-Message-Id: <20210312105530.2219008-12-lee.jones@linaro.org>
-In-Reply-To: <20210312105530.2219008-1-lee.jones@linaro.org>
-References: <20210312105530.2219008-1-lee.jones@linaro.org>
+Return-Path: <arnd@kernel.org>
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BC674202B5
+	for <drbd-dev@lists.linbit.com>; Fri, 19 Mar 2021 16:03:44 +0100 (CET)
+Received: by mail.kernel.org (Postfix) with ESMTPSA id 971A364F59
+	for <drbd-dev@lists.linbit.com>; Fri, 19 Mar 2021 14:56:36 +0000 (UTC)
+Received: by mail-oi1-f170.google.com with SMTP id d133so5038724oib.3
+	for <drbd-dev@lists.linbit.com>; Fri, 19 Mar 2021 07:56:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
+References: <20210312105530.2219008-1-lee.jones@linaro.org>
+	<20210312105530.2219008-7-lee.jones@linaro.org>
+In-Reply-To: <20210312105530.2219008-7-lee.jones@linaro.org>
+From: Arnd Bergmann <arnd@kernel.org>
+Date: Fri, 19 Mar 2021 15:56:19 +0100
+Message-ID: <CAK8P3a234A2WmPFJxXmf-n+J7TP3A=DyDWEr657zxaML7V9UWQ@mail.gmail.com>
+To: Lee Jones <lee.jones@linaro.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Cc: Jens Axboe <axboe@kernel.dk>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-block <linux-block@vger.kernel.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/11] block: drbd: drbd_nl: Demote half-complete
-	kernel-doc headers
+Subject: Re: [Drbd-dev] [PATCH 06/11] block: drbd: drbd_main: Remove
+	duplicate field initialisation
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,47 +34,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Fixes the following W=1 kernel build warning(s):
+On Fri, Mar 12, 2021 at 11:57 AM Lee Jones <lee.jones@linaro.org> wrote:
+>
+> [P_RETRY_WRITE] is initialised more than once.
+>
+> Fixes the following W=3D1 kernel build warning(s):
+>
+>  drivers/block/drbd/drbd_main.c: In function =E2=80=98cmdname=E2=80=99:
+>  drivers/block/drbd/drbd_main.c:3660:22: warning: initialized field overw=
+ritten [-Woverride-init]
+>  drivers/block/drbd/drbd_main.c:3660:22: note: (near initialization for =
+=E2=80=98cmdnames[44]=E2=80=99)
+>
+> Cc: Philipp Reisner <philipp.reisner@linbit.com>
+> Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: drbd-dev@lists.linbit.com
+> Cc: linux-block@vger.kernel.org
+> Signed-off-by: Lee Jones <lee.jones@linaro.org>
 
- from drivers/block/drbd/drbd_nl.c:24:
- drivers/block/drbd/drbd_nl.c: In function ‘drbd_adm_attach’:
- drivers/block/drbd/drbd_nl.c:1968:10: warning: implicit conversion from ‘enum drbd_state_rv’ to ‘enum drbd_ret_code’ [-Wenum-conversion]
- drivers/block/drbd/drbd_nl.c:930: warning: Function parameter or member 'flags' not described in 'drbd_determine_dev_size'
- drivers/block/drbd/drbd_nl.c:930: warning: Function parameter or member 'rs' not described in 'drbd_determine_dev_size'
- drivers/block/drbd/drbd_nl.c:1148: warning: Function parameter or member 'dc' not described in 'drbd_check_al_size'
+Looks correct. I had actually posted a slightly different fix last year,
+but either one addresses the warning:
 
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: drbd-dev@lists.linbit.com
-Cc: linux-block@vger.kernel.org
-Signed-off-by: Lee Jones <lee.jones@linaro.org>
----
- drivers/block/drbd/drbd_nl.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+https://lore.kernel.org/lkml/20201026215043.3893318-1-arnd@kernel.org/
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 31902304ddac7..e7d0e637e6321 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -918,7 +918,7 @@ void drbd_resume_io(struct drbd_device *device)
- 		wake_up(&device->misc_wait);
- }
- 
--/**
-+/*
-  * drbd_determine_dev_size() -  Sets the right device size obeying all constraints
-  * @device:	DRBD device.
-  *
-@@ -1136,7 +1136,7 @@ drbd_new_dev_size(struct drbd_device *device, struct drbd_backing_dev *bdev,
- 	return size;
- }
- 
--/**
-+/*
-  * drbd_check_al_size() - Ensures that the AL is of the right size
-  * @device:	DRBD device.
-  *
--- 
-2.27.0
-
+         Arnd
