@@ -1,20 +1,17 @@
-Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ej1-f46.google.com (mail-ej1-f46.google.com
-	[209.85.218.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E2182420622
-	for <drbd-dev@lists.linbit.com>; Thu,  1 Apr 2021 15:01:22 +0200 (CEST)
-Received: by mail-ej1-f46.google.com with SMTP id a7so2766134ejs.3
-	for <drbd-dev@lists.linbit.com>; Thu, 01 Apr 2021 06:01:22 -0700 (PDT)
-To: Lv Yunlong <lyl2019@mail.ustc.edu.cn>
+Return-Path: <lyl2019@mail.ustc.edu.cn>
+Received: from ustc.edu.cn (smtp2.ustc.edu.cn [202.38.64.46])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 99BEB42094C
+	for <drbd-dev@lists.linbit.com>; Thu,  1 Apr 2021 17:14:01 +0200 (CEST)
+Date: Thu, 1 Apr 2021 23:13:58 +0800 (GMT+08:00)
+From: lyl2019@mail.ustc.edu.cn
+To: =?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <cb0f43e4-bfde-ac77-5153-f2f3cbed0172@linbit.com>
 References: <20210401115753.3684-1-lyl2019@mail.ustc.edu.cn>
-From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-Message-ID: <cb0f43e4-bfde-ac77-5153-f2f3cbed0172@linbit.com>
-Date: Thu, 1 Apr 2021 15:01:20 +0200
+	<cb0f43e4-bfde-ac77-5153-f2f3cbed0172@linbit.com>
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
 MIME-Version: 1.0
-In-Reply-To: <20210401115753.3684-1-lyl2019@mail.ustc.edu.cn>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Message-ID: <5b14fa53.26b7e.1788dff8d13.Coremail.lyl2019@mail.ustc.edu.cn>
 Cc: axboe@kernel.dk, philipp.reisner@linbit.com, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org, lars.ellenberg@linbit.com,
 	drbd-dev@lists.linbit.com
@@ -31,54 +28,56 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 4/1/21 1:57 PM, Lv Yunlong wrote:
-> In get_initial_state, it calls notify_initial_state_done(skb,..) if
-> cb->args[5]==1. I see that if genlmsg_put() failed in
-> notify_initial_state_done(), the skb will be freed by nlmsg_free(skb).
-> Then get_initial_state will goto out and the freed skb will be used by
-> return value skb->len.
-> 
-> My patch lets skb_len = skb->len and return the skb_len to avoid the uaf.
-> 
-> Fixes: a29728463b254 ("drbd: Backport the "events2" command")
-> Signed-off-by: Lv Yunlong <lyl2019@mail.ustc.edu.cn>
-> ---
->   drivers/block/drbd/drbd_nl.c | 3 ++-
->   1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-> index bf7de4c7b96c..474f84675d0a 100644
-> --- a/drivers/block/drbd/drbd_nl.c
-> +++ b/drivers/block/drbd/drbd_nl.c
-> @@ -4905,6 +4905,7 @@ static int get_initial_state(struct sk_buff *skb, struct netlink_callback *cb)
->   	struct drbd_state_change *state_change = (struct drbd_state_change *)cb->args[0];
->   	unsigned int seq = cb->args[2];
->   	unsigned int n;
-> +	unsigned int skb_len = skb->len;
->   	enum drbd_notification_type flags = 0;
->   
->   	/* There is no need for taking notification_mutex here: it doesn't
-> @@ -4915,7 +4916,7 @@ static int get_initial_state(struct sk_buff *skb, struct netlink_callback *cb)
->   	cb->args[5]--;
->   	if (cb->args[5] == 1) {
->   		notify_initial_state_done(skb, seq);
-> -		goto out;
-> +		return skb_len;
->   	}
->   	n = cb->args[4]++;
->   	if (cb->args[4] < cb->args[3])
-> 
-
-Thanks for the patch!
-
-I think the problem goes even further: skb can also be freed in the 
-notify_*_state_change -> notify_*_state calls below.
-
-Also, at the point where we save skb->len into skb_len, skb is not 
-initialized yet. Maybe it makes more sense to not return a length in the 
-first place here, but an error code instead.
-
--- 
-Christoph Böhmwalder
-LINBIT | Keeping the Digital World Running
-DRBD HA —  Disaster Recovery — Software defined Storage
+DQoNCg0KPiAtLS0tLeWOn+Wni+mCruS7ti0tLS0tDQo+IOWPkeS7tuS6ujogIkNocmlzdG9waCBC
+w7ZobXdhbGRlciIgPGNocmlzdG9waC5ib2VobXdhbGRlckBsaW5iaXQuY29tPg0KPiDlj5HpgIHm
+l7bpl7Q6IDIwMjEtMDQtMDEgMjE6MDE6MjAgKOaYn+acn+WbmykNCj4g5pS25Lu25Lq6OiAiTHYg
+WXVubG9uZyIgPGx5bDIwMTlAbWFpbC51c3RjLmVkdS5jbj4NCj4g5oqE6YCBOiBwaGlsaXBwLnJl
+aXNuZXJAbGluYml0LmNvbSwgbGFycy5lbGxlbmJlcmdAbGluYml0LmNvbSwgYXhib2VAa2VybmVs
+LmRrLCBsaW51eC1ibG9ja0B2Z2VyLmtlcm5lbC5vcmcsIGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5l
+bC5vcmcsIGRyYmQtZGV2QGxpc3RzLmxpbmJpdC5jb20NCj4g5Li76aKYOiBSZTogW0RyYmQtZGV2
+XSBbUEFUQ0hdIGRyYmQ6IEZpeCBhIHVzZSBhZnRlciBmcmVlIGluIGdldF9pbml0aWFsX3N0YXRl
+DQo+IA0KPiBPbiA0LzEvMjEgMTo1NyBQTSwgTHYgWXVubG9uZyB3cm90ZToNCj4gPiBJbiBnZXRf
+aW5pdGlhbF9zdGF0ZSwgaXQgY2FsbHMgbm90aWZ5X2luaXRpYWxfc3RhdGVfZG9uZShza2IsLi4p
+IGlmDQo+ID4gY2ItPmFyZ3NbNV09PTEuIEkgc2VlIHRoYXQgaWYgZ2VubG1zZ19wdXQoKSBmYWls
+ZWQgaW4NCj4gPiBub3RpZnlfaW5pdGlhbF9zdGF0ZV9kb25lKCksIHRoZSBza2Igd2lsbCBiZSBm
+cmVlZCBieSBubG1zZ19mcmVlKHNrYikuDQo+ID4gVGhlbiBnZXRfaW5pdGlhbF9zdGF0ZSB3aWxs
+IGdvdG8gb3V0IGFuZCB0aGUgZnJlZWQgc2tiIHdpbGwgYmUgdXNlZCBieQ0KPiA+IHJldHVybiB2
+YWx1ZSBza2ItPmxlbi4NCj4gPiANCj4gPiBNeSBwYXRjaCBsZXRzIHNrYl9sZW4gPSBza2ItPmxl
+biBhbmQgcmV0dXJuIHRoZSBza2JfbGVuIHRvIGF2b2lkIHRoZSB1YWYuDQo+ID4gDQo+ID4gRml4
+ZXM6IGEyOTcyODQ2M2IyNTQgKCJkcmJkOiBCYWNrcG9ydCB0aGUgImV2ZW50czIiIGNvbW1hbmQi
+KQ0KPiA+IFNpZ25lZC1vZmYtYnk6IEx2IFl1bmxvbmcgPGx5bDIwMTlAbWFpbC51c3RjLmVkdS5j
+bj4NCj4gPiAtLS0NCj4gPiAgIGRyaXZlcnMvYmxvY2svZHJiZC9kcmJkX25sLmMgfCAzICsrLQ0K
+PiA+ICAgMSBmaWxlIGNoYW5nZWQsIDIgaW5zZXJ0aW9ucygrKSwgMSBkZWxldGlvbigtKQ0KPiA+
+IA0KPiA+IGRpZmYgLS1naXQgYS9kcml2ZXJzL2Jsb2NrL2RyYmQvZHJiZF9ubC5jIGIvZHJpdmVy
+cy9ibG9jay9kcmJkL2RyYmRfbmwuYw0KPiA+IGluZGV4IGJmN2RlNGM3Yjk2Yy4uNDc0Zjg0Njc1
+ZDBhIDEwMDY0NA0KPiA+IC0tLSBhL2RyaXZlcnMvYmxvY2svZHJiZC9kcmJkX25sLmMNCj4gPiAr
+KysgYi9kcml2ZXJzL2Jsb2NrL2RyYmQvZHJiZF9ubC5jDQo+ID4gQEAgLTQ5MDUsNiArNDkwNSw3
+IEBAIHN0YXRpYyBpbnQgZ2V0X2luaXRpYWxfc3RhdGUoc3RydWN0IHNrX2J1ZmYgKnNrYiwgc3Ry
+dWN0IG5ldGxpbmtfY2FsbGJhY2sgKmNiKQ0KPiA+ICAgCXN0cnVjdCBkcmJkX3N0YXRlX2NoYW5n
+ZSAqc3RhdGVfY2hhbmdlID0gKHN0cnVjdCBkcmJkX3N0YXRlX2NoYW5nZSAqKWNiLT5hcmdzWzBd
+Ow0KPiA+ICAgCXVuc2lnbmVkIGludCBzZXEgPSBjYi0+YXJnc1syXTsNCj4gPiAgIAl1bnNpZ25l
+ZCBpbnQgbjsNCj4gPiArCXVuc2lnbmVkIGludCBza2JfbGVuID0gc2tiLT5sZW47DQo+ID4gICAJ
+ZW51bSBkcmJkX25vdGlmaWNhdGlvbl90eXBlIGZsYWdzID0gMDsNCj4gPiAgIA0KPiA+ICAgCS8q
+IFRoZXJlIGlzIG5vIG5lZWQgZm9yIHRha2luZyBub3RpZmljYXRpb25fbXV0ZXggaGVyZTogaXQg
+ZG9lc24ndA0KPiA+IEBAIC00OTE1LDcgKzQ5MTYsNyBAQCBzdGF0aWMgaW50IGdldF9pbml0aWFs
+X3N0YXRlKHN0cnVjdCBza19idWZmICpza2IsIHN0cnVjdCBuZXRsaW5rX2NhbGxiYWNrICpjYikN
+Cj4gPiAgIAljYi0+YXJnc1s1XS0tOw0KPiA+ICAgCWlmIChjYi0+YXJnc1s1XSA9PSAxKSB7DQo+
+ID4gICAJCW5vdGlmeV9pbml0aWFsX3N0YXRlX2RvbmUoc2tiLCBzZXEpOw0KPiA+IC0JCWdvdG8g
+b3V0Ow0KPiA+ICsJCXJldHVybiBza2JfbGVuOw0KPiA+ICAgCX0NCj4gPiAgIAluID0gY2ItPmFy
+Z3NbNF0rKzsNCj4gPiAgIAlpZiAoY2ItPmFyZ3NbNF0gPCBjYi0+YXJnc1szXSkNCj4gPiANCj4g
+DQo+IFRoYW5rcyBmb3IgdGhlIHBhdGNoIQ0KPiANCj4gSSB0aGluayB0aGUgcHJvYmxlbSBnb2Vz
+IGV2ZW4gZnVydGhlcjogc2tiIGNhbiBhbHNvIGJlIGZyZWVkIGluIHRoZSANCj4gbm90aWZ5Xypf
+c3RhdGVfY2hhbmdlIC0+IG5vdGlmeV8qX3N0YXRlIGNhbGxzIGJlbG93Lg0KPiANCj4gQWxzbywg
+YXQgdGhlIHBvaW50IHdoZXJlIHdlIHNhdmUgc2tiLT5sZW4gaW50byBza2JfbGVuLCBza2IgaXMg
+bm90IA0KPiBpbml0aWFsaXplZCB5ZXQuIE1heWJlIGl0IG1ha2VzIG1vcmUgc2Vuc2UgdG8gbm90
+IHJldHVybiBhIGxlbmd0aCBpbiB0aGUgDQo+IGZpcnN0IHBsYWNlIGhlcmUsIGJ1dCBhbiBlcnJv
+ciBjb2RlIGluc3RlYWQuDQo+IA0KPiAtLSANCj4gQ2hyaXN0b3BoIELDtmhtd2FsZGVyDQo+IExJ
+TkJJVCB8IEtlZXBpbmcgdGhlIERpZ2l0YWwgV29ybGQgUnVubmluZw0KPiBEUkJEIEhBIOKAlCAg
+RGlzYXN0ZXIgUmVjb3Zlcnkg4oCUIFNvZnR3YXJlIGRlZmluZWQgU3RvcmFnZQ0KDQpPaywgSSBz
+ZWUuDQpJIGZvdW5kIHRoYXQgZHJiZF9hZG1fZ2V0X2luaXRpYWxfc3RhdGUoKSBoYXMgY2FsbGVk
+IHRoZSBnZXRfaW5pdGlhbF9zdGF0ZSgpLA0KYW5kIHJldHVybiAtRU5PTUVNIGlmIGl0IGNhbGxz
+IHJlbWVtYmVyX29sZF9zdGF0ZSgpIGZhaWxlZC4NCg0KU28sIGkgdGhpbmsgdGhhdCBtZWFucyBp
+ZiBnZXRfaW5pdGlhbF9zdGF0ZSgpIGZhaWxlZCBvbiB0aGUgbm90aWZ5X2luaXRpYWxfc3RhdGVf
+ZG9uZSgpLA0KaXQgc2hvdWxkIHJldHVybiAtRU5PTUVNIHRvby4NCg0KSSB3aWxsIHN1Ym1pdCB0
+aGUgUEFUQ0ggdjIgdG8gZml4IHRoZSBmaXJzdCBwbGFjZS4gVGhlIGZpeGVzIG9mIHRoZSBmdXJ0
+aGVyIHByb2JsZW0gaXMgDQpoYXJkIGZvciBtZS4NCg0KVGhhbmtzLg0K
