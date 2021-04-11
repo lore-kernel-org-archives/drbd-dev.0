@@ -1,26 +1,20 @@
-Return-Path: <bart.vanassche@gmail.com>
-Received: from mail-pg1-f176.google.com (mail-pg1-f176.google.com
-	[209.85.215.176])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 417FA4205C4
-	for <drbd-dev@lists.linbit.com>; Tue,  6 Apr 2021 23:00:36 +0200 (CEST)
-Received: by mail-pg1-f176.google.com with SMTP id w10so5814098pgh.5
-	for <drbd-dev@lists.linbit.com>; Tue, 06 Apr 2021 14:00:36 -0700 (PDT)
-To: Lee Jones <lee.jones@linaro.org>
-References: <20210312105530.2219008-1-lee.jones@linaro.org>
-	<20210312105530.2219008-3-lee.jones@linaro.org>
-From: Bart Van Assche <bvanassche@acm.org>
-Message-ID: <ed6f1b85-ba63-52fd-16f2-cd8777c3fdd0@acm.org>
-Date: Tue, 6 Apr 2021 14:00:34 -0700
+Return-Path: <rdunlap@infradead.org>
+Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DFF0842094E
+	for <drbd-dev@lists.linbit.com>; Mon, 12 Apr 2021 00:33:40 +0200 (CEST)
+From: Randy Dunlap <rdunlap@infradead.org>
+To: linux-kernel@vger.kernel.org
+Date: Sun, 11 Apr 2021 15:17:56 -0700
+Message-Id: <20210411221756.15461-1-rdunlap@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20210312105530.2219008-3-lee.jones@linaro.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
+Content-Transfer-Encoding: 8bit
+Cc: netdev@vger.kernel.org, Randy Dunlap <rdunlap@infradead.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Matthew Wilcox <willy@infradead.org>, Jiri Pirko <jiri@nvidia.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 02/11] block: drbd: drbd_interval: Demote
- some kernel-doc abuses and fix another header
+Subject: [Drbd-dev] [PATCH] lib: remove "expecting prototype" kernel-doc
+	warnings
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,8 +26,138 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 3/12/21 2:55 AM, Lee Jones wrote:
-> Fixes the following W=1 kernel build warning(s):
-> [ ... ]
+Fix various kernel-doc warnings in lib/ due to missing or
+erroneous function names.
+Add kernel-doc for some function parameters that was missing.
+Use kernel-doc "Return:" notation in earlycpio.c.
 
-Reviewed-by: Bart Van Assche <bvanassche@acm.org>
+Quietens the following warnings:
+
+../lib/earlycpio.c:61: warning: expecting prototype for cpio_data find_cpio_data(). Prototype was for find_cpio_data() instead
+
+../lib/lru_cache.c:640: warning: expecting prototype for lc_dump(). Prototype was for lc_seq_dump_details() instead
+lru_cache.c:90: warning: Function parameter or member 'cache' not described in 'lc_create'
+
+../lib/parman.c:368: warning: expecting prototype for parman_item_del(). Prototype was for parman_item_remove() instead
+parman.c:309: warning: Excess function parameter 'prority' description in 'parman_prio_init'
+
+../lib/radix-tree.c:703: warning: expecting prototype for __radix_tree_insert(). Prototype was for radix_tree_insert() instead
+radix-tree.c:180: warning: Excess function parameter 'addr' description in 'radix_tree_find_next_bit'
+radix-tree.c:180: warning: Excess function parameter 'size' description in 'radix_tree_find_next_bit'
+radix-tree.c:931: warning: Function parameter or member 'iter' not described in 'radix_tree_iter_replace'
+
+Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+Cc: drbd-dev@lists.linbit.com
+Cc: Jiri Pirko <jiri@nvidia.com>
+Cc: netdev@vger.kernel.org
+Cc: Matthew Wilcox <willy@infradead.org>
+---
+ lib/earlycpio.c  |    4 ++--
+ lib/lru_cache.c  |    3 ++-
+ lib/parman.c     |    4 ++--
+ lib/radix-tree.c |   11 ++++++-----
+ 4 files changed, 12 insertions(+), 10 deletions(-)
+
+--- linux-next-20210409.orig/lib/earlycpio.c
++++ linux-next-20210409/lib/earlycpio.c
+@@ -40,7 +40,7 @@ enum cpio_fields {
+ };
+ 
+ /**
+- * cpio_data find_cpio_data - Search for files in an uncompressed cpio
++ * find_cpio_data - Search for files in an uncompressed cpio
+  * @path:       The directory to search for, including a slash at the end
+  * @data:       Pointer to the cpio archive or a header inside
+  * @len:        Remaining length of the cpio based on data pointer
+@@ -49,7 +49,7 @@ enum cpio_fields {
+  *              matching file itself. It can be used to iterate through the cpio
+  *              to find all files inside of a directory path.
+  *
+- * @return:     struct cpio_data containing the address, length and
++ * Return:      &struct cpio_data containing the address, length and
+  *              filename (with the directory path cut off) of the found file.
+  *              If you search for a filename and not for files in a directory,
+  *              pass the absolute path of the filename in the cpio and make sure
+--- linux-next-20210409.orig/lib/lru_cache.c
++++ linux-next-20210409/lib/lru_cache.c
+@@ -76,6 +76,7 @@ int lc_try_lock(struct lru_cache *lc)
+ /**
+  * lc_create - prepares to track objects in an active set
+  * @name: descriptive name only used in lc_seq_printf_stats and lc_seq_dump_details
++ * @cache: cache root pointer
+  * @max_pending_changes: maximum changes to accumulate until a transaction is required
+  * @e_count: number of elements allowed to be active simultaneously
+  * @e_size: size of the tracked objects
+@@ -627,7 +628,7 @@ void lc_set(struct lru_cache *lc, unsign
+ }
+ 
+ /**
+- * lc_dump - Dump a complete LRU cache to seq in textual form.
++ * lc_seq_dump_details - Dump a complete LRU cache to seq in textual form.
+  * @lc: the lru cache to operate on
+  * @seq: the &struct seq_file pointer to seq_printf into
+  * @utext: user supplied additional "heading" or other info
+--- linux-next-20210409.orig/lib/parman.c
++++ linux-next-20210409/lib/parman.c
+@@ -297,7 +297,7 @@ EXPORT_SYMBOL(parman_destroy);
+  * parman_prio_init - initializes a parman priority chunk
+  * @parman:	parman instance
+  * @prio:	parman prio structure to be initialized
+- * @prority:	desired priority of the chunk
++ * @priority:	desired priority of the chunk
+  *
+  * Note: all locking must be provided by the caller.
+  *
+@@ -356,7 +356,7 @@ int parman_item_add(struct parman *parma
+ EXPORT_SYMBOL(parman_item_add);
+ 
+ /**
+- * parman_item_del - deletes parman item
++ * parman_item_remove - deletes parman item
+  * @parman:	parman instance
+  * @prio:	parman prio instance to delete the item from
+  * @item:	parman item instance
+--- linux-next-20210409.orig/lib/radix-tree.c
++++ linux-next-20210409/lib/radix-tree.c
+@@ -166,9 +166,9 @@ static inline void all_tag_set(struct ra
+ /**
+  * radix_tree_find_next_bit - find the next set bit in a memory region
+  *
+- * @addr: The address to base the search on
+- * @size: The bitmap size in bits
+- * @offset: The bitnumber to start searching at
++ * @node: where to begin the search
++ * @tag: the tag index
++ * @offset: the bitnumber to start searching at
+  *
+  * Unrollable variant of find_next_bit() for constant size arrays.
+  * Tail bits starting from size to roundup(size, BITS_PER_LONG) must be zero.
+@@ -461,7 +461,7 @@ out:
+ 
+ /**
+  *	radix_tree_shrink    -    shrink radix tree to minimum height
+- *	@root		radix tree root
++ *	@root:		radix tree root
+  */
+ static inline bool radix_tree_shrink(struct radix_tree_root *root)
+ {
+@@ -691,7 +691,7 @@ static inline int insert_entries(struct
+ }
+ 
+ /**
+- *	__radix_tree_insert    -    insert into a radix tree
++ *	radix_tree_insert    -    insert into a radix tree
+  *	@root:		radix tree root
+  *	@index:		index key
+  *	@item:		item to insert
+@@ -919,6 +919,7 @@ EXPORT_SYMBOL(radix_tree_replace_slot);
+ /**
+  * radix_tree_iter_replace - replace item in a slot
+  * @root:	radix tree root
++ * @iter:	iterator state
+  * @slot:	pointer to slot
+  * @item:	new item to store in the slot.
+  *
