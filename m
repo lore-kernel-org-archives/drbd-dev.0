@@ -1,18 +1,28 @@
-Return-Path: <tolimit1019@gmail.com>
-Received: from mail-pl1-f174.google.com (mail-pl1-f174.google.com
-	[209.85.214.174])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F8914202B2
-	for <drbd-dev@lists.linbit.com>; Thu, 15 Apr 2021 08:36:56 +0200 (CEST)
-Received: by mail-pl1-f174.google.com with SMTP id y2so11498221plg.5
-	for <drbd-dev@lists.linbit.com>; Wed, 14 Apr 2021 23:36:56 -0700 (PDT)
-From: Ming Li <tolimit1019@gmail.com>
-To: drbd-dev@lists.linbit.com
-Date: Thu, 15 Apr 2021 14:36:46 +0800
-Message-Id: <20210415063646.5298-1-mingli199x@qq.com>
+Return-Path: <gustavo@embeddedor.com>
+Received: from gateway34.websitewelcome.com (gateway34.websitewelcome.com
+	[192.185.148.142])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A1BB64204A7
+	for <drbd-dev@lists.linbit.com>; Tue, 20 Apr 2021 22:48:31 +0200 (CEST)
+Received: from cm10.websitewelcome.com (cm10.websitewelcome.com [100.42.49.4])
+	by gateway34.websitewelcome.com (Postfix) with ESMTP id 6DFC5A9141
+	for <drbd-dev@lists.linbit.com>; Tue, 20 Apr 2021 15:25:39 -0500 (CDT)
+To: "Gustavo A. R. Silva" <gustavoars@kernel.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
+References: <cover.1605896059.git.gustavoars@kernel.org>
+	<44663f18fb12e39c53b0e69039c98505b7c6d5da.1605896059.git.gustavoars@kernel.org>
+From: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
+Message-ID: <ba77fcbe-8770-d234-509b-7dc5ac079319@embeddedor.com>
+Date: Tue, 20 Apr 2021 15:25:51 -0500
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: Ming Li <tolimit1019@gmail.com>
-Subject: [Drbd-dev] [PATCH] check head in page_chain_del for every loop
+In-Reply-To: <44663f18fb12e39c53b0e69039c98505b7c6d5da.1605896059.git.gustavoars@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Cc: linux-block@vger.kernel.org, linux-hardening@vger.kernel.org,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 027/141] drbd: Fix fall-through warnings for
+	Clang
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,34 +34,49 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Ming Li <tolimit1019@gmail.com>
+Hi all,
 
-there will be crash when we get a NULL head in loop.
+Friendly ping: who can take this, please?
 
-Signed-off-by: Ming Li <tolimit1019@gmail.com>
----
- drbd/drbd_receiver.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Thanks
+--
+Gustavo
 
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index f127a235..28fb2e06 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -280,12 +280,12 @@ static struct page *page_chain_del(struct page **head, int count)
- 	BUG_ON(!head);
- 
- 	page = READ_ONCE(*head);
--	if (!page)
--		return NULL;
- 
- 	do {
- 		n = count;
- 		rv_head = page;
-+		if (!page)
-+			return NULL;
- 		while (true) {
- 			tmp = page_chain_next(page);
- 			if (--n == 0)
--- 
-2.24.3 (Apple Git-128)
-
+On 11/20/20 12:28, Gustavo A. R. Silva wrote:
+> In preparation to enable -Wimplicit-fallthrough for Clang, fix a couple
+> of warnings by explicitly adding a break statement instead of just
+> letting the code fall through to the next, and by adding a fallthrough
+> pseudo-keyword in places whre the code is intended to fall through.
+> 
+> Link: https://github.com/KSPP/linux/issues/115
+> Signed-off-by: Gustavo A. R. Silva <gustavoars@kernel.org>
+> ---
+>  drivers/block/drbd/drbd_receiver.c | 1 +
+>  drivers/block/drbd/drbd_req.c      | 1 +
+>  2 files changed, 2 insertions(+)
+> 
+> diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+> index dc333dbe5232..c19bb74ac935 100644
+> --- a/drivers/block/drbd/drbd_receiver.c
+> +++ b/drivers/block/drbd/drbd_receiver.c
+> @@ -5863,6 +5863,7 @@ static int got_NegRSDReply(struct drbd_connection *connection, struct packet_inf
+>  		switch (pi->cmd) {
+>  		case P_NEG_RS_DREPLY:
+>  			drbd_rs_failed_io(device, sector, size);
+> +			break;
+>  		case P_RS_CANCEL:
+>  			break;
+>  		default:
+> diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+> index 330f851cb8f0..9f212a923a3c 100644
+> --- a/drivers/block/drbd/drbd_req.c
+> +++ b/drivers/block/drbd/drbd_req.c
+> @@ -750,6 +750,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
+>  
+>  	case WRITE_ACKED_BY_PEER_AND_SIS:
+>  		req->rq_state |= RQ_NET_SIS;
+> +		fallthrough;
+>  	case WRITE_ACKED_BY_PEER:
+>  		/* Normal operation protocol C: successfully written on peer.
+>  		 * During resync, even in protocol != C,
+> 
