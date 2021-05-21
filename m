@@ -1,8 +1,8 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B7D7C420BB1
-	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 11:03:34 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 33ADA420BB6
+	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 11:03:36 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>,
@@ -18,8 +18,8 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:50:53 +0200
-Message-Id: <20210521055116.1053587-4-hch@lst.de>
+Date: Fri, 21 May 2021 07:51:12 +0200
+Message-Id: <20210521055116.1053587-23-hch@lst.de>
 In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,8 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/26] block: automatically enable
-	GENHD_FL_EXT_DEVT
+Subject: [Drbd-dev] [PATCH 22/26] ps3vram: convert to
+	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,157 +43,94 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Automatically set the GENHD_FL_EXT_DEVT flag for all disks allocated
-without an explicit number of minors.  This is what all new block
-drivers should do, so make sure it is the default without boilerplate
-code.
+Convert the ps3vram driver to use the blk_alloc_disk and blk_cleanup_disk
+helpers to simplify gendisk and request_queue allocation.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/genhd.c                    | 2 +-
- block/partitions/core.c          | 4 ----
- drivers/block/n64cart.c          | 2 +-
- drivers/lightnvm/core.c          | 1 -
- drivers/memstick/core/ms_block.c | 1 -
- drivers/nvdimm/blk.c             | 1 -
- drivers/nvdimm/btt.c             | 1 -
- drivers/nvdimm/pmem.c            | 1 -
- drivers/nvme/host/core.c         | 1 -
- drivers/nvme/host/multipath.c    | 1 -
- 10 files changed, 2 insertions(+), 13 deletions(-)
+ drivers/block/ps3vram.c | 31 ++++++++-----------------------
+ 1 file changed, 8 insertions(+), 23 deletions(-)
 
-diff --git a/block/genhd.c b/block/genhd.c
-index 7f9beaeede11..eec266c9318d 100644
---- a/block/genhd.c
-+++ b/block/genhd.c
-@@ -499,7 +499,6 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
- 		}
- 	} else {
- 		WARN_ON(disk->minors);
--		WARN_ON(!(disk->flags & (GENHD_FL_EXT_DEVT | GENHD_FL_HIDDEN)));
+diff --git a/drivers/block/ps3vram.c b/drivers/block/ps3vram.c
+index 1d738999fb69..7fbf469651c4 100644
+--- a/drivers/block/ps3vram.c
++++ b/drivers/block/ps3vram.c
+@@ -67,7 +67,6 @@ struct ps3vram_cache {
+ };
  
- 		ret = blk_alloc_ext_minor();
- 		if (ret < 0) {
-@@ -508,6 +507,7 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
- 		}
- 		disk->major = BLOCK_EXT_MAJOR;
- 		disk->first_minor = MINOR(ret);
-+		disk->flags |= GENHD_FL_EXT_DEVT;
+ struct ps3vram_priv {
+-	struct request_queue *queue;
+ 	struct gendisk *gendisk;
+ 
+ 	u64 size;
+@@ -613,7 +612,6 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
+ {
+ 	struct ps3vram_priv *priv;
+ 	int error, status;
+-	struct request_queue *queue;
+ 	struct gendisk *gendisk;
+ 	u64 ddr_size, ddr_lpar, ctrl_lpar, info_lpar, reports_lpar,
+ 	    reports_size, xdr_lpar;
+@@ -736,33 +734,23 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
+ 
+ 	ps3vram_proc_init(dev);
+ 
+-	queue = blk_alloc_queue(NUMA_NO_NODE);
+-	if (!queue) {
+-		dev_err(&dev->core, "blk_alloc_queue failed\n");
+-		error = -ENOMEM;
+-		goto out_cache_cleanup;
+-	}
+-
+-	priv->queue = queue;
+-	blk_queue_max_segments(queue, BLK_MAX_SEGMENTS);
+-	blk_queue_max_segment_size(queue, BLK_MAX_SEGMENT_SIZE);
+-	blk_queue_max_hw_sectors(queue, BLK_SAFE_MAX_SECTORS);
+-
+-	gendisk = alloc_disk(1);
++	gendisk = blk_alloc_disk(NUMA_NO_NODE);
+ 	if (!gendisk) {
+-		dev_err(&dev->core, "alloc_disk failed\n");
++		dev_err(&dev->core, "blk_alloc_disk failed\n");
+ 		error = -ENOMEM;
+-		goto fail_cleanup_queue;
++		goto out_cache_cleanup;
  	}
  
- 	disk->flags |= GENHD_FL_UP;
-diff --git a/block/partitions/core.c b/block/partitions/core.c
-index 504297bdc8bf..ada3e1e66989 100644
---- a/block/partitions/core.c
-+++ b/block/partitions/core.c
-@@ -326,10 +326,6 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
- 	const char *dname;
- 	int err;
+ 	priv->gendisk = gendisk;
+ 	gendisk->major = ps3vram_major;
+-	gendisk->first_minor = 0;
++	gendisk->minors = 1;
+ 	gendisk->fops = &ps3vram_fops;
+-	gendisk->queue = queue;
+ 	gendisk->private_data = dev;
+ 	strlcpy(gendisk->disk_name, DEVICE_NAME, sizeof(gendisk->disk_name));
+ 	set_capacity(gendisk, priv->size >> 9);
++	blk_queue_max_segments(gendisk->queue, BLK_MAX_SEGMENTS);
++	blk_queue_max_segment_size(gendisk->queue, BLK_MAX_SEGMENT_SIZE);
++	blk_queue_max_hw_sectors(gendisk->queue, BLK_SAFE_MAX_SECTORS);
  
--	/*
--	 * disk_max_parts() won't be zero, either GENHD_FL_EXT_DEVT is set
--	 * or 'minors' is passed to alloc_disk().
--	 */
- 	if (partno >= disk_max_parts(disk))
- 		return ERR_PTR(-EINVAL);
- 
-diff --git a/drivers/block/n64cart.c b/drivers/block/n64cart.c
-index 47bdf324e962..3dae4b631dea 100644
---- a/drivers/block/n64cart.c
-+++ b/drivers/block/n64cart.c
-@@ -141,7 +141,7 @@ static int __init n64cart_probe(struct platform_device *pdev)
- 		return -ENOMEM;
- 
- 	disk->first_minor = 0;
--	disk->flags = GENHD_FL_NO_PART_SCAN | GENHD_FL_EXT_DEVT;
-+	disk->flags = GENHD_FL_NO_PART_SCAN;
- 	disk->fops = &n64cart_fops;
- 	disk->private_data = &pdev->dev;
- 	strcpy(disk->disk_name, "n64cart");
-diff --git a/drivers/lightnvm/core.c b/drivers/lightnvm/core.c
-index 40a948c08a0b..e7dc539fc0ac 100644
---- a/drivers/lightnvm/core.c
-+++ b/drivers/lightnvm/core.c
-@@ -383,7 +383,6 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
- 	}
- 
- 	strlcpy(tdisk->disk_name, create->tgtname, sizeof(tdisk->disk_name));
--	tdisk->flags = GENHD_FL_EXT_DEVT;
- 	tdisk->major = 0;
- 	tdisk->first_minor = 0;
- 	tdisk->fops = tt->bops;
-diff --git a/drivers/memstick/core/ms_block.c b/drivers/memstick/core/ms_block.c
-index 8004dd64d09a..0bacf4268f83 100644
---- a/drivers/memstick/core/ms_block.c
-+++ b/drivers/memstick/core/ms_block.c
-@@ -2136,7 +2136,6 @@ static int msb_init_disk(struct memstick_dev *card)
- 	msb->disk->fops = &msb_bdops;
- 	msb->disk->private_data = msb;
- 	msb->disk->queue = msb->queue;
--	msb->disk->flags |= GENHD_FL_EXT_DEVT;
- 
- 	capacity = msb->pages_in_block * msb->logical_block_count;
- 	capacity *= (msb->page_size / 512);
-diff --git a/drivers/nvdimm/blk.c b/drivers/nvdimm/blk.c
-index 7b9556291eb1..7ba446d224fb 100644
---- a/drivers/nvdimm/blk.c
-+++ b/drivers/nvdimm/blk.c
-@@ -267,7 +267,6 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
- 	disk->first_minor	= 0;
- 	disk->fops		= &nd_blk_fops;
- 	disk->queue		= q;
--	disk->flags		= GENHD_FL_EXT_DEVT;
- 	disk->private_data	= nsblk;
- 	nvdimm_namespace_disk_name(&nsblk->common, disk->disk_name);
- 
-diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
-index 18a267d5073f..1741a7b0b30f 100644
---- a/drivers/nvdimm/btt.c
-+++ b/drivers/nvdimm/btt.c
-@@ -1537,7 +1537,6 @@ static int btt_blk_init(struct btt *btt)
- 	btt->btt_disk->fops = &btt_fops;
- 	btt->btt_disk->private_data = btt;
- 	btt->btt_disk->queue = btt->btt_queue;
--	btt->btt_disk->flags = GENHD_FL_EXT_DEVT;
- 
- 	blk_queue_logical_block_size(btt->btt_queue, btt->sector_size);
- 	blk_queue_max_hw_sectors(btt->btt_queue, UINT_MAX);
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index ed10a8b66068..968b8483c763 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -477,7 +477,6 @@ static int pmem_attach_disk(struct device *dev,
- 
- 	disk->fops		= &pmem_fops;
- 	disk->queue		= q;
--	disk->flags		= GENHD_FL_EXT_DEVT;
- 	disk->private_data	= pmem;
- 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
- 	set_capacity(disk, (pmem->size - pmem->pfn_pad - pmem->data_offset)
-diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
-index 762125f2905f..24bcae88587a 100644
---- a/drivers/nvme/host/core.c
-+++ b/drivers/nvme/host/core.c
-@@ -3699,7 +3699,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
- 	disk->fops = &nvme_bdev_ops;
- 	disk->private_data = ns;
- 	disk->queue = ns->queue;
--	disk->flags = GENHD_FL_EXT_DEVT;
- 	/*
- 	 * Without the multipath code enabled, multiple controller per
- 	 * subsystems are visible as devices and thus we cannot use the
-diff --git a/drivers/nvme/host/multipath.c b/drivers/nvme/host/multipath.c
-index f81871c7128a..a5d02f236cca 100644
---- a/drivers/nvme/host/multipath.c
-+++ b/drivers/nvme/host/multipath.c
-@@ -462,7 +462,6 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
- 	head->disk->fops = &nvme_ns_head_ops;
- 	head->disk->private_data = head;
- 	head->disk->queue = q;
--	head->disk->flags = GENHD_FL_EXT_DEVT;
- 	sprintf(head->disk->disk_name, "nvme%dn%d",
- 			ctrl->subsys->instance, head->instance);
+ 	dev_info(&dev->core, "%s: Using %llu MiB of GPU memory\n",
+ 		 gendisk->disk_name, get_capacity(gendisk) >> 11);
+@@ -770,8 +758,6 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
+ 	device_add_disk(&dev->core, gendisk, NULL);
  	return 0;
+ 
+-fail_cleanup_queue:
+-	blk_cleanup_queue(queue);
+ out_cache_cleanup:
+ 	remove_proc_entry(DEVICE_NAME, NULL);
+ 	ps3vram_cache_cleanup(dev);
+@@ -802,8 +788,7 @@ static void ps3vram_remove(struct ps3_system_bus_device *dev)
+ 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
+ 
+ 	del_gendisk(priv->gendisk);
+-	put_disk(priv->gendisk);
+-	blk_cleanup_queue(priv->queue);
++	blk_cleanup_disk(priv->gendisk);
+ 	remove_proc_entry(DEVICE_NAME, NULL);
+ 	ps3vram_cache_cleanup(dev);
+ 	iounmap(priv->reports);
 -- 
 2.30.2
 
