@@ -1,8 +1,8 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E0AEE42094A
-	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 10:03:34 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4A69A42094E
+	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 10:03:35 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>,
@@ -18,8 +18,8 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:51:08 +0200
-Message-Id: <20210521055116.1053587-19-hch@lst.de>
+Date: Fri, 21 May 2021 07:51:07 +0200
+Message-Id: <20210521055116.1053587-18-hch@lst.de>
 In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 18/26] nvme-multipath: convert to
+Subject: [Drbd-dev] [PATCH 17/26] nvdimm-pmem: convert to
 	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -43,104 +43,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Convert the nvme-multipath driver to use the blk_alloc_disk and
+Convert the nvdimm-pmem driver to use the blk_alloc_disk and
 blk_cleanup_disk helpers to simplify gendisk and request_queue
 allocation.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/nvdimm/pmem.c         |  1 -
- drivers/nvme/host/multipath.c | 45 ++++++++++-------------------------
- 2 files changed, 13 insertions(+), 33 deletions(-)
+ drivers/nvdimm/pmem.c | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 9fcd05084564..31f3c4bd6f72 100644
+index 968b8483c763..9fcd05084564 100644
 --- a/drivers/nvdimm/pmem.c
 +++ b/drivers/nvdimm/pmem.c
-@@ -472,7 +472,6 @@ static int pmem_attach_disk(struct device *dev,
+@@ -338,7 +338,7 @@ static void pmem_pagemap_cleanup(struct dev_pagemap *pgmap)
+ 	struct request_queue *q =
+ 		container_of(pgmap->ref, struct request_queue, q_usage_counter);
+ 
+-	blk_cleanup_queue(q);
++	blk_cleanup_disk(queue_to_disk(q));
+ }
+ 
+ static void pmem_release_queue(void *pgmap)
+@@ -361,7 +361,6 @@ static void pmem_release_disk(void *__pmem)
+ 	kill_dax(pmem->dax_dev);
+ 	put_dax(pmem->dax_dev);
+ 	del_gendisk(pmem->disk);
+-	put_disk(pmem->disk);
+ }
+ 
+ static const struct dev_pagemap_ops fsdax_pagemap_ops = {
+@@ -422,10 +421,12 @@ static int pmem_attach_disk(struct device *dev,
+ 		return -EBUSY;
+ 	}
+ 
+-	q = blk_alloc_queue(dev_to_node(dev));
+-	if (!q)
++	disk = blk_alloc_disk(nid);
++	if (!disk)
+ 		return -ENOMEM;
++	q = disk->queue;
+ 
++	pmem->disk = disk;
+ 	pmem->pfn_flags = PFN_DEV;
+ 	pmem->pgmap.ref = &q->q_usage_counter;
+ 	if (is_nd_pfn(dev)) {
+@@ -470,11 +471,6 @@ static int pmem_attach_disk(struct device *dev,
+ 	if (pmem->pfn_flags & PFN_MAP)
  		blk_queue_flag_set(QUEUE_FLAG_DAX, q);
  
+-	disk = alloc_disk_node(0, nid);
+-	if (!disk)
+-		return -ENOMEM;
+-	pmem->disk = disk;
+-
  	disk->fops		= &pmem_fops;
--	disk->queue		= q;
+ 	disk->queue		= q;
  	disk->private_data	= pmem;
- 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
- 	set_capacity(disk, (pmem->size - pmem->pfn_pad - pmem->data_offset)
-diff --git a/drivers/nvme/host/multipath.c b/drivers/nvme/host/multipath.c
-index a5d02f236cca..b5fbdb416022 100644
---- a/drivers/nvme/host/multipath.c
-+++ b/drivers/nvme/host/multipath.c
-@@ -427,7 +427,6 @@ static void nvme_requeue_work(struct work_struct *work)
- 
- int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
- {
--	struct request_queue *q;
- 	bool vwc = false;
- 
- 	mutex_init(&head->lock);
-@@ -443,33 +442,24 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
- 	if (!(ctrl->subsys->cmic & NVME_CTRL_CMIC_MULTI_CTRL) || !multipath)
- 		return 0;
- 
--	q = blk_alloc_queue(ctrl->numa_node);
--	if (!q)
--		goto out;
--	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
--	/* set to a default value for 512 until disk is validated */
--	blk_queue_logical_block_size(q, 512);
--	blk_set_stacking_limits(&q->limits);
--
--	/* we need to propagate up the VMC settings */
--	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
--		vwc = true;
--	blk_queue_write_cache(q, vwc, vwc);
--
--	head->disk = alloc_disk(0);
-+	head->disk = blk_alloc_disk(ctrl->numa_node);
- 	if (!head->disk)
--		goto out_cleanup_queue;
-+		return -ENOMEM;
- 	head->disk->fops = &nvme_ns_head_ops;
- 	head->disk->private_data = head;
--	head->disk->queue = q;
- 	sprintf(head->disk->disk_name, "nvme%dn%d",
- 			ctrl->subsys->instance, head->instance);
--	return 0;
- 
--out_cleanup_queue:
--	blk_cleanup_queue(q);
--out:
--	return -ENOMEM;
-+	blk_queue_flag_set(QUEUE_FLAG_NONROT, head->disk->queue);
-+	/* set to a default value of 512 until the disk is validated */
-+	blk_queue_logical_block_size(head->disk->queue, 512);
-+	blk_set_stacking_limits(&head->disk->queue->limits);
-+
-+	/* we need to propagate up the VMC settings */
-+	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
-+		vwc = true;
-+	blk_queue_write_cache(head->disk->queue, vwc, vwc);
-+	return 0;
- }
- 
- static void nvme_mpath_set_live(struct nvme_ns *ns)
-@@ -768,16 +758,7 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
- 	/* make sure all pending bios are cleaned up */
- 	kblockd_schedule_work(&head->requeue_work);
- 	flush_work(&head->requeue_work);
--	blk_cleanup_queue(head->disk->queue);
--	if (!test_bit(NVME_NSHEAD_DISK_LIVE, &head->flags)) {
--		/*
--		 * if device_add_disk wasn't called, prevent
--		 * disk release to put a bogus reference on the
--		 * request queue
--		 */
--		head->disk->queue = NULL;
--	}
--	put_disk(head->disk);
-+	blk_cleanup_disk(head->disk);
- }
- 
- void nvme_mpath_init_ctrl(struct nvme_ctrl *ctrl)
+@@ -490,7 +486,6 @@ static int pmem_attach_disk(struct device *dev,
+ 		flags = DAXDEV_F_SYNC;
+ 	dax_dev = alloc_dax(pmem, disk->disk_name, &pmem_dax_ops, flags);
+ 	if (IS_ERR(dax_dev)) {
+-		put_disk(disk);
+ 		return PTR_ERR(dax_dev);
+ 	}
+ 	dax_write_cache(dax_dev, nvdimm_has_cache(nd_region));
 -- 
 2.30.2
 
