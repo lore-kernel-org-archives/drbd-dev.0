@@ -1,8 +1,8 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E360D4205C9
-	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 09:03:34 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4B2544205CC
+	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 09:03:35 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>,
@@ -18,8 +18,8 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:50:51 +0200
-Message-Id: <20210521055116.1053587-2-hch@lst.de>
+Date: Fri, 21 May 2021 07:51:16 +0200
+Message-Id: <20210521055116.1053587-27-hch@lst.de>
 In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 01/26] block: refactor device number setup in
-	__device_add_disk
+Subject: [Drbd-dev] [PATCH 26/26] block: unexport blk_alloc_queue
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,213 +42,51 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Untangle the mess around blk_alloc_devt by moving the check for
-the used allocation scheme into the callers.
+blk_alloc_queue is just an internal helper now, unexport it and remove
+it from the public header.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/blk.h             |  4 +-
- block/genhd.c           | 96 ++++++++++++++++-------------------------
- block/partitions/core.c | 15 +++++--
- 3 files changed, 49 insertions(+), 66 deletions(-)
+ block/blk-core.c       | 1 -
+ block/blk.h            | 2 ++
+ include/linux/blkdev.h | 1 -
+ 3 files changed, 2 insertions(+), 2 deletions(-)
 
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 689aac2625d2..3515a66022d7 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -599,7 +599,6 @@ struct request_queue *blk_alloc_queue(int node_id)
+ 	kmem_cache_free(blk_requestq_cachep, q);
+ 	return NULL;
+ }
+-EXPORT_SYMBOL(blk_alloc_queue);
+ 
+ /**
+  * blk_get_queue - increment the request_queue refcount
 diff --git a/block/blk.h b/block/blk.h
-index 8b3591aee0a5..cba3a94aabfa 100644
+index cba3a94aabfa..3440142f029b 100644
 --- a/block/blk.h
 +++ b/block/blk.h
-@@ -343,8 +343,8 @@ static inline void blk_queue_free_zone_bitmaps(struct request_queue *q) {}
- static inline void blk_queue_clear_zone_settings(struct request_queue *q) {}
- #endif
+@@ -359,4 +359,6 @@ int bio_add_hw_page(struct request_queue *q, struct bio *bio,
+ 		struct page *page, unsigned int len, unsigned int offset,
+ 		unsigned int max_sectors, bool *same_page);
  
--int blk_alloc_devt(struct block_device *part, dev_t *devt);
--void blk_free_devt(dev_t devt);
-+int blk_alloc_ext_minor(void);
-+void blk_free_ext_minor(unsigned int minor);
- char *disk_name(struct gendisk *hd, int partno, char *buf);
- #define ADDPART_FLAG_NONE	0
- #define ADDPART_FLAG_RAID	1
-diff --git a/block/genhd.c b/block/genhd.c
-index 39ca97b0edc6..2c00bc3261d9 100644
---- a/block/genhd.c
-+++ b/block/genhd.c
-@@ -335,52 +335,22 @@ static int blk_mangle_minor(int minor)
- 	return minor;
- }
- 
--/**
-- * blk_alloc_devt - allocate a dev_t for a block device
-- * @bdev: block device to allocate dev_t for
-- * @devt: out parameter for resulting dev_t
-- *
-- * Allocate a dev_t for block device.
-- *
-- * RETURNS:
-- * 0 on success, allocated dev_t is returned in *@devt.  -errno on
-- * failure.
-- *
-- * CONTEXT:
-- * Might sleep.
-- */
--int blk_alloc_devt(struct block_device *bdev, dev_t *devt)
-+int blk_alloc_ext_minor(void)
- {
--	struct gendisk *disk = bdev->bd_disk;
- 	int idx;
- 
--	/* in consecutive minor range? */
--	if (bdev->bd_partno < disk->minors) {
--		*devt = MKDEV(disk->major, disk->first_minor + bdev->bd_partno);
--		return 0;
--	}
--
- 	idx = ida_alloc_range(&ext_devt_ida, 0, NR_EXT_DEVT, GFP_KERNEL);
--	if (idx < 0)
--		return idx == -ENOSPC ? -EBUSY : idx;
--
--	*devt = MKDEV(BLOCK_EXT_MAJOR, blk_mangle_minor(idx));
--	return 0;
-+	if (idx < 0) {
-+		if (idx == -ENOSPC)
-+			return -EBUSY;
-+		return idx;
-+	}
-+	return blk_mangle_minor(idx);
- }
- 
--/**
-- * blk_free_devt - free a dev_t
-- * @devt: dev_t to free
-- *
-- * Free @devt which was allocated using blk_alloc_devt().
-- *
-- * CONTEXT:
-- * Might sleep.
-- */
--void blk_free_devt(dev_t devt)
-+void blk_free_ext_minor(unsigned int minor)
- {
--	if (MAJOR(devt) == BLOCK_EXT_MAJOR)
--		ida_free(&ext_devt_ida, blk_mangle_minor(MINOR(devt)));
-+	ida_free(&ext_devt_ida, blk_mangle_minor(minor));
- }
- 
- static char *bdevt_str(dev_t devt, char *buf)
-@@ -501,8 +471,7 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
- 			      const struct attribute_group **groups,
- 			      bool register_queue)
- {
--	dev_t devt;
--	int retval;
-+	int ret;
- 
- 	/*
- 	 * The disk queue should now be all set with enough information about
-@@ -513,23 +482,29 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
- 	if (register_queue)
- 		elevator_init_mq(disk->queue);
- 
--	/* minors == 0 indicates to use ext devt from part0 and should
--	 * be accompanied with EXT_DEVT flag.  Make sure all
--	 * parameters make sense.
-+	/*
-+	 * If the driver provides an explicit major number it also must provide
-+	 * the number of minors numbers supported, and those will be used to
-+	 * setup the gendisk.
-+	 * Otherwise just allocate the device numbers for both the whole device
-+	 * and all partitions from the extended dev_t space.
- 	 */
--	WARN_ON(disk->minors && !(disk->major || disk->first_minor));
--	WARN_ON(!disk->minors &&
--		!(disk->flags & (GENHD_FL_EXT_DEVT | GENHD_FL_HIDDEN)));
--
--	disk->flags |= GENHD_FL_UP;
-+	if (disk->major) {
-+		WARN_ON(!disk->minors);
-+	} else {
-+		WARN_ON(disk->minors);
-+		WARN_ON(!(disk->flags & (GENHD_FL_EXT_DEVT | GENHD_FL_HIDDEN)));
- 
--	retval = blk_alloc_devt(disk->part0, &devt);
--	if (retval) {
--		WARN_ON(1);
--		return;
-+		ret = blk_alloc_ext_minor();
-+		if (ret < 0) {
-+			WARN_ON(1);
-+			return;
-+		}
-+		disk->major = BLOCK_EXT_MAJOR;
-+		disk->first_minor = MINOR(ret);
- 	}
--	disk->major = MAJOR(devt);
--	disk->first_minor = MINOR(devt);
++struct request_queue *blk_alloc_queue(int node_id);
 +
-+	disk->flags |= GENHD_FL_UP;
+ #endif /* BLK_INTERNAL_H */
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 2c28577b50f4..d66d0da72529 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1213,7 +1213,6 @@ static inline int blk_rq_map_sg(struct request_queue *q, struct request *rq,
+ extern void blk_dump_rq_flags(struct request *, char *);
  
- 	disk_alloc_events(disk);
+ bool __must_check blk_get_queue(struct request_queue *);
+-struct request_queue *blk_alloc_queue(int node_id);
+ extern void blk_put_queue(struct request_queue *);
+ extern void blk_set_queue_dying(struct request_queue *);
  
-@@ -543,14 +518,14 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
- 	} else {
- 		struct backing_dev_info *bdi = disk->queue->backing_dev_info;
- 		struct device *dev = disk_to_dev(disk);
--		int ret;
- 
- 		/* Register BDI before referencing it from bdev */
--		dev->devt = devt;
--		ret = bdi_register(bdi, "%u:%u", MAJOR(devt), MINOR(devt));
-+		dev->devt = MKDEV(disk->major, disk->first_minor);
-+		ret = bdi_register(bdi, "%u:%u",
-+				   disk->major, disk->first_minor);
- 		WARN_ON(ret);
- 		bdi_set_owner(bdi, dev);
--		bdev_add(disk->part0, devt);
-+		bdev_add(disk->part0, dev->devt);
- 	}
- 	register_disk(parent, disk, groups);
- 	if (register_queue)
-@@ -1129,7 +1104,8 @@ static void disk_release(struct device *dev)
- 
- 	might_sleep();
- 
--	blk_free_devt(dev->devt);
-+	if (MAJOR(dev->devt) == BLOCK_EXT_MAJOR)
-+		blk_free_ext_minor(MINOR(dev->devt));
- 	disk_release_events(disk);
- 	kfree(disk->random);
- 	xa_destroy(&disk->part_tbl);
-diff --git a/block/partitions/core.c b/block/partitions/core.c
-index dc60ecf46fe6..504297bdc8bf 100644
---- a/block/partitions/core.c
-+++ b/block/partitions/core.c
-@@ -260,7 +260,8 @@ static const struct attribute_group *part_attr_groups[] = {
- 
- static void part_release(struct device *dev)
- {
--	blk_free_devt(dev->devt);
-+	if (MAJOR(dev->devt) == BLOCK_EXT_MAJOR)
-+		blk_free_ext_minor(MINOR(dev->devt));
- 	bdput(dev_to_bdev(dev));
- }
- 
-@@ -379,9 +380,15 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
- 	pdev->type = &part_type;
- 	pdev->parent = ddev;
- 
--	err = blk_alloc_devt(bdev, &devt);
--	if (err)
--		goto out_put;
-+	/* in consecutive minor range? */
-+	if (bdev->bd_partno < disk->minors) {
-+		devt = MKDEV(disk->major, disk->first_minor + bdev->bd_partno);
-+	} else {
-+		err = blk_alloc_ext_minor();
-+		if (err < 0)
-+			goto out_put;
-+		devt = MKDEV(BLOCK_EXT_MAJOR, err);
-+	}
- 	pdev->devt = devt;
- 
- 	/* delay uevent until 'holders' subdir is created */
 -- 
 2.30.2
 
