@@ -1,7 +1,7 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 13B03420620
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 93F1342062F
 	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 10:03:33 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
@@ -18,8 +18,8 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:51:11 +0200
-Message-Id: <20210521055116.1053587-22-hch@lst.de>
+Date: Fri, 21 May 2021 07:51:10 +0200
+Message-Id: <20210521055116.1053587-21-hch@lst.de>
 In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,8 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 21/26] n64cart: convert to blk_alloc_disk
+Subject: [Drbd-dev] [PATCH 20/26] simdisk: convert to
+	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,34 +43,79 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Convert the n64cart driver to use the blk_alloc_disk helper to simplify
-gendisk and request_queue allocation.
+Convert the simdisk driver to use the blk_alloc_disk and blk_cleanup_disk
+helpers to simplify gendisk and request_queue allocation.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/n64cart.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ arch/xtensa/platforms/iss/simdisk.c | 29 +++++++----------------------
+ 1 file changed, 7 insertions(+), 22 deletions(-)
 
-diff --git a/drivers/block/n64cart.c b/drivers/block/n64cart.c
-index 3dae4b631dea..7b4dd10af9ec 100644
---- a/drivers/block/n64cart.c
-+++ b/drivers/block/n64cart.c
-@@ -132,14 +132,10 @@ static int __init n64cart_probe(struct platform_device *pdev)
- 	if (!reg_base)
- 		return -EINVAL;
+diff --git a/arch/xtensa/platforms/iss/simdisk.c b/arch/xtensa/platforms/iss/simdisk.c
+index fc09be7b1347..3cdfa00738e0 100644
+--- a/arch/xtensa/platforms/iss/simdisk.c
++++ b/arch/xtensa/platforms/iss/simdisk.c
+@@ -27,7 +27,6 @@
+ struct simdisk {
+ 	const char *filename;
+ 	spinlock_t lock;
+-	struct request_queue *queue;
+ 	struct gendisk *gd;
+ 	struct proc_dir_entry *procfile;
+ 	int users;
+@@ -266,21 +265,13 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
+ 	spin_lock_init(&dev->lock);
+ 	dev->users = 0;
  
--	disk = alloc_disk(0);
-+	disk = blk_alloc_disk(NUMA_NO_NODE);
- 	if (!disk)
- 		return -ENOMEM;
- 
--	disk->queue = blk_alloc_queue(NUMA_NO_NODE);
--	if (!disk->queue)
--		return -ENOMEM;
+-	dev->queue = blk_alloc_queue(NUMA_NO_NODE);
+-	if (dev->queue == NULL) {
+-		pr_err("blk_alloc_queue failed\n");
+-		goto out_alloc_queue;
+-	}
 -
- 	disk->first_minor = 0;
- 	disk->flags = GENHD_FL_NO_PART_SCAN;
- 	disk->fops = &n64cart_fops;
+-	dev->gd = alloc_disk(SIMDISK_MINORS);
+-	if (dev->gd == NULL) {
+-		pr_err("alloc_disk failed\n");
+-		goto out_alloc_disk;
+-	}
++	dev->gd = blk_alloc_disk(NUMA_NO_NODE);
++	if (!dev->gd)
++		return -ENOMEM;
+ 	dev->gd->major = simdisk_major;
+ 	dev->gd->first_minor = which;
++	dev->gd->minors = SIMDISK_MINORS;
+ 	dev->gd->fops = &simdisk_ops;
+-	dev->gd->queue = dev->queue;
+ 	dev->gd->private_data = dev;
+ 	snprintf(dev->gd->disk_name, 32, "simdisk%d", which);
+ 	set_capacity(dev->gd, 0);
+@@ -288,12 +279,6 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
+ 
+ 	dev->procfile = proc_create_data(tmp, 0644, procdir, &simdisk_proc_ops, dev);
+ 	return 0;
+-
+-out_alloc_disk:
+-	blk_cleanup_queue(dev->queue);
+-	dev->queue = NULL;
+-out_alloc_queue:
+-	return -ENOMEM;
+ }
+ 
+ static int __init simdisk_init(void)
+@@ -343,10 +328,10 @@ static void simdisk_teardown(struct simdisk *dev, int which,
+ 	char tmp[2] = { '0' + which, 0 };
+ 
+ 	simdisk_detach(dev);
+-	if (dev->gd)
++	if (dev->gd) {
+ 		del_gendisk(dev->gd);
+-	if (dev->queue)
+-		blk_cleanup_queue(dev->queue);
++		blk_cleanup_disk(dev->gd);
++	}
+ 	remove_proc_entry(tmp, procdir);
+ }
+ 
 -- 
 2.30.2
 
