@@ -1,7 +1,7 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2026F4205C6
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 88DEE4205C8
 	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 09:03:34 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
@@ -18,8 +18,10 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:50:50 +0200
-Message-Id: <20210521055116.1053587-1-hch@lst.de>
+Date: Fri, 21 May 2021 07:50:52 +0200
+Message-Id: <20210521055116.1053587-3-hch@lst.de>
+In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
+References: <20210521055116.1053587-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
@@ -28,8 +30,8 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] simplify gendisk and request_queue allocation for bio
-	based drivers
+Subject: [Drbd-dev] [PATCH 02/26] block: move the DISK_MAX_PARTS sanity
+	check into __device_add_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,45 +43,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi all,
+Keep this together with the first place that actually looks at
+->minors and prepare for not passing a minors argument to
+alloc_disk.
 
-this series is the first part of cleaning up lifetimes and allocation of
-the gendisk and request_queue structure.  It adds a new interface to
-allocate the disk and queue together for bio based drivers, and a helper
-for cleanup/free them when a driver is unloaded or a device is removed.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ block/genhd.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
 
-Together this removes the need to treat the gendisk and request_queue
-as separate entities for bio based drivers.
+diff --git a/block/genhd.c b/block/genhd.c
+index 2c00bc3261d9..7f9beaeede11 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -491,6 +491,12 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
+ 	 */
+ 	if (disk->major) {
+ 		WARN_ON(!disk->minors);
++
++		if (disk->minors > DISK_MAX_PARTS) {
++			pr_err("block: can't allocate more than %d partitions\n",
++				DISK_MAX_PARTS);
++			disk->minors = DISK_MAX_PARTS;
++		}
+ 	} else {
+ 		WARN_ON(disk->minors);
+ 		WARN_ON(!(disk->flags & (GENHD_FL_EXT_DEVT | GENHD_FL_HIDDEN)));
+@@ -1264,13 +1270,6 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
+ {
+ 	struct gendisk *disk;
+ 
+-	if (minors > DISK_MAX_PARTS) {
+-		printk(KERN_ERR
+-			"block: can't allocate more than %d partitions\n",
+-			DISK_MAX_PARTS);
+-		minors = DISK_MAX_PARTS;
+-	}
+-
+ 	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
+ 	if (!disk)
+ 		return NULL;
+-- 
+2.30.2
 
-Diffstat:
- arch/m68k/emu/nfblock.c             |   20 +---
- arch/xtensa/platforms/iss/simdisk.c |   29 +------
- block/blk-core.c                    |    1 
- block/blk.h                         |    6 -
- block/genhd.c                       |  149 +++++++++++++++++++-----------------
- block/partitions/core.c             |   19 ++--
- drivers/block/brd.c                 |   94 +++++++---------------
- drivers/block/drbd/drbd_main.c      |   23 +----
- drivers/block/n64cart.c             |    8 -
- drivers/block/null_blk/main.c       |   38 ++++-----
- drivers/block/pktcdvd.c             |   11 --
- drivers/block/ps3vram.c             |   31 +------
- drivers/block/rsxx/dev.c            |   39 +++------
- drivers/block/rsxx/rsxx_priv.h      |    1 
- drivers/block/zram/zram_drv.c       |   19 ----
- drivers/lightnvm/core.c             |   24 +----
- drivers/md/bcache/super.c           |   15 ---
- drivers/md/dm.c                     |   16 +--
- drivers/md/md.c                     |   25 ++----
- drivers/memstick/core/ms_block.c    |    1 
- drivers/nvdimm/blk.c                |   27 +-----
- drivers/nvdimm/btt.c                |   25 +-----
- drivers/nvdimm/btt.h                |    2 
- drivers/nvdimm/pmem.c               |   17 +---
- drivers/nvme/host/core.c            |    1 
- drivers/nvme/host/multipath.c       |   46 +++--------
- drivers/s390/block/dcssblk.c        |   26 +-----
- drivers/s390/block/xpram.c          |   26 ++----
- include/linux/blkdev.h              |    1 
- include/linux/genhd.h               |   23 +++++
- 30 files changed, 297 insertions(+), 466 deletions(-)
