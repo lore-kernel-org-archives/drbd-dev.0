@@ -1,8 +1,8 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 011EE420207
-	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 09:03:31 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DDDE0420207
+	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 09:03:32 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>,
@@ -18,10 +18,8 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:51:01 +0200
-Message-Id: <20210521055116.1053587-12-hch@lst.de>
-In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
-References: <20210521055116.1053587-1-hch@lst.de>
+Date: Fri, 21 May 2021 07:50:35 +0200
+Message-Id: <20210521055102.1053529-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
@@ -29,9 +27,10 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-s390@vger.kernel.org, linux-mmc@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
-	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/26] lightnvm: convert to
-	blk_alloc_disk/blk_cleanup_disk
+	"open list:PS3 PLATFORM SUPPORT" <linuxppc-dev@lists.ozlabs.org>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] simplify gendisk and request_queue allocation for bio
+	based drivers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,100 +42,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Convert the lightnvm driver to use the blk_alloc_disk and blk_cleanup_disk
-helpers to simplify gendisk and request_queue allocation.
+Hi all,
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- drivers/lightnvm/core.c | 23 +++++------------------
- 1 file changed, 5 insertions(+), 18 deletions(-)
+this series is the first part of cleaning up lifetimes and allocation of
+the gendisk and request_queue structure.  It adds a new interface to
+allocate the disk and queue together for bio based drivers, and a helper
+for cleanup/free them when a driver is unloaded or a device is removed.
 
-diff --git a/drivers/lightnvm/core.c b/drivers/lightnvm/core.c
-index e7dc539fc0ac..cf8a75494833 100644
---- a/drivers/lightnvm/core.c
-+++ b/drivers/lightnvm/core.c
-@@ -305,7 +305,6 @@ static int __nvm_config_extended(struct nvm_dev *dev,
- static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
- {
- 	struct nvm_ioctl_create_extended e;
--	struct request_queue *tqueue;
- 	struct gendisk *tdisk;
- 	struct nvm_tgt_type *tt;
- 	struct nvm_target *t;
-@@ -370,23 +369,16 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
- 		goto err_t;
- 	}
- 
--	tdisk = alloc_disk(0);
-+	tdisk = blk_alloc_disk(dev->q->node);
- 	if (!tdisk) {
- 		ret = -ENOMEM;
- 		goto err_dev;
- 	}
- 
--	tqueue = blk_alloc_queue(dev->q->node);
--	if (!tqueue) {
--		ret = -ENOMEM;
--		goto err_disk;
--	}
--
- 	strlcpy(tdisk->disk_name, create->tgtname, sizeof(tdisk->disk_name));
- 	tdisk->major = 0;
- 	tdisk->first_minor = 0;
- 	tdisk->fops = tt->bops;
--	tdisk->queue = tqueue;
- 
- 	targetdata = tt->init(tgt_dev, tdisk, create->flags);
- 	if (IS_ERR(targetdata)) {
-@@ -395,14 +387,14 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
- 	}
- 
- 	tdisk->private_data = targetdata;
--	tqueue->queuedata = targetdata;
-+	tdisk->queue->queuedata = targetdata;
- 
- 	mdts = (dev->geo.csecs >> 9) * NVM_MAX_VLBA;
- 	if (dev->geo.mdts) {
- 		mdts = min_t(u32, dev->geo.mdts,
- 				(dev->geo.csecs >> 9) * NVM_MAX_VLBA);
- 	}
--	blk_queue_max_hw_sectors(tqueue, mdts);
-+	blk_queue_max_hw_sectors(tdisk->queue, mdts);
- 
- 	set_capacity(tdisk, tt->capacity(targetdata));
- 	add_disk(tdisk);
-@@ -427,10 +419,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
- 	if (tt->exit)
- 		tt->exit(targetdata, true);
- err_init:
--	blk_cleanup_queue(tqueue);
--	tdisk->queue = NULL;
--err_disk:
--	put_disk(tdisk);
-+	blk_cleanup_disk(tdisk);
- err_dev:
- 	nvm_remove_tgt_dev(tgt_dev, 0);
- err_t:
-@@ -444,10 +433,8 @@ static void __nvm_remove_target(struct nvm_target *t, bool graceful)
- {
- 	struct nvm_tgt_type *tt = t->type;
- 	struct gendisk *tdisk = t->disk;
--	struct request_queue *q = tdisk->queue;
- 
- 	del_gendisk(tdisk);
--	blk_cleanup_queue(q);
- 
- 	if (tt->sysfs_exit)
- 		tt->sysfs_exit(tdisk);
-@@ -456,7 +443,7 @@ static void __nvm_remove_target(struct nvm_target *t, bool graceful)
- 		tt->exit(tdisk->private_data, graceful);
- 
- 	nvm_remove_tgt_dev(t->dev, 1);
--	put_disk(tdisk);
-+	blk_cleanup_disk(tdisk);
- 	module_put(t->type->owner);
- 
- 	list_del(&t->list);
--- 
-2.30.2
+Together this removes the need to treat the gendisk and request_queue
+as separate entities for bio based drivers.
 
+Diffstat:
+ arch/m68k/emu/nfblock.c             |   20 +---
+ arch/xtensa/platforms/iss/simdisk.c |   29 +------
+ block/blk-core.c                    |    1 
+ block/blk.h                         |    6 -
+ block/genhd.c                       |  149 +++++++++++++++++++-----------------
+ block/partitions/core.c             |   19 ++--
+ drivers/block/brd.c                 |   94 +++++++---------------
+ drivers/block/drbd/drbd_main.c      |   23 +----
+ drivers/block/n64cart.c             |    8 -
+ drivers/block/null_blk/main.c       |   38 ++++-----
+ drivers/block/pktcdvd.c             |   11 --
+ drivers/block/ps3vram.c             |   31 +------
+ drivers/block/rsxx/dev.c            |   39 +++------
+ drivers/block/rsxx/rsxx_priv.h      |    1 
+ drivers/block/zram/zram_drv.c       |   19 ----
+ drivers/lightnvm/core.c             |   24 +----
+ drivers/md/bcache/super.c           |   15 ---
+ drivers/md/dm.c                     |   16 +--
+ drivers/md/md.c                     |   25 ++----
+ drivers/memstick/core/ms_block.c    |    1 
+ drivers/nvdimm/blk.c                |   27 +-----
+ drivers/nvdimm/btt.c                |   25 +-----
+ drivers/nvdimm/btt.h                |    2 
+ drivers/nvdimm/pmem.c               |   17 +---
+ drivers/nvme/host/core.c            |    1 
+ drivers/nvme/host/multipath.c       |   46 +++--------
+ drivers/s390/block/dcssblk.c        |   26 +-----
+ drivers/s390/block/xpram.c          |   26 ++----
+ include/linux/blkdev.h              |    1 
+ include/linux/genhd.h               |   23 +++++
+ 30 files changed, 297 insertions(+), 466 deletions(-)
