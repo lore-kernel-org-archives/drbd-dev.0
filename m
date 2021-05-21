@@ -1,8 +1,8 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A653E4205D4
-	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 09:03:35 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0F7EA4205D5
+	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 09:03:36 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>,
@@ -18,8 +18,8 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:51:15 +0200
-Message-Id: <20210521055116.1053587-26-hch@lst.de>
+Date: Fri, 21 May 2021 07:51:14 +0200
+Message-Id: <20210521055116.1053587-25-hch@lst.de>
 In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 25/26] null_blk: convert to
+Subject: [Drbd-dev] [PATCH 24/26] xpram: convert to
 	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -43,114 +43,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Convert the null_blk driver to use the blk_alloc_disk and blk_cleanup_disk
-helpers to simplify gendisk and request_queue allocation.  Note that the
-blk-mq mode is left with its own allocations scheme, to be handled later.
+Convert the xpram driver to use the blk_alloc_disk and blk_cleanup_disk
+helpers to simplify gendisk and request_queue allocation.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/null_blk/main.c | 38 +++++++++++++++++------------------
- 1 file changed, 19 insertions(+), 19 deletions(-)
+ drivers/s390/block/xpram.c | 26 +++++++++-----------------
+ 1 file changed, 9 insertions(+), 17 deletions(-)
 
-diff --git a/drivers/block/null_blk/main.c b/drivers/block/null_blk/main.c
-index 5f006d9e1472..d8e098f1e5b5 100644
---- a/drivers/block/null_blk/main.c
-+++ b/drivers/block/null_blk/main.c
-@@ -1597,11 +1597,10 @@ static void null_del_dev(struct nullb *nullb)
- 		null_restart_queue_async(nullb);
- 	}
+diff --git a/drivers/s390/block/xpram.c b/drivers/s390/block/xpram.c
+index d1ed39162943..91ef710edfd2 100644
+--- a/drivers/s390/block/xpram.c
++++ b/drivers/s390/block/xpram.c
+@@ -56,7 +56,6 @@ typedef struct {
+ static xpram_device_t xpram_devices[XPRAM_MAX_DEVS];
+ static unsigned int xpram_sizes[XPRAM_MAX_DEVS];
+ static struct gendisk *xpram_disks[XPRAM_MAX_DEVS];
+-static struct request_queue *xpram_queues[XPRAM_MAX_DEVS];
+ static unsigned int xpram_pages;
+ static int xpram_devs;
  
--	blk_cleanup_queue(nullb->q);
-+	blk_cleanup_disk(nullb->disk);
- 	if (dev->queue_mode == NULL_Q_MQ &&
- 	    nullb->tag_set == &nullb->__tag_set)
- 		blk_mq_free_tag_set(nullb->tag_set);
--	put_disk(nullb->disk);
- 	cleanup_queues(nullb);
- 	if (null_cache_active(nullb))
- 		null_free_device_storage(nullb->dev, true);
-@@ -1700,22 +1699,19 @@ static int init_driver_queues(struct nullb *nullb)
- static int null_gendisk_register(struct nullb *nullb)
- {
- 	sector_t size = ((sector_t)nullb->dev->size * SZ_1M) >> SECTOR_SHIFT;
--	struct gendisk *disk;
-+	struct gendisk *disk = nullb->disk;
+@@ -341,17 +340,13 @@ static int __init xpram_setup_blkdev(void)
+ 	int i, rc = -ENOMEM;
  
--	disk = nullb->disk = alloc_disk_node(1, nullb->dev->home_node);
--	if (!disk)
--		return -ENOMEM;
- 	set_capacity(disk, size);
- 
- 	disk->flags |= GENHD_FL_EXT_DEVT | GENHD_FL_SUPPRESS_PARTITION_INFO;
- 	disk->major		= null_major;
- 	disk->first_minor	= nullb->index;
-+	disk->minors		= 1;
- 	if (queue_is_mq(nullb->q))
- 		disk->fops		= &null_rq_ops;
- 	else
- 		disk->fops		= &null_bio_ops;
- 	disk->private_data	= nullb;
--	disk->queue		= nullb->q;
- 	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
- 
- 	if (nullb->dev->zoned) {
-@@ -1851,23 +1847,27 @@ static int null_add_dev(struct nullb_device *dev)
- 			goto out_cleanup_queues;
- 
- 		if (!null_setup_fault())
--			goto out_cleanup_queues;
-+			goto out_cleanup_tags;
- 
-+		rv = -ENOMEM;
- 		nullb->tag_set->timeout = 5 * HZ;
- 		nullb->q = blk_mq_init_queue_data(nullb->tag_set, nullb);
--		if (IS_ERR(nullb->q)) {
--			rv = -ENOMEM;
-+		if (IS_ERR(nullb->q))
- 			goto out_cleanup_tags;
+ 	for (i = 0; i < xpram_devs; i++) {
+-		xpram_disks[i] = alloc_disk(1);
++		xpram_disks[i] = blk_alloc_disk(NUMA_NO_NODE);
+ 		if (!xpram_disks[i])
+ 			goto out;
+-		xpram_queues[i] = blk_alloc_queue(NUMA_NO_NODE);
+-		if (!xpram_queues[i]) {
+-			put_disk(xpram_disks[i]);
+-			goto out;
 -		}
-+		nullb->disk = alloc_disk_node(1, nullb->dev->home_node);
-+		if (!nullb->disk)
-+			goto out_cleanup_disk;
-+		nullb->disk->queue = nullb->q;
- 	} else if (dev->queue_mode == NULL_Q_BIO) {
--		nullb->q = blk_alloc_queue(dev->home_node);
--		if (!nullb->q) {
--			rv = -ENOMEM;
-+		rv = -ENOMEM;
-+		nullb->disk = blk_alloc_disk(nullb->dev->home_node);
-+		if (!nullb->disk)
- 			goto out_cleanup_queues;
--		}
-+
-+		nullb->q = nullb->disk->queue;
- 		rv = init_driver_queues(nullb);
- 		if (rv)
--			goto out_cleanup_blk_queue;
-+			goto out_cleanup_disk;
+-		blk_queue_flag_set(QUEUE_FLAG_NONROT, xpram_queues[i]);
+-		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, xpram_queues[i]);
+-		blk_queue_logical_block_size(xpram_queues[i], 4096);
++		blk_queue_flag_set(QUEUE_FLAG_NONROT, xpram_disks[i]->queue);
++		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM,
++				xpram_disks[i]->queue);
++		blk_queue_logical_block_size(xpram_disks[i]->queue, 4096);
  	}
  
- 	if (dev->mbps) {
-@@ -1883,7 +1883,7 @@ static int null_add_dev(struct nullb_device *dev)
- 	if (dev->zoned) {
- 		rv = null_init_zoned_dev(dev, nullb->q);
- 		if (rv)
--			goto out_cleanup_blk_queue;
-+			goto out_cleanup_disk;
- 	}
+ 	/*
+@@ -373,9 +368,9 @@ static int __init xpram_setup_blkdev(void)
+ 		offset += xpram_devices[i].size;
+ 		disk->major = XPRAM_MAJOR;
+ 		disk->first_minor = i;
++		disk->minors = 1;
+ 		disk->fops = &xpram_devops;
+ 		disk->private_data = &xpram_devices[i];
+-		disk->queue = xpram_queues[i];
+ 		sprintf(disk->disk_name, "slram%d", i);
+ 		set_capacity(disk, xpram_sizes[i] << 1);
+ 		add_disk(disk);
+@@ -383,10 +378,8 @@ static int __init xpram_setup_blkdev(void)
  
- 	nullb->q->queuedata = nullb;
-@@ -1921,8 +1921,8 @@ static int null_add_dev(struct nullb_device *dev)
  	return 0;
- out_cleanup_zone:
- 	null_free_zoned_dev(dev);
--out_cleanup_blk_queue:
--	blk_cleanup_queue(nullb->q);
-+out_cleanup_disk:
-+	blk_cleanup_disk(nullb->disk);
- out_cleanup_tags:
- 	if (dev->queue_mode == NULL_Q_MQ && nullb->tag_set == &nullb->__tag_set)
- 		blk_mq_free_tag_set(nullb->tag_set);
+ out:
+-	while (i--) {
+-		blk_cleanup_queue(xpram_queues[i]);
+-		put_disk(xpram_disks[i]);
+-	}
++	while (i--)
++		blk_cleanup_disk(xpram_disks[i]);
+ 	return rc;
+ }
+ 
+@@ -434,8 +427,7 @@ static void __exit xpram_exit(void)
+ 	int i;
+ 	for (i = 0; i < xpram_devs; i++) {
+ 		del_gendisk(xpram_disks[i]);
+-		blk_cleanup_queue(xpram_queues[i]);
+-		put_disk(xpram_disks[i]);
++		blk_cleanup_disk(xpram_disks[i]);
+ 	}
+ 	unregister_blkdev(XPRAM_MAJOR, XPRAM_NAME);
+ 	platform_device_unregister(xpram_pdev);
 -- 
 2.30.2
 
