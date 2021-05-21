@@ -1,8 +1,8 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ED4C1420BA7
-	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 11:03:33 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 58524420BB0
+	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 11:03:34 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>,
@@ -18,8 +18,8 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:50:57 +0200
-Message-Id: <20210521055116.1053587-8-hch@lst.de>
+Date: Fri, 21 May 2021 07:50:56 +0200
+Message-Id: <20210521055116.1053587-7-hch@lst.de>
 In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/26] drbd: convert to
+Subject: [Drbd-dev] [PATCH 06/26] brd: convert to
 	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -43,84 +43,206 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Convert the drbd driver to use the blk_alloc_disk and blk_cleanup_disk
-helpers to simplify gendisk and request_queue allocation.
+Convert the brd driver to use the blk_alloc_disk and blk_cleanup_disk
+helpers to simplify gendisk and request_queue allocation.  This also
+allows to remove the request_queue pointer in struct request_queue,
+and to simplify the initialization as blk_cleanup_disk can be called
+on any disk returned from blk_alloc_disk.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_main.c | 23 ++++++++---------------
- 1 file changed, 8 insertions(+), 15 deletions(-)
+ drivers/block/brd.c | 94 ++++++++++++++++-----------------------------
+ 1 file changed, 33 insertions(+), 61 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index de463773b530..55234a558e98 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2231,8 +2231,7 @@ void drbd_destroy_device(struct kref *kref)
- 	if (device->bitmap) /* should no longer be there. */
- 		drbd_bm_cleanup(device);
- 	__free_page(device->md_io.page);
--	put_disk(device->vdisk);
--	blk_cleanup_queue(device->rq_queue);
-+	blk_cleanup_disk(device->vdisk);
- 	kfree(device->rs_plan_s);
- 
- 	/* not for_each_connection(connection, resource):
-@@ -2701,7 +2700,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- 	struct drbd_device *device;
- 	struct drbd_peer_device *peer_device, *tmp_peer_device;
- 	struct gendisk *disk;
--	struct request_queue *q;
- 	int id;
- 	int vnr = adm_ctx->volume;
- 	enum drbd_ret_code err = ERR_NOMEM;
-@@ -2723,29 +2721,26 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- 
- 	drbd_init_set_defaults(device);
- 
--	q = blk_alloc_queue(NUMA_NO_NODE);
--	if (!q)
--		goto out_no_q;
--	device->rq_queue = q;
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index 7562cf30b14e..95694113e38e 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -38,9 +38,7 @@
+  * device).
+  */
+ struct brd_device {
+-	int		brd_number;
 -
--	disk = alloc_disk(1);
-+	disk = blk_alloc_disk(NUMA_NO_NODE);
+-	struct request_queue	*brd_queue;
++	int			brd_number;
+ 	struct gendisk		*brd_disk;
+ 	struct list_head	brd_list;
+ 
+@@ -372,7 +370,7 @@ static LIST_HEAD(brd_devices);
+ static DEFINE_MUTEX(brd_devices_mutex);
+ static struct dentry *brd_debugfs_dir;
+ 
+-static struct brd_device *brd_alloc(int i)
++static int brd_alloc(int i)
+ {
+ 	struct brd_device *brd;
+ 	struct gendisk *disk;
+@@ -380,64 +378,55 @@ static struct brd_device *brd_alloc(int i)
+ 
+ 	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
+ 	if (!brd)
+-		goto out;
++		return -ENOMEM;
+ 	brd->brd_number		= i;
+ 	spin_lock_init(&brd->brd_lock);
+ 	INIT_RADIX_TREE(&brd->brd_pages, GFP_ATOMIC);
+ 
+-	brd->brd_queue = blk_alloc_queue(NUMA_NO_NODE);
+-	if (!brd->brd_queue)
+-		goto out_free_dev;
+-
+ 	snprintf(buf, DISK_NAME_LEN, "ram%d", i);
+ 	if (!IS_ERR_OR_NULL(brd_debugfs_dir))
+ 		debugfs_create_u64(buf, 0444, brd_debugfs_dir,
+ 				&brd->brd_nr_pages);
+ 
+-	/* This is so fdisk will align partitions on 4k, because of
+-	 * direct_access API needing 4k alignment, returning a PFN
+-	 * (This is only a problem on very small devices <= 4M,
+-	 *  otherwise fdisk will align on 1M. Regardless this call
+-	 *  is harmless)
+-	 */
+-	blk_queue_physical_block_size(brd->brd_queue, PAGE_SIZE);
+-	disk = brd->brd_disk = alloc_disk(max_part);
++	disk = brd->brd_disk = blk_alloc_disk(NUMA_NO_NODE);
  	if (!disk)
- 		goto out_no_disk;
+-		goto out_free_queue;
++		goto out_free_dev;
 +
- 	device->vdisk = disk;
-+	device->rq_queue = disk->queue;
+ 	disk->major		= RAMDISK_MAJOR;
+ 	disk->first_minor	= i * max_part;
++	disk->minors		= max_part;
+ 	disk->fops		= &brd_fops;
+ 	disk->private_data	= brd;
+ 	disk->flags		= GENHD_FL_EXT_DEVT;
+ 	strlcpy(disk->disk_name, buf, DISK_NAME_LEN);
+ 	set_capacity(disk, rd_size * 2);
++	
++	/*
++	 * This is so fdisk will align partitions on 4k, because of
++	 * direct_access API needing 4k alignment, returning a PFN
++	 * (This is only a problem on very small devices <= 4M,
++	 *  otherwise fdisk will align on 1M. Regardless this call
++	 *  is harmless)
++	 */
++	blk_queue_physical_block_size(disk->queue, PAGE_SIZE);
  
- 	set_disk_ro(disk, true);
+ 	/* Tell the block layer that this is not a rotational device */
+-	blk_queue_flag_set(QUEUE_FLAG_NONROT, brd->brd_queue);
+-	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, brd->brd_queue);
++	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
++	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, disk->queue);
++	add_disk(disk);
++	list_add_tail(&brd->brd_list, &brd_devices);
  
--	disk->queue = q;
- 	disk->major = DRBD_MAJOR;
- 	disk->first_minor = minor;
-+	disk->minors = 1;
- 	disk->fops = &drbd_ops;
- 	sprintf(disk->disk_name, "drbd%d", minor);
- 	disk->private_data = device;
+-	return brd;
++	return 0;
  
--	blk_queue_write_cache(q, true, true);
-+	blk_queue_write_cache(disk->queue, true, true);
- 	/* Setting the max_hw_sectors to an odd value of 8kibyte here
- 	   This triggers a max_bio_size message upon first attach or connect */
--	blk_queue_max_hw_sectors(q, DRBD_MAX_BIO_SIZE_SAFE >> 8);
-+	blk_queue_max_hw_sectors(disk->queue, DRBD_MAX_BIO_SIZE_SAFE >> 8);
+-out_free_queue:
+-	blk_cleanup_queue(brd->brd_queue);
+ out_free_dev:
+ 	kfree(brd);
+-out:
+-	return NULL;
+-}
+-
+-static void brd_free(struct brd_device *brd)
+-{
+-	put_disk(brd->brd_disk);
+-	blk_cleanup_queue(brd->brd_queue);
+-	brd_free_pages(brd);
+-	kfree(brd);
++	return -ENOMEM;
+ }
  
- 	device->md_io.page = alloc_page(GFP_KERNEL);
- 	if (!device->md_io.page)
-@@ -2834,10 +2829,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- out_no_bitmap:
- 	__free_page(device->md_io.page);
- out_no_io_page:
--	put_disk(disk);
-+	blk_cleanup_disk(disk);
- out_no_disk:
--	blk_cleanup_queue(q);
--out_no_q:
- 	kref_put(&resource->kref, drbd_destroy_resource);
- 	kfree(device);
- 	return err;
+ static void brd_probe(dev_t dev)
+ {
+-	struct brd_device *brd;
+ 	int i = MINOR(dev) / max_part;
++	struct brd_device *brd;
+ 
+ 	mutex_lock(&brd_devices_mutex);
+ 	list_for_each_entry(brd, &brd_devices, brd_list) {
+@@ -445,13 +434,7 @@ static void brd_probe(dev_t dev)
+ 			goto out_unlock;
+ 	}
+ 
+-	brd = brd_alloc(i);
+-	if (brd) {
+-		brd->brd_disk->queue = brd->brd_queue;
+-		add_disk(brd->brd_disk);
+-		list_add_tail(&brd->brd_list, &brd_devices);
+-	}
+-
++	brd_alloc(i);
+ out_unlock:
+ 	mutex_unlock(&brd_devices_mutex);
+ }
+@@ -460,7 +443,9 @@ static void brd_del_one(struct brd_device *brd)
+ {
+ 	list_del(&brd->brd_list);
+ 	del_gendisk(brd->brd_disk);
+-	brd_free(brd);
++	blk_cleanup_disk(brd->brd_disk);
++	brd_free_pages(brd);
++	kfree(brd);
+ }
+ 
+ static inline void brd_check_and_reset_par(void)
+@@ -485,7 +470,7 @@ static inline void brd_check_and_reset_par(void)
+ static int __init brd_init(void)
+ {
+ 	struct brd_device *brd, *next;
+-	int i;
++	int err, i;
+ 
+ 	/*
+ 	 * brd module now has a feature to instantiate underlying device
+@@ -511,22 +496,11 @@ static int __init brd_init(void)
+ 
+ 	mutex_lock(&brd_devices_mutex);
+ 	for (i = 0; i < rd_nr; i++) {
+-		brd = brd_alloc(i);
+-		if (!brd)
++		err = brd_alloc(i);
++		if (err)
+ 			goto out_free;
+-		list_add_tail(&brd->brd_list, &brd_devices);
+ 	}
+ 
+-	/* point of no return */
+-
+-	list_for_each_entry(brd, &brd_devices, brd_list) {
+-		/*
+-		 * associate with queue just before adding disk for
+-		 * avoiding to mess up failure path
+-		 */
+-		brd->brd_disk->queue = brd->brd_queue;
+-		add_disk(brd->brd_disk);
+-	}
+ 	mutex_unlock(&brd_devices_mutex);
+ 
+ 	pr_info("brd: module loaded\n");
+@@ -535,15 +509,13 @@ static int __init brd_init(void)
+ out_free:
+ 	debugfs_remove_recursive(brd_debugfs_dir);
+ 
+-	list_for_each_entry_safe(brd, next, &brd_devices, brd_list) {
+-		list_del(&brd->brd_list);
+-		brd_free(brd);
+-	}
++	list_for_each_entry_safe(brd, next, &brd_devices, brd_list)
++		brd_del_one(brd);
+ 	mutex_unlock(&brd_devices_mutex);
+ 	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
+ 
+ 	pr_info("brd: module NOT loaded !!!\n");
+-	return -ENOMEM;
++	return err;
+ }
+ 
+ static void __exit brd_exit(void)
 -- 
 2.30.2
 
