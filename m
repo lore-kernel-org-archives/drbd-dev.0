@@ -1,7 +1,7 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 755A8420955
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D3EB0420956
 	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 10:03:36 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
@@ -18,8 +18,8 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:51:04 +0200
-Message-Id: <20210521055116.1053587-15-hch@lst.de>
+Date: Fri, 21 May 2021 07:51:03 +0200
+Message-Id: <20210521055116.1053587-14-hch@lst.de>
 In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 14/26] md: convert to
+Subject: [Drbd-dev] [PATCH 13/26] dm: convert to
 	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -43,69 +43,60 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Convert the md driver to use the blk_alloc_disk and blk_cleanup_disk
+Convert the dm driver to use the blk_alloc_disk and blk_cleanup_disk
 helpers to simplify gendisk and request_queue allocation.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/md.c | 25 +++++++++----------------
- 1 file changed, 9 insertions(+), 16 deletions(-)
+ drivers/md/dm.c | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
 
-diff --git a/drivers/md/md.c b/drivers/md/md.c
-index 49f897fbb89b..d806be8cc210 100644
---- a/drivers/md/md.c
-+++ b/drivers/md/md.c
-@@ -5598,12 +5598,10 @@ static void md_free(struct kobject *ko)
- 	if (mddev->sysfs_level)
- 		sysfs_put(mddev->sysfs_level);
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index ca2aedd8ee7d..3c7c2d257018 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -1801,13 +1801,13 @@ static void cleanup_mapped_device(struct mapped_device *md)
+ 		md->disk->private_data = NULL;
+ 		spin_unlock(&_minor_lock);
+ 		del_gendisk(md->disk);
+-		put_disk(md->disk);
+ 	}
  
--	if (mddev->gendisk)
-+	if (mddev->gendisk) {
- 		del_gendisk(mddev->gendisk);
--	if (mddev->queue)
--		blk_cleanup_queue(mddev->queue);
--	if (mddev->gendisk)
--		put_disk(mddev->gendisk);
-+		blk_cleanup_disk(mddev->gendisk);
-+	}
- 	percpu_ref_exit(&mddev->writes_pending);
- 
- 	bioset_exit(&mddev->bio_set);
-@@ -5711,20 +5709,13 @@ static int md_alloc(dev_t dev, char *name)
- 		goto abort;
- 
- 	error = -ENOMEM;
--	mddev->queue = blk_alloc_queue(NUMA_NO_NODE);
--	if (!mddev->queue)
-+	disk = blk_alloc_disk(NUMA_NO_NODE);
-+	if (!disk)
- 		goto abort;
- 
--	blk_set_stacking_limits(&mddev->queue->limits);
--
--	disk = alloc_disk(1 << shift);
--	if (!disk) {
--		blk_cleanup_queue(mddev->queue);
--		mddev->queue = NULL;
--		goto abort;
+-	if (md->queue) {
++	if (md->queue)
+ 		dm_queue_destroy_keyslot_manager(md->queue);
+-		blk_cleanup_queue(md->queue);
 -	}
- 	disk->major = MAJOR(mddev->unit);
- 	disk->first_minor = unit << shift;
-+	disk->minors = 1 << shift;
- 	if (name)
- 		strcpy(disk->disk_name, name);
- 	else if (partitioned)
-@@ -5733,7 +5724,9 @@ static int md_alloc(dev_t dev, char *name)
- 		sprintf(disk->disk_name, "md%d", unit);
- 	disk->fops = &md_fops;
- 	disk->private_data = mddev;
--	disk->queue = mddev->queue;
 +
-+	mddev->queue = disk->queue;
-+	blk_set_stacking_limits(&mddev->queue->limits);
- 	blk_queue_write_cache(mddev->queue, true, true);
- 	/* Allow extended partitions.  This makes the
- 	 * 'mdp' device redundant, but we can't really
++	if (md->disk)
++		blk_cleanup_disk(md->disk);
+ 
+ 	cleanup_srcu_struct(&md->io_barrier);
+ 
+@@ -1869,13 +1869,10 @@ static struct mapped_device *alloc_dev(int minor)
+ 	 * established. If request-based table is loaded: blk-mq will
+ 	 * override accordingly.
+ 	 */
+-	md->queue = blk_alloc_queue(numa_node_id);
+-	if (!md->queue)
+-		goto bad;
+-
+-	md->disk = alloc_disk_node(1, md->numa_node_id);
++	md->disk = blk_alloc_disk(md->numa_node_id);
+ 	if (!md->disk)
+ 		goto bad;
++	md->queue = md->disk->queue;
+ 
+ 	init_waitqueue_head(&md->wait);
+ 	INIT_WORK(&md->work, dm_wq_work);
+@@ -1888,6 +1885,7 @@ static struct mapped_device *alloc_dev(int minor)
+ 
+ 	md->disk->major = _major;
+ 	md->disk->first_minor = minor;
++	md->disk->minors = 1;
+ 	md->disk->fops = &dm_blk_dops;
+ 	md->disk->queue = md->queue;
+ 	md->disk->private_data = md;
 -- 
 2.30.2
 
