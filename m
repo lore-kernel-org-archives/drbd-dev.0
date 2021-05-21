@@ -1,7 +1,7 @@
 Return-Path: <BATV+940d4f53d1157bf1ee93+6480+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8C8E2420BA6
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ED4C1420BA7
 	for <drbd-dev@lists.linbit.com>; Fri, 21 May 2021 11:03:33 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
@@ -18,8 +18,8 @@ To: Jens Axboe <axboe@kernel.dk>, Geert Uytterhoeven <geert@linux-m68k.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Fri, 21 May 2021 07:50:58 +0200
-Message-Id: <20210521055116.1053587-9-hch@lst.de>
+Date: Fri, 21 May 2021 07:50:57 +0200
+Message-Id: <20210521055116.1053587-8-hch@lst.de>
 In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/26] pktcdvd: convert to
+Subject: [Drbd-dev] [PATCH 07/26] drbd: convert to
 	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -43,59 +43,84 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Convert the pktcdvd driver to use the blk_alloc_disk and blk_cleanup_disk
+Convert the drbd driver to use the blk_alloc_disk and blk_cleanup_disk
 helpers to simplify gendisk and request_queue allocation.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/pktcdvd.c | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_main.c | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index bd3556585122..f69b5c69c2a6 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -2711,19 +2711,17 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
- 	pd->write_congestion_off = write_congestion_off;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index de463773b530..55234a558e98 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2231,8 +2231,7 @@ void drbd_destroy_device(struct kref *kref)
+ 	if (device->bitmap) /* should no longer be there. */
+ 		drbd_bm_cleanup(device);
+ 	__free_page(device->md_io.page);
+-	put_disk(device->vdisk);
+-	blk_cleanup_queue(device->rq_queue);
++	blk_cleanup_disk(device->vdisk);
+ 	kfree(device->rs_plan_s);
  
- 	ret = -ENOMEM;
+ 	/* not for_each_connection(connection, resource):
+@@ -2701,7 +2700,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 	struct drbd_device *device;
+ 	struct drbd_peer_device *peer_device, *tmp_peer_device;
+ 	struct gendisk *disk;
+-	struct request_queue *q;
+ 	int id;
+ 	int vnr = adm_ctx->volume;
+ 	enum drbd_ret_code err = ERR_NOMEM;
+@@ -2723,29 +2721,26 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 
+ 	drbd_init_set_defaults(device);
+ 
+-	q = blk_alloc_queue(NUMA_NO_NODE);
+-	if (!q)
+-		goto out_no_q;
+-	device->rq_queue = q;
+-
 -	disk = alloc_disk(1);
 +	disk = blk_alloc_disk(NUMA_NO_NODE);
  	if (!disk)
- 		goto out_mem;
- 	pd->disk = disk;
- 	disk->major = pktdev_major;
- 	disk->first_minor = idx;
+ 		goto out_no_disk;
++
+ 	device->vdisk = disk;
++	device->rq_queue = disk->queue;
+ 
+ 	set_disk_ro(disk, true);
+ 
+-	disk->queue = q;
+ 	disk->major = DRBD_MAJOR;
+ 	disk->first_minor = minor;
 +	disk->minors = 1;
- 	disk->fops = &pktcdvd_ops;
- 	disk->flags = GENHD_FL_REMOVABLE;
- 	strcpy(disk->disk_name, pd->name);
- 	disk->private_data = pd;
--	disk->queue = blk_alloc_queue(NUMA_NO_NODE);
--	if (!disk->queue)
--		goto out_mem2;
+ 	disk->fops = &drbd_ops;
+ 	sprintf(disk->disk_name, "drbd%d", minor);
+ 	disk->private_data = device;
  
- 	pd->pkt_dev = MKDEV(pktdev_major, idx);
- 	ret = pkt_new_dev(pd, dev);
-@@ -2746,7 +2744,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
- 	return 0;
+-	blk_queue_write_cache(q, true, true);
++	blk_queue_write_cache(disk->queue, true, true);
+ 	/* Setting the max_hw_sectors to an odd value of 8kibyte here
+ 	   This triggers a max_bio_size message upon first attach or connect */
+-	blk_queue_max_hw_sectors(q, DRBD_MAX_BIO_SIZE_SAFE >> 8);
++	blk_queue_max_hw_sectors(disk->queue, DRBD_MAX_BIO_SIZE_SAFE >> 8);
  
- out_mem2:
+ 	device->md_io.page = alloc_page(GFP_KERNEL);
+ 	if (!device->md_io.page)
+@@ -2834,10 +2829,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ out_no_bitmap:
+ 	__free_page(device->md_io.page);
+ out_no_io_page:
 -	put_disk(disk);
 +	blk_cleanup_disk(disk);
- out_mem:
- 	mempool_exit(&pd->rb_pool);
- 	kfree(pd);
-@@ -2796,8 +2794,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
- 	pkt_dbg(1, pd, "writer unmapped\n");
- 
- 	del_gendisk(pd->disk);
--	blk_cleanup_queue(pd->disk->queue);
--	put_disk(pd->disk);
-+	blk_cleanup_disk(pd->disk);
- 
- 	mempool_exit(&pd->rb_pool);
- 	kfree(pd);
+ out_no_disk:
+-	blk_cleanup_queue(q);
+-out_no_q:
+ 	kref_put(&resource->kref, drbd_destroy_resource);
+ 	kfree(device);
+ 	return err;
 -- 
 2.30.2
 
