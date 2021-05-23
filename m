@@ -1,6 +1,6 @@
 Return-Path: <hare@suse.de>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 61E44420956
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 61BDD420935
 	for <drbd-dev@lists.linbit.com>; Sun, 23 May 2021 10:03:37 +0200 (CEST)
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
@@ -18,12 +18,12 @@ To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
 References: <20210521055116.1053587-1-hch@lst.de>
-	<20210521055116.1053587-3-hch@lst.de>
+	<20210521055116.1053587-4-hch@lst.de>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <80add5e6-38d5-4bc6-91bf-e4c7ac7dbecb@suse.de>
-Date: Sun, 23 May 2021 09:48:20 +0200
+Message-ID: <e437ca9e-b4e7-b50d-8cbc-e5304c1cab50@suse.de>
+Date: Sun, 23 May 2021 09:50:20 +0200
 MIME-Version: 1.0
-In-Reply-To: <20210521055116.1053587-3-hch@lst.de>
+In-Reply-To: <20210521055116.1053587-4-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -33,8 +33,8 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 02/26] block: move the DISK_MAX_PARTS sanity
- check into __device_add_disk
+Subject: Re: [Drbd-dev] [PATCH 03/26] block: automatically enable
+	GENHD_FL_EXT_DEVT
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,14 +47,24 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 5/21/21 7:50 AM, Christoph Hellwig wrote:
-> Keep this together with the first place that actually looks at
-> ->minors and prepare for not passing a minors argument to
-> alloc_disk.
+> Automatically set the GENHD_FL_EXT_DEVT flag for all disks allocated
+> without an explicit number of minors.  This is what all new block
+> drivers should do, so make sure it is the default without boilerplate
+> code.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   block/genhd.c | 13 ++++++-------
->   1 file changed, 6 insertions(+), 7 deletions(-)
+>   block/genhd.c                    | 2 +-
+>   block/partitions/core.c          | 4 ----
+>   drivers/block/n64cart.c          | 2 +-
+>   drivers/lightnvm/core.c          | 1 -
+>   drivers/memstick/core/ms_block.c | 1 -
+>   drivers/nvdimm/blk.c             | 1 -
+>   drivers/nvdimm/btt.c             | 1 -
+>   drivers/nvdimm/pmem.c            | 1 -
+>   drivers/nvme/host/core.c         | 1 -
+>   drivers/nvme/host/multipath.c    | 1 -
+>   10 files changed, 2 insertions(+), 13 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
