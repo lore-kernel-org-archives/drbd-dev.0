@@ -1,7 +1,7 @@
 Return-Path: <hare@suse.de>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 20372420BA9
-	for <drbd-dev@lists.linbit.com>; Sun, 23 May 2021 10:13:33 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0C1C2420BB0
+	for <drbd-dev@lists.linbit.com>; Sun, 23 May 2021 10:14:16 +0200 (CEST)
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>,
@@ -18,12 +18,12 @@ To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
 References: <20210521055116.1053587-1-hch@lst.de>
-	<20210521055116.1053587-16-hch@lst.de>
+	<20210521055116.1053587-17-hch@lst.de>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <8dd784bd-8fcc-57b6-bdc7-474a170e1c4b@suse.de>
-Date: Sun, 23 May 2021 10:13:31 +0200
+Message-ID: <7c4aa44c-5cd7-5ff5-4641-052f337067ab@suse.de>
+Date: Sun, 23 May 2021 10:14:14 +0200
 MIME-Version: 1.0
-In-Reply-To: <20210521055116.1053587-16-hch@lst.de>
+In-Reply-To: <20210521055116.1053587-17-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -33,7 +33,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 15/26] nvdimm-blk: convert to
+Subject: Re: [Drbd-dev] [PATCH 16/26] nvdimm-btt: convert to
  blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -47,15 +47,17 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 5/21/21 7:51 AM, Christoph Hellwig wrote:
-> Convert the nvdimm-blk driver to use the blk_alloc_disk and
+> Convert the nvdimm-btt driver to use the blk_alloc_disk and
 > blk_cleanup_disk helpers to simplify gendisk and request_queue
 > allocation.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   drivers/nvdimm/blk.c | 26 ++++++--------------------
->   1 file changed, 6 insertions(+), 20 deletions(-)
-> Reviewed-by: Hannes Reinecke <hare@suse.de>
+>   drivers/nvdimm/btt.c | 24 +++++++-----------------
+>   drivers/nvdimm/btt.h |  2 --
+>   2 files changed, 7 insertions(+), 19 deletions(-)
+> 
+Reviewed-by: Hannes Reinecke <hare@suse.de>
 
 Cheers,
 
