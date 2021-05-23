@@ -1,7 +1,7 @@
 Return-Path: <hare@suse.de>
 Received: from mx2.suse.de (mx2.suse.de [195.135.220.15])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6961F420BB0
-	for <drbd-dev@lists.linbit.com>; Sun, 23 May 2021 10:21:09 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 593A4420BA9
+	for <drbd-dev@lists.linbit.com>; Sun, 23 May 2021 10:22:03 +0200 (CEST)
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>,
@@ -18,12 +18,12 @@ To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
 	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>
 References: <20210521055116.1053587-1-hch@lst.de>
-	<20210521055116.1053587-20-hch@lst.de>
+	<20210521055116.1053587-21-hch@lst.de>
 From: Hannes Reinecke <hare@suse.de>
-Message-ID: <b62c7915-9989-0755-866b-0d871c113261@suse.de>
-Date: Sun, 23 May 2021 10:21:08 +0200
+Message-ID: <5ca7f9e3-b682-429f-0fc3-db4930e45d86@suse.de>
+Date: Sun, 23 May 2021 10:22:01 +0200
 MIME-Version: 1.0
-In-Reply-To: <20210521055116.1053587-20-hch@lst.de>
+In-Reply-To: <20210521055116.1053587-21-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -33,7 +33,7 @@ Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
 	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 19/26] nfblock: convert to
+Subject: Re: [Drbd-dev] [PATCH 20/26] simdisk: convert to
 	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -47,15 +47,14 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 5/21/21 7:51 AM, Christoph Hellwig wrote:
-> Convert the nfblock driver to use the blk_alloc_disk and blk_cleanup_disk
+> Convert the simdisk driver to use the blk_alloc_disk and blk_cleanup_disk
 > helpers to simplify gendisk and request_queue allocation.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   arch/m68k/emu/nfblock.c | 20 +++++---------------
->   1 file changed, 5 insertions(+), 15 deletions(-)
-> 
-Reviewed-by: Hannes Reinecke <hare@suse.de>
+>   arch/xtensa/platforms/iss/simdisk.c | 29 +++++++----------------------
+>   1 file changed, 7 insertions(+), 22 deletions(-)
+> Reviewed-by: Hannes Reinecke <hare@suse.de>
 
 Cheers,
 
