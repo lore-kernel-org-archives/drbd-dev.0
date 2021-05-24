@@ -1,18 +1,18 @@
 Return-Path: <lyl2019@mail.ustc.edu.cn>
 Received: from ustc.edu.cn (smtp2.ustc.edu.cn [202.38.64.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4B5AD4205D5
-	for <drbd-dev@lists.linbit.com>; Mon, 24 May 2021 13:14:28 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B0DD9420333
+	for <drbd-dev@lists.linbit.com>; Mon, 24 May 2021 16:58:16 +0200 (CEST)
 From: Lv Yunlong <lyl2019@mail.ustc.edu.cn>
 To: philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com,
 	axboe@kernel.dk
-Date: Mon, 24 May 2021 04:08:36 -0700
-Message-Id: <20210524110836.49110-1-lyl2019@mail.ustc.edu.cn>
+Date: Mon, 24 May 2021 07:58:09 -0700
+Message-Id: <20210524145809.48169-1-lyl2019@mail.ustc.edu.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-block@vger.kernel.org, Lv Yunlong <lyl2019@mail.ustc.edu.cn>,
 	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] drbd: Fix five use after free bugs in
+Subject: [Drbd-dev] [PATCH v2] drbd: Fix five use after free bugs in
 	get_initial_state
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -39,14 +39,17 @@ My patch lets the problem callee functions: notify_initial_state_done
 and notify_*_state_change return an error code if errors happen.
 So that the error codes could be propagated and the uaf bugs can be avoid.
 
+v1 contains a compilation error. This v2 fixed this error and built
+successfully in my local environment.
+
 Fixes: a29728463b254 ("drbd: Backport the "events2" command")
 Signed-off-by: Lv Yunlong <lyl2019@mail.ustc.edu.cn>
 ---
  drivers/block/drbd/drbd_int.h          |  8 ++---
  drivers/block/drbd/drbd_nl.c           | 41 ++++++++++++++++----------
- drivers/block/drbd/drbd_state.c        | 14 ++++-----
+ drivers/block/drbd/drbd_state.c        | 16 +++++-----
  drivers/block/drbd/drbd_state_change.h |  8 ++---
- 4 files changed, 40 insertions(+), 31 deletions(-)
+ 4 files changed, 41 insertions(+), 32 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
 index 5d9181382ce1..0a5766a2f161 100644
@@ -250,7 +253,7 @@ index e7d0e637e632..18c4fea028e1 100644
  
  int drbd_adm_get_initial_state(struct sk_buff *skb, struct netlink_callback *cb)
 diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index b8a27818ab3f..a0271209900c 100644
+index b8a27818ab3f..a650f91f2246 100644
 --- a/drivers/block/drbd/drbd_state.c
 +++ b/drivers/block/drbd/drbd_state.c
 @@ -1537,7 +1537,7 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
@@ -275,7 +278,7 @@ index b8a27818ab3f..a0271209900c 100644
  				    unsigned int seq,
  				    struct drbd_connection_state_change *connection_state_change,
  				    enum drbd_notification_type type)
-@@ -1564,7 +1564,7 @@ void notify_connection_state_change(struct sk_buff *skb,
+@@ -1564,10 +1564,10 @@ void notify_connection_state_change(struct sk_buff *skb,
  		.conn_role = connection_state_change->peer_role[NEW],
  	};
  
@@ -283,7 +286,11 @@ index b8a27818ab3f..a0271209900c 100644
 +	return notify_connection_state(skb, seq, connection, &connection_info, type);
  }
  
- void notify_device_state_change(struct sk_buff *skb,
+-void notify_device_state_change(struct sk_buff *skb,
++int notify_device_state_change(struct sk_buff *skb,
+ 				unsigned int seq,
+ 				struct drbd_device_state_change *device_state_change,
+ 				enum drbd_notification_type type)
 @@ -1577,10 +1577,10 @@ void notify_device_state_change(struct sk_buff *skb,
  		.dev_disk_state = device_state_change->disk_state[NEW],
  	};
