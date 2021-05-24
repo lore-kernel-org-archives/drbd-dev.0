@@ -1,27 +1,26 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E65AE42066F
-	for <drbd-dev@lists.linbit.com>; Mon, 24 May 2021 09:24:57 +0200 (CEST)
-Date: Mon, 24 May 2021 09:24:56 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AC73D42066F
+	for <drbd-dev@lists.linbit.com>; Mon, 24 May 2021 09:25:58 +0200 (CEST)
+Date: Mon, 24 May 2021 09:25:57 +0200
 From: Christoph Hellwig <hch@lst.de>
 To: Hannes Reinecke <hare@suse.de>
-Message-ID: <20210524072456.GD23890@lst.de>
+Message-ID: <20210524072557.GE23890@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
-	<20210521055116.1053587-7-hch@lst.de>
-	<83fc5cdc-53ed-0bd3-fbe8-93d0afd20771@suse.de>
+	<20210521055116.1053587-14-hch@lst.de>
+	<de3b0976-1299-17d8-240a-2ecd8b9fbc2d@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <83fc5cdc-53ed-0bd3-fbe8-93d0afd20771@suse.de>
+In-Reply-To: <de3b0976-1299-17d8-240a-2ecd8b9fbc2d@suse.de>
 Cc: nvdimm@lists.linux.dev, Ulf Hansson <ulf.hansson@linaro.org>,
 	Mike Snitzer <snitzer@redhat.com>,
 	linux-nvme@lists.infradead.org, Song Liu <song@kernel.org>,
 	dm-devel@redhat.com, linux-bcache@vger.kernel.org,
-	Joshua Morris <josh.h.morris@us.ibm.com>,
-	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
-	Dave Jiang <dave.jiang@intel.com>,
+	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com,
+	linux-s390@vger.kernel.org, Dave Jiang <dave.jiang@intel.com>,
 	Maxim Levitsky <maximlevitsky@gmail.com>,
-	Vishal Verma <vishal.l.verma@intel.com>, Christoph Hellwig <hch@lst.de>,
+	Vishal Verma <vishal.l.verma@intel.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Matias Bjorling <mb@lightnvm.io>, Nitin Gupta <ngupta@vflare.org>,
@@ -35,7 +34,7 @@ Cc: nvdimm@lists.linux.dev, Ulf Hansson <ulf.hansson@linaro.org>,
 	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	Jim Paris <jim@jtan.com>, Minchan Kim <minchan@kernel.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, linuxppc-dev@lists.ozlabs.org
-Subject: Re: [Drbd-dev] [PATCH 06/26] brd: convert to
+Subject: Re: [Drbd-dev] [PATCH 13/26] dm: convert to
 	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -48,18 +47,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, May 23, 2021 at 09:58:48AM +0200, Hannes Reinecke wrote:
->> +	/*
->> +	 * This is so fdisk will align partitions on 4k, because of
->> +	 * direct_access API needing 4k alignment, returning a PFN
->> +	 * (This is only a problem on very small devices <= 4M,
->> +	 *  otherwise fdisk will align on 1M. Regardless this call
->> +	 *  is harmless)
->> +	 */
->> +	blk_queue_physical_block_size(disk->queue, PAGE_SIZE);
->>   
+On Sun, May 23, 2021 at 10:10:34AM +0200, Hannes Reinecke wrote:
+> Can't these conditionals be merged into a single 'if (md->disk)'?
+> Eg like:
 >
-> Maybe converting the comment to refer to 'PAGE_SIZE' instead of 4k while 
-> you're at it ...
+> 	if (md->disk) {
+> 		spin_lock(&_minor_lock);
+> 		md->disk->private_data = NULL;
+> 		spin_unlock(&_minor_lock);
+> 		del_gendisk(md->disk);
+> 		dm_queue_destroy_keyslot_manager(md->queue);
+> 		blk_cleanup_disk(md->queue);
+> 	}
+>
+> We're now always allocating 'md->disk' and 'md->queue' together,
+> so how can we end up in a situation where one is set without the other?
 
-I really do not want to touch these kinds of unrelated things here.
+I guess we could do that, not sure it is worth the churn, though.
