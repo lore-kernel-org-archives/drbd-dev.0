@@ -1,18 +1,18 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 06FB642066F
-	for <drbd-dev@lists.linbit.com>; Mon, 24 May 2021 09:22:26 +0200 (CEST)
-Date: Mon, 24 May 2021 09:22:23 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E65AE42066F
+	for <drbd-dev@lists.linbit.com>; Mon, 24 May 2021 09:24:57 +0200 (CEST)
+Date: Mon, 24 May 2021 09:24:56 +0200
 From: Christoph Hellwig <hch@lst.de>
 To: Hannes Reinecke <hare@suse.de>
-Message-ID: <20210524072223.GB23890@lst.de>
+Message-ID: <20210524072456.GD23890@lst.de>
 References: <20210521055116.1053587-1-hch@lst.de>
-	<20210521055116.1053587-2-hch@lst.de>
-	<d55cba32-b114-513b-09d9-40c289fa95c3@suse.de>
+	<20210521055116.1053587-7-hch@lst.de>
+	<83fc5cdc-53ed-0bd3-fbe8-93d0afd20771@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d55cba32-b114-513b-09d9-40c289fa95c3@suse.de>
+In-Reply-To: <83fc5cdc-53ed-0bd3-fbe8-93d0afd20771@suse.de>
 Cc: nvdimm@lists.linux.dev, Ulf Hansson <ulf.hansson@linaro.org>,
 	Mike Snitzer <snitzer@redhat.com>,
 	linux-nvme@lists.infradead.org, Song Liu <song@kernel.org>,
@@ -35,8 +35,8 @@ Cc: nvdimm@lists.linux.dev, Ulf Hansson <ulf.hansson@linaro.org>,
 	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	Jim Paris <jim@jtan.com>, Minchan Kim <minchan@kernel.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, linuxppc-dev@lists.ozlabs.org
-Subject: Re: [Drbd-dev] [PATCH 01/26] block: refactor device number setup in
- __device_add_disk
+Subject: Re: [Drbd-dev] [PATCH 06/26] brd: convert to
+	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,9 +48,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, May 23, 2021 at 09:46:01AM +0200, Hannes Reinecke wrote:
-> ... and also fixes an issue with GENHD_FL_UP remained set in an error path 
-> in __device_add_disk().
+On Sun, May 23, 2021 at 09:58:48AM +0200, Hannes Reinecke wrote:
+>> +	/*
+>> +	 * This is so fdisk will align partitions on 4k, because of
+>> +	 * direct_access API needing 4k alignment, returning a PFN
+>> +	 * (This is only a problem on very small devices <= 4M,
+>> +	 *  otherwise fdisk will align on 1M. Regardless this call
+>> +	 *  is harmless)
+>> +	 */
+>> +	blk_queue_physical_block_size(disk->queue, PAGE_SIZE);
+>>   
+>
+> Maybe converting the comment to refer to 'PAGE_SIZE' instead of 4k while 
+> you're at it ...
 
-Well, the error path in __device_add_disk is a complete disaster right
-now, but Luis is looking into it fortunately.
+I really do not want to touch these kinds of unrelated things here.
