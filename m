@@ -1,17 +1,43 @@
-Return-Path: <fan.chen@easystack.cn>
-Received: from mail-m2835.qiye.163.com (mail-m2835.qiye.163.com [103.74.28.35])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 779AE4205C4
-	for <drbd-dev@lists.linbit.com>; Fri, 28 May 2021 03:32:37 +0200 (CEST)
-From: Chen Fan <fan.chen@easystack.cn>
-To: drbd-dev@lists.linbit.com
-Date: Fri, 28 May 2021 09:22:44 +0800
-Message-Id: <20210528012244.46041-1-fan.chen@easystack.cn>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-oi1-f178.google.com (mail-oi1-f178.google.com
+	[209.85.167.178])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 15C634205C9
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Jun 2021 15:48:10 +0200 (CEST)
+Received: by mail-oi1-f178.google.com with SMTP id c3so15523482oic.8
+	for <drbd-dev@lists.linbit.com>; Tue, 01 Jun 2021 06:48:10 -0700 (PDT)
+To: Christoph Hellwig <hch@lst.de>, Geert Uytterhoeven
+	<geert@linux-m68k.org>, Chris Zankel <chris@zankel.net>,
+	Max Filippov <jcmvbkbc@gmail.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jim Paris <jim@jtan.com>,
+	Joshua Morris <josh.h.morris@us.ibm.com>,
+	Philip Kelleher <pjk1939@linux.ibm.com>, Minchan Kim <minchan@kernel.org>,
+	Nitin Gupta <ngupta@vflare.org>, Matias Bjorling <mb@lightnvm.io>,
+	Coly Li <colyli@suse.de>, Mike Snitzer <snitzer@redhat.com>,
+	Song Liu <song@kernel.org>, Maxim Levitsky <maximlevitsky@gmail.com>,
+	Alex Dubov <oakad@yahoo.com>, Ulf Hansson <ulf.hansson@linaro.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Vishal Verma <vishal.l.verma@intel.com>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
+	Christian Borntraeger <borntraeger@de.ibm.com>
+References: <20210521055116.1053587-1-hch@lst.de>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <a5d7127f-b422-5556-6810-cf4c98c038ac@kernel.dk>
+Date: Tue, 1 Jun 2021 07:48:09 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: "lingang . zeng" <linggang.zeng@easystack.cn>
-Subject: [Drbd-dev] [PATCH 1/1] Fix the wrong maxinum of ping timeout in
-	documentation
+In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
+	linux-raid@vger.kernel.org, nvdimm@lists.linux.dev,
+	linux-s390@vger.kernel.org, linux-mmc@vger.kernel.org,
+	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
+	linux-block@vger.kernel.org, dm-devel@redhat.com,
+	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] simplify gendisk and request_queue allocation for
+ bio based drivers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,46 +49,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Signed-off-by: Chen Fan <fan.chen@easystack.cn>
-Reported-by: lingang.zeng <linggang.zeng@easystack.cn>
----
- documentation/ja/v9/drbdsetup-options.xml.po | 4 ++--
- documentation/v9/drbdsetup-options.xml       | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+On 5/20/21 11:50 PM, Christoph Hellwig wrote:
+> Hi all,
+> 
+> this series is the first part of cleaning up lifetimes and allocation of
+> the gendisk and request_queue structure.  It adds a new interface to
+> allocate the disk and queue together for bio based drivers, and a helper
+> for cleanup/free them when a driver is unloaded or a device is removed.
+> 
+> Together this removes the need to treat the gendisk and request_queue
+> as separate entities for bio based drivers.
 
-diff --git a/documentation/ja/v9/drbdsetup-options.xml.po b/documentation/ja/v9/drbdsetup-options.xml.po
-index 6010913e..c4aacfff 100644
---- a/documentation/ja/v9/drbdsetup-options.xml.po
-+++ b/documentation/ja/v9/drbdsetup-options.xml.po
-@@ -1632,13 +1632,13 @@ msgid ""
- "<placeholder type=\"indexterm\" id=\"0\"/> Define the timeout for replies to "
- "keep-alive packets.  If the peer does not reply within <option>ping-timeout</"
- "option>, DRBD will close and try to reestablish the connection.  The default "
--"value is 0.5 seconds, with a minimum of 0.1 seconds and a maximum of 3 "
-+"value is 0.5 seconds, with a minimum of 0.1 seconds and a maximum of 30 "
- "seconds.  The unit is tenths of a second."
- msgstr ""
- "<placeholder type=\"indexterm\" id=\"0\"/>キープアライブパケットへの応答のタ"
- "イムアウトを定義する。対向ノードが <option>ping-timeout</option> 間で応答しな"
- "い場合、 DRBD は接続を終了し、再接続しようとする。デフォルト値は 0.5 秒で、最"
--"小値は 0.1 秒、最大値は 3 秒である。単位は 10 分の 1 秒である。"
-+"小値は 0.1 秒、最大値は 30 秒である。単位は 10 分の 1 秒である。"
- 
- #. type: Content of: <drbdsetup_options><drbdsetup_option><term>
- msgid ""
-diff --git a/documentation/v9/drbdsetup-options.xml b/documentation/v9/drbdsetup-options.xml
-index 5b5e58d7..a8990707 100644
---- a/documentation/v9/drbdsetup-options.xml
-+++ b/documentation/v9/drbdsetup-options.xml
-@@ -1161,7 +1161,7 @@ SYMLINK_BY_DISK=drbd/by-disk/<backing-disk-name>
- 	</indexterm> Define the timeout for replies to keep-alive packets.  If
- 	the peer does not reply within <option>ping-timeout</option>, DRBD will
- 	close and try to reestablish the connection.  The default value is 0.5
--	seconds, with a minimum of 0.1 seconds and a maximum of 3 seconds.  The
-+	seconds, with a minimum of 0.1 seconds and a maximum of 30 seconds.  The
- 	unit is tenths of a second.</para>
-     </definition>
-   </drbdsetup_option>
+Applied, thanks.
+
 -- 
-2.25.1
+Jens Axboe
 
