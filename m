@@ -1,43 +1,45 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-oi1-f178.google.com (mail-oi1-f178.google.com
-	[209.85.167.178])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 15C634205C9
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Jun 2021 15:48:10 +0200 (CEST)
-Received: by mail-oi1-f178.google.com with SMTP id c3so15523482oic.8
-	for <drbd-dev@lists.linbit.com>; Tue, 01 Jun 2021 06:48:10 -0700 (PDT)
-To: Christoph Hellwig <hch@lst.de>, Geert Uytterhoeven
-	<geert@linux-m68k.org>, Chris Zankel <chris@zankel.net>,
-	Max Filippov <jcmvbkbc@gmail.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, Jim Paris <jim@jtan.com>,
-	Joshua Morris <josh.h.morris@us.ibm.com>,
-	Philip Kelleher <pjk1939@linux.ibm.com>, Minchan Kim <minchan@kernel.org>,
-	Nitin Gupta <ngupta@vflare.org>, Matias Bjorling <mb@lightnvm.io>,
-	Coly Li <colyli@suse.de>, Mike Snitzer <snitzer@redhat.com>,
-	Song Liu <song@kernel.org>, Maxim Levitsky <maximlevitsky@gmail.com>,
-	Alex Dubov <oakad@yahoo.com>, Ulf Hansson <ulf.hansson@linaro.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Vishal Verma <vishal.l.verma@intel.com>,
-	Dave Jiang <dave.jiang@intel.com>,
-	Heiko Carstens <hca@linux.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
-	Christian Borntraeger <borntraeger@de.ibm.com>
-References: <20210521055116.1053587-1-hch@lst.de>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <a5d7127f-b422-5556-6810-cf4c98c038ac@kernel.dk>
-Date: Tue, 1 Jun 2021 07:48:09 -0600
+Return-Path: <dan.j.williams@intel.com>
+Received: from mail-pj1-f52.google.com (mail-pj1-f52.google.com
+	[209.85.216.52])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4D2F6420210
+	for <drbd-dev@lists.linbit.com>; Mon,  7 Jun 2021 06:43:15 +0200 (CEST)
+Received: by mail-pj1-f52.google.com with SMTP id
+	m13-20020a17090b068db02901656cc93a75so11109224pjz.3
+	for <drbd-dev@lists.linbit.com>; Sun, 06 Jun 2021 21:43:15 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20210521055116.1053587-1-hch@lst.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Cc: linux-bcache@vger.kernel.org, linux-xtensa@linux-xtensa.org,
-	linux-raid@vger.kernel.org, nvdimm@lists.linux.dev,
-	linux-s390@vger.kernel.org, linux-mmc@vger.kernel.org,
-	linux-m68k@lists.linux-m68k.org, linux-nvme@lists.infradead.org,
-	linux-block@vger.kernel.org, dm-devel@redhat.com,
-	linuxppc-dev@lists.ozlabs.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] simplify gendisk and request_queue allocation for
- bio based drivers
+References: <20210521055116.1053587-1-hch@lst.de>
+	<20210521055116.1053587-18-hch@lst.de>
+In-Reply-To: <20210521055116.1053587-18-hch@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sun, 6 Jun 2021 21:43:03 -0700
+Message-ID: <CAPcyv4gFEbZH4sXbkvQ32Xv1HiZ6JPL04efGpAWCqaJP_X9jaA@mail.gmail.com>
+To: Christoph Hellwig <hch@lst.de>
+Content-Type: text/plain; charset="UTF-8"
+Cc: Sachin Sant <sachinp@linux.vnet.ibm.com>, nvdimm@lists.linux.dev,
+	Ulf Hansson <ulf.hansson@linaro.org>, Mike Snitzer <snitzer@redhat.com>,
+	linux-nvme@lists.infradead.org, Song Liu <song@kernel.org>,
+	device-mapper development <dm-devel@redhat.com>,
+	linux-bcache@vger.kernel.org, Joshua Morris <josh.h.morris@us.ibm.com>,
+	drbd-dev@lists.linbit.com, linux-s390 <linux-s390@vger.kernel.org>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Maxim Levitsky <maximlevitsky@gmail.com>,
+	Vishal Verma <vishal.l.verma@intel.com>,
+	Christian Borntraeger <borntraeger@de.ibm.com>,
+	Geert Uytterhoeven <geert@linux-m68k.org>,
+	Matias Bjorling <mb@lightnvm.io>, Nitin Gupta <ngupta@vflare.org>,
+	Vasily Gorbik <gor@linux.ibm.com>, linux-xtensa@linux-xtensa.org,
+	Alex Dubov <oakad@yahoo.com>, Heiko Carstens <hca@linux.ibm.com>,
+	Coly Li <colyli@suse.de>, linux-block@vger.kernel.org,
+	linux-m68k@lists.linux-m68k.org, Philip Kelleher <pjk1939@linux.ibm.com>,
+	Jens Axboe <axboe@kernel.dk>, Chris Zankel <chris@zankel.net>,
+	linux-raid <linux-raid@vger.kernel.org>,
+	Max Filippov <jcmvbkbc@gmail.com>, linux-mmc@vger.kernel.org,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Jim Paris <jim@jtan.com>, Minchan Kim <minchan@kernel.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+Subject: Re: [Drbd-dev] [PATCH 17/26] nvdimm-pmem: convert to
+	blk_alloc_disk/blk_cleanup_disk
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,19 +51,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 5/20/21 11:50 PM, Christoph Hellwig wrote:
-> Hi all,
-> 
-> this series is the first part of cleaning up lifetimes and allocation of
-> the gendisk and request_queue structure.  It adds a new interface to
-> allocate the disk and queue together for bio based drivers, and a helper
-> for cleanup/free them when a driver is unloaded or a device is removed.
-> 
-> Together this removes the need to treat the gendisk and request_queue
-> as separate entities for bio based drivers.
+[ add Sachin who reported this commit in -next ]
 
-Applied, thanks.
+On Thu, May 20, 2021 at 10:52 PM Christoph Hellwig <hch@lst.de> wrote:
+>
+> Convert the nvdimm-pmem driver to use the blk_alloc_disk and
+> blk_cleanup_disk helpers to simplify gendisk and request_queue
+> allocation.
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  drivers/nvdimm/pmem.c | 15 +++++----------
+>  1 file changed, 5 insertions(+), 10 deletions(-)
+>
+> diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+> index 968b8483c763..9fcd05084564 100644
+> --- a/drivers/nvdimm/pmem.c
+> +++ b/drivers/nvdimm/pmem.c
+> @@ -338,7 +338,7 @@ static void pmem_pagemap_cleanup(struct dev_pagemap *pgmap)
+>         struct request_queue *q =
+>                 container_of(pgmap->ref, struct request_queue, q_usage_counter);
+>
+> -       blk_cleanup_queue(q);
+> +       blk_cleanup_disk(queue_to_disk(q));
 
--- 
-Jens Axboe
-
+This is broken. This comes after del_gendisk() which means the queue
+device is no longer associated with its disk parent. Perhaps @pmem
+could be stashed in pgmap->owner and then this can use pmem->disk? Not
+see any other readily available ways to get back to the disk from here
+after del_gendisk().
