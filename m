@@ -1,19 +1,25 @@
-Return-Path: <thunder.leizhen@huawei.com>
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com [45.249.212.188])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 69E40420333
-	for <drbd-dev@lists.linbit.com>;
-	Wed,  9 Jun 2021 14:33:26 +0200 (CEST)
-From: Zhen Lei <thunder.leizhen@huawei.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>, Lars Ellenberg
-	<lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>, drbd-dev
-	<drbd-dev@lists.linbit.com>, linux-block <linux-block@vger.kernel.org>
-Date: Wed, 9 Jun 2021 20:14:26 +0800
-Message-ID: <20210609121426.13936-1-thunder.leizhen@huawei.com>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pj1-f53.google.com (mail-pj1-f53.google.com
+	[209.85.216.53])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 770454205D7
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Jun 2021 17:42:31 +0200 (CEST)
+Received: by mail-pj1-f53.google.com with SMTP id k7so1566134pjf.5
+	for <drbd-dev@lists.linbit.com>; Wed, 09 Jun 2021 08:42:31 -0700 (PDT)
+To: Zhen Lei <thunder.leizhen@huawei.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev <drbd-dev@lists.linbit.com>,
+	linux-block <linux-block@vger.kernel.org>
+References: <20210609121426.13936-1-thunder.leizhen@huawei.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <aefad024-73b0-26b2-f02c-fe534df16bbb@kernel.dk>
+Date: Wed, 9 Jun 2021 09:42:27 -0600
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain
-Cc: Zhen Lei <thunder.leizhen@huawei.com>
-Subject: [Drbd-dev] [PATCH 1/1] drbd: remove unnecessary oom message
+In-Reply-To: <20210609121426.13936-1-thunder.leizhen@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Subject: Re: [Drbd-dev] [PATCH 1/1] drbd: remove unnecessary oom message
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,95 +31,14 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Fixes scripts/checkpatch.pl warning:
-WARNING: Possible unnecessary 'out of memory' message
+On 6/9/21 6:14 AM, Zhen Lei wrote:
+> Fixes scripts/checkpatch.pl warning:
+> WARNING: Possible unnecessary 'out of memory' message
+> 
+> Remove it can help us save a bit of memory.
 
-Remove it can help us save a bit of memory.
+Applied, thanks.
 
-Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
----
- drivers/block/drbd/drbd_receiver.c | 22 ++++++----------------
- 1 file changed, 6 insertions(+), 16 deletions(-)
-
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 69284ebba786..1f740e42e457 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3770,10 +3770,8 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
- 	}
- 
- 	new_net_conf = kmalloc(sizeof(struct net_conf), GFP_KERNEL);
--	if (!new_net_conf) {
--		drbd_err(connection, "Allocation of new net_conf failed\n");
-+	if (!new_net_conf)
- 		goto disconnect;
--	}
- 
- 	mutex_lock(&connection->data.mutex);
- 	mutex_lock(&connection->resource->conf_update);
-@@ -4020,10 +4018,8 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
- 
- 		if (verify_tfm || csums_tfm) {
- 			new_net_conf = kzalloc(sizeof(struct net_conf), GFP_KERNEL);
--			if (!new_net_conf) {
--				drbd_err(device, "Allocation of new net_conf failed\n");
-+			if (!new_net_conf)
- 				goto disconnect;
--			}
- 
- 			*new_net_conf = *old_net_conf;
- 
-@@ -4161,7 +4157,6 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
- 
- 			new_disk_conf = kzalloc(sizeof(struct disk_conf), GFP_KERNEL);
- 			if (!new_disk_conf) {
--				drbd_err(device, "Allocation of new disk_conf failed\n");
- 				put_ldev(device);
- 				return -ENOMEM;
- 			}
-@@ -4288,10 +4283,8 @@ static int receive_uuids(struct drbd_connection *connection, struct packet_info
- 	device = peer_device->device;
- 
- 	p_uuid = kmalloc_array(UI_EXTENDED_SIZE, sizeof(*p_uuid), GFP_NOIO);
--	if (!p_uuid) {
--		drbd_err(device, "kmalloc of p_uuid failed\n");
-+	if (!p_uuid)
- 		return false;
--	}
- 
- 	for (i = UI_CURRENT; i < UI_EXTENDED_SIZE; i++)
- 		p_uuid[i] = be64_to_cpu(p->uuid[i]);
-@@ -5484,8 +5477,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 	}
- 
- 	peers_ch = kmalloc(pi.size, GFP_NOIO);
--	if (peers_ch == NULL) {
--		drbd_err(connection, "kmalloc of peers_ch failed\n");
-+	if (!peers_ch) {
- 		rv = -1;
- 		goto fail;
- 	}
-@@ -5504,8 +5496,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 
- 	resp_size = crypto_shash_digestsize(connection->cram_hmac_tfm);
- 	response = kmalloc(resp_size, GFP_NOIO);
--	if (response == NULL) {
--		drbd_err(connection, "kmalloc of response failed\n");
-+	if (!response) {
- 		rv = -1;
- 		goto fail;
- 	}
-@@ -5552,8 +5543,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
- 	}
- 
- 	right_response = kmalloc(resp_size, GFP_NOIO);
--	if (right_response == NULL) {
--		drbd_err(connection, "kmalloc of right_response failed\n");
-+	if (!right_response) {
- 		rv = -1;
- 		goto fail;
- 	}
 -- 
-2.25.1
-
+Jens Axboe
 
