@@ -1,8 +1,8 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D4412420626
-	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 00:59:41 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 57ED4420629
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 00:59:47 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	ulf.hansson@linaro.org, hare@suse.de, tj@kernel.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 30 Aug 2021 15:09:48 -0700
-Message-Id: <20210830221000.179369-4-mcgrof@kernel.org>
+Date: Mon, 30 Aug 2021 15:09:46 -0700
+Message-Id: <20210830221000.179369-2-mcgrof@kernel.org>
 In-Reply-To: <20210830221000.179369-1-mcgrof@kernel.org>
 References: <20210830221000.179369-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,8 +21,8 @@ Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org,
 	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/15] m68k/emu/nfblock: add error handling
-	support for add_disk()
+Subject: [Drbd-dev] [PATCH 01/15] z2ram: add error handling support for
+	add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,48 +36,39 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 We never checked for errors on add_disk() as this function
 returned void. Now that this is fixed, use the shiny new
-error handling.
+error handling. Only the disk is cleaned up inside
+z2ram_register_disk() as the caller deals with the rest.
 
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- arch/m68k/emu/nfblock.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ drivers/block/z2ram.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/arch/m68k/emu/nfblock.c b/arch/m68k/emu/nfblock.c
-index 9a8394e96388..4de5a6087034 100644
---- a/arch/m68k/emu/nfblock.c
-+++ b/arch/m68k/emu/nfblock.c
-@@ -100,6 +100,7 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
+diff --git a/drivers/block/z2ram.c b/drivers/block/z2ram.c
+index 4eef218108c6..6648bbc87c30 100644
+--- a/drivers/block/z2ram.c
++++ b/drivers/block/z2ram.c
+@@ -318,6 +318,7 @@ static const struct blk_mq_ops z2_mq_ops = {
+ static int z2ram_register_disk(int minor)
  {
- 	struct nfhd_device *dev;
- 	int dev_id = id - NFHD_DEV_OFFSET;
-+	int err = -ENOMEM;
+ 	struct gendisk *disk;
++	int err;
  
- 	pr_info("nfhd%u: found device with %u blocks (%u bytes)\n", dev_id,
- 		blocks, bsize);
-@@ -130,16 +131,20 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
- 	sprintf(dev->disk->disk_name, "nfhd%u", dev_id);
- 	set_capacity(dev->disk, (sector_t)blocks * (bsize / 512));
- 	blk_queue_logical_block_size(dev->disk->queue, bsize);
--	add_disk(dev->disk);
-+	err = add_disk(dev->disk);
+ 	disk = blk_mq_alloc_disk(&tag_set, NULL);
+ 	if (IS_ERR(disk))
+@@ -333,8 +334,10 @@ static int z2ram_register_disk(int minor)
+ 		sprintf(disk->disk_name, "z2ram");
+ 
+ 	z2ram_gendisk[minor] = disk;
+-	add_disk(disk);
+-	return 0;
++	err = add_disk(disk);
 +	if (err)
-+		goto out_cleanup_disk;
- 
- 	list_add_tail(&dev->list, &nfhd_list);
- 
- 	return 0;
- 
-+out_cleanup_disk:
-+	blk_cleanup_disk(dev->disk);
- free_dev:
- 	kfree(dev);
- out:
--	return -ENOMEM;
++		blk_cleaup_disk(disk);
 +	return err;
  }
  
- static int __init nfhd_init(void)
+ static int __init z2_init(void)
 -- 
 2.30.2
 
