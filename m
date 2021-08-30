@@ -1,8 +1,8 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5C65F42061C
-	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 01:05:59 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5102C4203D8
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 03:38:00 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	ulf.hansson@linaro.org, hare@suse.de, tj@kernel.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 30 Aug 2021 15:10:00 -0700
-Message-Id: <20210830221000.179369-16-mcgrof@kernel.org>
+Date: Mon, 30 Aug 2021 15:09:49 -0700
+Message-Id: <20210830221000.179369-5-mcgrof@kernel.org>
 In-Reply-To: <20210830221000.179369-1-mcgrof@kernel.org>
 References: <20210830221000.179369-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,7 +21,7 @@ Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org,
 	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 15/15] pd: add error handling support for
+Subject: [Drbd-dev] [PATCH 04/15] drbd: add error handling support for
 	add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -40,27 +40,33 @@ error handling.
 
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- drivers/block/paride/pd.c | 6 +++++-
+ drivers/block/drbd/drbd_main.c | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/block/paride/pd.c b/drivers/block/paride/pd.c
-index 500b89a4bdaf..226ed5c93b68 100644
---- a/drivers/block/paride/pd.c
-+++ b/drivers/block/paride/pd.c
-@@ -938,8 +938,12 @@ static int pd_probe_drive(struct pd_unit *disk, int autoprobe, int port,
- 	if (ret)
- 		goto put_disk;
- 	set_capacity(disk->gd, disk->capacity);
--	add_disk(disk->gd);
-+	ret = add_disk(disk->gd);
-+	if (ret)
-+		goto cleanup_disk;
- 	return 0;
-+cleanup_disk:
-+	blk_cleanup_disk(&disk);
- put_disk:
- 	put_disk(p);
- 	disk->gd = NULL;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 55234a558e98..19db80a1e409 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2794,7 +2794,9 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 		goto out_idr_remove_vol;
+ 	}
+ 
+-	add_disk(disk);
++	err = add_disk(disk);
++	if (err)
++		goto out_cleanup_disk;
+ 
+ 	/* inherit the connection state */
+ 	device->state.conn = first_connection(resource)->cstate;
+@@ -2808,6 +2810,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 	drbd_debugfs_device_add(device);
+ 	return NO_ERROR;
+ 
++out_cleanup_disk:
++	blk_cleanup_disk(disk);
+ out_idr_remove_vol:
+ 	idr_remove(&connection->peer_devices, vnr);
+ out_idr_remove_from_resource:
 -- 
 2.30.2
 
