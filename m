@@ -1,8 +1,8 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9AE0242061C
-	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 00:59:37 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 711A642061D
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 00:59:38 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	ulf.hansson@linaro.org, hare@suse.de, tj@kernel.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 30 Aug 2021 15:09:53 -0700
-Message-Id: <20210830221000.179369-9-mcgrof@kernel.org>
+Date: Mon, 30 Aug 2021 15:09:51 -0700
+Message-Id: <20210830221000.179369-7-mcgrof@kernel.org>
 In-Reply-To: <20210830221000.179369-1-mcgrof@kernel.org>
 References: <20210830221000.179369-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -19,10 +19,10 @@ Content-Transfer-Encoding: 8bit
 Sender: Luis Chamberlain <mcgrof@infradead.org>
 Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-m68k@lists.linux-m68k.org, Christoph Hellwig <hch@lst.de>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/15] pcd: move the identify buffer into
-	pcd_identify
+	linux-m68k@lists.linux-m68k.org,
+	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 06/15] xtensa/platforms/iss/simdisk: add error
+	handling support for add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,78 +34,56 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Christoph Hellwig <hch@lst.de>
+We never checked for errors on add_disk() as this function
+returned void. Now that this is fixed, use the shiny new
+error handling.
 
-No need to pass it through a bunch of functions.
-
-Signed-off-by: Christoph Hellwig <hch@lst.de>
+Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- drivers/block/paride/pcd.c | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ arch/xtensa/platforms/iss/simdisk.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/paride/pcd.c b/drivers/block/paride/pcd.c
-index f9cdd11f02f5..8903fdaa2046 100644
---- a/drivers/block/paride/pcd.c
-+++ b/drivers/block/paride/pcd.c
-@@ -630,10 +630,11 @@ static int pcd_drive_status(struct cdrom_device_info *cdi, int slot_nr)
- 	return CDS_DISC_OK;
+diff --git a/arch/xtensa/platforms/iss/simdisk.c b/arch/xtensa/platforms/iss/simdisk.c
+index 3cdfa00738e0..ad85c554cd45 100644
+--- a/arch/xtensa/platforms/iss/simdisk.c
++++ b/arch/xtensa/platforms/iss/simdisk.c
+@@ -259,6 +259,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
+ 		struct proc_dir_entry *procdir)
+ {
+ 	char tmp[2] = { '0' + which, 0 };
++	int err = -ENOMEM;
+ 
+ 	dev->fd = -1;
+ 	dev->filename = NULL;
+@@ -267,7 +268,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
+ 
+ 	dev->gd = blk_alloc_disk(NUMA_NO_NODE);
+ 	if (!dev->gd)
+-		return -ENOMEM;
++		goto out;
+ 	dev->gd->major = simdisk_major;
+ 	dev->gd->first_minor = which;
+ 	dev->gd->minors = SIMDISK_MINORS;
+@@ -275,10 +276,18 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
+ 	dev->gd->private_data = dev;
+ 	snprintf(dev->gd->disk_name, 32, "simdisk%d", which);
+ 	set_capacity(dev->gd, 0);
+-	add_disk(dev->gd);
++	err = add_disk(dev->gd);
++	if (err)
++		goto out_cleanup_disk;
+ 
+ 	dev->procfile = proc_create_data(tmp, 0644, procdir, &simdisk_proc_ops, dev);
++
+ 	return 0;
++
++out_cleanup_disk:
++	blk_cleanup_disk(dev->gd);
++out:
++	return err;
  }
  
--static int pcd_identify(struct pcd_unit *cd, char *id)
-+static int pcd_identify(struct pcd_unit *cd)
- {
--	int k, s;
- 	char id_cmd[12] = { 0x12, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0 };
-+	char id[18];
-+	int k, s;
- 
- 	pcd_bufblk = -1;
- 
-@@ -664,15 +665,15 @@ static int pcd_identify(struct pcd_unit *cd, char *id)
-  * returns  0, with id set if drive is detected
-  *	    -1, if drive detection failed
-  */
--static int pcd_probe(struct pcd_unit *cd, int ms, char *id)
-+static int pcd_probe(struct pcd_unit *cd, int ms)
- {
- 	if (ms == -1) {
- 		for (cd->drive = 0; cd->drive <= 1; cd->drive++)
--			if (!pcd_reset(cd) && !pcd_identify(cd, id))
-+			if (!pcd_reset(cd) && !pcd_identify(cd))
- 				return 0;
- 	} else {
- 		cd->drive = ms;
--		if (!pcd_reset(cd) && !pcd_identify(cd, id))
-+		if (!pcd_reset(cd) && !pcd_identify(cd))
- 			return 0;
- 	}
- 	return -1;
-@@ -709,7 +710,6 @@ static void pcd_probe_capabilities(void)
- 
- static int pcd_detect(void)
- {
--	char id[18];
- 	int k, unit;
- 	struct pcd_unit *cd;
- 
-@@ -727,7 +727,7 @@ static int pcd_detect(void)
- 		cd = pcd;
- 		if (cd->disk && pi_init(cd->pi, 1, -1, -1, -1, -1, -1,
- 			    pcd_buffer, PI_PCD, verbose, cd->name)) {
--			if (!pcd_probe(cd, -1, id)) {
-+			if (!pcd_probe(cd, -1)) {
- 				cd->present = 1;
- 				k++;
- 			} else
-@@ -744,7 +744,7 @@ static int pcd_detect(void)
- 				     conf[D_UNI], conf[D_PRO], conf[D_DLY],
- 				     pcd_buffer, PI_PCD, verbose, cd->name)) 
- 				continue;
--			if (!pcd_probe(cd, conf[D_SLV], id)) {
-+			if (!pcd_probe(cd, conf[D_SLV])) {
- 				cd->present = 1;
- 				k++;
- 			} else
+ static int __init simdisk_init(void)
 -- 
 2.30.2
 
