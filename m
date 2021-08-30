@@ -1,7 +1,7 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 711A642061D
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 008D742061F
 	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 00:59:38 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 30 Aug 2021 15:09:51 -0700
-Message-Id: <20210830221000.179369-7-mcgrof@kernel.org>
+Date: Mon, 30 Aug 2021 15:09:59 -0700
+Message-Id: <20210830221000.179369-15-mcgrof@kernel.org>
 In-Reply-To: <20210830221000.179369-1-mcgrof@kernel.org>
 References: <20210830221000.179369-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,8 +21,7 @@ Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org,
 	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/15] xtensa/platforms/iss/simdisk: add error
-	handling support for add_disk()
+Subject: [Drbd-dev] [PATCH 14/15] pcd: capture errors on cdrom_register()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,56 +33,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-We never checked for errors on add_disk() as this function
-returned void. Now that this is fixed, use the shiny new
-error handling.
+No errors were being captured wehen cdrom_register() fails,
+capture the error and return the error.
 
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- arch/xtensa/platforms/iss/simdisk.c | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ drivers/block/paride/pcd.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/arch/xtensa/platforms/iss/simdisk.c b/arch/xtensa/platforms/iss/simdisk.c
-index 3cdfa00738e0..ad85c554cd45 100644
---- a/arch/xtensa/platforms/iss/simdisk.c
-+++ b/arch/xtensa/platforms/iss/simdisk.c
-@@ -259,6 +259,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
- 		struct proc_dir_entry *procdir)
- {
- 	char tmp[2] = { '0' + which, 0 };
-+	int err = -ENOMEM;
+diff --git a/drivers/block/paride/pcd.c b/drivers/block/paride/pcd.c
+index 82a654fc4db8..4cc0d141db78 100644
+--- a/drivers/block/paride/pcd.c
++++ b/drivers/block/paride/pcd.c
+@@ -940,7 +940,9 @@ static int pcd_init_unit(struct pcd_unit *cd, bool autoprobe, int port,
  
- 	dev->fd = -1;
- 	dev->filename = NULL;
-@@ -267,7 +268,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
- 
- 	dev->gd = blk_alloc_disk(NUMA_NO_NODE);
- 	if (!dev->gd)
--		return -ENOMEM;
-+		goto out;
- 	dev->gd->major = simdisk_major;
- 	dev->gd->first_minor = which;
- 	dev->gd->minors = SIMDISK_MINORS;
-@@ -275,10 +276,18 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
- 	dev->gd->private_data = dev;
- 	snprintf(dev->gd->disk_name, 32, "simdisk%d", which);
- 	set_capacity(dev->gd, 0);
--	add_disk(dev->gd);
-+	err = add_disk(dev->gd);
-+	if (err)
-+		goto out_cleanup_disk;
- 
- 	dev->procfile = proc_create_data(tmp, 0644, procdir, &simdisk_proc_ops, dev);
-+
- 	return 0;
-+
-+out_cleanup_disk:
-+	blk_cleanup_disk(dev->gd);
-+out:
-+	return err;
- }
- 
- static int __init simdisk_init(void)
+ 	cd->present = 1;
+ 	pcd_probe_capabilities(cd);
+-	register_cdrom(cd->disk, &cd->info);
++	ret = register_cdrom(cd->disk, &cd->info);
++	if (ret)
++		goto out_pi_release;
+ 	ret = add_disk(cd->disk);
+ 	if (ret)
+ 		goto out_unreg_cdrom;
 -- 
 2.30.2
 
