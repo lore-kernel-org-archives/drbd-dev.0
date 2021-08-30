@@ -1,8 +1,8 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CBEDB420621
-	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 01:05:38 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5C65F42061C
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 01:05:59 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	ulf.hansson@linaro.org, hare@suse.de, tj@kernel.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 30 Aug 2021 15:09:52 -0700
-Message-Id: <20210830221000.179369-8-mcgrof@kernel.org>
+Date: Mon, 30 Aug 2021 15:10:00 -0700
+Message-Id: <20210830221000.179369-16-mcgrof@kernel.org>
 In-Reply-To: <20210830221000.179369-1-mcgrof@kernel.org>
 References: <20210830221000.179369-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,7 +21,7 @@ Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org,
 	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/15] n64cart: add error handling support for
+Subject: [Drbd-dev] [PATCH 15/15] pd: add error handling support for
 	add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -40,50 +40,27 @@ error handling.
 
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- drivers/block/n64cart.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ drivers/block/paride/pd.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/block/n64cart.c b/drivers/block/n64cart.c
-index c84be0028f63..1ba9137bdf30 100644
---- a/drivers/block/n64cart.c
-+++ b/drivers/block/n64cart.c
-@@ -117,6 +117,7 @@ static const struct block_device_operations n64cart_fops = {
- static int __init n64cart_probe(struct platform_device *pdev)
- {
- 	struct gendisk *disk;
-+	int err = -ENOMEM;
- 
- 	if (!start || !size) {
- 		pr_err("start or size not specified\n");
-@@ -134,7 +135,7 @@ static int __init n64cart_probe(struct platform_device *pdev)
- 
- 	disk = blk_alloc_disk(NUMA_NO_NODE);
- 	if (!disk)
--		return -ENOMEM;
-+		goto out;
- 
- 	disk->first_minor = 0;
- 	disk->flags = GENHD_FL_NO_PART_SCAN;
-@@ -149,11 +150,18 @@ static int __init n64cart_probe(struct platform_device *pdev)
- 	blk_queue_physical_block_size(disk->queue, 4096);
- 	blk_queue_logical_block_size(disk->queue, 4096);
- 
--	add_disk(disk);
-+	err = add_disk(disk);
-+	if (err)
-+		goto out_cleanup_disk;
- 
- 	pr_info("n64cart: %u kb disk\n", size / 1024);
- 
+diff --git a/drivers/block/paride/pd.c b/drivers/block/paride/pd.c
+index 500b89a4bdaf..226ed5c93b68 100644
+--- a/drivers/block/paride/pd.c
++++ b/drivers/block/paride/pd.c
+@@ -938,8 +938,12 @@ static int pd_probe_drive(struct pd_unit *disk, int autoprobe, int port,
+ 	if (ret)
+ 		goto put_disk;
+ 	set_capacity(disk->gd, disk->capacity);
+-	add_disk(disk->gd);
++	ret = add_disk(disk->gd);
++	if (ret)
++		goto cleanup_disk;
  	return 0;
-+
-+out_cleanup_disk:
-+	blk_cleanup_disk(disk);
-+out:
-+	return err;
- }
- 
- static struct platform_driver n64cart_driver = {
++cleanup_disk:
++	blk_cleanup_disk(&disk);
+ put_disk:
+ 	put_disk(p);
+ 	disk->gd = NULL;
 -- 
 2.30.2
 
