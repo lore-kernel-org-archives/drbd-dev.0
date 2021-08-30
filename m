@@ -1,8 +1,8 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 008D742061F
-	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 00:59:38 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7E270420621
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 00:59:39 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	ulf.hansson@linaro.org, hare@suse.de, tj@kernel.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 30 Aug 2021 15:09:59 -0700
-Message-Id: <20210830221000.179369-15-mcgrof@kernel.org>
+Date: Mon, 30 Aug 2021 15:09:50 -0700
+Message-Id: <20210830221000.179369-6-mcgrof@kernel.org>
 In-Reply-To: <20210830221000.179369-1-mcgrof@kernel.org>
 References: <20210830221000.179369-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,7 +21,8 @@ Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org,
 	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 14/15] pcd: capture errors on cdrom_register()
+Subject: [Drbd-dev] [PATCH 05/15] um/drivers/ubd_kern: add error handling
+	support for add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,29 +34,59 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-No errors were being captured wehen cdrom_register() fails,
-capture the error and return the error.
+We never checked for errors on add_disk() as this function
+returned void. Now that this is fixed, use the shiny new
+error handling.
+
+ubd_disk_register() never returned an error, so just fix
+that now and let the caller handle the error condition.
 
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- drivers/block/paride/pcd.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ arch/um/drivers/ubd_kern.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/paride/pcd.c b/drivers/block/paride/pcd.c
-index 82a654fc4db8..4cc0d141db78 100644
---- a/drivers/block/paride/pcd.c
-+++ b/drivers/block/paride/pcd.c
-@@ -940,7 +940,9 @@ static int pcd_init_unit(struct pcd_unit *cd, bool autoprobe, int port,
+diff --git a/arch/um/drivers/ubd_kern.c b/arch/um/drivers/ubd_kern.c
+index cd9dc0556e91..81045c199c30 100644
+--- a/arch/um/drivers/ubd_kern.c
++++ b/arch/um/drivers/ubd_kern.c
+@@ -854,8 +854,8 @@ static const struct attribute_group *ubd_attr_groups[] = {
+ 	NULL,
+ };
  
- 	cd->present = 1;
- 	pcd_probe_capabilities(cd);
--	register_cdrom(cd->disk, &cd->info);
-+	ret = register_cdrom(cd->disk, &cd->info);
-+	if (ret)
-+		goto out_pi_release;
- 	ret = add_disk(cd->disk);
- 	if (ret)
- 		goto out_unreg_cdrom;
+-static void ubd_disk_register(int major, u64 size, int unit,
+-			      struct gendisk *disk)
++static int ubd_disk_register(int major, u64 size, int unit,
++			     struct gendisk *disk)
+ {
+ 	disk->major = major;
+ 	disk->first_minor = unit << UBD_SHIFT;
+@@ -872,7 +872,7 @@ static void ubd_disk_register(int major, u64 size, int unit,
+ 
+ 	disk->private_data = &ubd_devs[unit];
+ 	disk->queue = ubd_devs[unit].queue;
+-	device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
++	return device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
+ }
+ 
+ #define ROUND_BLOCK(n) ((n + (SECTOR_SIZE - 1)) & (-SECTOR_SIZE))
+@@ -919,10 +919,15 @@ static int ubd_add(int n, char **error_out)
+ 	blk_queue_write_cache(ubd_dev->queue, true, false);
+ 	blk_queue_max_segments(ubd_dev->queue, MAX_SG);
+ 	blk_queue_segment_boundary(ubd_dev->queue, PAGE_SIZE - 1);
+-	ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
++	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
++	if (err)
++		goto out_cleanup_disk;
++
+ 	ubd_gendisk[n] = disk;
+ 	return 0;
+ 
++out_cleanup_disk:
++	blk_cleanup_disk(disk);
+ out_cleanup_tags:
+ 	blk_mq_free_tag_set(&ubd_dev->tag_set);
+ out:
 -- 
 2.30.2
 
