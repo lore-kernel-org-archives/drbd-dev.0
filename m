@@ -1,8 +1,8 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B36C94203D8
-	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 00:59:35 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6B12E420603
+	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 00:59:36 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	ulf.hansson@linaro.org, hare@suse.de, tj@kernel.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 30 Aug 2021 15:09:57 -0700
-Message-Id: <20210830221000.179369-13-mcgrof@kernel.org>
+Date: Mon, 30 Aug 2021 15:09:47 -0700
+Message-Id: <20210830221000.179369-3-mcgrof@kernel.org>
 In-Reply-To: <20210830221000.179369-1-mcgrof@kernel.org>
 References: <20210830221000.179369-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,7 +21,7 @@ Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org,
 	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 12/15] pcd: add error handling support for
+Subject: [Drbd-dev] [PATCH 02/15] aoe: add error handling support for
 	add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -40,28 +40,33 @@ error handling.
 
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- drivers/block/paride/pcd.c | 6 +++++-
+ drivers/block/aoe/aoeblk.c | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/block/paride/pcd.c b/drivers/block/paride/pcd.c
-index 93ed63626232..a7fab3830d7b 100644
---- a/drivers/block/paride/pcd.c
-+++ b/drivers/block/paride/pcd.c
-@@ -941,9 +941,13 @@ static int pcd_init_unit(struct pcd_unit *cd, bool autoprobe, int port,
- 	cd->present = 1;
- 	pcd_probe_capabilities(cd);
- 	register_cdrom(cd->disk, &cd->info);
--	add_disk(cd->disk);
-+	ret = add_disk(cd->disk);
-+	if (ret)
-+		goto out_unreg_cdrom;
- 	return 0;
+diff --git a/drivers/block/aoe/aoeblk.c b/drivers/block/aoe/aoeblk.c
+index 06b360f7123a..e436b0e8eff5 100644
+--- a/drivers/block/aoe/aoeblk.c
++++ b/drivers/block/aoe/aoeblk.c
+@@ -417,7 +417,9 @@ aoeblk_gdalloc(void *vp)
  
-+out_unreg_cdrom:
-+	unregister_cdrom(&cd->info);
- out_pi_release:
- 	pi_release(cd->pi);
- out_free_disk:
+ 	spin_unlock_irqrestore(&d->lock, flags);
+ 
+-	device_add_disk(NULL, gd, aoe_attr_groups);
++	err = device_add_disk(NULL, gd, aoe_attr_groups);
++	if (err)
++		goto out_disk_cleanup;
+ 	aoedisk_add_debugfs(d);
+ 
+ 	spin_lock_irqsave(&d->lock, flags);
+@@ -426,6 +428,8 @@ aoeblk_gdalloc(void *vp)
+ 	spin_unlock_irqrestore(&d->lock, flags);
+ 	return;
+ 
++out_disk_cleanup:
++	blk_cleanup_disk(gd);
+ err_tagset:
+ 	blk_mq_free_tag_set(set);
+ err_mempool:
 -- 
 2.30.2
 
