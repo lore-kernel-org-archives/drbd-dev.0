@@ -1,28 +1,16 @@
-Return-Path: <mcgrof@infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5102C4203D8
-	for <drbd-dev@lists.linbit.com>; Tue, 31 Aug 2021 03:38:00 +0200 (CEST)
-From: Luis Chamberlain <mcgrof@kernel.org>
-To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
-	ulf.hansson@linaro.org, hare@suse.de, tj@kernel.org,
-	philipp.reisner@linbit.com, lars.ellenberg@linbit.com, jdike@addtoit.com,
-	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
-	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
-	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 30 Aug 2021 15:09:49 -0700
-Message-Id: <20210830221000.179369-5-mcgrof@kernel.org>
-In-Reply-To: <20210830221000.179369-1-mcgrof@kernel.org>
-References: <20210830221000.179369-1-mcgrof@kernel.org>
+Return-Path: <rui.xu@easystack.cn>
+Received: from mail-m2835.qiye.163.com (mail-m2835.qiye.163.com [103.74.28.35])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D3CE3420206
+	for <drbd-dev@lists.linbit.com>; Wed,  1 Sep 2021 04:38:33 +0200 (CEST)
+From: Rui Xu <rui.xu@easystack.cn>
+To: philipp.reisner@linbit.com,
+	drbd-dev@lists.linbit.com
+Date: Wed,  1 Sep 2021 10:38:26 +0800
+Message-Id: <20210901023826.838222-1-rui.xu@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Sender: Luis Chamberlain <mcgrof@infradead.org>
-Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-m68k@lists.linux-m68k.org,
-	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/15] drbd: add error handling support for
-	add_disk()
+Subject: [Drbd-dev] [PATCH] drbd: do not finish the stable resync when repl
+	state is L_PAUSED_SYNC_T
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,39 +22,82 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-We never checked for errors on add_disk() as this function
-returned void. Now that this is fixed, use the shiny new
-error handling.
+The assumption was, when a unstable resync start first, then a stable resync starts
+and be paused. If the stable resync finish ahead of the unstable one from paused directly,
+it will leaving the resync end into INCONSISTENT finally.
 
-Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
+So don't finish the stable resync when repl state is L_PAUSED_SYNC_T, finish it when the
+repl state turns into L_SYNC_TARGET.
+
+Signed-off-by: Xu Rui <rui.xu@easystack.cn>
 ---
- drivers/block/drbd/drbd_main.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ drbd/drbd_actlog.c | 15 +++++++++++++++
+ drbd/drbd_int.h    |  1 +
+ drbd/drbd_sender.c |  5 +++++
+ 3 files changed, 21 insertions(+)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 55234a558e98..19db80a1e409 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2794,7 +2794,9 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- 		goto out_idr_remove_vol;
+diff --git a/drbd/drbd_actlog.c b/drbd/drbd_actlog.c
+index 1676c355..3900b426 100644
+--- a/drbd/drbd_actlog.c
++++ b/drbd/drbd_actlog.c
+@@ -1117,7 +1117,22 @@ static int update_sync_bits(struct drbd_peer_device *peer_device,
+ 		if (mode == SET_IN_SYNC) {
+ 			unsigned long still_to_go = drbd_bm_total_weight(peer_device);
+ 			bool rs_is_done = (still_to_go <= peer_device->rs_failed);
++			enum drbd_repl_state repl_state = peer_device->repl_state[NOW];
+ 			drbd_advance_rs_marks(peer_device, still_to_go);
++                        if (rs_is_done && repl_state == L_PAUSED_SYNC_T && !test_bit(UNSTABLE_RESYNC, &peer_device->flags)) {
++                                struct drbd_device *device = peer_device->device;
++                                struct drbd_peer_device *p;
++                                for_each_peer_device(p, device) {
++                                    if (p == peer_device)
++                                        continue;
++
++                                    if (test_bit(UNSTABLE_RESYNC, &p->flags) && p->repl_state[NOW] == L_SYNC_TARGET) {
++                                        rs_is_done = false;
++                                        peer_device->finish_resync_delay = true;
++                                        break;
++                                    }
++                                }
++                        }
+ 			if (cleared || rs_is_done)
+ 				maybe_schedule_on_disk_bitmap_update(peer_device, rs_is_done);
+ 		} else if (mode == RECORD_RS_FAILED) {
+diff --git a/drbd/drbd_int.h b/drbd/drbd_int.h
+index 8db0007e..a3a7d241 100644
+--- a/drbd/drbd_int.h
++++ b/drbd/drbd_int.h
+@@ -1095,6 +1095,7 @@ struct drbd_peer_device {
+ 	bool resync_susp_peer[2];
+ 	bool resync_susp_dependency[2];
+ 	bool resync_susp_other_c[2];
++	bool finish_resync_delay;
+ 	enum drbd_repl_state negotiation_result; /* To find disk state after attach */
+ 	unsigned int send_cnt;
+ 	unsigned int recv_cnt;
+diff --git a/drbd/drbd_sender.c b/drbd/drbd_sender.c
+index f3c39b0f..01ce46b3 100644
+--- a/drbd/drbd_sender.c
++++ b/drbd/drbd_sender.c
+@@ -735,6 +735,7 @@ next_sector:
+ 			goto request_done;
+ 		}
+ 
++		peer_device->finish_resync_delay = false;
+ 		sector = BM_BIT_TO_SECT(bit);
+ 
+ 		if (drbd_try_rs_begin_io(peer_device, sector, true)) {
+@@ -833,6 +834,10 @@ request_done:
+ 		 * resync data block, and the last bit is cleared.
+ 		 * until then resync "work" is "inactive" ...
+ 		 */
++                if (peer_device->finish_resync_delay) {
++                	drbd_resync_finished(peer_device, D_MASK);
++                	peer_device->finish_resync_delay = false;
++                }
+ 		put_ldev(device);
+ 		return 0;
  	}
- 
--	add_disk(disk);
-+	err = add_disk(disk);
-+	if (err)
-+		goto out_cleanup_disk;
- 
- 	/* inherit the connection state */
- 	device->state.conn = first_connection(resource)->cstate;
-@@ -2808,6 +2810,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- 	drbd_debugfs_device_add(device);
- 	return NO_ERROR;
- 
-+out_cleanup_disk:
-+	blk_cleanup_disk(disk);
- out_idr_remove_vol:
- 	idr_remove(&connection->peer_devices, vnr);
- out_idr_remove_from_resource:
 -- 
-2.30.2
+2.25.1
 
