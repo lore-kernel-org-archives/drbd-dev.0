@@ -1,39 +1,30 @@
-Return-Path: <mcgrof@infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A6B59420603
-	for <drbd-dev@lists.linbit.com>; Wed,  1 Sep 2021 21:41:41 +0200 (CEST)
-Date: Wed, 1 Sep 2021 12:41:25 -0700
-From: Luis Chamberlain <mcgrof@kernel.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Message-ID: <YS/XZeu3J3nAXUll@bombadil.infradead.org>
+Return-Path: <krisman@collabora.com>
+Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk [46.235.227.227])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A2951420043
+	for <drbd-dev@lists.linbit.com>;
+	Wed,  1 Sep 2021 17:31:56 +0200 (CEST)
+From: Gabriel Krisman Bertazi <krisman@collabora.com>
+To: Luis Chamberlain <mcgrof@kernel.org>
 References: <20210830221000.179369-1-mcgrof@kernel.org>
-	<20210830221000.179369-2-mcgrof@kernel.org>
-	<CAMuHMdUUrp-ktVmOPRs7KinykrVKEMx-dG42RapPc-egxODNnQ@mail.gmail.com>
+	<20210830221000.179369-6-mcgrof@kernel.org>
+Date: Wed, 01 Sep 2021 11:24:55 -0400
+In-Reply-To: <20210830221000.179369-6-mcgrof@kernel.org> (Luis Chamberlain's
+	message of "Mon, 30 Aug 2021 15:09:50 -0700")
+Message-ID: <8735qotj20.fsf@collabora.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMuHMdUUrp-ktVmOPRs7KinykrVKEMx-dG42RapPc-egxODNnQ@mail.gmail.com>
-Sender: Luis Chamberlain <mcgrof@infradead.org>
-Cc: Ulf Hansson <ulf.hansson@linaro.org>, justin@coraid.com,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Max Filippov <jcmvbkbc@gmail.com>,
-	Gabriel Krisman Bertazi <krisman@collabora.com>,
-	Tim Waugh <tim@cyberelk.net>, Lars Ellenberg <drbd-dev@lists.linbit.com>,
-	Richard Weinberger <richard@nod.at>,
-	Anton Ivanov <anton.ivanov@cambridgegreys.com>,
-	"open list:TENSILICA XTENSA PORT \(xtensa\)"
-	<linux-xtensa@linux-xtensa.org>, Johannes Berg <johannes.berg@intel.com>,
-	Jeff Dike <jdike@addtoit.com>, linux-um <linux-um@lists.infradead.org>,
-	linux-block@vger.kernel.org, linux-m68k <linux-m68k@lists.linux-m68k.org>,
-	Hannes Reinecke <hare@suse.de>, Jens Axboe <axboe@kernel.dk>,
-	Chris Zankel <chris@zankel.net>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	chris.obbard@collabora.com, Tejun Heo <tj@kernel.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, thehajime@gmail.com,
-	YiFei Zhu <zhuyifei1999@gmail.com>
-Subject: Re: [Drbd-dev] [PATCH 01/15] z2ram: add error handling support for
-	add_disk()
+Content-Type: text/plain
+Cc: ulf.hansson@linaro.org, justin@coraid.com, linux-kernel@vger.kernel.org,
+	jcmvbkbc@gmail.com, tim@cyberelk.net, drbd-dev@lists.linbit.com,
+	richard@nod.at, geert@linux-m68k.org,
+	anton.ivanov@cambridgegreys.com, linux-xtensa@linux-xtensa.org,
+	johannes.berg@intel.com, jdike@addtoit.com,
+	linux-um@lists.infradead.org, linux-block@vger.kernel.org,
+	linux-m68k@lists.linux-m68k.org, hare@suse.de, axboe@kernel.dk,
+	chris@zankel.net, philipp.reisner@linbit.com,
+	chris.obbard@collabora.com, tj@kernel.org,
+	lars.ellenberg@linbit.com, thehajime@gmail.com, zhuyifei1999@gmail.com
+Subject: Re: [Drbd-dev] [PATCH 05/15] um/drivers/ubd_kern: add error
+ handling support for add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,21 +36,64 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Sep 01, 2021 at 03:41:47PM +0200, Geert Uytterhoeven wrote:
-> > --- a/drivers/block/z2ram.c
-> > +++ b/drivers/block/z2ram.c
-> > @@ -333,8 +334,10 @@ static int z2ram_register_disk(int minor)
-> >                 sprintf(disk->disk_name, "z2ram");
-> >
-> >         z2ram_gendisk[minor] = disk;
-> > -       add_disk(disk);
-> > -       return 0;
-> > +       err = add_disk(disk);
-> > +       if (err)
-> > +               blk_cleaup_disk(disk);
-> 
-> blk_cleanup_disk()?
+Luis Chamberlain <mcgrof@kernel.org> writes:
 
-Fixed thanks.
+> We never checked for errors on add_disk() as this function
+> returned void. Now that this is fixed, use the shiny new
+> error handling.
+>
+> ubd_disk_register() never returned an error, so just fix
+> that now and let the caller handle the error condition.
+>
+> Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 
-  Luis
+Reviewed-by: Gabriel Krisman Bertazi <krisman@collabora.com>
+
+> ---
+>  arch/um/drivers/ubd_kern.c | 13 +++++++++----
+>  1 file changed, 9 insertions(+), 4 deletions(-)
+>
+> diff --git a/arch/um/drivers/ubd_kern.c b/arch/um/drivers/ubd_kern.c
+> index cd9dc0556e91..81045c199c30 100644
+> --- a/arch/um/drivers/ubd_kern.c
+> +++ b/arch/um/drivers/ubd_kern.c
+> @@ -854,8 +854,8 @@ static const struct attribute_group *ubd_attr_groups[] = {
+>  	NULL,
+>  };
+>  
+> -static void ubd_disk_register(int major, u64 size, int unit,
+> -			      struct gendisk *disk)
+> +static int ubd_disk_register(int major, u64 size, int unit,
+> +			     struct gendisk *disk)
+>  {
+>  	disk->major = major;
+>  	disk->first_minor = unit << UBD_SHIFT;
+> @@ -872,7 +872,7 @@ static void ubd_disk_register(int major, u64 size, int unit,
+>  
+>  	disk->private_data = &ubd_devs[unit];
+>  	disk->queue = ubd_devs[unit].queue;
+> -	device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
+> +	return device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
+>  }
+>  
+>  #define ROUND_BLOCK(n) ((n + (SECTOR_SIZE - 1)) & (-SECTOR_SIZE))
+> @@ -919,10 +919,15 @@ static int ubd_add(int n, char **error_out)
+>  	blk_queue_write_cache(ubd_dev->queue, true, false);
+>  	blk_queue_max_segments(ubd_dev->queue, MAX_SG);
+>  	blk_queue_segment_boundary(ubd_dev->queue, PAGE_SIZE - 1);
+> -	ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
+> +	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
+> +	if (err)
+> +		goto out_cleanup_disk;
+> +
+>  	ubd_gendisk[n] = disk;
+>  	return 0;
+>  
+> +out_cleanup_disk:
+> +	blk_cleanup_disk(disk);
+>  out_cleanup_tags:
+>  	blk_mq_free_tag_set(&ubd_dev->tag_set);
+>  out:
+
+-- 
+Gabriel Krisman Bertazi
