@@ -1,17 +1,20 @@
 Return-Path: <rui.xu@easystack.cn>
-Received: from mail-m2835.qiye.163.com (mail-m2835.qiye.163.com [103.74.28.35])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 76C6E4201F1
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Sep 2021 07:40:16 +0200 (CEST)
-From: Rui Xu <rui.xu@easystack.cn>
-To: philipp.reisner@linbit.com,
-	drbd-dev@lists.linbit.com
-Date: Fri, 10 Sep 2021 13:40:11 +0800
-Message-Id: <20210910054011.1115655-1-rui.xu@easystack.cn>
+Received: from mail-m24100.qiye.163.com (mail-m24100.qiye.163.com
+	[220.194.24.100])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 17CB44201F1
+	for <drbd-dev@lists.linbit.com>; Fri, 10 Sep 2021 07:57:02 +0200 (CEST)
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
+Message-ID: <APgATADQH09q-D*PRYzV4qoq.3.1631252960808.Hmail.rui.xu@easystack.cn>
+To: Joel Colledge <joel.colledge@linbit.com>
+In-Reply-To: <CAGNP_+U3-BZ+9uykZuttOp6+irG15yesyFfDs27kj3M6BJN+1A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: dongsheng.yang@easystack.cn
-Subject: [Drbd-dev] [PATCH] drbd: fix a race condition in update_sync_bits()
-	and receive_bitmap()
+From: =?UTF-8?B?5b6Q6ZSQ?= <rui.xu@easystack.cn>
+Date: Fri, 10 Sep 2021 13:49:20 +0800 (GMT+08:00)
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev]
+	=?utf-8?q?=5BPATCH=5D_drbd=3A_do_not_finish_the_stable?=
+	=?utf-8?q?_resync_when_repl_state_is_L=5FPAUSED=5FSYNC=5FT?=
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,70 +26,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-There is a race condition in update_sync_bits() and receive_bitmap(),
-please consider this scenario:
-
-Primary: node-3, Secondary node-1, node-2
-
-(1) network failure happend on node-1.
-(2) node-1 network recovery.
-(3) node-1 connect to node-2, and start resync (node-1 is SyncTarget,
-node-2 is SyncSource)
-(4) before resync in (3) finished, node-1 connect to node-3 and start
-resync.(node-1 is PauseSyncTarget, node-3 is PauseSyncSource)
-
-When node-1(SyncTarget) is resync with node-2(SyncSource), node-1 may
-set bitmap for node-3 in receive_resync_read()->drbd_set_all_out_of_sync(),
-and clear the bimap for node-3 when got P_PEERS_IN_SYNC from node-2.
-
-Then there is a possibility scenario as below:
-
-thread:ack_receiver (node-1)           thread:receiver (node-1)
-update_sync_bits()                     receive_bitmap()
-
-set the rs_is_done to 1                set the bitmap for node-3
-				       set the repl_state to PauseSyncTarget
-set RS_DONE flag
-
-it will lead the reysnc of node-1 and node-3 to finish in an unexpected way, so
-we need to determine the is_sync_target_state before getting the bitmap total
-weight in update_sync_bits.
----
- drbd/drbd_actlog.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
-
-diff --git a/drbd/drbd_actlog.c b/drbd/drbd_actlog.c
-index 841e5149..3d2fd399 100644
---- a/drbd/drbd_actlog.c
-+++ b/drbd/drbd_actlog.c
-@@ -1044,11 +1044,11 @@ static bool lazy_bitmap_update_due(struct drbd_peer_device *peer_device)
- }
- 
- static void maybe_schedule_on_disk_bitmap_update(struct drbd_peer_device *peer_device,
--						 bool rs_done)
-+						 bool rs_done, bool is_sync_target)
- {
- 	if (rs_done) {
- 		if (peer_device->connection->agreed_pro_version <= 95 ||
--		    is_sync_target_state(peer_device, NOW))
-+		    is_sync_target)
- 			set_bit(RS_DONE, &peer_device->flags);
- 
- 		/* If sync source: rather wait for explicit notification via
-@@ -1105,11 +1105,12 @@ static int update_sync_bits(struct drbd_peer_device *peer_device,
- 	}
- 	if (count) {
- 		if (mode == SET_IN_SYNC) {
-+			bool is_sync_target = is_sync_target_state(peer_device, NOW);
- 			unsigned long still_to_go = drbd_bm_total_weight(peer_device);
- 			bool rs_is_done = (still_to_go <= peer_device->rs_failed);
- 			drbd_advance_rs_marks(peer_device, still_to_go);
- 			if (cleared || rs_is_done)
--				maybe_schedule_on_disk_bitmap_update(peer_device, rs_is_done);
-+				maybe_schedule_on_disk_bitmap_update(peer_device, rs_is_done, is_sync_target);
- 		} else if (mode == RECORD_RS_FAILED) {
- 			peer_device->rs_failed += count;
- 		} else /* if (mode == SET_OUT_OF_SYNC) */ {
--- 
-2.25.1
-
+SGkgSm9lbCw8YnIvPiAgICBUaGFua3MgZm9yIHRoZSByZXBseSBhbmQgc29ycnkgZm9yIHRoZSBk
+ZWxheS4gQWZ0ZXIgc29tZSBtb3JlIDxici8+aW52ZXN0aWdhdGlvbiwgSSBmb3VuZCB0aGUgcm9v
+dCBjYXVzZSBvZiB0aGlzIHByb2JsZW0gd2UgbWV0IGlzIHRoYXQgPGJyLz50aGVyZSBpcyBhIHJh
+Y2UgY29uZGl0aW9uIGluIHVwZGF0ZV9zeW5jX2JpdHMoKSBhbmQgcmVjZWl2ZV9iaXRtYXAoKS48
+YnIvPlRoaXMgcmFjZSBjb25kaXRpb24gd2lsbCBsZWFkIHRoZSBwcm9ibGVtIEkgd2FzIHRyeWlu
+ZyB0byBzb2x2ZSBpbiB0aGlzIDxici8+cGF0Y2ggYWJvdmUuPGJyLz48YnIvPldlIGNvbmZpcm1l
+ZCB0aGUgcmFjZSBjb25kaXRpb24gZXhpc3RpbmcgaW4gdXBzdHJlYW0gYW5kIEkgaGF2ZSBzZW50
+IGEgPGJyLz5wYXRjaCBmb3IgaXQ6PGJyLz5odHRwczovL2xpc3RzLmxpbmJpdC5jb20vcGlwZXJt
+YWlsL2RyYmQtZGV2LzIwMjEtU2VwdGVtYmVyLzAwNTg0MC5odG1sPGJyLz48YnIvPlNvIHlvdSBj
+YW4gZ28gdG8gcmV2aWV3IG15IG5ldyBwYXRjaCBkaXJlY3RseS48YnIvPjxici8+VGhhbmtzLDxi
+ci8+WHUKRnJvbTogSm9lbCBDb2xsZWRnZSA8am9lbC5jb2xsZWRnZUBsaW5iaXQuY29tPgpEYXRl
+OiAyMDIxLTA5LTAxIDE2OjQwOjMyClRvOiAgUnVpIFh1IDxydWkueHVAZWFzeXN0YWNrLmNuPgpD
+YzogIFBoaWxpcHAgUmVpc25lciA8cGhpbGlwcC5yZWlzbmVyQGxpbmJpdC5jb20+LGRyYmQtZGV2
+QGxpc3RzLmxpbmJpdC5jb20KU3ViamVjdDogUmU6IFtEcmJkLWRldl0gW1BBVENIXSBkcmJkOiBk
+byBub3QgZmluaXNoIHRoZSBzdGFibGUgcmVzeW5jIHdoZW4gcmVwbCBzdGF0ZSBpcyBMX1BBVVNF
+RF9TWU5DX1QNCg0K
