@@ -1,17 +1,18 @@
 Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ed1-f46.google.com (mail-ed1-f46.google.com
-	[209.85.208.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CE921420621
-	for <drbd-dev@lists.linbit.com>; Tue, 21 Sep 2021 16:17:06 +0200 (CEST)
-Received: by mail-ed1-f46.google.com with SMTP id c21so73556313edj.0
-	for <drbd-dev@lists.linbit.com>; Tue, 21 Sep 2021 07:17:06 -0700 (PDT)
+Received: from mail-ed1-f50.google.com (mail-ed1-f50.google.com
+	[209.85.208.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D6F88420629
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Sep 2021 13:18:37 +0200 (CEST)
+Received: by mail-ed1-f50.google.com with SMTP id c21so21985693edj.0
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Sep 2021 04:18:37 -0700 (PDT)
 MIME-Version: 1.0
 References: <CAGNP_+VFUJfijkem8TWr1ptkJXbdZryuvbnpLY1GCBgPvKzdzw@mail.gmail.com>
 	<20210915110743.1271706-1-rui.xu@easystack.cn>
-In-Reply-To: <20210915110743.1271706-1-rui.xu@easystack.cn>
+	<CAGNP_+XVmkZ5jAuh_jpDkdddzNfDNW00cTiUDRgGh9R=7Bv7ng@mail.gmail.com>
+In-Reply-To: <CAGNP_+XVmkZ5jAuh_jpDkdddzNfDNW00cTiUDRgGh9R=7Bv7ng@mail.gmail.com>
 From: Joel Colledge <joel.colledge@linbit.com>
-Date: Tue, 21 Sep 2021 16:14:44 +0200
-Message-ID: <CAGNP_+XVmkZ5jAuh_jpDkdddzNfDNW00cTiUDRgGh9R=7Bv7ng@mail.gmail.com>
+Date: Thu, 23 Sep 2021 13:18:26 +0200
+Message-ID: <CAGNP_+V_6m5b=FHDnUEw6RHdKuC8Gu_WzcvpEsZv=ESHLXFv_g@mail.gmail.com>
 To: Rui Xu <rui.xu@easystack.cn>
 Content-Type: text/plain; charset="UTF-8"
 Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
@@ -29,4 +30,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Great. Thanks! I'll look into getting this merged.
+This was included in drbd-9.0 with:
+https://github.com/LINBIT/drbd/commit/a9a54e48f5d6eb0b06d5832246ff7da2305fe5e1
+
+And merged forward into master with:
+https://github.com/LINBIT/drbd/commit/6cb88bf2af4a5628d09276e92f905405d01e0270
