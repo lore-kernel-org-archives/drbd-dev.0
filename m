@@ -1,7 +1,7 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4CE0A420626
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 53050420629
 	for <drbd-dev@lists.linbit.com>; Tue, 28 Sep 2021 00:01:35 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 27 Sep 2021 15:00:56 -0700
-Message-Id: <20210927220110.1066271-2-mcgrof@kernel.org>
+Date: Mon, 27 Sep 2021 15:01:01 -0700
+Message-Id: <20210927220110.1066271-7-mcgrof@kernel.org>
 In-Reply-To: <20210927220110.1066271-1-mcgrof@kernel.org>
 References: <20210927220110.1066271-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,8 +21,8 @@ Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org,
 	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 01/15] z2ram: add error handling support for
-	add_disk()
+Subject: [Drbd-dev] [PATCH v2 06/15] xtensa/platforms/iss/simdisk: add error
+	handling support for add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,39 +36,54 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 We never checked for errors on add_disk() as this function
 returned void. Now that this is fixed, use the shiny new
-error handling. Only the disk is cleaned up inside
-z2ram_register_disk() as the caller deals with the rest.
+error handling.
 
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- drivers/block/z2ram.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ arch/xtensa/platforms/iss/simdisk.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/z2ram.c b/drivers/block/z2ram.c
-index 4eef218108c6..ccc52c935faf 100644
---- a/drivers/block/z2ram.c
-+++ b/drivers/block/z2ram.c
-@@ -318,6 +318,7 @@ static const struct blk_mq_ops z2_mq_ops = {
- static int z2ram_register_disk(int minor)
+diff --git a/arch/xtensa/platforms/iss/simdisk.c b/arch/xtensa/platforms/iss/simdisk.c
+index 3cdfa00738e0..ad85c554cd45 100644
+--- a/arch/xtensa/platforms/iss/simdisk.c
++++ b/arch/xtensa/platforms/iss/simdisk.c
+@@ -259,6 +259,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
+ 		struct proc_dir_entry *procdir)
  {
- 	struct gendisk *disk;
-+	int err;
+ 	char tmp[2] = { '0' + which, 0 };
++	int err = -ENOMEM;
  
- 	disk = blk_mq_alloc_disk(&tag_set, NULL);
- 	if (IS_ERR(disk))
-@@ -333,8 +334,10 @@ static int z2ram_register_disk(int minor)
- 		sprintf(disk->disk_name, "z2ram");
+ 	dev->fd = -1;
+ 	dev->filename = NULL;
+@@ -267,7 +268,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
  
- 	z2ram_gendisk[minor] = disk;
--	add_disk(disk);
--	return 0;
-+	err = add_disk(disk);
+ 	dev->gd = blk_alloc_disk(NUMA_NO_NODE);
+ 	if (!dev->gd)
+-		return -ENOMEM;
++		goto out;
+ 	dev->gd->major = simdisk_major;
+ 	dev->gd->first_minor = which;
+ 	dev->gd->minors = SIMDISK_MINORS;
+@@ -275,10 +276,18 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
+ 	dev->gd->private_data = dev;
+ 	snprintf(dev->gd->disk_name, 32, "simdisk%d", which);
+ 	set_capacity(dev->gd, 0);
+-	add_disk(dev->gd);
++	err = add_disk(dev->gd);
 +	if (err)
-+		blk_cleanup_disk(disk);
++		goto out_cleanup_disk;
+ 
+ 	dev->procfile = proc_create_data(tmp, 0644, procdir, &simdisk_proc_ops, dev);
++
+ 	return 0;
++
++out_cleanup_disk:
++	blk_cleanup_disk(dev->gd);
++out:
 +	return err;
  }
  
- static int __init z2_init(void)
+ static int __init simdisk_init(void)
 -- 
 2.30.2
 
