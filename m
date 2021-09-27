@@ -1,7 +1,7 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 950A44205FC
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 995524205FE
 	for <drbd-dev@lists.linbit.com>; Tue, 28 Sep 2021 00:01:34 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 27 Sep 2021 15:00:58 -0700
-Message-Id: <20210927220110.1066271-4-mcgrof@kernel.org>
+Date: Mon, 27 Sep 2021 15:01:09 -0700
+Message-Id: <20210927220110.1066271-15-mcgrof@kernel.org>
 In-Reply-To: <20210927220110.1066271-1-mcgrof@kernel.org>
 References: <20210927220110.1066271-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,8 +21,7 @@ Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org,
 	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 03/15] m68k/emu/nfblock: add error handling
-	support for add_disk()
+Subject: [Drbd-dev] [PATCH v2 14/15] pcd: capture errors on cdrom_register()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,52 +33,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-We never checked for errors on add_disk() as this function
-returned void. Now that this is fixed, use the shiny new
-error handling.
+No errors were being captured wehen cdrom_register() fails,
+capture the error and return the error.
 
-Reviewed-by: Geert Uytterhoeven <geert@linux-m68k.org>
-Acked-by: Geert Uytterhoeven <geert@linux-m68k.org>
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- arch/m68k/emu/nfblock.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ drivers/block/paride/pcd.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/arch/m68k/emu/nfblock.c b/arch/m68k/emu/nfblock.c
-index 9a8394e96388..4de5a6087034 100644
---- a/arch/m68k/emu/nfblock.c
-+++ b/arch/m68k/emu/nfblock.c
-@@ -100,6 +100,7 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
- {
- 	struct nfhd_device *dev;
- 	int dev_id = id - NFHD_DEV_OFFSET;
-+	int err = -ENOMEM;
+diff --git a/drivers/block/paride/pcd.c b/drivers/block/paride/pcd.c
+index 82a654fc4db8..4cc0d141db78 100644
+--- a/drivers/block/paride/pcd.c
++++ b/drivers/block/paride/pcd.c
+@@ -940,7 +940,9 @@ static int pcd_init_unit(struct pcd_unit *cd, bool autoprobe, int port,
  
- 	pr_info("nfhd%u: found device with %u blocks (%u bytes)\n", dev_id,
- 		blocks, bsize);
-@@ -130,16 +131,20 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
- 	sprintf(dev->disk->disk_name, "nfhd%u", dev_id);
- 	set_capacity(dev->disk, (sector_t)blocks * (bsize / 512));
- 	blk_queue_logical_block_size(dev->disk->queue, bsize);
--	add_disk(dev->disk);
-+	err = add_disk(dev->disk);
-+	if (err)
-+		goto out_cleanup_disk;
- 
- 	list_add_tail(&dev->list, &nfhd_list);
- 
- 	return 0;
- 
-+out_cleanup_disk:
-+	blk_cleanup_disk(dev->disk);
- free_dev:
- 	kfree(dev);
- out:
--	return -ENOMEM;
-+	return err;
- }
- 
- static int __init nfhd_init(void)
+ 	cd->present = 1;
+ 	pcd_probe_capabilities(cd);
+-	register_cdrom(cd->disk, &cd->info);
++	ret = register_cdrom(cd->disk, &cd->info);
++	if (ret)
++		goto out_pi_release;
+ 	ret = add_disk(cd->disk);
+ 	if (ret)
+ 		goto out_unreg_cdrom;
 -- 
 2.30.2
 
