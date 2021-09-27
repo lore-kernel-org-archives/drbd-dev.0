@@ -1,30 +1,39 @@
 Return-Path: <axboe@kernel.dk>
-Received: from mail-io1-f46.google.com (mail-io1-f46.google.com
-	[209.85.166.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 52CA4420626
-	for <drbd-dev@lists.linbit.com>; Tue, 28 Sep 2021 00:29:35 +0200 (CEST)
-Received: by mail-io1-f46.google.com with SMTP id 134so24786439iou.12
-	for <drbd-dev@lists.linbit.com>; Mon, 27 Sep 2021 15:29:35 -0700 (PDT)
-To: Luis Chamberlain <mcgrof@kernel.org>, justin@coraid.com,
-	geert@linux-m68k.org, ulf.hansson@linaro.org, hare@suse.de, tj@kernel.org,
-	philipp.reisner@linbit.com, lars.ellenberg@linbit.com, jdike@addtoit.com,
-	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
-	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
-	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
+Received: from mail-io1-f50.google.com (mail-io1-f50.google.com
+	[209.85.166.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7C05C42038D
+	for <drbd-dev@lists.linbit.com>; Tue, 28 Sep 2021 01:24:01 +0200 (CEST)
+Received: by mail-io1-f50.google.com with SMTP id r75so24994356iod.7
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Sep 2021 16:24:01 -0700 (PDT)
+To: Max Filippov <jcmvbkbc@gmail.com>, Luis Chamberlain <mcgrof@kernel.org>
 References: <20210927220110.1066271-1-mcgrof@kernel.org>
+	<20210927220110.1066271-7-mcgrof@kernel.org>
+	<CAMo8BfLX84HBuVe=FyqWkVU5Ek-aKFk++omnqsmf9wO6fdVpMQ@mail.gmail.com>
 From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <ee2c245d-7190-b708-4c48-cbee28f56f9a@kernel.dk>
-Date: Mon, 27 Sep 2021 16:29:33 -0600
+Message-ID: <7889116c-c01a-a041-89f3-4390b16c6ac0@kernel.dk>
+Date: Mon, 27 Sep 2021 17:24:00 -0600
 MIME-Version: 1.0
-In-Reply-To: <20210927220110.1066271-1-mcgrof@kernel.org>
+In-Reply-To: <CAMo8BfLX84HBuVe=FyqWkVU5Ek-aKFk++omnqsmf9wO6fdVpMQ@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-m68k@lists.linux-m68k.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v2 00/15] block: third batch of add_disk()
- error handling conversions
+Cc: Ulf Hansson <ulf.hansson@linaro.org>, justin@coraid.com,
+	LKML <linux-kernel@vger.kernel.org>, krisman@collabora.com,
+	tim@cyberelk.net, drbd-dev@lists.linbit.com,
+	Richard Weinberger <richard@nod.at>,
+	Geert Uytterhoeven <geert@linux-m68k.org>,
+	Anton Ivanov <anton.ivanov@cambridgegreys.com>,
+	"open list:TENSILICA XTENSA PORT \(xtensa\)"
+	<linux-xtensa@linux-xtensa.org>, johannes.berg@intel.com,
+	Jeff Dike <jdike@addtoit.com>, linux-um@lists.infradead.org,
+	linux-block@vger.kernel.org,
+	"open list:M68K ARCHITECTURE" <linux-m68k@lists.linux-m68k.org>,
+	hare@suse.de, Chris Zankel <chris@zankel.net>,
+	philipp.reisner@linbit.com, chris.obbard@collabora.com,
+	Tejun Heo <tj@kernel.org>, lars.ellenberg@linbit.com,
+	thehajime@gmail.com, zhuyifei1999@gmail.com
+Subject: Re: [Drbd-dev] [PATCH v2 06/15] xtensa/platforms/iss/simdisk: add
+ error handling support for add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,13 +45,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 9/27/21 4:00 PM, Luis Chamberlain wrote:
-> This is the 2nd version of the third batch of driver conversions for the
-> add_disk() error handling. This and the entire 7th series of driver
-> conversions can be found on my 20210927-for-axboe-add-disk-error-handling
-> branch [0].
+On 9/27/21 4:50 PM, Max Filippov wrote:
+> On Mon, Sep 27, 2021 at 3:01 PM Luis Chamberlain <mcgrof@kernel.org> wrote:
+>>
+>> We never checked for errors on add_disk() as this function
+>> returned void. Now that this is fixed, use the shiny new
+>> error handling.
+>>
+>> Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
+>> ---
+>>  arch/xtensa/platforms/iss/simdisk.c | 13 +++++++++++--
+>>  1 file changed, 11 insertions(+), 2 deletions(-)
+> 
+> Acked-by: Max Filippov <jcmvbkbc@gmail.com>
 
-Applied 2, 4, 7, 8-15.
+Applied, thanks.
 
 -- 
 Jens Axboe
