@@ -1,7 +1,7 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9150D42053E
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 950A44205FC
 	for <drbd-dev@lists.linbit.com>; Tue, 28 Sep 2021 00:01:34 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
@@ -10,8 +10,8 @@ To: axboe@kernel.dk, justin@coraid.com, geert@linux-m68k.org,
 	richard@nod.at, anton.ivanov@cambridgegreys.com, johannes.berg@intel.com,
 	chris.obbard@collabora.com, krisman@collabora.com, zhuyifei1999@gmail.com,
 	thehajime@gmail.com, chris@zankel.net, jcmvbkbc@gmail.com, tim@cyberelk.net
-Date: Mon, 27 Sep 2021 15:01:00 -0700
-Message-Id: <20210927220110.1066271-6-mcgrof@kernel.org>
+Date: Mon, 27 Sep 2021 15:00:58 -0700
+Message-Id: <20210927220110.1066271-4-mcgrof@kernel.org>
 In-Reply-To: <20210927220110.1066271-1-mcgrof@kernel.org>
 References: <20210927220110.1066271-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,7 +21,7 @@ Cc: linux-xtensa@linux-xtensa.org, linux-um@lists.infradead.org,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-m68k@lists.linux-m68k.org,
 	Luis Chamberlain <mcgrof@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 05/15] um/drivers/ubd_kern: add error handling
+Subject: [Drbd-dev] [PATCH v2 03/15] m68k/emu/nfblock: add error handling
 	support for add_disk()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -38,56 +38,48 @@ We never checked for errors on add_disk() as this function
 returned void. Now that this is fixed, use the shiny new
 error handling.
 
-ubd_disk_register() never returned an error, so just fix
-that now and let the caller handle the error condition.
-
-Reviewed-by: Gabriel Krisman Bertazi <krisman@collabora.com>
+Reviewed-by: Geert Uytterhoeven <geert@linux-m68k.org>
+Acked-by: Geert Uytterhoeven <geert@linux-m68k.org>
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- arch/um/drivers/ubd_kern.c | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ arch/m68k/emu/nfblock.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/arch/um/drivers/ubd_kern.c b/arch/um/drivers/ubd_kern.c
-index cd9dc0556e91..81045c199c30 100644
---- a/arch/um/drivers/ubd_kern.c
-+++ b/arch/um/drivers/ubd_kern.c
-@@ -854,8 +854,8 @@ static const struct attribute_group *ubd_attr_groups[] = {
- 	NULL,
- };
- 
--static void ubd_disk_register(int major, u64 size, int unit,
--			      struct gendisk *disk)
-+static int ubd_disk_register(int major, u64 size, int unit,
-+			     struct gendisk *disk)
+diff --git a/arch/m68k/emu/nfblock.c b/arch/m68k/emu/nfblock.c
+index 9a8394e96388..4de5a6087034 100644
+--- a/arch/m68k/emu/nfblock.c
++++ b/arch/m68k/emu/nfblock.c
+@@ -100,6 +100,7 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
  {
- 	disk->major = major;
- 	disk->first_minor = unit << UBD_SHIFT;
-@@ -872,7 +872,7 @@ static void ubd_disk_register(int major, u64 size, int unit,
+ 	struct nfhd_device *dev;
+ 	int dev_id = id - NFHD_DEV_OFFSET;
++	int err = -ENOMEM;
  
- 	disk->private_data = &ubd_devs[unit];
- 	disk->queue = ubd_devs[unit].queue;
--	device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
-+	return device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
- }
- 
- #define ROUND_BLOCK(n) ((n + (SECTOR_SIZE - 1)) & (-SECTOR_SIZE))
-@@ -919,10 +919,15 @@ static int ubd_add(int n, char **error_out)
- 	blk_queue_write_cache(ubd_dev->queue, true, false);
- 	blk_queue_max_segments(ubd_dev->queue, MAX_SG);
- 	blk_queue_segment_boundary(ubd_dev->queue, PAGE_SIZE - 1);
--	ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
-+	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
+ 	pr_info("nfhd%u: found device with %u blocks (%u bytes)\n", dev_id,
+ 		blocks, bsize);
+@@ -130,16 +131,20 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
+ 	sprintf(dev->disk->disk_name, "nfhd%u", dev_id);
+ 	set_capacity(dev->disk, (sector_t)blocks * (bsize / 512));
+ 	blk_queue_logical_block_size(dev->disk->queue, bsize);
+-	add_disk(dev->disk);
++	err = add_disk(dev->disk);
 +	if (err)
 +		goto out_cleanup_disk;
-+
- 	ubd_gendisk[n] = disk;
+ 
+ 	list_add_tail(&dev->list, &nfhd_list);
+ 
  	return 0;
  
 +out_cleanup_disk:
-+	blk_cleanup_disk(disk);
- out_cleanup_tags:
- 	blk_mq_free_tag_set(&ubd_dev->tag_set);
++	blk_cleanup_disk(dev->disk);
+ free_dev:
+ 	kfree(dev);
  out:
+-	return -ENOMEM;
++	return err;
+ }
+ 
+ static int __init nfhd_init(void)
 -- 
 2.30.2
 
