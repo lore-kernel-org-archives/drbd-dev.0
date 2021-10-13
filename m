@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DF0BD420304
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:19:45 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 176FE420304
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:19:46 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:18 +0200
-Message-Id: <20211013051042.1065752-6-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:14 +0200
+Message-Id: <20211013051042.1065752-2-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 05/29] mtd/block2mtd: use bdev_nr_sectors instead
-	of open coding it
+Subject: [Drbd-dev] [PATCH 01/29] bcache: remove bdev_sectors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,36 +42,54 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the proper helper to read the block device size.
+Use the equivalent block layer helper instead.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/mtd/devices/block2mtd.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ drivers/md/bcache/super.c     | 2 +-
+ drivers/md/bcache/util.h      | 4 ----
+ drivers/md/bcache/writeback.c | 2 +-
+ 3 files changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/mtd/devices/block2mtd.c b/drivers/mtd/devices/block2mtd.c
-index c08721b11642b..d2d1a712188ce 100644
---- a/drivers/mtd/devices/block2mtd.c
-+++ b/drivers/mtd/devices/block2mtd.c
-@@ -269,7 +269,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
- 		goto err_free_block2mtd;
- 	}
+diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+index f2874c77ff797..4f89985abe4b7 100644
+--- a/drivers/md/bcache/super.c
++++ b/drivers/md/bcache/super.c
+@@ -1002,7 +1002,7 @@ static void calc_cached_dev_sectors(struct cache_set *c)
+ 	struct cached_dev *dc;
  
--	if ((long)dev->blkdev->bd_inode->i_size % erase_size) {
-+	if ((long)(bdev_nr_sectors(dev->blkdev) << SECTOR_SHIFT) % erase_size) {
- 		pr_err("erasesize must be a divisor of device size\n");
- 		goto err_free_block2mtd;
- 	}
-@@ -284,7 +284,8 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
+ 	list_for_each_entry(dc, &c->cached_devs, list)
+-		sectors += bdev_sectors(dc->bdev);
++		sectors += bdev_nr_sectors(dc->bdev);
  
- 	dev->mtd.name = name;
+ 	c->cached_dev_sectors = sectors;
+ }
+diff --git a/drivers/md/bcache/util.h b/drivers/md/bcache/util.h
+index b64460a762677..a7da7930a7fda 100644
+--- a/drivers/md/bcache/util.h
++++ b/drivers/md/bcache/util.h
+@@ -584,8 +584,4 @@ static inline unsigned int fract_exp_two(unsigned int x,
+ void bch_bio_map(struct bio *bio, void *base);
+ int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask);
  
--	dev->mtd.size = dev->blkdev->bd_inode->i_size & PAGE_MASK;
-+	dev->mtd.size =
-+		(bdev_nr_sectors(dev->blkdev) << SECTOR_SHIFT) & PAGE_MASK;
- 	dev->mtd.erasesize = erase_size;
- 	dev->mtd.writesize = 1;
- 	dev->mtd.writebufsize = PAGE_SIZE;
+-static inline sector_t bdev_sectors(struct block_device *bdev)
+-{
+-	return bdev->bd_inode->i_size >> 9;
+-}
+ #endif /* _BCACHE_UTIL_H */
+diff --git a/drivers/md/bcache/writeback.c b/drivers/md/bcache/writeback.c
+index 8120da278161e..c7560f66dca88 100644
+--- a/drivers/md/bcache/writeback.c
++++ b/drivers/md/bcache/writeback.c
+@@ -45,7 +45,7 @@ static uint64_t __calc_target_rate(struct cached_dev *dc)
+ 	 * backing volume uses about 2% of the cache for dirty data.
+ 	 */
+ 	uint32_t bdev_share =
+-		div64_u64(bdev_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
++		div64_u64(bdev_nr_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
+ 				c->cached_dev_sectors);
+ 
+ 	uint64_t cache_dirty_target =
 -- 
 2.30.2
 
