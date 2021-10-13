@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 64D5D420FC0
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:38:42 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 98828420FC0
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:39:52 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:33 +0200
-Message-Id: <20211013051042.1065752-21-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:34 +0200
+Message-Id: <20211013051042.1065752-22-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 20/29] pstore/blk: use bdev_nr_sectors instead of
+Subject: [Drbd-dev] [PATCH 21/29] reiserfs: use bdev_nr_sectors instead of
 	open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -43,28 +43,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the proper helper to read the block device size.
+Use the proper helper to read the block device size and remove two
+cargo culted checks that can't be false.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/pstore/blk.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ fs/reiserfs/super.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/fs/pstore/blk.c b/fs/pstore/blk.c
-index 04ce58c939a0b..f43009cb2ec82 100644
---- a/fs/pstore/blk.c
-+++ b/fs/pstore/blk.c
-@@ -223,8 +223,8 @@ static int __register_pstore_blk(struct pstore_device_info *dev,
- 		goto err_fput;
- 	}
- 
--	inode = I_BDEV(psblk_file->f_mapping->host)->bd_inode;
--	dev->zone.total_size = i_size_read(inode);
-+	inode = psblk_file->f_mapping->host;
-+	dev->zone.total_size = bdev_nr_sectors(I_BDEV(inode)) << SECTOR_SHIFT;
- 
- 	ret = __register_pstore_device(dev);
- 	if (ret)
+diff --git a/fs/reiserfs/super.c b/fs/reiserfs/super.c
+index 58481f8d63d5b..6c9681e2809f0 100644
+--- a/fs/reiserfs/super.c
++++ b/fs/reiserfs/super.c
+@@ -1986,8 +1986,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
+ 	 * smaller than the filesystem. If the check fails then abort and
+ 	 * scream, because bad stuff will happen otherwise.
+ 	 */
+-	if (s->s_bdev && s->s_bdev->bd_inode
+-	    && i_size_read(s->s_bdev->bd_inode) <
++	if ((bdev_nr_sectors(s->s_bdev) << SECTOR_SHIFT) <
+ 	    sb_block_count(rs) * sb_blocksize(rs)) {
+ 		SWARN(silent, s, "", "Filesystem cannot be "
+ 		      "mounted because it is bigger than the device");
 -- 
 2.30.2
 
