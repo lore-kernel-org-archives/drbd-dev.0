@@ -1,20 +1,20 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pj1-f45.google.com (mail-pj1-f45.google.com
-	[209.85.216.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BCA7E420FE6
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:14:25 +0200 (CEST)
-Received: by mail-pj1-f45.google.com with SMTP id kk10so1391510pjb.1
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:14:25 -0700 (PDT)
-Date: Tue, 12 Oct 2021 23:14:23 -0700
+Received: from mail-pg1-f175.google.com (mail-pg1-f175.google.com
+	[209.85.215.175])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 97969420FEA
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:16:13 +0200 (CEST)
+Received: by mail-pg1-f175.google.com with SMTP id a73so1351643pge.0
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:16:13 -0700 (PDT)
+Date: Tue, 12 Oct 2021 23:16:11 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <202110122314.6BE3F05AA3@keescook>
+Message-ID: <202110122315.7CFF5F6@keescook>
 References: <20211013051042.1065752-1-hch@lst.de>
-	<20211013051042.1065752-11-hch@lst.de>
+	<20211013051042.1065752-13-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20211013051042.1065752-11-hch@lst.de>
+In-Reply-To: <20211013051042.1065752-13-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -34,8 +34,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 10/29] affs: use bdev_nr_sectors instead of
-	open coding it
+Subject: Re: [Drbd-dev] [PATCH 12/29] cramfs: use bdev_nr_sectors instead of
+ open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,12 +47,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 13, 2021 at 07:10:23AM +0200, Christoph Hellwig wrote:
+On Wed, Oct 13, 2021 at 07:10:25AM +0200, Christoph Hellwig wrote:
 > Use the proper helper to read the block device size.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  fs/cramfs/inode.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
+> index 2be65269a987c..3e44cc3ed0543 100644
+> --- a/fs/cramfs/inode.c
+> +++ b/fs/cramfs/inode.c
+> @@ -209,7 +209,7 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
+>  		return read_buffers[i] + blk_offset;
+>  	}
+>  
+> -	devsize = mapping->host->i_size >> PAGE_SHIFT;
+> +	devsize = bdev_nr_sectors(sb->s_bdev) >> (PAGE_SHIFT - SECTOR_SHIFT);
 
-Reviewed-by: Kees Cook <keescook@chromium.org>
+I find this less readable than "bytes >> PAGE_SHIFT". I'd suggest this
+use a new bdev_nr_bytes() helper.
 
 -- 
 Kees Cook
