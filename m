@@ -1,14 +1,14 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pl1-f171.google.com (mail-pl1-f171.google.com
-	[209.85.214.171])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 97A83420004
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:29:41 +0200 (CEST)
-Received: by mail-pl1-f171.google.com with SMTP id v20so1107345plo.7
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:29:41 -0700 (PDT)
-Date: Tue, 12 Oct 2021 23:29:39 -0700
+Received: from mail-pf1-f180.google.com (mail-pf1-f180.google.com
+	[209.85.210.180])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 832AC42002F
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:30:45 +0200 (CEST)
+Received: by mail-pf1-f180.google.com with SMTP id g14so1582285pfm.1
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:30:45 -0700 (PDT)
+Date: Tue, 12 Oct 2021 23:30:43 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <202110122328.92B4FC41F4@keescook>
+Message-ID: <202110122330.6E549D2@keescook>
 References: <20211013051042.1065752-1-hch@lst.de>
 	<20211013051042.1065752-26-hch@lst.de>
 MIME-Version: 1.0
@@ -65,9 +65,10 @@ On Wed, Oct 13, 2021 at 07:10:38AM +0200, Christoph Hellwig wrote:
 > -	blocks_count = sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits;
 > +	blocks_count = sb_bdev_nr_blocks(sb);
 
-Is s_blocksize_bits always 9 here? If not, this isn't equivalent.
+Wait, my bad. Yes, this is fine. It's going through two helpers. :)
 
--Kees
+Reviewed-by: Kees Cook <keescook@chromium.org>
+
 
 >  	if (blocks_count && ext4_blocks_count(es) > blocks_count) {
 >  		ext4_msg(sb, KERN_WARNING, "bad geometry: block count %llu "
