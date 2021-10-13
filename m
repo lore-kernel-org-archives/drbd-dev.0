@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 01E47420026
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:31:47 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4A0424205EF
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:33:17 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:28 +0200
-Message-Id: <20211013051042.1065752-16-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:29 +0200
+Message-Id: <20211013051042.1065752-17-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 15/29] hfsplus: use bdev_nr_sectors instead of
-	open coding it
+Subject: [Drbd-dev] [PATCH 16/29] jfs: use bdev_nr_sectors instead of open
+	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,22 +47,36 @@ Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/hfsplus/wrapper.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/jfs/resize.c | 2 +-
+ fs/jfs/super.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/hfsplus/wrapper.c b/fs/hfsplus/wrapper.c
-index 0350dc7821bf9..51ae6f1eb4a55 100644
---- a/fs/hfsplus/wrapper.c
-+++ b/fs/hfsplus/wrapper.c
-@@ -131,7 +131,7 @@ static int hfsplus_get_last_session(struct super_block *sb,
+diff --git a/fs/jfs/resize.c b/fs/jfs/resize.c
+index bde787c354fcc..51a8b22e71030 100644
+--- a/fs/jfs/resize.c
++++ b/fs/jfs/resize.c
+@@ -199,7 +199,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
+ 	txQuiesce(sb);
  
- 	/* default values */
- 	*start = 0;
--	*size = i_size_read(sb->s_bdev->bd_inode) >> 9;
-+	*size = bdev_nr_sectors(sb->s_bdev);
+ 	/* Reset size of direct inode */
+-	sbi->direct_inode->i_size =  i_size_read(sb->s_bdev->bd_inode);
++	sbi->direct_inode->i_size = bdev_nr_sectors(sb->s_bdev) << SECTOR_SHIFT;
  
- 	if (HFSPLUS_SB(sb)->session >= 0) {
- 		struct cdrom_tocentry te;
+ 	if (sbi->mntflag & JFS_INLINELOG) {
+ 		/*
+diff --git a/fs/jfs/super.c b/fs/jfs/super.c
+index 9030aeaf0f886..992870160903d 100644
+--- a/fs/jfs/super.c
++++ b/fs/jfs/super.c
+@@ -551,7 +551,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
+ 		ret = -ENOMEM;
+ 		goto out_unload;
+ 	}
+-	inode->i_size = i_size_read(sb->s_bdev->bd_inode);
++	inode->i_size = bdev_nr_sectors(sb->s_bdev) << SECTOR_SHIFT;
+ 	inode->i_mapping->a_ops = &jfs_metapage_aops;
+ 	inode_fake_hash(inode);
+ 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
 -- 
 2.30.2
 
