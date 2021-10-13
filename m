@@ -1,17 +1,17 @@
 Return-Path: <jack@suse.cz>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 524AD420FFB
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 12:49:29 +0200 (CEST)
-Date: Wed, 13 Oct 2021 12:42:27 +0200
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C7421421001
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 12:53:47 +0200 (CEST)
+Date: Wed, 13 Oct 2021 12:46:15 +0200
 From: Jan Kara <jack@suse.cz>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20211013104227.GE19200@quack2.suse.cz>
+Message-ID: <20211013104615.GH19200@quack2.suse.cz>
 References: <20211013051042.1065752-1-hch@lst.de>
-	<20211013051042.1065752-9-hch@lst.de>
+	<20211013051042.1065752-29-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20211013051042.1065752-9-hch@lst.de>
+In-Reply-To: <20211013051042.1065752-29-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -32,8 +32,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 08/29] fs: use bdev_nr_sectors instead of
- open coding it in blkdev_max_block
+Subject: Re: [Drbd-dev] [PATCH 28/29] reiserfs: use sb_bdev_nr_blocks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,8 +44,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed 13-10-21 07:10:21, Christoph Hellwig wrote:
-> Use the proper helper to read the block device size.
+On Wed 13-10-21 07:10:41, Christoph Hellwig wrote:
+> Use the sb_bdev_nr_blocks helper instead of open coding it.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
