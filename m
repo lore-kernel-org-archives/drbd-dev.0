@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 59F87420FAB
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:22:25 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 52379420FC0
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:23:37 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:20 +0200
-Message-Id: <20211013051042.1065752-8-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:21 +0200
+Message-Id: <20211013051042.1065752-9-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 07/29] target/iblock: use bdev_nr_sectors instead
-	of open coding it
+Subject: [Drbd-dev] [PATCH 08/29] fs: use bdev_nr_sectors instead of open
+	coding it in blkdev_max_block
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,25 +47,22 @@ Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/target/target_core_iblock.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ fs/buffer.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
-index 31df20abe141f..ab7f5678ebc44 100644
---- a/drivers/target/target_core_iblock.c
-+++ b/drivers/target/target_core_iblock.c
-@@ -232,8 +232,9 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
- 	struct block_device *bd,
- 	struct request_queue *q)
+diff --git a/fs/buffer.c b/fs/buffer.c
+index c615387aedcae..3fb9c5b457ab6 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -878,7 +878,7 @@ link_dev_buffers(struct page *page, struct buffer_head *head)
+ static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
  {
--	unsigned long long blocks_long = (div_u64(i_size_read(bd->bd_inode),
--					bdev_logical_block_size(bd)) - 1);
-+	loff_t size = bdev_nr_sectors(bd) << SECTOR_SHIFT;
-+	unsigned long long blocks_long =
-+		div_u64(size, bdev_logical_block_size(bd)) - 1;
- 	u32 block_size = bdev_logical_block_size(bd);
+ 	sector_t retval = ~((sector_t)0);
+-	loff_t sz = i_size_read(bdev->bd_inode);
++	loff_t sz = bdev_nr_sectors(bdev) << SECTOR_SHIFT;
  
- 	if (block_size == dev->dev_attrib.block_size)
+ 	if (sz) {
+ 		unsigned int sizebits = blksize_bits(size);
 -- 
 2.30.2
 
