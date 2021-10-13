@@ -1,17 +1,19 @@
-Return-Path: <tytso@mit.edu>
-Received: from outgoing.mit.edu (outgoing-auth-1.mit.edu [18.9.28.11])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 687EB420304
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 17:59:09 +0200 (CEST)
-Date: Wed, 13 Oct 2021 11:51:02 -0400
-From: "Theodore Ts'o" <tytso@mit.edu>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <YWcAZq8eGQiZyxZS@mit.edu>
+Return-Path: <phillip@squashfs.org.uk>
+Received: from p3plwbeout09-01.prod.phx3.secureserver.net
+	(p3plsmtp09-01-2.prod.phx3.secureserver.net [97.74.135.162])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EFACD420FFC
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 21:44:58 +0200 (CEST)
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20211013051042.1065752-1-hch@lst.de>
-	<20211013051042.1065752-26-hch@lst.de>
+	<20211013051042.1065752-23-hch@lst.de>
+From: Phillip Lougher <phillip@squashfs.org.uk>
+Message-ID: <cbd3585f-87c6-ab31-2911-4d3550287e22@squashfs.org.uk>
+Date: Wed, 13 Oct 2021 20:37:03 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20211013051042.1065752-26-hch@lst.de>
+In-Reply-To: <20211013051042.1065752-23-hch@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -22,16 +24,17 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
 	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
 	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
-	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
 	David Sterba <dsterba@suse.com>,
 	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
 	Anton Altaparmakov <anton@tuxera.com>,
-	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-	linux-nfs@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net,
-	Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org,
-	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
+	linux-raid@vger.kernel.org, linux-nfs@vger.kernel.org,
+	Theodore Ts'o <tytso@mit.edu>,
+	linux-ntfs-dev@lists.sourceforge.net, Jan Kara <jack@suse.com>,
+	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 25/29] ext4: use sb_bdev_nr_blocks
+Subject: Re: [Drbd-dev] [PATCH 22/29] squashfs: use bdev_nr_sectors instead
+ of open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,9 +46,9 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 13, 2021 at 07:10:38AM +0200, Christoph Hellwig wrote:
-> Use the sb_bdev_nr_blocks helper instead of open coding it.
+On 13/10/2021 06:10, Christoph Hellwig wrote:
+> Use the proper helper to read the block device size.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Acked-by: Theodore Ts'o <tytso@mit.edu>
+Acked-by: Phillip Lougher <phillip@squashfs.org.uk>
