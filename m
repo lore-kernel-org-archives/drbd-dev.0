@@ -1,21 +1,19 @@
-Return-Path: <bostroesser@gmail.com>
-Received: from mail-ed1-f47.google.com (mail-ed1-f47.google.com
-	[209.85.208.47])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5024A420FF1
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 11:31:14 +0200 (CEST)
-Received: by mail-ed1-f47.google.com with SMTP id g10so7620975edj.1
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 02:31:14 -0700 (PDT)
+Return-Path: <anand.jain@oracle.com>
+Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
+	[205.220.177.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EF43442000A
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 12:23:06 +0200 (CEST)
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20211013051042.1065752-1-hch@lst.de>
-	<20211013051042.1065752-8-hch@lst.de>
-From: Bodo Stroesser <bostroesser@gmail.com>
-Message-ID: <3babe7ca-cf08-fd19-6793-39f6d78bca12@gmail.com>
-Date: Wed, 13 Oct 2021 11:31:11 +0200
-MIME-Version: 1.0
-In-Reply-To: <20211013051042.1065752-8-hch@lst.de>
+	<20211013051042.1065752-12-hch@lst.de>
+From: Anand Jain <anand.jain@oracle.com>
+Message-ID: <91d3eb0f-95a6-a528-9445-da5b32b69cba@oracle.com>
+Date: Wed, 13 Oct 2021 15:08:48 +0800
+In-Reply-To: <20211013051042.1065752-12-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -36,8 +34,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 07/29] target/iblock: use bdev_nr_sectors
- instead of open coding it
+Subject: Re: [Drbd-dev] [PATCH 11/29] btrfs: use bdev_nr_sectors instead of
+ open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,33 +47,12 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 13.10.21 07:10, Christoph Hellwig wrote:
+On 13/10/2021 13:10, Christoph Hellwig wrote:
 > Use the proper helper to read the block device size.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->   drivers/target/target_core_iblock.c | 5 +++--
->   1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
-> index 31df20abe141f..ab7f5678ebc44 100644
-> --- a/drivers/target/target_core_iblock.c
-> +++ b/drivers/target/target_core_iblock.c
-> @@ -232,8 +232,9 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
->   	struct block_device *bd,
->   	struct request_queue *q)
->   {
-> -	unsigned long long blocks_long = (div_u64(i_size_read(bd->bd_inode),
-> -					bdev_logical_block_size(bd)) - 1);
-> +	loff_t size = bdev_nr_sectors(bd) << SECTOR_SHIFT;
-> +	unsigned long long blocks_long =
-> +		div_u64(size, bdev_logical_block_size(bd)) - 1;
->   	u32 block_size = bdev_logical_block_size(bd);
 
-To enhance readability, would it make sense to shift the new lines
-behind "u32 block_size = ...", so block_size can be used in div_u64
-instead of using bdev_logical_block_size twice?
+Looks good.
 
->   
->   	if (block_size == dev->dev_attrib.block_size)
-> 
+Reviewed-by: Anand Jain <anand.jain@oracle.com>
+
