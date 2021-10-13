@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 729F5420FC6
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:24:50 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 48A99420FCC
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:26:59 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:22 +0200
-Message-Id: <20211013051042.1065752-10-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:23 +0200
+Message-Id: <20211013051042.1065752-11-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 09/29] fs: simplify init_page_buffers
+Subject: [Drbd-dev] [PATCH 10/29] affs: use bdev_nr_sectors instead of open
+	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,26 +43,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-No need to convert from bdev to inode and back.
+Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/buffer.c | 2 +-
+ fs/affs/super.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 3fb9c5b457ab6..ef1fe4f77a952 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -897,7 +897,7 @@ init_page_buffers(struct page *page, struct block_device *bdev,
- 	struct buffer_head *head = page_buffers(page);
- 	struct buffer_head *bh = head;
- 	int uptodate = PageUptodate(page);
--	sector_t end_block = blkdev_max_block(I_BDEV(bdev->bd_inode), size);
-+	sector_t end_block = blkdev_max_block(bdev, size);
+diff --git a/fs/affs/super.c b/fs/affs/super.c
+index c6c2a513ec92d..c609005a9eaaa 100644
+--- a/fs/affs/super.c
++++ b/fs/affs/super.c
+@@ -389,7 +389,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
+ 	 * blocks, we will have to change it.
+ 	 */
  
- 	do {
- 		if (!buffer_mapped(bh)) {
+-	size = i_size_read(sb->s_bdev->bd_inode) >> 9;
++	size = bdev_nr_sectors(sb->s_bdev);
+ 	pr_debug("initial blocksize=%d, #blocks=%d\n", 512, size);
+ 
+ 	affs_set_blocksize(sb, PAGE_SIZE);
 -- 
 2.30.2
 
