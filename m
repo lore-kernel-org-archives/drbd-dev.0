@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DA1D4420FC1
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:42:50 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C9A8D420FD2
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:44:20 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:36 +0200
-Message-Id: <20211013051042.1065752-24-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:37 +0200
+Message-Id: <20211013051042.1065752-25-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 23/29] block: use bdev_nr_sectors instead of open
-	coding it in blkdev_fallocate
+Subject: [Drbd-dev] [PATCH 24/29] block: add a sb_bdev_nr_blocks helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,26 +42,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the proper helper to read the block device size.
+Add a helper to return the size of sb->s_bdev in sb->s_blocksize_bits
+based unites.  Note that SECTOR_SHIFT has to be open coded due to
+include dependency issues for now, but I have a plan to sort that out
+eventually.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/fops.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/genhd.h | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/block/fops.c b/block/fops.c
-index 7bb9581a146cf..6e27dd2748504 100644
---- a/block/fops.c
-+++ b/block/fops.c
-@@ -548,7 +548,7 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
- 		return -EOPNOTSUPP;
+diff --git a/include/linux/genhd.h b/include/linux/genhd.h
+index 082a3e5fd8fa1..6eaef8fa78bcd 100644
+--- a/include/linux/genhd.h
++++ b/include/linux/genhd.h
+@@ -245,6 +245,12 @@ static inline sector_t get_capacity(struct gendisk *disk)
+ 	return bdev_nr_sectors(disk->part0);
+ }
  
- 	/* Don't go off the end of the device. */
--	isize = i_size_read(bdev->bd_inode);
-+	isize = bdev_nr_sectors(bdev) << SECTOR_SHIFT;
- 	if (start >= isize)
- 		return -EINVAL;
- 	if (end >= isize) {
++static inline u64 sb_bdev_nr_blocks(struct super_block *sb)
++{
++	return bdev_nr_sectors(sb->s_bdev) >>
++		(sb->s_blocksize_bits - 9 /* SECTOR_SHIFT */);
++}
++
+ int bdev_disk_changed(struct gendisk *disk, bool invalidate);
+ void blk_drop_partitions(struct gendisk *disk);
+ 
 -- 
 2.30.2
 
