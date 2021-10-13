@@ -1,25 +1,29 @@
-Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
-Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CAA67420FCD
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:28:59 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:13 +0200
-Message-Id: <20211013051042.1065752-1-hch@lst.de>
+Return-Path: <colyli@suse.de>
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8CCA7420FCE
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:29:30 +0200 (CEST)
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+References: <20211013051042.1065752-1-hch@lst.de>
+	<20211013051042.1065752-2-hch@lst.de>
+From: Coly Li <colyli@suse.de>
+Message-ID: <cd1b2185-9682-1d97-9789-96f833007f62@suse.de>
+Date: Wed, 13 Oct 2021 13:21:22 +0800
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20211013051042.1065752-2-hch@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	reiserfs-devel@vger.kernel.org, drbd-dev@lists.linbit.com,
-	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
-	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
+	drbd-dev@lists.linbit.com, linux-nilfs@vger.kernel.org,
+	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
 	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
-	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
-	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
-	David Sterba <dsterba@suse.com>,
+	Josef Bacik <josef@toxicpanda.com>,
+	reiserfs-devel@vger.kernel.org, linux-raid@vger.kernel.org,
+	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
 	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
 	Anton Altaparmakov <anton@tuxera.com>,
 	linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
@@ -28,7 +32,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] don't use ->bd_inode to access the block device size
+Subject: Re: [Drbd-dev] [PATCH 01/29] bcache: remove bdev_sectors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,74 +44,60 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+On 10/13/21 1:10 PM, Christoph Hellwig wrote:
+> Use the equivalent block layer helper instead.
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-various drivers currently poke directy at the block device inode, which
-is a bit of a mess.  This series cleans up the places that read the
-block device size to use the proper helpers.  I have separate patches
-for many of the other bd_inode uses, but this series is already big
-enough as-is,
+Acked-by: Coly Li <colyli@suse.de>
 
-I wondered about adding a helper for looking at the size in byte units
-to avoid the SECTOR_SHIFT shifts in various places.  But given that
-I could not come up with a good name and block devices fundamentally
-work in sector size granularity I decided against that.
+Thanks.
 
-Diffstat:
- block/fops.c                        |    2 +-
- drivers/block/drbd/drbd_int.h       |    3 +--
- drivers/md/bcache/super.c           |    2 +-
- drivers/md/bcache/util.h            |    4 ----
- drivers/md/bcache/writeback.c       |    2 +-
- drivers/md/dm-bufio.c               |    2 +-
- drivers/md/dm-cache-metadata.c      |    2 +-
- drivers/md/dm-cache-target.c        |    2 +-
- drivers/md/dm-clone-target.c        |    2 +-
- drivers/md/dm-dust.c                |    5 ++---
- drivers/md/dm-ebs-target.c          |    2 +-
- drivers/md/dm-era-target.c          |    2 +-
- drivers/md/dm-exception-store.h     |    2 +-
- drivers/md/dm-flakey.c              |    3 +--
- drivers/md/dm-integrity.c           |    6 +++---
- drivers/md/dm-linear.c              |    3 +--
- drivers/md/dm-log-writes.c          |    4 ++--
- drivers/md/dm-log.c                 |    2 +-
- drivers/md/dm-mpath.c               |    2 +-
- drivers/md/dm-raid.c                |    6 +++---
- drivers/md/dm-switch.c              |    2 +-
- drivers/md/dm-table.c               |    3 +--
- drivers/md/dm-thin-metadata.c       |    2 +-
- drivers/md/dm-thin.c                |    2 +-
- drivers/md/dm-verity-target.c       |    3 +--
- drivers/md/dm-writecache.c          |    2 +-
- drivers/md/dm-zoned-target.c        |    2 +-
- drivers/md/md.c                     |   26 +++++++++++---------------
- drivers/mtd/devices/block2mtd.c     |    5 +++--
- drivers/nvme/target/io-cmd-bdev.c   |    4 ++--
- drivers/target/target_core_iblock.c |    5 +++--
- fs/affs/super.c                     |    2 +-
- fs/btrfs/dev-replace.c              |    2 +-
- fs/btrfs/disk-io.c                  |    3 ++-
- fs/btrfs/ioctl.c                    |    4 ++--
- fs/btrfs/volumes.c                  |    7 ++++---
- fs/buffer.c                         |    4 ++--
- fs/cramfs/inode.c                   |    2 +-
- fs/ext4/super.c                     |    2 +-
- fs/fat/inode.c                      |    5 +----
- fs/hfs/mdb.c                        |    2 +-
- fs/hfsplus/wrapper.c                |    2 +-
- fs/jfs/resize.c                     |    5 ++---
- fs/jfs/super.c                      |    5 ++---
- fs/nfs/blocklayout/dev.c            |    4 ++--
- fs/nilfs2/ioctl.c                   |    2 +-
- fs/nilfs2/super.c                   |    2 +-
- fs/nilfs2/the_nilfs.c               |    3 ++-
- fs/ntfs/super.c                     |    8 +++-----
- fs/ntfs3/super.c                    |    3 +--
- fs/pstore/blk.c                     |    4 ++--
- fs/reiserfs/super.c                 |    7 ++-----
- fs/squashfs/super.c                 |    5 +++--
- fs/udf/lowlevel.c                   |    5 ++---
- fs/udf/super.c                      |    9 +++------
- include/linux/genhd.h               |    6 ++++++
- 56 files changed, 100 insertions(+), 117 deletions(-)
+Coly Li
+
+> ---
+>   drivers/md/bcache/super.c     | 2 +-
+>   drivers/md/bcache/util.h      | 4 ----
+>   drivers/md/bcache/writeback.c | 2 +-
+>   3 files changed, 2 insertions(+), 6 deletions(-)
+>
+> diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+> index f2874c77ff797..4f89985abe4b7 100644
+> --- a/drivers/md/bcache/super.c
+> +++ b/drivers/md/bcache/super.c
+> @@ -1002,7 +1002,7 @@ static void calc_cached_dev_sectors(struct cache_set *c)
+>   	struct cached_dev *dc;
+>   
+>   	list_for_each_entry(dc, &c->cached_devs, list)
+> -		sectors += bdev_sectors(dc->bdev);
+> +		sectors += bdev_nr_sectors(dc->bdev);
+>   
+>   	c->cached_dev_sectors = sectors;
+>   }
+> diff --git a/drivers/md/bcache/util.h b/drivers/md/bcache/util.h
+> index b64460a762677..a7da7930a7fda 100644
+> --- a/drivers/md/bcache/util.h
+> +++ b/drivers/md/bcache/util.h
+> @@ -584,8 +584,4 @@ static inline unsigned int fract_exp_two(unsigned int x,
+>   void bch_bio_map(struct bio *bio, void *base);
+>   int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask);
+>   
+> -static inline sector_t bdev_sectors(struct block_device *bdev)
+> -{
+> -	return bdev->bd_inode->i_size >> 9;
+> -}
+>   #endif /* _BCACHE_UTIL_H */
+> diff --git a/drivers/md/bcache/writeback.c b/drivers/md/bcache/writeback.c
+> index 8120da278161e..c7560f66dca88 100644
+> --- a/drivers/md/bcache/writeback.c
+> +++ b/drivers/md/bcache/writeback.c
+> @@ -45,7 +45,7 @@ static uint64_t __calc_target_rate(struct cached_dev *dc)
+>   	 * backing volume uses about 2% of the cache for dirty data.
+>   	 */
+>   	uint32_t bdev_share =
+> -		div64_u64(bdev_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
+> +		div64_u64(bdev_nr_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
+>   				c->cached_dev_sectors);
+>   
+>   	uint64_t cache_dirty_target =
+
