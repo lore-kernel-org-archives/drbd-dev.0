@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C7757420FC5
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:36:41 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 64D5D420FC0
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:38:42 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:32 +0200
-Message-Id: <20211013051042.1065752-20-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:33 +0200
+Message-Id: <20211013051042.1065752-21-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 19/29] ntfs3: use bdev_nr_sectors instead of open
-	coding it
+Subject: [Drbd-dev] [PATCH 20/29] pstore/blk: use bdev_nr_sectors instead of
+	open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,30 +47,24 @@ Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/ntfs3/super.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ fs/pstore/blk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/ntfs3/super.c b/fs/ntfs3/super.c
-index 55bbc9200a10e..b9782b57a4036 100644
---- a/fs/ntfs3/super.c
-+++ b/fs/ntfs3/super.c
-@@ -918,7 +918,6 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
- 	int err;
- 	struct ntfs_sb_info *sbi;
- 	struct block_device *bdev = sb->s_bdev;
--	struct inode *bd_inode = bdev->bd_inode;
- 	struct request_queue *rq = bdev_get_queue(bdev);
- 	struct inode *inode = NULL;
- 	struct ntfs_inode *ni;
-@@ -967,7 +966,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
+diff --git a/fs/pstore/blk.c b/fs/pstore/blk.c
+index 04ce58c939a0b..f43009cb2ec82 100644
+--- a/fs/pstore/blk.c
++++ b/fs/pstore/blk.c
+@@ -223,8 +223,8 @@ static int __register_pstore_blk(struct pstore_device_info *dev,
+ 		goto err_fput;
+ 	}
  
- 	/* Parse boot. */
- 	err = ntfs_init_from_boot(sb, rq ? queue_logical_block_size(rq) : 512,
--				  bd_inode->i_size);
-+				  bdev_nr_sectors(bdev) << SECTOR_SHIFT);
- 	if (err)
- 		goto out;
+-	inode = I_BDEV(psblk_file->f_mapping->host)->bd_inode;
+-	dev->zone.total_size = i_size_read(inode);
++	inode = psblk_file->f_mapping->host;
++	dev->zone.total_size = bdev_nr_sectors(I_BDEV(inode)) << SECTOR_SHIFT;
  
+ 	ret = __register_pstore_device(dev);
+ 	if (ret)
 -- 
 2.30.2
 
