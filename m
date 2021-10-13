@@ -1,18 +1,18 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM04-MW2-obe.outbound.protection.outlook.com
-	(mail-mw2nam08on2083.outbound.protection.outlook.com [40.107.101.83])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 08273420FF4
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Oct 2021 00:49:13 +0200 (CEST)
+Received: from NAM12-BN8-obe.outbound.protection.outlook.com
+	(mail-bn8nam12on2051.outbound.protection.outlook.com [40.107.237.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 57E79420FF4
+	for <drbd-dev@lists.linbit.com>; Thu, 14 Oct 2021 00:51:42 +0200 (CEST)
 From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 22:33:16 +0000
-Message-ID: <d061489a-af65-93e3-0e1a-5742b009ac79@nvidia.com>
+Date: Wed, 13 Oct 2021 22:36:25 +0000
+Message-ID: <9e275603-359d-4492-98b5-520bbd15cc92@nvidia.com>
 References: <20211013051042.1065752-1-hch@lst.de>
-	<20211013051042.1065752-7-hch@lst.de>
-In-Reply-To: <20211013051042.1065752-7-hch@lst.de>
+	<20211013051042.1065752-12-hch@lst.de>
+In-Reply-To: <20211013051042.1065752-12-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <61F41960B16F6C40AEC03242CA4F6BBB@namprd12.prod.outlook.com>
+Content-ID: <0B96D8945A56EF41ABFC6A6B96A751D7@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: Dave Kleikamp <shaggy@kernel.org>, "jfs-discussion@lists.sourceforge.net"
@@ -42,7 +42,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, "jfs-discussion@lists.sourceforge.net"
 	Phillip Lougher <phillip@squashfs.org.uk>,
 	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
 	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 06/29] nvmet: use bdev_nr_sectors instead of
+Subject: Re: [Drbd-dev] [PATCH 11/29] btrfs: use bdev_nr_sectors instead of
  open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -57,6 +57,6 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 T24gMTAvMTIvMjAyMSAxMDoxMCBQTSwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IFVzZSB0
 aGUgcHJvcGVyIGhlbHBlciB0byByZWFkIHRoZSBibG9jayBkZXZpY2Ugc2l6ZS4NCj4gDQo+IFNp
-Z25lZC1vZmYtYnk6IENocmlzdG9waCBIZWxsd2lnIDxoY2hAbHN0LmRlPg0KPiAtLS0NCg0KTG9v
-a3MgZ29vZC4NCg0KUmV2aWV3ZWQtYnk6IENoYWl0YW55YSBLdWxrYXJuaSA8a2NoQG52aWRpYS5j
-b20+DQo=
+Z25lZC1vZmYtYnk6IENocmlzdG9waCBIZWxsd2lnIDxoY2hAbHN0LmRlPg0KDQoNCkxvb2tzIGdv
+b2QuDQoNClJldmlld2VkLWJ5OiBDaGFpdGFueWEgS3Vsa2FybmkgPGtjaEBudmlkaWEuY29tPg0K
+DQoNCg==
