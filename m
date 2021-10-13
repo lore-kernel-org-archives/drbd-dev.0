@@ -1,18 +1,21 @@
-Return-Path: <anand.jain@oracle.com>
-Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
-	[205.220.177.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2B346420FCB
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 09:15:18 +0200 (CEST)
+Return-Path: <bostroesser@gmail.com>
+Received: from mail-ed1-f47.google.com (mail-ed1-f47.google.com
+	[209.85.208.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5024A420FF1
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 11:31:14 +0200 (CEST)
+Received: by mail-ed1-f47.google.com with SMTP id g10so7620975edj.1
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 02:31:14 -0700 (PDT)
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20211013051042.1065752-1-hch@lst.de>
-From: Anand Jain <anand.jain@oracle.com>
-Message-ID: <6d96d52b-3a19-8e00-4089-c2483a4cdbcc@oracle.com>
-Date: Wed, 13 Oct 2021 15:14:55 +0800
-In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
+	<20211013051042.1065752-8-hch@lst.de>
+From: Bodo Stroesser <bostroesser@gmail.com>
+Message-ID: <3babe7ca-cf08-fd19-6793-39f6d78bca12@gmail.com>
+Date: Wed, 13 Oct 2021 11:31:11 +0200
+MIME-Version: 1.0
+In-Reply-To: <20211013051042.1065752-8-hch@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-MIME-Version: 1.0
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -33,7 +36,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] don't use ->bd_inode to access the block device size
+Subject: Re: [Drbd-dev] [PATCH 07/29] target/iblock: use bdev_nr_sectors
+ instead of open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,86 +49,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 13/10/2021 13:10, Christoph Hellwig wrote:
-> Hi Jens,
+On 13.10.21 07:10, Christoph Hellwig wrote:
+> Use the proper helper to read the block device size.
 > 
-> various drivers currently poke directy at the block device inode, which
-> is a bit of a mess.  This series cleans up the places that read the
-> block device size to use the proper helpers.  I have separate patches
-> for many of the other bd_inode uses, but this series is already big
-> enough as-is,
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   drivers/target/target_core_iblock.c | 5 +++--
+>   1 file changed, 3 insertions(+), 2 deletions(-)
 > 
-> I wondered about adding a helper for looking at the size in byte units
-> to avoid the SECTOR_SHIFT shifts in various places.  But given that
-> I could not come up with a good name and 
+> diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+> index 31df20abe141f..ab7f5678ebc44 100644
+> --- a/drivers/target/target_core_iblock.c
+> +++ b/drivers/target/target_core_iblock.c
+> @@ -232,8 +232,9 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
+>   	struct block_device *bd,
+>   	struct request_queue *q)
+>   {
+> -	unsigned long long blocks_long = (div_u64(i_size_read(bd->bd_inode),
+> -					bdev_logical_block_size(bd)) - 1);
+> +	loff_t size = bdev_nr_sectors(bd) << SECTOR_SHIFT;
+> +	unsigned long long blocks_long =
+> +		div_u64(size, bdev_logical_block_size(bd)) - 1;
+>   	u32 block_size = bdev_logical_block_size(bd);
 
+To enhance readability, would it make sense to shift the new lines
+behind "u32 block_size = ...", so block_size can be used in div_u64
+instead of using bdev_logical_block_size twice?
 
-> block devices fundamentally
-> work in sector size granularity I decided against that.
-
-Yes.  However,  POV of its usage outside the block-layer, a wrapper 
-helper is a lot better. No.? If you agree, how about naming it bdev_size()?
-
-Thanks, Anand
-
+>   
+>   	if (block_size == dev->dev_attrib.block_size)
 > 
-> Diffstat:
->   block/fops.c                        |    2 +-
->   drivers/block/drbd/drbd_int.h       |    3 +--
->   drivers/md/bcache/super.c           |    2 +-
->   drivers/md/bcache/util.h            |    4 ----
->   drivers/md/bcache/writeback.c       |    2 +-
->   drivers/md/dm-bufio.c               |    2 +-
->   drivers/md/dm-cache-metadata.c      |    2 +-
->   drivers/md/dm-cache-target.c        |    2 +-
->   drivers/md/dm-clone-target.c        |    2 +-
->   drivers/md/dm-dust.c                |    5 ++---
->   drivers/md/dm-ebs-target.c          |    2 +-
->   drivers/md/dm-era-target.c          |    2 +-
->   drivers/md/dm-exception-store.h     |    2 +-
->   drivers/md/dm-flakey.c              |    3 +--
->   drivers/md/dm-integrity.c           |    6 +++---
->   drivers/md/dm-linear.c              |    3 +--
->   drivers/md/dm-log-writes.c          |    4 ++--
->   drivers/md/dm-log.c                 |    2 +-
->   drivers/md/dm-mpath.c               |    2 +-
->   drivers/md/dm-raid.c                |    6 +++---
->   drivers/md/dm-switch.c              |    2 +-
->   drivers/md/dm-table.c               |    3 +--
->   drivers/md/dm-thin-metadata.c       |    2 +-
->   drivers/md/dm-thin.c                |    2 +-
->   drivers/md/dm-verity-target.c       |    3 +--
->   drivers/md/dm-writecache.c          |    2 +-
->   drivers/md/dm-zoned-target.c        |    2 +-
->   drivers/md/md.c                     |   26 +++++++++++---------------
->   drivers/mtd/devices/block2mtd.c     |    5 +++--
->   drivers/nvme/target/io-cmd-bdev.c   |    4 ++--
->   drivers/target/target_core_iblock.c |    5 +++--
->   fs/affs/super.c                     |    2 +-
->   fs/btrfs/dev-replace.c              |    2 +-
->   fs/btrfs/disk-io.c                  |    3 ++-
->   fs/btrfs/ioctl.c                    |    4 ++--
->   fs/btrfs/volumes.c                  |    7 ++++---
->   fs/buffer.c                         |    4 ++--
->   fs/cramfs/inode.c                   |    2 +-
->   fs/ext4/super.c                     |    2 +-
->   fs/fat/inode.c                      |    5 +----
->   fs/hfs/mdb.c                        |    2 +-
->   fs/hfsplus/wrapper.c                |    2 +-
->   fs/jfs/resize.c                     |    5 ++---
->   fs/jfs/super.c                      |    5 ++---
->   fs/nfs/blocklayout/dev.c            |    4 ++--
->   fs/nilfs2/ioctl.c                   |    2 +-
->   fs/nilfs2/super.c                   |    2 +-
->   fs/nilfs2/the_nilfs.c               |    3 ++-
->   fs/ntfs/super.c                     |    8 +++-----
->   fs/ntfs3/super.c                    |    3 +--
->   fs/pstore/blk.c                     |    4 ++--
->   fs/reiserfs/super.c                 |    7 ++-----
->   fs/squashfs/super.c                 |    5 +++--
->   fs/udf/lowlevel.c                   |    5 ++---
->   fs/udf/super.c                      |    9 +++------
->   include/linux/genhd.h               |    6 ++++++
->   56 files changed, 100 insertions(+), 117 deletions(-)
-> 
-
