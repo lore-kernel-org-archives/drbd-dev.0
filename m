@@ -1,20 +1,20 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pg1-f177.google.com (mail-pg1-f177.google.com
-	[209.85.215.177])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3B945420FDF
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:14:16 +0200 (CEST)
-Received: by mail-pg1-f177.google.com with SMTP id r2so1292066pgl.10
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:14:15 -0700 (PDT)
-Date: Tue, 12 Oct 2021 23:14:14 -0700
+Received: from mail-pj1-f45.google.com (mail-pj1-f45.google.com
+	[209.85.216.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BCA7E420FE6
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:14:25 +0200 (CEST)
+Received: by mail-pj1-f45.google.com with SMTP id kk10so1391510pjb.1
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:14:25 -0700 (PDT)
+Date: Tue, 12 Oct 2021 23:14:23 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <202110122314.664187AA@keescook>
+Message-ID: <202110122314.6BE3F05AA3@keescook>
 References: <20211013051042.1065752-1-hch@lst.de>
-	<20211013051042.1065752-10-hch@lst.de>
+	<20211013051042.1065752-11-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20211013051042.1065752-10-hch@lst.de>
+In-Reply-To: <20211013051042.1065752-11-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -34,7 +34,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 09/29] fs: simplify init_page_buffers
+Subject: Re: [Drbd-dev] [PATCH 10/29] affs: use bdev_nr_sectors instead of
+	open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,8 +47,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 13, 2021 at 07:10:22AM +0200, Christoph Hellwig wrote:
-> No need to convert from bdev to inode and back.
+On Wed, Oct 13, 2021 at 07:10:23AM +0200, Christoph Hellwig wrote:
+> Use the proper helper to read the block device size.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
