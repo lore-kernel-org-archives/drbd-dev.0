@@ -1,20 +1,20 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pj1-f45.google.com (mail-pj1-f45.google.com
-	[209.85.216.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 03700420004
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:27:44 +0200 (CEST)
-Received: by mail-pj1-f45.google.com with SMTP id ls18so1389639pjb.3
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:27:44 -0700 (PDT)
-Date: Tue, 12 Oct 2021 23:27:42 -0700
+Received: from mail-pl1-f171.google.com (mail-pl1-f171.google.com
+	[209.85.214.171])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 97A83420004
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:29:41 +0200 (CEST)
+Received: by mail-pl1-f171.google.com with SMTP id v20so1107345plo.7
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:29:41 -0700 (PDT)
+Date: Tue, 12 Oct 2021 23:29:39 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <202110122319.3029AE5AA@keescook>
+Message-ID: <202110122328.92B4FC41F4@keescook>
 References: <20211013051042.1065752-1-hch@lst.de>
-	<20211013051042.1065752-25-hch@lst.de>
+	<20211013051042.1065752-26-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20211013051042.1065752-25-hch@lst.de>
+In-Reply-To: <20211013051042.1065752-26-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -34,7 +34,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 24/29] block: add a sb_bdev_nr_blocks helper
+Subject: Re: [Drbd-dev] [PATCH 25/29] ext4: use sb_bdev_nr_blocks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,48 +46,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 13, 2021 at 07:10:37AM +0200, Christoph Hellwig wrote:
-> Add a helper to return the size of sb->s_bdev in sb->s_blocksize_bits
-> based unites.  Note that SECTOR_SHIFT has to be open coded due to
-> include dependency issues for now, but I have a plan to sort that out
-> eventually.
-
-Wouldn't that just need a quick lift into a new header file to be
-included by genhd.h, blkev.h, and:
-
-drivers/mtd/ssfdc.c:#define SECTOR_SHIFT                9
-fs/hfsplus/hfsplus_raw.h:#define HFSPLUS_SECTOR_SHIFT         9
-
-I think that's worth doing at some point in this series since genhd.h
-already has existing open-coded "9"s. And, really, a *lot* of other
-places too:
-
-$ git grep -E '(<<|>>) 9' | grep -E '\b(block|blk|sector|bdev)\b' | wc -l
-240
-
+On Wed, Oct 13, 2021 at 07:10:38AM +0200, Christoph Hellwig wrote:
+> Use the sb_bdev_nr_blocks helper instead of open coding it.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  include/linux/genhd.h | 6 ++++++
->  1 file changed, 6 insertions(+)
+>  fs/ext4/super.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> diff --git a/include/linux/genhd.h b/include/linux/genhd.h
-> index 082a3e5fd8fa1..6eaef8fa78bcd 100644
-> --- a/include/linux/genhd.h
-> +++ b/include/linux/genhd.h
-> @@ -245,6 +245,12 @@ static inline sector_t get_capacity(struct gendisk *disk)
->  	return bdev_nr_sectors(disk->part0);
->  }
+> diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+> index 0775950ee84e3..3dde8be5df490 100644
+> --- a/fs/ext4/super.c
+> +++ b/fs/ext4/super.c
+> @@ -4468,7 +4468,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
+>  		goto cantfind_ext4;
 >  
-> +static inline u64 sb_bdev_nr_blocks(struct super_block *sb)
-> +{
-> +	return bdev_nr_sectors(sb->s_bdev) >>
-> +		(sb->s_blocksize_bits - 9 /* SECTOR_SHIFT */);
-> +}
-> +
->  int bdev_disk_changed(struct gendisk *disk, bool invalidate);
->  void blk_drop_partitions(struct gendisk *disk);
->  
+>  	/* check blocks count against device size */
+> -	blocks_count = sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits;
+> +	blocks_count = sb_bdev_nr_blocks(sb);
+
+Is s_blocksize_bits always 9 here? If not, this isn't equivalent.
+
+-Kees
+
+>  	if (blocks_count && ext4_blocks_count(es) > blocks_count) {
+>  		ext4_msg(sb, KERN_WARNING, "bad geometry: block count %llu "
+>  		       "exceeds size of device (%llu blocks)",
 > -- 
 > 2.30.2
 > 
