@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 65FCC420FAE
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:20:49 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 59F87420FAB
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:22:25 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:19 +0200
-Message-Id: <20211013051042.1065752-7-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:20 +0200
+Message-Id: <20211013051042.1065752-8-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 06/29] nvmet: use bdev_nr_sectors instead of open
-	coding it
+Subject: [Drbd-dev] [PATCH 07/29] target/iblock: use bdev_nr_sectors instead
+	of open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,31 +47,25 @@ Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/nvme/target/io-cmd-bdev.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/target/target_core_iblock.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/nvme/target/io-cmd-bdev.c b/drivers/nvme/target/io-cmd-bdev.c
-index 6139e1de50a66..683246303f62e 100644
---- a/drivers/nvme/target/io-cmd-bdev.c
-+++ b/drivers/nvme/target/io-cmd-bdev.c
-@@ -87,7 +87,7 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
- 		ns->bdev = NULL;
- 		return ret;
- 	}
--	ns->size = i_size_read(ns->bdev->bd_inode);
-+	ns->size = bdev_nr_sectors(ns->bdev) << SECTOR_SHIFT;
- 	ns->blksize_shift = blksize_bits(bdev_logical_block_size(ns->bdev));
- 
- 	ns->pi_type = 0;
-@@ -108,7 +108,7 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
- 
- void nvmet_bdev_ns_revalidate(struct nvmet_ns *ns)
+diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+index 31df20abe141f..ab7f5678ebc44 100644
+--- a/drivers/target/target_core_iblock.c
++++ b/drivers/target/target_core_iblock.c
+@@ -232,8 +232,9 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
+ 	struct block_device *bd,
+ 	struct request_queue *q)
  {
--	ns->size = i_size_read(ns->bdev->bd_inode);
-+	ns->size = bdev_nr_sectors(ns->bdev) << SECTOR_SHIFT;
- }
+-	unsigned long long blocks_long = (div_u64(i_size_read(bd->bd_inode),
+-					bdev_logical_block_size(bd)) - 1);
++	loff_t size = bdev_nr_sectors(bd) << SECTOR_SHIFT;
++	unsigned long long blocks_long =
++		div_u64(size, bdev_logical_block_size(bd)) - 1;
+ 	u32 block_size = bdev_logical_block_size(bd);
  
- u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
+ 	if (block_size == dev->dev_attrib.block_size)
 -- 
 2.30.2
 
