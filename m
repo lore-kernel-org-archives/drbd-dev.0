@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AC953420FCD
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:28:19 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 74093420FCE
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:28:37 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:25 +0200
-Message-Id: <20211013051042.1065752-13-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:15 +0200
+Message-Id: <20211013051042.1065752-3-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 12/29] cramfs: use bdev_nr_sectors instead of
-	open coding it
+Subject: [Drbd-dev] [PATCH 02/29] drbd: use bdev_nr_sectors instead of open
+	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,22 +47,23 @@ Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/cramfs/inode.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/block/drbd/drbd_int.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
-index 2be65269a987c..3e44cc3ed0543 100644
---- a/fs/cramfs/inode.c
-+++ b/fs/cramfs/inode.c
-@@ -209,7 +209,7 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
- 		return read_buffers[i] + blk_offset;
- 	}
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 5d9181382ce19..75fda53eed8cf 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1826,8 +1826,7 @@ static inline sector_t drbd_md_last_sector(struct drbd_backing_dev *bdev)
+ /* Returns the number of 512 byte sectors of the device */
+ static inline sector_t drbd_get_capacity(struct block_device *bdev)
+ {
+-	/* return bdev ? get_capacity(bdev->bd_disk) : 0; */
+-	return bdev ? i_size_read(bdev->bd_inode) >> 9 : 0;
++	return bdev ? bdev_nr_sectors(bdev) : 0;
+ }
  
--	devsize = mapping->host->i_size >> PAGE_SHIFT;
-+	devsize = bdev_nr_sectors(sb->s_bdev) >> (PAGE_SHIFT - SECTOR_SHIFT);
- 
- 	/* Ok, read in BLKS_PER_BUF pages completely first. */
- 	for (i = 0; i < BLKS_PER_BUF; i++) {
+ /**
 -- 
 2.30.2
 
