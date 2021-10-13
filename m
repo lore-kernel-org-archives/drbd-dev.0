@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A0912420FB2
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:49:42 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AAEC1420FBE
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:51:50 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:40 +0200
-Message-Id: <20211013051042.1065752-28-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:41 +0200
+Message-Id: <20211013051042.1065752-29-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 27/29] ntfs: use sb_bdev_nr_blocks
+Subject: [Drbd-dev] [PATCH 28/29] reiserfs: use sb_bdev_nr_blocks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,39 +46,24 @@ Use the sb_bdev_nr_blocks helper instead of open coding it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/ntfs/super.c | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ fs/reiserfs/super.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/fs/ntfs/super.c b/fs/ntfs/super.c
-index 0d7e948cb29c9..5ae8de09b271b 100644
---- a/fs/ntfs/super.c
-+++ b/fs/ntfs/super.c
-@@ -2772,13 +2772,12 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
- 	ntfs_debug("Set device block size to %i bytes (block size bits %i).",
- 			blocksize, sb->s_blocksize_bits);
- 	/* Determine the size of the device in units of block_size bytes. */
--	if (!i_size_read(sb->s_bdev->bd_inode)) {
-+	vol->nr_blocks = sb_bdev_nr_blocks(sb);
-+	if (!vol->nr_blocks) {
- 		if (!silent)
- 			ntfs_error(sb, "Unable to determine device size.");
- 		goto err_out_now;
- 	}
--	vol->nr_blocks = i_size_read(sb->s_bdev->bd_inode) >>
--			sb->s_blocksize_bits;
- 	/* Read the boot sector and return unlocked buffer head to it. */
- 	if (!(bh = read_ntfs_boot_sector(sb, silent))) {
- 		if (!silent)
-@@ -2816,8 +2815,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
- 			goto err_out_now;
- 		}
- 		BUG_ON(blocksize != sb->s_blocksize);
--		vol->nr_blocks = i_size_read(sb->s_bdev->bd_inode) >>
--				sb->s_blocksize_bits;
-+		vol->nr_blocks = sb_bdev_nr_blocks(sb);
- 		ntfs_debug("Changed device block size to %i bytes (block size "
- 				"bits %i) to match volume sector size.",
- 				blocksize, sb->s_blocksize_bits);
+diff --git a/fs/reiserfs/super.c b/fs/reiserfs/super.c
+index 6c9681e2809f0..b12baadb7e9bb 100644
+--- a/fs/reiserfs/super.c
++++ b/fs/reiserfs/super.c
+@@ -1199,9 +1199,7 @@ static int reiserfs_parse_options(struct super_block *s,
+ 
+ 			if (!strcmp(arg, "auto")) {
+ 				/* From JFS code, to auto-get the size. */
+-				*blocks =
+-				    i_size_read(s->s_bdev->bd_inode) >> s->
+-				    s_blocksize_bits;
++				*blocks = sb_bdev_nr_blocks(s);
+ 			} else {
+ 				*blocks = simple_strtoul(arg, &p, 0);
+ 				if (*p != '\0') {
 -- 
 2.30.2
 
