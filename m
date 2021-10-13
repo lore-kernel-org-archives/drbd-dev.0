@@ -1,11 +1,11 @@
 Return-Path: <BATV+5200d22377f13f7bc369+6625+infradead.org+hch@casper.srs.infradead.org>
 Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 02477420FAA
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:41:23 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DA1D4420FC1
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 07:42:50 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Oct 2021 07:10:35 +0200
-Message-Id: <20211013051042.1065752-23-hch@lst.de>
+Date: Wed, 13 Oct 2021 07:10:36 +0200
+Message-Id: <20211013051042.1065752-24-hch@lst.de>
 In-Reply-To: <20211013051042.1065752-1-hch@lst.de>
 References: <20211013051042.1065752-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 22/29] squashfs: use bdev_nr_sectors instead of
-	open coding it
+Subject: [Drbd-dev] [PATCH 23/29] block: use bdev_nr_sectors instead of open
+	coding it in blkdev_fallocate
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,32 +47,22 @@ Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/squashfs/super.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ block/fops.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/squashfs/super.c b/fs/squashfs/super.c
-index 60d6951915f44..e83042ecf0d86 100644
---- a/fs/squashfs/super.c
-+++ b/fs/squashfs/super.c
-@@ -16,6 +16,7 @@
+diff --git a/block/fops.c b/block/fops.c
+index 7bb9581a146cf..6e27dd2748504 100644
+--- a/block/fops.c
++++ b/block/fops.c
+@@ -548,7 +548,7 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
+ 		return -EOPNOTSUPP;
  
- #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
- 
-+#include <linux/blkdev.h>
- #include <linux/fs.h>
- #include <linux/fs_context.h>
- #include <linux/fs_parser.h>
-@@ -179,8 +180,8 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
- 	/* Check the filesystem does not extend beyond the end of the
- 	   block device */
- 	msblk->bytes_used = le64_to_cpu(sblk->bytes_used);
--	if (msblk->bytes_used < 0 || msblk->bytes_used >
--			i_size_read(sb->s_bdev->bd_inode))
-+	if (msblk->bytes_used < 0 ||
-+	    msblk->bytes_used > (bdev_nr_sectors(sb->s_bdev) << SECTOR_SHIFT))
- 		goto failed_mount;
- 
- 	/* Check block size for sanity */
+ 	/* Don't go off the end of the device. */
+-	isize = i_size_read(bdev->bd_inode);
++	isize = bdev_nr_sectors(bdev) << SECTOR_SHIFT;
+ 	if (start >= isize)
+ 		return -EINVAL;
+ 	if (end >= isize) {
 -- 
 2.30.2
 
