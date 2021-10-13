@@ -1,20 +1,20 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pg1-f179.google.com (mail-pg1-f179.google.com
-	[209.85.215.179])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 449DD420FF2
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:16:44 +0200 (CEST)
-Received: by mail-pg1-f179.google.com with SMTP id g184so1315598pgc.6
-	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:16:44 -0700 (PDT)
-Date: Tue, 12 Oct 2021 23:16:43 -0700
+Received: from mail-pj1-f51.google.com (mail-pj1-f51.google.com
+	[209.85.216.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 577A2420FEA
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Oct 2021 08:16:52 +0200 (CEST)
+Received: by mail-pj1-f51.google.com with SMTP id om14so1362961pjb.5
+	for <drbd-dev@lists.linbit.com>; Tue, 12 Oct 2021 23:16:52 -0700 (PDT)
+Date: Tue, 12 Oct 2021 23:16:51 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <202110122316.C8D15CD2@keescook>
+Message-ID: <202110122316.9C54C2F@keescook>
 References: <20211013051042.1065752-1-hch@lst.de>
-	<20211013051042.1065752-15-hch@lst.de>
+	<20211013051042.1065752-16-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20211013051042.1065752-15-hch@lst.de>
+In-Reply-To: <20211013051042.1065752-16-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -34,8 +34,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 14/29] hfs: use bdev_nr_sectors instead of
-	open coding it
+Subject: Re: [Drbd-dev] [PATCH 15/29] hfsplus: use bdev_nr_sectors instead
+ of open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,7 +47,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 13, 2021 at 07:10:27AM +0200, Christoph Hellwig wrote:
+On Wed, Oct 13, 2021 at 07:10:28AM +0200, Christoph Hellwig wrote:
 > Use the proper helper to read the block device size.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
