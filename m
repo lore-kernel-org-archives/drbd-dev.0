@@ -1,42 +1,39 @@
-Return-Path: <antlists@youngman.org.uk>
-Received: from smtp.hosts.co.uk (smtp.hosts.co.uk [85.233.160.19])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0B53F42002A
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Oct 2021 21:10:10 +0200 (CEST)
-To: Kees Cook <keescook@chromium.org>, Dave Kleikamp <dave.kleikamp@oracle.com>
-References: <20211013051042.1065752-1-hch@lst.de>
-	<20211014062844.GA25448@lst.de>
-	<3AB8052D-DD45-478B-85F2-BFBEC1C7E9DF@tuxera.com>
-	<a5eb3c18-deb2-6539-cc24-57e6d5d3500c@oracle.com>
-	<202110140813.44C95229@keescook>
-From: Wol <antlists@youngman.org.uk>
-Message-ID: <e3d2f358-be1a-3413-fdb8-2e86718cde3e@youngman.org.uk>
-Date: Thu, 14 Oct 2021 16:35:49 +0100
+Return-Path: <konishi.ryusuke@gmail.com>
+Received: from mail-lf1-f46.google.com (mail-lf1-f46.google.com
+	[209.85.167.46])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4FF62420FE5
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:54:45 +0200 (CEST)
+Received: by mail-lf1-f46.google.com with SMTP id n8so41896082lfk.6
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 06:54:44 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <202110140813.44C95229@keescook>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
-Cc: "linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
-	"jfs-discussion@lists.sourceforge.net"
-	<jfs-discussion@lists.sourceforge.net>,
-	"linux-nilfs@vger.kernel.org" <linux-nilfs@vger.kernel.org>,
-	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
-	"linux-ntfs-dev@lists.sourceforge.net"
-	<linux-ntfs-dev@lists.sourceforge.net>,
-	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
-	"linux-bcache@vger.kernel.org" <linux-bcache@vger.kernel.org>,
-	"linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>,
-	"reiserfs-devel@vger.kernel.org" <reiserfs-devel@vger.kernel.org>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"dm-devel@redhat.com" <dm-devel@redhat.com>,
-	"target-devel@vger.kernel.org" <target-devel@vger.kernel.org>,
-	"linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>,
-	"linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>,
-	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] don't use ->bd_inode to access the block device size
+References: <20211015132643.1621913-1-hch@lst.de>
+	<20211015132643.1621913-20-hch@lst.de>
+In-Reply-To: <20211015132643.1621913-20-hch@lst.de>
+From: Ryusuke Konishi <konishi.ryusuke@gmail.com>
+Date: Fri, 15 Oct 2021 22:54:32 +0900
+Message-ID: <CAKFNMokH0ZU-zxMe3Wm87hZwVgXPv3nRYBx2gXU98GekaeDFRw@mail.gmail.com>
+To: Christoph Hellwig <hch@lst.de>
+Content-Type: text/plain; charset="UTF-8"
+Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
+	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
+	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
+	Song Liu <song@kernel.org>,
+	device-mapper development <dm-devel@redhat.com>,
+	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
+	drbd-dev@lists.linbit.com, linux-nilfs <linux-nilfs@vger.kernel.org>,
+	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
+	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
+	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
+	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
+	David Sterba <dsterba@suse.com>, Anton Altaparmakov <anton@tuxera.com>,
+	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	linux-nfs@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>,
+	linux-ntfs-dev@lists.sourceforge.net, Jan Kara <jack@suse.com>,
+	linux-fsdevel@vger.kernel.org,
+	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
+	linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [PATCH 19/30] nilfs2: use bdev_nr_bytes instead of
+	open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,13 +45,13 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 14/10/2021 16:14, Kees Cook wrote:
->> I don't really mind bdev_size since it's analogous to i_size, but
->> bdev_nr_bytes seems good to me.
+On Fri, Oct 15, 2021 at 10:27 PM Christoph Hellwig <hch@lst.de> wrote:
+>
+> Use the proper helper to read the block device size.
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-> I much prefer bdev_nr_bytes(), as "size" has no units.
+Acked-by: Ryusuke Konishi <konishi.ryusuke@gmail.com>
 
-Does it mean size IN bytes, or size OF A byte? :-)
-
-Cheers,
-Wol
+Thanks,
+Ryusuke Konishi
