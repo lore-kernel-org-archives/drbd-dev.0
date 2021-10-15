@@ -1,12 +1,12 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D75F2420FCD
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:52:41 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 97DE0420FCE
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:52:42 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:27 +0200
-Message-Id: <20211015132643.1621913-15-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:26 +0200
+Message-Id: <20211015132643.1621913-14-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 14/30] fat: use bdev_nr_sectors instead of open
+Subject: [Drbd-dev] [PATCH 13/30] cramfs: use bdev_nr_bytes instead of open
 	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -46,31 +46,23 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Kees Cook <keescook@chromium.org>
 ---
- fs/fat/inode.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ fs/cramfs/inode.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/fat/inode.c b/fs/fat/inode.c
-index de0c9b013a851..9f3cd03668adc 100644
---- a/fs/fat/inode.c
-+++ b/fs/fat/inode.c
-@@ -1536,14 +1536,11 @@ static int fat_read_static_bpb(struct super_block *sb,
- 	struct fat_bios_param_block *bpb)
- {
- 	static const char *notdos1x = "This doesn't look like a DOS 1.x volume";
--
-+	sector_t bd_sects = bdev_nr_sectors(sb->s_bdev);
- 	struct fat_floppy_defaults *fdefaults = NULL;
- 	int error = -EINVAL;
--	sector_t bd_sects;
- 	unsigned i;
+diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
+index 2be65269a987c..666aa380011e0 100644
+--- a/fs/cramfs/inode.c
++++ b/fs/cramfs/inode.c
+@@ -209,7 +209,7 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
+ 		return read_buffers[i] + blk_offset;
+ 	}
  
--	bd_sects = i_size_read(sb->s_bdev->bd_inode) / SECTOR_SIZE;
--
- 	/* 16-bit DOS 1.x reliably wrote bootstrap short-jmp code */
- 	if (b->ignored[0] != 0xeb || b->ignored[2] != 0x90) {
- 		if (!silent)
+-	devsize = mapping->host->i_size >> PAGE_SHIFT;
++	devsize = bdev_nr_bytes(sb->s_bdev) >> PAGE_SHIFT;
+ 
+ 	/* Ok, read in BLKS_PER_BUF pages completely first. */
+ 	for (i = 0; i < BLKS_PER_BUF; i++) {
 -- 
 2.30.2
 
