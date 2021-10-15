@@ -1,16 +1,20 @@
-Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CED81421018
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:51:22 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:34 +0200
-Message-Id: <20211015132643.1621913-22-hch@lst.de>
-In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
+Return-Path: <keescook@chromium.org>
+Received: from mail-pj1-f42.google.com (mail-pj1-f42.google.com
+	[209.85.216.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CDFF7420FF8
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 17:45:52 +0200 (CEST)
+Received: by mail-pj1-f42.google.com with SMTP id kk10so7484406pjb.1
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 08:45:52 -0700 (PDT)
+Date: Fri, 15 Oct 2021 08:45:50 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <202110150845.29BA04E647@keescook>
 References: <20211015132643.1621913-1-hch@lst.de>
+	<20211015132643.1621913-2-hch@lst.de>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20211015132643.1621913-2-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -18,20 +22,19 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
 	drbd-dev@lists.linbit.com, linux-nilfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
-	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
-	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
-	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
-	David Sterba <dsterba@suse.com>,
+	linux-ext4@vger.kernel.org, Josef Bacik <josef@toxicpanda.com>,
+	Coly Li <colyli@suse.de>, linux-raid@vger.kernel.org,
+	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
 	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
 	Anton Altaparmakov <anton@tuxera.com>,
-	linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
-	Theodore Ts'o <tytso@mit.edu>,
+	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	linux-nfs@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>,
 	linux-ntfs-dev@lists.sourceforge.net, Jan Kara <jack@suse.com>,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 21/30] pstore/blk: use bdev_nr_bytes instead of
-	open coding it
+Subject: Re: [Drbd-dev] [PATCH 01/30] block: move the SECTOR_SIZE related
+ definitions to blk_types.h
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,43 +46,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the proper helper to read the block device size.
+On Fri, Oct 15, 2021 at 03:26:14PM +0200, Christoph Hellwig wrote:
+> Ensure these are always available for inlines in the various block layer
+> headers.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- fs/pstore/blk.c | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+Awesome, yes. Thanks!
 
-diff --git a/fs/pstore/blk.c b/fs/pstore/blk.c
-index 04ce58c939a0b..5d1fbaffd66a1 100644
---- a/fs/pstore/blk.c
-+++ b/fs/pstore/blk.c
-@@ -205,7 +205,6 @@ static ssize_t psblk_generic_blk_write(const char *buf, size_t bytes,
- static int __register_pstore_blk(struct pstore_device_info *dev,
- 				 const char *devpath)
- {
--	struct inode *inode;
- 	int ret = -ENODEV;
- 
- 	lockdep_assert_held(&pstore_blk_lock);
-@@ -217,14 +216,13 @@ static int __register_pstore_blk(struct pstore_device_info *dev,
- 		goto err;
- 	}
- 
--	inode = file_inode(psblk_file);
--	if (!S_ISBLK(inode->i_mode)) {
-+	if (!S_ISBLK(file_inode(psblk_file)->i_mode)) {
- 		pr_err("'%s' is not block device!\n", devpath);
- 		goto err_fput;
- 	}
- 
--	inode = I_BDEV(psblk_file->f_mapping->host)->bd_inode;
--	dev->zone.total_size = i_size_read(inode);
-+	dev->zone.total_size =
-+		bdev_nr_bytes(I_BDEV(psblk_file->f_mapping->host));
- 
- 	ret = __register_pstore_device(dev);
- 	if (ret)
+Reviewed-by: Kees Cook <keescook@chromium.org>
+
 -- 
-2.30.2
-
+Kees Cook
