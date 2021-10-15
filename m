@@ -1,23 +1,22 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pl1-f179.google.com (mail-pl1-f179.google.com
-	[209.85.214.179])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9FD4942106F
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 18:56:49 +0200 (CEST)
-Received: by mail-pl1-f179.google.com with SMTP id i5so523406pla.5
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 09:56:49 -0700 (PDT)
-Date: Fri, 15 Oct 2021 09:56:47 -0700
+Received: from mail-pf1-f180.google.com (mail-pf1-f180.google.com
+	[209.85.210.180])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6D79642106D
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 18:57:05 +0200 (CEST)
+Received: by mail-pf1-f180.google.com with SMTP id q19so8873488pfl.4
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 09:57:05 -0700 (PDT)
+Date: Fri, 15 Oct 2021 09:57:03 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <202110150956.A0360E2D01@keescook>
+Message-ID: <202110150957.38CBB0C08@keescook>
 References: <20211015132643.1621913-1-hch@lst.de>
-	<20211015132643.1621913-23-hch@lst.de>
+	<20211015132643.1621913-24-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20211015132643.1621913-23-hch@lst.de>
+In-Reply-To: <20211015132643.1621913-24-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
-	linux-nvme@lists.infradead.org,
+	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
@@ -34,7 +33,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 22/30] reiserfs: use bdev_nr_bytes instead of
+Subject: Re: [Drbd-dev] [PATCH 23/30] squashfs: use bdev_nr_bytes instead of
  open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -47,9 +46,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Oct 15, 2021 at 03:26:35PM +0200, Christoph Hellwig wrote:
-> Use the proper helper to read the block device size and remove two
-> cargo culted checks that can't be false.
+On Fri, Oct 15, 2021 at 03:26:36PM +0200, Christoph Hellwig wrote:
+> Use the proper helper to read the block device size.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
