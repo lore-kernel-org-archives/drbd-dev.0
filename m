@@ -1,18 +1,19 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E6B49420FB2
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:51:03 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B7934420FBA
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:51:04 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:40 +0200
-Message-Id: <20211015132643.1621913-28-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:39 +0200
+Message-Id: <20211015132643.1621913-27-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
+	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
+	linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
@@ -30,7 +31,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 27/30] jfs: use sb_bdev_nr_blocks
+Subject: [Drbd-dev] [PATCH 26/30] ext4: use sb_bdev_nr_blocks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,39 +47,25 @@ Use the sb_bdev_nr_blocks helper instead of open coding it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Kees Cook <keescook@chromium.org>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Acked-by: Theodore Ts'o <tytso@mit.edu>
 ---
- fs/jfs/resize.c | 3 +--
- fs/jfs/super.c  | 3 +--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ fs/ext4/super.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/jfs/resize.c b/fs/jfs/resize.c
-index a42dbb0d3d28a..8b9a72ae5efa7 100644
---- a/fs/jfs/resize.c
-+++ b/fs/jfs/resize.c
-@@ -86,8 +86,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
- 		goto out;
- 	}
+diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+index 0775950ee84e3..3dde8be5df490 100644
+--- a/fs/ext4/super.c
++++ b/fs/ext4/super.c
+@@ -4468,7 +4468,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
+ 		goto cantfind_ext4;
  
--	VolumeSize = i_size_read(sb->s_bdev->bd_inode) >> sb->s_blocksize_bits;
--
-+	VolumeSize = sb_bdev_nr_blocks(sb);
- 	if (VolumeSize) {
- 		if (newLVSize > VolumeSize) {
- 			printk(KERN_WARNING "jfs_extendfs: invalid size\n");
-diff --git a/fs/jfs/super.c b/fs/jfs/super.c
-index 9241caa161163..24cbc9946e01c 100644
---- a/fs/jfs/super.c
-+++ b/fs/jfs/super.c
-@@ -284,8 +284,7 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
- 		}
- 		case Opt_resize_nosize:
- 		{
--			*newLVSize = i_size_read(sb->s_bdev->bd_inode) >>
--				sb->s_blocksize_bits;
-+			*newLVSize = sb_bdev_nr_blocks(sb);
- 			if (*newLVSize == 0)
- 				pr_err("JFS: Cannot determine volume size\n");
- 			break;
+ 	/* check blocks count against device size */
+-	blocks_count = sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits;
++	blocks_count = sb_bdev_nr_blocks(sb);
+ 	if (blocks_count && ext4_blocks_count(es) > blocks_count) {
+ 		ext4_msg(sb, KERN_WARNING, "bad geometry: block count %llu "
+ 		       "exceeds size of device (%llu blocks)",
 -- 
 2.30.2
 
