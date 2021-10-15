@@ -1,17 +1,17 @@
 Return-Path: <anton@tuxera.com>
 Received: from mgw-01.mpynet.fi (mgw-01.mpynet.fi [82.197.21.90])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2849B420FFE
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:35:59 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 90B40421002
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:37:51 +0200 (CEST)
 From: Anton Altaparmakov <anton@tuxera.com>
 To: Christoph Hellwig <hch@lst.de>
-Date: Fri, 15 Oct 2021 14:35:40 +0000
-Message-ID: <7644804B-2081-4A1E-A40D-9A5C7BF72E2E@tuxera.com>
+Date: Fri, 15 Oct 2021 14:37:41 +0000
+Message-ID: <7C4AC4BD-B62D-41B3-AAF7-46125D1A1146@tuxera.com>
 References: <20211015132643.1621913-1-hch@lst.de>
-	<20211015132643.1621913-29-hch@lst.de>
-In-Reply-To: <20211015132643.1621913-29-hch@lst.de>
+	<20211015132643.1621913-3-hch@lst.de>
+In-Reply-To: <20211015132643.1621913-3-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
-Content-ID: <3668CC17B52D274985AE4DAF6C11620E@ex13.tuxera.com>
+Content-ID: <CA141EBD26CA2142955225C1A7459553@ex13.tuxera.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Cc: Dave Kleikamp <shaggy@kernel.org>, "jfs-discussion@lists.sourceforge.net"
@@ -40,7 +40,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, "jfs-discussion@lists.sourceforge.net"
 	Phillip Lougher <phillip@squashfs.org.uk>,
 	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
 	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 28/30] ntfs: use sb_bdev_nr_blocks
+Subject: Re: [Drbd-dev] [PATCH 02/30] block: add a bdev_nr_bytes helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -54,67 +54,45 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hi Christoph,
 
-Looks good, thank you.
+> On 15 Oct 2021, at 14:26, Christoph Hellwig <hch@lst.de> wrote:
+>=20
+> Add a helpe to query the size of a block device in bytes.  This
+> will be used to remove open coded access to ->bd_inode.
+
+Matthew already pointed out the return type for bdev_nr_bytes() but also yo=
+ur commit message has a typo: "Add a helpe" -> "Add a helper".
 
 Best regards,
 
 	Anton
 
-> On 15 Oct 2021, at 14:26, Christoph Hellwig <hch@lst.de> wrote:
->=20
-> Use the sb_bdev_nr_blocks helper instead of open coding it and clean up
-> ntfs_fill_super a bit by moving an assignment a little earlier that has
-> no negative side effects.
->=20
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> Reviewed-by: Kees Cook <keescook@chromium.org>
-
-Acked-by: Anton Altaparmakov <anton@tuxera.com>
-
 > ---
-> fs/ntfs/super.c | 8 +++-----
-> 1 file changed, 3 insertions(+), 5 deletions(-)
+> include/linux/genhd.h | 7 ++++++-
+> 1 file changed, 6 insertions(+), 1 deletion(-)
 >=20
-> diff --git a/fs/ntfs/super.c b/fs/ntfs/super.c
-> index 0d7e948cb29c9..5ae8de09b271b 100644
-> --- a/fs/ntfs/super.c
-> +++ b/fs/ntfs/super.c
-> @@ -2772,13 +2772,12 @@ static int ntfs_fill_super(struct super_block *sb=
-, void *opt, const int silent)
-> 	ntfs_debug("Set device block size to %i bytes (block size bits %i).",
-> 			blocksize, sb->s_blocksize_bits);
-> 	/* Determine the size of the device in units of block_size bytes. */
-> -	if (!i_size_read(sb->s_bdev->bd_inode)) {
-> +	vol->nr_blocks =3D sb_bdev_nr_blocks(sb);
-> +	if (!vol->nr_blocks) {
-> 		if (!silent)
-> 			ntfs_error(sb, "Unable to determine device size.");
-> 		goto err_out_now;
-> 	}
-> -	vol->nr_blocks =3D i_size_read(sb->s_bdev->bd_inode) >>
-> -			sb->s_blocksize_bits;
-> 	/* Read the boot sector and return unlocked buffer head to it. */
-> 	if (!(bh =3D read_ntfs_boot_sector(sb, silent))) {
-> 		if (!silent)
-> @@ -2816,8 +2815,7 @@ static int ntfs_fill_super(struct super_block *sb, =
-void *opt, const int silent)
-> 			goto err_out_now;
-> 		}
-> 		BUG_ON(blocksize !=3D sb->s_blocksize);
-> -		vol->nr_blocks =3D i_size_read(sb->s_bdev->bd_inode) >>
-> -				sb->s_blocksize_bits;
-> +		vol->nr_blocks =3D sb_bdev_nr_blocks(sb);
-> 		ntfs_debug("Changed device block size to %i bytes (block size "
-> 				"bits %i) to match volume sector size.",
-> 				blocksize, sb->s_blocksize_bits);
+> diff --git a/include/linux/genhd.h b/include/linux/genhd.h
+> index 082a3e5fd8fa1..f67db3c5a04b3 100644
+> --- a/include/linux/genhd.h
+> +++ b/include/linux/genhd.h
+> @@ -235,9 +235,14 @@ static inline sector_t get_start_sect(struct block_d=
+evice *bdev)
+> 	return bdev->bd_start_sect;
+> }
+>=20
+> +static inline sector_t bdev_nr_bytes(struct block_device *bdev)
+> +{
+> +	return i_size_read(bdev->bd_inode);
+> +}
+> +
+> static inline sector_t bdev_nr_sectors(struct block_device *bdev)
+> {
+> -	return i_size_read(bdev->bd_inode) >> 9;
+> +	return bdev_nr_bytes(bdev) >> SECTOR_SHIFT;
+> }
+>=20
+> static inline sector_t get_capacity(struct gendisk *disk)
 > --=20
 > 2.30.2
 >=20
-
-
-
---=20
-Anton Altaparmakov <anton at tuxera.com> (replace at with @)
-Lead in File System Development, Tuxera Inc., http://www.tuxera.com/
-Linux NTFS maintainer
 
