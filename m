@@ -1,12 +1,12 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3C66E420FD1
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:52:44 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B3529420620
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:56:53 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:24 +0200
-Message-Id: <20211015132643.1621913-12-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:15 +0200
+Message-Id: <20211015132643.1621913-3-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,8 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 11/30] affs: use bdev_nr_sectors instead of open
-	coding it
+Subject: [Drbd-dev] [PATCH 02/30] block: add a bdev_nr_bytes helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,27 +42,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the proper helper to read the block device size.
+Add a helpe to query the size of a block device in bytes.  This
+will be used to remove open coded access to ->bd_inode.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Kees Cook <keescook@chromium.org>
 ---
- fs/affs/super.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/genhd.h | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-diff --git a/fs/affs/super.c b/fs/affs/super.c
-index c6c2a513ec92d..c609005a9eaaa 100644
---- a/fs/affs/super.c
-+++ b/fs/affs/super.c
-@@ -389,7 +389,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
- 	 * blocks, we will have to change it.
- 	 */
+diff --git a/include/linux/genhd.h b/include/linux/genhd.h
+index 082a3e5fd8fa1..f67db3c5a04b3 100644
+--- a/include/linux/genhd.h
++++ b/include/linux/genhd.h
+@@ -235,9 +235,14 @@ static inline sector_t get_start_sect(struct block_device *bdev)
+ 	return bdev->bd_start_sect;
+ }
  
--	size = i_size_read(sb->s_bdev->bd_inode) >> 9;
-+	size = bdev_nr_sectors(sb->s_bdev);
- 	pr_debug("initial blocksize=%d, #blocks=%d\n", 512, size);
++static inline sector_t bdev_nr_bytes(struct block_device *bdev)
++{
++	return i_size_read(bdev->bd_inode);
++}
++
+ static inline sector_t bdev_nr_sectors(struct block_device *bdev)
+ {
+-	return i_size_read(bdev->bd_inode) >> 9;
++	return bdev_nr_bytes(bdev) >> SECTOR_SHIFT;
+ }
  
- 	affs_set_blocksize(sb, PAGE_SIZE);
+ static inline sector_t get_capacity(struct gendisk *disk)
 -- 
 2.30.2
 
