@@ -1,12 +1,12 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AD9D8420FAA
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:51:00 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9F7E6420FAD
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:51:01 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:23 +0200
-Message-Id: <20211015132643.1621913-11-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:42 +0200
+Message-Id: <20211015132643.1621913-30-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
@@ -31,7 +31,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 10/30] fs: simplify init_page_buffers
+Subject: [Drbd-dev] [PATCH 29/30] reiserfs: use sb_bdev_nr_blocks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,28 +43,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-No need to convert from bdev to inode and back.
+Use the sb_bdev_nr_blocks helper instead of open coding it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Kees Cook <keescook@chromium.org>
 Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- fs/buffer.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/reiserfs/super.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 156358977249f..46bc589b7a03c 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -897,7 +897,7 @@ init_page_buffers(struct page *page, struct block_device *bdev,
- 	struct buffer_head *head = page_buffers(page);
- 	struct buffer_head *bh = head;
- 	int uptodate = PageUptodate(page);
--	sector_t end_block = blkdev_max_block(I_BDEV(bdev->bd_inode), size);
-+	sector_t end_block = blkdev_max_block(bdev, size);
+diff --git a/fs/reiserfs/super.c b/fs/reiserfs/super.c
+index 8647a00434ea4..076f9ab943060 100644
+--- a/fs/reiserfs/super.c
++++ b/fs/reiserfs/super.c
+@@ -1199,9 +1199,7 @@ static int reiserfs_parse_options(struct super_block *s,
  
- 	do {
- 		if (!buffer_mapped(bh)) {
+ 			if (!strcmp(arg, "auto")) {
+ 				/* From JFS code, to auto-get the size. */
+-				*blocks =
+-				    i_size_read(s->s_bdev->bd_inode) >> s->
+-				    s_blocksize_bits;
++				*blocks = sb_bdev_nr_blocks(s);
+ 			} else {
+ 				*blocks = simple_strtoul(arg, &p, 0);
+ 				if (*p != '\0') {
 -- 
 2.30.2
 
