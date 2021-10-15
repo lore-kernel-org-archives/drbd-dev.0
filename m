@@ -1,12 +1,12 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D68A6420FAF
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:51:18 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CED81421018
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:51:22 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:21 +0200
-Message-Id: <20211015132643.1621913-9-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:34 +0200
+Message-Id: <20211015132643.1621913-22-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
@@ -18,8 +18,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
 	drbd-dev@lists.linbit.com, linux-nilfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
-	linux-ext4@vger.kernel.org, Chaitanya Kulkarni <kch@nvidia.com>,
-	Kees Cook <keescook@chromium.org>,
+	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
 	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
 	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
 	David Sterba <dsterba@suse.com>,
@@ -31,8 +30,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 08/30] target/iblock: use bdev_nr_bytes instead
-	of open coding it
+Subject: [Drbd-dev] [PATCH 21/30] pstore/blk: use bdev_nr_bytes instead of
+	open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,27 +46,40 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/target/target_core_iblock.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ fs/pstore/blk.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
-index 31df20abe141f..b1ef041cacd81 100644
---- a/drivers/target/target_core_iblock.c
-+++ b/drivers/target/target_core_iblock.c
-@@ -232,9 +232,9 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
- 	struct block_device *bd,
- 	struct request_queue *q)
+diff --git a/fs/pstore/blk.c b/fs/pstore/blk.c
+index 04ce58c939a0b..5d1fbaffd66a1 100644
+--- a/fs/pstore/blk.c
++++ b/fs/pstore/blk.c
+@@ -205,7 +205,6 @@ static ssize_t psblk_generic_blk_write(const char *buf, size_t bytes,
+ static int __register_pstore_blk(struct pstore_device_info *dev,
+ 				 const char *devpath)
  {
--	unsigned long long blocks_long = (div_u64(i_size_read(bd->bd_inode),
--					bdev_logical_block_size(bd)) - 1);
- 	u32 block_size = bdev_logical_block_size(bd);
-+	unsigned long long blocks_long =
-+		div_u64(bdev_nr_bytes(bd), block_size) - 1;
+-	struct inode *inode;
+ 	int ret = -ENODEV;
  
- 	if (block_size == dev->dev_attrib.block_size)
- 		return blocks_long;
+ 	lockdep_assert_held(&pstore_blk_lock);
+@@ -217,14 +216,13 @@ static int __register_pstore_blk(struct pstore_device_info *dev,
+ 		goto err;
+ 	}
+ 
+-	inode = file_inode(psblk_file);
+-	if (!S_ISBLK(inode->i_mode)) {
++	if (!S_ISBLK(file_inode(psblk_file)->i_mode)) {
+ 		pr_err("'%s' is not block device!\n", devpath);
+ 		goto err_fput;
+ 	}
+ 
+-	inode = I_BDEV(psblk_file->f_mapping->host)->bd_inode;
+-	dev->zone.total_size = i_size_read(inode);
++	dev->zone.total_size =
++		bdev_nr_bytes(I_BDEV(psblk_file->f_mapping->host));
+ 
+ 	ret = __register_pstore_device(dev);
+ 	if (ret)
 -- 
 2.30.2
 
