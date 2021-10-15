@@ -1,19 +1,18 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 97EC6420FBE
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:56:54 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2B890420FF9
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:56:55 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:22 +0200
-Message-Id: <20211015132643.1621913-10-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:20 +0200
+Message-Id: <20211015132643.1621913-8-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
-	linux-nvme@lists.infradead.org,
+	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
@@ -32,8 +31,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 09/30] fs: use bdev_nr_bytes instead of open
-	coding it in blkdev_max_block
+Subject: [Drbd-dev] [PATCH 07/30] nvmet: use bdev_nr_bytes instead of open
+	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,25 +47,33 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Jan Kara <jack@suse.cz>
 Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- fs/buffer.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/nvme/target/io-cmd-bdev.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index c615387aedcae..156358977249f 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -878,7 +878,7 @@ link_dev_buffers(struct page *page, struct buffer_head *head)
- static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
- {
- 	sector_t retval = ~((sector_t)0);
--	loff_t sz = i_size_read(bdev->bd_inode);
-+	loff_t sz = bdev_nr_bytes(bdev);
+diff --git a/drivers/nvme/target/io-cmd-bdev.c b/drivers/nvme/target/io-cmd-bdev.c
+index 6139e1de50a66..70ca9dfc1771a 100644
+--- a/drivers/nvme/target/io-cmd-bdev.c
++++ b/drivers/nvme/target/io-cmd-bdev.c
+@@ -87,7 +87,7 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
+ 		ns->bdev = NULL;
+ 		return ret;
+ 	}
+-	ns->size = i_size_read(ns->bdev->bd_inode);
++	ns->size = bdev_nr_bytes(ns->bdev);
+ 	ns->blksize_shift = blksize_bits(bdev_logical_block_size(ns->bdev));
  
- 	if (sz) {
- 		unsigned int sizebits = blksize_bits(size);
+ 	ns->pi_type = 0;
+@@ -108,7 +108,7 @@ int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
+ 
+ void nvmet_bdev_ns_revalidate(struct nvmet_ns *ns)
+ {
+-	ns->size = i_size_read(ns->bdev->bd_inode);
++	ns->size = bdev_nr_bytes(ns->bdev);
+ }
+ 
+ u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
 -- 
 2.30.2
 
