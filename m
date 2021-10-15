@@ -1,14 +1,19 @@
-Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 92016421033
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:17:58 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:13 +0200
-Message-Id: <20211015132643.1621913-1-hch@lst.de>
+Return-Path: <dave.kleikamp@oracle.com>
+Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
+	[205.220.177.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 71BD7421031
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:17:54 +0200 (CEST)
+Message-ID: <2056d9b3-cf07-36fc-ad60-381e4a4e6d7b@oracle.com>
+Date: Fri, 15 Oct 2021 09:16:58 -0500
+Content-Language: en-US
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+References: <20211015132643.1621913-1-hch@lst.de>
+	<20211015132643.1621913-28-hch@lst.de>
+From: Dave Kleikamp <dave.kleikamp@oracle.com>
+In-Reply-To: <20211015132643.1621913-28-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -28,7 +33,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] don't use ->bd_inode to access the block device size v2
+Subject: Re: [Drbd-dev] [PATCH 27/30] jfs: use sb_bdev_nr_blocks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,77 +45,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+On 10/15/21 8:26AM, Christoph Hellwig wrote:
+> Use the sb_bdev_nr_blocks helper instead of open coding it.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Kees Cook <keescook@chromium.org>
 
-various drivers currently poke directy at the block device inode, which
-is a bit of a mess.  This series cleans up the places that read the
-block device size to use the proper helpers.  I have separate patches
-for many of the other bd_inode uses, but this series is already big
-enough as-is,
+Acked-by: Dave Kleikamp <dave.kleikamp@oracle.com>
 
-Changes since v1:
- - move SECTOR_SIZE & co
- - use SECTOR_SHIFT in sb_bdev_nr_blocks
- - add a bdev_nr_bytes helper
- - reuse a variable in the SCSI target code
- - drop the block2mtd patch, a bigger rewrite for that code is pending
-
-Diffstat:
- block/fops.c                        |    2 +-
- drivers/block/drbd/drbd_int.h       |    3 +--
- drivers/md/bcache/super.c           |    2 +-
- drivers/md/bcache/util.h            |    4 ----
- drivers/md/bcache/writeback.c       |    2 +-
- drivers/md/dm-bufio.c               |    2 +-
- drivers/md/dm-cache-metadata.c      |    2 +-
- drivers/md/dm-cache-target.c        |    2 +-
- drivers/md/dm-clone-target.c        |    2 +-
- drivers/md/dm-dust.c                |    5 ++---
- drivers/md/dm-ebs-target.c          |    2 +-
- drivers/md/dm-era-target.c          |    2 +-
- drivers/md/dm-exception-store.h     |    2 +-
- drivers/md/dm-flakey.c              |    3 +--
- drivers/md/dm-integrity.c           |    6 +++---
- drivers/md/dm-linear.c              |    3 +--
- drivers/md/dm-log-writes.c          |    4 ++--
- drivers/md/dm-log.c                 |    2 +-
- drivers/md/dm-mpath.c               |    2 +-
- drivers/md/dm-raid.c                |    6 +++---
- drivers/md/dm-switch.c              |    2 +-
- drivers/md/dm-table.c               |    3 +--
- drivers/md/dm-thin-metadata.c       |    2 +-
- drivers/md/dm-thin.c                |    2 +-
- drivers/md/dm-verity-target.c       |    3 +--
- drivers/md/dm-writecache.c          |    2 +-
- drivers/md/dm-zoned-target.c        |    2 +-
- drivers/md/md.c                     |   26 +++++++++++---------------
- drivers/nvme/target/io-cmd-bdev.c   |    4 ++--
- drivers/target/target_core_iblock.c |    4 ++--
- fs/affs/super.c                     |    2 +-
- fs/btrfs/dev-replace.c              |    3 +--
- fs/btrfs/disk-io.c                  |    2 +-
- fs/btrfs/ioctl.c                    |    4 ++--
- fs/btrfs/volumes.c                  |    8 ++++----
- fs/buffer.c                         |    4 ++--
- fs/cramfs/inode.c                   |    2 +-
- fs/ext4/super.c                     |    2 +-
- fs/fat/inode.c                      |    5 +----
- fs/hfs/mdb.c                        |    2 +-
- fs/hfsplus/wrapper.c                |    2 +-
- fs/jfs/resize.c                     |    5 ++---
- fs/jfs/super.c                      |    5 ++---
- fs/nfs/blocklayout/dev.c            |    4 ++--
- fs/nilfs2/ioctl.c                   |    2 +-
- fs/nilfs2/super.c                   |    2 +-
- fs/nilfs2/the_nilfs.c               |    2 +-
- fs/ntfs/super.c                     |    8 +++-----
- fs/ntfs3/super.c                    |    3 +--
- fs/pstore/blk.c                     |    8 +++-----
- fs/reiserfs/super.c                 |    8 ++------
- fs/squashfs/super.c                 |    5 +++--
- fs/udf/lowlevel.c                   |    5 ++---
- fs/udf/super.c                      |    9 +++------
- include/linux/blk_types.h           |   17 +++++++++++++++++
- include/linux/blkdev.h              |   17 -----------------
- include/linux/genhd.h               |   13 ++++++++++++-
- 57 files changed, 118 insertions(+), 139 deletions(-)
+> ---
+>   fs/jfs/resize.c | 3 +--
+>   fs/jfs/super.c  | 3 +--
+>   2 files changed, 2 insertions(+), 4 deletions(-)
+> 
+> diff --git a/fs/jfs/resize.c b/fs/jfs/resize.c
+> index a42dbb0d3d28a..8b9a72ae5efa7 100644
+> --- a/fs/jfs/resize.c
+> +++ b/fs/jfs/resize.c
+> @@ -86,8 +86,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
+>   		goto out;
+>   	}
+>   
+> -	VolumeSize = i_size_read(sb->s_bdev->bd_inode) >> sb->s_blocksize_bits;
+> -
+> +	VolumeSize = sb_bdev_nr_blocks(sb);
+>   	if (VolumeSize) {
+>   		if (newLVSize > VolumeSize) {
+>   			printk(KERN_WARNING "jfs_extendfs: invalid size\n");
+> diff --git a/fs/jfs/super.c b/fs/jfs/super.c
+> index 9241caa161163..24cbc9946e01c 100644
+> --- a/fs/jfs/super.c
+> +++ b/fs/jfs/super.c
+> @@ -284,8 +284,7 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
+>   		}
+>   		case Opt_resize_nosize:
+>   		{
+> -			*newLVSize = i_size_read(sb->s_bdev->bd_inode) >>
+> -				sb->s_blocksize_bits;
+> +			*newLVSize = sb_bdev_nr_blocks(sb);
+>   			if (*newLVSize == 0)
+>   				pr_err("JFS: Cannot determine volume size\n");
+>   			break;
+> 
