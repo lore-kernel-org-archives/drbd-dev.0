@@ -1,12 +1,12 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D23D420FCC
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D75F2420FCD
 	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:52:41 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:28 +0200
-Message-Id: <20211015132643.1621913-16-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:27 +0200
+Message-Id: <20211015132643.1621913-15-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 15/30] hfs: use bdev_nr_sectors instead of open
+Subject: [Drbd-dev] [PATCH 14/30] fat: use bdev_nr_sectors instead of open
 	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -48,22 +48,29 @@ Use the proper helper to read the block device size.
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Kees Cook <keescook@chromium.org>
 ---
- fs/hfs/mdb.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/fat/inode.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff --git a/fs/hfs/mdb.c b/fs/hfs/mdb.c
-index cdf0edeeb2781..5beb826524354 100644
---- a/fs/hfs/mdb.c
-+++ b/fs/hfs/mdb.c
-@@ -36,7 +36,7 @@ static int hfs_get_last_session(struct super_block *sb,
+diff --git a/fs/fat/inode.c b/fs/fat/inode.c
+index de0c9b013a851..9f3cd03668adc 100644
+--- a/fs/fat/inode.c
++++ b/fs/fat/inode.c
+@@ -1536,14 +1536,11 @@ static int fat_read_static_bpb(struct super_block *sb,
+ 	struct fat_bios_param_block *bpb)
+ {
+ 	static const char *notdos1x = "This doesn't look like a DOS 1.x volume";
+-
++	sector_t bd_sects = bdev_nr_sectors(sb->s_bdev);
+ 	struct fat_floppy_defaults *fdefaults = NULL;
+ 	int error = -EINVAL;
+-	sector_t bd_sects;
+ 	unsigned i;
  
- 	/* default values */
- 	*start = 0;
--	*size = i_size_read(sb->s_bdev->bd_inode) >> 9;
-+	*size = bdev_nr_sectors(sb->s_bdev);
- 
- 	if (HFS_SB(sb)->session >= 0) {
- 		struct cdrom_tocentry te;
+-	bd_sects = i_size_read(sb->s_bdev->bd_inode) / SECTOR_SIZE;
+-
+ 	/* 16-bit DOS 1.x reliably wrote bootstrap short-jmp code */
+ 	if (b->ignored[0] != 0xeb || b->ignored[2] != 0x90) {
+ 		if (!silent)
 -- 
 2.30.2
 
