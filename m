@@ -1,20 +1,20 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pg1-f169.google.com (mail-pg1-f169.google.com
-	[209.85.215.169])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3B60C42106D
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 18:54:56 +0200 (CEST)
-Received: by mail-pg1-f169.google.com with SMTP id e7so9141272pgk.2
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 09:54:56 -0700 (PDT)
-Date: Fri, 15 Oct 2021 09:54:55 -0700
+Received: from mail-pf1-f169.google.com (mail-pf1-f169.google.com
+	[209.85.210.169])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1546F421066
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 18:56:05 +0200 (CEST)
+Received: by mail-pf1-f169.google.com with SMTP id d9so1668907pfl.6
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 09:56:04 -0700 (PDT)
+Date: Fri, 15 Oct 2021 09:56:03 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <202110150954.FE37F8CF00@keescook>
+Message-ID: <202110150955.495735B@keescook>
 References: <20211015132643.1621913-1-hch@lst.de>
-	<20211015132643.1621913-21-hch@lst.de>
+	<20211015132643.1621913-22-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20211015132643.1621913-21-hch@lst.de>
+In-Reply-To: <20211015132643.1621913-22-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -33,8 +33,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 20/30] ntfs3: use bdev_nr_bytes instead of
-	open coding it
+Subject: Re: [Drbd-dev] [PATCH 21/30] pstore/blk: use bdev_nr_bytes instead
+ of open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,12 +46,14 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Oct 15, 2021 at 03:26:33PM +0200, Christoph Hellwig wrote:
+On Fri, Oct 15, 2021 at 03:26:34PM +0200, Christoph Hellwig wrote:
 > Use the proper helper to read the block device size.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Reviewed-by: Kees Cook <keescook@chromium.org>
+Thanks for the bdev_by_bytes() helper; this is more readable now. :)
+
+Acked-by: Kees Cook <keescook@chromium.org>
 
 -- 
 Kees Cook
