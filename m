@@ -1,20 +1,21 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pf1-f177.google.com (mail-pf1-f177.google.com
-	[209.85.210.177])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4F24F421016
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 18:51:58 +0200 (CEST)
-Received: by mail-pf1-f177.google.com with SMTP id o133so8843576pfg.7
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 09:51:58 -0700 (PDT)
-Date: Fri, 15 Oct 2021 09:51:56 -0700
+Received: from mail-pj1-f45.google.com (mail-pj1-f45.google.com
+	[209.85.216.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4876142105F
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 18:53:54 +0200 (CEST)
+Received: by mail-pj1-f45.google.com with SMTP id
+	oa12-20020a17090b1bcc00b0019f715462a8so7696097pjb.3
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 09:53:54 -0700 (PDT)
+Date: Fri, 15 Oct 2021 09:53:52 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <202110150951.94FEBC4C@keescook>
+Message-ID: <202110150953.4C55C8948@keescook>
 References: <20211015132643.1621913-1-hch@lst.de>
-	<20211015132643.1621913-14-hch@lst.de>
+	<20211015132643.1621913-18-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20211015132643.1621913-14-hch@lst.de>
+In-Reply-To: <20211015132643.1621913-18-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -24,7 +25,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
 	linux-ext4@vger.kernel.org, Josef Bacik <josef@toxicpanda.com>,
 	Coly Li <colyli@suse.de>, linux-raid@vger.kernel.org,
-	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
+	linux-bcache@vger.kernel.org, Dave Kleikamp <dave.kleikamp@oracle.com>,
+	David Sterba <dsterba@suse.com>,
 	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
 	Anton Altaparmakov <anton@tuxera.com>,
 	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
@@ -33,8 +35,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 13/30] cramfs: use bdev_nr_bytes instead of
-	open coding it
+Subject: Re: [Drbd-dev] [PATCH 17/30] jfs: use bdev_nr_bytes instead of open
+	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,7 +48,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Oct 15, 2021 at 03:26:26PM +0200, Christoph Hellwig wrote:
+On Fri, Oct 15, 2021 at 03:26:30PM +0200, Christoph Hellwig wrote:
 > Use the proper helper to read the block device size.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
