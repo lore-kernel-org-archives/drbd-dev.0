@@ -1,12 +1,12 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9EF19421029
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:16:36 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 559D6421031
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:16:55 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:16 +0200
-Message-Id: <20211015132643.1621913-4-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:17 +0200
+Message-Id: <20211015132643.1621913-5-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
@@ -18,7 +18,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
 	drbd-dev@lists.linbit.com, linux-nilfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
-	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
+	linux-ext4@vger.kernel.org, Chaitanya Kulkarni <kch@nvidia.com>,
+	Kees Cook <keescook@chromium.org>,
 	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
 	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
 	David Sterba <dsterba@suse.com>,
@@ -30,7 +31,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 03/30] bcache: remove bdev_sectors
+Subject: [Drbd-dev] [PATCH 04/30] drbd: use bdev_nr_sectors instead of open
+	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,56 +44,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the equivalent block layer helper instead.
+Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Kees Cook <keescook@chromium.org>
-Acked-by: Coly Li <colyli@suse.de>
+Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/md/bcache/super.c     | 2 +-
- drivers/md/bcache/util.h      | 4 ----
- drivers/md/bcache/writeback.c | 2 +-
- 3 files changed, 2 insertions(+), 6 deletions(-)
+ drivers/block/drbd/drbd_int.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
-index f2874c77ff797..4f89985abe4b7 100644
---- a/drivers/md/bcache/super.c
-+++ b/drivers/md/bcache/super.c
-@@ -1002,7 +1002,7 @@ static void calc_cached_dev_sectors(struct cache_set *c)
- 	struct cached_dev *dc;
- 
- 	list_for_each_entry(dc, &c->cached_devs, list)
--		sectors += bdev_sectors(dc->bdev);
-+		sectors += bdev_nr_sectors(dc->bdev);
- 
- 	c->cached_dev_sectors = sectors;
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 5d9181382ce19..75fda53eed8cf 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1826,8 +1826,7 @@ static inline sector_t drbd_md_last_sector(struct drbd_backing_dev *bdev)
+ /* Returns the number of 512 byte sectors of the device */
+ static inline sector_t drbd_get_capacity(struct block_device *bdev)
+ {
+-	/* return bdev ? get_capacity(bdev->bd_disk) : 0; */
+-	return bdev ? i_size_read(bdev->bd_inode) >> 9 : 0;
++	return bdev ? bdev_nr_sectors(bdev) : 0;
  }
-diff --git a/drivers/md/bcache/util.h b/drivers/md/bcache/util.h
-index b64460a762677..a7da7930a7fda 100644
---- a/drivers/md/bcache/util.h
-+++ b/drivers/md/bcache/util.h
-@@ -584,8 +584,4 @@ static inline unsigned int fract_exp_two(unsigned int x,
- void bch_bio_map(struct bio *bio, void *base);
- int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask);
  
--static inline sector_t bdev_sectors(struct block_device *bdev)
--{
--	return bdev->bd_inode->i_size >> 9;
--}
- #endif /* _BCACHE_UTIL_H */
-diff --git a/drivers/md/bcache/writeback.c b/drivers/md/bcache/writeback.c
-index 8120da278161e..c7560f66dca88 100644
---- a/drivers/md/bcache/writeback.c
-+++ b/drivers/md/bcache/writeback.c
-@@ -45,7 +45,7 @@ static uint64_t __calc_target_rate(struct cached_dev *dc)
- 	 * backing volume uses about 2% of the cache for dirty data.
- 	 */
- 	uint32_t bdev_share =
--		div64_u64(bdev_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
-+		div64_u64(bdev_nr_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
- 				c->cached_dev_sectors);
- 
- 	uint64_t cache_dirty_target =
+ /**
 -- 
 2.30.2
 
