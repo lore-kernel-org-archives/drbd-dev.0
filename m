@@ -1,32 +1,30 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pf1-f178.google.com (mail-pf1-f178.google.com
-	[209.85.210.178])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5450842106D
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 18:57:20 +0200 (CEST)
-Received: by mail-pf1-f178.google.com with SMTP id k26so8864018pfi.5
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 09:57:19 -0700 (PDT)
-Date: Fri, 15 Oct 2021 09:57:18 -0700
+Received: from mail-pf1-f179.google.com (mail-pf1-f179.google.com
+	[209.85.210.179])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D6B8D42106D
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 18:58:08 +0200 (CEST)
+Received: by mail-pf1-f179.google.com with SMTP id m26so8881214pff.3
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 09:58:08 -0700 (PDT)
+Date: Fri, 15 Oct 2021 09:58:06 -0700
 From: Kees Cook <keescook@chromium.org>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <202110150957.C90F687@keescook>
+Message-ID: <202110150957.44EE74B5@keescook>
 References: <20211015132643.1621913-1-hch@lst.de>
-	<20211015132643.1621913-25-hch@lst.de>
+	<20211015132643.1621913-26-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20211015132643.1621913-25-hch@lst.de>
+In-Reply-To: <20211015132643.1621913-26-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
-	linux-nvme@lists.infradead.org,
+	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
 	drbd-dev@lists.linbit.com, linux-nilfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
-	linux-ext4@vger.kernel.org, Chaitanya Kulkarni <kch@nvidia.com>,
-	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
-	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
-	David Sterba <dsterba@suse.com>,
+	linux-ext4@vger.kernel.org, Josef Bacik <josef@toxicpanda.com>,
+	Coly Li <colyli@suse.de>, linux-raid@vger.kernel.org,
+	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
 	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
 	Anton Altaparmakov <anton@tuxera.com>,
 	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
@@ -35,8 +33,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 24/30] block: use bdev_nr_bytes instead of
- open coding it in blkdev_fallocate
+Subject: Re: [Drbd-dev] [PATCH 25/30] block: add a sb_bdev_nr_blocks helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -48,10 +45,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Oct 15, 2021 at 03:26:37PM +0200, Christoph Hellwig wrote:
-> Use the proper helper to read the block device size.
+On Fri, Oct 15, 2021 at 03:26:38PM +0200, Christoph Hellwig wrote:
+> Add a helper to return the size of sb->s_bdev in sb->s_blocksize_bits
+> based unites.  Note that SECTOR_SHIFT has to be open coded due to
+> include dependency issues for now, but I have a plan to sort that out
+> eventually.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+
+You can adjust this changelog to remove the note about SECTOR_SHIFT
+now. :)
 
 Reviewed-by: Kees Cook <keescook@chromium.org>
 
