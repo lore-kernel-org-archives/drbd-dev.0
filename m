@@ -1,39 +1,41 @@
-Return-Path: <konishi.ryusuke@gmail.com>
-Received: from mail-lf1-f46.google.com (mail-lf1-f46.google.com
-	[209.85.167.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4FF62420FE5
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:54:45 +0200 (CEST)
-Received: by mail-lf1-f46.google.com with SMTP id n8so41896082lfk.6
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 06:54:44 -0700 (PDT)
-MIME-Version: 1.0
-References: <20211015132643.1621913-1-hch@lst.de>
-	<20211015132643.1621913-20-hch@lst.de>
-In-Reply-To: <20211015132643.1621913-20-hch@lst.de>
-From: Ryusuke Konishi <konishi.ryusuke@gmail.com>
-Date: Fri, 15 Oct 2021 22:54:32 +0900
-Message-ID: <CAKFNMokH0ZU-zxMe3Wm87hZwVgXPv3nRYBx2gXU98GekaeDFRw@mail.gmail.com>
+Return-Path: <dsterba@suse.cz>
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 085CA42100F
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 16:07:15 +0200 (CEST)
+Date: Fri, 15 Oct 2021 15:52:47 +0200
+From: David Sterba <dsterba@suse.cz>
 To: Christoph Hellwig <hch@lst.de>
-Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20211015135247.GD30611@suse.cz>
+References: <20211015132643.1621913-1-hch@lst.de>
+	<20211015132643.1621913-13-hch@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20211015132643.1621913-13-hch@lst.de>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
-	Song Liu <song@kernel.org>,
-	device-mapper development <dm-devel@redhat.com>,
+	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
-	drbd-dev@lists.linbit.com, linux-nilfs <linux-nilfs@vger.kernel.org>,
+	drbd-dev@lists.linbit.com, linux-nilfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
-	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
+	linux-ext4@vger.kernel.org, Chaitanya Kulkarni <kch@nvidia.com>,
+	Kees Cook <keescook@chromium.org>,
 	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
 	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
-	David Sterba <dsterba@suse.com>, Anton Altaparmakov <anton@tuxera.com>,
+	David Sterba <dsterba@suse.com>,
+	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
+	Anton Altaparmakov <anton@tuxera.com>,
 	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
 	linux-nfs@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>,
-	linux-ntfs-dev@lists.sourceforge.net, Jan Kara <jack@suse.com>,
+	linux-ntfs-dev@lists.sourceforge.net,
+	Anand Jain <anand.jain@oracle.com>, Jan Kara <jack@suse.com>,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 19/30] nilfs2: use bdev_nr_bytes instead of
+Subject: Re: [Drbd-dev] [PATCH 12/30] btrfs: use bdev_nr_bytes instead of
 	open coding it
+Reply-To: dsterba@suse.cz
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,13 +47,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Oct 15, 2021 at 10:27 PM Christoph Hellwig <hch@lst.de> wrote:
->
+On Fri, Oct 15, 2021 at 03:26:25PM +0200, Christoph Hellwig wrote:
 > Use the proper helper to read the block device size.
->
+> 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Anand Jain <anand.jain@oracle.com>
+> Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
 
-Acked-by: Ryusuke Konishi <konishi.ryusuke@gmail.com>
-
-Thanks,
-Ryusuke Konishi
+Acked-by: David Sterba <dsterba@suse.com>
