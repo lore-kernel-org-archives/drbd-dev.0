@@ -1,19 +1,19 @@
-Return-Path: <jack@suse.cz>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B1C44420F75
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:44:25 +0200 (CEST)
-Date: Fri, 15 Oct 2021 15:44:23 +0200
-From: Jan Kara <jack@suse.cz>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20211015134423.GQ23102@quack2.suse.cz>
+Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AD9D8420FAA
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:51:00 +0200 (CEST)
+From: Christoph Hellwig <hch@lst.de>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Fri, 15 Oct 2021 15:26:23 +0200
+Message-Id: <20211015132643.1621913-11-hch@lst.de>
+In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
-	<20211015132643.1621913-2-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20211015132643.1621913-2-hch@lst.de>
+Content-Transfer-Encoding: 8bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
+	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
+	linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
@@ -25,14 +25,13 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	David Sterba <dsterba@suse.com>,
 	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
 	Anton Altaparmakov <anton@tuxera.com>,
-	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-	linux-nfs@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>,
+	linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
+	Theodore Ts'o <tytso@mit.edu>,
 	linux-ntfs-dev@lists.sourceforge.net, Jan Kara <jack@suse.com>,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 01/30] block: move the SECTOR_SIZE related
- definitions to blk_types.h
+Subject: [Drbd-dev] [PATCH 10/30] fs: simplify init_page_buffers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,17 +43,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri 15-10-21 15:26:14, Christoph Hellwig wrote:
-> Ensure these are always available for inlines in the various block layer
-> headers.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+No need to convert from bdev to inode and back.
 
-Looks good. Feel free to add:
-
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Kees Cook <keescook@chromium.org>
 Reviewed-by: Jan Kara <jack@suse.cz>
+---
+ fs/buffer.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-								Honza
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 156358977249f..46bc589b7a03c 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -897,7 +897,7 @@ init_page_buffers(struct page *page, struct block_device *bdev,
+ 	struct buffer_head *head = page_buffers(page);
+ 	struct buffer_head *bh = head;
+ 	int uptodate = PageUptodate(page);
+-	sector_t end_block = blkdev_max_block(I_BDEV(bdev->bd_inode), size);
++	sector_t end_block = blkdev_max_block(bdev, size);
+ 
+ 	do {
+ 		if (!buffer_mapped(bh)) {
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.30.2
+
