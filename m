@@ -1,12 +1,12 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E35E1420FAA
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:51:06 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 73664420FBE
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:51:07 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:37 +0200
-Message-Id: <20211015132643.1621913-25-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:35 +0200
+Message-Id: <20211015132643.1621913-23-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
@@ -19,8 +19,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
 	drbd-dev@lists.linbit.com, linux-nilfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
-	linux-ext4@vger.kernel.org, Chaitanya Kulkarni <kch@nvidia.com>,
-	Kees Cook <keescook@chromium.org>,
+	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
 	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
 	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
 	David Sterba <dsterba@suse.com>,
@@ -32,8 +31,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 24/30] block: use bdev_nr_bytes instead of open
-	coding it in blkdev_fallocate
+Subject: [Drbd-dev] [PATCH 22/30] reiserfs: use bdev_nr_bytes instead of
+	open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,28 +44,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the proper helper to read the block device size.
+Use the proper helper to read the block device size and remove two
+cargo culted checks that can't be false.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- block/fops.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/reiserfs/super.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/block/fops.c b/block/fops.c
-index 7bb9581a146cf..a6a4d412720cd 100644
---- a/block/fops.c
-+++ b/block/fops.c
-@@ -548,7 +548,7 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
- 		return -EOPNOTSUPP;
- 
- 	/* Don't go off the end of the device. */
--	isize = i_size_read(bdev->bd_inode);
-+	isize = bdev_nr_bytes(bdev);
- 	if (start >= isize)
- 		return -EINVAL;
- 	if (end >= isize) {
+diff --git a/fs/reiserfs/super.c b/fs/reiserfs/super.c
+index 58481f8d63d5b..8647a00434ea4 100644
+--- a/fs/reiserfs/super.c
++++ b/fs/reiserfs/super.c
+@@ -1986,9 +1986,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
+ 	 * smaller than the filesystem. If the check fails then abort and
+ 	 * scream, because bad stuff will happen otherwise.
+ 	 */
+-	if (s->s_bdev && s->s_bdev->bd_inode
+-	    && i_size_read(s->s_bdev->bd_inode) <
+-	    sb_block_count(rs) * sb_blocksize(rs)) {
++	if (bdev_nr_bytes(s->s_bdev) < sb_block_count(rs) * sb_blocksize(rs)) {
+ 		SWARN(silent, s, "", "Filesystem cannot be "
+ 		      "mounted because it is bigger than the device");
+ 		SWARN(silent, s, "", "You may need to run fsck "
 -- 
 2.30.2
 
