@@ -1,19 +1,18 @@
 Return-Path: <BATV+717e4f5ff9d7c10515bf+6627+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4345A420FB1
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E2C26420FAF
 	for <drbd-dev@lists.linbit.com>; Fri, 15 Oct 2021 15:51:02 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Oct 2021 15:26:43 +0200
-Message-Id: <20211015132643.1621913-31-hch@lst.de>
+Date: Fri, 15 Oct 2021 15:26:41 +0200
+Message-Id: <20211015132643.1621913-29-hch@lst.de>
 In-Reply-To: <20211015132643.1621913-1-hch@lst.de>
 References: <20211015132643.1621913-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
-	linux-nvme@lists.infradead.org,
+	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
@@ -31,7 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 30/30] udf: use sb_bdev_nr_blocks
+Subject: [Drbd-dev] [PATCH 28/30] ntfs: use sb_bdev_nr_blocks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,73 +42,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the sb_bdev_nr_blocks helper instead of open coding it.
+Use the sb_bdev_nr_blocks helper instead of open coding it and clean up
+ntfs_fill_super a bit by moving an assignment a little earlier that has
+no negative side effects.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- fs/udf/lowlevel.c | 5 ++---
- fs/udf/super.c    | 9 +++------
- 2 files changed, 5 insertions(+), 9 deletions(-)
+ fs/ntfs/super.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-diff --git a/fs/udf/lowlevel.c b/fs/udf/lowlevel.c
-index f1094cdcd6cde..46d6971721975 100644
---- a/fs/udf/lowlevel.c
-+++ b/fs/udf/lowlevel.c
-@@ -47,8 +47,7 @@ unsigned int udf_get_last_session(struct super_block *sb)
- 
- unsigned long udf_get_last_block(struct super_block *sb)
- {
--	struct block_device *bdev = sb->s_bdev;
--	struct cdrom_device_info *cdi = disk_to_cdi(bdev->bd_disk);
-+	struct cdrom_device_info *cdi = disk_to_cdi(sb->s_bdev->bd_disk);
- 	unsigned long lblock = 0;
- 
- 	/*
-@@ -56,7 +55,7 @@ unsigned long udf_get_last_block(struct super_block *sb)
- 	 * Try using the device size...
- 	 */
- 	if (!cdi || cdrom_get_last_written(cdi, &lblock) || lblock == 0)
--		lblock = i_size_read(bdev->bd_inode) >> sb->s_blocksize_bits;
-+		lblock = sb_bdev_nr_blocks(sb);
- 
- 	if (lblock)
- 		return lblock - 1;
-diff --git a/fs/udf/super.c b/fs/udf/super.c
-index b2d7c57d06881..34247fba6df91 100644
---- a/fs/udf/super.c
-+++ b/fs/udf/super.c
-@@ -1175,8 +1175,7 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
- 	struct udf_inode_info *vati;
- 	uint32_t pos;
- 	struct virtualAllocationTable20 *vat20;
--	sector_t blocks = i_size_read(sb->s_bdev->bd_inode) >>
--			  sb->s_blocksize_bits;
-+	sector_t blocks = sb_bdev_nr_blocks(sb);
- 
- 	udf_find_vat_block(sb, p_index, type1_index, sbi->s_last_block);
- 	if (!sbi->s_vat_inode &&
-@@ -1838,8 +1837,7 @@ static int udf_check_anchor_block(struct super_block *sb, sector_t block,
- 	int ret;
- 
- 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV) &&
--	    udf_fixed_to_variable(block) >=
--	    i_size_read(sb->s_bdev->bd_inode) >> sb->s_blocksize_bits)
-+	    udf_fixed_to_variable(block) >= sb_bdev_nr_blocks(sb))
- 		return -EAGAIN;
- 
- 	bh = udf_read_tagged(sb, block, block, &ident);
-@@ -1901,8 +1899,7 @@ static int udf_scan_anchors(struct super_block *sb, sector_t *lastblock,
- 		last[last_count++] = *lastblock - 152;
- 
- 	for (i = 0; i < last_count; i++) {
--		if (last[i] >= i_size_read(sb->s_bdev->bd_inode) >>
--				sb->s_blocksize_bits)
-+		if (last[i] >= sb_bdev_nr_blocks(sb))
- 			continue;
- 		ret = udf_check_anchor_block(sb, last[i], fileset);
- 		if (ret != -EAGAIN) {
+diff --git a/fs/ntfs/super.c b/fs/ntfs/super.c
+index 0d7e948cb29c9..5ae8de09b271b 100644
+--- a/fs/ntfs/super.c
++++ b/fs/ntfs/super.c
+@@ -2772,13 +2772,12 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
+ 	ntfs_debug("Set device block size to %i bytes (block size bits %i).",
+ 			blocksize, sb->s_blocksize_bits);
+ 	/* Determine the size of the device in units of block_size bytes. */
+-	if (!i_size_read(sb->s_bdev->bd_inode)) {
++	vol->nr_blocks = sb_bdev_nr_blocks(sb);
++	if (!vol->nr_blocks) {
+ 		if (!silent)
+ 			ntfs_error(sb, "Unable to determine device size.");
+ 		goto err_out_now;
+ 	}
+-	vol->nr_blocks = i_size_read(sb->s_bdev->bd_inode) >>
+-			sb->s_blocksize_bits;
+ 	/* Read the boot sector and return unlocked buffer head to it. */
+ 	if (!(bh = read_ntfs_boot_sector(sb, silent))) {
+ 		if (!silent)
+@@ -2816,8 +2815,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
+ 			goto err_out_now;
+ 		}
+ 		BUG_ON(blocksize != sb->s_blocksize);
+-		vol->nr_blocks = i_size_read(sb->s_bdev->bd_inode) >>
+-				sb->s_blocksize_bits;
++		vol->nr_blocks = sb_bdev_nr_blocks(sb);
+ 		ntfs_debug("Changed device block size to %i bytes (block size "
+ 				"bits %i) to match volume sector size.",
+ 				blocksize, sb->s_blocksize_bits);
 -- 
 2.30.2
 
