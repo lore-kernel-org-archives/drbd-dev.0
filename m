@@ -1,40 +1,47 @@
-Return-Path: <kari.argillander@gmail.com>
-Received: from mail-lf1-f41.google.com (mail-lf1-f41.google.com
-	[209.85.167.41])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B79214200F7
-	for <drbd-dev@lists.linbit.com>; Sat, 16 Oct 2021 09:40:11 +0200 (CEST)
-Received: by mail-lf1-f41.google.com with SMTP id i24so50563654lfj.13
-	for <drbd-dev@lists.linbit.com>; Sat, 16 Oct 2021 00:40:11 -0700 (PDT)
-Date: Sat, 16 Oct 2021 10:40:08 +0300
-From: Kari Argillander <kari.argillander@gmail.com>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20211016074008.o6wl7uy3vsrz4v3b@kari-VirtualBox>
+Return-Path: <chaitanyak@nvidia.com>
+Received: from NAM11-DM6-obe.outbound.protection.outlook.com
+	(mail-dm6nam11on2069.outbound.protection.outlook.com [40.107.223.69])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E8DC7420FAC
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 08:38:07 +0200 (CEST)
+From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+Date: Mon, 18 Oct 2021 06:22:53 +0000
+Message-ID: <c3b7ccf9-21e5-144e-969b-1ce91ebab13f@nvidia.com>
 References: <20211015132643.1621913-1-hch@lst.de>
-	<20211015132643.1621913-21-hch@lst.de>
+	<20211015132643.1621913-12-hch@lst.de>
+In-Reply-To: <20211015132643.1621913-12-hch@lst.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <64D540410AA39A4599DCD51920BC3A12@namprd12.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20211015132643.1621913-21-hch@lst.de>
-Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
+Cc: Dave Kleikamp <shaggy@kernel.org>, "jfs-discussion@lists.sourceforge.net"
+	<jfs-discussion@lists.sourceforge.net>, Mike Snitzer <snitzer@redhat.com>,
+	"linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
-	Song Liu <song@kernel.org>, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
-	drbd-dev@lists.linbit.com, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org, OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
-	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
+	Song Liu <song@kernel.org>, "dm-devel@redhat.com" <dm-devel@redhat.com>,
+	"target-devel@vger.kernel.org" <target-devel@vger.kernel.org>, Ryusuke,
+	"reiserfs-devel@vger.kernel.org" <reiserfs-devel@vger.kernel.org>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
+	"linux-nilfs@vger.kernel.org" <linux-nilfs@vger.kernel.org>,
+	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
+	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
+	"linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>,
+	Kees Cook <keescook@chromium.org>,
 	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
-	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
-	David Sterba <dsterba@suse.com>,
-	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
+	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	"linux-bcache@vger.kernel.org" <linux-bcache@vger.kernel.org>,
+	David Sterba <dsterba@suse.com>, Konishi <konishi.ryusuke@gmail.com>,
 	Anton Altaparmakov <anton@tuxera.com>,
-	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-	linux-nfs@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>,
-	linux-ntfs-dev@lists.sourceforge.net, Jan Kara <jack@suse.com>,
-	linux-fsdevel@vger.kernel.org,
-	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
-	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 20/30] ntfs3: use bdev_nr_bytes instead of
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>,
+	Theodore Ts'o <tytso@mit.edu>, "linux-ntfs-dev@lists.sourceforge.net"
+	<linux-ntfs-dev@lists.sourceforge.net>, Jan Kara <jack@suse.com>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+	Phillip Lougher <phillip@squashfs.org.uk>,
+	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
+	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
+Subject: Re: [Drbd-dev] [PATCH 11/30] affs: use bdev_nr_sectors instead of
 	open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -47,40 +54,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Oct 15, 2021 at 03:26:33PM +0200, Christoph Hellwig wrote:
-> Use the proper helper to read the block device size.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  fs/ntfs3/super.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/fs/ntfs3/super.c b/fs/ntfs3/super.c
-> index 55bbc9200a10e..7ed2cb5e8b1d9 100644
-> --- a/fs/ntfs3/super.c
-> +++ b/fs/ntfs3/super.c
-> @@ -918,7 +918,6 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
->  	int err;
->  	struct ntfs_sb_info *sbi;
->  	struct block_device *bdev = sb->s_bdev;
-> -	struct inode *bd_inode = bdev->bd_inode;
-
-Linus merged latest ntfs3 stuff and this temp variable is not anymore in
-upstream. So this patch will conflict. Just so that you know.
-
->  	struct request_queue *rq = bdev_get_queue(bdev);
->  	struct inode *inode = NULL;
->  	struct ntfs_inode *ni;
-> @@ -967,7 +966,7 @@ static int ntfs_fill_super(struct super_block *sb, void *data, int silent)
->  
->  	/* Parse boot. */
->  	err = ntfs_init_from_boot(sb, rq ? queue_logical_block_size(rq) : 512,
-> -				  bd_inode->i_size);
-> +				  bdev_nr_bytes(bdev));
->  	if (err)
->  		goto out;
->  
-> -- 
-> 2.30.2
-> 
-> 
+T24gMTAvMTUvMjEgMDY6MjYsIENocmlzdG9waCBIZWxsd2lnIHdyb3RlOg0KPiBVc2UgdGhlIHBy
+b3BlciBoZWxwZXIgdG8gcmVhZCB0aGUgYmxvY2sgZGV2aWNlIHNpemUuDQo+IA0KPiBTaWduZWQt
+b2ZmLWJ5OiBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGxzdC5kZT4NCj4gUmV2aWV3ZWQtYnk6IEtl
+ZXMgQ29vayA8a2Vlc2Nvb2tAY2hyb21pdW0ub3JnPg0KDQpMb29rcyBnb29kLg0KDQpSZXZpZXdl
+ZC1ieTogQ2hhaXRhbnlhIEt1bGthcm5pIDxrY2hAbnZpZGlhLmNvbT4NCg0KDQo=
