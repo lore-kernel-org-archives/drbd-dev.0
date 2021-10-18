@@ -1,16 +1,20 @@
-Return-Path: <BATV+653fb0268b18c2e086a8+6630+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 092E0420FD0
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 12:59:57 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 18 Oct 2021 12:11:21 +0200
-Message-Id: <20211018101130.1838532-22-hch@lst.de>
-In-Reply-To: <20211018101130.1838532-1-hch@lst.de>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-io1-f43.google.com (mail-io1-f43.google.com
+	[209.85.166.43])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9EFDB42000A
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 19:16:11 +0200 (CEST)
+Received: by mail-io1-f43.google.com with SMTP id d125so17165821iof.5
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 10:16:11 -0700 (PDT)
+To: Christoph Hellwig <hch@lst.de>
 References: <20211018101130.1838532-1-hch@lst.de>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <4a8c3a39-9cd3-5b2f-6d0f-a16e689755e6@kernel.dk>
+Date: Mon, 18 Oct 2021 11:16:08 -0600
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20211018101130.1838532-1-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -30,8 +34,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 21/30] pstore/blk: use bdev_nr_bytes instead of
-	open coding it
+Subject: Re: [Drbd-dev] don't use ->bd_inode to access the block device size
+	v3
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,44 +47,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the proper helper to read the block device size.
+On 10/18/21 4:11 AM, Christoph Hellwig wrote:
+> Hi Jens,
+> 
+> various drivers currently poke directy at the block device inode, which
+> is a bit of a mess.  This series cleans up the places that read the
+> block device size to use the proper helpers.  I have separate patches
+> for many of the other bd_inode uses, but this series is already big
+> enough as-is,
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Acked-by: Kees Cook <keescook@chromium.org>
----
- fs/pstore/blk.c | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+This looks good to me. Followup question, as it's related - I've got a
+hacky patch that caches the inode size in the bdev:
 
-diff --git a/fs/pstore/blk.c b/fs/pstore/blk.c
-index 04ce58c939a0b..5d1fbaffd66a1 100644
---- a/fs/pstore/blk.c
-+++ b/fs/pstore/blk.c
-@@ -205,7 +205,6 @@ static ssize_t psblk_generic_blk_write(const char *buf, size_t bytes,
- static int __register_pstore_blk(struct pstore_device_info *dev,
- 				 const char *devpath)
- {
--	struct inode *inode;
- 	int ret = -ENODEV;
- 
- 	lockdep_assert_held(&pstore_blk_lock);
-@@ -217,14 +216,13 @@ static int __register_pstore_blk(struct pstore_device_info *dev,
- 		goto err;
- 	}
- 
--	inode = file_inode(psblk_file);
--	if (!S_ISBLK(inode->i_mode)) {
-+	if (!S_ISBLK(file_inode(psblk_file)->i_mode)) {
- 		pr_err("'%s' is not block device!\n", devpath);
- 		goto err_fput;
- 	}
- 
--	inode = I_BDEV(psblk_file->f_mapping->host)->bd_inode;
--	dev->zone.total_size = i_size_read(inode);
-+	dev->zone.total_size =
-+		bdev_nr_bytes(I_BDEV(psblk_file->f_mapping->host));
- 
- 	ret = __register_pstore_device(dev);
- 	if (ret)
+https://git.kernel.dk/cgit/linux-block/commit/?h=perf-wip&id=c754951eb7193258c35a574bd1ccccb7c4946ee4
+
+so we don't have to dip into the inode itself for the fast path. While
+it's obviously not something being proposed for inclusion right now, is
+there a world in which we can make something like that work?
+
 -- 
-2.30.2
+Jens Axboe
 
