@@ -1,18 +1,18 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM11-CO1-obe.outbound.protection.outlook.com
-	(mail-co1nam11on2075.outbound.protection.outlook.com [40.107.220.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B6FFE4203CF
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 08:21:43 +0200 (CEST)
+Received: from NAM12-DM6-obe.outbound.protection.outlook.com
+	(mail-dm6nam12on2088.outbound.protection.outlook.com [40.107.243.88])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 715A54203DB
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 08:21:45 +0200 (CEST)
 From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Mon, 18 Oct 2021 06:21:41 +0000
-Message-ID: <5cc35e9a-35f4-4d14-8092-2079c7cecab9@nvidia.com>
+Date: Mon, 18 Oct 2021 05:48:14 +0000
+Message-ID: <04beef49-8269-3120-517a-111357ecd2db@nvidia.com>
 References: <20211015132643.1621913-1-hch@lst.de>
-	<20211015132643.1621913-2-hch@lst.de>
-In-Reply-To: <20211015132643.1621913-2-hch@lst.de>
+	<20211015132643.1621913-26-hch@lst.de>
+In-Reply-To: <20211015132643.1621913-26-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <8FDA8D39C6C7234E8DB3CF40FCF6819B@namprd12.prod.outlook.com>
+Content-ID: <E92FCF7DB99A724CBD69B890C7E02284@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: Dave Kleikamp <shaggy@kernel.org>, "jfs-discussion@lists.sourceforge.net"
@@ -41,8 +41,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, "jfs-discussion@lists.sourceforge.net"
 	Phillip Lougher <phillip@squashfs.org.uk>,
 	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
 	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 01/30] block: move the SECTOR_SIZE related
- definitions to blk_types.h
+Subject: Re: [Drbd-dev] [PATCH 25/30] block: add a sb_bdev_nr_blocks helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -54,8 +53,10 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gMTAvMTUvMjEgMDY6MjYsIENocmlzdG9waCBIZWxsd2lnIHdyb3RlOg0KPiBFbnN1cmUgdGhl
-c2UgYXJlIGFsd2F5cyBhdmFpbGFibGUgZm9yIGlubGluZXMgaW4gdGhlIHZhcmlvdXMgYmxvY2sg
-bGF5ZXINCj4gaGVhZGVycy4NCj4gDQo+IFNpZ25lZC1vZmYtYnk6IENocmlzdG9waCBIZWxsd2ln
-IDxoY2hAbHN0LmRlPg0KDQpMb29rcyBnb29kLg0KDQpSZXZpZXdlZC1ieTogQ2hhaXRhbnlhIEt1
-bGthcm5pIDxrY2hAbnZpZGlhLmNvbT4NCg0KDQo=
+T24gMTAvMTUvMjEgMDY6MjYsIENocmlzdG9waCBIZWxsd2lnIHdyb3RlOg0KPiBBZGQgYSBoZWxw
+ZXIgdG8gcmV0dXJuIHRoZSBzaXplIG9mIHNiLT5zX2JkZXYgaW4gc2ItPnNfYmxvY2tzaXplX2Jp
+dHMNCj4gYmFzZWQgdW5pdGVzLiAgTm90ZSB0aGF0IFNFQ1RPUl9TSElGVCBoYXMgdG8gYmUgb3Bl
+biBjb2RlZCBkdWUgdG8NCj4gaW5jbHVkZSBkZXBlbmRlbmN5IGlzc3VlcyBmb3Igbm93LCBidXQg
+SSBoYXZlIGEgcGxhbiB0byBzb3J0IHRoYXQgb3V0DQo+IGV2ZW50dWFsbHkuDQo+IA0KPiBTaWdu
+ZWQtb2ZmLWJ5OiBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGxzdC5kZT4NCg0KTG9va3MgZ29vZC4N
+Cg0KUmV2aWV3ZWQtYnk6IENoaWF0YW55YSBLdWxrYXJuaSA8a2NoQG52aWRpYS5jb20+DQoNCg0K
