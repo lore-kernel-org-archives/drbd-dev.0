@@ -1,12 +1,12 @@
 Return-Path: <BATV+653fb0268b18c2e086a8+6630+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 09CC5420FF6
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 941EF420FF7
 	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 12:56:23 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 18 Oct 2021 12:11:17 +0200
-Message-Id: <20211018101130.1838532-18-hch@lst.de>
+Date: Mon, 18 Oct 2021 12:11:15 +0200
+Message-Id: <20211018101130.1838532-16-hch@lst.de>
 In-Reply-To: <20211018101130.1838532-1-hch@lst.de>
 References: <20211018101130.1838532-1-hch@lst.de>
 MIME-Version: 1.0
@@ -21,7 +21,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
 	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
 	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
-	Dave Kleikamp <dave.kleikamp@oracle.com>, David Sterba <dsterba@suse.com>,
+	David Sterba <dsterba@suse.com>,
 	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
 	Anton Altaparmakov <anton@tuxera.com>,
 	linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
@@ -30,7 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 17/30] jfs: use bdev_nr_bytes instead of open
+Subject: [Drbd-dev] [PATCH 15/30] hfs: use bdev_nr_sectors instead of open
 	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -47,38 +47,23 @@ Use the proper helper to read the block device size.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Kees Cook <keescook@chromium.org>
-Acked-by: Dave Kleikamp <dave.kleikamp@oracle.com>
 ---
- fs/jfs/resize.c | 2 +-
- fs/jfs/super.c  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ fs/hfs/mdb.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/jfs/resize.c b/fs/jfs/resize.c
-index bde787c354fcc..a42dbb0d3d28a 100644
---- a/fs/jfs/resize.c
-+++ b/fs/jfs/resize.c
-@@ -199,7 +199,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
- 	txQuiesce(sb);
+diff --git a/fs/hfs/mdb.c b/fs/hfs/mdb.c
+index cdf0edeeb2781..5beb826524354 100644
+--- a/fs/hfs/mdb.c
++++ b/fs/hfs/mdb.c
+@@ -36,7 +36,7 @@ static int hfs_get_last_session(struct super_block *sb,
  
- 	/* Reset size of direct inode */
--	sbi->direct_inode->i_size =  i_size_read(sb->s_bdev->bd_inode);
-+	sbi->direct_inode->i_size = bdev_nr_bytes(sb->s_bdev);
+ 	/* default values */
+ 	*start = 0;
+-	*size = i_size_read(sb->s_bdev->bd_inode) >> 9;
++	*size = bdev_nr_sectors(sb->s_bdev);
  
- 	if (sbi->mntflag & JFS_INLINELOG) {
- 		/*
-diff --git a/fs/jfs/super.c b/fs/jfs/super.c
-index 9030aeaf0f886..9241caa161163 100644
---- a/fs/jfs/super.c
-+++ b/fs/jfs/super.c
-@@ -551,7 +551,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
- 		ret = -ENOMEM;
- 		goto out_unload;
- 	}
--	inode->i_size = i_size_read(sb->s_bdev->bd_inode);
-+	inode->i_size = bdev_nr_bytes(sb->s_bdev);
- 	inode->i_mapping->a_ops = &jfs_metapage_aops;
- 	inode_fake_hash(inode);
- 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+ 	if (HFS_SB(sb)->session >= 0) {
+ 		struct cdrom_tocentry te;
 -- 
 2.30.2
 
