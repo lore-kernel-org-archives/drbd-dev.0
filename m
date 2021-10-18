@@ -1,19 +1,18 @@
 Return-Path: <BATV+653fb0268b18c2e086a8+6630+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A58B0420FD4
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 12:51:11 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 47C80420FDE
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 12:51:13 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 18 Oct 2021 12:11:29 +0200
-Message-Id: <20211018101130.1838532-30-hch@lst.de>
+Date: Mon, 18 Oct 2021 12:11:28 +0200
+Message-Id: <20211018101130.1838532-29-hch@lst.de>
 In-Reply-To: <20211018101130.1838532-1-hch@lst.de>
 References: <20211018101130.1838532-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
-	linux-nvme@lists.infradead.org,
+	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
@@ -31,7 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 29/30] reiserfs: use sb_bdev_nr_blocks
+Subject: [Drbd-dev] [PATCH 28/30] ntfs: use sb_bdev_nr_blocks
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,30 +42,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the sb_bdev_nr_blocks helper instead of open coding it.
+Use the sb_bdev_nr_blocks helper instead of open coding it and clean up
+ntfs_fill_super a bit by moving an assignment a little earlier that has
+no negative side effects.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: Jan Kara <jack@suse.cz>
+Acked-by: Anton Altaparmakov <anton@tuxera.com>
 ---
- fs/reiserfs/super.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ fs/ntfs/super.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-diff --git a/fs/reiserfs/super.c b/fs/reiserfs/super.c
-index 8647a00434ea4..076f9ab943060 100644
---- a/fs/reiserfs/super.c
-+++ b/fs/reiserfs/super.c
-@@ -1199,9 +1199,7 @@ static int reiserfs_parse_options(struct super_block *s,
- 
- 			if (!strcmp(arg, "auto")) {
- 				/* From JFS code, to auto-get the size. */
--				*blocks =
--				    i_size_read(s->s_bdev->bd_inode) >> s->
--				    s_blocksize_bits;
-+				*blocks = sb_bdev_nr_blocks(s);
- 			} else {
- 				*blocks = simple_strtoul(arg, &p, 0);
- 				if (*p != '\0') {
+diff --git a/fs/ntfs/super.c b/fs/ntfs/super.c
+index 0d7e948cb29c9..5ae8de09b271b 100644
+--- a/fs/ntfs/super.c
++++ b/fs/ntfs/super.c
+@@ -2772,13 +2772,12 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
+ 	ntfs_debug("Set device block size to %i bytes (block size bits %i).",
+ 			blocksize, sb->s_blocksize_bits);
+ 	/* Determine the size of the device in units of block_size bytes. */
+-	if (!i_size_read(sb->s_bdev->bd_inode)) {
++	vol->nr_blocks = sb_bdev_nr_blocks(sb);
++	if (!vol->nr_blocks) {
+ 		if (!silent)
+ 			ntfs_error(sb, "Unable to determine device size.");
+ 		goto err_out_now;
+ 	}
+-	vol->nr_blocks = i_size_read(sb->s_bdev->bd_inode) >>
+-			sb->s_blocksize_bits;
+ 	/* Read the boot sector and return unlocked buffer head to it. */
+ 	if (!(bh = read_ntfs_boot_sector(sb, silent))) {
+ 		if (!silent)
+@@ -2816,8 +2815,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
+ 			goto err_out_now;
+ 		}
+ 		BUG_ON(blocksize != sb->s_blocksize);
+-		vol->nr_blocks = i_size_read(sb->s_bdev->bd_inode) >>
+-				sb->s_blocksize_bits;
++		vol->nr_blocks = sb_bdev_nr_blocks(sb);
+ 		ntfs_debug("Changed device block size to %i bytes (block size "
+ 				"bits %i) to match volume sector size.",
+ 				blocksize, sb->s_blocksize_bits);
 -- 
 2.30.2
 
