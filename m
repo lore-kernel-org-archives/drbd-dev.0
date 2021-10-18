@@ -1,19 +1,18 @@
 Return-Path: <BATV+653fb0268b18c2e086a8+6630+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B5ADA420FBB
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 12:11:56 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7E775420FBE
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 12:11:58 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 18 Oct 2021 12:11:01 +0200
-Message-Id: <20211018101130.1838532-2-hch@lst.de>
+Date: Mon, 18 Oct 2021 12:11:03 +0200
+Message-Id: <20211018101130.1838532-4-hch@lst.de>
 In-Reply-To: <20211018101130.1838532-1-hch@lst.de>
 References: <20211018101130.1838532-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>,
-	linux-nvme@lists.infradead.org,
+	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
 	Song Liu <song@kernel.org>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
@@ -32,8 +31,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 01/30] block: move the SECTOR_SIZE related
-	definitions to blk_types.h
+Subject: [Drbd-dev] [PATCH 03/30] bcache: remove bdev_sectors
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,74 +43,57 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Ensure these are always available for inlines in the various block layer
-headers.
+Use the equivalent block layer helper instead.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: Jan Kara <jack@suse.cz>
 Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
+Acked-by: Coly Li <colyli@suse.de>
 ---
- include/linux/blk_types.h | 17 +++++++++++++++++
- include/linux/blkdev.h    | 17 -----------------
- 2 files changed, 17 insertions(+), 17 deletions(-)
+ drivers/md/bcache/super.c     | 2 +-
+ drivers/md/bcache/util.h      | 4 ----
+ drivers/md/bcache/writeback.c | 2 +-
+ 3 files changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
-index 3b967053e9f5a..dc8da0c7fa09b 100644
---- a/include/linux/blk_types.h
-+++ b/include/linux/blk_types.h
-@@ -20,6 +20,23 @@ struct cgroup_subsys_state;
- typedef void (bio_end_io_t) (struct bio *);
- struct bio_crypt_ctx;
+diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+index f2874c77ff797..4f89985abe4b7 100644
+--- a/drivers/md/bcache/super.c
++++ b/drivers/md/bcache/super.c
+@@ -1002,7 +1002,7 @@ static void calc_cached_dev_sectors(struct cache_set *c)
+ 	struct cached_dev *dc;
  
-+/*
-+ * The basic unit of block I/O is a sector. It is used in a number of contexts
-+ * in Linux (blk, bio, genhd). The size of one sector is 512 = 2**9
-+ * bytes. Variables of type sector_t represent an offset or size that is a
-+ * multiple of 512 bytes. Hence these two constants.
-+ */
-+#ifndef SECTOR_SHIFT
-+#define SECTOR_SHIFT 9
-+#endif
-+#ifndef SECTOR_SIZE
-+#define SECTOR_SIZE (1 << SECTOR_SHIFT)
-+#endif
-+
-+#define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
-+#define PAGE_SECTORS		(1 << PAGE_SECTORS_SHIFT)
-+#define SECTOR_MASK		(PAGE_SECTORS - 1)
-+
- struct block_device {
- 	sector_t		bd_start_sect;
- 	struct disk_stats __percpu *bd_stats;
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 17705c970d7e1..161496d1aced0 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -571,23 +571,6 @@ static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
- 	return bdev->bd_disk->queue;	/* this is never NULL */
+ 	list_for_each_entry(dc, &c->cached_devs, list)
+-		sectors += bdev_sectors(dc->bdev);
++		sectors += bdev_nr_sectors(dc->bdev);
+ 
+ 	c->cached_dev_sectors = sectors;
  }
+diff --git a/drivers/md/bcache/util.h b/drivers/md/bcache/util.h
+index b64460a762677..a7da7930a7fda 100644
+--- a/drivers/md/bcache/util.h
++++ b/drivers/md/bcache/util.h
+@@ -584,8 +584,4 @@ static inline unsigned int fract_exp_two(unsigned int x,
+ void bch_bio_map(struct bio *bio, void *base);
+ int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask);
  
--/*
-- * The basic unit of block I/O is a sector. It is used in a number of contexts
-- * in Linux (blk, bio, genhd). The size of one sector is 512 = 2**9
-- * bytes. Variables of type sector_t represent an offset or size that is a
-- * multiple of 512 bytes. Hence these two constants.
-- */
--#ifndef SECTOR_SHIFT
--#define SECTOR_SHIFT 9
--#endif
--#ifndef SECTOR_SIZE
--#define SECTOR_SIZE (1 << SECTOR_SHIFT)
--#endif
--
--#define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
--#define PAGE_SECTORS		(1 << PAGE_SECTORS_SHIFT)
--#define SECTOR_MASK		(PAGE_SECTORS - 1)
--
- #ifdef CONFIG_BLK_DEV_ZONED
+-static inline sector_t bdev_sectors(struct block_device *bdev)
+-{
+-	return bdev->bd_inode->i_size >> 9;
+-}
+ #endif /* _BCACHE_UTIL_H */
+diff --git a/drivers/md/bcache/writeback.c b/drivers/md/bcache/writeback.c
+index 8120da278161e..c7560f66dca88 100644
+--- a/drivers/md/bcache/writeback.c
++++ b/drivers/md/bcache/writeback.c
+@@ -45,7 +45,7 @@ static uint64_t __calc_target_rate(struct cached_dev *dc)
+ 	 * backing volume uses about 2% of the cache for dirty data.
+ 	 */
+ 	uint32_t bdev_share =
+-		div64_u64(bdev_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
++		div64_u64(bdev_nr_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
+ 				c->cached_dev_sectors);
  
- /* Helper to convert BLK_ZONE_ZONE_XXX to its string format XXX */
+ 	uint64_t cache_dirty_target =
 -- 
 2.30.2
 
