@@ -1,12 +1,12 @@
 Return-Path: <BATV+653fb0268b18c2e086a8+6630+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 941EF420FF7
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 12:56:23 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2BF3B420FF8
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 12:56:24 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 18 Oct 2021 12:11:15 +0200
-Message-Id: <20211018101130.1838532-16-hch@lst.de>
+Date: Mon, 18 Oct 2021 12:11:13 +0200
+Message-Id: <20211018101130.1838532-14-hch@lst.de>
 In-Reply-To: <20211018101130.1838532-1-hch@lst.de>
 References: <20211018101130.1838532-1-hch@lst.de>
 MIME-Version: 1.0
@@ -30,7 +30,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org,
 	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 15/30] hfs: use bdev_nr_sectors instead of open
+Subject: [Drbd-dev] [PATCH 13/30] cramfs: use bdev_nr_bytes instead of open
 	coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -48,22 +48,22 @@ Use the proper helper to read the block device size.
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Kees Cook <keescook@chromium.org>
 ---
- fs/hfs/mdb.c | 2 +-
+ fs/cramfs/inode.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/hfs/mdb.c b/fs/hfs/mdb.c
-index cdf0edeeb2781..5beb826524354 100644
---- a/fs/hfs/mdb.c
-+++ b/fs/hfs/mdb.c
-@@ -36,7 +36,7 @@ static int hfs_get_last_session(struct super_block *sb,
+diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
+index 2be65269a987c..666aa380011e0 100644
+--- a/fs/cramfs/inode.c
++++ b/fs/cramfs/inode.c
+@@ -209,7 +209,7 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
+ 		return read_buffers[i] + blk_offset;
+ 	}
  
- 	/* default values */
- 	*start = 0;
--	*size = i_size_read(sb->s_bdev->bd_inode) >> 9;
-+	*size = bdev_nr_sectors(sb->s_bdev);
+-	devsize = mapping->host->i_size >> PAGE_SHIFT;
++	devsize = bdev_nr_bytes(sb->s_bdev) >> PAGE_SHIFT;
  
- 	if (HFS_SB(sb)->session >= 0) {
- 		struct cdrom_tocentry te;
+ 	/* Ok, read in BLKS_PER_BUF pages completely first. */
+ 	for (i = 0; i < BLKS_PER_BUF; i++) {
 -- 
 2.30.2
 
