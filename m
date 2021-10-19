@@ -1,24 +1,26 @@
-Return-Path: <kari.argillander@gmail.com>
-Received: from mail-lf1-f51.google.com (mail-lf1-f51.google.com
-	[209.85.167.51])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BB414202C4
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2021 03:04:19 +0200 (CEST)
-Received: by mail-lf1-f51.google.com with SMTP id y26so3586686lfa.11
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 18:04:19 -0700 (PDT)
-Date: Tue, 19 Oct 2021 04:04:16 +0300
-From: Kari Argillander <kari.argillander@gmail.com>
-To: Jens Axboe <axboe@kernel.dk>
-Message-ID: <20211019010416.vgecxu6wnvwi7fii@kari-VirtualBox>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-io1-f50.google.com (mail-io1-f50.google.com
+	[209.85.166.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 755D44202C4
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2021 03:05:00 +0200 (CEST)
+Received: by mail-io1-f50.google.com with SMTP id e144so18491792iof.3
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 18:04:59 -0700 (PDT)
+To: Kari Argillander <kari.argillander@gmail.com>
 References: <20211018101130.1838532-1-hch@lst.de>
 	<4a8c3a39-9cd3-5b2f-6d0f-a16e689755e6@kernel.dk>
 	<20211018171843.GA3338@lst.de>
 	<2f5dcf79-8419-45ff-c27c-68d43242ccfe@kernel.dk>
 	<20211018174901.GA3990@lst.de>
 	<e0784f3e-46c8-c90c-870b-60cc2ed7a2da@kernel.dk>
+	<20211019010416.vgecxu6wnvwi7fii@kari-VirtualBox>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <81f9ad59-4c15-b265-1274-62c987ad879b@kernel.dk>
+Date: Mon, 18 Oct 2021 19:04:57 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e0784f3e-46c8-c90c-870b-60cc2ed7a2da@kernel.dk>
+In-Reply-To: <20211019010416.vgecxu6wnvwi7fii@kari-VirtualBox>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
@@ -52,37 +54,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Oct 18, 2021 at 11:53:08AM -0600, Jens Axboe wrote:
-
-snip..
-
-> diff --git a/include/linux/genhd.h b/include/linux/genhd.h
-> index 7b0326661a1e..a967b3fb3c71 100644
-> --- a/include/linux/genhd.h
-> +++ b/include/linux/genhd.h
-> @@ -236,14 +236,14 @@ static inline sector_t get_start_sect(struct block_device *bdev)
->  	return bdev->bd_start_sect;
->  }
->  
-> -static inline loff_t bdev_nr_bytes(struct block_device *bdev)
-> +static inline sector_t bdev_nr_sectors(struct block_device *bdev)
->  {
-> -	return i_size_read(bdev->bd_inode);
-> +	return bdev->bd_nr_sectors;
->  }
->  
-> -static inline sector_t bdev_nr_sectors(struct block_device *bdev)
-> +static inline loff_t bdev_nr_bytes(struct block_device *bdev)
->  {
-> -	return bdev_nr_bytes(bdev) >> SECTOR_SHIFT;
-> +	return bdev_nr_setors(bdev) << SECTOR_SHIFT;
-
-setors -> sectors
-
->  }
->  
->  static inline sector_t get_capacity(struct gendisk *disk)
+On 10/18/21 7:04 PM, Kari Argillander wrote:
+> On Mon, Oct 18, 2021 at 11:53:08AM -0600, Jens Axboe wrote:
 > 
-> -- 
-> Jens Axboe
+> snip..
 > 
+>> diff --git a/include/linux/genhd.h b/include/linux/genhd.h
+>> index 7b0326661a1e..a967b3fb3c71 100644
+>> --- a/include/linux/genhd.h
+>> +++ b/include/linux/genhd.h
+>> @@ -236,14 +236,14 @@ static inline sector_t get_start_sect(struct block_device *bdev)
+>>  	return bdev->bd_start_sect;
+>>  }
+>>  
+>> -static inline loff_t bdev_nr_bytes(struct block_device *bdev)
+>> +static inline sector_t bdev_nr_sectors(struct block_device *bdev)
+>>  {
+>> -	return i_size_read(bdev->bd_inode);
+>> +	return bdev->bd_nr_sectors;
+>>  }
+>>  
+>> -static inline sector_t bdev_nr_sectors(struct block_device *bdev)
+>> +static inline loff_t bdev_nr_bytes(struct block_device *bdev)
+>>  {
+>> -	return bdev_nr_bytes(bdev) >> SECTOR_SHIFT;
+>> +	return bdev_nr_setors(bdev) << SECTOR_SHIFT;
+> 
+> setors -> sectors
+
+Yep, did catch that prior.
+
+-- 
+Jens Axboe
+
