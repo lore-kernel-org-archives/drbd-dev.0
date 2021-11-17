@@ -1,48 +1,24 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-io1-f50.google.com (mail-io1-f50.google.com
-	[209.85.166.50])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 755D44202C4
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Oct 2021 03:05:00 +0200 (CEST)
-Received: by mail-io1-f50.google.com with SMTP id e144so18491792iof.3
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Oct 2021 18:04:59 -0700 (PDT)
-To: Kari Argillander <kari.argillander@gmail.com>
-References: <20211018101130.1838532-1-hch@lst.de>
-	<4a8c3a39-9cd3-5b2f-6d0f-a16e689755e6@kernel.dk>
-	<20211018171843.GA3338@lst.de>
-	<2f5dcf79-8419-45ff-c27c-68d43242ccfe@kernel.dk>
-	<20211018174901.GA3990@lst.de>
-	<e0784f3e-46c8-c90c-870b-60cc2ed7a2da@kernel.dk>
-	<20211019010416.vgecxu6wnvwi7fii@kari-VirtualBox>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <81f9ad59-4c15-b265-1274-62c987ad879b@kernel.dk>
-Date: Mon, 18 Oct 2021 19:04:57 -0600
+Return-Path: <akiyks@gmail.com>
+Received: from mail-pj1-f50.google.com (mail-pj1-f50.google.com
+	[209.85.216.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5DD32420204
+	for <drbd-dev@lists.linbit.com>; Wed, 17 Nov 2021 10:38:19 +0100 (CET)
+Received: by mail-pj1-f50.google.com with SMTP id
+	j5-20020a17090a318500b001a6c749e697so4039470pjb.1
+	for <drbd-dev@lists.linbit.com>; Wed, 17 Nov 2021 01:38:19 -0800 (PST)
+To: Jonathan Corbet <corbet@lwn.net>
+From: Akira Yokosawa <akiyks@gmail.com>
+Message-ID: <3cbff170-582b-b6cf-0988-e0d0c9b47505@gmail.com>
+Date: Wed, 17 Nov 2021 18:38:14 +0900
 MIME-Version: 1.0
-In-Reply-To: <20211019010416.vgecxu6wnvwi7fii@kari-VirtualBox>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Mike Snitzer <snitzer@redhat.com>, linux-nvme@lists.infradead.org,
-	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
-	Song Liu <song@kernel.org>, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, reiserfs-devel@vger.kernel.org,
-	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com,
-	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
-	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
-	linux-ext4@vger.kernel.org, Kees Cook <keescook@chromium.org>,
-	Josef Bacik <josef@toxicpanda.com>, Coly Li <colyli@suse.de>,
-	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
-	David Sterba <dsterba@suse.com>,
-	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
-	Anton Altaparmakov <anton@tuxera.com>,
-	linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
-	Theodore Ts'o <tytso@mit.edu>,
-	linux-ntfs-dev@lists.sourceforge.net, Jan Kara <jack@suse.com>,
-	linux-fsdevel@vger.kernel.org,
-	Phillip Lougher <phillip@squashfs.org.uk>, ntfs3@lists.linux.dev,
-	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] don't use ->bd_inode to access the block device size
-	v3
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com,
+	linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-doc@vger.kernel.org
+Subject: [Drbd-dev] [PATCH] docs: admin-guide/blockdev: Use subgraphs in
+ node-states-8.dot
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -54,36 +30,65 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 10/18/21 7:04 PM, Kari Argillander wrote:
-> On Mon, Oct 18, 2021 at 11:53:08AM -0600, Jens Axboe wrote:
-> 
-> snip..
-> 
->> diff --git a/include/linux/genhd.h b/include/linux/genhd.h
->> index 7b0326661a1e..a967b3fb3c71 100644
->> --- a/include/linux/genhd.h
->> +++ b/include/linux/genhd.h
->> @@ -236,14 +236,14 @@ static inline sector_t get_start_sect(struct block_device *bdev)
->>  	return bdev->bd_start_sect;
->>  }
->>  
->> -static inline loff_t bdev_nr_bytes(struct block_device *bdev)
->> +static inline sector_t bdev_nr_sectors(struct block_device *bdev)
->>  {
->> -	return i_size_read(bdev->bd_inode);
->> +	return bdev->bd_nr_sectors;
->>  }
->>  
->> -static inline sector_t bdev_nr_sectors(struct block_device *bdev)
->> +static inline loff_t bdev_nr_bytes(struct block_device *bdev)
->>  {
->> -	return bdev_nr_bytes(bdev) >> SECTOR_SHIFT;
->> +	return bdev_nr_setors(bdev) << SECTOR_SHIFT;
-> 
-> setors -> sectors
+While node-states-8.dot has two digraphs, dot(1) command can not
+properly handle multiple graphs in a DOT file.
 
-Yep, did catch that prior.
+Use subgraphs and merge them into a single graph.
 
+Signed-off-by: Akira Yokosawa <akiyks@gmail.com>
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+---
+Hi Jon,
+
+I happened to spot a broken DOT script at the bottom of
+
+    https://www.kernel.org/doc/html/latest/admin-guide/blockdev/drbd/figures.html
+
+and managed to fix it.
+
+DRBD DRIVER maintainers,
+If I'm missing something here, please let me know.
+
+        Thanks, Akira
+--
+ .../blockdev/drbd/node-states-8.dot           | 25 +++++++++++--------
+ 1 file changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/Documentation/admin-guide/blockdev/drbd/node-states-8.dot b/Documentation/admin-guide/blockdev/drbd/node-states-8.dot
+index bfa54e1f8016..993f0c152ead 100644
+--- a/Documentation/admin-guide/blockdev/drbd/node-states-8.dot
++++ b/Documentation/admin-guide/blockdev/drbd/node-states-8.dot
+@@ -1,13 +1,16 @@
+-digraph node_states {
+-	Secondary -> Primary           [ label = "ioctl_set_state()" ]
+-	Primary   -> Secondary 	       [ label = "ioctl_set_state()" ]
+-}
++digraph G {
++	compound=true;
++	subgraph node_states {
++		Secondary -> Primary           [ label = "ioctl_set_state()" ]
++		Primary   -> Secondary 	       [ label = "ioctl_set_state()" ]
++	}
+ 
+-digraph peer_states {
+-	Secondary -> Primary           [ label = "recv state packet" ]
+-	Primary   -> Secondary 	       [ label = "recv state packet" ]
+-	Primary   -> Unknown 	       [ label = "connection lost" ]
+-	Secondary  -> Unknown  	       [ label = "connection lost" ]
+-	Unknown   -> Primary           [ label = "connected" ]
+-	Unknown   -> Secondary         [ label = "connected" ]
++	subgraph peer_states {
++		Secondary -> Primary           [ label = "recv state packet" ]
++		Primary   -> Secondary 	       [ label = "recv state packet" ]
++		Primary   -> Unknown 	       [ label = "connection lost" ]
++		Secondary  -> Unknown  	       [ label = "connection lost" ]
++		Unknown   -> Primary           [ label = "connected" ]
++		Unknown   -> Secondary         [ label = "connected" ]
++	}
+ }
+
+base-commit: 53b606fa29e321352a105978726b975b42b292a4
 -- 
-Jens Axboe
+2.17.1
 
