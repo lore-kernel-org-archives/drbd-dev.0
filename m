@@ -1,22 +1,17 @@
-Return-Path: <keescook@chromium.org>
-Received: from mail-pj1-f44.google.com (mail-pj1-f44.google.com
-	[209.85.216.44])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D6B7420950
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Nov 2021 21:37:19 +0100 (CET)
-Received: by mail-pj1-f44.google.com with SMTP id
-	gf14-20020a17090ac7ce00b001a7a2a0b5c3so9201423pjb.5
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Nov 2021 12:37:19 -0800 (PST)
-From: Kees Cook <keescook@chromium.org>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Thu, 18 Nov 2021 12:37:12 -0800
-Message-Id: <20211118203712.1288866-1-keescook@chromium.org>
+Return-Path: <dan.carpenter@oracle.com>
+Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
+	[205.220.177.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CB8A6420952
+	for <drbd-dev@lists.linbit.com>; Thu, 18 Nov 2021 16:24:12 +0100 (CET)
+Date: Thu, 18 Nov 2021 11:49:30 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+To: agruen@linbit.com
+Message-ID: <20211118084930.GB24550@kili>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, Kees Cook <keescook@chromium.org>,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-hardening@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] drbd: Use struct_group() to zero algs
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [bug report] drbd: Backport the "status" command
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,65 +23,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In preparation for FORTIFY_SOURCE performing compile-time and run-time
-field bounds checking for memset(), avoid intentionally writing across
-neighboring fields.
+Hello Andreas Gruenbacher,
 
-Add a struct_group() for the algs so that memset() can correctly reason
-about the size.
+The patch a55bbd375d18: "drbd: Backport the "status" command" from
+Aug 28, 2014, leads to the following Smatch static checker warning:
 
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
- drivers/block/drbd/drbd_main.c     | 3 ++-
- drivers/block/drbd/drbd_protocol.h | 6 ++++--
- drivers/block/drbd/drbd_receiver.c | 3 ++-
- 3 files changed, 8 insertions(+), 4 deletions(-)
+drivers/block/drbd/drbd_nl.c:3424 drbd_adm_dump_devices() warn: 'resource_filter' could be an error pointer
+drivers/block/drbd/drbd_nl.c:3513 drbd_adm_dump_connections() warn: 'resource_filter' could be an error pointer
+drivers/block/drbd/drbd_nl.c:3674 drbd_adm_dump_peer_devices() warn: 'resource_filter' could be an error pointer
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 53ba2dddba6e..feac72e323bd 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -729,7 +729,8 @@ int drbd_send_sync_param(struct drbd_peer_device *peer_device)
- 	cmd = apv >= 89 ? P_SYNC_PARAM89 : P_SYNC_PARAM;
- 
- 	/* initialize verify_alg and csums_alg */
--	memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
-+	BUILD_BUG_ON(sizeof(p->algs) != 2 * SHARED_SECRET_MAX);
-+	memset(&p->algs, 0, sizeof(p->algs));
- 
- 	if (get_ldev(peer_device->device)) {
- 		dc = rcu_dereference(peer_device->device->ldev->disk_conf);
-diff --git a/drivers/block/drbd/drbd_protocol.h b/drivers/block/drbd/drbd_protocol.h
-index dea59c92ecc1..a882b65ab5d2 100644
---- a/drivers/block/drbd/drbd_protocol.h
-+++ b/drivers/block/drbd/drbd_protocol.h
-@@ -283,8 +283,10 @@ struct p_rs_param_89 {
- 
- struct p_rs_param_95 {
- 	u32 resync_rate;
--	char verify_alg[SHARED_SECRET_MAX];
--	char csums_alg[SHARED_SECRET_MAX];
-+	struct_group(algs,
-+		char verify_alg[SHARED_SECRET_MAX];
-+		char csums_alg[SHARED_SECRET_MAX];
-+	);
- 	u32 c_plan_ahead;
- 	u32 c_delay_target;
- 	u32 c_fill_target;
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 1f740e42e457..6df2539e215b 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3921,7 +3921,8 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
- 
- 	/* initialize verify_alg and csums_alg */
- 	p = pi->data;
--	memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
-+	BUILD_BUG_ON(sizeof(p->algs) != 2 * SHARED_SECRET_MAX);
-+	memset(&p->algs, 0, sizeof(p->algs));
- 
- 	err = drbd_recv_all(peer_device->connection, p, header_size);
- 	if (err)
--- 
-2.30.2
+drivers/block/drbd/drbd_nl.c
+    3410 int drbd_adm_dump_devices(struct sk_buff *skb, struct netlink_callback *cb)
+    3411 {
+    3412         struct nlattr *resource_filter;
+    3413         struct drbd_resource *resource;
+    3414         struct drbd_device *device;
+    3415         int minor, err, retcode;
+    3416         struct drbd_genlmsghdr *dh;
+    3417         struct device_info device_info;
+    3418         struct device_statistics device_statistics;
+    3419         struct idr *idr_to_search;
+    3420 
+    3421         resource = (struct drbd_resource *)cb->args[0];
+    3422         if (!cb->args[0] && !cb->args[1]) {
+    3423                 resource_filter = find_cfg_context_attr(cb->nlh, T_ctx_resource_name);
+--> 3424                 if (resource_filter) {
 
+The find_cfg_context_attr() function returns both NULL and error
+pointers.  It if returns an error pointer here then that will lead to a
+crash.  None of the callers check for error pointers.
+
+    3425                         retcode = ERR_RES_NOT_KNOWN;
+    3426                         resource = drbd_find_resource(nla_data(resource_filter));
+    3427                         if (!resource)
+    3428                                 goto put_result;
+    3429                         cb->args[0] = (long)resource;
+    3430                 }
+    3431         }
+    3432 
+    3433         rcu_read_lock();
+    3434         minor = cb->args[1];
+
+regards,
+dan carpenter
