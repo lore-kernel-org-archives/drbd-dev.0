@@ -1,17 +1,25 @@
-Return-Path: <dan.carpenter@oracle.com>
-Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
-	[205.220.177.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CB8A6420952
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Nov 2021 16:24:12 +0100 (CET)
-Date: Thu, 18 Nov 2021 11:49:30 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-To: agruen@linbit.com
-Message-ID: <20211118084930.GB24550@kili>
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Return-Path: <akiyks@gmail.com>
+Received: from mail-pl1-f178.google.com (mail-pl1-f178.google.com
+	[209.85.214.178])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F2DAC420004
+	for <drbd-dev@lists.linbit.com>; Thu, 25 Nov 2021 15:16:53 +0100 (CET)
+Received: by mail-pl1-f178.google.com with SMTP id y8so4675868plg.1
+	for <drbd-dev@lists.linbit.com>; Thu, 25 Nov 2021 06:16:53 -0800 (PST)
+From: Akira Yokosawa <akiyks@gmail.com>
+To: Jonathan Corbet <corbet@lwn.net>
+References: <3cbff170-582b-b6cf-0988-e0d0c9b47505@gmail.com>
+Message-ID: <3c0ffc75-0e0f-1701-267b-1bedb6481b79@gmail.com>
+Date: Thu, 25 Nov 2021 23:16:48 +0900
 MIME-Version: 1.0
-Cc: drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [bug report] drbd: Backport the "status" command
+In-Reply-To: <3cbff170-582b-b6cf-0988-e0d0c9b47505@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com,
+	linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-doc@vger.kernel.org
+Subject: Re: [Drbd-dev] [PATCH] docs: admin-guide/blockdev: Use subgraphs in
+ node-states-8.dot
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,46 +31,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello Andreas Gruenbacher,
+On Wed, 17 Nov 2021 18:38:14 +0900, Akira Yokosawa wrote:
+> While node-states-8.dot has two digraphs, dot(1) command can not
+> properly handle multiple graphs in a DOT file.
+> 
+> Use subgraphs and merge them into a single graph.
+> 
+> Signed-off-by: Akira Yokosawa <akiyks@gmail.com>
+> Cc: Philipp Reisner <philipp.reisner@linbit.com>
+> Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+> ---
+> Hi Jon,
+> 
+> I happened to spot a broken DOT script at the bottom of
+> 
+>     https://www.kernel.org/doc/html/latest/admin-guide/blockdev/drbd/figures.html
+> 
+> and managed to fix it.
 
-The patch a55bbd375d18: "drbd: Backport the "status" command" from
-Aug 28, 2014, leads to the following Smatch static checker warning:
+Gentle ping?
 
-drivers/block/drbd/drbd_nl.c:3424 drbd_adm_dump_devices() warn: 'resource_filter' could be an error pointer
-drivers/block/drbd/drbd_nl.c:3513 drbd_adm_dump_connections() warn: 'resource_filter' could be an error pointer
-drivers/block/drbd/drbd_nl.c:3674 drbd_adm_dump_peer_devices() warn: 'resource_filter' could be an error pointer
+        Thanks, Akira
 
-drivers/block/drbd/drbd_nl.c
-    3410 int drbd_adm_dump_devices(struct sk_buff *skb, struct netlink_callback *cb)
-    3411 {
-    3412         struct nlattr *resource_filter;
-    3413         struct drbd_resource *resource;
-    3414         struct drbd_device *device;
-    3415         int minor, err, retcode;
-    3416         struct drbd_genlmsghdr *dh;
-    3417         struct device_info device_info;
-    3418         struct device_statistics device_statistics;
-    3419         struct idr *idr_to_search;
-    3420 
-    3421         resource = (struct drbd_resource *)cb->args[0];
-    3422         if (!cb->args[0] && !cb->args[1]) {
-    3423                 resource_filter = find_cfg_context_attr(cb->nlh, T_ctx_resource_name);
---> 3424                 if (resource_filter) {
-
-The find_cfg_context_attr() function returns both NULL and error
-pointers.  It if returns an error pointer here then that will lead to a
-crash.  None of the callers check for error pointers.
-
-    3425                         retcode = ERR_RES_NOT_KNOWN;
-    3426                         resource = drbd_find_resource(nla_data(resource_filter));
-    3427                         if (!resource)
-    3428                                 goto put_result;
-    3429                         cb->args[0] = (long)resource;
-    3430                 }
-    3431         }
-    3432 
-    3433         rcu_read_lock();
-    3434         minor = cb->args[1];
-
-regards,
-dan carpenter
+> 
+> DRBD DRIVER maintainers,
+> If I'm missing something here, please let me know.
+> 
+>         Thanks, Akira
+> --
+>  .../blockdev/drbd/node-states-8.dot           | 25 +++++++++++--------
+>  1 file changed, 14 insertions(+), 11 deletions(-)
+> 
+> diff --git a/Documentation/admin-guide/blockdev/drbd/node-states-8.dot b/Documentation/admin-guide/blockdev/drbd/node-states-8.dot
+> index bfa54e1f8016..993f0c152ead 100644
+> --- a/Documentation/admin-guide/blockdev/drbd/node-states-8.dot
+> +++ b/Documentation/admin-guide/blockdev/drbd/node-states-8.dot
+> @@ -1,13 +1,16 @@
+> -digraph node_states {
+> -	Secondary -> Primary           [ label = "ioctl_set_state()" ]
+> -	Primary   -> Secondary 	       [ label = "ioctl_set_state()" ]
+> -}
+> +digraph G {
+> +	compound=true;
+> +	subgraph node_states {
+> +		Secondary -> Primary           [ label = "ioctl_set_state()" ]
+> +		Primary   -> Secondary 	       [ label = "ioctl_set_state()" ]
+> +	}
+>  
+> -digraph peer_states {
+> -	Secondary -> Primary           [ label = "recv state packet" ]
+> -	Primary   -> Secondary 	       [ label = "recv state packet" ]
+> -	Primary   -> Unknown 	       [ label = "connection lost" ]
+> -	Secondary  -> Unknown  	       [ label = "connection lost" ]
+> -	Unknown   -> Primary           [ label = "connected" ]
+> -	Unknown   -> Secondary         [ label = "connected" ]
+> +	subgraph peer_states {
+> +		Secondary -> Primary           [ label = "recv state packet" ]
+> +		Primary   -> Secondary 	       [ label = "recv state packet" ]
+> +		Primary   -> Unknown 	       [ label = "connection lost" ]
+> +		Secondary  -> Unknown  	       [ label = "connection lost" ]
+> +		Unknown   -> Primary           [ label = "connected" ]
+> +		Unknown   -> Secondary         [ label = "connected" ]
+> +	}
+>  }
+> 
+> base-commit: 53b606fa29e321352a105978726b975b42b292a4
+> 
