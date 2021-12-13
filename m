@@ -1,23 +1,22 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-io1-f48.google.com (mail-io1-f48.google.com
-	[209.85.166.48])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8B22B4203DB
-	for <drbd-dev@lists.linbit.com>; Tue, 14 Dec 2021 00:31:52 +0100 (CET)
-Received: by mail-io1-f48.google.com with SMTP id p65so21060430iof.3
-	for <drbd-dev@lists.linbit.com>; Mon, 13 Dec 2021 15:31:52 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Kees Cook <keescook@chromium.org>
-In-Reply-To: <20211118203712.1288866-1-keescook@chromium.org>
+Return-Path: <gustavoars@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 877854203DB
+	for <drbd-dev@lists.linbit.com>;
+	Tue, 14 Dec 2021 00:32:06 +0100 (CET)
+Date: Mon, 13 Dec 2021 17:28:28 -0600
+From: "Gustavo A. R. Silva" <gustavoars@kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Message-ID: <20211213232828.GC60133@embeddedor>
 References: <20211118203712.1288866-1-keescook@chromium.org>
-Message-Id: <163943830994.160816.6815884532342154175.b4-ty@kernel.dk>
-Date: Mon, 13 Dec 2021 16:31:49 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	linux-hardening@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20211118203712.1288866-1-keescook@chromium.org>
+Cc: Jens Axboe <axboe@kernel.dk>, "Gustavo A. R. Silva" <gustavoars@kernel.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-hardening@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH] drbd: Use struct_group() to zero algs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -30,7 +29,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 18 Nov 2021 12:37:12 -0800, Kees Cook wrote:
+On Thu, Nov 18, 2021 at 12:37:12PM -0800, Kees Cook wrote:
 > In preparation for FORTIFY_SOURCE performing compile-time and run-time
 > field bounds checking for memset(), avoid intentionally writing across
 > neighboring fields.
@@ -38,15 +37,68 @@ On Thu, 18 Nov 2021 12:37:12 -0800, Kees Cook wrote:
 > Add a struct_group() for the algs so that memset() can correctly reason
 > about the size.
 > 
-> [...]
+> Signed-off-by: Kees Cook <keescook@chromium.org>
 
-Applied, thanks!
+Reviewed-by: Gustavo A. R. Silva <gustavoars@kernel.org>
 
-[1/1] drbd: Use struct_group() to zero algs
-      commit: 52a0cab35c568f896067641d8e07f798341954f5
+Thanks
+--
+Gustavo
 
-Best regards,
--- 
-Jens Axboe
-
-
+> ---
+>  drivers/block/drbd/drbd_main.c     | 3 ++-
+>  drivers/block/drbd/drbd_protocol.h | 6 ++++--
+>  drivers/block/drbd/drbd_receiver.c | 3 ++-
+>  3 files changed, 8 insertions(+), 4 deletions(-)
+> 
+> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+> index 53ba2dddba6e..feac72e323bd 100644
+> --- a/drivers/block/drbd/drbd_main.c
+> +++ b/drivers/block/drbd/drbd_main.c
+> @@ -729,7 +729,8 @@ int drbd_send_sync_param(struct drbd_peer_device *peer_device)
+>  	cmd = apv >= 89 ? P_SYNC_PARAM89 : P_SYNC_PARAM;
+>  
+>  	/* initialize verify_alg and csums_alg */
+> -	memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
+> +	BUILD_BUG_ON(sizeof(p->algs) != 2 * SHARED_SECRET_MAX);
+> +	memset(&p->algs, 0, sizeof(p->algs));
+>  
+>  	if (get_ldev(peer_device->device)) {
+>  		dc = rcu_dereference(peer_device->device->ldev->disk_conf);
+> diff --git a/drivers/block/drbd/drbd_protocol.h b/drivers/block/drbd/drbd_protocol.h
+> index dea59c92ecc1..a882b65ab5d2 100644
+> --- a/drivers/block/drbd/drbd_protocol.h
+> +++ b/drivers/block/drbd/drbd_protocol.h
+> @@ -283,8 +283,10 @@ struct p_rs_param_89 {
+>  
+>  struct p_rs_param_95 {
+>  	u32 resync_rate;
+> -	char verify_alg[SHARED_SECRET_MAX];
+> -	char csums_alg[SHARED_SECRET_MAX];
+> +	struct_group(algs,
+> +		char verify_alg[SHARED_SECRET_MAX];
+> +		char csums_alg[SHARED_SECRET_MAX];
+> +	);
+>  	u32 c_plan_ahead;
+>  	u32 c_delay_target;
+>  	u32 c_fill_target;
+> diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+> index 1f740e42e457..6df2539e215b 100644
+> --- a/drivers/block/drbd/drbd_receiver.c
+> +++ b/drivers/block/drbd/drbd_receiver.c
+> @@ -3921,7 +3921,8 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
+>  
+>  	/* initialize verify_alg and csums_alg */
+>  	p = pi->data;
+> -	memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
+> +	BUILD_BUG_ON(sizeof(p->algs) != 2 * SHARED_SECRET_MAX);
+> +	memset(&p->algs, 0, sizeof(p->algs));
+>  
+>  	err = drbd_recv_all(peer_device->connection, p, header_size);
+>  	if (err)
+> -- 
+> 2.30.2
+> 
+> 
+> 
+> 
