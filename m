@@ -1,12 +1,12 @@
 Return-Path: <BATV+4fe6c3c60fc7db690b35+6722+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 797B042094E
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:58:01 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 96F604205D8
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 09:00:25 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 18 Jan 2022 08:19:38 +0100
-Message-Id: <20220118071952.1243143-6-hch@lst.de>
+Date: Tue, 18 Jan 2022 08:19:43 +0100
+Message-Id: <20220118071952.1243143-11-hch@lst.de>
 In-Reply-To: <20220118071952.1243143-1-hch@lst.de>
 References: <20220118071952.1243143-1-hch@lst.de>
 MIME-Version: 1.0
@@ -23,8 +23,8 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/19] dm: bio_alloc can't fail if it is allowed
-	to sleep
+Subject: [Drbd-dev] [PATCH 10/19] rnbd-srv: simplify bio mapping in
+	process_rdma
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,185 +36,143 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Remove handling of NULL returns from sleeping bio_alloc calls given that
-those can't fail.
+The memory mapped in process_rdma is contiguous, so there is no need
+to loop over bio_add_page.  Remove rnbd_bio_map_kern and just open code
+the bio allocation and mapping in the caller.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/dm-crypt.c          |  5 +----
- drivers/md/dm-log-writes.c     | 18 ------------------
- drivers/md/dm-thin.c           | 25 +++++++++----------------
- drivers/md/dm-zoned-metadata.c | 11 -----------
- drivers/md/dm.c                |  2 --
- 5 files changed, 10 insertions(+), 51 deletions(-)
+ drivers/block/rnbd/rnbd-srv-dev.c | 57 -------------------------------
+ drivers/block/rnbd/rnbd-srv-dev.h |  5 ---
+ drivers/block/rnbd/rnbd-srv.c     | 20 ++++++++---
+ 3 files changed, 15 insertions(+), 67 deletions(-)
 
-diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index d4ae31558826a..20abe3486aba1 100644
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -1673,9 +1673,6 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
- 		mutex_lock(&cc->bio_alloc_lock);
- 
- 	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, &cc->bs);
--	if (!clone)
--		goto out;
--
- 	clone_init(io, clone);
- 
- 	remaining_size = size;
-@@ -1702,7 +1699,7 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
- 		bio_put(clone);
- 		clone = NULL;
- 	}
--out:
-+
- 	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
- 		mutex_unlock(&cc->bio_alloc_lock);
- 
-diff --git a/drivers/md/dm-log-writes.c b/drivers/md/dm-log-writes.c
-index 139b09b06eda9..25f5e8d2d417b 100644
---- a/drivers/md/dm-log-writes.c
-+++ b/drivers/md/dm-log-writes.c
-@@ -218,10 +218,6 @@ static int write_metadata(struct log_writes_c *lc, void *entry,
- 	size_t ret;
- 
- 	bio = bio_alloc(GFP_KERNEL, 1);
--	if (!bio) {
--		DMERR("Couldn't alloc log bio");
--		goto error;
--	}
- 	bio->bi_iter.bi_size = 0;
- 	bio->bi_iter.bi_sector = sector;
- 	bio_set_dev(bio, lc->logdev->bdev);
-@@ -276,11 +272,6 @@ static int write_inline_data(struct log_writes_c *lc, void *entry,
- 		atomic_inc(&lc->io_blocks);
- 
- 		bio = bio_alloc(GFP_KERNEL, bio_pages);
--		if (!bio) {
--			DMERR("Couldn't alloc inline data bio");
--			goto error;
--		}
--
- 		bio->bi_iter.bi_size = 0;
- 		bio->bi_iter.bi_sector = sector;
- 		bio_set_dev(bio, lc->logdev->bdev);
-@@ -322,7 +313,6 @@ static int write_inline_data(struct log_writes_c *lc, void *entry,
- error_bio:
- 	bio_free_pages(bio);
- 	bio_put(bio);
--error:
- 	put_io_block(lc);
- 	return -1;
+diff --git a/drivers/block/rnbd/rnbd-srv-dev.c b/drivers/block/rnbd/rnbd-srv-dev.c
+index b241a099aeae2..98d3e591a0885 100644
+--- a/drivers/block/rnbd/rnbd-srv-dev.c
++++ b/drivers/block/rnbd/rnbd-srv-dev.c
+@@ -44,60 +44,3 @@ void rnbd_dev_close(struct rnbd_dev *dev)
+ 	blkdev_put(dev->bdev, dev->blk_open_flags);
+ 	kfree(dev);
  }
-@@ -364,10 +354,6 @@ static int log_one_block(struct log_writes_c *lc,
- 
- 	atomic_inc(&lc->io_blocks);
- 	bio = bio_alloc(GFP_KERNEL, bio_max_segs(block->vec_cnt));
--	if (!bio) {
--		DMERR("Couldn't alloc log bio");
--		goto error;
--	}
- 	bio->bi_iter.bi_size = 0;
- 	bio->bi_iter.bi_sector = sector;
- 	bio_set_dev(bio, lc->logdev->bdev);
-@@ -387,10 +373,6 @@ static int log_one_block(struct log_writes_c *lc,
- 			submit_bio(bio);
- 			bio = bio_alloc(GFP_KERNEL,
- 					bio_max_segs(block->vec_cnt - i));
--			if (!bio) {
--				DMERR("Couldn't alloc log bio");
--				goto error;
--			}
- 			bio->bi_iter.bi_size = 0;
- 			bio->bi_iter.bi_sector = sector;
- 			bio_set_dev(bio, lc->logdev->bdev);
-diff --git a/drivers/md/dm-thin.c b/drivers/md/dm-thin.c
-index ec119d2422d5d..76a9c2e9aeeea 100644
---- a/drivers/md/dm-thin.c
-+++ b/drivers/md/dm-thin.c
-@@ -1180,24 +1180,17 @@ static void process_prepared_discard_passdown_pt1(struct dm_thin_new_mapping *m)
- 	}
- 
- 	discard_parent = bio_alloc(GFP_NOIO, 1);
--	if (!discard_parent) {
--		DMWARN("%s: unable to allocate top level discard bio for passdown. Skipping passdown.",
--		       dm_device_name(tc->pool->pool_md));
--		queue_passdown_pt2(m);
-+	discard_parent->bi_end_io = passdown_endio;
-+	discard_parent->bi_private = m;
- 
--	} else {
--		discard_parent->bi_end_io = passdown_endio;
--		discard_parent->bi_private = m;
 -
--		if (m->maybe_shared)
--			passdown_double_checking_shared_status(m, discard_parent);
--		else {
--			struct discard_op op;
-+	if (m->maybe_shared)
-+		passdown_double_checking_shared_status(m, discard_parent);
-+	else {
-+		struct discard_op op;
- 
--			begin_discard(&op, tc, discard_parent);
--			r = issue_discard(&op, m->data_block, data_end);
--			end_discard(&op, r);
--		}
-+		begin_discard(&op, tc, discard_parent);
-+		r = issue_discard(&op, m->data_block, data_end);
-+		end_discard(&op, r);
- 	}
- }
- 
-diff --git a/drivers/md/dm-zoned-metadata.c b/drivers/md/dm-zoned-metadata.c
-index ee4626d085574..5718b83cc7182 100644
---- a/drivers/md/dm-zoned-metadata.c
-+++ b/drivers/md/dm-zoned-metadata.c
-@@ -551,10 +551,6 @@ static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
- 		return ERR_PTR(-ENOMEM);
- 
- 	bio = bio_alloc(GFP_NOIO, 1);
--	if (!bio) {
--		dmz_free_mblock(zmd, mblk);
--		return ERR_PTR(-ENOMEM);
--	}
- 
- 	spin_lock(&zmd->mblk_lock);
- 
-@@ -726,10 +722,6 @@ static int dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
- 		return -EIO;
- 
- 	bio = bio_alloc(GFP_NOIO, 1);
--	if (!bio) {
--		set_bit(DMZ_META_ERROR, &mblk->state);
--		return -ENOMEM;
--	}
- 
- 	set_bit(DMZ_META_WRITING, &mblk->state);
- 
-@@ -760,9 +752,6 @@ static int dmz_rdwr_block(struct dmz_dev *dev, int op,
- 		return -EIO;
- 
- 	bio = bio_alloc(GFP_NOIO, 1);
+-void rnbd_dev_bi_end_io(struct bio *bio)
+-{
+-	struct rnbd_dev_blk_io *io = bio->bi_private;
+-
+-	rnbd_endio(io->priv, blk_status_to_errno(bio->bi_status));
+-	bio_put(bio);
+-}
+-
+-/**
+- *	rnbd_bio_map_kern	-	map kernel address into bio
+- *	@data: pointer to buffer to map
+- *	@bs: bio_set to use.
+- *	@len: length in bytes
+- *	@gfp_mask: allocation flags for bio allocation
+- *
+- *	Map the kernel address into a bio suitable for io to a block
+- *	device. Returns an error pointer in case of error.
+- */
+-struct bio *rnbd_bio_map_kern(void *data, struct bio_set *bs,
+-			      unsigned int len, gfp_t gfp_mask)
+-{
+-	unsigned long kaddr = (unsigned long)data;
+-	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+-	unsigned long start = kaddr >> PAGE_SHIFT;
+-	const int nr_pages = end - start;
+-	int offset, i;
+-	struct bio *bio;
+-
+-	bio = bio_alloc_bioset(gfp_mask, nr_pages, bs);
 -	if (!bio)
--		return -ENOMEM;
+-		return ERR_PTR(-ENOMEM);
 -
- 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
- 	bio_set_dev(bio, dev->bdev);
- 	bio_set_op_attrs(bio, op, REQ_SYNC | REQ_META | REQ_PRIO);
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index c0ae8087c6027..81449cbdafa81 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -520,8 +520,6 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
- 	struct bio *clone;
+-	offset = offset_in_page(kaddr);
+-	for (i = 0; i < nr_pages; i++) {
+-		unsigned int bytes = PAGE_SIZE - offset;
+-
+-		if (len <= 0)
+-			break;
+-
+-		if (bytes > len)
+-			bytes = len;
+-
+-		if (bio_add_page(bio, virt_to_page(data), bytes,
+-				    offset) < bytes) {
+-			/* we don't support partial mappings */
+-			bio_put(bio);
+-			return ERR_PTR(-EINVAL);
+-		}
+-
+-		data += bytes;
+-		len -= bytes;
+-		offset = 0;
+-	}
+-
+-	return bio;
+-}
+diff --git a/drivers/block/rnbd/rnbd-srv-dev.h b/drivers/block/rnbd/rnbd-srv-dev.h
+index 0eb23850afb95..1a14ece0be726 100644
+--- a/drivers/block/rnbd/rnbd-srv-dev.h
++++ b/drivers/block/rnbd/rnbd-srv-dev.h
+@@ -41,11 +41,6 @@ void rnbd_dev_close(struct rnbd_dev *dev);
  
- 	clone = bio_alloc_bioset(GFP_NOIO, 0, &md->io_bs);
--	if (!clone)
--		return NULL;
+ void rnbd_endio(void *priv, int error);
  
- 	tio = container_of(clone, struct dm_target_io, clone);
- 	tio->inside_dm_io = true;
+-void rnbd_dev_bi_end_io(struct bio *bio);
+-
+-struct bio *rnbd_bio_map_kern(void *data, struct bio_set *bs,
+-			      unsigned int len, gfp_t gfp_mask);
+-
+ static inline int rnbd_dev_get_max_segs(const struct rnbd_dev *dev)
+ {
+ 	return queue_max_segments(bdev_get_queue(dev->bdev));
+diff --git a/drivers/block/rnbd/rnbd-srv.c b/drivers/block/rnbd/rnbd-srv.c
+index 1ee808fc600cf..65c670e96075b 100644
+--- a/drivers/block/rnbd/rnbd-srv.c
++++ b/drivers/block/rnbd/rnbd-srv.c
+@@ -114,6 +114,14 @@ rnbd_get_sess_dev(int dev_id, struct rnbd_srv_session *srv_sess)
+ 	return sess_dev;
+ }
+ 
++static void rnbd_dev_bi_end_io(struct bio *bio)
++{
++	struct rnbd_dev_blk_io *io = bio->bi_private;
++
++	rnbd_endio(io->priv, blk_status_to_errno(bio->bi_status));
++	bio_put(bio);
++}
++
+ static int process_rdma(struct rnbd_srv_session *srv_sess,
+ 			struct rtrs_srv_op *id, void *data, u32 datalen,
+ 			const void *usr, size_t usrlen)
+@@ -144,11 +152,11 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
+ 	priv->sess_dev = sess_dev;
+ 	priv->id = id;
+ 
+-	/* Generate bio with pages pointing to the rdma buffer */
+-	bio = rnbd_bio_map_kern(data, sess_dev->rnbd_dev->ibd_bio_set, datalen, GFP_KERNEL);
+-	if (IS_ERR(bio)) {
+-		err = PTR_ERR(bio);
+-		rnbd_srv_err(sess_dev, "Failed to generate bio, err: %d\n", err);
++	bio = bio_alloc_bioset(GFP_KERNEL, 1, sess_dev->rnbd_dev->ibd_bio_set);
++	if (bio_add_page(bio, virt_to_page(data), datalen,
++			offset_in_page(data))) {
++		rnbd_srv_err(sess_dev, "Failed to map data to bio\n");
++		err = -EINVAL;
+ 		goto sess_dev_put;
+ 	}
+ 
+@@ -170,6 +178,8 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
+ 
+ 	return 0;
+ 
++bio_put:
++	bio_put(bio);
+ sess_dev_put:
+ 	rnbd_put_sess_dev(sess_dev);
+ err:
 -- 
 2.30.2
 
