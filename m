@@ -1,12 +1,12 @@
 Return-Path: <BATV+4fe6c3c60fc7db690b35+6722+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 43415420602
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 09:00:47 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C2AF64203D1
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 09:02:51 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 18 Jan 2022 08:19:37 +0100
-Message-Id: <20220118071952.1243143-5-hch@lst.de>
+Date: Tue, 18 Jan 2022 08:19:34 +0100
+Message-Id: <20220118071952.1243143-2-hch@lst.de>
 In-Reply-To: <20220118071952.1243143-1-hch@lst.de>
 References: <20220118071952.1243143-1-hch@lst.de>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/19] ntfs3: remove ntfs_alloc_bio
+Subject: [Drbd-dev] [PATCH 01/19] fs: remove mpage_alloc
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,63 +35,84 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-bio_alloc will never fail if it is allowed to sleep, so there is no
-need for this loop.  Also remove the __GFP_HIGH specifier as it doesn't
-make sense here given that we'll always fall back to the mempool anyway.
+open code mpage_alloc in it's two callers and simplify the results
+because of the context:
+
+ - __mpage_writepage always passes GFP_NOFS and can thus always sleep and
+    will never get a NULL return from bio_alloc at all.
+ - do_mpage_readpage can only get a non-sleeping context for readahead
+   which never sets PF_MEMALLOC and thus doesn't need the retry loop
+   either.
+
+Both cases will never have __GFP_HIGH set.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/ntfs3/fsntfs.c | 23 ++---------------------
- 1 file changed, 2 insertions(+), 21 deletions(-)
+ fs/mpage.c | 35 ++++++-----------------------------
+ 1 file changed, 6 insertions(+), 29 deletions(-)
 
-diff --git a/fs/ntfs3/fsntfs.c b/fs/ntfs3/fsntfs.c
-index 4de9acb169689..4a255e21ecf5f 100644
---- a/fs/ntfs3/fsntfs.c
-+++ b/fs/ntfs3/fsntfs.c
-@@ -1443,17 +1443,6 @@ int ntfs_write_bh(struct ntfs_sb_info *sbi, struct NTFS_RECORD_HEADER *rhdr,
- 	return err;
+diff --git a/fs/mpage.c b/fs/mpage.c
+index 334e7d09aa652..c5817699b369b 100644
+--- a/fs/mpage.c
++++ b/fs/mpage.c
+@@ -67,29 +67,6 @@ static struct bio *mpage_bio_submit(int op, int op_flags, struct bio *bio)
+ 	return NULL;
  }
  
--static inline struct bio *ntfs_alloc_bio(u32 nr_vecs)
+-static struct bio *
+-mpage_alloc(struct block_device *bdev,
+-		sector_t first_sector, int nr_vecs,
+-		gfp_t gfp_flags)
 -{
--	struct bio *bio = bio_alloc(GFP_NOFS | __GFP_HIGH, nr_vecs);
+-	struct bio *bio;
 -
--	if (!bio && (current->flags & PF_MEMALLOC)) {
+-	/* Restrict the given (page cache) mask for slab allocations */
+-	gfp_flags &= GFP_KERNEL;
+-	bio = bio_alloc(gfp_flags, nr_vecs);
+-
+-	if (bio == NULL && (current->flags & PF_MEMALLOC)) {
 -		while (!bio && (nr_vecs /= 2))
--			bio = bio_alloc(GFP_NOFS | __GFP_HIGH, nr_vecs);
+-			bio = bio_alloc(gfp_flags, nr_vecs);
+-	}
+-
+-	if (bio) {
+-		bio_set_dev(bio, bdev);
+-		bio->bi_iter.bi_sector = first_sector;
 -	}
 -	return bio;
 -}
 -
  /*
-  * ntfs_bio_pages - Read/write pages from/to disk.
-  */
-@@ -1496,11 +1485,7 @@ int ntfs_bio_pages(struct ntfs_sb_info *sbi, const struct runs_tree *run,
- 		lbo = ((u64)lcn << cluster_bits) + off;
- 		len = ((u64)clen << cluster_bits) - off;
- new_bio:
--		new = ntfs_alloc_bio(nr_pages - page_idx);
--		if (!new) {
--			err = -ENOMEM;
--			goto out;
--		}
-+		new = bio_alloc(GFP_NOFS, nr_pages - page_idx);
- 		if (bio) {
- 			bio_chain(bio, new);
- 			submit_bio(bio);
-@@ -1599,11 +1584,7 @@ int ntfs_bio_fill_1(struct ntfs_sb_info *sbi, const struct runs_tree *run)
- 		lbo = (u64)lcn << cluster_bits;
- 		len = (u64)clen << cluster_bits;
- new_bio:
--		new = ntfs_alloc_bio(BIO_MAX_VECS);
--		if (!new) {
--			err = -ENOMEM;
--			break;
--		}
-+		new = bio_alloc(GFP_NOFS, BIO_MAX_VECS);
- 		if (bio) {
- 			bio_chain(bio, new);
- 			submit_bio(bio);
+  * support function for mpage_readahead.  The fs supplied get_block might
+  * return an up to date buffer.  This is used to map that buffer into
+@@ -303,10 +280,11 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
+ 								page))
+ 				goto out;
+ 		}
+-		args->bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
+-					bio_max_segs(args->nr_pages), gfp);
++		args->bio = bio_alloc(gfp, bio_max_segs(args->nr_pages));
+ 		if (args->bio == NULL)
+ 			goto confused;
++		bio_set_dev(args->bio, bdev);
++		args->bio->bi_iter.bi_sector = blocks[0] << (blkbits - 9);
+ 	}
+ 
+ 	length = first_hole << blkbits;
+@@ -615,10 +593,9 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
+ 								page, wbc))
+ 				goto out;
+ 		}
+-		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
+-				BIO_MAX_VECS, GFP_NOFS|__GFP_HIGH);
+-		if (bio == NULL)
+-			goto confused;
++		bio = bio_alloc(GFP_NOFS, BIO_MAX_VECS);
++		bio_set_dev(bio, bdev);
++		bio->bi_iter.bi_sector = blocks[0] << (blkbits - 9);
+ 
+ 		wbc_init_bio(wbc, bio);
+ 		bio->bi_write_hint = inode->i_write_hint;
 -- 
 2.30.2
 
