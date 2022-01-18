@@ -1,14 +1,12 @@
 Return-Path: <BATV+4fe6c3c60fc7db690b35+6722+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 689D94205DE
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:55:27 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 807B8420602
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:57:58 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 18 Jan 2022 08:19:44 +0100
-Message-Id: <20220118071952.1243143-12-hch@lst.de>
-In-Reply-To: <20220118071952.1243143-1-hch@lst.de>
-References: <20220118071952.1243143-1-hch@lst.de>
+Date: Tue, 18 Jan 2022 08:19:33 +0100
+Message-Id: <20220118071952.1243143-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
@@ -23,7 +21,7 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 11/19] rnbd-src: remove struct rnbd_dev_blk_io
+Subject: [Drbd-dev] improve the bio allocation interface
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,173 +33,95 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Only the priv field of rnbd_dev_blk_io is used, so store the value of
-that in bio->bi_private directly and remove the entire bio_set overhead.
+Hi Jens,
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- drivers/block/rnbd/rnbd-srv-dev.c |  4 +---
- drivers/block/rnbd/rnbd-srv-dev.h | 13 ++-----------
- drivers/block/rnbd/rnbd-srv.c     | 30 +++++-------------------------
- drivers/block/rnbd/rnbd-srv.h     |  1 -
- 4 files changed, 8 insertions(+), 40 deletions(-)
+this series is posted early because it has wide-ranging changes and could use some
+early ACKs before -rc1.
 
-diff --git a/drivers/block/rnbd/rnbd-srv-dev.c b/drivers/block/rnbd/rnbd-srv-dev.c
-index 98d3e591a0885..c5d0a03911659 100644
---- a/drivers/block/rnbd/rnbd-srv-dev.c
-+++ b/drivers/block/rnbd/rnbd-srv-dev.c
-@@ -12,8 +12,7 @@
- #include "rnbd-srv-dev.h"
- #include "rnbd-log.h"
- 
--struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags,
--			       struct bio_set *bs)
-+struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags)
- {
- 	struct rnbd_dev *dev;
- 	int ret;
-@@ -30,7 +29,6 @@ struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags,
- 
- 	dev->blk_open_flags = flags;
- 	bdevname(dev->bdev, dev->name);
--	dev->ibd_bio_set = bs;
- 
- 	return dev;
- 
-diff --git a/drivers/block/rnbd/rnbd-srv-dev.h b/drivers/block/rnbd/rnbd-srv-dev.h
-index 1a14ece0be726..2c3df02b5e8ec 100644
---- a/drivers/block/rnbd/rnbd-srv-dev.h
-+++ b/drivers/block/rnbd/rnbd-srv-dev.h
-@@ -14,25 +14,16 @@
- 
- struct rnbd_dev {
- 	struct block_device	*bdev;
--	struct bio_set		*ibd_bio_set;
- 	fmode_t			blk_open_flags;
- 	char			name[BDEVNAME_SIZE];
- };
- 
--struct rnbd_dev_blk_io {
--	struct rnbd_dev *dev;
--	void		 *priv;
--	/* have to be last member for front_pad usage of bioset_init */
--	struct bio	bio;
--};
--
- /**
-  * rnbd_dev_open() - Open a device
-+ * @path:	path to open
-  * @flags:	open flags
-- * @bs:		bio_set to use during block io,
-  */
--struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags,
--			       struct bio_set *bs);
-+struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags);
- 
- /**
-  * rnbd_dev_close() - Close a device
-diff --git a/drivers/block/rnbd/rnbd-srv.c b/drivers/block/rnbd/rnbd-srv.c
-index 65c670e96075b..b1ac1414b56d5 100644
---- a/drivers/block/rnbd/rnbd-srv.c
-+++ b/drivers/block/rnbd/rnbd-srv.c
-@@ -116,9 +116,7 @@ rnbd_get_sess_dev(int dev_id, struct rnbd_srv_session *srv_sess)
- 
- static void rnbd_dev_bi_end_io(struct bio *bio)
- {
--	struct rnbd_dev_blk_io *io = bio->bi_private;
--
--	rnbd_endio(io->priv, blk_status_to_errno(bio->bi_status));
-+	rnbd_endio(bio->bi_private, blk_status_to_errno(bio->bi_status));
- 	bio_put(bio);
- }
- 
-@@ -131,7 +129,6 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
- 	struct rnbd_srv_sess_dev *sess_dev;
- 	u32 dev_id;
- 	int err;
--	struct rnbd_dev_blk_io *io;
- 	struct bio *bio;
- 	short prio;
- 
-@@ -152,20 +149,16 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
- 	priv->sess_dev = sess_dev;
- 	priv->id = id;
- 
--	bio = bio_alloc_bioset(GFP_KERNEL, 1, sess_dev->rnbd_dev->ibd_bio_set);
-+	bio = bio_alloc(GFP_KERNEL, 1);
- 	if (bio_add_page(bio, virt_to_page(data), datalen,
- 			offset_in_page(data))) {
- 		rnbd_srv_err(sess_dev, "Failed to map data to bio\n");
- 		err = -EINVAL;
--		goto sess_dev_put;
-+		goto bio_put;
- 	}
- 
--	io = container_of(bio, struct rnbd_dev_blk_io, bio);
--	io->dev = sess_dev->rnbd_dev;
--	io->priv = priv;
--
- 	bio->bi_end_io = rnbd_dev_bi_end_io;
--	bio->bi_private = io;
-+	bio->bi_private = priv;
- 	bio->bi_opf = rnbd_to_bio_flags(le32_to_cpu(msg->rw));
- 	bio->bi_iter.bi_sector = le64_to_cpu(msg->sector);
- 	bio->bi_iter.bi_size = le32_to_cpu(msg->bi_size);
-@@ -180,7 +173,6 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
- 
- bio_put:
- 	bio_put(bio);
--sess_dev_put:
- 	rnbd_put_sess_dev(sess_dev);
- err:
- 	kfree(priv);
-@@ -261,7 +253,6 @@ static void destroy_sess(struct rnbd_srv_session *srv_sess)
- 
- out:
- 	xa_destroy(&srv_sess->index_idr);
--	bioset_exit(&srv_sess->sess_bio_set);
- 
- 	pr_info("RTRS Session %s disconnected\n", srv_sess->sessname);
- 
-@@ -290,16 +281,6 @@ static int create_sess(struct rtrs_srv_sess *rtrs)
- 		return -ENOMEM;
- 
- 	srv_sess->queue_depth = rtrs_srv_get_queue_depth(rtrs);
--	err = bioset_init(&srv_sess->sess_bio_set, srv_sess->queue_depth,
--			  offsetof(struct rnbd_dev_blk_io, bio),
--			  BIOSET_NEED_BVECS);
--	if (err) {
--		pr_err("Allocating srv_session for path %s failed\n",
--		       pathname);
--		kfree(srv_sess);
--		return err;
--	}
--
- 	xa_init_flags(&srv_sess->index_idr, XA_FLAGS_ALLOC);
- 	INIT_LIST_HEAD(&srv_sess->sess_dev_list);
- 	mutex_init(&srv_sess->lock);
-@@ -748,8 +729,7 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
- 		goto reject;
- 	}
- 
--	rnbd_dev = rnbd_dev_open(full_path, open_flags,
--				 &srv_sess->sess_bio_set);
-+	rnbd_dev = rnbd_dev_open(full_path, open_flags);
- 	if (IS_ERR(rnbd_dev)) {
- 		pr_err("Opening device '%s' on session %s failed, failed to open the block device, err: %ld\n",
- 		       full_path, srv_sess->sessname, PTR_ERR(rnbd_dev));
-diff --git a/drivers/block/rnbd/rnbd-srv.h b/drivers/block/rnbd/rnbd-srv.h
-index e5604bce123ab..be2ae486d407e 100644
---- a/drivers/block/rnbd/rnbd-srv.h
-+++ b/drivers/block/rnbd/rnbd-srv.h
-@@ -23,7 +23,6 @@ struct rnbd_srv_session {
- 	struct rtrs_srv_sess	*rtrs;
- 	char			sessname[NAME_MAX];
- 	int			queue_depth;
--	struct bio_set		sess_bio_set;
- 
- 	struct xarray		index_idr;
- 	/* List of struct rnbd_srv_sess_dev */
--- 
-2.30.2
+It changes the interface to the bio allocators to always pass a block_device and
+the operation, which is information needed for every bio submitted through
+bio_submit.  This means the fields can be directly initialized in bio_init instead
+of first being zeroed and thus should help to micro-optimize even better than the
+__bio_set_dev that Pavel proposed while also cleaning up code.
 
+I have a follow on series to also deal with the bio cloning interfaces that need
+even more love, and additional cleanups for the callers which might be material
+for the next merge window.
+
+Diffstat:
+ block/bio.c                         |   73 ++++++++++++++++++++++++------------
+ block/blk-flush.c                   |    4 -
+ block/blk-lib.c                     |   32 ++-------------
+ block/blk-zoned.c                   |   14 +-----
+ block/blk.h                         |    2 
+ block/bounce.c                      |    6 --
+ block/fops.c                        |   35 +++++++----------
+ drivers/block/drbd/drbd_actlog.c    |    5 --
+ drivers/block/drbd/drbd_bitmap.c    |    7 +--
+ drivers/block/drbd/drbd_receiver.c  |   31 +++------------
+ drivers/block/floppy.c              |    4 -
+ drivers/block/pktcdvd.c             |    8 ---
+ drivers/block/rnbd/rnbd-srv-dev.c   |   61 ------------------------------
+ drivers/block/rnbd/rnbd-srv-dev.h   |   18 --------
+ drivers/block/rnbd/rnbd-srv.c       |   45 ++++++++--------------
+ drivers/block/rnbd/rnbd-srv.h       |    1 
+ drivers/block/xen-blkback/blkback.c |   25 ++----------
+ drivers/block/zram/zram_drv.c       |   16 ++-----
+ drivers/md/bcache/io.c              |    3 -
+ drivers/md/bcache/journal.c         |   16 ++-----
+ drivers/md/bcache/movinggc.c        |    4 -
+ drivers/md/bcache/request.c         |   18 +++-----
+ drivers/md/bcache/super.c           |    8 +--
+ drivers/md/bcache/writeback.c       |    4 -
+ drivers/md/dm-crypt.c               |   27 ++++---------
+ drivers/md/dm-io.c                  |    5 --
+ drivers/md/dm-log-writes.c          |   39 +++----------------
+ drivers/md/dm-snap.c                |   21 ----------
+ drivers/md/dm-thin.c                |   41 +++++---------------
+ drivers/md/dm-writecache.c          |    7 +--
+ drivers/md/dm-zoned-metadata.c      |   26 ++----------
+ drivers/md/dm.c                     |   12 ++---
+ drivers/md/md-multipath.c           |    2 
+ drivers/md/md.c                     |   24 +++++------
+ drivers/md/raid1.c                  |    8 +--
+ drivers/md/raid10.c                 |   14 ++----
+ drivers/md/raid5-cache.c            |   19 +++------
+ drivers/md/raid5-ppl.c              |   13 ++----
+ drivers/md/raid5.c                  |   12 ++---
+ drivers/nvdimm/nd_virtio.c          |    6 +-
+ drivers/nvme/target/io-cmd-bdev.c   |   18 +++-----
+ drivers/nvme/target/passthru.c      |    7 +--
+ drivers/nvme/target/zns.c           |   14 +++---
+ drivers/scsi/ufs/ufshpb.c           |    4 -
+ drivers/target/target_core_iblock.c |   11 +----
+ fs/btrfs/disk-io.c                  |   10 +---
+ fs/btrfs/extent_io.c                |    2 
+ fs/buffer.c                         |   14 ++----
+ fs/crypto/bio.c                     |   13 ++----
+ fs/direct-io.c                      |    5 --
+ fs/erofs/zdata.c                    |    5 --
+ fs/ext4/page-io.c                   |    3 -
+ fs/ext4/readpage.c                  |    8 +--
+ fs/f2fs/data.c                      |    7 +--
+ fs/gfs2/lops.c                      |    8 +--
+ fs/gfs2/meta_io.c                   |    4 -
+ fs/gfs2/ops_fstype.c                |    4 -
+ fs/hfsplus/wrapper.c                |    4 -
+ fs/iomap/buffered-io.c              |   26 +++++-------
+ fs/iomap/direct-io.c                |    8 ---
+ fs/jfs/jfs_logmgr.c                 |   11 -----
+ fs/jfs/jfs_metapage.c               |    9 +---
+ fs/mpage.c                          |   34 ++--------------
+ fs/nfs/blocklayout/blocklayout.c    |   26 +-----------
+ fs/nilfs2/segbuf.c                  |   31 +--------------
+ fs/ntfs3/fsntfs.c                   |   27 -------------
+ fs/ocfs2/cluster/heartbeat.c        |    4 -
+ fs/squashfs/block.c                 |   11 ++---
+ fs/xfs/xfs_bio_io.c                 |   14 ++----
+ fs/xfs/xfs_buf.c                    |    4 -
+ fs/xfs/xfs_log.c                    |   14 +++---
+ fs/zonefs/super.c                   |    9 +---
+ include/linux/bio.h                 |   30 ++++++--------
+ kernel/power/swap.c                 |    5 --
+ mm/page_io.c                        |   10 +---
+ 75 files changed, 372 insertions(+), 758 deletions(-)
