@@ -1,12 +1,12 @@
 Return-Path: <BATV+4fe6c3c60fc7db690b35+6722+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 59246420949
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B4DD342094D
 	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:58:00 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 18 Jan 2022 08:19:41 +0100
-Message-Id: <20220118071952.1243143-9-hch@lst.de>
+Date: Tue, 18 Jan 2022 08:19:40 +0100
+Message-Id: <20220118071952.1243143-8-hch@lst.de>
 In-Reply-To: <20220118071952.1243143-1-hch@lst.de>
 References: <20220118071952.1243143-1-hch@lst.de>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/19] dm-thin: use blkdev_issue_flush instead of
+Subject: [Drbd-dev] [PATCH 07/19] dm-snap: use blkdev_issue_flush instead of
 	open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -37,57 +37,73 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 Use blkdev_issue_flush, which uses an on-stack bio instead of an
-opencoded version with a bio embedded into struct pool.
+opencoded version with a bio embedded into struct dm_snapshot.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/dm-thin.c | 11 +----------
- 1 file changed, 1 insertion(+), 10 deletions(-)
+ drivers/md/dm-snap.c | 21 +--------------------
+ 1 file changed, 1 insertion(+), 20 deletions(-)
 
-diff --git a/drivers/md/dm-thin.c b/drivers/md/dm-thin.c
-index 76a9c2e9aeeea..411a3f56ed90c 100644
---- a/drivers/md/dm-thin.c
-+++ b/drivers/md/dm-thin.c
-@@ -282,8 +282,6 @@ struct pool {
- 	struct dm_bio_prison_cell **cell_sort_array;
- 
- 	mempool_t mapping_pool;
+diff --git a/drivers/md/dm-snap.c b/drivers/md/dm-snap.c
+index dcf34c6b05ad3..0d336b5ec5714 100644
+--- a/drivers/md/dm-snap.c
++++ b/drivers/md/dm-snap.c
+@@ -141,11 +141,6 @@ struct dm_snapshot {
+ 	 * for them to be committed.
+ 	 */
+ 	struct bio_list bios_queued_during_merge;
 -
+-	/*
+-	 * Flush data after merge.
+-	 */
 -	struct bio flush_bio;
  };
  
- static void metadata_operation_failed(struct pool *pool, const char *op, int r);
-@@ -2906,7 +2904,6 @@ static void __pool_destroy(struct pool *pool)
- 	if (pool->next_mapping)
- 		mempool_free(pool->next_mapping, &pool->mapping_pool);
- 	mempool_exit(&pool->mapping_pool);
--	bio_uninit(&pool->flush_bio);
- 	dm_deferred_set_destroy(pool->shared_read_ds);
- 	dm_deferred_set_destroy(pool->all_io_ds);
- 	kfree(pool);
-@@ -2987,7 +2984,6 @@ static struct pool *pool_create(struct mapped_device *pool_md,
- 	pool->low_water_triggered = false;
- 	pool->suspended = true;
- 	pool->out_of_data_space = false;
--	bio_init(&pool->flush_bio, NULL, 0);
+ /*
+@@ -1127,17 +1122,6 @@ static void snapshot_merge_next_chunks(struct dm_snapshot *s)
  
- 	pool->shared_read_ds = dm_deferred_set_create();
- 	if (!pool->shared_read_ds) {
-@@ -3194,13 +3190,8 @@ static void metadata_low_callback(void *context)
- static int metadata_pre_commit_callback(void *context)
- {
- 	struct pool *pool = context;
--	struct bio *flush_bio = &pool->flush_bio;
+ static void error_bios(struct bio *bio);
+ 
+-static int flush_data(struct dm_snapshot *s)
+-{
+-	struct bio *flush_bio = &s->flush_bio;
 -
 -	bio_reset(flush_bio);
--	bio_set_dev(flush_bio, pool->data_dev);
+-	bio_set_dev(flush_bio, s->origin->bdev);
 -	flush_bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
- 
+-
 -	return submit_bio_wait(flush_bio);
-+	return blkdev_issue_flush(pool->data_dev);
- }
+-}
+-
+ static void merge_callback(int read_err, unsigned long write_err, void *context)
+ {
+ 	struct dm_snapshot *s = context;
+@@ -1151,7 +1135,7 @@ static void merge_callback(int read_err, unsigned long write_err, void *context)
+ 		goto shut;
+ 	}
  
- static sector_t get_dev_size(struct block_device *bdev)
+-	if (flush_data(s) < 0) {
++	if (blkdev_issue_flush(s->origin->bdev) < 0) {
+ 		DMERR("Flush after merge failed: shutting down merge");
+ 		goto shut;
+ 	}
+@@ -1340,7 +1324,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 	s->first_merging_chunk = 0;
+ 	s->num_merging_chunks = 0;
+ 	bio_list_init(&s->bios_queued_during_merge);
+-	bio_init(&s->flush_bio, NULL, 0);
+ 
+ 	/* Allocate hash table for COW data */
+ 	if (init_hash_tables(s)) {
+@@ -1528,8 +1511,6 @@ static void snapshot_dtr(struct dm_target *ti)
+ 
+ 	dm_exception_store_destroy(s->store);
+ 
+-	bio_uninit(&s->flush_bio);
+-
+ 	dm_put_device(ti, s->cow);
+ 
+ 	dm_put_device(ti, s->origin);
 -- 
 2.30.2
 
