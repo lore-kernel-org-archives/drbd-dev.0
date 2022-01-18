@@ -1,12 +1,14 @@
 Return-Path: <BATV+4fe6c3c60fc7db690b35+6722+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 807B8420602
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:57:58 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DE89F420935
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:57:59 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 18 Jan 2022 08:19:33 +0100
-Message-Id: <20220118071952.1243143-1-hch@lst.de>
+Date: Tue, 18 Jan 2022 08:19:42 +0100
+Message-Id: <20220118071952.1243143-10-hch@lst.de>
+In-Reply-To: <20220118071952.1243143-1-hch@lst.de>
+References: <20220118071952.1243143-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
@@ -21,7 +23,8 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] improve the bio allocation interface
+Subject: [Drbd-dev] [PATCH 09/19] drbd: bio_alloc can't fail if it is allow
+	to sleep
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,95 +36,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+Remove handling of NULL returns from sleeping bio_alloc calls given that
+those can't fail.
 
-this series is posted early because it has wide-ranging changes and could use some
-early ACKs before -rc1.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/block/drbd/drbd_receiver.c | 21 ++++-----------------
+ 1 file changed, 4 insertions(+), 17 deletions(-)
 
-It changes the interface to the bio allocators to always pass a block_device and
-the operation, which is information needed for every bio submitted through
-bio_submit.  This means the fields can be directly initialized in bio_init instead
-of first being zeroed and thus should help to micro-optimize even better than the
-__bio_set_dev that Pavel proposed while also cleaning up code.
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 6df2539e215ba..90402abb77e93 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1281,14 +1281,13 @@ static void submit_one_flush(struct drbd_device *device, struct issue_flush_cont
+ {
+ 	struct bio *bio = bio_alloc(GFP_NOIO, 0);
+ 	struct one_flush_context *octx = kmalloc(sizeof(*octx), GFP_NOIO);
+-	if (!bio || !octx) {
+-		drbd_warn(device, "Could not allocate a bio, CANNOT ISSUE FLUSH\n");
++
++	if (!octx) {
++		drbd_warn(device, "Could not allocate a octx, CANNOT ISSUE FLUSH\n");
+ 		/* FIXME: what else can I do now?  disconnecting or detaching
+ 		 * really does not help to improve the state of the world, either.
+ 		 */
+-		kfree(octx);
+-		if (bio)
+-			bio_put(bio);
++		bio_put(bio);
+ 
+ 		ctx->error = -ENOMEM;
+ 		put_ldev(device);
+@@ -1688,10 +1687,6 @@ int drbd_submit_peer_request(struct drbd_device *device,
+ 	 */
+ next_bio:
+ 	bio = bio_alloc(GFP_NOIO, nr_pages);
+-	if (!bio) {
+-		drbd_err(device, "submit_ee: Allocation of a bio failed (nr_pages=%u)\n", nr_pages);
+-		goto fail;
+-	}
+ 	/* > peer_req->i.sector, unless this is the first bio */
+ 	bio->bi_iter.bi_sector = sector;
+ 	bio_set_dev(bio, device->ldev->backing_bdev);
+@@ -1726,14 +1721,6 @@ int drbd_submit_peer_request(struct drbd_device *device,
+ 		drbd_submit_bio_noacct(device, fault_type, bio);
+ 	} while (bios);
+ 	return 0;
+-
+-fail:
+-	while (bios) {
+-		bio = bios;
+-		bios = bios->bi_next;
+-		bio_put(bio);
+-	}
+-	return err;
+ }
+ 
+ static void drbd_remove_epoch_entry_interval(struct drbd_device *device,
+-- 
+2.30.2
 
-I have a follow on series to also deal with the bio cloning interfaces that need
-even more love, and additional cleanups for the callers which might be material
-for the next merge window.
-
-Diffstat:
- block/bio.c                         |   73 ++++++++++++++++++++++++------------
- block/blk-flush.c                   |    4 -
- block/blk-lib.c                     |   32 ++-------------
- block/blk-zoned.c                   |   14 +-----
- block/blk.h                         |    2 
- block/bounce.c                      |    6 --
- block/fops.c                        |   35 +++++++----------
- drivers/block/drbd/drbd_actlog.c    |    5 --
- drivers/block/drbd/drbd_bitmap.c    |    7 +--
- drivers/block/drbd/drbd_receiver.c  |   31 +++------------
- drivers/block/floppy.c              |    4 -
- drivers/block/pktcdvd.c             |    8 ---
- drivers/block/rnbd/rnbd-srv-dev.c   |   61 ------------------------------
- drivers/block/rnbd/rnbd-srv-dev.h   |   18 --------
- drivers/block/rnbd/rnbd-srv.c       |   45 ++++++++--------------
- drivers/block/rnbd/rnbd-srv.h       |    1 
- drivers/block/xen-blkback/blkback.c |   25 ++----------
- drivers/block/zram/zram_drv.c       |   16 ++-----
- drivers/md/bcache/io.c              |    3 -
- drivers/md/bcache/journal.c         |   16 ++-----
- drivers/md/bcache/movinggc.c        |    4 -
- drivers/md/bcache/request.c         |   18 +++-----
- drivers/md/bcache/super.c           |    8 +--
- drivers/md/bcache/writeback.c       |    4 -
- drivers/md/dm-crypt.c               |   27 ++++---------
- drivers/md/dm-io.c                  |    5 --
- drivers/md/dm-log-writes.c          |   39 +++----------------
- drivers/md/dm-snap.c                |   21 ----------
- drivers/md/dm-thin.c                |   41 +++++---------------
- drivers/md/dm-writecache.c          |    7 +--
- drivers/md/dm-zoned-metadata.c      |   26 ++----------
- drivers/md/dm.c                     |   12 ++---
- drivers/md/md-multipath.c           |    2 
- drivers/md/md.c                     |   24 +++++------
- drivers/md/raid1.c                  |    8 +--
- drivers/md/raid10.c                 |   14 ++----
- drivers/md/raid5-cache.c            |   19 +++------
- drivers/md/raid5-ppl.c              |   13 ++----
- drivers/md/raid5.c                  |   12 ++---
- drivers/nvdimm/nd_virtio.c          |    6 +-
- drivers/nvme/target/io-cmd-bdev.c   |   18 +++-----
- drivers/nvme/target/passthru.c      |    7 +--
- drivers/nvme/target/zns.c           |   14 +++---
- drivers/scsi/ufs/ufshpb.c           |    4 -
- drivers/target/target_core_iblock.c |   11 +----
- fs/btrfs/disk-io.c                  |   10 +---
- fs/btrfs/extent_io.c                |    2 
- fs/buffer.c                         |   14 ++----
- fs/crypto/bio.c                     |   13 ++----
- fs/direct-io.c                      |    5 --
- fs/erofs/zdata.c                    |    5 --
- fs/ext4/page-io.c                   |    3 -
- fs/ext4/readpage.c                  |    8 +--
- fs/f2fs/data.c                      |    7 +--
- fs/gfs2/lops.c                      |    8 +--
- fs/gfs2/meta_io.c                   |    4 -
- fs/gfs2/ops_fstype.c                |    4 -
- fs/hfsplus/wrapper.c                |    4 -
- fs/iomap/buffered-io.c              |   26 +++++-------
- fs/iomap/direct-io.c                |    8 ---
- fs/jfs/jfs_logmgr.c                 |   11 -----
- fs/jfs/jfs_metapage.c               |    9 +---
- fs/mpage.c                          |   34 ++--------------
- fs/nfs/blocklayout/blocklayout.c    |   26 +-----------
- fs/nilfs2/segbuf.c                  |   31 +--------------
- fs/ntfs3/fsntfs.c                   |   27 -------------
- fs/ocfs2/cluster/heartbeat.c        |    4 -
- fs/squashfs/block.c                 |   11 ++---
- fs/xfs/xfs_bio_io.c                 |   14 ++----
- fs/xfs/xfs_buf.c                    |    4 -
- fs/xfs/xfs_log.c                    |   14 +++---
- fs/zonefs/super.c                   |    9 +---
- include/linux/bio.h                 |   30 ++++++--------
- kernel/power/swap.c                 |    5 --
- mm/page_io.c                        |   10 +---
- 75 files changed, 372 insertions(+), 758 deletions(-)
