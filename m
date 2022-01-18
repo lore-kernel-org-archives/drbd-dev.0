@@ -1,34 +1,29 @@
-Return-Path: <urezki@gmail.com>
-Received: from mail-lf1-f45.google.com (mail-lf1-f45.google.com
-	[209.85.167.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0F9A6420954
-	for <drbd-dev@lists.linbit.com>; Wed, 15 Dec 2021 20:38:49 +0100 (CET)
-Received: by mail-lf1-f45.google.com with SMTP id d10so45194752lfg.6
-	for <drbd-dev@lists.linbit.com>; Wed, 15 Dec 2021 11:38:49 -0800 (PST)
-From: Uladzislau Rezki <urezki@gmail.com>
-Date: Wed, 15 Dec 2021 20:38:46 +0100
-To: Jens Axboe <axboe@kernel.dk>, Philipp Reisner <philipp.reisner@linbit.com>,
-	Jason Gunthorpe <jgg@nvidia.com>, drbd-dev@lists.linbit.com,
-	linux-block@vger.kernel.org
-Message-ID: <YbpERiPKO4ufe1hf@pc638.lan>
-References: <20211215111845.2514-1-urezki@gmail.com>
+Return-Path: <BATV+4fe6c3c60fc7db690b35+6722+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 785284202F4
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:55:23 +0100 (CET)
+From: Christoph Hellwig <hch@lst.de>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Tue, 18 Jan 2022 08:19:35 +0100
+Message-Id: <20220118071952.1243143-3-hch@lst.de>
+In-Reply-To: <20220118071952.1243143-1-hch@lst.de>
+References: <20220118071952.1243143-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20211215111845.2514-1-urezki@gmail.com>
-Cc: Michal Hocko <mhocko@suse.com>, "Theodore Y . Ts'o" <tytso@mit.edu>,
-	"Paul E . McKenney" <paulmck@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Frederic Weisbecker <frederic@kernel.org>,
-	LKML <linux-kernel@vger.kernel.org>, RCU <rcu@vger.kernel.org>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Neeraj Upadhyay <neeraju@codeaurora.org>,
-	Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
-	Daniel Axtens <dja@axtens.net>
-Subject: Re: [Drbd-dev] [PATCH] drdb: Switch to kvfree_rcu() API
+Content-Transfer-Encoding: 8bit
+Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
+	linux-nilfs@vger.kernel.org, Mike Snitzer <snitzer@redhat.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
+	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
+	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.co>,
+	dm-devel@redhat.com, "Md . Haris Iqbal " <haris.iqbal@ionos.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	linux-fsdevel@vger.kernel.org, xen-devel@lists.xenproject.org,
+	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
+	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 02/19] nilfs2: remove nilfs_alloc_seg_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,103 +35,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Dec 15, 2021 at 12:18:37PM +0100, Uladzislau Rezki (Sony) wrote:
-> Instead of invoking a synchronize_rcu() to free a pointer
-> after a grace period we can directly make use of new API
-> that does the same but in more efficient way.
-> 
-> TO: Jens Axboe <axboe@kernel.dk>
-> TO: Philipp Reisner <philipp.reisner@linbit.com>
-> TO: Jason Gunthorpe <jgg@nvidia.com>
-> TO: drbd-dev@lists.linbit.com
-> TO: linux-block@vger.kernel.org
-> Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
-> ---
->  drivers/block/drbd/drbd_nl.c       | 9 +++------
->  drivers/block/drbd/drbd_receiver.c | 6 ++----
->  drivers/block/drbd/drbd_state.c    | 3 +--
->  3 files changed, 6 insertions(+), 12 deletions(-)
-> 
-> diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-> index 44ccf8b4f4b2..28f4d84945fd 100644
-> --- a/drivers/block/drbd/drbd_nl.c
-> +++ b/drivers/block/drbd/drbd_nl.c
-> @@ -1679,8 +1679,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
->  			drbd_send_sync_param(peer_device);
->  	}
->  
-> -	synchronize_rcu();
-> -	kfree(old_disk_conf);
-> +	kvfree_rcu(old_disk_conf);
->  	kfree(old_plan);
->  	mod_timer(&device->request_timer, jiffies + HZ);
->  	goto success;
-> @@ -2511,8 +2510,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
->  
->  	mutex_unlock(&connection->resource->conf_update);
->  	mutex_unlock(&connection->data.mutex);
-> -	synchronize_rcu();
-> -	kfree(old_net_conf);
-> +	kvfree_rcu(old_net_conf);
->  
->  	if (connection->cstate >= C_WF_REPORT_PARAMS) {
->  		struct drbd_peer_device *peer_device;
-> @@ -2925,8 +2923,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
->  		new_disk_conf->disk_size = (sector_t)rs.resize_size;
->  		rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
->  		mutex_unlock(&device->resource->conf_update);
-> -		synchronize_rcu();
-> -		kfree(old_disk_conf);
-> +		kvfree_rcu(old_disk_conf);
->  		new_disk_conf = NULL;
->  	}
->  
-> diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-> index 1f740e42e457..d73a53242a75 100644
-> --- a/drivers/block/drbd/drbd_receiver.c
-> +++ b/drivers/block/drbd/drbd_receiver.c
-> @@ -3799,8 +3799,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
->  		drbd_info(connection, "peer data-integrity-alg: %s\n",
->  			  integrity_alg[0] ? integrity_alg : "(none)");
->  
-> -	synchronize_rcu();
-> -	kfree(old_net_conf);
-> +	kvfree_rcu(old_net_conf);
->  	return 0;
->  
->  disconnect_rcu_unlock:
-> @@ -4168,8 +4167,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
->  
->  			rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
->  			mutex_unlock(&connection->resource->conf_update);
-> -			synchronize_rcu();
-> -			kfree(old_disk_conf);
-> +			kvfree_rcu(old_disk_conf);
->  
->  			drbd_info(device, "Peer sets u_size to %lu sectors (old: %lu)\n",
->  				 (unsigned long)p_usize, (unsigned long)my_usize);
-> diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-> index b8a27818ab3f..826e496821c7 100644
-> --- a/drivers/block/drbd/drbd_state.c
-> +++ b/drivers/block/drbd/drbd_state.c
-> @@ -2071,8 +2071,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
->  		conn_free_crypto(connection);
->  		mutex_unlock(&connection->resource->conf_update);
->  
-> -		synchronize_rcu();
-> -		kfree(old_conf);
-> +		kvfree_rcu(old_conf);
->  	}
->  
->  	if (ns_max.susp_fen) {
-> -- 
-> 2.30.2
-> 
-+ Jens Axboe <axboe@kernel.dk>
-+ Philipp Reisner <philipp.reisner@linbit.com>
-+ Jason Gunthorpe <jgg@nvidia.com>
-+ drbd-dev@lists.linbit.com
-+ linux-block@vger.kernel.org
+bio_alloc will never fail when it can sleep.  Remove the now simple
+nilfs_alloc_seg_bio helper and open code it in the only caller.
 
---
-Vlad Rezki
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ fs/nilfs2/segbuf.c | 31 ++++---------------------------
+ 1 file changed, 4 insertions(+), 27 deletions(-)
+
+diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
+index 43287b0d3e9b6..53b7c6d21cdd8 100644
+--- a/fs/nilfs2/segbuf.c
++++ b/fs/nilfs2/segbuf.c
+@@ -371,29 +371,6 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
+ 	return err;
+ }
+ 
+-/**
+- * nilfs_alloc_seg_bio - allocate a new bio for writing log
+- * @nilfs: nilfs object
+- * @start: start block number of the bio
+- * @nr_vecs: request size of page vector.
+- *
+- * Return Value: On success, pointer to the struct bio is returned.
+- * On error, NULL is returned.
+- */
+-static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
+-				       int nr_vecs)
+-{
+-	struct bio *bio;
+-
+-	bio = bio_alloc(GFP_NOIO, nr_vecs);
+-	if (likely(bio)) {
+-		bio_set_dev(bio, nilfs->ns_bdev);
+-		bio->bi_iter.bi_sector =
+-			start << (nilfs->ns_blocksize_bits - 9);
+-	}
+-	return bio;
+-}
+-
+ static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
+ 				       struct nilfs_write_info *wi)
+ {
+@@ -414,10 +391,10 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
+ 	BUG_ON(wi->nr_vecs <= 0);
+  repeat:
+ 	if (!wi->bio) {
+-		wi->bio = nilfs_alloc_seg_bio(wi->nilfs, wi->blocknr + wi->end,
+-					      wi->nr_vecs);
+-		if (unlikely(!wi->bio))
+-			return -ENOMEM;
++		wi->bio = bio_alloc(GFP_NOIO, wi->nr_vecs);
++		bio_set_dev(wi->bio, wi->nilfs->ns_bdev);
++		wi->bio->bi_iter.bi_sector = (wi->blocknr + wi->end) <<
++			(wi->nilfs->ns_blocksize_bits - 9);
+ 	}
+ 
+ 	len = bio_add_page(wi->bio, bh->b_page, bh->b_size, bh_offset(bh));
+-- 
+2.30.2
+
