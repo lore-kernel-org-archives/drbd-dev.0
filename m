@@ -1,18 +1,18 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM10-MW2-obe.outbound.protection.outlook.com
-	(mail-mw2nam10on2058.outbound.protection.outlook.com [40.107.94.58])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5912542094E
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 23:25:04 +0100 (CET)
+Received: from NAM10-BN7-obe.outbound.protection.outlook.com
+	(mail-bn7nam10on2047.outbound.protection.outlook.com [40.107.92.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2C7DD42094E
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 23:31:10 +0100 (CET)
 From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Tue, 18 Jan 2022 22:10:17 +0000
-Message-ID: <898045a2-19a4-15ba-a352-ce1767f17cac@nvidia.com>
+Date: Tue, 18 Jan 2022 22:15:35 +0000
+Message-ID: <43d7b708-317c-4dd2-2de3-dc1755c4f835@nvidia.com>
 References: <20220118071952.1243143-1-hch@lst.de>
-	<20220118071952.1243143-14-hch@lst.de>
-In-Reply-To: <20220118071952.1243143-14-hch@lst.de>
+	<20220118071952.1243143-19-hch@lst.de>
+In-Reply-To: <20220118071952.1243143-19-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <B517DE78369F2A41BFFA7CE0A7153DC7@namprd12.prod.outlook.com>
+Content-ID: <68497571FD293D40AE092A66BF25DCEA@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: Lars, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
@@ -32,7 +32,8 @@ Cc: Lars, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
 	Andrew Morton <akpm@linux-foundation.org>, Konstantin,
 	Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH 13/19] block: move blk_next_bio to bio.c
+Subject: Re: [Drbd-dev] [PATCH 18/19] block: pass a block_device and opf to
+	bio_init
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,8 +45,12 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gMS8xNy8yMiAxMToxOSBQTSwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IEtlZXAgYmxr
-X25leHRfYmlvIG5leHQgdG8gdGhlIGNvcmUgYmlvIGluZnJhc3RydWN0dXJlLg0KPiANCj4gU2ln
-bmVkLW9mZi1ieTogQ2hyaXN0b3BoIEhlbGx3aWcgPGhjaEBsc3QuZGU+DQoNCg0KTG9va3MgZ29v
-ZC4NCg0KUmV2aWV3ZWQtYnk6IENoYWl0YW55YSBLdWxrYXJuaSA8a2NoQG52aWRpYS5jb20+DQoN
-Cg0K
+T24gMS8xNy8yMiAxMToxOSBQTSwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IFBhc3MgdGhl
+IGJsb2NrX2RldmljZSB0aGF0IHdlIHBsYW4gdG8gdXNlIHRoaXMgYmlvIGZvciBhbmQgdGhlDQo+
+IG9wZXJhdGlvbiB0byBiaW9faW5pdCB0byBvcHRpbWl6ZSB0aGUgYXNzaWdtZW50LiAgQSBOVUxM
+IGJsb2NrX2RldmljZQ0KJ3MvYXNzaWdtZW50L2Fzc2lnbm1lbnQnID8NCj4gY2FuIGJlIHBhc3Nl
+ZCwgYm90aCBmb3IgdGhlIHBhc3N0aHJvdWdoIGNhc2Ugb24gYSByYXcgcmVxdWVzdF9xdWV1ZSBh
+bmQNCj4gdG8gdGVtcG9yYXJpbHkgYXZvaWQgcmVmYWN0b3Jpbmcgc29tZSBuYXN0eSBjb2RlLg0K
+PiANCj4gU2lnbmVkLW9mZi1ieTogQ2hyaXN0b3BoIEhlbGx3aWcgPGhjaEBsc3QuZGU+DQo+IC0t
+LQ0KDQpMb29rcyBnb29kLg0KDQpSZXZpZXdlZC1ieTogQ2hhaXRhbnlhIEt1bGthcm5pIDxrY2hA
+bnZpZGlhLmNvbT4NCg0K
