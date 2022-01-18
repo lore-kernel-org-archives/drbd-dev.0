@@ -1,12 +1,12 @@
 Return-Path: <BATV+4fe6c3c60fc7db690b35+6722+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B4DD342094D
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:58:00 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1C2904202F4
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:58:01 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 18 Jan 2022 08:19:40 +0100
-Message-Id: <20220118071952.1243143-8-hch@lst.de>
+Date: Tue, 18 Jan 2022 08:19:39 +0100
+Message-Id: <20220118071952.1243143-7-hch@lst.de>
 In-Reply-To: <20220118071952.1243143-1-hch@lst.de>
 References: <20220118071952.1243143-1-hch@lst.de>
 MIME-Version: 1.0
@@ -23,8 +23,7 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/19] dm-snap: use blkdev_issue_flush instead of
-	open coding it
+Subject: [Drbd-dev] [PATCH 06/19] dm-crypt: remove clone_init
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,74 +35,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use blkdev_issue_flush, which uses an on-stack bio instead of an
-opencoded version with a bio embedded into struct dm_snapshot.
+Just open code it next to the bio allocations, which saves a few lines
+of code, prepares for future changes and allows to remove the duplicate
+bi_opf assignment for the bio_clone_fast case in kcryptd_io_read.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/dm-snap.c | 21 +--------------------
- 1 file changed, 1 insertion(+), 20 deletions(-)
+ drivers/md/dm-crypt.c | 21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)
 
-diff --git a/drivers/md/dm-snap.c b/drivers/md/dm-snap.c
-index dcf34c6b05ad3..0d336b5ec5714 100644
---- a/drivers/md/dm-snap.c
-+++ b/drivers/md/dm-snap.c
-@@ -141,11 +141,6 @@ struct dm_snapshot {
- 	 * for them to be committed.
- 	 */
- 	struct bio_list bios_queued_during_merge;
--
--	/*
--	 * Flush data after merge.
--	 */
--	struct bio flush_bio;
- };
+diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+index 20abe3486aba1..3c5ecd35d3483 100644
+--- a/drivers/md/dm-crypt.c
++++ b/drivers/md/dm-crypt.c
+@@ -234,7 +234,7 @@ static volatile unsigned long dm_crypt_pages_per_client;
+ #define DM_CRYPT_MEMORY_PERCENT			2
+ #define DM_CRYPT_MIN_PAGES_PER_CLIENT		(BIO_MAX_VECS * 16)
  
- /*
-@@ -1127,17 +1122,6 @@ static void snapshot_merge_next_chunks(struct dm_snapshot *s)
+-static void clone_init(struct dm_crypt_io *, struct bio *);
++static void crypt_endio(struct bio *clone);
+ static void kcryptd_queue_crypt(struct dm_crypt_io *io);
+ static struct scatterlist *crypt_get_sg_data(struct crypt_config *cc,
+ 					     struct scatterlist *sg);
+@@ -1673,7 +1673,10 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
+ 		mutex_lock(&cc->bio_alloc_lock);
  
- static void error_bios(struct bio *bio);
+ 	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, &cc->bs);
+-	clone_init(io, clone);
++	clone->bi_private = io;
++	clone->bi_end_io = crypt_endio;
++	bio_set_dev(clone, cc->dev->bdev);
++	clone->bi_opf = io->base_bio->bi_opf;
  
--static int flush_data(struct dm_snapshot *s)
+ 	remaining_size = size;
+ 
+@@ -1826,16 +1829,6 @@ static void crypt_endio(struct bio *clone)
+ 	crypt_dec_pending(io);
+ }
+ 
+-static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 -{
--	struct bio *flush_bio = &s->flush_bio;
+-	struct crypt_config *cc = io->cc;
 -
--	bio_reset(flush_bio);
--	bio_set_dev(flush_bio, s->origin->bdev);
--	flush_bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
--
--	return submit_bio_wait(flush_bio);
+-	clone->bi_private = io;
+-	clone->bi_end_io  = crypt_endio;
+-	bio_set_dev(clone, cc->dev->bdev);
+-	clone->bi_opf	  = io->base_bio->bi_opf;
 -}
 -
- static void merge_callback(int read_err, unsigned long write_err, void *context)
+ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
  {
- 	struct dm_snapshot *s = context;
-@@ -1151,7 +1135,7 @@ static void merge_callback(int read_err, unsigned long write_err, void *context)
- 		goto shut;
- 	}
+ 	struct crypt_config *cc = io->cc;
+@@ -1850,10 +1843,12 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
+ 	clone = bio_clone_fast(io->base_bio, gfp, &cc->bs);
+ 	if (!clone)
+ 		return 1;
++	clone->bi_private = io;
++	clone->bi_end_io = crypt_endio;
++	bio_set_dev(clone, cc->dev->bdev);
  
--	if (flush_data(s) < 0) {
-+	if (blkdev_issue_flush(s->origin->bdev) < 0) {
- 		DMERR("Flush after merge failed: shutting down merge");
- 		goto shut;
- 	}
-@@ -1340,7 +1324,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
- 	s->first_merging_chunk = 0;
- 	s->num_merging_chunks = 0;
- 	bio_list_init(&s->bios_queued_during_merge);
--	bio_init(&s->flush_bio, NULL, 0);
+ 	crypt_inc_pending(io);
  
- 	/* Allocate hash table for COW data */
- 	if (init_hash_tables(s)) {
-@@ -1528,8 +1511,6 @@ static void snapshot_dtr(struct dm_target *ti)
+-	clone_init(io, clone);
+ 	clone->bi_iter.bi_sector = cc->start + io->sector;
  
- 	dm_exception_store_destroy(s->store);
- 
--	bio_uninit(&s->flush_bio);
--
- 	dm_put_device(ti, s->cow);
- 
- 	dm_put_device(ti, s->origin);
+ 	if (dm_crypt_integrity_io_alloc(io, clone)) {
 -- 
 2.30.2
 
