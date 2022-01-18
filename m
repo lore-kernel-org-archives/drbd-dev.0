@@ -1,12 +1,12 @@
 Return-Path: <BATV+4fe6c3c60fc7db690b35+6722+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DF6D34205D3
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:55:25 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 45E954205D4
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jan 2022 08:55:26 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 18 Jan 2022 08:19:49 +0100
-Message-Id: <20220118071952.1243143-17-hch@lst.de>
+Date: Tue, 18 Jan 2022 08:19:47 +0100
+Message-Id: <20220118071952.1243143-15-hch@lst.de>
 In-Reply-To: <20220118071952.1243143-1-hch@lst.de>
 References: <20220118071952.1243143-1-hch@lst.de>
 MIME-Version: 1.0
@@ -23,8 +23,8 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 16/19] block: pass a block_device and opf to
-	bio_alloc_kiocb
+Subject: [Drbd-dev] [PATCH 14/19] block: pass a block_device and opf to
+	blk_next_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,167 +36,169 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Pass the block_device and operation that we plan to use this bio for to
-bio_alloc_kiocb to optimize the assigment.
+All callers need to set the block_device and operation, so lift that into
+the common code.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/bio.c         | 12 ++++++++----
- block/fops.c        | 17 ++++++++---------
- include/linux/bio.h |  4 ++--
- 3 files changed, 18 insertions(+), 15 deletions(-)
+ block/bio.c               |  6 +++++-
+ block/blk-lib.c           | 19 +++++--------------
+ block/blk-zoned.c         |  9 +++------
+ block/blk.h               |  2 --
+ drivers/nvme/target/zns.c |  6 +++---
+ include/linux/bio.h       |  3 ++-
+ 6 files changed, 18 insertions(+), 27 deletions(-)
 
 diff --git a/block/bio.c b/block/bio.c
-index a58bc82d3c85f..8853ed6260cfd 100644
+index 43fb28ac6b44e..52c99bfa8008d 100644
 --- a/block/bio.c
 +++ b/block/bio.c
-@@ -1729,7 +1729,9 @@ EXPORT_SYMBOL(bioset_init_from_src);
- /**
-  * bio_alloc_kiocb - Allocate a bio from bio_set based on kiocb
-  * @kiocb:	kiocb describing the IO
-+ * @bdev:	block device to allocate the bio for (can be %NULL)
-  * @nr_vecs:	number of iovecs to pre-allocate
-+ * @opf:	operation and flags for bio
-  * @bs:		bio_set to allocate from
-  *
-  * Description:
-@@ -1740,14 +1742,14 @@ EXPORT_SYMBOL(bioset_init_from_src);
-  *    MUST be done from process context, not hard/soft IRQ.
-  *
-  */
--struct bio *bio_alloc_kiocb(struct kiocb *kiocb, unsigned short nr_vecs,
--			    struct bio_set *bs)
-+struct bio *bio_alloc_kiocb(struct kiocb *kiocb, struct block_device *bdev,
-+		unsigned short nr_vecs, unsigned int opf, struct bio_set *bs)
- {
- 	struct bio_alloc_cache *cache;
- 	struct bio *bio;
- 
- 	if (!(kiocb->ki_flags & IOCB_ALLOC_CACHE) || nr_vecs > BIO_INLINE_VECS)
--		return bio_alloc_bioset(NULL, nr_vecs, 0, GFP_KERNEL, bs);
-+		return bio_alloc_bioset(bdev, nr_vecs, opf, GFP_KERNEL, bs);
- 
- 	cache = per_cpu_ptr(bs->cache, get_cpu());
- 	if (cache->free_list) {
-@@ -1756,12 +1758,14 @@ struct bio *bio_alloc_kiocb(struct kiocb *kiocb, unsigned short nr_vecs,
- 		cache->nr--;
- 		put_cpu();
- 		bio_init(bio, nr_vecs ? bio->bi_inline_vecs : NULL, nr_vecs);
-+		bio_set_dev(bio, bdev);
-+		bio->bi_opf = opf;
- 		bio->bi_pool = bs;
- 		bio_set_flag(bio, BIO_PERCPU_CACHE);
- 		return bio;
- 	}
- 	put_cpu();
--	bio = bio_alloc_bioset(NULL, nr_vecs, 0, GFP_KERNEL, bs);
-+	bio = bio_alloc_bioset(bdev, nr_vecs, opf, GFP_KERNEL, bs);
- 	bio_set_flag(bio, BIO_PERCPU_CACHE);
- 	return bio;
+@@ -344,10 +344,14 @@ void bio_chain(struct bio *bio, struct bio *parent)
  }
-diff --git a/block/fops.c b/block/fops.c
-index 26bf15c770d21..3a62b8b912750 100644
---- a/block/fops.c
-+++ b/block/fops.c
-@@ -190,6 +190,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
- 	struct blkdev_dio *dio;
- 	struct bio *bio;
- 	bool is_read = (iov_iter_rw(iter) == READ), is_sync;
-+	unsigned int opf = is_read ? REQ_OP_READ : dio_bio_write_op(iocb);
- 	loff_t pos = iocb->ki_pos;
- 	int ret = 0;
+ EXPORT_SYMBOL(bio_chain);
  
-@@ -197,7 +198,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
- 	    (bdev_logical_block_size(bdev) - 1))
- 		return -EINVAL;
- 
--	bio = bio_alloc_kiocb(iocb, nr_pages, &blkdev_dio_pool);
-+	bio = bio_alloc_kiocb(iocb, bdev, nr_pages, opf, &blkdev_dio_pool);
- 
- 	dio = container_of(bio, struct blkdev_dio, bio);
- 	atomic_set(&dio->ref, 1);
-@@ -223,7 +224,6 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
- 	blk_start_plug(&plug);
- 
- 	for (;;) {
--		bio_set_dev(bio, bdev);
- 		bio->bi_iter.bi_sector = pos >> SECTOR_SHIFT;
- 		bio->bi_write_hint = iocb->ki_hint;
- 		bio->bi_private = dio;
-@@ -238,11 +238,9 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
- 		}
- 
- 		if (is_read) {
--			bio->bi_opf = REQ_OP_READ;
- 			if (dio->flags & DIO_SHOULD_DIRTY)
- 				bio_set_pages_dirty(bio);
- 		} else {
--			bio->bi_opf = dio_bio_write_op(iocb);
- 			task_io_account_write(bio->bi_iter.bi_size);
- 		}
- 		if (iocb->ki_flags & IOCB_NOWAIT)
-@@ -259,6 +257,8 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
- 		atomic_inc(&dio->ref);
- 		submit_bio(bio);
- 		bio = bio_alloc(GFP_KERNEL, nr_pages);
-+		bio_set_dev(bio, bdev);
-+		bio->bi_opf = opf;
- 	}
- 
- 	blk_finish_plug(&plug);
-@@ -311,6 +311,8 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
- 					unsigned int nr_pages)
+-struct bio *blk_next_bio(struct bio *bio, unsigned int nr_pages, gfp_t gfp)
++struct bio *blk_next_bio(struct bio *bio, struct block_device *bdev,
++		unsigned int nr_pages, unsigned int opf, gfp_t gfp)
  {
- 	struct block_device *bdev = iocb->ki_filp->private_data;
-+	bool is_read = iov_iter_rw(iter) == READ;
-+	unsigned int opf = is_read ? REQ_OP_READ : dio_bio_write_op(iocb);
- 	struct blkdev_dio *dio;
- 	struct bio *bio;
- 	loff_t pos = iocb->ki_pos;
-@@ -320,11 +322,10 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
- 	    (bdev_logical_block_size(bdev) - 1))
- 		return -EINVAL;
+ 	struct bio *new = bio_alloc(gfp, nr_pages);
  
--	bio = bio_alloc_kiocb(iocb, nr_pages, &blkdev_dio_pool);
-+	bio = bio_alloc_kiocb(iocb, bdev, nr_pages, opf, &blkdev_dio_pool);
- 	dio = container_of(bio, struct blkdev_dio, bio);
- 	dio->flags = 0;
- 	dio->iocb = iocb;
--	bio_set_dev(bio, bdev);
- 	bio->bi_iter.bi_sector = pos >> SECTOR_SHIFT;
- 	bio->bi_write_hint = iocb->ki_hint;
- 	bio->bi_end_io = blkdev_bio_end_io_async;
-@@ -347,14 +348,12 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
- 	}
- 	dio->size = bio->bi_iter.bi_size;
++	bio_set_dev(new, bdev);
++	new->bi_opf = opf;
++
+ 	if (bio) {
+ 		bio_chain(bio, new);
+ 		submit_bio(bio);
+diff --git a/block/blk-lib.c b/block/blk-lib.c
+index 9245b300ef73e..1b8ced45e4e55 100644
+--- a/block/blk-lib.c
++++ b/block/blk-lib.c
+@@ -82,11 +82,8 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
  
--	if (iov_iter_rw(iter) == READ) {
--		bio->bi_opf = REQ_OP_READ;
-+	if (is_read) {
- 		if (iter_is_iovec(iter)) {
- 			dio->flags |= DIO_SHOULD_DIRTY;
- 			bio_set_pages_dirty(bio);
+ 		WARN_ON_ONCE((req_sects << 9) > UINT_MAX);
+ 
+-		bio = blk_next_bio(bio, 0, gfp_mask);
++		bio = blk_next_bio(bio, bdev, 0, op, gfp_mask);
+ 		bio->bi_iter.bi_sector = sector;
+-		bio_set_dev(bio, bdev);
+-		bio_set_op_attrs(bio, op, 0);
+-
+ 		bio->bi_iter.bi_size = req_sects << 9;
+ 		sector += req_sects;
+ 		nr_sects -= req_sects;
+@@ -176,14 +173,12 @@ static int __blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
+ 	max_write_same_sectors = bio_allowed_max_sectors(q);
+ 
+ 	while (nr_sects) {
+-		bio = blk_next_bio(bio, 1, gfp_mask);
++		bio = blk_next_bio(bio, bdev, 1, REQ_OP_WRITE_SAME, gfp_mask);
+ 		bio->bi_iter.bi_sector = sector;
+-		bio_set_dev(bio, bdev);
+ 		bio->bi_vcnt = 1;
+ 		bio->bi_io_vec->bv_page = page;
+ 		bio->bi_io_vec->bv_offset = 0;
+ 		bio->bi_io_vec->bv_len = bdev_logical_block_size(bdev);
+-		bio_set_op_attrs(bio, REQ_OP_WRITE_SAME, 0);
+ 
+ 		if (nr_sects > max_write_same_sectors) {
+ 			bio->bi_iter.bi_size = max_write_same_sectors << 9;
+@@ -252,10 +247,8 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
+ 		return -EOPNOTSUPP;
+ 
+ 	while (nr_sects) {
+-		bio = blk_next_bio(bio, 0, gfp_mask);
++		bio = blk_next_bio(bio, bdev, 0, REQ_OP_WRITE_ZEROES, gfp_mask);
+ 		bio->bi_iter.bi_sector = sector;
+-		bio_set_dev(bio, bdev);
+-		bio->bi_opf = REQ_OP_WRITE_ZEROES;
+ 		if (flags & BLKDEV_ZERO_NOUNMAP)
+ 			bio->bi_opf |= REQ_NOUNMAP;
+ 
+@@ -303,11 +296,9 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
+ 		return -EPERM;
+ 
+ 	while (nr_sects != 0) {
+-		bio = blk_next_bio(bio, __blkdev_sectors_to_bio_pages(nr_sects),
+-				   gfp_mask);
++		bio = blk_next_bio(bio, bdev, __blkdev_sectors_to_bio_pages(nr_sects),
++				   REQ_OP_WRITE, gfp_mask);
+ 		bio->bi_iter.bi_sector = sector;
+-		bio_set_dev(bio, bdev);
+-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+ 
+ 		while (nr_sects != 0) {
+ 			sz = min((sector_t) PAGE_SIZE, nr_sects << 9);
+diff --git a/block/blk-zoned.c b/block/blk-zoned.c
+index 774ecc598bee2..5ab755d792c81 100644
+--- a/block/blk-zoned.c
++++ b/block/blk-zoned.c
+@@ -215,9 +215,8 @@ static int blkdev_zone_reset_all_emulated(struct block_device *bdev,
+ 			continue;
  		}
- 	} else {
--		bio->bi_opf = dio_bio_write_op(iocb);
- 		task_io_account_write(bio->bi_iter.bi_size);
+ 
+-		bio = blk_next_bio(bio, 0, gfp_mask);
+-		bio_set_dev(bio, bdev);
+-		bio->bi_opf = REQ_OP_ZONE_RESET | REQ_SYNC;
++		bio = blk_next_bio(bio, bdev, 0, REQ_OP_ZONE_RESET | REQ_SYNC,
++				   gfp_mask);
+ 		bio->bi_iter.bi_sector = sector;
+ 		sector += zone_sectors;
+ 
+@@ -306,9 +305,7 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
  	}
  
+ 	while (sector < end_sector) {
+-		bio = blk_next_bio(bio, 0, gfp_mask);
+-		bio_set_dev(bio, bdev);
+-		bio->bi_opf = op | REQ_SYNC;
++		bio = blk_next_bio(bio, bdev, 0, op | REQ_SYNC, gfp_mask);
+ 		bio->bi_iter.bi_sector = sector;
+ 		sector += zone_sectors;
+ 
+diff --git a/block/blk.h b/block/blk.h
+index 8bd43b3ad33d5..6b93de33e8a43 100644
+--- a/block/blk.h
++++ b/block/blk.h
+@@ -406,8 +406,6 @@ extern int blk_iolatency_init(struct request_queue *q);
+ static inline int blk_iolatency_init(struct request_queue *q) { return 0; }
+ #endif
+ 
+-struct bio *blk_next_bio(struct bio *bio, unsigned int nr_pages, gfp_t gfp);
+-
+ #ifdef CONFIG_BLK_DEV_ZONED
+ void blk_queue_free_zone_bitmaps(struct request_queue *q);
+ void blk_queue_clear_zone_settings(struct request_queue *q);
+diff --git a/drivers/nvme/target/zns.c b/drivers/nvme/target/zns.c
+index 46bc30fe85d2b..247de74247fab 100644
+--- a/drivers/nvme/target/zns.c
++++ b/drivers/nvme/target/zns.c
+@@ -412,10 +412,10 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
+ 
+ 	while (sector < get_capacity(bdev->bd_disk)) {
+ 		if (test_bit(blk_queue_zone_no(q, sector), d.zbitmap)) {
+-			bio = blk_next_bio(bio, 0, GFP_KERNEL);
+-			bio->bi_opf = zsa_req_op(req->cmd->zms.zsa) | REQ_SYNC;
++			bio = blk_next_bio(bio, bdev, 0,
++				zsa_req_op(req->cmd->zms.zsa) | REQ_SYNC,
++				GFP_KERNEL);
+ 			bio->bi_iter.bi_sector = sector;
+-			bio_set_dev(bio, bdev);
+ 			/* This may take a while, so be nice to others */
+ 			cond_resched();
+ 		}
 diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 2f63ae9a71e1a..5c5ada2ebb270 100644
+index 117d7f248ac96..edeae54074ede 100644
 --- a/include/linux/bio.h
 +++ b/include/linux/bio.h
-@@ -408,8 +408,8 @@ extern int bioset_init_from_src(struct bio_set *bs, struct bio_set *src);
- struct bio *bio_alloc_bioset(struct block_device *bdev, unsigned short nr_vecs,
- 			     unsigned int opf, gfp_t gfp_mask,
- 			     struct bio_set *bs);
--struct bio *bio_alloc_kiocb(struct kiocb *kiocb, unsigned short nr_vecs,
--		struct bio_set *bs);
-+struct bio *bio_alloc_kiocb(struct kiocb *kiocb, struct block_device *bdev,
-+		unsigned short nr_vecs, unsigned int opf, struct bio_set *bs);
- struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned short nr_iovecs);
- extern void bio_put(struct bio *);
+@@ -790,6 +790,7 @@ static inline void bio_set_polled(struct bio *bio, struct kiocb *kiocb)
+ 		bio->bi_opf |= REQ_NOWAIT;
+ }
  
+-struct bio *blk_next_bio(struct bio *bio, unsigned int nr_pages, gfp_t gfp);
++struct bio *blk_next_bio(struct bio *bio, struct block_device *bdev,
++		unsigned int nr_pages, unsigned int opf, gfp_t gfp);
+ 
+ #endif /* __LINUX_BIO_H */
 -- 
 2.30.2
 
