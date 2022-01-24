@@ -1,12 +1,12 @@
 Return-Path: <BATV+b18af077b488c69bdec9+6728+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6FE2142A56D
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jan 2022 10:11:44 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E7DDC42A56E
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jan 2022 10:11:47 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 24 Jan 2022 10:10:56 +0100
-Message-Id: <20220124091107.642561-9-hch@lst.de>
+Date: Mon, 24 Jan 2022 10:10:57 +0100
+Message-Id: <20220124091107.642561-10-hch@lst.de>
 In-Reply-To: <20220124091107.642561-1-hch@lst.de>
 References: <20220124091107.642561-1-hch@lst.de>
 MIME-Version: 1.0
@@ -23,8 +23,8 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/19] dm-thin: use blkdev_issue_flush instead of
-	open coding it
+Subject: [Drbd-dev] [PATCH 09/19] drbd: bio_alloc can't fail if it is allow
+	to sleep
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,58 +36,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use blkdev_issue_flush, which uses an on-stack bio instead of an
-opencoded version with a bio embedded into struct pool.
+Remove handling of NULL returns from sleeping bio_alloc calls given that
+those can't fail.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/dm-thin.c | 11 +----------
- 1 file changed, 1 insertion(+), 10 deletions(-)
+ drivers/block/drbd/drbd_receiver.c | 22 ++++------------------
+ 1 file changed, 4 insertions(+), 18 deletions(-)
 
-diff --git a/drivers/md/dm-thin.c b/drivers/md/dm-thin.c
-index 76a9c2e9aeeea..411a3f56ed90c 100644
---- a/drivers/md/dm-thin.c
-+++ b/drivers/md/dm-thin.c
-@@ -282,8 +282,6 @@ struct pool {
- 	struct dm_bio_prison_cell **cell_sort_array;
- 
- 	mempool_t mapping_pool;
--
--	struct bio flush_bio;
- };
- 
- static void metadata_operation_failed(struct pool *pool, const char *op, int r);
-@@ -2906,7 +2904,6 @@ static void __pool_destroy(struct pool *pool)
- 	if (pool->next_mapping)
- 		mempool_free(pool->next_mapping, &pool->mapping_pool);
- 	mempool_exit(&pool->mapping_pool);
--	bio_uninit(&pool->flush_bio);
- 	dm_deferred_set_destroy(pool->shared_read_ds);
- 	dm_deferred_set_destroy(pool->all_io_ds);
- 	kfree(pool);
-@@ -2987,7 +2984,6 @@ static struct pool *pool_create(struct mapped_device *pool_md,
- 	pool->low_water_triggered = false;
- 	pool->suspended = true;
- 	pool->out_of_data_space = false;
--	bio_init(&pool->flush_bio, NULL, 0);
- 
- 	pool->shared_read_ds = dm_deferred_set_create();
- 	if (!pool->shared_read_ds) {
-@@ -3194,13 +3190,8 @@ static void metadata_low_callback(void *context)
- static int metadata_pre_commit_callback(void *context)
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 6df2539e215ba..fb59b263deeef 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1281,14 +1281,13 @@ static void submit_one_flush(struct drbd_device *device, struct issue_flush_cont
  {
- 	struct pool *pool = context;
--	struct bio *flush_bio = &pool->flush_bio;
--
--	bio_reset(flush_bio);
--	bio_set_dev(flush_bio, pool->data_dev);
--	flush_bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
+ 	struct bio *bio = bio_alloc(GFP_NOIO, 0);
+ 	struct one_flush_context *octx = kmalloc(sizeof(*octx), GFP_NOIO);
+-	if (!bio || !octx) {
+-		drbd_warn(device, "Could not allocate a bio, CANNOT ISSUE FLUSH\n");
++
++	if (!octx) {
++		drbd_warn(device, "Could not allocate a octx, CANNOT ISSUE FLUSH\n");
+ 		/* FIXME: what else can I do now?  disconnecting or detaching
+ 		 * really does not help to improve the state of the world, either.
+ 		 */
+-		kfree(octx);
+-		if (bio)
+-			bio_put(bio);
++		bio_put(bio);
  
--	return submit_bio_wait(flush_bio);
-+	return blkdev_issue_flush(pool->data_dev);
+ 		ctx->error = -ENOMEM;
+ 		put_ldev(device);
+@@ -1646,7 +1645,6 @@ int drbd_submit_peer_request(struct drbd_device *device,
+ 	unsigned data_size = peer_req->i.size;
+ 	unsigned n_bios = 0;
+ 	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
+-	int err = -ENOMEM;
+ 
+ 	/* TRIM/DISCARD: for now, always use the helper function
+ 	 * blkdev_issue_zeroout(..., discard=true).
+@@ -1688,10 +1686,6 @@ int drbd_submit_peer_request(struct drbd_device *device,
+ 	 */
+ next_bio:
+ 	bio = bio_alloc(GFP_NOIO, nr_pages);
+-	if (!bio) {
+-		drbd_err(device, "submit_ee: Allocation of a bio failed (nr_pages=%u)\n", nr_pages);
+-		goto fail;
+-	}
+ 	/* > peer_req->i.sector, unless this is the first bio */
+ 	bio->bi_iter.bi_sector = sector;
+ 	bio_set_dev(bio, device->ldev->backing_bdev);
+@@ -1726,14 +1720,6 @@ int drbd_submit_peer_request(struct drbd_device *device,
+ 		drbd_submit_bio_noacct(device, fault_type, bio);
+ 	} while (bios);
+ 	return 0;
+-
+-fail:
+-	while (bios) {
+-		bio = bios;
+-		bios = bios->bi_next;
+-		bio_put(bio);
+-	}
+-	return err;
  }
  
- static sector_t get_dev_size(struct block_device *bdev)
+ static void drbd_remove_epoch_entry_interval(struct drbd_device *device,
 -- 
 2.30.2
 
