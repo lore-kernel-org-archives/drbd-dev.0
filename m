@@ -1,12 +1,14 @@
 Return-Path: <BATV+b18af077b488c69bdec9+6728+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1C9AB420854
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jan 2022 10:11:28 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7E27D4205C6
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jan 2022 10:11:30 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 24 Jan 2022 10:10:48 +0100
-Message-Id: <20220124091107.642561-1-hch@lst.de>
+Date: Mon, 24 Jan 2022 10:10:50 +0100
+Message-Id: <20220124091107.642561-3-hch@lst.de>
+In-Reply-To: <20220124091107.642561-1-hch@lst.de>
+References: <20220124091107.642561-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
@@ -21,7 +23,7 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] improve the bio allocation interface v2
+Subject: [Drbd-dev] [PATCH 02/19] nilfs2: remove nilfs_alloc_seg_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,102 +35,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+bio_alloc will never fail when it can sleep.  Remove the now simple
+nilfs_alloc_seg_bio helper and open code it in the only caller.
 
-this series is posted early because it has wide-ranging changes and could use some
-early ACKs before -rc1.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ fs/nilfs2/segbuf.c | 31 ++++---------------------------
+ 1 file changed, 4 insertions(+), 27 deletions(-)
 
-It changes the interface to the bio allocators to always pass a block_device and
-the operation, which is information needed for every bio submitted through
-bio_submit.  This means the fields can be directly initialized in bio_init instead
-of first being zeroed and thus should help to micro-optimize even better than the
-__bio_set_dev that Pavel proposed while also cleaning up code.
+diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
+index 43287b0d3e9b6..53b7c6d21cdd8 100644
+--- a/fs/nilfs2/segbuf.c
++++ b/fs/nilfs2/segbuf.c
+@@ -371,29 +371,6 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
+ 	return err;
+ }
+ 
+-/**
+- * nilfs_alloc_seg_bio - allocate a new bio for writing log
+- * @nilfs: nilfs object
+- * @start: start block number of the bio
+- * @nr_vecs: request size of page vector.
+- *
+- * Return Value: On success, pointer to the struct bio is returned.
+- * On error, NULL is returned.
+- */
+-static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
+-				       int nr_vecs)
+-{
+-	struct bio *bio;
+-
+-	bio = bio_alloc(GFP_NOIO, nr_vecs);
+-	if (likely(bio)) {
+-		bio_set_dev(bio, nilfs->ns_bdev);
+-		bio->bi_iter.bi_sector =
+-			start << (nilfs->ns_blocksize_bits - 9);
+-	}
+-	return bio;
+-}
+-
+ static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
+ 				       struct nilfs_write_info *wi)
+ {
+@@ -414,10 +391,10 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
+ 	BUG_ON(wi->nr_vecs <= 0);
+  repeat:
+ 	if (!wi->bio) {
+-		wi->bio = nilfs_alloc_seg_bio(wi->nilfs, wi->blocknr + wi->end,
+-					      wi->nr_vecs);
+-		if (unlikely(!wi->bio))
+-			return -ENOMEM;
++		wi->bio = bio_alloc(GFP_NOIO, wi->nr_vecs);
++		bio_set_dev(wi->bio, wi->nilfs->ns_bdev);
++		wi->bio->bi_iter.bi_sector = (wi->blocknr + wi->end) <<
++			(wi->nilfs->ns_blocksize_bits - 9);
+ 	}
+ 
+ 	len = bio_add_page(wi->bio, bh->b_page, bh->b_size, bh_offset(bh));
+-- 
+2.30.2
 
-I have a follow on series to also deal with the bio cloning interfaces that need
-even more love, and additional cleanups for the callers which might be material
-for the next merge window.
-
-Changes since v1:
- - fix bio_add_page return value handling in rnbd-srv
- - fix bio clenup in rnbd-srv
- - fix a few commit message typos
- - fix a bisection hazard in rnbd
- - fix an initialization order issue in bio_alloc_bioset/bio_init
-
-Diffstat:
- block/bio.c                         |   73 ++++++++++++++++++++++++------------
- block/blk-flush.c                   |    4 -
- block/blk-lib.c                     |   32 ++-------------
- block/blk-zoned.c                   |   14 +-----
- block/blk.h                         |    2 
- block/bounce.c                      |    6 --
- block/fops.c                        |   35 +++++++----------
- drivers/block/drbd/drbd_actlog.c    |    5 --
- drivers/block/drbd/drbd_bitmap.c    |    7 +--
- drivers/block/drbd/drbd_receiver.c  |   32 +++------------
- drivers/block/floppy.c              |    4 -
- drivers/block/pktcdvd.c             |    8 ---
- drivers/block/rnbd/rnbd-srv-dev.c   |   61 ------------------------------
- drivers/block/rnbd/rnbd-srv-dev.h   |   18 --------
- drivers/block/rnbd/rnbd-srv.c       |   45 ++++++++--------------
- drivers/block/rnbd/rnbd-srv.h       |    1 
- drivers/block/xen-blkback/blkback.c |   25 ++----------
- drivers/block/zram/zram_drv.c       |   16 ++-----
- drivers/md/bcache/io.c              |    3 -
- drivers/md/bcache/journal.c         |   16 ++-----
- drivers/md/bcache/movinggc.c        |    4 -
- drivers/md/bcache/request.c         |   18 +++-----
- drivers/md/bcache/super.c           |    8 +--
- drivers/md/bcache/writeback.c       |    4 -
- drivers/md/dm-crypt.c               |   27 ++++---------
- drivers/md/dm-io.c                  |    5 --
- drivers/md/dm-log-writes.c          |   39 +++----------------
- drivers/md/dm-snap.c                |   21 ----------
- drivers/md/dm-thin.c                |   41 +++++---------------
- drivers/md/dm-writecache.c          |    7 +--
- drivers/md/dm-zoned-metadata.c      |   26 ++----------
- drivers/md/dm.c                     |   12 ++---
- drivers/md/md-multipath.c           |    2 
- drivers/md/md.c                     |   24 +++++------
- drivers/md/raid1.c                  |    8 +--
- drivers/md/raid10.c                 |   14 ++----
- drivers/md/raid5-cache.c            |   19 +++------
- drivers/md/raid5-ppl.c              |   13 ++----
- drivers/md/raid5.c                  |   12 ++---
- drivers/nvdimm/nd_virtio.c          |    6 +-
- drivers/nvme/target/io-cmd-bdev.c   |   18 +++-----
- drivers/nvme/target/passthru.c      |    7 +--
- drivers/nvme/target/zns.c           |   14 +++---
- drivers/scsi/ufs/ufshpb.c           |    4 -
- drivers/target/target_core_iblock.c |   11 +----
- fs/btrfs/disk-io.c                  |   10 +---
- fs/btrfs/extent_io.c                |    2 
- fs/buffer.c                         |   14 ++----
- fs/crypto/bio.c                     |   13 ++----
- fs/direct-io.c                      |    5 --
- fs/erofs/zdata.c                    |    5 --
- fs/ext4/page-io.c                   |    3 -
- fs/ext4/readpage.c                  |    8 +--
- fs/f2fs/data.c                      |    7 +--
- fs/gfs2/lops.c                      |    8 +--
- fs/gfs2/meta_io.c                   |    4 -
- fs/gfs2/ops_fstype.c                |    4 -
- fs/hfsplus/wrapper.c                |    4 -
- fs/iomap/buffered-io.c              |   26 +++++-------
- fs/iomap/direct-io.c                |    8 ---
- fs/jfs/jfs_logmgr.c                 |   11 -----
- fs/jfs/jfs_metapage.c               |    9 +---
- fs/mpage.c                          |   34 ++--------------
- fs/nfs/blocklayout/blocklayout.c    |   26 +-----------
- fs/nilfs2/segbuf.c                  |   31 +--------------
- fs/ntfs3/fsntfs.c                   |   27 -------------
- fs/ocfs2/cluster/heartbeat.c        |    4 -
- fs/squashfs/block.c                 |   11 ++---
- fs/xfs/xfs_bio_io.c                 |   14 ++----
- fs/xfs/xfs_buf.c                    |    4 -
- fs/xfs/xfs_log.c                    |   14 +++---
- fs/zonefs/super.c                   |    9 +---
- include/linux/bio.h                 |   30 ++++++--------
- kernel/power/swap.c                 |    5 --
- mm/page_io.c                        |   10 +---
- 75 files changed, 372 insertions(+), 759 deletions(-)
