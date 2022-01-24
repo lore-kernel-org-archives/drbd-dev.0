@@ -1,12 +1,12 @@
 Return-Path: <BATV+b18af077b488c69bdec9+6728+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7E27D4205C6
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jan 2022 10:11:30 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 81201420FEA
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jan 2022 10:11:33 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Mon, 24 Jan 2022 10:10:50 +0100
-Message-Id: <20220124091107.642561-3-hch@lst.de>
+Date: Mon, 24 Jan 2022 10:10:52 +0100
+Message-Id: <20220124091107.642561-5-hch@lst.de>
 In-Reply-To: <20220124091107.642561-1-hch@lst.de>
 References: <20220124091107.642561-1-hch@lst.de>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/19] nilfs2: remove nilfs_alloc_seg_bio
+Subject: [Drbd-dev] [PATCH 04/19] ntfs3: remove ntfs_alloc_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,63 +35,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-bio_alloc will never fail when it can sleep.  Remove the now simple
-nilfs_alloc_seg_bio helper and open code it in the only caller.
+bio_alloc will never fail if it is allowed to sleep, so there is no
+need for this loop.  Also remove the __GFP_HIGH specifier as it doesn't
+make sense here given that we'll always fall back to the mempool anyway.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/nilfs2/segbuf.c | 31 ++++---------------------------
- 1 file changed, 4 insertions(+), 27 deletions(-)
+ fs/ntfs3/fsntfs.c | 23 ++---------------------
+ 1 file changed, 2 insertions(+), 21 deletions(-)
 
-diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
-index 43287b0d3e9b6..53b7c6d21cdd8 100644
---- a/fs/nilfs2/segbuf.c
-+++ b/fs/nilfs2/segbuf.c
-@@ -371,29 +371,6 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
+diff --git a/fs/ntfs3/fsntfs.c b/fs/ntfs3/fsntfs.c
+index 4de9acb169689..4a255e21ecf5f 100644
+--- a/fs/ntfs3/fsntfs.c
++++ b/fs/ntfs3/fsntfs.c
+@@ -1443,17 +1443,6 @@ int ntfs_write_bh(struct ntfs_sb_info *sbi, struct NTFS_RECORD_HEADER *rhdr,
  	return err;
  }
  
--/**
-- * nilfs_alloc_seg_bio - allocate a new bio for writing log
-- * @nilfs: nilfs object
-- * @start: start block number of the bio
-- * @nr_vecs: request size of page vector.
-- *
-- * Return Value: On success, pointer to the struct bio is returned.
-- * On error, NULL is returned.
-- */
--static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
--				       int nr_vecs)
+-static inline struct bio *ntfs_alloc_bio(u32 nr_vecs)
 -{
--	struct bio *bio;
+-	struct bio *bio = bio_alloc(GFP_NOFS | __GFP_HIGH, nr_vecs);
 -
--	bio = bio_alloc(GFP_NOIO, nr_vecs);
--	if (likely(bio)) {
--		bio_set_dev(bio, nilfs->ns_bdev);
--		bio->bi_iter.bi_sector =
--			start << (nilfs->ns_blocksize_bits - 9);
+-	if (!bio && (current->flags & PF_MEMALLOC)) {
+-		while (!bio && (nr_vecs /= 2))
+-			bio = bio_alloc(GFP_NOFS | __GFP_HIGH, nr_vecs);
 -	}
 -	return bio;
 -}
 -
- static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
- 				       struct nilfs_write_info *wi)
- {
-@@ -414,10 +391,10 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
- 	BUG_ON(wi->nr_vecs <= 0);
-  repeat:
- 	if (!wi->bio) {
--		wi->bio = nilfs_alloc_seg_bio(wi->nilfs, wi->blocknr + wi->end,
--					      wi->nr_vecs);
--		if (unlikely(!wi->bio))
--			return -ENOMEM;
-+		wi->bio = bio_alloc(GFP_NOIO, wi->nr_vecs);
-+		bio_set_dev(wi->bio, wi->nilfs->ns_bdev);
-+		wi->bio->bi_iter.bi_sector = (wi->blocknr + wi->end) <<
-+			(wi->nilfs->ns_blocksize_bits - 9);
- 	}
- 
- 	len = bio_add_page(wi->bio, bh->b_page, bh->b_size, bh_offset(bh));
+ /*
+  * ntfs_bio_pages - Read/write pages from/to disk.
+  */
+@@ -1496,11 +1485,7 @@ int ntfs_bio_pages(struct ntfs_sb_info *sbi, const struct runs_tree *run,
+ 		lbo = ((u64)lcn << cluster_bits) + off;
+ 		len = ((u64)clen << cluster_bits) - off;
+ new_bio:
+-		new = ntfs_alloc_bio(nr_pages - page_idx);
+-		if (!new) {
+-			err = -ENOMEM;
+-			goto out;
+-		}
++		new = bio_alloc(GFP_NOFS, nr_pages - page_idx);
+ 		if (bio) {
+ 			bio_chain(bio, new);
+ 			submit_bio(bio);
+@@ -1599,11 +1584,7 @@ int ntfs_bio_fill_1(struct ntfs_sb_info *sbi, const struct runs_tree *run)
+ 		lbo = (u64)lcn << cluster_bits;
+ 		len = (u64)clen << cluster_bits;
+ new_bio:
+-		new = ntfs_alloc_bio(BIO_MAX_VECS);
+-		if (!new) {
+-			err = -ENOMEM;
+-			break;
+-		}
++		new = bio_alloc(GFP_NOFS, BIO_MAX_VECS);
+ 		if (bio) {
+ 			bio_chain(bio, new);
+ 			submit_bio(bio);
 -- 
 2.30.2
 
