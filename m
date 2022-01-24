@@ -1,35 +1,29 @@
-Return-Path: <jinpu.wang@ionos.com>
-Received: from mail-ed1-f46.google.com (mail-ed1-f46.google.com
-	[209.85.208.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1ED834201E2
-	for <drbd-dev@lists.linbit.com>; Thu, 20 Jan 2022 09:46:34 +0100 (CET)
-Received: by mail-ed1-f46.google.com with SMTP id f21so25441636eds.11
-	for <drbd-dev@lists.linbit.com>; Thu, 20 Jan 2022 00:46:34 -0800 (PST)
+Return-Path: <BATV+b18af077b488c69bdec9+6728+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1A62B4205C6
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jan 2022 10:11:29 +0100 (CET)
+From: Christoph Hellwig <hch@lst.de>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Mon, 24 Jan 2022 10:10:51 +0100
+Message-Id: <20220124091107.642561-4-hch@lst.de>
+In-Reply-To: <20220124091107.642561-1-hch@lst.de>
+References: <20220124091107.642561-1-hch@lst.de>
 MIME-Version: 1.0
-References: <20220118071952.1243143-1-hch@lst.de>
-	<20220118071952.1243143-11-hch@lst.de>
-	<CAMGffEmFZB1PPE09bfxQjKw-tJhdprEkF-OWrVF4Kjsf1OwQ_g@mail.gmail.com>
-	<20220120083746.GA5622@lst.de>
-In-Reply-To: <20220120083746.GA5622@lst.de>
-From: Jinpu Wang <jinpu.wang@ionos.com>
-Date: Thu, 20 Jan 2022 09:46:23 +0100
-Message-ID: <CAMGffE=+ENBdRfugG4k3yB_ca3rqwnaKFXC4+8=CZ=LGvggA6w@mail.gmail.com>
-To: Christoph Hellwig <hch@lst.de>
-Content-Type: text/plain; charset="UTF-8"
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-	linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	Mike Snitzer <snitzer@redhat.com>,
+Content-Transfer-Encoding: 8bit
+Cc: linux-block@vger.kernel.org, linux-nfs@vger.kernel.org,
+	linux-nilfs@vger.kernel.org, Mike Snitzer <snitzer@redhat.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
 	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
-	=?UTF-8?Q?Roger_Pau_Monn=C3=A9?= <roger.pau@citrix.co>,
-	dm-devel@redhat.com, "Md . Haris Iqbal" <haris.iqbal@ionos.com>,
+	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.co>,
+	dm-devel@redhat.com, "Md . Haris Iqbal " <haris.iqbal@ionos.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	linux-fsdevel@vger.kernel.org, xen-devel@lists.xenproject.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
-	Pavel Begunkov <asml.silence@gmail.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 10/19] rnbd-srv: simplify bio mapping in
-	process_rdma
+	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 03/19] nfs/blocklayout: remove bl_alloc_init_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,17 +35,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jan 20, 2022 at 9:37 AM Christoph Hellwig <hch@lst.de> wrote:
->
-> On Wed, Jan 19, 2022 at 01:20:54AM +0100, Jinpu Wang wrote:
-> > this changes lead to IO error all the time, because bio_add_page return len.
-> > We need  if (bio_add_page(bio, virt_to_page(data), datalen,
-> >                      offset_in_page(data)) < datalen)
->
-> Does this version look good to you?
->
-> http://git.infradead.org/users/hch/block.git/commitdiff/62adb08e765b889dd8db4227cad33a710e36d631
+bio_alloc will never fail when it can sleep.  Remove the now simple
+bl_alloc_init_bio helper and open code it in the only caller.
 
-Yes, lgtm, thank you!
-Reviewed-by: Jack Wang <jinpu.wang@ionons.com>
-Tested-by: Jack Wang <jinpu.wang@ionos.com>
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ fs/nfs/blocklayout/blocklayout.c | 26 +++++---------------------
+ 1 file changed, 5 insertions(+), 21 deletions(-)
+
+diff --git a/fs/nfs/blocklayout/blocklayout.c b/fs/nfs/blocklayout/blocklayout.c
+index fe860c5387476..38e063af7e98a 100644
+--- a/fs/nfs/blocklayout/blocklayout.c
++++ b/fs/nfs/blocklayout/blocklayout.c
+@@ -115,23 +115,6 @@ bl_submit_bio(struct bio *bio)
+ 	return NULL;
+ }
+ 
+-static struct bio *bl_alloc_init_bio(unsigned int npg,
+-		struct block_device *bdev, sector_t disk_sector,
+-		bio_end_io_t end_io, struct parallel_io *par)
+-{
+-	struct bio *bio;
+-
+-	npg = bio_max_segs(npg);
+-	bio = bio_alloc(GFP_NOIO, npg);
+-	if (bio) {
+-		bio->bi_iter.bi_sector = disk_sector;
+-		bio_set_dev(bio, bdev);
+-		bio->bi_end_io = end_io;
+-		bio->bi_private = par;
+-	}
+-	return bio;
+-}
+-
+ static bool offset_in_map(u64 offset, struct pnfs_block_dev_map *map)
+ {
+ 	return offset >= map->start && offset < map->start + map->len;
+@@ -171,10 +154,11 @@ do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
+ 
+ retry:
+ 	if (!bio) {
+-		bio = bl_alloc_init_bio(npg, map->bdev,
+-				disk_addr >> SECTOR_SHIFT, end_io, par);
+-		if (!bio)
+-			return ERR_PTR(-ENOMEM);
++		bio = bio_alloc(GFP_NOIO, bio_max_segs(npg));
++		bio->bi_iter.bi_sector = disk_addr >> SECTOR_SHIFT;
++		bio_set_dev(bio, map->bdev);
++		bio->bi_end_io = end_io;
++		bio->bi_private = par;
+ 		bio_set_op_attrs(bio, rw, 0);
+ 	}
+ 	if (bio_add_page(bio, page, *len, offset) < *len) {
+-- 
+2.30.2
+
