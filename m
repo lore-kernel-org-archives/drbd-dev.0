@@ -1,19 +1,19 @@
 Return-Path: <snitzer@redhat.com>
 Received: from us-smtp-delivery-124.mimecast.com
 	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DAE6C4201BE
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 18:09:00 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 00BCB4201BE
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 18:09:39 +0100 (CET)
 Received: by mail-qk1-f197.google.com with SMTP id
-	q5-20020a05620a0d8500b004738c1b48beso2838965qkl.7
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 09:08:58 -0800 (PST)
-Date: Thu, 27 Jan 2022 12:08:56 -0500
+	k190-20020a37a1c7000000b0047d8a74b130so2840851qke.10
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 09:09:37 -0800 (PST)
+Date: Thu, 27 Jan 2022 12:09:36 -0500
 From: Mike Snitzer <snitzer@redhat.com>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <YfLRqCMAhLH8xhDD@redhat.com>
+Message-ID: <YfLR0DPcDOYO65Hp@redhat.com>
 References: <20220124091107.642561-1-hch@lst.de>
-	<20220124091107.642561-6-hch@lst.de>
+	<20220124091107.642561-7-hch@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <20220124091107.642561-6-hch@lst.de>
+In-Reply-To: <20220124091107.642561-7-hch@lst.de>
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
@@ -28,8 +28,7 @@ Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 05/19] dm: bio_alloc can't fail if it is
-	allowed to sleep
+Subject: Re: [Drbd-dev] [PATCH 06/19] dm-crypt: remove clone_init
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,8 +43,9 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 On Mon, Jan 24 2022 at  4:10P -0500,
 Christoph Hellwig <hch@lst.de> wrote:
 
-> Remove handling of NULL returns from sleeping bio_alloc calls given that
-> those can't fail.
+> Just open code it next to the bio allocations, which saves a few lines
+> of code, prepares for future changes and allows to remove the duplicate
+> bi_opf assignment for the bio_clone_fast case in kcryptd_io_read.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
