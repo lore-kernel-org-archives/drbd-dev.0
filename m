@@ -1,7 +1,7 @@
 Return-Path: <neilb@suse.de>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4063142063A
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 03:53:42 +0100 (CET)
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7723242063A
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 03:57:37 +0100 (CET)
 From: NeilBrown <neilb@suse.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <chao@kernel.org>,
@@ -15,7 +15,7 @@ To: Andrew Morton <akpm@linux-foundation.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
 Date: Thu, 27 Jan 2022 13:46:29 +1100
-Message-ID: <164325158955.29787.4769373293473421057.stgit@noble.brown>
+Message-ID: <164325158958.29787.8840004338500709466.stgit@noble.brown>
 In-Reply-To: <164325106958.29787.4865219843242892726.stgit@noble.brown>
 References: <164325106958.29787.4865219843242892726.stgit@noble.brown>
 MIME-Version: 1.0
@@ -26,8 +26,7 @@ Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
 	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 2/9] Remove bdi_congested() and wb_congested()
- and related functions
+Subject: [Drbd-dev] [PATCH 5/9] cephfs: don't set/clear bdi_congestion
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,163 +38,114 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-These functions are no longer useful as the only bdis that report
-congestion are in ceph, fuse, and nfs.  None of those bdis can be the
-target of the calls in drbd, ext2, nilfs2, or xfs.
+The bdi congestion framework is no-longer used - writeback uses other
+mechanisms to manage throughput.
 
-Removing the test on bdi_write_contested() in current_may_throttle()
-could cause a small change in behaviour, but only when PF_LOCAL_THROTTLE
-is set.
+So remove calls to set_bdi_congested() and clear_bdi_congested(), and
+remove the writeback_count which is used only to guide the setting and
+clearing.
 
-So replace the calls by 'false' and simplify the code - and remove the
-functions.
+The congestion_kb mount option is no longer meaningful, but as it is
+visible to user-space, removing it needs more consideration.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- drivers/block/drbd/drbd_int.h |    3 ---
- drivers/block/drbd/drbd_req.c |    3 +--
- fs/ext2/ialloc.c              |    2 --
- fs/nilfs2/segbuf.c            |   11 -----------
- fs/xfs/xfs_buf.c              |    3 ---
- include/linux/backing-dev.h   |   26 --------------------------
- mm/vmscan.c                   |    4 +---
- 7 files changed, 2 insertions(+), 50 deletions(-)
+ fs/ceph/addr.c  |   27 ---------------------------
+ fs/ceph/super.c |    2 --
+ fs/ceph/super.h |    2 --
+ 3 files changed, 31 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index f27d5b0f9a0b..f804b1bfb3e6 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -638,9 +638,6 @@ enum {
- 	STATE_SENT,		/* Do not change state/UUIDs while this is set */
- 	CALLBACK_PENDING,	/* Whether we have a call_usermodehelper(, UMH_WAIT_PROC)
- 				 * pending, from drbd worker context.
--				 * If set, bdi_write_congested() returns true,
--				 * so shrink_page_list() would not recurse into,
--				 * and potentially deadlock on, this drbd worker.
- 				 */
- 	DISCONNECT_SENT,
- 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 3235532ae077..2e5fb7e442e3 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -909,8 +909,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
- 
- 	switch (rbm) {
- 	case RB_CONGESTED_REMOTE:
--		return bdi_read_congested(
--			device->ldev->backing_bdev->bd_disk->bdi);
-+		return 0;
- 	case RB_LEAST_PENDING:
- 		return atomic_read(&device->local_cnt) >
- 			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
-diff --git a/fs/ext2/ialloc.c b/fs/ext2/ialloc.c
-index df14e750e9fe..d632764da240 100644
---- a/fs/ext2/ialloc.c
-+++ b/fs/ext2/ialloc.c
-@@ -173,8 +173,6 @@ static void ext2_preread_inode(struct inode *inode)
- 	struct backing_dev_info *bdi;
- 
- 	bdi = inode_to_bdi(inode);
--	if (bdi_rw_congested(bdi))
--		return;
- 
- 	block_group = (inode->i_ino - 1) / EXT2_INODES_PER_GROUP(inode->i_sb);
- 	gdp = ext2_get_group_desc(inode->i_sb, block_group, NULL);
-diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
-index 43287b0d3e9b..d1ebc9da7130 100644
---- a/fs/nilfs2/segbuf.c
-+++ b/fs/nilfs2/segbuf.c
-@@ -343,17 +343,6 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
- 	struct bio *bio = wi->bio;
- 	int err;
- 
--	if (segbuf->sb_nbio > 0 &&
--	    bdi_write_congested(segbuf->sb_super->s_bdi)) {
--		wait_for_completion(&segbuf->sb_bio_event);
--		segbuf->sb_nbio--;
--		if (unlikely(atomic_read(&segbuf->sb_err))) {
--			bio_put(bio);
--			err = -EIO;
--			goto failed;
--		}
--	}
--
- 	bio->bi_end_io = nilfs_end_bio_write;
- 	bio->bi_private = segbuf;
- 	bio_set_op_attrs(bio, mode, mode_flags);
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index b45e0d50a405..b7ebcfe6b8d3 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -843,9 +843,6 @@ xfs_buf_readahead_map(
- {
- 	struct xfs_buf		*bp;
- 
--	if (bdi_read_congested(target->bt_bdev->bd_disk->bdi))
--		return;
--
- 	xfs_buf_read_map(target, map, nmaps,
- 		     XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD, &bp, ops,
- 		     __this_address);
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 860b675c2929..2d764566280c 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -135,11 +135,6 @@ static inline bool writeback_in_progress(struct bdi_writeback *wb)
- 
- struct backing_dev_info *inode_to_bdi(struct inode *inode);
- 
--static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
--{
--	return wb->congested & cong_bits;
--}
--
- long congestion_wait(int sync, long timeout);
- 
- static inline bool mapping_can_writeback(struct address_space *mapping)
-@@ -391,27 +386,6 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
- 
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
--static inline int bdi_congested(struct backing_dev_info *bdi, int cong_bits)
--{
--	return wb_congested(&bdi->wb, cong_bits);
--}
--
--static inline int bdi_read_congested(struct backing_dev_info *bdi)
--{
--	return bdi_congested(bdi, 1 << WB_sync_congested);
--}
--
--static inline int bdi_write_congested(struct backing_dev_info *bdi)
--{
--	return bdi_congested(bdi, 1 << WB_async_congested);
--}
--
--static inline int bdi_rw_congested(struct backing_dev_info *bdi)
--{
--	return bdi_congested(bdi, (1 << WB_sync_congested) |
--				  (1 << WB_async_congested));
--}
--
- const char *bdi_dev_name(struct backing_dev_info *bdi);
- 
- #endif	/* _LINUX_BACKING_DEV_H */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ce8492939bd3..0b930556c4f2 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2362,9 +2362,7 @@ static unsigned int move_pages_to_lru(struct lruvec *lruvec,
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index c98e5238a1b6..9147667f8cd5 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -57,11 +57,6 @@
+  * accounting is preserved.
   */
- static int current_may_throttle(void)
- {
--	return !(current->flags & PF_LOCAL_THROTTLE) ||
--		current->backing_dev_info == NULL ||
--		bdi_write_congested(current->backing_dev_info);
-+	return !(current->flags & PF_LOCAL_THROTTLE);
+ 
+-#define CONGESTION_ON_THRESH(congestion_kb) (congestion_kb >> (PAGE_SHIFT-10))
+-#define CONGESTION_OFF_THRESH(congestion_kb)				\
+-	(CONGESTION_ON_THRESH(congestion_kb) -				\
+-	 (CONGESTION_ON_THRESH(congestion_kb) >> 2))
+-
+ static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned int len,
+ 					struct folio *folio, void **_fsdata);
+ 
+@@ -561,10 +556,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
+ 	dout("writepage %p page %p index %lu on %llu~%llu snapc %p seq %lld\n",
+ 	     inode, page, page->index, page_off, len, snapc, snapc->seq);
+ 
+-	if (atomic_long_inc_return(&fsc->writeback_count) >
+-	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
+-		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
+-
+ 	req = ceph_osdc_new_request(osdc, &ci->i_layout, ceph_vino(inode), page_off, &len, 0, 1,
+ 				    CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE, snapc,
+ 				    ceph_wbc.truncate_seq, ceph_wbc.truncate_size,
+@@ -621,10 +612,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
+ 	ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
+ 	ceph_put_snap_context(snapc);  /* page's reference */
+ 
+-	if (atomic_long_dec_return(&fsc->writeback_count) <
+-	    CONGESTION_OFF_THRESH(fsc->mount_options->congestion_kb))
+-		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
+-
+ 	return err;
  }
  
- /*
+@@ -704,12 +691,6 @@ static void writepages_finish(struct ceph_osd_request *req)
+ 			BUG_ON(!page);
+ 			WARN_ON(!PageUptodate(page));
+ 
+-			if (atomic_long_dec_return(&fsc->writeback_count) <
+-			     CONGESTION_OFF_THRESH(
+-					fsc->mount_options->congestion_kb))
+-				clear_bdi_congested(inode_to_bdi(inode),
+-						    BLK_RW_ASYNC);
+-
+ 			ceph_put_snap_context(detach_page_private(page));
+ 			end_page_writeback(page);
+ 			dout("unlocking %p\n", page);
+@@ -952,14 +933,6 @@ static int ceph_writepages_start(struct address_space *mapping,
+ 			dout("%p will write page %p idx %lu\n",
+ 			     inode, page, page->index);
+ 
+-			if (atomic_long_inc_return(&fsc->writeback_count) >
+-			    CONGESTION_ON_THRESH(
+-				    fsc->mount_options->congestion_kb)) {
+-				set_bdi_congested(inode_to_bdi(inode),
+-						  BLK_RW_ASYNC);
+-			}
+-
+-
+ 			pages[locked_pages++] = page;
+ 			pvec.pages[i] = NULL;
+ 
+diff --git a/fs/ceph/super.c b/fs/ceph/super.c
+index bf79f369aec6..b2f38af9fca8 100644
+--- a/fs/ceph/super.c
++++ b/fs/ceph/super.c
+@@ -801,8 +801,6 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
+ 	fsc->filp_gen = 1;
+ 	fsc->have_copy_from2 = true;
+ 
+-	atomic_long_set(&fsc->writeback_count, 0);
+-
+ 	err = -ENOMEM;
+ 	/*
+ 	 * The number of concurrent works can be high but they don't need
+diff --git a/fs/ceph/super.h b/fs/ceph/super.h
+index 67f145e1ae7a..fc58adf1d36a 100644
+--- a/fs/ceph/super.h
++++ b/fs/ceph/super.h
+@@ -120,8 +120,6 @@ struct ceph_fs_client {
+ 
+ 	struct ceph_mds_client *mdsc;
+ 
+-	atomic_long_t writeback_count;
+-
+ 	struct workqueue_struct *inode_wq;
+ 	struct workqueue_struct *cap_wq;
+ 
 
 
