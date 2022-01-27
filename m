@@ -1,35 +1,22 @@
-Return-Path: <snitzer@redhat.com>
-Received: from us-smtp-delivery-124.mimecast.com
-	(us-smtp-delivery-124.mimecast.com [170.10.133.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 342F542A590
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 18:11:45 +0100 (CET)
-Received: by mail-qk1-f199.google.com with SMTP id
-	j66-20020a375545000000b004e0e071f37eso287925qkb.23
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 09:11:42 -0800 (PST)
-Date: Thu, 27 Jan 2022 12:11:40 -0500
-From: Mike Snitzer <snitzer@redhat.com>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <YfLSTPB7UUZKqQKL@redhat.com>
-References: <20220124091107.642561-1-hch@lst.de>
-	<20220124091107.642561-9-hch@lst.de>
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5C45D42A583
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 20:58:37 +0100 (CET)
+Date: Thu, 27 Jan 2022 20:58:34 +0100
+From: Christoph Hellwig <hch@lst.de>
+To: Mike Snitzer <snitzer@redhat.com>
+Message-ID: <20220127195834.GA25235@lst.de>
+References: <20220127063546.1314111-1-hch@lst.de> <YfLN4/2bYe4hebCy@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20220124091107.642561-9-hch@lst.de>
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-	linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
-	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
-	Roger Pau =?iso-8859-1?Q?Monn=E9?= <roger.pau@citrix.co>,
-	dm-devel@redhat.com, "Md . Haris Iqbal " <haris.iqbal@ionos.com>,
+In-Reply-To: <YfLN4/2bYe4hebCy@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Philipp Reisner <philipp.reisner@linbit.com>,
+	Pavel Begunkov <asml.silence@gmail.com>,
+	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	linux-fsdevel@vger.kernel.org, xen-devel@lists.xenproject.org,
-	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
-	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 08/19] dm-thin: use blkdev_issue_flush
- instead of open coding it
+	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] improve the bio cloning interface
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,13 +28,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jan 24 2022 at  4:10P -0500,
-Christoph Hellwig <hch@lst.de> wrote:
+On Thu, Jan 27, 2022 at 11:52:51AM -0500, Mike Snitzer wrote:
+> I'd like to take a closer look, do you happen to have this series
+> available in a git branch?
 
-> Use blkdev_issue_flush, which uses an on-stack bio instead of an
-> opencoded version with a bio embedded into struct pool.
+git://git.infradead.org/users/hch/block.git bio_alloc-cleanup-part2
+
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> The changes generally look fine.  Any chance you could forecast what
+> you're planning for follow-on changes?
 
-Acked-by: Mike Snitzer <snitzer@redhat.com>
+Mostly cleaning up a bunch of submitter code that needs more work to
+get at the bdev and op, and trying to figure out what to do about
+bio_kmalloc.
 
+> Or is it best to just wait for you to produce those follow-on changes?
+
+There should be no follow ons required to make sense of this series.
