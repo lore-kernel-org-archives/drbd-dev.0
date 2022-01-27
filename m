@@ -1,19 +1,19 @@
 Return-Path: <snitzer@redhat.com>
 Received: from us-smtp-delivery-124.mimecast.com
-	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 00BCB4201BE
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 18:09:39 +0100 (CET)
-Received: by mail-qk1-f197.google.com with SMTP id
-	k190-20020a37a1c7000000b0047d8a74b130so2840851qke.10
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 09:09:37 -0800 (PST)
-Date: Thu, 27 Jan 2022 12:09:36 -0500
+	(us-smtp-delivery-124.mimecast.com [170.10.133.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0AC7F42A590
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 18:11:09 +0100 (CET)
+Received: by mail-qk1-f200.google.com with SMTP id
+	q5-20020a05620a0d8500b004738c1b48beso2845230qkl.7
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 09:11:08 -0800 (PST)
+Date: Thu, 27 Jan 2022 12:11:06 -0500
 From: Mike Snitzer <snitzer@redhat.com>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <YfLR0DPcDOYO65Hp@redhat.com>
+Message-ID: <YfLSKlF89y3Cbf+S@redhat.com>
 References: <20220124091107.642561-1-hch@lst.de>
-	<20220124091107.642561-7-hch@lst.de>
+	<20220124091107.642561-8-hch@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <20220124091107.642561-7-hch@lst.de>
+In-Reply-To: <20220124091107.642561-8-hch@lst.de>
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
@@ -28,7 +28,8 @@ Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>, ntfs3@lists.linux.dev,
 	Jack Wang <jinpu.wang@ionos.com>, Pavel Begunkov <asml.silence@gmail.com>,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 06/19] dm-crypt: remove clone_init
+Subject: Re: [Drbd-dev] [PATCH 07/19] dm-snap: use blkdev_issue_flush
+ instead of open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,9 +44,8 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 On Mon, Jan 24 2022 at  4:10P -0500,
 Christoph Hellwig <hch@lst.de> wrote:
 
-> Just open code it next to the bio allocations, which saves a few lines
-> of code, prepares for future changes and allows to remove the duplicate
-> bi_opf assignment for the bio_clone_fast case in kcryptd_io_read.
+> Use blkdev_issue_flush, which uses an on-stack bio instead of an
+> opencoded version with a bio embedded into struct dm_snapshot.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
