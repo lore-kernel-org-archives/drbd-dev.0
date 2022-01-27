@@ -1,23 +1,25 @@
-Return-Path: <BATV+759db8ec68a62f2c3d04+6731+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 79E0C42A58D
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 07:55:42 +0100 (CET)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Thu, 27 Jan 2022 07:35:42 +0100
-Message-Id: <20220127063546.1314111-11-hch@lst.de>
-In-Reply-To: <20220127063546.1314111-1-hch@lst.de>
+Return-Path: <snitzer@redhat.com>
+Received: from us-smtp-delivery-124.mimecast.com
+	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5EBF8420012
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 17:59:04 +0100 (CET)
+Received: by mail-qk1-f197.google.com with SMTP id
+	u12-20020a05620a0c4c00b00475a9324977so2773498qki.13
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 08:52:53 -0800 (PST)
+Date: Thu, 27 Jan 2022 11:52:51 -0500
+From: Mike Snitzer <snitzer@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <YfLN4/2bYe4hebCy@redhat.com>
 References: <20220127063546.1314111-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: Mike Snitzer <snitzer@redhat.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
+In-Reply-To: <20220127063546.1314111-1-hch@lst.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Cc: Jens Axboe <axboe@kernel.dk>, Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Pavel Begunkov <asml.silence@gmail.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 10/14] dm-cache: remove
-	__remap_to_origin_clear_discard
+Subject: Re: [Drbd-dev] improve the bio cloning interface
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,60 +31,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Fold __remap_to_origin_clear_discard into the two callers to prepare
-for bio cloning refactoring.
+On Thu, Jan 27 2022 at  1:35P -0500,
+Christoph Hellwig <hch@lst.de> wrote:
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- drivers/md/dm-cache-target.c | 24 ++++++++----------------
- 1 file changed, 8 insertions(+), 16 deletions(-)
+> Hi Jens,
+> 
+> this series changes the bio cloning interface to match the rest changes
+> to the bio allocation interface and passes the block_device and operation
+> to the cloning helpers.  In addition it renames the cloning helpers to
+> be more descriptive.
+> 
+> To get there it requires a bit of refactoring in the device mapper code.
 
-diff --git a/drivers/md/dm-cache-target.c b/drivers/md/dm-cache-target.c
-index 447d030036d18..1c37fe028e531 100644
---- a/drivers/md/dm-cache-target.c
-+++ b/drivers/md/dm-cache-target.c
-@@ -744,21 +744,14 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
- 	spin_unlock_irq(&cache->lock);
- }
- 
--static void __remap_to_origin_clear_discard(struct cache *cache, struct bio *bio,
--					    dm_oblock_t oblock, bool bio_has_pbd)
--{
--	if (bio_has_pbd)
--		check_if_tick_bio_needed(cache, bio);
--	remap_to_origin(cache, bio);
--	if (bio_data_dir(bio) == WRITE)
--		clear_discard(cache, oblock_to_dblock(cache, oblock));
--}
--
- static void remap_to_origin_clear_discard(struct cache *cache, struct bio *bio,
- 					  dm_oblock_t oblock)
- {
- 	// FIXME: check_if_tick_bio_needed() is called way too much through this interface
--	__remap_to_origin_clear_discard(cache, bio, oblock, true);
-+	check_if_tick_bio_needed(cache, bio);
-+	remap_to_origin(cache, bio);
-+	if (bio_data_dir(bio) == WRITE)
-+		clear_discard(cache, oblock_to_dblock(cache, oblock));
- }
- 
- static void remap_to_cache_dirty(struct cache *cache, struct bio *bio,
-@@ -831,11 +824,10 @@ static void remap_to_origin_and_cache(struct cache *cache, struct bio *bio,
- 	BUG_ON(!origin_bio);
- 
- 	bio_chain(origin_bio, bio);
--	/*
--	 * Passing false to __remap_to_origin_clear_discard() skips
--	 * all code that might use per_bio_data (since clone doesn't have it)
--	 */
--	__remap_to_origin_clear_discard(cache, origin_bio, oblock, false);
-+
-+	remap_to_origin(cache, origin_bio);
-+	if (bio_data_dir(origin_bio) == WRITE)
-+		clear_discard(cache, oblock_to_dblock(cache, oblock));
- 	submit_bio(origin_bio);
- 
- 	remap_to_cache(cache, bio, cblock);
--- 
-2.30.2
+I'd like to take a closer look, do you happen to have this series
+available in a git branch?
+
+The changes generally look fine.  Any chance you could forecast what
+you're planning for follow-on changes?
+
+Or is it best to just wait for you to produce those follow-on changes?
+
+Thanks,
+Mike
 
