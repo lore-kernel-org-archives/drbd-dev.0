@@ -1,32 +1,20 @@
-Return-Path: <neilb@suse.de>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 80D72420FC5
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 03:58:42 +0100 (CET)
-From: NeilBrown <neilb@suse.de>
-To: Andrew Morton <akpm@linux-foundation.org>,
-	Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <chao@kernel.org>,
-	Jeff Layton <jlayton@kernel.org>, Ilya Dryomov <idryomov@gmail.com>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
-	"Darrick J. Wong" <djwong@kernel.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
-Date: Thu, 27 Jan 2022 13:46:29 +1100
-Message-ID: <164325158959.29787.14903007819591774556.stgit@noble.brown>
-In-Reply-To: <164325106958.29787.4865219843242892726.stgit@noble.brown>
-References: <164325106958.29787.4865219843242892726.stgit@noble.brown>
+Return-Path: <BATV+759db8ec68a62f2c3d04+6731+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CF8C04205C6
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 07:36:00 +0100 (CET)
+From: Christoph Hellwig <hch@lst.de>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Thu, 27 Jan 2022 07:35:32 +0100
+Message-Id: <20220127063546.1314111-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
-	linux-block@vger.kernel.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
-	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 7/9] NFS: remove congestion control.
+Content-Transfer-Encoding: 8bit
+Cc: Mike Snitzer <snitzer@redhat.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-block@vger.kernel.org, dm-devel@redhat.com,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Pavel Begunkov <asml.silence@gmail.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] improve the bio cloning interface
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,162 +26,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Linux no longer uses the bdi congestion tracking framework.
-So remove code from bdi which tries to support it.
+Hi Jens,
 
-Also remove the "nfs_congestion_kb" sysctl.  This is a user-visible
-change, but unlikely to be a problematic one.
+this series changes the bio cloning interface to match the rest changes
+to the bio allocation interface and passes the block_device and operation
+to the cloning helpers.  In addition it renames the cloning helpers to
+be more descriptive.
 
-Signed-off-by: NeilBrown <neilb@suse.de>
----
- fs/nfs/sysctl.c           |    7 ------
- fs/nfs/write.c            |   53 +--------------------------------------------
- include/linux/nfs_fs.h    |    1 -
- include/linux/nfs_fs_sb.h |    1 -
- 4 files changed, 1 insertion(+), 61 deletions(-)
+To get there it requires a bit of refactoring in the device mapper code.
 
-diff --git a/fs/nfs/sysctl.c b/fs/nfs/sysctl.c
-index 7aea195ddb35..18f3ff77fd0c 100644
---- a/fs/nfs/sysctl.c
-+++ b/fs/nfs/sysctl.c
-@@ -22,13 +22,6 @@ static struct ctl_table nfs_cb_sysctls[] = {
- 		.mode		= 0644,
- 		.proc_handler	= proc_dointvec_jiffies,
- 	},
--	{
--		.procname	= "nfs_congestion_kb",
--		.data		= &nfs_congestion_kb,
--		.maxlen		= sizeof(nfs_congestion_kb),
--		.mode		= 0644,
--		.proc_handler	= proc_dointvec,
--	},
- 	{ }
- };
- 
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index 987a187bd39a..1c22ea6f23c3 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -397,33 +397,8 @@ static int wb_priority(struct writeback_control *wbc)
- 	return ret;
- }
- 
--/*
-- * NFS congestion control
-- */
--
--int nfs_congestion_kb;
--
--#define NFS_CONGESTION_ON_THRESH 	(nfs_congestion_kb >> (PAGE_SHIFT-10))
--#define NFS_CONGESTION_OFF_THRESH	\
--	(NFS_CONGESTION_ON_THRESH - (NFS_CONGESTION_ON_THRESH >> 2))
--
--static void nfs_set_page_writeback(struct page *page)
--{
--	struct inode *inode = page_file_mapping(page)->host;
--	struct nfs_server *nfss = NFS_SERVER(inode);
--	int ret = test_set_page_writeback(page);
--
--	WARN_ON_ONCE(ret != 0);
--
--	if (atomic_long_inc_return(&nfss->writeback) >
--			NFS_CONGESTION_ON_THRESH)
--		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
--}
--
- static void nfs_end_page_writeback(struct nfs_page *req)
- {
--	struct inode *inode = page_file_mapping(req->wb_page)->host;
--	struct nfs_server *nfss = NFS_SERVER(inode);
- 	bool is_done;
- 
- 	is_done = nfs_page_group_sync_on_bit(req, PG_WB_END);
-@@ -432,8 +407,6 @@ static void nfs_end_page_writeback(struct nfs_page *req)
- 		return;
- 
- 	end_page_writeback(req->wb_page);
--	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
--		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
- }
- 
- /*
-@@ -617,7 +590,7 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
- 	if (IS_ERR(req))
- 		goto out;
- 
--	nfs_set_page_writeback(page);
-+	set_page_writeback(page);
- 	WARN_ON_ONCE(test_bit(PG_CLEAN, &req->wb_flags));
- 
- 	/* If there is a fatal error that covers this write, just exit */
-@@ -1850,7 +1823,6 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
- 	struct nfs_page	*req;
- 	int status = data->task.tk_status;
- 	struct nfs_commit_info cinfo;
--	struct nfs_server *nfss;
- 
- 	while (!list_empty(&data->pages)) {
- 		req = nfs_list_entry(data->pages.next);
-@@ -1891,9 +1863,6 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
- 		/* Latency breaker */
- 		cond_resched();
- 	}
--	nfss = NFS_SERVER(data->inode);
--	if (atomic_long_read(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
--		clear_bdi_congested(inode_to_bdi(data->inode), BLK_RW_ASYNC);
- 
- 	nfs_init_cinfo(&cinfo, data->inode, data->dreq);
- 	nfs_commit_end(cinfo.mds);
-@@ -2162,26 +2131,6 @@ int __init nfs_init_writepagecache(void)
- 	if (nfs_commit_mempool == NULL)
- 		goto out_destroy_commit_cache;
- 
--	/*
--	 * NFS congestion size, scale with available memory.
--	 *
--	 *  64MB:    8192k
--	 * 128MB:   11585k
--	 * 256MB:   16384k
--	 * 512MB:   23170k
--	 *   1GB:   32768k
--	 *   2GB:   46340k
--	 *   4GB:   65536k
--	 *   8GB:   92681k
--	 *  16GB:  131072k
--	 *
--	 * This allows larger machines to have larger/more transfers.
--	 * Limit the default to 256M
--	 */
--	nfs_congestion_kb = (16*int_sqrt(totalram_pages())) << (PAGE_SHIFT-10);
--	if (nfs_congestion_kb > 256*1024)
--		nfs_congestion_kb = 256*1024;
--
- 	return 0;
- 
- out_destroy_commit_cache:
-diff --git a/include/linux/nfs_fs.h b/include/linux/nfs_fs.h
-index 02aa49323d1d..17045c229277 100644
---- a/include/linux/nfs_fs.h
-+++ b/include/linux/nfs_fs.h
-@@ -569,7 +569,6 @@ extern void nfs_complete_unlink(struct dentry *dentry, struct inode *);
- /*
-  * linux/fs/nfs/write.c
-  */
--extern int  nfs_congestion_kb;
- extern int  nfs_writepage(struct page *page, struct writeback_control *wbc);
- extern int  nfs_writepages(struct address_space *, struct writeback_control *);
- extern int  nfs_flush_incompatible(struct file *file, struct page *page);
-diff --git a/include/linux/nfs_fs_sb.h b/include/linux/nfs_fs_sb.h
-index ca0959e51e81..3444ebbc63b6 100644
---- a/include/linux/nfs_fs_sb.h
-+++ b/include/linux/nfs_fs_sb.h
-@@ -137,7 +137,6 @@ struct nfs_server {
- 	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
- 	struct nlm_host		*nlm_host;	/* NLM client handle */
- 	struct nfs_iostats __percpu *io_stats;	/* I/O statistics */
--	atomic_long_t		writeback;	/* number of writeback pages */
- 	unsigned int		flags;		/* various flags */
- 
- /* The following are for internal use only. Also see uapi/linux/nfs_mount.h */
-
-
+Diffstat:
+ Documentation/block/biodoc.rst   |    5 -
+ block/bio-integrity.c            |    1 
+ block/bio.c                      |  106 +++++++++++++-----------
+ block/blk-crypto.c               |    1 
+ block/blk-mq.c                   |    4 
+ block/bounce.c                   |    3 
+ drivers/block/drbd/drbd_req.c    |    5 -
+ drivers/block/drbd/drbd_worker.c |    4 
+ drivers/block/pktcdvd.c          |    4 
+ drivers/md/bcache/request.c      |    6 -
+ drivers/md/dm-cache-target.c     |   26 ++----
+ drivers/md/dm-crypt.c            |   11 +-
+ drivers/md/dm-zoned-target.c     |    3 
+ drivers/md/dm.c                  |  167 ++++++++++++++-------------------------
+ drivers/md/md-faulty.c           |    4 
+ drivers/md/md-multipath.c        |    4 
+ drivers/md/md.c                  |    5 -
+ drivers/md/raid1.c               |   34 +++----
+ drivers/md/raid10.c              |   16 +--
+ drivers/md/raid5.c               |    4 
+ fs/btrfs/extent_io.c             |    4 
+ include/linux/bio.h              |    6 -
+ 22 files changed, 185 insertions(+), 238 deletions(-)
