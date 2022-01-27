@@ -1,37 +1,32 @@
-Return-Path: <konishi.ryusuke@gmail.com>
-Received: from mail-lj1-f181.google.com (mail-lj1-f181.google.com
-	[209.85.208.181])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 592324201E3
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 23:10:24 +0100 (CET)
-Received: by mail-lj1-f181.google.com with SMTP id t14so6313648ljh.8
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 14:10:24 -0800 (PST)
-MIME-Version: 1.0
-References: <164325106958.29787.4865219843242892726.stgit@noble.brown>
-	<164325158955.29787.4769373293473421057.stgit@noble.brown>
-In-Reply-To: <164325158955.29787.4769373293473421057.stgit@noble.brown>
-From: Ryusuke Konishi <konishi.ryusuke@gmail.com>
-Date: Fri, 28 Jan 2022 07:10:11 +0900
-Message-ID: <CAKFNMom4Z76ti4fp69UeKYf0d4x635OR7Q_CjVnBj+vQSuhESg@mail.gmail.com>
+Return-Path: <akpm@linux-foundation.org>
+Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5884B4201E3
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 23:51:06 +0100 (CET)
+Date: Thu, 27 Jan 2022 14:42:29 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 To: NeilBrown <neilb@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Cc: "Darrick J. Wong" <djwong@kernel.org>, LKML <linux-kernel@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>, drbd-dev@lists.linbit.com,
-	Paolo Valente <paolo.valente@linaro.org>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Ilya Dryomov <idryomov@gmail.com>, linux-ext4@vger.kernel.org,
-	Chao Yu <chao@kernel.org>, linux-block@vger.kernel.org,
-	linux-nilfs <linux-nilfs@vger.kernel.org>,
-	Jaegeuk Kim <jaegeuk@kernel.org>, ceph-devel@vger.kernel.org,
+Message-Id: <20220127144229.a7109a508521db5e8ddda09c@linux-foundation.org>
+In-Reply-To: <164325106958.29787.4865219843242892726.stgit@noble.brown>
+References: <164325106958.29787.4865219843242892726.stgit@noble.brown>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Cc: "Darrick J. Wong" <djwong@kernel.org>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, drbd-dev@lists.linbit.com,
+	linux-nilfs@vger.kernel.org, Miklos Szeredi <miklos@szeredi.hu>,
 	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Jens Axboe <axboe@kernel.dk>, linux-nfs@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Jeff Layton <jlayton@kernel.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
+	Ilya Dryomov <idryomov@gmail.com>, linux-ext4@vger.kernel.org,
+	Philipp, Chao Yu <chao@kernel.org>, linux-block@vger.kernel.org,
+	Paolo Valente <paolo.valente@linaro.org>,
+	Jaegeuk Kim <jaegeuk@kernel.org>, ceph-devel@vger.kernel.org,
+	Ryusuke Konishi <konishi.ryusuke@gmail.com>,
+	Axboe <axboe@kernel.dk>, linux-nfs@vger.kernel.org, Jens,
+	Jeff Layton <jlayton@kernel.org>, Reisner <philipp.reisner@linbit.com>,
 	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Anna Schumaker <anna.schumaker@netapp.com>
-Subject: Re: [Drbd-dev] [PATCH 2/9] Remove bdi_congested() and
-	wb_congested() and related functions
+Subject: Re: [Drbd-dev] [PATCH 0/9] Remove remaining parts of congestions
+ tracking code.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,33 +38,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jan 27, 2022 at 11:47 AM NeilBrown <neilb@suse.de> wrote:
->
-> These functions are no longer useful as the only bdis that report
-> congestion are in ceph, fuse, and nfs.  None of those bdis can be the
-> target of the calls in drbd, ext2, nilfs2, or xfs.
->
-> Removing the test on bdi_write_contested() in current_may_throttle()
-> could cause a small change in behaviour, but only when PF_LOCAL_THROTTLE
-> is set.
->
-> So replace the calls by 'false' and simplify the code - and remove the
-> functions.
->
-> Signed-off-by: NeilBrown <neilb@suse.de>
-> ---
->  drivers/block/drbd/drbd_int.h |    3 ---
->  drivers/block/drbd/drbd_req.c |    3 +--
->  fs/ext2/ialloc.c              |    2 --
->  fs/nilfs2/segbuf.c            |   11 -----------
->  fs/xfs/xfs_buf.c              |    3 ---
->  include/linux/backing-dev.h   |   26 --------------------------
->  mm/vmscan.c                   |    4 +---
->  7 files changed, 2 insertions(+), 50 deletions(-)
+On Thu, 27 Jan 2022 13:46:29 +1100 NeilBrown <neilb@suse.de> wrote:
 
-for nilfs2 bits,
+> Congestion hasn't been reliably tracked for quite some time.
+> Most MM uses of it for guiding writeback decisions were removed in 5.16.
+> Some other uses were removed in 17-rc1.
+> 
+> This series removes the remaining places that test for congestion, and
+> the few places which still set it.
+> 
+> The second patch touches a few filesystems.  I didn't think there was
+> much value in splitting this out by filesystems, but if maintainers
+> would rather I did that, I will.
+> 
+> The f2fs, cephfs, fuse, NFS, and block patches can go through the
+> respective trees proving the final patch doesn't land until after they
+> all do - so maybe it should be held for 5.18-rc2 if all the rest lands
+> by 5.18-rc1.
 
-Acked-by: Ryusuke Konishi <konishi.ryusuke@gmail.com>
+Plan B: I'll just take everything.  While collecting tested-bys and
+acked-bys from filesystem maintainers (please).
 
-Thanks,
-Ryusuke Konishi
