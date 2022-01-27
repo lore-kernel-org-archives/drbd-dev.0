@@ -1,6 +1,6 @@
 Return-Path: <neilb@suse.de>
 Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7723242063A
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 792A64207D1
 	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 03:57:37 +0100 (CET)
 From: NeilBrown <neilb@suse.de>
 To: Andrew Morton <akpm@linux-foundation.org>,
@@ -15,7 +15,7 @@ To: Andrew Morton <akpm@linux-foundation.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
 Date: Thu, 27 Jan 2022 13:46:29 +1100
-Message-ID: <164325158958.29787.8840004338500709466.stgit@noble.brown>
+Message-ID: <164325158960.29787.17588717894058708630.stgit@noble.brown>
 In-Reply-To: <164325106958.29787.4865219843242892726.stgit@noble.brown>
 References: <164325106958.29787.4865219843242892726.stgit@noble.brown>
 MIME-Version: 1.0
@@ -26,7 +26,7 @@ Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
 	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 5/9] cephfs: don't set/clear bdi_congestion
+Subject: [Drbd-dev] [PATCH 9/9] Remove congestion tracking framework.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,114 +38,151 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The bdi congestion framework is no-longer used - writeback uses other
-mechanisms to manage throughput.
-
-So remove calls to set_bdi_congested() and clear_bdi_congested(), and
-remove the writeback_count which is used only to guide the setting and
-clearing.
-
-The congestion_kb mount option is no longer meaningful, but as it is
-visible to user-space, removing it needs more consideration.
+This framework is no longer used - so discard it.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- fs/ceph/addr.c  |   27 ---------------------------
- fs/ceph/super.c |    2 --
- fs/ceph/super.h |    2 --
- 3 files changed, 31 deletions(-)
+ include/linux/backing-dev-defs.h |    8 -----
+ include/linux/backing-dev.h      |    2 -
+ include/trace/events/writeback.h |   28 -------------------
+ mm/backing-dev.c                 |   57 --------------------------------------
+ 4 files changed, 95 deletions(-)
 
-diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-index c98e5238a1b6..9147667f8cd5 100644
---- a/fs/ceph/addr.c
-+++ b/fs/ceph/addr.c
-@@ -57,11 +57,6 @@
-  * accounting is preserved.
-  */
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index 993c5628a726..e863c88df95f 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -207,14 +207,6 @@ struct backing_dev_info {
+ #endif
+ };
  
--#define CONGESTION_ON_THRESH(congestion_kb) (congestion_kb >> (PAGE_SHIFT-10))
--#define CONGESTION_OFF_THRESH(congestion_kb)				\
--	(CONGESTION_ON_THRESH(congestion_kb) -				\
--	 (CONGESTION_ON_THRESH(congestion_kb) >> 2))
+-enum {
+-	BLK_RW_ASYNC	= 0,
+-	BLK_RW_SYNC	= 1,
+-};
 -
- static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned int len,
- 					struct folio *folio, void **_fsdata);
- 
-@@ -561,10 +556,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
- 	dout("writepage %p page %p index %lu on %llu~%llu snapc %p seq %lld\n",
- 	     inode, page, page->index, page_off, len, snapc, snapc->seq);
- 
--	if (atomic_long_inc_return(&fsc->writeback_count) >
--	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
--		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
+-void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
+-void set_bdi_congested(struct backing_dev_info *bdi, int sync);
 -
- 	req = ceph_osdc_new_request(osdc, &ci->i_layout, ceph_vino(inode), page_off, &len, 0, 1,
- 				    CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE, snapc,
- 				    ceph_wbc.truncate_seq, ceph_wbc.truncate_size,
-@@ -621,10 +612,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
- 	ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
- 	ceph_put_snap_context(snapc);  /* page's reference */
+ struct wb_lock_cookie {
+ 	bool locked;
+ 	unsigned long flags;
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 2d764566280c..87ce24d238f3 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -135,8 +135,6 @@ static inline bool writeback_in_progress(struct bdi_writeback *wb)
  
--	if (atomic_long_dec_return(&fsc->writeback_count) <
--	    CONGESTION_OFF_THRESH(fsc->mount_options->congestion_kb))
--		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
+ struct backing_dev_info *inode_to_bdi(struct inode *inode);
+ 
+-long congestion_wait(int sync, long timeout);
 -
- 	return err;
+ static inline bool mapping_can_writeback(struct address_space *mapping)
+ {
+ 	return inode_to_bdi(mapping->host)->capabilities & BDI_CAP_WRITEBACK;
+diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+index a345b1e12daf..86b2a82da546 100644
+--- a/include/trace/events/writeback.h
++++ b/include/trace/events/writeback.h
+@@ -735,34 +735,6 @@ TRACE_EVENT(writeback_sb_inodes_requeue,
+ 	)
+ );
+ 
+-DECLARE_EVENT_CLASS(writeback_congest_waited_template,
+-
+-	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
+-
+-	TP_ARGS(usec_timeout, usec_delayed),
+-
+-	TP_STRUCT__entry(
+-		__field(	unsigned int,	usec_timeout	)
+-		__field(	unsigned int,	usec_delayed	)
+-	),
+-
+-	TP_fast_assign(
+-		__entry->usec_timeout	= usec_timeout;
+-		__entry->usec_delayed	= usec_delayed;
+-	),
+-
+-	TP_printk("usec_timeout=%u usec_delayed=%u",
+-			__entry->usec_timeout,
+-			__entry->usec_delayed)
+-);
+-
+-DEFINE_EVENT(writeback_congest_waited_template, writeback_congestion_wait,
+-
+-	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
+-
+-	TP_ARGS(usec_timeout, usec_delayed)
+-);
+-
+ DECLARE_EVENT_CLASS(writeback_single_inode_template,
+ 
+ 	TP_PROTO(struct inode *inode,
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index eae96dfe0261..7176af65b103 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -1005,60 +1005,3 @@ const char *bdi_dev_name(struct backing_dev_info *bdi)
+ 	return bdi->dev_name;
  }
- 
-@@ -704,12 +691,6 @@ static void writepages_finish(struct ceph_osd_request *req)
- 			BUG_ON(!page);
- 			WARN_ON(!PageUptodate(page));
- 
--			if (atomic_long_dec_return(&fsc->writeback_count) <
--			     CONGESTION_OFF_THRESH(
--					fsc->mount_options->congestion_kb))
--				clear_bdi_congested(inode_to_bdi(inode),
--						    BLK_RW_ASYNC);
+ EXPORT_SYMBOL_GPL(bdi_dev_name);
 -
- 			ceph_put_snap_context(detach_page_private(page));
- 			end_page_writeback(page);
- 			dout("unlocking %p\n", page);
-@@ -952,14 +933,6 @@ static int ceph_writepages_start(struct address_space *mapping,
- 			dout("%p will write page %p idx %lu\n",
- 			     inode, page, page->index);
- 
--			if (atomic_long_inc_return(&fsc->writeback_count) >
--			    CONGESTION_ON_THRESH(
--				    fsc->mount_options->congestion_kb)) {
--				set_bdi_congested(inode_to_bdi(inode),
--						  BLK_RW_ASYNC);
--			}
+-static wait_queue_head_t congestion_wqh[2] = {
+-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
+-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
+-	};
+-static atomic_t nr_wb_congested[2];
 -
+-void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+-{
+-	wait_queue_head_t *wqh = &congestion_wqh[sync];
+-	enum wb_congested_state bit;
 -
- 			pages[locked_pages++] = page;
- 			pvec.pages[i] = NULL;
- 
-diff --git a/fs/ceph/super.c b/fs/ceph/super.c
-index bf79f369aec6..b2f38af9fca8 100644
---- a/fs/ceph/super.c
-+++ b/fs/ceph/super.c
-@@ -801,8 +801,6 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
- 	fsc->filp_gen = 1;
- 	fsc->have_copy_from2 = true;
- 
--	atomic_long_set(&fsc->writeback_count, 0);
+-	bit = sync ? WB_sync_congested : WB_async_congested;
+-	if (test_and_clear_bit(bit, &bdi->wb.congested))
+-		atomic_dec(&nr_wb_congested[sync]);
+-	smp_mb__after_atomic();
+-	if (waitqueue_active(wqh))
+-		wake_up(wqh);
+-}
+-EXPORT_SYMBOL(clear_bdi_congested);
 -
- 	err = -ENOMEM;
- 	/*
- 	 * The number of concurrent works can be high but they don't need
-diff --git a/fs/ceph/super.h b/fs/ceph/super.h
-index 67f145e1ae7a..fc58adf1d36a 100644
---- a/fs/ceph/super.h
-+++ b/fs/ceph/super.h
-@@ -120,8 +120,6 @@ struct ceph_fs_client {
- 
- 	struct ceph_mds_client *mdsc;
- 
--	atomic_long_t writeback_count;
+-void set_bdi_congested(struct backing_dev_info *bdi, int sync)
+-{
+-	enum wb_congested_state bit;
 -
- 	struct workqueue_struct *inode_wq;
- 	struct workqueue_struct *cap_wq;
- 
+-	bit = sync ? WB_sync_congested : WB_async_congested;
+-	if (!test_and_set_bit(bit, &bdi->wb.congested))
+-		atomic_inc(&nr_wb_congested[sync]);
+-}
+-EXPORT_SYMBOL(set_bdi_congested);
+-
+-/**
+- * congestion_wait - wait for a backing_dev to become uncongested
+- * @sync: SYNC or ASYNC IO
+- * @timeout: timeout in jiffies
+- *
+- * Waits for up to @timeout jiffies for a backing_dev (any backing_dev) to exit
+- * write congestion.  If no backing_devs are congested then just wait for the
+- * next write to be completed.
+- */
+-long congestion_wait(int sync, long timeout)
+-{
+-	long ret;
+-	unsigned long start = jiffies;
+-	DEFINE_WAIT(wait);
+-	wait_queue_head_t *wqh = &congestion_wqh[sync];
+-
+-	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
+-	ret = io_schedule_timeout(timeout);
+-	finish_wait(wqh, &wait);
+-
+-	trace_writeback_congestion_wait(jiffies_to_usecs(timeout),
+-					jiffies_to_usecs(jiffies - start));
+-
+-	return ret;
+-}
+-EXPORT_SYMBOL(congestion_wait);
 
 
