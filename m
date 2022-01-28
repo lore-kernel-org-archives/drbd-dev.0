@@ -1,30 +1,36 @@
-Return-Path: <jlayton@kernel.org>
-Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E2FAF42A58A
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jan 2022 12:18:19 +0100 (CET)
-Message-ID: <2e66ef3e8f5df0529d3c289f8ed0be6a051d95ea.camel@kernel.org>
-From: Jeff Layton <jlayton@kernel.org>
-To: NeilBrown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>,
-	Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <chao@kernel.org>, Ilya Dryomov
-	<idryomov@gmail.com>, Miklos Szeredi <miklos@szeredi.hu>, Trond Myklebust
-	<trond.myklebust@hammerspace.com>, Anna Schumaker
-	<anna.schumaker@netapp.com>, Ryusuke Konishi <konishi.ryusuke@gmail.com>,
-	"Darrick J. Wong" <djwong@kernel.org>, Philipp Reisner
-	<philipp.reisner@linbit.com>, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
-Date: Thu, 27 Jan 2022 06:12:15 -0500
-In-Reply-To: <164325158958.29787.8840004338500709466.stgit@noble.brown>
-References: <164325106958.29787.4865219843242892726.stgit@noble.brown>
-	<164325158958.29787.8840004338500709466.stgit@noble.brown>
-Content-Type: text/plain; charset="ISO-8859-15"
+Return-Path: <miklos@szeredi.hu>
+Received: from mail-vs1-f47.google.com (mail-vs1-f47.google.com
+	[209.85.217.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6CEB7420012
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jan 2022 10:38:08 +0100 (CET)
+Received: by mail-vs1-f47.google.com with SMTP id g10so2276675vss.1
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jan 2022 01:38:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
-	linux-block@vger.kernel.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
-	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 5/9] cephfs: don't set/clear bdi_congestion
+References: <164325106958.29787.4865219843242892726.stgit@noble.brown>
+	<164325158954.29787.7856652136298668100.stgit@noble.brown>
+In-Reply-To: <164325158954.29787.7856652136298668100.stgit@noble.brown>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Fri, 28 Jan 2022 10:37:56 +0100
+Message-ID: <CAJfpegt-igF8HqsDUcMzfU0jYv8WpofLy0Uv0YnXLzsfx=tkGg@mail.gmail.com>
+To: NeilBrown <neilb@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Cc: "Darrick J. Wong" <djwong@kernel.org>, linux-kernel@vger.kernel.org,
+	linux-mm <linux-mm@kvack.org>, drbd-dev@lists.linbit.com,
+	Paolo Valente <paolo.valente@linaro.org>,
+	Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Ilya Dryomov <idryomov@gmail.com>,
+	Ext4 <linux-ext4@vger.kernel.org>, Chao Yu <chao@kernel.org>,
+	linux-block@vger.kernel.org, linux-nilfs@vger.kernel.org,
+	Jaegeuk Kim <jaegeuk@kernel.org>, ceph-devel@vger.kernel.org,
+	Ryusuke Konishi <konishi.ryusuke@gmail.com>, Jens Axboe <axboe@kernel.dk>,
+	Linux NFS list <linux-nfs@vger.kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Jeff Layton <jlayton@kernel.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Anna Schumaker <anna.schumaker@netapp.com>
+Subject: Re: [Drbd-dev] [PATCH 1/9] Remove inode_congested()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,123 +42,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 2022-01-27 at 13:46 +1100, NeilBrown wrote:
-> The bdi congestion framework is no-longer used - writeback uses other
-> mechanisms to manage throughput.
-> 
-> So remove calls to set_bdi_congested() and clear_bdi_congested(), and
-> remove the writeback_count which is used only to guide the setting and
-> clearing.
-> 
-> The congestion_kb mount option is no longer meaningful, but as it is
-> visible to user-space, removing it needs more consideration.
-> 
-> Signed-off-by: NeilBrown <neilb@suse.de>
-> ---
->  fs/ceph/addr.c  |   27 ---------------------------
->  fs/ceph/super.c |    2 --
->  fs/ceph/super.h |    2 --
->  3 files changed, 31 deletions(-)
-> 
-> diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-> index c98e5238a1b6..9147667f8cd5 100644
-> --- a/fs/ceph/addr.c
-> +++ b/fs/ceph/addr.c
-> @@ -57,11 +57,6 @@
->   * accounting is preserved.
->   */
->  
-> -#define CONGESTION_ON_THRESH(congestion_kb) (congestion_kb >> (PAGE_SHIFT-10))
-> -#define CONGESTION_OFF_THRESH(congestion_kb)				\
-> -	(CONGESTION_ON_THRESH(congestion_kb) -				\
-> -	 (CONGESTION_ON_THRESH(congestion_kb) >> 2))
-> -
->  static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned int len,
->  					struct folio *folio, void **_fsdata);
->  
-> @@ -561,10 +556,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
->  	dout("writepage %p page %p index %lu on %llu~%llu snapc %p seq %lld\n",
->  	     inode, page, page->index, page_off, len, snapc, snapc->seq);
->  
-> -	if (atomic_long_inc_return(&fsc->writeback_count) >
-> -	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
-> -		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
-> -
->  	req = ceph_osdc_new_request(osdc, &ci->i_layout, ceph_vino(inode), page_off, &len, 0, 1,
->  				    CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE, snapc,
->  				    ceph_wbc.truncate_seq, ceph_wbc.truncate_size,
-> @@ -621,10 +612,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
->  	ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
->  	ceph_put_snap_context(snapc);  /* page's reference */
->  
-> -	if (atomic_long_dec_return(&fsc->writeback_count) <
-> -	    CONGESTION_OFF_THRESH(fsc->mount_options->congestion_kb))
-> -		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
-> -
->  	return err;
->  }
->  
-> @@ -704,12 +691,6 @@ static void writepages_finish(struct ceph_osd_request *req)
->  			BUG_ON(!page);
->  			WARN_ON(!PageUptodate(page));
->  
-> -			if (atomic_long_dec_return(&fsc->writeback_count) <
-> -			     CONGESTION_OFF_THRESH(
-> -					fsc->mount_options->congestion_kb))
-> -				clear_bdi_congested(inode_to_bdi(inode),
-> -						    BLK_RW_ASYNC);
-> -
->  			ceph_put_snap_context(detach_page_private(page));
->  			end_page_writeback(page);
->  			dout("unlocking %p\n", page);
-> @@ -952,14 +933,6 @@ static int ceph_writepages_start(struct address_space *mapping,
->  			dout("%p will write page %p idx %lu\n",
->  			     inode, page, page->index);
->  
-> -			if (atomic_long_inc_return(&fsc->writeback_count) >
-> -			    CONGESTION_ON_THRESH(
-> -				    fsc->mount_options->congestion_kb)) {
-> -				set_bdi_congested(inode_to_bdi(inode),
-> -						  BLK_RW_ASYNC);
-> -			}
-> -
-> -
->  			pages[locked_pages++] = page;
->  			pvec.pages[i] = NULL;
->  
-> diff --git a/fs/ceph/super.c b/fs/ceph/super.c
-> index bf79f369aec6..b2f38af9fca8 100644
-> --- a/fs/ceph/super.c
-> +++ b/fs/ceph/super.c
-> @@ -801,8 +801,6 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
->  	fsc->filp_gen = 1;
->  	fsc->have_copy_from2 = true;
->  
-> -	atomic_long_set(&fsc->writeback_count, 0);
-> -
->  	err = -ENOMEM;
->  	/*
->  	 * The number of concurrent works can be high but they don't need
-> diff --git a/fs/ceph/super.h b/fs/ceph/super.h
-> index 67f145e1ae7a..fc58adf1d36a 100644
-> --- a/fs/ceph/super.h
-> +++ b/fs/ceph/super.h
-> @@ -120,8 +120,6 @@ struct ceph_fs_client {
->  
->  	struct ceph_mds_client *mdsc;
->  
-> -	atomic_long_t writeback_count;
-> -
->  	struct workqueue_struct *inode_wq;
->  	struct workqueue_struct *cap_wq;
->  
-> 
-> 
+On Thu, 27 Jan 2022 at 03:47, NeilBrown <neilb@suse.de> wrote:
+>
+> inode_congested() reports if the backing-device for the inode is
+> congested.  Few bdi report congestion any more, only ceph, fuse, and
+> nfs.  Having support just for those is unlikely to be useful.
+>
+> The places which test inode_congested() or it variants like
+> inode_write_congested(), avoid initiating IO if congestion is present.
+> We now have to rely on other places in the stack to back off, or abort
+> requests - we already do for everything except these 3 filesystems.
+>
+> So remove inode_congested() and related functions, and remove the call
+> sites, assuming that inode_congested() always returns 'false'.
 
-Thanks Neil.
+Looks to me this is going to "break" fuse; e.g. readahead path will go
+ahead and try to submit more requests, even if the queue is getting
+congested.   In this case the readahead submission will eventually
+block, which is counterproductive.
 
-I'll plan to pull this into the ceph testing branch and do some testing
-with it, but at a quick glance I don't forsee any issues. This should
-make v5.18, but we may be able to get it in sooner.
--- 
-Jeff Layton <jlayton@kernel.org>
+I think we should *first* make sure all call sites are substituted
+with appropriate mechanisms in the affected filesystems and as a last
+step remove the superfluous bdi congestion mechanism.
+
+You are saying that all fs except these three already have such
+mechanisms in place, right?  Can you elaborate on that?
+
+Thanks,
+Miklos
