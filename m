@@ -1,25 +1,19 @@
-Return-Path: <snitzer@redhat.com>
-Received: from us-smtp-delivery-124.mimecast.com
-	(us-smtp-delivery-124.mimecast.com [170.10.133.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DFD76420026
-	for <drbd-dev@lists.linbit.com>; Wed,  2 Feb 2022 20:42:39 +0100 (CET)
-Received: by mail-qt1-f198.google.com with SMTP id
-	e28-20020ac8415c000000b002c5e43ca6b7so156670qtm.9
-	for <drbd-dev@lists.linbit.com>; Wed, 02 Feb 2022 11:42:35 -0800 (PST)
-Date: Wed, 2 Feb 2022 14:42:33 -0500
-From: Mike Snitzer <snitzer@redhat.com>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <YfreqbCOPYFrQm73@redhat.com>
-References: <20220202160109.108149-1-hch@lst.de>
+Return-Path: <yang.lee@linux.alibaba.com>
+Received: from out30-132.freemail.mail.aliyun.com
+	(out30-132.freemail.mail.aliyun.com [115.124.30.132])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0A732420181
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Feb 2022 04:35:38 +0100 (CET)
+From: Yang Li <yang.lee@linux.alibaba.com>
+To: axboe@kernel.dk
+Date: Thu,  3 Feb 2022 11:30:33 +0800
+Message-Id: <20220203033033.52214-1-yang.lee@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <20220202160109.108149-1-hch@lst.de>
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Cc: Jens Axboe <axboe@kernel.dk>, Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-block@vger.kernel.org, dm-devel@redhat.com,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Pavel Begunkov <asml.silence@gmail.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] improve the bio cloning interface v2
+Content-Transfer-Encoding: 8bit
+Cc: Abaci Robot <abaci@linux.alibaba.com>, linux-kernel@vger.kernel.org,
+	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
+	Yang Li <yang.lee@linux.alibaba.com>, lars.ellenberg@linbit.com,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH -next] mm/fs: fix boolreturn.cocci warning
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,65 +25,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Feb 02 2022 at 11:00P -0500,
-Christoph Hellwig <hch@lst.de> wrote:
+Return statement in function returning bool should use true/false
+instead of 1/0.
 
-> Hi Jens,
-> 
-> this series changes the bio cloning interface to match the rest changes
-> to the bio allocation interface and passes the block_device and operation
-> to the cloning helpers.  In addition it renames the cloning helpers to
-> be more descriptive.
-> 
-> To get there it requires a bit of refactoring in the device mapper code.
-> 
-> Changes since v1:
->  - rebased to the lastest for-5.18/block tree
->  - fix a fatal double initialization in device mapper
-> 
-> A git tree is also available here:
-> 
->     git://git.infradead.org/users/hch/block.git bio_alloc-cleanup-part2
-> 
-> Gitweb:
-> 
->     http://git.infradead.org/users/hch/block.git/shortlog/refs/heads/bio_alloc-cleanup-part2
-> 
-> Diffstat:
->  Documentation/block/biodoc.rst   |    5 -
->  block/bio-integrity.c            |    1 
->  block/bio.c                      |  106 +++++++++++++-----------
->  block/blk-crypto.c               |    1 
->  block/blk-mq.c                   |    4 
->  block/bounce.c                   |    3 
->  drivers/block/drbd/drbd_req.c    |    5 -
->  drivers/block/drbd/drbd_worker.c |    4 
->  drivers/block/pktcdvd.c          |    4 
->  drivers/md/bcache/request.c      |    6 -
->  drivers/md/dm-cache-target.c     |   26 ++----
->  drivers/md/dm-crypt.c            |   11 +-
->  drivers/md/dm-zoned-target.c     |    3 
->  drivers/md/dm.c                  |  166 +++++++++++++--------------------------
->  drivers/md/md-faulty.c           |    4 
->  drivers/md/md-multipath.c        |    4 
->  drivers/md/md.c                  |    5 -
->  drivers/md/raid1.c               |   34 +++----
->  drivers/md/raid10.c              |   16 +--
->  drivers/md/raid5.c               |    4 
->  fs/btrfs/extent_io.c             |    4 
->  include/linux/bio.h              |    6 -
->  22 files changed, 183 insertions(+), 239 deletions(-)
-> 
+Eliminate the following coccicheck warning:
+./drivers/block/drbd/drbd_req.c:912:9-10: WARNING: return of 0/1 in
+function 'remote_due_to_read_balancing' with return type bool
 
-Looks good, for all:
+Reported-by: Abaci Robot <abaci@linux.alibaba.com>
+Signed-off-by: Yang Li <yang.lee@linux.alibaba.com>
+---
+ drivers/block/drbd/drbd_req.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Reviewed-by: Mike Snitzer <snitzer@redhat.com>
-
-I have some DM core changes for 5.18 that I need to make and this
-patchset offers enough DM churn that I'd like to base my changes
-ontop.  So I'd appreciate it if this patchset could land in block's
-for-5.18 ASAP.
-
-Thanks,
-Mike
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 2e5fb7e442e3..c8448379bbcd 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -909,7 +909,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
+ 
+ 	switch (rbm) {
+ 	case RB_CONGESTED_REMOTE:
+-		return 0;
++		return false;
+ 	case RB_LEAST_PENDING:
+ 		return atomic_read(&device->local_cnt) >
+ 			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
+-- 
+2.20.1.7.g153144c
 
