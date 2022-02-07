@@ -1,26 +1,24 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pj1-f53.google.com (mail-pj1-f53.google.com
-	[209.85.216.53])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B541D4201F8
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Feb 2022 15:43:39 +0100 (CET)
-Received: by mail-pj1-f53.google.com with SMTP id
-	g15-20020a17090a67cf00b001b7d5b6bedaso6299669pjm.4
-	for <drbd-dev@lists.linbit.com>; Fri, 04 Feb 2022 06:43:39 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
-To: Christoph Hellwig <hch@lst.de>
-In-Reply-To: <20220202160109.108149-1-hch@lst.de>
-References: <20220202160109.108149-1-hch@lst.de>
-Message-Id: <164398581785.446137.16953674702943074856.b4-ty@kernel.dk>
-Date: Fri, 04 Feb 2022 07:43:37 -0700
+Return-Path: <mrtops03@gmail.com>
+Received: from mail-io1-f54.google.com (mail-io1-f54.google.com
+	[209.85.166.54])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 915654205F5
+	for <drbd-dev@lists.linbit.com>; Tue,  8 Feb 2022 00:54:46 +0100 (CET)
+Received: by mail-io1-f54.google.com with SMTP id d188so19089834iof.7
+	for <drbd-dev@lists.linbit.com>; Mon, 07 Feb 2022 15:54:46 -0800 (PST)
+From: Ethan Dye <mrtops03@gmail.com>
+To: 
+Date: Mon,  7 Feb 2022 16:54:42 -0700
+Message-Id: <20220207235442.95090-1-mrtops03@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-Cc: Mike Snitzer <snitzer@redhat.com>,
+Cc: Sergey Senozhatsky <senozhatsky@chromium.org>,
+	Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-block@vger.kernel.org, dm-devel@redhat.com,
+	linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Pavel Begunkov <asml.silence@gmail.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] improve the bio cloning interface v2
+	drbd-dev@lists.linbit.com, Nitin Gupta <ngupta@vflare.org>,
+	Ethan Dye <mrtops03@gmail.com>
+Subject: [Drbd-dev] [PATCH] block/zram: Fix wording in optional feature docs
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,47 +30,89 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, 2 Feb 2022 17:00:56 +0100, Christoph Hellwig wrote:
-> this series changes the bio cloning interface to match the rest changes
-> to the bio allocation interface and passes the block_device and operation
-> to the cloning helpers.  In addition it renames the cloning helpers to
-> be more descriptive.
-> 
-> To get there it requires a bit of refactoring in the device mapper code.
-> 
-> [...]
+This fixes some simple grammar errors in the documentation for zram,
+specifically errors in the optional featue section of the zram
+documentation.
 
-Applied, thanks!
+Signed-off-by: Ethan Dye <mrtops03@gmail.com>
+---
+ Documentation/admin-guide/blockdev/zram.rst | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 
-[01/13] drbd: set ->bi_bdev in drbd_req_new
-        commit: c347a787e34cba0e5a80a04082dacaf259105605
-[02/13] dm: add a clone_to_tio helper
-        commit: 6c23f0bd7f16d88c774db37b30c5da82811c41be
-[03/13] dm: fold clone_bio into __clone_and_map_data_bio
-        commit: b1bee79237ce0ab43ef7fe66aa6e5c4783165012
-[04/13] dm: fold __send_duplicate_bios into __clone_and_map_simple_bio
-        commit: 8eabf5d0a7bd9226d6cc25402dde67f372aae838
-[05/13] dm: move cloning the bio into alloc_tio
-        commit: dc8e2021da71f6b2d5971f98ee3e528cf30c409c
-[06/13] dm: pass the bio instead of tio to __map_bio
-        commit: 1561b396106d759fdf5f9a71b412e068f74d2cc9
-[07/13] dm: retun the clone bio from alloc_tio
-        commit: 1d1068cecff70cb8e48c7cb0ba27cc3fd906eb31
-[08/13] dm: simplify the single bio fast path in __send_duplicate_bios
-        commit: 891fced644a7529bfd4b1436b2341527ce8f68ad
-[09/13] dm-cache: remove __remap_to_origin_clear_discard
-        commit: 3c4b455ef8acdacd0e5ecd33428d4f32f861637a
-[10/13] block: clone crypto and integrity data in __bio_clone_fast
-        commit: 56b4b5abcdab6daf71c5536fca2772f178590e06
-[11/13] dm: use bio_clone_fast in alloc_io/alloc_tio
-        commit: 92986f6b4c8a2c24d3a36b80140624f80fd93de4
-[12/13] block: initialize the target bio in __bio_clone_fast
-        commit: a0e8de798dd6710a69d69ec57b246a0e34c4a695
-[13/13] block: pass a block_device to bio_clone_fast
-        commit: abfc426d1b2fb2176df59851a64223b58ddae7e7
-
-Best regards,
+diff --git a/Documentation/admin-guide/blockdev/zram.rst b/Documentation/admin-guide/blockdev/zram.rst
+index 3e11926a4df9..54fe63745ed8 100644
+--- a/Documentation/admin-guide/blockdev/zram.rst
++++ b/Documentation/admin-guide/blockdev/zram.rst
+@@ -315,8 +315,8 @@ To use the feature, admin should set up backing device via::
+ 
+ 	echo /dev/sda5 > /sys/block/zramX/backing_dev
+ 
+-before disksize setting. It supports only partition at this moment.
+-If admin wants to use incompressible page writeback, they could do via::
++before disksize setting. It supports only partitions at this moment.
++If admin wants to use incompressible page writeback, they could do it via::
+ 
+ 	echo huge > /sys/block/zramX/writeback
+ 
+@@ -341,9 +341,9 @@ Admin can request writeback of those idle pages at right timing via::
+ 
+ 	echo idle > /sys/block/zramX/writeback
+ 
+-With the command, zram writeback idle pages from memory to the storage.
++With the command, zram will writeback idle pages from memory to the storage.
+ 
+-If admin want to write a specific page in zram device to backing device,
++If an admin wants to write a specific page in zram device to the backing device,
+ they could write a page index into the interface.
+ 
+ 	echo "page_index=1251" > /sys/block/zramX/writeback
+@@ -354,7 +354,7 @@ to guarantee storage health for entire product life.
+ 
+ To overcome the concern, zram supports "writeback_limit" feature.
+ The "writeback_limit_enable"'s default value is 0 so that it doesn't limit
+-any writeback. IOW, if admin wants to apply writeback budget, he should
++any writeback. IOW, if admin wants to apply writeback budget, they should
+ enable writeback_limit_enable via::
+ 
+ 	$ echo 1 > /sys/block/zramX/writeback_limit_enable
+@@ -365,7 +365,7 @@ until admin sets the budget via /sys/block/zramX/writeback_limit.
+ (If admin doesn't enable writeback_limit_enable, writeback_limit's value
+ assigned via /sys/block/zramX/writeback_limit is meaningless.)
+ 
+-If admin want to limit writeback as per-day 400M, he could do it
++If admin wants to limit writeback as per-day 400M, they could do it
+ like below::
+ 
+ 	$ MB_SHIFT=20
+@@ -375,16 +375,16 @@ like below::
+ 	$ echo 1 > /sys/block/zram0/writeback_limit_enable
+ 
+ If admins want to allow further write again once the budget is exhausted,
+-he could do it like below::
++they could do it like below::
+ 
+ 	$ echo $((400<<MB_SHIFT>>4K_SHIFT)) > \
+ 		/sys/block/zram0/writeback_limit
+ 
+-If admin wants to see remaining writeback budget since last set::
++If an admin wants to see the remaining writeback budget since last set::
+ 
+ 	$ cat /sys/block/zramX/writeback_limit
+ 
+-If admin want to disable writeback limit, he could do::
++If an admin wants to disable writeback limit, they could do::
+ 
+ 	$ echo 0 > /sys/block/zramX/writeback_limit_enable
+ 
+@@ -393,7 +393,7 @@ system reboot, echo 1 > /sys/block/zramX/reset) so keeping how many of
+ writeback happened until you reset the zram to allocate extra writeback
+ budget in next setting is user's job.
+ 
+-If admin wants to measure writeback count in a certain period, he could
++If admin wants to measure writeback count in a certain period, they could
+ know it via /sys/block/zram0/bd_stat's 3rd column.
+ 
+ memory tracking
 -- 
-Jens Axboe
-
+2.32.0 (Apple Git-132)
 
