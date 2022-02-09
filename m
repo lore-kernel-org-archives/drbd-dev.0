@@ -1,22 +1,22 @@
 Return-Path: <BATV+9f6d5568987564775a8e+6744+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 443334202F6
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Feb 2022 09:28:48 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D4F94201E3
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Feb 2022 09:28:51 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: axboe@kernel.dk, martin.petersen@oracle.com, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com, target-devel@vger.kernel.org,
 	haris.iqbal@ionos.com, jinpu.wang@ionos.com, manoj@linux.ibm.com,
 	mrochs@linux.ibm.com, ukrishn@linux.ibm.com
-Date: Wed,  9 Feb 2022 09:28:24 +0100
-Message-Id: <20220209082828.2629273-4-hch@lst.de>
+Date: Wed,  9 Feb 2022 09:28:25 +0100
+Message-Id: <20220209082828.2629273-5-hch@lst.de>
 In-Reply-To: <20220209082828.2629273-1-hch@lst.de>
 References: <20220209082828.2629273-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: linux-block@vger.kernel.org, dm-devel@redhat.com,
 	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 3/7] rnbd: drop WRITE_SAME support
+Subject: [Drbd-dev] [PATCH 4/7] sd: remove write same support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,102 +28,146 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-REQ_OP_WRITE_SAME was only ever submitted by the legacy Linux zeroing
-code, which has switched to use REQ_OP_WRITE_ZEROES long before rnbd was
-even merged.
+There are no more end-users of REQ_OP_WRITE_SAME left, so we can start
+deleting it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/rnbd/rnbd-clt.c   | 7 ++-----
- drivers/block/rnbd/rnbd-clt.h   | 1 -
- drivers/block/rnbd/rnbd-proto.h | 6 ------
- drivers/block/rnbd/rnbd-srv.c   | 3 +--
- 4 files changed, 3 insertions(+), 14 deletions(-)
+ drivers/scsi/sd.c     | 75 ++++---------------------------------------
+ drivers/scsi/sd_zbc.c |  2 --
+ 2 files changed, 7 insertions(+), 70 deletions(-)
 
-diff --git a/drivers/block/rnbd/rnbd-clt.c b/drivers/block/rnbd/rnbd-clt.c
-index c08971de369fc..dc192d2738854 100644
---- a/drivers/block/rnbd/rnbd-clt.c
-+++ b/drivers/block/rnbd/rnbd-clt.c
-@@ -82,7 +82,6 @@ static int rnbd_clt_set_dev_attr(struct rnbd_clt_dev *dev,
- 	dev->nsectors		    = le64_to_cpu(rsp->nsectors);
- 	dev->logical_block_size	    = le16_to_cpu(rsp->logical_block_size);
- 	dev->physical_block_size    = le16_to_cpu(rsp->physical_block_size);
--	dev->max_write_same_sectors = le32_to_cpu(rsp->max_write_same_sectors);
- 	dev->max_discard_sectors    = le32_to_cpu(rsp->max_discard_sectors);
- 	dev->discard_granularity    = le32_to_cpu(rsp->discard_granularity);
- 	dev->discard_alignment	    = le32_to_cpu(rsp->discard_alignment);
-@@ -1359,8 +1358,6 @@ static void setup_request_queue(struct rnbd_clt_dev *dev)
- 	blk_queue_logical_block_size(dev->queue, dev->logical_block_size);
- 	blk_queue_physical_block_size(dev->queue, dev->physical_block_size);
- 	blk_queue_max_hw_sectors(dev->queue, dev->max_hw_sectors);
--	blk_queue_max_write_same_sectors(dev->queue,
--					 dev->max_write_same_sectors);
- 
- 	/*
- 	 * we don't support discards to "discontiguous" segments
-@@ -1610,10 +1607,10 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
+diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
+index 2d648d27bfd71..fde2857f9bbf5 100644
+--- a/drivers/scsi/sd.c
++++ b/drivers/scsi/sd.c
+@@ -1034,13 +1034,13 @@ static void sd_config_write_same(struct scsi_disk *sdkp)
+ 		 * Reporting a maximum number of blocks that is not aligned
+ 		 * on the device physical size would cause a large write same
+ 		 * request to be split into physically unaligned chunks by
+-		 * __blkdev_issue_write_zeroes() and __blkdev_issue_write_same()
+-		 * even if the caller of these functions took care to align the
+-		 * large request. So make sure the maximum reported is aligned
+-		 * to the device physical block size. This is only an optional
+-		 * optimization for regular disks, but this is mandatory to
+-		 * avoid failure of large write same requests directed at
+-		 * sequential write required zones of host-managed ZBC disks.
++		 * __blkdev_issue_write_zeroes() even if the caller of this
++		 * functions took care to align the large request. So make sure
++		 * the maximum reported is aligned to the device physical block
++		 * size. This is only an optional optimization for regular
++		 * disks, but this is mandatory to avoid failure of large write
++		 * same requests directed at sequential write required zones of
++		 * host-managed ZBC disks.
+ 		 */
+ 		sdkp->max_ws_blocks =
+ 			round_down(sdkp->max_ws_blocks,
+@@ -1049,68 +1049,10 @@ static void sd_config_write_same(struct scsi_disk *sdkp)
  	}
  
- 	rnbd_clt_info(dev,
--		       "map_device: Device mapped as %s (nsectors: %zu, logical_block_size: %d, physical_block_size: %d, max_write_same_sectors: %d, max_discard_sectors: %d, discard_granularity: %d, discard_alignment: %d, secure_discard: %d, max_segments: %d, max_hw_sectors: %d, rotational: %d, wc: %d, fua: %d)\n",
-+		       "map_device: Device mapped as %s (nsectors: %zu, logical_block_size: %d, physical_block_size: %d, max_discard_sectors: %d, discard_granularity: %d, discard_alignment: %d, secure_discard: %d, max_segments: %d, max_hw_sectors: %d, rotational: %d, wc: %d, fua: %d)\n",
- 		       dev->gd->disk_name, dev->nsectors,
- 		       dev->logical_block_size, dev->physical_block_size,
--		       dev->max_write_same_sectors, dev->max_discard_sectors,
-+		       dev->max_discard_sectors,
- 		       dev->discard_granularity, dev->discard_alignment,
- 		       dev->secure_discard, dev->max_segments,
- 		       dev->max_hw_sectors, dev->rotational, dev->wc, dev->fua);
-diff --git a/drivers/block/rnbd/rnbd-clt.h b/drivers/block/rnbd/rnbd-clt.h
-index 0c2cae7f39b9f..6946ba23d62e5 100644
---- a/drivers/block/rnbd/rnbd-clt.h
-+++ b/drivers/block/rnbd/rnbd-clt.h
-@@ -122,7 +122,6 @@ struct rnbd_clt_dev {
- 	bool			wc;
- 	bool			fua;
- 	u32			max_hw_sectors;
--	u32			max_write_same_sectors;
- 	u32			max_discard_sectors;
- 	u32			discard_granularity;
- 	u32			discard_alignment;
-diff --git a/drivers/block/rnbd/rnbd-proto.h b/drivers/block/rnbd/rnbd-proto.h
-index de5d5a8df81d7..3eb8b34bd1886 100644
---- a/drivers/block/rnbd/rnbd-proto.h
-+++ b/drivers/block/rnbd/rnbd-proto.h
-@@ -249,9 +249,6 @@ static inline u32 rnbd_to_bio_flags(u32 rnbd_opf)
- 	case RNBD_OP_SECURE_ERASE:
- 		bio_opf = REQ_OP_SECURE_ERASE;
- 		break;
--	case RNBD_OP_WRITE_SAME:
--		bio_opf = REQ_OP_WRITE_SAME;
--		break;
- 	default:
- 		WARN(1, "Unknown RNBD type: %d (flags %d)\n",
- 		     rnbd_op(rnbd_opf), rnbd_opf);
-@@ -284,9 +281,6 @@ static inline u32 rq_to_rnbd_flags(struct request *rq)
- 	case REQ_OP_SECURE_ERASE:
- 		rnbd_opf = RNBD_OP_SECURE_ERASE;
- 		break;
+ out:
+-	blk_queue_max_write_same_sectors(q, sdkp->max_ws_blocks *
+-					 (logical_block_size >> 9));
+ 	blk_queue_max_write_zeroes_sectors(q, sdkp->max_ws_blocks *
+ 					 (logical_block_size >> 9));
+ }
+ 
+-/**
+- * sd_setup_write_same_cmnd - write the same data to multiple blocks
+- * @cmd: command to prepare
+- *
+- * Will set up either WRITE SAME(10) or WRITE SAME(16) depending on
+- * the preference indicated by the target device.
+- **/
+-static blk_status_t sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
+-{
+-	struct request *rq = scsi_cmd_to_rq(cmd);
+-	struct scsi_device *sdp = cmd->device;
+-	struct scsi_disk *sdkp = scsi_disk(rq->q->disk);
+-	struct bio *bio = rq->bio;
+-	u64 lba = sectors_to_logical(sdp, blk_rq_pos(rq));
+-	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
+-	blk_status_t ret;
+-
+-	if (sdkp->device->no_write_same)
+-		return BLK_STS_TARGET;
+-
+-	BUG_ON(bio_offset(bio) || bio_iovec(bio).bv_len != sdp->sector_size);
+-
+-	rq->timeout = SD_WRITE_SAME_TIMEOUT;
+-
+-	if (sdkp->ws16 || lba > 0xffffffff || nr_blocks > 0xffff) {
+-		cmd->cmd_len = 16;
+-		cmd->cmnd[0] = WRITE_SAME_16;
+-		put_unaligned_be64(lba, &cmd->cmnd[2]);
+-		put_unaligned_be32(nr_blocks, &cmd->cmnd[10]);
+-	} else {
+-		cmd->cmd_len = 10;
+-		cmd->cmnd[0] = WRITE_SAME;
+-		put_unaligned_be32(lba, &cmd->cmnd[2]);
+-		put_unaligned_be16(nr_blocks, &cmd->cmnd[7]);
+-	}
+-
+-	cmd->transfersize = sdp->sector_size;
+-	cmd->allowed = sdkp->max_retries;
+-
+-	/*
+-	 * For WRITE SAME the data transferred via the DATA OUT buffer is
+-	 * different from the amount of data actually written to the target.
+-	 *
+-	 * We set up __data_len to the amount of data transferred via the
+-	 * DATA OUT buffer so that blk_rq_map_sg sets up the proper S/G list
+-	 * to transfer a single sector of data first, but then reset it to
+-	 * the amount of data to be written right after so that the I/O path
+-	 * knows how much to actually write.
+-	 */
+-	rq->__data_len = sdp->sector_size;
+-	ret = scsi_alloc_sgtables(cmd);
+-	rq->__data_len = blk_rq_bytes(rq);
+-
+-	return ret;
+-}
+-
+ static blk_status_t sd_setup_flush_cmnd(struct scsi_cmnd *cmd)
+ {
+ 	struct request *rq = scsi_cmd_to_rq(cmd);
+@@ -1343,8 +1285,6 @@ static blk_status_t sd_init_command(struct scsi_cmnd *cmd)
+ 		}
+ 	case REQ_OP_WRITE_ZEROES:
+ 		return sd_setup_write_zeroes_cmnd(cmd);
 -	case REQ_OP_WRITE_SAME:
--		rnbd_opf = RNBD_OP_WRITE_SAME;
--		break;
+-		return sd_setup_write_same_cmnd(cmd);
  	case REQ_OP_FLUSH:
- 		rnbd_opf = RNBD_OP_FLUSH;
- 		break;
-diff --git a/drivers/block/rnbd/rnbd-srv.c b/drivers/block/rnbd/rnbd-srv.c
-index 132e950685d59..0e6b5687f8321 100644
---- a/drivers/block/rnbd/rnbd-srv.c
-+++ b/drivers/block/rnbd/rnbd-srv.c
-@@ -548,8 +548,7 @@ static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
- 		cpu_to_le16(rnbd_dev_get_max_segs(rnbd_dev));
- 	rsp->max_hw_sectors =
- 		cpu_to_le32(rnbd_dev_get_max_hw_sects(rnbd_dev));
--	rsp->max_write_same_sectors =
--		cpu_to_le32(bdev_write_same(rnbd_dev->bdev));
-+	rsp->max_write_same_sectors = 0;
- 	rsp->max_discard_sectors =
- 		cpu_to_le32(rnbd_dev_get_max_discard_sects(rnbd_dev));
- 	rsp->discard_granularity =
+ 		return sd_setup_flush_cmnd(cmd);
+ 	case REQ_OP_READ:
+@@ -2039,7 +1979,6 @@ static int sd_done(struct scsi_cmnd *SCpnt)
+ 	switch (req_op(req)) {
+ 	case REQ_OP_DISCARD:
+ 	case REQ_OP_WRITE_ZEROES:
+-	case REQ_OP_WRITE_SAME:
+ 	case REQ_OP_ZONE_RESET:
+ 	case REQ_OP_ZONE_RESET_ALL:
+ 	case REQ_OP_ZONE_OPEN:
+diff --git a/drivers/scsi/sd_zbc.c b/drivers/scsi/sd_zbc.c
+index 378d071e47cbc..7f466280993bb 100644
+--- a/drivers/scsi/sd_zbc.c
++++ b/drivers/scsi/sd_zbc.c
+@@ -423,7 +423,6 @@ static bool sd_zbc_need_zone_wp_update(struct request *rq)
+ 		return true;
+ 	case REQ_OP_WRITE:
+ 	case REQ_OP_WRITE_ZEROES:
+-	case REQ_OP_WRITE_SAME:
+ 		return blk_rq_zone_is_seq(rq);
+ 	default:
+ 		return false;
+@@ -477,7 +476,6 @@ static unsigned int sd_zbc_zone_wp_update(struct scsi_cmnd *cmd,
+ 		rq->__sector += sdkp->zones_wp_offset[zno];
+ 		fallthrough;
+ 	case REQ_OP_WRITE_ZEROES:
+-	case REQ_OP_WRITE_SAME:
+ 	case REQ_OP_WRITE:
+ 		if (sdkp->zones_wp_offset[zno] < sd_zbc_zone_sectors(sdkp))
+ 			sdkp->zones_wp_offset[zno] +=
 -- 
 2.30.2
 
