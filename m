@@ -1,22 +1,20 @@
-Return-Path: <baijiaju1990@gmail.com>
-Received: from mail-pf1-f182.google.com (mail-pf1-f182.google.com
-	[209.85.210.182])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5DD874201E1
-	for <drbd-dev@lists.linbit.com>; Tue,  8 Feb 2022 11:55:42 +0100 (CET)
-Received: by mail-pf1-f182.google.com with SMTP id p43so637820pfw.1
-	for <drbd-dev@lists.linbit.com>; Tue, 08 Feb 2022 02:55:42 -0800 (PST)
-From: Jia-Ju Bai <baijiaju1990@gmail.com>
-To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com, axboe@kernel.dk
-Message-ID: <3b992e3b-bf1a-426a-5e76-a822f5bf6e6a@gmail.com>
-Date: Tue, 8 Feb 2022 18:55:20 +0800
+Return-Path: <BATV+9f6d5568987564775a8e+6744+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 89F3742006B
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Feb 2022 09:28:37 +0100 (CET)
+From: Christoph Hellwig <hch@lst.de>
+To: axboe@kernel.dk, martin.petersen@oracle.com, philipp.reisner@linbit.com,
+	lars.ellenberg@linbit.com, target-devel@vger.kernel.org,
+	haris.iqbal@ionos.com, jinpu.wang@ionos.com, manoj@linux.ibm.com,
+	mrochs@linux.ibm.com, ukrishn@linux.ibm.com
+Date: Wed,  9 Feb 2022 09:28:21 +0100
+Message-Id: <20220209082828.2629273-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-Cc: linux-block@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [BUG] block: drbd: possible deadlocks involving waiting
- and locking operations
+Cc: linux-block@vger.kernel.org, dm-devel@redhat.com,
+	linux-scsi@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] remove REQ_OP_WRITE_SAME v2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,59 +26,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello,
+Now that we are using REQ_OP_WRITE_ZEROES for all zeroing needs in the
+kernel there is very little use left for REQ_OP_WRITE_SAME.  We only
+have two callers left, and both just export optional protocol features
+to remote systems: DRBD and the target code.
 
-My static analysis tool reports three possible deadlocks in the drbd 
-driver in Linux 5.16:
+For the target code the only real use case was zeroing offload, which
+is kept with this series, and for DRBD I suspect the same based on the
+usage.
 
-#BUG 1
-drbd_adm_attach()
-   mutex_lock(&adm_ctx.resource->adm_mutex); --> Line 1810 (Lock A)
-   wait_event(device->misc_wait, ...); --> Line 1824 (Wait X)
+    git://git.infradead.org/users/hch/block.git delete-write-same
 
-drbd_adm_disk_opts()
-   mutex_lock(&adm_ctx.resource->adm_mutex); --> Line 1582 (Lock A)
-   get_ldev()
-     get_ldev_if_state()
-       _get_ldev_if_state()
-         put_ldev()
-           wake_up(&device->misc_wait); --> Line 2108 (Wake X)
+Gitweb:
 
-#BUG 2
-drbd_adm_invalidate()
-   mutex_lock(&adm_ctx.resource->adm_mutex); --> Line 3024 (Lock A)
-   wait_event(device->misc_wait, ...); --> Line 3030 (Wait X)
+    http://git.infradead.org/users/hch/block.git/shortlog/refs/heads/delete-write-same
 
-drbd_adm_disk_opts()
-   mutex_lock(&adm_ctx.resource->adm_mutex); --> Line 1582 (Lock A)
-   get_ldev()
-     get_ldev_if_state()
-       _get_ldev_if_state()
-         put_ldev()
-           wake_up(&device->misc_wait); --> Line 2108 (Wake X)
+Changes since v2:
+ - split up
+ - rebased ontop of five years of kernel change, including the totally
+   pointless addition of REQ_OP_WRITE_SAME in rnbd
 
-#BUG 3
-drbd_adm_invalidate_peer()
-   mutex_lock(&adm_ctx.resource->adm_mutex); --> Line 3101 (Lock A)
-   wait_event(device->misc_wait, ...); --> Line 3107 (Wait X)
+Changes from RFC:
+ - add zeroing offload for the SCSI target.
 
-drbd_adm_disk_opts()
-   mutex_lock(&adm_ctx.resource->adm_mutex); --> Line 1582 (Lock A)
-   get_ldev()
-     get_ldev_if_state()
-       _get_ldev_if_state()
-         put_ldev()
-           wake_up(&device->misc_wait); --> Line 2108 (Wake X)
-
-When drbd_adm_attach()/drbd_adm_invalidate()/drbd_adm_invalidate_peer() 
-is executed, "Wait X" is performed by holding "Lock A". If 
-drbd_adm_disk_opts() is executed at this time, because "Lock A" has been 
-already held, "Wake X" cannot be performed to wake up "Wait X", causing 
-possible deadlocks.
-
-I am not quite sure whether these possible problems are real.
-Any feedback would be appreciated, thanks :)
-
-Best wishes,
-Jia-Ju Bai
-
+Diffstat:
+ block/blk-core.c                   |   13 -----
+ block/blk-lib.c                    |   91 -------------------------------------
+ block/blk-merge.c                  |   40 ----------------
+ block/blk-settings.c               |   16 ------
+ block/blk-sysfs.c                  |    8 ---
+ block/blk-zoned.c                  |    1 
+ block/blk.h                        |    1 
+ block/bounce.c                     |    3 -
+ drivers/block/drbd/drbd_main.c     |   31 +-----------
+ drivers/block/drbd/drbd_nl.c       |   72 -----------------------------
+ drivers/block/drbd/drbd_receiver.c |   47 ++-----------------
+ drivers/block/drbd/drbd_req.c      |    1 
+ drivers/block/drbd/drbd_worker.c   |    5 --
+ drivers/block/rnbd/rnbd-clt.c      |    7 --
+ drivers/block/rnbd/rnbd-clt.h      |    1 
+ drivers/block/rnbd/rnbd-proto.h    |    6 --
+ drivers/block/rnbd/rnbd-srv.c      |    3 -
+ drivers/md/dm-core.h               |    1 
+ drivers/md/dm-crypt.c              |    1 
+ drivers/md/dm-ebs-target.c         |    1 
+ drivers/md/dm-io.c                 |   22 --------
+ drivers/md/dm-linear.c             |    1 
+ drivers/md/dm-mpath.c              |    1 
+ drivers/md/dm-rq.c                 |    3 -
+ drivers/md/dm-stripe.c             |    4 -
+ drivers/md/dm-table.c              |   29 -----------
+ drivers/md/dm-zone.c               |    4 -
+ drivers/md/dm.c                    |   15 ------
+ drivers/md/md-linear.c             |    1 
+ drivers/md/md-multipath.c          |    1 
+ drivers/md/md.h                    |    7 --
+ drivers/md/raid0.c                 |    2 
+ drivers/md/raid1.c                 |    4 -
+ drivers/md/raid10.c                |    1 
+ drivers/md/raid5.c                 |    1 
+ drivers/scsi/cxlflash/vlun.c       |    4 -
+ drivers/scsi/sd.c                  |   75 ++----------------------------
+ drivers/scsi/sd_zbc.c              |    2 
+ include/linux/bio.h                |    3 -
+ include/linux/blk_types.h          |    2 
+ include/linux/blkdev.h             |   19 -------
+ include/linux/device-mapper.h      |    6 --
+ kernel/trace/blktrace.c            |    1 
+ 43 files changed, 30 insertions(+), 527 deletions(-)
