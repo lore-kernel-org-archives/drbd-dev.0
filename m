@@ -1,20 +1,18 @@
-Return-Path: <guoqing.jiang@linux.dev>
-Received: from out2.migadu.com (out2.migadu.com [188.165.223.204])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B52B3420639
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Feb 2022 10:27:47 +0100 (CET)
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1B6784207D4
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Feb 2022 15:04:51 +0100 (CET)
+Date: Wed, 9 Feb 2022 15:04:48 +0100
+From: Christoph Hellwig <hch@lst.de>
 To: Jinpu Wang <jinpu.wang@ionos.com>
+Message-ID: <20220209140448.GA20765@lst.de>
 References: <20220209082828.2629273-1-hch@lst.de>
 	<20220209082828.2629273-4-hch@lst.de>
-	<4f1565b2-0f83-0cfa-58bd-86d5dee48e51@linux.dev>
-	<CAMGffE=FmVj26PJtu5fwtr3rNbtE+-dcfxOrmT4hEt3sO7Kw2A@mail.gmail.com>
-From: Guoqing Jiang <guoqing.jiang@linux.dev>
-Message-ID: <0b8c9d4d-0fb0-1aee-97b2-f4381e124df2@linux.dev>
-Date: Wed, 9 Feb 2022 17:21:39 +0800
+	<CAMGffE=GMYNsw+mDt1h-BDh3JXkdrP9v2AUF7z0xE7jkumM+RQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAMGffE=FmVj26PJtu5fwtr3rNbtE+-dcfxOrmT4hEt3sO7Kw2A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAMGffE=GMYNsw+mDt1h-BDh3JXkdrP9v2AUF7z0xE7jkumM+RQ@mail.gmail.com>
 Cc: axboe@kernel.dk, manoj@linux.ibm.com, linux-scsi@vger.kernel.org,
 	martin.petersen@oracle.com, philipp.reisner@linbit.com,
 	linux-block@vger.kernel.org, dm-devel@redhat.com,
@@ -34,26 +32,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+On Wed, Feb 09, 2022 at 11:16:13AM +0100, Jinpu Wang wrote:
+> Hi Christoph,
+> 
+> 
+> On Wed, Feb 9, 2022 at 9:28 AM Christoph Hellwig <hch@lst.de> wrote:
+> >
+> > REQ_OP_WRITE_SAME was only ever submitted by the legacy Linux zeroing
+> > code, which has switched to use REQ_OP_WRITE_ZEROES long before rnbd was
+> > even merged.
+> 
+> Do you think if it makes sense to instead of removing
+> REQ_OP_WRITE_SAME, simply convert it to REQ_OP_WRITE_ZEROES?
 
-
-On 2/9/22 5:13 PM, Jinpu Wang wrote:
->>> --- a/drivers/block/rnbd/rnbd-srv.c
->>> +++ b/drivers/block/rnbd/rnbd-srv.c
->>> @@ -548,8 +548,7 @@ static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
->>>                cpu_to_le16(rnbd_dev_get_max_segs(rnbd_dev));
->>>        rsp->max_hw_sectors =
->>>                cpu_to_le32(rnbd_dev_get_max_hw_sects(rnbd_dev));
->>> -     rsp->max_write_same_sectors =
->>> -             cpu_to_le32(bdev_write_same(rnbd_dev->bdev));
->>> +     rsp->max_write_same_sectors = 0;
->> IIUC, I think we can delete max_write_same_sectors from rsp as well given
->> the earlier change in setup_request_queue and rnbd_clt_set_dev_attr.
-> No, I don't think it's a good idea, we need to keep the protocol
-> compatible, so client for old kernel version
-> won't be confused.
-
-Fair enough. Then I guess it is better to add obsolete_ prefix like 
-obsolete_rotational.
-
-Thanks,
-Guoqing
+Well, they have different semantics, so you can't just "convert" it.
+But it might make sense to add REQ_OP_WRITE_ZEROES.
