@@ -1,7 +1,7 @@
 Return-Path: <neilb@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D1E23420012
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:38:48 +0100 (CET)
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 31DA54202C4
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:38:53 +0100 (CET)
 From: NeilBrown <neilb@suse.de>
 To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Wu Fengguang <fengguang.wu@intel.com>, Jaegeuk Kim <jaegeuk@kernel.org>,
@@ -15,7 +15,9 @@ To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
 Date: Thu, 10 Feb 2022 16:37:52 +1100
-Message-ID: <164447124918.23354.17858831070003318849.stgit@noble.brown>
+Message-ID: <164447147258.23354.15753542879688740872.stgit@noble.brown>
+In-Reply-To: <164447124918.23354.17858831070003318849.stgit@noble.brown>
+References: <164447124918.23354.17858831070003318849.stgit@noble.brown>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -25,8 +27,8 @@ Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
 	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 00/11] Remove remaining parts of congestion
-	tracking code.
+Subject: [Drbd-dev] [PATCH 03/11] MM: improve cleanup when ->readpages
+ doesn't process all pages.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,69 +40,61 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Here is a refresh of my "remove congestion tracking" series.
+If ->readpages doesn't process all the pages, then it is best to act as
+though they weren't requested so that a subsequent readahead can try
+again.
+So:
+  - remove any 'ahead' pages from the page cache so they can be loaded
+    with ->readahead() rather then multiple ->read()s
+  - update the file_ra_state to reflect the reads that were actually
+    submitted.
 
-It makes some small changes to readahead so that the effect of the
-inode_read_congested() test in readahead can be duplicated in the
-filesystem.  fuse uses this.
-It add some documentation for readahead, and for that to work, it
-cleans up related doco a bit.
+This allows ->readpages() to abort early due e.g.  to congestion, which
+will then allow us to remove the inode_read_congested() test from
+page_Cache_async_ra().
 
-Andrew: please drop the version of this that is currently in your tree
-even if you don't take this.  The changes to fuse/nfs/ceph are not
-appropriate.
-
-Thanks,
-NeilBrown
-
+Signed-off-by: NeilBrown <neilb@suse.de>
 ---
+ mm/readahead.c |   19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
 
-NeilBrown (11):
-      DOC: convert 'subsection' to 'section' in gfp.h
-      MM: document and polish read-ahead code.
-      MM: improve cleanup when ->readpages doesn't process all pages.
-      fuse: remove reliance on bdi congestion
-      nfs: remove reliance on bdi congestion
-      ceph: remove reliance on bdi congestion
-      Remove inode_congested()
-      Remove bdi_congested() and wb_congested() and related functions
-      f2fs: replace congestion_wait() calls with io_schedule_timeout()
-      block/bfq-iosched.c: use "false" rather than "BLK_RW_ASYNC"
-      Remove congestion tracking framework.
+diff --git a/mm/readahead.c b/mm/readahead.c
+index c44b2957f59f..35a7ebfcb504 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -104,7 +104,13 @@
+  * for necessary resources (e.g.  memory or indexing information) to
+  * become available.  Pages in the final ``async_size`` may be
+  * considered less urgent and failure to read them is more acceptable.
+- * They will eventually be read individually using ->readpage().
++ * In this case it is best to use delete_from_page_cache() to remove the
++ * pages from the page cache as is automatically done for pages that
++ * were not fetched with readahead_page().  This will allow a
++ * subsequent synchronous read ahead request to try them again.  If they
++ * are left in the page cache, then they will be read individually using
++ * ->readpage().
++ *
+  */
+ 
+ #include <linux/kernel.h>
+@@ -226,8 +232,17 @@ static void read_pages(struct readahead_control *rac, struct list_head *pages,
+ 
+ 	if (aops->readahead) {
+ 		aops->readahead(rac);
+-		/* Clean up the remaining pages */
++		/*
++		 * Clean up the remaining pages.  The sizes in ->ra
++		 * maybe be used to size next read-ahead, so make sure
++		 * they accurately reflect what happened.
++		 */
+ 		while ((page = readahead_page(rac))) {
++			rac->ra->size -= 1;
++			if (rac->ra->async_size > 0) {
++				rac->ra->async_size -= 1;
++				delete_from_page_cache(page);
++			}
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
 
-
- Documentation/core-api/mm-api.rst |  19 ++++-
- Documentation/filesystems/vfs.rst |  16 ++--
- block/bfq-iosched.c               |   2 +-
- drivers/block/drbd/drbd_int.h     |   3 -
- drivers/block/drbd/drbd_req.c     |   3 +-
- fs/ceph/addr.c                    |  22 +++---
- fs/ceph/super.c                   |   1 +
- fs/ceph/super.h                   |   1 +
- fs/ext2/ialloc.c                  |   5 --
- fs/f2fs/compress.c                |   4 +-
- fs/f2fs/data.c                    |   3 +-
- fs/f2fs/f2fs.h                    |   6 ++
- fs/f2fs/segment.c                 |   8 +-
- fs/f2fs/super.c                   |   6 +-
- fs/fs-writeback.c                 |  37 ---------
- fs/fuse/control.c                 |  17 ----
- fs/fuse/dev.c                     |   8 --
- fs/fuse/file.c                    |  17 ++++
- fs/nfs/write.c                    |  14 +++-
- fs/nilfs2/segbuf.c                |  15 ----
- fs/xfs/xfs_buf.c                  |   3 -
- include/linux/backing-dev-defs.h  |   8 --
- include/linux/backing-dev.h       |  50 ------------
- include/linux/fs.h                |   9 ++-
- include/linux/nfs_fs_sb.h         |   1 +
- include/trace/events/writeback.h  |  28 -------
- mm/backing-dev.c                  |  57 --------------
- mm/fadvise.c                      |   5 +-
- mm/readahead.c                    | 126 +++++++++++++++++++++++++++---
- mm/vmscan.c                       |  21 +----
- 30 files changed, 214 insertions(+), 301 deletions(-)
-
---
-Signature
 
