@@ -1,7 +1,7 @@
 Return-Path: <neilb@suse.de>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 31DA54202C4
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:38:53 +0100 (CET)
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EC339420012
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:38:59 +0100 (CET)
 From: NeilBrown <neilb@suse.de>
 To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Wu Fengguang <fengguang.wu@intel.com>, Jaegeuk Kim <jaegeuk@kernel.org>,
@@ -15,7 +15,7 @@ To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
 Date: Thu, 10 Feb 2022 16:37:52 +1100
-Message-ID: <164447147258.23354.15753542879688740872.stgit@noble.brown>
+Message-ID: <164447147255.23354.3738954641174277133.stgit@noble.brown>
 In-Reply-To: <164447124918.23354.17858831070003318849.stgit@noble.brown>
 References: <164447124918.23354.17858831070003318849.stgit@noble.brown>
 MIME-Version: 1.0
@@ -27,8 +27,8 @@ Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
 	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/11] MM: improve cleanup when ->readpages
- doesn't process all pages.
+Subject: [Drbd-dev] [PATCH 01/11] DOC: convert 'subsection' to 'section' in
+	gfp.h
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,61 +40,65 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-If ->readpages doesn't process all the pages, then it is best to act as
-though they weren't requested so that a subsequent readahead can try
-again.
-So:
-  - remove any 'ahead' pages from the page cache so they can be loaded
-    with ->readahead() rather then multiple ->read()s
-  - update the file_ra_state to reflect the reads that were actually
-    submitted.
-
-This allows ->readpages() to abort early due e.g.  to congestion, which
-will then allow us to remove the inode_read_congested() test from
-page_Cache_async_ra().
+Various DOC: sections in gfp.h have subsection headers (~~~) but the
+place where they are included in mm-api.rst does not have section, only
+chapters.
+So convert to section headers (---) to avoid confusion.  Specifically if
+section are added later in mm-api.rst, an error results.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- mm/readahead.c |   19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ include/linux/gfp.h |   10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/mm/readahead.c b/mm/readahead.c
-index c44b2957f59f..35a7ebfcb504 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -104,7 +104,13 @@
-  * for necessary resources (e.g.  memory or indexing information) to
-  * become available.  Pages in the final ``async_size`` may be
-  * considered less urgent and failure to read them is more acceptable.
-- * They will eventually be read individually using ->readpage().
-+ * In this case it is best to use delete_from_page_cache() to remove the
-+ * pages from the page cache as is automatically done for pages that
-+ * were not fetched with readahead_page().  This will allow a
-+ * subsequent synchronous read ahead request to try them again.  If they
-+ * are left in the page cache, then they will be read individually using
-+ * ->readpage().
-+ *
-  */
- 
- #include <linux/kernel.h>
-@@ -226,8 +232,17 @@ static void read_pages(struct readahead_control *rac, struct list_head *pages,
- 
- 	if (aops->readahead) {
- 		aops->readahead(rac);
--		/* Clean up the remaining pages */
-+		/*
-+		 * Clean up the remaining pages.  The sizes in ->ra
-+		 * maybe be used to size next read-ahead, so make sure
-+		 * they accurately reflect what happened.
-+		 */
- 		while ((page = readahead_page(rac))) {
-+			rac->ra->size -= 1;
-+			if (rac->ra->async_size > 0) {
-+				rac->ra->async_size -= 1;
-+				delete_from_page_cache(page);
-+			}
- 			unlock_page(page);
- 			put_page(page);
- 		}
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 80f63c862be5..20f6fbe12993 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -79,7 +79,7 @@ struct vm_area_struct;
+  * DOC: Page mobility and placement hints
+  *
+  * Page mobility and placement hints
+- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++ * ---------------------------------
+  *
+  * These flags provide hints about how mobile the page is. Pages with similar
+  * mobility are placed within the same pageblocks to minimise problems due
+@@ -112,7 +112,7 @@ struct vm_area_struct;
+  * DOC: Watermark modifiers
+  *
+  * Watermark modifiers -- controls access to emergency reserves
+- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++ * ------------------------------------------------------------
+  *
+  * %__GFP_HIGH indicates that the caller is high-priority and that granting
+  * the request is necessary before the system can make forward progress.
+@@ -144,7 +144,7 @@ struct vm_area_struct;
+  * DOC: Reclaim modifiers
+  *
+  * Reclaim modifiers
+- * ~~~~~~~~~~~~~~~~~
++ * -----------------
+  * Please note that all the following flags are only applicable to sleepable
+  * allocations (e.g. %GFP_NOWAIT and %GFP_ATOMIC will ignore them).
+  *
+@@ -224,7 +224,7 @@ struct vm_area_struct;
+  * DOC: Action modifiers
+  *
+  * Action modifiers
+- * ~~~~~~~~~~~~~~~~
++ * ----------------
+  *
+  * %__GFP_NOWARN suppresses allocation failure reports.
+  *
+@@ -256,7 +256,7 @@ struct vm_area_struct;
+  * DOC: Useful GFP flag combinations
+  *
+  * Useful GFP flag combinations
+- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++ * ----------------------------
+  *
+  * Useful GFP flag combinations that are commonly used. It is recommended
+  * that subsystems start with one of these combinations and then set/clear
 
 
