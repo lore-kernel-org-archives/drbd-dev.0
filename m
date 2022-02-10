@@ -1,7 +1,7 @@
 Return-Path: <neilb@suse.de>
 Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D9CB3420012
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:39:49 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 88EB64205D8
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:40:00 +0100 (CET)
 From: NeilBrown <neilb@suse.de>
 To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Wu Fengguang <fengguang.wu@intel.com>, Jaegeuk Kim <jaegeuk@kernel.org>,
@@ -15,7 +15,7 @@ To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
 Date: Thu, 10 Feb 2022 16:37:52 +1100
-Message-ID: <164447147258.23354.13665933242616399479.stgit@noble.brown>
+Message-ID: <164447147260.23354.2337728875894445797.stgit@noble.brown>
 In-Reply-To: <164447124918.23354.17858831070003318849.stgit@noble.brown>
 References: <164447124918.23354.17858831070003318849.stgit@noble.brown>
 MIME-Version: 1.0
@@ -27,7 +27,7 @@ Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
 	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/11] fuse: remove reliance on bdi congestion
+Subject: [Drbd-dev] [PATCH 06/11] ceph: remove reliance on bdi congestion
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,143 +41,121 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 The bdi congestion tracking in not widely used and will be removed.
 
-Fuse is one of a small number of filesystems that uses it, setting both
-the sync (read) and async (write) congestion flags at what it determines
-are appropriate times.
+CEPHfs is one of a small number of filesystems that uses it, setting
+just the async (write) congestion flags at what it determines are
+appropriate times.
 
-The only remaining effect of the sync flag is to cause read-ahead to be
-skipped.
 The only remaining effect of the async flag is to cause (some)
 WB_SYNC_NONE writes to be skipped.
 
-So instead of setting the flags, change:
- - .readahead to stop when it has submitted all non-async pages
-    for read.
- - .writepages to do nothing if WB_SYNC_NONE and the flag would be set
+So instead of setting the flag, set an internal flag and change:
+ - .writepages to do nothing if WB_SYNC_NONE and the flag is set
  - .writepage to return AOP_WRITEPAGE_ACTIVATE if WB_SYNC_NONE
-    and the flag would be set.
+    and the flag is set.
 
 The writepages change causes a behavioural change in that pageout() can
 now return PAGE_ACTIVATE instead of PAGE_KEEP, so SetPageActive() will
-be called on the page which (I think) will further delay the next attempt
+be called on the page which (I think) wil further delay the next attempt
 at writeout.  This might be a good thing.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- fs/fuse/control.c |   17 -----------------
- fs/fuse/dev.c     |    8 --------
- fs/fuse/file.c    |   17 +++++++++++++++++
- 3 files changed, 17 insertions(+), 25 deletions(-)
+ fs/ceph/addr.c  |   22 +++++++++++++---------
+ fs/ceph/super.c |    1 +
+ fs/ceph/super.h |    1 +
+ 3 files changed, 15 insertions(+), 9 deletions(-)
 
-diff --git a/fs/fuse/control.c b/fs/fuse/control.c
-index 000d2e5627e9..7cede9a3bc96 100644
---- a/fs/fuse/control.c
-+++ b/fs/fuse/control.c
-@@ -164,7 +164,6 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
- {
- 	unsigned val;
- 	struct fuse_conn *fc;
--	struct fuse_mount *fm;
- 	ssize_t ret;
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index c98e5238a1b6..dc7af34640dd 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -563,7 +563,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
  
- 	ret = fuse_conn_limit_write(file, buf, count, ppos, &val,
-@@ -178,22 +177,6 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
- 	down_read(&fc->killsb);
- 	spin_lock(&fc->bg_lock);
- 	fc->congestion_threshold = val;
--
--	/*
--	 * Get any fuse_mount belonging to this fuse_conn; s_bdi is
--	 * shared between all of them
--	 */
--
--	if (!list_empty(&fc->mounts)) {
--		fm = list_first_entry(&fc->mounts, struct fuse_mount, fc_entry);
--		if (fc->num_background < fc->congestion_threshold) {
--			clear_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
--			clear_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
--		} else {
--			set_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
--			set_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
--		}
--	}
- 	spin_unlock(&fc->bg_lock);
- 	up_read(&fc->killsb);
- 	fuse_conn_put(fc);
-diff --git a/fs/fuse/dev.c b/fs/fuse/dev.c
-index cd54a529460d..e1b4a846c90d 100644
---- a/fs/fuse/dev.c
-+++ b/fs/fuse/dev.c
-@@ -315,10 +315,6 @@ void fuse_request_end(struct fuse_req *req)
- 				wake_up(&fc->blocked_waitq);
- 		}
+ 	if (atomic_long_inc_return(&fsc->writeback_count) >
+ 	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
+-		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
++		fsc->write_congested = true;
  
--		if (fc->num_background == fc->congestion_threshold && fm->sb) {
--			clear_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
--			clear_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
--		}
- 		fc->num_background--;
- 		fc->active_background--;
- 		flush_bg_queue(fc);
-@@ -540,10 +536,6 @@ static bool fuse_request_queue_background(struct fuse_req *req)
- 		fc->num_background++;
- 		if (fc->num_background == fc->max_background)
- 			fc->blocked = 1;
--		if (fc->num_background == fc->congestion_threshold && fm->sb) {
--			set_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
--			set_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
--		}
- 		list_add_tail(&req->list, &fc->bg_queue);
- 		flush_bg_queue(fc);
- 		queued = true;
-diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-index 829094451774..94747bac3489 100644
---- a/fs/fuse/file.c
-+++ b/fs/fuse/file.c
-@@ -966,6 +966,14 @@ static void fuse_readahead(struct readahead_control *rac)
- 		struct fuse_io_args *ia;
- 		struct fuse_args_pages *ap;
+ 	req = ceph_osdc_new_request(osdc, &ci->i_layout, ceph_vino(inode), page_off, &len, 0, 1,
+ 				    CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE, snapc,
+@@ -623,7 +623,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
  
-+		if (fc->num_background >= fc->congestion_threshold &&
-+		    rac->ra->async_size >= readahead_count(rac))
-+			/*
-+			 * Congested and only async pages left, so skip the
-+			 * rest.
-+			 */
-+			break;
-+
- 		nr_pages = readahead_count(rac) - nr_pages;
- 		if (nr_pages > max_pages)
- 			nr_pages = max_pages;
-@@ -1958,6 +1966,7 @@ static int fuse_writepage_locked(struct page *page)
+ 	if (atomic_long_dec_return(&fsc->writeback_count) <
+ 	    CONGESTION_OFF_THRESH(fsc->mount_options->congestion_kb))
+-		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
++		fsc->write_congested = false;
  
- static int fuse_writepage(struct page *page, struct writeback_control *wbc)
- {
-+	struct fuse_conn *fc = get_fuse_conn(page->mapping->host);
- 	int err;
- 
- 	if (fuse_page_is_writeback(page->mapping->host, page->index)) {
-@@ -1973,6 +1982,10 @@ static int fuse_writepage(struct page *page, struct writeback_control *wbc)
- 		return 0;
- 	}
+ 	return err;
+ }
+@@ -635,6 +635,10 @@ static int ceph_writepage(struct page *page, struct writeback_control *wbc)
+ 	BUG_ON(!inode);
+ 	ihold(inode);
  
 +	if (wbc->sync_mode == WB_SYNC_NONE &&
-+	    fc->num_background >= fc->congestion_threshold)
++	    ceph_inode_to_client(inode)->write_congested)
 +		return AOP_WRITEPAGE_ACTIVATE;
 +
- 	err = fuse_writepage_locked(page);
- 	unlock_page(page);
+ 	wait_on_page_fscache(page);
  
-@@ -2226,6 +2239,10 @@ static int fuse_writepages(struct address_space *mapping,
- 	if (fuse_is_bad(inode))
- 		goto out;
+ 	err = writepage_nounlock(page, wbc);
+@@ -707,8 +711,7 @@ static void writepages_finish(struct ceph_osd_request *req)
+ 			if (atomic_long_dec_return(&fsc->writeback_count) <
+ 			     CONGESTION_OFF_THRESH(
+ 					fsc->mount_options->congestion_kb))
+-				clear_bdi_congested(inode_to_bdi(inode),
+-						    BLK_RW_ASYNC);
++				fsc->write_congested = false;
+ 
+ 			ceph_put_snap_context(detach_page_private(page));
+ 			end_page_writeback(page);
+@@ -760,6 +763,10 @@ static int ceph_writepages_start(struct address_space *mapping,
+ 	bool done = false;
+ 	bool caching = ceph_is_cache_enabled(inode);
  
 +	if (wbc->sync_mode == WB_SYNC_NONE &&
-+	    fc->num_background >= fc->congestion_threshold)
++	    fsc->write_congested)
 +		return 0;
 +
- 	data.inode = inode;
- 	data.wpa = NULL;
- 	data.ff = NULL;
+ 	dout("writepages_start %p (mode=%s)\n", inode,
+ 	     wbc->sync_mode == WB_SYNC_NONE ? "NONE" :
+ 	     (wbc->sync_mode == WB_SYNC_ALL ? "ALL" : "HOLD"));
+@@ -954,11 +961,8 @@ static int ceph_writepages_start(struct address_space *mapping,
+ 
+ 			if (atomic_long_inc_return(&fsc->writeback_count) >
+ 			    CONGESTION_ON_THRESH(
+-				    fsc->mount_options->congestion_kb)) {
+-				set_bdi_congested(inode_to_bdi(inode),
+-						  BLK_RW_ASYNC);
+-			}
+-
++				    fsc->mount_options->congestion_kb))
++				fsc->write_congested = true;
+ 
+ 			pages[locked_pages++] = page;
+ 			pvec.pages[i] = NULL;
+diff --git a/fs/ceph/super.c b/fs/ceph/super.c
+index bf79f369aec6..4a3b77d049c7 100644
+--- a/fs/ceph/super.c
++++ b/fs/ceph/super.c
+@@ -802,6 +802,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
+ 	fsc->have_copy_from2 = true;
+ 
+ 	atomic_long_set(&fsc->writeback_count, 0);
++	fsc->write_congested = false;
+ 
+ 	err = -ENOMEM;
+ 	/*
+diff --git a/fs/ceph/super.h b/fs/ceph/super.h
+index 67f145e1ae7a..0bd97aea2319 100644
+--- a/fs/ceph/super.h
++++ b/fs/ceph/super.h
+@@ -121,6 +121,7 @@ struct ceph_fs_client {
+ 	struct ceph_mds_client *mdsc;
+ 
+ 	atomic_long_t writeback_count;
++	bool write_congested;
+ 
+ 	struct workqueue_struct *inode_wq;
+ 	struct workqueue_struct *cap_wq;
 
 
