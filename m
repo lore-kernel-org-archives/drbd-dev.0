@@ -1,7 +1,7 @@
 Return-Path: <neilb@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E2EF042006B
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:41:05 +0100 (CET)
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DC1B3420126
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:41:25 +0100 (CET)
 From: NeilBrown <neilb@suse.de>
 To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Wu Fengguang <fengguang.wu@intel.com>, Jaegeuk Kim <jaegeuk@kernel.org>,
@@ -15,7 +15,7 @@ To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
 Date: Thu, 10 Feb 2022 16:37:52 +1100
-Message-ID: <164447147261.23354.14022902241501698367.stgit@noble.brown>
+Message-ID: <164447147263.23354.4653093481289339536.stgit@noble.brown>
 In-Reply-To: <164447124918.23354.17858831070003318849.stgit@noble.brown>
 References: <164447124918.23354.17858831070003318849.stgit@noble.brown>
 MIME-Version: 1.0
@@ -27,7 +27,8 @@ Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
 	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 07/11] Remove inode_congested()
+Subject: [Drbd-dev] [PATCH 09/11] f2fs: replace congestion_wait() calls with
+ io_schedule_timeout()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,186 +40,122 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-inode_congested() reports if the backing-device for the inode is
-congested.  No bdi reports congestion any more, so this always
-returns 'false'.
-
-So remove inode_congested() and related functions, and remove the call
-sites, assuming that inode_congested() always returns 'false'.
+As congestion is no longer tracked, congestion_wait() is effectively
+equivalent to io_schedule_timeout().
+So introduce f2fs_io_schedule_timeout() which sets TASK_UNINTERRUPTIBLE
+and call that instead.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- fs/fs-writeback.c           |   37 -------------------------------------
- include/linux/backing-dev.h |   22 ----------------------
- mm/fadvise.c                |    5 ++---
- mm/readahead.c              |    6 ------
- mm/vmscan.c                 |   17 +----------------
- 5 files changed, 3 insertions(+), 84 deletions(-)
+ fs/f2fs/compress.c |    4 +---
+ fs/f2fs/data.c     |    3 +--
+ fs/f2fs/f2fs.h     |    6 ++++++
+ fs/f2fs/segment.c  |    8 +++-----
+ fs/f2fs/super.c    |    6 ++----
+ 5 files changed, 13 insertions(+), 14 deletions(-)
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index f8d7fe6db989..42a3dfad40b8 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -893,43 +893,6 @@ void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
- }
- EXPORT_SYMBOL_GPL(wbc_account_cgroup_owner);
- 
--/**
-- * inode_congested - test whether an inode is congested
-- * @inode: inode to test for congestion (may be NULL)
-- * @cong_bits: mask of WB_[a]sync_congested bits to test
-- *
-- * Tests whether @inode is congested.  @cong_bits is the mask of congestion
-- * bits to test and the return value is the mask of set bits.
-- *
-- * If cgroup writeback is enabled for @inode, the congestion state is
-- * determined by whether the cgwb (cgroup bdi_writeback) for the blkcg
-- * associated with @inode is congested; otherwise, the root wb's congestion
-- * state is used.
-- *
-- * @inode is allowed to be NULL as this function is often called on
-- * mapping->host which is NULL for the swapper space.
-- */
--int inode_congested(struct inode *inode, int cong_bits)
--{
--	/*
--	 * Once set, ->i_wb never becomes NULL while the inode is alive.
--	 * Start transaction iff ->i_wb is visible.
--	 */
--	if (inode && inode_to_wb_is_valid(inode)) {
--		struct bdi_writeback *wb;
--		struct wb_lock_cookie lock_cookie = {};
--		bool congested;
--
--		wb = unlocked_inode_to_wb_begin(inode, &lock_cookie);
--		congested = wb_congested(wb, cong_bits);
--		unlocked_inode_to_wb_end(inode, &lock_cookie);
--		return congested;
--	}
--
--	return wb_congested(&inode_to_bdi(inode)->wb, cong_bits);
--}
--EXPORT_SYMBOL_GPL(inode_congested);
--
- /**
-  * wb_split_bdi_pages - split nr_pages to write according to bandwidth
-  * @wb: target bdi_writeback to split @nr_pages to
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 483979c1b9f4..860b675c2929 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -162,7 +162,6 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
- 				    gfp_t gfp);
- void wb_memcg_offline(struct mem_cgroup *memcg);
- void wb_blkcg_offline(struct blkcg *blkcg);
--int inode_congested(struct inode *inode, int cong_bits);
- 
- /**
-  * inode_cgwb_enabled - test whether cgroup writeback is enabled on an inode
-@@ -390,29 +389,8 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
- {
+diff --git a/fs/f2fs/compress.c b/fs/f2fs/compress.c
+index d0c3aeba5945..2f95559025ad 100644
+--- a/fs/f2fs/compress.c
++++ b/fs/f2fs/compress.c
+@@ -1505,9 +1505,7 @@ static int f2fs_write_raw_pages(struct compress_ctx *cc,
+ 				if (IS_NOQUOTA(cc->inode))
+ 					return 0;
+ 				ret = 0;
+-				cond_resched();
+-				congestion_wait(BLK_RW_ASYNC,
+-						DEFAULT_IO_TIMEOUT);
++				f2fs_io_schedule_timeout(DEFAULT_IO_TIMEOUT);
+ 				goto retry_write;
+ 			}
+ 			return ret;
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index 8c417864c66a..d428ddfd42ee 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
+@@ -3047,8 +3047,7 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
+ 				} else if (ret == -EAGAIN) {
+ 					ret = 0;
+ 					if (wbc->sync_mode == WB_SYNC_ALL) {
+-						cond_resched();
+-						congestion_wait(BLK_RW_ASYNC,
++						f2fs_io_schedule_timeout(
+ 							DEFAULT_IO_TIMEOUT);
+ 						goto retry_write;
+ 					}
+diff --git a/fs/f2fs/f2fs.h b/fs/f2fs/f2fs.h
+index 68b44015514f..467f5dbdc7d1 100644
+--- a/fs/f2fs/f2fs.h
++++ b/fs/f2fs/f2fs.h
+@@ -4426,6 +4426,12 @@ static inline bool f2fs_block_unit_discard(struct f2fs_sb_info *sbi)
+ 	return F2FS_OPTION(sbi).discard_unit == DISCARD_UNIT_BLOCK;
  }
  
--static inline int inode_congested(struct inode *inode, int cong_bits)
--{
--	return wb_congested(&inode_to_bdi(inode)->wb, cong_bits);
--}
--
- #endif	/* CONFIG_CGROUP_WRITEBACK */
++static inline void f2fs_io_schedule_timeout(long timeout)
++{
++	set_current_state(TASK_UNINTERRUPTIBLE);
++	io_schedule_timeout(timeout);
++}
++
+ #define EFSBADCRC	EBADMSG		/* Bad CRC detected */
+ #define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
  
--static inline int inode_read_congested(struct inode *inode)
--{
--	return inode_congested(inode, 1 << WB_sync_congested);
--}
--
--static inline int inode_write_congested(struct inode *inode)
--{
--	return inode_congested(inode, 1 << WB_async_congested);
--}
--
--static inline int inode_rw_congested(struct inode *inode)
--{
--	return inode_congested(inode, (1 << WB_sync_congested) |
--				      (1 << WB_async_congested));
--}
--
- static inline int bdi_congested(struct backing_dev_info *bdi, int cong_bits)
- {
- 	return wb_congested(&bdi->wb, cong_bits);
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index d6baa4f451c5..338f16022012 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -109,9 +109,8 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
- 	case POSIX_FADV_NOREUSE:
- 		break;
- 	case POSIX_FADV_DONTNEED:
--		if (!inode_write_congested(mapping->host))
--			__filemap_fdatawrite_range(mapping, offset, endbyte,
--						   WB_SYNC_NONE);
-+		__filemap_fdatawrite_range(mapping, offset, endbyte,
-+					   WB_SYNC_NONE);
- 
- 		/*
- 		 * First and last FULL page! Partial pages are deliberately
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 35a7ebfcb504..31127d5f909f 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -709,12 +709,6 @@ void page_cache_async_ra(struct readahead_control *ractl,
- 
- 	folio_clear_readahead(folio);
- 
--	/*
--	 * Defer asynchronous read-ahead on IO congestion.
--	 */
--	if (inode_read_congested(ractl->mapping->host))
--		return;
--
- 	if (blk_cgroup_congested())
- 		return;
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 090bfb605ecf..ce8492939bd3 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -989,17 +989,6 @@ static inline int is_page_cache_freeable(struct page *page)
- 	return page_count(page) - page_has_private(page) == 1 + page_cache_pins;
- }
- 
--static int may_write_to_inode(struct inode *inode)
--{
--	if (current->flags & PF_SWAPWRITE)
--		return 1;
--	if (!inode_write_congested(inode))
--		return 1;
--	if (inode_to_bdi(inode) == current->backing_dev_info)
--		return 1;
--	return 0;
--}
--
- /*
-  * We detected a synchronous write error writing a page out.  Probably
-  * -ENOSPC.  We need to propagate that into the address_space for a subsequent
-@@ -1199,8 +1188,6 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
+diff --git a/fs/f2fs/segment.c b/fs/f2fs/segment.c
+index 1dabc8244083..6ff20da44ad7 100644
+--- a/fs/f2fs/segment.c
++++ b/fs/f2fs/segment.c
+@@ -313,8 +313,7 @@ void f2fs_drop_inmem_pages_all(struct f2fs_sb_info *sbi, bool gc_failure)
+ skip:
+ 		iput(inode);
  	}
- 	if (mapping->a_ops->writepage == NULL)
- 		return PAGE_ACTIVATE;
--	if (!may_write_to_inode(mapping->host))
--		return PAGE_KEEP;
+-	congestion_wait(BLK_RW_ASYNC, DEFAULT_IO_TIMEOUT);
+-	cond_resched();
++	f2fs_io_schedule_timeout(DEFAULT_IO_TIMEOUT);
+ 	if (gc_failure) {
+ 		if (++looped >= count)
+ 			return;
+@@ -803,8 +802,7 @@ int f2fs_flush_device_cache(struct f2fs_sb_info *sbi)
+ 		do {
+ 			ret = __submit_flush_wait(sbi, FDEV(i).bdev);
+ 			if (ret)
+-				congestion_wait(BLK_RW_ASYNC,
+-						DEFAULT_IO_TIMEOUT);
++				f2fs_io_schedule_timeout(DEFAULT_IO_TIMEOUT);
+ 		} while (ret && --count);
  
- 	if (clear_page_dirty_for_io(page)) {
- 		int res;
-@@ -1576,9 +1563,7 @@ static unsigned int shrink_page_list(struct list_head *page_list,
- 		 * end of the LRU a second time.
- 		 */
- 		mapping = page_mapping(page);
--		if (((dirty || writeback) && mapping &&
--		     inode_write_congested(mapping->host)) ||
--		    (writeback && PageReclaim(page)))
-+		if (writeback && PageReclaim(page))
- 			stat->nr_congested++;
+ 		if (ret) {
+@@ -3133,7 +3131,7 @@ static unsigned int __issue_discard_cmd_range(struct f2fs_sb_info *sbi,
+ 			blk_finish_plug(&plug);
+ 			mutex_unlock(&dcc->cmd_lock);
+ 			trimmed += __wait_all_discard_cmd(sbi, NULL);
+-			congestion_wait(BLK_RW_ASYNC, DEFAULT_IO_TIMEOUT);
++			f2fs_io_schedule_timeout(DEFAULT_IO_TIMEOUT);
+ 			goto next;
+ 		}
+ skip:
+diff --git a/fs/f2fs/super.c b/fs/f2fs/super.c
+index baefd398ec1a..ebd32daf052c 100644
+--- a/fs/f2fs/super.c
++++ b/fs/f2fs/super.c
+@@ -2135,8 +2135,7 @@ static void f2fs_enable_checkpoint(struct f2fs_sb_info *sbi)
+ 	/* we should flush all the data to keep data consistency */
+ 	do {
+ 		sync_inodes_sb(sbi->sb);
+-		cond_resched();
+-		congestion_wait(BLK_RW_ASYNC, DEFAULT_IO_TIMEOUT);
++		f2fs_io_schedule_timeout(DEFAULT_IO_TIMEOUT);
+ 	} while (get_pages(sbi, F2FS_DIRTY_DATA) && retry--);
  
- 		/*
+ 	if (unlikely(retry < 0))
+@@ -2504,8 +2503,7 @@ static ssize_t f2fs_quota_write(struct super_block *sb, int type,
+ 							&page, &fsdata);
+ 		if (unlikely(err)) {
+ 			if (err == -ENOMEM) {
+-				congestion_wait(BLK_RW_ASYNC,
+-						DEFAULT_IO_TIMEOUT);
++				f2fs_io_schedule_timeout(DEFAULT_IO_TIMEOUT);
+ 				goto retry;
+ 			}
+ 			set_sbi_flag(F2FS_SB(sb), SBI_QUOTA_NEED_REPAIR);
 
 
