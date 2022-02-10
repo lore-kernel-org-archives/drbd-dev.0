@@ -1,7 +1,7 @@
 Return-Path: <neilb@suse.de>
 Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 53380420636
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:41:36 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8D8D94205D8
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:42:14 +0100 (CET)
 From: NeilBrown <neilb@suse.de>
 To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Wu Fengguang <fengguang.wu@intel.com>, Jaegeuk Kim <jaegeuk@kernel.org>,
@@ -15,7 +15,7 @@ To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
 Date: Thu, 10 Feb 2022 16:37:52 +1100
-Message-ID: <164447147262.23354.13106570458589592051.stgit@noble.brown>
+Message-ID: <164447147265.23354.13590371223377061333.stgit@noble.brown>
 In-Reply-To: <164447124918.23354.17858831070003318849.stgit@noble.brown>
 References: <164447124918.23354.17858831070003318849.stgit@noble.brown>
 MIME-Version: 1.0
@@ -27,8 +27,7 @@ Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-block@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
 	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/11] Remove bdi_congested() and wb_congested()
- and related functions
+Subject: [Drbd-dev] [PATCH 11/11] Remove congestion tracking framework.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,177 +39,151 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-These functions are no longer useful as no BDIs report congestions any
-more.
+This framework is no longer used - so discard it.
 
-Removing the test on bdi_write_contested() in current_may_throttle()
-could cause a small change in behaviour, but only when PF_LOCAL_THROTTLE
-is set.
-
-So replace the calls by 'false' and simplify the code - and remove the
-functions.
-
-Acked-by: Ryusuke Konishi <konishi.ryusuke@gmail.com> (for nilfs bits)
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- drivers/block/drbd/drbd_int.h |    3 ---
- drivers/block/drbd/drbd_req.c |    3 +--
- fs/ext2/ialloc.c              |    5 -----
- fs/nilfs2/segbuf.c            |   15 ---------------
- fs/xfs/xfs_buf.c              |    3 ---
- include/linux/backing-dev.h   |   26 --------------------------
- mm/vmscan.c                   |    4 +---
- 7 files changed, 2 insertions(+), 57 deletions(-)
+ include/linux/backing-dev-defs.h |    8 -----
+ include/linux/backing-dev.h      |    2 -
+ include/trace/events/writeback.h |   28 -------------------
+ mm/backing-dev.c                 |   57 --------------------------------------
+ 4 files changed, 95 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index f27d5b0f9a0b..f804b1bfb3e6 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -638,9 +638,6 @@ enum {
- 	STATE_SENT,		/* Do not change state/UUIDs while this is set */
- 	CALLBACK_PENDING,	/* Whether we have a call_usermodehelper(, UMH_WAIT_PROC)
- 				 * pending, from drbd worker context.
--				 * If set, bdi_write_congested() returns true,
--				 * so shrink_page_list() would not recurse into,
--				 * and potentially deadlock on, this drbd worker.
- 				 */
- 	DISCONNECT_SENT,
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index 993c5628a726..e863c88df95f 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -207,14 +207,6 @@ struct backing_dev_info {
+ #endif
+ };
  
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 3235532ae077..2e5fb7e442e3 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -909,8 +909,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
- 
- 	switch (rbm) {
- 	case RB_CONGESTED_REMOTE:
--		return bdi_read_congested(
--			device->ldev->backing_bdev->bd_disk->bdi);
-+		return 0;
- 	case RB_LEAST_PENDING:
- 		return atomic_read(&device->local_cnt) >
- 			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
-diff --git a/fs/ext2/ialloc.c b/fs/ext2/ialloc.c
-index df14e750e9fe..998dd2ac8008 100644
---- a/fs/ext2/ialloc.c
-+++ b/fs/ext2/ialloc.c
-@@ -170,11 +170,6 @@ static void ext2_preread_inode(struct inode *inode)
- 	unsigned long offset;
- 	unsigned long block;
- 	struct ext2_group_desc * gdp;
--	struct backing_dev_info *bdi;
+-enum {
+-	BLK_RW_ASYNC	= 0,
+-	BLK_RW_SYNC	= 1,
+-};
 -
--	bdi = inode_to_bdi(inode);
--	if (bdi_rw_congested(bdi))
--		return;
- 
- 	block_group = (inode->i_ino - 1) / EXT2_INODES_PER_GROUP(inode->i_sb);
- 	gdp = ext2_get_group_desc(inode->i_sb, block_group, NULL);
-diff --git a/fs/nilfs2/segbuf.c b/fs/nilfs2/segbuf.c
-index 43287b0d3e9b..c4510f79037f 100644
---- a/fs/nilfs2/segbuf.c
-+++ b/fs/nilfs2/segbuf.c
-@@ -343,17 +343,6 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
- 	struct bio *bio = wi->bio;
- 	int err;
- 
--	if (segbuf->sb_nbio > 0 &&
--	    bdi_write_congested(segbuf->sb_super->s_bdi)) {
--		wait_for_completion(&segbuf->sb_bio_event);
--		segbuf->sb_nbio--;
--		if (unlikely(atomic_read(&segbuf->sb_err))) {
--			bio_put(bio);
--			err = -EIO;
--			goto failed;
--		}
--	}
+-void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
+-void set_bdi_congested(struct backing_dev_info *bdi, int sync);
 -
- 	bio->bi_end_io = nilfs_end_bio_write;
- 	bio->bi_private = segbuf;
- 	bio_set_op_attrs(bio, mode, mode_flags);
-@@ -365,10 +354,6 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
- 	wi->nr_vecs = min(wi->max_pages, wi->rest_blocks);
- 	wi->start = wi->end;
- 	return 0;
--
-- failed:
--	wi->bio = NULL;
--	return err;
- }
- 
- /**
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index b45e0d50a405..b7ebcfe6b8d3 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -843,9 +843,6 @@ xfs_buf_readahead_map(
- {
- 	struct xfs_buf		*bp;
- 
--	if (bdi_read_congested(target->bt_bdev->bd_disk->bdi))
--		return;
--
- 	xfs_buf_read_map(target, map, nmaps,
- 		     XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD, &bp, ops,
- 		     __this_address);
+ struct wb_lock_cookie {
+ 	bool locked;
+ 	unsigned long flags;
 diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 860b675c2929..2d764566280c 100644
+index 2d764566280c..87ce24d238f3 100644
 --- a/include/linux/backing-dev.h
 +++ b/include/linux/backing-dev.h
-@@ -135,11 +135,6 @@ static inline bool writeback_in_progress(struct bdi_writeback *wb)
+@@ -135,8 +135,6 @@ static inline bool writeback_in_progress(struct bdi_writeback *wb)
  
  struct backing_dev_info *inode_to_bdi(struct inode *inode);
  
--static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
--{
--	return wb->congested & cong_bits;
--}
+-long congestion_wait(int sync, long timeout);
 -
- long congestion_wait(int sync, long timeout);
- 
  static inline bool mapping_can_writeback(struct address_space *mapping)
-@@ -391,27 +386,6 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
- 
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
--static inline int bdi_congested(struct backing_dev_info *bdi, int cong_bits)
--{
--	return wb_congested(&bdi->wb, cong_bits);
--}
--
--static inline int bdi_read_congested(struct backing_dev_info *bdi)
--{
--	return bdi_congested(bdi, 1 << WB_sync_congested);
--}
--
--static inline int bdi_write_congested(struct backing_dev_info *bdi)
--{
--	return bdi_congested(bdi, 1 << WB_async_congested);
--}
--
--static inline int bdi_rw_congested(struct backing_dev_info *bdi)
--{
--	return bdi_congested(bdi, (1 << WB_sync_congested) |
--				  (1 << WB_async_congested));
--}
--
- const char *bdi_dev_name(struct backing_dev_info *bdi);
- 
- #endif	/* _LINUX_BACKING_DEV_H */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ce8492939bd3..0b930556c4f2 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2362,9 +2362,7 @@ static unsigned int move_pages_to_lru(struct lruvec *lruvec,
-  */
- static int current_may_throttle(void)
  {
--	return !(current->flags & PF_LOCAL_THROTTLE) ||
--		current->backing_dev_info == NULL ||
--		bdi_write_congested(current->backing_dev_info);
-+	return !(current->flags & PF_LOCAL_THROTTLE);
- }
+ 	return inode_to_bdi(mapping->host)->capabilities & BDI_CAP_WRITEBACK;
+diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+index a345b1e12daf..86b2a82da546 100644
+--- a/include/trace/events/writeback.h
++++ b/include/trace/events/writeback.h
+@@ -735,34 +735,6 @@ TRACE_EVENT(writeback_sb_inodes_requeue,
+ 	)
+ );
  
- /*
+-DECLARE_EVENT_CLASS(writeback_congest_waited_template,
+-
+-	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
+-
+-	TP_ARGS(usec_timeout, usec_delayed),
+-
+-	TP_STRUCT__entry(
+-		__field(	unsigned int,	usec_timeout	)
+-		__field(	unsigned int,	usec_delayed	)
+-	),
+-
+-	TP_fast_assign(
+-		__entry->usec_timeout	= usec_timeout;
+-		__entry->usec_delayed	= usec_delayed;
+-	),
+-
+-	TP_printk("usec_timeout=%u usec_delayed=%u",
+-			__entry->usec_timeout,
+-			__entry->usec_delayed)
+-);
+-
+-DEFINE_EVENT(writeback_congest_waited_template, writeback_congestion_wait,
+-
+-	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
+-
+-	TP_ARGS(usec_timeout, usec_delayed)
+-);
+-
+ DECLARE_EVENT_CLASS(writeback_single_inode_template,
+ 
+ 	TP_PROTO(struct inode *inode,
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index eae96dfe0261..7176af65b103 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -1005,60 +1005,3 @@ const char *bdi_dev_name(struct backing_dev_info *bdi)
+ 	return bdi->dev_name;
+ }
+ EXPORT_SYMBOL_GPL(bdi_dev_name);
+-
+-static wait_queue_head_t congestion_wqh[2] = {
+-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
+-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
+-	};
+-static atomic_t nr_wb_congested[2];
+-
+-void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+-{
+-	wait_queue_head_t *wqh = &congestion_wqh[sync];
+-	enum wb_congested_state bit;
+-
+-	bit = sync ? WB_sync_congested : WB_async_congested;
+-	if (test_and_clear_bit(bit, &bdi->wb.congested))
+-		atomic_dec(&nr_wb_congested[sync]);
+-	smp_mb__after_atomic();
+-	if (waitqueue_active(wqh))
+-		wake_up(wqh);
+-}
+-EXPORT_SYMBOL(clear_bdi_congested);
+-
+-void set_bdi_congested(struct backing_dev_info *bdi, int sync)
+-{
+-	enum wb_congested_state bit;
+-
+-	bit = sync ? WB_sync_congested : WB_async_congested;
+-	if (!test_and_set_bit(bit, &bdi->wb.congested))
+-		atomic_inc(&nr_wb_congested[sync]);
+-}
+-EXPORT_SYMBOL(set_bdi_congested);
+-
+-/**
+- * congestion_wait - wait for a backing_dev to become uncongested
+- * @sync: SYNC or ASYNC IO
+- * @timeout: timeout in jiffies
+- *
+- * Waits for up to @timeout jiffies for a backing_dev (any backing_dev) to exit
+- * write congestion.  If no backing_devs are congested then just wait for the
+- * next write to be completed.
+- */
+-long congestion_wait(int sync, long timeout)
+-{
+-	long ret;
+-	unsigned long start = jiffies;
+-	DEFINE_WAIT(wait);
+-	wait_queue_head_t *wqh = &congestion_wqh[sync];
+-
+-	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
+-	ret = io_schedule_timeout(timeout);
+-	finish_wait(wqh, &wait);
+-
+-	trace_writeback_congestion_wait(jiffies_to_usecs(timeout),
+-					jiffies_to_usecs(jiffies - start));
+-
+-	return ret;
+-}
+-EXPORT_SYMBOL(congestion_wait);
 
 
