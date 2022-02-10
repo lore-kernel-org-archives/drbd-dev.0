@@ -1,24 +1,37 @@
-Return-Path: <hch@lst.de>
-Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 45CB7420BB1
-	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 06:51:53 +0100 (CET)
-Date: Thu, 10 Feb 2022 06:51:51 +0100
-From: Christoph Hellwig <hch@lst.de>
-To: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-ID: <20220210055151.GA3491@lst.de>
-References: <20220209082828.2629273-1-hch@lst.de>
-	<yq1wni3sz4k.fsf@ca-mkp.ca.oracle.com>
+Return-Path: <jack@suse.cz>
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 31019420164
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Feb 2022 11:09:23 +0100 (CET)
+Date: Thu, 10 Feb 2022 11:02:22 +0100
+From: Jan Kara <jack@suse.cz>
+To: NeilBrown <neilb@suse.de>
+Message-ID: <20220210100222.f2nmwwb5pcfmejvw@quack3.lan>
+References: <164447124918.23354.17858831070003318849.stgit@noble.brown>
+	<164447147264.23354.2763356897218946255.stgit@noble.brown>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <yq1wni3sz4k.fsf@ca-mkp.ca.oracle.com>
-Cc: axboe@kernel.dk, manoj@linux.ibm.com, linux-scsi@vger.kernel.org,
-	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
-	dm-devel@redhat.com, target-devel@vger.kernel.org,
-	haris.iqbal@ionos.com, ukrishn@linux.ibm.com,
-	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com,
-	jinpu.wang@ionos.com, Christoph Hellwig <hch@lst.de>, mrochs@linux.ibm.com
-Subject: Re: [Drbd-dev] remove REQ_OP_WRITE_SAME v2
+In-Reply-To: <164447147264.23354.2763356897218946255.stgit@noble.brown>
+Cc: Jan Kara <jack@suse.cz>, linux-doc@vger.kernel.org,
+	"Darrick J. Wong" <djwong@kernel.org>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	drbd-dev@lists.linbit.com, Paolo Valente <paolo.valente@linaro.org>,
+	Miklos Szeredi <miklos@szeredi.hu>,
+	Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Ilya Dryomov <idryomov@gmail.com>, linux-ext4@vger.kernel.org,
+	Chao Yu <chao@kernel.org>, linux-block@vger.kernel.org,
+	linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>,
+	ceph-devel@vger.kernel.org, Ryusuke Konishi <konishi.ryusuke@gmail.com>,
+	Jens Axboe <axboe@kernel.dk>, linux-nfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Jeff Layton <jlayton@kernel.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Wu Fengguang <fengguang.wu@intel.com>,
+	Anna Schumaker <anna.schumaker@netapp.com>
+Subject: Re: [Drbd-dev] [PATCH 10/11] block/bfq-iosched.c: use "false"
+ rather than "BLK_RW_ASYNC"
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,21 +43,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Feb 09, 2022 at 01:00:26PM -0500, Martin K. Petersen wrote:
+On Thu 10-02-22 16:37:52, NeilBrown wrote:
+> bfq_get_queue() expects a "bool" for the third arg, so pass "false"
+> rather than "BLK_RW_ASYNC" which will soon be removed.
 > 
-> Christoph,
-> 
-> > Now that we are using REQ_OP_WRITE_ZEROES for all zeroing needs in the
-> > kernel there is very little use left for REQ_OP_WRITE_SAME.  We only
-> > have two callers left, and both just export optional protocol features
-> > to remote systems: DRBD and the target code.
-> 
-> No particular objections from me. I had a half-baked series to do the
-> same thing.
-> 
-> One thing I would like is to either pull this series through SCSI or do
-> the block pieces in a post merge branch because I'm about to post my
-> discard/zeroing rework and that's going to clash with your changes.
+> Acked-by: Jens Axboe <axboe@kernel.dk>
+> Signed-off-by: NeilBrown <neilb@suse.de>
 
-I'd be fine with taking this through the SCSI tree.  Or we can wait
-another merge window to make your life easier.
+Looks good. Feel free to add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
+> ---
+>  block/bfq-iosched.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/block/bfq-iosched.c b/block/bfq-iosched.c
+> index 0c612a911696..4e645ae1e066 100644
+> --- a/block/bfq-iosched.c
+> +++ b/block/bfq-iosched.c
+> @@ -5448,7 +5448,7 @@ static void bfq_check_ioprio_change(struct bfq_io_cq *bic, struct bio *bio)
+>  	bfqq = bic_to_bfqq(bic, false);
+>  	if (bfqq) {
+>  		bfq_release_process_ref(bfqd, bfqq);
+> -		bfqq = bfq_get_queue(bfqd, bio, BLK_RW_ASYNC, bic, true);
+> +		bfqq = bfq_get_queue(bfqd, bio, false, bic, true);
+>  		bic_set_bfqq(bic, bfqq, false);
+>  	}
+>  
+> 
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
