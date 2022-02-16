@@ -1,23 +1,28 @@
-Return-Path: <corbet@lwn.net>
-Received: from ms.lwn.net (ms.lwn.net [45.79.88.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1E24242036B
-	for <drbd-dev@lists.linbit.com>; Wed, 16 Feb 2022 00:40:16 +0100 (CET)
-From: Jonathan Corbet <corbet@lwn.net>
-To: Ethan Dye <mrtops03@gmail.com>
-In-Reply-To: <20220207235442.95090-1-mrtops03@gmail.com>
-References: <20220207235442.95090-1-mrtops03@gmail.com>
-Date: Tue, 15 Feb 2022 16:32:23 -0700
-Message-ID: <874k4z7lko.fsf@meer.lwn.net>
+Return-Path: <snitzer@redhat.com>
+Received: from us-smtp-delivery-124.mimecast.com
+	(us-smtp-delivery-124.mimecast.com [170.10.133.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B6DA94201F0
+	for <drbd-dev@lists.linbit.com>; Wed, 16 Feb 2022 19:45:12 +0100 (CET)
+Received: by mail-qk1-f200.google.com with SMTP id
+	q24-20020a05620a0c9800b0060d5d0b7a90so641474qki.11
+	for <drbd-dev@lists.linbit.com>; Wed, 16 Feb 2022 10:45:10 -0800 (PST)
+Date: Wed, 16 Feb 2022 13:45:08 -0500
+From: Mike Snitzer <snitzer@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <Yg1GNMD6jIrKOxBE@redhat.com>
+References: <20220209082828.2629273-1-hch@lst.de>
+	<20220209082828.2629273-7-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain
-Cc: Nitin, linux-doc@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com,
-	Sergey Senozhatsky <senozhatsky@chromium.org>,
-	Gupta <ngupta@vflare.org>, Ethan Dye <mrtops03@gmail.com>
-Subject: Re: [Drbd-dev] [PATCH] block/zram: Fix wording in optional feature
-	docs
+In-Reply-To: <20220209082828.2629273-7-hch@lst.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Cc: axboe@kernel.dk, manoj@linux.ibm.com, linux-scsi@vger.kernel.org,
+	martin.petersen@oracle.com, philipp.reisner@linbit.com,
+	linux-block@vger.kernel.org, dm-devel@redhat.com,
+	target-devel@vger.kernel.org, haris.iqbal@ionos.com,
+	ukrishn@linux.ibm.com, lars.ellenberg@linbit.com,
+	drbd-dev@lists.linbit.com, jinpu.wang@ionos.com, mrochs@linux.ibm.com
+Subject: Re: [Drbd-dev] [PATCH 6/7] dm: remove write same support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,18 +34,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Ethan Dye <mrtops03@gmail.com> writes:
+On Wed, Feb 09 2022 at  3:28P -0500,
+Christoph Hellwig <hch@lst.de> wrote:
 
-> This fixes some simple grammar errors in the documentation for zram,
-> specifically errors in the optional featue section of the zram
-> documentation.
->
-> Signed-off-by: Ethan Dye <mrtops03@gmail.com>
-> ---
->  Documentation/admin-guide/blockdev/zram.rst | 20 ++++++++++----------
->  1 file changed, 10 insertions(+), 10 deletions(-)
+> There are no more end-users of REQ_OP_WRITE_SAME left, so we can start
+> deleting it.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-This document could use a lot more help than that, but this is a
-start...applied, thanks.
+Thanks.
 
-jon
+Reviewed-by: Mike Snitzer <snitzer@redhat.com>
+
