@@ -1,29 +1,26 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pj1-f53.google.com (mail-pj1-f53.google.com
-	[209.85.216.53])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DD15F42177B
-	for <drbd-dev@lists.linbit.com>; Thu, 17 Feb 2022 04:08:00 +0100 (CET)
-Received: by mail-pj1-f53.google.com with SMTP id
-	h14-20020a17090a130e00b001b88991a305so8202266pja.3
-	for <drbd-dev@lists.linbit.com>; Wed, 16 Feb 2022 19:08:00 -0800 (PST)
-Message-ID: <2f3f1c98-e013-ee03-2ffb-3a14730b13b9@kernel.dk>
-Date: Wed, 16 Feb 2022 20:07:56 -0700
-MIME-Version: 1.0
-Content-Language: en-US
-To: Christoph Hellwig <hch@lst.de>,
-	"Martin K. Petersen" <martin.petersen@oracle.com>
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BD31D4202E4
+	for <drbd-dev@lists.linbit.com>; Thu, 17 Feb 2022 07:43:52 +0100 (CET)
+Date: Thu, 17 Feb 2022 07:43:49 +0100
+From: Christoph Hellwig <hch@lst.de>
+To: Jens Axboe <axboe@kernel.dk>
+Message-ID: <20220217064349.GA374@lst.de>
 References: <20220209082828.2629273-1-hch@lst.de>
-	<yq1wni3sz4k.fsf@ca-mkp.ca.oracle.com> <20220210055151.GA3491@lst.de>
-From: Jens Axboe <axboe@kernel.dk>
-In-Reply-To: <20220210055151.GA3491@lst.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Cc: ukrishn@linux.ibm.com, target-devel@vger.kernel.org,
-	linux-scsi@vger.kernel.org, philipp.reisner@linbit.com,
-	linux-block@vger.kernel.org, dm-devel@redhat.com,
-	manoj@linux.ibm.com, haris.iqbal@ionos.com,
+	<yq1wni3sz4k.fsf@ca-mkp.ca.oracle.com>
+	<20220210055151.GA3491@lst.de>
+	<2f3f1c98-e013-ee03-2ffb-3a14730b13b9@kernel.dk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2f3f1c98-e013-ee03-2ffb-3a14730b13b9@kernel.dk>
+Cc: manoj@linux.ibm.com, linux-scsi@vger.kernel.org,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
+	dm-devel@redhat.com, target-devel@vger.kernel.org,
+	haris.iqbal@ionos.com, ukrishn@linux.ibm.com,
 	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com,
-	jinpu.wang@ionos.com, mrochs@linux.ibm.com
+	jinpu.wang@ionos.com, Christoph Hellwig <hch@lst.de>, mrochs@linux.ibm.com
 Subject: Re: [Drbd-dev] remove REQ_OP_WRITE_SAME v2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -36,31 +33,14 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 2/9/22 10:51 PM, Christoph Hellwig wrote:
-> On Wed, Feb 09, 2022 at 01:00:26PM -0500, Martin K. Petersen wrote:
->>
->> Christoph,
->>
->>> Now that we are using REQ_OP_WRITE_ZEROES for all zeroing needs in the
->>> kernel there is very little use left for REQ_OP_WRITE_SAME.  We only
->>> have two callers left, and both just export optional protocol features
->>> to remote systems: DRBD and the target code.
->>
->> No particular objections from me. I had a half-baked series to do the
->> same thing.
->>
->> One thing I would like is to either pull this series through SCSI or do
->> the block pieces in a post merge branch because I'm about to post my
->> discard/zeroing rework and that's going to clash with your changes.
-> 
-> I'd be fine with taking this through the SCSI tree.  Or we can wait
-> another merge window to make your life easier.
+On Wed, Feb 16, 2022 at 08:07:56PM -0700, Jens Axboe wrote:
+> Let's just use the SCSI tree - I didn't check if it throws any conflicts
+> right now, so probably something to check upfront...
 
-Let's just use the SCSI tree - I didn't check if it throws any conflicts
-right now, so probably something to check upfront...
+There is a minor conflict because the __blkdev_issue_write_same
+function removed by this series is affected by the blk_next_bio calling
+convention change in the block tree, but the fixup is trivial.
 
-If things pan out, you can add my Acked-by to the series.
-
--- 
-Jens Axboe
-
+Martin: do you want to fix that up when applying, or do you want me
+to resend?  If you have your discard rework ready you can also send
+that now and I'll rebase on top of that.
