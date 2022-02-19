@@ -1,22 +1,24 @@
-Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ej1-f51.google.com (mail-ej1-f51.google.com
-	[209.85.218.51])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4C82E421779
-	for <drbd-dev@lists.linbit.com>; Fri, 18 Feb 2022 13:32:56 +0100 (CET)
-Received: by mail-ej1-f51.google.com with SMTP id bg10so14725732ejb.4
-	for <drbd-dev@lists.linbit.com>; Fri, 18 Feb 2022 04:32:56 -0800 (PST)
+Return-Path: <martin.petersen@oracle.com>
+Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
+	[205.220.177.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EDBB44205EC
+	for <drbd-dev@lists.linbit.com>; Sun, 20 Feb 2022 00:35:00 +0100 (CET)
+To: Christoph Hellwig <hch@lst.de>
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
+Message-ID: <yq1k0dqfn3t.fsf@ca-mkp.ca.oracle.com>
+References: <20220209082828.2629273-1-hch@lst.de>
+Date: Sat, 19 Feb 2022 18:33:36 -0500
+In-Reply-To: <20220209082828.2629273-1-hch@lst.de> (Christoph Hellwig's
+	message of "Wed, 9 Feb 2022 09:28:21 +0100")
+Content-Type: text/plain
 MIME-Version: 1.0
-References: <20220218083713.3645497-1-rui.xu@easystack.cn>
-In-Reply-To: <20220218083713.3645497-1-rui.xu@easystack.cn>
-From: Joel Colledge <joel.colledge@linbit.com>
-Date: Fri, 18 Feb 2022 13:32:45 +0100
-Message-ID: <CAGNP_+Wmwm7spGK+ba99mVo6us6bu32KHmr1h8sup+LPCQTw9w@mail.gmail.com>
-To: Rui Xu <rui.xu@easystack.cn>
-Content-Type: text/plain; charset="UTF-8"
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd:don't increase unacked_cnt when resync
- write error
+Cc: axboe@kernel.dk, manoj@linux.ibm.com, linux-scsi@vger.kernel.org,
+	martin.petersen@oracle.com, philipp.reisner@linbit.com,
+	linux-block@vger.kernel.org, dm-devel@redhat.com,
+	target-devel@vger.kernel.org, haris.iqbal@ionos.com,
+	ukrishn@linux.ibm.com, lars.ellenberg@linbit.com,
+	drbd-dev@lists.linbit.com, jinpu.wang@ionos.com, mrochs@linux.ibm.com
+Subject: Re: [Drbd-dev] remove REQ_OP_WRITE_SAME v2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,12 +30,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Looks good to me for drbd-9.0. We would have to take care with the
-merge up to the actively maintained branches in order to avoid losing
-the drbd_handle_io_error() call. I suggest we just add the condition
-to the !__test_and_set_bit(__EE_SEND_WRITE_ACK,...) check. The extra
-drbd_set_out_of_sync() call is harmless and it keeps the branches
-similar.
 
-Best regards,
-Joel
+Christoph,
+
+> Now that we are using REQ_OP_WRITE_ZEROES for all zeroing needs in the
+> kernel there is very little use left for REQ_OP_WRITE_SAME.  We only
+> have two callers left, and both just export optional protocol features
+> to remote systems: DRBD and the target code.
+
+Applied to 5.18/scsi-staging, thanks!
+
+-- 
+Martin K. Petersen	Oracle Linux Engineering
