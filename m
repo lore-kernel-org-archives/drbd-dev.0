@@ -1,12 +1,12 @@
 Return-Path: <BATV+11ac0858211c0bd5236f+6757+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B29DD42177C
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:52:33 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E53BC42177D
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:52:36 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 22 Feb 2022 16:51:55 +0100
-Message-Id: <20220222155156.597597-10-hch@lst.de>
+Date: Tue, 22 Feb 2022 16:51:56 +0100
+Message-Id: <20220222155156.597597-11-hch@lst.de>
 In-Reply-To: <20220222155156.597597-1-hch@lst.de>
 References: <20220222155156.597597-1-hch@lst.de>
 MIME-Version: 1.0
@@ -21,8 +21,7 @@ Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 09/10] drbd: use bvec_kmap_local in
-	recv_dless_read
+Subject: [Drbd-dev] [PATCH 10/10] floppy: use memcpy_{to,from}_bvec
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,31 +33,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Using local kmaps slightly reduces the chances to stray writes, and
-the bvec interface cleans up the code a little bit.
+Use the helpers instead of open coding them.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_receiver.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/block/floppy.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 04e3ec12d8b49..fa00cf2ea9529 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -2017,10 +2017,10 @@ static int recv_dless_read(struct drbd_peer_device *peer_device, struct drbd_req
- 	D_ASSERT(peer_device->device, sector == bio->bi_iter.bi_sector);
+diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
+index 19c2d0327e157..8c647532e3ce9 100644
+--- a/drivers/block/floppy.c
++++ b/drivers/block/floppy.c
+@@ -2485,11 +2485,9 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
+ 		}
  
- 	bio_for_each_segment(bvec, bio, iter) {
--		void *mapped = kmap(bvec.bv_page) + bvec.bv_offset;
-+		void *mapped = bvec_kmap_local(&bvec);
- 		expect = min_t(int, data_size, bvec.bv_len);
- 		err = drbd_recv_all_warn(peer_device->connection, mapped, expect);
--		kunmap(bvec.bv_page);
-+		kunmap_local(mapped);
- 		if (err)
- 			return err;
- 		data_size -= expect;
+ 		if (CT(raw_cmd->cmd[COMMAND]) == FD_READ)
+-			memcpy_to_page(bv.bv_page, bv.bv_offset, dma_buffer,
+-				       size);
++			memcpy_to_bvec(&bv, dma_buffer);
+ 		else
+-			memcpy_from_page(dma_buffer, bv.bv_page, bv.bv_offset,
+-					 size);
++			memcpy_from_bvec(dma_buffer, &bv);
+ 
+ 		remaining -= size;
+ 		dma_buffer += size;
 -- 
 2.30.2
 
