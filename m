@@ -1,7 +1,7 @@
 Return-Path: <neilb@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 93AEF420060
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 04:18:58 +0100 (CET)
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A966F4201FE
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 04:19:03 +0100 (CET)
 From: NeilBrown <neilb@suse.de>
 To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Wu Fengguang <fengguang.wu@intel.com>, Jaegeuk Kim <jaegeuk@kernel.org>,
@@ -15,7 +15,7 @@ To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Paolo Valente <paolo.valente@linaro.org>, Jens Axboe <axboe@kernel.dk>
 Date: Tue, 22 Feb 2022 14:17:17 +1100
-Message-ID: <164549983738.9187.3972219847989393182.stgit@noble.brown>
+Message-ID: <164549983736.9187.16755913785880819183.stgit@noble.brown>
 In-Reply-To: <164549971112.9187.16871723439770288255.stgit@noble.brown>
 References: <164549971112.9187.16871723439770288255.stgit@noble.brown>
 MIME-Version: 1.0
@@ -26,7 +26,8 @@ Cc: linux-nfs@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-f2fs-devel@lists.sourceforge.net, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org,
 	linux-ext4@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/11] nfs: remove reliance on bdi congestion
+Subject: [Drbd-dev] [PATCH 03/11] MM: improve cleanup when ->readpages
+ doesn't process all pages.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,95 +39,61 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The bdi congestion tracking in not widely used and will be removed.
+If ->readpages doesn't process all the pages, then it is best to act as
+though they weren't requested so that a subsequent readahead can try
+again.
+So:
+  - remove any 'ahead' pages from the page cache so they can be loaded
+    with ->readahead() rather then multiple ->read()s
+  - update the file_ra_state to reflect the reads that were actually
+    submitted.
 
-NFS is one of a small number of filesystems that uses it, setting just
-the async (write) congestion flag at what it determines are appropriate
-times.
-
-The only remaining effect of the async flag is to cause (some)
-WB_SYNC_NONE writes to be skipped.
-
-So instead of setting the flag, set an internal flag and change:
- - .writepages to do nothing if WB_SYNC_NONE and the flag is set
- - .writepage to return AOP_WRITEPAGE_ACTIVATE if WB_SYNC_NONE
-    and the flag is set.
-
-The writepages change causes a behavioural change in that pageout() can
-now return PAGE_ACTIVATE instead of PAGE_KEEP, so SetPageActive() will
-be called on the page which (I think) wil further delay the next attempt
-at writeout.  This might be a good thing.
+This allows ->readpages() to abort early due e.g.  to congestion, which
+will then allow us to remove the inode_read_congested() test from
+page_Cache_async_ra().
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- fs/nfs/write.c            |   14 +++++++++++---
- include/linux/nfs_fs_sb.h |    1 +
- 2 files changed, 12 insertions(+), 3 deletions(-)
+ mm/readahead.c |   19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
 
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index 987a187bd39a..7c986164018e 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -417,7 +417,7 @@ static void nfs_set_page_writeback(struct page *page)
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 73b2bc5302e0..8a97bd408cf6 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -104,7 +104,13 @@
+  * for necessary resources (e.g.  memory or indexing information) to
+  * become available.  Pages in the final ``async_size`` may be
+  * considered less urgent and failure to read them is more acceptable.
+- * They will eventually be read individually using ->readpage().
++ * In this case it is best to use delete_from_page_cache() to remove the
++ * pages from the page cache as is automatically done for pages that
++ * were not fetched with readahead_page().  This will allow a
++ * subsequent synchronous read ahead request to try them again.  If they
++ * are left in the page cache, then they will be read individually using
++ * ->readpage().
++ *
+  */
  
- 	if (atomic_long_inc_return(&nfss->writeback) >
- 			NFS_CONGESTION_ON_THRESH)
--		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
-+		nfss->write_congested = 1;
- }
+ #include <linux/kernel.h>
+@@ -226,8 +232,17 @@ static void read_pages(struct readahead_control *rac, struct list_head *pages,
  
- static void nfs_end_page_writeback(struct nfs_page *req)
-@@ -433,7 +433,7 @@ static void nfs_end_page_writeback(struct nfs_page *req)
- 
- 	end_page_writeback(req->wb_page);
- 	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
--		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
-+		nfss->write_congested = 0;
- }
- 
- /*
-@@ -672,6 +672,10 @@ static int nfs_writepage_locked(struct page *page,
- 	struct inode *inode = page_file_mapping(page)->host;
- 	int err;
- 
-+	if (wbc->sync_mode == WB_SYNC_NONE &&
-+	    NFS_SERVER(inode)->write_congested)
-+		return AOP_WRITEPAGE_ACTIVATE;
-+
- 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
- 	nfs_pageio_init_write(&pgio, inode, 0,
- 				false, &nfs_async_write_completion_ops);
-@@ -719,6 +723,10 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
- 	int priority = 0;
- 	int err;
- 
-+	if (wbc->sync_mode == WB_SYNC_NONE &&
-+	    NFS_SERVER(inode)->write_congested)
-+		return 0;
-+
- 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
- 
- 	if (!(mntflags & NFS_MOUNT_WRITE_EAGER) || wbc->for_kupdate ||
-@@ -1893,7 +1901,7 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
- 	}
- 	nfss = NFS_SERVER(data->inode);
- 	if (atomic_long_read(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
--		clear_bdi_congested(inode_to_bdi(data->inode), BLK_RW_ASYNC);
-+		nfss->write_congested = 0;
- 
- 	nfs_init_cinfo(&cinfo, data->inode, data->dreq);
- 	nfs_commit_end(cinfo.mds);
-diff --git a/include/linux/nfs_fs_sb.h b/include/linux/nfs_fs_sb.h
-index ca0959e51e81..6aa2a200676a 100644
---- a/include/linux/nfs_fs_sb.h
-+++ b/include/linux/nfs_fs_sb.h
-@@ -138,6 +138,7 @@ struct nfs_server {
- 	struct nlm_host		*nlm_host;	/* NLM client handle */
- 	struct nfs_iostats __percpu *io_stats;	/* I/O statistics */
- 	atomic_long_t		writeback;	/* number of writeback pages */
-+	unsigned int		write_congested;/* flag set when writeback gets too high */
- 	unsigned int		flags;		/* various flags */
- 
- /* The following are for internal use only. Also see uapi/linux/nfs_mount.h */
+ 	if (aops->readahead) {
+ 		aops->readahead(rac);
+-		/* Clean up the remaining pages */
++		/*
++		 * Clean up the remaining pages.  The sizes in ->ra
++		 * maybe be used to size next read-ahead, so make sure
++		 * they accurately reflect what happened.
++		 */
+ 		while ((page = readahead_page(rac))) {
++			rac->ra->size -= 1;
++			if (rac->ra->async_size > 0) {
++				rac->ra->async_size -= 1;
++				delete_from_page_cache(page);
++			}
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
 
 
