@@ -1,12 +1,12 @@
 Return-Path: <BATV+11ac0858211c0bd5236f+6757+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4FE6C4205A5
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:52:31 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B29DD42177C
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:52:33 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 22 Feb 2022 16:51:54 +0100
-Message-Id: <20220222155156.597597-9-hch@lst.de>
+Date: Tue, 22 Feb 2022 16:51:55 +0100
+Message-Id: <20220222155156.597597-10-hch@lst.de>
 In-Reply-To: <20220222155156.597597-1-hch@lst.de>
 References: <20220222155156.597597-1-hch@lst.de>
 MIME-Version: 1.0
@@ -21,7 +21,8 @@ Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 08/10] drbd: use bvec_kmap_local in drbd_csum_bio
+Subject: [Drbd-dev] [PATCH 09/10] drbd: use bvec_kmap_local in
+	recv_dless_read
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,26 +39,26 @@ the bvec interface cleans up the code a little bit.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_worker.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ drivers/block/drbd/drbd_receiver.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index a5e04b38006b6..1b48c8172a077 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -326,9 +326,9 @@ void drbd_csum_bio(struct crypto_shash *tfm, struct bio *bio, void *digest)
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 04e3ec12d8b49..fa00cf2ea9529 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -2017,10 +2017,10 @@ static int recv_dless_read(struct drbd_peer_device *peer_device, struct drbd_req
+ 	D_ASSERT(peer_device->device, sector == bio->bi_iter.bi_sector);
+ 
  	bio_for_each_segment(bvec, bio, iter) {
- 		u8 *src;
- 
--		src = kmap_atomic(bvec.bv_page);
--		crypto_shash_update(desc, src + bvec.bv_offset, bvec.bv_len);
--		kunmap_atomic(src);
-+		src = bvec_kmap_local(&bvec);
-+		crypto_shash_update(desc, src, bvec.bv_len);
-+		kunmap_local(src);
- 
- 		/* REQ_OP_WRITE_SAME has only one segment,
- 		 * checksum the payload only once. */
+-		void *mapped = kmap(bvec.bv_page) + bvec.bv_offset;
++		void *mapped = bvec_kmap_local(&bvec);
+ 		expect = min_t(int, data_size, bvec.bv_len);
+ 		err = drbd_recv_all_warn(peer_device->connection, mapped, expect);
+-		kunmap(bvec.bv_page);
++		kunmap_local(mapped);
+ 		if (err)
+ 			return err;
+ 		data_size -= expect;
 -- 
 2.30.2
 
