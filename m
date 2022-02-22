@@ -1,12 +1,12 @@
 Return-Path: <BATV+11ac0858211c0bd5236f+6757+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9E1744202C4
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:52:26 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4FE6C4205A5
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:52:31 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 22 Feb 2022 16:51:52 +0100
-Message-Id: <20220222155156.597597-7-hch@lst.de>
+Date: Tue, 22 Feb 2022 16:51:54 +0100
+Message-Id: <20220222155156.597597-9-hch@lst.de>
 In-Reply-To: <20220222155156.597597-1-hch@lst.de>
 References: <20220222155156.597597-1-hch@lst.de>
 MIME-Version: 1.0
@@ -21,8 +21,7 @@ Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 06/10] nvdimm-btt: use bvec_kmap_local in
-	btt_rw_integrity
+Subject: [Drbd-dev] [PATCH 08/10] drbd: use bvec_kmap_local in drbd_csum_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,35 +38,26 @@ the bvec interface cleans up the code a little bit.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/nvdimm/btt.c | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ drivers/block/drbd/drbd_worker.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
-index cbd994f7f1fe6..9613e54c7a675 100644
---- a/drivers/nvdimm/btt.c
-+++ b/drivers/nvdimm/btt.c
-@@ -1163,17 +1163,15 @@ static int btt_rw_integrity(struct btt *btt, struct bio_integrity_payload *bip,
- 		 */
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index a5e04b38006b6..1b48c8172a077 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -326,9 +326,9 @@ void drbd_csum_bio(struct crypto_shash *tfm, struct bio *bio, void *digest)
+ 	bio_for_each_segment(bvec, bio, iter) {
+ 		u8 *src;
  
- 		cur_len = min(len, bv.bv_len);
--		mem = kmap_atomic(bv.bv_page);
-+		mem = bvec_kmap_local(&bv);
- 		if (rw)
--			ret = arena_write_bytes(arena, meta_nsoff,
--					mem + bv.bv_offset, cur_len,
-+			ret = arena_write_bytes(arena, meta_nsoff, mem, cur_len,
- 					NVDIMM_IO_ATOMIC);
- 		else
--			ret = arena_read_bytes(arena, meta_nsoff,
--					mem + bv.bv_offset, cur_len,
-+			ret = arena_read_bytes(arena, meta_nsoff, mem, cur_len,
- 					NVDIMM_IO_ATOMIC);
+-		src = kmap_atomic(bvec.bv_page);
+-		crypto_shash_update(desc, src + bvec.bv_offset, bvec.bv_len);
+-		kunmap_atomic(src);
++		src = bvec_kmap_local(&bvec);
++		crypto_shash_update(desc, src, bvec.bv_len);
++		kunmap_local(src);
  
--		kunmap_atomic(mem);
-+		kunmap_local(mem);
- 		if (ret)
- 			return ret;
- 
+ 		/* REQ_OP_WRITE_SAME has only one segment,
+ 		 * checksum the payload only once. */
 -- 
 2.30.2
 
