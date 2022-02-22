@@ -1,12 +1,12 @@
 Return-Path: <BATV+11ac0858211c0bd5236f+6757+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BAE964201FE
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:52:22 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9E1744202C4
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:52:26 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 22 Feb 2022 16:51:51 +0100
-Message-Id: <20220222155156.597597-6-hch@lst.de>
+Date: Tue, 22 Feb 2022 16:51:52 +0100
+Message-Id: <20220222155156.597597-7-hch@lst.de>
 In-Reply-To: <20220222155156.597597-1-hch@lst.de>
 References: <20220222155156.597597-1-hch@lst.de>
 MIME-Version: 1.0
@@ -21,8 +21,8 @@ Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 05/10] nvdimm-blk: use bvec_kmap_local in
-	nd_blk_rw_integrity
+Subject: [Drbd-dev] [PATCH 06/10] nvdimm-btt: use bvec_kmap_local in
+	btt_rw_integrity
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,26 +39,34 @@ the bvec interface cleans up the code a little bit.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/nvdimm/blk.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ drivers/nvdimm/btt.c | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/nvdimm/blk.c b/drivers/nvdimm/blk.c
-index c1db43524d755..0a38738335941 100644
---- a/drivers/nvdimm/blk.c
-+++ b/drivers/nvdimm/blk.c
-@@ -88,10 +88,9 @@ static int nd_blk_rw_integrity(struct nd_namespace_blk *nsblk,
+diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
+index cbd994f7f1fe6..9613e54c7a675 100644
+--- a/drivers/nvdimm/btt.c
++++ b/drivers/nvdimm/btt.c
+@@ -1163,17 +1163,15 @@ static int btt_rw_integrity(struct btt *btt, struct bio_integrity_payload *bip,
  		 */
  
  		cur_len = min(len, bv.bv_len);
--		iobuf = kmap_atomic(bv.bv_page);
--		err = ndbr->do_io(ndbr, dev_offset, iobuf + bv.bv_offset,
--				cur_len, rw);
--		kunmap_atomic(iobuf);
-+		iobuf = bvec_kmap_local(&bv);
-+		err = ndbr->do_io(ndbr, dev_offset, iobuf, cur_len, rw);
-+		kunmap_local(iobuf);
- 		if (err)
- 			return err;
+-		mem = kmap_atomic(bv.bv_page);
++		mem = bvec_kmap_local(&bv);
+ 		if (rw)
+-			ret = arena_write_bytes(arena, meta_nsoff,
+-					mem + bv.bv_offset, cur_len,
++			ret = arena_write_bytes(arena, meta_nsoff, mem, cur_len,
+ 					NVDIMM_IO_ATOMIC);
+ 		else
+-			ret = arena_read_bytes(arena, meta_nsoff,
+-					mem + bv.bv_offset, cur_len,
++			ret = arena_read_bytes(arena, meta_nsoff, mem, cur_len,
+ 					NVDIMM_IO_ATOMIC);
+ 
+-		kunmap_atomic(mem);
++		kunmap_local(mem);
+ 		if (ret)
+ 			return ret;
  
 -- 
 2.30.2
