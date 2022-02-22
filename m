@@ -1,12 +1,12 @@
 Return-Path: <BATV+11ac0858211c0bd5236f+6757+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 94D6B4201FE
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:54:29 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B30CD42177E
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:54:37 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 22 Feb 2022 16:51:50 +0100
-Message-Id: <20220222155156.597597-5-hch@lst.de>
+Date: Tue, 22 Feb 2022 16:51:53 +0100
+Message-Id: <20220222155156.597597-8-hch@lst.de>
 In-Reply-To: <20220222155156.597597-1-hch@lst.de>
 References: <20220222155156.597597-1-hch@lst.de>
 MIME-Version: 1.0
@@ -21,8 +21,7 @@ Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 04/10] zram: use memcpy_from_bvec in
-	zram_bvec_write
+Subject: [Drbd-dev] [PATCH 07/10] bcache: use bvec_kmap_local in bio_csum
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,38 +33,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use memcpy_from_bvec instead of open coding the logic.
+Using local kmaps slightly reduces the chances to stray writes, and
+the bvec interface cleans up the code a little bit.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/zram/zram_drv.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ drivers/md/bcache/request.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 14becdf2815df..e9474b02012de 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -1465,7 +1465,6 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
- {
- 	int ret;
- 	struct page *page = NULL;
--	void *src;
- 	struct bio_vec vec;
+diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
+index 6869e010475a3..4e55ca8ca67ff 100644
+--- a/drivers/md/bcache/request.c
++++ b/drivers/md/bcache/request.c
+@@ -44,10 +44,10 @@ static void bio_csum(struct bio *bio, struct bkey *k)
+ 	uint64_t csum = 0;
  
- 	vec = *bvec;
-@@ -1483,11 +1482,9 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
- 		if (ret)
- 			goto out;
+ 	bio_for_each_segment(bv, bio, iter) {
+-		void *d = kmap(bv.bv_page) + bv.bv_offset;
++		void *d = bvec_kmap_local(&bv);
  
--		src = kmap_atomic(bvec->bv_page);
- 		dst = kmap_atomic(page);
--		memcpy(dst + offset, src + bvec->bv_offset, bvec->bv_len);
-+		memcpy_from_bvec(dst + offset, bvec);
- 		kunmap_atomic(dst);
--		kunmap_atomic(src);
+ 		csum = crc64_be(csum, d, bv.bv_len);
+-		kunmap(bv.bv_page);
++		kunmap(d);
+ 	}
  
- 		vec.bv_page = page;
- 		vec.bv_len = PAGE_SIZE;
+ 	k->ptr[KEY_PTRS(k)] = csum & (~0ULL >> 1);
 -- 
 2.30.2
 
