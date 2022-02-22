@@ -1,12 +1,12 @@
 Return-Path: <BATV+11ac0858211c0bd5236f+6757+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E53BC42177D
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:52:36 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6DCD142011D
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Feb 2022 16:54:25 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Tue, 22 Feb 2022 16:51:56 +0100
-Message-Id: <20220222155156.597597-11-hch@lst.de>
+Date: Tue, 22 Feb 2022 16:51:48 +0100
+Message-Id: <20220222155156.597597-3-hch@lst.de>
 In-Reply-To: <20220222155156.597597-1-hch@lst.de>
 References: <20220222155156.597597-1-hch@lst.de>
 MIME-Version: 1.0
@@ -21,7 +21,7 @@ Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 10/10] floppy: use memcpy_{to,from}_bvec
+Subject: [Drbd-dev] [PATCH 02/10] aoe: use bvec_kmap_local in bvcpy
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,31 +33,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the helpers instead of open coding them.
+Using local kmaps slightly reduces the chances to stray writes, and
+the bvec interface cleans up the code a little bit.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/floppy.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ drivers/block/aoe/aoecmd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
-index 19c2d0327e157..8c647532e3ce9 100644
---- a/drivers/block/floppy.c
-+++ b/drivers/block/floppy.c
-@@ -2485,11 +2485,9 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
- 		}
+diff --git a/drivers/block/aoe/aoecmd.c b/drivers/block/aoe/aoecmd.c
+index cc11f89a0928f..093996961d452 100644
+--- a/drivers/block/aoe/aoecmd.c
++++ b/drivers/block/aoe/aoecmd.c
+@@ -1018,7 +1018,7 @@ bvcpy(struct sk_buff *skb, struct bio *bio, struct bvec_iter iter, long cnt)
+ 	iter.bi_size = cnt;
  
- 		if (CT(raw_cmd->cmd[COMMAND]) == FD_READ)
--			memcpy_to_page(bv.bv_page, bv.bv_offset, dma_buffer,
--				       size);
-+			memcpy_to_bvec(&bv, dma_buffer);
- 		else
--			memcpy_from_page(dma_buffer, bv.bv_page, bv.bv_offset,
--					 size);
-+			memcpy_from_bvec(dma_buffer, &bv);
- 
- 		remaining -= size;
- 		dma_buffer += size;
+ 	__bio_for_each_segment(bv, bio, iter, iter) {
+-		char *p = kmap_atomic(bv.bv_page) + bv.bv_offset;
++		char *p = bvec_kmap_local(&bv);
+ 		skb_copy_bits(skb, soff, p, bv.bv_len);
+ 		kunmap_atomic(p);
+ 		soff += bv.bv_len;
 -- 
 2.30.2
 
