@@ -1,17 +1,17 @@
 Return-Path: <dan.carpenter@oracle.com>
-Received: from mx0a-00069f02.pphosted.com (mx0a-00069f02.pphosted.com
-	[205.220.165.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EB7EA4201D4
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 13:28:45 +0100 (CET)
-Date: Mon, 28 Feb 2022 14:24:13 +0300
+Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
+	[205.220.177.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0CF02420171
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 14:15:18 +0100 (CET)
+Date: Mon, 28 Feb 2022 16:12:55 +0300
 From: Dan Carpenter <dan.carpenter@oracle.com>
 To: Jakob Koschel <jakobkoschel@gmail.com>
-Message-ID: <20220228112413.GA2812@kadam>
+Message-ID: <20220228131255.GC2812@kadam>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
-	<20220228110822.491923-2-jakobkoschel@gmail.com>
+	<20220228110822.491923-7-jakobkoschel@gmail.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20220228110822.491923-2-jakobkoschel@gmail.com>
+In-Reply-To: <20220228110822.491923-7-jakobkoschel@gmail.com>
 MIME-Version: 1.0
 Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
@@ -46,8 +46,8 @@ Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	dmaengine@vger.kernel.org, linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev@lists.ozlabs.org, Mike Rapoport <rppt@kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 1/6] drivers: usb: remove usage of list
- iterator past the loop body
+Subject: Re: [Drbd-dev] [PATCH 6/6] treewide: remove check of list iterator
+ against head past the loop body
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -59,99 +59,57 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Feb 28, 2022 at 12:08:17PM +0100, Jakob Koschel wrote:
-> diff --git a/drivers/usb/gadget/udc/at91_udc.c b/drivers/usb/gadget/udc/at91_udc.c
-> index 9040a0561466..0fd0307bc07b 100644
-> --- a/drivers/usb/gadget/udc/at91_udc.c
-> +++ b/drivers/usb/gadget/udc/at91_udc.c
-> @@ -150,13 +150,14 @@ static void proc_ep_show(struct seq_file *s, struct at91_ep *ep)
->  	if (list_empty (&ep->queue))
->  		seq_printf(s, "\t(queue empty)\n");
+On Mon, Feb 28, 2022 at 12:08:22PM +0100, Jakob Koschel wrote:
+> diff --git a/drivers/infiniband/hw/hfi1/tid_rdma.c b/drivers/infiniband/hw/hfi1/tid_rdma.c
+> index 2a7abf7a1f7f..a069847b56aa 100644
+> --- a/drivers/infiniband/hw/hfi1/tid_rdma.c
+> +++ b/drivers/infiniband/hw/hfi1/tid_rdma.c
+> @@ -1239,7 +1239,7 @@ static int kern_alloc_tids(struct tid_rdma_flow *flow)
+>  	struct hfi1_ctxtdata *rcd = flow->req->rcd;
+>  	struct hfi1_devdata *dd = rcd->dd;
+>  	u32 ngroups, pageidx = 0;
+> -	struct tid_group *group = NULL, *used;
+> +	struct tid_group *group = NULL, *used, *tmp;
+>  	u8 use;
 > 
-> -	else list_for_each_entry (req, &ep->queue, queue) {
-> -		unsigned	length = req->req.actual;
-> +	else
-> +		list_for_each_entry(req, &ep->queue, queue) {
-> +			unsigned int	length = req->req.actual;
+>  	flow->tnode_cnt = 0;
+> @@ -1248,13 +1248,15 @@ static int kern_alloc_tids(struct tid_rdma_flow *flow)
+>  		goto used_list;
 > 
-> -		seq_printf(s, "\treq %p len %d/%d buf %p\n",
-> -				&req->req, length,
-> -				req->req.length, req->req.buf);
-> -	}
-> +			seq_printf(s, "\treq %p len %d/%d buf %p\n",
-> +					&req->req, length,
-> +					req->req.length, req->req.buf);
-> +		}
-
-Don't make unrelated white space changes.  It just makes the patch
-harder to review.  As you're writing the patch make note of any
-additional changes and do them later in a separate patch.
-
-Also a multi-line indent gets curly braces for readability even though
-it's not required by C.  And then both sides would get curly braces.
-
->  	spin_unlock_irqrestore(&udc->lock, flags);
->  }
+>  	/* First look at complete groups */
+> -	list_for_each_entry(group,  &rcd->tid_group_list.list, list) {
+> -		kern_add_tid_node(flow, rcd, "complete groups", group,
+> -				  group->size);
+> +	list_for_each_entry(tmp,  &rcd->tid_group_list.list, list) {
+> +		kern_add_tid_node(flow, rcd, "complete groups", tmp,
+> +				  tmp->size);
 > 
-> @@ -226,7 +227,7 @@ static int proc_udc_show(struct seq_file *s, void *unused)
-> 
->  	if (udc->enabled && udc->vbus) {
->  		proc_ep_show(s, &udc->ep[0]);
-> -		list_for_each_entry (ep, &udc->gadget.ep_list, ep.ep_list) {
-> +		list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
-
-Another unrelated change.
-
->  			if (ep->ep.desc)
->  				proc_ep_show(s, ep);
->  		}
-
-
-[ snip ]
-
-> diff --git a/drivers/usb/gadget/udc/net2272.c b/drivers/usb/gadget/udc/net2272.c
-> index 7c38057dcb4a..bb59200f1596 100644
-> --- a/drivers/usb/gadget/udc/net2272.c
-> +++ b/drivers/usb/gadget/udc/net2272.c
-> @@ -926,7 +926,8 @@ static int
->  net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
->  {
->  	struct net2272_ep *ep;
-> -	struct net2272_request *req;
-> +	struct net2272_request *req = NULL;
-> +	struct net2272_request *tmp;
->  	unsigned long flags;
->  	int stopped;
-> 
-> @@ -939,11 +940,13 @@ net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
->  	ep->stopped = 1;
-> 
->  	/* make sure it's still queued on this endpoint */
-> -	list_for_each_entry(req, &ep->queue, queue) {
-> -		if (&req->req == _req)
-> +	list_for_each_entry(tmp, &ep->queue, queue) {
-> +		if (&tmp->req == _req) {
-> +			req = tmp;
+> -		pageidx += group->size;
+> -		if (!--ngroups)
+> +		pageidx += tmp->size;
+> +		if (!--ngroups) {
+> +			group = tmp;
 >  			break;
 > +		}
 >  	}
-> -	if (&req->req != _req) {
-> +	if (!req) {
->  		ep->stopped = stopped;
->  		spin_unlock_irqrestore(&ep->dev->lock, flags);
->  		return -EINVAL;
-> @@ -954,7 +957,6 @@ net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
->  		dev_dbg(ep->dev->dev, "unlink (%s) pio\n", _ep->name);
->  		net2272_done(ep, req, -ECONNRESET);
->  	}
-> -	req = NULL;
-
-Another unrelated change.  These are all good changes but send them as
-separate patches.
-
->  	ep->stopped = stopped;
 > 
->  	spin_unlock_irqrestore(&ep->dev->lock, flags);
+>  	if (pageidx >= flow->npagesets)
+> @@ -1277,7 +1279,7 @@ static int kern_alloc_tids(struct tid_rdma_flow *flow)
+>  	 * However, if we are at the head, we have reached the end of the
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  	 * complete groups list from the first loop above
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  	 */
+
+Originally this code tested for an open code list_is_head() so the
+comment made sense, but it's out of date now.  Just delete it.
+
+
+> -	if (group && &group->list == &rcd->tid_group_list.list)
+> +	if (!group)
+>  		goto bail_eagain;
+>  	group = list_prepare_entry(group, &rcd->tid_group_list.list,
+>  				   list);
 
 regards,
 dan carpenter
