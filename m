@@ -1,23 +1,24 @@
-Return-Path: <willy@infradead.org>
-Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EC7EB421786
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 00:27:16 +0100 (CET)
-Date: Mon, 28 Feb 2022 23:26:42 +0000
-From: Matthew Wilcox <willy@infradead.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Message-ID: <Yh1aMm3hFe/j9ZbI@casper.infradead.org>
+Return-Path: <Christian.Koenig@amd.com>
+Received: from NAM10-BN7-obe.outbound.protection.outlook.com
+	(mail-bn7nam10on2089.outbound.protection.outlook.com [40.107.92.89])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4879B421790
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 00:30:21 +0100 (CET)
+Message-ID: <0b65541a-3da7-dc35-690a-0ada75b0adae@amd.com>
+Date: Mon, 28 Feb 2022 21:56:40 +0100
+Content-Language: en-US
+To: James Bottomley <James.Bottomley@HansenPartnership.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
 	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
 	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
-	<CAHk-=wj8fkosQ7=bps5K+DDazBXk=ypfn49A0sEq+7-nZnyfXA@mail.gmail.com>
-	<CAHk-=wiTCvLQkHcJ3y0hpqH7FEk9D28LDvZZogC6OVLk7naBww@mail.gmail.com>
-	<Yh0tl3Lni4weIMkl@casper.infradead.org>
-	<CAHk-=wgBfJ1-cPA2LTvFyyy8owpfmtCuyiZi4+um8DhFNe+CyA@mail.gmail.com>
+	<282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
+	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+In-Reply-To: <b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHk-=wgBfJ1-cPA2LTvFyyy8owpfmtCuyiZi4+um8DhFNe+CyA@mail.gmail.com>
 Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
@@ -59,7 +60,6 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
 	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
  after loop body as a ptr
@@ -74,47 +74,60 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Feb 28, 2022 at 12:37:15PM -0800, Linus Torvalds wrote:
-> On Mon, Feb 28, 2022 at 12:16 PM Matthew Wilcox <willy@infradead.org> wrote:
-> >
-> > Then we can never use -Wshadow ;-(  I'd love to be able to turn it on;
-> > it catches real bugs.
-> 
-> Oh, we already can never use -Wshadow regardless of things like this.
-> That bridge hasn't just been burned, it never existed in the first
-> place.
-> 
-> The whole '-Wshadow' thing simply cannot work with local variables in
-> macros - something that we've used since day 1.
-> 
-> Try this (as a "p.c" file):
-> 
->         #define min(a,b) ({                     \
->                 typeof(a) __a = (a);            \
->                 typeof(b) __b = (b);            \
->                 __a < __b ? __a : __b; })
-> 
->         int min3(int a, int b, int c)
->         {
->                 return min(a,min(b,c));
->         }
-> 
-> and now do "gcc -O2 -S t.c".
-> 
-> Then try it with -Wshadow.
 
-#define ___PASTE(a, b)	a##b
-#define __PASTE(a, b) ___PASTE(a, b)
-#define _min(a, b, u) ({         \
-        typeof(a) __PASTE(__a,u) = (a);            \
-        typeof(b) __PASTE(__b,u) = (b);            \
-        __PASTE(__a,u) < __PASTE(__b,u) ? __PASTE(__a,u) : __PASTE(__b,u); })
 
-#define min(a, b) _min(a, b, __COUNTER__)
+Am 28.02.22 um 21:42 schrieb James Bottomley:
+> On Mon, 2022-02-28 at 21:07 +0100, Christian König wrote:
+>> Am 28.02.22 um 20:56 schrieb Linus Torvalds:
+>>> On Mon, Feb 28, 2022 at 4:19 AM Christian König
+>>> <christian.koenig@amd.com> wrote:
+>>> [SNIP]
+>>> Anybody have any ideas?
+>> I think we should look at the use cases why code is touching (pos)
+>> after the loop.
+>>
+>> Just from skimming over the patches to change this and experience
+>> with the drivers/subsystems I help to maintain I think the primary
+>> pattern looks something like this:
+>>
+>> list_for_each_entry(entry, head, member) {
+>>       if (some_condition_checking(entry))
+>>           break;
+>> }
+>> do_something_with(entry);
+>
+> Actually, we usually have a check to see if the loop found anything,
+> but in that case it should something like
+>
+> if (list_entry_is_head(entry, head, member)) {
+>      return with error;
+> }
+> do_somethin_with(entry);
+>
+> Suffice?  The list_entry_is_head() macro is designed to cope with the
+> bogus entry on head problem.
 
-int min3(int a, int b, int c)
-{
-        return min(a,min(b,c));
-}
+That will work and is also what people already do.
 
-(probably there's a more elegant way to do this)
+The key problem is that we let people do the same thing over and over 
+again with slightly different implementations.
+
+Out in the wild I've seen at least using a separate variable, using a 
+bool to indicate that something was found and just assuming that the 
+list has an entry.
+
+The last case is bogus and basically what can break badly.
+
+If we would have an unified macro which search for an entry combined 
+with automated reporting on patches to use that macro I think the 
+potential to introduce such issues will already go down massively 
+without auditing tons of existing code.
+
+Regards,
+Christian.
+
+>
+> James
+>
+>
+
