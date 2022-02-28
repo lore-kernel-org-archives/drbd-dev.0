@@ -1,23 +1,30 @@
-Return-Path: <rppt@kernel.org>
-Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6990F42006A
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 23:07:32 +0100 (CET)
-Date: Mon, 28 Feb 2022 23:59:07 +0200
-From: Mike Rapoport <rppt@kernel.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>,
-	=?ISO-8859-1?Q?Christian_K=F6nig?= <christian.koenig@amd.com>,
-	Linus	Torvalds <torvalds@linux-foundation.org>
-In-Reply-To: <b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
+Return-Path: <pobrn@protonmail.com>
+Received: from mail-41104.protonmail.ch (mail-41104.protonmail.ch
+	[185.70.41.104])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0AA2D42178C
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 23:58:04 +0100 (CET)
+Received: from mail-0201.mail-europe.com (mail-0201.mail-europe.com
+	[51.77.79.158])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	key-exchange X25519 server-signature RSA-PSS (4096 bits))
+	(No client certificate requested)
+	by mail-41104.protonmail.ch (Postfix) with ESMTPS id 4K6wbM1YPJz4wyMw
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 22:51:11 +0000 (UTC)
+Date: Mon, 28 Feb 2022 22:50:06 +0000
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+From: =?utf-8?Q?Barnab=C3=A1s_P=C5=91cze?= <pobrn@protonmail.com>
+Message-ID: <Ax76nlte5gO6McgVlkdlM8SHBdfYoG0hb6pFO3MJ6iEg3VCk3kzPWFQ6HS2uVDB8eeyLSr4ku62pXF-FrsROsQvF_VDAW1I5lXTFZTkkMfk=@protonmail.com>
+In-Reply-To: <73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
 	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
 	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
 	<282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
 	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
-Message-ID: <7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
+	<7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
+	<73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
@@ -40,6 +47,7 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	Kees Cook <keescook@chromium.org>, Arnd Bergman <arnd@arndb.de>,
 	Linux PM <linux-pm@vger.kernel.org>,
 	intel-gfx <intel-gfx@lists.freedesktop.org>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
 	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
 	Nathan Chancellor <nathan@kernel.org>, dma <dmaengine@vger.kernel.org>,
 	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
@@ -59,9 +67,12 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
 	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	=?utf-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>,
+	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
 	after loop body as a ptr
+Reply-To: =?utf-8?Q?Barnab=C3=A1s_P=C5=91cze?= <pobrn@protonmail.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -73,96 +84,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hi
 
 
-On February 28, 2022 10:42:53 PM GMT+02:00, James Bottomley <James=2EBotto=
-mley@HansenPartnership=2Ecom> wrote:
->On Mon, 2022-02-28 at 21:07 +0100, Christian K=C3=B6nig wrote:
->> Am 28=2E02=2E22 um 20:56 schrieb Linus Torvalds:
->> > On Mon, Feb 28, 2022 at 4:19 AM Christian K=C3=B6nig
->> > <christian=2Ekoenig@amd=2Ecom> wrote:
->> > > I don't think that using the extra variable makes the code in any
->> > > way
->> > > more reliable or easier to read=2E
->> > So I think the next step is to do the attached patch (which
->> > requires
->> > that "-std=3Dgnu11" that was discussed in the original thread)=2E
->> >=20
->> > That will guarantee that the 'pos' parameter of
->> > list_for_each_entry()
->> > is only updated INSIDE the for_each_list_entry() loop, and can
->> > never
->> > point to the (wrongly typed) head entry=2E
->> >=20
->> > And I would actually hope that it should actually cause compiler
->> > warnings about possibly uninitialized variables if people then use
->> > the
->> > 'pos' pointer outside the loop=2E Except
->> >=20
->> >   (a) that code in sgx/encl=2Ec currently initializes 'tmp' to NULL
->> > for
->> > inexplicable reasons - possibly because it already expected this
->> > behavior
->> >=20
->> >   (b) when I remove that NULL initializer, I still don't get a
->> > warning,
->> > because we've disabled -Wno-maybe-uninitialized since it results in
->> > so
->> > many false positives=2E
->> >=20
->> > Oh well=2E
->> >=20
->> > Anyway, give this patch a look, and at least if it's expanded to do
->> > "(pos) =3D NULL" in the entry statement for the for-loop, it will
->> > avoid the HEAD type confusion that Jakob is working on=2E And I think
->> > in a cleaner way than the horrid games he plays=2E
->> >=20
->> > (But it won't avoid possible CPU speculation of such type
->> > confusion=2E That, in my opinion, is a completely different issue)
->>=20
->> Yes, completely agree=2E
->>=20
->> > I do wish we could actually poison the 'pos' value after the loop
->> > somehow - but clearly the "might be uninitialized" I was hoping for
->> > isn't the way to do it=2E
->> >=20
->> > Anybody have any ideas?
->>=20
->> I think we should look at the use cases why code is touching (pos)
->> after the loop=2E
->>=20
->> Just from skimming over the patches to change this and experience
->> with the drivers/subsystems I help to maintain I think the primary
->> pattern looks something like this:
->>=20
->> list_for_each_entry(entry, head, member) {
->>      if (some_condition_checking(entry))
->>          break;
->> }
->> do_something_with(entry);
->
->
->Actually, we usually have a check to see if the loop found anything,
->but in that case it should something like
->
->if (list_entry_is_head(entry, head, member)) {
->    return with error;
->}
->do_somethin_with(entry);
->
->Suffice?  The list_entry_is_head() macro is designed to cope with the
->bogus entry on head problem=2E
+2022. febru=C3=A1r 28., h=C3=A9tf=C5=91 23:28 keltez=C3=A9ssel, James Botto=
+mley =C3=ADrta:
+> [...]
+> Well, yes, but my objection is more to the size of churn than the
+> desire to do loop local.  I'm not even sure loop local is possible,
+> because it's always annoyed me that for (int i =3D 0; ...  in C++ defines
+> i in the outer scope not the loop scope, which is why I never use it.
 
-Won't suffice because the end goal of this work is to limit scope of entry=
- only to loop=2E Hence the need for additional variable=2E
+It is arguably off-topic to the discussion at hand, but I think you might b=
+e
+thinking of something else (or maybe it was the case in an ancient version =
+of C++)
+because that does not appear to be case. If it were,
 
-Besides, there are no guarantees that people won't do_something_with(entry=
-) without the check or won't compare entry to NULL to check if the loop fin=
-ished with break or not=2E
+  for (int i ...) { ... }
+  for (int i ...) { ... }
 
->James
+would have to trigger a redeclaration error, but that happens neither in C+=
++ nor in C.
+The variable is also inaccessible outside the loop.
 
 
---=20
-Sincerely yours,
-Mike
+> [...]
+
+
+Regards,
+Barnab=C3=A1s P=C5=91cze
