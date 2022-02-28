@@ -1,21 +1,21 @@
-Return-Path: <willy@infradead.org>
-Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B846542177F
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 21:38:20 +0100 (CET)
-Date: Mon, 28 Feb 2022 20:16:23 +0000
-From: Matthew Wilcox <willy@infradead.org>
+Return-Path: <Christian.Koenig@amd.com>
+Received: from NAM10-BN7-obe.outbound.protection.outlook.com
+	(mail-bn7nam10on2046.outbound.protection.outlook.com [40.107.92.46])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 386C7421784
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 21:40:13 +0100 (CET)
+Message-ID: <282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
+Date: Mon, 28 Feb 2022 21:07:03 +0100
+Content-Language: en-US
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Message-ID: <Yh0tl3Lni4weIMkl@casper.infradead.org>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
 	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
 	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
-	<CAHk-=wj8fkosQ7=bps5K+DDazBXk=ypfn49A0sEq+7-nZnyfXA@mail.gmail.com>
-	<CAHk-=wiTCvLQkHcJ3y0hpqH7FEk9D28LDvZZogC6OVLk7naBww@mail.gmail.com>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+In-Reply-To: <CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHk-=wiTCvLQkHcJ3y0hpqH7FEk9D28LDvZZogC6OVLk7naBww@mail.gmail.com>
 Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
@@ -57,7 +57,6 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
 	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
  after loop body as a ptr
@@ -72,19 +71,68 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Feb 28, 2022 at 12:10:24PM -0800, Linus Torvalds wrote:
-> We can do
-> 
->         typeof(pos) pos
-> 
-> in the 'for ()' loop, and never use __iter at all.
-> 
-> That means that inside the for-loop, we use a _different_ 'pos' than outside.
+Am 28.02.22 um 20:56 schrieb Linus Torvalds:
+> On Mon, Feb 28, 2022 at 4:19 AM Christian König
+> <christian.koenig@amd.com> wrote:
+>> I don't think that using the extra variable makes the code in any way
+>> more reliable or easier to read.
+> So I think the next step is to do the attached patch (which requires
+> that "-std=gnu11" that was discussed in the original thread).
+>
+> That will guarantee that the 'pos' parameter of list_for_each_entry()
+> is only updated INSIDE the for_each_list_entry() loop, and can never
+> point to the (wrongly typed) head entry.
+>
+> And I would actually hope that it should actually cause compiler
+> warnings about possibly uninitialized variables if people then use the
+> 'pos' pointer outside the loop. Except
+>
+>   (a) that code in sgx/encl.c currently initializes 'tmp' to NULL for
+> inexplicable reasons - possibly because it already expected this
+> behavior
+>
+>   (b) when I remove that NULL initializer, I still don't get a warning,
+> because we've disabled -Wno-maybe-uninitialized since it results in so
+> many false positives.
+>
+> Oh well.
+>
+> Anyway, give this patch a look, and at least if it's expanded to do
+> "(pos) = NULL" in the entry statement for the for-loop, it will avoid
+> the HEAD type confusion that Jakob is working on. And I think in a
+> cleaner way than the horrid games he plays.
+>
+> (But it won't avoid possible CPU speculation of such type confusion.
+> That, in my opinion, is a completely different issue)
 
-Then we can never use -Wshadow ;-(  I'd love to be able to turn it on;
-it catches real bugs.
+Yes, completely agree.
 
-> +#define list_for_each_entry(pos, head, member)					\
-> +	for (typeof(pos) pos = list_first_entry(head, typeof(*pos), member);	\
-> +	     !list_entry_is_head(pos, head, member);	\
->  	     pos = list_next_entry(pos, member))
+> I do wish we could actually poison the 'pos' value after the loop
+> somehow - but clearly the "might be uninitialized" I was hoping for
+> isn't the way to do it.
+>
+> Anybody have any ideas?
+
+I think we should look at the use cases why code is touching (pos) after 
+the loop.
+
+Just from skimming over the patches to change this and experience with 
+the drivers/subsystems I help to maintain I think the primary pattern 
+looks something like this:
+
+list_for_each_entry(entry, head, member) {
+     if (some_condition_checking(entry))
+         break;
+}
+do_something_with(entry);
+
+So the solution should probably not be to change all those use cases to 
+use more temporary variables, but rather to add a list_find_entry(..., 
+condition) macro and consistently use that one instead.
+
+Regards,
+Christian.
+
+>
+>                  Linus
+
