@@ -1,17 +1,17 @@
 Return-Path: <dan.carpenter@oracle.com>
-Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
-	[205.220.177.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0CF02420171
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 14:15:18 +0100 (CET)
-Date: Mon, 28 Feb 2022 16:12:55 +0300
+Received: from mx0a-00069f02.pphosted.com (mx0a-00069f02.pphosted.com
+	[205.220.165.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8585F4201F2
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 14:15:46 +0100 (CET)
+Date: Mon, 28 Feb 2022 16:13:25 +0300
 From: Dan Carpenter <dan.carpenter@oracle.com>
 To: Jakob Koschel <jakobkoschel@gmail.com>
-Message-ID: <20220228131255.GC2812@kadam>
+Message-ID: <20220228131325.GC2794@kadam>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
-	<20220228110822.491923-7-jakobkoschel@gmail.com>
+	<20220228110822.491923-3-jakobkoschel@gmail.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20220228110822.491923-7-jakobkoschel@gmail.com>
+In-Reply-To: <20220228110822.491923-3-jakobkoschel@gmail.com>
 MIME-Version: 1.0
 Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
@@ -46,8 +46,8 @@ Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	dmaengine@vger.kernel.org, linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev@lists.ozlabs.org, Mike Rapoport <rppt@kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 6/6] treewide: remove check of list iterator
- against head past the loop body
+Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
+ after loop body as a ptr
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -59,57 +59,54 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Feb 28, 2022 at 12:08:22PM +0100, Jakob Koschel wrote:
-> diff --git a/drivers/infiniband/hw/hfi1/tid_rdma.c b/drivers/infiniband/hw/hfi1/tid_rdma.c
-> index 2a7abf7a1f7f..a069847b56aa 100644
-> --- a/drivers/infiniband/hw/hfi1/tid_rdma.c
-> +++ b/drivers/infiniband/hw/hfi1/tid_rdma.c
-> @@ -1239,7 +1239,7 @@ static int kern_alloc_tids(struct tid_rdma_flow *flow)
->  	struct hfi1_ctxtdata *rcd = flow->req->rcd;
->  	struct hfi1_devdata *dd = rcd->dd;
->  	u32 ngroups, pageidx = 0;
-> -	struct tid_group *group = NULL, *used;
-> +	struct tid_group *group = NULL, *used, *tmp;
->  	u8 use;
+On Mon, Feb 28, 2022 at 12:08:18PM +0100, Jakob Koschel wrote:
+> diff --git a/drivers/scsi/scsi_transport_sas.c b/drivers/scsi/scsi_transport_sas.c
+> index 4ee578b181da..a8cbd90db9d2 100644
+> --- a/drivers/scsi/scsi_transport_sas.c
+> +++ b/drivers/scsi/scsi_transport_sas.c
+> @@ -1060,26 +1060,29 @@ EXPORT_SYMBOL(sas_port_get_phy);
+>   * connected to a remote device is a port, so ports must be formed on
+>   * all devices with phys if they're connected to anything.
+>   */
+> -void sas_port_add_phy(struct sas_port *port, struct sas_phy *phy)
+> +void sas_port_add_phy(struct sas_port *port, struct sas_phy *_phy)
+
+_phy is an unfortunate name.
+
+>  {
+>  	mutex_lock(&port->phy_list_mutex);
+> -	if (unlikely(!list_empty(&phy->port_siblings))) {
+> +	if (unlikely(!list_empty(&_phy->port_siblings))) {
+>  		/* make sure we're already on this port */
+> +		struct sas_phy *phy = NULL;
+
+Maybe call this port_phy?
+
+>  		struct sas_phy *tmp;
 > 
->  	flow->tnode_cnt = 0;
-> @@ -1248,13 +1248,15 @@ static int kern_alloc_tids(struct tid_rdma_flow *flow)
->  		goto used_list;
-> 
->  	/* First look at complete groups */
-> -	list_for_each_entry(group,  &rcd->tid_group_list.list, list) {
-> -		kern_add_tid_node(flow, rcd, "complete groups", group,
-> -				  group->size);
-> +	list_for_each_entry(tmp,  &rcd->tid_group_list.list, list) {
-> +		kern_add_tid_node(flow, rcd, "complete groups", tmp,
-> +				  tmp->size);
-> 
-> -		pageidx += group->size;
-> -		if (!--ngroups)
-> +		pageidx += tmp->size;
-> +		if (!--ngroups) {
-> +			group = tmp;
->  			break;
-> +		}
+>  		list_for_each_entry(tmp, &port->phy_list, port_siblings)
+> -			if (tmp == phy)
+> +			if (tmp == _phy) {
+> +				phy = tmp;
+>  				break;
+> +			}
+>  		/* If this trips, you added a phy that was already
+>  		 * part of a different port */
+> -		if (unlikely(tmp != phy)) {
+> +		if (unlikely(!phy)) {
+>  			dev_printk(KERN_ERR, &port->dev, "trying to add phy %s fails: it's already part of another port\n",
+> -				   dev_name(&phy->dev));
+> +				   dev_name(&_phy->dev));
+>  			BUG();
+>  		}
+>  	} else {
+> -		sas_port_create_link(port, phy);
+> -		list_add_tail(&phy->port_siblings, &port->phy_list);
+> +		sas_port_create_link(port, _phy);
+> +		list_add_tail(&_phy->port_siblings, &port->phy_list);
+>  		port->num_phys++;
 >  	}
-> 
->  	if (pageidx >= flow->npagesets)
-> @@ -1277,7 +1279,7 @@ static int kern_alloc_tids(struct tid_rdma_flow *flow)
->  	 * However, if we are at the head, we have reached the end of the
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
->  	 * complete groups list from the first loop above
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
->  	 */
-
-Originally this code tested for an open code list_is_head() so the
-comment made sense, but it's out of date now.  Just delete it.
-
-
-> -	if (group && &group->list == &rcd->tid_group_list.list)
-> +	if (!group)
->  		goto bail_eagain;
->  	group = list_prepare_entry(group, &rcd->tid_group_list.list,
->  				   list);
+>  	mutex_unlock(&port->phy_list_mutex);
 
 regards,
 dan carpenter
