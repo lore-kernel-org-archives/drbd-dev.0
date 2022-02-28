@@ -1,31 +1,23 @@
-Return-Path: <pobrn@protonmail.com>
-Received: from mail-41104.protonmail.ch (mail-41104.protonmail.ch
-	[185.70.41.104])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0AA2D42178C
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 23:58:04 +0100 (CET)
-Received: from mail-0201.mail-europe.com (mail-0201.mail-europe.com
-	[51.77.79.158])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	key-exchange X25519 server-signature RSA-PSS (4096 bits))
-	(No client certificate requested)
-	by mail-41104.protonmail.ch (Postfix) with ESMTPS id 4K6wbM1YPJz4wyMw
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 22:51:11 +0000 (UTC)
-Date: Mon, 28 Feb 2022 22:50:06 +0000
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-From: =?utf-8?Q?Barnab=C3=A1s_P=C5=91cze?= <pobrn@protonmail.com>
-Message-ID: <Ax76nlte5gO6McgVlkdlM8SHBdfYoG0hb6pFO3MJ6iEg3VCk3kzPWFQ6HS2uVDB8eeyLSr4ku62pXF-FrsROsQvF_VDAW1I5lXTFZTkkMfk=@protonmail.com>
-In-Reply-To: <73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
+Return-Path: <willy@infradead.org>
+Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EC7EB421786
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 00:27:16 +0100 (CET)
+Date: Mon, 28 Feb 2022 23:26:42 +0000
+From: Matthew Wilcox <willy@infradead.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Message-ID: <Yh1aMm3hFe/j9ZbI@casper.infradead.org>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
 	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
 	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
-	<282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
-	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
-	<7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
-	<73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
+	<CAHk-=wj8fkosQ7=bps5K+DDazBXk=ypfn49A0sEq+7-nZnyfXA@mail.gmail.com>
+	<CAHk-=wiTCvLQkHcJ3y0hpqH7FEk9D28LDvZZogC6OVLk7naBww@mail.gmail.com>
+	<Yh0tl3Lni4weIMkl@casper.infradead.org>
+	<CAHk-=wgBfJ1-cPA2LTvFyyy8owpfmtCuyiZi4+um8DhFNe+CyA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHk-=wgBfJ1-cPA2LTvFyyy8owpfmtCuyiZi4+um8DhFNe+CyA@mail.gmail.com>
 Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
@@ -47,7 +39,6 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	Kees Cook <keescook@chromium.org>, Arnd Bergman <arnd@arndb.de>,
 	Linux PM <linux-pm@vger.kernel.org>,
 	intel-gfx <intel-gfx@lists.freedesktop.org>,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
 	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
 	Nathan Chancellor <nathan@kernel.org>, dma <dmaengine@vger.kernel.org>,
 	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
@@ -67,12 +58,11 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
 	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	=?utf-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
 	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
-	after loop body as a ptr
-Reply-To: =?utf-8?Q?Barnab=C3=A1s_P=C5=91cze?= <pobrn@protonmail.com>
+ after loop body as a ptr
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -84,33 +74,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi
+On Mon, Feb 28, 2022 at 12:37:15PM -0800, Linus Torvalds wrote:
+> On Mon, Feb 28, 2022 at 12:16 PM Matthew Wilcox <willy@infradead.org> wrote:
+> >
+> > Then we can never use -Wshadow ;-(  I'd love to be able to turn it on;
+> > it catches real bugs.
+> 
+> Oh, we already can never use -Wshadow regardless of things like this.
+> That bridge hasn't just been burned, it never existed in the first
+> place.
+> 
+> The whole '-Wshadow' thing simply cannot work with local variables in
+> macros - something that we've used since day 1.
+> 
+> Try this (as a "p.c" file):
+> 
+>         #define min(a,b) ({                     \
+>                 typeof(a) __a = (a);            \
+>                 typeof(b) __b = (b);            \
+>                 __a < __b ? __a : __b; })
+> 
+>         int min3(int a, int b, int c)
+>         {
+>                 return min(a,min(b,c));
+>         }
+> 
+> and now do "gcc -O2 -S t.c".
+> 
+> Then try it with -Wshadow.
 
+#define ___PASTE(a, b)	a##b
+#define __PASTE(a, b) ___PASTE(a, b)
+#define _min(a, b, u) ({         \
+        typeof(a) __PASTE(__a,u) = (a);            \
+        typeof(b) __PASTE(__b,u) = (b);            \
+        __PASTE(__a,u) < __PASTE(__b,u) ? __PASTE(__a,u) : __PASTE(__b,u); })
 
-2022. febru=C3=A1r 28., h=C3=A9tf=C5=91 23:28 keltez=C3=A9ssel, James Botto=
-mley =C3=ADrta:
-> [...]
-> Well, yes, but my objection is more to the size of churn than the
-> desire to do loop local.  I'm not even sure loop local is possible,
-> because it's always annoyed me that for (int i =3D 0; ...  in C++ defines
-> i in the outer scope not the loop scope, which is why I never use it.
+#define min(a, b) _min(a, b, __COUNTER__)
 
-It is arguably off-topic to the discussion at hand, but I think you might b=
-e
-thinking of something else (or maybe it was the case in an ancient version =
-of C++)
-because that does not appear to be case. If it were,
+int min3(int a, int b, int c)
+{
+        return min(a,min(b,c));
+}
 
-  for (int i ...) { ... }
-  for (int i ...) { ... }
-
-would have to trigger a redeclaration error, but that happens neither in C+=
-+ nor in C.
-The variable is also inaccessible outside the loop.
-
-
-> [...]
-
-
-Regards,
-Barnab=C3=A1s P=C5=91cze
+(probably there's a more elegant way to do this)
