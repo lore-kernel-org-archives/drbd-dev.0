@@ -1,28 +1,29 @@
 Return-Path: <torvalds@linuxfoundation.org>
-Received: from mail-ej1-f46.google.com (mail-ej1-f46.google.com
-	[209.85.218.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4F9254205DD
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 21:03:26 +0100 (CET)
-Received: by mail-ej1-f46.google.com with SMTP id p14so27047374ejf.11
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 12:03:26 -0800 (PST)
-Received: from mail-ed1-f44.google.com (mail-ed1-f44.google.com.
-	[209.85.208.44]) by smtp.gmail.com with ESMTPSA id
-	w11-20020a056402128b00b00412ec3f5f74sm6385842edv.62.2022.02.28.12.02.26
+Received: from mail-lf1-f49.google.com (mail-lf1-f49.google.com
+	[209.85.167.49])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6C3B64205DD
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 21:03:52 +0100 (CET)
+Received: by mail-lf1-f49.google.com with SMTP id b11so23251504lfb.12
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 12:03:52 -0800 (PST)
+Received: from mail-lf1-f54.google.com (mail-lf1-f54.google.com.
+	[209.85.167.54]) by smtp.gmail.com with ESMTPSA id
+	10-20020a2e154a000000b00246876c0bb7sm859773ljv.74.2022.02.28.12.03.51
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
-	Mon, 28 Feb 2022 12:02:26 -0800 (PST)
-Received: by mail-ed1-f44.google.com with SMTP id g20so19167354edw.6
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 12:02:26 -0800 (PST)
+	Mon, 28 Feb 2022 12:03:51 -0800 (PST)
+Received: by mail-lf1-f54.google.com with SMTP id b11so23251345lfb.12
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 12:03:51 -0800 (PST)
 MIME-Version: 1.0
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
 	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
-In-Reply-To: <2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
+	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
+In-Reply-To: <CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 28 Feb 2022 11:56:07 -0800
-Message-ID: <CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
+Date: Mon, 28 Feb 2022 12:03:34 -0800
+Message-ID: <CAHk-=wj8fkosQ7=bps5K+DDazBXk=ypfn49A0sEq+7-nZnyfXA@mail.gmail.com>
 To: =?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>
-Content-Type: multipart/mixed; boundary="00000000000064a3e305d91971a9"
+Content-Type: text/plain; charset="UTF-8"
 Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
@@ -78,74 +79,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---00000000000064a3e305d91971a9
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Mon, Feb 28, 2022 at 4:19 AM Christian K=C3=B6nig
-<christian.koenig@amd.com> wrote:
+On Mon, Feb 28, 2022 at 11:56 AM Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
-> I don't think that using the extra variable makes the code in any way
-> more reliable or easier to read.
+> I do wish we could actually poison the 'pos' value after the loop
+> somehow - but clearly the "might be uninitialized" I was hoping for
+> isn't the way to do it.
 
-So I think the next step is to do the attached patch (which requires
-that "-std=3Dgnu11" that was discussed in the original thread).
+Side note: we do need *some* way to do it.
 
-That will guarantee that the 'pos' parameter of list_for_each_entry()
-is only updated INSIDE the for_each_list_entry() loop, and can never
-point to the (wrongly typed) head entry.
+Because if we make that change, and only set it to another pointer
+when not the head, then we very much change the semantics of
+"list_for_each_head()". The "list was empty" case would now exit with
+'pos' not set at all (or set to NULL if we add that). Or it would be
+set to the last entry.
 
-And I would actually hope that it should actually cause compiler
-warnings about possibly uninitialized variables if people then use the
-'pos' pointer outside the loop. Except
+And regardless, that means that all the
 
- (a) that code in sgx/encl.c currently initializes 'tmp' to NULL for
-inexplicable reasons - possibly because it already expected this
-behavior
+        if (pos == head)
 
- (b) when I remove that NULL initializer, I still don't get a warning,
-because we've disabled -Wno-maybe-uninitialized since it results in so
-many false positives.
+kinds of checks after the loop would be fundamentally broken.
 
-Oh well.
+Darn. I really hoped for (and naively expected) that we could actually
+have the compiler warn about the use-after-loop case. That whole
+"compiler will now complain about bad use" was integral to my clever
+plan to use the C99 feature of declaring the iterator inside the loop.
 
-Anyway, give this patch a look, and at least if it's expanded to do
-"(pos) =3D NULL" in the entry statement for the for-loop, it will avoid
-the HEAD type confusion that Jakob is working on. And I think in a
-cleaner way than the horrid games he plays.
+But my "clever plan" was apparently some ACME-level Wile E. Coyote sh*t.
 
-(But it won't avoid possible CPU speculation of such type confusion.
-That, in my opinion, is a completely different issue)
+Darn.
 
-I do wish we could actually poison the 'pos' value after the loop
-somehow - but clearly the "might be uninitialized" I was hoping for
-isn't the way to do it.
-
-Anybody have any ideas?
-
-                Linus
-
---00000000000064a3e305d91971a9
-Content-Type: application/octet-stream; name=p
-Content-Disposition: attachment; filename=p
-Content-Transfer-Encoding: base64
-Content-ID: <f_l073sb6w0>
-X-Attachment-Id: f_l073sb6w0
-
-ZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvbGlzdC5oIGIvaW5jbHVkZS9saW51eC9saXN0LmgK
-aW5kZXggZGQ2YzIwNDFkMDljLi5iYWI5OTU1OTZhYWEgMTAwNjQ0Ci0tLSBhL2luY2x1ZGUvbGlu
-dXgvbGlzdC5oCisrKyBiL2luY2x1ZGUvbGludXgvbGlzdC5oCkBAIC02MzQsMTAgKzYzNCwxMCBA
-QCBzdGF0aWMgaW5saW5lIHZvaWQgbGlzdF9zcGxpY2VfdGFpbF9pbml0KHN0cnVjdCBsaXN0X2hl
-YWQgKmxpc3QsCiAgKiBAaGVhZDoJdGhlIGhlYWQgZm9yIHlvdXIgbGlzdC4KICAqIEBtZW1iZXI6
-CXRoZSBuYW1lIG9mIHRoZSBsaXN0X2hlYWQgd2l0aGluIHRoZSBzdHJ1Y3QuCiAgKi8KLSNkZWZp
-bmUgbGlzdF9mb3JfZWFjaF9lbnRyeShwb3MsIGhlYWQsIG1lbWJlcikJCQkJXAotCWZvciAocG9z
-ID0gbGlzdF9maXJzdF9lbnRyeShoZWFkLCB0eXBlb2YoKnBvcyksIG1lbWJlcik7CVwKLQkgICAg
-ICFsaXN0X2VudHJ5X2lzX2hlYWQocG9zLCBoZWFkLCBtZW1iZXIpOwkJCVwKLQkgICAgIHBvcyA9
-IGxpc3RfbmV4dF9lbnRyeShwb3MsIG1lbWJlcikpCisjZGVmaW5lIGxpc3RfZm9yX2VhY2hfZW50
-cnkocG9zLCBoZWFkLCBtZW1iZXIpCQkJCQlcCisJZm9yICh0eXBlb2YocG9zKSBfX2l0ZXIgPSBs
-aXN0X2ZpcnN0X2VudHJ5KGhlYWQsIHR5cGVvZigqcG9zKSwgbWVtYmVyKTsJXAorCSAgICAgIWxp
-c3RfZW50cnlfaXNfaGVhZChfX2l0ZXIsIGhlYWQsIG1lbWJlcikgJiYgKCgocG9zKT1fX2l0ZXIp
-LDEpOwlcCisJICAgICBfX2l0ZXIgPSBsaXN0X25leHRfZW50cnkoX19pdGVyLCBtZW1iZXIpKQog
-CiAvKioKICAqIGxpc3RfZm9yX2VhY2hfZW50cnlfcmV2ZXJzZSAtIGl0ZXJhdGUgYmFja3dhcmRz
-IG92ZXIgbGlzdCBvZiBnaXZlbiB0eXBlLgo=
---00000000000064a3e305d91971a9--
+                   Linus
