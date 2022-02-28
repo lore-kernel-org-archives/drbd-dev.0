@@ -1,32 +1,45 @@
-Return-Path: <Christian.Koenig@amd.com>
-Received: from NAM10-BN7-obe.outbound.protection.outlook.com
-	(mail-bn7nam10on2046.outbound.protection.outlook.com [40.107.92.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 386C7421784
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 21:40:13 +0100 (CET)
-Message-ID: <282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
-Date: Mon, 28 Feb 2022 21:07:03 +0100
-Content-Language: en-US
-To: Linus Torvalds <torvalds@linux-foundation.org>
+Return-Path: <torvalds@linuxfoundation.org>
+Received: from mail-lj1-f175.google.com (mail-lj1-f175.google.com
+	[209.85.208.175])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7B9DC421785
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 21:50:31 +0100 (CET)
+Received: by mail-lj1-f175.google.com with SMTP id p20so19186821ljo.0
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 12:50:31 -0800 (PST)
+Received: from mail-lf1-f53.google.com (mail-lf1-f53.google.com.
+	[209.85.167.53]) by smtp.gmail.com with ESMTPSA id
+	v12-20020a056512096c00b00443c40a6a4csm1128361lft.134.2022.02.28.12.49.30
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+	Mon, 28 Feb 2022 12:49:30 -0800 (PST)
+Received: by mail-lf1-f53.google.com with SMTP id u20so23499782lff.2
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 12:49:30 -0800 (PST)
+MIME-Version: 1.0
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
 	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
 	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
-From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
-In-Reply-To: <CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
-MIME-Version: 1.0
+	<CAHk-=wj8fkosQ7=bps5K+DDazBXk=ypfn49A0sEq+7-nZnyfXA@mail.gmail.com>
+	<CAHk-=wiTCvLQkHcJ3y0hpqH7FEk9D28LDvZZogC6OVLk7naBww@mail.gmail.com>
+	<Yh0tl3Lni4weIMkl@casper.infradead.org>
+	<e3bb7d0632f8ef60f18c19976d57330e1ef00584.camel@sipsolutions.net>
+In-Reply-To: <e3bb7d0632f8ef60f18c19976d57330e1ef00584.camel@sipsolutions.net>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 28 Feb 2022 12:41:01 -0800
+Message-ID: <CAHk-=wjNgWNa9njuBJEoafc-cRV3SbzZfh3m5YfxcZxdCw3+XQ@mail.gmail.com>
+To: Johannes Berg <johannes@sipsolutions.net>
+Content-Type: text/plain; charset="UTF-8"
 Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
 	linux-iio@vger.kernel.org, nouveau@lists.freedesktop.org,
 	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
 	dri-devel <dri-devel@lists.freedesktop.org>,
-	Cristiano Giuffrida <c.giuffrida@vu.nl>, "Bos,
-	H.J." <h.j.bos@vu.nl>, linux1394-devel@lists.sourceforge.net,
-	drbd-dev@lists.linbit.com, linux-arch <linux-arch@vger.kernel.org>,
-	CIFS <linux-cifs@vger.kernel.org>, linux-aspeed@lists.ozlabs.org,
-	linux-scsi <linux-scsi@vger.kernel.org>,
+	Cristiano Giuffrida <c.giuffrida@vu.nl>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux1394-devel@lists.sourceforge.net, drbd-dev@lists.linbit.com,
+	linux-arch <linux-arch@vger.kernel.org>, CIFS <linux-cifs@vger.kernel.org>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	linux-aspeed@lists.ozlabs.org, linux-scsi <linux-scsi@vger.kernel.org>,
 	linux-rdma <linux-rdma@vger.kernel.org>, linux-staging@lists.linux.dev,
 	amd-gfx list <amd-gfx@lists.freedesktop.org>,
 	Jason Gunthorpe <jgg@ziepe.ca>, intel-wired-lan@lists.osuosl.org,
@@ -36,15 +49,15 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	Linux Media Mailing List <linux-media@vger.kernel.org>,
 	Kees Cook <keescook@chromium.org>, Arnd Bergman <arnd@arndb.de>,
 	Linux PM <linux-pm@vger.kernel.org>,
-	intel-gfx <intel-gfx@lists.freedesktop.org>,
-	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
-	Nathan Chancellor <nathan@kernel.org>, dma <dmaengine@vger.kernel.org>,
+	intel-gfx <intel-gfx@lists.freedesktop.org>, "Bos,
+	H.J." <h.j.bos@vu.nl>, Nathan Chancellor <nathan@kernel.org>,
+	dma <dmaengine@vger.kernel.org>,
 	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
 	Jakob Koschel <jakobkoschel@gmail.com>,
 	v9fs-developer@lists.sourceforge.net,
 	linux-tegra <linux-tegra@vger.kernel.org>,
 	Thomas Gleixner <tglx@linutronix.de>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
 	Linux ARM <linux-arm-kernel@lists.infradead.org>,
 	linux-sgx@vger.kernel.org, linux-block <linux-block@vger.kernel.org>,
 	Netdev <netdev@vger.kernel.org>, linux-usb@vger.kernel.org,
@@ -57,6 +70,7 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>,
 	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
  after loop body as a ptr
@@ -71,68 +85,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 28.02.22 um 20:56 schrieb Linus Torvalds:
-> On Mon, Feb 28, 2022 at 4:19 AM Christian König
-> <christian.koenig@amd.com> wrote:
->> I don't think that using the extra variable makes the code in any way
->> more reliable or easier to read.
-> So I think the next step is to do the attached patch (which requires
-> that "-std=gnu11" that was discussed in the original thread).
+On Mon, Feb 28, 2022 at 12:29 PM Johannes Berg
+<johannes@sipsolutions.net> wrote:
 >
-> That will guarantee that the 'pos' parameter of list_for_each_entry()
-> is only updated INSIDE the for_each_list_entry() loop, and can never
-> point to the (wrongly typed) head entry.
+> If we're willing to change the API for the macro, we could do
 >
-> And I would actually hope that it should actually cause compiler
-> warnings about possibly uninitialized variables if people then use the
-> 'pos' pointer outside the loop. Except
+>   list_for_each_entry(type, pos, head, member)
 >
->   (a) that code in sgx/encl.c currently initializes 'tmp' to NULL for
-> inexplicable reasons - possibly because it already expected this
-> behavior
->
->   (b) when I remove that NULL initializer, I still don't get a warning,
-> because we've disabled -Wno-maybe-uninitialized since it results in so
-> many false positives.
->
-> Oh well.
->
-> Anyway, give this patch a look, and at least if it's expanded to do
-> "(pos) = NULL" in the entry statement for the for-loop, it will avoid
-> the HEAD type confusion that Jakob is working on. And I think in a
-> cleaner way than the horrid games he plays.
->
-> (But it won't avoid possible CPU speculation of such type confusion.
-> That, in my opinion, is a completely different issue)
+> and then actually take advantage of -Wshadow?
 
-Yes, completely agree.
+See my reply to Willy. There is no way -Wshadow will ever happen.
 
-> I do wish we could actually poison the 'pos' value after the loop
-> somehow - but clearly the "might be uninitialized" I was hoping for
-> isn't the way to do it.
->
-> Anybody have any ideas?
+I considered that (type, pos, head, member) kind of thing, to the
+point of trying it for one file, but it ends up as horrendous syntax.
+It turns out that declaring the type separately really helps, and
+avoids crazy long lines among other things.
 
-I think we should look at the use cases why code is touching (pos) after 
-the loop.
+It would be unacceptable for another reason too - the amount of churn
+would just be immense. Every single use of that macro (and related
+macros) would change, even the ones that really don't need it or want
+it (ie the good kinds that already only use the variable inside the
+loop).
 
-Just from skimming over the patches to change this and experience with 
-the drivers/subsystems I help to maintain I think the primary pattern 
-looks something like this:
+So "typeof(pos) pos" may be ugly - but it's a very localized ugly.
 
-list_for_each_entry(entry, head, member) {
-     if (some_condition_checking(entry))
-         break;
-}
-do_something_with(entry);
-
-So the solution should probably not be to change all those use cases to 
-use more temporary variables, but rather to add a list_find_entry(..., 
-condition) macro and consistently use that one instead.
-
-Regards,
-Christian.
-
->
->                  Linus
-
+                    Linus
