@@ -1,14 +1,14 @@
 Return-Path: <jakobkoschel@gmail.com>
-Received: from mail-ej1-f52.google.com (mail-ej1-f52.google.com
-	[209.85.218.52])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4B2EB420347
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 12:08:58 +0100 (CET)
-Received: by mail-ej1-f52.google.com with SMTP id qx21so23946499ejb.13
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 03:08:58 -0800 (PST)
+Received: from mail-ej1-f46.google.com (mail-ej1-f46.google.com
+	[209.85.218.46])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 871E2420365
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 12:09:01 +0100 (CET)
+Received: by mail-ej1-f46.google.com with SMTP id p9so23985089ejd.6
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 03:09:01 -0800 (PST)
 From: Jakob Koschel <jakobkoschel@gmail.com>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 28 Feb 2022 12:08:19 +0100
-Message-Id: <20220228110822.491923-4-jakobkoschel@gmail.com>
+Date: Mon, 28 Feb 2022 12:08:21 +0100
+Message-Id: <20220228110822.491923-6-jakobkoschel@gmail.com>
 In-Reply-To: <20220228110822.491923-1-jakobkoschel@gmail.com>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 MIME-Version: 1.0
@@ -47,8 +47,8 @@ Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev@lists.ozlabs.org, Mike Rapoport <rppt@kernel.org>
-Subject: [Drbd-dev] [PATCH 3/6] treewide: fix incorrect use to determine if
-	list is empty
+Subject: [Drbd-dev] [PATCH 5/6] treewide: remove dereference of list
+	iterator after loop body
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -60,103 +60,106 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The list iterator value will *always* be set by list_for_each_entry().
-It is incorrect to assume that the iterator value will be NULL if the
-list is empty.
+The list iterator variable will be a bogus pointer if no break was hit.
+Dereferencing it could load *any* out-of-bounds/undefined value
+making it unsafe to use that in the comparision to determine if the
+specific element was found.
 
-Instead of checking the pointer it should be checked if
-the list is empty.
-In acpi_get_pmu_hw_inf() instead of setting the pointer to NULL
-on the break, it is set to the correct value and leaving it
-NULL if no element was found.
+This is fixed by using a separate list iterator variable for the loop
+and only setting the original variable if a suitable element was found.
+Then determing if the element was found is simply checking if the
+variable is set.
 
 Signed-off-by: Jakob Koschel <jakobkoschel@gmail.com>
 ---
- arch/powerpc/sysdev/fsl_gtm.c            |  4 ++--
- drivers/media/pci/saa7134/saa7134-alsa.c |  4 ++--
- drivers/perf/xgene_pmu.c                 | 13 +++++++------
- 3 files changed, 11 insertions(+), 10 deletions(-)
+ drivers/gpu/drm/nouveau/nvkm/subdev/clk/base.c | 11 +++++++----
+ drivers/scsi/wd719x.c                          | 12 ++++++++----
+ fs/f2fs/segment.c                              |  9 ++++++---
+ 3 files changed, 21 insertions(+), 11 deletions(-)
 
-diff --git a/arch/powerpc/sysdev/fsl_gtm.c b/arch/powerpc/sysdev/fsl_gtm.c
-index 8963eaffb1b7..39186ad6b3c3 100644
---- a/arch/powerpc/sysdev/fsl_gtm.c
-+++ b/arch/powerpc/sysdev/fsl_gtm.c
-@@ -86,7 +86,7 @@ static LIST_HEAD(gtms);
-  */
- struct gtm_timer *gtm_get_timer16(void)
+diff --git a/drivers/gpu/drm/nouveau/nvkm/subdev/clk/base.c b/drivers/gpu/drm/nouveau/nvkm/subdev/clk/base.c
+index 57199be082fd..c56cd9e59a66 100644
+--- a/drivers/gpu/drm/nouveau/nvkm/subdev/clk/base.c
++++ b/drivers/gpu/drm/nouveau/nvkm/subdev/clk/base.c
+@@ -471,20 +471,23 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
+ static int
+ nvkm_clk_ustate_update(struct nvkm_clk *clk, int req)
  {
--	struct gtm *gtm = NULL;
-+	struct gtm *gtm;
- 	int i;
+-	struct nvkm_pstate *pstate;
++	struct nvkm_pstate *pstate = NULL;
++	struct nvkm_pstate *tmp;
+ 	int i = 0;
 
- 	list_for_each_entry(gtm, &gtms, list_node) {
-@@ -103,7 +103,7 @@ struct gtm_timer *gtm_get_timer16(void)
- 		spin_unlock_irq(&gtm->lock);
- 	}
+ 	if (!clk->allow_reclock)
+ 		return -ENOSYS;
 
--	if (gtm)
-+	if (!list_empty(&gtms))
- 		return ERR_PTR(-EBUSY);
- 	return ERR_PTR(-ENODEV);
- }
-diff --git a/drivers/media/pci/saa7134/saa7134-alsa.c b/drivers/media/pci/saa7134/saa7134-alsa.c
-index fb24d2ed3621..d3cde05a6eba 100644
---- a/drivers/media/pci/saa7134/saa7134-alsa.c
-+++ b/drivers/media/pci/saa7134/saa7134-alsa.c
-@@ -1214,7 +1214,7 @@ static int alsa_device_exit(struct saa7134_dev *dev)
-
- static int saa7134_alsa_init(void)
- {
--	struct saa7134_dev *dev = NULL;
-+	struct saa7134_dev *dev;
-
- 	saa7134_dmasound_init = alsa_device_init;
- 	saa7134_dmasound_exit = alsa_device_exit;
-@@ -1229,7 +1229,7 @@ static int saa7134_alsa_init(void)
- 			alsa_device_init(dev);
- 	}
-
--	if (dev == NULL)
-+	if (list_empty(&saa7134_devlist))
- 		pr_info("saa7134 ALSA: no saa7134 cards found\n");
-
- 	return 0;
-diff --git a/drivers/perf/xgene_pmu.c b/drivers/perf/xgene_pmu.c
-index 2b6d476bd213..e255f9e665d1 100644
---- a/drivers/perf/xgene_pmu.c
-+++ b/drivers/perf/xgene_pmu.c
-@@ -1460,7 +1460,8 @@ xgene_pmu_dev_ctx *acpi_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
- 	struct hw_pmu_info *inf;
- 	void __iomem *dev_csr;
- 	struct resource res;
--	struct resource_entry *rentry;
-+	struct resource_entry *rentry = NULL;
-+	struct resource_entry *tmp;
- 	int enable_bit;
- 	int rc;
-
-@@ -1475,16 +1476,16 @@ xgene_pmu_dev_ctx *acpi_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
- 		return NULL;
- 	}
-
--	list_for_each_entry(rentry, &resource_list, node) {
--		if (resource_type(rentry->res) == IORESOURCE_MEM) {
--			res = *rentry->res;
--			rentry = NULL;
-+	list_for_each_entry(tmp, &resource_list, node) {
-+		if (resource_type(tmp->res) == IORESOURCE_MEM) {
-+			res = *tmp->res;
-+			rentry = tmp;
- 			break;
+ 	if (req != -1 && req != -2) {
+-		list_for_each_entry(pstate, &clk->states, head) {
+-			if (pstate->pstate == req)
++		list_for_each_entry(tmp, &clk->states, head) {
++			if (tmp->pstate == req) {
++				pstate = tmp;
+ 				break;
++			}
+ 			i++;
  		}
- 	}
- 	acpi_dev_free_resource_list(&resource_list);
 
--	if (rentry) {
-+	if (!rentry) {
- 		dev_err(dev, "PMU type %d: No memory resource found\n", type);
- 		return NULL;
+-		if (pstate->pstate != req)
++		if (!pstate)
+ 			return -EINVAL;
+ 		req = i;
  	}
+diff --git a/drivers/scsi/wd719x.c b/drivers/scsi/wd719x.c
+index 1a7947554581..be270ed8e00d 100644
+--- a/drivers/scsi/wd719x.c
++++ b/drivers/scsi/wd719x.c
+@@ -684,11 +684,15 @@ static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
+ 	case WD719X_INT_SPIDERFAILED:
+ 		/* was the cmd completed a direct or SCB command? */
+ 		if (regs.bytes.OPC == WD719X_CMD_PROCESS_SCB) {
+-			struct wd719x_scb *scb;
+-			list_for_each_entry(scb, &wd->active_scbs, list)
+-				if (SCB_out == scb->phys)
++			struct wd719x_scb *scb = NULL;
++			struct wd719x_scb *tmp;
++
++			list_for_each_entry(tmp, &wd->active_scbs, list)
++				if (SCB_out == tmp->phys) {
++					scb = tmp;
+ 					break;
+-			if (SCB_out == scb->phys)
++				}
++			if (scb)
+ 				wd719x_interrupt_SCB(wd, regs, scb);
+ 			else
+ 				dev_err(&wd->pdev->dev, "card returned invalid SCB pointer\n");
+diff --git a/fs/f2fs/segment.c b/fs/f2fs/segment.c
+index 1dabc8244083..a3684385e04a 100644
+--- a/fs/f2fs/segment.c
++++ b/fs/f2fs/segment.c
+@@ -356,16 +356,19 @@ void f2fs_drop_inmem_page(struct inode *inode, struct page *page)
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct list_head *head = &fi->inmem_pages;
+ 	struct inmem_pages *cur = NULL;
++	struct inmem_pages *tmp;
+
+ 	f2fs_bug_on(sbi, !page_private_atomic(page));
+
+ 	mutex_lock(&fi->inmem_lock);
+-	list_for_each_entry(cur, head, list) {
+-		if (cur->page == page)
++	list_for_each_entry(tmp, head, list) {
++		if (tmp->page == page) {
++			cur = tmp;
+ 			break;
++		}
+ 	}
+
+-	f2fs_bug_on(sbi, list_empty(head) || cur->page != page);
++	f2fs_bug_on(sbi, !cur);
+ 	list_del(&cur->list);
+ 	mutex_unlock(&fi->inmem_lock);
+
 --
 2.25.1
 
