@@ -1,31 +1,29 @@
-Return-Path: <jakobkoschel@gmail.com>
-Received: from mail-ej1-f47.google.com (mail-ej1-f47.google.com
-	[209.85.218.47])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 399E3420171
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 13:07:00 +0100 (CET)
-Received: by mail-ej1-f47.google.com with SMTP id a8so24293212ejc.8
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 04:07:00 -0800 (PST)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 15.0 \(3693.60.0.1.1\))
-From: Jakob Koschel <jakobkoschel@gmail.com>
-In-Reply-To: <Yhyv42ONIxTj04mg@kroah.com>
-Date: Mon, 28 Feb 2022 13:06:57 +0100
-Content-Transfer-Encoding: 7bit
-Message-Id: <79FCD5F4-0EBA-4E3F-8B3F-D450BBA10367@gmail.com>
+Return-Path: <Christian.Koenig@amd.com>
+Received: from NAM10-DM6-obe.outbound.protection.outlook.com
+	(mail-dm6nam10on2089.outbound.protection.outlook.com [40.107.93.89])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 53A28420171
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 15:51:45 +0100 (CET)
+Message-ID: <2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
+Date: Mon, 28 Feb 2022 13:19:17 +0100
+Content-Language: en-US
+To: Jakob Koschel <jakobkoschel@gmail.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
-	<Yhyv42ONIxTj04mg@kroah.com>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
-	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+In-Reply-To: <20220228110822.491923-3-jakobkoschel@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Cc: linux-wireless@vger.kernel.org, alsa-devel@alsa-project.org,
+	kvm@vger.kernel.org, "Gustavo A. R. Silva" <gustavo@embeddedor.com>,
 	linux-iio@vger.kernel.org, nouveau@lists.freedesktop.org,
 	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
 	dri-devel@lists.freedesktop.org, Cristiano Giuffrida <c.giuffrida@vu.nl>,
-	amd-gfx@lists.freedesktop.org, samba-technical@lists.samba.org,
+	amd-gfx@lists.freedesktop.org,
 	linux1394-devel@lists.sourceforge.net, drbd-dev@lists.linbit.com,
 	linux-arch <linux-arch@vger.kernel.org>,
-	linux-cifs@vger.kernel.org, kvm@vger.kernel.org,
+	linux-cifs@vger.kernel.org, linux-aspeed@lists.ozlabs.org,
 	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org,
 	linux-staging@lists.linux.dev, "Bos, H.J." <h.j.bos@vu.nl>,
 	Jason Gunthorpe <jgg@ziepe.ca>, intel-wired-lan@lists.osuosl.org,
@@ -36,20 +34,18 @@ Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	Arnd Bergman <arnd@arndb.de>, linux-pm@vger.kernel.org,
 	intel-gfx@lists.freedesktop.org,
 	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
-	Nathan Chancellor <nathan@kernel.org>, linux-fsdevel@vger.kernel.org,
+	Nathan Chancellor <nathan@kernel.org>, dmaengine@vger.kernel.org,
 	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
 	v9fs-developer@lists.sourceforge.net, linux-tegra@vger.kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
 	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
 	linux-arm-kernel@lists.infradead.org, linux-sgx@vger.kernel.org,
-	linux-block@vger.kernel.org,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-f2fs-devel@lists.sourceforge.net,
+	linux-block@vger.kernel.org, netdev@vger.kernel.org,
+	linux-usb@vger.kernel.org, samba-technical@lists.samba.org,
+	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	tipc-discussion@lists.sourceforge.net,
-	linux-crypto@vger.kernel.org, netdev@vger.kernel.org,
-	dmaengine@vger.kernel.org, linux-mediatek@lists.infradead.org,
+	linux-crypto@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev@lists.ozlabs.org, Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
@@ -65,56 +61,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Am 28.02.22 um 12:08 schrieb Jakob Koschel:
+> If the list does not contain the expected element, the value of
+> list_for_each_entry() iterator will not point to a valid structure.
+> To avoid type confusion in such case, the list iterator
+> scope will be limited to list_for_each_entry() loop.
 
+We explicitly have the list_entry_is_head() macro to test after a loop 
+if the element pointer points to the head of the list instead of a valid 
+list entry.
 
-> On 28. Feb 2022, at 12:20, Greg KH <gregkh@linuxfoundation.org> wrote:
-> 
-> On Mon, Feb 28, 2022 at 12:08:18PM +0100, Jakob Koschel wrote:
->> If the list does not contain the expected element, the value of
->> list_for_each_entry() iterator will not point to a valid structure.
->> To avoid type confusion in such case, the list iterator
->> scope will be limited to list_for_each_entry() loop.
->> 
->> In preparation to limiting scope of a list iterator to the list traversal
->> loop, use a dedicated pointer to point to the found element.
->> Determining if an element was found is then simply checking if
->> the pointer is != NULL.
->> 
->> Signed-off-by: Jakob Koschel <jakobkoschel@gmail.com>
->> ---
->> arch/x86/kernel/cpu/sgx/encl.c       |  6 +++--
->> drivers/scsi/scsi_transport_sas.c    | 17 ++++++++-----
->> drivers/thermal/thermal_core.c       | 38 ++++++++++++++++++----------
->> drivers/usb/gadget/configfs.c        | 22 ++++++++++------
->> drivers/usb/gadget/udc/max3420_udc.c | 11 +++++---
->> drivers/usb/gadget/udc/tegra-xudc.c  | 11 +++++---
->> drivers/usb/mtu3/mtu3_gadget.c       | 11 +++++---
->> drivers/usb/musb/musb_gadget.c       | 11 +++++---
->> drivers/vfio/mdev/mdev_core.c        | 11 +++++---
->> 9 files changed, 88 insertions(+), 50 deletions(-)
-> 
-> The drivers/usb/ portion of this patch should be in patch 1/X, right?
+So at least from my side I absolutely don't think that this is a good idea.
 
-I kept them separate since it's a slightly different case.
-Using 'ptr' instead of '&ptr->other_member'. Regardless, I'll split
-this commit up as you mentioned.
+> In preparation to limiting scope of a list iterator to the list traversal
+> loop, use a dedicated pointer to point to the found element.
+> Determining if an element was found is then simply checking if
+> the pointer is != NULL.
 
-> 
-> Also, you will have to split these up per-subsystem so that the
-> different subsystem maintainers can take these in their trees.
+Since when do we actually want to do this?
 
-Thanks for the feedback.
-To clarify I understand you correctly:
-I should do one patch set per-subsystem with every instance/(file?)
-fixed as a separate commit?
+Take this code here as an example:
+> diff --git a/arch/x86/kernel/cpu/sgx/encl.c b/arch/x86/kernel/cpu/sgx/encl.c
+> index 48afe96ae0f0..6c916416decc 100644
+> --- a/arch/x86/kernel/cpu/sgx/encl.c
+> +++ b/arch/x86/kernel/cpu/sgx/encl.c
+> @@ -450,7 +450,8 @@ static void sgx_mmu_notifier_release(struct mmu_notifier *mn,
+>   				     struct mm_struct *mm)
+>   {
+>   	struct sgx_encl_mm *encl_mm = container_of(mn, struct sgx_encl_mm, mmu_notifier);
+> -	struct sgx_encl_mm *tmp = NULL;
+> +	struct sgx_encl_mm *found_encl_mm = NULL;
+> +	struct sgx_encl_mm *tmp;
+>
+>   	/*
+>   	 * The enclave itself can remove encl_mm.  Note, objects can't be moved
+> @@ -460,12 +461,13 @@ static void sgx_mmu_notifier_release(struct mmu_notifier *mn,
+>   	list_for_each_entry(tmp, &encl_mm->encl->mm_list, list) {
+>   		if (tmp == encl_mm) {
+>   			list_del_rcu(&encl_mm->list);
+> +			found_encl_mm = tmp;
+>   			break;
+>   		}
+>   	}
+>   	spin_unlock(&encl_mm->encl->mm_lock);
+>
+> -	if (tmp == encl_mm) {
+> +	if (found_encl_mm) {
+>   		synchronize_srcu(&encl_mm->encl->srcu);
+>   		mmu_notifier_put(mn);
+>   	}
 
-If I understand correctly, I'll repost accordingly.
+I don't think that using the extra variable makes the code in any way 
+more reliable or easier to read.
 
-> 
-> thanks,
-> 
-> greg k-h
-
-thanks,
-Jakob Koschel
-
+Regards,
+Christian.
