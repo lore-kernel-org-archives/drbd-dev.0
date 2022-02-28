@@ -1,18 +1,17 @@
-Return-Path: <gregkh@linuxfoundation.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B5BDE420171
-	for <drbd-dev@lists.linbit.com>;
-	Mon, 28 Feb 2022 12:27:08 +0100 (CET)
-Date: Mon, 28 Feb 2022 12:20:03 +0100
-From: Greg KH <gregkh@linuxfoundation.org>
+Return-Path: <asmadeus@codewreck.org>
+Received: from nautica.notk.org (nautica.notk.org [91.121.71.147])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 540AA420171
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 12:31:15 +0100 (CET)
+Date: Mon, 28 Feb 2022 20:22:01 +0900
+From: Dominique Martinet <asmadeus@codewreck.org>
 To: Jakob Koschel <jakobkoschel@gmail.com>
-Message-ID: <Yhyv42ONIxTj04mg@kroah.com>
+Message-ID: <YhywWTEIY7UnCYtL@codewreck.org>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
-	<20220228110822.491923-3-jakobkoschel@gmail.com>
+	<20220228110822.491923-7-jakobkoschel@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20220228110822.491923-3-jakobkoschel@gmail.com>
+In-Reply-To: <20220228110822.491923-7-jakobkoschel@gmail.com>
 Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
 	linux-iio@vger.kernel.org, nouveau@lists.freedesktop.org,
@@ -47,8 +46,8 @@ Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	dmaengine@vger.kernel.org, linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev@lists.ozlabs.org, Mike Rapoport <rppt@kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
- after loop body as a ptr
+Subject: Re: [Drbd-dev] [PATCH 6/6] treewide: remove check of list iterator
+ against head past the loop body
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -60,35 +59,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Feb 28, 2022 at 12:08:18PM +0100, Jakob Koschel wrote:
-> If the list does not contain the expected element, the value of
-> list_for_each_entry() iterator will not point to a valid structure.
-> To avoid type confusion in such case, the list iterator
-> scope will be limited to list_for_each_entry() loop.
-> 
-> In preparation to limiting scope of a list iterator to the list traversal
-> loop, use a dedicated pointer to point to the found element.
-> Determining if an element was found is then simply checking if
-> the pointer is != NULL.
-> 
-> Signed-off-by: Jakob Koschel <jakobkoschel@gmail.com>
-> ---
->  arch/x86/kernel/cpu/sgx/encl.c       |  6 +++--
->  drivers/scsi/scsi_transport_sas.c    | 17 ++++++++-----
->  drivers/thermal/thermal_core.c       | 38 ++++++++++++++++++----------
->  drivers/usb/gadget/configfs.c        | 22 ++++++++++------
->  drivers/usb/gadget/udc/max3420_udc.c | 11 +++++---
->  drivers/usb/gadget/udc/tegra-xudc.c  | 11 +++++---
->  drivers/usb/mtu3/mtu3_gadget.c       | 11 +++++---
->  drivers/usb/musb/musb_gadget.c       | 11 +++++---
->  drivers/vfio/mdev/mdev_core.c        | 11 +++++---
->  9 files changed, 88 insertions(+), 50 deletions(-)
+This is a bit more work (and a lot more noise), but I'd prefer if
+this were split into as many patches as there are components.
 
-The drivers/usb/ portion of this patch should be in patch 1/X, right?
+I'm not going to review the parts of the patches that don't concern me,
+and if something turns out to be a problem later one (it shouldn't but
+one never knows) it'll be much easier to revert or put the blame on an
+individual smaller commit than on this...
 
-Also, you will have to split these up per-subsystem so that the
-different subsystem maintainers can take these in their trees.
+With that being said, ultimately I don't care that much and will leave
+that to people who do :)
 
-thanks,
+Jakob Koschel wrote on Mon, Feb 28, 2022 at 12:08:22PM +0100:
+>  net/9p/trans_xen.c                            | 11 +++--
 
-greg k-h
+This 9p change looks good to me.
+
+Reviewed-by: Dominique Martinet <asmadeus@codewreck.org> # 9p
+
+-- 
+Dominique
