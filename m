@@ -1,19 +1,17 @@
 Return-Path: <dan.carpenter@oracle.com>
 Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
 	[205.220.177.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3865C420171
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 14:19:59 +0100 (CET)
-Date: Mon, 28 Feb 2022 16:18:44 +0300
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 75C364201D4
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Feb 2022 14:28:36 +0100 (CET)
+Date: Mon, 28 Feb 2022 14:38:58 +0300
 From: Dan Carpenter <dan.carpenter@oracle.com>
 To: Jakob Koschel <jakobkoschel@gmail.com>
-Message-ID: <20220228131844.GD2812@kadam>
+Message-ID: <20220228113858.GB2812@kadam>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
-	<20220228110822.491923-2-jakobkoschel@gmail.com>
-	<20220228112413.GA2812@kadam>
-	<E31E215E-C409-40B8-8452-57E70C91484C@gmail.com>
+	<20220228110822.491923-4-jakobkoschel@gmail.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <E31E215E-C409-40B8-8452-57E70C91484C@gmail.com>
+In-Reply-To: <20220228110822.491923-4-jakobkoschel@gmail.com>
 MIME-Version: 1.0
 Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
@@ -42,15 +40,14 @@ Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	Nathan Chancellor <nathan@kernel.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-f2fs-devel@lists.sourceforge.net,
+	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	tipc-discussion@lists.sourceforge.net,
 	linux-crypto@vger.kernel.org, netdev@vger.kernel.org,
 	dmaengine@vger.kernel.org, linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev@lists.ozlabs.org, Mike Rapoport <rppt@kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 1/6] drivers: usb: remove usage of list
- iterator past the loop body
+Subject: Re: [Drbd-dev] [PATCH 3/6] treewide: fix incorrect use to determine
+ if list is empty
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -62,34 +59,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Feb 28, 2022 at 01:03:36PM +0100, Jakob Koschel wrote:
-> >> @@ -954,7 +957,6 @@ net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
-> >> 		dev_dbg(ep->dev->dev, "unlink (%s) pio\n", _ep->name);
-> >> 		net2272_done(ep, req, -ECONNRESET);
-> >> 	}
-> >> -	req = NULL;
-> > 
-> > Another unrelated change.  These are all good changes but send them as
-> > separate patches.
+On Mon, Feb 28, 2022 at 12:08:19PM +0100, Jakob Koschel wrote:
+> The list iterator value will *always* be set by list_for_each_entry().
+> It is incorrect to assume that the iterator value will be NULL if the
+> list is empty.
 > 
-> You are referring to the req = NULL, right?
-
-Yes.
-
+> Instead of checking the pointer it should be checked if
+> the list is empty.
+> In acpi_get_pmu_hw_inf() instead of setting the pointer to NULL
+> on the break, it is set to the correct value and leaving it
+> NULL if no element was found.
 > 
-> I've changed the use of 'req' in the same function and assumed that I can
-> just remove the unnecessary statement. But if it's better to do separately
-> I'll do that.
-> 
+> Signed-off-by: Jakob Koschel <jakobkoschel@gmail.com>
+> ---
+>  arch/powerpc/sysdev/fsl_gtm.c            |  4 ++--
+>  drivers/media/pci/saa7134/saa7134-alsa.c |  4 ++--
+>  drivers/perf/xgene_pmu.c                 | 13 +++++++------
+>  3 files changed, 11 insertions(+), 10 deletions(-)
 
-These are all changes which made me pause during my review to figure out
-why they were necessary.  The line between what is a related part of a
-patch is a bit vague and some maintainers will ask you to add or subtract
-from a patch depending on their individual tastes.  I don't really have
-an exact answer, but I felt like this patch needs to be subtracted from.
+These are all bug fixes.
 
-Especially if there is a whole chunk of the patch which can be removed,
-then to me, that obviously should be in a different patch.
+1) Send them as 3 separate patches.
+2) Add Fixes tags.
 
 regards,
 dan carpenter
