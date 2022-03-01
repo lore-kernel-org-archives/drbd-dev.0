@@ -1,17 +1,17 @@
 Return-Path: <ira.weiny@intel.com>
-Received: from mga05.intel.com (mga05.intel.com [192.55.52.43])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7104F4217A1
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 02:10:11 +0100 (CET)
-Date: Mon, 28 Feb 2022 17:10:09 -0800
+Received: from mga17.intel.com (mga17.intel.com [192.55.52.151])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CF8664217A1
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 03:15:03 +0100 (CET)
+Date: Mon, 28 Feb 2022 18:12:45 -0800
 From: Ira Weiny <ira.weiny@intel.com>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <Yh1ycd3S/FKAtnuD@iweiny-desk3>
+Message-ID: <Yh2BHT4xXBJac987@iweiny-desk3>
 References: <20220222155156.597597-1-hch@lst.de>
-	<20220222155156.597597-4-hch@lst.de>
+	<20220222155156.597597-5-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20220222155156.597597-4-hch@lst.de>
+In-Reply-To: <20220222155156.597597-5-hch@lst.de>
 Cc: Jens Axboe <axboe@kernel.dk>, Chris Zankel <chris@zankel.net>,
 	Justin Sanders <justin@coraid.com>, Minchan Kim <minchan@kernel.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, linux-xtensa@linux-xtensa.org,
@@ -22,8 +22,8 @@ Cc: Jens Axboe <axboe@kernel.dk>, Chris Zankel <chris@zankel.net>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 03/10] zram: use memcpy_to_bvec in
-	zram_bvec_read
+Subject: Re: [Drbd-dev] [PATCH 04/10] zram: use memcpy_from_bvec in
+	zram_bvec_write
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,38 +35,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Feb 22, 2022 at 04:51:49PM +0100, Christoph Hellwig wrote:
-> Use the proper helper instead of open coding the copy.
+On Tue, Feb 22, 2022 at 04:51:50PM +0100, Christoph Hellwig wrote:
+> Use memcpy_from_bvec instead of open coding the logic.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Looks fine but I don't see a reason to keep the other operation atomic.  Could
-the src map also use kmap_local_page()?
+Same comment regarding the dst map.  Does it need to be atomic?
 
+Regardless,
 Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 
 > ---
->  drivers/block/zram/zram_drv.c | 4 +---
->  1 file changed, 1 insertion(+), 3 deletions(-)
+>  drivers/block/zram/zram_drv.c | 5 +----
+>  1 file changed, 1 insertion(+), 4 deletions(-)
 > 
 > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index a3a5e1e713268..14becdf2815df 100644
+> index 14becdf2815df..e9474b02012de 100644
 > --- a/drivers/block/zram/zram_drv.c
 > +++ b/drivers/block/zram/zram_drv.c
-> @@ -1331,12 +1331,10 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
->  		goto out;
+> @@ -1465,7 +1465,6 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
+>  {
+>  	int ret;
+>  	struct page *page = NULL;
+> -	void *src;
+>  	struct bio_vec vec;
 >  
->  	if (is_partial_io(bvec)) {
-> -		void *dst = kmap_atomic(bvec->bv_page);
->  		void *src = kmap_atomic(page);
+>  	vec = *bvec;
+> @@ -1483,11 +1482,9 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
+>  		if (ret)
+>  			goto out;
 >  
-> -		memcpy(dst + bvec->bv_offset, src + offset, bvec->bv_len);
-> +		memcpy_to_bvec(bvec, src + offset);
->  		kunmap_atomic(src);
-> -		kunmap_atomic(dst);
->  	}
->  out:
->  	if (is_partial_io(bvec))
+> -		src = kmap_atomic(bvec->bv_page);
+>  		dst = kmap_atomic(page);
+> -		memcpy(dst + offset, src + bvec->bv_offset, bvec->bv_len);
+> +		memcpy_from_bvec(dst + offset, bvec);
+>  		kunmap_atomic(dst);
+> -		kunmap_atomic(src);
+>  
+>  		vec.bv_page = page;
+>  		vec.bv_len = PAGE_SIZE;
 > -- 
 > 2.30.2
 > 
