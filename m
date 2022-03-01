@@ -1,28 +1,56 @@
-Return-Path: <ira.weiny@intel.com>
-Received: from mga07.intel.com (mga07.intel.com [134.134.136.100])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A5E644217A9
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 05:11:17 +0100 (CET)
-Date: Mon, 28 Feb 2022 20:11:15 -0800
-From: Ira Weiny <ira.weiny@intel.com>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <Yh2c41kEWmmGgWLG@iweiny-desk3>
-References: <20220222155156.597597-1-hch@lst.de>
-	<20220222155156.597597-11-hch@lst.de>
-MIME-Version: 1.0
+Return-Path: <dan.carpenter@oracle.com>
+Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
+	[205.220.177.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 54CD4421786
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 06:53:41 +0100 (CET)
+Date: Tue, 1 Mar 2022 08:52:31 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+To: Joe Perches <joe@perches.com>
+Message-ID: <20220301055231.GI2812@kadam>
+References: <20220228110822.491923-1-jakobkoschel@gmail.com>
+	<20220228110822.491923-2-jakobkoschel@gmail.com>
+	<20220228112413.GA2812@kadam>
+	<0be9de3920442df490f01b6fb1c42521c3de6190.camel@perches.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20220222155156.597597-11-hch@lst.de>
-Cc: Jens Axboe <axboe@kernel.dk>, Chris Zankel <chris@zankel.net>,
-	Justin Sanders <justin@coraid.com>, Minchan Kim <minchan@kernel.org>,
-	Vishal Verma <vishal.l.verma@intel.com>, linux-xtensa@linux-xtensa.org,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Denis Efremov <efremov@linux.com>, Coly Li <colyli@suse.de>,
-	linux-block@vger.kernel.org, Max Filippov <jcmvbkbc@gmail.com>,
-	linux-bcache@vger.kernel.org, nvdimm@lists.linux.dev,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 10/10] floppy: use memcpy_{to,from}_bvec
+In-Reply-To: <0be9de3920442df490f01b6fb1c42521c3de6190.camel@perches.com>
+MIME-Version: 1.0
+Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
+	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
+	linux-iio@vger.kernel.org, nouveau@lists.freedesktop.org,
+	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
+	dri-devel@lists.freedesktop.org, Cristiano Giuffrida <c.giuffrida@vu.nl>,
+	amd-gfx@lists.freedesktop.org, samba-technical@lists.samba.org,
+	linux1394-devel@lists.sourceforge.net, drbd-dev@lists.linbit.com,
+	linux-arch <linux-arch@vger.kernel.org>,
+	linux-cifs@vger.kernel.org, kvm@vger.kernel.org,
+	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-staging@lists.linux.dev, "Bos, H.J." <h.j.bos@vu.nl>,
+	Jason Gunthorpe <jgg@ziepe.ca>, intel-wired-lan@lists.osuosl.org,
+	kgdb-bugreport@lists.sourceforge.net,
+	bcm-kernel-feedback-list@broadcom.com,
+	linux-media@vger.kernel.org, Kees Cook <keescook@chromium.org>,
+	Arnd Bergman <arnd@arndb.de>, linux-pm@vger.kernel.org,
+	intel-gfx@lists.freedesktop.org,
+	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
+	Nathan Chancellor <nathan@kernel.org>, linux-fsdevel@vger.kernel.org,
+	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
+	Jakob Koschel <jakobkoschel@gmail.com>,
+	v9fs-developer@lists.sourceforge.net, linux-tegra@vger.kernel.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	linux-arm-kernel@lists.infradead.org, linux-sgx@vger.kernel.org,
+	linux-block@vger.kernel.org,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	tipc-discussion@lists.sourceforge.net,
+	linux-crypto@vger.kernel.org, netdev@vger.kernel.org,
+	dmaengine@vger.kernel.org, linux-mediatek@lists.infradead.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linuxppc-dev@lists.ozlabs.org, Mike Rapoport <rppt@kernel.org>
+Subject: Re: [Drbd-dev] [PATCH 1/6] drivers: usb: remove usage of list
+ iterator past the loop body
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,36 +62,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Feb 22, 2022 at 04:51:56PM +0100, Christoph Hellwig wrote:
-> Use the helpers instead of open coding them.
+On Mon, Feb 28, 2022 at 10:20:28AM -0800, Joe Perches wrote:
+> On Mon, 2022-02-28 at 14:24 +0300, Dan Carpenter wrote:
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> > a multi-line indent gets curly braces for readability even though
+> > it's not required by C.  And then both sides would get curly braces.
+> 
+> That's more your personal preference than a coding style guideline.
+> 
 
-Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+It's a USB patch.  I thought Greg prefered it that way.  Greg has some
+specific style things which he likes and I have adopted and some I
+pretend not to see.
 
-> ---
->  drivers/block/floppy.c | 6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
-> 
-> diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
-> index 19c2d0327e157..8c647532e3ce9 100644
-> --- a/drivers/block/floppy.c
-> +++ b/drivers/block/floppy.c
-> @@ -2485,11 +2485,9 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
->  		}
->  
->  		if (CT(raw_cmd->cmd[COMMAND]) == FD_READ)
-> -			memcpy_to_page(bv.bv_page, bv.bv_offset, dma_buffer,
-> -				       size);
-> +			memcpy_to_bvec(&bv, dma_buffer);
->  		else
-> -			memcpy_from_page(dma_buffer, bv.bv_page, bv.bv_offset,
-> -					 size);
-> +			memcpy_from_bvec(dma_buffer, &bv);
->  
->  		remaining -= size;
->  		dma_buffer += size;
-> -- 
-> 2.30.2
-> 
-> 
+regards,
+dan carpenter
