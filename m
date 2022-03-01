@@ -1,37 +1,75 @@
-Return-Path: <miklos@szeredi.hu>
-Received: from mail-il1-f177.google.com (mail-il1-f177.google.com
-	[209.85.166.177])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C3595421798
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 14:28:44 +0100 (CET)
-Received: by mail-il1-f177.google.com with SMTP id d3so12517721ilr.10
-	for <drbd-dev@lists.linbit.com>; Tue, 01 Mar 2022 05:28:44 -0800 (PST)
-MIME-Version: 1.0
-References: <164549971112.9187.16871723439770288255.stgit@noble.brown>
-	<164549983737.9187.2627117501000365074.stgit@noble.brown>
-In-Reply-To: <164549983737.9187.2627117501000365074.stgit@noble.brown>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 1 Mar 2022 14:27:33 +0100
-Message-ID: <CAJfpegsGOFD46KM8pxFAemokv9OOsCSHk=ag6jZZ=VscijMXZQ@mail.gmail.com>
-To: NeilBrown <neilb@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Cc: Jan Kara <jack@suse.cz>, linux-doc@vger.kernel.org,
-	"Darrick J. Wong" <djwong@kernel.org>,
-	linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>,
-	drbd-dev@lists.linbit.com, Paolo Valente <paolo.valente@linaro.org>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Ilya Dryomov <idryomov@gmail.com>,
-	Ext4 <linux-ext4@vger.kernel.org>, Chao Yu <chao@kernel.org>,
-	linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>,
-	ceph-devel@vger.kernel.org, Ryusuke Konishi <konishi.ryusuke@gmail.com>,
-	Jens Axboe <axboe@kernel.dk>, Linux NFS list <linux-nfs@vger.kernel.org>,
+Return-Path: <jakobkoschel@gmail.com>
+Received: from mail-ej1-f52.google.com (mail-ej1-f52.google.com
+	[209.85.218.52])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9932D420368
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 18:41:07 +0100 (CET)
+Received: by mail-ej1-f52.google.com with SMTP id p15so32989623ejc.7
+	for <drbd-dev@lists.linbit.com>; Tue, 01 Mar 2022 09:41:07 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 15.0 \(3693.60.0.1.1\))
+From: Jakob Koschel <jakobkoschel@gmail.com>
+In-Reply-To: <Yh5ZmwiH5AxtQ69K@kroah.com>
+Date: Tue, 1 Mar 2022 18:40:04 +0100
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <4B1AFAD9-C1B3-499C-945A-C259361ABA8C@gmail.com>
+References: <20220228110822.491923-1-jakobkoschel@gmail.com>
+	<20220228110822.491923-3-jakobkoschel@gmail.com>
+	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
+	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
+	<CAHk-=wj8fkosQ7=bps5K+DDazBXk=ypfn49A0sEq+7-nZnyfXA@mail.gmail.com>
+	<CAHk-=wiTCvLQkHcJ3y0hpqH7FEk9D28LDvZZogC6OVLk7naBww@mail.gmail.com>
+	<FC710A1A-524E-481B-A668-FC258F529A2E@gmail.com>
+	<CAHk-=whLK11HyvpUtEftOjc3Gup2V77KpAQ2fycj3uai=qceHw@mail.gmail.com>
+	<CEDAD0D9-56EE-4105-9107-72C2EAD940B0@gmail.com>
+	<Yh5ZmwiH5AxtQ69K@kroah.com>
+To: Greg KH <greg@kroah.com>
+Cc: linux-wireless <linux-wireless@vger.kernel.org>,
+	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
+	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
+	linux-iio@vger.kernel.org, nouveau@lists.freedesktop.org,
+	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
+	dri-devel <dri-devel@lists.freedesktop.org>,
+	Cristiano Giuffrida <c.giuffrida@vu.nl>,
+	amd-gfx list <amd-gfx@lists.freedesktop.org>,
+	linux1394-devel@lists.sourceforge.net, drbd-dev@lists.linbit.com,
+	linux-arch <linux-arch@vger.kernel.org>,
+	CIFS <linux-cifs@vger.kernel.org>, linux-aspeed@lists.ozlabs.org,
+	linux-scsi <linux-scsi@vger.kernel.org>,
+	linux-rdma <linux-rdma@vger.kernel.org>,
+	linux-staging@lists.linux.dev, "Bos, H.J." <h.j.bos@vu.nl>,
+	Jason Gunthorpe <jgg@ziepe.ca>, intel-wired-lan@lists.osuosl.org,
+	kgdb-bugreport@lists.sourceforge.net,
+	bcm-kernel-feedback-list@broadcom.com,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Linux Media Mailing List <linux-media@vger.kernel.org>,
+	Kees Cook <keescook@chromium.org>, Arnd Bergman <arnd@arndb.de>,
+	Linux PM <linux-pm@vger.kernel.org>,
+	intel-gfx <intel-gfx@lists.freedesktop.org>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
+	Nathan Chancellor <nathan@kernel.org>, dma <dmaengine@vger.kernel.org>,
+	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
+	v9fs-developer@lists.sourceforge.net,
+	linux-tegra <linux-tegra@vger.kernel.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	linux-sgx@vger.kernel.org, linux-block <linux-block@vger.kernel.org>,
+	Netdev <netdev@vger.kernel.org>, linux-usb@vger.kernel.org,
+	samba-technical@lists.samba.org,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Linux F2FS Dev Mailing List <linux-f2fs-devel@lists.sourceforge.net>,
+	tipc-discussion@lists.sourceforge.net,
+	Linux Crypto Mailing List <linux-crypto@vger.kernel.org>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Jeff Layton <jlayton@kernel.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Wu Fengguang <fengguang.wu@intel.com>,
-	Anna Schumaker <anna.schumaker@netapp.com>
-Subject: Re: [Drbd-dev] [PATCH 04/11] fuse: remove reliance on bdi congestion
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	=?utf-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>,
+	Mike Rapoport <rppt@kernel.org>
+Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
+ after loop body as a ptr
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,126 +81,76 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, 22 Feb 2022 at 04:18, NeilBrown <neilb@suse.de> wrote:
->
-> The bdi congestion tracking in not widely used and will be removed.
->
-> Fuse is one of a small number of filesystems that uses it, setting both
-> the sync (read) and async (write) congestion flags at what it determines
-> are appropriate times.
->
-> The only remaining effect of the sync flag is to cause read-ahead to be
-> skipped.
-> The only remaining effect of the async flag is to cause (some)
-> WB_SYNC_NONE writes to be skipped.
->
-> So instead of setting the flags, change:
->  - .readahead to stop when it has submitted all non-async pages
->     for read.
->  - .writepages to do nothing if WB_SYNC_NONE and the flag would be set
->  - .writepage to return AOP_WRITEPAGE_ACTIVATE if WB_SYNC_NONE
->     and the flag would be set.
->
-> The writepages change causes a behavioural change in that pageout() can
-> now return PAGE_ACTIVATE instead of PAGE_KEEP, so SetPageActive() will
-> be called on the page which (I think) will further delay the next attempt
-> at writeout.  This might be a good thing.
->
-> Signed-off-by: NeilBrown <neilb@suse.de>
-> ---
->  fs/fuse/control.c |   17 -----------------
->  fs/fuse/dev.c     |    8 --------
->  fs/fuse/file.c    |   17 +++++++++++++++++
->  3 files changed, 17 insertions(+), 25 deletions(-)
->
-> diff --git a/fs/fuse/control.c b/fs/fuse/control.c
-> index 000d2e5627e9..7cede9a3bc96 100644
-> --- a/fs/fuse/control.c
-> +++ b/fs/fuse/control.c
-> @@ -164,7 +164,6 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
->  {
->         unsigned val;
->         struct fuse_conn *fc;
-> -       struct fuse_mount *fm;
->         ssize_t ret;
->
->         ret = fuse_conn_limit_write(file, buf, count, ppos, &val,
-> @@ -178,22 +177,6 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
->         down_read(&fc->killsb);
->         spin_lock(&fc->bg_lock);
->         fc->congestion_threshold = val;
-> -
-> -       /*
-> -        * Get any fuse_mount belonging to this fuse_conn; s_bdi is
-> -        * shared between all of them
-> -        */
-> -
-> -       if (!list_empty(&fc->mounts)) {
-> -               fm = list_first_entry(&fc->mounts, struct fuse_mount, fc_entry);
-> -               if (fc->num_background < fc->congestion_threshold) {
-> -                       clear_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
-> -                       clear_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
-> -               } else {
-> -                       set_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
-> -                       set_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
-> -               }
-> -       }
->         spin_unlock(&fc->bg_lock);
->         up_read(&fc->killsb);
->         fuse_conn_put(fc);
-> diff --git a/fs/fuse/dev.c b/fs/fuse/dev.c
-> index cd54a529460d..e1b4a846c90d 100644
-> --- a/fs/fuse/dev.c
-> +++ b/fs/fuse/dev.c
-> @@ -315,10 +315,6 @@ void fuse_request_end(struct fuse_req *req)
->                                 wake_up(&fc->blocked_waitq);
->                 }
->
-> -               if (fc->num_background == fc->congestion_threshold && fm->sb) {
-> -                       clear_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
-> -                       clear_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
-> -               }
->                 fc->num_background--;
->                 fc->active_background--;
->                 flush_bg_queue(fc);
-> @@ -540,10 +536,6 @@ static bool fuse_request_queue_background(struct fuse_req *req)
->                 fc->num_background++;
->                 if (fc->num_background == fc->max_background)
->                         fc->blocked = 1;
-> -               if (fc->num_background == fc->congestion_threshold && fm->sb) {
-> -                       set_bdi_congested(fm->sb->s_bdi, BLK_RW_SYNC);
-> -                       set_bdi_congested(fm->sb->s_bdi, BLK_RW_ASYNC);
-> -               }
->                 list_add_tail(&req->list, &fc->bg_queue);
->                 flush_bg_queue(fc);
->                 queued = true;
-> diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-> index 829094451774..94747bac3489 100644
-> --- a/fs/fuse/file.c
-> +++ b/fs/fuse/file.c
-> @@ -966,6 +966,14 @@ static void fuse_readahead(struct readahead_control *rac)
->                 struct fuse_io_args *ia;
->                 struct fuse_args_pages *ap;
->
-> +               if (fc->num_background >= fc->congestion_threshold &&
-> +                   rac->ra->async_size >= readahead_count(rac))
-> +                       /*
-> +                        * Congested and only async pages left, so skip the
-> +                        * rest.
-> +                        */
-> +                       break;
 
-Ah, you are taking care of it here...
 
-Regarding the async part: a potential (corner?) case is if task A is
-reading region X and triggering readahead for region Y and at the same
-time task B is reading region Y.  In the congestion case it can happen
-that non-uptodate pages in Y are truncated off the pagecache while B
-is waiting for them to become uptodate.
+> On 1. Mar 2022, at 18:36, Greg KH <greg@kroah.com> wrote:
+>=20
+> On Tue, Mar 01, 2022 at 12:28:15PM +0100, Jakob Koschel wrote:
+>>=20
+>>=20
+>>> On 1. Mar 2022, at 01:41, Linus Torvalds =
+<torvalds@linux-foundation.org> wrote:
+>>>=20
+>>> On Mon, Feb 28, 2022 at 1:47 PM Jakob Koschel =
+<jakobkoschel@gmail.com> wrote:
+>>>>=20
+>>>> The goal of this is to get compiler warnings right? This would =
+indeed be great.
+>>>=20
+>>> Yes, so I don't mind having a one-time patch that has been gathered
+>>> using some automated checker tool, but I don't think that works from =
+a
+>>> long-term maintenance perspective.
+>>>=20
+>>> So if we have the basic rule being "don't use the loop iterator =
+after
+>>> the loop has finished, because it can cause all kinds of subtle
+>>> issues", then in _addition_ to fixing the existing code paths that
+>>> have this issue, I really would want to (a) get a compiler warning =
+for
+>>> future cases and (b) make it not actually _work_ for future cases.
+>>>=20
+>>> Because otherwise it will just happen again.
+>>>=20
+>>>> Changing the list_for_each_entry() macro first will break all of =
+those cases
+>>>> (e.g. the ones using 'list_entry_is_head()).
+>>>=20
+>>> So I have no problems with breaking cases that we basically already
+>>> have a patch for due to  your automated tool. There were certainly
+>>> more than a handful, but it didn't look _too_ bad to just make the
+>>> rule be "don't use the iterator after the loop".
+>>>=20
+>>> Of course, that's just based on that patch of yours. Maybe there are =
+a
+>>> ton of other cases that your patch didn't change, because they =
+didn't
+>>> match your trigger case, so I may just be overly optimistic here.
+>>=20
+>> Based on the coccinelle script there are ~480 cases that need fixing
+>> in total. I'll now finish all of them and then split them by
+>> submodules as Greg suggested and repost a patch set per submodule.
+>> Sounds good?
+>=20
+> Sounds good to me!
+>=20
+> If you need help carving these up and maintaining them over time as
+> different subsystem maintainers accept/ignore them, just let me know.
+> Doing large patchsets like this can be tough without a lot of
+> experience.
 
-This shouldn't be too hard to trigger, just need two sequential
-readers of the same file, where one is just ahead of the other.  I'll
-try to do a test program for this case specifically.
+Very much appreciated!
 
-Thanks,
-Miklos
+There will probably be some cases that do not match one of the pattern
+we already discussed and need separate attention.
+
+I was planning to start with one subsystem and adjust the coming ones
+according to the feedback gather there instead of posting all of them
+in one go.
+
+>=20
+> thanks,
+>=20
+> greg k-h
+
+- Jakob=
