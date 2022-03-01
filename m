@@ -1,37 +1,34 @@
-Return-Path: <Christian.Koenig@amd.com>
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com
-	(mail-sn1anam02on2059.outbound.protection.outlook.com [40.107.96.59])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C24914217B4
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 08:17:58 +0100 (CET)
-Message-ID: <3d37084e-72d4-d3a5-ec8d-df1ac1758fad@amd.com>
-Date: Tue, 1 Mar 2022 08:03:26 +0100
-Content-Language: en-US
-To: James Bottomley <James.Bottomley@HansenPartnership.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>
+Return-Path: <segher@kernel.crashing.org>
+Received: from gate.crashing.org (gate.crashing.org [63.228.1.57])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6255E421796
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 01:40:57 +0100 (CET)
+Date: Mon, 28 Feb 2022 18:30:59 -0600
+From: Segher Boessenkool <segher@kernel.crashing.org>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Message-ID: <20220301003059.GE614@gate.crashing.org>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
 	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
 	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
 	<282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
 	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
-	<0b65541a-3da7-dc35-690a-0ada75b0adae@amd.com>
-	<ade13f419519350e460e7ef1e64477ec72e828ed.camel@HansenPartnership.com>
-From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
-In-Reply-To: <ade13f419519350e460e7ef1e64477ec72e828ed.camel@HansenPartnership.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+	<7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
+	<73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-MIME-Version: 1.0
-Cc: linux-wireless <linux-wireless@vger.kernel.org>,
-	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
+In-Reply-To: <73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
+Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
 	linux-iio@vger.kernel.org, nouveau@lists.freedesktop.org,
 	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
 	dri-devel <dri-devel@lists.freedesktop.org>,
 	Cristiano Giuffrida <c.giuffrida@vu.nl>, "Bos,
-	H.J." <h.j.bos@vu.nl>, linux1394-devel@lists.sourceforge.net,
-	drbd-dev@lists.linbit.com, linux-arch <linux-arch@vger.kernel.org>,
-	CIFS <linux-cifs@vger.kernel.org>, linux-aspeed@lists.ozlabs.org,
-	linux-scsi <linux-scsi@vger.kernel.org>,
+	H.J." <h.j.bos@vu.nl>, samba-technical@lists.samba.org,
+	linux1394-devel@lists.sourceforge.net, drbd-dev@lists.linbit.com,
+	linux-arch <linux-arch@vger.kernel.org>, CIFS <linux-cifs@vger.kernel.org>,
+	KVM list <kvm@vger.kernel.org>, linux-scsi <linux-scsi@vger.kernel.org>,
 	linux-rdma <linux-rdma@vger.kernel.org>, linux-staging@lists.linux.dev,
 	amd-gfx list <amd-gfx@lists.freedesktop.org>,
 	Jason Gunthorpe <jgg@ziepe.ca>, intel-wired-lan@lists.osuosl.org,
@@ -42,8 +39,10 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	Kees Cook <keescook@chromium.org>, Arnd Bergman <arnd@arndb.de>,
 	Linux PM <linux-pm@vger.kernel.org>,
 	intel-gfx <intel-gfx@lists.freedesktop.org>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
 	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
-	Nathan Chancellor <nathan@kernel.org>, dma <dmaengine@vger.kernel.org>,
+	Nathan Chancellor <nathan@kernel.org>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
 	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
 	Jakob Koschel <jakobkoschel@gmail.com>,
 	v9fs-developer@lists.sourceforge.net,
@@ -53,18 +52,18 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	Linux ARM <linux-arm-kernel@lists.infradead.org>,
 	linux-sgx@vger.kernel.org, linux-block <linux-block@vger.kernel.org>,
 	Netdev <netdev@vger.kernel.org>, linux-usb@vger.kernel.org,
-	samba-technical@lists.samba.org,
+	linux-wireless <linux-wireless@vger.kernel.org>,
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
 	Linux F2FS Dev Mailing List <linux-f2fs-devel@lists.sourceforge.net>,
 	tipc-discussion@lists.sourceforge.net,
 	Linux Crypto Mailing List <linux-crypto@vger.kernel.org>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	linux-mediatek@lists.infradead.org,
+	dma <dmaengine@vger.kernel.org>, linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
 	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
- after loop body as a ptr
+	after loop body as a ptr
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -76,60 +75,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 28.02.22 um 22:13 schrieb James Bottomley:
-> On Mon, 2022-02-28 at 21:56 +0100, Christian König wrote:
->> Am 28.02.22 um 21:42 schrieb James Bottomley:
->>> On Mon, 2022-02-28 at 21:07 +0100, Christian König wrote:
->>>> Am 28.02.22 um 20:56 schrieb Linus Torvalds:
->>>>> On Mon, Feb 28, 2022 at 4:19 AM Christian König
->>>>> <christian.koenig@amd.com> wrote:
->>>>> [SNIP]
->>>>> Anybody have any ideas?
->>>> I think we should look at the use cases why code is touching
->>>> (pos)
->>>> after the loop.
->>>>
->>>> Just from skimming over the patches to change this and experience
->>>> with the drivers/subsystems I help to maintain I think the
->>>> primary pattern looks something like this:
->>>>
->>>> list_for_each_entry(entry, head, member) {
->>>>        if (some_condition_checking(entry))
->>>>            break;
->>>> }
->>>> do_something_with(entry);
->>> Actually, we usually have a check to see if the loop found
->>> anything, but in that case it should something like
->>>
->>> if (list_entry_is_head(entry, head, member)) {
->>>       return with error;
->>> }
->>> do_somethin_with(entry);
->>>
->>> Suffice?  The list_entry_is_head() macro is designed to cope with
->>> the bogus entry on head problem.
->> That will work and is also what people already do.
->>
->> The key problem is that we let people do the same thing over and
->> over again with slightly different implementations.
->>
->> Out in the wild I've seen at least using a separate variable, using
->> a bool to indicate that something was found and just assuming that
->> the list has an entry.
->>
->> The last case is bogus and basically what can break badly.
-> Yes, I understand that.  I'm saying we should replace that bogus checks
-> of entry->something against some_value loop termination condition with
-> the list_entry_is_head() macro.  That should be a one line and fairly
-> mechanical change rather than the explosion of code changes we seem to
-> have in the patch series.
+On Mon, Feb 28, 2022 at 05:28:58PM -0500, James Bottomley wrote:
+> On Mon, 2022-02-28 at 23:59 +0200, Mike Rapoport wrote:
+> > 
+> > On February 28, 2022 10:42:53 PM GMT+02:00, James Bottomley <
+> > James.Bottomley@HansenPartnership.com> wrote:
+> > > On Mon, 2022-02-28 at 21:07 +0100, Christian K�nig wrote:
+> [...]
+> > > > > I do wish we could actually poison the 'pos' value after the
+> > > > > loop somehow - but clearly the "might be uninitialized" I was
+> > > > > hoping for isn't the way to do it.
+> > > > > 
+> > > > > Anybody have any ideas?
+> > > > 
+> > > > I think we should look at the use cases why code is touching
+> > > > (pos) after the loop.
+> > > > 
+> > > > Just from skimming over the patches to change this and experience
+> > > > with the drivers/subsystems I help to maintain I think the
+> > > > primary pattern looks something like this:
+> > > > 
+> > > > list_for_each_entry(entry, head, member) {
+> > > >      if (some_condition_checking(entry))
+> > > >          break;
+> > > > }
+> > > > do_something_with(entry);
+> > > 
+> > > Actually, we usually have a check to see if the loop found
+> > > anything, but in that case it should something like
+> > > 
+> > > if (list_entry_is_head(entry, head, member)) {
+> > >    return with error;
+> > > }
+> > > do_somethin_with(entry);
+> > > 
+> > > Suffice?  The list_entry_is_head() macro is designed to cope with
+> > > the bogus entry on head problem.
+> > 
+> > Won't suffice because the end goal of this work is to limit scope of
+> > entry only to loop. Hence the need for additional variable.
+> 
+> Well, yes, but my objection is more to the size of churn than the
+> desire to do loop local.  I'm not even sure loop local is possible,
+> because it's always annoyed me that for (int i = 0; ...  in C++ defines
+> i in the outer scope not the loop scope, which is why I never use it.
 
-Yes, exactly that's my thinking as well.
+In C its scope is the rest of the declaration and the entire loop, not
+anything after it.  This was the same in C++98 already, btw (but in
+pre-standard versions of C++ things were like you remember, yes, and it
+was painful).
 
-Christian.
 
->
-> James
->
->
-
+Segher
