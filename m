@@ -1,54 +1,71 @@
-Return-Path: <gregkh@linuxfoundation.org>
-Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A4C1442179E
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 18:48:02 +0100 (CET)
-Date: Tue, 1 Mar 2022 18:37:16 +0100
-From: Greg KH <gregkh@linuxfoundation.org>
-To: Jakob Koschel <jakobkoschel@gmail.com>
-Message-ID: <Yh5ZzNQQQE8rIexy@kroah.com>
+Return-Path: <keescook@chromium.org>
+Received: from mail-pf1-f170.google.com (mail-pf1-f170.google.com
+	[209.85.210.170])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E806A42179F
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 19:15:09 +0100 (CET)
+Received: by mail-pf1-f170.google.com with SMTP id d17so15055120pfl.0
+	for <drbd-dev@lists.linbit.com>; Tue, 01 Mar 2022 10:15:09 -0800 (PST)
+Date: Tue, 1 Mar 2022 10:14:07 -0800
+From: Kees Cook <keescook@chromium.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Message-ID: <202203011008.AA0B5A2D@keescook>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
-	<Yhyv42ONIxTj04mg@kroah.com>
-	<79FCD5F4-0EBA-4E3F-8B3F-D450BBA10367@gmail.com>
+	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
+	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
+	<CAHk-=wj8fkosQ7=bps5K+DDazBXk=ypfn49A0sEq+7-nZnyfXA@mail.gmail.com>
+	<CAHk-=wiTCvLQkHcJ3y0hpqH7FEk9D28LDvZZogC6OVLk7naBww@mail.gmail.com>
+	<Yh0tl3Lni4weIMkl@casper.infradead.org>
+	<CAHk-=wgBfJ1-cPA2LTvFyyy8owpfmtCuyiZi4+um8DhFNe+CyA@mail.gmail.com>
+	<Yh1aMm3hFe/j9ZbI@casper.infradead.org>
+	<CAHk-=wi0gSUMBr2SVF01Gy1xC1w1iGtJT5ztju9BPWYKjdh+NA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <79FCD5F4-0EBA-4E3F-8B3F-D450BBA10367@gmail.com>
-Cc: alsa-devel@alsa-project.org, linux-aspeed@lists.ozlabs.org,
+In-Reply-To: <CAHk-=wi0gSUMBr2SVF01Gy1xC1w1iGtJT5ztju9BPWYKjdh+NA@mail.gmail.com>
+Cc: linux-wireless <linux-wireless@vger.kernel.org>,
+	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
 	linux-iio@vger.kernel.org, nouveau@lists.freedesktop.org,
 	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
-	dri-devel@lists.freedesktop.org, Cristiano Giuffrida <c.giuffrida@vu.nl>,
-	amd-gfx@lists.freedesktop.org, samba-technical@lists.samba.org,
+	dri-devel <dri-devel@lists.freedesktop.org>,
+	Cristiano Giuffrida <c.giuffrida@vu.nl>,
+	Matthew Wilcox <willy@infradead.org>,
 	linux1394-devel@lists.sourceforge.net, drbd-dev@lists.linbit.com,
-	linux-arch <linux-arch@vger.kernel.org>,
-	linux-cifs@vger.kernel.org, kvm@vger.kernel.org,
-	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org,
-	linux-staging@lists.linux.dev, "Bos, H.J." <h.j.bos@vu.nl>,
+	linux-arch <linux-arch@vger.kernel.org>, CIFS <linux-cifs@vger.kernel.org>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	linux-aspeed@lists.ozlabs.org, linux-scsi <linux-scsi@vger.kernel.org>,
+	linux-rdma <linux-rdma@vger.kernel.org>, linux-staging@lists.linux.dev,
+	amd-gfx list <amd-gfx@lists.freedesktop.org>,
 	Jason Gunthorpe <jgg@ziepe.ca>, intel-wired-lan@lists.osuosl.org,
 	kgdb-bugreport@lists.sourceforge.net,
 	bcm-kernel-feedback-list@broadcom.com,
 	Dan Carpenter <dan.carpenter@oracle.com>,
-	linux-media@vger.kernel.org, Kees Cook <keescook@chromium.org>,
-	Arnd Bergman <arnd@arndb.de>, linux-pm@vger.kernel.org,
-	intel-gfx@lists.freedesktop.org,
-	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
-	Nathan Chancellor <nathan@kernel.org>, linux-fsdevel@vger.kernel.org,
+	Linux Media Mailing List <linux-media@vger.kernel.org>,
+	Arnd Bergman <arnd@arndb.de>, Linux PM <linux-pm@vger.kernel.org>,
+	intel-gfx <intel-gfx@lists.freedesktop.org>, "Bos,
+	H.J." <h.j.bos@vu.nl>, Nathan Chancellor <nathan@kernel.org>,
+	dma <dmaengine@vger.kernel.org>,
 	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
-	v9fs-developer@lists.sourceforge.net, linux-tegra@vger.kernel.org,
+	Jakob Koschel <jakobkoschel@gmail.com>,
+	v9fs-developer@lists.sourceforge.net,
+	linux-tegra <linux-tegra@vger.kernel.org>,
 	Thomas Gleixner <tglx@linutronix.de>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	linux-arm-kernel@lists.infradead.org, linux-sgx@vger.kernel.org,
-	linux-block@vger.kernel.org,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
+	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	linux-sgx@vger.kernel.org, linux-block <linux-block@vger.kernel.org>,
+	Netdev <netdev@vger.kernel.org>, linux-usb@vger.kernel.org,
+	samba-technical@lists.samba.org,
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-f2fs-devel@lists.sourceforge.net,
+	Linux F2FS Dev Mailing List <linux-f2fs-devel@lists.sourceforge.net>,
 	tipc-discussion@lists.sourceforge.net,
-	linux-crypto@vger.kernel.org, netdev@vger.kernel.org,
-	dmaengine@vger.kernel.org, linux-mediatek@lists.infradead.org,
+	Linux Crypto Mailing List <linux-crypto@vger.kernel.org>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
-	linuxppc-dev@lists.ozlabs.org, Mike Rapoport <rppt@kernel.org>
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
  after loop body as a ptr
 List-Id: "*Coordination* of development, patches,
@@ -62,56 +79,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Feb 28, 2022 at 01:06:57PM +0100, Jakob Koschel wrote:
-> 
-> 
-> > On 28. Feb 2022, at 12:20, Greg KH <gregkh@linuxfoundation.org> wrote:
-> > 
-> > On Mon, Feb 28, 2022 at 12:08:18PM +0100, Jakob Koschel wrote:
-> >> If the list does not contain the expected element, the value of
-> >> list_for_each_entry() iterator will not point to a valid structure.
-> >> To avoid type confusion in such case, the list iterator
-> >> scope will be limited to list_for_each_entry() loop.
-> >> 
-> >> In preparation to limiting scope of a list iterator to the list traversal
-> >> loop, use a dedicated pointer to point to the found element.
-> >> Determining if an element was found is then simply checking if
-> >> the pointer is != NULL.
-> >> 
-> >> Signed-off-by: Jakob Koschel <jakobkoschel@gmail.com>
-> >> ---
-> >> arch/x86/kernel/cpu/sgx/encl.c       |  6 +++--
-> >> drivers/scsi/scsi_transport_sas.c    | 17 ++++++++-----
-> >> drivers/thermal/thermal_core.c       | 38 ++++++++++++++++++----------
-> >> drivers/usb/gadget/configfs.c        | 22 ++++++++++------
-> >> drivers/usb/gadget/udc/max3420_udc.c | 11 +++++---
-> >> drivers/usb/gadget/udc/tegra-xudc.c  | 11 +++++---
-> >> drivers/usb/mtu3/mtu3_gadget.c       | 11 +++++---
-> >> drivers/usb/musb/musb_gadget.c       | 11 +++++---
-> >> drivers/vfio/mdev/mdev_core.c        | 11 +++++---
-> >> 9 files changed, 88 insertions(+), 50 deletions(-)
-> > 
-> > The drivers/usb/ portion of this patch should be in patch 1/X, right?
-> 
-> I kept them separate since it's a slightly different case.
-> Using 'ptr' instead of '&ptr->other_member'. Regardless, I'll split
-> this commit up as you mentioned.
-> 
-> > 
-> > Also, you will have to split these up per-subsystem so that the
-> > different subsystem maintainers can take these in their trees.
-> 
-> Thanks for the feedback.
-> To clarify I understand you correctly:
-> I should do one patch set per-subsystem with every instance/(file?)
-> fixed as a separate commit?
+On Mon, Feb 28, 2022 at 04:45:11PM -0800, Linus Torvalds wrote:
+> Really. The "-Wshadow doesn't work on the kernel" is not some new
+> issue, because you have to do completely insane things to the source
+> code to enable it.
 
-Yes, each file needs a different commit as they are usually all written
-or maintained by different people.
+The first big glitch with -Wshadow was with shadowed global variables.
+GCC 4.8 fixed that, but it still yells about shadowed functions. What
+_almost_ works is -Wshadow=local. At first glace, all the warnings
+look solvable, but then one will eventually discover __wait_event()
+and associated macros that mix when and how deeply it intentionally
+shadows variables. :)
 
-As I said in my other response, if you need any help with this, just let
-me know, I'm glad to help.
+Another way to try to catch misused shadow variables is
+-Wunused-but-set-varible, but it, too, has tons of false positives.
 
-thanks,
+I tried to capture some of the rationale and research here:
+https://github.com/KSPP/linux/issues/152
 
-greg k-h
+-- 
+Kees Cook
