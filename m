@@ -1,23 +1,26 @@
-Return-Path: <kuba@kernel.org>
-Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 828D94217B4
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 07:43:02 +0100 (CET)
-Date: Mon, 28 Feb 2022 22:32:28 -0800
-From: Jakub Kicinski <kuba@kernel.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Message-ID: <20220228223228.24cf3fd4@kicinski-fedora-PC1C0HJN.hsd1.ca.comcast.net>
-In-Reply-To: <CAHk-=whLK11HyvpUtEftOjc3Gup2V77KpAQ2fycj3uai=qceHw@mail.gmail.com>
+Return-Path: <Christian.Koenig@amd.com>
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com
+	(mail-sn1anam02on2059.outbound.protection.outlook.com [40.107.96.59])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C24914217B4
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 08:17:58 +0100 (CET)
+Message-ID: <3d37084e-72d4-d3a5-ec8d-df1ac1758fad@amd.com>
+Date: Tue, 1 Mar 2022 08:03:26 +0100
+Content-Language: en-US
+To: James Bottomley <James.Bottomley@HansenPartnership.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
 	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
 	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
-	<CAHk-=wj8fkosQ7=bps5K+DDazBXk=ypfn49A0sEq+7-nZnyfXA@mail.gmail.com>
-	<CAHk-=wiTCvLQkHcJ3y0hpqH7FEk9D28LDvZZogC6OVLk7naBww@mail.gmail.com>
-	<FC710A1A-524E-481B-A668-FC258F529A2E@gmail.com>
-	<CAHk-=whLK11HyvpUtEftOjc3Gup2V77KpAQ2fycj3uai=qceHw@mail.gmail.com>
+	<282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
+	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
+	<0b65541a-3da7-dc35-690a-0ada75b0adae@amd.com>
+	<ade13f419519350e460e7ef1e64477ec72e828ed.camel@HansenPartnership.com>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+In-Reply-To: <ade13f419519350e460e7ef1e64477ec72e828ed.camel@HansenPartnership.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	alsa-devel@alsa-project.org, KVM list <kvm@vger.kernel.org>,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
@@ -36,21 +39,21 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	bcm-kernel-feedback-list@broadcom.com,
 	Dan Carpenter <dan.carpenter@oracle.com>,
 	Linux Media Mailing List <linux-media@vger.kernel.org>,
-	Kees Cook <keescook@chromium.org>, Bergman <arnd@arndb.de>,
+	Kees Cook <keescook@chromium.org>, Arnd Bergman <arnd@arndb.de>,
 	Linux PM <linux-pm@vger.kernel.org>,
 	intel-gfx <intel-gfx@lists.freedesktop.org>,
 	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
-	Nathan Chancellor <nathan@kernel.org>,
-	v9fs-developer@lists.sourceforge.net,
+	Nathan Chancellor <nathan@kernel.org>, dma <dmaengine@vger.kernel.org>,
 	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
-	Jakob Koschel <jakobkoschel@gmail.com>, Arnd,
+	Jakob Koschel <jakobkoschel@gmail.com>,
+	v9fs-developer@lists.sourceforge.net,
 	linux-tegra <linux-tegra@vger.kernel.org>,
 	Thomas Gleixner <tglx@linutronix.de>,
 	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
 	Linux ARM <linux-arm-kernel@lists.infradead.org>,
 	linux-sgx@vger.kernel.org, linux-block <linux-block@vger.kernel.org>,
-	Netdev <netdev@vger.kernel.org>, dma <dmaengine@vger.kernel.org>,
-	linux-usb@vger.kernel.org, samba-technical@lists.samba.org,
+	Netdev <netdev@vger.kernel.org>, linux-usb@vger.kernel.org,
+	samba-technical@lists.samba.org,
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
 	Linux F2FS Dev Mailing List <linux-f2fs-devel@lists.sourceforge.net>,
 	tipc-discussion@lists.sourceforge.net,
@@ -59,7 +62,6 @@ Cc: linux-wireless <linux-wireless@vger.kernel.org>,
 	linux-mediatek@lists.infradead.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	Christian =?UTF-8?B?S8O2bmln?= <christian.koenig@amd.com>,
 	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
  after loop body as a ptr
@@ -74,71 +76,60 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, 28 Feb 2022 16:41:04 -0800 Linus Torvalds wrote:
-> So yes, initially my idea had been to just move the iterator entirely
-> inside the macro. But specifying the type got so ugly that I think
-> that
-> 
->         typeof (pos) pos
-> 
-> trick inside the macro really ends up giving us the best of all worlds:
-> 
->  (a) let's us keep the existing syntax and code for all the nice cases
-> that did everything inside the loop anyway
-> 
->  (b) gives us a nice warning for any normal use-after-loop case
-> (unless you explicitly initialized it like that
-> sgx_mmu_notifier_release() function did for no good reason
-> 
->  (c) also guarantees that even if you don't get a warning,
-> non-converted (or newly written) bad code won't actually _work_
-> 
-> so you end up getting the new rules without any ambiguity or mistaken
+Am 28.02.22 um 22:13 schrieb James Bottomley:
+> On Mon, 2022-02-28 at 21:56 +0100, Christian König wrote:
+>> Am 28.02.22 um 21:42 schrieb James Bottomley:
+>>> On Mon, 2022-02-28 at 21:07 +0100, Christian König wrote:
+>>>> Am 28.02.22 um 20:56 schrieb Linus Torvalds:
+>>>>> On Mon, Feb 28, 2022 at 4:19 AM Christian König
+>>>>> <christian.koenig@amd.com> wrote:
+>>>>> [SNIP]
+>>>>> Anybody have any ideas?
+>>>> I think we should look at the use cases why code is touching
+>>>> (pos)
+>>>> after the loop.
+>>>>
+>>>> Just from skimming over the patches to change this and experience
+>>>> with the drivers/subsystems I help to maintain I think the
+>>>> primary pattern looks something like this:
+>>>>
+>>>> list_for_each_entry(entry, head, member) {
+>>>>        if (some_condition_checking(entry))
+>>>>            break;
+>>>> }
+>>>> do_something_with(entry);
+>>> Actually, we usually have a check to see if the loop found
+>>> anything, but in that case it should something like
+>>>
+>>> if (list_entry_is_head(entry, head, member)) {
+>>>       return with error;
+>>> }
+>>> do_somethin_with(entry);
+>>>
+>>> Suffice?  The list_entry_is_head() macro is designed to cope with
+>>> the bogus entry on head problem.
+>> That will work and is also what people already do.
+>>
+>> The key problem is that we let people do the same thing over and
+>> over again with slightly different implementations.
+>>
+>> Out in the wild I've seen at least using a separate variable, using
+>> a bool to indicate that something was found and just assuming that
+>> the list has an entry.
+>>
+>> The last case is bogus and basically what can break badly.
+> Yes, I understand that.  I'm saying we should replace that bogus checks
+> of entry->something against some_value loop termination condition with
+> the list_entry_is_head() macro.  That should be a one line and fairly
+> mechanical change rather than the explosion of code changes we seem to
+> have in the patch series.
 
-I presume the goal is that we can do this without changing existing
-code? Otherwise actually moving the iterator into the loop body would
-be an option, by creating a different hidden variable:
+Yes, exactly that's my thinking as well.
 
-#define list_iter(head)						\
-	for (struct list head *_l = (head)->next; _l != (head); _l = _l->next)
+Christian.
 
-#define list_iter_entry(var, member)		\
-	list_entry(_l, typeof(*var), member)
+>
+> James
+>
+>
 
-
-	list_iter(&p->a_head) {
-		struct entry *e = list_iter_entry(e, a_member);
-
-		/* use e->... */
-	}
-
-
-Or we can slide into soft insanity and exploit one of Kees'es tricks
-to encode the type of the entries "next to" the head:
-
-#define LIST_HEAD_MEM(name, type)			\
-	union {						\
-		struct list_head name;			\
-		type *name ## _entry;			\
-	}
-
-struct entry {
-	struct list_head a_member;
-};
-
-struct parent {
-	LIST_HEAD_MEM(a_head, struct entry);
-};
-
-#define list_for_each_magic(pos, head, member)				\
-	for (typeof(**(head ## _entry)) *pos = list_first_entry(head, typeof(**(head ## _entry)), member); \
-	     &pos->member != (head);					\
-	     pos = list_next_entry(pos, member))
-
-
-	list_for_each_magic(e, &p->a_head, a_member) {
-		/* use e->... */
-	}
-
-
-I'll show myself out...
