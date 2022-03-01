@@ -1,18 +1,18 @@
 Return-Path: <torvalds@linuxfoundation.org>
-Received: from mail-lj1-f179.google.com (mail-lj1-f179.google.com
-	[209.85.208.179])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BAD334217A2
-	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 20:07:07 +0100 (CET)
-Received: by mail-lj1-f179.google.com with SMTP id bn33so23182180ljb.6
-	for <drbd-dev@lists.linbit.com>; Tue, 01 Mar 2022 11:07:07 -0800 (PST)
-Received: from mail-lj1-f174.google.com (mail-lj1-f174.google.com.
-	[209.85.208.174]) by smtp.gmail.com with ESMTPSA id
-	b15-20020ac2562f000000b004437f2667bfsm1622813lff.308.2022.03.01.11.07.02
+Received: from mail-lf1-f42.google.com (mail-lf1-f42.google.com
+	[209.85.167.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7E8484217A0
+	for <drbd-dev@lists.linbit.com>; Tue,  1 Mar 2022 20:42:47 +0100 (CET)
+Received: by mail-lf1-f42.google.com with SMTP id f37so28617523lfv.8
+	for <drbd-dev@lists.linbit.com>; Tue, 01 Mar 2022 11:42:47 -0800 (PST)
+Received: from mail-lj1-f180.google.com (mail-lj1-f180.google.com.
+	[209.85.208.180]) by smtp.gmail.com with ESMTPSA id
+	f8-20020a2e3808000000b002468b8ca6d1sm1317024lja.27.2022.03.01.11.42.43
 	for <drbd-dev@lists.linbit.com>
 	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
-	Tue, 01 Mar 2022 11:07:04 -0800 (PST)
-Received: by mail-lj1-f174.google.com with SMTP id e8so23189660ljj.2
-	for <drbd-dev@lists.linbit.com>; Tue, 01 Mar 2022 11:07:02 -0800 (PST)
+	Tue, 01 Mar 2022 11:42:43 -0800 (PST)
+Received: by mail-lj1-f180.google.com with SMTP id v22so23295364ljh.7
+	for <drbd-dev@lists.linbit.com>; Tue, 01 Mar 2022 11:42:43 -0800 (PST)
 MIME-Version: 1.0
 References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<20220228110822.491923-3-jakobkoschel@gmail.com>
@@ -22,10 +22,11 @@ References: <20220228110822.491923-1-jakobkoschel@gmail.com>
 	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
 	<7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
 	<73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
-In-Reply-To: <73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
+	<CAHk-=wiT5HX6Kp0Qv4ZYK_rkq9t5fZ5zZ7vzvi6pub9kgp=72g@mail.gmail.com>
+In-Reply-To: <CAHk-=wiT5HX6Kp0Qv4ZYK_rkq9t5fZ5zZ7vzvi6pub9kgp=72g@mail.gmail.com>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 1 Mar 2022 11:06:45 -0800
-Message-ID: <CAHk-=wiT5HX6Kp0Qv4ZYK_rkq9t5fZ5zZ7vzvi6pub9kgp=72g@mail.gmail.com>
+Date: Tue, 1 Mar 2022 11:42:26 -0800
+Message-ID: <CAHk-=wghQygmASNUWj=LZn5FR5wsce2osyR6EXcfEB_FaX_6Og@mail.gmail.com>
 To: James Bottomley <James.Bottomley@hansenpartnership.com>
 Content-Type: text/plain; charset="UTF-8"
 Cc: linux-wireless <linux-wireless@vger.kernel.org>,
@@ -84,54 +85,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Feb 28, 2022 at 2:29 PM James Bottomley
-<James.Bottomley@hansenpartnership.com> wrote:
+On Tue, Mar 1, 2022 at 11:06 AM Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
-> However, if the desire is really to poison the loop variable then we
-> can do
->
-> #define list_for_each_entry(pos, head, member)                          \
->         for (pos = list_first_entry(head, typeof(*pos), member);        \
->              !list_entry_is_head(pos, head, member) && ((pos = NULL) == NULL;                   \
->              pos = list_next_entry(pos, member))
->
-> Which would at least set pos to NULL when the loop completes.
+> So instead of that simple "if (!entry)", we'd effectively have to
+> continue to use something that still works with the old world order
+> (ie that "if (list_entry_is_head())" model).
 
-That would actually have been excellent if we had done that
-originally. It would not only avoid the stale and incorrectly typed
-head entry left-over turd, it would also have made it very easy to
-test for "did I find an entry in the loop".
+Just to prove my point about how this is painful, that doesn't work at all.
 
-But I don't much like it in the situation we are now.
+If the loop iterator at the end is NULL (good, in theory), we can't
+use "list_entry_is_head()" to check whether we ended. We'd have to use
+a new thing entirely, to handle the "list_for_each_entry() has the
+old/new semantics" cases.
 
-Why? Mainly because it basically changes the semantics of the loop
-_without_ any warnings about it.  And we don't actually get the
-advantage of the nicer semantics, because we can't actually make code
-do
+That's largely why I was pushing for the "let's make it impossible to
+use the loop iterator at all outside the loop". It avoids the
+confusing case, and the patches to move to that stricter semantic can
+be merged independently (and before) doing the actual semantic change.
 
-        list_for_each_entry(entry, ....) {
-                ..
-        }
-        if (!entry)
-                return -ESRCH;
-        .. use the entry we found ..
+I'm not saying my suggested approach is wonderful either. Honestly,
+it's painful that we have so nasty semantics for the end-of-loop case
+for list_for_each_entry().
 
-because that would be a disaster for back-porting, plus it would be a
-flag-day issue (ie we'd have to change the semantics of the loop at
-the same time we change every single user).
+The minimal patch would clearly be to keep those broken semantics, and
+just force everybody to use the list_entry_is_head() case. That's the
+"we know we messed up, we are too lazy to fix it, we'll just work
+around it and people need to be careful" approach.
 
-So instead of that simple "if (!entry)", we'd effectively have to
-continue to use something that still works with the old world order
-(ie that "if (list_entry_is_head())" model).
+And laziness is a virtue. But bad semantics are bad semantics. So it's
+a question of balancing those two issues.
 
-So we couldn't really take _advantage_ of the nicer semantics, and
-we'd not even get a warning if somebody does it wrong - the code would
-just silently do the wrong thing.
-
-IOW: I don't think you are wrong about that patch: it would solve the
-problem that Jakob wants to solve, and it would have absolutely been
-much better if we had done this from the beginning. But I think that
-in our current situation, it's actually a really fragile solution to
-the "don't do that then" problem we have.
-
-              Linus
+               Linus
