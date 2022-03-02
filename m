@@ -1,14 +1,19 @@
-Return-Path: <keescook@chromium.org>
-Received: from mail-pl1-f178.google.com (mail-pl1-f178.google.com
-	[209.85.214.178])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E5D17420177
-	for <drbd-dev@lists.linbit.com>; Wed,  2 Mar 2022 21:08:06 +0100 (CET)
-Received: by mail-pl1-f178.google.com with SMTP id q11so2508864pln.11
-	for <drbd-dev@lists.linbit.com>; Wed, 02 Mar 2022 12:08:06 -0800 (PST)
-Date: Wed, 2 Mar 2022 12:07:04 -0800
-From: Kees Cook <keescook@chromium.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Message-ID: <202203021158.DB5204A0@keescook>
+Return-Path: <torvalds@linuxfoundation.org>
+Received: from mail-lf1-f42.google.com (mail-lf1-f42.google.com
+	[209.85.167.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 39AF2421798
+	for <drbd-dev@lists.linbit.com>; Wed,  2 Mar 2022 21:20:05 +0100 (CET)
+Received: by mail-lf1-f42.google.com with SMTP id bu29so4878031lfb.0
+	for <drbd-dev@lists.linbit.com>; Wed, 02 Mar 2022 12:20:05 -0800 (PST)
+Received: from mail-lj1-f175.google.com (mail-lj1-f175.google.com.
+	[209.85.208.175]) by smtp.gmail.com with ESMTPSA id
+	p6-20020a05651238c600b00443de9cdc48sm9646lft.226.2022.03.02.12.19.02
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+	Wed, 02 Mar 2022 12:19:03 -0800 (PST)
+Received: by mail-lj1-f175.google.com with SMTP id t14so3901425ljh.8
+	for <drbd-dev@lists.linbit.com>; Wed, 02 Mar 2022 12:19:02 -0800 (PST)
+MIME-Version: 1.0
 References: <282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
 	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
 	<7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
@@ -19,16 +24,19 @@ References: <282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
 	<0ced2b155b984882b39e895f0211037c@AcuMS.aculab.com>
 	<CAHk-=wix0HLCBs5sxAeW3uckg0YncXbTjMsE-Tv8WzmkOgLAXQ@mail.gmail.com>
 	<78ccb184-405e-da93-1e02-078f90d2b9bc@rasmusvillemoes.dk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <78ccb184-405e-da93-1e02-078f90d2b9bc@rasmusvillemoes.dk>
+	<202203021158.DB5204A0@keescook>
+In-Reply-To: <202203021158.DB5204A0@keescook>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 2 Mar 2022 12:18:45 -0800
+Message-ID: <CAHk-=wikKPC0LUqZ8++EC5JOvGdBqVH9uUaTX=DvBioDoReYww@mail.gmail.com>
+To: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset="UTF-8"
 Cc: "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>,
 	"linux-aspeed@lists.ozlabs.org" <linux-aspeed@lists.ozlabs.org>,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
 	"linux-iio@vger.kernel.org" <linux-iio@vger.kernel.org>,
 	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	linux-block <linux-block@vger.kernel.org>,
+	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
 	dri-devel <dri-devel@lists.freedesktop.org>,
 	Cristiano Giuffrida <c.giuffrida@vu.nl>, "Bos, H.J." <h.j.bos@vu.nl>,
 	"samba-technical@lists.samba.org" <samba-technical@lists.samba.org>,
@@ -49,8 +57,8 @@ Cc: "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>,
 	Dan Carpenter <dan.carpenter@oracle.com>,
 	Linux Media Mailing List <linux-media@vger.kernel.org>,
 	Arnd Bergman <arnd@arndb.de>, Linux PM <linux-pm@vger.kernel.org>,
+	linux-block <linux-block@vger.kernel.org>,
 	intel-gfx <intel-gfx@lists.freedesktop.org>,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
 	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
 	James Bottomley <James.Bottomley@hansenpartnership.com>,
 	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
@@ -74,8 +82,8 @@ Cc: "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>,
 	dma <dmaengine@vger.kernel.org>, "linux-mediatek@lists.infradead.org"
 	<linux-mediatek@lists.infradead.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>,
 	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
  after loop body as a ptr
@@ -90,56 +98,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 02, 2022 at 10:29:31AM +0100, Rasmus Villemoes wrote:
-> This won't help the current issue (because it doesn't exist and might
-> never), but just in case some compiler people are listening, I'd like to
-> have some sort of way to tell the compiler "treat this variable as
-> uninitialized from here on". So one could do
-> 
-> #define kfree(p) do { __kfree(p); __magic_uninit(p); } while (0)
-> 
-> with __magic_uninit being a magic no-op that doesn't affect the
-> semantics of the code, but could be used by the compiler's "[is/may be]
-> used uninitialized" machinery to flag e.g. double frees on some odd
-> error path etc. It would probably only work for local automatic
-> variables, but it should be possible to just ignore the hint if p is
-> some expression like foo->bar or has side effects. If we had that, the
-> end-of-loop test could include that to "uninitialize" the iterator.
+On Wed, Mar 2, 2022 at 12:07 PM Kees Cook <keescook@chromium.org> wrote:
+>
+> I've long wanted to change kfree() to explicitly set pointers to NULL on
+> free. https://github.com/KSPP/linux/issues/87
 
-I've long wanted to change kfree() to explicitly set pointers to NULL on
-free. https://github.com/KSPP/linux/issues/87
+We've had this discussion with the gcc people in the past, and gcc
+actually has some support for it, but it's sadly tied to the actual
+function name (ie gcc has some special-casing for "free()")
 
-The thing stopping a trivial transformation of kfree() is:
+See
 
-	kfree(get_some_pointer());
+    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94527
 
-I would argue, though, that the above is poor form: the thing holding
-the pointer should be the thing freeing it, so these cases should be
-refactored and kfree() could do the NULLing by default.
+for some of that discussion.
 
-Quoting myself in the above issue:
+Oh, and I see some patch actually got merged since I looked there last
+so that you can mark "deallocator" functions, but I think it's only
+for the context matching, not for actually killing accesses to the
+pointer afterwards.
 
-
-Without doing massive tree-wide changes, I think we need compiler
-support. If we had something like __builtin_is_lvalue(), we could
-distinguish function returns from lvalues. For example, right now a
-common case are things like:
-
-	kfree(get_some_ptr());
-
-But if we could at least gain coverage of the lvalue cases, and detect
-them statically at compile-time, we could do:
-
-#define __kfree_and_null(x) do { __kfree(*x); *x = NULL; } while (0)
-#define kfree(x) __builtin_choose_expr(__builtin_is_lvalue(x),
-			__kfree_and_null(&(x)), __kfree(x))
-
-Alternatively, we could do a tree-wide change of the former case (findable
-with Coccinelle) and change them into something like kfree_no_null()
-and redefine kfree() itself:
-
-#define kfree_no_null(x) do { void *__ptr = (x); __kfree(__ptr); } while (0)
-#define kfree(x) do { __kfree(x); x = NULL; } while (0)
-
--- 
-Kees Cook
+               Linus
