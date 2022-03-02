@@ -1,22 +1,15 @@
-Return-Path: <torvalds@linuxfoundation.org>
-Received: from mail-lf1-f42.google.com (mail-lf1-f42.google.com
-	[209.85.167.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 39AF2421798
-	for <drbd-dev@lists.linbit.com>; Wed,  2 Mar 2022 21:20:05 +0100 (CET)
-Received: by mail-lf1-f42.google.com with SMTP id bu29so4878031lfb.0
-	for <drbd-dev@lists.linbit.com>; Wed, 02 Mar 2022 12:20:05 -0800 (PST)
-Received: from mail-lj1-f175.google.com (mail-lj1-f175.google.com.
-	[209.85.208.175]) by smtp.gmail.com with ESMTPSA id
-	p6-20020a05651238c600b00443de9cdc48sm9646lft.226.2022.03.02.12.19.02
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
-	Wed, 02 Mar 2022 12:19:03 -0800 (PST)
-Received: by mail-lj1-f175.google.com with SMTP id t14so3901425ljh.8
-	for <drbd-dev@lists.linbit.com>; Wed, 02 Mar 2022 12:19:02 -0800 (PST)
-MIME-Version: 1.0
-References: <282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
-	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
-	<7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
+Return-Path: <keescook@chromium.org>
+Received: from mail-pg1-f178.google.com (mail-pg1-f178.google.com
+	[209.85.215.178])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A99CB421796
+	for <drbd-dev@lists.linbit.com>; Wed,  2 Mar 2022 22:00:30 +0100 (CET)
+Received: by mail-pg1-f178.google.com with SMTP id o26so2650304pgb.8
+	for <drbd-dev@lists.linbit.com>; Wed, 02 Mar 2022 13:00:30 -0800 (PST)
+Date: Wed, 2 Mar 2022 12:59:28 -0800
+From: Kees Cook <keescook@chromium.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Message-ID: <202203021256.69D7C4BCA6@keescook>
+References: <7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
 	<73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
 	<CAHk-=wiT5HX6Kp0Qv4ZYK_rkq9t5fZ5zZ7vzvi6pub9kgp=72g@mail.gmail.com>
 	<7dc860874d434d2288f36730d8ea3312@AcuMS.aculab.com>
@@ -25,12 +18,11 @@ References: <282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
 	<CAHk-=wix0HLCBs5sxAeW3uckg0YncXbTjMsE-Tv8WzmkOgLAXQ@mail.gmail.com>
 	<78ccb184-405e-da93-1e02-078f90d2b9bc@rasmusvillemoes.dk>
 	<202203021158.DB5204A0@keescook>
-In-Reply-To: <202203021158.DB5204A0@keescook>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 2 Mar 2022 12:18:45 -0800
-Message-ID: <CAHk-=wikKPC0LUqZ8++EC5JOvGdBqVH9uUaTX=DvBioDoReYww@mail.gmail.com>
-To: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset="UTF-8"
+	<CAHk-=wikKPC0LUqZ8++EC5JOvGdBqVH9uUaTX=DvBioDoReYww@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHk-=wikKPC0LUqZ8++EC5JOvGdBqVH9uUaTX=DvBioDoReYww@mail.gmail.com>
 Cc: "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>,
 	"linux-aspeed@lists.ozlabs.org" <linux-aspeed@lists.ozlabs.org>,
 	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
@@ -83,7 +75,7 @@ Cc: "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>,
 	<linux-mediatek@lists.infradead.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
 	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
  after loop body as a ptr
@@ -98,24 +90,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 2, 2022 at 12:07 PM Kees Cook <keescook@chromium.org> wrote:
->
-> I've long wanted to change kfree() to explicitly set pointers to NULL on
-> free. https://github.com/KSPP/linux/issues/87
+On Wed, Mar 02, 2022 at 12:18:45PM -0800, Linus Torvalds wrote:
+> On Wed, Mar 2, 2022 at 12:07 PM Kees Cook <keescook@chromium.org> wrote:
+> >
+> > I've long wanted to change kfree() to explicitly set pointers to NULL on
+> > free. https://github.com/KSPP/linux/issues/87
+> 
+> We've had this discussion with the gcc people in the past, and gcc
+> actually has some support for it, but it's sadly tied to the actual
+> function name (ie gcc has some special-casing for "free()")
+> 
+> See
+> 
+>     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94527
+> 
+> for some of that discussion.
+> 
+> Oh, and I see some patch actually got merged since I looked there last
+> so that you can mark "deallocator" functions, but I think it's only
+> for the context matching, not for actually killing accesses to the
+> pointer afterwards.
 
-We've had this discussion with the gcc people in the past, and gcc
-actually has some support for it, but it's sadly tied to the actual
-function name (ie gcc has some special-casing for "free()")
+Ah! I missed that getting added in GCC 11. But yes, there it is:
 
-See
+https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-malloc-function-attribute
 
-    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94527
+Hah, now we may need to split __malloc from __alloc_size. ;)
 
-for some of that discussion.
+I'd still like the NULL assignment behavior, though, since some things
+can easily avoid static analysis.
 
-Oh, and I see some patch actually got merged since I looked there last
-so that you can mark "deallocator" functions, but I think it's only
-for the context matching, not for actually killing accesses to the
-pointer afterwards.
-
-               Linus
+-- 
+Kees Cook
