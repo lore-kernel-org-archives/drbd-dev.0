@@ -1,90 +1,46 @@
-Return-Path: <linux@rasmusvillemoes.dk>
-Received: from mail-lj1-f171.google.com (mail-lj1-f171.google.com
-	[209.85.208.171])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 94E414202F4
-	for <drbd-dev@lists.linbit.com>; Wed,  2 Mar 2022 10:29:35 +0100 (CET)
-Received: by mail-lj1-f171.google.com with SMTP id bn33so1385752ljb.6
-	for <drbd-dev@lists.linbit.com>; Wed, 02 Mar 2022 01:29:35 -0800 (PST)
-Message-ID: <78ccb184-405e-da93-1e02-078f90d2b9bc@rasmusvillemoes.dk>
-Date: Wed, 2 Mar 2022 10:29:31 +0100
-MIME-Version: 1.0
-Content-Language: en-US
-To: Linus Torvalds <torvalds@linux-foundation.org>,
-	David Laight <David.Laight@aculab.com>
-References: <20220228110822.491923-1-jakobkoschel@gmail.com>
-	<20220228110822.491923-3-jakobkoschel@gmail.com>
-	<2e4e95d6-f6c9-a188-e1cd-b1eae465562a@amd.com>
-	<CAHk-=wgQps58DPEOe4y5cTh5oE9EdNTWRLXzgMiETc+mFX7jzw@mail.gmail.com>
-	<282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
-	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
-	<7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
-	<73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
-	<CAHk-=wiT5HX6Kp0Qv4ZYK_rkq9t5fZ5zZ7vzvi6pub9kgp=72g@mail.gmail.com>
-	<7dc860874d434d2288f36730d8ea3312@AcuMS.aculab.com>
-	<CAHk-=whKqg89zu4T95+ctY-hocR6kDArpo2qO14-kV40Ga7ufw@mail.gmail.com>
-	<0ced2b155b984882b39e895f0211037c@AcuMS.aculab.com>
-	<CAHk-=wix0HLCBs5sxAeW3uckg0YncXbTjMsE-Tv8WzmkOgLAXQ@mail.gmail.com>
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-In-Reply-To: <CAHk-=wix0HLCBs5sxAeW3uckg0YncXbTjMsE-Tv8WzmkOgLAXQ@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Cc: "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>,
-	"linux-aspeed@lists.ozlabs.org" <linux-aspeed@lists.ozlabs.org>,
-	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
-	"linux-iio@vger.kernel.org" <linux-iio@vger.kernel.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
-	dri-devel <dri-devel@lists.freedesktop.org>,
-	Cristiano Giuffrida <c.giuffrida@vu.nl>, "Bos, H.J." <h.j.bos@vu.nl>,
-	"samba-technical@lists.samba.org" <samba-technical@lists.samba.org>,
-	"linux1394-devel@lists.sourceforge.net"
-	<linux1394-devel@lists.sourceforge.net>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
-	linux-arch <linux-arch@vger.kernel.org>, CIFS <linux-cifs@vger.kernel.org>,
-	KVM list <kvm@vger.kernel.org>, linux-scsi <linux-scsi@vger.kernel.org>,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	"linux-staging@lists.linux.dev" <linux-staging@lists.linux.dev>,
-	amd-gfx list <amd-gfx@lists.freedesktop.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	"intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>,
-	"kgdb-bugreport@lists.sourceforge.net"
-	<kgdb-bugreport@lists.sourceforge.net>,
-	"bcm-kernel-feedback-list@broadcom.com"
-	<bcm-kernel-feedback-list@broadcom.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Linux Media Mailing List <linux-media@vger.kernel.org>,
-	Kees Cook <keescook@chromium.org>, Arnd Bergman <arnd@arndb.de>,
-	Linux PM <linux-pm@vger.kernel.org>,
-	linux-block <linux-block@vger.kernel.org>,
-	intel-gfx <intel-gfx@lists.freedesktop.org>,
-	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
-	Jakob Koschel <jakobkoschel@gmail.com>,
-	"v9fs-developer@lists.sourceforge.net"
-	<v9fs-developer@lists.sourceforge.net>,
-	linux-tegra <linux-tegra@vger.kernel.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	"linux-sgx@vger.kernel.org" <linux-sgx@vger.kernel.org>,
-	Nathan Chancellor <nathan@kernel.org>, Netdev <netdev@vger.kernel.org>,
-	"linux-usb@vger.kernel.org" <linux-usb@vger.kernel.org>,
-	linux-wireless <linux-wireless@vger.kernel.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Linux F2FS Dev Mailing List <linux-f2fs-devel@lists.sourceforge.net>,
-	"tipc-discussion@lists.sourceforge.net"
-	<tipc-discussion@lists.sourceforge.net>,
-	Linux Crypto Mailing List <linux-crypto@vger.kernel.org>,
-	dma <dmaengine@vger.kernel.org>, "linux-mediatek@lists.infradead.org"
-	<linux-mediatek@lists.infradead.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	=?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>,
-	Mike Rapoport <rppt@kernel.org>
+Return-Path: <xiam0nd.tong@gmail.com>
+Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com
+	[209.85.210.196])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B9C094202F4
+	for <drbd-dev@lists.linbit.com>; Wed,  2 Mar 2022 10:32:31 +0100 (CET)
+Received: by mail-pf1-f196.google.com with SMTP id g1so1423572pfv.1
+	for <drbd-dev@lists.linbit.com>; Wed, 02 Mar 2022 01:32:31 -0800 (PST)
+From: Xiaomeng Tong <xiam0nd.tong@gmail.com>
+To: torvalds@linux-foundation.org
+Date: Wed,  2 Mar 2022 17:31:06 +0800
+Message-Id: <20220302093106.8402-1-xiam0nd.tong@gmail.com>
+In-Reply-To: <CAHk-=whLK11HyvpUtEftOjc3Gup2V77KpAQ2fycj3uai=qceHw@mail.gmail.com>
+References: <CAHk-=whLK11HyvpUtEftOjc3Gup2V77KpAQ2fycj3uai=qceHw@mail.gmail.com>
+Cc: alsa-devel@alsa-project.org, kvm@vger.kernel.org, gustavo@embeddedor.com,
+	linux-iio@vger.kernel.org, kgdb-bugreport@lists.sourceforge.net,
+	linux@rasmusvillemoes.dk, dri-devel@lists.freedesktop.org,
+	c.giuffrida@vu.nl, amd-gfx@lists.freedesktop.org,
+	samba-technical@lists.samba.org,
+	linux1394-devel@lists.sourceforge.net, drbd-dev@lists.linbit.com,
+	linux-arch@vger.kernel.org, linux-cifs@vger.kernel.org,
+	linux-aspeed@lists.ozlabs.org, linux-scsi@vger.kernel.org,
+	linux-rdma@vger.kernel.org, linux-staging@lists.linux.dev,
+	h.j.bos@vu.nl, jgg@ziepe.ca, intel-wired-lan@lists.osuosl.org,
+	nouveau@lists.freedesktop.org,
+	bcm-kernel-feedback-list@broadcom.com, dan.carpenter@oracle.com,
+	linux-media@vger.kernel.org, keescook@chromium.org,
+	arnd@arndb.de, linux-pm@vger.kernel.org,
+	intel-gfx@lists.freedesktop.org, bjohannesmeyer@gmail.com,
+	linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	christophe.jaillet@wanadoo.fr, jakobkoschel@gmail.com,
+	v9fs-developer@lists.sourceforge.net,
+	linux-tegra@vger.kernel.org, tglx@linutronix.de,
+	andriy.shevchenko@linux.intel.com,
+	linux-arm-kernel@lists.infradead.org, linux-sgx@vger.kernel.org,
+	nathan@kernel.org, netdev@vger.kernel.org,
+	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	tipc-discussion@lists.sourceforge.net,
+	linux-crypto@vger.kernel.org, dmaengine@vger.kernel.org,
+	linux-mediatek@lists.infradead.org, akpm@linux-foundation.org,
+	linuxppc-dev@lists.ozlabs.org, christian.koenig@amd.com, rppt@kernel.org
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
- after loop body as a ptr
+	after loop body as a ptr
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -96,41 +52,93 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 02/03/2022 00.55, Linus Torvalds wrote:
-> On Tue, Mar 1, 2022 at 3:19 PM David Laight <David.Laight@aculab.com> wrote:
->>
+On Mon, 28 Feb 2022 16:41:04 -0800, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+> But basically to _me_, the important part is that the end result is
+> maintainable longer-term.
 
-> With the "don't use iterator outside the loop" approach, the exact
-> same code works in both the old world order and the new world order,
-> and you don't have the semantic confusion. And *if* you try to use the
-> iterator outside the loop, you'll _mostly_ (*) get a compiler warning
-> about it not being initialized.
-> 
->              Linus
-> 
-> (*) Unless somebody initializes the iterator pointer pointlessly.
-> Which clearly does happen. Thus the "mostly". It's not perfect, and
-> that's most definitely not nice - but it should at least hopefully
-> make it that much harder to mess up.
+I couldn't agree more. And because of that, I stick with the following
+approach because it's maintainable longer-term than "type(pos) pos" one:
+ Implements a new macro for each list_for_each_entry* with _inside suffix.
+  #define list_for_each_entry_inside(pos, type, head, member)
 
-This won't help the current issue (because it doesn't exist and might
-never), but just in case some compiler people are listening, I'd like to
-have some sort of way to tell the compiler "treat this variable as
-uninitialized from here on". So one could do
+I have posted a patch series here to demonstrate this approach:
+https://lore.kernel.org/lkml/20220301075839.4156-3-xiam0nd.tong@gmail.com/
 
-#define kfree(p) do { __kfree(p); __magic_uninit(p); } while (0)
+Although we need replace all the use of list_for_each_entry* (15000+)
+with list_for_each_entry*_inside, the work can be done gradually rather
+than all at once. We can incrementally replace these callers until
+all these in the kernel are completely updated with *_inside* one. At
+that time, we can just remove the implements of origin macros and rename
+the *_inside* macro back to the origin name just in one single patch.
 
-with __magic_uninit being a magic no-op that doesn't affect the
-semantics of the code, but could be used by the compiler's "[is/may be]
-used uninitialized" machinery to flag e.g. double frees on some odd
-error path etc. It would probably only work for local automatic
-variables, but it should be possible to just ignore the hint if p is
-some expression like foo->bar or has side effects. If we had that, the
-end-of-loop test could include that to "uninitialize" the iterator.
+And the "type(pos) pos" approach need teach developers to "not initialize
+the iterator variable, otherwise the use-after-loop will not be reported by
+compiler", which is unreasonable and impossible for all developers. 
 
-Maybe sparse/smatch or some other static analyzer could implement such a
-magic thing? Maybe it's better as a function attribute
-[__attribute__((uninitializes(1)))] to avoid having to macrofy all
-functions that release resources.
+And it will mess up the following code logic and no warnning reported by
+compiler, even without initializing "ext" at the beginning:
+void foo(struct mem_extent *arg) {
+  struct mem_extent *ext;  // used both for iterator and normal ptr
+  ...
+  ext = arg;  // this assignment can alse be done in another bar() func
+  ...
+  list_for_each_entry(ext, head, member) {
+    if (found(ext))
+       break;
+  }
+  ...
+  // use ext after the loop
+  ret = ext;
+}
+If the loop hit the break, the last "ret" will be the found ext iterator.
+However, if the "type(pos) pos" approach applied, the last "ret" will be
+"arg" which is not the intention of the developers, because the "ext" is
+two different variables inside and outside the loop.
 
-Rasmus
+Thus, my idea is *better a finger off than always aching*, let's choose
+the "list_for_each_entry_inside(pos, type, head, member)" approach.
+
+> It turns out that just syntactically, it's really nice to give the
+> type of the iterator from outside the way we do now. Yeah, it may be a
+> bit odd, and maybe it's partly because I'm so used to the
+> "list_for_each_list_entry()" syntax, but moving the type into the loop
+> construct really made it nasty - either one very complex line, or
+> having to split it over two lines which was even worse.
+>
+> Maybe the place I looked at just happened to have a long typename, but
+> it's basically always going to be a struct, so it's never a _simple_
+> type. And it just looked very odd adn unnatural to have the type as
+> one of the "arguments" to that list_for_each_entry() macro.
+
+we can pass a shorter type name to list_for_each_entry_inside, thus no
+need to split it over two lines. Actually it is not a big problem.
++ #define t struct sram_bank_info
+- list_for_each_entry(pos, head, member) {
++ list_for_each_entry_inside(pos, t, head, member) {
+
+I put the type at the second argument not the first to avoid messing up
+the pattern match in some coccinelle scripts.
+
+>  (b) gives us a nice warning for any normal use-after-loop case
+> (unless you explicitly initialized it like that
+> sgx_mmu_notifier_release() function did for no good reason
+
+sometimes developers can be confused by the reported warnning:
+"used without having been initialized", and can not figure out immediately
+that "oh, now i am using another different variable but with the same name
+of the loop iterator variable", which has changed the programming habits
+of developers.
+
+>  (c) also guarantees that even if you don't get a warning,
+> non-converted (or newly written) bad code won't actually _work_
+>
+> so you end up getting the new rules without any ambiguity or mistaken
+
+It will lead to a wrong/NULL pointer dereference if the pointer is used
+anywhere else, depend on which value is used to initialized with.
+
+Best regard,
+--
+Xiaomeng Tong
