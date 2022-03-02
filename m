@@ -1,82 +1,54 @@
-Return-Path: <david.laight@aculab.com>
-Received: from eu-smtp-delivery-151.mimecast.com
-	(eu-smtp-delivery-151.mimecast.com [185.58.86.151])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A1CC74201C1
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 06:00:34 +0100 (CET)
-From: David Laight <David.Laight@ACULAB.COM>
-To: 'Xiaomeng Tong' <xiam0nd.tong@gmail.com>
-Date: Thu, 3 Mar 2022 04:58:23 +0000
-Message-ID: <39404befad5b44b385698ff65465abe5@AcuMS.aculab.com>
-References: <1077f17e50d34dc2bbfdf4e52a1cb2fd@AcuMS.aculab.com>
-	<20220303022729.9321-1-xiam0nd.tong@gmail.com>
-In-Reply-To: <20220303022729.9321-1-xiam0nd.tong@gmail.com>
+Return-Path: <tvrtko.ursulin@linux.intel.com>
+Received: from mga18.intel.com (mga18.intel.com [134.134.136.126])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 006CE421797
+	for <drbd-dev@lists.linbit.com>; Wed,  2 Mar 2022 18:23:15 +0100 (CET)
+Message-ID: <ed52ce3c-0f4a-a1e8-4176-543657d6228d@linux.intel.com>
+Date: Wed, 2 Mar 2022 17:14:50 +0000
 MIME-Version: 1.0
 Content-Language: en-US
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-Cc: "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>,
-	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
-	"gustavo@embeddedor.com" <gustavo@embeddedor.com>,
-	"linux-iio@vger.kernel.org" <linux-iio@vger.kernel.org>,
-	"kgdb-bugreport@lists.sourceforge.net"
-	<kgdb-bugreport@lists.sourceforge.net>,
-	"linux@rasmusvillemoes.dk" <linux@rasmusvillemoes.dk>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"c.giuffrida@vu.nl" <c.giuffrida@vu.nl>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
-	"torvalds@linux-foundation.org" <torvalds@linux-foundation.org>,
-	"samba-technical@lists.samba.org" <samba-technical@lists.samba.org>,
-	"linux1394-devel@lists.sourceforge.net"
-	<linux1394-devel@lists.sourceforge.net>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
-	"linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>,
-	"linux-cifs@vger.kernel.org" <linux-cifs@vger.kernel.org>,
-	"linux-aspeed@lists.ozlabs.org" <linux-aspeed@lists.ozlabs.org>,
-	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-staging@lists.linux.dev" <linux-staging@lists.linux.dev>,
-	"h.j.bos@vu.nl" <h.j.bos@vu.nl>, "jgg@ziepe.ca" <jgg@ziepe.ca>,
-	"intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"bcm-kernel-feedback-list@broadcom.com"
-	<bcm-kernel-feedback-list@broadcom.com>,
-	"dan.carpenter@oracle.com" <dan.carpenter@oracle.com>,
-	"linux-media@vger.kernel.org" <linux-media@vger.kernel.org>,
-	"keescook@chromium.org" <keescook@chromium.org>,
-	"arnd@arndb.de" <arnd@arndb.de>,
-	"linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>,
-	"intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>,
-	"bjohannesmeyer@gmail.com" <bjohannesmeyer@gmail.com>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"christophe.jaillet@wanadoo.fr" <christophe.jaillet@wanadoo.fr>,
-	"jakobkoschel@gmail.com" <jakobkoschel@gmail.com>,
-	"v9fs-developer@lists.sourceforge.net"
-	<v9fs-developer@lists.sourceforge.net>,
-	"linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>,
-	"tglx@linutronix.de" <tglx@linutronix.de>,
-	"andriy.shevchenko@linux.intel.com" <andriy.shevchenko@linux.intel.com>,
-	"linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>,
-	"linux-sgx@vger.kernel.org" <linux-sgx@vger.kernel.org>,
-	"nathan@kernel.org" <nathan@kernel.org>,
-	"netdev@vger.kernel.org" <netdev@vger.kernel.org>,
-	"linux-usb@vger.kernel.org" <linux-usb@vger.kernel.org>,
-	"linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-f2fs-devel@lists.sourceforge.net"
-	<linux-f2fs-devel@lists.sourceforge.net>,
-	"tipc-discussion@lists.sourceforge.net"
-	<tipc-discussion@lists.sourceforge.net>,
-	"linux-crypto@vger.kernel.org" <linux-crypto@vger.kernel.org>,
-	"dmaengine@vger.kernel.org" <dmaengine@vger.kernel.org>,
-	"linux-mediatek@lists.infradead.org" <linux-mediatek@lists.infradead.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
-	"christian.koenig@amd.com" <christian.koenig@amd.com>,
-	"rppt@kernel.org" <rppt@kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
- after loop body as a ptr
+To: Jakob Koschel <jakobkoschel@gmail.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>
+References: <20220228110822.491923-1-jakobkoschel@gmail.com>
+	<20220228110822.491923-7-jakobkoschel@gmail.com>
+From: Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>
+In-Reply-To: <20220228110822.491923-7-jakobkoschel@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Cc: linux-wireless@vger.kernel.org, alsa-devel@alsa-project.org,
+	kvm@vger.kernel.org, "Gustavo A. R. Silva" <gustavo@embeddedor.com>,
+	linux-iio@vger.kernel.org, nouveau@lists.freedesktop.org,
+	Rasmus Villemoes <linux@rasmusvillemoes.dk>,
+	dri-devel@lists.freedesktop.org, Cristiano Giuffrida <c.giuffrida@vu.nl>,
+	amd-gfx@lists.freedesktop.org,
+	linux1394-devel@lists.sourceforge.net, drbd-dev@lists.linbit.com,
+	linux-arch <linux-arch@vger.kernel.org>,
+	linux-cifs@vger.kernel.org, linux-aspeed@lists.ozlabs.org,
+	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-staging@lists.linux.dev, "Bos, H.J." <h.j.bos@vu.nl>,
+	Jason Gunthorpe <jgg@ziepe.ca>, intel-wired-lan@lists.osuosl.org,
+	kgdb-bugreport@lists.sourceforge.net,
+	bcm-kernel-feedback-list@broadcom.com,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	linux-media@vger.kernel.org, Kees Cook <keescook@chromium.org>,
+	Arnd Bergman <arnd@arndb.de>, linux-pm@vger.kernel.org,
+	intel-gfx@lists.freedesktop.org,
+	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
+	Nathan Chancellor <nathan@kernel.org>, dmaengine@vger.kernel.org,
+	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
+	v9fs-developer@lists.sourceforge.net, linux-tegra@vger.kernel.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	linux-arm-kernel@lists.infradead.org, linux-sgx@vger.kernel.org,
+	linux-block@vger.kernel.org, netdev@vger.kernel.org,
+	linux-usb@vger.kernel.org, samba-technical@lists.samba.org,
+	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	tipc-discussion@lists.sourceforge.net,
+	linux-crypto@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-mediatek@lists.infradead.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linuxppc-dev@lists.ozlabs.org, Mike Rapoport <rppt@kernel.org>
+Subject: Re: [Drbd-dev] [Intel-gfx] [PATCH 6/6] treewide: remove check of
+ list iterator against head past the loop body
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -88,71 +60,168 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Xiaomeng Tong
-> Sent: 03 March 2022 02:27
->=20
-> On Wed, 2 Mar 2022 14:04:06 +0000, David Laight
-> <David.Laight@ACULAB.COM> wrote:
-> > I think that it would be better to make any alternate loop macro
-> > just set the variable to NULL on the loop exit.
-> > That is easier to code for and the compiler might be persuaded to
-> > not redo the test.
->=20
-> No, that would lead to a NULL dereference.
 
-Why, it would make it b ethe same as the 'easy to use':
-=09for (item =3D head; item; item =3D item->next) {
-=09=09...
-=09=09if (...)
-=09=09=09break;
-=09=09...
-=09}
-=09if (!item)
-=09=09return;
-=20
-> The problem is the mis-use of iterator outside the loop on exit, and
-> the iterator will be the HEAD's container_of pointer which pointers
-> to a type-confused struct. Sidenote: The *mis-use* here refers to
-> mistakely access to other members of the struct, instead of the
-> list_head member which acutally is the valid HEAD.
+On 28/02/2022 11:08, Jakob Koschel wrote:
+> When list_for_each_entry() completes the iteration over the whole list
+> without breaking the loop, the iterator value will be a bogus pointer
+> computed based on the head element.
+> 
+> While it is safe to use the pointer to determine if it was computed
+> based on the head element, either with list_entry_is_head() or
+> &pos->member == head, using the iterator variable after the loop should
+> be avoided.
+> 
+> In preparation to limiting the scope of a list iterator to the list
+> traversal loop, use a dedicated pointer to point to the found element.
+> 
+> Signed-off-by: Jakob Koschel <jakobkoschel@gmail.com>
 
-The problem is that the HEAD's container_of pointer should never
-be calculated at all.
-This is what is fundamentally broken about the current definition.
+[snip until i915 parts]
 
-> IOW, you would dereference a (NULL + offset_of_member) address here.
+>   drivers/gpu/drm/i915/gem/i915_gem_context.c   | 14 +++---
+>   .../gpu/drm/i915/gem/i915_gem_execbuffer.c    | 15 ++++---
+>   drivers/gpu/drm/i915/gt/intel_ring.c          | 15 ++++---
 
-Where?
+[snip]
 
-> Please remind me if i missed something, thanks.
->
-> Can you share your "alternative definitions" details? thanks!
+> diff --git a/drivers/gpu/drm/i915/gem/i915_gem_context.c b/drivers/gpu/drm/i915/gem/i915_gem_context.c
+> index 00327b750fbb..80c79028901a 100644
+> --- a/drivers/gpu/drm/i915/gem/i915_gem_context.c
+> +++ b/drivers/gpu/drm/i915/gem/i915_gem_context.c
+> @@ -107,25 +107,27 @@ static void lut_close(struct i915_gem_context *ctx)
+>   	radix_tree_for_each_slot(slot, &ctx->handles_vma, &iter, 0) {
+>   		struct i915_vma *vma = rcu_dereference_raw(*slot);
+>   		struct drm_i915_gem_object *obj = vma->obj;
+> -		struct i915_lut_handle *lut;
+> +		struct i915_lut_handle *lut = NULL;
+> +		struct i915_lut_handle *tmp;
+> 
+>   		if (!kref_get_unless_zero(&obj->base.refcount))
+>   			continue;
+> 
+>   		spin_lock(&obj->lut_lock);
+> -		list_for_each_entry(lut, &obj->lut_list, obj_link) {
+> -			if (lut->ctx != ctx)
+> +		list_for_each_entry(tmp, &obj->lut_list, obj_link) {
+> +			if (tmp->ctx != ctx)
+>   				continue;
+> 
+> -			if (lut->handle != iter.index)
+> +			if (tmp->handle != iter.index)
+>   				continue;
+> 
+> -			list_del(&lut->obj_link);
+> +			list_del(&tmp->obj_link);
+> +			lut = tmp;
+>   			break;
+>   		}
+>   		spin_unlock(&obj->lut_lock);
+> 
+> -		if (&lut->obj_link != &obj->lut_list) {
+> +		if (lut) {
+>   			i915_lut_handle_free(lut);
+>   			radix_tree_iter_delete(&ctx->handles_vma, &iter, slot);
 
-The loop should probably use as extra variable that points
-to the 'list node' in the next structure.
-Something like:
-=09for (xxx *iter =3D head->next;
-=09=09iter =3D=3D &head ? ((item =3D NULL),0) : ((item =3D list_item(iter),=
-1));
-=09=09iter =3D item->member->next) {
-=09   ...
-With a bit of casting you can use 'item' to hold 'iter'.
+Looks okay although personally I would have left lut as is for a smaller 
+diff and introduced a new local like 'found' or 'unlinked'.
 
->=20
-> > OTOH there may be alternative definitions that can be used to get
-> > the compiler (or other compiler-like tools) to detect broken code.
-> > Even if the definition can't possibly generate a working kerrnel.
->=20
-> The "list_for_each_entry_inside(pos, type, head, member)" way makes
-> the iterator invisiable outside the loop, and would be catched by
-> compiler if use-after-loop things happened.
+>   			i915_vma_close(vma);
+> diff --git a/drivers/gpu/drm/i915/gem/i915_gem_execbuffer.c b/drivers/gpu/drm/i915/gem/i915_gem_execbuffer.c
+> index 1736efa43339..fda9e3685ad2 100644
+> --- a/drivers/gpu/drm/i915/gem/i915_gem_execbuffer.c
+> +++ b/drivers/gpu/drm/i915/gem/i915_gem_execbuffer.c
+> @@ -2444,7 +2444,8 @@ static struct i915_request *eb_throttle(struct i915_execbuffer *eb, struct intel
+>   {
+>   	struct intel_ring *ring = ce->ring;
+>   	struct intel_timeline *tl = ce->timeline;
+> -	struct i915_request *rq;
+> +	struct i915_request *rq = NULL;
+> +	struct i915_request *tmp;
+> 
+>   	/*
+>   	 * Completely unscientific finger-in-the-air estimates for suitable
+> @@ -2460,15 +2461,17 @@ static struct i915_request *eb_throttle(struct i915_execbuffer *eb, struct intel
+>   	 * claiming our resources, but not so long that the ring completely
+>   	 * drains before we can submit our next request.
+>   	 */
+> -	list_for_each_entry(rq, &tl->requests, link) {
+> -		if (rq->ring != ring)
+> +	list_for_each_entry(tmp, &tl->requests, link) {
+> +		if (tmp->ring != ring)
+>   			continue;
+> 
+> -		if (__intel_ring_space(rq->postfix,
+> -				       ring->emit, ring->size) > ring->size / 2)
+> +		if (__intel_ring_space(tmp->postfix,
+> +				       ring->emit, ring->size) > ring->size / 2) {
+> +			rq = tmp;
+>   			break;
+> +		}
+>   	}
+> -	if (&rq->link == &tl->requests)
+> +	if (!rq)
+>   		return NULL; /* weird, we will check again later for real */
 
-It is also a compete PITA for anything doing a search.
+Alternatively, instead of break could simply do "return 
+i915_request_get(rq);" and replace the end of the function after the 
+loop with "return NULL;". A bit smaller diff, or at least less "spread 
+out" over the function, so might be easier to backport stuff touching 
+this area in the future. But looks correct as is.
 
-=09David
+> 
+>   	return i915_request_get(rq);
+> diff --git a/drivers/gpu/drm/i915/gt/intel_ring.c b/drivers/gpu/drm/i915/gt/intel_ring.c
+> index 2fdd52b62092..4881c4e0c407 100644
+> --- a/drivers/gpu/drm/i915/gt/intel_ring.c
+> +++ b/drivers/gpu/drm/i915/gt/intel_ring.c
+> @@ -191,24 +191,27 @@ wait_for_space(struct intel_ring *ring,
+>   	       struct intel_timeline *tl,
+>   	       unsigned int bytes)
+>   {
+> -	struct i915_request *target;
+> +	struct i915_request *target = NULL;
+> +	struct i915_request *tmp;
+>   	long timeout;
+> 
+>   	if (intel_ring_update_space(ring) >= bytes)
+>   		return 0;
+> 
+>   	GEM_BUG_ON(list_empty(&tl->requests));
+> -	list_for_each_entry(target, &tl->requests, link) {
+> -		if (target->ring != ring)
+> +	list_for_each_entry(tmp, &tl->requests, link) {
+> +		if (tmp->ring != ring)
+>   			continue;
+> 
+>   		/* Would completion of this request free enough space? */
+> -		if (bytes <= __intel_ring_space(target->postfix,
+> -						ring->emit, ring->size))
+> +		if (bytes <= __intel_ring_space(tmp->postfix,
+> +						ring->emit, ring->size)) {
+> +			target = tmp;
+>   			break;
+> +		}
+>   	}
+> 
+> -	if (GEM_WARN_ON(&target->link == &tl->requests))
+> +	if (GEM_WARN_ON(!target))
+>   		return -ENOSPC;
+> 
+>   	timeout = i915_request_wait(target,
 
--
-Registered Address Lakeside, Bramley Road, Mount Farm, Milton Keynes, MK1 1=
-PT, UK
-Registration No: 1397386 (Wales)
+Looks okay as well. Less clear here if there is a clean solution to make 
+the diff smaller so no suggestions. I mean do I dare mention "goto 
+found;" from inside the loop, where the break is, instead of the 
+variable renames.. risky.. :) (And ofc "return -ENOSPC" immediately 
+after the loop.)
 
+As a summary changes looks okay, up to you if you want to try to make 
+the diffs smaller or not. It doesn't matter hugely really, all I have is 
+a vague and uncertain "maybe it makes backporting of something, someday 
+easier". So for i915 it is good either way.
+
+Reviewed-by: Tvrtko Ursulin <tvrtko.ursulin@intel.com> # i915 bits only
+
+Regards,
+
+Tvrtko
