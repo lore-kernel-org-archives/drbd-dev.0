@@ -1,80 +1,81 @@
-Return-Path: <david.laight@aculab.com>
-Received: from eu-smtp-delivery-151.mimecast.com
-	(eu-smtp-delivery-151.mimecast.com [185.58.85.151])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1B0084205EC
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 10:30:17 +0100 (CET)
-From: David Laight <David.Laight@ACULAB.COM>
-To: 'Xiaomeng Tong' <xiam0nd.tong@gmail.com>
-Date: Thu, 3 Mar 2022 09:30:14 +0000
-Message-ID: <2d208771c50b4c6db4f43039e9d62851@AcuMS.aculab.com>
-References: <39404befad5b44b385698ff65465abe5@AcuMS.aculab.com>
-	<20220303072657.11124-1-xiam0nd.tong@gmail.com>
-In-Reply-To: <20220303072657.11124-1-xiam0nd.tong@gmail.com>
+Return-Path: <dan.carpenter@oracle.com>
+Received: from mx0a-00069f02.pphosted.com (mx0a-00069f02.pphosted.com
+	[205.220.165.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A07624201B9
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 11:57:28 +0100 (CET)
+Date: Thu, 3 Mar 2022 13:56:02 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>,
+	Julia Lawall <Julia.Lawall@inria.fr>
+Message-ID: <20220303105602.GE2794@kadam>
+References: <282f0f8d-f491-26fc-6ae0-604b367a5a1a@amd.com>
+	<b2d20961dbb7533f380827a7fcc313ff849875c1.camel@HansenPartnership.com>
+	<7D0C2A5D-500E-4F38-AD0C-A76E132A390E@kernel.org>
+	<73fa82a20910c06784be2352a655acc59e9942ea.camel@HansenPartnership.com>
+	<CAHk-=wiT5HX6Kp0Qv4ZYK_rkq9t5fZ5zZ7vzvi6pub9kgp=72g@mail.gmail.com>
+	<7dc860874d434d2288f36730d8ea3312@AcuMS.aculab.com>
+	<CAHk-=whKqg89zu4T95+ctY-hocR6kDArpo2qO14-kV40Ga7ufw@mail.gmail.com>
+	<0ced2b155b984882b39e895f0211037c@AcuMS.aculab.com>
+	<CAHk-=wix0HLCBs5sxAeW3uckg0YncXbTjMsE-Tv8WzmkOgLAXQ@mail.gmail.com>
+	<78ccb184-405e-da93-1e02-078f90d2b9bc@rasmusvillemoes.dk>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <78ccb184-405e-da93-1e02-078f90d2b9bc@rasmusvillemoes.dk>
 MIME-Version: 1.0
-Content-Language: en-US
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
 Cc: "alsa-devel@alsa-project.org" <alsa-devel@alsa-project.org>,
-	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
-	"gustavo@embeddedor.com" <gustavo@embeddedor.com>,
+	"linux-aspeed@lists.ozlabs.org" <linux-aspeed@lists.ozlabs.org>,
+	"Gustavo A. R. Silva" <gustavo@embeddedor.com>,
 	"linux-iio@vger.kernel.org" <linux-iio@vger.kernel.org>,
-	"kgdb-bugreport@lists.sourceforge.net"
-	<kgdb-bugreport@lists.sourceforge.net>,
-	"linux@rasmusvillemoes.dk" <linux@rasmusvillemoes.dk>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"c.giuffrida@vu.nl" <c.giuffrida@vu.nl>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
-	"torvalds@linux-foundation.org" <torvalds@linux-foundation.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	linux-block <linux-block@vger.kernel.org>,
+	dri-devel <dri-devel@lists.freedesktop.org>,
+	Cristiano Giuffrida <c.giuffrida@vu.nl>, "Bos, H.J." <h.j.bos@vu.nl>,
 	"samba-technical@lists.samba.org" <samba-technical@lists.samba.org>,
 	"linux1394-devel@lists.sourceforge.net"
 	<linux1394-devel@lists.sourceforge.net>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
-	"linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>,
-	"linux-cifs@vger.kernel.org" <linux-cifs@vger.kernel.org>,
-	"linux-aspeed@lists.ozlabs.org" <linux-aspeed@lists.ozlabs.org>,
-	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
+	linux-arch <linux-arch@vger.kernel.org>, CIFS <linux-cifs@vger.kernel.org>,
+	KVM list <kvm@vger.kernel.org>, linux-scsi <linux-scsi@vger.kernel.org>,
+	linux-rdma <linux-rdma@vger.kernel.org>,
 	"linux-staging@lists.linux.dev" <linux-staging@lists.linux.dev>,
-	"h.j.bos@vu.nl" <h.j.bos@vu.nl>, "jgg@ziepe.ca" <jgg@ziepe.ca>,
+	amd-gfx list <amd-gfx@lists.freedesktop.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>, David Laight <David.Laight@aculab.com>,
 	"intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"kgdb-bugreport@lists.sourceforge.net"
+	<kgdb-bugreport@lists.sourceforge.net>,
 	"bcm-kernel-feedback-list@broadcom.com"
 	<bcm-kernel-feedback-list@broadcom.com>,
-	"dan.carpenter@oracle.com" <dan.carpenter@oracle.com>,
-	"linux-media@vger.kernel.org" <linux-media@vger.kernel.org>,
-	"keescook@chromium.org" <keescook@chromium.org>,
-	"arnd@arndb.de" <arnd@arndb.de>,
-	"linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>,
-	"intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>,
-	"bjohannesmeyer@gmail.com" <bjohannesmeyer@gmail.com>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"christophe.jaillet@wanadoo.fr" <christophe.jaillet@wanadoo.fr>,
-	"jakobkoschel@gmail.com" <jakobkoschel@gmail.com>,
+	Linux Media Mailing List <linux-media@vger.kernel.org>,
+	Kees Cook <keescook@chromium.org>, Arnd Bergman <arnd@arndb.de>,
+	Linux PM <linux-pm@vger.kernel.org>,
+	intel-gfx <intel-gfx@lists.freedesktop.org>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
+	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
+	Jakob Koschel <jakobkoschel@gmail.com>,
 	"v9fs-developer@lists.sourceforge.net"
 	<v9fs-developer@lists.sourceforge.net>,
-	"linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>,
-	"tglx@linutronix.de" <tglx@linutronix.de>,
-	"andriy.shevchenko@linux.intel.com" <andriy.shevchenko@linux.intel.com>,
-	"linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>,
+	linux-tegra <linux-tegra@vger.kernel.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
 	"linux-sgx@vger.kernel.org" <linux-sgx@vger.kernel.org>,
-	"nathan@kernel.org" <nathan@kernel.org>,
-	"netdev@vger.kernel.org" <netdev@vger.kernel.org>,
+	Nathan Chancellor <nathan@kernel.org>, Netdev <netdev@vger.kernel.org>,
 	"linux-usb@vger.kernel.org" <linux-usb@vger.kernel.org>,
-	"linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-f2fs-devel@lists.sourceforge.net"
-	<linux-f2fs-devel@lists.sourceforge.net>,
+	linux-wireless <linux-wireless@vger.kernel.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Linux F2FS Dev Mailing List <linux-f2fs-devel@lists.sourceforge.net>,
 	"tipc-discussion@lists.sourceforge.net"
 	<tipc-discussion@lists.sourceforge.net>,
-	"linux-crypto@vger.kernel.org" <linux-crypto@vger.kernel.org>,
-	"dmaengine@vger.kernel.org" <dmaengine@vger.kernel.org>,
-	"linux-mediatek@lists.infradead.org" <linux-mediatek@lists.infradead.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
-	"christian.koenig@amd.com" <christian.koenig@amd.com>,
-	"rppt@kernel.org" <rppt@kernel.org>
+	Linux Crypto Mailing List <linux-crypto@vger.kernel.org>,
+	dma <dmaengine@vger.kernel.org>, "linux-mediatek@lists.infradead.org"
+	<linux-mediatek@lists.infradead.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Mike Rapoport <rppt@kernel.org>
 Subject: Re: [Drbd-dev] [PATCH 2/6] treewide: remove using list iterator
  after loop body as a ptr
 List-Id: "*Coordination* of development, patches,
@@ -88,75 +89,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-RnJvbTogWGlhb21lbmcgVG9uZw0KPiBTZW50OiAwMyBNYXJjaCAyMDIyIDA3OjI3DQo+IA0KPiBP
-biBUaHUsIDMgTWFyIDIwMjIgMDQ6NTg6MjMgKzAwMDAsIERhdmlkIExhaWdodCB3cm90ZToNCj4g
-PiBvbiAzIE1hciAyMDIyIDEwOjI3OjI5ICswODAwLCBYaWFvbWVuZyBUb25nIHdyb3RlOg0KPiA+
-ID4gVGhlIHByb2JsZW0gaXMgdGhlIG1pcy11c2Ugb2YgaXRlcmF0b3Igb3V0c2lkZSB0aGUgbG9v
-cCBvbiBleGl0LCBhbmQNCj4gPiA+IHRoZSBpdGVyYXRvciB3aWxsIGJlIHRoZSBIRUFEJ3MgY29u
-dGFpbmVyX29mIHBvaW50ZXIgd2hpY2ggcG9pbnRlcnMNCj4gPiA+IHRvIGEgdHlwZS1jb25mdXNl
-ZCBzdHJ1Y3QuIFNpZGVub3RlOiBUaGUgKm1pcy11c2UqIGhlcmUgcmVmZXJzIHRvDQo+ID4gPiBt
-aXN0YWtlbHkgYWNjZXNzIHRvIG90aGVyIG1lbWJlcnMgb2YgdGhlIHN0cnVjdCwgaW5zdGVhZCBv
-ZiB0aGUNCj4gPiA+IGxpc3RfaGVhZCBtZW1iZXIgd2hpY2ggYWN1dGFsbHkgaXMgdGhlIHZhbGlk
-IEhFQUQuDQo+ID4NCj4gPiBUaGUgcHJvYmxlbSBpcyB0aGF0IHRoZSBIRUFEJ3MgY29udGFpbmVy
-X29mIHBvaW50ZXIgc2hvdWxkIG5ldmVyDQo+ID4gYmUgY2FsY3VsYXRlZCBhdCBhbGwuDQo+ID4g
-VGhpcyBpcyB3aGF0IGlzIGZ1bmRhbWVudGFsbHkgYnJva2VuIGFib3V0IHRoZSBjdXJyZW50IGRl
-ZmluaXRpb24uDQo+IA0KPiBZZXMsIHRoZSBydWxlIGlzICJ0aGUgSEVBRCdzIGNvbnRhaW5lcl9v
-ZiBwb2ludGVyIHNob3VsZCBuZXZlciBiZQ0KPiBjYWxjdWxhdGVkIGF0IGFsbCBvdXRzaWRlIHRo
-ZSBsb29wIiwgYnV0IGhvdyBkbyB5b3UgbWFrZSBzdXJlIGV2ZXJ5b25lDQo+IGZvbGxvd3MgdGhp
-cyBydWxlPw0KPiBFdmVyeW9uZSBtYWtlcyBtaXN0YWtlcywgYnV0IHdlIGNhbiBlbGltaW5hdGUg
-dGhlbSBhbGwgZnJvbSB0aGUgYmVnaW5uaW5nDQo+IHdpdGggdGhlIGhlbHAgb2YgY29tcGlsZXIg
-d2hpY2ggY2FuIGNhdGNoIHN1Y2ggdXNlLWFmdGVyLWxvb3AgdGhpbmdzLg0KPiANCj4gPiA+IElP
-VywgeW91IHdvdWxkIGRlcmVmZXJlbmNlIGEgKE5VTEwgKyBvZmZzZXRfb2ZfbWVtYmVyKSBhZGRy
-ZXNzIGhlcmUuDQo+ID4NCj4gPldoZXJlPw0KPiANCj4gSW4gdGhlIGNhc2Ugd2hlcmUgYSBkZXZl
-bG9wZXIgZG8gbm90IGZvbGxvd3MgdGhlIGFib3ZlIHJ1bGUsIGFuZCBtaXN0YWtlbHkNCj4gYWNj
-ZXNzIGEgbm9uLWxpc3QtaGVhZCBtZW1iZXIgb2YgdGhlIEhFQUQncyBjb250YWluZXJfb2YgcG9p
-bnRlciBvdXRzaWRlDQo+IHRoZSBsb29wLiBGb3IgZXhhbXBsZToNCj4gICAgIHN0cnVjdCByZXF7
-DQo+ICAgICAgIGludCBhOw0KPiAgICAgICBzdHJ1Y3QgbGlzdF9oZWFkIGg7DQo+ICAgICB9DQo+
-ICAgICBzdHJ1Y3QgcmVxICpyOw0KPiAgICAgbGlzdF9mb3JfZWFjaF9lbnRyeShyLCBIRUFELCBo
-KSB7DQo+ICAgICAgIGlmIChyLT5hID09IDB4MTApDQo+ICAgICAgICAgYnJlYWs7DQo+ICAgICB9
-DQo+ICAgICAvLyB0aGUgZGV2ZWxvcGVyIG1hZGUgYSBtaXN0YWtlOiBoZSBkaWRuJ3QgdGFrZSB0
-aGlzIHNpdHVhdGlvbiBpbnRvDQo+ICAgICAvLyBhY2NvdW50IHdoZXJlIGFsbCBlbnRyaWVzIGlu
-IHRoZSBsaXN0IGFyZSAqci0+YSAhPSAweDEwKiwgYW5kIG5vdw0KPiAgICAgLy8gdGhlIHIgaXMg
-dGhlIEhFQUQncyBjb250YWluZXJfb2YgcG9pbnRlci4NCj4gICAgIHItPmEgPSAweDIwOw0KPiBU
-aHVzIHRoZSAici0+YSA9IDB4MjAiIHdvdWxkIGRlcmVmZXJlbmNlIGEgKE5VTEwgKyBvZmZzZXRf
-b2ZfbWVtYmVyKQ0KPiBhZGRyZXNzIGhlcmUuDQoNClRoYXQgaXMganVzdCBhIGJ1Zy4NCk5vIGRp
-ZmZlcmVudCB0byBmYWlsaW5nIHRvIGNoZWNrIGFueXRoaW5nIGVsc2UgbWlnaHQgJ3JldHVybicN
-CmEgTlVMTCBwb2ludGVyLg0KQmVjYXVzZSBpdCBpcyBhIE5VTEwgZGVyZWZlcmVuY2UgeW91IGZp
-bmQgb3V0IHByZXR0eSBxdWlja2x5Lg0KVGhlIGV4aXN0aW5nIGxvb3AgbGVhdmVzIHlvdSB3aXRo
-IGEgdmFsaWQgcG9pbnRlciB0byBzb21ldGhpbmcNCnRoYXQgaXNuJ3QgYSBsaXN0IGl0ZW0uDQoN
-Cj4gPiA+IFBsZWFzZSByZW1pbmQgbWUgaWYgaSBtaXNzZWQgc29tZXRoaW5nLCB0aGFua3MuDQo+
-ID4gPg0KPiA+ID4gQ2FuIHlvdSBzaGFyZSB5b3VyICJhbHRlcm5hdGl2ZSBkZWZpbml0aW9ucyIg
-ZGV0YWlscz8gdGhhbmtzIQ0KPiA+DQo+ID4gVGhlIGxvb3Agc2hvdWxkIHByb2JhYmx5IHVzZSBh
-cyBleHRyYSB2YXJpYWJsZSB0aGF0IHBvaW50cw0KPiA+IHRvIHRoZSAnbGlzdCBub2RlJyBpbiB0
-aGUgbmV4dCBzdHJ1Y3R1cmUuDQo+ID4gU29tZXRoaW5nIGxpa2U6DQo+ID4gCWZvciAoeHh4ICpp
-dGVyID0gaGVhZC0+bmV4dDsNCj4gPiAJCWl0ZXIgPT0gJmhlYWQgPyAoKGl0ZW0gPSBOVUxMKSww
-KSA6ICgoaXRlbSA9IGxpc3RfaXRlbShpdGVyKSwxKSk7DQo+ID4gCQlpdGVyID0gaXRlbS0+bWVt
-YmVyLT5uZXh0KSB7DQo+ID4gCSAgIC4uLg0KPiA+IFdpdGggYSBiaXQgb2YgY2FzdGluZyB5b3Ug
-Y2FuIHVzZSAnaXRlbScgdG8gaG9sZCAnaXRlcicuDQo+IA0KPiB5b3Ugc3RpbGwgY2FuIG5vdCBt
-YWtlIHN1cmUgZXZlcnlvbmUgZm9sbG93cyB0aGlzIHJ1bGU6DQo+ICJkbyBub3QgdXNlIGl0ZXJh
-dG9yIG91dHNpZGUgdGhlIGxvb3AiIHdpdGhvdXQgdGhlIGhlbHAgb2YgY29tcGlsZXIsDQo+IGJl
-Y2F1c2UgaXRlbSBpcyBkZWNsYXJlZCBvdXRzaWRlIHRoZSBsb29wLg0KDQpUaGF0IG9uZSBoYXMg
-J2l0ZXInIGRlZmluZWQgaW4gdGhlIGxvb3AuDQoNCj4gQlRXLCB0byBhdm9pZCBhbWJpZ3VpdHnv
-vIx0aGUgImFsdGVybmF0aXZlIGRlZmluaXRpb25zIiBoZXJlIGkgYXNrZWQgaXMNCj4gc29tZXRo
-aW5nIGZyb20geW91IGluIHRoaXMgY29udGV4dDoNCj4gIk9UT0ggdGhlcmUgbWF5IGJlIGFsdGVy
-bmF0aXZlIGRlZmluaXRpb25zIHRoYXQgY2FuIGJlIHVzZWQgdG8gZ2V0DQo+IHRoZSBjb21waWxl
-ciAob3Igb3RoZXIgY29tcGlsZXItbGlrZSB0b29scykgdG8gZGV0ZWN0IGJyb2tlbiBjb2RlLg0K
-PiBFdmVuIGlmIHRoZSBkZWZpbml0aW9uIGNhbid0IHBvc3NpYmx5IGdlbmVyYXRlIGEgd29ya2lu
-ZyBrZXJybmVsLiINCg0KSSB3YXMgdGhpbmtpbmcgb2Ygc29tZXRoaW5nIGxpa2U6DQoJaWYgKChw
-b3MgPSBsaXN0X2ZpcnN0KSksIDEpIHBvcyA9IE5VTEwgZWxzZQ0Kc28gdGhhdCB1bmNoZWNrZWQg
-ZGVyZWZlcmVuY2VzIGFmdGVyIHRoZSBsb29wIHdpbGwgYmUgZGV0ZWN0YWJsZQ0KYXMgTlVMTCBw
-b2ludGVyIG9mZnNldHMgLSBidXQgdGhhdCBpbiBpdHNlbGYgaXNuJ3QgZW5vdWdoIHRvIGF2b2lk
-DQpvdGhlciB3YXJuaW5ncy4NCg0KPiA+ID4gVGhlICJsaXN0X2Zvcl9lYWNoX2VudHJ5X2luc2lk
-ZShwb3MsIHR5cGUsIGhlYWQsIG1lbWJlcikiIHdheSBtYWtlcw0KPiA+ID4gdGhlIGl0ZXJhdG9y
-IGludmlzaWFibGUgb3V0c2lkZSB0aGUgbG9vcCwgYW5kIHdvdWxkIGJlIGNhdGNoZWQgYnkNCj4g
-PiA+IGNvbXBpbGVyIGlmIHVzZS1hZnRlci1sb29wIHRoaW5ncyBoYXBwZW5lZC4NCj4gDQo+ID4g
-SXQgaXMgYWxzbyBhIGNvbXBldGUgUElUQSBmb3IgYW55dGhpbmcgZG9pbmcgYSBzZWFyY2guDQo+
-IA0KPiBZb3UgbWVhbiBpdCB3b3VsZCBiZSBhIGJ1cmRlbiBvbiBzZWFyY2g/IGNhbiB5b3Ugc2hv
-dyBtZSBzb21lIGV4YW1wbGVzPw0KDQpUaGUgd2hvbGUgYnVzaW5lc3Mgb2YgaGF2aW5nIHRvIHNh
-dmUgdGhlIHBvaW50ZXIgdG8gdGhlIGxvY2F0ZWQgaXRlbQ0KYmVmb3JlIGJyZWFraW5nIHRoZSBs
-b29wLCByZW1lbWJlcmluZyB0byBoYXZlIHNldCBpdCB0byBOVUxMIGVhcmxpZXIgZXRjLg0KDQpJ
-dCBpcyBzbyBtdWNoIGJldHRlciBpZiB5b3UgY2FuIGp1c3QgZG86DQoJCWlmIChmb3VuZCkNCgkJ
-CWJyZWFrOw0KDQoJRGF2aWQNCg0KLQ0KUmVnaXN0ZXJlZCBBZGRyZXNzIExha2VzaWRlLCBCcmFt
-bGV5IFJvYWQsIE1vdW50IEZhcm0sIE1pbHRvbiBLZXluZXMsIE1LMSAxUFQsIFVLDQpSZWdpc3Ry
-YXRpb24gTm86IDEzOTczODYgKFdhbGVzKQ0K
+On Wed, Mar 02, 2022 at 10:29:31AM +0100, Rasmus Villemoes wrote:
+> This won't help the current issue (because it doesn't exist and might
+> never), but just in case some compiler people are listening, I'd like to
+> have some sort of way to tell the compiler "treat this variable as
+> uninitialized from here on". So one could do
+> 
+> #define kfree(p) do { __kfree(p); __magic_uninit(p); } while (0)
+> 
+
+I think this is a good idea.
+
+Smatch can already find all the iterator used outside the loop bugs that
+Jakob did with a manageably small number of false positives.  The
+problems are that:
+1) It would be better to find it in the compile stage instead of later.
+2) I hadn't published that check.  Will do shortly.
+3) A couple weeks back I noticed that the list_for_each_entry() check
+   was no longer working.  Fixed now.
+4) Smatch was only looking at cases which dereferenced the iterator and
+   not checks for NULL.  I will test the fix for that tonight.
+5) Smatch is broken on PowerPC.
+
+Coccinelle also has checks for iterator used outside the loop.
+Coccinelle had these checks before Smatch did.  I copied Julia's idea.
+
+If your annotation was added to GCC it would solve all those problems.
+
+But it's kind of awkward that we can't annotate kfree() directly
+instead of creating the kfree() macro.  And there are lots of other
+functions which free things so you'd have to create a ton of macros
+like:
+
+#define gr_free_dma_desc(a, b) do { __gr_free_dma_desc(a, b); __magic_uninit(b); } while (0)
+
+And then there are functions which free a struct member:
+
+void free_bar(struct foo *p) { kfree(p->bar); }
+
+Or functions which free a container_of().
+
+Smatch is more evolved than designed but what I do these days is use $0,
+$1, $2 to represent the parameters.  So you can say a function frees
+$0->bar.  For container_of() then is "(168<~$0)->bar" which means 168
+bytes from $0.  Returns are parameter -1 so I guess it would be $(-1),
+but as I said Smatch evolved so right now places that talk about
+returned values use a different format.
+
+What you could do is just make a parseable table next to the function
+definition with all the information.  Then you would use a Perl script
+to automatically generate a Coccinelle check to warn about use after
+frees.
+
+diff --git a/mm/slab.c b/mm/slab.c
+index ddf5737c63d9..c9dffa5c40a2 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3771,6 +3771,9 @@ EXPORT_SYMBOL(kmem_cache_free_bulk);
+  *
+  * Don't free memory not originally allocated by kmalloc()
+  * or you will run into trouble.
++ *
++ * CHECKER information
++ * frees: $0
+  */
+ void kfree(const void *objp)
+ {
+
+regards,
+dan carpenter
 
