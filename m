@@ -1,12 +1,12 @@
 Return-Path: <BATV+335b74d913dda7e264a9+6766+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4C45B421784
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 12:19:49 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 44FE0421785
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 12:19:55 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu,  3 Mar 2022 14:18:58 +0300
-Message-Id: <20220303111905.321089-4-hch@lst.de>
+Date: Thu,  3 Mar 2022 14:18:59 +0300
+Message-Id: <20220303111905.321089-5-hch@lst.de>
 In-Reply-To: <20220303111905.321089-1-hch@lst.de>
 References: <20220303111905.321089-1-hch@lst.de>
 MIME-Version: 1.0
@@ -21,7 +21,8 @@ Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Ira Weiny <ira.weiny@intel.com>, Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 03/10] zram: use memcpy_to_bvec in zram_bvec_read
+Subject: [Drbd-dev] [PATCH 04/10] zram: use memcpy_from_bvec in
+	zram_bvec_write
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,32 +34,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the proper helper instead of open coding the copy.
+Use memcpy_from_bvec instead of open coding the logic.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 ---
- drivers/block/zram/zram_drv.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ drivers/block/zram/zram_drv.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
 diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index a3a5e1e713268..14becdf2815df 100644
+index 14becdf2815df..e9474b02012de 100644
 --- a/drivers/block/zram/zram_drv.c
 +++ b/drivers/block/zram/zram_drv.c
-@@ -1331,12 +1331,10 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
- 		goto out;
+@@ -1465,7 +1465,6 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
+ {
+ 	int ret;
+ 	struct page *page = NULL;
+-	void *src;
+ 	struct bio_vec vec;
  
- 	if (is_partial_io(bvec)) {
--		void *dst = kmap_atomic(bvec->bv_page);
- 		void *src = kmap_atomic(page);
+ 	vec = *bvec;
+@@ -1483,11 +1482,9 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
+ 		if (ret)
+ 			goto out;
  
--		memcpy(dst + bvec->bv_offset, src + offset, bvec->bv_len);
-+		memcpy_to_bvec(bvec, src + offset);
- 		kunmap_atomic(src);
--		kunmap_atomic(dst);
- 	}
- out:
- 	if (is_partial_io(bvec))
+-		src = kmap_atomic(bvec->bv_page);
+ 		dst = kmap_atomic(page);
+-		memcpy(dst + offset, src + bvec->bv_offset, bvec->bv_len);
++		memcpy_from_bvec(dst + offset, bvec);
+ 		kunmap_atomic(dst);
+-		kunmap_atomic(src);
+ 
+ 		vec.bv_page = page;
+ 		vec.bv_len = PAGE_SIZE;
 -- 
 2.30.2
 
