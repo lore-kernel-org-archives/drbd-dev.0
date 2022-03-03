@@ -1,12 +1,14 @@
 Return-Path: <BATV+335b74d913dda7e264a9+6766+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 42C1742065E
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 12:19:28 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 086AC42065E
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 12:19:33 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu,  3 Mar 2022 14:18:55 +0300
-Message-Id: <20220303111905.321089-1-hch@lst.de>
+Date: Thu,  3 Mar 2022 14:18:56 +0300
+Message-Id: <20220303111905.321089-2-hch@lst.de>
+In-Reply-To: <20220303111905.321089-1-hch@lst.de>
+References: <20220303111905.321089-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
@@ -19,7 +21,8 @@ Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Ira Weiny <ira.weiny@intel.com>, Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] remove opencoded kmap of bio_vecs v2
+Subject: [Drbd-dev] [PATCH 01/10] iss-simdisk: use bvec_kmap_local in
+	simdisk_submit_bio
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,13 +34,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi all,
+Using local kmaps slightly reduces the chances to stray writes, and
+the bvec interface cleans up the code a little bit.
 
-this series replaces various open coded kmaps of bio_vecs with higher
-level helpers that use kmap_local_page underneath.  It does not touch
-other kmap calls in these drivers even if those should probably also
-be switched to use kmap_local eventually.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+---
+ arch/xtensa/platforms/iss/simdisk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Changes since v1:
- - fix missing switches to kunmap_local
+diff --git a/arch/xtensa/platforms/iss/simdisk.c b/arch/xtensa/platforms/iss/simdisk.c
+index 8eb6ad1a3a1de..0f0e0724397f4 100644
+--- a/arch/xtensa/platforms/iss/simdisk.c
++++ b/arch/xtensa/platforms/iss/simdisk.c
+@@ -108,13 +108,13 @@ static void simdisk_submit_bio(struct bio *bio)
+ 	sector_t sector = bio->bi_iter.bi_sector;
+ 
+ 	bio_for_each_segment(bvec, bio, iter) {
+-		char *buffer = kmap_atomic(bvec.bv_page) + bvec.bv_offset;
++		char *buffer = bvec_kmap_local(&bvec);
+ 		unsigned len = bvec.bv_len >> SECTOR_SHIFT;
+ 
+ 		simdisk_transfer(dev, sector, len, buffer,
+ 				bio_data_dir(bio) == WRITE);
+ 		sector += len;
+-		kunmap_atomic(buffer);
++		kunmap_local(buffer);
+ 	}
+ 
+ 	bio_endio(bio);
+-- 
+2.30.2
 
