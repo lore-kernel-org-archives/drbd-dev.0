@@ -1,12 +1,12 @@
 Return-Path: <BATV+335b74d913dda7e264a9+6766+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E3D87421783
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 12:19:43 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4C45B421784
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 12:19:49 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu,  3 Mar 2022 14:18:57 +0300
-Message-Id: <20220303111905.321089-3-hch@lst.de>
+Date: Thu,  3 Mar 2022 14:18:58 +0300
+Message-Id: <20220303111905.321089-4-hch@lst.de>
 In-Reply-To: <20220303111905.321089-1-hch@lst.de>
 References: <20220303111905.321089-1-hch@lst.de>
 MIME-Version: 1.0
@@ -21,7 +21,7 @@ Cc: Chris Zankel <chris@zankel.net>, Justin Sanders <justin@coraid.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Ira Weiny <ira.weiny@intel.com>, Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 02/10] aoe: use bvec_kmap_local in bvcpy
+Subject: [Drbd-dev] [PATCH 03/10] zram: use memcpy_to_bvec in zram_bvec_read
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,30 +33,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Using local kmaps slightly reduces the chances to stray writes, and
-the bvec interface cleans up the code a little bit.
+Use the proper helper instead of open coding the copy.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 ---
- drivers/block/aoe/aoecmd.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/block/zram/zram_drv.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/drivers/block/aoe/aoecmd.c b/drivers/block/aoe/aoecmd.c
-index cc11f89a0928f..384073ef2323c 100644
---- a/drivers/block/aoe/aoecmd.c
-+++ b/drivers/block/aoe/aoecmd.c
-@@ -1018,9 +1018,9 @@ bvcpy(struct sk_buff *skb, struct bio *bio, struct bvec_iter iter, long cnt)
- 	iter.bi_size = cnt;
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index a3a5e1e713268..14becdf2815df 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -1331,12 +1331,10 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
+ 		goto out;
  
- 	__bio_for_each_segment(bv, bio, iter, iter) {
--		char *p = kmap_atomic(bv.bv_page) + bv.bv_offset;
-+		char *p = bvec_kmap_local(&bv);
- 		skb_copy_bits(skb, soff, p, bv.bv_len);
--		kunmap_atomic(p);
-+		kunmap_local(p);
- 		soff += bv.bv_len;
+ 	if (is_partial_io(bvec)) {
+-		void *dst = kmap_atomic(bvec->bv_page);
+ 		void *src = kmap_atomic(page);
+ 
+-		memcpy(dst + bvec->bv_offset, src + offset, bvec->bv_len);
++		memcpy_to_bvec(bvec, src + offset);
+ 		kunmap_atomic(src);
+-		kunmap_atomic(dst);
  	}
- }
+ out:
+ 	if (is_partial_io(bvec))
 -- 
 2.30.2
 
