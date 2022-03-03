@@ -1,13 +1,13 @@
 Return-Path: <prvs=054e1c9a6=Johannes.Thumshirn@wdc.com>
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 69961421792
-	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 16:40:13 +0100 (CET)
+Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com [216.71.153.144])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A6E55421794
+	for <drbd-dev@lists.linbit.com>; Thu,  3 Mar 2022 16:42:40 +0100 (CET)
 From: Johannes Thumshirn <Johannes.Thumshirn@wdc.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Thu, 3 Mar 2022 15:34:03 +0000
-Message-ID: <PH0PR04MB741680EF060691DBC8782BE29B049@PH0PR04MB7416.namprd04.prod.outlook.com>
+Date: Thu, 3 Mar 2022 15:33:42 +0000
+Message-ID: <PH0PR04MB74166E447F589AE236C6F4B89B049@PH0PR04MB7416.namprd04.prod.outlook.com>
 References: <20220303113223.326220-1-hch@lst.de>
-	<20220303113223.326220-3-hch@lst.de>
+	<20220303113223.326220-2-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -18,8 +18,8 @@ Cc: "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	Kees Cook <keescook@chromium.org>
-Subject: Re: [Drbd-dev] [PATCH 2/5] block: stop using bdevname in
-	__blkdev_issue_discard
+Subject: Re: [Drbd-dev] [PATCH 1/5] block: stop using bdevname in
+	bdev_write_inode
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
