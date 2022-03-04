@@ -1,17 +1,17 @@
 Return-Path: <ira.weiny@intel.com>
-Received: from mga14.intel.com (mga14.intel.com [192.55.52.115])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4FBDC420347
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Mar 2022 04:06:15 +0100 (CET)
-Date: Thu, 3 Mar 2022 19:05:13 -0800
+Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BF06C4201F3
+	for <drbd-dev@lists.linbit.com>; Fri,  4 Mar 2022 04:07:31 +0100 (CET)
+Date: Thu, 3 Mar 2022 19:06:11 -0800
 From: Ira Weiny <ira.weiny@intel.com>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <YiGB6bQGr4Yq6vpn@iweiny-desk3>
+Message-ID: <YiGCIzAwEO+o9pEj@iweiny-desk3>
 References: <20220303111905.321089-1-hch@lst.de>
-	<20220303111905.321089-7-hch@lst.de>
+	<20220303111905.321089-8-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20220303111905.321089-7-hch@lst.de>
+In-Reply-To: <20220303111905.321089-8-hch@lst.de>
 Cc: Jens Axboe <axboe@kernel.dk>, Chris Zankel <chris@zankel.net>,
 	Justin Sanders <justin@coraid.com>, Minchan Kim <minchan@kernel.org>,
 	Vishal Verma <vishal.l.verma@intel.com>, linux-xtensa@linux-xtensa.org,
@@ -22,8 +22,7 @@ Cc: Jens Axboe <axboe@kernel.dk>, Chris Zankel <chris@zankel.net>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 06/10] nvdimm-btt: use bvec_kmap_local in
-	btt_rw_integrity
+Subject: Re: [Drbd-dev] [PATCH 07/10] bcache: use bvec_kmap_local in bio_csum
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,7 +34,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Mar 03, 2022 at 02:19:01PM +0300, Christoph Hellwig wrote:
+On Thu, Mar 03, 2022 at 02:19:02PM +0300, Christoph Hellwig wrote:
 > Using local kmaps slightly reduces the chances to stray writes, and
 > the bvec interface cleans up the code a little bit.
 > 
@@ -44,35 +43,26 @@ On Thu, Mar 03, 2022 at 02:19:01PM +0300, Christoph Hellwig wrote:
 Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 
 > ---
->  drivers/nvdimm/btt.c | 10 ++++------
->  1 file changed, 4 insertions(+), 6 deletions(-)
+>  drivers/md/bcache/request.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
-> index cbd994f7f1fe6..9613e54c7a675 100644
-> --- a/drivers/nvdimm/btt.c
-> +++ b/drivers/nvdimm/btt.c
-> @@ -1163,17 +1163,15 @@ static int btt_rw_integrity(struct btt *btt, struct bio_integrity_payload *bip,
->  		 */
+> diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
+> index 6869e010475a3..fdd0194f84dd0 100644
+> --- a/drivers/md/bcache/request.c
+> +++ b/drivers/md/bcache/request.c
+> @@ -44,10 +44,10 @@ static void bio_csum(struct bio *bio, struct bkey *k)
+>  	uint64_t csum = 0;
 >  
->  		cur_len = min(len, bv.bv_len);
-> -		mem = kmap_atomic(bv.bv_page);
-> +		mem = bvec_kmap_local(&bv);
->  		if (rw)
-> -			ret = arena_write_bytes(arena, meta_nsoff,
-> -					mem + bv.bv_offset, cur_len,
-> +			ret = arena_write_bytes(arena, meta_nsoff, mem, cur_len,
->  					NVDIMM_IO_ATOMIC);
->  		else
-> -			ret = arena_read_bytes(arena, meta_nsoff,
-> -					mem + bv.bv_offset, cur_len,
-> +			ret = arena_read_bytes(arena, meta_nsoff, mem, cur_len,
->  					NVDIMM_IO_ATOMIC);
+>  	bio_for_each_segment(bv, bio, iter) {
+> -		void *d = kmap(bv.bv_page) + bv.bv_offset;
+> +		void *d = bvec_kmap_local(&bv);
 >  
-> -		kunmap_atomic(mem);
-> +		kunmap_local(mem);
->  		if (ret)
->  			return ret;
+>  		csum = crc64_be(csum, d, bv.bv_len);
+> -		kunmap(bv.bv_page);
+> +		kunmap_local(d);
+>  	}
 >  
+>  	k->ptr[KEY_PTRS(k)] = csum & (~0ULL >> 1);
 > -- 
 > 2.30.2
 > 
