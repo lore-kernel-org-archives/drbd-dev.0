@@ -1,33 +1,28 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pj1-f48.google.com (mail-pj1-f48.google.com
-	[209.85.216.48])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D7A60420060
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Mar 2022 20:30:38 +0100 (CET)
-Received: by mail-pj1-f48.google.com with SMTP id
-	v1-20020a17090a088100b001bf25f97c6eso2070994pjc.0
-	for <drbd-dev@lists.linbit.com>; Fri, 04 Mar 2022 11:30:38 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
-To: Christoph Hellwig <hch@lst.de>
-In-Reply-To: <20220303111905.321089-2-hch@lst.de>
-References: <20220303111905.321089-1-hch@lst.de>
-	<20220303111905.321089-2-hch@lst.de>
-Message-Id: <164642217510.204397.18145743592419266706.b4-ty@kernel.dk>
-Date: Fri, 04 Mar 2022 12:29:35 -0700
+Return-Path: <colyli@suse.de>
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B152D4201D4
+	for <drbd-dev@lists.linbit.com>; Sat,  5 Mar 2022 15:12:00 +0100 (CET)
+Message-ID: <a6296031-4a73-170a-2505-dc6d902179d8@suse.de>
+Date: Sat, 5 Mar 2022 22:02:13 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
-Cc: nvdimm@lists.linux.dev, Justin Sanders <justin@coraid.com>,
-	linux-xtensa@linux-xtensa.org, Max Filippov <jcmvbkbc@gmail.com>,
-	Vishal Verma <vishal.l.verma@intel.com>,
+Content-Language: en-US
+To: Christoph Hellwig <hch@lst.de>
+References: <20220303111905.321089-1-hch@lst.de>
+	<20220303111905.321089-8-hch@lst.de>
+From: Coly Li <colyli@suse.de>
+In-Reply-To: <20220303111905.321089-8-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Cc: Jens Axboe <axboe@kernel.dk>, Chris Zankel <chris@zankel.net>,
+	Justin Sanders <justin@coraid.com>, Minchan Kim <minchan@kernel.org>,
+	Vishal Verma <vishal.l.verma@intel.com>, linux-xtensa@linux-xtensa.org,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	Denis Efremov <efremov@linux.com>, Coly Li <colyli@suse.de>,
-	linux-block@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
-	linux-bcache@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Chris Zankel <chris@zankel.net>, Ira Weiny <ira.weiny@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
+	Denis Efremov <efremov@linux.com>, linux-block@vger.kernel.org,
+	Max Filippov <jcmvbkbc@gmail.com>, linux-bcache@vger.kernel.org,
+	nvdimm@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Ira Weiny <ira.weiny@intel.com>, Dan Williams <dan.j.williams@intel.com>,
 	Nitin Gupta <ngupta@vflare.org>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 01/10] iss-simdisk: use bvec_kmap_local in
-	simdisk_submit_bio
+Subject: Re: [Drbd-dev] [PATCH 07/10] bcache: use bvec_kmap_local in bio_csum
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,37 +34,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 3 Mar 2022 14:18:56 +0300, Christoph Hellwig wrote:
+On 3/3/22 7:19 PM, Christoph Hellwig wrote:
 > Using local kmaps slightly reduces the chances to stray writes, and
 > the bvec interface cleans up the code a little bit.
-> 
-> 
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Applied, thanks!
 
-[01/10] iss-simdisk: use bvec_kmap_local in simdisk_submit_bio
-        commit: 143a70b8b4300faa92ad82468f65dccd440e7957
-[02/10] aoe: use bvec_kmap_local in bvcpy
-        commit: b7ab4611b6c793100197abc93e069d6f9aab7960
-[03/10] zram: use memcpy_to_bvec in zram_bvec_read
-        commit: b3bd0a8a74ab970cc1cf0849e66bd0906741105b
-[04/10] zram: use memcpy_from_bvec in zram_bvec_write
-        commit: bd3d3203eb84d08a6daef805efe9316b79d3bf3c
-[05/10] nvdimm-blk: use bvec_kmap_local in nd_blk_rw_integrity
-        commit: 20072ec828640b7d23a0cfdbccf0dea48e77ba3e
-[06/10] nvdimm-btt: use bvec_kmap_local in btt_rw_integrity
-        commit: 3205190655ea56ea5e00815eeff4dab2bde0af80
-[07/10] bcache: use bvec_kmap_local in bio_csum
-        commit: 07fee7aba5472d0e65345146a68b4bd1a8b656c3
-[08/10] drbd: use bvec_kmap_local in drbd_csum_bio
-        commit: 472278508dce25316e806e45778658c3e4b353b3
-[09/10] drbd: use bvec_kmap_local in recv_dless_read
-        commit: 3eddaa60b8411c135d1c71090dea9b59ff3f2e26
-[10/10] floppy: use memcpy_{to,from}_bvec
-        commit: 13d4ef0f66b7ee9415e101e213acaf94a0cb28ee
+Acked-by: Coly Li <colyli@suse.de>
 
-Best regards,
--- 
-Jens Axboe
+
+Thanks.
+
+
+Coly Li
+
+
+> ---
+>   drivers/md/bcache/request.c | 4 ++--
+>   1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
+> index 6869e010475a3..fdd0194f84dd0 100644
+> --- a/drivers/md/bcache/request.c
+> +++ b/drivers/md/bcache/request.c
+> @@ -44,10 +44,10 @@ static void bio_csum(struct bio *bio, struct bkey *k)
+>   	uint64_t csum = 0;
+>   
+>   	bio_for_each_segment(bv, bio, iter) {
+> -		void *d = kmap(bv.bv_page) + bv.bv_offset;
+> +		void *d = bvec_kmap_local(&bv);
+>   
+>   		csum = crc64_be(csum, d, bv.bv_len);
+> -		kunmap(bv.bv_page);
+> +		kunmap_local(d);
+>   	}
+>   
+>   	k->ptr[KEY_PTRS(k)] = csum & (~0ULL >> 1);
 
 
