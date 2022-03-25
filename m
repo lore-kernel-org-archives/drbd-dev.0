@@ -1,33 +1,21 @@
-Return-Path: <linux@roeck-us.net>
-Received: from gateway22.websitewelcome.com (gateway22.websitewelcome.com
-	[192.185.47.125])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4F2CD420332
-	for <drbd-dev@lists.linbit.com>; Wed, 23 Mar 2022 17:03:55 +0100 (CET)
-Received: from cm17.websitewelcome.com (cm17.websitewelcome.com [100.42.49.20])
-	by gateway22.websitewelcome.com (Postfix) with ESMTP id 591F5377A
-	for <drbd-dev@lists.linbit.com>; Wed, 23 Mar 2022 10:43:22 -0500 (CDT)
-Date: Wed, 23 Mar 2022 08:43:19 -0700
-From: Guenter Roeck <linux@roeck-us.net>
-To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20220323154319.GA2268247@roeck-us.net>
+Return-Path: <rui.xu@easystack.cn>
+Received: from mail-m24100.qiye.163.com (mail-m24100.qiye.163.com
+	[220.194.24.100])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 30C254203DF
+	for <drbd-dev@lists.linbit.com>; Fri, 25 Mar 2022 04:07:47 +0100 (CET)
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
+Message-ID: <AJ*A6wDEId6nn-rl7MpNZapM.3.1648177318891.Hmail.rui.xu@easystack.cn>
+To: Rui Xu <rui.xu@easystack.cn>
+In-Reply-To: <20220223084442.3312409-1-rui.xu@easystack.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Cc: Jens Axboe <axboe@kernel.dk>,
-	Konstantin Komarov <almaz.alexandrovich@paragon-software.com>,
-	linux-nfs@vger.kernel.org, linux-nilfs <linux-nilfs@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mike Snitzer <snitzer@redhat.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Pavel Begunkov <asml.silence@gmail.com>, linux-block@vger.kernel.org,
-	Roger Pau =?iso-8859-1?Q?Monn=E9?= <roger.pau@citrix.co>,
-	device-mapper development <dm-devel@redhat.com>,
-	"Md . Haris Iqbal" <haris.iqbal@ionos.com>,
-	linux-fsdevel@vger.kernel.org, xen-devel@lists.xenproject.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	ntfs3@lists.linux.dev, Jack Wang <jinpu.wang@ionos.com>,
-	Ryusuke Konishi <konishi.ryusuke@gmail.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [dm-devel] [PATCH 01/19] fs: remove mpage_alloc
+From: Xu Rui <rui.xu@easystack.cn>
+Date: Fri, 25 Mar 2022 11:01:58 +0800 (GMT+08:00)
+Cc: philipp.reisner@linbit.com, dongsheng.yang@easystack.cn,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev]
+	=?utf-8?q?=5BPATCH=5D_drbd=3A_fix_a_bug_of_do=5Fchange?=
+	=?utf-8?q?=5Fdisk=5Fstate_when_attach?=
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,42 +27,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 23, 2022 at 07:42:48AM +0100, Christoph Hellwig wrote:
-> On Wed, Mar 23, 2022 at 06:38:22AM +0900, Ryusuke Konishi wrote:
-> > This looks because the mask of GFP_KERNEL is removed along with
-> > the removal of mpage_alloc().
-> > 
-> 
-> > The default value of the gfp flag is set to GFP_HIGHUSER_MOVABLE by
-> > inode_init_always().
-> > So, __GFP_HIGHMEM hits the gfp warning at bio_alloc() that
-> > do_mpage_readpage() calls.
-> 
-> Yeah.  Let's try this to match the iomap code:
-> 
-> diff --git a/fs/mpage.c b/fs/mpage.c
-> index 9ed1e58e8d70b..d465883edf719 100644
-> --- a/fs/mpage.c
-> +++ b/fs/mpage.c
-> @@ -148,13 +148,11 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
->  	int op = REQ_OP_READ;
->  	unsigned nblocks;
->  	unsigned relative_block;
-> -	gfp_t gfp;
-> +	gfp_t gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL);
->  
->  	if (args->is_readahead) {
->  		op |= REQ_RAHEAD;
-> -		gfp = readahead_gfp_mask(page->mapping);
-> -	} else {
-> -		gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL);
-> +		gfp |= __GFP_NORETRY | __GFP_NOWARN;
->  	}
->  
->  	if (page_has_buffers(page))
-
-That fixes the problem for me.
-
-Tested-by: Guenter Roeck <linux@roeck-us.net>
-
-Guenter
+UElORwpGcm9tOiBSdWkgWHUgPHJ1aS54dUBlYXN5c3RhY2suY24+CkRhdGU6IDIwMjItMDItMjMg
+MTY6NDQ6NDIKVG86ICBwaGlsaXBwLnJlaXNuZXJAbGluYml0LmNvbSxkcmJkLWRldkBsaXN0cy5s
+aW5iaXQuY29tCkNjOiAgZG9uZ3NoZW5nLnlhbmdAZWFzeXN0YWNrLmNuLFJ1aSBYdSA8cnVpLnh1
+QGVhc3lzdGFjay5jbj4KU3ViamVjdDogW1BBVENIXSBkcmJkOiBmaXggYSBidWcgb2YgZG9fY2hh
+bmdlX2Rpc2tfc3RhdGUgd2hlbiBhdHRhY2g+VGhlcmUgaXMgYSBidWcgaW4gZG9fY2hhbmdlX2Rp
+c2tfc3RhdGUgd2hlbiBhdHRhY2ggZGlzayB0bwo+ZHJiZC4gQ29uc2lkZXIgdGhpcyBzY2VuYXJp
+bzoKPgo+UHJpbWFyeTogbm9kZS0xLCBTZWNvbmRhcnk6IG5vZGUtMiwgbm9kZS0zCj4KPigxKSBO
+ZXR3b3JrIGZhaWx1cmUgb2NjdXJzIG9uIG5vZGUtMSBzbyB0aGF0IG5vZGUtMiBhbmQKPm5vZGUt
+MyB3aWxsIGxvc2UgY29ubmVjdGlvbiB0byBub2RlLTEKPgo+KDIpIERldGFjaCB0aGUgZGlzayBv
+ZiBkcmJkIG9uIG5vZGUtMiB1c2UgJ2RyYmRhZG0gZGV0YWNoJwo+Cj4oMykgQXR0YWNoIHRoZSBk
+aXNrIG9mIGRyYmQgb24gbm9kZS0yIHVzZSAnZHJiZGFkbSBhdHRhY2gnCj4KPndlIGNhbiBzZWUg
+dGhhdCBkaXNrIHN0YXRlIG9mIG5vZGUtMiB3aWxsIHN0YXkgaW4gdGhlIG5lZ290aWF0aW5nCj5h
+bmQgbWlzcyBhIGhhbmRzaGFrZSB3aXRoIG5vZGUtMywgd2hhdCBjYXVzZXMgdGhpcyBpcyB3aGVu
+IHdlIGF0dGFjaCwKPmRpc2sgc3RhdGUgd2lsbCBnb2luZyB0byBuZWdvdGlhdGluZyBmcm9tIGF0
+dGFjaGluZywgd2Ugd2lsbCBkZXRlcm1pbmUKPndoZXRoZXIgYSB0d28tcGMgaXMgcmVxdWlyZWQg
+aW4gZG9fY2hhbmdlX2Rpc2tfc3RhdGUsIHNpbmNlIHdlIGxvc2UgdGhlCj5jb25uZWN0aW9uIHdp
+dGggbm9kZS0xIGFuZCBub2RlLTEgd2FzIGZpcnN0IGNvbm5lY3Rpb24sIGNvbm5lY3Rpb24tPmFn
+cmVlZWQKPl9wcm9fdmVyc2lvbiB3aWxsIGxlc3MgdGhhbiAxMTAsIGF0IGxhc3QsIHdlIHdpbGwg
+bm90IGRvIGEgdHdvLXBjLCB3aGljaAo+bGVhZHMgYSBwcm9ibGVtIHRoYXQgbm9kZS0zIHdpbGwg
+bm90IHNlbmQgcF9zdGF0ZSB0byBub2RlLTIsIHRoZW4gbm9kZS0yIG1pc3MKPmEgaGFuZHNoYWtl
+IHdpdGggbm9kZS0zIGFuZCB0aGUgZGlzayBzdGF0ZSBvZiBub2RlLTIgd2lsbCBub3QgY2hhbmdl
+Lgo+Cj5GaXggaXQgYnkgdXNpbmcgc3VwcG9ydHNfdHdvX3BoYXNlX2NvbW1pdCB0byBkZXRlcm1p
+bmUgd2hldGhlciBhIHR3by1wYyBpcwo+cmVhbGx5IHJlcXVpcmVkLgo+Cj5TaWduZWQtb2ZmLWJ5
+OiBSdWkgWHUgPHJ1aS54dUBlYXN5c3RhY2suY24+Cj4tLS0KPiBkcmJkL2RyYmRfc3RhdGUuYyB8
+IDUgKy0tLS0KPiAxIGZpbGUgY2hhbmdlZCwgMSBpbnNlcnRpb24oKyksIDQgZGVsZXRpb25zKC0p
+Cj4KPmRpZmYgLS1naXQgYS9kcmJkL2RyYmRfc3RhdGUuYyBiL2RyYmQvZHJiZF9zdGF0ZS5jCj5p
+bmRleCBhZWFmMzZhLi4yY2I1MDFkIDEwMDY0NAo+LS0tIGEvZHJiZC9kcmJkX3N0YXRlLmMKPisr
+KyBiL2RyYmQvZHJiZF9zdGF0ZS5jCj5AQCAtNTE3MywxMCArNTE3Myw3IEBAIHN0YXRpYyBib29s
+IGRvX2NoYW5nZV9kaXNrX3N0YXRlKHN0cnVjdCBjaGFuZ2VfY29udGV4dCAqY29udGV4dCwgZW51
+bSBjaGFuZ2VfcGhhCj4gCWlmIChkZXZpY2UtPmRpc2tfc3RhdGVbTk9XXSA9PSBEX0FUVEFDSElO
+RyAmJgo+IAkgICAgY29udGV4dC0+dmFsLmRpc2sgPT0gRF9ORUdPVElBVElORykgewo+IAkJaWYg
+KGRldmljZV9oYXNfcGVlcl9kZXZpY2VzX3dpdGhfZGlzayhkZXZpY2UpKSB7Cj4tCQkJc3RydWN0
+IGRyYmRfY29ubmVjdGlvbiAqY29ubmVjdGlvbiA9Cj4tCQkJCWZpcnN0X2Nvbm5lY3Rpb24oZGV2
+aWNlLT5yZXNvdXJjZSk7Cj4tCQkJY2x1c3Rlcl93aWRlX3N0YXRlX2NoYW5nZSA9Cj4tCQkJCWNv
+bm5lY3Rpb24gJiYgY29ubmVjdGlvbi0+YWdyZWVkX3Byb192ZXJzaW9uID49IDExMDsKPisJCQlj
+bHVzdGVyX3dpZGVfc3RhdGVfY2hhbmdlID0gc3VwcG9ydHNfdHdvX3BoYXNlX2NvbW1pdChkZXZp
+Y2UtPnJlc291cmNlKTsKPiAJCX0gZWxzZSB7Cj4gCQkJLyogdmVyeSBsYXN0IHBhcnQgb2YgYXR0
+YWNoICovCj4gCQkJY29udGV4dC0+dmFsLmRpc2sgPSBkaXNrX3N0YXRlX2Zyb21fbWQoZGV2aWNl
+KTsKPi0tIAo+MS44LjMuMQo+Cg0KDQo=
