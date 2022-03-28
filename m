@@ -1,20 +1,18 @@
-Return-Path: <xiam0nd.tong@gmail.com>
-Received: from mail-pg1-f171.google.com (mail-pg1-f171.google.com
-	[209.85.215.171])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ECBE74205D8
-	for <drbd-dev@lists.linbit.com>; Sun, 27 Mar 2022 09:09:26 +0200 (CEST)
-Received: by mail-pg1-f171.google.com with SMTP id w21so9827490pgm.7
-	for <drbd-dev@lists.linbit.com>; Sun, 27 Mar 2022 00:09:26 -0700 (PDT)
-From: Xiaomeng Tong <xiam0nd.tong@gmail.com>
-To: philipp.reisner@linbit.com
-Date: Sun, 27 Mar 2022 15:09:18 +0800
-Message-Id: <20220327070918.8465-1-xiam0nd.tong@gmail.com>
-Cc: axboe@kernel.dk, agruen@linbit.com, linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org, linux-block@vger.kernel.org,
-	Xiaomeng Tong <xiam0nd.tong@gmail.com>,
-	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] drbd: fix an invalid memory access caused by
-	incorrect use of list iterator
+Return-Path: <baihaowen@meizu.com>
+Received: from mail.meizu.com (edge05.meizu.com [157.122.146.251])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8158E42034F
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Mar 2022 04:59:29 +0200 (CEST)
+From: Haowen Bai <baihaowen@meizu.com>
+To: <philipp.reisner@linbit.com>, <lars.ellenberg@linbit.com>,
+	<axboe@kernel.dk>
+Date: Mon, 28 Mar 2022 10:54:09 +0800
+Message-ID: <1648436049-4335-1-git-send-email-baihaowen@meizu.com>
+MIME-Version: 1.0
+Content-Type: text/plain
+Cc: linux-block@vger.kernel.org, Haowen Bai <baihaowen@meizu.com>,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: Return true/false (not 1/0) from bool
+	functions
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,55 +24,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The bug is here:
-	idr_remove(&connection->peer_devices, vnr);
+Return boolean values ("true" or "false") instead of 1 or 0 from bool
+functions.  This fixes the following warnings from coccicheck:
 
-If the previous for_each_connection() don't exit early (no goto hit
-inside the loop), the iterator 'connection' after the loop will be a
-bogus pointer to an invalid structure object containing the HEAD
-(&resource->connections). As a result, the use of 'connection' above
-will lead to a invalid memory access (including a possible invalid free
-as idr_remove could call free_layer).
+./drivers/block/drbd/drbd_req.c:912:9-10: WARNING: return of 0/1 in
+function 'remote_due_to_read_balancing' with return type bool
 
-The original intention should have been to remove all peer_devices,
-but the following lines have already done the work. So just remove
-this line and the unneeded label, to fix this bug.
-
-Cc: stable@vger.kernel.org
-Fixes: c06ece6ba6f1b ("drbd: Turn connection->volumes into connection->peer_devices")
-Signed-off-by: Xiaomeng Tong <xiam0nd.tong@gmail.com>
+Signed-off-by: Haowen Bai <baihaowen@meizu.com>
 ---
- drivers/block/drbd/drbd_main.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_req.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 6f450816c4fa..5d5beeba3ed4 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2793,12 +2793,12 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index c043945..171905a 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -909,7 +909,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
  
- 	if (init_submitter(device)) {
- 		err = ERR_NOMEM;
--		goto out_idr_remove_vol;
-+		goto out_idr_remove_from_resource;
- 	}
- 
- 	err = add_disk(disk);
- 	if (err)
--		goto out_idr_remove_vol;
-+		goto out_idr_remove_from_resource;
- 
- 	/* inherit the connection state */
- 	device->state.conn = first_connection(resource)->cstate;
-@@ -2812,8 +2812,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- 	drbd_debugfs_device_add(device);
- 	return NO_ERROR;
- 
--out_idr_remove_vol:
--	idr_remove(&connection->peer_devices, vnr);
- out_idr_remove_from_resource:
- 	for_each_connection(connection, resource) {
- 		peer_device = idr_remove(&connection->peer_devices, vnr);
+ 	switch (rbm) {
+ 	case RB_CONGESTED_REMOTE:
+-		return 0;
++		return false;
+ 	case RB_LEAST_PENDING:
+ 		return atomic_read(&device->local_cnt) >
+ 			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
 -- 
-2.17.1
+2.7.4
 
