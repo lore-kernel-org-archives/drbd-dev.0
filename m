@@ -1,21 +1,20 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-vk1-f181.google.com (mail-vk1-f181.google.com
-	[209.85.221.181])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AAAA942018F
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Mar 2022 09:24:44 +0200 (CEST)
-Received: by mail-vk1-f181.google.com with SMTP id 47so3919818vki.12
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Mar 2022 00:24:44 -0700 (PDT)
-MIME-Version: 1.0
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7B55742018F
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Mar 2022 09:32:57 +0200 (CEST)
+Date: Tue, 29 Mar 2022 09:32:54 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Message-ID: <20220329073254.GA20691@lst.de>
 References: <20220329070618.GA20396@lst.de>
-In-Reply-To: <20220329070618.GA20396@lst.de>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Tue, 29 Mar 2022 09:24:33 +0200
-Message-ID: <CADGDV=XrhzSxLyES9dtKj1-cQq6Zh32psipLJCoDGRNzAYaZwA@mail.gmail.com>
-To: Christoph Hellwig <hch@lst.de>
-Content-Type: text/plain; charset="UTF-8"
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+	<CADGDV=UgjZAbmAN-2bO1nyDvA=XCC9Lf2dxWHZ0BwxF12nnztQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADGDV=UgjZAbmAN-2bO1nyDvA=XCC9Lf2dxWHZ0BwxF12nnztQ@mail.gmail.com>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] state of drbd in mainline
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -28,29 +27,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Christoph,
+On Tue, Mar 29, 2022 at 09:22:26AM +0200, Philipp Reisner wrote:
+> Hi Christoph,
+> 
+> what do you expect for the DRBD changes? Usually, they fall into the
+> category: yes, obviously. When you are changing the block layer in this
+> way, then that is necessary for the in-tree DRBD code.
+> 
+> Regarding users: Yes, there are users of the in-tree DRBD code. Very big
+> corporations. And, yes, we see pressure building up that we get our act
+> together and re-sync the in-tree DRBD with the out-of tree DRBD.
 
-what do you expect for the DRBD changes? Usually, they fall into the
-category: yes, obviously. When you are changing the block layer in
-this way, then that is necessary for the in-tree DRBD code.
+The complete lack of bug reports and maintainer interaction usually
+suggests low to no use and heavy bitrot.  If that is not the case
+here that's fine, just asking..
 
-Regarding users: Yes, there are users of the in-tree DRBD code. Very
-big corporations. And, yes, we see pressure building up that we get
-our act together and re-sync the in-tree DRBD with the out-of tree
-DRBD.
-
-best regards,
- Phil
-
-
-On Tue, Mar 29, 2022 at 9:06 AM Christoph Hellwig <hch@lst.de> wrote:
->
-> Hi all,
->
-> while I've been reworking large parts of the block layer over the
-> last months I've basically never gotten drbd reviews, and in general
-> drbd seems to be completely maintained upstream.  Do we even have users
-> for it?  Is it time to drop drbd from the kernel tree?
->
-> Thanks,
->         Christoph
