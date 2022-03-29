@@ -1,18 +1,18 @@
-Return-Path: <baihaowen@meizu.com>
-Received: from mail.meizu.com (edge05.meizu.com [157.122.146.251])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8158E42034F
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Mar 2022 04:59:29 +0200 (CEST)
-From: Haowen Bai <baihaowen@meizu.com>
-To: <philipp.reisner@linbit.com>, <lars.ellenberg@linbit.com>,
-	<axboe@kernel.dk>
-Date: Mon, 28 Mar 2022 10:54:09 +0800
-Message-ID: <1648436049-4335-1-git-send-email-baihaowen@meizu.com>
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6A1654201B8
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Mar 2022 09:06:21 +0200 (CEST)
+Date: Tue, 29 Mar 2022 09:06:18 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
+Message-ID: <20220329070618.GA20396@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain
-Cc: linux-block@vger.kernel.org, Haowen Bai <baihaowen@meizu.com>,
-	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] drbd: Return true/false (not 1/0) from bool
-	functions
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] state of drbd in mainline
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,30 +24,12 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Return boolean values ("true" or "false") instead of 1 or 0 from bool
-functions.  This fixes the following warnings from coccicheck:
+Hi all,
 
-./drivers/block/drbd/drbd_req.c:912:9-10: WARNING: return of 0/1 in
-function 'remote_due_to_read_balancing' with return type bool
+while I've been reworking large parts of the block layer over the
+last months I've basically never gotten drbd reviews, and in general
+drbd seems to be completely maintained upstream.  Do we even have users
+for it?  Is it time to drop drbd from the kernel tree?
 
-Signed-off-by: Haowen Bai <baihaowen@meizu.com>
----
- drivers/block/drbd/drbd_req.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index c043945..171905a 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -909,7 +909,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
- 
- 	switch (rbm) {
- 	case RB_CONGESTED_REMOTE:
--		return 0;
-+		return false;
- 	case RB_LEAST_PENDING:
- 		return atomic_read(&device->local_cnt) >
- 			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
--- 
-2.7.4
-
+Thanks,
+	Christoph
