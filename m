@@ -1,23 +1,24 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pg1-f171.google.com (mail-pg1-f171.google.com
-	[209.85.215.171])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 31B37420835
-	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 15:53:17 +0200 (CEST)
-Received: by mail-pg1-f171.google.com with SMTP id o8so20024219pgf.9
-	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 06:53:17 -0700 (PDT)
-From: Jens Axboe <axboe@kernel.dk>
-To: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20220331134236.776524-1-christoph.boehmwalder@linbit.com>
-References: <20220331134236.776524-1-christoph.boehmwalder@linbit.com>
-Message-Id: <164873479584.41813.11247014171124549054.b4-ty@kernel.dk>
-Date: Thu, 31 Mar 2022 07:53:15 -0600
+Return-Path: <jakobkoschel@gmail.com>
+Received: from mail-ed1-f53.google.com (mail-ed1-f53.google.com
+	[209.85.208.53])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E6CCA4201DC
+	for <drbd-dev@lists.linbit.com>; Fri,  1 Apr 2022 00:05:54 +0200 (CEST)
+Received: by mail-ed1-f53.google.com with SMTP id h4so883922edr.3
+	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 15:05:54 -0700 (PDT)
+From: Jakob Koschel <jakobkoschel@gmail.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Date: Fri,  1 Apr 2022 00:03:48 +0200
+Message-Id: <20220331220349.885126-1-jakobkoschel@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org, "Bos,
+	H.J." <h.j.bos@vu.nl>, Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
+	linux-block@vger.kernel.org, Cristiano Giuffrida <c.giuffrida@vu.nl>,
+	Jakob Koschel <jakobkoschel@gmail.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] MAINTAINERS: add drbd co-maintainer
+	Mike Rapoport <rppt@kernel.org>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 1/2] drbd: remove usage of list iterator variable
+	after loop for list_for_each_entry_safe_from()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,24 +30,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 31 Mar 2022 15:42:36 +0200, Christoph Böhmwalder wrote:
-> In light of the recent controversy surrounding the (lack of)
-> maintenance of the in-tree DRBD driver, we have decided to add myself
-> as co-maintainer. This allows us to better distribute the workload and
-> reduce the chance of patches getting lost.
-> 
-> I will be keeping an eye on the mailing list in order to ensure that all
-> patches get the attention they need.
-> 
-> [...]
+In preparation to limit the scope of a list iterator to the list
+traversal loop, use a dedicated pointer to iterate through the list [1].
 
-Applied, thanks!
+Since that variable should not be used past the loop iteration, a
+separate variable is used to 'remember the current location within the
+loop'.
 
-[1/1] MAINTAINERS: add drbd co-maintainer
-      commit: db0a1550407e9bb227a31ce7e2f77489986f47e0
+To either continue iterating from that position or skip the iteration
+(if the previous iteration was complete) list_prepare_entry() is used.
 
-Best regards,
+Link: https://lore.kernel.org/all/CAHk-=wgRr_D8CB-D9Kg-c=EHreAsk5SqXPwr9Y7k9sA6cWXJ6w@mail.gmail.com/ [1]
+Signed-off-by: Jakob Koschel <jakobkoschel@gmail.com>
+---
+ drivers/block/drbd/drbd_main.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 96881d5babd9..9676a1d214bc 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -171,7 +171,7 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
+ 		unsigned int set_size)
+ {
+ 	struct drbd_request *r;
+-	struct drbd_request *req = NULL;
++	struct drbd_request *req = NULL, *tmp = NULL;
+ 	int expect_epoch = 0;
+ 	int expect_size = 0;
+ 
+@@ -225,8 +225,11 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
+ 	 * to catch requests being barrier-acked "unexpectedly".
+ 	 * It usually should find the same req again, or some READ preceding it. */
+ 	list_for_each_entry(req, &connection->transfer_log, tl_requests)
+-		if (req->epoch == expect_epoch)
++		if (req->epoch == expect_epoch) {
++			tmp = req;
+ 			break;
++		}
++	req = list_prepare_entry(tmp, &connection->transfer_log, tl_requests);
+ 	list_for_each_entry_safe_from(req, r, &connection->transfer_log, tl_requests) {
+ 		if (req->epoch != expect_epoch)
+ 			break;
+
+base-commit: f82da161ea75dc4db21b2499e4b1facd36dab275
 -- 
-Jens Axboe
-
+2.25.1
 
