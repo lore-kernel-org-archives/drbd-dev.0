@@ -1,23 +1,22 @@
 Return-Path: <axboe@kernel.dk>
-Received: from mail-pg1-f174.google.com (mail-pg1-f174.google.com
-	[209.85.215.174])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 67D8F4207B8
-	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 15:48:12 +0200 (CEST)
-Received: by mail-pg1-f174.google.com with SMTP id o8so20014708pgf.9
-	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 06:48:12 -0700 (PDT)
-Message-ID: <8dbb5fc7-7170-d190-ba24-2ef13dc73623@kernel.dk>
-Date: Thu, 31 Mar 2022 07:48:10 -0600
-MIME-Version: 1.0
-Content-Language: en-US
-To: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-References: <20220331134236.776524-1-christoph.boehmwalder@linbit.com>
+Received: from mail-pg1-f171.google.com (mail-pg1-f171.google.com
+	[209.85.215.171])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 31B37420835
+	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 15:53:17 +0200 (CEST)
+Received: by mail-pg1-f171.google.com with SMTP id o8so20024219pgf.9
+	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 06:53:17 -0700 (PDT)
 From: Jens Axboe <axboe@kernel.dk>
+To: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 In-Reply-To: <20220331134236.776524-1-christoph.boehmwalder@linbit.com>
-Content-Type: text/plain; charset=UTF-8
+References: <20220331134236.776524-1-christoph.boehmwalder@linbit.com>
+Message-Id: <164873479584.41813.11247014171124549054.b4-ty@kernel.dk>
+Date: Thu, 31 Mar 2022 07:53:15 -0600
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH] MAINTAINERS: add drbd co-maintainer
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -30,7 +29,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 3/31/22 7:42 AM, Christoph Böhmwalder wrote:
+On Thu, 31 Mar 2022 15:42:36 +0200, Christoph Böhmwalder wrote:
 > In light of the recent controversy surrounding the (lack of)
 > maintenance of the in-tree DRBD driver, we have decided to add myself
 > as co-maintainer. This allows us to better distribute the workload and
@@ -38,9 +37,16 @@ On 3/31/22 7:42 AM, Christoph Böhmwalder wrote:
 > 
 > I will be keeping an eye on the mailing list in order to ensure that all
 > patches get the attention they need.
+> 
+> [...]
 
-Can you go over the ones I already listed? That'd be a good start.
+Applied, thanks!
 
+[1/1] MAINTAINERS: add drbd co-maintainer
+      commit: db0a1550407e9bb227a31ce7e2f77489986f47e0
+
+Best regards,
 -- 
 Jens Axboe
+
 
