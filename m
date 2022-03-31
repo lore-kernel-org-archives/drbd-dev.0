@@ -1,14 +1,16 @@
 Return-Path: <jakobkoschel@gmail.com>
-Received: from mail-ed1-f53.google.com (mail-ed1-f53.google.com
-	[209.85.208.53])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E6CCA4201DC
-	for <drbd-dev@lists.linbit.com>; Fri,  1 Apr 2022 00:05:54 +0200 (CEST)
-Received: by mail-ed1-f53.google.com with SMTP id h4so883922edr.3
-	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 15:05:54 -0700 (PDT)
+Received: from mail-ed1-f45.google.com (mail-ed1-f45.google.com
+	[209.85.208.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B964E4201DC
+	for <drbd-dev@lists.linbit.com>; Fri,  1 Apr 2022 00:05:55 +0200 (CEST)
+Received: by mail-ed1-f45.google.com with SMTP id b15so880925edn.4
+	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 15:05:55 -0700 (PDT)
 From: Jakob Koschel <jakobkoschel@gmail.com>
 To: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Fri,  1 Apr 2022 00:03:48 +0200
-Message-Id: <20220331220349.885126-1-jakobkoschel@gmail.com>
+Date: Fri,  1 Apr 2022 00:03:49 +0200
+Message-Id: <20220331220349.885126-2-jakobkoschel@gmail.com>
+In-Reply-To: <20220331220349.885126-1-jakobkoschel@gmail.com>
+References: <20220331220349.885126-1-jakobkoschel@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org, "Bos,
@@ -17,8 +19,8 @@ Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org, "Bos,
 	Jakob Koschel <jakobkoschel@gmail.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Mike Rapoport <rppt@kernel.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/2] drbd: remove usage of list iterator variable
-	after loop for list_for_each_entry_safe_from()
+Subject: [Drbd-dev] [PATCH 2/2] drbd: remove check of list iterator against
+	head past the loop body
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,50 +32,109 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+When list_for_each_entry() completes the iteration over the whole list
+without breaking the loop, the iterator value will be a bogus pointer
+computed based on the head element.
+
+While it is safe to use the pointer to determine if it was computed
+based on the head element, either with list_entry_is_head() or
+&pos->member == head, using the iterator variable after the loop should
+be avoided.
+
 In preparation to limit the scope of a list iterator to the list
-traversal loop, use a dedicated pointer to iterate through the list [1].
-
-Since that variable should not be used past the loop iteration, a
-separate variable is used to 'remember the current location within the
-loop'.
-
-To either continue iterating from that position or skip the iteration
-(if the previous iteration was complete) list_prepare_entry() is used.
+traversal loop, use a dedicated pointer to point to the found element [1].
 
 Link: https://lore.kernel.org/all/CAHk-=wgRr_D8CB-D9Kg-c=EHreAsk5SqXPwr9Y7k9sA6cWXJ6w@mail.gmail.com/ [1]
 Signed-off-by: Jakob Koschel <jakobkoschel@gmail.com>
 ---
- drivers/block/drbd/drbd_main.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ drivers/block/drbd/drbd_req.c | 42 ++++++++++++++++++++++-------------
+ 1 file changed, 27 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 96881d5babd9..9676a1d214bc 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -171,7 +171,7 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
- 		unsigned int set_size)
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index c04394518b07..b2571dc77fe6 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -332,17 +332,21 @@ static void set_if_null_req_next(struct drbd_peer_device *peer_device, struct dr
+ static void advance_conn_req_next(struct drbd_peer_device *peer_device, struct drbd_request *req)
  {
- 	struct drbd_request *r;
--	struct drbd_request *req = NULL;
-+	struct drbd_request *req = NULL, *tmp = NULL;
- 	int expect_epoch = 0;
- 	int expect_size = 0;
- 
-@@ -225,8 +225,11 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
- 	 * to catch requests being barrier-acked "unexpectedly".
- 	 * It usually should find the same req again, or some READ preceding it. */
- 	list_for_each_entry(req, &connection->transfer_log, tl_requests)
--		if (req->epoch == expect_epoch)
-+		if (req->epoch == expect_epoch) {
-+			tmp = req;
+ 	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
++	struct drbd_request *iter = req;
+ 	if (!connection)
+ 		return;
+ 	if (connection->req_next != req)
+ 		return;
+-	list_for_each_entry_continue(req, &connection->transfer_log, tl_requests) {
+-		const unsigned s = req->rq_state;
+-		if (s & RQ_NET_QUEUED)
++
++	req = NULL;
++	list_for_each_entry_continue(iter, &connection->transfer_log, tl_requests) {
++		const unsigned int s = iter->rq_state;
++
++		if (s & RQ_NET_QUEUED) {
++			req = iter;
  			break;
 +		}
-+	req = list_prepare_entry(tmp, &connection->transfer_log, tl_requests);
- 	list_for_each_entry_safe_from(req, r, &connection->transfer_log, tl_requests) {
- 		if (req->epoch != expect_epoch)
+ 	}
+-	if (&req->tl_requests == &connection->transfer_log)
+-		req = NULL;
+ 	connection->req_next = req;
+ }
+ 
+@@ -358,17 +362,21 @@ static void set_if_null_req_ack_pending(struct drbd_peer_device *peer_device, st
+ static void advance_conn_req_ack_pending(struct drbd_peer_device *peer_device, struct drbd_request *req)
+ {
+ 	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
++	struct drbd_request *iter = req;
+ 	if (!connection)
+ 		return;
+ 	if (connection->req_ack_pending != req)
+ 		return;
+-	list_for_each_entry_continue(req, &connection->transfer_log, tl_requests) {
+-		const unsigned s = req->rq_state;
+-		if ((s & RQ_NET_SENT) && (s & RQ_NET_PENDING))
++
++	req = NULL;
++	list_for_each_entry_continue(iter, &connection->transfer_log, tl_requests) {
++		const unsigned int s = iter->rq_state;
++
++		if ((s & RQ_NET_SENT) && (s & RQ_NET_PENDING)) {
++			req = iter;
  			break;
-
-base-commit: f82da161ea75dc4db21b2499e4b1facd36dab275
++		}
+ 	}
+-	if (&req->tl_requests == &connection->transfer_log)
+-		req = NULL;
+ 	connection->req_ack_pending = req;
+ }
+ 
+@@ -384,17 +392,21 @@ static void set_if_null_req_not_net_done(struct drbd_peer_device *peer_device, s
+ static void advance_conn_req_not_net_done(struct drbd_peer_device *peer_device, struct drbd_request *req)
+ {
+ 	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
++	struct drbd_request *iter = req;
+ 	if (!connection)
+ 		return;
+ 	if (connection->req_not_net_done != req)
+ 		return;
+-	list_for_each_entry_continue(req, &connection->transfer_log, tl_requests) {
+-		const unsigned s = req->rq_state;
+-		if ((s & RQ_NET_SENT) && !(s & RQ_NET_DONE))
++
++	req = NULL;
++	list_for_each_entry_continue(iter, &connection->transfer_log, tl_requests) {
++		const unsigned int s = iter->rq_state;
++
++		if ((s & RQ_NET_SENT) && !(s & RQ_NET_DONE)) {
++			req = iter;
+ 			break;
++		}
+ 	}
+-	if (&req->tl_requests == &connection->transfer_log)
+-		req = NULL;
+ 	connection->req_not_net_done = req;
+ }
+ 
 -- 
 2.25.1
 
