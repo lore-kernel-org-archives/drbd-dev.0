@@ -1,33 +1,22 @@
-Return-Path: <prvs=08129c948=okiselev@amazon.com>
-Received: from smtp-fw-6002.amazon.com (smtp-fw-6002.amazon.com [52.95.49.90])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1EA2A4205F5
-	for <drbd-dev@lists.linbit.com>;
-	Wed, 30 Mar 2022 21:31:41 +0200 (CEST)
-From: "Kiselev, Oleg" <okiselev@amazon.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Date: Wed, 30 Mar 2022 19:31:32 +0000
-Message-ID: <7AD2D6DC-0609-42F9-A481-B6E5C0F58180@amazon.com>
-References: <20220329070618.GA20396@lst.de>
-	<CADGDV=UgjZAbmAN-2bO1nyDvA=XCC9Lf2dxWHZ0BwxF12nnztQ@mail.gmail.com>
-	<20220329073254.GA20691@lst.de>
-	<CADGDV=U5jwe0CZ12174cMahfD_h-GsBswWaA1VOJbHaC1nsrUw@mail.gmail.com>
-	<f9d89282-3a67-ad97-149f-52325e23607c@kernel.dk>
-	<CADGDV=WN2TFR6dO7ZdiQ2ijPjs+7HSsvk0ZCHsHj6ZG5t-oEdA@mail.gmail.com>
-	<3c42b1ed-7c03-64e6-409e-e92247288cac@kernel.dk>
-	<CADGDV=WcTSSC70yG61dazo-WyoLOzp3r+nOk-Eg2x_Ncx=3nRg@mail.gmail.com>
-In-Reply-To: <CADGDV=WcTSSC70yG61dazo-WyoLOzp3r+nOk-Eg2x_Ncx=3nRg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <BBE82A3345660541908687EF8C2DC1D0@amazon.com>
-Content-Transfer-Encoding: base64
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-ej1-f48.google.com (mail-ej1-f48.google.com
+	[209.85.218.48])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CB0EE4205A5
+	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 15:45:58 +0200 (CEST)
+Received: by mail-ej1-f48.google.com with SMTP id bg10so48226236ejb.4
+	for <drbd-dev@lists.linbit.com>; Thu, 31 Mar 2022 06:45:58 -0700 (PDT)
+From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
+	<christoph.boehmwalder@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Thu, 31 Mar 2022 15:42:36 +0200
+Message-Id: <20220331134236.776524-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
-Cc: "Herrenschmidt, Benjamin" <benh@amazon.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, "Smith,
-	Stewart" <trawets@amazon.com>, Christoph Hellwig <hch@lst.de>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] state of drbd in mainline
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] MAINTAINERS: add drbd co-maintainer
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,60 +28,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-QVdTIFJEUyBpcyBhIG1ham9yIHVzZXIgb2YgZHJiZC4gIFdlIGFyZSBwcm9iYWJseSByZXNwb25z
-aWJsZSBmb3IgdGhlIHN1YnN0YW50aWFsIHBlcmNlbnRhZ2Ugb2YgZHJiZCB1c2VycyBpbiB0aGUg
-d29ybGQuICBXZSBhcmUgY3VycmVudGx5IG9uIGRyYmQtOC40LiAgV2Ugd2lsbCBldmVudHVhbGx5
-IG1pZ3JhdGUgdG8gZHJiZC05LCBidXQgYXQgb3VyIHNjYWxlIHRoaXMgaXNuJ3QgZ29pbmcgdG8g
-aGFwcGVuIHZlcnkgc29vbi4gIA0KDQpUaGUgbGFzdCB0aW1lIHdlIG5lZWRlZCB0byBwYXRjaCBk
-cmJkIHdhcyBiYWNrIGluIDIwMTguICBXZSd2ZSBub3QgZGlhZ25vc2VkIGFueSByZXBvcnRhYmxl
-IGlzc3VlcyB3aXRoIGRyYmQtOC40IGluIHRoZSBwYXN0IH40IHllYXJzLiAgIEl0J3MgYSBzdGFi
-bGUsIG1hdHVyZSBkcml2ZXIuICAgV2Ugd291bGQgcHJlZmVyIGZvciBkcmJkLTggdG8gY29udGlu
-dWUgYmVpbmcgYXZhaWxhYmxlIGluIHRoZSB1cHN0cmVhbSB0cmVlLiAgV2UnZCBhbHNvIHdlbGNv
-bWUgZHJiZC05IGJlaW5nIGF2YWlsYWJsZSBpbi10cmVlIGFzIHNvb24gYXMgcG9zc2libGU6IGl0
-IHdpbGwgbWFrZSBsaWZlIG11Y2ggZWFzaWVyIGZvciBvdGhlciBBV1MgdGVhbXMgdGhhdCBhcmUg
-Y3VycmVudGx5IHdvcmtpbmcgb24gRFJCRCBkZXBsb3ltZW50Lg0KDQrvu79PbiAzLzMwLzIyLCA4
-OjI0IEFNLCAiZHJiZC1kZXYtYm91bmNlc0BsaXN0cy5saW5iaXQuY29tIG9uIGJlaGFsZiBvZiBQ
-aGlsaXBwIFJlaXNuZXIiIDxkcmJkLWRldi1ib3VuY2VzQGxpc3RzLmxpbmJpdC5jb20gb24gYmVo
-YWxmIG9mIHBoaWxpcHAucmVpc25lckBsaW5iaXQuY29tPiB3cm90ZToNCg0KICAgIENBVVRJT046
-IFRoaXMgZW1haWwgb3JpZ2luYXRlZCBmcm9tIG91dHNpZGUgb2YgdGhlIG9yZ2FuaXphdGlvbi4g
-RG8gbm90IGNsaWNrIGxpbmtzIG9yIG9wZW4gYXR0YWNobWVudHMgdW5sZXNzIHlvdSBjYW4gY29u
-ZmlybSB0aGUgc2VuZGVyIGFuZCBrbm93IHRoZSBjb250ZW50IGlzIHNhZmUuDQoNCg0KDQogICAg
-PiA+IEplbnMsIG15IGludGVudGlvbiBpcyB0byBrZWVwIGl0IGluLXRyZWUsIGFuZCBhdCBzb21l
-IHBvaW50IHVwZGF0ZSBpdC4NCiAgICA+ID4gUmVnYXJkaW5nIHlvdXIgcXVlc3Rpb25zOg0KICAg
-ID4NCiAgICA+IFRoYXQnZCBiZSBncmVhdCwgYnV0IGl0J3MgYmVlbiB5ZWFycyBzaW5jZSB0aGVy
-ZSB3YXMgYW55IHNpZ25pZmljYW50DQogICAgPiB1cGRhdGVzIHRvIHRoZSBpbi1rZXJuZWwgZHJi
-ZC4uLiBJIHdvdWxkIHN0cm9uZ2x5IHN1Z2dlc3QgdGhhdCB0aGUNCiAgICA+IGluLWtlcm5lbCBi
-ZSBicm91Z2h0IGNsb3NlciB0byB3aGF0IHBlb3BsZSBhcmUgbW9zdGx5IHJ1bm5pbmcsIGFzIGl0
-DQogICAgPiBzdGFuZHMgaXQncyBiYXNpY2FsbHkgdW5tYWludGFpbmVkLg0KDQogICAgVGhlIGNo
-YW5nZXMgd2Ugd29ya2VkIG9uIG92ZXIgbWFueSBZZWFycyBpbiB0aGUgbW9yZSByZWNlbnQgZHJi
-ZC05LngNCiAgICBicmFuY2hlcyBhcmUganVzdCB0b28gZnVuZGFtZW50YWwgdG8gZG8gdGhlbSBp
-biBzbWFsbCBjaHVua3MsIHdlIGNvdWxkDQogICAgdXBzdHJlYW0gYml0IGJ5IGJpdC4gIFdlIG5l
-ZWQgdG8gZ2V0IHRoYXQgcmV2aWV3ZWQgaW4gYSBiaWcgc2VyaWVzLiAgSWYgSQ0KICAgIHN0YXJ0
-ZWQgdG8gZHVtcCB0aGVtIG9uIGxpbnV4LWJsb2NrIHJpZ2h0IGF3YXksIG5vYm9keSB3b3VsZCBs
-b29rIGF0IGl0DQogICAgc2VyaW91c2x5LCBzaW5jZSBpdCB3b3VsZCBiZSB0b28gbXVjaC4gIEkg
-aW50ZW5kIHRvIGdldCBwZW9wbGUgZnJvbSByZWQNCiAgICBoYXQvc3VzZSBhc3NpZ25lZCB0byBk
-byBzdWNoIGEgcmV2aWV3LiBUaGVuIHdlIHdpbGwgZG8gdGhhdCBvbiBsaW51eC1ibG9jaywNCiAg
-ICBzbyB0aGF0IGV2ZXJ5b25lIHdobyBjYXJlcyBzZWVzIHdoYXQgaGFwcGVucy4NCg0KICAgIFsu
-Li5dDQogICAgPiBUaGUgbWFpbiBkaXNjcmVwYW5jeSBoZXJlIGlzIHRoYXQgdGhlcmUgYXJlIGFw
-cGFyZW50bHkgaHVnZSBudW1iZXJzIG9mDQogICAgPiBpbi10cmVlIHVzZXJzLCB5ZXQgbm8gZml4
-ZXMgb3IgcGF0Y2hlcyBhdCBhbGwgbWFraW5nIGl0IHRvIG1haW5saW5lLg0KICAgID4gRWl0aGVy
-IGRyYmQgaXMgYnVnIGZyZWUgYW5kIGRvZXNuJ3QgcmVxdWlyZSBhbnkgZml4ZXMgYXQgYWxsLCB3
-aGljaCBJDQogICAgPiB2ZXJ5IG11Y2ggd291bGQgZG91YnQsIG9yIGZpeGVzIGFyZW4ndCBiZWlu
-ZyBzZW50IHVwc3RyZWFtLg0KDQogICAgSXQgaXMgdGhlIGJyb2FkIGNvbnNlbnQgYW1vbmcgdGhl
-IHVzZXJzIG9mIHRoZSBkcmJkLTguNCBicmFuY2ggKHRoYXQgaXMgd2hhdA0KICAgIGlzIGluLXRy
-ZWUpLCBpcyB0aGF0IGl0IHdvcmtzIGZvciBpdHMgcHVycG9zZS4gSXQgaXMgZm9yIHN1cmUgbm90
-IGJ1Zy1mcmVlLA0KICAgIGJ1dCBwZW9wbGUgYXJlIG5vdCBydW5uaW5nIGludG8gYnVncyBhbnlt
-b3JlLiBTbywgY2FsbCBpdCBmcmVlIG9mIHJlbGV2YW50DQogICAgYnVncywgaWYgeW91IHdhbnQu
-ICBObyBuZXcgZmVhdHVyZXMgZ28gaW50byB0aGF0IGJyYW5jaCwgb24gcHVycG9zZS4gVG8ga2Vl
-cA0KICAgIGl0IHRoYXQgd2F5Lg0KDQogICAgSGF2ZSBhIGxvb2sgYXQgdGhhdCBvbmUgcmVhbCBi
-dWctZml4IHRoYXQgd2FzIGlkZW50aWZpZWQgaW4gdGhlIGxhc3QgWWVhci4NCiAgICAyMDIxMDQy
-NjE2MzAzMi4zNDU0MTI5LTEtY2hyaXN0b3BoLmJvZWhtd2FsZGVyQGxpbmJpdC5jb20gPGh0dHBz
-Oi8vcGF0Y2h3b3JrLmtlcm5lbC5vcmcvcHJvamVjdC9saW51eC1ibG9jay9wYXRjaC88YSBocmVm
-PT4vIj5odHRwczovL3BhdGNod29yay5rZXJuZWwub3JnL3Byb2plY3QvbGludXgtYmxvY2svcGF0
-Y2gvMjAyMTA0MjYxNjMwMzIuMzQ1NDEyOS0xLWNocmlzdG9waC5ib2VobXdhbGRlckBsaW5iaXQu
-Y29tLw0KDQogICAgV2hlbiBkbyB5b3Ugd2FudCB0byBoYXZlIHRoYXQgcmVwb3N0ZWQgdG8geW91
-Pw0KICAgIHJpZ2h0IG5vdz8gSnVzdCBiZWZvcmUgdGhlIG5leHQgbWVyZ2Ugd2luZG93IG9wZW5z
-Pw0KICAgIF9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fDQog
-ICAgZHJiZC1kZXYgbWFpbGluZyBsaXN0DQogICAgZHJiZC1kZXZAbGlzdHMubGluYml0LmNvbQ0K
-ICAgIGh0dHBzOi8vbGlzdHMubGluYml0LmNvbS9tYWlsbWFuL2xpc3RpbmZvL2RyYmQtZGV2DQoN
-Cg==
+In light of the recent controversy surrounding the (lack of)
+maintenance of the in-tree DRBD driver, we have decided to add myself
+as co-maintainer. This allows us to better distribute the workload and
+reduce the chance of patches getting lost.
+
+I will be keeping an eye on the mailing list in order to ensure that all
+patches get the attention they need.
+
+Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+---
+ MAINTAINERS | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 53df75660f16..b1f5f034b2ce 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -6038,6 +6038,7 @@ F:	drivers/scsi/dpt/
+ DRBD DRIVER
+ M:	Philipp Reisner <philipp.reisner@linbit.com>
+ M:	Lars Ellenberg <lars.ellenberg@linbit.com>
++M:	Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+ L:	drbd-dev@lists.linbit.com
+ S:	Supported
+ W:	http://www.drbd.org
+-- 
+2.35.1
+
