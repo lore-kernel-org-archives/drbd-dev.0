@@ -1,23 +1,27 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-wm1-f49.google.com (mail-wm1-f49.google.com
-	[209.85.128.49])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7350242017F
-	for <drbd-dev@lists.linbit.com>; Fri,  1 Apr 2022 14:31:30 +0200 (CEST)
-Received: by mail-wm1-f49.google.com with SMTP id r7so1601680wmq.2
-	for <drbd-dev@lists.linbit.com>; Fri, 01 Apr 2022 05:31:30 -0700 (PDT)
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pf1-f180.google.com (mail-pf1-f180.google.com
+	[209.85.210.180])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9352D42011D
+	for <drbd-dev@lists.linbit.com>; Sat,  2 Apr 2022 01:56:44 +0200 (CEST)
+Received: by mail-pf1-f180.google.com with SMTP id w7so3968164pfu.11
+	for <drbd-dev@lists.linbit.com>; Fri, 01 Apr 2022 16:56:44 -0700 (PDT)
+From: Jens Axboe <axboe@kernel.dk>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Jakob Koschel <jakobkoschel@gmail.com>
+In-Reply-To: <20220331220349.885126-1-jakobkoschel@gmail.com>
+References: <20220331220349.885126-1-jakobkoschel@gmail.com>
+Message-Id: <164885740219.761778.5044909883791536138.b4-ty@kernel.dk>
+Date: Fri, 01 Apr 2022 17:56:42 -0600
 MIME-Version: 1.0
-References: <20220401083637.2407766-1-lv.ruyi@zte.com.cn>
-In-Reply-To: <20220401083637.2407766-1-lv.ruyi@zte.com.cn>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Fri, 1 Apr 2022 14:31:18 +0200
-Message-ID: <CADGDV=Wf9MpS7_3C6=RNTBO5rqxjtWOz170=7K215R9X38yc5w@mail.gmail.com>
-To: cgel.zte@gmail.com
-Content-Type: text/plain; charset="UTF-8"
-Cc: Jens Axboe <axboe@kernel.dk>, Lv Ruyi <lv.ruyi@zte.com.cn>,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+Cc: linux-kernel@vger.kernel.org, "Bos, H.J." <h.j.bos@vu.nl>,
+	Brian Johannesmeyer <bjohannesmeyer@gmail.com>,
+	linux-block@vger.kernel.org, Cristiano Giuffrida <c.giuffrida@vu.nl>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Zeal Robot <zealci@zte.com.cn>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] block: fix potential dereference null pointer
+	Mike Rapoport <rppt@kernel.org>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 1/2] drbd: remove usage of list iterator
+	variable after loop for list_for_each_entry_safe_from()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,55 +33,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Lv Ruyi,
+On Fri, 1 Apr 2022 00:03:48 +0200, Jakob Koschel wrote:
+> In preparation to limit the scope of a list iterator to the list
+> traversal loop, use a dedicated pointer to iterate through the list [1].
+> 
+> Since that variable should not be used past the loop iteration, a
+> separate variable is used to 'remember the current location within the
+> loop'.
+> 
+> [...]
 
-This patch does not make sense to me. A request can only get "TO_BE_SENT"
-when the connection is established with the corresponding
-cstate. Establishing a connection can only work if net_conf is set. net_conf
-can be exchanged to a new one, but never become NULL.
+Applied, thanks!
 
-Please share more details why you think this NULL check is necessary here?
+[1/2] drbd: remove usage of list iterator variable after loop for list_for_each_entry_safe_from()
+      commit: 901aeda62efa21f2eae937bccb71b49ae531be06
+[2/2] drbd: remove check of list iterator against head past the loop body
+      commit: 2651ee5ae43241831ca63d7158bb2b151a6a0e1f
+
+Best regards,
+-- 
+Jens Axboe
 
 
-
-On Fri, Apr 1, 2022 at 10:36 AM <cgel.zte@gmail.com> wrote:
->
-> From: Lv Ruyi <lv.ruyi@zte.com.cn>
->
-> rcu_dereference may return NULL, so check the returned pointer.
->
-> Reported-by: Zeal Robot <zealci@zte.com.cn>
-> Signed-off-by: Lv Ruyi <lv.ruyi@zte.com.cn>
-> ---
->  drivers/block/drbd/drbd_req.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
->
-> diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-> index e1e58e91ee58..8ab6da155e2f 100644
-> --- a/drivers/block/drbd/drbd_req.c
-> +++ b/drivers/block/drbd/drbd_req.c
-> @@ -577,6 +577,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
->                 D_ASSERT(device, !(req->rq_state & RQ_NET_MASK));
->                 rcu_read_lock();
->                 nc = rcu_dereference(connection->net_conf);
-> +               if (!nc) {
-> +                       rcu_read_unlock();
-> +                       break;
-> +               }
->                 p = nc->wire_protocol;
->                 rcu_read_unlock();
->                 req->rq_state |=
-> @@ -690,6 +694,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
->                 /* close the epoch, in case it outgrew the limit */
->                 rcu_read_lock();
->                 nc = rcu_dereference(connection->net_conf);
-> +               if (!nc) {
-> +                       rcu_read_unlock();
-> +                       break;
-> +               }
->                 p = nc->max_epoch_size;
->                 rcu_read_unlock();
->                 if (connection->current_tle_writes >= p)
-> --
-> 2.25.1
->
