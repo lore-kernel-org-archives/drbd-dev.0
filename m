@@ -1,20 +1,25 @@
-Return-Path: <cgel.zte@gmail.com>
-Received: from mail-qt1-f177.google.com (mail-qt1-f177.google.com
-	[209.85.160.177])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 983794201B9
-	for <drbd-dev@lists.linbit.com>; Fri,  1 Apr 2022 10:36:45 +0200 (CEST)
-Received: by mail-qt1-f177.google.com with SMTP id bp39so1602243qtb.6
-	for <drbd-dev@lists.linbit.com>; Fri, 01 Apr 2022 01:36:45 -0700 (PDT)
-From: cgel.zte@gmail.com
-To: philipp.reisner@linbit.com
-Date: Fri,  1 Apr 2022 08:36:37 +0000
-Message-Id: <20220401083637.2407766-1-lv.ruyi@zte.com.cn>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-ed1-f54.google.com (mail-ed1-f54.google.com
+	[209.85.208.54])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 61271420332
+	for <drbd-dev@lists.linbit.com>; Mon,  4 Apr 2022 12:09:15 +0200 (CEST)
+Received: by mail-ed1-f54.google.com with SMTP id b15so10423044edn.4
+	for <drbd-dev@lists.linbit.com>; Mon, 04 Apr 2022 03:09:15 -0700 (PDT)
+Message-ID: <3fcfce19-ccb9-28ae-28de-2e62c12bcd23@linbit.com>
+Date: Mon, 4 Apr 2022 12:09:13 +0200
 MIME-Version: 1.0
+Content-Language: en-US
+To: Jens Axboe <axboe@kernel.dk>
+References: <20220331134236.776524-1-christoph.boehmwalder@linbit.com>
+	<8dbb5fc7-7170-d190-ba24-2ef13dc73623@kernel.dk>
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <8dbb5fc7-7170-d190-ba24-2ef13dc73623@kernel.dk>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
-Cc: axboe@kernel.dk, Lv Ruyi <lv.ruyi@zte.com.cn>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, lars.ellenberg@linbit.com,
-	Zeal Robot <zealci@zte.com.cn>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] block: fix potential dereference null pointer
+Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] MAINTAINERS: add drbd co-maintainer
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,42 +31,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lv Ruyi <lv.ruyi@zte.com.cn>
+Am 31.03.22 um 15:48 schrieb Jens Axboe:
+> On 3/31/22 7:42 AM, Christoph Böhmwalder wrote:
+>> In light of the recent controversy surrounding the (lack of)
+>> maintenance of the in-tree DRBD driver, we have decided to add myself
+>> as co-maintainer. This allows us to better distribute the workload and
+>> reduce the chance of patches getting lost.
+>>
+>> I will be keeping an eye on the mailing list in order to ensure that all
+>> patches get the attention they need.
+> 
+> Can you go over the ones I already listed? That'd be a good start.
+> 
 
-rcu_dereference may return NULL, so check the returned pointer.
+We are going through that list (and others) internally now and reviewing 
+them. I will prepare a pull request.
 
-Reported-by: Zeal Robot <zealci@zte.com.cn>
-Signed-off-by: Lv Ruyi <lv.ruyi@zte.com.cn>
----
- drivers/block/drbd/drbd_req.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index e1e58e91ee58..8ab6da155e2f 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -577,6 +577,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
- 		D_ASSERT(device, !(req->rq_state & RQ_NET_MASK));
- 		rcu_read_lock();
- 		nc = rcu_dereference(connection->net_conf);
-+		if (!nc) {
-+			rcu_read_unlock();
-+			break;
-+		}
- 		p = nc->wire_protocol;
- 		rcu_read_unlock();
- 		req->rq_state |=
-@@ -690,6 +694,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
- 		/* close the epoch, in case it outgrew the limit */
- 		rcu_read_lock();
- 		nc = rcu_dereference(connection->net_conf);
-+		if (!nc) {
-+			rcu_read_unlock();
-+			break;
-+		}
- 		p = nc->max_epoch_size;
- 		rcu_read_unlock();
- 		if (connection->current_tle_writes >= p)
--- 
-2.25.1
-
+   Christoph
