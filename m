@@ -1,12 +1,12 @@
 Return-Path: <BATV+4210fbe0094d03a681f9+6800+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 10B39420835
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 08:23:07 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9ED6242097A
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 08:23:08 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  6 Apr 2022 08:05:01 +0200
-Message-Id: <20220406060516.409838-13-hch@lst.de>
+Date: Wed,  6 Apr 2022 08:05:06 +0200
+Message-Id: <20220406060516.409838-18-hch@lst.de>
 In-Reply-To: <20220406060516.409838-1-hch@lst.de>
 References: <20220406060516.409838-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,8 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 12/27] block: add a bdev_fua helper
+Subject: [Drbd-dev] [PATCH 17/27] block: use bdev_alignment_offset in
+	disk_alignment_offset_show
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,96 +38,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to check the FUA flag based on the block_device instead of
-having to poke into the block layer internal request_queue.
+This does the same as the open coded variant except for an extra branch,
+and allows to remove queue_alignment_offset entirely.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/rnbd/rnbd-srv.c       | 3 +--
- drivers/target/target_core_iblock.c | 3 +--
- fs/iomap/direct-io.c                | 3 +--
- include/linux/blkdev.h              | 6 +++++-
- 4 files changed, 8 insertions(+), 7 deletions(-)
+ block/genhd.c          | 2 +-
+ include/linux/blkdev.h | 8 --------
+ 2 files changed, 1 insertion(+), 9 deletions(-)
 
-diff --git a/drivers/block/rnbd/rnbd-srv.c b/drivers/block/rnbd/rnbd-srv.c
-index f8cc3c5fecb4b..beaef43a67b9d 100644
---- a/drivers/block/rnbd/rnbd-srv.c
-+++ b/drivers/block/rnbd/rnbd-srv.c
-@@ -533,7 +533,6 @@ static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
- 					struct rnbd_srv_sess_dev *sess_dev)
+diff --git a/block/genhd.c b/block/genhd.c
+index b8b6759d670f0..712031ce19070 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -1010,7 +1010,7 @@ static ssize_t disk_alignment_offset_show(struct device *dev,
  {
- 	struct rnbd_dev *rnbd_dev = sess_dev->rnbd_dev;
--	struct request_queue *q = bdev_get_queue(rnbd_dev->bdev);
+ 	struct gendisk *disk = dev_to_disk(dev);
  
- 	rsp->hdr.type = cpu_to_le16(RNBD_MSG_OPEN_RSP);
- 	rsp->device_id =
-@@ -560,7 +559,7 @@ static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
- 	rsp->cache_policy = 0;
- 	if (bdev_write_cache(rnbd_dev->bdev))
- 		rsp->cache_policy |= RNBD_WRITEBACK;
--	if (blk_queue_fua(q))
-+	if (bdev_fua(rnbd_dev->bdev))
- 		rsp->cache_policy |= RNBD_FUA;
+-	return sprintf(buf, "%d\n", queue_alignment_offset(disk->queue));
++	return sprintf(buf, "%d\n", bdev_alignment_offset(disk->part0));
  }
  
-diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
-index 03013e85ffc03..c4a903b8a47fc 100644
---- a/drivers/target/target_core_iblock.c
-+++ b/drivers/target/target_core_iblock.c
-@@ -727,14 +727,13 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
- 
- 	if (data_direction == DMA_TO_DEVICE) {
- 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
--		struct request_queue *q = bdev_get_queue(ib_dev->ibd_bd);
- 		/*
- 		 * Force writethrough using REQ_FUA if a volatile write cache
- 		 * is not enabled, or if initiator set the Force Unit Access bit.
- 		 */
- 		opf = REQ_OP_WRITE;
- 		miter_dir = SG_MITER_TO_SG;
--		if (test_bit(QUEUE_FLAG_FUA, &q->queue_flags)) {
-+		if (bdev_fua(ib_dev->ibd_bd)) {
- 			if (cmd->se_cmd_flags & SCF_FUA)
- 				opf |= REQ_FUA;
- 			else if (!bdev_write_cache(ib_dev->ibd_bd))
-diff --git a/fs/iomap/direct-io.c b/fs/iomap/direct-io.c
-index b08f5dc31780d..62da020d02a11 100644
---- a/fs/iomap/direct-io.c
-+++ b/fs/iomap/direct-io.c
-@@ -265,8 +265,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
- 		 * cache flushes on IO completion.
- 		 */
- 		if (!(iomap->flags & (IOMAP_F_SHARED|IOMAP_F_DIRTY)) &&
--		    (dio->flags & IOMAP_DIO_WRITE_FUA) &&
--		    blk_queue_fua(bdev_get_queue(iomap->bdev)))
-+		    (dio->flags & IOMAP_DIO_WRITE_FUA) && bdev_fua(iomap->bdev))
- 			use_fua = true;
- 	}
- 
+ static ssize_t disk_discard_alignment_show(struct device *dev,
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 807a49aa5a27a..075b16d4560e7 100644
+index f8c50b77543eb..d5346e72e3645 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -602,7 +602,6 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
- 			     REQ_FAILFAST_DRIVER))
- #define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
- #define blk_queue_pm_only(q)	atomic_read(&(q)->pm_only)
--#define blk_queue_fua(q)	test_bit(QUEUE_FLAG_FUA, &(q)->queue_flags)
- #define blk_queue_registered(q)	test_bit(QUEUE_FLAG_REGISTERED, &(q)->queue_flags)
- #define blk_queue_nowait(q)	test_bit(QUEUE_FLAG_NOWAIT, &(q)->queue_flags)
- 
-@@ -1336,6 +1335,11 @@ static inline bool bdev_write_cache(struct block_device *bdev)
- 	return test_bit(QUEUE_FLAG_WC, &bdev_get_queue(bdev)->queue_flags);
+@@ -1251,14 +1251,6 @@ bdev_zone_write_granularity(struct block_device *bdev)
+ 	return queue_zone_write_granularity(bdev_get_queue(bdev));
  }
  
-+static inline bool bdev_fua(struct block_device *bdev)
-+{
-+	return test_bit(QUEUE_FLAG_FUA, &bdev_get_queue(bdev)->queue_flags);
-+}
-+
- static inline enum blk_zoned_model bdev_zoned_model(struct block_device *bdev)
+-static inline int queue_alignment_offset(const struct request_queue *q)
+-{
+-	if (q->limits.misaligned)
+-		return -1;
+-
+-	return q->limits.alignment_offset;
+-}
+-
+ static inline int queue_limit_alignment_offset(struct queue_limits *lim, sector_t sector)
  {
- 	struct request_queue *q = bdev_get_queue(bdev);
+ 	unsigned int granularity = max(lim->physical_block_size, lim->io_min);
 -- 
 2.30.2
 
