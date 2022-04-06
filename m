@@ -1,12 +1,12 @@
 Return-Path: <BATV+4210fbe0094d03a681f9+6800+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1642C420835
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 08:21:54 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2DDED420835
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 08:21:59 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  6 Apr 2022 08:05:04 +0200
-Message-Id: <20220406060516.409838-16-hch@lst.de>
+Date: Wed,  6 Apr 2022 08:05:16 +0200
+Message-Id: <20220406060516.409838-28-hch@lst.de>
 In-Reply-To: <20220406060516.409838-1-hch@lst.de>
 References: <20220406060516.409838-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,7 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 15/27] block: use bdev_alignment_offset in
-	part_alignment_offset_show
+Subject: [Drbd-dev] [PATCH 27/27] direct-io: remove random prefetches
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,33 +37,66 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Replace the open coded offset calculation with the proper helper.
-This is an ABI change in that the -1 for a misaligned partition is
-properly propagated, which can be considered a bug fix and maches
-what is done on the whole device.
+Randomly poking into block device internals for manual prefetches isn't
+exactly a very maintainable thing to do.  And none of the performance
+criticil direct I/O implementations still use this library function
+anyway, so just drop it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/partitions/core.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ fs/direct-io.c | 32 ++++----------------------------
+ 1 file changed, 4 insertions(+), 28 deletions(-)
 
-diff --git a/block/partitions/core.c b/block/partitions/core.c
-index 2ef8dfa1e5c85..240b3fff521e4 100644
---- a/block/partitions/core.c
-+++ b/block/partitions/core.c
-@@ -200,11 +200,7 @@ static ssize_t part_ro_show(struct device *dev,
- static ssize_t part_alignment_offset_show(struct device *dev,
- 					  struct device_attribute *attr, char *buf)
+diff --git a/fs/direct-io.c b/fs/direct-io.c
+index aef06e607b405..840752006f601 100644
+--- a/fs/direct-io.c
++++ b/fs/direct-io.c
+@@ -1115,11 +1115,10 @@ static inline int drop_refcount(struct dio *dio)
+  * individual fields and will generate much worse code. This is important
+  * for the whole file.
+  */
+-static inline ssize_t
+-do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
+-		      struct block_device *bdev, struct iov_iter *iter,
+-		      get_block_t get_block, dio_iodone_t end_io,
+-		      dio_submit_t submit_io, int flags)
++ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
++		struct block_device *bdev, struct iov_iter *iter,
++		get_block_t get_block, dio_iodone_t end_io,
++		dio_submit_t submit_io, int flags)
  {
--	struct block_device *bdev = dev_to_bdev(dev);
--
--	return sprintf(buf, "%u\n",
--		queue_limit_alignment_offset(&bdev_get_queue(bdev)->limits,
--				bdev->bd_start_sect));
-+	return sprintf(buf, "%u\n", bdev_alignment_offset(dev_to_bdev(dev)));
+ 	unsigned i_blkbits = READ_ONCE(inode->i_blkbits);
+ 	unsigned blkbits = i_blkbits;
+@@ -1334,29 +1333,6 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
+ 	kmem_cache_free(dio_cache, dio);
+ 	return retval;
  }
+-
+-ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
+-			     struct block_device *bdev, struct iov_iter *iter,
+-			     get_block_t get_block,
+-			     dio_iodone_t end_io, dio_submit_t submit_io,
+-			     int flags)
+-{
+-	/*
+-	 * The block device state is needed in the end to finally
+-	 * submit everything.  Since it's likely to be cache cold
+-	 * prefetch it here as first thing to hide some of the
+-	 * latency.
+-	 *
+-	 * Attempt to prefetch the pieces we likely need later.
+-	 */
+-	prefetch(&bdev->bd_disk->part_tbl);
+-	prefetch(bdev->bd_disk->queue);
+-	prefetch((char *)bdev->bd_disk->queue + SMP_CACHE_BYTES);
+-
+-	return do_blockdev_direct_IO(iocb, inode, bdev, iter, get_block,
+-				     end_io, submit_io, flags);
+-}
+-
+ EXPORT_SYMBOL(__blockdev_direct_IO);
  
- static ssize_t part_discard_alignment_show(struct device *dev,
+ static __init int dio_init(void)
 -- 
 2.30.2
 
