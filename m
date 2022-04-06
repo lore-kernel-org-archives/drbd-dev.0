@@ -1,13 +1,13 @@
 Return-Path: <prvs=08844476d=Johannes.Thumshirn@wdc.com>
-Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com [216.71.153.144])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 23531420FD1
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 12:01:52 +0200 (CEST)
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com [216.71.153.141])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8A2BF420FD1
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 12:03:29 +0200 (CEST)
 From: Johannes Thumshirn <Johannes.Thumshirn@wdc.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Wed, 6 Apr 2022 09:58:44 +0000
-Message-ID: <PH0PR04MB74161D2CCC5AD43AF09264799BE79@PH0PR04MB7416.namprd04.prod.outlook.com>
+Date: Wed, 6 Apr 2022 09:56:17 +0000
+Message-ID: <PH0PR04MB74169FBB31E68E76E34DDAC59BE79@PH0PR04MB7416.namprd04.prod.outlook.com>
 References: <20220406060516.409838-1-hch@lst.de>
-	<20220406060516.409838-15-hch@lst.de>
+	<20220406060516.409838-8-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -42,8 +42,8 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
 	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
 	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 14/27] block: add a
-	bdev_max_zone_append_sectors helper
+Subject: Re: [Drbd-dev] [PATCH 07/27] btrfs: use bdev_max_active_zones
+ instead of open coding it
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
