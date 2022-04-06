@@ -1,24 +1,25 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ej1-f50.google.com (mail-ej1-f50.google.com
-	[209.85.218.50])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B2DAC420FE0
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 21:07:35 +0200 (CEST)
-Received: by mail-ej1-f50.google.com with SMTP id l7so837897ejn.2
-	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 12:07:35 -0700 (PDT)
+Received: from mail-ed1-f52.google.com (mail-ed1-f52.google.com
+	[209.85.208.52])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 61D524205EF
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 21:07:38 +0200 (CEST)
+Received: by mail-ed1-f52.google.com with SMTP id d7so3765585edn.11
+	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 12:07:38 -0700 (PDT)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  6 Apr 2022 21:07:12 +0200
-Message-Id: <20220406190715.1938174-5-christoph.boehmwalder@linbit.com>
+Date: Wed,  6 Apr 2022 21:07:14 +0200
+Message-Id: <20220406190715.1938174-7-christoph.boehmwalder@linbit.com>
 In-Reply-To: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
 References: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Cai Huoqing <caihuoqing@baidu.com>,
+	linux-block@vger.kernel.org,
+	"Uladzislau Rezki \(Sony\)" <urezki@gmail.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 4/7] drbd: Make use of PFN_UP helper macro
+Subject: [Drbd-dev] [PATCH 6/7] drdb: Switch to kvfree_rcu() API
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,66 +31,97 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Cai Huoqing <caihuoqing@baidu.com>
+From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
 
-it's a refactor to make use of PFN_UP helper macro
+Instead of invoking a synchronize_rcu() to free a pointer
+after a grace period we can directly make use of new API
+that does the same but in more efficient way.
 
-Signed-off-by: Cai Huoqing <caihuoqing@baidu.com>
+TO: Jens Axboe <axboe@kernel.dk>
+TO: Philipp Reisner <philipp.reisner@linbit.com>
+TO: Jason Gunthorpe <jgg@nvidia.com>
+TO: drbd-dev@lists.linbit.com
+TO: linux-block@vger.kernel.org
+Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
 Reviewed-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/drbd_bitmap.c   | 2 +-
- drivers/block/drbd/drbd_receiver.c | 4 ++--
- drivers/block/drbd/drbd_worker.c   | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_nl.c       | 9 +++------
+ drivers/block/drbd/drbd_receiver.c | 6 ++----
+ drivers/block/drbd/drbd_state.c    | 3 +--
+ 3 files changed, 6 insertions(+), 12 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index df25eecf80af..9e060e49b3f8 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -683,7 +683,7 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
- 		}
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 074b884ec225..ad6e40864b37 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1612,8 +1612,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
+ 			drbd_send_sync_param(peer_device);
  	}
  
--	want = ALIGN(words*sizeof(long), PAGE_SIZE) >> PAGE_SHIFT;
-+	want = PFN_UP(words*sizeof(long));
- 	have = b->bm_number_of_pages;
- 	if (want == have) {
- 		D_ASSERT(device, b->bm_pages != NULL);
+-	synchronize_rcu();
+-	kfree(old_disk_conf);
++	kvfree_rcu(old_disk_conf);
+ 	kfree(old_plan);
+ 	mod_timer(&device->request_timer, jiffies + HZ);
+ 	goto success;
+@@ -2444,8 +2443,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
+ 
+ 	mutex_unlock(&connection->resource->conf_update);
+ 	mutex_unlock(&connection->data.mutex);
+-	synchronize_rcu();
+-	kfree(old_net_conf);
++	kvfree_rcu(old_net_conf);
+ 
+ 	if (connection->cstate >= C_WF_REPORT_PARAMS) {
+ 		struct drbd_peer_device *peer_device;
+@@ -2859,8 +2857,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
+ 		new_disk_conf->disk_size = (sector_t)rs.resize_size;
+ 		rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
+ 		mutex_unlock(&device->resource->conf_update);
+-		synchronize_rcu();
+-		kfree(old_disk_conf);
++		kvfree_rcu(old_disk_conf);
+ 		new_disk_conf = NULL;
+ 	}
+ 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 911c26753556..c6c1843452ba 100644
+index 0825766ce910..5e10572a4d3e 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -364,7 +364,7 @@ drbd_alloc_peer_req(struct drbd_peer_device *peer_device, u64 id, sector_t secto
- 	struct drbd_device *device = peer_device->device;
- 	struct drbd_peer_request *peer_req;
- 	struct page *page = NULL;
--	unsigned nr_pages = (payload_size + PAGE_SIZE -1) >> PAGE_SHIFT;
-+	unsigned nr_pages = PFN_UP(payload_size);
+@@ -3751,8 +3751,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
+ 		drbd_info(connection, "peer data-integrity-alg: %s\n",
+ 			  integrity_alg[0] ? integrity_alg : "(none)");
  
- 	if (drbd_insert_fault(device, DRBD_FAULT_AL_EE))
- 		return NULL;
-@@ -1631,7 +1631,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
- 	sector_t sector = peer_req->i.sector;
- 	unsigned data_size = peer_req->i.size;
- 	unsigned n_bios = 0;
--	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
-+	unsigned nr_pages = PFN_UP(data_size);
+-	synchronize_rcu();
+-	kfree(old_net_conf);
++	kvfree_rcu(old_net_conf);
+ 	return 0;
  
- 	/* TRIM/DISCARD: for now, always use the helper function
- 	 * blkdev_issue_zeroout(..., discard=true).
-diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
-index 0f9956f4e9c4..af3051dd8912 100644
---- a/drivers/block/drbd/drbd_worker.c
-+++ b/drivers/block/drbd/drbd_worker.c
-@@ -1030,7 +1030,7 @@ static void move_to_net_ee_or_free(struct drbd_device *device, struct drbd_peer_
- {
- 	if (drbd_peer_req_has_active_page(peer_req)) {
- 		/* This might happen if sendpage() has not finished */
--		int i = (peer_req->i.size + PAGE_SIZE -1) >> PAGE_SHIFT;
-+		int i = PFN_UP(peer_req->i.size);
- 		atomic_add(i, &device->pp_in_use_by_net);
- 		atomic_sub(i, &device->pp_in_use);
- 		spin_lock_irq(&device->resource->req_lock);
+ disconnect_rcu_unlock:
+@@ -4120,8 +4119,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
+ 
+ 			rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
+ 			mutex_unlock(&connection->resource->conf_update);
+-			synchronize_rcu();
+-			kfree(old_disk_conf);
++			kvfree_rcu(old_disk_conf);
+ 
+ 			drbd_info(device, "Peer sets u_size to %lu sectors (old: %lu)\n",
+ 				 (unsigned long)p_usize, (unsigned long)my_usize);
+diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
+index b8a27818ab3f..826e496821c7 100644
+--- a/drivers/block/drbd/drbd_state.c
++++ b/drivers/block/drbd/drbd_state.c
+@@ -2071,8 +2071,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
+ 		conn_free_crypto(connection);
+ 		mutex_unlock(&connection->resource->conf_update);
+ 
+-		synchronize_rcu();
+-		kfree(old_conf);
++		kvfree_rcu(old_conf);
+ 	}
+ 
+ 	if (ns_max.susp_fen) {
 -- 
 2.35.1
 
