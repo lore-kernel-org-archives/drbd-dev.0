@@ -1,12 +1,12 @@
 Return-Path: <BATV+4210fbe0094d03a681f9+6800+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B23414205EF
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 08:05:43 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3811442060F
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 08:05:47 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  6 Apr 2022 08:04:54 +0200
-Message-Id: <20220406060516.409838-6-hch@lst.de>
+Date: Wed,  6 Apr 2022 08:04:55 +0200
+Message-Id: <20220406060516.409838-7-hch@lst.de>
 In-Reply-To: <20220406060516.409838-1-hch@lst.de>
 References: <20220406060516.409838-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,8 +25,7 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 05/27] drbd: use bdev based limit helpers in
-	drbd_send_sizes
+Subject: [Drbd-dev] [PATCH 06/27] drbd: cleanup decide_on_discard_support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,50 +37,116 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the bdev based limits helpers where they exist.
+Sanitize the calling conventions and use a goto label to cleanup the
+code flow.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_main.c | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 68 +++++++++++++++++++-----------------
+ 1 file changed, 35 insertions(+), 33 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 74b1b2424efff..d20d84ee7a88e 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -924,7 +924,9 @@ int drbd_send_sizes(struct drbd_peer_device *peer_device, int trigger_reply, enu
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 02030c9c4d3b1..40bb0b356a6d6 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1204,38 +1204,42 @@ static unsigned int drbd_max_discard_sectors(struct drbd_connection *connection)
+ }
  
- 	memset(p, 0, packet_size);
- 	if (get_ldev_if_state(device, D_NEGOTIATING)) {
--		struct request_queue *q = bdev_get_queue(device->ldev->backing_bdev);
-+		struct block_device *bdev = device->ldev->backing_bdev;
-+		struct request_queue *q = bdev_get_queue(bdev);
+ static void decide_on_discard_support(struct drbd_device *device,
+-			struct request_queue *q,
+-			struct request_queue *b,
+-			bool discard_zeroes_if_aligned)
++		struct drbd_backing_dev *bdev)
+ {
+-	/* q = drbd device queue (device->rq_queue)
+-	 * b = backing device queue (device->ldev->backing_bdev->bd_disk->queue),
+-	 *     or NULL if diskless
+-	 */
+-	struct drbd_connection *connection = first_peer_device(device)->connection;
+-	bool can_do = b ? blk_queue_discard(b) : true;
+-
+-	if (can_do && connection->cstate >= C_CONNECTED && !(connection->agreed_features & DRBD_FF_TRIM)) {
+-		can_do = false;
+-		drbd_info(connection, "peer DRBD too old, does not support TRIM: disabling discards\n");
+-	}
+-	if (can_do) {
+-		/* We don't care for the granularity, really.
+-		 * Stacking limits below should fix it for the local
+-		 * device.  Whether or not it is a suitable granularity
+-		 * on the remote device is not our problem, really. If
+-		 * you care, you need to use devices with similar
+-		 * topology on all peers. */
+-		blk_queue_discard_granularity(q, 512);
+-		q->limits.max_discard_sectors = drbd_max_discard_sectors(connection);
+-		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
+-		q->limits.max_write_zeroes_sectors = drbd_max_discard_sectors(connection);
+-	} else {
+-		blk_queue_flag_clear(QUEUE_FLAG_DISCARD, q);
+-		blk_queue_discard_granularity(q, 0);
+-		q->limits.max_discard_sectors = 0;
+-		q->limits.max_write_zeroes_sectors = 0;
++	struct drbd_connection *connection =
++		first_peer_device(device)->connection;
++	struct request_queue *q = device->rq_queue;
 +
- 		d_size = drbd_get_max_capacity(device->ldev);
++	if (bdev && !blk_queue_discard(bdev->backing_bdev->bd_disk->queue))
++		goto not_supported;
++
++	if (connection->cstate >= C_CONNECTED &&
++	    !(connection->agreed_features & DRBD_FF_TRIM)) {
++		drbd_info(connection,
++			"peer DRBD too old, does not support TRIM: disabling discards\n");
++		goto not_supported;
+ 	}
++
++	/*
++	 * We don't care for the granularity, really.
++	 *
++	 * Stacking limits below should fix it for the local device.  Whether or
++	 * not it is a suitable granularity on the remote device is not our
++	 * problem, really. If you care, you need to use devices with similar
++	 * topology on all peers.
++	 */
++	blk_queue_discard_granularity(q, 512);
++	q->limits.max_discard_sectors = drbd_max_discard_sectors(connection);
++	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
++	q->limits.max_write_zeroes_sectors =
++		drbd_max_discard_sectors(connection);
++	return;
++
++not_supported:
++	blk_queue_flag_clear(QUEUE_FLAG_DISCARD, q);
++	blk_queue_discard_granularity(q, 0);
++	q->limits.max_discard_sectors = 0;
++	q->limits.max_write_zeroes_sectors = 0;
+ }
+ 
+ static void fixup_discard_if_not_supported(struct request_queue *q)
+@@ -1273,7 +1277,6 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
+ 	unsigned int max_segments = 0;
+ 	struct request_queue *b = NULL;
+ 	struct disk_conf *dc;
+-	bool discard_zeroes_if_aligned = true;
+ 
+ 	if (bdev) {
+ 		b = bdev->backing_bdev->bd_disk->queue;
+@@ -1282,7 +1285,6 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
  		rcu_read_lock();
- 		u_size = rcu_dereference(device->ldev->disk_conf)->disk_size;
-@@ -933,16 +935,15 @@ int drbd_send_sizes(struct drbd_peer_device *peer_device, int trigger_reply, enu
- 		max_bio_size = queue_max_hw_sectors(q) << 9;
- 		max_bio_size = min(max_bio_size, DRBD_MAX_BIO_SIZE);
- 		p->qlim->physical_block_size =
--			cpu_to_be32(queue_physical_block_size(q));
-+			cpu_to_be32(bdev_physical_block_size(bdev));
- 		p->qlim->logical_block_size =
--			cpu_to_be32(queue_logical_block_size(q));
-+			cpu_to_be32(bdev_logical_block_size(bdev));
- 		p->qlim->alignment_offset =
- 			cpu_to_be32(queue_alignment_offset(q));
--		p->qlim->io_min = cpu_to_be32(queue_io_min(q));
--		p->qlim->io_opt = cpu_to_be32(queue_io_opt(q));
-+		p->qlim->io_min = cpu_to_be32(bdev_io_min(bdev));
-+		p->qlim->io_opt = cpu_to_be32(bdev_io_opt(bdev));
- 		p->qlim->discard_enabled = blk_queue_discard(q);
--		p->qlim->write_same_capable =
--			!!q->limits.max_write_same_sectors;
-+		p->qlim->write_same_capable = 0;
- 		put_ldev(device);
- 	} else {
- 		struct request_queue *q = device->rq_queue;
+ 		dc = rcu_dereference(device->ldev->disk_conf);
+ 		max_segments = dc->max_bio_bvecs;
+-		discard_zeroes_if_aligned = dc->discard_zeroes_if_aligned;
+ 		rcu_read_unlock();
+ 
+ 		blk_set_stacking_limits(&q->limits);
+@@ -1292,7 +1294,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
+ 	/* This is the workaround for "bio would need to, but cannot, be split" */
+ 	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
+ 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
+-	decide_on_discard_support(device, q, b, discard_zeroes_if_aligned);
++	decide_on_discard_support(device, bdev);
+ 
+ 	if (b) {
+ 		blk_stack_limits(&q->limits, &b->limits, 0);
 -- 
 2.30.2
 
