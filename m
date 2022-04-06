@@ -1,24 +1,25 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
 Received: from mail-ej1-f53.google.com (mail-ej1-f53.google.com
 	[209.85.218.53])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E1A76420FBB
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 11:09:25 +0200 (CEST)
-Received: by mail-ej1-f53.google.com with SMTP id dr20so2892553ejc.6
-	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 02:09:25 -0700 (PDT)
-Message-ID: <d2626d2f-d348-49a1-e36b-a3eb598ac327@linbit.com>
-Date: Wed, 6 Apr 2022 11:09:23 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0C111420FBE
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 11:20:40 +0200 (CEST)
+Received: by mail-ej1-f53.google.com with SMTP id dr20so2948941ejc.6
+	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 02:20:40 -0700 (PDT)
+Message-ID: <012329f8-01db-7b17-0f64-2d63e86afc75@linbit.com>
+Date: Wed, 6 Apr 2022 11:20:38 +0200
 MIME-Version: 1.0
 Content-Language: en-US
 To: Christoph Hellwig <hch@lst.de>
 References: <20220406060516.409838-1-hch@lst.de>
-	<20220406060516.409838-5-hch@lst.de>
+	<20220406060516.409838-6-hch@lst.de>
 From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20220406060516.409838-5-hch@lst.de>
+In-Reply-To: <20220406060516.409838-6-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Cc: linux-block@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 04/27] drbd: remove assign_p_sizes_qlim
+Subject: Re: [Drbd-dev] [PATCH 05/27] drbd: use bdev based limit helpers in
+ drbd_send_sizes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,89 +32,49 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 Am 06.04.22 um 08:04 schrieb Christoph Hellwig:
-> Fold each branch into its only caller.
+> Use the bdev based limits helpers where they exist.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  drivers/block/drbd/drbd_main.c | 50 ++++++++++++++++------------------
->  1 file changed, 23 insertions(+), 27 deletions(-)
+>  drivers/block/drbd/drbd_main.c | 15 ++++++++-------
+>  1 file changed, 8 insertions(+), 7 deletions(-)
 > 
 > diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-> index 9676a1d214bc5..74b1b2424efff 100644
+> index 74b1b2424efff..d20d84ee7a88e 100644
 > --- a/drivers/block/drbd/drbd_main.c
 > +++ b/drivers/block/drbd/drbd_main.c
-> @@ -903,31 +903,6 @@ void drbd_gen_and_send_sync_uuid(struct drbd_peer_device *peer_device)
->  	}
->  }
+> @@ -924,7 +924,9 @@ int drbd_send_sizes(struct drbd_peer_device *peer_device, int trigger_reply, enu
 >  
-> -/* communicated if (agreed_features & DRBD_FF_WSAME) */
-> -static void
-> -assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p,
-> -					struct request_queue *q)
-> -{
-> -	if (q) {
-> -		p->qlim->physical_block_size = cpu_to_be32(queue_physical_block_size(q));
-> -		p->qlim->logical_block_size = cpu_to_be32(queue_logical_block_size(q));
-> -		p->qlim->alignment_offset = cpu_to_be32(queue_alignment_offset(q));
-> -		p->qlim->io_min = cpu_to_be32(queue_io_min(q));
-> -		p->qlim->io_opt = cpu_to_be32(queue_io_opt(q));
-> -		p->qlim->discard_enabled = blk_queue_discard(q);
-> -		p->qlim->write_same_capable = 0;
-> -	} else {
-> -		q = device->rq_queue;
-> -		p->qlim->physical_block_size = cpu_to_be32(queue_physical_block_size(q));
-> -		p->qlim->logical_block_size = cpu_to_be32(queue_logical_block_size(q));
-> -		p->qlim->alignment_offset = 0;
-> -		p->qlim->io_min = cpu_to_be32(queue_io_min(q));
-> -		p->qlim->io_opt = cpu_to_be32(queue_io_opt(q));
-> -		p->qlim->discard_enabled = 0;
-> -		p->qlim->write_same_capable = 0;
-> -	}
-> -}
-> -
->  int drbd_send_sizes(struct drbd_peer_device *peer_device, int trigger_reply, enum dds_flags flags)
->  {
->  	struct drbd_device *device = peer_device->device;
-> @@ -957,14 +932,35 @@ int drbd_send_sizes(struct drbd_peer_device *peer_device, int trigger_reply, enu
->  		q_order_type = drbd_queue_order_type(device);
+>  	memset(p, 0, packet_size);
+>  	if (get_ldev_if_state(device, D_NEGOTIATING)) {
+> -		struct request_queue *q = bdev_get_queue(device->ldev->backing_bdev);
+> +		struct block_device *bdev = device->ldev->backing_bdev;
+> +		struct request_queue *q = bdev_get_queue(bdev);
+> +
+>  		d_size = drbd_get_max_capacity(device->ldev);
+>  		rcu_read_lock();
+>  		u_size = rcu_dereference(device->ldev->disk_conf)->disk_size;
+> @@ -933,16 +935,15 @@ int drbd_send_sizes(struct drbd_peer_device *peer_device, int trigger_reply, enu
 >  		max_bio_size = queue_max_hw_sectors(q) << 9;
 >  		max_bio_size = min(max_bio_size, DRBD_MAX_BIO_SIZE);
-> -		assign_p_sizes_qlim(device, p, q);
-> +		p->qlim->physical_block_size =
-> +			cpu_to_be32(queue_physical_block_size(q));
-> +		p->qlim->logical_block_size =
-> +			cpu_to_be32(queue_logical_block_size(q));
-> +		p->qlim->alignment_offset =
-> +			cpu_to_be32(queue_alignment_offset(q));
-> +		p->qlim->io_min = cpu_to_be32(queue_io_min(q));
-> +		p->qlim->io_opt = cpu_to_be32(queue_io_opt(q));
-> +		p->qlim->discard_enabled = blk_queue_discard(q);
-> +		p->qlim->write_same_capable =
-> +			!!q->limits.max_write_same_sectors;
-
-queue_limits.max_write_same_sectors was removed in 73bd66d9c834, so this
-does not compile. It's removed in the next patch, so the big picture is
-fine, just this one commit is broken.
-
+>  		p->qlim->physical_block_size =
+> -			cpu_to_be32(queue_physical_block_size(q));
+> +			cpu_to_be32(bdev_physical_block_size(bdev));
+>  		p->qlim->logical_block_size =
+> -			cpu_to_be32(queue_logical_block_size(q));
+> +			cpu_to_be32(bdev_logical_block_size(bdev));
+>  		p->qlim->alignment_offset =
+>  			cpu_to_be32(queue_alignment_offset(q));
+> -		p->qlim->io_min = cpu_to_be32(queue_io_min(q));
+> -		p->qlim->io_opt = cpu_to_be32(queue_io_opt(q));
+> +		p->qlim->io_min = cpu_to_be32(bdev_io_min(bdev));
+> +		p->qlim->io_opt = cpu_to_be32(bdev_io_opt(bdev));
+>  		p->qlim->discard_enabled = blk_queue_discard(q);
+> -		p->qlim->write_same_capable =
+> -			!!q->limits.max_write_same_sectors;
+> +		p->qlim->write_same_capable = 0;
 >  		put_ldev(device);
 >  	} else {
-> +		struct request_queue *q = device->rq_queue;
-> +
-> +		p->qlim->physical_block_size =
-> +			cpu_to_be32(queue_physical_block_size(q));
-> +		p->qlim->logical_block_size =
-> +			cpu_to_be32(queue_logical_block_size(q));
-> +		p->qlim->alignment_offset = 0;
-> +		p->qlim->io_min = cpu_to_be32(queue_io_min(q));
-> +		p->qlim->io_opt = cpu_to_be32(queue_io_opt(q));
-> +		p->qlim->discard_enabled = 0;
-> +		p->qlim->write_same_capable = 0;
-> +
->  		d_size = 0;
->  		u_size = 0;
->  		q_order_type = QUEUE_ORDERED_NONE;
->  		max_bio_size = DRBD_MAX_BIO_SIZE; /* ... multiple BIOs per peer_request */
-> -		assign_p_sizes_qlim(device, p, NULL);
->  	}
->  
->  	if (peer_device->connection->agreed_pro_version <= 94)
+>  		struct request_queue *q = device->rq_queue;
+
+Acked-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
