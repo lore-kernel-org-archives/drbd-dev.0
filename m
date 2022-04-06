@@ -1,24 +1,38 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pj1-f47.google.com (mail-pj1-f47.google.com
-	[209.85.216.47])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E3A9C420FD0
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 14:35:43 +0200 (CEST)
-Received: by mail-pj1-f47.google.com with SMTP id
-	ku13-20020a17090b218d00b001ca8fcd3adeso5627291pjb.2
-	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 05:35:43 -0700 (PDT)
-Message-ID: <e2035fff-01e2-0df7-2508-82b741615519@kernel.dk>
-Date: Wed, 6 Apr 2022 06:35:40 -0600
+Return-Path: <konishi.ryusuke@gmail.com>
+Received: from mail-lf1-f47.google.com (mail-lf1-f47.google.com
+	[209.85.167.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2ECC6420FC9
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 19:28:28 +0200 (CEST)
+Received: by mail-lf1-f47.google.com with SMTP id z12so5275138lfu.10
+	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 10:28:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Language: en-US
-To: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-References: <60bf3e8f-9cfb-00d1-5fea-71a72ba93258@linbit.com>
-From: Jens Axboe <axboe@kernel.dk>
-In-Reply-To: <60bf3e8f-9cfb-00d1-5fea-71a72ba93258@linbit.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [GIT PULL] DRBD fixes for Linux 5.18
+References: <20220406060516.409838-1-hch@lst.de>
+	<20220406060516.409838-24-hch@lst.de>
+In-Reply-To: <20220406060516.409838-24-hch@lst.de>
+From: Ryusuke Konishi <konishi.ryusuke@gmail.com>
+Date: Thu, 7 Apr 2022 02:28:15 +0900
+Message-ID: <CAKFNMokGOma3pvHdEsnsjuKgW+jpYX9zx8fWwJWyeKuCpKz-YQ@mail.gmail.com>
+To: Christoph Hellwig <hch@lst.de>
+Content-Type: text/plain; charset="UTF-8"
+Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
+	virtualization@lists.linux-foundation.org, Linux MM <linux-mm@kvack.org>,
+	device-mapper development <dm-devel@redhat.com>,
+	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
+	linux-nilfs <linux-nilfs@vger.kernel.org>,
+	Andreas Gruenbacher <agruenba@redhat.com>,
+	linux-scsi@vger.kernel.org, cluster-devel@redhat.com,
+	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
+	linux-um@lists.infradead.org, nbd@other.debian.org,
+	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
+	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
+	linux-raid@vger.kernel.org, linux-mmc@vger.kernel.org,
+	linux-f2fs-devel@lists.sourceforge.net,
+	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
+	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
+	linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [PATCH 23/27] block: add a bdev_max_discard_sectors
+	helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,47 +44,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 4/6/22 2:06 AM, Christoph B?hmwalder wrote:
-> Hi Jens,
-> 
-> this is the first batch of DRBD updates, catching up from the last few
-> years. These fixes are a bit more substantial, so it would be great if
-> they could still go into 5.18.
+On Wed, Apr 6, 2022 at 11:05 PM Christoph Hellwig <hch@lst.de> wrote:
+>
+> Add a helper to query the number of sectors support per each discard bio
+> based on the block device and use this helper to stop various places from
+> poking into the request_queue to see if discard is supported and if so how
+> much.  This mirrors what is done e.g. for write zeroes as well.
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+...
+> diff --git a/drivers/target/target_core_device.c b/drivers/target/target_core_device.c
+> index 16e775bcf4a7c..7d510e4231713 100644
+> --- a/drivers/target/target_core_device.c
+> +++ b/drivers/target/target_core_device.c
+> @@ -829,9 +829,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
+>  }
+>
+>  /*
+> - * Check if the underlying struct block_device request_queue supports
+> - * the QUEUE_FLAG_DISCARD bit for UNMAP/WRITE_SAME in SCSI + TRIM
+> - * in ATA and we need to set TPE=1
 
-Thanks for sending these, but you based the repo on my 5.19 branch,
-which won't work as pulling your tree will then result in me getting
-your 5.18 changes with my 5.19 as well.
+> + * Check if the underlying struct block_device request_queue supports disard.
+>   */
 
-As it happens, this is also a problem for your 5.19 based changes. My
-for-next branch is not stable, just like linux-next isn't stable. In
-terms of shas, not how it runs...
+Here was a typo:
 
-In general, for the block tree, here's what you want to base the changes
-on, using 5.18/5.19 as examples as current/next tree.
+ s/disard/discard/
 
-- If they are bound for 5.18, base them on block-5.18. That branch may
-  not exist if nothing is queued up yet, in which case just base them on
-  the last -rc1 tag for that series. That'd be 5.18-rc1 in this case.
+On Thu, Apr 7, 2022 at 12:19 AM Andreas Gruenbacher <agruenba@redhat.com> wrote:
+> If I'm misreading things, could you please document that
+> bdev_max_discard_sectors() != 0 implies that discard is supported?
 
-- If they are bound for 5.19, usually I will have a 5.19 driver and core
-  block branch. Base them against for-5.19/drivers. If it doesn't exist,
-  previous -rc is a good choice again.
+I got the same impression.   Checking the discard support with
+bdev_max_discard_sectors() != 0 seems a bit unclear than before.
 
-Usually post -rc2 all of the above branches will exist, during merge
-window and right after things are a bit more influx and haven't really
-settled down yet.
-
-Now, there's also the fact that you're using a non kernel.org git tree.
-That's fine, but ideally we'd like you to use signed tags in that case.
-But not sure your key has been signed by anyone in the korg ring of
-trust? Since I've already seen these patches this isn't a huge concern
-for now, but something to get sorted out going forward.
-
-Can you rebase your two pull requests and send them in again? Either
-that, or just git send-email the two series, that'll work too. I'm fine
-applying series from maintainers like that, it doesn't have to be a git
-pull request.
-
--- 
-Jens Axboe
-
+Thanks,
+Ryusuke Konishi
