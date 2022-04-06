@@ -1,26 +1,24 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f44.google.com (mail-ed1-f44.google.com
-	[209.85.208.44])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7971D420FE1
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 21:07:39 +0200 (CEST)
-Received: by mail-ed1-f44.google.com with SMTP id g20so3798319edw.6
-	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 12:07:39 -0700 (PDT)
+Received: from mail-ed1-f51.google.com (mail-ed1-f51.google.com
+	[209.85.208.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1E620420FE2
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 21:07:36 +0200 (CEST)
+Received: by mail-ed1-f51.google.com with SMTP id p23so3775856edi.8
+	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 12:07:36 -0700 (PDT)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  6 Apr 2022 21:07:15 +0200
-Message-Id: <20220406190715.1938174-8-christoph.boehmwalder@linbit.com>
+Date: Wed,  6 Apr 2022 21:07:13 +0200
+Message-Id: <20220406190715.1938174-6-christoph.boehmwalder@linbit.com>
 In-Reply-To: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
 References: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Haowen Bai <baihaowen@meizu.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Cai Huoqing <caihuoqing@baidu.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 7/7] drbd: Return true/false (not 1/0) from bool
-	functions
+Subject: [Drbd-dev] [PATCH 5/7] drbd: Replace "unsigned" with "unsigned int"
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,33 +30,44 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Haowen Bai <baihaowen@meizu.com>
+From: Cai Huoqing <caihuoqing@baidu.com>
 
-Return boolean values ("true" or "false") instead of 1 or 0 from bool
-functions.  This fixes the following warnings from coccicheck:
+when run checkpath.pl for the first patch, found that
+WARNING: Prefer 'unsigned int' to bare use of 'unsigned'.
+so fix it. BTW
 
-./drivers/block/drbd/drbd_req.c:912:9-10: WARNING: return of 0/1 in
-function 'remote_due_to_read_balancing' with return type bool
-
-Signed-off-by: Haowen Bai <baihaowen@meizu.com>
-Reviewed-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+Signed-off-by: Cai Huoqing <caihuoqing@baidu.com>
+Acked-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/drbd_req.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/block/drbd/drbd_receiver.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 75be0e16770a..e64bcfba30ef 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -922,7 +922,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index c6c1843452ba..0825766ce910 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -364,7 +364,7 @@ drbd_alloc_peer_req(struct drbd_peer_device *peer_device, u64 id, sector_t secto
+ 	struct drbd_device *device = peer_device->device;
+ 	struct drbd_peer_request *peer_req;
+ 	struct page *page = NULL;
+-	unsigned nr_pages = PFN_UP(payload_size);
++	unsigned int nr_pages = PFN_UP(payload_size);
  
- 	switch (rbm) {
- 	case RB_CONGESTED_REMOTE:
--		return 0;
-+		return false;
- 	case RB_LEAST_PENDING:
- 		return atomic_read(&device->local_cnt) >
- 			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
+ 	if (drbd_insert_fault(device, DRBD_FAULT_AL_EE))
+ 		return NULL;
+@@ -1629,9 +1629,9 @@ int drbd_submit_peer_request(struct drbd_device *device,
+ 	struct bio *bio;
+ 	struct page *page = peer_req->pages;
+ 	sector_t sector = peer_req->i.sector;
+-	unsigned data_size = peer_req->i.size;
+-	unsigned n_bios = 0;
+-	unsigned nr_pages = PFN_UP(data_size);
++	unsigned int data_size = peer_req->i.size;
++	unsigned int n_bios = 0;
++	unsigned int nr_pages = PFN_UP(data_size);
+ 
+ 	/* TRIM/DISCARD: for now, always use the helper function
+ 	 * blkdev_issue_zeroout(..., discard=true).
 -- 
 2.35.1
 
