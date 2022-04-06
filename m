@@ -1,24 +1,23 @@
 Return-Path: <axboe@kernel.dk>
-Received: from mail-io1-f44.google.com (mail-io1-f44.google.com
-	[209.85.166.44])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 15C18420FDD
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 21:08:53 +0200 (CEST)
-Received: by mail-io1-f44.google.com with SMTP id p21so4169846ioj.4
-	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 12:08:53 -0700 (PDT)
-Message-ID: <9b6492fd-8367-a9f7-b2c4-1d8853cb7a77@kernel.dk>
-Date: Wed, 6 Apr 2022 13:08:51 -0600
-MIME-Version: 1.0
-Content-Language: en-US
-To: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-References: <20220406190445.1937206-1-christoph.boehmwalder@linbit.com>
+Received: from mail-pg1-f181.google.com (mail-pg1-f181.google.com
+	[209.85.215.181])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 49EE6420FE2
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 00:37:58 +0200 (CEST)
+Received: by mail-pg1-f181.google.com with SMTP id 32so1262636pgl.4
+	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 15:37:58 -0700 (PDT)
 From: Jens Axboe <axboe@kernel.dk>
-In-Reply-To: <20220406190445.1937206-1-christoph.boehmwalder@linbit.com>
-Content-Type: text/plain; charset=UTF-8
+To: christoph.boehmwalder@linbit.com
+In-Reply-To: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
+References: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
+Message-Id: <164928467657.11110.6351742208734304925.b4-ty@kernel.dk>
+Date: Wed, 06 Apr 2022 16:37:56 -0600
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 0/3] DRBD fixes for Linux 5.18
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	lars.ellenberg@linbit.com, philipp.reisner@linbit.com,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 0/7] DRBD updates for 5.19
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,28 +29,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 4/6/22 1:04 PM, Christoph Böhmwalder wrote:
-> Assortment of more relevant fixes for DRBD to go into 5.18.
+On Wed, 6 Apr 2022 21:07:08 +0200, Christoph Böhmwalder wrote:
+> Mostly cosmetic changes, bound for 5.19.
 > 
-> Christoph Böhmwalder (1):
->   drbd: set QUEUE_FLAG_STABLE_WRITES
+> Arnd Bergmann (2):
+>   drbd: fix duplicate array initializer
+>   drbd: address enum mismatch warnings
 > 
-> Lv Yunlong (1):
->   drbd: Fix five use after free bugs in get_initial_state
+> Cai Huoqing (2):
+>   drbd: Make use of PFN_UP helper macro
+>   drbd: Replace "unsigned" with "unsigned int"
 > 
-> Xiaomeng Tong (1):
->   drbd: fix an invalid memory access caused by incorrect use of list
->     iterator
-> 
->  drivers/block/drbd/drbd_int.h          |  8 ++---
->  drivers/block/drbd/drbd_main.c         |  7 ++---
->  drivers/block/drbd/drbd_nl.c           | 41 ++++++++++++++++----------
->  drivers/block/drbd/drbd_state.c        | 18 +++++------
->  drivers/block/drbd/drbd_state_change.h |  8 ++---
->  5 files changed, 45 insertions(+), 37 deletions(-)
+> [...]
 
-Applied, thanks.
+Applied, thanks!
 
+[1/7] drbd: fix duplicate array initializer
+      commit: adff355a6d6602d6be7be4c98e39d1d957a7e53f
+[2/7] drbd: address enum mismatch warnings
+      commit: a9cb5060fabb46187c8b00ac740bc30f045baa8e
+[3/7] block: drbd: drbd_receiver: Remove redundant assignment to err
+      commit: c8057a1ec541f972d0ca2ab14a77bd0f6a1919e3
+[4/7] drbd: Make use of PFN_UP helper macro
+      commit: 25dddd7771061c0d7176d396117244e19ce30858
+[5/7] drbd: Replace "unsigned" with "unsigned int"
+      commit: ad94e90806ac935c91dc6f048cec6c6ec4069cec
+[6/7] drdb: Switch to kvfree_rcu() API
+      commit: 40dad92d68aab52919d98524eb8aa87ed23596c8
+[7/7] drbd: Return true/false (not 1/0) from bool functions
+      commit: c0bf7a4c2313c46f2ba14b78a622a7e32bbbb2ac
+
+Best regards,
 -- 
 Jens Axboe
+
 
