@@ -1,25 +1,26 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f52.google.com (mail-ed1-f52.google.com
-	[209.85.208.52])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 61D524205EF
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 21:07:38 +0200 (CEST)
-Received: by mail-ed1-f52.google.com with SMTP id d7so3765585edn.11
-	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 12:07:38 -0700 (PDT)
+Received: from mail-ed1-f44.google.com (mail-ed1-f44.google.com
+	[209.85.208.44])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7971D420FE1
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 21:07:39 +0200 (CEST)
+Received: by mail-ed1-f44.google.com with SMTP id g20so3798319edw.6
+	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 12:07:39 -0700 (PDT)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  6 Apr 2022 21:07:14 +0200
-Message-Id: <20220406190715.1938174-7-christoph.boehmwalder@linbit.com>
+Date: Wed,  6 Apr 2022 21:07:15 +0200
+Message-Id: <20220406190715.1938174-8-christoph.boehmwalder@linbit.com>
 In-Reply-To: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
 References: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org,
-	"Uladzislau Rezki \(Sony\)" <urezki@gmail.com>,
+Cc: Haowen Bai <baihaowen@meizu.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 6/7] drdb: Switch to kvfree_rcu() API
+Subject: [Drbd-dev] [PATCH 7/7] drbd: Return true/false (not 1/0) from bool
+	functions
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,97 +32,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+From: Haowen Bai <baihaowen@meizu.com>
 
-Instead of invoking a synchronize_rcu() to free a pointer
-after a grace period we can directly make use of new API
-that does the same but in more efficient way.
+Return boolean values ("true" or "false") instead of 1 or 0 from bool
+functions.  This fixes the following warnings from coccicheck:
 
-TO: Jens Axboe <axboe@kernel.dk>
-TO: Philipp Reisner <philipp.reisner@linbit.com>
-TO: Jason Gunthorpe <jgg@nvidia.com>
-TO: drbd-dev@lists.linbit.com
-TO: linux-block@vger.kernel.org
-Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+./drivers/block/drbd/drbd_req.c:912:9-10: WARNING: return of 0/1 in
+function 'remote_due_to_read_balancing' with return type bool
+
+Signed-off-by: Haowen Bai <baihaowen@meizu.com>
 Reviewed-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c       | 9 +++------
- drivers/block/drbd/drbd_receiver.c | 6 ++----
- drivers/block/drbd/drbd_state.c    | 3 +--
- 3 files changed, 6 insertions(+), 12 deletions(-)
+ drivers/block/drbd/drbd_req.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 074b884ec225..ad6e40864b37 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1612,8 +1612,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 			drbd_send_sync_param(peer_device);
- 	}
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index 75be0e16770a..e64bcfba30ef 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -922,7 +922,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
  
--	synchronize_rcu();
--	kfree(old_disk_conf);
-+	kvfree_rcu(old_disk_conf);
- 	kfree(old_plan);
- 	mod_timer(&device->request_timer, jiffies + HZ);
- 	goto success;
-@@ -2444,8 +2443,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 
- 	mutex_unlock(&connection->resource->conf_update);
- 	mutex_unlock(&connection->data.mutex);
--	synchronize_rcu();
--	kfree(old_net_conf);
-+	kvfree_rcu(old_net_conf);
- 
- 	if (connection->cstate >= C_WF_REPORT_PARAMS) {
- 		struct drbd_peer_device *peer_device;
-@@ -2859,8 +2857,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
- 		new_disk_conf->disk_size = (sector_t)rs.resize_size;
- 		rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
- 		mutex_unlock(&device->resource->conf_update);
--		synchronize_rcu();
--		kfree(old_disk_conf);
-+		kvfree_rcu(old_disk_conf);
- 		new_disk_conf = NULL;
- 	}
- 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 0825766ce910..5e10572a4d3e 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3751,8 +3751,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
- 		drbd_info(connection, "peer data-integrity-alg: %s\n",
- 			  integrity_alg[0] ? integrity_alg : "(none)");
- 
--	synchronize_rcu();
--	kfree(old_net_conf);
-+	kvfree_rcu(old_net_conf);
- 	return 0;
- 
- disconnect_rcu_unlock:
-@@ -4120,8 +4119,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info
- 
- 			rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
- 			mutex_unlock(&connection->resource->conf_update);
--			synchronize_rcu();
--			kfree(old_disk_conf);
-+			kvfree_rcu(old_disk_conf);
- 
- 			drbd_info(device, "Peer sets u_size to %lu sectors (old: %lu)\n",
- 				 (unsigned long)p_usize, (unsigned long)my_usize);
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index b8a27818ab3f..826e496821c7 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -2071,8 +2071,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
- 		conn_free_crypto(connection);
- 		mutex_unlock(&connection->resource->conf_update);
- 
--		synchronize_rcu();
--		kfree(old_conf);
-+		kvfree_rcu(old_conf);
- 	}
- 
- 	if (ns_max.susp_fen) {
+ 	switch (rbm) {
+ 	case RB_CONGESTED_REMOTE:
+-		return 0;
++		return false;
+ 	case RB_LEAST_PENDING:
+ 		return atomic_read(&device->local_cnt) >
+ 			atomic_read(&device->ap_pending_cnt) + atomic_read(&device->rs_pending_cnt);
 -- 
 2.35.1
 
