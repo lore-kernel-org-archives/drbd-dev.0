@@ -1,32 +1,21 @@
-Return-Path: <BATV+4210fbe0094d03a681f9+6800+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BDA2E420FC6
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 08:42:30 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  6 Apr 2022 08:05:07 +0200
-Message-Id: <20220406060516.409838-19-hch@lst.de>
-In-Reply-To: <20220406060516.409838-1-hch@lst.de>
-References: <20220406060516.409838-1-hch@lst.de>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-ej1-f43.google.com (mail-ej1-f43.google.com
+	[209.85.218.43])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2093F420FB2
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Apr 2022 10:06:58 +0200 (CEST)
+Received: by mail-ej1-f43.google.com with SMTP id qh7so2526759ejb.11
+	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 01:06:58 -0700 (PDT)
+Message-ID: <60bf3e8f-9cfb-00d1-5fea-71a72ba93258@linbit.com>
+Date: Wed, 6 Apr 2022 10:06:56 +0200
 MIME-Version: 1.0
+Content-Language: en-US
+To: Jens Axboe <axboe@kernel.dk>
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
-	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
-	dm-devel@redhat.com, target-devel@vger.kernel.org,
-	linux-mtd@lists.infradead.org, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org, cluster-devel@redhat.com,
-	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
-	linux-um@lists.infradead.org, nbd@other.debian.org,
-	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
-	ceph-devel@vger.kernel.org, linux-raid@vger.kernel.org,
-	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
-	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
-	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
-	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 18/27] block: move bdev_alignment_offset and
-	queue_limit_alignment_offset out of line
+Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [GIT PULL] DRBD fixes for Linux 5.18
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,84 +27,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-No need to inline these fairly larger helpers.
+Hi Jens,
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- block/blk-settings.c   | 23 +++++++++++++++++++++++
- include/linux/blkdev.h | 21 +--------------------
- 2 files changed, 24 insertions(+), 20 deletions(-)
+this is the first batch of DRBD updates, catching up from the last few years.
+These fixes are a bit more substantial, so it would be great if they could still
+go into 5.18.
 
-diff --git a/block/blk-settings.c b/block/blk-settings.c
-index b83df3d2eebca..94410a13c0dee 100644
---- a/block/blk-settings.c
-+++ b/block/blk-settings.c
-@@ -468,6 +468,16 @@ void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
- }
- EXPORT_SYMBOL(blk_queue_io_opt);
- 
-+static int queue_limit_alignment_offset(struct queue_limits *lim,
-+		sector_t sector)
-+{
-+	unsigned int granularity = max(lim->physical_block_size, lim->io_min);
-+	unsigned int alignment = sector_div(sector, granularity >> SECTOR_SHIFT)
-+		<< SECTOR_SHIFT;
-+
-+	return (granularity + lim->alignment_offset - alignment) % granularity;
-+}
-+
- static unsigned int blk_round_down_sectors(unsigned int sectors, unsigned int lbs)
- {
- 	sectors = round_down(sectors, lbs >> SECTOR_SHIFT);
-@@ -901,3 +911,16 @@ void blk_queue_set_zoned(struct gendisk *disk, enum blk_zoned_model model)
- 	}
- }
- EXPORT_SYMBOL_GPL(blk_queue_set_zoned);
-+
-+int bdev_alignment_offset(struct block_device *bdev)
-+{
-+	struct request_queue *q = bdev_get_queue(bdev);
-+
-+	if (q->limits.misaligned)
-+		return -1;
-+	if (bdev_is_partition(bdev))
-+		return queue_limit_alignment_offset(&q->limits,
-+				bdev->bd_start_sect);
-+	return q->limits.alignment_offset;
-+}
-+EXPORT_SYMBOL_GPL(bdev_alignment_offset);
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index d5346e72e3645..0a1795ac26275 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1251,26 +1251,7 @@ bdev_zone_write_granularity(struct block_device *bdev)
- 	return queue_zone_write_granularity(bdev_get_queue(bdev));
- }
- 
--static inline int queue_limit_alignment_offset(struct queue_limits *lim, sector_t sector)
--{
--	unsigned int granularity = max(lim->physical_block_size, lim->io_min);
--	unsigned int alignment = sector_div(sector, granularity >> SECTOR_SHIFT)
--		<< SECTOR_SHIFT;
--
--	return (granularity + lim->alignment_offset - alignment) % granularity;
--}
--
--static inline int bdev_alignment_offset(struct block_device *bdev)
--{
--	struct request_queue *q = bdev_get_queue(bdev);
--
--	if (q->limits.misaligned)
--		return -1;
--	if (bdev_is_partition(bdev))
--		return queue_limit_alignment_offset(&q->limits,
--				bdev->bd_start_sect);
--	return q->limits.alignment_offset;
--}
-+int bdev_alignment_offset(struct block_device *bdev);
- 
- static inline int queue_discard_alignment(const struct request_queue *q)
- {
--- 
-2.30.2
+Please pull.
 
+
+The following changes since commit ff0f3f83175274daf2eb4fd4db6430ab71c66e80:
+
+  Merge branch 'for-5.19/io_uring-xattr' into for-next (2022-04-04 17:59:51 -0600)
+
+are available in the Git repository at:
+
+  https://github.com/LINBIT/linux-drbd.git tags/drbd-fixes-5.18-2022-04-06
+
+for you to fetch changes up to 0ab5e2117763190f684fdedb6f171abd4b939f1b:
+
+  drbd: set QUEUE_FLAG_STABLE_WRITES (2022-04-06 09:16:13 +0200)
+
+----------------------------------------------------------------
+DRBD fixes for Linux 5.18
+
+- enable stable writes for DRBD (Christoph Böhmwalder)
+- fix a potential invalid memory access (Xiaomeng Tong)
+- fix a use-after-free bug (Lv Yunlong)
+
+----------------------------------------------------------------
+Christoph Böhmwalder (1):
+      drbd: set QUEUE_FLAG_STABLE_WRITES
+
+Lv Yunlong (1):
+      drbd: Fix five use after free bugs in get_initial_state
+
+Xiaomeng Tong (1):
+      drbd: fix an invalid memory access caused by incorrect use of list iterator
+
+ drivers/block/drbd/drbd_int.h          |  8 ++++----
+ drivers/block/drbd/drbd_main.c         |  7 +++----
+ drivers/block/drbd/drbd_nl.c           | 41 +++++++++++++++++++++++++----------------
+ drivers/block/drbd/drbd_state.c        | 18 +++++++++---------
+ drivers/block/drbd/drbd_state_change.h |  8 ++++----
+ 5 files changed, 45 insertions(+), 37 deletions(-)
