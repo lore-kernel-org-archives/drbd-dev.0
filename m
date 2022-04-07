@@ -1,16 +1,16 @@
 Return-Path: <martin.petersen@oracle.com>
-Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
-	[205.220.177.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 551DF42088A
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 05:18:31 +0200 (CEST)
+Received: from mx0a-00069f02.pphosted.com (mx0a-00069f02.pphosted.com
+	[205.220.165.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 40D56420FEF
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 05:29:20 +0200 (CEST)
 To: Christoph Hellwig via Ocfs2-devel <ocfs2-devel@oss.oracle.com>
 From: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-ID: <yq1mtgxintf.fsf@ca-mkp.ca.oracle.com>
+Message-ID: <yq1ee29h8qx.fsf@ca-mkp.ca.oracle.com>
 References: <20220406060516.409838-1-hch@lst.de>
-	<20220406060516.409838-14-hch@lst.de>
-Date: Wed, 06 Apr 2022 23:18:21 -0400
-In-Reply-To: <20220406060516.409838-14-hch@lst.de> (Christoph Hellwig via
-	Ocfs2-devel's message of "Wed, 6 Apr 2022 08:05:02 +0200")
+	<20220406060516.409838-23-hch@lst.de>
+Date: Wed, 06 Apr 2022 23:29:08 -0400
+In-Reply-To: <20220406060516.409838-23-hch@lst.de> (Christoph Hellwig via
+	Ocfs2-devel's message of "Wed, 6 Apr 2022 08:05:11 +0200")
 Content-Type: text/plain
 MIME-Version: 1.0
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
@@ -27,8 +27,8 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	ntfs3@lists.linux.dev, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [Ocfs2-devel] [PATCH 13/27] block: add a
-	bdev_stable_writes helper
+Subject: Re: [Drbd-dev] [Ocfs2-devel] [PATCH 22/27] block: refactor discard
+	bio size	limiting
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,8 +43,10 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Christoph,
 
-> Add a helper to check the stable writes flag based on the block_device
-> instead of having to poke into the block layer internal request_queue.
+> Move all the logic to limit the discard bio size into a common helper
+> so that it is better documented.
+
+Looks OK.
 
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 
