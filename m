@@ -1,23 +1,22 @@
 Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ed1-f50.google.com (mail-ed1-f50.google.com
-	[209.85.208.50])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 37B41421019
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 12:02:28 +0200 (CEST)
-Received: by mail-ed1-f50.google.com with SMTP id g20so5782155edw.6
-	for <drbd-dev@lists.linbit.com>; Thu, 07 Apr 2022 03:02:28 -0700 (PDT)
+Received: from mail-ed1-f53.google.com (mail-ed1-f53.google.com
+	[209.85.208.53])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8AF1642011D
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 12:48:23 +0200 (CEST)
+Received: by mail-ed1-f53.google.com with SMTP id x20so5883518edi.12
+	for <drbd-dev@lists.linbit.com>; Thu, 07 Apr 2022 03:48:23 -0700 (PDT)
 MIME-Version: 1.0
-References: <20220223084442.3312409-1-rui.xu@easystack.cn>
-	<AJ*A6wDEId6nn-rl7MpNZapM.3.1648177318891.Hmail.rui.xu@easystack.cn>
-In-Reply-To: <AJ*A6wDEId6nn-rl7MpNZapM.3.1648177318891.Hmail.rui.xu@easystack.cn>
+References: <20220303071009.1070360-1-rui.xu@easystack.cn>
+In-Reply-To: <20220303071009.1070360-1-rui.xu@easystack.cn>
 From: Joel Colledge <joel.colledge@linbit.com>
-Date: Thu, 7 Apr 2022 12:02:17 +0200
-Message-ID: <CAGNP_+UpeqaLU6bLVBOqORB+k0E=joO9nnTW5JFpmHBZ_pNTgw@mail.gmail.com>
-To: Xu Rui <rui.xu@easystack.cn>
+Date: Thu, 7 Apr 2022 12:48:12 +0200
+Message-ID: <CAGNP_+VZLZhCuMymZO+qwSDZmFjYgyJHLfsPLwGZaGE+E5cD_Q@mail.gmail.com>
+To: Rui Xu <rui.xu@easystack.cn>
 Content-Type: text/plain; charset="UTF-8"
 Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: fix a bug of do_change_disk_state when
-	attach
+Subject: Re: [Drbd-dev] [PATCH] drbd: create new uuid even we dont have
+	quorum
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,14 +30,16 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hi,
 
-The patch looks plausible but the commit message is hard to
-understand. Please split the 8 line sentence into multiple sentences.
-Also explain at the start which versions need to be mixed to trigger
-this bug.
+When quorum is configured, we expect not to have split-brain
+situations. Hence it is important that we do not generate new UUIDs
+until they are definitely necessary. When we do not have quorum, no
+writes should complete, so we do not need to generate a new UUID. We
+may need to generate one before we regain quorum instead.
 
-Regarding versions - it looks like you have a 3 node cluster where one
-node is running DRBD 8. This is not recommended. What is your
-use-case?
+That said, there have been various bugs in the implementation. Try to
+reproduce your issue with the latest drbd-9.1. If it can still be
+reproduced, then describe the exact reproduction steps and we can
+discuss the appropriate fix.
 
 Best regards,
 Joel
