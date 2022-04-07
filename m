@@ -1,17 +1,17 @@
 Return-Path: <dsterba@suse.cz>
 Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8DB7E42100C
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 90B39421022
 	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 17:34:06 +0200 (CEST)
-Date: Thu, 7 Apr 2022 17:20:49 +0200
+Date: Thu, 7 Apr 2022 17:21:32 +0200
 From: David Sterba <dsterba@suse.cz>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20220407152049.GH15609@twin.jikos.cz>
+Message-ID: <20220407152132.GI15609@twin.jikos.cz>
 References: <20220406060516.409838-1-hch@lst.de>
-	<20220406060516.409838-8-hch@lst.de>
+	<20220406060516.409838-11-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20220406060516.409838-8-hch@lst.de>
+In-Reply-To: <20220406060516.409838-11-hch@lst.de>
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
@@ -27,8 +27,7 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 07/27] btrfs: use bdev_max_active_zones
- instead of open coding it
+Subject: Re: [Drbd-dev] [PATCH 10/27] block: add a bdev_nonrot helper
 Reply-To: dsterba@suse.cz
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -41,9 +40,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Apr 06, 2022 at 08:04:56AM +0200, Christoph Hellwig wrote:
+On Wed, Apr 06, 2022 at 08:04:59AM +0200, Christoph Hellwig wrote:
+> Add a helper to check the nonrot flag based on the block_device instead
+> of having to poke into the block layer internal request_queue.
+> 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  block/ioctl.c                       | 2 +-
+>  drivers/block/loop.c                | 2 +-
+>  drivers/md/dm-table.c               | 4 +---
+>  drivers/md/md.c                     | 3 +--
+>  drivers/md/raid1.c                  | 2 +-
+>  drivers/md/raid10.c                 | 2 +-
+>  drivers/md/raid5.c                  | 2 +-
+>  drivers/target/target_core_file.c   | 3 +--
+>  drivers/target/target_core_iblock.c | 2 +-
 
-As it's a standalone patch I can take it (possibly with other similar
-prep btrfs patches) in current development cycle to relieve the
-inter-tree dependencies.
+For
+
+>  fs/btrfs/volumes.c                  | 4 ++--
+
+Acked-by: David Sterba <dsterba@suse.com>
