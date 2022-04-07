@@ -1,22 +1,24 @@
-Return-Path: <sashal@kernel.org>
-Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2B4F242088A
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 03:22:38 +0200 (CEST)
-From: Sasha Levin <sashal@kernel.org>
-To: linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org
-Date: Wed,  6 Apr 2022 21:15:17 -0400
-Message-Id: <20220407011521.115014-13-sashal@kernel.org>
-In-Reply-To: <20220407011521.115014-1-sashal@kernel.org>
-References: <20220407011521.115014-1-sashal@kernel.org>
+Return-Path: <BATV+5644fb066b1a2f5da0f7+6801+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 404CD421014
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 08:15:18 +0200 (CEST)
+Date: Wed, 6 Apr 2022 23:15:15 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Christoph =?iso-8859-1?Q?B=F6hmwalder?= <christoph.boehmwalder@linbit.com>
+Message-ID: <Yk6Bc7lvjCsmlkoq@infradead.org>
+References: <20220406190445.1937206-1-christoph.boehmwalder@linbit.com>
+	<20220406190445.1937206-4-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, Sasha Levin <sashal@kernel.org>,
-	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
-	Jakob Koschel <jakobkoschel@gmail.com>,
-	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH AUTOSEL 5.4 13/17] drbd: remove usage of list
-	iterator variable after loop
+In-Reply-To: <20220406190445.1937206-4-christoph.boehmwalder@linbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Christoph =?iso-8859-1?Q?B=F6hmwalder?= <christoph@boehmwalder.at>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 3/3] drbd: set QUEUE_FLAG_STABLE_WRITES
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,55 +30,10 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Jakob Koschel <jakobkoschel@gmail.com>
+On Wed, Apr 06, 2022 at 09:04:45PM +0200, Christoph Böhmwalder wrote:
+> From: Christoph Böhmwalder <christoph@boehmwalder.at>
+> 
+> We want our pages not to change while they are being written.
 
-[ Upstream commit 901aeda62efa21f2eae937bccb71b49ae531be06 ]
-
-In preparation to limit the scope of a list iterator to the list
-traversal loop, use a dedicated pointer to iterate through the list [1].
-
-Since that variable should not be used past the loop iteration, a
-separate variable is used to 'remember the current location within the
-loop'.
-
-To either continue iterating from that position or skip the iteration
-(if the previous iteration was complete) list_prepare_entry() is used.
-
-Link: https://lore.kernel.org/all/CAHk-=wgRr_D8CB-D9Kg-c=EHreAsk5SqXPwr9Y7k9sA6cWXJ6w@mail.gmail.com/ [1]
-Signed-off-by: Jakob Koschel <jakobkoschel@gmail.com>
-Link: https://lore.kernel.org/r/20220331220349.885126-1-jakobkoschel@gmail.com
-Signed-off-by: Jens Axboe <axboe@kernel.dk>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- drivers/block/drbd/drbd_main.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index a18155cdce41..ba10fa24fa1f 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -183,7 +183,7 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
- 		unsigned int set_size)
- {
- 	struct drbd_request *r;
--	struct drbd_request *req = NULL;
-+	struct drbd_request *req = NULL, *tmp = NULL;
- 	int expect_epoch = 0;
- 	int expect_size = 0;
- 
-@@ -237,8 +237,11 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
- 	 * to catch requests being barrier-acked "unexpectedly".
- 	 * It usually should find the same req again, or some READ preceding it. */
- 	list_for_each_entry(req, &connection->transfer_log, tl_requests)
--		if (req->epoch == expect_epoch)
-+		if (req->epoch == expect_epoch) {
-+			tmp = req;
- 			break;
-+		}
-+	req = list_prepare_entry(tmp, &connection->transfer_log, tl_requests);
- 	list_for_each_entry_safe_from(req, r, &connection->transfer_log, tl_requests) {
- 		if (req->epoch != expect_epoch)
- 			break;
--- 
-2.35.1
-
+Please document the _why_.  A commit like that will leave everyone
+looking at this code in the future rather puzzled.
