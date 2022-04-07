@@ -1,16 +1,16 @@
 Return-Path: <martin.petersen@oracle.com>
 Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
 	[205.220.177.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9BA74420FF6
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 05:56:02 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4E7A8420FFA
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 06:00:16 +0200 (CEST)
 To: Christoph Hellwig via Ocfs2-devel <ocfs2-devel@oss.oracle.com>
 From: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-ID: <yq1bkxdinq1.fsf@ca-mkp.ca.oracle.com>
+Message-ID: <yq1r169fttr.fsf@ca-mkp.ca.oracle.com>
 References: <20220406060516.409838-1-hch@lst.de>
-	<20220406060516.409838-18-hch@lst.de>
-Date: Wed, 06 Apr 2022 23:20:22 -0400
-In-Reply-To: <20220406060516.409838-18-hch@lst.de> (Christoph Hellwig via
-	Ocfs2-devel's message of "Wed, 6 Apr 2022 08:05:06 +0200")
+	<20220406060516.409838-27-hch@lst.de>
+Date: Wed, 06 Apr 2022 23:36:52 -0400
+In-Reply-To: <20220406060516.409838-27-hch@lst.de> (Christoph Hellwig via
+	Ocfs2-devel's message of "Wed, 6 Apr 2022 08:05:15 +0200")
 Content-Type: text/plain
 MIME-Version: 1.0
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
@@ -27,8 +27,8 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	ntfs3@lists.linux.dev, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [Ocfs2-devel] [PATCH 17/27] block: use
- bdev_alignment_offset in disk_alignment_offset_show
+Subject: Re: [Drbd-dev] [Ocfs2-devel] [PATCH 26/27] block: uncouple
+	REQ_OP_SECURE_ERASE	from REQ_OP_DISCARD
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,10 +43,11 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Christoph,
 
-> This does the same as the open coded variant except for an extra
-> branch, and allows to remove queue_alignment_offset entirely.
+> Secure erase is a very different operation from discard in that it is
+> a data integrity operation vs hint.  Fully split the limits and helper
+> infrastructure to make the separation more clear.
 
-Also fine.
+Great!
 
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 
