@@ -1,35 +1,34 @@
 Return-Path: <martin.petersen@oracle.com>
 Received: from mx0a-00069f02.pphosted.com (mx0a-00069f02.pphosted.com
 	[205.220.165.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BC8D2420332
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 05:15:31 +0200 (CEST)
-To: Christoph Hellwig <hch@lst.de>
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 33815420634
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 05:17:16 +0200 (CEST)
+To: Christoph Hellwig via Ocfs2-devel <ocfs2-devel@oss.oracle.com>
 From: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-ID: <yq1a6cxk2io.fsf@ca-mkp.ca.oracle.com>
+Message-ID: <yq1y20hinvl.fsf@ca-mkp.ca.oracle.com>
 References: <20220406060516.409838-1-hch@lst.de>
-	<20220406060516.409838-15-hch@lst.de>
-Date: Wed, 06 Apr 2022 23:15:21 -0400
-In-Reply-To: <20220406060516.409838-15-hch@lst.de> (Christoph Hellwig's
-	message of "Wed, 6 Apr 2022 08:05:03 +0200")
+	<20220406060516.409838-12-hch@lst.de>
+Date: Wed, 06 Apr 2022 23:17:07 -0400
+In-Reply-To: <20220406060516.409838-12-hch@lst.de> (Christoph Hellwig via
+	Ocfs2-devel's message of "Wed, 6 Apr 2022 08:05:00 +0200")
 Content-Type: text/plain
 MIME-Version: 1.0
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
-	linux-mtd@lists.infradead.org, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org, cluster-devel@redhat.com,
-	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
-	linux-um@lists.infradead.org, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
-	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
-	linux-block@vger.kernel.org, linux-mmc@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
-	ocfs2-devel@oss.oracle.com
-Subject: Re: [Drbd-dev] [dm-devel] [PATCH 14/27] block: add a
- bdev_max_zone_append_sectors helper
+	linux-mtd@lists.infradead.org, Christoph Hellwig <hch@lst.de>,
+	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
+	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
+	cluster-devel@redhat.com, xen-devel@lists.xenproject.org,
+	linux-ext4@vger.kernel.org, linux-um@lists.infradead.org,
+	nbd@other.debian.org, linux-raid@vger.kernel.org,
+	linux-bcache@vger.kernel.org, ceph-devel@vger.kernel.org,
+	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	ntfs3@lists.linux.dev, linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [Ocfs2-devel] [PATCH 11/27] block: add a
+	bdev_write_cache helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,9 +43,8 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Christoph,
 
-> Add a helper to check the max supported sectors for zone append based
-> on the block_device instead of having to poke into the block layer
-> internal request_queue.
+> Add a helper to check the write cache flag based on the block_device
+> instead of having to poke into the block layer internal request_queue.
 
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 
