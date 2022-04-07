@@ -1,16 +1,16 @@
 Return-Path: <martin.petersen@oracle.com>
 Received: from mx0a-00069f02.pphosted.com (mx0a-00069f02.pphosted.com
 	[205.220.165.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7D266420332
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 07:25:06 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EF4AC421003
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 07:35:50 +0200 (CEST)
 To: Christoph Hellwig via Ocfs2-devel <ocfs2-devel@oss.oracle.com>
 From: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-ID: <yq15ynlinou.fsf@ca-mkp.ca.oracle.com>
+Message-ID: <yq1h775ins6.fsf@ca-mkp.ca.oracle.com>
 References: <20220406060516.409838-1-hch@lst.de>
-	<20220406060516.409838-19-hch@lst.de>
-Date: Wed, 06 Apr 2022 23:21:03 -0400
-In-Reply-To: <20220406060516.409838-19-hch@lst.de> (Christoph Hellwig via
-	Ocfs2-devel's message of "Wed, 6 Apr 2022 08:05:07 +0200")
+	<20220406060516.409838-16-hch@lst.de>
+Date: Wed, 06 Apr 2022 23:19:34 -0400
+In-Reply-To: <20220406060516.409838-16-hch@lst.de> (Christoph Hellwig via
+	Ocfs2-devel's message of "Wed, 6 Apr 2022 08:05:04 +0200")
 Content-Type: text/plain
 MIME-Version: 1.0
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
@@ -27,8 +27,8 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	ntfs3@lists.linux.dev, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [Ocfs2-devel] [PATCH 18/27] block: move
- bdev_alignment_offset and queue_limit_alignment_offset out of line
+Subject: Re: [Drbd-dev] [Ocfs2-devel] [PATCH 15/27] block: use
+ bdev_alignment_offset in part_alignment_offset_show
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,7 +43,12 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Christoph,
 
-> No need to inline these fairly larger helpers.
+> Replace the open coded offset calculation with the proper helper.
+> This is an ABI change in that the -1 for a misaligned partition is
+> properly propagated, which can be considered a bug fix and maches what
+> is done on the whole device.
+
+Looks good.
 
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 
