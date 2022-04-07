@@ -1,17 +1,17 @@
 Return-Path: <dsterba@suse.cz>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6C9E4421016
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 17:30:37 +0200 (CEST)
-Date: Thu, 7 Apr 2022 17:26:34 +0200
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 742A1421016
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 17:30:59 +0200 (CEST)
+Date: Thu, 7 Apr 2022 17:26:56 +0200
 From: David Sterba <dsterba@suse.cz>
 To: Christoph Hellwig <hch@lst.de>
-Message-ID: <20220407152634.GL15609@twin.jikos.cz>
+Message-ID: <20220407152656.GM15609@twin.jikos.cz>
 References: <20220406060516.409838-1-hch@lst.de>
-	<20220406060516.409838-25-hch@lst.de>
+	<20220406060516.409838-27-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20220406060516.409838-25-hch@lst.de>
+In-Reply-To: <20220406060516.409838-27-hch@lst.de>
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
@@ -27,8 +27,8 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 24/27] block: add a bdev_discard_granularity
-	helper
+Subject: Re: [Drbd-dev] [PATCH 26/27] block: uncouple REQ_OP_SECURE_ERASE
+ from REQ_OP_DISCARD
 Reply-To: dsterba@suse.cz
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -41,20 +41,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Apr 06, 2022 at 08:05:13AM +0200, Christoph Hellwig wrote:
-> Abstract away implementation details from file systems by providing a
-> block_device based helper to retreive the discard granularity.
+On Wed, Apr 06, 2022 at 08:05:15AM +0200, Christoph Hellwig wrote:
+> Secure erase is a very different operation from discard in that it is
+> a data integrity operation vs hint.  Fully split the limits and helper
+> infrastructure to make the separation more clear.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  block/blk-lib.c                     |  5 ++---
->  drivers/block/drbd/drbd_nl.c        |  9 +++++----
->  drivers/block/drbd/drbd_receiver.c  |  3 +--
->  drivers/block/loop.c                |  2 +-
->  drivers/target/target_core_device.c |  3 +--
+>  block/blk-core.c                    |  2 +-
+>  block/blk-lib.c                     | 64 ++++++++++++++++++++---------
+>  block/blk-mq-debugfs.c              |  1 -
+>  block/blk-settings.c                | 16 +++++++-
+>  block/fops.c                        |  2 +-
+>  block/ioctl.c                       | 43 +++++++++++++++----
+>  drivers/block/drbd/drbd_receiver.c  |  5 ++-
+>  drivers/block/rnbd/rnbd-clt.c       |  4 +-
+>  drivers/block/rnbd/rnbd-srv-dev.h   |  2 +-
+>  drivers/block/xen-blkback/blkback.c | 15 +++----
+>  drivers/block/xen-blkback/xenbus.c  |  5 +--
+>  drivers/block/xen-blkfront.c        |  5 ++-
+>  drivers/md/bcache/alloc.c           |  2 +-
+>  drivers/md/dm-table.c               |  8 ++--
+>  drivers/md/dm-thin.c                |  4 +-
+>  drivers/md/md.c                     |  2 +-
+>  drivers/md/raid5-cache.c            |  6 +--
+>  drivers/mmc/core/queue.c            |  2 +-
+>  drivers/nvme/target/io-cmd-bdev.c   |  2 +-
+>  drivers/target/target_core_file.c   |  2 +-
+>  drivers/target/target_core_iblock.c |  2 +-
 
 For
 
->  fs/btrfs/ioctl.c                    | 12 ++++--------
+>  fs/btrfs/extent-tree.c              |  4 +-
 
 Acked-by: David Sterba <dsterba@suse.com>
