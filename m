@@ -1,21 +1,21 @@
 Return-Path: <sashal@kernel.org>
 Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2922E420835
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2B4F242088A
 	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 03:22:38 +0200 (CEST)
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Date: Wed,  6 Apr 2022 21:14:09 -0400
-Message-Id: <20220407011413.114662-21-sashal@kernel.org>
-In-Reply-To: <20220407011413.114662-1-sashal@kernel.org>
-References: <20220407011413.114662-1-sashal@kernel.org>
+Date: Wed,  6 Apr 2022 21:15:17 -0400
+Message-Id: <20220407011521.115014-13-sashal@kernel.org>
+In-Reply-To: <20220407011521.115014-1-sashal@kernel.org>
+References: <20220407011521.115014-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Jens Axboe <axboe@kernel.dk>, Sasha Levin <sashal@kernel.org>,
 	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
 	Jakob Koschel <jakobkoschel@gmail.com>,
 	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH AUTOSEL 5.10 21/25] drbd: remove usage of list
+Subject: [Drbd-dev] [PATCH AUTOSEL 5.4 13/17] drbd: remove usage of list
 	iterator variable after loop
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -52,10 +52,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 65b95aef8dbc..3cdbd81f983f 100644
+index a18155cdce41..ba10fa24fa1f 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -184,7 +184,7 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
+@@ -183,7 +183,7 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
  		unsigned int set_size)
  {
  	struct drbd_request *r;
@@ -64,7 +64,7 @@ index 65b95aef8dbc..3cdbd81f983f 100644
  	int expect_epoch = 0;
  	int expect_size = 0;
  
-@@ -238,8 +238,11 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
+@@ -237,8 +237,11 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
  	 * to catch requests being barrier-acked "unexpectedly".
  	 * It usually should find the same req again, or some READ preceding it. */
  	list_for_each_entry(req, &connection->transfer_log, tl_requests)
