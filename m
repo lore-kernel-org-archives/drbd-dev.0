@@ -1,23 +1,35 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pg1-f181.google.com (mail-pg1-f181.google.com
-	[209.85.215.181])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 49EE6420FE2
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 00:37:58 +0200 (CEST)
-Received: by mail-pg1-f181.google.com with SMTP id 32so1262636pgl.4
-	for <drbd-dev@lists.linbit.com>; Wed, 06 Apr 2022 15:37:58 -0700 (PDT)
-From: Jens Axboe <axboe@kernel.dk>
-To: christoph.boehmwalder@linbit.com
-In-Reply-To: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
-References: <20220406190715.1938174-1-christoph.boehmwalder@linbit.com>
-Message-Id: <164928467657.11110.6351742208734304925.b4-ty@kernel.dk>
-Date: Wed, 06 Apr 2022 16:37:56 -0600
+Return-Path: <martin.petersen@oracle.com>
+Received: from mx0a-00069f02.pphosted.com (mx0a-00069f02.pphosted.com
+	[205.220.165.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BC8D2420332
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 05:15:31 +0200 (CEST)
+To: Christoph Hellwig <hch@lst.de>
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
+Message-ID: <yq1a6cxk2io.fsf@ca-mkp.ca.oracle.com>
+References: <20220406060516.409838-1-hch@lst.de>
+	<20220406060516.409838-15-hch@lst.de>
+Date: Wed, 06 Apr 2022 23:15:21 -0400
+In-Reply-To: <20220406060516.409838-15-hch@lst.de> (Christoph Hellwig's
+	message of "Wed, 6 Apr 2022 08:05:03 +0200")
+Content-Type: text/plain
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	lars.ellenberg@linbit.com, philipp.reisner@linbit.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 0/7] DRBD updates for 5.19
+Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
+	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
+	dm-devel@redhat.com, target-devel@vger.kernel.org,
+	linux-mtd@lists.infradead.org, drbd-dev@lists.linbit.com,
+	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
+	linux-scsi@vger.kernel.org, cluster-devel@redhat.com,
+	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
+	linux-um@lists.infradead.org, nbd@other.debian.org,
+	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
+	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
+	linux-block@vger.kernel.org, linux-mmc@vger.kernel.org,
+	linux-f2fs-devel@lists.sourceforge.net,
+	linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
+	ocfs2-devel@oss.oracle.com
+Subject: Re: [Drbd-dev] [dm-devel] [PATCH 14/27] block: add a
+ bdev_max_zone_append_sectors helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,38 +41,14 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, 6 Apr 2022 21:07:08 +0200, Christoph Böhmwalder wrote:
-> Mostly cosmetic changes, bound for 5.19.
-> 
-> Arnd Bergmann (2):
->   drbd: fix duplicate array initializer
->   drbd: address enum mismatch warnings
-> 
-> Cai Huoqing (2):
->   drbd: Make use of PFN_UP helper macro
->   drbd: Replace "unsigned" with "unsigned int"
-> 
-> [...]
 
-Applied, thanks!
+Christoph,
 
-[1/7] drbd: fix duplicate array initializer
-      commit: adff355a6d6602d6be7be4c98e39d1d957a7e53f
-[2/7] drbd: address enum mismatch warnings
-      commit: a9cb5060fabb46187c8b00ac740bc30f045baa8e
-[3/7] block: drbd: drbd_receiver: Remove redundant assignment to err
-      commit: c8057a1ec541f972d0ca2ab14a77bd0f6a1919e3
-[4/7] drbd: Make use of PFN_UP helper macro
-      commit: 25dddd7771061c0d7176d396117244e19ce30858
-[5/7] drbd: Replace "unsigned" with "unsigned int"
-      commit: ad94e90806ac935c91dc6f048cec6c6ec4069cec
-[6/7] drdb: Switch to kvfree_rcu() API
-      commit: 40dad92d68aab52919d98524eb8aa87ed23596c8
-[7/7] drbd: Return true/false (not 1/0) from bool functions
-      commit: c0bf7a4c2313c46f2ba14b78a622a7e32bbbb2ac
+> Add a helper to check the max supported sectors for zone append based
+> on the block_device instead of having to poke into the block layer
+> internal request_queue.
 
-Best regards,
+Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
+
 -- 
-Jens Axboe
-
-
+Martin K. Petersen	Oracle Linux Engineering
