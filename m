@@ -1,21 +1,21 @@
 Return-Path: <sashal@kernel.org>
 Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 169754201AD
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 252CA420471
 	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 03:22:38 +0200 (CEST)
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Date: Wed,  6 Apr 2022 21:16:05 -0400
-Message-Id: <20220407011609.115258-8-sashal@kernel.org>
-In-Reply-To: <20220407011609.115258-1-sashal@kernel.org>
-References: <20220407011609.115258-1-sashal@kernel.org>
+Date: Wed,  6 Apr 2022 21:16:44 -0400
+Message-Id: <20220407011645.115412-7-sashal@kernel.org>
+In-Reply-To: <20220407011645.115412-1-sashal@kernel.org>
+References: <20220407011645.115412-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Jens Axboe <axboe@kernel.dk>, Sasha Levin <sashal@kernel.org>,
 	philipp.reisner@linbit.com, linux-block@vger.kernel.org,
 	Jakob Koschel <jakobkoschel@gmail.com>,
 	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH AUTOSEL 4.19 08/11] drbd: remove usage of list
+Subject: [Drbd-dev] [PATCH AUTOSEL 4.14 7/8] drbd: remove usage of list
 	iterator variable after loop
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -52,7 +52,7 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 5e3885f5729b..c3e4f9d83b29 100644
+index b998e3abca7a..1e02cb60b65b 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
 @@ -195,7 +195,7 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
