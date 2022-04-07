@@ -1,35 +1,34 @@
 Return-Path: <martin.petersen@oracle.com>
-Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
-	[205.220.177.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7D5954201AD
-	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 06:57:57 +0200 (CEST)
-To: Christoph Hellwig <hch@lst.de>
+Received: from mx0a-00069f02.pphosted.com (mx0a-00069f02.pphosted.com
+	[205.220.165.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 69528420332
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Apr 2022 07:15:14 +0200 (CEST)
+To: Christoph Hellwig via Ocfs2-devel <ocfs2-devel@oss.oracle.com>
 From: "Martin K. Petersen" <martin.petersen@oracle.com>
-Message-ID: <yq1lewhk2wm.fsf@ca-mkp.ca.oracle.com>
+Message-ID: <yq14k35k2h9.fsf@ca-mkp.ca.oracle.com>
 References: <20220406060516.409838-1-hch@lst.de>
-	<20220406060516.409838-3-hch@lst.de>
-Date: Wed, 06 Apr 2022 23:07:07 -0400
-In-Reply-To: <20220406060516.409838-3-hch@lst.de> (Christoph Hellwig's message
-	of "Wed, 6 Apr 2022 08:04:51 +0200")
+	<20220406060516.409838-11-hch@lst.de>
+Date: Wed, 06 Apr 2022 23:16:22 -0400
+In-Reply-To: <20220406060516.409838-11-hch@lst.de> (Christoph Hellwig via
+	Ocfs2-devel's message of "Wed, 6 Apr 2022 08:04:59 +0200")
 Content-Type: text/plain
 MIME-Version: 1.0
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
-	linux-mtd@lists.infradead.org, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org, cluster-devel@redhat.com,
-	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
-	linux-um@lists.infradead.org, nbd@other.debian.org,
-	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
-	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
-	linux-raid@vger.kernel.org, linux-mmc@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
-	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
-	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 02/27] target: pass a block_device to
- target_configure_unmap_from_queue
+	linux-mtd@lists.infradead.org, Christoph Hellwig <hch@lst.de>,
+	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
+	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
+	cluster-devel@redhat.com, xen-devel@lists.xenproject.org,
+	linux-ext4@vger.kernel.org, linux-um@lists.infradead.org,
+	nbd@other.debian.org, linux-raid@vger.kernel.org,
+	linux-bcache@vger.kernel.org, ceph-devel@vger.kernel.org,
+	Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	ntfs3@lists.linux.dev, linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [Ocfs2-devel] [PATCH 10/27] block: add a bdev_nonrot
+	helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,8 +43,8 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Christoph,
 
-> The target code is a consumer of the block layer and should generally
-> work on struct block_device.
+> Add a helper to check the nonrot flag based on the block_device
+> instead of having to poke into the block layer internal request_queue.
 
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 
