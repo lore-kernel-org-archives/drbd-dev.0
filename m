@@ -1,12 +1,14 @@
 Return-Path: <BATV+43fc5532e856fea764d1+6803+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CE071420FD8
-	for <drbd-dev@lists.linbit.com>; Sat,  9 Apr 2022 06:50:54 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EBE08420FDF
+	for <drbd-dev@lists.linbit.com>; Sat,  9 Apr 2022 06:50:58 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Sat,  9 Apr 2022 06:50:16 +0200
-Message-Id: <20220409045043.23593-1-hch@lst.de>
+Date: Sat,  9 Apr 2022 06:50:18 +0200
+Message-Id: <20220409045043.23593-3-hch@lst.de>
+In-Reply-To: <20220409045043.23593-1-hch@lst.de>
+References: <20220409045043.23593-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
@@ -19,11 +21,13 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	linux-um@lists.infradead.org, nbd@other.debian.org,
 	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
 	ceph-devel@vger.kernel.org, linux-raid@vger.kernel.org,
+	"Martin K . Petersen" <martin.petersen@oracle.com>,
 	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] use block_device based APIs in block layer consumers v2
+Subject: [Drbd-dev] [PATCH 02/27] target: pass a block_device to
+	target_configure_unmap_from_queue
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,112 +39,97 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Jens,
+The SCSI target drivers is a consumer of the block layer and shoul
+d generally work on struct block_device.
 
-this series cleanups up the block layer API so that APIs consumed
-by file systems are (almost) only struct block_devic based, so that
-file systems don't have to poke into block layer internals like the
-request_queue.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
+---
+ drivers/target/target_core_device.c  | 5 +++--
+ drivers/target/target_core_file.c    | 7 ++++---
+ drivers/target/target_core_iblock.c  | 2 +-
+ include/target/target_core_backend.h | 4 ++--
+ 4 files changed, 10 insertions(+), 8 deletions(-)
 
-I also found a bunch of existing bugs related to partition offsets
-and discard so these are fixed while going along.
+diff --git a/drivers/target/target_core_device.c b/drivers/target/target_core_device.c
+index fa866acef5bb2..3a1ec705cd80b 100644
+--- a/drivers/target/target_core_device.c
++++ b/drivers/target/target_core_device.c
+@@ -834,9 +834,10 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
+  * in ATA and we need to set TPE=1
+  */
+ bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
+-				       struct request_queue *q)
++				       struct block_device *bdev)
+ {
+-	int block_size = queue_logical_block_size(q);
++	struct request_queue *q = bdev_get_queue(bdev);
++	int block_size = bdev_logical_block_size(bdev);
+ 
+ 	if (!blk_queue_discard(q))
+ 		return false;
+diff --git a/drivers/target/target_core_file.c b/drivers/target/target_core_file.c
+index 8190b840065f3..8d191fdc33217 100644
+--- a/drivers/target/target_core_file.c
++++ b/drivers/target/target_core_file.c
+@@ -134,10 +134,11 @@ static int fd_configure_device(struct se_device *dev)
+ 	 */
+ 	inode = file->f_mapping->host;
+ 	if (S_ISBLK(inode->i_mode)) {
+-		struct request_queue *q = bdev_get_queue(I_BDEV(inode));
++		struct block_device *bdev = I_BDEV(inode);
++		struct request_queue *q = bdev_get_queue(bdev);
+ 		unsigned long long dev_size;
+ 
+-		fd_dev->fd_block_size = bdev_logical_block_size(I_BDEV(inode));
++		fd_dev->fd_block_size = bdev_logical_block_size(bdev);
+ 		/*
+ 		 * Determine the number of bytes from i_size_read() minus
+ 		 * one (1) logical sector from underlying struct block_device
+@@ -150,7 +151,7 @@ static int fd_configure_device(struct se_device *dev)
+ 			dev_size, div_u64(dev_size, fd_dev->fd_block_size),
+ 			fd_dev->fd_block_size);
+ 
+-		if (target_configure_unmap_from_queue(&dev->dev_attrib, q))
++		if (target_configure_unmap_from_queue(&dev->dev_attrib, bdev))
+ 			pr_debug("IFILE: BLOCK Discard support available,"
+ 				 " disabled by default\n");
+ 		/*
+diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+index 87ede165ddba4..b886ce1770bfd 100644
+--- a/drivers/target/target_core_iblock.c
++++ b/drivers/target/target_core_iblock.c
+@@ -119,7 +119,7 @@ static int iblock_configure_device(struct se_device *dev)
+ 	dev->dev_attrib.hw_max_sectors = queue_max_hw_sectors(q);
+ 	dev->dev_attrib.hw_queue_depth = q->nr_requests;
+ 
+-	if (target_configure_unmap_from_queue(&dev->dev_attrib, q))
++	if (target_configure_unmap_from_queue(&dev->dev_attrib, bd))
+ 		pr_debug("IBLOCK: BLOCK Discard support available,"
+ 			 " disabled by default\n");
+ 
+diff --git a/include/target/target_core_backend.h b/include/target/target_core_backend.h
+index 675f3a1fe6139..773963a1e0b53 100644
+--- a/include/target/target_core_backend.h
++++ b/include/target/target_core_backend.h
+@@ -14,7 +14,7 @@
+ #define TRANSPORT_FLAG_PASSTHROUGH_ALUA		0x2
+ #define TRANSPORT_FLAG_PASSTHROUGH_PGR          0x4
+ 
+-struct request_queue;
++struct block_device;
+ struct scatterlist;
+ 
+ struct target_backend_ops {
+@@ -117,7 +117,7 @@ sense_reason_t passthrough_parse_cdb(struct se_cmd *cmd,
+ bool target_sense_desc_format(struct se_device *dev);
+ sector_t target_to_linux_sector(struct se_device *dev, sector_t lb);
+ bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
+-				       struct request_queue *q);
++				       struct block_device *bdev);
+ 
+ static inline bool target_dev_configured(struct se_device *se_dev)
+ {
+-- 
+2.30.2
 
-
-Changes since v1:
- - fix a bisection hazard
- - minor spelling fixes
- - reorder hunks between two patches to make the changes more obvious
- - reorder a patch to be earlier in the series to ease backporting
-
-
-Diffstat:
- arch/um/drivers/ubd_kern.c           |    2 
- block/blk-core.c                     |    4 -
- block/blk-lib.c                      |  124 ++++++++++++++++++++---------------
- block/blk-mq-debugfs.c               |    2 
- block/blk-settings.c                 |   74 ++++++++++++++++++++
- block/blk.h                          |   14 ---
- block/fops.c                         |    2 
- block/genhd.c                        |    4 -
- block/ioctl.c                        |   48 ++++++++++---
- block/partitions/core.c              |   12 ---
- drivers/block/drbd/drbd_main.c       |   51 ++++++--------
- drivers/block/drbd/drbd_nl.c         |   94 +++++++++++---------------
- drivers/block/drbd/drbd_receiver.c   |   13 +--
- drivers/block/loop.c                 |   15 +---
- drivers/block/nbd.c                  |    5 -
- drivers/block/null_blk/main.c        |    1 
- drivers/block/rbd.c                  |    1 
- drivers/block/rnbd/rnbd-clt.c        |    6 -
- drivers/block/rnbd/rnbd-srv-dev.h    |    8 --
- drivers/block/rnbd/rnbd-srv.c        |    5 -
- drivers/block/virtio_blk.c           |    2 
- drivers/block/xen-blkback/blkback.c  |   15 ++--
- drivers/block/xen-blkback/xenbus.c   |    9 --
- drivers/block/xen-blkfront.c         |    7 -
- drivers/block/zram/zram_drv.c        |    1 
- drivers/md/bcache/alloc.c            |    2 
- drivers/md/bcache/request.c          |    4 -
- drivers/md/bcache/super.c            |    3 
- drivers/md/bcache/sysfs.c            |    2 
- drivers/md/dm-cache-target.c         |    9 --
- drivers/md/dm-clone-target.c         |    9 --
- drivers/md/dm-io.c                   |    2 
- drivers/md/dm-log-writes.c           |    3 
- drivers/md/dm-raid.c                 |    9 --
- drivers/md/dm-table.c                |   25 +------
- drivers/md/dm-thin.c                 |   15 ----
- drivers/md/dm.c                      |    3 
- drivers/md/md-linear.c               |   11 ---
- drivers/md/md.c                      |    5 -
- drivers/md/raid0.c                   |    7 -
- drivers/md/raid1.c                   |   18 -----
- drivers/md/raid10.c                  |   20 -----
- drivers/md/raid5-cache.c             |    8 +-
- drivers/md/raid5.c                   |   14 +--
- drivers/mmc/core/queue.c             |    3 
- drivers/mtd/mtd_blkdevs.c            |    1 
- drivers/nvme/host/core.c             |    6 -
- drivers/nvme/target/io-cmd-bdev.c    |    2 
- drivers/nvme/target/zns.c            |    3 
- drivers/s390/block/dasd_fba.c        |    1 
- drivers/scsi/sd.c                    |    2 
- drivers/target/target_core_device.c  |   20 ++---
- drivers/target/target_core_file.c    |   10 +-
- drivers/target/target_core_iblock.c  |   17 +---
- fs/btrfs/disk-io.c                   |    3 
- fs/btrfs/extent-tree.c               |    8 +-
- fs/btrfs/ioctl.c                     |   12 +--
- fs/btrfs/volumes.c                   |    4 -
- fs/btrfs/zoned.c                     |    3 
- fs/direct-io.c                       |   32 +--------
- fs/exfat/file.c                      |    5 -
- fs/exfat/super.c                     |   10 --
- fs/ext4/ioctl.c                      |   10 --
- fs/ext4/mballoc.c                    |   10 +-
- fs/ext4/super.c                      |   10 --
- fs/f2fs/f2fs.h                       |    3 
- fs/f2fs/file.c                       |   19 ++---
- fs/f2fs/segment.c                    |    8 --
- fs/fat/file.c                        |    5 -
- fs/fat/inode.c                       |   10 --
- fs/gfs2/rgrp.c                       |    7 -
- fs/iomap/direct-io.c                 |    3 
- fs/jbd2/journal.c                    |    9 --
- fs/jfs/ioctl.c                       |    5 -
- fs/jfs/super.c                       |    8 --
- fs/nilfs2/ioctl.c                    |    6 -
- fs/nilfs2/sufile.c                   |    4 -
- fs/nilfs2/the_nilfs.c                |    4 -
- fs/ntfs3/file.c                      |    6 -
- fs/ntfs3/super.c                     |   10 +-
- fs/ocfs2/ioctl.c                     |    5 -
- fs/super.c                           |    2 
- fs/xfs/xfs_discard.c                 |    8 +-
- fs/xfs/xfs_log_cil.c                 |    2 
- fs/xfs/xfs_super.c                   |   12 +--
- fs/zonefs/super.c                    |    3 
- include/linux/blkdev.h               |  112 +++++++++++--------------------
- include/target/target_core_backend.h |    4 -
- mm/swapfile.c                        |   31 ++------
- 89 files changed, 493 insertions(+), 653 deletions(-)
