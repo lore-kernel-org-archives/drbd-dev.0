@@ -1,12 +1,12 @@
 Return-Path: <BATV+43fc5532e856fea764d1+6803+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 042BD420FFA
-	for <drbd-dev@lists.linbit.com>; Sat,  9 Apr 2022 07:22:01 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 78E5F421002
+	for <drbd-dev@lists.linbit.com>; Sat,  9 Apr 2022 07:22:02 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Sat,  9 Apr 2022 06:50:34 +0200
-Message-Id: <20220409045043.23593-19-hch@lst.de>
+Date: Sat,  9 Apr 2022 06:50:31 +0200
+Message-Id: <20220409045043.23593-16-hch@lst.de>
 In-Reply-To: <20220409045043.23593-1-hch@lst.de>
 References: <20220409045043.23593-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,18 +16,21 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
 	linux-mtd@lists.infradead.org, drbd-dev@lists.linbit.com,
 	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org, cluster-devel@redhat.com,
-	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
-	linux-um@lists.infradead.org, nbd@other.debian.org,
-	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
-	ceph-devel@vger.kernel.org, linux-raid@vger.kernel.org,
+	linux-scsi@vger.kernel.org,
+	Damien Le Moal <damien.lemoal@opensource.wdc.com>,
+	cluster-devel@redhat.com, xen-devel@lists.xenproject.org,
+	linux-ext4@vger.kernel.org, linux-um@lists.infradead.org,
+	nbd@other.debian.org, linux-block@vger.kernel.org,
+	linux-bcache@vger.kernel.org, ceph-devel@vger.kernel.org,
+	linux-raid@vger.kernel.org,
 	"Martin K . Petersen" <martin.petersen@oracle.com>,
-	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	Johannes Thumshirn <johannes.thumshirn@wdc.com>, linux-mmc@vger.kernel.org,
+	linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 18/27] block: move bdev_alignment_offset and
-	queue_limit_alignment_offset out of line
+Subject: [Drbd-dev] [PATCH 15/27] block: add a bdev_max_zone_append_sectors
+	helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -39,85 +42,70 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-No need to inline these fairly larger helpers.
+Add a helper to check the max supported sectors for zone append based on
+the block_device instead of having to poke into the block layer internal
+request_queue.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Acked-by: Damien Le Moal <damien.lemoal@opensource.wdc.com>
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
+Reviewed-by: Johannes Thumshirn <johannes.thumshirn@wdc.com>
 ---
- block/blk-settings.c   | 23 +++++++++++++++++++++++
- include/linux/blkdev.h | 21 +--------------------
- 2 files changed, 24 insertions(+), 20 deletions(-)
+ drivers/nvme/target/zns.c | 3 +--
+ fs/zonefs/super.c         | 3 +--
+ include/linux/blkdev.h    | 6 ++++++
+ 3 files changed, 8 insertions(+), 4 deletions(-)
 
-diff --git a/block/blk-settings.c b/block/blk-settings.c
-index b83df3d2eebca..94410a13c0dee 100644
---- a/block/blk-settings.c
-+++ b/block/blk-settings.c
-@@ -468,6 +468,16 @@ void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
- }
- EXPORT_SYMBOL(blk_queue_io_opt);
+diff --git a/drivers/nvme/target/zns.c b/drivers/nvme/target/zns.c
+index e34718b095504..82b61acf7a72b 100644
+--- a/drivers/nvme/target/zns.c
++++ b/drivers/nvme/target/zns.c
+@@ -34,8 +34,7 @@ static int validate_conv_zones_cb(struct blk_zone *z,
  
-+static int queue_limit_alignment_offset(struct queue_limits *lim,
-+		sector_t sector)
-+{
-+	unsigned int granularity = max(lim->physical_block_size, lim->io_min);
-+	unsigned int alignment = sector_div(sector, granularity >> SECTOR_SHIFT)
-+		<< SECTOR_SHIFT;
-+
-+	return (granularity + lim->alignment_offset - alignment) % granularity;
-+}
-+
- static unsigned int blk_round_down_sectors(unsigned int sectors, unsigned int lbs)
+ bool nvmet_bdev_zns_enable(struct nvmet_ns *ns)
  {
- 	sectors = round_down(sectors, lbs >> SECTOR_SHIFT);
-@@ -901,3 +911,16 @@ void blk_queue_set_zoned(struct gendisk *disk, enum blk_zoned_model model)
- 	}
- }
- EXPORT_SYMBOL_GPL(blk_queue_set_zoned);
-+
-+int bdev_alignment_offset(struct block_device *bdev)
-+{
-+	struct request_queue *q = bdev_get_queue(bdev);
-+
-+	if (q->limits.misaligned)
-+		return -1;
-+	if (bdev_is_partition(bdev))
-+		return queue_limit_alignment_offset(&q->limits,
-+				bdev->bd_start_sect);
-+	return q->limits.alignment_offset;
-+}
-+EXPORT_SYMBOL_GPL(bdev_alignment_offset);
+-	struct request_queue *q = ns->bdev->bd_disk->queue;
+-	u8 zasl = nvmet_zasl(queue_max_zone_append_sectors(q));
++	u8 zasl = nvmet_zasl(bdev_max_zone_append_sectors(ns->bdev));
+ 	struct gendisk *bd_disk = ns->bdev->bd_disk;
+ 	int ret;
+ 
+diff --git a/fs/zonefs/super.c b/fs/zonefs/super.c
+index 3614c7834007d..7a63807b736c4 100644
+--- a/fs/zonefs/super.c
++++ b/fs/zonefs/super.c
+@@ -678,13 +678,12 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
+ 	struct inode *inode = file_inode(iocb->ki_filp);
+ 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+ 	struct block_device *bdev = inode->i_sb->s_bdev;
+-	unsigned int max;
++	unsigned int max = bdev_max_zone_append_sectors(bdev);
+ 	struct bio *bio;
+ 	ssize_t size;
+ 	int nr_pages;
+ 	ssize_t ret;
+ 
+-	max = queue_max_zone_append_sectors(bdev_get_queue(bdev));
+ 	max = ALIGN_DOWN(max << SECTOR_SHIFT, inode->i_sb->s_blocksize);
+ 	iov_iter_truncate(from, max);
+ 
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index d5346e72e3645..0a1795ac26275 100644
+index a433798c3343e..f8c50b77543eb 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -1251,26 +1251,7 @@ bdev_zone_write_granularity(struct block_device *bdev)
- 	return queue_zone_write_granularity(bdev_get_queue(bdev));
+@@ -1188,6 +1188,12 @@ static inline unsigned int queue_max_zone_append_sectors(const struct request_qu
+ 	return min(l->max_zone_append_sectors, l->max_sectors);
  }
  
--static inline int queue_limit_alignment_offset(struct queue_limits *lim, sector_t sector)
--{
--	unsigned int granularity = max(lim->physical_block_size, lim->io_min);
--	unsigned int alignment = sector_div(sector, granularity >> SECTOR_SHIFT)
--		<< SECTOR_SHIFT;
--
--	return (granularity + lim->alignment_offset - alignment) % granularity;
--}
--
--static inline int bdev_alignment_offset(struct block_device *bdev)
--{
--	struct request_queue *q = bdev_get_queue(bdev);
--
--	if (q->limits.misaligned)
--		return -1;
--	if (bdev_is_partition(bdev))
--		return queue_limit_alignment_offset(&q->limits,
--				bdev->bd_start_sect);
--	return q->limits.alignment_offset;
--}
-+int bdev_alignment_offset(struct block_device *bdev);
- 
- static inline int queue_discard_alignment(const struct request_queue *q)
++static inline unsigned int
++bdev_max_zone_append_sectors(struct block_device *bdev)
++{
++	return queue_max_zone_append_sectors(bdev_get_queue(bdev));
++}
++
+ static inline unsigned queue_logical_block_size(const struct request_queue *q)
  {
+ 	int retval = 512;
 -- 
 2.30.2
 
