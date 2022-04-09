@@ -1,15 +1,20 @@
-Return-Path: <BATV+43fc5532e856fea764d1+6803+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CBC7E421002
-	for <drbd-dev@lists.linbit.com>; Sat,  9 Apr 2022 07:27:31 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Sat,  9 Apr 2022 06:50:35 +0200
-Message-Id: <20220409045043.23593-20-hch@lst.de>
-In-Reply-To: <20220409045043.23593-1-hch@lst.de>
-References: <20220409045043.23593-1-hch@lst.de>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-wr1-f47.google.com (mail-wr1-f47.google.com
+	[209.85.221.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EC3A1420FBB
+	for <drbd-dev@lists.linbit.com>; Sat,  9 Apr 2022 10:15:37 +0200 (CEST)
+Received: by mail-wr1-f47.google.com with SMTP id s28so125710wrb.5
+	for <drbd-dev@lists.linbit.com>; Sat, 09 Apr 2022 01:15:37 -0700 (PDT)
+Message-ID: <72e9bd34-3380-e305-65f0-a17306f5bd08@linbit.com>
+Date: Sat, 9 Apr 2022 10:15:33 +0200
 MIME-Version: 1.0
+Content-Language: en-US
+To: Christoph Hellwig <hch@lst.de>
+References: <20220409045043.23593-1-hch@lst.de>
+	<20220409045043.23593-25-hch@lst.de>
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <20220409045043.23593-25-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
@@ -20,13 +25,14 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
 	linux-um@lists.infradead.org, nbd@other.debian.org,
 	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
-	ceph-devel@vger.kernel.org, linux-raid@vger.kernel.org,
+	ceph-devel@vger.kernel.org, Coly Li <colyli@suse.de>,
+	Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
 	"Martin K . Petersen" <martin.petersen@oracle.com>,
 	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 19/27] block: remove queue_discard_alignment
+Subject: Re: [Drbd-dev] [PATCH 24/27] block: remove QUEUE_FLAG_DISCARD
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,49 +44,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Just use bdev_alignment_offset in disk_discard_alignment_show instead.
-That helpers is the same except for an always false branch that doesn't
-matter in this slow path.
+On 09.04.22 06:50, Christoph Hellwig wrote:
+> Just use a non-zero max_discard_sectors as an indicator for discard
+> support, similar to what is done for write zeroes.
+> 
+> The only places where needs special attention is the RAID5 driver,
+> which must clear discard support for security reasons by default,
+> even if the default stacking rules would allow for it.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
+> Acked-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com> [btrfs]
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
----
- block/genhd.c          | 2 +-
- include/linux/blkdev.h | 8 --------
- 2 files changed, 1 insertion(+), 9 deletions(-)
+I think you may have a typo there: my ACK was for drbd, not btrfs.
 
-diff --git a/block/genhd.c b/block/genhd.c
-index 712031ce19070..36532b9318419 100644
---- a/block/genhd.c
-+++ b/block/genhd.c
-@@ -1019,7 +1019,7 @@ static ssize_t disk_discard_alignment_show(struct device *dev,
- {
- 	struct gendisk *disk = dev_to_disk(dev);
- 
--	return sprintf(buf, "%d\n", queue_discard_alignment(disk->queue));
-+	return sprintf(buf, "%d\n", bdev_alignment_offset(disk->part0));
- }
- 
- static ssize_t diskseq_show(struct device *dev,
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 0a1795ac26275..5a9b7aeda010b 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1253,14 +1253,6 @@ bdev_zone_write_granularity(struct block_device *bdev)
- 
- int bdev_alignment_offset(struct block_device *bdev);
- 
--static inline int queue_discard_alignment(const struct request_queue *q)
--{
--	if (q->limits.discard_misaligned)
--		return -1;
--
--	return q->limits.discard_alignment;
--}
--
- static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector_t sector)
- {
- 	unsigned int alignment, granularity, offset;
--- 
-2.30.2
-
+> Acked-by: Coly Li <colyli@suse.de> [bcache]
+> ---
+>   arch/um/drivers/ubd_kern.c          |  2 --
+>   block/blk-core.c                    |  2 +-
