@@ -1,19 +1,18 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C11A54201DC
-	for <drbd-dev@lists.linbit.com>; Sun, 10 Apr 2022 08:26:23 +0200 (CEST)
-Date: Sun, 10 Apr 2022 08:26:20 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3CCEE4202D3
+	for <drbd-dev@lists.linbit.com>; Sun, 10 Apr 2022 08:27:28 +0200 (CEST)
+Date: Sun, 10 Apr 2022 08:27:26 +0200
 From: Christoph Hellwig <hch@lst.de>
-To: Christoph =?iso-8859-1?Q?B=F6hmwalder?= <christoph.boehmwalder@linbit.com>
-Message-ID: <20220410062620.GA16234@lst.de>
+To: Coly Li <colyli@suse.de>
+Message-ID: <20220410062726.GB16234@lst.de>
 References: <20220409045043.23593-1-hch@lst.de>
-	<20220409045043.23593-25-hch@lst.de>
-	<72e9bd34-3380-e305-65f0-a17306f5bd08@linbit.com>
+	<20220409045043.23593-27-hch@lst.de>
+	<f01ac878-9b0d-972b-70dc-6f3f61b9947b@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <72e9bd34-3380-e305-65f0-a17306f5bd08@linbit.com>
+In-Reply-To: <f01ac878-9b0d-972b-70dc-6f3f61b9947b@suse.de>
 Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
@@ -23,15 +22,16 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	cluster-devel@redhat.com, xen-devel@lists.xenproject.org,
 	linux-ext4@vger.kernel.org, linux-um@lists.infradead.org,
 	nbd@other.debian.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, ceph-devel@vger.kernel.org,
-	Coly Li <colyli@suse.de>, Jens Axboe <axboe@kernel.dk>,
-	linux-raid@vger.kernel.org,
+	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
+	ceph-devel@vger.kernel.org, Ryusuke Konishi <konishi.ryusuke@gmail.com>,
+	Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
 	"Martin K . Petersen" <martin.petersen@oracle.com>,
 	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 24/27] block: remove QUEUE_FLAG_DISCARD
+Subject: Re: [Drbd-dev] [PATCH 26/27] block: decouple REQ_OP_SECURE_ERASE
+ from REQ_OP_DISCARD
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,19 +43,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, Apr 09, 2022 at 10:15:33AM +0200, Christoph Böhmwalder wrote:
-> On 09.04.22 06:50, Christoph Hellwig wrote:
->> Just use a non-zero max_discard_sectors as an indicator for discard
->> support, similar to what is done for write zeroes.
->>
->> The only places where needs special attention is the RAID5 driver,
->> which must clear discard support for security reasons by default,
->> even if the default stacking rules would allow for it.
->>
->> Signed-off-by: Christoph Hellwig <hch@lst.de>
->> Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
->> Acked-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com> [btrfs]
+On Sat, Apr 09, 2022 at 10:32:52PM +0800, Coly Li wrote:
+>> Acked-by: Coly Li <colyli@suse.de> [drbd]
 >
-> I think you may have a typo there: my ACK was for drbd, not btrfs.
+> Hi Christoph,
+>
+> My ACK is for bcache, not drbd here.
 
-Indeed, sorry.
+Fixed.
