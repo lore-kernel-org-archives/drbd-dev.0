@@ -1,22 +1,36 @@
-Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ed1-f46.google.com (mail-ed1-f46.google.com
-	[209.85.208.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 24EF2420124
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 17:21:12 +0200 (CEST)
-Received: by mail-ed1-f46.google.com with SMTP id d10so18940385edj.0
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 08:21:12 -0700 (PDT)
+Return-Path: <dsterba@suse.cz>
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0EA7F4201D4
+	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 19:26:23 +0200 (CEST)
+Date: Mon, 11 Apr 2022 19:22:18 +0200
+From: David Sterba <dsterba@suse.cz>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <20220411172218.GT15609@twin.jikos.cz>
+References: <20220409045043.23593-1-hch@lst.de>
+	<20220409045043.23593-9-hch@lst.de>
 MIME-Version: 1.0
-References: <20220411120204.3683999-1-rui.xu@easystack.cn>
-In-Reply-To: <20220411120204.3683999-1-rui.xu@easystack.cn>
-From: Joel Colledge <joel.colledge@linbit.com>
-Date: Mon, 11 Apr 2022 17:21:01 +0200
-Message-ID: <CAGNP_+WSFxF3Jzb7ozJMjSsOEDxLR6n_CMt58NHzmyOJErjfng@mail.gmail.com>
-To: Rui Xu <rui.xu@easystack.cn>
-Content-Type: text/plain; charset="UTF-8"
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd:clear NEW_CUR_UUID when uuid was
-	actually created
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20220409045043.23593-9-hch@lst.de>
+Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
+	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
+	dm-devel@redhat.com, target-devel@vger.kernel.org,
+	linux-mtd@lists.infradead.org, drbd-dev@lists.linbit.com,
+	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
+	linux-scsi@vger.kernel.org, cluster-devel@redhat.com,
+	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
+	linux-um@lists.infradead.org, nbd@other.debian.org,
+	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
+	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
+	linux-raid@vger.kernel.org,
+	Johannes Thumshirn <johannes.thumshirn@wdc.com>, linux-mmc@vger.kernel.org,
+	linux-f2fs-devel@lists.sourceforge.net,
+	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
+	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
+	linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [PATCH 08/27] btrfs: use bdev_max_active_zones
+ instead of open coding it
+Reply-To: dsterba@suse.cz
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,17 +42,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Xu,
+On Sat, Apr 09, 2022 at 06:50:24AM +0200, Christoph Hellwig wrote:
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Johannes Thumshirn <johannes.thumshirn@wdc.com>
 
-You mentioned in your other message that this patch is intended for DRBD 9.0.
-https://lists.linbit.com/pipermail/drbd-dev/2022-April/006577.html
-
-I'm afraid that the 9.0 branch is end-of-life, so this won't be
-applied. The drbd-9.1 branch is the place for improvements, especially
-since it already contains related fixes to the handling of suspended
-IO due to quorum loss.
-
-Thank you for your participation in the project nevertheless!
-
-Best regards,
-Joel
+Acked-by: David Sterba <dsterba@suse.com>
