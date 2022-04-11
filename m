@@ -1,37 +1,18 @@
-Return-Path: <hch@lst.de>
-Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3CCEE4202D3
-	for <drbd-dev@lists.linbit.com>; Sun, 10 Apr 2022 08:27:28 +0200 (CEST)
-Date: Sun, 10 Apr 2022 08:27:26 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Coly Li <colyli@suse.de>
-Message-ID: <20220410062726.GB16234@lst.de>
-References: <20220409045043.23593-1-hch@lst.de>
-	<20220409045043.23593-27-hch@lst.de>
-	<f01ac878-9b0d-972b-70dc-6f3f61b9947b@suse.de>
+Return-Path: <rui.xu@easystack.cn>
+Received: from mail-m2458.qiye.163.com (mail-m2458.qiye.163.com
+	[220.194.24.58])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A4B324201D4
+	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 14:10:28 +0200 (CEST)
+From: Rui Xu <rui.xu@easystack.cn>
+To: philipp.reisner@linbit.com, joel.colledge@linbit.com,
+	drbd-dev@lists.linbit.com
+Date: Mon, 11 Apr 2022 20:02:04 +0800
+Message-Id: <20220411120204.3683999-1-rui.xu@easystack.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f01ac878-9b0d-972b-70dc-6f3f61b9947b@suse.de>
-Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
-	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
-	dm-devel@redhat.com, target-devel@vger.kernel.org,
-	linux-mtd@lists.infradead.org, Christoph Hellwig <hch@lst.de>,
-	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
-	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
-	cluster-devel@redhat.com, xen-devel@lists.xenproject.org,
-	linux-ext4@vger.kernel.org, linux-um@lists.infradead.org,
-	nbd@other.debian.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
-	ceph-devel@vger.kernel.org, Ryusuke Konishi <konishi.ryusuke@gmail.com>,
-	Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
-	"Martin K . Petersen" <martin.petersen@oracle.com>,
-	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
-	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
-	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
-	linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 26/27] block: decouple REQ_OP_SECURE_ERASE
- from REQ_OP_DISCARD
+Content-Transfer-Encoding: 8bit
+Cc: Rui Xu <rui.xu@easystack.cn>, dongsheng.yang@easystack.cn
+Subject: [Drbd-dev] [PATCH] drbd:clear NEW_CUR_UUID when uuid was actually
+	created
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,11 +24,46 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, Apr 09, 2022 at 10:32:52PM +0800, Coly Li wrote:
->> Acked-by: Coly Li <colyli@suse.de> [drbd]
->
-> Hi Christoph,
->
-> My ACK is for bcache, not drbd here.
+If there is an IO blocked by creating new uuid, but we found
+we dont have quorum, then NEW_CUR_UUID will be cleared but
+new uuid was not actually created.
 
-Fixed.
+After one peer online, we have enough quorum to continue IO, then this
+IO will reach  primary and the online peer.
+
+But if there is another peer join later, this peer will found same uuid, and will lose data.
+
+So don't clear NEW_CUR_UUID unless uuid was actually created.
+
+Signed-off-by: Rui Xu <rui.xu@easystack.cn>
+---
+ drbd/drbd_sender.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/drbd/drbd_sender.c b/drbd/drbd_sender.c
+index 7238730..b0e3701 100644
+--- a/drbd/drbd_sender.c
++++ b/drbd/drbd_sender.c
+@@ -2360,15 +2360,17 @@ void drbd_check_peers_new_current_uuid(struct drbd_device *device)
+ 
+ 	drbd_check_peers(resource);
+ 
+-	if (device->have_quorum[NOW] && drbd_data_accessible(device, NOW))
++	if (device->have_quorum[NOW] && drbd_data_accessible(device, NOW)) {
+ 		drbd_uuid_new_current(device, false);
++		clear_bit(NEW_CUR_UUID, &device->flags);
++	}
+ }
+ 
+ static void make_new_current_uuid(struct drbd_device *device)
+ {
+ 	drbd_check_peers_new_current_uuid(device);
+ 
+-	get_work_bits(1UL << NEW_CUR_UUID | 1UL << WRITING_NEW_CUR_UUID, &device->flags);
++	clear_bit(WRITING_NEW_CUR_UUID, &device->flags);
+ 	wake_up(&device->misc_wait);
+ }
+ 
+-- 
+1.8.3.1
+
