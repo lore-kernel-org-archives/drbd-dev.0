@@ -1,18 +1,21 @@
 Return-Path: <rui.xu@easystack.cn>
-Received: from mail-m2458.qiye.163.com (mail-m2458.qiye.163.com
-	[220.194.24.58])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A4B324201D4
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 14:10:28 +0200 (CEST)
-From: Rui Xu <rui.xu@easystack.cn>
-To: philipp.reisner@linbit.com, joel.colledge@linbit.com,
-	drbd-dev@lists.linbit.com
-Date: Mon, 11 Apr 2022 20:02:04 +0800
-Message-Id: <20220411120204.3683999-1-rui.xu@easystack.cn>
+Received: from mail-m24100.qiye.163.com (mail-m24100.qiye.163.com
+	[220.194.24.100])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 71F374201D4
+	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 14:12:33 +0200 (CEST)
+Content-Type: multipart/alternative;
+	BOUNDARY="=_Part_1254859_551640115.1649679152288"
+Message-ID: <ALwAwgD0IQVS18p0UFmrbKrn.3.1649679152288.Hmail.rui.xu@easystack.cn>
+To: Joel Colledge <joel.colledge@linbit.com>
+In-Reply-To: <CAGNP_+VZLZhCuMymZO+qwSDZmFjYgyJHLfsPLwGZaGE+E5cD_Q@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: Rui Xu <rui.xu@easystack.cn>, dongsheng.yang@easystack.cn
-Subject: [Drbd-dev] [PATCH] drbd:clear NEW_CUR_UUID when uuid was actually
-	created
+From: Xu Rui <rui.xu@easystack.cn>
+Date: Mon, 11 Apr 2022 20:12:32 +0800 (GMT+08:00)
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev]
+	=?utf-8?q?=5BPATCH=5D_drbd=3A_create_new_uuid_even_we_?=
+	=?utf-8?q?dont_have_quorum?=
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,46 +27,90 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-If there is an IO blocked by creating new uuid, but we found
-we dont have quorum, then NEW_CUR_UUID will be cleared but
-new uuid was not actually created.
+--=_Part_1254859_551640115.1649679152288
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-After one peer online, we have enough quorum to continue IO, then this
-IO will reach  primary and the online peer.
+SGkgSm9lbCwKVGhhbmtzIGZvciB0aGUgcmVwbHkuIEkgaGF2ZSBhIDMgbm9kZSBjbHVzdGVyIGFu
+ZCBhbGwgMyBub2RlcyBydW5uaW5nIHdpdGggRFJCRDkuMDogUHJpbWFyeSBub2RlIGlzCm5vZGUt
+MSwgIGFuZCBTZWNvbmRhcnkgbm9kZXMgYXJlIG5vZGUtMiBhbmQgbm9kZS0zLCBxdW9ydW0gaXMg
+Y29uZmlndXJlZCBhcyAyLgoKCkFmdGVyIHNvbWUgbW9yZSBpbnZlc3RpZ2F0aW9uLCBJIGZvdW5k
+IHRoZSByb290IGNhdXNlIG9mIHRoaXMgcHJvYmxlbSB3ZSBtZXQgaXMgdGhhdCBORVdfQ1VSX1VV
+SUQKd2lsbCBjbGVhciB3aGV0aGVyIGEgbmV3IHV1aWQgd2FzIGFjdHVhbGx5IGdlbmVyYXRlZCBp
+biBtYWtlX25ld19jdXJyZW50X3V1aWQuCgoKWW91IGNhbiByZXByb2R1Y2UgdGhpcyBwcm9ibGVt
+IG9uIERSQkQ5LjAgdGhyb3VnaCB0aGUgZm9sbG93aW5nIHN0ZXBzOgooMSkgbmV0d29yayBmYWls
+dXJlIG9uIG5vZGUtMgooMikgbmV0d29yayBmYWlsdXJlIG9uIG5vZGUtMwooMykgd3JpdGUgb24g
+bm9kZS0xKHdpbGwgc3VzcGVuZCBzaW5jZSBxdW9ydW0gbG9zcykKKDQpIG5vZGUtMiBuZXR3b3Jr
+IHJlY292ZXJ5Cig1KSBub2RlLTMgbmV0d29yayByZWNvdmVyeQp5b3Ugd2lsbCBmaW5kIHRoYXQg
+ZGF0YSBvbiBub2RlLTMgaXMgaW5jb25zaXN0ZW50IHdpdGggdHdvIG90aGVyIG5vZGVzLgoKCkkg
+YWxzbyBmaW5kIHRoaXMgcHJvYmxlbSBpcyBub3QgZXhpc3QgaW4gRFJCRDkuMSAgc2luY2UgdGhl
+IGNvZGUgb2YgaW5jX2FwX2Jpb19jb25kCmluIERSQkQ5LjEgaXMgZGlmZmVyZW50IGZyb20gdGhh
+dCBpbiBEUkJEOS4wLCBzbyBpIGhhdmUgc2VudCBhIHBhdGNoIGZvciB0aGlzIGJ1ZyBpbgpEUkJE
+OS4wOgoKCmh0dHBzOi8vbGlzdHMubGluYml0LmNvbS9waXBlcm1haWwvZHJiZC1kZXYvMjAyMi1B
+cHJpbC8wMDY1NzYuaHRtbAoKU28geW91IGNhbiBnbyB0byByZXZpZXcgbXkgbmV3IHBhdGNoIGRp
+cmVjdGx5LgpCeSB0aGUgd2F5LCBoYXZlIHlvdSBmb2N1c2VkIG9uIERSQkQ5LjEgYW5kIGlzIHRo
+ZXJlIGEgc3RhYmxlIHZlcmlzb24gb2YgaXQ/ClRoYW5rcywKWHUKCkZyb206IEpvZWwgQ29sbGVk
+Z2UgPGpvZWwuY29sbGVkZ2VAbGluYml0LmNvbT4KRGF0ZTogMjAyMi0wNC0wNyAxODo0ODoxMgpU
+bzogIFJ1aSBYdSA8cnVpLnh1QGVhc3lzdGFjay5jbj4KQ2M6ICBQaGlsaXBwIFJlaXNuZXIgPHBo
+aWxpcHAucmVpc25lckBsaW5iaXQuY29tPixkcmJkLWRldkBsaXN0cy5saW5iaXQuY29tLGRvbmdz
+aGVuZy55YW5nQGVhc3lzdGFjay5jbgpTdWJqZWN0OiBSZTogW1BBVENIXSBkcmJkOiBjcmVhdGUg
+bmV3IHV1aWQgZXZlbiB3ZSBkb250IGhhdmUgcXVvcnVtPkhpLAo+Cj5XaGVuIHF1b3J1bSBpcyBj
+b25maWd1cmVkLCB3ZSBleHBlY3Qgbm90IHRvIGhhdmUgc3BsaXQtYnJhaW4KPnNpdHVhdGlvbnMu
+IEhlbmNlIGl0IGlzIGltcG9ydGFudCB0aGF0IHdlIGRvIG5vdCBnZW5lcmF0ZSBuZXcgVVVJRHMK
+PnVudGlsIHRoZXkgYXJlIGRlZmluaXRlbHkgbmVjZXNzYXJ5LiBXaGVuIHdlIGRvIG5vdCBoYXZl
+IHF1b3J1bSwgbm8KPndyaXRlcyBzaG91bGQgY29tcGxldGUsIHNvIHdlIGRvIG5vdCBuZWVkIHRv
+IGdlbmVyYXRlIGEgbmV3IFVVSUQuIFdlCj5tYXkgbmVlZCB0byBnZW5lcmF0ZSBvbmUgYmVmb3Jl
+IHdlIHJlZ2FpbiBxdW9ydW0gaW5zdGVhZC4KPgo+VGhhdCBzYWlkLCB0aGVyZSBoYXZlIGJlZW4g
+dmFyaW91cyBidWdzIGluIHRoZSBpbXBsZW1lbnRhdGlvbi4gVHJ5IHRvCj5yZXByb2R1Y2UgeW91
+ciBpc3N1ZSB3aXRoIHRoZSBsYXRlc3QgZHJiZC05LjEuIElmIGl0IGNhbiBzdGlsbCBiZQo+cmVw
+cm9kdWNlZCwgdGhlbiBkZXNjcmliZSB0aGUgZXhhY3QgcmVwcm9kdWN0aW9uIHN0ZXBzIGFuZCB3
+ZSBjYW4KPmRpc2N1c3MgdGhlIGFwcHJvcHJpYXRlIGZpeC4KPgo+QmVzdCByZWdhcmRzLAo+Sm9l
+bAoKCg0KDQo=
+--=_Part_1254859_551640115.1649679152288
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-But if there is another peer join later, this peer will found same uuid, and will lose data.
-
-So don't clear NEW_CUR_UUID unless uuid was actually created.
-
-Signed-off-by: Rui Xu <rui.xu@easystack.cn>
----
- drbd/drbd_sender.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/drbd/drbd_sender.c b/drbd/drbd_sender.c
-index 7238730..b0e3701 100644
---- a/drbd/drbd_sender.c
-+++ b/drbd/drbd_sender.c
-@@ -2360,15 +2360,17 @@ void drbd_check_peers_new_current_uuid(struct drbd_device *device)
- 
- 	drbd_check_peers(resource);
- 
--	if (device->have_quorum[NOW] && drbd_data_accessible(device, NOW))
-+	if (device->have_quorum[NOW] && drbd_data_accessible(device, NOW)) {
- 		drbd_uuid_new_current(device, false);
-+		clear_bit(NEW_CUR_UUID, &device->flags);
-+	}
- }
- 
- static void make_new_current_uuid(struct drbd_device *device)
- {
- 	drbd_check_peers_new_current_uuid(device);
- 
--	get_work_bits(1UL << NEW_CUR_UUID | 1UL << WRITING_NEW_CUR_UUID, &device->flags);
-+	clear_bit(WRITING_NEW_CUR_UUID, &device->flags);
- 	wake_up(&device->misc_wait);
- }
- 
--- 
-1.8.3.1
-
+PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
+Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXY+SGkgSm9lbCw8L2Rpdj48ZGl2PlRoYW5rcyBmb3IgdGhl
+IHJlcGx5LiBJIGhhdmUgYSAzIG5vZGUgY2x1c3RlciBhbmQgYWxsIDMgbm9kZXMgcnVubmluZyB3
+aXRoIERSQkQ5LjA6IFByaW1hcnkgbm9kZSBpczwvZGl2PjxkaXY+bm9kZS0xLCZuYnNwOyBhbmQg
+U2Vjb25kYXJ5IG5vZGVzIGFyZSBub2RlLTIgYW5kIG5vZGUtMywgcXVvcnVtIGlzIGNvbmZpZ3Vy
+ZWQgYXMgMi48L2Rpdj48ZGl2PjxiciAvPjwvZGl2PjxkaXY+QWZ0ZXIgc29tZSBtb3JlIGludmVz
+dGlnYXRpb24sIEkgZm91bmQgdGhlIHJvb3QgY2F1c2Ugb2YgdGhpcyBwcm9ibGVtIHdlIG1ldCBp
+cyB0aGF0IE5FV19DVVJfVVVJRDwvZGl2PjxkaXY+d2lsbCBjbGVhciB3aGV0aGVyIGEgbmV3IHV1
+aWQgd2FzIGFjdHVhbGx5IGdlbmVyYXRlZCBpbiBtYWtlX25ld19jdXJyZW50X3V1aWQuPC9kaXY+
+PGRpdj48YnIgLz48L2Rpdj48ZGl2PllvdSBjYW4gcmVwcm9kdWNlIHRoaXMgcHJvYmxlbSBvbiBE
+UkJEOS4wIHRocm91Z2ggdGhlIGZvbGxvd2luZyBzdGVwczo8L2Rpdj48ZGl2PigxKSBuZXR3b3Jr
+IGZhaWx1cmUgb24gbm9kZS0yPC9kaXY+PGRpdj4oMikgbmV0d29yayBmYWlsdXJlIG9uIG5vZGUt
+MzwvZGl2PjxkaXY+KDMpIHdyaXRlIG9uIG5vZGUtMSh3aWxsIHN1c3BlbmQgc2luY2UgcXVvcnVt
+IGxvc3MpPC9kaXY+PGRpdj4oNCkgbm9kZS0yIG5ldHdvcmsgcmVjb3Zlcnk8L2Rpdj48ZGl2Pig1
+KSBub2RlLTMgbmV0d29yayByZWNvdmVyeTwvZGl2PjxkaXY+eW91IHdpbGwgZmluZCB0aGF0IGRh
+dGEgb24gbm9kZS0zIGlzIGluY29uc2lzdGVudCB3aXRoIHR3byBvdGhlciBub2Rlcy48L2Rpdj48
+ZGl2PjxiciAvPjwvZGl2PjxkaXY+SSBhbHNvIGZpbmQgdGhpcyBwcm9ibGVtIGlzIG5vdCBleGlz
+dCBpbiBEUkJEOS4xJm5ic3A7IHNpbmNlIHRoZSBjb2RlIG9mIGluY19hcF9iaW9fY29uZDwvZGl2
+PjxkaXY+aW4gRFJCRDkuMSBpcyBkaWZmZXJlbnQgZnJvbSB0aGF0IGluIERSQkQ5LjAsIHNvIGkg
+aGF2ZSBzZW50IGEgcGF0Y2ggZm9yIHRoaXMgYnVnIGluPC9kaXY+PGRpdj5EUkJEOS4wOjxiciAv
+PjwvZGl2PjxkaXYgIHN0eWxlPSJwb3NpdGlvbjpyZWxhdGl2ZTt6b29tOjEiPjwvZGl2PjxkaXY+
+aHR0cHM6Ly9saXN0cy5saW5iaXQuY29tL3BpcGVybWFpbC9kcmJkLWRldi8yMDIyLUFwcmlsLzAw
+NjU3Ni5odG1sPGJyIC8+PC9kaXY+PGRpdj4gU28geW91IGNhbiBnbyB0byByZXZpZXcgbXkgbmV3
+IHBhdGNoIGRpcmVjdGx5LjwvZGl2PjxkaXY+QnkgdGhlIHdheSwgaGF2ZSB5b3UgZm9jdXNlZCBv
+biBEUkJEOS4xIGFuZCBpcyB0aGVyZSBhIHN0YWJsZSB2ZXJpc29uIG9mIGl0PzwvZGl2PjxkaXY+
+VGhhbmtzLDwvZGl2PjxkaXY+WHU8YnIgLz48L2Rpdj48cHJlPkZyb206IEpvZWwgQ29sbGVkZ2Ug
+Jmx0O2pvZWwuY29sbGVkZ2VAbGluYml0LmNvbSZndDsKRGF0ZTogMjAyMi0wNC0wNyAxODo0ODox
+MgpUbzogIFJ1aSBYdSAmbHQ7cnVpLnh1QGVhc3lzdGFjay5jbiZndDsKQ2M6ICBQaGlsaXBwIFJl
+aXNuZXIgJmx0O3BoaWxpcHAucmVpc25lckBsaW5iaXQuY29tJmd0OyxkcmJkLWRldkBsaXN0cy5s
+aW5iaXQuY29tLGRvbmdzaGVuZy55YW5nQGVhc3lzdGFjay5jbgpTdWJqZWN0OiBSZTogW1BBVENI
+XSBkcmJkOiBjcmVhdGUgbmV3IHV1aWQgZXZlbiB3ZSBkb250IGhhdmUgcXVvcnVtJmd0O0hpLAom
+Z3Q7CiZndDtXaGVuIHF1b3J1bSBpcyBjb25maWd1cmVkLCB3ZSBleHBlY3Qgbm90IHRvIGhhdmUg
+c3BsaXQtYnJhaW4KJmd0O3NpdHVhdGlvbnMuIEhlbmNlIGl0IGlzIGltcG9ydGFudCB0aGF0IHdl
+IGRvIG5vdCBnZW5lcmF0ZSBuZXcgVVVJRHMKJmd0O3VudGlsIHRoZXkgYXJlIGRlZmluaXRlbHkg
+bmVjZXNzYXJ5LiBXaGVuIHdlIGRvIG5vdCBoYXZlIHF1b3J1bSwgbm8KJmd0O3dyaXRlcyBzaG91
+bGQgY29tcGxldGUsIHNvIHdlIGRvIG5vdCBuZWVkIHRvIGdlbmVyYXRlIGEgbmV3IFVVSUQuIFdl
+CiZndDttYXkgbmVlZCB0byBnZW5lcmF0ZSBvbmUgYmVmb3JlIHdlIHJlZ2FpbiBxdW9ydW0gaW5z
+dGVhZC4KJmd0OwomZ3Q7VGhhdCBzYWlkLCB0aGVyZSBoYXZlIGJlZW4gdmFyaW91cyBidWdzIGlu
+IHRoZSBpbXBsZW1lbnRhdGlvbi4gVHJ5IHRvCiZndDtyZXByb2R1Y2UgeW91ciBpc3N1ZSB3aXRo
+IHRoZSBsYXRlc3QgZHJiZC05LjEuIElmIGl0IGNhbiBzdGlsbCBiZQomZ3Q7cmVwcm9kdWNlZCwg
+dGhlbiBkZXNjcmliZSB0aGUgZXhhY3QgcmVwcm9kdWN0aW9uIHN0ZXBzIGFuZCB3ZSBjYW4KJmd0
+O2Rpc2N1c3MgdGhlIGFwcHJvcHJpYXRlIGZpeC4KJmd0OwomZ3Q7QmVzdCByZWdhcmRzLAomZ3Q7
+Sm9lbAo8L3ByZT48L2Rpdj48YnI+
+--=_Part_1254859_551640115.1649679152288--
