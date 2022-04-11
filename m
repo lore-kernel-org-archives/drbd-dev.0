@@ -1,23 +1,22 @@
 Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ej1-f46.google.com (mail-ej1-f46.google.com
-	[209.85.218.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6CA994201D4
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 17:07:01 +0200 (CEST)
-Received: by mail-ej1-f46.google.com with SMTP id u15so12870439ejf.11
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 08:07:01 -0700 (PDT)
+Received: from mail-ed1-f46.google.com (mail-ed1-f46.google.com
+	[209.85.208.46])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 24EF2420124
+	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 17:21:12 +0200 (CEST)
+Received: by mail-ed1-f46.google.com with SMTP id d10so18940385edj.0
+	for <drbd-dev@lists.linbit.com>; Mon, 11 Apr 2022 08:21:12 -0700 (PDT)
 MIME-Version: 1.0
-References: <CAGNP_+VZLZhCuMymZO+qwSDZmFjYgyJHLfsPLwGZaGE+E5cD_Q@mail.gmail.com>
-	<ALwAwgD0IQVS18p0UFmrbKrn.3.1649679152288.Hmail.rui.xu@easystack.cn>
-In-Reply-To: <ALwAwgD0IQVS18p0UFmrbKrn.3.1649679152288.Hmail.rui.xu@easystack.cn>
+References: <20220411120204.3683999-1-rui.xu@easystack.cn>
+In-Reply-To: <20220411120204.3683999-1-rui.xu@easystack.cn>
 From: Joel Colledge <joel.colledge@linbit.com>
-Date: Mon, 11 Apr 2022 17:06:49 +0200
-Message-ID: <CAGNP_+U6QZGQmRyWZPtX7CvoQoACFNtBYFSuV2sN0odQRZtQwA@mail.gmail.com>
-To: Xu Rui <rui.xu@easystack.cn>
+Date: Mon, 11 Apr 2022 17:21:01 +0200
+Message-ID: <CAGNP_+WSFxF3Jzb7ozJMjSsOEDxLR6n_CMt58NHzmyOJErjfng@mail.gmail.com>
+To: Rui Xu <rui.xu@easystack.cn>
 Content-Type: text/plain; charset="UTF-8"
 Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: create new uuid even we dont have
-	quorum
+Subject: Re: [Drbd-dev] [PATCH] drbd:clear NEW_CUR_UUID when uuid was
+	actually created
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,19 +30,15 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hi Xu,
 
-> By the way, have you focused on DRBD9.1 and is there a stable verison of it?
+You mentioned in your other message that this patch is intended for DRBD 9.0.
+https://lists.linbit.com/pipermail/drbd-dev/2022-April/006577.html
 
-We have stopped working on 9.0. The final release was 9.0.32 (see the
-release announcement). For now, we are continuing to apply fixes to
-allow it to be built for newer kernels, but otherwise the 9.0 branch
-is end-of-life.
+I'm afraid that the 9.0 branch is end-of-life, so this won't be
+applied. The drbd-9.1 branch is the place for improvements, especially
+since it already contains related fixes to the handling of suspended
+IO due to quorum loss.
 
-DRBD 9.1 is as stable as 9.0 was. The most recent release is 9.1.6.
-
-Since 9.1.6, the 9.1 branch has received significant work in the area
-of handling suspended IO due to quorum loss. It looks like this might
-be relevant for you. There will be a 9.1.7 release soon containing
-these fixes.
+Thank you for your participation in the project nevertheless!
 
 Best regards,
 Joel
