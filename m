@@ -1,18 +1,18 @@
 Return-Path: <chaitanyak@nvidia.com>
 Received: from NAM10-DM6-obe.outbound.protection.outlook.com
-	(mail-dm6nam10on2087.outbound.protection.outlook.com [40.107.93.87])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EC080420334
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 07:43:10 +0200 (CEST)
+	(mail-dm6nam10on2045.outbound.protection.outlook.com [40.107.93.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 009F2420FC7
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 07:43:54 +0200 (CEST)
 From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Apr 2022 05:43:08 +0000
-Message-ID: <29b7e5b3-172b-c006-94c3-ad23e058e438@nvidia.com>
+Date: Fri, 15 Apr 2022 05:43:53 +0000
+Message-ID: <d4d70cec-aaef-27bd-4d29-7382a740f192@nvidia.com>
 References: <20220415045258.199825-1-hch@lst.de>
-	<20220415045258.199825-16-hch@lst.de>
-In-Reply-To: <20220415045258.199825-16-hch@lst.de>
+	<20220415045258.199825-17-hch@lst.de>
+In-Reply-To: <20220415045258.199825-17-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <6CDFF86F90989C4A95462B2BEA592E1A@namprd12.prod.outlook.com>
+Content-ID: <082F7C538FC35349BB8BF71526006F64@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: "jfs-discussion@lists.sourceforge.net"
@@ -28,7 +28,6 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>,
 	"linux-nilfs@vger.kernel.org" <linux-nilfs@vger.kernel.org>,
 	"linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
-	Damien Le Moal <damien.lemoal@opensource.wdc.com>,
 	"cluster-devel@redhat.com" <cluster-devel@redhat.com>,
 	"xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>,
 	"linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>,
@@ -39,7 +38,6 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
 	"Martin K . Petersen" <martin.petersen@oracle.com>,
-	Johannes Thumshirn <johannes.thumshirn@wdc.com>,
 	"linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>,
 	"linux-f2fs-devel@lists.sourceforge.net"
 	<linux-f2fs-devel@lists.sourceforge.net>,
@@ -48,8 +46,8 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
 	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
 	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 15/27] block: add a
-	bdev_max_zone_append_sectors helper
+Subject: Re: [Drbd-dev] [PATCH 16/27] block: use bdev_alignment_offset in
+ part_alignment_offset_show
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -61,13 +59,12 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IEFkZCBhIGhlbHBl
-ciB0byBjaGVjayB0aGUgbWF4IHN1cHBvcnRlZCBzZWN0b3JzIGZvciB6b25lIGFwcGVuZCBiYXNl
-ZCBvbg0KPiB0aGUgYmxvY2tfZGV2aWNlIGluc3RlYWQgb2YgaGF2aW5nIHRvIHBva2UgaW50byB0
-aGUgYmxvY2sgbGF5ZXIgaW50ZXJuYWwNCj4gcmVxdWVzdF9xdWV1ZS4NCj4gDQo+IFNpZ25lZC1v
-ZmYtYnk6IENocmlzdG9waCBIZWxsd2lnIDxoY2hAbHN0LmRlPg0KPiBBY2tlZC1ieTogRGFtaWVu
-IExlIE1vYWwgPGRhbWllbi5sZW1vYWxAb3BlbnNvdXJjZS53ZGMuY29tPg0KPiBSZXZpZXdlZC1i
-eTogTWFydGluIEsuIFBldGVyc2VuIDxtYXJ0aW4ucGV0ZXJzZW5Ab3JhY2xlLmNvbT4NCj4gUmV2
-aWV3ZWQtYnk6IEpvaGFubmVzIFRodW1zaGlybiA8am9oYW5uZXMudGh1bXNoaXJuQHdkYy5jb20+
-DQo+IC0tLQ0KDQpMb29rcyBnb29kLg0KDQpSZXZpZXdlZC1ieTogQ2hhaXRhbnlhIEt1bGthcm5p
-IDxrY2hAbnZpZGlhLmNvbT4NCg0KLWNrDQoNCg0K
+T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IFJlcGxhY2UgdGhl
+IG9wZW4gY29kZWQgb2Zmc2V0IGNhbGN1bGF0aW9uIHdpdGggdGhlIHByb3BlciBoZWxwZXIuDQo+
+IFRoaXMgaXMgYW4gQUJJIGNoYW5nZSBpbiB0aGF0IHRoZSAtMSBmb3IgYSBtaXNhbGlnbmVkIHBh
+cnRpdGlvbiBpcw0KPiBwcm9wZXJseSBwcm9wYWdhdGVkLCB3aGljaCBjYW4gYmUgY29uc2lkZXJl
+ZCBhIGJ1ZyBmaXggYW5kIG1hdGNoZXMNCj4gd2hhdCBpcyBkb25lIG9uIHRoZSB3aG9sZSBkZXZp
+Y2UuDQo+IA0KPiBTaWduZWQtb2ZmLWJ5OiBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGxzdC5kZT4N
+Cj4gUmV2aWV3ZWQtYnk6IE1hcnRpbiBLLiBQZXRlcnNlbiA8bWFydGluLnBldGVyc2VuQG9yYWNs
+ZS5jb20+DQo+IC0tLQ0KDQpOZWF0IQ0KDQpMb29rcyBnb29kLg0KDQpSZXZpZXdlZC1ieTogQ2hh
+aXRhbnlhIEt1bGthcm5pIDxrY2hAbnZpZGlhLmNvbT4NCg0KLWNrDQoNCg==
