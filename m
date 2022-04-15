@@ -1,18 +1,18 @@
 Return-Path: <chaitanyak@nvidia.com>
 Received: from NAM10-DM6-obe.outbound.protection.outlook.com
-	(mail-dm6nam10on2056.outbound.protection.outlook.com [40.107.93.56])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AB05A420FB1
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 07:51:31 +0200 (CEST)
+	(mail-dm6nam10on2080.outbound.protection.outlook.com [40.107.93.80])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 80B9A420FCA
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 07:53:26 +0200 (CEST)
 From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Apr 2022 05:36:12 +0000
-Message-ID: <673afa25-cf3f-616c-6bcd-16de35b307b2@nvidia.com>
+Date: Fri, 15 Apr 2022 05:38:03 +0000
+Message-ID: <c440aaea-6617-c26d-e2a1-2107bcc4559e@nvidia.com>
 References: <20220415045258.199825-1-hch@lst.de>
-	<20220415045258.199825-2-hch@lst.de>
-In-Reply-To: <20220415045258.199825-2-hch@lst.de>
+	<20220415045258.199825-3-hch@lst.de>
+In-Reply-To: <20220415045258.199825-3-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <E802A778DDA3DB47923030D024586109@namprd12.prod.outlook.com>
+Content-ID: <98CD87A15D6DAE479794C1E9643FCF3A@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: "jfs-discussion@lists.sourceforge.net"
@@ -46,8 +46,8 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
 	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
 	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 01/27] target: remove an incorrect unmap
- zeroes data deduction
+Subject: Re: [Drbd-dev] [PATCH 02/27] target: pass a block_device to
+ target_configure_unmap_from_queue
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -59,15 +59,10 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IEZvciBibG9jayBk
-ZXZpY2VzLCB0aGUgU0NTSSB0YXJnZXQgZHJpdmVycyBpbXBsZW1lbnRzIFVOTUFQIGFzIGNhbGxz
-IHRvDQo+IGJsa2Rldl9pc3N1ZV9kaXNjYXJkLCB3aGljaCBkb2VzIG5vdCBndWFyYW50ZWUgemVy
-b2luZyBqdXN0IGJlY2F1c2UNCj4gV3JpdGUgWmVyb2VzIGlzIHN1cHBvcnRlZC4NCj4gDQo+IE5v
-dGUgdGhhdCB0aGlzIGRvZXMgbm90IGFmZmVjdCB0aGUgZmlsZSBiYWNrZWQgcGF0aCB3aGljaCB1
-c2VzDQo+IGZhbGxvY2F0ZSB0byBwdW5jaCBob2xlcy4NCj4gDQo+IEZpeGVzOiAyMjM3NDk4ZjBi
-NWMgKCJ0YXJnZXQvaWJsb2NrOiBDb252ZXJ0IFdSSVRFX1NBTUUgdG8gYmxrZGV2X2lzc3VlX3pl
-cm9vdXQiKQ0KPiBTaWduZWQtb2ZmLWJ5OiBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGxzdC5kZT4N
-Cj4gUmV2aWV3ZWQtYnk6IE1hcnRpbiBLLiBQZXRlcnNlbiA8bWFydGluLnBldGVyc2VuQG9yYWNs
-ZS5jb20+DQoNCk5vdCBhIGdvb2QgYXNzdW1wdGlvbiB0byBoYXZlIGZvciBzdXJlLg0KDQpMb29r
-cyBnb29kLg0KDQpSZXZpZXdlZC1ieTogQ2hhaXRhbnlhIEt1bGthcm5pIDxrY2hAbnZpZGlhLmNv
-bT4NCg0KLWNrDQoNCg0K
+T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IFRoZSBTQ1NJIHRh
+cmdldCBkcml2ZXJzIGlzIGEgY29uc3VtZXIgb2YgdGhlIGJsb2NrIGxheWVyIGFuZCBzaG91bA0K
+PiBkIGdlbmVyYWxseSB3b3JrIG9uIHN0cnVjdCBibG9ja19kZXZpY2UuDQo+ICA+IFNpZ25lZC1v
+ZmYtYnk6IENocmlzdG9waCBIZWxsd2lnIDxoY2hAbHN0LmRlPg0KPiBSZXZpZXdlZC1ieTogTWFy
+dGluIEsuIFBldGVyc2VuIDxtYXJ0aW4ucGV0ZXJzZW5Ab3JhY2xlLmNvbT4NCg0KRXhjZXB0IGZy
+b20gc3BsaXQgd29yZCBpbiBsb2cgInNob3VsZCIsIGxvb2tzIGdvb2QuDQoNClJldmlld2VkLWJ5
+OiBDaGFpdGFueWEgS3Vsa2FybmkgPGtjaEBudmlkaWEuY29tPg0KDQotY2sNCg0K
