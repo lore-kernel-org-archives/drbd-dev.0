@@ -1,18 +1,18 @@
 Return-Path: <chaitanyak@nvidia.com>
 Received: from NAM02-BN1-obe.outbound.protection.outlook.com
-	(mail-bn1nam07on2064.outbound.protection.outlook.com [40.107.212.64])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E756142060F
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 08:14:25 +0200 (CEST)
+	(mail-bn1nam07on2084.outbound.protection.outlook.com [40.107.212.84])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 78461420FCD
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 08:19:13 +0200 (CEST)
 From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Apr 2022 05:41:25 +0000
-Message-ID: <eba999b5-e9fc-1522-67dd-e232b48be9c4@nvidia.com>
+Date: Fri, 15 Apr 2022 05:46:32 +0000
+Message-ID: <d3f73a4f-0d45-6627-7878-9b5acd47842f@nvidia.com>
 References: <20220415045258.199825-1-hch@lst.de>
-	<20220415045258.199825-12-hch@lst.de>
-In-Reply-To: <20220415045258.199825-12-hch@lst.de>
+	<20220415045258.199825-23-hch@lst.de>
+In-Reply-To: <20220415045258.199825-23-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <78329BCB58D5BB408C7439FBB9C8189D@namprd12.prod.outlook.com>
+Content-ID: <5C40943C50889249AD34D58B6AD3A631@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: "jfs-discussion@lists.sourceforge.net"
@@ -35,8 +35,8 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"nbd@other.debian.org" <nbd@other.debian.org>,
 	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
 	"linux-bcache@vger.kernel.org" <linux-bcache@vger.kernel.org>,
-	David Sterba <dsterba@suse.com>,
 	"ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>,
+	Coly Li <colyli@suse.de>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
 	"Martin K . Petersen" <martin.petersen@oracle.com>,
 	"linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>,
@@ -47,7 +47,8 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
 	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
 	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 11/27] block: add a bdev_nonrot helper
+Subject: Re: [Drbd-dev] [PATCH 22/27] block: refactor discard bio size
+	limiting
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -59,11 +60,10 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IEFkZCBhIGhlbHBl
-ciB0byBjaGVjayB0aGUgbm9ucm90IGZsYWcgYmFzZWQgb24gdGhlIGJsb2NrX2RldmljZSBpbnN0
-ZWFkDQo+IG9mIGhhdmluZyB0byBwb2tlIGludG8gdGhlIGJsb2NrIGxheWVyIGludGVybmFsIHJl
-cXVlc3RfcXVldWUuDQo+IA0KPiBTaWduZWQtb2ZmLWJ5OiBDaHJpc3RvcGggSGVsbHdpZyA8aGNo
-QGxzdC5kZT4NCj4gUmV2aWV3ZWQtYnk6IE1hcnRpbiBLLiBQZXRlcnNlbiA8bWFydGluLnBldGVy
-c2VuQG9yYWNsZS5jb20+DQo+IEFja2VkLWJ5OiBEYXZpZCBTdGVyYmEgPGRzdGVyYmFAc3VzZS5j
-b20+IFtidHJmc10NCj4gLS0tDQoNCkxvb2tzIGdvb2QuDQoNClJldmlld2VkLWJ5OiBDaGFpdGFu
-eWEgS3Vsa2FybmkgPGtjaEBudmlkaWEuY29tPg0KDQotY2sNCg0KDQoNCg==
+T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IE1vdmUgYWxsIHRo
+ZSBsb2dpYyB0byBsaW1pdCB0aGUgZGlzY2FyZCBiaW8gc2l6ZSBpbnRvIGEgY29tbW9uIGhlbHBl
+cg0KPiBzbyB0aGF0IGl0IGlzIGJldHRlciBkb2N1bWVudGVkLg0KPiANCj4gU2lnbmVkLW9mZi1i
+eTogQ2hyaXN0b3BoIEhlbGx3aWcgPGhjaEBsc3QuZGU+DQo+IFJldmlld2VkLWJ5OiBNYXJ0aW4g
+Sy4gUGV0ZXJzZW4gPG1hcnRpbi5wZXRlcnNlbkBvcmFjbGUuY29tPg0KPiBBY2tlZC1ieTogQ29s
+eSBMaSA8Y29seWxpQHN1c2UuZGU+DQo+IC0tLQ0KDQpMb29rcyBnb29kLg0KDQpSZXZpZXdlZC1i
+eTogQ2hhaXRhbnlhIEt1bGthcm5pIDxrY2hAbnZpZGlhLmNvbT4NCg0KLWNrDQoNCg==
