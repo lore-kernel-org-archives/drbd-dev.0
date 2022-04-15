@@ -1,18 +1,18 @@
 Return-Path: <chaitanyak@nvidia.com>
 Received: from NAM11-BN8-obe.outbound.protection.outlook.com
-	(mail-bn8nam11on2062.outbound.protection.outlook.com [40.107.236.62])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 18CFF420FDC
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 09:13:57 +0200 (CEST)
+	(mail-bn8nam11on2058.outbound.protection.outlook.com [40.107.236.58])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1DBBB420FDC
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 09:15:08 +0200 (CEST)
 From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Apr 2022 05:40:52 +0000
-Message-ID: <0da96aad-412b-9afa-c42d-92ca2a650d1e@nvidia.com>
+Date: Fri, 15 Apr 2022 05:42:30 +0000
+Message-ID: <3a257cff-628b-e03e-e539-fda51a9ebad9@nvidia.com>
 References: <20220415045258.199825-1-hch@lst.de>
-	<20220415045258.199825-11-hch@lst.de>
-In-Reply-To: <20220415045258.199825-11-hch@lst.de>
+	<20220415045258.199825-15-hch@lst.de>
+In-Reply-To: <20220415045258.199825-15-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <807FABDDF8F92345AAFE5DF5D2053FEC@namprd12.prod.outlook.com>
+Content-ID: <BC25D9F96CBBE841BBAF019B54F927FD@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: "jfs-discussion@lists.sourceforge.net"
@@ -37,6 +37,7 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"linux-bcache@vger.kernel.org" <linux-bcache@vger.kernel.org>,
 	"ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	"Martin K . Petersen" <martin.petersen@oracle.com>,
 	"linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>,
 	"linux-f2fs-devel@lists.sourceforge.net"
 	<linux-f2fs-devel@lists.sourceforge.net>,
@@ -45,7 +46,7 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
 	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
 	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 10/27] mm: use bdev_is_zoned in claim_swapfile
+Subject: Re: [Drbd-dev] [PATCH 14/27] block: add a bdev_stable_writes helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -57,8 +58,10 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IFVzZSB0aGUgYmRl
-diBiYXNlZCBoZWxwZXIgaW5zdGVhZCBvZiBwb2tpbmcgaW50byB0aGUgcXVldWUuDQo+IA0KPiBT
-aWduZWQtb2ZmLWJ5OiBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGxzdC5kZT4NCj4gLS0tDQoNCkxv
-b2tzIGdvb2QuDQoNClJldmlld2VkLWJ5OiBDaGFpdGFueWEgS3Vsa2FybmkgPGtjaEBudmlkaWEu
-Y29tPg0KDQotY2sNCg0KDQo=
+T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IEFkZCBhIGhlbHBl
+ciB0byBjaGVjayB0aGUgc3RhYmxlIHdyaXRlcyBmbGFnIGJhc2VkIG9uIHRoZSBibG9ja19kZXZp
+Y2UNCj4gaW5zdGVhZCBvZiBoYXZpbmcgdG8gcG9rZSBpbnRvIHRoZSBibG9jayBsYXllciBpbnRl
+cm5hbCByZXF1ZXN0X3F1ZXVlLg0KPiANCj4gU2lnbmVkLW9mZi1ieTogQ2hyaXN0b3BoIEhlbGx3
+aWcgPGhjaEBsc3QuZGU+DQo+IFJldmlld2VkLWJ5OiBNYXJ0aW4gSy4gUGV0ZXJzZW4gPG1hcnRp
+bi5wZXRlcnNlbkBvcmFjbGUuY29tPg0KPiAtLS0NCg0KTG9va3MgZ29vZC4NCg0KUmV2aWV3ZWQt
+Ynk6IENoYWl0YW55YSBLdWxrYXJuaSA8a2NoQG52aWRpYS5jb20+DQoNCi1jaw0KDQo=
