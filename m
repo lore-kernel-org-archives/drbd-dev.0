@@ -1,12 +1,12 @@
 Return-Path: <BATV+2d633663de0085320ac7+6809+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8F364420FAB
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F3607420FAC
 	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 07:29:36 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Apr 2022 06:52:46 +0200
-Message-Id: <20220415045258.199825-16-hch@lst.de>
+Date: Fri, 15 Apr 2022 06:52:44 +0200
+Message-Id: <20220415045258.199825-14-hch@lst.de>
 In-Reply-To: <20220415045258.199825-1-hch@lst.de>
 References: <20220415045258.199825-1-hch@lst.de>
 MIME-Version: 1.0
@@ -16,21 +16,17 @@ Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
 	dm-devel@redhat.com, target-devel@vger.kernel.org,
 	linux-mtd@lists.infradead.org, drbd-dev@lists.linbit.com,
 	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org,
-	Damien Le Moal <damien.lemoal@opensource.wdc.com>,
-	cluster-devel@redhat.com, xen-devel@lists.xenproject.org,
-	linux-ext4@vger.kernel.org, linux-um@lists.infradead.org,
-	nbd@other.debian.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, ceph-devel@vger.kernel.org,
-	linux-raid@vger.kernel.org,
+	linux-scsi@vger.kernel.org, cluster-devel@redhat.com,
+	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
+	linux-um@lists.infradead.org, nbd@other.debian.org,
+	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
+	ceph-devel@vger.kernel.org, linux-raid@vger.kernel.org,
 	"Martin K . Petersen" <martin.petersen@oracle.com>,
-	Johannes Thumshirn <johannes.thumshirn@wdc.com>, linux-mmc@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
+	linux-mmc@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
 	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
 	linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 15/27] block: add a bdev_max_zone_append_sectors
-	helper
+Subject: [Drbd-dev] [PATCH 13/27] block: add a bdev_fua helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,70 +38,97 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to check the max supported sectors for zone append based on
-the block_device instead of having to poke into the block layer internal
-request_queue.
+Add a helper to check the FUA flag based on the block_device instead of
+having to poke into the block layer internal request_queue.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Acked-by: Damien Le Moal <damien.lemoal@opensource.wdc.com>
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
-Reviewed-by: Johannes Thumshirn <johannes.thumshirn@wdc.com>
 ---
- drivers/nvme/target/zns.c | 3 +--
- fs/zonefs/super.c         | 3 +--
- include/linux/blkdev.h    | 6 ++++++
- 3 files changed, 8 insertions(+), 4 deletions(-)
+ drivers/block/rnbd/rnbd-srv.c       | 3 +--
+ drivers/target/target_core_iblock.c | 3 +--
+ fs/iomap/direct-io.c                | 3 +--
+ include/linux/blkdev.h              | 6 +++++-
+ 4 files changed, 8 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/nvme/target/zns.c b/drivers/nvme/target/zns.c
-index e34718b095504..82b61acf7a72b 100644
---- a/drivers/nvme/target/zns.c
-+++ b/drivers/nvme/target/zns.c
-@@ -34,8 +34,7 @@ static int validate_conv_zones_cb(struct blk_zone *z,
- 
- bool nvmet_bdev_zns_enable(struct nvmet_ns *ns)
+diff --git a/drivers/block/rnbd/rnbd-srv.c b/drivers/block/rnbd/rnbd-srv.c
+index f8cc3c5fecb4b..beaef43a67b9d 100644
+--- a/drivers/block/rnbd/rnbd-srv.c
++++ b/drivers/block/rnbd/rnbd-srv.c
+@@ -533,7 +533,6 @@ static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
+ 					struct rnbd_srv_sess_dev *sess_dev)
  {
--	struct request_queue *q = ns->bdev->bd_disk->queue;
--	u8 zasl = nvmet_zasl(queue_max_zone_append_sectors(q));
-+	u8 zasl = nvmet_zasl(bdev_max_zone_append_sectors(ns->bdev));
- 	struct gendisk *bd_disk = ns->bdev->bd_disk;
- 	int ret;
+ 	struct rnbd_dev *rnbd_dev = sess_dev->rnbd_dev;
+-	struct request_queue *q = bdev_get_queue(rnbd_dev->bdev);
  
-diff --git a/fs/zonefs/super.c b/fs/zonefs/super.c
-index 3614c7834007d..7a63807b736c4 100644
---- a/fs/zonefs/super.c
-+++ b/fs/zonefs/super.c
-@@ -678,13 +678,12 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
- 	struct inode *inode = file_inode(iocb->ki_filp);
- 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
- 	struct block_device *bdev = inode->i_sb->s_bdev;
--	unsigned int max;
-+	unsigned int max = bdev_max_zone_append_sectors(bdev);
- 	struct bio *bio;
- 	ssize_t size;
- 	int nr_pages;
- 	ssize_t ret;
- 
--	max = queue_max_zone_append_sectors(bdev_get_queue(bdev));
- 	max = ALIGN_DOWN(max << SECTOR_SHIFT, inode->i_sb->s_blocksize);
- 	iov_iter_truncate(from, max);
- 
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index a433798c3343e..f8c50b77543eb 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1188,6 +1188,12 @@ static inline unsigned int queue_max_zone_append_sectors(const struct request_qu
- 	return min(l->max_zone_append_sectors, l->max_sectors);
+ 	rsp->hdr.type = cpu_to_le16(RNBD_MSG_OPEN_RSP);
+ 	rsp->device_id =
+@@ -560,7 +559,7 @@ static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
+ 	rsp->cache_policy = 0;
+ 	if (bdev_write_cache(rnbd_dev->bdev))
+ 		rsp->cache_policy |= RNBD_WRITEBACK;
+-	if (blk_queue_fua(q))
++	if (bdev_fua(rnbd_dev->bdev))
+ 		rsp->cache_policy |= RNBD_FUA;
  }
  
-+static inline unsigned int
-+bdev_max_zone_append_sectors(struct block_device *bdev)
+diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+index 03013e85ffc03..c4a903b8a47fc 100644
+--- a/drivers/target/target_core_iblock.c
++++ b/drivers/target/target_core_iblock.c
+@@ -727,14 +727,13 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+ 
+ 	if (data_direction == DMA_TO_DEVICE) {
+ 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+-		struct request_queue *q = bdev_get_queue(ib_dev->ibd_bd);
+ 		/*
+ 		 * Force writethrough using REQ_FUA if a volatile write cache
+ 		 * is not enabled, or if initiator set the Force Unit Access bit.
+ 		 */
+ 		opf = REQ_OP_WRITE;
+ 		miter_dir = SG_MITER_TO_SG;
+-		if (test_bit(QUEUE_FLAG_FUA, &q->queue_flags)) {
++		if (bdev_fua(ib_dev->ibd_bd)) {
+ 			if (cmd->se_cmd_flags & SCF_FUA)
+ 				opf |= REQ_FUA;
+ 			else if (!bdev_write_cache(ib_dev->ibd_bd))
+diff --git a/fs/iomap/direct-io.c b/fs/iomap/direct-io.c
+index b08f5dc31780d..62da020d02a11 100644
+--- a/fs/iomap/direct-io.c
++++ b/fs/iomap/direct-io.c
+@@ -265,8 +265,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
+ 		 * cache flushes on IO completion.
+ 		 */
+ 		if (!(iomap->flags & (IOMAP_F_SHARED|IOMAP_F_DIRTY)) &&
+-		    (dio->flags & IOMAP_DIO_WRITE_FUA) &&
+-		    blk_queue_fua(bdev_get_queue(iomap->bdev)))
++		    (dio->flags & IOMAP_DIO_WRITE_FUA) && bdev_fua(iomap->bdev))
+ 			use_fua = true;
+ 	}
+ 
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 807a49aa5a27a..075b16d4560e7 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -602,7 +602,6 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
+ 			     REQ_FAILFAST_DRIVER))
+ #define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
+ #define blk_queue_pm_only(q)	atomic_read(&(q)->pm_only)
+-#define blk_queue_fua(q)	test_bit(QUEUE_FLAG_FUA, &(q)->queue_flags)
+ #define blk_queue_registered(q)	test_bit(QUEUE_FLAG_REGISTERED, &(q)->queue_flags)
+ #define blk_queue_nowait(q)	test_bit(QUEUE_FLAG_NOWAIT, &(q)->queue_flags)
+ 
+@@ -1336,6 +1335,11 @@ static inline bool bdev_write_cache(struct block_device *bdev)
+ 	return test_bit(QUEUE_FLAG_WC, &bdev_get_queue(bdev)->queue_flags);
+ }
+ 
++static inline bool bdev_fua(struct block_device *bdev)
 +{
-+	return queue_max_zone_append_sectors(bdev_get_queue(bdev));
++	return test_bit(QUEUE_FLAG_FUA, &bdev_get_queue(bdev)->queue_flags);
 +}
 +
- static inline unsigned queue_logical_block_size(const struct request_queue *q)
+ static inline enum blk_zoned_model bdev_zoned_model(struct block_device *bdev)
  {
- 	int retval = 512;
+ 	struct request_queue *q = bdev_get_queue(bdev);
 -- 
 2.30.2
 
