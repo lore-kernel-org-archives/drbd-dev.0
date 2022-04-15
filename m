@@ -1,18 +1,18 @@
 Return-Path: <chaitanyak@nvidia.com>
 Received: from NAM02-BN1-obe.outbound.protection.outlook.com
-	(mail-bn1nam07on2063.outbound.protection.outlook.com [40.107.212.63])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 34FDB42060F
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 08:13:45 +0200 (CEST)
+	(mail-bn1nam07on2064.outbound.protection.outlook.com [40.107.212.64])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E756142060F
+	for <drbd-dev@lists.linbit.com>; Fri, 15 Apr 2022 08:14:25 +0200 (CEST)
 From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Fri, 15 Apr 2022 05:40:23 +0000
-Message-ID: <f4851d27-c4c6-7fc2-9c32-ee1ae891c598@nvidia.com>
+Date: Fri, 15 Apr 2022 05:41:25 +0000
+Message-ID: <eba999b5-e9fc-1522-67dd-e232b48be9c4@nvidia.com>
 References: <20220415045258.199825-1-hch@lst.de>
-	<20220415045258.199825-9-hch@lst.de>
-In-Reply-To: <20220415045258.199825-9-hch@lst.de>
+	<20220415045258.199825-12-hch@lst.de>
+In-Reply-To: <20220415045258.199825-12-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <3BD681E83CBB8E4A8EA752EE0A94BCBE@namprd12.prod.outlook.com>
+Content-ID: <78329BCB58D5BB408C7439FBB9C8189D@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: "jfs-discussion@lists.sourceforge.net"
@@ -38,7 +38,7 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	David Sterba <dsterba@suse.com>,
 	"ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>,
 	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
-	Johannes Thumshirn <johannes.thumshirn@wdc.com>,
+	"Martin K . Petersen" <martin.petersen@oracle.com>,
 	"linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>,
 	"linux-f2fs-devel@lists.sourceforge.net"
 	<linux-f2fs-devel@lists.sourceforge.net>,
@@ -47,8 +47,7 @@ Cc: "jfs-discussion@lists.sourceforge.net"
 	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
 	"ntfs3@lists.linux.dev" <ntfs3@lists.linux.dev>,
 	"linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>
-Subject: Re: [Drbd-dev] [PATCH 08/27] btrfs: use bdev_max_active_zones
- instead of open coding it
+Subject: Re: [Drbd-dev] [PATCH 11/27] block: add a bdev_nonrot helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -60,8 +59,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IFNpZ25lZC1vZmYt
-Ynk6IENocmlzdG9waCBIZWxsd2lnIDxoY2hAbHN0LmRlPg0KPiBSZXZpZXdlZC1ieTogSm9oYW5u
-ZXMgVGh1bXNoaXJuIDxqb2hhbm5lcy50aHVtc2hpcm5Ad2RjLmNvbT4NCj4gQWNrZWQtYnk6IERh
-dmlkIFN0ZXJiYSA8ZHN0ZXJiYUBzdXNlLmNvbT4NCj4gLS0tDQoNCkxvb2tzIGdvb2QuDQoNClJl
-dmlld2VkLWJ5OiBDaGFpdGFueWEgS3Vsa2FybmkgPGtjaEBudmlkaWEuY29tPg0KDQotY2sNCg0K
+T24gNC8xNC8yMiAyMTo1MiwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IEFkZCBhIGhlbHBl
+ciB0byBjaGVjayB0aGUgbm9ucm90IGZsYWcgYmFzZWQgb24gdGhlIGJsb2NrX2RldmljZSBpbnN0
+ZWFkDQo+IG9mIGhhdmluZyB0byBwb2tlIGludG8gdGhlIGJsb2NrIGxheWVyIGludGVybmFsIHJl
+cXVlc3RfcXVldWUuDQo+IA0KPiBTaWduZWQtb2ZmLWJ5OiBDaHJpc3RvcGggSGVsbHdpZyA8aGNo
+QGxzdC5kZT4NCj4gUmV2aWV3ZWQtYnk6IE1hcnRpbiBLLiBQZXRlcnNlbiA8bWFydGluLnBldGVy
+c2VuQG9yYWNsZS5jb20+DQo+IEFja2VkLWJ5OiBEYXZpZCBTdGVyYmEgPGRzdGVyYmFAc3VzZS5j
+b20+IFtidHJmc10NCj4gLS0tDQoNCkxvb2tzIGdvb2QuDQoNClJldmlld2VkLWJ5OiBDaGFpdGFu
+eWEgS3Vsa2FybmkgPGtjaEBudmlkaWEuY29tPg0KDQotY2sNCg0KDQoNCg==
