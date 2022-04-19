@@ -1,17 +1,34 @@
-Return-Path: <rui.xu@easystack.cn>
-Received: from mail-m2837.qiye.163.com (mail-m2837.qiye.163.com [103.74.28.37])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 02C54420193
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Apr 2022 14:26:46 +0200 (CEST)
-From: Rui Xu <rui.xu@easystack.cn>
-To: philipp.reisner@linbit.com, drbd-dev@lists.linbit.com,
-	joel.colledge@linbit.com
-Date: Tue, 19 Apr 2022 20:16:47 +0800
-Message-Id: <20220419121647.638794-1-rui.xu@easystack.cn>
+Return-Path: <dsterba@suse.cz>
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 302F34201B9
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Apr 2022 14:59:20 +0200 (CEST)
+Date: Tue, 19 Apr 2022 14:55:17 +0200
+From: David Sterba <dsterba@suse.cz>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <20220419125517.GB2348@twin.jikos.cz>
+References: <20220415045258.199825-1-hch@lst.de>
+	<20220415045258.199825-28-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: Rui Xu <rui.xu@easystack.cn>, dongsheng.yang@easystack.cn
-Subject: [Drbd-dev] [PATCH] drbd: fix a race of drbd_free_peer_req
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20220415045258.199825-28-hch@lst.de>
+Cc: jfs-discussion@lists.sourceforge.net, linux-nvme@lists.infradead.org,
+	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
+	dm-devel@redhat.com, target-devel@vger.kernel.org,
+	linux-mtd@lists.infradead.org, drbd-dev@lists.linbit.com,
+	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
+	linux-scsi@vger.kernel.org, cluster-devel@redhat.com,
+	xen-devel@lists.xenproject.org, linux-ext4@vger.kernel.org,
+	linux-um@lists.infradead.org, nbd@other.debian.org,
+	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
+	ceph-devel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
+	linux-raid@vger.kernel.org, linux-mmc@vger.kernel.org,
+	linux-f2fs-devel@lists.sourceforge.net,
+	linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
+	linux-fsdevel@vger.kernel.org, ntfs3@lists.linux.dev,
+	linux-btrfs@vger.kernel.org
+Subject: Re: [Drbd-dev] [PATCH 27/27] direct-io: remove random prefetches
+Reply-To: dsterba@suse.cz
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,64 +40,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Commit e061feb8 and 9a11ebeb5 introduce a bug to race with drbd_free_peer_req()
-in got_peer_ack.
+On Fri, Apr 15, 2022 at 06:52:58AM +0200, Christoph Hellwig wrote:
+> Randomly poking into block device internals for manual prefetches isn't
+> exactly a very maintainable thing to do.  And none of the performance
+> criticil direct I/O implementations still use this library function
+> anyway, so just drop it.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-drbd_free_page_chain in drbd_finish_peer_reqs and got_peer_ack may happen
-concurrently， the sequence is as follows:
+That the direct io function needed a valid bdev just for the prefetch
+but nothing else was one of the reasons we had to keep the latest_bdev
+in btrfs, so good riddance.
 
-drbd_finish_peer_reqs                 got_peer_ack
-drbd_free_page_chain		      drbd_free_peer_req
-spin_lock()
-page_chain_add
-spin_unlock()                         spin_lock()
-				      page_chain_add
-				      spin_unlock()
-We can see that page_chain_add will be called twice which will lead
-to crash.
+You may want to add the reference to the patch that added the prefetch,
+65dd2aa90aa1 ("dio: optimize cache misses in the submission path") and
+also remove #include <linux/prefetch.h> as there are no more uses of
+prefetch in the file.
 
-Revert those two commits to ensure that drbd_free_page_chain will only
-called once for one peer_req.
+With that
 
-Signed-off-by: Rui Xu <rui.xu@easystack.cn>
----
- drbd/drbd_receiver.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index f077f2b..8cac89b 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -653,10 +653,12 @@ static int drbd_finish_peer_reqs(struct drbd_connection *connection)
- 
- 		++n;
- 		/* list_del not necessary, next/prev members not touched */
--		/* The callback may free peer_req. */
- 		err2 = peer_req->w.cb(&peer_req->w, !!err);
- 		if (!err)
- 			err = err2;
-+	
-+		if (list_empty(&peer_req->recv_order)) {
-+			drbd_free_peer_req(peer_req);
- 	}
- 	if (atomic_sub_and_test(n, &connection->done_ee_cnt))
- 		wake_up(&connection->ee_wait);
-@@ -2293,7 +2295,6 @@ static int e_end_resync_block(struct drbd_work *w, int unused)
- 	}
- 	dec_unacked(peer_device);
- 
--	drbd_free_peer_req(peer_req);
- 	return err;
- }
- 
-@@ -2562,7 +2563,6 @@ static int e_end_block(struct drbd_work *w, int cancel)
- 
- 	drbd_may_finish_epoch(peer_device->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
- 
--	drbd_free_page_chain(&peer_device->connection->transport, &peer_req->page_chain, 0);
- 	return err;
- }
- 
--- 
-1.8.3.1
-
+Reviewed-by: David Sterba <dsterba@suse.com>
