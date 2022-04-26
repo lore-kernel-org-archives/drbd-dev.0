@@ -1,21 +1,17 @@
-Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ej1-f54.google.com (mail-ej1-f54.google.com
-	[209.85.218.54])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C9230420164
-	for <drbd-dev@lists.linbit.com>; Wed, 20 Apr 2022 12:22:43 +0200 (CEST)
-Received: by mail-ej1-f54.google.com with SMTP id g13so2563541ejb.4
-	for <drbd-dev@lists.linbit.com>; Wed, 20 Apr 2022 03:22:43 -0700 (PDT)
+Return-Path: <rui.xu@easystack.cn>
+Received: from mail-m2837.qiye.163.com (mail-m2837.qiye.163.com [103.74.28.37])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B1F0D4201DC
+	for <drbd-dev@lists.linbit.com>; Tue, 26 Apr 2022 10:09:08 +0200 (CEST)
+From: Rui Xu <rui.xu@easystack.cn>
+To: philipp.reisner@linbit.com, drbd-dev@lists.linbit.com,
+	joel.colledge@linbit.com
+Date: Tue, 26 Apr 2022 16:09:03 +0800
+Message-Id: <20220426080903.1831211-1-rui.xu@easystack.cn>
 MIME-Version: 1.0
-References: <20220419121647.638794-1-rui.xu@easystack.cn>
-In-Reply-To: <20220419121647.638794-1-rui.xu@easystack.cn>
-From: Joel Colledge <joel.colledge@linbit.com>
-Date: Wed, 20 Apr 2022 12:22:32 +0200
-Message-ID: <CAGNP_+Wfbohf2NkB+LXhHSBEQk_jK-Xi+-wRJimG3G0Z2pbbqg@mail.gmail.com>
-To: Rui Xu <rui.xu@easystack.cn>
-Content-Type: text/plain; charset="UTF-8"
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: fix a race of drbd_free_peer_req
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Cc: Rui Xu <rui.xu@easystack.cn>, dongsheng.yang@easystack.cn
+Subject: [Drbd-dev] [PATCH v2] drbd: fix a race of drbd_free_peer_req
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,27 +23,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Xu,
+Commit e061feb8 and 9a11ebeb5 introduce a bug to race with drbd_free_peer_req()
+in got_peer_ack.
 
-I think there is a potential race here, but I am not convinced that
-this is a general solution. The peer request could still be freed by
-got_peer_ack() between checking "list_empty(&peer_req->recv_order)"
-and freeing it in drbd_finish_peer_reqs(). Also, this solution keeps
-the page chain for peer requests for an unnecessarily long time, which
-is not ideal in memory constrained situations.
+drbd_free_page_chain in drbd_finish_peer_reqs and got_peer_ack may happen
+concurrently， the sequence is as follows:
 
-The underlying race, as far as I understand it, is that got_peer_ack()
-can be called while still processing the request in
-drbd_finish_peer_reqs(). This is only relevant for peer writes and not
-resync, so only the e_end_block() path is of interest. got_peer_ack()
-will only be called after we have sent the corresponding barrier ack
-for the peer request.
+drbd_finish_peer_reqs                 got_peer_ack
+drbd_free_page_chain                  drbd_free_peer_req
+spin_lock()
+page_chain_add
+spin_unlock()                         spin_lock()
+                                      page_chain_add
+                                      spin_unlock()
 
-On the basis of this reasoning, I think a simple solution is to swap
-drbd_may_finish_epoch() and drbd_free_page_chain() in e_end_block().
-Please try this and send it as a patch if it solves your problem.
+We can see that page_chain_add will be called twice which will lead
+to crash.
 
-By the way, this patch doesn't compile due to a mismatched brace.
+Swap drbd_may_finish_epoch() and drbd_free_page_chain() in e_end_block()
+to ensure that got_peer_ack will not be called while still processing
+the request in drbd_finish_peer_reqs().
 
-Best regards,
-Joel
+Signed-off-by: Rui Xu <rui.xu@easystack.cn>
+---
+ drbd/drbd_receiver.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+index f077f2b..d0f42d3 100644
+--- a/drbd/drbd_receiver.c
++++ b/drbd/drbd_receiver.c
+@@ -2560,9 +2560,10 @@ static int e_end_block(struct drbd_work *w, int cancel)
+ 	} else
+ 		D_ASSERT(device, drbd_interval_empty(&peer_req->i));
+ 
++	drbd_free_page_chain(&peer_device->connection->transport, &peer_req->page_chain, 0);
++
+ 	drbd_may_finish_epoch(peer_device->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
+ 
+-	drbd_free_page_chain(&peer_device->connection->transport, &peer_req->page_chain, 0);
+ 	return err;
+ }
+ 
+-- 
+1.8.3.1
+
