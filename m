@@ -1,19 +1,19 @@
 Return-Path: <gregkh@linuxfoundation.org>
 Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DE95B420620
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E994A420625
 	for <drbd-dev@lists.linbit.com>; Thu, 12 May 2022 15:45:44 +0200 (CEST)
 To: axboe@kernel.dk, drbd-dev@lists.linbit.com, gregkh@linuxfoundation.org,
 	lars.ellenberg@linbit.com, lee.jones@linaro.org,
 	nathan@kernel.org, philipp.reisner@linbit.com
 From: <gregkh@linuxfoundation.org>
-Date: Thu, 12 May 2022 15:36:34 +0200
-Message-ID: <1652362594246150@kroah.com>
+Date: Thu, 12 May 2022 15:37:13 +0200
+Message-ID: <1652362633208176@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Cc: stable-commits@vger.kernel.org
 Subject: [Drbd-dev] Patch "block: drbd: drbd_nl: Make conversion to 'enum
-	drbd_ret_code' explicit" has been added to the 4.9-stable tree
+	drbd_ret_code' explicit" has been added to the 4.14-stable tree
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,12 +30,12 @@ This is a note to let you know that I've just added the patch titled
 
     block: drbd: drbd_nl: Make conversion to 'enum drbd_ret_code' explicit
 
-to the 4.9-stable tree which can be found at:
+to the 4.14-stable tree which can be found at:
     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
      block-drbd-drbd_nl-make-conversion-to-enum-drbd_ret_code-explicit.patch
-and it can be found in the queue-4.9 subdirectory.
+and it can be found in the queue-4.14 subdirectory.
 
 If you, or anyone else, feels it should not be added to the stable tree,
 please let <stable@vger.kernel.org> know about it.
@@ -96,7 +96,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  
  	mutex_unlock(&adm_ctx.resource->adm_mutex);
  	genl_lock();
-@@ -1933,7 +1935,7 @@ int drbd_adm_attach(struct sk_buff *skb,
+@@ -1941,7 +1943,7 @@ int drbd_adm_attach(struct sk_buff *skb,
  	drbd_flush_workqueue(&connection->sender_work);
  
  	rv = _drbd_request_state(device, NS(disk, D_ATTACHING), CS_VERBOSE);
@@ -105,7 +105,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  	drbd_resume_io(device);
  	if (rv < SS_SUCCESS)
  		goto fail;
-@@ -2684,7 +2686,8 @@ int drbd_adm_connect(struct sk_buff *skb
+@@ -2671,7 +2673,8 @@ int drbd_adm_connect(struct sk_buff *skb
  	}
  	rcu_read_unlock();
  
@@ -115,7 +115,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  
  	conn_reconfig_done(connection);
  	mutex_unlock(&adm_ctx.resource->adm_mutex);
-@@ -2790,7 +2793,7 @@ int drbd_adm_disconnect(struct sk_buff *
+@@ -2777,7 +2780,7 @@ int drbd_adm_disconnect(struct sk_buff *
  	mutex_lock(&adm_ctx.resource->adm_mutex);
  	rv = conn_try_disconnect(connection, parms.force_disconnect);
  	if (rv < SS_SUCCESS)
@@ -128,4 +128,4 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 Patches currently in stable-queue which might be from lee.jones@linaro.org are
 
-queue-4.9/block-drbd-drbd_nl-make-conversion-to-enum-drbd_ret_code-explicit.patch
+queue-4.14/block-drbd-drbd_nl-make-conversion-to-enum-drbd_ret_code-explicit.patch
