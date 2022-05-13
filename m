@@ -1,14 +1,14 @@
 Return-Path: <gregkh@linuxfoundation.org>
 Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B7BAC420219
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B80E1420219
 	for <drbd-dev@lists.linbit.com>;
-	Fri, 13 May 2022 16:27:23 +0200 (CEST)
+	Fri, 13 May 2022 16:27:29 +0200 (CEST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 To: linux-kernel@vger.kernel.org
-Date: Fri, 13 May 2022 16:23:28 +0200
-Message-Id: <20220513142229.225486186@linuxfoundation.org>
-In-Reply-To: <20220513142229.153291230@linuxfoundation.org>
-References: <20220513142229.153291230@linuxfoundation.org>
+Date: Fri, 13 May 2022 16:23:47 +0200
+Message-Id: <20220513142228.405740832@linuxfoundation.org>
+In-Reply-To: <20220513142228.303546319@linuxfoundation.org>
+References: <20220513142228.303546319@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -18,7 +18,7 @@ Cc: Jens Axboe <axboe@kernel.dk>, Nathan Chancellor <nathan@kernel.org>,
 	stable@vger.kernel.org, linux-block@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Lee Jones <lee.jones@linaro.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 5.4 02/18] block: drbd: drbd_nl: Make conversion
+Subject: [Drbd-dev] [PATCH 5.10 03/10] block: drbd: drbd_nl: Make conversion
 	to enum drbd_ret_code explicit
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -64,7 +64,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -791,9 +791,11 @@ int drbd_adm_set_role(struct sk_buff *sk
+@@ -790,9 +790,11 @@ int drbd_adm_set_role(struct sk_buff *sk
  	mutex_lock(&adm_ctx.resource->adm_mutex);
  
  	if (info->genlhdr->cmd == DRBD_ADM_PRIMARY)
@@ -78,7 +78,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  
  	mutex_unlock(&adm_ctx.resource->adm_mutex);
  	genl_lock();
-@@ -1971,7 +1973,7 @@ int drbd_adm_attach(struct sk_buff *skb,
+@@ -1962,7 +1964,7 @@ int drbd_adm_attach(struct sk_buff *skb,
  	drbd_flush_workqueue(&connection->sender_work);
  
  	rv = _drbd_request_state(device, NS(disk, D_ATTACHING), CS_VERBOSE);
@@ -87,7 +87,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  	drbd_resume_io(device);
  	if (rv < SS_SUCCESS)
  		goto fail;
-@@ -2696,7 +2698,8 @@ int drbd_adm_connect(struct sk_buff *skb
+@@ -2687,7 +2689,8 @@ int drbd_adm_connect(struct sk_buff *skb
  	}
  	rcu_read_unlock();
  
@@ -97,7 +97,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  
  	conn_reconfig_done(connection);
  	mutex_unlock(&adm_ctx.resource->adm_mutex);
-@@ -2809,7 +2812,7 @@ int drbd_adm_disconnect(struct sk_buff *
+@@ -2800,7 +2803,7 @@ int drbd_adm_disconnect(struct sk_buff *
  	mutex_lock(&adm_ctx.resource->adm_mutex);
  	rv = conn_try_disconnect(connection, parms.force_disconnect);
  	if (rv < SS_SUCCESS)
