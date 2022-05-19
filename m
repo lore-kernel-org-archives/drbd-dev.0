@@ -1,25 +1,16 @@
-Return-Path: <gregkh@linuxfoundation.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B80E1420219
-	for <drbd-dev@lists.linbit.com>;
-	Fri, 13 May 2022 16:27:29 +0200 (CEST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-To: linux-kernel@vger.kernel.org
-Date: Fri, 13 May 2022 16:23:47 +0200
-Message-Id: <20220513142228.405740832@linuxfoundation.org>
-In-Reply-To: <20220513142228.303546319@linuxfoundation.org>
-References: <20220513142228.303546319@linuxfoundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, Nathan Chancellor <nathan@kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	stable@vger.kernel.org, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Lee Jones <lee.jones@linaro.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 5.10 03/10] block: drbd: drbd_nl: Make conversion
-	to enum drbd_ret_code explicit
+Return-Path: <kunyu@nfschina.com>
+Received: from mail.nfschina.com (mail.nfschina.com [124.16.136.209])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5A6EB4201FE
+	for <drbd-dev@lists.linbit.com>; Thu, 19 May 2022 12:16:11 +0200 (CEST)
+Received: from localhost (unknown [127.0.0.1])
+	by mail.nfschina.com (Postfix) with ESMTP id EFFE41E80D93
+	for <drbd-dev@lists.linbit.com>; Thu, 19 May 2022 17:59:18 +0800 (CST)
+From: Li kunyu <kunyu@nfschina.com>
+To: drbd-dev@lists.linbit.com
+Date: Thu, 19 May 2022 18:05:09 +0800
+Message-Id: <20220519100508.3143-1-kunyu@nfschina.com>
+Subject: [Drbd-dev] [PATCH] drbd: The process_twopc() function does not use
+	a return val and could be changed to void
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,80 +22,130 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lee Jones <lee.jones@linaro.org>
+This function could clear the unused return value
+ and remove an integer temporary variable of the calling function.
 
-commit 1f1e87b4dc4598eac57a69868534b92d65e47e82 upstream.
-
-Fixes the following W=1 kernel build warning(s):
-
- from drivers/block/drbd/drbd_nl.c:24:
- drivers/block/drbd/drbd_nl.c: In function ‘drbd_adm_set_role’:
- drivers/block/drbd/drbd_nl.c:793:11: warning: implicit conversion from ‘enum drbd_state_rv’ to ‘enum drbd_ret_code’ [-Wenum-conversion]
- drivers/block/drbd/drbd_nl.c:795:11: warning: implicit conversion from ‘enum drbd_state_rv’ to ‘enum drbd_ret_code’ [-Wenum-conversion]
- drivers/block/drbd/drbd_nl.c: In function ‘drbd_adm_attach’:
- drivers/block/drbd/drbd_nl.c:1965:10: warning: implicit conversion from ‘enum drbd_state_rv’ to ‘enum drbd_ret_code’ [-Wenum-conversion]
- drivers/block/drbd/drbd_nl.c: In function ‘drbd_adm_connect’:
- drivers/block/drbd/drbd_nl.c:2690:10: warning: implicit conversion from ‘enum drbd_state_rv’ to ‘enum drbd_ret_code’ [-Wenum-conversion]
- drivers/block/drbd/drbd_nl.c: In function ‘drbd_adm_disconnect’:
- drivers/block/drbd/drbd_nl.c:2803:11: warning: implicit conversion from ‘enum drbd_state_rv’ to ‘enum drbd_ret_code’ [-Wenum-conversion]
-
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: drbd-dev@lists.linbit.com
-Cc: linux-block@vger.kernel.org
-Signed-off-by: Lee Jones <lee.jones@linaro.org>
-Link: https://lore.kernel.org/r/20210312105530.2219008-8-lee.jones@linaro.org
-Signed-off-by: Jens Axboe <axboe@kernel.dk>
-Cc: Nathan Chancellor <nathan@kernel.org>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Signed-off-by: Li kunyu <kunyu@nfschina.com>
 ---
- drivers/block/drbd/drbd_nl.c |   13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ drbd/drbd_receiver.c | 27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)
 
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -790,9 +790,11 @@ int drbd_adm_set_role(struct sk_buff *sk
- 	mutex_lock(&adm_ctx.resource->adm_mutex);
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+index 27f8de80..917c8c7e 100644
+--- a/drbd/drbd_receiver.c
++++ b/drbd/drbd_receiver.c
+@@ -255,7 +255,7 @@ static int e_end_block(struct drbd_work *, int);
+ static void cleanup_unacked_peer_requests(struct drbd_connection *connection);
+ static void cleanup_peer_ack_list(struct drbd_connection *connection);
+ static u64 node_ids_to_bitmap(struct drbd_device *device, u64 node_ids);
+-static int process_twopc(struct drbd_connection *, struct twopc_reply *, struct packet_info *, unsigned long);
++static void process_twopc(struct drbd_connection *, struct twopc_reply *, struct packet_info *, unsigned long);
+ static void drbd_resync(struct drbd_peer_device *, enum resync_reason) __must_hold(local);
+ static void drbd_unplug_all_devices(struct drbd_connection *connection);
+ static int decode_header(struct drbd_connection *, void *, struct packet_info *);
+@@ -6068,7 +6068,6 @@ static int receive_twopc(struct drbd_connection *connection, struct packet_info
+ 	struct drbd_resource *resource = connection->resource;
+ 	struct p_twopc_request *p = pi->data;
+ 	struct twopc_reply reply = {0};
+-	int rv;
  
- 	if (info->genlhdr->cmd == DRBD_ADM_PRIMARY)
--		retcode = drbd_set_role(adm_ctx.device, R_PRIMARY, parms.assume_uptodate);
-+		retcode = (enum drbd_ret_code)drbd_set_role(adm_ctx.device,
-+						R_PRIMARY, parms.assume_uptodate);
- 	else
--		retcode = drbd_set_role(adm_ctx.device, R_SECONDARY, 0);
-+		retcode = (enum drbd_ret_code)drbd_set_role(adm_ctx.device,
-+						R_SECONDARY, 0);
- 
- 	mutex_unlock(&adm_ctx.resource->adm_mutex);
- 	genl_lock();
-@@ -1962,7 +1964,7 @@ int drbd_adm_attach(struct sk_buff *skb,
- 	drbd_flush_workqueue(&connection->sender_work);
- 
- 	rv = _drbd_request_state(device, NS(disk, D_ATTACHING), CS_VERBOSE);
--	retcode = rv;  /* FIXME: Type mismatch. */
-+	retcode = (enum drbd_ret_code)rv;
- 	drbd_resume_io(device);
- 	if (rv < SS_SUCCESS)
- 		goto fail;
-@@ -2687,7 +2689,8 @@ int drbd_adm_connect(struct sk_buff *skb
+ 	reply.vnr = pi->vnr;
+ 	reply.tid = be32_to_cpu(p->tid);
+@@ -6093,9 +6092,9 @@ static int receive_twopc(struct drbd_connection *connection, struct packet_info
+ 		clear_bit(CONN_HANDSHAKE_READY, &connection->flags);
  	}
- 	rcu_read_unlock();
  
--	retcode = conn_request_state(connection, NS(conn, C_UNCONNECTED), CS_VERBOSE);
-+	retcode = (enum drbd_ret_code)conn_request_state(connection,
-+					NS(conn, C_UNCONNECTED), CS_VERBOSE);
+-	rv = process_twopc(connection, &reply, pi, jiffies);
++	process_twopc(connection, &reply, pi, jiffies);
  
- 	conn_reconfig_done(connection);
- 	mutex_unlock(&adm_ctx.resource->adm_mutex);
-@@ -2800,7 +2803,7 @@ int drbd_adm_disconnect(struct sk_buff *
- 	mutex_lock(&adm_ctx.resource->adm_mutex);
- 	rv = conn_try_disconnect(connection, parms.force_disconnect);
- 	if (rv < SS_SUCCESS)
--		retcode = rv;  /* FIXME: Type mismatch. */
-+		retcode = (enum drbd_ret_code)rv;
- 	else
- 		retcode = NO_ERROR;
- 	mutex_unlock(&adm_ctx.resource->adm_mutex);
-
+-	return rv;
++	return 0;
+ }
+ 
+ static void nested_twopc_abort(struct drbd_resource *resource, int vnr, enum drbd_packet cmd,
+@@ -6252,7 +6251,7 @@ enum drbd_state_rv drbd_support_2pc_resize(struct drbd_resource *resource)
+ 	return rv;
+ }
+ 
+-static int process_twopc(struct drbd_connection *connection,
++static void process_twopc(struct drbd_connection *connection,
+ 			 struct twopc_reply *reply,
+ 			 struct packet_info *pi,
+ 			 unsigned long receive_jif)
+@@ -6278,11 +6277,11 @@ static int process_twopc(struct drbd_connection *connection,
+ 			dynamic_drbd_dbg(connection, "Ignoring %s packet %u\n",
+ 				   drbd_packet_name(pi->cmd),
+ 				   reply->tid);
+-			return 0;
++			return;
+ 		}
+ 		if (reply->is_aborted) {
+ 			write_unlock_irq(&resource->state_rwlock);
+-			return 0;
++			return;
+ 		}
+ 		resource->remote_state_change = true;
+ 		resource->twopc_type = pi->cmd == P_TWOPC_PREPARE ? TWOPC_STATE_CHANGE : TWOPC_RESIZE;
+@@ -6297,7 +6296,7 @@ static int process_twopc(struct drbd_connection *connection,
+ 			drbd_info(connection, "Ignoring redundant %s packet %u.\n",
+ 				  drbd_packet_name(pi->cmd),
+ 				  reply->tid);
+-			return 0;
++			return;
+ 		}
+ 	} else if (csc_rv == CSC_ABORT_LOCAL && is_prepare(pi->cmd)) {
+ 		enum alt_rv alt_rv;
+@@ -6317,12 +6316,12 @@ static int process_twopc(struct drbd_connection *connection,
+ 				  resource->twopc_reply.tid,
+ 				  reply->tid);
+ 			drbd_send_twopc_reply(connection, P_TWOPC_RETRY, reply);
+-			return 0;
++			return;
+ 		}
+ 		/* abort_local_transaction() returned with the state_rwlock write lock */
+ 		if (reply->is_aborted) {
+ 			write_unlock_irq(&resource->state_rwlock);
+-			return 0;
++			return;
+ 		}
+ 		resource->remote_state_change = true;
+ 		resource->twopc_type = pi->cmd == P_TWOPC_PREPARE ? TWOPC_STATE_CHANGE : TWOPC_RESIZE;
+@@ -6333,7 +6332,7 @@ static int process_twopc(struct drbd_connection *connection,
+ 		/* crc_rc != CRC_MATCH */
+ 		write_unlock_irq(&resource->state_rwlock);
+ 		nested_twopc_abort(resource, pi->vnr, pi->cmd, p);
+-		return 0;
++		return;
+ 	} else {
+ 		write_unlock_irq(&resource->state_rwlock);
+ 
+@@ -6345,7 +6344,7 @@ static int process_twopc(struct drbd_connection *connection,
+ 				  reply->tid,
+ 				  resource->twopc_reply.tid);
+ 			drbd_send_twopc_reply(connection, P_TWOPC_RETRY, reply);
+-			return 0;
++			return;
+ 		}
+ 
+ 		if (is_prepare(pi->cmd)) {
+@@ -6390,7 +6389,7 @@ static int process_twopc(struct drbd_connection *connection,
+ 				  reply->tid,
+ 				  resource->twopc_reply.tid);
+ 		}
+-		return 0;
++		return;
+ 	}
+ 
+ 	if (reply->initiator_node_id != connection->peer_node_id) {
+@@ -6564,8 +6563,6 @@ static int process_twopc(struct drbd_connection *connection,
+ 		    mask.conn == conn_MASK && val.conn == C_CONNECTED)
+ 			conn_connect2(connection);
+ 	}
+-
+-	return 0;
+ }
+ 
+ void drbd_try_to_get_resynced(struct drbd_device *device)
+-- 
+2.18.2
 
