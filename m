@@ -1,16 +1,21 @@
-Return-Path: <kunyu@nfschina.com>
-Received: from mail.nfschina.com (mail.nfschina.com [124.16.136.209])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5A6EB4201FE
-	for <drbd-dev@lists.linbit.com>; Thu, 19 May 2022 12:16:11 +0200 (CEST)
-Received: from localhost (unknown [127.0.0.1])
-	by mail.nfschina.com (Postfix) with ESMTP id EFFE41E80D93
-	for <drbd-dev@lists.linbit.com>; Thu, 19 May 2022 17:59:18 +0800 (CST)
-From: Li kunyu <kunyu@nfschina.com>
-To: drbd-dev@lists.linbit.com
-Date: Thu, 19 May 2022 18:05:09 +0800
-Message-Id: <20220519100508.3143-1-kunyu@nfschina.com>
-Subject: [Drbd-dev] [PATCH] drbd: The process_twopc() function does not use
-	a return val and could be changed to void
+Return-Path: <joel.colledge@linbit.com>
+Received: from mail-ej1-f44.google.com (mail-ej1-f44.google.com
+	[209.85.218.44])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 329B34203CF
+	for <drbd-dev@lists.linbit.com>; Tue, 24 May 2022 15:43:23 +0200 (CEST)
+Received: by mail-ej1-f44.google.com with SMTP id ck4so31162451ejb.8
+	for <drbd-dev@lists.linbit.com>; Tue, 24 May 2022 06:43:23 -0700 (PDT)
+MIME-Version: 1.0
+References: <20220519100508.3143-1-kunyu@nfschina.com>
+In-Reply-To: <20220519100508.3143-1-kunyu@nfschina.com>
+From: Joel Colledge <joel.colledge@linbit.com>
+Date: Tue, 24 May 2022 15:43:13 +0200
+Message-ID: <CAGNP_+WSAwSzfp7sX+6dK_+skrVA6oXkpq6Jbwvf59bW3qkV4A@mail.gmail.com>
+To: Li kunyu <kunyu@nfschina.com>
+Content-Type: text/plain; charset="UTF-8"
+Cc: drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd: The process_twopc() function does not
+ use a return val and could be changed to void
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,130 +27,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This function could clear the unused return value
- and remove an integer temporary variable of the calling function.
+Applied as
+https://github.com/LINBIT/drbd/commit/a0cd0ae02fb5c125a6f87284e162decc0965b176
 
-Signed-off-by: Li kunyu <kunyu@nfschina.com>
----
- drbd/drbd_receiver.c | 27 ++++++++++++---------------
- 1 file changed, 12 insertions(+), 15 deletions(-)
-
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index 27f8de80..917c8c7e 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -255,7 +255,7 @@ static int e_end_block(struct drbd_work *, int);
- static void cleanup_unacked_peer_requests(struct drbd_connection *connection);
- static void cleanup_peer_ack_list(struct drbd_connection *connection);
- static u64 node_ids_to_bitmap(struct drbd_device *device, u64 node_ids);
--static int process_twopc(struct drbd_connection *, struct twopc_reply *, struct packet_info *, unsigned long);
-+static void process_twopc(struct drbd_connection *, struct twopc_reply *, struct packet_info *, unsigned long);
- static void drbd_resync(struct drbd_peer_device *, enum resync_reason) __must_hold(local);
- static void drbd_unplug_all_devices(struct drbd_connection *connection);
- static int decode_header(struct drbd_connection *, void *, struct packet_info *);
-@@ -6068,7 +6068,6 @@ static int receive_twopc(struct drbd_connection *connection, struct packet_info
- 	struct drbd_resource *resource = connection->resource;
- 	struct p_twopc_request *p = pi->data;
- 	struct twopc_reply reply = {0};
--	int rv;
- 
- 	reply.vnr = pi->vnr;
- 	reply.tid = be32_to_cpu(p->tid);
-@@ -6093,9 +6092,9 @@ static int receive_twopc(struct drbd_connection *connection, struct packet_info
- 		clear_bit(CONN_HANDSHAKE_READY, &connection->flags);
- 	}
- 
--	rv = process_twopc(connection, &reply, pi, jiffies);
-+	process_twopc(connection, &reply, pi, jiffies);
- 
--	return rv;
-+	return 0;
- }
- 
- static void nested_twopc_abort(struct drbd_resource *resource, int vnr, enum drbd_packet cmd,
-@@ -6252,7 +6251,7 @@ enum drbd_state_rv drbd_support_2pc_resize(struct drbd_resource *resource)
- 	return rv;
- }
- 
--static int process_twopc(struct drbd_connection *connection,
-+static void process_twopc(struct drbd_connection *connection,
- 			 struct twopc_reply *reply,
- 			 struct packet_info *pi,
- 			 unsigned long receive_jif)
-@@ -6278,11 +6277,11 @@ static int process_twopc(struct drbd_connection *connection,
- 			dynamic_drbd_dbg(connection, "Ignoring %s packet %u\n",
- 				   drbd_packet_name(pi->cmd),
- 				   reply->tid);
--			return 0;
-+			return;
- 		}
- 		if (reply->is_aborted) {
- 			write_unlock_irq(&resource->state_rwlock);
--			return 0;
-+			return;
- 		}
- 		resource->remote_state_change = true;
- 		resource->twopc_type = pi->cmd == P_TWOPC_PREPARE ? TWOPC_STATE_CHANGE : TWOPC_RESIZE;
-@@ -6297,7 +6296,7 @@ static int process_twopc(struct drbd_connection *connection,
- 			drbd_info(connection, "Ignoring redundant %s packet %u.\n",
- 				  drbd_packet_name(pi->cmd),
- 				  reply->tid);
--			return 0;
-+			return;
- 		}
- 	} else if (csc_rv == CSC_ABORT_LOCAL && is_prepare(pi->cmd)) {
- 		enum alt_rv alt_rv;
-@@ -6317,12 +6316,12 @@ static int process_twopc(struct drbd_connection *connection,
- 				  resource->twopc_reply.tid,
- 				  reply->tid);
- 			drbd_send_twopc_reply(connection, P_TWOPC_RETRY, reply);
--			return 0;
-+			return;
- 		}
- 		/* abort_local_transaction() returned with the state_rwlock write lock */
- 		if (reply->is_aborted) {
- 			write_unlock_irq(&resource->state_rwlock);
--			return 0;
-+			return;
- 		}
- 		resource->remote_state_change = true;
- 		resource->twopc_type = pi->cmd == P_TWOPC_PREPARE ? TWOPC_STATE_CHANGE : TWOPC_RESIZE;
-@@ -6333,7 +6332,7 @@ static int process_twopc(struct drbd_connection *connection,
- 		/* crc_rc != CRC_MATCH */
- 		write_unlock_irq(&resource->state_rwlock);
- 		nested_twopc_abort(resource, pi->vnr, pi->cmd, p);
--		return 0;
-+		return;
- 	} else {
- 		write_unlock_irq(&resource->state_rwlock);
- 
-@@ -6345,7 +6344,7 @@ static int process_twopc(struct drbd_connection *connection,
- 				  reply->tid,
- 				  resource->twopc_reply.tid);
- 			drbd_send_twopc_reply(connection, P_TWOPC_RETRY, reply);
--			return 0;
-+			return;
- 		}
- 
- 		if (is_prepare(pi->cmd)) {
-@@ -6390,7 +6389,7 @@ static int process_twopc(struct drbd_connection *connection,
- 				  reply->tid,
- 				  resource->twopc_reply.tid);
- 		}
--		return 0;
-+		return;
- 	}
- 
- 	if (reply->initiator_node_id != connection->peer_node_id) {
-@@ -6564,8 +6563,6 @@ static int process_twopc(struct drbd_connection *connection,
- 		    mask.conn == conn_MASK && val.conn == C_CONNECTED)
- 			conn_connect2(connection);
- 	}
--
--	return 0;
- }
- 
- void drbd_try_to_get_resynced(struct drbd_device *device)
--- 
-2.18.2
-
+Thanks!
+Joel
