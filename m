@@ -1,21 +1,17 @@
-Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ej1-f44.google.com (mail-ej1-f44.google.com
-	[209.85.218.44])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 329B34203CF
-	for <drbd-dev@lists.linbit.com>; Tue, 24 May 2022 15:43:23 +0200 (CEST)
-Received: by mail-ej1-f44.google.com with SMTP id ck4so31162451ejb.8
-	for <drbd-dev@lists.linbit.com>; Tue, 24 May 2022 06:43:23 -0700 (PDT)
+Return-Path: <veggiemike@sourceruckus.org>
+Received: from mail-pf1-f181.google.com (mail-pf1-f181.google.com
+	[209.85.210.181])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 60152420162
+	for <drbd-dev@lists.linbit.com>; Wed,  1 Jun 2022 16:03:29 +0200 (CEST)
+Received: by mail-pf1-f181.google.com with SMTP id y189so2054586pfy.10
+	for <drbd-dev@lists.linbit.com>; Wed, 01 Jun 2022 07:03:29 -0700 (PDT)
 MIME-Version: 1.0
-References: <20220519100508.3143-1-kunyu@nfschina.com>
-In-Reply-To: <20220519100508.3143-1-kunyu@nfschina.com>
-From: Joel Colledge <joel.colledge@linbit.com>
-Date: Tue, 24 May 2022 15:43:13 +0200
-Message-ID: <CAGNP_+WSAwSzfp7sX+6dK_+skrVA6oXkpq6Jbwvf59bW3qkV4A@mail.gmail.com>
-To: Li kunyu <kunyu@nfschina.com>
+From: Michael Labriola <veggiemike@sourceruckus.org>
+Date: Wed, 1 Jun 2022 10:03:18 -0400
+Message-ID: <CAA1fRFhZrTfHegCWwNoSsUkmvBBfFmd9viQVsmCpSMFQNH5vTg@mail.gmail.com>
+To: drbd-dev@lists.linbit.com
 Content-Type: text/plain; charset="UTF-8"
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: The process_twopc() function does not
- use a return val and could be changed to void
+Subject: [Drbd-dev] Linux 5.18 status
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,8 +23,10 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Applied as
-https://github.com/LINBIT/drbd/commit/a0cd0ae02fb5c125a6f87284e162decc0965b176
+Ahoy!  Looks like the drbd-9.1 branch doesn't compile against 5.18
+yet.  Is somebody working through the 5.18 block layer changes
+already?  If anyone's got a branch to test, I'd gladly try it out.
 
-Thanks!
-Joel
+--
+Michael D Labriola
+401-316-9844 (cell)
