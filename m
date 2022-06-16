@@ -1,18 +1,19 @@
-Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ej1-f43.google.com (mail-ej1-f43.google.com
-	[209.85.218.43])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9D746420632
-	for <drbd-dev@lists.linbit.com>; Wed, 15 Jun 2022 18:32:59 +0200 (CEST)
-Received: by mail-ej1-f43.google.com with SMTP id s12so24355334ejx.3
-	for <drbd-dev@lists.linbit.com>; Wed, 15 Jun 2022 09:32:59 -0700 (PDT)
+Return-Path: <kvapss@gmail.com>
+Received: from mail-vk1-f175.google.com (mail-vk1-f175.google.com
+	[209.85.221.175])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C9A154201D0
+	for <drbd-dev@lists.linbit.com>; Thu, 16 Jun 2022 15:16:17 +0200 (CEST)
+Received: by mail-vk1-f175.google.com with SMTP id s1so614043vkl.3
+	for <drbd-dev@lists.linbit.com>; Thu, 16 Jun 2022 06:16:17 -0700 (PDT)
 MIME-Version: 1.0
 References: <20220615140620.31630-1-kvapss@gmail.com>
-In-Reply-To: <20220615140620.31630-1-kvapss@gmail.com>
-From: Joel Colledge <joel.colledge@linbit.com>
-Date: Wed, 15 Jun 2022 18:32:48 +0200
-Message-ID: <CAGNP_+VHaMWzb-Z4ujuasuVDoLE459JAQ6q88JDLGeKJwKfmjw@mail.gmail.com>
-To: Andrei Kvapil <kvapss@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+	<CAGNP_+VHaMWzb-Z4ujuasuVDoLE459JAQ6q88JDLGeKJwKfmjw@mail.gmail.com>
+In-Reply-To: <CAGNP_+VHaMWzb-Z4ujuasuVDoLE459JAQ6q88JDLGeKJwKfmjw@mail.gmail.com>
+From: kvaps <kvapss@gmail.com>
+Date: Thu, 16 Jun 2022 15:16:06 +0200
+Message-ID: <CAGO-sgM98Rugu-=KO1VOSGKOnPbFGXKe-YaaG50WyQ_0dL3JuQ@mail.gmail.com>
+To: Joel Colledge <joel.colledge@linbit.com>
+Content-Type: multipart/alternative; boundary="0000000000005aac8005e1907130"
 Cc: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH] compat: make spaas url configurable
 List-Id: "*Coordination* of development, patches,
@@ -26,25 +27,115 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Thanks for the contribution. Seems like a reasonable idea to me.
+--0000000000005aac8005e1907130
+Content-Type: text/plain; charset="UTF-8"
 
-> diff --git a/Makefile b/Makefile
-> index 87c29518..37d7851d 100644
-> --- a/Makefile
-> +++ b/Makefile
-> @@ -37,6 +37,7 @@ DOCKERIMAGESTARGETS = $(addprefix dockerimage.,$(DOCKERIMAGES))
->  # Use the SPAAS (spatch as a service) online service
->  # Have this as make variable for distributions.
->  SPAAS ?= true
-> +SPAAS_URL ?= https://drbd.io:2020
+Yeah. There are some discussions about the needs for this change:
+- https://github.com/LINBIT/saas/pull/1#issuecomment-1152117095
+- https://github.com/piraeusdatastore/piraeus-operator/issues/315
 
-What is the purpose of this definition in the top-level Makefile? As
-far as I can see, it is only needed in the other one.
+In short: we're running SPAAS locally to allow our clients with isolated
+environments be able to build DRBD module in their clusters without need of
+spatch dependency as it adds additional 523 megabytes to every container.
 
-I guess it serves a documentation purpose, showing what command line
-variables can be set. That is presumably the point of the SPAAS
-variable in the top-level makefile. In that case, explicitly pass it
-down like the SPAAS variable for consistency.
+> What is the purpose of this definition in the top-level Makefile? As far
+as I can see, it is only needed in the other one.
+>
+> I guess it serves a documentation purpose, showing what command line
+variables can be set. That is presumably the point of the SPAAS variable in
+the top-level makefile. In that case, explicitly pass it down like the
+SPAAS variable for consistency.
 
-Best regards,
-Joel
+Yes, I just added it into the same files where the SPAAS variable is
+specified.
+I think it is good to have it described somewhere, but it always has a
+default value and it can work without specifying it in Makefiles at all.
+
+Best Regards,
+Andrei Kvapil
+
+
+On Wed, Jun 15, 2022 at 6:32 PM Joel Colledge <joel.colledge@linbit.com>
+wrote:
+
+> Thanks for the contribution. Seems like a reasonable idea to me.
+>
+> > diff --git a/Makefile b/Makefile
+> > index 87c29518..37d7851d 100644
+> > --- a/Makefile
+> > +++ b/Makefile
+> > @@ -37,6 +37,7 @@ DOCKERIMAGESTARGETS = $(addprefix
+> dockerimage.,$(DOCKERIMAGES))
+> >  # Use the SPAAS (spatch as a service) online service
+> >  # Have this as make variable for distributions.
+> >  SPAAS ?= true
+> > +SPAAS_URL ?= https://drbd.io:2020
+>
+> What is the purpose of this definition in the top-level Makefile? As
+> far as I can see, it is only needed in the other one.
+>
+> I guess it serves a documentation purpose, showing what command line
+> variables can be set. That is presumably the point of the SPAAS
+> variable in the top-level makefile. In that case, explicitly pass it
+> down like the SPAAS variable for consistency.
+>
+> Best regards,
+> Joel
+>
+
+--0000000000005aac8005e1907130
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Yeah. There are some discussions about the needs for =
+this change:</div><div>- <a href=3D"https://github.com/LINBIT/saas/pull/1#i=
+ssuecomment-1152117095">https://github.com/LINBIT/saas/pull/1#issuecomment-=
+1152117095</a></div><div>- <a href=3D"https://github.com/piraeusdatastore/p=
+iraeus-operator/issues/315">https://github.com/piraeusdatastore/piraeus-ope=
+rator/issues/315</a></div><div><br></div><div>In short: we&#39;re running S=
+PAAS locally to allow our clients with isolated environments be able to bui=
+ld DRBD module in their clusters without need of spatch dependency as it ad=
+ds additional 523 megabytes to every container.<br></div><div><br></div><di=
+v>&gt; What is the purpose of this definition in the top-level Makefile? As=
+ far as I can see, it is only needed in the other one.<br>&gt; <br>&gt; I g=
+uess it serves a documentation purpose, showing what command line variables=
+ can be set. That is presumably the point of the SPAAS variable in the top-=
+level makefile. In that case, explicitly pass it down like the SPAAS variab=
+le for consistency.</div><div><br></div><div>Yes, I just added it into the =
+same files where the SPAAS variable is specified.</div><div>I think it is g=
+ood to have it described somewhere, but it always has a default value and i=
+t can work without specifying it in Makefiles at all.<br></div><div><br></d=
+iv><div><div><div dir=3D"ltr" class=3D"gmail_signature" data-smartmail=3D"g=
+mail_signature"><div dir=3D"ltr"><div>Best Regards,</div><div>Andrei Kvapil=
+<br></div></div></div></div><br></div></div><br><div class=3D"gmail_quote">=
+<div dir=3D"ltr" class=3D"gmail_attr">On Wed, Jun 15, 2022 at 6:32 PM Joel =
+Colledge &lt;<a href=3D"mailto:joel.colledge@linbit.com">joel.colledge@linb=
+it.com</a>&gt; wrote:<br></div><blockquote class=3D"gmail_quote" style=3D"m=
+argin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left=
+:1ex">Thanks for the contribution. Seems like a reasonable idea to me.<br>
+<br>
+&gt; diff --git a/Makefile b/Makefile<br>
+&gt; index 87c29518..37d7851d 100644<br>
+&gt; --- a/Makefile<br>
+&gt; +++ b/Makefile<br>
+&gt; @@ -37,6 +37,7 @@ DOCKERIMAGESTARGETS =3D $(addprefix dockerimage.,$(D=
+OCKERIMAGES))<br>
+&gt;=C2=A0 # Use the SPAAS (spatch as a service) online service<br>
+&gt;=C2=A0 # Have this as make variable for distributions.<br>
+&gt;=C2=A0 SPAAS ?=3D true<br>
+&gt; +SPAAS_URL ?=3D <a href=3D"https://drbd.io:2020" rel=3D"noreferrer" ta=
+rget=3D"_blank">https://drbd.io:2020</a><br>
+<br>
+What is the purpose of this definition in the top-level Makefile? As<br>
+far as I can see, it is only needed in the other one.<br>
+<br>
+I guess it serves a documentation purpose, showing what command line<br>
+variables can be set. That is presumably the point of the SPAAS<br>
+variable in the top-level makefile. In that case, explicitly pass it<br>
+down like the SPAAS variable for consistency.<br>
+<br>
+Best regards,<br>
+Joel<br>
+</blockquote></div>
+
+--0000000000005aac8005e1907130--
