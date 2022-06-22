@@ -1,15 +1,25 @@
-Return-Path: <jiangjian@cdjrlc.com>
-Received: from smtpbg.qq.com (smtpbg138.qq.com [106.55.201.18])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F373442060F
-	for <drbd-dev@lists.linbit.com>; Wed, 22 Jun 2022 18:05:12 +0200 (CEST)
-From: Jiang Jian <jiangjian@cdjrlc.com>
-To: axboe@kernel.dk
-Date: Wed, 22 Jun 2022 23:52:20 +0800
-Message-Id: <20220622155220.8704-1-jiangjian@cdjrlc.com>
-Cc: philipp.reisner@linbit.com, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Jiang Jian <jiangjian@cdjrlc.com>,
-	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] block: drbd: drbd_state: Fix typo in comments
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pj1-f54.google.com (mail-pj1-f54.google.com
+	[209.85.216.54])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 10CE9420471
+	for <drbd-dev@lists.linbit.com>; Thu, 23 Jun 2022 00:33:12 +0200 (CEST)
+Received: by mail-pj1-f54.google.com with SMTP id
+	h34-20020a17090a29a500b001eb01527d9eso792405pjd.3
+	for <drbd-dev@lists.linbit.com>; Wed, 22 Jun 2022 15:33:12 -0700 (PDT)
+From: Jens Axboe <axboe@kernel.dk>
+To: christoph.boehmwalder@linbit.com
+In-Reply-To: <20220622204932.196830-1-christoph.boehmwalder@linbit.com>
+References: <20220622204932.196830-1-christoph.boehmwalder@linbit.com>
+Message-Id: <165593719059.163762.1120892404181433441.b4-ty@kernel.dk>
+Date: Wed, 22 Jun 2022 16:33:10 -0600
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+Cc: linux-block@vger.kernel.org, lars.ellenberg@linbit.com,
+	philipp.reisner@linbit.com, linux-kernel@vger.kernel.org,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd: bm_page_async_io: fix spurious bitmap
+	"IO error" on large volumes
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,35 +31,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Replace 'is' with 'it'
+On Wed, 22 Jun 2022 22:49:32 +0200, Christoph Böhmwalder wrote:
+> From: Lars Ellenberg <lars.ellenberg@linbit.com>
+> 
+> We usually do all our bitmap IO in units of PAGE_SIZE.
+> 
+> With very small or oddly sized external meta data, or with
+> PAGE_SIZE != 4k, it can happen that our last on-disk bitmap page
+> is not fully PAGE_SIZE aligned, so we may need to adjust the size
+> of the IO.
+> 
+> [...]
 
-file: drivers/block/drbd/drbd_state.c
-line: 1900
+Applied, thanks!
 
-* But is is still not save to dreference ldev here, since
+[1/1] drbd: bm_page_async_io: fix spurious bitmap "IO error" on large volumes
+      commit: 66923326b519bbc4ebcb5275645b58427f801824
 
-changed to:
-
-* But it is still not save to dreference ldev here, since
-
-Signed-off-by: Jiang Jian <jiangjian@cdjrlc.com>
----
- drivers/block/drbd/drbd_state.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 3f7bf9f2d874..99927c44f0c3 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -1897,7 +1897,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
- 		int was_io_error = 0;
- 		/* corresponding get_ldev was in _drbd_set_state, to serialize
- 		 * our cleanup here with the transition to D_DISKLESS.
--		 * But is is still not save to dreference ldev here, since
-+		 * But it is still not save to dreference ldev here, since
- 		 * we might come from an failed Attach before ldev was set. */
- 		if (device->ldev) {
- 			rcu_read_lock();
+Best regards,
 -- 
-2.17.1
+Jens Axboe
+
 
