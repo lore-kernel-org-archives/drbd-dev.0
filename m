@@ -1,24 +1,21 @@
-Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f47.google.com (mail-ed1-f47.google.com
-	[209.85.208.47])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C7B3C4204BE
-	for <drbd-dev@lists.linbit.com>; Wed, 22 Jun 2022 16:12:56 +0200 (CEST)
-Received: by mail-ed1-f47.google.com with SMTP id o10so24101133edi.1
-	for <drbd-dev@lists.linbit.com>; Wed, 22 Jun 2022 07:12:56 -0700 (PDT)
-Message-ID: <b628a808-bb07-c94f-9d70-6bd4eb4be690@linbit.com>
-Date: Wed, 22 Jun 2022 16:12:54 +0200
+Return-Path: <James.Bottomley@HansenPartnership.com>
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com
+	[96.44.175.130])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2036E420471
+	for <drbd-dev@lists.linbit.com>; Wed, 22 Jun 2022 18:18:38 +0200 (CEST)
+Message-ID: <49a877f33a088edc232eb98029e46e53884c5cd6.camel@HansenPartnership.com>
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Jiang Jian <jiangjian@cdjrlc.com>, axboe@kernel.dk
+Date: Wed, 22 Jun 2022 12:10:59 -0400
+In-Reply-To: <20220622155220.8704-1-jiangjian@cdjrlc.com>
+References: <20220622155220.8704-1-jiangjian@cdjrlc.com>
+Content-Type: text/plain; charset="UTF-8"
 MIME-Version: 1.0
-Content-Language: en-US
-To: Xiang wangx <wangxiang@cdjrlc.com>
-References: <20220616143227.4004-1-wangxiang@cdjrlc.com>
-From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20220616143227.4004-1-wangxiang@cdjrlc.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, philipp.reisner@linbit.com,
+Content-Transfer-Encoding: 7bit
+Cc: philipp.reisner@linbit.com, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org, lars.ellenberg@linbit.com,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: Fix typo in comment
+Subject: Re: [Drbd-dev] [PATCH] block: drbd: drbd_state: Fix typo in comments
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,33 +27,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 16.06.22 um 16:32 schrieb Xiang wangx:
-> Delete the redundant word 'and'.
+On Wed, 2022-06-22 at 23:52 +0800, Jiang Jian wrote:
+> Replace 'is' with 'it'
 > 
-> Signed-off-by: Xiang wangx <wangxiang@cdjrlc.com>
-> ---
->  drivers/block/drbd/drbd_bitmap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> file: drivers/block/drbd/drbd_state.c
+> line: 1900
 > 
-> diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-> index 9e060e49b3f8..8afdde400e37 100644
-> --- a/drivers/block/drbd/drbd_bitmap.c
-> +++ b/drivers/block/drbd/drbd_bitmap.c
-> @@ -86,7 +86,7 @@ struct drbd_bitmap {
->  
->  	/* exclusively to be used by __al_write_transaction(),
->  	 * drbd_bm_mark_for_writeout() and
-> -	 * and drbd_bm_write_hinted() -> bm_rw() called from there.
-> +	 * drbd_bm_write_hinted() -> bm_rw() called from there.
->  	 */
->  	unsigned int n_bitmap_hints;
->  	unsigned int al_bitmap_hints[AL_UPDATES_PER_TRANSACTION];
+> * But is is still not save to dreference ldev here, since
+> 
+> changed to:
+> 
+> * But it is still not save to dreference ldev here, since
 
-Thanks!
+I honestly don't think spelling and grammar updates to comments provide
+much value.  However, there's no value at all if it's still two
+spelling errors in that one line after the proposed patch ...
 
-Acked-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+James
 
--- 
-Christoph Böhmwalder
-LINBIT | Keeping the Digital World Running
-DRBD HA —  Disaster Recovery — Software defined Storage
+
