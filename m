@@ -1,12 +1,12 @@
 Return-Path: <BATV+c1a09d14d477e25aee4e+6898+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E36DB420BA2
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2022 08:09:02 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7A60D4207B2
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2022 08:09:03 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Jul 2022 07:53:16 +0200
-Message-Id: <20220713055317.1888500-9-hch@lst.de>
+Date: Wed, 13 Jul 2022 07:53:15 +0200
+Message-Id: <20220713055317.1888500-8-hch@lst.de>
 In-Reply-To: <20220713055317.1888500-1-hch@lst.de>
 References: <20220713055317.1888500-1-hch@lst.de>
 MIME-Version: 1.0
@@ -19,7 +19,8 @@ Cc: linux-block@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>,
 	"Md. Haris Iqbal" <haris.iqbal@ionos.com>,
 	linux-ext4@vger.kernel.org, Jack Wang <jinpu.wang@ionos.com>,
 	ocfs2-devel@oss.oracle.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 8/9] ext4: only initialize mmp_bdevname once
+Subject: [Drbd-dev] [PATCH 7/9] ocfs2/cluster: remove the hr_dev_name field
+	from struct o2hb_region
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,49 +32,215 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-mmp_bdevname is currently both initialized nested inside the kthread_run
-call in ext4_multi_mount_protect and in the kmmpd thread started by it.
-
-Lift the initiaization out of the kthread_run call in
-ext4_multi_mount_protect, move the BUILD_BUG_ON next to it and remove
-the duplicate assignment inside of kmmpd.
+Just print the block device name directly using the %pg format specifier.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/ext4/mmp.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ fs/ocfs2/cluster/heartbeat.c | 64 +++++++++++++++++-------------------
+ 1 file changed, 30 insertions(+), 34 deletions(-)
 
-diff --git a/fs/ext4/mmp.c b/fs/ext4/mmp.c
-index 79d05e464c432..b7a850b0070b8 100644
---- a/fs/ext4/mmp.c
-+++ b/fs/ext4/mmp.c
-@@ -150,8 +150,6 @@ static int kmmpd(void *data)
- 	mmp_check_interval = max(EXT4_MMP_CHECK_MULT * mmp_update_interval,
- 				 EXT4_MMP_MIN_CHECK_INTERVAL);
- 	mmp->mmp_check_interval = cpu_to_le16(mmp_check_interval);
--	BUILD_BUG_ON(sizeof(mmp->mmp_bdevname) < BDEVNAME_SIZE);
--	bdevname(bh->b_bdev, mmp->mmp_bdevname);
+diff --git a/fs/ocfs2/cluster/heartbeat.c b/fs/ocfs2/cluster/heartbeat.c
+index ea0e70c0fce09..5f83c0c0918c0 100644
+--- a/fs/ocfs2/cluster/heartbeat.c
++++ b/fs/ocfs2/cluster/heartbeat.c
+@@ -235,8 +235,6 @@ struct o2hb_region {
+ 	 * (hr_steady_iterations == 0) within hr_unsteady_iterations */
+ 	atomic_t		hr_unsteady_iterations;
  
- 	memcpy(mmp->mmp_nodename, init_utsname()->nodename,
- 	       sizeof(mmp->mmp_nodename));
-@@ -372,13 +370,15 @@ int ext4_multi_mount_protect(struct super_block *sb,
+-	char			hr_dev_name[BDEVNAME_SIZE];
+-
+ 	unsigned int		hr_timeout_ms;
  
- 	EXT4_SB(sb)->s_mmp_bh = bh;
+ 	/* randomized as the region goes up and down so that a node
+@@ -287,8 +285,8 @@ static void o2hb_write_timeout(struct work_struct *work)
+ 		container_of(work, struct o2hb_region,
+ 			     hr_write_timeout_work.work);
  
-+	BUILD_BUG_ON(sizeof(mmp->mmp_bdevname) < BDEVNAME_SIZE);
-+	bdevname(bh->b_bdev, mmp->mmp_bdevname);
-+
+-	mlog(ML_ERROR, "Heartbeat write timeout to device %s after %u "
+-	     "milliseconds\n", reg->hr_dev_name,
++	mlog(ML_ERROR, "Heartbeat write timeout to device %pg after %u "
++	     "milliseconds\n", reg->hr_bdev,
+ 	     jiffies_to_msecs(jiffies - reg->hr_last_timeout_start));
+ 
+ 	if (o2hb_global_heartbeat_active()) {
+@@ -383,9 +381,9 @@ static void o2hb_nego_timeout(struct work_struct *work)
+ 
+ 	if (master_node == o2nm_this_node()) {
+ 		if (!test_bit(master_node, reg->hr_nego_node_bitmap)) {
+-			printk(KERN_NOTICE "o2hb: node %d hb write hung for %ds on region %s (%s).\n",
++			printk(KERN_NOTICE "o2hb: node %d hb write hung for %ds on region %s (%pg).\n",
+ 				o2nm_this_node(), O2HB_NEGO_TIMEOUT_MS/1000,
+-				config_item_name(&reg->hr_item), reg->hr_dev_name);
++				config_item_name(&reg->hr_item), reg->hr_bdev);
+ 			set_bit(master_node, reg->hr_nego_node_bitmap);
+ 		}
+ 		if (memcmp(reg->hr_nego_node_bitmap, live_node_bitmap,
+@@ -399,8 +397,8 @@ static void o2hb_nego_timeout(struct work_struct *work)
+ 			return;
+ 		}
+ 
+-		printk(KERN_NOTICE "o2hb: all nodes hb write hung, maybe region %s (%s) is down.\n",
+-			config_item_name(&reg->hr_item), reg->hr_dev_name);
++		printk(KERN_NOTICE "o2hb: all nodes hb write hung, maybe region %s (%pg) is down.\n",
++			config_item_name(&reg->hr_item), reg->hr_bdev);
+ 		/* approve negotiate timeout request. */
+ 		o2hb_arm_timeout(reg);
+ 
+@@ -419,9 +417,9 @@ static void o2hb_nego_timeout(struct work_struct *work)
+ 		}
+ 	} else {
+ 		/* negotiate timeout with master node. */
+-		printk(KERN_NOTICE "o2hb: node %d hb write hung for %ds on region %s (%s), negotiate timeout with node %d.\n",
++		printk(KERN_NOTICE "o2hb: node %d hb write hung for %ds on region %s (%pg), negotiate timeout with node %d.\n",
+ 			o2nm_this_node(), O2HB_NEGO_TIMEOUT_MS/1000, config_item_name(&reg->hr_item),
+-			reg->hr_dev_name, master_node);
++			reg->hr_bdev, master_node);
+ 		ret = o2hb_send_nego_msg(reg->hr_key, O2HB_NEGO_TIMEOUT_MSG,
+ 				master_node);
+ 		if (ret)
+@@ -437,8 +435,8 @@ static int o2hb_nego_timeout_handler(struct o2net_msg *msg, u32 len, void *data,
+ 	struct o2hb_nego_msg *nego_msg;
+ 
+ 	nego_msg = (struct o2hb_nego_msg *)msg->buf;
+-	printk(KERN_NOTICE "o2hb: receive negotiate timeout message from node %d on region %s (%s).\n",
+-		nego_msg->node_num, config_item_name(&reg->hr_item), reg->hr_dev_name);
++	printk(KERN_NOTICE "o2hb: receive negotiate timeout message from node %d on region %s (%pg).\n",
++		nego_msg->node_num, config_item_name(&reg->hr_item), reg->hr_bdev);
+ 	if (nego_msg->node_num < O2NM_MAX_NODES)
+ 		set_bit(nego_msg->node_num, reg->hr_nego_node_bitmap);
+ 	else
+@@ -452,8 +450,8 @@ static int o2hb_nego_approve_handler(struct o2net_msg *msg, u32 len, void *data,
+ {
+ 	struct o2hb_region *reg = data;
+ 
+-	printk(KERN_NOTICE "o2hb: negotiate timeout approved by master node on region %s (%s).\n",
+-		config_item_name(&reg->hr_item), reg->hr_dev_name);
++	printk(KERN_NOTICE "o2hb: negotiate timeout approved by master node on region %s (%pg).\n",
++		config_item_name(&reg->hr_item), reg->hr_bdev);
+ 	o2hb_arm_timeout(reg);
+ 	return 0;
+ }
+@@ -689,8 +687,8 @@ static int o2hb_check_own_slot(struct o2hb_region *reg)
+ 	else
+ 		errstr = ERRSTR3;
+ 
+-	mlog(ML_ERROR, "%s (%s): expected(%u:0x%llx, 0x%llx), "
+-	     "ondisk(%u:0x%llx, 0x%llx)\n", errstr, reg->hr_dev_name,
++	mlog(ML_ERROR, "%s (%pg): expected(%u:0x%llx, 0x%llx), "
++	     "ondisk(%u:0x%llx, 0x%llx)\n", errstr, reg->hr_bdev,
+ 	     slot->ds_node_num, (unsigned long long)slot->ds_last_generation,
+ 	     (unsigned long long)slot->ds_last_time, hb_block->hb_node,
+ 	     (unsigned long long)le64_to_cpu(hb_block->hb_generation),
+@@ -863,8 +861,8 @@ static void o2hb_set_quorum_device(struct o2hb_region *reg)
+ 		   sizeof(o2hb_live_node_bitmap)))
+ 		goto unlock;
+ 
+-	printk(KERN_NOTICE "o2hb: Region %s (%s) is now a quorum device\n",
+-	       config_item_name(&reg->hr_item), reg->hr_dev_name);
++	printk(KERN_NOTICE "o2hb: Region %s (%pg) is now a quorum device\n",
++	       config_item_name(&reg->hr_item), reg->hr_bdev);
+ 
+ 	set_bit(reg->hr_region_num, o2hb_quorum_region_bitmap);
+ 
+@@ -922,8 +920,8 @@ static int o2hb_check_slot(struct o2hb_region *reg,
+ 		/* The node is live but pushed out a bad crc. We
+ 		 * consider it a transient miss but don't populate any
+ 		 * other values as they may be junk. */
+-		mlog(ML_ERROR, "Node %d has written a bad crc to %s\n",
+-		     slot->ds_node_num, reg->hr_dev_name);
++		mlog(ML_ERROR, "Node %d has written a bad crc to %pg\n",
++		     slot->ds_node_num, reg->hr_bdev);
+ 		o2hb_dump_slot(hb_block);
+ 
+ 		slot->ds_equal_samples++;
+@@ -1002,11 +1000,11 @@ static int o2hb_check_slot(struct o2hb_region *reg,
+ 		slot_dead_ms = le32_to_cpu(hb_block->hb_dead_ms);
+ 		if (slot_dead_ms && slot_dead_ms != dead_ms) {
+ 			/* TODO: Perhaps we can fail the region here. */
+-			mlog(ML_ERROR, "Node %d on device %s has a dead count "
++			mlog(ML_ERROR, "Node %d on device %pg has a dead count "
+ 			     "of %u ms, but our count is %u ms.\n"
+ 			     "Please double check your configuration values "
+ 			     "for 'O2CB_HEARTBEAT_THRESHOLD'\n",
+-			     slot->ds_node_num, reg->hr_dev_name, slot_dead_ms,
++			     slot->ds_node_num, reg->hr_bdev, slot_dead_ms,
+ 			     dead_ms);
+ 		}
+ 		goto out;
+@@ -1145,8 +1143,8 @@ static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
+ 		/* Do not re-arm the write timeout on I/O error - we
+ 		 * can't be sure that the new block ever made it to
+ 		 * disk */
+-		mlog(ML_ERROR, "Write error %d on device \"%s\"\n",
+-		     write_wc.wc_error, reg->hr_dev_name);
++		mlog(ML_ERROR, "Write error %d on device \"%pg\"\n",
++		     write_wc.wc_error, reg->hr_bdev);
+ 		ret = write_wc.wc_error;
+ 		goto bail;
+ 	}
+@@ -1170,9 +1168,9 @@ static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
+ 	if (atomic_read(&reg->hr_steady_iterations) != 0) {
+ 		if (atomic_dec_and_test(&reg->hr_unsteady_iterations)) {
+ 			printk(KERN_NOTICE "o2hb: Unable to stabilize "
+-			       "heartbeat on region %s (%s)\n",
++			       "heartbeat on region %s (%pg)\n",
+ 			       config_item_name(&reg->hr_item),
+-			       reg->hr_dev_name);
++			       reg->hr_bdev);
+ 			atomic_set(&reg->hr_steady_iterations, 0);
+ 			reg->hr_aborted_start = 1;
+ 			wake_up(&o2hb_steady_queue);
+@@ -1494,7 +1492,7 @@ static void o2hb_region_release(struct config_item *item)
+ 	struct page *page;
+ 	struct o2hb_region *reg = to_o2hb_region(item);
+ 
+-	mlog(ML_HEARTBEAT, "hb region release (%s)\n", reg->hr_dev_name);
++	mlog(ML_HEARTBEAT, "hb region release (%pg)\n", reg->hr_bdev);
+ 
+ 	kfree(reg->hr_tmp_block);
+ 
+@@ -1641,7 +1639,7 @@ static ssize_t o2hb_region_dev_show(struct config_item *item, char *page)
+ 	unsigned int ret = 0;
+ 
+ 	if (to_o2hb_region(item)->hr_bdev)
+-		ret = sprintf(page, "%s\n", to_o2hb_region(item)->hr_dev_name);
++		ret = sprintf(page, "%pg\n", to_o2hb_region(item)->hr_bdev);
+ 
+ 	return ret;
+ }
+@@ -1798,8 +1796,6 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
+ 		goto out2;
+ 	}
+ 
+-	bdevname(reg->hr_bdev, reg->hr_dev_name);
+-
+ 	sectsize = bdev_logical_block_size(reg->hr_bdev);
+ 	if (sectsize != reg->hr_block_bytes) {
+ 		mlog(ML_ERROR,
+@@ -1895,8 +1891,8 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
+ 		ret = -EIO;
+ 
+ 	if (hb_task && o2hb_global_heartbeat_active())
+-		printk(KERN_NOTICE "o2hb: Heartbeat started on region %s (%s)\n",
+-		       config_item_name(&reg->hr_item), reg->hr_dev_name);
++		printk(KERN_NOTICE "o2hb: Heartbeat started on region %s (%pg)\n",
++		       config_item_name(&reg->hr_item), reg->hr_bdev);
+ 
+ out3:
+ 	if (ret < 0) {
+@@ -2088,10 +2084,10 @@ static void o2hb_heartbeat_group_drop_item(struct config_group *group,
+ 			quorum_region = 1;
+ 		clear_bit(reg->hr_region_num, o2hb_quorum_region_bitmap);
+ 		spin_unlock(&o2hb_live_lock);
+-		printk(KERN_NOTICE "o2hb: Heartbeat %s on region %s (%s)\n",
++		printk(KERN_NOTICE "o2hb: Heartbeat %s on region %s (%pg)\n",
+ 		       ((atomic_read(&reg->hr_steady_iterations) == 0) ?
+ 			"stopped" : "start aborted"), config_item_name(item),
+-		       reg->hr_dev_name);
++		       reg->hr_bdev);
+ 	}
+ 
  	/*
- 	 * Start a kernel thread to update the MMP block periodically.
- 	 */
- 	EXT4_SB(sb)->s_mmp_tsk = kthread_run(kmmpd, sb, "kmmpd-%.*s",
- 					     (int)sizeof(mmp->mmp_bdevname),
--					     bdevname(bh->b_bdev,
--						      mmp->mmp_bdevname));
-+					     mmp->mmp_bdevname);
- 	if (IS_ERR(EXT4_SB(sb)->s_mmp_tsk)) {
- 		EXT4_SB(sb)->s_mmp_tsk = NULL;
- 		ext4_warning(sb, "Unable to create kmmpd thread for %s.",
 -- 
 2.30.2
 
