@@ -1,32 +1,31 @@
-Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM12-BN8-obe.outbound.protection.outlook.com
-	(mail-bn8nam12on2065.outbound.protection.outlook.com [40.107.237.65])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AF8B6420F75
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2022 11:46:32 +0200 (CEST)
-From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
-To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Date: Wed, 13 Jul 2022 09:30:42 +0000
-Message-ID: <2767f201-9187-209b-dfed-e3b7e23b4d2d@nvidia.com>
-References: <20220713055317.1888500-1-hch@lst.de>
-In-Reply-To: <20220713055317.1888500-1-hch@lst.de>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <49AB34D422258848B8AFC722A4CD9F69@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-ed1-f47.google.com (mail-ed1-f47.google.com
+	[209.85.208.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B28C420FB1
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2022 14:25:41 +0200 (CEST)
+Received: by mail-ed1-f47.google.com with SMTP id fd6so13865715edb.5
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2022 05:25:41 -0700 (PDT)
+Message-ID: <1304fd58-1577-3f27-0ee8-64964bd54467@linbit.com>
+Date: Wed, 13 Jul 2022 14:25:38 +0200
 MIME-Version: 1.0
-Cc: "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	Theodore Ts'o <tytso@mit.edu>, Song Liu <song@kernel.org>,
-	Mark Fasheh <mark@fasheh.com>,
-	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Andreas Dilger <adilger.kernel@dilger.ca>,
+Content-Language: en-US
+To: Christoph Hellwig <hch@lst.de>
+References: <20220713055317.1888500-1-hch@lst.de>
+	<20220713055317.1888500-4-hch@lst.de>
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <20220713055317.1888500-4-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Cc: Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
+	Theodore Ts'o <tytso@mit.edu>, Joseph Qi <joseph.qi@linux.alibaba.com>,
+	Mark Fasheh <mark@fasheh.com>, linux-block@vger.kernel.org,
+	Song Liu <song@kernel.org>, Andreas Dilger <adilger.kernel@dilger.ca>,
 	Joel Becker <jlbec@evilplan.org>, Jan Kara <jack@suse.com>,
 	"Md. Haris Iqbal" <haris.iqbal@ionos.com>,
-	"linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>,
-	Jack Wang <jinpu.wang@ionos.com>,
-	"ocfs2-devel@oss.oracle.com" <ocfs2-devel@oss.oracle.com>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] remove bdevname
+	linux-ext4@vger.kernel.org, Jack Wang <jinpu.wang@ionos.com>,
+	ocfs2-devel@oss.oracle.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 3/9] drbd: stop using bdevname in
+	drbd_report_io_error
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,8 +37,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gNy8xMi8yMDIyIDEwOjUzIFBNLCBDaHJpc3RvcGggSGVsbHdpZyB3cm90ZToNCj4gSGkgSmVu
-cywNCj4gDQo+IHRoaXMgc2VyaWVzIHJlbW92ZXMgdGhlIGZpbmFsIHVzZXMgYW5kIHRoZSBpbXBs
-ZW1lbnRhdGlvbiBvZiB0aGUgYmRldm5hbWUoKQ0KPiBmdW5jdGlvbi4NCj4gDQoNCkxvb2tzIGdv
-b2QgZm9yIHRoZSBzZXJpZXMgOi0NCg0KUmV2aWV3ZWQtYnk6IENoYWl0YW55YSBLdWxrYXJuaSA8
-a2NoQG52aWRpYS5jb20+DQoNCi1jaw0KDQoNCg==
+Am 13.07.22 um 07:53 schrieb Christoph Hellwig:
+> Just use the %pg format specifier instead.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  drivers/block/drbd/drbd_req.c | 6 ++----
+>  1 file changed, 2 insertions(+), 4 deletions(-)
+> 
+> diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+> index e64bcfba30ef3..6d8dd14458c69 100644
+> --- a/drivers/block/drbd/drbd_req.c
+> +++ b/drivers/block/drbd/drbd_req.c
+> @@ -523,16 +523,14 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
+>  
+>  static void drbd_report_io_error(struct drbd_device *device, struct drbd_request *req)
+>  {
+> -        char b[BDEVNAME_SIZE];
+> -
+>  	if (!__ratelimit(&drbd_ratelimit_state))
+>  		return;
+>  
+> -	drbd_warn(device, "local %s IO error sector %llu+%u on %s\n",
+> +	drbd_warn(device, "local %s IO error sector %llu+%u on %pg\n",
+>  			(req->rq_state & RQ_WRITE) ? "WRITE" : "READ",
+>  			(unsigned long long)req->i.sector,
+>  			req->i.size >> 9,
+> -			bdevname(device->ldev->backing_bdev, b));
+> +			device->ldev->backing_bdev);
+>  }
+>  
+>  /* Helper for HANDED_OVER_TO_NETWORK.
+
+For the drbd part:
+
+Reviewed-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+
+Thanks.
+
+-- 
+Christoph Böhmwalder
+LINBIT | Keeping the Digital World Running
+DRBD HA —  Disaster Recovery — Software defined Storage
