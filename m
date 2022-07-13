@@ -1,31 +1,26 @@
-Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f47.google.com (mail-ed1-f47.google.com
-	[209.85.208.47])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B28C420FB1
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2022 14:25:41 +0200 (CEST)
-Received: by mail-ed1-f47.google.com with SMTP id fd6so13865715edb.5
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2022 05:25:41 -0700 (PDT)
-Message-ID: <1304fd58-1577-3f27-0ee8-64964bd54467@linbit.com>
-Date: Wed, 13 Jul 2022 14:25:38 +0200
-MIME-Version: 1.0
-Content-Language: en-US
+Return-Path: <jack@suse.cz>
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 58B36420FAF
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Jul 2022 17:10:46 +0200 (CEST)
+Date: Wed, 13 Jul 2022 17:05:07 +0200
+From: Jan Kara <jack@suse.cz>
 To: Christoph Hellwig <hch@lst.de>
+Message-ID: <20220713150507.6bvq4bidmirs2mql@quack3>
 References: <20220713055317.1888500-1-hch@lst.de>
-	<20220713055317.1888500-4-hch@lst.de>
-From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20220713055317.1888500-4-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
-	Theodore Ts'o <tytso@mit.edu>, Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Mark Fasheh <mark@fasheh.com>, linux-block@vger.kernel.org,
-	Song Liu <song@kernel.org>, Andreas Dilger <adilger.kernel@dilger.ca>,
-	Joel Becker <jlbec@evilplan.org>, Jan Kara <jack@suse.com>,
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20220713055317.1888500-1-hch@lst.de>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	Theodore Ts'o <tytso@mit.edu>, Song Liu <song@kernel.org>,
+	Mark Fasheh <mark@fasheh.com>, linux-raid@vger.kernel.org,
+	Joseph Qi <joseph.qi@linux.alibaba.com>,
 	"Md. Haris Iqbal" <haris.iqbal@ionos.com>,
+	Joel Becker <jlbec@evilplan.org>, Jan Kara <jack@suse.com>,
+	Andreas Dilger <adilger.kernel@dilger.ca>,
 	linux-ext4@vger.kernel.org, Jack Wang <jinpu.wang@ionos.com>,
 	ocfs2-devel@oss.oracle.com, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 3/9] drbd: stop using bdevname in
-	drbd_report_io_error
+Subject: Re: [Drbd-dev] remove bdevname
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,45 +32,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 13.07.22 um 07:53 schrieb Christoph Hellwig:
-> Just use the %pg format specifier instead.
+On Wed 13-07-22 07:53:08, Christoph Hellwig wrote:
+> Hi Jens,
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  drivers/block/drbd/drbd_req.c | 6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
+> this series removes the final uses and the implementation of the bdevname()
+> function.
+
+All patches look good to me. Feel free to add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
 > 
-> diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-> index e64bcfba30ef3..6d8dd14458c69 100644
-> --- a/drivers/block/drbd/drbd_req.c
-> +++ b/drivers/block/drbd/drbd_req.c
-> @@ -523,16 +523,14 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
->  
->  static void drbd_report_io_error(struct drbd_device *device, struct drbd_request *req)
->  {
-> -        char b[BDEVNAME_SIZE];
-> -
->  	if (!__ratelimit(&drbd_ratelimit_state))
->  		return;
->  
-> -	drbd_warn(device, "local %s IO error sector %llu+%u on %s\n",
-> +	drbd_warn(device, "local %s IO error sector %llu+%u on %pg\n",
->  			(req->rq_state & RQ_WRITE) ? "WRITE" : "READ",
->  			(unsigned long long)req->i.sector,
->  			req->i.size >> 9,
-> -			bdevname(device->ldev->backing_bdev, b));
-> +			device->ldev->backing_bdev);
->  }
->  
->  /* Helper for HANDED_OVER_TO_NETWORK.
-
-For the drbd part:
-
-Reviewed-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
-
-Thanks.
-
+> Diffstat:
+>  block/bdev.c                        |   10 ++---
+>  block/blk-lib.c                     |    6 +--
+>  block/genhd.c                       |   23 ------------
+>  drivers/block/drbd/drbd_req.c       |    6 +--
+>  drivers/block/pktcdvd.c             |   10 +----
+>  drivers/block/rnbd/rnbd-srv-dev.c   |    1 
+>  drivers/block/rnbd/rnbd-srv-dev.h   |    1 
+>  drivers/block/rnbd/rnbd-srv-sysfs.c |    5 +-
+>  drivers/block/rnbd/rnbd-srv.c       |    9 ++---
+>  drivers/block/rnbd/rnbd-srv.h       |    3 -
+>  drivers/md/md.c                     |    2 -
+>  drivers/md/raid1.c                  |    2 -
+>  drivers/md/raid10.c                 |    2 -
+>  fs/ext4/mmp.c                       |    9 ++---
+>  fs/jbd2/journal.c                   |    6 ++-
+>  fs/ocfs2/cluster/heartbeat.c        |   64 ++++++++++++++++--------------------
+>  include/linux/blkdev.h              |    1 
+>  kernel/trace/blktrace.c             |    4 +-
+>  18 files changed, 62 insertions(+), 102 deletions(-)
 -- 
-Christoph Böhmwalder
-LINBIT | Keeping the Digital World Running
-DRBD HA —  Disaster Recovery — Software defined Storage
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
