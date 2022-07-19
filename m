@@ -1,22 +1,18 @@
 Return-Path: <veggiemike@sourceruckus.org>
-Received: from mail-pf1-f182.google.com (mail-pf1-f182.google.com
-	[209.85.210.182])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8AA89420668
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jul 2022 16:32:02 +0200 (CEST)
-Received: by mail-pf1-f182.google.com with SMTP id w185so13724580pfb.4
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Jul 2022 07:32:02 -0700 (PDT)
+Received: from mail-pl1-f180.google.com (mail-pl1-f180.google.com
+	[209.85.214.180])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 68E9C4206B5
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jul 2022 17:35:43 +0200 (CEST)
+Received: by mail-pl1-f180.google.com with SMTP id k19so12286363pll.5
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Jul 2022 08:35:43 -0700 (PDT)
 MIME-Version: 1.0
-References: <20220718203421.963-1-veggiemike@sourceruckus.org>
-	<acd5b1c9-d770-8db9-45a0-c78051cc3f59@linbit.com>
-In-Reply-To: <acd5b1c9-d770-8db9-45a0-c78051cc3f59@linbit.com>
 From: Michael Labriola <veggiemike@sourceruckus.org>
-Date: Tue, 19 Jul 2022 10:31:50 -0400
-Message-ID: <CAA1fRFh1NbuJ-TYKXF3GX6XdDXbEQWmWZzx2-Q6eM9M_NfLKZQ@mail.gmail.com>
-To: =?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+Date: Tue, 19 Jul 2022 11:35:30 -0400
+Message-ID: <CAA1fRFhjfFsADzgr0BS7H3=5Tzfu54g764dRE+WSHi4tjDDpyQ@mail.gmail.com>
+To: drbd-dev@lists.linbit.com
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] compat: actually, bio_alloc now has 4 params
+Subject: [Drbd-dev] corrupted resource can't be fixed by rolling back to old
+	snapshot
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,87 +24,90 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jul 19, 2022 at 7:31 AM Christoph B=C3=B6hmwalder
-<christoph.boehmwalder@linbit.com> wrote:
->
-> Am 18.07.22 um 22:34 schrieb Michael D Labriola:
-> > The original compat check for this got a bit wrapped around the axle.
-> > Both bio_alloc() and bio_alloc_bioset() grew 2 more arguments.  All
-> > the comments and filenames from b6d4d588597 say "bio_alloc has 5
-> > params", but it was actually bio_alloc_bioset() that now has 5 params.
-> > And the test takes the 5 params now required for bio_alloc_bioset()
-> > and passed them into bio_alloc()... which causes the correct code for
-> > 5.17 kernels to get patched back out erroneously.
-> >
-> > Signed-off-by: Michael D Labriola <veggiemike@sourceruckus.org>
-> > ---
-> >  ...no_has_5_params.cocci =3D> bio_alloc__no_has_4_params.cocci} | 0
-> >  drbd/drbd-kernel-compat/gen_patch_names.c                     | 2 +-
-> >  .../{bio_alloc_has_5_params.c =3D> bio_alloc_has_4_params.c}    | 4 ++=
---
-> >  3 files changed, 3 insertions(+), 3 deletions(-)
-> >  rename drbd/drbd-kernel-compat/cocci/{bio_alloc__no_has_5_params.cocci=
- =3D> bio_alloc__no_has_4_params.cocci} (100%)
-> >  rename drbd/drbd-kernel-compat/tests/{bio_alloc_has_5_params.c =3D> bi=
-o_alloc_has_4_params.c} (80%)
-> >
-> > diff --git a/drbd/drbd-kernel-compat/cocci/bio_alloc__no_has_5_params.c=
-occi b/drbd/drbd-kernel-compat/cocci/bio_alloc__no_has_4_params.cocci
-> > similarity index 100%
-> > rename from drbd/drbd-kernel-compat/cocci/bio_alloc__no_has_5_params.co=
-cci
-> > rename to drbd/drbd-kernel-compat/cocci/bio_alloc__no_has_4_params.cocc=
-i
-> > diff --git a/drbd/drbd-kernel-compat/gen_patch_names.c b/drbd/drbd-kern=
-el-compat/gen_patch_names.c
-> > index e98c3d44..1074bb12 100644
-> > --- a/drbd/drbd-kernel-compat/gen_patch_names.c
-> > +++ b/drbd/drbd-kernel-compat/gen_patch_names.c
-> > @@ -102,7 +102,7 @@ int main(int argc, char **argv)
-> >  #endif
-> >
-> >       patch(1, "bio_alloc", true, false,
-> > -           COMPAT_BIO_ALLOC_HAS_5_PARAMS, "has_5_params");
-> > +           COMPAT_BIO_ALLOC_HAS_4_PARAMS, "has_4_params");
-> >
-> >  #if !defined(COMPAT_HAVE_BIO_SET_DEV)
-> >       patch(1, "bio_set_dev", true, false,
-> > diff --git a/drbd/drbd-kernel-compat/tests/bio_alloc_has_5_params.c b/d=
-rbd/drbd-kernel-compat/tests/bio_alloc_has_4_params.c
-> > similarity index 80%
-> > rename from drbd/drbd-kernel-compat/tests/bio_alloc_has_5_params.c
-> > rename to drbd/drbd-kernel-compat/tests/bio_alloc_has_4_params.c
-> > index 1c28f049..6000e101 100644
-> > --- a/drbd/drbd-kernel-compat/tests/bio_alloc_has_5_params.c
-> > +++ b/drbd/drbd-kernel-compat/tests/bio_alloc_has_4_params.c
-> > @@ -6,7 +6,7 @@
-> >  #include <linux/bio.h>
-> >
-> >  struct bio *foo(struct block_device *bdev, unsigned short nr_vecs,
-> > -             unsigned int opf, gfp_t gfp_mask, struct bio_set *bs)
-> > +             unsigned int opf, gfp_t gfp_mask)
-> >  {
-> > -     return bio_alloc(bdev, nr_vecs, opf, gfp_mask, bs);
-> > +     return bio_alloc(bdev, nr_vecs, opf, gfp_mask);
-> >  }
->
-> D'oh, seems like I indeed mixed those up.
-> Good catch, thanks!
->
-> Applied as https://github.com/LINBIT/drbd/commit/e47c64a35faeb9b080772b06=
-8a5630976cb0754d
->
-> I'm glad to have someone in the community to double-check my stuff :)
+Hey, all.  I posted this to drbd-user a few weeks ago and didn't get
+any feedback...  Hoping I get a nibble on drbd-dev.
 
-No problem.  Took longer to remember how to get git send-email to work
-than it did to fix it.  ;-)
+Here's a question that's bugging me.  I've had this happen
+multiple times now (over the course of 2-3 years, so infrequent).
+I've got a system set up with DRBD resources using ZFS volumes as the
+block devices (for volume management and snapshots among other
+reasons).  I've had some obvious hardware problems lead to what I
+think is corrupted DRBD metadata a few times.  Now, I had expected to
+be able to simply rollback to an earlier snapshot of the underlying
+ZVOL on the primary, a slightly older one on the secondary node, and
+sync back up nicely.  But what happens instead is no matter how old of
+a snapshot I use, I continue to get these types of errors:
+
+drbdadm dump-md nautilus_data
+Found meta data is "unclean", please apply-al first
+
+drbdadm apply-al nautilus_data
+extent 4746752 beyond end of bitmap!
+extent 4870144 beyond end of bitmap!
+extent 5436416 beyond end of bitmap!
+extent 5437440 beyond end of bitmap!
+...
+extent 6793216 beyond end of bitmap!
+extent 6793218 beyond end of bitmap!
+../shared/drbdmeta.c:2028:apply_al: ASSERT(bm_pos - bm_on_disk_pos <=
+chunk - this_extent_size) failed.
+
+What I'm trying to understand is how can I be corrupting my DRBD
+resource so badly that going back in time to an older version of the
+block device used by the resource is STILL corrupt?
+
+This is an Ubuntu 20.04 system with 5.15 kernel and DRBD 9.1.5, but as
+mentioned I've seen this problem a couple times over the years with
+5.10 and 5.4 kernels and whatever version of DRBD9 compiled for those
+kernels at the time.  I'm convinced I must be fundamentally
+misunderstanding something about how DRBD works on this one.
+
+My resource config follows:
+
+# resource nautilus_data on skywalker: not ignored, not stacked
+# defined at /etc/drbd.d/nautilus_data.res:1
+resource nautilus_data {
+    device               /dev/drbd1 minor 1;
+    meta-disk            internal;
+    on skywalker {
+        node-id 0;
+        disk             /dev/zdata/nautilus;
+        address          ipv4 10.1.20.201:7810;
+    }
+    on vader {
+        node-id 1;
+        disk             /dev/zdata/nautilus;
+        address          ipv4 10.1.20.202:7810;
+    }
+    connection {
+        host skywalker         address         ipv4 192.168.1.2:7810;
+        host vader         address         ipv4 192.168.1.3:7810;
+        net {
+            _name        vader;
+        }
+    }
+    net {
+        protocol           C;
+        max-buffers      36k;
+        max-epoch-size   20000;
+        sndbuf-size       2M;
+        rcvbuf-size       4M;
+        allow-two-primaries yes;
+        after-sb-0pri    discard-zero-changes;
+        after-sb-1pri    discard-secondary;
+        after-sb-2pri    disconnect;
+    }
+    disk {
+        disk-barrier      no;
+        disk-flushes      no;
+        al-extents       3833;
+        c-plan-ahead       1;
+        c-fill-target    24M;
+        c-max-rate       110M;
+        c-min-rate       10M;
+    }
+}
 
 --
 Michael D Labriola
 401-316-9844 (cell)
-
->
-> --
-> Christoph B=C3=B6hmwalder
-> LINBIT | Keeping the Digital World Running
-> DRBD HA =E2=80=94  Disaster Recovery =E2=80=94 Software defined Storage
