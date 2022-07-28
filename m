@@ -1,21 +1,17 @@
-Return-Path: <sanpeqf@gmail.com>
-Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com
-	[209.85.210.193])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 55B3C4201D6
-	for <drbd-dev@lists.linbit.com>; Sat, 23 Jul 2022 10:00:06 +0200 (CEST)
-Received: by mail-pf1-f193.google.com with SMTP id w185so6227663pfb.4
-	for <drbd-dev@lists.linbit.com>; Sat, 23 Jul 2022 01:00:06 -0700 (PDT)
-From: John Sanpe <sanpeqf@gmail.com>
-To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
-	christoph.boehmwalder@linbit.com
-Date: Sat, 23 Jul 2022 15:59:31 +0800
-Message-Id: <20220723075931.163245-1-sanpeqf@gmail.com>
+Return-Path: <rui.xu@easystack.cn>
+Received: from mail-m2457.qiye.163.com (mail-m2457.qiye.163.com
+	[220.194.24.57])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 52F984207B8
+	for <drbd-dev@lists.linbit.com>; Thu, 28 Jul 2022 13:58:04 +0200 (CEST)
+From: Rui Xu <rui.xu@easystack.cn>
+To: philipp.reisner@linbit.com, drbd-dev@lists.linbit.com,
+	joel.colledge@linbit.com
+Date: Thu, 28 Jul 2022 19:47:59 +0800
+Message-Id: <20220728114759.810371-1-rui.xu@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: John Sanpe <sanpeqf@gmail.com>, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH] lib/lru_cache: Fixed array overflow caused by
-	incorrect boundary handling.
+Cc: Rui Xu <rui.xu@easystack.cn>, dongsheng.yang@easystack.cn
+Subject: [Drbd-dev] [PATCH] drbd: fix a bug with two-primaries configuration
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,29 +23,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This problem occurs when malloc element failed on the first time.
-At this time, the counter i is 0. When it's released, we subtract 1
-in advance without checking, which will cause i to become UINT_MAX,
-resulting in array overflow.
+There is a bug when execute 'drbdsetup disconnect' in
+two-primaries configuration.
 
-Signed-off-by: John Sanpe <sanpeqf@gmail.com>
+When 'drbdsetup disconnect' is called by user, two primary
+nodes will going to outdated in do_change_cstate, then the
+command will failed since there is no UpToDate node.
+
+Fix it by modify the judgment condition in do_change_cstate.
+
+Signed-off-by: Rui Xu <rui.xu@easystack.cn>
 ---
- lib/lru_cache.c | 2 +-
+ drbd/drbd_state.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index 52313acbfa62..04d95de92602 100644
---- a/lib/lru_cache.c
-+++ b/lib/lru_cache.c
-@@ -147,7 +147,7 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
- 		return lc;
+diff --git a/drbd/drbd_state.c b/drbd/drbd_state.c
+index 792a96d5..c4f3f776 100644
+--- a/drbd/drbd_state.c
++++ b/drbd/drbd_state.c
+@@ -5406,7 +5406,7 @@ static bool do_change_cstate(struct change_context *context, enum change_phase p
+ 		u64 directly_reachable = directly_connected_nodes(resource, NEW) |
+ 			NODE_MASK(resource->res_opts.node_id);
  
- 	/* else: could not allocate all elements, give up */
--	for (i--; i; i--) {
-+	while (i--) {
- 		void *p = element[i];
- 		kmem_cache_free(cache, p - e_off);
+-		if (reply->primary_nodes & ~directly_reachable)
++		if (!(reply->primary_nodes & directly_reachable))
+ 			__outdate_myself(resource);
  	}
+ 
 -- 
-2.36.1
+2.25.1
 
