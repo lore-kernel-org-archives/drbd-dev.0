@@ -1,17 +1,22 @@
-Return-Path: <rui.xu@easystack.cn>
-Received: from mail-m2457.qiye.163.com (mail-m2457.qiye.163.com
-	[220.194.24.57])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 52F984207B8
-	for <drbd-dev@lists.linbit.com>; Thu, 28 Jul 2022 13:58:04 +0200 (CEST)
-From: Rui Xu <rui.xu@easystack.cn>
-To: philipp.reisner@linbit.com, drbd-dev@lists.linbit.com,
-	joel.colledge@linbit.com
-Date: Thu, 28 Jul 2022 19:47:59 +0800
-Message-Id: <20220728114759.810371-1-rui.xu@easystack.cn>
+Return-Path: <joel.colledge@linbit.com>
+Received: from mail-ej1-f53.google.com (mail-ej1-f53.google.com
+	[209.85.218.53])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5258E4203DF
+	for <drbd-dev@lists.linbit.com>; Mon,  1 Aug 2022 16:22:23 +0200 (CEST)
+Received: by mail-ej1-f53.google.com with SMTP id i14so1914083ejg.6
+	for <drbd-dev@lists.linbit.com>; Mon, 01 Aug 2022 07:22:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: Rui Xu <rui.xu@easystack.cn>, dongsheng.yang@easystack.cn
-Subject: [Drbd-dev] [PATCH] drbd: fix a bug with two-primaries configuration
+References: <20220728114759.810371-1-rui.xu@easystack.cn>
+In-Reply-To: <20220728114759.810371-1-rui.xu@easystack.cn>
+From: Joel Colledge <joel.colledge@linbit.com>
+Date: Mon, 1 Aug 2022 16:22:12 +0200
+Message-ID: <CAGNP_+UM0GR2oukOeN8NoKMka=_Hox4SB9MSBgNPMcOrcYxqXg@mail.gmail.com>
+To: Rui Xu <rui.xu@easystack.cn>
+Content-Type: text/plain; charset="UTF-8"
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH] drbd: fix a bug with two-primaries
+	configuration
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,33 +28,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-There is a bug when execute 'drbdsetup disconnect' in
-two-primaries configuration.
+The behavior that you describe is the intended behavior, I believe. If
+you have two primaries and want to disconnect them in a controlled
+fashion, you should demote them first.
 
-When 'drbdsetup disconnect' is called by user, two primary
-nodes will going to outdated in do_change_cstate, then the
-command will failed since there is no UpToDate node.
+As discussed previously, you probably should not be using
+"allow-two-primaries" at all.
 
-Fix it by modify the judgment condition in do_change_cstate.
+The proposed patch unfortunately also breaks various other usage
+scenarios. For instance, if you have two nodes that are both Secondary
+and UpToDate, and run 'drbdsetup disconnect', it will cause them to
+become Outdated.
 
-Signed-off-by: Rui Xu <rui.xu@easystack.cn>
----
- drbd/drbd_state.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/drbd/drbd_state.c b/drbd/drbd_state.c
-index 792a96d5..c4f3f776 100644
---- a/drbd/drbd_state.c
-+++ b/drbd/drbd_state.c
-@@ -5406,7 +5406,7 @@ static bool do_change_cstate(struct change_context *context, enum change_phase p
- 		u64 directly_reachable = directly_connected_nodes(resource, NEW) |
- 			NODE_MASK(resource->res_opts.node_id);
- 
--		if (reply->primary_nodes & ~directly_reachable)
-+		if (!(reply->primary_nodes & directly_reachable))
- 			__outdate_myself(resource);
- 	}
- 
--- 
-2.25.1
-
+Best regards,
+Joel
