@@ -1,21 +1,21 @@
-Return-Path: <rui.xu@easystack.cn>
-Received: from mail-m313.qiye.163.com (mail-m313.qiye.163.com [103.74.31.3])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AFFED4205DD
-	for <drbd-dev@lists.linbit.com>; Tue,  2 Aug 2022 04:43:07 +0200 (CEST)
-Content-Type: multipart/alternative;
-	BOUNDARY="=_Part_88758_1326603036.1659407740699"
-Message-ID: <ABYAVwB1IqyXlncsZ*hUBKoo.3.1659407740699.Hmail.rui.xu@easystack.cn>
-To: Joel Colledge <joel.colledge@linbit.com>
-In-Reply-To: <CAGNP_+UM0GR2oukOeN8NoKMka=_Hox4SB9MSBgNPMcOrcYxqXg@mail.gmail.com>
-References: <CAGNP_+UM0GR2oukOeN8NoKMka=_Hox4SB9MSBgNPMcOrcYxqXg@mail.gmail.com>
+Return-Path: <joel.colledge@linbit.com>
+Received: from mail-ej1-f51.google.com (mail-ej1-f51.google.com
+	[209.85.218.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B707D4203DF
+	for <drbd-dev@lists.linbit.com>; Tue,  2 Aug 2022 11:23:35 +0200 (CEST)
+Received: by mail-ej1-f51.google.com with SMTP id a7so11899751ejp.2
+	for <drbd-dev@lists.linbit.com>; Tue, 02 Aug 2022 02:23:35 -0700 (PDT)
 MIME-Version: 1.0
-From: "rui.xu" <rui.xu@easystack.cn>
-Date: Tue, 2 Aug 2022 10:35:40 +0800 (GMT+08:00)
+References: <AL*AywBKImqCcBd6mgBHvKqI.1.1657802179974.Hmail.rui.xu@easystack.cn>
+In-Reply-To: <AL*AywBKImqCcBd6mgBHvKqI.1.1657802179974.Hmail.rui.xu@easystack.cn>
+From: Joel Colledge <joel.colledge@linbit.com>
+Date: Tue, 2 Aug 2022 11:23:24 +0200
+Message-ID: <CAGNP_+WQe2bnEPOTNLD-bLWM-K78YOppb+wArQxuwD3oMU0OJQ@mail.gmail.com>
+To: "rui.xu" <rui.xu@easystack.cn>
+Content-Type: text/plain; charset="UTF-8"
 Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev]
-	=?utf-8?q?=5BPATCH=5D_drbd=3A_fix_a_bug_with_two-prima?=
-	=?utf-8?q?ries_configuration?=
+Subject: Re: [Drbd-dev] drbd: a question of uuid compare
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,50 +27,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---=_Part_88758_1326603036.1659407740699
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: base64
+Hi Xu,
 
-SGkgSm9lbCwKICBUaGFua3MgZm9yIHRoZSByZXBseS4gSXQgaXMgaW5kZWVkIGEgaW50ZW5kZWQg
-YmVoYXZpb3IgYW5kIGkgd2lsbCBkaXNjYXJkIHRoZSBwYXRjaC4KClRoYW5rcywKWHUKCgoKCgoK
-CkZyb206IEpvZWwgQ29sbGVkZ2UgPGpvZWwuY29sbGVkZ2VAbGluYml0LmNvbT4KRGF0ZTogMjAy
-Mi0wOC0wMSAyMjoyMjoxMgpUbzogIFJ1aSBYdSA8cnVpLnh1QGVhc3lzdGFjay5jbj4KQ2M6ICBQ
-aGlsaXBwIFJlaXNuZXIgPHBoaWxpcHAucmVpc25lckBsaW5iaXQuY29tPixkcmJkLWRldkBsaXN0
-cy5saW5iaXQuY29tLGRvbmdzaGVuZy55YW5nQGVhc3lzdGFjay5jbgpTdWJqZWN0OiBSZTogW1BB
-VENIXSBkcmJkOiBmaXggYSBidWcgd2l0aCB0d28tcHJpbWFyaWVzIGNvbmZpZ3VyYXRpb24+VGhl
-IGJlaGF2aW9yIHRoYXQgeW91IGRlc2NyaWJlIGlzIHRoZSBpbnRlbmRlZCBiZWhhdmlvciwgSSBi
-ZWxpZXZlLiBJZgo+eW91IGhhdmUgdHdvIHByaW1hcmllcyBhbmQgd2FudCB0byBkaXNjb25uZWN0
-IHRoZW0gaW4gYSBjb250cm9sbGVkCj5mYXNoaW9uLCB5b3Ugc2hvdWxkIGRlbW90ZSB0aGVtIGZp
-cnN0Lgo+Cj5BcyBkaXNjdXNzZWQgcHJldmlvdXNseSwgeW91IHByb2JhYmx5IHNob3VsZCBub3Qg
-YmUgdXNpbmcKPiJhbGxvdy10d28tcHJpbWFyaWVzIiBhdCBhbGwuCj4KPlRoZSBwcm9wb3NlZCBw
-YXRjaCB1bmZvcnR1bmF0ZWx5IGFsc28gYnJlYWtzIHZhcmlvdXMgb3RoZXIgdXNhZ2UKPnNjZW5h
-cmlvcy4gRm9yIGluc3RhbmNlLCBpZiB5b3UgaGF2ZSB0d28gbm9kZXMgdGhhdCBhcmUgYm90aCBT
-ZWNvbmRhcnkKPmFuZCBVcFRvRGF0ZSwgYW5kIHJ1biAnZHJiZHNldHVwIGRpc2Nvbm5lY3QnLCBp
-dCB3aWxsIGNhdXNlIHRoZW0gdG8KPmJlY29tZSBPdXRkYXRlZC4KPgo+QmVzdCByZWdhcmRzLAo+
-Sm9lbAoKCg0KDQo=
---=_Part_88758_1326603036.1659407740699
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: base64
+Commit 300bfb7ba follows after commit 33600a4632f2. They are both
+intended to improve the same scenario. That scenario is described in
+the commit message for 33600a4632f2. In short, 300bfb7ba prevents an
+unnecessary resync in a case where the connection was lost and
+regained, but no data was written in between.
 
-PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
-Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXY+SGkgSm9lbCw8L2Rpdj48ZGl2PiZuYnNwOyBUaGFua3Mg
-Zm9yIHRoZSByZXBseS4gSXQgaXMgaW5kZWVkIGEgaW50ZW5kZWQgYmVoYXZpb3IgYW5kIGkgd2ls
-bCBkaXNjYXJkIHRoZSBwYXRjaC48YnI+PC9kaXY+PGRpdj5UaGFua3MsPC9kaXY+PGRpdj5YdTxi
-cj48L2Rpdj48YnI+PGJyPjxicj48ZGl2ICBzdHlsZT0icG9zaXRpb246cmVsYXRpdmU7em9vbTox
-Ij48L2Rpdj48YnI+PHByZT48YnI+RnJvbTogSm9lbCBDb2xsZWRnZSAmbHQ7am9lbC5jb2xsZWRn
-ZUBsaW5iaXQuY29tJmd0OwpEYXRlOiAyMDIyLTA4LTAxIDIyOjIyOjEyClRvOiAgUnVpIFh1ICZs
-dDtydWkueHVAZWFzeXN0YWNrLmNuJmd0OwpDYzogIFBoaWxpcHAgUmVpc25lciAmbHQ7cGhpbGlw
-cC5yZWlzbmVyQGxpbmJpdC5jb20mZ3Q7LGRyYmQtZGV2QGxpc3RzLmxpbmJpdC5jb20sZG9uZ3No
-ZW5nLnlhbmdAZWFzeXN0YWNrLmNuClN1YmplY3Q6IFJlOiBbUEFUQ0hdIGRyYmQ6IGZpeCBhIGJ1
-ZyB3aXRoIHR3by1wcmltYXJpZXMgY29uZmlndXJhdGlvbiZndDtUaGUgYmVoYXZpb3IgdGhhdCB5
-b3UgZGVzY3JpYmUgaXMgdGhlIGludGVuZGVkIGJlaGF2aW9yLCBJIGJlbGlldmUuIElmCiZndDt5
-b3UgaGF2ZSB0d28gcHJpbWFyaWVzIGFuZCB3YW50IHRvIGRpc2Nvbm5lY3QgdGhlbSBpbiBhIGNv
-bnRyb2xsZWQKJmd0O2Zhc2hpb24sIHlvdSBzaG91bGQgZGVtb3RlIHRoZW0gZmlyc3QuCiZndDsK
-Jmd0O0FzIGRpc2N1c3NlZCBwcmV2aW91c2x5LCB5b3UgcHJvYmFibHkgc2hvdWxkIG5vdCBiZSB1
-c2luZwomZ3Q7ImFsbG93LXR3by1wcmltYXJpZXMiIGF0IGFsbC4KJmd0OwomZ3Q7VGhlIHByb3Bv
-c2VkIHBhdGNoIHVuZm9ydHVuYXRlbHkgYWxzbyBicmVha3MgdmFyaW91cyBvdGhlciB1c2FnZQom
-Z3Q7c2NlbmFyaW9zLiBGb3IgaW5zdGFuY2UsIGlmIHlvdSBoYXZlIHR3byBub2RlcyB0aGF0IGFy
-ZSBib3RoIFNlY29uZGFyeQomZ3Q7YW5kIFVwVG9EYXRlLCBhbmQgcnVuICdkcmJkc2V0dXAgZGlz
-Y29ubmVjdCcsIGl0IHdpbGwgY2F1c2UgdGhlbSB0bwomZ3Q7YmVjb21lIE91dGRhdGVkLgomZ3Q7
-CiZndDtCZXN0IHJlZ2FyZHMsCiZndDtKb2VsCjwvcHJlPjwvZGl2Pjxicj4=
---=_Part_88758_1326603036.1659407740699--
+You have found a scenario that is broken by this change. We need to
+find a solution that works in both scenarios. Patches welcome.
+
+Best regards,
+Joel
