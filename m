@@ -1,24 +1,21 @@
-Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ej1-f41.google.com (mail-ej1-f41.google.com
-	[209.85.218.41])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AEF004203DF
-	for <drbd-dev@lists.linbit.com>; Mon,  1 Aug 2022 17:40:54 +0200 (CEST)
-Received: by mail-ej1-f41.google.com with SMTP id k26so5363196ejx.5
-	for <drbd-dev@lists.linbit.com>; Mon, 01 Aug 2022 08:40:54 -0700 (PDT)
-Message-ID: <4d88538d-c401-ebaf-8f63-8e8b7ad9e632@linbit.com>
-Date: Mon, 1 Aug 2022 17:40:52 +0200
+Return-Path: <rui.xu@easystack.cn>
+Received: from mail-m313.qiye.163.com (mail-m313.qiye.163.com [103.74.31.3])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AFFED4205DD
+	for <drbd-dev@lists.linbit.com>; Tue,  2 Aug 2022 04:43:07 +0200 (CEST)
+Content-Type: multipart/alternative;
+	BOUNDARY="=_Part_88758_1326603036.1659407740699"
+Message-ID: <ABYAVwB1IqyXlncsZ*hUBKoo.3.1659407740699.Hmail.rui.xu@easystack.cn>
+To: Joel Colledge <joel.colledge@linbit.com>
+In-Reply-To: <CAGNP_+UM0GR2oukOeN8NoKMka=_Hox4SB9MSBgNPMcOrcYxqXg@mail.gmail.com>
+References: <CAGNP_+UM0GR2oukOeN8NoKMka=_Hox4SB9MSBgNPMcOrcYxqXg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Language: en-US
-To: John Sanpe <sanpeqf@gmail.com>
-References: <20220723075931.163245-1-sanpeqf@gmail.com>
-From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20220723075931.163245-1-sanpeqf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: lars.ellenberg@linbit.com, philipp.reisner@linbit.com,
-	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] lib/lru_cache: Fixed array overflow caused
- by incorrect boundary handling.
+From: "rui.xu" <rui.xu@easystack.cn>
+Date: Tue, 2 Aug 2022 10:35:40 +0800 (GMT+08:00)
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, dongsheng.yang@easystack.cn,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev]
+	=?utf-8?q?=5BPATCH=5D_drbd=3A_fix_a_bug_with_two-prima?=
+	=?utf-8?q?ries_configuration?=
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,36 +27,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 23.07.22 um 09:59 schrieb John Sanpe:
-> This problem occurs when malloc element failed on the first time.
-> At this time, the counter i is 0. When it's released, we subtract 1
-> in advance without checking, which will cause i to become UINT_MAX,
-> resulting in array overflow.
-> 
-> Signed-off-by: John Sanpe <sanpeqf@gmail.com>
-> ---
->  lib/lru_cache.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-> index 52313acbfa62..04d95de92602 100644
-> --- a/lib/lru_cache.c
-> +++ b/lib/lru_cache.c
-> @@ -147,7 +147,7 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
->  		return lc;
->  
->  	/* else: could not allocate all elements, give up */
-> -	for (i--; i; i--) {
-> +	while (i--) {
->  		void *p = element[i];
->  		kmem_cache_free(cache, p - e_off);
->  	}
+--=_Part_88758_1326603036.1659407740699
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-Thanks for the fix, looks good to me.
+SGkgSm9lbCwKICBUaGFua3MgZm9yIHRoZSByZXBseS4gSXQgaXMgaW5kZWVkIGEgaW50ZW5kZWQg
+YmVoYXZpb3IgYW5kIGkgd2lsbCBkaXNjYXJkIHRoZSBwYXRjaC4KClRoYW5rcywKWHUKCgoKCgoK
+CkZyb206IEpvZWwgQ29sbGVkZ2UgPGpvZWwuY29sbGVkZ2VAbGluYml0LmNvbT4KRGF0ZTogMjAy
+Mi0wOC0wMSAyMjoyMjoxMgpUbzogIFJ1aSBYdSA8cnVpLnh1QGVhc3lzdGFjay5jbj4KQ2M6ICBQ
+aGlsaXBwIFJlaXNuZXIgPHBoaWxpcHAucmVpc25lckBsaW5iaXQuY29tPixkcmJkLWRldkBsaXN0
+cy5saW5iaXQuY29tLGRvbmdzaGVuZy55YW5nQGVhc3lzdGFjay5jbgpTdWJqZWN0OiBSZTogW1BB
+VENIXSBkcmJkOiBmaXggYSBidWcgd2l0aCB0d28tcHJpbWFyaWVzIGNvbmZpZ3VyYXRpb24+VGhl
+IGJlaGF2aW9yIHRoYXQgeW91IGRlc2NyaWJlIGlzIHRoZSBpbnRlbmRlZCBiZWhhdmlvciwgSSBi
+ZWxpZXZlLiBJZgo+eW91IGhhdmUgdHdvIHByaW1hcmllcyBhbmQgd2FudCB0byBkaXNjb25uZWN0
+IHRoZW0gaW4gYSBjb250cm9sbGVkCj5mYXNoaW9uLCB5b3Ugc2hvdWxkIGRlbW90ZSB0aGVtIGZp
+cnN0Lgo+Cj5BcyBkaXNjdXNzZWQgcHJldmlvdXNseSwgeW91IHByb2JhYmx5IHNob3VsZCBub3Qg
+YmUgdXNpbmcKPiJhbGxvdy10d28tcHJpbWFyaWVzIiBhdCBhbGwuCj4KPlRoZSBwcm9wb3NlZCBw
+YXRjaCB1bmZvcnR1bmF0ZWx5IGFsc28gYnJlYWtzIHZhcmlvdXMgb3RoZXIgdXNhZ2UKPnNjZW5h
+cmlvcy4gRm9yIGluc3RhbmNlLCBpZiB5b3UgaGF2ZSB0d28gbm9kZXMgdGhhdCBhcmUgYm90aCBT
+ZWNvbmRhcnkKPmFuZCBVcFRvRGF0ZSwgYW5kIHJ1biAnZHJiZHNldHVwIGRpc2Nvbm5lY3QnLCBp
+dCB3aWxsIGNhdXNlIHRoZW0gdG8KPmJlY29tZSBPdXRkYXRlZC4KPgo+QmVzdCByZWdhcmRzLAo+
+Sm9lbAoKCg0KDQo=
+--=_Part_88758_1326603036.1659407740699
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-Reviewed-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
-
--- 
-Christoph Böhmwalder
-LINBIT | Keeping the Digital World Running
-DRBD HA —  Disaster Recovery — Software defined Storage
+PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
+Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXY+SGkgSm9lbCw8L2Rpdj48ZGl2PiZuYnNwOyBUaGFua3Mg
+Zm9yIHRoZSByZXBseS4gSXQgaXMgaW5kZWVkIGEgaW50ZW5kZWQgYmVoYXZpb3IgYW5kIGkgd2ls
+bCBkaXNjYXJkIHRoZSBwYXRjaC48YnI+PC9kaXY+PGRpdj5UaGFua3MsPC9kaXY+PGRpdj5YdTxi
+cj48L2Rpdj48YnI+PGJyPjxicj48ZGl2ICBzdHlsZT0icG9zaXRpb246cmVsYXRpdmU7em9vbTox
+Ij48L2Rpdj48YnI+PHByZT48YnI+RnJvbTogSm9lbCBDb2xsZWRnZSAmbHQ7am9lbC5jb2xsZWRn
+ZUBsaW5iaXQuY29tJmd0OwpEYXRlOiAyMDIyLTA4LTAxIDIyOjIyOjEyClRvOiAgUnVpIFh1ICZs
+dDtydWkueHVAZWFzeXN0YWNrLmNuJmd0OwpDYzogIFBoaWxpcHAgUmVpc25lciAmbHQ7cGhpbGlw
+cC5yZWlzbmVyQGxpbmJpdC5jb20mZ3Q7LGRyYmQtZGV2QGxpc3RzLmxpbmJpdC5jb20sZG9uZ3No
+ZW5nLnlhbmdAZWFzeXN0YWNrLmNuClN1YmplY3Q6IFJlOiBbUEFUQ0hdIGRyYmQ6IGZpeCBhIGJ1
+ZyB3aXRoIHR3by1wcmltYXJpZXMgY29uZmlndXJhdGlvbiZndDtUaGUgYmVoYXZpb3IgdGhhdCB5
+b3UgZGVzY3JpYmUgaXMgdGhlIGludGVuZGVkIGJlaGF2aW9yLCBJIGJlbGlldmUuIElmCiZndDt5
+b3UgaGF2ZSB0d28gcHJpbWFyaWVzIGFuZCB3YW50IHRvIGRpc2Nvbm5lY3QgdGhlbSBpbiBhIGNv
+bnRyb2xsZWQKJmd0O2Zhc2hpb24sIHlvdSBzaG91bGQgZGVtb3RlIHRoZW0gZmlyc3QuCiZndDsK
+Jmd0O0FzIGRpc2N1c3NlZCBwcmV2aW91c2x5LCB5b3UgcHJvYmFibHkgc2hvdWxkIG5vdCBiZSB1
+c2luZwomZ3Q7ImFsbG93LXR3by1wcmltYXJpZXMiIGF0IGFsbC4KJmd0OwomZ3Q7VGhlIHByb3Bv
+c2VkIHBhdGNoIHVuZm9ydHVuYXRlbHkgYWxzbyBicmVha3MgdmFyaW91cyBvdGhlciB1c2FnZQom
+Z3Q7c2NlbmFyaW9zLiBGb3IgaW5zdGFuY2UsIGlmIHlvdSBoYXZlIHR3byBub2RlcyB0aGF0IGFy
+ZSBib3RoIFNlY29uZGFyeQomZ3Q7YW5kIFVwVG9EYXRlLCBhbmQgcnVuICdkcmJkc2V0dXAgZGlz
+Y29ubmVjdCcsIGl0IHdpbGwgY2F1c2UgdGhlbSB0bwomZ3Q7YmVjb21lIE91dGRhdGVkLgomZ3Q7
+CiZndDtCZXN0IHJlZ2FyZHMsCiZndDtKb2VsCjwvcHJlPjwvZGl2Pjxicj4=
+--=_Part_88758_1326603036.1659407740699--
