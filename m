@@ -1,13 +1,16 @@
 Return-Path: <veggiemike@sourceruckus.org>
 Received: from aragorn.cowesettanimalhospital.com
 	(wsip-72-215-235-61.ri.ri.cox.net [72.215.235.61])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0362C420668
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 05AFD420FB8
 	for <drbd-dev@lists.linbit.com>; Thu,  8 Sep 2022 23:21:24 +0200 (CEST)
 From: Michael D Labriola <veggiemike@sourceruckus.org>
 To: drbd-dev@lists.linbit.com
-Date: Thu,  8 Sep 2022 17:13:34 -0400
-Message-Id: <20220908211337.17090-1-veggiemike@sourceruckus.org>
-Subject: [Drbd-dev] [PATCH 0/3] 5.18 kernel patches w/out compat
+Date: Thu,  8 Sep 2022 17:13:37 -0400
+Message-Id: <20220908211337.17090-4-veggiemike@sourceruckus.org>
+In-Reply-To: <20220908211337.17090-1-veggiemike@sourceruckus.org>
+References: <20220908211337.17090-1-veggiemike@sourceruckus.org>
+Subject: [Drbd-dev] [PATCH 3/3] drbd: use bio_alloc_clone() instead of
+	bio_clone_fast()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -19,27 +22,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Ahoy!  I put together the following patches to get things compiling on
-5.18 a while back and never got a chance to do anything with them.
-Now 5.19 is stable, 5.18 is EOL, and 6.0 is coming soon.  Where has
-the time gone.
+Between 5.17 and 5.18, bio_clone_fast() was modified to take a
+block_device and the function was renamed.  This commit migrates to
+the new usage.
 
-I just rebased on drbd-9.1 today, everything compiles against 5.18,
-and my resources at least come up and look ok w/out doing any
-strenuous testing.  Can somebody take a look at these and make sure
-I'm not way off course before I go gin up compat patches to go along
-with these?
+Upstream commits:
+abfc426d block: pass a block_device to bio_clone_fast
 
-Michael D Labriola (3):
-      drbd: remove WRITE_SAME support
-      drbd: remove reliance on bdi congestion
-      drbd: use bio_alloc_clone() instead of bio_clone_fast()
+Signed-off-by: Michael D Labriola <veggiemike@sourceruckus.org>
+---
+ drbd/drbd_req.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
- drbd/drbd_main.c          | 35 +++++++----------------------------
- drbd/drbd_nl.c            | 75 +++------------------------------------------------------------------------
- drbd/drbd_receiver.c      | 38 +++++++-------------------------------
- drbd/drbd_req.c           |  6 ++----
- drbd/drbd_sender.c        |  4 ----
- drbd/drbd_transport_tcp.c |  3 ---
- 6 files changed, 19 insertions(+), 142 deletions(-)
+diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
+index fc7dfb8d..06ba8ce8 100644
+--- a/drbd/drbd_req.c
++++ b/drbd/drbd_req.c
+@@ -1715,7 +1715,7 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio,
+ 	req->start_jif = bio_start_io_acct(req->master_bio);
+ 
+ 	if (get_ldev(device)) {
+-		req->private_bio  = bio_clone_fast(bio, GFP_NOIO, &drbd_io_bio_set);
++		req->private_bio  = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO, &drbd_io_bio_set);
+ 		req->private_bio->bi_private = req;
+ 		req->private_bio->bi_end_io = drbd_request_endio;
+ 	}
+-- 
+2.17.1
 
