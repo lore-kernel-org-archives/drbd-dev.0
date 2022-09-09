@@ -1,15 +1,21 @@
-Return-Path: <veggiemike@sourceruckus.org>
-Received: from aragorn.cowesettanimalhospital.com
-	(wsip-72-215-235-61.ri.ri.cox.net [72.215.235.61])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0AA364210CE
-	for <drbd-dev@lists.linbit.com>; Thu,  8 Sep 2022 23:21:24 +0200 (CEST)
-From: Michael D Labriola <veggiemike@sourceruckus.org>
-To: drbd-dev@lists.linbit.com
-Date: Thu,  8 Sep 2022 17:13:36 -0400
-Message-Id: <20220908211337.17090-3-veggiemike@sourceruckus.org>
-In-Reply-To: <20220908211337.17090-1-veggiemike@sourceruckus.org>
+Return-Path: <joel.colledge@linbit.com>
+Received: from mail-ed1-f46.google.com (mail-ed1-f46.google.com
+	[209.85.208.46])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9251D420667
+	for <drbd-dev@lists.linbit.com>; Fri,  9 Sep 2022 09:57:34 +0200 (CEST)
+Received: by mail-ed1-f46.google.com with SMTP id q21so1273147edc.9
+	for <drbd-dev@lists.linbit.com>; Fri, 09 Sep 2022 00:57:34 -0700 (PDT)
+MIME-Version: 1.0
 References: <20220908211337.17090-1-veggiemike@sourceruckus.org>
-Subject: [Drbd-dev] [PATCH 2/3] drbd: remove reliance on bdi congestion
+	<20220908211337.17090-2-veggiemike@sourceruckus.org>
+In-Reply-To: <20220908211337.17090-2-veggiemike@sourceruckus.org>
+From: Joel Colledge <joel.colledge@linbit.com>
+Date: Fri, 9 Sep 2022 09:57:23 +0200
+Message-ID: <CAGNP_+VfjTkF57HJAk1-MEmJbGbcjVeUEX702awJo+mUE29uuw@mail.gmail.com>
+To: Michael D Labriola <veggiemike@sourceruckus.org>
+Content-Type: text/plain; charset="UTF-8"
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 1/3] drbd: remove WRITE_SAME support
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,56 +27,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-A serries of commits between 5.17 and 5.18 removed inode_congested()
-and all it's related functions because "No bdi reports congestion any
-more, so this always returns 'false'".
+Hi Michael,
 
-This commit just returns false in both places bdi_congested() was
-called... which probably isn't the best long-term fix.
+Thanks for the patch!
 
-See upstream commits:
+> This commit mimics upstream commit a34592ff6b78, which removes all the
+> WRITE_SAME code because "REQ_OP_WRITE_SAME was only ever submitted by
+> the legacy Linux zeroing code, which has switched to use
+> REQ_OP_WRITE_ZEROES long ago."  WRITE_SAME was then removed from Linux
+> 5.18.
 
-670d21c6e17f67535fcf16e14c772209220da9ae
-6df25e58532be7a4cd6fb15bcd85805947402d91
-503d4fa6ee28e8d4d201c92ac3922d1b3526f844
-fe55d563d4174f13839a9b7ef7309da5031b5d93
+This is an interesting case. If we remove all the write-same code like
+this, then we either need to add it back in via compat, or we lose a
+feature. I think it is OK to lose the feature on 5.18+ kernels, since
+the rest of the kernel does not use it any more. On older kernels this
+might break real use cases.
 
-Signed-off-by: Michael D Labriola <veggiemike@sourceruckus.org>
----
- drbd/drbd_nl.c  | 5 +----
- drbd/drbd_req.c | 3 +--
- 2 files changed, 2 insertions(+), 6 deletions(-)
+There is also the case where our peer is running an older kernel and
+we are running 5.18+. I think we should worry about that after
+deciding what to do with peers that run the same kernel.
 
-diff --git a/drbd/drbd_nl.c b/drbd/drbd_nl.c
-index 79464bb7..1a126d41 100644
---- a/drbd/drbd_nl.c
-+++ b/drbd/drbd_nl.c
-@@ -5446,10 +5446,7 @@ static void device_to_statistics(struct device_statistics *s,
- 		spin_unlock_irq(&md->uuid_lock);
- 
- 		s->dev_disk_flags = md->flags;
--		s->dev_lower_blocked =
--			bdi_congested(device->ldev->backing_bdev->bd_disk->bdi,
--				      (1 << WB_async_congested) |
--				      (1 << WB_sync_congested));
-+		s->dev_lower_blocked = false;
- 		put_ldev(device);
- 	}
- 	s->dev_size = get_capacity(device->vdisk);
-diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
-index f58bfc4a..fc7dfb8d 100644
---- a/drbd/drbd_req.c
-+++ b/drbd/drbd_req.c
-@@ -1274,8 +1274,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device,
- 
- 	switch (rbm) {
- 	case RB_CONGESTED_REMOTE:
--		return bdi_read_congested(
--			device->ldev->backing_bdev->bd_disk->bdi);
-+		return false;
- 	case RB_LEAST_PENDING:
- 		return atomic_read(&device->local_cnt) >
- 			atomic_read(&peer_device->ap_pending_cnt) + atomic_read(&peer_device->rs_pending_cnt);
--- 
-2.17.1
+I've added Lars to CC because he is more familiar with the historical
+changes in this area.
 
+Note: If we do remove the feature entirely, we should stop advertising
+the feature flag DRBD_FF_WSAME so that the peer knows that we do not
+support it.
+
+Best regards,
+Joel
