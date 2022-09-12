@@ -1,21 +1,19 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-wr1-f44.google.com (mail-wr1-f44.google.com
-	[209.85.221.44])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5C9F5421741
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2022 09:49:03 +0200 (CEST)
-Received: by mail-wr1-f44.google.com with SMTP id b5so13925497wrr.5
-	for <drbd-dev@lists.linbit.com>; Mon, 12 Sep 2022 00:49:03 -0700 (PDT)
-Message-ID: <1b305cd1-90a2-e881-5b15-bb05b470c7c4@kernel.dk>
-Date: Mon, 12 Sep 2022 01:48:55 -0600
-MIME-Version: 1.0
-To: Gaosheng Cui <cuigaosheng1@huawei.com>, philipp.reisner@linbit.com,
-	lars.ellenberg@linbit.com, christoph.boehmwalder@linbit.com
+Return-Path: <cuigaosheng1@huawei.com>
+Received: from szxga08-in.huawei.com (szxga08-in.huawei.com [45.249.212.255])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 81CE44210D9
+	for <drbd-dev@lists.linbit.com>;
+	Mon, 12 Sep 2022 09:59:10 +0200 (CEST)
+To: Jens Axboe <axboe@kernel.dk>, <philipp.reisner@linbit.com>,
+	<lars.ellenberg@linbit.com>, <christoph.boehmwalder@linbit.com>
 References: <20220911092645.3218009-1-cuigaosheng1@huawei.com>
-Content-Language: en-US
-From: Jens Axboe <axboe@kernel.dk>
-In-Reply-To: <20220911092645.3218009-1-cuigaosheng1@huawei.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+	<1b305cd1-90a2-e881-5b15-bb05b470c7c4@kernel.dk>
+From: cuigaosheng <cuigaosheng1@huawei.com>
+Message-ID: <299c2cf9-f46f-3d53-e4b1-1064e55ebcf9@huawei.com>
+Date: Mon, 12 Sep 2022 15:59:07 +0800
+MIME-Version: 1.0
+In-Reply-To: <1b305cd1-90a2-e881-5b15-bb05b470c7c4@kernel.dk>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Cc: drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] [PATCH] block/drbd: remove unused w_start_resync
 	declaration
@@ -30,14 +28,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 9/11/22 3:26 AM, Gaosheng Cui wrote:
-> w_start_resync has been removed since
-> commit ac0acb9e39ac ("drbd: use drbd_device_post_work()
-> in more places"), so remove it.
 
-Applied, but please also cc linux-block or other lists that manage
-kernel patches in the future. You can't use lore/b4/lei with patches
-that are only on some driver private list.
+> Applied, but please also cc linux-block or other lists that manage
+> kernel patches in the future. You can't use lore/b4/lei with patches
+> that are only on some driver private list.
 
--- 
-Jens Axboe
+Thanks,I will cc other list that manage kernel patches in the future.
+
+在 2022/9/12 15:48, Jens Axboe 写道:
+> On 9/11/22 3:26 AM, Gaosheng Cui wrote:
+>> w_start_resync has been removed since
+>> commit ac0acb9e39ac ("drbd: use drbd_device_post_work()
+>> in more places"), so remove it.
+> Applied, but please also cc linux-block or other lists that manage
+> kernel patches in the future. You can't use lore/b4/lei with patches
+> that are only on some driver private list.
+>
