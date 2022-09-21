@@ -1,22 +1,16 @@
-Return-Path: <cuigaosheng1@huawei.com>
-Received: from szxga08-in.huawei.com (szxga08-in.huawei.com [45.249.212.255])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 930F84203D5
-	for <drbd-dev@lists.linbit.com>;
-	Tue, 20 Sep 2022 03:52:19 +0200 (CEST)
-From: Gaosheng Cui <cuigaosheng1@huawei.com>
-To: <philipp.reisner@linbit.com>, <lars.ellenberg@linbit.com>,
-	<christoph.boehmwalder@linbit.com>, <axboe@kernel.dk>,
-	<cuigaosheng1@huawei.com>
-Date: Tue, 20 Sep 2022 09:52:15 +0800
-Message-ID: <20220920015216.782190-2-cuigaosheng1@huawei.com>
-In-Reply-To: <20220920015216.782190-1-cuigaosheng1@huawei.com>
-References: <20220920015216.782190-1-cuigaosheng1@huawei.com>
+Return-Path: <rui.xu@easystack.cn>
+Received: from mail-m3163.qiye.163.com (mail-m3163.qiye.163.com [103.74.31.63])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6AEAA421023
+	for <drbd-dev@lists.linbit.com>; Wed, 21 Sep 2022 11:15:30 +0200 (CEST)
+From: Rui Xu <rui.xu@easystack.cn>
+To: philipp.reisner@linbit.com, drbd-dev@lists.linbit.com,
+	joel.colledge@linbit.com
+Date: Wed, 21 Sep 2022 17:07:10 +0800
+Message-Id: <20220921090710.2238953-1-rui.xu@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Content-Type: text/plain
-Cc: linux-block@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/2] drbd: remove orphan _req_may_be_done()
-	declaration
+Cc: Rui Xu <rui.xu@easystack.cn>, dongsheng.yang@easystack.cn
+Subject: [Drbd-dev] [PATCH] drbd: fix a bug of got_peer_ack
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,29 +22,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The _req_may_be_done() has been removed by
-commit 6870ca6d463e ("drbd: factor out master_bio completion
-and drbd_request destruction paths"), so remove the orphan
-declaration.
+Consider a scenrio that io is ongoing and the backing disk of
+secondary drbd suddenly broken. Some requset from primary node
+will not be processed in receive_Data since there is no ldev.
+And primary node will send peer_ack to secondary node for those
+requsets, but the secondary node will not find these requests in
+got_peer_ack.
 
-Signed-off-by: Gaosheng Cui <cuigaosheng1@huawei.com>
+The first problem caused by this bug is that the two nodes will be
+disconnected, and the second problem is that some peer requests
+can't be destroyed.
+
+Fix it by find the last peer request on peer_requests list and then
+the remaining requests on the list will be destroyed.
+
+Signed-off-by: Rui Xu <rui.xu@easystack.cn>
 ---
- drivers/block/drbd/drbd_req.h | 2 --
- 1 file changed, 2 deletions(-)
+ drbd/drbd_receiver.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
-index 511f39a08de4..6237fa1dcb0e 100644
---- a/drivers/block/drbd/drbd_req.h
-+++ b/drivers/block/drbd/drbd_req.h
-@@ -266,8 +266,6 @@ struct bio_and_error {
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+index 656d4eced..b63e83f52 100644
+--- a/drbd/drbd_receiver.c
++++ b/drbd/drbd_receiver.c
+@@ -9343,6 +9343,13 @@ static int got_peer_ack(struct drbd_connection *connection, struct packet_info *
+ 		if (dagtag == peer_req->dagtag_sector)
+ 			goto found;
+ 	}
++
++        list_for_each_entry(peer_req, &connection->peer_requests, recv_order) {
++                if (peer_req->dagtag_sector == atomic64_read(&connection->last_dagtag_sector)) {
++                        drbd_info(connection, "peer request with last dagtag sector %llu has found\n", peer_req->dagtag_sector);
++                        goto found;
++                }
++        }
+ 	spin_unlock_irq(&connection->peer_reqs_lock);
  
- extern void start_new_tl_epoch(struct drbd_connection *connection);
- extern void drbd_req_destroy(struct kref *kref);
--extern void _req_may_be_done(struct drbd_request *req,
--		struct bio_and_error *m);
- extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
- 		struct bio_and_error *m);
- extern void complete_master_bio(struct drbd_device *device,
+ 	drbd_err(connection, "peer request with dagtag %llu not found\n", dagtag);
 -- 
 2.25.1
 
