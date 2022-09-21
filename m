@@ -1,16 +1,23 @@
-Return-Path: <rui.xu@easystack.cn>
-Received: from mail-m3163.qiye.163.com (mail-m3163.qiye.163.com [103.74.31.63])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6AEAA421023
-	for <drbd-dev@lists.linbit.com>; Wed, 21 Sep 2022 11:15:30 +0200 (CEST)
-From: Rui Xu <rui.xu@easystack.cn>
-To: philipp.reisner@linbit.com, drbd-dev@lists.linbit.com,
-	joel.colledge@linbit.com
-Date: Wed, 21 Sep 2022 17:07:10 +0800
-Message-Id: <20220921090710.2238953-1-rui.xu@easystack.cn>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-wr1-f50.google.com (mail-wr1-f50.google.com
+	[209.85.221.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5AC6E420667
+	for <drbd-dev@lists.linbit.com>; Wed, 21 Sep 2022 12:33:26 +0200 (CEST)
+Received: by mail-wr1-f50.google.com with SMTP id r7so9157090wrm.2
+	for <drbd-dev@lists.linbit.com>; Wed, 21 Sep 2022 03:33:26 -0700 (PDT)
+Message-ID: <677922df-1674-a872-4bc6-e9c874ee4e46@linbit.com>
+Date: Wed, 21 Sep 2022 12:33:23 +0200
 MIME-Version: 1.0
+Content-Language: en-US
+To: Gaosheng Cui <cuigaosheng1@huawei.com>
+References: <20220920015216.782190-1-cuigaosheng1@huawei.com>
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <20220920015216.782190-1-cuigaosheng1@huawei.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Rui Xu <rui.xu@easystack.cn>, dongsheng.yang@easystack.cn
-Subject: [Drbd-dev] [PATCH] drbd: fix a bug of got_peer_ack
+Cc: linux-block@vger.kernel.org, axboe@kernel.dk, lars.ellenberg@linbit.com,
+	philipp.reisner@linbit.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH 0/2] Remove orphan declarations for drbd
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,43 +29,29 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Consider a scenrio that io is ongoing and the backing disk of
-secondary drbd suddenly broken. Some requset from primary node
-will not be processed in receive_Data since there is no ldev.
-And primary node will send peer_ack to secondary node for those
-requsets, but the secondary node will not find these requests in
-got_peer_ack.
+Am 20.09.22 um 03:52 schrieb Gaosheng Cui:
+> This series contains a few cleanup patches, to remove a orphan
+> declaration which has been removed and some useless comments. Thanks!
+> 
+> Gaosheng Cui (2):
+>   drbd: remove orphan _req_may_be_done() declaration
+>   block/drbd: remove useless comments in receive_DataReply()
+> 
+>  drivers/block/drbd/drbd_receiver.c | 3 ---
+>  drivers/block/drbd/drbd_req.h      | 2 --
+>  2 files changed, 5 deletions(-)
+> 
 
-The first problem caused by this bug is that the two nodes will be
-disconnected, and the second problem is that some peer requests
-can't be destroyed.
+Both patches look good to me, thanks.
 
-Fix it by find the last peer request on peer_requests list and then
-the remaining requests on the list will be destroyed.
+Acked-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 
-Signed-off-by: Rui Xu <rui.xu@easystack.cn>
----
- drbd/drbd_receiver.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+PS: I think trivial fixes like this are important, but they also create
+additional maintenance burden. So if you have more of these in the
+future, maybe save them up and submit them all at once (maybe even in a
+single patch if they are related). Thanks!
 
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index 656d4eced..b63e83f52 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -9343,6 +9343,13 @@ static int got_peer_ack(struct drbd_connection *connection, struct packet_info *
- 		if (dagtag == peer_req->dagtag_sector)
- 			goto found;
- 	}
-+
-+        list_for_each_entry(peer_req, &connection->peer_requests, recv_order) {
-+                if (peer_req->dagtag_sector == atomic64_read(&connection->last_dagtag_sector)) {
-+                        drbd_info(connection, "peer request with last dagtag sector %llu has found\n", peer_req->dagtag_sector);
-+                        goto found;
-+                }
-+        }
- 	spin_unlock_irq(&connection->peer_reqs_lock);
- 
- 	drbd_err(connection, "peer request with dagtag %llu not found\n", dagtag);
 -- 
-2.25.1
-
+Christoph Böhmwalder
+LINBIT | Keeping the Digital World Running
+DRBD HA —  Disaster Recovery — Software defined Storage
