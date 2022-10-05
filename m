@@ -1,15 +1,15 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM10-BN7-obe.outbound.protection.outlook.com
-	(mail-bn7nam10on2089.outbound.protection.outlook.com [40.107.92.89])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D77804202F3
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:18:13 +0200 (CEST)
+Received: from NAM11-DM6-obe.outbound.protection.outlook.com
+	(mail-dm6nam11on2085.outbound.protection.outlook.com [40.107.223.85])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 25E21420960
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:18:23 +0200 (CEST)
 From: Chaitanya Kulkarni <kch@nvidia.com>
 To: <ogeert@linux-m68k.org>, <linux-block@vger.kernel.org>,
 	<linux-m68k@lists.linux-m68k.org>, <linux-kernel@vger.kernel.org>,
 	<drbd-dev@lists.linbit.com>, <nbd@other.debian.org>,
 	<linux-mtd@lists.infradead.org>
-Date: Tue, 4 Oct 2022 22:00:21 -0700
-Message-ID: <20221005050027.39591-13-kch@nvidia.com>
+Date: Tue, 4 Oct 2022 22:00:22 -0700
+Message-ID: <20221005050027.39591-14-kch@nvidia.com>
 In-Reply-To: <20221005050027.39591-1-kch@nvidia.com>
 References: <20221005050027.39591-1-kch@nvidia.com>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: axboe@kernel.dk, vincent.fu@samsung.com, ming.lei@redhat.com,
 	shinichiro.kawasaki@wdc.com, lars.ellenberg@linbit.com,
 	johannes.thumshirn@wdc.com, jinpu.wang@ionos.com,
 	tim@cyberelk.net, bvanassche@acm.org
-Subject: [Drbd-dev] [RFC PATCH 12/18] pf: use init disk helper
+Subject: [Drbd-dev] [RFC PATCH 13/18] pktcdvd: use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,30 +43,28 @@ and any future ones.
 
 Signed-off-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/block/paride/pf.c | 6 +-----
+ drivers/block/pktcdvd.c | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
 
-diff --git a/drivers/block/paride/pf.c b/drivers/block/paride/pf.c
-index eec1b9fde245..2950642402a8 100644
---- a/drivers/block/paride/pf.c
-+++ b/drivers/block/paride/pf.c
-@@ -937,15 +937,11 @@ static int __init pf_init_unit(struct pf_unit *pf, bool autoprobe, int port,
- 		ret = PTR_ERR(disk);
- 		goto out_free_tag_set;
- 	}
--	disk->major = major;
--	disk->first_minor = pf - units;
+diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
+index 4cea3b08087e..db8f4ca5c09c 100644
+--- a/drivers/block/pktcdvd.c
++++ b/drivers/block/pktcdvd.c
+@@ -2698,13 +2698,9 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
+ 	if (!disk)
+ 		goto out_mem;
+ 	pd->disk = disk;
+-	disk->major = pktdev_major;
+-	disk->first_minor = idx;
 -	disk->minors = 1;
- 	strcpy(disk->disk_name, pf->name);
--	disk->fops = &pf_fops;
- 	disk->flags |= GENHD_FL_NO_PART;
- 	disk->events = DISK_EVENT_MEDIA_CHANGE;
--	disk->private_data = pf;
+-	disk->fops = &pktcdvd_ops;
+ 	disk->flags = GENHD_FL_REMOVABLE | GENHD_FL_NO_PART;
+ 	strcpy(disk->disk_name, pd->name);
+-	disk->private_data = pd;
++	init_disk(disk, pktdev_major, idx, 1, 0, pd, &pktcdvd_ops);
  
-+	init_disk(disk, major, pf - units, 1, 0, pf, &pf_ops);
- 	blk_queue_max_segments(disk->queue, cluster);
- 	blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
- 
+ 	pd->pkt_dev = MKDEV(pktdev_major, idx);
+ 	ret = pkt_new_dev(pd, dev);
 -- 
 2.29.0
 
