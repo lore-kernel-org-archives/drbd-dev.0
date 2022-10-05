@@ -1,15 +1,15 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM04-MW2-obe.outbound.protection.outlook.com
-	(mail-mw2nam04on2064.outbound.protection.outlook.com [40.107.101.64])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BE9D4202EE
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:20:10 +0200 (CEST)
+Received: from NAM11-DM6-obe.outbound.protection.outlook.com
+	(mail-dm6nam11on2076.outbound.protection.outlook.com [40.107.223.76])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BA12A420671
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:20:24 +0200 (CEST)
 From: Chaitanya Kulkarni <kch@nvidia.com>
 To: <ogeert@linux-m68k.org>, <linux-block@vger.kernel.org>,
 	<linux-m68k@lists.linux-m68k.org>, <linux-kernel@vger.kernel.org>,
 	<drbd-dev@lists.linbit.com>, <nbd@other.debian.org>,
 	<linux-mtd@lists.infradead.org>
-Date: Tue, 4 Oct 2022 22:00:25 -0700
-Message-ID: <20221005050027.39591-17-kch@nvidia.com>
+Date: Tue, 4 Oct 2022 22:00:27 -0700
+Message-ID: <20221005050027.39591-19-kch@nvidia.com>
 In-Reply-To: <20221005050027.39591-1-kch@nvidia.com>
 References: <20221005050027.39591-1-kch@nvidia.com>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: axboe@kernel.dk, vincent.fu@samsung.com, ming.lei@redhat.com,
 	shinichiro.kawasaki@wdc.com, lars.ellenberg@linbit.com,
 	johannes.thumshirn@wdc.com, jinpu.wang@ionos.com,
 	tim@cyberelk.net, bvanassche@acm.org
-Subject: [Drbd-dev] [RFC PATCH 16/18] swim3: use init disk helper
+Subject: [Drbd-dev] [RFC PATCH 18/18] ubi: use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,31 +43,34 @@ and any future ones.
 
 Signed-off-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/block/swim3.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ drivers/mtd/ubi/block.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
 
-diff --git a/drivers/block/swim3.c b/drivers/block/swim3.c
-index da811a7da03f..3c1b92b464d1 100644
---- a/drivers/block/swim3.c
-+++ b/drivers/block/swim3.c
-@@ -1221,15 +1221,11 @@ static int swim3_attach(struct macio_dev *mdev,
- 	if (rc)
- 		goto out_cleanup_disk;
+diff --git a/drivers/mtd/ubi/block.c b/drivers/mtd/ubi/block.c
+index 4cf67a2a0d04..07c085a5fd52 100644
+--- a/drivers/mtd/ubi/block.c
++++ b/drivers/mtd/ubi/block.c
+@@ -420,9 +420,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
+ 		goto out_free_tags;
+ 	}
  
--	disk->major = FLOPPY_MAJOR;
--	disk->first_minor = floppy_count;
--	disk->minors = 1;
--	disk->fops = &floppy_fops;
--	disk->private_data = fs;
- 	disk->events = DISK_EVENT_MEDIA_CHANGE;
- 	disk->flags |= GENHD_FL_REMOVABLE | GENHD_FL_NO_PART;
- 	sprintf(disk->disk_name, "fd%d", floppy_count);
--	set_capacity(disk, 2880);
-+	init_disk(swd->unit[drive].disk, FLOPPY_MAJOR, floppy_count, 1, 2880,
-+			&fs, &floopy_dops);
- 	rc = add_disk(disk);
- 	if (rc)
+-	gd->fops = &ubiblock_ops;
+-	gd->major = ubiblock_major;
+-	gd->minors = 1;
++	init_disk(gd, ubiblock_major, 1, 0, disk_capacity, dev, &ubiblock_ops);
+ 	gd->first_minor = idr_alloc(&ubiblock_minor_idr, dev, 0, 0, GFP_KERNEL);
+ 	if (gd->first_minor < 0) {
+ 		dev_err(disk_to_dev(gd),
+@@ -431,9 +429,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
  		goto out_cleanup_disk;
+ 	}
+ 	gd->flags |= GENHD_FL_NO_PART;
+-	gd->private_data = dev;
+ 	sprintf(gd->disk_name, "ubiblock%d_%d", dev->ubi_num, dev->vol_id);
+-	set_capacity(gd, disk_capacity);
+ 	dev->gd = gd;
+ 
+ 	dev->rq = gd->queue;
 -- 
 2.29.0
 
