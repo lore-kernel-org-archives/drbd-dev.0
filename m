@@ -1,15 +1,15 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM12-MW2-obe.outbound.protection.outlook.com
-	(mail-mw2nam12on2052.outbound.protection.outlook.com [40.107.244.52])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 350FE42037C
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:16:50 +0200 (CEST)
+Received: from NAM10-MW2-obe.outbound.protection.outlook.com
+	(mail-mw2nam10on2070.outbound.protection.outlook.com [40.107.94.70])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5591B420668
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:16:52 +0200 (CEST)
 From: Chaitanya Kulkarni <kch@nvidia.com>
 To: <ogeert@linux-m68k.org>, <linux-block@vger.kernel.org>,
 	<linux-m68k@lists.linux-m68k.org>, <linux-kernel@vger.kernel.org>,
 	<drbd-dev@lists.linbit.com>, <nbd@other.debian.org>,
 	<linux-mtd@lists.infradead.org>
-Date: Tue, 4 Oct 2022 22:00:12 -0700
-Message-ID: <20221005050027.39591-4-kch@nvidia.com>
+Date: Tue, 4 Oct 2022 22:00:16 -0700
+Message-ID: <20221005050027.39591-8-kch@nvidia.com>
 In-Reply-To: <20221005050027.39591-1-kch@nvidia.com>
 References: <20221005050027.39591-1-kch@nvidia.com>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: axboe@kernel.dk, vincent.fu@samsung.com, ming.lei@redhat.com,
 	shinichiro.kawasaki@wdc.com, lars.ellenberg@linbit.com,
 	johannes.thumshirn@wdc.com, jinpu.wang@ionos.com,
 	tim@cyberelk.net, bvanassche@acm.org
-Subject: [Drbd-dev] [RFC PATCH 03/18] amiflop: use init disk helper
+Subject: [Drbd-dev] [RFC PATCH 07/18] loop: use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,34 +43,31 @@ and any future ones.
 
 Signed-off-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/block/amiflop.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ drivers/block/loop.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/block/amiflop.c b/drivers/block/amiflop.c
-index 4c8b2ba579ee..40f220fd61a7 100644
---- a/drivers/block/amiflop.c
-+++ b/drivers/block/amiflop.c
-@@ -1786,18 +1786,14 @@ static int fd_alloc_disk(int drive, int system)
- 	if (IS_ERR(disk))
- 		return PTR_ERR(disk);
- 
--	disk->major = FLOPPY_MAJOR;
--	disk->first_minor = drive + system;
--	disk->minors = 1;
--	disk->fops = &floppy_fops;
- 	disk->flags |= GENHD_FL_NO_PART;
- 	disk->events = DISK_EVENT_MEDIA_CHANGE;
- 	if (system)
- 		sprintf(disk->disk_name, "fd%d_msdos", drive);
- 	else
- 		sprintf(disk->disk_name, "fd%d", drive);
--	disk->private_data = &unit[drive];
--	set_capacity(disk, 880 * 2);
-+	init_disk(disk, FLOPPY_MAJOR, drive + system, 1, 880 * 2, &unit[drive],
-+			&floppy_fops);
- 
- 	unit[drive].gendisk[system] = disk;
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index ad92192c7d61..82cdb57ecd18 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -2023,15 +2023,12 @@ static int loop_add(int i)
+ 	spin_lock_init(&lo->lo_work_lock);
+ 	INIT_WORK(&lo->rootcg_work, loop_rootcg_workfn);
+ 	INIT_LIST_HEAD(&lo->rootcg_cmd_list);
+-	disk->major		= LOOP_MAJOR;
+-	disk->first_minor	= i << part_shift;
+-	disk->minors		= 1 << part_shift;
+-	disk->fops		= &lo_fops;
+-	disk->private_data	= lo;
+ 	disk->queue		= lo->lo_queue;
+ 	disk->events		= DISK_EVENT_MEDIA_CHANGE;
+ 	disk->event_flags	= DISK_EVENT_FLAG_UEVENT;
+ 	sprintf(disk->disk_name, "loop%d", i);
++	init_disk(disk, LOOP_MAJOR, i << part_shift, 1 << part_shift, 0, lo,
++			&lo_fops);
+ 	/* Make this loop device reachable from pathname. */
  	err = add_disk(disk);
+ 	if (err)
 -- 
 2.29.0
 
