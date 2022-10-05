@@ -1,24 +1,27 @@
-Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f41.google.com (mail-ed1-f41.google.com
-	[209.85.208.41])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7EA264203DF
-	for <drbd-dev@lists.linbit.com>; Fri, 30 Sep 2022 19:02:47 +0200 (CEST)
-Received: by mail-ed1-f41.google.com with SMTP id a13so6817291edj.0
-	for <drbd-dev@lists.linbit.com>; Fri, 30 Sep 2022 10:02:47 -0700 (PDT)
-Message-ID: <10dbb972-a61a-6b89-b08b-d53e8a2a6cc7@linbit.com>
-Date: Fri, 30 Sep 2022 19:02:45 +0200
+Return-Path: <chaitanyak@nvidia.com>
+Received: from NAM12-DM6-obe.outbound.protection.outlook.com
+	(mail-dm6nam12on2043.outbound.protection.outlook.com [40.107.243.43])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F00D84201A5
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:15:21 +0200 (CEST)
+From: Chaitanya Kulkarni <kch@nvidia.com>
+To: <ogeert@linux-m68k.org>, <linux-block@vger.kernel.org>,
+	<linux-m68k@lists.linux-m68k.org>, <linux-kernel@vger.kernel.org>,
+	<drbd-dev@lists.linbit.com>, <nbd@other.debian.org>,
+	<linux-mtd@lists.infradead.org>
+Date: Tue, 4 Oct 2022 22:00:09 -0700
+Message-ID: <20221005050027.39591-1-kch@nvidia.com>
 MIME-Version: 1.0
-Content-Language: en-US
-To: Michael D Labriola <veggiemike@sourceruckus.org>
-References: <20220908211337.17090-1-veggiemike@sourceruckus.org>
-	<20220908211337.17090-4-veggiemike@sourceruckus.org>
-From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20220908211337.17090-4-veggiemike@sourceruckus.org>
-Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 3/3] drbd: use bio_alloc_clone() instead of
- bio_clone_fast()
+Content-Type: text/plain
+Cc: axboe@kernel.dk, vincent.fu@samsung.com, ming.lei@redhat.com,
+	kch@nvidia.com, vigneshr@ti.com, richard@nod.at,
+	damien.lemoal@opensource.wdc.com, philipp.reisner@linbit.com,
+	efremov@linux.com, josef@toxicpanda.com, mcgrof@kernel.org,
+	haris.iqbal@ionos.com, hare@suse.de, miquel.raynal@bootlin.com,
+	shinichiro.kawasaki@wdc.com, lars.ellenberg@linbit.com,
+	johannes.thumshirn@wdc.com, jinpu.wang@ionos.com,
+	tim@cyberelk.net, bvanassche@acm.org
+Subject: [Drbd-dev] [RFC PATCH 00/18] block: add and use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,43 +33,59 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 08.09.22 um 23:13 schrieb Michael D Labriola:
-> Between 5.17 and 5.18, bio_clone_fast() was modified to take a
-> block_device and the function was renamed.  This commit migrates to
-> the new usage.
-> 
-> Upstream commits:
-> abfc426d block: pass a block_device to bio_clone_fast
-> 
-> Signed-off-by: Michael D Labriola <veggiemike@sourceruckus.org>
-> ---
->  drbd/drbd_req.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/drbd/drbd_req.c b/drbd/drbd_req.c
-> index fc7dfb8d..06ba8ce8 100644
-> --- a/drbd/drbd_req.c
-> +++ b/drbd/drbd_req.c
-> @@ -1715,7 +1715,7 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio,
->  	req->start_jif = bio_start_io_acct(req->master_bio);
->  
->  	if (get_ldev(device)) {
-> -		req->private_bio  = bio_clone_fast(bio, GFP_NOIO, &drbd_io_bio_set);
-> +		req->private_bio  = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO, &drbd_io_bio_set);
->  		req->private_bio->bi_private = req;
->  		req->private_bio->bi_end_io = drbd_request_endio;
->  	}
+Hi,
 
-Thanks for the patch!
+Add and use the helper to initialize the common fields of struct gendisk
+such as major, first_minor, minors, disk_name, private_data, and ops.
+This initialization is spread all over the block drivers. This avoids
+code repetation of inialization code of gendisk in current block drivers
+and any future ones.
 
-Applied as
-https://github.com/LINBIT/drbd/commit/945b5e58ad1761c1f6e874e0db7aee7f42d11827.
+-ck
 
-(And fixed up in
-https://github.com/LINBIT/drbd/commit/7e7111b94b8ef100a6e3b5fea084105122ad0546
-;)
+Chaitanya Kulkarni (18):
+  block: add and use init disk helper
+  nfblock: use init disk helper
+  amiflop: use init disk helper
+  brd: use init disk helper
+  drbd: use init disk helper
+  floppy: use init disk helper
+  loop: use init disk helper
+  n64cart: use init disk helper
+  nbd: use init disk helper
+  pcd: use init disk helper
+  pd: use init disk helper
+  pf: use init disk helper
+  pktcdvd: use init disk helper
+  rnbd-clt: use init disk helper
+  swim: use init disk helper
+  swim3: use init disk helper
+  z2ram: use init disk helper
+  ubi: use init disk helper
+
+ arch/m68k/emu/nfblock.c        |  8 ++------
+ block/genhd.c                  | 13 +++++++++++++
+ drivers/block/amiflop.c        |  8 ++------
+ drivers/block/ataflop.c        |  8 ++------
+ drivers/block/brd.c            |  9 ++-------
+ drivers/block/drbd/drbd_main.c |  6 +-----
+ drivers/block/floppy.c         |  8 ++------
+ drivers/block/loop.c           |  7 ++-----
+ drivers/block/n64cart.c        |  4 +---
+ drivers/block/nbd.c            |  7 ++-----
+ drivers/block/null_blk/main.c  | 12 ++++--------
+ drivers/block/paride/pcd.c     |  5 +----
+ drivers/block/paride/pd.c      |  8 ++------
+ drivers/block/paride/pf.c      |  6 +-----
+ drivers/block/pktcdvd.c        |  6 +-----
+ drivers/block/rnbd/rnbd-clt.c  |  9 +++------
+ drivers/block/swim.c           |  7 ++-----
+ drivers/block/swim3.c          |  8 ++------
+ drivers/block/z2ram.c          |  5 +----
+ drivers/mtd/ubi/block.c        |  6 +-----
+ include/linux/blkdev.h         |  5 +++++
+ 21 files changed, 52 insertions(+), 103 deletions(-)
 
 -- 
-Christoph Böhmwalder
-LINBIT | Keeping the Digital World Running
-DRBD HA —  Disaster Recovery — Software defined Storage
+2.29.0
+
