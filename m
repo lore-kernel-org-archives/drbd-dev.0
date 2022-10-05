@@ -1,15 +1,15 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM02-DM3-obe.outbound.protection.outlook.com
-	(mail-dm3nam02on2080.outbound.protection.outlook.com [40.107.95.80])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 036D24206CF
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:17:40 +0200 (CEST)
+Received: from NAM10-MW2-obe.outbound.protection.outlook.com
+	(mail-mw2nam10on2074.outbound.protection.outlook.com [40.107.94.74])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 40F0042095F
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:17:55 +0200 (CEST)
 From: Chaitanya Kulkarni <kch@nvidia.com>
 To: <ogeert@linux-m68k.org>, <linux-block@vger.kernel.org>,
 	<linux-m68k@lists.linux-m68k.org>, <linux-kernel@vger.kernel.org>,
 	<drbd-dev@lists.linbit.com>, <nbd@other.debian.org>,
 	<linux-mtd@lists.infradead.org>
-Date: Tue, 4 Oct 2022 22:00:13 -0700
-Message-ID: <20221005050027.39591-5-kch@nvidia.com>
+Date: Tue, 4 Oct 2022 22:00:20 -0700
+Message-ID: <20221005050027.39591-12-kch@nvidia.com>
 In-Reply-To: <20221005050027.39591-1-kch@nvidia.com>
 References: <20221005050027.39591-1-kch@nvidia.com>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: axboe@kernel.dk, vincent.fu@samsung.com, ming.lei@redhat.com,
 	shinichiro.kawasaki@wdc.com, lars.ellenberg@linbit.com,
 	johannes.thumshirn@wdc.com, jinpu.wang@ionos.com,
 	tim@cyberelk.net, bvanassche@acm.org
-Subject: [Drbd-dev] [RFC PATCH 04/18] brd: use init disk helper
+Subject: [Drbd-dev] [RFC PATCH 11/18] pd: use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,53 +43,36 @@ and any future ones.
 
 Signed-off-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/block/ataflop.c | 8 ++------
- drivers/block/brd.c     | 9 ++-------
- 2 files changed, 4 insertions(+), 13 deletions(-)
+ drivers/block/paride/pd.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/ataflop.c b/drivers/block/ataflop.c
-index 9deb4df6bdb8..cd70f7b329c4 100644
---- a/drivers/block/ataflop.c
-+++ b/drivers/block/ataflop.c
-@@ -1997,15 +1997,11 @@ static int ataflop_alloc_disk(unsigned int drive, unsigned int type)
- 	if (IS_ERR(disk))
- 		return PTR_ERR(disk);
+diff --git a/drivers/block/paride/pd.c b/drivers/block/paride/pd.c
+index f8a75bc90f70..9457ad0cc25f 100644
+--- a/drivers/block/paride/pd.c
++++ b/drivers/block/paride/pd.c
+@@ -919,12 +919,7 @@ static int pd_probe_drive(struct pd_unit *disk, int autoprobe, int port,
+ 	disk->gd = p;
  
--	disk->major = FLOPPY_MAJOR;
--	disk->first_minor = drive + (type << 2);
--	disk->minors = 1;
- 	sprintf(disk->disk_name, "fd%d", drive);
--	disk->fops = &floppy_fops;
- 	disk->flags |= GENHD_FL_NO_PART;
- 	disk->events = DISK_EVENT_MEDIA_CHANGE;
--	disk->private_data = &unit[drive];
--	set_capacity(disk, MAX_DISK_SIZE * 2);
-+	init_disk(disk, FLOPPY_MAJOR, drive + (type << 2), 1,
-+			MAX_DISK_SIZE * 2, &unit[drive], &floppy_fops);
+ 	strcpy(p->disk_name, disk->name);
+-	p->fops = &pd_fops;
+-	p->major = major;
+-	p->first_minor = (disk - pd) << PD_BITS;
+-	p->minors = 1 << PD_BITS;
+ 	p->events = DISK_EVENT_MEDIA_CHANGE;
+-	p->private_data = disk;
+ 	blk_queue_max_hw_sectors(p->queue, cluster);
+ 	blk_queue_bounce_limit(p->queue, BLK_BOUNCE_HIGH);
  
- 	unit[drive].disk[type] = disk;
- 	return 0;
-diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-index 20acc4a1fd6d..f60fda36a813 100644
---- a/drivers/block/brd.c
-+++ b/drivers/block/brd.c
-@@ -392,14 +392,9 @@ static int brd_alloc(int i)
- 	if (!disk)
- 		goto out_free_dev;
- 
--	disk->major		= RAMDISK_MAJOR;
--	disk->first_minor	= i * max_part;
--	disk->minors		= max_part;
--	disk->fops		= &brd_fops;
--	disk->private_data	= brd;
- 	strscpy(disk->disk_name, buf, DISK_NAME_LEN);
--	set_capacity(disk, rd_size * 2);
--	
-+	init_disk(disk, RAMDISK_MAJOR, i * max_part, max_part, rd_size * 2,
-+			brd, &brd_fops);
- 	/*
- 	 * This is so fdisk will align partitions on 4k, because of
- 	 * direct_access API needing 4k alignment, returning a PFN
+@@ -939,7 +934,8 @@ static int pd_probe_drive(struct pd_unit *disk, int autoprobe, int port,
+ 	}
+ 	if (ret)
+ 		goto put_disk;
+-	set_capacity(disk->gd, disk->capacity);
++	init_disk(disk, major, (disk - pd) << PD_BITS, 1 << PD_BITS,
++			disk->capacity, disk, *pd_fops);
+ 	ret = add_disk(disk->gd);
+ 	if (ret)
+ 		goto cleanup_disk;
 -- 
 2.29.0
 
