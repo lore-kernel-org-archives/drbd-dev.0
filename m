@@ -1,15 +1,15 @@
 Return-Path: <chaitanyak@nvidia.com>
 Received: from NAM11-DM6-obe.outbound.protection.outlook.com
-	(mail-dm6nam11on2086.outbound.protection.outlook.com [40.107.223.86])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8E3BB4201A5
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:17:14 +0200 (CEST)
+	(mail-dm6nam11on2048.outbound.protection.outlook.com [40.107.223.48])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3D3D04202EE
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:17:35 +0200 (CEST)
 From: Chaitanya Kulkarni <kch@nvidia.com>
 To: <ogeert@linux-m68k.org>, <linux-block@vger.kernel.org>,
 	<linux-m68k@lists.linux-m68k.org>, <linux-kernel@vger.kernel.org>,
 	<drbd-dev@lists.linbit.com>, <nbd@other.debian.org>,
 	<linux-mtd@lists.infradead.org>
-Date: Tue, 4 Oct 2022 22:00:15 -0700
-Message-ID: <20221005050027.39591-7-kch@nvidia.com>
+Date: Tue, 4 Oct 2022 22:00:14 -0700
+Message-ID: <20221005050027.39591-6-kch@nvidia.com>
 In-Reply-To: <20221005050027.39591-1-kch@nvidia.com>
 References: <20221005050027.39591-1-kch@nvidia.com>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: axboe@kernel.dk, vincent.fu@samsung.com, ming.lei@redhat.com,
 	shinichiro.kawasaki@wdc.com, lars.ellenberg@linbit.com,
 	johannes.thumshirn@wdc.com, jinpu.wang@ionos.com,
 	tim@cyberelk.net, bvanassche@acm.org
-Subject: [Drbd-dev] [RFC PATCH 06/18] floppy: use init disk helper
+Subject: [Drbd-dev] [RFC PATCH 05/18] drbd: use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,34 +43,28 @@ and any future ones.
 
 Signed-off-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/block/floppy.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ drivers/block/drbd/drbd_main.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
 
-diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
-index ccad3d7b3ddd..7304fd87c038 100644
---- a/drivers/block/floppy.c
-+++ b/drivers/block/floppy.c
-@@ -4516,18 +4516,14 @@ static int floppy_alloc_disk(unsigned int drive, unsigned int type)
- 		return PTR_ERR(disk);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index f3e4db16fd07..58fae122de16 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2706,13 +2706,9 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
  
- 	blk_queue_max_hw_sectors(disk->queue, 64);
--	disk->major = FLOPPY_MAJOR;
--	disk->first_minor = TOMINOR(drive) | (type << 2);
+ 	set_disk_ro(disk, true);
+ 
+-	disk->major = DRBD_MAJOR;
+-	disk->first_minor = minor;
 -	disk->minors = 1;
--	disk->fops = &floppy_fops;
+-	disk->fops = &drbd_ops;
  	disk->flags |= GENHD_FL_NO_PART;
- 	disk->events = DISK_EVENT_MEDIA_CHANGE;
-+	init_disk(disk, FLOPPY_MAJOR, TOMINOR(drive) | (type << 2), 1, 0,
-+			(void *)(long)drive, &floppy_fops);
- 	if (type)
- 		sprintf(disk->disk_name, "fd%d_type%d", drive, type);
- 	else
- 		sprintf(disk->disk_name, "fd%d", drive);
--	/* to be cleaned up... */
--	disk->private_data = (void *)(long)drive;
- 	disk->flags |= GENHD_FL_REMOVABLE;
+ 	sprintf(disk->disk_name, "drbd%d", minor);
+-	disk->private_data = device;
++	init_disk(disk, DRBD_MAJOR, minor, 1, 0, device, &drbd_ops);
  
- 	disks[drive][type] = disk;
+ 	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, disk->queue);
+ 	blk_queue_write_cache(disk->queue, true, true);
 -- 
 2.29.0
 
