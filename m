@@ -1,15 +1,15 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM12-BN8-obe.outbound.protection.outlook.com
-	(mail-bn8nam12on2062.outbound.protection.outlook.com [40.107.237.62])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EF8EA4201C4
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:19:52 +0200 (CEST)
+Received: from NAM04-MW2-obe.outbound.protection.outlook.com
+	(mail-mw2nam04on2064.outbound.protection.outlook.com [40.107.101.64])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BE9D4202EE
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:20:10 +0200 (CEST)
 From: Chaitanya Kulkarni <kch@nvidia.com>
 To: <ogeert@linux-m68k.org>, <linux-block@vger.kernel.org>,
 	<linux-m68k@lists.linux-m68k.org>, <linux-kernel@vger.kernel.org>,
 	<drbd-dev@lists.linbit.com>, <nbd@other.debian.org>,
 	<linux-mtd@lists.infradead.org>
-Date: Tue, 4 Oct 2022 22:00:24 -0700
-Message-ID: <20221005050027.39591-16-kch@nvidia.com>
+Date: Tue, 4 Oct 2022 22:00:25 -0700
+Message-ID: <20221005050027.39591-17-kch@nvidia.com>
 In-Reply-To: <20221005050027.39591-1-kch@nvidia.com>
 References: <20221005050027.39591-1-kch@nvidia.com>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: axboe@kernel.dk, vincent.fu@samsung.com, ming.lei@redhat.com,
 	shinichiro.kawasaki@wdc.com, lars.ellenberg@linbit.com,
 	johannes.thumshirn@wdc.com, jinpu.wang@ionos.com,
 	tim@cyberelk.net, bvanassche@acm.org
-Subject: [Drbd-dev] [RFC PATCH 15/18] swim: use init disk helper
+Subject: [Drbd-dev] [RFC PATCH 16/18] swim3: use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,31 +43,31 @@ and any future ones.
 
 Signed-off-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/block/swim.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ drivers/block/swim3.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/swim.c b/drivers/block/swim.c
-index 42b4b6828690..7fa4b2766367 100644
---- a/drivers/block/swim.c
-+++ b/drivers/block/swim.c
-@@ -835,15 +835,12 @@ static int swim_floppy_init(struct swim_priv *swd)
+diff --git a/drivers/block/swim3.c b/drivers/block/swim3.c
+index da811a7da03f..3c1b92b464d1 100644
+--- a/drivers/block/swim3.c
++++ b/drivers/block/swim3.c
+@@ -1221,15 +1221,11 @@ static int swim3_attach(struct macio_dev *mdev,
+ 	if (rc)
+ 		goto out_cleanup_disk;
  
- 	for (drive = 0; drive < swd->floppy_count; drive++) {
- 		swd->unit[drive].disk->flags = GENHD_FL_REMOVABLE;
--		swd->unit[drive].disk->major = FLOPPY_MAJOR;
--		swd->unit[drive].disk->first_minor = drive;
--		swd->unit[drive].disk->minors = 1;
- 		sprintf(swd->unit[drive].disk->disk_name, "fd%d", drive);
--		swd->unit[drive].disk->fops = &floppy_fops;
- 		swd->unit[drive].disk->flags |= GENHD_FL_NO_PART;
- 		swd->unit[drive].disk->events = DISK_EVENT_MEDIA_CHANGE;
- 		swd->unit[drive].disk->private_data = &swd->unit[drive];
--		set_capacity(swd->unit[drive].disk, 2880);
-+		init_disk(swd->unit[drive].disk, FLOPPY_MAJOR, drive, 1, 2880,
-+				&swd->unit[drive], &floopy_dops);
- 		err = add_disk(swd->unit[drive].disk);
- 		if (err)
- 			goto exit_put_disks;
+-	disk->major = FLOPPY_MAJOR;
+-	disk->first_minor = floppy_count;
+-	disk->minors = 1;
+-	disk->fops = &floppy_fops;
+-	disk->private_data = fs;
+ 	disk->events = DISK_EVENT_MEDIA_CHANGE;
+ 	disk->flags |= GENHD_FL_REMOVABLE | GENHD_FL_NO_PART;
+ 	sprintf(disk->disk_name, "fd%d", floppy_count);
+-	set_capacity(disk, 2880);
++	init_disk(swd->unit[drive].disk, FLOPPY_MAJOR, floppy_count, 1, 2880,
++			&fs, &floopy_dops);
+ 	rc = add_disk(disk);
+ 	if (rc)
+ 		goto out_cleanup_disk;
 -- 
 2.29.0
 
