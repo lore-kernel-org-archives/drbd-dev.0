@@ -1,15 +1,15 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM10-MW2-obe.outbound.protection.outlook.com
-	(mail-mw2nam10on2070.outbound.protection.outlook.com [40.107.94.70])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5591B420668
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:16:52 +0200 (CEST)
+Received: from NAM11-DM6-obe.outbound.protection.outlook.com
+	(mail-dm6nam11on2086.outbound.protection.outlook.com [40.107.223.86])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8E3BB4201A5
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:17:14 +0200 (CEST)
 From: Chaitanya Kulkarni <kch@nvidia.com>
 To: <ogeert@linux-m68k.org>, <linux-block@vger.kernel.org>,
 	<linux-m68k@lists.linux-m68k.org>, <linux-kernel@vger.kernel.org>,
 	<drbd-dev@lists.linbit.com>, <nbd@other.debian.org>,
 	<linux-mtd@lists.infradead.org>
-Date: Tue, 4 Oct 2022 22:00:16 -0700
-Message-ID: <20221005050027.39591-8-kch@nvidia.com>
+Date: Tue, 4 Oct 2022 22:00:15 -0700
+Message-ID: <20221005050027.39591-7-kch@nvidia.com>
 In-Reply-To: <20221005050027.39591-1-kch@nvidia.com>
 References: <20221005050027.39591-1-kch@nvidia.com>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: axboe@kernel.dk, vincent.fu@samsung.com, ming.lei@redhat.com,
 	shinichiro.kawasaki@wdc.com, lars.ellenberg@linbit.com,
 	johannes.thumshirn@wdc.com, jinpu.wang@ionos.com,
 	tim@cyberelk.net, bvanassche@acm.org
-Subject: [Drbd-dev] [RFC PATCH 07/18] loop: use init disk helper
+Subject: [Drbd-dev] [RFC PATCH 06/18] floppy: use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,31 +43,34 @@ and any future ones.
 
 Signed-off-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/block/loop.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ drivers/block/floppy.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index ad92192c7d61..82cdb57ecd18 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -2023,15 +2023,12 @@ static int loop_add(int i)
- 	spin_lock_init(&lo->lo_work_lock);
- 	INIT_WORK(&lo->rootcg_work, loop_rootcg_workfn);
- 	INIT_LIST_HEAD(&lo->rootcg_cmd_list);
--	disk->major		= LOOP_MAJOR;
--	disk->first_minor	= i << part_shift;
--	disk->minors		= 1 << part_shift;
--	disk->fops		= &lo_fops;
--	disk->private_data	= lo;
- 	disk->queue		= lo->lo_queue;
- 	disk->events		= DISK_EVENT_MEDIA_CHANGE;
- 	disk->event_flags	= DISK_EVENT_FLAG_UEVENT;
- 	sprintf(disk->disk_name, "loop%d", i);
-+	init_disk(disk, LOOP_MAJOR, i << part_shift, 1 << part_shift, 0, lo,
-+			&lo_fops);
- 	/* Make this loop device reachable from pathname. */
- 	err = add_disk(disk);
- 	if (err)
+diff --git a/drivers/block/floppy.c b/drivers/block/floppy.c
+index ccad3d7b3ddd..7304fd87c038 100644
+--- a/drivers/block/floppy.c
++++ b/drivers/block/floppy.c
+@@ -4516,18 +4516,14 @@ static int floppy_alloc_disk(unsigned int drive, unsigned int type)
+ 		return PTR_ERR(disk);
+ 
+ 	blk_queue_max_hw_sectors(disk->queue, 64);
+-	disk->major = FLOPPY_MAJOR;
+-	disk->first_minor = TOMINOR(drive) | (type << 2);
+-	disk->minors = 1;
+-	disk->fops = &floppy_fops;
+ 	disk->flags |= GENHD_FL_NO_PART;
+ 	disk->events = DISK_EVENT_MEDIA_CHANGE;
++	init_disk(disk, FLOPPY_MAJOR, TOMINOR(drive) | (type << 2), 1, 0,
++			(void *)(long)drive, &floppy_fops);
+ 	if (type)
+ 		sprintf(disk->disk_name, "fd%d_type%d", drive, type);
+ 	else
+ 		sprintf(disk->disk_name, "fd%d", drive);
+-	/* to be cleaned up... */
+-	disk->private_data = (void *)(long)drive;
+ 	disk->flags |= GENHD_FL_REMOVABLE;
+ 
+ 	disks[drive][type] = disk;
 -- 
 2.29.0
 
