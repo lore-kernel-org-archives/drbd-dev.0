@@ -1,15 +1,15 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM11-DM6-obe.outbound.protection.outlook.com
-	(mail-dm6nam11on2085.outbound.protection.outlook.com [40.107.223.85])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 25E21420960
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:18:23 +0200 (CEST)
+Received: from NAM11-CO1-obe.outbound.protection.outlook.com
+	(mail-co1nam11on2050.outbound.protection.outlook.com [40.107.220.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B45F742037C
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 07:18:44 +0200 (CEST)
 From: Chaitanya Kulkarni <kch@nvidia.com>
 To: <ogeert@linux-m68k.org>, <linux-block@vger.kernel.org>,
 	<linux-m68k@lists.linux-m68k.org>, <linux-kernel@vger.kernel.org>,
 	<drbd-dev@lists.linbit.com>, <nbd@other.debian.org>,
 	<linux-mtd@lists.infradead.org>
-Date: Tue, 4 Oct 2022 22:00:22 -0700
-Message-ID: <20221005050027.39591-14-kch@nvidia.com>
+Date: Tue, 4 Oct 2022 22:00:23 -0700
+Message-ID: <20221005050027.39591-15-kch@nvidia.com>
 In-Reply-To: <20221005050027.39591-1-kch@nvidia.com>
 References: <20221005050027.39591-1-kch@nvidia.com>
 MIME-Version: 1.0
@@ -23,7 +23,7 @@ Cc: axboe@kernel.dk, vincent.fu@samsung.com, ming.lei@redhat.com,
 	shinichiro.kawasaki@wdc.com, lars.ellenberg@linbit.com,
 	johannes.thumshirn@wdc.com, jinpu.wang@ionos.com,
 	tim@cyberelk.net, bvanassche@acm.org
-Subject: [Drbd-dev] [RFC PATCH 13/18] pktcdvd: use init disk helper
+Subject: [Drbd-dev] [RFC PATCH 14/18] rnbd-clt: use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -43,28 +43,37 @@ and any future ones.
 
 Signed-off-by: Chaitanya Kulkarni <kch@nvidia.com>
 ---
- drivers/block/pktcdvd.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ drivers/block/rnbd/rnbd-clt.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index 4cea3b08087e..db8f4ca5c09c 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -2698,13 +2698,9 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
- 	if (!disk)
- 		goto out_mem;
- 	pd->disk = disk;
--	disk->major = pktdev_major;
--	disk->first_minor = idx;
--	disk->minors = 1;
--	disk->fops = &pktcdvd_ops;
- 	disk->flags = GENHD_FL_REMOVABLE | GENHD_FL_NO_PART;
- 	strcpy(disk->disk_name, pd->name);
--	disk->private_data = pd;
-+	init_disk(disk, pktdev_major, idx, 1, 0, pd, &pktcdvd_ops);
+diff --git a/drivers/block/rnbd/rnbd-clt.c b/drivers/block/rnbd/rnbd-clt.c
+index 78334da74d8b..4f29364a6f4d 100644
+--- a/drivers/block/rnbd/rnbd-clt.c
++++ b/drivers/block/rnbd/rnbd-clt.c
+@@ -1369,12 +1369,7 @@ static int rnbd_clt_setup_gen_disk(struct rnbd_clt_dev *dev,
+ {
+ 	int err;
  
- 	pd->pkt_dev = MKDEV(pktdev_major, idx);
- 	ret = pkt_new_dev(pd, dev);
+-	dev->gd->major		= rnbd_client_major;
+-	dev->gd->first_minor	= idx << RNBD_PART_BITS;
+-	dev->gd->minors		= 1 << RNBD_PART_BITS;
+-	dev->gd->fops		= &rnbd_client_ops;
+ 	dev->gd->queue		= dev->queue;
+-	dev->gd->private_data	= dev;
+ 	snprintf(dev->gd->disk_name, sizeof(dev->gd->disk_name), "rnbd%d",
+ 		 idx);
+ 	pr_debug("disk_name=%s, capacity=%llu\n",
+@@ -1382,7 +1377,9 @@ static int rnbd_clt_setup_gen_disk(struct rnbd_clt_dev *dev,
+ 		 le64_to_cpu(rsp->nsectors) *
+ 		 (le16_to_cpu(rsp->logical_block_size) / SECTOR_SIZE));
+ 
+-	set_capacity(dev->gd, le64_to_cpu(rsp->nsectors));
++	init_disk(dev->gd, rnbd_client_major, idx << RNBD_PART_BITS,
++			1 << RNBD_PART_BITS, le64_to_cpu(rsp->nsectors), dev,
++			&rnbd_client_ops);
+ 
+ 	if (dev->access_mode == RNBD_ACCESS_RO)
+ 		set_disk_ro(dev->gd, true);
 -- 
 2.29.0
 
