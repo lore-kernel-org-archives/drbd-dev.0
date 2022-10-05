@@ -1,29 +1,33 @@
-Return-Path: <fthain@linux-m68k.org>
-Received: from wout1-smtp.messagingengine.com (wout1-smtp.messagingengine.com
-	[64.147.123.24])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C24A9421779
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 09:00:52 +0200 (CEST)
-Date: Wed, 5 Oct 2022 17:54:48 +1100 (AEDT)
-From: Finn Thain <fthain@linux-m68k.org>
-To: Chaitanya Kulkarni <kch@nvidia.com>
-In-Reply-To: <20221005050027.39591-16-kch@nvidia.com>
-Message-ID: <78eb3d46-de71-a20c-ed5a-efc6ce71f571@linux-m68k.org>
-References: <20221005050027.39591-1-kch@nvidia.com>
-	<20221005050027.39591-16-kch@nvidia.com>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-ej1-f54.google.com (mail-ej1-f54.google.com
+	[209.85.218.54])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DFB9C4210C8
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Oct 2022 12:09:23 +0200 (CEST)
+Received: by mail-ej1-f54.google.com with SMTP id nb11so34395374ejc.5
+	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 03:09:23 -0700 (PDT)
+Message-ID: <e23e94f8-13ad-4a10-62de-33e63a62831f@linbit.com>
+Date: Wed, 5 Oct 2022 12:09:21 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Language: en-US
+To: Chaitanya Kulkarni <kch@nvidia.com>
+References: <20221005050027.39591-1-kch@nvidia.com>
+	<20221005050027.39591-6-kch@nvidia.com>
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <20221005050027.39591-6-kch@nvidia.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Cc: vincent.fu@samsung.com, vigneshr@ti.com, philipp.reisner@linbit.com,
-	haris.iqbal@ionos.com, miquel.raynal@bootlin.com,
+	linux-mtd@lists.infradead.org, miquel.raynal@bootlin.com,
 	jinpu.wang@ionos.com, tim@cyberelk.net,
 	drbd-dev@lists.linbit.com, bvanassche@acm.org, richard@nod.at,
-	damien.lemoal@opensource.wdc.com, geert@linux-m68k.org,
-	shinichiro.kawasaki@wdc.com, josef@toxicpanda.com,
-	efremov@linux.com, nbd@other.debian.org,
-	linux-block@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
-	hare@suse.de, ming.lei@redhat.com, axboe@kernel.dk,
-	johannes.thumshirn@wdc.com, linux-kernel@vger.kernel.org,
-	mcgrof@kernel.org, linux-mtd@lists.infradead.org, lars.ellenberg@linbit.com
-Subject: Re: [Drbd-dev] [RFC PATCH 15/18] swim: use init disk helper
+	damien.lemoal@opensource.wdc.com, shinichiro.kawasaki@wdc.com,
+	ogeert@linux-m68k.org, josef@toxicpanda.com, efremov@linux.com,
+	nbd@other.debian.org, linux-block@vger.kernel.org,
+	linux-m68k@lists.linux-m68k.org, hare@suse.de,
+	ming.lei@redhat.com, axboe@kernel.dk, johannes.thumshirn@wdc.com,
+	linux-kernel@vger.kernel.org, mcgrof@kernel.org,
+	haris.iqbal@ionos.com, lars.ellenberg@linbit.com
+Subject: Re: [Drbd-dev] [RFC PATCH 05/18] drbd: use init disk helper
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,8 +39,7 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, 4 Oct 2022, Chaitanya Kulkarni wrote:
-
+Am 05.10.22 um 07:00 schrieb Chaitanya Kulkarni:
 > Add and use the helper to initialize the common fields of struct gendisk
 > such as major, first_minor, minors, disk_name, private_data, and ops.
 > This initialization is spread all over the block drivers. This avoids
@@ -45,32 +48,34 @@ On Tue, 4 Oct 2022, Chaitanya Kulkarni wrote:
 > 
 > Signed-off-by: Chaitanya Kulkarni <kch@nvidia.com>
 > ---
->  drivers/block/swim.c | 7 ++-----
->  1 file changed, 2 insertions(+), 5 deletions(-)
+>  drivers/block/drbd/drbd_main.c | 6 +-----
+>  1 file changed, 1 insertion(+), 5 deletions(-)
 > 
-> diff --git a/drivers/block/swim.c b/drivers/block/swim.c
-> index 42b4b6828690..7fa4b2766367 100644
-> --- a/drivers/block/swim.c
-> +++ b/drivers/block/swim.c
-> @@ -835,15 +835,12 @@ static int swim_floppy_init(struct swim_priv *swd)
+> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+> index f3e4db16fd07..58fae122de16 100644
+> --- a/drivers/block/drbd/drbd_main.c
+> +++ b/drivers/block/drbd/drbd_main.c
+> @@ -2706,13 +2706,9 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 >  
->  	for (drive = 0; drive < swd->floppy_count; drive++) {
->  		swd->unit[drive].disk->flags = GENHD_FL_REMOVABLE;
-> -		swd->unit[drive].disk->major = FLOPPY_MAJOR;
-> -		swd->unit[drive].disk->first_minor = drive;
-> -		swd->unit[drive].disk->minors = 1;
->  		sprintf(swd->unit[drive].disk->disk_name, "fd%d", drive);
-> -		swd->unit[drive].disk->fops = &floppy_fops;
->  		swd->unit[drive].disk->flags |= GENHD_FL_NO_PART;
->  		swd->unit[drive].disk->events = DISK_EVENT_MEDIA_CHANGE;
->  		swd->unit[drive].disk->private_data = &swd->unit[drive];
-> -		set_capacity(swd->unit[drive].disk, 2880);
-> +		init_disk(swd->unit[drive].disk, FLOPPY_MAJOR, drive, 1, 2880,
-> +				&swd->unit[drive], &floopy_dops);
->  		err = add_disk(swd->unit[drive].disk);
->  		if (err)
->  			goto exit_put_disks;
-> 
+>  	set_disk_ro(disk, true);
+>  
+> -	disk->major = DRBD_MAJOR;
+> -	disk->first_minor = minor;
+> -	disk->minors = 1;
+> -	disk->fops = &drbd_ops;
+>  	disk->flags |= GENHD_FL_NO_PART;
+>  	sprintf(disk->disk_name, "drbd%d", minor);
+> -	disk->private_data = device;
+> +	init_disk(disk, DRBD_MAJOR, minor, 1, 0, device, &drbd_ops);
+>  
+>  	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, disk->queue);
+>  	blk_queue_write_cache(disk->queue, true, true);
 
-You typo'd the ops struct. By inspection, I'd say your patches 11/18 and 
-16/18 will not compile either.
+This now does a set_capacity(..., 0), which it did not do before.
+I'm guessing this does not have any side effects as the capacity should
+already be initialized to 0? Do you know this for sure?
+
+-- 
+Christoph Böhmwalder
+LINBIT | Keeping the Digital World Running
+DRBD HA —  Disaster Recovery — Software defined Storage
