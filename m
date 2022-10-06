@@ -1,31 +1,19 @@
-Return-Path: <SRS0=tIOp=2H=zx2c4.com=Jason@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7C8FA4201C4
-	for <drbd-dev@lists.linbit.com>;
-	Thu,  6 Oct 2022 15:08:08 +0200 (CEST)
-Received: from smtp.kernel.org (relay.kernel.org [52.25.139.140])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by dfw.source.kernel.org (Postfix) with ESMTPS id E21E66198C
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 13:08:07 +0000 (UTC)
-Received: by smtp.kernel.org (Postfix) with ESMTPSA id 7F7B0C4347C
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 13:08:07 +0000 (UTC)
-Received: by mail.zx2c4.com (ZX2C4 Mail Server) with ESMTPSA id fd644210
-	(TLSv1.3:TLS_AES_256_GCM_SHA384:256:NO)
-	for <drbd-dev@lists.linbit.com>; Thu, 6 Oct 2022 13:07:57 +0000 (UTC)
-Received: by mail-qv1-f53.google.com with SMTP id i9so1128637qvu.1
-	for <drbd-dev@lists.linbit.com>; Thu, 06 Oct 2022 06:07:55 -0700 (PDT)
-MIME-Version: 1.0
+Return-Path: <andriy.shevchenko@linux.intel.com>
+Received: from mga06.intel.com (mga06b.intel.com [134.134.136.31])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3A3454201C4
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 15:09:01 +0200 (CEST)
+Date: Thu, 6 Oct 2022 16:01:11 +0300
+From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+To: "Jason A. Donenfeld" <Jason@zx2c4.com>
+Message-ID: <Yz7Rl7BXamKQhRzH@smile.fi.intel.com>
 References: <20221005214844.2699-1-Jason@zx2c4.com>
 	<20221005214844.2699-4-Jason@zx2c4.com>
-	<20221006084331.4bdktc2zlvbaszym@quack3> <Yz7LCyIAHC6l5mG9@zx2c4.com>
-	<Yz7Rl7BXamKQhRzH@smile.fi.intel.com>
-In-Reply-To: <Yz7Rl7BXamKQhRzH@smile.fi.intel.com>
-From: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Date: Thu, 6 Oct 2022 07:07:24 -0600
-Message-ID: <CAHmME9r2u86Ga1UL_yD6x44OX84UJbRQyfhhDjF1daXyaYsbEw@mail.gmail.com>
-To: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+	<20221006084331.4bdktc2zlvbaszym@quack3>
+	<Yz7LCyIAHC6l5mG9@zx2c4.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Yz7LCyIAHC6l5mG9@zx2c4.com>
 Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	linux-block@vger.kernel.org,
 	Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>,
@@ -115,8 +103,8 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	SHA-cyfmac-dev-list@infineon.com, linux-xfs@vger.kernel.org,
 	Ying Xue <ying.xue@windriver.com>,
 	Manish Rangankar <mrangankar@marvell.com>,
-	=?UTF-8?Q?Andreas_F=C3=A4rber?= <afaerber@suse.de>,
-	=?UTF-8?B?VG9rZSBIw7hpbGFuZC1Kw7hyZ2Vuc2Vu?= <toke@toke.dk>,
+	Andreas =?iso-8859-1?Q?F=E4rber?= <afaerber@suse.de>,
+	Toke =?iso-8859-1?Q?H=F8iland-J=F8rgensen?= <toke@toke.dk>,
 	Jan Kara <jack@suse.cz>, linux-stm32@st-md-mailman.stormreply.com,
 	Peter Zijlstra <peterz@infradead.org>,
 	Ayush Sawal <ayush.sawal@chelsio.com>, KP Singh <kpsingh@kernel.org>,
@@ -150,7 +138,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Johannes Berg <johannes@sipsolutions.net>,
 	Sungjong Seo <sj1557.seo@samsung.com>, linuxppc-dev@lists.ozlabs.org
 Subject: Re: [Drbd-dev] [f2fs-dev] [PATCH v1 3/5] treewide: use
-	get_random_u32() when possible
+ get_random_u32() when possible
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -162,33 +150,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Oct 6, 2022 at 7:01 AM Andy Shevchenko
-<andriy.shevchenko@linux.intel.com> wrote:
->
-> On Thu, Oct 06, 2022 at 06:33:15AM -0600, Jason A. Donenfeld wrote:
-> > On Thu, Oct 06, 2022 at 10:43:31AM +0200, Jan Kara wrote:
->
-> ...
->
-> > > The code here is effectively doing the
-> > >
-> > >     parent_group = prandom_u32_max(ngroups);
-> > >
-> > > Similarly here we can use prandom_u32_max(ngroups) like:
-> > >
-> > >             if (qstr) {
-> > >                     ...
-> > >                     parent_group = hinfo.hash % ngroups;
-> > >             } else
-> > >                     parent_group = prandom_u32_max(ngroups);
-> >
-> > Nice catch. I'll move these to patch #1.
->
-> I believe coccinelle is able to handle this kind of code as well
+On Thu, Oct 06, 2022 at 06:33:15AM -0600, Jason A. Donenfeld wrote:
+> On Thu, Oct 06, 2022 at 10:43:31AM +0200, Jan Kara wrote:
 
-I'd be extremely surprised. The details were kind of non obvious. I
-just spent a decent amount of time manually checking those blocks, to
-make sure we didn't wind up with different behavior, given the
-variable reuse.
+...
 
-Jason
+> > The code here is effectively doing the
+> > 
+> > 	parent_group = prandom_u32_max(ngroups);
+> > 
+> > Similarly here we can use prandom_u32_max(ngroups) like:
+> > 
+> > 		if (qstr) {
+> > 			...
+> > 			parent_group = hinfo.hash % ngroups;
+> > 		} else
+> > 			parent_group = prandom_u32_max(ngroups);
+> 
+> Nice catch. I'll move these to patch #1.
+
+I believe coccinelle is able to handle this kind of code as well, so Kees'
+proposal to use it seems more plausible since it's less error prone and more
+flexible / powerful.
+
+-- 
+With Best Regards,
+Andy Shevchenko
+
+
