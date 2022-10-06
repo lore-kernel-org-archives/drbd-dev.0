@@ -1,14 +1,14 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pj1-f42.google.com (mail-pj1-f42.google.com
-	[209.85.216.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 396264201C4
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 06:45:27 +0200 (CEST)
-Received: by mail-pj1-f42.google.com with SMTP id fw14so746810pjb.3
-	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 21:45:27 -0700 (PDT)
-Date: Wed, 5 Oct 2022 21:45:22 -0700
+Received: from mail-pl1-f171.google.com (mail-pl1-f171.google.com
+	[209.85.214.171])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C5E1F4201C4
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 06:48:12 +0200 (CEST)
+Received: by mail-pl1-f171.google.com with SMTP id 10so750517pli.0
+	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 21:48:12 -0700 (PDT)
+Date: Wed, 5 Oct 2022 21:48:09 -0700
 From: Kees Cook <keescook@chromium.org>
 To: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Message-ID: <202210052144.5DA3690D@keescook>
+Message-ID: <202210052148.AA3C7BB@keescook>
 References: <20221005214844.2699-1-Jason@zx2c4.com>
 	<20221005214844.2699-5-Jason@zx2c4.com>
 MIME-Version: 1.0
@@ -161,6 +161,8 @@ On Wed, Oct 05, 2022 at 11:48:43PM +0200, Jason A. Donenfeld wrote:
 > get_random_bytes() for several releases now, and compiles down to the
 > exact same code. Replace the deprecated wrapper with a direct call to
 > the real function.
+> 
+> Signed-off-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
 Global search/replace matches. :)
 
