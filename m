@@ -1,17 +1,21 @@
-Return-Path: <SRS0=tIOp=2H=zx2c4.com=Jason@kernel.org>
-Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B8134206CF
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 14:53:45 +0200 (CEST)
-Date: Thu, 6 Oct 2022 06:53:14 -0600
-From: "Jason A. Donenfeld" <Jason@zx2c4.com>
-To: Kees Cook <keescook@chromium.org>
-Message-ID: <Yz7PusEN5TG1PvJZ@zx2c4.com>
+Return-Path: <jgg@ziepe.ca>
+Received: from mail-qt1-f181.google.com (mail-qt1-f181.google.com
+	[209.85.160.181])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5A9624206CF
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 14:55:22 +0200 (CEST)
+Received: by mail-qt1-f181.google.com with SMTP id cj27so876232qtb.7
+	for <drbd-dev@lists.linbit.com>; Thu, 06 Oct 2022 05:55:22 -0700 (PDT)
+Date: Thu, 6 Oct 2022 09:55:19 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: "Jason A. Donenfeld" <Jason@zx2c4.com>
+Message-ID: <Yz7QN3cbKABexzoB@ziepe.ca>
 References: <20221005214844.2699-1-Jason@zx2c4.com>
-	<202210052148.B11CBC60@keescook>
+	<20221005214844.2699-2-Jason@zx2c4.com>
+	<202210052035.A1020E3@keescook> <Yz7N5WsqmKiUl+6b@zx2c4.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <202210052148.B11CBC60@keescook>
+In-Reply-To: <Yz7N5WsqmKiUl+6b@zx2c4.com>
 Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Ulf Hansson <ulf.hansson@linaro.org>, dri-devel@lists.freedesktop.org,
 	Andrii Nakryiko <andrii@kernel.org>,
@@ -88,7 +92,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	"Naveen N . Rao" <naveen.n.rao@linux.ibm.com>,
 	Ilya Dryomov <idryomov@gmail.com>, Paolo Abeni <pabeni@redhat.com>,
 	Pablo Neira Ayuso <pablo@netfilter.org>, Marco Elver <elver@google.com>,
-	Yury Norov <yury.norov@gmail.com>,
+	Kees Cook <keescook@chromium.org>, Yury Norov <yury.norov@gmail.com>,
 	"James E . J . Bottomley" <jejb@linux.ibm.com>,
 	Jamal Hadi Salim <jhs@mojatatu.com>,
 	KP Singh <kpsingh@kernel.org>, Borislav Petkov <bp@alien8.de>,
@@ -118,8 +122,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	linux-scsi@vger.kernel.org, dccp@vger.kernel.org,
 	Richard Weinberger <richard@nod.at>, Russell King <linux@armlinux.org.uk>,
 	Jaehoon Chung <jh80.chung@samsung.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Ingo Molnar <mingo@redhat.com>,
-	Jakub Kicinski <kuba@kernel.org>,
+	Ingo Molnar <mingo@redhat.com>, Jakub Kicinski <kuba@kernel.org>,
 	John Fastabend <john.fastabend@gmail.com>,
 	Maxime Coquelin <mcoquelin.stm32@gmail.com>,
 	Manivannan Sadhasivam <mani@kernel.org>,
@@ -140,8 +143,8 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Thomas Graf <tgraf@suug.ch>, Johannes Berg <johannes@sipsolutions.net>,
 	Sungjong Seo <sj1557.seo@samsung.com>,
 	Martin KaFai Lau <martin.lau@linux.dev>
-Subject: Re: [Drbd-dev] [PATCH v1 0/5] treewide cleanup of random integer
-	usage
+Subject: Re: [Drbd-dev] [PATCH v1 1/5] treewide: use prandom_u32_max() when
+	possible
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -153,36 +156,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 05, 2022 at 09:55:43PM -0700, Kees Cook wrote:
-> It'd be nice to capture some (all?) of the above somewhere. Perhaps just
-> a massive comment in the header?
-
-I'll include (something like) this in some "how to use" documentation
-I'm working on separately.
-
-> > I've CC'd get_maintainers.pl, which is a pretty big list. Probably some
-> > portion of those are going to bounce, too, and everytime you reply to
-> > this thread, you'll have to deal with a bunch of bounces coming
-> > immediately after. And a recipient list this big will probably dock my
-> > email domain's spam reputation, at least temporarily. Sigh. I think
-> > that's just how it goes with treewide cleanups though. Again, let me
-> > know if I'm doing it wrong.
+On Thu, Oct 06, 2022 at 06:45:25AM -0600, Jason A. Donenfeld wrote:
+> Hi Kees,
 > 
-> I usually stick to just mailing lists and subsystem maintainers.
+> On Wed, Oct 05, 2022 at 09:16:50PM -0700, Kees Cook wrote:
+> > On Wed, Oct 05, 2022 at 11:48:40PM +0200, Jason A. Donenfeld wrote:
+> > > Rather than incurring a division or requesting too many random bytes for
+> > > the given range, use the prandom_u32_max() function, which only takes
+> > > the minimum required bytes from the RNG and avoids divisions.
+> > 
+> > Yes please!
+> > 
+> > Since this is a treewide patch, it's helpful for (me at least) doing
+> > reviews to detail the mechanism of the transformation.
+> 
+> This is hand done. There were also various wrong seds done. And then I'd
+> edit the .diff manually, and then reapply it, as an iterative process.
+> No internet on the airplane, and oddly no spatch already on my laptop (I
+> think I had some Gentoo ocaml issues at some point and removed it?).
+> 
+> > e.g. I imagine this could be done with something like Coccinelle and
+> 
+> Feel free to check the work here by using Coccinelle if you're into
+> that.
 
-Lord have mercy I really wish I had done that. I supremely butchered the
-sending of this, and then tried to save it by resubmitting directly to
-vger with the same message ID but truncated CC, which mostly worked, but
-the whole thing is a mess. I'll trim this to subsystem maintainers and
-resubmit a v2 right away, rather than having people wade through the
-mess.
+Generally these series are a lot easier to review if it is structured
+as a patches doing all the unusual stuff that had to be by hand
+followed by an unmodified Coccinelle/sed/etc handling the simple
+stuff.
 
-To any one who's reading this: no more replies to v1! It clogs the
-tubes.
+Especially stuff that is reworking the logic beyond simple
+substitution should be one patch per subsystem not rolled into a giant
+one patch conversion.
 
-> If any of the subsystems ask you to break this up (I hope not), I've got
+This makes the whole workflow better because the hand-done stuff can
+have a chance to flow through subsystem trees.
 
-Oh god I surely hope not. Sounds like a massive waste of time and
-paperwork.
-
+Thanks,
 Jason
