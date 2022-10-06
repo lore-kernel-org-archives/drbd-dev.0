@@ -1,18 +1,29 @@
 Return-Path: <SRS0=tIOp=2H=zx2c4.com=Jason@kernel.org>
-Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 663E242095F
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 14:55:50 +0200 (CEST)
-Date: Thu, 6 Oct 2022 06:45:25 -0600
-From: "Jason A. Donenfeld" <Jason@zx2c4.com>
-To: Kees Cook <keescook@chromium.org>
-Message-ID: <Yz7N5WsqmKiUl+6b@zx2c4.com>
-References: <20221005214844.2699-1-Jason@zx2c4.com>
-	<20221005214844.2699-2-Jason@zx2c4.com>
-	<202210052035.A1020E3@keescook>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AA41B4201C4
+	for <drbd-dev@lists.linbit.com>;
+	Thu,  6 Oct 2022 15:06:30 +0200 (CEST)
+Received: from smtp.kernel.org (relay.kernel.org [52.25.139.140])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by dfw.source.kernel.org (Postfix) with ESMTPS id 0DD3861999
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 13:06:30 +0000 (UTC)
+Received: by smtp.kernel.org (Postfix) with ESMTPSA id A4AFEC43140
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 13:06:29 +0000 (UTC)
+Received: by mail.zx2c4.com (ZX2C4 Mail Server) with ESMTPSA id 46c3ed7a
+	(TLSv1.3:TLS_AES_256_GCM_SHA384:256:NO)
+	for <drbd-dev@lists.linbit.com>; Thu, 6 Oct 2022 13:06:20 +0000 (UTC)
+Received: by mail-qv1-f46.google.com with SMTP id h10so1108398qvq.7
+	for <drbd-dev@lists.linbit.com>; Thu, 06 Oct 2022 06:06:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <202210052035.A1020E3@keescook>
+References: <20221005214844.2699-1-Jason@zx2c4.com>
+	<20221005214844.2699-4-Jason@zx2c4.com> <Yz7OdfKZeGkpZSKb@ziepe.ca>
+In-Reply-To: <Yz7OdfKZeGkpZSKb@ziepe.ca>
+From: "Jason A. Donenfeld" <Jason@zx2c4.com>
+Date: Thu, 6 Oct 2022 07:05:48 -0600
+Message-ID: <CAHmME9r_vNRFFjUvqx8QkBddg_kQU=FMgpk9TqOVZdvX6zXHNg@mail.gmail.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Content-Type: text/plain; charset="UTF-8"
 Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Ulf Hansson <ulf.hansson@linaro.org>, dri-devel@lists.freedesktop.org,
 	Andrii Nakryiko <andrii@kernel.org>,
@@ -71,7 +82,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Stephen Boyd <sboyd@kernel.org>,
 	Dennis Dalessandro <dennis.dalessandro@cornelisnetworks.com>,
 	Florian Westphal <fw@strlen.de>,
-	Andreas =?utf-8?Q?F=C3=A4rber?= <afaerber@suse.de>,
+	=?UTF-8?Q?Andreas_F=C3=A4rber?= <afaerber@suse.de>,
 	Jon Maloy <jmaloy@redhat.com>, Vlad Yasevich <vyasevich@gmail.com>,
 	Anna Schumaker <anna@kernel.org>, Haoyue Xu <xuhaoyue1@hisilicon.com>,
 	Heiner Kallweit <hkallweit1@gmail.com>, linux-wireless@vger.kernel.org,
@@ -89,7 +100,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	"Naveen N . Rao" <naveen.n.rao@linux.ibm.com>,
 	Ilya Dryomov <idryomov@gmail.com>, Paolo Abeni <pabeni@redhat.com>,
 	Pablo Neira Ayuso <pablo@netfilter.org>, Marco Elver <elver@google.com>,
-	Yury Norov <yury.norov@gmail.com>,
+	Kees Cook <keescook@chromium.org>, Yury Norov <yury.norov@gmail.com>,
 	"James E . J . Bottomley" <jejb@linux.ibm.com>,
 	Jamal Hadi Salim <jhs@mojatatu.com>,
 	KP Singh <kpsingh@kernel.org>, Borislav Petkov <bp@alien8.de>,
@@ -105,7 +116,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	netdev@vger.kernel.org, Ying Xue <ying.xue@windriver.com>,
 	Manish Rangankar <mrangankar@marvell.com>,
 	"David S . Miller" <davem@davemloft.net>,
-	Toke =?utf-8?Q?H=C3=B8iland-J=C3=B8rgensen?= <toke@toke.dk>,
+	=?UTF-8?B?VG9rZSBIw7hpbGFuZC1Kw7hyZ2Vuc2Vu?= <toke@toke.dk>,
 	Vignesh Raghavendra <vigneshr@ti.com>,
 	Peter Zijlstra <peterz@infradead.org>, "H . Peter Anvin" <hpa@zytor.com>,
 	Alexandre Torgue <alexandre.torgue@foss.st.com>,
@@ -119,8 +130,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	linux-scsi@vger.kernel.org, dccp@vger.kernel.org,
 	Richard Weinberger <richard@nod.at>, Russell King <linux@armlinux.org.uk>,
 	Jaehoon Chung <jh80.chung@samsung.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Ingo Molnar <mingo@redhat.com>,
-	Jakub Kicinski <kuba@kernel.org>,
+	Ingo Molnar <mingo@redhat.com>, Jakub Kicinski <kuba@kernel.org>,
 	John Fastabend <john.fastabend@gmail.com>,
 	Maxime Coquelin <mcoquelin.stm32@gmail.com>,
 	Manivannan Sadhasivam <mani@kernel.org>,
@@ -141,7 +151,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Thomas Graf <tgraf@suug.ch>, Johannes Berg <johannes@sipsolutions.net>,
 	Sungjong Seo <sj1557.seo@samsung.com>,
 	Martin KaFai Lau <martin.lau@linux.dev>
-Subject: Re: [Drbd-dev] [PATCH v1 1/5] treewide: use prandom_u32_max() when
+Subject: Re: [Drbd-dev] [PATCH v1 3/5] treewide: use get_random_u32() when
 	possible
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -154,41 +164,45 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Kees,
+On Thu, Oct 6, 2022 at 6:47 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> On Wed, Oct 05, 2022 at 11:48:42PM +0200, Jason A. Donenfeld wrote:
+>
+> > index 14392c942f49..499a425a3379 100644
+> > --- a/drivers/infiniband/hw/cxgb4/cm.c
+> > +++ b/drivers/infiniband/hw/cxgb4/cm.c
+> > @@ -734,7 +734,7 @@ static int send_connect(struct c4iw_ep *ep)
+> >                                  &ep->com.remote_addr;
+> >       int ret;
+> >       enum chip_type adapter_type = ep->com.dev->rdev.lldi.adapter_type;
+> > -     u32 isn = (prandom_u32() & ~7UL) - 1;
+> > +     u32 isn = (get_random_u32() & ~7UL) - 1;
+>
+> Maybe this wants to be written as
+>
+> (prandom_max(U32_MAX >> 7) << 7) | 7
+>
+> ?
 
-On Wed, Oct 05, 2022 at 09:16:50PM -0700, Kees Cook wrote:
-> On Wed, Oct 05, 2022 at 11:48:40PM +0200, Jason A. Donenfeld wrote:
-> > Rather than incurring a division or requesting too many random bytes for
-> > the given range, use the prandom_u32_max() function, which only takes
-> > the minimum required bytes from the RNG and avoids divisions.
-> 
-> Yes please!
-> 
-> Since this is a treewide patch, it's helpful for (me at least) doing
-> reviews to detail the mechanism of the transformation.
+Holy smokes. Yea I guess maybe? It doesn't exactly gain anything or
+make the code clearer though, and is a little bit more magical than
+I'd like on a first pass.
 
-This is hand done. There were also various wrong seds done. And then I'd
-edit the .diff manually, and then reapply it, as an iterative process.
-No internet on the airplane, and oddly no spatch already on my laptop (I
-think I had some Gentoo ocaml issues at some point and removed it?).
+>
+> > diff --git a/drivers/infiniband/ulp/ipoib/ipoib_cm.c b/drivers/infiniband/ulp/ipoib/ipoib_cm.c
+> > index fd9d7f2c4d64..a605cf66b83e 100644
+> > --- a/drivers/infiniband/ulp/ipoib/ipoib_cm.c
+> > +++ b/drivers/infiniband/ulp/ipoib/ipoib_cm.c
+> > @@ -465,7 +465,7 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id,
+> >               goto err_qp;
+> >       }
+> >
+> > -     psn = prandom_u32() & 0xffffff;
+> > +     psn = get_random_u32() & 0xffffff;
+>
+>  prandom_max(0xffffff + 1)
 
-> e.g. I imagine this could be done with something like Coccinelle and
-
-Feel free to check the work here by using Coccinelle if you're into
-that.
-
-> >  static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi)
-> >  {
-> >  	if (ubi->dbg.emulate_bitflips)
-> > -		return !(prandom_u32() % 200);
-> > +		return !(prandom_u32_max(200));
-> >  	return 0;
-> >  }
-> >  
-> 
-> Because some looks automated (why the parens?)
-
-I saw this before going out and thought I'd fixed it but I guess I sent
-the wrong one.
+That'd work, but again it's not more clear. Authors here are going for
+a 24-bit number, and masking seems like a clear way to express that.
 
 Jason
