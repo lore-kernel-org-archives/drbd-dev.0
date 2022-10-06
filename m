@@ -1,15 +1,21 @@
-Return-Path: <SRS0=WwUN=2G=zx2c4.com=Jason@kernel.org>
-Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 39EB74202F3
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 00:00:48 +0200 (CEST)
-From: "Jason A. Donenfeld" <Jason@zx2c4.com>
-To: linux-kernel@vger.kernel.org
-Date: Wed,  5 Oct 2022 23:48:44 +0200
-Message-Id: <20221005214844.2699-6-Jason@zx2c4.com>
-In-Reply-To: <20221005214844.2699-1-Jason@zx2c4.com>
+Return-Path: <keescook@chromium.org>
+Received: from mail-pj1-f52.google.com (mail-pj1-f52.google.com
+	[209.85.216.52])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 74F924201C4
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 06:16:53 +0200 (CEST)
+Received: by mail-pj1-f52.google.com with SMTP id
+	i7-20020a17090a65c700b0020ad9666a86so3272095pjs.0
+	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 21:16:53 -0700 (PDT)
+Date: Wed, 5 Oct 2022 21:16:50 -0700
+From: Kees Cook <keescook@chromium.org>
+To: "Jason A. Donenfeld" <Jason@zx2c4.com>
+Message-ID: <202210052035.A1020E3@keescook>
 References: <20221005214844.2699-1-Jason@zx2c4.com>
+	<20221005214844.2699-2-Jason@zx2c4.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20221005214844.2699-2-Jason@zx2c4.com>
 Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Ulf Hansson <ulf.hansson@linaro.org>, dri-devel@lists.freedesktop.org,
 	Andrii Nakryiko <andrii@kernel.org>,
@@ -37,8 +43,9 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Hante Meuleman <hante.meuleman@broadcom.com>,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org,
 	Michael Chan <michael.chan@broadcom.com>,
-	Varun Prakash <varun@chelsio.com>, Chuck Lever <chuck.lever@oracle.com>,
-	netfilter-devel@vger.kernel.org, Masami Hiramatsu <mhiramat@kernel.org>,
+	linux-kernel@vger.kernel.org, Varun Prakash <varun@chelsio.com>,
+	Chuck Lever <chuck.lever@oracle.com>, netfilter-devel@vger.kernel.org,
+	Masami Hiramatsu <mhiramat@kernel.org>,
 	Jiri Olsa <jolsa@kernel.org>, Jan Kara <jack@suse.com>,
 	linux-fsdevel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	linux-media@vger.kernel.org, Claudiu Beznea <claudiu.beznea@microchip.com>,
@@ -59,8 +66,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	linux-crypto@vger.kernel.org,
 	Santosh Shilimkar <santosh.shilimkar@oracle.com>,
 	Ganapathi Bhat <ganapathi017@gmail.com>, linux-actions@lists.infradead.org,
-	"Jason A. Donenfeld" <Jason@zx2c4.com>, Simon Horman <horms@verge.net.au>,
-	Jaegeuk Kim <jaegeuk@kernel.org>,
+	Simon Horman <horms@verge.net.au>, Jaegeuk Kim <jaegeuk@kernel.org>,
 	Mika Westerberg <mika.westerberg@linux.intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
@@ -68,7 +74,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Stephen Boyd <sboyd@kernel.org>,
 	Dennis Dalessandro <dennis.dalessandro@cornelisnetworks.com>,
 	Florian Westphal <fw@strlen.de>,
-	=?UTF-8?q?Andreas=20F=C3=A4rber?= <afaerber@suse.de>,
+	Andreas =?iso-8859-1?Q?F=E4rber?= <afaerber@suse.de>,
 	Jon Maloy <jmaloy@redhat.com>, Vlad Yasevich <vyasevich@gmail.com>,
 	Anna Schumaker <anna@kernel.org>, Haoyue Xu <xuhaoyue1@hisilicon.com>,
 	Heiner Kallweit <hkallweit1@gmail.com>, linux-wireless@vger.kernel.org,
@@ -86,7 +92,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	"Naveen N . Rao" <naveen.n.rao@linux.ibm.com>,
 	Ilya Dryomov <idryomov@gmail.com>, Paolo Abeni <pabeni@redhat.com>,
 	Pablo Neira Ayuso <pablo@netfilter.org>, Marco Elver <elver@google.com>,
-	Kees Cook <keescook@chromium.org>, Yury Norov <yury.norov@gmail.com>,
+	Yury Norov <yury.norov@gmail.com>,
 	"James E . J . Bottomley" <jejb@linux.ibm.com>,
 	Jamal Hadi Salim <jhs@mojatatu.com>,
 	KP Singh <kpsingh@kernel.org>, Borislav Petkov <bp@alien8.de>,
@@ -102,7 +108,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	netdev@vger.kernel.org, Ying Xue <ying.xue@windriver.com>,
 	Manish Rangankar <mrangankar@marvell.com>,
 	"David S . Miller" <davem@davemloft.net>,
-	=?UTF-8?q?Toke=20H=C3=B8iland-J=C3=B8rgensen?= <toke@toke.dk>,
+	Toke =?iso-8859-1?Q?H=F8iland-J=F8rgensen?= <toke@toke.dk>,
 	Vignesh Raghavendra <vigneshr@ti.com>,
 	Peter Zijlstra <peterz@infradead.org>, "H . Peter Anvin" <hpa@zytor.com>,
 	Alexandre Torgue <alexandre.torgue@foss.st.com>,
@@ -138,7 +144,8 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Thomas Graf <tgraf@suug.ch>, Johannes Berg <johannes@sipsolutions.net>,
 	Sungjong Seo <sj1557.seo@samsung.com>,
 	Martin KaFai Lau <martin.lau@linux.dev>
-Subject: [Drbd-dev] [PATCH v1 5/5] prandom: remove unused functions
+Subject: Re: [Drbd-dev] [PATCH v1 1/5] treewide: use prandom_u32_max() when
+	possible
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -150,37 +157,61 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-With no callers left of prandom_u32() and prandom_bytes(), remove these
-deprecated wrappers.
+On Wed, Oct 05, 2022 at 11:48:40PM +0200, Jason A. Donenfeld wrote:
+> Rather than incurring a division or requesting too many random bytes for
+> the given range, use the prandom_u32_max() function, which only takes
+> the minimum required bytes from the RNG and avoids divisions.
 
-Signed-off-by: Jason A. Donenfeld <Jason@zx2c4.com>
----
- include/linux/prandom.h | 12 ------------
- 1 file changed, 12 deletions(-)
+Yes please!
 
-diff --git a/include/linux/prandom.h b/include/linux/prandom.h
-index 78db003bc290..e0a0759dd09c 100644
---- a/include/linux/prandom.h
-+++ b/include/linux/prandom.h
-@@ -12,18 +12,6 @@
- #include <linux/percpu.h>
- #include <linux/random.h>
- 
--/* Deprecated: use get_random_u32 instead. */
--static inline u32 prandom_u32(void)
--{
--	return get_random_u32();
--}
--
--/* Deprecated: use get_random_bytes instead. */
--static inline void prandom_bytes(void *buf, size_t nbytes)
--{
--	return get_random_bytes(buf, nbytes);
--}
--
- struct rnd_state {
- 	__u32 s1, s2, s3, s4;
- };
+Since this is a treewide patch, it's helpful for (me at least) doing
+reviews to detail the mechanism of the transformation.
+
+e.g. I imagine this could be done with something like Coccinelle and
+
+@no_modulo@
+expression E;
+@@
+
+-	(prandom_u32() % (E))
++	prandom_u32_max(E)
+
+> diff --git a/drivers/mtd/ubi/debug.h b/drivers/mtd/ubi/debug.h
+> index 118248a5d7d4..4236c799a47c 100644
+> --- a/drivers/mtd/ubi/debug.h
+> +++ b/drivers/mtd/ubi/debug.h
+> @@ -73,7 +73,7 @@ static inline int ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)
+>  static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi)
+>  {
+>  	if (ubi->dbg.emulate_bitflips)
+> -		return !(prandom_u32() % 200);
+> +		return !(prandom_u32_max(200));
+>  	return 0;
+>  }
+>  
+
+Because some looks automated (why the parens?)
+
+> @@ -393,14 +387,11 @@ static struct test_driver {
+>  
+>  static void shuffle_array(int *arr, int n)
+>  {
+> -	unsigned int rnd;
+>  	int i, j;
+>  
+>  	for (i = n - 1; i > 0; i--)  {
+> -		rnd = prandom_u32();
+> -
+>  		/* Cut the range. */
+> -		j = rnd % i;
+> +		j = prandom_u32_max(i);
+>  
+>  		/* Swap indexes. */
+>  		swap(arr[i], arr[j]);
+
+And some by hand. :)
+
+Reviewed-by: Kees Cook <keescook@chromium.org>
+
 -- 
-2.37.3
-
+Kees Cook
