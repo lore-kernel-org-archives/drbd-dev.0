@@ -1,20 +1,21 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pl1-f181.google.com (mail-pl1-f181.google.com
-	[209.85.214.181])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B1974201AA
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 06:38:06 +0200 (CEST)
-Received: by mail-pl1-f181.google.com with SMTP id x6so640748pll.11
-	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 21:38:05 -0700 (PDT)
-Date: Wed, 5 Oct 2022 21:38:02 -0700
+Received: from mail-pj1-f41.google.com (mail-pj1-f41.google.com
+	[209.85.216.41])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1215C4201AA
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 06:39:08 +0200 (CEST)
+Received: by mail-pj1-f41.google.com with SMTP id
+	p3-20020a17090a284300b0020a85fa3ffcso3280832pjf.2
+	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 21:39:08 -0700 (PDT)
+Date: Wed, 5 Oct 2022 21:39:03 -0700
 From: Kees Cook <keescook@chromium.org>
 To: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Message-ID: <202210052126.B34A2C62@keescook>
+Message-ID: <202210052138.A585E4CC@keescook>
 References: <20221005214844.2699-1-Jason@zx2c4.com>
-	<20221005214844.2699-3-Jason@zx2c4.com>
+	<20221005214844.2699-6-Jason@zx2c4.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20221005214844.2699-3-Jason@zx2c4.com>
+In-Reply-To: <20221005214844.2699-6-Jason@zx2c4.com>
 Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Ulf Hansson <ulf.hansson@linaro.org>, dri-devel@lists.freedesktop.org,
 	Andrii Nakryiko <andrii@kernel.org>,
@@ -143,8 +144,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Thomas Graf <tgraf@suug.ch>, Johannes Berg <johannes@sipsolutions.net>,
 	Sungjong Seo <sj1557.seo@samsung.com>,
 	Martin KaFai Lau <martin.lau@linux.dev>
-Subject: Re: [Drbd-dev] [PATCH v1 2/5] treewide: use get_random_{u8,
-	u16}() when possible
+Subject: Re: [Drbd-dev] [PATCH v1 5/5] prandom: remove unused functions
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -156,78 +156,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 05, 2022 at 11:48:41PM +0200, Jason A. Donenfeld wrote:
-> Rather than truncate a 32-bit value to a 16-bit value or an 8-bit value,
-> simply use the get_random_{u8,u16}() functions, which are faster than
-> wasting the additional bytes from a 32-bit value.
+On Wed, Oct 05, 2022 at 11:48:44PM +0200, Jason A. Donenfeld wrote:
+> With no callers left of prandom_u32() and prandom_bytes(), remove these
+> deprecated wrappers.
 > 
 > Signed-off-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
-Same question about "mechanism of transformation".
-
-> diff --git a/drivers/net/ethernet/chelsio/inline_crypto/chtls/chtls_cm.c b/drivers/net/ethernet/chelsio/inline_crypto/chtls/chtls_cm.c
-> index ddfe9208529a..ac452a0111a9 100644
-> --- a/drivers/net/ethernet/chelsio/inline_crypto/chtls/chtls_cm.c
-> +++ b/drivers/net/ethernet/chelsio/inline_crypto/chtls/chtls_cm.c
-> @@ -1467,7 +1467,7 @@ static void make_established(struct sock *sk, u32 snd_isn, unsigned int opt)
->  	tp->write_seq = snd_isn;
->  	tp->snd_nxt = snd_isn;
->  	tp->snd_una = snd_isn;
-> -	inet_sk(sk)->inet_id = prandom_u32();
-> +	inet_sk(sk)->inet_id = get_random_u16();
->  	assign_rxopt(sk, opt);
->  
->  	if (tp->rcv_wnd > (RCV_BUFSIZ_M << 10))
-
-This one I had to go look at -- inet_id is u16, so yeah. :)
-
-> diff --git a/lib/test_vmalloc.c b/lib/test_vmalloc.c
-> index 56ffaa8dd3f6..0131ed2cd1bd 100644
-> --- a/lib/test_vmalloc.c
-> +++ b/lib/test_vmalloc.c
-> @@ -80,7 +80,7 @@ static int random_size_align_alloc_test(void)
->  	int i;
->  
->  	for (i = 0; i < test_loop_count; i++) {
-> -		rnd = prandom_u32();
-> +		rnd = get_random_u8();
->  
->  		/*
->  		 * Maximum 1024 pages, if PAGE_SIZE is 4096.
-
-This wasn't obvious either, but it looks like it's because it never
-consumes more than u8?
-
-> diff --git a/net/netfilter/nf_nat_core.c b/net/netfilter/nf_nat_core.c
-> index 7981be526f26..57c7686ac485 100644
-> --- a/net/netfilter/nf_nat_core.c
-> +++ b/net/netfilter/nf_nat_core.c
-> @@ -468,7 +468,7 @@ static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
->  	if (range->flags & NF_NAT_RANGE_PROTO_OFFSET)
->  		off = (ntohs(*keyptr) - ntohs(range->base_proto.all));
->  	else
-> -		off = prandom_u32();
-> +		off = get_random_u16();
->  
->  	attempts = range_size;
-
-Yup, u16 off;
-
-> diff --git a/net/sched/sch_sfb.c b/net/sched/sch_sfb.c
-> index 2829455211f8..7eb70acb4d58 100644
-> --- a/net/sched/sch_sfb.c
-> +++ b/net/sched/sch_sfb.c
-> @@ -379,7 +379,7 @@ static int sfb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
->  		goto enqueue;
->  	}
->  
-> -	r = prandom_u32() & SFB_MAX_PROB;
-> +	r = get_random_u16() & SFB_MAX_PROB;
->  
->  	if (unlikely(r < p_min)) {
->  		if (unlikely(p_min > SFB_MAX_PROB / 2)) {
-
-include/uapi/linux/pkt_sched.h:#define SFB_MAX_PROB 0xFFFF
 
 Reviewed-by: Kees Cook <keescook@chromium.org>
 
