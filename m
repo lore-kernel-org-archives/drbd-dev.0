@@ -1,17 +1,19 @@
-Return-Path: <jack@suse.cz>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4FABF4203D5
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 10:49:35 +0200 (CEST)
-Date: Thu, 6 Oct 2022 10:43:31 +0200
-From: Jan Kara <jack@suse.cz>
-To: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Message-ID: <20221006084331.4bdktc2zlvbaszym@quack3>
+Return-Path: <SRS0=tIOp=2H=zx2c4.com=Jason@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C11764206CF
+	for <drbd-dev@lists.linbit.com>;
+	Thu,  6 Oct 2022 14:37:15 +0200 (CEST)
+Date: Thu, 6 Oct 2022 06:28:26 -0600
+From: "Jason A. Donenfeld" <Jason@zx2c4.com>
+To: Kees Cook <keescook@chromium.org>
+Message-ID: <Yz7J6j3cXDLK7O6A@zx2c4.com>
 References: <20221005214844.2699-1-Jason@zx2c4.com>
-	<20221005214844.2699-4-Jason@zx2c4.com>
+	<20221005214844.2699-3-Jason@zx2c4.com>
+	<202210052126.B34A2C62@keescook>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20221005214844.2699-4-Jason@zx2c4.com>
+In-Reply-To: <202210052126.B34A2C62@keescook>
 Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Ulf Hansson <ulf.hansson@linaro.org>, dri-devel@lists.freedesktop.org,
 	Andrii Nakryiko <andrii@kernel.org>,
@@ -88,7 +90,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	"Naveen N . Rao" <naveen.n.rao@linux.ibm.com>,
 	Ilya Dryomov <idryomov@gmail.com>, Paolo Abeni <pabeni@redhat.com>,
 	Pablo Neira Ayuso <pablo@netfilter.org>, Marco Elver <elver@google.com>,
-	Kees Cook <keescook@chromium.org>, Yury Norov <yury.norov@gmail.com>,
+	Yury Norov <yury.norov@gmail.com>,
 	"James E . J . Bottomley" <jejb@linux.ibm.com>,
 	Jamal Hadi Salim <jhs@mojatatu.com>,
 	KP Singh <kpsingh@kernel.org>, Borislav Petkov <bp@alien8.de>,
@@ -140,8 +142,8 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Thomas Graf <tgraf@suug.ch>, Johannes Berg <johannes@sipsolutions.net>,
 	Sungjong Seo <sj1557.seo@samsung.com>,
 	Martin KaFai Lau <martin.lau@linux.dev>
-Subject: Re: [Drbd-dev] [PATCH v1 3/5] treewide: use get_random_u32() when
-	possible
+Subject: Re: [Drbd-dev] [PATCH v1 2/5] treewide: use get_random_{u8,
+	u16}() when possible
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -153,71 +155,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed 05-10-22 23:48:42, Jason A. Donenfeld wrote:
-> The prandom_u32() function has been a deprecated inline wrapper around
-> get_random_u32() for several releases now, and compiles down to the
-> exact same code. Replace the deprecated wrapper with a direct call to
-> the real function.
+On Wed, Oct 05, 2022 at 09:38:02PM -0700, Kees Cook wrote:
+> > diff --git a/lib/test_vmalloc.c b/lib/test_vmalloc.c
+> > index 56ffaa8dd3f6..0131ed2cd1bd 100644
+> > --- a/lib/test_vmalloc.c
+> > +++ b/lib/test_vmalloc.c
+> > @@ -80,7 +80,7 @@ static int random_size_align_alloc_test(void)
+> >  	int i;
+> >  
+> >  	for (i = 0; i < test_loop_count; i++) {
+> > -		rnd = prandom_u32();
+> > +		rnd = get_random_u8();
+> >  
+> >  		/*
+> >  		 * Maximum 1024 pages, if PAGE_SIZE is 4096.
 > 
-> Signed-off-by: Jason A. Donenfeld <Jason@zx2c4.com>
+> This wasn't obvious either, but it looks like it's because it never
+> consumes more than u8?
 
-...
+Right. The only uses of that are %23 and %10 later on down.
 
-> diff --git a/fs/ext2/ialloc.c b/fs/ext2/ialloc.c
-> index 998dd2ac8008..e439a872c398 100644
-> --- a/fs/ext2/ialloc.c
-> +++ b/fs/ext2/ialloc.c
-> @@ -277,7 +277,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
->  		int best_ndir = inodes_per_group;
->  		int best_group = -1;
->  
-> -		group = prandom_u32();
-> +		group = get_random_u32();
->  		parent_group = (unsigned)group % ngroups;
->  		for (i = 0; i < ngroups; i++) {
->  			group = (parent_group + i) % ngroups;
-
-The code here is effectively doing the
-
-	parent_group = prandom_u32_max(ngroups);
-
-> diff --git a/fs/ext4/ialloc.c b/fs/ext4/ialloc.c
-> index f73e5eb43eae..954ec9736a8d 100644
-> --- a/fs/ext4/ialloc.c
-> +++ b/fs/ext4/ialloc.c
-> @@ -465,7 +465,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
->  			ext4fs_dirhash(parent, qstr->name, qstr->len, &hinfo);
->  			grp = hinfo.hash;
->  		} else
-> -			grp = prandom_u32();
-> +			grp = get_random_u32();
-
-Similarly here we can use prandom_u32_max(ngroups) like:
-
-		if (qstr) {
-			...
-			parent_group = hinfo.hash % ngroups;
-		} else
-			parent_group = prandom_u32_max(ngroups);
-
-> diff --git a/fs/ext4/mmp.c b/fs/ext4/mmp.c
-> index 9af68a7ecdcf..588cb09c5291 100644
-> --- a/fs/ext4/mmp.c
-> +++ b/fs/ext4/mmp.c
-> @@ -265,7 +265,7 @@ static unsigned int mmp_new_seq(void)
->  	u32 new_seq;
->  
->  	do {
-> -		new_seq = prandom_u32();
-> +		new_seq = get_random_u32();
->  	} while (new_seq > EXT4_MMP_SEQ_MAX);
-
-OK, here we again effectively implement prandom_u32_max(EXT4_MMP_SEQ_MAX + 1).
-Just presumably we didn't want to use modulo here because EXT4_MMP_SEQ_MAX
-is rather big and so the resulting 'new_seq' would be seriously
-non-uniform.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Jason
