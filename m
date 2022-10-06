@@ -1,21 +1,26 @@
-Return-Path: <keescook@chromium.org>
-Received: from mail-pj1-f52.google.com (mail-pj1-f52.google.com
-	[209.85.216.52])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 74F924201C4
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 06:16:53 +0200 (CEST)
-Received: by mail-pj1-f52.google.com with SMTP id
-	i7-20020a17090a65c700b0020ad9666a86so3272095pjs.0
-	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 21:16:53 -0700 (PDT)
-Date: Wed, 5 Oct 2022 21:16:50 -0700
-From: Kees Cook <keescook@chromium.org>
-To: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Message-ID: <202210052035.A1020E3@keescook>
+Return-Path: <kpsingh@kernel.org>
+Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DC7094201AA
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 06:30:48 +0200 (CEST)
+Received: from smtp.kernel.org (relay.kernel.org [52.25.139.140])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by ams.source.kernel.org (Postfix) with ESMTPS id 7577FB81EC9
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 04:22:43 +0000 (UTC)
+Received: by smtp.kernel.org (Postfix) with ESMTPSA id 6F2A5C43161
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 04:22:41 +0000 (UTC)
+Received: by mail-lf1-f50.google.com with SMTP id d6so921349lfs.10
+	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 21:22:41 -0700 (PDT)
+MIME-Version: 1.0
 References: <20221005214844.2699-1-Jason@zx2c4.com>
 	<20221005214844.2699-2-Jason@zx2c4.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20221005214844.2699-2-Jason@zx2c4.com>
+	<202210052035.A1020E3@keescook>
+In-Reply-To: <202210052035.A1020E3@keescook>
+From: KP Singh <kpsingh@kernel.org>
+Date: Wed, 5 Oct 2022 21:22:17 -0700
+Message-ID: <CACYkzJ6w6DitDk9uoEyyNeg+HmNHZx_tckJ_=EroqmT=CN3VBA@mail.gmail.com>
+To: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset="UTF-8"
 Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Ulf Hansson <ulf.hansson@linaro.org>, dri-devel@lists.freedesktop.org,
 	Andrii Nakryiko <andrii@kernel.org>,
@@ -66,7 +71,8 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	linux-crypto@vger.kernel.org,
 	Santosh Shilimkar <santosh.shilimkar@oracle.com>,
 	Ganapathi Bhat <ganapathi017@gmail.com>, linux-actions@lists.infradead.org,
-	Simon Horman <horms@verge.net.au>, Jaegeuk Kim <jaegeuk@kernel.org>,
+	"Jason A. Donenfeld" <Jason@zx2c4.com>, Simon Horman <horms@verge.net.au>,
+	Jaegeuk Kim <jaegeuk@kernel.org>,
 	Mika Westerberg <mika.westerberg@linux.intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>,
@@ -74,7 +80,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Stephen Boyd <sboyd@kernel.org>,
 	Dennis Dalessandro <dennis.dalessandro@cornelisnetworks.com>,
 	Florian Westphal <fw@strlen.de>,
-	Andreas =?iso-8859-1?Q?F=E4rber?= <afaerber@suse.de>,
+	=?UTF-8?Q?Andreas_F=C3=A4rber?= <afaerber@suse.de>,
 	Jon Maloy <jmaloy@redhat.com>, Vlad Yasevich <vyasevich@gmail.com>,
 	Anna Schumaker <anna@kernel.org>, Haoyue Xu <xuhaoyue1@hisilicon.com>,
 	Heiner Kallweit <hkallweit1@gmail.com>, linux-wireless@vger.kernel.org,
@@ -95,8 +101,8 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Yury Norov <yury.norov@gmail.com>,
 	"James E . J . Bottomley" <jejb@linux.ibm.com>,
 	Jamal Hadi Salim <jhs@mojatatu.com>,
-	KP Singh <kpsingh@kernel.org>, Borislav Petkov <bp@alien8.de>,
-	Keith Busch <kbusch@kernel.org>, Dan Williams <dan.j.williams@intel.com>,
+	Borislav Petkov <bp@alien8.de>, Keith Busch <kbusch@kernel.org>,
+	Dan Williams <dan.j.williams@intel.com>,
 	Mauro Carvalho Chehab <mchehab@kernel.org>,
 	Franky Lin <franky.lin@broadcom.com>,
 	Arend van Spriel <aspriel@gmail.com>, linux-ext4@vger.kernel.org,
@@ -108,7 +114,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	netdev@vger.kernel.org, Ying Xue <ying.xue@windriver.com>,
 	Manish Rangankar <mrangankar@marvell.com>,
 	"David S . Miller" <davem@davemloft.net>,
-	Toke =?iso-8859-1?Q?H=F8iland-J=F8rgensen?= <toke@toke.dk>,
+	=?UTF-8?B?VG9rZSBIw7hpbGFuZC1Kw7hyZ2Vuc2Vu?= <toke@toke.dk>,
 	Vignesh Raghavendra <vigneshr@ti.com>,
 	Peter Zijlstra <peterz@infradead.org>, "H . Peter Anvin" <hpa@zytor.com>,
 	Alexandre Torgue <alexandre.torgue@foss.st.com>,
@@ -157,61 +163,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 05, 2022 at 11:48:40PM +0200, Jason A. Donenfeld wrote:
-> Rather than incurring a division or requesting too many random bytes for
-> the given range, use the prandom_u32_max() function, which only takes
-> the minimum required bytes from the RNG and avoids divisions.
+On Wed, Oct 5, 2022 at 9:16 PM Kees Cook <keescook@chromium.org> wrote:
+>
+> On Wed, Oct 05, 2022 at 11:48:40PM +0200, Jason A. Donenfeld wrote:
+> > Rather than incurring a division or requesting too many random bytes for
+> > the given range, use the prandom_u32_max() function, which only takes
+> > the minimum required bytes from the RNG and avoids divisions.
+>
+> Yes please!
+>
+> Since this is a treewide patch, it's helpful for (me at least) doing
+> reviews to detail the mechanism of the transformation.
+>
+> e.g. I imagine this could be done with something like Coccinelle and
+>
+> @no_modulo@
+> expression E;
+> @@
+>
+> -       (prandom_u32() % (E))
+> +       prandom_u32_max(E)
+>
+> > diff --git a/drivers/mtd/ubi/debug.h b/drivers/mtd/ubi/debug.h
+> > index 118248a5d7d4..4236c799a47c 100644
+> > --- a/drivers/mtd/ubi/debug.h
+> > +++ b/drivers/mtd/ubi/debug.h
+> > @@ -73,7 +73,7 @@ static inline int ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)
+> >  static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi)
+> >  {
+> >       if (ubi->dbg.emulate_bitflips)
+> > -             return !(prandom_u32() % 200);
+> > +             return !(prandom_u32_max(200));
+> >       return 0;
+> >  }
+> >
+>
+> Because some looks automated (why the parens?)
+>
+> > @@ -393,14 +387,11 @@ static struct test_driver {
+> >
+> >  static void shuffle_array(int *arr, int n)
+> >  {
+> > -     unsigned int rnd;
+> >       int i, j;
+> >
+> >       for (i = n - 1; i > 0; i--)  {
+> > -             rnd = prandom_u32();
+> > -
+> >               /* Cut the range. */
+> > -             j = rnd % i;
+> > +             j = prandom_u32_max(i);
+> >
+> >               /* Swap indexes. */
+> >               swap(arr[i], arr[j]);
+>
+> And some by hand. :)
+>
+> Reviewed-by: Kees Cook <keescook@chromium.org>
 
-Yes please!
+Thanks!
 
-Since this is a treewide patch, it's helpful for (me at least) doing
-reviews to detail the mechanism of the transformation.
+Reviewed-by: KP Singh <kpsingh@kernel.org>
 
-e.g. I imagine this could be done with something like Coccinelle and
 
-@no_modulo@
-expression E;
-@@
-
--	(prandom_u32() % (E))
-+	prandom_u32_max(E)
-
-> diff --git a/drivers/mtd/ubi/debug.h b/drivers/mtd/ubi/debug.h
-> index 118248a5d7d4..4236c799a47c 100644
-> --- a/drivers/mtd/ubi/debug.h
-> +++ b/drivers/mtd/ubi/debug.h
-> @@ -73,7 +73,7 @@ static inline int ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)
->  static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi)
->  {
->  	if (ubi->dbg.emulate_bitflips)
-> -		return !(prandom_u32() % 200);
-> +		return !(prandom_u32_max(200));
->  	return 0;
->  }
->  
-
-Because some looks automated (why the parens?)
-
-> @@ -393,14 +387,11 @@ static struct test_driver {
->  
->  static void shuffle_array(int *arr, int n)
->  {
-> -	unsigned int rnd;
->  	int i, j;
->  
->  	for (i = n - 1; i > 0; i--)  {
-> -		rnd = prandom_u32();
-> -
->  		/* Cut the range. */
-> -		j = rnd % i;
-> +		j = prandom_u32_max(i);
->  
->  		/* Swap indexes. */
->  		swap(arr[i], arr[j]);
-
-And some by hand. :)
-
-Reviewed-by: Kees Cook <keescook@chromium.org>
-
--- 
-Kees Cook
+>
+> --
+> Kees Cook
