@@ -1,21 +1,20 @@
 Return-Path: <keescook@chromium.org>
-Received: from mail-pj1-f41.google.com (mail-pj1-f41.google.com
-	[209.85.216.41])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1215C4201AA
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 06:39:08 +0200 (CEST)
-Received: by mail-pj1-f41.google.com with SMTP id
-	p3-20020a17090a284300b0020a85fa3ffcso3280832pjf.2
-	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 21:39:08 -0700 (PDT)
-Date: Wed, 5 Oct 2022 21:39:03 -0700
+Received: from mail-pj1-f42.google.com (mail-pj1-f42.google.com
+	[209.85.216.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 396264201C4
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 06:45:27 +0200 (CEST)
+Received: by mail-pj1-f42.google.com with SMTP id fw14so746810pjb.3
+	for <drbd-dev@lists.linbit.com>; Wed, 05 Oct 2022 21:45:27 -0700 (PDT)
+Date: Wed, 5 Oct 2022 21:45:22 -0700
 From: Kees Cook <keescook@chromium.org>
 To: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Message-ID: <202210052138.A585E4CC@keescook>
+Message-ID: <202210052144.5DA3690D@keescook>
 References: <20221005214844.2699-1-Jason@zx2c4.com>
-	<20221005214844.2699-6-Jason@zx2c4.com>
+	<20221005214844.2699-5-Jason@zx2c4.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20221005214844.2699-6-Jason@zx2c4.com>
+In-Reply-To: <20221005214844.2699-5-Jason@zx2c4.com>
 Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Ulf Hansson <ulf.hansson@linaro.org>, dri-devel@lists.freedesktop.org,
 	Andrii Nakryiko <andrii@kernel.org>,
@@ -144,7 +143,8 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Thomas Graf <tgraf@suug.ch>, Johannes Berg <johannes@sipsolutions.net>,
 	Sungjong Seo <sj1557.seo@samsung.com>,
 	Martin KaFai Lau <martin.lau@linux.dev>
-Subject: Re: [Drbd-dev] [PATCH v1 5/5] prandom: remove unused functions
+Subject: Re: [Drbd-dev] [PATCH v1 4/5] treewide: use get_random_bytes when
+	possible
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -156,11 +156,13 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 05, 2022 at 11:48:44PM +0200, Jason A. Donenfeld wrote:
-> With no callers left of prandom_u32() and prandom_bytes(), remove these
-> deprecated wrappers.
-> 
-> Signed-off-by: Jason A. Donenfeld <Jason@zx2c4.com>
+On Wed, Oct 05, 2022 at 11:48:43PM +0200, Jason A. Donenfeld wrote:
+> The prandom_bytes() function has been a deprecated inline wrapper around
+> get_random_bytes() for several releases now, and compiles down to the
+> exact same code. Replace the deprecated wrapper with a direct call to
+> the real function.
+
+Global search/replace matches. :)
 
 Reviewed-by: Kees Cook <keescook@chromium.org>
 
