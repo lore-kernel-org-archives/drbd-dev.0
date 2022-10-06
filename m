@@ -1,20 +1,17 @@
-Return-Path: <jgg@ziepe.ca>
-Received: from mail-qv1-f54.google.com (mail-qv1-f54.google.com
-	[209.85.219.54])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 623CE4206CF
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 14:47:53 +0200 (CEST)
-Received: by mail-qv1-f54.google.com with SMTP id l19so1086732qvu.4
-	for <drbd-dev@lists.linbit.com>; Thu, 06 Oct 2022 05:47:53 -0700 (PDT)
-Date: Thu, 6 Oct 2022 09:47:49 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Message-ID: <Yz7OdfKZeGkpZSKb@ziepe.ca>
+Return-Path: <SRS0=tIOp=2H=zx2c4.com=Jason@kernel.org>
+Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B8134206CF
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Oct 2022 14:53:45 +0200 (CEST)
+Date: Thu, 6 Oct 2022 06:53:14 -0600
+From: "Jason A. Donenfeld" <Jason@zx2c4.com>
+To: Kees Cook <keescook@chromium.org>
+Message-ID: <Yz7PusEN5TG1PvJZ@zx2c4.com>
 References: <20221005214844.2699-1-Jason@zx2c4.com>
-	<20221005214844.2699-4-Jason@zx2c4.com>
+	<202210052148.B11CBC60@keescook>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20221005214844.2699-4-Jason@zx2c4.com>
+In-Reply-To: <202210052148.B11CBC60@keescook>
 Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Ulf Hansson <ulf.hansson@linaro.org>, dri-devel@lists.freedesktop.org,
 	Andrii Nakryiko <andrii@kernel.org>,
@@ -91,7 +88,7 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	"Naveen N . Rao" <naveen.n.rao@linux.ibm.com>,
 	Ilya Dryomov <idryomov@gmail.com>, Paolo Abeni <pabeni@redhat.com>,
 	Pablo Neira Ayuso <pablo@netfilter.org>, Marco Elver <elver@google.com>,
-	Kees Cook <keescook@chromium.org>, Yury Norov <yury.norov@gmail.com>,
+	Yury Norov <yury.norov@gmail.com>,
 	"James E . J . Bottomley" <jejb@linux.ibm.com>,
 	Jamal Hadi Salim <jhs@mojatatu.com>,
 	KP Singh <kpsingh@kernel.org>, Borislav Petkov <bp@alien8.de>,
@@ -121,7 +118,8 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	linux-scsi@vger.kernel.org, dccp@vger.kernel.org,
 	Richard Weinberger <richard@nod.at>, Russell King <linux@armlinux.org.uk>,
 	Jaehoon Chung <jh80.chung@samsung.com>,
-	Ingo Molnar <mingo@redhat.com>, Jakub Kicinski <kuba@kernel.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Ingo Molnar <mingo@redhat.com>,
+	Jakub Kicinski <kuba@kernel.org>,
 	John Fastabend <john.fastabend@gmail.com>,
 	Maxime Coquelin <mcoquelin.stm32@gmail.com>,
 	Manivannan Sadhasivam <mani@kernel.org>,
@@ -142,8 +140,8 @@ Cc: Andrew Lunn <andrew@lunn.ch>, "Darrick J . Wong" <djwong@kernel.org>,
 	Thomas Graf <tgraf@suug.ch>, Johannes Berg <johannes@sipsolutions.net>,
 	Sungjong Seo <sj1557.seo@samsung.com>,
 	Martin KaFai Lau <martin.lau@linux.dev>
-Subject: Re: [Drbd-dev] [PATCH v1 3/5] treewide: use get_random_u32() when
-	possible
+Subject: Re: [Drbd-dev] [PATCH v1 0/5] treewide cleanup of random integer
+	usage
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -155,37 +153,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Oct 05, 2022 at 11:48:42PM +0200, Jason A. Donenfeld wrote:
+On Wed, Oct 05, 2022 at 09:55:43PM -0700, Kees Cook wrote:
+> It'd be nice to capture some (all?) of the above somewhere. Perhaps just
+> a massive comment in the header?
 
-> index 14392c942f49..499a425a3379 100644
-> --- a/drivers/infiniband/hw/cxgb4/cm.c
-> +++ b/drivers/infiniband/hw/cxgb4/cm.c
-> @@ -734,7 +734,7 @@ static int send_connect(struct c4iw_ep *ep)
->  				   &ep->com.remote_addr;
->  	int ret;
->  	enum chip_type adapter_type = ep->com.dev->rdev.lldi.adapter_type;
-> -	u32 isn = (prandom_u32() & ~7UL) - 1;
-> +	u32 isn = (get_random_u32() & ~7UL) - 1;
+I'll include (something like) this in some "how to use" documentation
+I'm working on separately.
 
-Maybe this wants to be written as
+> > I've CC'd get_maintainers.pl, which is a pretty big list. Probably some
+> > portion of those are going to bounce, too, and everytime you reply to
+> > this thread, you'll have to deal with a bunch of bounces coming
+> > immediately after. And a recipient list this big will probably dock my
+> > email domain's spam reputation, at least temporarily. Sigh. I think
+> > that's just how it goes with treewide cleanups though. Again, let me
+> > know if I'm doing it wrong.
+> 
+> I usually stick to just mailing lists and subsystem maintainers.
 
-(prandom_max(U32_MAX >> 7) << 7) | 7
+Lord have mercy I really wish I had done that. I supremely butchered the
+sending of this, and then tried to save it by resubmitting directly to
+vger with the same message ID but truncated CC, which mostly worked, but
+the whole thing is a mess. I'll trim this to subsystem maintainers and
+resubmit a v2 right away, rather than having people wade through the
+mess.
 
-?
+To any one who's reading this: no more replies to v1! It clogs the
+tubes.
 
-> diff --git a/drivers/infiniband/ulp/ipoib/ipoib_cm.c b/drivers/infiniband/ulp/ipoib/ipoib_cm.c
-> index fd9d7f2c4d64..a605cf66b83e 100644
-> --- a/drivers/infiniband/ulp/ipoib/ipoib_cm.c
-> +++ b/drivers/infiniband/ulp/ipoib/ipoib_cm.c
-> @@ -465,7 +465,7 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id,
->  		goto err_qp;
->  	}
->  
-> -	psn = prandom_u32() & 0xffffff;
-> +	psn = get_random_u32() & 0xffffff;
+> If any of the subsystems ask you to break this up (I hope not), I've got
 
- prandom_max(0xffffff + 1) 
-
-?
+Oh god I surely hope not. Sounds like a massive waste of time and
+paperwork.
 
 Jason
