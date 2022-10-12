@@ -1,30 +1,42 @@
-Return-Path: <BATV+04e4e05a438ac94c6a9b+6987+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3C6A8420319
-	for <drbd-dev@lists.linbit.com>; Mon, 10 Oct 2022 10:50:25 +0200 (CEST)
-Date: Mon, 10 Oct 2022 00:59:01 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Chaitanya Kulkarni <kch@nvidia.com>
-Message-ID: <Y0PQxdzmMzAAW0KF@infradead.org>
-References: <20221005050027.39591-1-kch@nvidia.com>
-	<20221005050027.39591-2-kch@nvidia.com>
+Return-Path: <joe@perches.com>
+Received: from relay.hostedemail.com (smtprelay0015.hostedemail.com
+	[216.40.44.15])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 81D454204B5
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Oct 2022 21:26:29 +0200 (CEST)
+Message-ID: <f8ad3ba44d28dec1a5f7626b82c5e9c2aeefa729.camel@perches.com>
+From: Joe Perches <joe@perches.com>
+To: "Jason A. Donenfeld" <Jason@zx2c4.com>, linux-kernel@vger.kernel.org
+Date: Wed, 12 Oct 2022 12:16:53 -0700
+In-Reply-To: <20221005214844.2699-4-Jason@zx2c4.com>
+References: <20221005214844.2699-1-Jason@zx2c4.com>
+	<20221005214844.2699-4-Jason@zx2c4.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20221005050027.39591-2-kch@nvidia.com>
-Cc: vincent.fu@samsung.com, vigneshr@ti.com, philipp.reisner@linbit.com,
-	linux-mtd@lists.infradead.org, miquel.raynal@bootlin.com,
-	jinpu.wang@ionos.com, tim@cyberelk.net,
-	drbd-dev@lists.linbit.com, bvanassche@acm.org, richard@nod.at,
-	damien.lemoal@opensource.wdc.com, shinichiro.kawasaki@wdc.com,
-	ogeert@linux-m68k.org, josef@toxicpanda.com, efremov@linux.com,
-	nbd@other.debian.org, linux-block@vger.kernel.org,
-	linux-m68k@lists.linux-m68k.org, hare@suse.de,
-	ming.lei@redhat.com, axboe@kernel.dk, johannes.thumshirn@wdc.com,
-	linux-kernel@vger.kernel.org, mcgrof@kernel.org,
-	haris.iqbal@ionos.com, lars.ellenberg@linbit.com
-Subject: Re: [Drbd-dev] [RFC PATCH 01/18] block: add and use init disk helper
+Cc: linux-fbdev@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-wireless@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org, linux-sctp@vger.kernel.org,
+	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	linux-stm32@st-md-mailman.stormreply.com,
+	drbd-dev@lists.linbit.com, dev@openvswitch.org,
+	rds-devel@oss.oracle.com, linux-scsi@vger.kernel.org,
+	dccp@vger.kernel.org, linux-rdma@vger.kernel.org,
+	kasan-dev@googlegroups.com, lvs-devel@vger.kernel.org,
+	coreteam@netfilter.org, tipc-discussion@lists.sourceforge.net,
+	linux-ext4@vger.kernel.org, linux-media@vger.kernel.org,
+	linux-actions@lists.infradead.org, linux-nfs@vger.kernel.org,
+	linux-block@vger.kernel.org, dmaengine@vger.kernel.org,
+	linux-nvme@lists.infradead.org, linux-hams@vger.kernel.org,
+	ceph-devel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+	cake@lists.bufferbloat.net, brcm80211-dev-list.pdl@broadcom.com,
+	linux-raid@vger.kernel.org, netdev@vger.kernel.org,
+	linux-usb@vger.kernel.org, linux-mmc@vger.kernel.org,
+	SHA-cyfmac-dev-list@infineon.com, linux-f2fs-devel@lists.sourceforge.net,
+	linux-xfs@vger.kernel.org, netfilter-devel@vger.kernel.org,
+	linux-crypto@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org
+Subject: Re: [Drbd-dev] [PATCH v1 3/5] treewide: use get_random_u32() when
+	possible
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,23 +48,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Oct 04, 2022 at 10:00:10PM -0700, Chaitanya Kulkarni wrote:
-> +void init_disk(struct gendisk *disk, int major, int first_minor,
-> +		int minors, sector_t sectors, void *private_data,
-> +		const struct block_device_operations *fops)
-> +{
-> +	disk->major = major;
-> +	disk->first_minor = first_minor;
-> +	disk->minors = minors;
-> +	set_capacity(disk, sectors);
-> +	disk->private_data = private_data;
-> +	disk->fops = fops;
+On Wed, 2022-10-05 at 23:48 +0200, Jason A. Donenfeld wrote:
+> The prandom_u32() function has been a deprecated inline wrapper around
+> get_random_u32() for several releases now, and compiles down to the
+> exact same code. Replace the deprecated wrapper with a direct call to
+> the real function.
+[]
+> diff --git a/drivers/infiniband/hw/cxgb4/cm.c b/drivers/infiniband/hw/cxg=
+b4/cm.c
+[]
+> @@ -734,7 +734,7 @@ static int send_connect(struct c4iw_ep *ep)
+>  				   &ep->com.remote_addr;
+>  	int ret;
+>  	enum chip_type adapter_type =3D ep->com.dev->rdev.lldi.adapter_type;
+> -	u32 isn =3D (prandom_u32() & ~7UL) - 1;
+> +	u32 isn =3D (get_random_u32() & ~7UL) - 1;
 
-I don't like this at all.  For one major/first_minor/minors are
-optional and discouraged for new drivers.  Setting the capacity is
-a different thing and is done by helpers also used for revalidation
-in many drivers.
+trivia:
 
-It might make sense to pass the fops (and maybe private_data) to
-blk_mq_alloc_disk / blk_alloc_disk, but even then I'm not quite
-sure it is worth the churn.
+There are somewhat odd size mismatches here.
+
+I had to think a tiny bit if random() returned a value from 0 to 7
+and was promoted to a 64 bit value then truncated to 32 bit.
+
+Perhaps these would be clearer as ~7U and not ~7UL
+
+>  	struct net_device *netdev;
+>  	u64 params;
+> =20
+> @@ -2469,7 +2469,7 @@ static int accept_cr(struct c4iw_ep *ep, struct sk_=
+buff *skb,
+>  	}
+> =20
+>  	if (!is_t4(adapter_type)) {
+> -		u32 isn =3D (prandom_u32() & ~7UL) - 1;
+> +		u32 isn =3D (get_random_u32() & ~7UL) - 1;
+
+etc...
+
+drivers/infiniband/hw/cxgb4/cm.c:	u32 isn =3D (prandom_u32() & ~7UL) - 1;
+drivers/infiniband/hw/cxgb4/cm.c:		u32 isn =3D (prandom_u32() & ~7UL) - 1;
+drivers/net/ethernet/chelsio/inline_crypto/chtls/chtls_cm.c:	rpl5->iss =3D =
+cpu_to_be32((prandom_u32() & ~7UL) - 1);
+drivers/scsi/cxgbi/cxgb4i/cxgb4i.c:		u32 isn =3D (prandom_u32() & ~7UL) - 1=
+;
+drivers/scsi/cxgbi/cxgb4i/cxgb4i.c:		u32 isn =3D (prandom_u32() & ~7UL) - 1=
+;
+drivers/target/iscsi/cxgbit/cxgbit_cm.c:	rpl5->iss =3D cpu_to_be32((prandom=
+_u32() & ~7UL) - 1);
+
