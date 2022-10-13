@@ -1,21 +1,22 @@
-Return-Path: <david.laight@aculab.com>
-Received: from eu-smtp-delivery-151.mimecast.com
-	(eu-smtp-delivery-151.mimecast.com [185.58.85.151])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C9210420372
-	for <drbd-dev@lists.linbit.com>; Wed, 12 Oct 2022 23:35:12 +0200 (CEST)
-From: David Laight <David.Laight@ACULAB.COM>
-To: 'Joe Perches' <joe@perches.com>, "Jason A. Donenfeld" <Jason@zx2c4.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Date: Wed, 12 Oct 2022 21:29:02 +0000
-Message-ID: <d45bd258e033453b85a137112e7694e1@AcuMS.aculab.com>
+Return-Path: <joe@perches.com>
+Received: from relay.hostedemail.com (smtprelay0013.hostedemail.com
+	[216.40.44.13])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A6D48420372
+	for <drbd-dev@lists.linbit.com>; Thu, 13 Oct 2022 03:37:33 +0200 (CEST)
+Message-ID: <3f527ec95a12135eb40f5f2d156a2954feb7fbfe.camel@perches.com>
+From: Joe Perches <joe@perches.com>
+To: David Laight <David.Laight@ACULAB.COM>, "Jason A. Donenfeld"
+	<Jason@zx2c4.com>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+Date: Wed, 12 Oct 2022 18:37:11 -0700
+In-Reply-To: <d45bd258e033453b85a137112e7694e1@AcuMS.aculab.com>
 References: <20221005214844.2699-1-Jason@zx2c4.com>
 	<20221005214844.2699-4-Jason@zx2c4.com>
 	<f8ad3ba44d28dec1a5f7626b82c5e9c2aeefa729.camel@perches.com>
-In-Reply-To: <f8ad3ba44d28dec1a5f7626b82c5e9c2aeefa729.camel@perches.com>
-MIME-Version: 1.0
-Content-Language: en-US
-Content-Type: text/plain; charset=UTF-8
+	<d45bd258e033453b85a137112e7694e1@AcuMS.aculab.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Cc: "linux-fbdev@vger.kernel.org" <linux-fbdev@vger.kernel.org>,
 	"linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>,
 	"linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>,
@@ -76,49 +77,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Joe Perches
-> Sent: 12 October 2022 20:17
->=20
-> On Wed, 2022-10-05 at 23:48 +0200, Jason A. Donenfeld wrote:
-> > The prandom_u32() function has been a deprecated inline wrapper around
-> > get_random_u32() for several releases now, and compiles down to the
-> > exact same code. Replace the deprecated wrapper with a direct call to
-> > the real function.
-> []
-> > diff --git a/drivers/infiniband/hw/cxgb4/cm.c b/drivers/infiniband/hw/c=
-xgb4/cm.c
-> []
-> > @@ -734,7 +734,7 @@ static int send_connect(struct c4iw_ep *ep)
-> >  =09=09=09=09   &ep->com.remote_addr;
-> >  =09int ret;
-> >  =09enum chip_type adapter_type =3D ep->com.dev->rdev.lldi.adapter_type=
+On Wed, 2022-10-12 at 21:29 +0000, David Laight wrote:
+> From: Joe Perches
+> > Sent: 12 October 2022 20:17
+> >=20
+> > On Wed, 2022-10-05 at 23:48 +0200, Jason A. Donenfeld wrote:
+> > > The prandom_u32() function has been a deprecated inline wrapper aroun=
+d
+> > > get_random_u32() for several releases now, and compiles down to the
+> > > exact same code. Replace the deprecated wrapper with a direct call to
+> > > the real function.
+> > []
+> > > diff --git a/drivers/infiniband/hw/cxgb4/cm.c b/drivers/infiniband/hw=
+/cxgb4/cm.c
+> > []
+> > > @@ -734,7 +734,7 @@ static int send_connect(struct c4iw_ep *ep)
+> > >  				   &ep->com.remote_addr;
+> > >  	int ret;
+> > >  	enum chip_type adapter_type =3D ep->com.dev->rdev.lldi.adapter_type=
 ;
-> > -=09u32 isn =3D (prandom_u32() & ~7UL) - 1;
-> > +=09u32 isn =3D (get_random_u32() & ~7UL) - 1;
+> > > -	u32 isn =3D (prandom_u32() & ~7UL) - 1;
+> > > +	u32 isn =3D (get_random_u32() & ~7UL) - 1;
+> >=20
+> > trivia:
+> >=20
+> > There are somewhat odd size mismatches here.
+> >=20
+> > I had to think a tiny bit if random() returned a value from 0 to 7
+> > and was promoted to a 64 bit value then truncated to 32 bit.
+> >=20
+> > Perhaps these would be clearer as ~7U and not ~7UL
 >=20
-> trivia:
->=20
-> There are somewhat odd size mismatches here.
->=20
-> I had to think a tiny bit if random() returned a value from 0 to 7
-> and was promoted to a 64 bit value then truncated to 32 bit.
->=20
-> Perhaps these would be clearer as ~7U and not ~7UL
+> That makes no difference - the compiler will generate the same code.
 
-That makes no difference - the compiler will generate the same code.
+True, more or less.  It's more a question for the reader.
 
-The real question is WTF is the code doing?
-The '& ~7u' clears the bottom 3 bits.
-The '- 1' then sets the bottom 3 bits and decrements the
-(random) high bits.
+> The real question is WTF is the code doing?
 
-So is the same as get_random_u32() | 7.
-But I bet the coder had something else in mind.
+True.
 
-=09David
+> The '& ~7u' clears the bottom 3 bits.
+> The '- 1' then sets the bottom 3 bits and decrements the
+> (random) high bits.
 
--
-Registered Address Lakeside, Bramley Road, Mount Farm, Milton Keynes, MK1 1=
-PT, UK
-Registration No: 1397386 (Wales)
+Right.
 
+> So is the same as get_random_u32() | 7.
+
+True, it's effectively the same as the upper 29 bits are random
+anyway and the bottom 3 bits are always set.
+
+> But I bet the coder had something else in mind.
+
+Likely.
+
+And it was also likely copy/pasted a few times.
