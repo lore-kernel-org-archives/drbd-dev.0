@@ -1,35 +1,24 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-io1-f46.google.com (mail-io1-f46.google.com
-	[209.85.166.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 52D2F420960
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Oct 2022 16:11:31 +0200 (CEST)
-Received: by mail-io1-f46.google.com with SMTP id h206so1156258iof.10
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Oct 2022 07:11:31 -0700 (PDT)
-Message-ID: <9bb423f8-5910-494d-2522-2fcf8e41c2e4@kernel.dk>
-Date: Fri, 28 Oct 2022 08:11:27 -0600
-MIME-Version: 1.0
-Content-Language: en-US
-To: Steven Rostedt <rostedt@goodmis.org>
+Return-Path: <SRS0=KBNb=24=goodmis.org=rostedt@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B4204203C5
+	for <drbd-dev@lists.linbit.com>;
+	Thu, 27 Oct 2022 17:17:54 +0200 (CEST)
+Message-ID: <20221027150925.819019339@goodmis.org>
+Date: Thu, 27 Oct 2022 11:05:29 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+To: linux-kernel@vger.kernel.org
 References: <20221027150525.753064657@goodmis.org>
-	<20221027150925.819019339@goodmis.org>
-	<20221027111944.39b3a80c@gandalf.local.home>
-	<Y1uSG/7VXWLNlxlt@infradead.org>
-	<20221028062414.7859f787@gandalf.local.home>
-	<60b91c39-1e54-ac8b-5e9e-db7e46ca2d60@kernel.dk>
-	<20221028100656.00a4d537@gandalf.local.home>
-From: Jens Axboe <axboe@kernel.dk>
-In-Reply-To: <20221028100656.00a4d537@gandalf.local.home>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Cc: linux-block@vger.kernel.org, Stephen Boyd <sboyd@kernel.org>,
-	linux-kernel@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
-	Christoph Hellwig <hch@infradead.org>, Tejun Heo <tj@kernel.org>,
+Cc: Jens Axboe <axboe@kernel.dk>, Stephen Boyd <sboyd@kernel.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-block@vger.kernel.org, Tejun Heo <tj@kernel.org>,
 	cgroups@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Guenter Roeck <linux@roeck-us.net>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [RFC][PATCH v2 04/31] timers: block: Use
- del_timer_shutdown() before freeing timer
+Subject: [Drbd-dev] [RFC][PATCH v2 04/31] timers: block: Use
+	del_timer_shutdown() before freeing timer
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -41,56 +30,135 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 10/28/22 8:06 AM, Steven Rostedt wrote:
-> On Fri, 28 Oct 2022 07:56:50 -0600
-> Jens Axboe <axboe@kernel.dk> wrote:
-> 
->> On 10/28/22 4:24 AM, Steven Rostedt wrote:
->>> On Fri, 28 Oct 2022 01:26:03 -0700
->>> Christoph Hellwig <hch@infradead.org> wrote:
->>>   
->>>> This is just a single patch out of apparently 31, which claims that
->>>> something that doesn't even exist in mainline must be used without any
->>>> explanation.  How do you expect anyone to be able to review it?  
->>>
->>>   https://lore.kernel.org/all/20221027150525.753064657@goodmis.org/
->>>
->>> Only the first patch is relevant to you. I guess the Cc list would have
->>> been too big to Cc everyone that was Cc'd in the series.  
->>
->> No it's not, because how on earth would anyone know what the change does
->> if you only see the simple s/name/newname change? The patch is useless
->> by itself.
->>
-> 
-> I meant this as the first patch:
-> 
->   https://lore.kernel.org/all/20221027150925.248421571@goodmis.org/
-> 
-> Which was what the link above was suppose to point to.
-> 
-> It's the only patch relevant to the rest of the series, as the rest is just
-> converting over to the shutdown API, and the last patch changes
-> DEBUG_OBJECTS_TIMERS to catch if this was done properly.
-> 
-> That is, patch 01/31 and the patch you were Cc'd on is relevant, and for
-> those that want to look deeper, see patch 31 as well.
+From: "Steven Rostedt (Google)" <rostedt@goodmis.org>
 
-So we got half of what was needed to make any kind of sense of judgement
-on the patch.
+Before a timer is freed, del_timer_shutdown() must be called.
 
-> But if I included the Cc list for patch 01 for all those Cc'd in the
-> entire series, it would be a huge Cc list, so I avoided doing so.
+Link: https://lore.kernel.org/all/20220407161745.7d6754b3@gandalf.local.home/
 
-And my point is that just CC'ing the relevant list for patch 4/31 is
-useless. Do we need to see the whole series? No. Does everyone need to
-see patch 1/31? Yes, very much so. Without that, 4/31 means nothing.
+Cc: Philipp Reisner <philipp.reisner@linbit.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+Cc: "Christoph Böhmwalder" <christoph.boehmwalder@linbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: drbd-dev@lists.linbit.com
+Cc: Tejun Heo <tj@kernel.org>
+Cc: cgroups@vger.kernel.org
+Cc: linux-block@vger.kernel.org
+Signed-off-by: Steven Rostedt (Google) <rostedt@goodmis.org>
+---
+ block/blk-iocost.c             | 2 +-
+ block/blk-iolatency.c          | 2 +-
+ block/blk-stat.c               | 2 +-
+ block/blk-throttle.c           | 2 +-
+ block/kyber-iosched.c          | 2 +-
+ drivers/block/drbd/drbd_main.c | 2 +-
+ drivers/block/loop.c           | 2 +-
+ drivers/block/sunvdc.c         | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)
 
-This is pretty common for tree wide changes. The relevant lists need
-to see the full context, patch 4/31 by itself is useless and may as well
-not be sent at this point then.
-
+diff --git a/block/blk-iocost.c b/block/blk-iocost.c
+index 495396425bad..e2d4bdd3d135 100644
+--- a/block/blk-iocost.c
++++ b/block/blk-iocost.c
+@@ -2814,7 +2814,7 @@ static void ioc_rqos_exit(struct rq_qos *rqos)
+ 	ioc->running = IOC_STOP;
+ 	spin_unlock_irq(&ioc->lock);
+ 
+-	del_timer_sync(&ioc->timer);
++	del_timer_shutdown(&ioc->timer);
+ 	free_percpu(ioc->pcpu_stat);
+ 	kfree(ioc);
+ }
+diff --git a/block/blk-iolatency.c b/block/blk-iolatency.c
+index 571fa95aafe9..7b61f09afedd 100644
+--- a/block/blk-iolatency.c
++++ b/block/blk-iolatency.c
+@@ -645,7 +645,7 @@ static void blkcg_iolatency_exit(struct rq_qos *rqos)
+ {
+ 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
+ 
+-	del_timer_sync(&blkiolat->timer);
++	del_timer_shutdown(&blkiolat->timer);
+ 	flush_work(&blkiolat->enable_work);
+ 	blkcg_deactivate_policy(rqos->q, &blkcg_policy_iolatency);
+ 	kfree(blkiolat);
+diff --git a/block/blk-stat.c b/block/blk-stat.c
+index 2ea01b5c1aca..de51db302c44 100644
+--- a/block/blk-stat.c
++++ b/block/blk-stat.c
+@@ -165,7 +165,7 @@ void blk_stat_remove_callback(struct request_queue *q,
+ 		blk_queue_flag_clear(QUEUE_FLAG_STATS, q);
+ 	spin_unlock_irqrestore(&q->stats->lock, flags);
+ 
+-	del_timer_sync(&cb->timer);
++	del_timer_shutdown(&cb->timer);
+ }
+ 
+ static void blk_stat_free_callback_rcu(struct rcu_head *head)
+diff --git a/block/blk-throttle.c b/block/blk-throttle.c
+index 847721dc2b2b..95af99f24137 100644
+--- a/block/blk-throttle.c
++++ b/block/blk-throttle.c
+@@ -490,7 +490,7 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
+ {
+ 	struct throtl_grp *tg = pd_to_tg(pd);
+ 
+-	del_timer_sync(&tg->service_queue.pending_timer);
++	del_timer_shutdown(&tg->service_queue.pending_timer);
+ 	blkg_rwstat_exit(&tg->stat_bytes);
+ 	blkg_rwstat_exit(&tg->stat_ios);
+ 	kfree(tg);
+diff --git a/block/kyber-iosched.c b/block/kyber-iosched.c
+index b05357bced99..59a444a47ba3 100644
+--- a/block/kyber-iosched.c
++++ b/block/kyber-iosched.c
+@@ -434,7 +434,7 @@ static void kyber_exit_sched(struct elevator_queue *e)
+ 	struct kyber_queue_data *kqd = e->elevator_data;
+ 	int i;
+ 
+-	del_timer_sync(&kqd->timer);
++	del_timer_shutdown(&kqd->timer);
+ 	blk_stat_disable_accounting(kqd->q);
+ 
+ 	for (i = 0; i < KYBER_NUM_DOMAINS; i++)
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index f3e4db16fd07..3f574f3769c3 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2184,7 +2184,7 @@ void drbd_destroy_device(struct kref *kref)
+ 	struct drbd_resource *resource = device->resource;
+ 	struct drbd_peer_device *peer_device, *tmp_peer_device;
+ 
+-	del_timer_sync(&device->request_timer);
++	del_timer_shutdown(&device->request_timer);
+ 
+ 	/* paranoia asserts */
+ 	D_ASSERT(device, device->open_cnt == 0);
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index ad92192c7d61..d134a5fd4ae7 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -1755,7 +1755,7 @@ static void lo_free_disk(struct gendisk *disk)
+ 	if (lo->workqueue)
+ 		destroy_workqueue(lo->workqueue);
+ 	loop_free_idle_workers(lo, true);
+-	del_timer_sync(&lo->timer);
++	del_timer_shutdown(&lo->timer);
+ 	mutex_destroy(&lo->lo_mutex);
+ 	kfree(lo);
+ }
+diff --git a/drivers/block/sunvdc.c b/drivers/block/sunvdc.c
+index fb855da971ee..9868937a9602 100644
+--- a/drivers/block/sunvdc.c
++++ b/drivers/block/sunvdc.c
+@@ -1067,7 +1067,7 @@ static void vdc_port_remove(struct vio_dev *vdev)
+ 
+ 		flush_work(&port->ldc_reset_work);
+ 		cancel_delayed_work_sync(&port->ldc_reset_timer_work);
+-		del_timer_sync(&port->vio.timer);
++		del_timer_shutdown(&port->vio.timer);
+ 
+ 		del_gendisk(port->disk);
+ 		put_disk(port->disk);
 -- 
-Jens Axboe
-
-
+2.35.1
