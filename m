@@ -1,24 +1,27 @@
 Return-Path: <SRS0=KBNb=24=goodmis.org=rostedt@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B4204203C5
-	for <drbd-dev@lists.linbit.com>;
-	Thu, 27 Oct 2022 17:17:54 +0200 (CEST)
-Message-ID: <20221027150925.819019339@goodmis.org>
-Date: Thu, 27 Oct 2022 11:05:29 -0400
+Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1A0564203BD
+	for <drbd-dev@lists.linbit.com>; Thu, 27 Oct 2022 17:26:20 +0200 (CEST)
+Date: Thu, 27 Oct 2022 11:19:44 -0400
 From: Steven Rostedt <rostedt@goodmis.org>
 To: linux-kernel@vger.kernel.org
+Message-ID: <20221027111944.39b3a80c@gandalf.local.home>
+In-Reply-To: <20221027150925.819019339@goodmis.org>
 References: <20221027150525.753064657@goodmis.org>
+	<20221027150925.819019339@goodmis.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Cc: Jens Axboe <axboe@kernel.dk>, Stephen Boyd <sboyd@kernel.org>,
+Content-Transfer-Encoding: quoted-printable
+Cc: Lars, Jens Axboe <axboe@kernel.dk>, Christoph,
+	Stephen Boyd <sboyd@kernel.org>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-block@vger.kernel.org, Tejun Heo <tj@kernel.org>,
 	cgroups@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Ellenberg <lars.ellenberg@linbit.com>,
 	Guenter Roeck <linux@roeck-us.net>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [RFC][PATCH v2 04/31] timers: block: Use
-	del_timer_shutdown() before freeing timer
+Subject: Re: [Drbd-dev] [RFC][PATCH v2 04/31] timers: block: Use
+ del_timer_shutdown() before freeing timer
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,15 +33,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+[
+  quilt mail --send still can't handle unicode characters.
+    Here's the patch again
+]
+
 From: "Steven Rostedt (Google)" <rostedt@goodmis.org>
 
 Before a timer is freed, del_timer_shutdown() must be called.
 
-Link: https://lore.kernel.org/all/20220407161745.7d6754b3@gandalf.local.home/
+Link: https://lore.kernel.org/all/20220407161745.7d6754b3@gandalf.local.hom=
+e/
 
 Cc: Philipp Reisner <philipp.reisner@linbit.com>
 Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-Cc: "Christoph Böhmwalder" <christoph.boehmwalder@linbit.com>
+Cc: "Christoph B=C3=B6hmwalder" <christoph.boehmwalder@linbit.com>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: drbd-dev@lists.linbit.com
 Cc: Tejun Heo <tj@kernel.org>
@@ -61,9 +70,9 @@ index 495396425bad..e2d4bdd3d135 100644
 --- a/block/blk-iocost.c
 +++ b/block/blk-iocost.c
 @@ -2814,7 +2814,7 @@ static void ioc_rqos_exit(struct rq_qos *rqos)
- 	ioc->running = IOC_STOP;
+ 	ioc->running =3D IOC_STOP;
  	spin_unlock_irq(&ioc->lock);
- 
+=20
 -	del_timer_sync(&ioc->timer);
 +	del_timer_shutdown(&ioc->timer);
  	free_percpu(ioc->pcpu_stat);
@@ -75,8 +84,8 @@ index 571fa95aafe9..7b61f09afedd 100644
 +++ b/block/blk-iolatency.c
 @@ -645,7 +645,7 @@ static void blkcg_iolatency_exit(struct rq_qos *rqos)
  {
- 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
- 
+ 	struct blk_iolatency *blkiolat =3D BLKIOLATENCY(rqos);
+=20
 -	del_timer_sync(&blkiolat->timer);
 +	del_timer_shutdown(&blkiolat->timer);
  	flush_work(&blkiolat->enable_work);
@@ -89,11 +98,11 @@ index 2ea01b5c1aca..de51db302c44 100644
 @@ -165,7 +165,7 @@ void blk_stat_remove_callback(struct request_queue *q,
  		blk_queue_flag_clear(QUEUE_FLAG_STATS, q);
  	spin_unlock_irqrestore(&q->stats->lock, flags);
- 
+=20
 -	del_timer_sync(&cb->timer);
 +	del_timer_shutdown(&cb->timer);
  }
- 
+=20
  static void blk_stat_free_callback_rcu(struct rcu_head *head)
 diff --git a/block/blk-throttle.c b/block/blk-throttle.c
 index 847721dc2b2b..95af99f24137 100644
@@ -101,8 +110,8 @@ index 847721dc2b2b..95af99f24137 100644
 +++ b/block/blk-throttle.c
 @@ -490,7 +490,7 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
  {
- 	struct throtl_grp *tg = pd_to_tg(pd);
- 
+ 	struct throtl_grp *tg =3D pd_to_tg(pd);
+=20
 -	del_timer_sync(&tg->service_queue.pending_timer);
 +	del_timer_shutdown(&tg->service_queue.pending_timer);
  	blkg_rwstat_exit(&tg->stat_bytes);
@@ -113,27 +122,27 @@ index b05357bced99..59a444a47ba3 100644
 --- a/block/kyber-iosched.c
 +++ b/block/kyber-iosched.c
 @@ -434,7 +434,7 @@ static void kyber_exit_sched(struct elevator_queue *e)
- 	struct kyber_queue_data *kqd = e->elevator_data;
+ 	struct kyber_queue_data *kqd =3D e->elevator_data;
  	int i;
- 
+=20
 -	del_timer_sync(&kqd->timer);
 +	del_timer_shutdown(&kqd->timer);
  	blk_stat_disable_accounting(kqd->q);
- 
- 	for (i = 0; i < KYBER_NUM_DOMAINS; i++)
+=20
+ 	for (i =3D 0; i < KYBER_NUM_DOMAINS; i++)
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
 index f3e4db16fd07..3f574f3769c3 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
 @@ -2184,7 +2184,7 @@ void drbd_destroy_device(struct kref *kref)
- 	struct drbd_resource *resource = device->resource;
+ 	struct drbd_resource *resource =3D device->resource;
  	struct drbd_peer_device *peer_device, *tmp_peer_device;
- 
+=20
 -	del_timer_sync(&device->request_timer);
 +	del_timer_shutdown(&device->request_timer);
- 
+=20
  	/* paranoia asserts */
- 	D_ASSERT(device, device->open_cnt == 0);
+ 	D_ASSERT(device, device->open_cnt =3D=3D 0);
 diff --git a/drivers/block/loop.c b/drivers/block/loop.c
 index ad92192c7d61..d134a5fd4ae7 100644
 --- a/drivers/block/loop.c
@@ -152,13 +161,13 @@ index fb855da971ee..9868937a9602 100644
 --- a/drivers/block/sunvdc.c
 +++ b/drivers/block/sunvdc.c
 @@ -1067,7 +1067,7 @@ static void vdc_port_remove(struct vio_dev *vdev)
- 
+=20
  		flush_work(&port->ldc_reset_work);
  		cancel_delayed_work_sync(&port->ldc_reset_timer_work);
 -		del_timer_sync(&port->vio.timer);
 +		del_timer_shutdown(&port->vio.timer);
- 
+=20
  		del_gendisk(port->disk);
  		put_disk(port->disk);
--- 
+--=20
 2.35.1
