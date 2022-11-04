@@ -1,20 +1,17 @@
-Return-Path: <groeck7@gmail.com>
-Received: from mail-oi1-f181.google.com (mail-oi1-f181.google.com
-	[209.85.167.181])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D126B4210DE
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Nov 2022 20:22:35 +0100 (CET)
-Received: by mail-oi1-f181.google.com with SMTP id n186so6164456oih.7
-	for <drbd-dev@lists.linbit.com>; Fri, 04 Nov 2022 12:22:35 -0700 (PDT)
-Sender: Guenter Roeck <groeck7@gmail.com>
-Date: Fri, 4 Nov 2022 12:22:32 -0700
-From: Guenter Roeck <linux@roeck-us.net>
-To: Steven Rostedt <rostedt@goodmis.org>
-Message-ID: <20221104192232.GA2520396@roeck-us.net>
+Return-Path: <SRS0=+Cc8=3E=goodmis.org=rostedt@kernel.org>
+Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B5320420237
+	for <drbd-dev@lists.linbit.com>; Fri,  4 Nov 2022 20:42:14 +0100 (CET)
+Date: Fri, 4 Nov 2022 15:42:09 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+To: Guenter Roeck <linux@roeck-us.net>
+Message-ID: <20221104154209.21b26782@rorschach.local.home>
+In-Reply-To: <20221104192232.GA2520396@roeck-us.net>
 References: <20221104054053.431922658@goodmis.org>
+	<20221104192232.GA2520396@roeck-us.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20221104054053.431922658@goodmis.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-doc@vger.kernel.org, dri-devel@lists.freedesktop.org,
 	linaro-mm-sig@lists.linaro.org,
@@ -51,31 +48,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Nov 04, 2022 at 01:40:53AM -0400, Steven Rostedt wrote:
+On Fri, 4 Nov 2022 12:22:32 -0700
+Guenter Roeck <linux@roeck-us.net> wrote:
+
+> Unfortunately the renaming caused some symbol conflicts.
 > 
-> Back in April, I posted an RFC patch set to help mitigate a common issue
-> where a timer gets armed just before it is freed, and when the timer
-> goes off, it crashes in the timer code without any evidence of who the
-> culprit was. I got side tracked and never finished up on that patch set.
-> Since this type of crash is still our #1 crash we are seeing in the field,
-> it has become a priority again to finish it.
+> Global definition: timer_shutdown
 > 
-> This is v3 of that patch set. Thomas Gleixner posted an untested version
-> that makes timer->function NULL as the flag that it is shutdown. I took that
-> code, tested it (fixed it up), added more comments, and changed the
-> name to timer_shutdown_sync(). I also converted it to use WARN_ON_ONCE()
-> instead of just WARN_ON() as Linus asked for.
-> 
+>   File             Line
+> 0 time.c            93 static inline void timer_shutdown(struct clock_event_device *evt)
+> 1 arm_arch_timer.c 690 static __always_inline int timer_shutdown(const int access,
+> 2 timer-fttmr010.c 105 int (*timer_shutdown)(struct clock_event_device *evt);
+> 3 timer-sp804.c    158 static inline void timer_shutdown(struct clock_event_device *evt)
+> 4 timer.h          239 static inline int timer_shutdown(struct timer_list *timer)
 
-Unfortunately the renaming caused some symbol conflicts.
+$ git grep '\btimer_shutdown'
+arch/arm/mach-spear/time.c:static inline void timer_shutdown(struct clock_event_device *evt)
+arch/arm/mach-spear/time.c:     timer_shutdown(evt);
+arch/arm/mach-spear/time.c:     timer_shutdown(evt);
+arch/arm/mach-spear/time.c:     timer_shutdown(evt);
+drivers/clocksource/arm_arch_timer.c:static __always_inline int timer_shutdown(const int access,
+drivers/clocksource/arm_arch_timer.c:   return timer_shutdown(ARCH_TIMER_VIRT_ACCESS, clk);
+drivers/clocksource/arm_arch_timer.c:   return timer_shutdown(ARCH_TIMER_PHYS_ACCESS, clk);
+drivers/clocksource/arm_arch_timer.c:   return timer_shutdown(ARCH_TIMER_MEM_VIRT_ACCESS, clk);
+drivers/clocksource/arm_arch_timer.c:   return timer_shutdown(ARCH_TIMER_MEM_PHYS_ACCESS, clk);
+drivers/clocksource/timer-fttmr010.c:   int (*timer_shutdown)(struct clock_event_device *evt);
+drivers/clocksource/timer-fttmr010.c:   fttmr010->timer_shutdown(evt);
+drivers/clocksource/timer-fttmr010.c:   fttmr010->timer_shutdown(evt);
+drivers/clocksource/timer-fttmr010.c:   fttmr010->timer_shutdown(evt);
+drivers/clocksource/timer-fttmr010.c:           fttmr010->timer_shutdown = ast2600_timer_shutdown;
+drivers/clocksource/timer-fttmr010.c:           fttmr010->timer_shutdown = fttmr010_timer_shutdown;
+drivers/clocksource/timer-fttmr010.c:   fttmr010->clkevt.set_state_shutdown = fttmr010->timer_shutdown;
+drivers/clocksource/timer-fttmr010.c:   fttmr010->clkevt.tick_resume = fttmr010->timer_shutdown;
+drivers/clocksource/timer-sp804.c:static inline void timer_shutdown(struct clock_event_device *evt)
+drivers/clocksource/timer-sp804.c:      timer_shutdown(evt);
+drivers/clocksource/timer-sp804.c:      timer_shutdown(evt);
 
-Global definition: timer_shutdown
+Honestly, I think these need to be renamed, as "timer_shutdown()"
+should be specific to the timer code, and not individual timers.
 
-  File             Line
-0 time.c            93 static inline void timer_shutdown(struct clock_event_device *evt)
-1 arm_arch_timer.c 690 static __always_inline int timer_shutdown(const int access,
-2 timer-fttmr010.c 105 int (*timer_shutdown)(struct clock_event_device *evt);
-3 timer-sp804.c    158 static inline void timer_shutdown(struct clock_event_device *evt)
-4 timer.h          239 static inline int timer_shutdown(struct timer_list *timer)
+I'll start making a patch set that starts by renaming these timers,
+then adds the timer_shutdown() API, and finished with the trivial
+updates, and that will be a real "PATCH" (non RFC).
 
-Guenter
+Linus, should I also add any patches that has already been acked by the
+respective maintainer?
+
+-- Steve
