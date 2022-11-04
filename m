@@ -1,31 +1,22 @@
-Return-Path: <torvalds@linuxfoundation.org>
-Received: from mail-qt1-f174.google.com (mail-qt1-f174.google.com
-	[209.85.160.174])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C3EC7420237
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Nov 2022 20:51:01 +0100 (CET)
-Received: by mail-qt1-f174.google.com with SMTP id a27so3652057qtw.10
-	for <drbd-dev@lists.linbit.com>; Fri, 04 Nov 2022 12:51:01 -0700 (PDT)
-Received: from mail-yw1-f170.google.com (mail-yw1-f170.google.com.
-	[209.85.128.170]) by smtp.gmail.com with ESMTPSA id
-	m13-20020a05620a290d00b006fa43e139b5sm55633qkp.59.2022.11.04.12.50.59
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
-	Fri, 04 Nov 2022 12:50:59 -0700 (PDT)
-Received: by mail-yw1-f170.google.com with SMTP id
-	00721157ae682-333a4a5d495so52882607b3.10
-	for <drbd-dev@lists.linbit.com>; Fri, 04 Nov 2022 12:50:59 -0700 (PDT)
-MIME-Version: 1.0
+Return-Path: <SRS0=+Cc8=3E=goodmis.org=rostedt@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5D101420237
+	for <drbd-dev@lists.linbit.com>;
+	Fri,  4 Nov 2022 21:38:38 +0100 (CET)
+Date: Fri, 4 Nov 2022 16:38:34 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+To: Guenter Roeck <linux@roeck-us.net>
+Message-ID: <20221104154355.578ab689@rorschach.local.home>
+In-Reply-To: <20221104154209.21b26782@rorschach.local.home>
 References: <20221104054053.431922658@goodmis.org>
 	<20221104192232.GA2520396@roeck-us.net>
 	<20221104154209.21b26782@rorschach.local.home>
-In-Reply-To: <20221104154209.21b26782@rorschach.local.home>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 4 Nov 2022 12:50:42 -0700
-Message-ID: <CAHk-=wge9uWV2i9PR6x7va4ZbPdX5+rg7Ep1UNH_nYdd9rD-uw@mail.gmail.com>
-To: Steven Rostedt <rostedt@goodmis.org>
-Content-Type: text/plain; charset="UTF-8"
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-doc@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linaro-mm-sig@lists.linaro.org,
 	Thomas Gleixner <tglx@linutronix.de>, linux-leds@vger.kernel.org,
 	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
 	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
@@ -34,11 +25,10 @@ Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-acpi@vger.kernel.org, coreteam@netfilter.org,
 	intel-wired-lan@lists.osuosl.org, linux-input@vger.kernel.org,
 	tipc-discussion@lists.sourceforge.net,
-	linux-ext4@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>,
-	linux-media@vger.kernel.org, bridge@lists.linux-foundation.org,
-	linux-pm@vger.kernel.org, intel-gfx@lists.freedesktop.org,
-	rcu@vger.kernel.org, cgroups@vger.kernel.org,
-	openipmi-developer@lists.sourceforge.net,
+	linux-ext4@vger.kernel.org, linux-media@vger.kernel.org,
+	bridge@lists.linux-foundation.org, linux-pm@vger.kernel.org,
+	intel-gfx@lists.freedesktop.org, rcu@vger.kernel.org,
+	cgroups@vger.kernel.org, openipmi-developer@lists.sourceforge.net,
 	Anna-Maria Gleixner <anna-maria@linutronix.de>,
 	linux-edac@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-nfs@vger.kernel.org, linux-parisc@vger.kernel.org,
@@ -46,7 +36,7 @@ Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
 	linux-kernel@vger.kernel.org, linux-bluetooth@vger.kernel.org,
 	netfilter-devel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
-	linaro-mm-sig@lists.linaro.org
+	Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [Drbd-dev] [RFC][PATCH v3 00/33] timers: Use timer_shutdown*()
  before freeing timers
 List-Id: "*Coordination* of development, patches,
@@ -60,12 +50,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Nov 4, 2022 at 12:42 PM Steven Rostedt <rostedt@goodmis.org> wrote:
->
-> Linus, should I also add any patches that has already been acked by the
-> respective maintainer?
+On Fri, 4 Nov 2022 15:42:09 -0400
+Steven Rostedt <rostedt@goodmis.org> wrote:
 
-No, I'd prefer to keep only the ones that are 100% unambiguously not
-changing any semantics.
+> $ git grep '\btimer_shutdown'
+> arch/arm/mach-spear/time.c:static inline void timer_shutdown(struct clock_event_device *evt)
+> arch/arm/mach-spear/time.c:     timer_shutdown(evt);
+> arch/arm/mach-spear/time.c:     timer_shutdown(evt);
+> arch/arm/mach-spear/time.c:     timer_shutdown(evt);
+> drivers/clocksource/arm_arch_timer.c:static __always_inline int timer_shutdown(const int access,
+> drivers/clocksource/arm_arch_timer.c:   return timer_shutdown(ARCH_TIMER_VIRT_ACCESS, clk);
+> drivers/clocksource/arm_arch_timer.c:   return timer_shutdown(ARCH_TIMER_PHYS_ACCESS, clk);
+> drivers/clocksource/arm_arch_timer.c:   return timer_shutdown(ARCH_TIMER_MEM_VIRT_ACCESS, clk);
+> drivers/clocksource/arm_arch_timer.c:   return timer_shutdown(ARCH_TIMER_MEM_PHYS_ACCESS, clk);
+> drivers/clocksource/timer-fttmr010.c:   int (*timer_shutdown)(struct clock_event_device *evt);
 
-              Linus
+
+
+> drivers/clocksource/timer-fttmr010.c:   fttmr010->timer_shutdown(evt);
+> drivers/clocksource/timer-fttmr010.c:   fttmr010->timer_shutdown(evt);
+> drivers/clocksource/timer-fttmr010.c:   fttmr010->timer_shutdown(evt);
+> drivers/clocksource/timer-fttmr010.c:           fttmr010->timer_shutdown = ast2600_timer_shutdown;
+> drivers/clocksource/timer-fttmr010.c:           fttmr010->timer_shutdown = fttmr010_timer_shutdown;
+> drivers/clocksource/timer-fttmr010.c:   fttmr010->clkevt.set_state_shutdown = fttmr010->timer_shutdown;
+> drivers/clocksource/timer-fttmr010.c:   fttmr010->clkevt.tick_resume = fttmr010->timer_shutdown;
+
+I won't touch structure fields though.
+
+-- Steve
+
+
+> drivers/clocksource/timer-sp804.c:static inline void timer_shutdown(struct clock_event_device *evt)
+> drivers/clocksource/timer-sp804.c:      timer_shutdown(evt);
+> drivers/clocksource/timer-sp804.c:      timer_shutdown(evt);
