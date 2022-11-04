@@ -1,26 +1,52 @@
-Return-Path: <SRS0=+Cc8=3E=goodmis.org=rostedt@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F2A3C420237
-	for <drbd-dev@lists.linbit.com>;
-	Fri,  4 Nov 2022 06:58:00 +0100 (CET)
-Message-ID: <20221104054912.617055044@goodmis.org>
-Date: Fri, 04 Nov 2022 01:40:57 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-To: linux-kernel@vger.kernel.org
-References: <20221104054053.431922658@goodmis.org>
+Return-Path: <torvalds@linuxfoundation.org>
+Received: from mail-qv1-f45.google.com (mail-qv1-f45.google.com
+	[209.85.219.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F00334210DE
+	for <drbd-dev@lists.linbit.com>; Fri,  4 Nov 2022 18:00:23 +0100 (CET)
+Received: by mail-qv1-f45.google.com with SMTP id w10so3600405qvr.3
+	for <drbd-dev@lists.linbit.com>; Fri, 04 Nov 2022 10:00:23 -0700 (PDT)
+Received: from mail-yw1-f170.google.com (mail-yw1-f170.google.com.
+	[209.85.128.170]) by smtp.gmail.com with ESMTPSA id
+	s8-20020a05620a16a800b006ed30a8fb21sm3145770qkj.76.2022.11.04.10.00.20
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+	Fri, 04 Nov 2022 10:00:20 -0700 (PDT)
+Received: by mail-yw1-f170.google.com with SMTP id
+	00721157ae682-3701a0681daso49162977b3.4
+	for <drbd-dev@lists.linbit.com>; Fri, 04 Nov 2022 10:00:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Cc: Jens Axboe <axboe@kernel.dk>, Stephen Boyd <sboyd@kernel.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org,
-	Thomas Gleixner <tglx@linutronix.de>,
+References: <20221104054053.431922658@goodmis.org>
+In-Reply-To: <20221104054053.431922658@goodmis.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 4 Nov 2022 10:00:03 -0700
+Message-ID: <CAHk-=whKE5UL+AuCC2wK8oq8D_ueSO_T7-9Acx4POouqVi8ZHg@mail.gmail.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Content-Type: text/plain; charset="UTF-8"
+Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
+	linux-doc@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	Thomas Gleixner <tglx@linutronix.de>, linux-leds@vger.kernel.org,
+	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
+	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
+	linux-sh@vger.kernel.org, linux-atm-general@lists.sourceforge.net,
+	linux-afs@lists.infradead.org, lvs-devel@vger.kernel.org,
+	linux-acpi@vger.kernel.org, coreteam@netfilter.org,
+	intel-wired-lan@lists.osuosl.org, linux-input@vger.kernel.org,
+	tipc-discussion@lists.sourceforge.net,
+	linux-ext4@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>,
+	linux-media@vger.kernel.org, bridge@lists.linux-foundation.org,
+	linux-pm@vger.kernel.org, intel-gfx@lists.freedesktop.org,
+	rcu@vger.kernel.org, cgroups@vger.kernel.org,
+	openipmi-developer@lists.sourceforge.net,
 	Anna-Maria Gleixner <anna-maria@linutronix.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Guenter Roeck <linux@roeck-us.net>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [RFC][PATCH v3 04/33] timers: block: Use
-	timer_shutdown_sync() before freeing timer
+	linux-edac@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-nfs@vger.kernel.org, linux-parisc@vger.kernel.org,
+	Stephen Boyd <sboyd@kernel.org>, netdev@vger.kernel.org,
+	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-bluetooth@vger.kernel.org,
+	netfilter-devel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+	linaro-mm-sig@lists.linaro.org
+Subject: Re: [Drbd-dev] [RFC][PATCH v3 00/33] timers: Use timer_shutdown*()
+ before freeing timers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,135 +58,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: "Steven Rostedt (Google)" <rostedt@goodmis.org>
+On Thu, Nov 3, 2022 at 10:48 PM Steven Rostedt <rostedt@goodmis.org> wrote:
+>
+> Ideally, I would have the first patch go into this rc cycle, which is mostly
+> non functional as it will allow the other patches to come in via the respective
+> subsystems in the next merge window.
 
-Before a timer is freed, timer_shutdown_sync() must be called.
+Ack.
 
-Link: https://lore.kernel.org/all/20220407161745.7d6754b3@gandalf.local.home/
+I also wonder if we could do the completely trivially correct
+conversions immediately.
 
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-Cc: "Christoph Böhmwalder" <christoph.boehmwalder@linbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: drbd-dev@lists.linbit.com
-Cc: Tejun Heo <tj@kernel.org>
-Cc: cgroups@vger.kernel.org
-Cc: linux-block@vger.kernel.org
-Signed-off-by: Steven Rostedt (Google) <rostedt@goodmis.org>
----
- block/blk-iocost.c             | 2 +-
- block/blk-iolatency.c          | 2 +-
- block/blk-stat.c               | 2 +-
- block/blk-throttle.c           | 2 +-
- block/kyber-iosched.c          | 2 +-
- drivers/block/drbd/drbd_main.c | 2 +-
- drivers/block/loop.c           | 2 +-
- drivers/block/sunvdc.c         | 2 +-
- 8 files changed, 8 insertions(+), 8 deletions(-)
+I'm talking about the scripted ones where it's currently a
+"del_timer_sync()", and the very next action is freeing whatever data
+structure the timer is in (possibly with something like free_irq() in
+between - my point is that there's an unconditional free that is very
+clear and unambiguous), so that there is absolutely no question about
+whether they should use "timer_shutdown_sync()" or not.
 
-diff --git a/block/blk-iocost.c b/block/blk-iocost.c
-index 495396425bad..7edc695b3a3d 100644
---- a/block/blk-iocost.c
-+++ b/block/blk-iocost.c
-@@ -2814,7 +2814,7 @@ static void ioc_rqos_exit(struct rq_qos *rqos)
- 	ioc->running = IOC_STOP;
- 	spin_unlock_irq(&ioc->lock);
- 
--	del_timer_sync(&ioc->timer);
-+	timer_shutdown_sync(&ioc->timer);
- 	free_percpu(ioc->pcpu_stat);
- 	kfree(ioc);
- }
-diff --git a/block/blk-iolatency.c b/block/blk-iolatency.c
-index 571fa95aafe9..c7049ab18312 100644
---- a/block/blk-iolatency.c
-+++ b/block/blk-iolatency.c
-@@ -645,7 +645,7 @@ static void blkcg_iolatency_exit(struct rq_qos *rqos)
- {
- 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
- 
--	del_timer_sync(&blkiolat->timer);
-+	timer_shutdown_sync(&blkiolat->timer);
- 	flush_work(&blkiolat->enable_work);
- 	blkcg_deactivate_policy(rqos->q, &blkcg_policy_iolatency);
- 	kfree(blkiolat);
-diff --git a/block/blk-stat.c b/block/blk-stat.c
-index 2ea01b5c1aca..855da21de5dc 100644
---- a/block/blk-stat.c
-+++ b/block/blk-stat.c
-@@ -165,7 +165,7 @@ void blk_stat_remove_callback(struct request_queue *q,
- 		blk_queue_flag_clear(QUEUE_FLAG_STATS, q);
- 	spin_unlock_irqrestore(&q->stats->lock, flags);
- 
--	del_timer_sync(&cb->timer);
-+	timer_shutdown_sync(&cb->timer);
- }
- 
- static void blk_stat_free_callback_rcu(struct rcu_head *head)
-diff --git a/block/blk-throttle.c b/block/blk-throttle.c
-index 847721dc2b2b..38740c4f517a 100644
---- a/block/blk-throttle.c
-+++ b/block/blk-throttle.c
-@@ -490,7 +490,7 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
- {
- 	struct throtl_grp *tg = pd_to_tg(pd);
- 
--	del_timer_sync(&tg->service_queue.pending_timer);
-+	timer_shutdown_sync(&tg->service_queue.pending_timer);
- 	blkg_rwstat_exit(&tg->stat_bytes);
- 	blkg_rwstat_exit(&tg->stat_ios);
- 	kfree(tg);
-diff --git a/block/kyber-iosched.c b/block/kyber-iosched.c
-index b05357bced99..2146969237bf 100644
---- a/block/kyber-iosched.c
-+++ b/block/kyber-iosched.c
-@@ -434,7 +434,7 @@ static void kyber_exit_sched(struct elevator_queue *e)
- 	struct kyber_queue_data *kqd = e->elevator_data;
- 	int i;
- 
--	del_timer_sync(&kqd->timer);
-+	timer_shutdown_sync(&kqd->timer);
- 	blk_stat_disable_accounting(kqd->q);
- 
- 	for (i = 0; i < KYBER_NUM_DOMAINS; i++)
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index f3e4db16fd07..2dc5be89a001 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2184,7 +2184,7 @@ void drbd_destroy_device(struct kref *kref)
- 	struct drbd_resource *resource = device->resource;
- 	struct drbd_peer_device *peer_device, *tmp_peer_device;
- 
--	del_timer_sync(&device->request_timer);
-+	timer_shutdown_sync(&device->request_timer);
- 
- 	/* paranoia asserts */
- 	D_ASSERT(device, device->open_cnt == 0);
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index ad92192c7d61..3ea087cd1f99 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -1755,7 +1755,7 @@ static void lo_free_disk(struct gendisk *disk)
- 	if (lo->workqueue)
- 		destroy_workqueue(lo->workqueue);
- 	loop_free_idle_workers(lo, true);
--	del_timer_sync(&lo->timer);
-+	timer_shutdown_sync(&lo->timer);
- 	mutex_destroy(&lo->lo_mutex);
- 	kfree(lo);
- }
-diff --git a/drivers/block/sunvdc.c b/drivers/block/sunvdc.c
-index fb855da971ee..e14fe5d968d8 100644
---- a/drivers/block/sunvdc.c
-+++ b/drivers/block/sunvdc.c
-@@ -1067,7 +1067,7 @@ static void vdc_port_remove(struct vio_dev *vdev)
- 
- 		flush_work(&port->ldc_reset_work);
- 		cancel_delayed_work_sync(&port->ldc_reset_timer_work);
--		del_timer_sync(&port->vio.timer);
-+		timer_shutdown_sync(&port->vio.timer);
- 
- 		del_gendisk(port->disk);
- 		put_disk(port->disk);
--- 
-2.35.1
+IOW, things like patches 03, 17 and 31, and at least parts others in
+this series.
+
+This series clearly has several much more complex cases that need
+actual real code review, and I think it would help to have the
+completely unambiguous cases out of the way, just to get rid of noise.
+
+So I'd take that first patch, and a scripted set of "this cannot
+change any semantics" patches early.
+
+                Linus
