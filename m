@@ -1,29 +1,23 @@
-Return-Path: <torvalds@linuxfoundation.org>
-Received: from mail-qv1-f45.google.com (mail-qv1-f45.google.com
-	[209.85.219.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F00334210DE
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Nov 2022 18:00:23 +0100 (CET)
-Received: by mail-qv1-f45.google.com with SMTP id w10so3600405qvr.3
-	for <drbd-dev@lists.linbit.com>; Fri, 04 Nov 2022 10:00:23 -0700 (PDT)
-Received: from mail-yw1-f170.google.com (mail-yw1-f170.google.com.
-	[209.85.128.170]) by smtp.gmail.com with ESMTPSA id
-	s8-20020a05620a16a800b006ed30a8fb21sm3145770qkj.76.2022.11.04.10.00.20
-	for <drbd-dev@lists.linbit.com>
-	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
-	Fri, 04 Nov 2022 10:00:20 -0700 (PDT)
-Received: by mail-yw1-f170.google.com with SMTP id
-	00721157ae682-3701a0681daso49162977b3.4
-	for <drbd-dev@lists.linbit.com>; Fri, 04 Nov 2022 10:00:20 -0700 (PDT)
-MIME-Version: 1.0
-References: <20221104054053.431922658@goodmis.org>
-In-Reply-To: <20221104054053.431922658@goodmis.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 4 Nov 2022 10:00:03 -0700
-Message-ID: <CAHk-=whKE5UL+AuCC2wK8oq8D_ueSO_T7-9Acx4POouqVi8ZHg@mail.gmail.com>
+Return-Path: <groeck7@gmail.com>
+Received: from mail-oi1-f181.google.com (mail-oi1-f181.google.com
+	[209.85.167.181])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D126B4210DE
+	for <drbd-dev@lists.linbit.com>; Fri,  4 Nov 2022 20:22:35 +0100 (CET)
+Received: by mail-oi1-f181.google.com with SMTP id n186so6164456oih.7
+	for <drbd-dev@lists.linbit.com>; Fri, 04 Nov 2022 12:22:35 -0700 (PDT)
+Sender: Guenter Roeck <groeck7@gmail.com>
+Date: Fri, 4 Nov 2022 12:22:32 -0700
+From: Guenter Roeck <linux@roeck-us.net>
 To: Steven Rostedt <rostedt@goodmis.org>
-Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20221104192232.GA2520396@roeck-us.net>
+References: <20221104054053.431922658@goodmis.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20221104054053.431922658@goodmis.org>
 Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-doc@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linaro-mm-sig@lists.linaro.org,
 	Thomas Gleixner <tglx@linutronix.de>, linux-leds@vger.kernel.org,
 	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
 	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
@@ -32,11 +26,10 @@ Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-acpi@vger.kernel.org, coreteam@netfilter.org,
 	intel-wired-lan@lists.osuosl.org, linux-input@vger.kernel.org,
 	tipc-discussion@lists.sourceforge.net,
-	linux-ext4@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>,
-	linux-media@vger.kernel.org, bridge@lists.linux-foundation.org,
-	linux-pm@vger.kernel.org, intel-gfx@lists.freedesktop.org,
-	rcu@vger.kernel.org, cgroups@vger.kernel.org,
-	openipmi-developer@lists.sourceforge.net,
+	linux-ext4@vger.kernel.org, linux-media@vger.kernel.org,
+	bridge@lists.linux-foundation.org, linux-pm@vger.kernel.org,
+	intel-gfx@lists.freedesktop.org, rcu@vger.kernel.org,
+	cgroups@vger.kernel.org, openipmi-developer@lists.sourceforge.net,
 	Anna-Maria Gleixner <anna-maria@linutronix.de>,
 	linux-edac@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-nfs@vger.kernel.org, linux-parisc@vger.kernel.org,
@@ -44,7 +37,7 @@ Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
 	linux-kernel@vger.kernel.org, linux-bluetooth@vger.kernel.org,
 	netfilter-devel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
-	linaro-mm-sig@lists.linaro.org
+	Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [Drbd-dev] [RFC][PATCH v3 00/33] timers: Use timer_shutdown*()
  before freeing timers
 List-Id: "*Coordination* of development, patches,
@@ -58,32 +51,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Nov 3, 2022 at 10:48 PM Steven Rostedt <rostedt@goodmis.org> wrote:
->
-> Ideally, I would have the first patch go into this rc cycle, which is mostly
-> non functional as it will allow the other patches to come in via the respective
-> subsystems in the next merge window.
+On Fri, Nov 04, 2022 at 01:40:53AM -0400, Steven Rostedt wrote:
+> 
+> Back in April, I posted an RFC patch set to help mitigate a common issue
+> where a timer gets armed just before it is freed, and when the timer
+> goes off, it crashes in the timer code without any evidence of who the
+> culprit was. I got side tracked and never finished up on that patch set.
+> Since this type of crash is still our #1 crash we are seeing in the field,
+> it has become a priority again to finish it.
+> 
+> This is v3 of that patch set. Thomas Gleixner posted an untested version
+> that makes timer->function NULL as the flag that it is shutdown. I took that
+> code, tested it (fixed it up), added more comments, and changed the
+> name to timer_shutdown_sync(). I also converted it to use WARN_ON_ONCE()
+> instead of just WARN_ON() as Linus asked for.
+> 
 
-Ack.
+Unfortunately the renaming caused some symbol conflicts.
 
-I also wonder if we could do the completely trivially correct
-conversions immediately.
+Global definition: timer_shutdown
 
-I'm talking about the scripted ones where it's currently a
-"del_timer_sync()", and the very next action is freeing whatever data
-structure the timer is in (possibly with something like free_irq() in
-between - my point is that there's an unconditional free that is very
-clear and unambiguous), so that there is absolutely no question about
-whether they should use "timer_shutdown_sync()" or not.
+  File             Line
+0 time.c            93 static inline void timer_shutdown(struct clock_event_device *evt)
+1 arm_arch_timer.c 690 static __always_inline int timer_shutdown(const int access,
+2 timer-fttmr010.c 105 int (*timer_shutdown)(struct clock_event_device *evt);
+3 timer-sp804.c    158 static inline void timer_shutdown(struct clock_event_device *evt)
+4 timer.h          239 static inline int timer_shutdown(struct timer_list *timer)
 
-IOW, things like patches 03, 17 and 31, and at least parts others in
-this series.
-
-This series clearly has several much more complex cases that need
-actual real code review, and I think it would help to have the
-completely unambiguous cases out of the way, just to get rid of noise.
-
-So I'd take that first patch, and a scripted set of "this cannot
-change any semantics" patches early.
-
-                Linus
+Guenter
