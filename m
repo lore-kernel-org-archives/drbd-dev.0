@@ -1,20 +1,18 @@
-Return-Path: <groeck7@gmail.com>
-Received: from mail-oi1-f180.google.com (mail-oi1-f180.google.com
-	[209.85.167.180])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2AC93420308
-	for <drbd-dev@lists.linbit.com>; Sat,  5 Nov 2022 15:18:20 +0100 (CET)
-Received: by mail-oi1-f180.google.com with SMTP id r76so7917338oie.13
-	for <drbd-dev@lists.linbit.com>; Sat, 05 Nov 2022 07:18:20 -0700 (PDT)
-Sender: Guenter Roeck <groeck7@gmail.com>
-Date: Sat, 5 Nov 2022 07:18:17 -0700
-From: Guenter Roeck <linux@roeck-us.net>
-To: Steven Rostedt <rostedt@goodmis.org>
-Message-ID: <20221105141817.GF1606271@roeck-us.net>
+Return-Path: <SRS0=G+DL=3F=goodmis.org=rostedt@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 122E4420308
+	for <drbd-dev@lists.linbit.com>;
+	Sat,  5 Nov 2022 15:47:36 +0100 (CET)
+Date: Sat, 5 Nov 2022 10:47:30 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+To: Guenter Roeck <linux@roeck-us.net>
+Message-ID: <20221105104730.2bfd6740@rorschach.local.home>
+In-Reply-To: <20221105141817.GF1606271@roeck-us.net>
 References: <20221105060024.598488967@goodmis.org>
+	<20221105141817.GF1606271@roeck-us.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20221105060024.598488967@goodmis.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-doc@vger.kernel.org, dri-devel@lists.freedesktop.org,
 	linaro-mm-sig@lists.linaro.org,
@@ -51,34 +49,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, Nov 05, 2022 at 02:00:24AM -0400, Steven Rostedt wrote:
-> 
-> Back in April, I posted an RFC patch set to help mitigate a common issue
-> where a timer gets armed just before it is freed, and when the timer
-> goes off, it crashes in the timer code without any evidence of who the
-> culprit was. I got side tracked and never finished up on that patch set.
-> Since this type of crash is still our #1 crash we are seeing in the field,
-> it has become a priority again to finish it.
-> 
-> The last version of that patch set is here:
-> 
->   https://lore.kernel.org/all/20221104054053.431922658@goodmis.org/
-> 
-> I'm calling this version 4a as it only has obvious changes were the timer that
-> is being shutdown is in the same function where it will be freed or released,
-> as this series should be "safe" for adding. I'll be calling the other patches
-> 4b for the next merge window.
-> 
+On Sat, 5 Nov 2022 07:18:17 -0700
+Guenter Roeck <linux@roeck-us.net> wrote:
 
-Just in case you didn't notice:
+> Just in case you didn't notice:
+> 
+> Looking through the resulting code, I think some of the remaining
+> calls to del_singleshot_timer_sync() can be converted as well.
+> 
+> The calls in drivers/staging/wlan-ng/prism2usb.c:prism2sta_disconnect_usb()
+> are obvious (the containing data structure is freed in the same function).
+> For drivers/char/tpm/tpm-dev-common.c:tpm_common_release(), the containing
+> data structure is freed in the calling code.
 
-Looking through the resulting code, I think some of the remaining
-calls to del_singleshot_timer_sync() can be converted as well.
+Well, actually it is. In patch 5/38:
 
-The calls in drivers/staging/wlan-ng/prism2usb.c:prism2sta_disconnect_usb()
-are obvious (the containing data structure is freed in the same function).
-For drivers/char/tpm/tpm-dev-common.c:tpm_common_release(), the containing
-data structure is freed in the calling code.
+-#define del_singleshot_timer_sync(t) del_timer_sync(t)
++#define del_singleshot_timer_sync(t) timer_shutdown_sync(t)
 
-Thanks,
-Guenter
+This was the reason for patch 1. It was the only user of that function
+that reused the timer after calling that function.
+
+-- Steve
