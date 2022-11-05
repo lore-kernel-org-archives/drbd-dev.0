@@ -1,12 +1,11 @@
 Return-Path: <SRS0=G+DL=3F=goodmis.org=rostedt@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 666444201E3
-	for <drbd-dev@lists.linbit.com>;
-	Sat,  5 Nov 2022 22:48:00 +0100 (CET)
-Date: Sat, 5 Nov 2022 17:47:56 -0400
+Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 040864201E3
+	for <drbd-dev@lists.linbit.com>; Sat,  5 Nov 2022 22:55:52 +0100 (CET)
+Date: Sat, 5 Nov 2022 17:45:42 -0400
 From: Steven Rostedt <rostedt@goodmis.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Message-ID: <20221105174756.38062fce@rorschach.local.home>
+Message-ID: <20221105174542.21bd7e86@rorschach.local.home>
 In-Reply-To: <CAHk-=wjkkomrdcrAxxFijs-Lih6vHze+A2TgM+v7-Z7ZkXT+WA@mail.gmail.com>
 References: <20221105060024.598488967@goodmis.org>
 	<CAHk-=wi95dGkg7DiuOZ27gGW+mxJipn9ykB6LHB-HrbbLG6OMQ@mail.gmail.com>
@@ -56,21 +55,42 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 On Sat, 5 Nov 2022 14:13:14 -0700
 Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-> (Comparing output is also fun because the ordering of the patches is
-> random, so consecutive runs with the same rule will give different
-> patches. I assume that it's just because it's done in parallel, but it
-> doesn't help the "try to see what changes when you change the script"
-> ;)
+> And trying "when != ptr->timer" actually does the right thing in that
+> it gets rid of the case where the timer is modified outside of the
+> del_timer() case, *but* it also causes odd other changes to the
+> output.
+> 
+> Look at what it generates for that
+> 
+>    drivers/media/usb/pvrusb2/pvrusb2-hdw.c
+> 
+> file, which finds a lot of triggers with the "when !=  ptr->timer",
+> but only does one without it.
 
-What I do to compare is:
+I added an expression, and it appears to work:
 
- patch -p1 < cocci1.patch
- git commit -a
- git show | patch -p1 -R
- patch -p1 < cocci2.patch
- git diff
+At least for this case.
 
-Then I see how things changed. This is how I was able to show you the
-tweaks I made.
+@@
+expression E;
+identifier ptr, timer, rfield, slab;
+@@
+(
+-       del_timer(&ptr->timer);
++       timer_shutdown(&ptr->timer);
+|
+-       del_timer_sync(&ptr->timer);
++       timer_shutdown_sync(&ptr->timer);
+)
+  ... when != ptr->timer.function = E;
+(
+        kfree_rcu(ptr, rfield);
+|
+        kmem_cache_free(slab, ptr);
+|
+        kfree(ptr);
+)
+
+Now I need to add return and goto cases here.
 
 -- Steve
