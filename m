@@ -1,25 +1,45 @@
-Return-Path: <SRS0=G+DL=3F=goodmis.org=rostedt@kernel.org>
-Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 777CE420308
-	for <drbd-dev@lists.linbit.com>; Sat,  5 Nov 2022 07:01:30 +0100 (CET)
-Message-ID: <20221105060156.128428980@goodmis.org>
-Date: Sat, 05 Nov 2022 02:00:31 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-To: linux-kernel@vger.kernel.org
+Return-Path: <groeck7@gmail.com>
+Received: from mail-oi1-f180.google.com (mail-oi1-f180.google.com
+	[209.85.167.180])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2AC93420308
+	for <drbd-dev@lists.linbit.com>; Sat,  5 Nov 2022 15:18:20 +0100 (CET)
+Received: by mail-oi1-f180.google.com with SMTP id r76so7917338oie.13
+	for <drbd-dev@lists.linbit.com>; Sat, 05 Nov 2022 07:18:20 -0700 (PDT)
+Sender: Guenter Roeck <groeck7@gmail.com>
+Date: Sat, 5 Nov 2022 07:18:17 -0700
+From: Guenter Roeck <linux@roeck-us.net>
+To: Steven Rostedt <rostedt@goodmis.org>
+Message-ID: <20221105141817.GF1606271@roeck-us.net>
 References: <20221105060024.598488967@goodmis.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Cc: Jens Axboe <axboe@kernel.dk>, Stephen Boyd <sboyd@kernel.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org,
-	Thomas Gleixner <tglx@linutronix.de>,
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20221105060024.598488967@goodmis.org>
+Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
+	linux-doc@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linaro-mm-sig@lists.linaro.org,
+	Thomas Gleixner <tglx@linutronix.de>, linux-leds@vger.kernel.org,
+	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
+	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
+	linux-sh@vger.kernel.org, linux-atm-general@lists.sourceforge.net,
+	linux-afs@lists.infradead.org, lvs-devel@vger.kernel.org,
+	linux-acpi@vger.kernel.org, coreteam@netfilter.org,
+	intel-wired-lan@lists.osuosl.org, linux-input@vger.kernel.org,
+	tipc-discussion@lists.sourceforge.net,
+	linux-ext4@vger.kernel.org, linux-media@vger.kernel.org,
+	bridge@lists.linux-foundation.org, linux-pm@vger.kernel.org,
+	intel-gfx@lists.freedesktop.org, rcu@vger.kernel.org,
+	cgroups@vger.kernel.org, openipmi-developer@lists.sourceforge.net,
 	Anna-Maria Gleixner <anna-maria@linutronix.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Guenter Roeck <linux@roeck-us.net>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v4a 07/38] timers: block: Use
-	timer_shutdown_sync() before freeing timer
+	linux-edac@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-nfs@vger.kernel.org, linux-parisc@vger.kernel.org,
+	Stephen Boyd <sboyd@kernel.org>, netdev@vger.kernel.org,
+	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-bluetooth@vger.kernel.org,
+	netfilter-devel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [Drbd-dev] [PATCH v4a 00/38] timers: Use timer_shutdown*()
+ before freeing timers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,121 +51,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: "Steven Rostedt (Google)" <rostedt@goodmis.org>
+On Sat, Nov 05, 2022 at 02:00:24AM -0400, Steven Rostedt wrote:
+> 
+> Back in April, I posted an RFC patch set to help mitigate a common issue
+> where a timer gets armed just before it is freed, and when the timer
+> goes off, it crashes in the timer code without any evidence of who the
+> culprit was. I got side tracked and never finished up on that patch set.
+> Since this type of crash is still our #1 crash we are seeing in the field,
+> it has become a priority again to finish it.
+> 
+> The last version of that patch set is here:
+> 
+>   https://lore.kernel.org/all/20221104054053.431922658@goodmis.org/
+> 
+> I'm calling this version 4a as it only has obvious changes were the timer that
+> is being shutdown is in the same function where it will be freed or released,
+> as this series should be "safe" for adding. I'll be calling the other patches
+> 4b for the next merge window.
+> 
 
-Before a timer is freed, timer_shutdown_sync() must be called.
+Just in case you didn't notice:
 
-Link: https://lore.kernel.org/all/20221104054053.431922658@goodmis.org/
+Looking through the resulting code, I think some of the remaining
+calls to del_singleshot_timer_sync() can be converted as well.
 
-Cc: Philipp Reisner <philipp.reisner@linbit.com>
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-Cc: "Christoph Böhmwalder" <christoph.boehmwalder@linbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: drbd-dev@lists.linbit.com
-Cc: Tejun Heo <tj@kernel.org>
-Cc: cgroups@vger.kernel.org
-Cc: linux-block@vger.kernel.org
-Signed-off-by: Steven Rostedt (Google) <rostedt@goodmis.org>
----
- block/blk-iocost.c             | 2 +-
- block/blk-iolatency.c          | 2 +-
- block/blk-throttle.c           | 2 +-
- block/kyber-iosched.c          | 2 +-
- drivers/block/drbd/drbd_main.c | 2 +-
- drivers/block/loop.c           | 2 +-
- drivers/block/sunvdc.c         | 2 +-
- 7 files changed, 7 insertions(+), 7 deletions(-)
+The calls in drivers/staging/wlan-ng/prism2usb.c:prism2sta_disconnect_usb()
+are obvious (the containing data structure is freed in the same function).
+For drivers/char/tpm/tpm-dev-common.c:tpm_common_release(), the containing
+data structure is freed in the calling code.
 
-diff --git a/block/blk-iocost.c b/block/blk-iocost.c
-index 495396425bad..7edc695b3a3d 100644
---- a/block/blk-iocost.c
-+++ b/block/blk-iocost.c
-@@ -2814,7 +2814,7 @@ static void ioc_rqos_exit(struct rq_qos *rqos)
- 	ioc->running = IOC_STOP;
- 	spin_unlock_irq(&ioc->lock);
- 
--	del_timer_sync(&ioc->timer);
-+	timer_shutdown_sync(&ioc->timer);
- 	free_percpu(ioc->pcpu_stat);
- 	kfree(ioc);
- }
-diff --git a/block/blk-iolatency.c b/block/blk-iolatency.c
-index 571fa95aafe9..c7049ab18312 100644
---- a/block/blk-iolatency.c
-+++ b/block/blk-iolatency.c
-@@ -645,7 +645,7 @@ static void blkcg_iolatency_exit(struct rq_qos *rqos)
- {
- 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
- 
--	del_timer_sync(&blkiolat->timer);
-+	timer_shutdown_sync(&blkiolat->timer);
- 	flush_work(&blkiolat->enable_work);
- 	blkcg_deactivate_policy(rqos->q, &blkcg_policy_iolatency);
- 	kfree(blkiolat);
-diff --git a/block/blk-throttle.c b/block/blk-throttle.c
-index 847721dc2b2b..38740c4f517a 100644
---- a/block/blk-throttle.c
-+++ b/block/blk-throttle.c
-@@ -490,7 +490,7 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
- {
- 	struct throtl_grp *tg = pd_to_tg(pd);
- 
--	del_timer_sync(&tg->service_queue.pending_timer);
-+	timer_shutdown_sync(&tg->service_queue.pending_timer);
- 	blkg_rwstat_exit(&tg->stat_bytes);
- 	blkg_rwstat_exit(&tg->stat_ios);
- 	kfree(tg);
-diff --git a/block/kyber-iosched.c b/block/kyber-iosched.c
-index b05357bced99..2146969237bf 100644
---- a/block/kyber-iosched.c
-+++ b/block/kyber-iosched.c
-@@ -434,7 +434,7 @@ static void kyber_exit_sched(struct elevator_queue *e)
- 	struct kyber_queue_data *kqd = e->elevator_data;
- 	int i;
- 
--	del_timer_sync(&kqd->timer);
-+	timer_shutdown_sync(&kqd->timer);
- 	blk_stat_disable_accounting(kqd->q);
- 
- 	for (i = 0; i < KYBER_NUM_DOMAINS; i++)
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index f3e4db16fd07..2dc5be89a001 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2184,7 +2184,7 @@ void drbd_destroy_device(struct kref *kref)
- 	struct drbd_resource *resource = device->resource;
- 	struct drbd_peer_device *peer_device, *tmp_peer_device;
- 
--	del_timer_sync(&device->request_timer);
-+	timer_shutdown_sync(&device->request_timer);
- 
- 	/* paranoia asserts */
- 	D_ASSERT(device, device->open_cnt == 0);
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index ad92192c7d61..3ea087cd1f99 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -1755,7 +1755,7 @@ static void lo_free_disk(struct gendisk *disk)
- 	if (lo->workqueue)
- 		destroy_workqueue(lo->workqueue);
- 	loop_free_idle_workers(lo, true);
--	del_timer_sync(&lo->timer);
-+	timer_shutdown_sync(&lo->timer);
- 	mutex_destroy(&lo->lo_mutex);
- 	kfree(lo);
- }
-diff --git a/drivers/block/sunvdc.c b/drivers/block/sunvdc.c
-index fb855da971ee..e14fe5d968d8 100644
---- a/drivers/block/sunvdc.c
-+++ b/drivers/block/sunvdc.c
-@@ -1067,7 +1067,7 @@ static void vdc_port_remove(struct vio_dev *vdev)
- 
- 		flush_work(&port->ldc_reset_work);
- 		cancel_delayed_work_sync(&port->ldc_reset_timer_work);
--		del_timer_sync(&port->vio.timer);
-+		timer_shutdown_sync(&port->vio.timer);
- 
- 		del_gendisk(port->disk);
- 		put_disk(port->disk);
--- 
-2.35.1
+Thanks,
+Guenter
