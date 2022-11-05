@@ -1,21 +1,29 @@
-Return-Path: <SRS0=G+DL=3F=goodmis.org=rostedt@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 122E4420308
-	for <drbd-dev@lists.linbit.com>;
-	Sat,  5 Nov 2022 15:47:36 +0100 (CET)
-Date: Sat, 5 Nov 2022 10:47:30 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Message-ID: <20221105104730.2bfd6740@rorschach.local.home>
-In-Reply-To: <20221105141817.GF1606271@roeck-us.net>
-References: <20221105060024.598488967@goodmis.org>
-	<20221105141817.GF1606271@roeck-us.net>
+Return-Path: <torvalds@linuxfoundation.org>
+Received: from mail-qt1-f173.google.com (mail-qt1-f173.google.com
+	[209.85.160.173])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 59C8D4210C8
+	for <drbd-dev@lists.linbit.com>; Sat,  5 Nov 2022 17:08:15 +0100 (CET)
+Received: by mail-qt1-f173.google.com with SMTP id e15so4906218qts.1
+	for <drbd-dev@lists.linbit.com>; Sat, 05 Nov 2022 09:08:15 -0700 (PDT)
+Received: from mail-yw1-f169.google.com (mail-yw1-f169.google.com.
+	[209.85.128.169]) by smtp.gmail.com with ESMTPSA id
+	bl2-20020a05620a1a8200b006fa16fe93bbsm2123512qkb.15.2022.11.05.09.08.14
+	for <drbd-dev@lists.linbit.com>
+	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+	Sat, 05 Nov 2022 09:08:14 -0700 (PDT)
+Received: by mail-yw1-f169.google.com with SMTP id
+	00721157ae682-367b8adf788so69050167b3.2
+	for <drbd-dev@lists.linbit.com>; Sat, 05 Nov 2022 09:08:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+References: <20221105060024.598488967@goodmis.org>
+In-Reply-To: <20221105060024.598488967@goodmis.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 5 Nov 2022 08:59:36 -0700
+Message-ID: <CAHk-=wi95dGkg7DiuOZ27gGW+mxJipn9ykB6LHB-HrbbLG6OMQ@mail.gmail.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Content-Type: text/plain; charset="UTF-8"
 Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-doc@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	linaro-mm-sig@lists.linaro.org,
 	Thomas Gleixner <tglx@linutronix.de>, linux-leds@vger.kernel.org,
 	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
 	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
@@ -24,10 +32,11 @@ Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-acpi@vger.kernel.org, coreteam@netfilter.org,
 	intel-wired-lan@lists.osuosl.org, linux-input@vger.kernel.org,
 	tipc-discussion@lists.sourceforge.net,
-	linux-ext4@vger.kernel.org, linux-media@vger.kernel.org,
-	bridge@lists.linux-foundation.org, linux-pm@vger.kernel.org,
-	intel-gfx@lists.freedesktop.org, rcu@vger.kernel.org,
-	cgroups@vger.kernel.org, openipmi-developer@lists.sourceforge.net,
+	linux-ext4@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>,
+	linux-media@vger.kernel.org, bridge@lists.linux-foundation.org,
+	linux-pm@vger.kernel.org, intel-gfx@lists.freedesktop.org,
+	rcu@vger.kernel.org, cgroups@vger.kernel.org,
+	openipmi-developer@lists.sourceforge.net,
 	Anna-Maria Gleixner <anna-maria@linutronix.de>,
 	linux-edac@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-nfs@vger.kernel.org, linux-parisc@vger.kernel.org,
@@ -35,9 +44,9 @@ Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
 	linux-kernel@vger.kernel.org, linux-bluetooth@vger.kernel.org,
 	netfilter-devel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>
+	linaro-mm-sig@lists.linaro.org
 Subject: Re: [Drbd-dev] [PATCH v4a 00/38] timers: Use timer_shutdown*()
- before freeing timers
+	before freeing timers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,25 +58,82 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, 5 Nov 2022 07:18:17 -0700
-Guenter Roeck <linux@roeck-us.net> wrote:
+On Fri, Nov 4, 2022 at 11:01 PM Steven Rostedt <rostedt@goodmis.org> wrote:
+>
+> Patch 1 fixes an issue with sunrpc/xprt where it incorrectly uses
+> del_singleshot_timer_sync() for something that is not a oneshot timer. As this
+> will be converted to shutdown, this needs to be fixed first.
 
-> Just in case you didn't notice:
-> 
-> Looking through the resulting code, I think some of the remaining
-> calls to del_singleshot_timer_sync() can be converted as well.
-> 
-> The calls in drivers/staging/wlan-ng/prism2usb.c:prism2sta_disconnect_usb()
-> are obvious (the containing data structure is freed in the same function).
-> For drivers/char/tpm/tpm-dev-common.c:tpm_common_release(), the containing
-> data structure is freed in the calling code.
+So this is the kind of thing that I would *not* want to get eartly.
 
-Well, actually it is. In patch 5/38:
+I really would want to get just the infrastructure in to let people
+start doing conversions.
 
--#define del_singleshot_timer_sync(t) del_timer_sync(t)
-+#define del_singleshot_timer_sync(t) timer_shutdown_sync(t)
+And then the "mindlessly obvious patches that are done by scripting
+and can not possibly matter".
 
-This was the reason for patch 1. It was the only user of that function
-that reused the timer after calling that function.
+The kinds that do not *need* review, because they are mechanical, and
+that just cause pointless noise for the rest of the patches that *do*
+want review.
 
--- Steve
+Not this kind of thing that is so subtle that you have to explain it.
+That's not a "scripted patch for no semantic change".
+
+So leave the del_singleshot_timer_sync() cases alone, they are
+irrelevant for the new infrastructure and for the "mindless scripted
+conversion" patches.
+
+> Patches 2-4 changes existing timer_shutdown() functions used locally in ARM and
+> some drivers to better namespace names.
+
+Ok, these are relevant.
+
+> Patch 5 implements the new timer_shutdown() and timer_shutdown_sync() functions
+> that disable re-arming the timer after they are called.
+
+This is obviously what I'd want early so that people can start doign
+this in their trees.
+
+> Patches 6-28 change all the locations where there's a kfree(), kfree_rcu(),
+> kmem_cache_free() and one call_rcu() call where the RCU function frees the
+> timer (the workqueue patch) in the same function as the del_timer{,_sync}() is
+> called on that timer, and there's no extra exit path between the del_timer and
+> freeing of the timer.
+
+So honestly, I was literally hoping for a "this is the coccinelle
+script" kind of patch.
+
+Now there seems to be a number of patches here that are actualyl
+really hard to see that they are "obviously correct" and I can't tell
+if they are actually scripted or not.
+
+They don't *look* scripted, but I can't really tell.  I looked at the
+patches with ten lines of context, and I didn't see the immediately
+following kfree() even in that expanded patch context, so it's fairly
+far away.
+
+Others in the series were *definitely* not scripted, doing clearly
+manual cleanups:
+
+-    if (dch->timer.function) {
+-        del_timer(&dch->timer);
+-        dch->timer.function = NULL;
+-    }
++    timer_shutdown(&dch->timer);
+
+so no, this does *not* make me feel "ok, this is all trivial".
+
+IOW, I'd really want *just* the infrastructure and *just* the provably
+trivial stuff. If it wasn't some scripted really obvious thing that
+cannot possibly change anything and that wasn't then edited manually
+for some reason, I really don't want it early.
+
+IOW, any early conversions I'd take are literally about removing pure
+mindless noise. Not about doing conversions.
+
+And I wouldn't mind it as a single conversion patch that has the
+coccinelle script as the explanation.
+
+Really just THAT kind of "100% mindless conversion".
+
+               Linus
