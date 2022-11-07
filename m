@@ -1,12 +1,15 @@
-Return-Path: <SRS0=fKmf=3G=goodmis.org=rostedt@kernel.org>
+Return-Path: <SRS0=5Pv7=3H=goodmis.org=rostedt@kernel.org>
 Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C6DAB4201CB
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 103C04201AD
 	for <drbd-dev@lists.linbit.com>;
-	Sun,  6 Nov 2022 22:26:32 +0100 (CET)
-Message-ID: <20221106212427.739928660@goodmis.org>
-Date: Sun, 06 Nov 2022 16:24:27 -0500
+	Mon,  7 Nov 2022 04:33:01 +0100 (CET)
+Date: Sun, 6 Nov 2022 22:32:56 -0500
 From: Steven Rostedt <rostedt@goodmis.org>
-To: linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Message-ID: <20221106223256.4bbdb018@rorschach.local.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	linux-sh@vger.kernel.org, dri-devel@lists.freedesktop.org,
 	linux-afs@lists.infradead.org, linux-leds@vger.kernel.org,
@@ -25,10 +28,9 @@ Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
 	netdev@vger.kernel.org, linux-usb@vger.kernel.org,
 	linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
 	linux-bluetooth@vger.kernel.org, netfilter-devel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>
-Subject: [Drbd-dev] [PATCH v6a 0/5] timers: Use timer_shutdown*() before
-	freeing timers
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: [Drbd-dev] [GIT PULL] treewide: timers: Use timer_shutdown*()
+ before freeing timers
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -40,26 +42,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-del_timer_sync() is often called before the object that owns the timer is
-freed. But sometimes there's a race that enables the timer again before it is
-freed and causes a use after free when that timer triggers. This patch set
-adds a new "shutdown" timer state, which is set on the new timer_shutdown()
-API. Once a timer is in this state, it can not be re-armed and if it is, it
-will warn.
 
-The first three patches change existing timer_shutdown() functions used
-locally in ARM and some drivers to better namespace names.
 
-The fourth patch implements the new API.
+Linus,
 
-The fifth patch is now a treewide patch that uses a coccinelle script to
-convert the trivial locations where a del_timer*() is called on a timer of an
-object that is freed immediately afterward (or at least in the same function).
+As discussed here:
 
-Changes since v5a: https://lore.kernel.org/all/20221106054535.709068702@goodmis.org/
+  https://lore.kernel.org/all/20221106212427.739928660@goodmis.org/
 
- - Updated the script to make ptr and slab into expressions instead of
-   using identifiers (Julia Lawall and Linus Torvalds)
+Add a "shutdown" state for timers. This is performed by the new
+timer_shutdown_sync() and timer_shutdown() function calls. When this is
+called on a timer, it will no longer be able to be re-armed. This should
+be called before a timer is freed to prevent it from being re-armed after
+being removed from the timer queue and then causing a crash in the timer
+code when the timer triggers.
+
+This required renaming some functions that were using the name
+timer_shutdown() statically to something more appropriate.
+
+Then a coccinelle script was executed on the entire kernel tree to find
+the trivial locations that remove the timer and then frees the object that
+the timer exists on.
+
+These changes are not enough to solve all the locations where timers may
+be of an issue. But by adding the shutdown infrastructure and the obvious
+cases, the more complex cases can be added after they have been reviewed
+more closely.
+
+
+Please pull the following tree, which can be found at:
+
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/rostedt/linux-trace.git
+add-timer-shutdown
+
+Tag SHA1: 7685328352dfd2908e23048f563e328dbd3526e9
+Head SHA1: 870556da63870e01ade9bb8418ac5a21862f2f10
+
 
 Steven Rostedt (Google) (5):
       ARM: spear: Do not use timer namespace for timer_shutdown() function
@@ -148,3 +167,4 @@ Steven Rostedt (Google) (5):
  sound/i2c/other/ak4117.c                           |  2 +-
  sound/synth/emux/emux.c                            |  2 +-
  78 files changed, 207 insertions(+), 148 deletions(-)
+---------------------------
