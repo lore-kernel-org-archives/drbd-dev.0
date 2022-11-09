@@ -1,15 +1,15 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f43.google.com (mail-ed1-f43.google.com
-	[209.85.208.43])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E8E4542210A
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Nov 2022 14:35:08 +0100 (CET)
-Received: by mail-ed1-f43.google.com with SMTP id a5so27228306edb.11
-	for <drbd-dev@lists.linbit.com>; Wed, 09 Nov 2022 05:35:08 -0800 (PST)
+Received: from mail-ej1-f51.google.com (mail-ej1-f51.google.com
+	[209.85.218.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B97B442178D
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Nov 2022 14:35:11 +0100 (CET)
+Received: by mail-ej1-f51.google.com with SMTP id ud5so46691680ejc.4
+	for <drbd-dev@lists.linbit.com>; Wed, 09 Nov 2022 05:35:11 -0800 (PST)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed,  9 Nov 2022 14:34:51 +0100
-Message-Id: <20221109133453.51652-2-christoph.boehmwalder@linbit.com>
+Date: Wed,  9 Nov 2022 14:34:52 +0100
+Message-Id: <20221109133453.51652-3-christoph.boehmwalder@linbit.com>
 In-Reply-To: <20221109133453.51652-1-christoph.boehmwalder@linbit.com>
 References: <20221109133453.51652-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
@@ -18,8 +18,8 @@ Content-Transfer-Encoding: 8bit
 Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/3] drbd: use blk_queue_max_discard_sectors
-	helper
+Subject: [Drbd-dev] [PATCH 2/3] drbd: disable discard support if granularity
+	> max
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,60 +31,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-We currently only set q->limits.max_discard_sectors, but that is not
-enough. Another field, max_hw_discard_sectors, was introduced in
-commit 0034af036554 ("block: make /sys/block/<dev>/queue/discard_max_bytes
-writeable").
+From: Philipp Reisner <philipp.reisner@linbit.com>
 
-The difference is that max_discard_sectors can be changed from user
-space via sysfs, while max_hw_discard_sectors is the "hardware" upper
-limit.
+The discard_granularity describes the minimum unit of a discard.
+If that is larger than the maximal discard size, we need to disable
+discards completely.
 
-So use this helper, which sets both.
-
-This is also a fixup for commit 998e9cbcd615 ("drbd: cleanup
-decide_on_discard_support"): if discards are not supported, that does
-not necessarily mean we also want to disable write_zeroes.
-
-Fixes: 998e9cbcd615 ("drbd: cleanup decide_on_discard_support")
 Reviewed-by: Joel Colledge <joel.colledge@linbit.com>
+Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
 Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 864c98e74875..249eba7d21c2 100644
+index 249eba7d21c2..63f589926d85 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1210,6 +1210,7 @@ static void decide_on_discard_support(struct drbd_device *device,
- 	struct drbd_connection *connection =
- 		first_peer_device(device)->connection;
- 	struct request_queue *q = device->rq_queue;
-+	unsigned int max_discard_sectors;
- 
- 	if (bdev && !bdev_max_discard_sectors(bdev->backing_bdev))
- 		goto not_supported;
-@@ -1230,15 +1231,14 @@ static void decide_on_discard_support(struct drbd_device *device,
- 	 * topology on all peers.
- 	 */
- 	blk_queue_discard_granularity(q, 512);
--	q->limits.max_discard_sectors = drbd_max_discard_sectors(connection);
--	q->limits.max_write_zeroes_sectors =
--		drbd_max_discard_sectors(connection);
-+	max_discard_sectors = drbd_max_discard_sectors(connection);
-+	blk_queue_max_discard_sectors(q, max_discard_sectors);
-+	blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
- 	return;
- 
- not_supported:
- 	blk_queue_discard_granularity(q, 0);
--	q->limits.max_discard_sectors = 0;
--	q->limits.max_write_zeroes_sectors = 0;
-+	blk_queue_max_discard_sectors(q, 0);
+@@ -1256,6 +1256,18 @@ static void fixup_write_zeroes(struct drbd_device *device, struct request_queue
+ 		q->limits.max_write_zeroes_sectors = 0;
  }
  
- static void fixup_write_zeroes(struct drbd_device *device, struct request_queue *q)
++static void fixup_discard_support(struct drbd_device *device, struct request_queue *q)
++{
++	unsigned int max_discard = device->rq_queue->limits.max_discard_sectors;
++	unsigned int discard_granularity =
++		device->rq_queue->limits.discard_granularity >> SECTOR_SHIFT;
++
++	if (discard_granularity > max_discard) {
++		blk_queue_discard_granularity(q, 0);
++		blk_queue_max_discard_sectors(q, 0);
++	}
++}
++
+ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backing_dev *bdev,
+ 				   unsigned int max_bio_size, struct o_qlim *o)
+ {
+@@ -1288,6 +1300,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
+ 		disk_update_readahead(device->vdisk);
+ 	}
+ 	fixup_write_zeroes(device, q);
++	fixup_discard_support(device, q);
+ }
+ 
+ void drbd_reconsider_queue_parameters(struct drbd_device *device, struct drbd_backing_dev *bdev, struct o_qlim *o)
 -- 
 2.38.1
 
