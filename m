@@ -1,20 +1,22 @@
-Return-Path: <mps@arvanta.net>
-Received: from fx.arvanta.net (static-213-198-238-194.adsl.eunet.rs
-	[213.198.238.194])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7FEF24202F3
-	for <drbd-dev@lists.linbit.com>; Mon,  7 Nov 2022 13:17:01 +0100 (CET)
-Received: from m1 (ab.arvanta.net [10.5.1.5])
-	by fx.arvanta.net (Postfix) with SMTP id 4D50227FE1
-	for <drbd-dev@lists.linbit.com>; Mon,  7 Nov 2022 13:08:16 +0100 (CET)
-Date: Mon, 7 Nov 2022 13:08:14 +0100
-From: Milan =?utf-8?Q?P=2E_Stani=C4=87?= <mps@arvanta.net>
-To: drbd-dev@lists.linbit.com
-Message-ID: <Y2j1Lmr2afaEYvBu@m1>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-ej1-f52.google.com (mail-ej1-f52.google.com
+	[209.85.218.52])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5AAA842178D
+	for <drbd-dev@lists.linbit.com>; Wed,  9 Nov 2022 14:35:05 +0100 (CET)
+Received: by mail-ej1-f52.google.com with SMTP id kt23so46630968ejc.7
+	for <drbd-dev@lists.linbit.com>; Wed, 09 Nov 2022 05:35:05 -0800 (PST)
+From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
+	<christoph.boehmwalder@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Wed,  9 Nov 2022 14:34:50 +0100
+Message-Id: <20221109133453.51652-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Subject: [Drbd-dev] [BUG] drbdadm_parser.c:1968:63: error: 'glob_t' has no
- member named 'gl_flags'
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 0/3] Miscellaneous DRBD updates for 6.2
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,40 +28,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+Here are some various updates for DRBD.
+The first two are related to the handling of discards in DRBD, and the
+third is a resend of [0].
 
-[ Please Cc to me, I'm not subscribed to this mailing list ]
+[0] https://lore.kernel.org/all/20221024142424.25877-1-christoph.boehmwalder@linbit.com/
 
-I'm trying to build drbd-tools 9.22.0 on Alpine Linux which is based on
-musl libc (and not glibc).
+Christoph Böhmwalder (2):
+  drbd: use blk_queue_max_discard_sectors helper
+  drbd: Store op in drbd_peer_request
 
-Build fail with this error:
------------------------------
-drbdadm_parser.c: In function 'include_stmt':
-drbdadm_parser.c:1968:63: error: 'glob_t' has no member named 'gl_flags'
- 1968 |                         } else if (errno == ENOENT && glob_buf.gl_flags & GLOB_MAGCHAR) {
-      |                                                               ^
-drbdadm_parser.c:1968:75: error: 'GLOB_MAGCHAR' undeclared (first use in this function)
- 1968 |                         } else if (errno == ENOENT && glob_buf.gl_flags & GLOB_MAGCHAR) {
-      |                                                                           ^~~~~~~~~~~~
-drbdadm_parser.c:1968:75: note: each undeclared identifier is reported only once for each function it appears in
-make[1]: *** [<builtin>: drbdadm_parser.o] Error 1
-make[1]: *** Waiting for unfinished jobs....
-make[1]: Leaving directory '/home/mps/aports/main/drbd-utils/src/drbd-utils-9.22.0/user/v9'
-make: *** [Makefile:90: tools] Error 2
->>> ERROR: drbd-utils: build failed
------------------------------
+Philipp Reisner (1):
+  drbd: disable discard support if granularity > max
 
-Musl libc glob.h doesn't have gl_flags nor GLOB_MAGCHAR because it is
-non standard glibc extension.
-
-I reverted https://github.com/LINBIT/drbd-utils/commit/4a1b590090bf676cdfb10c198505b95b9eeb3120
-commit and then drbd-tools builds fine.
-
-Not sure is this revert safe to push drbd-utils in next Alpine release
-(which planned for next week) or there is better fix.
-
-TIA
+ drivers/block/drbd/drbd_int.h      |  8 ++-
+ drivers/block/drbd/drbd_nl.c       | 23 +++++++--
+ drivers/block/drbd/drbd_receiver.c | 81 +++++++++++++++++-------------
+ drivers/block/drbd/drbd_worker.c   |  4 +-
+ 4 files changed, 71 insertions(+), 45 deletions(-)
 
 -- 
-Kind regards
+2.38.1
+
