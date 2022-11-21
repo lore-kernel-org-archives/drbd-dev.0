@@ -1,20 +1,27 @@
-Return-Path: <bcodding@redhat.com>
-Received: from us-smtp-delivery-124.mimecast.com
-	(us-smtp-delivery-124.mimecast.com [170.10.133.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9CA984203A1
-	for <drbd-dev@lists.linbit.com>; Mon, 21 Nov 2022 15:35:03 +0100 (CET)
-From: Benjamin Coddington <bcodding@redhat.com>
-To: David Howells <dhowells@redhat.com>
-Date: Mon, 21 Nov 2022 09:34:43 -0500
-Message-ID: <51B5418D-34FB-4E87-B87A-6C3FCDF8B21C@redhat.com>
-In-Reply-To: <382872.1669039019@warthog.procyon.org.uk>
+Return-Path: <skhan@linuxfoundation.org>
+Received: from mail-io1-f49.google.com (mail-io1-f49.google.com
+	[209.85.166.49])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A98234204B5
+	for <drbd-dev@lists.linbit.com>; Mon, 21 Nov 2022 22:41:01 +0100 (CET)
+Received: by mail-io1-f49.google.com with SMTP id 11so9668197iou.0
+	for <drbd-dev@lists.linbit.com>; Mon, 21 Nov 2022 13:41:01 -0800 (PST)
+Message-ID: <4585e331-03ad-959f-e715-29af15f63712@linuxfoundation.org>
+Date: Mon, 21 Nov 2022 14:40:56 -0700
+MIME-Version: 1.0
+Content-Language: en-US
+To: Benjamin Coddington <bcodding@redhat.com>,
+	David Howells <dhowells@redhat.com>
 References: <c2ec184226acd21a191ccc1aa46a1d7e43ca7104.1669036433.git.bcodding@redhat.com>
 	<cover.1669036433.git.bcodding@redhat.com>
 	<382872.1669039019@warthog.procyon.org.uk>
-MIME-Version: 1.0
-Content-Type: text/plain
+	<51B5418D-34FB-4E87-B87A-6C3FCDF8B21C@redhat.com>
+From: Shuah Khan <skhan@linuxfoundation.org>
+In-Reply-To: <51B5418D-34FB-4E87-B87A-6C3FCDF8B21C@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Cc: Latchesar Ionkov <lucho@ionkov.net>, samba-technical@lists.samba.org,
 	Dominique Martinet <asmadeus@codewreck.org>,
+	Shuah Khan <skhan@linuxfoundation.org>,
 	Valentina Manea <valentina.manea.m@gmail.com>,
 	linux-nvme@lists.infradead.org,
 	Philipp Reisner <philipp.reisner@linbit.com>,
@@ -60,19 +67,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 21 Nov 2022, at 8:56, David Howells wrote:
+On 11/21/22 07:34, Benjamin Coddington wrote:
+> On 21 Nov 2022, at 8:56, David Howells wrote:
+> 
+>> Benjamin Coddington <bcodding@redhat.com> wrote:
+>>
+>>> Since moving to memalloc_nofs_save/restore, SUNRPC has stopped setting the
+>>> GFP_NOIO flag on sk_allocation which the networking system uses to decide
+>>> when it is safe to use current->task_frag.
+>>
+>> Um, what's task_frag?
+> 
+> Its a per-task page_frag used to coalesce small writes for networking -- see:
+> 
+> 5640f7685831 net: use a per task frag allocator
+> 
+> Ben
+> 
+> 
 
-> Benjamin Coddington <bcodding@redhat.com> wrote:
->
->> Since moving to memalloc_nofs_save/restore, SUNRPC has stopped setting the
->> GFP_NOIO flag on sk_allocation which the networking system uses to decide
->> when it is safe to use current->task_frag.
->
-> Um, what's task_frag?
+I am not seeing this in the mainline. Where can find this commit?
 
-Its a per-task page_frag used to coalesce small writes for networking -- see:
-
-5640f7685831 net: use a per task frag allocator
-
-Ben
-
+thanks,
+-- Shuah
