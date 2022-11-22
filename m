@@ -1,64 +1,25 @@
-Return-Path: <skhan@linuxfoundation.org>
-Received: from mail-io1-f46.google.com (mail-io1-f46.google.com
-	[209.85.166.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A3B3A4203A1
-	for <drbd-dev@lists.linbit.com>; Mon, 21 Nov 2022 23:32:06 +0100 (CET)
-Received: by mail-io1-f46.google.com with SMTP id y6so9701291iof.9
-	for <drbd-dev@lists.linbit.com>; Mon, 21 Nov 2022 14:32:06 -0800 (PST)
-Message-ID: <96114bec-1df7-0dcb-ec99-4f907587658d@linuxfoundation.org>
-Date: Mon, 21 Nov 2022 15:32:02 -0700
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-wr1-f47.google.com (mail-wr1-f47.google.com
+	[209.85.221.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 09507421743
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Nov 2022 13:01:53 +0100 (CET)
+Received: by mail-wr1-f47.google.com with SMTP id s5so7166701wru.1
+	for <drbd-dev@lists.linbit.com>; Tue, 22 Nov 2022 04:01:53 -0800 (PST)
+Message-ID: <feff21b0-e583-4df3-7c38-4990ee60c3e4@linbit.com>
+Date: Tue, 22 Nov 2022 13:01:52 +0100
 MIME-Version: 1.0
+To: Wang ShaoBo <bobo.shaobowang@huawei.com>
+References: <20221122030427.731308-1-bobo.shaobowang@huawei.com>
+	<20221122030427.731308-3-bobo.shaobowang@huawei.com>
 Content-Language: en-US
-To: Benjamin Coddington <bcodding@redhat.com>
-References: <c2ec184226acd21a191ccc1aa46a1d7e43ca7104.1669036433.git.bcodding@redhat.com>
-	<cover.1669036433.git.bcodding@redhat.com>
-	<382872.1669039019@warthog.procyon.org.uk>
-	<51B5418D-34FB-4E87-B87A-6C3FCDF8B21C@redhat.com>
-	<4585e331-03ad-959f-e715-29af15f63712@linuxfoundation.org>
-	<26d98c8f-372b-b9c8-c29f-096cddaff149@linuxfoundation.org>
-	<A860595D-5BAB-461B-B449-8975C0424311@redhat.com>
-From: Shuah Khan <skhan@linuxfoundation.org>
-In-Reply-To: <A860595D-5BAB-461B-B449-8975C0424311@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Cc: Latchesar Ionkov <lucho@ionkov.net>, samba-technical@lists.samba.org,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	Shuah Khan <skhan@linuxfoundation.org>,
-	Valentina Manea <valentina.manea.m@gmail.com>,
-	linux-nvme@lists.infradead.org,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	David Howells <dhowells@redhat.com>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Eric Dumazet <edumazet@google.com>, linux-nfs@vger.kernel.org,
-	Marc Dionne <marc.dionne@auristor.com>,
-	Shuah Khan <shuah@kernel.org>, Christoph Hellwig <hch@lst.de>,
-	Mike Christie <michael.christie@oracle.com>,
-	drbd-dev@lists.linbit.com, linux-cifs@vger.kernel.org,
-	Sagi Grimberg <sagi@grimberg.me>, linux-scsi@vger.kernel.org,
-	Mark Fasheh <mark@fasheh.com>, linux-afs@lists.infradead.org,
-	cluster-devel@redhat.com, Christine Caulfield <ccaulfie@redhat.com>,
-	Jakub Kicinski <kuba@kernel.org>, Ilya Dryomov <idryomov@gmail.com>,
-	Paolo Abeni <pabeni@redhat.com>, Anna Schumaker <anna@kernel.org>,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	"James E.J. Bottomley" <jejb@linux.ibm.com>,
-	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-block@vger.kernel.org, David Teigland <teigland@redhat.com>,
-	Joel Becker <jlbec@evilplan.org>, v9fs-developer@lists.sourceforge.net,
-	Keith Busch <kbusch@kernel.org>, ceph-devel@vger.kernel.org,
-	Xiubo Li <xiubli@redhat.com>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Jens Axboe <axboe@kernel.dk>, Chris Leech <cleech@redhat.com>,
-	open-iscsi@googlegroups.com,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	netdev@vger.kernel.org, linux-usb@vger.kernel.org,
-	Jeff Layton <jlayton@kernel.org>, linux-kernel@vger.kernel.org,
-	Steve French <sfrench@samba.org>, Chuck Lever <chuck.lever@oracle.com>,
-	Lee Duncan <lduncan@suse.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	"David S. Miller" <davem@davemloft.net>, ocfs2-devel@oss.oracle.com
-Subject: Re: [Drbd-dev] [PATCH v1 2/3] Treewide: Stop corrupting socket's
-	task_frag
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <20221122030427.731308-3-bobo.shaobowang@huawei.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Cc: linux-block@vger.kernel.org, axboe@kernel.dk, lars.ellenberg@linbit.com,
+	liwei391@huawei.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v2 2/2] drbd: destroy workqueue when drbd
+	device was freed
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -70,45 +31,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 11/21/22 15:01, Benjamin Coddington wrote:
-> On 21 Nov 2022, at 16:43, Shuah Khan wrote:
+Am 22.11.22 um 04:04 schrieb Wang ShaoBo:
+> A submitter workqueue is dynamically allocated by init_submitter()
+> called by drbd_create_device(), we should destroy it when this
+> device is not needed or destroyed.
 > 
->> On 11/21/22 14:40, Shuah Khan wrote:
->>> On 11/21/22 07:34, Benjamin Coddington wrote:
->>>> On 21 Nov 2022, at 8:56, David Howells wrote:
->>>>
->>>>> Benjamin Coddington <bcodding@redhat.com> wrote:
->>>>>
->>>>>> Since moving to memalloc_nofs_save/restore, SUNRPC has stopped setting the
->>>>>> GFP_NOIO flag on sk_allocation which the networking system uses to decide
->>>>>> when it is safe to use current->task_frag.
->>>>>
->>>>> Um, what's task_frag?
->>>>
->>>> Its a per-task page_frag used to coalesce small writes for networking -- see:
->>>>
->>>> 5640f7685831 net: use a per task frag allocator
->>>>
->>>> Ben
->>>>
->>>>
->>>
->>> I am not seeing this in the mainline. Where can find this commit?
->>>
->>
->> Okay. I see this commit in the mainline. However, I don't see the
->> sk_use_task_frag in mainline.
+> Fixes: 113fef9e20e0 ("drbd: prepare to queue write requests on a submit worker")
+> Signed-off-by: Wang ShaoBo <bobo.shaobowang@huawei.com>
+> ---
+>  drivers/block/drbd/drbd_main.c | 4 ++++
+>  1 file changed, 4 insertions(+)
 > 
-> sk_use_task_frag is in patch 1/3 in this posting.
-> 
-> https://lore.kernel.org/netdev/26d98c8f-372b-b9c8-c29f-096cddaff149@linuxfoundation.org/T/#m3271959c4cf8dcff1c0c6ba023b2b3821d9e7e99
-> 
+> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+> index 78cae4e75af1..2d6b6d1c5ff4 100644
+> --- a/drivers/block/drbd/drbd_main.c
+> +++ b/drivers/block/drbd/drbd_main.c
+> @@ -2217,6 +2217,8 @@ void drbd_destroy_device(struct kref *kref)
+>  		kref_put(&peer_device->connection->kref, drbd_destroy_connection);
+>  		kfree(peer_device);
+>  	}
+> +	if (device->submit.wq)
+> +		destroy_workqueue(device->submit.wq);
+>  	kfree(device);
+>  	kref_put(&resource->kref, drbd_destroy_resource);
+>  }
+> @@ -2807,6 +2809,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+>  	put_disk(disk);
+>  out_no_disk:
+>  	kref_put(&resource->kref, drbd_destroy_resource);
+> +	if (device->submit.wq)
+> +		destroy_workqueue(device->submit.wq);
+>  	kfree(device);
+>  	return err;
+>  }
 
-Aha. I don't have 1/3 in my Inbox - I think it would make
-sense to cc people on the first patch so we can understand
-the premise for the change.
+Thanks, that is better.
 
-thanks,
--- Shuah
-  
+Just one more nitpick: in drbd_create_device, we usually order the
+allocations/frees in a "last in, first out" fashion. That is, data
+should be released in the reverse order that it was allocated. This also
+helps with error handling, which is what the out_* labels are used for.
 
+So maybe we can put that destroy_workqueue() under its own out_* label
+and make sure it gets freed first in the cleanup section (since it gets
+allocated last).
+
+-- 
+Christoph Böhmwalder
+LINBIT | Keeping the Digital World Running
+DRBD HA —  Disaster Recovery — Software defined Storage
