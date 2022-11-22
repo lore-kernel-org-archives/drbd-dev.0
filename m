@@ -1,12 +1,12 @@
 Return-Path: <bobo.shaobowang@huawei.com>
 Received: from szxga08-in.huawei.com (szxga08-in.huawei.com [45.249.212.255])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 00C694203A1
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 031814203D5
 	for <drbd-dev@lists.linbit.com>;
 	Tue, 22 Nov 2022 04:06:10 +0100 (CET)
 From: Wang ShaoBo <bobo.shaobowang@huawei.com>
 To: 
-Date: Tue, 22 Nov 2022 11:04:26 +0800
-Message-ID: <20221122030427.731308-2-bobo.shaobowang@huawei.com>
+Date: Tue, 22 Nov 2022 11:04:27 +0800
+Message-ID: <20221122030427.731308-3-bobo.shaobowang@huawei.com>
 In-Reply-To: <20221122030427.731308-1-bobo.shaobowang@huawei.com>
 References: <20221122030427.731308-1-bobo.shaobowang@huawei.com>
 MIME-Version: 1.0
@@ -14,8 +14,8 @@ Content-Transfer-Encoding: 8bit
 Content-Type: text/plain
 Cc: axboe@kernel.dk, bobo.shaobowang@huawei.com, linux-block@vger.kernel.org,
 	lars.ellenberg@linbit.com, liwei391@huawei.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 1/2] drbd: remove call to memset before free
-	device/resource/connection
+Subject: [Drbd-dev] [PATCH v2 2/2] drbd: destroy workqueue when drbd device
+	was freed
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,42 +27,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This revert c2258ffc56f2 ("drbd: poison free'd device, resource and
-connection structs"), add memset is odd here for debugging, there are
-some methods to accurately show what happened, such as kdump.
+A submitter workqueue is dynamically allocated by init_submitter()
+called by drbd_create_device(), we should destroy it when this
+device is not needed or destroyed.
 
+Fixes: 113fef9e20e0 ("drbd: prepare to queue write requests on a submit worker")
 Signed-off-by: Wang ShaoBo <bobo.shaobowang@huawei.com>
 ---
- drivers/block/drbd/drbd_main.c | 3 ---
- 1 file changed, 3 deletions(-)
+ drivers/block/drbd/drbd_main.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 8532b839a343..78cae4e75af1 100644
+index 78cae4e75af1..2d6b6d1c5ff4 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -2217,7 +2217,6 @@ void drbd_destroy_device(struct kref *kref)
+@@ -2217,6 +2217,8 @@ void drbd_destroy_device(struct kref *kref)
  		kref_put(&peer_device->connection->kref, drbd_destroy_connection);
  		kfree(peer_device);
  	}
--	memset(device, 0xfd, sizeof(*device));
++	if (device->submit.wq)
++		destroy_workqueue(device->submit.wq);
  	kfree(device);
  	kref_put(&resource->kref, drbd_destroy_resource);
  }
-@@ -2309,7 +2308,6 @@ void drbd_destroy_resource(struct kref *kref)
- 	idr_destroy(&resource->devices);
- 	free_cpumask_var(resource->cpu_mask);
- 	kfree(resource->name);
--	memset(resource, 0xf2, sizeof(*resource));
- 	kfree(resource);
- }
- 
-@@ -2650,7 +2648,6 @@ void drbd_destroy_connection(struct kref *kref)
- 	drbd_free_socket(&connection->data);
- 	kfree(connection->int_dig_in);
- 	kfree(connection->int_dig_vv);
--	memset(connection, 0xfc, sizeof(*connection));
- 	kfree(connection);
+@@ -2807,6 +2809,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 	put_disk(disk);
+ out_no_disk:
  	kref_put(&resource->kref, drbd_destroy_resource);
++	if (device->submit.wq)
++		destroy_workqueue(device->submit.wq);
+ 	kfree(device);
+ 	return err;
  }
 -- 
 2.25.1
