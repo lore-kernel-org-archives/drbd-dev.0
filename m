@@ -1,25 +1,25 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pj1-f49.google.com (mail-pj1-f49.google.com
-	[209.85.216.49])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 704BD4252E1
-	for <drbd-dev@lists.linbit.com>; Wed, 23 Nov 2022 03:39:03 +0100 (CET)
-Received: by mail-pj1-f49.google.com with SMTP id
-	l22-20020a17090a3f1600b00212fbbcfb78so657990pjc.3
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Nov 2022 18:39:03 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
-To: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20221122134301.69258-1-christoph.boehmwalder@linbit.com>
-References: <20221122134301.69258-1-christoph.boehmwalder@linbit.com>
-Message-Id: <166917114097.16835.13922325518442177029.b4-ty@kernel.dk>
-Date: Tue, 22 Nov 2022 19:39:00 -0700
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-wr1-f49.google.com (mail-wr1-f49.google.com
+	[209.85.221.49])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 243004252F2
+	for <drbd-dev@lists.linbit.com>; Wed, 23 Nov 2022 11:16:02 +0100 (CET)
+Received: by mail-wr1-f49.google.com with SMTP id x5so24585212wrt.7
+	for <drbd-dev@lists.linbit.com>; Wed, 23 Nov 2022 02:16:02 -0800 (PST)
+Message-ID: <7d972801-148a-87b2-9fe1-9992b943916f@linbit.com>
+Date: Wed, 23 Nov 2022 11:16:00 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+To: Wang ShaoBo <bobo.shaobowang@huawei.com>
+References: <20221123020355.2470160-1-bobo.shaobowang@huawei.com>
+	<20221123020355.2470160-2-bobo.shaobowang@huawei.com>
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <20221123020355.2470160-2-bobo.shaobowang@huawei.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH 0/4] lru_cache improvements,
-	DRBD license identifiers
+Cc: linux-block@vger.kernel.org, axboe@kernel.dk, lars.ellenberg@linbit.com,
+	liwei391@huawei.com, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v3 1/2] drbd: remove call to memset before
+ free device/resource/connection
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,32 +31,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, 22 Nov 2022 14:42:57 +0100, Christoph Böhmwalder wrote:
-> Here are some improvements to the lru_cache; mostly just cleanups that
-> we missed to send upstream over the years.
+Am 23.11.22 um 03:03 schrieb Wang ShaoBo:
+> This revert c2258ffc56f2 ("drbd: poison free'd device, resource and
+> connection structs"), add memset is odd here for debugging, there are
+> some methods to accurately show what happened, such as kdump.
 > 
-> The last patch makes the SPDX license headers in DRBD consistent so
-> that they all represent GPL 2.0.
+> Signed-off-by: Wang ShaoBo <bobo.shaobowang@huawei.com>
+> ---
+>  drivers/block/drbd/drbd_main.c | 3 ---
+>  1 file changed, 3 deletions(-)
 > 
-> Christoph Böhmwalder (2):
->   lru_cache: remove compiled out code
->   drbd: use consistent license
-> 
-> [...]
+> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+> index 8532b839a343..78cae4e75af1 100644
+> --- a/drivers/block/drbd/drbd_main.c
+> +++ b/drivers/block/drbd/drbd_main.c
+> @@ -2217,7 +2217,6 @@ void drbd_destroy_device(struct kref *kref)
+>  		kref_put(&peer_device->connection->kref, drbd_destroy_connection);
+>  		kfree(peer_device);
+>  	}
+> -	memset(device, 0xfd, sizeof(*device));
+>  	kfree(device);
+>  	kref_put(&resource->kref, drbd_destroy_resource);
+>  }
+> @@ -2309,7 +2308,6 @@ void drbd_destroy_resource(struct kref *kref)
+>  	idr_destroy(&resource->devices);
+>  	free_cpumask_var(resource->cpu_mask);
+>  	kfree(resource->name);
+> -	memset(resource, 0xf2, sizeof(*resource));
+>  	kfree(resource);
+>  }
+>  
+> @@ -2650,7 +2648,6 @@ void drbd_destroy_connection(struct kref *kref)
+>  	drbd_free_socket(&connection->data);
+>  	kfree(connection->int_dig_in);
+>  	kfree(connection->int_dig_vv);
+> -	memset(connection, 0xfc, sizeof(*connection));
+>  	kfree(connection);
+>  	kref_put(&resource->kref, drbd_destroy_resource);
+>  }
 
-Applied, thanks!
+Thanks!
 
-[1/4] lru_cache: use atomic operations when accessing lc->flags, always
-      commit: f2d03d89615ef65b5dff3aae6581df0b5fcbaa3b
-[2/4] lru_cache: remove compiled out code
-      commit: 9933438430b3b787f96bb434b4490b0dda59c9b3
-[3/4] lru_cache: remove unused lc_private, lc_set, lc_index_of
-      commit: 2cd10a496a86787367716b684dadfecbb594095b
-[4/4] drbd: use consistent license
-      commit: 93c68cc46a070775cc6675e3543dd909eb9f6c9e
+Acked-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 
-Best regards,
 -- 
-Jens Axboe
-
-
+Christoph Böhmwalder
+LINBIT | Keeping the Digital World Running
+DRBD HA —  Disaster Recovery — Software defined Storage
