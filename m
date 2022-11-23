@@ -1,61 +1,21 @@
-Return-Path: <bcodding@redhat.com>
-Received: from us-smtp-delivery-124.mimecast.com
-	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4BDC14252D7
-	for <drbd-dev@lists.linbit.com>; Tue, 22 Nov 2022 15:23:47 +0100 (CET)
-From: Benjamin Coddington <bcodding@redhat.com>
-To: Shuah Khan <skhan@linuxfoundation.org>
-Date: Tue, 22 Nov 2022 09:23:29 -0500
-Message-ID: <C3E8B434-BAEE-42A8-85AF-3B676C65B2A6@redhat.com>
-In-Reply-To: <96114bec-1df7-0dcb-ec99-4f907587658d@linuxfoundation.org>
-References: <c2ec184226acd21a191ccc1aa46a1d7e43ca7104.1669036433.git.bcodding@redhat.com>
-	<cover.1669036433.git.bcodding@redhat.com>
-	<382872.1669039019@warthog.procyon.org.uk>
-	<51B5418D-34FB-4E87-B87A-6C3FCDF8B21C@redhat.com>
-	<4585e331-03ad-959f-e715-29af15f63712@linuxfoundation.org>
-	<26d98c8f-372b-b9c8-c29f-096cddaff149@linuxfoundation.org>
-	<A860595D-5BAB-461B-B449-8975C0424311@redhat.com>
-	<96114bec-1df7-0dcb-ec99-4f907587658d@linuxfoundation.org>
+Return-Path: <bobo.shaobowang@huawei.com>
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com [45.249.212.187])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6BA974252E1
+	for <drbd-dev@lists.linbit.com>;
+	Wed, 23 Nov 2022 03:05:40 +0100 (CET)
+From: Wang ShaoBo <bobo.shaobowang@huawei.com>
+To: 
+Date: Wed, 23 Nov 2022 10:03:54 +0800
+Message-ID: <20221123020355.2470160-2-bobo.shaobowang@huawei.com>
+In-Reply-To: <20221123020355.2470160-1-bobo.shaobowang@huawei.com>
+References: <20221123020355.2470160-1-bobo.shaobowang@huawei.com>
 MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
-Cc: Latchesar Ionkov <lucho@ionkov.net>, samba-technical@lists.samba.org,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	Valentina Manea <valentina.manea.m@gmail.com>,
-	linux-nvme@lists.infradead.org,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	David Howells <dhowells@redhat.com>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Eric Dumazet <edumazet@google.com>, linux-nfs@vger.kernel.org,
-	Marc Dionne <marc.dionne@auristor.com>,
-	Shuah Khan <shuah@kernel.org>, Christoph Hellwig <hch@lst.de>,
-	Mike Christie <michael.christie@oracle.com>,
-	drbd-dev@lists.linbit.com, linux-cifs@vger.kernel.org,
-	Sagi Grimberg <sagi@grimberg.me>, linux-scsi@vger.kernel.org,
-	Mark Fasheh <mark@fasheh.com>, linux-afs@lists.infradead.org,
-	cluster-devel@redhat.com, Christine Caulfield <ccaulfie@redhat.com>,
-	Jakub Kicinski <kuba@kernel.org>, Ilya Dryomov <idryomov@gmail.com>,
-	Paolo Abeni <pabeni@redhat.com>, Anna Schumaker <anna@kernel.org>,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	"James E.J. Bottomley" <jejb@linux.ibm.com>,
-	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-block@vger.kernel.org, David Teigland <teigland@redhat.com>,
-	Joel Becker <jlbec@evilplan.org>, v9fs-developer@lists.sourceforge.net,
-	Keith Busch <kbusch@kernel.org>, ceph-devel@vger.kernel.org,
-	Xiubo Li <xiubli@redhat.com>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Jens Axboe <axboe@kernel.dk>, Chris Leech <cleech@redhat.com>,
-	open-iscsi@googlegroups.com,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	netdev@vger.kernel.org, linux-usb@vger.kernel.org,
-	Jeff Layton <jlayton@kernel.org>, linux-kernel@vger.kernel.org,
-	Steve French <sfrench@samba.org>, Chuck Lever <chuck.lever@oracle.com>,
-	Lee Duncan <lduncan@suse.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	"David S. Miller" <davem@davemloft.net>, ocfs2-devel@oss.oracle.com
-Subject: Re: [Drbd-dev] [PATCH v1 2/3] Treewide: Stop corrupting socket's
-	task_frag
+Cc: axboe@kernel.dk, bobo.shaobowang@huawei.com, linux-block@vger.kernel.org,
+	lars.ellenberg@linbit.com, liwei391@huawei.com, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH v3 1/2] drbd: remove call to memset before free
+	device/resource/connection
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -67,53 +27,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 21 Nov 2022, at 17:32, Shuah Khan wrote:
+This revert c2258ffc56f2 ("drbd: poison free'd device, resource and
+connection structs"), add memset is odd here for debugging, there are
+some methods to accurately show what happened, such as kdump.
 
-> On 11/21/22 15:01, Benjamin Coddington wrote:
->> On 21 Nov 2022, at 16:43, Shuah Khan wrote:
->>
->>> On 11/21/22 14:40, Shuah Khan wrote:
->>>> On 11/21/22 07:34, Benjamin Coddington wrote:
->>>>> On 21 Nov 2022, at 8:56, David Howells wrote:
->>>>>
->>>>>> Benjamin Coddington <bcodding@redhat.com> wrote:
->>>>>>
->>>>>>> Since moving to memalloc_nofs_save/restore, SUNRPC has stopped se=
-tting the
->>>>>>> GFP_NOIO flag on sk_allocation which the networking system uses t=
-o decide
->>>>>>> when it is safe to use current->task_frag.
->>>>>>
->>>>>> Um, what's task_frag?
->>>>>
->>>>> Its a per-task page_frag used to coalesce small writes for networki=
-ng -- see:
->>>>>
->>>>> 5640f7685831 net: use a per task frag allocator
->>>>>
->>>>> Ben
->>>>>
->>>>>
->>>>
->>>> I am not seeing this in the mainline. Where can find this commit?
->>>>
->>>
->>> Okay. I see this commit in the mainline. However, I don't see the
->>> sk_use_task_frag in mainline.
->>
->> sk_use_task_frag is in patch 1/3 in this posting.
->>
->> https://lore.kernel.org/netdev/26d98c8f-372b-b9c8-c29f-096cddaff149@li=
-nuxfoundation.org/T/#m3271959c4cf8dcff1c0c6ba023b2b3821d9e7e99
->>
->
-> Aha. I don't have 1/3 in my Inbox - I think it would make
-> sense to cc people on the first patch so we can understand
-> the premise for the change.
+Signed-off-by: Wang ShaoBo <bobo.shaobowang@huawei.com>
+---
+ drivers/block/drbd/drbd_main.c | 3 ---
+ 1 file changed, 3 deletions(-)
 
-Yeah, I can do that if it goes to another version, I was just trying to b=
-e
-considerate of all the noise this sort of posting generates.
-
-Ben
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 8532b839a343..78cae4e75af1 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2217,7 +2217,6 @@ void drbd_destroy_device(struct kref *kref)
+ 		kref_put(&peer_device->connection->kref, drbd_destroy_connection);
+ 		kfree(peer_device);
+ 	}
+-	memset(device, 0xfd, sizeof(*device));
+ 	kfree(device);
+ 	kref_put(&resource->kref, drbd_destroy_resource);
+ }
+@@ -2309,7 +2308,6 @@ void drbd_destroy_resource(struct kref *kref)
+ 	idr_destroy(&resource->devices);
+ 	free_cpumask_var(resource->cpu_mask);
+ 	kfree(resource->name);
+-	memset(resource, 0xf2, sizeof(*resource));
+ 	kfree(resource);
+ }
+ 
+@@ -2650,7 +2648,6 @@ void drbd_destroy_connection(struct kref *kref)
+ 	drbd_free_socket(&connection->data);
+ 	kfree(connection->int_dig_in);
+ 	kfree(connection->int_dig_vv);
+-	memset(connection, 0xfc, sizeof(*connection));
+ 	kfree(connection);
+ 	kref_put(&resource->kref, drbd_destroy_resource);
+ }
+-- 
+2.25.1
 
