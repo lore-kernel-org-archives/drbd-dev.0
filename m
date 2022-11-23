@@ -1,21 +1,18 @@
 Return-Path: <bobo.shaobowang@huawei.com>
 Received: from szxga01-in.huawei.com (szxga01-in.huawei.com [45.249.212.187])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6BA974252E1
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6973E4252E0
 	for <drbd-dev@lists.linbit.com>;
 	Wed, 23 Nov 2022 03:05:40 +0100 (CET)
 From: Wang ShaoBo <bobo.shaobowang@huawei.com>
 To: 
-Date: Wed, 23 Nov 2022 10:03:54 +0800
-Message-ID: <20221123020355.2470160-2-bobo.shaobowang@huawei.com>
-In-Reply-To: <20221123020355.2470160-1-bobo.shaobowang@huawei.com>
-References: <20221123020355.2470160-1-bobo.shaobowang@huawei.com>
+Date: Wed, 23 Nov 2022 10:03:53 +0800
+Message-ID: <20221123020355.2470160-1-bobo.shaobowang@huawei.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Content-Type: text/plain
 Cc: axboe@kernel.dk, bobo.shaobowang@huawei.com, linux-block@vger.kernel.org,
 	lars.ellenberg@linbit.com, liwei391@huawei.com, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v3 1/2] drbd: remove call to memset before free
-	device/resource/connection
+Subject: [Drbd-dev] [PATCH v3 0/2] drbd bugfix and cleanup.
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,43 +24,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This revert c2258ffc56f2 ("drbd: poison free'd device, resource and
-connection structs"), add memset is odd here for debugging, there are
-some methods to accurately show what happened, such as kdump.
+drbd bugfix and cleanup.
 
-Signed-off-by: Wang ShaoBo <bobo.shaobowang@huawei.com>
----
- drivers/block/drbd/drbd_main.c | 3 ---
- 1 file changed, 3 deletions(-)
+v3:
+  - add out_* label for destroy_workqueue().
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 8532b839a343..78cae4e75af1 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2217,7 +2217,6 @@ void drbd_destroy_device(struct kref *kref)
- 		kref_put(&peer_device->connection->kref, drbd_destroy_connection);
- 		kfree(peer_device);
- 	}
--	memset(device, 0xfd, sizeof(*device));
- 	kfree(device);
- 	kref_put(&resource->kref, drbd_destroy_resource);
- }
-@@ -2309,7 +2308,6 @@ void drbd_destroy_resource(struct kref *kref)
- 	idr_destroy(&resource->devices);
- 	free_cpumask_var(resource->cpu_mask);
- 	kfree(resource->name);
--	memset(resource, 0xf2, sizeof(*resource));
- 	kfree(resource);
- }
- 
-@@ -2650,7 +2648,6 @@ void drbd_destroy_connection(struct kref *kref)
- 	drbd_free_socket(&connection->data);
- 	kfree(connection->int_dig_in);
- 	kfree(connection->int_dig_vv);
--	memset(connection, 0xfc, sizeof(*connection));
- 	kfree(connection);
- 	kref_put(&resource->kref, drbd_destroy_resource);
- }
+v2:
+  - add new patch for removing useless memset().
+
+
+Wang ShaoBo (2):
+  drbd: remove call to memset before free device/resource/connection
+  drbd: destroy workqueue when drbd device was freed
+
+ drivers/block/drbd/drbd_main.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
 -- 
 2.25.1
 
