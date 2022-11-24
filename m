@@ -1,23 +1,21 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pg1-f171.google.com (mail-pg1-f171.google.com
-	[209.85.215.171])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 861884201EA
-	for <drbd-dev@lists.linbit.com>; Wed, 23 Nov 2022 14:49:22 +0100 (CET)
-Received: by mail-pg1-f171.google.com with SMTP id r18so16772557pgr.12
-	for <drbd-dev@lists.linbit.com>; Wed, 23 Nov 2022 05:49:22 -0800 (PST)
-Message-ID: <5760ca74-002a-ee41-fa46-3d8bdd5b2afe@kernel.dk>
-Date: Wed, 23 Nov 2022 06:49:18 -0700
+Return-Path: <bobo.shaobowang@huawei.com>
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com [45.249.212.187])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CF95142096B
+	for <drbd-dev@lists.linbit.com>;
+	Thu, 24 Nov 2022 03:00:05 +0100 (CET)
+From: Wang ShaoBo <bobo.shaobowang@huawei.com>
+To: 
+Date: Thu, 24 Nov 2022 09:58:16 +0800
+Message-ID: <20221124015817.2729789-2-bobo.shaobowang@huawei.com>
+In-Reply-To: <20221124015817.2729789-1-bobo.shaobowang@huawei.com>
+References: <20221124015817.2729789-1-bobo.shaobowang@huawei.com>
 MIME-Version: 1.0
-Content-Language: en-US
-To: Wang ShaoBo <bobo.shaobowang@huawei.com>
-References: <20221123020355.2470160-1-bobo.shaobowang@huawei.com>
-From: Jens Axboe <axboe@kernel.dk>
-In-Reply-To: <20221123020355.2470160-1-bobo.shaobowang@huawei.com>
-Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, lars.ellenberg@linbit.com, liwei391@huawei.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v3 0/2] drbd bugfix and cleanup.
+Content-Type: text/plain
+Cc: axboe@kernel.dk, bobo.shaobowang@huawei.com, linux-block@vger.kernel.org,
+	lars.ellenberg@linbit.com, liwei391@huawei.com, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH v4 1/2] drbd: remove call to memset before free
+	device/resource/connection
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,28 +27,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 11/22/22 7:03 PM, Wang ShaoBo wrote:
-> drbd bugfix and cleanup.
-> 
-> v3:
->   - add out_* label for destroy_workqueue().
-> 
-> v2:
->   - add new patch for removing useless memset().
-> 
-> 
-> Wang ShaoBo (2):
->   drbd: remove call to memset before free device/resource/connection
->   drbd: destroy workqueue when drbd device was freed
-> 
->  drivers/block/drbd/drbd_main.c | 9 +++++----
->  1 file changed, 5 insertions(+), 4 deletions(-)
-> 
+This revert c2258ffc56f2 ("drbd: poison free'd device, resource and
+connection structs"), add memset is odd here for debugging, there are
+some methods to accurately show what happened, such as kdump.
 
-Patch 2/2 doesn't apply to the for-6.2/block branch. Can you respin
-it?
+Signed-off-by: Wang ShaoBo <bobo.shaobowang@huawei.com>
+---
+ drivers/block/drbd/drbd_main.c | 3 ---
+ 1 file changed, 3 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index ec913820d0b8..b4ae508abf49 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2217,7 +2217,6 @@ void drbd_destroy_device(struct kref *kref)
+ 		kref_put(&peer_device->connection->kref, drbd_destroy_connection);
+ 		kfree(peer_device);
+ 	}
+-	memset(device, 0xfd, sizeof(*device));
+ 	kfree(device);
+ 	kref_put(&resource->kref, drbd_destroy_resource);
+ }
+@@ -2309,7 +2308,6 @@ void drbd_destroy_resource(struct kref *kref)
+ 	idr_destroy(&resource->devices);
+ 	free_cpumask_var(resource->cpu_mask);
+ 	kfree(resource->name);
+-	memset(resource, 0xf2, sizeof(*resource));
+ 	kfree(resource);
+ }
+ 
+@@ -2650,7 +2648,6 @@ void drbd_destroy_connection(struct kref *kref)
+ 	drbd_free_socket(&connection->data);
+ 	kfree(connection->int_dig_in);
+ 	kfree(connection->int_dig_vv);
+-	memset(connection, 0xfc, sizeof(*connection));
+ 	kfree(connection);
+ 	kref_put(&resource->kref, drbd_destroy_resource);
+ }
 -- 
-Jens Axboe
-
+2.25.1
 
