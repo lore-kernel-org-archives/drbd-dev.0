@@ -1,23 +1,54 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pj1-f49.google.com (mail-pj1-f49.google.com
-	[209.85.216.49])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1655742095E
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Nov 2022 14:42:43 +0100 (CET)
-Received: by mail-pj1-f49.google.com with SMTP id
-	v3-20020a17090ac90300b00218441ac0f6so5859737pjt.0
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Nov 2022 05:42:42 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
-To: Wang ShaoBo <bobo.shaobowang@huawei.com>
-In-Reply-To: <20221124015817.2729789-1-bobo.shaobowang@huawei.com>
-References: <20221124015817.2729789-1-bobo.shaobowang@huawei.com>
-Message-Id: <166929736095.99094.10688536519822817206.b4-ty@kernel.dk>
-Date: Thu, 24 Nov 2022 06:42:40 -0700
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B98C942066B
+	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2022 15:13:18 +0100 (CET)
+Date: Tue, 29 Nov 2022 15:02:42 +0100
+From: Christoph Hellwig <hch@lst.de>
+To: Benjamin Coddington <bcodding@redhat.com>
+Message-ID: <20221129140242.GA15747@lst.de>
+References: <cover.1669036433.git.bcodding@redhat.com>
+	<c2ec184226acd21a191ccc1aa46a1d7e43ca7104.1669036433.git.bcodding@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, lars.ellenberg@linbit.com, liwei391@huawei.com,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v4 0/2] drbd bugfix and cleanup.
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c2ec184226acd21a191ccc1aa46a1d7e43ca7104.1669036433.git.bcodding@redhat.com>
+Cc: Latchesar Ionkov <lucho@ionkov.net>, samba-technical@lists.samba.org,
+	Dominique Martinet <asmadeus@codewreck.org>,
+	Valentina Manea <valentina.manea.m@gmail.com>,
+	linux-nvme@lists.infradead.org,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	David Howells <dhowells@redhat.com>,
+	Joseph Qi <joseph.qi@linux.alibaba.com>,
+	Eric Dumazet <edumazet@google.com>, linux-nfs@vger.kernel.org,
+	Marc Dionne <marc.dionne@auristor.com>,
+	Shuah Khan <shuah@kernel.org>, Christoph Hellwig <hch@lst.de>,
+	Mike Christie <michael.christie@oracle.com>,
+	drbd-dev@lists.linbit.com, linux-cifs@vger.kernel.org,
+	Sagi Grimberg <sagi@grimberg.me>, linux-scsi@vger.kernel.org,
+	Mark Fasheh <mark@fasheh.com>, linux-afs@lists.infradead.org,
+	cluster-devel@redhat.com, Christine Caulfield <ccaulfie@redhat.com>,
+	Jakub Kicinski <kuba@kernel.org>, Ilya Dryomov <idryomov@gmail.com>,
+	Paolo Abeni <pabeni@redhat.com>, Anna Schumaker <anna@kernel.org>,
+	Eric Van Hensbergen <ericvh@gmail.com>,
+	"James E.J. Bottomley" <jejb@linux.ibm.com>,
+	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
+	linux-block@vger.kernel.org, David Teigland <teigland@redhat.com>,
+	Joel Becker <jlbec@evilplan.org>, v9fs-developer@lists.sourceforge.net,
+	Keith Busch <kbusch@kernel.org>, ceph-devel@vger.kernel.org,
+	Xiubo Li <xiubli@redhat.com>,
+	Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Jens Axboe <axboe@kernel.dk>, Chris Leech <cleech@redhat.com>,
+	open-iscsi@googlegroups.com,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	netdev@vger.kernel.org, linux-usb@vger.kernel.org,
+	Jeff Layton <jlayton@kernel.org>, linux-kernel@vger.kernel.org,
+	Steve French <sfrench@samba.org>, Chuck Lever <chuck.lever@oracle.com>,
+	Lee Duncan <lduncan@suse.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	"David S. Miller" <davem@davemloft.net>, ocfs2-devel@oss.oracle.com
+Subject: Re: [Drbd-dev] [PATCH v1 2/3] Treewide: Stop corrupting socket's
+	task_frag
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,26 +60,6 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, 24 Nov 2022 09:58:15 +0800, Wang ShaoBo wrote:
-> drbd bugfix and cleanup.
-> 
-> v4:
->   - solve conflict in applying patch [2/2] to for-6.2/block branch
-> 
-> v3:
->   - add out_* label for destroy_workqueue().
-> 
-> [...]
-
-Applied, thanks!
-
-[1/2] drbd: remove call to memset before free device/resource/connection
-      commit: 6e7b854e4c1b02dba00760dfa79d8dbf6cce561e
-[2/2] drbd: destroy workqueue when drbd device was freed
-      commit: 8692814b77ca4228a99da8a005de0acf40af6132
-
-Best regards,
--- 
-Jens Axboe
-
-
+Hmm.  Having to set a flag to not accidentally corrupt per-task
+state seems a bit fragile.  Wouldn't it make sense to find a way to opt
+into the feature only for sockets created from the syscall layer?
