@@ -1,19 +1,23 @@
-Return-Path: <jlayton@kernel.org>
-Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F132442066E
-	for <drbd-dev@lists.linbit.com>; Tue, 29 Nov 2022 18:51:02 +0100 (CET)
-Message-ID: <d0a8f7a5e307e201926ae8e80d629da10c706a91.camel@kernel.org>
-From: Jeff Layton <jlayton@kernel.org>
-To: Christoph Hellwig <hch@lst.de>, Benjamin Coddington <bcodding@redhat.com>
-Date: Tue, 29 Nov 2022 12:42:33 -0500
-In-Reply-To: <20221129140242.GA15747@lst.de>
+Return-Path: <gnault@redhat.com>
+Received: from us-smtp-delivery-124.mimecast.com
+	(us-smtp-delivery-124.mimecast.com [170.10.133.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 54634420FC2
+	for <drbd-dev@lists.linbit.com>; Wed, 30 Nov 2022 12:55:05 +0100 (CET)
+Received: by mail-wm1-f72.google.com with SMTP id
+	204-20020a1c02d5000000b003d06031f2cfso3143469wmc.0
+	for <drbd-dev@lists.linbit.com>; Wed, 30 Nov 2022 03:48:40 -0800 (PST)
+Date: Wed, 30 Nov 2022 12:48:35 +0100
+From: Guillaume Nault <gnault@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Message-ID: <20221130114835.GA29316@pc-4.home>
 References: <cover.1669036433.git.bcodding@redhat.com>
 	<c2ec184226acd21a191ccc1aa46a1d7e43ca7104.1669036433.git.bcodding@redhat.com>
 	<20221129140242.GA15747@lst.de>
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Cc: Latchesar Ionkov <lucho@ionkov.net>,
+In-Reply-To: <20221129140242.GA15747@lst.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Cc: Latchesar Ionkov <lucho@ionkov.net>, samba-technical@lists.samba.org,
 	Dominique Martinet <asmadeus@codewreck.org>,
 	Valentina Manea <valentina.manea.m@gmail.com>,
 	linux-nvme@lists.infradead.org,
@@ -29,26 +33,26 @@ Cc: Latchesar Ionkov <lucho@ionkov.net>,
 	Mark Fasheh <mark@fasheh.com>, cluster-devel@redhat.com,
 	Christine Caulfield <ccaulfie@redhat.com>,
 	Jakub Kicinski <kuba@kernel.org>, Ilya Dryomov <idryomov@gmail.com>,
-	Paolo Abeni <pabeni@redhat.com>, Keith,
-	Anna Schumaker <anna@kernel.org>, Hensbergen <ericvh@gmail.com>,
+	Paolo Abeni <pabeni@redhat.com>, Anna Schumaker <anna@kernel.org>,
+	Eric Van Hensbergen <ericvh@gmail.com>,
 	"James E.J. Bottomley" <jejb@linux.ibm.com>,
-	Josef Bacik <josef@toxicpanda.com>, David,
-	linux-block@vger.kernel.org, nbd@other.debian.org, Greg,
-	Teigland <teigland@redhat.com>, Joel Becker <jlbec@evilplan.org>,
-	Chuck, v9fs-developer@lists.sourceforge.net,
-	Busch <kbusch@kernel.org>, ceph-devel@vger.kernel.org,
+	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
+	linux-block@vger.kernel.org, David Teigland <teigland@redhat.com>,
+	Joel Becker <jlbec@evilplan.org>, v9fs-developer@lists.sourceforge.net,
+	Keith Busch <kbusch@kernel.org>, ceph-devel@vger.kernel.org,
 	Xiubo Li <xiubli@redhat.com>,
 	Trond Myklebust <trond.myklebust@hammerspace.com>,
 	Jens Axboe <axboe@kernel.dk>, Chris Leech <cleech@redhat.com>,
 	open-iscsi@googlegroups.com,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	netdev@vger.kernel.org, linux-usb@vger.kernel.org,
-	samba-technical@lists.samba.org, linux-kernel@vger.kernel.org,
-	"David S. Miller" <davem@davemloft.net>,
-	Steve French <sfrench@samba.org>, Lever <chuck.lever@oracle.com>,
-	Lee Duncan <lduncan@suse.com>, Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, Eric,
-	ocfs2-devel@oss.oracle.com
+	Jeff Layton <jlayton@kernel.org>, linux-kernel@vger.kernel.org,
+	Steve French <sfrench@samba.org>,
+	Benjamin Coddington <bcodding@redhat.com>,
+	Chuck Lever <chuck.lever@oracle.com>, Lee Duncan <lduncan@suse.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	"David S. Miller" <davem@davemloft.net>, ocfs2-devel@oss.oracle.com
 Subject: Re: [Drbd-dev] [PATCH v1 2/3] Treewide: Stop corrupting socket's
 	task_frag
 List-Id: "*Coordination* of development, patches,
@@ -62,23 +66,12 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, 2022-11-29 at 15:02 +0100, Christoph Hellwig wrote:
+On Tue, Nov 29, 2022 at 03:02:42PM +0100, Christoph Hellwig wrote:
 > Hmm.  Having to set a flag to not accidentally corrupt per-task
 > state seems a bit fragile.  Wouldn't it make sense to find a way to opt
 > into the feature only for sockets created from the syscall layer?
 
-I agree that that would be cleaner. task_frag should have been an opt-in
-thing all along. That change regressed all of the in-kernel users of
-sockets.
+That's something I originally considered. But, as far as I can see, nbd
+needs this flag _and_ uses sockets created in user space. So it'd still
+need to opt out manually.
 
-Where would be the right place to set that flag for only userland
-sockets? A lot of the in-kernel socket users hook into the socket API at
-a fairly high-level. 9P and CIFS, for instance, call __sock_create.
-
-We could set it in the syscall handlers (and maybe in iouring) I
-suppose, but that seems like the wrong thing to do too.
-
-In the absence of a clean place to do this, I think we're going to be
-stuck doing it the way Ben has proposed...
---=20
-Jeff Layton <jlayton@kernel.org>
