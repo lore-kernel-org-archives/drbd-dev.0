@@ -1,30 +1,46 @@
-Return-Path: <ming.lei@redhat.com>
-Received: from us-smtp-delivery-124.mimecast.com
-	(us-smtp-delivery-124.mimecast.com [170.10.133.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BC4442096D
-	for <drbd-dev@lists.linbit.com>; Thu,  8 Dec 2022 01:37:14 +0100 (CET)
-Date: Thu, 8 Dec 2022 08:36:49 +0800
-From: Ming Lei <ming.lei@redhat.com>
-To: Gulam Mohamed <gulam.mohamed@oracle.com>
-Message-ID: <Y5ExoZ+7Am6Nm8+h@T590>
+Return-Path: <chaitanyak@nvidia.com>
+Received: from NAM12-BN8-obe.outbound.protection.outlook.com
+	(mail-bn8nam12on2056.outbound.protection.outlook.com [40.107.237.56])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3D89442177D
+	for <drbd-dev@lists.linbit.com>; Thu,  8 Dec 2022 01:48:52 +0100 (CET)
+From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
+To: Jens Axboe <axboe@kernel.dk>, Gulam Mohamed <gulam.mohamed@oracle.com>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>
+Date: Wed, 7 Dec 2022 23:17:12 +0000
+Message-ID: <09be5cbe-9251-d28c-e91a-3f2e5e9e99f2@nvidia.com>
 References: <20221207223204.22459-1-gulam.mohamed@oracle.com>
+	<abaa2003-4ddf-5ef9-d62c-1708a214609d@kernel.dk>
+In-Reply-To: <abaa2003-4ddf-5ef9-d62c-1708a214609d@kernel.dk>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <49B6173FD1ADDA4BAB931DDA7410A344@namprd12.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20221207223204.22459-1-gulam.mohamed@oracle.com>
-Cc: nvdimm@lists.linux.dev, linux-kernel@vger.kernel.org, song@kernel.org,
-	dm-devel@redhat.com, ira.weiny@intel.com, agk@redhat.com,
-	drbd-dev@lists.linbit.com, dave.jiang@intel.com,
-	minchan@kernel.org, vishal.l.verma@intel.com,
-	konrad.wilk@oracle.com, joe.jin@oracle.com,
-	kent.overstreet@gmail.com, ngupta@vflare.org, kch@nvidia.com,
-	senozhatsky@chromium.org, snitzer@kernel.org, colyli@suse.de,
-	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
-	dan.j.williams@intel.com, ming.lei@redhat.com, axboe@kernel.dk,
-	linux-raid@vger.kernel.org, martin.petersen@oracle.com,
-	philipp.reisner@linbit.com, junxiao.bi@oracle.com,
-	lars.ellenberg@linbit.com
+Cc: "nvdimm@lists.linux.dev" <nvdimm@lists.linux.dev>,
+	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
+	"song@kernel.org" <song@kernel.org>,
+	"dm-devel@redhat.com" <dm-devel@redhat.com>,
+	"ira.weiny@intel.com" <ira.weiny@intel.com>,
+	"agk@redhat.com" <agk@redhat.com>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
+	"dave.jiang@intel.com" <dave.jiang@intel.com>,
+	"minchan@kernel.org" <minchan@kernel.org>,
+	"vishal.l.verma@intel.com" <vishal.l.verma@intel.com>,
+	"joe.jin@oracle.com" <joe.jin@oracle.com>,
+	"kent.overstreet@gmail.com" <kent.overstreet@gmail.com>,
+	"ngupta@vflare.org" <ngupta@vflare.org>,
+	Chaitanya Kulkarni <chaitanyak@nvidia.com>,
+	"konrad.wilk@oracle.com" <konrad.wilk@oracle.com>,
+	"snitzer@kernel.org" <snitzer@kernel.org>,
+	"colyli@suse.de" <colyli@suse.de>,
+	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
+	"linux-bcache@vger.kernel.org" <linux-bcache@vger.kernel.org>,
+	"dan.j.williams@intel.com" <dan.j.williams@intel.com>,
+	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"junxiao.bi@oracle.com" <junxiao.bi@oracle.com>,
+	"senozhatsky@chromium.org" <senozhatsky@chromium.org>,
+	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>
 Subject: Re: [Drbd-dev] [RFC for-6.2/block V2] block: Change the granularity
  of io ticks from ms to ns
 List-Id: "*Coordination* of development, patches,
@@ -38,79 +54,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Dec 07, 2022 at 10:32:04PM +0000, Gulam Mohamed wrote:
-> As per the review comment from Jens Axboe, I am re-sending this patch
-> against "for-6.2/block".
-> 
-> 
-> Use ktime to change the granularity of IO accounting in block layer from
-> milli-seconds to nano-seconds to get the proper latency values for the
-> devices whose latency is in micro-seconds. After changing the granularity
-> to nano-seconds the iostat command, which was showing incorrect values for
-> %util, is now showing correct values.
-
-Please add the theory behind why using nano-seconds can get correct accounting.
-
-> 
-> We did not work on the patch to drop the logic for
-> STAT_PRECISE_TIMESTAMPS yet. Will do it if this patch is ok.
-> 
-> The iostat command was run after starting the fio with following command
-> on an NVME disk. For the same fio command, the iostat %util was showing
-> ~100% for the disks whose latencies are in the range of microseconds.
-> With the kernel changes (granularity to nano-seconds), the %util was
-> showing correct values. Following are the details of the test and their
-> output:
-> 
-> fio command
-> -----------
-> [global]
-> bs=128K
-> iodepth=1
-> direct=1
-> ioengine=libaio
-> group_reporting
-> time_based
-> runtime=90
-> thinktime=1ms
-> numjobs=1
-> name=raw-write
-> rw=randrw
-> ignore_error=EIO:EIO
-> [job1]
-> filename=/dev/nvme0n1
-> 
-> Correct values after kernel changes:
-> ====================================
-> iostat output
-> -------------
-> iostat -d /dev/nvme0n1 -x 1
-> 
-> Device            r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
-> nvme0n1              0.08    0.05   0.06   128.00   128.00   0.07   6.50
-> 
-> Device            r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
-> nvme0n1              0.08    0.06   0.06   128.00   128.00   0.07   6.30
-> 
-> Device            r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
-> nvme0n1              0.06    0.05   0.06   128.00   128.00   0.06   5.70
-> 
-> From fio
-> --------
-> Read Latency: clat (usec): min=32, max=2335, avg=79.54, stdev=29.95
-> Write Latency: clat (usec): min=38, max=130, avg=57.76, stdev= 3.25
-
-Can you explain a bit why the above %util is correct?
-
-BTW, %util is usually not important for SSDs, please see 'man iostat':
-
-     %util
-            Percentage of elapsed time during which I/O requests were issued to the device (bandwidth  uti‐
-            lization for the device). Device saturation occurs when this value is close to 100% for devices
-            serving requests serially.  But for devices serving requests in parallel, such as  RAID  arrays
-            and modern SSDs, this number does not reflect their performance limits.
-
-
-Thanks, 
-Ming
-
+T24gMTIvNy8yMiAxNTowOCwgSmVucyBBeGJvZSB3cm90ZToNCj4gT24gMTIvNy8yMiAzOjMyP1BN
+LCBHdWxhbSBNb2hhbWVkIHdyb3RlOg0KPj4gQXMgcGVyIHRoZSByZXZpZXcgY29tbWVudCBmcm9t
+IEplbnMgQXhib2UsIEkgYW0gcmUtc2VuZGluZyB0aGlzIHBhdGNoDQo+PiBhZ2FpbnN0ICJmb3It
+Ni4yL2Jsb2NrIi4NCj4+DQo+Pg0KPj4gVXNlIGt0aW1lIHRvIGNoYW5nZSB0aGUgZ3JhbnVsYXJp
+dHkgb2YgSU8gYWNjb3VudGluZyBpbiBibG9jayBsYXllciBmcm9tDQo+PiBtaWxsaS1zZWNvbmRz
+IHRvIG5hbm8tc2Vjb25kcyB0byBnZXQgdGhlIHByb3BlciBsYXRlbmN5IHZhbHVlcyBmb3IgdGhl
+DQo+PiBkZXZpY2VzIHdob3NlIGxhdGVuY3kgaXMgaW4gbWljcm8tc2Vjb25kcy4gQWZ0ZXIgY2hh
+bmdpbmcgdGhlIGdyYW51bGFyaXR5DQo+PiB0byBuYW5vLXNlY29uZHMgdGhlIGlvc3RhdCBjb21t
+YW5kLCB3aGljaCB3YXMgc2hvd2luZyBpbmNvcnJlY3QgdmFsdWVzIGZvcg0KPj4gJXV0aWwsIGlz
+IG5vdyBzaG93aW5nIGNvcnJlY3QgdmFsdWVzLg0KPj4NCj4+IFdlIGRpZCBub3Qgd29yayBvbiB0
+aGUgcGF0Y2ggdG8gZHJvcCB0aGUgbG9naWMgZm9yDQo+PiBTVEFUX1BSRUNJU0VfVElNRVNUQU1Q
+UyB5ZXQuIFdpbGwgZG8gaXQgaWYgdGhpcyBwYXRjaCBpcyBvay4NCj4+DQo+PiBUaGUgaW9zdGF0
+IGNvbW1hbmQgd2FzIHJ1biBhZnRlciBzdGFydGluZyB0aGUgZmlvIHdpdGggZm9sbG93aW5nIGNv
+bW1hbmQNCj4+IG9uIGFuIE5WTUUgZGlzay4gRm9yIHRoZSBzYW1lIGZpbyBjb21tYW5kLCB0aGUg
+aW9zdGF0ICV1dGlsIHdhcyBzaG93aW5nDQo+PiB+MTAwJSBmb3IgdGhlIGRpc2tzIHdob3NlIGxh
+dGVuY2llcyBhcmUgaW4gdGhlIHJhbmdlIG9mIG1pY3Jvc2Vjb25kcy4NCj4+IFdpdGggdGhlIGtl
+cm5lbCBjaGFuZ2VzIChncmFudWxhcml0eSB0byBuYW5vLXNlY29uZHMpLCB0aGUgJXV0aWwgd2Fz
+DQo+PiBzaG93aW5nIGNvcnJlY3QgdmFsdWVzLiBGb2xsb3dpbmcgYXJlIHRoZSBkZXRhaWxzIG9m
+IHRoZSB0ZXN0IGFuZCB0aGVpcg0KPj4gb3V0cHV0Og0KPiANCj4gTXkgZGVmYXVsdCBwZWFrIHRl
+c3RpbmcgcnVucyBhdCAxMjJNIElPUFMuIFRoYXQncyBhbHNvIHRoZSBwZWFrIElPUFMgb2YNCj4g
+dGhlIGRldmljZXMgY29tYmluZWQsIGFuZCB3aXRoIGlvc3RhdHMgZGlzYWJsZWQuIElmIEkgZW5h
+YmxlZCBpb3N0YXRzLA0KPiB0aGVuIHRoZSBwZXJmb3JtYW5jZSBkcm9wcyB0byAxMTJNIElPUFMu
+IEl0J3Mgbm8gbG9uZ2VyIGRldmljZSBsaW1pdGVkLA0KPiB0aGF0J3MgYSBkcm9wIG9mIGFib3V0
+IDguMiUuDQo+IA0KDQpXb3csIGNsZWFybHkgbm90IGFjY2VwdGFibGUgdGhhdCdzIGV4YWN0bHkg
+SSBhc2tlZCBmb3IgcGVyZg0KbnVtYmVycyA6KS4NCg0KLWNrDQoNCg==
