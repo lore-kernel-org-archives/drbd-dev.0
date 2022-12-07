@@ -1,34 +1,30 @@
-Return-Path: <yukuai1@huaweicloud.com>
-Received: from dggsgout11.his.huawei.com (dggsgout11.his.huawei.com
-	[45.249.212.51])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 52E0842178C
-	for <drbd-dev@lists.linbit.com>; Wed,  7 Dec 2022 14:09:14 +0100 (CET)
-Received: from mail02.huawei.com (unknown [172.30.67.153])
-	by dggsgout11.his.huawei.com (SkyGuard) with ESMTP id 4NRyKc2058z4f3pBt
-	for <drbd-dev@lists.linbit.com>; Wed,  7 Dec 2022 21:09:08 +0800 (CST)
-To: Ming Lei <ming.lei@redhat.com>, Yu Kuai <yukuai1@huaweicloud.com>
-References: <20221206181536.13333-1-gulam.mohamed@oracle.com>
-	<936a498b-19fe-36d5-ff32-817f153e57e3@huaweicloud.com>
-	<Y5AFX4sxLRLV4uSt@T590>
-From: Yu Kuai <yukuai1@huaweicloud.com>
-Message-ID: <aadfc6d2-ad04-279c-a1d6-7f634d0b2c99@huaweicloud.com>
-Date: Wed, 7 Dec 2022 21:09:08 +0800
+Return-Path: <axboe@kernel.dk>
+Received: from mail-io1-f46.google.com (mail-io1-f46.google.com
+	[209.85.166.46])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 17F0042096D
+	for <drbd-dev@lists.linbit.com>; Wed,  7 Dec 2022 18:08:53 +0100 (CET)
+Received: by mail-io1-f46.google.com with SMTP id d123so6712375iof.6
+	for <drbd-dev@lists.linbit.com>; Wed, 07 Dec 2022 09:08:53 -0800 (PST)
+Message-ID: <eaf4f9a8-dfc6-402e-4a1a-732034d1512d@kernel.dk>
+Date: Wed, 7 Dec 2022 10:08:50 -0700
 MIME-Version: 1.0
-In-Reply-To: <Y5AFX4sxLRLV4uSt@T590>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Cc: nvdimm@lists.linux.dev, linux-kernel@vger.kernel.org, song@kernel.org,
+To: Gulam Mohamed <gulam.mohamed@oracle.com>, linux-block@vger.kernel.org
+References: <20221206181536.13333-1-gulam.mohamed@oracle.com>
+Content-Language: en-US
+From: Jens Axboe <axboe@kernel.dk>
+In-Reply-To: <20221206181536.13333-1-gulam.mohamed@oracle.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+Cc: nvdimm@lists.linux.dev, philipp.reisner@linbit.com, song@kernel.org,
 	dm-devel@redhat.com, ira.weiny@intel.com, agk@redhat.com,
 	drbd-dev@lists.linbit.com, dave.jiang@intel.com,
-	vishal.l.verma@intel.com, konrad.wilk@oracle.com,
-	"yukuai \(C\)" <yukuai3@huawei.com>, kent.overstreet@gmail.com,
-	ngupta@vflare.org, kch@nvidia.com, senozhatsky@chromium.org,
-	Gulam Mohamed <gulam.mohamed@oracle.com>, snitzer@kernel.org,
-	colyli@suse.de, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, dan.j.williams@intel.com,
-	axboe@kernel.dk, linux-raid@vger.kernel.org,
-	martin.petersen@oracle.com, philipp.reisner@linbit.com,
-	junxiao.bi@oracle.com, minchan@kernel.org, lars.ellenberg@linbit.com
+	minchan@kernel.org, vishal.l.verma@intel.com,
+	kent.overstreet@gmail.com, ngupta@vflare.org, kch@nvidia.com,
+	konrad.wilk@oracle.com, snitzer@kernel.org, colyli@suse.de,
+	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
+	dan.j.williams@intel.com, martin.petersen@oracle.com,
+	linux-kernel@vger.kernel.org, junxiao.bi@oracle.com,
+	senozhatsky@chromium.org, lars.ellenberg@linbit.com
 Subject: Re: [Drbd-dev] [RFC] block: Change the granularity of io ticks from
 	ms to ns
 List-Id: "*Coordination* of development, patches,
@@ -42,46 +38,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi,
+On 12/6/22 11:15?AM, Gulam Mohamed wrote:
+> Use ktime to change the granularity of IO accounting in block layer from
+> milli-seconds to nano-seconds to get the proper latency values for the
+> devices whose latency is in micro-seconds. After changing the granularity
+> to nano-seconds the iostat command, which was showing incorrect values for
+> %util, is now showing correct values.
+> 
+> We did not work on the patch to drop the logic for
+> STAT_PRECISE_TIMESTAMPS yet. Will do it if this patch is ok.
+> 
+> The iostat command was run after starting the fio with following command
+> on an NVME disk. For the same fio command, the iostat %util was showing
+> ~100% for the disks whose latencies are in the range of microseconds.
+> With the kernel changes (granularity to nano-seconds), the %util was
+> showing correct values. Following are the details of the test and their
+> output:
 
-在 2022/12/07 11:15, Ming Lei 写道:
-> On Wed, Dec 07, 2022 at 10:19:08AM +0800, Yu Kuai wrote:
->> Hi,
->>
->> 在 2022/12/07 2:15, Gulam Mohamed 写道:
->>> Use ktime to change the granularity of IO accounting in block layer from
->>> milli-seconds to nano-seconds to get the proper latency values for the
->>> devices whose latency is in micro-seconds. After changing the granularity
->>> to nano-seconds the iostat command, which was showing incorrect values for
->>> %util, is now showing correct values.
->>
->> This patch didn't correct the counting of io_ticks, just make the
->> error accounting from jiffies(ms) to ns. The problem that util can be
->> smaller or larger still exist.
-> 
-> Agree.
-> 
->>
->> However, I think this change make sense consider that error margin is
->> much smaller, and performance overhead should be minimum.
->>
->> Hi, Ming, how do you think?
-> 
-> I remembered that ktime_get() has non-negligible overhead, is there any
-> test data(iops/cpu utilization) when running fio or t/io_uring on
-> null_blk with this patch?
+As mentioned, this will most likely have a substantial performance
+impact. I'd test it, but your patch is nowhere near applying to the
+current block tree. Please resend it against for-6.2/block so it can
+get tested.
 
-Yes, testing with null_blk is necessary, we don't want any performance
-regression.
-
-BTW, I thought it's fine because it's already used for tracking io
-latency.
-> 
-> 
-> Thanks,
-> Ming
-> 
-> 
-> .
-> 
+-- 
+Jens Axboe
 
