@@ -1,51 +1,22 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pf1-f172.google.com (mail-pf1-f172.google.com
-	[209.85.210.172])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6002842177D
-	for <drbd-dev@lists.linbit.com>; Thu,  8 Dec 2022 03:55:34 +0100 (CET)
-Received: by mail-pf1-f172.google.com with SMTP id c7so196696pfc.12
-	for <drbd-dev@lists.linbit.com>; Wed, 07 Dec 2022 18:55:34 -0800 (PST)
-Message-ID: <4d118f20-9006-0af9-8d97-0d28d85a3585@kernel.dk>
-Date: Wed, 7 Dec 2022 19:55:30 -0700
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-ed1-f49.google.com (mail-ed1-f49.google.com
+	[209.85.208.49])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CE6AC420372
+	for <drbd-dev@lists.linbit.com>; Fri,  9 Dec 2022 15:53:32 +0100 (CET)
+Received: by mail-ed1-f49.google.com with SMTP id e13so3394385edj.7
+	for <drbd-dev@lists.linbit.com>; Fri, 09 Dec 2022 06:53:32 -0800 (PST)
+From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
+	<christoph.boehmwalder@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Fri,  9 Dec 2022 15:53:19 +0100
+Message-Id: <20221209145327.2272271-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
-Content-Language: en-US
-To: Keith Busch <kbusch@kernel.org>, Chaitanya Kulkarni <chaitanyak@nvidia.com>
-References: <20221207223204.22459-1-gulam.mohamed@oracle.com>
-	<abaa2003-4ddf-5ef9-d62c-1708a214609d@kernel.dk>
-	<09be5cbe-9251-d28c-e91a-3f2e5e9e99f2@nvidia.com>
-	<Y5Exa1TV/2VLcEWR@kbusch-mbp>
-From: Jens Axboe <axboe@kernel.dk>
-In-Reply-To: <Y5Exa1TV/2VLcEWR@kbusch-mbp>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Cc: "nvdimm@lists.linux.dev" <nvdimm@lists.linux.dev>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"song@kernel.org" <song@kernel.org>,
-	"dm-devel@redhat.com" <dm-devel@redhat.com>,
-	"ira.weiny@intel.com" <ira.weiny@intel.com>,
-	"agk@redhat.com" <agk@redhat.com>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>,
-	"dave.jiang@intel.com" <dave.jiang@intel.com>,
-	"vishal.l.verma@intel.com" <vishal.l.verma@intel.com>,
-	"konrad.wilk@oracle.com" <konrad.wilk@oracle.com>,
-	"joe.jin@oracle.com" <joe.jin@oracle.com>,
-	"kent.overstreet@gmail.com" <kent.overstreet@gmail.com>,
-	"ngupta@vflare.org" <ngupta@vflare.org>,
-	"senozhatsky@chromium.org" <senozhatsky@chromium.org>,
-	Gulam Mohamed <gulam.mohamed@oracle.com>,
-	"snitzer@kernel.org" <snitzer@kernel.org>,
-	"colyli@suse.de" <colyli@suse.de>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"linux-bcache@vger.kernel.org" <linux-bcache@vger.kernel.org>,
-	"dan.j.williams@intel.com" <dan.j.williams@intel.com>,
-	"linux-raid@vger.kernel.org" <linux-raid@vger.kernel.org>,
-	"martin.petersen@oracle.com" <martin.petersen@oracle.com>,
-	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
-	"junxiao.bi@oracle.com" <junxiao.bi@oracle.com>,
-	"minchan@kernel.org" <minchan@kernel.org>,
-	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>
-Subject: Re: [Drbd-dev] [RFC for-6.2/block V2] block: Change the granularity
- of io ticks from ms to ns
+Content-Transfer-Encoding: 8bit
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 0/8] Miscellaneous DRBD reorganization
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -57,36 +28,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 12/7/22 5:35?PM, Keith Busch wrote:
-> On Wed, Dec 07, 2022 at 11:17:12PM +0000, Chaitanya Kulkarni wrote:
->> On 12/7/22 15:08, Jens Axboe wrote:
->>>
->>> My default peak testing runs at 122M IOPS. That's also the peak IOPS of
->>> the devices combined, and with iostats disabled. If I enabled iostats,
->>> then the performance drops to 112M IOPS. It's no longer device limited,
->>> that's a drop of about 8.2%.
->>>
->>
->> Wow, clearly not acceptable that's exactly I asked for perf
->> numbers :).
-> 
-> For the record, we did say per-io ktime_get() has a measurable
-> performance harm and should be aggregated.
-> 
->   https://www.spinics.net/lists/linux-block/msg89937.html
+Some more mostly trivial "alignment patches" to (slowly but surely)
+move further in the direction of re-upstreaming DRBD.
 
-Yes, I iterated that in the v1 posting as well, and mentioned it was the
-reason the time batching was done. From the results I posted, if you
-look at a profile of the run, here are the time related additions:
+These should be fairly uncontroversial.
 
-+   27.22%  io_uring  [kernel.vmlinux]  [k] read_tsc
-+    4.37%  io_uring  [kernel.vmlinux]  [k] ktime_get
+Andreas Gruenbacher (1):
+  drbd: drbd_insert_interval(): Clarify comment
 
-which are #1 and $4, respectively. That's a LOT of added overhead. Not
-sure why people think time keeping is free, particularly high
-granularity time keeping. It's definitely not, and adding 2-3 per IO is
-very noticeable.
+Christoph Böhmwalder (5):
+  drbd: adjust drbd_limits license header
+  drbd: make limits unsigned
+  drbd: remove unnecessary assignment in vli_encode_bits
+  drbd: remove macros using require_context
+  MAINTAINERS: add drbd headers
 
+Lars Ellenberg (1):
+  drbd: interval tree: make removing an "empty" interval a no-op
+
+Robert Altnoeder (1):
+  drbd: fix DRBD_VOLUME_MAX 65535 -> 65534
+
+ MAINTAINERS                        |   1 +
+ drivers/block/drbd/drbd_int.h      |  12 +-
+ drivers/block/drbd/drbd_interval.c |   6 +-
+ drivers/block/drbd/drbd_vli.h      |   2 +-
+ include/linux/drbd_limits.h        | 204 ++++++++++++++---------------
+ 5 files changed, 110 insertions(+), 115 deletions(-)
+
+
+base-commit: f596da3efaf4130ff61cd029558845808df9bf99
 -- 
-Jens Axboe
+2.38.1
 
