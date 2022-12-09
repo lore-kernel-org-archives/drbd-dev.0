@@ -1,25 +1,22 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f45.google.com (mail-ed1-f45.google.com
-	[209.85.208.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D395D4210CC
-	for <drbd-dev@lists.linbit.com>; Fri,  9 Dec 2022 15:53:38 +0100 (CET)
-Received: by mail-ed1-f45.google.com with SMTP id c17so3358833edj.13
-	for <drbd-dev@lists.linbit.com>; Fri, 09 Dec 2022 06:53:38 -0800 (PST)
+Received: from mail-ej1-f46.google.com (mail-ej1-f46.google.com
+	[209.85.218.46])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 583BB420968
+	for <drbd-dev@lists.linbit.com>; Fri,  9 Dec 2022 15:55:07 +0100 (CET)
+Received: by mail-ej1-f46.google.com with SMTP id n21so12045413ejb.9
+	for <drbd-dev@lists.linbit.com>; Fri, 09 Dec 2022 06:55:07 -0800 (PST)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  9 Dec 2022 15:53:27 +0100
-Message-Id: <20221209145327.2272271-9-christoph.boehmwalder@linbit.com>
-In-Reply-To: <20221209145327.2272271-1-christoph.boehmwalder@linbit.com>
-References: <20221209145327.2272271-1-christoph.boehmwalder@linbit.com>
+Date: Fri,  9 Dec 2022 15:55:01 +0100
+Message-Id: <20221209145504.2273072-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Andreas Gruenbacher <agruen@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 8/8] drbd: drbd_insert_interval(): Clarify comment
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 0/3] DRBD file structure reorganization
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,27 +28,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andreas Gruenbacher <agruen@linbit.com>
+To make our lives easier when sending future, more complex patches,
+we want to align the file structure as best as possible with what we
+have in the out-of-tree module.
 
-Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
-Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
----
- drivers/block/drbd/drbd_interval.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Christoph Böhmwalder (3):
+  drbd: split off drbd_buildtag into separate file
+  drbd: drop API_VERSION define
+  drbd: split off drbd_config into separate file
 
-diff --git a/drivers/block/drbd/drbd_interval.c b/drivers/block/drbd/drbd_interval.c
-index b6aaf0d4d85b..873beda6de24 100644
---- a/drivers/block/drbd/drbd_interval.c
-+++ b/drivers/block/drbd/drbd_interval.c
-@@ -58,7 +58,7 @@ drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
-  * drbd_contains_interval  -  check if a tree contains a given interval
-  * @root:	red black tree root
-  * @sector:	start sector of @interval
-- * @interval:	may not be a valid pointer
-+ * @interval:	may be an invalid pointer
-  *
-  * Returns if the tree contains the node @interval with start sector @start.
-  * Does not dereference @interval until @interval is known to be a valid object
+ drivers/block/drbd/Makefile        |  2 +-
+ drivers/block/drbd/drbd_buildtag.c | 22 ++++++++++++++++++++++
+ drivers/block/drbd/drbd_debugfs.c  |  2 +-
+ drivers/block/drbd/drbd_int.h      |  1 +
+ drivers/block/drbd/drbd_main.c     | 20 +-------------------
+ drivers/block/drbd/drbd_proc.c     |  2 +-
+ include/linux/drbd.h               |  7 -------
+ include/linux/drbd_config.h        | 16 ++++++++++++++++
+ include/linux/drbd_genl_api.h      |  2 +-
+ 9 files changed, 44 insertions(+), 30 deletions(-)
+ create mode 100644 drivers/block/drbd/drbd_buildtag.c
+ create mode 100644 include/linux/drbd_config.h
+
+
+base-commit: f596da3efaf4130ff61cd029558845808df9bf99
 -- 
 2.38.1
 
