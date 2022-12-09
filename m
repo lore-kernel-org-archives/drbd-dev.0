@@ -1,25 +1,54 @@
-Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f44.google.com (mail-ed1-f44.google.com
-	[209.85.208.44])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 79F4E42177E
-	for <drbd-dev@lists.linbit.com>; Fri,  9 Dec 2022 15:55:09 +0100 (CET)
-Received: by mail-ed1-f44.google.com with SMTP id a16so3391018edb.9
-	for <drbd-dev@lists.linbit.com>; Fri, 09 Dec 2022 06:55:09 -0800 (PST)
-From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
-	<christoph.boehmwalder@linbit.com>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Fri,  9 Dec 2022 15:55:04 +0100
-Message-Id: <20221209145504.2273072-4-christoph.boehmwalder@linbit.com>
-In-Reply-To: <20221209145504.2273072-1-christoph.boehmwalder@linbit.com>
-References: <20221209145504.2273072-1-christoph.boehmwalder@linbit.com>
+Return-Path: <kuba@kernel.org>
+Received: from ams.source.kernel.org (ams.source.kernel.org [145.40.68.75])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D3294252E8
+	for <drbd-dev@lists.linbit.com>; Fri,  9 Dec 2022 17:11:06 +0100 (CET)
+Date: Fri, 9 Dec 2022 08:11:01 -0800
+From: Jakub Kicinski <kuba@kernel.org>
+To: Paolo Abeni <pabeni@redhat.com>
+Message-ID: <20221209081101.7500478c@kernel.org>
+In-Reply-To: <d220402a232e204676d9100d6fe4c2ae08f753ee.camel@redhat.com>
+References: <cover.1669036433.git.bcodding@redhat.com>
+	<c2ec184226acd21a191ccc1aa46a1d7e43ca7104.1669036433.git.bcodding@redhat.com>
+	<d220402a232e204676d9100d6fe4c2ae08f753ee.camel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 3/3] drbd: split off drbd_config into separate
-	file
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Cc: Latchesar Ionkov <lucho@ionkov.net>, samba-technical@lists.samba.org,
+	Dominique Martinet <asmadeus@codewreck.org>,
+	Valentina Manea <valentina.manea.m@gmail.com>,
+	linux-nvme@lists.infradead.org,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	David Howells <dhowells@redhat.com>,
+	Joseph Qi <joseph.qi@linux.alibaba.com>,
+	Eric Dumazet <edumazet@google.com>, linux-nfs@vger.kernel.org,
+	Marc Dionne <marc.dionne@auristor.com>,
+	Shuah Khan <shuah@kernel.org>, Christoph Hellwig <hch@lst.de>,
+	Mike Christie <michael.christie@oracle.com>,
+	drbd-dev@lists.linbit.com, linux-cifs@vger.kernel.org,
+	Sagi Grimberg <sagi@grimberg.me>, linux-scsi@vger.kernel.org,
+	Mark Fasheh <mark@fasheh.com>, linux-afs@lists.infradead.org,
+	cluster-devel@redhat.com, Christine Caulfield <ccaulfie@redhat.com>,
+	v9fs-developer@lists.sourceforge.net,
+	Ilya Dryomov <idryomov@gmail.com>, open-iscsi@googlegroups.com,
+	Anna Schumaker <anna@kernel.org>, Hensbergen <ericvh@gmail.com>, "James
+	E.J. Bottomley" <jejb@linux.ibm.com>, Josef Bacik <josef@toxicpanda.com>,
+	David, linux-block@vger.kernel.org, nbd@other.debian.org, Greg,
+	Teigland <teigland@redhat.com>, Joel Becker <jlbec@evilplan.org>,
+	Chuck, Keith Busch <kbusch@kernel.org>,
+	ceph-devel@vger.kernel.org, Xiubo Li <xiubli@redhat.com>,
+	Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Jens Axboe <axboe@kernel.dk>, Chris Leech <cleech@redhat.com>,
+	"Martin K. Petersen" <martin.petersen@oracle.com>, Christoph,
+	netdev@vger.kernel.org, linux-usb@vger.kernel.org,
+	Jeff Layton <jlayton@kernel.org>, linux-kernel@vger.kernel.org,
+	"David S. Miller" <davem@davemloft.net>, Steve French <sfrench@samba.org>,
+	Benjamin Coddington <bcodding@redhat.com>,
+	Lever <chuck.lever@oracle.com>, Lee Duncan <lduncan@suse.com>,
+	Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Eric,
+	ocfs2-devel@oss.oracle.com
+Subject: Re: [Drbd-dev] [PATCH v1 2/3] Treewide: Stop corrupting socket's
+	task_frag
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,81 +60,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-To be more similar to what we do in the out-of-tree module and ease the
-upstreaming process.
+On Fri, 09 Dec 2022 13:37:08 +0100 Paolo Abeni wrote:
+> I think this is the most feasible way out of the existing issue, and I
+> think this patchset should go via the networking tree, targeting the
+> Linux 6.2.
 
-Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
-Reviewed-by: Joel Colledge <joel.colledge@linbit.com>
----
- drivers/block/drbd/drbd_buildtag.c |  2 +-
- drivers/block/drbd/drbd_int.h      |  1 +
- include/linux/drbd.h               |  6 ------
- include/linux/drbd_config.h        | 16 ++++++++++++++++
- 4 files changed, 18 insertions(+), 7 deletions(-)
- create mode 100644 include/linux/drbd_config.h
-
-diff --git a/drivers/block/drbd/drbd_buildtag.c b/drivers/block/drbd/drbd_buildtag.c
-index 956a4d5c339b..cb1aa66d7d5d 100644
---- a/drivers/block/drbd/drbd_buildtag.c
-+++ b/drivers/block/drbd/drbd_buildtag.c
-@@ -1,5 +1,5 @@
- // SPDX-License-Identifier: GPL-2.0-only
--#include <linux/drbd.h>
-+#include <linux/drbd_config.h>
- #include <linux/module.h>
- 
- const char *drbd_buildtag(void)
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index edce1f7ac2da..d89b7d03d4c8 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -34,6 +34,7 @@
- #include <linux/prefetch.h>
- #include <linux/drbd_genl_api.h>
- #include <linux/drbd.h>
-+#include <linux/drbd_config.h>
- #include "drbd_strings.h"
- #include "drbd_state.h"
- #include "drbd_protocol.h"
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index df65a8f5228a..5468a2399d48 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -38,12 +38,6 @@
- 
- #endif
- 
--extern const char *drbd_buildtag(void);
--#define REL_VERSION "8.4.11"
--#define PRO_VERSION_MIN 86
--#define PRO_VERSION_MAX 101
--
--
- enum drbd_io_error_p {
- 	EP_PASS_ON, /* FIXME should the better be named "Ignore"? */
- 	EP_CALL_HELPER,
-diff --git a/include/linux/drbd_config.h b/include/linux/drbd_config.h
-new file mode 100644
-index 000000000000..d215365c6bb1
---- /dev/null
-+++ b/include/linux/drbd_config.h
-@@ -0,0 +1,16 @@
-+/* SPDX-License-Identifier: GPL-2.0-only */
-+/*
-+ * drbd_config.h
-+ * DRBD's compile time configuration.
-+ */
-+
-+#ifndef DRBD_CONFIG_H
-+#define DRBD_CONFIG_H
-+
-+extern const char *drbd_buildtag(void);
-+
-+#define REL_VERSION "8.4.11"
-+#define PRO_VERSION_MIN 86
-+#define PRO_VERSION_MAX 101
-+
-+#endif
--- 
-2.38.1
-
+FWIW some fields had been moved so this will not longer apply cleanly,
+see b534dc46c8ae016. But I think we can apply it to net since the merge
+window is upon us? Just a heads up.
