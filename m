@@ -1,41 +1,31 @@
-Return-Path: <pavel@ucw.cz>
-Received: from jabberwock.ucw.cz (jabberwock.ucw.cz [46.255.230.98])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ACCA54203C0
-	for <drbd-dev@lists.linbit.com>; Tue, 20 Dec 2022 20:47:45 +0100 (CET)
-Date: Tue, 20 Dec 2022 20:39:56 +0100
-From: Pavel Machek <pavel@ucw.cz>
-To: Steven Rostedt <rostedt@goodmis.org>
-Message-ID: <Y6IPjC9mpnoquL8S@duo.ucw.cz>
-References: <20221220134519.3dd1318b@gandalf.local.home>
+Return-Path: <gulam.mohamed@oracle.com>
+Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
+	[205.220.177.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 38FF14203AB
+	for <drbd-dev@lists.linbit.com>; Wed, 21 Dec 2022 07:16:57 +0100 (CET)
+From: Gulam Mohamed <gulam.mohamed@oracle.com>
+To: linux-block@vger.kernel.org
+Date: Wed, 21 Dec 2022 04:05:06 +0000
+Message-Id: <20221221040506.1174644-2-gulam.mohamed@oracle.com>
+In-Reply-To: <20221221040506.1174644-1-gulam.mohamed@oracle.com>
+References: <20221221040506.1174644-1-gulam.mohamed@oracle.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="Q4QndSuPZQc8d5xp"
-Content-Disposition: inline
-In-Reply-To: <20221220134519.3dd1318b@gandalf.local.home>
-Cc: alsa-devel@alsa-project.org, linux-staging@lists.linux.dev,
-	linux-sh@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	SHA-cyfmac-dev-list@infineon.com, linux-leds@vger.kernel.org,
-	drbd-dev@lists.linbit.com, lvs-devel@vger.kernel.org,
-	linux-nilfs@vger.kernel.org, linux-scsi@vger.kernel.org,
-	linux-atm-general@lists.sourceforge.net,
-	Julia Lawall <Julia.Lawall@inria.fr>, linux-acpi@vger.kernel.org,
-	coreteam@netfilter.org, intel-wired-lan@lists.osuosl.org,
-	linux-input@vger.kernel.org, tipc-discussion@lists.sourceforge.net,
-	linux-ext4@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>,
-	linux-media@vger.kernel.org, bridge@lists.linux-foundation.org,
-	intel-gfx@lists.freedesktop.org, linux-nfs@vger.kernel.org,
-	linux-block@vger.kernel.org, cgroups@vger.kernel.org,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Anna-Maria Gleixner <anna-maria@linutronix.de>,
-	brcm80211-dev-list.pdl@broadcom.com,
-	Stephen Boyd <sboyd@kernel.org>, netdev@vger.kernel.org,
-	linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	linux-bluetooth@vger.kernel.org, netfilter-devel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [Drbd-dev] [PATCH] treewide: Convert del_timer*() to
-	timer_shutdown*()
+Content-Transfer-Encoding: 8bit
+Cc: nvdimm@lists.linux.dev, shminderjit.singh@oracle.com,
+	linux-kernel@vger.kernel.org, song@kernel.org,
+	dm-devel@redhat.com, ira.weiny@intel.com, agk@redhat.com,
+	drbd-dev@lists.linbit.com, dave.jiang@intel.com,
+	vishal.l.verma@intel.com, konrad.wilk@oracle.com,
+	joe.jin@oracle.com, kent.overstreet@gmail.com, ngupta@vflare.org,
+	kch@nvidia.com, senozhatsky@chromium.org,
+	gulam.mohamed@oracle.com, snitzer@kernel.org, colyli@suse.de,
+	linux-raid@vger.kernel.org, linux-bcache@vger.kernel.org,
+	dan.j.williams@intel.com, axboe@kernel.dk, martin.petersen@oracle.com,
+	rajesh.sivaramasubramaniom@oracle.com,
+	philipp.reisner@linbit.com, junxiao.bi@oracle.com,
+	minchan@kernel.org, lars.ellenberg@linbit.com
+Subject: [Drbd-dev] [PATCH for-6.2/block V3 2/2] block: Change the
+	granularity of io ticks from ms to ns
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -47,62 +37,487 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Problem Desc
+============
+The "iostat" user-space utility was showing %util as 100% for the disks
+which has latencies less than a milli-second i.e for latencies in the
+range of micro-seconds and below.
 
---Q4QndSuPZQc8d5xp
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Root Cause
+==========
+The IO accounting in block layer is currently done by updating the
+io_ticks in jiffies which is of milli-seconds granularity. Due to this,
+for the devices with IO latencies less than a milli-second, the latency
+will be accounted as 1 milli-second even-though its in the range of
+micro-seconds. This was causing the iostat command to show %util
+as 100% which is incorrect.
 
-On Tue 2022-12-20 13:45:19, Steven Rostedt wrote:
-> [
->   Linus,
->=20
->     I ran the script against your latest master branch:
->     commit b6bb9676f2165d518b35ba3bea5f1fcfc0d969bf
->=20
->     As the timer_shutdown*() code is now in your tree, I figured
->     we can start doing the conversions. At least add the trivial ones
->     now as Thomas suggested that this gets applied at the end of the
->     merge window, to avoid conflicts with linux-next during the
->     development cycle. I can wait to Friday to run it again, and
->     resubmit.
->=20
->     What is the best way to handle this?
-> ]
->=20
-> From: "Steven Rostedt (Google)" <rostedt@goodmis.org>
->=20
-> Due to several bugs caused by timers being re-armed after they are
-> shutdown and just before they are freed, a new state of timers was added
-> called "shutdown". After a timer is set to this state, then it can no
-> longer be re-armed.
->=20
-> The following script was run to find all the trivial locations where
-> del_timer() or del_timer_sync() is called in the same function that the
-> object holding the timer is freed. It also ignores any locations where the
-> timer->function is modified between the del_timer*() and the free(), as
-> that is not considered a "trivial" case.
->=20
-> This was created by using a coccinelle script and the following
-commands:
+Recreationg of the issue
+========================
+Setup
+-----
+Devices: NVMe 24 devices
+Model number: 4610 (Intel)
 
-LED parts looks good to me.
+fio
+---
+[global]
+bs=4K
+iodepth=1
+direct=1
+ioengine=libaio
+group_reporting
+time_based
+runtime=100
+thinktime=1ms
+numjobs=1
+name=raw-write
+rw=randrw
+ignore_error=EIO:EIO
+[job1]
+filename=/dev/nvme0n1
 
-Getting it in just before -rc1 would be best solution for me.
+iostat o/p
+----------
 
-Best regards,
-								Pavel
---=20
-People of Russia, stop Putin before his war on Ukraine escalates.
+Device   %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
+nvme3n1   0.00    0.05    0.00  75.38     0.50     0.00   0.00 100.00
 
---Q4QndSuPZQc8d5xp
-Content-Type: application/pgp-signature; name="signature.asc"
+Device   %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
+nvme3n1   0.00    0.05    0.00  74.74     0.50     0.00   0.00 100.00
 
------BEGIN PGP SIGNATURE-----
+Solution
+========
+Use ktime_get_ns() to update the disk_stats io_ticks so that the io_ticks
+are updated for every io start and end times.
 
-iF0EABECAB0WIQRPfPO7r0eAhk010v0w5/Bqldv68gUCY6IPjAAKCRAw5/Bqldv6
-8qFnAJ4h7/YkgMmaMAi5FTo4aeUHj64lowCgv7jO/1JyimzJx+06JHTOXFlIAIk=
-=01ne
------END PGP SIGNATURE-----
+Issues using ktime
+==================
 
---Q4QndSuPZQc8d5xp--
+Using ktime_get_ns() has a performance overhead as ktime will go ahead
+and reads the clock everytime its called. Following test environment
+was used by Jens Axboe on which t/io_uring was run which has shown a
+high performance drop.
+
+Devices
+-------
+SSDs: P5800X
+No of devices: 24
+
+io_uring config
+---------------
+Polled IO
+iostats: Enabled
+Reads: Random
+Block Size: 512
+QDepth: 128
+Batch Submit: 32
+Batch Complete: 32
+No of Threads: 24
+
+With the above environment and ktime patch, it has shown a performance
+drop of ~25% from iostats disabled and ~19% performance drop from current
+iostats enabled. This performance drop is high.
+
+Suggestion from Jens Axboe
+==========================
+Jens Axboe suggested to split the bigger patch into two as follows:
+
+1. In first patch, change all the types from unsigned long to u64, that
+   can be done while retaining jiffies.
+
+2. In second patch, add an iostats == 2 setting, which enables the higher
+   resolution mode using ktime. We'd still default to 1, lower granularity
+   iostats enabled.
+
+Fix details
+===========
+1. Use ktime_get_ns() to get the current nano-seconds to update the
+   io_ticks for start and end time stamps in block layer for io accounting
+
+2. Create a new setting '2' in sysfs for iostats variable i.e for
+   /sys/block/<device-name>/queue/iostats, to enable the iostat (io
+   accounting) with nano-seconds (using ktime) granularity. This setting
+   should be enabled only if the iostat is needed with high resolution
+   mode as it has a high performance drop
+
+3. Earlier available settings were 0 and 1 for disable and enable io
+   accounting with milli-seconds granularity (jiffies)
+
+Testing
+=======
+Ran the t/io_uring command with following setup:
+
+Devices
+-------
+SSDs: P4610
+No of devices: 8
+
+io_uring config
+---------------
+Polled IO
+iostats: Enabled
+Reads: Random
+Block Size: 512
+QDepth: 128
+Batch Submit: 32
+Batch Complete: 32
+No of Threads: 24
+
+io_uring o/p
+------------
+iostat=0, with patch: Maximum IOPS=10.09M
+iostat=1, with patch: Maximum IOPS=9.84M
+iostat=2, with patch: Maximum IOPS=9.48M
+
+Changes from V2 to V3
+=====================
+1. Changed all the required variables data-type to u64 as a first patch
+2. Create a new setting '2' for iostats in sysfs in this patch
+3. Change the code to get the ktime values when iostat=2, in this patch
+
+Signed-off-by: Gulam Mohamed <gulam.mohamed@oracle.com>
+---
+ block/blk-core.c                  | 26 +++++++++++++++++----
+ block/blk-mq.c                    |  4 ++--
+ block/blk-sysfs.c                 | 39 ++++++++++++++++++++++++++++++-
+ block/genhd.c                     | 18 ++++++++++----
+ drivers/block/drbd/drbd_debugfs.c | 12 ++++++++--
+ drivers/block/zram/zram_drv.c     |  3 ++-
+ drivers/md/dm.c                   | 13 +++++++++--
+ include/linux/blkdev.h            |  4 ++++
+ 8 files changed, 103 insertions(+), 16 deletions(-)
+
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 5670032fe932..0b5e4eb909a5 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -927,6 +927,18 @@ int iocb_bio_iopoll(struct kiocb *kiocb, struct io_comp_batch *iob,
+ }
+ EXPORT_SYMBOL_GPL(iocb_bio_iopoll);
+ 
++/*
++ * Get the time based upon the available granularity for io accounting
++ * If the resolution mode is set to precise (2) i.e
++ * (/sys/block/<device>/queue/iostats = 2), then this will return time
++ * in nano-seconds else this will return time in jiffies
++ */
++u64  blk_get_iostat_ticks(struct request_queue *q)
++{
++       return (blk_queue_precise_io_stat(q) ? ktime_get_ns() : jiffies);
++}
++EXPORT_SYMBOL_GPL(blk_get_iostat_ticks);
++
+ void update_io_ticks(struct block_device *part, u64 now, bool end)
+ {
+ 	u64 stamp;
+@@ -968,20 +980,26 @@ EXPORT_SYMBOL(bdev_start_io_acct);
+ u64 bio_start_io_acct(struct bio *bio)
+ {
+ 	return bdev_start_io_acct(bio->bi_bdev, bio_sectors(bio),
+-				  bio_op(bio), jiffies);
++				  bio_op(bio),
++				  blk_get_iostat_ticks(bio->bi_bdev->bd_queue));
+ }
+ EXPORT_SYMBOL_GPL(bio_start_io_acct);
+ 
+ void bdev_end_io_acct(struct block_device *bdev, enum req_op op,
+ 		      u64 start_time)
+ {
++	u64 now;
++	u64 duration;
++	struct request_queue *q = bdev_get_queue(bdev);
+ 	const int sgrp = op_stat_group(op);
+-	u64 now = READ_ONCE(jiffies);
+-	u64 duration = (unsigned long)now -(unsigned long) start_time;
++	now = blk_get_iostat_ticks(q);;
++	duration = (unsigned long)now -(unsigned long) start_time;
+ 
+ 	part_stat_lock();
+ 	update_io_ticks(bdev, now, true);
+-	part_stat_add(bdev, nsecs[sgrp], jiffies_to_nsecs(duration));
++	part_stat_add(bdev, nsecs[sgrp],
++		(blk_queue_precise_io_stat(q) ? duration :
++		 jiffies_to_nsecs(duration)));
+ 	part_stat_local_dec(bdev, in_flight[op_is_write(op)]);
+ 	part_stat_unlock();
+ }
+diff --git a/block/blk-mq.c b/block/blk-mq.c
+index 4e6b3ccd4989..5318bf87f17e 100644
+--- a/block/blk-mq.c
++++ b/block/blk-mq.c
+@@ -975,7 +975,7 @@ static void __blk_account_io_done(struct request *req, u64 now)
+ 	const int sgrp = op_stat_group(req_op(req));
+ 
+ 	part_stat_lock();
+-	update_io_ticks(req->part, jiffies, true);
++	update_io_ticks(req->part, blk_get_iostat_ticks(req->q), true);
+ 	part_stat_inc(req->part, ios[sgrp]);
+ 	part_stat_add(req->part, nsecs[sgrp], now - req->start_time_ns);
+ 	part_stat_unlock();
+@@ -1007,7 +1007,7 @@ static void __blk_account_io_start(struct request *rq)
+ 		rq->part = rq->q->disk->part0;
+ 
+ 	part_stat_lock();
+-	update_io_ticks(rq->part, jiffies, false);
++	update_io_ticks(rq->part, blk_get_iostat_ticks(rq->q), false);
+ 	part_stat_unlock();
+ }
+ 
+diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
+index 93d9e9c9a6ea..e7959782ce59 100644
+--- a/block/blk-sysfs.c
++++ b/block/blk-sysfs.c
+@@ -307,7 +307,6 @@ queue_##name##_store(struct request_queue *q, const char *page, size_t count) \
+ 
+ QUEUE_SYSFS_BIT_FNS(nonrot, NONROT, 1);
+ QUEUE_SYSFS_BIT_FNS(random, ADD_RANDOM, 0);
+-QUEUE_SYSFS_BIT_FNS(iostats, IO_STAT, 0);
+ QUEUE_SYSFS_BIT_FNS(stable_writes, STABLE_WRITES, 0);
+ #undef QUEUE_SYSFS_BIT_FNS
+ 
+@@ -363,6 +362,44 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
+ 	return ret;
+ }
+ 
++static ssize_t queue_iostats_show(struct request_queue *q, char *page)
++{
++       bool iostat = blk_queue_io_stat(q);
++       bool precise_iostat = blk_queue_precise_io_stat(q);
++
++       return queue_var_show(iostat << precise_iostat, page);
++}
++
++static ssize_t queue_iostats_store(struct request_queue *q, const char *page,
++                                  size_t count)
++{
++       unsigned long val;
++       ssize_t ret = -EINVAL;
++
++       ret = queue_var_store(&val, page, count);
++
++       if (ret < 0)
++               return ret;
++
++       if (val == 2) {
++               blk_queue_flag_set(QUEUE_FLAG_IO_STAT, q);
++               blk_queue_flag_set(QUEUE_FLAG_PRECISE_IO_STAT, q);
++               q->disk->part0->bd_stamp = 0;
++       }
++       else if (val == 1) {
++               blk_queue_flag_set(QUEUE_FLAG_IO_STAT, q);
++               blk_queue_flag_clear(QUEUE_FLAG_PRECISE_IO_STAT, q);
++               q->disk->part0->bd_stamp = 0;
++       }
++       else if (val == 0) {
++               blk_queue_flag_clear(QUEUE_FLAG_IO_STAT, q);
++               blk_queue_flag_clear(QUEUE_FLAG_PRECISE_IO_STAT, q);
++               q->disk->part0->bd_stamp = 0;
++       }
++
++       return ret;
++}
++
+ static ssize_t queue_rq_affinity_show(struct request_queue *q, char *page)
+ {
+ 	bool set = test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags);
+diff --git a/block/genhd.c b/block/genhd.c
+index 03a96d6473e1..d034219a4683 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -951,6 +951,7 @@ ssize_t part_stat_show(struct device *dev,
+ 	struct request_queue *q = bdev_get_queue(bdev);
+ 	struct disk_stats stat;
+ 	unsigned int inflight;
++	u64 stat_ioticks;
+ 
+ 	if (queue_is_mq(q))
+ 		inflight = blk_mq_in_flight(q, bdev);
+@@ -959,10 +960,13 @@ ssize_t part_stat_show(struct device *dev,
+ 
+ 	if (inflight) {
+ 		part_stat_lock();
+-		update_io_ticks(bdev, jiffies, true);
++		update_io_ticks(bdev, blk_get_iostat_ticks(q), true);
+ 		part_stat_unlock();
+ 	}
+ 	part_stat_read_all(bdev, &stat);
++	stat_ioticks = (blk_queue_precise_io_stat(q) ?
++				div_u64(stat.io_ticks, NSEC_PER_MSEC) :
++				jiffies_to_msecs(stat.io_ticks));
+ 	return sprintf(buf,
+ 		"%8lu %8lu %8llu %8u "
+ 		"%8lu %8lu %8llu %8u "
+@@ -979,7 +983,7 @@ ssize_t part_stat_show(struct device *dev,
+ 		(unsigned long long)stat.sectors[STAT_WRITE],
+ 		(unsigned int)div_u64(stat.nsecs[STAT_WRITE], NSEC_PER_MSEC),
+ 		inflight,
+-		jiffies_to_msecs(stat.io_ticks),
++		(unsigned int)stat_ioticks,
+ 		(unsigned int)div_u64(stat.nsecs[STAT_READ] +
+ 				      stat.nsecs[STAT_WRITE] +
+ 				      stat.nsecs[STAT_DISCARD] +
+@@ -1217,6 +1221,8 @@ static int diskstats_show(struct seq_file *seqf, void *v)
+ 	unsigned int inflight;
+ 	struct disk_stats stat;
+ 	unsigned long idx;
++	struct request_queue *q;
++	u64 stat_ioticks;
+ 
+ 	/*
+ 	if (&disk_to_dev(gp)->kobj.entry == block_class.devices.next)
+@@ -1235,12 +1241,16 @@ static int diskstats_show(struct seq_file *seqf, void *v)
+ 		else
+ 			inflight = part_in_flight(hd);
+ 
++		q = bdev_get_queue(hd);
+ 		if (inflight) {
+ 			part_stat_lock();
+-			update_io_ticks(hd, jiffies, true);
++			update_io_ticks(hd, blk_get_iostat_ticks(q), true);
+ 			part_stat_unlock();
+ 		}
+ 		part_stat_read_all(hd, &stat);
++		stat_ioticks = (blk_queue_precise_io_stat(q) ?
++				div_u64(stat.io_ticks, NSEC_PER_MSEC) :
++				jiffies_to_msecs(stat.io_ticks));
+ 		seq_printf(seqf, "%4d %7d %pg "
+ 			   "%lu %lu %lu %u "
+ 			   "%lu %lu %lu %u "
+@@ -1260,7 +1270,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
+ 			   (unsigned int)div_u64(stat.nsecs[STAT_WRITE],
+ 							NSEC_PER_MSEC),
+ 			   inflight,
+-			   jiffies_to_msecs(stat.io_ticks),
++			   (unsigned int)stat_ioticks,
+ 			   (unsigned int)div_u64(stat.nsecs[STAT_READ] +
+ 						 stat.nsecs[STAT_WRITE] +
+ 						 stat.nsecs[STAT_DISCARD] +
+diff --git a/drivers/block/drbd/drbd_debugfs.c b/drivers/block/drbd/drbd_debugfs.c
+index a72c096aa5b1..af193bcc4f3a 100644
+--- a/drivers/block/drbd/drbd_debugfs.c
++++ b/drivers/block/drbd/drbd_debugfs.c
+@@ -97,6 +97,12 @@ static void seq_print_one_request(struct seq_file *m, struct drbd_request *req,
+ {
+ 	/* change anything here, fixup header below! */
+ 	unsigned int s = req->rq_state;
++	unsigned long start_time;
++	struct request_queue *q = req->device->rq_queue;
++
++	start_time = (blk_queue_precise_io_stat(q) ?
++			nsecs_to_jiffies(req->start_jif) :
++			req->start_jif);
+ 
+ #define RQ_HDR_1 "epoch\tsector\tsize\trw"
+ 	seq_printf(m, "0x%x\t%llu\t%u\t%s",
+@@ -105,7 +111,7 @@ static void seq_print_one_request(struct seq_file *m, struct drbd_request *req,
+ 		(s & RQ_WRITE) ? "W" : "R");
+ 
+ #define RQ_HDR_2 "\tstart\tin AL\tsubmit"
+-	seq_printf(m, "\t%d", jiffies_to_msecs(now - req->start_jif));
++	seq_printf(m, "\t%d", jiffies_to_msecs(now - start_time));
+ 	seq_print_age_or_dash(m, s & RQ_IN_ACT_LOG, now - req->in_actlog_jif);
+ 	seq_print_age_or_dash(m, s & RQ_LOCAL_PENDING, now - req->pre_submit_jif);
+ 
+@@ -171,7 +177,9 @@ static void seq_print_waiting_for_AL(struct seq_file *m, struct drbd_resource *r
+ 			/* if the oldest request does not wait for the activity log
+ 			 * it is not interesting for us here */
+ 			if (req && !(req->rq_state & RQ_IN_ACT_LOG))
+-				jif = req->start_jif;
++				jif = (blk_queue_precise_io_stat(device->rq_queue) ?
++						nsecs_to_jiffies(req->start_jif):
++						req->start_jif);
+ 			else
+ 				req = NULL;
+ 			spin_unlock_irq(&device->resource->req_lock);
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index da28eb83e6ed..8e22487de7de 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -1663,6 +1663,7 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+ 	struct zram *zram;
+ 	struct bio_vec bv;
+ 	u64 start_time;
++	struct request_queue *q = bdev_get_queue(bdev);
+ 
+ 	if (PageTransHuge(page))
+ 		return -ENOTSUPP;
+@@ -1682,7 +1683,7 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+ 	bv.bv_offset = 0;
+ 
+ 	start_time = bdev_start_io_acct(bdev->bd_disk->part0,
+-			SECTORS_PER_PAGE, op, jiffies);
++			SECTORS_PER_PAGE, op, blk_get_iostat_ticks(q));
+ 	ret = zram_bvec_rw(zram, &bv, index, offset, op, NULL);
+ 	bdev_end_io_acct(bdev->bd_disk->part0, op, start_time);
+ out:
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index 011a85ea40da..1bb58a0b8cd1 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -482,7 +482,11 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
+ 
+ u64 dm_start_time_ns_from_clone(struct bio *bio)
+ {
+-	return jiffies_to_nsecs(clone_to_tio(bio)->io->start_time);
++	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
++	u64 start_time_ns = (blk_queue_precise_io_stat(q) ?
++				clone_to_tio(bio)->io->start_time :
++				jiffies_to_nsecs(clone_to_tio(bio)->io->start_time));
++	return start_time_ns;
+ }
+ EXPORT_SYMBOL_GPL(dm_start_time_ns_from_clone);
+ 
+@@ -498,6 +502,11 @@ static void dm_io_acct(struct dm_io *io, bool end)
+ 	struct mapped_device *md = io->md;
+ 	struct bio *bio = io->orig_bio;
+ 	unsigned int sectors;
++	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
++
++	u64 start_time = (blk_queue_precise_io_stat(q) ?
++				nsecs_to_jiffies(io->start_time) :
++				io->start_time);
+ 
+ 	/*
+ 	 * If REQ_PREFLUSH set, don't account payload, it will be
+@@ -589,7 +598,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
+ 	io->orig_bio = bio;
+ 	io->md = md;
+ 	spin_lock_init(&io->lock);
+-	io->start_time = jiffies;
++	io->start_time = blk_get_iostat_ticks(bio->bi_bdev->bd_queue);
+ 	io->flags = 0;
+ 
+ 	if (static_branch_unlikely(&stats_enabled))
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index ca94d690d292..0543a536c6e5 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -570,6 +570,7 @@ struct request_queue {
+ #define QUEUE_FLAG_NOWAIT       29	/* device supports NOWAIT */
+ #define QUEUE_FLAG_SQ_SCHED     30	/* single queue style io dispatch */
+ #define QUEUE_FLAG_SKIP_TAGSET_QUIESCE	31 /* quiesce_tagset skip the queue*/
++#define QUEUE_FLAG_PRECISE_IO_STAT 32   /* To enable precise io accounting */
+ 
+ #define QUEUE_FLAG_MQ_DEFAULT	((1UL << QUEUE_FLAG_IO_STAT) |		\
+ 				 (1UL << QUEUE_FLAG_SAME_COMP) |	\
+@@ -578,6 +579,7 @@ struct request_queue {
+ void blk_queue_flag_set(unsigned int flag, struct request_queue *q);
+ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
+ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
++u64  blk_get_iostat_ticks(struct request_queue *q);
+ 
+ #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
+ #define blk_queue_dying(q)	test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
+@@ -589,6 +591,8 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
+ #define blk_queue_stable_writes(q) \
+ 	test_bit(QUEUE_FLAG_STABLE_WRITES, &(q)->queue_flags)
+ #define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
++#define blk_queue_precise_io_stat(q)   \
++	test_bit(QUEUE_FLAG_PRECISE_IO_STAT, &(q)->queue_flags)
+ #define blk_queue_add_random(q)	test_bit(QUEUE_FLAG_ADD_RANDOM, &(q)->queue_flags)
+ #define blk_queue_zone_resetall(q)	\
+ 	test_bit(QUEUE_FLAG_ZONE_RESETALL, &(q)->queue_flags)
+-- 
+2.31.1
+
