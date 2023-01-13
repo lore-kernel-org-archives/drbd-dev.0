@@ -1,24 +1,25 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f41.google.com (mail-ed1-f41.google.com
-	[209.85.208.41])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0A72F422114
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 13:35:47 +0100 (CET)
-Received: by mail-ed1-f41.google.com with SMTP id b4so11463006edf.0
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 04:35:46 -0800 (PST)
+Received: from mail-ej1-f44.google.com (mail-ej1-f44.google.com
+	[209.85.218.44])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 42F57422115
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 13:35:49 +0100 (CET)
+Received: by mail-ej1-f44.google.com with SMTP id u9so52055350ejo.0
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 04:35:49 -0800 (PST)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 13 Jan 2023 13:35:35 +0100
-Message-Id: <20230113123538.144276-6-christoph.boehmwalder@linbit.com>
+Date: Fri, 13 Jan 2023 13:35:38 +0100
+Message-Id: <20230113123538.144276-9-christoph.boehmwalder@linbit.com>
 In-Reply-To: <20230113123538.144276-1-christoph.boehmwalder@linbit.com>
 References: <20230113123538.144276-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 5/8] drbd: remove macros using require_context
+Cc: Andreas Gruenbacher <agruen@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 8/8] drbd: drbd_insert_interval(): Clarify comment
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,55 +31,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This require_context attribute originated in a proposed sparse patch by
-Philipp Reisner back in 2008. Johannes Berg had a different solution to
-a similar problem, and that patch "won" in the end; so the require_context
-thing never got merged. The whole history can be read at [0].
+From: Andreas Gruenbacher <agruen@linbit.com>
 
-DRBD kept using these annotations anyway for a while. Nowadays, on a
-modern unmodified sparse, they obviously do nothing, and they are hardly
-used anymore anyway.
-
-So, just remove the definitions of these macros.
-
-[0] https://www.spinics.net/lists/linux-sparse/msg01150.html
-
+Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
-Reviewed-by: Joel Colledge <joel.colledge@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h | 12 +-----------
- 1 file changed, 1 insertion(+), 11 deletions(-)
+ drivers/block/drbd/drbd_interval.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index ae713338aa46..edce1f7ac2da 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -39,16 +39,6 @@
- #include "drbd_protocol.h"
- #include "drbd_polymorph_printk.h"
- 
--#ifdef __CHECKER__
--# define __protected_by(x)       __attribute__((require_context(x,1,999,"rdwr")))
--# define __protected_read_by(x)  __attribute__((require_context(x,1,999,"read")))
--# define __protected_write_by(x) __attribute__((require_context(x,1,999,"write")))
--#else
--# define __protected_by(x)
--# define __protected_read_by(x)
--# define __protected_write_by(x)
--#endif
--
- /* shared module parameters, defined in drbd_main.c */
- #ifdef CONFIG_DRBD_FAULT_INJECTION
- extern int drbd_enable_faults;
-@@ -774,7 +764,7 @@ struct drbd_device {
- 	unsigned long flags;
- 
- 	/* configured by drbdsetup */
--	struct drbd_backing_dev *ldev __protected_by(local);
-+	struct drbd_backing_dev *ldev;
- 
- 	sector_t p_size;     /* partner's disk size */
- 	struct request_queue *rq_queue;
+diff --git a/drivers/block/drbd/drbd_interval.c b/drivers/block/drbd/drbd_interval.c
+index b6aaf0d4d85b..873beda6de24 100644
+--- a/drivers/block/drbd/drbd_interval.c
++++ b/drivers/block/drbd/drbd_interval.c
+@@ -58,7 +58,7 @@ drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
+  * drbd_contains_interval  -  check if a tree contains a given interval
+  * @root:	red black tree root
+  * @sector:	start sector of @interval
+- * @interval:	may not be a valid pointer
++ * @interval:	may be an invalid pointer
+  *
+  * Returns if the tree contains the node @interval with start sector @start.
+  * Does not dereference @interval until @interval is known to be a valid object
 -- 
 2.38.1
 
