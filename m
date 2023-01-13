@@ -1,22 +1,24 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ej1-f53.google.com (mail-ej1-f53.google.com
-	[209.85.218.53])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6F5014203AB
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 13:35:19 +0100 (CET)
-Received: by mail-ej1-f53.google.com with SMTP id hw16so40155696ejc.10
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 04:35:19 -0800 (PST)
+Received: from mail-ej1-f42.google.com (mail-ej1-f42.google.com
+	[209.85.218.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CE9C34205A6
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 13:35:20 +0100 (CET)
+Received: by mail-ej1-f42.google.com with SMTP id tz12so52015910ejc.9
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 04:35:20 -0800 (PST)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 13 Jan 2023 13:35:03 +0100
-Message-Id: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
+Date: Fri, 13 Jan 2023 13:35:05 +0100
+Message-Id: <20230113123506.144082-3-christoph.boehmwalder@linbit.com>
+In-Reply-To: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
+References: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [RESEND PATCH 0/3] DRBD file structure reorganization
+Subject: [Drbd-dev] [PATCH 2/3] drbd: drop API_VERSION define
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,30 +30,82 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-To make our lives easier when sending future, more complex patches,
-we want to align the file structure as best as possible with what we
-have in the out-of-tree module.
+Use the genetlink api version as defined in drbd_genl_api.h.
 
-Christoph Böhmwalder (3):
-  drbd: split off drbd_buildtag into separate file
-  drbd: drop API_VERSION define
-  drbd: split off drbd_config into separate file
+Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+Reviewed-by: Joel Colledge <joel.colledge@linbit.com>
+---
+ drivers/block/drbd/drbd_debugfs.c | 2 +-
+ drivers/block/drbd/drbd_main.c    | 2 +-
+ drivers/block/drbd/drbd_proc.c    | 2 +-
+ include/linux/drbd.h              | 1 -
+ include/linux/drbd_genl_api.h     | 2 +-
+ 5 files changed, 4 insertions(+), 5 deletions(-)
 
- drivers/block/drbd/Makefile        |  2 +-
- drivers/block/drbd/drbd_buildtag.c | 22 ++++++++++++++++++++++
- drivers/block/drbd/drbd_debugfs.c  |  2 +-
- drivers/block/drbd/drbd_int.h      |  1 +
- drivers/block/drbd/drbd_main.c     | 20 +-------------------
- drivers/block/drbd/drbd_proc.c     |  2 +-
- include/linux/drbd.h               |  7 -------
- include/linux/drbd_config.h        | 16 ++++++++++++++++
- include/linux/drbd_genl_api.h      |  2 +-
- 9 files changed, 44 insertions(+), 30 deletions(-)
- create mode 100644 drivers/block/drbd/drbd_buildtag.c
- create mode 100644 include/linux/drbd_config.h
-
-
-base-commit: f596da3efaf4130ff61cd029558845808df9bf99
+diff --git a/drivers/block/drbd/drbd_debugfs.c b/drivers/block/drbd/drbd_debugfs.c
+index a72c096aa5b1..12460b584bcb 100644
+--- a/drivers/block/drbd/drbd_debugfs.c
++++ b/drivers/block/drbd/drbd_debugfs.c
+@@ -844,7 +844,7 @@ static int drbd_version_show(struct seq_file *m, void *ignored)
+ {
+ 	seq_printf(m, "# %s\n", drbd_buildtag());
+ 	seq_printf(m, "VERSION=%s\n", REL_VERSION);
+-	seq_printf(m, "API_VERSION=%u\n", API_VERSION);
++	seq_printf(m, "API_VERSION=%u\n", GENL_MAGIC_VERSION);
+ 	seq_printf(m, "PRO_VERSION_MIN=%u\n", PRO_VERSION_MIN);
+ 	seq_printf(m, "PRO_VERSION_MAX=%u\n", PRO_VERSION_MAX);
+ 	return 0;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 345bfac441da..5156d2fb2d76 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2899,7 +2899,7 @@ static int __init drbd_init(void)
+ 
+ 	pr_info("initialized. "
+ 	       "Version: " REL_VERSION " (api:%d/proto:%d-%d)\n",
+-	       API_VERSION, PRO_VERSION_MIN, PRO_VERSION_MAX);
++	       GENL_MAGIC_VERSION, PRO_VERSION_MIN, PRO_VERSION_MAX);
+ 	pr_info("%s\n", drbd_buildtag());
+ 	pr_info("registered as block device major %d\n", DRBD_MAJOR);
+ 	return 0; /* Success! */
+diff --git a/drivers/block/drbd/drbd_proc.c b/drivers/block/drbd/drbd_proc.c
+index 2227fb0db1ce..1d0feafceadc 100644
+--- a/drivers/block/drbd/drbd_proc.c
++++ b/drivers/block/drbd/drbd_proc.c
+@@ -228,7 +228,7 @@ int drbd_seq_show(struct seq_file *seq, void *v)
+ 	};
+ 
+ 	seq_printf(seq, "version: " REL_VERSION " (api:%d/proto:%d-%d)\n%s\n",
+-		   API_VERSION, PRO_VERSION_MIN, PRO_VERSION_MAX, drbd_buildtag());
++		   GENL_MAGIC_VERSION, PRO_VERSION_MIN, PRO_VERSION_MAX, drbd_buildtag());
+ 
+ 	/*
+ 	  cs .. connection state
+diff --git a/include/linux/drbd.h b/include/linux/drbd.h
+index 5755537b51b1..df65a8f5228a 100644
+--- a/include/linux/drbd.h
++++ b/include/linux/drbd.h
+@@ -40,7 +40,6 @@
+ 
+ extern const char *drbd_buildtag(void);
+ #define REL_VERSION "8.4.11"
+-#define API_VERSION 1
+ #define PRO_VERSION_MIN 86
+ #define PRO_VERSION_MAX 101
+ 
+diff --git a/include/linux/drbd_genl_api.h b/include/linux/drbd_genl_api.h
+index bd62efc29002..70682c058027 100644
+--- a/include/linux/drbd_genl_api.h
++++ b/include/linux/drbd_genl_api.h
+@@ -47,7 +47,7 @@ enum drbd_state_info_bcast_reason {
+ #undef linux
+ 
+ #include <linux/drbd.h>
+-#define GENL_MAGIC_VERSION	API_VERSION
++#define GENL_MAGIC_VERSION	1
+ #define GENL_MAGIC_FAMILY	drbd
+ #define GENL_MAGIC_FAMILY_HDRSZ	sizeof(struct drbd_genlmsghdr)
+ #define GENL_MAGIC_INCLUDE_FILE <linux/drbd_genl.h>
 -- 
 2.38.1
 
