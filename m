@@ -1,25 +1,23 @@
-Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ej1-f41.google.com (mail-ej1-f41.google.com
-	[209.85.218.41])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EC8F8422117
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 13:35:48 +0100 (CET)
-Received: by mail-ej1-f41.google.com with SMTP id qk9so52025534ejc.3
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 04:35:48 -0800 (PST)
-From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
-	<christoph.boehmwalder@linbit.com>
-To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 13 Jan 2023 13:35:37 +0100
-Message-Id: <20230113123538.144276-8-christoph.boehmwalder@linbit.com>
-In-Reply-To: <20230113123538.144276-1-christoph.boehmwalder@linbit.com>
-References: <20230113123538.144276-1-christoph.boehmwalder@linbit.com>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-il1-f181.google.com (mail-il1-f181.google.com
+	[209.85.166.181])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BD0F1420202
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 16:43:30 +0100 (CET)
+Received: by mail-il1-f181.google.com with SMTP id o13so10933054ilc.7
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 07:43:30 -0800 (PST)
+From: Jens Axboe <axboe@kernel.dk>
+To: =?utf-8?q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
+References: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
+Message-Id: <167362460873.11790.14664102108857579461.b4-ty@kernel.dk>
+Date: Fri, 13 Jan 2023 08:43:28 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 7/8] drbd: interval tree: make removing an
-	"empty" interval a no-op
+Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [RESEND PATCH 0/3] DRBD file structure reorganization
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,37 +29,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
 
-Trying to remove an "empty" (just initialized, or "cleared") interval
-from the tree, this results in an endless loop.
+On Fri, 13 Jan 2023 13:35:03 +0100, Christoph Böhmwalder wrote:
+> To make our lives easier when sending future, more complex patches,
+> we want to align the file structure as best as possible with what we
+> have in the out-of-tree module.
+> 
+> Christoph Böhmwalder (3):
+>   drbd: split off drbd_buildtag into separate file
+>   drbd: drop API_VERSION define
+>   drbd: split off drbd_config into separate file
+> 
+> [...]
 
-As we typically protect the tree with a spinlock_irq,
-the result is a hung system.
+Applied, thanks!
 
-Be nice to error cleanup code paths, ignore removal of empty intervals.
+[1/3] drbd: split off drbd_buildtag into separate file
+      commit: c058c9c9dcb137f395e1946b0f3595538479b3fd
+[2/3] drbd: drop API_VERSION define
+      commit: a68176e0f7cf1b68a84c3b7c08271af0d3d2e796
+[3/3] drbd: split off drbd_config into separate file
+      commit: 26547cb41a9f459535300275a319681a70cf69fe
 
-Signed-off-by: Lars Ellenberg <lars.ellenberg@linbit.com>
-Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
----
- drivers/block/drbd/drbd_interval.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/drivers/block/drbd/drbd_interval.c b/drivers/block/drbd/drbd_interval.c
-index 5024ffd6143d..b6aaf0d4d85b 100644
---- a/drivers/block/drbd/drbd_interval.c
-+++ b/drivers/block/drbd/drbd_interval.c
-@@ -95,6 +95,10 @@ drbd_contains_interval(struct rb_root *root, sector_t sector,
- void
- drbd_remove_interval(struct rb_root *root, struct drbd_interval *this)
- {
-+	/* avoid endless loop */
-+	if (drbd_interval_empty(this))
-+		return;
-+
- 	rb_erase_augmented(&this->rb, root, &augment_callbacks);
- }
- 
+Best regards,
 -- 
-2.38.1
+Jens Axboe
+
+
 
