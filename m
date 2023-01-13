@@ -1,25 +1,22 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ej1-f53.google.com (mail-ej1-f53.google.com
-	[209.85.218.53])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 803694205B8
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 13:35:21 +0100 (CET)
-Received: by mail-ej1-f53.google.com with SMTP id fy8so51881229ejc.13
-	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 04:35:21 -0800 (PST)
+Received: from mail-ej1-f47.google.com (mail-ej1-f47.google.com
+	[209.85.218.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 314EF4217B3
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 13:35:42 +0100 (CET)
+Received: by mail-ej1-f47.google.com with SMTP id u19so51948765ejm.8
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 04:35:42 -0800 (PST)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 13 Jan 2023 13:35:06 +0100
-Message-Id: <20230113123506.144082-4-christoph.boehmwalder@linbit.com>
-In-Reply-To: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
-References: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
+Date: Fri, 13 Jan 2023 13:35:30 +0100
+Message-Id: <20230113123538.144276-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 3/3] drbd: split off drbd_config into separate
-	file
+Subject: [Drbd-dev] [RESEND PATCH 0/8] Miscellaneous DRBD reorganization
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,81 +28,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-To be more similar to what we do in the out-of-tree module and ease the
-upstreaming process.
+Some more mostly trivial "alignment patches" to (slowly but surely)
+move further in the direction of re-upstreaming DRBD.
 
-Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
-Reviewed-by: Joel Colledge <joel.colledge@linbit.com>
----
- drivers/block/drbd/drbd_buildtag.c |  2 +-
- drivers/block/drbd/drbd_int.h      |  1 +
- include/linux/drbd.h               |  6 ------
- include/linux/drbd_config.h        | 16 ++++++++++++++++
- 4 files changed, 18 insertions(+), 7 deletions(-)
- create mode 100644 include/linux/drbd_config.h
+These should be fairly uncontroversial.
 
-diff --git a/drivers/block/drbd/drbd_buildtag.c b/drivers/block/drbd/drbd_buildtag.c
-index 956a4d5c339b..cb1aa66d7d5d 100644
---- a/drivers/block/drbd/drbd_buildtag.c
-+++ b/drivers/block/drbd/drbd_buildtag.c
-@@ -1,5 +1,5 @@
- // SPDX-License-Identifier: GPL-2.0-only
--#include <linux/drbd.h>
-+#include <linux/drbd_config.h>
- #include <linux/module.h>
- 
- const char *drbd_buildtag(void)
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index edce1f7ac2da..d89b7d03d4c8 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -34,6 +34,7 @@
- #include <linux/prefetch.h>
- #include <linux/drbd_genl_api.h>
- #include <linux/drbd.h>
-+#include <linux/drbd_config.h>
- #include "drbd_strings.h"
- #include "drbd_state.h"
- #include "drbd_protocol.h"
-diff --git a/include/linux/drbd.h b/include/linux/drbd.h
-index df65a8f5228a..5468a2399d48 100644
---- a/include/linux/drbd.h
-+++ b/include/linux/drbd.h
-@@ -38,12 +38,6 @@
- 
- #endif
- 
--extern const char *drbd_buildtag(void);
--#define REL_VERSION "8.4.11"
--#define PRO_VERSION_MIN 86
--#define PRO_VERSION_MAX 101
--
--
- enum drbd_io_error_p {
- 	EP_PASS_ON, /* FIXME should the better be named "Ignore"? */
- 	EP_CALL_HELPER,
-diff --git a/include/linux/drbd_config.h b/include/linux/drbd_config.h
-new file mode 100644
-index 000000000000..d215365c6bb1
---- /dev/null
-+++ b/include/linux/drbd_config.h
-@@ -0,0 +1,16 @@
-+/* SPDX-License-Identifier: GPL-2.0-only */
-+/*
-+ * drbd_config.h
-+ * DRBD's compile time configuration.
-+ */
-+
-+#ifndef DRBD_CONFIG_H
-+#define DRBD_CONFIG_H
-+
-+extern const char *drbd_buildtag(void);
-+
-+#define REL_VERSION "8.4.11"
-+#define PRO_VERSION_MIN 86
-+#define PRO_VERSION_MAX 101
-+
-+#endif
+Andreas Gruenbacher (1):
+  drbd: drbd_insert_interval(): Clarify comment
+
+Christoph Böhmwalder (5):
+  drbd: adjust drbd_limits license header
+  drbd: make limits unsigned
+  drbd: remove unnecessary assignment in vli_encode_bits
+  drbd: remove macros using require_context
+  MAINTAINERS: add drbd headers
+
+Lars Ellenberg (1):
+  drbd: interval tree: make removing an "empty" interval a no-op
+
+Robert Altnoeder (1):
+  drbd: fix DRBD_VOLUME_MAX 65535 -> 65534
+
+ MAINTAINERS                        |   1 +
+ drivers/block/drbd/drbd_int.h      |  12 +-
+ drivers/block/drbd/drbd_interval.c |   6 +-
+ drivers/block/drbd/drbd_vli.h      |   2 +-
+ include/linux/drbd_limits.h        | 204 ++++++++++++++---------------
+ 5 files changed, 110 insertions(+), 115 deletions(-)
+
+
+base-commit: f596da3efaf4130ff61cd029558845808df9bf99
 -- 
 2.38.1
 
