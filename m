@@ -1,25 +1,22 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ej1-f45.google.com (mail-ej1-f45.google.com
-	[209.85.218.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 159B94203AB
+Received: from mail-ej1-f53.google.com (mail-ej1-f53.google.com
+	[209.85.218.53])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6F5014203AB
 	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 13:35:19 +0100 (CET)
-Received: by mail-ej1-f45.google.com with SMTP id v6so8989187ejg.6
+Received: by mail-ej1-f53.google.com with SMTP id hw16so40155696ejc.10
 	for <drbd-dev@lists.linbit.com>; Fri, 13 Jan 2023 04:35:19 -0800 (PST)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Fri, 13 Jan 2023 13:35:04 +0100
-Message-Id: <20230113123506.144082-2-christoph.boehmwalder@linbit.com>
-In-Reply-To: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
-References: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
+Date: Fri, 13 Jan 2023 13:35:03 +0100
+Message-Id: <20230113123506.144082-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/3] drbd: split off drbd_buildtag into separate
-	file
+Subject: [Drbd-dev] [RESEND PATCH 0/3] DRBD file structure reorganization
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,86 +28,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-To be more similar to what we do in the out-of-tree module and ease the
-upstreaming process.
+To make our lives easier when sending future, more complex patches,
+we want to align the file structure as best as possible with what we
+have in the out-of-tree module.
 
-Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
-Reviewed-by: Joel Colledge <joel.colledge@linbit.com>
----
+Christoph Böhmwalder (3):
+  drbd: split off drbd_buildtag into separate file
+  drbd: drop API_VERSION define
+  drbd: split off drbd_config into separate file
+
  drivers/block/drbd/Makefile        |  2 +-
  drivers/block/drbd/drbd_buildtag.c | 22 ++++++++++++++++++++++
- drivers/block/drbd/drbd_main.c     | 18 ------------------
- 3 files changed, 23 insertions(+), 19 deletions(-)
+ drivers/block/drbd/drbd_debugfs.c  |  2 +-
+ drivers/block/drbd/drbd_int.h      |  1 +
+ drivers/block/drbd/drbd_main.c     | 20 +-------------------
+ drivers/block/drbd/drbd_proc.c     |  2 +-
+ include/linux/drbd.h               |  7 -------
+ include/linux/drbd_config.h        | 16 ++++++++++++++++
+ include/linux/drbd_genl_api.h      |  2 +-
+ 9 files changed, 44 insertions(+), 30 deletions(-)
  create mode 100644 drivers/block/drbd/drbd_buildtag.c
+ create mode 100644 include/linux/drbd_config.h
 
-diff --git a/drivers/block/drbd/Makefile b/drivers/block/drbd/Makefile
-index c93e462130ff..67a8b352a1d5 100644
---- a/drivers/block/drbd/Makefile
-+++ b/drivers/block/drbd/Makefile
-@@ -1,5 +1,5 @@
- # SPDX-License-Identifier: GPL-2.0-only
--drbd-y := drbd_bitmap.o drbd_proc.o
-+drbd-y := drbd_buildtag.o drbd_bitmap.o drbd_proc.o
- drbd-y += drbd_worker.o drbd_receiver.o drbd_req.o drbd_actlog.o
- drbd-y += drbd_main.o drbd_strings.o drbd_nl.o
- drbd-y += drbd_interval.o drbd_state.o
-diff --git a/drivers/block/drbd/drbd_buildtag.c b/drivers/block/drbd/drbd_buildtag.c
-new file mode 100644
-index 000000000000..956a4d5c339b
---- /dev/null
-+++ b/drivers/block/drbd/drbd_buildtag.c
-@@ -0,0 +1,22 @@
-+// SPDX-License-Identifier: GPL-2.0-only
-+#include <linux/drbd.h>
-+#include <linux/module.h>
-+
-+const char *drbd_buildtag(void)
-+{
-+	/* DRBD built from external sources has here a reference to the
-+	 * git hash of the source code.
-+	 */
-+
-+	static char buildtag[38] = "\0uilt-in";
-+
-+	if (buildtag[0] == 0) {
-+#ifdef MODULE
-+		sprintf(buildtag, "srcversion: %-24s", THIS_MODULE->srcversion);
-+#else
-+		buildtag[0] = 'b';
-+#endif
-+	}
-+
-+	return buildtag;
-+}
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 7213ffd69a16..345bfac441da 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -3776,24 +3776,6 @@ _drbd_insert_fault(struct drbd_device *device, unsigned int type)
- }
- #endif
- 
--const char *drbd_buildtag(void)
--{
--	/* DRBD built from external sources has here a reference to the
--	   git hash of the source code. */
--
--	static char buildtag[38] = "\0uilt-in";
--
--	if (buildtag[0] == 0) {
--#ifdef MODULE
--		sprintf(buildtag, "srcversion: %-24s", THIS_MODULE->srcversion);
--#else
--		buildtag[0] = 'b';
--#endif
--	}
--
--	return buildtag;
--}
--
- module_init(drbd_init)
- module_exit(drbd_cleanup)
- 
+
+base-commit: f596da3efaf4130ff61cd029558845808df9bf99
 -- 
 2.38.1
 
