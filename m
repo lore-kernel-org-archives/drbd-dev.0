@@ -1,15 +1,15 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
 Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com
 	[209.85.221.51])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0962C420962
-	for <drbd-dev@lists.linbit.com>; Wed, 15 Feb 2023 17:32:08 +0100 (CET)
-Received: by mail-wr1-f51.google.com with SMTP id o15so16448024wrc.9
-	for <drbd-dev@lists.linbit.com>; Wed, 15 Feb 2023 08:32:08 -0800 (PST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2801C421740
+	for <drbd-dev@lists.linbit.com>; Wed, 15 Feb 2023 17:32:10 +0100 (CET)
+Received: by mail-wr1-f51.google.com with SMTP id o15so16448150wrc.9
+	for <drbd-dev@lists.linbit.com>; Wed, 15 Feb 2023 08:32:10 -0800 (PST)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Wed, 15 Feb 2023 17:31:58 +0100
-Message-Id: <20230215163204.2856631-2-christoph.boehmwalder@linbit.com>
+Date: Wed, 15 Feb 2023 17:32:00 +0100
+Message-Id: <20230215163204.2856631-4-christoph.boehmwalder@linbit.com>
 In-Reply-To: <20230215163204.2856631-1-christoph.boehmwalder@linbit.com>
 References: <20230215163204.2856631-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
@@ -19,8 +19,8 @@ Cc: Andreas Gruenbacher <agruen@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/7] drbd: Rip out the ERR_IF_CNT_IS_NEGATIVE
-	macro
+Subject: [Drbd-dev] [PATCH 3/7] drbd: INFO_bm_xfer_stats(): Pass a peer
+	device argument
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,78 +37,75 @@ From: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h | 37 ++++++++++++++---------------------
- 1 file changed, 15 insertions(+), 22 deletions(-)
+ drivers/block/drbd/drbd_int.h      | 4 ++--
+ drivers/block/drbd/drbd_main.c     | 2 +-
+ drivers/block/drbd/drbd_receiver.c | 8 ++++----
+ 3 files changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index d89b7d03d4c8..772023ace749 100644
+index 63919781fe30..8b4d06e10365 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -1918,18 +1918,14 @@ static inline void inc_ap_pending(struct drbd_device *device)
- 	atomic_inc(&device->ap_pending_cnt);
- }
+@@ -126,8 +126,8 @@ struct bm_xfer_ctx {
+ 	unsigned bytes[2];
+ };
  
--#define ERR_IF_CNT_IS_NEGATIVE(which, func, line)			\
--	if (atomic_read(&device->which) < 0)				\
--		drbd_err(device, "in %s:%d: " #which " = %d < 0 !\n",	\
--			func, line,					\
--			atomic_read(&device->which))
--
--#define dec_ap_pending(device) _dec_ap_pending(device, __func__, __LINE__)
--static inline void _dec_ap_pending(struct drbd_device *device, const char *func, int line)
-+#define dec_ap_pending(device) ((void)expect((device), __dec_ap_pending(device) >= 0))
-+static inline int __dec_ap_pending(struct drbd_device *device)
+-extern void INFO_bm_xfer_stats(struct drbd_device *device,
+-		const char *direction, struct bm_xfer_ctx *c);
++extern void INFO_bm_xfer_stats(struct drbd_peer_device *peer_device,
++			       const char *direction, struct bm_xfer_ctx *c);
+ 
+ static inline void bm_xfer_ctx_bit_to_word_offset(struct bm_xfer_ctx *c)
  {
--	if (atomic_dec_and_test(&device->ap_pending_cnt))
-+	int ap_pending_cnt = atomic_dec_return(&device->ap_pending_cnt);
-+
-+	if (ap_pending_cnt == 0)
- 		wake_up(&device->misc_wait);
--	ERR_IF_CNT_IS_NEGATIVE(ap_pending_cnt, func, line);
-+	return ap_pending_cnt;
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 5d98017497e4..6f2955f2dcc9 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1247,7 +1247,7 @@ send_bitmap_rle_or_plain(struct drbd_peer_device *device, struct bm_xfer_ctx *c)
+ 	}
+ 	if (!err) {
+ 		if (len == 0) {
+-			INFO_bm_xfer_stats(device, "send", c);
++			INFO_bm_xfer_stats(peer_device, "send", c);
+ 			return 0;
+ 		} else
+ 			return 1;
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 424748f6e4fa..aa896db1767d 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -4766,11 +4766,11 @@ decode_bitmap_c(struct drbd_peer_device *peer_device,
+ 	return -EIO;
  }
  
- /* counts how many resync-related answers we still expect from the peer
-@@ -1943,11 +1939,10 @@ static inline void inc_rs_pending(struct drbd_device *device)
- 	atomic_inc(&device->rs_pending_cnt);
- }
- 
--#define dec_rs_pending(device) _dec_rs_pending(device, __func__, __LINE__)
--static inline void _dec_rs_pending(struct drbd_device *device, const char *func, int line)
-+#define dec_rs_pending(device) ((void)expect((device), __dec_rs_pending(device) >= 0))
-+static inline int __dec_rs_pending(struct drbd_device *device)
+-void INFO_bm_xfer_stats(struct drbd_device *device,
++void INFO_bm_xfer_stats(struct drbd_peer_device *peer_device,
+ 		const char *direction, struct bm_xfer_ctx *c)
  {
--	atomic_dec(&device->rs_pending_cnt);
--	ERR_IF_CNT_IS_NEGATIVE(rs_pending_cnt, func, line);
-+	return atomic_dec_return(&device->rs_pending_cnt);
- }
+ 	/* what would it take to transfer it "plaintext" */
+-	unsigned int header_size = drbd_header_size(first_peer_device(device)->connection);
++	unsigned int header_size = drbd_header_size(peer_device->connection);
+ 	unsigned int data_size = DRBD_SOCKET_BUFFER_SIZE - header_size;
+ 	unsigned int plain =
+ 		header_size * (DIV_ROUND_UP(c->bm_words, data_size) + 1) +
+@@ -4794,7 +4794,7 @@ void INFO_bm_xfer_stats(struct drbd_device *device,
+ 		r = 1000;
  
- /* counts how many answers we still need to send to the peer.
-@@ -1964,18 +1959,16 @@ static inline void inc_unacked(struct drbd_device *device)
- 	atomic_inc(&device->unacked_cnt);
- }
+ 	r = 1000 - r;
+-	drbd_info(device, "%s bitmap stats [Bytes(packets)]: plain %u(%u), RLE %u(%u), "
++	drbd_info(peer_device, "%s bitmap stats [Bytes(packets)]: plain %u(%u), RLE %u(%u), "
+ 	     "total %u; compression: %u.%u%%\n",
+ 			direction,
+ 			c->bytes[1], c->packets[1],
+@@ -4872,7 +4872,7 @@ static int receive_bitmap(struct drbd_connection *connection, struct packet_info
+ 			goto out;
+ 	}
  
--#define dec_unacked(device) _dec_unacked(device, __func__, __LINE__)
--static inline void _dec_unacked(struct drbd_device *device, const char *func, int line)
-+#define dec_unacked(device) ((void)expect(device, __dec_unacked(device) >= 0))
-+static inline int __dec_unacked(struct drbd_device *device)
- {
--	atomic_dec(&device->unacked_cnt);
--	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
-+	return atomic_dec_return(&device->unacked_cnt);
- }
+-	INFO_bm_xfer_stats(device, "receive", &c);
++	INFO_bm_xfer_stats(peer_device, "receive", &c);
  
--#define sub_unacked(device, n) _sub_unacked(device, n, __func__, __LINE__)
--static inline void _sub_unacked(struct drbd_device *device, int n, const char *func, int line)
-+#define sub_unacked(device, n) ((void)expect(device, __sub_unacked(device) >= 0))
-+static inline int __sub_unacked(struct drbd_device *device, int n)
- {
--	atomic_sub(n, &device->unacked_cnt);
--	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
-+	return atomic_sub_return(n, &device->unacked_cnt);
- }
- 
- static inline bool is_sync_target_state(enum drbd_conns connection_state)
+ 	if (device->state.conn == C_WF_BITMAP_T) {
+ 		enum drbd_state_rv rv;
 -- 
 2.39.1
 
