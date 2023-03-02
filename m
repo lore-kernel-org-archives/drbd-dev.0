@@ -1,24 +1,26 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f42.google.com (mail-ed1-f42.google.com
-	[209.85.208.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 66C674210CD
-	for <drbd-dev@lists.linbit.com>; Thu,  2 Mar 2023 13:55:26 +0100 (CET)
-Received: by mail-ed1-f42.google.com with SMTP id d30so67213913eda.4
-	for <drbd-dev@lists.linbit.com>; Thu, 02 Mar 2023 04:55:25 -0800 (PST)
+Received: from mail-ed1-f49.google.com (mail-ed1-f49.google.com
+	[209.85.208.49])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 22AE4421740
+	for <drbd-dev@lists.linbit.com>; Thu,  2 Mar 2023 13:55:27 +0100 (CET)
+Received: by mail-ed1-f49.google.com with SMTP id g3so11710909eda.1
+	for <drbd-dev@lists.linbit.com>; Thu, 02 Mar 2023 04:55:27 -0800 (PST)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu,  2 Mar 2023 13:54:39 +0100
-Message-Id: <20230302125445.2653493-2-christoph.boehmwalder@linbit.com>
+Date: Thu,  2 Mar 2023 13:54:40 +0100
+Message-Id: <20230302125445.2653493-3-christoph.boehmwalder@linbit.com>
 In-Reply-To: <20230302125445.2653493-1-christoph.boehmwalder@linbit.com>
 References: <20230302125445.2653493-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v2 1/7] genetlink: make _genl_cmd_to_str static
+Cc: Andreas Gruenbacher <agruen@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH v2 2/7] drbd: Rip out the ERR_IF_CNT_IS_NEGATIVE
+	macro
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,27 +32,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Primarily to silence warnings like:
-warning: no previous prototype for 'xxx_genl_cmd_to_str' [-Wmissing-prototypes]
+From: Andreas Gruenbacher <agruen@linbit.com>
 
+Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- include/linux/genl_magic_func.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/block/drbd/drbd_int.h | 37 ++++++++++++++---------------------
+ 1 file changed, 15 insertions(+), 22 deletions(-)
 
-diff --git a/include/linux/genl_magic_func.h b/include/linux/genl_magic_func.h
-index 4a4b387181ad..2984b0cb24b1 100644
---- a/include/linux/genl_magic_func.h
-+++ b/include/linux/genl_magic_func.h
-@@ -209,7 +209,7 @@ static int s_name ## _from_attrs_for_change(struct s_name *s,		\
-  * Magic: define op number to op name mapping				{{{1
-  *									{{{2
-  */
--const char *CONCAT_(GENL_MAGIC_FAMILY, _genl_cmd_to_str)(__u8 cmd)
-+static const char *CONCAT_(GENL_MAGIC_FAMILY, _genl_cmd_to_str)(__u8 cmd)
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index d89b7d03d4c8..772023ace749 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1918,18 +1918,14 @@ static inline void inc_ap_pending(struct drbd_device *device)
+ 	atomic_inc(&device->ap_pending_cnt);
+ }
+ 
+-#define ERR_IF_CNT_IS_NEGATIVE(which, func, line)			\
+-	if (atomic_read(&device->which) < 0)				\
+-		drbd_err(device, "in %s:%d: " #which " = %d < 0 !\n",	\
+-			func, line,					\
+-			atomic_read(&device->which))
+-
+-#define dec_ap_pending(device) _dec_ap_pending(device, __func__, __LINE__)
+-static inline void _dec_ap_pending(struct drbd_device *device, const char *func, int line)
++#define dec_ap_pending(device) ((void)expect((device), __dec_ap_pending(device) >= 0))
++static inline int __dec_ap_pending(struct drbd_device *device)
  {
- 	switch (cmd) {
- #undef GENL_op
+-	if (atomic_dec_and_test(&device->ap_pending_cnt))
++	int ap_pending_cnt = atomic_dec_return(&device->ap_pending_cnt);
++
++	if (ap_pending_cnt == 0)
+ 		wake_up(&device->misc_wait);
+-	ERR_IF_CNT_IS_NEGATIVE(ap_pending_cnt, func, line);
++	return ap_pending_cnt;
+ }
+ 
+ /* counts how many resync-related answers we still expect from the peer
+@@ -1943,11 +1939,10 @@ static inline void inc_rs_pending(struct drbd_device *device)
+ 	atomic_inc(&device->rs_pending_cnt);
+ }
+ 
+-#define dec_rs_pending(device) _dec_rs_pending(device, __func__, __LINE__)
+-static inline void _dec_rs_pending(struct drbd_device *device, const char *func, int line)
++#define dec_rs_pending(device) ((void)expect((device), __dec_rs_pending(device) >= 0))
++static inline int __dec_rs_pending(struct drbd_device *device)
+ {
+-	atomic_dec(&device->rs_pending_cnt);
+-	ERR_IF_CNT_IS_NEGATIVE(rs_pending_cnt, func, line);
++	return atomic_dec_return(&device->rs_pending_cnt);
+ }
+ 
+ /* counts how many answers we still need to send to the peer.
+@@ -1964,18 +1959,16 @@ static inline void inc_unacked(struct drbd_device *device)
+ 	atomic_inc(&device->unacked_cnt);
+ }
+ 
+-#define dec_unacked(device) _dec_unacked(device, __func__, __LINE__)
+-static inline void _dec_unacked(struct drbd_device *device, const char *func, int line)
++#define dec_unacked(device) ((void)expect(device, __dec_unacked(device) >= 0))
++static inline int __dec_unacked(struct drbd_device *device)
+ {
+-	atomic_dec(&device->unacked_cnt);
+-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
++	return atomic_dec_return(&device->unacked_cnt);
+ }
+ 
+-#define sub_unacked(device, n) _sub_unacked(device, n, __func__, __LINE__)
+-static inline void _sub_unacked(struct drbd_device *device, int n, const char *func, int line)
++#define sub_unacked(device, n) ((void)expect(device, __sub_unacked(device) >= 0))
++static inline int __sub_unacked(struct drbd_device *device, int n)
+ {
+-	atomic_sub(n, &device->unacked_cnt);
+-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
++	return atomic_sub_return(n, &device->unacked_cnt);
+ }
+ 
+ static inline bool is_sync_target_state(enum drbd_conns connection_state)
 -- 
 2.39.1
 
