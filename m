@@ -1,27 +1,29 @@
-Return-Path: <Markus.Elfring@web.de>
-Received: from mout.web.de (mout.web.de [212.227.17.12])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 66352420312
-	for <drbd-dev@lists.linbit.com>; Mon, 27 Mar 2023 19:39:17 +0200 (CEST)
-Message-ID: <7a6c195f-42df-eef2-e2b7-9f7510dbdf06@web.de>
-Date: Mon, 27 Mar 2023 19:26:22 +0200
+Return-Path: <axboe@kernel.dk>
+Received: from mail-il1-f179.google.com (mail-il1-f179.google.com
+	[209.85.166.179])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7C3C14202E9
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Mar 2023 21:26:41 +0200 (CEST)
+Received: by mail-il1-f179.google.com with SMTP id e6so5167512ilu.9
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Mar 2023 12:26:41 -0700 (PDT)
+Message-ID: <e5b78f91-122a-0b0d-8d3f-922d462ba44d@kernel.dk>
+Date: Mon, 27 Mar 2023 13:26:39 -0600
 MIME-Version: 1.0
-To: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>,
-	kernel-janitors@vger.kernel.org, drbd-dev@lists.linbit.com,
-	linux-block@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
+Content-Language: en-US
+To: Joel Fernandes <joel@joelfernandes.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>
-References: <f9303bdc-b1a7-be5e-56c6-dfa8232b8b55@web.de>
-	<8d193937-532f-959f-9b84-d911984508aa@web.de>
-	<941709b5-d940-42c9-5f31-7ed56e3e6151@web.de>
-	<a989f01e-79a9-44a4-3603-ba4eeeb86dea@linbit.com>
-Content-Language: en-GB
-From: Markus Elfring <Markus.Elfring@web.de>
-In-Reply-To: <a989f01e-79a9-44a4-3603-ba4eeeb86dea@linbit.com>
+	=?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+References: <20230315181902.4177819-1-joel@joelfernandes.org>
+	<CAEXW_YQehT7Zj0G4nBj-0b+Ndq_FTxFzxQ-WYnBGJ=87wPBHYw@mail.gmail.com>
+From: Jens Axboe <axboe@kernel.dk>
+In-Reply-To: <CAEXW_YQehT7Zj0G4nBj-0b+Ndq_FTxFzxQ-WYnBGJ=87wPBHYw@mail.gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Cc: LKML <linux-kernel@vger.kernel.org>, cocci@inria.fr
-Subject: Re: [Drbd-dev] drbd: Fix exception handling in
-	nla_put_drbd_cfg_context()
+Content-Transfer-Encoding: 8bit
+Cc: linux-block@vger.kernel.org, "Uladzislau Rezki \(Sony\)" <urezki@gmail.com>,
+	linux-kernel@vger.kernel.org, "Paul E . McKenney" <paulmck@kernel.org>,
+	drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v2 01/14] drbd: Rename kvfree_rcu() to
+ kvfree_rcu_mightsleep()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,11 +35,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> Can you identify the issue with the current code and can you explain how
-> your patch makes it better?
+On 3/26/23 6:27 AM, Joel Fernandes wrote:
+> On Wed, Mar 15, 2023 at 2:19 PM Joel Fernandes (Google)
+> <joel@joelfernandes.org> wrote:
+>>
+>> From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+>>
+>> The kvfree_rcu() macro's single-argument form is deprecated.  Therefore
+>> switch to the new kvfree_rcu_mightsleep() variant. The goal is to
+>> avoid accidental use of the single-argument forms, which can introduce
+>> functionality bugs in atomic contexts and latency bugs in non-atomic
+>> contexts.
+>>
+>> Cc: Jens Axboe <axboe@kernel.dk>
+>> Cc: Philipp Reisner <philipp.reisner@linbit.com>
+>> Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+> 
+> Jens/Others, any chance for an Ack here?
 
-I propose to avoid a duplicate pointer check also in this function implementation.
+Begrudgingly-acked-by: Jens Axboe <axboe@kernel.dk>
 
-Regards,
-Markus
+-- 
+Jens Axboe
+
 
