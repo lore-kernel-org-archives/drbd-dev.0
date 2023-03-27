@@ -1,27 +1,29 @@
-Return-Path: <joel@joelfernandes.org>
-Received: from mail-yb1-f174.google.com (mail-yb1-f174.google.com
-	[209.85.219.174])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 75D624202F2
-	for <drbd-dev@lists.linbit.com>; Sun, 26 Mar 2023 14:27:21 +0200 (CEST)
-Received: by mail-yb1-f174.google.com with SMTP id i7so7304695ybt.0
-	for <drbd-dev@lists.linbit.com>; Sun, 26 Mar 2023 05:27:21 -0700 (PDT)
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-wr1-f42.google.com (mail-wr1-f42.google.com
+	[209.85.221.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7728D420312
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Mar 2023 14:28:40 +0200 (CEST)
+Received: by mail-wr1-f42.google.com with SMTP id j24so8640730wrd.0
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Mar 2023 05:28:40 -0700 (PDT)
+Message-ID: <a989f01e-79a9-44a4-3603-ba4eeeb86dea@linbit.com>
+Date: Mon, 27 Mar 2023 14:28:37 +0200
 MIME-Version: 1.0
-References: <20230315181902.4177819-1-joel@joelfernandes.org>
-In-Reply-To: <20230315181902.4177819-1-joel@joelfernandes.org>
-From: Joel Fernandes <joel@joelfernandes.org>
-Date: Sun, 26 Mar 2023 08:27:10 -0400
-Message-ID: <CAEXW_YQehT7Zj0G4nBj-0b+Ndq_FTxFzxQ-WYnBGJ=87wPBHYw@mail.gmail.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
-	Jens Axboe <axboe@kernel.dk>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Cc: linux-block@vger.kernel.org, "Uladzislau Rezki \(Sony\)" <urezki@gmail.com>,
-	linux-kernel@vger.kernel.org, "Paul E . McKenney" <paulmck@kernel.org>,
+To: Markus Elfring <Markus.Elfring@web.de>
+References: <f9303bdc-b1a7-be5e-56c6-dfa8232b8b55@web.de>
+	<8d193937-532f-959f-9b84-d911984508aa@web.de>
+	<941709b5-d940-42c9-5f31-7ed56e3e6151@web.de>
+Content-Language: en-US
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <941709b5-d940-42c9-5f31-7ed56e3e6151@web.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Cc: Jens Axboe <axboe@kernel.dk>, kernel-janitors@vger.kernel.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, cocci@inria.fr,
 	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH v2 01/14] drbd: Rename kvfree_rcu() to
-	kvfree_rcu_mightsleep()
+Subject: Re: [Drbd-dev] [PATCH resent] drbd: Fix exception handling in
+ nla_put_drbd_cfg_context()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,112 +35,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 15, 2023 at 2:19=E2=80=AFPM Joel Fernandes (Google)
-<joel@joelfernandes.org> wrote:
->
-> From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
->
-> The kvfree_rcu() macro's single-argument form is deprecated.  Therefore
-> switch to the new kvfree_rcu_mightsleep() variant. The goal is to
-> avoid accidental use of the single-argument forms, which can introduce
-> functionality bugs in atomic contexts and latency bugs in non-atomic
-> contexts.
->
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Philipp Reisner <philipp.reisner@linbit.com>
-> Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-
-Jens/Others, any chance for an Ack here?
-
- - Joel
-
-> Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
-> Signed-off-by: Paul E. McKenney <paulmck@kernel.org>
-> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+Am 25.03.23 um 15:07 schrieb Markus Elfring:
+> Date: Fri, 17 Mar 2023 18:32:05 +0100
+> 
+> The label “nla_put_failure” was used to jump to another pointer check
+> despite of the detail in the implementation of the function
+> “nla_put_drbd_cfg_context” that it was determined already that
+> the corresponding variable contained a null pointer.
+> 
+> * Thus return directly after a call of the function
+>   “nla_nest_start_noflag” failed.
+> 
+> * Delete an extra pointer check which became unnecessary
+>   with this refactoring.
+> 
+> 
+> This issue was detected by using the Coccinelle software.
+> 
+> Fixes: 543cc10b4cc5c60aa9fcc62705ccfb9998bf4697 ("drbd: drbd_adm_get_status needs to show some more detail")
+> Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
 > ---
->  drivers/block/drbd/drbd_nl.c       | 6 +++---
->  drivers/block/drbd/drbd_receiver.c | 4 ++--
->  drivers/block/drbd/drbd_state.c    | 2 +-
->  3 files changed, 6 insertions(+), 6 deletions(-)
->
+>  drivers/block/drbd/drbd_nl.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
+> 
 > diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-> index 60757ac31701..f49f2a5282e1 100644
+> index f49f2a5282e1..9cb947127472 100644
 > --- a/drivers/block/drbd/drbd_nl.c
 > +++ b/drivers/block/drbd/drbd_nl.c
-> @@ -1615,7 +1615,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct =
-genl_info *info)
->                         drbd_send_sync_param(peer_device);
->         }
->
-> -       kvfree_rcu(old_disk_conf);
-> +       kvfree_rcu_mightsleep(old_disk_conf);
->         kfree(old_plan);
->         mod_timer(&device->request_timer, jiffies + HZ);
->         goto success;
-> @@ -2446,7 +2446,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct g=
-enl_info *info)
->
->         mutex_unlock(&connection->resource->conf_update);
->         mutex_unlock(&connection->data.mutex);
-> -       kvfree_rcu(old_net_conf);
-> +       kvfree_rcu_mightsleep(old_net_conf);
->
->         if (connection->cstate >=3D C_WF_REPORT_PARAMS) {
->                 struct drbd_peer_device *peer_device;
-> @@ -2860,7 +2860,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct gen=
-l_info *info)
->                 new_disk_conf->disk_size =3D (sector_t)rs.resize_size;
->                 rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf=
-);
->                 mutex_unlock(&device->resource->conf_update);
-> -               kvfree_rcu(old_disk_conf);
-> +               kvfree_rcu_mightsleep(old_disk_conf);
->                 new_disk_conf =3D NULL;
->         }
->
-> diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd=
-_receiver.c
-> index 757f4692b5bd..e197b2a465d2 100644
-> --- a/drivers/block/drbd/drbd_receiver.c
-> +++ b/drivers/block/drbd/drbd_receiver.c
-> @@ -3759,7 +3759,7 @@ static int receive_protocol(struct drbd_connection =
-*connection, struct packet_in
->                 drbd_info(connection, "peer data-integrity-alg: %s\n",
->                           integrity_alg[0] ? integrity_alg : "(none)");
->
-> -       kvfree_rcu(old_net_conf);
-> +       kvfree_rcu_mightsleep(old_net_conf);
->         return 0;
->
->  disconnect_rcu_unlock:
-> @@ -4127,7 +4127,7 @@ static int receive_sizes(struct drbd_connection *co=
-nnection, struct packet_info
->
->                         rcu_assign_pointer(device->ldev->disk_conf, new_d=
-isk_conf);
->                         mutex_unlock(&connection->resource->conf_update);
-> -                       kvfree_rcu(old_disk_conf);
-> +                       kvfree_rcu_mightsleep(old_disk_conf);
->
->                         drbd_info(device, "Peer sets u_size to %lu sector=
-s (old: %lu)\n",
->                                  (unsigned long)p_usize, (unsigned long)m=
-y_usize);
-> diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_st=
-ate.c
-> index 75d13ea0024f..2aeea295fa28 100644
-> --- a/drivers/block/drbd/drbd_state.c
-> +++ b/drivers/block/drbd/drbd_state.c
-> @@ -2071,7 +2071,7 @@ static int w_after_conn_state_ch(struct drbd_work *=
-w, int unused)
->                 conn_free_crypto(connection);
->                 mutex_unlock(&connection->resource->conf_update);
->
-> -               kvfree_rcu(old_conf);
-> +               kvfree_rcu_mightsleep(old_conf);
->         }
->
->         if (ns_max.susp_fen) {
+> @@ -3187,7 +3187,7 @@ static int nla_put_drbd_cfg_context(struct sk_buff *skb,
+>  	struct nlattr *nla;
+>  	nla = nla_nest_start_noflag(skb, DRBD_NLA_CFG_CONTEXT);
+>  	if (!nla)
+> -		goto nla_put_failure;
+> +		return -EMSGSIZE;
+>  	if (device &&
+>  	    nla_put_u32(skb, T_ctx_volume, device->vnr))
+>  		goto nla_put_failure;
+> @@ -3205,8 +3205,7 @@ static int nla_put_drbd_cfg_context(struct sk_buff *skb,
+>  	return 0;
+> 
+>  nla_put_failure:
+> -	if (nla)
+> -		nla_nest_cancel(skb, nla);
+> +	nla_nest_cancel(skb, nla);
+>  	return -EMSGSIZE;
+>  }
+> 
 > --
-> 2.40.0.rc1.284.g88254d51c5-goog
->
+> 2.40.0
+> 
+
+Sorry, I fail to see how this is an improvement over the status quo,
+much less a "fix".
+
+Can you identify the issue with the current code and can you explain how
+your patch makes it better?
+
+-- 
+Christoph Böhmwalder
+LINBIT | Keeping the Digital World Running
+DRBD HA —  Disaster Recovery — Software defined Storage
