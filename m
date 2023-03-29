@@ -1,9 +1,9 @@
 Return-Path: <Markus.Elfring@web.de>
-Received: from mout.web.de (mout.web.de [212.227.15.3])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7CA6A4202D0
-	for <drbd-dev@lists.linbit.com>; Wed, 29 Mar 2023 15:42:09 +0200 (CEST)
-Message-ID: <f03b9407-0336-e949-e98d-9e0ddf3bfa57@web.de>
-Date: Wed, 29 Mar 2023 15:42:07 +0200
+Received: from mout.web.de (mout.web.de [212.227.15.4])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 105894202D0
+	for <drbd-dev@lists.linbit.com>; Wed, 29 Mar 2023 15:44:43 +0200 (CEST)
+Message-ID: <ccdb761c-9ca1-fb59-467b-fb4d34adc65a@web.de>
+Date: Wed, 29 Mar 2023 15:44:42 +0200
 MIME-Version: 1.0
 Content-Language: en-GB
 From: Markus Elfring <Markus.Elfring@web.de>
@@ -17,8 +17,8 @@ In-Reply-To: <33226beb-4fe2-3da5-5d69-a33e683dec57@web.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Cc: LKML <linux-kernel@vger.kernel.org>, cocci@inria.fr
-Subject: [Drbd-dev] [PATCH 2/3] lru_cache: Improve two size determinations
-	in lc_create()
+Subject: [Drbd-dev] [PATCH 3/3] lru_cache: Improve exception handling in
+	lc_create()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,37 +30,55 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Date: Wed, 29 Mar 2023 15:00:13 +0200
+Date: Wed, 29 Mar 2023 15:20:39 +0200
 
-Replace the specification of data structures by pointer dereferences
-as the parameter for the operator =E2=80=9Csizeof=E2=80=9D to make the cor=
-responding size
-determination a bit safer according to the Linux coding style convention.
+The label =E2=80=9Cout_fail=E2=80=9D was used to jump to a kfree() call de=
+spite of
+the detail in the implementation of the function =E2=80=9Clc_create=E2=80=
+=9D
+that it was determined already that a corresponding variable contained
+a null pointer because of a failed memory allocation.
+
+Thus use more appropriate labels instead.
+
+This issue was detected by using the Coccinelle software.
 
 Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
 =2D--
- lib/lru_cache.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ lib/lru_cache.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index e0db27b3a2d7..31820f03b146 100644
+index 31820f03b146..fdc8bd6fc888 100644
 =2D-- a/lib/lru_cache.c
 +++ b/lib/lru_cache.c
-@@ -94,11 +94,11 @@ struct lru_cache *lc_create(const char *name, struct k=
-mem_cache *cache,
- 	if (e_count > LC_MAX_ACTIVE)
- 		return NULL;
+@@ -100,11 +100,11 @@ struct lru_cache *lc_create(const char *name, struct=
+ kmem_cache *cache,
 
--	slot =3D kcalloc(e_count, sizeof(struct hlist_head), GFP_KERNEL);
-+	slot =3D kcalloc(e_count, sizeof(*slot), GFP_KERNEL);
- 	if (!slot)
- 		return NULL;
-
--	element =3D kcalloc(e_count, sizeof(struct lc_element *), GFP_KERNEL);
-+	element =3D kcalloc(e_count, sizeof(*element), GFP_KERNEL);
+ 	element =3D kcalloc(e_count, sizeof(*element), GFP_KERNEL);
  	if (!element)
- 		goto out_fail;
+-		goto out_fail;
++		goto free_slot;
 
+ 	lc =3D kzalloc(sizeof(*lc), GFP_KERNEL);
+ 	if (!lc)
+-		goto out_fail;
++		goto free_element;
+
+ 	INIT_LIST_HEAD(&lc->in_use);
+ 	INIT_LIST_HEAD(&lc->lru);
+@@ -142,8 +142,9 @@ struct lru_cache *lc_create(const char *name, struct k=
+mem_cache *cache,
+ 		kmem_cache_free(cache, p - e_off);
+ 	}
+ 	kfree(lc);
+-out_fail:
++free_element:
+ 	kfree(element);
++free_slot:
+ 	kfree(slot);
+ 	return NULL;
+ }
 =2D-
 2.40.0
 
