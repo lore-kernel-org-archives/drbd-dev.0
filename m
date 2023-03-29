@@ -1,9 +1,9 @@
 Return-Path: <Markus.Elfring@web.de>
-Received: from mout.web.de (mout.web.de [212.227.15.14])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3C3C54202D0
-	for <drbd-dev@lists.linbit.com>; Wed, 29 Mar 2023 15:40:09 +0200 (CEST)
-Message-ID: <18b0a6f6-8a18-2073-1e73-78bceac03fad@web.de>
-Date: Wed, 29 Mar 2023 15:40:07 +0200
+Received: from mout.web.de (mout.web.de [212.227.15.3])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7CA6A4202D0
+	for <drbd-dev@lists.linbit.com>; Wed, 29 Mar 2023 15:42:09 +0200 (CEST)
+Message-ID: <f03b9407-0336-e949-e98d-9e0ddf3bfa57@web.de>
+Date: Wed, 29 Mar 2023 15:42:07 +0200
 MIME-Version: 1.0
 Content-Language: en-GB
 From: Markus Elfring <Markus.Elfring@web.de>
@@ -17,8 +17,8 @@ In-Reply-To: <33226beb-4fe2-3da5-5d69-a33e683dec57@web.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Cc: LKML <linux-kernel@vger.kernel.org>, cocci@inria.fr
-Subject: [Drbd-dev] [PATCH 1/3] lru_cache: Return directly after a failed
- kzalloc() in lc_create()
+Subject: [Drbd-dev] [PATCH 2/3] lru_cache: Improve two size determinations
+	in lc_create()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,48 +30,37 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Date: Wed, 29 Mar 2023 14:45:34 +0200
+Date: Wed, 29 Mar 2023 15:00:13 +0200
 
-1. Return directly after a call of the function =E2=80=9Ckzalloc=E2=80=9D =
-failed
-   at the beginning in these function implementations.
-
-2. Omit extra initialisations (for the variables =E2=80=9Cslot=E2=80=9D an=
-d =E2=80=9Celement=E2=80=9D)
-   which became unnecessary with this refactoring.
+Replace the specification of data structures by pointer dereferences
+as the parameter for the operator =E2=80=9Csizeof=E2=80=9D to make the cor=
+responding size
+determination a bit safer according to the Linux coding style convention.
 
 Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
 =2D--
- lib/lru_cache.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ lib/lru_cache.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index b3d9187611de..e0db27b3a2d7 100644
+index e0db27b3a2d7..31820f03b146 100644
 =2D-- a/lib/lru_cache.c
 +++ b/lib/lru_cache.c
-@@ -78,8 +78,8 @@ struct lru_cache *lc_create(const char *name, struct kme=
-m_cache *cache,
- 		unsigned max_pending_changes,
- 		unsigned e_count, size_t e_size, size_t e_off)
- {
--	struct hlist_head *slot =3D NULL;
--	struct lc_element **element =3D NULL;
-+	struct hlist_head *slot;
-+	struct lc_element **element;
- 	struct lru_cache *lc;
- 	struct lc_element *e;
- 	unsigned cache_obj_size =3D kmem_cache_size(cache);
-@@ -96,7 +96,8 @@ struct lru_cache *lc_create(const char *name, struct kme=
-m_cache *cache,
+@@ -94,11 +94,11 @@ struct lru_cache *lc_create(const char *name, struct k=
+mem_cache *cache,
+ 	if (e_count > LC_MAX_ACTIVE)
+ 		return NULL;
 
- 	slot =3D kcalloc(e_count, sizeof(struct hlist_head), GFP_KERNEL);
+-	slot =3D kcalloc(e_count, sizeof(struct hlist_head), GFP_KERNEL);
++	slot =3D kcalloc(e_count, sizeof(*slot), GFP_KERNEL);
  	if (!slot)
--		goto out_fail;
-+		return NULL;
-+
- 	element =3D kcalloc(e_count, sizeof(struct lc_element *), GFP_KERNEL);
+ 		return NULL;
+
+-	element =3D kcalloc(e_count, sizeof(struct lc_element *), GFP_KERNEL);
++	element =3D kcalloc(e_count, sizeof(*element), GFP_KERNEL);
  	if (!element)
  		goto out_fail;
+
 =2D-
 2.40.0
 
