@@ -1,24 +1,31 @@
-Return-Path: <Markus.Elfring@web.de>
-Received: from mout.web.de (mout.web.de [212.227.15.4])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 105894202D0
-	for <drbd-dev@lists.linbit.com>; Wed, 29 Mar 2023 15:44:43 +0200 (CEST)
-Message-ID: <ccdb761c-9ca1-fb59-467b-fb4d34adc65a@web.de>
-Date: Wed, 29 Mar 2023 15:44:42 +0200
+Return-Path: <dhowells@redhat.com>
+Received: from us-smtp-delivery-124.mimecast.com
+	(us-smtp-delivery-124.mimecast.com [170.10.133.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2693C4202EC
+	for <drbd-dev@lists.linbit.com>; Wed, 29 Mar 2023 16:22:28 +0200 (CEST)
+From: David Howells <dhowells@redhat.com>
+To: Matthew Wilcox <willy@infradead.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Eric Dumazet <edumazet@google.com>, Jakub Kicinski <kuba@kernel.org>,
+	Paolo Abeni <pabeni@redhat.com>
+Date: Wed, 29 Mar 2023 15:13:52 +0100
+Message-Id: <20230329141354.516864-47-dhowells@redhat.com>
+In-Reply-To: <20230329141354.516864-1-dhowells@redhat.com>
+References: <20230329141354.516864-1-dhowells@redhat.com>
 MIME-Version: 1.0
-Content-Language: en-GB
-From: Markus Elfring <Markus.Elfring@web.de>
-To: kernel-janitors@vger.kernel.org, drbd-dev@lists.linbit.com,
-	=?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>
-References: <6cbcf640-55e5-2f11-4a09-716fe681c0d2@web.de>
-	<33226beb-4fe2-3da5-5d69-a33e683dec57@web.de>
-In-Reply-To: <33226beb-4fe2-3da5-5d69-a33e683dec57@web.de>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-Cc: LKML <linux-kernel@vger.kernel.org>, cocci@inria.fr
-Subject: [Drbd-dev] [PATCH 3/3] lru_cache: Improve exception handling in
-	lc_create()
+Content-Transfer-Encoding: 8bit
+Cc: Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>,
+	Christian Brauner <brauner@kernel.org>, netdev@vger.kernel.org,
+	Jeff Layton <jlayton@kernel.org>, linux-kernel@vger.kernel.org,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	David Howells <dhowells@redhat.com>, linux-mm@kvack.org,
+	Chuck Lever III <chuck.lever@oracle.com>,
+	linux-block@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>,
+	linux-fsdevel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [RFC PATCH v2 46/48] drbd: Use sendmsg(MSG_SPLICE_PAGES)
+	rather than sendmsg()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,55 +37,81 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Date: Wed, 29 Mar 2023 15:20:39 +0200
+Use sendmsg() conditionally with MSG_SPLICE_PAGES in _drbd_send_page()
+rather than calling sendpage() or _drbd_no_send_page().
 
-The label =E2=80=9Cout_fail=E2=80=9D was used to jump to a kfree() call de=
-spite of
-the detail in the implementation of the function =E2=80=9Clc_create=E2=80=
-=9D
-that it was determined already that a corresponding variable contained
-a null pointer because of a failed memory allocation.
+Signed-off-by: David Howells <dhowells@redhat.com>
+cc: Philipp Reisner <philipp.reisner@linbit.com>
+cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+cc: "Christoph Böhmwalder" <christoph.boehmwalder@linbit.com>
+cc: Jens Axboe <axboe@kernel.dk>
+cc: "David S. Miller" <davem@davemloft.net>
+cc: Eric Dumazet <edumazet@google.com>
+cc: Jakub Kicinski <kuba@kernel.org>
+cc: Paolo Abeni <pabeni@redhat.com>
+cc: drbd-dev@lists.linbit.com
+cc: linux-block@vger.kernel.org
+cc: netdev@vger.kernel.org
+---
+ drivers/block/drbd/drbd_main.c | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)
 
-Thus use more appropriate labels instead.
-
-This issue was detected by using the Coccinelle software.
-
-Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
-=2D--
- lib/lru_cache.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
-
-diff --git a/lib/lru_cache.c b/lib/lru_cache.c
-index 31820f03b146..fdc8bd6fc888 100644
-=2D-- a/lib/lru_cache.c
-+++ b/lib/lru_cache.c
-@@ -100,11 +100,11 @@ struct lru_cache *lc_create(const char *name, struct=
- kmem_cache *cache,
-
- 	element =3D kcalloc(e_count, sizeof(*element), GFP_KERNEL);
- 	if (!element)
--		goto out_fail;
-+		goto free_slot;
-
- 	lc =3D kzalloc(sizeof(*lc), GFP_KERNEL);
- 	if (!lc)
--		goto out_fail;
-+		goto free_element;
-
- 	INIT_LIST_HEAD(&lc->in_use);
- 	INIT_LIST_HEAD(&lc->lru);
-@@ -142,8 +142,9 @@ struct lru_cache *lc_create(const char *name, struct k=
-mem_cache *cache,
- 		kmem_cache_free(cache, p - e_off);
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 2c764f7ee4a7..e5f90abd29b6 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1532,7 +1532,8 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
+ 		    int offset, size_t size, unsigned msg_flags)
+ {
+ 	struct socket *socket = peer_device->connection->data.socket;
+-	int len = size;
++	struct bio_vec bvec;
++	struct msghdr msg = { .msg_flags = msg_flags, };
+ 	int err = -EIO;
+ 
+ 	/* e.g. XFS meta- & log-data is in slab pages, which have a
+@@ -1541,33 +1542,33 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
+ 	 * put_page(); and would cause either a VM_BUG directly, or
+ 	 * __page_cache_release a page that would actually still be referenced
+ 	 * by someone, leading to some obscure delayed Oops somewhere else. */
+-	if (drbd_disable_sendpage || !sendpage_ok(page))
+-		return _drbd_no_send_page(peer_device, page, offset, size, msg_flags);
++	if (!drbd_disable_sendpage && sendpage_ok(page))
++		msg.msg_flags |= MSG_NOSIGNAL | MSG_SPLICE_PAGES;
++
++	bvec_set_page(&bvec, page, offset, size);
++	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
+ 
+-	msg_flags |= MSG_NOSIGNAL;
+ 	drbd_update_congested(peer_device->connection);
+ 	do {
+ 		int sent;
+ 
+-		sent = socket->ops->sendpage(socket, page, offset, len, msg_flags);
++		sent = sock_sendmsg(socket, &msg);
+ 		if (sent <= 0) {
+ 			if (sent == -EAGAIN) {
+ 				if (we_should_drop_the_connection(peer_device->connection, socket))
+ 					break;
+ 				continue;
+ 			}
+-			drbd_warn(peer_device->device, "%s: size=%d len=%d sent=%d\n",
+-			     __func__, (int)size, len, sent);
++			drbd_warn(peer_device->device, "%s: size=%d len=%zu sent=%d\n",
++				  __func__, (int)size, msg_data_left(&msg), sent);
+ 			if (sent < 0)
+ 				err = sent;
+ 			break;
+ 		}
+-		len    -= sent;
+-		offset += sent;
+-	} while (len > 0 /* THINK && device->cstate >= C_CONNECTED*/);
++	} while (msg_data_left(&msg) /* THINK && device->cstate >= C_CONNECTED*/);
+ 	clear_bit(NET_CONGESTED, &peer_device->connection->flags);
+ 
+-	if (len == 0) {
++	if (!msg_data_left(&msg)) {
+ 		err = 0;
+ 		peer_device->device->send_cnt += size >> 9;
  	}
- 	kfree(lc);
--out_fail:
-+free_element:
- 	kfree(element);
-+free_slot:
- 	kfree(slot);
- 	return NULL;
- }
-=2D-
-2.40.0
 
