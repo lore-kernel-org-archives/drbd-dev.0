@@ -1,26 +1,24 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-wr1-f47.google.com (mail-wr1-f47.google.com
-	[209.85.221.47])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ECB6A42066F
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 12:27:51 +0200 (CEST)
-Received: by mail-wr1-f47.google.com with SMTP id h17so18513000wrt.8
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 03:27:51 -0700 (PDT)
+Received: from mail-wr1-f54.google.com (mail-wr1-f54.google.com
+	[209.85.221.54])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AC9E54210D4
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 12:27:53 +0200 (CEST)
+Received: by mail-wr1-f54.google.com with SMTP id d17so18510313wrb.11
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 03:27:53 -0700 (PDT)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu, 30 Mar 2023 12:27:41 +0200
-Message-Id: <20230330102744.2128122-5-christoph.boehmwalder@linbit.com>
+Date: Thu, 30 Mar 2023 12:27:43 +0200
+Message-Id: <20230330102744.2128122-7-christoph.boehmwalder@linbit.com>
 In-Reply-To: <20230330102744.2128122-1-christoph.boehmwalder@linbit.com>
 References: <20230330102744.2128122-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Andreas Gruenbacher <agruen@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v3 4/7] drbd: INFO_bm_xfer_stats(): Pass a peer
-	device argument
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH v3 6/7] drbd: pass drbd_peer_device to __req_mod
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,80 +30,345 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Andreas Gruenbacher <agruen@linbit.com>
+In preparation to support multiple connections, we need to know which
+one we need to modify the request state for.
 
-Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
+Originally-from: Lars Ellenberg <lars.ellenberg@linbit.com>
 Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/drbd_int.h      | 4 ++--
- drivers/block/drbd/drbd_main.c     | 2 +-
- drivers/block/drbd/drbd_receiver.c | 8 ++++----
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ drivers/block/drbd/drbd_main.c     | 13 +++++++++----
+ drivers/block/drbd/drbd_receiver.c | 18 ++++++++++--------
+ drivers/block/drbd/drbd_req.c      | 21 +++++++++++++--------
+ drivers/block/drbd/drbd_req.h      | 11 +++++++----
+ drivers/block/drbd/drbd_worker.c   | 14 +++++++-------
+ 5 files changed, 46 insertions(+), 31 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index 7bd10089bfc9..97c091990bf6 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -127,8 +127,8 @@ struct bm_xfer_ctx {
- 	unsigned bytes[2];
- };
- 
--extern void INFO_bm_xfer_stats(struct drbd_device *device,
--		const char *direction, struct bm_xfer_ctx *c);
-+extern void INFO_bm_xfer_stats(struct drbd_peer_device *peer_device,
-+			       const char *direction, struct bm_xfer_ctx *c);
- 
- static inline void bm_xfer_ctx_bit_to_word_offset(struct bm_xfer_ctx *c)
- {
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 178a7ae40af8..6647f84f3879 100644
+index 6647f84f3879..83987e7a5ef2 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -1247,7 +1247,7 @@ send_bitmap_rle_or_plain(struct drbd_peer_device *peer_device, struct bm_xfer_ct
+@@ -231,9 +231,11 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
+ 		}
+ 	req = list_prepare_entry(tmp, &connection->transfer_log, tl_requests);
+ 	list_for_each_entry_safe_from(req, r, &connection->transfer_log, tl_requests) {
++		struct drbd_peer_device *peer_device;
+ 		if (req->epoch != expect_epoch)
+ 			break;
+-		_req_mod(req, BARRIER_ACKED);
++		peer_device = conn_peer_device(connection, req->device->vnr);
++		_req_mod(req, BARRIER_ACKED, peer_device);
  	}
- 	if (!err) {
- 		if (len == 0) {
--			INFO_bm_xfer_stats(device, "send", c);
-+			INFO_bm_xfer_stats(peer_device, "send", c);
- 			return 0;
- 		} else
- 			return 1;
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index e70076fe1f2e..c6f93a9087b1 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -4766,11 +4766,11 @@ decode_bitmap_c(struct drbd_peer_device *peer_device,
- 	return -EIO;
+ 	spin_unlock_irq(&connection->resource->req_lock);
+ 
+@@ -256,10 +258,13 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
+ /* must hold resource->req_lock */
+ void _tl_restart(struct drbd_connection *connection, enum drbd_req_event what)
+ {
++	struct drbd_peer_device *peer_device;
+ 	struct drbd_request *req, *r;
+ 
+-	list_for_each_entry_safe(req, r, &connection->transfer_log, tl_requests)
+-		_req_mod(req, what);
++	list_for_each_entry_safe(req, r, &connection->transfer_log, tl_requests) {
++		peer_device = conn_peer_device(connection, req->device->vnr);
++		_req_mod(req, what, peer_device);
++	}
  }
  
--void INFO_bm_xfer_stats(struct drbd_device *device,
-+void INFO_bm_xfer_stats(struct drbd_peer_device *peer_device,
- 		const char *direction, struct bm_xfer_ctx *c)
- {
- 	/* what would it take to transfer it "plaintext" */
--	unsigned int header_size = drbd_header_size(first_peer_device(device)->connection);
-+	unsigned int header_size = drbd_header_size(peer_device->connection);
- 	unsigned int data_size = DRBD_SOCKET_BUFFER_SIZE - header_size;
- 	unsigned int plain =
- 		header_size * (DIV_ROUND_UP(c->bm_words, data_size) + 1) +
-@@ -4794,7 +4794,7 @@ void INFO_bm_xfer_stats(struct drbd_device *device,
- 		r = 1000;
+ void tl_restart(struct drbd_connection *connection, enum drbd_req_event what)
+@@ -297,7 +302,7 @@ void tl_abort_disk_io(struct drbd_device *device)
+ 			continue;
+ 		if (req->device != device)
+ 			continue;
+-		_req_mod(req, ABORT_DISK_IO);
++		_req_mod(req, ABORT_DISK_IO, NULL);
+ 	}
+ 	spin_unlock_irq(&connection->resource->req_lock);
+ }
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index e352880c70b5..856c0e3a6630 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -2138,7 +2138,7 @@ static int receive_DataReply(struct drbd_connection *connection, struct packet_i
  
- 	r = 1000 - r;
--	drbd_info(device, "%s bitmap stats [Bytes(packets)]: plain %u(%u), RLE %u(%u), "
-+	drbd_info(peer_device, "%s bitmap stats [Bytes(packets)]: plain %u(%u), RLE %u(%u), "
- 	     "total %u; compression: %u.%u%%\n",
- 			direction,
- 			c->bytes[1], c->packets[1],
-@@ -4872,7 +4872,7 @@ static int receive_bitmap(struct drbd_connection *connection, struct packet_info
- 			goto out;
+ 	err = recv_dless_read(peer_device, req, sector, pi->size);
+ 	if (!err)
+-		req_mod(req, DATA_RECEIVED);
++		req_mod(req, DATA_RECEIVED, peer_device);
+ 	/* else: nothing. handled from drbd_disconnect...
+ 	 * I don't think we may complete this just yet
+ 	 * in case we are "on-disconnect: freeze" */
+@@ -2196,7 +2196,7 @@ static void restart_conflicting_writes(struct drbd_device *device,
+ 			continue;
+ 		/* as it is RQ_POSTPONED, this will cause it to
+ 		 * be queued on the retry workqueue. */
+-		__req_mod(req, CONFLICT_RESOLVED, NULL);
++		__req_mod(req, CONFLICT_RESOLVED, NULL, NULL);
+ 	}
+ }
+ 
+@@ -2420,6 +2420,7 @@ static blk_opf_t wire_flags_to_bio(struct drbd_connection *connection, u32 dpf)
+ static void fail_postponed_requests(struct drbd_device *device, sector_t sector,
+ 				    unsigned int size)
+ {
++	struct drbd_peer_device *peer_device = first_peer_device(device);
+ 	struct drbd_interval *i;
+ 
+     repeat:
+@@ -2433,7 +2434,7 @@ static void fail_postponed_requests(struct drbd_device *device, sector_t sector,
+ 		if (!(req->rq_state & RQ_POSTPONED))
+ 			continue;
+ 		req->rq_state &= ~RQ_POSTPONED;
+-		__req_mod(req, NEG_ACKED, &m);
++		__req_mod(req, NEG_ACKED, peer_device, &m);
+ 		spin_unlock_irq(&device->resource->req_lock);
+ 		if (m.bio)
+ 			complete_master_bio(device, &m);
+@@ -5661,10 +5662,11 @@ static int got_IsInSync(struct drbd_connection *connection, struct packet_info *
+ }
+ 
+ static int
+-validate_req_change_req_state(struct drbd_device *device, u64 id, sector_t sector,
++validate_req_change_req_state(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
+ 			      struct rb_root *root, const char *func,
+ 			      enum drbd_req_event what, bool missing_ok)
+ {
++	struct drbd_device *device = peer_device->device;
+ 	struct drbd_request *req;
+ 	struct bio_and_error m;
+ 
+@@ -5674,7 +5676,7 @@ validate_req_change_req_state(struct drbd_device *device, u64 id, sector_t secto
+ 		spin_unlock_irq(&device->resource->req_lock);
+ 		return -EIO;
+ 	}
+-	__req_mod(req, what, &m);
++	__req_mod(req, what, peer_device, &m);
+ 	spin_unlock_irq(&device->resource->req_lock);
+ 
+ 	if (m.bio)
+@@ -5723,7 +5725,7 @@ static int got_BlockAck(struct drbd_connection *connection, struct packet_info *
+ 		BUG();
  	}
  
--	INFO_bm_xfer_stats(device, "receive", &c);
-+	INFO_bm_xfer_stats(peer_device, "receive", &c);
+-	return validate_req_change_req_state(device, p->block_id, sector,
++	return validate_req_change_req_state(peer_device, p->block_id, sector,
+ 					     &device->write_requests, __func__,
+ 					     what, false);
+ }
+@@ -5750,7 +5752,7 @@ static int got_NegAck(struct drbd_connection *connection, struct packet_info *pi
+ 		return 0;
+ 	}
  
- 	if (device->state.conn == C_WF_BITMAP_T) {
- 		enum drbd_state_rv rv;
+-	err = validate_req_change_req_state(device, p->block_id, sector,
++	err = validate_req_change_req_state(peer_device, p->block_id, sector,
+ 					    &device->write_requests, __func__,
+ 					    NEG_ACKED, true);
+ 	if (err) {
+@@ -5781,7 +5783,7 @@ static int got_NegDReply(struct drbd_connection *connection, struct packet_info
+ 	drbd_err(device, "Got NegDReply; Sector %llus, len %u.\n",
+ 	    (unsigned long long)sector, be32_to_cpu(p->blksize));
+ 
+-	return validate_req_change_req_state(device, p->block_id, sector,
++	return validate_req_change_req_state(peer_device, p->block_id, sector,
+ 					     &device->read_requests, __func__,
+ 					     NEG_ACKED, false);
+ }
+diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
+index e36216d50753..528f29ebf369 100644
+--- a/drivers/block/drbd/drbd_req.c
++++ b/drivers/block/drbd/drbd_req.c
+@@ -552,12 +552,15 @@ static inline bool is_pending_write_protocol_A(struct drbd_request *req)
+  *  happen "atomically" within the req_lock,
+  *  and it enforces that we have to think in a very structured manner
+  *  about the "events" that may happen to a request during its life time ...
++ *
++ *
++ * peer_device == NULL means local disk
+  */
+ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
++		struct drbd_peer_device *peer_device,
+ 		struct bio_and_error *m)
+ {
+ 	struct drbd_device *const device = req->device;
+-	struct drbd_peer_device *const peer_device = first_peer_device(device);
+ 	struct drbd_connection *const connection = peer_device ? peer_device->connection : NULL;
+ 	struct net_conf *nc;
+ 	int p, rv = 0;
+@@ -1100,6 +1103,7 @@ static bool drbd_should_send_out_of_sync(union drbd_dev_state s)
+ static int drbd_process_write_request(struct drbd_request *req)
+ {
+ 	struct drbd_device *device = req->device;
++	struct drbd_peer_device *peer_device = first_peer_device(device);
+ 	int remote, send_oos;
+ 
+ 	remote = drbd_should_do_remote(device->state);
+@@ -1115,7 +1119,7 @@ static int drbd_process_write_request(struct drbd_request *req)
+ 		/* The only size==0 bios we expect are empty flushes. */
+ 		D_ASSERT(device, req->master_bio->bi_opf & REQ_PREFLUSH);
+ 		if (remote)
+-			_req_mod(req, QUEUE_AS_DRBD_BARRIER);
++			_req_mod(req, QUEUE_AS_DRBD_BARRIER, peer_device);
+ 		return remote;
+ 	}
+ 
+@@ -1125,10 +1129,10 @@ static int drbd_process_write_request(struct drbd_request *req)
+ 	D_ASSERT(device, !(remote && send_oos));
+ 
+ 	if (remote) {
+-		_req_mod(req, TO_BE_SENT);
+-		_req_mod(req, QUEUE_FOR_NET_WRITE);
++		_req_mod(req, TO_BE_SENT, peer_device);
++		_req_mod(req, QUEUE_FOR_NET_WRITE, peer_device);
+ 	} else if (drbd_set_out_of_sync(device, req->i.sector, req->i.size))
+-		_req_mod(req, QUEUE_FOR_SEND_OOS);
++		_req_mod(req, QUEUE_FOR_SEND_OOS, peer_device);
+ 
+ 	return remote;
+ }
+@@ -1312,6 +1316,7 @@ static void drbd_update_plug(struct drbd_plug_cb *plug, struct drbd_request *req
+ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request *req)
+ {
+ 	struct drbd_resource *resource = device->resource;
++	struct drbd_peer_device *peer_device = first_peer_device(device);
+ 	const int rw = bio_data_dir(req->master_bio);
+ 	struct bio_and_error m = { NULL, };
+ 	bool no_remote = false;
+@@ -1375,8 +1380,8 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
+ 		/* We either have a private_bio, or we can read from remote.
+ 		 * Otherwise we had done the goto nodata above. */
+ 		if (req->private_bio == NULL) {
+-			_req_mod(req, TO_BE_SENT);
+-			_req_mod(req, QUEUE_FOR_NET_READ);
++			_req_mod(req, TO_BE_SENT, peer_device);
++			_req_mod(req, QUEUE_FOR_NET_READ, peer_device);
+ 		} else
+ 			no_remote = true;
+ 	}
+@@ -1397,7 +1402,7 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
+ 		req->pre_submit_jif = jiffies;
+ 		list_add_tail(&req->req_pending_local,
+ 			&device->pending_completion[rw == WRITE]);
+-		_req_mod(req, TO_BE_SUBMITTED);
++		_req_mod(req, TO_BE_SUBMITTED, NULL);
+ 		/* but we need to give up the spinlock to submit */
+ 		submit_private_bio = true;
+ 	} else if (no_remote) {
+diff --git a/drivers/block/drbd/drbd_req.h b/drivers/block/drbd/drbd_req.h
+index b4017b5c3fbc..9ae860e7591b 100644
+--- a/drivers/block/drbd/drbd_req.h
++++ b/drivers/block/drbd/drbd_req.h
+@@ -267,6 +267,7 @@ struct bio_and_error {
+ extern void start_new_tl_epoch(struct drbd_connection *connection);
+ extern void drbd_req_destroy(struct kref *kref);
+ extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
++		struct drbd_peer_device *peer_device,
+ 		struct bio_and_error *m);
+ extern void complete_master_bio(struct drbd_device *device,
+ 		struct bio_and_error *m);
+@@ -280,14 +281,15 @@ extern void drbd_restart_request(struct drbd_request *req);
+ 
+ /* use this if you don't want to deal with calling complete_master_bio()
+  * outside the spinlock, e.g. when walking some list on cleanup. */
+-static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
++static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what,
++		struct drbd_peer_device *peer_device)
+ {
+ 	struct drbd_device *device = req->device;
+ 	struct bio_and_error m;
+ 	int rv;
+ 
+ 	/* __req_mod possibly frees req, do not touch req after that! */
+-	rv = __req_mod(req, what, &m);
++	rv = __req_mod(req, what, peer_device, &m);
+ 	if (m.bio)
+ 		complete_master_bio(device, &m);
+ 
+@@ -299,7 +301,8 @@ static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
+  * of the lower level driver completion callback, so we need to
+  * spin_lock_irqsave here. */
+ static inline int req_mod(struct drbd_request *req,
+-		enum drbd_req_event what)
++		enum drbd_req_event what,
++		struct drbd_peer_device *peer_device)
+ {
+ 	unsigned long flags;
+ 	struct drbd_device *device = req->device;
+@@ -307,7 +310,7 @@ static inline int req_mod(struct drbd_request *req,
+ 	int rv;
+ 
+ 	spin_lock_irqsave(&device->resource->req_lock, flags);
+-	rv = __req_mod(req, what, &m);
++	rv = __req_mod(req, what, peer_device, &m);
+ 	spin_unlock_irqrestore(&device->resource->req_lock, flags);
+ 
+ 	if (m.bio)
+diff --git a/drivers/block/drbd/drbd_worker.c b/drivers/block/drbd/drbd_worker.c
+index 68d5ba4af17d..6455edca7aa9 100644
+--- a/drivers/block/drbd/drbd_worker.c
++++ b/drivers/block/drbd/drbd_worker.c
+@@ -276,7 +276,7 @@ void drbd_request_endio(struct bio *bio)
+ 
+ 	/* not req_mod(), we need irqsave here! */
+ 	spin_lock_irqsave(&device->resource->req_lock, flags);
+-	__req_mod(req, what, &m);
++	__req_mod(req, what, NULL, &m);
+ 	spin_unlock_irqrestore(&device->resource->req_lock, flags);
+ 	put_ldev(device);
+ 
+@@ -1425,7 +1425,7 @@ int w_send_out_of_sync(struct drbd_work *w, int cancel)
+ 	int err;
+ 
+ 	if (unlikely(cancel)) {
+-		req_mod(req, SEND_CANCELED);
++		req_mod(req, SEND_CANCELED, peer_device);
+ 		return 0;
+ 	}
+ 	req->pre_send_jif = jiffies;
+@@ -1437,7 +1437,7 @@ int w_send_out_of_sync(struct drbd_work *w, int cancel)
+ 	maybe_send_barrier(connection, req->epoch);
+ 
+ 	err = drbd_send_out_of_sync(peer_device, req);
+-	req_mod(req, OOS_HANDED_TO_NETWORK);
++	req_mod(req, OOS_HANDED_TO_NETWORK, peer_device);
+ 
+ 	return err;
+ }
+@@ -1457,7 +1457,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
+ 	int err;
+ 
+ 	if (unlikely(cancel)) {
+-		req_mod(req, SEND_CANCELED);
++		req_mod(req, SEND_CANCELED, peer_device);
+ 		return 0;
+ 	}
+ 	req->pre_send_jif = jiffies;
+@@ -1467,7 +1467,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
+ 	connection->send.current_epoch_writes++;
+ 
+ 	err = drbd_send_dblock(peer_device, req);
+-	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
++	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK, peer_device);
+ 
+ 	if (do_send_unplug && !err)
+ 		pd_send_unplug_remote(peer_device);
+@@ -1490,7 +1490,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
+ 	int err;
+ 
+ 	if (unlikely(cancel)) {
+-		req_mod(req, SEND_CANCELED);
++		req_mod(req, SEND_CANCELED, peer_device);
+ 		return 0;
+ 	}
+ 	req->pre_send_jif = jiffies;
+@@ -1502,7 +1502,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
+ 	err = drbd_send_drequest(peer_device, P_DATA_REQUEST, req->i.sector, req->i.size,
+ 				 (unsigned long)req);
+ 
+-	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
++	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK, peer_device);
+ 
+ 	if (do_send_unplug && !err)
+ 		pd_send_unplug_remote(peer_device);
 -- 
 2.39.2
 
