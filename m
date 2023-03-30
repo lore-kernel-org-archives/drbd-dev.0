@@ -1,22 +1,26 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
 Received: from mail-wr1-f45.google.com (mail-wr1-f45.google.com
 	[209.85.221.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A3BBB42061C
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 12:27:48 +0200 (CEST)
-Received: by mail-wr1-f45.google.com with SMTP id e18so18527865wra.9
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 03:27:48 -0700 (PDT)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B5B9742061C
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 12:27:49 +0200 (CEST)
+Received: by mail-wr1-f45.google.com with SMTP id v1so18542324wrv.1
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 03:27:49 -0700 (PDT)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu, 30 Mar 2023 12:27:37 +0200
-Message-Id: <20230330102744.2128122-1-christoph.boehmwalder@linbit.com>
+Date: Thu, 30 Mar 2023 12:27:39 +0200
+Message-Id: <20230330102744.2128122-3-christoph.boehmwalder@linbit.com>
+In-Reply-To: <20230330102744.2128122-1-christoph.boehmwalder@linbit.com>
+References: <20230330102744.2128122-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v3 0/7] Assorted DRBD refactoring
+Cc: Andreas Gruenbacher <agruen@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH v3 2/7] drbd: Rip out the ERR_IF_CNT_IS_NEGATIVE
+	macro
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,41 +32,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Another set of "backported" DRBD refactoring patches to bring the
-in-tree version closer to out-of-tree.
+From: Andreas Gruenbacher <agruen@linbit.com>
 
-These are (hopefully) no-ops, pretty much just preparation for future
-upstreaming work.
+Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
+Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+---
+ drivers/block/drbd/drbd_int.h | 37 ++++++++++++++---------------------
+ 1 file changed, 15 insertions(+), 22 deletions(-)
 
-Changes since v2:
-- Rebase to for-6.4/block
-
-Andreas Gruenbacher (3):
-  drbd: Rip out the ERR_IF_CNT_IS_NEGATIVE macro
-  drbd: Add peer device parameter to whole-bitmap I/O handlers
-  drbd: INFO_bm_xfer_stats(): Pass a peer device argument
-
-Christoph Böhmwalder (4):
-  genetlink: make _genl_cmd_to_str static
-  drbd: drbd_uuid_compare: pass a peer_device
-  drbd: pass drbd_peer_device to __req_mod
-  drbd: Pass a peer device to the resync and online verify functions
-
- drivers/block/drbd/drbd_actlog.c   |  13 ++--
- drivers/block/drbd/drbd_bitmap.c   |  13 +++-
- drivers/block/drbd/drbd_int.h      | 120 +++++++++++++++--------------
- drivers/block/drbd/drbd_main.c     |  72 ++++++++++-------
- drivers/block/drbd/drbd_nl.c       |  19 +++--
- drivers/block/drbd/drbd_receiver.c | 102 ++++++++++++------------
- drivers/block/drbd/drbd_req.c      |  30 +++++---
- drivers/block/drbd/drbd_req.h      |  11 ++-
- drivers/block/drbd/drbd_state.c    |  29 ++++---
- drivers/block/drbd/drbd_worker.c   | 114 ++++++++++++++-------------
- include/linux/genl_magic_func.h    |   2 +-
- 11 files changed, 293 insertions(+), 232 deletions(-)
-
-
-base-commit: 06965037ce942500c1ce3aa29ca217093a9c5720
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index d89b7d03d4c8..772023ace749 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -1918,18 +1918,14 @@ static inline void inc_ap_pending(struct drbd_device *device)
+ 	atomic_inc(&device->ap_pending_cnt);
+ }
+ 
+-#define ERR_IF_CNT_IS_NEGATIVE(which, func, line)			\
+-	if (atomic_read(&device->which) < 0)				\
+-		drbd_err(device, "in %s:%d: " #which " = %d < 0 !\n",	\
+-			func, line,					\
+-			atomic_read(&device->which))
+-
+-#define dec_ap_pending(device) _dec_ap_pending(device, __func__, __LINE__)
+-static inline void _dec_ap_pending(struct drbd_device *device, const char *func, int line)
++#define dec_ap_pending(device) ((void)expect((device), __dec_ap_pending(device) >= 0))
++static inline int __dec_ap_pending(struct drbd_device *device)
+ {
+-	if (atomic_dec_and_test(&device->ap_pending_cnt))
++	int ap_pending_cnt = atomic_dec_return(&device->ap_pending_cnt);
++
++	if (ap_pending_cnt == 0)
+ 		wake_up(&device->misc_wait);
+-	ERR_IF_CNT_IS_NEGATIVE(ap_pending_cnt, func, line);
++	return ap_pending_cnt;
+ }
+ 
+ /* counts how many resync-related answers we still expect from the peer
+@@ -1943,11 +1939,10 @@ static inline void inc_rs_pending(struct drbd_device *device)
+ 	atomic_inc(&device->rs_pending_cnt);
+ }
+ 
+-#define dec_rs_pending(device) _dec_rs_pending(device, __func__, __LINE__)
+-static inline void _dec_rs_pending(struct drbd_device *device, const char *func, int line)
++#define dec_rs_pending(device) ((void)expect((device), __dec_rs_pending(device) >= 0))
++static inline int __dec_rs_pending(struct drbd_device *device)
+ {
+-	atomic_dec(&device->rs_pending_cnt);
+-	ERR_IF_CNT_IS_NEGATIVE(rs_pending_cnt, func, line);
++	return atomic_dec_return(&device->rs_pending_cnt);
+ }
+ 
+ /* counts how many answers we still need to send to the peer.
+@@ -1964,18 +1959,16 @@ static inline void inc_unacked(struct drbd_device *device)
+ 	atomic_inc(&device->unacked_cnt);
+ }
+ 
+-#define dec_unacked(device) _dec_unacked(device, __func__, __LINE__)
+-static inline void _dec_unacked(struct drbd_device *device, const char *func, int line)
++#define dec_unacked(device) ((void)expect(device, __dec_unacked(device) >= 0))
++static inline int __dec_unacked(struct drbd_device *device)
+ {
+-	atomic_dec(&device->unacked_cnt);
+-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
++	return atomic_dec_return(&device->unacked_cnt);
+ }
+ 
+-#define sub_unacked(device, n) _sub_unacked(device, n, __func__, __LINE__)
+-static inline void _sub_unacked(struct drbd_device *device, int n, const char *func, int line)
++#define sub_unacked(device, n) ((void)expect(device, __sub_unacked(device) >= 0))
++static inline int __sub_unacked(struct drbd_device *device, int n)
+ {
+-	atomic_sub(n, &device->unacked_cnt);
+-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
++	return atomic_sub_return(n, &device->unacked_cnt);
+ }
+ 
+ static inline bool is_sync_target_state(enum drbd_conns connection_state)
 -- 
 2.39.2
 
