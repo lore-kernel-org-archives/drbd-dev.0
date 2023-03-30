@@ -1,25 +1,26 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-wr1-f52.google.com (mail-wr1-f52.google.com
-	[209.85.221.52])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A92964210CE
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 12:27:52 +0200 (CEST)
-Received: by mail-wr1-f52.google.com with SMTP id t4so13298438wra.7
-	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 03:27:52 -0700 (PDT)
+Received: from mail-wr1-f47.google.com (mail-wr1-f47.google.com
+	[209.85.221.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ECB6A42066F
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 12:27:51 +0200 (CEST)
+Received: by mail-wr1-f47.google.com with SMTP id h17so18513000wrt.8
+	for <drbd-dev@lists.linbit.com>; Thu, 30 Mar 2023 03:27:51 -0700 (PDT)
 From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Date: Thu, 30 Mar 2023 12:27:42 +0200
-Message-Id: <20230330102744.2128122-6-christoph.boehmwalder@linbit.com>
+Date: Thu, 30 Mar 2023 12:27:41 +0200
+Message-Id: <20230330102744.2128122-5-christoph.boehmwalder@linbit.com>
 In-Reply-To: <20230330102744.2128122-1-christoph.boehmwalder@linbit.com>
 References: <20230330102744.2128122-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v3 5/7] drbd: drbd_uuid_compare: pass a
-	peer_device
+Cc: Andreas Gruenbacher <agruen@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH v3 4/7] drbd: INFO_bm_xfer_stats(): Pass a peer
+	device argument
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,39 +32,80 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+From: Andreas Gruenbacher <agruen@linbit.com>
+
+Signed-off-by: Andreas Gruenbacher <agruen@linbit.com>
 Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_int.h      | 4 ++--
+ drivers/block/drbd/drbd_main.c     | 2 +-
+ drivers/block/drbd/drbd_receiver.c | 8 ++++----
+ 3 files changed, 7 insertions(+), 7 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 7bd10089bfc9..97c091990bf6 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -127,8 +127,8 @@ struct bm_xfer_ctx {
+ 	unsigned bytes[2];
+ };
+ 
+-extern void INFO_bm_xfer_stats(struct drbd_device *device,
+-		const char *direction, struct bm_xfer_ctx *c);
++extern void INFO_bm_xfer_stats(struct drbd_peer_device *peer_device,
++			       const char *direction, struct bm_xfer_ctx *c);
+ 
+ static inline void bm_xfer_ctx_bit_to_word_offset(struct bm_xfer_ctx *c)
+ {
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 178a7ae40af8..6647f84f3879 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1247,7 +1247,7 @@ send_bitmap_rle_or_plain(struct drbd_peer_device *peer_device, struct bm_xfer_ct
+ 	}
+ 	if (!err) {
+ 		if (len == 0) {
+-			INFO_bm_xfer_stats(device, "send", c);
++			INFO_bm_xfer_stats(peer_device, "send", c);
+ 			return 0;
+ 		} else
+ 			return 1;
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index c6f93a9087b1..e352880c70b5 100644
+index e70076fe1f2e..c6f93a9087b1 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3226,10 +3226,11 @@ static void drbd_uuid_dump(struct drbd_device *device, char *text, u64 *uuid,
- -1096   requires proto 96
-  */
+@@ -4766,11 +4766,11 @@ decode_bitmap_c(struct drbd_peer_device *peer_device,
+ 	return -EIO;
+ }
  
--static int drbd_uuid_compare(struct drbd_device *const device, enum drbd_role const peer_role, int *rule_nr) __must_hold(local)
-+static int drbd_uuid_compare(struct drbd_peer_device *const peer_device,
-+		enum drbd_role const peer_role, int *rule_nr) __must_hold(local)
+-void INFO_bm_xfer_stats(struct drbd_device *device,
++void INFO_bm_xfer_stats(struct drbd_peer_device *peer_device,
+ 		const char *direction, struct bm_xfer_ctx *c)
  {
--	struct drbd_peer_device *const peer_device = first_peer_device(device);
--	struct drbd_connection *const connection = peer_device ? peer_device->connection : NULL;
-+	struct drbd_connection *const connection = peer_device->connection;
-+	struct drbd_device *device = peer_device->device;
- 	u64 self, peer;
- 	int i, j;
+ 	/* what would it take to transfer it "plaintext" */
+-	unsigned int header_size = drbd_header_size(first_peer_device(device)->connection);
++	unsigned int header_size = drbd_header_size(peer_device->connection);
+ 	unsigned int data_size = DRBD_SOCKET_BUFFER_SIZE - header_size;
+ 	unsigned int plain =
+ 		header_size * (DIV_ROUND_UP(c->bm_words, data_size) + 1) +
+@@ -4794,7 +4794,7 @@ void INFO_bm_xfer_stats(struct drbd_device *device,
+ 		r = 1000;
  
-@@ -3465,7 +3466,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_peer_device *peer_device,
- 	drbd_uuid_dump(device, "peer", device->p_uuid,
- 		       device->p_uuid[UI_SIZE], device->p_uuid[UI_FLAGS]);
+ 	r = 1000 - r;
+-	drbd_info(device, "%s bitmap stats [Bytes(packets)]: plain %u(%u), RLE %u(%u), "
++	drbd_info(peer_device, "%s bitmap stats [Bytes(packets)]: plain %u(%u), RLE %u(%u), "
+ 	     "total %u; compression: %u.%u%%\n",
+ 			direction,
+ 			c->bytes[1], c->packets[1],
+@@ -4872,7 +4872,7 @@ static int receive_bitmap(struct drbd_connection *connection, struct packet_info
+ 			goto out;
+ 	}
  
--	hg = drbd_uuid_compare(device, peer_role, &rule_nr);
-+	hg = drbd_uuid_compare(peer_device, peer_role, &rule_nr);
- 	spin_unlock_irq(&device->ldev->md.uuid_lock);
+-	INFO_bm_xfer_stats(device, "receive", &c);
++	INFO_bm_xfer_stats(peer_device, "receive", &c);
  
- 	drbd_info(device, "uuid_compare()=%d by rule %d\n", hg, rule_nr);
+ 	if (device->state.conn == C_WF_BITMAP_T) {
+ 		enum drbd_state_rv rv;
 -- 
 2.39.2
 
