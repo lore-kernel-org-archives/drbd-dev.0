@@ -1,31 +1,23 @@
-Return-Path: <dhowells@redhat.com>
-Received: from us-smtp-delivery-124.mimecast.com
-	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 211674205A6
-	for <drbd-dev@lists.linbit.com>; Fri, 31 Mar 2023 18:12:00 +0200 (CEST)
-From: David Howells <dhowells@redhat.com>
-To: Matthew Wilcox <willy@infradead.org>,
-	"David S. Miller" <davem@davemloft.net>,
-	Eric Dumazet <edumazet@google.com>, Jakub Kicinski <kuba@kernel.org>,
-	Paolo Abeni <pabeni@redhat.com>
-Date: Fri, 31 Mar 2023 17:09:12 +0100
-Message-Id: <20230331160914.1608208-54-dhowells@redhat.com>
-In-Reply-To: <20230331160914.1608208-1-dhowells@redhat.com>
-References: <20230331160914.1608208-1-dhowells@redhat.com>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pj1-f51.google.com (mail-pj1-f51.google.com
+	[209.85.216.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7149E420369
+	for <drbd-dev@lists.linbit.com>; Sun,  2 Apr 2023 04:28:45 +0200 (CEST)
+Received: by mail-pj1-f51.google.com with SMTP id d13so24267582pjh.0
+	for <drbd-dev@lists.linbit.com>; Sat, 01 Apr 2023 19:28:44 -0700 (PDT)
+From: Jens Axboe <axboe@kernel.dk>
+To: =?utf-8?q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <20230330102744.2128122-1-christoph.boehmwalder@linbit.com>
+References: <20230330102744.2128122-1-christoph.boehmwalder@linbit.com>
+Message-Id: <168040252316.200172.16639804916232097700.b4-ty@kernel.dk>
+Date: Sat, 01 Apr 2023 20:28:43 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>,
-	Christian Brauner <brauner@kernel.org>, netdev@vger.kernel.org,
-	Jeff Layton <jlayton@kernel.org>, linux-kernel@vger.kernel.org,
+Cc: linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	David Howells <dhowells@redhat.com>, linux-mm@kvack.org,
-	Chuck Lever III <chuck.lever@oracle.com>,
-	linux-block@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>,
-	linux-fsdevel@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v3 53/55] drbd: Use sendmsg(MSG_SPLICE_PAGES)
-	rather than sendmsg()
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [Drbd-dev] [PATCH v3 0/7] Assorted DRBD refactoring
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -37,81 +29,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use sendmsg() conditionally with MSG_SPLICE_PAGES in _drbd_send_page()
-rather than calling sendpage() or _drbd_no_send_page().
 
-Signed-off-by: David Howells <dhowells@redhat.com>
-cc: Philipp Reisner <philipp.reisner@linbit.com>
-cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-cc: "Christoph Böhmwalder" <christoph.boehmwalder@linbit.com>
-cc: Jens Axboe <axboe@kernel.dk>
-cc: "David S. Miller" <davem@davemloft.net>
-cc: Eric Dumazet <edumazet@google.com>
-cc: Jakub Kicinski <kuba@kernel.org>
-cc: Paolo Abeni <pabeni@redhat.com>
-cc: drbd-dev@lists.linbit.com
-cc: linux-block@vger.kernel.org
-cc: netdev@vger.kernel.org
----
- drivers/block/drbd/drbd_main.c | 23 ++++++++++++-----------
- 1 file changed, 12 insertions(+), 11 deletions(-)
+On Thu, 30 Mar 2023 12:27:37 +0200, Christoph Böhmwalder wrote:
+> Another set of "backported" DRBD refactoring patches to bring the
+> in-tree version closer to out-of-tree.
+> 
+> These are (hopefully) no-ops, pretty much just preparation for future
+> upstreaming work.
+> 
+> Changes since v2:
+> - Rebase to for-6.4/block
+> 
+> [...]
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 2c764f7ee4a7..e5f90abd29b6 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -1532,7 +1532,8 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
- 		    int offset, size_t size, unsigned msg_flags)
- {
- 	struct socket *socket = peer_device->connection->data.socket;
--	int len = size;
-+	struct bio_vec bvec;
-+	struct msghdr msg = { .msg_flags = msg_flags, };
- 	int err = -EIO;
- 
- 	/* e.g. XFS meta- & log-data is in slab pages, which have a
-@@ -1541,33 +1542,33 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
- 	 * put_page(); and would cause either a VM_BUG directly, or
- 	 * __page_cache_release a page that would actually still be referenced
- 	 * by someone, leading to some obscure delayed Oops somewhere else. */
--	if (drbd_disable_sendpage || !sendpage_ok(page))
--		return _drbd_no_send_page(peer_device, page, offset, size, msg_flags);
-+	if (!drbd_disable_sendpage && sendpage_ok(page))
-+		msg.msg_flags |= MSG_NOSIGNAL | MSG_SPLICE_PAGES;
-+
-+	bvec_set_page(&bvec, page, offset, size);
-+	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
- 
--	msg_flags |= MSG_NOSIGNAL;
- 	drbd_update_congested(peer_device->connection);
- 	do {
- 		int sent;
- 
--		sent = socket->ops->sendpage(socket, page, offset, len, msg_flags);
-+		sent = sock_sendmsg(socket, &msg);
- 		if (sent <= 0) {
- 			if (sent == -EAGAIN) {
- 				if (we_should_drop_the_connection(peer_device->connection, socket))
- 					break;
- 				continue;
- 			}
--			drbd_warn(peer_device->device, "%s: size=%d len=%d sent=%d\n",
--			     __func__, (int)size, len, sent);
-+			drbd_warn(peer_device->device, "%s: size=%d len=%zu sent=%d\n",
-+				  __func__, (int)size, msg_data_left(&msg), sent);
- 			if (sent < 0)
- 				err = sent;
- 			break;
- 		}
--		len    -= sent;
--		offset += sent;
--	} while (len > 0 /* THINK && device->cstate >= C_CONNECTED*/);
-+	} while (msg_data_left(&msg) /* THINK && device->cstate >= C_CONNECTED*/);
- 	clear_bit(NET_CONGESTED, &peer_device->connection->flags);
- 
--	if (len == 0) {
-+	if (!msg_data_left(&msg)) {
- 		err = 0;
- 		peer_device->device->send_cnt += size >> 9;
- 	}
+Applied, thanks!
+
+[1/7] genetlink: make _genl_cmd_to_str static
+      commit: 0d11f3cf279c5ad20a41f29242f170ba3c02f2da
+[2/7] drbd: Rip out the ERR_IF_CNT_IS_NEGATIVE macro
+      commit: 33f7d31673eb43298b25b0cca30acc487e8a332a
+[3/7] drbd: Add peer device parameter to whole-bitmap I/O handlers
+      commit: 8164dd6c8ae158ec0740bf37f0f14645a1fb5355
+[4/7] drbd: INFO_bm_xfer_stats(): Pass a peer device argument
+      commit: 5e54c2a6010bc88e33a5a66aa16c95fa5d017065
+[5/7] drbd: drbd_uuid_compare: pass a peer_device
+      commit: db445db1cde540f819265dcae2d916a35616bda0
+[6/7] drbd: pass drbd_peer_device to __req_mod
+      commit: ad878a0d8815a291a1cbb2dc8279dc2910c999cc
+[7/7] drbd: Pass a peer device to the resync and online verify functions
+      commit: 0d11f3cf279c5ad20a41f29242f170ba3c02f2da
+
+Best regards,
+-- 
+Jens Axboe
+
+
 
