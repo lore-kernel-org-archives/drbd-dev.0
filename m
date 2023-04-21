@@ -1,15 +1,15 @@
 Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 34D674252BC
-	for <drbd-dev@lists.linbit.com>; Fri, 21 Apr 2023 22:22:51 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 140504252C4
+	for <drbd-dev@lists.linbit.com>; Fri, 21 Apr 2023 22:22:53 +0200 (CEST)
 From: Luis Chamberlain <mcgrof@kernel.org>
 To: axboe@kernel.dk, agk@redhat.com, snitzer@kernel.org,
 	philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
 	christoph.boehmwalder@linbit.com, hch@infradead.org, djwong@kernel.org,
 	minchan@kernel.org, senozhatsky@chromium.org
-Date: Fri, 21 Apr 2023 12:58:03 -0700
-Message-Id: <20230421195807.2804512-2-mcgrof@kernel.org>
+Date: Fri, 21 Apr 2023 12:58:06 -0700
+Message-Id: <20230421195807.2804512-5-mcgrof@kernel.org>
 In-Reply-To: <20230421195807.2804512-1-mcgrof@kernel.org>
 References: <20230421195807.2804512-1-mcgrof@kernel.org>
 MIME-Version: 1.0
@@ -21,7 +21,7 @@ Cc: p.raghav@samsung.com, linux-xfs@vger.kernel.org, mcgrof@kernel.org,
 	linux-block@vger.kernel.org, linux-mm@kvack.org,
 	dm-devel@redhat.com, hare@suse.de, linux-fsdevel@vger.kernel.org,
 	kbusch@kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 1/5] dm integrity: simplify by using
+Subject: [Drbd-dev] [PATCH 4/5] dm bufio: simplify by using
 	PAGE_SECTORS_SHIFT
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -41,58 +41,31 @@ This produces no functional changes.
 
 Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- drivers/md/dm-integrity.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ drivers/md/dm-bufio.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/md/dm-integrity.c b/drivers/md/dm-integrity.c
-index 31838b13ea54..a179265970dd 100644
---- a/drivers/md/dm-integrity.c
-+++ b/drivers/md/dm-integrity.c
-@@ -752,7 +752,7 @@ static void page_list_location(struct dm_integrity_c *ic, unsigned int section,
- 
- 	sector = section * ic->journal_section_sectors + offset;
- 
--	*pl_index = sector >> (PAGE_SHIFT - SECTOR_SHIFT);
-+	*pl_index = sector >> (PAGE_SECTORS_SHIFT);
- 	*pl_offset = (sector << SECTOR_SHIFT) & (PAGE_SIZE - 1);
- }
- 
-@@ -1077,7 +1077,7 @@ static void rw_journal_sectors(struct dm_integrity_c *ic, blk_opf_t opf,
- 		return;
+diff --git a/drivers/md/dm-bufio.c b/drivers/md/dm-bufio.c
+index eea977662e81..08c4730e1819 100644
+--- a/drivers/md/dm-bufio.c
++++ b/drivers/md/dm-bufio.c
+@@ -1152,7 +1152,7 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
+ 	    gfp_mask & __GFP_NORETRY) {
+ 		*data_mode = DATA_MODE_GET_FREE_PAGES;
+ 		return (void *)__get_free_pages(gfp_mask,
+-						c->sectors_per_block_bits - (PAGE_SHIFT - SECTOR_SHIFT));
++						c->sectors_per_block_bits - (PAGE_SECTORS_SHIFT));
  	}
  
--	pl_index = sector >> (PAGE_SHIFT - SECTOR_SHIFT);
-+	pl_index = sector >> (PAGE_SECTORS_SHIFT);
- 	pl_offset = (sector << SECTOR_SHIFT) & (PAGE_SIZE - 1);
+ 	*data_mode = DATA_MODE_VMALLOC;
+@@ -1190,7 +1190,7 @@ static void free_buffer_data(struct dm_bufio_client *c,
  
- 	io_req.bi_opf = opf;
-@@ -1201,7 +1201,7 @@ static void copy_from_journal(struct dm_integrity_c *ic, unsigned int section, u
+ 	case DATA_MODE_GET_FREE_PAGES:
+ 		free_pages((unsigned long)data,
+-			   c->sectors_per_block_bits - (PAGE_SHIFT - SECTOR_SHIFT));
++			   c->sectors_per_block_bits - (PAGE_SECTORS_SHIFT));
+ 		break;
  
- 	sector = section * ic->journal_section_sectors + JOURNAL_BLOCK_SECTORS + offset;
- 
--	pl_index = sector >> (PAGE_SHIFT - SECTOR_SHIFT);
-+	pl_index = sector >> (PAGE_SECTORS_SHIFT);
- 	pl_offset = (sector << SECTOR_SHIFT) & (PAGE_SIZE - 1);
- 
- 	io_req.bi_opf = REQ_OP_WRITE;
-@@ -3765,7 +3765,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
- 	ic->commit_ids[3] = cpu_to_le64(0x4444444444444444ULL);
- 
- 	journal_pages = roundup((__u64)ic->journal_sections * ic->journal_section_sectors,
--				PAGE_SIZE >> SECTOR_SHIFT) >> (PAGE_SHIFT - SECTOR_SHIFT);
-+				PAGE_SIZE >> SECTOR_SHIFT) >> (PAGE_SECTORS_SHIFT);
- 	journal_desc_size = journal_pages * sizeof(struct page_list);
- 	if (journal_pages >= totalram_pages() - totalhigh_pages() || journal_desc_size > ULONG_MAX) {
- 		*error = "Journal doesn't fit into memory";
-@@ -4542,7 +4542,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned int argc, char **argv
- 			spin_lock_init(&bbs->bio_queue_lock);
- 
- 			sector = i * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT);
--			pl_index = sector >> (PAGE_SHIFT - SECTOR_SHIFT);
-+			pl_index = sector >> (PAGE_SECTORS_SHIFT);
- 			pl_offset = (sector << SECTOR_SHIFT) & (PAGE_SIZE - 1);
- 
- 			bbs->bitmap = lowmem_page_address(ic->journal[pl_index].page) + pl_offset;
+ 	case DATA_MODE_VMALLOC:
 -- 
 2.39.2
 
