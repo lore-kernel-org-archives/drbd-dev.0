@@ -1,28 +1,28 @@
-Return-Path: <mcgrof@infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C507F4252C8
-	for <drbd-dev@lists.linbit.com>; Fri, 21 Apr 2023 22:22:56 +0200 (CEST)
-From: Luis Chamberlain <mcgrof@kernel.org>
-To: axboe@kernel.dk, agk@redhat.com, snitzer@kernel.org,
-	philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
-	christoph.boehmwalder@linbit.com, hch@infradead.org, djwong@kernel.org,
-	minchan@kernel.org, senozhatsky@chromium.org
-Date: Fri, 21 Apr 2023 12:58:05 -0700
-Message-Id: <20230421195807.2804512-4-mcgrof@kernel.org>
-In-Reply-To: <20230421195807.2804512-1-mcgrof@kernel.org>
+Return-Path: <willy@infradead.org>
+Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A7AFB4202E5
+	for <drbd-dev@lists.linbit.com>; Fri, 21 Apr 2023 22:37:22 +0200 (CEST)
+Date: Fri, 21 Apr 2023 21:15:15 +0100
+From: Matthew Wilcox <willy@infradead.org>
+To: Luis Chamberlain <mcgrof@kernel.org>
+Message-ID: <ZELu017UCTZWrCjv@casper.infradead.org>
 References: <20230421195807.2804512-1-mcgrof@kernel.org>
+	<20230421195807.2804512-2-mcgrof@kernel.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Sender: Luis Chamberlain <mcgrof@infradead.org>
-Cc: p.raghav@samsung.com, linux-xfs@vger.kernel.org, mcgrof@kernel.org,
-	da.gomez@samsung.com, patches@lists.linux.dev,
-	willy@infradead.org, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, linux-mm@kvack.org,
-	dm-devel@redhat.com, hare@suse.de, linux-fsdevel@vger.kernel.org,
-	kbusch@kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH 3/5] iomap: simplify iomap_init() with
-	PAGE_SECTORS
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20230421195807.2804512-2-mcgrof@kernel.org>
+Cc: djwong@kernel.org, philipp.reisner@linbit.com, linux-mm@kvack.org,
+	dm-devel@redhat.com, agk@redhat.com, drbd-dev@lists.linbit.com,
+	hch@infradead.org, p.raghav@samsung.com,
+	senozhatsky@chromium.org, snitzer@kernel.org,
+	linux-block@vger.kernel.org, hare@suse.de, kbusch@kernel.org,
+	axboe@kernel.dk, da.gomez@samsung.com,
+	linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org,
+	minchan@kernel.org, patches@lists.linux.dev,
+	linux-fsdevel@vger.kernel.org, lars.ellenberg@linbit.com
+Subject: Re: [Drbd-dev] [PATCH 1/5] dm integrity: simplify by using
+	PAGE_SECTORS_SHIFT
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,27 +34,10 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Just use the PAGE_SECTORS generic define. This produces no functional
-changes. While at it use left shift to simplify this even further.
+On Fri, Apr 21, 2023 at 12:58:03PM -0700, Luis Chamberlain wrote:
+> -	*pl_index = sector >> (PAGE_SHIFT - SECTOR_SHIFT);
+> +	*pl_index = sector >> (PAGE_SECTORS_SHIFT);
 
-Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
----
- fs/iomap/buffered-io.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+You could/should remove the () around PAGE_SECTORS_SHIFT
 
-diff --git a/fs/iomap/buffered-io.c b/fs/iomap/buffered-io.c
-index 063133ec77f4..ba2824f405df 100644
---- a/fs/iomap/buffered-io.c
-+++ b/fs/iomap/buffered-io.c
-@@ -1819,7 +1819,7 @@ EXPORT_SYMBOL_GPL(iomap_writepages);
- 
- static int __init iomap_init(void)
- {
--	return bioset_init(&iomap_ioend_bioset, 4 * (PAGE_SIZE / SECTOR_SIZE),
-+	return bioset_init(&iomap_ioend_bioset, PAGE_SECTORS << 2,
- 			   offsetof(struct iomap_ioend, io_inline_bio),
- 			   BIOSET_NEED_BVECS);
- }
--- 
-2.39.2
-
+(throughout)
