@@ -1,28 +1,25 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-wm1-f44.google.com (mail-wm1-f44.google.com
-	[209.85.128.44])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3A1F04202E9
-	for <drbd-dev@lists.linbit.com>; Wed,  3 May 2023 13:06:59 +0200 (CEST)
-Received: by mail-wm1-f44.google.com with SMTP id
-	5b1f17b1804b1-3f4000ec71dso1972555e9.2
-	for <drbd-dev@lists.linbit.com>; Wed, 03 May 2023 04:06:59 -0700 (PDT)
-Message-ID: <b1568ca5-4daf-f6b5-7861-4881aa46e578@linbit.com>
-Date: Wed, 3 May 2023 13:05:57 +0200
+Received: from mail-wm1-f43.google.com (mail-wm1-f43.google.com
+	[209.85.128.43])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 87AAD420668
+	for <drbd-dev@lists.linbit.com>; Wed,  3 May 2023 14:20:25 +0200 (CEST)
+Received: by mail-wm1-f43.google.com with SMTP id
+	5b1f17b1804b1-3f19afc4fbfso50879175e9.2
+	for <drbd-dev@lists.linbit.com>; Wed, 03 May 2023 05:20:25 -0700 (PDT)
+From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
+	<christoph.boehmwalder@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Date: Wed,  3 May 2023 14:19:37 +0200
+Message-Id: <20230503121937.17232-1-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
-To: Christoph Hellwig <hch@infradead.org>
-References: <20230502092922.175857-1-christoph.boehmwalder@linbit.com>
-	<ZFHgefWofVt24tRl@infradead.org>
-Content-Language: en-US
-From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
-In-Reply-To: <ZFHgefWofVt24tRl@infradead.org>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, Thomas Voegtle <tv@lio96.de>,
+Cc: Christoph Hellwig <hch@infradead.org>, Thomas Voegtle <tv@lio96.de>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: do not set REQ_PREFLUSH when
-	submitting barrier
+	stable@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: correctly submit flush bio on barrier
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,27 +31,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 03.05.23 um 06:18 schrieb Christoph Hellwig:
-> On Tue, May 02, 2023 at 11:29:22AM +0200, Christoph Böhmwalder wrote:
->>  	struct bio *bio = bio_alloc(device->ldev->backing_bdev, 0,
->> -				    REQ_OP_FLUSH | REQ_PREFLUSH, GFP_NOIO);
->> +				    REQ_OP_FLUSH, GFP_NOIO);
-> 
-> This isn't going to work.  flush bios are (somewhat confusingly)
+When we receive a flush command (or "barrier" in DRBD), we currently use
+a REQ_OP_FLUSH with the REQ_PREFLUSH flag set.
 
-Indeed...
+The correct way to submit a flush bio is by using a REQ_OP_WRITE without
+any data, and set the REQ_PREFLUSH flag.
 
-> implemented as writes with no data and the preflush flag.  So this
-> should be:
-> 
-> 	REQ_OP_WRITE | REQ_PREFLUSH.
-> 
-> and it looks like whatever flushing this does hasn't wroked for a long
-> time.
+Since commit b4a6bb3a67aa ("block: add a sanity check for non-write
+flush/fua bios"), this triggers a warning in the block layer, but this
+has been broken for quite some time before that.
 
-Thanks for the hint. I'll prepare a v2 today.
+So use the correct set of flags to actually make the flush happen.
 
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: stable@vger.kernel.org
+Fixes: f9ff0da56437 ("drbd: allow parallel flushes for multi-volume resources")
+Reported-by: Thomas Voegtle <tv@lio96.de>
+Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+---
+Previous, incorrect version of this patch:
+https://lore.kernel.org/all/20230502092922.175857-1-christoph.boehmwalder@linbit.com/
+
+ drivers/block/drbd/drbd_receiver.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index e54404c632e7..34b112752ab1 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -1283,7 +1283,7 @@ static void one_flush_endio(struct bio *bio)
+ static void submit_one_flush(struct drbd_device *device, struct issue_flush_context *ctx)
+ {
+ 	struct bio *bio = bio_alloc(device->ldev->backing_bdev, 0,
+-				    REQ_OP_FLUSH | REQ_PREFLUSH, GFP_NOIO);
++				    REQ_OP_WRITE | REQ_PREFLUSH, GFP_NOIO);
+ 	struct one_flush_context *octx = kmalloc(sizeof(*octx), GFP_NOIO);
+ 
+ 	if (!octx) {
 -- 
-Christoph Böhmwalder
-LINBIT | Keeping the Digital World Running
-DRBD HA —  Disaster Recovery — Software defined Storage
+2.39.2
+
