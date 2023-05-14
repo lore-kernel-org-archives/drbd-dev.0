@@ -1,26 +1,21 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-il1-f169.google.com (mail-il1-f169.google.com
-	[209.85.166.169])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 401A94203AB
-	for <drbd-dev@lists.linbit.com>; Wed,  3 May 2023 17:39:51 +0200 (CEST)
-Received: by mail-il1-f169.google.com with SMTP id
-	e9e14a558f8ab-33110a36153so693555ab.0
-	for <drbd-dev@lists.linbit.com>; Wed, 03 May 2023 08:39:51 -0700 (PDT)
-From: Jens Axboe <axboe@kernel.dk>
-To: =?utf-8?q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20230503121937.17232-1-christoph.boehmwalder@linbit.com>
-References: <20230503121937.17232-1-christoph.boehmwalder@linbit.com>
-Message-Id: <168312838868.941317.975898202413701616.b4-ty@kernel.dk>
-Date: Wed, 03 May 2023 09:39:48 -0600
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Return-Path: <mirimmad@outlook.com>
+Received: from NAM12-DM6-obe.outbound.protection.outlook.com
+	(mail-dm6nam12olkn2053.outbound.protection.outlook.com [40.92.22.53])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ED16042016E
+	for <drbd-dev@lists.linbit.com>; Sun, 14 May 2023 14:56:04 +0200 (CEST)
+From: mirimmad@outlook.com
+To: 
+Date: Sun, 14 May 2023 18:09:53 +0530
+Message-ID: <CY5PR12MB64555F99E4FEF60569050F1FC67B9@CY5PR12MB6455.namprd12.prod.outlook.com>
 Content-Transfer-Encoding: 8bit
-Cc: Christoph Hellwig <hch@infradead.org>, Thomas Voegtle <tv@lio96.de>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	stable@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: correctly submit flush bio on barrier
+Content-Type: text/plain
+MIME-Version: 1.0
+Cc: Jens Axboe <axboe@kernel.dk>, Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	skhan@linuxfoundation.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com, Immad Mir <mirimmad17@gmail.com>
+Subject: [Drbd-dev] [PATCH] drdb: fix debugfs_create_dir and
+	debugfs_create_symlink error handling
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,28 +27,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+From: Immad Mir <mirimmad17@gmail.com>
 
-On Wed, 03 May 2023 14:19:37 +0200, Christoph Böhmwalder wrote:
-> When we receive a flush command (or "barrier" in DRBD), we currently use
-> a REQ_OP_FLUSH with the REQ_PREFLUSH flag set.
-> 
-> The correct way to submit a flush bio is by using a REQ_OP_WRITE without
-> any data, and set the REQ_PREFLUSH flag.
-> 
-> Since commit b4a6bb3a67aa ("block: add a sanity check for non-write
-> flush/fua bios"), this triggers a warning in the block layer, but this
-> has been broken for quite some time before that.
-> 
-> [...]
+debugfs_create_dir and debugfs_create_symlink return ERR_PTR incase of
+a failure which must be checked with the inline function IS_ERR. This
+patch attempts to do the same.
 
-Applied, thanks!
+Signed-off-by: Immad Mir <mirimmad17@gmail.com>
+---
+ drivers/block/drbd/drbd_debugfs.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-[1/1] drbd: correctly submit flush bio on barrier
-      commit: 3899d94e3831ee07ea6821c032dc297aec80586a
+diff --git a/drivers/block/drbd/drbd_debugfs.c b/drivers/block/drbd/drbd_debugfs.c
+index 12460b584..1cec65563 100644
+--- a/drivers/block/drbd/drbd_debugfs.c
++++ b/drivers/block/drbd/drbd_debugfs.c
+@@ -781,6 +781,7 @@ void drbd_debugfs_device_add(struct drbd_device *device)
 
-Best regards,
--- 
-Jens Axboe
+ 	snprintf(vnr_buf, sizeof(vnr_buf), "%u", device->vnr);
+ 	dentry = debugfs_create_dir(vnr_buf, vols_dir);
++    if (IS_ERR(dentry)) goto fail;
+ 	device->debugfs_vol = dentry;
 
+ 	snprintf(minor_buf, sizeof(minor_buf), "%u", device->minor);
+@@ -789,9 +790,12 @@ void drbd_debugfs_device_add(struct drbd_device *device)
+ 	if (!slink_name)
+ 		goto fail;
+ 	dentry = debugfs_create_symlink(minor_buf, drbd_debugfs_minors, slink_name);
++    if (!IS_ERR(dentry)) {
+ 	device->debugfs_minor = dentry;
+ 	kfree(slink_name);
+ 	slink_name = NULL;
++    } else
++        goto fail;
 
+ #define DCF(name)	do {					\
+ 	dentry = debugfs_create_file(#name, 0440,	\
+--
+2.40.0
 
