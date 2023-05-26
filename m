@@ -1,22 +1,26 @@
-Return-Path: <roland.kammerer@linbit.com>
-Received: from mail-wr1-f43.google.com (mail-wr1-f43.google.com
-	[209.85.221.43])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3E41E420233
-	for <drbd-dev@lists.linbit.com>; Fri, 26 May 2023 09:08:59 +0200 (CEST)
-Received: by mail-wr1-f43.google.com with SMTP id
-	ffacd0b85a97d-30a95ec7744so310007f8f.3
-	for <drbd-dev@lists.linbit.com>; Fri, 26 May 2023 00:08:59 -0700 (PDT)
-Date: Fri, 26 May 2023 09:08:57 +0200
-From: Roland Kammerer <roland.kammerer@linbit.com>
-To: drbd-dev@lists.linbit.com
-Message-ID: <ZHBbCdV/DnhOtvmF@rck.sh>
-References: <20230525144915.9031-1-kvapss@gmail.com>
+Return-Path: <mcgrof@infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BCA93420AFD
+	for <drbd-dev@lists.linbit.com>; Fri, 26 May 2023 09:33:45 +0200 (CEST)
+From: Luis Chamberlain <mcgrof@kernel.org>
+To: axboe@kernel.dk, agk@redhat.com, snitzer@kernel.org,
+	philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
+	christoph.boehmwalder@linbit.com, hch@infradead.org, djwong@kernel.org,
+	minchan@kernel.org, senozhatsky@chromium.org
+Date: Fri, 26 May 2023 00:33:31 -0700
+Message-Id: <20230526073336.344543-1-mcgrof@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20230525144915.9031-1-kvapss@gmail.com>
-Subject: Re: [Drbd-dev] [PATCH] containers: add commands to correct SELinux
- context
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Sender: Luis Chamberlain <mcgrof@infradead.org>
+Cc: p.raghav@samsung.com, linux-xfs@vger.kernel.org, rohan.puri@samsung.com,
+	da.gomez@samsung.com, mcgrof@kernel.org, patches@lists.linux.dev,
+	willy@infradead.org, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-mm@kvack.org,
+	dm-devel@redhat.com, hare@suse.de, linux-fsdevel@vger.kernel.org,
+	rpuri.linux@gmail.com, kbusch@kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH v2 0/5] block: simplify with PAGE_SECTORS_SHIFT
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,36 +32,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, May 25, 2023 at 04:49:15PM +0200, Andrei Kvapil wrote:
-> When running the entry.sh script with RAM-based module loading method, the
-> generated modules acquire the 'var_lib_t' context by default on certain systems.
-> 
-> This patch adds commands to correct the context to 'modules_object_t'
-> to allow seamless module loading on SELinux-enabled systems.
-> 
-> Co-developed-by: Vasily Oleynikov <vasily.oleynikov@flant.com>
-> ---
->  docker/entry.sh | 4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/docker/entry.sh b/docker/entry.sh
-> index 2c91734e6..978df6431 100644
-> --- a/docker/entry.sh
-> +++ b/docker/entry.sh
-> @@ -217,6 +217,10 @@ load_from_ram() {
->  		find . -name "*.ko" -print0 | xargs -0 -n1 "/lib/modules/$(uname -r)/build/scripts/sign-file" "$CONFIG_MODULE_SIG_HASH" "${LB_SIGN}/signing_key.pem" "${LB_SIGN}/signing_key.x509" 
->  	fi
->  
-> + 	chcon -t modules_object_t ./drbd.ko || true
-> + 	chcon -t modules_object_t ./drbd_transport_tcp.ko || true
-> + 	chcon -t modules_object_t ./drbd_transport_rdma.ko || true
-> +
->  	insmod ./drbd.ko usermode_helper=disabled
->  	insmod ./drbd_transport_tcp.ko
->  	insmod ./drbd_transport_rdma.ko 2>/dev/null || true
-> -- 
-> 2.32.0 (Apple Git-132)
+A bit of block drivers have their own incantations with
+PAGE_SHIFT - SECTOR_SHIFT. Just simplfy and use PAGE_SECTORS_SHIFT
+all over.
+                                                                                                                                                                                              
+Based on linux-next next-20230525.
 
-Thanks, I will queue that up for out of tree DRBD9.
+Changes since v1:
 
-Regards, rck
+ o keep iomap math visibly simple
+ o Add tags for Reviews/acks
+ o rebase onto next-20230525
+
+Luis Chamberlain (5):
+  block: annotate bdev_disk_changed() deprecation with a symbol
+    namespace
+  drbd: use PAGE_SECTORS_SHIFT and PAGE_SECTORS
+  iomap: simplify iomap_init() with PAGE_SECTORS
+  dm bufio: simplify by using PAGE_SECTORS_SHIFT
+  zram: use generic PAGE_SECTORS and PAGE_SECTORS_SHIFT
+
+ block/partitions/core.c          |  6 +-----
+ drivers/block/drbd/drbd_bitmap.c |  4 ++--
+ drivers/block/loop.c             |  2 ++
+ drivers/block/zram/zram_drv.c    | 12 ++++++------
+ drivers/block/zram/zram_drv.h    |  2 --
+ drivers/md/dm-bufio.c            |  4 ++--
+ drivers/s390/block/dasd_genhd.c  |  2 ++
+ fs/iomap/buffered-io.c           |  2 +-
+ 8 files changed, 16 insertions(+), 18 deletions(-)
+
+-- 
+2.39.2
+
