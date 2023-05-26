@@ -1,24 +1,26 @@
-Return-Path: <BATV+42f74f58005807ba5154+7215+infradead.org+hch@bombadil.srs.infradead.org>
+Return-Path: <mcgrof@infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DFFD54252E9
-	for <drbd-dev@lists.linbit.com>; Fri, 26 May 2023 10:15:39 +0200 (CEST)
-Date: Fri, 26 May 2023 01:13:14 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Luis Chamberlain <mcgrof@kernel.org>
-Message-ID: <ZHBqGosY0tWkNdIR@infradead.org>
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 642BA4252EC
+	for <drbd-dev@lists.linbit.com>; Fri, 26 May 2023 10:20:24 +0200 (CEST)
+Date: Fri, 26 May 2023 01:20:16 -0700
+From: Luis Chamberlain <mcgrof@kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Message-ID: <ZHBrwFk0d80IiOfV@bombadil.infradead.org>
 References: <20230526073336.344543-1-mcgrof@kernel.org>
 	<20230526073336.344543-2-mcgrof@kernel.org>
+	<ZHBqGosY0tWkNdIR@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230526073336.344543-2-mcgrof@kernel.org>
+In-Reply-To: <ZHBqGosY0tWkNdIR@infradead.org>
+Sender: Luis Chamberlain <mcgrof@infradead.org>
 Cc: djwong@kernel.org, philipp.reisner@linbit.com, linux-mm@kvack.org,
 	dm-devel@redhat.com, agk@redhat.com, drbd-dev@lists.linbit.com,
-	willy@infradead.org, hch@infradead.org, p.raghav@samsung.com,
+	willy@infradead.org, p.raghav@samsung.com,
 	rohan.puri@samsung.com, senozhatsky@chromium.org,
-	snitzer@kernel.org, linux-block@vger.kernel.org, hare@suse.de,
-	kbusch@kernel.org, axboe@kernel.dk, da.gomez@samsung.com,
+	snitzer@kernel.org, da.gomez@samsung.com, hare@suse.de,
+	kbusch@kernel.org, axboe@kernel.dk, linux-block@vger.kernel.org,
 	linux-kernel@vger.kernel.org, rpuri.linux@gmail.com,
 	linux-xfs@vger.kernel.org, minchan@kernel.org,
 	patches@lists.linux.dev, linux-fsdevel@vger.kernel.org,
@@ -36,18 +38,19 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, May 26, 2023 at 12:33:32AM -0700, Luis Chamberlain wrote:
-> This ensures no other users pop up by mistake easily and provides
-> us a with an easy vehicle to do the same with other routines should
-> we need it later.
+On Fri, May 26, 2023 at 01:13:14AM -0700, Christoph Hellwig wrote:
+> On Fri, May 26, 2023 at 12:33:32AM -0700, Luis Chamberlain wrote:
+> > This ensures no other users pop up by mistake easily and provides
+> > us a with an easy vehicle to do the same with other routines should
+> > we need it later.
+> 
+> I don't see how this is related to the rest of the seris.
 
-I don't see how this is related to the rest of the seris.  I also don't
-think it's a good idea.  The APIs isn't deprecated per se.  It just
-should not be called by drivers.  The right thing would be an interface
-like
+Jessh, sorry it is too late here and that was a typo that the commit
+went into the series. I'll go sleep now. This I just had queued
+as a reminder for the new annotation for deprecated symbols to be
+used in some situations.
 
-EXPORT_SYMBOL_GPL_FOR(bdev_disk_changed, loop.ko, CONFIG_BLK_DEV_LOOP);
-EXPORT_SYMBOL_GPL_FOR(bdev_disk_changed, dasd_mod.ko, CONFIG_DASD);
+Please ignore this patch.
 
-with the modulo code enforcing that no one but the module this is
-explicitly exorted for can use the symbol.
+  Luis
