@@ -1,43 +1,17 @@
-Return-Path: <prvs=5036c86fd=Johannes.Thumshirn@wdc.com>
-Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 817394252F9
-	for <drbd-dev@lists.linbit.com>; Fri, 26 May 2023 11:34:33 +0200 (CEST)
-From: Johannes Thumshirn <Johannes.Thumshirn@wdc.com>
-To: Luis Chamberlain <mcgrof@kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>,
-	"agk@redhat.com" <agk@redhat.com>,
-	"snitzer@kernel.org" <snitzer@kernel.org>,
-	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
-	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
-	"christoph.boehmwalder@linbit.com" <christoph.boehmwalder@linbit.com>,
-	"hch@infradead.org" <hch@infradead.org>, "djwong@kernel.org"
-	<djwong@kernel.org>, "minchan@kernel.org" <minchan@kernel.org>,
-	"senozhatsky@chromium.org" <senozhatsky@chromium.org>
-Date: Fri, 26 May 2023 09:24:14 +0000
-Message-ID: <597dab55-737f-73f1-3505-1e0c59d52d80@wdc.com>
-References: <20230526073336.344543-1-mcgrof@kernel.org>
-	<20230526073336.344543-6-mcgrof@kernel.org>
-In-Reply-To: <20230526073336.344543-6-mcgrof@kernel.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <86E8AD8D2F16CF4483A7DC09EEFBDFCF@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+Return-Path: <BATV+afcc791b37732e68e234+7221+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2378542036A
+	for <drbd-dev@lists.linbit.com>; Thu,  1 Jun 2023 17:18:59 +0200 (CEST)
+From: Christoph Hellwig <hch@lst.de>
+To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
+	christoph.boehmwalder@linbit.com
+Date: Thu,  1 Jun 2023 17:16:46 +0200
+Message-Id: <20230601151646.1386867-1-hch@lst.de>
 MIME-Version: 1.0
-Cc: "p.raghav@samsung.com" <p.raghav@samsung.com>,
-	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
-	"rohan.puri@samsung.com" <rohan.puri@samsung.com>,
-	"da.gomez@samsung.com" <da.gomez@samsung.com>,
-	"patches@lists.linux.dev" <patches@lists.linux.dev>,
-	"willy@infradead.org" <willy@infradead.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"dm-devel@redhat.com" <dm-devel@redhat.com>, "hare@suse.de" <hare@suse.de>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"rpuri.linux@gmail.com" <rpuri.linux@gmail.com>,
-	"kbusch@kernel.org" <kbusch@kernel.org>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH v2 5/5] zram: use generic PAGE_SECTORS and
- PAGE_SECTORS_SHIFT
+Content-Transfer-Encoding: 8bit
+Cc: linux-block@vger.kernel.org, axboe@kernel.dk, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] drbd: stop defining __KERNEL_SYSCALLS__
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,8 +23,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gMjYuMDUuMjMgMDk6MzQsIEx1aXMgQ2hhbWJlcmxhaW4gd3JvdGU6DQo+ICsJdTMyIGluZGV4
-ID0gYmlvLT5iaV9pdGVyLmJpX3NlY3RvciA+PiBQQUdFX1NFQ1RPUlNfU0hJRlQ7DQo+ICsJdTMy
-IG9mZnNldCA9IChiaW8tPmJpX2l0ZXIuYmlfc2VjdG9yICYgKFBBR0VfU0VDVE9SUyAtIDEpKSA8
-PA0KPiAgCQkJU0VDVE9SX1NISUZUOw0KDQooUEFHRV9TRUNUT1JTIC0gMSkgaXMgU0VDVE9SX01B
-U0ssIHBsZWFzZSB1c2UgdGhpcy4NCg0KVGhhbmtzLA0KCUpvaGFubmVzDQo=
+__KERNEL_SYSCALLS__ hasn't been needed since Linux 2.6.19 so stop
+defining it.
+
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/block/drbd/drbd_main.c     | 1 -
+ drivers/block/drbd/drbd_receiver.c | 1 -
+ 2 files changed, 2 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 83987e7a5ef275..54223f64610a05 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -37,7 +37,6 @@
+ #include <linux/notifier.h>
+ #include <linux/kthread.h>
+ #include <linux/workqueue.h>
+-#define __KERNEL_SYSCALLS__
+ #include <linux/unistd.h>
+ #include <linux/vmalloc.h>
+ #include <linux/sched/signal.h>
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 8c2bc47de4735e..0c9f54197768d6 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -27,7 +27,6 @@
+ #include <uapi/linux/sched/types.h>
+ #include <linux/sched/signal.h>
+ #include <linux/pkt_sched.h>
+-#define __KERNEL_SYSCALLS__
+ #include <linux/unistd.h>
+ #include <linux/vmalloc.h>
+ #include <linux/random.h>
+-- 
+2.39.2
+
