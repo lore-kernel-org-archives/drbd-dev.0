@@ -1,23 +1,30 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pj1-f41.google.com (mail-pj1-f41.google.com
-	[209.85.216.41])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A84424203B3
-	for <drbd-dev@lists.linbit.com>; Mon,  5 Jun 2023 19:22:02 +0200 (CEST)
-Received: by mail-pj1-f41.google.com with SMTP id
-	98e67ed59e1d1-256918803baso1030181a91.1
-	for <drbd-dev@lists.linbit.com>; Mon, 05 Jun 2023 10:22:02 -0700 (PDT)
-From: Jens Axboe <axboe@kernel.dk>
-To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
-	christoph.boehmwalder@linbit.com, Christoph Hellwig <hch@lst.de>
-In-Reply-To: <20230601151646.1386867-1-hch@lst.de>
-References: <20230601151646.1386867-1-hch@lst.de>
-Message-Id: <168598571992.2504.2085169404981858004.b4-ty@kernel.dk>
-Date: Mon, 05 Jun 2023 11:21:59 -0600
+Return-Path: <dhowells@redhat.com>
+Received: from us-smtp-delivery-124.mimecast.com
+	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 370A7420358
+	for <drbd-dev@lists.linbit.com>; Fri, 16 Jun 2023 18:20:07 +0200 (CEST)
+From: David Howells <dhowells@redhat.com>
+To: netdev@vger.kernel.org
+Date: Fri, 16 Jun 2023 17:12:56 +0100
+Message-ID: <20230616161301.622169-14-dhowells@redhat.com>
+In-Reply-To: <20230616161301.622169-1-dhowells@redhat.com>
+References: <20230616161301.622169-1-dhowells@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Cc: linux-block@vger.kernel.org, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: stop defining __KERNEL_SYSCALLS__
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	Willem de Bruijn <willemdebruijn.kernel@gmail.com>,
+	David Ahern <dsahern@kernel.org>, linux-kernel@vger.kernel.org,
+	Alexander Duyck <alexander.duyck@gmail.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	David Howells <dhowells@redhat.com>, linux-mm@kvack.org,
+	Eric Dumazet <edumazet@google.com>, Matthew Wilcox <willy@infradead.org>,
+	Jakub Kicinski <kuba@kernel.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Paolo Abeni <pabeni@redhat.com>, "David S. Miller" <davem@davemloft.net>,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH net-next 13/17] drbd: Use
+	sendmsg(MSG_SPLICE_PAGES) rather than sendpage()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,21 +36,81 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Use sendmsg() conditionally with MSG_SPLICE_PAGES in _drbd_send_page()
+rather than calling sendpage() or _drbd_no_send_page().
 
-On Thu, 01 Jun 2023 17:16:46 +0200, Christoph Hellwig wrote:
-> __KERNEL_SYSCALLS__ hasn't been needed since Linux 2.6.19 so stop
-> defining it.
-> 
-> 
+Signed-off-by: David Howells <dhowells@redhat.com>
+cc: Philipp Reisner <philipp.reisner@linbit.com>
+cc: Lars Ellenberg <lars.ellenberg@linbit.com>
+cc: "Christoph Böhmwalder" <christoph.boehmwalder@linbit.com>
+cc: Jens Axboe <axboe@kernel.dk>
+cc: "David S. Miller" <davem@davemloft.net>
+cc: Eric Dumazet <edumazet@google.com>
+cc: Jakub Kicinski <kuba@kernel.org>
+cc: Paolo Abeni <pabeni@redhat.com>
+cc: drbd-dev@lists.linbit.com
+cc: linux-block@vger.kernel.org
+cc: netdev@vger.kernel.org
+---
+ drivers/block/drbd/drbd_main.c | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)
 
-Applied, thanks!
-
-[1/1] drbd: stop defining __KERNEL_SYSCALLS__
-      commit: d519df00938eed652fc041ff4e07b2b38a4ad3bc
-
-Best regards,
--- 
-Jens Axboe
-
-
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 83987e7a5ef2..c9d84183844c 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1540,7 +1540,8 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
+ 		    int offset, size_t size, unsigned msg_flags)
+ {
+ 	struct socket *socket = peer_device->connection->data.socket;
+-	int len = size;
++	struct bio_vec bvec;
++	struct msghdr msg = { .msg_flags = msg_flags, };
+ 	int err = -EIO;
+ 
+ 	/* e.g. XFS meta- & log-data is in slab pages, which have a
+@@ -1549,33 +1550,33 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
+ 	 * put_page(); and would cause either a VM_BUG directly, or
+ 	 * __page_cache_release a page that would actually still be referenced
+ 	 * by someone, leading to some obscure delayed Oops somewhere else. */
+-	if (drbd_disable_sendpage || !sendpage_ok(page))
+-		return _drbd_no_send_page(peer_device, page, offset, size, msg_flags);
++	if (!drbd_disable_sendpage && sendpage_ok(page))
++		msg.msg_flags |= MSG_NOSIGNAL | MSG_SPLICE_PAGES;
++
++	bvec_set_page(&bvec, page, offset, size);
++	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
+ 
+-	msg_flags |= MSG_NOSIGNAL;
+ 	drbd_update_congested(peer_device->connection);
+ 	do {
+ 		int sent;
+ 
+-		sent = socket->ops->sendpage(socket, page, offset, len, msg_flags);
++		sent = sock_sendmsg(socket, &msg);
+ 		if (sent <= 0) {
+ 			if (sent == -EAGAIN) {
+ 				if (we_should_drop_the_connection(peer_device->connection, socket))
+ 					break;
+ 				continue;
+ 			}
+-			drbd_warn(peer_device->device, "%s: size=%d len=%d sent=%d\n",
+-			     __func__, (int)size, len, sent);
++			drbd_warn(peer_device->device, "%s: size=%d len=%zu sent=%d\n",
++				  __func__, (int)size, msg_data_left(&msg), sent);
+ 			if (sent < 0)
+ 				err = sent;
+ 			break;
+ 		}
+-		len    -= sent;
+-		offset += sent;
+-	} while (len > 0 /* THINK && device->cstate >= C_CONNECTED*/);
++	} while (msg_data_left(&msg) /* THINK && device->cstate >= C_CONNECTED*/);
+ 	clear_bit(NET_CONGESTED, &peer_device->connection->flags);
+ 
+-	if (len == 0) {
++	if (!msg_data_left(&msg)) {
+ 		err = 0;
+ 		peer_device->device->send_cnt += size >> 9;
+ 	}
 
