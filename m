@@ -1,14 +1,14 @@
 Return-Path: <dhowells@redhat.com>
 Received: from us-smtp-delivery-124.mimecast.com
 	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D473C420358
-	for <drbd-dev@lists.linbit.com>; Fri, 16 Jun 2023 18:20:07 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5B44D4205F5
+	for <drbd-dev@lists.linbit.com>; Sat, 17 Jun 2023 14:12:53 +0200 (CEST)
 From: David Howells <dhowells@redhat.com>
 To: netdev@vger.kernel.org
-Date: Fri, 16 Jun 2023 17:12:57 +0100
-Message-ID: <20230616161301.622169-15-dhowells@redhat.com>
-In-Reply-To: <20230616161301.622169-1-dhowells@redhat.com>
-References: <20230616161301.622169-1-dhowells@redhat.com>
+Date: Sat, 17 Jun 2023 13:11:42 +0100
+Message-ID: <20230617121146.716077-14-dhowells@redhat.com>
+In-Reply-To: <20230617121146.716077-1-dhowells@redhat.com>
+References: <20230617121146.716077-1-dhowells@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -23,8 +23,8 @@ Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	Paolo Abeni <pabeni@redhat.com>, "David S. Miller" <davem@davemloft.net>,
 	drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH net-next 14/17] drdb: Send an entire bio in a
-	single sendmsg
+Subject: [Drbd-dev] [PATCH net-next v2 13/17] drbd: Use
+	sendmsg(MSG_SPLICE_PAGES) rather than sendpage()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,9 +36,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Since _drdb_sendpage() is now using sendmsg to send the pages rather
-sendpage, pass the entire bio in one go using a bvec iterator instead of
-doing it piecemeal.
+Use sendmsg() conditionally with MSG_SPLICE_PAGES in _drbd_send_page()
+rather than calling sendpage() or _drbd_no_send_page().
 
 Signed-off-by: David Howells <dhowells@redhat.com>
 cc: Philipp Reisner <philipp.reisner@linbit.com>
@@ -53,128 +52,72 @@ cc: drbd-dev@lists.linbit.com
 cc: linux-block@vger.kernel.org
 cc: netdev@vger.kernel.org
 ---
- drivers/block/drbd/drbd_main.c | 77 +++++++++++-----------------------
- 1 file changed, 25 insertions(+), 52 deletions(-)
+
+Notes:
+    ver #2)
+     - Wrap lines at 80.
+
+ drivers/block/drbd/drbd_main.c | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index c9d84183844c..f7ebdb5ab45e 100644
+index 83987e7a5ef2..8a01a18a2550 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
-@@ -1520,28 +1520,15 @@ static void drbd_update_congested(struct drbd_connection *connection)
-  * As a workaround, we disable sendpage on pages
-  * with page_count == 0 or PageSlab.
-  */
--static int _drbd_no_send_page(struct drbd_peer_device *peer_device, struct page *page,
--			      int offset, size_t size, unsigned msg_flags)
--{
--	struct socket *socket;
--	void *addr;
--	int err;
--
--	socket = peer_device->connection->data.socket;
--	addr = kmap(page) + offset;
--	err = drbd_send_all(peer_device->connection, socket, addr, size, msg_flags);
--	kunmap(page);
--	if (!err)
--		peer_device->device->send_cnt += size >> 9;
--	return err;
--}
--
--static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *page,
--		    int offset, size_t size, unsigned msg_flags)
-+static int _drbd_send_pages(struct drbd_peer_device *peer_device,
-+			    struct iov_iter *iter, unsigned msg_flags)
+@@ -1540,7 +1540,8 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
+ 		    int offset, size_t size, unsigned msg_flags)
  {
  	struct socket *socket = peer_device->connection->data.socket;
--	struct bio_vec bvec;
--	struct msghdr msg = { .msg_flags = msg_flags, };
-+	struct msghdr msg = {
-+		.msg_flags	= msg_flags | MSG_NOSIGNAL,
-+		.msg_iter	= *iter,
-+	};
-+	size_t size = iov_iter_count(iter);
+-	int len = size;
++	struct bio_vec bvec;
++	struct msghdr msg = { .msg_flags = msg_flags, };
  	int err = -EIO;
  
  	/* e.g. XFS meta- & log-data is in slab pages, which have a
-@@ -1550,11 +1537,8 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
+@@ -1549,33 +1550,35 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
  	 * put_page(); and would cause either a VM_BUG directly, or
  	 * __page_cache_release a page that would actually still be referenced
  	 * by someone, leading to some obscure delayed Oops somewhere else. */
--	if (!drbd_disable_sendpage && sendpage_ok(page))
--		msg.msg_flags |= MSG_NOSIGNAL | MSG_SPLICE_PAGES;
--
--	bvec_set_page(&bvec, page, offset, size);
--	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
-+	if (drbd_disable_sendpage)
-+		msg.msg_flags &= ~(MSG_NOSIGNAL | MSG_SPLICE_PAGES);
+-	if (drbd_disable_sendpage || !sendpage_ok(page))
+-		return _drbd_no_send_page(peer_device, page, offset, size, msg_flags);
++	if (!drbd_disable_sendpage && sendpage_ok(page))
++		msg.msg_flags |= MSG_NOSIGNAL | MSG_SPLICE_PAGES;
++
++	bvec_set_page(&bvec, page, offset, size);
++	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
  
+-	msg_flags |= MSG_NOSIGNAL;
  	drbd_update_congested(peer_device->connection);
  	do {
-@@ -1585,39 +1569,22 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
+ 		int sent;
  
- static int _drbd_send_bio(struct drbd_peer_device *peer_device, struct bio *bio)
- {
--	struct bio_vec bvec;
--	struct bvec_iter iter;
-+	struct iov_iter iter;
+-		sent = socket->ops->sendpage(socket, page, offset, len, msg_flags);
++		sent = sock_sendmsg(socket, &msg);
+ 		if (sent <= 0) {
+ 			if (sent == -EAGAIN) {
+ 				if (we_should_drop_the_connection(peer_device->connection, socket))
+ 					break;
+ 				continue;
+ 			}
+-			drbd_warn(peer_device->device, "%s: size=%d len=%d sent=%d\n",
+-			     __func__, (int)size, len, sent);
++			drbd_warn(peer_device->device, "%s: size=%d len=%zu sent=%d\n",
++				  __func__, (int)size, msg_data_left(&msg),
++				  sent);
+ 			if (sent < 0)
+ 				err = sent;
+ 			break;
+ 		}
+-		len    -= sent;
+-		offset += sent;
+-	} while (len > 0 /* THINK && device->cstate >= C_CONNECTED*/);
++	} while (msg_data_left(&msg)
++		 /* THINK && device->cstate >= C_CONNECTED*/);
+ 	clear_bit(NET_CONGESTED, &peer_device->connection->flags);
  
--	/* hint all but last page with MSG_MORE */
--	bio_for_each_segment(bvec, bio, iter) {
--		int err;
-+	iov_iter_bvec(&iter, ITER_SOURCE, bio->bi_io_vec, bio->bi_vcnt,
-+		      bio->bi_iter.bi_size);
- 
--		err = _drbd_no_send_page(peer_device, bvec.bv_page,
--					 bvec.bv_offset, bvec.bv_len,
--					 bio_iter_last(bvec, iter)
--					 ? 0 : MSG_MORE);
--		if (err)
--			return err;
--	}
--	return 0;
-+	return _drbd_send_pages(peer_device, &iter, 0);
- }
- 
- static int _drbd_send_zc_bio(struct drbd_peer_device *peer_device, struct bio *bio)
- {
--	struct bio_vec bvec;
--	struct bvec_iter iter;
-+	struct iov_iter iter;
- 
--	/* hint all but last page with MSG_MORE */
--	bio_for_each_segment(bvec, bio, iter) {
--		int err;
-+	iov_iter_bvec(&iter, ITER_SOURCE, bio->bi_io_vec, bio->bi_vcnt,
-+		      bio->bi_iter.bi_size);
- 
--		err = _drbd_send_page(peer_device, bvec.bv_page,
--				      bvec.bv_offset, bvec.bv_len,
--				      bio_iter_last(bvec, iter) ? 0 : MSG_MORE);
--		if (err)
--			return err;
--	}
--	return 0;
-+	return _drbd_send_pages(peer_device, &iter, MSG_SPLICE_PAGES);
- }
- 
- static int _drbd_send_zc_ee(struct drbd_peer_device *peer_device,
-@@ -1629,10 +1596,16 @@ static int _drbd_send_zc_ee(struct drbd_peer_device *peer_device,
- 
- 	/* hint all but last page with MSG_MORE */
- 	page_chain_for_each(page) {
-+		struct iov_iter iter;
-+		struct bio_vec bvec;
- 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
- 
--		err = _drbd_send_page(peer_device, page, 0, l,
--				      page_chain_next(page) ? MSG_MORE : 0);
-+		bvec_set_page(&bvec, page, 0, l);
-+		iov_iter_bvec(&iter, ITER_SOURCE, &bvec, 1, l);
-+
-+		err = _drbd_send_pages(peer_device, &iter,
-+				       MSG_SPLICE_PAGES |
-+				       (page_chain_next(page) ? MSG_MORE : 0));
- 		if (err)
- 			return err;
- 		len -= l;
+-	if (len == 0) {
++	if (!msg_data_left(&msg)) {
+ 		err = 0;
+ 		peer_device->device->send_cnt += size >> 9;
+ 	}
 
