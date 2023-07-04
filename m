@@ -1,24 +1,21 @@
-Return-Path: <bart.vanassche@gmail.com>
-Received: from mail-pl1-f175.google.com (mail-pl1-f175.google.com
-	[209.85.214.175])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 27C13420171
-	for <drbd-dev@lists.linbit.com>; Tue,  4 Jul 2023 16:06:30 +0200 (CEST)
-Received: by mail-pl1-f175.google.com with SMTP id
-	d9443c01a7336-1b89bda02ebso13665045ad.0
-	for <drbd-dev@lists.linbit.com>; Tue, 04 Jul 2023 07:06:30 -0700 (PDT)
-Message-ID: <bb91e76b-0bd8-a949-f8b9-868f919ebcb9@acm.org>
-Date: Tue, 4 Jul 2023 07:06:26 -0700
-MIME-Version: 1.0
-Content-Language: en-US
-To: Jan Kara <jack@suse.cz>, linux-block@vger.kernel.org
+Return-Path: <willy@infradead.org>
+Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D7503420171
+	for <drbd-dev@lists.linbit.com>; Tue,  4 Jul 2023 18:14:24 +0200 (CEST)
+Date: Tue, 4 Jul 2023 17:14:01 +0100
+From: Matthew Wilcox <willy@infradead.org>
+To: Bart Van Assche <bvanassche@acm.org>
+Message-ID: <ZKRFSZQglwCba9/i@casper.infradead.org>
 References: <20230629165206.383-1-jack@suse.cz>
 	<20230704122224.16257-1-jack@suse.cz>
-From: Bart Van Assche <bvanassche@acm.org>
-In-Reply-To: <20230704122224.16257-1-jack@suse.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+	<bb91e76b-0bd8-a949-f8b9-868f919ebcb9@acm.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <bb91e76b-0bd8-a949-f8b9-868f919ebcb9@acm.org>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
+	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
+	linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	Jack Wang <jinpu.wang@ionos.com>,
@@ -32,13 +29,13 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Sven Schnelle <svens@linux.ibm.com>, linux-pm@vger.kernel.org,
 	Mike Snitzer <snitzer@kernel.org>, Chao Yu <chao@kernel.org>,
 	Joern Engel <joern@lazybastard.org>,
-	reiserfs-devel@vger.kernel.org, linux-raid@vger.kernel.org,
+	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
 	Jaegeuk Kim <jaegeuk@kernel.org>,
 	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Jens Axboe <axboe@kernel.dk>, linux-nfs@vger.kernel.org,
-	linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>,
-	linux-mm@kvack.org, Song Liu <song@kernel.org>,
+	Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
+	linux-nfs@vger.kernel.org, linux-ext4@vger.kernel.org,
+	Ted Tso <tytso@mit.edu>, linux-mm@kvack.org, Song Liu <song@kernel.org>,
 	linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
 	ocfs2-devel@oss.oracle.com, Anna Schumaker <anna@kernel.org>,
@@ -58,18 +55,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 7/4/23 05:21, Jan Kara wrote:
-> +struct bdev_handle {
-> +	struct block_device *bdev;
-> +	void *holder;
-> +};
+On Tue, Jul 04, 2023 at 07:06:26AM -0700, Bart Van Assche wrote:
+> On 7/4/23 05:21, Jan Kara wrote:
+> > +struct bdev_handle {
+> > +	struct block_device *bdev;
+> > +	void *holder;
+> > +};
+> 
+> Please explain in the patch description why a holder pointer is introduced
+> in struct bdev_handle and how it relates to the bd_holder pointer in struct
+> block_device. Is one of the purposes of this patch series perhaps to add
+> support for multiple holders per block device?
 
-Please explain in the patch description why a holder pointer is 
-introduced in struct bdev_handle and how it relates to the bd_holder 
-pointer in struct block_device. Is one of the purposes of this patch 
-series perhaps to add support for multiple holders per block device?
-
-Thanks,
-
-Bart.
-
+That is all in patch 0/32.  Why repeat it?
