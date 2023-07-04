@@ -1,21 +1,19 @@
-Return-Path: <jack@suse.cz>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D494F42036A
-	for <drbd-dev@lists.linbit.com>; Tue,  4 Jul 2023 15:03:57 +0200 (CEST)
-Date: Tue, 4 Jul 2023 15:03:56 +0200
-From: Jan Kara <jack@suse.cz>
-To: Matthew Wilcox <willy@infradead.org>
-Message-ID: <20230704130356.xwdlxvgvi4l6sruc@quack3>
+Return-Path: <willy@infradead.org>
+Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E058C42036A
+	for <drbd-dev@lists.linbit.com>; Tue,  4 Jul 2023 15:04:37 +0200 (CEST)
+Date: Tue, 4 Jul 2023 13:43:51 +0100
+From: Matthew Wilcox <willy@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Message-ID: <ZKQUB4rU8Gebhq6R@casper.infradead.org>
 References: <20230629165206.383-1-jack@suse.cz>
 	<20230704122224.16257-1-jack@suse.cz>
-	<ZKQUB4rU8Gebhq6R@casper.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ZKQUB4rU8Gebhq6R@casper.infradead.org>
+In-Reply-To: <20230704122224.16257-1-jack@suse.cz>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
-	linux-nvme@lists.infradead.org,
+	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	Jack Wang <jinpu.wang@ionos.com>,
@@ -55,34 +53,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue 04-07-23 13:43:51, Matthew Wilcox wrote:
-> On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
-> > +struct bdev_handle *blkdev_get_handle_by_dev(dev_t dev, blk_mode_t mode,
-> > +		void *holder, const struct blk_holder_ops *hops)
-> > +{
-> > +	struct bdev_handle *handle = kmalloc(sizeof(struct bdev_handle),
-> > +					     GFP_KERNEL);
-> > +	struct block_device *bdev;
-> > +
-> > +	if (!handle)
-> > +		return ERR_PTR(-ENOMEM);
-> > +	bdev = blkdev_get_by_dev(dev, mode, holder, hops);
-> > +	if (IS_ERR(bdev))
-> > +		return ERR_CAST(bdev);
-> 
-> Would we be better off with a handle->error (and a NULL return from this
-> function means "we couldn't allocate a handle")?  I have no objection
-> to what you've done here, just wondering if it might end up nicer for
-> the users.
+On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
+> +struct bdev_handle *blkdev_get_handle_by_dev(dev_t dev, blk_mode_t mode,
+> +		void *holder, const struct blk_holder_ops *hops)
+> +{
+> +	struct bdev_handle *handle = kmalloc(sizeof(struct bdev_handle),
+> +					     GFP_KERNEL);
+> +	struct block_device *bdev;
+> +
+> +	if (!handle)
+> +		return ERR_PTR(-ENOMEM);
+> +	bdev = blkdev_get_by_dev(dev, mode, holder, hops);
+> +	if (IS_ERR(bdev))
+> +		return ERR_CAST(bdev);
 
-Hum, I've checked a couple of users and it seems it would be more
-complicated for the users to handle this convention than the one I've
-chosen. And that one is also pretty standard so I think by the principle of
-least surprise it is also better.
+Would we be better off with a handle->error (and a NULL return from this
+function means "we couldn't allocate a handle")?  I have no objection
+to what you've done here, just wondering if it might end up nicer for
+the users.
 
-								Honza
-
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
