@@ -1,13 +1,18 @@
 Return-Path: <jack@suse.cz>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A635A42097B
-	for <drbd-dev@lists.linbit.com>; Tue,  4 Jul 2023 14:28:53 +0200 (CEST)
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D494F42036A
+	for <drbd-dev@lists.linbit.com>; Tue,  4 Jul 2023 15:03:57 +0200 (CEST)
+Date: Tue, 4 Jul 2023 15:03:56 +0200
 From: Jan Kara <jack@suse.cz>
-To: <linux-block@vger.kernel.org>
-Date: Tue,  4 Jul 2023 14:21:27 +0200
-Message-Id: <20230629165206.383-1-jack@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>
+Message-ID: <20230704130356.xwdlxvgvi4l6sruc@quack3>
+References: <20230629165206.383-1-jack@suse.cz>
+	<20230704122224.16257-1-jack@suse.cz>
+	<ZKQUB4rU8Gebhq6R@casper.infradead.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ZKQUB4rU8Gebhq6R@casper.infradead.org>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
 	linux-nvme@lists.infradead.org,
@@ -24,21 +29,21 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Sven Schnelle <svens@linux.ibm.com>, linux-pm@vger.kernel.org,
 	Mike Snitzer <snitzer@kernel.org>, Chao Yu <chao@kernel.org>,
 	Joern Engel <joern@lazybastard.org>,
-	reiserfs-devel@vger.kernel.org, linux-raid@vger.kernel.org,
+	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
 	Jaegeuk Kim <jaegeuk@kernel.org>,
 	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Jens Axboe <axboe@kernel.dk>, linux-nfs@vger.kernel.org,
-	linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>,
-	linux-mm@kvack.org, Song Liu <song@kernel.org>,
+	Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
+	linux-nfs@vger.kernel.org, linux-ext4@vger.kernel.org,
+	Ted Tso <tytso@mit.edu>, linux-mm@kvack.org, Song Liu <song@kernel.org>,
 	linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
 	ocfs2-devel@oss.oracle.com, Anna Schumaker <anna@kernel.org>,
 	linux-fsdevel@vger.kernel.org, "Md. Haris Iqbal" <haris.iqbal@ionos.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH RFC 0/32] block: Make blkdev_get_by_*() return
-	handle
+Subject: Re: [Drbd-dev] [PATCH 01/32] block: Provide blkdev_get_handle_*
+	functions
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -50,67 +55,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello,
+On Tue 04-07-23 13:43:51, Matthew Wilcox wrote:
+> On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
+> > +struct bdev_handle *blkdev_get_handle_by_dev(dev_t dev, blk_mode_t mode,
+> > +		void *holder, const struct blk_holder_ops *hops)
+> > +{
+> > +	struct bdev_handle *handle = kmalloc(sizeof(struct bdev_handle),
+> > +					     GFP_KERNEL);
+> > +	struct block_device *bdev;
+> > +
+> > +	if (!handle)
+> > +		return ERR_PTR(-ENOMEM);
+> > +	bdev = blkdev_get_by_dev(dev, mode, holder, hops);
+> > +	if (IS_ERR(bdev))
+> > +		return ERR_CAST(bdev);
+> 
+> Would we be better off with a handle->error (and a NULL return from this
+> function means "we couldn't allocate a handle")?  I have no objection
+> to what you've done here, just wondering if it might end up nicer for
+> the users.
 
-this patch series implements the idea of blkdev_get_by_*() calls returning
-bdev_handle which is then passed to blkdev_put() [1]. This makes the get
-and put calls for bdevs more obviously matching and allows us to propagate
-context from get to put without having to modify all the users (again!).
-In particular I need to propagate used open flags to blkdev_put() to be able
-count writeable opens and add support for blocking writes to mounted block
-devices. I'll send that series separately.
-
-The series is based on Linus' tree as of yesterday + two bcache fixes which are
-in the block tree. Patches have passed some basic testing, I plan to test more
-users once we agree this is the right way to go.
+Hum, I've checked a couple of users and it seems it would be more
+complicated for the users to handle this convention than the one I've
+chosen. And that one is also pretty standard so I think by the principle of
+least surprise it is also better.
 
 								Honza
 
-[1] https://lore.kernel.org/all/ZJGNsVDhZx0Xgs2H@infradead.org
-
-CC: Alasdair Kergon <agk@redhat.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Anna Schumaker <anna@kernel.org>
-CC: Chao Yu <chao@kernel.org>
-CC: Christian Borntraeger <borntraeger@linux.ibm.com>
-CC: Coly Li <colyli@suse.de
-CC: "Darrick J. Wong" <djwong@kernel.org>
-CC: Dave Kleikamp <shaggy@kernel.org>
-CC: David Sterba <dsterba@suse.com>
-CC: dm-devel@redhat.com
-CC: drbd-dev@lists.linbit.com
-CC: Gao Xiang <xiang@kernel.org>
-CC: Jack Wang <jinpu.wang@ionos.com>
-CC: Jaegeuk Kim <jaegeuk@kernel.org>
-CC: jfs-discussion@lists.sourceforge.net
-CC: Joern Engel <joern@lazybastard.org>
-CC: Joseph Qi <joseph.qi@linux.alibaba.com>
-CC: Kent Overstreet <kent.overstreet@gmail.com>
-CC: linux-bcache@vger.kernel.org
-CC: linux-btrfs@vger.kernel.org
-CC: linux-erofs@lists.ozlabs.org
-CC: <linux-ext4@vger.kernel.org>
-CC: linux-f2fs-devel@lists.sourceforge.net
-CC: linux-mm@kvack.org
-CC: linux-mtd@lists.infradead.org
-CC: linux-nfs@vger.kernel.org
-CC: linux-nilfs@vger.kernel.org
-CC: linux-nvme@lists.infradead.org
-CC: linux-pm@vger.kernel.org
-CC: linux-raid@vger.kernel.org
-CC: linux-s390@vger.kernel.org
-CC: linux-scsi@vger.kernel.org
-CC: linux-xfs@vger.kernel.org
-CC: "Md. Haris Iqbal" <haris.iqbal@ionos.com>
-CC: Mike Snitzer <snitzer@kernel.org>
-CC: Minchan Kim <minchan@kernel.org>
-CC: ocfs2-devel@oss.oracle.com
-CC: reiserfs-devel@vger.kernel.org
-CC: Sergey Senozhatsky <senozhatsky@chromium.org>
-CC: Song Liu <song@kernel.org>
-CC: Sven Schnelle <svens@linux.ibm.com>
-CC: target-devel@vger.kernel.org
-CC: Ted Tso <tytso@mit.edu>
-CC: Trond Myklebust <trond.myklebust@hammerspace.com>
-CC: xen-devel@lists.xenproject.org
-
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
