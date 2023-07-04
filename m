@@ -1,13 +1,11 @@
 Return-Path: <jack@suse.cz>
 Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A630742036A
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A635A42097B
 	for <drbd-dev@lists.linbit.com>; Tue,  4 Jul 2023 14:28:53 +0200 (CEST)
 From: Jan Kara <jack@suse.cz>
 To: <linux-block@vger.kernel.org>
-Date: Tue,  4 Jul 2023 14:21:28 +0200
-Message-Id: <20230704122224.16257-1-jack@suse.cz>
-In-Reply-To: <20230629165206.383-1-jack@suse.cz>
-References: <20230629165206.383-1-jack@suse.cz>
+Date: Tue,  4 Jul 2023 14:21:27 +0200
+Message-Id: <20230629165206.383-1-jack@suse.cz>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
@@ -39,8 +37,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org, "Md. Haris Iqbal" <haris.iqbal@ionos.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org
-Subject: [Drbd-dev] [PATCH 01/32] block: Provide blkdev_get_handle_*
-	functions
+Subject: [Drbd-dev] [PATCH RFC 0/32] block: Make blkdev_get_by_*() return
+	handle
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -52,11 +50,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Create struct bdev_handle that contains all parameters that need to be
-passed to blkdev_put() and provide blkdev_get_handle_* functions that
-return this structure instead of plain bdev pointer. This will
-eventually allow us to pass one more argument to blkdev_put() without
-too much hassle.
+Hello,
+
+this patch series implements the idea of blkdev_get_by_*() calls returning
+bdev_handle which is then passed to blkdev_put() [1]. This makes the get
+and put calls for bdevs more obviously matching and allows us to propagate
+context from get to put without having to modify all the users (again!).
+In particular I need to propagate used open flags to blkdev_put() to be able
+count writeable opens and add support for blocking writes to mounted block
+devices. I'll send that series separately.
+
+The series is based on Linus' tree as of yesterday + two bcache fixes which are
+in the block tree. Patches have passed some basic testing, I plan to test more
+users once we agree this is the right way to go.
+
+								Honza
+
+[1] https://lore.kernel.org/all/ZJGNsVDhZx0Xgs2H@infradead.org
 
 CC: Alasdair Kergon <agk@redhat.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
@@ -103,113 +113,4 @@ CC: target-devel@vger.kernel.org
 CC: Ted Tso <tytso@mit.edu>
 CC: Trond Myklebust <trond.myklebust@hammerspace.com>
 CC: xen-devel@lists.xenproject.org
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- block/bdev.c           | 47 ++++++++++++++++++++++++++++++++++++++++++
- include/linux/blkdev.h | 10 +++++++++
- 2 files changed, 57 insertions(+)
-
-diff --git a/block/bdev.c b/block/bdev.c
-index 979e28a46b98..c75de5cac2bc 100644
---- a/block/bdev.c
-+++ b/block/bdev.c
-@@ -846,6 +846,24 @@ struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode, void *holder,
- }
- EXPORT_SYMBOL(blkdev_get_by_dev);
- 
-+struct bdev_handle *blkdev_get_handle_by_dev(dev_t dev, blk_mode_t mode,
-+		void *holder, const struct blk_holder_ops *hops)
-+{
-+	struct bdev_handle *handle = kmalloc(sizeof(struct bdev_handle),
-+					     GFP_KERNEL);
-+	struct block_device *bdev;
-+
-+	if (!handle)
-+		return ERR_PTR(-ENOMEM);
-+	bdev = blkdev_get_by_dev(dev, mode, holder, hops);
-+	if (IS_ERR(bdev))
-+		return ERR_CAST(bdev);
-+	handle->bdev = bdev;
-+	handle->holder = holder;
-+	return handle;
-+}
-+EXPORT_SYMBOL(blkdev_get_handle_by_dev);
-+
- /**
-  * blkdev_get_by_path - open a block device by name
-  * @path: path to the block device to open
-@@ -884,6 +902,28 @@ struct block_device *blkdev_get_by_path(const char *path, blk_mode_t mode,
- }
- EXPORT_SYMBOL(blkdev_get_by_path);
- 
-+struct bdev_handle *blkdev_get_handle_by_path(const char *path, blk_mode_t mode,
-+		void *holder, const struct blk_holder_ops *hops)
-+{
-+	struct bdev_handle *handle;
-+	dev_t dev;
-+	int error;
-+
-+	error = lookup_bdev(path, &dev);
-+	if (error)
-+		return ERR_PTR(error);
-+
-+	handle = blkdev_get_handle_by_dev(dev, mode, holder, hops);
-+	if (!IS_ERR(handle) && (mode & BLK_OPEN_WRITE) &&
-+	    bdev_read_only(handle->bdev)) {
-+		blkdev_handle_put(handle);
-+		return ERR_PTR(-EACCES);
-+	}
-+
-+	return handle;
-+}
-+EXPORT_SYMBOL(blkdev_get_handle_by_path);
-+
- void blkdev_put(struct block_device *bdev, void *holder)
- {
- 	struct gendisk *disk = bdev->bd_disk;
-@@ -920,6 +960,13 @@ void blkdev_put(struct block_device *bdev, void *holder)
- }
- EXPORT_SYMBOL(blkdev_put);
- 
-+void blkdev_handle_put(struct bdev_handle *handle)
-+{
-+	blkdev_put(handle->bdev, handle->holder);
-+	kfree(handle);
-+}
-+EXPORT_SYMBOL(blkdev_handle_put);
-+
- /**
-  * lookup_bdev() - Look up a struct block_device by name.
-  * @pathname: Name of the block device in the filesystem.
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index ed44a997f629..a910e9997ddd 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1471,14 +1471,24 @@ struct blk_holder_ops {
- #define sb_open_mode(flags) \
- 	(BLK_OPEN_READ | (((flags) & SB_RDONLY) ? 0 : BLK_OPEN_WRITE))
- 
-+struct bdev_handle {
-+	struct block_device *bdev;
-+	void *holder;
-+};
-+
- struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode, void *holder,
- 		const struct blk_holder_ops *hops);
- struct block_device *blkdev_get_by_path(const char *path, blk_mode_t mode,
- 		void *holder, const struct blk_holder_ops *hops);
-+struct bdev_handle *blkdev_get_handle_by_dev(dev_t dev, blk_mode_t mode,
-+		void *holder, const struct blk_holder_ops *hops);
-+struct bdev_handle *blkdev_get_handle_by_path(const char *path, blk_mode_t mode,
-+		void *holder, const struct blk_holder_ops *hops);
- int bd_prepare_to_claim(struct block_device *bdev, void *holder,
- 		const struct blk_holder_ops *hops);
- void bd_abort_claiming(struct block_device *bdev, void *holder);
- void blkdev_put(struct block_device *bdev, void *holder);
-+void blkdev_handle_put(struct bdev_handle *handle);
- 
- /* just for blk-cgroup, don't use elsewhere */
- struct block_device *blkdev_get_no_open(dev_t dev);
--- 
-2.35.3
 
