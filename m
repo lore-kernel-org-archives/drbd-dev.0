@@ -1,21 +1,20 @@
-Return-Path: <willy@infradead.org>
-Received: from casper.infradead.org (casper.infradead.org [90.155.50.34])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D7503420171
-	for <drbd-dev@lists.linbit.com>; Tue,  4 Jul 2023 18:14:24 +0200 (CEST)
-Date: Tue, 4 Jul 2023 17:14:01 +0100
-From: Matthew Wilcox <willy@infradead.org>
-To: Bart Van Assche <bvanassche@acm.org>
-Message-ID: <ZKRFSZQglwCba9/i@casper.infradead.org>
+Return-Path: <kbusch@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CA106420356
+	for <drbd-dev@lists.linbit.com>;
+	Tue,  4 Jul 2023 18:34:51 +0200 (CEST)
+Date: Tue, 4 Jul 2023 10:28:36 -0600
+From: Keith Busch <kbusch@kernel.org>
+To: Jan Kara <jack@suse.cz>
+Message-ID: <ZKRItBRhm8f5Vba/@kbusch-mbp>
 References: <20230629165206.383-1-jack@suse.cz>
 	<20230704122224.16257-1-jack@suse.cz>
-	<bb91e76b-0bd8-a949-f8b9-868f919ebcb9@acm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bb91e76b-0bd8-a949-f8b9-868f919ebcb9@acm.org>
+In-Reply-To: <20230704122224.16257-1-jack@suse.cz>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
-	linux-nvme@lists.infradead.org,
+	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	Jack Wang <jinpu.wang@ionos.com>,
@@ -55,16 +54,58 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jul 04, 2023 at 07:06:26AM -0700, Bart Van Assche wrote:
-> On 7/4/23 05:21, Jan Kara wrote:
-> > +struct bdev_handle {
-> > +	struct block_device *bdev;
-> > +	void *holder;
-> > +};
-> 
-> Please explain in the patch description why a holder pointer is introduced
-> in struct bdev_handle and how it relates to the bd_holder pointer in struct
-> block_device. Is one of the purposes of this patch series perhaps to add
-> support for multiple holders per block device?
+On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
+> +struct bdev_handle *blkdev_get_handle_by_dev(dev_t dev, blk_mode_t mode,
+> +		void *holder, const struct blk_holder_ops *hops)
+> +{
+> +	struct bdev_handle *handle = kmalloc(sizeof(struct bdev_handle),
+> +					     GFP_KERNEL);
 
-That is all in patch 0/32.  Why repeat it?
+I believe 'sizeof(*handle)' is the preferred style.
+
+> +	struct block_device *bdev;
+> +
+> +	if (!handle)
+> +		return ERR_PTR(-ENOMEM);
+> +	bdev = blkdev_get_by_dev(dev, mode, holder, hops);
+> +	if (IS_ERR(bdev))
+> +		return ERR_CAST(bdev);
+
+Need a 'kfree(handle)' before the error return. Or would it be simpler
+to get the bdev first so you can check the mode settings against a
+read-only bdev prior to the kmalloc?
+
+> +	handle->bdev = bdev;
+> +	handle->holder = holder;
+> +	return handle;
+> +}
+> +EXPORT_SYMBOL(blkdev_get_handle_by_dev);
+> +
+>  /**
+>   * blkdev_get_by_path - open a block device by name
+>   * @path: path to the block device to open
+> @@ -884,6 +902,28 @@ struct block_device *blkdev_get_by_path(const char *path, blk_mode_t mode,
+>  }
+>  EXPORT_SYMBOL(blkdev_get_by_path);
+>  
+> +struct bdev_handle *blkdev_get_handle_by_path(const char *path, blk_mode_t mode,
+> +		void *holder, const struct blk_holder_ops *hops)
+> +{
+> +	struct bdev_handle *handle;
+> +	dev_t dev;
+> +	int error;
+> +
+> +	error = lookup_bdev(path, &dev);
+> +	if (error)
+> +		return ERR_PTR(error);
+> +
+> +	handle = blkdev_get_handle_by_dev(dev, mode, holder, hops);
+> +	if (!IS_ERR(handle) && (mode & BLK_OPEN_WRITE) &&
+> +	    bdev_read_only(handle->bdev)) {
+> +		blkdev_handle_put(handle);
+> +		return ERR_PTR(-EACCES);
+> +	}
+> +
+> +	return handle;
+> +}
+> +EXPORT_SYMBOL(blkdev_get_handle_by_path);
