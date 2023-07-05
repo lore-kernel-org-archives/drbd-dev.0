@@ -1,20 +1,20 @@
-Return-Path: <kbusch@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CA106420356
-	for <drbd-dev@lists.linbit.com>;
-	Tue,  4 Jul 2023 18:34:51 +0200 (CEST)
-Date: Tue, 4 Jul 2023 10:28:36 -0600
-From: Keith Busch <kbusch@kernel.org>
-To: Jan Kara <jack@suse.cz>
-Message-ID: <ZKRItBRhm8f5Vba/@kbusch-mbp>
+Return-Path: <jack@suse.cz>
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 030F0420171
+	for <drbd-dev@lists.linbit.com>; Wed,  5 Jul 2023 12:21:29 +0200 (CEST)
+Date: Wed, 5 Jul 2023 12:21:28 +0200
+From: Jan Kara <jack@suse.cz>
+To: Keith Busch <kbusch@kernel.org>
+Message-ID: <20230705102128.vquve4qencbbn2br@quack3>
 References: <20230629165206.383-1-jack@suse.cz>
-	<20230704122224.16257-1-jack@suse.cz>
+	<20230704122224.16257-1-jack@suse.cz> <ZKRItBRhm8f5Vba/@kbusch-mbp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230704122224.16257-1-jack@suse.cz>
+In-Reply-To: <ZKRItBRhm8f5Vba/@kbusch-mbp>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
+	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
+	linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	Jack Wang <jinpu.wang@ionos.com>,
@@ -54,58 +54,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
-> +struct bdev_handle *blkdev_get_handle_by_dev(dev_t dev, blk_mode_t mode,
-> +		void *holder, const struct blk_holder_ops *hops)
-> +{
-> +	struct bdev_handle *handle = kmalloc(sizeof(struct bdev_handle),
-> +					     GFP_KERNEL);
+On Tue 04-07-23 10:28:36, Keith Busch wrote:
+> On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
+> > +struct bdev_handle *blkdev_get_handle_by_dev(dev_t dev, blk_mode_t mode,
+> > +		void *holder, const struct blk_holder_ops *hops)
+> > +{
+> > +	struct bdev_handle *handle = kmalloc(sizeof(struct bdev_handle),
+> > +					     GFP_KERNEL);
+> 
+> I believe 'sizeof(*handle)' is the preferred style.
 
-I believe 'sizeof(*handle)' is the preferred style.
+OK.
 
-> +	struct block_device *bdev;
-> +
-> +	if (!handle)
-> +		return ERR_PTR(-ENOMEM);
-> +	bdev = blkdev_get_by_dev(dev, mode, holder, hops);
-> +	if (IS_ERR(bdev))
-> +		return ERR_CAST(bdev);
+> > +	struct block_device *bdev;
+> > +
+> > +	if (!handle)
+> > +		return ERR_PTR(-ENOMEM);
+> > +	bdev = blkdev_get_by_dev(dev, mode, holder, hops);
+> > +	if (IS_ERR(bdev))
+> > +		return ERR_CAST(bdev);
+> 
+> Need a 'kfree(handle)' before the error return. Or would it be simpler
+> to get the bdev first so you can check the mode settings against a
+> read-only bdev prior to the kmalloc?
 
-Need a 'kfree(handle)' before the error return. Or would it be simpler
-to get the bdev first so you can check the mode settings against a
-read-only bdev prior to the kmalloc?
-
-> +	handle->bdev = bdev;
-> +	handle->holder = holder;
-> +	return handle;
-> +}
-> +EXPORT_SYMBOL(blkdev_get_handle_by_dev);
-> +
->  /**
->   * blkdev_get_by_path - open a block device by name
->   * @path: path to the block device to open
-> @@ -884,6 +902,28 @@ struct block_device *blkdev_get_by_path(const char *path, blk_mode_t mode,
->  }
->  EXPORT_SYMBOL(blkdev_get_by_path);
->  
-> +struct bdev_handle *blkdev_get_handle_by_path(const char *path, blk_mode_t mode,
-> +		void *holder, const struct blk_holder_ops *hops)
-> +{
-> +	struct bdev_handle *handle;
-> +	dev_t dev;
-> +	int error;
-> +
-> +	error = lookup_bdev(path, &dev);
-> +	if (error)
-> +		return ERR_PTR(error);
-> +
-> +	handle = blkdev_get_handle_by_dev(dev, mode, holder, hops);
-> +	if (!IS_ERR(handle) && (mode & BLK_OPEN_WRITE) &&
-> +	    bdev_read_only(handle->bdev)) {
-> +		blkdev_handle_put(handle);
-> +		return ERR_PTR(-EACCES);
-> +	}
-> +
-> +	return handle;
-> +}
-> +EXPORT_SYMBOL(blkdev_get_handle_by_path);
+Yeah. Good point with kfree(). I'm not sure calling blkdev_get_by_dev()
+first will be "simpler" - then we need blkdev_put() in case of kmalloc()
+failure. Thanks for review!
+ 
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
