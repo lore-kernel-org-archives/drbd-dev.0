@@ -1,17 +1,18 @@
 Return-Path: <BATV+3c95f280863011604c0c+7256+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C75FC42019D
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Jul 2023 16:55:15 +0200 (CEST)
-Date: Thu, 6 Jul 2023 07:54:51 -0700
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F3E9842019D
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Jul 2023 17:38:48 +0200 (CEST)
+Date: Thu, 6 Jul 2023 08:38:40 -0700
 From: Christoph Hellwig <hch@infradead.org>
 To: Jan Kara <jack@suse.cz>
-Message-ID: <ZKbVuyn0jELh8UDM@infradead.org>
+Message-ID: <ZKbgAG5OoHVyUKOG@infradead.org>
 References: <20230629165206.383-1-jack@suse.cz>
+	<20230704122224.16257-1-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230629165206.383-1-jack@suse.cz>
+In-Reply-To: <20230704122224.16257-1-jack@suse.cz>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
@@ -40,8 +41,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org, "Md. Haris Iqbal" <haris.iqbal@ionos.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH RFC 0/32] block: Make blkdev_get_by_*()
-	return handle
+Subject: Re: [Drbd-dev] [PATCH 01/32] block: Provide blkdev_get_handle_*
+	functions
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -53,21 +54,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jul 04, 2023 at 02:21:27PM +0200, Jan Kara wrote:
-> Hello,
-> 
-> this patch series implements the idea of blkdev_get_by_*() calls returning
-> bdev_handle which is then passed to blkdev_put() [1]. This makes the get
-> and put calls for bdevs more obviously matching and allows us to propagate
-> context from get to put without having to modify all the users (again!).
-> In particular I need to propagate used open flags to blkdev_put() to be able
-> count writeable opens and add support for blocking writes to mounted block
-> devices. I'll send that series separately.
-> 
-> The series is based on Linus' tree as of yesterday + two bcache fixes which are
-> in the block tree. Patches have passed some basic testing, I plan to test more
-> users once we agree this is the right way to go.
+On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
+> Create struct bdev_handle that contains all parameters that need to be
+> passed to blkdev_put() and provide blkdev_get_handle_* functions that
+> return this structure instead of plain bdev pointer. This will
+> eventually allow us to pass one more argument to blkdev_put() without
+> too much hassle.
 
-Can you post a link to a git branch for this and the follow up series?
-Especially with a fairly unstable base it's kinda hard to look at the
-result otherwise.
+Can we use the opportunity to come up with better names?  blkdev_get_*
+was always a rather horrible naming convention for something that
+ends up calling into ->open.
+
+What about:
+
+struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
+		const struct blk_holder_ops *hops);
+struct bdev_handle *bdev_open_by_path(dev_t dev, blk_mode_t mode,
+		void *holder, const struct blk_holder_ops *hops);
+void bdev_release(struct bdev_handle *handle);
+
+?
