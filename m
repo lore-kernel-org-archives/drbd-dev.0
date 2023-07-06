@@ -1,27 +1,27 @@
-Return-Path: <BATV+3c95f280863011604c0c+7256+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F3E9842019D
-	for <drbd-dev@lists.linbit.com>; Thu,  6 Jul 2023 17:38:48 +0200 (CEST)
-Date: Thu, 6 Jul 2023 08:38:40 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Jan Kara <jack@suse.cz>
-Message-ID: <ZKbgAG5OoHVyUKOG@infradead.org>
+Return-Path: <jack@suse.cz>
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D6F9A42019D
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Jul 2023 18:14:34 +0200 (CEST)
+Date: Thu, 6 Jul 2023 18:14:33 +0200
+From: Jan Kara <jack@suse.cz>
+To: Christoph Hellwig <hch@infradead.org>
+Message-ID: <20230706161433.lj4apushiwguzvdd@quack3>
 References: <20230629165206.383-1-jack@suse.cz>
 	<20230704122224.16257-1-jack@suse.cz>
+	<ZKbgAG5OoHVyUKOG@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230704122224.16257-1-jack@suse.cz>
+In-Reply-To: <ZKbgAG5OoHVyUKOG@infradead.org>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
+	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
+	linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	Jack Wang <jinpu.wang@ionos.com>,
 	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
 	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, Sergey Senozhatsky <senozhatsky@chromium.org>,
-	Christoph Hellwig <hch@infradead.org>,
 	xen-devel@lists.xenproject.org, Gao Xiang <xiang@kernel.org>,
 	Christian Borntraeger <borntraeger@linux.ibm.com>,
 	Kent Overstreet <kent.overstreet@gmail.com>,
@@ -54,23 +54,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
-> Create struct bdev_handle that contains all parameters that need to be
-> passed to blkdev_put() and provide blkdev_get_handle_* functions that
-> return this structure instead of plain bdev pointer. This will
-> eventually allow us to pass one more argument to blkdev_put() without
-> too much hassle.
+On Thu 06-07-23 08:38:40, Christoph Hellwig wrote:
+> On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
+> > Create struct bdev_handle that contains all parameters that need to be
+> > passed to blkdev_put() and provide blkdev_get_handle_* functions that
+> > return this structure instead of plain bdev pointer. This will
+> > eventually allow us to pass one more argument to blkdev_put() without
+> > too much hassle.
+> 
+> Can we use the opportunity to come up with better names?  blkdev_get_*
+> was always a rather horrible naming convention for something that
+> ends up calling into ->open.
+> 
+> What about:
+> 
+> struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
+> 		const struct blk_holder_ops *hops);
+> struct bdev_handle *bdev_open_by_path(dev_t dev, blk_mode_t mode,
+> 		void *holder, const struct blk_holder_ops *hops);
+> void bdev_release(struct bdev_handle *handle);
 
-Can we use the opportunity to come up with better names?  blkdev_get_*
-was always a rather horrible naming convention for something that
-ends up calling into ->open.
+I'd maybe use bdev_close() instead of bdev_release() but otherwise I like
+the new naming.
 
-What about:
-
-struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
-		const struct blk_holder_ops *hops);
-struct bdev_handle *bdev_open_by_path(dev_t dev, blk_mode_t mode,
-		void *holder, const struct blk_holder_ops *hops);
-void bdev_release(struct bdev_handle *handle);
-
-?
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
