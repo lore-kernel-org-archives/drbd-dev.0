@@ -1,21 +1,19 @@
-Return-Path: <jack@suse.cz>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 70CBA420171
-	for <drbd-dev@lists.linbit.com>; Wed,  5 Jul 2023 18:12:26 +0200 (CEST)
-Date: Wed, 5 Jul 2023 18:12:25 +0200
-From: Jan Kara <jack@suse.cz>
-To: Bart Van Assche <bvanassche@acm.org>
-Message-ID: <20230705161225.cwig5a3mo6oz7lew@quack3>
+Return-Path: <BATV+3c95f280863011604c0c+7256+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C75FC42019D
+	for <drbd-dev@lists.linbit.com>; Thu,  6 Jul 2023 16:55:15 +0200 (CEST)
+Date: Thu, 6 Jul 2023 07:54:51 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Message-ID: <ZKbVuyn0jELh8UDM@infradead.org>
 References: <20230629165206.383-1-jack@suse.cz>
-	<20230704122224.16257-1-jack@suse.cz>
-	<bb91e76b-0bd8-a949-f8b9-868f919ebcb9@acm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bb91e76b-0bd8-a949-f8b9-868f919ebcb9@acm.org>
+In-Reply-To: <20230629165206.383-1-jack@suse.cz>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
-	linux-nvme@lists.infradead.org,
+	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	Jack Wang <jinpu.wang@ionos.com>,
@@ -42,8 +40,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org, "Md. Haris Iqbal" <haris.iqbal@ionos.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 01/32] block: Provide blkdev_get_handle_*
-	functions
+Subject: Re: [Drbd-dev] [PATCH RFC 0/32] block: Make blkdev_get_by_*()
+	return handle
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -55,38 +53,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue 04-07-23 07:06:26, Bart Van Assche wrote:
-> On 7/4/23 05:21, Jan Kara wrote:
-> > +struct bdev_handle {
-> > +	struct block_device *bdev;
-> > +	void *holder;
-> > +};
+On Tue, Jul 04, 2023 at 02:21:27PM +0200, Jan Kara wrote:
+> Hello,
 > 
-> Please explain in the patch description why a holder pointer is introduced
-> in struct bdev_handle and how it relates to the bd_holder pointer in struct
-> block_device. Is one of the purposes of this patch series perhaps to add
-> support for multiple holders per block device?
+> this patch series implements the idea of blkdev_get_by_*() calls returning
+> bdev_handle which is then passed to blkdev_put() [1]. This makes the get
+> and put calls for bdevs more obviously matching and allows us to propagate
+> context from get to put without having to modify all the users (again!).
+> In particular I need to propagate used open flags to blkdev_put() to be able
+> count writeable opens and add support for blocking writes to mounted block
+> devices. I'll send that series separately.
+> 
+> The series is based on Linus' tree as of yesterday + two bcache fixes which are
+> in the block tree. Patches have passed some basic testing, I plan to test more
+> users once we agree this is the right way to go.
 
-No. The reason for adding holder to struct bdev_handle is that it is an
-argument blkdev_put() needs. Currently, every user of blkdev_put() has to
-remember what it has passed as 'holder' to blkdev_get_by_*() call and pass
-that to blkdev_put(). With struct bdev_handle this will happen
-automatically. This is already explained in the changelog of this patch:
-
-"Create struct bdev_handle that contains all parameters that need to be
-passed to blkdev_put()..."
-
-If it was only about holder, the intrusive patches would not be warranted
-but as the description also says:
-
-"This will eventually allow us to pass one more argument to blkdev_put()
-without too much hassle."
-
-Because we will additionaly need to propagate the 'mode' argument used at
-open to blkdev_put().
-
-								Honza
-
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Can you post a link to a git branch for this and the follow up series?
+Especially with a fairly unstable base it's kinda hard to look at the
+result otherwise.
