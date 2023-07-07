@@ -1,29 +1,29 @@
-Return-Path: <BATV+5a4ca43f00c3395d7048+7257+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5934F420171
-	for <drbd-dev@lists.linbit.com>; Fri,  7 Jul 2023 13:28:55 +0200 (CEST)
-Date: Fri, 7 Jul 2023 04:28:41 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Jan Kara <jack@suse.cz>
-Message-ID: <ZKf26fYMDHnTCb29@infradead.org>
+Return-Path: <jack@suse.cz>
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8A65C4203A5
+	for <drbd-dev@lists.linbit.com>; Fri,  7 Jul 2023 14:24:35 +0200 (CEST)
+Date: Fri, 7 Jul 2023 14:24:34 +0200
+From: Jan Kara <jack@suse.cz>
+To: Christoph Hellwig <hch@infradead.org>
+Message-ID: <20230707122434.s46ytxpne42hecni@quack3>
 References: <20230629165206.383-1-jack@suse.cz>
 	<20230704122224.16257-1-jack@suse.cz>
 	<ZKbgAG5OoHVyUKOG@infradead.org>
 	<20230706161433.lj4apushiwguzvdd@quack3>
+	<ZKf26fYMDHnTCb29@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230706161433.lj4apushiwguzvdd@quack3>
+In-Reply-To: <ZKf26fYMDHnTCb29@infradead.org>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
+	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
+	linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	Jack Wang <jinpu.wang@ionos.com>,
 	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
 	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
 	linux-scsi@vger.kernel.org, Sergey Senozhatsky <senozhatsky@chromium.org>,
-	Christoph Hellwig <hch@infradead.org>,
 	xen-devel@lists.xenproject.org, Gao Xiang <xiang@kernel.org>,
 	Christian Borntraeger <borntraeger@linux.ibm.com>,
 	Kent Overstreet <kent.overstreet@gmail.com>,
@@ -56,13 +56,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jul 06, 2023 at 06:14:33PM +0200, Jan Kara wrote:
-> > struct bdev_handle *bdev_open_by_path(dev_t dev, blk_mode_t mode,
-> > 		void *holder, const struct blk_holder_ops *hops);
-> > void bdev_release(struct bdev_handle *handle);
+On Fri 07-07-23 04:28:41, Christoph Hellwig wrote:
+> On Thu, Jul 06, 2023 at 06:14:33PM +0200, Jan Kara wrote:
+> > > struct bdev_handle *bdev_open_by_path(dev_t dev, blk_mode_t mode,
+> > > 		void *holder, const struct blk_holder_ops *hops);
+> > > void bdev_release(struct bdev_handle *handle);
+> > 
+> > I'd maybe use bdev_close() instead of bdev_release() but otherwise I like
+> > the new naming.
 > 
-> I'd maybe use bdev_close() instead of bdev_release() but otherwise I like
-> the new naming.
+> We're using release everywhese else, but if Jens is fine with that I
+> can live with close.
 
-We're using release everywhese else, but if Jens is fine with that I
-can live with close.
+Dunno, to me words pair like open-close, get-put, acquire-release.
+Furthermore e.g. ->release() (and thus blkdev_release()) is called only
+when the last file reference is dropped, not when each reference is
+dropped, so that's why bdev_release() seems a bit confusing to me.
+
+								Honza
+
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
