@@ -1,51 +1,21 @@
-Return-Path: <BATV+ff51347a1c0b75c11ce8+7281+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 62C22420202
-	for <drbd-dev@lists.linbit.com>; Mon, 31 Jul 2023 13:13:36 +0200 (CEST)
-Date: Mon, 31 Jul 2023 04:13:17 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Jan Kara <jack@suse.cz>
-Message-ID: <ZMeXTUUyrOnaxGNG@infradead.org>
-References: <20230629165206.383-1-jack@suse.cz>
-	<20230704122224.16257-1-jack@suse.cz>
-	<ZKbgAG5OoHVyUKOG@infradead.org>
-	<CAJpMwyiUcw+mH0sZa8f8UJsaSZ7NSE65s2gZDEia+pASyP_gJQ@mail.gmail.com>
-	<20230731105034.43skhi5ubze563c3@quack3>
+Return-Path: <dan.carpenter@linaro.org>
+Received: from mail-wm1-f50.google.com (mail-wm1-f50.google.com
+	[209.85.128.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E1985420202
+	for <drbd-dev@lists.linbit.com>; Mon, 31 Jul 2023 16:04:14 +0200 (CEST)
+Received: by mail-wm1-f50.google.com with SMTP id
+	5b1f17b1804b1-3fc0aecf15bso50908095e9.1
+	for <drbd-dev@lists.linbit.com>; Mon, 31 Jul 2023 07:04:14 -0700 (PDT)
+Date: Mon, 31 Jul 2023 11:15:02 +0300
+From: Dan Carpenter <dan.carpenter@linaro.org>
+To: bobo.shaobowang@huawei.com
+Message-ID: <ca0093ef-ccb0-4e2e-b845-7b8930579783@moroto.mountain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230731105034.43skhi5ubze563c3@quack3>
-Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
-	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, Haris Iqbal <haris.iqbal@ionos.com>,
-	Jack Wang <jinpu.wang@ionos.com>,
-	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org, Sergey Senozhatsky <senozhatsky@chromium.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	xen-devel@lists.xenproject.org, Gao Xiang <xiang@kernel.org>,
-	Christian Borntraeger <borntraeger@linux.ibm.com>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Sven Schnelle <svens@linux.ibm.com>, linux-pm@vger.kernel.org,
-	Mike Snitzer <snitzer@kernel.org>, Chao Yu <chao@kernel.org>,
-	Joern Engel <joern@lazybastard.org>,
-	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
-	Jaegeuk Kim <jaegeuk@kernel.org>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
-	linux-nfs@vger.kernel.org, linux-ext4@vger.kernel.org,
-	Ted Tso <tytso@mit.edu>, linux-mm@kvack.org, Song Liu <song@kernel.org>,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-xfs@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
-	ocfs2-devel@oss.oracle.com, Anna Schumaker <anna@kernel.org>,
-	linux-fsdevel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH 01/32] block: Provide blkdev_get_handle_*
-	functions
+Cc: drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [bug report] drbd: destroy workqueue when drbd device
+	was freed
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -57,9 +27,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jul 31, 2023 at 12:50:34PM +0200, Jan Kara wrote:
-> I think the bdev_handle name is fine for the struct. After all it is
-> equivalent of an open handle for the block device so IMHO bdev_handle
-> captures that better than bdev_ctx.
+Hello Wang ShaoBo,
 
-Agreed.
+The patch 8692814b77ca: "drbd: destroy workqueue when drbd device was
+freed" from Nov 24, 2022 (linux-next), leads to the following Smatch
+static checker warning:
+
+	drivers/block/drbd/drbd_main.c:2233 drbd_destroy_device()
+	warn: sleeping in atomic context
+
+drivers/block/drbd/drbd_main.c
+    2193 void drbd_destroy_device(struct kref *kref)
+    2194 {
+    2195         struct drbd_device *device = container_of(kref, struct drbd_device, kref);
+    2196         struct drbd_resource *resource = device->resource;
+    2197         struct drbd_peer_device *peer_device, *tmp_peer_device;
+    2198 
+    2199         timer_shutdown_sync(&device->request_timer);
+    2200 
+    2201         /* paranoia asserts */
+    2202         D_ASSERT(device, device->open_cnt == 0);
+    2203         /* end paranoia asserts */
+    2204 
+    2205         /* cleanup stuff that may have been allocated during
+    2206          * device (re-)configuration or state changes */
+    2207 
+    2208         drbd_backing_dev_free(device, device->ldev);
+    2209         device->ldev = NULL;
+    2210 
+    2211         drbd_release_all_peer_reqs(device);
+    2212 
+    2213         lc_destroy(device->act_log);
+    2214         lc_destroy(device->resync);
+    2215 
+    2216         kfree(device->p_uuid);
+    2217         /* device->p_uuid = NULL; */
+    2218 
+    2219         if (device->bitmap) /* should no longer be there. */
+    2220                 drbd_bm_cleanup(device);
+    2221         __free_page(device->md_io.page);
+    2222         put_disk(device->vdisk);
+    2223         kfree(device->rs_plan_s);
+    2224 
+    2225         /* not for_each_connection(connection, resource):
+    2226          * those may have been cleaned up and disassociated already.
+    2227          */
+    2228         for_each_peer_device_safe(peer_device, tmp_peer_device, device) {
+    2229                 kref_put(&peer_device->connection->kref, drbd_destroy_connection);
+    2230                 kfree(peer_device);
+    2231         }
+    2232         if (device->submit.wq)
+--> 2233                 destroy_workqueue(device->submit.wq);
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The patch introduces this call to destroy_workqueue() which is a
+sleeping function (mutex_lock etc).
+
+    2234         kfree(device);
+    2235         kref_put(&resource->kref, drbd_destroy_resource);
+
+It's the drbd_endio_write_sec_final() function which calls
+drbd_destroy_device() with preempt disabled.
+
+drbd_endio_write_sec_final() <- disables preempt
+-> drbd_destroy_device()
+
+regards,
+dan carpenter
