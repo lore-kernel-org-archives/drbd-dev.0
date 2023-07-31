@@ -1,25 +1,25 @@
-Return-Path: <jack@suse.cz>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2F19B420202
-	for <drbd-dev@lists.linbit.com>; Mon, 31 Jul 2023 12:50:35 +0200 (CEST)
-Date: Mon, 31 Jul 2023 12:50:34 +0200
-From: Jan Kara <jack@suse.cz>
-To: Haris Iqbal <haris.iqbal@ionos.com>
-Message-ID: <20230731105034.43skhi5ubze563c3@quack3>
+Return-Path: <BATV+ff51347a1c0b75c11ce8+7281+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 62C22420202
+	for <drbd-dev@lists.linbit.com>; Mon, 31 Jul 2023 13:13:36 +0200 (CEST)
+Date: Mon, 31 Jul 2023 04:13:17 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Message-ID: <ZMeXTUUyrOnaxGNG@infradead.org>
 References: <20230629165206.383-1-jack@suse.cz>
 	<20230704122224.16257-1-jack@suse.cz>
 	<ZKbgAG5OoHVyUKOG@infradead.org>
 	<CAJpMwyiUcw+mH0sZa8f8UJsaSZ7NSE65s2gZDEia+pASyP_gJQ@mail.gmail.com>
+	<20230731105034.43skhi5ubze563c3@quack3>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAJpMwyiUcw+mH0sZa8f8UJsaSZ7NSE65s2gZDEia+pASyP_gJQ@mail.gmail.com>
+In-Reply-To: <20230731105034.43skhi5ubze563c3@quack3>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
-	linux-nvme@lists.infradead.org,
+	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	target-devel@vger.kernel.org, Haris Iqbal <haris.iqbal@ionos.com>,
 	Jack Wang <jinpu.wang@ionos.com>,
 	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
 	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
@@ -41,7 +41,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-f2fs-devel@lists.sourceforge.net,
 	linux-xfs@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
 	ocfs2-devel@oss.oracle.com, Anna Schumaker <anna@kernel.org>,
-	linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+	linux-fsdevel@vger.kernel.org, linux-mtd@lists.infradead.org,
+	Andrew Morton <akpm@linux-foundation.org>,
 	linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org
 Subject: Re: [Drbd-dev] [PATCH 01/32] block: Provide blkdev_get_handle_*
 	functions
@@ -56,38 +57,9 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed 12-07-23 18:06:35, Haris Iqbal wrote:
-> On Thu, Jul 6, 2023 at 5:38 PM Christoph Hellwig <hch@infradead.org> wrote:
-> >
-> > On Tue, Jul 04, 2023 at 02:21:28PM +0200, Jan Kara wrote:
-> > > Create struct bdev_handle that contains all parameters that need to be
-> > > passed to blkdev_put() and provide blkdev_get_handle_* functions that
-> > > return this structure instead of plain bdev pointer. This will
-> > > eventually allow us to pass one more argument to blkdev_put() without
-> > > too much hassle.
-> >
-> > Can we use the opportunity to come up with better names?  blkdev_get_*
-> > was always a rather horrible naming convention for something that
-> > ends up calling into ->open.
-> >
-> > What about:
-> >
-> > struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
-> >                 const struct blk_holder_ops *hops);
-> > struct bdev_handle *bdev_open_by_path(dev_t dev, blk_mode_t mode,
-> >                 void *holder, const struct blk_holder_ops *hops);
-> > void bdev_release(struct bdev_handle *handle);
-> 
-> +1 to this.
-> Also, if we are removing "handle" from the function, should the name
-> of the structure it returns also change? Would something like bdev_ctx
-> be better?
+On Mon, Jul 31, 2023 at 12:50:34PM +0200, Jan Kara wrote:
+> I think the bdev_handle name is fine for the struct. After all it is
+> equivalent of an open handle for the block device so IMHO bdev_handle
+> captures that better than bdev_ctx.
 
-I think the bdev_handle name is fine for the struct. After all it is
-equivalent of an open handle for the block device so IMHO bdev_handle
-captures that better than bdev_ctx.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Agreed.
