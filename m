@@ -1,20 +1,18 @@
-Return-Path: <chenjiahao16@huawei.com>
+Return-Path: <yuehaibing@huawei.com>
 Received: from szxga02-in.huawei.com (szxga02-in.huawei.com [45.249.212.188])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A1C4D4201CC
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C1A2242096D
 	for <drbd-dev@lists.linbit.com>;
-	Tue,  1 Aug 2023 12:01:47 +0200 (CEST)
-From: Chen Jiahao <chenjiahao16@huawei.com>
+	Wed,  2 Aug 2023 16:39:02 +0200 (CEST)
+From: Yue Haibing <yuehaibing@huawei.com>
 To: <philipp.reisner@linbit.com>, <lars.ellenberg@linbit.com>,
-	<christoph.boehmwalder@linbit.com>, <axboe@kernel.dk>,
-	<drbd-dev@lists.linbit.com>, <linux-block@vger.kernel.org>
-Date: Tue, 1 Aug 2023 17:42:45 +0800
-Message-ID: <20230801094245.4145708-1-chenjiahao16@huawei.com>
+	<christoph.boehmwalder@linbit.com>, <axboe@kernel.dk>
+Date: Wed, 2 Aug 2023 22:38:57 +0800
+Message-ID: <20230802143857.33900-1-yuehaibing@huawei.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
 Content-Type: text/plain
-Cc: chenjiahao16@huawei.com
-Subject: [Drbd-dev] [PATCH -next] drbd: Annotate RCU pointers as __rcu to
-	fix sparse errors
+Cc: linux-block@vger.kernel.org, yuehaibing@huawei.com,
+	drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH -next] drbd: Remove unused function declarations
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,206 +24,74 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This patch adds __rcu annotation to RCU protected pointers,
-in order to fix following sparse errors:
+From: YueHaibing <yuehaibing@huawei.com>
 
-drbd_state.c:1908:30: error: incompatible types in comparison expression
-drbd_state.c:834:22: error: incompatible types in comparison expression
-drbd_state.c:838:14: error: incompatible types in comparison expression
-drbd_state.c:1064:22: error: incompatible types in comparison expression
-drbd_state.c:2075:17: error: incompatible types in comparison expression
-drbd_nl.c:454:33: error: incompatible types in comparison expression
-drbd_nl.c:691:38: error: incompatible types in comparison expression
-drbd_nl.c:983:18: error: incompatible types in comparison expression
-drbd_nl.c:1285:22: error: incompatible types in comparison expression
-drbd_nl.c:1577:17: error: incompatible types in comparison expression
-drbd_nl.c:1587:17: error: incompatible types in comparison expression
-drbd_nl.c:1812:14: error: incompatible types in comparison expression
-drbd_nl.c:2072:39: error: incompatible types in comparison expression
-drbd_nl.c:2080:13: error: incompatible types in comparison expression
-drbd_nl.c:2265:50: error: incompatible types in comparison expression
-drbd_nl.c:2288:45: error: incompatible types in comparison expression
-drbd_nl.c:2433:9: error: incompatible types in comparison expression
-drbd_nl.c:2596:9: error: incompatible types in comparison expression
-drbd_nl.c:2829:18: error: incompatible types in comparison expression
-drbd_nl.c:2869:17: error: incompatible types in comparison expression
-drbd_nl.c:3407:33: error: incompatible types in comparison expression
-drbd_nl.c:3532:28: error: incompatible types in comparison expression
-drbd_nl.c:3745:29: error: incompatible types in comparison expression
-drbd_nl.c:3751:22: error: incompatible types in comparison expression
-drbd_nl.c:3941:38: error: incompatible types in comparison expression
-...
+Commit b411b3637fa7 ("The DRBD driver") declared but never implemented
+drbd_read_remote(), is_valid_ar_handle() and drbd_set_recv_tcq().
+And commit 668700b40a7c ("drbd: Create a dedicated workqueue for sending acks on the control connection")
+never implemented drbd_send_ping_wf().
 
-Also, introducing rcu_assign_pointer() and rcu_dereference()
-to properly use these RCU protected pointers.
+Commit 2451fc3b2bd3 ("drbd: Removed the BIO_RW_BARRIER support form the receiver/epoch code")
+leave w_e_reissue() declaration unused.
 
-Signed-off-by: Chen Jiahao <chenjiahao16@huawei.com>
+Commit 8fe605513ab4 ("drbd: Rename drbdd_init() -> drbd_receiver()")
+rename drbdd_init() and leave unsued declaration. Also drbd_asender() is removed in
+commit 1c03e52083c8 ("drbd: Rename asender to ack_receiver").
+
+Signed-off-by: YueHaibing <yuehaibing@huawei.com>
 ---
- drivers/block/drbd/drbd_int.h   |  6 +++---
- drivers/block/drbd/drbd_nl.c    | 26 +++++++++++++-------------
- drivers/block/drbd/drbd_state.c |  2 +-
- 3 files changed, 17 insertions(+), 17 deletions(-)
+ drivers/block/drbd/drbd_int.h | 10 ----------
+ 1 file changed, 10 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index a30a5ed811be..f97020cd5052 100644
+index a30a5ed811be..6e68e8bbad9c 100644
 --- a/drivers/block/drbd/drbd_int.h
 +++ b/drivers/block/drbd/drbd_int.h
-@@ -526,7 +526,7 @@ struct drbd_backing_dev {
- 	struct block_device *backing_bdev;
- 	struct block_device *md_bdev;
- 	struct drbd_md md;
--	struct disk_conf *disk_conf; /* RCU, for updates: resource->conf_update */
-+	struct disk_conf __rcu *disk_conf; /* RCU, for updates: resource->conf_update */
- 	sector_t known_size; /* last known size of that backing device */
+@@ -297,10 +297,6 @@ struct drbd_epoch {
+ 	unsigned long flags;
  };
  
-@@ -629,7 +629,7 @@ struct drbd_connection {
- 	unsigned int connect_cnt;	/* Inc each time a connection is established */
+-/* Prototype declaration of function defined in drbd_receiver.c */
+-int drbdd_init(struct drbd_thread *);
+-int drbd_asender(struct drbd_thread *);
+-
+ /* drbd_epoch flag bits */
+ enum {
+ 	DE_HAVE_BARRIER_NUMBER,
+@@ -1388,9 +1384,6 @@ extern void conn_free_crypto(struct drbd_connection *connection);
+ extern void do_submit(struct work_struct *ws);
+ extern void __drbd_make_request(struct drbd_device *, struct bio *);
+ void drbd_submit_bio(struct bio *bio);
+-extern int drbd_read_remote(struct drbd_device *device, struct drbd_request *req);
+-extern int is_valid_ar_handle(struct drbd_request *, sector_t);
+-
  
- 	unsigned long flags;
--	struct net_conf *net_conf;	/* content protected by rcu */
-+	struct net_conf __rcu *net_conf;	/* content protected by rcu */
- 	wait_queue_head_t ping_wait;	/* Woken upon reception of a ping, and a state change */
+ /* drbd_nl.c */
  
- 	struct sockaddr_storage my_addr;
-@@ -889,7 +889,7 @@ struct drbd_device {
- 	int rs_last_events;  /* counter of read or write "events" (unit sectors)
- 			      * on the lower level device when we last looked. */
- 	int c_sync_rate; /* current resync rate after syncer throttle magic */
--	struct fifo_buffer *rs_plan_s; /* correction values of resync planer (RCU, connection->conn_update) */
-+	struct fifo_buffer __rcu *rs_plan_s; /* correction values of resync planer (RCU, connection->conn_update) */
- 	int rs_in_flight; /* resync sectors in flight (to proxy, in proxy and from proxy) */
- 	atomic_t ap_in_flight; /* App sectors in flight (waiting for ack) */
- 	unsigned int peer_max_bio_size;
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index cddae6f4b00f..a63f1b4aae5b 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -722,7 +722,7 @@ drbd_set_role(struct drbd_device *const device, enum drbd_role new_role, int for
- 		}
- 	} else {
- 		mutex_lock(&device->resource->conf_update);
--		nc = connection->net_conf;
-+		nc = rcu_dereference(connection->net_conf);
- 		if (nc)
- 			nc->discard_my_data = 0; /* without copy; single bit op is atomic */
- 		mutex_unlock(&device->resource->conf_update);
-@@ -1531,7 +1531,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 	}
+@@ -1472,7 +1465,6 @@ extern int w_resync_timer(struct drbd_work *, int);
+ extern int w_send_write_hint(struct drbd_work *, int);
+ extern int w_send_dblock(struct drbd_work *, int);
+ extern int w_send_read_req(struct drbd_work *, int);
+-extern int w_e_reissue(struct drbd_work *, int);
+ extern int w_restart_disk_io(struct drbd_work *, int);
+ extern int w_send_out_of_sync(struct drbd_work *, int);
  
- 	mutex_lock(&device->resource->conf_update);
--	old_disk_conf = device->ldev->disk_conf;
-+	old_disk_conf = rcu_dereference(device->ldev->disk_conf);
- 	*new_disk_conf = *old_disk_conf;
- 	if (should_set_defaults(info))
- 		set_disk_conf_defaults(new_disk_conf);
-@@ -1552,7 +1552,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 		new_disk_conf->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
+@@ -1486,7 +1478,6 @@ extern int drbd_issue_discard_or_zero_out(struct drbd_device *device,
+ 		sector_t start, unsigned int nr_sectors, int flags);
+ extern int drbd_receiver(struct drbd_thread *thi);
+ extern int drbd_ack_receiver(struct drbd_thread *thi);
+-extern void drbd_send_ping_wf(struct work_struct *ws);
+ extern void drbd_send_acks_wf(struct work_struct *ws);
+ extern bool drbd_rs_c_min_rate_throttle(struct drbd_device *device);
+ extern bool drbd_rs_should_slow_down(struct drbd_peer_device *peer_device, sector_t sector,
+@@ -1502,7 +1493,6 @@ extern void __drbd_free_peer_req(struct drbd_device *, struct drbd_peer_request
+ #define drbd_free_peer_req(m,e) __drbd_free_peer_req(m, e, 0)
+ #define drbd_free_net_peer_req(m,e) __drbd_free_peer_req(m, e, 1)
+ extern struct page *drbd_alloc_pages(struct drbd_peer_device *, unsigned int, bool);
+-extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
+ extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
+ extern int drbd_connected(struct drbd_peer_device *);
  
- 	fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
--	if (fifo_size != device->rs_plan_s->size) {
-+	if (fifo_size != rcu_dereference(device->rs_plan_s)->size) {
- 		new_plan = fifo_alloc(fifo_size);
- 		if (!new_plan) {
- 			drbd_err(device, "kmalloc of fifo_buffer failed");
-@@ -1583,7 +1583,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
- 		goto fail_unlock;
- 
- 	if (new_plan) {
--		old_plan = device->rs_plan_s;
-+		old_plan = rcu_dereference(device->rs_plan_s);
- 		rcu_assign_pointer(device->rs_plan_s, new_plan);
- 	}
- 
-@@ -1715,7 +1715,7 @@ void drbd_backing_dev_free(struct drbd_device *device, struct drbd_backing_dev *
- 			  ldev->md_bdev != ldev->backing_bdev);
- 	close_backing_dev(device, ldev->backing_bdev, device, true);
- 
--	kfree(ldev->disk_conf);
-+	kfree(rcu_dereference(ldev->disk_conf));
- 	kfree(ldev);
- }
- 
-@@ -1784,7 +1784,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 		retcode = ERR_NOMEM;
- 		goto fail;
- 	}
--	nbc->disk_conf = new_disk_conf;
-+	rcu_assign_pointer(nbc->disk_conf, new_disk_conf);
- 
- 	set_disk_conf_defaults(new_disk_conf);
- 	err = disk_conf_from_attrs(new_disk_conf, info);
-@@ -1934,10 +1934,10 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 
- 	/* Prevent shrinking of consistent devices ! */
- 	{
--	unsigned long long nsz = drbd_new_dev_size(device, nbc, nbc->disk_conf->disk_size, 0);
-+	unsigned long long nsz = drbd_new_dev_size(device, nbc, rcu_dereference(nbc->disk_conf)->disk_size, 0);
- 	unsigned long long eff = nbc->md.la_size_sect;
- 	if (drbd_md_test_flag(nbc, MDF_CONSISTENT) && nsz < eff) {
--		if (nsz == nbc->disk_conf->disk_size) {
-+		if (nsz == rcu_dereference(nbc->disk_conf)->disk_size) {
- 			drbd_warn(device, "truncating a consistent device during attach (%llu < %llu)\n", nsz, eff);
- 		} else {
- 			drbd_warn(device, "refusing to truncate a consistent device (%llu < %llu)\n", nsz, eff);
-@@ -1971,7 +1971,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 	D_ASSERT(device, device->ldev == NULL);
- 	device->ldev = nbc;
- 	device->resync = resync_lru;
--	device->rs_plan_s = new_plan;
-+	rcu_assign_pointer(device->rs_plan_s, new_plan);
- 	nbc = NULL;
- 	resync_lru = NULL;
- 	new_disk_conf = NULL;
-@@ -2130,7 +2130,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
- 	conn_reconfig_done(connection);
- 	if (nbc) {
- 		close_backing_dev(device, nbc->md_bdev,
--			  nbc->disk_conf->meta_dev_idx < 0 ?
-+			  rcu_dereference(nbc->disk_conf)->meta_dev_idx < 0 ?
- 				(void *)device : (void *)drbd_m_holder,
- 			  nbc->md_bdev != nbc->backing_bdev);
- 		close_backing_dev(device, nbc->backing_bdev, device, true);
-@@ -2389,7 +2389,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
- 
- 	mutex_lock(&connection->data.mutex);
- 	mutex_lock(&connection->resource->conf_update);
--	old_net_conf = connection->net_conf;
-+	old_net_conf = rcu_dereference(connection->net_conf);
- 
- 	if (!old_net_conf) {
- 		drbd_msg_put_info(adm_ctx.reply_skb, "net conf missing, try connect");
-@@ -2587,7 +2587,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
- 	drbd_flush_workqueue(&connection->sender_work);
- 
- 	mutex_lock(&adm_ctx.resource->conf_update);
--	old_net_conf = connection->net_conf;
-+	old_net_conf = rcu_dereference(connection->net_conf);
- 	if (old_net_conf) {
- 		retcode = ERR_NET_CONFIGURED;
- 		mutex_unlock(&adm_ctx.resource->conf_update);
-@@ -2863,7 +2863,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
- 
- 	if (new_disk_conf) {
- 		mutex_lock(&device->resource->conf_update);
--		old_disk_conf = device->ldev->disk_conf;
-+		old_disk_conf = rcu_dereference(device->ldev->disk_conf);
- 		*new_disk_conf = *old_disk_conf;
- 		new_disk_conf->disk_size = (sector_t)rs.resize_size;
- 		rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index 287a8d1d3f70..e9fa2dfe0dd8 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -2069,7 +2069,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
- 		mutex_unlock(&notification_mutex);
- 
- 		mutex_lock(&connection->resource->conf_update);
--		old_conf = connection->net_conf;
-+		old_conf = rcu_dereference(connection->net_conf);
- 		connection->my_addr_len = 0;
- 		connection->peer_addr_len = 0;
- 		RCU_INIT_POINTER(connection->net_conf, NULL);
 -- 
 2.34.1
 
