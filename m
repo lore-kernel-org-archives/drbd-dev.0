@@ -1,47 +1,30 @@
-Return-Path: <BATV+10530082ca17b6f7899b+7292+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A10A6420AFD
-	for <drbd-dev@lists.linbit.com>; Fri, 11 Aug 2023 14:27:40 +0200 (CEST)
-Date: Fri, 11 Aug 2023 05:27:28 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Jan Kara <jack@suse.cz>
-Message-ID: <ZNYpMPM5o4q1xcIt@infradead.org>
-References: <20230810171429.31759-1-jack@suse.cz>
+Return-Path: <jiri@resnulli.us>
+Received: from mail-wm1-f51.google.com (mail-wm1-f51.google.com
+	[209.85.128.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 83E7C420AFF
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Aug 2023 10:26:25 +0200 (CEST)
+Received: by mail-wm1-f51.google.com with SMTP id
+	5b1f17b1804b1-3fe12baec61so5173765e9.2
+	for <drbd-dev@lists.linbit.com>; Thu, 10 Aug 2023 01:26:25 -0700 (PDT)
+Date: Thu, 10 Aug 2023 10:26:22 +0200
+From: Jiri Pirko <jiri@resnulli.us>
+To: Jakub Kicinski <kuba@kernel.org>
+Message-ID: <ZNSfLomTSZy/4b8W@nanopsycho>
+References: <20230809182648.1816537-1-kuba@kernel.org>
+	<20230809182648.1816537-4-kuba@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230810171429.31759-1-jack@suse.cz>
-Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
-	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	Jack Wang <jinpu.wang@ionos.com>,
-	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org, Sergey Senozhatsky <senozhatsky@chromium.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	xen-devel@lists.xenproject.org, Gao Xiang <xiang@kernel.org>,
-	Christian Borntraeger <borntraeger@linux.ibm.com>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Sven Schnelle <svens@linux.ibm.com>, linux-pm@vger.kernel.org,
-	Mike Snitzer <snitzer@kernel.org>, Chao Yu <chao@kernel.org>,
-	Joern Engel <joern@lazybastard.org>,
-	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
-	Jaegeuk Kim <jaegeuk@kernel.org>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	linux-raid@vger.kernel.org, linux-nfs@vger.kernel.org,
-	linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>,
-	linux-mm@kvack.org, Song Liu <song@kernel.org>,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-xfs@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
-	ocfs2-devel@oss.oracle.com, Anna Schumaker <anna@kernel.org>,
-	linux-fsdevel@vger.kernel.org, "Md. Haris Iqbal" <haris.iqbal@ionos.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH v2 0/29] block: Make blkdev_get_by_*() return
-	handle
+In-Reply-To: <20230809182648.1816537-4-kuba@kernel.org>
+Cc: axboe@kernel.dk, linux-block@vger.kernel.org, netdev@vger.kernel.org,
+	philipp.reisner@linbit.com, pshelar@ovn.org, jmaloy@redhat.com,
+	edumazet@google.com, tipc-discussion@lists.sourceforge.net,
+	lars.ellenberg@linbit.com, ying.xue@windriver.com,
+	dev@openvswitch.org, johannes@sipsolutions.net,
+	pabeni@redhat.com, drbd-dev@lists.linbit.com,
+	davem@davemloft.net, jacob.e.keller@intel.com
+Subject: Re: [Drbd-dev] [PATCH net-next 03/10] genetlink: remove userhdr
+ from struct genl_info
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -53,9 +36,16 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Except for a mostly cosmetic nitpick this looks good to me:
+Wed, Aug 09, 2023 at 08:26:41PM CEST, kuba@kernel.org wrote:
+>Only three families use info->userhdr and fixed headers
+>are discouraged for new families. So remove the pointer
+>from struct genl_info to save some space. Compute
+>the header pointer at runtime. Saved space will be used
+>for a family pointer in later patches.
+>
+>Signed-off-by: Jakub Kicinski <kuba@kernel.org>
 
-Acked-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Jiri Pirko <jiri@nvidia.com>
 
-That's not eactly the deep review I'd like to do, but as I'm about to
-head out for vacation that's probably as good as it gets.
+I'm fine with the existing message, but what Johannes suggests is also
+ok.
