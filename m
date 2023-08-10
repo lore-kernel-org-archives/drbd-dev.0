@@ -1,18 +1,26 @@
-Return-Path: <gustavo.walbon@luizalabs.com>
-Received: from mail-ed1-f41.google.com (mail-ed1-f41.google.com
-	[209.85.208.41])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 01ACE420171
-	for <drbd-dev@lists.linbit.com>; Tue,  8 Aug 2023 13:24:37 +0200 (CEST)
-Received: by mail-ed1-f41.google.com with SMTP id
-	4fb4d7f45d1cf-523225dd110so5430179a12.0
-	for <drbd-dev@lists.linbit.com>; Tue, 08 Aug 2023 04:24:37 -0700 (PDT)
+Return-Path: <kuba@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C92C74252BC
+	for <drbd-dev@lists.linbit.com>;
+	Fri, 11 Aug 2023 01:38:52 +0200 (CEST)
+From: Jakub Kicinski <kuba@kernel.org>
+To: davem@davemloft.net
+Date: Thu, 10 Aug 2023 16:38:38 -0700
+Message-ID: <20230810233845.2318049-4-kuba@kernel.org>
+In-Reply-To: <20230810233845.2318049-1-kuba@kernel.org>
+References: <20230810233845.2318049-1-kuba@kernel.org>
 MIME-Version: 1.0
-From: Gustavo Luiz Ferreira Walbon <gustavo.walbon@luizalabs.com>
-Date: Tue, 8 Aug 2023 08:24:24 -0300
-Message-ID: <CAPPH7CSAXNbAKFLDSbdBGoCiZAE-FuqHRio4Kh2G_7gsHZigOw@mail.gmail.com>
-To: drbd-user@lists.linbit.com, drbd-dev@lists.linbit.com
-Content-Type: multipart/alternative; boundary="000000000000afd2750602679b49"
-Subject: [Drbd-dev] Improvement of output log
+Content-Transfer-Encoding: 8bit
+Cc: axboe@kernel.dk, linux-block@vger.kernel.org, jiri@resnulli.us,
+	netdev@vger.kernel.org, dev@openvswitch.org,
+	philipp.reisner@linbit.com, pshelar@ovn.org, jmaloy@redhat.com,
+	edumazet@google.com, tipc-discussion@lists.sourceforge.net,
+	Jiri Pirko <jiri@nvidia.com>, ying.xue@windriver.com,
+	Jakub Kicinski <kuba@kernel.org>, johannes@sipsolutions.net,
+	pabeni@redhat.com, drbd-dev@lists.linbit.com,
+	lars.ellenberg@linbit.com, jacob.e.keller@intel.com
+Subject: [Drbd-dev] [PATCH net-next v2 03/10] genetlink: remove userhdr from
+	struct genl_info
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,90 +32,314 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
---000000000000afd2750602679b49
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Only three families use info->userhdr today and going forward
+we discourage using fixed headers in new families.
+So having the pointer to user header in struct genl_info
+is an overkill. Compute the header pointer at runtime.
 
-Hi,
+Reviewed-by: Johannes Berg <johannes@sipsolutions.net>
+Reviewed-by: Jiri Pirko <jiri@nvidia.com>
+Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+---
+CC: philipp.reisner@linbit.com
+CC: lars.ellenberg@linbit.com
+CC: christoph.boehmwalder@linbit.com
+CC: axboe@kernel.dk
+CC: pshelar@ovn.org
+CC: jmaloy@redhat.com
+CC: ying.xue@windriver.com
+CC: jacob.e.keller@intel.com
+CC: drbd-dev@lists.linbit.com
+CC: linux-block@vger.kernel.org
+CC: dev@openvswitch.org
+CC: tipc-discussion@lists.sourceforge.net
+---
+ drivers/block/drbd/drbd_nl.c |  9 +++++----
+ include/net/genetlink.h      |  7 +++++--
+ net/netlink/genetlink.c      |  1 -
+ net/openvswitch/conntrack.c  |  2 +-
+ net/openvswitch/datapath.c   | 29 ++++++++++++++++-------------
+ net/openvswitch/meter.c      | 10 +++++-----
+ net/tipc/netlink_compat.c    |  2 +-
+ 7 files changed, 33 insertions(+), 27 deletions(-)
 
-I have been searching for a way to configure DRBD to provide more detailed
-reports when handling requests among the nodes with volumes. This is
-particularly important when investigating an issue like a call trace from a
-module.
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index cddae6f4b00f..d3538bd83fb3 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -159,7 +159,7 @@ static int drbd_msg_sprintf_info(struct sk_buff *skb, const char *fmt, ...)
+ static int drbd_adm_prepare(struct drbd_config_context *adm_ctx,
+ 	struct sk_buff *skb, struct genl_info *info, unsigned flags)
+ {
+-	struct drbd_genlmsghdr *d_in = info->userhdr;
++	struct drbd_genlmsghdr *d_in = genl_info_userhdr(info);
+ 	const u8 cmd = info->genlhdr->cmd;
+ 	int err;
+ 
+@@ -1396,8 +1396,9 @@ static void drbd_suspend_al(struct drbd_device *device)
+ 
+ static bool should_set_defaults(struct genl_info *info)
+ {
+-	unsigned flags = ((struct drbd_genlmsghdr*)info->userhdr)->flags;
+-	return 0 != (flags & DRBD_GENL_F_SET_DEFAULTS);
++	struct drbd_genlmsghdr *dh = genl_info_userhdr(info);
++
++	return 0 != (dh->flags & DRBD_GENL_F_SET_DEFAULTS);
+ }
+ 
+ static unsigned int drbd_al_extents_max(struct drbd_backing_dev *bdev)
+@@ -4276,7 +4277,7 @@ static void device_to_info(struct device_info *info,
+ int drbd_adm_new_minor(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct drbd_config_context adm_ctx;
+-	struct drbd_genlmsghdr *dh = info->userhdr;
++	struct drbd_genlmsghdr *dh = genl_info_userhdr(info);
+ 	enum drbd_ret_code retcode;
+ 
+ 	retcode = drbd_adm_prepare(&adm_ctx, skb, info, DRBD_ADM_NEED_RESOURCE);
+diff --git a/include/net/genetlink.h b/include/net/genetlink.h
+index 0366d0925596..9dc21ec15734 100644
+--- a/include/net/genetlink.h
++++ b/include/net/genetlink.h
+@@ -95,7 +95,6 @@ struct genl_family {
+  * @snd_portid: netlink portid of sender
+  * @nlhdr: netlink message header
+  * @genlhdr: generic netlink message header
+- * @userhdr: user specific header
+  * @attrs: netlink attributes
+  * @_net: network namespace
+  * @user_ptr: user pointers
+@@ -106,7 +105,6 @@ struct genl_info {
+ 	u32			snd_portid;
+ 	const struct nlmsghdr *	nlhdr;
+ 	struct genlmsghdr *	genlhdr;
+-	void *			userhdr;
+ 	struct nlattr **	attrs;
+ 	possible_net_t		_net;
+ 	void *			user_ptr[2];
+@@ -123,6 +121,11 @@ static inline void genl_info_net_set(struct genl_info *info, struct net *net)
+ 	write_pnet(&info->_net, net);
+ }
+ 
++static inline void *genl_info_userhdr(const struct genl_info *info)
++{
++	return (u8 *)info->genlhdr + GENL_HDRLEN;
++}
++
+ #define GENL_SET_ERR_MSG(info, msg) NL_SET_ERR_MSG((info)->extack, msg)
+ 
+ #define GENL_SET_ERR_MSG_FMT(info, msg, args...) \
+diff --git a/net/netlink/genetlink.c b/net/netlink/genetlink.c
+index 0d4285688ab9..f98f730bb245 100644
+--- a/net/netlink/genetlink.c
++++ b/net/netlink/genetlink.c
+@@ -943,7 +943,6 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
+ 	info.snd_portid = NETLINK_CB(skb).portid;
+ 	info.nlhdr = nlh;
+ 	info.genlhdr = nlmsg_data(nlh);
+-	info.userhdr = nlmsg_data(nlh) + GENL_HDRLEN;
+ 	info.attrs = attrbuf;
+ 	info.extack = extack;
+ 	genl_info_net_set(&info, net);
+diff --git a/net/openvswitch/conntrack.c b/net/openvswitch/conntrack.c
+index fa955e892210..03a6220b7d99 100644
+--- a/net/openvswitch/conntrack.c
++++ b/net/openvswitch/conntrack.c
+@@ -1604,7 +1604,7 @@ static struct sk_buff *
+ ovs_ct_limit_cmd_reply_start(struct genl_info *info, u8 cmd,
+ 			     struct ovs_header **ovs_reply_header)
+ {
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct sk_buff *skb;
+ 
+ 	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+diff --git a/net/openvswitch/datapath.c b/net/openvswitch/datapath.c
+index a6d2a0b1aa21..80f5f755b0e6 100644
+--- a/net/openvswitch/datapath.c
++++ b/net/openvswitch/datapath.c
+@@ -589,7 +589,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
+ 
+ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
+ {
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct net *net = sock_net(skb->sk);
+ 	struct nlattr **a = info->attrs;
+ 	struct sw_flow_actions *acts;
+@@ -966,7 +966,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct net *net = sock_net(skb->sk);
+ 	struct nlattr **a = info->attrs;
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct sw_flow *flow = NULL, *new_flow;
+ 	struct sw_flow_mask mask;
+ 	struct sk_buff *reply;
+@@ -1213,7 +1213,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct net *net = sock_net(skb->sk);
+ 	struct nlattr **a = info->attrs;
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct sw_flow_key key;
+ 	struct sw_flow *flow;
+ 	struct sk_buff *reply = NULL;
+@@ -1314,7 +1314,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
+ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct nlattr **a = info->attrs;
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct net *net = sock_net(skb->sk);
+ 	struct sw_flow_key key;
+ 	struct sk_buff *reply;
+@@ -1373,7 +1373,7 @@ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
+ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct nlattr **a = info->attrs;
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct net *net = sock_net(skb->sk);
+ 	struct sw_flow_key key;
+ 	struct sk_buff *reply;
+@@ -1641,7 +1641,7 @@ static void ovs_dp_reset_user_features(struct sk_buff *skb,
+ {
+ 	struct datapath *dp;
+ 
+-	dp = lookup_datapath(sock_net(skb->sk), info->userhdr,
++	dp = lookup_datapath(sock_net(skb->sk), genl_info_userhdr(info),
+ 			     info->attrs);
+ 	if (IS_ERR(dp))
+ 		return;
+@@ -1934,7 +1934,8 @@ static int ovs_dp_cmd_del(struct sk_buff *skb, struct genl_info *info)
+ 		return -ENOMEM;
+ 
+ 	ovs_lock();
+-	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
++	dp = lookup_datapath(sock_net(skb->sk), genl_info_userhdr(info),
++			     info->attrs);
+ 	err = PTR_ERR(dp);
+ 	if (IS_ERR(dp))
+ 		goto err_unlock_free;
+@@ -1967,7 +1968,8 @@ static int ovs_dp_cmd_set(struct sk_buff *skb, struct genl_info *info)
+ 		return -ENOMEM;
+ 
+ 	ovs_lock();
+-	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
++	dp = lookup_datapath(sock_net(skb->sk), genl_info_userhdr(info),
++			     info->attrs);
+ 	err = PTR_ERR(dp);
+ 	if (IS_ERR(dp))
+ 		goto err_unlock_free;
+@@ -2002,7 +2004,8 @@ static int ovs_dp_cmd_get(struct sk_buff *skb, struct genl_info *info)
+ 		return -ENOMEM;
+ 
+ 	ovs_lock();
+-	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
++	dp = lookup_datapath(sock_net(skb->sk), genl_info_userhdr(info),
++			     info->attrs);
+ 	if (IS_ERR(dp)) {
+ 		err = PTR_ERR(dp);
+ 		goto err_unlock_free;
+@@ -2245,7 +2248,7 @@ static void ovs_update_headroom(struct datapath *dp, unsigned int new_headroom)
+ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct nlattr **a = info->attrs;
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct vport_parms parms;
+ 	struct sk_buff *reply;
+ 	struct vport *vport;
+@@ -2347,7 +2350,7 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
+ 		return -ENOMEM;
+ 
+ 	ovs_lock();
+-	vport = lookup_vport(sock_net(skb->sk), info->userhdr, a);
++	vport = lookup_vport(sock_net(skb->sk), genl_info_userhdr(info), a);
+ 	err = PTR_ERR(vport);
+ 	if (IS_ERR(vport))
+ 		goto exit_unlock_free;
+@@ -2403,7 +2406,7 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
+ 		return -ENOMEM;
+ 
+ 	ovs_lock();
+-	vport = lookup_vport(sock_net(skb->sk), info->userhdr, a);
++	vport = lookup_vport(sock_net(skb->sk), genl_info_userhdr(info), a);
+ 	err = PTR_ERR(vport);
+ 	if (IS_ERR(vport))
+ 		goto exit_unlock_free;
+@@ -2446,7 +2449,7 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
+ static int ovs_vport_cmd_get(struct sk_buff *skb, struct genl_info *info)
+ {
+ 	struct nlattr **a = info->attrs;
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct sk_buff *reply;
+ 	struct vport *vport;
+ 	int err;
+diff --git a/net/openvswitch/meter.c b/net/openvswitch/meter.c
+index c4ebf810e4b1..cc08e0403909 100644
+--- a/net/openvswitch/meter.c
++++ b/net/openvswitch/meter.c
+@@ -211,7 +211,7 @@ ovs_meter_cmd_reply_start(struct genl_info *info, u8 cmd,
+ 			  struct ovs_header **ovs_reply_header)
+ {
+ 	struct sk_buff *skb;
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 
+ 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+ 	if (!skb)
+@@ -272,7 +272,7 @@ static int ovs_meter_cmd_reply_stats(struct sk_buff *reply, u32 meter_id,
+ 
+ static int ovs_meter_cmd_features(struct sk_buff *skb, struct genl_info *info)
+ {
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct ovs_header *ovs_reply_header;
+ 	struct nlattr *nla, *band_nla;
+ 	struct sk_buff *reply;
+@@ -409,7 +409,7 @@ static int ovs_meter_cmd_set(struct sk_buff *skb, struct genl_info *info)
+ 	struct dp_meter *meter, *old_meter;
+ 	struct sk_buff *reply;
+ 	struct ovs_header *ovs_reply_header;
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct dp_meter_table *meter_tbl;
+ 	struct datapath *dp;
+ 	int err;
+@@ -482,7 +482,7 @@ static int ovs_meter_cmd_set(struct sk_buff *skb, struct genl_info *info)
+ 
+ static int ovs_meter_cmd_get(struct sk_buff *skb, struct genl_info *info)
+ {
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct ovs_header *ovs_reply_header;
+ 	struct nlattr **a = info->attrs;
+ 	struct dp_meter *meter;
+@@ -535,7 +535,7 @@ static int ovs_meter_cmd_get(struct sk_buff *skb, struct genl_info *info)
+ 
+ static int ovs_meter_cmd_del(struct sk_buff *skb, struct genl_info *info)
+ {
+-	struct ovs_header *ovs_header = info->userhdr;
++	struct ovs_header *ovs_header = genl_info_userhdr(info);
+ 	struct ovs_header *ovs_reply_header;
+ 	struct nlattr **a = info->attrs;
+ 	struct dp_meter *old_meter;
+diff --git a/net/tipc/netlink_compat.c b/net/tipc/netlink_compat.c
+index 9b47c8409231..299cd6754f14 100644
+--- a/net/tipc/netlink_compat.c
++++ b/net/tipc/netlink_compat.c
+@@ -1294,7 +1294,7 @@ static int tipc_nl_compat_recv(struct sk_buff *skb, struct genl_info *info)
+ 	struct tipc_nl_compat_msg msg;
+ 	struct nlmsghdr *req_nlh;
+ 	struct nlmsghdr *rep_nlh;
+-	struct tipc_genlmsghdr *req_userhdr = info->userhdr;
++	struct tipc_genlmsghdr *req_userhdr = genl_info_userhdr(info);
+ 
+ 	memset(&msg, 0, sizeof(msg));
+ 
+-- 
+2.41.0
 
-Could you please advise on how I can enhance the output in a reproducible
-scenario of an issue?
-
-Regards,
-
---=20
-*Gustavo L F Walbon*
-Desenvolvedor S=C3=AAnior, Luiza Labs, IaaS Core
-
---=20
-
-
-
-
-_=E2=80=98Esta mensagem =C3=A9 direcionada apenas para os endere=C3=A7os co=
-nstantes no=20
-cabe=C3=A7alho inicial. Se voc=C3=AA n=C3=A3o est=C3=A1 listado nos endere=
-=C3=A7os constantes no=20
-cabe=C3=A7alho, pedimos-lhe que desconsidere completamente o conte=C3=BAdo =
-dessa=20
-mensagem e cuja c=C3=B3pia, encaminhamento e/ou execu=C3=A7=C3=A3o das a=C3=
-=A7=C3=B5es citadas est=C3=A3o=20
-imediatamente anuladas e proibidas=E2=80=99._
-
-
-*=C2=A0**=E2=80=98Apesar do Magazine Luiza tomar=20
-todas as precau=C3=A7=C3=B5es razo=C3=A1veis para assegurar que nenhum v=C3=
-=ADrus esteja=20
-presente nesse e-mail, a empresa n=C3=A3o poder=C3=A1 aceitar a responsabil=
-idade por=20
-quaisquer perdas ou danos causados por esse e-mail ou por seus anexos=E2=80=
-=99.*
-
-
-
-
---000000000000afd2750602679b49
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div>Hi,<br><br>I have been searching for a way to configu=
-re DRBD to provide more detailed reports when handling requests among the n=
-odes with volumes. This is particularly important when investigating an iss=
-ue like a call trace from a module.<br><br>Could you please advise on how I=
- can enhance the output in a reproducible scenario of an issue?<br><br>Rega=
-rds,<br clear=3D"all"><div><br></div><span class=3D"gmail_signature_prefix"=
->-- </span><br><div dir=3D"ltr" class=3D"gmail_signature" data-smartmail=3D=
-"gmail_signature"><div dir=3D"ltr"><font size=3D"4"><b>Gustavo L F Walbon</=
-b></font><div>Desenvolvedor S=C3=AAnior, Luiza Labs, IaaS Core</div><div><b=
-r></div><div><br></div></div></div></div></div>
-
-<br>
-<div style=3D"font-family:Arial,Helvetica,sans-serif;font-size:1.3em"><div =
-style=3D"color:rgb(97,97,97);font-family:&#39;Open Sans&#39;;font-size:14px=
-;line-height:21px;background-color:rgb(255,255,255)"><div style=3D"color:rg=
-b(34,34,34);font-family:arial,sans-serif;font-size:12.8000001907349px;line-=
-height:normal"><div style=3D"font-family:Arial,Helvetica,sans-serif;font-si=
-ze:1.3em"><div style=3D"color:rgb(97,97,97);font-family:&#39;Open Sans&#39;=
-;font-size:14px;line-height:21px"><div style=3D"color:rgb(34,34,34);font-fa=
-mily:arial,sans-serif;font-size:12.8000001907349px;line-height:normal"><br>=
-</div></div></div><div style=3D"font-family:Arial,Helvetica,sans-serif;font=
--size:1.3em"><i style=3D"font-family:arial,sans-serif;font-size:x-small">=
-=E2=80=98Esta mensagem =C3=A9 direcionada apenas para os endere=C3=A7os con=
-stantes no cabe=C3=A7alho inicial. Se voc=C3=AA n=C3=A3o est=C3=A1 listado =
-nos endere=C3=A7os constantes no cabe=C3=A7alho, pedimos-lhe que desconside=
-re completamente o conte=C3=BAdo dessa mensagem e cuja c=C3=B3pia, encaminh=
-amento e/ou execu=C3=A7=C3=A3o das a=C3=A7=C3=B5es citadas est=C3=A3o imedi=
-atamente anuladas e proibidas=E2=80=99.</i></div><div style=3D"font-family:=
-Arial,Helvetica,sans-serif;font-size:1.3em"><p style=3D"font-family:arial,s=
-ans-serif;text-align:justify"><i><font size=3D"1">=C2=A0</font></i><i><font=
- size=3D"1">=E2=80=98Apesar do Magazine Luiza tomar todas as precau=C3=A7=
-=C3=B5es razo=C3=A1veis para assegurar que nenhum v=C3=ADrus esteja present=
-e nesse e-mail, a empresa n=C3=A3o poder=C3=A1 aceitar a responsabilidade p=
-or quaisquer perdas ou danos causados por esse e-mail ou por seus anexos=E2=
-=80=99.</font></i></p></div></div></div></div>
---000000000000afd2750602679b49--
