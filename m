@@ -1,20 +1,21 @@
-Return-Path: <jack@suse.cz>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.220.28])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C711A426838
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Aug 2023 15:47:57 +0200 (CEST)
-Date: Fri, 25 Aug 2023 15:47:56 +0200
-From: Jan Kara <jack@suse.cz>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Message-ID: <20230825134756.o3wpq6bogndukn53@quack3>
+Return-Path: <viro@ftp.linux.org.uk>
+Received: from zeniv.linux.org.uk (zeniv.linux.org.uk [62.89.141.173])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EF7A44252EE
+	for <drbd-dev@lists.linbit.com>; Sat, 26 Aug 2023 04:29:14 +0200 (CEST)
+Date: Sat, 26 Aug 2023 03:28:52 +0100
+From: Al Viro <viro@zeniv.linux.org.uk>
+To: Jan Kara <jack@suse.cz>
+Message-ID: <20230826022852.GO3390869@ZenIV>
 References: <20230810171429.31759-1-jack@suse.cz>
 	<20230825015843.GB95084@ZenIV>
+	<20230825134756.o3wpq6bogndukn53@quack3>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230825015843.GB95084@ZenIV>
+In-Reply-To: <20230825134756.o3wpq6bogndukn53@quack3>
+Sender: Al Viro <viro@ftp.linux.org.uk>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
-	linux-nvme@lists.infradead.org,
+	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	Jack Wang <jinpu.wang@ionos.com>,
@@ -54,61 +55,76 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri 25-08-23 02:58:43, Al Viro wrote:
-> On Fri, Aug 11, 2023 at 01:04:31PM +0200, Jan Kara wrote:
-> > Hello,
-> > 
-> > this is a v2 of the patch series which implements the idea of blkdev_get_by_*()
-> > calls returning bdev_handle which is then passed to blkdev_put() [1]. This
-> > makes the get and put calls for bdevs more obviously matching and allows us to
-> > propagate context from get to put without having to modify all the users
-> > (again!).  In particular I need to propagate used open flags to blkdev_put() to
-> > be able count writeable opens and add support for blocking writes to mounted
-> > block devices. I'll send that series separately.
-> > 
-> > The series is based on Christian's vfs tree as of yesterday as there is quite
-> > some overlap. Patches have passed some reasonable testing - I've tested block
-> > changes, md, dm, bcache, xfs, btrfs, ext4, swap. This obviously doesn't cover
-> > everything so I'd like to ask respective maintainers to review / test their
-> > changes. Thanks! I've pushed out the full branch to:
-> > 
-> > git://git.kernel.org/pub/scm/linux/kernel/git/jack/linux-fs.git bdev_handle
-> > 
-> > to ease review / testing.
-> 
-> Hmm...  Completely Insane Idea(tm): how about turning that thing inside out and
-> having your bdev_open_by... return an actual opened struct file?
-> 
-> After all, we do that for sockets and pipes just fine and that's a whole lot
-> hotter area.
-> 
-> Suppose we leave blkdev_open()/blkdev_release() as-is.  No need to mess with
-> what we have for normal opened files for block devices.  And have block_open_by_dev()
-> that would find bdev, etc., same yours does and shove it into anon file.
-> 
-> Paired with plain fput() - no need to bother with new primitives for closing.
-> With a helper returning I_BDEV(bdev_file_inode(file)) to get from those to bdev.
-> 
-> NOTE: I'm not suggesting replacing ->s_bdev with struct file * if we do that -
-> we want that value cached, obviously.  Just store both...
-> 
-> Not saying it's a good idea, but... might be interesting to look into.
-> Comments?
+On Fri, Aug 25, 2023 at 03:47:56PM +0200, Jan Kara wrote:
 
-I can see the appeal of not having to introduce the new bdev_handle type
-and just using struct file which unifies in-kernel and userspace block
-device opens. But I can see downsides too - the last fput() happening from
-task work makes me a bit nervous whether it will not break something
-somewhere with exclusive bdev opens. Getting from struct file to bdev is
-somewhat harder but I guess a helper like F_BDEV() would solve that just
-fine.
+> I can see the appeal of not having to introduce the new bdev_handle type
+> and just using struct file which unifies in-kernel and userspace block
+> device opens. But I can see downsides too - the last fput() happening from
+> task work makes me a bit nervous whether it will not break something
+> somewhere with exclusive bdev opens. Getting from struct file to bdev is
+> somewhat harder but I guess a helper like F_BDEV() would solve that just
+> fine.
+> 
+> So besides my last fput() worry about I think this could work and would be
+> probably a bit nicer than what I have. But before going and redoing the whole
+> series let me gather some more feedback so that we don't go back and forth.
+> Christoph, Christian, Jens, any opinion?
 
-So besides my last fput() worry about I think this could work and would be
-probably a bit nicer than what I have. But before going and redoing the whole
-series let me gather some more feedback so that we don't go back and forth.
-Christoph, Christian, Jens, any opinion?
+Redoing is not an issue - it can be done on top of your series just
+as well.  Async behaviour of fput() might be, but...  need to look
+through the actual users; for a lot of them it's perfectly fine.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+FWIW, from a cursory look there appears to be a missing primitive: take
+an opened bdev (or bdev_handle, with your variant, or opened file if we
+go that way eventually) and claim it.
+
+I mean, look at claim_swapfile() for example:
+                p->bdev = blkdev_get_by_dev(inode->i_rdev,
+                                   FMODE_READ | FMODE_WRITE | FMODE_EXCL, p);
+                if (IS_ERR(p->bdev)) {
+                        error = PTR_ERR(p->bdev);
+                        p->bdev = NULL;
+                        return error;
+                }
+                p->old_block_size = block_size(p->bdev);
+                error = set_blocksize(p->bdev, PAGE_SIZE);
+                if (error < 0)
+                        return error;
+we already have the file opened, and we keep it opened all the way until
+the swapoff(2); here we have noticed that it's a block device and we
+	* open the fucker again (by device number), this time claiming
+it with our swap_info_struct as holder, to be closed at swapoff(2) time
+(just before we close the file)
+	* flip the block size to PAGE_SIZE, to be reverted at swapoff(2)
+time That really looks like it ought to be
+	* take the opened file, see that it's a block device
+	* try to claim it with that holder
+	* on success, flip the block size
+with close_filp() in the swapoff(2) (or failure exit path in swapon(2))
+doing what it would've done for an O_EXCL opened block device.
+The only difference from O_EXCL userland open is that here we would
+end up with holder pointing not to struct file in question, but to our
+swap_info_struct.  It will do the right thing.
+
+This extra open is entirely due to "well, we need to claim it and the
+primitive that does that happens to be tied to opening"; feels rather
+counter-intuitive.
+
+For that matter, we could add an explicit "unclaim" primitive - might
+be easier to follow.  That would add another example where that could
+be used - in blkdev_bszset() we have an opened block device (it's an
+ioctl, after all), we want to change block size and we *really* don't
+want to have that happen under a mounted filesystem.  So if it's not
+opened exclusive, we do a temporary exclusive open of own and act on
+that instead.   Might as well go for a temporary claim...
+
+BTW, what happens if two threads call ioctl(fd, BLKBSZSET, &n)
+for the same descriptor that happens to have been opened O_EXCL?
+Without O_EXCL they would've been unable to claim the sucker at the same
+time - the holder we are using is the address of a function argument,
+i.e. something that points to kernel stack of the caller.  Those would
+conflict and we either get set_blocksize() calls fully serialized, or
+one of the callers would eat -EBUSY.  Not so in "opened with O_EXCL"
+case - they can very well overlap and IIRC set_blocksize() does *not*
+expect that kind of crap...  It's all under CAP_SYS_ADMIN, so it's not
+as if it was a meaningful security hole anyway, but it does look fishy.
