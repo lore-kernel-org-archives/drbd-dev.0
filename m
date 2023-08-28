@@ -1,17 +1,17 @@
-Return-Path: <brauner@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C7964420216
-	for <drbd-dev@lists.linbit.com>;
-	Mon, 28 Aug 2023 15:21:05 +0200 (CEST)
-Date: Mon, 28 Aug 2023 15:20:47 +0200
-From: Christian Brauner <brauner@kernel.org>
+Return-Path: <BATV+b83d16e5cd0c301f07e4+7309+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E1C004203B3
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Aug 2023 16:22:39 +0200 (CEST)
+Date: Mon, 28 Aug 2023 07:22:21 -0700
+From: Christoph Hellwig <hch@infradead.org>
 To: Jan Kara <jack@suse.cz>
-Message-ID: <20230828-durften-hauswand-67319ee0c17c@brauner>
+Message-ID: <ZOytnQV0CH+vEIrr@infradead.org>
 References: <20230810171429.31759-1-jack@suse.cz>
 	<20230825015843.GB95084@ZenIV>
 	<20230825134756.o3wpq6bogndukn53@quack3>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20230825134756.o3wpq6bogndukn53@quack3>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
@@ -26,7 +26,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	xen-devel@lists.xenproject.org, Gao Xiang <xiang@kernel.org>,
 	Christian Borntraeger <borntraeger@linux.ibm.com>,
 	Kent Overstreet <kent.overstreet@gmail.com>,
-	Sven Schnelle <svens@linux.ibm.com>, linux-pm@vger.kernel.org,
+	Sven Schnelle <svens@linux.ibm.com>,
+	Christian Brauner <brauner@kernel.org>, linux-pm@vger.kernel.org,
 	Mike Snitzer <snitzer@kernel.org>, Chao Yu <chao@kernel.org>,
 	Joern Engel <joern@lazybastard.org>,
 	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
@@ -55,12 +56,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+On Fri, Aug 25, 2023 at 03:47:56PM +0200, Jan Kara wrote:
+> I can see the appeal of not having to introduce the new bdev_handle type
+> and just using struct file which unifies in-kernel and userspace block
+> device opens. But I can see downsides too - the last fput() happening from
+> task work makes me a bit nervous whether it will not break something
+> somewhere with exclusive bdev opens. Getting from struct file to bdev is
+> somewhat harder but I guess a helper like F_BDEV() would solve that just
+> fine.
+> 
 > So besides my last fput() worry about I think this could work and would be
 > probably a bit nicer than what I have. But before going and redoing the whole
 > series let me gather some more feedback so that we don't go back and forth.
 > Christoph, Christian, Jens, any opinion?
 
-I'll be a bit under water for the next few days, I expect but I'll get
-back to this. I think not making you redo this whole thing from scratch
-is what I'd prefer unless there's really clear advantages. But I don't
-want to offer a haphazard opinion in the middle of the merge window.
+I did think about the file a bit.  The fact that we'd need something
+like an anon_file for the by_dev open was always a huge turn off for
+me, but maybe my concern is overblown.  Having a struct file would
+actually be really useful for a bunch of users.
+
