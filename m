@@ -1,20 +1,17 @@
-Return-Path: <BATV+b83d16e5cd0c301f07e4+7309+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6AFD64201C8
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Aug 2023 16:27:46 +0200 (CEST)
-Date: Mon, 28 Aug 2023 07:27:36 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Message-ID: <ZOyu2FX7Fmzj6JJz@infradead.org>
-References: <20230810171429.31759-1-jack@suse.cz>
-	<20230825015843.GB95084@ZenIV>
-	<20230825134756.o3wpq6bogndukn53@quack3>
-	<20230826022852.GO3390869@ZenIV>
+Return-Path: <jack@suse.cz>
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C77164201C8
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Aug 2023 19:07:45 +0200 (CEST)
+Date: Mon, 28 Aug 2023 19:07:44 +0200
+From: Jan Kara <jack@suse.cz>
+To: Christian Brauner <brauner@kernel.org>
+Message-ID: <20230828170744.iifdmaw732cfiauf@quack3>
+References: <20230818123232.2269-1-jack@suse.cz>
+	<20230825-hubraum-gedreht-8c5c4db9330a@brauner>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230826022852.GO3390869@ZenIV>
+In-Reply-To: <20230825-hubraum-gedreht-8c5c4db9330a@brauner>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
 	linux-nvme@lists.infradead.org,
@@ -32,8 +29,8 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	Mike Snitzer <snitzer@kernel.org>, Chao Yu <chao@kernel.org>,
 	Joern Engel <joern@lazybastard.org>,
 	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, Christian Brauner <brauner@kernel.org>,
-	David Sterba <dsterba@suse.com>, Jaegeuk Kim <jaegeuk@kernel.org>,
+	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
+	Jaegeuk Kim <jaegeuk@kernel.org>,
 	Trond Myklebust <trond.myklebust@hammerspace.com>,
 	Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
 	linux-nfs@vger.kernel.org, linux-ext4@vger.kernel.org,
@@ -44,7 +41,7 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	linux-fsdevel@vger.kernel.org, "Md. Haris Iqbal" <haris.iqbal@ionos.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH v2 0/29] block: Make blkdev_get_by_*() return
+Subject: Re: [Drbd-dev] [PATCH v3 0/29] block: Make blkdev_get_by_*() return
 	handle
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -57,40 +54,42 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sat, Aug 26, 2023 at 03:28:52AM +0100, Al Viro wrote:
-> I mean, look at claim_swapfile() for example:
->                 p->bdev = blkdev_get_by_dev(inode->i_rdev,
->                                    FMODE_READ | FMODE_WRITE | FMODE_EXCL, p);
->                 if (IS_ERR(p->bdev)) {
->                         error = PTR_ERR(p->bdev);
->                         p->bdev = NULL;
->                         return error;
->                 }
->                 p->old_block_size = block_size(p->bdev);
->                 error = set_blocksize(p->bdev, PAGE_SIZE);
->                 if (error < 0)
->                         return error;
-> we already have the file opened, and we keep it opened all the way until
-> the swapoff(2); here we have noticed that it's a block device and we
-> 	* open the fucker again (by device number), this time claiming
-> it with our swap_info_struct as holder, to be closed at swapoff(2) time
-> (just before we close the file)
+On Fri 25-08-23 15:32:47, Christian Brauner wrote:
+> On Wed, Aug 23, 2023 at 12:48:11PM +0200, Jan Kara wrote:
+> > Hello,
+> > 
+> > this is a v3 of the patch series which implements the idea of blkdev_get_by_*()
+> > calls returning bdev_handle which is then passed to blkdev_put() [1]. This
+> > makes the get and put calls for bdevs more obviously matching and allows us to
+> > propagate context from get to put without having to modify all the users
+> > (again!). In particular I need to propagate used open flags to blkdev_put() to
+> > be able count writeable opens and add support for blocking writes to mounted
+> > block devices. I'll send that series separately.
+> > 
+> > The series is based on Christian's vfs tree as of today as there is quite
+> > some overlap. Patches have passed some reasonable testing - I've tested block
+> > changes, md, dm, bcache, xfs, btrfs, ext4, swap. More testing or review is
+> > always welcome. Thanks! I've pushed out the full branch to:
+> > 
+> > git://git.kernel.org/pub/scm/linux/kernel/git/jack/linux-fs.git bdev_handle
+> > 
+> > to ease review / testing. Since there were not many comments for v2 and
+> > Christoph has acked the series I think we should start discussing how to merge
+> > the series. Most collisions with this series seem to happen in the filesystems
+> > area so VFS tree would seem as the least painful way to merge this. Jens,
+> 
+> I really do like this series especially struct bdev_handle and moving
+> the mode bits in there. I'll happily take this. So far there have only
+> been minor things that can easily be fixed.
 
-Note that some drivers look at FMODE_EXCL/BLK_OPEN_EXCL in ->open.
-These are probably bogus and maybe we want to kill them, but that will
-need an audit first.
+Thanks. Since Al is fine with just doing a potential conversion to 'struct
+file' as a handle on top of this series (it will be dumb Coccinelle
+replacement) I think we can go ahead with the series as is. As you said
+there will be some conflicts in btrfs and I've learned about f2fs conflicts
+as well so I can rebase & repost the series on top of rc1 to make life
+easier for you.
 
-> BTW, what happens if two threads call ioctl(fd, BLKBSZSET, &n)
-> for the same descriptor that happens to have been opened O_EXCL?
-> Without O_EXCL they would've been unable to claim the sucker at the same
-> time - the holder we are using is the address of a function argument,
-> i.e. something that points to kernel stack of the caller.  Those would
-> conflict and we either get set_blocksize() calls fully serialized, or
-> one of the callers would eat -EBUSY.  Not so in "opened with O_EXCL"
-> case - they can very well overlap and IIRC set_blocksize() does *not*
-> expect that kind of crap...  It's all under CAP_SYS_ADMIN, so it's not
-> as if it was a meaningful security hole anyway, but it does look fishy.
-
-The user get to keep the pieces..  BLKBSZSET is kinda bogus anyway
-as the soft blocksize only matters for buffer_head-like I/O, and
-there only for file systems.  Not idea why anyone would set it manually.
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
