@@ -1,21 +1,23 @@
 Return-Path: <BATV+b83d16e5cd0c301f07e4+7309+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E1C004203B3
-	for <drbd-dev@lists.linbit.com>; Mon, 28 Aug 2023 16:22:39 +0200 (CEST)
-Date: Mon, 28 Aug 2023 07:22:21 -0700
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6AFD64201C8
+	for <drbd-dev@lists.linbit.com>; Mon, 28 Aug 2023 16:27:46 +0200 (CEST)
+Date: Mon, 28 Aug 2023 07:27:36 -0700
 From: Christoph Hellwig <hch@infradead.org>
-To: Jan Kara <jack@suse.cz>
-Message-ID: <ZOytnQV0CH+vEIrr@infradead.org>
+To: Al Viro <viro@zeniv.linux.org.uk>
+Message-ID: <ZOyu2FX7Fmzj6JJz@infradead.org>
 References: <20230810171429.31759-1-jack@suse.cz>
 	<20230825015843.GB95084@ZenIV>
 	<20230825134756.o3wpq6bogndukn53@quack3>
+	<20230826022852.GO3390869@ZenIV>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20230825134756.o3wpq6bogndukn53@quack3>
+In-Reply-To: <20230826022852.GO3390869@ZenIV>
 Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	"Darrick J. Wong" <djwong@kernel.org>, linux-nvme@lists.infradead.org,
+	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
+	linux-nvme@lists.infradead.org,
 	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
 	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
 	Jack Wang <jinpu.wang@ionos.com>,
@@ -26,12 +28,11 @@ Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
 	xen-devel@lists.xenproject.org, Gao Xiang <xiang@kernel.org>,
 	Christian Borntraeger <borntraeger@linux.ibm.com>,
 	Kent Overstreet <kent.overstreet@gmail.com>,
-	Sven Schnelle <svens@linux.ibm.com>,
-	Christian Brauner <brauner@kernel.org>, linux-pm@vger.kernel.org,
+	Sven Schnelle <svens@linux.ibm.com>, linux-pm@vger.kernel.org,
 	Mike Snitzer <snitzer@kernel.org>, Chao Yu <chao@kernel.org>,
 	Joern Engel <joern@lazybastard.org>,
 	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>,
+	linux-bcache@vger.kernel.org, Christian Brauner <brauner@kernel.org>,
 	David Sterba <dsterba@suse.com>, Jaegeuk Kim <jaegeuk@kernel.org>,
 	Trond Myklebust <trond.myklebust@hammerspace.com>,
 	Jens Axboe <axboe@kernel.dk>, linux-raid@vger.kernel.org,
@@ -56,22 +57,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Fri, Aug 25, 2023 at 03:47:56PM +0200, Jan Kara wrote:
-> I can see the appeal of not having to introduce the new bdev_handle type
-> and just using struct file which unifies in-kernel and userspace block
-> device opens. But I can see downsides too - the last fput() happening from
-> task work makes me a bit nervous whether it will not break something
-> somewhere with exclusive bdev opens. Getting from struct file to bdev is
-> somewhat harder but I guess a helper like F_BDEV() would solve that just
-> fine.
-> 
-> So besides my last fput() worry about I think this could work and would be
-> probably a bit nicer than what I have. But before going and redoing the whole
-> series let me gather some more feedback so that we don't go back and forth.
-> Christoph, Christian, Jens, any opinion?
+On Sat, Aug 26, 2023 at 03:28:52AM +0100, Al Viro wrote:
+> I mean, look at claim_swapfile() for example:
+>                 p->bdev = blkdev_get_by_dev(inode->i_rdev,
+>                                    FMODE_READ | FMODE_WRITE | FMODE_EXCL, p);
+>                 if (IS_ERR(p->bdev)) {
+>                         error = PTR_ERR(p->bdev);
+>                         p->bdev = NULL;
+>                         return error;
+>                 }
+>                 p->old_block_size = block_size(p->bdev);
+>                 error = set_blocksize(p->bdev, PAGE_SIZE);
+>                 if (error < 0)
+>                         return error;
+> we already have the file opened, and we keep it opened all the way until
+> the swapoff(2); here we have noticed that it's a block device and we
+> 	* open the fucker again (by device number), this time claiming
+> it with our swap_info_struct as holder, to be closed at swapoff(2) time
+> (just before we close the file)
 
-I did think about the file a bit.  The fact that we'd need something
-like an anon_file for the by_dev open was always a huge turn off for
-me, but maybe my concern is overblown.  Having a struct file would
-actually be really useful for a bunch of users.
+Note that some drivers look at FMODE_EXCL/BLK_OPEN_EXCL in ->open.
+These are probably bogus and maybe we want to kill them, but that will
+need an audit first.
 
+> BTW, what happens if two threads call ioctl(fd, BLKBSZSET, &n)
+> for the same descriptor that happens to have been opened O_EXCL?
+> Without O_EXCL they would've been unable to claim the sucker at the same
+> time - the holder we are using is the address of a function argument,
+> i.e. something that points to kernel stack of the caller.  Those would
+> conflict and we either get set_blocksize() calls fully serialized, or
+> one of the callers would eat -EBUSY.  Not so in "opened with O_EXCL"
+> case - they can very well overlap and IIRC set_blocksize() does *not*
+> expect that kind of crap...  It's all under CAP_SYS_ADMIN, so it's not
+> as if it was a meaningful security hole anyway, but it does look fishy.
+
+The user get to keep the pieces..  BLKBSZSET is kinda bogus anyway
+as the soft blocksize only matters for buffer_head-like I/O, and
+there only for file systems.  Not idea why anyone would set it manually.
