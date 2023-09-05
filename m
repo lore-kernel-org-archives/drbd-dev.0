@@ -1,20 +1,26 @@
-Return-Path: <tv@lio96.de>
-Received: from er-systems.de (er-systems.de [162.55.144.138])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 63AC442018E
-	for <drbd-dev@lists.linbit.com>; Tue,  5 Sep 2023 17:41:39 +0200 (CEST)
-Date: Tue, 5 Sep 2023 17:31:34 +0200 (CEST)
-From: Thomas Voegtle <tv@lio96.de>
-To: Linux regressions mailing list <regressions@lists.linux.dev>
-In-Reply-To: <c6282b47-114d-7bd7-6efb-856d76bea128@leemhuis.info>
-Message-ID: <33bf67cc-4f5e-b504-ce94-195d36ffc8a4@lio96.de>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-ej1-f44.google.com (mail-ej1-f44.google.com
+	[209.85.218.44])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8166D42018E
+	for <drbd-dev@lists.linbit.com>; Tue,  5 Sep 2023 19:24:17 +0200 (CEST)
+Received: by mail-ej1-f44.google.com with SMTP id
+	a640c23a62f3a-99cce6f7de2so411183766b.3
+	for <drbd-dev@lists.linbit.com>; Tue, 05 Sep 2023 10:24:17 -0700 (PDT)
+Message-ID: <525c0143-4f72-31c3-8a83-ee29c699e1e7@linbit.com>
+Date: Tue, 5 Sep 2023 19:24:15 +0200
+MIME-Version: 1.0
+To: Linux regressions mailing list <regressions@lists.linux.dev>,
+	Serguei Ivantsov <manowar@gsc-game.com>
 References: <CAKH+VT3YLmAn0Y8=q37UTDShqxDLsqPcQ4hBMzY7HPn7zNx+RQ@mail.gmail.com>
 	<c6282b47-114d-7bd7-6efb-856d76bea128@leemhuis.info>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-Cc: Serguei Ivantsov <manowar@gsc-game.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	LKML <linux-kernel@vger.kernel.org>, David Howells <dhowells@redhat.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Content-Language: en-US
+From: =?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <c6282b47-114d-7bd7-6efb-856d76bea128@leemhuis.info>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Cc: David Howells <dhowells@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>, drbd-dev@lists.linbit.com
 Subject: Re: [Drbd-dev] DRBD broken in kernel 6.5 and 6.5.1
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -27,16 +33,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Sun, 3 Sep 2023, Linux regression tracking (Thorsten Leemhuis) wrote:
-
+Am 03.09.23 um 07:45 schrieb Linux regression tracking (Thorsten Leemhuis):
 > CCing the DRBD maintainers and the appropriate lists, as they should
 > know about this -- or actually might know what is causing this already
 > or be able to guess the cause. For the rest of this mail:
->
+> 
 > [TLDR: I'm adding this report to the list of tracked Linux kernel
 > regressions; the text you find below is based on a few templates
 > paragraphs you might have encountered already in similar form.]
->
+> 
 > On 02.09.23 22:37, Serguei Ivantsov wrote:
 >> Hello,
 >>
@@ -299,55 +304,46 @@ On Sun, 3 Sep 2023, Linux regression tracking (Thorsten Leemhuis) wrote:
 >>  Best Regards,
 >>
 >>  Serguei
->
->
+> 
+> 
 > Thanks for the report. To be sure the issue doesn't fall through the
 > cracks unnoticed, I'm adding it to regzbot, the Linux kernel regression
 > tracking bot:
->
+> 
 > #regzbot ^introduced v6.4..v6.5
 > #regzbot title drbd: drbd_send_block() failed
 > #regzbot ignore-activity
->
+> 
 > This isn't a regression? This issue or a fix for it are already
 > discussed somewhere else? It was fixed already? You want to clarify when
 > the regression started to happen? Or point out I got the title or
 > something else totally wrong? Then just reply and tell me -- ideally
 > while also telling regzbot about it, as explained by the page listed in
 > the footer of this mail.
->
+> 
 > Developers: When fixing the issue, remember to add 'Link:' tags pointing
 > to the report (the parent of this mail). See page linked in footer for
 > details.
->
+> 
 > Ciao, Thorsten (wearing his 'the Linux kernel's regression tracker' hat)
 > --
 > Everything you wanna know about Linux kernel regression tracking:
 > https://linux-regtracking.leemhuis.info/about/#tldr
 > That page also explains what to do if mails like this annoy you.
->
->
 
-Saw the same problem today.
-Didn't bisect, just started reverting commits.
+Hello,
 
-I found out that a revert of
-commit eeac7405c735acde8ec78869489a5aa25a141c13
-    drbd: Use sendmsg(MSG_SPLICE_PAGES) rather than sendpage()
+thank you for the report. We were able to reproduce the issue and are
+now investigating.
 
-fixed drbd for me on Linux 6.5.0.
+Based off of context we think that eeac7405c735 ("drbd: Use
+sendmsg(MSG_SPLICE_PAGES) rather than sendpage()") is the culprit.
+(See also the other reply by Thomas Voegtle, which confirms this.)
 
-You will need to return these as well, otherwise you will not be able to
-build:
+I'm also adding David Howells to CC, maybe he has an idea what could be
+happening here.
 
-commit dc97391e661009eab46783030d2404c9b6e6f2e7
-     sock: Remove ->sendpage*() in favour of sendmsg(MSG_SPLICE_PAGES)
-
-commit b848b26c6672c9b977890ba85f5a155e5eb221f0
-     net: Kill MSG_SENDPAGE_NOTLAST
-
-
-Hope this helps.
-
-       Thomas
-
+-- 
+Christoph Böhmwalder
+LINBIT | Keeping the Digital World Running
+DRBD HA —  Disaster Recovery — Software defined Storage
