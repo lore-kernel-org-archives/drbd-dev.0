@@ -1,26 +1,28 @@
-Return-Path: <gustavo@embeddedor.com>
-Received: from omta36.uswest2.a.cloudfilter.net
-	(omta36.uswest2.a.cloudfilter.net [35.89.44.35])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D82AD4203B2
-	for <drbd-dev@lists.linbit.com>; Fri, 15 Sep 2023 22:30:59 +0200 (CEST)
-Message-ID: <c2c552ff-c650-1e69-b552-f6f872605526@embeddedor.com>
-Date: Fri, 15 Sep 2023 14:24:35 -0600
+Return-Path: <mcgrof@infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A59BA4203B2
+	for <drbd-dev@lists.linbit.com>; Sat, 16 Sep 2023 01:01:55 +0200 (CEST)
+From: Luis Chamberlain <mcgrof@kernel.org>
+To: axboe@kernel.dk, agk@redhat.com, snitzer@kernel.org,
+	philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
+	christoph.boehmwalder@linbit.com, hch@infradead.org, djwong@kernel.org,
+	minchan@kernel.org, senozhatsky@chromium.org
+Date: Fri, 15 Sep 2023 15:43:43 -0700
+Message-Id: <20230915224343.2740317-5-mcgrof@kernel.org>
+In-Reply-To: <20230915224343.2740317-1-mcgrof@kernel.org>
+References: <20230915224343.2740317-1-mcgrof@kernel.org>
 MIME-Version: 1.0
-Content-Language: en-US
-To: Kees Cook <keescook@chromium.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>
-References: <20230915200316.never.707-kees@kernel.org>
-From: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
-In-Reply-To: <20230915200316.never.707-kees@kernel.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-	Tom Rix <trix@redhat.com>, llvm@lists.linux.dev,
-	Nick Desaulniers <ndesaulniers@google.com>, linux-kernel@vger.kernel.org,
-	Nathan Chancellor <nathan@kernel.org>, linux-hardening@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
-Subject: Re: [Drbd-dev] [PATCH] drbd: Annotate struct fifo_buffer with
-	__counted_by
+Sender: Luis Chamberlain <mcgrof@infradead.org>
+Cc: p.raghav@samsung.com, linux-xfs@vger.kernel.org, rohan.puri@samsung.com,
+	da.gomez@samsung.com, mcgrof@kernel.org, patches@lists.linux.dev,
+	willy@infradead.org, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-mm@kvack.org,
+	dm-devel@redhat.com, hare@suse.de, linux-fsdevel@vger.kernel.org,
+	rpuri.linux@gmail.com, kbusch@kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH v3 4/4] zram: use generic PAGE_SECTORS and
+	PAGE_SECTORS_SHIFT
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,47 +34,76 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Instead of re-defining the already existing constants use the provided ones:
 
+So replace:
 
-On 9/15/23 14:03, Kees Cook wrote:
-> Prepare for the coming implementation by GCC and Clang of the __counted_by
-> attribute. Flexible array members annotated with __counted_by can have
-> their accesses bounds-checked at run-time checking via CONFIG_UBSAN_BOUNDS
-> (for array indexing) and CONFIG_FORTIFY_SOURCE (for strcpy/memcpy-family
-> functions).
-> 
-> As found with Coccinelle[1], add __counted_by for struct fifo_buffer.
-> 
-> [1] https://github.com/kees/kernel-tools/blob/trunk/coccinelle/examples/counted_by.cocci
-> 
-> Cc: Philipp Reisner <philipp.reisner@linbit.com>
-> Cc: Lars Ellenberg <lars.ellenberg@linbit.com>
-> Cc: "Christoph Böhmwalder" <christoph.boehmwalder@linbit.com>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: drbd-dev@lists.linbit.com
-> Cc: linux-block@vger.kernel.org
-> Signed-off-by: Kees Cook <keescook@chromium.org>
+ o SECTORS_PER_PAGE_SHIFT with PAGE_SECTORS_SHIFT
+ o SECTORS_PER_PAGE       with PAGE_SECTORS
+ o SECTORS_PER_PAGE - 1   with SECTOR_MASK
 
-Reviewed-by: Gustavo A. R. Silva <gustavoars@kernel.org>
+This produces no functional changes.
 
-Thanks
+Reviewed-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
+---
+ drivers/block/zram/zram_drv.c | 15 ++++++---------
+ drivers/block/zram/zram_drv.h |  2 --
+ 2 files changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 06673c6ca255..58d36c8574d4 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -1834,9 +1834,8 @@ static ssize_t recompress_store(struct device *dev,
+ static void zram_bio_discard(struct zram *zram, struct bio *bio)
+ {
+ 	size_t n = bio->bi_iter.bi_size;
+-	u32 index = bio->bi_iter.bi_sector >> SECTORS_PER_PAGE_SHIFT;
+-	u32 offset = (bio->bi_iter.bi_sector & (SECTORS_PER_PAGE - 1)) <<
+-			SECTOR_SHIFT;
++	u32 index = bio->bi_iter.bi_sector >> PAGE_SECTORS_SHIFT;
++	u32 offset = (bio->bi_iter.bi_sector & SECTOR_MASK) << SECTOR_SHIFT;
+ 
+ 	/*
+ 	 * zram manages data in physical block size units. Because logical block
+@@ -1874,9 +1873,8 @@ static void zram_bio_read(struct zram *zram, struct bio *bio)
+ 	struct bvec_iter iter = bio->bi_iter;
+ 
+ 	do {
+-		u32 index = iter.bi_sector >> SECTORS_PER_PAGE_SHIFT;
+-		u32 offset = (iter.bi_sector & (SECTORS_PER_PAGE - 1)) <<
+-				SECTOR_SHIFT;
++		u32 index = iter.bi_sector >> PAGE_SECTORS_SHIFT;
++		u32 offset = (iter.bi_sector & SECTOR_MASK) << SECTOR_SHIFT;
+ 		struct bio_vec bv = bio_iter_iovec(bio, iter);
+ 
+ 		bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
+@@ -1905,9 +1903,8 @@ static void zram_bio_write(struct zram *zram, struct bio *bio)
+ 	struct bvec_iter iter = bio->bi_iter;
+ 
+ 	do {
+-		u32 index = iter.bi_sector >> SECTORS_PER_PAGE_SHIFT;
+-		u32 offset = (iter.bi_sector & (SECTORS_PER_PAGE - 1)) <<
+-				SECTOR_SHIFT;
++		u32 index = iter.bi_sector >> PAGE_SECTORS_SHIFT;
++		u32 offset = (iter.bi_sector & SECTOR_MASK) << SECTOR_SHIFT;
+ 		struct bio_vec bv = bio_iter_iovec(bio, iter);
+ 
+ 		bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index ca7a15bd4845..9f2543af5c76 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -21,8 +21,6 @@
+ 
+ #include "zcomp.h"
+ 
+-#define SECTORS_PER_PAGE_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
+-#define SECTORS_PER_PAGE	(1 << SECTORS_PER_PAGE_SHIFT)
+ #define ZRAM_LOGICAL_BLOCK_SHIFT 12
+ #define ZRAM_LOGICAL_BLOCK_SIZE	(1 << ZRAM_LOGICAL_BLOCK_SHIFT)
+ #define ZRAM_SECTOR_PER_LOGICAL_BLOCK	\
 -- 
-Gustavo
+2.39.2
 
-> ---
->   drivers/block/drbd/drbd_int.h | 2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-> index a30a5ed811be..7eecc53fae3d 100644
-> --- a/drivers/block/drbd/drbd_int.h
-> +++ b/drivers/block/drbd/drbd_int.h
-> @@ -553,7 +553,7 @@ struct fifo_buffer {
->   	unsigned int head_index;
->   	unsigned int size;
->   	int total; /* sum of all values */
-> -	int values[];
-> +	int values[] __counted_by(size);
->   };
->   extern struct fifo_buffer *fifo_alloc(unsigned int fifo_size);
->   
