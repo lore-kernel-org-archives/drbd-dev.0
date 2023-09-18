@@ -1,7 +1,7 @@
 Return-Path: <prvs=618fd9b43=Johannes.Thumshirn@wdc.com>
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3178642032F
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Sep 2023 07:58:59 +0200 (CEST)
+Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4677142032F
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Sep 2023 08:00:28 +0200 (CEST)
 From: Johannes Thumshirn <Johannes.Thumshirn@wdc.com>
 To: Luis Chamberlain <mcgrof@kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>,
 	"agk@redhat.com" <agk@redhat.com>,
@@ -12,14 +12,14 @@ To: Luis Chamberlain <mcgrof@kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>,
 	"hch@infradead.org" <hch@infradead.org>, "djwong@kernel.org"
 	<djwong@kernel.org>, "minchan@kernel.org" <minchan@kernel.org>,
 	"senozhatsky@chromium.org" <senozhatsky@chromium.org>
-Date: Mon, 18 Sep 2023 05:55:46 +0000
-Message-ID: <99fac012-6c49-478a-aa9f-ce6a45bac5fc@wdc.com>
+Date: Mon, 18 Sep 2023 05:53:15 +0000
+Message-ID: <99cd384e-ce04-483a-9bf0-01ba8233cb49@wdc.com>
 References: <20230915224343.2740317-1-mcgrof@kernel.org>
-	<20230915224343.2740317-5-mcgrof@kernel.org>
-In-Reply-To: <20230915224343.2740317-5-mcgrof@kernel.org>
+	<20230915224343.2740317-3-mcgrof@kernel.org>
+In-Reply-To: <20230915224343.2740317-3-mcgrof@kernel.org>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <B8293F78DDF4F74C911F6C133B236B65@namprd04.prod.outlook.com>
+Content-ID: <C7AE1ADE406AA740BB49DAB1B104F238@namprd04.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: "p.raghav@samsung.com" <p.raghav@samsung.com>,
@@ -34,10 +34,10 @@ Cc: "p.raghav@samsung.com" <p.raghav@samsung.com>,
 	"dm-devel@redhat.com" <dm-devel@redhat.com>, "hare@suse.de" <hare@suse.de>,
 	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
 	"rpuri.linux@gmail.com" <rpuri.linux@gmail.com>,
-	"kbusch@kernel.org" <kbusch@kernel.org>,
+	Christoph Hellwig <hch@lst.de>, "kbusch@kernel.org" <kbusch@kernel.org>,
 	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH v3 4/4] zram: use generic PAGE_SECTORS and
- PAGE_SECTORS_SHIFT
+Subject: Re: [Drbd-dev] [PATCH v3 2/4] iomap: simplify iomap_init() with
+	PAGE_SECTORS
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
