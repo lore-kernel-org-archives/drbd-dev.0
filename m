@@ -1,28 +1,43 @@
-Return-Path: <mcgrof@infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 06E22426837
-	for <drbd-dev@lists.linbit.com>; Sat, 16 Sep 2023 01:02:00 +0200 (CEST)
-From: Luis Chamberlain <mcgrof@kernel.org>
-To: axboe@kernel.dk, agk@redhat.com, snitzer@kernel.org,
-	philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
-	christoph.boehmwalder@linbit.com, hch@infradead.org, djwong@kernel.org,
-	minchan@kernel.org, senozhatsky@chromium.org
-Date: Fri, 15 Sep 2023 15:43:42 -0700
-Message-Id: <20230915224343.2740317-4-mcgrof@kernel.org>
-In-Reply-To: <20230915224343.2740317-1-mcgrof@kernel.org>
+Return-Path: <prvs=618fd9b43=Johannes.Thumshirn@wdc.com>
+Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com [216.71.154.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3178642032F
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Sep 2023 07:58:59 +0200 (CEST)
+From: Johannes Thumshirn <Johannes.Thumshirn@wdc.com>
+To: Luis Chamberlain <mcgrof@kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>,
+	"agk@redhat.com" <agk@redhat.com>,
+	"snitzer@kernel.org" <snitzer@kernel.org>,
+	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
+	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
+	"christoph.boehmwalder@linbit.com" <christoph.boehmwalder@linbit.com>,
+	"hch@infradead.org" <hch@infradead.org>, "djwong@kernel.org"
+	<djwong@kernel.org>, "minchan@kernel.org" <minchan@kernel.org>,
+	"senozhatsky@chromium.org" <senozhatsky@chromium.org>
+Date: Mon, 18 Sep 2023 05:55:46 +0000
+Message-ID: <99fac012-6c49-478a-aa9f-ce6a45bac5fc@wdc.com>
 References: <20230915224343.2740317-1-mcgrof@kernel.org>
+	<20230915224343.2740317-5-mcgrof@kernel.org>
+In-Reply-To: <20230915224343.2740317-5-mcgrof@kernel.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <B8293F78DDF4F74C911F6C133B236B65@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Sender: Luis Chamberlain <mcgrof@infradead.org>
-Cc: p.raghav@samsung.com, linux-xfs@vger.kernel.org, rohan.puri@samsung.com,
-	da.gomez@samsung.com, mcgrof@kernel.org, patches@lists.linux.dev,
-	willy@infradead.org, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, linux-mm@kvack.org,
-	dm-devel@redhat.com, hare@suse.de, linux-fsdevel@vger.kernel.org,
-	rpuri.linux@gmail.com, kbusch@kernel.org, drbd-dev@lists.linbit.com
-Subject: [Drbd-dev] [PATCH v3 3/4] dm bufio: simplify by using
-	PAGE_SECTORS_SHIFT
+Cc: "p.raghav@samsung.com" <p.raghav@samsung.com>,
+	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
+	"rohan.puri@samsung.com" <rohan.puri@samsung.com>,
+	"da.gomez@samsung.com" <da.gomez@samsung.com>,
+	"patches@lists.linux.dev" <patches@lists.linux.dev>,
+	"willy@infradead.org" <willy@infradead.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"dm-devel@redhat.com" <dm-devel@redhat.com>, "hare@suse.de" <hare@suse.de>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+	"rpuri.linux@gmail.com" <rpuri.linux@gmail.com>,
+	"kbusch@kernel.org" <kbusch@kernel.org>,
+	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
+Subject: Re: [Drbd-dev] [PATCH v3 4/4] zram: use generic PAGE_SECTORS and
+ PAGE_SECTORS_SHIFT
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,38 +49,5 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The PAGE_SHIFT - SECTOR_SHIFT constant be replaced with PAGE_SECTORS_SHIFT
-defined in linux/blt_types.h, which is included by linux/blkdev.h.
-
-This produces no functional changes.
-
-Signed-off-by: Luis Chamberlain <mcgrof@kernel.org>
----
- drivers/md/dm-bufio.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/drivers/md/dm-bufio.c b/drivers/md/dm-bufio.c
-index 62eb27639c9b..a5b48be93b30 100644
---- a/drivers/md/dm-bufio.c
-+++ b/drivers/md/dm-bufio.c
-@@ -1152,7 +1152,7 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
- 	    gfp_mask & __GFP_NORETRY) {
- 		*data_mode = DATA_MODE_GET_FREE_PAGES;
- 		return (void *)__get_free_pages(gfp_mask,
--						c->sectors_per_block_bits - (PAGE_SHIFT - SECTOR_SHIFT));
-+						c->sectors_per_block_bits - PAGE_SECTORS_SHIFT);
- 	}
- 
- 	*data_mode = DATA_MODE_VMALLOC;
-@@ -1173,7 +1173,7 @@ static void free_buffer_data(struct dm_bufio_client *c,
- 
- 	case DATA_MODE_GET_FREE_PAGES:
- 		free_pages((unsigned long)data,
--			   c->sectors_per_block_bits - (PAGE_SHIFT - SECTOR_SHIFT));
-+			   c->sectors_per_block_bits - PAGE_SECTORS_SHIFT);
- 		break;
- 
- 	case DATA_MODE_VMALLOC:
--- 
-2.39.2
-
+TG9va3MgZ29vZCwNClJldmlld2VkLWJ5OiBKb2hhbm5lcyBUaHVtc2hpcm4gPGpvaGFubmVzLnRo
+dW1zaGlybkB3ZGMuY29tPg0K
