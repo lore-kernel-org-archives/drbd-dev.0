@@ -1,43 +1,19 @@
-Return-Path: <prvs=618fd9b43=Johannes.Thumshirn@wdc.com>
-Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 531A44203AD
-	for <drbd-dev@lists.linbit.com>; Mon, 18 Sep 2023 08:01:29 +0200 (CEST)
-From: Johannes Thumshirn <Johannes.Thumshirn@wdc.com>
-To: Luis Chamberlain <mcgrof@kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>,
-	"agk@redhat.com" <agk@redhat.com>,
-	"snitzer@kernel.org" <snitzer@kernel.org>,
-	"philipp.reisner@linbit.com" <philipp.reisner@linbit.com>,
-	"lars.ellenberg@linbit.com" <lars.ellenberg@linbit.com>,
-	"christoph.boehmwalder@linbit.com" <christoph.boehmwalder@linbit.com>,
-	"hch@infradead.org" <hch@infradead.org>, "djwong@kernel.org"
-	<djwong@kernel.org>, "minchan@kernel.org" <minchan@kernel.org>,
-	"senozhatsky@chromium.org" <senozhatsky@chromium.org>
-Date: Mon, 18 Sep 2023 05:54:18 +0000
-Message-ID: <21eda285-ae28-49c6-85d7-fd5a65d87627@wdc.com>
-References: <20230915224343.2740317-1-mcgrof@kernel.org>
-	<20230915224343.2740317-4-mcgrof@kernel.org>
-In-Reply-To: <20230915224343.2740317-4-mcgrof@kernel.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <79F13BC7846AFB40974AEF3B4BF998B5@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+Return-Path: <jack@suse.cz>
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0813C4267EF
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Sep 2023 11:34:43 +0200 (CEST)
+From: Jan Kara <jack@suse.cz>
+To: Christian Brauner <brauner@kernel.org>
+Date: Wed, 27 Sep 2023 11:34:10 +0200
+Message-Id: <20230927093442.25915-4-jack@suse.cz>
+In-Reply-To: <20230818123232.2269-1-jack@suse.cz>
+References: <20230818123232.2269-1-jack@suse.cz>
 MIME-Version: 1.0
-Cc: "p.raghav@samsung.com" <p.raghav@samsung.com>,
-	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
-	"rohan.puri@samsung.com" <rohan.puri@samsung.com>,
-	"da.gomez@samsung.com" <da.gomez@samsung.com>,
-	"patches@lists.linux.dev" <patches@lists.linux.dev>,
-	"willy@infradead.org" <willy@infradead.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"dm-devel@redhat.com" <dm-devel@redhat.com>, "hare@suse.de" <hare@suse.de>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"rpuri.linux@gmail.com" <rpuri.linux@gmail.com>,
-	"kbusch@kernel.org" <kbusch@kernel.org>,
-	"drbd-dev@lists.linbit.com" <drbd-dev@lists.linbit.com>
-Subject: Re: [Drbd-dev] [PATCH v3 3/4] dm bufio: simplify by using
-	PAGE_SECTORS_SHIFT
+Content-Transfer-Encoding: 8bit
+Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>,
+	linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH 04/29] drdb: Convert to use bdev_open_by_path()
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,5 +25,172 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-TG9va3MgZ29vZCwNClJldmlld2VkLWJ5OiBKb2hhbm5lcyBUaHVtc2hpcm4gPGpvaGFubmVzLnRo
-dW1zaGlybkB3ZGMuY29tPg0K
+Convert drdb to use bdev_open_by_path().
+
+CC: drbd-dev@lists.linbit.com
+Acked-by: Christoph Hellwig <hch@lst.de>
+Acked-by: Christian Brauner <brauner@kernel.org>
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ drivers/block/drbd/drbd_int.h |  2 ++
+ drivers/block/drbd/drbd_nl.c  | 65 +++++++++++++++++------------------
+ 2 files changed, 34 insertions(+), 33 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index a30a5ed811be..f017e917612b 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -524,7 +524,9 @@ struct drbd_md {
+ 
+ struct drbd_backing_dev {
+ 	struct block_device *backing_bdev;
++	struct bdev_handle *backing_bdev_handle;
+ 	struct block_device *md_bdev;
++	struct bdev_handle *md_bdev_handle;
+ 	struct drbd_md md;
+ 	struct disk_conf *disk_conf; /* RCU, for updates: resource->conf_update */
+ 	sector_t known_size; /* last known size of that backing device */
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index d3538bd83fb3..43747a1aae43 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -82,7 +82,7 @@ static atomic_t notify_genl_seq = ATOMIC_INIT(2); /* two. */
+ 
+ DEFINE_MUTEX(notification_mutex);
+ 
+-/* used blkdev_get_by_path, to claim our meta data device(s) */
++/* used bdev_open_by_path, to claim our meta data device(s) */
+ static char *drbd_m_holder = "Hands off! this is DRBD's meta data device.";
+ 
+ static void drbd_adm_send_reply(struct sk_buff *skb, struct genl_info *info)
+@@ -1635,43 +1635,45 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
+ 	return 0;
+ }
+ 
+-static struct block_device *open_backing_dev(struct drbd_device *device,
++static struct bdev_handle *open_backing_dev(struct drbd_device *device,
+ 		const char *bdev_path, void *claim_ptr, bool do_bd_link)
+ {
+-	struct block_device *bdev;
++	struct bdev_handle *handle;
+ 	int err = 0;
+ 
+-	bdev = blkdev_get_by_path(bdev_path, BLK_OPEN_READ | BLK_OPEN_WRITE,
+-				  claim_ptr, NULL);
+-	if (IS_ERR(bdev)) {
++	handle = bdev_open_by_path(bdev_path, BLK_OPEN_READ | BLK_OPEN_WRITE,
++				   claim_ptr, NULL);
++	if (IS_ERR(handle)) {
+ 		drbd_err(device, "open(\"%s\") failed with %ld\n",
+-				bdev_path, PTR_ERR(bdev));
+-		return bdev;
++				bdev_path, PTR_ERR(handle));
++		return handle;
+ 	}
+ 
+ 	if (!do_bd_link)
+-		return bdev;
++		return handle;
+ 
+-	err = bd_link_disk_holder(bdev, device->vdisk);
++	err = bd_link_disk_holder(handle->bdev, device->vdisk);
+ 	if (err) {
+-		blkdev_put(bdev, claim_ptr);
++		bdev_release(handle);
+ 		drbd_err(device, "bd_link_disk_holder(\"%s\", ...) failed with %d\n",
+ 				bdev_path, err);
+-		bdev = ERR_PTR(err);
++		handle = ERR_PTR(err);
+ 	}
+-	return bdev;
++	return handle;
+ }
+ 
+ static int open_backing_devices(struct drbd_device *device,
+ 		struct disk_conf *new_disk_conf,
+ 		struct drbd_backing_dev *nbc)
+ {
+-	struct block_device *bdev;
++	struct bdev_handle *handle;
+ 
+-	bdev = open_backing_dev(device, new_disk_conf->backing_dev, device, true);
+-	if (IS_ERR(bdev))
++	handle = open_backing_dev(device, new_disk_conf->backing_dev, device,
++				  true);
++	if (IS_ERR(handle))
+ 		return ERR_OPEN_DISK;
+-	nbc->backing_bdev = bdev;
++	nbc->backing_bdev = handle->bdev;
++	nbc->backing_bdev_handle = handle;
+ 
+ 	/*
+ 	 * meta_dev_idx >= 0: external fixed size, possibly multiple
+@@ -1681,7 +1683,7 @@ static int open_backing_devices(struct drbd_device *device,
+ 	 * should check it for you already; but if you don't, or
+ 	 * someone fooled it, we need to double check here)
+ 	 */
+-	bdev = open_backing_dev(device, new_disk_conf->meta_dev,
++	handle = open_backing_dev(device, new_disk_conf->meta_dev,
+ 		/* claim ptr: device, if claimed exclusively; shared drbd_m_holder,
+ 		 * if potentially shared with other drbd minors */
+ 			(new_disk_conf->meta_dev_idx < 0) ? (void*)device : (void*)drbd_m_holder,
+@@ -1689,20 +1691,21 @@ static int open_backing_devices(struct drbd_device *device,
+ 		 * as would happen with internal metadata. */
+ 			(new_disk_conf->meta_dev_idx != DRBD_MD_INDEX_FLEX_INT &&
+ 			 new_disk_conf->meta_dev_idx != DRBD_MD_INDEX_INTERNAL));
+-	if (IS_ERR(bdev))
++	if (IS_ERR(handle))
+ 		return ERR_OPEN_MD_DISK;
+-	nbc->md_bdev = bdev;
++	nbc->md_bdev = handle->bdev;
++	nbc->md_bdev_handle = handle;
+ 	return NO_ERROR;
+ }
+ 
+-static void close_backing_dev(struct drbd_device *device, struct block_device *bdev,
+-		void *claim_ptr, bool do_bd_unlink)
++static void close_backing_dev(struct drbd_device *device,
++		struct bdev_handle *handle, bool do_bd_unlink)
+ {
+-	if (!bdev)
++	if (!handle)
+ 		return;
+ 	if (do_bd_unlink)
+-		bd_unlink_disk_holder(bdev, device->vdisk);
+-	blkdev_put(bdev, claim_ptr);
++		bd_unlink_disk_holder(handle->bdev, device->vdisk);
++	bdev_release(handle);
+ }
+ 
+ void drbd_backing_dev_free(struct drbd_device *device, struct drbd_backing_dev *ldev)
+@@ -1710,11 +1713,9 @@ void drbd_backing_dev_free(struct drbd_device *device, struct drbd_backing_dev *
+ 	if (ldev == NULL)
+ 		return;
+ 
+-	close_backing_dev(device, ldev->md_bdev,
+-			  ldev->md.meta_dev_idx < 0 ?
+-				(void *)device : (void *)drbd_m_holder,
++	close_backing_dev(device, ldev->md_bdev_handle,
+ 			  ldev->md_bdev != ldev->backing_bdev);
+-	close_backing_dev(device, ldev->backing_bdev, device, true);
++	close_backing_dev(device, ldev->backing_bdev_handle, true);
+ 
+ 	kfree(ldev->disk_conf);
+ 	kfree(ldev);
+@@ -2130,11 +2131,9 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
+  fail:
+ 	conn_reconfig_done(connection);
+ 	if (nbc) {
+-		close_backing_dev(device, nbc->md_bdev,
+-			  nbc->disk_conf->meta_dev_idx < 0 ?
+-				(void *)device : (void *)drbd_m_holder,
++		close_backing_dev(device, nbc->md_bdev_handle,
+ 			  nbc->md_bdev != nbc->backing_bdev);
+-		close_backing_dev(device, nbc->backing_bdev, device, true);
++		close_backing_dev(device, nbc->backing_bdev_handle, true);
+ 		kfree(nbc);
+ 	}
+ 	kfree(new_disk_conf);
+-- 
+2.35.3
+
