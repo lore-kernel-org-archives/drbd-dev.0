@@ -1,48 +1,17 @@
-Return-Path: <jack@suse.cz>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.220.29])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6988A420160
-	for <drbd-dev@lists.linbit.com>; Mon,  2 Oct 2023 09:57:33 +0200 (CEST)
-Date: Mon, 2 Oct 2023 09:57:32 +0200
-From: Jan Kara <jack@suse.cz>
-To: Christian Brauner <brauner@kernel.org>
-Message-ID: <20231002075732.4c5oslpabrmw3niz@quack3>
-References: <20230818123232.2269-1-jack@suse.cz>
-	<20230927-prahlen-reintreten-93706074e58d@brauner>
+Return-Path: <chenguohua@jari.cn>
+Received: from jari.cn (unknown [218.92.28.115])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 15C464201C5
+	for <drbd-dev@lists.linbit.com>; Fri, 13 Oct 2023 05:45:24 +0200 (CEST)
+Date: Fri, 13 Oct 2023 11:36:56 +0800 (GMT+08:00)
+From: chenguohua@jari.cn
+To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
+	christoph.boehmwalder@linbit.com
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=UTF-8
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20230927-prahlen-reintreten-93706074e58d@brauner>
-Cc: Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net,
-	Jan Kara <jack@suse.cz>, "Darrick J. Wong" <djwong@kernel.org>,
-	linux-nvme@lists.infradead.org,
-	Joseph Qi <joseph.qi@linux.alibaba.com>, dm-devel@redhat.com,
-	target-devel@vger.kernel.org, linux-mtd@lists.infradead.org,
-	Jack Wang <jinpu.wang@ionos.com>,
-	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, linux-nilfs@vger.kernel.org,
-	linux-scsi@vger.kernel.org, Sergey Senozhatsky <senozhatsky@chromium.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	xen-devel@lists.xenproject.org, Gao Xiang <xiang@kernel.org>,
-	Christian Borntraeger <borntraeger@linux.ibm.com>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Sven Schnelle <svens@linux.ibm.com>, linux-pm@vger.kernel.org,
-	Mike Snitzer <snitzer@kernel.org>, Chao Yu <chao@kernel.org>,
-	Joern Engel <joern@lazybastard.org>,
-	reiserfs-devel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, David Sterba <dsterba@suse.com>,
-	Jaegeuk Kim <jaegeuk@kernel.org>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	linux-raid@vger.kernel.org, linux-nfs@vger.kernel.org,
-	linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>,
-	linux-mm@kvack.org, Song Liu <song@kernel.org>,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-xfs@vger.kernel.org, Minchan Kim <minchan@kernel.org>,
-	ocfs2-devel@oss.oracle.com, Anna Schumaker <anna@kernel.org>,
-	linux-fsdevel@vger.kernel.org, "Md. Haris Iqbal" <haris.iqbal@ionos.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-erofs@lists.ozlabs.org, linux-btrfs@vger.kernel.org
-Subject: Re: [Drbd-dev] [PATCH v4 0/29] block: Make blkdev_get_by_*() return
-	handle
+Message-ID: <505ab7d2.949.18b271bd108.Coremail.chenguohua@jari.cn>
+Cc: linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: [Drbd-dev] [PATCH] kallsyms: Clean up errors in module.h
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -54,105 +23,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed 27-09-23 18:21:19, Christian Brauner wrote:
-> On Wed, 27 Sep 2023 11:34:07 +0200, Jan Kara wrote:
-> > Create struct bdev_handle that contains all parameters that need to be
-> > passed to blkdev_put() and provide bdev_open_* functions that return
-> > this structure instead of plain bdev pointer. This will eventually allow
-> > us to pass one more argument to blkdev_put() (renamed to bdev_release())
-> > without too much hassle.
-> > 
-> > 
-> > [...]
-> 
-> > to ease review / testing. Christian, can you pull the patches to your tree
-> > to get some exposure in linux-next as well? Thanks!
-> 
-> Yep. So I did it slighly differently. I pulled in the btrfs prereqs and
-> then applied your series on top of it so we get all the Link: tags right.
-> I'm running tests right now. Please double-check.
-
-Thanks for picking patches up! I've checked the branch and it looks good to
-me. 
-
-								Honza
-
-> 
-> ---
-> 
-> Applied to the vfs.super branch of the vfs/vfs.git tree.
-> Patches in the vfs.super branch should appear in linux-next soon.
-> 
-> Please report any outstanding bugs that were missed during review in a
-> new review to the original patch series allowing us to drop it.
-> 
-> It's encouraged to provide Acked-bys and Reviewed-bys even though the
-> patch has now been applied. If possible patch trailers will be updated.
-> 
-> Note that commit hashes shown below are subject to change due to rebase,
-> trailer updates or similar. If in doubt, please check the listed branch.
-> 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/vfs/vfs.git
-> branch: vfs.super
-> 
-> [01/29] block: Provide bdev_open_* functions
->        https://git.kernel.org/vfs/vfs/c/b7c828aa0b3c
-> [02/29] block: Use bdev_open_by_dev() in blkdev_open()
->         https://git.kernel.org/vfs/vfs/c/d4e36f27b45a
-> [03/29] block: Use bdev_open_by_dev() in disk_scan_partitions() and blkdev_bszset()
->         https://git.kernel.org/vfs/vfs/c/5f9bd6764c7a
-> [04/29] drdb: Convert to use bdev_open_by_path()
->         https://git.kernel.org/vfs/vfs/c/0220ca8e443d
-> [05/29] pktcdvd: Convert to bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/7af10b889789
-> [06/29] rnbd-srv: Convert to use bdev_open_by_path()
->         https://git.kernel.org/vfs/vfs/c/3d27892a4be7
-> [07/29] xen/blkback: Convert to bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/26afb0ed10b3
-> [08/29] zram: Convert to use bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/efc8e3f4c6dc
-> [09/29] bcache: Convert to bdev_open_by_path()
->         https://git.kernel.org/vfs/vfs/c/dc893f51d24a
-> [10/29] dm: Convert to bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/80c2267c6d07
-> [11/29] md: Convert to bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/15db36126ca6
-> [12/29] mtd: block2mtd: Convert to bdev_open_by_dev/path()
->         https://git.kernel.org/vfs/vfs/c/4c27234bf3ce
-> [13/29] nvmet: Convert to bdev_open_by_path()
->         https://git.kernel.org/vfs/vfs/c/70cffddcc300
-> [14/29] s390/dasd: Convert to bdev_open_by_path()
->         https://git.kernel.org/vfs/vfs/c/5581d03457f8
-> [15/29] scsi: target: Convert to bdev_open_by_path()
->         https://git.kernel.org/vfs/vfs/c/43de7d844d47
-> [16/29] PM: hibernate: Convert to bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/105ea4a2fd18
-> [17/29] PM: hibernate: Drop unused snapshot_test argument
->         https://git.kernel.org/vfs/vfs/c/b589a66e3688
-> [18/29] mm/swap: Convert to use bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/615af8e29233
-> [19/29] fs: Convert to bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/5173192bcfe6
-> [20/29] btrfs: Convert to bdev_open_by_path()
->         https://git.kernel.org/vfs/vfs/c/8cf64782764f
-> [21/29] erofs: Convert to use bdev_open_by_path()
->         https://git.kernel.org/vfs/vfs/c/4d41880bf249
-> [22/29] ext4: Convert to bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/f7507612395e
-> [23/29] f2fs: Convert to bdev_open_by_dev/path()
->         https://git.kernel.org/vfs/vfs/c/d9ff8e3b6498
-> [24/29] jfs: Convert to bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/459dc6376338
-> [25/29] nfs/blocklayout: Convert to use bdev_open_by_dev/path()
->         https://git.kernel.org/vfs/vfs/c/5b1df9a40929
-> [26/29] ocfs2: Convert to use bdev_open_by_dev()
->         https://git.kernel.org/vfs/vfs/c/b6b95acbd943
-> [27/29] reiserfs: Convert to bdev_open_by_dev/path()
->         https://git.kernel.org/vfs/vfs/c/7e3615ff6119
-> [28/29] xfs: Convert to bdev_open_by_path()
->         https://git.kernel.org/vfs/vfs/c/176ccb99e207
-> [29/29] block: Remove blkdev_get_by_*() functions
->         https://git.kernel.org/vfs/vfs/c/953863a5a2ff
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Rml4IHRoZSBmb2xsb3dpbmcgZXJyb3JzIHJlcG9ydGVkIGJ5IGNoZWNrcGF0Y2g6CgpFUlJPUjog
+c3BhY2UgcmVxdWlyZWQgYWZ0ZXIgdGhhdCAnLCcgKGN0eDpWeFYpCgpTaWduZWQtb2ZmLWJ5OiBH
+dW9IdWEgQ2hlbmcgPGNoZW5ndW9odWFAamFyaS5jbj4KLS0tCiBpbmNsdWRlL2xpbnV4L21vZHVs
+ZS5oIHwgNCArKy0tCiAxIGZpbGUgY2hhbmdlZCwgMiBpbnNlcnRpb25zKCspLCAyIGRlbGV0aW9u
+cygtKQoKZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvbW9kdWxlLmggYi9pbmNsdWRlL2xpbnV4
+L21vZHVsZS5oCmluZGV4IGE5OGUxODhjZjM3Yi4uNDhhZWJlYTcyZDNhIDEwMDY0NAotLS0gYS9p
+bmNsdWRlL2xpbnV4L21vZHVsZS5oCisrKyBiL2luY2x1ZGUvbGludXgvbW9kdWxlLmgKQEAgLTE1
+Miw3ICsxNTIsNyBAQCBleHRlcm4gdm9pZCBjbGVhbnVwX21vZHVsZSh2b2lkKTsKICNkZWZpbmUg
+X19pbml0Y29uc3Rfb3JfbW9kdWxlCiAjZGVmaW5lIF9fSU5JVF9PUl9NT0RVTEUJLnRleHQKICNk
+ZWZpbmUgX19JTklUREFUQV9PUl9NT0RVTEUJLmRhdGEKLSNkZWZpbmUgX19JTklUUk9EQVRBX09S
+X01PRFVMRQkuc2VjdGlvbiAiLnJvZGF0YSIsImEiLCVwcm9nYml0cworI2RlZmluZSBfX0lOSVRS
+T0RBVEFfT1JfTU9EVUxFCS5zZWN0aW9uICIucm9kYXRhIiwgImEiLCAlcHJvZ2JpdHMKICNlbHNl
+CiAjZGVmaW5lIF9faW5pdF9vcl9tb2R1bGUgX19pbml0CiAjZGVmaW5lIF9faW5pdGRhdGFfb3Jf
+bW9kdWxlIF9faW5pdGRhdGEKQEAgLTgwMiw3ICs4MDIsNyBAQCBzdGF0aWMgaW5saW5lIGJvb2wg
+d2l0aGluX21vZHVsZSh1bnNpZ25lZCBsb25nIGFkZHIsIGNvbnN0IHN0cnVjdCBtb2R1bGUgKm1v
+ZCkKIH0KIAogLyogR2V0L3B1dCBhIGtlcm5lbCBzeW1ib2wgKGNhbGxzIHNob3VsZCBiZSBzeW1t
+ZXRyaWMpICovCi0jZGVmaW5lIHN5bWJvbF9nZXQoeCkgKHsgZXh0ZXJuIHR5cGVvZih4KSB4IF9f
+YXR0cmlidXRlX18oKHdlYWssdmlzaWJpbGl0eSgiaGlkZGVuIikpKTsgJih4KTsgfSkKKyNkZWZp
+bmUgc3ltYm9sX2dldCh4KSAoeyBleHRlcm4gdHlwZW9mKHgpIHggX19hdHRyaWJ1dGVfXygod2Vh
+aywgdmlzaWJpbGl0eSgiaGlkZGVuIikpKTsgJih4KTsgfSkKICNkZWZpbmUgc3ltYm9sX3B1dCh4
+KSBkbyB7IH0gd2hpbGUgKDApCiAjZGVmaW5lIHN5bWJvbF9wdXRfYWRkcih4KSBkbyB7IH0gd2hp
+bGUgKDApCiAKLS0gCjIuMTcuMQo=
