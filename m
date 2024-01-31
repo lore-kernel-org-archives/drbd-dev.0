@@ -1,23 +1,18 @@
-Return-Path: <Markus.Elfring@web.de>
-Received: from mout.web.de (mout.web.de [212.227.17.11])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4F3EE420139
-	for <drbd-dev@lists.linbit.com>; Wed, 10 Jan 2024 12:45:37 +0100 (CET)
-Message-ID: <71cd2c67-99a4-4173-8f0f-065fd864f8ba@web.de>
-Date: Wed, 10 Jan 2024 12:40:24 +0100
-MIME-Version: 1.0
-Content-Language: en-GB
-From: Markus Elfring <Markus.Elfring@web.de>
-To: kernel-janitors@vger.kernel.org, drbd-dev@lists.linbit.com,
-	=?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>
-References: <6cbcf640-55e5-2f11-4a09-716fe681c0d2@web.de>
-	<33226beb-4fe2-3da5-5d69-a33e683dec57@web.de>
-In-Reply-To: <33226beb-4fe2-3da5-5d69-a33e683dec57@web.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-Cc: LKML <linux-kernel@vger.kernel.org>, cocci@inria.fr
-Subject: Re: [Drbd-dev] [PATCH 0/3] lru_cache: Adjustments for lc_create()
+Return-Path: <SRS0=Yj06=JJ=droid-style.com=qiongzhu@mta.droid-style.com>
+Received: from smtp.droid-style.com (smtp.droid-style.com [149.248.17.36])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E9434420221
+	for <drbd-dev@lists.linbit.com>; Wed, 31 Jan 2024 11:03:10 +0100 (CET)
+Received: from mx.droid-style.com (unknown [192.168.8.3])
+	by smtp.droid-style.com (Postfix) with ESMTP id EAAD21C052F
+	for <drbd-dev@lists.linbit.com>; Wed, 31 Jan 2024 17:56:12 +0800 (CST)
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+From: Qiongzhu Wan <qiongzhu@droid-style.com>
+Mime-Version: 1.0
+Date: Wed, 31 Jan 2024 17:56:04 +0800
+Subject: subscribe
+Message-Id: <6785A0D7-D9FA-43AB-A003-241190622DD5@droid-style.com>
+To: drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,25 +24,4 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> Date: Wed, 29 Mar 2023 15:30:23 +0200
->
-> Some update suggestions were taken into account
-> from static source code analysis.
->
-> Markus Elfring (3):
->   Return directly after a failed kzalloc()
->   Improve two size determinations
->   Improve exception handling
->
->  lib/lru_cache.c | 18 ++++++++++--------
->  1 file changed, 10 insertions(+), 8 deletions(-)
 
-
-Is this patch series still in review queues?
-
-See also:
-https://lore.kernel.org/cocci/33226beb-4fe2-3da5-5d69-a33e683dec57@web.de/
-https://sympa.inria.fr/sympa/arc/cocci/2023-03/msg00110.html
-
-Regards,
-Markus
