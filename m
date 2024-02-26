@@ -1,17 +1,18 @@
 Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 88BE6420605
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:27:25 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1ACA742021F
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:34:23 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
 	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
 	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH 03/16] dm: use queue_limits_set
-Date: Mon, 26 Feb 2024 11:29:51 +0100
-Message-Id: <20240226103004.281412-4-hch@lst.de>
+Subject: [PATCH 14/16] drbd: don't set max_write_zeroes_sectors in
+	decide_on_discard_support
+Date: Mon, 26 Feb 2024 11:30:02 +0100
+Message-Id: <20240226103004.281412-15-hch@lst.de>
 In-Reply-To: <20240226103004.281412-1-hch@lst.de>
 References: <20240226103004.281412-1-hch@lst.de>
 MIME-Version: 1.0
@@ -29,91 +30,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use queue_limits_set which validates the limits and takes care of
-updating the readahead settings instead of directly assigning them to
-the queue.  For that make sure all limits are actually updated before
-the assignment.
+fixup_write_zeroes always overrides the max_write_zeroes_sectors value
+a little further down the callchain, so don't bother to setup a limit
+in decide_on_discard_support.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/blk-settings.c  |  2 +-
- drivers/md/dm-table.c | 27 ++++++++++++---------------
- 2 files changed, 13 insertions(+), 16 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/block/blk-settings.c b/block/blk-settings.c
-index 865fe4ebbf9b83..13865a9f89726c 100644
---- a/block/blk-settings.c
-+++ b/block/blk-settings.c
-@@ -267,7 +267,7 @@ int queue_limits_commit_update(struct request_queue *q,
- EXPORT_SYMBOL_GPL(queue_limits_commit_update);
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 0f40fdee089971..a79b7fe5335de4 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1260,7 +1260,6 @@ static void decide_on_discard_support(struct drbd_device *device,
+ 	blk_queue_discard_granularity(q, 512);
+ 	max_discard_sectors = drbd_max_discard_sectors(connection);
+ 	blk_queue_max_discard_sectors(q, max_discard_sectors);
+-	blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
+ 	return;
  
- /**
-- * queue_limits_commit_set - apply queue limits to queue
-+ * queue_limits_set - apply queue limits to queue
-  * @q:		queue to update
-  * @lim:	limits to apply
-  *
-diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
-index 41f1d731ae5ac2..88114719fe187a 100644
---- a/drivers/md/dm-table.c
-+++ b/drivers/md/dm-table.c
-@@ -1963,26 +1963,27 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
- 	bool wc = false, fua = false;
- 	int r;
- 
--	/*
--	 * Copy table's limits to the DM device's request_queue
--	 */
--	q->limits = *limits;
--
- 	if (dm_table_supports_nowait(t))
- 		blk_queue_flag_set(QUEUE_FLAG_NOWAIT, q);
- 	else
- 		blk_queue_flag_clear(QUEUE_FLAG_NOWAIT, q);
- 
- 	if (!dm_table_supports_discards(t)) {
--		q->limits.max_discard_sectors = 0;
--		q->limits.max_hw_discard_sectors = 0;
--		q->limits.discard_granularity = 0;
--		q->limits.discard_alignment = 0;
--		q->limits.discard_misaligned = 0;
-+		limits->max_hw_discard_sectors = 0;
-+		limits->discard_granularity = 0;
-+		limits->discard_alignment = 0;
-+		limits->discard_misaligned = 0;
- 	}
- 
-+	if (!dm_table_supports_write_zeroes(t))
-+		limits->max_write_zeroes_sectors = 0;
-+
- 	if (!dm_table_supports_secure_erase(t))
--		q->limits.max_secure_erase_sectors = 0;
-+		limits->max_secure_erase_sectors = 0;
-+
-+	r = queue_limits_set(q, limits);
-+	if (r)
-+		return r;
- 
- 	if (dm_table_supports_flush(t, (1UL << QUEUE_FLAG_WC))) {
- 		wc = true;
-@@ -2007,9 +2008,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
- 	else
- 		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
- 
--	if (!dm_table_supports_write_zeroes(t))
--		q->limits.max_write_zeroes_sectors = 0;
--
- 	dm_table_verify_integrity(t);
- 
- 	/*
-@@ -2047,7 +2045,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
- 	}
- 
- 	dm_update_crypto_profile(q, t);
--	disk_update_readahead(t->md->disk);
- 
- 	/*
- 	 * Check for request-based device is left to
+ not_supported:
 -- 
 2.39.2
 
