@@ -1,23 +1,32 @@
-Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 210DA4205E5
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:34:51 +0100 (CET)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
-	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
-	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
+Return-Path: <yukuai1@huaweicloud.com>
+Received: from dggsgout12.his.huawei.com (dggsgout12.his.huawei.com
+	[45.249.212.56])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DA1264205DE
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:38:22 +0100 (CET)
+Received: from mail.maildlp.com (unknown [172.19.93.142])
+	by dggsgout12.his.huawei.com (SkyGuard) with ESMTP id 4TjzBs4yYbz4f3jLw
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 19:38:13 +0800 (CST)
+Received: from mail02.huawei.com (unknown [10.116.40.112])
+	by mail.maildlp.com (Postfix) with ESMTP id D9C671A0172
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 19:38:18 +0800 (CST)
+Subject: Re: [PATCH 04/16] md: add queue limit helpers
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
+	Mike Snitzer <snitzer@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
+	Song Liu <song@kernel.org>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH 02/16] block: add a queue_limits_stack_bdev helper
-Date: Mon, 26 Feb 2024 11:29:50 +0100
-Message-Id: <20240226103004.281412-3-hch@lst.de>
-In-Reply-To: <20240226103004.281412-1-hch@lst.de>
+	=?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
 References: <20240226103004.281412-1-hch@lst.de>
+	<20240226103004.281412-5-hch@lst.de>
+From: Yu Kuai <yukuai1@huaweicloud.com>
+Message-ID: <6eb1741e-f336-bfb1-6549-21374ee667fc@huaweicloud.com>
+Date: Mon, 26 Feb 2024 19:38:17 +0800
 MIME-Version: 1.0
+In-Reply-To: <20240226103004.281412-5-hch@lst.de>
+Content-Type: text/plain; charset=gbk; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: dm-devel@lists.linux.dev, linux-block@vger.kernel.org,
-	linux-raid@vger.kernel.org, drbd-dev@lists.linbit.com
+	linux-raid@vger.kernel.org, "yukuai \(C\)" <yukuai3@huawei.com>,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,66 +38,88 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a small wrapper around blk_stack_limits that allows passing a bdev
-for the bottom device and prints an error in case of misaligned
-device. The name fits into the new queue limits API and the intent is
-to eventually replace disk_stack_limits.
+  Hi,
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- block/blk-settings.c   | 25 +++++++++++++++++++++++++
- include/linux/blkdev.h |  2 ++
- 2 files changed, 27 insertions(+)
+ÔÚ 2024/02/26 18:29, Christoph Hellwig Ð´µÀ:
+> Add a few helpers that wrap the block queue limits API for use in MD.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   drivers/md/md.c | 37 +++++++++++++++++++++++++++++++++++++
+>   drivers/md/md.h |  3 +++
+>   2 files changed, 40 insertions(+)
+> 
+> diff --git a/drivers/md/md.c b/drivers/md/md.c
+> index 75266c34b1f99b..23823823f80c6b 100644
+> --- a/drivers/md/md.c
+> +++ b/drivers/md/md.c
+> @@ -5699,6 +5699,43 @@ static const struct kobj_type md_ktype = {
+>   
+>   int mdp_major = 0;
+>   
+> +/* stack the limit for all rdevs into lim */
+> +void mddev_stack_rdev_limits(struct mddev *mddev, struct queue_limits *lim)
+> +{
+> +	struct md_rdev *rdev;
+> +
+> +	rdev_for_each(rdev, mddev) {
+> +		queue_limits_stack_bdev(lim, rdev->bdev, rdev->data_offset,
+> +					mddev->gendisk->disk_name);
+> +	}
+> +}
+> +EXPORT_SYMBOL_GPL(mddev_stack_rdev_limits);
+> +
+> +/* apply the extra stacking limits from a new rdev into mddev */
+> +int mddev_stack_new_rdev(struct mddev *mddev, struct md_rdev *rdev)
+> +{
+> +	struct queue_limits lim = queue_limits_start_update(mddev->queue);
+> +
+> +	queue_limits_stack_bdev(&lim, rdev->bdev, rdev->data_offset,
+> +				mddev->gendisk->disk_name);
+> +	return queue_limits_commit_update(mddev->queue, &lim);
+> +}
+> +EXPORT_SYMBOL_GPL(mddev_stack_new_rdev);
+> +
+> +/* update the optimal I/O size after a reshape */
+> +void mddev_update_io_opt(struct mddev *mddev, unsigned int nr_stripes)
+> +{
+> +	struct queue_limits lim;
+> +	int ret;
+> +
+> +	blk_mq_freeze_queue(mddev->queue);
+> +	lim = queue_limits_start_update(mddev->queue);
+> +	lim.io_opt = lim.io_min * nr_stripes;
+> +	ret = queue_limits_commit_update(mddev->queue, &lim);
+> +	blk_mq_unfreeze_queue(mddev->queue);
 
-diff --git a/block/blk-settings.c b/block/blk-settings.c
-index 1989a177be201b..865fe4ebbf9b83 100644
---- a/block/blk-settings.c
-+++ b/block/blk-settings.c
-@@ -891,6 +891,31 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
- }
- EXPORT_SYMBOL(blk_stack_limits);
- 
-+/**
-+ * queue_limits_stack_bdev - adjust queue_limits for stacked devices
-+ * @t:	the stacking driver limits (top device)
-+ * @bdev:  the underlying block device (bottom)
-+ * @offset:  offset to beginning of data within component device
-+ * @pfx: prefix to use for warnings logged
-+ *
-+ * Description:
-+ *    This function is used by stacking drivers like MD and DM to ensure
-+ *    that all component devices have compatible block sizes and
-+ *    alignments.  The stacking driver must provide a queue_limits
-+ *    struct (top) and then iteratively call the stacking function for
-+ *    all component (bottom) devices.  The stacking function will
-+ *    attempt to combine the values and ensure proper alignment.
-+ */
-+void queue_limits_stack_bdev(struct queue_limits *t, struct block_device *bdev,
-+		sector_t offset, const char *pfx)
-+{
-+	if (blk_stack_limits(t, &bdev_get_queue(bdev)->limits,
-+			get_start_sect(bdev) + offset))
-+		pr_notice("%s: Warning: Device %pg is misaligned\n",
-+			pfx, bdev);
-+}
-+EXPORT_SYMBOL_GPL(queue_limits_stack_bdev);
-+
- /**
-  * disk_stack_limits - adjust queue limits for stacked drivers
-  * @disk:  MD/DM gendisk (top)
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index dd510ad7ce4b45..285e82723d641f 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -924,6 +924,8 @@ extern void blk_set_queue_depth(struct request_queue *q, unsigned int depth);
- extern void blk_set_stacking_limits(struct queue_limits *lim);
- extern int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
- 			    sector_t offset);
-+void queue_limits_stack_bdev(struct queue_limits *t, struct block_device *bdev,
-+		sector_t offset, const char *pfx);
- extern void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
- 			      sector_t offset);
- extern void blk_queue_update_dma_pad(struct request_queue *, unsigned int);
--- 
-2.39.2
+Any reason to use blk_mq_freeze/unfreeze_queue ? I don't think this is
+meaningful for raid, this only wait for IO submission, not IO done.
+
+raid should already handle concurrent IO with reshape, so I think this
+can just be removed.
+
+Thanks,
+Kuai
+
+> +}
+> +EXPORT_SYMBOL_GPL(mddev_update_io_opt);
+> +
+>   static void mddev_delayed_delete(struct work_struct *ws)
+>   {
+>   	struct mddev *mddev = container_of(ws, struct mddev, del_work);
+> diff --git a/drivers/md/md.h b/drivers/md/md.h
+> index 8d881cc597992f..25b19614aa3239 100644
+> --- a/drivers/md/md.h
+> +++ b/drivers/md/md.h
+> @@ -860,6 +860,9 @@ void md_autostart_arrays(int part);
+>   int md_set_array_info(struct mddev *mddev, struct mdu_array_info_s *info);
+>   int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info);
+>   int do_md_run(struct mddev *mddev);
+> +void mddev_stack_rdev_limits(struct mddev *mddev, struct queue_limits *lim);
+> +int mddev_stack_new_rdev(struct mddev *mddev, struct md_rdev *rdev);
+> +void mddev_update_io_opt(struct mddev *mddev, unsigned int nr_stripes);
+>   
+>   extern const struct block_device_operations md_fops;
+>   
+> 
 
