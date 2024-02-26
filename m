@@ -1,17 +1,17 @@
 Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8076842010D
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:26:06 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D3D644202FD
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:26:32 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
 	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
 	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH 04/16] md: add queue limit helpers
-Date: Mon, 26 Feb 2024 11:29:52 +0100
-Message-Id: <20240226103004.281412-5-hch@lst.de>
+Subject: [PATCH 06/16] md/raid1: use the atomic queue limit update APIs
+Date: Mon, 26 Feb 2024 11:29:54 +0100
+Message-Id: <20240226103004.281412-7-hch@lst.de>
 In-Reply-To: <20240226103004.281412-1-hch@lst.de>
 References: <20240226103004.281412-1-hch@lst.de>
 MIME-Version: 1.0
@@ -29,76 +29,66 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a few helpers that wrap the block queue limits API for use in MD.
+Build the queue limits outside the queue and apply them using
+queue_limits_set.  Also remove the bogus ->gendisk and ->queue NULL
+checks in the are while touching it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/md.c | 37 +++++++++++++++++++++++++++++++++++++
- drivers/md/md.h |  3 +++
- 2 files changed, 40 insertions(+)
+ drivers/md/raid1.c | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)
 
-diff --git a/drivers/md/md.c b/drivers/md/md.c
-index 75266c34b1f99b..23823823f80c6b 100644
---- a/drivers/md/md.c
-+++ b/drivers/md/md.c
-@@ -5699,6 +5699,43 @@ static const struct kobj_type md_ktype = {
- 
- int mdp_major = 0;
- 
-+/* stack the limit for all rdevs into lim */
-+void mddev_stack_rdev_limits(struct mddev *mddev, struct queue_limits *lim)
-+{
-+	struct md_rdev *rdev;
-+
-+	rdev_for_each(rdev, mddev) {
-+		queue_limits_stack_bdev(lim, rdev->bdev, rdev->data_offset,
-+					mddev->gendisk->disk_name);
-+	}
-+}
-+EXPORT_SYMBOL_GPL(mddev_stack_rdev_limits);
-+
-+/* apply the extra stacking limits from a new rdev into mddev */
-+int mddev_stack_new_rdev(struct mddev *mddev, struct md_rdev *rdev)
-+{
-+	struct queue_limits lim = queue_limits_start_update(mddev->queue);
-+
-+	queue_limits_stack_bdev(&lim, rdev->bdev, rdev->data_offset,
-+				mddev->gendisk->disk_name);
-+	return queue_limits_commit_update(mddev->queue, &lim);
-+}
-+EXPORT_SYMBOL_GPL(mddev_stack_new_rdev);
-+
-+/* update the optimal I/O size after a reshape */
-+void mddev_update_io_opt(struct mddev *mddev, unsigned int nr_stripes)
-+{
-+	struct queue_limits lim;
-+	int ret;
-+
-+	blk_mq_freeze_queue(mddev->queue);
-+	lim = queue_limits_start_update(mddev->queue);
-+	lim.io_opt = lim.io_min * nr_stripes;
-+	ret = queue_limits_commit_update(mddev->queue, &lim);
-+	blk_mq_unfreeze_queue(mddev->queue);
-+}
-+EXPORT_SYMBOL_GPL(mddev_update_io_opt);
-+
- static void mddev_delayed_delete(struct work_struct *ws)
+diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
+index 286f8b16c7bde7..752ff99736a636 100644
+--- a/drivers/md/raid1.c
++++ b/drivers/md/raid1.c
+@@ -1791,10 +1791,9 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
+ 	for (mirror = first; mirror <= last; mirror++) {
+ 		p = conf->mirrors + mirror;
+ 		if (!p->rdev) {
+-			if (mddev->gendisk)
+-				disk_stack_limits(mddev->gendisk, rdev->bdev,
+-						  rdev->data_offset << 9);
+-
++			err = mddev_stack_new_rdev(mddev, rdev);
++			if (err)
++				return err;
+ 			p->head_position = 0;
+ 			rdev->raid_disk = mirror;
+ 			err = 0;
+@@ -3089,9 +3088,9 @@ static struct r1conf *setup_conf(struct mddev *mddev)
+ static void raid1_free(struct mddev *mddev, void *priv);
+ static int raid1_run(struct mddev *mddev)
  {
- 	struct mddev *mddev = container_of(ws, struct mddev, del_work);
-diff --git a/drivers/md/md.h b/drivers/md/md.h
-index 8d881cc597992f..25b19614aa3239 100644
---- a/drivers/md/md.h
-+++ b/drivers/md/md.h
-@@ -860,6 +860,9 @@ void md_autostart_arrays(int part);
- int md_set_array_info(struct mddev *mddev, struct mdu_array_info_s *info);
- int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info);
- int do_md_run(struct mddev *mddev);
-+void mddev_stack_rdev_limits(struct mddev *mddev, struct queue_limits *lim);
-+int mddev_stack_new_rdev(struct mddev *mddev, struct md_rdev *rdev);
-+void mddev_update_io_opt(struct mddev *mddev, unsigned int nr_stripes);
++	struct queue_limits lim;
+ 	struct r1conf *conf;
+ 	int i;
+-	struct md_rdev *rdev;
+ 	int ret;
  
- extern const struct block_device_operations md_fops;
+ 	if (mddev->level != 1) {
+@@ -3118,15 +3117,12 @@ static int raid1_run(struct mddev *mddev)
+ 	if (IS_ERR(conf))
+ 		return PTR_ERR(conf);
  
+-	if (mddev->queue)
+-		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
+-
+-	rdev_for_each(rdev, mddev) {
+-		if (!mddev->gendisk)
+-			continue;
+-		disk_stack_limits(mddev->gendisk, rdev->bdev,
+-				  rdev->data_offset << 9);
+-	}
++	blk_set_stacking_limits(&lim);
++	lim.max_write_zeroes_sectors = 0;
++	mddev_stack_rdev_limits(mddev, &lim);
++	ret = queue_limits_set(mddev->queue, &lim);
++	if (ret)
++		goto abort;
+ 
+ 	mddev->degraded = 0;
+ 	for (i = 0; i < conf->raid_disks; i++)
 -- 
 2.39.2
 
