@@ -1,32 +1,23 @@
-Return-Path: <yukuai1@huaweicloud.com>
-Received: from dggsgout12.his.huawei.com (dggsgout12.his.huawei.com
-	[45.249.212.56])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DA1264205DE
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:38:22 +0100 (CET)
-Received: from mail.maildlp.com (unknown [172.19.93.142])
-	by dggsgout12.his.huawei.com (SkyGuard) with ESMTP id 4TjzBs4yYbz4f3jLw
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 19:38:13 +0800 (CST)
-Received: from mail02.huawei.com (unknown [10.116.40.112])
-	by mail.maildlp.com (Postfix) with ESMTP id D9C671A0172
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 19:38:18 +0800 (CST)
-Subject: Re: [PATCH 04/16] md: add queue limit helpers
-To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
-	Mike Snitzer <snitzer@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
-	Song Liu <song@kernel.org>, Philipp Reisner <philipp.reisner@linbit.com>,
+Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 82A5E420163
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:42:48 +0100 (CET)
+From: Christoph Hellwig <hch@lst.de>
+To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
+	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
+	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
+	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+Subject: [PATCH 11/16] drbd: refactor drbd_reconsider_queue_parameters
+Date: Mon, 26 Feb 2024 11:29:59 +0100
+Message-Id: <20240226103004.281412-12-hch@lst.de>
+In-Reply-To: <20240226103004.281412-1-hch@lst.de>
 References: <20240226103004.281412-1-hch@lst.de>
-	<20240226103004.281412-5-hch@lst.de>
-From: Yu Kuai <yukuai1@huaweicloud.com>
-Message-ID: <6eb1741e-f336-bfb1-6549-21374ee667fc@huaweicloud.com>
-Date: Mon, 26 Feb 2024 19:38:17 +0800
 MIME-Version: 1.0
-In-Reply-To: <20240226103004.281412-5-hch@lst.de>
-Content-Type: text/plain; charset=gbk; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: dm-devel@lists.linux.dev, linux-block@vger.kernel.org,
-	linux-raid@vger.kernel.org, "yukuai \(C\)" <yukuai3@huawei.com>,
-	drbd-dev@lists.linbit.com
+	linux-raid@vger.kernel.org, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,88 +29,124 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-  Hi,
+Split out a drbd_max_peer_bio_size helper for the peer I/O size,
+and condense the various checks to a nested min3(..., max())) instead
+of using a lot of local variables.
 
-ÔÚ 2024/02/26 18:29, Christoph Hellwig Ð´µÀ:
-> Add a few helpers that wrap the block queue limits API for use in MD.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->   drivers/md/md.c | 37 +++++++++++++++++++++++++++++++++++++
->   drivers/md/md.h |  3 +++
->   2 files changed, 40 insertions(+)
-> 
-> diff --git a/drivers/md/md.c b/drivers/md/md.c
-> index 75266c34b1f99b..23823823f80c6b 100644
-> --- a/drivers/md/md.c
-> +++ b/drivers/md/md.c
-> @@ -5699,6 +5699,43 @@ static const struct kobj_type md_ktype = {
->   
->   int mdp_major = 0;
->   
-> +/* stack the limit for all rdevs into lim */
-> +void mddev_stack_rdev_limits(struct mddev *mddev, struct queue_limits *lim)
-> +{
-> +	struct md_rdev *rdev;
-> +
-> +	rdev_for_each(rdev, mddev) {
-> +		queue_limits_stack_bdev(lim, rdev->bdev, rdev->data_offset,
-> +					mddev->gendisk->disk_name);
-> +	}
-> +}
-> +EXPORT_SYMBOL_GPL(mddev_stack_rdev_limits);
-> +
-> +/* apply the extra stacking limits from a new rdev into mddev */
-> +int mddev_stack_new_rdev(struct mddev *mddev, struct md_rdev *rdev)
-> +{
-> +	struct queue_limits lim = queue_limits_start_update(mddev->queue);
-> +
-> +	queue_limits_stack_bdev(&lim, rdev->bdev, rdev->data_offset,
-> +				mddev->gendisk->disk_name);
-> +	return queue_limits_commit_update(mddev->queue, &lim);
-> +}
-> +EXPORT_SYMBOL_GPL(mddev_stack_new_rdev);
-> +
-> +/* update the optimal I/O size after a reshape */
-> +void mddev_update_io_opt(struct mddev *mddev, unsigned int nr_stripes)
-> +{
-> +	struct queue_limits lim;
-> +	int ret;
-> +
-> +	blk_mq_freeze_queue(mddev->queue);
-> +	lim = queue_limits_start_update(mddev->queue);
-> +	lim.io_opt = lim.io_min * nr_stripes;
-> +	ret = queue_limits_commit_update(mddev->queue, &lim);
-> +	blk_mq_unfreeze_queue(mddev->queue);
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/block/drbd/drbd_nl.c | 84 +++++++++++++++++++++---------------
+ 1 file changed, 49 insertions(+), 35 deletions(-)
 
-Any reason to use blk_mq_freeze/unfreeze_queue ? I don't think this is
-meaningful for raid, this only wait for IO submission, not IO done.
-
-raid should already handle concurrent IO with reshape, so I think this
-can just be removed.
-
-Thanks,
-Kuai
-
-> +}
-> +EXPORT_SYMBOL_GPL(mddev_update_io_opt);
-> +
->   static void mddev_delayed_delete(struct work_struct *ws)
->   {
->   	struct mddev *mddev = container_of(ws, struct mddev, del_work);
-> diff --git a/drivers/md/md.h b/drivers/md/md.h
-> index 8d881cc597992f..25b19614aa3239 100644
-> --- a/drivers/md/md.h
-> +++ b/drivers/md/md.h
-> @@ -860,6 +860,9 @@ void md_autostart_arrays(int part);
->   int md_set_array_info(struct mddev *mddev, struct mdu_array_info_s *info);
->   int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info);
->   int do_md_run(struct mddev *mddev);
-> +void mddev_stack_rdev_limits(struct mddev *mddev, struct queue_limits *lim);
-> +int mddev_stack_new_rdev(struct mddev *mddev, struct md_rdev *rdev);
-> +void mddev_update_io_opt(struct mddev *mddev, unsigned int nr_stripes);
->   
->   extern const struct block_device_operations md_fops;
->   
-> 
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 43747a1aae4353..9135001a8e572d 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1189,6 +1189,33 @@ static int drbd_check_al_size(struct drbd_device *device, struct disk_conf *dc)
+ 	return 0;
+ }
+ 
++static unsigned int drbd_max_peer_bio_size(struct drbd_device *device)
++{
++	/*
++	 * We may ignore peer limits if the peer is modern enough.  From 8.3.8
++	 * onwards the peer can use multiple BIOs for a single peer_request.
++	 */
++	if (device->state.conn < C_WF_REPORT_PARAMS)
++		return device->peer_max_bio_size;
++
++	if (first_peer_device(device)->connection->agreed_pro_version < 94)
++		return min(device->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
++
++	/*
++	 * Correct old drbd (up to 8.3.7) if it believes it can do more than
++	 * 32KiB.
++	 */
++	if (first_peer_device(device)->connection->agreed_pro_version == 94)
++		return DRBD_MAX_SIZE_H80_PACKET;
++
++	/*
++	 * drbd 8.3.8 onwards, before 8.4.0
++	 */
++	if (first_peer_device(device)->connection->agreed_pro_version < 100)
++		return DRBD_MAX_BIO_SIZE_P95;
++	return DRBD_MAX_BIO_SIZE;
++}
++
+ static void blk_queue_discard_granularity(struct request_queue *q, unsigned int granularity)
+ {
+ 	q->limits.discard_granularity = granularity;
+@@ -1303,48 +1330,35 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
+ 	fixup_discard_support(device, q);
+ }
+ 
+-void drbd_reconsider_queue_parameters(struct drbd_device *device, struct drbd_backing_dev *bdev, struct o_qlim *o)
++void drbd_reconsider_queue_parameters(struct drbd_device *device,
++		struct drbd_backing_dev *bdev, struct o_qlim *o)
+ {
+-	unsigned int now, new, local, peer;
+-
+-	now = queue_max_hw_sectors(device->rq_queue) << 9;
+-	local = device->local_max_bio_size; /* Eventually last known value, from volatile memory */
+-	peer = device->peer_max_bio_size; /* Eventually last known value, from meta data */
++	unsigned int now = queue_max_hw_sectors(device->rq_queue) <<
++			SECTOR_SHIFT;
++	unsigned int new;
+ 
+ 	if (bdev) {
+-		local = queue_max_hw_sectors(bdev->backing_bdev->bd_disk->queue) << 9;
+-		device->local_max_bio_size = local;
+-	}
+-	local = min(local, DRBD_MAX_BIO_SIZE);
+-
+-	/* We may ignore peer limits if the peer is modern enough.
+-	   Because new from 8.3.8 onwards the peer can use multiple
+-	   BIOs for a single peer_request */
+-	if (device->state.conn >= C_WF_REPORT_PARAMS) {
+-		if (first_peer_device(device)->connection->agreed_pro_version < 94)
+-			peer = min(device->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+-			/* Correct old drbd (up to 8.3.7) if it believes it can do more than 32KiB */
+-		else if (first_peer_device(device)->connection->agreed_pro_version == 94)
+-			peer = DRBD_MAX_SIZE_H80_PACKET;
+-		else if (first_peer_device(device)->connection->agreed_pro_version < 100)
+-			peer = DRBD_MAX_BIO_SIZE_P95;  /* drbd 8.3.8 onwards, before 8.4.0 */
+-		else
+-			peer = DRBD_MAX_BIO_SIZE;
++		struct request_queue *b = bdev->backing_bdev->bd_disk->queue;
+ 
+-		/* We may later detach and re-attach on a disconnected Primary.
+-		 * Avoid this setting to jump back in that case.
+-		 * We want to store what we know the peer DRBD can handle,
+-		 * not what the peer IO backend can handle. */
+-		if (peer > device->peer_max_bio_size)
+-			device->peer_max_bio_size = peer;
++		device->local_max_bio_size =
++			queue_max_hw_sectors(b) << SECTOR_SHIFT;
+ 	}
+-	new = min(local, peer);
+ 
+-	if (device->state.role == R_PRIMARY && new < now)
+-		drbd_err(device, "ASSERT FAILED new < now; (%u < %u)\n", new, now);
+-
+-	if (new != now)
++	/*
++	 * We may later detach and re-attach on a disconnected Primary.  Avoid
++	 * decreasing the value in this case.
++	 *
++	 * We want to store what we know the peer DRBD can handle, not what the
++	 * peer IO backend can handle.
++	 */
++	new = min3(DRBD_MAX_BIO_SIZE, device->local_max_bio_size,
++		max(drbd_max_peer_bio_size(device), device->peer_max_bio_size));
++	if (new != now) {
++		if (device->state.role == R_PRIMARY && new < now)
++			drbd_err(device, "ASSERT FAILED new < now; (%u < %u)\n",
++					new, now);
+ 		drbd_info(device, "max BIO size = %u\n", new);
++	}
+ 
+ 	drbd_setup_queue_param(device, bdev, new, o);
+ }
+-- 
+2.39.2
 
