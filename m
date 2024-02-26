@@ -1,17 +1,17 @@
 Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 935EF42010D
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:43:47 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 942EE4205E3
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:44:05 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
 	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
 	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH 12/16] drbd: refactor the backing dev max_segments calculation
-Date: Mon, 26 Feb 2024 11:30:00 +0100
-Message-Id: <20240226103004.281412-13-hch@lst.de>
+Subject: [PATCH 01/16] block: add a queue_limits_set helper
+Date: Mon, 26 Feb 2024 11:29:49 +0100
+Message-Id: <20240226103004.281412-2-hch@lst.de>
 In-Reply-To: <20240226103004.281412-1-hch@lst.de>
 References: <20240226103004.281412-1-hch@lst.de>
 MIME-Version: 1.0
@@ -29,66 +29,57 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Factor out a drbd_backing_dev_max_segments helper that checks the
-backing device limitation.
+Add a small wrapper around queue_limits_commit_update for stacking
+drivers that don't want to update existing limits, but set an
+entirely new set.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_nl.c | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ block/blk-settings.c   | 18 ++++++++++++++++++
+ include/linux/blkdev.h |  1 +
+ 2 files changed, 19 insertions(+)
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 9135001a8e572d..0326b7322ceb48 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1295,30 +1295,39 @@ static void fixup_discard_support(struct drbd_device *device, struct request_que
- 	}
+diff --git a/block/blk-settings.c b/block/blk-settings.c
+index b6bbe683d218fa..1989a177be201b 100644
+--- a/block/blk-settings.c
++++ b/block/blk-settings.c
+@@ -266,6 +266,24 @@ int queue_limits_commit_update(struct request_queue *q,
  }
+ EXPORT_SYMBOL_GPL(queue_limits_commit_update);
  
-+/* This is the workaround for "bio would need to, but cannot, be split" */
-+static unsigned int drbd_backing_dev_max_segments(struct drbd_device *device)
++/**
++ * queue_limits_commit_set - apply queue limits to queue
++ * @q:		queue to update
++ * @lim:	limits to apply
++ *
++ * Apply the limits in @lim that were freshly initialized to @q.
++ * To update existing limits use queue_limits_start_update() and
++ * queue_limits_commit_update() instead.
++ *
++ * Returns 0 if successful, else a negative error code.
++ */
++int queue_limits_set(struct request_queue *q, struct queue_limits *lim)
 +{
-+	unsigned int max_segments;
-+
-+	rcu_read_lock();
-+	max_segments = rcu_dereference(device->ldev->disk_conf)->max_bio_bvecs;
-+	rcu_read_unlock();
-+
-+	if (!max_segments)
-+		return BLK_MAX_SEGMENTS;
-+	return max_segments;
++	mutex_lock(&q->limits_lock);
++	return queue_limits_commit_update(q, lim);
 +}
++EXPORT_SYMBOL_GPL(queue_limits_set);
 +
- static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backing_dev *bdev,
- 				   unsigned int max_bio_size, struct o_qlim *o)
- {
- 	struct request_queue * const q = device->rq_queue;
- 	unsigned int max_hw_sectors = max_bio_size >> 9;
--	unsigned int max_segments = 0;
-+	unsigned int max_segments = BLK_MAX_SEGMENTS;
- 	struct request_queue *b = NULL;
--	struct disk_conf *dc;
+ /**
+  * blk_queue_bounce_limit - set bounce buffer limit for queue
+  * @q: the request queue for the device
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index a14ea934413850..dd510ad7ce4b45 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -889,6 +889,7 @@ queue_limits_start_update(struct request_queue *q)
+ }
+ int queue_limits_commit_update(struct request_queue *q,
+ 		struct queue_limits *lim);
++int queue_limits_set(struct request_queue *q, struct queue_limits *lim);
  
- 	if (bdev) {
- 		b = bdev->backing_bdev->bd_disk->queue;
- 
- 		max_hw_sectors = min(queue_max_hw_sectors(b), max_bio_size >> 9);
--		rcu_read_lock();
--		dc = rcu_dereference(device->ldev->disk_conf);
--		max_segments = dc->max_bio_bvecs;
--		rcu_read_unlock();
-+		max_segments = drbd_backing_dev_max_segments(device);
- 
- 		blk_set_stacking_limits(&q->limits);
- 	}
- 
- 	blk_queue_max_hw_sectors(q, max_hw_sectors);
--	/* This is the workaround for "bio would need to, but cannot, be split" */
--	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
-+	blk_queue_max_segments(q, max_segments);
- 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
- 	decide_on_discard_support(device, bdev);
- 
+ /*
+  * Access functions for manipulating queue properties
 -- 
 2.39.2
 
