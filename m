@@ -1,17 +1,17 @@
 Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AF60A4205E3
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:26:50 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 88BE6420605
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:27:25 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
 	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
 	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH 07/16] md/raid10: use the atomic queue limit update APIs
-Date: Mon, 26 Feb 2024 11:29:55 +0100
-Message-Id: <20240226103004.281412-8-hch@lst.de>
+Subject: [PATCH 03/16] dm: use queue_limits_set
+Date: Mon, 26 Feb 2024 11:29:51 +0100
+Message-Id: <20240226103004.281412-4-hch@lst.de>
 In-Reply-To: <20240226103004.281412-1-hch@lst.de>
 References: <20240226103004.281412-1-hch@lst.de>
 MIME-Version: 1.0
@@ -29,137 +29,91 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Build the queue limits outside the queue and apply them using
-queue_limits_set.  Also remove the bogus ->gendisk and ->queue NULL
-checks in the are while touching it.
+Use queue_limits_set which validates the limits and takes care of
+updating the readahead settings instead of directly assigning them to
+the queue.  For that make sure all limits are actually updated before
+the assignment.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/raid10.c | 52 +++++++++++++++++++++------------------------
- 1 file changed, 24 insertions(+), 28 deletions(-)
+ block/blk-settings.c  |  2 +-
+ drivers/md/dm-table.c | 27 ++++++++++++---------------
+ 2 files changed, 13 insertions(+), 16 deletions(-)
 
-diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-index 7412066ea22c7a..21d0aced9a0725 100644
---- a/drivers/md/raid10.c
-+++ b/drivers/md/raid10.c
-@@ -2130,11 +2130,9 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
- 				repl_slot = mirror;
- 			continue;
- 		}
+diff --git a/block/blk-settings.c b/block/blk-settings.c
+index 865fe4ebbf9b83..13865a9f89726c 100644
+--- a/block/blk-settings.c
++++ b/block/blk-settings.c
+@@ -267,7 +267,7 @@ int queue_limits_commit_update(struct request_queue *q,
+ EXPORT_SYMBOL_GPL(queue_limits_commit_update);
+ 
+ /**
+- * queue_limits_commit_set - apply queue limits to queue
++ * queue_limits_set - apply queue limits to queue
+  * @q:		queue to update
+  * @lim:	limits to apply
+  *
+diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
+index 41f1d731ae5ac2..88114719fe187a 100644
+--- a/drivers/md/dm-table.c
++++ b/drivers/md/dm-table.c
+@@ -1963,26 +1963,27 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+ 	bool wc = false, fua = false;
+ 	int r;
+ 
+-	/*
+-	 * Copy table's limits to the DM device's request_queue
+-	 */
+-	q->limits = *limits;
 -
--		if (mddev->gendisk)
--			disk_stack_limits(mddev->gendisk, rdev->bdev,
--					  rdev->data_offset << 9);
--
-+		err = mddev_stack_new_rdev(mddev, rdev);
-+		if (err)
-+			return err;
- 		p->head_position = 0;
- 		p->recovery_disabled = mddev->recovery_disabled - 1;
- 		rdev->raid_disk = mirror;
-@@ -2150,10 +2148,9 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
- 		clear_bit(In_sync, &rdev->flags);
- 		set_bit(Replacement, &rdev->flags);
- 		rdev->raid_disk = repl_slot;
--		err = 0;
--		if (mddev->gendisk)
--			disk_stack_limits(mddev->gendisk, rdev->bdev,
--					  rdev->data_offset << 9);
-+		err = mddev_stack_new_rdev(mddev, rdev);
-+		if (err)
-+			return err;
- 		conf->fullsync = 1;
- 		WRITE_ONCE(p->replacement, rdev);
- 	}
-@@ -4002,18 +3999,18 @@ static struct r10conf *setup_conf(struct mddev *mddev)
- 	return ERR_PTR(err);
- }
+ 	if (dm_table_supports_nowait(t))
+ 		blk_queue_flag_set(QUEUE_FLAG_NOWAIT, q);
+ 	else
+ 		blk_queue_flag_clear(QUEUE_FLAG_NOWAIT, q);
  
--static void raid10_set_io_opt(struct r10conf *conf)
-+static unsigned int raid10_nr_stripes(struct r10conf *conf)
- {
--	int raid_disks = conf->geo.raid_disks;
-+	unsigned int raid_disks = conf->geo.raid_disks;
- 
--	if (!(conf->geo.raid_disks % conf->geo.near_copies))
--		raid_disks /= conf->geo.near_copies;
--	blk_queue_io_opt(conf->mddev->queue, (conf->mddev->chunk_sectors << 9) *
--			 raid_disks);
-+	if (conf->geo.raid_disks % conf->geo.near_copies)
-+		return raid_disks;
-+	return raid_disks / conf->geo.near_copies;
- }
- 
- static int raid10_run(struct mddev *mddev)
- {
-+	struct queue_limits lim;
- 	struct r10conf *conf;
- 	int i, disk_idx;
- 	struct raid10_info *disk;
-@@ -4021,6 +4018,7 @@ static int raid10_run(struct mddev *mddev)
- 	sector_t size;
- 	sector_t min_offset_diff = 0;
- 	int first = 1;
-+	int ret = -EIO;
- 
- 	if (mddev->private == NULL) {
- 		conf = setup_conf(mddev);
-@@ -4047,12 +4045,6 @@ static int raid10_run(struct mddev *mddev)
- 		}
+ 	if (!dm_table_supports_discards(t)) {
+-		q->limits.max_discard_sectors = 0;
+-		q->limits.max_hw_discard_sectors = 0;
+-		q->limits.discard_granularity = 0;
+-		q->limits.discard_alignment = 0;
+-		q->limits.discard_misaligned = 0;
++		limits->max_hw_discard_sectors = 0;
++		limits->discard_granularity = 0;
++		limits->discard_alignment = 0;
++		limits->discard_misaligned = 0;
  	}
  
--	if (mddev->queue) {
--		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
--		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
--		raid10_set_io_opt(conf);
--	}
--
- 	rdev_for_each(rdev, mddev) {
- 		long long diff;
- 
-@@ -4081,14 +4073,19 @@ static int raid10_run(struct mddev *mddev)
- 		if (first || diff < min_offset_diff)
- 			min_offset_diff = diff;
- 
--		if (mddev->gendisk)
--			disk_stack_limits(mddev->gendisk, rdev->bdev,
--					  rdev->data_offset << 9);
--
- 		disk->head_position = 0;
- 		first = 0;
- 	}
- 
-+	blk_set_stacking_limits(&lim);
-+	lim.max_write_zeroes_sectors = 0;
-+	lim.io_min = mddev->chunk_sectors << 9;
-+	lim.io_opt = lim.io_min * raid10_nr_stripes(conf);
-+	mddev_stack_rdev_limits(mddev, &lim);
-+	ret = queue_limits_set(mddev->queue, &lim);
-+	if (ret)
-+		goto out_free_conf;
++	if (!dm_table_supports_write_zeroes(t))
++		limits->max_write_zeroes_sectors = 0;
 +
- 	/* need to check that every block has at least one working mirror */
- 	if (!enough(conf, -1)) {
- 		pr_err("md/raid10:%s: not enough operational mirrors.\n",
-@@ -4189,7 +4186,7 @@ static int raid10_run(struct mddev *mddev)
- 	raid10_free_conf(conf);
- 	mddev->private = NULL;
- out:
--	return -EIO;
-+	return ret;
- }
+ 	if (!dm_table_supports_secure_erase(t))
+-		q->limits.max_secure_erase_sectors = 0;
++		limits->max_secure_erase_sectors = 0;
++
++	r = queue_limits_set(q, limits);
++	if (r)
++		return r;
  
- static void raid10_free(struct mddev *mddev, void *priv)
-@@ -4966,8 +4963,7 @@ static void end_reshape(struct r10conf *conf)
- 	conf->reshape_safe = MaxSector;
- 	spin_unlock_irq(&conf->device_lock);
+ 	if (dm_table_supports_flush(t, (1UL << QUEUE_FLAG_WC))) {
+ 		wc = true;
+@@ -2007,9 +2008,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+ 	else
+ 		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
  
--	if (conf->mddev->queue)
--		raid10_set_io_opt(conf);
-+	mddev_update_io_opt(conf->mddev, raid10_nr_stripes(conf));
- 	conf->fullsync = 0;
- }
+-	if (!dm_table_supports_write_zeroes(t))
+-		q->limits.max_write_zeroes_sectors = 0;
+-
+ 	dm_table_verify_integrity(t);
  
+ 	/*
+@@ -2047,7 +2045,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+ 	}
+ 
+ 	dm_update_crypto_profile(q, t);
+-	disk_update_readahead(t->md->disk);
+ 
+ 	/*
+ 	 * Check for request-based device is left to
 -- 
 2.39.2
 
