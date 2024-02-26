@@ -1,17 +1,17 @@
 Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 942EE4205E3
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:44:05 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E4376420641
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:44:32 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
 	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
 	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH 01/16] block: add a queue_limits_set helper
-Date: Mon, 26 Feb 2024 11:29:49 +0100
-Message-Id: <20240226103004.281412-2-hch@lst.de>
+Subject: [PATCH 05/16] md/raid0: use the atomic queue limit update APIs
+Date: Mon, 26 Feb 2024 11:29:53 +0100
+Message-Id: <20240226103004.281412-6-hch@lst.de>
 In-Reply-To: <20240226103004.281412-1-hch@lst.de>
 References: <20240226103004.281412-1-hch@lst.de>
 MIME-Version: 1.0
@@ -29,57 +29,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a small wrapper around queue_limits_commit_update for stacking
-drivers that don't want to update existing limits, but set an
-entirely new set.
+Build the queue limits outside the queue and apply them using
+queue_limits_set.  Also remove the bogus ->gendisk and ->queue NULL
+checks in the are while touching it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/blk-settings.c   | 18 ++++++++++++++++++
- include/linux/blkdev.h |  1 +
- 2 files changed, 19 insertions(+)
+ drivers/md/raid0.c | 37 +++++++++++++++++--------------------
+ 1 file changed, 17 insertions(+), 20 deletions(-)
 
-diff --git a/block/blk-settings.c b/block/blk-settings.c
-index b6bbe683d218fa..1989a177be201b 100644
---- a/block/blk-settings.c
-+++ b/block/blk-settings.c
-@@ -266,6 +266,24 @@ int queue_limits_commit_update(struct request_queue *q,
- }
- EXPORT_SYMBOL_GPL(queue_limits_commit_update);
+diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
+index c50a7abda744ad..dd070e9b2d5643 100644
+--- a/drivers/md/raid0.c
++++ b/drivers/md/raid0.c
+@@ -381,7 +381,8 @@ static void raid0_free(struct mddev *mddev, void *priv)
  
-+/**
-+ * queue_limits_commit_set - apply queue limits to queue
-+ * @q:		queue to update
-+ * @lim:	limits to apply
-+ *
-+ * Apply the limits in @lim that were freshly initialized to @q.
-+ * To update existing limits use queue_limits_start_update() and
-+ * queue_limits_commit_update() instead.
-+ *
-+ * Returns 0 if successful, else a negative error code.
-+ */
-+int queue_limits_set(struct request_queue *q, struct queue_limits *lim)
-+{
-+	mutex_lock(&q->limits_lock);
-+	return queue_limits_commit_update(q, lim);
-+}
-+EXPORT_SYMBOL_GPL(queue_limits_set);
-+
- /**
-  * blk_queue_bounce_limit - set bounce buffer limit for queue
-  * @q: the request queue for the device
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index a14ea934413850..dd510ad7ce4b45 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -889,6 +889,7 @@ queue_limits_start_update(struct request_queue *q)
- }
- int queue_limits_commit_update(struct request_queue *q,
- 		struct queue_limits *lim);
-+int queue_limits_set(struct request_queue *q, struct queue_limits *lim);
+ static int raid0_run(struct mddev *mddev)
+ {
+-	struct r0conf *conf;
++	struct r0conf *conf = mddev->private;
++	struct queue_limits lim;
+ 	int ret;
  
- /*
-  * Access functions for manipulating queue properties
+ 	if (mddev->chunk_sectors == 0) {
+@@ -391,29 +392,23 @@ static int raid0_run(struct mddev *mddev)
+ 	if (md_check_no_bitmap(mddev))
+ 		return -EINVAL;
+ 
+-	/* if private is not null, we are here after takeover */
+-	if (mddev->private == NULL) {
++	/* if conf is not null, we are here after takeover */
++	if (!conf) {
+ 		ret = create_strip_zones(mddev, &conf);
+ 		if (ret < 0)
+ 			return ret;
+ 		mddev->private = conf;
+ 	}
+-	conf = mddev->private;
+-	if (mddev->queue) {
+-		struct md_rdev *rdev;
+-
+-		blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
+-		blk_queue_max_write_zeroes_sectors(mddev->queue, mddev->chunk_sectors);
+ 
+-		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
+-		blk_queue_io_opt(mddev->queue,
+-				 (mddev->chunk_sectors << 9) * mddev->raid_disks);
+-
+-		rdev_for_each(rdev, mddev) {
+-			disk_stack_limits(mddev->gendisk, rdev->bdev,
+-					  rdev->data_offset << 9);
+-		}
+-	}
++	blk_set_stacking_limits(&lim);
++	lim.max_hw_sectors = mddev->chunk_sectors;
++	lim.max_write_zeroes_sectors = mddev->chunk_sectors;
++	lim.io_min = mddev->chunk_sectors << 9;
++	lim.io_opt = lim.io_min * mddev->raid_disks;
++	mddev_stack_rdev_limits(mddev, &lim);
++	ret = queue_limits_set(mddev->queue, &lim);
++	if (ret)
++		goto out_free_conf;
+ 
+ 	/* calculate array device size */
+ 	md_set_array_sectors(mddev, raid0_size(mddev, 0, 0));
+@@ -426,8 +421,10 @@ static int raid0_run(struct mddev *mddev)
+ 
+ 	ret = md_integrity_register(mddev);
+ 	if (ret)
+-		free_conf(mddev, conf);
+-
++		goto out_free_conf;
++	return 0;
++out_free_conf:
++	free_conf(mddev, conf);
+ 	return ret;
+ }
+ 
 -- 
 2.39.2
 
