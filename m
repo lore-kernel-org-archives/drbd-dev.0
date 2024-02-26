@@ -1,17 +1,18 @@
 Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 82A5E420163
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:42:48 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9BE4A42064A
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:42:56 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
 	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
 	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH 11/16] drbd: refactor drbd_reconsider_queue_parameters
-Date: Mon, 26 Feb 2024 11:29:59 +0100
-Message-Id: <20240226103004.281412-12-hch@lst.de>
+Subject: [PATCH 16/16] drbd: atomically update queue limits in
+	drbd_reconsider_queue_parameters
+Date: Mon, 26 Feb 2024 11:30:04 +0100
+Message-Id: <20240226103004.281412-17-hch@lst.de>
 In-Reply-To: <20240226103004.281412-1-hch@lst.de>
 References: <20240226103004.281412-1-hch@lst.de>
 MIME-Version: 1.0
@@ -29,124 +30,175 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Split out a drbd_max_peer_bio_size helper for the peer I/O size,
-and condense the various checks to a nested min3(..., max())) instead
-of using a lot of local variables.
+Switch drbd_reconsider_queue_parameters to set up the queue parameters
+in an on-stack queue_limits structure and apply the atomically.  Remove
+various helpers that have become so trivial that they can be folded into
+drbd_reconsider_queue_parameters.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_nl.c | 84 +++++++++++++++++++++---------------
- 1 file changed, 49 insertions(+), 35 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 119 ++++++++++++++---------------------
+ 1 file changed, 46 insertions(+), 73 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 43747a1aae4353..9135001a8e572d 100644
+index 94ed2b3ea6361d..fbd92803dc1da4 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1189,6 +1189,33 @@ static int drbd_check_al_size(struct drbd_device *device, struct disk_conf *dc)
- 	return 0;
+@@ -1216,11 +1216,6 @@ static unsigned int drbd_max_peer_bio_size(struct drbd_device *device)
+ 	return DRBD_MAX_BIO_SIZE;
  }
  
-+static unsigned int drbd_max_peer_bio_size(struct drbd_device *device)
-+{
-+	/*
-+	 * We may ignore peer limits if the peer is modern enough.  From 8.3.8
-+	 * onwards the peer can use multiple BIOs for a single peer_request.
-+	 */
-+	if (device->state.conn < C_WF_REPORT_PARAMS)
-+		return device->peer_max_bio_size;
-+
-+	if (first_peer_device(device)->connection->agreed_pro_version < 94)
-+		return min(device->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
-+
-+	/*
-+	 * Correct old drbd (up to 8.3.7) if it believes it can do more than
-+	 * 32KiB.
-+	 */
-+	if (first_peer_device(device)->connection->agreed_pro_version == 94)
-+		return DRBD_MAX_SIZE_H80_PACKET;
-+
-+	/*
-+	 * drbd 8.3.8 onwards, before 8.4.0
-+	 */
-+	if (first_peer_device(device)->connection->agreed_pro_version < 100)
-+		return DRBD_MAX_BIO_SIZE_P95;
-+	return DRBD_MAX_BIO_SIZE;
-+}
-+
- static void blk_queue_discard_granularity(struct request_queue *q, unsigned int granularity)
- {
- 	q->limits.discard_granularity = granularity;
-@@ -1303,48 +1330,35 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
- 	fixup_discard_support(device, q);
- }
- 
--void drbd_reconsider_queue_parameters(struct drbd_device *device, struct drbd_backing_dev *bdev, struct o_qlim *o)
-+void drbd_reconsider_queue_parameters(struct drbd_device *device,
-+		struct drbd_backing_dev *bdev, struct o_qlim *o)
- {
--	unsigned int now, new, local, peer;
+-static void blk_queue_discard_granularity(struct request_queue *q, unsigned int granularity)
+-{
+-	q->limits.discard_granularity = granularity;
+-}
 -
--	now = queue_max_hw_sectors(device->rq_queue) << 9;
--	local = device->local_max_bio_size; /* Eventually last known value, from volatile memory */
--	peer = device->peer_max_bio_size; /* Eventually last known value, from meta data */
-+	unsigned int now = queue_max_hw_sectors(device->rq_queue) <<
-+			SECTOR_SHIFT;
-+	unsigned int new;
+ static unsigned int drbd_max_discard_sectors(struct drbd_connection *connection)
+ {
+ 	/* when we introduced REQ_WRITE_SAME support, we also bumped
+@@ -1247,62 +1242,6 @@ static bool drbd_discard_supported(struct drbd_connection *connection,
+ 	return true;
+ }
  
- 	if (bdev) {
--		local = queue_max_hw_sectors(bdev->backing_bdev->bd_disk->queue) << 9;
--		device->local_max_bio_size = local;
+-static void decide_on_discard_support(struct drbd_device *device,
+-		struct drbd_backing_dev *bdev)
+-{
+-	struct drbd_connection *connection =
+-		first_peer_device(device)->connection;
+-	struct request_queue *q = device->rq_queue;
+-	unsigned int max_discard_sectors;
+-
+-	if (!drbd_discard_supported(connection, bdev))
+-		goto not_supported;
+-
+-	/*
+-	 * We don't care for the granularity, really.
+-	 *
+-	 * Stacking limits below should fix it for the local device.  Whether or
+-	 * not it is a suitable granularity on the remote device is not our
+-	 * problem, really. If you care, you need to use devices with similar
+-	 * topology on all peers.
+-	 */
+-	blk_queue_discard_granularity(q, 512);
+-	max_discard_sectors = drbd_max_discard_sectors(connection);
+-	blk_queue_max_discard_sectors(q, max_discard_sectors);
+-	return;
+-
+-not_supported:
+-	blk_queue_discard_granularity(q, 0);
+-	blk_queue_max_discard_sectors(q, 0);
+-}
+-
+-static void fixup_write_zeroes(struct drbd_device *device, struct request_queue *q)
+-{
+-	/* Fixup max_write_zeroes_sectors after blk_stack_limits():
+-	 * if we can handle "zeroes" efficiently on the protocol,
+-	 * we want to do that, even if our backend does not announce
+-	 * max_write_zeroes_sectors itself. */
+-	struct drbd_connection *connection = first_peer_device(device)->connection;
+-	/* If the peer announces WZEROES support, use it.  Otherwise, rather
+-	 * send explicit zeroes than rely on some discard-zeroes-data magic. */
+-	if (connection->agreed_features & DRBD_FF_WZEROES)
+-		q->limits.max_write_zeroes_sectors = DRBD_MAX_BBIO_SECTORS;
+-	else
+-		q->limits.max_write_zeroes_sectors = 0;
+-}
+-
+-static void fixup_discard_support(struct drbd_device *device, struct request_queue *q)
+-{
+-	unsigned int max_discard = device->rq_queue->limits.max_discard_sectors;
+-	unsigned int discard_granularity =
+-		device->rq_queue->limits.discard_granularity >> SECTOR_SHIFT;
+-
+-	if (discard_granularity > max_discard) {
+-		blk_queue_discard_granularity(q, 0);
+-		blk_queue_max_discard_sectors(q, 0);
 -	}
--	local = min(local, DRBD_MAX_BIO_SIZE);
+-}
 -
--	/* We may ignore peer limits if the peer is modern enough.
--	   Because new from 8.3.8 onwards the peer can use multiple
--	   BIOs for a single peer_request */
--	if (device->state.conn >= C_WF_REPORT_PARAMS) {
--		if (first_peer_device(device)->connection->agreed_pro_version < 94)
--			peer = min(device->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
--			/* Correct old drbd (up to 8.3.7) if it believes it can do more than 32KiB */
--		else if (first_peer_device(device)->connection->agreed_pro_version == 94)
--			peer = DRBD_MAX_SIZE_H80_PACKET;
--		else if (first_peer_device(device)->connection->agreed_pro_version < 100)
--			peer = DRBD_MAX_BIO_SIZE_P95;  /* drbd 8.3.8 onwards, before 8.4.0 */
--		else
--			peer = DRBD_MAX_BIO_SIZE;
-+		struct request_queue *b = bdev->backing_bdev->bd_disk->queue;
+ /* This is the workaround for "bio would need to, but cannot, be split" */
+ static unsigned int drbd_backing_dev_max_segments(struct drbd_device *device)
+ {
+@@ -1320,8 +1259,11 @@ static unsigned int drbd_backing_dev_max_segments(struct drbd_device *device)
+ void drbd_reconsider_queue_parameters(struct drbd_device *device,
+ 		struct drbd_backing_dev *bdev, struct o_qlim *o)
+ {
++	struct drbd_connection *connection =
++		first_peer_device(device)->connection;
+ 	struct request_queue * const q = device->rq_queue;
+ 	unsigned int now = queue_max_hw_sectors(q) << 9;
++	struct queue_limits lim;
+ 	struct request_queue *b = NULL;
+ 	unsigned int new;
  
--		/* We may later detach and re-attach on a disconnected Primary.
--		 * Avoid this setting to jump back in that case.
--		 * We want to store what we know the peer DRBD can handle,
--		 * not what the peer IO backend can handle. */
--		if (peer > device->peer_max_bio_size)
--			device->peer_max_bio_size = peer;
-+		device->local_max_bio_size =
-+			queue_max_hw_sectors(b) << SECTOR_SHIFT;
- 	}
--	new = min(local, peer);
- 
--	if (device->state.role == R_PRIMARY && new < now)
--		drbd_err(device, "ASSERT FAILED new < now; (%u < %u)\n", new, now);
--
--	if (new != now)
-+	/*
-+	 * We may later detach and re-attach on a disconnected Primary.  Avoid
-+	 * decreasing the value in this case.
-+	 *
-+	 * We want to store what we know the peer DRBD can handle, not what the
-+	 * peer IO backend can handle.
-+	 */
-+	new = min3(DRBD_MAX_BIO_SIZE, device->local_max_bio_size,
-+		max(drbd_max_peer_bio_size(device), device->peer_max_bio_size));
-+	if (new != now) {
-+		if (device->state.role == R_PRIMARY && new < now)
-+			drbd_err(device, "ASSERT FAILED new < now; (%u < %u)\n",
-+					new, now);
+@@ -1348,24 +1290,55 @@ void drbd_reconsider_queue_parameters(struct drbd_device *device,
  		drbd_info(device, "max BIO size = %u\n", new);
-+	}
+ 	}
  
- 	drbd_setup_queue_param(device, bdev, new, o);
++	lim = queue_limits_start_update(q);
+ 	if (bdev) {
+-		blk_set_stacking_limits(&q->limits);
+-		blk_queue_max_segments(q,
+-			drbd_backing_dev_max_segments(device));
++		blk_set_stacking_limits(&lim);
++		lim.max_segments = drbd_backing_dev_max_segments(device);
+ 	} else {
+-		blk_queue_max_segments(q, BLK_MAX_SEGMENTS);
++		lim.max_segments = BLK_MAX_SEGMENTS;
+ 	}
+ 
+-	blk_queue_max_hw_sectors(q, new >> SECTOR_SHIFT);
+-	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
+-	decide_on_discard_support(device, bdev);
++	lim.max_hw_sectors = new >> SECTOR_SHIFT;
++	lim.seg_boundary_mask = PAGE_SIZE - 1;
+ 
+-	if (bdev) {
+-		blk_stack_limits(&q->limits, &b->limits, 0);
+-		disk_update_readahead(device->vdisk);
++	/*
++	 * We don't care for the granularity, really.
++	 *
++	 * Stacking limits below should fix it for the local device.  Whether or
++	 * not it is a suitable granularity on the remote device is not our
++	 * problem, really. If you care, you need to use devices with similar
++	 * topology on all peers.
++	 */
++	if (drbd_discard_supported(connection, bdev)) {
++		lim.discard_granularity = 512;
++		lim.max_hw_discard_sectors =
++			drbd_max_discard_sectors(connection);
++	} else {
++		lim.discard_granularity = 0;
++		lim.max_hw_discard_sectors = 0;
+ 	}
+-	fixup_write_zeroes(device, q);
+-	fixup_discard_support(device, q);
++
++	if (bdev)
++		blk_stack_limits(&lim, &b->limits, 0);
++
++	/*
++	 * If we can handle "zeroes" efficiently on the protocol, we want to do
++	 * that, even if our backend does not announce max_write_zeroes_sectors
++	 * itself.
++	 */
++	if (connection->agreed_features & DRBD_FF_WZEROES)
++		lim.max_write_zeroes_sectors = DRBD_MAX_BBIO_SECTORS;
++	else
++		lim.max_write_zeroes_sectors = 0;
++
++	if ((lim.discard_granularity >> SECTOR_SHIFT) >
++	    lim.max_hw_discard_sectors) {
++		lim.discard_granularity = 0;
++		lim.max_hw_discard_sectors = 0;
++	}
++
++	if (queue_limits_commit_update(q, &lim))
++		drbd_err(device, "setting new queue limits failed\n");
  }
+ 
+ /* Starts the worker thread */
 -- 
 2.39.2
 
