@@ -1,17 +1,17 @@
 Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E4376420641
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:44:32 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 732AE42021F
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:44:40 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
 	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
 	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH 05/16] md/raid0: use the atomic queue limit update APIs
-Date: Mon, 26 Feb 2024 11:29:53 +0100
-Message-Id: <20240226103004.281412-6-hch@lst.de>
+Subject: [PATCH 10/16] drbd: pass the max_hw_sectors limit to blk_alloc_disk
+Date: Mon, 26 Feb 2024 11:29:58 +0100
+Message-Id: <20240226103004.281412-11-hch@lst.de>
 In-Reply-To: <20240226103004.281412-1-hch@lst.de>
 References: <20240226103004.281412-1-hch@lst.de>
 MIME-Version: 1.0
@@ -29,83 +29,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Build the queue limits outside the queue and apply them using
-queue_limits_set.  Also remove the bogus ->gendisk and ->queue NULL
-checks in the are while touching it.
+Pass a queue_limits structure with the max_hw_sectors limit to
+blk_alloc_disk instead of updating the limit on the allocated gendisk.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/md/raid0.c | 37 +++++++++++++++++--------------------
- 1 file changed, 17 insertions(+), 20 deletions(-)
+ drivers/block/drbd/drbd_main.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
-index c50a7abda744ad..dd070e9b2d5643 100644
---- a/drivers/md/raid0.c
-+++ b/drivers/md/raid0.c
-@@ -381,7 +381,8 @@ static void raid0_free(struct mddev *mddev, void *priv)
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index cea1e537fd56c1..113b441d4d3670 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2690,6 +2690,14 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 	int id;
+ 	int vnr = adm_ctx->volume;
+ 	enum drbd_ret_code err = ERR_NOMEM;
++	struct queue_limits lim = {
++		/*
++		 * Setting the max_hw_sectors to an odd value of 8kibyte here.
++		 * This triggers a max_bio_size message upon first attach or
++		 * connect.
++		 */
++		.max_hw_sectors		= DRBD_MAX_BIO_SIZE_SAFE >> 8,
++	};
  
- static int raid0_run(struct mddev *mddev)
- {
--	struct r0conf *conf;
-+	struct r0conf *conf = mddev->private;
-+	struct queue_limits lim;
- 	int ret;
+ 	device = minor_to_device(minor);
+ 	if (device)
+@@ -2708,7 +2716,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
  
- 	if (mddev->chunk_sectors == 0) {
-@@ -391,29 +392,23 @@ static int raid0_run(struct mddev *mddev)
- 	if (md_check_no_bitmap(mddev))
- 		return -EINVAL;
+ 	drbd_init_set_defaults(device);
  
--	/* if private is not null, we are here after takeover */
--	if (mddev->private == NULL) {
-+	/* if conf is not null, we are here after takeover */
-+	if (!conf) {
- 		ret = create_strip_zones(mddev, &conf);
- 		if (ret < 0)
- 			return ret;
- 		mddev->private = conf;
- 	}
--	conf = mddev->private;
--	if (mddev->queue) {
--		struct md_rdev *rdev;
--
--		blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
--		blk_queue_max_write_zeroes_sectors(mddev->queue, mddev->chunk_sectors);
+-	disk = blk_alloc_disk(NULL, NUMA_NO_NODE);
++	disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
+ 	if (IS_ERR(disk)) {
+ 		err = PTR_ERR(disk);
+ 		goto out_no_disk;
+@@ -2729,9 +2737,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
  
--		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
--		blk_queue_io_opt(mddev->queue,
--				 (mddev->chunk_sectors << 9) * mddev->raid_disks);
--
--		rdev_for_each(rdev, mddev) {
--			disk_stack_limits(mddev->gendisk, rdev->bdev,
--					  rdev->data_offset << 9);
--		}
--	}
-+	blk_set_stacking_limits(&lim);
-+	lim.max_hw_sectors = mddev->chunk_sectors;
-+	lim.max_write_zeroes_sectors = mddev->chunk_sectors;
-+	lim.io_min = mddev->chunk_sectors << 9;
-+	lim.io_opt = lim.io_min * mddev->raid_disks;
-+	mddev_stack_rdev_limits(mddev, &lim);
-+	ret = queue_limits_set(mddev->queue, &lim);
-+	if (ret)
-+		goto out_free_conf;
+ 	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, disk->queue);
+ 	blk_queue_write_cache(disk->queue, true, true);
+-	/* Setting the max_hw_sectors to an odd value of 8kibyte here
+-	   This triggers a max_bio_size message upon first attach or connect */
+-	blk_queue_max_hw_sectors(disk->queue, DRBD_MAX_BIO_SIZE_SAFE >> 8);
  
- 	/* calculate array device size */
- 	md_set_array_sectors(mddev, raid0_size(mddev, 0, 0));
-@@ -426,8 +421,10 @@ static int raid0_run(struct mddev *mddev)
- 
- 	ret = md_integrity_register(mddev);
- 	if (ret)
--		free_conf(mddev, conf);
--
-+		goto out_free_conf;
-+	return 0;
-+out_free_conf:
-+	free_conf(mddev, conf);
- 	return ret;
- }
- 
+ 	device->md_io.page = alloc_page(GFP_KERNEL);
+ 	if (!device->md_io.page)
 -- 
 2.39.2
 
