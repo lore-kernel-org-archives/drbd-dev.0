@@ -1,23 +1,32 @@
-Return-Path: <BATV+3075c4dbfe213c24d6b2+7491+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3537642064A
-	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:45:03 +0100 (CET)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@kernel.org>,
-	Mikulas Patocka <mpatocka@redhat.com>, Song Liu <song@kernel.org>,
-	Yu Kuai <yukuai3@huawei.com>, Philipp Reisner <philipp.reisner@linbit.com>,
+Return-Path: <yukuai1@huaweicloud.com>
+Received: from dggsgout11.his.huawei.com (dggsgout11.his.huawei.com
+	[45.249.212.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A7BD342060E
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 12:48:46 +0100 (CET)
+Received: from mail.maildlp.com (unknown [172.19.163.235])
+	by dggsgout11.his.huawei.com (SkyGuard) with ESMTP id 4Tjz0M4wT3z4f3jQY
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 19:29:07 +0800 (CST)
+Received: from mail02.huawei.com (unknown [10.116.40.112])
+	by mail.maildlp.com (Postfix) with ESMTP id 03FC71A0568
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Feb 2024 19:29:11 +0800 (CST)
+Subject: Re: [PATCH 06/16] md/raid1: use the atomic queue limit update APIs
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
+	Mike Snitzer <snitzer@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
+	Song Liu <song@kernel.org>, Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [PATCH 15/16] drbd: split out a drbd_discard_supported helper
-Date: Mon, 26 Feb 2024 11:30:03 +0100
-Message-Id: <20240226103004.281412-16-hch@lst.de>
-In-Reply-To: <20240226103004.281412-1-hch@lst.de>
+	=?UTF-8?Q?Christoph_B=c3=b6hmwalder?= <christoph.boehmwalder@linbit.com>
 References: <20240226103004.281412-1-hch@lst.de>
+	<20240226103004.281412-7-hch@lst.de>
+From: Yu Kuai <yukuai1@huaweicloud.com>
+Message-ID: <b4828284-87ec-693b-e2c3-84bdafcbda65@huaweicloud.com>
+Date: Mon, 26 Feb 2024 19:29:08 +0800
 MIME-Version: 1.0
+In-Reply-To: <20240226103004.281412-7-hch@lst.de>
+Content-Type: text/plain; charset=gbk; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: dm-devel@lists.linux.dev, linux-block@vger.kernel.org,
-	linux-raid@vger.kernel.org, drbd-dev@lists.linbit.com
+	linux-raid@vger.kernel.org, "yukuai \(C\)" <yukuai3@huawei.com>,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -29,60 +38,75 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add a helper to check if discard is supported for a given connection /
-backing device combination.
+Hi,
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- drivers/block/drbd/drbd_nl.c | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ÔÚ 2024/02/26 18:29, Christoph Hellwig Ð´µÀ:
+> Build the queue limits outside the queue and apply them using
+> queue_limits_set.  Also remove the bogus ->gendisk and ->queue NULL
+> checks in the are while touching it.
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index a79b7fe5335de4..94ed2b3ea6361d 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -1231,24 +1231,33 @@ static unsigned int drbd_max_discard_sectors(struct drbd_connection *connection)
- 	return AL_EXTENT_SIZE >> 9;
- }
- 
--static void decide_on_discard_support(struct drbd_device *device,
-+static bool drbd_discard_supported(struct drbd_connection *connection,
- 		struct drbd_backing_dev *bdev)
- {
--	struct drbd_connection *connection =
--		first_peer_device(device)->connection;
--	struct request_queue *q = device->rq_queue;
--	unsigned int max_discard_sectors;
--
- 	if (bdev && !bdev_max_discard_sectors(bdev->backing_bdev))
--		goto not_supported;
-+		return false;
- 
- 	if (connection->cstate >= C_CONNECTED &&
- 	    !(connection->agreed_features & DRBD_FF_TRIM)) {
- 		drbd_info(connection,
- 			"peer DRBD too old, does not support TRIM: disabling discards\n");
--		goto not_supported;
-+		return false;
- 	}
- 
-+	return true;
-+}
-+
-+static void decide_on_discard_support(struct drbd_device *device,
-+		struct drbd_backing_dev *bdev)
-+{
-+	struct drbd_connection *connection =
-+		first_peer_device(device)->connection;
-+	struct request_queue *q = device->rq_queue;
-+	unsigned int max_discard_sectors;
-+
-+	if (!drbd_discard_supported(connection, bdev))
-+		goto not_supported;
-+
- 	/*
- 	 * We don't care for the granularity, really.
- 	 *
--- 
-2.39.2
+The checking of mddev->gendisk can't be removed, because this is used to
+distinguish dm-raid and md/raid. And the same for following patches.
+
+Thanks,
+Kuai
+
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   drivers/md/raid1.c | 24 ++++++++++--------------
+>   1 file changed, 10 insertions(+), 14 deletions(-)
+> 
+> diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
+> index 286f8b16c7bde7..752ff99736a636 100644
+> --- a/drivers/md/raid1.c
+> +++ b/drivers/md/raid1.c
+> @@ -1791,10 +1791,9 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
+>   	for (mirror = first; mirror <= last; mirror++) {
+>   		p = conf->mirrors + mirror;
+>   		if (!p->rdev) {
+> -			if (mddev->gendisk)
+> -				disk_stack_limits(mddev->gendisk, rdev->bdev,
+> -						  rdev->data_offset << 9);
+> -
+> +			err = mddev_stack_new_rdev(mddev, rdev);
+> +			if (err)
+> +				return err;
+>   			p->head_position = 0;
+>   			rdev->raid_disk = mirror;
+>   			err = 0;
+> @@ -3089,9 +3088,9 @@ static struct r1conf *setup_conf(struct mddev *mddev)
+>   static void raid1_free(struct mddev *mddev, void *priv);
+>   static int raid1_run(struct mddev *mddev)
+>   {
+> +	struct queue_limits lim;
+>   	struct r1conf *conf;
+>   	int i;
+> -	struct md_rdev *rdev;
+>   	int ret;
+>   
+>   	if (mddev->level != 1) {
+> @@ -3118,15 +3117,12 @@ static int raid1_run(struct mddev *mddev)
+>   	if (IS_ERR(conf))
+>   		return PTR_ERR(conf);
+>   
+> -	if (mddev->queue)
+> -		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
+> -
+> -	rdev_for_each(rdev, mddev) {
+> -		if (!mddev->gendisk)
+> -			continue;
+> -		disk_stack_limits(mddev->gendisk, rdev->bdev,
+> -				  rdev->data_offset << 9);
+> -	}
+> +	blk_set_stacking_limits(&lim);
+> +	lim.max_write_zeroes_sectors = 0;
+> +	mddev_stack_rdev_limits(mddev, &lim);
+> +	ret = queue_limits_set(mddev->queue, &lim);
+> +	if (ret)
+> +		goto abort;
+>   
+>   	mddev->degraded = 0;
+>   	for (i = 0; i < conf->raid_disks; i++)
+> 
 
