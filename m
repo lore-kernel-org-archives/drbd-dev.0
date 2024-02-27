@@ -1,19 +1,20 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CB69942021F
-	for <drbd-dev@lists.linbit.com>; Tue, 27 Feb 2024 15:43:59 +0100 (CET)
-Date: Tue, 27 Feb 2024 15:36:18 +0100
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 59BB5420230
+	for <drbd-dev@lists.linbit.com>; Tue, 27 Feb 2024 16:26:12 +0100 (CET)
+Date: Tue, 27 Feb 2024 16:26:09 +0100
 From: Christoph Hellwig <hch@lst.de>
 To: Yu Kuai <yukuai1@huaweicloud.com>
-Subject: Re: [PATCH 04/16] md: add queue limit helpers
-Message-ID: <20240227143618.GA13570@lst.de>
+Subject: Re: [PATCH 06/16] md/raid1: use the atomic queue limit update APIs
+Message-ID: <20240227152609.GA14782@lst.de>
 References: <20240226103004.281412-1-hch@lst.de>
-	<20240226103004.281412-5-hch@lst.de>
-	<6eb1741e-f336-bfb1-6549-21374ee667fc@huaweicloud.com>
+	<20240226103004.281412-7-hch@lst.de>
+	<b4828284-87ec-693b-e2c3-84bdafcbda65@huaweicloud.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <6eb1741e-f336-bfb1-6549-21374ee667fc@huaweicloud.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <b4828284-87ec-693b-e2c3-84bdafcbda65@huaweicloud.com>
 Cc: Jens Axboe <axboe@kernel.dk>, dm-devel@lists.linux.dev,
 	linux-raid@vger.kernel.org, Mike Snitzer <snitzer@kernel.org>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
@@ -32,13 +33,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Feb 26, 2024 at 07:38:17PM +0800, Yu Kuai wrote:
-> Any reason to use blk_mq_freeze/unfreeze_queue ? I don't think this is
-> meaningful for raid, this only wait for IO submission, not IO done.
+On Mon, Feb 26, 2024 at 07:29:08PM +0800, Yu Kuai wrote:
+> Hi,
 >
-> raid should already handle concurrent IO with reshape, so I think this
-> can just be removed.
+> 在 2024/02/26 18:29, Christoph Hellwig 写道:
+>> Build the queue limits outside the queue and apply them using
+>> queue_limits_set.  Also remove the bogus ->gendisk and ->queue NULL
+>> checks in the are while touching it.
+>
+> The checking of mddev->gendisk can't be removed, because this is used to
+> distinguish dm-raid and md/raid. And the same for following patches.
 
-We can't just change limits under the driver if I/Os are being sumitted.
-That is one of the points of the whole queue limits exercises.
+Ah.  Well, we should make that more obvious then.  This is what I
+currently have:
+
+http://git.infradead.org/?p=users/hch/block.git;a=shortlog;h=refs/heads/md-blk-limits
+
+particularly:
+
+http://git.infradead.org/?p=users/hch/block.git;a=commitdiff;h=24b2fd15f57f06629d2254ebec480e1e28b96636
 
