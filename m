@@ -1,19 +1,20 @@
-Return-Path: <yoann.congal@smile.fr>
-Received: from mail-wm1-f54.google.com (mail-wm1-f54.google.com
-	[209.85.128.54])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3BBD2420641
-	for <drbd-dev@lists.linbit.com>; Sat,  2 Mar 2024 16:47:14 +0100 (CET)
-Received: by mail-wm1-f54.google.com with SMTP id
-	5b1f17b1804b1-412d503f34dso3664595e9.3
-	for <drbd-dev@lists.linbit.com>; Sat, 02 Mar 2024 07:47:14 -0800 (PST)
-From: Yoann Congal <yoann.congal@smile.fr>
+Return-Path: <glass.su@suse.com>
+Received: from mail-lf1-f54.google.com (mail-lf1-f54.google.com
+	[209.85.167.54])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E70FD42062A
+	for <drbd-dev@lists.linbit.com>; Sun,  3 Mar 2024 10:13:13 +0100 (CET)
+Received: by mail-lf1-f54.google.com with SMTP id
+	2adb3069b0e04-512e39226efso3313011e87.0
+	for <drbd-dev@lists.linbit.com>; Sun, 03 Mar 2024 01:13:13 -0800 (PST)
+From: Su Yue <glass.su@suse.com>
 To: drbd-dev@lists.linbit.com
-Subject: [PATCH] configure.ac: Add an option to disable host udev version
-	checks
-Date: Sat,  2 Mar 2024 16:41:30 +0100
-Message-Id: <20240302154129.683863-1-yoann.congal@smile.fr>
+Subject: [PATCH 1/2] crm-fence-peer.9.sh: fix parsing in_ccm crmd fields of
+	node_state with Pacemaker 2.1.7
+Date: Sun,  3 Mar 2024 17:12:58 +0800
+Message-ID: <20240303091259.5045-1-l@damenly.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
+Cc: lars.ellenberg@linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,60 +26,63 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In cross-compilation environment, the build host might have an outdated
-udev or no udev at all. But the user may still want to build with the
-enabled udev rule (for its udev-enabled target).
+From: Su Yue <glass.su@suse.com>
 
-This patch adds a "--disable-udevchecks" option the disable build host
-udev version check at configure-time and unconditionally install the
-enabled udev rule. Without this new option, the behavior stays the same
-(checks enabled).
+If pacemaker version < 2.1.7, in_ccm of node_state is "true" or "false"
+and crmd is "online" or "offline".
 
-Signed-off-by: Yoann Congal <yoann.congal@smile.fr>
+pacemaker 2.1.7 changed the two fields into timestamps.
+For in_ccm, the value is timestamp since when node has been a cluster
+member("true"). A value 0 of means the node is not a cluster member("false").
+For crmd, the value is timestamp since when peer has been online in
+CPG("online"). A value 0 means the peer is offline in CPG("offline").
+
+The original code doesn't handle these fields in timestamp format.
+Since there are many comprare of strings in context, converting in_ccm and crmd
+from timestamps/0 to old strings is simpler and clearer.
+
+Link: https://github.com/ClusterLabs/pacemaker/blob/Pacemaker-2.1.7/lib/pengine/unpack.c#L1581
+Signed-off-by: Su Yue <glass.su@suse.com>
 ---
-As a side note, this host udev check triggered a non-reproducility
-noticed by the Openembedded/Yocto project[0]. The first build may have been done
-on a udev-incompatible host, the second on a compatible one resulting in
-a disabled then enabled udev rule.
-[0]: https://autobuilder.yocto.io/pub/repro-fail-openembedded/meta-networking/oe-reproducible-20240224-_r8qnlae/packages/diff-html/#reproducibleA-tmp---reproducibleA-tmp-deploy---reproducibleA-tmp-deploy-ipk---reproducibleA-tmp-deploy-ipk-core-------reproducibleA-tmp-deploy-ipk-core-----drbd-utils_-.--.--r-_core----.ipk---data.tar.zst---data.tar---file-list
----
- configure.ac | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ scripts/crm-fence-peer.9.sh | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
 
-diff --git a/configure.ac b/configure.ac
-index f1d69ea3..4c56d33b 100644
---- a/configure.ac
-+++ b/configure.ac
-@@ -71,6 +71,11 @@ AC_ARG_WITH([udev],
- 	[AS_HELP_STRING([--with-udev],
- 			[Enable udev integration])],
- 	[WITH_UDEV=$withval])
-+AC_ARG_ENABLE([udevchecks],
-+	[AS_HELP_STRING([--disable-udevchecks],
-+			[Disable host udev version checks])],
-+	[],
-+	[enable_udevchecks=yes])
- AC_ARG_WITH([xen],
- 	[AS_HELP_STRING([--with-xen],
- 			[Enable Xen integration])],
-@@ -315,7 +320,7 @@ if test -z $GIT; then
-    AC_MSG_WARN(Cannot update buildtag without git. You may safely ignore this warning when building from a tarball.)
- fi
+diff --git a/scripts/crm-fence-peer.9.sh b/scripts/crm-fence-peer.9.sh
+index 44da6516bf3f..a3353a7354a6 100755
+--- a/scripts/crm-fence-peer.9.sh
++++ b/scripts/crm-fence-peer.9.sh
+@@ -888,6 +888,31 @@ guess_if_pacemaker_will_fence()
+ 		esac
+ 	done
  
--if test $UDEVADM = false && test $UDEVINFO = false; then
-+if test "x$enable_udevchecks" != "xno" && test $UDEVADM = false && test $UDEVINFO = false; then
-    if test "$WITH_UDEV" = "yes"; then
-      AC_MSG_WARN([udev support enabled, but neither udevadm nor udevinfo found on this system.])
-    fi
-@@ -423,7 +428,7 @@ else
-     test -z $INITDIR && INITDIR="$sysconfdir/init.d"
- 
-     dnl Our udev rules file is known to work only with udev >= 85
--    if test "$WITH_UDEV" = "yes"; then
-+    if test "x$enable_udevchecks" != "xno" && test "$WITH_UDEV" = "yes"; then
-        udev_version=$( set -- $($UDEVADM version); echo $1 )
-        if test -z "$udev_version"; then
- 	    udev_version=$( set -- $($UDEVINFO -V); echo $3 )
++	# Copied from pacemaker-2.1.7:lib/pengine/unpack.c:
++	# Since crm_feature_set 3.18.0 (pacemaker-2.1.7):
++	#
++	# - in_ccm		::= <timestamp>|0
++	# Since when node has been a cluster member. A value 0 of means the
++	# node is not a cluster member.
++	# - crmd		::= <timestamp>|0
++	# Since when peer has been online in CPG. A value 0 means the peer
++	# is offline in CPG.
++	if [[ $in_ccm =~ ^[0-9]+$ ]]; then
++		if [[ $in_ccm = "0" ]]; then
++			in_ccm="false"
++		else
++			in_ccm="true"
++		fi
++	fi
++
++	if [[ $crmd =~ ^[0-9]+$ ]]; then
++		if [[ $crmd = "0" ]]; then
++			crmd="offline"
++		else
++			crmd="online"
++		fi
++	fi
++
+ 	# if it is not enabled, no point in waiting for it.
+ 	if ! $stonith_enabled ; then
+ 		# "normalize" the rest of the logic
 -- 
-2.39.2
+2.44.0
 
