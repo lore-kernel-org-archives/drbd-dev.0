@@ -1,16 +1,16 @@
 Return-Path: <BATV+b2e8b8bc6a48568b3498+7499+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 879BF42030C
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 88940420319
 	for <drbd-dev@lists.linbit.com>; Tue,  5 Mar 2024 14:40:45 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 3/7] drbd: refactor the backing dev max_segments calculation
-Date: Tue,  5 Mar 2024 06:40:37 -0700
-Message-Id: <20240305134041.137006-4-hch@lst.de>
+Subject: [PATCH 2/7] drbd: refactor drbd_reconsider_queue_parameters
+Date: Tue,  5 Mar 2024 06:40:36 -0700
+Message-Id: <20240305134041.137006-3-hch@lst.de>
 In-Reply-To: <20240305134041.137006-1-hch@lst.de>
 References: <20240305134041.137006-1-hch@lst.de>
 MIME-Version: 1.0
@@ -27,66 +27,124 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Factor out a drbd_backing_dev_max_segments helper that checks the
-backing device limitation.
+Split out a drbd_max_peer_bio_size helper for the peer I/O size,
+and condense the various checks to a nested min3(..., max())) instead
+of using a lot of local variables.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_nl.c | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 84 +++++++++++++++++++++---------------
+ 1 file changed, 49 insertions(+), 35 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 9135001a8e572d..0326b7322ceb48 100644
+index 43747a1aae4353..9135001a8e572d 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1295,30 +1295,39 @@ static void fixup_discard_support(struct drbd_device *device, struct request_que
- 	}
+@@ -1189,6 +1189,33 @@ static int drbd_check_al_size(struct drbd_device *device, struct disk_conf *dc)
+ 	return 0;
  }
  
-+/* This is the workaround for "bio would need to, but cannot, be split" */
-+static unsigned int drbd_backing_dev_max_segments(struct drbd_device *device)
++static unsigned int drbd_max_peer_bio_size(struct drbd_device *device)
 +{
-+	unsigned int max_segments;
++	/*
++	 * We may ignore peer limits if the peer is modern enough.  From 8.3.8
++	 * onwards the peer can use multiple BIOs for a single peer_request.
++	 */
++	if (device->state.conn < C_WF_REPORT_PARAMS)
++		return device->peer_max_bio_size;
 +
-+	rcu_read_lock();
-+	max_segments = rcu_dereference(device->ldev->disk_conf)->max_bio_bvecs;
-+	rcu_read_unlock();
++	if (first_peer_device(device)->connection->agreed_pro_version < 94)
++		return min(device->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
 +
-+	if (!max_segments)
-+		return BLK_MAX_SEGMENTS;
-+	return max_segments;
++	/*
++	 * Correct old drbd (up to 8.3.7) if it believes it can do more than
++	 * 32KiB.
++	 */
++	if (first_peer_device(device)->connection->agreed_pro_version == 94)
++		return DRBD_MAX_SIZE_H80_PACKET;
++
++	/*
++	 * drbd 8.3.8 onwards, before 8.4.0
++	 */
++	if (first_peer_device(device)->connection->agreed_pro_version < 100)
++		return DRBD_MAX_BIO_SIZE_P95;
++	return DRBD_MAX_BIO_SIZE;
 +}
 +
- static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backing_dev *bdev,
- 				   unsigned int max_bio_size, struct o_qlim *o)
+ static void blk_queue_discard_granularity(struct request_queue *q, unsigned int granularity)
  {
- 	struct request_queue * const q = device->rq_queue;
- 	unsigned int max_hw_sectors = max_bio_size >> 9;
--	unsigned int max_segments = 0;
-+	unsigned int max_segments = BLK_MAX_SEGMENTS;
- 	struct request_queue *b = NULL;
--	struct disk_conf *dc;
+ 	q->limits.discard_granularity = granularity;
+@@ -1303,48 +1330,35 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
+ 	fixup_discard_support(device, q);
+ }
+ 
+-void drbd_reconsider_queue_parameters(struct drbd_device *device, struct drbd_backing_dev *bdev, struct o_qlim *o)
++void drbd_reconsider_queue_parameters(struct drbd_device *device,
++		struct drbd_backing_dev *bdev, struct o_qlim *o)
+ {
+-	unsigned int now, new, local, peer;
+-
+-	now = queue_max_hw_sectors(device->rq_queue) << 9;
+-	local = device->local_max_bio_size; /* Eventually last known value, from volatile memory */
+-	peer = device->peer_max_bio_size; /* Eventually last known value, from meta data */
++	unsigned int now = queue_max_hw_sectors(device->rq_queue) <<
++			SECTOR_SHIFT;
++	unsigned int new;
  
  	if (bdev) {
- 		b = bdev->backing_bdev->bd_disk->queue;
+-		local = queue_max_hw_sectors(bdev->backing_bdev->bd_disk->queue) << 9;
+-		device->local_max_bio_size = local;
+-	}
+-	local = min(local, DRBD_MAX_BIO_SIZE);
+-
+-	/* We may ignore peer limits if the peer is modern enough.
+-	   Because new from 8.3.8 onwards the peer can use multiple
+-	   BIOs for a single peer_request */
+-	if (device->state.conn >= C_WF_REPORT_PARAMS) {
+-		if (first_peer_device(device)->connection->agreed_pro_version < 94)
+-			peer = min(device->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+-			/* Correct old drbd (up to 8.3.7) if it believes it can do more than 32KiB */
+-		else if (first_peer_device(device)->connection->agreed_pro_version == 94)
+-			peer = DRBD_MAX_SIZE_H80_PACKET;
+-		else if (first_peer_device(device)->connection->agreed_pro_version < 100)
+-			peer = DRBD_MAX_BIO_SIZE_P95;  /* drbd 8.3.8 onwards, before 8.4.0 */
+-		else
+-			peer = DRBD_MAX_BIO_SIZE;
++		struct request_queue *b = bdev->backing_bdev->bd_disk->queue;
  
- 		max_hw_sectors = min(queue_max_hw_sectors(b), max_bio_size >> 9);
--		rcu_read_lock();
--		dc = rcu_dereference(device->ldev->disk_conf);
--		max_segments = dc->max_bio_bvecs;
--		rcu_read_unlock();
-+		max_segments = drbd_backing_dev_max_segments(device);
- 
- 		blk_set_stacking_limits(&q->limits);
+-		/* We may later detach and re-attach on a disconnected Primary.
+-		 * Avoid this setting to jump back in that case.
+-		 * We want to store what we know the peer DRBD can handle,
+-		 * not what the peer IO backend can handle. */
+-		if (peer > device->peer_max_bio_size)
+-			device->peer_max_bio_size = peer;
++		device->local_max_bio_size =
++			queue_max_hw_sectors(b) << SECTOR_SHIFT;
  	}
+-	new = min(local, peer);
  
- 	blk_queue_max_hw_sectors(q, max_hw_sectors);
--	/* This is the workaround for "bio would need to, but cannot, be split" */
--	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
-+	blk_queue_max_segments(q, max_segments);
- 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
- 	decide_on_discard_support(device, bdev);
+-	if (device->state.role == R_PRIMARY && new < now)
+-		drbd_err(device, "ASSERT FAILED new < now; (%u < %u)\n", new, now);
+-
+-	if (new != now)
++	/*
++	 * We may later detach and re-attach on a disconnected Primary.  Avoid
++	 * decreasing the value in this case.
++	 *
++	 * We want to store what we know the peer DRBD can handle, not what the
++	 * peer IO backend can handle.
++	 */
++	new = min3(DRBD_MAX_BIO_SIZE, device->local_max_bio_size,
++		max(drbd_max_peer_bio_size(device), device->peer_max_bio_size));
++	if (new != now) {
++		if (device->state.role == R_PRIMARY && new < now)
++			drbd_err(device, "ASSERT FAILED new < now; (%u < %u)\n",
++					new, now);
+ 		drbd_info(device, "max BIO size = %u\n", new);
++	}
  
+ 	drbd_setup_queue_param(device, bdev, new, o);
+ }
 -- 
 2.39.2
 
