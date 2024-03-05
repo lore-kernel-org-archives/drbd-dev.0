@@ -1,16 +1,16 @@
 Return-Path: <BATV+b2e8b8bc6a48568b3498+7499+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8641E420301
-	for <drbd-dev@lists.linbit.com>; Tue,  5 Mar 2024 14:40:44 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 879BF42030C
+	for <drbd-dev@lists.linbit.com>; Tue,  5 Mar 2024 14:40:45 +0100 (CET)
 From: Christoph Hellwig <hch@lst.de>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 1/7] drbd: pass the max_hw_sectors limit to blk_alloc_disk
-Date: Tue,  5 Mar 2024 06:40:35 -0700
-Message-Id: <20240305134041.137006-2-hch@lst.de>
+Subject: [PATCH 3/7] drbd: refactor the backing dev max_segments calculation
+Date: Tue,  5 Mar 2024 06:40:37 -0700
+Message-Id: <20240305134041.137006-4-hch@lst.de>
 In-Reply-To: <20240305134041.137006-1-hch@lst.de>
 References: <20240305134041.137006-1-hch@lst.de>
 MIME-Version: 1.0
@@ -27,52 +27,66 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Pass a queue_limits structure with the max_hw_sectors limit to
-blk_alloc_disk instead of updating the limit on the allocated gendisk.
+Factor out a drbd_backing_dev_max_segments helper that checks the
+backing device limitation.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/drbd/drbd_main.c | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ drivers/block/drbd/drbd_nl.c | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index cea1e537fd56c1..113b441d4d3670 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -2690,6 +2690,14 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
- 	int id;
- 	int vnr = adm_ctx->volume;
- 	enum drbd_ret_code err = ERR_NOMEM;
-+	struct queue_limits lim = {
-+		/*
-+		 * Setting the max_hw_sectors to an odd value of 8kibyte here.
-+		 * This triggers a max_bio_size message upon first attach or
-+		 * connect.
-+		 */
-+		.max_hw_sectors		= DRBD_MAX_BIO_SIZE_SAFE >> 8,
-+	};
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 9135001a8e572d..0326b7322ceb48 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1295,30 +1295,39 @@ static void fixup_discard_support(struct drbd_device *device, struct request_que
+ 	}
+ }
  
- 	device = minor_to_device(minor);
- 	if (device)
-@@ -2708,7 +2716,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
++/* This is the workaround for "bio would need to, but cannot, be split" */
++static unsigned int drbd_backing_dev_max_segments(struct drbd_device *device)
++{
++	unsigned int max_segments;
++
++	rcu_read_lock();
++	max_segments = rcu_dereference(device->ldev->disk_conf)->max_bio_bvecs;
++	rcu_read_unlock();
++
++	if (!max_segments)
++		return BLK_MAX_SEGMENTS;
++	return max_segments;
++}
++
+ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backing_dev *bdev,
+ 				   unsigned int max_bio_size, struct o_qlim *o)
+ {
+ 	struct request_queue * const q = device->rq_queue;
+ 	unsigned int max_hw_sectors = max_bio_size >> 9;
+-	unsigned int max_segments = 0;
++	unsigned int max_segments = BLK_MAX_SEGMENTS;
+ 	struct request_queue *b = NULL;
+-	struct disk_conf *dc;
  
- 	drbd_init_set_defaults(device);
+ 	if (bdev) {
+ 		b = bdev->backing_bdev->bd_disk->queue;
  
--	disk = blk_alloc_disk(NULL, NUMA_NO_NODE);
-+	disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
- 	if (IS_ERR(disk)) {
- 		err = PTR_ERR(disk);
- 		goto out_no_disk;
-@@ -2729,9 +2737,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 		max_hw_sectors = min(queue_max_hw_sectors(b), max_bio_size >> 9);
+-		rcu_read_lock();
+-		dc = rcu_dereference(device->ldev->disk_conf);
+-		max_segments = dc->max_bio_bvecs;
+-		rcu_read_unlock();
++		max_segments = drbd_backing_dev_max_segments(device);
  
- 	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, disk->queue);
- 	blk_queue_write_cache(disk->queue, true, true);
--	/* Setting the max_hw_sectors to an odd value of 8kibyte here
--	   This triggers a max_bio_size message upon first attach or connect */
--	blk_queue_max_hw_sectors(disk->queue, DRBD_MAX_BIO_SIZE_SAFE >> 8);
+ 		blk_set_stacking_limits(&q->limits);
+ 	}
  
- 	device->md_io.page = alloc_page(GFP_KERNEL);
- 	if (!device->md_io.page)
+ 	blk_queue_max_hw_sectors(q, max_hw_sectors);
+-	/* This is the workaround for "bio would need to, but cannot, be split" */
+-	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
++	blk_queue_max_segments(q, max_segments);
+ 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
+ 	decide_on_discard_support(device, bdev);
+ 
 -- 
 2.39.2
 
