@@ -1,17 +1,16 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-ed1-f49.google.com (mail-ed1-f49.google.com
-	[209.85.208.49])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 573974205D4
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Mar 2024 15:04:20 +0100 (CET)
-Received: by mail-ed1-f49.google.com with SMTP id
-	4fb4d7f45d1cf-564fc495d83so8382089a12.0
-	for <drbd-dev@lists.linbit.com>; Wed, 06 Mar 2024 06:04:20 -0800 (PST)
+Received: from mail-ed1-f50.google.com (mail-ed1-f50.google.com
+	[209.85.208.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3DF824205E9
+	for <drbd-dev@lists.linbit.com>; Wed,  6 Mar 2024 15:04:21 +0100 (CET)
+Received: by mail-ed1-f50.google.com with SMTP id
+	4fb4d7f45d1cf-55a5e7fa471so9995275a12.1
+	for <drbd-dev@lists.linbit.com>; Wed, 06 Mar 2024 06:04:21 -0800 (PST)
 From: Philipp Reisner <philipp.reisner@linbit.com>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 5/7] drbd: don't set max_write_zeroes_sectors in
-	decide_on_discard_support
-Date: Wed,  6 Mar 2024 15:03:30 +0100
-Message-Id: <20240306140332.623759-6-philipp.reisner@linbit.com>
+Subject: [PATCH 6/7] drbd: split out a drbd_discard_supported helper
+Date: Wed,  6 Mar 2024 15:03:31 +0100
+Message-Id: <20240306140332.623759-7-philipp.reisner@linbit.com>
 In-Reply-To: <20240305134041.137006-1-hch@lst.de>
 References: <20240305134041.137006-1-hch@lst.de>
 MIME-Version: 1.0
@@ -33,30 +32,63 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Christoph Hellwig <hch@lst.de>
 
-fixup_write_zeroes always overrides the max_write_zeroes_sectors value
-a little further down the callchain, so don't bother to setup a limit
-in decide_on_discard_support.
+Add a helper to check if discard is supported for a given connection /
+backing device combination.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Philipp Reisner <philipp.reisner@linbit.com>
 Reviewed-by: Lars Ellenberg <lars.ellenberg@linbit.com>
 Tested-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drivers/block/drbd/drbd_nl.c | 1 -
- 1 file changed, 1 deletion(-)
+ drivers/block/drbd/drbd_nl.c | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 0f40fdee0899..a79b7fe5335d 100644
+index a79b7fe5335d..94ed2b3ea636 100644
 --- a/drivers/block/drbd/drbd_nl.c
 +++ b/drivers/block/drbd/drbd_nl.c
-@@ -1260,7 +1260,6 @@ static void decide_on_discard_support(struct drbd_device *device,
- 	blk_queue_discard_granularity(q, 512);
- 	max_discard_sectors = drbd_max_discard_sectors(connection);
- 	blk_queue_max_discard_sectors(q, max_discard_sectors);
--	blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
- 	return;
+@@ -1231,24 +1231,33 @@ static unsigned int drbd_max_discard_sectors(struct drbd_connection *connection)
+ 	return AL_EXTENT_SIZE >> 9;
+ }
  
- not_supported:
+-static void decide_on_discard_support(struct drbd_device *device,
++static bool drbd_discard_supported(struct drbd_connection *connection,
+ 		struct drbd_backing_dev *bdev)
+ {
+-	struct drbd_connection *connection =
+-		first_peer_device(device)->connection;
+-	struct request_queue *q = device->rq_queue;
+-	unsigned int max_discard_sectors;
+-
+ 	if (bdev && !bdev_max_discard_sectors(bdev->backing_bdev))
+-		goto not_supported;
++		return false;
+ 
+ 	if (connection->cstate >= C_CONNECTED &&
+ 	    !(connection->agreed_features & DRBD_FF_TRIM)) {
+ 		drbd_info(connection,
+ 			"peer DRBD too old, does not support TRIM: disabling discards\n");
+-		goto not_supported;
++		return false;
+ 	}
+ 
++	return true;
++}
++
++static void decide_on_discard_support(struct drbd_device *device,
++		struct drbd_backing_dev *bdev)
++{
++	struct drbd_connection *connection =
++		first_peer_device(device)->connection;
++	struct request_queue *q = device->rq_queue;
++	unsigned int max_discard_sectors;
++
++	if (!drbd_discard_supported(connection, bdev))
++		goto not_supported;
++
+ 	/*
+ 	 * We don't care for the granularity, really.
+ 	 *
 -- 
 2.40.1
 
