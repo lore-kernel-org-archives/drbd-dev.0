@@ -1,24 +1,25 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-il1-f175.google.com (mail-il1-f175.google.com
-	[209.85.166.175])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8F78A4205D4
-	for <drbd-dev@lists.linbit.com>; Wed,  6 Mar 2024 16:35:31 +0100 (CET)
-Received: by mail-il1-f175.google.com with SMTP id
-	e9e14a558f8ab-35d374bebe3so5646475ab.1
-	for <drbd-dev@lists.linbit.com>; Wed, 06 Mar 2024 07:35:31 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-In-Reply-To: <20240306140332.623759-1-philipp.reisner@linbit.com>
-References: <20240305134041.137006-1-hch@lst.de>
-	<20240306140332.623759-1-philipp.reisner@linbit.com>
-Subject: Re: [PATCH 0/7] drbd atomic queue limits conversion
-Message-Id: <170973932937.23995.12080568570430339256.b4-ty@kernel.dk>
-Date: Wed, 06 Mar 2024 08:35:29 -0700
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Cc: linux-block@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
-	drbd-dev@lists.linbit.com
+Return-Path: <glass.su@suse.com>
+Received: from mail-lj1-f181.google.com (mail-lj1-f181.google.com
+	[209.85.208.181])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6CFF9420319
+	for <drbd-dev@lists.linbit.com>; Thu,  7 Mar 2024 03:54:43 +0100 (CET)
+Received: by mail-lj1-f181.google.com with SMTP id
+	38308e7fff4ca-2d228a132acso4833761fa.0
+	for <drbd-dev@lists.linbit.com>; Wed, 06 Mar 2024 18:54:43 -0800 (PST)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 16.0 \(3774.200.91.1.1\))
+Subject: Re: [PATCH 2/2] crm-fence-peer.9.sh: use join of node_state to judge
+	whether node is banned
+From: Su Yue <glass.su@suse.com>
+In-Reply-To: <20240303091259.5045-2-l@damenly.org>
+Date: Thu, 7 Mar 2024 10:54:29 +0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <C2F581E6-5D15-49E7-B944-B79B3C08F252@suse.com>
+References: <20240303091259.5045-1-l@damenly.org>
+	<20240303091259.5045-2-l@damenly.org>
+To: drbd-dev@lists.linbit.com
+Cc: lars.ellenberg@linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,43 +31,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Hi, dear drbd folks
+  Would you help review the patches for drbd-utils? Many thanks!
 
-On Wed, 06 Mar 2024 15:03:25 +0100, Philipp Reisner wrote:
-> Here, with the Reviewed-by and Tested-by trailers.
-> 
-> Christoph Hellwig (7):
->   drbd: pass the max_hw_sectors limit to blk_alloc_disk
->   drbd: refactor drbd_reconsider_queue_parameters
->   drbd: refactor the backing dev max_segments calculation
->   drbd: merge drbd_setup_queue_param into
->     drbd_reconsider_queue_parameters
->   drbd: don't set max_write_zeroes_sectors in decide_on_discard_support
->   drbd: split out a drbd_discard_supported helper
->   drbd: atomically update queue limits in
->     drbd_reconsider_queue_parameters
-> 
-> [...]
+=E2=80=94=20
+Su
 
-Applied, thanks!
-
-[1/7] drbd: pass the max_hw_sectors limit to blk_alloc_disk
-      commit: aa067325c05dc3a3aac588f40cacf8418f916cee
-[2/7] drbd: refactor drbd_reconsider_queue_parameters
-      commit: 342d81fde24152adf9747e6e126c8c3179d1a54c
-[3/7] drbd: refactor the backing dev max_segments calculation
-      commit: 2828908d5cc8396e7c91d04d67e03ed834234bcd
-[4/7] drbd: merge drbd_setup_queue_param into drbd_reconsider_queue_parameters
-      commit: e16344e506314e35b1a5a8ccd7b88f4b1844ebb0
-[5/7] drbd: don't set max_write_zeroes_sectors in decide_on_discard_support
-      commit: e3992e02c970f6eb803b98b9f733cad40f190161
-[6/7] drbd: split out a drbd_discard_supported helper
-      commit: 5eaee6e9c8f9940ecee93678972774fb8dd450d5
-[7/7] drbd: atomically update queue limits in drbd_reconsider_queue_parameters
-      commit: e6dfe748f09e37f77437bd337f891f5b57d5d5a2
-
-Best regards,
--- 
-Jens Axboe
-
-
+> On Mar 3, 2024, at 17:12, Su Yue <glass.su@suse.com> wrote:
+>=20
+> From: Su Yue <glass.su@suse.com>
+>=20
+> crmd in node_state can't be "banned". join should be used instead
+> of crmd.
+>=20
+> Signed-off-by: Su Yue <glass.su@suse.com>
+> ---
+> scripts/crm-fence-peer.9.sh | 2 +-
+> 1 file changed, 1 insertion(+), 1 deletion(-)
+>=20
+> diff --git a/scripts/crm-fence-peer.9.sh b/scripts/crm-fence-peer.9.sh
+> index a3353a7354a6..b326a1656c15 100755
+> --- a/scripts/crm-fence-peer.9.sh
+> +++ b/scripts/crm-fence-peer.9.sh
+> @@ -934,7 +934,7 @@ guess_if_pacemaker_will_fence()
+>=20
+> # for further inspiration, see pacemaker:lib/pengine/unpack.c, =
+determine_online_status_fencing()
+> [[ -z $in_ccm ]] && will_fence=3Dtrue
+> - [[ $crmd =3D "banned" ]] && will_fence=3Dtrue
+> + [[ $join =3D "banned" ]] && will_fence=3Dtrue
+> if [[ ${expected-down} =3D "down" && $in_ccm =3D "false"  && $crmd !=3D =
+"online" ]]; then
+> : "pacemaker considers this as clean down"
+> elif [[ $in_ccm =3D false ]] || [[ $crmd !=3D "online" ]]; then
+> --=20
+> 2.44.0
+>=20
 
