@@ -1,17 +1,17 @@
 Return-Path: <dlemoal@kernel.org>
 Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A16EE420889
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:12:47 +0200 (CEST)
-Message-ID: <a10087ad-8b2c-4a6c-accb-fb1e8015e704@kernel.org>
-Date: Tue, 11 Jun 2024 17:12:40 +0900
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 571AA420889
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:13:58 +0200 (CEST)
+Message-ID: <0d4a7361-f3f1-4014-af92-9abd45223fed@kernel.org>
+Date: Tue, 11 Jun 2024 17:13:50 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 17/26] block: move the stable_write flag to queue_limits
+Subject: Re: [PATCH 18/26] block: move the synchronous flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-18-hch@lst.de>
+	<20240611051929.513387-19-hch@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-18-hch@lst.de>
+In-Reply-To: <20240611051929.513387-19-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,19 +47,12 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Move the io_stat flag into the queue_limits feature field so that it can
-
-s/io_stat/stable_write
-
-> be set atomically and all I/O is frozen when changing the flag.
-> 
-> The flag is now inherited by blk_stack_limits, which greatly simplifies
-> the code in dm, and fixed md which previously did not pass on the flag
-> set on lower devices.
+> Move the synchronous flag into the queue_limits feature field so that it
+> can be set atomically and all I/O is frozen when changing the flag.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Other than the nit above, looks OK to me.
+Looks good.
 
 Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 
