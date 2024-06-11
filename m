@@ -1,10 +1,9 @@
 Return-Path: <dlemoal@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AFA184203C1
-	for <drbd-dev@lists.linbit.com>;
-	Tue, 11 Jun 2024 09:21:03 +0200 (CEST)
-Message-ID: <6bf90562-0ff9-46b6-8a58-7381332e3beb@kernel.org>
-Date: Tue, 11 Jun 2024 16:20:54 +0900
+Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6BE354205A9
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 09:25:26 +0200 (CEST)
+Message-ID: <92df5033-5df7-4b2a-98ad-a27f8443ee6a@kernel.org>
+Date: Tue, 11 Jun 2024 16:25:18 +0900
 MIME-Version: 1.0
 Subject: Re: [PATCH 02/26] sd: move zone limits setup out of
 	sd_read_block_characteristics
@@ -12,10 +11,10 @@ To: Christoph Hellwig <hch@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
 	<20240611051929.513387-3-hch@lst.de>
 	<40ca8052-6ac1-4c1b-8c39-b0a7948839f8@kernel.org>
-	<20240611055239.GA3141@lst.de>
+	<20240611055239.GA3141@lst.de> <20240611055405.GA3256@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611055239.GA3141@lst.de>
+In-Reply-To: <20240611055405.GA3256@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -49,26 +48,20 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/11/24 2:52 PM, Christoph Hellwig wrote:
-> On Tue, Jun 11, 2024 at 02:51:24PM +0900, Damien Le Moal wrote:
->>> -	if (lim->zoned)
->>> +	if (sdkp->device->type == TYPE_ZBC)
+On 6/11/24 2:54 PM, Christoph Hellwig wrote:
+> On Tue, Jun 11, 2024 at 07:52:39AM +0200, Christoph Hellwig wrote:
+>>> Maybe we should clear the other zone related limits here ? If the drive is
+>>> reformatted/converted from SMR to CMR (FORMAT WITH PRESET), the other zone
+>>> limits may be set already, no ?
 >>
->> Nit: use sd_is_zoned() here ?
+>> blk_validate_zoned_limits already takes care of that.
 > 
-> Yes.
-> 
->>> -	if (!sd_is_zoned(sdkp))
->>> +	if (!sd_is_zoned(sdkp)) {
->>> +		lim->zoned = false;
->>
->> Maybe we should clear the other zone related limits here ? If the drive is
->> reformatted/converted from SMR to CMR (FORMAT WITH PRESET), the other zone
->> limits may be set already, no ?
-> 
-> blk_validate_zoned_limits already takes care of that.
+> Sorry, brainfart.  The integrity code does that, but not the zoned
+> code.  I suspect the core code might be a better place for it,
+> though.
 
-I do not think it does:
+Yes. Just replied to your previous email before seeing this one.
+I think that:
 
 static int blk_validate_zoned_limits(struct queue_limits *lim)
 {
@@ -82,8 +75,23 @@ static int blk_validate_zoned_limits(struct queue_limits *lim)
         }
 	...
 
-So setting lim->zoned to false without clearing the other limits potentially
-will trigger warnings...
+could be changed into:
+
+static int blk_validate_zoned_limits(struct queue_limits *lim)
+{
+	if (!lim->zoned) {
+                lim->max_open_zones = 0;
+		lim->max_active_zones = 0;
+		lim->zone_write_granularity = 0;
+		lim->max_zone_append_sectors = 0
+		return 0;
+	}
+
+But then we would not see "bad" drivers. Could have a small
+
+blk_clear_zoned_limits(struct queue_limits *lim)
+
+helper too.
 
 -- 
 Damien Le Moal
