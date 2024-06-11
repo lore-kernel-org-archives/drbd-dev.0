@@ -1,19 +1,19 @@
-Return-Path: <dlemoal@kernel.org>
-Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 563E54209D5
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:23:32 +0200 (CEST)
-Message-ID: <29c6bbe8-f0fe-49dd-a28b-327d86ceb51d@kernel.org>
-Date: Tue, 11 Jun 2024 17:23:25 +0900
+Return-Path: <hare@suse.de>
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 97776420987
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:23:54 +0200 (CEST)
+Message-ID: <def8fea1-66ae-4fea-9b49-2842b91404ea@suse.de>
+Date: Tue, 11 Jun 2024 10:23:52 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 22/26] block: move the zoned flag into the feature field
+Subject: Re: [PATCH 12/26] block: remove blk_flush_policy
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-23-hch@lst.de>
+	<20240611051929.513387-13-hch@lst.de>
 Content-Language: en-US
-From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-23-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+From: Hannes Reinecke <hare@suse.de>
+In-Reply-To: <20240611051929.513387-13-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -46,18 +46,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Move the boolean zoned field into the flags field to reclaim a little
-> bit of space.
-
-Nit: flags -> feature flags
-
+On 6/11/24 07:19, Christoph Hellwig wrote:
+> Fold blk_flush_policy into the only caller to prepare for pending changes
+> to it.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   block/blk-flush.c | 33 +++++++++++++++------------------
+>   1 file changed, 15 insertions(+), 18 deletions(-)
+> 
+Reviewed-by: Hannes Reinecke <hare@suse.de>
 
-Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
+Cheers,
 
+Hannes
 -- 
-Damien Le Moal
-Western Digital Research
+Dr. Hannes Reinecke                  Kernel Storage Architect
+hare@suse.de                                +49 911 74053 688
+SUSE Software Solutions GmbH, Frankenstr. 146, 90461 Nürnberg
+HRB 36809 (AG Nürnberg), GF: I. Totev, A. McDonald, W. Knoblich
 
