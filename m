@@ -1,18 +1,19 @@
 Return-Path: <dlemoal@kernel.org>
 Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9C5CF42039E
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EDE5D42039E
 	for <drbd-dev@lists.linbit.com>;
-	Tue, 11 Jun 2024 07:52:07 +0200 (CEST)
-Message-ID: <d50efca4-ba29-49f9-94cc-5bd4795f6e38@kernel.org>
-Date: Tue, 11 Jun 2024 14:46:38 +0900
+	Tue, 11 Jun 2024 07:53:26 +0200 (CEST)
+Message-ID: <ca5a3441-768a-4331-a1c2-a4bdadf2f150@kernel.org>
+Date: Tue, 11 Jun 2024 14:53:19 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/26] sd: fix sd_is_zoned
+Subject: Re: [PATCH 03/26] loop: stop using loop_reconfigure_limits in
+	__loop_clr_fd
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-2-hch@lst.de>
+	<20240611051929.513387-4-hch@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-2-hch@lst.de>
+In-Reply-To: <20240611051929.513387-4-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,14 +49,48 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Since commit 7437bb73f087 ("block: remove support for the host aware zone
-> model"), only ZBC devices expose a zoned access model.  sd_is_zoned is
-> used to check for that and thus return false for host aware devices.
+> __loop_clr_fd wants to clear all settings on the device.  Prepare for
+> moving more settings into the block limits by open coding
+> loop_reconfigure_limits.
 > 
-> Fixes: 7437bb73f087 ("block: remove support for the host aware zone model")
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  drivers/block/loop.c | 10 +++++++++-
+>  1 file changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+> index 93780f41646b75..93a49c40a31a71 100644
+> --- a/drivers/block/loop.c
+> +++ b/drivers/block/loop.c
+> @@ -1133,6 +1133,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
+>  
+>  static void __loop_clr_fd(struct loop_device *lo, bool release)
+>  {
+> +	struct queue_limits lim;
+>  	struct file *filp;
+>  	gfp_t gfp = lo->old_gfp_mask;
+>  
+> @@ -1156,7 +1157,14 @@ static void __loop_clr_fd(struct loop_device *lo, bool release)
+>  	lo->lo_offset = 0;
+>  	lo->lo_sizelimit = 0;
+>  	memset(lo->lo_file_name, 0, LO_NAME_SIZE);
+> -	loop_reconfigure_limits(lo, 512, false);
+> +
+> +	/* reset the block size to the default */
+> +	lim = queue_limits_start_update(lo->lo_queue);
+> +	lim.logical_block_size = 512;
 
-Looks good.
+Nit: SECTOR_SIZE ? maybe ?
+
+> +	lim.physical_block_size = 512;
+> +	lim.io_min = 512;
+> +	queue_limits_commit_update(lo->lo_queue, &lim);
+> +
+>  	invalidate_disk(lo->lo_disk);
+>  	loop_sysfs_exit(lo);
+>  	/* let user-space know about this change */
+
+Otherwise, looks OK to me.
 
 Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 
