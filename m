@@ -1,18 +1,18 @@
 Return-Path: <bvanassche@acm.org>
 Received: from 009.lax.mailroute.net (009.lax.mailroute.net [199.89.1.12])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A20D5420910
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:25:04 +0200 (CEST)
-Message-ID: <490fb178-8246-46cc-87fc-a57e076b9657@acm.org>
-Date: Tue, 11 Jun 2024 12:21:50 -0700
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 92E9F420910
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:27:05 +0200 (CEST)
+Message-ID: <165613a2-237d-4f2b-9843-75ce0f928dff@acm.org>
+Date: Tue, 11 Jun 2024 12:23:36 -0700
 MIME-Version: 1.0
-Subject: Re: [PATCH 03/26] loop: stop using loop_reconfigure_limits in
-	__loop_clr_fd
+Subject: Re: [PATCH 04/26] loop: always update discard settings in
+	loop_reconfigure_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-4-hch@lst.de>
+	<20240611051929.513387-5-hch@lst.de>
 Content-Language: en-US
 From: Bart Van Assche <bvanassche@acm.org>
-In-Reply-To: <20240611051929.513387-4-hch@lst.de>
+In-Reply-To: <20240611051929.513387-5-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,10 +48,8 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/10/24 10:19 PM, Christoph Hellwig wrote:
-> __loop_clr_fd wants to clear all settings on the device.  Prepare for
-> moving more settings into the block limits by open coding
-> loop_reconfigure_limits.
-
-If Damien's comment is addressed, feel free to add:
+> Simplify loop_reconfigure_limits by always updating the discard limits.
+> This adds a little more work to loop_set_block_size, but doesn't change
+> the outcome as the discard flag won't change.
 
 Reviewed-by: Bart Van Assche <bvanassche@acm.org>
