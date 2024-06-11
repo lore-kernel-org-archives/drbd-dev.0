@@ -1,20 +1,20 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7E62842039E
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 07:59:48 +0200 (CEST)
-Date: Tue, 11 Jun 2024 07:59:46 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8969642039E
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:00:54 +0200 (CEST)
+Date: Tue, 11 Jun 2024 07:52:39 +0200
 From: Christoph Hellwig <hch@lst.de>
 To: Damien Le Moal <dlemoal@kernel.org>
-Subject: Re: [PATCH 06/26] loop: also use the default block size from an
-	underlying block device
-Message-ID: <20240611055946.GA3777@lst.de>
+Subject: Re: [PATCH 02/26] sd: move zone limits setup out of
+	sd_read_block_characteristics
+Message-ID: <20240611055239.GA3141@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-7-hch@lst.de>
-	<27e76310-1831-473e-803a-e0294b91463c@kernel.org>
+	<20240611051929.513387-3-hch@lst.de>
+	<40ca8052-6ac1-4c1b-8c39-b0a7948839f8@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <27e76310-1831-473e-803a-e0294b91463c@kernel.org>
+In-Reply-To: <40ca8052-6ac1-4c1b-8c39-b0a7948839f8@kernel.org>
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -47,15 +47,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jun 11, 2024 at 02:58:56PM +0900, Damien Le Moal wrote:
-> > +	if (S_ISBLK(inode->i_mode))
-> > +		backing_bdev = I_BDEV(inode);
-> > +	else if (inode->i_sb->s_bdev)
-> > +		backing_bdev = inode->i_sb->s_bdev;
-> > +
+On Tue, Jun 11, 2024 at 02:51:24PM +0900, Damien Le Moal wrote:
+> > -	if (lim->zoned)
+> > +	if (sdkp->device->type == TYPE_ZBC)
 > 
-> Why not move this hunk inside the below "if" ? (backing_dev declaration can go
-> there too).
+> Nit: use sd_is_zoned() here ?
 
-Because another use will pop up a bit later :)
+Yes.
+
+> > -	if (!sd_is_zoned(sdkp))
+> > +	if (!sd_is_zoned(sdkp)) {
+> > +		lim->zoned = false;
+> 
+> Maybe we should clear the other zone related limits here ? If the drive is
+> reformatted/converted from SMR to CMR (FORMAT WITH PRESET), the other zone
+> limits may be set already, no ?
+
+blk_validate_zoned_limits already takes care of that.
 
