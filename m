@@ -1,17 +1,18 @@
 Return-Path: <hare@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9907F420928
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:19:27 +0200 (CEST)
-Message-ID: <1208a68f-bac4-4f10-8f67-58eabf5ba89e@suse.de>
-Date: Tue, 11 Jun 2024 10:19:25 +0200
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4D9F2420914
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:20:26 +0200 (CEST)
+Message-ID: <161db500-6d5e-4dcc-8e44-f75c0f777a0c@suse.de>
+Date: Tue, 11 Jun 2024 10:20:25 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/26] virtio_blk: remove virtblk_update_cache_mode
+Subject: Re: [PATCH 09/26] nbd: move setting the cache control flags to
+	__nbd_set_size
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-9-hch@lst.de>
+	<20240611051929.513387-10-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240611051929.513387-9-hch@lst.de>
+In-Reply-To: <20240611051929.513387-10-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,14 +48,13 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 07:19, Christoph Hellwig wrote:
-> virtblk_update_cache_mode boils down to a single call to
-> blk_queue_write_cache.  Remove it in preparation for moving the cache
-> control flags into the queue_limits.
+> Move setting the cache control flags in nbd in preparation for moving
+> these flags into the queue_limits structure.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   drivers/block/virtio_blk.c | 13 +++----------
->   1 file changed, 3 insertions(+), 10 deletions(-)
+>   drivers/block/nbd.c | 17 +++++++----------
+>   1 file changed, 7 insertions(+), 10 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
