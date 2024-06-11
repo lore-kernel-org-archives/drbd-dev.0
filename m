@@ -1,17 +1,18 @@
 Return-Path: <dlemoal@kernel.org>
-Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 571AA420889
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:13:58 +0200 (CEST)
-Message-ID: <0d4a7361-f3f1-4014-af92-9abd45223fed@kernel.org>
-Date: Tue, 11 Jun 2024 17:13:50 +0900
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7AAD14203C1
+	for <drbd-dev@lists.linbit.com>;
+	Tue, 11 Jun 2024 10:16:43 +0200 (CEST)
+Message-ID: <4845aae8-ad03-407e-bf31-f164b8f684d4@kernel.org>
+Date: Tue, 11 Jun 2024 17:16:37 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 18/26] block: move the synchronous flag to queue_limits
+Subject: Re: [PATCH 19/26] block: move the nowait flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-19-hch@lst.de>
+	<20240611051929.513387-20-hch@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-19-hch@lst.de>
+In-Reply-To: <20240611051929.513387-20-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,14 +48,26 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Move the synchronous flag into the queue_limits feature field so that it
+> Move the nowait flag into the queue_limits feature field so that it
 > can be set atomically and all I/O is frozen when changing the flag.
+> 
+> Stacking drivers are simplified in that they now can simply set the
+> flag, and blk_stack_limits will clear it when the features is not
+> supported by any of the underlying devices.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Looks good.
 
-Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
+> @@ -1825,9 +1815,7 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+>  	int r;
+>  
+>  	if (dm_table_supports_nowait(t))
+> -		blk_queue_flag_set(QUEUE_FLAG_NOWAIT, q);
+> -	else
+> -		blk_queue_flag_clear(QUEUE_FLAG_NOWAIT, q);
+> +		limits->features &= ~BLK_FEAT_NOWAIT;
+
+Shouldn't you set the flag here instead of clearing it ?
 
 -- 
 Damien Le Moal
