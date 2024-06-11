@@ -1,13 +1,14 @@
 Return-Path: <BATV+2fedbe304aabaf399917+7597+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0D4E642039E
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:26:32 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DF67D4205E3
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:26:35 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 26/26] block: move the bounce flag into the feature field
-Date: Tue, 11 Jun 2024 07:19:26 +0200
-Message-ID: <20240611051929.513387-27-hch@lst.de>
+Subject: [PATCH 06/26] loop: also use the default block size from an
+	underlying block device
+Date: Tue, 11 Jun 2024 07:19:06 +0200
+Message-ID: <20240611051929.513387-7-hch@lst.de>
 In-Reply-To: <20240611051929.513387-1-hch@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
 MIME-Version: 1.0
@@ -44,86 +45,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Move the bounce field into the flags field to reclaim a little bit of
-space.
+Fix the code in loop_reconfigure_limits to pick a default block size for
+O_DIRECT file descriptors to also work when the loop device sits on top
+of a block device and not just on a regular file on a block device based
+file system.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/blk-settings.c    | 1 -
- block/blk.h             | 2 +-
- drivers/scsi/scsi_lib.c | 2 +-
- include/linux/blkdev.h  | 6 ++++--
- 4 files changed, 6 insertions(+), 5 deletions(-)
+ drivers/block/loop.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git a/block/blk-settings.c b/block/blk-settings.c
-index 96e07f24bd9aa1..d0e9096f93ca8a 100644
---- a/block/blk-settings.c
-+++ b/block/blk-settings.c
-@@ -479,7 +479,6 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
- 					b->max_write_zeroes_sectors);
- 	t->max_zone_append_sectors = min(queue_limits_max_zone_append_sectors(t),
- 					 queue_limits_max_zone_append_sectors(b));
--	t->bounce = max(t->bounce, b->bounce);
- 
- 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
- 					    b->seg_boundary_mask);
-diff --git a/block/blk.h b/block/blk.h
-index 79e8d5d4fe0caf..fa32f7fad5d7e6 100644
---- a/block/blk.h
-+++ b/block/blk.h
-@@ -394,7 +394,7 @@ struct bio *__blk_queue_bounce(struct bio *bio, struct request_queue *q);
- static inline bool blk_queue_may_bounce(struct request_queue *q)
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index 4f6d8514d19bd6..d7cf6bbbfb1b86 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -988,10 +988,16 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
  {
- 	return IS_ENABLED(CONFIG_BOUNCE) &&
--		q->limits.bounce == BLK_BOUNCE_HIGH &&
-+		(q->limits.features & BLK_FEAT_BOUNCE_HIGH) &&
- 		max_low_pfn >= max_pfn;
- }
+ 	struct file *file = lo->lo_backing_file;
+ 	struct inode *inode = file->f_mapping->host;
++	struct block_device *backing_bdev = NULL;
+ 	struct queue_limits lim;
  
-diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
-index 54f771ec8cfb5e..e2f7bfb2b9e450 100644
---- a/drivers/scsi/scsi_lib.c
-+++ b/drivers/scsi/scsi_lib.c
-@@ -1986,7 +1986,7 @@ void scsi_init_limits(struct Scsi_Host *shost, struct queue_limits *lim)
- 		shost->dma_alignment, dma_get_cache_alignment() - 1);
- 
- 	if (shost->no_highmem)
--		lim->bounce = BLK_BOUNCE_HIGH;
-+		lim->features |= BLK_FEAT_BOUNCE_HIGH;
- 
- 	dma_set_seg_boundary(dev, shost->dma_boundary);
- 	dma_set_max_seg_size(dev, shost->max_segment_size);
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index d7ad25def6e50b..d1d9787e76ce73 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -325,6 +325,9 @@ enum {
- 
- 	/* skip this queue in blk_mq_(un)quiesce_tagset */
- 	BLK_FEAT_SKIP_TAGSET_QUIESCE		= (1u << 13),
++	if (S_ISBLK(inode->i_mode))
++		backing_bdev = I_BDEV(inode);
++	else if (inode->i_sb->s_bdev)
++		backing_bdev = inode->i_sb->s_bdev;
 +
-+	/* bounce all highmem pages */
-+	BLK_FEAT_BOUNCE_HIGH			= (1u << 14),
- };
+ 	if (!bsize)
+-		bsize = loop_default_blocksize(lo, inode->i_sb->s_bdev);
++		bsize = loop_default_blocksize(lo, backing_bdev);
  
- /*
-@@ -332,7 +335,7 @@ enum {
-  */
- #define BLK_FEAT_INHERIT_MASK \
- 	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL | \
--	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED)
-+	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH)
- 
- /* internal flags in queue_limits.flags */
- enum {
-@@ -352,7 +355,6 @@ enum blk_bounce {
- struct queue_limits {
- 	unsigned int		features;
- 	unsigned int		flags;
--	enum blk_bounce		bounce;
- 	unsigned long		seg_boundary_mask;
- 	unsigned long		virt_boundary_mask;
- 
+ 	lim = queue_limits_start_update(lo->lo_queue);
+ 	lim.logical_block_size = bsize;
 -- 
 2.43.0
 
