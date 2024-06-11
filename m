@@ -1,13 +1,13 @@
 Return-Path: <BATV+2fedbe304aabaf399917+7597+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DEFA8420873
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:32:50 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2FE8A420639
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:33:24 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 05/26] loop: regularize upgrading the lock size for direct I/O
-Date: Tue, 11 Jun 2024 07:19:05 +0200
-Message-ID: <20240611051929.513387-6-hch@lst.de>
+Subject: [PATCH 20/26] block: move the dax flag to queue_limits
+Date: Tue, 11 Jun 2024 07:19:20 +0200
+Message-ID: <20240611051929.513387-21-hch@lst.de>
 In-Reply-To: <20240611051929.513387-1-hch@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
 MIME-Version: 1.0
@@ -44,70 +44,138 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The LOOP_CONFIGURE path automatically upgrades the block size to that
-of the underlying file for O_DIRECT file descriptors, but the
-LOOP_SET_BLOCK_SIZE path does not.  Fix this by lifting the code to
-pick the block size into common code.
+Move the dax flag into the queue_limits feature field so that it
+can be set atomically and all I/O is frozen when changing the flag.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/loop.c | 25 +++++++++++++++----------
- 1 file changed, 15 insertions(+), 10 deletions(-)
+ block/blk-mq-debugfs.c       | 1 -
+ drivers/md/dm-table.c        | 4 ++--
+ drivers/nvdimm/pmem.c        | 7 ++-----
+ drivers/s390/block/dcssblk.c | 2 +-
+ include/linux/blkdev.h       | 6 ++++--
+ 5 files changed, 9 insertions(+), 11 deletions(-)
 
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index c658282454af1b..4f6d8514d19bd6 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -975,10 +975,24 @@ loop_set_status_from_info(struct loop_device *lo,
- 	return 0;
- }
+diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
+index 62b132e9a9ce3b..f4fa820251ce83 100644
+--- a/block/blk-mq-debugfs.c
++++ b/block/blk-mq-debugfs.c
+@@ -88,7 +88,6 @@ static const char *const blk_queue_flag_name[] = {
+ 	QUEUE_FLAG_NAME(SAME_FORCE),
+ 	QUEUE_FLAG_NAME(INIT_DONE),
+ 	QUEUE_FLAG_NAME(POLL),
+-	QUEUE_FLAG_NAME(DAX),
+ 	QUEUE_FLAG_NAME(STATS),
+ 	QUEUE_FLAG_NAME(REGISTERED),
+ 	QUEUE_FLAG_NAME(QUIESCED),
+diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
+index eee43d27733f9a..d3a960aee03c6a 100644
+--- a/drivers/md/dm-table.c
++++ b/drivers/md/dm-table.c
+@@ -1834,11 +1834,11 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+ 		limits->features |= BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA;
  
-+static unsigned short loop_default_blocksize(struct loop_device *lo,
-+		struct block_device *backing_bdev)
-+{
-+	/* In case of direct I/O, match underlying block size */
-+	if ((lo->lo_backing_file->f_flags & O_DIRECT) && backing_bdev)
-+		return bdev_logical_block_size(backing_bdev);
-+	return 512;
-+}
-+
- static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
- {
-+	struct file *file = lo->lo_backing_file;
-+	struct inode *inode = file->f_mapping->host;
- 	struct queue_limits lim;
+ 	if (dm_table_supports_dax(t, device_not_dax_capable)) {
+-		blk_queue_flag_set(QUEUE_FLAG_DAX, q);
++		limits->features |= BLK_FEAT_DAX;
+ 		if (dm_table_supports_dax(t, device_not_dax_synchronous_capable))
+ 			set_dax_synchronous(t->md->dax_dev);
+ 	} else
+-		blk_queue_flag_clear(QUEUE_FLAG_DAX, q);
++		limits->features &= ~BLK_FEAT_DAX;
  
-+	if (!bsize)
-+		bsize = loop_default_blocksize(lo, inode->i_sb->s_bdev);
-+
- 	lim = queue_limits_start_update(lo->lo_queue);
- 	lim.logical_block_size = bsize;
- 	lim.physical_block_size = bsize;
-@@ -997,7 +1011,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
- 	int error;
- 	loff_t size;
- 	bool partscan;
--	unsigned short bsize;
- 	bool is_loop;
+ 	if (dm_table_any_dev_attr(t, device_dax_write_cache_enabled, NULL))
+ 		dax_write_cache(t->md->dax_dev, true);
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index b821dcf018f6ae..1dd74c969d5a09 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -465,7 +465,6 @@ static int pmem_attach_disk(struct device *dev,
+ 	struct dax_device *dax_dev;
+ 	struct nd_pfn_sb *pfn_sb;
+ 	struct pmem_device *pmem;
+-	struct request_queue *q;
+ 	struct gendisk *disk;
+ 	void *addr;
+ 	int rc;
+@@ -499,6 +498,8 @@ static int pmem_attach_disk(struct device *dev,
+ 	}
+ 	if (fua)
+ 		lim.features |= BLK_FEAT_FUA;
++	if (is_nd_pfn(dev))
++		lim.features |= BLK_FEAT_DAX;
  
- 	if (!file)
-@@ -1076,15 +1089,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
- 	if (!(lo->lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
- 		blk_queue_write_cache(lo->lo_queue, true, false);
+ 	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+ 				dev_name(&ndns->dev))) {
+@@ -509,7 +510,6 @@ static int pmem_attach_disk(struct device *dev,
+ 	disk = blk_alloc_disk(&lim, nid);
+ 	if (IS_ERR(disk))
+ 		return PTR_ERR(disk);
+-	q = disk->queue;
  
--	if (config->block_size)
--		bsize = config->block_size;
--	else if ((lo->lo_backing_file->f_flags & O_DIRECT) && inode->i_sb->s_bdev)
--		/* In case of direct I/O, match underlying block size */
--		bsize = bdev_logical_block_size(inode->i_sb->s_bdev);
--	else
--		bsize = 512;
+ 	pmem->disk = disk;
+ 	pmem->pgmap.owner = pmem;
+@@ -547,9 +547,6 @@ static int pmem_attach_disk(struct device *dev,
+ 	}
+ 	pmem->virt_addr = addr;
+ 
+-	if (pmem->pfn_flags & PFN_MAP)
+-		blk_queue_flag_set(QUEUE_FLAG_DAX, q);
 -
--	error = loop_reconfigure_limits(lo, bsize);
-+	error = loop_reconfigure_limits(lo, config->block_size);
- 	if (WARN_ON_ONCE(error))
- 		goto out_unlock;
+ 	disk->fops		= &pmem_fops;
+ 	disk->private_data	= pmem;
+ 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
+diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
+index 6d1689a2717e5f..d5a5d11ae0dcdf 100644
+--- a/drivers/s390/block/dcssblk.c
++++ b/drivers/s390/block/dcssblk.c
+@@ -548,6 +548,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char
+ {
+ 	struct queue_limits lim = {
+ 		.logical_block_size	= 4096,
++		.features		= BLK_FEAT_DAX,
+ 	};
+ 	int rc, i, j, num_of_segments;
+ 	struct dcssblk_dev_info *dev_info;
+@@ -643,7 +644,6 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char
+ 	dev_info->gd->fops = &dcssblk_devops;
+ 	dev_info->gd->private_data = dev_info;
+ 	dev_info->gd->flags |= GENHD_FL_NO_PART;
+-	blk_queue_flag_set(QUEUE_FLAG_DAX, dev_info->gd->queue);
  
+ 	seg_byte_size = (dev_info->end - dev_info->start + 1);
+ 	set_capacity(dev_info->gd, seg_byte_size >> 9); // size in sectors
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 59c2327692589b..c2545580c5b134 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -307,6 +307,9 @@ enum {
+ 
+ 	/* supports REQ_NOWAIT */
+ 	BLK_FEAT_NOWAIT				= (1u << 7),
++
++	/* supports DAX */
++	BLK_FEAT_DAX				= (1u << 8),
+ };
+ 
+ /*
+@@ -575,7 +578,6 @@ struct request_queue {
+ #define QUEUE_FLAG_SAME_FORCE	12	/* force complete on same CPU */
+ #define QUEUE_FLAG_INIT_DONE	14	/* queue is initialized */
+ #define QUEUE_FLAG_POLL		16	/* IO polling enabled if set */
+-#define QUEUE_FLAG_DAX		19	/* device supports DAX */
+ #define QUEUE_FLAG_STATS	20	/* track IO start and completion times */
+ #define QUEUE_FLAG_REGISTERED	22	/* queue has been registered to a disk */
+ #define QUEUE_FLAG_QUIESCED	24	/* queue has been quiesced */
+@@ -602,7 +604,7 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
+ #define blk_queue_io_stat(q)	((q)->limits.features & BLK_FEAT_IO_STAT)
+ #define blk_queue_zone_resetall(q)	\
+ 	test_bit(QUEUE_FLAG_ZONE_RESETALL, &(q)->queue_flags)
+-#define blk_queue_dax(q)	test_bit(QUEUE_FLAG_DAX, &(q)->queue_flags)
++#define blk_queue_dax(q)	((q)->limits.features & BLK_FEAT_DAX)
+ #define blk_queue_pci_p2pdma(q)	\
+ 	test_bit(QUEUE_FLAG_PCI_P2PDMA, &(q)->queue_flags)
+ #ifdef CONFIG_BLK_RQ_ALLOC_TIME
 -- 
 2.43.0
 
