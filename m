@@ -1,13 +1,15 @@
 Return-Path: <BATV+2fedbe304aabaf399917+7597+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ED52A4207E1
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:29:49 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DA55B4205D7
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:32:15 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: move features flags into queue_limits
-Date: Tue, 11 Jun 2024 07:19:00 +0200
-Message-ID: <20240611051929.513387-1-hch@lst.de>
+Subject: [PATCH 25/26] block: move the skip_tagset_quiesce flag to queue_limits
+Date: Tue, 11 Jun 2024 07:19:25 +0200
+Message-ID: <20240611051929.513387-26-hch@lst.de>
+In-Reply-To: <20240611051929.513387-1-hch@lst.de>
+References: <20240611051929.513387-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -42,88 +44,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi all,
+Move the skip_tagset_quiesce flag into the queue_limits feature field so
+that it can be set atomically and all I/O is frozen when changing the
+flag.
 
-this is the third and last major series to convert settings to
-queue_limits for this merge window.  After a bunch of prep patches to
-get various drivers in shape, it moves all the queue_flags that specify
-driver controlled features into the queue limits so that they can be
-set atomically and are separated from the blk-mq internal flags.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ block/blk-mq-debugfs.c   | 1 -
+ drivers/nvme/host/core.c | 8 +++++---
+ include/linux/blkdev.h   | 6 ++++--
+ 3 files changed, 9 insertions(+), 6 deletions(-)
 
-Note that I've only Cc'ed the maintainers for drivers with non-mechanical
-changes as the Cc list is already huge.
+diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
+index 8b5a68861c119b..344f9e503bdb32 100644
+--- a/block/blk-mq-debugfs.c
++++ b/block/blk-mq-debugfs.c
+@@ -93,7 +93,6 @@ static const char *const blk_queue_flag_name[] = {
+ 	QUEUE_FLAG_NAME(RQ_ALLOC_TIME),
+ 	QUEUE_FLAG_NAME(HCTX_ACTIVE),
+ 	QUEUE_FLAG_NAME(SQ_SCHED),
+-	QUEUE_FLAG_NAME(SKIP_TAGSET_QUIESCE),
+ };
+ #undef QUEUE_FLAG_NAME
+ 
+diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+index 31e752e8d632cd..bf410d10b12006 100644
+--- a/drivers/nvme/host/core.c
++++ b/drivers/nvme/host/core.c
+@@ -4489,13 +4489,15 @@ int nvme_alloc_io_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
+ 		return ret;
+ 
+ 	if (ctrl->ops->flags & NVME_F_FABRICS) {
+-		ctrl->connect_q = blk_mq_alloc_queue(set, NULL, NULL);
++		struct queue_limits lim = {
++			.features	= BLK_FEAT_SKIP_TAGSET_QUIESCE,
++		};
++
++		ctrl->connect_q = blk_mq_alloc_queue(set, &lim, NULL);
+         	if (IS_ERR(ctrl->connect_q)) {
+ 			ret = PTR_ERR(ctrl->connect_q);
+ 			goto out_free_tag_set;
+ 		}
+-		blk_queue_flag_set(QUEUE_FLAG_SKIP_TAGSET_QUIESCE,
+-				   ctrl->connect_q);
+ 	}
+ 
+ 	ctrl->tagset = set;
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index cc4f6e64e8e3f5..d7ad25def6e50b 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -322,6 +322,9 @@ enum {
+ 
+ 	/* supports PCI(e) p2p requests */
+ 	BLK_FEAT_PCI_P2PDMA			= (1u << 12),
++
++	/* skip this queue in blk_mq_(un)quiesce_tagset */
++	BLK_FEAT_SKIP_TAGSET_QUIESCE		= (1u << 13),
+ };
+ 
+ /*
+@@ -594,7 +597,6 @@ struct request_queue {
+ #define QUEUE_FLAG_RQ_ALLOC_TIME 27	/* record rq->alloc_time_ns */
+ #define QUEUE_FLAG_HCTX_ACTIVE	28	/* at least one blk-mq hctx is active */
+ #define QUEUE_FLAG_SQ_SCHED     30	/* single queue style io dispatch */
+-#define QUEUE_FLAG_SKIP_TAGSET_QUIESCE	31 /* quiesce_tagset skip the queue*/
+ 
+ #define QUEUE_FLAG_MQ_DEFAULT	(1UL << QUEUE_FLAG_SAME_COMP)
+ 
+@@ -629,7 +631,7 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
+ #define blk_queue_registered(q)	test_bit(QUEUE_FLAG_REGISTERED, &(q)->queue_flags)
+ #define blk_queue_sq_sched(q)	test_bit(QUEUE_FLAG_SQ_SCHED, &(q)->queue_flags)
+ #define blk_queue_skip_tagset_quiesce(q) \
+-	test_bit(QUEUE_FLAG_SKIP_TAGSET_QUIESCE, &(q)->queue_flags)
++	((q)->limits.features & BLK_FEAT_SKIP_TAGSET_QUIESCE)
+ 
+ extern void blk_set_pm_only(struct request_queue *q);
+ extern void blk_clear_pm_only(struct request_queue *q);
+-- 
+2.43.0
 
-This series sits on top of the "convert the SCSI ULDs to the atomic queue
-limits API v2" and "move integrity settings to queue_limits v2" series.
-
-A git tree is available here:
-
-    git://git.infradead.org/users/hch/block.git block-limit-flags
-
-Gitweb:
-
-    http://git.infradead.org/?p=users/hch/block.git;a=shortlog;h=refs/heads/block-limit-flags
-
-Diffstat:
- Documentation/block/writeback_cache_control.rst |   67 +++++---
- arch/m68k/emu/nfblock.c                         |    1 
- arch/um/drivers/ubd_kern.c                      |    3 
- arch/xtensa/platforms/iss/simdisk.c             |    5 
- block/blk-core.c                                |    7 
- block/blk-flush.c                               |   36 ++--
- block/blk-mq-debugfs.c                          |   13 -
- block/blk-mq.c                                  |   42 +++--
- block/blk-settings.c                            |   46 ++----
- block/blk-sysfs.c                               |  118 ++++++++-------
- block/blk-wbt.c                                 |    4 
- block/blk.h                                     |    2 
- drivers/block/amiflop.c                         |    5 
- drivers/block/aoe/aoeblk.c                      |    1 
- drivers/block/ataflop.c                         |    5 
- drivers/block/brd.c                             |    6 
- drivers/block/drbd/drbd_main.c                  |    6 
- drivers/block/floppy.c                          |    3 
- drivers/block/loop.c                            |   79 +++++-----
- drivers/block/mtip32xx/mtip32xx.c               |    2 
- drivers/block/n64cart.c                         |    2 
- drivers/block/nbd.c                             |   24 +--
- drivers/block/null_blk/main.c                   |   13 -
- drivers/block/null_blk/zoned.c                  |    3 
- drivers/block/pktcdvd.c                         |    1 
- drivers/block/ps3disk.c                         |    8 -
- drivers/block/rbd.c                             |   12 -
- drivers/block/rnbd/rnbd-clt.c                   |   14 -
- drivers/block/sunvdc.c                          |    1 
- drivers/block/swim.c                            |    5 
- drivers/block/swim3.c                           |    5 
- drivers/block/ublk_drv.c                        |   21 +-
- drivers/block/virtio_blk.c                      |   37 ++--
- drivers/block/xen-blkfront.c                    |   33 +---
- drivers/block/zram/zram_drv.c                   |    6 
- drivers/cdrom/gdrom.c                           |    1 
- drivers/md/bcache/super.c                       |    9 -
- drivers/md/dm-table.c                           |  181 +++++-------------------
- drivers/md/dm-zone.c                            |    2 
- drivers/md/dm-zoned-target.c                    |    2 
- drivers/md/dm.c                                 |   13 -
- drivers/md/md.c                                 |   40 -----
- drivers/md/raid5.c                              |    6 
- drivers/mmc/core/block.c                        |   42 ++---
- drivers/mmc/core/queue.c                        |   20 +-
- drivers/mmc/core/queue.h                        |    3 
- drivers/mtd/mtd_blkdevs.c                       |    9 -
- drivers/nvdimm/btt.c                            |    4 
- drivers/nvdimm/pmem.c                           |   14 -
- drivers/nvme/host/core.c                        |   33 ++--
- drivers/nvme/host/multipath.c                   |   24 ---
- drivers/nvme/host/zns.c                         |    3 
- drivers/s390/block/dasd_genhd.c                 |    1 
- drivers/s390/block/dcssblk.c                    |    2 
- drivers/s390/block/scm_blk.c                    |    5 
- drivers/scsi/iscsi_tcp.c                        |    8 -
- drivers/scsi/scsi_lib.c                         |    5 
- drivers/scsi/sd.c                               |   60 +++----
- drivers/scsi/sd.h                               |    7 
- drivers/scsi/sd_zbc.c                           |   17 +-
- include/linux/blkdev.h                          |  119 +++++++++++----
- 61 files changed, 556 insertions(+), 710 deletions(-)
