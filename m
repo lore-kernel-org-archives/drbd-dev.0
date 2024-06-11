@@ -1,20 +1,20 @@
-Return-Path: <dlemoal@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7AAD14203C1
-	for <drbd-dev@lists.linbit.com>;
-	Tue, 11 Jun 2024 10:16:43 +0200 (CEST)
-Message-ID: <4845aae8-ad03-407e-bf31-f164b8f684d4@kernel.org>
-Date: Tue, 11 Jun 2024 17:16:37 +0900
+Return-Path: <hare@suse.de>
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 57A6D4208A2
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:16:58 +0200 (CEST)
+Message-ID: <e25047ab-2c01-4704-b554-df85a8d34cd7@suse.de>
+Date: Tue, 11 Jun 2024 10:16:57 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 19/26] block: move the nowait flag to queue_limits
+Subject: Re: [PATCH 05/26] loop: regularize upgrading the lock size for direct
+	I/O
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-20-hch@lst.de>
+	<20240611051929.513387-6-hch@lst.de>
 Content-Language: en-US
-From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-20-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+From: Hannes Reinecke <hare@suse.de>
+In-Reply-To: <20240611051929.513387-6-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -47,29 +47,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Move the nowait flag into the queue_limits feature field so that it
-> can be set atomically and all I/O is frozen when changing the flag.
-> 
-> Stacking drivers are simplified in that they now can simply set the
-> flag, and blk_stack_limits will clear it when the features is not
-> supported by any of the underlying devices.
+On 6/11/24 07:19, Christoph Hellwig wrote:
+> The LOOP_CONFIGURE path automatically upgrades the block size to that
+> of the underlying file for O_DIRECT file descriptors, but the
+> LOOP_SET_BLOCK_SIZE path does not.  Fix this by lifting the code to
+> pick the block size into common code.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   drivers/block/loop.c | 25 +++++++++++++++----------
+>   1 file changed, 15 insertions(+), 10 deletions(-)
+> 
+Reviewed-by: Hannes Reinecke <hare@suse.de>
 
+Cheers,
 
-> @@ -1825,9 +1815,7 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
->  	int r;
->  
->  	if (dm_table_supports_nowait(t))
-> -		blk_queue_flag_set(QUEUE_FLAG_NOWAIT, q);
-> -	else
-> -		blk_queue_flag_clear(QUEUE_FLAG_NOWAIT, q);
-> +		limits->features &= ~BLK_FEAT_NOWAIT;
-
-Shouldn't you set the flag here instead of clearing it ?
-
+Hannes
 -- 
-Damien Le Moal
-Western Digital Research
+Dr. Hannes Reinecke                  Kernel Storage Architect
+hare@suse.de                                +49 911 74053 688
+SUSE Software Solutions GmbH, Frankenstr. 146, 90461 Nürnberg
+HRB 36809 (AG Nürnberg), GF: I. Totev, A. McDonald, W. Knoblich
 
