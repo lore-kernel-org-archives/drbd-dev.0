@@ -1,18 +1,17 @@
 Return-Path: <dlemoal@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 671B542096C
-	for <drbd-dev@lists.linbit.com>;
-	Tue, 11 Jun 2024 10:24:12 +0200 (CEST)
-Message-ID: <cb865b5b-ea4d-49cc-b41b-7f46b62b9dd0@kernel.org>
-Date: Tue, 11 Jun 2024 17:24:04 +0900
+Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E944A4209EA
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:24:44 +0200 (CEST)
+Message-ID: <d457fc95-9231-4bc8-a2dd-2991aa8732ec@kernel.org>
+Date: Tue, 11 Jun 2024 17:24:38 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 23/26] block: move the zone_resetall flag to queue_limits
+Subject: Re: [PATCH 24/26] block: move the pci_p2pdma flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-24-hch@lst.de>
+	<20240611051929.513387-25-hch@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-24-hch@lst.de>
+In-Reply-To: <20240611051929.513387-25-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,8 +47,8 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Move the zone_resetall flag into the queue_limits feature field so that
-> it can be set atomically and all I/O is frozen when changing the flag.
+> Move the pci_p2pdma flag into the queue_limits feature field so that it
+> can be set atomically and all I/O is frozen when changing the flag.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
