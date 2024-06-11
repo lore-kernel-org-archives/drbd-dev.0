@@ -1,17 +1,17 @@
 Return-Path: <dlemoal@kernel.org>
 Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A928D4205F6
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:02:36 +0200 (CEST)
-Message-ID: <01366bae-699e-45dc-bad1-9541883a8b42@kernel.org>
-Date: Tue, 11 Jun 2024 17:02:28 +0900
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5E2CA4205A9
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:06:36 +0200 (CEST)
+Message-ID: <0f01ed9c-6f85-427c-9690-1551e67e46a9@kernel.org>
+Date: Tue, 11 Jun 2024 17:06:29 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 14/26] block: move the nonrot flag to queue_limits
+Subject: Re: [PATCH 15/26] block: move the add_random flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-15-hch@lst.de>
+	<20240611051929.513387-16-hch@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-15-hch@lst.de>
+In-Reply-To: <20240611051929.513387-16-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,32 +47,19 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Move the norot flag into the queue_limits feature field so that it can be
+> Move the add_random flag into the queue_limits feature field so that it
+> can be set atomically and all I/O is frozen when changing the flag.
 
-s/norot/nonrot
-
-> set atomically and all I/O is frozen when changing the flag.
-
-and... -> with the queue frozen when... ?
+Same remark as the previous patches for the end of this sentence.c
 
 > 
-> Use the chance to switch to defaulting to non-rotational and require
-> the driver to opt into rotational, which matches the polarity of the
-> sysfs interface.
-> 
-> For the z2ram, ps3vram, 2x memstick, ubiblock and dcssblk the new
-> rotational flag is not set as they clearly are not rotational despite
-> this being a behavior change.  There are some other drivers that
-> unconditionally set the rotational flag to keep the existing behavior
-> as they arguably can be used on rotational devices even if that is
-> probably not their main use today (e.g. virtio_blk and drbd).
-> 
-> The flag is automatically inherited in blk_stack_limits matching the
-> existing behavior in dm and md.
+> Note that this also removes code from dm to clear the flag based on
+> the underlying devices, which can't be reached as dm devices will
+> always start out without the flag set.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Other than that, looks good to me.
+Other than that, looks OK to me.
 
 Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 
