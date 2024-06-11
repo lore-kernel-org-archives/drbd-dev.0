@@ -1,18 +1,18 @@
 Return-Path: <dlemoal@kernel.org>
 Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 22FA64208DB
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 78EEB4208DB
 	for <drbd-dev@lists.linbit.com>;
-	Tue, 11 Jun 2024 09:32:32 +0200 (CEST)
-Message-ID: <77ea357f-f73f-4524-8995-ed204d5f3431@kernel.org>
-Date: Tue, 11 Jun 2024 16:32:26 +0900
+	Tue, 11 Jun 2024 09:33:40 +0200 (CEST)
+Message-ID: <57a98863-e1ca-4ef8-aa7c-5012daa22808@kernel.org>
+Date: Tue, 11 Jun 2024 16:33:32 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/26] block: freeze the queue in queue_attr_store
+Subject: Re: [PATCH 12/26] block: remove blk_flush_policy
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-12-hch@lst.de>
+	<20240611051929.513387-13-hch@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-12-hch@lst.de>
+In-Reply-To: <20240611051929.513387-13-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,9 +48,8 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> queue_attr_store updates attributes used to control generating I/O, and
-> can cause malformed bios if changed with I/O in flight.  Freeze the queue
-> in common code instead of adding it to almost every attribute.
+> Fold blk_flush_policy into the only caller to prepare for pending changes
+> to it.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
