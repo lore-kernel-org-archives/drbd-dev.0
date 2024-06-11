@@ -1,18 +1,18 @@
 Return-Path: <prvs=8854759ac=Johannes.Thumshirn@wdc.com>
 Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com [216.71.154.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 084074208FB
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 12:57:44 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D54C64205E5
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 13:49:27 +0200 (CEST)
 From: Johannes Thumshirn <Johannes.Thumshirn@wdc.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Subject: Re: [PATCH 01/26] sd: fix sd_is_zoned
-Date: Tue, 11 Jun 2024 10:50:30 +0000
-Message-ID: <b9b02f22-6835-4a9c-a1b7-790fa6c0afb5@wdc.com>
+Subject: Re: [PATCH 08/26] virtio_blk: remove virtblk_update_cache_mode
+Date: Tue, 11 Jun 2024 11:49:20 +0000
+Message-ID: <89d4138d-92b7-4899-a028-277dde4b662f@wdc.com>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-2-hch@lst.de>
-In-Reply-To: <20240611051929.513387-2-hch@lst.de>
+	<20240611051929.513387-9-hch@lst.de>
+In-Reply-To: <20240611051929.513387-9-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <050DDD6DB6C2124FA3F8ED9DC37A34A4@namprd04.prod.outlook.com>
+Content-ID: <958B41E259453E438A1DB5FF9C75C781@namprd04.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: Lars, "nvdimm@lists.linux.dev" <nvdimm@lists.linux.dev>, "Michael
