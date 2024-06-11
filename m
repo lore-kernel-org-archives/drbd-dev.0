@@ -1,28 +1,41 @@
-Return-Path: <glass.su@suse.com>
-Received: from mail-lj1-f180.google.com (mail-lj1-f180.google.com
-	[209.85.208.180])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 66B9442019F
-	for <drbd-dev@lists.linbit.com>; Wed, 17 Apr 2024 12:48:09 +0200 (CEST)
-Received: by mail-lj1-f180.google.com with SMTP id
-	38308e7fff4ca-2d715638540so64673511fa.3
-	for <drbd-dev@lists.linbit.com>; Wed, 17 Apr 2024 03:48:08 -0700 (PDT)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 16.0 \(3774.500.171.1.1\))
-Subject: Re: [PATCH 2/2] crm-fence-peer.9.sh: use join of node_state to judge
-	whether node is banned
-From: Glass Su <glass.su@suse.com>
-In-Reply-To: <Zh+dFQrPLM6an2lk@grappa.linbit>
-Date: Wed, 17 Apr 2024 18:47:50 +0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <D49E0E18-C4CC-49EF-8BB6-47C2A89BD6BC@suse.com>
-References: <20240303091259.5045-1-l@damenly.org>
-	<20240303091259.5045-2-l@damenly.org>
-	<C2F581E6-5D15-49E7-B944-B79B3C08F252@suse.com>
-	<48A9DD72-39A4-4866-B858-E50A33299CEB@suse.com>
-	<Zh+dFQrPLM6an2lk@grappa.linbit>
-To: Lars Ellenberg <lars.ellenberg@linbit.com>
-Cc: philipp.reisner@linbit.com, drbd-dev@lists.linbit.com
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9E16042039E
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 07:59:10 +0200 (CEST)
+Date: Tue, 11 Jun 2024 07:59:06 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Damien Le Moal <dlemoal@kernel.org>
+Subject: Re: [PATCH 05/26] loop: regularize upgrading the lock size for
+	direct I/O
+Message-ID: <20240611055906.GA3640@lst.de>
+References: <20240611051929.513387-1-hch@lst.de>
+	<20240611051929.513387-6-hch@lst.de>
+	<dabc33cd-feb9-4263-8f6e-4d2ab3d71430@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <dabc33cd-feb9-4263-8f6e-4d2ab3d71430@kernel.org>
+Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
+	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
+	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
+	Vineeth Vijayan <vneethv@linux.ibm.com>,
+	linux-bcache@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
+	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
+	linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org,
+	Richard Weinberger <richard@nod.at>,
+	Geert Uytterhoeven <geert@linux-m68k.org>,
+	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
+	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
+	Josef Bacik <josef@toxicpanda.com>,
+	Ming Lei <ming.lei@redhat.com>, linux-raid@vger.kernel.org,
+	linux-m68k@lists.linux-m68k.org, Mikulas Patocka <mpatocka@redhat.com>,
+	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
+	nbd@other.debian.org, Jens Axboe <axboe@kernel.dk>,
+	linux-block@vger.kernel.org,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
+	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	linuxppc-dev@lists.ozlabs.org, Roger Pau Monn?? <roger.pau@citrix.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,38 +47,14 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+On Tue, Jun 11, 2024 at 02:56:59PM +0900, Damien Le Moal wrote:
+> > +	if (!bsize)
+> > +		bsize = loop_default_blocksize(lo, inode->i_sb->s_bdev);
+> 
+> If bsize is specified and there is a backing dev used with direct IO, should it
+> be checked that bsize is a multiple of bdev_logical_block_size(backing_bdev) ?
 
-
-> On Apr 17, 2024, at 17:57, Lars Ellenberg <lars.ellenberg@linbit.com> =
-wrote:
->=20
-> On Thu, Mar 14, 2024 at 11:18:22AM +0800, Su Yue wrote:
->>=20
->>=20
->>> On Mar 7, 2024, at 10:54, Su Yue <glass.su@suse.com> wrote:
->>>=20
->>> Hi, dear drbd folks
->>> Would you help review the patches for drbd-utils? Many thanks!
->>>=20
->> Gentle ping.
->=20
-> So you apparently have some kind of test suite
-> excercising this fencing handler?
->=20
-
-Yes. SUSE does have internal tests for drbd in HA environment.
-The issue of patch1 was exposed with pacemaker-2.1.7 in SLES-15SP6. =20
-Patch2 was filed during debug process of the above issue. It looks like =
-a=20
-small mistake when the judgement was introduced.
-
-And the patches survived in our test scenarios.
-
-Thanks,
-Su
-> Thank you for making us aware, and for your patience.
-> Looks plausible.
->=20
-> Lars
->=20
-
+For direct I/O that check would be useful.  For buffered I/O we can do
+read-modify-write cycles.  However this series is already huge and not
+primarily about improving the loop driver parameter validation, so
+I'll defer this for now.
