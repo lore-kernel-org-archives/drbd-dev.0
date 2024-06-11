@@ -1,18 +1,18 @@
 Return-Path: <dlemoal@kernel.org>
 Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C4E7E4205D4
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:07:11 +0200 (CEST)
-Message-ID: <c5524425-b2bd-40c4-bdc2-5b7e51ce6d67@kernel.org>
-Date: Tue, 11 Jun 2024 14:54:11 +0900
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D8BEB4205F6
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:12:11 +0200 (CEST)
+Message-ID: <27e76310-1831-473e-803a-e0294b91463c@kernel.org>
+Date: Tue, 11 Jun 2024 14:58:56 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/26] loop: always update discard settings in
-	loop_reconfigure_limits
+Subject: Re: [PATCH 06/26] loop: also use the default block size from an
+	underlying block device
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-5-hch@lst.de>
+	<20240611051929.513387-7-hch@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-5-hch@lst.de>
+In-Reply-To: <20240611051929.513387-7-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,15 +48,42 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Simplify loop_reconfigure_limits by always updating the discard limits.
-> This adds a little more work to loop_set_block_size, but doesn't change
-> the outcome as the discard flag won't change.
+> Fix the code in loop_reconfigure_limits to pick a default block size for
+> O_DIRECT file descriptors to also work when the loop device sits on top
+> of a block device and not just on a regular file on a block device based
+> file system.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  drivers/block/loop.c | 8 +++++++-
+>  1 file changed, 7 insertions(+), 1 deletion(-)
+> 
+> diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+> index 4f6d8514d19bd6..d7cf6bbbfb1b86 100644
+> --- a/drivers/block/loop.c
+> +++ b/drivers/block/loop.c
+> @@ -988,10 +988,16 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
+>  {
+>  	struct file *file = lo->lo_backing_file;
+>  	struct inode *inode = file->f_mapping->host;
+> +	struct block_device *backing_bdev = NULL;
+>  	struct queue_limits lim;
+>  
+> +	if (S_ISBLK(inode->i_mode))
+> +		backing_bdev = I_BDEV(inode);
+> +	else if (inode->i_sb->s_bdev)
+> +		backing_bdev = inode->i_sb->s_bdev;
+> +
 
-Looks OK to me.
+Why not move this hunk inside the below "if" ? (backing_dev declaration can go
+there too).
 
-Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
+>  	if (!bsize)
+> -		bsize = loop_default_blocksize(lo, inode->i_sb->s_bdev);
+> +		bsize = loop_default_blocksize(lo, backing_bdev);
+>  
+>  	lim = queue_limits_start_update(lo->lo_queue);
+>  	lim.logical_block_size = bsize;
 
 -- 
 Damien Le Moal
