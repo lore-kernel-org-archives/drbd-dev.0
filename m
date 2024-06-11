@@ -1,24 +1,30 @@
-Return-Path: <BATV+2fedbe304aabaf399917+7597+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DE16E420898
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:33:49 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 08/26] virtio_blk: remove virtblk_update_cache_mode
-Date: Tue, 11 Jun 2024 07:19:08 +0200
-Message-ID: <20240611051929.513387-9-hch@lst.de>
-In-Reply-To: <20240611051929.513387-1-hch@lst.de>
-References: <20240611051929.513387-1-hch@lst.de>
+Return-Path: <dlemoal@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AFA184203C1
+	for <drbd-dev@lists.linbit.com>;
+	Tue, 11 Jun 2024 09:21:03 +0200 (CEST)
+Message-ID: <6bf90562-0ff9-46b6-8a58-7381332e3beb@kernel.org>
+Date: Tue, 11 Jun 2024 16:20:54 +0900
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 02/26] sd: move zone limits setup out of
+	sd_read_block_characteristics
+To: Christoph Hellwig <hch@lst.de>
+References: <20240611051929.513387-1-hch@lst.de>
+	<20240611051929.513387-3-hch@lst.de>
+	<40ca8052-6ac1-4c1b-8c39-b0a7948839f8@kernel.org>
+	<20240611055239.GA3141@lst.de>
+Content-Language: en-US
+From: Damien Le Moal <dlemoal@kernel.org>
+In-Reply-To: <20240611055239.GA3141@lst.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
 	Vineeth Vijayan <vneethv@linux.ibm.com>,
-	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org,
-	Richard Weinberger <richard@nod.at>,
+	linux-bcache@vger.kernel.org, Alasdair Kergon <agk@redhat.com>,
+	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
+	linux-scsi@vger.kernel.org, Richard Weinberger <richard@nod.at>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
@@ -26,13 +32,12 @@ Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
 	Mikulas Patocka <mpatocka@redhat.com>,
 	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
-	Ming Lei <ming.lei@redhat.com>, linux-bcache@vger.kernel.org,
+	Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@kernel.dk>,
 	linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	linuxppc-dev@lists.ozlabs.org,
-	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
+	linuxppc-dev@lists.ozlabs.org, Roger Pau Monn?? <roger.pau@citrix.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -44,53 +49,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-virtblk_update_cache_mode boils down to a single call to
-blk_queue_write_cache.  Remove it in preparation for moving the cache
-control flags into the queue_limits.
+On 6/11/24 2:52 PM, Christoph Hellwig wrote:
+> On Tue, Jun 11, 2024 at 02:51:24PM +0900, Damien Le Moal wrote:
+>>> -	if (lim->zoned)
+>>> +	if (sdkp->device->type == TYPE_ZBC)
+>>
+>> Nit: use sd_is_zoned() here ?
+> 
+> Yes.
+> 
+>>> -	if (!sd_is_zoned(sdkp))
+>>> +	if (!sd_is_zoned(sdkp)) {
+>>> +		lim->zoned = false;
+>>
+>> Maybe we should clear the other zone related limits here ? If the drive is
+>> reformatted/converted from SMR to CMR (FORMAT WITH PRESET), the other zone
+>> limits may be set already, no ?
+> 
+> blk_validate_zoned_limits already takes care of that.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- drivers/block/virtio_blk.c | 13 +++----------
- 1 file changed, 3 insertions(+), 10 deletions(-)
+I do not think it does:
 
-diff --git a/drivers/block/virtio_blk.c b/drivers/block/virtio_blk.c
-index 2351f411fa4680..378b241911ca87 100644
---- a/drivers/block/virtio_blk.c
-+++ b/drivers/block/virtio_blk.c
-@@ -1089,14 +1089,6 @@ static int virtblk_get_cache_mode(struct virtio_device *vdev)
- 	return writeback;
- }
- 
--static void virtblk_update_cache_mode(struct virtio_device *vdev)
--{
--	u8 writeback = virtblk_get_cache_mode(vdev);
--	struct virtio_blk *vblk = vdev->priv;
--
--	blk_queue_write_cache(vblk->disk->queue, writeback, false);
--}
--
- static const char *const virtblk_cache_types[] = {
- 	"write through", "write back"
- };
-@@ -1116,7 +1108,7 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
- 		return i;
- 
- 	virtio_cwrite8(vdev, offsetof(struct virtio_blk_config, wce), i);
--	virtblk_update_cache_mode(vdev);
-+	blk_queue_write_cache(disk->queue, virtblk_get_cache_mode(vdev), false);
- 	return count;
- }
- 
-@@ -1528,7 +1520,8 @@ static int virtblk_probe(struct virtio_device *vdev)
- 	vblk->index = index;
- 
- 	/* configure queue flush support */
--	virtblk_update_cache_mode(vdev);
-+	blk_queue_write_cache(vblk->disk->queue, virtblk_get_cache_mode(vdev),
-+			false);
- 
- 	/* If disk is read-only in the host, the guest should obey */
- 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_RO))
+static int blk_validate_zoned_limits(struct queue_limits *lim)
+{
+        if (!lim->zoned) {
+                if (WARN_ON_ONCE(lim->max_open_zones) ||
+                    WARN_ON_ONCE(lim->max_active_zones) ||
+                    WARN_ON_ONCE(lim->zone_write_granularity) ||
+                    WARN_ON_ONCE(lim->max_zone_append_sectors))
+                        return -EINVAL;
+                return 0;
+        }
+	...
+
+So setting lim->zoned to false without clearing the other limits potentially
+will trigger warnings...
+
 -- 
-2.43.0
+Damien Le Moal
+Western Digital Research
 
