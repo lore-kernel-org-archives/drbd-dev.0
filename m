@@ -1,20 +1,20 @@
-Return-Path: <hare@suse.de>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4D9F2420914
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:20:26 +0200 (CEST)
-Message-ID: <161db500-6d5e-4dcc-8e44-f75c0f777a0c@suse.de>
-Date: Tue, 11 Jun 2024 10:20:25 +0200
+Return-Path: <dlemoal@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6389B420914
+	for <drbd-dev@lists.linbit.com>;
+	Tue, 11 Jun 2024 10:21:13 +0200 (CEST)
+Message-ID: <d1775d3f-daaa-4193-9f68-06ec47563b35@kernel.org>
+Date: Tue, 11 Jun 2024 17:21:07 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/26] nbd: move setting the cache control flags to
-	__nbd_set_size
+Subject: Re: [PATCH 21/26] block: move the poll flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-10-hch@lst.de>
+	<20240611051929.513387-22-hch@lst.de>
 Content-Language: en-US
-From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240611051929.513387-10-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+From: Damien Le Moal <dlemoal@kernel.org>
+In-Reply-To: <20240611051929.513387-22-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -47,23 +47,26 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/11/24 07:19, Christoph Hellwig wrote:
-> Move setting the cache control flags in nbd in preparation for moving
-> these flags into the queue_limits structure.
+On 6/11/24 2:19 PM, Christoph Hellwig wrote:
+> Move the poll flag into the queue_limits feature field so that it
+> can be set atomically and all I/O is frozen when changing the flag.
+> 
+> Stacking drivers are simplified in that they now can simply set the
+> flag, and blk_stack_limits will clear it when the features is not
+> supported by any of the underlying devices.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->   drivers/block/nbd.c | 17 +++++++----------
->   1 file changed, 7 insertions(+), 10 deletions(-)
-> 
-Reviewed-by: Hannes Reinecke <hare@suse.de>
 
-Cheers,
+Kind of the same remark as for io_stat about this not really being a device
+feature. But I guess seeing "features" as a queue feature rather than just a
+device feature makes it OK to have poll (and io_stat) as a feature rather than
+a flag.
 
-Hannes
+So:
+
+Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
+
 -- 
-Dr. Hannes Reinecke                  Kernel Storage Architect
-hare@suse.de                                +49 911 74053 688
-SUSE Software Solutions GmbH, Frankenstr. 146, 90461 Nürnberg
-HRB 36809 (AG Nürnberg), GF: I. Totev, A. McDonald, W. Knoblich
+Damien Le Moal
+Western Digital Research
 
