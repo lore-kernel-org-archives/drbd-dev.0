@@ -1,19 +1,19 @@
 Return-Path: <dlemoal@kernel.org>
 Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EDE5D42039E
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AC5E742039E
 	for <drbd-dev@lists.linbit.com>;
-	Tue, 11 Jun 2024 07:53:26 +0200 (CEST)
-Message-ID: <ca5a3441-768a-4331-a1c2-a4bdadf2f150@kernel.org>
-Date: Tue, 11 Jun 2024 14:53:19 +0900
+	Tue, 11 Jun 2024 07:57:07 +0200 (CEST)
+Message-ID: <40ca8052-6ac1-4c1b-8c39-b0a7948839f8@kernel.org>
+Date: Tue, 11 Jun 2024 14:51:24 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 03/26] loop: stop using loop_reconfigure_limits in
-	__loop_clr_fd
+Subject: Re: [PATCH 02/26] sd: move zone limits setup out of
+	sd_read_block_characteristics
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-4-hch@lst.de>
+	<20240611051929.513387-3-hch@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-4-hch@lst.de>
+In-Reply-To: <20240611051929.513387-3-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -49,50 +49,83 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> __loop_clr_fd wants to clear all settings on the device.  Prepare for
-> moving more settings into the block limits by open coding
-> loop_reconfigure_limits.
+> Move a bit of code that sets up the zone flag and the write granularity
+> into sd_zbc_read_zones to be with the rest of the zoned limits.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  drivers/block/loop.c | 10 +++++++++-
->  1 file changed, 9 insertions(+), 1 deletion(-)
+>  drivers/scsi/sd.c     | 21 +--------------------
+>  drivers/scsi/sd_zbc.c | 13 ++++++++++++-
+>  2 files changed, 13 insertions(+), 21 deletions(-)
 > 
-> diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-> index 93780f41646b75..93a49c40a31a71 100644
-> --- a/drivers/block/loop.c
-> +++ b/drivers/block/loop.c
-> @@ -1133,6 +1133,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
+> diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
+> index 85b45345a27739..5bfed61c70db8f 100644
+> --- a/drivers/scsi/sd.c
+> +++ b/drivers/scsi/sd.c
+> @@ -3308,29 +3308,10 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp,
+>  		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
+>  	}
 >  
->  static void __loop_clr_fd(struct loop_device *lo, bool release)
->  {
-> +	struct queue_limits lim;
->  	struct file *filp;
->  	gfp_t gfp = lo->old_gfp_mask;
+> -
+> -#ifdef CONFIG_BLK_DEV_ZONED /* sd_probe rejects ZBD devices early otherwise */
+> -	if (sdkp->device->type == TYPE_ZBC) {
+> -		lim->zoned = true;
+> -
+> -		/*
+> -		 * Per ZBC and ZAC specifications, writes in sequential write
+> -		 * required zones of host-managed devices must be aligned to
+> -		 * the device physical block size.
+> -		 */
+> -		lim->zone_write_granularity = sdkp->physical_block_size;
+> -	} else {
+> -		/*
+> -		 * Host-aware devices are treated as conventional.
+> -		 */
+> -		lim->zoned = false;
+> -	}
+> -#endif /* CONFIG_BLK_DEV_ZONED */
+> -
+>  	if (!sdkp->first_scan)
+>  		return;
 >  
-> @@ -1156,7 +1157,14 @@ static void __loop_clr_fd(struct loop_device *lo, bool release)
->  	lo->lo_offset = 0;
->  	lo->lo_sizelimit = 0;
->  	memset(lo->lo_file_name, 0, LO_NAME_SIZE);
-> -	loop_reconfigure_limits(lo, 512, false);
+> -	if (lim->zoned)
+> +	if (sdkp->device->type == TYPE_ZBC)
+
+Nit: use sd_is_zoned() here ?
+
+>  		sd_printk(KERN_NOTICE, sdkp, "Host-managed zoned block device\n");
+>  	else if (sdkp->zoned == 1)
+>  		sd_printk(KERN_NOTICE, sdkp, "Host-aware SMR disk used as regular disk\n");
+> diff --git a/drivers/scsi/sd_zbc.c b/drivers/scsi/sd_zbc.c
+> index 422eaed8457227..e9501db0450be3 100644
+> --- a/drivers/scsi/sd_zbc.c
+> +++ b/drivers/scsi/sd_zbc.c
+> @@ -598,8 +598,19 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, struct queue_limits *lim,
+>  	u32 zone_blocks = 0;
+>  	int ret;
+>  
+> -	if (!sd_is_zoned(sdkp))
+> +	if (!sd_is_zoned(sdkp)) {
+> +		lim->zoned = false;
+
+Maybe we should clear the other zone related limits here ? If the drive is
+reformatted/converted from SMR to CMR (FORMAT WITH PRESET), the other zone
+limits may be set already, no ?
+
+>  		return 0;
+> +	}
 > +
-> +	/* reset the block size to the default */
-> +	lim = queue_limits_start_update(lo->lo_queue);
-> +	lim.logical_block_size = 512;
-
-Nit: SECTOR_SIZE ? maybe ?
-
-> +	lim.physical_block_size = 512;
-> +	lim.io_min = 512;
-> +	queue_limits_commit_update(lo->lo_queue, &lim);
+> +	lim->zoned = true;
 > +
->  	invalidate_disk(lo->lo_disk);
->  	loop_sysfs_exit(lo);
->  	/* let user-space know about this change */
-
-Otherwise, looks OK to me.
-
-Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
+> +	/*
+> +	 * Per ZBC and ZAC specifications, writes in sequential write required
+> +	 * zones of host-managed devices must be aligned to the device physical
+> +	 * block size.
+> +	 */
+> +	lim->zone_write_granularity = sdkp->physical_block_size;
+>  
+>  	/* READ16/WRITE16/SYNC16 is mandatory for ZBC devices */
+>  	sdkp->device->use_16_for_rw = 1;
 
 -- 
 Damien Le Moal
