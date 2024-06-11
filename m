@@ -1,20 +1,23 @@
-Return-Path: <stefanha@redhat.com>
-Received: from us-smtp-delivery-124.mimecast.com
-	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C5B4442095E
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 17:50:01 +0200 (CEST)
-Date: Tue, 11 Jun 2024 11:43:09 -0400
-From: Stefan Hajnoczi <stefanha@redhat.com>
+Return-Path: <josef@toxicpanda.com>
+Received: from mail-yw1-f172.google.com (mail-yw1-f172.google.com
+	[209.85.128.172])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 028534203C1
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 18:50:57 +0200 (CEST)
+Received: by mail-yw1-f172.google.com with SMTP id
+	00721157ae682-627f3265898so62729737b3.3
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 09:50:57 -0700 (PDT)
+Date: Tue, 11 Jun 2024 12:50:55 -0400
+From: Josef Bacik <josef@toxicpanda.com>
 To: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 08/26] virtio_blk: remove virtblk_update_cache_mode
-Message-ID: <20240611154309.GA371660@fedora.redhat.com>
+Subject: Re: [PATCH 09/26] nbd: move setting the cache control flags to
+	__nbd_set_size
+Message-ID: <20240611165055.GD247672@perftesting>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-9-hch@lst.de>
+	<20240611051929.513387-10-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="RRHJimCDVdpqhQ+7"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20240611051929.513387-9-hch@lst.de>
+In-Reply-To: <20240611051929.513387-10-hch@lst.de>
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -25,16 +28,15 @@ Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
-	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
+	virtualization@lists.linux.dev, Ming Lei <ming.lei@redhat.com>,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
 	Mikulas Patocka <mpatocka@redhat.com>,
 	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
-	Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@kernel.dk>,
+	nbd@other.debian.org, Jens Axboe <axboe@kernel.dk>,
 	linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
-	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	linuxppc-dev@lists.ozlabs.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, linuxppc-dev@lists.ozlabs.org,
 	Roger Pau =?iso-8859-1?Q?Monn=E9?= <roger.pau@citrix.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -47,38 +49,14 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-
---RRHJimCDVdpqhQ+7
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Tue, Jun 11, 2024 at 07:19:08AM +0200, Christoph Hellwig wrote:
-> virtblk_update_cache_mode boils down to a single call to
-> blk_queue_write_cache.  Remove it in preparation for moving the cache
-> control flags into the queue_limits.
->=20
+On Tue, Jun 11, 2024 at 07:19:09AM +0200, Christoph Hellwig wrote:
+> Move setting the cache control flags in nbd in preparation for moving
+> these flags into the queue_limits structure.
+> 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  drivers/block/virtio_blk.c | 13 +++----------
->  1 file changed, 3 insertions(+), 10 deletions(-)
 
-Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Josef Bacik <josef@toxicpanda.com>
 
---RRHJimCDVdpqhQ+7
-Content-Type: application/pgp-signature; name="signature.asc"
+Thanks,
 
------BEGIN PGP SIGNATURE-----
-
-iQEzBAEBCAAdFiEEhpWov9P5fNqsNXdanKSrs4Grc8gFAmZocI0ACgkQnKSrs4Gr
-c8gYxQf+MiHN7lIto5cvBArHuLRaYXdHSqN8WkOxjyk6pKDVJN3zByol4IsQ1or0
-gi3U/1yXaU1lyM8v76HhRI789ZE9OXHiRD8iKWM54w0uldvJLPNzByqsrvapKvmR
-XjYyMxgp/uFJZ4qxg3nonI2Fa2FzSjqA/ct/sTYj8AbXOsOEK/bUZasvnrwUuIhP
-FwODujdCtfIpzMvn4c262LUiz3TOY+p3nH/CSKsYZwR5xiUbbZCf30PKrwN4RcmU
-ti4hIKoOJcLH5gjgeXpfx7jOM/6Qr7eQrEelsDnuMAKYXC9WMj48+O6Cf8mFja4M
-N1txQKX0NepjOjzDmydD5Dx/69S/sg==
-=ehtQ
------END PGP SIGNATURE-----
-
---RRHJimCDVdpqhQ+7--
-
+Josef
