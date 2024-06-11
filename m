@@ -1,20 +1,20 @@
-Return-Path: <hare@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 57A6D4208A2
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:16:58 +0200 (CEST)
-Message-ID: <e25047ab-2c01-4704-b554-df85a8d34cd7@suse.de>
-Date: Tue, 11 Jun 2024 10:16:57 +0200
+Return-Path: <dlemoal@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2CAB942089E
+	for <drbd-dev@lists.linbit.com>;
+	Tue, 11 Jun 2024 10:17:40 +0200 (CEST)
+Message-ID: <c52f1553-21a2-415b-a9a6-02bc5cde1ac7@kernel.org>
+Date: Tue, 11 Jun 2024 17:17:32 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/26] loop: regularize upgrading the lock size for direct
-	I/O
+Subject: Re: [PATCH 20/26] block: move the dax flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-6-hch@lst.de>
+	<20240611051929.513387-21-hch@lst.de>
 Content-Language: en-US
-From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240611051929.513387-6-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+From: Damien Le Moal <dlemoal@kernel.org>
+In-Reply-To: <20240611051929.513387-21-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -47,25 +47,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/11/24 07:19, Christoph Hellwig wrote:
-> The LOOP_CONFIGURE path automatically upgrades the block size to that
-> of the underlying file for O_DIRECT file descriptors, but the
-> LOOP_SET_BLOCK_SIZE path does not.  Fix this by lifting the code to
-> pick the block size into common code.
+On 6/11/24 2:19 PM, Christoph Hellwig wrote:
+> Move the dax flag into the queue_limits feature field so that it
+> can be set atomically and all I/O is frozen when changing the flag.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->   drivers/block/loop.c | 25 +++++++++++++++----------
->   1 file changed, 15 insertions(+), 10 deletions(-)
-> 
-Reviewed-by: Hannes Reinecke <hare@suse.de>
 
-Cheers,
+Looks good.
 
-Hannes
+Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
+
 -- 
-Dr. Hannes Reinecke                  Kernel Storage Architect
-hare@suse.de                                +49 911 74053 688
-SUSE Software Solutions GmbH, Frankenstr. 146, 90461 Nürnberg
-HRB 36809 (AG Nürnberg), GF: I. Totev, A. McDonald, W. Knoblich
+Damien Le Moal
+Western Digital Research
 
