@@ -1,17 +1,18 @@
 Return-Path: <bvanassche@acm.org>
-Received: from 009.lax.mailroute.net (009.lax.mailroute.net [199.89.1.12])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CDA8C420934
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:29:04 +0200 (CEST)
-Message-ID: <fc9fb8dd-05e4-48b8-ab01-d1dd84996df4@acm.org>
-Date: Tue, 11 Jun 2024 12:18:40 -0700
+Received: from 008.lax.mailroute.net (008.lax.mailroute.net [199.89.1.11])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CE376420910
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:29:08 +0200 (CEST)
+Message-ID: <3697d0ed-9567-4aa9-b006-e0715d3c1e9a@acm.org>
+Date: Tue, 11 Jun 2024 12:28:47 -0700
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/26] sd: fix sd_is_zoned
+Subject: Re: [PATCH 06/26] loop: also use the default block size from an
+	underlying block device
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-2-hch@lst.de>
+	<20240611051929.513387-7-hch@lst.de>
 Content-Language: en-US
 From: Bart Van Assche <bvanassche@acm.org>
-In-Reply-To: <20240611051929.513387-2-hch@lst.de>
+In-Reply-To: <20240611051929.513387-7-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,8 +48,9 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/10/24 10:19 PM, Christoph Hellwig wrote:
-> Since commit 7437bb73f087 ("block: remove support for the host aware zone
-> model"), only ZBC devices expose a zoned access model.  sd_is_zoned is
-> used to check for that and thus return false for host aware devices.
+> Fix the code in loop_reconfigure_limits to pick a default block size for
+> O_DIRECT file descriptors to also work when the loop device sits on top
+> of a block device and not just on a regular file on a block device based
+> file system.
 
 Reviewed-by: Bart Van Assche <bvanassche@acm.org>
