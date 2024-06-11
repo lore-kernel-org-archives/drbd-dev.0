@@ -1,13 +1,13 @@
 Return-Path: <BATV+2fedbe304aabaf399917+7597+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2A75A4205D7
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:23:39 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0D4E642039E
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:26:32 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 11/26] block: freeze the queue in queue_attr_store
-Date: Tue, 11 Jun 2024 07:19:11 +0200
-Message-ID: <20240611051929.513387-12-hch@lst.de>
+Subject: [PATCH 26/26] block: move the bounce flag into the feature field
+Date: Tue, 11 Jun 2024 07:19:26 +0200
+Message-ID: <20240611051929.513387-27-hch@lst.de>
 In-Reply-To: <20240611051929.513387-1-hch@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
 MIME-Version: 1.0
@@ -44,99 +44,85 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-queue_attr_store updates attributes used to control generating I/O, and
-can cause malformed bios if changed with I/O in flight.  Freeze the queue
-in common code instead of adding it to almost every attribute.
+Move the bounce field into the flags field to reclaim a little bit of
+space.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/blk-mq.c    | 5 +++--
- block/blk-sysfs.c | 9 ++-------
- 2 files changed, 5 insertions(+), 9 deletions(-)
+ block/blk-settings.c    | 1 -
+ block/blk.h             | 2 +-
+ drivers/scsi/scsi_lib.c | 2 +-
+ include/linux/blkdev.h  | 6 ++++--
+ 4 files changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/block/blk-mq.c b/block/blk-mq.c
-index 0d4cd39c3d25da..58b0d6c7cc34d6 100644
---- a/block/blk-mq.c
-+++ b/block/blk-mq.c
-@@ -4631,13 +4631,15 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
- 	int ret;
- 	unsigned long i;
+diff --git a/block/blk-settings.c b/block/blk-settings.c
+index 96e07f24bd9aa1..d0e9096f93ca8a 100644
+--- a/block/blk-settings.c
++++ b/block/blk-settings.c
+@@ -479,7 +479,6 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
+ 					b->max_write_zeroes_sectors);
+ 	t->max_zone_append_sectors = min(queue_limits_max_zone_append_sectors(t),
+ 					 queue_limits_max_zone_append_sectors(b));
+-	t->bounce = max(t->bounce, b->bounce);
  
-+	if (WARN_ON_ONCE(!q->mq_freeze_depth))
-+		return -EINVAL;
+ 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
+ 					    b->seg_boundary_mask);
+diff --git a/block/blk.h b/block/blk.h
+index 79e8d5d4fe0caf..fa32f7fad5d7e6 100644
+--- a/block/blk.h
++++ b/block/blk.h
+@@ -394,7 +394,7 @@ struct bio *__blk_queue_bounce(struct bio *bio, struct request_queue *q);
+ static inline bool blk_queue_may_bounce(struct request_queue *q)
+ {
+ 	return IS_ENABLED(CONFIG_BOUNCE) &&
+-		q->limits.bounce == BLK_BOUNCE_HIGH &&
++		(q->limits.features & BLK_FEAT_BOUNCE_HIGH) &&
+ 		max_low_pfn >= max_pfn;
+ }
+ 
+diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
+index 54f771ec8cfb5e..e2f7bfb2b9e450 100644
+--- a/drivers/scsi/scsi_lib.c
++++ b/drivers/scsi/scsi_lib.c
+@@ -1986,7 +1986,7 @@ void scsi_init_limits(struct Scsi_Host *shost, struct queue_limits *lim)
+ 		shost->dma_alignment, dma_get_cache_alignment() - 1);
+ 
+ 	if (shost->no_highmem)
+-		lim->bounce = BLK_BOUNCE_HIGH;
++		lim->features |= BLK_FEAT_BOUNCE_HIGH;
+ 
+ 	dma_set_seg_boundary(dev, shost->dma_boundary);
+ 	dma_set_max_seg_size(dev, shost->max_segment_size);
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index d7ad25def6e50b..d1d9787e76ce73 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -325,6 +325,9 @@ enum {
+ 
+ 	/* skip this queue in blk_mq_(un)quiesce_tagset */
+ 	BLK_FEAT_SKIP_TAGSET_QUIESCE		= (1u << 13),
 +
- 	if (!set)
- 		return -EINVAL;
++	/* bounce all highmem pages */
++	BLK_FEAT_BOUNCE_HIGH			= (1u << 14),
+ };
  
- 	if (q->nr_requests == nr)
- 		return 0;
+ /*
+@@ -332,7 +335,7 @@ enum {
+  */
+ #define BLK_FEAT_INHERIT_MASK \
+ 	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL | \
+-	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED)
++	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH)
  
--	blk_mq_freeze_queue(q);
- 	blk_mq_quiesce_queue(q);
- 
- 	ret = 0;
-@@ -4671,7 +4673,6 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
- 	}
- 
- 	blk_mq_unquiesce_queue(q);
--	blk_mq_unfreeze_queue(q);
- 
- 	return ret;
- }
-diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
-index f0f9314ab65c61..5c787965b7d09e 100644
---- a/block/blk-sysfs.c
-+++ b/block/blk-sysfs.c
-@@ -189,12 +189,9 @@ static ssize_t queue_discard_max_store(struct request_queue *q,
- 	if ((max_discard_bytes >> SECTOR_SHIFT) > UINT_MAX)
- 		return -EINVAL;
- 
--	blk_mq_freeze_queue(q);
- 	lim = queue_limits_start_update(q);
- 	lim.max_user_discard_sectors = max_discard_bytes >> SECTOR_SHIFT;
- 	err = queue_limits_commit_update(q, &lim);
--	blk_mq_unfreeze_queue(q);
--
- 	if (err)
- 		return err;
- 	return ret;
-@@ -241,11 +238,9 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
- 	if (ret < 0)
- 		return ret;
- 
--	blk_mq_freeze_queue(q);
- 	lim = queue_limits_start_update(q);
- 	lim.max_user_sectors = max_sectors_kb << 1;
- 	err = queue_limits_commit_update(q, &lim);
--	blk_mq_unfreeze_queue(q);
- 	if (err)
- 		return err;
- 	return ret;
-@@ -585,13 +580,11 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
- 	 * ends up either enabling or disabling wbt completely. We can't
- 	 * have IO inflight if that happens.
- 	 */
--	blk_mq_freeze_queue(q);
- 	blk_mq_quiesce_queue(q);
- 
- 	wbt_set_min_lat(q, val);
- 
- 	blk_mq_unquiesce_queue(q);
--	blk_mq_unfreeze_queue(q);
- 
- 	return count;
- }
-@@ -722,9 +715,11 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
- 	if (!entry->store)
- 		return -EIO;
- 
-+	blk_mq_freeze_queue(q);
- 	mutex_lock(&q->sysfs_lock);
- 	res = entry->store(q, page, length);
- 	mutex_unlock(&q->sysfs_lock);
-+	blk_mq_unfreeze_queue(q);
- 	return res;
- }
+ /* internal flags in queue_limits.flags */
+ enum {
+@@ -352,7 +355,6 @@ enum blk_bounce {
+ struct queue_limits {
+ 	unsigned int		features;
+ 	unsigned int		flags;
+-	enum blk_bounce		bounce;
+ 	unsigned long		seg_boundary_mask;
+ 	unsigned long		virt_boundary_mask;
  
 -- 
 2.43.0
