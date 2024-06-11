@@ -1,20 +1,19 @@
-Return-Path: <hare@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8C9174209B0
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:23:21 +0200 (CEST)
-Message-ID: <b586980b-0a5a-4371-bcb7-e578633ed71c@suse.de>
-Date: Tue, 11 Jun 2024 10:15:48 +0200
+Return-Path: <dlemoal@kernel.org>
+Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 563E54209D5
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:23:32 +0200 (CEST)
+Message-ID: <29c6bbe8-f0fe-49dd-a28b-327d86ceb51d@kernel.org>
+Date: Tue, 11 Jun 2024 17:23:25 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/26] loop: always update discard settings in
-	loop_reconfigure_limits
+Subject: Re: [PATCH 22/26] block: move the zoned flag into the feature field
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-5-hch@lst.de>
+	<20240611051929.513387-23-hch@lst.de>
 Content-Language: en-US
-From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240611051929.513387-5-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+From: Damien Le Moal <dlemoal@kernel.org>
+In-Reply-To: <20240611051929.513387-23-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -47,24 +46,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/11/24 07:19, Christoph Hellwig wrote:
-> Simplify loop_reconfigure_limits by always updating the discard limits.
-> This adds a little more work to loop_set_block_size, but doesn't change
-> the outcome as the discard flag won't change.
+On 6/11/24 2:19 PM, Christoph Hellwig wrote:
+> Move the boolean zoned field into the flags field to reclaim a little
+> bit of space.
+
+Nit: flags -> feature flags
+
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->   drivers/block/loop.c | 10 ++++------
->   1 file changed, 4 insertions(+), 6 deletions(-)
-> 
-Reviewed-by: Hannes Reinecke <hare@suse.de>
 
-Cheers,
+Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 
-Hannes
 -- 
-Dr. Hannes Reinecke                  Kernel Storage Architect
-hare@suse.de                                +49 911 74053 688
-SUSE Software Solutions GmbH, Frankenstr. 146, 90461 Nürnberg
-HRB 36809 (AG Nürnberg), GF: I. Totev, A. McDonald, W. Knoblich
+Damien Le Moal
+Western Digital Research
 
