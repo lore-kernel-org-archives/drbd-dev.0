@@ -1,18 +1,18 @@
 Return-Path: <dlemoal@kernel.org>
-Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3FB754208FB
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:25:46 +0200 (CEST)
-Message-ID: <f4497895-93ce-4d96-bcaa-6ad77be83c83@kernel.org>
-Date: Tue, 11 Jun 2024 17:25:39 +0900
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 443A84205D7
+	for <drbd-dev@lists.linbit.com>;
+	Tue, 11 Jun 2024 10:26:56 +0200 (CEST)
+Message-ID: <b5db88d4-5639-47a9-9611-2628235f4244@kernel.org>
+Date: Tue, 11 Jun 2024 17:26:49 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 25/26] block: move the skip_tagset_quiesce flag to
-	queue_limits
+Subject: Re: [PATCH 26/26] block: move the bounce flag into the feature field
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-26-hch@lst.de>
+	<20240611051929.513387-27-hch@lst.de>
 Content-Language: en-US
 From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-26-hch@lst.de>
+In-Reply-To: <20240611051929.513387-27-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,9 +48,11 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Move the skip_tagset_quiesce flag into the queue_limits feature field so
-> that it can be set atomically and all I/O is frozen when changing the
-> flag.
+> Move the bounce field into the flags field to reclaim a little bit of
+
+s/flags/feature
+
+> space.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
