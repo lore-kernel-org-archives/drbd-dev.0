@@ -1,43 +1,41 @@
-Return-Path: <josef@toxicpanda.com>
-Received: from mail-yw1-f172.google.com (mail-yw1-f172.google.com
-	[209.85.128.172])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 028534203C1
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 18:50:57 +0200 (CEST)
-Received: by mail-yw1-f172.google.com with SMTP id
-	00721157ae682-627f3265898so62729737b3.3
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 09:50:57 -0700 (PDT)
-Date: Tue, 11 Jun 2024 12:50:55 -0400
-From: Josef Bacik <josef@toxicpanda.com>
-To: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 09/26] nbd: move setting the cache control flags to
-	__nbd_set_size
-Message-ID: <20240611165055.GD247672@perftesting>
-References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-10-hch@lst.de>
+Return-Path: <bvanassche@acm.org>
+Received: from 009.lax.mailroute.net (009.lax.mailroute.net [199.89.1.12])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A20D5420910
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:25:04 +0200 (CEST)
+Message-ID: <490fb178-8246-46cc-87fc-a57e076b9657@acm.org>
+Date: Tue, 11 Jun 2024 12:21:50 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20240611051929.513387-10-hch@lst.de>
+Subject: Re: [PATCH 03/26] loop: stop using loop_reconfigure_limits in
+	__loop_clr_fd
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+References: <20240611051929.513387-1-hch@lst.de>
+	<20240611051929.513387-4-hch@lst.de>
+Content-Language: en-US
+From: Bart Van Assche <bvanassche@acm.org>
+In-Reply-To: <20240611051929.513387-4-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
 	Vineeth Vijayan <vneethv@linux.ibm.com>,
-	linux-bcache@vger.kernel.org, Alasdair Kergon <agk@redhat.com>,
-	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
-	linux-scsi@vger.kernel.org, Richard Weinberger <richard@nod.at>,
+	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
+	linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org,
+	Richard Weinberger <richard@nod.at>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
-	virtualization@lists.linux.dev, Ming Lei <ming.lei@redhat.com>,
+	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
 	Mikulas Patocka <mpatocka@redhat.com>,
 	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
-	nbd@other.debian.org, Jens Axboe <axboe@kernel.dk>,
+	Ming Lei <ming.lei@redhat.com>, linux-bcache@vger.kernel.org,
 	linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, linuxppc-dev@lists.ozlabs.org,
-	Roger Pau =?iso-8859-1?Q?Monn=E9?= <roger.pau@citrix.com>
+	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	linuxppc-dev@lists.ozlabs.org,
+	=?UTF-8?Q?Roger_Pau_Monn=C3=A9?= <roger.pau@citrix.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,14 +47,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jun 11, 2024 at 07:19:09AM +0200, Christoph Hellwig wrote:
-> Move setting the cache control flags in nbd in preparation for moving
-> these flags into the queue_limits structure.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+On 6/10/24 10:19 PM, Christoph Hellwig wrote:
+> __loop_clr_fd wants to clear all settings on the device.  Prepare for
+> moving more settings into the block limits by open coding
+> loop_reconfigure_limits.
 
-Reviewed-by: Josef Bacik <josef@toxicpanda.com>
+If Damien's comment is addressed, feel free to add:
 
-Thanks,
-
-Josef
+Reviewed-by: Bart Van Assche <bvanassche@acm.org>
