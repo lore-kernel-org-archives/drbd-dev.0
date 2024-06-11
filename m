@@ -1,13 +1,14 @@
 Return-Path: <BATV+2fedbe304aabaf399917+7597+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DA55B4205D7
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:32:15 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 51762420640
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:32:38 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 25/26] block: move the skip_tagset_quiesce flag to queue_limits
-Date: Tue, 11 Jun 2024 07:19:25 +0200
-Message-ID: <20240611051929.513387-26-hch@lst.de>
+Subject: [PATCH 03/26] loop: stop using loop_reconfigure_limits in
+	__loop_clr_fd
+Date: Tue, 11 Jun 2024 07:19:03 +0200
+Message-ID: <20240611051929.513387-4-hch@lst.de>
 In-Reply-To: <20240611051929.513387-1-hch@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
 MIME-Version: 1.0
@@ -44,83 +45,43 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Move the skip_tagset_quiesce flag into the queue_limits feature field so
-that it can be set atomically and all I/O is frozen when changing the
-flag.
+__loop_clr_fd wants to clear all settings on the device.  Prepare for
+moving more settings into the block limits by open coding
+loop_reconfigure_limits.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/blk-mq-debugfs.c   | 1 -
- drivers/nvme/host/core.c | 8 +++++---
- include/linux/blkdev.h   | 6 ++++--
- 3 files changed, 9 insertions(+), 6 deletions(-)
+ drivers/block/loop.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
-index 8b5a68861c119b..344f9e503bdb32 100644
---- a/block/blk-mq-debugfs.c
-+++ b/block/blk-mq-debugfs.c
-@@ -93,7 +93,6 @@ static const char *const blk_queue_flag_name[] = {
- 	QUEUE_FLAG_NAME(RQ_ALLOC_TIME),
- 	QUEUE_FLAG_NAME(HCTX_ACTIVE),
- 	QUEUE_FLAG_NAME(SQ_SCHED),
--	QUEUE_FLAG_NAME(SKIP_TAGSET_QUIESCE),
- };
- #undef QUEUE_FLAG_NAME
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index 93780f41646b75..93a49c40a31a71 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -1133,6 +1133,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
  
-diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
-index 31e752e8d632cd..bf410d10b12006 100644
---- a/drivers/nvme/host/core.c
-+++ b/drivers/nvme/host/core.c
-@@ -4489,13 +4489,15 @@ int nvme_alloc_io_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
- 		return ret;
+ static void __loop_clr_fd(struct loop_device *lo, bool release)
+ {
++	struct queue_limits lim;
+ 	struct file *filp;
+ 	gfp_t gfp = lo->old_gfp_mask;
  
- 	if (ctrl->ops->flags & NVME_F_FABRICS) {
--		ctrl->connect_q = blk_mq_alloc_queue(set, NULL, NULL);
-+		struct queue_limits lim = {
-+			.features	= BLK_FEAT_SKIP_TAGSET_QUIESCE,
-+		};
+@@ -1156,7 +1157,14 @@ static void __loop_clr_fd(struct loop_device *lo, bool release)
+ 	lo->lo_offset = 0;
+ 	lo->lo_sizelimit = 0;
+ 	memset(lo->lo_file_name, 0, LO_NAME_SIZE);
+-	loop_reconfigure_limits(lo, 512, false);
 +
-+		ctrl->connect_q = blk_mq_alloc_queue(set, &lim, NULL);
-         	if (IS_ERR(ctrl->connect_q)) {
- 			ret = PTR_ERR(ctrl->connect_q);
- 			goto out_free_tag_set;
- 		}
--		blk_queue_flag_set(QUEUE_FLAG_SKIP_TAGSET_QUIESCE,
--				   ctrl->connect_q);
- 	}
- 
- 	ctrl->tagset = set;
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index cc4f6e64e8e3f5..d7ad25def6e50b 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -322,6 +322,9 @@ enum {
- 
- 	/* supports PCI(e) p2p requests */
- 	BLK_FEAT_PCI_P2PDMA			= (1u << 12),
++	/* reset the block size to the default */
++	lim = queue_limits_start_update(lo->lo_queue);
++	lim.logical_block_size = 512;
++	lim.physical_block_size = 512;
++	lim.io_min = 512;
++	queue_limits_commit_update(lo->lo_queue, &lim);
 +
-+	/* skip this queue in blk_mq_(un)quiesce_tagset */
-+	BLK_FEAT_SKIP_TAGSET_QUIESCE		= (1u << 13),
- };
- 
- /*
-@@ -594,7 +597,6 @@ struct request_queue {
- #define QUEUE_FLAG_RQ_ALLOC_TIME 27	/* record rq->alloc_time_ns */
- #define QUEUE_FLAG_HCTX_ACTIVE	28	/* at least one blk-mq hctx is active */
- #define QUEUE_FLAG_SQ_SCHED     30	/* single queue style io dispatch */
--#define QUEUE_FLAG_SKIP_TAGSET_QUIESCE	31 /* quiesce_tagset skip the queue*/
- 
- #define QUEUE_FLAG_MQ_DEFAULT	(1UL << QUEUE_FLAG_SAME_COMP)
- 
-@@ -629,7 +631,7 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
- #define blk_queue_registered(q)	test_bit(QUEUE_FLAG_REGISTERED, &(q)->queue_flags)
- #define blk_queue_sq_sched(q)	test_bit(QUEUE_FLAG_SQ_SCHED, &(q)->queue_flags)
- #define blk_queue_skip_tagset_quiesce(q) \
--	test_bit(QUEUE_FLAG_SKIP_TAGSET_QUIESCE, &(q)->queue_flags)
-+	((q)->limits.features & BLK_FEAT_SKIP_TAGSET_QUIESCE)
- 
- extern void blk_set_pm_only(struct request_queue *q);
- extern void blk_clear_pm_only(struct request_queue *q);
+ 	invalidate_disk(lo->lo_disk);
+ 	loop_sysfs_exit(lo);
+ 	/* let user-space know about this change */
 -- 
 2.43.0
 
