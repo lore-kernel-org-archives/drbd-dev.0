@@ -1,20 +1,20 @@
-Return-Path: <dlemoal@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6389B420914
-	for <drbd-dev@lists.linbit.com>;
-	Tue, 11 Jun 2024 10:21:13 +0200 (CEST)
-Message-ID: <d1775d3f-daaa-4193-9f68-06ec47563b35@kernel.org>
-Date: Tue, 11 Jun 2024 17:21:07 +0900
+Return-Path: <hare@suse.de>
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 99D67420889
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:21:56 +0200 (CEST)
+Message-ID: <51ec022c-a978-407b-bd05-54399551841e@suse.de>
+Date: Tue, 11 Jun 2024 10:21:55 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 21/26] block: move the poll flag to queue_limits
+Subject: Re: [PATCH 10/26] xen-blkfront: don't disable cache flushes when they
+	fail
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-22-hch@lst.de>
+	<20240611051929.513387-11-hch@lst.de>
 Content-Language: en-US
-From: Damien Le Moal <dlemoal@kernel.org>
-In-Reply-To: <20240611051929.513387-22-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+From: Hannes Reinecke <hare@suse.de>
+In-Reply-To: <20240611051929.513387-11-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -47,26 +47,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> Move the poll flag into the queue_limits feature field so that it
-> can be set atomically and all I/O is frozen when changing the flag.
-> 
-> Stacking drivers are simplified in that they now can simply set the
-> flag, and blk_stack_limits will clear it when the features is not
-> supported by any of the underlying devices.
+On 6/11/24 07:19, Christoph Hellwig wrote:
+> blkfront always had a robust negotiation protocol for detecting a write
+> cache.  Stop simply disabling cache flushes when they fail as that is
+> a grave error.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   drivers/block/xen-blkfront.c | 29 +++++++++--------------------
+>   1 file changed, 9 insertions(+), 20 deletions(-)
+> 
+Reviewed-by: Hannes Reinecke <hare@suse.de>
 
-Kind of the same remark as for io_stat about this not really being a device
-feature. But I guess seeing "features" as a queue feature rather than just a
-device feature makes it OK to have poll (and io_stat) as a feature rather than
-a flag.
+Cheers,
 
-So:
-
-Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
-
+Hannes
 -- 
-Damien Le Moal
-Western Digital Research
+Dr. Hannes Reinecke                  Kernel Storage Architect
+hare@suse.de                                +49 911 74053 688
+SUSE Software Solutions GmbH, Frankenstr. 146, 90461 Nürnberg
+HRB 36809 (AG Nürnberg), GF: I. Totev, A. McDonald, W. Knoblich
 
