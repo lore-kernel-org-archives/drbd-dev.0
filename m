@@ -1,18 +1,17 @@
 Return-Path: <bvanassche@acm.org>
 Received: from 009.lax.mailroute.net (009.lax.mailroute.net [199.89.1.12])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BC8E7420948
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:28:03 +0200 (CEST)
-Message-ID: <ec31fd62-8a1d-44b2-8c0d-d6cca64f752e@acm.org>
-Date: Tue, 11 Jun 2024 12:27:41 -0700
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CDA8C420934
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:29:04 +0200 (CEST)
+Message-ID: <fc9fb8dd-05e4-48b8-ab01-d1dd84996df4@acm.org>
+Date: Tue, 11 Jun 2024 12:18:40 -0700
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/26] loop: regularize upgrading the lock size for direct
-	I/O
+Subject: Re: [PATCH 01/26] sd: fix sd_is_zoned
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-6-hch@lst.de>
+	<20240611051929.513387-2-hch@lst.de>
 Content-Language: en-US
 From: Bart Van Assche <bvanassche@acm.org>
-In-Reply-To: <20240611051929.513387-6-hch@lst.de>
+In-Reply-To: <20240611051929.513387-2-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,9 +47,8 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/10/24 10:19 PM, Christoph Hellwig wrote:
-> The LOOP_CONFIGURE path automatically upgrades the block size to that
-> of the underlying file for O_DIRECT file descriptors, but the
-> LOOP_SET_BLOCK_SIZE path does not.  Fix this by lifting the code to
-> pick the block size into common code.
+> Since commit 7437bb73f087 ("block: remove support for the host aware zone
+> model"), only ZBC devices expose a zoned access model.  sd_is_zoned is
+> used to check for that and thus return false for host aware devices.
 
 Reviewed-by: Bart Van Assche <bvanassche@acm.org>
