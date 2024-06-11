@@ -1,18 +1,18 @@
 Return-Path: <bvanassche@acm.org>
-Received: from 008.lax.mailroute.net (008.lax.mailroute.net [199.89.1.11])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CE376420910
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:29:08 +0200 (CEST)
-Message-ID: <3697d0ed-9567-4aa9-b006-e0715d3c1e9a@acm.org>
-Date: Tue, 11 Jun 2024 12:28:47 -0700
+Received: from 009.lax.mailroute.net (009.lax.mailroute.net [199.89.1.12])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A0B6342092C
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:31:40 +0200 (CEST)
+Message-ID: <8206c0cf-1787-4282-bcec-746d7c7f3880@acm.org>
+Date: Tue, 11 Jun 2024 12:31:21 -0700
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/26] loop: also use the default block size from an
-	underlying block device
+Subject: Re: [PATCH 07/26] loop: fold loop_update_rotational into
+	loop_reconfigure_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-7-hch@lst.de>
+	<20240611051929.513387-8-hch@lst.de>
 Content-Language: en-US
 From: Bart Van Assche <bvanassche@acm.org>
-In-Reply-To: <20240611051929.513387-7-hch@lst.de>
+In-Reply-To: <20240611051929.513387-8-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,9 +48,8 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/10/24 10:19 PM, Christoph Hellwig wrote:
-> Fix the code in loop_reconfigure_limits to pick a default block size for
-> O_DIRECT file descriptors to also work when the loop device sits on top
-> of a block device and not just on a regular file on a block device based
-> file system.
+> This prepares for moving the rotational flag into the queue_limits and
+> also fixes it for the case where the loop device is backed by a block
+> device.
 
 Reviewed-by: Bart Van Assche <bvanassche@acm.org>
