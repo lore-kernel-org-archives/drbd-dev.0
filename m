@@ -1,17 +1,17 @@
 Return-Path: <bvanassche@acm.org>
 Received: from 009.lax.mailroute.net (009.lax.mailroute.net [199.89.1.12])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3D4D74209C0
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:37:16 +0200 (CEST)
-Message-ID: <1f7c1123-0f80-42a4-8252-c082ded33ca6@acm.org>
-Date: Tue, 11 Jun 2024 12:36:55 -0700
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EE12C4209F3
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:38:01 +0200 (CEST)
+Message-ID: <f5a5f79e-43f5-46ae-9c11-371e8e558685@acm.org>
+Date: Tue, 11 Jun 2024 12:37:42 -0700
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/26] block: freeze the queue in queue_attr_store
+Subject: Re: [PATCH 12/26] block: remove blk_flush_policy
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-12-hch@lst.de>
+	<20240611051929.513387-13-hch@lst.de>
 Content-Language: en-US
 From: Bart Van Assche <bvanassche@acm.org>
-In-Reply-To: <20240611051929.513387-12-hch@lst.de>
+In-Reply-To: <20240611051929.513387-13-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,8 +47,6 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/10/24 10:19 PM, Christoph Hellwig wrote:
-> queue_attr_store updates attributes used to control generating I/O, and
-> can cause malformed bios if changed with I/O in flight.  Freeze the queue
-> in common code instead of adding it to almost every attribute.
-
-Reviewed-by: Bart Van Assche <bvanassche@acm.org>
+> Fold blk_flush_policy into the only caller to prepare for pending changes
+> to it.
+  Reviewed-by: Bart Van Assche <bvanassche@acm.org>
