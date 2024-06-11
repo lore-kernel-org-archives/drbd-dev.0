@@ -1,19 +1,20 @@
-Return-Path: <hare@suse.de>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 97776420987
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:23:54 +0200 (CEST)
-Message-ID: <def8fea1-66ae-4fea-9b49-2842b91404ea@suse.de>
-Date: Tue, 11 Jun 2024 10:23:52 +0200
+Return-Path: <dlemoal@kernel.org>
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 671B542096C
+	for <drbd-dev@lists.linbit.com>;
+	Tue, 11 Jun 2024 10:24:12 +0200 (CEST)
+Message-ID: <cb865b5b-ea4d-49cc-b41b-7f46b62b9dd0@kernel.org>
+Date: Tue, 11 Jun 2024 17:24:04 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 12/26] block: remove blk_flush_policy
+Subject: Re: [PATCH 23/26] block: move the zone_resetall flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-13-hch@lst.de>
+	<20240611051929.513387-24-hch@lst.de>
 Content-Language: en-US
-From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240611051929.513387-13-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+From: Damien Le Moal <dlemoal@kernel.org>
+In-Reply-To: <20240611051929.513387-24-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -46,23 +47,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/11/24 07:19, Christoph Hellwig wrote:
-> Fold blk_flush_policy into the only caller to prepare for pending changes
-> to it.
+On 6/11/24 2:19 PM, Christoph Hellwig wrote:
+> Move the zone_resetall flag into the queue_limits feature field so that
+> it can be set atomically and all I/O is frozen when changing the flag.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->   block/blk-flush.c | 33 +++++++++++++++------------------
->   1 file changed, 15 insertions(+), 18 deletions(-)
-> 
-Reviewed-by: Hannes Reinecke <hare@suse.de>
 
-Cheers,
+Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 
-Hannes
 -- 
-Dr. Hannes Reinecke                  Kernel Storage Architect
-hare@suse.de                                +49 911 74053 688
-SUSE Software Solutions GmbH, Frankenstr. 146, 90461 Nürnberg
-HRB 36809 (AG Nürnberg), GF: I. Totev, A. McDonald, W. Knoblich
+Damien Le Moal
+Western Digital Research
 
