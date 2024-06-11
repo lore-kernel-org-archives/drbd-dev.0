@@ -1,18 +1,17 @@
 Return-Path: <bvanassche@acm.org>
 Received: from 009.lax.mailroute.net (009.lax.mailroute.net [199.89.1.12])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A0B6342092C
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:31:40 +0200 (CEST)
-Message-ID: <8206c0cf-1787-4282-bcec-746d7c7f3880@acm.org>
-Date: Tue, 11 Jun 2024 12:31:21 -0700
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C5ED14209C0
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:32:46 +0200 (CEST)
+Message-ID: <69663f60-1d42-4f95-97cc-acb73ed5d7c8@acm.org>
+Date: Tue, 11 Jun 2024 12:32:27 -0700
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/26] loop: fold loop_update_rotational into
-	loop_reconfigure_limits
+Subject: Re: [PATCH 08/26] virtio_blk: remove virtblk_update_cache_mode
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-8-hch@lst.de>
+	<20240611051929.513387-9-hch@lst.de>
 Content-Language: en-US
 From: Bart Van Assche <bvanassche@acm.org>
-In-Reply-To: <20240611051929.513387-8-hch@lst.de>
+In-Reply-To: <20240611051929.513387-9-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,8 +47,8 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/10/24 10:19 PM, Christoph Hellwig wrote:
-> This prepares for moving the rotational flag into the queue_limits and
-> also fixes it for the case where the loop device is backed by a block
-> device.
+> virtblk_update_cache_mode boils down to a single call to
+> blk_queue_write_cache.  Remove it in preparation for moving the cache
+> control flags into the queue_limits.
 
 Reviewed-by: Bart Van Assche <bvanassche@acm.org>
