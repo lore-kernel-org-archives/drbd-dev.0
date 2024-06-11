@@ -1,17 +1,18 @@
 Return-Path: <hare@suse.de>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4B90842095E
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:22:57 +0200 (CEST)
-Message-ID: <5a7f03c3-81e3-4ed9-9c57-0ca86dd97cd0@suse.de>
-Date: Tue, 11 Jun 2024 10:22:55 +0200
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 72B54420914
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:23:21 +0200 (CEST)
+Message-ID: <00f59eb6-f6fc-4d93-8d45-6ce6a2a200ed@suse.de>
+Date: Tue, 11 Jun 2024 10:14:56 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/26] block: freeze the queue in queue_attr_store
+Subject: Re: [PATCH 03/26] loop: stop using loop_reconfigure_limits in
+	__loop_clr_fd
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-12-hch@lst.de>
+	<20240611051929.513387-4-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240611051929.513387-12-hch@lst.de>
+In-Reply-To: <20240611051929.513387-4-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,15 +48,14 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 07:19, Christoph Hellwig wrote:
-> queue_attr_store updates attributes used to control generating I/O, and
-> can cause malformed bios if changed with I/O in flight.  Freeze the queue
-> in common code instead of adding it to almost every attribute.
+> __loop_clr_fd wants to clear all settings on the device.  Prepare for
+> moving more settings into the block limits by open coding
+> loop_reconfigure_limits.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   block/blk-mq.c    | 5 +++--
->   block/blk-sysfs.c | 9 ++-------
->   2 files changed, 5 insertions(+), 9 deletions(-)
+>   drivers/block/loop.c | 10 +++++++++-
+>   1 file changed, 9 insertions(+), 1 deletion(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
