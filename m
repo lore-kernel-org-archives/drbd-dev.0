@@ -1,18 +1,17 @@
 Return-Path: <hare@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 99D67420889
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:21:56 +0200 (CEST)
-Message-ID: <51ec022c-a978-407b-bd05-54399551841e@suse.de>
-Date: Tue, 11 Jun 2024 10:21:55 +0200
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4B90842095E
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 10:22:57 +0200 (CEST)
+Message-ID: <5a7f03c3-81e3-4ed9-9c57-0ca86dd97cd0@suse.de>
+Date: Tue, 11 Jun 2024 10:22:55 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 10/26] xen-blkfront: don't disable cache flushes when they
-	fail
+Subject: Re: [PATCH 11/26] block: freeze the queue in queue_attr_store
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-11-hch@lst.de>
+	<20240611051929.513387-12-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240611051929.513387-11-hch@lst.de>
+In-Reply-To: <20240611051929.513387-12-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,14 +47,15 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/11/24 07:19, Christoph Hellwig wrote:
-> blkfront always had a robust negotiation protocol for detecting a write
-> cache.  Stop simply disabling cache flushes when they fail as that is
-> a grave error.
+> queue_attr_store updates attributes used to control generating I/O, and
+> can cause malformed bios if changed with I/O in flight.  Freeze the queue
+> in common code instead of adding it to almost every attribute.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   drivers/block/xen-blkfront.c | 29 +++++++++--------------------
->   1 file changed, 9 insertions(+), 20 deletions(-)
+>   block/blk-mq.c    | 5 +++--
+>   block/blk-sysfs.c | 9 ++-------
+>   2 files changed, 5 insertions(+), 9 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
