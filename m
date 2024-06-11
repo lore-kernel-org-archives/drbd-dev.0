@@ -1,14 +1,14 @@
 Return-Path: <BATV+2fedbe304aabaf399917+7597+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6B2264205E5
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:26:39 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A8E724205F6
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 08:26:41 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 04/26] loop: always update discard settings in
-	loop_reconfigure_limits
-Date: Tue, 11 Jun 2024 07:19:04 +0200
-Message-ID: <20240611051929.513387-5-hch@lst.de>
+Subject: [PATCH 09/26] nbd: move setting the cache control flags to
+	__nbd_set_size
+Date: Tue, 11 Jun 2024 07:19:09 +0200
+Message-ID: <20240611051929.513387-10-hch@lst.de>
 In-Reply-To: <20240611051929.513387-1-hch@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
 MIME-Version: 1.0
@@ -45,57 +45,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Simplify loop_reconfigure_limits by always updating the discard limits.
-This adds a little more work to loop_set_block_size, but doesn't change
-the outcome as the discard flag won't change.
+Move setting the cache control flags in nbd in preparation for moving
+these flags into the queue_limits structure.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/block/loop.c | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ drivers/block/nbd.c | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index 93a49c40a31a71..c658282454af1b 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -975,8 +975,7 @@ loop_set_status_from_info(struct loop_device *lo,
- 	return 0;
- }
- 
--static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize,
--		bool update_discard_settings)
-+static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
- {
- 	struct queue_limits lim;
- 
-@@ -984,8 +983,7 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize,
- 	lim.logical_block_size = bsize;
- 	lim.physical_block_size = bsize;
- 	lim.io_min = bsize;
--	if (update_discard_settings)
--		loop_config_discard(lo, &lim);
-+	loop_config_discard(lo, &lim);
- 	return queue_limits_commit_update(lo->lo_queue, &lim);
- }
- 
-@@ -1086,7 +1084,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index ad887d614d5b3f..44b8c671921e5c 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -342,6 +342,12 @@ static int __nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
+ 		lim.max_hw_discard_sectors = UINT_MAX;
  	else
- 		bsize = 512;
+ 		lim.max_hw_discard_sectors = 0;
++	if (!(nbd->config->flags & NBD_FLAG_SEND_FLUSH))
++		blk_queue_write_cache(nbd->disk->queue, false, false);
++	else if (nbd->config->flags & NBD_FLAG_SEND_FUA)
++		blk_queue_write_cache(nbd->disk->queue, true, true);
++	else
++		blk_queue_write_cache(nbd->disk->queue, true, false);
+ 	lim.logical_block_size = blksize;
+ 	lim.physical_block_size = blksize;
+ 	error = queue_limits_commit_update(nbd->disk->queue, &lim);
+@@ -1286,19 +1292,10 @@ static void nbd_bdev_reset(struct nbd_device *nbd)
  
--	error = loop_reconfigure_limits(lo, bsize, true);
-+	error = loop_reconfigure_limits(lo, bsize);
- 	if (WARN_ON_ONCE(error))
- 		goto out_unlock;
+ static void nbd_parse_flags(struct nbd_device *nbd)
+ {
+-	struct nbd_config *config = nbd->config;
+-	if (config->flags & NBD_FLAG_READ_ONLY)
++	if (nbd->config->flags & NBD_FLAG_READ_ONLY)
+ 		set_disk_ro(nbd->disk, true);
+ 	else
+ 		set_disk_ro(nbd->disk, false);
+-	if (config->flags & NBD_FLAG_SEND_FLUSH) {
+-		if (config->flags & NBD_FLAG_SEND_FUA)
+-			blk_queue_write_cache(nbd->disk->queue, true, true);
+-		else
+-			blk_queue_write_cache(nbd->disk->queue, true, false);
+-	}
+-	else
+-		blk_queue_write_cache(nbd->disk->queue, false, false);
+ }
  
-@@ -1496,7 +1494,7 @@ static int loop_set_block_size(struct loop_device *lo, unsigned long arg)
- 	invalidate_bdev(lo->lo_device);
- 
- 	blk_mq_freeze_queue(lo->lo_queue);
--	err = loop_reconfigure_limits(lo, arg, false);
-+	err = loop_reconfigure_limits(lo, arg);
- 	loop_update_dio(lo);
- 	blk_mq_unfreeze_queue(lo->lo_queue);
- 
+ static void send_disconnects(struct nbd_device *nbd)
 -- 
 2.43.0
 
