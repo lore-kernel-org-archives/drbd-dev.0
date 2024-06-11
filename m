@@ -1,17 +1,18 @@
 Return-Path: <bvanassche@acm.org>
 Received: from 009.lax.mailroute.net (009.lax.mailroute.net [199.89.1.12])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C5ED14209C0
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:32:46 +0200 (CEST)
-Message-ID: <69663f60-1d42-4f95-97cc-acb73ed5d7c8@acm.org>
-Date: Tue, 11 Jun 2024 12:32:27 -0700
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EA68442094F
+	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:35:28 +0200 (CEST)
+Message-ID: <5a806e25-554f-4179-b73e-d3fd9f440441@acm.org>
+Date: Tue, 11 Jun 2024 12:34:58 -0700
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/26] virtio_blk: remove virtblk_update_cache_mode
+Subject: Re: [PATCH 09/26] nbd: move setting the cache control flags to
+	__nbd_set_size
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-9-hch@lst.de>
+	<20240611051929.513387-10-hch@lst.de>
 Content-Language: en-US
 From: Bart Van Assche <bvanassche@acm.org>
-In-Reply-To: <20240611051929.513387-9-hch@lst.de>
+In-Reply-To: <20240611051929.513387-10-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,8 +48,7 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/10/24 10:19 PM, Christoph Hellwig wrote:
-> virtblk_update_cache_mode boils down to a single call to
-> blk_queue_write_cache.  Remove it in preparation for moving the cache
-> control flags into the queue_limits.
+> Move setting the cache control flags in nbd in preparation for moving
+> these flags into the queue_limits structure.
 
 Reviewed-by: Bart Van Assche <bvanassche@acm.org>
