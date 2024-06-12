@@ -1,40 +1,42 @@
-Return-Path: <bvanassche@acm.org>
-Received: from 009.lax.mailroute.net (009.lax.mailroute.net [199.89.1.12])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EE12C4209F3
-	for <drbd-dev@lists.linbit.com>; Tue, 11 Jun 2024 21:38:01 +0200 (CEST)
-Message-ID: <f5a5f79e-43f5-46ae-9c11-371e8e558685@acm.org>
-Date: Tue, 11 Jun 2024 12:37:42 -0700
-MIME-Version: 1.0
-Subject: Re: [PATCH 12/26] block: remove blk_flush_policy
-To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7CA104208EE
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Jun 2024 06:46:03 +0200 (CEST)
+Date: Wed, 12 Jun 2024 06:45:58 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Damien Le Moal <dlemoal@kernel.org>
+Subject: Re: [PATCH 02/26] sd: move zone limits setup out of
+	sd_read_block_characteristics
+Message-ID: <20240612044558.GA26468@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-13-hch@lst.de>
-Content-Language: en-US
-From: Bart Van Assche <bvanassche@acm.org>
-In-Reply-To: <20240611051929.513387-13-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+	<20240611051929.513387-3-hch@lst.de>
+	<40ca8052-6ac1-4c1b-8c39-b0a7948839f8@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <40ca8052-6ac1-4c1b-8c39-b0a7948839f8@kernel.org>
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
 	Vineeth Vijayan <vneethv@linux.ibm.com>,
+	linux-bcache@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
 	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
 	linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org,
 	Richard Weinberger <richard@nod.at>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
-	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
-	Mikulas Patocka <mpatocka@redhat.com>,
+	Josef Bacik <josef@toxicpanda.com>,
+	Ming Lei <ming.lei@redhat.com>, linux-raid@vger.kernel.org,
+	linux-m68k@lists.linux-m68k.org, Mikulas Patocka <mpatocka@redhat.com>,
 	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
-	Ming Lei <ming.lei@redhat.com>, linux-bcache@vger.kernel.org,
+	nbd@other.debian.org, Jens Axboe <axboe@kernel.dk>,
 	linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	linuxppc-dev@lists.ozlabs.org,
-	=?UTF-8?Q?Roger_Pau_Monn=C3=A9?= <roger.pau@citrix.com>
+	Roger Pau =?iso-8859-1?Q?Monn=E9?= <roger.pau@citrix.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,7 +48,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/10/24 10:19 PM, Christoph Hellwig wrote:
-> Fold blk_flush_policy into the only caller to prepare for pending changes
-> to it.
-  Reviewed-by: Bart Van Assche <bvanassche@acm.org>
+On Tue, Jun 11, 2024 at 02:51:24PM +0900, Damien Le Moal wrote:
+> > -	if (!sd_is_zoned(sdkp))
+> > +	if (!sd_is_zoned(sdkp)) {
+> > +		lim->zoned = false;
+> 
+> Maybe we should clear the other zone related limits here ? If the drive is
+> reformatted/converted from SMR to CMR (FORMAT WITH PRESET), the other zone
+> limits may be set already, no ?
+
+Yes, but we would not end up here.  The device type is constant over
+the struct of the scsi_device and we'd have to fully reprobe it.
+
+So we don't need to clear any flags, including the actual zoned flag
+here.
+
