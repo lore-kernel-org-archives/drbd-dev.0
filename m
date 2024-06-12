@@ -1,19 +1,19 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 667A7420902
-	for <drbd-dev@lists.linbit.com>; Wed, 12 Jun 2024 06:58:31 +0200 (CEST)
-Date: Wed, 12 Jun 2024 06:58:28 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AFE494203C0
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Jun 2024 07:01:14 +0200 (CEST)
+Date: Wed, 12 Jun 2024 07:01:09 +0200
 From: Christoph Hellwig <hch@lst.de>
 To: Damien Le Moal <dlemoal@kernel.org>
-Subject: Re: [PATCH 16/26] block: move the io_stat flag setting to queue_limits
-Message-ID: <20240612045828.GC26776@lst.de>
+Subject: Re: [PATCH 19/26] block: move the nowait flag to queue_limits
+Message-ID: <20240612050109.GA26959@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-17-hch@lst.de>
-	<d51e4163-99e3-4435-870d-faef3887ab6a@kernel.org>
+	<20240611051929.513387-20-hch@lst.de>
+	<4845aae8-ad03-407e-bf31-f164b8f684d4@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d51e4163-99e3-4435-870d-faef3887ab6a@kernel.org>
+In-Reply-To: <4845aae8-ad03-407e-bf31-f164b8f684d4@kernel.org>
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -47,18 +47,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jun 11, 2024 at 05:09:45PM +0900, Damien Le Moal wrote:
-> On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> > Move the io_stat flag into the queue_limits feature field so that it
-> > can be set atomically and all I/O is frozen when changing the flag.
+On Tue, Jun 11, 2024 at 05:16:37PM +0900, Damien Le Moal wrote:
+> > @@ -1825,9 +1815,7 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+> >  	int r;
+> >  
+> >  	if (dm_table_supports_nowait(t))
+> > -		blk_queue_flag_set(QUEUE_FLAG_NOWAIT, q);
+> > -	else
+> > -		blk_queue_flag_clear(QUEUE_FLAG_NOWAIT, q);
+> > +		limits->features &= ~BLK_FEAT_NOWAIT;
 > 
-> Why a feature ? It seems more appropriate for io_stat to be a flag rather than
-> a feature as that is a block layer thing rather than a device characteristic, no ?
+> Shouldn't you set the flag here instead of clearing it ?
 
-Because it must actually be supported by the driver for bio based
-drivers.  Then again we also support chaning it through sysfs, so
-we might actually need both.  At least unlike say the cache it's
-not actively harmful when enabled despite not being supported.
-
-I can look into that, but I'll do it in another series after getting
-all the driver changes out.
+No, but the dm_table_supports_nowait check needs to be inverted.
+ 
