@@ -1,20 +1,20 @@
 Return-Path: <hch@lst.de>
 Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 29D78420216
-	for <drbd-dev@lists.linbit.com>; Wed, 12 Jun 2024 06:50:30 +0200 (CEST)
-Date: Wed, 12 Jun 2024 06:50:26 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E7E9F4203C0
+	for <drbd-dev@lists.linbit.com>; Wed, 12 Jun 2024 06:53:00 +0200 (CEST)
+Date: Wed, 12 Jun 2024 06:52:57 +0200
 From: Christoph Hellwig <hch@lst.de>
-To: Damien Le Moal <dlemoal@kernel.org>
-Subject: Re: [PATCH 10/26] xen-blkfront: don't disable cache flushes when
-	they fail
-Message-ID: <20240612045026.GA26653@lst.de>
+To: Hannes Reinecke <hare@suse.de>
+Subject: Re: [PATCH 13/26] block: move cache control settings out of
+	queue->flags
+Message-ID: <20240612045257.GA26776@lst.de>
 References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-11-hch@lst.de>
-	<fdfc024a-368a-4495-8b85-b5ab7741f6d4@kernel.org>
+	<20240611051929.513387-14-hch@lst.de>
+	<34a7b2a4-b0cb-4580-85c9-b598fd70449e@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fdfc024a-368a-4495-8b85-b5ab7741f6d4@kernel.org>
+In-Reply-To: <34a7b2a4-b0cb-4580-85c9-b598fd70449e@suse.de>
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
@@ -48,18 +48,6 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Tue, Jun 11, 2024 at 04:30:39PM +0900, Damien Le Moal wrote:
-> On 6/11/24 2:19 PM, Christoph Hellwig wrote:
-> > blkfront always had a robust negotiation protocol for detecting a write
-> > cache.  Stop simply disabling cache flushes when they fail as that is
-> > a grave error.
-> > 
-> > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> 
-> Looks good to me but maybe mention that removal of xlvbd_flush() as well ?
-> And it feels like the "stop disabling cache flushes when they fail" part should
-> be a fix patch sent separately...
+A friendly reminder that I've skipped over the full quote.  Please
+properly quote mails if you want your replies to be seen.
 
-I'll move the patch to the front of the series to get more attention from
-the maintainers, but otherwise the xlvbd_flush remova lis the really
-trivial part here.
