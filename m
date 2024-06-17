@@ -1,40 +1,41 @@
-Return-Path: <BATV+625ba2f6da96caf54eae+7603+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B92654205A6
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:06:18 +0200 (CEST)
-From: Christoph Hellwig <hch@lst.de>
-To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 09/26] virtio_blk: remove virtblk_update_cache_mode
-Date: Mon, 17 Jun 2024 08:04:36 +0200
-Message-ID: <20240617060532.127975-10-hch@lst.de>
-In-Reply-To: <20240617060532.127975-1-hch@lst.de>
-References: <20240617060532.127975-1-hch@lst.de>
+Return-Path: <dlemoal@kernel.org>
+Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4E58242062A
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:12:39 +0200 (CEST)
+Message-ID: <e4ce83ca-160f-4dd9-984a-842b6cd2b5c0@kernel.org>
+Date: Mon, 17 Jun 2024 15:12:31 +0900
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 03/26] sd: move zone limits setup out of
+	sd_read_block_characteristics
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+References: <20240617060532.127975-1-hch@lst.de>
+	<20240617060532.127975-4-hch@lst.de>
+From: Damien Le Moal <dlemoal@kernel.org>
+Content-Language: en-US
+In-Reply-To: <20240617060532.127975-4-hch@lst.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
 	Vineeth Vijayan <vneethv@linux.ibm.com>,
 	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, Bart Van Assche <bvanassche@acm.org>,
-	linux-scsi@vger.kernel.org, Richard Weinberger <richard@nod.at>,
+	linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org,
+	Richard Weinberger <richard@nod.at>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
-	Damien Le Moal <dlemoal@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
-	Hannes Reinecke <hare@suse.de>, Stefan Hajnoczi <stefanha@redhat.com>,
+	Mikulas Patocka <mpatocka@redhat.com>,
 	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
 	Ming Lei <ming.lei@redhat.com>, linux-bcache@vger.kernel.org,
 	linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	Johannes Thumshirn <johannes.thumshirn@wdc.com>, linux-mmc@vger.kernel.org,
-	Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	linuxppc-dev@lists.ozlabs.org,
-	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
+	=?UTF-8?Q?Roger_Pau_Monn=C3=A9?= <roger.pau@citrix.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -46,58 +47,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-virtblk_update_cache_mode boils down to a single call to
-blk_queue_write_cache.  Remove it in preparation for moving the cache
-control flags into the queue_limits.
+On 6/17/24 15:04, Christoph Hellwig wrote:
+> Move a bit of code that sets up the zone flag and the write granularity
+> into sd_zbc_read_zones to be with the rest of the zoned limits.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Bart Van Assche <bvanassche@acm.org>
-Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Looks good.
+
 Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
-Reviewed-by: Hannes Reinecke <hare@suse.de>
-Reviewed-by: Johannes Thumshirn <johannes.thumshirn@wdc.com>
----
- drivers/block/virtio_blk.c | 13 +++----------
- 1 file changed, 3 insertions(+), 10 deletions(-)
 
-diff --git a/drivers/block/virtio_blk.c b/drivers/block/virtio_blk.c
-index 2351f411fa4680..378b241911ca87 100644
---- a/drivers/block/virtio_blk.c
-+++ b/drivers/block/virtio_blk.c
-@@ -1089,14 +1089,6 @@ static int virtblk_get_cache_mode(struct virtio_device *vdev)
- 	return writeback;
- }
- 
--static void virtblk_update_cache_mode(struct virtio_device *vdev)
--{
--	u8 writeback = virtblk_get_cache_mode(vdev);
--	struct virtio_blk *vblk = vdev->priv;
--
--	blk_queue_write_cache(vblk->disk->queue, writeback, false);
--}
--
- static const char *const virtblk_cache_types[] = {
- 	"write through", "write back"
- };
-@@ -1116,7 +1108,7 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
- 		return i;
- 
- 	virtio_cwrite8(vdev, offsetof(struct virtio_blk_config, wce), i);
--	virtblk_update_cache_mode(vdev);
-+	blk_queue_write_cache(disk->queue, virtblk_get_cache_mode(vdev), false);
- 	return count;
- }
- 
-@@ -1528,7 +1520,8 @@ static int virtblk_probe(struct virtio_device *vdev)
- 	vblk->index = index;
- 
- 	/* configure queue flush support */
--	virtblk_update_cache_mode(vdev);
-+	blk_queue_write_cache(vblk->disk->queue, virtblk_get_cache_mode(vdev),
-+			false);
- 
- 	/* If disk is read-only in the host, the guest should obey */
- 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_RO))
 -- 
-2.43.0
+Damien Le Moal
+Western Digital Research
 
