@@ -1,21 +1,22 @@
 Return-Path: <hare@suse.de>
 Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 07C124200BE
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:04:12 +0200 (CEST)
-Message-ID: <114579f8-74e1-416f-a808-420ec8314882@suse.de>
-Date: Mon, 17 Jun 2024 12:04:11 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 29E984203BF
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:36:03 +0200 (CEST)
+Message-ID: <c91d77a0-eec5-4af0-b3dd-bc2724108fc9@suse.de>
+Date: Mon, 17 Jun 2024 12:36:02 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 03/26] sd: move zone limits setup out of
-	sd_read_block_characteristics
+Subject: Re: [PATCH 13/26] block: move cache control settings out of
+	queue->flags
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-4-hch@lst.de>
+	<20240617060532.127975-14-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240617060532.127975-4-hch@lst.de>
+In-Reply-To: <20240617060532.127975-14-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
-Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
+Cc: nvdimm@lists.linux.dev, Ulf Hansson <ulf.hansson@linaro.org>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
 	Vineeth Vijayan <vneethv@linux.ibm.com>,
@@ -48,15 +49,31 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/17/24 08:04, Christoph Hellwig wrote:
-> Move a bit of code that sets up the zone flag and the write granularity
-> into sd_zbc_read_zones to be with the rest of the zoned limits.
+> Move the cache control settings into the queue_limits so that the flags
+> can be set atomically with the device queue frozen.
+> 
+> Add new features and flags field for the driver set flags, and internal
+> (usually sysfs-controlled) flags in the block layer.  Note that we'll
+> eventually remove enough field from queue_limits to bring it back to the
+> previous size.
+> 
+> The disable flag is inverted compared to the previous meaning, which
+> means it now survives a rescan, similar to the max_sectors and
+> max_discard_sectors user limits.
+> 
+> The FLUSH and FUA flags are now inherited by blk_stack_limits, which
+> simplified the code in dm a lot, but also causes a slight behavior
+> change in that dm-switch and dm-unstripe now advertise a write cache
+> despite setting num_flush_bios to 0.  The I/O path will handle this
+> gracefully, but as far as I can tell the lack of num_flush_bios
+> and thus flush support is a pre-existing data integrity bug in those
+> targets that really needs fixing, after which a non-zero num_flush_bios
+> should be required in dm for targets that map to underlying devices.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Acked-by: Ulf Hansson <ulf.hansson@linaro.org> [mmc]
 > ---
->   drivers/scsi/sd.c     | 21 +--------------------
->   drivers/scsi/sd_zbc.c |  9 +++++++++
->   2 files changed, 10 insertions(+), 20 deletions(-)
-> 
+
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
 Cheers,
