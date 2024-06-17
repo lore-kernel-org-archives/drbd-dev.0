@@ -1,17 +1,17 @@
 Return-Path: <hare@suse.de>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 44E214205D4
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:38:57 +0200 (CEST)
-Message-ID: <5380a984-013a-4a63-9d95-7d8eec0b45c7@suse.de>
-Date: Mon, 17 Jun 2024 12:38:55 +0200
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 32D78420621
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:40:03 +0200 (CEST)
+Message-ID: <293c79ef-43fe-4a08-8e2d-54aa61d04d43@suse.de>
+Date: Mon, 17 Jun 2024 12:40:00 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 16/26] block: move the io_stat flag setting to queue_limits
+Subject: Re: [PATCH 17/26] block: move the stable_writes flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-17-hch@lst.de>
+	<20240617060532.127975-18-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240617060532.127975-17-hch@lst.de>
+In-Reply-To: <20240617060532.127975-18-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -26,7 +26,7 @@ Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
-	Mikulas Patocka <mpatocka@redhat.com>,
+	Damien Le Moal <dlemoal@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
 	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
 	Ming Lei <ming.lei@redhat.com>, linux-bcache@vger.kernel.org,
 	linux-block@vger.kernel.org,
@@ -47,24 +47,29 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/17/24 08:04, Christoph Hellwig wrote:
-> Move the io_stat flag into the queue_limits feature field so that it can
-> be set atomically with the queue frozen.
+> Move the stable_writes flag into the queue_limits feature field so that
+> it can be set atomically with the queue frozen.
 > 
-> Simplify md and dm to set the flag unconditionally instead of avoiding
-> setting a simple flag for cases where it already is set by other means,
-> which is a bit pointless.
+> The flag is now inherited by blk_stack_limits, which greatly simplifies
+> the code in dm, and fixed md which previously did not pass on the flag
+> set on lower devices.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 > ---
->   block/blk-mq-debugfs.c        |  1 -
->   block/blk-mq.c                |  6 +++++-
->   block/blk-sysfs.c             |  2 +-
->   drivers/md/dm-table.c         | 12 +++++++++---
->   drivers/md/dm.c               | 13 +++----------
->   drivers/md/md.c               |  5 ++---
->   drivers/nvme/host/multipath.c |  2 +-
->   include/linux/blkdev.h        |  9 +++++----
->   8 files changed, 26 insertions(+), 24 deletions(-)
+>   block/blk-mq-debugfs.c         |  1 -
+>   block/blk-sysfs.c              | 29 +----------------------------
+>   drivers/block/drbd/drbd_main.c |  5 ++---
+>   drivers/block/rbd.c            |  9 +++------
+>   drivers/block/zram/zram_drv.c  |  2 +-
+>   drivers/md/dm-table.c          | 19 -------------------
+>   drivers/md/raid5.c             |  6 ++++--
+>   drivers/mmc/core/queue.c       |  5 +++--
+>   drivers/nvme/host/core.c       |  9 +++++----
+>   drivers/nvme/host/multipath.c  |  4 ----
+>   drivers/scsi/iscsi_tcp.c       |  8 ++++----
+>   include/linux/blkdev.h         |  9 ++++++---
+>   12 files changed, 29 insertions(+), 77 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
