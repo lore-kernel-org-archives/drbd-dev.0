@@ -1,13 +1,14 @@
 Return-Path: <BATV+625ba2f6da96caf54eae+7603+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BC5124203D9
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:06:04 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0A91C420471
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:06:08 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 06/26] loop: regularize upgrading the block size for direct I/O
-Date: Mon, 17 Jun 2024 08:04:33 +0200
-Message-ID: <20240617060532.127975-7-hch@lst.de>
+Subject: [PATCH 07/26] loop: also use the default block size from an
+	underlying block device
+Date: Mon, 17 Jun 2024 08:04:34 +0200
+Message-ID: <20240617060532.127975-8-hch@lst.de>
 In-Reply-To: <20240617060532.127975-1-hch@lst.de>
 References: <20240617060532.127975-1-hch@lst.de>
 MIME-Version: 1.0
@@ -44,72 +45,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The LOOP_CONFIGURE path automatically upgrades the block size to that
-of the underlying file for O_DIRECT file descriptors, but the
-LOOP_SET_BLOCK_SIZE path does not.  Fix this by lifting the code to
-pick the block size into common code.
+Fix the code in loop_reconfigure_limits to pick a default block size for
+O_DIRECT file descriptors to also work when the loop device sits on top
+of a block device and not just on a regular file on a block device based
+file system.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 Reviewed-by: Bart Van Assche <bvanassche@acm.org>
 ---
- drivers/block/loop.c | 25 +++++++++++++++----------
- 1 file changed, 15 insertions(+), 10 deletions(-)
+ drivers/block/loop.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index ce197cbea5f434..eea3e4919e356e 100644
+index eea3e4919e356e..6a4826708a3acf 100644
 --- a/drivers/block/loop.c
 +++ b/drivers/block/loop.c
-@@ -975,10 +975,24 @@ loop_set_status_from_info(struct loop_device *lo,
- 	return 0;
- }
- 
-+static unsigned short loop_default_blocksize(struct loop_device *lo,
-+		struct block_device *backing_bdev)
-+{
-+	/* In case of direct I/O, match underlying block size */
-+	if ((lo->lo_backing_file->f_flags & O_DIRECT) && backing_bdev)
-+		return bdev_logical_block_size(backing_bdev);
-+	return SECTOR_SIZE;
-+}
-+
- static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
+@@ -988,10 +988,16 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
  {
-+	struct file *file = lo->lo_backing_file;
-+	struct inode *inode = file->f_mapping->host;
+ 	struct file *file = lo->lo_backing_file;
+ 	struct inode *inode = file->f_mapping->host;
++	struct block_device *backing_bdev = NULL;
  	struct queue_limits lim;
  
-+	if (!bsize)
-+		bsize = loop_default_blocksize(lo, inode->i_sb->s_bdev);
++	if (S_ISBLK(inode->i_mode))
++		backing_bdev = I_BDEV(inode);
++	else if (inode->i_sb->s_bdev)
++		backing_bdev = inode->i_sb->s_bdev;
 +
+ 	if (!bsize)
+-		bsize = loop_default_blocksize(lo, inode->i_sb->s_bdev);
++		bsize = loop_default_blocksize(lo, backing_bdev);
+ 
  	lim = queue_limits_start_update(lo->lo_queue);
  	lim.logical_block_size = bsize;
- 	lim.physical_block_size = bsize;
-@@ -997,7 +1011,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
- 	int error;
- 	loff_t size;
- 	bool partscan;
--	unsigned short bsize;
- 	bool is_loop;
- 
- 	if (!file)
-@@ -1076,15 +1089,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
- 	if (!(lo->lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
- 		blk_queue_write_cache(lo->lo_queue, true, false);
- 
--	if (config->block_size)
--		bsize = config->block_size;
--	else if ((lo->lo_backing_file->f_flags & O_DIRECT) && inode->i_sb->s_bdev)
--		/* In case of direct I/O, match underlying block size */
--		bsize = bdev_logical_block_size(inode->i_sb->s_bdev);
--	else
--		bsize = 512;
--
--	error = loop_reconfigure_limits(lo, bsize);
-+	error = loop_reconfigure_limits(lo, config->block_size);
- 	if (WARN_ON_ONCE(error))
- 		goto out_unlock;
- 
 -- 
 2.43.0
 
