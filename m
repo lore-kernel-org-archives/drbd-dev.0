@@ -1,17 +1,17 @@
 Return-Path: <hare@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3FB79420655
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:41:25 +0200 (CEST)
-Message-ID: <24322288-fd9f-4f49-9a94-e2aaf97bb700@suse.de>
-Date: Mon, 17 Jun 2024 12:41:24 +0200
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4E2B942065D
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:42:01 +0200 (CEST)
+Message-ID: <c33258a8-6ad2-4b8b-bd38-90c08d366c2c@suse.de>
+Date: Mon, 17 Jun 2024 12:42:00 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 19/26] block: move the nowait flag to queue_limits
+Subject: Re: [PATCH 20/26] block: move the dax flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-20-hch@lst.de>
+	<20240617060532.127975-21-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240617060532.127975-20-hch@lst.de>
+In-Reply-To: <20240617060532.127975-21-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -26,7 +26,7 @@ Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
-	Mikulas Patocka <mpatocka@redhat.com>,
+	Damien Le Moal <dlemoal@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
 	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
 	Ming Lei <ming.lei@redhat.com>, linux-bcache@vger.kernel.org,
 	linux-block@vger.kernel.org,
@@ -47,24 +47,18 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/17/24 08:04, Christoph Hellwig wrote:
-> Move the nowait flag into the queue_limits feature field so that it can
-> be set atomically with the queue frozen.
-> 
-> Stacking drivers are simplified in that they now can simply set the
-> flag, and blk_stack_limits will clear it when the features is not
-> supported by any of the underlying devices.
+> Move the dax flag into the queue_limits feature field so that it can be
+> set atomically with the queue frozen.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 > ---
->   block/blk-mq-debugfs.c        |  1 -
->   block/blk-mq.c                |  2 +-
->   block/blk-settings.c          |  9 +++++++++
->   drivers/block/brd.c           |  4 ++--
->   drivers/md/dm-table.c         | 18 +++---------------
->   drivers/md/md.c               | 18 +-----------------
->   drivers/nvme/host/multipath.c |  3 +--
->   include/linux/blkdev.h        |  9 +++++----
->   8 files changed, 22 insertions(+), 42 deletions(-)
+>   block/blk-mq-debugfs.c       | 1 -
+>   drivers/md/dm-table.c        | 4 ++--
+>   drivers/nvdimm/pmem.c        | 7 ++-----
+>   drivers/s390/block/dcssblk.c | 2 +-
+>   include/linux/blkdev.h       | 6 ++++--
+>   5 files changed, 9 insertions(+), 11 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
