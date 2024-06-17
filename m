@@ -1,17 +1,17 @@
 Return-Path: <hare@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 745594203BF
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:36:48 +0200 (CEST)
-Message-ID: <0f819ed5-9549-4edf-98b3-19eed8558dfe@suse.de>
-Date: Mon, 17 Jun 2024 12:36:46 +0200
+Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6283C4205D4
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:38:30 +0200 (CEST)
+Message-ID: <74df67d6-3d02-4987-becb-eebf60492d26@suse.de>
+Date: Mon, 17 Jun 2024 12:38:28 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 14/26] block: move the nonrot flag to queue_limits
+Subject: Re: [PATCH 15/26] block: move the add_random flag to queue_limits
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-15-hch@lst.de>
+	<20240617060532.127975-16-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240617060532.127975-15-hch@lst.de>
+In-Reply-To: <20240617060532.127975-16-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,27 +47,28 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/17/24 08:04, Christoph Hellwig wrote:
-> Move the nonrot flag into the queue_limits feature field so that it can
-> be set atomically with the queue frozen.
+> Move the add_random flag into the queue_limits feature field so that it
+> can be set atomically with the queue frozen.
 > 
-> Use the chance to switch to defaulting to non-rotational and require
-> the driver to opt into rotational, which matches the polarity of the
-> sysfs interface.
-> 
-> For the z2ram, ps3vram, 2x memstick, ubiblock and dcssblk the new
-> rotational flag is not set as they clearly are not rotational despite
-> this being a behavior change.  There are some other drivers that
-> unconditionally set the rotational flag to keep the existing behavior
-> as they arguably can be used on rotational devices even if that is
-> probably not their main use today (e.g. virtio_blk and drbd).
-> 
-> The flag is automatically inherited in blk_stack_limits matching the
-> existing behavior in dm and md.
+> Note that this also removes code from dm to clear the flag based on
+> the underlying devices, which can't be reached as dm devices will
+> always start out without the flag set.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 > ---
-
+>   block/blk-mq-debugfs.c            |  1 -
+>   block/blk-sysfs.c                 |  6 +++---
+>   drivers/block/mtip32xx/mtip32xx.c |  1 -
+>   drivers/md/dm-table.c             | 18 ------------------
+>   drivers/mmc/core/queue.c          |  2 --
+>   drivers/mtd/mtd_blkdevs.c         |  3 ---
+>   drivers/s390/block/scm_blk.c      |  4 ----
+>   drivers/scsi/scsi_lib.c           |  3 +--
+>   drivers/scsi/sd.c                 | 11 +++--------
+>   include/linux/blkdev.h            |  5 +++--
+>   10 files changed, 10 insertions(+), 44 deletions(-)
+> 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
 Cheers,
