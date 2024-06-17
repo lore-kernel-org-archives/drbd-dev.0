@@ -1,18 +1,19 @@
 Return-Path: <dlemoal@kernel.org>
-Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1ED3742062A
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:13:38 +0200 (CEST)
-Message-ID: <72e2cebc-a748-4e39-8783-440a82cd40c1@kernel.org>
-Date: Mon, 17 Jun 2024 15:13:29 +0900
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ED21142064D
+	for <drbd-dev@lists.linbit.com>;
+	Mon, 17 Jun 2024 08:14:27 +0200 (CEST)
+Message-ID: <d7b45e0b-68a9-4612-861a-7f192fbe6f84@kernel.org>
+Date: Mon, 17 Jun 2024 15:14:21 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/26] loop: regularize upgrading the block size for
-	direct I/O
+Subject: Re: [PATCH 07/26] loop: also use the default block size from an
+	underlying block device
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-7-hch@lst.de>
+	<20240617060532.127975-8-hch@lst.de>
 From: Damien Le Moal <dlemoal@kernel.org>
 Content-Language: en-US
-In-Reply-To: <20240617060532.127975-7-hch@lst.de>
+In-Reply-To: <20240617060532.127975-8-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,16 +49,14 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/17/24 15:04, Christoph Hellwig wrote:
-> The LOOP_CONFIGURE path automatically upgrades the block size to that
-> of the underlying file for O_DIRECT file descriptors, but the
-> LOOP_SET_BLOCK_SIZE path does not.  Fix this by lifting the code to
-> pick the block size into common code.
+> Fix the code in loop_reconfigure_limits to pick a default block size for
+> O_DIRECT file descriptors to also work when the loop device sits on top
+> of a block device and not just on a regular file on a block device based
+> file system.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > Reviewed-by: Hannes Reinecke <hare@suse.de>
 > Reviewed-by: Bart Van Assche <bvanassche@acm.org>
-
-Looks good to me.
 
 Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 
