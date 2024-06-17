@@ -1,13 +1,13 @@
 Return-Path: <BATV+625ba2f6da96caf54eae+7603+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 108EE42087E
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:26:16 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2B322420885
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:26:19 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 15/26] block: move the add_random flag to queue_limits
-Date: Mon, 17 Jun 2024 08:04:42 +0200
-Message-ID: <20240617060532.127975-16-hch@lst.de>
+Subject: [PATCH 12/26] block: remove blk_flush_policy
+Date: Mon, 17 Jun 2024 08:04:39 +0200
+Message-ID: <20240617060532.127975-13-hch@lst.de>
 In-Reply-To: <20240617060532.127975-1-hch@lst.de>
 References: <20240617060532.127975-1-hch@lst.de>
 MIME-Version: 1.0
@@ -17,17 +17,17 @@ Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
 	Vineeth Vijayan <vneethv@linux.ibm.com>,
 	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org,
-	Richard Weinberger <richard@nod.at>,
+	linux-s390@vger.kernel.org, Bart Van Assche <bvanassche@acm.org>,
+	linux-scsi@vger.kernel.org, Richard Weinberger <richard@nod.at>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
 	Damien Le Moal <dlemoal@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
-	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
-	Ming Lei <ming.lei@redhat.com>, linux-bcache@vger.kernel.org,
-	linux-block@vger.kernel.org,
+	Hannes Reinecke <hare@suse.de>, xen-devel@lists.xenproject.org,
+	ceph-devel@vger.kernel.org, Ming Lei <ming.lei@redhat.com>,
+	linux-bcache@vger.kernel.org, linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
@@ -44,255 +44,73 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Move the add_random flag into the queue_limits feature field so that it
-can be set atomically with the queue frozen.
-
-Note that this also removes code from dm to clear the flag based on
-the underlying devices, which can't be reached as dm devices will
-always start out without the flag set.
+Fold blk_flush_policy into the only caller to prepare for pending changes
+to it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Bart Van Assche <bvanassche@acm.org>
 Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
+Reviewed-by: Hannes Reinecke <hare@suse.de>
 ---
- block/blk-mq-debugfs.c            |  1 -
- block/blk-sysfs.c                 |  6 +++---
- drivers/block/mtip32xx/mtip32xx.c |  1 -
- drivers/md/dm-table.c             | 18 ------------------
- drivers/mmc/core/queue.c          |  2 --
- drivers/mtd/mtd_blkdevs.c         |  3 ---
- drivers/s390/block/scm_blk.c      |  4 ----
- drivers/scsi/scsi_lib.c           |  3 +--
- drivers/scsi/sd.c                 | 11 +++--------
- include/linux/blkdev.h            |  5 +++--
- 10 files changed, 10 insertions(+), 44 deletions(-)
+ block/blk-flush.c | 33 +++++++++++++++------------------
+ 1 file changed, 15 insertions(+), 18 deletions(-)
 
-diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
-index 4d0e62ec88f033..6b7edb50bfd3fa 100644
---- a/block/blk-mq-debugfs.c
-+++ b/block/blk-mq-debugfs.c
-@@ -86,7 +86,6 @@ static const char *const blk_queue_flag_name[] = {
- 	QUEUE_FLAG_NAME(FAIL_IO),
- 	QUEUE_FLAG_NAME(IO_STAT),
- 	QUEUE_FLAG_NAME(NOXMERGES),
--	QUEUE_FLAG_NAME(ADD_RANDOM),
- 	QUEUE_FLAG_NAME(SYNCHRONOUS),
- 	QUEUE_FLAG_NAME(SAME_FORCE),
- 	QUEUE_FLAG_NAME(INIT_DONE),
-diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
-index 637ed3bbbfb46f..9174aca3b85526 100644
---- a/block/blk-sysfs.c
-+++ b/block/blk-sysfs.c
-@@ -323,7 +323,7 @@ queue_##name##_store(struct request_queue *q, const char *page, size_t count) \
+diff --git a/block/blk-flush.c b/block/blk-flush.c
+index c17cf8ed8113db..2234f8b3fc05f2 100644
+--- a/block/blk-flush.c
++++ b/block/blk-flush.c
+@@ -100,23 +100,6 @@ blk_get_flush_queue(struct request_queue *q, struct blk_mq_ctx *ctx)
+ 	return blk_mq_map_queue(q, REQ_OP_FLUSH, ctx)->fq;
  }
  
- QUEUE_SYSFS_FEATURE(rotational, BLK_FEAT_ROTATIONAL)
--QUEUE_SYSFS_BIT_FNS(random, ADD_RANDOM, 0);
-+QUEUE_SYSFS_FEATURE(add_random, BLK_FEAT_ADD_RANDOM)
- QUEUE_SYSFS_BIT_FNS(iostats, IO_STAT, 0);
- QUEUE_SYSFS_BIT_FNS(stable_writes, STABLE_WRITES, 0);
- #undef QUEUE_SYSFS_BIT_FNS
-@@ -561,7 +561,7 @@ static struct queue_sysfs_entry queue_hw_sector_size_entry = {
- 
- QUEUE_RW_ENTRY(queue_rotational, "rotational");
- QUEUE_RW_ENTRY(queue_iostats, "iostats");
--QUEUE_RW_ENTRY(queue_random, "add_random");
-+QUEUE_RW_ENTRY(queue_add_random, "add_random");
- QUEUE_RW_ENTRY(queue_stable_writes, "stable_writes");
- 
- #ifdef CONFIG_BLK_WBT
-@@ -665,7 +665,7 @@ static struct attribute *queue_attrs[] = {
- 	&queue_nomerges_entry.attr,
- 	&queue_iostats_entry.attr,
- 	&queue_stable_writes_entry.attr,
--	&queue_random_entry.attr,
-+	&queue_add_random_entry.attr,
- 	&queue_poll_entry.attr,
- 	&queue_wc_entry.attr,
- 	&queue_fua_entry.attr,
-diff --git a/drivers/block/mtip32xx/mtip32xx.c b/drivers/block/mtip32xx/mtip32xx.c
-index 1dbbf72659d549..c6ef0546ffc9d2 100644
---- a/drivers/block/mtip32xx/mtip32xx.c
-+++ b/drivers/block/mtip32xx/mtip32xx.c
-@@ -3485,7 +3485,6 @@ static int mtip_block_initialize(struct driver_data *dd)
- 		goto start_service_thread;
- 
- 	/* Set device limits. */
--	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, dd->queue);
- 	dma_set_max_seg_size(&dd->pdev->dev, 0x400000);
- 
- 	/* Set the capacity of the device in 512 byte sectors. */
-diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
-index c062af32970934..0a3838e45affd4 100644
---- a/drivers/md/dm-table.c
-+++ b/drivers/md/dm-table.c
-@@ -1716,14 +1716,6 @@ static int device_dax_write_cache_enabled(struct dm_target *ti,
- 	return false;
- }
- 
--static int device_is_not_random(struct dm_target *ti, struct dm_dev *dev,
--			     sector_t start, sector_t len, void *data)
+-static unsigned int blk_flush_policy(unsigned long fflags, struct request *rq)
 -{
--	struct request_queue *q = bdev_get_queue(dev->bdev);
+-	unsigned int policy = 0;
 -
--	return !blk_queue_add_random(q);
+-	if (blk_rq_sectors(rq))
+-		policy |= REQ_FSEQ_DATA;
+-
+-	if (fflags & (1UL << QUEUE_FLAG_WC)) {
+-		if (rq->cmd_flags & REQ_PREFLUSH)
+-			policy |= REQ_FSEQ_PREFLUSH;
+-		if (!(fflags & (1UL << QUEUE_FLAG_FUA)) &&
+-		    (rq->cmd_flags & REQ_FUA))
+-			policy |= REQ_FSEQ_POSTFLUSH;
+-	}
+-	return policy;
 -}
 -
- static int device_not_write_zeroes_capable(struct dm_target *ti, struct dm_dev *dev,
- 					   sector_t start, sector_t len, void *data)
+ static unsigned int blk_flush_cur_seq(struct request *rq)
  {
-@@ -1876,16 +1868,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
- 	else
- 		blk_queue_flag_clear(QUEUE_FLAG_STABLE_WRITES, q);
- 
--	/*
--	 * Determine whether or not this queue's I/O timings contribute
--	 * to the entropy pool, Only request-based targets use this.
--	 * Clear QUEUE_FLAG_ADD_RANDOM if any underlying device does not
--	 * have it set.
--	 */
--	if (blk_queue_add_random(q) &&
--	    dm_table_any_dev_attr(t, device_is_not_random, NULL))
--		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
--
- 	/*
- 	 * For a zoned target, setup the zones related queue attributes
- 	 * and resources necessary for zone append emulation if necessary.
-diff --git a/drivers/mmc/core/queue.c b/drivers/mmc/core/queue.c
-index b4f62fa845864c..da00904d4a3c7e 100644
---- a/drivers/mmc/core/queue.c
-+++ b/drivers/mmc/core/queue.c
-@@ -387,8 +387,6 @@ static struct gendisk *mmc_alloc_disk(struct mmc_queue *mq,
- 		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, mq->queue);
- 	blk_queue_rq_timeout(mq->queue, 60 * HZ);
- 
--	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, mq->queue);
--
- 	dma_set_max_seg_size(mmc_dev(host), queue_max_segment_size(mq->queue));
- 
- 	INIT_WORK(&mq->recovery_work, mmc_mq_recovery_handler);
-diff --git a/drivers/mtd/mtd_blkdevs.c b/drivers/mtd/mtd_blkdevs.c
-index bf8369ce7ddf1d..47ead84407cdcf 100644
---- a/drivers/mtd/mtd_blkdevs.c
-+++ b/drivers/mtd/mtd_blkdevs.c
-@@ -374,9 +374,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
- 	/* Create the request queue */
- 	spin_lock_init(&new->queue_lock);
- 	INIT_LIST_HEAD(&new->rq_list);
--
--	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, new->rq);
--
- 	gd->queue = new->rq;
- 
- 	if (new->readonly)
-diff --git a/drivers/s390/block/scm_blk.c b/drivers/s390/block/scm_blk.c
-index 2e2309fa9a0b34..3fcfe029db1b3a 100644
---- a/drivers/s390/block/scm_blk.c
-+++ b/drivers/s390/block/scm_blk.c
-@@ -439,7 +439,6 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
- 		.logical_block_size	= 1 << 12,
- 	};
- 	unsigned int devindex;
--	struct request_queue *rq;
- 	int len, ret;
- 
- 	lim.max_segments = min(scmdev->nr_max_block,
-@@ -474,9 +473,6 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
- 		ret = PTR_ERR(bdev->gendisk);
- 		goto out_tag;
- 	}
--	rq = bdev->rq = bdev->gendisk->queue;
--	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, rq);
--
- 	bdev->gendisk->private_data = scmdev;
- 	bdev->gendisk->fops = &scm_blk_devops;
- 	bdev->gendisk->major = scm_major;
-diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
-index ec39acc986d6ec..54f771ec8cfb5e 100644
---- a/drivers/scsi/scsi_lib.c
-+++ b/drivers/scsi/scsi_lib.c
-@@ -631,8 +631,7 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
- 	if (blk_update_request(req, error, bytes))
- 		return true;
- 
--	// XXX:
--	if (blk_queue_add_random(q))
-+	if (q->limits.features & BLK_FEAT_ADD_RANDOM)
- 		add_disk_randomness(req->q->disk);
- 
- 	WARN_ON_ONCE(!blk_rq_is_passthrough(req) &&
-diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
-index a42c3c45e86830..a27f1c7f1b61d5 100644
---- a/drivers/scsi/sd.c
-+++ b/drivers/scsi/sd.c
-@@ -3301,7 +3301,6 @@ static void sd_read_block_limits_ext(struct scsi_disk *sdkp)
- static void sd_read_block_characteristics(struct scsi_disk *sdkp,
- 		struct queue_limits *lim)
+ 	return 1 << ffz(rq->flush.seq);
+@@ -399,12 +382,26 @@ bool blk_insert_flush(struct request *rq)
  {
--	struct request_queue *q = sdkp->disk->queue;
- 	struct scsi_vpd *vpd;
- 	u16 rot;
+ 	struct request_queue *q = rq->q;
+ 	unsigned long fflags = q->queue_flags;	/* may change, cache */
+-	unsigned int policy = blk_flush_policy(fflags, rq);
+ 	struct blk_flush_queue *fq = blk_get_flush_queue(q, rq->mq_ctx);
++	unsigned int policy = 0;
  
-@@ -3317,10 +3316,8 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp,
- 	sdkp->zoned = (vpd->data[8] >> 4) & 3;
- 	rcu_read_unlock();
+ 	/* FLUSH/FUA request must never be merged */
+ 	WARN_ON_ONCE(rq->bio != rq->biotail);
  
--	if (rot == 1) {
--		lim->features &= ~BLK_FEAT_ROTATIONAL;
--		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
--	}
-+	if (rot == 1)
-+		lim->features &= ~(BLK_FEAT_ROTATIONAL | BLK_FEAT_ADD_RANDOM);
- 
- 	if (!sdkp->first_scan)
- 		return;
-@@ -3599,7 +3596,6 @@ static int sd_revalidate_disk(struct gendisk *disk)
- {
- 	struct scsi_disk *sdkp = scsi_disk(disk);
- 	struct scsi_device *sdp = sdkp->device;
--	struct request_queue *q = sdkp->disk->queue;
- 	sector_t old_capacity = sdkp->capacity;
- 	struct queue_limits lim;
- 	unsigned char *buffer;
-@@ -3646,8 +3642,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
- 		 * cause this to be updated correctly and any device which
- 		 * doesn't support it should be treated as rotational.
- 		 */
--		lim.features |= BLK_FEAT_ROTATIONAL;
--		blk_queue_flag_set(QUEUE_FLAG_ADD_RANDOM, q);
-+		lim.features |= (BLK_FEAT_ROTATIONAL | BLK_FEAT_ADD_RANDOM);
- 
- 		if (scsi_device_supports_vpd(sdp)) {
- 			sd_read_block_provisioning(sdkp);
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 988e3248cffeb7..cf1bbf566b2bcd 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -292,6 +292,9 @@ enum {
- 
- 	/* rotational device (hard drive or floppy) */
- 	BLK_FEAT_ROTATIONAL			= (1u << 2),
++	if (blk_rq_sectors(rq))
++		policy |= REQ_FSEQ_DATA;
 +
-+	/* contributes to the random number pool */
-+	BLK_FEAT_ADD_RANDOM			= (1u << 3),
- };
- 
- /*
-@@ -557,7 +560,6 @@ struct request_queue {
- #define QUEUE_FLAG_FAIL_IO	5	/* fake timeout */
- #define QUEUE_FLAG_IO_STAT	7	/* do disk/partitions IO accounting */
- #define QUEUE_FLAG_NOXMERGES	9	/* No extended merges */
--#define QUEUE_FLAG_ADD_RANDOM	10	/* Contributes to random pool */
- #define QUEUE_FLAG_SYNCHRONOUS	11	/* always completes in submit context */
- #define QUEUE_FLAG_SAME_FORCE	12	/* force complete on same CPU */
- #define QUEUE_FLAG_INIT_DONE	14	/* queue is initialized */
-@@ -591,7 +593,6 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
- 	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
- #define blk_queue_nonrot(q)	((q)->limits.features & BLK_FEAT_ROTATIONAL)
- #define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
--#define blk_queue_add_random(q)	test_bit(QUEUE_FLAG_ADD_RANDOM, &(q)->queue_flags)
- #define blk_queue_zone_resetall(q)	\
- 	test_bit(QUEUE_FLAG_ZONE_RESETALL, &(q)->queue_flags)
- #define blk_queue_dax(q)	test_bit(QUEUE_FLAG_DAX, &(q)->queue_flags)
++	/*
++	 * Check which flushes we need to sequence for this operation.
++	 */
++	if (fflags & (1UL << QUEUE_FLAG_WC)) {
++		if (rq->cmd_flags & REQ_PREFLUSH)
++			policy |= REQ_FSEQ_PREFLUSH;
++		if (!(fflags & (1UL << QUEUE_FLAG_FUA)) &&
++		    (rq->cmd_flags & REQ_FUA))
++			policy |= REQ_FSEQ_POSTFLUSH;
++	}
++
+ 	/*
+ 	 * @policy now records what operations need to be done.  Adjust
+ 	 * REQ_PREFLUSH and FUA for the driver.
 -- 
 2.43.0
 
