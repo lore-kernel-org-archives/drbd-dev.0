@@ -1,18 +1,18 @@
 Return-Path: <hare@suse.de>
 Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B10D74200BE
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:03:31 +0200 (CEST)
-Message-ID: <9e1764de-0080-4b8f-a705-de4016a55f5a@suse.de>
-Date: Mon, 17 Jun 2024 12:03:30 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 07C124200BE
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:04:12 +0200 (CEST)
+Message-ID: <114579f8-74e1-416f-a808-420ec8314882@suse.de>
+Date: Mon, 17 Jun 2024 12:04:11 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/26] xen-blkfront: don't disable cache flushes when they
-	fail
+Subject: Re: [PATCH 03/26] sd: move zone limits setup out of
+	sd_read_block_characteristics
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-2-hch@lst.de>
+	<20240617060532.127975-4-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240617060532.127975-2-hch@lst.de>
+In-Reply-To: <20240617060532.127975-4-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,19 +48,14 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/17/24 08:04, Christoph Hellwig wrote:
-> blkfront always had a robust negotiation protocol for detecting a write
-> cache.  Stop simply disabling cache flushes in the block layer as the
-> flags handling is moving to the atomic queue limits API that needs
-> user context to freeze the queue for that.  Instead handle the case
-> of the feature flags cleared inside of blkfront.  This removes old
-> debug code to check for such a mismatch which was previously impossible
-> to hit, including the check for passthrough requests that blkfront
-> never used to start with.
+> Move a bit of code that sets up the zone flag and the write granularity
+> into sd_zbc_read_zones to be with the rest of the zoned limits.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->   drivers/block/xen-blkfront.c | 44 +++++++++++++++++++-----------------
->   1 file changed, 23 insertions(+), 21 deletions(-)
+>   drivers/scsi/sd.c     | 21 +--------------------
+>   drivers/scsi/sd_zbc.c |  9 +++++++++
+>   2 files changed, 10 insertions(+), 20 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
