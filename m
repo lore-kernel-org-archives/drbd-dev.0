@@ -1,18 +1,17 @@
 Return-Path: <hare@suse.de>
-Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BC2442065D
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:45:02 +0200 (CEST)
-Message-ID: <36bcda92-7c4c-41e6-978e-fb749b66607f@suse.de>
-Date: Mon, 17 Jun 2024 12:45:00 +0200
+Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1F11042065D
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:45:34 +0200 (CEST)
+Message-ID: <94db71a8-75ef-4490-a28a-aea26f6dd945@suse.de>
+Date: Mon, 17 Jun 2024 12:45:33 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 25/26] block: move the skip_tagset_quiesce flag to
-	queue_limits
+Subject: Re: [PATCH 26/26] block: move the bounce flag into the features field
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-26-hch@lst.de>
+	<20240617060532.127975-27-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240617060532.127975-26-hch@lst.de>
+In-Reply-To: <20240617060532.127975-27-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -48,16 +47,17 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/17/24 08:04, Christoph Hellwig wrote:
-> Move the skip_tagset_quiesce flag into the queue_limits feature field so
-> that it can be set atomically with the queue frozen.
+> Move the bounce flag into the features field to reclaim a little bit of
+> space.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 > ---
->   block/blk-mq-debugfs.c   | 1 -
->   drivers/nvme/host/core.c | 8 +++++---
->   include/linux/blkdev.h   | 6 ++++--
->   3 files changed, 9 insertions(+), 6 deletions(-)
+>   block/blk-settings.c    | 1 -
+>   block/blk.h             | 2 +-
+>   drivers/scsi/scsi_lib.c | 2 +-
+>   include/linux/blkdev.h  | 6 ++++--
+>   4 files changed, 6 insertions(+), 5 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
