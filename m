@@ -1,13 +1,13 @@
 Return-Path: <BATV+625ba2f6da96caf54eae+7603+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3A199420900
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 09:23:55 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BDDC44208F5
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 09:23:56 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 26/26] block: move the bounce flag into the features field
-Date: Mon, 17 Jun 2024 08:04:53 +0200
-Message-ID: <20240617060532.127975-27-hch@lst.de>
+Subject: [PATCH 25/26] block: move the skip_tagset_quiesce flag to queue_limits
+Date: Mon, 17 Jun 2024 08:04:52 +0200
+Message-ID: <20240617060532.127975-26-hch@lst.de>
 In-Reply-To: <20240617060532.127975-1-hch@lst.de>
 References: <20240617060532.127975-1-hch@lst.de>
 MIME-Version: 1.0
@@ -44,87 +44,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Move the bounce flag into the features field to reclaim a little bit of
-space.
+Move the skip_tagset_quiesce flag into the queue_limits feature field so
+that it can be set atomically with the queue frozen.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 ---
- block/blk-settings.c    | 1 -
- block/blk.h             | 2 +-
- drivers/scsi/scsi_lib.c | 2 +-
- include/linux/blkdev.h  | 6 ++++--
- 4 files changed, 6 insertions(+), 5 deletions(-)
+ block/blk-mq-debugfs.c   | 1 -
+ drivers/nvme/host/core.c | 8 +++++---
+ include/linux/blkdev.h   | 6 ++++--
+ 3 files changed, 9 insertions(+), 6 deletions(-)
 
-diff --git a/block/blk-settings.c b/block/blk-settings.c
-index 96e07f24bd9aa1..d0e9096f93ca8a 100644
---- a/block/blk-settings.c
-+++ b/block/blk-settings.c
-@@ -479,7 +479,6 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
- 					b->max_write_zeroes_sectors);
- 	t->max_zone_append_sectors = min(queue_limits_max_zone_append_sectors(t),
- 					 queue_limits_max_zone_append_sectors(b));
--	t->bounce = max(t->bounce, b->bounce);
+diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
+index 8b5a68861c119b..344f9e503bdb32 100644
+--- a/block/blk-mq-debugfs.c
++++ b/block/blk-mq-debugfs.c
+@@ -93,7 +93,6 @@ static const char *const blk_queue_flag_name[] = {
+ 	QUEUE_FLAG_NAME(RQ_ALLOC_TIME),
+ 	QUEUE_FLAG_NAME(HCTX_ACTIVE),
+ 	QUEUE_FLAG_NAME(SQ_SCHED),
+-	QUEUE_FLAG_NAME(SKIP_TAGSET_QUIESCE),
+ };
+ #undef QUEUE_FLAG_NAME
  
- 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
- 					    b->seg_boundary_mask);
-diff --git a/block/blk.h b/block/blk.h
-index 79e8d5d4fe0caf..fa32f7fad5d7e6 100644
---- a/block/blk.h
-+++ b/block/blk.h
-@@ -394,7 +394,7 @@ struct bio *__blk_queue_bounce(struct bio *bio, struct request_queue *q);
- static inline bool blk_queue_may_bounce(struct request_queue *q)
- {
- 	return IS_ENABLED(CONFIG_BOUNCE) &&
--		q->limits.bounce == BLK_BOUNCE_HIGH &&
-+		(q->limits.features & BLK_FEAT_BOUNCE_HIGH) &&
- 		max_low_pfn >= max_pfn;
- }
+diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+index 31e752e8d632cd..bf410d10b12006 100644
+--- a/drivers/nvme/host/core.c
++++ b/drivers/nvme/host/core.c
+@@ -4489,13 +4489,15 @@ int nvme_alloc_io_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
+ 		return ret;
  
-diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
-index 54f771ec8cfb5e..e2f7bfb2b9e450 100644
---- a/drivers/scsi/scsi_lib.c
-+++ b/drivers/scsi/scsi_lib.c
-@@ -1986,7 +1986,7 @@ void scsi_init_limits(struct Scsi_Host *shost, struct queue_limits *lim)
- 		shost->dma_alignment, dma_get_cache_alignment() - 1);
+ 	if (ctrl->ops->flags & NVME_F_FABRICS) {
+-		ctrl->connect_q = blk_mq_alloc_queue(set, NULL, NULL);
++		struct queue_limits lim = {
++			.features	= BLK_FEAT_SKIP_TAGSET_QUIESCE,
++		};
++
++		ctrl->connect_q = blk_mq_alloc_queue(set, &lim, NULL);
+         	if (IS_ERR(ctrl->connect_q)) {
+ 			ret = PTR_ERR(ctrl->connect_q);
+ 			goto out_free_tag_set;
+ 		}
+-		blk_queue_flag_set(QUEUE_FLAG_SKIP_TAGSET_QUIESCE,
+-				   ctrl->connect_q);
+ 	}
  
- 	if (shost->no_highmem)
--		lim->bounce = BLK_BOUNCE_HIGH;
-+		lim->features |= BLK_FEAT_BOUNCE_HIGH;
- 
- 	dma_set_seg_boundary(dev, shost->dma_boundary);
- 	dma_set_max_seg_size(dev, shost->max_segment_size);
+ 	ctrl->tagset = set;
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 2c433ebf6f2030..e96ba7b97288d2 100644
+index ab0f7dfba556eb..2c433ebf6f2030 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -325,6 +325,9 @@ enum {
+@@ -322,6 +322,9 @@ enum {
  
- 	/* skip this queue in blk_mq_(un)quiesce_tagset */
- 	BLK_FEAT_SKIP_TAGSET_QUIESCE		= (1u << 13),
+ 	/* supports PCI(e) p2p requests */
+ 	BLK_FEAT_PCI_P2PDMA			= (1u << 12),
 +
-+	/* bounce all highmem pages */
-+	BLK_FEAT_BOUNCE_HIGH			= (1u << 14),
++	/* skip this queue in blk_mq_(un)quiesce_tagset */
++	BLK_FEAT_SKIP_TAGSET_QUIESCE		= (1u << 13),
  };
  
  /*
-@@ -332,7 +335,7 @@ enum {
-  */
- #define BLK_FEAT_INHERIT_MASK \
- 	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL | \
--	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED)
-+	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH)
+@@ -594,7 +597,6 @@ struct request_queue {
+ #define QUEUE_FLAG_RQ_ALLOC_TIME 27	/* record rq->alloc_time_ns */
+ #define QUEUE_FLAG_HCTX_ACTIVE	28	/* at least one blk-mq hctx is active */
+ #define QUEUE_FLAG_SQ_SCHED     30	/* single queue style io dispatch */
+-#define QUEUE_FLAG_SKIP_TAGSET_QUIESCE	31 /* quiesce_tagset skip the queue*/
  
- /* internal flags in queue_limits.flags */
- enum {
-@@ -352,7 +355,6 @@ enum blk_bounce {
- struct queue_limits {
- 	unsigned int		features;
- 	unsigned int		flags;
--	enum blk_bounce		bounce;
- 	unsigned long		seg_boundary_mask;
- 	unsigned long		virt_boundary_mask;
+ #define QUEUE_FLAG_MQ_DEFAULT	(1UL << QUEUE_FLAG_SAME_COMP)
  
+@@ -629,7 +631,7 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
+ #define blk_queue_registered(q)	test_bit(QUEUE_FLAG_REGISTERED, &(q)->queue_flags)
+ #define blk_queue_sq_sched(q)	test_bit(QUEUE_FLAG_SQ_SCHED, &(q)->queue_flags)
+ #define blk_queue_skip_tagset_quiesce(q) \
+-	test_bit(QUEUE_FLAG_SKIP_TAGSET_QUIESCE, &(q)->queue_flags)
++	((q)->limits.features & BLK_FEAT_SKIP_TAGSET_QUIESCE)
+ 
+ extern void blk_set_pm_only(struct request_queue *q);
+ extern void blk_clear_pm_only(struct request_queue *q);
 -- 
 2.43.0
 
