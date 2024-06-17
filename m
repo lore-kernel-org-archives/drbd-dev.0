@@ -1,31 +1,24 @@
-Return-Path: <dlemoal@kernel.org>
-Received: from sin.source.kernel.org (sin.source.kernel.org [145.40.73.55])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1040742010D
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:03:41 +0200 (CEST)
-Message-ID: <bf52121f-38f2-4789-b545-7c6ed0fe55b2@kernel.org>
-Date: Mon, 17 Jun 2024 15:03:33 +0900
+Return-Path: <BATV+625ba2f6da96caf54eae+7603+infradead.org+hch@bombadil.srs.infradead.org>
+Received: from bombadil.infradead.org (bombadil.infradead.org
+	[198.137.202.133])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8510C420219
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:05:48 +0200 (CEST)
+From: Christoph Hellwig <hch@lst.de>
+To: Jens Axboe <axboe@kernel.dk>
+Subject: [PATCH 01/26] xen-blkfront: don't disable cache flushes when they fail
+Date: Mon, 17 Jun 2024 08:04:28 +0200
+Message-ID: <20240617060532.127975-2-hch@lst.de>
+In-Reply-To: <20240617060532.127975-1-hch@lst.de>
+References: <20240617060532.127975-1-hch@lst.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/26] sd: move zone limits setup out of
-	sd_read_block_characteristics
-To: Christoph Hellwig <hch@lst.de>
-References: <20240611051929.513387-1-hch@lst.de>
-	<20240611051929.513387-3-hch@lst.de>
-	<40ca8052-6ac1-4c1b-8c39-b0a7948839f8@kernel.org>
-	<20240613093918.GA27629@lst.de>
-	<5a697233-0611-459d-b889-2e0133bbb541@kernel.org>
-	<20240617045356.GA16277@lst.de>
-From: Damien Le Moal <dlemoal@kernel.org>
-Content-Language: en-US
-In-Reply-To: <20240617045356.GA16277@lst.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
 	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
 	Vineeth Vijayan <vneethv@linux.ibm.com>,
-	linux-bcache@vger.kernel.org, Alasdair Kergon <agk@redhat.com>,
-	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
-	linux-scsi@vger.kernel.org, Richard Weinberger <richard@nod.at>,
+	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
+	linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org,
+	Richard Weinberger <richard@nod.at>,
 	Geert Uytterhoeven <geert@linux-m68k.org>,
 	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
@@ -33,13 +26,13 @@ Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
 	Mikulas Patocka <mpatocka@redhat.com>,
 	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
-	Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@kernel.dk>,
+	Ming Lei <ming.lei@redhat.com>, linux-bcache@vger.kernel.org,
 	linux-block@vger.kernel.org,
 	"Martin K. Petersen" <martin.petersen@oracle.com>,
 	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	linuxppc-dev@lists.ozlabs.org,
-	=?UTF-8?Q?Roger_Pau_Monn=C3=A9?= <roger.pau@citrix.com>
+	=?UTF-8?q?Roger=20Pau=20Monn=C3=A9?= <roger.pau@citrix.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -51,27 +44,116 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 6/17/24 13:53, Christoph Hellwig wrote:
-> On Mon, Jun 17, 2024 at 08:01:04AM +0900, Damien Le Moal wrote:
->> On 6/13/24 18:39, Christoph Hellwig wrote:
->>> On Tue, Jun 11, 2024 at 02:51:24PM +0900, Damien Le Moal wrote:
->>>>> +	if (sdkp->device->type == TYPE_ZBC)
->>>>
->>>> Nit: use sd_is_zoned() here ?
->>>
->>> Actually - is there much in even keeping sd_is_zoned now that the
->>> host aware support is removed?  Just open coding the type check isn't
->>> any more code, and probably easier to follow.
->>
->> Removing this helper is fine by me.
-> 
-> FYI, I've removed it yesterday, but not done much of the cleanups suggest
-> here.  We should probably do those in a follow up up, uncluding removing
-> the !ZBC check in sd_zbc_check_zoned_characteristics.
+blkfront always had a robust negotiation protocol for detecting a write
+cache.  Stop simply disabling cache flushes in the block layer as the
+flags handling is moving to the atomic queue limits API that needs
+user context to freeze the queue for that.  Instead handle the case
+of the feature flags cleared inside of blkfront.  This removes old
+debug code to check for such a mismatch which was previously impossible
+to hit, including the check for passthrough requests that blkfront
+never used to start with.
 
-OK. I will send that once your series in queued.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/block/xen-blkfront.c | 44 +++++++++++++++++++-----------------
+ 1 file changed, 23 insertions(+), 21 deletions(-)
 
+diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
+index 9b4ec3e4908cce..851b03844edd13 100644
+--- a/drivers/block/xen-blkfront.c
++++ b/drivers/block/xen-blkfront.c
+@@ -788,6 +788,11 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
+ 			 * A barrier request a superset of FUA, so we can
+ 			 * implement it the same way.  (It's also a FLUSH+FUA,
+ 			 * since it is guaranteed ordered WRT previous writes.)
++			 *
++			 * Note that can end up here with a FUA write and the
++			 * flags cleared.  This happens when the flag was
++			 * run-time disabled after a failing I/O, and we'll
++			 * simplify submit it as a normal write.
+ 			 */
+ 			if (info->feature_flush && info->feature_fua)
+ 				ring_req->operation =
+@@ -795,8 +800,6 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
+ 			else if (info->feature_flush)
+ 				ring_req->operation =
+ 					BLKIF_OP_FLUSH_DISKCACHE;
+-			else
+-				ring_req->operation = 0;
+ 		}
+ 		ring_req->u.rw.nr_segments = num_grant;
+ 		if (unlikely(require_extra_req)) {
+@@ -887,16 +890,6 @@ static inline void flush_requests(struct blkfront_ring_info *rinfo)
+ 		notify_remote_via_irq(rinfo->irq);
+ }
+ 
+-static inline bool blkif_request_flush_invalid(struct request *req,
+-					       struct blkfront_info *info)
+-{
+-	return (blk_rq_is_passthrough(req) ||
+-		((req_op(req) == REQ_OP_FLUSH) &&
+-		 !info->feature_flush) ||
+-		((req->cmd_flags & REQ_FUA) &&
+-		 !info->feature_fua));
+-}
+-
+ static blk_status_t blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
+ 			  const struct blk_mq_queue_data *qd)
+ {
+@@ -908,12 +901,22 @@ static blk_status_t blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
+ 	rinfo = get_rinfo(info, qid);
+ 	blk_mq_start_request(qd->rq);
+ 	spin_lock_irqsave(&rinfo->ring_lock, flags);
+-	if (RING_FULL(&rinfo->ring))
+-		goto out_busy;
+ 
+-	if (blkif_request_flush_invalid(qd->rq, rinfo->dev_info))
+-		goto out_err;
++	/*
++	 * Check if the backend actually supports flushes.
++	 *
++	 * While the block layer won't send us flushes if we don't claim to
++	 * support them, the Xen protocol allows the backend to revoke support
++	 * at any time.  That is of course a really bad idea and dangerous, but
++	 * has been allowed for 10+ years.  In that case we simply clear the
++	 * flags, and directly return here for an empty flush and ignore the
++	 * FUA flag later on.
++	 */
++	if (unlikely(req_op(qd->rq) == REQ_OP_FLUSH && !info->feature_flush))
++		goto complete;
+ 
++	if (RING_FULL(&rinfo->ring))
++		goto out_busy;
+ 	if (blkif_queue_request(qd->rq, rinfo))
+ 		goto out_busy;
+ 
+@@ -921,14 +924,14 @@ static blk_status_t blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
+ 	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
+ 	return BLK_STS_OK;
+ 
+-out_err:
+-	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
+-	return BLK_STS_IOERR;
+-
+ out_busy:
+ 	blk_mq_stop_hw_queue(hctx);
+ 	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
+ 	return BLK_STS_DEV_RESOURCE;
++complete:
++	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
++	blk_mq_end_request(qd->rq, BLK_STS_OK);
++	return BLK_STS_OK;
+ }
+ 
+ static void blkif_complete_rq(struct request *rq)
+@@ -1627,7 +1630,6 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
+ 					blkif_req(req)->error = BLK_STS_OK;
+ 				info->feature_fua = 0;
+ 				info->feature_flush = 0;
+-				xlvbd_flush(info);
+ 			}
+ 			fallthrough;
+ 		case BLKIF_OP_READ:
 -- 
-Damien Le Moal
-Western Digital Research
+2.43.0
 
