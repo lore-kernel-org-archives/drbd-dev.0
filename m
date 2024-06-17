@@ -1,14 +1,13 @@
 Return-Path: <BATV+625ba2f6da96caf54eae+7603+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EEE7A4203D5
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:06:01 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BC5124203D9
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:06:04 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 05/26] loop: always update discard settings in
-	loop_reconfigure_limits
-Date: Mon, 17 Jun 2024 08:04:32 +0200
-Message-ID: <20240617060532.127975-6-hch@lst.de>
+Subject: [PATCH 06/26] loop: regularize upgrading the block size for direct I/O
+Date: Mon, 17 Jun 2024 08:04:33 +0200
+Message-ID: <20240617060532.127975-7-hch@lst.de>
 In-Reply-To: <20240617060532.127975-1-hch@lst.de>
 References: <20240617060532.127975-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +24,7 @@ Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
-	Damien Le Moal <dlemoal@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
+	Mikulas Patocka <mpatocka@redhat.com>,
 	Hannes Reinecke <hare@suse.de>, xen-devel@lists.xenproject.org,
 	ceph-devel@vger.kernel.org, Ming Lei <ming.lei@redhat.com>,
 	linux-bcache@vger.kernel.org, linux-block@vger.kernel.org,
@@ -45,59 +44,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Simplify loop_reconfigure_limits by always updating the discard limits.
-This adds a little more work to loop_set_block_size, but doesn't change
-the outcome as the discard flag won't change.
+The LOOP_CONFIGURE path automatically upgrades the block size to that
+of the underlying file for O_DIRECT file descriptors, but the
+LOOP_SET_BLOCK_SIZE path does not.  Fix this by lifting the code to
+pick the block size into common code.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 Reviewed-by: Bart Van Assche <bvanassche@acm.org>
 ---
- drivers/block/loop.c | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ drivers/block/loop.c | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index fd671028fa8554..ce197cbea5f434 100644
+index ce197cbea5f434..eea3e4919e356e 100644
 --- a/drivers/block/loop.c
 +++ b/drivers/block/loop.c
-@@ -975,8 +975,7 @@ loop_set_status_from_info(struct loop_device *lo,
+@@ -975,10 +975,24 @@ loop_set_status_from_info(struct loop_device *lo,
  	return 0;
  }
  
--static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize,
--		bool update_discard_settings)
-+static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
++static unsigned short loop_default_blocksize(struct loop_device *lo,
++		struct block_device *backing_bdev)
++{
++	/* In case of direct I/O, match underlying block size */
++	if ((lo->lo_backing_file->f_flags & O_DIRECT) && backing_bdev)
++		return bdev_logical_block_size(backing_bdev);
++	return SECTOR_SIZE;
++}
++
+ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
  {
++	struct file *file = lo->lo_backing_file;
++	struct inode *inode = file->f_mapping->host;
  	struct queue_limits lim;
  
-@@ -984,8 +983,7 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize,
++	if (!bsize)
++		bsize = loop_default_blocksize(lo, inode->i_sb->s_bdev);
++
+ 	lim = queue_limits_start_update(lo->lo_queue);
  	lim.logical_block_size = bsize;
  	lim.physical_block_size = bsize;
- 	lim.io_min = bsize;
--	if (update_discard_settings)
--		loop_config_discard(lo, &lim);
-+	loop_config_discard(lo, &lim);
- 	return queue_limits_commit_update(lo->lo_queue, &lim);
- }
+@@ -997,7 +1011,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
+ 	int error;
+ 	loff_t size;
+ 	bool partscan;
+-	unsigned short bsize;
+ 	bool is_loop;
  
-@@ -1086,7 +1084,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
- 	else
- 		bsize = 512;
+ 	if (!file)
+@@ -1076,15 +1089,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
+ 	if (!(lo->lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
+ 		blk_queue_write_cache(lo->lo_queue, true, false);
  
--	error = loop_reconfigure_limits(lo, bsize, true);
-+	error = loop_reconfigure_limits(lo, bsize);
+-	if (config->block_size)
+-		bsize = config->block_size;
+-	else if ((lo->lo_backing_file->f_flags & O_DIRECT) && inode->i_sb->s_bdev)
+-		/* In case of direct I/O, match underlying block size */
+-		bsize = bdev_logical_block_size(inode->i_sb->s_bdev);
+-	else
+-		bsize = 512;
+-
+-	error = loop_reconfigure_limits(lo, bsize);
++	error = loop_reconfigure_limits(lo, config->block_size);
  	if (WARN_ON_ONCE(error))
  		goto out_unlock;
- 
-@@ -1496,7 +1494,7 @@ static int loop_set_block_size(struct loop_device *lo, unsigned long arg)
- 	invalidate_bdev(lo->lo_device);
- 
- 	blk_mq_freeze_queue(lo->lo_queue);
--	err = loop_reconfigure_limits(lo, arg, false);
-+	err = loop_reconfigure_limits(lo, arg);
- 	loop_update_dio(lo);
- 	blk_mq_unfreeze_queue(lo->lo_queue);
  
 -- 
 2.43.0
