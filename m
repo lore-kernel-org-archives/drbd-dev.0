@@ -1,14 +1,14 @@
 Return-Path: <BATV+625ba2f6da96caf54eae+7603+infradead.org+hch@bombadil.srs.infradead.org>
 Received: from bombadil.infradead.org (bombadil.infradead.org
 	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0A91C420471
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:06:08 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D88FA4205A5
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 08:06:14 +0200 (CEST)
 From: Christoph Hellwig <hch@lst.de>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 07/26] loop: also use the default block size from an
-	underlying block device
-Date: Mon, 17 Jun 2024 08:04:34 +0200
-Message-ID: <20240617060532.127975-8-hch@lst.de>
+Subject: [PATCH 08/26] loop: fold loop_update_rotational into
+	loop_reconfigure_limits
+Date: Mon, 17 Jun 2024 08:04:35 +0200
+Message-ID: <20240617060532.127975-9-hch@lst.de>
 In-Reply-To: <20240617060532.127975-1-hch@lst.de>
 References: <20240617060532.127975-1-hch@lst.de>
 MIME-Version: 1.0
@@ -25,7 +25,7 @@ Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
 	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
 	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
 	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
-	Mikulas Patocka <mpatocka@redhat.com>,
+	Damien Le Moal <dlemoal@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
 	Hannes Reinecke <hare@suse.de>, xen-devel@lists.xenproject.org,
 	ceph-devel@vger.kernel.org, Ming Lei <ming.lei@redhat.com>,
 	linux-bcache@vger.kernel.org, linux-block@vger.kernel.org,
@@ -45,40 +45,66 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Fix the code in loop_reconfigure_limits to pick a default block size for
-O_DIRECT file descriptors to also work when the loop device sits on top
-of a block device and not just on a regular file on a block device based
-file system.
+This prepares for moving the rotational flag into the queue_limits and
+also fixes it for the case where the loop device is backed by a block
+device.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 Reviewed-by: Bart Van Assche <bvanassche@acm.org>
 ---
- drivers/block/loop.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ drivers/block/loop.c | 23 ++++-------------------
+ 1 file changed, 4 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index eea3e4919e356e..6a4826708a3acf 100644
+index 6a4826708a3acf..8991de8fb1bb0b 100644
 --- a/drivers/block/loop.c
 +++ b/drivers/block/loop.c
-@@ -988,10 +988,16 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
- {
- 	struct file *file = lo->lo_backing_file;
- 	struct inode *inode = file->f_mapping->host;
-+	struct block_device *backing_bdev = NULL;
- 	struct queue_limits lim;
+@@ -916,24 +916,6 @@ static void loop_free_idle_workers_timer(struct timer_list *timer)
+ 	return loop_free_idle_workers(lo, false);
+ }
  
-+	if (S_ISBLK(inode->i_mode))
-+		backing_bdev = I_BDEV(inode);
-+	else if (inode->i_sb->s_bdev)
-+		backing_bdev = inode->i_sb->s_bdev;
-+
- 	if (!bsize)
--		bsize = loop_default_blocksize(lo, inode->i_sb->s_bdev);
-+		bsize = loop_default_blocksize(lo, backing_bdev);
- 
- 	lim = queue_limits_start_update(lo->lo_queue);
+-static void loop_update_rotational(struct loop_device *lo)
+-{
+-	struct file *file = lo->lo_backing_file;
+-	struct inode *file_inode = file->f_mapping->host;
+-	struct block_device *file_bdev = file_inode->i_sb->s_bdev;
+-	struct request_queue *q = lo->lo_queue;
+-	bool nonrot = true;
+-
+-	/* not all filesystems (e.g. tmpfs) have a sb->s_bdev */
+-	if (file_bdev)
+-		nonrot = bdev_nonrot(file_bdev);
+-
+-	if (nonrot)
+-		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+-	else
+-		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
+-}
+-
+ /**
+  * loop_set_status_from_info - configure device from loop_info
+  * @lo: struct loop_device to configure
+@@ -1003,6 +985,10 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned short bsize)
  	lim.logical_block_size = bsize;
+ 	lim.physical_block_size = bsize;
+ 	lim.io_min = bsize;
++	if (!backing_bdev || bdev_nonrot(backing_bdev))
++		blk_queue_flag_set(QUEUE_FLAG_NONROT, lo->lo_queue);
++	else
++		blk_queue_flag_clear(QUEUE_FLAG_NONROT, lo->lo_queue);
+ 	loop_config_discard(lo, &lim);
+ 	return queue_limits_commit_update(lo->lo_queue, &lim);
+ }
+@@ -1099,7 +1085,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
+ 	if (WARN_ON_ONCE(error))
+ 		goto out_unlock;
+ 
+-	loop_update_rotational(lo);
+ 	loop_update_dio(lo);
+ 	loop_sysfs_init(lo);
+ 
 -- 
 2.43.0
 
