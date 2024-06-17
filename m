@@ -1,17 +1,17 @@
 Return-Path: <hare@suse.de>
 Received: from smtp-out2.suse.de (smtp-out2.suse.de [195.135.223.131])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D95E742065D
-	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:42:34 +0200 (CEST)
-Message-ID: <10acf40f-b4e0-40d1-ab6c-5c2baa178362@suse.de>
-Date: Mon, 17 Jun 2024 12:42:33 +0200
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 343CC42065D
+	for <drbd-dev@lists.linbit.com>; Mon, 17 Jun 2024 12:43:09 +0200 (CEST)
+Message-ID: <23e0aac6-9af5-468f-a7d1-a331fe06c3a3@suse.de>
+Date: Mon, 17 Jun 2024 12:43:07 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH 21/26] block: move the poll flag to queue_limits
+Subject: Re: [PATCH 22/26] block: move the zoned flag into the features field
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
 References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-22-hch@lst.de>
+	<20240617060532.127975-23-hch@lst.de>
 Content-Language: en-US
 From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20240617060532.127975-22-hch@lst.de>
+In-Reply-To: <20240617060532.127975-23-hch@lst.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
@@ -47,25 +47,23 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
 On 6/17/24 08:04, Christoph Hellwig wrote:
-> Move the poll flag into the queue_limits feature field so that it can
-> be set atomically with the queue frozen.
-> 
-> Stacking drivers are simplified in that they now can simply set the
-> flag, and blk_stack_limits will clear it when the features is not
-> supported by any of the underlying devices.
+> Move the zoned flags into the features field to reclaim a little
+> bit of space.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
 > ---
->   block/blk-core.c              |  5 ++--
->   block/blk-mq-debugfs.c        |  1 -
->   block/blk-mq.c                | 31 +++++++++++---------
->   block/blk-settings.c          | 10 ++++---
->   block/blk-sysfs.c             |  4 +--
->   drivers/md/dm-table.c         | 54 +++++++++--------------------------
->   drivers/nvme/host/multipath.c | 12 +-------
->   include/linux/blkdev.h        |  4 ++-
->   8 files changed, 45 insertions(+), 76 deletions(-)
+>   block/blk-settings.c           |  5 ++---
+>   drivers/block/null_blk/zoned.c |  2 +-
+>   drivers/block/ublk_drv.c       |  2 +-
+>   drivers/block/virtio_blk.c     |  5 +++--
+>   drivers/md/dm-table.c          | 11 ++++++-----
+>   drivers/md/dm-zone.c           |  2 +-
+>   drivers/md/dm-zoned-target.c   |  2 +-
+>   drivers/nvme/host/zns.c        |  2 +-
+>   drivers/scsi/sd_zbc.c          |  2 +-
+>   include/linux/blkdev.h         |  9 ++++++---
+>   10 files changed, 23 insertions(+), 19 deletions(-)
 > 
 Reviewed-by: Hannes Reinecke <hare@suse.de>
 
