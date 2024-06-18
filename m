@@ -1,19 +1,19 @@
 Return-Path: <chaitanyak@nvidia.com>
-Received: from NAM04-DM6-obe.outbound.protection.outlook.com
-	(mail-dm6nam04on2073.outbound.protection.outlook.com [40.107.102.73])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 600A142010D
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2024 04:14:04 +0200 (CEST)
+Received: from NAM10-BN7-obe.outbound.protection.outlook.com
+	(mail-bn7nam10on2073.outbound.protection.outlook.com [40.107.92.73])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4F9124200BE
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Jun 2024 04:16:37 +0200 (CEST)
 From: Chaitanya Kulkarni <chaitanyak@nvidia.com>
 To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
-Subject: Re: [PATCH 11/26] block: freeze the queue in queue_attr_store
-Date: Tue, 18 Jun 2024 01:41:36 +0000
-Message-ID: <d0d47735-ca4d-4744-bb8a-607d59c67315@nvidia.com>
+Subject: Re: [PATCH 12/26] block: remove blk_flush_policy
+Date: Tue, 18 Jun 2024 01:42:13 +0000
+Message-ID: <1060c01c-febc-40d0-95ad-0be879c05545@nvidia.com>
 References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-12-hch@lst.de>
-In-Reply-To: <20240617060532.127975-12-hch@lst.de>
+	<20240617060532.127975-13-hch@lst.de>
+In-Reply-To: <20240617060532.127975-13-hch@lst.de>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <F0E393A774C60C469B0101BC1E571406@namprd12.prod.outlook.com>
+Content-ID: <4C038F52BEFB8F419B64CC739CDBAAE2@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Cc: Lars, "nvdimm@lists.linux.dev" <nvdimm@lists.linux.dev>, "Michael
@@ -59,13 +59,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-T24gNi8xNi8yNCAyMzowNCwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IHF1ZXVlX2F0dHJf
-c3RvcmUgdXBkYXRlcyBhdHRyaWJ1dGVzIHVzZWQgdG8gY29udHJvbCBnZW5lcmF0aW5nIEkvTywg
-YW5kDQo+IGNhbiBjYXVzZSBtYWxmb3JtZWQgYmlvcyBpZiBjaGFuZ2VkIHdpdGggSS9PIGluIGZs
-aWdodC4gIEZyZWV6ZSB0aGUgcXVldWUNCj4gaW4gY29tbW9uIGNvZGUgaW5zdGVhZCBvZiBhZGRp
-bmcgaXQgdG8gYWxtb3N0IGV2ZXJ5IGF0dHJpYnV0ZS4NCj4NCj4gU2lnbmVkLW9mZi1ieTogQ2hy
-aXN0b3BoIEhlbGx3aWc8aGNoQGxzdC5kZT4NCj4gUmV2aWV3ZWQtYnk6IEJhcnQgVmFuIEFzc2No
-ZTxidmFuYXNzY2hlQGFjbS5vcmc+DQo+IFJldmlld2VkLWJ5OiBEYW1pZW4gTGUgTW9hbDxkbGVt
-b2FsQGtlcm5lbC5vcmc+DQo+IFJldmlld2VkLWJ5OiBIYW5uZXMgUmVpbmVja2U8aGFyZUBzdXNl
-LmRlPg0KDQpMb29rcyBnb29kLg0KDQpSZXZpZXdlZC1ieTogQ2hhaXRhbnlhIEt1bGthcm5pIDxr
-Y2hAbnZpZGlhLmNvbT4NCg0KLWNrDQoNCg0K
+T24gNi8xNi8yNCAyMzowNCwgQ2hyaXN0b3BoIEhlbGx3aWcgd3JvdGU6DQo+IEZvbGQgYmxrX2Zs
+dXNoX3BvbGljeSBpbnRvIHRoZSBvbmx5IGNhbGxlciB0byBwcmVwYXJlIGZvciBwZW5kaW5nIGNo
+YW5nZXMNCj4gdG8gaXQuDQo+DQo+IFNpZ25lZC1vZmYtYnk6IENocmlzdG9waCBIZWxsd2lnIDxo
+Y2hAbHN0LmRlPg0KPiBSZXZpZXdlZC1ieTogQmFydCBWYW4gQXNzY2hlIDxidmFuYXNzY2hlQGFj
+bS5vcmc+DQo+IFJldmlld2VkLWJ5OiBEYW1pZW4gTGUgTW9hbCA8ZGxlbW9hbEBrZXJuZWwub3Jn
+Pg0KPiBSZXZpZXdlZC1ieTogSGFubmVzIFJlaW5lY2tlIDxoYXJlQHN1c2UuZGU+DQo+IC0tLQ0K
+PiAgIA0KDQoNCkxvb2tzIGdvb2QuDQoNClJldmlld2VkLWJ5OiBDaGFpdGFueWEgS3Vsa2Fybmkg
+PGtjaEBudmlkaWEuY29tPg0KDQotY2sNCg0KDQo=
