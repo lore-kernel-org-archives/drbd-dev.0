@@ -1,17 +1,17 @@
 Return-Path: <zhengbing.huang@easystack.cn>
 Received: from mail-m25467.xmail.ntesmail.com (mail-m25467.xmail.ntesmail.com
 	[103.129.254.67])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CBB3B4205C6
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 09:27:03 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CAA224205A9
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 09:27:02 +0200 (CEST)
 Received: from localhost.localdomain (unknown [218.94.118.90])
-	by smtp.qiye.163.com (Hmail) with ESMTPA id 9C4FE7E06E5
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 13:46:24 +0800 (CST)
+	by smtp.qiye.163.com (Hmail) with ESMTPA id 00AE07E06C8
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 13:46:21 +0800 (CST)
 From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 To: drbd-dev@lists.linbit.com
-Subject: [PATCH 08/11] drbd_transport_rdma: fix a race between dtr_connect and
-	drbd_thread_stop
-Date: Mon, 24 Jun 2024 13:46:16 +0800
-Message-Id: <20240624054619.23212-8-zhengbing.huang@easystack.cn>
+Subject: [PATCH 04/11] drbd_transport_rdma: dont schedule retry_connect_work
+	in active is false
+Date: Mon, 24 Jun 2024 13:46:12 +0800
+Message-Id: <20240624054619.23212-4-zhengbing.huang@easystack.cn>
 In-Reply-To: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
 List-Id: "*Coordination* of development, patches,
@@ -27,48 +27,50 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Dongsheng Yang <dongsheng.yang@easystack.cn>
 
-If the send_sig() in drbd_thread_stop before wait_for_completion_interruptible() in dtr_connect(),
-it can't return from dtr_connect in network failure.
-
-So replace wait_for_completion_interruptible with wait_for_completion_interruptible_timeout, and
-check status by dtr_connect() itself.
-
-This behavior is similar with tcp transport
-
 Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
 ---
- drbd/drbd_transport_rdma.c | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ drbd/drbd_transport_rdma.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index 77ff0055e..c47b344f8 100644
+index eccd0c6ce..b7ccb15d4 100644
 --- a/drbd/drbd_transport_rdma.c
 +++ b/drbd/drbd_transport_rdma.c
-@@ -2996,12 +2996,21 @@ static int dtr_connect(struct drbd_transport *transport)
- {
- 	struct dtr_transport *rdma_transport =
- 		container_of(transport, struct dtr_transport, transport);
--	int i, err = -ENOMEM;
-+	int i, err;
+@@ -1089,9 +1089,13 @@ static void dtr_cma_retry_connect_work_fn(struct work_struct *work)
+ 	if (err) {
+ 		struct dtr_path *path = container_of(cs, struct dtr_path, cs);
+ 		struct drbd_transport *transport = path->path.transport;
++		struct dtr_transport *rdma_transport =
++			container_of(transport, struct dtr_transport, transport);
  
--	err = wait_for_completion_interruptible(&rdma_transport->connected);
--	if (err) {
-+again:
-+	if (drbd_should_abort_listening(transport)) {
-+		err = -EAGAIN;
-+		goto abort;
-+	}
-+
-+	err = wait_for_completion_interruptible_timeout(&rdma_transport->connected, HZ);
-+	if (err < 0) {
- 		flush_signals(current);
- 		goto abort;
-+	} else if (err == 0) {
-+		/* timed out */
-+		goto again;
+ 		tr_err(transport, "dtr_start_try_connect failed  %d\n", err);
+-		schedule_delayed_work(&cs->retry_connect_work, HZ);
++		if (rdma_transport->active) {
++			schedule_delayed_work(&cs->retry_connect_work, HZ);
++		}
  	}
+ }
  
- 	err = atomic_read(&rdma_transport->first_path_connect_err);
+@@ -1116,6 +1120,8 @@ static void dtr_remove_cm_from_path(struct dtr_path *path, struct dtr_cm *failed
+ static void dtr_cma_retry_connect(struct dtr_path *path, struct dtr_cm *failed_cm)
+ {
+ 	struct drbd_transport *transport = path->path.transport;
++	struct dtr_transport *rdma_transport =
++		container_of(transport, struct dtr_transport, transport);
+ 	struct dtr_connect_state *cs = &path->cs;
+ 	long connect_int = 10 * HZ;
+ 	struct net_conf *nc;
+@@ -1128,7 +1134,9 @@ static void dtr_cma_retry_connect(struct dtr_path *path, struct dtr_cm *failed_c
+ 		connect_int = nc->connect_int * HZ;
+ 	rcu_read_unlock();
+ 
+-	schedule_delayed_work(&cs->retry_connect_work, connect_int);
++	if (rdma_transport->active) {
++		schedule_delayed_work(&cs->retry_connect_work, connect_int);
++	}
+ }
+ 
+ static void dtr_cma_connect_work_fn(struct work_struct *work)
 -- 
 2.27.0
 
