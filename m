@@ -1,17 +1,17 @@
 Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m1973184.qiye.163.com (mail-m1973184.qiye.163.com
-	[220.197.31.84])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BDFD420618
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 07:52:01 +0200 (CEST)
+Received: from mail-m25498.xmail.ntesmail.com (mail-m25498.xmail.ntesmail.com
+	[103.129.254.98])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8B9A04205A5
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 08:22:02 +0200 (CEST)
 Received: from localhost.localdomain (unknown [218.94.118.90])
-	by smtp.qiye.163.com (Hmail) with ESMTPA id 9F2417E06F0
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 13:46:26 +0800 (CST)
+	by smtp.qiye.163.com (Hmail) with ESMTPA id 955AD7E06C3
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 13:46:22 +0800 (CST)
 From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 To: drbd-dev@lists.linbit.com
-Subject: [PATCH 11/11] drbd_transport_rdma: wake up state_wq after clear
-	DSB_CONNECTED in dtr_tx_timeout_work_fn
-Date: Mon, 24 Jun 2024 13:46:19 +0800
-Message-Id: <20240624054619.23212-11-zhengbing.huang@easystack.cn>
+Subject: [PATCH 05/11] drbd_transport_rdma: dont break in
+	dtr_tx_cq_event_handler if (cm->state != DSM_CONNECTED)
+Date: Mon, 24 Jun 2024 13:46:13 +0800
+Message-Id: <20240624054619.23212-5-zhengbing.huang@easystack.cn>
 In-Reply-To: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
 List-Id: "*Coordination* of development, patches,
@@ -27,23 +27,27 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Dongsheng Yang <dongsheng.yang@easystack.cn>
 
+We need to drain all tx in disconnect to put all kref for cm
+
 Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
 ---
- drbd/drbd_transport_rdma.c | 1 +
- 1 file changed, 1 insertion(+)
+ drbd/drbd_transport_rdma.c | 3 ---
+ 1 file changed, 3 deletions(-)
 
 diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index 0cd639254..2df33af90 100644
+index b7ccb15d4..9a6d15b78 100644
 --- a/drbd/drbd_transport_rdma.c
 +++ b/drbd/drbd_transport_rdma.c
-@@ -1572,6 +1572,7 @@ static void dtr_tx_timeout_work_fn(struct work_struct *work)
- 	if (!test_and_clear_bit(DSB_CONNECTED, &cm->state) || !path)
- 		goto out;
+@@ -1956,9 +1956,6 @@ static void dtr_tx_cq_event_handler(struct ib_cq *cq, void *ctx)
+ 			err = dtr_handle_tx_cq_event(cq, cm);
+ 		} while (!err);
  
-+	wake_up(&cm->state_wq);
- 	transport = path->path.transport;
- 	tr_warn(transport, "%pI4 - %pI4: tx timeout\n",
- 		&((struct sockaddr_in *)&path->path.my_addr)->sin_addr,
+-		if (cm->state != DSM_CONNECTED)
+-			break;
+-
+ 		rc = ib_req_notify_cq(cq, IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
+ 		if (unlikely(rc < 0)) {
+ 			struct drbd_transport *transport = cm->path->path.transport;
 -- 
 2.27.0
 
