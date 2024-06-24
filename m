@@ -1,17 +1,17 @@
 Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m25498.xmail.ntesmail.com (mail-m25498.xmail.ntesmail.com
-	[103.129.254.98])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8B9A04205A5
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 08:22:02 +0200 (CEST)
+Received: from mail-m25467.xmail.ntesmail.com (mail-m25467.xmail.ntesmail.com
+	[103.129.254.67])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 70453420621
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 08:32:01 +0200 (CEST)
 Received: from localhost.localdomain (unknown [218.94.118.90])
-	by smtp.qiye.163.com (Hmail) with ESMTPA id 955AD7E06C3
-	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 13:46:22 +0800 (CST)
+	by smtp.qiye.163.com (Hmail) with ESMTPA id B99F47E06DB
+	for <drbd-dev@lists.linbit.com>; Mon, 24 Jun 2024 13:46:20 +0800 (CST)
 From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 To: drbd-dev@lists.linbit.com
-Subject: [PATCH 05/11] drbd_transport_rdma: dont break in
-	dtr_tx_cq_event_handler if (cm->state != DSM_CONNECTED)
-Date: Mon, 24 Jun 2024 13:46:13 +0800
-Message-Id: <20240624054619.23212-5-zhengbing.huang@easystack.cn>
+Subject: [PATCH 02/11] drbd_receiver: get_ldev before use device->ldev for
+	drbd_reconsider_queue_parameters()
+Date: Mon, 24 Jun 2024 13:46:10 +0800
+Message-Id: <20240624054619.23212-2-zhengbing.huang@easystack.cn>
 In-Reply-To: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
 List-Id: "*Coordination* of development, patches,
@@ -27,27 +27,31 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 From: Dongsheng Yang <dongsheng.yang@easystack.cn>
 
-We need to drain all tx in disconnect to put all kref for cm
+check ldev is not NULL before use it in drbd_reconsider_queue_parameters()
 
 Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
 ---
- drbd/drbd_transport_rdma.c | 3 ---
- 1 file changed, 3 deletions(-)
+ drbd/drbd_receiver.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index b7ccb15d4..9a6d15b78 100644
---- a/drbd/drbd_transport_rdma.c
-+++ b/drbd/drbd_transport_rdma.c
-@@ -1956,9 +1956,6 @@ static void dtr_tx_cq_event_handler(struct ib_cq *cq, void *ctx)
- 			err = dtr_handle_tx_cq_event(cq, cm);
- 		} while (!err);
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+index 49e7815ed..fd07b29d7 100644
+--- a/drbd/drbd_receiver.c
++++ b/drbd/drbd_receiver.c
+@@ -9845,7 +9845,12 @@ static void conn_disconnect(struct drbd_connection *connection)
+ 		rcu_read_unlock();
  
--		if (cm->state != DSM_CONNECTED)
--			break;
--
- 		rc = ib_req_notify_cq(cq, IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
- 		if (unlikely(rc < 0)) {
- 			struct drbd_transport *transport = cm->path->path.transport;
+ 		peer_device_disconnected(peer_device);
+-		drbd_reconsider_queue_parameters(device, device->ldev);
++		if (get_ldev(device)) {
++			drbd_reconsider_queue_parameters(device, device->ldev);
++			put_ldev(device);
++		} else {
++			drbd_reconsider_queue_parameters(device, NULL);
++		}
+ 
+ 		kref_put(&device->kref, drbd_destroy_device);
+ 		rcu_read_lock();
 -- 
 2.27.0
 
