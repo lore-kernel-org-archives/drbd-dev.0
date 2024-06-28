@@ -1,36 +1,23 @@
-Return-Path: <BATV+b68173646e9cfe1398de+7613+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AEC314200BE
-	for <drbd-dev@lists.linbit.com>; Thu, 27 Jun 2024 06:54:13 +0200 (CEST)
-Date: Wed, 26 Jun 2024 21:54:05 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Oliver Sang <oliver.sang@intel.com>
-Subject: Re: [axboe-block:for-next] [block]  1122c0c1cc:  aim7.jobs-per-min
-	22.6% improvement
-Message-ID: <ZnzwbYSaIlT0SIEy@infradead.org>
-References: <202406250948.e0044f1d-oliver.sang@intel.com>
-	<ZnqGf49cvy6W-xWf@infradead.org>
-	<Znt4qTr/NdeIPyNp@xsang-OptiPlex-9020>
-	<ZnuNhkH26nZi8fz6@infradead.org>
-	<ZnzP+nUrk8+9bANK@xsang-OptiPlex-9020>
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mail-yb1-f179.google.com (mail-yb1-f179.google.com
+	[209.85.219.179])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D9F6E420167
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 11:11:04 +0200 (CEST)
+Received: by mail-yb1-f179.google.com with SMTP id
+	3f1490d57ef6-dfdb6122992so307276276.3
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 02:11:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ZnzP+nUrk8+9bANK@xsang-OptiPlex-9020>
-Cc: nvdimm@lists.linux.dev, Ulf Hansson <ulf.hansson@linaro.org>,
-	feng.tang@intel.com, linux-nvme@lists.infradead.org,
-	linux-mtd@lists.infradead.org, drbd-dev@lists.linbit.com,
-	lkp@intel.com, linux-scsi@vger.kernel.org,
-	Christoph Hellwig <hch@infradead.org>, ying.huang@intel.com,
-	xen-devel@lists.xenproject.org, dm-devel@lists.linux.dev,
-	linux-um@lists.infradead.org, virtualization@lists.linux.dev,
-	nbd@other.debian.org, linux-block@vger.kernel.org,
-	linux-bcache@vger.kernel.org, Damien Le Moal <dlemoal@kernel.org>,
-	Hannes Reinecke <hare@suse.de>, Jens Axboe <axboe@kernel.dk>,
-	linux-raid@vger.kernel.org, linux-mmc@vger.kernel.org,
-	fengwei.yin@intel.com, oe-lkp@lists.linux.dev,
-	linuxppc-dev@lists.ozlabs.org
+References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
+In-Reply-To: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+Date: Fri, 28 Jun 2024 11:10:52 +0200
+Message-ID: <CADGDV=Xo6Z_K2R8vB7+7_jf0U_im0Nmy-xQ36AYh59qi45EvAQ@mail.gmail.com>
+Subject: Re: [PATCH 01/11] drbd_nl: dont allow detating to be inttrupted in
+	waiting D_DETACHING to DISKLESS
+To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Cc: Dongsheng Yang <dongsheng.yang@easystack.cn>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -42,24 +29,36 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Jun 27, 2024 at 10:35:38AM +0800, Oliver Sang wrote:
-> 
-> I failed to apply patch in your previous reply to 1122c0c1cc or current tip
-> of axboe-block/for-next:
-> c1440ed442a58 (axboe-block/for-next) Merge branch 'for-6.11/block' into for-next
+Hello Dongsheng,
 
-That already includes it.
+First of all, thanks for contributing patches to us.
+Please find my reply on the patch below the quote:
 
-> 
-> but it's ok to apply upon next:
-> * 0fc4bfab2cd45 (tag: next-20240625) Add linux-next specific files for 20240625
-> 
-> I've already started the test based on this applyment.
-> is the expectation that patch should not introduce performance change comparing
-> to 0fc4bfab2cd45?
-> 
-> or if this applyment is not ok, please just give me guidance. Thanks!
+On Mon, Jun 24, 2024 at 7:52=E2=80=AFAM zhengbing.huang
+<zhengbing.huang@easystack.cn> wrote:
+>
+> From: Dongsheng Yang <dongsheng.yang@easystack.cn>
+>
+> In our network failure and drbd down testing, we found warning in dmesg a=
+nd drbd down process into D state:
+>
+> "kernel: drbd /unregistered/ramtest3/0 drbd103: ASSERTION device->disk_st=
+ate[NOW] =3D=3D D_FAILED || device->disk_state[NOW] =3D=3D D_DETACHING FAIL=
+ED in go_diskless"
+>
+> the problem is the wait_event is inttruptable, it could be intrupted by s=
+ignal and call drbd_cleanup_device before go_diskless()
+>
 
-The expectation is that the latest block branch (and thus linux-next)
-doesn't see this performance change.
+In this case, I suggest improving the expression in the assertion.
+Improving an assertion can also mean removing that assertion.
 
+The wait_event_interruptible() is there for a reason. Think of a
+backing disk that behaves like a tar pit=E2=80=94a backing device that no
+longer finishes IO requests. You want a way to interrupt the drbdsetup
+waiting in detach.
+
+PS: A bit more elaborative commit messages are welcome.
+
+best regards,
+ Philipp
