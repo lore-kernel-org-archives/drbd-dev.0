@@ -1,20 +1,20 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-yb1-f177.google.com (mail-yb1-f177.google.com
-	[209.85.219.177])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 059084202BA
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 11:36:06 +0200 (CEST)
-Received: by mail-yb1-f177.google.com with SMTP id
-	3f1490d57ef6-dfde5ae0aaeso355744276.1
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 02:36:06 -0700 (PDT)
+Received: from mail-yb1-f178.google.com (mail-yb1-f178.google.com
+	[209.85.219.178])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 018214202BA
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 11:40:42 +0200 (CEST)
+Received: by mail-yb1-f178.google.com with SMTP id
+	3f1490d57ef6-e035dc23a21so292341276.0
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 02:40:42 -0700 (PDT)
 MIME-Version: 1.0
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
-	<20240624054619.23212-2-zhengbing.huang@easystack.cn>
-In-Reply-To: <20240624054619.23212-2-zhengbing.huang@easystack.cn>
+	<20240624054619.23212-3-zhengbing.huang@easystack.cn>
+In-Reply-To: <20240624054619.23212-3-zhengbing.huang@easystack.cn>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Fri, 28 Jun 2024 11:35:54 +0200
-Message-ID: <CADGDV=W=Nx=_vmxzQZZaSMFW0eVWjHeRYBZ1Ly5DtmU1Pj6jFA@mail.gmail.com>
-Subject: Re: [PATCH 02/11] drbd_receiver: get_ldev before use device->ldev for
-	drbd_reconsider_queue_parameters()
+Date: Fri, 28 Jun 2024 11:40:31 +0200
+Message-ID: <CADGDV=V4kpNPAWf6MsdswhbMqKPe5=qEMXkF_KBqXVM7W+aUhQ@mail.gmail.com>
+Subject: Re: [PATCH 03/11] drbd_transport_rdma: put kref for cm in
+	dtr_path_established in error path
 To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
@@ -30,41 +30,39 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Thanks.
+Hello Dongsheng,
 
-On Mon, Jun 24, 2024 at 8:32=E2=80=AFAM zhengbing.huang
+Please add more information why you think this change fixes a bug.
+Have you experienced a leak of cm structs?
+We got a RDMA_CM_EVENT_ESTABLISHED event. Even if DRBD does not do
+anything with this cm, we sill expect a RDMA_CM_EVENT_DISCONNECTED in
+the future. Is a problem in the handling of the disconnect?
+
+best regards,
+ Philipp
+
+On Mon, Jun 24, 2024 at 9:28=E2=80=AFAM zhengbing.huang
 <zhengbing.huang@easystack.cn> wrote:
 >
 > From: Dongsheng Yang <dongsheng.yang@easystack.cn>
 >
-> check ldev is not NULL before use it in drbd_reconsider_queue_parameters(=
-)
->
 > Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
 > ---
->  drbd/drbd_receiver.c | 7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
+>  drbd/drbd_transport_rdma.c | 1 +
+>  1 file changed, 1 insertion(+)
 >
-> diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-> index 49e7815ed..fd07b29d7 100644
-> --- a/drbd/drbd_receiver.c
-> +++ b/drbd/drbd_receiver.c
-> @@ -9845,7 +9845,12 @@ static void conn_disconnect(struct drbd_connection=
- *connection)
->                 rcu_read_unlock();
+> diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
+> index cfbae0e78..eccd0c6ce 100644
+> --- a/drbd/drbd_transport_rdma.c
+> +++ b/drbd/drbd_transport_rdma.c
+> @@ -922,6 +922,7 @@ static void dtr_path_established(struct dtr_cm *cm)
+>                         atomic_set(&cs->active_state, PCS_INACTIVE);
+>                         wake_up(&cs->wq);
+>                 }
+> +               kref_put(&cm->kref, dtr_destroy_cm);
+>                 return;
+>         }
 >
->                 peer_device_disconnected(peer_device);
-> -               drbd_reconsider_queue_parameters(device, device->ldev);
-> +               if (get_ldev(device)) {
-> +                       drbd_reconsider_queue_parameters(device, device->=
-ldev);
-> +                       put_ldev(device);
-> +               } else {
-> +                       drbd_reconsider_queue_parameters(device, NULL);
-> +               }
->
->                 kref_put(&device->kref, drbd_destroy_device);
->                 rcu_read_lock();
 > --
 > 2.27.0
 >
