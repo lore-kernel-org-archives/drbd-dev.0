@@ -1,19 +1,20 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-yb1-f179.google.com (mail-yb1-f179.google.com
-	[209.85.219.179])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D9F6E420167
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 11:11:04 +0200 (CEST)
-Received: by mail-yb1-f179.google.com with SMTP id
-	3f1490d57ef6-dfdb6122992so307276276.3
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 02:11:04 -0700 (PDT)
+Received: from mail-yb1-f177.google.com (mail-yb1-f177.google.com
+	[209.85.219.177])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 059084202BA
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 11:36:06 +0200 (CEST)
+Received: by mail-yb1-f177.google.com with SMTP id
+	3f1490d57ef6-dfde5ae0aaeso355744276.1
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 02:36:06 -0700 (PDT)
 MIME-Version: 1.0
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
-In-Reply-To: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
+	<20240624054619.23212-2-zhengbing.huang@easystack.cn>
+In-Reply-To: <20240624054619.23212-2-zhengbing.huang@easystack.cn>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Fri, 28 Jun 2024 11:10:52 +0200
-Message-ID: <CADGDV=Xo6Z_K2R8vB7+7_jf0U_im0Nmy-xQ36AYh59qi45EvAQ@mail.gmail.com>
-Subject: Re: [PATCH 01/11] drbd_nl: dont allow detating to be inttrupted in
-	waiting D_DETACHING to DISKLESS
+Date: Fri, 28 Jun 2024 11:35:54 +0200
+Message-ID: <CADGDV=W=Nx=_vmxzQZZaSMFW0eVWjHeRYBZ1Ly5DtmU1Pj6jFA@mail.gmail.com>
+Subject: Re: [PATCH 02/11] drbd_receiver: get_ldev before use device->ldev for
+	drbd_reconsider_queue_parameters()
 To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
@@ -29,36 +30,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello Dongsheng,
+Thanks.
 
-First of all, thanks for contributing patches to us.
-Please find my reply on the patch below the quote:
-
-On Mon, Jun 24, 2024 at 7:52=E2=80=AFAM zhengbing.huang
+On Mon, Jun 24, 2024 at 8:32=E2=80=AFAM zhengbing.huang
 <zhengbing.huang@easystack.cn> wrote:
 >
 > From: Dongsheng Yang <dongsheng.yang@easystack.cn>
 >
-> In our network failure and drbd down testing, we found warning in dmesg a=
-nd drbd down process into D state:
+> check ldev is not NULL before use it in drbd_reconsider_queue_parameters(=
+)
 >
-> "kernel: drbd /unregistered/ramtest3/0 drbd103: ASSERTION device->disk_st=
-ate[NOW] =3D=3D D_FAILED || device->disk_state[NOW] =3D=3D D_DETACHING FAIL=
-ED in go_diskless"
+> Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
+> ---
+>  drbd/drbd_receiver.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
 >
-> the problem is the wait_event is inttruptable, it could be intrupted by s=
-ignal and call drbd_cleanup_device before go_diskless()
+> diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+> index 49e7815ed..fd07b29d7 100644
+> --- a/drbd/drbd_receiver.c
+> +++ b/drbd/drbd_receiver.c
+> @@ -9845,7 +9845,12 @@ static void conn_disconnect(struct drbd_connection=
+ *connection)
+>                 rcu_read_unlock();
 >
-
-In this case, I suggest improving the expression in the assertion.
-Improving an assertion can also mean removing that assertion.
-
-The wait_event_interruptible() is there for a reason. Think of a
-backing disk that behaves like a tar pit=E2=80=94a backing device that no
-longer finishes IO requests. You want a way to interrupt the drbdsetup
-waiting in detach.
-
-PS: A bit more elaborative commit messages are welcome.
-
-best regards,
- Philipp
+>                 peer_device_disconnected(peer_device);
+> -               drbd_reconsider_queue_parameters(device, device->ldev);
+> +               if (get_ldev(device)) {
+> +                       drbd_reconsider_queue_parameters(device, device->=
+ldev);
+> +                       put_ldev(device);
+> +               } else {
+> +                       drbd_reconsider_queue_parameters(device, NULL);
+> +               }
+>
+>                 kref_put(&device->kref, drbd_destroy_device);
+>                 rcu_read_lock();
+> --
+> 2.27.0
+>
