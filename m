@@ -1,19 +1,20 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-yb1-f169.google.com (mail-yb1-f169.google.com
-	[209.85.219.169])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8CE89420167
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 14:12:48 +0200 (CEST)
-Received: by mail-yb1-f169.google.com with SMTP id
-	3f1490d57ef6-e03618fc78bso281388276.2
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 05:12:48 -0700 (PDT)
+Received: from mail-yb1-f181.google.com (mail-yb1-f181.google.com
+	[209.85.219.181])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A48D4420167
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 14:20:00 +0200 (CEST)
+Received: by mail-yb1-f181.google.com with SMTP id
+	3f1490d57ef6-e02c4983bfaso500209276.2
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 05:20:00 -0700 (PDT)
 MIME-Version: 1.0
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
-	<20240624054619.23212-6-zhengbing.huang@easystack.cn>
-In-Reply-To: <20240624054619.23212-6-zhengbing.huang@easystack.cn>
+	<20240624054619.23212-7-zhengbing.huang@easystack.cn>
+In-Reply-To: <20240624054619.23212-7-zhengbing.huang@easystack.cn>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Fri, 28 Jun 2024 14:12:37 +0200
-Message-ID: <CADGDV=WthASvFg32vL67hrpEET2haetQXoHB2DV3P_DV9VY2jA@mail.gmail.com>
-Subject: Re: [PATCH 06/11] drbd_transport_rdma: put kref in error path
+Date: Fri, 28 Jun 2024 14:19:48 +0200
+Message-ID: <CADGDV=U1EG9Zd22ujB=fUGCoExMhCLF6fYGj171MVKxabxz=iA@mail.gmail.com>
+Subject: Re: [PATCH 07/11] drbd_transport_rdma: put kref in dtr_remap_tx_desc
+	error
 To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
@@ -31,31 +32,45 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hello Dongsheng,
 
-It looks plausible, but still, please provide a description.
+This looks wrong. In this loop, we are trying to find a path on which
+to repost this tx_desc. When the remapping fails, there is no reason
+to drop the drop a ref on the cm.
 
-On Mon, Jun 24, 2024 at 7:52=E2=80=AFAM zhengbing.huang
+So, please provide a description what you are intending here with this chan=
+ge?
+
+best regards,
+ Philipp
+
+On Mon, Jun 24, 2024 at 9:27=E2=80=AFAM zhengbing.huang
 <zhengbing.huang@easystack.cn> wrote:
 >
 > From: Dongsheng Yang <dongsheng.yang@easystack.cn>
 >
 > Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
 > ---
->  drbd/drbd_transport_rdma.c | 1 +
->  1 file changed, 1 insertion(+)
+>  drbd/drbd_transport_rdma.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
 >
 > diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-> index 9a6d15b78..c7adc87e3 100644
+> index c7adc87e3..77ff0055e 100644
 > --- a/drbd/drbd_transport_rdma.c
 > +++ b/drbd/drbd_transport_rdma.c
-> @@ -1157,6 +1157,7 @@ static void dtr_cma_connect_work_fn(struct work_str=
-uct *work)
->         kref_get(&cm->kref); /* for the path->cm pointer */
->         err =3D dtr_path_prepare(path, cm, true);
->         if (err) {
-> +               kref_put(&cm->kref, dtr_destroy_cm);
->                 tr_err(transport, "dtr_path_prepare() =3D %d\n", err);
->                 goto out;
->         }
+> @@ -2355,8 +2355,11 @@ static int dtr_repost_tx_desc(struct dtr_cm *old_c=
+m, struct dtr_tx_desc *tx_desc
+>                         return -ECONNRESET;
+>
+>                 err =3D dtr_remap_tx_desc(old_cm, cm, tx_desc);
+> -               if (err)
+> +               if (err) {
+> +                       pr_err("dtr_remap_tx_desc failed cm : %px\n", cm)=
+;
+> +                       kref_put(&cm->kref, dtr_destroy_cm);
+>                         continue;
+> +               }
+>
+>                 err =3D __dtr_post_tx_desc(cm, tx_desc);
+>                 if (!err) {
 > --
 > 2.27.0
 >
