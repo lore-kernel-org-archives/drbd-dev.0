@@ -1,20 +1,20 @@
 Return-Path: <philipp.reisner@linbit.com>
 Received: from mail-yb1-f179.google.com (mail-yb1-f179.google.com
 	[209.85.219.179])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D66254202BA
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 13:51:50 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 600564202BA
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 14:07:35 +0200 (CEST)
 Received: by mail-yb1-f179.google.com with SMTP id
-	3f1490d57ef6-dfab4779d95so429381276.0
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 04:51:50 -0700 (PDT)
+	3f1490d57ef6-dff0712ede2so493279276.2
+	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 05:07:35 -0700 (PDT)
 MIME-Version: 1.0
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
-	<20240624054619.23212-4-zhengbing.huang@easystack.cn>
-In-Reply-To: <20240624054619.23212-4-zhengbing.huang@easystack.cn>
+	<20240624054619.23212-5-zhengbing.huang@easystack.cn>
+In-Reply-To: <20240624054619.23212-5-zhengbing.huang@easystack.cn>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Fri, 28 Jun 2024 13:51:38 +0200
-Message-ID: <CADGDV=XEoNE6r_Q+R3agyytF-AhqduKdwM87FRsRC9axF8P5PQ@mail.gmail.com>
-Subject: Re: [PATCH 04/11] drbd_transport_rdma: dont schedule
-	retry_connect_work in active is false
+Date: Fri, 28 Jun 2024 14:07:24 +0200
+Message-ID: <CADGDV=XCh8QLqYZ0-zddu6nwdJJor9UGb960K-CmN5yLB58XzA@mail.gmail.com>
+Subject: Re: [PATCH 05/11] drbd_transport_rdma: dont break in
+	dtr_tx_cq_event_handler if (cm->state != DSM_CONNECTED)
 To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
@@ -32,72 +32,48 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 Hello Dongsheng,
 
-Please explain what problem you are fixing with this change. Do you
-have a log that shows a problem in this area? Please describe why your
-proposed change improves DRBD's behavior.
+It appears that you are trying to fix a leak of cm structures. Is that corr=
+ect?
+Do you the reference on cm that is held because of the timer?
+Please describe what the problem is, and how you are improving the situatio=
+n.
+
+In case this approach is the right solution, the patch should also change t=
+he
+dtr_handle_tx_cq_event() function to type void.
 
 best regards,
  Philipp
 
-On Mon, Jun 24, 2024 at 9:28=E2=80=AFAM zhengbing.huang
+On Mon, Jun 24, 2024 at 8:22=E2=80=AFAM zhengbing.huang
 <zhengbing.huang@easystack.cn> wrote:
 >
 > From: Dongsheng Yang <dongsheng.yang@easystack.cn>
 >
+> We need to drain all tx in disconnect to put all kref for cm
+>
 > Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
 > ---
->  drbd/drbd_transport_rdma.c | 12 ++++++++++--
->  1 file changed, 10 insertions(+), 2 deletions(-)
+>  drbd/drbd_transport_rdma.c | 3 ---
+>  1 file changed, 3 deletions(-)
 >
 > diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-> index eccd0c6ce..b7ccb15d4 100644
+> index b7ccb15d4..9a6d15b78 100644
 > --- a/drbd/drbd_transport_rdma.c
 > +++ b/drbd/drbd_transport_rdma.c
-> @@ -1089,9 +1089,13 @@ static void dtr_cma_retry_connect_work_fn(struct w=
-ork_struct *work)
->         if (err) {
->                 struct dtr_path *path =3D container_of(cs, struct dtr_pat=
-h, cs);
->                 struct drbd_transport *transport =3D path->path.transport=
-;
-> +               struct dtr_transport *rdma_transport =3D
-> +                       container_of(transport, struct dtr_transport, tra=
-nsport);
+> @@ -1956,9 +1956,6 @@ static void dtr_tx_cq_event_handler(struct ib_cq *c=
+q, void *ctx)
+>                         err =3D dtr_handle_tx_cq_event(cq, cm);
+>                 } while (!err);
 >
->                 tr_err(transport, "dtr_start_try_connect failed  %d\n", e=
-rr);
-> -               schedule_delayed_work(&cs->retry_connect_work, HZ);
-> +               if (rdma_transport->active) {
-> +                       schedule_delayed_work(&cs->retry_connect_work, HZ=
-);
-> +               }
->         }
->  }
->
-> @@ -1116,6 +1120,8 @@ static void dtr_remove_cm_from_path(struct dtr_path=
- *path, struct dtr_cm *failed
->  static void dtr_cma_retry_connect(struct dtr_path *path, struct dtr_cm *=
-failed_cm)
->  {
->         struct drbd_transport *transport =3D path->path.transport;
-> +       struct dtr_transport *rdma_transport =3D
-> +               container_of(transport, struct dtr_transport, transport);
->         struct dtr_connect_state *cs =3D &path->cs;
->         long connect_int =3D 10 * HZ;
->         struct net_conf *nc;
-> @@ -1128,7 +1134,9 @@ static void dtr_cma_retry_connect(struct dtr_path *=
-path, struct dtr_cm *failed_c
->                 connect_int =3D nc->connect_int * HZ;
->         rcu_read_unlock();
->
-> -       schedule_delayed_work(&cs->retry_connect_work, connect_int);
-> +       if (rdma_transport->active) {
-> +               schedule_delayed_work(&cs->retry_connect_work, connect_in=
-t);
-> +       }
->  }
->
->  static void dtr_cma_connect_work_fn(struct work_struct *work)
+> -               if (cm->state !=3D DSM_CONNECTED)
+> -                       break;
+> -
+>                 rc =3D ib_req_notify_cq(cq, IB_CQ_NEXT_COMP | IB_CQ_REPOR=
+T_MISSED_EVENTS);
+>                 if (unlikely(rc < 0)) {
+>                         struct drbd_transport *transport =3D cm->path->pa=
+th.transport;
 > --
 > 2.27.0
 >
