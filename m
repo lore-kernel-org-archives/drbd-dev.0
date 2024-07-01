@@ -1,20 +1,20 @@
 Return-Path: <dongsheng.yang@easystack.cn>
-Received: from mail-m12826.netease.com (mail-m12826.netease.com
-	[103.209.128.26])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CED75420304
-	for <drbd-dev@lists.linbit.com>; Mon,  1 Jul 2024 04:34:02 +0200 (CEST)
-Subject: Re: [PATCH 07/11] drbd_transport_rdma: put kref in dtr_remap_tx_desc
-	error
+Received: from mail-m127103.qiye.163.com (mail-m127103.qiye.163.com
+	[115.236.127.103])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3B178420304
+	for <drbd-dev@lists.linbit.com>; Mon,  1 Jul 2024 04:59:02 +0200 (CEST)
+Subject: Re: [PATCH 08/11] drbd_transport_rdma: fix a race between dtr_connect
+	and drbd_thread_stop
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	"zhengbing.huang" <zhengbing.huang@easystack.cn>
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
-	<20240624054619.23212-7-zhengbing.huang@easystack.cn>
-	<CADGDV=U1EG9Zd22ujB=fUGCoExMhCLF6fYGj171MVKxabxz=iA@mail.gmail.com>
+	<20240624054619.23212-8-zhengbing.huang@easystack.cn>
+	<CADGDV=X9Ev4Z6x-FnE2J6zdLe5DyVsEwX4Zg3E8=XR=CP+synw@mail.gmail.com>
 From: Dongsheng Yang <dongsheng.yang@easystack.cn>
-Message-ID: <ad51fcd4-9dfe-4421-b250-a0aed42f1cb9@easystack.cn>
-Date: Mon, 1 Jul 2024 10:28:31 +0800
+Message-ID: <cabafa53-4da2-e49f-c28a-ae6f7029d035@easystack.cn>
+Date: Mon, 1 Jul 2024 10:30:16 +0800
 MIME-Version: 1.0
-In-Reply-To: <CADGDV=U1EG9Zd22ujB=fUGCoExMhCLF6fYGj171MVKxabxz=iA@mail.gmail.com>
+In-Reply-To: <CADGDV=X9Ev4Z6x-FnE2J6zdLe5DyVsEwX4Zg3E8=XR=CP+synw@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: drbd-dev@lists.linbit.com
@@ -31,17 +31,25 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 
 
-在 2024/6/28 星期五 下午 8:19, Philipp Reisner 写道:
+在 2024/6/28 星期五 下午 8:36, Philipp Reisner 写道:
 > Hello Dongsheng,
 > 
-> This looks wrong. In this loop, we are trying to find a path on which
-> to repost this tx_desc. When the remapping fails, there is no reason
-> to drop the drop a ref on the cm.
-
-But dtr_select_and_get_cm_for_tx() get a ref, if we dont put it before 
-continue, who will put this ref?
+> I am repeating your description in my own words so that you can verify
+> I got it right:
 > 
-> So, please provide a description what you are intending here with this change?
+> CPU 0 executes dtr_connect() and is still before the
+> wait_for_completion_interruptible().
+> CPU 1 executes send_sig() in drbd_thread_stop().
+> 
+> Then you conclude that wait_for_completion_interruptible() will not
+> abort, because the signal
+> was raised before CPU 0 reached wait_for_completion_interruptible().
+
+The problem is dtr_prepare_connect() calles flush_signals(), so the 
+signal from drbd_thread_stop() can be flushed by dtr_prepare_connect().
+> 
+> If that is your description, then it is wrong.
+> This is not how signals and the wait_event() macros work.
 > 
 > best regards,
 >   Philipp
@@ -51,30 +59,48 @@ continue, who will put this ref?
 >>
 >> From: Dongsheng Yang <dongsheng.yang@easystack.cn>
 >>
+>> If the send_sig() in drbd_thread_stop before wait_for_completion_interruptible() in dtr_connect(),
+>> it can't return from dtr_connect in network failure.
+>>
+>> So replace wait_for_completion_interruptible with wait_for_completion_interruptible_timeout, and
+>> check status by dtr_connect() itself.
+>>
+>> This behavior is similar with tcp transport
+>>
 >> Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
 >> ---
->>   drbd/drbd_transport_rdma.c | 5 ++++-
->>   1 file changed, 4 insertions(+), 1 deletion(-)
+>>   drbd/drbd_transport_rdma.c | 15 ++++++++++++---
+>>   1 file changed, 12 insertions(+), 3 deletions(-)
 >>
 >> diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
->> index c7adc87e3..77ff0055e 100644
+>> index 77ff0055e..c47b344f8 100644
 >> --- a/drbd/drbd_transport_rdma.c
 >> +++ b/drbd/drbd_transport_rdma.c
->> @@ -2355,8 +2355,11 @@ static int dtr_repost_tx_desc(struct dtr_cm *old_cm, struct dtr_tx_desc *tx_desc
->>                          return -ECONNRESET;
+>> @@ -2996,12 +2996,21 @@ static int dtr_connect(struct drbd_transport *transport)
+>>   {
+>>          struct dtr_transport *rdma_transport =
+>>                  container_of(transport, struct dtr_transport, transport);
+>> -       int i, err = -ENOMEM;
+>> +       int i, err;
 >>
->>                  err = dtr_remap_tx_desc(old_cm, cm, tx_desc);
->> -               if (err)
->> +               if (err) {
->> +                       pr_err("dtr_remap_tx_desc failed cm : %px\n", cm);
->> +                       kref_put(&cm->kref, dtr_destroy_cm);
->>                          continue;
->> +               }
+>> -       err = wait_for_completion_interruptible(&rdma_transport->connected);
+>> -       if (err) {
+>> +again:
+>> +       if (drbd_should_abort_listening(transport)) {
+>> +               err = -EAGAIN;
+>> +               goto abort;
+>> +       }
+>> +
+>> +       err = wait_for_completion_interruptible_timeout(&rdma_transport->connected, HZ);
+>> +       if (err < 0) {
+>>                  flush_signals(current);
+>>                  goto abort;
+>> +       } else if (err == 0) {
+>> +               /* timed out */
+>> +               goto again;
+>>          }
 >>
->>                  err = __dtr_post_tx_desc(cm, tx_desc);
->>                  if (!err) {
+>>          err = atomic_read(&rdma_transport->first_path_connect_err);
 >> --
 >> 2.27.0
 >>
-> .
-> 
