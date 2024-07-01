@@ -1,24 +1,22 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-yb1-f171.google.com (mail-yb1-f171.google.com
-	[209.85.219.171])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E1D104202BA
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 14:36:16 +0200 (CEST)
-Received: by mail-yb1-f171.google.com with SMTP id
-	3f1490d57ef6-e0361c767ddso298397276.1
-	for <drbd-dev@lists.linbit.com>; Fri, 28 Jun 2024 05:36:16 -0700 (PDT)
-MIME-Version: 1.0
+Return-Path: <dongsheng.yang@easystack.cn>
+Received: from mail-m127105.qiye.163.com (mail-m127105.qiye.163.com
+	[115.236.127.105])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B4757420304
+	for <drbd-dev@lists.linbit.com>; Mon,  1 Jul 2024 04:19:02 +0200 (CEST)
+Subject: Re: [PATCH 01/11] drbd_nl: dont allow detating to be inttrupted in
+	waiting D_DETACHING to DISKLESS
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	"zhengbing.huang" <zhengbing.huang@easystack.cn>
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
-	<20240624054619.23212-8-zhengbing.huang@easystack.cn>
-In-Reply-To: <20240624054619.23212-8-zhengbing.huang@easystack.cn>
-From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Fri, 28 Jun 2024 14:36:04 +0200
-Message-ID: <CADGDV=X9Ev4Z6x-FnE2J6zdLe5DyVsEwX4Zg3E8=XR=CP+synw@mail.gmail.com>
-Subject: Re: [PATCH 08/11] drbd_transport_rdma: fix a race between dtr_connect
-	and drbd_thread_stop
-To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Cc: Dongsheng Yang <dongsheng.yang@easystack.cn>, drbd-dev@lists.linbit.com
+	<CADGDV=Xo6Z_K2R8vB7+7_jf0U_im0Nmy-xQ36AYh59qi45EvAQ@mail.gmail.com>
+From: Dongsheng Yang <dongsheng.yang@easystack.cn>
+Message-ID: <f0faab82-9113-d34b-fbd2-9f817c4166e0@easystack.cn>
+Date: Mon, 1 Jul 2024 10:02:03 +0800
+MIME-Version: 1.0
+In-Reply-To: <CADGDV=Xo6Z_K2R8vB7+7_jf0U_im0Nmy-xQ36AYh59qi45EvAQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Cc: drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,77 +28,129 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello Dongsheng,
 
-I am repeating your description in my own words so that you can verify
-I got it right:
 
-CPU 0 executes dtr_connect() and is still before the
-wait_for_completion_interruptible().
-CPU 1 executes send_sig() in drbd_thread_stop().
+在 2024/6/28 星期五 下午 5:10, Philipp Reisner 写道:
+> Hello Dongsheng,
+> 
+> First of all, thanks for contributing patches to us.
+> Please find my reply on the patch below the quote:
+> 
+> On Mon, Jun 24, 2024 at 7:52 AM zhengbing.huang
+> <zhengbing.huang@easystack.cn> wrote:
+>>
+>> From: Dongsheng Yang <dongsheng.yang@easystack.cn>
+>>
+>> In our network failure and drbd down testing, we found warning in dmesg and drbd down process into D state:
+>>
+>> "kernel: drbd /unregistered/ramtest3/0 drbd103: ASSERTION device->disk_state[NOW] == D_FAILED || device->disk_state[NOW] == D_DETACHING FAILED in go_diskless"
+>>
+>> the problem is the wait_event is inttruptable, it could be intrupted by signal and call drbd_cleanup_device before go_diskless()
+>>
+> 
+> In this case, I suggest improving the expression in the assertion.
+> Improving an assertion can also mean removing that assertion.
 
-Then you conclude that wait_for_completion_interruptible() will not
-abort, because the signal
-was raised before CPU 0 reached wait_for_completion_interruptible().
+Hi Philipp,
+	This patchset is fixing the problems found by a network failure test 
+script[1].
+	The [1/11] is not about just a WARNING, it will result a process with D 
+state in wait_event(device->misc_wait, !test_bit(GOING_DISKLESS, 
+&device->flags)); in adm_del_minor().
 
-If that is your description, then it is wrong.
-This is not how signals and the wait_event() macros work.
+let's think about this sequence:
 
-best regards,
- Philipp
+a) drbd_adm_down -> adm_detach -> change_disk_state(device, D_DETACHING...
 
-On Mon, Jun 24, 2024 at 9:27=E2=80=AFAM zhengbing.huang
-<zhengbing.huang@easystack.cn> wrote:
->
-> From: Dongsheng Yang <dongsheng.yang@easystack.cn>
->
-> If the send_sig() in drbd_thread_stop before wait_for_completion_interrup=
-tible() in dtr_connect(),
-> it can't return from dtr_connect in network failure.
->
-> So replace wait_for_completion_interruptible with wait_for_completion_int=
-erruptible_timeout, and
-> check status by dtr_connect() itself.
->
-> This behavior is similar with tcp transport
->
-> Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
-> ---
->  drbd/drbd_transport_rdma.c | 15 ++++++++++++---
->  1 file changed, 12 insertions(+), 3 deletions(-)
->
-> diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-> index 77ff0055e..c47b344f8 100644
-> --- a/drbd/drbd_transport_rdma.c
-> +++ b/drbd/drbd_transport_rdma.c
-> @@ -2996,12 +2996,21 @@ static int dtr_connect(struct drbd_transport *tra=
-nsport)
->  {
->         struct dtr_transport *rdma_transport =3D
->                 container_of(transport, struct dtr_transport, transport);
-> -       int i, err =3D -ENOMEM;
-> +       int i, err;
->
-> -       err =3D wait_for_completion_interruptible(&rdma_transport->connec=
-ted);
-> -       if (err) {
-> +again:
-> +       if (drbd_should_abort_listening(transport)) {
-> +               err =3D -EAGAIN;
-> +               goto abort;
-> +       }
-> +
-> +       err =3D wait_for_completion_interruptible_timeout(&rdma_transport=
-->connected, HZ);
-> +       if (err < 0) {
->                 flush_signals(current);
->                 goto abort;
-> +       } else if (err =3D=3D 0) {
-> +               /* timed out */
-> +               goto again;
->         }
->
->         err =3D atomic_read(&rdma_transport->first_path_connect_err);
-> --
-> 2.27.0
->
+b) it will call put_ldev(), set GOING_DISKLESS and post a work for 
+GO_DISKLESS
+
+c) adm_detach() start wait_event_interruptible(device->misc_wait,
+			get_disk_state(device) != D_DETACHING);
+but it can be intrrupted, then call drbd_cleanup_device() to set 
+device->disk_state[NOW] = D_DISKLESS;
+
+after that, it will go to adm_del_minor() and 
+wait_event(device->misc_wait, !test_bit(GOING_DISKLESS, 
+&device->flags)); which expects drbd_ldev_destroy to clear GOING_DISKLESS.
+
+d) on the other hand, go_diskless work start and warn on the message in 
+commit message. it will do change_disk_state(device, D_DISKLESS, 
+CS_HARD, "go-diskless", NULL); But the disk_state[NOW] is already 
+D_DISKLESS. So it will not schedule &device->ldev_destroy_work.
+
+As a result, the wait_event in c) will never return.
+
+
+[1]:
+check_drbd_process() {
+     ps aux | grep " D"|grep drbd
+}
+
+check_node_2_drbd_process() {
+     ssh node-2 'ps aux' | grep " D"|grep drbd
+}
+
+wait_for_no_drbd_d_state() {
+     count=0
+     while true; do
+         if check_drbd_process; then
+             echo "Found drbd process in D state, sleeping for ${count} 
+second..."
+             sleep 1
+             count=$((count + 1))
+         else
+             echo "No drbd process in D state."
+             break
+         fi
+     done
+     while true; do
+         if check_node_2_drbd_process; then
+             echo "Found drbd process in D state, sleeping for ${count} 
+second..."
+             sleep 1
+             count=$((count + 1))
+         else
+             echo "No drbd process in D state."
+             break
+         fi
+     done
+}
+
+random_sleep=$((RANDOM % 100))
+
+ssh node-2 "ifup Bond2-roce.1469"
+ifup Bond2-roce.1469
+
+sleep 5
+
+for i in `seq 0 9`; do
+         drbdadm up ramtest${i}
+         ssh node-2 "drbdadm up ramtest${i}"
+done
+
+sleep ${random_sleep}
+
+ssh node-2 "ifdown Bond2-roce.1469"
+
+random_sleep=$((RANDOM % 10))
+
+for i in `seq 0 9`; do
+         drbdsetup fail-io ramtest${i} &
+         drbdadm down ramtest${i} &
+done
+
+sleep 10
+
+wait_for_no_drbd_d_state
+> 
+> The wait_event_interruptible() is there for a reason. Think of a
+> backing disk that behaves like a tar pit—a backing device that no
+> longer finishes IO requests. You want a way to interrupt the drbdsetup
+> waiting in detach.
+> 
+> PS: A bit more elaborative commit messages are welcome.
+> 
+> best regards,
+>   Philipp
+> 
