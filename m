@@ -1,19 +1,20 @@
 Return-Path: <dongsheng.yang@easystack.cn>
-Received: from mail-m127105.qiye.163.com (mail-m127105.qiye.163.com
-	[115.236.127.105])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B4757420304
-	for <drbd-dev@lists.linbit.com>; Mon,  1 Jul 2024 04:19:02 +0200 (CEST)
-Subject: Re: [PATCH 01/11] drbd_nl: dont allow detating to be inttrupted in
-	waiting D_DETACHING to DISKLESS
+Received: from mail-m1026.netease.com (mail-m1026.netease.com [154.81.10.26])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1B197420471
+	for <drbd-dev@lists.linbit.com>;
+	Mon,  1 Jul 2024 04:19:02 +0200 (CEST)
+Subject: Re: [PATCH 04/11] drbd_transport_rdma: dont schedule
+	retry_connect_work in active is false
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	"zhengbing.huang" <zhengbing.huang@easystack.cn>
 References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
-	<CADGDV=Xo6Z_K2R8vB7+7_jf0U_im0Nmy-xQ36AYh59qi45EvAQ@mail.gmail.com>
+	<20240624054619.23212-4-zhengbing.huang@easystack.cn>
+	<CADGDV=XEoNE6r_Q+R3agyytF-AhqduKdwM87FRsRC9axF8P5PQ@mail.gmail.com>
 From: Dongsheng Yang <dongsheng.yang@easystack.cn>
-Message-ID: <f0faab82-9113-d34b-fbd2-9f817c4166e0@easystack.cn>
-Date: Mon, 1 Jul 2024 10:02:03 +0800
+Message-ID: <7f88de47-ac10-0b31-5a15-04f0106c7d4e@easystack.cn>
+Date: Mon, 1 Jul 2024 10:11:27 +0800
 MIME-Version: 1.0
-In-Reply-To: <CADGDV=Xo6Z_K2R8vB7+7_jf0U_im0Nmy-xQ36AYh59qi45EvAQ@mail.gmail.com>
+In-Reply-To: <CADGDV=XEoNE6r_Q+R3agyytF-AhqduKdwM87FRsRC9axF8P5PQ@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Cc: drbd-dev@lists.linbit.com
@@ -30,127 +31,73 @@ List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 
 
 
-在 2024/6/28 星期五 下午 5:10, Philipp Reisner 写道:
+在 2024/6/28 星期五 下午 7:51, Philipp Reisner 写道:
 > Hello Dongsheng,
 > 
-> First of all, thanks for contributing patches to us.
-> Please find my reply on the patch below the quote:
+> Please explain what problem you are fixing with this change. Do you
+> have a log that shows a problem in this area? Please describe why your
+> proposed change improves DRBD's behavior.
+
+retry_connect_work can be flushed in dtr_free, that's correct. but if we 
+schedule new work after that, there is a NULL pointer dereference in our 
+testing. So dont schedule new retry_connect_work when 
+rdma_transport->active is false. it is set to false in dtr_free before 
+flushing retry_connect_work.
 > 
-> On Mon, Jun 24, 2024 at 7:52 AM zhengbing.huang
+> best regards,
+>   Philipp
+> 
+> On Mon, Jun 24, 2024 at 9:28 AM zhengbing.huang
 > <zhengbing.huang@easystack.cn> wrote:
 >>
 >> From: Dongsheng Yang <dongsheng.yang@easystack.cn>
 >>
->> In our network failure and drbd down testing, we found warning in dmesg and drbd down process into D state:
+>> Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
+>> ---
+>>   drbd/drbd_transport_rdma.c | 12 ++++++++++--
+>>   1 file changed, 10 insertions(+), 2 deletions(-)
 >>
->> "kernel: drbd /unregistered/ramtest3/0 drbd103: ASSERTION device->disk_state[NOW] == D_FAILED || device->disk_state[NOW] == D_DETACHING FAILED in go_diskless"
+>> diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
+>> index eccd0c6ce..b7ccb15d4 100644
+>> --- a/drbd/drbd_transport_rdma.c
+>> +++ b/drbd/drbd_transport_rdma.c
+>> @@ -1089,9 +1089,13 @@ static void dtr_cma_retry_connect_work_fn(struct work_struct *work)
+>>          if (err) {
+>>                  struct dtr_path *path = container_of(cs, struct dtr_path, cs);
+>>                  struct drbd_transport *transport = path->path.transport;
+>> +               struct dtr_transport *rdma_transport =
+>> +                       container_of(transport, struct dtr_transport, transport);
 >>
->> the problem is the wait_event is inttruptable, it could be intrupted by signal and call drbd_cleanup_device before go_diskless()
+>>                  tr_err(transport, "dtr_start_try_connect failed  %d\n", err);
+>> -               schedule_delayed_work(&cs->retry_connect_work, HZ);
+>> +               if (rdma_transport->active) {
+>> +                       schedule_delayed_work(&cs->retry_connect_work, HZ);
+>> +               }
+>>          }
+>>   }
 >>
-> 
-> In this case, I suggest improving the expression in the assertion.
-> Improving an assertion can also mean removing that assertion.
-
-Hi Philipp,
-	This patchset is fixing the problems found by a network failure test 
-script[1].
-	The [1/11] is not about just a WARNING, it will result a process with D 
-state in wait_event(device->misc_wait, !test_bit(GOING_DISKLESS, 
-&device->flags)); in adm_del_minor().
-
-let's think about this sequence:
-
-a) drbd_adm_down -> adm_detach -> change_disk_state(device, D_DETACHING...
-
-b) it will call put_ldev(), set GOING_DISKLESS and post a work for 
-GO_DISKLESS
-
-c) adm_detach() start wait_event_interruptible(device->misc_wait,
-			get_disk_state(device) != D_DETACHING);
-but it can be intrrupted, then call drbd_cleanup_device() to set 
-device->disk_state[NOW] = D_DISKLESS;
-
-after that, it will go to adm_del_minor() and 
-wait_event(device->misc_wait, !test_bit(GOING_DISKLESS, 
-&device->flags)); which expects drbd_ldev_destroy to clear GOING_DISKLESS.
-
-d) on the other hand, go_diskless work start and warn on the message in 
-commit message. it will do change_disk_state(device, D_DISKLESS, 
-CS_HARD, "go-diskless", NULL); But the disk_state[NOW] is already 
-D_DISKLESS. So it will not schedule &device->ldev_destroy_work.
-
-As a result, the wait_event in c) will never return.
-
-
-[1]:
-check_drbd_process() {
-     ps aux | grep " D"|grep drbd
-}
-
-check_node_2_drbd_process() {
-     ssh node-2 'ps aux' | grep " D"|grep drbd
-}
-
-wait_for_no_drbd_d_state() {
-     count=0
-     while true; do
-         if check_drbd_process; then
-             echo "Found drbd process in D state, sleeping for ${count} 
-second..."
-             sleep 1
-             count=$((count + 1))
-         else
-             echo "No drbd process in D state."
-             break
-         fi
-     done
-     while true; do
-         if check_node_2_drbd_process; then
-             echo "Found drbd process in D state, sleeping for ${count} 
-second..."
-             sleep 1
-             count=$((count + 1))
-         else
-             echo "No drbd process in D state."
-             break
-         fi
-     done
-}
-
-random_sleep=$((RANDOM % 100))
-
-ssh node-2 "ifup Bond2-roce.1469"
-ifup Bond2-roce.1469
-
-sleep 5
-
-for i in `seq 0 9`; do
-         drbdadm up ramtest${i}
-         ssh node-2 "drbdadm up ramtest${i}"
-done
-
-sleep ${random_sleep}
-
-ssh node-2 "ifdown Bond2-roce.1469"
-
-random_sleep=$((RANDOM % 10))
-
-for i in `seq 0 9`; do
-         drbdsetup fail-io ramtest${i} &
-         drbdadm down ramtest${i} &
-done
-
-sleep 10
-
-wait_for_no_drbd_d_state
-> 
-> The wait_event_interruptible() is there for a reason. Think of a
-> backing disk that behaves like a tar pit—a backing device that no
-> longer finishes IO requests. You want a way to interrupt the drbdsetup
-> waiting in detach.
-> 
-> PS: A bit more elaborative commit messages are welcome.
-> 
-> best regards,
->   Philipp
+>> @@ -1116,6 +1120,8 @@ static void dtr_remove_cm_from_path(struct dtr_path *path, struct dtr_cm *failed
+>>   static void dtr_cma_retry_connect(struct dtr_path *path, struct dtr_cm *failed_cm)
+>>   {
+>>          struct drbd_transport *transport = path->path.transport;
+>> +       struct dtr_transport *rdma_transport =
+>> +               container_of(transport, struct dtr_transport, transport);
+>>          struct dtr_connect_state *cs = &path->cs;
+>>          long connect_int = 10 * HZ;
+>>          struct net_conf *nc;
+>> @@ -1128,7 +1134,9 @@ static void dtr_cma_retry_connect(struct dtr_path *path, struct dtr_cm *failed_c
+>>                  connect_int = nc->connect_int * HZ;
+>>          rcu_read_unlock();
+>>
+>> -       schedule_delayed_work(&cs->retry_connect_work, connect_int);
+>> +       if (rdma_transport->active) {
+>> +               schedule_delayed_work(&cs->retry_connect_work, connect_int);
+>> +       }
+>>   }
+>>
+>>   static void dtr_cma_connect_work_fn(struct work_struct *work)
+>> --
+>> 2.27.0
+>>
+> .
 > 
