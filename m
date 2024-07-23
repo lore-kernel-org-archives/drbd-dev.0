@@ -1,47 +1,24 @@
-Return-Path: <fernandez.simon@gmail.com>
-Received: from mail-wr1-f45.google.com (mail-wr1-f45.google.com
-	[209.85.221.45])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 885A54205C7
-	for <drbd-dev@lists.linbit.com>; Thu,  4 Jul 2024 13:11:20 +0200 (CEST)
-Received: by mail-wr1-f45.google.com with SMTP id
-	ffacd0b85a97d-3626c29d3f0so329821f8f.1
-	for <drbd-dev@lists.linbit.com>; Thu, 04 Jul 2024 04:11:20 -0700 (PDT)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 13.4 \(3608.120.23.2.7\))
-Subject: Re: [PATCH 14/26] block: move the nonrot flag to queue_limits
-From: Simon Fernandez <fernandez.simon@gmail.com>
-In-Reply-To: <ZnmoANp0TgpxWuF-@kbusch-mbp.dhcp.thefacebook.com>
-Date: Thu, 4 Jul 2024 12:11:16 +0100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <78BDDF6A-1FC7-4DD7-AABF-E0B055772CBF@gmail.com>
-References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-15-hch@lst.de>
-	<ZnmoANp0TgpxWuF-@kbusch-mbp.dhcp.thefacebook.com>
-To: Keith Busch <kbusch@kernel.org>
-Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
-	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
-	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
-	Vineeth Vijayan <vneethv@linux.ibm.com>,
-	linux-bcache@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
-	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
-	linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org,
-	Richard Weinberger <richard@nod.at>,
-	Geert Uytterhoeven <geert@linux-m68k.org>,
-	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
-	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
-	Josef Bacik <josef@toxicpanda.com>,
-	Ming Lei <ming.lei@redhat.com>, linux-raid@vger.kernel.org,
-	linux-m68k@lists.linux-m68k.org, Damien Le Moal <dlemoal@kernel.org>,
-	Mikulas Patocka <mpatocka@redhat.com>,
-	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
-	nbd@other.debian.org, Jens Axboe <axboe@kernel.dk>,
-	linux-block@vger.kernel.org,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
-	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	linuxppc-dev@lists.ozlabs.org,
-	=?utf-8?Q?Roger_Pau_Monn=C3=A9?= <roger.pau@citrix.com>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pg1-f176.google.com (mail-pg1-f176.google.com
+	[209.85.215.176])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 99EED420657
+	for <drbd-dev@lists.linbit.com>; Tue, 23 Jul 2024 15:31:54 +0200 (CEST)
+Received: by mail-pg1-f176.google.com with SMTP id
+	41be03b00d2f7-6c386a3ac43so70051a12.0
+	for <drbd-dev@lists.linbit.com>; Tue, 23 Jul 2024 06:31:54 -0700 (PDT)
+From: Jens Axboe <axboe@kernel.dk>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Simon Horman <horms@kernel.org>
+In-Reply-To: <20240723-drbd-doc-v1-1-a04d9b7a9688@kernel.org>
+References: <20240723-drbd-doc-v1-1-a04d9b7a9688@kernel.org>
+Subject: Re: [PATCH] drbd: Add peer_device to Kernel doc
+Message-Id: <172174151190.171540.3359811072031639762.b4-ty@kernel.dk>
+Date: Tue, 23 Jul 2024 07:31:51 -0600
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Cc: linux-block@vger.kernel.org, Andreas Gruenbacher <agruen@kernel.org>,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -53,21 +30,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi folks, how can I unsubscribe from this group.?
-Thanks in advance.
-S
 
-> On 24 Jun 2024, at 18:08, Keith Busch <kbusch@kernel.org> wrote:
->=20
-> On Mon, Jun 17, 2024 at 08:04:41AM +0200, Christoph Hellwig wrote:
->> -#define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, =
-&(q)->queue_flags)
->> +#define blk_queue_nonrot(q)	((q)->limits.features & =
-BLK_FEAT_ROTATIONAL)
->=20
-> This is inverted. Should be:
->=20
-> #define blk_queue_nonrot(q)	(!((q)->limits.features & =
-BLK_FEAT_ROTATIONAL))
->=20
+On Tue, 23 Jul 2024 10:41:52 +0100, Simon Horman wrote:
+> Add missing documentation of peer_device parameter to Kernel doc.
+> 
+> These parameters were added in commit 8164dd6c8ae1 ("drbd: Add peer
+> device parameter to whole-bitmap I/O handlers")
+> 
+> Flagged by W=1 builds.
+> 
+> [...]
+
+Applied, thanks!
+
+[1/1] drbd: Add peer_device to Kernel doc
+      commit: b8a4518b5c2d1164f9bb2e586733a658c5239adf
+
+Best regards,
+-- 
+Jens Axboe
+
+
 
