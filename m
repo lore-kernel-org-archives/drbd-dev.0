@@ -1,19 +1,42 @@
-Return-Path: <horms@kernel.org>
-Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C252E420653
-	for <drbd-dev@lists.linbit.com>;
-	Tue, 23 Jul 2024 11:48:06 +0200 (CEST)
-From: Simon Horman <horms@kernel.org>
-Date: Tue, 23 Jul 2024 10:41:52 +0100
-Subject: [PATCH] drbd: Add peer_device to Kernel doc
+Return-Path: <hch@lst.de>
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 720264202FB
+	for <drbd-dev@lists.linbit.com>; Thu, 25 Jul 2024 15:00:18 +0200 (CEST)
+Date: Thu, 25 Jul 2024 15:00:08 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Wouter Verhelst <w@uter.be>
+Subject: Re: [PATCH 14/26] block: move the nonrot flag to queue_limits
+Message-ID: <20240725130008.GA22625@lst.de>
+References: <20240617060532.127975-1-hch@lst.de>
+	<20240617060532.127975-15-hch@lst.de>
+	<ZqI4kosy20WkLC2P@pc220518.home.grep.be>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Message-Id: <20240723-drbd-doc-v1-1-a04d9b7a9688@kernel.org>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, Andreas Gruenbacher <agruen@kernel.org>,
-	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ZqI4kosy20WkLC2P@pc220518.home.grep.be>
+Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
+	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
+	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
+	Vineeth Vijayan <vneethv@linux.ibm.com>,
+	linux-bcache@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
+	Alasdair Kergon <agk@redhat.com>, drbd-dev@lists.linbit.com,
+	linux-s390@vger.kernel.org, linux-scsi@vger.kernel.org,
+	Richard Weinberger <richard@nod.at>,
+	Geert Uytterhoeven <geert@linux-m68k.org>,
+	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
+	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
+	Josef Bacik <josef@toxicpanda.com>,
+	Ming Lei <ming.lei@redhat.com>, linux-raid@vger.kernel.org,
+	linux-m68k@lists.linux-m68k.org, Damien Le Moal <dlemoal@kernel.org>,
+	Mikulas Patocka <mpatocka@redhat.com>,
+	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
+	nbd@other.debian.org, Jens Axboe <axboe@kernel.dk>,
+	linux-block@vger.kernel.org,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
+	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	linuxppc-dev@lists.ozlabs.org,
+	Roger Pau =?iso-8859-1?Q?Monn=E9?= <roger.pau@citrix.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,52 +48,17 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add missing documentation of peer_device parameter to Kernel doc.
+On Thu, Jul 25, 2024 at 01:35:46PM +0200, Wouter Verhelst wrote:
+> NBD actually exports a flag for rotational devices; it's defined in
+> nbd.h in the NBD userland source as
+> 
+> #define NBD_FLAG_ROTATIONAL     (1 << 4)        /* Use elevator algorithm - rotational media */
+> 
+> which is passed in the same flags field which also contains the
+> NBD_FLAG_SEND_FLUSH and NBD_FLAG_SEND_FUA flags.
+> 
+> Perhaps we might want to look at that flag and set the device to
+> rotational if it is specified?
 
-These parameters were added in commit 8164dd6c8ae1 ("drbd: Add peer
-device parameter to whole-bitmap I/O handlers")
-
-Flagged by W=1 builds.
-
-Signed-off-by: Simon Horman <horms@kernel.org>
----
- drivers/block/drbd/drbd_main.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index f92673f05c7a..a9e49b212341 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -3422,6 +3422,7 @@ void drbd_uuid_set_bm(struct drbd_device *device, u64 val) __must_hold(local)
- /**
-  * drbd_bmio_set_n_write() - io_fn for drbd_queue_bitmap_io() or drbd_bitmap_io()
-  * @device:	DRBD device.
-+ * @peer_device: Peer DRBD device.
-  *
-  * Sets all bits in the bitmap and writes the whole bitmap to stable storage.
-  */
-@@ -3448,6 +3449,7 @@ int drbd_bmio_set_n_write(struct drbd_device *device,
- /**
-  * drbd_bmio_clear_n_write() - io_fn for drbd_queue_bitmap_io() or drbd_bitmap_io()
-  * @device:	DRBD device.
-+ * @peer_device: Peer DRBD device.
-  *
-  * Clears all bits in the bitmap and writes the whole bitmap to stable storage.
-  */
-@@ -3501,6 +3503,7 @@ static int w_bitmap_io(struct drbd_work *w, int unused)
-  * @done:	callback to be called after the bitmap IO was performed
-  * @why:	Descriptive text of the reason for doing the IO
-  * @flags:	Bitmap flags
-+ * @peer_device: Peer DRBD device.
-  *
-  * While IO on the bitmap happens we freeze application IO thus we ensure
-  * that drbd_set_out_of_sync() can not be called. This function MAY ONLY be
-@@ -3549,6 +3552,7 @@ void drbd_queue_bitmap_io(struct drbd_device *device,
-  * @io_fn:	IO callback to be called when bitmap IO is possible
-  * @why:	Descriptive text of the reason for doing the IO
-  * @flags:	Bitmap flags
-+ * @peer_device: Peer DRBD device.
-  *
-  * freezes application IO while that the actual IO operations runs. This
-  * functions MAY NOT be called from worker context.
+Yes, that sounds good.  Can you send a patch?
 
