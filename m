@@ -1,21 +1,17 @@
-Return-Path: <glass.su@suse.com>
-Received: from mail-lj1-f180.google.com (mail-lj1-f180.google.com
-	[209.85.208.180])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8E0DF4205D7
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Jul 2024 15:34:33 +0200 (CEST)
-Received: by mail-lj1-f180.google.com with SMTP id
-	38308e7fff4ca-2ef2fccca2cso43117981fa.1
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Jul 2024 06:34:33 -0700 (PDT)
-From: Su Yue <glass.su@suse.com>
-To: drbd-dev@lists.linbit.com
-Subject: [RFC PATCH 3/3] drbd.ocf: update for OCF 1.1
-Date: Mon, 29 Jul 2024 21:34:10 +0800
-Message-ID: <20240729133410.8332-4-glass.su@suse.com>
-In-Reply-To: <20240729133410.8332-1-glass.su@suse.com>
-References: <20240729133410.8332-1-glass.su@suse.com>
+Return-Path: <deshan@nfschina.com>
+Received: from mail.nfschina.com (unknown [42.101.60.195])
+	by mail19.linbit.com (LINBIT Mail Daemon) with SMTP id A321E420312
+	for <drbd-dev@lists.linbit.com>; Thu, 25 Jul 2024 11:37:38 +0200 (CEST)
+From: Deshan Zhang <deshan@nfschina.com>
+To: akpm@linux-foundation.org, philipp.reisner@linbit.com,
+	lars.ellenberg@linbit.com, christoph.boehmwalder@linbit.com
+Subject: [PATCH] lib/lru_cache: fix spelling mistake "colision"->"collision"
+Date: Thu, 25 Jul 2024 17:30:45 +0800
+Message-Id: <20240725093044.1742842-1-deshan@nfschina.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: lars.ellenberg@linbit.com
+Cc: Deshan Zhang <deshan@nfschina.com>, kernel-janitors@vger.kernel.org,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,76 +23,71 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-According to [1], the commit
-1. bumps drbd ocf version to 1.5
-2. updates the <version> element to 1.1 for declare support OCF 1.1.
-3. uses unique-group attribute but keeps deprecated unique attribute.
-4. advertises new role names 'Unpromoted' and 'Unpromoted' instead of
-    'Master' and 'Slave'.
+There is a spelling mistake in a literal string. Fix it.
 
-Because of change[4], the drbd ocf RA won't be able to support old
-names so we need to bump version of the RA.
-
-Links: https://projects.clusterlabs.org/w/development/update_resource_agent_for_ocf_1.1/
-Signed-off-by: Su Yue <glass.su@suse.com>
+Signed-off-by: Deshan Zhang <deshan@nfschina.com>
 ---
- scripts/drbd.ocf | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ include/linux/lru_cache.h |  4 ++--
+ lib/lru_cache.c           | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/scripts/drbd.ocf b/scripts/drbd.ocf
-index bbe25f38edda..5b213640ec38 100755
---- a/scripts/drbd.ocf
-+++ b/scripts/drbd.ocf
-@@ -233,13 +233,13 @@ meta_data() {
- <?xml version="1.0"?>
- <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
- <!-- version attribute is version of this resource agent -->
--<resource-agent name="drbd" version="LINBIT 1.4">
-+<resource-agent name="drbd" version="LINBIT 1.5">
+diff --git a/include/linux/lru_cache.h b/include/linux/lru_cache.h
+index c9afcdd9324c..ff82ef85a084 100644
+--- a/include/linux/lru_cache.h
++++ b/include/linux/lru_cache.h
+@@ -119,7 +119,7 @@ write intent log information, three of which are mentioned here.
+ */
  
- <!-- Version number of the standard this agent complies with -->
--<version>1.0</version>
-+<version>1.1</version>
+ /* this defines an element in a tracked set
+- * .colision is for hash table lookup.
++ * .collision is for hash table lookup.
+  * When we process a new IO request, we know its sector, thus can deduce the
+  * region number (label) easily.  To do the label -> object lookup without a
+  * full list walk, we use a simple hash table.
+@@ -145,7 +145,7 @@ write intent log information, three of which are mentioned here.
+  * But it avoids high order page allocations in kmalloc.
+  */
+ struct lc_element {
+-	struct hlist_node colision;
++	struct hlist_node collision;
+ 	struct list_head list;		 /* LRU list or free list */
+ 	unsigned refcnt;
+ 	/* back "pointer" into lc_cache->element[index],
+diff --git a/lib/lru_cache.c b/lib/lru_cache.c
+index b3d9187611de..9e0d469c7658 100644
+--- a/lib/lru_cache.c
++++ b/lib/lru_cache.c
+@@ -243,7 +243,7 @@ static struct lc_element *__lc_find(struct lru_cache *lc, unsigned int enr,
  
- <longdesc lang="en">
--This resource agent manages a DRBD resource as a master/slave resource.
-+This resource agent manages a DRBD resource as a promotable resource.
- DRBD is a shared-nothing replicated storage device.
+ 	BUG_ON(!lc);
+ 	BUG_ON(!lc->nr_elements);
+-	hlist_for_each_entry(e, lc_hash_slot(lc, enr), colision) {
++	hlist_for_each_entry(e, lc_hash_slot(lc, enr), collision) {
+ 		/* "about to be changed" elements, pending transaction commit,
+ 		 * are hashed by their "new number". "Normal" elements have
+ 		 * lc_number == lc_new_number. */
+@@ -303,7 +303,7 @@ void lc_del(struct lru_cache *lc, struct lc_element *e)
+ 	BUG_ON(e->refcnt);
  
- NOTE:
-@@ -253,10 +253,10 @@ See the DRBD User's Guide for more information.
- https://docs.linbit.com/
- </longdesc>
+ 	e->lc_number = e->lc_new_number = LC_FREE;
+-	hlist_del_init(&e->colision);
++	hlist_del_init(&e->collision);
+ 	list_move(&e->list, &lc->free);
+ 	RETURN();
+ }
+@@ -324,9 +324,9 @@ static struct lc_element *lc_prepare_for_change(struct lru_cache *lc, unsigned n
+ 	PARANOIA_LC_ELEMENT(lc, e);
  
--<shortdesc lang="en">Manages a DRBD device as a Master/Slave resource</shortdesc>
-+<shortdesc lang="en">Manages a DRBD device as a promotable resource</shortdesc>
+ 	e->lc_new_number = new_number;
+-	if (!hlist_unhashed(&e->colision))
+-		__hlist_del(&e->colision);
+-	hlist_add_head(&e->colision, lc_hash_slot(lc, new_number));
++	if (!hlist_unhashed(&e->collision))
++		__hlist_del(&e->collision);
++	hlist_add_head(&e->collision, lc_hash_slot(lc, new_number));
+ 	list_move(&e->list, &lc->to_be_changed);
  
- <parameters>
--<parameter name="drbd_resource" unique="1" required="1">
-+<parameter name="drbd_resource" unique="1" unique-group="name" required="1">
- <longdesc lang="en">
- The name of the drbd resource from the drbd.conf file.
- </longdesc>
-@@ -483,8 +483,8 @@ to be generated after the failover of a "healthy" DRBD.
- <action name="demote"	timeout="90" />
- <action name="notify"	timeout="90" />
- <action name="stop"    timeout="100" />
--<action name="monitor"  timeout="20" interval="20" role="Slave" />
--<action name="monitor"  timeout="20" interval="10" role="Master" />
-+<action name="monitor"  timeout="20" interval="20" role="Unpromoted" />
-+<action name="monitor"  timeout="20" interval="10" role="Promoted" />
- <action name="meta-data"  timeout="5" />
- <action name="validate-all" />
- </actions>
-@@ -974,7 +974,7 @@ drbd_monitor() {
- 	fi
- 
- 	case $status in
--	(0) : "OCF_SUCCESS aka 'running/slave'" ;;
-+	(0) : "OCF_SUCCESS aka 'running/unpromotable'" ;;
- 	(1) : "OCF_ERR_GENERIC" ;;
- 	(2) : "OCF_ERR_ARGS" ;;
- 	(3) : "OCF_ERR_UNIMPLEMENTED" ;;
+ 	return e;
 -- 
-2.45.2
+2.30.2
 
