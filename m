@@ -1,39 +1,20 @@
-Return-Path: <w@uter.be>
-Received: from lounge.grep.be (lounge.grep.be [144.76.219.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CFDF3420211
-	for <drbd-dev@lists.linbit.com>; Thu, 25 Jul 2024 13:57:57 +0200 (CEST)
-Date: Thu, 25 Jul 2024 13:35:46 +0200
-From: Wouter Verhelst <w@uter.be>
-To: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 14/26] block: move the nonrot flag to queue_limits
-Message-ID: <ZqI4kosy20WkLC2P@pc220518.home.grep.be>
-References: <20240617060532.127975-1-hch@lst.de>
-	<20240617060532.127975-15-hch@lst.de>
+Return-Path: <yuehaibing@huawei.com>
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com [45.249.212.190])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7CB3C4204B5
+	for <drbd-dev@lists.linbit.com>;
+	Fri,  2 Aug 2024 12:14:41 +0200 (CEST)
+From: Yue Haibing <yuehaibing@huawei.com>
+To: <philipp.reisner@linbit.com>, <lars.ellenberg@linbit.com>,
+	<christoph.boehmwalder@linbit.com>, <axboe@kernel.dk>,
+	<brauner@kernel.org>, <yuehaibing@huawei.com>
+Subject: [PATCH -next] drbd: Remove unused extern declarations
+Date: Fri, 2 Aug 2024 17:51:47 +0800
+Message-ID: <20240802095147.2788218-1-yuehaibing@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20240617060532.127975-15-hch@lst.de>
-Cc: nvdimm@lists.linux.dev, "Michael S. Tsirkin" <mst@redhat.com>,
-	Jason Wang <jasowang@redhat.com>, linux-nvme@lists.infradead.org,
-	Song Liu <song@kernel.org>, linux-mtd@lists.infradead.org,
-	Vineeth Vijayan <vneethv@linux.ibm.com>,
-	linux-bcache@vger.kernel.org, Alasdair Kergon <agk@redhat.com>,
-	drbd-dev@lists.linbit.com, linux-s390@vger.kernel.org,
-	linux-scsi@vger.kernel.org, Richard Weinberger <richard@nod.at>,
-	Geert Uytterhoeven <geert@linux-m68k.org>,
-	Yu Kuai <yukuai3@huawei.com>, dm-devel@lists.linux.dev,
-	linux-um@lists.infradead.org, Mike Snitzer <snitzer@kernel.org>,
-	Josef Bacik <josef@toxicpanda.com>, nbd@other.debian.org,
-	linux-raid@vger.kernel.org, linux-m68k@lists.linux-m68k.org,
-	Damien Le Moal <dlemoal@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>,
-	xen-devel@lists.xenproject.org, ceph-devel@vger.kernel.org,
-	Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@kernel.dk>,
-	linux-block@vger.kernel.org,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	linux-mmc@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
-	virtualization@lists.linux.dev, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	linuxppc-dev@lists.ozlabs.org,
-	Roger Pau =?iso-8859-1?Q?Monn=E9?= <roger.pau@citrix.com>
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -45,41 +26,74 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Jun 17, 2024 at 08:04:41AM +0200, Christoph Hellwig wrote:
-> Use the chance to switch to defaulting to non-rotational and require
-> the driver to opt into rotational, which matches the polarity of the
-> sysfs interface.
-[...]
-> diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-> index cb1c86a6a3fb9d..6cddf5baffe02a 100644
-> --- a/drivers/block/nbd.c
-> +++ b/drivers/block/nbd.c
-> @@ -1867,11 +1867,6 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
->  		goto out_err_disk;
->  	}
->  
-> -	/*
-> -	 * Tell the block layer that we are not a rotational device
-> -	 */
-> -	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
-> -
->  	mutex_init(&nbd->config_lock);
->  	refcount_set(&nbd->config_refs, 0);
->  	/*
+From: YueHaibing <yuehaibing@huawei.com>
 
-NBD actually exports a flag for rotational devices; it's defined in
-nbd.h in the NBD userland source as
+Commit b411b3637fa7 ("The DRBD driver") declared but never implemented
+drbd_read_remote(), is_valid_ar_handle() and drbd_set_recv_tcq().
+And commit 668700b40a7c ("drbd: Create a dedicated workqueue for sending acks on the control connection")
+never implemented drbd_send_ping_wf().
 
-#define NBD_FLAG_ROTATIONAL     (1 << 4)        /* Use elevator algorithm - rotational media */
+Commit 2451fc3b2bd3 ("drbd: Removed the BIO_RW_BARRIER support form the receiver/epoch code")
+leave w_e_reissue() declaration unused.
 
-which is passed in the same flags field which also contains the
-NBD_FLAG_SEND_FLUSH and NBD_FLAG_SEND_FUA flags.
+Commit 8fe605513ab4 ("drbd: Rename drbdd_init() -> drbd_receiver()")
+rename drbdd_init() and leave unsued declaration. Also drbd_asender() is removed in
+commit 1c03e52083c8 ("drbd: Rename asender to ack_receiver").
 
-Perhaps we might want to look at that flag and set the device to
-rotational if it is specified?
+Signed-off-by: YueHaibing <yuehaibing@huawei.com>
+---
+ drivers/block/drbd/drbd_int.h | 10 ----------
+ 1 file changed, 10 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
+index 94dc0a235919..d2937bca1fe4 100644
+--- a/drivers/block/drbd/drbd_int.h
++++ b/drivers/block/drbd/drbd_int.h
+@@ -297,10 +297,6 @@ struct drbd_epoch {
+ 	unsigned long flags;
+ };
+ 
+-/* Prototype declaration of function defined in drbd_receiver.c */
+-int drbdd_init(struct drbd_thread *);
+-int drbd_asender(struct drbd_thread *);
+-
+ /* drbd_epoch flag bits */
+ enum {
+ 	DE_HAVE_BARRIER_NUMBER,
+@@ -1390,9 +1386,6 @@ extern void conn_free_crypto(struct drbd_connection *connection);
+ extern void do_submit(struct work_struct *ws);
+ extern void __drbd_make_request(struct drbd_device *, struct bio *);
+ void drbd_submit_bio(struct bio *bio);
+-extern int drbd_read_remote(struct drbd_device *device, struct drbd_request *req);
+-extern int is_valid_ar_handle(struct drbd_request *, sector_t);
+-
+ 
+ /* drbd_nl.c */
+ 
+@@ -1474,7 +1467,6 @@ extern int w_resync_timer(struct drbd_work *, int);
+ extern int w_send_write_hint(struct drbd_work *, int);
+ extern int w_send_dblock(struct drbd_work *, int);
+ extern int w_send_read_req(struct drbd_work *, int);
+-extern int w_e_reissue(struct drbd_work *, int);
+ extern int w_restart_disk_io(struct drbd_work *, int);
+ extern int w_send_out_of_sync(struct drbd_work *, int);
+ 
+@@ -1488,7 +1480,6 @@ extern int drbd_issue_discard_or_zero_out(struct drbd_device *device,
+ 		sector_t start, unsigned int nr_sectors, int flags);
+ extern int drbd_receiver(struct drbd_thread *thi);
+ extern int drbd_ack_receiver(struct drbd_thread *thi);
+-extern void drbd_send_ping_wf(struct work_struct *ws);
+ extern void drbd_send_acks_wf(struct work_struct *ws);
+ extern bool drbd_rs_c_min_rate_throttle(struct drbd_device *device);
+ extern bool drbd_rs_should_slow_down(struct drbd_peer_device *peer_device, sector_t sector,
+@@ -1504,7 +1495,6 @@ extern void __drbd_free_peer_req(struct drbd_device *, struct drbd_peer_request
+ #define drbd_free_peer_req(m,e) __drbd_free_peer_req(m, e, 0)
+ #define drbd_free_net_peer_req(m,e) __drbd_free_peer_req(m, e, 1)
+ extern struct page *drbd_alloc_pages(struct drbd_peer_device *, unsigned int, bool);
+-extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
+ extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
+ extern int drbd_connected(struct drbd_peer_device *);
+ 
 -- 
-     w@uter.{be,co.za}
-wouter@{grep.be,fosdem.org,debian.org}
+2.34.1
 
-I will have a Tin-Actinium-Potassium mixture, thanks.
