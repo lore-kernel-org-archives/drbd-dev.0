@@ -1,25 +1,18 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-il1-f177.google.com (mail-il1-f177.google.com
-	[209.85.166.177])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 633DD420639
-	for <drbd-dev@lists.linbit.com>; Fri,  2 Aug 2024 21:37:41 +0200 (CEST)
-Received: by mail-il1-f177.google.com with SMTP id
-	e9e14a558f8ab-39aeccc64e8so3306575ab.2
-	for <drbd-dev@lists.linbit.com>; Fri, 02 Aug 2024 12:37:41 -0700 (PDT)
-From: Jens Axboe <axboe@kernel.dk>
-To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
-	christoph.boehmwalder@linbit.com, brauner@kernel.org,
-	Yue Haibing <yuehaibing@huawei.com>
-In-Reply-To: <20240802095147.2788218-1-yuehaibing@huawei.com>
-References: <20240802095147.2788218-1-yuehaibing@huawei.com>
-Subject: Re: [PATCH -next] drbd: Remove unused extern declarations
-Message-Id: <172262745942.170878.5478919565358638351.b4-ty@kernel.dk>
-Date: Fri, 02 Aug 2024 13:37:39 -0600
+Return-Path: <yang.lee@linux.alibaba.com>
+Received: from out199-10.us.a.mail.aliyun.com (out199-10.us.a.mail.aliyun.com
+	[47.90.199.10])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9AC664205E3
+	for <drbd-dev@lists.linbit.com>; Fri,  9 Aug 2024 11:43:50 +0200 (CEST)
+From: Yang Li <yang.lee@linux.alibaba.com>
+To: axboe@kernel.dk,
+	christoph.boehmwalder@linbit.com
+Subject: [PATCH -next] drbd: Add missing kernel-doc function comments.
+Date: Fri,  9 Aug 2024 17:32:33 +0800
+Message-Id: <20240809093233.8627-1-yang.lee@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
+Content-Transfer-Encoding: 8bit
+Cc: linux-block@vger.kernel.org, Yang Li <yang.lee@linux.alibaba.com>,
+	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,26 +24,50 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Add missing kernel-doc function comments to enhance code readability and
+maintainability in accordance with the kernel coding standards.
 
-On Fri, 02 Aug 2024 17:51:47 +0800, Yue Haibing wrote:
-> Commit b411b3637fa7 ("The DRBD driver") declared but never implemented
-> drbd_read_remote(), is_valid_ar_handle() and drbd_set_recv_tcq().
-> And commit 668700b40a7c ("drbd: Create a dedicated workqueue for sending acks on the control connection")
-> never implemented drbd_send_ping_wf().
-> 
-> Commit 2451fc3b2bd3 ("drbd: Removed the BIO_RW_BARRIER support form the receiver/epoch code")
-> leave w_e_reissue() declaration unused.
-> 
-> [...]
+Signed-off-by: Yang Li <yang.lee@linux.alibaba.com>
+---
+ drivers/block/drbd/drbd_bitmap.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-Applied, thanks!
-
-[1/1] drbd: Remove unused extern declarations
-      commit: f48ada402d2f1e46fa241bcc6725bdde70725e15
-
-Best regards,
+diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
+index 85ca000a0564..746bb75ab2a4 100644
+--- a/drivers/block/drbd/drbd_bitmap.c
++++ b/drivers/block/drbd/drbd_bitmap.c
+@@ -1213,6 +1213,7 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned
+ /**
+  * drbd_bm_read() - Read the whole bitmap from its on disk location.
+  * @device:	DRBD device.
++ * @peer_device:	DRBD peer device.
+  */
+ int drbd_bm_read(struct drbd_device *device,
+ 		 struct drbd_peer_device *peer_device) __must_hold(local)
+@@ -1224,6 +1225,7 @@ int drbd_bm_read(struct drbd_device *device,
+ /**
+  * drbd_bm_write() - Write the whole bitmap to its on disk location.
+  * @device:	DRBD device.
++ * @peer_device:	DRBD peer device.
+  *
+  * Will only write pages that have changed since last IO.
+  */
+@@ -1236,6 +1238,7 @@ int drbd_bm_write(struct drbd_device *device,
+ /**
+  * drbd_bm_write_all() - Write the whole bitmap to its on disk location.
+  * @device:	DRBD device.
++ * @peer_device:	DRBD peer device.
+  *
+  * Will write all pages.
+  */
+@@ -1258,6 +1261,7 @@ int drbd_bm_write_lazy(struct drbd_device *device, unsigned upper_idx) __must_ho
+ /**
+  * drbd_bm_write_copy_pages() - Write the whole bitmap to its on disk location.
+  * @device:	DRBD device.
++ * @peer_device:	DRBD peer device.
+  *
+  * Will only write pages that have changed since last IO.
+  * In contrast to drbd_bm_write(), this will copy the bitmap pages
 -- 
-Jens Axboe
-
-
+2.32.0.3.g01195cf9f
 
