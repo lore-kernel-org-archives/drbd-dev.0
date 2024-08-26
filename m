@@ -1,17 +1,25 @@
-Return-Path: <yang.lee@linux.alibaba.com>
-Received: from out199-10.us.a.mail.aliyun.com (out199-10.us.a.mail.aliyun.com
-	[47.90.199.10])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9AC664205E3
-	for <drbd-dev@lists.linbit.com>; Fri,  9 Aug 2024 11:43:50 +0200 (CEST)
-From: Yang Li <yang.lee@linux.alibaba.com>
-To: axboe@kernel.dk,
-	christoph.boehmwalder@linbit.com
-Subject: [PATCH -next] drbd: Add missing kernel-doc function comments.
-Date: Fri,  9 Aug 2024 17:32:33 +0800
-Message-Id: <20240809093233.8627-1-yang.lee@linux.alibaba.com>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-io1-f51.google.com (mail-io1-f51.google.com
+	[209.85.166.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F396D420618
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Aug 2024 15:19:56 +0200 (CEST)
+Received: by mail-io1-f51.google.com with SMTP id
+	ca18e2360f4ac-81fd520fe0dso159081339f.3
+	for <drbd-dev@lists.linbit.com>; Mon, 26 Aug 2024 06:19:56 -0700 (PDT)
+From: Jens Axboe <axboe@kernel.dk>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	=?utf-8?q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
+	Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+In-Reply-To: <d5322ef88d1d6f544963ee277cb0b427da8dceef.1724602922.git.christophe.jaillet@wanadoo.fr>
+References: <d5322ef88d1d6f544963ee277cb0b427da8dceef.1724602922.git.christophe.jaillet@wanadoo.fr>
+Subject: Re: [PATCH] drbd: Remove an unused field in struct drbd_device
+Message-Id: <172467839482.162646.6496919978142098172.b4-ty@kernel.dk>
+Date: Mon, 26 Aug 2024 07:19:54 -0600
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, Yang Li <yang.lee@linux.alibaba.com>,
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Cc: linux-block@vger.kernel.org, kernel-janitors@vger.kernel.org,
 	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -24,50 +32,23 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Add missing kernel-doc function comments to enhance code readability and
-maintainability in accordance with the kernel coding standards.
 
-Signed-off-by: Yang Li <yang.lee@linux.alibaba.com>
----
- drivers/block/drbd/drbd_bitmap.c | 4 ++++
- 1 file changed, 4 insertions(+)
+On Sun, 25 Aug 2024 18:22:23 +0200, Christophe JAILLET wrote:
+> 'next_barrier_nr' is not used in this driver. Remove it.
+> 
+> It was already part of the original commit b411b3637fa7 ("The DRBD driver")
+> Apparently, it has never been used.
+> 
+> 
 
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index 85ca000a0564..746bb75ab2a4 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -1213,6 +1213,7 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned
- /**
-  * drbd_bm_read() - Read the whole bitmap from its on disk location.
-  * @device:	DRBD device.
-+ * @peer_device:	DRBD peer device.
-  */
- int drbd_bm_read(struct drbd_device *device,
- 		 struct drbd_peer_device *peer_device) __must_hold(local)
-@@ -1224,6 +1225,7 @@ int drbd_bm_read(struct drbd_device *device,
- /**
-  * drbd_bm_write() - Write the whole bitmap to its on disk location.
-  * @device:	DRBD device.
-+ * @peer_device:	DRBD peer device.
-  *
-  * Will only write pages that have changed since last IO.
-  */
-@@ -1236,6 +1238,7 @@ int drbd_bm_write(struct drbd_device *device,
- /**
-  * drbd_bm_write_all() - Write the whole bitmap to its on disk location.
-  * @device:	DRBD device.
-+ * @peer_device:	DRBD peer device.
-  *
-  * Will write all pages.
-  */
-@@ -1258,6 +1261,7 @@ int drbd_bm_write_lazy(struct drbd_device *device, unsigned upper_idx) __must_ho
- /**
-  * drbd_bm_write_copy_pages() - Write the whole bitmap to its on disk location.
-  * @device:	DRBD device.
-+ * @peer_device:	DRBD peer device.
-  *
-  * Will only write pages that have changed since last IO.
-  * In contrast to drbd_bm_write(), this will copy the bitmap pages
+Applied, thanks!
+
+[1/1] drbd: Remove an unused field in struct drbd_device
+      commit: 87599eddc25ac03647ab76221523c6485e7594b1
+
+Best regards,
 -- 
-2.32.0.3.g01195cf9f
+Jens Axboe
+
+
 
