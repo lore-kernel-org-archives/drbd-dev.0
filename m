@@ -1,22 +1,26 @@
-Return-Path: <christophe.jaillet@wanadoo.fr>
-Received: from smtp.smtpout.orange.fr (smtp-24.smtpout.orange.fr
-	[80.12.242.24])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3D72642004B
-	for <drbd-dev@lists.linbit.com>; Sun, 25 Aug 2024 18:31:22 +0200 (CEST)
-From: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+Return-Path: <axboe@kernel.dk>
+Received: from mail-pl1-f172.google.com (mail-pl1-f172.google.com
+	[209.85.214.172])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 85C3F420239
+	for <drbd-dev@lists.linbit.com>; Tue, 10 Sep 2024 03:21:34 +0200 (CEST)
+Received: by mail-pl1-f172.google.com with SMTP id
+	d9443c01a7336-2054e22ce3fso1932205ad.2
+	for <drbd-dev@lists.linbit.com>; Mon, 09 Sep 2024 18:21:34 -0700 (PDT)
+From: Jens Axboe <axboe@kernel.dk>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
-	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH] drbd: Remove an unused field in struct drbd_device
-Date: Sun, 25 Aug 2024 18:22:23 +0200
-Message-ID: <d5322ef88d1d6f544963ee277cb0b427da8dceef.1724602922.git.christophe.jaillet@wanadoo.fr>
+	Mikhail Lobanov <m.lobanov@rosalinux.ru>
+In-Reply-To: <20240909133740.84297-1-m.lobanov@rosalinux.ru>
+References: <20240909133740.84297-1-m.lobanov@rosalinux.ru>
+Subject: Re: [PATCH] drbd: Add NULL check for net_conf to prevent
+	dereference in state validation
+Message-Id: <172593129267.13781.9847171739560045999.b4-ty@kernel.dk>
+Date: Mon, 09 Sep 2024 19:21:32 -0600
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org,
-	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
-	kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Cc: lvc-project@linuxtesting.org, linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org, linux-block@vger.kernel.org,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,30 +32,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-'next_barrier_nr' is not used in this driver. Remove it.
 
-It was already part of the original commit b411b3637fa7 ("The DRBD driver")
-Apparently, it has never been used.
+On Mon, 09 Sep 2024 09:37:36 -0400, Mikhail Lobanov wrote:
+> If the net_conf pointer is NULL and the code attempts to access its
+> fields without a check, it will lead to a null pointer dereference.
+> Add a NULL check before dereferencing the pointer.
+> 
+> Found by Linux Verification Center (linuxtesting.org) with SVACE.
+> 
+> 
+> [...]
 
-Signed-off-by: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
----
-Compile tested-only.
----
- drivers/block/drbd/drbd_int.h | 1 -
- 1 file changed, 1 deletion(-)
+Applied, thanks!
 
-diff --git a/drivers/block/drbd/drbd_int.h b/drivers/block/drbd/drbd_int.h
-index d2937bca1fe4..2a05d955e30b 100644
---- a/drivers/block/drbd/drbd_int.h
-+++ b/drivers/block/drbd/drbd_int.h
-@@ -860,7 +860,6 @@ struct drbd_device {
- 	struct list_head read_ee;   /* [RS]P_DATA_REQUEST being read */
- 	struct list_head net_ee;    /* zero-copy network send in progress */
- 
--	int next_barrier_nr;
- 	struct list_head resync_reads;
- 	atomic_t pp_in_use;		/* allocated from page pool */
- 	atomic_t pp_in_use_by_net;	/* sendpage()d, still referenced by tcp */
+[1/1] drbd: Add NULL check for net_conf to prevent dereference in state validation
+      commit: de068f4741781bbba0568b44b41d51da0feef6f9
+
+Best regards,
 -- 
-2.46.0
+Jens Axboe
+
+
 
