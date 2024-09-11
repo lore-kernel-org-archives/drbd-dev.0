@@ -1,19 +1,22 @@
-Return-Path: <m.lobanov@rosalinux.ru>
-Received: from mail.rosalinux.ru (mail.rosalinux.ru [195.19.76.54])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E6B374201EE
-	for <drbd-dev@lists.linbit.com>; Mon,  9 Sep 2024 15:50:30 +0200 (CEST)
-From: Mikhail Lobanov <m.lobanov@rosalinux.ru>
-To: Philipp Reisner <philipp.reisner@linbit.com>
-Subject: [PATCH] drbd: Add NULL check for net_conf to prevent dereference in
-	state validation
-Date: Mon,  9 Sep 2024 09:37:36 -0400
-Message-ID: <20240909133740.84297-1-m.lobanov@rosalinux.ru>
+Return-Path: <chenqiuji666@gmail.com>
+Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com
+	[209.85.214.194])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 27E4D4202C8
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Sep 2024 11:16:36 +0200 (CEST)
+Received: by mail-pl1-f194.google.com with SMTP id
+	d9443c01a7336-20688fbaeafso66996885ad.0
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Sep 2024 02:16:35 -0700 (PDT)
+From: Qiu-ji Chen <chenqiuji666@gmail.com>
+To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
+	christoph.boehmwalder@linbit.com, axboe@kernel.dk
+Subject: [PATCH] brbd: Fix atomicity violation in drbd_uuid_set_bm()
+Date: Wed, 11 Sep 2024 17:16:19 +0800
+Message-Id: <20240911091619.4430-1-chenqiuji666@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-Cc: Jens Axboe <axboe@kernel.dk>, lvc-project@linuxtesting.org,
-	linux-kernel@vger.kernel.org, stable@vger.kernel.org,
-	linux-block@vger.kernel.org, Mikhail Lobanov <m.lobanov@rosalinux.ru>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
+Content-Transfer-Encoding: 8bit
+Cc: Qiu-ji Chen <chenqiuji666@gmail.com>, linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org, linux-block@vger.kernel.org,
+	baijiaju1990@gmail.com, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -25,36 +28,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-If the net_conf pointer is NULL and the code attempts to access its=20
-fields without a check, it will lead to a null pointer dereference.
-Add a NULL check before dereferencing the pointer.
+The violation of atomicity occurs when the brbd_uuid_set_bm function is
+executed simultaneously with modifying the value of
+device->ldev->md.uuid[UI_BITMAP]. Consider a scenario where, while
+device->ldev->md.uuid[UI_BITMAP] passes the validity check when its value
+is not zero, the value of device->ldev->md.uuid[UI_BITMAP] is written to
+zero. In this case, the check in brbd_uuid_set_bm might refer to the old
+value of device->ldev->md.uuid[UI_BITMAP] (before locking), which allows
+an invalid value to pass the validity check, resulting in inconsistency.
 
-Found by Linux Verification Center (linuxtesting.org) with SVACE.
+To address this issue, it is recommended to include the data validity check
+within the locked section of the function. This modification ensures that
+the value of device->ldev->md.uuid[UI_BITMAP] does not change during the
+validation process, thereby maintaining its integrity.
 
-Fixes: 44ed167da748 ("drbd: rcu_read_lock() and rcu_dereference() for tco=
-nn->net_conf")
+This possible bug is found by an experimental static analysis tool
+developed by our team. This tool analyzes the locking APIs to extract
+function pairs that can be concurrently executed, and then analyzes the
+instructions in the paired functions to identify possible concurrency bugs
+including data races and atomicity violations.
+
+Fixes: 9f2247bb9b75 ("drbd: Protect accesses to the uuid set with a spinlock")
 Cc: stable@vger.kernel.org
-Signed-off-by: Mikhail Lobanov <m.lobanov@rosalinux.ru>
+Signed-off-by: Qiu-ji Chen <chenqiuji666@gmail.com>
 ---
- drivers/block/drbd/drbd_state.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/block/drbd/drbd_main.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_st=
-ate.c
-index 287a8d1d3f70..87cf5883078f 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -876,7 +876,7 @@ is_valid_state(struct drbd_device *device, union drbd=
-_state ns)
- 		  ns.disk =3D=3D D_OUTDATED)
- 		rv =3D SS_CONNECTED_OUTDATES;
-=20
--	else if ((ns.conn =3D=3D C_VERIFY_S || ns.conn =3D=3D C_VERIFY_T) &&
-+	else if (nc && (ns.conn =3D=3D C_VERIFY_S || ns.conn =3D=3D C_VERIFY_T)=
- &&
- 		 (nc->verify_alg[0] =3D=3D 0))
- 		rv =3D SS_NO_VERIFY_ALG;
-=20
---=20
-2.43.0
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index a9e49b212341..abafc4edf9ed 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -3399,10 +3399,12 @@ void drbd_uuid_new_current(struct drbd_device *device) __must_hold(local)
+ void drbd_uuid_set_bm(struct drbd_device *device, u64 val) __must_hold(local)
+ {
+ 	unsigned long flags;
+-	if (device->ldev->md.uuid[UI_BITMAP] == 0 && val == 0)
++	spin_lock_irqsave(&device->ldev->md.uuid_lock, flags);
++	if (device->ldev->md.uuid[UI_BITMAP] == 0 && val == 0) {
++		spin_unlock_irqrestore(&device->ldev->md.uuid_lock, flags);
+ 		return;
++	}
+ 
+-	spin_lock_irqsave(&device->ldev->md.uuid_lock, flags);
+ 	if (val == 0) {
+ 		drbd_uuid_move_history(device);
+ 		device->ldev->md.uuid[UI_HISTORY_START] = device->ldev->md.uuid[UI_BITMAP];
+-- 
+2.34.1
 
