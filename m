@@ -1,16 +1,22 @@
-Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m1282.netease.com (mail-m1282.netease.com [103.209.128.2])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7D3BF420233
-	for <drbd-dev@lists.linbit.com>;
-	Sat, 14 Sep 2024 08:12:45 +0200 (CEST)
-Received: from localhost.localdomain (unknown [218.94.118.90])
-	by smtp.qiye.163.com (Hmail) with ESMTPA id 20A8F480258
-	for <drbd-dev@lists.linbit.com>; Sat, 14 Sep 2024 13:43:57 +0800 (CST)
-From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-To: drbd-dev@lists.linbit.com
-Subject: [PATCH] rdma: Fix multiple disk performance degradation
-Date: Sat, 14 Sep 2024 13:43:54 +0800
-Message-Id: <20240914054354.13236-1-zhengbing.huang@easystack.cn>
+Return-Path: <philipp.reisner@linbit.com>
+Received: from mail-yw1-f174.google.com (mail-yw1-f174.google.com
+	[209.85.128.174])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 377EC420167
+	for <drbd-dev@lists.linbit.com>; Tue, 17 Sep 2024 14:29:40 +0200 (CEST)
+Received: by mail-yw1-f174.google.com with SMTP id
+	00721157ae682-6dbb24ee34dso49384027b3.2
+	for <drbd-dev@lists.linbit.com>; Tue, 17 Sep 2024 05:29:40 -0700 (PDT)
+MIME-Version: 1.0
+References: <20240914054354.13236-1-zhengbing.huang@easystack.cn>
+In-Reply-To: <20240914054354.13236-1-zhengbing.huang@easystack.cn>
+From: Philipp Reisner <philipp.reisner@linbit.com>
+Date: Tue, 17 Sep 2024 14:29:28 +0200
+Message-ID: <CADGDV=VsYahtsbFpoZ-TkKzRZFkcS2p7MvG1g7qMVC96YdQfzg@mail.gmail.com>
+Subject: Re: [PATCH] rdma: Fix multiple disk performance degradation
+To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Cc: drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,105 +28,132 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In the performance test of rdma mode, we found that when
-two drbd disks were simultaneously subjected to high-pressure I/O write,
-the IOPS of each drbd disk would be reduced by half.
+Hi Zhengbing,
 
-The reason is that if the cq_attr.comp_vector parameter
-is not specified when rdma create send_cq and recv_cq,
-cq will be allocated to the same irq for processing.
-At this point, if multiple disks are stress tested at the same time,
-irq will not be processed in a timely manner
-and performance will decrease.
+That patch looks interesting.
+Please allow me a few days for a proper repyl. Currently, I am at a confere=
+nce.
 
-The solution is to use the network port number as the index of the comp_vector,
-so that the cq of each disk can be distributed across different IRQs
+best regards,
+ Philipp
 
-Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
----
- drbd/drbd_transport_rdma.c | 44 ++++++++++++++++++++++++++++++++++----
- 1 file changed, 40 insertions(+), 4 deletions(-)
-
-diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index 813787c28..8915e60d1 100644
---- a/drbd/drbd_transport_rdma.c
-+++ b/drbd/drbd_transport_rdma.c
-@@ -2486,10 +2486,43 @@ static int dtr_init_flow(struct dtr_path *path, enum drbd_stream stream)
- 	return err;
- }
- 
-+static int dtr_get_my_port(struct dtr_path *path)
-+{
-+	int port = 0;
-+	struct sockaddr_storage *addr = (struct sockaddr_storage *)&path->path.my_addr;
-+
-+	if (addr->ss_family == AF_INET6) {
-+		const struct sockaddr_in6 *v6a = (const struct sockaddr_in6 *)addr;
-+
-+		port = be16_to_cpu(v6a->sin6_port);
-+	} else /* AF_INET, AF_SSOCKS, AF_SDP */ {
-+		const struct sockaddr_in *v4a = (const struct sockaddr_in *)addr;
-+
-+		port = be16_to_cpu(v4a->sin_port);
-+	}
-+
-+	return port;
-+}
-+
-+static void dtr_get_comp_vectors(struct dtr_path *path, int cq_num, int *comp_vectors)
-+{
-+	int i;
-+	int tmp_comp_vector = dtr_get_my_port(path) * cq_num;
-+
-+	for (i = 0; i < cq_num; i++) {
-+		comp_vectors[i] = tmp_comp_vector + i;
-+	}
-+
-+	return;
-+}
-+
- static int _dtr_cm_alloc_rdma_res(struct dtr_cm *cm,
- 				    enum dtr_alloc_rdma_res_causes *cause)
- {
--	int err, i, rx_descs_max = 0, tx_descs_max = 0;
-+	int err, i, cq_index = 0, rx_descs_max = 0, tx_descs_max = 0;
-+	int cq_num = 2; /* recv_cq and send_cq */
-+	int comp_vectors[2] = {0}; /* recv_cq and send_cq */
-+	struct ib_device *device = cm->id->device;
- 	struct ib_cq_init_attr cq_attr = {};
- 	struct dtr_path *path = cm->path;
- 
-@@ -2504,16 +2537,18 @@ static int _dtr_cm_alloc_rdma_res(struct dtr_cm *cm,
- 	/* in 4.9 ib_alloc_pd got the ability to specify flags as second param */
- 	/* so far we don't use flags, but if we start using them, we have to be
- 	 * aware that the compat layer removes this parameter for old kernels */
--	cm->pd = ib_alloc_pd(cm->id->device, 0);
-+	cm->pd = ib_alloc_pd(device, 0);
- 	if (IS_ERR(cm->pd)) {
- 		*cause = IB_ALLOC_PD;
- 		err = PTR_ERR(cm->pd);
- 		goto pd_failed;
- 	}
- 
-+	dtr_get_comp_vectors(path, cq_num, comp_vectors);
- 	/* create recv completion queue (CQ) */
- 	cq_attr.cqe = rx_descs_max;
--	cm->recv_cq = ib_create_cq(cm->id->device,
-+	cq_attr.comp_vector = comp_vectors[cq_index] % device->num_comp_vectors;
-+	cm->recv_cq = ib_create_cq(device,
- 			dtr_rx_cq_event_handler, NULL, cm,
- 			&cq_attr);
- 	if (IS_ERR(cm->recv_cq)) {
-@@ -2524,7 +2559,8 @@ static int _dtr_cm_alloc_rdma_res(struct dtr_cm *cm,
- 
- 	/* create send completion queue (CQ) */
- 	cq_attr.cqe = tx_descs_max;
--	cm->send_cq = ib_create_cq(cm->id->device,
-+	cq_attr.comp_vector = comp_vectors[cq_index++] % device->num_comp_vectors;
-+	cm->send_cq = ib_create_cq(device,
- 			dtr_tx_cq_event_handler, NULL, cm,
- 			&cq_attr);
- 	if (IS_ERR(cm->send_cq)) {
--- 
-2.17.1
-
+On Sat, Sep 14, 2024 at 8:12=E2=80=AFAM zhengbing.huang
+<zhengbing.huang@easystack.cn> wrote:
+>
+> In the performance test of rdma mode, we found that when
+> two drbd disks were simultaneously subjected to high-pressure I/O write,
+> the IOPS of each drbd disk would be reduced by half.
+>
+> The reason is that if the cq_attr.comp_vector parameter
+> is not specified when rdma create send_cq and recv_cq,
+> cq will be allocated to the same irq for processing.
+> At this point, if multiple disks are stress tested at the same time,
+> irq will not be processed in a timely manner
+> and performance will decrease.
+>
+> The solution is to use the network port number as the index of the comp_v=
+ector,
+> so that the cq of each disk can be distributed across different IRQs
+>
+> Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
+> ---
+>  drbd/drbd_transport_rdma.c | 44 ++++++++++++++++++++++++++++++++++----
+>  1 file changed, 40 insertions(+), 4 deletions(-)
+>
+> diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
+> index 813787c28..8915e60d1 100644
+> --- a/drbd/drbd_transport_rdma.c
+> +++ b/drbd/drbd_transport_rdma.c
+> @@ -2486,10 +2486,43 @@ static int dtr_init_flow(struct dtr_path *path, e=
+num drbd_stream stream)
+>         return err;
+>  }
+>
+> +static int dtr_get_my_port(struct dtr_path *path)
+> +{
+> +       int port =3D 0;
+> +       struct sockaddr_storage *addr =3D (struct sockaddr_storage *)&pat=
+h->path.my_addr;
+> +
+> +       if (addr->ss_family =3D=3D AF_INET6) {
+> +               const struct sockaddr_in6 *v6a =3D (const struct sockaddr=
+_in6 *)addr;
+> +
+> +               port =3D be16_to_cpu(v6a->sin6_port);
+> +       } else /* AF_INET, AF_SSOCKS, AF_SDP */ {
+> +               const struct sockaddr_in *v4a =3D (const struct sockaddr_=
+in *)addr;
+> +
+> +               port =3D be16_to_cpu(v4a->sin_port);
+> +       }
+> +
+> +       return port;
+> +}
+> +
+> +static void dtr_get_comp_vectors(struct dtr_path *path, int cq_num, int =
+*comp_vectors)
+> +{
+> +       int i;
+> +       int tmp_comp_vector =3D dtr_get_my_port(path) * cq_num;
+> +
+> +       for (i =3D 0; i < cq_num; i++) {
+> +               comp_vectors[i] =3D tmp_comp_vector + i;
+> +       }
+> +
+> +       return;
+> +}
+> +
+>  static int _dtr_cm_alloc_rdma_res(struct dtr_cm *cm,
+>                                     enum dtr_alloc_rdma_res_causes *cause=
+)
+>  {
+> -       int err, i, rx_descs_max =3D 0, tx_descs_max =3D 0;
+> +       int err, i, cq_index =3D 0, rx_descs_max =3D 0, tx_descs_max =3D =
+0;
+> +       int cq_num =3D 2; /* recv_cq and send_cq */
+> +       int comp_vectors[2] =3D {0}; /* recv_cq and send_cq */
+> +       struct ib_device *device =3D cm->id->device;
+>         struct ib_cq_init_attr cq_attr =3D {};
+>         struct dtr_path *path =3D cm->path;
+>
+> @@ -2504,16 +2537,18 @@ static int _dtr_cm_alloc_rdma_res(struct dtr_cm *=
+cm,
+>         /* in 4.9 ib_alloc_pd got the ability to specify flags as second =
+param */
+>         /* so far we don't use flags, but if we start using them, we have=
+ to be
+>          * aware that the compat layer removes this parameter for old ker=
+nels */
+> -       cm->pd =3D ib_alloc_pd(cm->id->device, 0);
+> +       cm->pd =3D ib_alloc_pd(device, 0);
+>         if (IS_ERR(cm->pd)) {
+>                 *cause =3D IB_ALLOC_PD;
+>                 err =3D PTR_ERR(cm->pd);
+>                 goto pd_failed;
+>         }
+>
+> +       dtr_get_comp_vectors(path, cq_num, comp_vectors);
+>         /* create recv completion queue (CQ) */
+>         cq_attr.cqe =3D rx_descs_max;
+> -       cm->recv_cq =3D ib_create_cq(cm->id->device,
+> +       cq_attr.comp_vector =3D comp_vectors[cq_index] % device->num_comp=
+_vectors;
+> +       cm->recv_cq =3D ib_create_cq(device,
+>                         dtr_rx_cq_event_handler, NULL, cm,
+>                         &cq_attr);
+>         if (IS_ERR(cm->recv_cq)) {
+> @@ -2524,7 +2559,8 @@ static int _dtr_cm_alloc_rdma_res(struct dtr_cm *cm=
+,
+>
+>         /* create send completion queue (CQ) */
+>         cq_attr.cqe =3D tx_descs_max;
+> -       cm->send_cq =3D ib_create_cq(cm->id->device,
+> +       cq_attr.comp_vector =3D comp_vectors[cq_index++] % device->num_co=
+mp_vectors;
+> +       cm->send_cq =3D ib_create_cq(device,
+>                         dtr_tx_cq_event_handler, NULL, cm,
+>                         &cq_attr);
+>         if (IS_ERR(cm->send_cq)) {
+> --
+> 2.17.1
+>
