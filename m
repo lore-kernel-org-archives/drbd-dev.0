@@ -1,22 +1,24 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-yw1-f174.google.com (mail-yw1-f174.google.com
-	[209.85.128.174])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 377EC420167
-	for <drbd-dev@lists.linbit.com>; Tue, 17 Sep 2024 14:29:40 +0200 (CEST)
-Received: by mail-yw1-f174.google.com with SMTP id
-	00721157ae682-6dbb24ee34dso49384027b3.2
-	for <drbd-dev@lists.linbit.com>; Tue, 17 Sep 2024 05:29:40 -0700 (PDT)
+Received: from mail-yw1-f179.google.com (mail-yw1-f179.google.com
+	[209.85.128.179])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6BA6042012B
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Sep 2024 11:57:15 +0200 (CEST)
+Received: by mail-yw1-f179.google.com with SMTP id
+	00721157ae682-6dbc75acbfaso43512807b3.3
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Sep 2024 02:57:15 -0700 (PDT)
 MIME-Version: 1.0
-References: <20240914054354.13236-1-zhengbing.huang@easystack.cn>
-In-Reply-To: <20240914054354.13236-1-zhengbing.huang@easystack.cn>
+References: <20240913083504.10549-1-chenqiuji666@gmail.com>
+In-Reply-To: <20240913083504.10549-1-chenqiuji666@gmail.com>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Tue, 17 Sep 2024 14:29:28 +0200
-Message-ID: <CADGDV=VsYahtsbFpoZ-TkKzRZFkcS2p7MvG1g7qMVC96YdQfzg@mail.gmail.com>
-Subject: Re: [PATCH] rdma: Fix multiple disk performance degradation
-To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+Date: Wed, 18 Sep 2024 11:57:03 +0200
+Message-ID: <CADGDV=Vhx79JmTSzSJ+KN_236vKD0mZD6u3_23WRmte2wXW3fg@mail.gmail.com>
+Subject: Re: [PATCH] drbd: Fix atomicity violation in drbd_uuid_set_bm()
+To: Qiu-ji Chen <chenqiuji666@gmail.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Cc: drbd-dev@lists.linbit.com
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, stable@vger.kernel.org,
+	linux-block@vger.kernel.org, baijiaju1990@gmail.com,
+	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,132 +30,69 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hi Zhengbing,
+Hello Qiu-ji Chen,
 
-That patch looks interesting.
-Please allow me a few days for a proper repyl. Currently, I am at a confere=
-nce.
+The code change looks okay to me.
 
-best regards,
- Philipp
+Reviewed-by: Philipp Reisner <philipp.reisner@linbit.com>
 
-On Sat, Sep 14, 2024 at 8:12=E2=80=AFAM zhengbing.huang
-<zhengbing.huang@easystack.cn> wrote:
+On Fri, Sep 13, 2024 at 10:35=E2=80=AFAM Qiu-ji Chen <chenqiuji666@gmail.co=
+m> wrote:
 >
-> In the performance test of rdma mode, we found that when
-> two drbd disks were simultaneously subjected to high-pressure I/O write,
-> the IOPS of each drbd disk would be reduced by half.
+> The violation of atomicity occurs when the drbd_uuid_set_bm function is
+> executed simultaneously with modifying the value of
+> device->ldev->md.uuid[UI_BITMAP]. Consider a scenario where, while
+> device->ldev->md.uuid[UI_BITMAP] passes the validity check when its value
+> is not zero, the value of device->ldev->md.uuid[UI_BITMAP] is written to
+> zero. In this case, the check in drbd_uuid_set_bm might refer to the old
+> value of device->ldev->md.uuid[UI_BITMAP] (before locking), which allows
+> an invalid value to pass the validity check, resulting in inconsistency.
 >
-> The reason is that if the cq_attr.comp_vector parameter
-> is not specified when rdma create send_cq and recv_cq,
-> cq will be allocated to the same irq for processing.
-> At this point, if multiple disks are stress tested at the same time,
-> irq will not be processed in a timely manner
-> and performance will decrease.
+> To address this issue, it is recommended to include the data validity che=
+ck
+> within the locked section of the function. This modification ensures that
+> the value of device->ldev->md.uuid[UI_BITMAP] does not change during the
+> validation process, thereby maintaining its integrity.
 >
-> The solution is to use the network port number as the index of the comp_v=
-ector,
-> so that the cq of each disk can be distributed across different IRQs
+> This possible bug is found by an experimental static analysis tool
+> developed by our team. This tool analyzes the locking APIs to extract
+> function pairs that can be concurrently executed, and then analyzes the
+> instructions in the paired functions to identify possible concurrency bug=
+s
+> including data races and atomicity violations.
 >
-> Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
+> Fixes: 9f2247bb9b75 ("drbd: Protect accesses to the uuid set with a spinl=
+ock")
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Qiu-ji Chen <chenqiuji666@gmail.com>
 > ---
->  drbd/drbd_transport_rdma.c | 44 ++++++++++++++++++++++++++++++++++----
->  1 file changed, 40 insertions(+), 4 deletions(-)
+>  drivers/block/drbd/drbd_main.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
 >
-> diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-> index 813787c28..8915e60d1 100644
-> --- a/drbd/drbd_transport_rdma.c
-> +++ b/drbd/drbd_transport_rdma.c
-> @@ -2486,10 +2486,43 @@ static int dtr_init_flow(struct dtr_path *path, e=
-num drbd_stream stream)
->         return err;
->  }
->
-> +static int dtr_get_my_port(struct dtr_path *path)
-> +{
-> +       int port =3D 0;
-> +       struct sockaddr_storage *addr =3D (struct sockaddr_storage *)&pat=
-h->path.my_addr;
-> +
-> +       if (addr->ss_family =3D=3D AF_INET6) {
-> +               const struct sockaddr_in6 *v6a =3D (const struct sockaddr=
-_in6 *)addr;
-> +
-> +               port =3D be16_to_cpu(v6a->sin6_port);
-> +       } else /* AF_INET, AF_SSOCKS, AF_SDP */ {
-> +               const struct sockaddr_in *v4a =3D (const struct sockaddr_=
-in *)addr;
-> +
-> +               port =3D be16_to_cpu(v4a->sin_port);
-> +       }
-> +
-> +       return port;
-> +}
-> +
-> +static void dtr_get_comp_vectors(struct dtr_path *path, int cq_num, int =
-*comp_vectors)
-> +{
-> +       int i;
-> +       int tmp_comp_vector =3D dtr_get_my_port(path) * cq_num;
-> +
-> +       for (i =3D 0; i < cq_num; i++) {
-> +               comp_vectors[i] =3D tmp_comp_vector + i;
-> +       }
-> +
-> +       return;
-> +}
-> +
->  static int _dtr_cm_alloc_rdma_res(struct dtr_cm *cm,
->                                     enum dtr_alloc_rdma_res_causes *cause=
-)
+> diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_mai=
+n.c
+> index a9e49b212341..abafc4edf9ed 100644
+> --- a/drivers/block/drbd/drbd_main.c
+> +++ b/drivers/block/drbd/drbd_main.c
+> @@ -3399,10 +3399,12 @@ void drbd_uuid_new_current(struct drbd_device *de=
+vice) __must_hold(local)
+>  void drbd_uuid_set_bm(struct drbd_device *device, u64 val) __must_hold(l=
+ocal)
 >  {
-> -       int err, i, rx_descs_max =3D 0, tx_descs_max =3D 0;
-> +       int err, i, cq_index =3D 0, rx_descs_max =3D 0, tx_descs_max =3D =
-0;
-> +       int cq_num =3D 2; /* recv_cq and send_cq */
-> +       int comp_vectors[2] =3D {0}; /* recv_cq and send_cq */
-> +       struct ib_device *device =3D cm->id->device;
->         struct ib_cq_init_attr cq_attr =3D {};
->         struct dtr_path *path =3D cm->path;
+>         unsigned long flags;
+> -       if (device->ldev->md.uuid[UI_BITMAP] =3D=3D 0 && val =3D=3D 0)
+> +       spin_lock_irqsave(&device->ldev->md.uuid_lock, flags);
+> +       if (device->ldev->md.uuid[UI_BITMAP] =3D=3D 0 && val =3D=3D 0) {
+> +               spin_unlock_irqrestore(&device->ldev->md.uuid_lock, flags=
+);
+>                 return;
+> +       }
 >
-> @@ -2504,16 +2537,18 @@ static int _dtr_cm_alloc_rdma_res(struct dtr_cm *=
-cm,
->         /* in 4.9 ib_alloc_pd got the ability to specify flags as second =
-param */
->         /* so far we don't use flags, but if we start using them, we have=
- to be
->          * aware that the compat layer removes this parameter for old ker=
-nels */
-> -       cm->pd =3D ib_alloc_pd(cm->id->device, 0);
-> +       cm->pd =3D ib_alloc_pd(device, 0);
->         if (IS_ERR(cm->pd)) {
->                 *cause =3D IB_ALLOC_PD;
->                 err =3D PTR_ERR(cm->pd);
->                 goto pd_failed;
->         }
->
-> +       dtr_get_comp_vectors(path, cq_num, comp_vectors);
->         /* create recv completion queue (CQ) */
->         cq_attr.cqe =3D rx_descs_max;
-> -       cm->recv_cq =3D ib_create_cq(cm->id->device,
-> +       cq_attr.comp_vector =3D comp_vectors[cq_index] % device->num_comp=
-_vectors;
-> +       cm->recv_cq =3D ib_create_cq(device,
->                         dtr_rx_cq_event_handler, NULL, cm,
->                         &cq_attr);
->         if (IS_ERR(cm->recv_cq)) {
-> @@ -2524,7 +2559,8 @@ static int _dtr_cm_alloc_rdma_res(struct dtr_cm *cm=
-,
->
->         /* create send completion queue (CQ) */
->         cq_attr.cqe =3D tx_descs_max;
-> -       cm->send_cq =3D ib_create_cq(cm->id->device,
-> +       cq_attr.comp_vector =3D comp_vectors[cq_index++] % device->num_co=
-mp_vectors;
-> +       cm->send_cq =3D ib_create_cq(device,
->                         dtr_tx_cq_event_handler, NULL, cm,
->                         &cq_attr);
->         if (IS_ERR(cm->send_cq)) {
+> -       spin_lock_irqsave(&device->ldev->md.uuid_lock, flags);
+>         if (val =3D=3D 0) {
+>                 drbd_uuid_move_history(device);
+>                 device->ldev->md.uuid[UI_HISTORY_START] =3D device->ldev-=
+>md.uuid[UI_BITMAP];
 > --
-> 2.17.1
+> 2.34.1
 >
