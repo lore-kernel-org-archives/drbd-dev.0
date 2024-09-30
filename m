@@ -1,20 +1,40 @@
-Return-Path: <yanzhen@vivo.com>
-Received: from APC01-PSA-obe.outbound.protection.outlook.com
-	(mail-psaapc01on2080.outbound.protection.outlook.com [40.107.255.80])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 00C08420312
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Sep 2024 12:31:09 +0200 (CEST)
-From: Yan Zhen <yanzhen@vivo.com>
-To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
-	christoph.boehmwalder@linbit.com, axboe@kernel.dk
-Subject: [PATCH v1] drbd: Fix typos in the comment
-Date: Fri, 27 Sep 2024 17:57:35 +0800
-Message-Id: <20240927095735.228661-1-yanzhen@vivo.com>
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain
+Return-Path: <Julia.Lawall@inria.fr>
+Received: from mail2-relais-roc.national.inria.fr
+	(mail2-relais-roc.national.inria.fr [192.134.164.83])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EBB1B42012B
+	for <drbd-dev@lists.linbit.com>; Mon, 30 Sep 2024 13:28:31 +0200 (CEST)
+From: Julia Lawall <Julia.Lawall@inria.fr>
+To: linux-gpio@vger.kernel.org
+Subject: [PATCH 00/35] Reorganize kerneldoc parameter names
+Date: Mon, 30 Sep 2024 13:20:46 +0200
+Message-Id: <20240930112121.95324-1-Julia.Lawall@inria.fr>
 MIME-Version: 1.0
-Cc: linux-block@vger.kernel.org, opensource.kernel@vivo.com,
-	Yan Zhen <yanzhen@vivo.com>, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
+Content-Transfer-Encoding: 8bit
+Cc: nvdimm@lists.linux.dev, alsa-devel@alsa-project.org,
+	Jan Kara <jack@suse.cz>, "Rafael J. Wysocki" <rafael@kernel.org>,
+	Neil Brown <neilb@suse.de>, linux-pci@vger.kernel.org,
+	kernel-janitors@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org, linux-mtd@lists.infradead.org,
+	amd-gfx@lists.freedesktop.org, linux-leds@vger.kernel.org,
+	drbd-dev@lists.linbit.com,
+	Pierre-Louis Bossart <pierre-louis.bossart@linux.dev>,
+	dccp@vger.kernel.org, Dai Ngo <Dai.Ngo@oracle.com>,
+	Christophe Leroy <christophe.leroy@csgroup.eu>,
+	iommu@lists.linux.dev, intel-wired-lan@lists.osuosl.org,
+	Robin Murphy <robin.murphy@arm.com>,
+	Olga Kornievskaia <okorniev@redhat.com>,
+	linux-arm-msm@vger.kernel.org, Naveen N Rao <naveen@kernel.org>,
+	linux-sound@vger.kernel.org, maple-tree@lists.infradead.org,
+	Tom Talpey <tom@talpey.com>, Madhavan Srinivasan <maddy@linux.ibm.com>,
+	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
+	Nicholas Piggin <npiggin@gmail.com>, linux-omap@vger.kernel.org,
+	Zhihao Cheng <chengzhihao1@huawei.com>,
+	linux-arm-kernel@lists.infradead.org, linux-nfs@vger.kernel.org,
+	netdev@vger.kernel.org, linux-usb@vger.kernel.org,
+	linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
+	audit@vger.kernel.org, tipc-discussion@lists.sourceforge.net,
+	linux-fsdevel@vger.kernel.org, Sanyog Kale <sanyog.r.kale@intel.com>,
+	linux-trace-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,135 +46,131 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Correctly spelled comments make it easier for the reader to understand
-the code.
+Reorganize kerneldoc parameter names to match the parameter
+order in the function header.
 
-Fix typos:
-'mutliple' ==> 'multiple',
-'droped' ==> 'dropped',
-'Suprisingly' ==> 'Surprisingly',
-'chage' ==> 'change',
-'typicaly' ==> 'typically',
-'progres' ==> 'progress',
-'catched' ==> 'caught',
-'protocoll' ==> 'protocol',
-'stroage' ==> 'storage',
-'independend' ==> 'independent'.
+The misordered cases were identified using the following
+Coccinelle semantic patch:
 
-Signed-off-by: Yan Zhen <yanzhen@vivo.com>
+// <smpl>
+@initialize:ocaml@
+@@
+
+let parse_doc l =
+  let pieces = List.map String.trim (String.split_on_char '*' l) in
+  let l = String.concat " " pieces in
+  match String.split_on_char ':' l with
+    x::xs -> x
+  | _ -> ""
+
+let params ps =
+  List.rev
+    (List.fold_left
+       (fun prev (pm,_) ->
+	 let ty =
+	   String.trim(Pretty_print_c.string_of_fullType pm.Ast_c.p_type) in
+	 if ty = "void" && pm.Ast_c.p_namei = None
+	 then prev
+	 else
+	   let name =
+	     match pm.Ast_c.p_namei with
+	       Some name -> name
+	     | None -> failwith "function parameter has no name" in
+	   (String.trim (Pretty_print_c.string_of_name name),ty)::prev)
+       [] ps)
+
+@r@
+comments c;
+identifier fn;
+position p;
+parameter list ps;
+type T;
+@@
+
+T@c fn@p(ps) { ... }
+
+@script:ocaml@
+p << r.p;
+c << r.c;
+(_,ps) << r.ps;
+@@
+
+let isdoc c ps =
+  List.length ps > 1 &&
+  (let c = String.trim c in
+  String.length c > 3 && String.sub c 0 3 = "/**" && String.get c 3 != '*') in
+
+let subset l1 l2 =
+  List.for_all (fun x -> List.mem x l2) l1 in
+
+let (cb,cm,ca) = List.hd c in
+match List.rev cb with
+  c::_ when isdoc c ps ->
+    let pieces = String.split_on_char '@' c in
+    (match pieces with
+      _::tl ->
+	let d_names = List.map parse_doc tl in
+	(* check parameters *)
+	let p_names = List.map fst (params ps) in
+	if d_names <> [] && not(d_names = p_names)
+	then
+	  begin
+	    if List.sort compare d_names = List.sort compare p_names
+	    then Coccilib.print_main "out of order" p
+	    else if subset d_names p_names
+	    then Coccilib.print_main "doc is missing a parameter" p
+	    else if subset d_names p_names
+	    then Coccilib.print_main "doc has an extra parameter" p
+	  end
+    | _ -> ())
+| _ -> ()
+// </smpl>
+
 ---
- drivers/block/drbd/drbd_debugfs.c | 2 +-
- drivers/block/drbd/drbd_nl.c      | 6 +++---
- drivers/block/drbd/drbd_req.c     | 8 ++++----
- drivers/block/drbd/drbd_vli.h     | 4 ++--
- 4 files changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_debugfs.c b/drivers/block/drbd/drbd_debugfs.c
-index 12460b584bcb..c116c4f93eea 100644
---- a/drivers/block/drbd/drbd_debugfs.c
-+++ b/drivers/block/drbd/drbd_debugfs.c
-@@ -622,7 +622,7 @@ void drbd_debugfs_connection_add(struct drbd_connection *connection)
- 	struct dentry *conns_dir = connection->resource->debugfs_res_connections;
- 	struct dentry *dentry;
- 
--	/* Once we enable mutliple peers,
-+	/* Once we enable multiple peers,
- 	 * these connections will have descriptive names.
- 	 * For now, it is just the one connection to the (only) "peer". */
- 	dentry = debugfs_create_dir("peer", conns_dir);
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index 5d65c9754d83..4b1876baf472 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -572,7 +572,7 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
- 	spin_lock_irq(&resource->req_lock);
- 	if (connection->cstate < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &connection->flags)) {
- 		if (connection->connect_cnt != connect_cnt)
--			/* In case the connection was established and droped
-+			/* In case the connection was established and dropped
- 			   while the fence-peer handler was running, ignore it */
- 			drbd_info(connection, "Ignoring fence-peer exit code\n");
- 		else
-@@ -3918,7 +3918,7 @@ static int get_one_status(struct sk_buff *skb, struct netlink_callback *cb)
- 
- 		if (!device) {
- 			/* This is a connection without a single volume.
--			 * Suprisingly enough, it may have a network
-+			 * Surprisingly enough, it may have a network
- 			 * configuration. */
- 			struct drbd_connection *connection;
- 
-@@ -4852,7 +4852,7 @@ static int get_initial_state(struct sk_buff *skb, struct netlink_callback *cb)
- 	int err = 0;
- 
- 	/* There is no need for taking notification_mutex here: it doesn't
--	   matter if the initial state events mix with later state chage
-+	   matter if the initial state events mix with later state change
- 	   events; we can always tell the events apart by the NOTIFY_EXISTS
- 	   flag. */
- 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index 380e6584a4ee..9ecdaac20e1f 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -85,7 +85,7 @@ void drbd_req_destroy(struct kref *kref)
- 
- 	/* If called from mod_rq_state (expected normal case) or
- 	 * drbd_send_and_submit (the less likely normal path), this holds the
--	 * req_lock, and req->tl_requests will typicaly be on ->transfer_log,
-+	 * req_lock, and req->tl_requests will typically be on ->transfer_log,
- 	 * though it may be still empty (never added to the transfer log).
- 	 *
- 	 * If called from do_retry(), we do NOT hold the req_lock, but we are
-@@ -1575,7 +1575,7 @@ void do_submit(struct work_struct *ws)
- 		 * Be strictly non-blocking here,
- 		 * we already have something to commit.
- 		 *
--		 * Commit if we don't make any more progres.
-+		 * Commit if we don't make any more progress.
- 		 */
- 
- 		while (list_empty(&incoming)) {
-@@ -1689,7 +1689,7 @@ static bool net_timeout_reached(struct drbd_request *net_req,
-  * - the connection was established (resp. disk was attached)
-  *   for longer than the timeout already.
-  * Note that for 32bit jiffies and very stable connections/disks,
-- * we may have a wrap around, which is catched by
-+ * we may have a wrap around, which is caught by
-  *   !time_in_range(now, last_..._jif, last_..._jif + timeout).
-  *
-  * Side effect: once per 32bit wrap-around interval, which means every
-@@ -1745,7 +1745,7 @@ void request_timer_fn(struct timer_list *t)
- 	 * but which is still waiting for an ACK. */
- 	req_peer = connection->req_ack_pending;
- 
--	/* if we don't have such request (e.g. protocoll A)
-+	/* if we don't have such request (e.g. protocol A)
- 	 * check the oldest requests which is still waiting on its epoch
- 	 * closing barrier ack. */
- 	if (!req_peer)
-diff --git a/drivers/block/drbd/drbd_vli.h b/drivers/block/drbd/drbd_vli.h
-index 941c511cc4da..aa78a55aa1af 100644
---- a/drivers/block/drbd/drbd_vli.h
-+++ b/drivers/block/drbd/drbd_vli.h
-@@ -15,7 +15,7 @@
- 
- /*
-  * At a granularity of 4KiB storage represented per bit,
-- * and stroage sizes of several TiB,
-+ * and storage sizes of several TiB,
-  * and possibly small-bandwidth replication,
-  * the bitmap transfer time can take much too long,
-  * if transmitted in plain text.
-@@ -179,7 +179,7 @@ static inline int __vli_encode_bits(u64 *out, const u64 in)
- 
- #undef VLI_L_1_1
- 
--/* code from here down is independend of actually used bit code */
-+/* code from here down is independent of actually used bit code */
- 
- /*
-  * Code length is determined by some unique (e.g. unary) prefix.
--- 
-2.34.1
-
+ arch/arm/mach-omap2/prm2xxx_3xxx.c              |    1 -
+ arch/powerpc/platforms/ps3/interrupt.c          |    2 +-
+ arch/powerpc/platforms/ps3/repository.c         |    2 +-
+ drivers/base/firmware_loader/main.c             |    2 +-
+ drivers/comedi/drivers/comedi_8254.c            |    2 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c          |    2 +-
+ drivers/gpu/drm/amd/display/dc/core/dc.c        |    2 +-
+ drivers/gpu/drm/drm_gem_framebuffer_helper.c    |    3 +--
+ drivers/gpu/drm/drm_gpuvm.c                     |    2 +-
+ drivers/gpu/drm/radeon/radeon_ib.c              |    2 +-
+ drivers/iommu/iommu.c                           |    2 +-
+ drivers/leds/leds-gpio-register.c               |    2 +-
+ drivers/mfd/atmel-smc.c                         |    4 ++--
+ drivers/misc/mei/bus.c                          |    2 +-
+ drivers/mtd/ubi/eba.c                           |    2 +-
+ drivers/net/ethernet/broadcom/bnxt/bnxt_hwrm.c  |    2 +-
+ drivers/net/ethernet/intel/e1000/e1000_hw.c     |    2 +-
+ drivers/net/ethernet/intel/i40e/i40e_common.c   |    7 +++----
+ drivers/net/ethernet/intel/ice/ice_common.c     |    2 +-
+ drivers/net/ethernet/intel/ixgbe/ixgbe_common.c |    2 +-
+ drivers/nvdimm/dimm_devs.c                      |    2 +-
+ drivers/pci/hotplug/pci_hotplug_core.c          |    2 +-
+ drivers/pinctrl/pinmux.c                        |    2 +-
+ drivers/slimbus/messaging.c                     |    2 +-
+ drivers/soc/qcom/qmi_interface.c                |    2 +-
+ drivers/soundwire/stream.c                      |    2 +-
+ drivers/usb/gadget/config.c                     |    4 ++--
+ fs/char_dev.c                                   |    2 +-
+ fs/dcache.c                                     |    4 ++--
+ fs/seq_file.c                                   |    2 +-
+ kernel/audit.c                                  |    2 +-
+ kernel/resource.c                               |    2 +-
+ kernel/sysctl.c                                 |    1 -
+ kernel/trace/ring_buffer.c                      |    2 +-
+ lib/lru_cache.c                                 |    2 +-
+ lib/maple_tree.c                                |    2 +-
+ mm/mmu_notifier.c                               |    2 +-
+ net/dccp/feat.c                                 |    2 +-
+ net/mac80211/mesh_hwmp.c                        |    6 +++---
+ net/mac80211/mesh_pathtbl.c                     |   10 +++++-----
+ net/socket.c                                    |    2 +-
+ net/sunrpc/xprt.c                               |    2 +-
+ net/tipc/link.c                                 |   14 +++++++-------
+ net/tipc/msg.c                                  |    2 +-
+ sound/pci/hda/hda_codec.c                       |    2 +-
+ 45 files changed, 60 insertions(+), 64 deletions(-)
