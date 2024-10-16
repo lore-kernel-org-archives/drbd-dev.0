@@ -1,24 +1,19 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-yb1-f171.google.com (mail-yb1-f171.google.com
-	[209.85.219.171])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C11DB4202BA
-	for <drbd-dev@lists.linbit.com>; Wed, 16 Oct 2024 18:44:52 +0200 (CEST)
-Received: by mail-yb1-f171.google.com with SMTP id
-	3f1490d57ef6-e2975b197d1so1848839276.2
-	for <drbd-dev@lists.linbit.com>; Wed, 16 Oct 2024 09:44:52 -0700 (PDT)
+Received: from mail-lf1-f54.google.com (mail-lf1-f54.google.com
+	[209.85.167.54])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id ED7FA4202CC
+	for <drbd-dev@lists.linbit.com>; Wed, 16 Oct 2024 18:48:59 +0200 (CEST)
+Received: by mail-lf1-f54.google.com with SMTP id
+	2adb3069b0e04-539e690479cso5317e87.3
+	for <drbd-dev@lists.linbit.com>; Wed, 16 Oct 2024 09:48:59 -0700 (PDT)
 MIME-Version: 1.0
-References: <20240624054619.23212-1-zhengbing.huang@easystack.cn>
-	<20240624054619.23212-3-zhengbing.huang@easystack.cn>
-	<CADGDV=V4kpNPAWf6MsdswhbMqKPe5=qEMXkF_KBqXVM7W+aUhQ@mail.gmail.com>
-	<f368f323-140c-9995-63b7-ec8ada21a7f0@easystack.cn>
-	<73f04036-5bb3-9ad5-bfe1-ea4d26817ceb@easystack.cn>
-In-Reply-To: <73f04036-5bb3-9ad5-bfe1-ea4d26817ceb@easystack.cn>
+References: <20240914054354.13236-1-zhengbing.huang@easystack.cn>
+In-Reply-To: <20240914054354.13236-1-zhengbing.huang@easystack.cn>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Wed, 16 Oct 2024 18:44:40 +0200
-Message-ID: <CADGDV=XqOK7iQ1cCNMWEBjZdx-iZVmsrgfVmQWTEnOqgk2ODWQ@mail.gmail.com>
-Subject: Re: [PATCH 03/11] drbd_transport_rdma: put kref for cm in
-	dtr_path_established in error path
-To: Dongsheng Yang <dongsheng.yang@easystack.cn>
+Date: Wed, 16 Oct 2024 18:48:26 +0200
+Message-ID: <CADGDV=Xm1t381KRjTqOZj_t1puczxeXPrtCF3xdfLY-7+JUXOg@mail.gmail.com>
+Subject: Re: [PATCH] rdma: Fix multiple disk performance degradation
+To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 Cc: drbd-dev@lists.linbit.com
@@ -33,93 +28,133 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Hello easystack team,
+Hi Zhengbing,
 
-I probably fixed the (or some of the) problems you intended to fix
-with this patch series.
+My impression is that using the port number to distribute the IRQs is
+a hack. What about allocating an array and tracking how many CMs got
+assigned to each IRQ, and always using the IRQ number that is used by
+the least number of other CMs?
 
-Please see these recent commits on the master branch:
-
-3f82aed6e drbd_transport: fix a use after free in drbd_get_listener()
-1f2f11c47 rdma: remove dtr_path_established()
-e38120f3d rdma: Fix leaking a cm_id object
-e0f5e307e rdma: fix superficial kref_put() in error code path in
-dtr_cma_accept()
-35a6b002c rdma: fix concurrency of activate_path() and __dtr_disconnect_pat=
-h()
-6ccd39432 rdma: fix an access after free() in dtr_destroy_cm()
-5a711b347 rdma: fix free() of scheduled delayed_work
-847aab659 rdma: remove misguided kref_get()/kref_put()
-
-I will go over your patch series and your comments. I'm sorry I
-dropped the ball on this. I was out on vacation in July, and when I
-came back, 1000 things needed my attention.
-
-Best regards,
+best regards,
  Philipp
 
-On Mon, Jul 1, 2024 at 4:48=E2=80=AFAM Dongsheng Yang
-<dongsheng.yang@easystack.cn> wrote:
+On Sat, Sep 14, 2024 at 8:12=E2=80=AFAM zhengbing.huang
+<zhengbing.huang@easystack.cn> wrote:
 >
+> In the performance test of rdma mode, we found that when
+> two drbd disks were simultaneously subjected to high-pressure I/O write,
+> the IOPS of each drbd disk would be reduced by half.
 >
+> The reason is that if the cq_attr.comp_vector parameter
+> is not specified when rdma create send_cq and recv_cq,
+> cq will be allocated to the same irq for processing.
+> At this point, if multiple disks are stress tested at the same time,
+> irq will not be processed in a timely manner
+> and performance will decrease.
 >
-> =E5=9C=A8 2024/7/1 =E6=98=9F=E6=9C=9F=E4=B8=80 =E4=B8=8A=E5=8D=88 10:07, =
-Dongsheng Yang =E5=86=99=E9=81=93:
-> >
-> >
-> > =E5=9C=A8 2024/6/28 =E6=98=9F=E6=9C=9F=E4=BA=94 =E4=B8=8B=E5=8D=88 5:40=
-, Philipp Reisner =E5=86=99=E9=81=93:
-> >> Hello Dongsheng,
-> >>
-> >> Please add more information why you think this change fixes a bug.
-> >> Have you experienced a leak of cm structs?
-> >> We got a RDMA_CM_EVENT_ESTABLISHED event. Even if DRBD does not do
-> >> anything with this cm, we sill expect a RDMA_CM_EVENT_DISCONNECTED in
-> >> the future. Is a problem in the handling of the disconnect?
-> >
-> > If dtr_path_established() go into this branch, it will not
-> > schedule_work(&cm->establish_work);
-> >
-> > That means path->cm->state =3D DSM_CONNECTED; will not be done in
-> > dtr_path_established_work_fn(), so __dtr_disconnect_path() will not cal=
-l
-> > rdma_disconnect(). That means this reference will never be put.
+> The solution is to use the network port number as the index of the comp_v=
+ector,
+> so that the cq of each disk can be distributed across different IRQs
 >
-> let me consider this  example:
-> a) rdma_connect() called and RDMA_CM_EVENT_ESTABLISHED received.
+> Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
+> ---
+>  drbd/drbd_transport_rdma.c | 44 ++++++++++++++++++++++++++++++++++----
+>  1 file changed, 40 insertions(+), 4 deletions(-)
 >
-> b) network failure and dtr_path_established() go into error path.
+> diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
+> index 813787c28..8915e60d1 100644
+> --- a/drbd/drbd_transport_rdma.c
+> +++ b/drbd/drbd_transport_rdma.c
+> @@ -2486,10 +2486,43 @@ static int dtr_init_flow(struct dtr_path *path, e=
+num drbd_stream stream)
+>         return err;
+>  }
 >
-> c) establish_work will not be scheduled.
+> +static int dtr_get_my_port(struct dtr_path *path)
+> +{
+> +       int port =3D 0;
+> +       struct sockaddr_storage *addr =3D (struct sockaddr_storage *)&pat=
+h->path.my_addr;
+> +
+> +       if (addr->ss_family =3D=3D AF_INET6) {
+> +               const struct sockaddr_in6 *v6a =3D (const struct sockaddr=
+_in6 *)addr;
+> +
+> +               port =3D be16_to_cpu(v6a->sin6_port);
+> +       } else /* AF_INET, AF_SSOCKS, AF_SDP */ {
+> +               const struct sockaddr_in *v4a =3D (const struct sockaddr_=
+in *)addr;
+> +
+> +               port =3D be16_to_cpu(v4a->sin_port);
+> +       }
+> +
+> +       return port;
+> +}
+> +
+> +static void dtr_get_comp_vectors(struct dtr_path *path, int cq_num, int =
+*comp_vectors)
+> +{
+> +       int i;
+> +       int tmp_comp_vector =3D dtr_get_my_port(path) * cq_num;
+> +
+> +       for (i =3D 0; i < cq_num; i++) {
+> +               comp_vectors[i] =3D tmp_comp_vector + i;
+> +       }
+> +
+> +       return;
+> +}
+> +
+>  static int _dtr_cm_alloc_rdma_res(struct dtr_cm *cm,
+>                                     enum dtr_alloc_rdma_res_causes *cause=
+)
+>  {
+> -       int err, i, rx_descs_max =3D 0, tx_descs_max =3D 0;
+> +       int err, i, cq_index =3D 0, rx_descs_max =3D 0, tx_descs_max =3D =
+0;
+> +       int cq_num =3D 2; /* recv_cq and send_cq */
+> +       int comp_vectors[2] =3D {0}; /* recv_cq and send_cq */
+> +       struct ib_device *device =3D cm->id->device;
+>         struct ib_cq_init_attr cq_attr =3D {};
+>         struct dtr_path *path =3D cm->path;
 >
-> d) drbdadm down test will hang because cm ref is not put.
-> >>
-> >> best regards,
-> >>   Philipp
-> >>
-> >> On Mon, Jun 24, 2024 at 9:28=E2=80=AFAM zhengbing.huang
-> >> <zhengbing.huang@easystack.cn> wrote:
-> >>>
-> >>> From: Dongsheng Yang <dongsheng.yang@easystack.cn>
-> >>>
-> >>> Signed-off-by: Dongsheng Yang <dongsheng.yang@easystack.cn>
-> >>> ---
-> >>>   drbd/drbd_transport_rdma.c | 1 +
-> >>>   1 file changed, 1 insertion(+)
-> >>>
-> >>> diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-> >>> index cfbae0e78..eccd0c6ce 100644
-> >>> --- a/drbd/drbd_transport_rdma.c
-> >>> +++ b/drbd/drbd_transport_rdma.c
-> >>> @@ -922,6 +922,7 @@ static void dtr_path_established(struct dtr_cm *c=
-m)
-> >>>                          atomic_set(&cs->active_state, PCS_INACTIVE);
-> >>>                          wake_up(&cs->wq);
-> >>>                  }
-> >>> +               kref_put(&cm->kref, dtr_destroy_cm);
-> >>>                  return;
-> >>>          }
-> >>>
-> >>> --
-> >>> 2.27.0
-> >>>
+> @@ -2504,16 +2537,18 @@ static int _dtr_cm_alloc_rdma_res(struct dtr_cm *=
+cm,
+>         /* in 4.9 ib_alloc_pd got the ability to specify flags as second =
+param */
+>         /* so far we don't use flags, but if we start using them, we have=
+ to be
+>          * aware that the compat layer removes this parameter for old ker=
+nels */
+> -       cm->pd =3D ib_alloc_pd(cm->id->device, 0);
+> +       cm->pd =3D ib_alloc_pd(device, 0);
+>         if (IS_ERR(cm->pd)) {
+>                 *cause =3D IB_ALLOC_PD;
+>                 err =3D PTR_ERR(cm->pd);
+>                 goto pd_failed;
+>         }
+>
+> +       dtr_get_comp_vectors(path, cq_num, comp_vectors);
+>         /* create recv completion queue (CQ) */
+>         cq_attr.cqe =3D rx_descs_max;
+> -       cm->recv_cq =3D ib_create_cq(cm->id->device,
+> +       cq_attr.comp_vector =3D comp_vectors[cq_index] % device->num_comp=
+_vectors;
+> +       cm->recv_cq =3D ib_create_cq(device,
+>                         dtr_rx_cq_event_handler, NULL, cm,
+>                         &cq_attr);
+>         if (IS_ERR(cm->recv_cq)) {
+> @@ -2524,7 +2559,8 @@ static int _dtr_cm_alloc_rdma_res(struct dtr_cm *cm=
+,
+>
+>         /* create send completion queue (CQ) */
+>         cq_attr.cqe =3D tx_descs_max;
+> -       cm->send_cq =3D ib_create_cq(cm->id->device,
+> +       cq_attr.comp_vector =3D comp_vectors[cq_index++] % device->num_co=
+mp_vectors;
+> +       cm->send_cq =3D ib_create_cq(device,
+>                         dtr_tx_cq_event_handler, NULL, cm,
+>                         &cq_attr);
+>         if (IS_ERR(cm->send_cq)) {
+> --
+> 2.17.1
+>
