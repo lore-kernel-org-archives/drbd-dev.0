@@ -1,21 +1,43 @@
-Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ej1-f42.google.com (mail-ej1-f42.google.com
-	[209.85.218.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 593EF42033E
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Oct 2024 13:33:31 +0200 (CEST)
-Received: by mail-ej1-f42.google.com with SMTP id
-	a640c23a62f3a-a9a6acac4c3so113422366b.0
-	for <drbd-dev@lists.linbit.com>; Thu, 24 Oct 2024 04:33:31 -0700 (PDT)
+Return-Path: <michael@ellerman.id.au>
+Received: from mail.ozlabs.org (gandalf.ozlabs.org [150.107.74.76])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6C4794201DB
+	for <drbd-dev@lists.linbit.com>; Sun, 17 Nov 2024 13:31:49 +0100 (CET)
+From: Michael Ellerman <patch-notifications@ellerman.id.au>
+To: linux-gpio@vger.kernel.org, Julia Lawall <Julia.Lawall@inria.fr>
+In-Reply-To: <20240930112121.95324-1-Julia.Lawall@inria.fr>
+References: <20240930112121.95324-1-Julia.Lawall@inria.fr>
+Subject: Re: (subset) [PATCH 00/35] Reorganize kerneldoc parameter names
+Message-Id: <173184539760.890800.14513086226459117952.b4-ty@ellerman.id.au>
+Date: Sun, 17 Nov 2024 23:09:57 +1100
 MIME-Version: 1.0
-References: <20241022114151.8050-1-zhengbing.huang@easystack.cn>
-In-Reply-To: <20241022114151.8050-1-zhengbing.huang@easystack.cn>
-From: Joel Colledge <joel.colledge@linbit.com>
-Date: Thu, 24 Oct 2024 13:33:20 +0200
-Message-ID: <CAGNP_+WTu+xCHWZ6Fou8uqCYFauvqTK3Ch8rT-3YhZnrD0Mf5g@mail.gmail.com>
-Subject: Re: [PATCH] drbd: Fix seq_num numeric conversion error
-To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-Content-Type: text/plain; charset="UTF-8"
-Cc: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Cc: nvdimm@lists.linux.dev, alsa-devel@alsa-project.org,
+	Jan Kara <jack@suse.cz>, "Rafael J. Wysocki" <rafael@kernel.org>,
+	Neil Brown <neilb@suse.de>, linux-pci@vger.kernel.org,
+	kernel-janitors@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org, linux-mtd@lists.infradead.org,
+	amd-gfx@lists.freedesktop.org, linux-leds@vger.kernel.org,
+	drbd-dev@lists.linbit.com,
+	Pierre-Louis Bossart <pierre-louis.bossart@linux.dev>,
+	dccp@vger.kernel.org, Dai Ngo <Dai.Ngo@oracle.com>,
+	Christophe Leroy <christophe.leroy@csgroup.eu>,
+	iommu@lists.linux.dev, intel-wired-lan@lists.osuosl.org, net,
+	Robin Murphy <robin.murphy@arm.com>,
+	Olga Kornievskaia <okorniev@redhat.com>,
+	linux-arm-msm@vger.kernel.org, Naveen N Rao <naveen@kernel.org>,
+	linux-sound@vger.kernel.org, maple-tree@lists.infradead.org,
+	Tom Talpey <tom@talpey.com>, Madhavan Srinivasan <maddy@linux.ibm.com>,
+	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	tipc-discussion@lists.sourceforge., linux-omap@vger.kernel.org,
+	Zhihao Cheng <chengzhihao1@huawei.com>,
+	linux-arm-kernel@lists.infradead.org, linux-nfs@vger.kernel.org,
+	netdev@vger.kernel.org, linux-usb@vger.kernel.org,
+	linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
+	audit@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	Sanyog Kale <sanyog.r.kale@intel.com>, linux-trace-kernel@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,12 +49,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-> seq_num is a 32-bit value and should not be converted with be64_to_cpu().
+On Mon, 30 Sep 2024 13:20:46 +0200, Julia Lawall wrote:
+> Reorganize kerneldoc parameter names to match the parameter
+> order in the function header.
+> 
+> The misordered cases were identified using the following
+> Coccinelle semantic patch:
+> 
+> // <smpl>
+> @initialize:ocaml@
+> @@
+> 
+> [...]
 
-Thanks. Applied as:
-https://github.com/LINBIT/drbd/commit/168bcdd0a56ca80fed4ca9e05589c1188b2aa589
+Applied to powerpc/next.
 
-The commit will be merged to master in due course.
+[11/35] powerpc/ps3: Reorganize kerneldoc parameter names
+        https://git.kernel.org/powerpc/c/276e036e5844116e563fa90f676c625bb742cc57
 
-Best regards,
-Joel
+cheers
