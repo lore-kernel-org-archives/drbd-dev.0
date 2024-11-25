@@ -1,43 +1,26 @@
-Return-Path: <michael@ellerman.id.au>
-Received: from mail.ozlabs.org (gandalf.ozlabs.org [150.107.74.76])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6C4794201DB
-	for <drbd-dev@lists.linbit.com>; Sun, 17 Nov 2024 13:31:49 +0100 (CET)
-From: Michael Ellerman <patch-notifications@ellerman.id.au>
-To: linux-gpio@vger.kernel.org, Julia Lawall <Julia.Lawall@inria.fr>
-In-Reply-To: <20240930112121.95324-1-Julia.Lawall@inria.fr>
-References: <20240930112121.95324-1-Julia.Lawall@inria.fr>
-Subject: Re: (subset) [PATCH 00/35] Reorganize kerneldoc parameter names
-Message-Id: <173184539760.890800.14513086226459117952.b4-ty@ellerman.id.au>
-Date: Sun, 17 Nov 2024 23:09:57 +1100
+Return-Path: <senozhatsky@chromium.org>
+Received: from mail-pl1-f169.google.com (mail-pl1-f169.google.com
+	[209.85.214.169])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0B649420109
+	for <drbd-dev@lists.linbit.com>; Mon, 25 Nov 2024 03:49:35 +0100 (CET)
+Received: by mail-pl1-f169.google.com with SMTP id
+	d9443c01a7336-2126408cf31so28955245ad.0
+	for <drbd-dev@lists.linbit.com>; Sun, 24 Nov 2024 18:49:35 -0800 (PST)
+Date: Mon, 25 Nov 2024 11:49:27 +0900
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
+To: Saru2003 <sarvesh20123@gmail.com>
+Subject: Re: [PATCH] Corrected the spelling of dictionary in the example
+	usage of 'algorithm_params' in the ZRAM documentation.
+Message-ID: <20241125024927.GA440697@google.com>
+References: <20241124134550.69112-1-sarvesh20123@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Cc: nvdimm@lists.linux.dev, alsa-devel@alsa-project.org,
-	Jan Kara <jack@suse.cz>, "Rafael J. Wysocki" <rafael@kernel.org>,
-	Neil Brown <neilb@suse.de>, linux-pci@vger.kernel.org,
-	kernel-janitors@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, linux-mtd@lists.infradead.org,
-	amd-gfx@lists.freedesktop.org, linux-leds@vger.kernel.org,
-	drbd-dev@lists.linbit.com,
-	Pierre-Louis Bossart <pierre-louis.bossart@linux.dev>,
-	dccp@vger.kernel.org, Dai Ngo <Dai.Ngo@oracle.com>,
-	Christophe Leroy <christophe.leroy@csgroup.eu>,
-	iommu@lists.linux.dev, intel-wired-lan@lists.osuosl.org, net,
-	Robin Murphy <robin.murphy@arm.com>,
-	Olga Kornievskaia <okorniev@redhat.com>,
-	linux-arm-msm@vger.kernel.org, Naveen N Rao <naveen@kernel.org>,
-	linux-sound@vger.kernel.org, maple-tree@lists.infradead.org,
-	Tom Talpey <tom@talpey.com>, Madhavan Srinivasan <maddy@linux.ibm.com>,
-	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
-	Nicholas Piggin <npiggin@gmail.com>,
-	tipc-discussion@lists.sourceforge., linux-omap@vger.kernel.org,
-	Zhihao Cheng <chengzhihao1@huawei.com>,
-	linux-arm-kernel@lists.infradead.org, linux-nfs@vger.kernel.org,
-	netdev@vger.kernel.org, linux-usb@vger.kernel.org,
-	linux-wireless@vger.kernel.org, linux-kernel@vger.kernel.org,
-	audit@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	Sanyog Kale <sanyog.r.kale@intel.com>, linux-trace-kernel@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20241124134550.69112-1-sarvesh20123@gmail.com>
+Cc: corbet@lwn.net, linux-doc@vger.kernel.org, philipp.reisner@linbit.com,
+	linux-kernel@vger.kernel.org, minchan@kernel.org,
+	terrelln@fb.com, lars.ellenberg@linbit.com,
+	senozhatsky@chromium.org, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -49,22 +32,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, 30 Sep 2024 13:20:46 +0200, Julia Lawall wrote:
-> Reorganize kerneldoc parameter names to match the parameter
-> order in the function header.
-> 
-> The misordered cases were identified using the following
-> Coccinelle semantic patch:
-> 
-> // <smpl>
-> @initialize:ocaml@
-> @@
-> 
-> [...]
+On (24/11/24 19:15), Saru2003 wrote:
+> Signed-off-by: Saru2003 <sarvesh20123@gmail.com>
 
-Applied to powerpc/next.
+Can you please resend v2 with:
+- updated subject "Documentation: zram: fix dictionary spelling"
+- perhaps a short commit message is still needed
+- I'd also assume your real name should be in SoB
 
-[11/35] powerpc/ps3: Reorganize kerneldoc parameter names
-        https://git.kernel.org/powerpc/c/276e036e5844116e563fa90f676c625bb742cc57
+Otherwise looks good.
 
-cheers
+FWIW,
+Reviewed-by: Sergey Senozhatsky <senozhatsky@chromium.org>
