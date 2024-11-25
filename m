@@ -1,18 +1,19 @@
 Return-Path: <sarvesh20123@gmail.com>
-Received: from mail-pl1-f174.google.com (mail-pl1-f174.google.com
-	[209.85.214.174])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B9A5A42006B
-	for <drbd-dev@lists.linbit.com>; Sun, 24 Nov 2024 14:46:59 +0100 (CET)
-Received: by mail-pl1-f174.google.com with SMTP id
-	d9443c01a7336-21263dbbbc4so38051405ad.1
-	for <drbd-dev@lists.linbit.com>; Sun, 24 Nov 2024 05:46:59 -0800 (PST)
+Received: from mail-pl1-f178.google.com (mail-pl1-f178.google.com
+	[209.85.214.178])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0A935420302
+	for <drbd-dev@lists.linbit.com>; Mon, 25 Nov 2024 17:51:58 +0100 (CET)
+Received: by mail-pl1-f178.google.com with SMTP id
+	d9443c01a7336-21270d64faeso33104675ad.1
+	for <drbd-dev@lists.linbit.com>; Mon, 25 Nov 2024 08:51:58 -0800 (PST)
 From: Saru2003 <sarvesh20123@gmail.com>
 To: minchan@kernel.org,
 	senozhatsky@chromium.org
-Subject: [PATCH] Corrected the spelling of dictionary in the example usage of
-	'algorithm_params' in the ZRAM documentation.
-Date: Sun, 24 Nov 2024 19:15:50 +0530
-Message-Id: <20241124134550.69112-1-sarvesh20123@gmail.com>
+Subject: [PATCH v2] Documentation: zram: fix dictionary spelling
+Date: Mon, 25 Nov 2024 22:21:22 +0530
+Message-Id: <20241125165122.17521-1-sarvesh20123@gmail.com>
+In-Reply-To: <20241125024927.GA440697@google.com>
+References: <20241125024927.GA440697@google.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Cc: corbet@lwn.net, linux-doc@vger.kernel.org, philipp.reisner@linbit.com,
@@ -30,7 +31,11 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Signed-off-by: Saru2003 <sarvesh20123@gmail.com>
+Fixes a typo in the ZRAM documentation where 'dictioary' was
+misspelled. Corrected it to 'dictionary' in the example usage
+of 'algorithm_params'.
+
+Signed-off-by: Sarveshwaar SS <sarvesh20123@gmail.com>
 ---
  Documentation/admin-guide/blockdev/zram.rst | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
