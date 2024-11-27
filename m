@@ -1,26 +1,15 @@
-Return-Path: <senozhatsky@chromium.org>
-Received: from mail-pf1-f174.google.com (mail-pf1-f174.google.com
-	[209.85.210.174])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 247584202D7
-	for <drbd-dev@lists.linbit.com>; Tue, 26 Nov 2024 05:32:40 +0100 (CET)
-Received: by mail-pf1-f174.google.com with SMTP id
-	d2e1a72fcca58-724f41d520cso1717590b3a.1
-	for <drbd-dev@lists.linbit.com>; Mon, 25 Nov 2024 20:32:40 -0800 (PST)
-Date: Tue, 26 Nov 2024 13:32:34 +0900
-From: Sergey Senozhatsky <senozhatsky@chromium.org>
-To: Saru2003 <sarvesh20123@gmail.com>
-Subject: Re: [PATCH v2] Documentation: zram: fix dictionary spelling
-Message-ID: <20241126043234.GB440697@google.com>
-References: <20241125024927.GA440697@google.com>
-	<20241125165122.17521-1-sarvesh20123@gmail.com>
+Return-Path: <zhengbing.huang@easystack.cn>
+Received: from mail-m247.xmail.ntesmail.com (mail-m247.xmail.ntesmail.com
+	[45.195.24.7])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1BEC64202D7
+	for <drbd-dev@lists.linbit.com>; Wed, 27 Nov 2024 12:40:02 +0100 (CET)
+From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+To: drbd-dev@lists.linbit.com
+Subject: [PATCH] drbd: Fix memory leak
+Date: Wed, 27 Nov 2024 19:20:47 +0800
+Message-ID: <20241127112048.1460255-1-zhengbing.huang@easystack.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20241125165122.17521-1-sarvesh20123@gmail.com>
-Cc: corbet@lwn.net, linux-doc@vger.kernel.org, philipp.reisner@linbit.com,
-	linux-kernel@vger.kernel.org, minchan@kernel.org,
-	terrelln@fb.com, lars.ellenberg@linbit.com,
-	senozhatsky@chromium.org, drbd-dev@lists.linbit.com
+Content-Transfer-Encoding: 8bit
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,12 +21,98 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On (24/11/25 22:21), Saru2003 wrote:
-> 
-> Fixes a typo in the ZRAM documentation where 'dictioary' was
-> misspelled. Corrected it to 'dictionary' in the example usage
-> of 'algorithm_params'.
-> 
-> Signed-off-by: Sarveshwaar SS <sarvesh20123@gmail.com>
+In the output of kmemleak, we have the followe backtrace:
 
-Reviewed-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+unreferenced object 0xffff8885b57cda80 (size 64):
+  comm "drbd_r_testimg4", pid 37104, jiffies 4494192827 (age 127162.843s)
+  hex dump (first 32 bytes):
+    31 20 6f 66 20 32 20 6e 6f 64 65 73 20 76 69 73  1 of 2 nodes vis
+    69 62 6c 65 2c 20 6e 65 65 64 20 32 20 66 6f 72  ible, need 2 for
+  backtrace:
+    [<000000006d641d68>] __kmalloc_track_caller+0x15c/0x270
+    [<000000006a7ffbcf>] kvasprintf+0xa7/0x120
+    [<000000002d2f15b3>] drbd_state_err+0xa9/0x190 [drbd]
+    [<000000006aa2f3df>] __is_valid_soft_transition+0xe99/0xec0 [drbd]
+    [<0000000009d68cc7>] try_state_change+0x4f0/0x840 [drbd]
+    [<00000000d5640f06>] ___end_state_change+0x140/0x12a0 [drbd]
+    [<000000009f4b8d71>] __end_state_change+0xa1/0x130 [drbd]
+    [<000000001c6de1a7>] change_connection_state+0x5ee/0xbd0 [drbd]
+    [<00000000ce4408d6>] process_twopc+0x1d3e/0x2ce0 [drbd]
+    [<00000000df3af6e8>] receive_twopc+0x17b/0x2b0 [drbd]
+    [<000000009701f919>] drbd_receiver+0x311/0x6e0 [drbd]
+    [<0000000092c4aeb1>] drbd_thread_setup+0x19d/0x430 [drbd]
+    [<0000000098e316ab>] kthread+0x19c/0x1c0
+    [<000000004c72b3a8>] ret_from_fork+0x1f/0x40
+
+This is a memory leak.
+
+In drbd_state_err() function, if resource->state_change_err_str is a null pointer,
+the err_str will not be free.
+And _drbd_state_err() has same issues.
+
+So, if err_str has not put to up layer, free it in current function.
+
+Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
+---
+ drbd/drbd_main.c  |  2 ++
+ drbd/drbd_state.c | 10 +++++++++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/drbd/drbd_main.c b/drbd/drbd_main.c
+index 86535080f..48c9588eb 100644
+--- a/drbd/drbd_main.c
++++ b/drbd/drbd_main.c
+@@ -3765,6 +3765,8 @@ struct drbd_resource *drbd_create_resource(const char *name,
+ 
+ 	list_add_tail_rcu(&resource->resources, &drbd_resources);
+ 
++	resource->state_change_err_str = NULL;
++
+ 	return resource;
+ 
+ fail_free_pages:
+diff --git a/drbd/drbd_state.c b/drbd/drbd_state.c
+index 24ff7ab30..4102f2a04 100644
+--- a/drbd/drbd_state.c
++++ b/drbd/drbd_state.c
+@@ -1566,6 +1566,9 @@ static __printf(2, 3) void _drbd_state_err(struct change_context *context, const
+ 		*context->err_str = err_str;
+ 	if (context->flags & CS_VERBOSE)
+ 		drbd_err(resource, "%s\n", err_str);
++
++	if (!context->err_str)
++		kfree(err_str);
+ }
+ 
+ static __printf(2, 3) void drbd_state_err(struct drbd_resource *resource, const char *fmt, ...)
+@@ -1582,6 +1585,9 @@ static __printf(2, 3) void drbd_state_err(struct drbd_resource *resource, const
+ 		*resource->state_change_err_str = err_str;
+ 	if (resource->state_change_flags & CS_VERBOSE)
+ 		drbd_err(resource, "%s\n", err_str);
++
++	if (!resource->state_change_err_str)
++		kfree(err_str);
+ }
+ 
+ static enum drbd_state_rv __is_valid_soft_transition(struct drbd_resource *resource)
+@@ -5586,6 +5592,7 @@ static enum drbd_state_rv twopc_after_lost_peer(struct drbd_resource *resource,
+ 		.target_node_id = -1,
+ 		.flags = flags | (resource->res_opts.quorum != QOU_OFF ? CS_FORCE_RECALC : 0),
+ 		.change_local_state_last = false,
++		.err_str = NULL,
+ 	};
+ 
+ 	/* The other nodes get the request for an empty state change. I.e. they
+@@ -5915,7 +5922,8 @@ enum drbd_state_rv change_repl_state(struct drbd_peer_device *peer_device,
+ 			.mask = { { .conn = conn_MASK } },
+ 			.val = { { .conn = new_repl_state } },
+ 			.target_node_id = peer_device->node_id,
+-			.flags = flags
++			.flags = flags,
++			.err_str = NULL,
+ 		},
+ 		.peer_device = peer_device
+ 	};
+-- 
+2.43.0
+
