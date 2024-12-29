@@ -1,21 +1,26 @@
-Return-Path: <joel.colledge@linbit.com>
-Received: from mail-ed1-f50.google.com (mail-ed1-f50.google.com
-	[209.85.208.50])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BAFEF160961
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Dec 2024 11:10:26 +0100 (CET)
-Received: by mail-ed1-f50.google.com with SMTP id
-	4fb4d7f45d1cf-5d3d2a30afcso6829516a12.3
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Dec 2024 02:10:26 -0800 (PST)
+Return-Path: <senozhatsky@chromium.org>
+Received: from mail-pl1-f174.google.com (mail-pl1-f174.google.com
+	[209.85.214.174])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 09AE2160963
+	for <drbd-dev@lists.linbit.com>; Sun, 29 Dec 2024 05:36:38 +0100 (CET)
+Received: by mail-pl1-f174.google.com with SMTP id
+	d9443c01a7336-21644aca3a0so2476615ad.3
+	for <drbd-dev@lists.linbit.com>; Sat, 28 Dec 2024 20:36:38 -0800 (PST)
+Date: Sun, 29 Dec 2024 13:36:32 +0900
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
+To: Shi Xinhe <shixinhe6@gmail.com>
+Subject: Re: [PATCH] Documentation zram: fix description about huge page
+	writeback example
+Message-ID: <qfagx4fjlluq4fox7fw5ltx63wxpifnr7lp3nkt63jm4wbtzp2@mna6znzgfqv2>
+References: <20241229042758.163842-1-shixinhe6@gmail.com>
 MIME-Version: 1.0
-References: <20241215065056.879266-1-zhengbing.huang@easystack.cn>
-In-Reply-To: <20241215065056.879266-1-zhengbing.huang@easystack.cn>
-From: Joel Colledge <joel.colledge@linbit.com>
-Date: Mon, 16 Dec 2024 11:10:12 +0100
-Message-ID: <CAGNP_+W+gELNC_1DmmHYbbAe_7hP0YdXk04cF_X5MqYevhN+jw@mail.gmail.com>
-Subject: Re: [PATCH v2] drbd: Fix memory leak
-To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-Content-Type: text/plain; charset="UTF-8"
-Cc: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20241229042758.163842-1-shixinhe6@gmail.com>
+Cc: corbet@lwn.net, linux-doc@vger.kernel.org, philipp.reisner@linbit.com,
+	linux-kernel@vger.kernel.org, minchan@kernel.org,
+	lars.ellenberg@linbit.com, senozhatsky@chromium.org,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -27,10 +32,8 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Thanks. Applied as
-https://github.com/LINBIT/drbd/commit/d64ebe7eb7df8c622b20bca38f3d7f4c7bb033c9
+On (24/12/29 04:27), Shi Xinhe wrote:
+> 
+> Corrected the description to accurately reflect that huge page writeback example.
 
-The commit will be merged to master in due course.
-
-Best regards,
-Joel
+But what is the correction?  In zram huge page is incompressible page.
