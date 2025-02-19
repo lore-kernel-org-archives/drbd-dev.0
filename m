@@ -1,24 +1,15 @@
-Return-Path: <algonell@gmail.com>
-Received: from mail-wm1-f51.google.com (mail-wm1-f51.google.com
-	[209.85.128.51])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5DB8A160650
-	for <drbd-dev@lists.linbit.com>; Mon, 10 Feb 2025 12:13:30 +0100 (CET)
-Received: by mail-wm1-f51.google.com with SMTP id
-	5b1f17b1804b1-43944c51e41so7772795e9.0
-	for <drbd-dev@lists.linbit.com>; Mon, 10 Feb 2025 03:13:30 -0800 (PST)
-From: Andrew Kreimer <algonell@gmail.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
-	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH] drbd: Fix typo in error directive
-Date: Mon, 10 Feb 2025 13:13:05 +0200
-Message-ID: <20250210111324.29407-1-algonell@gmail.com>
+Return-Path: <zhengbing.huang@easystack.cn>
+Received: from mail-m49247.qiye.163.com (mail-m49247.qiye.163.com
+	[45.254.49.247])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3723F16B836
+	for <drbd-dev@lists.linbit.com>; Wed, 19 Feb 2025 04:10:13 +0100 (CET)
+From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+To: drbd-dev@lists.linbit.com
+Subject: [PATCH] drbd: Fix IO block after network failure
+Date: Wed, 19 Feb 2025 11:05:06 +0800
+Message-ID: <20250219030506.1389085-1-zhengbing.huang@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, Andrew Kreimer <algonell@gmail.com>,
-	kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org,
-	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,29 +21,96 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-There is a typo in error directive:
- - endianess -> endianness
+Network failure test, I/O is not finished.
+The oldest_request has follow status information:
 
-Fix it via codespell.
+master: pending|postponed	local: in-AL|completed|ok	net[1]: queued|done : C|barr
 
-Signed-off-by: Andrew Kreimer <algonell@gmail.com>
+This req also has RQ_NET_QUEUED,so its reference count
+cannot be reduced to zero and req cannot complete.
+
+The commit 8962f7c03c1
+drbd: exclude requests that are not yet queued from "seen_dagtag_sector"
+has modify the __next_request_for_connection() function,
+which causes the sender thread to be unable to clean up all
+pending req when the network failure.
+
+The race occurred as follows, where T is a submit req thread,
+and S is a sender thread:
+S: process_one_request() handle r0
+S: network failure. drbd_send_dblock(r0) fail, then call __req_mod(r0, SEND_FAILED...)
+S: Call mod_rq_state(), r0 clear RQ_NET_QUEUED, and still has RQ_NET_PENDING
+T: r1 arrive drbd_send_and_submit(), add to transfer_log, and set RQ_NET_QUEUED
+S: drbd_sender() handle network failure, change_cstate(C_NETWORK_FAILURE)
+
+When sender thread state change to stop, and want to
+cleanup all currently unprocessed requests(call __req_mod(req, SEND_CANCELED...)).
+but it can not find r1, because in the __next_request_for_connection() function,
+r0 always satisfies the first if condition and returns NULL.
+static struct drbd_request *__next_request_for_connection(...)
+{
+...
+		if (unlikely(s & RQ_NET_PENDING && !(s & (RQ_NET_QUEUED|RQ_NET_SENT))))
+			return NULL;
+...
+}
+Finally, r1 could not be completed due to has RQ_NET_QUEUED.
+
+So, In the cleanup process of sender,
+we find all the req with RQ_NET_QUEUED and clean it.
+
+Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
 ---
- drivers/block/drbd/drbd_state.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drbd/drbd_sender.c | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/drbd/drbd_state.h b/drivers/block/drbd/drbd_state.h
-index cbaeb8018dbf..89d7c828eb59 100644
---- a/drivers/block/drbd/drbd_state.h
-+++ b/drivers/block/drbd/drbd_state.h
-@@ -106,7 +106,7 @@ union drbd_dev_state {
- 		unsigned peer:2 ;   /* 3/4	 primary/secondary/unknown */
- 		unsigned role:2 ;   /* 3/4	 primary/secondary/unknown */
- #else
--# error "this endianess is not supported"
-+# error "this endianness is not supported"
- #endif
- 	};
- 	unsigned int i;
+diff --git a/drbd/drbd_sender.c b/drbd/drbd_sender.c
+index 80badc606..e6fc751c7 100644
+--- a/drbd/drbd_sender.c
++++ b/drbd/drbd_sender.c
+@@ -3251,6 +3251,24 @@ static struct drbd_request *tl_next_request_for_connection(struct drbd_connectio
+ 	return connection->todo.req;
+ }
+ 
++static struct drbd_request *tl_next_request_for_cleanup(struct drbd_connection *connection)
++{
++	struct drbd_request *req;
++	struct drbd_request *found_req = NULL;
++
++	list_for_each_entry_rcu(req, &connection->resource->transfer_log, tl_requests) {
++		unsigned s = req->net_rq_state[connection->peer_node_id];
++
++		if (s & RQ_NET_QUEUED) {
++			found_req = req;
++			break;
++		}
++	}
++
++	connection->todo.req = found_req;
++	return connection->todo.req;
++}
++
+ static void maybe_send_state_afer_ahead(struct drbd_connection *connection)
+ {
+ 	struct drbd_peer_device *peer_device;
+@@ -3644,7 +3662,7 @@ int drbd_sender(struct drbd_thread *thi)
+ 	/* cleanup all currently unprocessed requests */
+ 	if (!connection->todo.req) {
+ 		rcu_read_lock();
+-		tl_next_request_for_connection(connection);
++		tl_next_request_for_cleanup(connection);
+ 		rcu_read_unlock();
+ 	}
+ 	while (connection->todo.req) {
+@@ -3660,7 +3678,7 @@ int drbd_sender(struct drbd_thread *thi)
+ 			complete_master_bio(device, &m);
+ 
+ 		rcu_read_lock();
+-		tl_next_request_for_connection(connection);
++		tl_next_request_for_cleanup(connection);
+ 		rcu_read_unlock();
+ 	}
+ 
 -- 
-2.48.1.268.g9520f7d998
+2.43.0
 
