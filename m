@@ -1,15 +1,18 @@
-Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m1973190.qiye.163.com (mail-m1973190.qiye.163.com
-	[220.197.31.90])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C372B160645
-	for <drbd-dev@lists.linbit.com>; Fri, 25 Apr 2025 17:04:03 +0200 (CEST)
-From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-To: drbd-dev@lists.linbit.com
-Subject: [PATCH] rdma: Fix cm leak
-Date: Fri, 25 Apr 2025 18:24:21 +0800
-Message-ID: <20250425102421.1673048-1-zhengbing.huang@easystack.cn>
+Return-Path: <splc.regional.east@gmail.com>
+Received: from mail-yb1-f170.google.com (mail-yb1-f170.google.com
+	[209.85.219.170])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BEE4E16091D
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Apr 2025 17:23:04 +0200 (CEST)
+Received: by mail-yb1-f170.google.com with SMTP id
+	3f1490d57ef6-e455bf1f4d3so945138276.2
+	for <drbd-dev@lists.linbit.com>; Thu, 24 Apr 2025 08:23:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+From: Reginald Cirque <splc.regional.east@gmail.com>
+Date: Thu, 24 Apr 2025 11:22:52 -0400
+Message-ID: <CANA-72DMWg-UwGBVbM9y-p9zUJu_4LqZk3V9qOEZCM0nSHzq=Q@mail.gmail.com>
+Subject: Possible memory leak in DRBD 8.4.11
+To: drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset="UTF-8"
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,74 +24,21 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-We found that when all the DRBDs is down, the reference count
-of the drbd_transport_rdma module is still 1.
+Good day,
+I was syncing a 300 GB LVM volume from a DRBD primary to a newly-built
+secondary, and noticed that the sending host (primary) had 300G of
+"untracked", used, memory (not visible in slab, cached, or associated
+with any application(s), simply shown as "kernel dynamic memory" in
+"smem -twk" output) for long (many hours) after the sync had
+completed, suggesting that DRBD buffers/page-pool were not reclaimed.
 
-[root@node-4 ~]# drbdadm status
-No currently configured DRBD found.
-[root@node-4 ~]# lsmod | grep drbd
-drbd_transport_rdma   262144  1
+When I ran "drbdsetup down" to disconnect the secondary, I observed a
+kernel log message:
+"block drbd3: net_ee not empty, killed 291226 entries", which further
+suggests to me that DRBD buffers are not being properly reclaimed.
 
-Then, we found an unreleas cm structure and discover
-that its state is DSB_CONNECT_REQ + DSB_ERROR.
+The memory was returned back to the system ~instantly after
+disconnecting the secondary.
 
-crash> struct dtr_cm ffff57e515da9400
-struct dtr_cm {
-  kref = {
-    refcount = {
-      refs = {
-        counter = 1
-...
-state = 9,
-...
-}
-
-The scenario of this problem should be like this:
-dtr_cma_event_handler() get an RDMA_CM_EVENT_CONNECT_REQUEST event,
-and call dtr_cma_accept() to alloc a cm. and set cm->state = DSM_CONNECT_REQ,
-now the cm->kref count is 2.
-then dtr_cma_event_handler() get xxx_CONNECT_ERROR/xxx_UNREACHABLE/xxx_REJECTED
-event, and set_bit(DSB_ERROR, &cm->state).
-the cm remove from path in dtr_cma_retry_connect, put one ref.
-and cm->state dont has DSB_CONNECTING flag, then return 0.
-Now, the cm->kref count is 1, and state is DSB_CONNECT_REQ + DSB_ERROR.
-
-Therefore, when we test the DSB_CONNECTING flag,
-we should also test the DSB_CONNECT_REQ flag to avoid cm leak.
-
-Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
----
- drbd/drbd_transport_rdma.c | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
-
-diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index be919a926..f24440580 100644
---- a/drbd/drbd_transport_rdma.c
-+++ b/drbd/drbd_transport_rdma.c
-@@ -1307,9 +1307,10 @@ static int dtr_cma_event_handler(struct rdma_cm_id *cm_id, struct rdma_cm_event
- 		set_bit(DSB_ERROR, &cm->state);
- 
- 		dtr_cma_retry_connect(cm->path, cm);
--		if (!test_and_clear_bit(DSB_CONNECTING, &cm->state))
--			return 0; /* keep ref; __dtr_disconnect_path() won */
--		break;
-+		if (test_and_clear_bit(DSB_CONNECTING, &cm->state) ||
-+			test_and_clear_bit(DSB_CONNECT_REQ, &cm->state))
-+			break;
-+		return 0; /* keep ref; __dtr_disconnect_path() won */
- 
- 	case RDMA_CM_EVENT_DISCONNECTED:
- 		// pr_info("%s: RDMA_CM_EVENT_DISCONNECTED\n", cm->name);
-@@ -2787,7 +2788,8 @@ static void __dtr_disconnect_path(struct dtr_path *path)
- 	 * events. Destroy the cm and cm_id to avoid leaking it.
- 	 * This is racing with the event delivery, which drops a reference.
- 	 */
--	if (test_and_clear_bit(DSB_CONNECTING, &cm->state))
-+	if (test_and_clear_bit(DSB_CONNECTING, &cm->state) ||
-+		test_and_clear_bit(DSB_CONNECT_REQ, &cm->state))
- 		kref_put(&cm->kref, dtr_destroy_cm);
- 
- 	kref_put(&cm->kref, dtr_destroy_cm);
--- 
-2.43.0
-
+I am running Linux kernel 6.1.128-1.el8.x86_64 and patching-in the
+8.4.11 DRBD module in-tree.
