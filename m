@@ -1,20 +1,19 @@
-Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-wr1-f47.google.com (mail-wr1-f47.google.com
-	[209.85.221.47])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 07E8E160645
-	for <drbd-dev@lists.linbit.com>; Mon,  5 May 2025 16:26:26 +0200 (CEST)
-Received: by mail-wr1-f47.google.com with SMTP id
-	ffacd0b85a97d-3913b539aabso1995084f8f.2
-	for <drbd-dev@lists.linbit.com>; Mon, 05 May 2025 07:26:26 -0700 (PDT)
-From: Philipp Reisner <philipp.reisner@linbit.com>
-To: "zhengbing . huang" <zhengbing.huang@easystack.cn>
-Subject: [PATCH 1/1] rdma: Fix cm leak
-Date: Mon,  5 May 2025 16:26:23 +0200
-Message-ID: <20250505142623.424049-2-philipp.reisner@linbit.com>
-In-Reply-To: <20250425102421.1673048-1-zhengbing.huang@easystack.cn>
+Return-Path: <zhengbing.huang@easystack.cn>
+Received: from mail-m19731118.qiye.163.com (mail-m19731118.qiye.163.com
+	[220.197.31.118])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id C2E30160999
+	for <drbd-dev@lists.linbit.com>; Tue,  6 May 2025 04:25:28 +0200 (CEST)
+Content-Type: multipart/alternative;
+	BOUNDARY="=_Part_131083_793626580.1746498023528"
+Message-ID: <AIYAbQDJLiHUVLs7gM1ilqqM.3.1746498023528.Hmail.zhengbing.huang@easystack.cn>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Subject: =?UTF-8?B?UmU6UmU6IFtQQVRDSF0gcmRtYTogRml4IGNtIGxlYWs=?=
+In-Reply-To: <20250505142623.424049-1-philipp.reisner@linbit.com>
 References: <20250425102421.1673048-1-zhengbing.huang@easystack.cn>
+	<20250505142623.424049-1-philipp.reisner@linbit.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+From: ZhengbingHuang <zhengbing.huang@easystack.cn>
+Date: Tue, 6 May 2025 10:20:23 +0800 (GMT+08:00)
 Cc: drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -27,85 +26,47 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+--=_Part_131083_793626580.1746498023528
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-We found that when all the DRBD devices are down, the reference count
-of the drbd_transport_rdma module is still 1.
+SGkgUGhpbGlwcCwKCgpZZXMsIEkgdGhpbmsgdGhlIG1vZGlmaWNhdGlvbnMgeW91IGFkZCBtYWtl
+IHRoaXMgcGF0Y2ggbW9yZSBjb21wbGV0ZS4KCgpCZXN0IHJlZ2FyZHMsCiAgICB6aGVuZ2JpbmcK
+CgpGcm9tOiBQaGlsaXBwIFJlaXNuZXIgPHBoaWxpcHAucmVpc25lckBsaW5iaXQuY29tPgpEYXRl
+OiAyMDI1LTA1LTA1IDIyOjI2OjIyClRvOiAgInpoZW5nYmluZyAuIGh1YW5nIiA8emhlbmdiaW5n
+Lmh1YW5nQGVhc3lzdGFjay5jbj4KQ2M6ICBkcmJkLWRldkBsaXN0cy5saW5iaXQuY29tClN1Ympl
+Y3Q6IFJlOiBbUEFUQ0hdIHJkbWE6IEZpeCBjbSBsZWFrPkhpIFpoZW5nYmluZywKPgo+WWVzLCBJ
+IGFncmVlLiBJIGZvbGxvdyB5b3VyIGV4cGxhbmF0aW9uIG9mIHdoYXQgaGFwcGVuZWQgYW5kIHlv
+dXIKPnByb3Bvc2VkIGZpeC4gSSB0aGluayB3ZSBhbHNvIG5lZWQgdG8gY2xlYXIgdGhlIERTQl9D
+T05ORUNUX1JFUSBiaXQgaW4KPnRoZSBSRE1BX0NNX0VWRU5UX0VTVEFCTElTSEVEIGNhc2UuCj4K
+PlBsZWFzZSBzZWUgbXkgcHJvcG9zYWwsIHdoaWNoIGlzIHNsaWdodGx5IG1vZGlmaWVkIGZyb20g
+eW91ciBvcmlnaW5hbAo+cGF0Y2guCj4KPkJlc3QgcmVnYXJkcywKPiBQaGlsaXBwCj4KPnpoZW5n
+YmluZy5odWFuZyAoMSk6Cj4gIHJkbWE6IEZpeCBjbSBsZWFrCj4KPiBkcmJkL2RyYmRfdHJhbnNw
+b3J0X3JkbWEuYyB8IDExICsrKysrKystLS0tCj4gMSBmaWxlIGNoYW5nZWQsIDcgaW5zZXJ0aW9u
+cygrKSwgNCBkZWxldGlvbnMoLSkKPgo+LS0gCj4yLjQ5LjAKPgo+CgoKDQoNCg==
+--=_Part_131083_793626580.1746498023528
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-[root@node-4 ~]# drbdadm status
-No currently configured DRBD found.
-[root@node-4 ~]# lsmod | grep drbd
-drbd_transport_rdma   262144  1
-
-Then, we found an unreleased cm structure and discover
-that its state is DSB_CONNECT_REQ + DSB_ERROR.
-
-crash> struct dtr_cm ffff57e515da9400
-struct dtr_cm {
-  kref = {
-    refcount = {
-      refs = {
-        counter = 1
-...
-state = 9,
-...
-}
-
-The scenario of this problem should be like this:
-dtr_cma_event_handler() get an RDMA_CM_EVENT_CONNECT_REQUEST event,
-and call dtr_cma_accept() to alloc a cm. and set cm->state = DSM_CONNECT_REQ,
-now the cm->kref count is 2.
-then dtr_cma_event_handler() get xxx_CONNECT_ERROR/xxx_UNREACHABLE/xxx_REJECTED
-event, and set_bit(DSB_ERROR, &cm->state).
-the cm remove from path in dtr_cma_retry_connect, put one ref.
-and cm->state dont has DSB_CONNECTING flag, then return 0.
-Now, the cm->kref count is 1, and state is DSB_CONNECT_REQ + DSB_ERROR.
-
-Therefore, when we test the DSB_CONNECTING flag,
-we should also test the DSB_CONNECT_REQ flag to avoid cm leak.
-
-Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
-Signed-off-by: Philipp Reisner <philipp.reisner@linbit.com>
----
- drbd/drbd_transport_rdma.c | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
-
-diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index be919a926..4a9ba8fa6 100644
---- a/drbd/drbd_transport_rdma.c
-+++ b/drbd/drbd_transport_rdma.c
-@@ -1278,8 +1278,8 @@ static int dtr_cma_event_handler(struct rdma_cm_id *cm_id, struct rdma_cm_event
- 		/* cm->state = DSM_CONNECTED; is set later in the work item */
- 		/* This is called for active and passive connections */
- 
--		connecting = test_and_clear_bit(DSB_CONNECTING, &cm->state);
--		connecting |= test_bit(DSB_CONNECT_REQ, &cm->state);
-+		connecting = test_and_clear_bit(DSB_CONNECTING, &cm->state) ||
-+			test_and_clear_bit(DSB_CONNECT_REQ, &cm->state);
- 		kref_get(&cm->kref); /* connected -> expect a disconnect in the future */
- 		kref_get(&cm->kref); /* for the work */
- 		schedule_work(&cm->establish_work);
-@@ -1307,7 +1307,9 @@ static int dtr_cma_event_handler(struct rdma_cm_id *cm_id, struct rdma_cm_event
- 		set_bit(DSB_ERROR, &cm->state);
- 
- 		dtr_cma_retry_connect(cm->path, cm);
--		if (!test_and_clear_bit(DSB_CONNECTING, &cm->state))
-+		connecting = test_and_clear_bit(DSB_CONNECTING, &cm->state) ||
-+			test_and_clear_bit(DSB_CONNECT_REQ, &cm->state);
-+		if (!connecting)
- 			return 0; /* keep ref; __dtr_disconnect_path() won */
- 		break;
- 
-@@ -2787,7 +2789,8 @@ static void __dtr_disconnect_path(struct dtr_path *path)
- 	 * events. Destroy the cm and cm_id to avoid leaking it.
- 	 * This is racing with the event delivery, which drops a reference.
- 	 */
--	if (test_and_clear_bit(DSB_CONNECTING, &cm->state))
-+	if (test_and_clear_bit(DSB_CONNECTING, &cm->state) ||
-+	    test_and_clear_bit(DSB_CONNECT_REQ, &cm->state))
- 		kref_put(&cm->kref, dtr_destroy_cm);
- 
- 	kref_put(&cm->kref, dtr_destroy_cm);
--- 
-2.49.0
-
+PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
+Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXY+SGkgPHNwYW4gc3R5bGU9IndoaXRlLXNwYWNlOiBwcmUt
+d3JhcCI+UGhpbGlwcCw8L3NwYW4+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5ZZXMsIEkgdGhp
+bmsgdGhlIG1vZGlmaWNhdGlvbnMgeW91IGFkZCBtYWtlIHRoaXMgcGF0Y2ggbW9yZSBjb21wbGV0
+ZS48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PjxzcGFuIHN0eWxlPSJ3aGl0ZS1zcGFjZTogcHJl
+LXdyYXAiPkJlc3QgcmVnYXJkcyw8L3NwYW4+PC9kaXY+PGRpdj48cHJlPiAgICB6aGVuZ2Jpbmc8
+L3ByZT48L2Rpdj48ZGl2ICBzdHlsZT0icG9zaXRpb246cmVsYXRpdmU7em9vbToxIj48L2Rpdj48
+YnIgc3R5bGU9IndoaXRlLXNwYWNlOiBwcmUtd3JhcDsiPjxwcmU+RnJvbTogUGhpbGlwcCBSZWlz
+bmVyICZsdDtwaGlsaXBwLnJlaXNuZXJAbGluYml0LmNvbSZndDsKRGF0ZTogMjAyNS0wNS0wNSAy
+MjoyNjoyMgpUbzogICJ6aGVuZ2JpbmcgLiBodWFuZyIgJmx0O3poZW5nYmluZy5odWFuZ0BlYXN5
+c3RhY2suY24mZ3Q7CkNjOiAgZHJiZC1kZXZAbGlzdHMubGluYml0LmNvbQpTdWJqZWN0OiBSZTog
+W1BBVENIXSByZG1hOiBGaXggY20gbGVhayZndDtIaSBaaGVuZ2JpbmcsCiZndDsKJmd0O1llcywg
+SSBhZ3JlZS4gSSBmb2xsb3cgeW91ciBleHBsYW5hdGlvbiBvZiB3aGF0IGhhcHBlbmVkIGFuZCB5
+b3VyCiZndDtwcm9wb3NlZCBmaXguIEkgdGhpbmsgd2UgYWxzbyBuZWVkIHRvIGNsZWFyIHRoZSBE
+U0JfQ09OTkVDVF9SRVEgYml0IGluCiZndDt0aGUgUkRNQV9DTV9FVkVOVF9FU1RBQkxJU0hFRCBj
+YXNlLgomZ3Q7CiZndDtQbGVhc2Ugc2VlIG15IHByb3Bvc2FsLCB3aGljaCBpcyBzbGlnaHRseSBt
+b2RpZmllZCBmcm9tIHlvdXIgb3JpZ2luYWwKJmd0O3BhdGNoLgomZ3Q7CiZndDtCZXN0IHJlZ2Fy
+ZHMsCiZndDsgUGhpbGlwcAomZ3Q7CiZndDt6aGVuZ2JpbmcuaHVhbmcgKDEpOgomZ3Q7ICByZG1h
+OiBGaXggY20gbGVhawomZ3Q7CiZndDsgZHJiZC9kcmJkX3RyYW5zcG9ydF9yZG1hLmMgfCAxMSAr
+KysrKysrLS0tLQomZ3Q7IDEgZmlsZSBjaGFuZ2VkLCA3IGluc2VydGlvbnMoKyksIDQgZGVsZXRp
+b25zKC0pCiZndDsKJmd0Oy0tIAomZ3Q7Mi40OS4wCiZndDsKJmd0Owo8L3ByZT48L2Rpdj48YnI+
+--=_Part_131083_793626580.1746498023528--
