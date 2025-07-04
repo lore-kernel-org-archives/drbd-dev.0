@@ -1,25 +1,22 @@
-Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f54.google.com (mail-ed1-f54.google.com
-	[209.85.208.54])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 61CD51609AD
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Jun 2025 11:57:44 +0200 (CEST)
-Received: by mail-ed1-f54.google.com with SMTP id
-	4fb4d7f45d1cf-60867565fb5so3265589a12.3
-	for <drbd-dev@lists.linbit.com>; Fri, 27 Jun 2025 02:57:44 -0700 (PDT)
-From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
-	<christoph.boehmwalder@linbit.com>
-To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH] drbd: add missing kref_get in handle_write_conflicts
-Date: Fri, 27 Jun 2025 11:57:28 +0200
-Message-ID: <20250627095728.800688-1-christoph.boehmwalder@linbit.com>
+Return-Path: <eslam.medhat1993@gmail.com>
+Received: from mail-wr1-f50.google.com (mail-wr1-f50.google.com
+	[209.85.221.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E6EC1160645
+	for <drbd-dev@lists.linbit.com>; Fri,  4 Jul 2025 19:50:42 +0200 (CEST)
+Received: by mail-wr1-f50.google.com with SMTP id
+	ffacd0b85a97d-3a5123c1533so539677f8f.2
+	for <drbd-dev@lists.linbit.com>; Fri, 04 Jul 2025 10:50:42 -0700 (PDT)
+From: Eslam Khafagy <eslam.medhat1993@gmail.com>
+To: 
+Subject: [PATCH] DRBD: replace strcpy with strscpy
+Date: Fri,  4 Jul 2025 20:50:15 +0300
+Message-ID: <20250704175018.333165-1-eslam.medhat1993@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Lars Ellenberg <lars@linbit.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
+Cc: Jens Axboe <axboe@kernel.dk>, Eslam Khafagy <eslam.medhat1993@gmail.com>,
+	skhan@linuxfoundation.com, Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	Sarah Newman <srn@prgmr.com>, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,57 +28,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-From: Sarah Newman <srn@prgmr.com>
+strcpy is deprecated due to lack of bounds checking. This patch replaces
+strcpy with strscpy, the recommended alternative for null terminated
+strings, to follow best practices.
 
-With `two-primaries` enabled, DRBD tries to detect "concurrent" writes
-and handle write conflicts, so that even if you write to the same sector
-simultaneously on both nodes, they end up with the identical data once
-the writes are completed.
+I had to do a small refactor for __drbd_send_protocol since it uses
+strlen anyways. so why not use that for strscpy.
 
-In handling "superseeded" writes, we forgot a kref_get,
-resulting in a premature drbd_destroy_device and use after free,
-and further to kernel crashes with symptoms.
-
-Relevance: No one should use DRBD as a random data generator, and apparently
-all users of "two-primaries" handle concurrent writes correctly on layer up.
-That is cluster file systems use some distributed lock manager,
-and live migration in virtualization environments stops writes on one node
-before starting writes on the other node.
-
-Which means that other than for "test cases",
-this code path is never taken in real life.
-
-FYI, in DRBD 9, things are handled differently nowadays.  We still detect
-"write conflicts", but no longer try to be smart about them.
-We decided to disconnect hard instead: upper layers must not submit concurrent
-writes. If they do, that's their fault.
-
-Signed-off-by: Sarah Newman <srn@prgmr.com>
-Signed-off-by: Lars Ellenberg <lars@linbit.com>
-Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+Signed-off-by: Eslam Khafagy <eslam.medhat1993@gmail.com>
 ---
- drivers/block/drbd/drbd_receiver.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ drivers/block/drbd/drbd_main.c     | 17 +++++++++--------
+ drivers/block/drbd/drbd_receiver.c |  4 ++--
+ 2 files changed, 11 insertions(+), 10 deletions(-)
 
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 52724b79be30..4e5bd74be90a 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -742,9 +742,9 @@ int drbd_send_sync_param(struct drbd_peer_device *peer_device)
+ 	}
+ 
+ 	if (apv >= 88)
+-		strcpy(p->verify_alg, nc->verify_alg);
++		strscpy(p->verify_alg, nc->verify_alg);
+ 	if (apv >= 89)
+-		strcpy(p->csums_alg, nc->csums_alg);
++		strscpy(p->csums_alg, nc->csums_alg);
+ 	rcu_read_unlock();
+ 
+ 	return drbd_send_command(peer_device, sock, cmd, size, NULL, 0);
+@@ -771,10 +771,6 @@ int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cm
+ 		return -EOPNOTSUPP;
+ 	}
+ 
+-	size = sizeof(*p);
+-	if (connection->agreed_pro_version >= 87)
+-		size += strlen(nc->integrity_alg) + 1;
+-
+ 	p->protocol      = cpu_to_be32(nc->wire_protocol);
+ 	p->after_sb_0p   = cpu_to_be32(nc->after_sb_0p);
+ 	p->after_sb_1p   = cpu_to_be32(nc->after_sb_1p);
+@@ -787,8 +783,13 @@ int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cm
+ 		cf |= CF_DRY_RUN;
+ 	p->conn_flags    = cpu_to_be32(cf);
+ 
+-	if (connection->agreed_pro_version >= 87)
+-		strcpy(p->integrity_alg, nc->integrity_alg);
++	size = sizeof(*p);
++	if (connection->agreed_pro_version >= 87) {
++		int integrity_len = strlen(nc->integrity_alg);
++		size += integrity_len + 1;
++		strscpy(p->integrity_alg, nc->integrity_alg, integrity_len);
++	}
++
+ 	rcu_read_unlock();
+ 
+ 	return __conn_send_command(connection, sock, cmd, size, NULL, 0);
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index e5a2e5f7887b..975024cf03c5 100644
+index e5a2e5f7887b..9c2d439f26e8 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -2500,7 +2500,11 @@ static int handle_write_conflicts(struct drbd_device *device,
- 			peer_req->w.cb = superseded ? e_send_superseded :
- 						   e_send_retry_write;
- 			list_add_tail(&peer_req->w.list, &device->done_ee);
--			queue_work(connection->ack_sender, &peer_req->peer_device->send_acks_work);
-+			/* put is in drbd_send_acks_wf() */
-+			kref_get(&device->kref);
-+			if (!queue_work(connection->ack_sender,
-+					&peer_req->peer_device->send_acks_work))
-+				kref_put(&device->kref, drbd_destroy_device);
+@@ -3985,14 +3985,14 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
+ 			*new_net_conf = *old_net_conf;
  
- 			err = -ENOENT;
- 			goto out;
-
-base-commit: 456ef6804f232f3b2f60147046e05500147b0099
+ 			if (verify_tfm) {
+-				strcpy(new_net_conf->verify_alg, p->verify_alg);
++				strscpy(new_net_conf->verify_alg, p->verify_alg);
+ 				new_net_conf->verify_alg_len = strlen(p->verify_alg) + 1;
+ 				crypto_free_shash(peer_device->connection->verify_tfm);
+ 				peer_device->connection->verify_tfm = verify_tfm;
+ 				drbd_info(device, "using verify-alg: \"%s\"\n", p->verify_alg);
+ 			}
+ 			if (csums_tfm) {
+-				strcpy(new_net_conf->csums_alg, p->csums_alg);
++				strscpy(new_net_conf->csums_alg, p->csums_alg);
+ 				new_net_conf->csums_alg_len = strlen(p->csums_alg) + 1;
+ 				crypto_free_shash(peer_device->connection->csums_tfm);
+ 				peer_device->connection->csums_tfm = csums_tfm;
 -- 
-2.49.0
+2.43.0
 
