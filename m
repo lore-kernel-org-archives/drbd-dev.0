@@ -1,19 +1,21 @@
 Return-Path: <eslam.medhat1993@gmail.com>
 Received: from mail-wr1-f50.google.com (mail-wr1-f50.google.com
 	[209.85.221.50])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E6EC1160645
-	for <drbd-dev@lists.linbit.com>; Fri,  4 Jul 2025 19:50:42 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7FBE4160650
+	for <drbd-dev@lists.linbit.com>; Sat,  5 Jul 2025 19:32:55 +0200 (CEST)
 Received: by mail-wr1-f50.google.com with SMTP id
-	ffacd0b85a97d-3a5123c1533so539677f8f.2
-	for <drbd-dev@lists.linbit.com>; Fri, 04 Jul 2025 10:50:42 -0700 (PDT)
+	ffacd0b85a97d-3a50fc7ac4dso800936f8f.0
+	for <drbd-dev@lists.linbit.com>; Sat, 05 Jul 2025 10:32:54 -0700 (PDT)
 From: Eslam Khafagy <eslam.medhat1993@gmail.com>
 To: 
-Subject: [PATCH] DRBD: replace strcpy with strscpy
-Date: Fri,  4 Jul 2025 20:50:15 +0300
-Message-ID: <20250704175018.333165-1-eslam.medhat1993@gmail.com>
+Subject: [PATCH v2] DRBD: replace strcpy with strscpy
+Date: Sat,  5 Jul 2025 20:32:44 +0300
+Message-ID: <20250705173248.59003-1-eslam.medhat1993@gmail.com>
+In-Reply-To: <20250704175018.333165-1-eslam.medhat1993@gmail.com>
+References: <20250704175018.333165-1-eslam.medhat1993@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, Eslam Khafagy <eslam.medhat1993@gmail.com>,
+Cc: Jens Axboe <axboe@kernel.dk>, eslam.medhat1993@gmail.com,
 	skhan@linuxfoundation.com, Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
@@ -35,6 +37,9 @@ strings, to follow best practices.
 I had to do a small refactor for __drbd_send_protocol since it uses
 strlen anyways. so why not use that for strscpy.
 
+V2:
+ - I forgot about null termination so i fixed it.
+
 Signed-off-by: Eslam Khafagy <eslam.medhat1993@gmail.com>
 ---
  drivers/block/drbd/drbd_main.c     | 17 +++++++++--------
@@ -42,7 +47,7 @@ Signed-off-by: Eslam Khafagy <eslam.medhat1993@gmail.com>
  2 files changed, 11 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 52724b79be30..4e5bd74be90a 100644
+index 52724b79be30..028a5cf41d7f 100644
 --- a/drivers/block/drbd/drbd_main.c
 +++ b/drivers/block/drbd/drbd_main.c
 @@ -742,9 +742,9 @@ int drbd_send_sync_param(struct drbd_peer_device *peer_device)
@@ -76,8 +81,8 @@ index 52724b79be30..4e5bd74be90a 100644
 -		strcpy(p->integrity_alg, nc->integrity_alg);
 +	size = sizeof(*p);
 +	if (connection->agreed_pro_version >= 87) {
-+		int integrity_len = strlen(nc->integrity_alg);
-+		size += integrity_len + 1;
++		int integrity_len = strlen(nc->integrity_alg) + 1;
++		size += integrity_len;
 +		strscpy(p->integrity_alg, nc->integrity_alg, integrity_len);
 +	}
 +
