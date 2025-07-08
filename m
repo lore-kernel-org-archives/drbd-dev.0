@@ -1,15 +1,13 @@
 Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m32121.qiye.163.com (mail-m32121.qiye.163.com
-	[220.197.32.121])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B0A65162250
-	for <drbd-dev@lists.linbit.com>; Tue,  8 Jul 2025 08:55:46 +0200 (CEST)
+Received: from mail-m1973174.qiye.163.com (mail-m1973174.qiye.163.com
+	[220.197.31.74])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A4B9D1609B2
+	for <drbd-dev@lists.linbit.com>; Tue,  8 Jul 2025 09:52:27 +0200 (CEST)
 From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 To: drbd-dev@lists.linbit.com
-Subject: [PATCH 3/3] modify rdma_conn_param.rnr_retry to 7
-Date: Tue,  8 Jul 2025 14:50:40 +0800
-Message-ID: <20250708065040.4043169-3-zhengbing.huang@easystack.cn>
-In-Reply-To: <20250708065040.4043169-1-zhengbing.huang@easystack.cn>
-References: <20250708065040.4043169-1-zhengbing.huang@easystack.cn>
+Subject: [PATCH v2] rdma: Modify rdma_conn_param.rnr_retry to 7
+Date: Tue,  8 Jul 2025 15:37:17 +0800
+Message-ID: <20250708073717.4077291-1-zhengbing.huang@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 List-Id: "*Coordination* of development, patches,
