@@ -1,15 +1,13 @@
 Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m1973171.qiye.163.com (mail-m1973171.qiye.163.com
-	[220.197.31.71])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0F1C3160991
+Received: from mail-m21469.qiye.163.com (mail-m21469.qiye.163.com
+	[117.135.214.69])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0E04216095D
 	for <drbd-dev@lists.linbit.com>; Tue,  8 Jul 2025 12:19:21 +0200 (CEST)
 From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 To: drbd-dev@lists.linbit.com
-Subject: [PATCH 2/3] rdma: ratelimit error log
-Date: Tue,  8 Jul 2025 14:50:39 +0800
-Message-ID: <20250708065040.4043169-2-zhengbing.huang@easystack.cn>
-In-Reply-To: <20250708065040.4043169-1-zhengbing.huang@easystack.cn>
-References: <20250708065040.4043169-1-zhengbing.huang@easystack.cn>
+Subject: [PATCH 1/3] rdma: Fix memory leak in error path
+Date: Tue,  8 Jul 2025 14:50:38 +0800
+Message-ID: <20250708065040.4043169-1-zhengbing.huang@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 List-Id: "*Coordination* of development, patches,
@@ -23,59 +21,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Have a crash call trace as follow:
-  ? bit_clear+0x120/0x120
-  fbcon_putcs+0xe7/0x100
-  fbcon_redraw.isra.20+0xfd/0x1e0
-  fbcon_scroll+0x8c9/0xde0
-  con_scroll+0x20b/0x220
-  ? bit_clear+0x120/0x120
-  lf+0xa0/0xb0
-  vt_console_print+0x310/0x400
-  console_unlock+0x35f/0x4a0
-  vprintk_emit+0x14d/0x250
-  printk+0x58/0x6f
-  dtr_tx_cq_event_handler+0x895/0x8a0 [drbd_transport_rdma]
-  ? sched_clock+0x5/0x10
-  ? do_IRQ+0x7f/0xd0
-  mlx5_eq_comp_int+0xb0/0x1d0 [mlx5_core]
-  notifier_call_chain+0x47/0x70
-  atomic_notifier_call_chain+0x16/0x20
-  irq_int_handler+0x11/0x20 [mlx5_core]
+In the dtr_send() function, if the __dtr_post_tx_desc() return an error,
+it means that  ib_post_send() has failed.
+Then, we cannot get this tx_desc and release it through ib_poll_cq().
 
-and the code is:
-(gdb) l *dtr_tx_cq_event_handler+0x894
-0x3404 is in dtr_tx_cq_event_handler (.../drbd_transport_rdma.c:1935).
-1930                    if (stream_nr != ST_FLOW_CTRL) {
-1931                            err = dtr_repost_tx_desc(cm, tx_desc);
-1932                            if (!err)
-1933                                    tx_desc = NULL; /* it is in the air again! Fly! */
-1934                            else
-1935                                    tr_warn(transport, "repost of tx_desc failed! %d\n", err);
-1936                    }
-
-This problem is that too many logs print in irq, cause the kernel crash.
-
-So, we ratelimit error log
+So, we need to release this tx_desc when __dtr_post_tx_desc() fails in
+dtr_send() function.
 
 Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
 ---
- drbd/drbd_transport_rdma.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drbd/drbd_transport_rdma.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index 5270e503a..30edfaf96 100644
+index 6de0ba625..5270e503a 100644
 --- a/drbd/drbd_transport_rdma.c
 +++ b/drbd/drbd_transport_rdma.c
-@@ -1920,7 +1920,7 @@ static int dtr_handle_tx_cq_event(struct ib_cq *cq, struct dtr_cm *cm)
- 			err = dtr_repost_tx_desc(cm, tx_desc);
- 			if (!err)
- 				tx_desc = NULL; /* it is in the air again! Fly! */
--			else
-+			else if(__ratelimit(&rdma_transport->rate_limit))
- 				tr_warn(transport, "repost of tx_desc failed! %d\n", err);
- 		}
- 	}
+@@ -581,6 +581,9 @@ static int dtr_send(struct dtr_path *path, void *buf, size_t size, gfp_t gfp_mas
+ 		{ .stream = ST_FLOW_CTRL, .sequence = 0 };
+ 
+ 	err = __dtr_post_tx_desc(cm, tx_desc);
++	if (err)
++		dtr_free_tx_desc(cm, tx_desc);
++
+ out_put:
+ 	kref_put(&cm->kref, dtr_destroy_cm);
+ out:
 -- 
 2.43.0
 
