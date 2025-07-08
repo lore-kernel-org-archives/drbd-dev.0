@@ -1,24 +1,17 @@
-Return-Path: <eslam.medhat1993@gmail.com>
-Received: from mail-wr1-f50.google.com (mail-wr1-f50.google.com
-	[209.85.221.50])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7FBE4160650
-	for <drbd-dev@lists.linbit.com>; Sat,  5 Jul 2025 19:32:55 +0200 (CEST)
-Received: by mail-wr1-f50.google.com with SMTP id
-	ffacd0b85a97d-3a50fc7ac4dso800936f8f.0
-	for <drbd-dev@lists.linbit.com>; Sat, 05 Jul 2025 10:32:54 -0700 (PDT)
-From: Eslam Khafagy <eslam.medhat1993@gmail.com>
-To: 
-Subject: [PATCH v2] DRBD: replace strcpy with strscpy
-Date: Sat,  5 Jul 2025 20:32:44 +0300
-Message-ID: <20250705173248.59003-1-eslam.medhat1993@gmail.com>
-In-Reply-To: <20250704175018.333165-1-eslam.medhat1993@gmail.com>
-References: <20250704175018.333165-1-eslam.medhat1993@gmail.com>
+Return-Path: <zhengbing.huang@easystack.cn>
+Received: from mail-m32121.qiye.163.com (mail-m32121.qiye.163.com
+	[220.197.32.121])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B0A65162250
+	for <drbd-dev@lists.linbit.com>; Tue,  8 Jul 2025 08:55:46 +0200 (CEST)
+From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+To: drbd-dev@lists.linbit.com
+Subject: [PATCH 3/3] modify rdma_conn_param.rnr_retry to 7
+Date: Tue,  8 Jul 2025 14:50:40 +0800
+Message-ID: <20250708065040.4043169-3-zhengbing.huang@easystack.cn>
+In-Reply-To: <20250708065040.4043169-1-zhengbing.huang@easystack.cn>
+References: <20250708065040.4043169-1-zhengbing.huang@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, eslam.medhat1993@gmail.com,
-	skhan@linuxfoundation.com, Philipp Reisner <philipp.reisner@linbit.com>,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,86 +23,35 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-strcpy is deprecated due to lack of bounds checking. This patch replaces
-strcpy with strscpy, the recommended alternative for null terminated
-strings, to follow best practices.
+During the sync process, we found that the
+IB_WC_RNR_RETRY_EXC_ERR error always occurred, and then
+the connection break. Then when the connection is restored,
+this error occurs again, enter a loop.
 
-I had to do a small refactor for __drbd_send_protocol since it uses
-strlen anyways. so why not use that for strscpy.
+When the IB_WC_RNR_RETRY_EXC_ERR error occurs,
+it indicates that there is no rx_desc at the receive side currently.
+Then we query that the current rnr_retry value is 0,
+meane there is no retry.
 
-V2:
- - I forgot about null termination so i fixed it.
+So we modify rnr_retry to 7(max value), and the problem did not occur again.
 
-Signed-off-by: Eslam Khafagy <eslam.medhat1993@gmail.com>
+Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
 ---
- drivers/block/drbd/drbd_main.c     | 17 +++++++++--------
- drivers/block/drbd/drbd_receiver.c |  4 ++--
- 2 files changed, 11 insertions(+), 10 deletions(-)
+ drbd/drbd_transport_rdma.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 52724b79be30..028a5cf41d7f 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -742,9 +742,9 @@ int drbd_send_sync_param(struct drbd_peer_device *peer_device)
- 	}
+diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
+index 30edfaf96..14392a33b 100644
+--- a/drbd/drbd_transport_rdma.c
++++ b/drbd/drbd_transport_rdma.c
+@@ -409,6 +409,7 @@ static struct rdma_conn_param dtr_conn_param = {
+ 	.responder_resources = 1,
+ 	.initiator_depth = 1,
+ 	.retry_count = 10,
++	.rnr_retry_count  = 7,
+ };
  
- 	if (apv >= 88)
--		strcpy(p->verify_alg, nc->verify_alg);
-+		strscpy(p->verify_alg, nc->verify_alg);
- 	if (apv >= 89)
--		strcpy(p->csums_alg, nc->csums_alg);
-+		strscpy(p->csums_alg, nc->csums_alg);
- 	rcu_read_unlock();
- 
- 	return drbd_send_command(peer_device, sock, cmd, size, NULL, 0);
-@@ -771,10 +771,6 @@ int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cm
- 		return -EOPNOTSUPP;
- 	}
- 
--	size = sizeof(*p);
--	if (connection->agreed_pro_version >= 87)
--		size += strlen(nc->integrity_alg) + 1;
--
- 	p->protocol      = cpu_to_be32(nc->wire_protocol);
- 	p->after_sb_0p   = cpu_to_be32(nc->after_sb_0p);
- 	p->after_sb_1p   = cpu_to_be32(nc->after_sb_1p);
-@@ -787,8 +783,13 @@ int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cm
- 		cf |= CF_DRY_RUN;
- 	p->conn_flags    = cpu_to_be32(cf);
- 
--	if (connection->agreed_pro_version >= 87)
--		strcpy(p->integrity_alg, nc->integrity_alg);
-+	size = sizeof(*p);
-+	if (connection->agreed_pro_version >= 87) {
-+		int integrity_len = strlen(nc->integrity_alg) + 1;
-+		size += integrity_len;
-+		strscpy(p->integrity_alg, nc->integrity_alg, integrity_len);
-+	}
-+
- 	rcu_read_unlock();
- 
- 	return __conn_send_command(connection, sock, cmd, size, NULL, 0);
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index e5a2e5f7887b..9c2d439f26e8 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3985,14 +3985,14 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
- 			*new_net_conf = *old_net_conf;
- 
- 			if (verify_tfm) {
--				strcpy(new_net_conf->verify_alg, p->verify_alg);
-+				strscpy(new_net_conf->verify_alg, p->verify_alg);
- 				new_net_conf->verify_alg_len = strlen(p->verify_alg) + 1;
- 				crypto_free_shash(peer_device->connection->verify_tfm);
- 				peer_device->connection->verify_tfm = verify_tfm;
- 				drbd_info(device, "using verify-alg: \"%s\"\n", p->verify_alg);
- 			}
- 			if (csums_tfm) {
--				strcpy(new_net_conf->csums_alg, p->csums_alg);
-+				strscpy(new_net_conf->csums_alg, p->csums_alg);
- 				new_net_conf->csums_alg_len = strlen(p->csums_alg) + 1;
- 				crypto_free_shash(peer_device->connection->csums_tfm);
- 				peer_device->connection->csums_tfm = csums_tfm;
+ static u32 dtr_cm_to_lkey(struct dtr_cm *cm)
 -- 
 2.43.0
 
