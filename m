@@ -1,17 +1,22 @@
-Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m15592.qiye.163.com (mail-m15592.qiye.163.com
-	[101.71.155.92])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A24A7160917
-	for <drbd-dev@lists.linbit.com>; Wed,  9 Jul 2025 07:22:00 +0200 (CEST)
-From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-To: drbd-dev@lists.linbit.com
-Subject: [PATCH 3/3] rdma: Get drbd_path->kref when get drbd_path by addr
-Date: Wed,  9 Jul 2025 10:55:52 +0800
-Message-ID: <20250709025553.694792-3-zhengbing.huang@easystack.cn>
-In-Reply-To: <20250709025553.694792-1-zhengbing.huang@easystack.cn>
-References: <20250709025553.694792-1-zhengbing.huang@easystack.cn>
+Return-Path: <joel.colledge@linbit.com>
+Received: from mail-ed1-f51.google.com (mail-ed1-f51.google.com
+	[209.85.208.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 38263160650
+	for <drbd-dev@lists.linbit.com>; Tue, 15 Jul 2025 14:16:54 +0200 (CEST)
+Received: by mail-ed1-f51.google.com with SMTP id
+	4fb4d7f45d1cf-607ec30df2bso10446533a12.1
+	for <drbd-dev@lists.linbit.com>; Tue, 15 Jul 2025 05:16:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <20250512054449.1876131-1-zhengbing.huang@easystack.cn>
+	<AIgAWQAHL2UusPjIM6GtBqpF.3.1751957527642.Hmail.zhengbing.huang@easystack.cn>
+In-Reply-To: <AIgAWQAHL2UusPjIM6GtBqpF.3.1751957527642.Hmail.zhengbing.huang@easystack.cn>
+From: Joel Colledge <joel.colledge@linbit.com>
+Date: Tue, 15 Jul 2025 14:16:41 +0200
+Message-ID: <CAGNP_+XBPKxpAz=2hhjXvnZ12WWs4tHzJuwyKBNsWVuubqB__A@mail.gmail.com>
+Subject: Re: [PATCH] drbd: Fix kernel hangs issue
+To: ZhengbingHuang <zhengbing.huang@easystack.cn>
+Content-Type: multipart/alternative; boundary="000000000000781b2d0639f6c0d4"
+Cc: drbd-dev <drbd-dev@lists.linbit.com>
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -23,75 +28,27 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In the dtr_cma_accept() function, after obtain the drbd_path
-through peer_addr, without take a reference,
-the drbd_path may be released concurrently, leade to a use-after-free.
+--000000000000781b2d0639f6c0d4
+Content-Type: text/plain; charset="UTF-8"
 
-So when we obtain drbd_path, we add a reference count.
+Hi,
 
-Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
----
- drbd/drbd_transport_rdma.c | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+Thanks for this and your other recent contributions. It is currently
+vacation season here in Europe where the DRBD maintainers are based, so
+there will be a delay in responding to them.
 
-diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index 442dd8e89..68c668f7f 100644
---- a/drbd/drbd_transport_rdma.c
-+++ b/drbd/drbd_transport_rdma.c
-@@ -969,6 +969,8 @@ static int dtr_cma_accept(struct dtr_listener *listener, struct rdma_cm_id *new_
- 
- 	spin_lock(&listener->listener.waiters_lock);
- 	drbd_path = drbd_find_path_by_addr(&listener->listener, peer_addr);
-+	if (drbd_path)
-+		kref_get(&drbd_path->kref);
- 	spin_unlock(&listener->listener.waiters_lock);
- 
- 	if (!drbd_path) {
-@@ -997,16 +999,13 @@ static int dtr_cma_accept(struct dtr_listener *listener, struct rdma_cm_id *new_
- 
- 	path = container_of(drbd_path, struct dtr_path, path);
- 	cs = &path->cs;
--	if (atomic_read(&cs->passive_state) < PCS_CONNECTING) {
--		rdma_reject(new_cm_id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINED);
--		return -EAGAIN;
--	}
-+	if (atomic_read(&cs->passive_state) < PCS_CONNECTING)
-+		goto reject;
- 
- 	cm = dtr_alloc_cm(path);
- 	if (!cm) {
- 		pr_err("rejecting connecting since -ENOMEM for cm\n");
--		rdma_reject(new_cm_id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINED);
--		return -EAGAIN;
-+		goto reject;
- 	}
- 
- 	cm->state = DSM_CONNECT_REQ;
-@@ -1024,17 +1023,21 @@ static int dtr_cma_accept(struct dtr_listener *listener, struct rdma_cm_id *new_
- 	/* Gifting the initial kref to the path->cm pointer */
- 	err = dtr_path_prepare(path, cm, false);
- 	if (err) {
--		rdma_reject(new_cm_id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINED);
- 		/* Returning the cm via ret_cm and an error causes the caller to put one ref */
--
--		return -EAGAIN;
-+		goto reject;
- 	}
-+	kref_put(&drbd_path->kref, drbd_destroy_path);
- 
- 	err = rdma_accept(new_cm_id, &dtr_conn_param);
- 	if (err)
- 		kref_put(&cm->kref, dtr_destroy_cm);
- 
- 	return err;
-+
-+reject:
-+	rdma_reject(new_cm_id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINED);
-+	kref_put(&drbd_path->kref, drbd_destroy_path);
-+	return -EAGAIN;
- }
- 
- static int dtr_start_try_connect(struct dtr_connect_state *cs)
--- 
-2.43.0
+Thanks for your patience.
 
+Joel
+
+--000000000000781b2d0639f6c0d4
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div dir=3D"ltr"><div>Hi,</div><div><br></div><div>Thanks =
+for this and your other recent contributions. It is currently vacation seas=
+on here in Europe where the DRBD maintainers are based, so there will be a =
+delay in responding to them.</div><div><br></div><div>Thanks for your patie=
+nce.</div><div><br></div><div>Joel</div><div><br></div></div><br></div>
+
+--000000000000781b2d0639f6c0d4--
