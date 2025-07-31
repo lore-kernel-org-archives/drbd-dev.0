@@ -1,19 +1,19 @@
 Return-Path: <philipp.reisner@linbit.com>
-Received: from mail-ed1-f46.google.com (mail-ed1-f46.google.com
-	[209.85.208.46])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 55100162268
-	for <drbd-dev@lists.linbit.com>; Thu, 31 Jul 2025 14:36:18 +0200 (CEST)
-Received: by mail-ed1-f46.google.com with SMTP id
-	4fb4d7f45d1cf-604bff84741so591651a12.2
-	for <drbd-dev@lists.linbit.com>; Thu, 31 Jul 2025 05:36:18 -0700 (PDT)
+Received: from mail-ed1-f44.google.com (mail-ed1-f44.google.com
+	[209.85.208.44])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9AED6162302
+	for <drbd-dev@lists.linbit.com>; Thu, 31 Jul 2025 14:36:45 +0200 (CEST)
+Received: by mail-ed1-f44.google.com with SMTP id
+	4fb4d7f45d1cf-6157c81ff9eso522511a12.3
+	for <drbd-dev@lists.linbit.com>; Thu, 31 Jul 2025 05:36:45 -0700 (PDT)
 MIME-Version: 1.0
 References: <20250709025553.694792-1-zhengbing.huang@easystack.cn>
-	<20250709025553.694792-2-zhengbing.huang@easystack.cn>
-In-Reply-To: <20250709025553.694792-2-zhengbing.huang@easystack.cn>
+	<20250709025553.694792-3-zhengbing.huang@easystack.cn>
+In-Reply-To: <20250709025553.694792-3-zhengbing.huang@easystack.cn>
 From: Philipp Reisner <philipp.reisner@linbit.com>
-Date: Thu, 31 Jul 2025 14:36:05 +0200
-Message-ID: <CADGDV=U0teF1qic1UvrfMJcR8VRfD4VPDwKRZ6TnuymwgrDbvg@mail.gmail.com>
-Subject: Re: [PATCH 2/3] drbd: Fix kernel crash in drbd_find_path_by_addr()
+Date: Thu, 31 Jul 2025 14:36:33 +0200
+Message-ID: <CADGDV=WFc4H5eG0rVcp+Ms6XiosSbomVg6CWBvetWi0T=Bt_LA@mail.gmail.com>
+Subject: Re: [PATCH 3/3] rdma: Get drbd_path->kref when get drbd_path by addr
 To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
@@ -29,158 +29,91 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Thanks applied
+Thanks! Applied.
 
-On Wed, Jul 9, 2025 at 5:01=E2=80=AFAM zhengbing.huang
+Best regards,
+ Philipp
+
+On Wed, Jul 9, 2025 at 7:22=E2=80=AFAM zhengbing.huang
 <zhengbing.huang@easystack.cn> wrote:
 >
-> We hava the crash info as follow:
->  BUG: unable to handle kernel NULL pointer dereference at 000000000000000=
-0
->  Workqueue: ib_cm cm_work_handler [ib_cm]
->  RIP: 0010:drbd_find_path_by_addr+0x6c/0xd0 [drbd]
->  Call Trace:
->   dtr_cma_event_handler+0x1c1/0x4ee [drbd_transport_rdma]
->   cma_cm_event_handler+0x25/0xd0 [rdma_cm]
->   cma_ib_req_handler+0x7cd/0x1250 [rdma_cm]
->   ? addr4_resolve+0x67/0xd0 [ib_core]
->   cm_process_work+0x22/0xf0 [ib_cm]
->   cm_req_handler+0x7ed/0xf40 [ib_cm]
->   ? __switch_to_asm+0x35/0x70
->   cm_work_handler+0x798/0xf30 [ib_cm]
->   ? finish_task_switch+0x18e/0x2e0
->   process_one_work+0x1a7/0x360
->   ? create_worker+0x1a0/0x1a0
->   worker_thread+0x30/0x390
->   ? create_worker+0x1a0/0x1a0
->   kthread+0x10a/0x120
->   ? set_kthread_struct+0x40/0x40
->   ret_from_fork+0x1f/0x40
+> In the dtr_cma_accept() function, after obtain the drbd_path
+> through peer_addr, without take a reference,
+> the drbd_path may be released concurrently, leade to a use-after-free.
 >
-> The code that crash is traverse the listener->waiters list:
-> struct drbd_path *drbd_find_path_by_addr(struct drbd_listener *listener, =
-struct sockaddr_storage *addr)
-> {
->         struct drbd_path *path;
->
->         list_for_each_entry(path, &listener->waiters, listener_link) {
->                 if (addr_equal(&path->peer_addr, addr))
->                         return path;
->         }
->
->         return NULL;
-> }
->
-> The listener->waiters list has a Path node:
-> crash> struct dtr_listener ff4ba75054797c00
-> struct dtr_listener {
->   listener =3D {
->     kref =3D {
->       refcount =3D {
->         refs =3D {
->           counter =3D 2
->         }
->       }
->     },
->     resource =3D 0xff4ba766cc325000,
->     transport_class =3D 0xffffffffc037f080 <rdma_transport_class>,
->     list =3D {
->       next =3D 0xff4ba766cc325500,
->       prev =3D 0xff4ba766cc325500
->     },
->     waiters =3D {
->       next =3D 0xff4ba74fd578e138,
->       prev =3D 0xff4ba74fd578e138
->     },
->  ...
-> }
->
-> but this Path has been released:
-> crash> struct drbd_path 0xff4ba74fd578e000
-> struct drbd_path {
->   my_addr =3D {
->     ss_family =3D 1,
->     __data =3D "\000\000\000\000"
->   },
->   peer_addr =3D {
->     ss_family =3D 0,
->     __data =3D "\000\000\000\000\000\000\0"
->   },
->   kref =3D {
->     refcount =3D {
->       refs =3D {
->         counter =3D 0
->       }
->     }
->   },
->   net =3D 0x0,
->   my_addr_len =3D 0,
->   peer_addr_len =3D 0,
->   flags =3D 0,
->   // all zero
->   ...
-> }
->
-> So this path has been released, but it is still on the listener->waiters =
-list,
-> which cause problem when traverse the list later.
->
-> And the scenario of this problem should be like this:
-> thread_1:
->   remove_path()
->     dtr_remove_path()
->       drbd_put_listener()
->         list_del(&path->listener_link)
->                                           thread_2:
->                                             ...
->                                             dtr_activate_path()
->                                               drbd_get_listener()
->                                                 list_add(&path->listener_=
-link, &listener->waiters);
->                                             ...
->    ...
->    kfree(path)
->
-> thread_3:
-> connect request come in:
-> dtr_cma_event_handler()
->   dtr_cma_accept()
->     drbd_find_path_by_addr()
->     crash
->
-> To avoid this use-after-free, we hold an additional reference to drbd_pat=
-h
-> whenever it is added to the listener->waiters list, and drop it when remo=
-ved.
->
-> This ensures the path memory remains valid during list traversal.
+> So when we obtain drbd_path, we add a reference count.
 >
 > Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
 > ---
->  drbd/drbd_transport.c | 2 ++
->  1 file changed, 2 insertions(+)
+>  drbd/drbd_transport_rdma.c | 21 ++++++++++++---------
+>  1 file changed, 12 insertions(+), 9 deletions(-)
 >
-> diff --git a/drbd/drbd_transport.c b/drbd/drbd_transport.c
-> index 00e7f9269..aff96716f 100644
-> --- a/drbd/drbd_transport.c
-> +++ b/drbd/drbd_transport.c
-> @@ -224,6 +224,7 @@ int drbd_get_listener(struct drbd_path *path)
+> diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
+> index 442dd8e89..68c668f7f 100644
+> --- a/drbd/drbd_transport_rdma.c
+> +++ b/drbd/drbd_transport_rdma.c
+> @@ -969,6 +969,8 @@ static int dtr_cma_accept(struct dtr_listener *listen=
+er, struct rdma_cm_id *new_
 >
->         spin_lock_bh(&listener->waiters_lock);
->         list_add(&path->listener_link, &listener->waiters);
-> +       kref_get(&path->kref);
->         path->listener =3D listener;
->         spin_unlock_bh(&listener->waiters_lock);
->         /* After exposing the listener on a path, drbd_put_listenr() can =
-destroy it. */
-> @@ -258,6 +259,7 @@ void drbd_put_listener(struct drbd_path *path)
+>         spin_lock(&listener->listener.waiters_lock);
+>         drbd_path =3D drbd_find_path_by_addr(&listener->listener, peer_ad=
+dr);
+> +       if (drbd_path)
+> +               kref_get(&drbd_path->kref);
+>         spin_unlock(&listener->listener.waiters_lock);
 >
->         spin_lock_bh(&listener->waiters_lock);
->         list_del(&path->listener_link);
-> +       kref_put(&path->kref, drbd_destroy_path);
->         spin_unlock_bh(&listener->waiters_lock);
->         kref_put(&listener->kref, drbd_listener_destroy);
+>         if (!drbd_path) {
+> @@ -997,16 +999,13 @@ static int dtr_cma_accept(struct dtr_listener *list=
+ener, struct rdma_cm_id *new_
+>
+>         path =3D container_of(drbd_path, struct dtr_path, path);
+>         cs =3D &path->cs;
+> -       if (atomic_read(&cs->passive_state) < PCS_CONNECTING) {
+> -               rdma_reject(new_cm_id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINE=
+D);
+> -               return -EAGAIN;
+> -       }
+> +       if (atomic_read(&cs->passive_state) < PCS_CONNECTING)
+> +               goto reject;
+>
+>         cm =3D dtr_alloc_cm(path);
+>         if (!cm) {
+>                 pr_err("rejecting connecting since -ENOMEM for cm\n");
+> -               rdma_reject(new_cm_id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINE=
+D);
+> -               return -EAGAIN;
+> +               goto reject;
+>         }
+>
+>         cm->state =3D DSM_CONNECT_REQ;
+> @@ -1024,17 +1023,21 @@ static int dtr_cma_accept(struct dtr_listener *li=
+stener, struct rdma_cm_id *new_
+>         /* Gifting the initial kref to the path->cm pointer */
+>         err =3D dtr_path_prepare(path, cm, false);
+>         if (err) {
+> -               rdma_reject(new_cm_id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINE=
+D);
+>                 /* Returning the cm via ret_cm and an error causes the ca=
+ller to put one ref */
+> -
+> -               return -EAGAIN;
+> +               goto reject;
+>         }
+> +       kref_put(&drbd_path->kref, drbd_destroy_path);
+>
+>         err =3D rdma_accept(new_cm_id, &dtr_conn_param);
+>         if (err)
+>                 kref_put(&cm->kref, dtr_destroy_cm);
+>
+>         return err;
+> +
+> +reject:
+> +       rdma_reject(new_cm_id, NULL, 0, IB_CM_REJ_CONSUMER_DEFINED);
+> +       kref_put(&drbd_path->kref, drbd_destroy_path);
+> +       return -EAGAIN;
 >  }
+>
+>  static int dtr_start_try_connect(struct dtr_connect_state *cs)
 > --
 > 2.43.0
 >
