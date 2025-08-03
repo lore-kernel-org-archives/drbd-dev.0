@@ -1,16 +1,16 @@
 Return-Path: <sashal@kernel.org>
 Received: from tor.source.kernel.org (tor.source.kernel.org [172.105.4.254])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E31371622BC
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E13ED16093B
 	for <drbd-dev@lists.linbit.com>; Sun,  3 Aug 2025 23:28:21 +0200 (CEST)
 From: Sasha Levin <sashal@kernel.org>
 To: patches@lists.linux.dev,
 	stable@vger.kernel.org
-Subject: [PATCH AUTOSEL 6.1 08/16] drbd: add missing kref_get in
+Subject: [PATCH AUTOSEL 6.6 13/23] drbd: add missing kref_get in
 	handle_write_conflicts
-Date: Sun,  3 Aug 2025 17:21:18 -0400
-Message-Id: <20250803212127.3548367-8-sashal@kernel.org>
-In-Reply-To: <20250803212127.3548367-1-sashal@kernel.org>
-References: <20250803212127.3548367-1-sashal@kernel.org>
+Date: Sun,  3 Aug 2025 17:20:20 -0400
+Message-Id: <20250803212031.3547641-13-sashal@kernel.org>
+In-Reply-To: <20250803212031.3547641-1-sashal@kernel.org>
+References: <20250803212031.3547641-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -128,10 +128,10 @@ fix is safe, minimal, and prevents a serious bug.
  1 file changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 4ba09abbcaf6..acaa84fbe7f6 100644
+index 0c9f54197768..ac18d36b0ea8 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -2478,7 +2478,11 @@ static int handle_write_conflicts(struct drbd_device *device,
+@@ -2500,7 +2500,11 @@ static int handle_write_conflicts(struct drbd_device *device,
  			peer_req->w.cb = superseded ? e_send_superseded :
  						   e_send_retry_write;
  			list_add_tail(&peer_req->w.list, &device->done_ee);
