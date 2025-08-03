@@ -1,16 +1,17 @@
 Return-Path: <sashal@kernel.org>
-Received: from nyc.source.kernel.org (nyc.source.kernel.org [147.75.193.91])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2FA0816231E
-	for <drbd-dev@lists.linbit.com>; Sun,  3 Aug 2025 23:28:51 +0200 (CEST)
+Received: from dfw.source.kernel.org (dfw.source.kernel.org [139.178.84.217])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 45E4516230C
+	for <drbd-dev@lists.linbit.com>;
+	Sun,  3 Aug 2025 23:33:11 +0200 (CEST)
 From: Sasha Levin <sashal@kernel.org>
 To: patches@lists.linux.dev,
 	stable@vger.kernel.org
-Subject: [PATCH AUTOSEL 6.15 20/34] drbd: add missing kref_get in
+Subject: [PATCH AUTOSEL 5.4 7/9] drbd: add missing kref_get in
 	handle_write_conflicts
-Date: Sun,  3 Aug 2025 17:18:22 -0400
-Message-Id: <20250803211836.3546094-20-sashal@kernel.org>
-In-Reply-To: <20250803211836.3546094-1-sashal@kernel.org>
-References: <20250803211836.3546094-1-sashal@kernel.org>
+Date: Sun,  3 Aug 2025 17:23:07 -0400
+Message-Id: <20250803212309.3549683-7-sashal@kernel.org>
+In-Reply-To: <20250803212309.3549683-1-sashal@kernel.org>
+References: <20250803212309.3549683-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -128,10 +129,10 @@ fix is safe, minimal, and prevents a serious bug.
  1 file changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index e5a2e5f7887b..975024cf03c5 100644
+index d94f41a0abbe..d75050b0d1b3 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
-@@ -2500,7 +2500,11 @@ static int handle_write_conflicts(struct drbd_device *device,
+@@ -2531,7 +2531,11 @@ static int handle_write_conflicts(struct drbd_device *device,
  			peer_req->w.cb = superseded ? e_send_superseded :
  						   e_send_retry_write;
  			list_add_tail(&peer_req->w.list, &device->done_ee);
