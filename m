@@ -1,16 +1,16 @@
 Return-Path: <sashal@kernel.org>
 Received: from nyc.source.kernel.org (nyc.source.kernel.org [147.75.193.91])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2A9BE162310
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2A99B16230C
 	for <drbd-dev@lists.linbit.com>; Sun,  3 Aug 2025 23:28:51 +0200 (CEST)
 From: Sasha Levin <sashal@kernel.org>
 To: patches@lists.linux.dev,
 	stable@vger.kernel.org
-Subject: [PATCH AUTOSEL 5.15 08/15] drbd: add missing kref_get in
+Subject: [PATCH AUTOSEL 5.10 07/11] drbd: add missing kref_get in
 	handle_write_conflicts
-Date: Sun,  3 Aug 2025 17:21:58 -0400
-Message-Id: <20250803212206.3548990-8-sashal@kernel.org>
-In-Reply-To: <20250803212206.3548990-1-sashal@kernel.org>
-References: <20250803212206.3548990-1-sashal@kernel.org>
+Date: Sun,  3 Aug 2025 17:22:37 -0400
+Message-Id: <20250803212242.3549318-7-sashal@kernel.org>
+In-Reply-To: <20250803212242.3549318-1-sashal@kernel.org>
+References: <20250803212242.3549318-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -128,7 +128,7 @@ fix is safe, minimal, and prevents a serious bug.
  1 file changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 0104e101b0d7..ea38dd43c6b0 100644
+index 405e09575f08..b4d4e4a41b08 100644
 --- a/drivers/block/drbd/drbd_receiver.c
 +++ b/drivers/block/drbd/drbd_receiver.c
 @@ -2532,7 +2532,11 @@ static int handle_write_conflicts(struct drbd_device *device,
