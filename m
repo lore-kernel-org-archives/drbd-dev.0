@@ -1,24 +1,26 @@
-Return-Path: <eslam.medhat1993@gmail.com>
+Return-Path: <karanja99erick@gmail.com>
 Received: from mail-wm1-f42.google.com (mail-wm1-f42.google.com
 	[209.85.128.42])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EF6C5162267
-	for <drbd-dev@lists.linbit.com>; Thu, 14 Aug 2025 00:55:18 +0200 (CEST)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E5E18160907
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Aug 2025 09:18:51 +0200 (CEST)
 Received: by mail-wm1-f42.google.com with SMTP id
-	5b1f17b1804b1-45a1b05ac1eso1482045e9.1
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Aug 2025 15:55:18 -0700 (PDT)
-From: Eslam Khafagy <eslam.medhat1993@gmail.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
+	5b1f17b1804b1-459ddf8acf1so52552535e9.0
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Aug 2025 00:18:51 -0700 (PDT)
+From: Erick Karanja <karanja99erick@gmail.com>
+To: Damien Le Moal <dlemoal@kernel.org>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
-	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>,
-	drbd-dev@lists.linbit.com, linux-block@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH v3] DRBD: replace strcpy with strscpy
-Date: Thu, 14 Aug 2025 01:54:53 +0300
-Message-ID: <20250813225510.138105-1-eslam.medhat1993@gmail.com>
+	Jonathan Corbet <corbet@lwn.net>
+Subject: [PATCH] Docs: admin-guide: Correct spelling mistake
+Date: Wed, 13 Aug 2025 10:18:36 +0300
+Message-ID: <20250813071837.668613-1-karanja99erick@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Cc: skhan@linuxfoundation.com, eslam.medhat1993@gmail.com
+Cc: linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, skhan@linuxfoundation.org,
+	Erick Karanja <karanja99erick@gmail.com>,
+	linux-kernel-mentees@lists.linuxfoundation.org,
+	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,83 +32,28 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-strcpy is deprecated due to lack of bounds checking. This patch replaces
-strcpy with strscpy, the recommended alternative for null terminated
-strings, to follow best practices.
+Fix spelling mistake directoy to directory
 
-I had to do a small refactor for __drbd_send_protocol since it uses
-strlen anyways. so why not use that for strscpy.
+Reported-by: codespell
 
-Signed-off-by: Eslam Khafagy <eslam.medhat1993@gmail.com>
+Signed-off-by: Erick Karanja <karanja99erick@gmail.com>
 ---
- drivers/block/drbd/drbd_main.c     | 17 +++++++++--------
- drivers/block/drbd/drbd_receiver.c |  4 ++--
- 2 files changed, 11 insertions(+), 10 deletions(-)
+ Documentation/admin-guide/blockdev/zoned_loop.rst | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index 52724b79be30..4e5bd74be90a 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -742,9 +742,9 @@ int drbd_send_sync_param(struct drbd_peer_device *peer_device)
- 	}
- 
- 	if (apv >= 88)
--		strcpy(p->verify_alg, nc->verify_alg);
-+		strscpy(p->verify_alg, nc->verify_alg);
- 	if (apv >= 89)
--		strcpy(p->csums_alg, nc->csums_alg);
-+		strscpy(p->csums_alg, nc->csums_alg);
- 	rcu_read_unlock();
- 
- 	return drbd_send_command(peer_device, sock, cmd, size, NULL, 0);
-@@ -771,10 +771,6 @@ int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cm
- 		return -EOPNOTSUPP;
- 	}
- 
--	size = sizeof(*p);
--	if (connection->agreed_pro_version >= 87)
--		size += strlen(nc->integrity_alg) + 1;
--
- 	p->protocol      = cpu_to_be32(nc->wire_protocol);
- 	p->after_sb_0p   = cpu_to_be32(nc->after_sb_0p);
- 	p->after_sb_1p   = cpu_to_be32(nc->after_sb_1p);
-@@ -787,8 +783,13 @@ int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cm
- 		cf |= CF_DRY_RUN;
- 	p->conn_flags    = cpu_to_be32(cf);
- 
--	if (connection->agreed_pro_version >= 87)
--		strcpy(p->integrity_alg, nc->integrity_alg);
-+	size = sizeof(*p);
-+	if (connection->agreed_pro_version >= 87) {
-+		int integrity_len = strlen(nc->integrity_alg);
-+		size += integrity_len + 1;
-+		strscpy(p->integrity_alg, nc->integrity_alg, integrity_len);
-+	}
-+
- 	rcu_read_unlock();
- 
- 	return __conn_send_command(connection, sock, cmd, size, NULL, 0);
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 975024cf03c5..d4ea742664c2 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -3989,14 +3989,14 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
- 			*new_net_conf = *old_net_conf;
- 
- 			if (verify_tfm) {
--				strcpy(new_net_conf->verify_alg, p->verify_alg);
-+				strscpy(new_net_conf->verify_alg, p->verify_alg);
- 				new_net_conf->verify_alg_len = strlen(p->verify_alg) + 1;
- 				crypto_free_shash(peer_device->connection->verify_tfm);
- 				peer_device->connection->verify_tfm = verify_tfm;
- 				drbd_info(device, "using verify-alg: \"%s\"\n", p->verify_alg);
- 			}
- 			if (csums_tfm) {
--				strcpy(new_net_conf->csums_alg, p->csums_alg);
-+				strscpy(new_net_conf->csums_alg, p->csums_alg);
- 				new_net_conf->csums_alg_len = strlen(p->csums_alg) + 1;
- 				crypto_free_shash(peer_device->connection->csums_tfm);
- 				peer_device->connection->csums_tfm = csums_tfm;
+diff --git a/Documentation/admin-guide/blockdev/zoned_loop.rst b/Documentation/admin-guide/blockdev/zoned_loop.rst
+index 9c7aa3b482f3..64dcfde7450a 100644
+--- a/Documentation/admin-guide/blockdev/zoned_loop.rst
++++ b/Documentation/admin-guide/blockdev/zoned_loop.rst
+@@ -79,7 +79,7 @@ zone_capacity_mb   Device zone capacity (must always be equal to or lower than
+                    the zone size. Default: zone size.
+ conv_zones         Total number of conventioanl zones starting from sector 0.
+                    Default: 8.
+-base_dir           Path to the base directoy where to create the directory
++base_dir           Path to the base directory where to create the directory
+                    containing the zone files of the device.
+                    Default=/var/local/zloop.
+                    The device directory containing the zone files is always
 -- 
 2.43.0
 
