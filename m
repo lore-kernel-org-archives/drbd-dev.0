@@ -1,20 +1,25 @@
-Return-Path: <ehagberg@janestreet.com>
-Received: from mxout5.mail.janestreet.com (mxout5.mail.janestreet.com
-	[64.215.233.18])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E9E3316064E
-	for <drbd-dev@lists.linbit.com>; Mon, 11 Aug 2025 15:22:13 +0200 (CEST)
-From: Eric Hagberg <ehagberg@janestreet.com>
-To: christoph.boehmwalder@linbit.com
-Subject: [PATCH] drbd: Remove the open-coded page pool
-Date: Mon, 11 Aug 2025 09:16:02 -0400
-Message-Id: <20250811131602.978555-1-ehagberg@janestreet.com>
-In-Reply-To: <20250605103852.23029-1-christoph.boehmwalder@linbit.com>
-References: <20250605103852.23029-1-christoph.boehmwalder@linbit.com>
+Return-Path: <dlemoal@kernel.org>
+Received: from tor.source.kernel.org (tor.source.kernel.org [172.105.4.254])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 0168B16225B
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Aug 2025 11:08:31 +0200 (CEST)
+Message-ID: <066729ba-bd9a-4328-a813-9ef73620020c@kernel.org>
+Date: Wed, 13 Aug 2025 17:59:31 +0900
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: axboe@kernel.dk, philipp.reisner@linbit.com, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Eric Hagberg <ehagberg@janestreet.com>,
-	lars.ellenberg@linbit.com, drbd-dev@lists.linbit.com
+Subject: Re: [PATCH] Docs: admin-guide: Correct spelling mistake
+To: Erick Karanja <karanja99erick@gmail.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	Jonathan Corbet <corbet@lwn.net>
+References: <20250813071837.668613-1-karanja99erick@gmail.com>
+Content-Language: en-US
+From: Damien Le Moal <dlemoal@kernel.org>
+In-Reply-To: <20250813071837.668613-1-karanja99erick@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+Cc: linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, skhan@linuxfoundation.org,
+	linux-kernel-mentees@lists.linuxfoundation.org,
+	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -26,7 +31,15 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This patch has ben running on thousands of hosts here and we've not seen the memory leak that
-was happening previously.
+On 8/13/25 16:18, Erick Karanja wrote:
+> Fix spelling mistake directoy to directory
+> 
+> Reported-by: codespell
+> 
+> Signed-off-by: Erick Karanja <karanja99erick@gmail.com>
 
-Tested-by: Eric Hagberg <ehagberg@janestreet.com>
+Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
+
+-- 
+Damien Le Moal
+Western Digital Research
