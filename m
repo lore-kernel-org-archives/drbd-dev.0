@@ -1,28 +1,24 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-pj1-f54.google.com (mail-pj1-f54.google.com
-	[209.85.216.54])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id E92371608F0
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Aug 2025 14:32:19 +0200 (CEST)
-Received: by mail-pj1-f54.google.com with SMTP id
-	98e67ed59e1d1-32129c4e9a4so5283818a91.1
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Aug 2025 05:32:19 -0700 (PDT)
-From: Jens Axboe <axboe@kernel.dk>
-To: Damien Le Moal <dlemoal@kernel.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
+Return-Path: <eslam.medhat1993@gmail.com>
+Received: from mail-wm1-f42.google.com (mail-wm1-f42.google.com
+	[209.85.128.42])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id EF6C5162267
+	for <drbd-dev@lists.linbit.com>; Thu, 14 Aug 2025 00:55:18 +0200 (CEST)
+Received: by mail-wm1-f42.google.com with SMTP id
+	5b1f17b1804b1-45a1b05ac1eso1482045e9.1
+	for <drbd-dev@lists.linbit.com>; Wed, 13 Aug 2025 15:55:18 -0700 (PDT)
+From: Eslam Khafagy <eslam.medhat1993@gmail.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Jonathan Corbet <corbet@lwn.net>, Erick Karanja <karanja99erick@gmail.com>
-In-Reply-To: <20250813071837.668613-1-karanja99erick@gmail.com>
-References: <20250813071837.668613-1-karanja99erick@gmail.com>
-Subject: Re: [PATCH] Docs: admin-guide: Correct spelling mistake
-Message-Id: <175508833758.953995.10420055026430792302.b4-ty@kernel.dk>
-Date: Wed, 13 Aug 2025 06:32:17 -0600
+	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
+	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>,
+	drbd-dev@lists.linbit.com, linux-block@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH v3] DRBD: replace strcpy with strscpy
+Date: Thu, 14 Aug 2025 01:54:53 +0300
+Message-ID: <20250813225510.138105-1-eslam.medhat1993@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Cc: linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, skhan@linuxfoundation.org,
-	linux-kernel-mentees@lists.linuxfoundation.org,
-	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
+Content-Transfer-Encoding: 8bit
+Cc: skhan@linuxfoundation.com, eslam.medhat1993@gmail.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -34,22 +30,83 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+strcpy is deprecated due to lack of bounds checking. This patch replaces
+strcpy with strscpy, the recommended alternative for null terminated
+strings, to follow best practices.
 
-On Wed, 13 Aug 2025 10:18:36 +0300, Erick Karanja wrote:
-> Fix spelling mistake directoy to directory
-> 
-> Reported-by: codespell
-> 
-> 
+I had to do a small refactor for __drbd_send_protocol since it uses
+strlen anyways. so why not use that for strscpy.
 
-Applied, thanks!
+Signed-off-by: Eslam Khafagy <eslam.medhat1993@gmail.com>
+---
+ drivers/block/drbd/drbd_main.c     | 17 +++++++++--------
+ drivers/block/drbd/drbd_receiver.c |  4 ++--
+ 2 files changed, 11 insertions(+), 10 deletions(-)
 
-[1/1] Docs: admin-guide: Correct spelling mistake
-      commit: f7a2e1c08727384cde1c686dd57172f99b5f2e6e
-
-Best regards,
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 52724b79be30..4e5bd74be90a 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -742,9 +742,9 @@ int drbd_send_sync_param(struct drbd_peer_device *peer_device)
+ 	}
+ 
+ 	if (apv >= 88)
+-		strcpy(p->verify_alg, nc->verify_alg);
++		strscpy(p->verify_alg, nc->verify_alg);
+ 	if (apv >= 89)
+-		strcpy(p->csums_alg, nc->csums_alg);
++		strscpy(p->csums_alg, nc->csums_alg);
+ 	rcu_read_unlock();
+ 
+ 	return drbd_send_command(peer_device, sock, cmd, size, NULL, 0);
+@@ -771,10 +771,6 @@ int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cm
+ 		return -EOPNOTSUPP;
+ 	}
+ 
+-	size = sizeof(*p);
+-	if (connection->agreed_pro_version >= 87)
+-		size += strlen(nc->integrity_alg) + 1;
+-
+ 	p->protocol      = cpu_to_be32(nc->wire_protocol);
+ 	p->after_sb_0p   = cpu_to_be32(nc->after_sb_0p);
+ 	p->after_sb_1p   = cpu_to_be32(nc->after_sb_1p);
+@@ -787,8 +783,13 @@ int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cm
+ 		cf |= CF_DRY_RUN;
+ 	p->conn_flags    = cpu_to_be32(cf);
+ 
+-	if (connection->agreed_pro_version >= 87)
+-		strcpy(p->integrity_alg, nc->integrity_alg);
++	size = sizeof(*p);
++	if (connection->agreed_pro_version >= 87) {
++		int integrity_len = strlen(nc->integrity_alg);
++		size += integrity_len + 1;
++		strscpy(p->integrity_alg, nc->integrity_alg, integrity_len);
++	}
++
+ 	rcu_read_unlock();
+ 
+ 	return __conn_send_command(connection, sock, cmd, size, NULL, 0);
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 975024cf03c5..d4ea742664c2 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -3989,14 +3989,14 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
+ 			*new_net_conf = *old_net_conf;
+ 
+ 			if (verify_tfm) {
+-				strcpy(new_net_conf->verify_alg, p->verify_alg);
++				strscpy(new_net_conf->verify_alg, p->verify_alg);
+ 				new_net_conf->verify_alg_len = strlen(p->verify_alg) + 1;
+ 				crypto_free_shash(peer_device->connection->verify_tfm);
+ 				peer_device->connection->verify_tfm = verify_tfm;
+ 				drbd_info(device, "using verify-alg: \"%s\"\n", p->verify_alg);
+ 			}
+ 			if (csums_tfm) {
+-				strcpy(new_net_conf->csums_alg, p->csums_alg);
++				strscpy(new_net_conf->csums_alg, p->csums_alg);
+ 				new_net_conf->csums_alg_len = strlen(p->csums_alg) + 1;
+ 				crypto_free_shash(peer_device->connection->csums_tfm);
+ 				peer_device->connection->csums_tfm = csums_tfm;
 -- 
-Jens Axboe
-
-
+2.43.0
 
