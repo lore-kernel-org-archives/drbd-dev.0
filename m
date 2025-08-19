@@ -1,24 +1,15 @@
-Return-Path: <liaoyuanhong@vivo.com>
-Received: from OS8PR02CU002.outbound.protection.outlook.com
-	(mail-japanwestazon11012050.outbound.protection.outlook.com
-	[40.107.75.50])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1CF671608F0
-	for <drbd-dev@lists.linbit.com>; Wed, 13 Aug 2025 13:14:16 +0200 (CEST)
-From: Liao Yuanhong <liaoyuanhong@vivo.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
-	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>,
-	drbd-dev@lists.linbit.com (open list:DRBD DRIVER),
-	linux-block@vger.kernel.org (open list:BLOCK LAYER),
-	linux-kernel@vger.kernel.org (open list)
-Subject: [PATCH] drbd: Remove redundant semicolons
-Date: Wed, 13 Aug 2025 17:41:24 +0800
-Message-Id: <20250813094124.553070-1-liaoyuanhong@vivo.com>
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain
+Return-Path: <zhengbing.huang@easystack.cn>
+Received: from mail-m15598.qiye.163.com (mail-m15598.qiye.163.com
+	[101.71.155.98])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D2C08162251
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Aug 2025 07:55:07 +0200 (CEST)
+From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+To: drbd-dev@lists.linbit.com
+Subject: [PATCH] drbd: Fix the seq_num conversion error in got_OVResult()
+Date: Tue, 19 Aug 2025 13:49:59 +0800
+Message-ID: <20250819054959.1168661-1-zhengbing.huang@easystack.cn>
 MIME-Version: 1.0
-Cc: Liao Yuanhong <liaoyuanhong@vivo.com>
+Content-Transfer-Encoding: 8bit
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,26 +21,33 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Remove unnecessary semicolons.
+In the got_OVResult function, seq_num was converted twice by the be32_to_cpu,
+which led to an abnormal value of peer_device->peer_seq.
+Any subsequent use peer_device->peer_seq would result in an error.
 
-Signed-off-by: Liao Yuanhong <liaoyuanhong@vivo.com>
+For example, we encounter the follow error:
+xxx: Timed out waiting for missing ack packets; disconnecting
+
+So, we remove the second erroneous be32_to_cpu conversion.
+
+Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
 ---
- drivers/block/drbd/drbd_state.c | 2 +-
+ drbd/drbd_receiver.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_state.c b/drivers/block/drbd/drbd_state.c
-index c2b6c4d9729d..6616334d3813 100644
---- a/drivers/block/drbd/drbd_state.c
-+++ b/drivers/block/drbd/drbd_state.c
-@@ -2274,7 +2274,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union
- static enum drbd_state_rv
- _conn_rq_cond(struct drbd_connection *connection, union drbd_state mask, union drbd_state val)
- {
--	enum drbd_state_rv err, rv = SS_UNKNOWN_ERROR; /* continue waiting */;
-+	enum drbd_state_rv err, rv = SS_UNKNOWN_ERROR; /* continue waiting */
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+index fdb6eb458..21bc84c5b 100644
+--- a/drbd/drbd_receiver.c
++++ b/drbd/drbd_receiver.c
+@@ -10743,7 +10743,7 @@ static int got_OVResult(struct drbd_connection *connection, struct packet_info *
+ 		result = be32_to_cpu(p->result);
+ 	}
  
- 	if (test_and_clear_bit(CONN_WD_ST_CHG_OKAY, &connection->flags))
- 		rv = SS_CW_SUCCESS;
+-	update_peer_seq(peer_device, be32_to_cpu(seq_num));
++	update_peer_seq(peer_device, seq_num);
+ 
+ 	peer_req = find_resync_request(peer_device, INTERVAL_TYPE_MASK(INTERVAL_OV_READ_TARGET),
+ 			sector, size, block_id);
 -- 
-2.34.1
+2.43.0
 
