@@ -1,15 +1,21 @@
-Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m15598.qiye.163.com (mail-m15598.qiye.163.com
-	[101.71.155.98])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D2C08162251
-	for <drbd-dev@lists.linbit.com>; Tue, 19 Aug 2025 07:55:07 +0200 (CEST)
-From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-To: drbd-dev@lists.linbit.com
-Subject: [PATCH] drbd: Fix the seq_num conversion error in got_OVResult()
-Date: Tue, 19 Aug 2025 13:49:59 +0800
-Message-ID: <20250819054959.1168661-1-zhengbing.huang@easystack.cn>
+Return-Path: <joel.colledge@linbit.com>
+Received: from mail-ed1-f45.google.com (mail-ed1-f45.google.com
+	[209.85.208.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D96B7162251
+	for <drbd-dev@lists.linbit.com>; Tue, 19 Aug 2025 08:34:18 +0200 (CEST)
+Received: by mail-ed1-f45.google.com with SMTP id
+	4fb4d7f45d1cf-6188b5b1f1cso5853502a12.0
+	for <drbd-dev@lists.linbit.com>; Mon, 18 Aug 2025 23:34:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <20250819054959.1168661-1-zhengbing.huang@easystack.cn>
+In-Reply-To: <20250819054959.1168661-1-zhengbing.huang@easystack.cn>
+From: Joel Colledge <joel.colledge@linbit.com>
+Date: Tue, 19 Aug 2025 08:34:07 +0200
+Message-ID: <CAGNP_+U7qQttcZ0aasL-fLxUz1Fk1cyhp6rGh1Qpx8g2xMQ9gg@mail.gmail.com>
+Subject: Re: [PATCH] drbd: Fix the seq_num conversion error in got_OVResult()
+To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+Content-Type: multipart/alternative; boundary="000000000000b0d559063cb20bf8"
+Cc: drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,33 +27,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In the got_OVResult function, seq_num was converted twice by the be32_to_cpu,
-which led to an abnormal value of peer_device->peer_seq.
-Any subsequent use peer_device->peer_seq would result in an error.
+--000000000000b0d559063cb20bf8
+Content-Type: text/plain; charset="UTF-8"
 
-For example, we encounter the follow error:
-xxx: Timed out waiting for missing ack packets; disconnecting
+Thanks! Applied:
+https://github.com/LINBIT/drbd/commit/455f64ae1ea7fa15c2d808260f9ba694f2ecea37
 
-So, we remove the second erroneous be32_to_cpu conversion.
+Joel
 
-Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
----
- drbd/drbd_receiver.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+--000000000000b0d559063cb20bf8
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index fdb6eb458..21bc84c5b 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -10743,7 +10743,7 @@ static int got_OVResult(struct drbd_connection *connection, struct packet_info *
- 		result = be32_to_cpu(p->result);
- 	}
- 
--	update_peer_seq(peer_device, be32_to_cpu(seq_num));
-+	update_peer_seq(peer_device, seq_num);
- 
- 	peer_req = find_resync_request(peer_device, INTERVAL_TYPE_MASK(INTERVAL_OV_READ_TARGET),
- 			sector, size, block_id);
--- 
-2.43.0
+<div dir=3D"ltr"><div dir=3D"ltr"><div>Thanks! Applied:=C2=A0<a href=3D"htt=
+ps://github.com/LINBIT/drbd/commit/455f64ae1ea7fa15c2d808260f9ba694f2ecea37=
+">https://github.com/LINBIT/drbd/commit/455f64ae1ea7fa15c2d808260f9ba694f2e=
+cea37</a></div><div><br></div><div>Joel</div><div><br></div></div><br></div=
+>
 
+--000000000000b0d559063cb20bf8--
