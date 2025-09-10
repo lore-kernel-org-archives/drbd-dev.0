@@ -1,21 +1,21 @@
 Return-Path: <yi.zhang@huaweicloud.com>
-Received: from dggsgout12.his.huawei.com (dggsgout12.his.huawei.com
-	[45.249.212.56])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 657B41622BE
+Received: from dggsgout11.his.huawei.com (dggsgout11.his.huawei.com
+	[45.249.212.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A47401626A4
 	for <drbd-dev@lists.linbit.com>; Wed, 10 Sep 2025 13:12:25 +0200 (CEST)
 Received: from mail.maildlp.com (unknown [172.19.163.216])
-	by dggsgout12.his.huawei.com (SkyGuard) with ESMTPS id 4cMJ1g6rcxzKHN4S
-	for <drbd-dev@lists.linbit.com>; Wed, 10 Sep 2025 19:12:23 +0800 (CST)
+	by dggsgout11.his.huawei.com (SkyGuard) with ESMTPS id 4cMJ1j5S0zzYQvPN
+	for <drbd-dev@lists.linbit.com>; Wed, 10 Sep 2025 19:12:25 +0800 (CST)
 Received: from mail02.huawei.com (unknown [10.116.40.128])
-	by mail.maildlp.com (Postfix) with ESMTP id 32CD01A1B4C
+	by mail.maildlp.com (Postfix) with ESMTP id 429501A1B49
 	for <drbd-dev@lists.linbit.com>; Wed, 10 Sep 2025 19:12:24 +0800 (CST)
 From: Zhang Yi <yi.zhang@huaweicloud.com>
 To: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
 	drbd-dev@lists.linbit.com
-Subject: [PATCH v2 1/2] md: init queue_limits->max_hw_wzeroes_unmap_sectors
+Subject: [PATCH v2 2/2] drbd: init queue_limits->max_hw_wzeroes_unmap_sectors
 	parameter
-Date: Wed, 10 Sep 2025 19:11:06 +0800
-Message-ID: <20250910111107.3247530-2-yi.zhang@huaweicloud.com>
+Date: Wed, 10 Sep 2025 19:11:07 +0800
+Message-ID: <20250910111107.3247530-3-yi.zhang@huaweicloud.com>
 In-Reply-To: <20250910111107.3247530-1-yi.zhang@huaweicloud.com>
 References: <20250910111107.3247530-1-yi.zhang@huaweicloud.com>
 MIME-Version: 1.0
@@ -40,98 +40,35 @@ From: Zhang Yi <yi.zhang@huawei.com>
 
 The parameter max_hw_wzeroes_unmap_sectors in queue_limits should be
 equal to max_write_zeroes_sectors if it is set to a non-zero value.
-However, the stacked md drivers call md_init_stacking_limits() to
-initialize this parameter to UINT_MAX but only adjust
-max_write_zeroes_sectors when setting limits. Therefore, this
+However, when the backend bdev is specified, this parameter is
+initialized to UINT_MAX during the call to blk_set_stacking_limits(),
+while only max_write_zeroes_sectors is adjusted. Therefore, this
 discrepancy triggers a value check failure in blk_validate_limits().
 
- $ modprobe scsi_debug num_parts=2 dev_size_mb=8 lbprz=1 lbpws=1
- $ mdadm --create /dev/md0 --level=0 --raid-device=2 /dev/sda1 /dev/sda2
-   mdadm: Defaulting to version 1.2 metadata
-   mdadm: RUN_ARRAY failed: Invalid argument
-
-Fix this failure by explicitly setting max_hw_wzeroes_unmap_sectors to
-max_write_zeroes_sectors. Since the linear and raid0 drivers support
-write zeroes, so they can support unmap write zeroes operation if all of
-the backend devices support it. However, the raid1/10/5 drivers don't
-support write zeroes, so we have to set it to zero.
+Since the drvd driver doesn't yet support unmap write zeroes, so fix
+this failure by explicitly setting max_hw_wzeroes_unmap_sectors to
+zero.
 
 Fixes: 0c40d7cb5ef3 ("block: introduce max_{hw|user}_wzeroes_unmap_sectors to queue limits")
-Reported-by: John Garry <john.g.garry@oracle.com>
-Closes: https://lore.kernel.org/linux-block/803a2183-a0bb-4b7a-92f1-afc5097630d2@oracle.com/
 Signed-off-by: Zhang Yi <yi.zhang@huawei.com>
-Tested-by: John Garry <john.g.garry@oracle.com>
-Reviewed-by: Li Nan <linan122@huawei.com>
 Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
 Reviewed-by: Yu Kuai <yukuai3@huawei.com>
 ---
- drivers/md/md-linear.c | 1 +
- drivers/md/raid0.c     | 1 +
- drivers/md/raid1.c     | 1 +
- drivers/md/raid10.c    | 1 +
- drivers/md/raid5.c     | 1 +
- 5 files changed, 5 insertions(+)
+ drivers/block/drbd/drbd_nl.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/drivers/md/md-linear.c b/drivers/md/md-linear.c
-index 5d9b08115375..3e1f165c2d20 100644
---- a/drivers/md/md-linear.c
-+++ b/drivers/md/md-linear.c
-@@ -73,6 +73,7 @@ static int linear_set_limits(struct mddev *mddev)
- 	md_init_stacking_limits(&lim);
- 	lim.max_hw_sectors = mddev->chunk_sectors;
- 	lim.max_write_zeroes_sectors = mddev->chunk_sectors;
-+	lim.max_hw_wzeroes_unmap_sectors = mddev->chunk_sectors;
- 	lim.io_min = mddev->chunk_sectors << 9;
- 	err = mddev_stack_rdev_limits(mddev, &lim, MDDEV_STACK_INTEGRITY);
- 	if (err)
-diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
-index f1d8811a542a..419139ad7663 100644
---- a/drivers/md/raid0.c
-+++ b/drivers/md/raid0.c
-@@ -382,6 +382,7 @@ static int raid0_set_limits(struct mddev *mddev)
- 	md_init_stacking_limits(&lim);
- 	lim.max_hw_sectors = mddev->chunk_sectors;
- 	lim.max_write_zeroes_sectors = mddev->chunk_sectors;
-+	lim.max_hw_wzeroes_unmap_sectors = mddev->chunk_sectors;
- 	lim.io_min = mddev->chunk_sectors << 9;
- 	lim.io_opt = lim.io_min * mddev->raid_disks;
- 	lim.chunk_sectors = mddev->chunk_sectors;
-diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-index bf44878ec640..d30b82beeb92 100644
---- a/drivers/md/raid1.c
-+++ b/drivers/md/raid1.c
-@@ -3211,6 +3211,7 @@ static int raid1_set_limits(struct mddev *mddev)
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index e09930c2b226..91f3b8afb63c 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1330,6 +1330,7 @@ void drbd_reconsider_queue_parameters(struct drbd_device *device,
+ 		lim.max_write_zeroes_sectors = DRBD_MAX_BBIO_SECTORS;
+ 	else
+ 		lim.max_write_zeroes_sectors = 0;
++	lim.max_hw_wzeroes_unmap_sectors = 0;
  
- 	md_init_stacking_limits(&lim);
- 	lim.max_write_zeroes_sectors = 0;
-+	lim.max_hw_wzeroes_unmap_sectors = 0;
- 	lim.features |= BLK_FEAT_ATOMIC_WRITES;
- 	err = mddev_stack_rdev_limits(mddev, &lim, MDDEV_STACK_INTEGRITY);
- 	if (err)
-diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-index b60c30bfb6c7..9832eefb2f15 100644
---- a/drivers/md/raid10.c
-+++ b/drivers/md/raid10.c
-@@ -4008,6 +4008,7 @@ static int raid10_set_queue_limits(struct mddev *mddev)
- 
- 	md_init_stacking_limits(&lim);
- 	lim.max_write_zeroes_sectors = 0;
-+	lim.max_hw_wzeroes_unmap_sectors = 0;
- 	lim.io_min = mddev->chunk_sectors << 9;
- 	lim.chunk_sectors = mddev->chunk_sectors;
- 	lim.io_opt = lim.io_min * raid10_nr_stripes(conf);
-diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-index 023649fe2476..e385ef1355e8 100644
---- a/drivers/md/raid5.c
-+++ b/drivers/md/raid5.c
-@@ -7732,6 +7732,7 @@ static int raid5_set_limits(struct mddev *mddev)
- 	lim.features |= BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE;
- 	lim.discard_granularity = stripe;
- 	lim.max_write_zeroes_sectors = 0;
-+	lim.max_hw_wzeroes_unmap_sectors = 0;
- 	mddev_stack_rdev_limits(mddev, &lim, 0);
- 	rdev_for_each(rdev, mddev)
- 		queue_limits_stack_bdev(&lim, rdev->bdev, rdev->new_data_offset,
+ 	if ((lim.discard_granularity >> SECTOR_SHIFT) >
+ 	    lim.max_hw_discard_sectors) {
 -- 
 2.46.1
 
