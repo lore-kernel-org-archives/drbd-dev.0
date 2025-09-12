@@ -1,25 +1,32 @@
-Return-Path: <hare@suse.de>
-Received: from smtp-out1.suse.de (smtp-out1.suse.de [195.135.223.130])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 67C0416228C
-	for <drbd-dev@lists.linbit.com>; Wed, 10 Sep 2025 16:28:12 +0200 (CEST)
-Message-ID: <a0834448-35dd-401f-8d66-a957b8e160b2@suse.de>
-Date: Wed, 10 Sep 2025 13:41:36 +0200
+Return-Path: <yi.zhang@huaweicloud.com>
+Received: from dggsgout11.his.huawei.com (dggsgout11.his.huawei.com
+	[45.249.212.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2258C16092C
+	for <drbd-dev@lists.linbit.com>; Fri, 12 Sep 2025 08:16:17 +0200 (CEST)
+Received: from mail.maildlp.com (unknown [172.19.163.235])
+	by dggsgout11.his.huawei.com (SkyGuard) with ESMTPS id 4cNPM62RRMzYQvFJ
+	for <drbd-dev@lists.linbit.com>; Fri, 12 Sep 2025 14:16:18 +0800 (CST)
+Received: from mail02.huawei.com (unknown [10.116.40.128])
+	by mail.maildlp.com (Postfix) with ESMTP id D602E1A0F22
+	for <drbd-dev@lists.linbit.com>; Fri, 12 Sep 2025 14:16:16 +0800 (CST)
+Message-ID: <c7dd117e-6e3e-4b2d-a890-20f5c4bade2f@huaweicloud.com>
+Date: Fri, 12 Sep 2025 14:16:10 +0800
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/2] drbd: init
-	queue_limits->max_hw_wzeroes_unmap_sectors parameter
-To: Zhang Yi <yi.zhang@huaweicloud.com>, linux-block@vger.kernel.org,
-	linux-raid@vger.kernel.org, drbd-dev@lists.linbit.com
+Subject: Re: [PATCH v2 0/2] Fix the initialization of
+	max_hw_wzeroes_unmap_sectors for stacking drivers
+To: axboe@kernel.dk
 References: <20250910111107.3247530-1-yi.zhang@huaweicloud.com>
-	<20250910111107.3247530-3-yi.zhang@huaweicloud.com>
 Content-Language: en-US
-From: Hannes Reinecke <hare@suse.de>
-In-Reply-To: <20250910111107.3247530-3-yi.zhang@huaweicloud.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Cc: axboe@kernel.dk, pmenzel@molgen.mpg.de, martin.petersen@oracle.com,
-	john.g.garry@oracle.com, yangerkun@huawei.com,
-	yi.zhang@huawei.com, linux-kernel@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, yukuai3@huawei.com, hch@lst.de
+From: Zhang Yi <yi.zhang@huaweicloud.com>
+In-Reply-To: <20250910111107.3247530-1-yi.zhang@huaweicloud.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+Cc: linux-raid@vger.kernel.org, pmenzel@molgen.mpg.de,
+	martin.petersen@oracle.com, john.g.garry@oracle.com,
+	yangerkun@huawei.com, yi.zhang@huawei.com,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, yukuai3@huawei.com, hch@lst.de,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,47 +38,41 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 9/10/25 13:11, Zhang Yi wrote:
+Hi, Jens!
+
+Can you take this patch set through the linux-block tree?
+
+Thanks,
+Yi.
+
+On 9/10/2025 7:11 PM, Zhang Yi wrote:
 > From: Zhang Yi <yi.zhang@huawei.com>
 > 
-> The parameter max_hw_wzeroes_unmap_sectors in queue_limits should be
-> equal to max_write_zeroes_sectors if it is set to a non-zero value.
-> However, when the backend bdev is specified, this parameter is
-> initialized to UINT_MAX during the call to blk_set_stacking_limits(),
-> while only max_write_zeroes_sectors is adjusted. Therefore, this
-> discrepancy triggers a value check failure in blk_validate_limits().
+> Changes since v1:
+>  - Improve commit messages in patch 1 by adding a simple reproduction
+>    case as Paul suggested and explaining the implementation differences
+>    between RAID 0 and RAID 1/10/5, no code changes.
 > 
-> Since the drvd driver doesn't yet support unmap write zeroes, so fix
-> this failure by explicitly setting max_hw_wzeroes_unmap_sectors to
-> zero.
+> v1: https://lore.kernel.org/linux-block/20250825083320.797165-1-yi.zhang@huaweicloud.com/
 > 
-> Fixes: 0c40d7cb5ef3 ("block: introduce max_{hw|user}_wzeroes_unmap_sectors to queue limits")
-> Signed-off-by: Zhang Yi <yi.zhang@huawei.com>
-> Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
-> Reviewed-by: Yu Kuai <yukuai3@huawei.com>
-> ---
->   drivers/block/drbd/drbd_nl.c | 1 +
->   1 file changed, 1 insertion(+)
+> This series fixes the initialization of max_hw_wzeroes_unmap_sectors in
+> queue_limits for all md raid and drbd drivers, preventing
+> blk_validate_limits() failures on underlying devices that support the
+> unmap write zeroes command.
 > 
-> diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-> index e09930c2b226..91f3b8afb63c 100644
-> --- a/drivers/block/drbd/drbd_nl.c
-> +++ b/drivers/block/drbd/drbd_nl.c
-> @@ -1330,6 +1330,7 @@ void drbd_reconsider_queue_parameters(struct drbd_device *device,
->   		lim.max_write_zeroes_sectors = DRBD_MAX_BBIO_SECTORS;
->   	else
->   		lim.max_write_zeroes_sectors = 0;
-> +	lim.max_hw_wzeroes_unmap_sectors = 0;
->   
->   	if ((lim.discard_granularity >> SECTOR_SHIFT) >
->   	    lim.max_hw_discard_sectors) {
-Reviewed-by: Hannes Reinecke <hare@suse.de>
+> Best regards,
+> Yi.
+> 
+> Zhang Yi (2):
+>   md: init queue_limits->max_hw_wzeroes_unmap_sectors parameter
+>   drbd: init queue_limits->max_hw_wzeroes_unmap_sectors parameter
+> 
+>  drivers/block/drbd/drbd_nl.c | 1 +
+>  drivers/md/md-linear.c       | 1 +
+>  drivers/md/raid0.c           | 1 +
+>  drivers/md/raid1.c           | 1 +
+>  drivers/md/raid10.c          | 1 +
+>  drivers/md/raid5.c           | 1 +
+>  6 files changed, 6 insertions(+)
+> 
 
-Cheers,
-
-Hannes
--- 
-Dr. Hannes Reinecke                  Kernel Storage Architect
-hare@suse.de                                +49 911 74053 688
-SUSE Software Solutions GmbH, Frankenstr. 146, 90461 Nürnberg
-HRB 36809 (AG Nürnberg), GF: I. Totev, A. McDonald, W. Knoblich
