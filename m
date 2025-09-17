@@ -1,32 +1,27 @@
-Return-Path: <yukuai1@huaweicloud.com>
-Received: from dggsgout11.his.huawei.com (dggsgout11.his.huawei.com
-	[45.249.212.51])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9DEDC160982
-	for <drbd-dev@lists.linbit.com>; Wed, 17 Sep 2025 03:20:22 +0200 (CEST)
-Received: from mail.maildlp.com (unknown [172.19.163.216])
-	by dggsgout11.his.huawei.com (SkyGuard) with ESMTPS id 4cRLYL6GHSzYQtyB
-	for <drbd-dev@lists.linbit.com>; Wed, 17 Sep 2025 09:20:22 +0800 (CST)
-Received: from mail02.huawei.com (unknown [10.116.40.128])
-	by mail.maildlp.com (Postfix) with ESMTP id 7A90D1A166F
-	for <drbd-dev@lists.linbit.com>; Wed, 17 Sep 2025 09:20:21 +0800 (CST)
-Subject: Re: [PATCH v2 1/2] md: init
-	queue_limits->max_hw_wzeroes_unmap_sectors parameter
-To: Zhang Yi <yi.zhang@huaweicloud.com>, linux-block@vger.kernel.org,
-	linux-raid@vger.kernel.org, drbd-dev@lists.linbit.com
+Return-Path: <axboe@kernel.dk>
+Received: from mail-io1-f51.google.com (mail-io1-f51.google.com
+	[209.85.166.51])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 5C1CC160655
+	for <drbd-dev@lists.linbit.com>; Wed, 17 Sep 2025 16:21:14 +0200 (CEST)
+Received: by mail-io1-f51.google.com with SMTP id
+	ca18e2360f4ac-890e5bb3100so138987639f.0
+	for <drbd-dev@lists.linbit.com>; Wed, 17 Sep 2025 07:21:13 -0700 (PDT)
+From: Jens Axboe <axboe@kernel.dk>
+To: linux-block@vger.kernel.org, linux-raid@vger.kernel.org,
+	drbd-dev@lists.linbit.com, Zhang Yi <yi.zhang@huaweicloud.com>
+In-Reply-To: <20250910111107.3247530-1-yi.zhang@huaweicloud.com>
 References: <20250910111107.3247530-1-yi.zhang@huaweicloud.com>
-	<20250910111107.3247530-2-yi.zhang@huaweicloud.com>
-From: Yu Kuai <yukuai1@huaweicloud.com>
-Message-ID: <f0cbf355-df20-d8a3-94d9-1ada83647a5a@huaweicloud.com>
-Date: Wed, 17 Sep 2025 09:20:17 +0800
+Subject: Re: (subset) [PATCH v2 0/2] Fix the initialization of
+	max_hw_wzeroes_unmap_sectors for stacking drivers
+Message-Id: <175811887192.378805.895284774096542580.b4-ty@kernel.dk>
+Date: Wed, 17 Sep 2025 08:21:11 -0600
 MIME-Version: 1.0
-In-Reply-To: <20250910111107.3247530-2-yi.zhang@huaweicloud.com>
-Content-Type: text/plain; charset=gbk; format=flowed
-Content-Transfer-Encoding: 8bit
-Cc: axboe@kernel.dk, pmenzel@molgen.mpg.de, martin.petersen@oracle.com,
-	john.g.garry@oracle.com, yangerkun@huawei.com,
-	yi.zhang@huawei.com, linux-kernel@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org,
-	"yukuai \(C\)" <yukuai3@huawei.com>, hch@lst.de
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Cc: pmenzel@molgen.mpg.de, martin.petersen@oracle.com, john.g.garry@oracle.com,
+	yangerkun@huawei.com, yi.zhang@huawei.com,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	yukuai3@huawei.com, hch@lst.de
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -38,106 +33,25 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-ÔÚ 2025/09/10 19:11, Zhang Yi Ð´µÀ:
-> From: Zhang Yi <yi.zhang@huawei.com>
-> 
-> The parameter max_hw_wzeroes_unmap_sectors in queue_limits should be
-> equal to max_write_zeroes_sectors if it is set to a non-zero value.
-> However, the stacked md drivers call md_init_stacking_limits() to
-> initialize this parameter to UINT_MAX but only adjust
-> max_write_zeroes_sectors when setting limits. Therefore, this
-> discrepancy triggers a value check failure in blk_validate_limits().
-> 
->   $ modprobe scsi_debug num_parts=2 dev_size_mb=8 lbprz=1 lbpws=1
->   $ mdadm --create /dev/md0 --level=0 --raid-device=2 /dev/sda1 /dev/sda2
->     mdadm: Defaulting to version 1.2 metadata
->     mdadm: RUN_ARRAY failed: Invalid argument
-> 
-> Fix this failure by explicitly setting max_hw_wzeroes_unmap_sectors to
-> max_write_zeroes_sectors. Since the linear and raid0 drivers support
-> write zeroes, so they can support unmap write zeroes operation if all of
-> the backend devices support it. However, the raid1/10/5 drivers don't
-> support write zeroes, so we have to set it to zero.
-> 
-> Fixes: 0c40d7cb5ef3 ("block: introduce max_{hw|user}_wzeroes_unmap_sectors to queue limits")
-> Reported-by: John Garry <john.g.garry@oracle.com>
-> Closes: https://lore.kernel.org/linux-block/803a2183-a0bb-4b7a-92f1-afc5097630d2@oracle.com/
-> Signed-off-by: Zhang Yi <yi.zhang@huawei.com>
-> Tested-by: John Garry <john.g.garry@oracle.com>
-> Reviewed-by: Li Nan <linan122@huawei.com>
-> Reviewed-by: Martin K. Petersen <martin.petersen@oracle.com>
-> Reviewed-by: Yu Kuai <yukuai3@huawei.com>
-> ---
->   drivers/md/md-linear.c | 1 +
->   drivers/md/raid0.c     | 1 +
->   drivers/md/raid1.c     | 1 +
->   drivers/md/raid10.c    | 1 +
->   drivers/md/raid5.c     | 1 +
->   5 files changed, 5 insertions(+)
-> 
-> diff --git a/drivers/md/md-linear.c b/drivers/md/md-linear.c
-> index 5d9b08115375..3e1f165c2d20 100644
-> --- a/drivers/md/md-linear.c
-> +++ b/drivers/md/md-linear.c
-> @@ -73,6 +73,7 @@ static int linear_set_limits(struct mddev *mddev)
->   	md_init_stacking_limits(&lim);
->   	lim.max_hw_sectors = mddev->chunk_sectors;
->   	lim.max_write_zeroes_sectors = mddev->chunk_sectors;
-> +	lim.max_hw_wzeroes_unmap_sectors = mddev->chunk_sectors;
->   	lim.io_min = mddev->chunk_sectors << 9;
->   	err = mddev_stack_rdev_limits(mddev, &lim, MDDEV_STACK_INTEGRITY);
->   	if (err)
-> diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
-> index f1d8811a542a..419139ad7663 100644
-> --- a/drivers/md/raid0.c
-> +++ b/drivers/md/raid0.c
-> @@ -382,6 +382,7 @@ static int raid0_set_limits(struct mddev *mddev)
->   	md_init_stacking_limits(&lim);
->   	lim.max_hw_sectors = mddev->chunk_sectors;
->   	lim.max_write_zeroes_sectors = mddev->chunk_sectors;
-> +	lim.max_hw_wzeroes_unmap_sectors = mddev->chunk_sectors;
->   	lim.io_min = mddev->chunk_sectors << 9;
->   	lim.io_opt = lim.io_min * mddev->raid_disks;
->   	lim.chunk_sectors = mddev->chunk_sectors;
-> diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-> index bf44878ec640..d30b82beeb92 100644
-> --- a/drivers/md/raid1.c
-> +++ b/drivers/md/raid1.c
-> @@ -3211,6 +3211,7 @@ static int raid1_set_limits(struct mddev *mddev)
->   
->   	md_init_stacking_limits(&lim);
->   	lim.max_write_zeroes_sectors = 0;
-> +	lim.max_hw_wzeroes_unmap_sectors = 0;
->   	lim.features |= BLK_FEAT_ATOMIC_WRITES;
->   	err = mddev_stack_rdev_limits(mddev, &lim, MDDEV_STACK_INTEGRITY);
->   	if (err)
-> diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-> index b60c30bfb6c7..9832eefb2f15 100644
-> --- a/drivers/md/raid10.c
-> +++ b/drivers/md/raid10.c
-> @@ -4008,6 +4008,7 @@ static int raid10_set_queue_limits(struct mddev *mddev)
->   
->   	md_init_stacking_limits(&lim);
->   	lim.max_write_zeroes_sectors = 0;
-> +	lim.max_hw_wzeroes_unmap_sectors = 0;
->   	lim.io_min = mddev->chunk_sectors << 9;
->   	lim.chunk_sectors = mddev->chunk_sectors;
->   	lim.io_opt = lim.io_min * raid10_nr_stripes(conf);
-> diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-> index 023649fe2476..e385ef1355e8 100644
-> --- a/drivers/md/raid5.c
-> +++ b/drivers/md/raid5.c
-> @@ -7732,6 +7732,7 @@ static int raid5_set_limits(struct mddev *mddev)
->   	lim.features |= BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE;
->   	lim.discard_granularity = stripe;
->   	lim.max_write_zeroes_sectors = 0;
-> +	lim.max_hw_wzeroes_unmap_sectors = 0;
->   	mddev_stack_rdev_limits(mddev, &lim, 0);
->   	rdev_for_each(rdev, mddev)
->   		queue_limits_stack_bdev(&lim, rdev->bdev, rdev->new_data_offset,
-> 
-Apply patch 1 to md-6.17.
 
-Thanks,
-Kuai
+On Wed, 10 Sep 2025 19:11:05 +0800, Zhang Yi wrote:
+> Changes since v1:
+>  - Improve commit messages in patch 1 by adding a simple reproduction
+>    case as Paul suggested and explaining the implementation differences
+>    between RAID 0 and RAID 1/10/5, no code changes.
+> 
+> v1: https://lore.kernel.org/linux-block/20250825083320.797165-1-yi.zhang@huaweicloud.com/
+> 
+> [...]
+
+Applied, thanks!
+
+[2/2] drbd: init queue_limits->max_hw_wzeroes_unmap_sectors parameter
+      commit: 027a7a9c07d0d759ab496a7509990aa33a4b689c
+
+Best regards,
+-- 
+Jens Axboe
+
+
 
