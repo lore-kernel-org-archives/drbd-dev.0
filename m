@@ -1,22 +1,28 @@
-Return-Path: <michael.weiss@aisec.fraunhofer.de>
-Received: from mail-edgeMUC218.fraunhofer.de (mail-edgemuc218.fraunhofer.de
-	[192.102.154.218])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 05B05162267
-	for <drbd-dev@lists.linbit.com>; Tue, 21 Oct 2025 15:36:02 +0200 (CEST)
-From: =?UTF-8?q?Michael=20Wei=C3=9F?= <michael.weiss@aisec.fraunhofer.de>
-To: <michael.weiss@aisec.fraunhofer.de>
-Subject: [PATCH] docs: nbd: update default value for ndb max_part to '16'
-Date: Tue, 21 Oct 2025 15:28:48 +0200
-Message-ID: <20251021132848.371792-1-michael.weiss@aisec.fraunhofer.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Return-Path: <jinji.z.zhong@gmail.com>
+Received: from mail-pf1-f170.google.com (mail-pf1-f170.google.com
+	[209.85.210.170])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D4CB016094D
+	for <drbd-dev@lists.linbit.com>; Sun, 26 Oct 2025 02:05:23 +0100 (CET)
+Received: by mail-pf1-f170.google.com with SMTP id
+	d2e1a72fcca58-79ef9d1805fso3728838b3a.1
+	for <drbd-dev@lists.linbit.com>; Sat, 25 Oct 2025 18:05:23 -0700 (PDT)
+From: jinji zhong <jinji.z.zhong@gmail.com>
+To: minchan@kernel.org, senozhatsky@chromium.org, philipp.reisner@linbit.com,
+	lars.ellenberg@linbit.com, christoph.boehmwalder@linbit.com,
+	corbet@lwn.net, tj@kernel.org, hannes@cmpxchg.org, mkoutny@suse.com,
+	axboe@kernel.dk, mhocko@kernel.org, roman.gushchin@linux.dev,
+	shakeel.butt@linux.dev, akpm@linux-foundation.org, terrelln@fb.com,
+	dsterba@suse.com
+Subject: [RFC PATCH 0/3] Introduce per-cgroup compression priority
+Date: Sun, 26 Oct 2025 01:05:07 +0000
+Message-ID: <cover.1761439133.git.jinji.z.zhong@gmail.com>
 MIME-Version: 1.0
-Cc: gyroidos@aisec.fraunhofer.de, Jonathan Corbet <corbet@lwn.net>,
-	linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
-	Josef Bacik <josef@toxicpanda.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, nbd@other.debian.org,
-	drbd-dev@lists.linbit.com
+Content-Transfer-Encoding: 8bit
+Cc: liulu.liu@honor.com, feng.han@honor.com, linux-doc@vger.kernel.org,
+	muchun.song@linux.dev, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-mm@kvack.org,
+	jinji zhong <jinji.z.zhong@gmail.com>, zhongjinji@honor.com,
+	cgroups@vger.kernel.org, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,31 +34,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Syncronize the documentation with actual code state of the default
-value for nbd max_part.
+Hello everyone,
 
-Commit 7a8362a0b5919 ("nbd: change the default nbd partitions")
-changed the default value of max_part from '0' to '16'. The admin
-guide still stated '0' until now.
+On Android, different applications have varying tolerance for
+decompression latency. Applications with higher tolerance for
+decompression latency are better suited for algorithms like ZSTD,
+which provides high compression ratio but slower decompression
+speed. Conversely, applications with lower tolerance for
+decompression latency can use algorithms like LZ4 or LZO that
+offer faster decompression but lower compression ratios. For example,
+lightweight applications (with few anonymous pages) or applications
+without foreground UI typically have higher tolerance for decompression
+latency.
 
-Signed-off-by: Michael Weiß <michael.weiss@aisec.fraunhofer.de>
----
- Documentation/admin-guide/blockdev/nbd.rst | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Similarly, in memory allocation slow paths or under high CPU
+pressure, using algorithms with faster compression speeds might
+be more appropriate.
 
-diff --git a/Documentation/admin-guide/blockdev/nbd.rst b/Documentation/admin-guide/blockdev/nbd.rst
-index faf2ac4b15099..6d631ea53e8a2 100644
---- a/Documentation/admin-guide/blockdev/nbd.rst
-+++ b/Documentation/admin-guide/blockdev/nbd.rst
-@@ -25,7 +25,7 @@ A) NBD parameters
- -----------------
- 
- max_part
--	Number of partitions per device (default: 0).
-+	Number of partitions per device (default: 16).
- 
- nbds_max
- 	Number of block devices that should be initialized (default: 16).
+This patch introduces a per-cgroup compression priority mechanism,
+where different compression priorities map to different algorithms.
+This allows administrators to select appropriate compression
+algorithms on a per-cgroup basis.
+
+Currently, this patch is experimental and we would greatly
+appreciate community feedback. I'm uncertain whether obtaining
+compression priority via get_cgroup_comp_priority in zram is the
+best approach. While this implementation is convenient, it seems
+somewhat unusual. Perhaps the next step should be to pass
+compression priority through page->private.
+
+jinji zhong (3):
+  mm/memcontrol: Introduce per-cgroup compression priority
+  zram: Zram supports per-cgroup compression priority
+  Doc: Update documentation for per-cgroup compression priority
+
+ Documentation/admin-guide/blockdev/zram.rst | 18 +++--
+ Documentation/admin-guide/cgroup-v2.rst     |  7 ++
+ drivers/block/zram/zram_drv.c               | 74 ++++++++++++++++++---
+ drivers/block/zram/zram_drv.h               |  2 +
+ include/linux/memcontrol.h                  | 19 ++++++
+ mm/memcontrol.c                             | 31 +++++++++
+ 6 files changed, 139 insertions(+), 12 deletions(-)
+
 -- 
-2.47.3
+2.48.1
 
