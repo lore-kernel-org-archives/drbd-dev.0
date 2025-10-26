@@ -1,11 +1,11 @@
 Return-Path: <jinji.z.zhong@gmail.com>
-Received: from mail-pf1-f180.google.com (mail-pf1-f180.google.com
-	[209.85.210.180])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id A84C416275D
-	for <drbd-dev@lists.linbit.com>; Sun, 26 Oct 2025 02:05:41 +0100 (CET)
-Received: by mail-pf1-f180.google.com with SMTP id
-	d2e1a72fcca58-77f67ba775aso4238757b3a.3
-	for <drbd-dev@lists.linbit.com>; Sat, 25 Oct 2025 18:05:41 -0700 (PDT)
+Received: from mail-pf1-f170.google.com (mail-pf1-f170.google.com
+	[209.85.210.170])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8622C162762
+	for <drbd-dev@lists.linbit.com>; Sun, 26 Oct 2025 02:05:48 +0100 (CET)
+Received: by mail-pf1-f170.google.com with SMTP id
+	d2e1a72fcca58-7a23208a0c2so2614265b3a.0
+	for <drbd-dev@lists.linbit.com>; Sat, 25 Oct 2025 18:05:48 -0700 (PDT)
 From: jinji zhong <jinji.z.zhong@gmail.com>
 To: minchan@kernel.org, senozhatsky@chromium.org, philipp.reisner@linbit.com,
 	lars.ellenberg@linbit.com, christoph.boehmwalder@linbit.com,
@@ -13,9 +13,10 @@ To: minchan@kernel.org, senozhatsky@chromium.org, philipp.reisner@linbit.com,
 	axboe@kernel.dk, mhocko@kernel.org, roman.gushchin@linux.dev,
 	shakeel.butt@linux.dev, akpm@linux-foundation.org, terrelln@fb.com,
 	dsterba@suse.com
-Subject: [RFC PATCH 2/3] zram: Zram supports per-cgroup compression priority
-Date: Sun, 26 Oct 2025 01:05:09 +0000
-Message-ID: <0eef2265014bf9806eeaf5a00c9632958668c257.1761439133.git.jinji.z.zhong@gmail.com>
+Subject: [RFC PATCH 3/3] Doc: Update documentation for per-cgroup compression
+	priority
+Date: Sun, 26 Oct 2025 01:05:10 +0000
+Message-ID: <25cab6bc87a6cd69983e2fa0908441bc37015c98.1761439133.git.jinji.z.zhong@gmail.com>
 In-Reply-To: <cover.1761439133.git.jinji.z.zhong@gmail.com>
 References: <cover.1761439133.git.jinji.z.zhong@gmail.com>
 MIME-Version: 1.0
@@ -36,200 +37,80 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-This patch allows zram to get the per-cgroup compression priority,
-enabling administrators to select different compression algorithms
-for different cgroups.
-
-The feature is enabled by:
-echo 1 > /sys/block/zramX/per_cgroup_comp_enable.
+This patch updates the documentation, describing the newly
+introduced per-cgroup compression priority mechanism.
 ---
- drivers/block/zram/zram_drv.c | 74 +++++++++++++++++++++++++++++++----
- drivers/block/zram/zram_drv.h |  2 +
- 2 files changed, 68 insertions(+), 8 deletions(-)
+ Documentation/admin-guide/blockdev/zram.rst | 18 ++++++++++++++----
+ Documentation/admin-guide/cgroup-v2.rst     |  7 +++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index a43074657531..da79034f2efa 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -23,6 +23,7 @@
- #include <linux/buffer_head.h>
- #include <linux/device.h>
- #include <linux/highmem.h>
-+#include <linux/memcontrol.h>
- #include <linux/slab.h>
- #include <linux/backing-dev.h>
- #include <linux/string.h>
-@@ -1223,6 +1224,7 @@ static void comp_algorithm_set(struct zram *zram, u32 prio, const char *alg)
- 		kfree(zram->comp_algs[prio]);
+diff --git a/Documentation/admin-guide/blockdev/zram.rst b/Documentation/admin-guide/blockdev/zram.rst
+index 3e273c1bb749..de4ab060f664 100644
+--- a/Documentation/admin-guide/blockdev/zram.rst
++++ b/Documentation/admin-guide/blockdev/zram.rst
+@@ -452,12 +452,12 @@ using more effective algorithm and, hence, reduce zsmalloc memory usage.
+ With CONFIG_ZRAM_MULTI_COMP, zram supports up to 4 compression algorithms:
+ one primary and up to 3 secondary ones. Primary zram compressor is explained
+ in "3) Select compression algorithm", secondary algorithms are configured
+-using recomp_algorithm device attribute.
++using multi_comp_algorithm device attribute.
  
- 	zram->comp_algs[prio] = alg;
-+	zram->comp_algs_flag |= (1 << prio);
- }
+ Example:::
  
- static int __comp_algorithm_store(struct zram *zram, u32 prio, const char *buf)
-@@ -1396,7 +1398,7 @@ static ssize_t comp_algorithm_store(struct device *dev,
- }
+ 	#show supported recompression algorithms
+-	cat /sys/block/zramX/recomp_algorithm
++	cat /sys/block/zramX/multi_comp_algorithm
+ 	#1: lzo lzo-rle lz4 lz4hc [zstd]
+ 	#2: lzo lzo-rle lz4 [lz4hc] zstd
  
- #ifdef CONFIG_ZRAM_MULTI_COMP
--static ssize_t recomp_algorithm_show(struct device *dev,
-+static ssize_t multi_comp_algorithm_show(struct device *dev,
- 				     struct device_attribute *attr,
- 				     char *buf)
- {
-@@ -1405,7 +1407,7 @@ static ssize_t recomp_algorithm_show(struct device *dev,
- 	u32 prio;
+@@ -468,10 +468,10 @@ Alternative compression algorithm's priority is provided during algorithms
+ configuration:::
  
- 	down_read(&zram->init_lock);
--	for (prio = ZRAM_SECONDARY_COMP; prio < ZRAM_MAX_COMPS; prio++) {
-+	for (prio = ZRAM_PRIMARY_COMP; prio < ZRAM_MAX_COMPS; prio++) {
- 		if (!zram->comp_algs[prio])
- 			continue;
+ 	#select zstd recompression algorithm, priority 1
+-	echo "algo=zstd priority=1" > /sys/block/zramX/recomp_algorithm
++	echo "algo=zstd priority=1" > /sys/block/zramX/multi_comp_algorithm
  
-@@ -1416,7 +1418,7 @@ static ssize_t recomp_algorithm_show(struct device *dev,
- 	return sz;
- }
+ 	#select deflate recompression algorithm, priority 2
+-	echo "algo=deflate priority=2" > /sys/block/zramX/recomp_algorithm
++	echo "algo=deflate priority=2" > /sys/block/zramX/multi_comp_algorithm
  
--static ssize_t recomp_algorithm_store(struct device *dev,
-+static ssize_t multi_comp_algorithm_store(struct device *dev,
- 				      struct device_attribute *attr,
- 				      const char *buf,
- 				      size_t len)
-@@ -1450,12 +1452,43 @@ static ssize_t recomp_algorithm_store(struct device *dev,
- 	if (!alg)
- 		return -EINVAL;
+ Another device attribute that CONFIG_ZRAM_MULTI_COMP enables is recompress,
+ which controls recompression.
+@@ -524,6 +524,16 @@ This can be achieved by providing a `algo` or `priority` parameter:::
+ 	#use zstd algorithm only (if zstd was registered under priority 1)
+ 	echo "type=huge priority=1" > /sys/block/zramX/recompress
  
--	if (prio < ZRAM_SECONDARY_COMP || prio >= ZRAM_MAX_COMPS)
-+	if (prio < ZRAM_PRIMARY_COMP || prio >= ZRAM_MAX_COMPS)
- 		return -EINVAL;
- 
- 	ret = __comp_algorithm_store(zram, prio, alg);
- 	return ret ? ret : len;
- }
++per-cgroup compression algorithms
++-------------
++With CONFIG_ZRAM_MULTI_COMP, zram can compress pages using the compression
++algorithm determined by the cgroup. It will get the compression priority from
++the cgroup and use the corresponding compression algorithm to compress the page.
 +
-+static ssize_t per_cgroup_comp_enable_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t len)
-+{
-+	struct zram *zram = dev_to_zram(dev);
-+	u64 val;
-+	ssize_t ret = -EINVAL;
++To use the feature, admin should enable per-cgroup compression via::
 +
-+	if (kstrtoull(buf, 10, &val))
-+		return ret;
++	echo 1 > /sys/block/zramX/per_cgroup_comp_enable
 +
-+	down_read(&zram->init_lock);
-+	zram->per_cgroup_comp_enable = val;
-+	up_read(&zram->init_lock);
-+	ret = len;
-+
-+	return ret;
-+}
-+
-+static ssize_t per_cgroup_comp_enable_show(struct device *dev,
-+		struct device_attribute *attr, char *buf)
-+{
-+	bool val;
-+	struct zram *zram = dev_to_zram(dev);
-+
-+	down_read(&zram->init_lock);
-+	val = zram->per_cgroup_comp_enable;
-+	up_read(&zram->init_lock);
-+
-+	return sysfs_emit(buf, "%d\n", val);
-+}
- #endif
+ memory tracking
+ ===============
  
- static ssize_t compact_store(struct device *dev,
-@@ -1840,9 +1873,30 @@ static int write_incompressible_page(struct zram *zram, struct page *page,
- 	return 0;
- }
+diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
+index 0e6c67ac585a..1706d8f0d225 100644
+--- a/Documentation/admin-guide/cgroup-v2.rst
++++ b/Documentation/admin-guide/cgroup-v2.rst
+@@ -1871,6 +1871,13 @@ The following nested keys are defined.
+ 	higher than the limit for an extended period of time.  This
+ 	reduces the impact on the workload and memory management.
  
-+static inline bool is_comp_priority_valid(struct zram *zram, int prio)
-+{
-+	return zram->comp_algs_flag & (1 << prio);
-+}
++  memory.swap.compress_priority
++	A read-write single value file which exists on non-root
++	cgroups.  The default is "0".
 +
-+static inline int get_comp_priority(struct zram *zram, struct page *page)
-+{
-+	int prio;
++	swap compress priority for the cgroup. Different compression
++	priorities mean different compression algorithms.
 +
-+	if (!zram->per_cgroup_comp_enable)
-+		return ZRAM_PRIMARY_COMP;
-+
-+	prio = get_cgroup_comp_priority(page);
-+	if (unlikely(!is_comp_priority_valid(zram, prio))) {
-+		WARN_ON_ONCE(1);
-+		return ZRAM_PRIMARY_COMP;
-+	}
-+	return prio;
-+}
-+
- static int zram_write_page(struct zram *zram, struct page *page, u32 index)
- {
- 	int ret = 0;
-+	int prio;
- 	unsigned long handle;
- 	unsigned int comp_len;
- 	void *mem;
-@@ -1856,9 +1910,10 @@ static int zram_write_page(struct zram *zram, struct page *page, u32 index)
- 	if (same_filled)
- 		return write_same_filled_page(zram, element, index);
- 
--	zstrm = zcomp_stream_get(zram->comps[ZRAM_PRIMARY_COMP]);
-+	prio = get_comp_priority(zram, page);
-+	zstrm = zcomp_stream_get(zram->comps[prio]);
- 	mem = kmap_local_page(page);
--	ret = zcomp_compress(zram->comps[ZRAM_PRIMARY_COMP], zstrm,
-+	ret = zcomp_compress(zram->comps[prio], zstrm,
- 			     mem, &comp_len);
- 	kunmap_local(mem);
- 
-@@ -1894,6 +1949,7 @@ static int zram_write_page(struct zram *zram, struct page *page, u32 index)
- 	zram_free_page(zram, index);
- 	zram_set_handle(zram, index, handle);
- 	zram_set_obj_size(zram, index, comp_len);
-+	zram_set_priority(zram, index, prio);
- 	zram_slot_unlock(zram, index);
- 
- 	/* Update stats */
-@@ -2612,7 +2668,8 @@ static DEVICE_ATTR_RW(writeback_limit);
- static DEVICE_ATTR_RW(writeback_limit_enable);
- #endif
- #ifdef CONFIG_ZRAM_MULTI_COMP
--static DEVICE_ATTR_RW(recomp_algorithm);
-+static DEVICE_ATTR_RW(multi_comp_algorithm);
-+static DEVICE_ATTR_RW(per_cgroup_comp_enable);
- static DEVICE_ATTR_WO(recompress);
- #endif
- static DEVICE_ATTR_WO(algorithm_params);
-@@ -2639,8 +2696,9 @@ static struct attribute *zram_disk_attrs[] = {
- #endif
- 	&dev_attr_debug_stat.attr,
- #ifdef CONFIG_ZRAM_MULTI_COMP
--	&dev_attr_recomp_algorithm.attr,
-+	&dev_attr_multi_comp_algorithm.attr,
- 	&dev_attr_recompress.attr,
-+	&dev_attr_per_cgroup_comp_enable.attr,
- #endif
- 	&dev_attr_algorithm_params.attr,
- 	NULL,
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index 6cee93f9c0d0..34ae0c3a9130 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -120,11 +120,13 @@ struct zram {
- 	 */
- 	u64 disksize;	/* bytes */
- 	const char *comp_algs[ZRAM_MAX_COMPS];
-+	u8 comp_algs_flag;
- 	s8 num_active_comps;
- 	/*
- 	 * zram is claimed so open request will be failed
- 	 */
- 	bool claim; /* Protected by disk->open_mutex */
-+	bool per_cgroup_comp_enable;
- #ifdef CONFIG_ZRAM_WRITEBACK
- 	struct file *backing_dev;
- 	spinlock_t wb_limit_lock;
+   memory.zswap.current
+ 	A read-only single value file which exists on non-root
+ 	cgroups.
 -- 
 2.48.1
 
