@@ -1,18 +1,28 @@
-Return-Path: <arefev@swemel.ru>
-Received: from mx.swemel.ru (mx.swemel.ru [95.143.211.150])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6D6FD160990
-	for <drbd-dev@lists.linbit.com>; Wed,  1 Oct 2025 12:35:27 +0200 (CEST)
-From: Denis Arefev <arefev@swemel.ru>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: [bug-report] NULL pointer dereference in __drbd_change_sync()
-Date: Wed,  1 Oct 2025 13:26:14 +0300
-Message-ID: <20251001102619.8912-1-arefev@swemel.ru>
+Return-Path: <tj@kernel.org>
+Received: from tor.source.kernel.org (tor.source.kernel.org [172.105.4.254])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CA987160952
+	for <drbd-dev@lists.linbit.com>; Mon, 27 Oct 2025 17:16:49 +0100 (CET)
+Date: Mon, 27 Oct 2025 06:06:49 -1000
+From: Tejun Heo <tj@kernel.org>
+To: jinji zhong <jinji.z.zhong@gmail.com>
+Subject: Re: [RFC PATCH 0/3] Introduce per-cgroup compression priority
+Message-ID: <aP-Ymcsoyls04jov@slm.duckdns.org>
+References: <cover.1761439133.git.jinji.z.zhong@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-	lvc-project@linuxtesting.org, drbd-dev@lists.linbit.com
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cover.1761439133.git.jinji.z.zhong@gmail.com>
+Cc: linux-doc@vger.kernel.org, roman.gushchin@linux.dev,
+	philipp.reisner@linbit.com, linux-mm@kvack.org,
+	shakeel.butt@linux.dev, drbd-dev@lists.linbit.com,
+	corbet@lwn.net, senozhatsky@chromium.org,
+	linux-block@vger.kernel.org, terrelln@fb.com, dsterba@suse.com,
+	cgroups@vger.kernel.org, mhocko@kernel.org,
+	akpm@linux-foundation.org, axboe@kernel.dk, feng.han@honor.com,
+	liulu.liu@honor.com, muchun.song@linux.dev,
+	linux-kernel@vger.kernel.org, minchan@kernel.org,
+	mkoutny@suse.com, hannes@cmpxchg.org, zhongjinji@honor.com,
+	lars.ellenberg@linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -24,37 +34,18 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In the Linux kernel, there's an unpatched bug in the DRBD code in the __drbd_change_sync() function,
-a NULL pointer dereference.
+Hello,
 
-The call stack that leads to this error looks like this:
+On Sun, Oct 26, 2025 at 01:05:07AM +0000, jinji zhong wrote:
+> This patch introduces a per-cgroup compression priority mechanism,
+> where different compression priorities map to different algorithms.
+> This allows administrators to select appropriate compression
+> algorithms on a per-cgroup basis.
 
-drbd_request_endio
-|-> __req_mod(req, what, NULL, &m);
-    |-> case READ_COMPLETED_WITH_ERROR:
-    |-> drbd_set_out_of_sync(NULL, ... )
-    	|-> __drbd_change_sync(NULL, ... );
-            |-> peer_device->device (NULL->device)
+I don't think it makes sense to tie this to cgroups. Is there something
+preventing this from following the process hierarchy?
 
-This bug has already been fixed here [1], but porting this commit to the kernel will be quite
-difficult, since the DRBD code in the Linux kernel and on GitHub [2] differs significantly.
-
-But ignoring it is also not a good idea.
-
-The blamed kernel commit is 0d11f3cf279c ("drbd: Pass a peer device to the resync and online verify functions")
-which came with series [3].
-
-One possible solution is to reverse the patch series [3] because "it is mainly no-ops, pretty much just 
-preparation for future upstreaming work" as its cover letter says.  
-
-However, there seems to be no active drbd module development in mainline kernel since that series was posted in 2023.
-
-[1]: https://github.com/LINBIT/drbd/commit/effc7281bf1a7922daa6393632fc6eeac1732bfa
-[2]: https://github.com/LINBIT/drbd
-[3]: https://lore.kernel.org/all/20230330102744.2128122-1-christoph.boehmwalder@linbit.com/
-
-Found by Linux Verification Center (linuxtesting.org) with SVACE.
+Thanks.
 
 -- 
-2.43.0
-
+tejun
