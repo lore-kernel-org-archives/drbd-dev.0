@@ -1,26 +1,20 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-il1-f176.google.com (mail-il1-f176.google.com
-	[209.85.166.176])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 39056160923
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Nov 2025 16:38:44 +0100 (CET)
-Received: by mail-il1-f176.google.com with SMTP id
-	e9e14a558f8ab-43377ee4825so28110305ab.2
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Nov 2025 07:38:43 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
+Return-Path: <mathias.krause@opensrcsec.com>
+Received: from mail-qt1-f177.google.com (mail-qt1-f177.google.com
+	[209.85.160.177])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 461E81608F2
+	for <drbd-dev@lists.linbit.com>; Mon, 10 Nov 2025 13:59:32 +0100 (CET)
+Received: by mail-qt1-f177.google.com with SMTP id
+	d75a77b69052e-4eda6a8cc12so20634971cf.0
+	for <drbd-dev@lists.linbit.com>; Mon, 10 Nov 2025 04:59:32 -0800 (PST)
+From: Mathias Krause <minipli@grsecurity.net>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?utf-8?q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
-	drbd-dev@lists.linbit.com, linux-block@vger.kernel.org,
-	linux-kernel@vger.kernel.org, Sukrut Heroorkar <hsukrut3@gmail.com>
-In-Reply-To: <20251118090753.390818-1-hsukrut3@gmail.com>
-References: <20251118090753.390818-1-hsukrut3@gmail.com>
-Subject: Re: [PATCH] drbd: turn bitmap I/O comments into regular block comments
-Message-Id: <176348032225.300553.3972505243693659876.b4-ty@kernel.dk>
-Date: Tue, 18 Nov 2025 08:38:42 -0700
+	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+Subject: [PATCH] compat: make block_device_operations tests grsec compatible
+Message-ID: <20251110125924.511384-1-minipli@grsecurity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Cc: shuah@kernel.org, david.hunter.linux@gmail.com
+Content-Transfer-Encoding: 8bit
+Cc: Mathias Krause <minipli@grsecurity.net>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,26 +25,83 @@ List-Post: <mailto:drbd-dev@lists.linbit.com>
 List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
+Date: Mon, 10 Nov 2025 12:59:33 -0000
 
+The grsecurity patch enforces that instances of certain types are always
+constified, with the help of a compiler plugin. One of these types is
+'struct block_device_operations'. Code that tries to modify a such-typed
+object will cause compiler errors, leading to wrong results for the
+kernel compatibility tests.
 
-On Tue, 18 Nov 2025 14:37:53 +0530, Sukrut Heroorkar wrote:
-> W=1 build warns because the bitmap I/O comments use '/**', which
-> marks them as kernel-doc comments even though these functions do not
-> document an external API.
-> 
-> Convert these comments to regular block comments so kernel-doc no
-> longer parses them.
-> 
-> [...]
+Change these tests to do direct type compare tests instead of trying to
+modify the object, making them compatible with grsecurity kernels.
 
-Applied, thanks!
+Signed-off-by: Mathias Krause <minipli@grsecurity.net>
+---
+ .../tests/block_device_operations_open_takes_gendisk.c | 10 +++-------
+ .../tests/have_blk_qc_t_submit_bio.c                   |  6 +++++-
+ drbd/drbd-kernel-compat/tests/have_void_submit_bio.c   |  6 +++++-
+ 3 files changed, 13 insertions(+), 9 deletions(-)
 
-[1/1] drbd: turn bitmap I/O comments into regular block comments
-      commit: 2c6d792d4b7676e2b340df05425330452fee1f40
-
-Best regards,
+diff --git a/drbd/drbd-kernel-compat/tests/block_device_operations_open_takes_gendisk.c b/drbd/drbd-kernel-compat/tests/block_device_operations_open_takes_gendisk.c
+index d5f20fd569fb..9d77f16d09d8 100644
+--- a/drbd/drbd-kernel-compat/tests/block_device_operations_open_takes_gendisk.c
++++ b/drbd/drbd-kernel-compat/tests/block_device_operations_open_takes_gendisk.c
+@@ -5,13 +5,9 @@
+ # define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
+ #endif
+ 
+-int foo_open(struct gendisk *disk, unsigned int mode)
+-{
+-	return 0;
+-}
++int foo_open(struct gendisk *disk, unsigned int mode);
+ 
+-void foo(void)
++void foo(struct block_device_operations *ops)
+ {
+-	struct block_device_operations ops;
+-	BUILD_BUG_ON(!(__same_type(ops.open, &foo_open)));
++	BUILD_BUG_ON(!(__same_type(ops->open, &foo_open)));
+ }
+diff --git a/drbd/drbd-kernel-compat/tests/have_blk_qc_t_submit_bio.c b/drbd/drbd-kernel-compat/tests/have_blk_qc_t_submit_bio.c
+index d7f2310dfbbd..d3e6dd792ff1 100644
+--- a/drbd/drbd-kernel-compat/tests/have_blk_qc_t_submit_bio.c
++++ b/drbd/drbd-kernel-compat/tests/have_blk_qc_t_submit_bio.c
+@@ -2,9 +2,13 @@
+ 
+ #include <linux/blkdev.h>
+ 
++#ifndef __same_type
++# define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
++#endif
++
+ blk_qc_t submit(struct bio *bio);
+ 
+ void foo(struct block_device_operations *ops)
+ {
+-	ops->submit_bio = submit;
++	BUILD_BUG_ON(!(__same_type(ops->submit_bio, &submit)));
+ }
+diff --git a/drbd/drbd-kernel-compat/tests/have_void_submit_bio.c b/drbd/drbd-kernel-compat/tests/have_void_submit_bio.c
+index c638faf020e1..09b56a658a46 100644
+--- a/drbd/drbd-kernel-compat/tests/have_void_submit_bio.c
++++ b/drbd/drbd-kernel-compat/tests/have_void_submit_bio.c
+@@ -2,9 +2,13 @@
+ 
+ #include <linux/blkdev.h>
+ 
++#ifndef __same_type
++# define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
++#endif
++
+ void submit(struct bio *bio);
+ 
+ void foo(struct block_device_operations *ops)
+ {
+-	ops->submit_bio = submit;
++	BUILD_BUG_ON(!(__same_type(ops->submit_bio, &submit)));
+ }
 -- 
-Jens Axboe
-
-
+2.47.3
 
