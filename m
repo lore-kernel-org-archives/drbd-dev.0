@@ -1,26 +1,28 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-ed1-f43.google.com (mail-ed1-f43.google.com
-	[209.85.208.43])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 68B6C1608F4
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Nov 2025 11:50:10 +0100 (CET)
-Received: by mail-ed1-f43.google.com with SMTP id
-	4fb4d7f45d1cf-6431b0a1948so9418779a12.3
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Nov 2025 02:50:10 -0800 (PST)
-Message-ID: <a7d484bf-4812-4367-8fca-575a56529c67@linbit.com>
-Date: Tue, 18 Nov 2025 11:50:08 +0100
+Received: from mail-ed1-f50.google.com (mail-ed1-f50.google.com
+	[209.85.208.50])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id BD159162276
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Nov 2025 11:51:04 +0100 (CET)
+Received: by mail-ed1-f50.google.com with SMTP id
+	4fb4d7f45d1cf-64175dfc338so10022409a12.0
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Nov 2025 02:51:04 -0800 (PST)
+Message-ID: <11f8aaaa-b5de-44dc-9263-5bdb506923ac@linbit.com>
+Date: Tue, 18 Nov 2025 11:51:02 +0100
 MIME-Version: 1.0
-Subject: Re: [PATCH] compat: make block_device_operations tests grsec
-	compatible
-To: Mathias Krause <minipli@grsecurity.net>,
+Subject: Re: [PATCH] drbd: turn bitmap I/O comments into regular block comments
+To: Sukrut Heroorkar <hsukrut3@gmail.com>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>
-References: <20251110125924.511384-1-minipli@grsecurity.net>
+	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>,
+	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>,
+	"open list:BLOCK LAYER" <linux-block@vger.kernel.org>,
+	open list <linux-kernel@vger.kernel.org>
+References: <20251118090753.390818-1-hsukrut3@gmail.com>
 From: =?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
 Content-Language: en-US
-In-Reply-To: <20251110125924.511384-1-minipli@grsecurity.net>
+In-Reply-To: <20251118090753.390818-1-hsukrut3@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: drbd-dev@lists.linbit.com
+Cc: shuah@kernel.org, david.hunter.linux@gmail.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -32,19 +34,24 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 10.11.25 um 13:59 schrieb Mathias Krause:
-> The grsecurity patch enforces that instances of certain types are always
-> constified, with the help of a compiler plugin. One of these types is
-> 'struct block_device_operations'. Code that tries to modify a such-typed
-> object will cause compiler errors, leading to wrong results for the
-> kernel compatibility tests.
+Am 18.11.25 um 10:07 schrieb Sukrut Heroorkar:
+> W=1 build warns because the bitmap I/O comments use '/**', which
+> marks them as kernel-doc comments even though these functions do not
+> document an external API.
 > 
-> Change these tests to do direct type compare tests instead of trying to
-> modify the object, making them compatible with grsecurity kernels.
+> Convert these comments to regular block comments so kernel-doc no
+> longer parses them.
 > 
-> Signed-off-by: Mathias Krause <minipli@grsecurity.net>
+> Signed-off-by: Sukrut Heroorkar <hsukrut3@gmail.com>
+> ---
+> See: https://lore.kernel.org/all/20251117172557.355797-1-hsukrut3@gmail.com/t/
+> 
+>  drivers/block/drbd/drbd_bitmap.c | 10 +++++-----
+>  1 file changed, 5 insertions(+), 5 deletions(-)
 
-Thanks, applied: https://github.com/LINBIT/drbd/commit/376a2932bf8f44dd0a18bc70f3309f3e71e0d37d
+Thanks.
+
+Acked-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 
 -- 
 Christoph Böhmwalder
