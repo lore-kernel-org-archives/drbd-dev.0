@@ -1,24 +1,26 @@
-Return-Path: <BATV+0812c32a4ab075f64334+8122+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8C7AE1608F4
-	for <drbd-dev@lists.linbit.com>; Tue, 18 Nov 2025 08:08:30 +0100 (CET)
-Date: Mon, 17 Nov 2025 22:09:02 -0800
-From: Christoph Hellwig <hch@infradead.org>
-To: Sukrut Heroorkar <hsukrut3@gmail.com>
-Subject: Re: [PATCH] drbd: add missing kernel-doc for peer_device parameter
-Message-ID: <aRwNfiIWUVl5G0eX@infradead.org>
-References: <20251117172557.355797-1-hsukrut3@gmail.com>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-ed1-f43.google.com (mail-ed1-f43.google.com
+	[209.85.208.43])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 68B6C1608F4
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Nov 2025 11:50:10 +0100 (CET)
+Received: by mail-ed1-f43.google.com with SMTP id
+	4fb4d7f45d1cf-6431b0a1948so9418779a12.3
+	for <drbd-dev@lists.linbit.com>; Tue, 18 Nov 2025 02:50:10 -0800 (PST)
+Message-ID: <a7d484bf-4812-4367-8fca-575a56529c67@linbit.com>
+Date: Tue, 18 Nov 2025 11:50:08 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20251117172557.355797-1-hsukrut3@gmail.com>
-Cc: Jens Axboe <axboe@kernel.dk>, david.hunter.linux@gmail.com,
+Subject: Re: [PATCH] compat: make block_device_operations tests grsec
+	compatible
+To: Mathias Krause <minipli@grsecurity.net>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
-	open list <linux-kernel@vger.kernel.org>,
-	"open list:BLOCK LAYER" <linux-block@vger.kernel.org>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, shuah@kernel.org,
-	"open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>
+	Lars Ellenberg <lars.ellenberg@linbit.com>
+References: <20251110125924.511384-1-minipli@grsecurity.net>
+From: =?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+Content-Language: en-US
+In-Reply-To: <20251110125924.511384-1-minipli@grsecurity.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Cc: drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,14 +32,22 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Mon, Nov 17, 2025 at 10:55:56PM +0530, Sukrut Heroorkar wrote:
-> W=1 build warns that peer_device is undocumented in the bitmap I/O
-> handlers. This parameter was introduced in commit 8164dd6c8ae1
-> ("drbd: Add peer device parameter to whole-bitmap I/O handlers"), but
-> the kernel-doc was not updated.
+Am 10.11.25 um 13:59 schrieb Mathias Krause:
+> The grsecurity patch enforces that instances of certain types are always
+> constified, with the help of a compiler plugin. One of these types is
+> 'struct block_device_operations'. Code that tries to modify a such-typed
+> object will cause compiler errors, leading to wrong results for the
+> kernel compatibility tests.
 > 
-> Add the missing @peer_device entry.
+> Change these tests to do direct type compare tests instead of trying to
+> modify the object, making them compatible with grsecurity kernels.
+> 
+> Signed-off-by: Mathias Krause <minipli@grsecurity.net>
 
-Or just make it a non-kerneldoc comment as it doesn't document an
-external API to start with.
+Thanks, applied: https://github.com/LINBIT/drbd/commit/376a2932bf8f44dd0a18bc70f3309f3e71e0d37d
+
+-- 
+Christoph Böhmwalder
+LINBIT | Keeping the Digital World Running
+DRBD HA —  Disaster Recovery — Software defined Storage
 
