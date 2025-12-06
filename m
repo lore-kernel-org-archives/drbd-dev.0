@@ -1,13 +1,16 @@
 Return-Path: <zhengbing.huang@easystack.cn>
 Received: from mail-m93129.xmail.ntesmail.com (mail-m93129.xmail.ntesmail.com
 	[103.126.93.129])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3AA6F162EF9
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 413431630C5
 	for <drbd-dev@lists.linbit.com>; Sat,  6 Dec 2025 09:17:36 +0100 (CET)
 From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 To: drbd-dev@lists.linbit.com
-Subject: [PATCH 1/4] rdma: Reduce the load of the drbd_receive thread
-Date: Sat,  6 Dec 2025 16:12:24 +0800
-Message-ID: <20251206081227.1237575-1-zhengbing.huang@easystack.cn>
+Subject: [PATCH 3/4] rdma: When the post send fails,
+	change the connection state to C_NETWORK_FAILURE
+Date: Sat,  6 Dec 2025 16:12:26 +0800
+Message-ID: <20251206081227.1237575-3-zhengbing.huang@easystack.cn>
+In-Reply-To: <20251206081227.1237575-1-zhengbing.huang@easystack.cn>
+References: <20251206081227.1237575-1-zhengbing.huang@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 List-Id: "*Coordination* of development, patches,
@@ -21,61 +24,75 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-When drbd is in rdma transfer mode, in the scenario of high pressure I/O,
-We find that as the value of the fio parameter iodepth increases,
-the performance of IO actually decreases.
+In rdma mode, the sync process gets stuck.
 
-We noticed that the load of the drbd_receive thread is very high.
-Using tools such as perf, we observed that the related function
-overhead of rx_desc in the drbd_receive thread is relatively high.
+We found that on the recv side, the flow expects the rx_sequence
+of the next rx_desc is 92831, but the minimum rx_sequence
+of rx_desc on the current rx_descs list is 92833.
+memory info:
+      rx_sequence = 92831,
+      rdma_transport = 0xff1616c673f3aa60
+      }, {
+    send_wq = {
+crash> list -o dtr_rx_desc.list -s dtr_rx_desc.sequence  -H 0xff1616bf0cd80008
+ff1616e0208346c0
+  sequence = 92833
+ff1616c4a7f78600
+  sequence = 92834
 
-So in dtr_refill_rx_desc(), we use schedule path->refill_rx_descs_work
-to reduce the load of the drbd_receive thread and
-the IO performance stabilizes.
+Then we found the log of fail post send_wr on the send side:
+kernel: infiniband mlx5_1: mlx5_ib_post_send:1101:(pid 43146):
+kernel: drbd drbd1 rdma: ib_post_send() failed -12
+
+The problem is that when ib_post_send() fails to post a send_wr,
+flush_send_buffer() returns an error, but its caller does not check the return value,
+and continues to run. Because tx/rx_sequence increments both in send and recv side,
+it eventually leads to recv side constantly wait for the rx_desc that
+has already fail to be post.
+
+The solution is to use drbd_control_event() to disconnect the current connection.
 
 Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
 ---
- drbd/drbd_transport_rdma.c | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ drbd/drbd_transport_rdma.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index 6795d9def..3addb7e42 100644
+index 5a28f58f0..ce7be2549 100644
 --- a/drbd/drbd_transport_rdma.c
 +++ b/drbd/drbd_transport_rdma.c
-@@ -2131,9 +2131,18 @@ out:
- static void dtr_refill_rx_descs_work_fn(struct work_struct *work)
- {
- 	struct dtr_path *path = container_of(work, struct dtr_path, refill_rx_descs_work);
-+	int i;
-+
-+	if (!dtr_path_ok(path))
-+		return;
-+
-+	for (i = DATA_STREAM; i <= CONTROL_STREAM ; i++) {
-+		struct dtr_flow *flow = &path->flow[i];
- 
--	if (dtr_path_ok(path))
--		__dtr_refill_rx_desc(path, DATA_STREAM);
-+		if (atomic_read(&flow->rx_descs_posted) < flow->rx_descs_want_posted / 2)
-+			__dtr_refill_rx_desc(path, i);
-+		dtr_flow_control(flow, GFP_NOIO);
-+	}
- }
- 
- static void __dtr_refill_rx_desc(struct dtr_path *path, enum drbd_stream stream)
-@@ -2174,11 +2183,7 @@ static void dtr_refill_rx_desc(struct dtr_transport *rdma_transport,
- 	for_each_path_ref(drbd_path, transport) {
- 		struct dtr_path *path = container_of(drbd_path, struct dtr_path, path);
- 
--		if (!dtr_path_ok(path))
--			continue;
--
--		__dtr_refill_rx_desc(path, stream);
--		dtr_flow_control(&path->flow[stream], GFP_NOIO);
-+		schedule_work(&path->refill_rx_descs_work);
+@@ -1936,8 +1936,10 @@ static int dtr_handle_tx_cq_event(struct ib_cq *cq, struct dtr_cm *cm)
+ 			err = dtr_repost_tx_desc(cm, tx_desc);
+ 			if (!err)
+ 				tx_desc = NULL; /* it is in the air again! Fly! */
+-			else if (__ratelimit(&rdma_transport->rate_limit))
++			else if (__ratelimit(&rdma_transport->rate_limit)) {
+ 				tr_warn(transport, "repost of tx_desc failed! %d\n", err);
++				drbd_control_event(transport, CLOSED_BY_PEER);
++			}
+ 		}
  	}
- }
  
+@@ -3234,6 +3236,9 @@ static int dtr_send_page(struct drbd_transport *transport, enum drbd_stream stre
+ 	if (err) {
+ 		put_page(page);
+ 		kfree(tx_desc);
++
++		tr_err(transport, "dtr_post_tx_desc() failed %d\n", err);
++		drbd_control_event(transport, CLOSED_BY_PEER);
+ 	}
+ 
+ 	if (stream == DATA_STREAM)
+@@ -3320,6 +3325,9 @@ static int dtr_send_bio_part(struct dtr_transport *rdma_transport,
+ 			}
+ 			kfree(tx_desc);
+ 		}
++
++		tr_err(transport, "dtr_post_tx_desc() failed %d\n", err);
++		drbd_control_event(transport, CLOSED_BY_PEER);
+ 	}
+ 
+ 	return err;
 -- 
 2.43.0
 
