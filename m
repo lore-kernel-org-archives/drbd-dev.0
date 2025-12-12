@@ -1,16 +1,13 @@
 Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m93129.xmail.ntesmail.com (mail-m93129.xmail.ntesmail.com
-	[103.126.93.129])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 413431630C5
-	for <drbd-dev@lists.linbit.com>; Sat,  6 Dec 2025 09:17:36 +0100 (CET)
+Received: from mail-m4920.qiye.163.com (mail-m4920.qiye.163.com [45.254.49.20])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 18EBA1627BB
+	for <drbd-dev@lists.linbit.com>; Fri, 12 Dec 2025 10:00:29 +0100 (CET)
 From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 To: drbd-dev@lists.linbit.com
-Subject: [PATCH 3/4] rdma: When the post send fails,
-	change the connection state to C_NETWORK_FAILURE
-Date: Sat,  6 Dec 2025 16:12:26 +0800
-Message-ID: <20251206081227.1237575-3-zhengbing.huang@easystack.cn>
-In-Reply-To: <20251206081227.1237575-1-zhengbing.huang@easystack.cn>
-References: <20251206081227.1237575-1-zhengbing.huang@easystack.cn>
+Subject: [PATCH] drbd: only send P_PEERS_IN_SYNC for up to 4 MiB in resync
+	progress
+Date: Fri, 12 Dec 2025 16:55:20 +0800
+Message-ID: <20251212085520.2910741-1-zhengbing.huang@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 List-Id: "*Coordination* of development, patches,
@@ -24,75 +21,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In rdma mode, the sync process gets stuck.
+During the resync process, the range of resync is not continuous.
+If the next sync position is very far from the current sync position,
+it will cause the same problem as commit: e2d0439f9
+("drbd: only send P_PEERS_IN_SYNC for up to 4 MiB when resync finished").
 
-We found that on the recv side, the flow expects the rx_sequence
-of the next rx_desc is 92831, but the minimum rx_sequence
-of rx_desc on the current rx_descs list is 92833.
-memory info:
-      rx_sequence = 92831,
-      rdma_transport = 0xff1616c673f3aa60
-      }, {
-    send_wq = {
-crash> list -o dtr_rx_desc.list -s dtr_rx_desc.sequence  -H 0xff1616bf0cd80008
-ff1616e0208346c0
-  sequence = 92833
-ff1616c4a7f78600
-  sequence = 92834
+The solution is to ensure that P_PEERS_IN_SYNC within a range of 4 MiB is sent each time.
 
-Then we found the log of fail post send_wr on the send side:
-kernel: infiniband mlx5_1: mlx5_ib_post_send:1101:(pid 43146):
-kernel: drbd drbd1 rdma: ib_post_send() failed -12
-
-The problem is that when ib_post_send() fails to post a send_wr,
-flush_send_buffer() returns an error, but its caller does not check the return value,
-and continues to run. Because tx/rx_sequence increments both in send and recv side,
-it eventually leads to recv side constantly wait for the rx_desc that
-has already fail to be post.
-
-The solution is to use drbd_control_event() to disconnect the current connection.
+Fixes: bc218ad64640 ("drbd: only send P_PEERS_IN_SYNC every 4MiB")
 
 Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
 ---
- drbd/drbd_transport_rdma.c | 10 +++++++++-
+ drbd/drbd_receiver.c | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/drbd/drbd_transport_rdma.c b/drbd/drbd_transport_rdma.c
-index 5a28f58f0..ce7be2549 100644
---- a/drbd/drbd_transport_rdma.c
-+++ b/drbd/drbd_transport_rdma.c
-@@ -1936,8 +1936,10 @@ static int dtr_handle_tx_cq_event(struct ib_cq *cq, struct dtr_cm *cm)
- 			err = dtr_repost_tx_desc(cm, tx_desc);
- 			if (!err)
- 				tx_desc = NULL; /* it is in the air again! Fly! */
--			else if (__ratelimit(&rdma_transport->rate_limit))
-+			else if (__ratelimit(&rdma_transport->rate_limit)) {
- 				tr_warn(transport, "repost of tx_desc failed! %d\n", err);
-+				drbd_control_event(transport, CLOSED_BY_PEER);
-+			}
- 		}
- 	}
+diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
+index 3eed5d33e..08032dd73 100644
+--- a/drbd/drbd_receiver.c
++++ b/drbd/drbd_receiver.c
+@@ -2352,6 +2352,7 @@ void drbd_queue_update_peers(struct drbd_peer_device *peer_device,
  
-@@ -3234,6 +3236,9 @@ static int dtr_send_page(struct drbd_transport *transport, enum drbd_stream stre
- 	if (err) {
- 		put_page(page);
- 		kfree(tx_desc);
+ static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, sector_t sector_end)
+ {
++	sector_t boundary_end, send_end;
+ 	/* Round down to the boundary defined by PEERS_IN_SYNC_STEP_SHIFT. */
+ 	sector_t peers_in_sync_end = sector_end & ~PEERS_IN_SYNC_STEP_SECT_MASK;
+ 
+@@ -2365,7 +2366,14 @@ static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, se
+ 	if (peers_in_sync_end == peer_device->last_peers_in_sync_end)
+ 		return;
+ 
+-	drbd_queue_update_peers(peer_device, peer_device->last_peers_in_sync_end, peers_in_sync_end);
++	/* Ensure send range does not over 4 MiB */
++	send_end = peers_in_sync_end;
++	boundary_end = min(get_capacity(peer_device->device->vdisk),
++			(peer_device->last_peers_in_sync_end | PEERS_IN_SYNC_STEP_SECT_MASK) + 1);
++	if (peers_in_sync_end > boundary_end)
++		send_end = boundary_end;
 +
-+		tr_err(transport, "dtr_post_tx_desc() failed %d\n", err);
-+		drbd_control_event(transport, CLOSED_BY_PEER);
- 	}
++	drbd_queue_update_peers(peer_device, peer_device->last_peers_in_sync_end, send_end);
+ 	peer_device->last_peers_in_sync_end = peers_in_sync_end;
  
- 	if (stream == DATA_STREAM)
-@@ -3320,6 +3325,9 @@ static int dtr_send_bio_part(struct dtr_transport *rdma_transport,
- 			}
- 			kfree(tx_desc);
- 		}
-+
-+		tr_err(transport, "dtr_post_tx_desc() failed %d\n", err);
-+		drbd_control_event(transport, CLOSED_BY_PEER);
- 	}
- 
- 	return err;
+ 	/* Also consider scheduling a bitmap update to reduce the size of the
 -- 
 2.43.0
 
