@@ -1,13 +1,14 @@
 Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m4920.qiye.163.com (mail-m4920.qiye.163.com [45.254.49.20])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 18EBA1627BB
-	for <drbd-dev@lists.linbit.com>; Fri, 12 Dec 2025 10:00:29 +0100 (CET)
+Received: from mail-m15578.qiye.163.com (mail-m15578.qiye.163.com
+	[101.71.155.78])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9017F162251
+	for <drbd-dev@lists.linbit.com>; Thu, 18 Dec 2025 14:06:24 +0100 (CET)
 From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
 To: drbd-dev@lists.linbit.com
-Subject: [PATCH] drbd: only send P_PEERS_IN_SYNC for up to 4 MiB in resync
+Subject: [PATCH v2] drbd: only send P_PEERS_IN_SYNC for up to 4 MiB in resync
 	progress
-Date: Fri, 12 Dec 2025 16:55:20 +0800
-Message-ID: <20251212085520.2910741-1-zhengbing.huang@easystack.cn>
+Date: Thu, 18 Dec 2025 21:01:17 +0800
+Message-ID: <20251218130117.907395-1-zhengbing.huang@easystack.cn>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 List-Id: "*Coordination* of development, patches,
@@ -26,43 +27,78 @@ If the next sync position is very far from the current sync position,
 it will cause the same problem as commit: e2d0439f9
 ("drbd: only send P_PEERS_IN_SYNC for up to 4 MiB when resync finished").
 
-The solution is to ensure that P_PEERS_IN_SYNC within a range of 4 MiB is sent each time.
+The solution is to ensure that P_PEERS_IN_SYNC within a range of 4 MiB is sent each time,
+and skip the sector where there is no reysnc.
 
 Fixes: bc218ad64640 ("drbd: only send P_PEERS_IN_SYNC every 4MiB")
 
 Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
 ---
- drbd/drbd_receiver.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ drbd/drbd_int.h      |  3 ++-
+ drbd/drbd_receiver.c | 21 +++++++++++++++++----
+ 2 files changed, 19 insertions(+), 5 deletions(-)
 
+diff --git a/drbd/drbd_int.h b/drbd/drbd_int.h
+index d92eaaf37..e193de9e8 100644
+--- a/drbd/drbd_int.h
++++ b/drbd/drbd_int.h
+@@ -1930,7 +1930,8 @@ extern sector_t drbd_partition_data_capacity(struct drbd_device *device);
+  * extent shift since the P_PEERS_IN_SYNC intervals are broken up based on
+  * activity log extents anyway. */
+ #define PEERS_IN_SYNC_STEP_SHIFT AL_EXTENT_SHIFT
+-#define PEERS_IN_SYNC_STEP_SECT_MASK ((1UL << (PEERS_IN_SYNC_STEP_SHIFT - SECTOR_SHIFT)) - 1)
++#define PEERS_IN_SYNC_STEP_SECT      (1UL << (PEERS_IN_SYNC_STEP_SHIFT - SECTOR_SHIFT))
++#define PEERS_IN_SYNC_STEP_SECT_MASK (PEERS_IN_SYNC_STEP_SECT - 1)
+ 
+ /* bit to represented kilo byte conversion */
+ #define Bit2KB(bits) ((bits)<<(BM_BLOCK_SHIFT-10))
 diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index 3eed5d33e..08032dd73 100644
+index d43f3f98b..2bbf167a8 100644
 --- a/drbd/drbd_receiver.c
 +++ b/drbd/drbd_receiver.c
-@@ -2352,6 +2352,7 @@ void drbd_queue_update_peers(struct drbd_peer_device *peer_device,
+@@ -2540,8 +2540,10 @@ void drbd_queue_update_peers(struct drbd_peer_device *peer_device,
+ 	}
+ }
  
- static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, sector_t sector_end)
+-static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, sector_t sector_end)
++static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, sector_t sector_start, sector_t sector_end)
  {
-+	sector_t boundary_end, send_end;
++	sector_t range_end;
++	sector_t peers_in_sync_start = sector_start & ~PEERS_IN_SYNC_STEP_SECT_MASK;
  	/* Round down to the boundary defined by PEERS_IN_SYNC_STEP_SHIFT. */
  	sector_t peers_in_sync_end = sector_end & ~PEERS_IN_SYNC_STEP_SECT_MASK;
  
-@@ -2365,7 +2366,14 @@ static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, se
+@@ -2555,8 +2557,19 @@ static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, se
  	if (peers_in_sync_end == peer_device->last_peers_in_sync_end)
  		return;
  
 -	drbd_queue_update_peers(peer_device, peer_device->last_peers_in_sync_end, peers_in_sync_end);
-+	/* Ensure send range does not over 4 MiB */
-+	send_end = peers_in_sync_end;
-+	boundary_end = min(get_capacity(peer_device->device->vdisk),
+-	peer_device->last_peers_in_sync_end = peers_in_sync_end;
++	for (; peers_in_sync_end - peer_device->last_peers_in_sync_end >= PEERS_IN_SYNC_STEP_SECT; ) {
++		/* Ensure send range does not over 4 MiB */
++		range_end = min(get_capacity(peer_device->device->vdisk),
 +			(peer_device->last_peers_in_sync_end | PEERS_IN_SYNC_STEP_SECT_MASK) + 1);
-+	if (peers_in_sync_end > boundary_end)
-+		send_end = boundary_end;
 +
-+	drbd_queue_update_peers(peer_device, peer_device->last_peers_in_sync_end, send_end);
- 	peer_device->last_peers_in_sync_end = peers_in_sync_end;
++		drbd_queue_update_peers(peer_device, peer_device->last_peers_in_sync_end, range_end);
++
++		if (peers_in_sync_start <= range_end)
++			peer_device->last_peers_in_sync_end = range_end;
++		else
++			/* Skip the no resync range */
++			peer_device->last_peers_in_sync_end = peers_in_sync_start;
++	}
  
  	/* Also consider scheduling a bitmap update to reduce the size of the
+ 	 * next resync if this one is disrupted. */
+@@ -2580,7 +2593,7 @@ static void drbd_check_peers_in_sync_progress(struct drbd_peer_device *peer_devi
+ 	spin_unlock_irq(&connection->peer_reqs_lock);
+ 
+ 	list_for_each_entry_safe(peer_req, tmp, &completed, recv_order) {
+-		drbd_peers_in_sync_progress(peer_device, peer_req->i.sector + (peer_req->i.size >> SECTOR_SHIFT));
++		drbd_peers_in_sync_progress(peer_device, peer_req->i.sector, peer_req->i.sector + (peer_req->i.size >> SECTOR_SHIFT));
+ 		drbd_free_peer_req(peer_req);
+ 	}
+ }
 -- 
 2.43.0
 
