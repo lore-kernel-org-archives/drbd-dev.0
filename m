@@ -1,16 +1,22 @@
-Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m15578.qiye.163.com (mail-m15578.qiye.163.com
-	[101.71.155.78])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 9017F162251
-	for <drbd-dev@lists.linbit.com>; Thu, 18 Dec 2025 14:06:24 +0100 (CET)
-From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-To: drbd-dev@lists.linbit.com
-Subject: [PATCH v2] drbd: only send P_PEERS_IN_SYNC for up to 4 MiB in resync
-	progress
-Date: Thu, 18 Dec 2025 21:01:17 +0800
-Message-ID: <20251218130117.907395-1-zhengbing.huang@easystack.cn>
+Return-Path: <joel.colledge@linbit.com>
+Received: from mail-ej1-f41.google.com (mail-ej1-f41.google.com
+	[209.85.218.41])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 8628E162759
+	for <drbd-dev@lists.linbit.com>; Thu, 18 Dec 2025 17:48:10 +0100 (CET)
+Received: by mail-ej1-f41.google.com with SMTP id
+	a640c23a62f3a-b802d5e9f06so79732466b.1
+	for <drbd-dev@lists.linbit.com>; Thu, 18 Dec 2025 08:48:10 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <20251218130117.907395-1-zhengbing.huang@easystack.cn>
+In-Reply-To: <20251218130117.907395-1-zhengbing.huang@easystack.cn>
+From: Joel Colledge <joel.colledge@linbit.com>
+Date: Thu, 18 Dec 2025 17:47:58 +0100
+Message-ID: <CAGNP_+XBX=rmF_y25arQstkEFfqZnQRFWwXim79YibV+E0Xjpg@mail.gmail.com>
+Subject: Re: [PATCH v2] drbd: only send P_PEERS_IN_SYNC for up to 4 MiB in
+	resync progress
+To: "zhengbing.huang" <zhengbing.huang@easystack.cn>
+Content-Type: multipart/alternative; boundary="000000000000d22c6906463cb918"
+Cc: drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -22,83 +28,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-During the resync process, the range of resync is not continuous.
-If the next sync position is very far from the current sync position,
-it will cause the same problem as commit: e2d0439f9
-("drbd: only send P_PEERS_IN_SYNC for up to 4 MiB when resync finished").
+--000000000000d22c6906463cb918
+Content-Type: text/plain; charset="UTF-8"
 
-The solution is to ensure that P_PEERS_IN_SYNC within a range of 4 MiB is sent each time,
-and skip the sector where there is no reysnc.
+Hi Zhengbing Huang,
 
-Fixes: bc218ad64640 ("drbd: only send P_PEERS_IN_SYNC every 4MiB")
+Thanks for the contribution! I also considered this case but did not work
+on any code to improve the behavior yet. I will look at your patch and
+write again.
 
-Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
----
- drbd/drbd_int.h      |  3 ++-
- drbd/drbd_receiver.c | 21 +++++++++++++++++----
- 2 files changed, 19 insertions(+), 5 deletions(-)
+Thanks also for your recent RDMA patches. Philipp Reisner is aware of them
+and will review them in due course.
 
-diff --git a/drbd/drbd_int.h b/drbd/drbd_int.h
-index d92eaaf37..e193de9e8 100644
---- a/drbd/drbd_int.h
-+++ b/drbd/drbd_int.h
-@@ -1930,7 +1930,8 @@ extern sector_t drbd_partition_data_capacity(struct drbd_device *device);
-  * extent shift since the P_PEERS_IN_SYNC intervals are broken up based on
-  * activity log extents anyway. */
- #define PEERS_IN_SYNC_STEP_SHIFT AL_EXTENT_SHIFT
--#define PEERS_IN_SYNC_STEP_SECT_MASK ((1UL << (PEERS_IN_SYNC_STEP_SHIFT - SECTOR_SHIFT)) - 1)
-+#define PEERS_IN_SYNC_STEP_SECT      (1UL << (PEERS_IN_SYNC_STEP_SHIFT - SECTOR_SHIFT))
-+#define PEERS_IN_SYNC_STEP_SECT_MASK (PEERS_IN_SYNC_STEP_SECT - 1)
- 
- /* bit to represented kilo byte conversion */
- #define Bit2KB(bits) ((bits)<<(BM_BLOCK_SHIFT-10))
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index d43f3f98b..2bbf167a8 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -2540,8 +2540,10 @@ void drbd_queue_update_peers(struct drbd_peer_device *peer_device,
- 	}
- }
- 
--static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, sector_t sector_end)
-+static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, sector_t sector_start, sector_t sector_end)
- {
-+	sector_t range_end;
-+	sector_t peers_in_sync_start = sector_start & ~PEERS_IN_SYNC_STEP_SECT_MASK;
- 	/* Round down to the boundary defined by PEERS_IN_SYNC_STEP_SHIFT. */
- 	sector_t peers_in_sync_end = sector_end & ~PEERS_IN_SYNC_STEP_SECT_MASK;
- 
-@@ -2555,8 +2557,19 @@ static void drbd_peers_in_sync_progress(struct drbd_peer_device *peer_device, se
- 	if (peers_in_sync_end == peer_device->last_peers_in_sync_end)
- 		return;
- 
--	drbd_queue_update_peers(peer_device, peer_device->last_peers_in_sync_end, peers_in_sync_end);
--	peer_device->last_peers_in_sync_end = peers_in_sync_end;
-+	for (; peers_in_sync_end - peer_device->last_peers_in_sync_end >= PEERS_IN_SYNC_STEP_SECT; ) {
-+		/* Ensure send range does not over 4 MiB */
-+		range_end = min(get_capacity(peer_device->device->vdisk),
-+			(peer_device->last_peers_in_sync_end | PEERS_IN_SYNC_STEP_SECT_MASK) + 1);
-+
-+		drbd_queue_update_peers(peer_device, peer_device->last_peers_in_sync_end, range_end);
-+
-+		if (peers_in_sync_start <= range_end)
-+			peer_device->last_peers_in_sync_end = range_end;
-+		else
-+			/* Skip the no resync range */
-+			peer_device->last_peers_in_sync_end = peers_in_sync_start;
-+	}
- 
- 	/* Also consider scheduling a bitmap update to reduce the size of the
- 	 * next resync if this one is disrupted. */
-@@ -2580,7 +2593,7 @@ static void drbd_check_peers_in_sync_progress(struct drbd_peer_device *peer_devi
- 	spin_unlock_irq(&connection->peer_reqs_lock);
- 
- 	list_for_each_entry_safe(peer_req, tmp, &completed, recv_order) {
--		drbd_peers_in_sync_progress(peer_device, peer_req->i.sector + (peer_req->i.size >> SECTOR_SHIFT));
-+		drbd_peers_in_sync_progress(peer_device, peer_req->i.sector, peer_req->i.sector + (peer_req->i.size >> SECTOR_SHIFT));
- 		drbd_free_peer_req(peer_req);
- 	}
- }
--- 
-2.43.0
+Best regards,
+Joel
 
+--000000000000d22c6906463cb918
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Hi Zhengbing Huang,</div><div><br></div><div>Thanks f=
+or the contribution! I also considered this case but did not work on any co=
+de to improve the behavior yet. I will look at your patch and write again.<=
+/div><div><br></div><div>Thanks also for your recent RDMA patches.=C2=A0Phi=
+lipp Reisner=C2=A0is aware of them and will review them in due course.</div=
+><div><br></div><div>Best regards,</div><div>Joel</div><div><br></div></div=
+>
+
+--000000000000d22c6906463cb918--
