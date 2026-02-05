@@ -1,15 +1,23 @@
-Return-Path: <zhengbing.huang@easystack.cn>
-Received: from mail-m128221.netease.com (mail-m128221.netease.com
-	[103.209.128.221])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 54F0B1608F2
-	for <drbd-dev@lists.linbit.com>; Mon, 29 Dec 2025 09:46:10 +0100 (CET)
-From: "zhengbing.huang" <zhengbing.huang@easystack.cn>
-To: drbd-dev@lists.linbit.com
-Subject: [PATCH] drbd: Make sure update P_PEERS_IN_SYNC before resync_finished
-Date: Mon, 29 Dec 2025 16:30:56 +0800
-Message-ID: <20251229083056.2090623-1-zhengbing.huang@easystack.cn>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-wr1-f41.google.com (mail-wr1-f41.google.com
+	[209.85.221.41])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D23E0160953
+	for <drbd-dev@lists.linbit.com>; Thu,  5 Feb 2026 18:39:58 +0100 (CET)
+Received: by mail-wr1-f41.google.com with SMTP id
+	ffacd0b85a97d-432d28870ddso882562f8f.3
+	for <drbd-dev@lists.linbit.com>; Thu, 05 Feb 2026 09:39:58 -0800 (PST)
+From: =?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
+	<christoph.boehmwalder@linbit.com>
+To: Jens Axboe <axboe@kernel.dk>
+Subject: [PATCH] drbd: always set BLK_FEAT_STABLE_WRITES
+Date: Thu,  5 Feb 2026 18:39:29 +0100
+Message-ID: <20260205173928.3166880-2-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
+Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -21,73 +29,91 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-In the drbd_resync_check_finished function, one of the conditions
-for determine the end of resync is that the resync_requests list is empty,
-but the update P_PEERS_IN_SYNC occurs after peer_req is removed
-from the resync_requests list. So call the drbd_resync_finised function
-might occur before update P_PEERS_IN_SYNC, and then read the value of
-last_peers_in_sync_end is incorrect.
+DRBD requires stable pages because it may read the same bio data
+multiple times for local disk I/O and network transmission, and in
+some cases for calculating checksums.
 
-So update P_PEERS_IN_SYNC before peer_req is removed from the resync_request list.
-And use last_in_sync_end to determine the position of the last sync.
+The BLK_FEAT_STABLE_WRITES flag is set when the device is first
+created, but blk_set_stacking_limits() clears it whenever a
+backing device is attached. In some cases the flag may be
+inherited from the backing device, but we want it to be enabled
+at all times.
 
-Signed-off-by: zhengbing.huang <zhengbing.huang@easystack.cn>
+Unconditionally re-enable BLK_FEAT_STABLE_WRITES in
+drbd_reconsider_queue_parameters() after the queue parameter
+negotiations.
+
+Also, document why we want this flag enabled in the first place.
+
+Fixes: 1a02f3a73f8c ("block: move the stable_writes flag to queue_limits")
+Signed-off-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
 ---
- drbd/drbd_receiver.c | 8 ++++----
- drbd/drbd_sender.c   | 8 +++-----
- 2 files changed, 7 insertions(+), 9 deletions(-)
+Note: this commit is based on the for-6.19/block tree in case it is
+still possible to take it into the 6.19 release as this *could* lead
+to silent data corruption. However, due to other protection
+mechanisms in DRBD, this is relatively unlikely to happen in the
+real world and we have not seen any corresponding reports from users.
+So if this only lands in 6.20/7.0, it is also fine.
 
-diff --git a/drbd/drbd_receiver.c b/drbd/drbd_receiver.c
-index 08fd20b14..5e155b6b1 100644
---- a/drbd/drbd_receiver.c
-+++ b/drbd/drbd_receiver.c
-@@ -2437,16 +2437,16 @@ static void drbd_check_peers_in_sync_progress(struct drbd_peer_device *peer_devi
- 		if (!test_bit(INTERVAL_COMPLETED, &peer_req->i.flags))
- 			break;
+ drivers/block/drbd/drbd_main.c |  3 ---
+ drivers/block/drbd/drbd_nl.c   | 20 +++++++++++++++++++-
+ 2 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index c73376886e7a..1f6ac9202b66 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -2659,9 +2659,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
+ 		 * connect.
+ 		 */
+ 		.max_hw_sectors		= DRBD_MAX_BIO_SIZE_SAFE >> 8,
+-		.features		= BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA |
+-					  BLK_FEAT_ROTATIONAL |
+-					  BLK_FEAT_STABLE_WRITES,
+ 	};
  
-+		drbd_peers_in_sync_progress(peer_device, peer_req->i.sector,
-+			peer_req->i.sector + (peer_req->i.size >> SECTOR_SHIFT));
-+
- 		drbd_list_del_resync_request(peer_req);
- 		list_add_tail(&peer_req->recv_order, &completed);
+ 	device = minor_to_device(minor);
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index 91f3b8afb63c..b502038be0a9 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -1296,6 +1296,8 @@ void drbd_reconsider_queue_parameters(struct drbd_device *device,
+ 		lim.max_segments = drbd_backing_dev_max_segments(device);
+ 	} else {
+ 		lim.max_segments = BLK_MAX_SEGMENTS;
++		lim.features = BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA |
++			       BLK_FEAT_ROTATIONAL | BLK_FEAT_STABLE_WRITES;
  	}
- 	spin_unlock_irq(&connection->peer_reqs_lock);
  
--	list_for_each_entry_safe(peer_req, tmp, &completed, recv_order) {
--		drbd_peers_in_sync_progress(peer_device, peer_req->i.sector,
--			peer_req->i.sector + (peer_req->i.size >> SECTOR_SHIFT));
-+	list_for_each_entry_safe(peer_req, tmp, &completed, recv_order)
- 		drbd_free_peer_req(peer_req);
--	}
- }
+ 	lim.max_hw_sectors = new >> SECTOR_SHIFT;
+@@ -1318,8 +1320,24 @@ void drbd_reconsider_queue_parameters(struct drbd_device *device,
+ 		lim.max_hw_discard_sectors = 0;
+ 	}
  
- static void drbd_resync_request_complete(struct drbd_peer_request *peer_req)
-diff --git a/drbd/drbd_sender.c b/drbd/drbd_sender.c
-index cf42312db..282b5d205 100644
---- a/drbd/drbd_sender.c
-+++ b/drbd/drbd_sender.c
-@@ -1863,7 +1863,6 @@ void drbd_resync_finished(struct drbd_peer_device *peer_device,
- 	int verify_done = 0;
- 	bool aborted = false;
- 	int bm_block_shift = device->last_bm_block_shift;
--	sector_t final_peers_in_sync_end;
+-	if (bdev)
++	if (bdev) {
+ 		blk_stack_limits(&lim, &b->limits, 0);
++		/*
++		 * blk_set_stacking_limits() cleared the features, and
++		 * blk_stack_limits() may or may not have inherited
++		 * BLK_FEAT_STABLE_WRITES from the backing device.
++		 *
++		 * DRBD always requires stable writes because:
++		 * 1. The same bio data is read for both local disk I/O and
++		 *    network transmission. If the page changes mid-flight,
++		 *    the local and remote copies could diverge.
++		 * 2. When data integrity is enabled, DRBD calculates a
++		 *    checksum before sending the data. If the page changes
++		 *    between checksum calculation and transmission, the
++		 *    receiver will detect a checksum mismatch.
++		 */
++		lim.features |= BLK_FEAT_STABLE_WRITES;
++	}
  
- 	if (repl_state[NOW] == L_SYNC_SOURCE || repl_state[NOW] == L_PAUSED_SYNC_S) {
- 		/* Make sure all queued w_update_peers() executed. */
-@@ -2045,10 +2044,9 @@ out_unlock:
- 		after_reconciliation_resync(connection);
- 
- 	/* Potentially send final P_PEERS_IN_SYNC. */
--	final_peers_in_sync_end = min(get_capacity(device->vdisk),
--			(peer_device->last_peers_in_sync_end | PEERS_IN_SYNC_STEP_SECT_MASK) + 1);
--	drbd_queue_update_peers(peer_device,
--			peer_device->last_peers_in_sync_end, final_peers_in_sync_end);
-+	if (peer_device->last_in_sync_end > peer_device->last_peers_in_sync_end)
-+		drbd_queue_update_peers(peer_device,
-+			peer_device->last_peers_in_sync_end, peer_device->last_in_sync_end);
- 
- out:
- 	/* reset start sector, if we reached end of device */
+ 	/*
+ 	 * If we can handle "zeroes" efficiently on the protocol, we want to do
+
+base-commit: b1e5c96ab4a011763afac033f6660cf1eb499458
 -- 
-2.43.0
+2.52.0
 
