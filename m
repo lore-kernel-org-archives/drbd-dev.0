@@ -1,13 +1,13 @@
 Return-Path: <agruenba@redhat.com>
 Received: from us-smtp-delivery-124.mimecast.com
 	(us-smtp-delivery-124.mimecast.com [170.10.133.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 81D99163115
-	for <drbd-dev@lists.linbit.com>; Wed,  4 Mar 2026 20:10:52 +0100 (CET)
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id DA38C163116
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Mar 2026 20:11:01 +0100 (CET)
 From: Andreas Gruenbacher <agruenba@redhat.com>
 To: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 3/4] bio: rename bio_chain arguments
-Date: Wed,  4 Mar 2026 20:04:08 +0100
-Message-ID: <20260304190424.291743-4-agruenba@redhat.com>
+Subject: [PATCH 2/4] block: get rid of blk_status_to_{errno, str} inconsistency
+Date: Wed,  4 Mar 2026 20:04:07 +0100
+Message-ID: <20260304190424.291743-3-agruenba@redhat.com>
 In-Reply-To: <20260304190424.291743-1-agruenba@redhat.com>
 References: <20260304190424.291743-1-agruenba@redhat.com>
 MIME-Version: 1.0
@@ -16,7 +16,7 @@ content-type: text/plain; charset="US-ASCII"; x-default=true
 Cc: dm-devel@lists.linux.dev, Andreas Gruenbacher <agruenba@redhat.com>,
 	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
 	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
-	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -28,53 +28,40 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Use the same argument names in bio_chain() as in bio_chain_and_submit()
-to be consistent.  Slightly improve the function description.
+Change blk_status_to_str() to be consistent with blk_status_to_errno()
+and return "I/O" for undefined status codes.
+
+With that, the fallback case in the blk_errors array can be removed with
+no change in behavior.
 
 Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
 ---
- block/bio.c | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ block/blk-core.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff --git a/block/bio.c b/block/bio.c
-index eadf4c1e9994..5e60bf3730af 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -369,22 +369,22 @@ static void bio_chain_endio(struct bio *bio)
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 474700ffaa1c..a20042f15790 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -161,9 +161,6 @@ static const struct {
+ 	[BLK_STS_DURATION_LIMIT]	= { -ETIME, "duration limit exceeded" },
  
- /**
-  * bio_chain - chain bio completions
-- * @bio: the target bio
-- * @parent: the parent bio of @bio
-+ * @prev: the bio to chain
-+ * @new: the bio to chain to
-  *
-- * The caller won't have a bi_end_io called when @bio completes - instead,
-- * @parent's bi_end_io won't be called until both @parent and @bio have
-- * completed; the chained bio will also be freed when it completes.
-+ * The caller won't have a bi_end_io called when @prev completes.  Instead,
-+ * @new's bi_end_io will be called once both @new and @prev have completed.
-+ * Like an unchained bio, @prev will be put when it completes.
-  *
-- * The caller must not set bi_private or bi_end_io in @bio.
-+ * The caller must not set bi_private or bi_end_io in @prev.
-  */
--void bio_chain(struct bio *bio, struct bio *parent)
-+void bio_chain(struct bio *prev, struct bio *new)
- {
--	BUG_ON(bio->bi_private || bio->bi_end_io);
-+	BUG_ON(prev->bi_private || prev->bi_end_io);
+ 	[BLK_STS_INVAL]		= { -EINVAL,	"invalid" },
+-
+-	/* everything else not covered above: */
+-	[BLK_STS_IOERR]		= { -EIO,	"I/O" },
+ };
  
--	bio->bi_private = parent;
--	bio->bi_end_io	= bio_chain_endio;
--	bio_inc_remaining(parent);
-+	prev->bi_private = new;
-+	prev->bi_end_io	= bio_chain_endio;
-+	bio_inc_remaining(new);
+ blk_status_t errno_to_blk_status(int errno)
+@@ -194,7 +191,7 @@ const char *blk_status_to_str(blk_status_t status)
+ 	int idx = (__force int)status;
+ 
+ 	if (WARN_ON_ONCE(idx >= ARRAY_SIZE(blk_errors)))
+-		return "<null>";
++		return "I/O";
+ 	return blk_errors[idx].name;
  }
- EXPORT_SYMBOL(bio_chain);
- 
+ EXPORT_SYMBOL_GPL(blk_status_to_str);
 -- 
 2.52.0
 
