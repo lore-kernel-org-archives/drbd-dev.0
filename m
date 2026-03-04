@@ -1,25 +1,20 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-oa1-f41.google.com (mail-oa1-f41.google.com
-	[209.85.160.41])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id F3126160922
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Feb 2026 15:09:24 +0100 (CET)
-Received: by mail-oa1-f41.google.com with SMTP id
-	586e51a60fabf-4152698e745so751333fac.1
-	for <drbd-dev@lists.linbit.com>; Fri, 20 Feb 2026 06:09:24 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
-To: =?utf-8?q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-In-Reply-To: <20260220113937.2691322-1-christoph.boehmwalder@linbit.com>
-References: <20260220113937.2691322-1-christoph.boehmwalder@linbit.com>
-Subject: Re: [PATCH] drbd: fix null-pointer dereference on local read error
-Message-Id: <177159656185.567740.9381187974299808709.b4-ty@kernel.dk>
-Date: Fri, 20 Feb 2026 07:09:21 -0700
+Return-Path: <agruenba@redhat.com>
+Received: from us-smtp-delivery-124.mimecast.com
+	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 783541627A1
+	for <drbd-dev@lists.linbit.com>; Wed,  4 Mar 2026 20:10:43 +0100 (CET)
+From: Andreas Gruenbacher <agruenba@redhat.com>
+To: Jens Axboe <axboe@kernel.dk>
+Subject: [PATCH 0/4] simple bio cleanups
+Date: Wed,  4 Mar 2026 20:04:05 +0100
+Message-ID: <20260304190424.291743-1-agruenba@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, stable@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	Tuo Li <islituo@gmail.com>, drbd-dev@lists.linbit.com
+content-type: text/plain; charset="US-ASCII"; x-default=true
+Cc: dm-devel@lists.linux.dev, Andreas Gruenbacher <agruenba@redhat.com>,
+	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,27 +26,32 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
+Jens,
 
-On Fri, 20 Feb 2026 12:39:37 +0100, Christoph Böhmwalder wrote:
-> In drbd_request_endio(), READ_COMPLETED_WITH_ERROR is passed to
-> __req_mod() with a NULL peer_device:
-> 
->   __req_mod(req, what, NULL, &m);
-> 
-> The READ_COMPLETED_WITH_ERROR handler then unconditionally passes this
-> NULL peer_device to drbd_set_out_of_sync(), which dereferences it,
-> causing a null-pointer dereference.
-> 
-> [...]
+here are some simple bio related cleanups.  Any thoughts?  Can those go
+in via your tree?
 
-Applied, thanks!
+Thanks,
+Andreas
 
-[1/1] drbd: fix null-pointer dereference on local read error
-      commit: 0d195d3b205ca90db30d70d09d7bb6909aac178f
+Andreas Gruenbacher (4):
+  block: consecutive blk_status_t error codes
+  block: get rid of blk_status_to_{errno,str} inconsistency
+  bio: rename bio_chain arguments
+  bio: use bio_io_error more often
 
-Best regards,
+ block/bio.c                   | 22 +++++++++++-----------
+ block/blk-core.c              |  5 +----
+ block/fops.c                  |  3 +--
+ drivers/block/drbd/drbd_int.h |  3 +--
+ drivers/md/bcache/bcache.h    |  3 +--
+ drivers/md/bcache/request.c   |  6 ++----
+ drivers/md/dm-mpath.c         |  3 +--
+ drivers/md/dm-writecache.c    |  3 +--
+ fs/f2fs/segment.c             |  3 +--
+ include/linux/blk_types.h     |  2 +-
+ 10 files changed, 21 insertions(+), 32 deletions(-)
+
 -- 
-Jens Axboe
-
-
+2.52.0
 
