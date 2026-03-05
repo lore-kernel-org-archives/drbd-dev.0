@@ -1,27 +1,24 @@
-Return-Path: <agruenba@redhat.com>
-Received: from us-smtp-delivery-124.mimecast.com
-	(us-smtp-delivery-124.mimecast.com [170.10.129.124])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B41FC1630E4
-	for <drbd-dev@lists.linbit.com>; Thu,  5 Mar 2026 19:37:41 +0100 (CET)
-Received: by mail-yw1-f198.google.com with SMTP id
-	00721157ae682-7987861595eso148963607b3.1
-	for <drbd-dev@lists.linbit.com>; Thu, 05 Mar 2026 10:37:38 -0800 (PST)
-MIME-Version: 1.0
+Return-Path: <john.g.garry@oracle.com>
+Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
+	[205.220.177.32])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 1D4D61630E4
+	for <drbd-dev@lists.linbit.com>; Fri,  6 Mar 2026 02:56:23 +0100 (CET)
+Message-ID: <6670e402-8758-4c64-b441-fa7aca40ad8c@oracle.com>
+Date: Thu, 5 Mar 2026 22:36:25 +0000
+Subject: Re: [PATCH 1/4] block: consecutive blk_status_t error codes
+To: Andreas Gruenbacher <agruenba@redhat.com>, Jens Axboe <axboe@kernel.dk>
 References: <20260304190424.291743-1-agruenba@redhat.com>
-	<20260304190424.291743-5-agruenba@redhat.com>
-	<aamP2qNKEmiyXQQH@infradead.org>
-In-Reply-To: <aamP2qNKEmiyXQQH@infradead.org>
-From: Andreas Gruenbacher <agruenba@redhat.com>
-Date: Thu, 5 Mar 2026 19:37:26 +0100
-Message-ID: <CAHc6FU5sEivMqj38xrAXuTxZ0d19LJjxbvoWtsPqm6NYigAEhA@mail.gmail.com>
-Subject: Re: [PATCH 4/4] bio: use bio_io_error more often
-To: Christoph Hellwig <hch@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Cc: Jens Axboe <axboe@kernel.dk>, dm-devel@lists.linux.dev,
-	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	<20260304190424.291743-2-agruenba@redhat.com>
+Content-Language: en-US
+From: John Garry <john.g.garry@oracle.com>
+In-Reply-To: <20260304190424.291743-2-agruenba@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Cc: dm-devel@lists.linux.dev, linux-kernel@vger.kernel.org,
+	linux-f2fs-devel@lists.sourceforge.net,
 	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
-	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -33,29 +30,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Thu, Mar 5, 2026 at 3:14=E2=80=AFPM Christoph Hellwig <hch@infradead.org=
-> wrote:
-> On Wed, Mar 04, 2026 at 08:04:09PM +0100, Andreas Gruenbacher wrote:
-> > Instead of setting bio->bi_status to BLK_STS_IOERR and calling
-> > bio_endio(bio), use the shorthand bio_io_error(bio).
->
-> I'm a little torn how good these helpers actually are, as
-> hard coding one specific type of error seems to create weird
-> code and lead to bugs like the xfs one you fixed yesterday.
->
-> Maybe we just need a bio_endio_status() that allows passing the
-> status?
+On 04/03/2026 19:04, Andreas Gruenbacher wrote:
+> Since commit 9da3d1e912f3 ("block: Add core atomic write support"),
+> there is a gap in the blk_status_t codes and block status code 18 is
+> unused.  This causes blk_status_to_errno() and blk_status_to_str() to
+> return incorrect values for that code. 
 
-I'm not particularly attached to bio_io_error(bio); it's been around
-forever but it can be confusing. Any thoughts on replacing it with a
-new bio_endio_status(bio, BLK_STS_IOERR) helper instead of keeping two
-mechanisms for doing the same thing?
+Sure, we get the wrong value (for 18), but 18 does not match a valid 
+blk_status_t
 
-> Also you really need to send one patch per subsystem.
+> Make the blk_status_t codes
+> consecutive again to avoid that.
+> 
+> Fixes: 9da3d1e912f3 ("block: Add core atomic write support")
+> Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
 
-I'm really trying to avoid that for simple, obviously correct,
-mechanical changes that can be recreated from scratch any time.
+Reviewed-by: John Garry <john.g.garry@oracle.com>
 
-Thanks,
-Andreas
+> ---
+>   include/linux/blk_types.h | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+> index 8808ee76e73c..89a722d76c28 100644
+> --- a/include/linux/blk_types.h
+> +++ b/include/linux/blk_types.h
+> @@ -168,7 +168,7 @@ typedef u16 blk_short_t;
+>   /*
+>    * Invalid size or alignment.
+>    */
+> -#define BLK_STS_INVAL	((__force blk_status_t)19)
+> +#define BLK_STS_INVAL	((__force blk_status_t)18)
+>   
+>   /**
+>    * blk_path_error - returns true if error may be path related
 
