@@ -1,30 +1,24 @@
-Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-wm1-f48.google.com (mail-wm1-f48.google.com
-	[209.85.128.48])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 35430160904
-	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 16:36:35 +0100 (CET)
-Received: by mail-wm1-f48.google.com with SMTP id
-	5b1f17b1804b1-486507134e4so24073995e9.0
-	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 08:36:35 -0700 (PDT)
-Message-ID: <faf5b12f-03a2-4d8c-b333-7fc275ec3191@linbit.com>
-Date: Wed, 18 Mar 2026 16:36:32 +0100
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] drbd: fix rdma dependency
-To: Arnd Bergmann <arnd@arndb.de>, Arnd Bergmann <arnd@kernel.org>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
-References: <20260318104858.1868731-1-arnd@kernel.org>
-	<eeb73048-d5ae-4fbd-9920-1395a3ca51eb@linbit.com>
-	<c3daa9b5-3741-4a18-9bbc-7bad1a2e0c1b@app.fastmail.com>
-From: =?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Content-Language: en-US
-In-Reply-To: <c3daa9b5-3741-4a18-9bbc-7bad1a2e0c1b@app.fastmail.com>
+Return-Path: <colyli@fnnas.com>
+Received: from va-2-40.ptr.blmpb.com (va-2-40.ptr.blmpb.com [209.127.231.40])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 557D1162807
+	for <drbd-dev@lists.linbit.com>;
+	Thu,  5 Mar 2026 15:57:41 +0100 (CET)
+Message-Id: <aamTA2F84tiDbmF3@studio.local>
+Mime-Version: 1.0
+References: <20260304190424.291743-1-agruenba@redhat.com>
+	<20260304190424.291743-5-agruenba@redhat.com>
+In-Reply-To: <20260304190424.291743-5-agruenba@redhat.com>
+Subject: Re: [PATCH 4/4] bio: use bio_io_error more often
+Date: Thu, 5 Mar 2026 22:32:13 +0800
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Cc: "Martin K. Petersen" <martin.petersen@oracle.com>,
-	Eric Biggers <ebiggers@google.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Ard Biesheuvel <ardb@kernel.org>,
-	drbd-dev@lists.linbit.com
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+From: "Coly Li" <colyli@fnnas.com>
+To: "Andreas Gruenbacher" <agruenba@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, dm-devel@lists.linux.dev,
+	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
+	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -36,65 +30,81 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Am 18.03.26 um 16:31 schrieb Arnd Bergmann:
-> On Wed, Mar 18, 2026, at 16:24, Christoph Böhmwalder wrote:
->> Am 18.03.26 um 11:48 schrieb Arnd Bergmann:
->>
->> Seems like we raced here, I already (supposedly?) fixed this on the
->> drbd-next branch.
+On Wed, Mar 04, 2026 at 08:04:09PM +0800, Andreas Gruenbacher wrote:
+> Instead of setting bio->bi_status to BLK_STS_IOERR and calling
+> bio_endio(bio), use the shorthand bio_io_error(bio).
 > 
-> Ok, I assume that will be in linux-next
-
-Correct, should land there today.
-
+> Created with Coccinelle using the following semantic patch:
 > 
->> My fix is this Kconfig:
->>
->> config BLK_DEV_DRBD_RDMA
->> 	tristate "DRBD RDMA transport"
->> 	depends on BLK_DEV_DRBD && INFINIBAND_ADDR_TRANS
->> 	help
->>
->> 	  RDMA transport support for DRBD. This enables DRBD replication
->> 	  over RDMA-capable networks for lower latency and higher throughput.
->>
->> 	  If unsure, say N.
->>
->> And then just this in the Makefile:
->>
->> obj-$(CONFIG_BLK_DEV_DRBD_RDMA) += drbd_transport_rdma.o
->>
->> That should be equivalent, right?
+> @@
+> struct bio *bio;
+> @@
+> - bio->bi_status = BLK_STS_IOERR;
+> - bio_endio(bio);
+> + bio_io_error(bio);
 > 
-> It's close but not the same: 
+> Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  block/fops.c                  | 3 +--
+>  drivers/block/drbd/drbd_int.h | 3 +--
+>  drivers/md/bcache/bcache.h    | 3 +--
+>  drivers/md/bcache/request.c   | 6 ++----
+>  drivers/md/dm-mpath.c         | 3 +--
+>  drivers/md/dm-writecache.c    | 3 +--
+>  fs/f2fs/segment.c             | 3 +--
+>  7 files changed, 8 insertions(+), 16 deletions(-)
 > 
-> - INFINIBAND_ADDR_TRANS is a 'bool' symbol that can still be =y
->   when CONFIG_INFINIBAND=m, so you'd still fail to build
->   BLK_DEV_DRBD_RDMA. You still need a dependency on INFINIBAND
->   (the tristate symbol) itself, though you probably also
->   need the INFINIBAND_ADDR_TRANS one that I missed
-> 
-> - I incorrectly assumed from the earlier Makefile logic
->   that the rdma transport exports symbols that are used
->   by the common drbd code, but I now see that the opposite
->   is the case. The difference is that for the case of
->   BLK_DEV_DRBD=y, CONFIG_INFINIBAND=m, my version force-disabled
->   the RDMA transport, while it should be in a loadable module.
-> 
-> It seems both versions are wrong then, but just adding
-> 'depends on INFINIBAND' on top of yours should fix it.
 
-Yes, ADDR_TRANS is needed because we need the infiniband "cm"
-infrastructure (for rdma_connect et al).
-Right, I did not catch that we need CONFIG_INFINIBAND separately as
-well, but that seems logical.
-I applied the combined fix now.
+[snipped]
 
-Thanks,
-Christoph
+>  
+> diff --git a/drivers/md/bcache/bcache.h b/drivers/md/bcache/bcache.h
+> index ec9ff9715081..e0c9d9eef0a0 100644
+> --- a/drivers/md/bcache/bcache.h
+> +++ b/drivers/md/bcache/bcache.h
+> @@ -947,8 +947,7 @@ static inline void closure_bio_submit(struct cache_set *c,
+>  {
+>  	closure_get(cl);
+>  	if (unlikely(test_bit(CACHE_SET_IO_DISABLE, &c->flags))) {
+> -		bio->bi_status = BLK_STS_IOERR;
+> -		bio_endio(bio);
+> +		bio_io_error(bio);
+>  		return;
+>  	}
+>  	submit_bio_noacct(bio);
+> diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
+> index 3fa3b13a410f..0f6fa0a2920b 100644
+> --- a/drivers/md/bcache/request.c
+> +++ b/drivers/md/bcache/request.c
+> @@ -1178,8 +1178,7 @@ void cached_dev_submit_bio(struct bio *bio)
+>  
+>  	if (unlikely((d->c && test_bit(CACHE_SET_IO_DISABLE, &d->c->flags)) ||
+>  		     dc->io_disable)) {
+> -		bio->bi_status = BLK_STS_IOERR;
+> -		bio_endio(bio);
+> +		bio_io_error(bio);
+>  		return;
+>  	}
+>  
+> @@ -1283,8 +1282,7 @@ void flash_dev_submit_bio(struct bio *bio)
+>  	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
+>  
+>  	if (unlikely(d->c && test_bit(CACHE_SET_IO_DISABLE, &d->c->flags))) {
+> -		bio->bi_status = BLK_STS_IOERR;
+> -		bio_endio(bio);
+> +		bio_io_error(bio);
+>  		return;
+>  	}
+>  
 
--- 
-Christoph Böhmwalder
-LINBIT | Keeping the Digital World Running
-DRBD HA —  Disaster Recovery — Software defined Storage
+For bcache part, I feel current hard code is explict and clear.
+The bio_io_error() wrapper is not so directly understood. This is just
+my opinion, not a strong objection. 
 
+Thanks.
+
+Coly Li
+
+
+[snipped]
