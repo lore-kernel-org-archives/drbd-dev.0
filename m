@@ -1,24 +1,22 @@
-Return-Path: <colyli@fnnas.com>
-Received: from va-2-40.ptr.blmpb.com (va-2-40.ptr.blmpb.com [209.127.231.40])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 557D1162807
-	for <drbd-dev@lists.linbit.com>;
-	Thu,  5 Mar 2026 15:57:41 +0100 (CET)
-Message-Id: <aamTA2F84tiDbmF3@studio.local>
-Mime-Version: 1.0
-References: <20260304190424.291743-1-agruenba@redhat.com>
-	<20260304190424.291743-5-agruenba@redhat.com>
-In-Reply-To: <20260304190424.291743-5-agruenba@redhat.com>
-Subject: Re: [PATCH 4/4] bio: use bio_io_error more often
-Date: Thu, 5 Mar 2026 22:32:13 +0800
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Return-Path: <richard.lyu@suse.com>
+Received: from mail-wm1-f53.google.com (mail-wm1-f53.google.com
+	[209.85.128.53])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 3650A16084A
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Mar 2026 09:35:36 +0100 (CET)
+Received: by mail-wm1-f53.google.com with SMTP id
+	5b1f17b1804b1-485345e1013so5366725e9.1
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Mar 2026 01:35:36 -0700 (PDT)
+Date: Wed, 11 Mar 2026 16:35:31 +0800
+From: Richard Lyu <richard.lyu@suse.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>
+Subject: [PATCH] drbd: fix pointer cast spacing
+Message-ID: <20260311083510.183631-1-richard.lyu@suse.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-From: "Coly Li" <colyli@fnnas.com>
-To: "Andreas Gruenbacher" <agruenba@redhat.com>
-Cc: Jens Axboe <axboe@kernel.dk>, dm-devel@lists.linux.dev,
-	linux-kernel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
-	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
-	Christoph Hellwig <hch@lst.de>, drbd-dev@lists.linbit.com
+Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Richard Lyu <richard.lyu@suse.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,81 +28,31 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On Wed, Mar 04, 2026 at 08:04:09PM +0800, Andreas Gruenbacher wrote:
-> Instead of setting bio->bi_status to BLK_STS_IOERR and calling
-> bio_endio(bio), use the shorthand bio_io_error(bio).
-> 
-> Created with Coccinelle using the following semantic patch:
-> 
-> @@
-> struct bio *bio;
-> @@
-> - bio->bi_status = BLK_STS_IOERR;
-> - bio_endio(bio);
-> + bio_io_error(bio);
-> 
-> Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> ---
->  block/fops.c                  | 3 +--
->  drivers/block/drbd/drbd_int.h | 3 +--
->  drivers/md/bcache/bcache.h    | 3 +--
->  drivers/md/bcache/request.c   | 6 ++----
->  drivers/md/dm-mpath.c         | 3 +--
->  drivers/md/dm-writecache.c    | 3 +--
->  fs/f2fs/segment.c             | 3 +--
->  7 files changed, 8 insertions(+), 16 deletions(-)
-> 
+Checkpatch.pl reports the following coding style issue:
+ERROR: "(foo*)" should be "(foo *)"
++		struct p_trim *t = (struct p_trim*)p;
 
-[snipped]
+Place '*' next to the variable in the cast expression to follow
+the kernel coding style. No functional change.
 
->  
-> diff --git a/drivers/md/bcache/bcache.h b/drivers/md/bcache/bcache.h
-> index ec9ff9715081..e0c9d9eef0a0 100644
-> --- a/drivers/md/bcache/bcache.h
-> +++ b/drivers/md/bcache/bcache.h
-> @@ -947,8 +947,7 @@ static inline void closure_bio_submit(struct cache_set *c,
->  {
->  	closure_get(cl);
->  	if (unlikely(test_bit(CACHE_SET_IO_DISABLE, &c->flags))) {
-> -		bio->bi_status = BLK_STS_IOERR;
-> -		bio_endio(bio);
-> +		bio_io_error(bio);
->  		return;
->  	}
->  	submit_bio_noacct(bio);
-> diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
-> index 3fa3b13a410f..0f6fa0a2920b 100644
-> --- a/drivers/md/bcache/request.c
-> +++ b/drivers/md/bcache/request.c
-> @@ -1178,8 +1178,7 @@ void cached_dev_submit_bio(struct bio *bio)
->  
->  	if (unlikely((d->c && test_bit(CACHE_SET_IO_DISABLE, &d->c->flags)) ||
->  		     dc->io_disable)) {
-> -		bio->bi_status = BLK_STS_IOERR;
-> -		bio_endio(bio);
-> +		bio_io_error(bio);
->  		return;
->  	}
->  
-> @@ -1283,8 +1282,7 @@ void flash_dev_submit_bio(struct bio *bio)
->  	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
->  
->  	if (unlikely(d->c && test_bit(CACHE_SET_IO_DISABLE, &d->c->flags))) {
-> -		bio->bi_status = BLK_STS_IOERR;
-> -		bio_endio(bio);
-> +		bio_io_error(bio);
->  		return;
->  	}
->  
+Signed-off-by: Richard Lyu <richard.lyu@suse.com>
+---
+ drivers/block/drbd/drbd_main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-For bcache part, I feel current hard code is explict and clear.
-The bio_io_error() wrapper is not so directly understood. This is just
-my opinion, not a strong objection. 
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index b8f0eddf7e87..978023e969f8 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -1681,7 +1681,7 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
+ 
+ 	if (dp_flags & (DP_DISCARD|DP_ZEROES)) {
+ 		enum drbd_packet cmd = (dp_flags & DP_ZEROES) ? P_ZEROES : P_TRIM;
+-		struct p_trim *t = (struct p_trim*)p;
++		struct p_trim *t = (struct p_trim *)p;
+ 		t->size = cpu_to_be32(req->i.size);
+ 		err = __send_command(peer_device->connection, device->vnr, sock, cmd, sizeof(*t), NULL, 0);
+ 		goto out;
+-- 
+2.51.0
 
-Thanks.
-
-Coly Li
-
-
-[snipped]
