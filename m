@@ -1,24 +1,21 @@
-Return-Path: <john.g.garry@oracle.com>
-Received: from mx0b-00069f02.pphosted.com (mx0b-00069f02.pphosted.com
-	[205.220.177.32])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id D31C7160881
-	for <drbd-dev@lists.linbit.com>; Fri,  6 Mar 2026 16:51:39 +0100 (CET)
-Message-ID: <a60a80a7-e612-4eb1-a151-eaaef57ac14c@oracle.com>
-Date: Fri, 6 Mar 2026 15:51:29 +0000
-Subject: Re: [PATCH 2/4] block: get rid of blk_status_to_{errno,str}
-	inconsistency
-To: Andreas Gruenbacher <agruenba@redhat.com>, Jens Axboe <axboe@kernel.dk>
-References: <20260304190424.291743-1-agruenba@redhat.com>
-	<20260304190424.291743-3-agruenba@redhat.com>
+Return-Path: <bvanassche@acm.org>
+Received: from 013.lax.mailroute.net (013.lax.mailroute.net [199.89.1.16])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 13050160876
+	for <drbd-dev@lists.linbit.com>; Wed, 11 Mar 2026 17:57:07 +0100 (CET)
+Message-ID: <445d61ae-c579-4558-a127-62291473ac6f@acm.org>
+Date: Wed, 11 Mar 2026 09:49:49 -0700
+MIME-Version: 1.0
+Subject: Re: [PATCH] drbd: fix pointer cast spacing
+To: Richard Lyu <richard.lyu@suse.com>,
+	Philipp Reisner <philipp.reisner@linbit.com>
+References: <20260311083510.183631-1-richard.lyu@suse.com>
 Content-Language: en-US
-From: John Garry <john.g.garry@oracle.com>
-In-Reply-To: <20260304190424.291743-3-agruenba@redhat.com>
+From: Bart Van Assche <bvanassche@acm.org>
+In-Reply-To: <20260311083510.183631-1-richard.lyu@suse.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-MIME-Version: 1.0
-Cc: dm-devel@lists.linux.dev, linux-kernel@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-block@vger.kernel.org, linux-bcache@vger.kernel.org,
+Cc: Jens Axboe <axboe@kernel.dk>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
 	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -31,13 +28,14 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 04/03/2026 19:04, Andreas Gruenbacher wrote:
-> Change blk_status_to_str() to be consistent with blk_status_to_errno()
-> and return "I/O" for undefined status codes.
-> 
-> With that, the fallback case in the blk_errors array can be removed with
-> no change in behavior.
-> 
-> Signed-off-by: Andreas Gruenbacher<agruenba@redhat.com>
+On 3/11/26 1:35 AM, Richard Lyu wrote:
+> Checkpatch.pl reports the following coding style issue:
+> ERROR: "(foo*)" should be "(foo *)"
+> +		struct p_trim *t = (struct p_trim*)p;
+Checkpatch is for checking patches before these are posted on a Linux
+kernel mailing list and should not be used on code that has already
+been merged into the Linux kernel tree.
 
-Reviewed-by: John Garry <john.g.garry@oracle.com>
+Thanks,
+
+Bart.
