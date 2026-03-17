@@ -1,19 +1,19 @@
 Return-Path: <ethantidmore06@gmail.com>
-Received: from mail-yw1-f171.google.com (mail-yw1-f171.google.com
-	[209.85.128.171])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2B7CF1622B5
+Received: from mail-yw1-f175.google.com (mail-yw1-f175.google.com
+	[209.85.128.175])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 504B916276A
 	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 00:23:22 +0100 (CET)
-Received: by mail-yw1-f171.google.com with SMTP id
-	00721157ae682-7927261a3acso51072437b3.0
+Received: by mail-yw1-f175.google.com with SMTP id
+	00721157ae682-79a46ebe2beso28145787b3.2
 	for <drbd-dev@lists.linbit.com>; Tue, 17 Mar 2026 16:23:22 -0700 (PDT)
 From: Ethan Tidmore <ethantidmore06@gmail.com>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
 	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 2/4] drbd: Fix variable dereference before check
-Date: Tue, 17 Mar 2026 18:23:16 -0500
-Message-ID: <20260317232318.18923-3-ethantidmore06@gmail.com>
+Subject: [PATCH 1/4] drbd: Fix out-of-bounds access
+Date: Tue, 17 Mar 2026 18:23:15 -0500
+Message-ID: <20260317232318.18923-2-ethantidmore06@gmail.com>
 In-Reply-To: <20260317232318.18923-1-ethantidmore06@gmail.com>
 References: <20260317232318.18923-1-ethantidmore06@gmail.com>
 MIME-Version: 1.0
@@ -31,41 +31,38 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The struct is 'req' is checked for NULL after resource was assigned from
-a member from it.
+The array sync_rule_names[] has 22 elements and rule is used to access
+this array. The variable rule has the possibility of being index 22
+because the condition (rule > ARRAY_SIZE(sync_rule_names)) could
+evaluate to 22 > 22 which would be false and then rule would be used to
+index sync_rule_names[] which would cause and out-of-bounds bug.
 
-Check 'req' for NULL before assigning resource.
+Change condition from (rule > ARRAY_SIZE(sync_rule_names)) to
+(rule >= ARRAY_SIZE(sync_rule_names)).
 
 Detected by Smatch:
-drivers/block/drbd/drbd_req.c:1996 drbd_unplug() warn:
-variable dereferenced before check 'req' (see line 1993)
+drivers/block/drbd/drbd_receiver.c:280 drbd_sync_rule_str() error:
+buffer overflow 'sync_rule_names' 22 <= 22
 
-Fixes: 71d075200b462 ("drbd: rework request processing for DRBD 9 multi-peer IO")
+Fixes: 851f106c134a3 ("drbd: rework receiver for DRBD 9 transport and protocol")
 Signed-off-by: Ethan Tidmore <ethantidmore06@gmail.com>
 ---
- drivers/block/drbd/drbd_req.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ drivers/block/drbd/drbd_receiver.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_req.c b/drivers/block/drbd/drbd_req.c
-index e88b5da15c1e..4cbd9ec15157 100644
---- a/drivers/block/drbd/drbd_req.c
-+++ b/drivers/block/drbd/drbd_req.c
-@@ -1990,12 +1990,14 @@ static void drbd_unplug(struct blk_plug_cb *cb, bool from_schedule)
+diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
+index 06d83b5ffafb..280be2ee7d7e 100644
+--- a/drivers/block/drbd/drbd_receiver.c
++++ b/drivers/block/drbd/drbd_receiver.c
+@@ -273,7 +273,7 @@ static void drbd_cancel_conflicting_resync_requests(struct drbd_peer_device *pee
+ 
+ static const char *drbd_sync_rule_str(enum sync_rule rule)
  {
- 	struct drbd_plug_cb *plug = container_of(cb, struct drbd_plug_cb, cb);
- 	struct drbd_request *req = plug->most_recent_req;
--	struct drbd_resource *resource = req->device->resource;
-+	struct drbd_resource *resource;
- 
- 	kfree(cb);
- 	if (!req)
- 		return;
- 
-+	resource = req->device->resource;
-+
- 	read_lock_irq(&resource->state_rwlock);
- 	/* In case the sender did not process it yet, raise the flag to
- 	 * have it followed with P_UNPLUG_REMOTE just after. */
+-	if (rule < 0 || rule > ARRAY_SIZE(sync_rule_names)) {
++	if (rule < 0 || rule >= ARRAY_SIZE(sync_rule_names)) {
+ 		WARN_ON(true);
+ 		return "?";
+ 	}
 -- 
 2.53.0
 
