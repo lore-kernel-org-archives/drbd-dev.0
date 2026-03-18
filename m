@@ -1,26 +1,27 @@
 Return-Path: <christoph.boehmwalder@linbit.com>
-Received: from mail-wm1-f53.google.com (mail-wm1-f53.google.com
-	[209.85.128.53])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 947F6160904
-	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 16:24:42 +0100 (CET)
-Received: by mail-wm1-f53.google.com with SMTP id
-	5b1f17b1804b1-48541edecf9so76300225e9.1
-	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 08:24:42 -0700 (PDT)
-Message-ID: <eeb73048-d5ae-4fbd-9920-1395a3ca51eb@linbit.com>
-Date: Wed, 18 Mar 2026 16:24:39 +0100
+Received: from mail-wm1-f48.google.com (mail-wm1-f48.google.com
+	[209.85.128.48])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 35430160904
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 16:36:35 +0100 (CET)
+Received: by mail-wm1-f48.google.com with SMTP id
+	5b1f17b1804b1-486507134e4so24073995e9.0
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 08:36:35 -0700 (PDT)
+Message-ID: <faf5b12f-03a2-4d8c-b333-7fc275ec3191@linbit.com>
+Date: Wed, 18 Mar 2026 16:36:32 +0100
 MIME-Version: 1.0
 Subject: Re: [PATCH 1/2] drbd: fix rdma dependency
-To: Arnd Bergmann <arnd@kernel.org>,
+To: Arnd Bergmann <arnd@arndb.de>, Arnd Bergmann <arnd@kernel.org>,
 	Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>
 References: <20260318104858.1868731-1-arnd@kernel.org>
+	<eeb73048-d5ae-4fbd-9920-1395a3ca51eb@linbit.com>
+	<c3daa9b5-3741-4a18-9bbc-7bad1a2e0c1b@app.fastmail.com>
 From: =?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
 Content-Language: en-US
-In-Reply-To: <20260318104858.1868731-1-arnd@kernel.org>
+In-Reply-To: <c3daa9b5-3741-4a18-9bbc-7bad1a2e0c1b@app.fastmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Arnd Bergmann <arnd@arndb.de>,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
+Cc: "Martin K. Petersen" <martin.petersen@oracle.com>,
 	Eric Biggers <ebiggers@google.com>, linux-kernel@vger.kernel.org,
 	linux-block@vger.kernel.org, Ard Biesheuvel <ardb@kernel.org>,
 	drbd-dev@lists.linbit.com
@@ -35,88 +36,59 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-
-
-Am 18.03.26 um 11:48 schrieb Arnd Bergmann:
-> From: Arnd Bergmann <arnd@arndb.de>
+Am 18.03.26 um 16:31 schrieb Arnd Bergmann:
+> On Wed, Mar 18, 2026, at 16:24, Christoph Böhmwalder wrote:
+>> Am 18.03.26 um 11:48 schrieb Arnd Bergmann:
+>>
+>> Seems like we raced here, I already (supposedly?) fixed this on the
+>> drbd-next branch.
 > 
-> The new rdma transport module uses a trick to only build support
-> if infiniband/rdma is enabled. This seems to be done the wrong way
-> around, as it gets built if RDMA is in a loadable module, but not
-> if it's built-in.
+> Ok, I assume that will be in linux-next
+
+Correct, should land there today.
+
 > 
-> However, this fails in configurations that have infiniband support
-> in a loadable module but drbd built-in:
+>> My fix is this Kconfig:
+>>
+>> config BLK_DEV_DRBD_RDMA
+>> 	tristate "DRBD RDMA transport"
+>> 	depends on BLK_DEV_DRBD && INFINIBAND_ADDR_TRANS
+>> 	help
+>>
+>> 	  RDMA transport support for DRBD. This enables DRBD replication
+>> 	  over RDMA-capable networks for lower latency and higher throughput.
+>>
+>> 	  If unsure, say N.
+>>
+>> And then just this in the Makefile:
+>>
+>> obj-$(CONFIG_BLK_DEV_DRBD_RDMA) += drbd_transport_rdma.o
+>>
+>> That should be equivalent, right?
 > 
-> ERROR: modpost: "rdma_bind_addr" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
-> ERROR: modpost: "rdma_listen" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
-> ERROR: modpost: "rdma_destroy_id" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
-> ERROR: modpost: "rdma_destroy_qp" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
-> ERROR: modpost: "rdma_disconnect" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
-> ERROR: modpost: "__rdma_create_kernel_id" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
-> ERROR: modpost: "rdma_resolve_route" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
-> ERROR: modpost: "rdma_reject" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
-> ERROR: modpost: "rdma_accept" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
-> ERROR: modpost: "rdma_create_qp" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+> It's close but not the same: 
 > 
-> Address this by moving the logic from Makefile into Kconfig and
-> describing the two conditions in which rdma transport can be used
-> in drbd.
+> - INFINIBAND_ADDR_TRANS is a 'bool' symbol that can still be =y
+>   when CONFIG_INFINIBAND=m, so you'd still fail to build
+>   BLK_DEV_DRBD_RDMA. You still need a dependency on INFINIBAND
+>   (the tristate symbol) itself, though you probably also
+>   need the INFINIBAND_ADDR_TRANS one that I missed
 > 
-> Fixes: 038cb6e644e4 ("drbd: add RDMA transport implementation")
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-> ---
->  drivers/block/drbd/Kconfig  | 5 +++++
->  drivers/block/drbd/Makefile | 2 +-
->  2 files changed, 6 insertions(+), 1 deletion(-)
+> - I incorrectly assumed from the earlier Makefile logic
+>   that the rdma transport exports symbols that are used
+>   by the common drbd code, but I now see that the opposite
+>   is the case. The difference is that for the case of
+>   BLK_DEV_DRBD=y, CONFIG_INFINIBAND=m, my version force-disabled
+>   the RDMA transport, while it should be in a loadable module.
 > 
-> diff --git a/drivers/block/drbd/Kconfig b/drivers/block/drbd/Kconfig
-> index 377f0d040031..29ec6ed84251 100644
-> --- a/drivers/block/drbd/Kconfig
-> +++ b/drivers/block/drbd/Kconfig
-> @@ -39,6 +39,11 @@ config BLK_DEV_DRBD
->  
->  	  If unsure, say N.
->  
-> +config DRBD_TRANSPORT_RDMA
-> +	tristate
-> +	depends on RDMA=y || (BLK_DEV_DRBD=RDMA)
-> +	default BLK_DEV_DRBD
-> +
->  config DRBD_FAULT_INJECTION
->  	bool "DRBD fault injection"
->  	depends on BLK_DEV_DRBD
-> diff --git a/drivers/block/drbd/Makefile b/drivers/block/drbd/Makefile
-> index 99a1cfeed423..caf888235d53 100644
-> --- a/drivers/block/drbd/Makefile
-> +++ b/drivers/block/drbd/Makefile
-> @@ -13,4 +13,4 @@ obj-$(CONFIG_BLK_DEV_DRBD)     += drbd.o
->  
->  obj-$(CONFIG_BLK_DEV_DRBD)     += drbd_transport_tcp.o
->  obj-$(CONFIG_BLK_DEV_DRBD)     += drbd_transport_lb-tcp.o
-> -obj-$(if $(CONFIG_BLK_DEV_DRBD),$(if $(CONFIG_INFINIBAND),m)) += drbd_transport_rdma.o
-> +obj-$(CONFIG_DRBD_TRANSPORT_RDMA) += drbd_transport_rdma.o
+> It seems both versions are wrong then, but just adding
+> 'depends on INFINIBAND' on top of yours should fix it.
 
-Seems like we raced here, I already (supposedly?) fixed this on the
-drbd-next branch.
-
-My fix is this Kconfig:
-
-config BLK_DEV_DRBD_RDMA
-	tristate "DRBD RDMA transport"
-	depends on BLK_DEV_DRBD && INFINIBAND_ADDR_TRANS
-	help
-
-	  RDMA transport support for DRBD. This enables DRBD replication
-	  over RDMA-capable networks for lower latency and higher throughput.
-
-	  If unsure, say N.
-
-And then just this in the Makefile:
-
-obj-$(CONFIG_BLK_DEV_DRBD_RDMA) += drbd_transport_rdma.o
-
-That should be equivalent, right?
+Yes, ADDR_TRANS is needed because we need the infiniband "cm"
+infrastructure (for rdma_connect et al).
+Right, I did not catch that we need CONFIG_INFINIBAND separately as
+well, but that seems logical.
+I applied the combined fix now.
 
 Thanks,
 Christoph
