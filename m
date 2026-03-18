@@ -1,25 +1,22 @@
-Return-Path: <colin.i.king@gmail.com>
-Received: from mail-wm1-f54.google.com (mail-wm1-f54.google.com
-	[209.85.128.54])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id CCAB91608F3
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Mar 2026 21:27:13 +0100 (CET)
-Received: by mail-wm1-f54.google.com with SMTP id
-	5b1f17b1804b1-4853c1ca73aso42024505e9.2
-	for <drbd-dev@lists.linbit.com>; Mon, 16 Mar 2026 13:27:13 -0700 (PDT)
-From: Colin Ian King <colin.i.king@gmail.com>
+Return-Path: <arnd@kernel.org>
+Received: from tor.source.kernel.org (tor.source.kernel.org [172.105.4.254])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AE70D160941
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 11:56:06 +0100 (CET)
+From: Arnd Bergmann <arnd@kernel.org>
 To: Philipp Reisner <philipp.reisner@linbit.com>,
 	Lars Ellenberg <lars.ellenberg@linbit.com>,
 	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
-	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>,
-	drbd-dev@lists.linbit.com, linux-block@vger.kernel.org
-Subject: [PATCH][next] drbd: Fix typos: "receive_peer_dagatg" ->
-	"receive_peer_dagtag"
-Date: Mon, 16 Mar 2026 20:25:48 +0000
-Message-ID: <20260316202549.33978-1-colin.i.king@gmail.com>
+	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>
+Subject: [PATCH 1/2] drbd: fix rdma dependency
+Date: Wed, 18 Mar 2026 11:48:49 +0100
+Message-Id: <20260318104858.1868731-1-arnd@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Arnd Bergmann <arnd@arndb.de>,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	Eric Biggers <ebiggers@google.com>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Ard Biesheuvel <ardb@kernel.org>,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,35 +28,64 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-There are a couple of typos in drbd_info and drbd_err messages.
-Fix them.
+From: Arnd Bergmann <arnd@arndb.de>
 
-Signed-off-by: Colin Ian King <colin.i.king@gmail.com>
+The new rdma transport module uses a trick to only build support
+if infiniband/rdma is enabled. This seems to be done the wrong way
+around, as it gets built if RDMA is in a loadable module, but not
+if it's built-in.
+
+However, this fails in configurations that have infiniband support
+in a loadable module but drbd built-in:
+
+ERROR: modpost: "rdma_bind_addr" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+ERROR: modpost: "rdma_listen" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+ERROR: modpost: "rdma_destroy_id" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+ERROR: modpost: "rdma_destroy_qp" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+ERROR: modpost: "rdma_disconnect" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+ERROR: modpost: "__rdma_create_kernel_id" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+ERROR: modpost: "rdma_resolve_route" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+ERROR: modpost: "rdma_reject" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+ERROR: modpost: "rdma_accept" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+ERROR: modpost: "rdma_create_qp" [drivers/block/drbd/drbd_transport_rdma.ko] undefined!
+
+Address this by moving the logic from Makefile into Kconfig and
+describing the two conditions in which rdma transport can be used
+in drbd.
+
+Fixes: 038cb6e644e4 ("drbd: add RDMA transport implementation")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 ---
- drivers/block/drbd/drbd_receiver.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/block/drbd/Kconfig  | 5 +++++
+ drivers/block/drbd/Makefile | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/block/drbd/drbd_receiver.c b/drivers/block/drbd/drbd_receiver.c
-index 06d83b5ffafb..100207623182 100644
---- a/drivers/block/drbd/drbd_receiver.c
-+++ b/drivers/block/drbd/drbd_receiver.c
-@@ -8850,14 +8850,14 @@ static int receive_peer_dagtag(struct drbd_connection *connection, struct packet
- 			    strategy != SYNC_SOURCE_USE_BITMAP &&
- 			    strategy != SYNC_TARGET_USE_BITMAP) {
- 				drbd_info(peer_device,
--					  "receive_peer_dagatg(): %s by rule=%s\n",
-+					  "receive_peer_dagtag(): %s by rule=%s\n",
- 					  strategy_descriptor(strategy).name,
- 					  drbd_sync_rule_str(rule));
- 				goto out;
- 			}
- 		} else if (ps != strategy) {
- 			drbd_err(peer_device,
--				 "receive_peer_dagatg(): Inconsistent resync directions %s %s\n",
-+				 "receive_peer_dagtag(): Inconsistent resync directions %s %s\n",
- 				 strategy_descriptor(strategy).name, strategy_descriptor(ps).name);
- 			goto out;
- 		}
+diff --git a/drivers/block/drbd/Kconfig b/drivers/block/drbd/Kconfig
+index 377f0d040031..29ec6ed84251 100644
+--- a/drivers/block/drbd/Kconfig
++++ b/drivers/block/drbd/Kconfig
+@@ -39,6 +39,11 @@ config BLK_DEV_DRBD
+ 
+ 	  If unsure, say N.
+ 
++config DRBD_TRANSPORT_RDMA
++	tristate
++	depends on RDMA=y || (BLK_DEV_DRBD=RDMA)
++	default BLK_DEV_DRBD
++
+ config DRBD_FAULT_INJECTION
+ 	bool "DRBD fault injection"
+ 	depends on BLK_DEV_DRBD
+diff --git a/drivers/block/drbd/Makefile b/drivers/block/drbd/Makefile
+index 99a1cfeed423..caf888235d53 100644
+--- a/drivers/block/drbd/Makefile
++++ b/drivers/block/drbd/Makefile
+@@ -13,4 +13,4 @@ obj-$(CONFIG_BLK_DEV_DRBD)     += drbd.o
+ 
+ obj-$(CONFIG_BLK_DEV_DRBD)     += drbd_transport_tcp.o
+ obj-$(CONFIG_BLK_DEV_DRBD)     += drbd_transport_lb-tcp.o
+-obj-$(if $(CONFIG_BLK_DEV_DRBD),$(if $(CONFIG_INFINIBAND),m)) += drbd_transport_rdma.o
++obj-$(CONFIG_DRBD_TRANSPORT_RDMA) += drbd_transport_rdma.o
 -- 
-2.53.0
+2.39.5
 
