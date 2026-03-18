@@ -1,25 +1,27 @@
-Return-Path: <ethantidmore06@gmail.com>
-Received: from mail-yw1-f170.google.com (mail-yw1-f170.google.com
-	[209.85.128.170])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 66411162774
-	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 00:23:24 +0100 (CET)
-Received: by mail-yw1-f170.google.com with SMTP id
-	00721157ae682-79a40fb9890so30973257b3.1
-	for <drbd-dev@lists.linbit.com>; Tue, 17 Mar 2026 16:23:24 -0700 (PDT)
-From: Ethan Tidmore <ethantidmore06@gmail.com>
-To: Philipp Reisner <philipp.reisner@linbit.com>,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?=
-	<christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 4/4] drbd: Add check for error pointer
-Date: Tue, 17 Mar 2026 18:23:18 -0500
-Message-ID: <20260317232318.18923-5-ethantidmore06@gmail.com>
-In-Reply-To: <20260317232318.18923-1-ethantidmore06@gmail.com>
-References: <20260317232318.18923-1-ethantidmore06@gmail.com>
+Return-Path: <arnd@arndb.de>
+Received: from fhigh-a6-smtp.messagingengine.com
+	(fhigh-a6-smtp.messagingengine.com [103.168.172.157])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 4DA5C160904
+	for <drbd-dev@lists.linbit.com>; Wed, 18 Mar 2026 16:39:18 +0100 (CET)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Cc: linux-block@vger.kernel.org, Ethan Tidmore <ethantidmore06@gmail.com>,
-	linux-kernel@vger.kernel.org, drbd-dev@lists.linbit.com
+Date: Wed, 18 Mar 2026 16:31:31 +0100
+From: "Arnd Bergmann" <arnd@arndb.de>
+To: =?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>,
+	"Arnd Bergmann" <arnd@kernel.org>,
+	"Philipp Reisner" <philipp.reisner@linbit.com>,
+	"Lars Ellenberg" <lars.ellenberg@linbit.com>,
+	"Jens Axboe" <axboe@kernel.dk>
+Message-Id: <c3daa9b5-3741-4a18-9bbc-7bad1a2e0c1b@app.fastmail.com>
+In-Reply-To: <eeb73048-d5ae-4fbd-9920-1395a3ca51eb@linbit.com>
+References: <20260318104858.1868731-1-arnd@kernel.org>
+	<eeb73048-d5ae-4fbd-9920-1395a3ca51eb@linbit.com>
+Subject: Re: [PATCH 1/2] drbd: fix rdma dependency
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Cc: "Martin K. Petersen" <martin.petersen@oracle.com>,
+	Eric Biggers <ebiggers@google.com>, linux-kernel@vger.kernel.org,
+	linux-block@vger.kernel.org, Ard Biesheuvel <ardb@kernel.org>,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,34 +33,48 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-The function find_cfg_context_attr() can return an error pointer or NULL
-in its error path.
+On Wed, Mar 18, 2026, at 16:24, Christoph B=C3=B6hmwalder wrote:
+> Am 18.03.26 um 11:48 schrieb Arnd Bergmann:
+>
+> Seems like we raced here, I already (supposedly?) fixed this on the
+> drbd-next branch.
 
-Change NULL check to IS_ERR_OR_NULL().
+Ok, I assume that will be in linux-next
 
-Detected by Smatch:
-drivers/block/drbd/drbd_nl.c:6571 drbd_adm_dump_paths() error:
-'resource_filter' dereferencing possible ERR_PTR()
+> My fix is this Kconfig:
+>
+> config BLK_DEV_DRBD_RDMA
+> 	tristate "DRBD RDMA transport"
+> 	depends on BLK_DEV_DRBD && INFINIBAND_ADDR_TRANS
+> 	help
+>
+> 	  RDMA transport support for DRBD. This enables DRBD replication
+> 	  over RDMA-capable networks for lower latency and higher throughput.
+>
+> 	  If unsure, say N.
+>
+> And then just this in the Makefile:
+>
+> obj-$(CONFIG_BLK_DEV_DRBD_RDMA) +=3D drbd_transport_rdma.o
+>
+> That should be equivalent, right?
 
-Fixes: 626c95b0e2a23 ("drbd: rework netlink interface for DRBD 9 multi-peer config")
-Signed-off-by: Ethan Tidmore <ethantidmore06@gmail.com>
----
- drivers/block/drbd/drbd_nl.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+It's close but not the same:=20
 
-diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
-index c5e253820ccf..1f458eb972e9 100644
---- a/drivers/block/drbd/drbd_nl.c
-+++ b/drivers/block/drbd/drbd_nl.c
-@@ -6566,7 +6566,7 @@ static int drbd_adm_dump_paths(struct sk_buff *skb, struct netlink_callback *cb)
- 	resource = (struct drbd_resource *)cb->args[0];
- 	if (!cb->args[0]) {
- 		resource_filter = find_cfg_context_attr(cb->nlh, T_ctx_resource_name);
--		if (resource_filter) {
-+		if (!IS_ERR_OR_NULL(resource_filter)) {
- 			retcode = ERR_RES_NOT_KNOWN;
- 			resource = drbd_find_resource(nla_data(resource_filter));
- 			if (!resource)
--- 
-2.53.0
+- INFINIBAND_ADDR_TRANS is a 'bool' symbol that can still be =3Dy
+  when CONFIG_INFINIBAND=3Dm, so you'd still fail to build
+  BLK_DEV_DRBD_RDMA. You still need a dependency on INFINIBAND
+  (the tristate symbol) itself, though you probably also
+  need the INFINIBAND_ADDR_TRANS one that I missed
 
+- I incorrectly assumed from the earlier Makefile logic
+  that the rdma transport exports symbols that are used
+  by the common drbd code, but I now see that the opposite
+  is the case. The difference is that for the case of
+  BLK_DEV_DRBD=3Dy, CONFIG_INFINIBAND=3Dm, my version force-disabled
+  the RDMA transport, while it should be in a loadable module.
+
+It seems both versions are wrong then, but just adding
+'depends on INFINIBAND' on top of yours should fix it.
+
+        Arnd
