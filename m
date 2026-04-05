@@ -1,26 +1,22 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-ot1-f51.google.com (mail-ot1-f51.google.com
-	[209.85.210.51])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 7CB96160849
-	for <drbd-dev@lists.linbit.com>; Wed,  8 Apr 2026 14:59:00 +0200 (CEST)
-Received: by mail-ot1-f51.google.com with SMTP id
-	46e09a7af769-7dbf23885dfso1380143a34.3
-	for <drbd-dev@lists.linbit.com>; Wed, 08 Apr 2026 05:59:00 -0700 (PDT)
-Message-ID: <c92d5318-8c8e-434f-835e-61cf1fae4edf@kernel.dk>
-Date: Wed, 8 Apr 2026 06:58:58 -0600
+Return-Path: <devnexen@gmail.com>
+Received: from mail-wm1-f45.google.com (mail-wm1-f45.google.com
+	[209.85.128.45])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 240C8160920
+	for <drbd-dev@lists.linbit.com>; Sun,  5 Apr 2026 17:47:10 +0200 (CEST)
+Received: by mail-wm1-f45.google.com with SMTP id
+	5b1f17b1804b1-48557c8ad47so26022655e9.0
+	for <drbd-dev@lists.linbit.com>; Sun, 05 Apr 2026 08:47:10 -0700 (PDT)
+From: David Carlier <devnexen@gmail.com>
+To: Philipp Reisner <philipp.reisner@linbit.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>,
+	=?UTF-8?q?Christoph=20B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+Subject: [PATCH v3] drbd: use get_random_u64() where appropriate
+Date: Sun,  5 Apr 2026 16:47:04 +0100
+Message-ID: <20260405154704.4610-1-devnexen@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/20] DRBD 9 rework
-To: Christoph Hellwig <hch@infradead.org>
-References: <20260327223820.2244227-1-christoph.boehmwalder@linbit.com>
-	<ecf00b4b-c3f8-4161-a97d-3d23b423cabf@kernel.dk>
-	<adXk_m3SbRcWTOIC@infradead.org>
-Content-Language: en-US
-From: Jens Axboe <axboe@kernel.dk>
-In-Reply-To: <adXk_m3SbRcWTOIC@infradead.org>
-Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	David Carlier <devnexen@gmail.com>, linux-kernel@vger.kernel.org,
 	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
@@ -33,30 +29,52 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 4/7/26 11:17 PM, Christoph Hellwig wrote:
-> On Thu, Apr 02, 2026 at 07:30:35PM -0600, Jens Axboe wrote:
->> On 3/27/26 4:38 PM, Christoph Böhmwalder wrote:
->>> As discussed (context: [0]), here is the first version of our DRBD 9
->>> rework series, intended for for-next via for-7.1/drbd.
->>
->> Will you fixup the kerneldoc (nits) and the assigned-but-not-read
->> issues and send out a new version? Also looks this series doesn't
->> actually apply to for-7.1/block, patch 12 fails.
-> 
-> Looks like all this went in without any review?  Since when have we
-> started these grand replacements anyway, as they are known to cause
-> bugs and regressions?
+Use the typed random integer helpers instead of
+get_random_bytes() when filling a single integer variable.
+The helpers return the value directly, require no pointer
+or size argument, and better express intent.
 
-See the previous discussion, the goal is to sync the two drbd code
-bases. It's followed the "usual" pattern of the in-kernel driver being
-neglected and development and users pushed to the out-of-tree one,
-which is highly annoying.
+Signed-off-by: David Carlier <devnexen@gmail.com>
+---
+ drivers/block/drbd/drbd_main.c | 4 ++--
+ drivers/block/drbd/drbd_nl.c   | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
-As per the previous thread, the intent is not to push to to mainline
-right now, but rather give it -next exposure without running into
-conflicts between the trees. for-7.x/drbd will be rebased as needed,
-and it's only in for-next for the stated reason.
-
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 200d464e984b..b1a721dd0496 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -874,7 +874,7 @@ void drbd_gen_and_send_sync_uuid(struct drbd_peer_device *peer_device)
+ 	if (uuid && uuid != UUID_JUST_CREATED)
+ 		uuid = uuid + UUID_NEW_BM_OFFSET;
+ 	else
+-		get_random_bytes(&uuid, sizeof(u64));
++		uuid = get_random_u64();
+ 	drbd_uuid_set(device, UI_BITMAP, uuid);
+ 	drbd_print_uuids(device, "updated sync UUID");
+ 	drbd_md_sync(device);
+@@ -3337,7 +3337,7 @@ void drbd_uuid_new_current(struct drbd_device *device) __must_hold(local)
+ 	u64 val;
+ 	unsigned long long bm_uuid;
+ 
+-	get_random_bytes(&val, sizeof(u64));
++	val = get_random_u64();
+ 
+ 	spin_lock_irq(&device->ldev->md.uuid_lock);
+ 	bm_uuid = device->ldev->md.uuid[UI_BITMAP];
+diff --git a/drivers/block/drbd/drbd_nl.c b/drivers/block/drbd/drbd_nl.c
+index e201f0087a0f..377f60b40f28 100644
+--- a/drivers/block/drbd/drbd_nl.c
++++ b/drivers/block/drbd/drbd_nl.c
+@@ -3173,7 +3173,7 @@ int drbd_adm_resume_io(struct sk_buff *skb, struct genl_info *info)
+ 			 * matching real data uuid exists).
+ 			 */
+ 			u64 val;
+-			get_random_bytes(&val, sizeof(u64));
++			val = get_random_u64();
+ 			drbd_set_ed_uuid(device, val);
+ 			drbd_warn(device, "Resumed without access to data; please tear down before attempting to re-configure.\n");
+ 		}
 -- 
-Jens Axboe
+2.53.0
 
