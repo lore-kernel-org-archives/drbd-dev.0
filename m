@@ -1,25 +1,28 @@
-Return-Path: <BATV+4d4f7abe5776451c4d8a+8263+infradead.org+hch@bombadil.srs.infradead.org>
-Received: from bombadil.infradead.org (bombadil.infradead.org
-	[198.137.202.133])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 2756316312D
-	for <drbd-dev@lists.linbit.com>; Wed,  8 Apr 2026 07:46:27 +0200 (CEST)
-Date: Tue, 7 Apr 2026 22:46:26 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Christoph =?iso-8859-1?Q?B=F6hmwalder?= <christoph.boehmwalder@linbit.com>
-Subject: Re: [PATCH 08/20] drbd: add DAX/PMEM support for metadata access
-Message-ID: <adXrslkhromDtu37@infradead.org>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-wr1-f47.google.com (mail-wr1-f47.google.com
+	[209.85.221.47])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 6B54A160849
+	for <drbd-dev@lists.linbit.com>; Wed,  8 Apr 2026 14:01:47 +0200 (CEST)
+Received: by mail-wr1-f47.google.com with SMTP id
+	ffacd0b85a97d-43cf5fbacc9so408592f8f.1
+	for <drbd-dev@lists.linbit.com>; Wed, 08 Apr 2026 05:01:47 -0700 (PDT)
+Date: Wed, 8 Apr 2026 14:01:43 +0200
+From: Christoph =?utf-8?Q?B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+To: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 06/20] drbd: add RDMA transport implementation
+Message-ID: <adZCPanS7iZlcPE9@localhost.localdomain>
 References: <20260327223820.2244227-1-christoph.boehmwalder@linbit.com>
-	<20260327223820.2244227-9-christoph.boehmwalder@linbit.com>
+	<20260327223820.2244227-7-christoph.boehmwalder@linbit.com>
+	<adXq36pbGLXMZc2r@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20260327223820.2244227-9-christoph.boehmwalder@linbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>, nvdimm@lists.linux.dev,
-	Dave Jiang <dave.jiang@intel.com>, Vishal Verma <vishal.l.verma@intel.com>,
-	Philipp Reisner <philipp.reisner@linbit.com>,
+In-Reply-To: <adXq36pbGLXMZc2r@infradead.org>
+Cc: Jens Axboe <axboe@kernel.dk>, Leon Romanovsky <leon@kernel.org>,
+	linux-rdma@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	Lars Ellenberg <lars.ellenberg@linbit.com>,
-	an Williams <dan.j.williams@intel.com>, drbd-dev@lists.linbit.com
+	Jason Gunthorpe <jgg@ziepe.ca>, Lars Ellenberg <lars.ellenberg@linbit.com>,
+	drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -31,12 +34,13 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-Adding the dax maintainers and they really need to review this.
+On Tue, Apr 07, 2026 at 10:42:55PM -0700, Christoph Hellwig wrote:
+>You really need to add the RDMA mailing list before adding new RDMA
+>code.  I'll try to review the bits I still remember, but you also
+>need a maintainer ACK.
 
-> +	long want = (drbd_md_last_sector(bdev) + 1 - first_sector) >> (PAGE_SHIFT - SECTOR_SHIFT);
-> +	pgoff_t pgoff = first_sector >> (PAGE_SHIFT - SECTOR_SHIFT);
-> +	long md_offset_byte = (bdev->md.md_offset - first_sector) << SECTOR_SHIFT;
-> +	long al_offset_byte = (al_sector - first_sector) << SECTOR_SHIFT;
+Thanks for the hint and your detailed feedback. I'll address all that
+in v2 (plus some other similar fixes).
 
-You really want helpers to make all these unit conversions maintainable.
-
+Thanks,
+Christoph
