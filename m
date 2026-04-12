@@ -1,29 +1,23 @@
-Return-Path: <axboe@kernel.dk>
-Received: from mail-dy1-f180.google.com (mail-dy1-f180.google.com
-	[74.125.82.180])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id B5C051630D4
-	for <drbd-dev@lists.linbit.com>; Fri, 10 Apr 2026 03:14:37 +0200 (CEST)
-Received: by mail-dy1-f180.google.com with SMTP id
-	5a478bee46e88-2ce102afb0aso1924914eec.1
-	for <drbd-dev@lists.linbit.com>; Thu, 09 Apr 2026 18:14:37 -0700 (PDT)
-Message-ID: <0cf7c152-a341-40e3-8359-23a633c812c6@kernel.dk>
-Date: Thu, 9 Apr 2026 19:14:34 -0600
+Return-Path: <kuba@kernel.org>
+Received: from tor.source.kernel.org (tor.source.kernel.org [172.105.4.254])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id AC651162338
+	for <drbd-dev@lists.linbit.com>; Sun, 12 Apr 2026 22:01:44 +0200 (CEST)
+Date: Sun, 12 Apr 2026 12:55:02 -0700
+From: Jakub Kicinski <kuba@kernel.org>
+To: Christoph =?UTF-8?B?QsO2aG13YWxkZXI=?= <christoph.boehmwalder@linbit.com>
+Subject: Re: [PATCH 2/4] tools: ynl-gen-c: optionally emit structs and helpers
+Message-ID: <20260412125502.3f8ff576@kernel.org>
+In-Reply-To: <20260407173356.873887-3-christoph.boehmwalder@linbit.com>
+References: <20260407173356.873887-1-christoph.boehmwalder@linbit.com>
+	<20260407173356.873887-3-christoph.boehmwalder@linbit.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/20] DRBD 9 rework
-To: Christoph Hellwig <hch@infradead.org>
-References: <20260327223820.2244227-1-christoph.boehmwalder@linbit.com>
-	<ecf00b4b-c3f8-4161-a97d-3d23b423cabf@kernel.dk>
-	<adXk_m3SbRcWTOIC@infradead.org>
-	<c92d5318-8c8e-434f-835e-61cf1fae4edf@kernel.dk>
-	<addJ6uTc8Zo4GKpW@infradead.org>
-Content-Language: en-US
-From: Jens Axboe <axboe@kernel.dk>
-In-Reply-To: <addJ6uTc8Zo4GKpW@infradead.org>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, linux-kernel@vger.kernel.org,
-	linux-block@vger.kernel.org, Lars Ellenberg <lars.ellenberg@linbit.com>,
-	drbd-dev@lists.linbit.com
+Content-Transfer-Encoding: quoted-printable
+Cc: Jens Axboe <axboe@kernel.dk>, Donald Hunter <donald.hunter@gmail.com>,
+	netdev@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
+	Eric Dumazet <edumazet@google.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -35,46 +29,30 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-On 4/9/26 12:40 AM, Christoph Hellwig wrote:
-> First an apology, I thought it was in your tree, but it looks like
-> the drbd branch just has minor fixes.  So a lot less urgency.
+On Tue,  7 Apr 2026 19:33:54 +0200 Christoph B=C3=B6hmwalder wrote:
+> The new flags in the genetlink-legacy spec that are required for
+> existing consumers to keep working are:
+>=20
+>   "default": a literal value or C define that sets the default value
+>   for an attribute, consumed by set_defaults().
+>=20
+>   "required": if true, from_attrs() returns an error when this
+>   attribute is missing from the request message.
+>=20
+>   "nla-policy-type": can be used to override the NLA type used in
+>   policy arrays. This is needed when the semantic type differs from
+>   the wire type for backward compatibility: genl_magic maps s32 fields
+>   to NLA_U32/nla_get_u32, and existing userspace might depend on this
+>   encoding. The immediate motivation is DRBD, whose genl spec
+>   definition predates the addition of signed types in genl. However,
+>   this is a generic issue that potentially affects multiple families:
+>   for example, nftables has NFTA_HOOK_PRIORITY as s32 in the spec but
+>   NLA_U32 in the actual kernel policy.
 
-No worries, figured you hadn't seen the previous discussion.
+The series doesn't apply for me (neither to Linus's tree nor=20
+to networking trees), so I didn't experiment with this code.
 
-> On Wed, Apr 08, 2026 at 06:58:58AM -0600, Jens Axboe wrote:
->> See the previous discussion,
-> 
-> Do you have a pointer to that discussion?  I can't remember one.
-
-I'm on pretty poor connectivity right now, but find some of my complaining
-on linux-block in response to a previous Christian email.
-
->> the goal is to sync the two drbd code
->> bases. It's followed the "usual" pattern of the in-kernel driver being
->> neglected and development and users pushed to the out-of-tree one,
->> which is highly annoying.
-> 
-> I don't think that's a a usual pattern.  Also the new version looks
-> like a complete rewrite and not something incremental:
-> 
->  45 files changed, 45891 insertions(+), 16264 deletions(-)
-> 
-> For a code base that is "29482 total".
-> 
-> I think reviewing it would be easier by just adding an new drbd9 driver
-> and then steering people toward it carefully, as that is actually
-> reviewable compared to non-bisectable patches changing large chunks
-> of code in a non-atomic way.
-
-That is another approach we could take, but I don't think that would
-make it any easier to review, to be honest. Nobody reviews a full
-driver, their eyes just kind of gloss over.
-
-Heads up - OOO for 1 week, will prep merge window stuff to the best
-of my abilities, but won't be super responsive outside of that. As
-this particular driver isn't going anywhere right now, there's no
-urgency on that side of things.
-
--- 
-Jens Axboe
-
+Are the new code gen additions purely for the kernel?
+Can we just commit the code they output and leave the YNL itself be?
+Every single legacy family has some weird quirks the point of YNL
+is to get rid of them, not support them all..
