@@ -1,24 +1,33 @@
-Return-Path: <ziyuzhang201@gmail.com>
-Received: from mail-pj1-f47.google.com (mail-pj1-f47.google.com
-	[209.85.216.47])
-	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 69CC0160920
-	for <drbd-dev@lists.linbit.com>; Mon,  4 May 2026 05:26:02 +0200 (CEST)
-Received: by mail-pj1-f47.google.com with SMTP id
-	98e67ed59e1d1-364da484a82so836959a91.2
-	for <drbd-dev@lists.linbit.com>; Sun, 03 May 2026 20:26:02 -0700 (PDT)
-From: Ziyu Zhang <ziyuzhang201@gmail.com>
-To: philipp.reisner@linbit.com, lars.ellenberg@linbit.com,
-	christoph.boehmwalder@linbit.com
-Subject: [PATCH] drbd: serialize UUID snapshot in drbd_md_write()
-Date: Mon,  4 May 2026 11:25:50 +0800
-Message-ID: <20260504032550.706749-1-ziyuzhang201@gmail.com>
+Return-Path: <christoph.boehmwalder@linbit.com>
+Received: from mail-wm1-f52.google.com (mail-wm1-f52.google.com
+	[209.85.128.52])
+	by mail19.linbit.com (LINBIT Mail Daemon) with ESMTP id 94E86164D3A
+	for <drbd-dev@lists.linbit.com>; Mon,  4 May 2026 11:06:00 +0200 (CEST)
+Received: by mail-wm1-f52.google.com with SMTP id
+	5b1f17b1804b1-48374014a77so43680605e9.3
+	for <drbd-dev@lists.linbit.com>; Mon, 04 May 2026 02:06:00 -0700 (PDT)
+Date: Mon, 4 May 2026 11:05:55 +0200
+From: Christoph =?utf-8?Q?B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+To: Jakub Kicinski <kuba@kernel.org>
+Subject: Re: [PATCH 2/4] tools: ynl-gen-c: optionally emit structs and helpers
+Message-ID: <afhgQgySpoxXFCn1@localhost.localdomain>
+References: <20260407173356.873887-1-christoph.boehmwalder@linbit.com>
+	<20260407173356.873887-3-christoph.boehmwalder@linbit.com>
+	<20260412125502.3f8ff576@kernel.org>
+	<adzVUdf74CVk2DwJ@localhost.localdomain>
+	<20260413104939.5ef4d9dc@kernel.org>
+	<ad4ox7ibZoiW-tje@localhost.localdomain>
+	<20260414083548.02f76970@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-Cc: axboe@kernel.dk, gality369@gmail.com, zhenghaoran154@gmail.com,
+In-Reply-To: <20260414083548.02f76970@kernel.org>
+Cc: Jens Axboe <axboe@kernel.dk>, Donald Hunter <donald.hunter@gmail.com>,
+	netdev@vger.kernel.org, Philipp Reisner <philipp.reisner@linbit.com>,
 	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org,
-	baijiaju1990@gmail.com, zzzccc427@gmail.com,
-	Ziyu Zhang <ziyuzhang201@gmail.com>, r33s3n6@gmail.com,
-	hanguidong02@gmail.com, drbd-dev@lists.linbit.com
+	Eric Dumazet <edumazet@google.com>,
+	Lars Ellenberg <lars.ellenberg@linbit.com>, drbd-dev@lists.linbit.com
 List-Id: "*Coordination* of development, patches,
 	contributions -- *Questions* \(even to developers\) go to drbd-user,
 	please." <drbd-dev.lists.linbit.com>
@@ -30,51 +39,34 @@ List-Help: <mailto:drbd-dev-request@lists.linbit.com?subject=help>
 List-Subscribe: <https://lists.linbit.com/mailman/listinfo/drbd-dev>,
 	<mailto:drbd-dev-request@lists.linbit.com?subject=subscribe>
 
-drbd_md_write() copies device->ldev->md.uuid[] into the on-disk
-metadata block without holding uuid_lock.
+On Tue, Apr 14, 2026 at 08:35:48AM -0700, Jakub Kicinski wrote:
+>On Tue, 14 Apr 2026 14:08:58 +0200 Christoph Böhmwalder wrote:
+>> But we still need to support the current family via a compat path, and
+>> I would much rather have two YNL-based families than one genl_magic and
+>> one YNL-based. Carrying both sounds like a nightmare.
+>>
+>> So the spec proposed in this series would never actually be used to
+>> generate a userspace client, if that's what you're asking. We would
+>> continue to use the current libgenl-based approach, with some userspace
+>> compat shims to make it work with YNL. Then, when "drbd2" comes along,
+>> we could "do things properly".
+>
+>Let's jump to the drbd2 work.
 
-The write-side helpers drbd_uuid_new_current() and drbd_uuid_set_bm()
-update md.uuid[] under uuid_lock, and some updates span multiple UUID
-slots as one logical state transition. An unlocked drbd_md_write() can
-therefore observe and persist a mixed UUID tuple assembled from two
-different states.
+We have a bit of a chicken-egg situation there.
 
-This is problematic because the serialized UUID tuple is written to
-stable storage and later consumed by reconnect and resync decision
-logic, meaning an inconsistent on-disk snapshot can represent a state that
-never existed atomically in memory.
+The drbd2 work depends on the DRBD 9 upstreaming series, since the drbd2
+netlink family will use the new DRBD 9 semantics.
+However, the DRBD 9 series depends on the current DRBD module already
+using YNL (or rather, *not* using genl_magic anymore).
 
-Protect the UUID copy with uuid_lock so drbd_md_write() serializes one
-coherent snapshot.
+Our plan is to convert the current family to YNL in-place first, then
+incrementally add the new modern drbd2 family with DRBD 9 semantics in
+another series.
 
-Fixes: b411b3637fa7 ("The DRBD driver")
-Signed-off-by: Ziyu Zhang <ziyuzhang201@gmail.com>
----
- drivers/block/drbd/drbd_main.c | 4 ++++
- 1 file changed, 4 insertions(+)
+How would you prefer to handle the YNL switch? If it makes it easier for
+you, just committing the YNL-generated code without the generator is
+fine for me. The old family is effectively frozen, so that would work.
 
-diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
-index a9e49b212..6f835dd05 100644
---- a/drivers/block/drbd/drbd_main.c
-+++ b/drivers/block/drbd/drbd_main.c
-@@ -3004,13 +3004,17 @@ void drbd_md_write(struct drbd_device *device, void *b)
- {
- 	struct meta_data_on_disk *buffer = b;
- 	sector_t sector;
-+	unsigned long flags;
- 	int i;
- 
- 	memset(buffer, 0, sizeof(*buffer));
- 
- 	buffer->la_size_sect = cpu_to_be64(get_capacity(device->vdisk));
-+	/* Serialize the UUID tuple as one coherent snapshot. */
-+	spin_lock_irqsave(&device->ldev->md.uuid_lock, flags);
- 	for (i = UI_CURRENT; i < UI_SIZE; i++)
- 		buffer->uuid[i] = cpu_to_be64(device->ldev->md.uuid[i]);
-+	spin_unlock_irqrestore(&device->ldev->md.uuid_lock, flags);
- 	buffer->flags = cpu_to_be32(device->ldev->md.flags);
- 	buffer->magic = cpu_to_be32(DRBD_MD_MAGIC_84_UNCLEAN);
- 
--- 
-2.43.0
-
+Thanks,
+Christoph
