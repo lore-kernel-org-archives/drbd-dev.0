@@ -1,105 +1,108 @@
-Received: from mail-oi1-f175.google.com (mail-oi1-f175.google.com [209.85.167.175])
+Received: from mail-wm1-f52.google.com (mail-wm1-f52.google.com [209.85.128.52])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id AFC4A2848BA
-	for <drbd-dev@lists.linux.dev>; Wed, 13 May 2026 13:54:08 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.167.175
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id D2DD22DB780
+	for <drbd-dev@lists.linux.dev>; Tue, 19 May 2026 20:51:50 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.128.52
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1778680450; cv=none; b=cpqoi0ybDIw3PYXOde7MKUB0Y+epJA88/+Yzao8nGqxnxTWL1FxqhxGDnu9doB+g9wRFL5XBg6Hd1uPY5a1i4DQe4WSFBQ4veSSpbo/FZu8T0dKi/MPbh2+iZPaYdrCd2P4wzDUlMBiCFXtO9LAZyRZfZmJ6JJxJyhWWVJnly90=
+	t=1779223913; cv=none; b=EkHY1OKmsrWersIERC0WhSQDJsoKB0kGDDQIsZCo8QyTjMeaPN4XUxfv/AzVMmzhmo1x6+ScoFyx0F69HZbjC+On754H5aLnVFTH8ZDOjGLUXJ9FhPJC23jh5PyJ1C+w+0u1Ya93kJjLC9pzCmfbafRYUU8MS7Px295R6erbQ1A=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1778680450; c=relaxed/simple;
-	bh=VblI1AdyJkR5aKIEzu1iv+NjnkZBsAcb1LuT0EYm6A0=;
-	h=From:To:Cc:In-Reply-To:References:Subject:Message-Id:Date:
-	 MIME-Version:Content-Type; b=CDngNWF4rx6YP/HNUVB0ewwRSAiHOp5iLjXDuJjgHnat02Qhee2M31hWUGk3rSIvsmENsPXuvcOXxNeeA1LLMidMFDAAzbfkmopkRjuZWm6xgjWAor3riaVxQnNX3YkF5DFlqo1E7qZ0SumozuELT8qjHFkZYSRe1Xa6crsEmB0=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk; spf=pass smtp.mailfrom=kernel.dk; dkim=pass (2048-bit key) header.d=kernel-dk.20251104.gappssmtp.com header.i=@kernel-dk.20251104.gappssmtp.com header.b=0VlXXRqs; arc=none smtp.client-ip=209.85.167.175
-Authentication-Results: smtp.subspace.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=kernel.dk
+	s=arc-20240116; t=1779223913; c=relaxed/simple;
+	bh=whjXp8rWkJeXDbOFZ/V58cb/3zF2lbhUXZVSFzpVNWE=;
+	h=Message-ID:Date:MIME-Version:Subject:To:Cc:References:From:
+	 In-Reply-To:Content-Type; b=ms4/OlairOkDaOVaYV/4E8sChF9kM8FmMkpHshcsSohXnEfLgm2Rpg493FMR2UNl/vicizOSb0nVm8E6EYaSIMPY6DHVN4W/wRZ10TYqJp4i7h6DQQ1t9hVCWa6DKGCt4RSH6SnRVcgMGRJzaMxu690gMLHIY3P5lFJRAFL6MMY=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com; spf=pass smtp.mailfrom=linbit.com; dkim=pass (2048-bit key) header.d=linbit-com.20251104.gappssmtp.com header.i=@linbit-com.20251104.gappssmtp.com header.b=DmlD2vSV; arc=none smtp.client-ip=209.85.128.52
+Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
+Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=kernel-dk.20251104.gappssmtp.com header.i=@kernel-dk.20251104.gappssmtp.com header.b="0VlXXRqs"
-Received: by mail-oi1-f175.google.com with SMTP id 5614622812f47-47cbd444fd0so4333900b6e.2
-        for <drbd-dev@lists.linux.dev>; Wed, 13 May 2026 06:54:08 -0700 (PDT)
+	dkim=pass (2048-bit key) header.d=linbit-com.20251104.gappssmtp.com header.i=@linbit-com.20251104.gappssmtp.com header.b="DmlD2vSV"
+Received: by mail-wm1-f52.google.com with SMTP id 5b1f17b1804b1-4891c0620bcso25980745e9.1
+        for <drbd-dev@lists.linux.dev>; Tue, 19 May 2026 13:51:50 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=kernel-dk.20251104.gappssmtp.com; s=20251104; t=1778680447; x=1779285247; darn=lists.linux.dev;
-        h=content-transfer-encoding:mime-version:date:message-id:subject
-         :references:in-reply-to:cc:to:from:from:to:cc:subject:date
-         :message-id:reply-to;
-        bh=E2FCDgUz+zxvMvODNC6gcP65BHRtM5wnyKHr7DJ3v+E=;
-        b=0VlXXRqsnRsU9biYiNZv7DbgaI4nyOQs3UTn2kCIx2OrCYqsJDuWk9nPZc/chIdu9p
-         WghUk/J4jEBHAQqtnwFQKS4xMGk6AhWyd/uho3YVXM5SRexWEYjRMI94qmh6ncfYoIn9
-         pfJm2kdyELGcxYwU5Rudp2Gwr8QedglMw5DGOgxnke61L9P4wCOLB+9SykaiRrrzQ7mj
-         mO3fUow2HbkQRh1zUIG6sAGeRyUXQ/3x5bBgCnHDb7NrJNyWa8JZlxHNLdDGVndUprID
-         O4TAPG2jHTASCmEhYYYZtnEbobDzmLTpERngMMpq38DnXpCYXS4qaceSnUiosFUltY0x
-         y+cA==
+        d=linbit-com.20251104.gappssmtp.com; s=20251104; t=1779223909; x=1779828709; darn=lists.linux.dev;
+        h=content-transfer-encoding:in-reply-to:from:content-language
+         :references:cc:to:subject:user-agent:mime-version:date:message-id
+         :from:to:cc:subject:date:message-id:reply-to;
+        bh=6WCYsOu0Hdsv3nYRv+K8TQXlAkq1BjCEa9xNFJ1ynkw=;
+        b=DmlD2vSVGSFzJdGtoLJ+YaJnTd2TnMHtwSVZD0hlpAOTK7Qr1FkS+M7MuEaR63eac5
+         +EUGFpoP1KHpYGm/AWzvZk7OhDeif8AVsfB6NbXL3Hb4Jcm23jKytJ7jSMMosqm73oS/
+         2NX3HlUWfL2vr1FWkW+JutpQY7ZdJF/sggV4UpeTuNx/zbt6ZjFfq/YF4hWyyIf4dynw
+         LlsenkiQJY3/IzZbjhRWlXam8/mE2fOPNMBAiZIdCbVcswQRwom8EStyDjaR8AN38mVH
+         rKutdZrtOw8FJftYMtnMZnDAW/HNDL76If6/G64bHTnQjOZKN97xNZp5puYoBkGbz7N/
+         Nq3A==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20251104; t=1778680447; x=1779285247;
-        h=content-transfer-encoding:mime-version:date:message-id:subject
-         :references:in-reply-to:cc:to:from:x-gm-gg:x-gm-message-state:from
-         :to:cc:subject:date:message-id:reply-to;
-        bh=E2FCDgUz+zxvMvODNC6gcP65BHRtM5wnyKHr7DJ3v+E=;
-        b=oWeJmezj6YzVlB3AGPyX/aq2hX13J62lm22QDMXm6e2uQLbEVtcN/4nLC4Hnaum6dt
-         2kQa4HgX4gP0Dl7ZOW8ceOAUfkLAFRE+lfT7c+V9lWS8+N8RSoxn5KGW441tPy5L9H3W
-         taPJrKQtmv759KXFXmVLmHUlNRwrQzsg7m08IjWOX8+qcQrBcMEaUgkEQU7bz0TfK4tY
-         1kqE7AnEliBiUS6tRLCMorV2TRvnFxCMhsUBYuMBMB1/FQ7IQOzu2yYTQ2Ac6Cl3zje7
-         /5lkiIzk1PQm4dcOsahgoLGcsQ7YFNUEfHUBLEOGwCy1k7/9jLvaOczVRmQgpzQq1X6z
-         7NIA==
-X-Gm-Message-State: AOJu0Yzevj9pj2DAF/1GJkFKE6JXZUhoyr6ZVWi/O/zKLVReo0KrjpCr
-	X3iYV2H/6gYZufRo13C9GSRfBMe47q6gQKqfDqEaXM5O6vY9orsuHcbdSGPq9L2DW7Q=
-X-Gm-Gg: Acq92OHVcTs13gmd2TecFxBeXFwsUauPxsYZ7Hd5LD5bcDWBSgCdv2KuiTZ62oCAWyW
-	pnvh2m9rR1t031MeF429sfiU5FNSx205P3HL43SmnU5w+5nxLQX8xQx3r+mPM/uub+IwPEndQ+j
-	vxX8xugWMj8kR0a5ch/xvJiySB7oyj6yuzvGBaScac0tCot/Vg2OvklVzG2h7cn88/ddQVmCihe
-	YkmTk54goO2aYow+UVBlZ/T4ZES8U5L6nlByh3HKpezNm6tDtZTmlksXrE4lC38sIGJ1B1ssKSc
-	iG4QZoUW8+MeEdb9XL1KZfUJZXbffU9CT9mcCeiZFpUjejQUhHeQ2eVWItZeJhX+LdXVfXyjWmC
-	/Aa9lGgl1PxUcLLVGRxA8IHkfexbOoL+PvsFjNlqnieoxxVaFyD77OXzMZjLV2wS9dWR+NvCN3P
-	KoOOaP2Ow8NLC2TsQpOepK3+EnEe5gEPrI2h8EohsBGryI0d9NdoEqZ9KRYsDt5nfA0zilMNjKF
-	rYQ
-X-Received: by 2002:a05:6808:e652:b0:467:e7b:6fd5 with SMTP id 5614622812f47-482b623a6aemr1425000b6e.41.1778680447575;
-        Wed, 13 May 2026 06:54:07 -0700 (PDT)
-Received: from [127.0.0.1] ([198.8.77.157])
-        by smtp.gmail.com with ESMTPSA id 5614622812f47-47c76985f8fsm24532821b6e.14.2026.05.13.06.54.06
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 13 May 2026 06:54:07 -0700 (PDT)
-From: Jens Axboe <axboe@kernel.dk>
-To: =?utf-8?q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-Cc: drbd-dev@lists.linux.dev, linux-kernel@vger.kernel.org, 
- Lars Ellenberg <lars.ellenberg@linbit.com>, 
- Philipp Reisner <philipp.reisner@linbit.com>, linux-block@vger.kernel.org, 
- kernel test robot <lkp@intel.com>
-In-Reply-To: <20260513110343.3170338-1-christoph.boehmwalder@linbit.com>
-References: <20260513110343.3170338-1-christoph.boehmwalder@linbit.com>
-Subject: Re: [PATCH] drbd: clean up UAPI headers
-Message-Id: <177868044624.398953.18340642491837775041.b4-ty@b4>
-Date: Wed, 13 May 2026 07:54:06 -0600
+        d=1e100.net; s=20251104; t=1779223909; x=1779828709;
+        h=content-transfer-encoding:in-reply-to:from:content-language
+         :references:cc:to:subject:user-agent:mime-version:date:message-id
+         :x-gm-gg:x-gm-message-state:from:to:cc:subject:date:message-id
+         :reply-to;
+        bh=6WCYsOu0Hdsv3nYRv+K8TQXlAkq1BjCEa9xNFJ1ynkw=;
+        b=ALZVByq+XjwqHxFQfHaIlt7e/m1e6fuZZs701K4QHX9YetXjqNIO4gwia9sKWVWT+N
+         yd2glLGHU8pRWyzeTqXPl46FgdhDx2bPvLYqKRMrpDn2zTpLVgExNdu/Vuy71O0a/Gs9
+         P5I3i0ZdwNVHTt4PxgIZE9oDBUPYKn8mibh1ZRlXMMnBU5DkE1Np6np/atW3++Cn4FVi
+         t5EYYhib3PFWkvCsKiX8SLHXt0S1Ek+DyonkxFw7ebkVob9i6IY/ImmRhbW5QusIil8q
+         UBaGvWRJ2Nv0NIyv96vA9ccALP6fqasdPOPD+088wyAV0xda4soW21wygl6dfOLtlDdR
+         IKkQ==
+X-Forwarded-Encrypted: i=1; AFNElJ9j3JnZUxaWoEKG65q0MtHfrEBHbbJ/M9CBK4yNL+JTPm6e3jp4nb/gyI+y28hh8XrCqEH25ZFTow==@lists.linux.dev
+X-Gm-Message-State: AOJu0YxZNkpkVNq1HrT9vrYA28++eK4VA2+dWtgGQSZW2DCb/JhAVNbi
+	4d0otfwdWj9jwS4NJLx6xWzo/tB7hf6n+QxJm60PXxeYV/sUsJw9s3ZNjcmTISO1JuM=
+X-Gm-Gg: Acq92OEB86DGjj2juvFKlCpkglGqBTqUNOBEdiq777xmEVR+Kwu6r82blsftDL4G76O
+	HD7wETjEExaG5ZDTs1CWwlpbP1nKUeIewMpcq8lZB844YxeGrd6LcoViOX2qYxxd3JPJhL+H2R8
+	WwQxhHCjU4FfF0uczE2/I3PXRGy8ByWA+uEUlvkjeLhFP4edl2tFdKr7THLyxhc5Yj461HNszaP
+	SMhGwyBCdEY0DIfqDDG1IhpCr50gWxUCA+kmmJpUJFRVsB5cUZoriKzSpr5iHI2aeVu5Y1hWCMY
+	1RhAC6YlXcf8TKAwObgmX5Vmsi/uzACYXUGtvFfvBpw2acf1XtjWy3nUc5aji3QraWZeZLNJohX
+	t7zFRZFYbQ7tAWtkTQRNkL+lOXrTCIVK38sbkAsVSu+SmDrfiIJkFmOWair+p5uWfeUtcP2myHA
+	LicFv93tCNhIokoTTFKSxd2RcheyqtuhxdUtGlI8gvP6ESqBlhKm3sq+PJvkC/AxjhIz3ojegpT
+	sUG0goftiQ2NqisK3UDn7eoXaZE2XW0Xkc=
+X-Received: by 2002:a05:600c:8901:b0:48e:526e:1040 with SMTP id 5b1f17b1804b1-48fe63021f9mr298522225e9.23.1779223909230;
+        Tue, 19 May 2026 13:51:49 -0700 (PDT)
+Received: from [10.61.154.145] (91.141.120.117.wireless.dyn.drei.com. [91.141.120.117])
+        by smtp.gmail.com with ESMTPSA id ffacd0b85a97d-45d9e767cb9sm46504270f8f.2.2026.05.19.13.51.45
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Tue, 19 May 2026 13:51:48 -0700 (PDT)
+Message-ID: <65088b94-a603-4e84-8601-0663f85303b9@linbit.com>
+Date: Tue, 19 May 2026 22:51:44 +0200
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Subscribe: <mailto:drbd-dev+subscribe@lists.linux.dev>
 List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+User-Agent: Mozilla Thunderbird
+Subject: Re: [PATCH] drbd: remove unused drbd_nl_mcgrps[] array
+To: Arnd Bergmann <arnd@kernel.org>,
+ Philipp Reisner <philipp.reisner@linbit.com>,
+ Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>,
+ Jakub Kicinski <kuba@kernel.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, drbd-dev@lists.linbit.com,
+ linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+ drbd-dev@lists.linux.dev
+References: <20260519203057.1340528-1-arnd@kernel.org>
+Content-Language: en-US
+From: =?UTF-8?Q?Christoph_B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
+In-Reply-To: <20260519203057.1340528-1-arnd@kernel.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
-X-Mailer: b4 0.15.2
 
-
-On Wed, 13 May 2026 13:03:42 +0200, Christoph Böhmwalder wrote:
-> Commit b1798910fc7f ("drbd: move UAPI headers to include/uapi/linux/")
-> broke compilation on targets without a hosted libc:
+On 5/19/26 22:30, Arnd Bergmann wrote:
+> From: Arnd Bergmann <arnd@arndb.de>
 > 
->   ./usr/include/linux/drbd.h:18:10: fatal error: sys/types.h: No such
->   file or directory
+> After the rework, two files have a copy of drbd_nl_mcgrps[], but one
+> of them has no references:
 > 
-> The underlying issue is that there were some constructs left over in
-> those headers that don't belong in uapi.
+> drivers/block/drbd/drbd_nl_gen.c:641:42: error: 'drbd_nl_mcgrps' defined but not used [-Werror=unused-const-variable=]
+>    641 | static const struct genl_multicast_group drbd_nl_mcgrps[] = {
+>        |                                          ^~~~~~~~~~~~~~
 > 
-> [...]
+> At the default warning level, -Wunused-const-variables is turned off,
+> so this has gone unnoticed.
+> 
+> Remove the extra variable.
+> 
+> Fixes: 8098eeb693c4 ("drbd: replace genl_magic with explicit netlink serialization")
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 
-Applied, thanks!
+Oops, looks like a copy/paste error on my side.
+Thanks for noticing and fixing.
 
-[1/1] drbd: clean up UAPI headers
-      commit: d5607f1fafd7eb72ed693b6a033d96221e870edd
-
-Best regards,
--- 
-Jens Axboe
-
-
-
+Reviewed-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
