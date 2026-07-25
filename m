@@ -1,113 +1,107 @@
-Received: from mail-wr1-f50.google.com (mail-wr1-f50.google.com [209.85.221.50])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+Received: from smtp.kernel.org (aws-us-west-2-korg-mail-alma10-1.taild15c8.ts.net [100.103.45.18])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 8FB052C11E4
-	for <drbd-dev@lists.linux.dev>; Thu, 23 Jul 2026 07:45:24 +0000 (UTC)
-Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=209.85.221.50
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id 2D0BC625;
+	Sat, 25 Jul 2026 20:31:10 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org; arc=none smtp.client-ip=100.103.45.18
 ARC-Seal:i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
-	t=1784792727; cv=none; b=YWd3wxxy1U3rYByC/jyS5oyIGk8dNqMx0L1ttSoiDriZcGabxaQQh5utmXrD8HFWEIDPsxMjvcdAcTzZ2i2/Wx8MzCGyKQRdVN/PKtXMGvFZzHqZGmGQzYMUPcJkFL0s2tzzRl25jX1BMT6kbsM6/fXNfXcUDv9NUBokc0lsq9I=
+	t=1785011472; cv=none; b=aTgBjb9cj0tsiNCIRNgwNLQgX0d4hZvqBukP+Rg2l7tWTaje0908uRIqsphDDLpNn90NS7itft0NcPZn0kT/lLzw0lkWg+AGJ+lbKUrBFyLPInQnST1u4p1GrXrFF2jSYORyEQQo4xyOyaRpTavkuvEMlc1C2OJHvum7JLtMtJs=
 ARC-Message-Signature:i=1; a=rsa-sha256; d=subspace.kernel.org;
-	s=arc-20240116; t=1784792727; c=relaxed/simple;
-	bh=FK4nuECWzh/2cINKiJS9Y1w/QvpKWO46HahbEljsyGI=;
-	h=Date:From:To:Cc:Subject:Message-ID:References:MIME-Version:
-	 Content-Type:Content-Disposition:In-Reply-To; b=kX1aaHmoMfsexX52UHw/ah8zlnNNc53XMq48rw9qeNgOMOe+BlrplkCodXojJoIro9PYHefXmfRx0HRVngCKZdGURhvH73kO8uHql9hfPpjHhujEDu0QgoYwAbQgvCBMQM3uItnEL3eXdt/sqg680x/c7SqVdd/+DRM5gwtnHCc=
-ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com; spf=pass smtp.mailfrom=linbit.com; dkim=pass (2048-bit key) header.d=linbit-com.20251104.gappssmtp.com header.i=@linbit-com.20251104.gappssmtp.com header.b=UlT7CY2w; arc=none smtp.client-ip=209.85.221.50
-Authentication-Results: smtp.subspace.kernel.org; dmarc=pass (p=none dis=none) header.from=linbit.com
-Authentication-Results: smtp.subspace.kernel.org; spf=pass smtp.mailfrom=linbit.com
+	s=arc-20240116; t=1785011472; c=relaxed/simple;
+	bh=e6KMoD3bd5/q6p3xQeg23qgiuejFXySUo/aGZ6esyCc=;
+	h=From:To:Cc:Subject:In-Reply-To:References:Date:Message-ID:
+	 MIME-Version:Content-Type; b=JKAGydDvVpvukxAV9Q1NF4vPSEA0b15yWfsrQ+p8Z/gHAJTBkG3dE+5eiVca8cKXSa3+Noh0ZRnip2j1grPveDwhnKx5JBqbrqP+cZ/zdtyC9p92rmeO423HfMKXTQCZvNPA2mBE33TwVY9FNnKOF7f2Gxtd/dBn9DwNGDP2Zzo=
+ARC-Authentication-Results:i=1; smtp.subspace.kernel.org; dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b=hAfTn9kP; arc=none smtp.client-ip=100.103.45.18
 Authentication-Results: smtp.subspace.kernel.org;
-	dkim=pass (2048-bit key) header.d=linbit-com.20251104.gappssmtp.com header.i=@linbit-com.20251104.gappssmtp.com header.b="UlT7CY2w"
-Received: by mail-wr1-f50.google.com with SMTP id ffacd0b85a97d-47db714766aso82314f8f.0
-        for <drbd-dev@lists.linux.dev>; Thu, 23 Jul 2026 00:45:24 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linbit-com.20251104.gappssmtp.com; s=20251104; t=1784792723; x=1785397523; darn=lists.linux.dev;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :content-type:mime-version:references:mail-followup-to:message-id
-         :subject:cc:to:from:date:from:to:cc:subject:date:message-id:reply-to
-         :content-type;
-        bh=FK4nuECWzh/2cINKiJS9Y1w/QvpKWO46HahbEljsyGI=;
-        b=UlT7CY2wnq5VtTRSZEBr2hdVHBIGBc1wbwmOVpu5nJ+Tq/d6OXa9lnR8J0rUy9JK3b
-         Uu4mOacY2Sid4kygUnvhbJVWw45cbijKPHnuZ3Yw9cLfn1qwHN1mAXaKQNWWgakDNG9z
-         Is7hJ3BAv238PUdG0X8ibEidWGXsetSXeWHwSBfpnBtqhP+ycbE5riwzMib4MBvvUquI
-         O6XiaI+oiv93zO0KjstSlj4Iu9LWKOEKRb9HTuLItCKIBs9b6rS/409Dq6P/2rA+Z3Oo
-         W5P9vkHrGYj3DYa+O4ojrNSIph1bjgx2DSPkqjp8VaovKk8+D73ld6a4PTVoKdUeB+zV
-         rAIQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20251104; t=1784792723; x=1785397523;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :content-type:mime-version:references:mail-followup-to:message-id
-         :subject:cc:to:from:date:x-gm-gg:x-gm-message-state:from:to:cc
-         :subject:date:message-id:reply-to:content-type;
-        bh=FK4nuECWzh/2cINKiJS9Y1w/QvpKWO46HahbEljsyGI=;
-        b=fPJK2FNWUrY9HNDfPg9rarJr35I5AlppfGzccWYKM0BBMqsMmMxsvLechsTA1xFJ/O
-         RAe0rmvM9LX+G08OPXbu47E48aJ1m2xohTLw44V0NY3pXjkt/Bp0eMnslimRpYJblA0T
-         o/Z70A4R0qFZJ8j/904GrRxeZBNN9S9mjHg5784LZJsDbky9LldfsD2Ic4b2YfBcsCk1
-         lXRvzpIJpYTOqs6H2eRrjXSmASuo4a97avJNlz5v2SRmqyxXmEtLdgFmfBgBL+S/7k+O
-         7tiX2sB9mMe6sn8I5IoxYeNdpJJiAjl+06C+wTrYZ8VEjSGQ81swTZndijyhn0JEInyg
-         0x4g==
-X-Forwarded-Encrypted: i=1; AHgh+Rrfwbem03e0qPyyTBM5MO3vteZvxgmBRWitkI1h/7gSEINjyJ65juFYWctIyVAyk8vBYqyND8cH2g==@lists.linux.dev
-X-Gm-Message-State: AOJu0Yw1xKlRiRAMO3fEcJk7Sba3yz47KvpdksOfPEME5bvbC/QI09UT
-	exHBDeV6/OeDBl5Xdd4TYj59drLx0JT9fWFn9bCW93o0mv3Kf+1FwVK47JYoNPU13Ek=
-X-Gm-Gg: AR+sD10CWKAhBWZvBpL/RGb8+Ex9AJT8ArR3OCpJRuHyDhpCEvLXJpwqrqWdEkoigTm
-	47wlDJokOfIAA5s8WckIbbFP61TJMKmXrv74PHkFGkGYziyjoYDQCYCJifCB2iU3KfMrvxhRZLb
-	4WY0/1xFpvnRboJGUeWKEq8MpiGTVSei4hTGMdiiNNZu925vzd9c+vqlzYBas2Y/PrGpLSM+ZQ2
-	c54wvdy0UX6ILQ8lDWnBbIty6JueafEb3ZhqkmDALybJ9b6cxP6WDU/UVr0j+q9notv5C6Ejhff
-	l5EYN5rHp54cSdUHNT9iQA9XFXOTB17NlCBoQfg0WHjFckUpLfbPdH8oEZnBIc9p67b8WAiwR+f
-	WyWlvXDpcoThtlVOYMQmmdQR0PFPd934X9gXjZxhpNeQ6ZnuYyx7BFPPRMeMw1IO9cZyhJ+Z4cf
-	fZL2mxYZQ4JMtXK2tWEVmgHO9m1oNmES8WARqTPXFq5+6ZBA==
-X-Received: by 2002:a05:6000:1acd:b0:47f:70f2:ccf6 with SMTP id ffacd0b85a97d-47f90215a85mr1739490f8f.6.1784792722721;
-        Thu, 23 Jul 2026 00:45:22 -0700 (PDT)
-Received: from localhost (h082218129081.host.wavenet.at. [82.218.129.81])
-        by smtp.gmail.com with ESMTPSA id ffacd0b85a97d-47f85c6dc25sm13663180f8f.33.2026.07.23.00.45.21
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Thu, 23 Jul 2026 00:45:22 -0700 (PDT)
-Date: Thu, 23 Jul 2026 09:45:21 +0200
-From: Christoph =?utf-8?Q?B=C3=B6hmwalder?= <christoph.boehmwalder@linbit.com>
-To: Linmao Li <lilinmao@kylinos.cn>
-Cc: Philipp Reisner <philipp.reisner@linbit.com>, 
-	Lars Ellenberg <lars.ellenberg@linbit.com>, Jens Axboe <axboe@kernel.dk>, drbd-dev@lists.linux.dev, 
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Subject: Re: [PATCH] drbd: reject out-of-range sizes when draining data
-Message-ID: <amHEWfR808gFEanV@linbit.com>
-Mail-Followup-To: Linmao Li <lilinmao@kylinos.cn>, 
-	Philipp Reisner <philipp.reisner@linbit.com>, Lars Ellenberg <lars.ellenberg@linbit.com>, 
-	Jens Axboe <axboe@kernel.dk>, drbd-dev@lists.linux.dev, linux-block@vger.kernel.org, 
-	linux-kernel@vger.kernel.org, stable@vger.kernel.org
-References: <20260713023434.288279-1-lilinmao@kylinos.cn>
+	dkim=pass (2048-bit key) header.d=kernel.org header.i=@kernel.org header.b="hAfTn9kP"
+Received: by smtp.kernel.org (Postfix) with ESMTPSA id DFFA01F000E9;
+	Sat, 25 Jul 2026 20:31:09 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kernel.org;
+	s=k20260515; t=1785011470;
+	bh=e6KMoD3bd5/q6p3xQeg23qgiuejFXySUo/aGZ6esyCc=;
+	h=From:To:Cc:Subject:In-Reply-To:References:Date;
+	b=hAfTn9kP3ZABFKIwidJBkzkwUEnV03/r5N7p8kmUos3uDtUKUWtEJzQPpdypzC87s
+	 s8zXrjsDbl2M4eM1W7J86H4KiLLuZnMtxMMILtEw98qiQcngdzhm3Z933lwVaUuZ1u
+	 NLkyUWEUlaRXQiJD2BrV3+doGFNu5m2sLbsSq0EGZklaA6R4wtvLOLLa2OnPQe5qNl
+	 qRc/eqpUyUDjcyObmg1ruSpXH9PI078U1i4aarlF7k3SAVuPPwJdBfCiYHUHqv1JgK
+	 gHSHbd+Pb+4KEwvFVr0Xj05kVhoMd7+HPlRE8f80fEhbz02ckPWPFwbzdqixw/v4UL
+	 pVfAw00n8dMXA==
+From: Thomas Gleixner <tglx@kernel.org>
+To: Petr Pavlu <petr.pavlu@suse.com>, Tony Luck <tony.luck@intel.com>,
+ Borislav Petkov <bp@alien8.de>, Ingo Molnar <mingo@redhat.com>, Dave
+ Hansen <dave.hansen@linux.intel.com>, x86@kernel.org, "H. Peter Anvin"
+ <hpa@zytor.com>, Philipp Reisner <philipp.reisner@linbit.com>, Lars
+ Ellenberg <lars.ellenberg@linbit.com>, Christoph =?utf-8?Q?B=C3=B6hmwalde?=
+ =?utf-8?Q?r?=
+ <christoph.boehmwalder@linbit.com>, Jens Axboe <axboe@kernel.dk>, Johan
+ Hovold <johan@kernel.org>, Alex Elder <elder@kernel.org>, Greg
+ Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki"
+ <rafael@kernel.org>, Michal Januszewski <spock@gentoo.org>, Helge Deller
+ <deller@gmx.de>, Alexander Viro <viro@zeniv.linux.org.uk>, Christian
+ Brauner <brauner@kernel.org>, Jan Kara <jack@suse.cz>, Trond Myklebust
+ <trondmy@kernel.org>, Anna Schumaker <anna@kernel.org>, Chuck Lever
+ <cel@kernel.org>, Jeff Layton <jlayton@kernel.org>, NeilBrown
+ <neil@brown.name>, Olga Kornievskaia <okorniev@redhat.com>, Dai Ngo
+ <Dai.Ngo@oracle.com>, Tom Talpey <tom@talpey.com>, Mark Fasheh
+ <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>, Joseph Qi
+ <joseph.qi@linux.alibaba.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner
+ <hannes@cmpxchg.org>, Michal =?utf-8?Q?Koutn=C3=BD?= <mkoutny@suse.com>,
+ Luis Chamberlain
+ <mcgrof@kernel.org>, Petr Pavlu <petr.pavlu@suse.com>, Daniel Gomez
+ <da.gomez@kernel.org>, Sami Tolvanen <samitolvanen@google.com>, Aaron
+ Tomlin <atomlin@atomlin.com>, Pavel Machek <pavel@kernel.org>, Len Brown
+ <lenb@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Danilo
+ Krummrich <dakr@kernel.org>, Nikolay Aleksandrov <razor@blackwall.org>,
+ Ido Schimmel <idosch@nvidia.com>, "David S. Miller" <davem@davemloft.net>,
+ Eric Dumazet <edumazet@google.com>, Jakub Kicinski <kuba@kernel.org>,
+ Paolo Abeni <pabeni@redhat.com>, Simon Horman <horms@kernel.org>, David
+ Howells <dhowells@redhat.com>, Jarkko Sakkinen <jarkko@kernel.org>, Paul
+ Moore <paul@paul-moore.com>, James Morris <jmorris@namei.org>, "Serge E.
+ Hallyn" <serge@hallyn.com>, Kentaro Takeda <takedakn@nttdata.co.jp>,
+ Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-edac@vger.kernel.org, linux-kernel@vger.kernel.org,
+ drbd-dev@lists.linux.dev, linux-block@vger.kernel.org,
+ greybus-dev@lists.linaro.org, linuxppc-dev@lists.ozlabs.org,
+ linux-acpi@vger.kernel.org, linux-fbdev@vger.kernel.org,
+ dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org,
+ linux-nfs@vger.kernel.org, ocfs2-devel@lists.linux.dev,
+ cgroups@vger.kernel.org, linux-modules@vger.kernel.org,
+ linux-pm@vger.kernel.org, driver-core@lists.linux.dev,
+ bridge@lists.linux.dev, netdev@vger.kernel.org, keyrings@vger.kernel.org,
+ linux-security-module@vger.kernel.org
+Subject: Re: [PATCH v2 2/3] time/jiffies: Include linux/sysctl.h for
+ proc_int_u2k_conv_uop(), ...
+In-Reply-To: <20260721131207.803760-3-petr.pavlu@suse.com>
+References: <20260721131207.803760-1-petr.pavlu@suse.com>
+ <20260721131207.803760-3-petr.pavlu@suse.com>
+Date: Sat, 25 Jul 2026 22:31:07 +0200
+Message-ID: <874ihmke0k.ffs@fw13>
 Precedence: bulk
 X-Mailing-List: drbd-dev@lists.linux.dev
 List-Id: <drbd-dev.lists.linux.dev>
 List-Subscribe: <mailto:drbd-dev+subscribe@lists.linux.dev>
 List-Unsubscribe: <mailto:drbd-dev+unsubscribe@lists.linux.dev>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20260713023434.288279-1-lilinmao@kylinos.cn>
+Content-Type: text/plain
 
-On Mon, Jul 13, 2026 at 10:34:34AM +0800, Linmao Li wrote:
->drbd_drain_block() receives the peer-provided payload size through a
->signed int argument. A wire length above INT_MAX therefore becomes
->negative. The receive loop still runs, converts the negative result of
->min_t() to an unsigned length, and may receive more than the single
->allocated page can hold.
->
->Commit bd910a7660d2 ("drbd: reject data replies with an out-of-range
->payload size") addressed the same issue in recv_dless_read(), but the
->error paths which discard payload data still use drbd_drain_block().
->
->Reject negative sizes before allocating and mapping the temporary page.
->
->Fixes: b411b3637fa7 ("The DRBD driver")
->Cc: stable@vger.kernel.org
->Signed-off-by: Linmao Li <lilinmao@kylinos.cn>
->---
-> drivers/block/drbd/drbd_receiver.c | 5 +++++
-> 1 file changed, 5 insertions(+)
+On Tue, Jul 21 2026 at 15:11, Petr Pavlu wrote:
 
-Yep, same thing -- DRBD usually chooses to trust its peers, but the
-consequences here are pretty bad and the fix is trivial, so let's do it.
+> The kernel/time/jiffies.c file uses proc_int_u2k_conv_uop(),
 
-Reviewed-by: Christoph Böhmwalder <christoph.boehmwalder@linbit.com>
+jiffies.c uses ...
 
-Thanks,
-Christoph
+> proc_int_k2u_conv_kop(), proc_int_conv(), proc_dointvec_conv() and
+> proc_doulongvec_minmax_conv(), which are declared in linux/sysctl.h. It
+> currently relies on this header being included indirectly through
+> linux/module.h -> linux/kmod.h. Add the missing include in preparation for
+> removing the linux/sysctl.h include from linux/kmod.h.
+
+Can you please split that spaghetti sentence into paragraphs?
+
+https://docs.kernel.org/process/maintainer-tip.html#changelog
+
+> Signed-off-by: Petr Pavlu <petr.pavlu@suse.com>
+
+Other than that.
+
+Acked-by: Thomas Gleixner <tglx@kernel.org>
